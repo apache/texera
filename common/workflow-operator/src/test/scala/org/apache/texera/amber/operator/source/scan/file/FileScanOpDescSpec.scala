@@ -118,4 +118,99 @@ class FileScanOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     val out = physical.propagateSchema.func(Map.empty)
     assert(out(outPortId) == fileScanOpDesc.sourceSchema())
   }
+
+  "FileScanOpDesc.generateStandaloneCode" should
+    "read every line as text with the configured encoding by default" in {
+    assert(
+      fileScanOpDesc.generateStandaloneCode() ==
+        """_rows = []
+          |for _fn in in1df.iloc[:, 0]:
+          |    with open(_fn, "r", encoding="utf-8") as _f:
+          |        _rows.extend(l.rstrip("\n") for l in _f)
+          |out1df = pd.DataFrame({"line": _rows})""".stripMargin
+    )
+  }
+
+  // The enum name is "US_ASCII", not a Python codec name.
+  it should "render the encoding as a Python codec name" in {
+    fileScanOpDesc.fileEncoding = FileDecodingMethod.ASCII
+    assert(fileScanOpDesc.generateStandaloneCode().contains("""encoding="us-ascii""""))
+  }
+
+  it should "read the whole file in single-value mode, keeping the filename only when asked" in {
+    fileScanOpDesc.attributeType = FileAttributeType.SINGLE_STRING
+
+    fileScanOpDesc.outputFileName = true
+    val withName = fileScanOpDesc.generateStandaloneCode()
+    assert(withName.contains("        _rows.append((_fn, _f.read()))"))
+    assert(withName.endsWith("""out1df = pd.DataFrame(_rows, columns=["filename", "line"])"""))
+
+    fileScanOpDesc.outputFileName = false
+    val withoutName = fileScanOpDesc.generateStandaloneCode()
+    assert(withoutName.contains("        _rows.append(_f.read())"))
+    assert(withoutName.endsWith("""out1df = pd.DataFrame({"line": _rows})"""))
+
+    // The platform's line-by-line branch (FileScanUtils.createTuplesFromFile)
+    // emits only the value, so line mode must drop the filename column too.
+    fileScanOpDesc.attributeType = FileAttributeType.STRING
+    fileScanOpDesc.outputFileName = true
+    assert(!fileScanOpDesc.generateStandaloneCode().contains("filename"))
+  }
+
+  it should "open binary attribute types in binary mode" in {
+    Seq(FileAttributeType.BINARY, FileAttributeType.LARGE_BINARY).foreach { attrType =>
+      fileScanOpDesc.attributeType = attrType
+      val code = fileScanOpDesc.generateStandaloneCode()
+      assert(code.contains("""    with open(_fn, "rb") as _f:"""))
+      assert(!code.contains("encoding="))
+      assert(code.contains("        _rows.append(_f.read())"))
+    }
+  }
+
+  it should "cast each line to the configured attribute type" in {
+    val castByType = Seq(
+      FileAttributeType.INTEGER -> "int(l.rstrip())",
+      FileAttributeType.LONG -> "int(l.rstrip())",
+      FileAttributeType.DOUBLE -> "float(l.rstrip())",
+      FileAttributeType.BOOLEAN -> """l.rstrip().lower() == "true"""",
+      FileAttributeType.TIMESTAMP -> "pd.Timestamp(l.rstrip())",
+      FileAttributeType.STRING -> """l.rstrip("\n")"""
+    )
+    castByType.foreach {
+      case (attrType, cast) =>
+        fileScanOpDesc.attributeType = attrType
+        assert(
+          fileScanOpDesc
+            .generateStandaloneCode()
+            .contains(s"        _rows.extend($cast for l in _f)")
+        )
+    }
+  }
+
+  it should "materialize the lines and slice them when a limit or offset is set" in {
+    fileScanOpDesc.attributeType = FileAttributeType.INTEGER
+
+    fileScanOpDesc.fileScanOffset = Option(3)
+    fileScanOpDesc.fileScanLimit = None
+    assert(fileScanOpDesc.generateStandaloneCode().contains("    _rows.extend(_lines[3:])"))
+
+    fileScanOpDesc.fileScanOffset = None
+    fileScanOpDesc.fileScanLimit = Option(5)
+    assert(fileScanOpDesc.generateStandaloneCode().contains("    _rows.extend(_lines[0:5])"))
+
+    fileScanOpDesc.fileScanOffset = Option(3)
+    fileScanOpDesc.fileScanLimit = Option(5)
+    val code = fileScanOpDesc.generateStandaloneCode()
+    assert(code.contains("        _lines = [int(l.rstrip()) for l in _f]"))
+    assert(code.contains("    _rows.extend(_lines[3:8])"))
+  }
+
+  it should "warn that archive extraction is unsupported when extract is on" in {
+    // `extract` is a val, so it can only be set through deserialization.
+    val desc = objectMapper.readValue(
+      """{"operatorType":"FileScanOp","extract":true}""",
+      classOf[FileScanOpDesc]
+    )
+    assert(desc.generateStandaloneCode().startsWith("# WARNING: extract=true is not supported"))
+  }
 }

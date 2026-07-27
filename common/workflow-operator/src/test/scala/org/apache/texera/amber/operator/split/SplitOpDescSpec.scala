@@ -127,6 +127,37 @@ class SplitOpDescSpec extends AnyFlatSpec with Matchers {
   }
 
   // ---------------------------------------------------------------------------
+  // generateStandaloneCode
+  // ---------------------------------------------------------------------------
+
+  "SplitOpDesc.generateStandaloneCode" should
+    "draw an unseeded mask and partition the input across both outputs" in {
+    (new SplitOpDesc).generateStandaloneCode() shouldBe
+      """import numpy as np
+        |_split_mask = np.random.RandomState(None).rand(len(in1df)) < 0.8
+        |out1df = in1df[_split_mask].reset_index(drop=True)
+        |out2df = in1df[~_split_mask].reset_index(drop=True)""".stripMargin
+  }
+
+  it should "pass the configured seed to RandomState when auto-generate is off" in {
+    val d = new SplitOpDesc
+    d.random = false
+    d.seed = 42
+    d.generateStandaloneCode() should include("np.random.RandomState(42).rand(len(in1df))")
+  }
+
+  // k is a percentage on the descriptor but a fraction in the generated code;
+  // an integer division here would collapse every split to 0.
+  it should "convert the split percentage to a fraction" in {
+    Seq(0 -> "0.0", 30 -> "0.3", 80 -> "0.8", 100 -> "1.0").foreach {
+      case (k, frac) =>
+        val d = new SplitOpDesc
+        d.k = k
+        d.generateStandaloneCode() should include(s"< $frac")
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // Independent instances
   // ---------------------------------------------------------------------------
 

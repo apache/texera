@@ -88,6 +88,17 @@ class UnionOpDescSpec extends AnyFlatSpec with Matchers {
   }
 
   // ---------------------------------------------------------------------------
+  // generateStandaloneCode
+  // ---------------------------------------------------------------------------
+
+  // UNION ALL: UnionOpExec passes tuples through without dedup, so the
+  // generated concat must not drop duplicates either.
+  "UnionOpDesc.generateStandaloneCode" should "concatenate both inputs without dedup" in {
+    (new UnionOpDesc).generateStandaloneCode() shouldBe
+      "out1df = pd.concat([in1df, in2df], ignore_index=True)"
+  }
+
+  // ---------------------------------------------------------------------------
   // Independent instances
   // ---------------------------------------------------------------------------
 

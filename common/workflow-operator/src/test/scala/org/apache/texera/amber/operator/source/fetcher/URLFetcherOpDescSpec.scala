@@ -92,6 +92,32 @@ class URLFetcherOpDescSpec extends AnyFlatSpec with Matchers {
     }
   }
 
+  "URLFetcherOpDesc.generateStandaloneCode" should
+    "fetch the URL and decode the body as UTF-8 text" in {
+    configured(DecodingMethod.UTF_8).generateStandaloneCode() shouldBe
+      """import urllib.request
+        |_url = "https://example.test/data"
+        |try:
+        |    with urllib.request.urlopen(_url) as _resp:
+        |        _content = _resp.read()
+        |except Exception:
+        |    _content = f"Fetch failed for URL: {_url}".encode("utf-8")
+        |out1df = pd.DataFrame({"URL content": [_content.decode("utf-8")]})""".stripMargin
+  }
+
+  it should "keep the raw bytes when decoding is not UTF-8" in {
+    configured(DecodingMethod.RAW_BYTES).generateStandaloneCode() should
+      endWith("""out1df = pd.DataFrame({"URL content": [_content]})""")
+  }
+
+  // The URL is user-supplied and lands inside the generated Python source, so
+  // it goes through JSON string encoding rather than raw interpolation.
+  it should "emit the URL as an escaped Python string literal" in {
+    val op = configured(DecodingMethod.UTF_8)
+    op.url = """https://example.test/a"b\c"""
+    op.generateStandaloneCode() should include("""_url = "https://example.test/a\"b\\c"""")
+  }
+
   it should "propagate sourceSchema onto the single output port" in {
     // Exercise propagateSchema.func directly so the test actually proves the
     // sourceSchema gets routed to the output port id, not just that an

@@ -59,6 +59,31 @@ class RandomKSamplingOpDescSpec extends AnyFlatSpec with Matchers {
     restored.asInstanceOf[RandomKSamplingOpDesc].percentage shouldBe 25
   }
 
+  "RandomKSamplingOpDesc.generateStandaloneCode" should
+    "draw a per-row Bernoulli mask from a seeded RNG" in {
+    val d = new RandomKSamplingOpDesc
+    d.percentage = 25
+    d.generateStandaloneCode() shouldBe
+      """import random as _texera_rks_rand
+        |_texera_rks_rng = _texera_rks_rand.Random(1)
+        |_texera_rks_mask = pd.Series(
+        |    [0.25 >= _texera_rks_rng.random() for _ in range(len(in1df))],
+        |    index=in1df.index, dtype=bool
+        |)
+        |out1df = in1df[_texera_rks_mask].reset_index(drop=True)""".stripMargin
+  }
+
+  // percentage is a whole number on the descriptor but a probability in the
+  // generated code; an integer division here would keep no rows at all.
+  it should "convert the percentage to a probability" in {
+    Seq(0 -> "0.0", 30 -> "0.3", 100 -> "1.0").foreach {
+      case (pct, prob) =>
+        val d = new RandomKSamplingOpDesc
+        d.percentage = pct
+        d.generateStandaloneCode() should include(s"[$prob >= _texera_rks_rng.random()")
+    }
+  }
+
   "RandomKSamplingOpDesc.getPhysicalOp" should
     "wire the RandomKSamplingOpExec class name and carry ports" in {
     val d = new RandomKSamplingOpDesc
