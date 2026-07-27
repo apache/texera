@@ -18,18 +18,7 @@
 import base64
 import json
 import sys
-import warnings
 from loguru import logger
-
-# `fs` (imported transitively by the core import below) pulls in pkg_resources
-# at import time (#4199), which emits this deprecation warning on stderr in
-# every spawned worker. It is not actionable on our side, so filter it before
-# the import chain runs. Mirrored for pytest in amber/pyproject.toml.
-warnings.filterwarnings(
-    "ignore",
-    message="pkg_resources is deprecated as an API.*",
-    category=UserWarning,
-)
 
 try:
     from core.python_worker import PythonWorker

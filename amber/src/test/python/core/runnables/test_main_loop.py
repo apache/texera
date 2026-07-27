@@ -2613,8 +2613,8 @@ class TestMainLoop:
         Regression test for executor-module contamination (#4705): executor
         modules were once named ``udf-v<per-instance-counter>``, so every
         loop's first executor was ``udf-v1`` in the process-wide
-        ``sys.modules``. A loop whose worker never completes never closes its
-        temp fs, so its ``udf-v1.py`` lingered on ``sys.path`` and the next
+        ``sys.modules``. A loop whose worker never completes never removes its
+        temp directory, so its ``udf-v1.py`` lingered on ``sys.path`` and the next
         loop re-resolved ``udf-v1`` to that older file, silently running the
         wrong operator. This test uses NO monkeypatch of
         ``gen_module_file_name`` -- module names must be process-globally
@@ -2633,9 +2633,9 @@ class TestMainLoop:
         second = Context("worker-second", InternalQueue())
         try:
             # The first loop loads EchoOperator and is intentionally left "unfinished"
-            # until after the second loop is initialized: its temp fs is not closed yet,
-            # so its udf module and sys.path entry linger exactly as a crashed /
-            # never-completed worker's would.
+            # until after the second loop is initialized: its temp directory is not
+            # removed yet, so its udf module and sys.path entry linger exactly as a
+            # crashed / never-completed worker's would.
             first.executor_manager.initialize_executor(
                 echo_code, is_source=False, language="python"
             )

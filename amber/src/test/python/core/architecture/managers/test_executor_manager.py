@@ -39,6 +39,17 @@ class TestSourceOperator(UDFSourceOperator):
         yield Tuple({"test": "data"})
 """
 
+NON_ASCII_OPERATOR_CODE = """
+from pytexera import *
+
+class NonAsciiOperator(UDFOperatorV2):
+    # コメント: user code may contain any Unicode text.
+    GREETING = "café"
+
+    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
+        yield tuple_
+"""
+
 
 class TestExecutorManager:
     """Test suite for ExecutorManager, focusing on R UDF plugin support."""
@@ -255,26 +266,31 @@ class TestExecutorManager:
             )
         assert "SourceOperator API" in str(exc_info.value)
 
-    def test_close_when_sys_path_entry_already_removed(self):
-        # Exercise the except ValueError branch: if the tmp fs path has
-        # already been pulled out of sys.path by something else, close()
-        # should swallow the error and finish cleanly.
-        from pathlib import Path
+    def test_non_ascii_udf_source_round_trip(self, executor_manager):
+        # importlib decodes the written source file as UTF-8 (PEP 3120), so
+        # the write side must be pinned to UTF-8 as well; the locale default
+        # (e.g. cp1252 on Windows) would break either the write or the import.
+        executor_manager.initialize_executor(
+            code=NON_ASCII_OPERATOR_CODE, is_source=False, language="python"
+        )
+        assert executor_manager.executor.GREETING == "café"
 
+    def test_close_when_sys_path_entry_already_removed(self):
+        # Exercise the except ValueError branch: if the tmp directory path
+        # has already been pulled out of sys.path by something else, close()
+        # should swallow the error and finish cleanly.
         manager = ExecutorManager()
-        root = Path(manager.fs.getsyspath("/"))
+        root = manager.tmp_dir
         sys.path.remove(str(root))
         manager.close()
         assert str(root) not in sys.path
 
-    def test_close_when_fs_materialized_but_no_executor_loaded(self):
-        # Exercise the branch where self.fs was touched (so the early
+    def test_close_when_tmp_dir_materialized_but_no_executor_loaded(self):
+        # Exercise the branch where self.tmp_dir was touched (so the early
         # return is skipped) but operator_module_name is still None,
         # meaning the sys.modules.pop branch must NOT execute.
-        from pathlib import Path
-
         manager = ExecutorManager()
-        root = Path(manager.fs.getsyspath("/"))
+        root = manager.tmp_dir
         assert manager.operator_module_name is None
         manager.close()
         assert str(root) not in sys.path
