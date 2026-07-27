@@ -139,6 +139,31 @@ class VFSURIFactorySpec extends AnyFlatSpec {
     assert(VFSURIFactory.warehouseFromURI(uri).isEmpty)
   }
 
+  it should "only honour a LEADING wh segment, never one deeper in the path" in {
+    // A `wh` appearing later -- e.g. inside an operator id -- must not select a
+    // warehouse: it would disagree with DocumentFactory, which strips only a
+    // leading `wh/<name>/`, and would route the write to another user's warehouse.
+    assert(
+      VFSURIFactory
+        .warehouseFromURI(new URI("vfs:///wid/1/eid/2/opid/a/wh/victim/b/consolemessages"))
+        .isEmpty
+    )
+    // An operator literally named `wh` is likewise not a warehouse.
+    assert(
+      VFSURIFactory.warehouseFromURI(new URI("vfs:///wid/1/eid/2/opid/wh/consolemessages")).isEmpty
+    )
+  }
+
+  "VFSURIFactory" should "reject an operatorId containing '/' rather than let it forge URI segments" in {
+    assertThrows[IllegalArgumentException] {
+      VFSURIFactory.createConsoleMessagesURI(
+        workflowId,
+        executionId,
+        OperatorIdentity("a/wh/victim/b")
+      )
+    }
+  }
+
   "A warehouse-scoped URI" should
     "still round-trip through decodeURI (wid/eid/port/resource resolved despite the /wh/ prefix)" in {
     val base =

@@ -47,12 +47,18 @@ object VFSURIFactory {
 
   /**
     * Extracts the warehouse name encoded in a VFS URI, if present.
+    *
+    * Anchored to the leading segment on purpose. The warehouse is written as a
+    * leading `/wh/<name>` prefix and `DocumentFactory` strips only a leading one,
+    * so scanning the whole path would disagree with the stripper: a later segment
+    * that happens to be `wh` -- e.g. inside a user-chosen operator id in a
+    * console-messages URI -- would select a warehouse the URI was never built for.
     */
-  def warehouseFromURI(uri: URI): Option[String] = {
-    val segments = uri.getPath.stripPrefix("/").split("/").toList
-    val idx = segments.indexOf("wh")
-    if (idx >= 0 && idx + 1 < segments.length) Some(segments(idx + 1)) else None
-  }
+  def warehouseFromURI(uri: URI): Option[String] =
+    uri.getPath.stripPrefix("/").split("/").toList match {
+      case "wh" :: name :: _ if name.nonEmpty => Some(name)
+      case _                                  => None
+    }
 
   /**
     * Parses a VFS URI and extracts its components
@@ -188,6 +194,17 @@ object VFSURIFactory {
     if (resourceType == VFSResourceType.CONSOLE_MESSAGES && operatorId.isEmpty) {
       throw new IllegalArgumentException(
         "Console messages URI should contain operatorId."
+      )
+    }
+
+    // The operator id is user-supplied (it comes straight off the workflow JSON) and
+    // is interpolated into the URI path below. A '/' in it would add path segments,
+    // letting it forge structure the URI never meant to have -- e.g. a `wh/<name>`
+    // pair that would then be read back as a warehouse.
+    operatorId.foreach { opId =>
+      require(
+        !opId.id.contains('/'),
+        s"operatorId must not contain '/' (VFS URI parsing relies on this): ${opId.id}"
       )
     }
 

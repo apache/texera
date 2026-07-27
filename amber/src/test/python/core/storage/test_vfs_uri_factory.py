@@ -151,6 +151,45 @@ class TestWarehouseFromUri:
         # Non-BYO URIs have no /wh/ segment, so the warehouse is absent.
         assert VFSURIFactory.warehouse_from_uri("vfs:///wid/7/eid/3/result") is None
 
+    def test_only_a_leading_wh_segment_counts(self):
+        # A `wh` deeper in the path -- e.g. inside an operator id -- must not select
+        # a warehouse; it would disagree with sanitize_uri_path, which strips only a
+        # leading one, and would route the write to another user's warehouse.
+        assert (
+            VFSURIFactory.warehouse_from_uri(
+                "vfs:///wid/1/eid/2/opid/a/wh/victim/b/consolemessages"
+            )
+            is None
+        )
+        assert (
+            VFSURIFactory.warehouse_from_uri("vfs:///wid/1/eid/2/opid/wh/consolemessages")
+            is None
+        )
+
+    def test_percent_encoded_name_decodes_like_java(self):
+        # java.net.URI.getPath decodes on the Scala side; urlparse does not. Without
+        # unquoting here the two languages would resolve the same URI to different
+        # warehouses, splitting one execution's data across two of them.
+        assert (
+            VFSURIFactory.warehouse_from_uri("vfs:///wh/user-2%2Dfoo/wid/7/eid/3/result")
+            == "user-2-foo"
+        )
+
+    def test_round_trips_a_warehouse_written_by_the_python_builder(self):
+        # Python can now write the segment, not just read it.
+        uri = VFSURIFactory.create_port_base_uri(
+            WorkflowIdentity(id=7), ExecutionIdentity(id=3), _gpi(), "user-2-foo"
+        )
+        assert uri.startswith("vfs:///wh/user-2-foo/wid/7/eid/3/")
+        assert VFSURIFactory.warehouse_from_uri(uri) == "user-2-foo"
+
+    def test_builder_without_warehouse_is_unchanged(self):
+        uri = VFSURIFactory.create_port_base_uri(
+            WorkflowIdentity(id=7), ExecutionIdentity(id=3), _gpi()
+        )
+        assert "/wh/" not in uri
+        assert VFSURIFactory.warehouse_from_uri(uri) is None
+
     def test_decode_round_trips_a_warehouse_scoped_uri(self):
         # The leading /wh/<name> segment must not break decode_uri, which finds
         # wid/eid by key rather than by position.

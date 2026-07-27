@@ -17,7 +17,7 @@
 
 from enum import Enum
 from typing import Optional
-from urllib.parse import urlparse
+from urllib.parse import unquote, urlparse
 
 from core.util.virtual_identity import (
     serialize_global_port_identity,
@@ -94,21 +94,32 @@ class VFSURIFactory:
         Extracts the warehouse name from the optional leading "/wh/<name>" segment
         of a VFS URI, or None if absent. Mirrors VFSURIFactory.warehouseFromURI
         (Scala) so a URI fully identifies which warehouse its tables live in.
+
+        Anchored to the leading segment, matching Scala and the leading-only strip
+        in document_factory.sanitize_uri_path: a later segment that happens to be
+        "wh" must not select a warehouse. The path is unquoted first because
+        java.net.URI.getPath decodes on the Scala side while urlparse does not --
+        without it the two languages disagree on a percent-encoded name.
         """
-        segments = urlparse(uri).path.lstrip("/").split("/")
-        try:
-            idx = segments.index("wh")
-        except ValueError:
-            return None
-        return segments[idx + 1] if idx + 1 < len(segments) else None
+        segments = unquote(urlparse(uri).path).lstrip("/").split("/")
+        if len(segments) >= 2 and segments[0] == "wh" and segments[1]:
+            return segments[1]
+        return None
 
     @staticmethod
-    def create_port_base_uri(workflow_id, execution_id, global_port_id) -> str:
+    def create_port_base_uri(
+        workflow_id, execution_id, global_port_id, warehouse: Optional[str] = None
+    ) -> str:
         """Base URI for a port. Result and state URIs derive from it via
         `result_uri` / `state_uri`.
+
+        `warehouse` is written as the leading "/wh/<name>" segment, mirroring the
+        Scala side; when None the URI is byte-for-byte what it was before warehouses
+        existed.
         """
+        wh_segment = f"/wh/{warehouse}" if warehouse else ""
         return (
-            f"{VFSURIFactory.VFS_FILE_URI_SCHEME}:///wid/{workflow_id.id}"
+            f"{VFSURIFactory.VFS_FILE_URI_SCHEME}://{wh_segment}/wid/{workflow_id.id}"
             f"/eid/{execution_id.id}/globalportid/"
             f"{serialize_global_port_identity(global_port_id)}"
         )

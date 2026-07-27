@@ -42,7 +42,24 @@ object IcebergCatalogInstance {
 
   private val catalogs = mutable.Map.empty[String, Catalog]
 
+  // Cache key for the warehouse-agnostic catalog types. Not a legal warehouse name,
+  // so it cannot collide with a REST warehouse.
+  private val SharedCatalogKey = "<shared>"
+
   private def defaultWarehouse: String = StorageConfig.icebergRESTCatalogWarehouseName
+
+  /**
+    * The cache key for a warehouse. Only the REST catalog is scoped to a warehouse;
+    * hadoop and postgres ignore it, so they must share one entry. Keying them by
+    * warehouse name would build a second, fully equivalent catalog per distinct name
+    * -- for postgres a second JdbcCatalog with its own connection pool, all pointing
+    * at the same database. Mirrors the Python side, which keys those under a constant.
+    */
+  private def cacheKey(warehouse: String): String =
+    StorageConfig.icebergCatalogType match {
+      case "rest" => warehouse
+      case _      => SharedCatalogKey
+    }
 
   /**
     * Retrieves the catalog for the given warehouse, creating and caching it on first access.
@@ -52,7 +69,7 @@ object IcebergCatalogInstance {
     */
   def getInstance(warehouse: String = defaultWarehouse): Catalog =
     synchronized {
-      catalogs.getOrElseUpdate(warehouse, createCatalog(warehouse))
+      catalogs.getOrElseUpdate(cacheKey(warehouse), createCatalog(warehouse))
     }
 
   private def createCatalog(warehouse: String): Catalog =
@@ -84,6 +101,6 @@ object IcebergCatalogInstance {
     */
   def replaceInstance(catalog: Catalog, warehouse: String = defaultWarehouse): Unit =
     synchronized {
-      catalogs(warehouse) = catalog
+      catalogs(cacheKey(warehouse)) = catalog
     }
 }

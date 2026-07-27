@@ -19,6 +19,7 @@
 
 package org.apache.texera.amber.core.storage
 
+import org.apache.iceberg.catalog.Catalog
 import org.apache.texera.amber.util.IcebergUtil
 
 import java.nio.file.{Files, Path}
@@ -42,11 +43,21 @@ import java.util.Comparator
   */
 object LocalHadoopIcebergCatalog {
 
-  private var initialized = false
+  private var catalog: Option[Catalog] = None
 
-  def ensure(): Unit =
+  /**
+    * Installs the shared local catalog, additionally registering it under each of
+    * `warehouses`.
+    *
+    * A suite that exercises a warehouse-scoped URI must name that warehouse here:
+    * under the configured `rest` catalog type the cache is keyed by warehouse name,
+    * so an unregistered name would miss and try to build a *live* REST catalog,
+    * making the suite pass or fail according to the machine's catalog config rather
+    * than the code under test.
+    */
+  def ensure(warehouses: String*): Unit =
     synchronized {
-      if (!initialized) {
+      val installed = catalog.getOrElse {
         val warehouse = Files.createTempDirectory("wfcore-iceberg-shared")
         // Best-effort recursive cleanup of the temp warehouse on JVM exit so test runs
         // don't leave wfcore-iceberg-shared* directories behind on dev machines / CI.
@@ -57,10 +68,11 @@ object LocalHadoopIcebergCatalog {
             .forEach((p: Path) => Files.deleteIfExists(p))
           catch { case _: Throwable => () }
         }
-        IcebergCatalogInstance.replaceInstance(
-          IcebergUtil.createHadoopCatalog("wfcore-test", warehouse)
-        )
-        initialized = true
+        val created = IcebergUtil.createHadoopCatalog("wfcore-test", warehouse)
+        catalog = Some(created)
+        IcebergCatalogInstance.replaceInstance(created)
+        created
       }
+      warehouses.foreach(name => IcebergCatalogInstance.replaceInstance(installed, name))
     }
 }

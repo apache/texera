@@ -61,7 +61,11 @@ class DocumentFactorySpec extends AnyFlatSpec with Matchers with BeforeAndAfterA
 
   override def beforeAll(): Unit = {
     super.beforeAll()
-    LocalHadoopIcebergCatalog.ensure()
+    // "wh-test" is registered explicitly so the warehouse-scoped case resolves to
+    // this local catalog instead of reaching for a live REST catalog under the
+    // default (`rest`) config -- otherwise the case would pass or fail according to
+    // the machine's catalog type rather than the code under test.
+    LocalHadoopIcebergCatalog.ensure("wh-test")
   }
 
   // ---------------------------------------------------------------------------
