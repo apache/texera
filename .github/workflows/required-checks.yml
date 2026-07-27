@@ -216,9 +216,16 @@ jobs:
             core.setOutput("run_infra", runInfra ? "true" : "false");
             core.setOutput("run_pyright_language_service", runPyrightLanguageService ? "true" : "false");
 
-            // Backport targets: all current release/* labels on the PR.
-            const targets = [...new Set(labels.filter((n) => /^release\/.+$/.test(n)))].sort();
-            if (targets.length === 0) {
+            // Backport targets: all current release/* labels on the PR, unless
+            // `no-backport-needed` vetoes backporting entirely (e.g. a fix for
+            // a feature that does not exist on any release branch). The veto
+            // wins even if release/* labels are also present, so adding it
+            // mid-review cancels the backport apply-check/build on the re-run.
+            let targets = [...new Set(labels.filter((n) => /^release\/.+$/.test(n)))].sort();
+            if (labels.includes("no-backport-needed")) {
+              core.info("no-backport-needed present; skipping all backport targets.");
+              targets = [];
+            } else if (targets.length === 0) {
               core.info("No backport targets on PR.");
             } else {
               core.info(`Backport targets: ${targets.join(", ")}`);

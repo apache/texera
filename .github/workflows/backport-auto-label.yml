@@ -89,6 +89,42 @@ jobs:
             const author = pr.user?.login;
             const currentLabels = new Set((pr.labels || []).map((l) => l.name));
 
+            // Hard manual override: a maintainer marks a PR that must never be
+            // backported (e.g. it fixes a feature that only exists on main).
+            if (currentLabels.has("no-backport-needed")) {
+              core.info(`PR #${pr.number} has no-backport-needed; skipping all backport labels.`);
+              return;
+            }
+
+            // A fix for a feature that does not exist on a release branch
+            // should not be backported there. The reliable, cheap signal: the
+            // files the PR *modifies* (not the ones it adds — a backportable
+            // fix may add files too) don't exist on that branch at all. If
+            // every modified file is absent, the feature isn't there, so skip
+            // the target. Any ambiguity (a modified file still exists, or the
+            // existence check errors) keeps the label and lets the apply-check
+            // decide — we would rather over-label than drop a real backport.
+            async function featureAbsentOnBranch(prNumber, branch) {
+              const files = await github.paginate(github.rest.pulls.listFiles, {
+                owner, repo, pull_number: prNumber, per_page: 100,
+              });
+              const preexisting = files
+                .filter((f) => f.status !== "added")
+                .map((f) => (f.status === "renamed" ? f.previous_filename : f.filename));
+              if (preexisting.length === 0) return false; // pure-add fix applies cleanly
+              for (const path of preexisting) {
+                try {
+                  await github.rest.repos.getContent({ owner, repo, path, ref: branch });
+                  return false; // a modified file exists on the branch
+                } catch (e) {
+                  if (e.status === 404) continue;
+                  core.warning(`getContent ${path}@${branch} failed (${e.status ?? "?"}); assuming present.`);
+                  return false;
+                }
+              }
+              return true; // every modified file is absent from the branch
+            }
+
             // Labels the author (or anyone) explicitly removed. Re-adding one
             // would override a deliberate opt-out, so we skip those forever.
             const timeline = await github.paginate(
@@ -128,6 +164,10 @@ jobs:
               }
               if (removed.has(label)) {
                 core.info(`${label} was removed on PR #${pr.number} (opt-out); not re-adding.`);
+                continue;
+              }
+              if (await featureAbsentOnBranch(pr.number, label)) {
+                core.info(`PR #${pr.number}: all modified files absent on ${label}; feature not on that release — skipping.`);
                 continue;
               }
 

@@ -256,10 +256,14 @@ jobs:
               }
               seenPrNumbers.add(pullRequest.number);
 
+              const labelNames = pullRequest.labels.map((label) => label.name);
+              if (labelNames.includes("no-backport-needed")) {
+                core.info(`PR #${pullRequest.number} has no-backport-needed; skipping.`);
+                continue;
+              }
+
               const requestedTargets = [...new Set(
-                pullRequest.labels
-                  .map((label) => label.name)
-                  .filter((name) => /^release\/.+$/.test(name))
+                labelNames.filter((name) => /^release\/.+$/.test(name))
               )].sort();
 
               if (requestedTargets.length === 0) {
@@ -782,18 +786,49 @@ jobs:
           HAD_CONFLICT: ${{ steps.branch.outputs.had_conflict }}
           CONFLICT_FILES: ${{ steps.branch.outputs.conflict_files }}
           SUBJECT: ${{ steps.branch.outputs.subject }}
+          FEATURE_ABSENT: ${{ steps.branch.outputs.feature_absent }}
         with:
           github-token: ${{ secrets.AUTO_MERGE_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             const {
               MERGE_SHA, TARGET_BRANCH, PR_NUMBER, MANAGER,
               BRANCH, VERSION, HAD_CONFLICT, CONFLICT_FILES, SUBJECT,
+              FEATURE_ABSENT,
             } = process.env;
             const { owner, repo } = context.repo;
             const prNumber = Number(PR_NUMBER);
             const hadConflict = HAD_CONFLICT === "true";
             const runUrl =
               `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`;
+
+            // The branch step skipped this target: the fix changes only files
+            // that don't exist on the release branch, so there is nothing to
+            // backport. Record it on the original PR instead of opening a PR.
+            if (FEATURE_ABSENT === "true") {
+              core.info(`Feature absent on ${TARGET_BRANCH}; not opening a backport PR.`);
+              try {
+                await github.rest.issues.createComment({
+                  owner, repo, issue_number: prNumber,
+                  body:
+                    `Not backported to \`${TARGET_BRANCH}\`: the files this fix ` +
+                    `changes do not exist there (the feature is not on that ` +
+                    `release). Add \`no-backport-needed\` to silence this for ` +
+                    `future targets.`,
+                });
+              } catch (e) {
+                core.warning(`Could not comment on #${prNumber}: ${e.message}`);
+              }
+              try {
+                await github.rest.repos.createCommitStatus({
+                  owner, repo, sha: MERGE_SHA, state: "success",
+                  context: `backport/${TARGET_BRANCH}`,
+                  description: "Skipped: feature not on release branch",
+                });
+              } catch (e) {
+                core.warning(`Could not set commit status: ${e.message}`);
+              }
+              return;
+            }
 
             // Inject the release version into the conventional-commit scope so
             // the backport PR reads e.g. `fix(amber, v1.2): ...`. Falls back to

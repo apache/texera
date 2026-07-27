@@ -60,6 +60,30 @@ original_author="$(git log -1 --format='%an <%ae>' "${MERGE_SHA}")"
 merge_message="$(git log -1 --format=%B "${MERGE_SHA}")"
 
 git fetch --no-tags origin "${TARGET_BRANCH}"
+
+# Feature-absent guard: if every file this commit modifies or deletes is
+# missing on the target branch, the fix targets code that does not exist on
+# the release (e.g. a fix for a main-only feature). Skip instead of opening a
+# doomed PR. Added files don't count — a backportable fix may add files too.
+preexisting="$(git diff-tree --no-commit-id --name-only -r --diff-filter=MD "${MERGE_SHA}")"
+if [[ -n "${preexisting}" ]]; then
+  any_present=0
+  while IFS= read -r path; do
+    [[ -z "${path}" ]] && continue
+    if git cat-file -e "origin/${TARGET_BRANCH}:${path}" 2>/dev/null; then
+      any_present=1
+      break
+    fi
+  done <<< "${preexisting}"
+  if [[ "${any_present}" -eq 0 ]]; then
+    log "all modified files absent on ${TARGET_BRANCH}; feature not on release — skipping PR"
+    out "feature_absent=true"
+    out "version=${version}"
+    exit 0
+  fi
+fi
+out "feature_absent=false"
+
 git checkout -B "${branch}" "origin/${TARGET_BRANCH}"
 
 # --no-commit keeps full control of the message/author in both the clean and
