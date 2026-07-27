@@ -235,6 +235,27 @@ class DocumentFactorySpec extends AnyFlatSpec with Matchers with BeforeAndAfterA
     DocumentFactory.documentExists(stateUri) shouldBe true
   }
 
+  it should "create + find a document for a warehouse-scoped vfs URI (the /wh/ segment is stripped from the storage key)" in {
+    val base = VFSURIFactory.createPortBaseURI(
+      WorkflowIdentity(0),
+      ExecutionIdentity(0),
+      GlobalPortIdentity(
+        PhysicalOpIdentity(
+          logicalOpId = OperatorIdentity(s"op-${UUID.randomUUID().toString.replace("-", "")}"),
+          layerName = "main"
+        ),
+        PortIdentity()
+      ),
+      warehouse = Some("wh-test")
+    )
+    val vfsUri = VFSURIFactory.resultURI(base)
+    vfsUri.getPath should startWith("/wh/wh-test/")
+
+    val doc = DocumentFactory.createDocument(vfsUri, vfsSchema)
+    doc shouldBe an[IcebergDocument[_]]
+    DocumentFactory.documentExists(vfsUri) shouldBe true
+  }
+
   "documentExists" should "report false before creation and true after for a vfs URI" in {
     val vfsUri = freshResultURI()
     DocumentFactory.documentExists(vfsUri) shouldBe false

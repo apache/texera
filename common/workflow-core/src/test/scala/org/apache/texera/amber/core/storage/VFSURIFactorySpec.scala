@@ -120,4 +120,41 @@ class VFSURIFactorySpec extends AnyFlatSpec {
       VFSURIFactory.decodeURI(new URI("vfs:///eid/2/wid"))
     }
   }
+
+  "VFSURIFactory.warehouseFromURI" should "extract the warehouse from a leading /wh/<name> segment" in {
+    val uri =
+      VFSURIFactory.createPortBaseURI(
+        workflowId,
+        executionId,
+        portId,
+        warehouse = Some("user-2-foo")
+      )
+    assert(uri.getPath.startsWith("/wh/user-2-foo/"))
+    assert(VFSURIFactory.warehouseFromURI(uri).contains("user-2-foo"))
+  }
+
+  it should "return None when no /wh/ segment is present (non-BYO URIs are unchanged)" in {
+    val uri = VFSURIFactory.createPortBaseURI(workflowId, executionId, portId)
+    assert(!uri.getPath.contains("/wh/"))
+    assert(VFSURIFactory.warehouseFromURI(uri).isEmpty)
+  }
+
+  "A warehouse-scoped URI" should
+    "still round-trip through decodeURI (wid/eid/port/resource resolved despite the /wh/ prefix)" in {
+    val base =
+      VFSURIFactory.createPortBaseURI(
+        workflowId,
+        executionId,
+        portId,
+        warehouse = Some("user-2-foo")
+      )
+    val resultURI = VFSURIFactory.resultURI(base)
+    assert(VFSURIFactory.warehouseFromURI(resultURI).contains("user-2-foo"))
+
+    val (wid, eid, globalPortIdOpt, resourceType) = VFSURIFactory.decodeURI(resultURI)
+    assert(wid == workflowId)
+    assert(eid == executionId)
+    assert(globalPortIdOpt.contains(portId))
+    assert(resourceType == VFSResourceType.RESULT)
+  }
 }

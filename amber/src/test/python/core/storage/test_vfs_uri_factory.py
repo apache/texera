@@ -138,3 +138,26 @@ class TestDecodeUriErrorPaths:
     def test_rejects_unknown_resource_type(self):
         with pytest.raises(ValueError, match="Unknown resource type: bogus"):
             VFSURIFactory.decode_uri("vfs:///wid/1/eid/1/bogus")
+
+
+class TestWarehouseFromUri:
+    def test_extracts_warehouse_from_wh_segment(self):
+        assert (
+            VFSURIFactory.warehouse_from_uri("vfs:///wh/user-2-foo/wid/7/eid/3/result")
+            == "user-2-foo"
+        )
+
+    def test_returns_none_when_no_wh_segment(self):
+        # Non-BYO URIs have no /wh/ segment, so the warehouse is absent.
+        assert VFSURIFactory.warehouse_from_uri("vfs:///wid/7/eid/3/result") is None
+
+    def test_decode_round_trips_a_warehouse_scoped_uri(self):
+        # The leading /wh/<name> segment must not break decode_uri, which finds
+        # wid/eid by key rather than by position.
+        wid, eid, port, resource_type = VFSURIFactory.decode_uri(
+            "vfs:///wh/user-2-foo/wid/11/eid/22/result"
+        )
+        assert wid.id == 11
+        assert eid.id == 22
+        assert port is None
+        assert resource_type == VFSResourceType.RESULT
