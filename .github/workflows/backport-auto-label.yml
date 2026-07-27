@@ -1,0 +1,160 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Makes backporting opt-out instead of easy-to-forget opt-in: when a `fix:` PR
+# targeting main opens, label it with every active release branch from
+# .github/release-branches.yml and request review from each branch's release
+# manager. The author (or a committer) removes a release/* label to decline the
+# backport for that branch — a removal is remembered (via the timeline), so a
+# later edit never silently re-adds a label the author took off.
+
+name: Backport Auto Label
+
+on:
+  pull_request_target:
+    types:
+      - opened
+      - reopened
+      - edited
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  auto-label:
+    # Only PRs into main get backport labels. A PR already targeting a
+    # release/* branch is itself a backport and must not be re-labeled.
+    if: ${{ github.event.pull_request.base.ref == 'main' }}
+    runs-on: ubuntu-latest
+    steps:
+      # Check out the base commit (a trusted commit already on main) so the
+      # release-branches config and its parser come from the base repo, never
+      # from the (untrusted) PR head. pull_request_target runs with write
+      # permissions, so we must not execute PR-controlled code here.
+      - name: Checkout base
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          persist-credentials: false
+
+      - name: Read release branches
+        id: targets
+        run: |
+          entries=$(python3 .github/scripts/release_branches.py .github/release-branches.yml)
+          echo "entries=${entries}" >> "$GITHUB_OUTPUT"
+          echo "Release branch targets: ${entries}"
+
+      - name: Label fix PRs and request release-manager review
+        uses: actions/github-script@v9
+        env:
+          ENTRIES: ${{ steps.targets.outputs.entries }}
+        with:
+          # Add the label with the fine-grained PAT (falling back to the
+          # default token) so the resulting `labeled` event retriggers the
+          # backport pre-merge check in Required Checks. Labels applied by the
+          # default GITHUB_TOKEN do not trigger downstream workflows.
+          github-token: ${{ secrets.AUTO_MERGE_TOKEN || secrets.GITHUB_TOKEN }}
+          script: |
+            const entries = JSON.parse(process.env.ENTRIES || "[]");
+            if (entries.length === 0) {
+              core.info("No release branches configured; nothing to label.");
+              return;
+            }
+
+            const { owner, repo } = context.repo;
+            const pr = context.payload.pull_request;
+            const title = pr.title || "";
+
+            // Conventional-commit `fix:` (optional scope, optional `!`). Other
+            // types (feat/chore/docs/...) are not auto-backported.
+            if (!/^fix(\([^)]*\))?!?:/i.test(title)) {
+              core.info(`PR #${pr.number} title is not a fix (\"${title}\"); skipping.`);
+              return;
+            }
+
+            const author = pr.user?.login;
+            const currentLabels = new Set((pr.labels || []).map((l) => l.name));
+
+            // Labels the author (or anyone) explicitly removed. Re-adding one
+            // would override a deliberate opt-out, so we skip those forever.
+            const timeline = await github.paginate(
+              github.rest.issues.listEventsForTimeline,
+              { owner, repo, issue_number: pr.number, per_page: 100 }
+            );
+            const removed = new Set(
+              timeline
+                .filter((e) => e.event === "unlabeled" && e.label?.name)
+                .map((e) => e.label.name)
+            );
+
+            async function ensureLabelExists(name) {
+              try {
+                await github.rest.issues.getLabel({ owner, repo, name });
+              } catch (e) {
+                if (e.status !== 404) throw e;
+                // Match the colour of the existing release/* labels.
+                await github.rest.issues.createLabel({
+                  owner,
+                  repo,
+                  name,
+                  color: "ccebc2",
+                  description: `back porting to ${name}`,
+                });
+                core.info(`Created missing label ${name}.`);
+              }
+            }
+
+            for (const entry of entries) {
+              const label = entry.branch;
+              const manager = entry.manager;
+
+              if (currentLabels.has(label)) {
+                core.info(`PR #${pr.number} already has ${label}.`);
+                continue;
+              }
+              if (removed.has(label)) {
+                core.info(`${label} was removed on PR #${pr.number} (opt-out); not re-adding.`);
+                continue;
+              }
+
+              await ensureLabelExists(label);
+              await github.rest.issues.addLabels({
+                owner,
+                repo,
+                issue_number: pr.number,
+                labels: [label],
+              });
+              core.info(`Added ${label} to PR #${pr.number}.`);
+
+              if (manager && manager !== author) {
+                try {
+                  await github.rest.pulls.requestReviewers({
+                    owner,
+                    repo,
+                    pull_number: pr.number,
+                    reviewers: [manager],
+                  });
+                  core.info(`Requested review from ${manager} for ${label}.`);
+                } catch (e) {
+                  core.warning(
+                    `Could not request review from ${manager} (status ${e.status ?? "?"}): ${e.message}`
+                  );
+                }
+              } else if (manager === author) {
+                core.info(`Release manager ${manager} is the author; skipping review request.`);
+              }
+            }
