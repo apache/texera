@@ -33,12 +33,26 @@ jobs:
     name: Discover direct backport targets
     runs-on: ubuntu-latest
     outputs:
-      entries: ${{ steps.discover.outputs.entries }}
-      has_targets: ${{ steps.discover.outputs.has_targets }}
+      push_entries: ${{ steps.discover.outputs.push_entries }}
+      pr_entries: ${{ steps.discover.outputs.pr_entries }}
+      has_push: ${{ steps.discover.outputs.has_push }}
+      has_pr: ${{ steps.discover.outputs.has_pr }}
     steps:
-      - name: Resolve merged PRs and green targets
+      - name: Checkout main
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+      - name: Read release branches
+        id: release_branches
+        run: |
+          entries=$(python3 .github/scripts/release_branches.py .github/release-branches.yml)
+          echo "entries=${entries}" >> "$GITHUB_OUTPUT"
+          echo "Release branches: ${entries}"
+      - name: Resolve merged PRs and classify targets
         id: discover
         uses: actions/github-script@v9
+        env:
+          RELEASE_BRANCHES: ${{ steps.release_branches.outputs.entries }}
         with:
           script: |
             const sha = context.sha;
@@ -133,7 +147,10 @@ jobs:
               return null;
             }
 
-            async function greenTargetsFor(pullRequest, requestedTargets) {
+            // Collect every job across the PR head's Required Checks runs so
+            // both the pre-flight apply-check and the full backport build can
+            // be inspected per target.
+            async function jobsForPr(pullRequest) {
               const buildRuns = await github.paginate(
                 github.rest.actions.listWorkflowRuns,
                 {
@@ -144,45 +161,88 @@ jobs:
                   per_page: 100,
                 }
               );
-
               if (buildRuns.length === 0) {
-                core.warning(`No Build workflow runs found for ${pullRequest.head.sha}.`);
+                core.warning(`No Required Checks runs found for ${pullRequest.head.sha}.`);
                 return [];
               }
-
               const allJobs = [];
               for (const run of buildRuns) {
                 const jobs = await github.paginate(
                   github.rest.actions.listJobsForWorkflowRun,
-                  {
-                    owner,
-                    repo,
-                    run_id: run.id,
-                    per_page: 100,
-                  }
+                  { owner, repo, run_id: run.id, per_page: 100 }
                 );
                 allJobs.push(...jobs);
               }
-
-              return requestedTargets.filter((target) => {
-                const prefix = `backport (${target}) / `;
-                const targetJobs = allJobs.filter((job) => job.name.startsWith(prefix));
-                // Treat skipped as green: precheck legitimately skips stacks
-                // based on PR labels, matching the Required Checks aggregator.
-                return (
-                  targetJobs.length > 0 &&
-                  targetJobs.every(
-                    (job) => job.conclusion === "success" || job.conclusion === "skipped"
-                  )
-                );
-              });
+              return allJobs;
             }
+
+            const isDone = (job) => job.status === "completed";
+            // Skipped legs count as green: precheck legitimately skips stacks
+            // by label; a real conflict shows up as an apply-check *failure*.
+            const isGreen = (job) =>
+              job.conclusion === "success" || job.conclusion === "skipped";
+
+            // Classify each requested target into:
+            //   push — safe to cherry-pick straight to the release branch: the
+            //          pre-flight apply-check finished green AND no finished
+            //          backport build leg failed.
+            //   pr   — needs a human: the apply-check finished red (conflict)
+            //          or a finished build leg failed (applies but won't build).
+            //   skip — no *completed* signal (nothing ran, or the PR merged
+            //          before the checks finished); acting on an in-progress
+            //          job could push a conflict or open a spurious PR, so we
+            //          leave it (the scheduled reconciliation, if any, or a
+            //          re-push will pick it up once checks are done).
+            function classifyTargets(allJobs, requestedTargets) {
+              const push = [];
+              const pr = [];
+              for (const target of requestedTargets) {
+                const applyJob = allJobs.find(
+                  (job) => job.name === `backport-apply-check (${target})`
+                );
+                const buildJobs = allJobs.filter((job) =>
+                  job.name.startsWith(`backport (${target}) / `)
+                );
+
+                if (applyJob && isDone(applyJob) && !isGreen(applyJob)) {
+                  pr.push(target); // cherry-pick conflicts
+                  continue;
+                }
+                if (buildJobs.some((job) => isDone(job) && !isGreen(job))) {
+                  pr.push(target); // applies but does not build
+                  continue;
+                }
+
+                const applyOk = applyJob && isDone(applyJob) && isGreen(applyJob);
+                const anyBuildDone = buildJobs.some(isDone);
+                // Normal path: apply-check finished green. The `!applyJob`
+                // clause keeps older runs (before apply-check existed) working
+                // off the build legs alone during rollout.
+                if (applyOk || (!applyJob && anyBuildDone)) {
+                  push.push(target);
+                } else {
+                  core.warning(`PR: no completed backport signal for ${target}; skipping.`);
+                }
+              }
+              return { push, pr };
+            }
+
+            const releaseManagers = new Map(
+              JSON.parse(process.env.RELEASE_BRANCHES || "[]").map((e) => [
+                e.branch,
+                e.manager || "",
+              ])
+            );
 
             const commits = await listPushCommits();
             core.info(`Push contains ${commits.length} commit(s).`);
 
-            // One matrix entry per (PR, target) pair, in commit order.
-            const entries = [];
+            // push_entries: (PR, target) pairs cherry-picked straight to the
+            //   release branch, in commit order.
+            // pr_entries: (PR, target, manager) pairs that get an auto-opened
+            //   draft backport PR for the author to finish.
+            const pushEntries = [];
+            const prEntries = [];
             const seenPrNumbers = new Set();
             for (const commit of commits) {
               const pullRequest =
@@ -196,10 +256,14 @@ jobs:
               }
               seenPrNumbers.add(pullRequest.number);
 
+              const labelNames = pullRequest.labels.map((label) => label.name);
+              if (labelNames.includes("no-backport-needed")) {
+                core.info(`PR #${pullRequest.number} has no-backport-needed; skipping.`);
+                continue;
+              }
+
               const requestedTargets = [...new Set(
-                pullRequest.labels
-                  .map((label) => label.name)
-                  .filter((name) => /^release\/.+$/.test(name))
+                labelNames.filter((name) => /^release\/.+$/.test(name))
               )].sort();
 
               if (requestedTargets.length === 0) {
@@ -207,28 +271,39 @@ jobs:
                 continue;
               }
 
-              const greenTargets = await greenTargetsFor(pullRequest, requestedTargets);
-              const skippedTargets = requestedTargets.filter((target) => !greenTargets.includes(target));
-              if (skippedTargets.length > 0) {
-                core.warning(`PR #${pullRequest.number}: skipping targets without a successful Backport run: ${skippedTargets.join(", ")}`);
-              }
+              const allJobs = await jobsForPr(pullRequest);
+              const { push, pr } = classifyTargets(allJobs, requestedTargets);
+              core.info(
+                `PR #${pullRequest.number}: push=[${push.join(", ")}] pr=[${pr.join(", ")}]`
+              );
 
-              for (const target of greenTargets) {
-                entries.push({
+              for (const target of push) {
+                pushEntries.push({
                   pr_number: pullRequest.number,
                   merge_sha: commit.sha,
                   target,
                 });
               }
+              for (const target of pr) {
+                prEntries.push({
+                  pr_number: pullRequest.number,
+                  merge_sha: commit.sha,
+                  target,
+                  manager: releaseManagers.get(target) || "",
+                });
+              }
             }
 
-            core.info(`Backport entries: ${JSON.stringify(entries)}`);
-            core.setOutput("entries", JSON.stringify(entries));
-            core.setOutput("has_targets", entries.length > 0 ? "true" : "false");
+            core.info(`Push entries: ${JSON.stringify(pushEntries)}`);
+            core.info(`PR entries: ${JSON.stringify(prEntries)}`);
+            core.setOutput("push_entries", JSON.stringify(pushEntries));
+            core.setOutput("pr_entries", JSON.stringify(prEntries));
+            core.setOutput("has_push", pushEntries.length > 0 ? "true" : "false");
+            core.setOutput("has_pr", prEntries.length > 0 ? "true" : "false");
 
   push-backports:
     needs: discover
-    if: ${{ needs.discover.outputs.has_targets == 'true' }}
+    if: ${{ needs.discover.outputs.has_push == 'true' }}
     runs-on: ubuntu-latest
     name: "backport #${{ matrix.pr_number }} to ${{ matrix.target }}"
     strategy:
@@ -238,7 +313,7 @@ jobs:
       # release branch.
       max-parallel: 1
       matrix:
-        include: ${{ fromJson(needs.discover.outputs.entries) }}
+        include: ${{ fromJson(needs.discover.outputs.push_entries) }}
     steps:
       - name: Checkout main
         uses: actions/checkout@v7
@@ -671,4 +746,187 @@ jobs:
               );
             } else {
               core.info("No PR number resolved — skipping PR comment.");
+            }
+
+  open-backport-pr:
+    needs: discover
+    if: ${{ needs.discover.outputs.has_pr == 'true' }}
+    runs-on: ubuntu-latest
+    name: "open backport PR #${{ matrix.pr_number }} to ${{ matrix.target }}"
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJson(needs.discover.outputs.pr_entries) }}
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          # AUTO_MERGE_TOKEN so the pushed branch and the opened PR retrigger
+          # CI on the release branch (GITHUB_TOKEN-authored pushes/PRs do not).
+          token: ${{ secrets.AUTO_MERGE_TOKEN || secrets.GITHUB_TOKEN }}
+      - name: Create backport branch
+        id: branch
+        env:
+          MERGE_SHA: ${{ matrix.merge_sha }}
+          TARGET_BRANCH: ${{ matrix.target }}
+          PR_NUMBER: ${{ matrix.pr_number }}
+        run: |
+          bash ./.github/scripts/create-backport-branch.sh \
+            "${MERGE_SHA}" "${TARGET_BRANCH}" "${PR_NUMBER}"
+      - name: Open draft backport PR
+        uses: actions/github-script@v9
+        env:
+          MERGE_SHA: ${{ matrix.merge_sha }}
+          TARGET_BRANCH: ${{ matrix.target }}
+          PR_NUMBER: ${{ matrix.pr_number }}
+          MANAGER: ${{ matrix.manager }}
+          BRANCH: ${{ steps.branch.outputs.branch }}
+          VERSION: ${{ steps.branch.outputs.version }}
+          HAD_CONFLICT: ${{ steps.branch.outputs.had_conflict }}
+          CONFLICT_FILES: ${{ steps.branch.outputs.conflict_files }}
+          SUBJECT: ${{ steps.branch.outputs.subject }}
+          FEATURE_ABSENT: ${{ steps.branch.outputs.feature_absent }}
+        with:
+          github-token: ${{ secrets.AUTO_MERGE_TOKEN || secrets.GITHUB_TOKEN }}
+          script: |
+            const {
+              MERGE_SHA, TARGET_BRANCH, PR_NUMBER, MANAGER,
+              BRANCH, VERSION, HAD_CONFLICT, CONFLICT_FILES, SUBJECT,
+              FEATURE_ABSENT,
+            } = process.env;
+            const { owner, repo } = context.repo;
+            const prNumber = Number(PR_NUMBER);
+            const hadConflict = HAD_CONFLICT === "true";
+            const runUrl =
+              `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`;
+
+            // The branch step skipped this target: the fix changes only files
+            // that don't exist on the release branch, so there is nothing to
+            // backport. Record it on the original PR instead of opening a PR.
+            if (FEATURE_ABSENT === "true") {
+              core.info(`Feature absent on ${TARGET_BRANCH}; not opening a backport PR.`);
+              try {
+                await github.rest.issues.createComment({
+                  owner, repo, issue_number: prNumber,
+                  body:
+                    `Not backported to \`${TARGET_BRANCH}\`: the files this fix ` +
+                    `changes do not exist there (the feature is not on that ` +
+                    `release). Add \`no-backport-needed\` to silence this for ` +
+                    `future targets.`,
+                });
+              } catch (e) {
+                core.warning(`Could not comment on #${prNumber}: ${e.message}`);
+              }
+              try {
+                await github.rest.repos.createCommitStatus({
+                  owner, repo, sha: MERGE_SHA, state: "success",
+                  context: `backport/${TARGET_BRANCH}`,
+                  description: "Skipped: feature not on release branch",
+                });
+              } catch (e) {
+                core.warning(`Could not set commit status: ${e.message}`);
+              }
+              return;
+            }
+
+            // Inject the release version into the conventional-commit scope so
+            // the backport PR reads e.g. `fix(amber, v1.2): ...`. Falls back to
+            // suffixing the version if the subject is not conventional.
+            function backportTitle(subject, version) {
+              const m = subject.match(/^(\w+)(?:\(([^)]*)\))?(!)?:\s*(.*)$/);
+              if (!m) return `${subject} (${version})`;
+              const [, type, scope, bang, rest] = m;
+              const newScope = scope ? `${scope}, ${version}` : version;
+              return `${type}(${newScope})${bang || ""}: ${rest}`;
+            }
+            const title = backportTitle(SUBJECT, VERSION);
+
+            // Idempotency: on a re-run the branch is force-pushed, so an open
+            // PR from the same head already reflects the new commit — don't
+            // open a duplicate.
+            const existing = await github.rest.pulls.list({
+              owner, repo, state: "open", head: `${owner}:${BRANCH}`,
+            });
+            let pr = existing.data[0];
+            if (pr) {
+              core.info(`Backport PR already open: #${pr.number}; not duplicating.`);
+            } else {
+              const conflictList = CONFLICT_FILES.trim()
+                ? CONFLICT_FILES.trim().split(/\s+/).map((f) => `- \`${f}\``).join("\n")
+                : "";
+              const body = [
+                `Automated backport of #${prNumber} to \`${TARGET_BRANCH}\`.`,
+                ``,
+                hadConflict
+                  ? `⚠️ The cherry-pick **conflicted** and was committed with conflict markers. ` +
+                    `Resolve the conflicts on this branch, then mark the PR ready for review.`
+                  : `The cherry-pick applied cleanly but the backported tree failed its ` +
+                    `pre-merge build. Fix the build on this branch, then mark the PR ready for review.`,
+                conflictList ? `\n**Conflicting files:**\n${conflictList}` : ``,
+                ``,
+                `Source: ${MERGE_SHA} · [automation run](${runUrl})`,
+              ].join("\n");
+
+              pr = (await github.rest.pulls.create({
+                owner, repo, base: TARGET_BRANCH, head: BRANCH,
+                title, body, draft: true,
+              })).data;
+              core.info(`Opened draft backport PR #${pr.number}.`);
+            }
+
+            // Assign the original author (best-effort: external authors may not
+            // be assignable) and label the PR with the target branch.
+            let author = "";
+            try {
+              author = (await github.rest.pulls.get({
+                owner, repo, pull_number: prNumber,
+              })).data.user?.login || "";
+            } catch (e) {
+              core.warning(`Could not fetch PR #${prNumber} author: ${e.message}`);
+            }
+            if (author) {
+              try {
+                await github.rest.issues.addAssignees({
+                  owner, repo, issue_number: pr.number, assignees: [author],
+                });
+              } catch (e) {
+                core.warning(`Could not assign ${author}: ${e.message}`);
+              }
+            }
+            if (MANAGER && MANAGER !== author) {
+              try {
+                await github.rest.pulls.requestReviewers({
+                  owner, repo, pull_number: pr.number, reviewers: [MANAGER],
+                });
+              } catch (e) {
+                core.warning(`Could not request review from ${MANAGER}: ${e.message}`);
+              }
+            }
+
+            // Link the backport PR back from the original PR so it is not lost.
+            const prUrl = `${context.serverUrl}/${owner}/${repo}/pull/${pr.number}`;
+            try {
+              await github.rest.issues.createComment({
+                owner, repo, issue_number: prNumber,
+                body:
+                  `Backport to \`${TARGET_BRANCH}\` needs manual work — opened ` +
+                  `draft PR #${pr.number} (${prUrl})` +
+                  (author ? `, assigned to @${author}` : "") + `.`,
+              });
+            } catch (e) {
+              core.warning(`Could not comment on #${prNumber}: ${e.message}`);
+            }
+
+            // A failure commit status on the merge commit keeps the "needs
+            // backport" signal visible on main next to the successful ones.
+            try {
+              await github.rest.repos.createCommitStatus({
+                owner, repo, sha: MERGE_SHA, state: "failure",
+                context: `backport/${TARGET_BRANCH}`,
+                description: `Draft backport PR #${pr.number} opened`,
+                target_url: prUrl,
+              });
+            } catch (e) {
+              core.warning(`Could not set commit status: ${e.message}`);
             }
