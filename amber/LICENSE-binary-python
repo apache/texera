@@ -231,7 +231,7 @@ Python packages:
   - requests==2.34.2
   - s3transfer==0.16.1
   - safetensors==0.8.0
-  - tenacity==8.5.0
+  - tenacity==9.1.4
   - tokenizers==0.22.2
   - transformers==5.5.0
   - tzdata==2026.3
