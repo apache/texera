@@ -50,7 +50,6 @@ import org.apache.texera.amber.operator.visualization.bulletChart.{
   BulletChartOpDesc,
   BulletChartStepDefinition
 }
-import org.apache.texera.amber.operator.visualization.dumbbellPlot.DumbbellPlotOpDesc
 
 import org.apache.texera.amber.operator.visualization.filledAreaPlot.FilledAreaPlotOpDesc
 import org.apache.texera.amber.operator.visualization.ganttChart.GanttChartOpDesc
@@ -214,7 +213,6 @@ object CuratedHandlers {
     BulletChartVisualizationHandler,
     ImageVisualizerVisualizationHandler,
     ScatterMatrixVisualizationHandler,
-    DumbbellPlotVisualizationHandler,
     FilledAreaPlotVisualizationHandler,
     GanttChartVisualizationHandler,
     SklearnLinearRegressionTransformHandler,
@@ -963,45 +961,6 @@ object ScatterMatrixVisualizationHandler extends TransformHandler {
     val desc = new ScatterMatrixChartOpDesc()
     desc.selectedAttributes = List("x", "y", "z")
     desc.color = "group"
-
-    (desc, Map(PortIdentity(0) -> inputPath))
-  }
-}
-
-/** DumbbellPlot visualization fixture with two entities and start/end periods. */
-object DumbbellPlotVisualizationHandler extends TransformHandler {
-  override val opDescClass: Class[_ <: LogicalOp] = classOf[DumbbellPlotOpDesc]
-
-  override def fixture(testRoot: Path): (LogicalOp, Map[PortIdentity, Path]) = {
-    val schema = new Schema(
-      new Attribute("entity", AttributeType.STRING),
-      new Attribute("period", AttributeType.STRING),
-      new Attribute("value", AttributeType.DOUBLE)
-    )
-
-    def tup(entity: String, period: String, value: Double): Tuple = {
-      val builder = Tuple.builder(schema)
-      builder.add(schema.getAttribute("entity"), entity)
-      builder.add(schema.getAttribute("period"), period)
-      builder.add(schema.getAttribute("value"), value)
-      builder.build()
-    }
-
-    val rows = Seq(
-      tup("Alpha", "start", 10.0),
-      tup("Alpha", "end", 20.0),
-      tup("Beta", "start", 15.0),
-      tup("Beta", "end", 25.0)
-    )
-    val inputPath = testRoot.resolve("input_port_0.jsonl")
-    TupleIO.writeTuples(inputPath, rows.iterator, schema)
-
-    val desc = new DumbbellPlotOpDesc()
-    desc.categoryColumnName = "period"
-    desc.dumbbellStartValue = "start"
-    desc.dumbbellEndValue = "end"
-    desc.measurementColumnName = "value"
-    desc.comparedColumnName = "entity"
 
     (desc, Map(PortIdentity(0) -> inputPath))
   }
