@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1785071769231,
+  "lastUpdate": 1785161103747,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -6230,6 +6230,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 514.1903461898925,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Meng Wang",
+            "username": "mengw15",
+            "email": "mengw15@uci.edu"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "49f9e2c414b116bf328bdb9154cc97dc4d1e7e9e",
+          "message": "test(workflow-execution-service): add CollaborationResource unit tests (#6904)\n\n### What changes were proposed in this PR?\n\n`CollaborationResource` had no spec and sat at 0% — all 87 tracked lines\nunhit. It reads as websocket-bound but the only collaborator is the\n`javax.websocket.Session` interface, which mocks cleanly with the\nScalaMock already on amber's test classpath, so the session bookkeeping\nand message fan-out are ordinary unit-testable logic.\n\nAdds `CollaborationResourceSpec` with 13 tests covering the session\nlifecycle (`myOnOpen`, `myOnClose`), `WIdRequest` bookkeeping on both\nthe authenticated and anonymous paths, `CommandRequest` and\n`RestoreVersionRequest` fan-out, `HeartBeatRequest`, and the locking\nbranches that do not touch the database. A `mockSession` helper returns\na `Session` with a fixed id whose outgoing messages are collected into a\nbuffer; requests are built by serializing the real request case classes,\nso the `\"type\"` discriminator cannot drift out of sync with the\nproduction `@JsonTypeInfo` config.\n\nThree behaviors are worth calling out because they are subtle rather\nthan obvious:\n\n- The multi-session `WIdRequest` test pins the\n`set.union(Set(senderSessId))` line, which returns a fresh set instead\nof mutating and only works because the result is reassigned into the\nmap.\n- The fan-out tests assert the sender receives nothing, the\nsame-workflow peer receives exactly one message, and a session on\nanother workflow is untouched.\n- `wIdLockHolderSessionIdMap` stores a `null` sentinel for \"no holder\",\nwhich is a distinct state from an absent key. With the sentinel in\nplace, `AcquireLockRequest` cannot resolve the holder session and\nrethrows — the spec pins that current behavior.\n\nThe five bookkeeping maps live on the companion object and are therefore\nJVM-wide mutable state, so `beforeEach` clears all five; that is what\nkeeps the suite order-independent. There are no clocks, threads, temp\nfiles or network calls in the spec.\n\n### Any related issues, documentation, discussions?\n\nCloses #6900.\n\nThe read-only `TryLockRequest` rejection and the lock hand-off inside\n`myOnClose` both reach `WorkflowAccessResource.hasWriteAccess` and\ntherefore `SqlServer`; they are left uncovered rather than pulling\n`MockTexeraDB` (and an embedded Postgres process) in for two branches.\n\n### How was this PR tested?\n\n`sbt \"WorkflowExecutionService/testOnly *CollaborationResourceSpec\"`\npasses with 13 tests; `Test/scalafmtCheck` and `Test/scalafix --check`\nare clean. For the failure path, the self-exclusion guard in the\n`CommandRequest` fan-out was temporarily removed from the production\ncode, which reddened the fan-out test and exited non-zero, and the guard\nwas then restored — so the assertions genuinely constrain the behavior.\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Claude Code (claude-opus-5)\n\n---------\n\nSigned-off-by: Meng Wang <mengw15@uci.edu>\nCo-authored-by: Copilot Autofix powered by AI <175728472+Copilot@users.noreply.github.com>",
+          "timestamp": "2026-07-27T03:47:43Z",
+          "url": "https://github.com/apache/texera/commit/49f9e2c414b116bf328bdb9154cc97dc4d1e7e9e"
+        },
+        "date": 1785161103180,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 646.7617592526126,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 1080.9142851393135,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 1141.525298299436,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 840.221643310817,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 1126.2140300481672,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 1150.4988065125008,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 850.2411982724005,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 1104.124333536806,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 1145.3104967782654,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 697.1384417906423,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 909.9406937708585,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 929.9034475028939,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 724.4009527022877,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 909.4403137031567,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 924.3171330031535,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 732.007924161461,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 877.7016091142817,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 875.5152668336417,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 387.71212215812704,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 511.5673195631157,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 482.5021217714163,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 405.78655169288515,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 476.0018495662099,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 448.2277637483448,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 409.9973649223358,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 465.19867088238465,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 479.05707784913756,
             "unit": "tuples/sec"
           }
         ]
