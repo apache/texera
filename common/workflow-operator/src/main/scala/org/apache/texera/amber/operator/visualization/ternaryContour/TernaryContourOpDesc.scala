@@ -189,7 +189,6 @@ class TernaryContourOpDesc extends PythonOperatorDescriptor with StandaloneCodeG
        |else:
        |    table = in1df.copy()
        |    table.dropna(subset=["$firstVariable", "$secondVariable", "$thirdVariable", "$fourthVariable"], inplace=True)
-       |    table[["$firstVariable", "$secondVariable", "$thirdVariable", "$fourthVariable"]] = table[["$firstVariable", "$secondVariable", "$thirdVariable", "$fourthVariable"]].astype(float).round(12)
        |    table = table[(table[["$firstVariable", "$secondVariable", "$thirdVariable"]] >= 0).all(axis=1)]
        |    s = table["$firstVariable"] + table["$secondVariable"] + table["$thirdVariable"]
        |    table = table[s > 0]
