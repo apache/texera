@@ -91,12 +91,12 @@ class ExecutionUtilsSpec extends AnyFlatSpec {
   // Anti / boundary cases — make sure unexpected inputs cannot smuggle in a wrong
   // state, and that branch precedence is what the contract claims.
 
-  it should "return UNKNOWN when completed and terminated are mixed (neither forall branch matches)" in {
-    // Both `forall(_ == completed)` and `forall(_ == terminated)` fail, no running
-    // sentinel is present, and the non-completed remainder is purely terminated —
-    // which is none of uninitialized / paused / ready, so the result must be
-    // UNKNOWN rather than COMPLETED.
-    assert(aggregate(Completed, Terminated) == WorkflowAggregatedState.UNKNOWN)
+  it should "return COMPLETED when completed and terminated are mixed (all states terminal)" in {
+    // Routine after region teardown: workers whose final COMPLETED report reached the
+    // controller stay COMPLETED (terminal absorption), while stragglers are stamped
+    // TERMINATED by forceTerminate. All workers being terminal means the execution is
+    // over, so the aggregate must be COMPLETED rather than UNKNOWN.
+    assert(aggregate(Completed, Terminated) == WorkflowAggregatedState.COMPLETED)
   }
 
   it should "give running precedence over completed and terminated" in {
