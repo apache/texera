@@ -461,3 +461,23 @@ jobs:
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
           cat "$GITHUB_WORKSPACE/vote-email.txt" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+  # After an RC is published, tell the website to rebuild. The site pulls docs
+  # straight from the release branches, so this is just a "go" signal; the
+  # site's daily schedule is the safety net if this never fires. A
+  # repository_dispatch needs Contents:write on the target repo, so the token's
+  # fine-grained scope must include apache/incubator-texera-site (add that repo
+  # to AUTO_MERGE_TOKEN if it isn't already covered).
+  notify-website:
+    needs: upload-rc
+    if: github.repository == 'apache/texera'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger website rebuild
+        continue-on-error: true   # never fail the release over a website ping
+        env:
+          GH_TOKEN: ${{ secrets.AUTO_MERGE_TOKEN }}
+        run: |
+          gh api repos/apache/incubator-texera-site/dispatches \
+            -f event_type=docs-updated \
+            -f "client_payload[tag]=${{ github.event.inputs.tag }}"
