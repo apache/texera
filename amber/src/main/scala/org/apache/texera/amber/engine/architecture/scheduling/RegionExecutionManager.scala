@@ -135,8 +135,11 @@ class RegionExecutionManager(
     *
     * Additionally, this method will also terminate all the workers of this region:
     *
-    * 1.  An `EndWorker` control message is first sent to all the workers. This will be the last message each worker
-    * receives. We wait for all workers have replied to indicate they have finished processing all control messages.
+    * 1.  An `EndWorker` control message is first sent to all the workers. `EndWorker` is the last *request* sent to
+    * each worker, but not the last message a worker receives: it is sent from inside the `portCompleted` handler
+    * (see `PortCompletedHandler`), whose own reply is emitted afterwards on the same control channel. We wait for all
+    * workers to reply that they have finished processing all queued control messages; a worker that is still draining
+    * fails the request and `terminateWorkersWithRetry` re-sends `EndWorker` after `killRetryDelay`.
     *
     * 2. Only after all workers have processed all control messages do we send a `gracefulStop` (pekko message) to each
     * worker. JVM workers will be terminated by `gracefulStop`. Python proxy workes will also be terminated by
@@ -219,7 +222,9 @@ class RegionExecutionManager(
         }
         Future.Unit // propagate success
       case Throw(err) =>
-        logger.warn(s"Error when terminating region ${region.id}.")
+        // `terminateWorkersWithRetry` logs this same failure with its attempt count (WARN) or
+        // gives up loudly (ERROR); logging it here too would only duplicate it without context.
+        logger.debug(s"Error when terminating region ${region.id}.", err)
         Future.exception(err) // propagate failure
     }
   }

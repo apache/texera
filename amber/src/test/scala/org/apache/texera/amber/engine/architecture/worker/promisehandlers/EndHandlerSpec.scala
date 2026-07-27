@@ -25,7 +25,10 @@ import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{
   AsyncRPCContext,
   EmptyRequest
 }
-import org.apache.texera.amber.engine.architecture.rpc.controlreturns.EmptyReturn
+import org.apache.texera.amber.engine.architecture.rpc.controlreturns.{
+  EmptyReturn,
+  ReturnInvocation
+}
 import org.apache.texera.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.METHOD_QUERY_STATISTICS
 import org.apache.texera.amber.engine.architecture.worker.WorkflowWorker.{
   ActorCommandElement,
@@ -48,8 +51,11 @@ import java.util.concurrent.LinkedBlockingQueue
 /**
   * `endWorker` is the coordinator's acknowledgement point before it sends actor-level `gracefulStop`.
   *
-  * A successful reply means the worker has drained every queued workflow message. If the queue still contains work,
-  * the handler must fail so the region execution manager can retry the kill instead of stopping the actor too early.
+  * A successful reply means the worker has drained every queued workflow message that represents work. If the queue
+  * still contains work, the handler must fail so the region execution manager can retry the kill instead of stopping
+  * the actor too early. A queued `ReturnInvocation` is not work: it only fulfills a promise for a request this worker
+  * already issued, and the coordinator routinely emits one behind `EndWorker` on the same control channel (the reply
+  * to the `portCompleted` whose handler triggered the termination).
   */
 class EndHandlerSpec extends AnyFlatSpec {
   private val workerId = ActorVirtualIdentity("Worker:WF1-test-op-main-0")
@@ -93,6 +99,15 @@ class EndHandlerSpec extends AnyFlatSpec {
     queue
   }
 
+  private def coordinatorReplyElement(seq: Long, commandId: Long): DPInputQueueElement =
+    FIFOMessageElement(
+      WorkflowFIFOMessage(
+        ChannelIdentity(COORDINATOR, workerId, isControl = true),
+        seq,
+        ReturnInvocation(commandId, EmptyReturn())
+      )
+    )
+
   "EndHandler" should "reply successfully when there are no unprocessed messages" in {
     val handler = createEndHandlerForQueue(new LinkedBlockingQueue[DPInputQueueElement]())
 
@@ -109,5 +124,57 @@ class EndHandlerSpec extends AnyFlatSpec {
     val handler = createEndHandlerForQueue(queueWithActorCommand())
 
     assertEndWorkerFails(handler)
+  }
+
+  it should "reply successfully when only a coordinator reply is queued" in {
+    // The exact payload observed on every normal region teardown: the coordinator sends
+    // `EndWorker` from inside the `portCompleted` handler, so the `ReturnInvocation` replying
+    // to that same `portCompleted` is emitted afterwards on the same FIFO control channel and
+    // legitimately sits behind `EndWorker` in this worker's arrival queue.
+    val queue = new LinkedBlockingQueue[DPInputQueueElement]()
+    queue.put(coordinatorReplyElement(seq = 0, commandId = 2))
+    val handler = createEndHandlerForQueue(queue)
+
+    assert(await(handler.endWorker(EmptyRequest(), rpcContext)) == EmptyReturn())
+    // The reply must only be inspected, never consumed.
+    assert(queue.size() == 1)
+  }
+
+  it should "reply successfully when multiple coordinator replies are queued" in {
+    val queue = new LinkedBlockingQueue[DPInputQueueElement]()
+    queue.put(coordinatorReplyElement(seq = 0, commandId = 2))
+    queue.put(coordinatorReplyElement(seq = 1, commandId = 3))
+    val handler = createEndHandlerForQueue(queue)
+
+    assert(await(handler.endWorker(EmptyRequest(), rpcContext)) == EmptyReturn())
+    assert(queue.size() == 2)
+  }
+
+  it should "fail when a control message is queued behind a coordinator reply" in {
+    // The pending-work scan must not stop at the queue's head: a reply followed by a real
+    // request is still unprocessed work.
+    val queue = new LinkedBlockingQueue[DPInputQueueElement]()
+    queue.put(coordinatorReplyElement(seq = 0, commandId = 2))
+    queue.put(
+      FIFOMessageElement(
+        WorkflowFIFOMessage(
+          ChannelIdentity(COORDINATOR, workerId, isControl = true),
+          1,
+          ControlInvocation(METHOD_QUERY_STATISTICS, EmptyRequest(), rpcContext, 1)
+        )
+      )
+    )
+    val handler = createEndHandlerForQueue(queue)
+
+    assertEndWorkerFails(handler)
+    assert(queue.size() == 2)
+  }
+
+  it should "not consume queued messages when it fails" in {
+    val queue = queueWithFifoControlMessage()
+    val handler = createEndHandlerForQueue(queue)
+
+    assertEndWorkerFails(handler)
+    assert(queue.size() == 1)
   }
 }

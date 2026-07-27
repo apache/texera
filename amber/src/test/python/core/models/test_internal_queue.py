@@ -27,9 +27,14 @@ from core.models.internal_queue import (
     InternalQueueElement,
 )
 from core.models.payload import DataPayload
+from core.util.proto import set_one_of
 from proto.org.apache.texera.amber.core import ActorVirtualIdentity, ChannelIdentity
 from proto.org.apache.texera.amber.engine.architecture.rpc import (
+    ControlInvocation,
+    ControlReturn,
     EmbeddedControlMessage,
+    EmptyReturn,
+    ReturnInvocation,
 )
 from proto.org.apache.texera.amber.engine.common import DirectControlMessagePayloadV2
 
@@ -87,6 +92,31 @@ class TestInternalQueue:
     @staticmethod
     def ecm_element(channel):
         return ECMElement(tag=channel, payload=EmbeddedControlMessage())
+
+    @staticmethod
+    def reply_dcm_element(channel):
+        # A coordinator ReturnInvocation: the one queued element that does not
+        # count as unprocessed work.
+        return DCMElement(
+            tag=channel,
+            payload=set_one_of(
+                DirectControlMessagePayloadV2,
+                ReturnInvocation(
+                    command_id=2,
+                    return_value=set_one_of(ControlReturn, EmptyReturn()),
+                ),
+            ),
+        )
+
+    @staticmethod
+    def invocation_dcm_element(channel):
+        return DCMElement(
+            tag=channel,
+            payload=set_one_of(
+                DirectControlMessagePayloadV2,
+                ControlInvocation(method_name="QueryStatistics", command_id=1),
+            ),
+        )
 
     def test_it_can_init(self, queue):
         assert queue.is_empty()
@@ -364,3 +394,77 @@ class TestInternalQueue:
         queue.enable(data_channel)
         assert queue.get() is blocked
         assert queue.is_empty()
+
+    @pytest.mark.timeout(2)
+    def test_peek_returns_none_on_an_empty_queue(self, queue):
+        assert queue.peek() is None
+
+    @pytest.mark.timeout(2)
+    def test_peek_is_non_destructive(self, queue, control_channel):
+        dcm = self.dcm_element(control_channel)
+        queue.put(dcm)
+        assert queue.peek() is dcm
+        assert queue.size() == 1
+        assert queue.get() is dcm
+
+    @pytest.mark.timeout(2)
+    def test_has_unprocessed_work_ignores_coordinator_replies(
+        self, queue, control_channel
+    ):
+        queue.put(self.reply_dcm_element(control_channel))
+        assert not queue.has_unprocessed_work()
+        assert not queue.is_empty()
+        queue.get()
+        assert not queue.has_unprocessed_work()
+
+    @pytest.mark.timeout(2)
+    def test_has_unprocessed_work_counts_control_invocations(
+        self, queue, control_channel
+    ):
+        queue.put(self.reply_dcm_element(control_channel))
+        queue.put(self.invocation_dcm_element(control_channel))
+        assert queue.has_unprocessed_work()
+        queue.get()  # the reply
+        assert queue.has_unprocessed_work()
+        queue.get()  # the invocation
+        assert not queue.has_unprocessed_work()
+
+    @pytest.mark.timeout(2)
+    def test_has_unprocessed_work_counts_data_and_ecm_elements(
+        self, queue, data_channel
+    ):
+        queue.put(self.data_element(data_channel))
+        queue.put(self.ecm_element(data_channel))
+        assert queue.has_unprocessed_work()
+        queue.get()
+        assert queue.has_unprocessed_work()
+        queue.get()
+        assert not queue.has_unprocessed_work()
+
+    @pytest.mark.timeout(2)
+    def test_has_unprocessed_work_counts_system_items(self, queue):
+        system_command = SystemCommand()
+        queue.put(system_command)
+        assert queue.has_unprocessed_work()
+        assert queue.get() is system_command
+        assert not queue.has_unprocessed_work()
+
+    @pytest.mark.timeout(2)
+    def test_has_unprocessed_work_sees_data_in_a_disabled_channel(
+        self, queue, data_channel
+    ):
+        # A disabled (paused/backpressured) channel hides its elements from
+        # get()/size(), but the data is still unprocessed work: acknowledging
+        # EndWorker over it would let the coordinator stop the worker and lose
+        # the queued tuples.
+        queue.put(self.data_element(data_channel))
+        queue.disable_data(InternalQueue.DisableType.DISABLE_BY_PAUSE)
+        assert queue.has_unprocessed_work()
+
+    @pytest.mark.timeout(2)
+    def test_has_unprocessed_work_is_not_counted_for_rejected_elements(
+        self, queue, data_channel
+    ):
+        with pytest.raises(ValueError, match="not recognized"):
+            queue.put(UnrecognizedElement(tag=data_channel))
+        assert not queue.has_unprocessed_work()

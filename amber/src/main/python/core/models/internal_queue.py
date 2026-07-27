@@ -20,16 +20,21 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 from threading import RLock
-from typing import TypeVar, Set
+from typing import Optional, TypeVar, Set
 
 from core.models.internal_marker import InternalMarker
 from core.models.payload import DataPayload
+from core.util.atomic import AtomicInteger
 from core.util.customized_queue.linked_blocking_multi_queue import (
     LinkedBlockingMultiQueue,
 )
 from core.util.customized_queue.queue_base import IQueue, QueueElement
+from core.util.proto import get_one_of
 from proto.org.apache.texera.amber.core import ChannelIdentity
-from proto.org.apache.texera.amber.engine.architecture.rpc import EmbeddedControlMessage
+from proto.org.apache.texera.amber.engine.architecture.rpc import (
+    EmbeddedControlMessage,
+    ReturnInvocation,
+)
 from proto.org.apache.texera.amber.engine.common import DirectControlMessagePayloadV2
 
 
@@ -67,12 +72,23 @@ class InternalQueue(IQueue):
         self._queue_ids: Set[ChannelIdentity] = set()
         self._queue_state: Set[InternalQueue.DisableType] = set()
         self._lock = RLock()
+        # Number of queued elements that represent work (see _is_work). Counted at
+        # put/get time because the underlying multi-queue offers no iteration, and
+        # it must see elements in disabled (paused/backpressured) sub-queues too.
+        self._work_count = AtomicInteger()
 
     def is_empty(self, key=None) -> bool:
         return self._queue.is_empty(key)
 
     def get(self) -> T:
-        return self._queue.get()
+        item = self._queue.get()
+        if self._is_work(item):
+            self._work_count.dec()
+        return item
+
+    def peek(self) -> Optional[T]:
+        """Non-destructively return the next available item, or None when empty."""
+        return self._queue.peek()
 
     def put(self, item: T) -> None:
         if isinstance(item, InternalQueueElement):
@@ -87,6 +103,31 @@ class InternalQueue(IQueue):
                 raise ValueError(f"item {item} is not recognized by internal queue")
         else:
             self._queue.put("SYSTEM", item)
+        if self._is_work(item):
+            self._work_count.inc()
+
+    @staticmethod
+    def _is_work(item) -> bool:
+        """
+        A queued ReturnInvocation is not unprocessed work: processing it only
+        fulfills a promise for a request this worker already issued, and the
+        worker never chains work on those replies. The coordinator routinely
+        emits one behind EndWorker on the same control channel (the reply to
+        the port_completed whose handler triggered the termination), so counting
+        it as work would fail every first EndWorker attempt.
+        """
+        return not (
+            isinstance(item, DCMElement)
+            and isinstance(get_one_of(item.payload, sealed=False), ReturnInvocation)
+        )
+
+    def has_unprocessed_work(self) -> bool:
+        """
+        True when at least one queued element is real work, including elements
+        queued in disabled (paused/backpressured) sub-queues that size() and
+        get() do not see.
+        """
+        return self._work_count.value > 0
 
     def disable(self, channel_id: ChannelIdentity) -> None:
         self._queue.disable(channel_id)
