@@ -46,96 +46,141 @@ DATA_CHANNEL = ChannelIdentity(
 )
 
 
-def _build_handler(queue: InternalQueue) -> EndWorkerHandler:
-    instance = EndWorkerHandler.__new__(EndWorkerHandler)
-    instance.context = SimpleNamespace(input_queue=queue)
-    return instance
-
-
-def _coordinator_reply_element() -> DCMElement:
-    # The exact payload observed on every normal region teardown: the coordinator
-    # sends EndWorker from inside its port_completed handler, so the reply to that
-    # same port_completed trails EndWorker on the control channel.
-    return DCMElement(
-        tag=CONTROL_CHANNEL,
-        payload=set_one_of(
-            DirectControlMessagePayloadV2,
-            ReturnInvocation(
-                command_id=2,
-                return_value=set_one_of(ControlReturn, EmptyReturn()),
-            ),
-        ),
-    )
-
-
-def _control_invocation_element() -> DCMElement:
-    return DCMElement(
-        tag=CONTROL_CHANNEL,
-        payload=set_one_of(
-            DirectControlMessagePayloadV2,
-            ControlInvocation(method_name="QueryStatistics", command_id=1),
-        ),
-    )
-
-
 class TestEndWorkerHandler:
     @pytest.fixture
-    def queue(self):
+    def input_queue(self):
         return InternalQueue()
 
     @pytest.fixture
-    def handler(self, queue):
-        return _build_handler(queue)
+    def handler(self, input_queue):
+        return EndWorkerHandler(SimpleNamespace(input_queue=input_queue))
 
-    def test_returns_empty_return_when_queue_is_empty(self, handler):
+    @staticmethod
+    def make_control_message(seq: int) -> DCMElement:
+        channel = ChannelIdentity(
+            ActorVirtualIdentity(name="CONTROLLER"),
+            ActorVirtualIdentity(name=f"worker-{seq}"),
+            is_control=True,
+        )
+        return DCMElement(tag=channel, payload=DirectControlMessagePayloadV2())
+
+    @staticmethod
+    def coordinator_reply_element() -> DCMElement:
+        # The exact payload observed on every normal region teardown: the
+        # coordinator sends EndWorker from inside its port_completed handler,
+        # so the reply to that same port_completed trails EndWorker on the
+        # control channel.
+        return DCMElement(
+            tag=CONTROL_CHANNEL,
+            payload=set_one_of(
+                DirectControlMessagePayloadV2,
+                ReturnInvocation(
+                    command_id=2,
+                    return_value=set_one_of(ControlReturn, EmptyReturn()),
+                ),
+            ),
+        )
+
+    @staticmethod
+    def control_invocation_element() -> DCMElement:
+        return DCMElement(
+            tag=CONTROL_CHANNEL,
+            payload=set_one_of(
+                DirectControlMessagePayloadV2,
+                ControlInvocation(method_name="QueryStatistics", command_id=1),
+            ),
+        )
+
+    def test_acknowledges_end_worker_on_empty_queue(self, handler):
         result = asyncio.run(handler.end_worker(EmptyRequest()))
         assert isinstance(result, EmptyReturn)
 
-    @pytest.mark.timeout(2)
-    def test_succeeds_and_keeps_a_queued_coordinator_reply(self, handler, queue):
-        queue.put(_coordinator_reply_element())
-
-        result = asyncio.run(handler.end_worker(EmptyRequest()))
-
-        assert isinstance(result, EmptyReturn)
-        # The reply must still be queued afterwards: the previous implementation
-        # called input_queue.get() inside its log message and silently dropped it.
-        assert queue.size() == 1
-
-    @pytest.mark.timeout(2)
-    def test_fails_when_a_control_invocation_is_queued(self, handler, queue):
-        queue.put(_control_invocation_element())
-
-        with pytest.raises(RuntimeError, match="worker still has unprocessed messages"):
+    def test_rejects_end_worker_with_one_unprocessed_message(
+        self, handler, input_queue
+    ):
+        # The controller resolves endWorker's reply as a failed future and
+        # retries on a fixed delay (terminateWorkersWithRetry), so a
+        # straggler message must fail the call — not be dropped with a
+        # successful acknowledgement.
+        input_queue.put(self.make_control_message(0))
+        with pytest.raises(RuntimeError, match="unprocessed messages"):
             asyncio.run(handler.end_worker(EmptyRequest()))
-        assert queue.size() == 1
+
+    @pytest.mark.timeout(2)
+    def test_does_not_consume_the_unprocessed_message(self, handler, input_queue):
+        straggler = self.make_control_message(0)
+        input_queue.put(straggler)
+        with pytest.raises(RuntimeError):
+            asyncio.run(handler.end_worker(EmptyRequest()))
+        # The straggler must survive the failed call so the main loop can
+        # still process it before the controller's retry.
+        assert input_queue.size() == 1
+        assert input_queue.get() is straggler
+
+    def test_keeps_all_messages_with_multiple_stragglers(self, handler, input_queue):
+        input_queue.put(self.make_control_message(0))
+        input_queue.put(self.make_control_message(1))
+        with pytest.raises(RuntimeError):
+            asyncio.run(handler.end_worker(EmptyRequest()))
+        assert input_queue.size() == 2
+
+    @pytest.mark.timeout(2)
+    def test_succeeds_after_queue_drains(self, handler, input_queue):
+        # The retry protocol end-to-end: fail while a message is pending,
+        # acknowledge once the queue has drained.
+        input_queue.put(self.make_control_message(0))
+        with pytest.raises(RuntimeError):
+            asyncio.run(handler.end_worker(EmptyRequest()))
+        input_queue.get()
+        result = asyncio.run(handler.end_worker(EmptyRequest()))
+        assert isinstance(result, EmptyReturn)
+
+    @pytest.mark.timeout(2)
+    def test_succeeds_and_keeps_a_queued_coordinator_reply(self, handler, input_queue):
+        # A queued ReturnInvocation is not unprocessed work: it only fulfills
+        # a promise for a request this worker already issued, and the
+        # coordinator routinely emits one behind EndWorker on the same control
+        # channel (the reply to the port_completed whose handler triggered the
+        # termination).
+        input_queue.put(self.coordinator_reply_element())
+
+        result = asyncio.run(handler.end_worker(EmptyRequest()))
+
+        assert isinstance(result, EmptyReturn)
+        # The reply must still be queued afterwards: an even earlier
+        # implementation called input_queue.get() inside its log message and
+        # silently dropped it.
+        assert input_queue.size() == 1
 
     @pytest.mark.timeout(2)
     def test_fails_when_a_control_invocation_is_queued_behind_a_reply(
-        self, handler, queue
+        self, handler, input_queue
     ):
-        queue.put(_coordinator_reply_element())
-        queue.put(_control_invocation_element())
+        # The work check must not stop at the queue's head: a reply followed
+        # by a real request is still unprocessed work.
+        input_queue.put(self.coordinator_reply_element())
+        input_queue.put(self.control_invocation_element())
 
         with pytest.raises(RuntimeError, match="worker still has unprocessed messages"):
             asyncio.run(handler.end_worker(EmptyRequest()))
-        assert queue.size() == 2
+        assert input_queue.size() == 2
 
     @pytest.mark.timeout(2)
-    def test_fails_when_data_is_queued(self, handler, queue):
-        queue.put(DataElement(tag=DATA_CHANNEL, payload=DataPayload()))
+    def test_fails_when_data_is_queued(self, handler, input_queue):
+        input_queue.put(DataElement(tag=DATA_CHANNEL, payload=DataPayload()))
 
         with pytest.raises(RuntimeError, match="worker still has unprocessed messages"):
             asyncio.run(handler.end_worker(EmptyRequest()))
-        assert queue.size() == 1
+        assert input_queue.size() == 1
 
     @pytest.mark.timeout(2)
-    def test_is_idempotent_across_coordinator_retries(self, handler, queue):
-        # The coordinator re-sends EndWorker to every worker on every termination
-        # attempt, so repeated calls must neither consume nor change anything.
-        queue.put(_coordinator_reply_element())
+    def test_is_idempotent_across_coordinator_retries(self, handler, input_queue):
+        # The coordinator re-sends EndWorker to every worker on every
+        # termination attempt, so repeated calls must neither consume nor
+        # change anything.
+        input_queue.put(self.coordinator_reply_element())
 
         for _ in range(2):
             result = asyncio.run(handler.end_worker(EmptyRequest()))
             assert isinstance(result, EmptyReturn)
-        assert queue.size() == 1
+        assert input_queue.size() == 1

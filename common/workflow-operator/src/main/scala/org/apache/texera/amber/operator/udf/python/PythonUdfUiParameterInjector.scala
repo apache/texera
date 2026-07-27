@@ -85,8 +85,7 @@ object PythonUdfUiParameterInjector {
   private def buildInjectedHookMethod(uiParameters: List[UiUDFParameter]): String = {
     val injectedParametersMap = buildInjectedParametersMap(uiParameters)
 
-    (pyb"""|# Follow-up runtime support exports Dict/Any and defines the base hook that @overrides targets.
-           |@overrides
+    (pyb"""|@overrides
            |$InjectedUiParametersHookMethodHeader
            |    return {""" +
       injectedParametersMap +
