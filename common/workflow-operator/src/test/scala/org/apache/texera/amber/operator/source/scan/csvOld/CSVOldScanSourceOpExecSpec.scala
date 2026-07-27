@@ -82,4 +82,21 @@ class CSVOldScanSourceOpExecSpec extends AnyFlatSpec {
     val exec = new CSVOldScanSourceOpExec(descString("a\n1\n"))
     exec.close() // reader is still null -> guarded, no exception
   }
+
+  it should "skip a post-inference row that does not parse and report row, value, column, type" in {
+    // 100 clean integer rows fix the column type at INTEGER (INFER_READ_LIMIT=100);
+    // data row 101 holds a non-integer and must be skipped but reported.
+    val clean = (1 to 100).map(_.toString).mkString("\n")
+    val exec = new CSVOldScanSourceOpExec(descString(s"a\n$clean\noops\n"))
+    val rows = drain(exec)
+
+    assert(rows.size == 100)
+    val warnings = exec.getWarnings
+    assert(warnings.size == 1)
+    assert(warnings.head.startsWith("WARNING: "))
+    assert(warnings.head.contains("row 101"))
+    assert(warnings.head.contains("'oops'"))
+    assert(warnings.head.contains("column 'a'"))
+    assert(warnings.head.contains("INTEGER"))
+  }
 }

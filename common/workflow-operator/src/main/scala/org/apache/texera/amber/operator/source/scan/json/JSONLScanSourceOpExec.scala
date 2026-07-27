@@ -23,6 +23,7 @@ import org.apache.texera.amber.core.executor.SourceOperatorExecutor
 import org.apache.texera.amber.core.storage.DocumentFactory
 import org.apache.texera.amber.core.tuple.AttributeTypeUtils.parseField
 import org.apache.texera.amber.core.tuple.TupleLike
+import org.apache.texera.amber.operator.source.scan.{ScanRowParseError, SkippedRowReporter}
 import org.apache.texera.amber.util.JSONUtils.{JSONToMap, objectMapper}
 
 import java.io.{BufferedReader, InputStreamReader}
@@ -39,20 +40,43 @@ class JSONLScanSourceOpExec private[json] (
     objectMapper.readValue(descString, classOf[JSONLScanSourceOpDesc])
   private var rows: Iterator[String] = _
   private var reader: BufferedReader = _
+  // 0-based line offset of this worker's first row, captured in open() so skipped
+  // rows can be reported with their absolute 1-based line number.
+  private var startLine: Int = 0
   private val schema = desc.sourceSchema()
+  private val skippedRows = new SkippedRowReporter()
+
+  override def getWarnings: Seq[String] = skippedRows.warnings
 
   override def produceTuple(): Iterator[TupleLike] = {
-    rows.flatMap { line =>
-      Try {
-        val data = JSONToMap(objectMapper.readTree(line), desc.flatten).withDefaultValue(null)
-        val fields = schema.getAttributeNames.map { fieldName =>
-          parseField(data(fieldName), schema.getAttribute(fieldName).getType)
+    rows.zipWithIndex.flatMap {
+      case (line, index) =>
+        // Hoisted out of the Try so the failure handler can name the offending
+        // field; stays empty when the JSON line itself is malformed.
+        var rawFields: Seq[Any] = Seq.empty
+        Try {
+          val data = JSONToMap(objectMapper.readTree(line), desc.flatten).withDefaultValue(null)
+          rawFields = schema.getAttributeNames.map(fieldName => data(fieldName))
+          val fields = schema.getAttributeNames.map { fieldName =>
+            parseField(data(fieldName), schema.getAttribute(fieldName).getType)
+          }
+          TupleLike(fields: _*)
+        } match {
+          case Success(tuple) => Some(tuple)
+          case Failure(e)     =>
+            // Skip the unparsable line but surface it as a warning instead of
+            // dropping it silently.
+            skippedRows.record(
+              ScanRowParseError.skipWarning(
+                rawFields,
+                schema,
+                desc.inferSampleSize,
+                Some(startLine + index + 1),
+                e
+              )
+            )
+            None
         }
-        TupleLike(fields: _*)
-      } match {
-        case Success(tuple) => Some(tuple)
-        case Failure(_)     => None
-      }
     }
   }
 
@@ -74,6 +98,9 @@ class JSONLScanSourceOpExec private[json] (
     val endOffset: Int =
       if (idx != workerCount - 1) count / workerCount * (idx + 1) else count
 
+    // `startOffset` is relative to the post-offset iterator; add the offset back
+    // so skipped-row warnings report absolute 1-based file line numbers.
+    startLine = offsetValue + startOffset
     rows = it2.iterator.slice(startOffset, endOffset)
   }
 
