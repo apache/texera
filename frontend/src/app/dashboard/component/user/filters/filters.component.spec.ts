@@ -416,4 +416,80 @@ describe("FiltersComponent", () => {
       expect(component.getSearchKeywords()).toEqual(["hello", "world"]);
     });
   });
+
+  describe("master-filter-list building and dropdown reset", () => {
+    // These are private helpers reached through the public setter / build path;
+    // cast to exercise them directly without going through the DOM.
+    const asPrivate = () =>
+      component as unknown as {
+        checkIfWorkflowName: (tag: string) => boolean;
+        updateMasterFilterList: (master: ReadonlyArray<string>, items: string[]) => string[];
+        setMasterFilterList: (value: ReadonlyArray<string>, updateDropdown: boolean) => void;
+        removeInvalidFilterTag: (tag: string) => void;
+        setDropdownSelectionsToUnchecked: () => void;
+      };
+
+    it("checkIfWorkflowName distinguishes plain names from known-prefix filter tags", () => {
+      const filters = asPrivate();
+      // no colon -> a workflow name
+      expect(filters.checkIfWorkflowName("my workflow")).toBe(true);
+      // a known search-criteria prefix -> a filter tag, not a name
+      expect(filters.checkIfWorkflowName("owner: alice")).toBe(false);
+      // an unrecognized prefix -> still treated as a name
+      expect(filters.checkIfWorkflowName("weird: value")).toBe(true);
+    });
+
+    it("updateMasterFilterList appends new tags and replaces the ctime tag in place", () => {
+      const result = asPrivate().updateMasterFilterList(
+        ["keyword", "ctime: 2022-01-01 ~ 2022-02-01"],
+        ["keyword", "ctime: 2023-03-03 ~ 2023-04-04", "owner: alice"]
+      );
+      expect(result).toEqual(["keyword", "ctime: 2023-03-03 ~ 2023-04-04", "owner: alice"]);
+    });
+
+    it("updateMasterFilterList drops tags absent from the new list", () => {
+      expect(asPrivate().updateMasterFilterList(["a", "b", "c"], ["a", "c"])).toEqual(["a", "c"]);
+    });
+
+    it("setMasterFilterList emits on masterFilterListChange only when the list changes", () => {
+      const filters = asPrivate();
+      const emitted: ReadonlyArray<string>[] = [];
+      component.masterFilterListChange.subscribe(value => emitted.push(value));
+
+      filters.setMasterFilterList(["owner: alice"], false);
+      expect(component.masterFilterList).toEqual(["owner: alice"]);
+      expect(emitted).toHaveLength(1);
+
+      // identical content -> guarded, no re-emit
+      filters.setMasterFilterList(["owner: alice"], false);
+      expect(emitted).toHaveLength(1);
+    });
+
+    it("removeInvalidFilterTag drops the given tag from the master list", () => {
+      const filters = asPrivate();
+      filters.setMasterFilterList(["owner: alice", "keyword", "id: 5"], false);
+      filters.removeInvalidFilterTag("id: 5");
+      expect(component.masterFilterList).toEqual(["owner: alice", "keyword"]);
+    });
+
+    it("setDropdownSelectionsToUnchecked clears every dropdown checkbox", () => {
+      component.owners = [{ userName: "alice", checked: true }];
+      component.wids = [{ id: "1", checked: true }];
+      component.operators = new Map([
+        ["group", [{ userFriendlyName: "Scan", operatorType: "ScanSource", operatorGroup: "group", checked: true }]],
+      ]);
+      component.userProjectsDropdown = [{ pid: 1, name: "p", checked: true }];
+
+      asPrivate().setDropdownSelectionsToUnchecked();
+
+      expect(component.owners.every(owner => !owner.checked)).toBe(true);
+      expect(component.wids.every(wid => !wid.checked)).toBe(true);
+      expect(
+        Array.from(component.operators.values())
+          .flat()
+          .every(operator => !operator.checked)
+      ).toBe(true);
+      expect(component.userProjectsDropdown.every(project => !project.checked)).toBe(true);
+    });
+  });
 });

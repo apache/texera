@@ -51,6 +51,7 @@ from proto.org.apache.texera.amber.core import (
     OpExecInitInfo,
     EmbeddedControlMessageIdentity,
 )
+from core.architecture.managers.context import Context
 from core.architecture.managers.pause_manager import PauseType
 from core.util.console_message.timestamp import current_time_in_local_timezone
 from proto.org.apache.texera.amber.engine.architecture.rpc import (
@@ -742,6 +743,8 @@ class TestMainLoop:
         stats_invocation = elem.payload.return_invocation
         worker_metrics_response = stats_invocation.return_value.worker_metrics_response
         stats = worker_metrics_response.metrics.worker_statistics
+        # a missing/dropped version would echo through the read-back below; guard it
+        assert worker_metrics_response.metrics.state_version > 0
 
         metrics = WorkerMetrics(
             worker_state=WorkerState.RUNNING,
@@ -768,6 +771,9 @@ class TestMainLoop:
                 control_processing_time=stats.control_processing_time,
                 idle_time=stats.idle_time,
             ),
+            # version is the worker's logical state clock; read it from the actual
+            # report rather than pinning a brittle count (covered by StateManager tests).
+            state_version=worker_metrics_response.metrics.state_version,
         )
 
         assert elem == DCMElement(
@@ -1175,13 +1181,21 @@ class TestMainLoop:
         output_queue,
     ):
         input_queue.put(mock_pause)
-        assert output_queue.get() == DCMElement(
+        elem = output_queue.get()
+        # version is the worker's logical state clock; read it from the actual
+        # report rather than pinning a brittle count (covered by StateManager tests).
+        state_version = elem.payload.return_invocation.return_value.worker_state_response.state_version
+        # a missing/dropped version would echo through the read-back; guard it
+        assert state_version > 0
+        assert elem == DCMElement(
             tag=mock_control_output_channel,
             payload=DirectControlMessagePayloadV2(
                 return_invocation=ReturnInvocation(
                     command_id=command_sequence,
                     return_value=ControlReturn(
-                        worker_state_response=WorkerStateResponse(WorkerState.PAUSED)
+                        worker_state_response=WorkerStateResponse(
+                            WorkerState.PAUSED, state_version=state_version
+                        )
                     ),
                 )
             ),
@@ -1196,13 +1210,21 @@ class TestMainLoop:
         output_queue,
     ):
         input_queue.put(mock_resume)
-        assert output_queue.get() == DCMElement(
+        elem = output_queue.get()
+        # version is the worker's logical state clock; read it from the actual
+        # report rather than pinning a brittle count (covered by StateManager tests).
+        state_version = elem.payload.return_invocation.return_value.worker_state_response.state_version
+        # a missing/dropped version would echo through the read-back; guard it
+        assert state_version > 0
+        assert elem == DCMElement(
             tag=mock_control_output_channel,
             payload=DirectControlMessagePayloadV2(
                 return_invocation=ReturnInvocation(
                     command_id=command_sequence,
                     return_value=ControlReturn(
-                        worker_state_response=WorkerStateResponse(WorkerState.RUNNING)
+                        worker_state_response=WorkerStateResponse(
+                            WorkerState.RUNNING, state_version=state_version
+                        )
                     ),
                 )
             ),
@@ -2602,3 +2624,65 @@ class TestMainLoop:
 
         assert rpc_calls == [], "must fail before the jump RPC"
         assert write_log == [], "must fail before touching storage"
+
+    @pytest.mark.timeout(10)
+    def test_two_main_loops_load_distinct_operator_classes(self):
+        """
+        Two worker Contexts created in the same process with DIFFERENT operator
+        classes must each load exactly the class they were given.
+
+        Regression test for executor-module contamination (#4705): executor
+        modules were once named ``udf-v<per-instance-counter>``, so every
+        loop's first executor was ``udf-v1`` in the process-wide
+        ``sys.modules``. A loop whose worker never completes never closes its
+        temp fs, so its ``udf-v1.py`` lingered on ``sys.path`` and the next
+        loop re-resolved ``udf-v1`` to that older file, silently running the
+        wrong operator. This test uses NO monkeypatch of
+        ``gen_module_file_name`` -- module names must be process-globally
+        unique on their own.
+
+        The module-naming collision lives entirely in ``ExecutorManager``, which
+        each ``MainLoop`` owns via its ``Context``. We construct ``Context``
+        directly (rather than ``MainLoop``) so the regression is exercised
+        without spawning the per-loop ``DataProcessor`` daemon thread that a
+        full ``MainLoop`` would leave running for the rest of the test session.
+        """
+        echo_code = "from pytexera import *\n" + inspect.getsource(EchoOperator)
+        count_code = "from pytexera import *\n" + inspect.getsource(CountBatchOperator)
+
+        first = Context("worker-first", InternalQueue())
+        second = Context("worker-second", InternalQueue())
+        try:
+            # The first loop loads EchoOperator and is intentionally left "unfinished"
+            # until after the second loop is initialized: its temp fs is not closed yet,
+            # so its udf module and sys.path entry linger exactly as a crashed /
+            # never-completed worker's would.
+            first.executor_manager.initialize_executor(
+                echo_code, is_source=False, language="python"
+            )
+            first_cls = type(first.executor_manager.executor).__name__
+            first_module = first.executor_manager.operator_module_name
+            assert first_cls == "EchoOperator"
+
+            # The second loop asks for a DIFFERENT class. It must get that
+            # class, not the first loop's EchoOperator via a udf module-name
+            # collision in the shared sys.modules / sys.path.
+            second.executor_manager.initialize_executor(
+                count_code, is_source=False, language="python"
+            )
+            second_cls = type(second.executor_manager.executor).__name__
+            second_module = second.executor_manager.operator_module_name
+            assert second_cls == "CountBatchOperator"
+
+            # The module names themselves must be process-globally unique -- a
+            # per-instance counter would name both loops' first executor
+            # "udf-v1" and reintroduce the sys.modules collision. Asserting the
+            # names differ ties the guard directly to the root cause, not just
+            # the (downstream) loaded class.
+            assert first_module != second_module, (
+                "executor module names must be process-globally unique; "
+                f"both loops used {first_module!r}"
+            )
+        finally:
+            first.executor_manager.close()
+            second.executor_manager.close()
