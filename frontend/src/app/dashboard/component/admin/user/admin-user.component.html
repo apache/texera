@@ -70,6 +70,11 @@
         </nz-filter-trigger>
       </th>
       <th
+        [nzSortFn]="sortByLocalHandle"
+        [nzSortDirections]="['ascend', 'descend']">
+        Login Handle
+      </th>
+      <th
         [nzSortFn]="sortByAffiliation"
         [nzSortDirections]="['ascend', 'descend']">
         Affiliation
@@ -241,6 +246,8 @@
           </ng-template>
         </div>
       </td>
+      <!-- Read-only: the login handle is fixed at registration, unlike the display name above. -->
+      <td>{{ user.localHandle }}</td>
       <td>{{ user.affiliation }}</td>
       <td>{{ user.joiningReason }}</td>
       <td>

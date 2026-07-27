@@ -39,6 +39,9 @@ export interface User
     uid: number;
     name: string;
     email: string;
+    // The local login handle. Unlike `name`, which is a display name, this is what the
+    // user types to log in; it is fixed at registration and only served to admins.
+    localHandle?: string;
     role: Role;
     color?: string;
     avatar?: string;

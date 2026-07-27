@@ -117,16 +117,15 @@ CREATE TABLE IF NOT EXISTS auth_provider
 (
     uid               INT                 NOT NULL,
     provider_type     provider_type_enum  NOT NULL,
-    provider_id       VARCHAR(256),          -- external subject id (e.g. Google sub, Facebook id); NULL for LOCAL
-    password          VARCHAR(256),          -- hashed credential; only for LOCAL
+    provider_id       VARCHAR(256)        NOT NULL, -- subject id at the provider: the login username for LOCAL, the external id (e.g. Google sub, Facebook id) otherwise
+    password          VARCHAR(256),                 -- hashed credential; only for LOCAL
     created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
     PRIMARY KEY (uid, provider_type),
     FOREIGN KEY (uid) REFERENCES "user"(uid) ON DELETE CASCADE,
+    -- one identity per provider; for LOCAL this is what makes the login username unique
     CONSTRAINT uq_provider_identity UNIQUE (provider_type, provider_id),
-    CONSTRAINT ck_provider_credential CHECK (
-        (provider_type = 'LOCAL'  AND password    IS NOT NULL AND provider_id IS NULL) OR
-        (provider_type != 'LOCAL' AND provider_id IS NOT NULL AND password    IS NULL)
-    )
+    -- a password exists for LOCAL and only for LOCAL (replaces the old ck_nulltest on "user")
+    CONSTRAINT ck_provider_credential CHECK ((provider_type = 'LOCAL') = (password IS NOT NULL))
 );
 
 -- user_config

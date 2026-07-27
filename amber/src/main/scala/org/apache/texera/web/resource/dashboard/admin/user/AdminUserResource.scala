@@ -30,8 +30,10 @@ import org.apache.texera.web.resource.GmailResource.sendEmail
 import org.apache.texera.web.resource.dashboard.admin.user.AdminUserResource.userDao
 import org.apache.texera.web.resource.dashboard.user.quota.UserQuotaResource._
 import org.jasypt.util.password.StrongPasswordEncryptor
+import org.jooq.exception.DataAccessException
 
 import java.util
+import java.util.UUID
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
 import javax.ws.rs.core.{MediaType, Response}
@@ -41,6 +43,9 @@ case class UserInfo(
     name: String,
     email: String,
     googleId: String,
+    // The local login handle. Unlike `name` it is not editable, and it is the only place an
+    // admin can read back the handle of an account they created.
+    localHandle: String,
     role: UserRoleEnum,
     avatar: String,
     comment: String,
@@ -51,6 +56,10 @@ case class UserInfo(
 )
 
 object AdminUserResource {
+
+  /** Postgres SQLSTATE for unique_violation. */
+  private val UNIQUE_VIOLATION = "23505"
+
   private def context =
     SqlServer
       .getInstance()
@@ -71,6 +80,12 @@ class AdminUserResource {
   @Path("/list")
   @Produces(Array(MediaType.APPLICATION_JSON))
   def list(): util.List[UserInfo] = {
+    // auth_provider is joined once per provider we surface, so each identity lands in its own
+    // column; one join matching both provider types would put them in the same column and
+    // duplicate the user's row.
+    val googleProvider = AUTH_PROVIDER.as("google_provider")
+    val localProvider = AUTH_PROVIDER.as("local_provider")
+
     // NOTE: fetchInto maps by constructor position, so the column order below
     // must match the field order of UserInfo.
     AdminUserResource.context
@@ -78,7 +93,8 @@ class AdminUserResource {
         USER.UID,
         USER.NAME,
         USER.EMAIL,
-        AUTH_PROVIDER.PROVIDER_ID,
+        googleProvider.PROVIDER_ID,
+        localProvider.PROVIDER_ID,
         USER.ROLE,
         USER.AVATAR,
         USER.COMMENT,
@@ -90,12 +106,20 @@ class AdminUserResource {
       .from(USER)
       .leftJoin(USER_LAST_ACTIVE_TIME)
       .on(USER.UID.eq(USER_LAST_ACTIVE_TIME.UID))
-      .leftJoin(AUTH_PROVIDER)
-      .on(AUTH_PROVIDER.PROVIDER_TYPE.eq(ProviderTypeEnum.GOOGLE))
-      .and(AUTH_PROVIDER.UID.eq(USER.UID))
+      .leftJoin(googleProvider)
+      .on(googleProvider.PROVIDER_TYPE.eq(ProviderTypeEnum.GOOGLE))
+      .and(googleProvider.UID.eq(USER.UID))
+      .leftJoin(localProvider)
+      .on(localProvider.PROVIDER_TYPE.eq(ProviderTypeEnum.LOCAL))
+      .and(localProvider.UID.eq(USER.UID))
       .fetchInto(classOf[UserInfo])
   }
 
+  /**
+    * Updates the editable profile fields. `name` is a display name only: the account's login
+    * handle lives on its LOCAL auth_provider row and is deliberately left untouched here, so
+    * renaming somebody can no longer lock them out.
+    */
   @PUT
   @Path("/update")
   def updateUser(user: User): Unit = {
@@ -124,23 +148,37 @@ class AdminUserResource {
   @POST
   @Path("/add")
   def addUser(): Unit = {
-    val random = System.currentTimeMillis().toString
+    // A UUID rather than a millisecond timestamp: this string is now the account's login
+    // handle, which uq_provider_identity requires to be unique, and two admins clicking
+    // within the same millisecond would collide. As before, the throwaway password is the
+    // same value, so an admin can derive it from the handle and hand it over.
+    val random = UUID.randomUUID().toString
+    val handle = "User" + random
     val hashedPassword = new StrongPasswordEncryptor().encryptPassword(random)
 
-    SqlServer.withTransaction(SqlServer.getInstance().createDSLContext()) { ctx =>
-      val txUserDao = new UserDao(ctx.configuration())
-      val txAuthDao = new AuthProviderDao(ctx.configuration())
+    try {
+      SqlServer.withTransaction(SqlServer.getInstance().createDSLContext()) { ctx =>
+        val txUserDao = new UserDao(ctx.configuration())
+        val txAuthDao = new AuthProviderDao(ctx.configuration())
 
-      val newUser = new User
-      newUser.setName("User" + random)
-      newUser.setRole(UserRoleEnum.INACTIVE)
-      txUserDao.insert(newUser)
+        val newUser = new User
+        newUser.setName(handle)
+        newUser.setRole(UserRoleEnum.INACTIVE)
+        txUserDao.insert(newUser)
 
-      val newAuth = new AuthProvider()
-      newAuth.setUid(newUser.getUid)
-      newAuth.setPassword(hashedPassword)
-      newAuth.setProviderType(ProviderTypeEnum.LOCAL)
-      txAuthDao.insert(newAuth)
+        val newAuth = new AuthProvider()
+        newAuth.setUid(newUser.getUid)
+        newAuth.setPassword(hashedPassword)
+        newAuth.setProviderType(ProviderTypeEnum.LOCAL)
+        newAuth.setProviderId(handle)
+        txAuthDao.insert(newAuth)
+      }
+    } catch {
+      case e: DataAccessException if e.sqlState() == AdminUserResource.UNIQUE_VIOLATION =>
+        throw new WebApplicationException(
+          new RuntimeException(s"Login handle $handle is already taken", e),
+          Response.Status.CONFLICT
+        )
     }
 
   }
