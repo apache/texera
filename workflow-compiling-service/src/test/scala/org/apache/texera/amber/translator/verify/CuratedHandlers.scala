@@ -427,11 +427,12 @@ object SklearnTextFixture {
 }
 
 /**
-  * Handler for `SpecializedFilterOpDesc`. Writes a 5-row table with an
-  * integer and a string column, then filters on `age > 18 OR name == "eve"`.
-  * Exercises numeric comparison, string equality (the JSON predicate `value`
-  * is a string), and OR-combination of predicates — three corners of the
-  * generator's coercion logic in one fixture.
+  * Handler for `SpecializedFilterOpDesc`. Curated CONFIG over the shared
+  * canonical fixture: the auto tier fills a free-form predicate `value` with
+  * the canonical "1", which pins the shape of the comparison but not its
+  * corners. `id > 8 OR name == "eve"` exercises numeric comparison, string
+  * equality (the JSON predicate `value` is always a string) and OR-combination
+  * in one run, and keeps 5 of port 0's 10 rows — a proper subset either way.
   *
   * Both JVM `SpecializedFilterOpExec` and pandas boolean indexing preserve
   * input row order, so positional comparator equality holds.
@@ -441,36 +442,13 @@ object SpecializedFilterTransformHandler extends TransformHandler {
   override val opDescClass: Class[_ <: LogicalOp] = classOf[SpecializedFilterOpDesc]
 
   override def fixture(testRoot: Path): (LogicalOp, Map[PortIdentity, Path]) = {
-    val schema = new Schema(
-      new Attribute("age", AttributeType.INTEGER),
-      new Attribute("name", AttributeType.STRING)
-    )
-
-    val rows: Seq[Tuple] = Seq(
-      tupleOf(schema, 21, "alice"),
-      tupleOf(schema, 17, "bob"),
-      tupleOf(schema, 30, "carol"),
-      tupleOf(schema, 15, "eve"),
-      tupleOf(schema, 14, "dave")
-    )
-
-    val inputPath = testRoot.resolve("input_port_0.jsonl")
-    TupleIO.writeTuples(inputPath, rows.iterator, schema)
-
     val desc = new SpecializedFilterOpDesc()
     desc.predicates = List(
-      new FilterPredicate("age", ComparisonType.GREATER_THAN, "18"),
+      new FilterPredicate("id", ComparisonType.GREATER_THAN, "8"),
       new FilterPredicate("name", ComparisonType.EQUAL_TO, "eve")
     )
 
-    (desc, Map(PortIdentity(0) -> inputPath))
-  }
-
-  private def tupleOf(schema: Schema, age: Int, name: String): Tuple = {
-    val builder = Tuple.builder(schema)
-    builder.add(schema.getAttribute("age"), Int.box(age))
-    builder.add(schema.getAttribute("name"), name)
-    builder.build()
+    (desc, CanonicalFixture.writeInputs(testRoot, 1))
   }
 }
 
