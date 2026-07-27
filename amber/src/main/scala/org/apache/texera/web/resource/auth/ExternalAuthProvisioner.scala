@@ -133,7 +133,7 @@ object ExternalAuthProvisioner {
     if (hasProvider) {
       ctx
         .update(AUTH_PROVIDER)
-        .set(AUTH_PROVIDER.PROVIDER_ID, profile.providerId)
+        .set(AUTH_PROVIDER.SECRET, profile.providerId)
         .where(AUTH_PROVIDER.UID.eq(user.getUid))
         .and(AUTH_PROVIDER.PROVIDER_TYPE.eq(profile.providerType))
         .execute()
@@ -142,7 +142,7 @@ object ExternalAuthProvisioner {
         new AuthProvider().tap { auth =>
           auth.setUid(user.getUid)
           auth.setProviderType(profile.providerType)
-          auth.setProviderId(profile.providerId)
+          auth.setSecret(profile.providerId)
           auth.setCreatedAt(OffsetDateTime.now())
         }
       )
