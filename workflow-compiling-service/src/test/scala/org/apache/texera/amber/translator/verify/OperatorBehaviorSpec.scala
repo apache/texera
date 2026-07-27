@@ -118,7 +118,6 @@ object OperatorBehaviorSpec {
     "Sklearn",
     "HuggingFace",
     "MachineLearningScorer",
-    "HtmlVizOpDesc",
     "LineChartOpDesc",
     "NestedTableOpDesc",
     "NetworkGraphOpDesc",
