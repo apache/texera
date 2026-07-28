@@ -926,17 +926,32 @@ jobs:
                   { owner, repo, num: prNumber }
                 );
                 const original = linked.repository.pullRequest;
+                const bodyText = original.body || "";
                 const issues = (original.closingIssuesReferences?.nodes || []).map(
                   (n) => n.number
                 );
                 const discussions = [
-                  ...(original.body || "").matchAll(
+                  ...bodyText.matchAll(
                     /https:\/\/(?:github\.com\/[^\s)]+\/discussions\/\d+|lists\.apache\.org\/[^\s)]+)/g
                   ),
                 ].map((m) => m[0]);
+                // Security dependency PRs (e.g. Renovate) usually link no issue;
+                // fall back to the CVE / GHSA advisories named in the body so
+                // the backport still points at what it fixes.
+                const cves = [
+                  ...new Set([...bodyText.matchAll(/\bCVE-\d{4}-\d{4,7}\b/g)].map((m) => m[0])),
+                ];
+                const ghsas = [
+                  ...new Set(
+                    [...bodyText.matchAll(/\bGHSA(?:-[a-z0-9]{4}){3}\b/gi)].map((m) => m[0])
+                  ),
+                ];
+                const advisories = cves.length ? cves : ghsas;
                 const parts = [`Backport of #${prNumber}.`];
                 if (issues.length) {
                   parts.push(`Originally linked ${issues.map((n) => `#${n}`).join(", ")}.`);
+                } else if (advisories.length) {
+                  parts.push(`Fixes ${advisories.join(", ")} (see #${prNumber} for details).`);
                 }
                 parts.push(...discussions);
                 relatedSection = parts.join(" ");

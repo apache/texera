@@ -62,11 +62,14 @@ jobs:
         uses: actions/github-script@v9
         env:
           ENTRIES: ${{ steps.targets.outputs.entries }}
+          BOT_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          # Add the label with the fine-grained PAT (falling back to the
-          # default token) so the resulting `labeled` event retriggers the
-          # backport pre-merge check in Required Checks. Labels applied by the
-          # default GITHUB_TOKEN do not trigger downstream workflows.
+          # Label ops use the fine-grained PAT (falling back to the default
+          # token) so the resulting `labeled` event retriggers the backport
+          # pre-merge check — labels applied by the default GITHUB_TOKEN do not
+          # trigger downstream workflows. The review request is sent by the bot
+          # (GITHUB_TOKEN, via BOT_TOKEN below) so it is attributed to
+          # github-actions[bot] rather than the PAT owner; it needs no trigger.
           github-token: ${{ secrets.AUTO_MERGE_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             const entries = JSON.parse(process.env.ENTRIES || "[]");
@@ -190,7 +193,11 @@ jobs:
 
               if (manager && manager !== author) {
                 try {
-                  await github.rest.pulls.requestReviewers({
+                  // Send the review request as github-actions[bot] (BOT_TOKEN),
+                  // not the PAT owner — it needs no downstream trigger, so it
+                  // does not have to use the label PAT.
+                  const bot = require("@actions/github").getOctokit(process.env.BOT_TOKEN);
+                  await bot.rest.pulls.requestReviewers({
                     owner,
                     repo,
                     pull_number: pr.number,
