@@ -89,11 +89,12 @@ class LoopEndOpDescSpec extends AnyFlatSpec with LoopOpDescSpecMixin {
   }
 
   it should "not exec user code inline against self.state (the guard lives in the base helpers)" in {
-    // The table decode (Arrow IPC) and the user update/condition exec run in
-    // the LoopEnd base helpers (run_update / eval_condition) against a
-    // throwaway namespace, so the reserved `table` never persists in the loop
-    // state (a user rebind raises). The generated operator must not touch it
-    // directly or exec user code against self.state.
+    // The user update/condition exec runs in the LoopEnd base helpers
+    // (run_update / eval_condition) against a throwaway namespace seeded with
+    // the runtime-attached input table, so the reserved `table` never
+    // persists in the loop state (a user rebind raises). The generated
+    // operator must not touch it directly or exec user code against
+    // self.state.
     val code = desc(update = "i = i + 7", condition = "i < 3").generatePythonCode()
     code should not include "exec("
     code should not include "self.state[\"table\"]"

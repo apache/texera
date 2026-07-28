@@ -30,6 +30,7 @@ from core.architecture.rpc.async_rpc_server import AsyncRPCServer
 from core.models import (
     InternalQueue,
     StateFrame,
+    Table,
     Tuple,
 )
 from core.models.internal_marker import StartChannel, EndChannel
@@ -43,6 +44,7 @@ from core.models.operator import LoopEndOperator, LoopStartOperator
 from core.models.state import State
 from core.runnables.data_processor import DataProcessor
 from core.storage.document_factory import DocumentFactory
+from core.storage.vfs_uri_factory import VFSURIFactory
 from core.util import StoppableQueueBlockingRunnable, get_one_of
 from core.util.console_message.timestamp import current_time_in_local_timezone
 from core.util.customized_queue.queue_base import QueueElement
@@ -85,7 +87,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
         self._output_queue: InternalQueue = output_queue
         # Captured from the consumed StateFrame envelope when a matching
         # LoopEnd (loop_counter == 0) takes a state; used for the jump RPC
-        # and the setup-config URI lookup (context.loop_start_state_uris).
+        # and the setup-config URI lookup (context.loop_start_port_uris).
         self._loop_start_id: str = ""
 
         self.context = Context(worker_id, input_queue)
@@ -97,21 +99,40 @@ class MainLoop(StoppableQueueBlockingRunnable):
             target=self.data_processor.run, daemon=True, name="data_processor_thread"
         ).start()
 
+    def _loop_start_base_uri(self) -> str:
+        # The loop's bookkeeping base URI is setup config, keyed by the
+        # captured id (see InitializeExecutorRequest.loopStartPortUris). Fail
+        # loud on a missing entry: anything raised here is reported by the
+        # caller's guard as an operator-facing error.
+        uri = self.context.loop_start_port_uris.get(self._loop_start_id)
+        if not uri:
+            raise RuntimeError(
+                f"no loop bookkeeping URI configured for LoopStart "
+                f"'{self._loop_start_id}' "
+                f"(have: {sorted(self.context.loop_start_port_uris)})"
+            )
+        return uri
+
+    def _read_loop_input_table(self) -> Table:
+        # The loop's input table is the Loop Start's input-port
+        # materialization -- data that already exists for the whole loop
+        # (Loop Start re-reads it every iteration; the back-edge truncates
+        # only the state doc at the same base URI, never the result doc).
+        # Reading it here at consume time means the table never has to ride
+        # inside the State content through the loop body.
+        result_uri = VFSURIFactory.result_uri(self._loop_start_base_uri())
+        document, _ = DocumentFactory.open_document(result_uri)
+        return Table(list(document.get()))
+
     def _jump_to_loop_start(
         self, executor: LoopEndOperator, coordinator_interface
     ) -> None:
-        # The write address is setup config, keyed by the captured id. Fail
-        # loud BEFORE the jump RPC so a misconfigured loop does not rewind the
-        # schedule without a back-edge write. Anything raised here (a missing
-        # URI, or a failed state write after the jump) is reported by
-        # complete()'s guard as an operator-facing error.
-        uri = self.context.loop_start_state_uris.get(self._loop_start_id)
-        if not uri:
-            raise RuntimeError(
-                f"no loop-back state URI configured for LoopStart "
-                f"'{self._loop_start_id}' "
-                f"(have: {sorted(self.context.loop_start_state_uris)})"
-            )
+        # Resolve the write address BEFORE the jump RPC so a misconfigured
+        # loop does not rewind the schedule without a back-edge write.
+        # Anything raised here (a missing URI, or a failed state write after
+        # the jump) is reported by complete()'s guard as an operator-facing
+        # error.
+        uri = VFSURIFactory.state_uri(self._loop_start_base_uri())
         coordinator_interface.jump_to_operator_region(
             JumpToOperatorRegionRequest(OperatorIdentity(self._loop_start_id))
         )
@@ -245,7 +266,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
             executor = self.context.executor_manager.executor
             if isinstance(executor, LoopStartOperator):
                 # A LoopStart stamps its own logical op id; the write address
-                # is setup config (InitializeExecutorRequest.loop_start_state_uris).
+                # is setup config (InitializeExecutorRequest.loop_start_port_uris).
                 output_loop_start_id = get_logical_op_id(self.context.worker_id)
             self._emit_and_save_state(
                 output_state,
@@ -376,8 +397,21 @@ class MainLoop(StoppableQueueBlockingRunnable):
         if isinstance(executor, LoopEndOperator):
             # Matching LoopEnd (in_counter == 0): it will consume this state
             # and jump back. Remember which LoopStart to jump to (it rides
-            # the envelope) for complete()/_jump_to_loop_start.
+            # the envelope) for complete()/_jump_to_loop_start, and attach the
+            # loop's input table -- read from the Loop Start's input-port
+            # materialization -- so run_update/condition see it without it
+            # riding inside the State content through the loop body. The read
+            # runs on this main loop thread, outside DataProcessor's guarded
+            # executor session: report a failure like a UDF error instead of
+            # silently dropping the consume (which would end the loop early
+            # with a false success).
             self._loop_start_id = frame.loop_start_id
+            try:
+                executor.attach_loop_table(self._read_loop_input_table())
+            except Exception as err:
+                self.context.report_exception(err)
+                self._check_exception()
+                return
 
         self.context.state_processing_manager.current_input_state = state
         self.process_input_state(

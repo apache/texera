@@ -29,10 +29,11 @@ Coverage:
   - LoopEnd's process_table identity yield; condition is abstract.
   - The guarded eval/exec helpers (eval_output / run_update / eval_condition)
     keep the reserved `table` name out of the persistent loop state, so user
-    code cannot silently clobber loop machinery. The table crosses the loop
-    boundary as Arrow IPC bytes (see table_to_ipc_bytes in core.models.table);
-    a user loop variable named `table` is a raised collision, not a silent
-    drop (TestReservedNameCollision).
+    code cannot silently clobber loop machinery. The table never rides the
+    State content: the runtime reads it from the Loop Start's input-port
+    materialization and injects it via attach_loop_table; a user loop variable
+    named `table` is a raised collision, not a silent drop
+    (TestReservedNameCollision).
   - A multi-iteration loop driven to completion through the operators and the
     State to_tuple/from_tuple round-trip (TestLoopRunsToCompletion).
   - The exact generated-code shape -- base64 + decode_python_template + exec,
@@ -51,7 +52,6 @@ so their handling is covered in test_main_loop.py::TestMainLoop.
 import base64
 from typing import Iterator, Optional
 
-import pyarrow as pa
 import pytest
 
 from core.models import State, Table, TableLike, Tuple
@@ -60,7 +60,6 @@ from core.models.operator import (
     LoopEndOperator,
     LoopStartOperator,
 )
-from core.models.table import table_from_ipc_bytes, table_to_ipc_bytes
 
 
 # ---------------------------------------------------------------------------
@@ -121,9 +120,11 @@ class _StubLoopEnd(LoopEndOperator):
 # ---------------------------------------------------------------------------
 
 
-def _ipc_one_row():
-    """One-row table as Arrow IPC bytes (the loop `table` payload)."""
-    return table_to_ipc_bytes(Table([Tuple({"v": 1})]))
+def _one_row_table() -> Table:
+    """One-row Table, standing in for the loop's input table that the runtime
+    reads from the Loop Start's input-port materialization and injects via
+    ``attach_loop_table``."""
+    return Table([Tuple({"v": 1})])
 
 
 class TestLoopStartProcessState:
@@ -150,58 +151,22 @@ class TestLoopStartProcessState:
 # ---------------------------------------------------------------------------
 
 
-class TestBufferedTableAccessor:
-    """`TableOperator._buffered_table(port)` replaces the name-mangled
-    `self._TableOperator__table_data[port]` read, so a rename of the parent
-    class doesn't silently break LoopStart's table access."""
-
-    def test_returns_buffered_tuples_as_table(self):
-        op = _StubLoopStart()
-        op.open()
-        list(op.process_tuple(Tuple({"v": 1}), port=0))
-        list(op.process_tuple(Tuple({"v": 2}), port=0))
-
-        table = op._buffered_table(port=0)
-
-        assert isinstance(table, Table)
-        assert list(table.as_tuples()) == [Tuple({"v": 1}), Tuple({"v": 2})]
-
-    def test_buffers_are_keyed_by_port(self):
-        op = _StubLoopStart()
-        op.open()
-        list(op.process_tuple(Tuple({"v": 1}), port=0))
-        list(op.process_tuple(Tuple({"v": 99}), port=1))
-
-        assert list(op._buffered_table(port=0).as_tuples()) == [Tuple({"v": 1})]
-        assert list(op._buffered_table(port=1).as_tuples()) == [Tuple({"v": 99})]
-
-
 class TestLoopStartProduceStateOnFinish:
-    def test_serializes_buffered_table_as_arrow_into_state_table_field(self):
-        # produce_state_on_finish serializes the buffered table as an Apache
-        # Arrow IPC stream, not pickle (see table_to_ipc_bytes in
-        # core.models.table for why). The bytes must round-trip back to the
-        # same tuples and parse as a real Arrow stream.
+    def test_produced_state_carries_only_user_variables_never_the_table(self):
+        # The input table does NOT ride the state: the LoopEnd runtime reads
+        # it from the Loop Start's input-port materialization at consume time
+        # (loopStartPortUris) and injects it via attach_loop_table. The
+        # produced state must therefore stay small, pure-JSON user variables.
         op = _StubLoopStart()
         op.open()
-        # Drive a couple of tuples through to populate the per-port buffer.
         list(op.process_tuple(Tuple({"v": 1}), port=0))
         list(op.process_tuple(Tuple({"v": 2}), port=0))
 
         produced = op.produce_state_on_finish(port=0)
 
         assert isinstance(produced, dict)
-        assert "table" in produced
-        assert isinstance(produced["table"], bytes), "table must be serialized bytes"
-        # The bytes are an Arrow IPC stream (stronger than a no-pickle-prefix
-        # check): if a future change swaps the encoder back to pickle, the
-        # Arrow reader raises here.
-        with pa.ipc.open_stream(pa.py_buffer(produced["table"])) as reader:
-            reader.read_all()
-        # Round-trip through the public helper must give back our two tuples.
-        decoded = table_from_ipc_bytes(produced["table"])
-        assert isinstance(decoded, Table)
-        assert list(decoded.as_tuples()) == [Tuple({"v": 1}), Tuple({"v": 2})]
+        assert "table" not in produced
+        produced.to_tuple(0)  # pure-JSON user vars: must serialize cleanly
 
     def test_user_state_fields_survive_into_produced_state(self):
         # Any vars the user set in open() (e.g. i, accumulators) must
@@ -216,8 +181,10 @@ class TestLoopStartProduceStateOnFinish:
         assert produced["i"] == 0
         assert produced["acc"] == []
         # loop_counter is no longer seeded into the operator's state; it is
-        # runtime-owned and rides on the StateFrame envelope.
+        # runtime-owned and rides on the StateFrame envelope. The table is
+        # injected at the LoopEnd by the runtime, never embedded here.
         assert "loop_counter" not in produced
+        assert "table" not in produced
 
 
 # ---------------------------------------------------------------------------
@@ -261,6 +228,20 @@ class TestLoopEndBase:
         # None is what condition() short-circuits on.
         assert op._loop_table is None
         assert op.condition() is False
+        # Attaching the table alone (what the runtime does right before the
+        # consume) must NOT mark the loop as consumed: only a successful
+        # run_update does.
+        op.attach_loop_table(_one_row_table())
+        assert op._loop_table is None
+        assert op.condition() is False
+
+    def test_run_update_fails_loud_when_no_table_attached(self):
+        # The runtime must attach the loop's input table before the matching
+        # consume; a missing attach is a runtime wiring bug and must not
+        # surface as a confusing NameError from the user's expression.
+        op = _StubLoopEnd(update="i += 1")
+        with pytest.raises(RuntimeError, match="not attached"):
+            op.process_state(State({"i": 0}), port=0)
 
 
 # ---------------------------------------------------------------------------
@@ -275,17 +256,13 @@ class TestLoopEndMatchingBranch:
         # state flows downstream; the actual loop-back is driven by
         # main_loop.complete() reading executor.state.
         op = _StubLoopEnd(update="i += 1", condition_expr="i < 3")
-        # Simulate LoopStart's produced state arriving here. The table rides as
-        # Arrow IPC bytes (see produce_state_on_finish), not pickle.
-        # The content carries only user data (i) and the per-iteration table
-        # scratch. loop_counter / LoopStartId are runtime-owned and ride the
-        # StateFrame envelope, never the content.
-        incoming = State(
-            {
-                "i": 1,
-                "table": _ipc_one_row(),
-            }
-        )
+        # Simulate the runtime's consume: it reads the loop's input table from
+        # the Loop Start's input-port materialization and attaches it, then
+        # hands over LoopStart's produced state (pure user variables --
+        # loop_counter / LoopStartId are runtime-owned and ride the StateFrame
+        # envelope, never the content).
+        op.attach_loop_table(_one_row_table())
+        incoming = State({"i": 1})
 
         result = op.process_state(incoming, port=0)
 
@@ -299,15 +276,8 @@ class TestLoopEndMatchingBranch:
         assert op.condition() is True  # i became 2, 2 < 3
 
         # Run another iteration to push i past the threshold.
-        op.process_state(
-            State(
-                {
-                    "i": 2,
-                    "table": _ipc_one_row(),
-                }
-            ),
-            port=0,
-        )
+        op.attach_loop_table(_one_row_table())
+        op.process_state(State({"i": 2}), port=0)
         assert op.condition() is False  # i became 3, 3 < 3 is False
 
 
@@ -370,6 +340,10 @@ class TestLoopRunsToCompletion:
                 update="total += int(table.iloc[i]['v']); i += 1; output = total",
                 condition_expr="i < len(table)",
             )
+            # The runtime reads the loop's input table from the Loop Start's
+            # input-port materialization (the same rows the LoopStart
+            # buffered) and attaches it before the consume.
+            end.attach_loop_table(Table(rows))
             end.process_state(forwarded, port=0)
             if not end.condition():
                 break
@@ -419,7 +393,8 @@ class TestReservedNameCollision:
     def test_loop_end_raises_when_update_rebinds_table(self):
         # `update` rebinds `table`, which run_update would otherwise strip.
         op = _StubLoopEnd(update="table = 1")
-        incoming = State({"i": 1, "table": _ipc_one_row()})
+        op.attach_loop_table(_one_row_table())
+        incoming = State({"i": 1})
         with pytest.raises(ValueError, match="'table' is reserved by the loop runtime"):
             op.process_state(incoming, port=0)
 
@@ -428,7 +403,8 @@ class TestReservedNameCollision:
         # still flag the reserved-name collision (namespace.get) rather than
         # escape as a bare KeyError on the missing key.
         op = _StubLoopEnd(update="del table")
-        incoming = State({"i": 1, "table": _ipc_one_row()})
+        op.attach_loop_table(_one_row_table())
+        incoming = State({"i": 1})
         with pytest.raises(ValueError, match="'table' is reserved by the loop runtime"):
             op.process_state(incoming, port=0)
 
@@ -457,15 +433,15 @@ class TestLoopExpressionScoping:
         # `update` assigns from a genexp whose body references the loop
         # variable `base`.
         op = _StubLoopEnd(update="total = sum(v + base for v in [1, 2, 3])")
-        incoming = State({"base": 10, "table": _ipc_one_row()})
-        op.process_state(incoming, port=0)
+        op.attach_loop_table(_one_row_table())
+        op.process_state(State({"base": 10}), port=0)
         assert op.state["total"] == 36
 
     def test_run_update_resolves_lambda_capturing_loop_vars(self):
         # A lambda in `update` closes over the loop variable `offset`.
         op = _StubLoopEnd(update="ranked = sorted([3, 1, 2], key=lambda e: e - offset)")
-        incoming = State({"offset": 0, "table": _ipc_one_row()})
-        op.process_state(incoming, port=0)
+        op.attach_loop_table(_one_row_table())
+        op.process_state(State({"offset": 0}), port=0)
         assert op.state["ranked"] == [1, 2, 3]
 
     def test_eval_condition_resolves_genexp_over_loop_vars(self):
@@ -474,8 +450,8 @@ class TestLoopExpressionScoping:
         op = _StubLoopEnd(
             update="i += 1", condition_expr="all(x > floor for x in [1, 2, 3])"
         )
-        incoming = State({"i": 0, "floor": 0, "table": _ipc_one_row()})
-        op.process_state(incoming, port=0)
+        op.attach_loop_table(_one_row_table())
+        op.process_state(State({"i": 0, "floor": 0}), port=0)
         assert op.condition() is True
 
     def test_run_initialization_resolves_genexp_over_init_vars(self):
@@ -501,8 +477,8 @@ class TestLoopExpressionScoping:
 
     def test_updated_state_has_no_builtins_leak(self):
         op = _StubLoopEnd(update="i += 1")
-        incoming = State({"i": 0, "table": _ipc_one_row()})
-        op.process_state(incoming, port=0)
+        op.attach_loop_table(_one_row_table())
+        op.process_state(State({"i": 0}), port=0)
         assert "__builtins__" not in op.state
         op.state.to_tuple(0)  # must not raise
 
@@ -584,7 +560,8 @@ class TestGeneratedCodeShape:
         exec(source, namespace)
 
         op = namespace["ProcessLoopEndOperator"]()
-        incoming = State({"i": 1, "note": "it's", "table": _ipc_one_row()})
+        op.attach_loop_table(_one_row_table())
+        incoming = State({"i": 1, "note": "it's"})
         assert op.process_state(incoming, port=0) is None
         assert op.state["i"] == 2  # update ran
         assert op.condition() is True  # quoted condition round-tripped

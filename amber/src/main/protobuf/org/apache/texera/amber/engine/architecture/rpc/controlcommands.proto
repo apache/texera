@@ -254,12 +254,18 @@ message InitializeExecutorRequest {
   int32 totalWorkerCount = 1;
   core.OpExecInitInfo opExecInitInfo = 2;
   bool isSource = 3;
-  // Loop-back write addresses: Loop Start logical operator id -> state URI of
-  // that Loop Start's input port. Constant per execution (minted at schedule
-  // time); a Loop End worker selects the entry by the loop_start_id carried on
-  // the consumed StateFrame and writes the next-iteration state there. Empty
-  // for plans without loops.
-  map<string, string> loopStartStateUris = 4;
+  // Loop bookkeeping addresses: Loop Start logical operator id -> BASE URI of
+  // that Loop Start's input port materialization. Constant per execution
+  // (minted at schedule time); a Loop End worker selects the entry by the
+  // loop_start_id carried on the consumed StateFrame and derives two URIs
+  // from the base:
+  //   - state URI (VFSURIFactory.state_uri): the loop-back write address for
+  //     the next-iteration state;
+  //   - result URI (VFSURIFactory.result_uri): the loop's input table, read
+  //     at consume time so the table never rides inside the State content
+  //     through the loop body.
+  // Empty for plans without loops.
+  map<string, string> loopStartPortUris = 4;
 }
 
 message UpdateExecutorRequest {

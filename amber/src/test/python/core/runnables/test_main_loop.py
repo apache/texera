@@ -30,6 +30,7 @@ from core.models import (
     InternalQueue,
     State,
     StateFrame,
+    Table,
     Tuple,
 )
 from core.models.internal_queue import (
@@ -38,6 +39,7 @@ from core.models.internal_queue import (
     ECMElement,
 )
 from core.models.operator import LoopEndOperator, LoopStartOperator
+from core.storage.vfs_uri_factory import VFSURIFactory
 from core.runnables import MainLoop
 from core.util import set_one_of
 from proto.org.apache.texera.amber.core import (
@@ -2211,7 +2213,7 @@ class TestMainLoop:
         executor.state = State({"i": 1})
         main_loop.context.executor_manager.executor = executor
         main_loop._loop_start_id = "loop-start-1"
-        main_loop.context.loop_start_state_uris = {"loop-start-1": "vfs:///x/state"}
+        main_loop.context.loop_start_port_uris = {"loop-start-1": "vfs:///x"}
 
         console_msgs = []
         pauses = []
@@ -2459,7 +2461,8 @@ class TestMainLoop:
         # the runtime captures it onto its own instance state, and the
         # user-facing State handed to the operator carries only the inner
         # State's keys, never the envelope names.
-        main_loop.context.executor_manager.executor = _FalseLoopEnd()
+        executor = _FalseLoopEnd()
+        main_loop.context.executor_manager.executor = executor
         emitted, switched, reset_calls = self._capture_state_emit(
             main_loop, monkeypatch
         )
@@ -2469,6 +2472,10 @@ class TestMainLoop:
             "get_output_state",
             lambda: None,
         )
+        # Stub the runtime's table read (the real one opens the Loop Start's
+        # input-port materialization; pinned by the jump/read URI tests).
+        loop_table = Table([Tuple({"v": 1})])
+        monkeypatch.setattr(main_loop, "_read_loop_input_table", lambda: loop_table)
 
         main_loop._process_state_frame(
             StateFrame(
@@ -2481,6 +2488,9 @@ class TestMainLoop:
         assert switched == [True], "consume branch must invoke the operator"
         assert emitted == [], "operator returned None -> nothing emitted"
         assert reset_calls == [], "consume / single loop must not reset output"
+        # The runtime attached the loop's input table before the consume so
+        # run_update/condition see it without it riding the State content.
+        assert executor._attached_table is loop_table
         # The runtime captured the envelope metadata onto its own instance
         # state...
         assert main_loop._loop_start_id == "outer-loop"
@@ -2503,7 +2513,7 @@ class TestMainLoop:
     # stamps is now computed inline in process_input_state via the
     # canonical `get_logical_op_id` (pinned by that helper's own suite),
     # and the loop-back write address is not computed worker-side at all:
-    # it is setup config (InitializeExecutorRequest.loopStartStateUris --
+    # it is setup config (InitializeExecutorRequest.loopStartPortUris --
     # see the proto comment for the full story).
     # ------------------------------------------------------------------ #
 
@@ -2559,10 +2569,9 @@ class TestMainLoop:
         # One shared event log for the jump RPC and the storage calls, so
         # the cross-channel ordering is pinned along with each contract.
         main_loop._loop_start_id = "outer-loop"
-        # The write address is setup-injected config keyed by the captured id.
-        main_loop.context.loop_start_state_uris = {
-            "outer-loop": "vfs:///wf/state/outer"
-        }
+        # The bookkeeping BASE URI is setup-injected config keyed by the
+        # captured id; the write address is derived from it (state_uri).
+        main_loop.context.loop_start_port_uris = {"outer-loop": "vfs:///wf/port/outer"}
 
         events = []
         self._patch_create_document(monkeypatch, events)
@@ -2584,14 +2593,15 @@ class TestMainLoop:
         assert kind == "jump"
         assert request.target_operator_id.id == "outer-loop"
         # (ii) Then the exact iceberg write contract, in order:
-        # create_document with the configured URI and State.SCHEMA, open
+        # create_document with the state URI DERIVED from the configured base
+        # URI and State.SCHEMA, open
         # writer("0"), a single put_one with the State as a depth-0 tuple
         # (the back-edge fires only after the matching LoopEnd consumed at
         # loop_counter == 0, so the next iteration starts at depth 0),
         # then close. The tuple object's internals are exercised elsewhere.
         assert events[1] == (
             "create_document",
-            "vfs:///wf/state/outer",
+            VFSURIFactory.state_uri("vfs:///wf/port/outer"),
             State.SCHEMA,
         )
         assert events[2] == ("writer", "0")
@@ -2608,7 +2618,7 @@ class TestMainLoop:
         # RPC and before any storage write -- rewinding the schedule
         # without a back-edge write would hang the loop.
         main_loop._loop_start_id = "outer"
-        main_loop.context.loop_start_state_uris = {}
+        main_loop.context.loop_start_port_uris = {}
 
         rpc_calls = []
         write_log = []
@@ -2617,7 +2627,7 @@ class TestMainLoop:
         class _Executor:
             state = State({"i": 7})
 
-        with pytest.raises(RuntimeError, match="no loop-back state URI"):
+        with pytest.raises(RuntimeError, match="no loop bookkeeping URI"):
             main_loop._jump_to_loop_start(
                 _Executor(), self._stub_coordinator(rpc_calls)
             )

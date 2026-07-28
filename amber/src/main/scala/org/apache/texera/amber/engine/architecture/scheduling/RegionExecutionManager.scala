@@ -107,10 +107,10 @@ class RegionExecutionManager(
     actorRefService: PekkoActorRefMappingService,
     maxTerminationAttempts: Int = RegionExecutionManager.DefaultMaxTerminationAttempts,
     killRetryDelay: TwitterDuration = RegionExecutionManager.DefaultKillRetryDelay,
-    // Loop-back write addresses (Loop Start logical op id -> its input port's
-    // state URI), shipped to every worker in InitializeExecutorRequest. See
-    // WorkflowExecutionManager.loopStartStateUris.
-    loopStartStateUris: Map[String, String] = Map.empty
+    // Loop bookkeeping addresses (Loop Start logical op id -> its input
+    // port's BASE materialization URI), shipped to every worker in
+    // InitializeExecutorRequest. See WorkflowExecutionManager.loopStartPortUris.
+    loopStartPortUris: Map[String, String] = Map.empty
 ) extends AmberLogging {
 
   initRegionExecution()
@@ -435,7 +435,7 @@ class RegionExecutionManager(
                   workerConfigs.length,
                   physicalOp.opExecInitInfo,
                   physicalOp.isSourceOperator,
-                  loopStartStateUris
+                  loopStartPortUris
                 ),
                 asyncRPCClient.mkContext(workerId)
               )

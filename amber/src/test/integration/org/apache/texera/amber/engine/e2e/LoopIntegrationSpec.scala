@@ -218,7 +218,7 @@ class LoopIntegrationSpec
     //
     // This is the case that exercises the loop_counter increment/decrement and
     // the loop_start_id routing on the StateFrame envelope (write addresses:
-    // see InitializeExecutorRequest.loopStartStateUris): the outer loop's state
+    // see InitializeExecutorRequest.loopStartPortUris): the outer loop's state
     // passes THROUGH the inner LoopStart (+1) and inner LoopEnd (-1) untouched,
     // and is consumed only at the outer LoopEnd (counter == 0). A routing or
     // counter bug would change the 9, or mis-consume and hang.
