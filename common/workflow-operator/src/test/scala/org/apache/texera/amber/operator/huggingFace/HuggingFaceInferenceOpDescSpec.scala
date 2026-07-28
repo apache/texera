@@ -331,9 +331,12 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
     code should include("MAX_REDIRECT_HOPS = 5")
     code should include("Too many redirects")
     // The validator keeps the full pre-existing checks (https-only + public
-    // address) so each hop gets the same scrutiny as the original URL.
+    // address) so each hop gets the same scrutiny as the original URL, and
+    // takes an allowlist stance (globally-routable only) that also blocks the
+    // CGNAT/shared range the predicate list alone misses.
     code should include("""if parsed.scheme != "https":""")
-    code should include("ip.is_reserved or ip.is_multicast or ip.is_unspecified")
+    code should include("not ip.is_global")
+    code should include("ip.is_multicast")
   }
 
   it should "treat pandas NA sentinels (NaN, pd.NA, NaT) as missing in _read_binary_value" in {

@@ -710,9 +710,10 @@ object PythonCodegenBase {
        |
        |    def _validate_remote_url(self, url):
        |        '''Validate one URL before it is fetched: https-only, has a host,
-       |        and every address the host resolves to is public (rejects
-       |        private/loopback/link-local/reserved addresses, covering the
-       |        169.254.169.254 cloud-metadata endpoint). Called on the original
+       |        and every address the host resolves to is a globally-routable
+       |        public address (rejects private/loopback/link-local/reserved/
+       |        multicast/CGNAT addresses, covering the 169.254.169.254
+       |        cloud-metadata endpoint). Called on the original
        |        URL and again on every redirect hop, so a redirect can neither
        |        downgrade the scheme nor point at an internal address. The
        |        address check runs before the request, so it mitigates but does
@@ -733,8 +734,14 @@ object PythonCodegenBase {
        |            raise ValueError(f"Could not resolve host '{host}': {e}")
        |        for info in addrinfos:
        |            ip = ipaddress.ip_address(info[4][0])
-       |            if (ip.is_private or ip.is_loopback or ip.is_link_local
-       |                    or ip.is_reserved or ip.is_multicast or ip.is_unspecified):
+       |            # Allowlist stance: require a globally-routable address. The
+       |            # explicit predicates stay because is_global misses some ranges
+       |            # (CPython reports multicast as global) — belt-and-suspenders,
+       |            # and it also covers the CGNAT/shared range (100.64.0.0/10)
+       |            # that the predicate list alone lets through.
+       |            if (not ip.is_global or ip.is_private or ip.is_loopback
+       |                    or ip.is_link_local or ip.is_reserved or ip.is_multicast
+       |                    or ip.is_unspecified):
        |                raise ValueError(f"Refusing to fetch from non-public address {ip}.")
        |
        |    def _fetch_remote_url(self, url):
