@@ -142,7 +142,7 @@ class AccessControlResourceSpec
   }
 
   override protected def afterAll(): Unit = {
-    shutdownDB()
+    closeConnectionPool()
   }
 
   "AccessControlResource" should "return FORBIDDEN for a GET request without a token" in {

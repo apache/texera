@@ -154,7 +154,7 @@ class StagedFileCleanupJobSpec
   }
 
   override protected def afterAll(): Unit = {
-    try shutdownDB()
+    try closeConnectionPool()
     finally super.afterAll()
   }
 

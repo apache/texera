@@ -183,7 +183,7 @@ class WorkflowExecutionsResourceSpec
   }
 
   override protected def afterAll(): Unit = {
-    shutdownDB()
+    closeConnectionPool()
   }
 
   // ─── helpers ──────────────────────────────────────────────────────────────

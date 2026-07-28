@@ -191,7 +191,7 @@ class WorkflowResourceSpec
   }
 
   override protected def afterAll(): Unit = {
-    shutdownDB()
+    closeConnectionPool()
   }
 
   private def getKeywordsArray(keywords: String*): util.ArrayList[String] = {

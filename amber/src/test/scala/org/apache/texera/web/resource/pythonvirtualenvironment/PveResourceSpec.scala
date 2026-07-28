@@ -115,7 +115,7 @@ class PveResourceSpec
 
   override protected def afterAll(): Unit = {
     PveManager.runProcess = realRunner
-    shutdownDB()
+    closeConnectionPool()
   }
 
   override protected def beforeEach(): Unit = {

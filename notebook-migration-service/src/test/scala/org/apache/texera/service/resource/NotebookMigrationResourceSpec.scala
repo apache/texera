@@ -79,7 +79,7 @@ class NotebookMigrationResourceSpec
     """{"operator_to_cell":{},"cell_to_operator":{}}"""
 
   override protected def beforeAll(): Unit = initializeDBAndReplaceDSLContext()
-  override protected def afterAll(): Unit = shutdownDB()
+  override protected def afterAll(): Unit = closeConnectionPool()
 
   override protected def beforeEach(): Unit = {
     val cfg = getDSLContext.configuration()

@@ -80,7 +80,7 @@ class ComputingUnitAccessSpec
     }
   }
 
-  override def afterAll(): Unit = shutdownDB()
+  override def afterAll(): Unit = closeConnectionPool()
 
   "getComputingUnitAccess" should "return NONE when the computing unit does not exist" in {
     ComputingUnitAccess.getComputingUnitAccess(999, 1) shouldBe PrivilegeEnum.NONE

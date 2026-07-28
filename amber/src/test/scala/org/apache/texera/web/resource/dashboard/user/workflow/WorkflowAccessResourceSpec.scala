@@ -174,7 +174,7 @@ class WorkflowAccessResourceSpec
   }
 
   override protected def afterAll(): Unit = {
-    shutdownDB()
+    closeConnectionPool()
   }
 
   "WorkflowAccessResource.revokeAccess" should "successfully revoke access when user has WRITE permission" in {
