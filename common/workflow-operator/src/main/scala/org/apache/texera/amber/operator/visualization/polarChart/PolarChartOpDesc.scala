@@ -126,12 +126,17 @@ class PolarChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeGener
   override def producesDataFrame(): Boolean = false
 
   override def generateStandaloneCode(): String = {
-    s"""if in1df is None or in1df.empty:
+    s"""import numpy as np
+       |
+       |if in1df is None or in1df.empty:
        |    with open("output.html", "w", encoding="utf-8") as output:
        |        output.write('<h3>No data available for Polar Chart</h3>')
        |elif "$r" not in in1df.columns or "$theta" not in in1df.columns:
        |    with open("output.html", "w", encoding="utf-8") as output:
        |        output.write('<h3>Selected columns not found in input table</h3>')
+       |elif not np.issubdtype(in1df["$r"].dtype, np.number) or not np.issubdtype(in1df["$theta"].dtype, np.number):
+       |    with open("output.html", "w", encoding="utf-8") as output:
+       |        output.write('<h3>Selected columns must be numeric</h3>')
        |else:
        |    fig = go.Figure(data=go.Scatterpolargl(
        |        r=in1df["$r"].values,
