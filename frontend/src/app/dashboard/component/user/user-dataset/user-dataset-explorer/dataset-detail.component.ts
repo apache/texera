@@ -18,9 +18,15 @@
  */
 
 import { Component, EventEmitter, OnInit, Output, ViewChild } from "@angular/core";
-import { ActivatedRoute } from "@angular/router";
+import { ActivatedRoute, Router } from "@angular/router";
+import { USER_DATASET } from "../../../../../app-routing.constant";
+import { extractErrorMessage } from "../../../../../common/util/error";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { DatasetService, MultipartUploadProgress } from "../../../../service/user/dataset/dataset.service";
+import {
+  DatasetService,
+  MultipartUploadProgress,
+  validateDatasetName,
+} from "../../../../service/user/dataset/dataset.service";
 import { NzResizeEvent, NzResizableDirective, NzResizeHandleComponent } from "ng-zorro-antd/resizable";
 import {
   DatasetFileNode,
@@ -51,7 +57,7 @@ import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patc
 import { NzIconDirective } from "ng-zorro-antd/icon";
 import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
 import { NzButtonComponent } from "ng-zorro-antd/button";
-import { NzPopoverDirective } from "ng-zorro-antd/popover";
+import { NzPopconfirmDirective } from "ng-zorro-antd/popconfirm";
 import { NzSwitchComponent } from "ng-zorro-antd/switch";
 import { FormsModule } from "@angular/forms";
 import { MarkdownDescriptionComponent } from "../../markdown-description/markdown-description.component";
@@ -89,7 +95,7 @@ export const ABORT_RETRY_BACKOFF_BASE_MS = 100;
     NzIconDirective,
     NzSpaceCompactItemDirective,
     NzButtonComponent,
-    NzPopoverDirective,
+    NzPopconfirmDirective,
     NzSwitchComponent,
     FormsModule,
     MarkdownDescriptionComponent,
@@ -122,6 +128,7 @@ export const ABORT_RETRY_BACKOFF_BASE_MS = 100;
 export class DatasetDetailComponent implements OnInit {
   public did: number | undefined;
   public datasetName: string = "";
+  public editedDatasetName: string = "";
   public datasetDescription: string = "";
   public datasetCreationTime: string = "";
   public datasetCreationTimeTooltip: string = "";
@@ -203,6 +210,7 @@ export class DatasetDetailComponent implements OnInit {
 
   constructor(
     private route: ActivatedRoute,
+    private router: Router,
     private modalService: NzModalService,
     private datasetService: DatasetService,
     private notificationService: NotificationService,
@@ -370,6 +378,7 @@ export class DatasetDetailComponent implements OnInit {
         .subscribe(dashboardDataset => {
           const dataset = dashboardDataset.dataset;
           this.datasetName = dataset.name;
+          this.editedDatasetName = dataset.name;
           this.datasetDescription = dataset.description;
           this.userDatasetAccessLevel = dashboardDataset.accessPrivilege;
           this.datasetIsPublic = dataset.isPublic;
@@ -951,6 +960,52 @@ export class DatasetDetailComponent implements OnInit {
         error: () => {
           this.datasetDescription = previousDescription;
           this.notificationService.error("Failed to update dataset description");
+        },
+      });
+  }
+
+  onSaveDatasetName(): void {
+    if (!this.did) {
+      return;
+    }
+    // Reject invalid names outright instead of silently rewriting them, matching
+    // the shared validation used by the other rename entry points (PR #6426).
+    const name = this.editedDatasetName;
+    const nameError = validateDatasetName(name);
+    if (nameError) {
+      this.notificationService.error(nameError);
+      return;
+    }
+
+    this.datasetService
+      .updateDatasetName(this.did, name)
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: () => {
+          this.datasetName = name;
+          this.editedDatasetName = name;
+          this.notificationService.success(`Dataset name updated to '${name}'`);
+        },
+        error: (err: unknown) => {
+          this.notificationService.error(extractErrorMessage(err));
+        },
+      });
+  }
+
+  onDeleteDataset(): void {
+    if (!this.did) {
+      return;
+    }
+    this.datasetService
+      .deleteDatasets(this.did)
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: () => {
+          this.notificationService.success(`Dataset ${this.datasetName} was deleted`);
+          this.router.navigate([USER_DATASET]);
+        },
+        error: (err: unknown) => {
+          this.notificationService.error(extractErrorMessage(err));
         },
       });
   }

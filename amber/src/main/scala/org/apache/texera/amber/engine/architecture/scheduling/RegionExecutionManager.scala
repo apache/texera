@@ -51,7 +51,6 @@ import org.apache.texera.amber.engine.architecture.scheduling.config.{
   ResourceConfig
 }
 import org.apache.texera.amber.engine.architecture.sendsemantics.partitionings.Partitioning
-import org.apache.texera.amber.engine.architecture.worker.statistics.WorkerState
 import org.apache.texera.amber.engine.common.AmberLogging
 import org.apache.texera.amber.engine.common.FutureBijection._
 import org.apache.texera.amber.engine.common.rpc.AsyncRPCClient
@@ -210,11 +209,11 @@ class RegionExecutionManager(
     // 3. Log whether the kills were successful
     gracefulStopRequests.transform {
       case Return(_) =>
-        logger.info(s"Region ${region.id.id} successfully terminated.")
+        logger.debug(s"Region ${region.id.id} successfully terminated.")
         regionExecution.getAllOperatorExecutions.foreach {
           case (_, opExec) =>
             opExec.getWorkerIds.foreach { workerId =>
-              opExec.getWorkerExecution(workerId).update(System.nanoTime(), WorkerState.TERMINATED)
+              opExec.getWorkerExecution(workerId).forceTerminate()
             }
         }
         Future.Unit // propagate success
@@ -583,12 +582,14 @@ class RegionExecutionManager(
               asyncRPCClient.workerInterface
                 .startWorker(EmptyRequest(), asyncRPCClient.mkContext(workerId))
                 .map(resp =>
-                  // update worker state
+                  // Update worker state, ordered by the worker's logical state version
+                  // (not arrival time) so this RUNNING snapshot cannot clobber a later
+                  // COMPLETED if the response arrives after the worker has finished.
                   workflowExecution
                     .getRegionExecution(region.id)
                     .getOperatorExecution(opId)
                     .getWorkerExecution(workerId)
-                    .update(System.nanoTime(), resp.state)
+                    .updateState(resp.stateVersion, resp.state)
                 )
             }
         }

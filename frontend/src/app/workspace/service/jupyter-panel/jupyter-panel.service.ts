@@ -18,10 +18,11 @@
  */
 
 import { Injectable } from "@angular/core";
-import { catchError, map, of } from "rxjs";
+import { BehaviorSubject, catchError, map, of } from "rxjs";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import { OperatorLink } from "../../types/workflow-common.interface";
 import { HttpClient, HttpHeaders } from "@angular/common/http";
+import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { distinctUntilChanged, switchMap } from "rxjs/operators";
 import { AppSettings } from "../../../common/app-setting";
 import { NotebookMigrationService } from "../notebook-migration/notebook-migration.service";
@@ -31,6 +32,16 @@ import { GuiConfigService } from "../../../common/service/gui-config.service";
   providedIn: "root",
 })
 export class JupyterPanelService {
+  private jupyterNotebookPanelVisible = new BehaviorSubject<boolean>(false);
+  public jupyterNotebookPanelVisible$ = this.jupyterNotebookPanelVisible.asObservable();
+
+  // Whether the current workflow has an associated notebook in the migration DB.
+  // Driven by the per-workflow fetch in init(): reset on every workflow change,
+  // set true only when a notebook/mapping is found. Used to gate the toolbar's
+  // expand button so it appears only for workflows that actually have a notebook.
+  private jupyterNotebookExists = new BehaviorSubject<boolean>(false);
+  public jupyterNotebookExists$ = this.jupyterNotebookExists.asObservable();
+
   private iframeRef: HTMLIFrameElement | null = null; // Store reference to iframe element
 
   // Precomputed dictionary for cell to highlight mapping
@@ -42,6 +53,7 @@ export class JupyterPanelService {
   constructor(
     private workflowActionService: WorkflowActionService,
     private http: HttpClient,
+    private notificationService: NotificationService,
     private notebookMigrationService: NotebookMigrationService,
     private config: GuiConfigService
   ) {
@@ -87,27 +99,21 @@ export class JupyterPanelService {
         distinctUntilChanged()
       )
       .subscribe(wid => {
-        // On every workflow change, drop the outgoing workflow's stale mapping
-        // and clear the highlight index. Clearing here (not only inside
-        // precomputeHighlightMapping, which runs only on a successful fetch)
-        // ensures switching to a workflow without a stored notebook can't leave
-        // the previous workflow's highlights active. This cleanup previously
-        // happened inside closeJupyterNotebookPanel; the panel-visibility
-        // surface lives with the iframe component in
-        // `migration-tool-jupyter-panel` now, so it is inlined.
-        const currentWid = this.workflowActionService.getWorkflow().wid;
-        if (currentWid !== undefined) {
-          this.notebookMigrationService.deleteMapping("mapping_wid_" + currentWid);
-        }
+        // On every workflow change, close the panel (which also drops the
+        // outgoing workflow's stale mapping) and clear the highlight index, so a
+        // switch to a workflow without a stored notebook can't leave the
+        // previous workflow's highlights active.
+        this.closeJupyterNotebookPanel();
         this.cellToHighlightMapping = {};
+        this.jupyterNotebookExists.next(false);
         // Skip unsaved workflows (wid undefined) and wid 0; both would POST
         // without a usable wid and 500 on the backend.
         if (wid) {
           this.fetchNotebookAndMapping(wid).subscribe(result => {
             if (result == 1) {
+              this.jupyterNotebookExists.next(true);
               this.precomputeHighlightMapping();
-              // Panel auto-open on workflow restore is wired in
-              // `migration-tool-jupyter-panel` once the visibility API exists.
+              this.openJupyterNotebookPanel();
             }
           });
         }
@@ -196,6 +202,45 @@ export class JupyterPanelService {
   // component that calls this lives in `migration-tool-jupyter-panel`.
   setIframeRef(iframe: HTMLIFrameElement) {
     this.iframeRef = iframe;
+  }
+
+  // Open the Jupyter Notebook panel
+  public openPanel(panelName: string): void {
+    if (!this.enabled) return;
+    if (panelName === "JupyterNotebookPanel") {
+      this.jupyterNotebookPanelVisible.next(true);
+    }
+  }
+
+  // Close the Jupyter Notebook panel
+  public closeJupyterNotebookPanel(): void {
+    if (!this.enabled) return;
+    this.jupyterNotebookPanelVisible.next(false);
+    const wid = this.workflowActionService.getWorkflow().wid;
+    if (wid != undefined) {
+      this.notebookMigrationService.deleteMapping("mapping_wid_" + wid);
+    }
+  }
+
+  // Minimize the Jupyter Notebook panel
+  public minimizeJupyterNotebookPanel(): void {
+    if (!this.enabled) return;
+    this.jupyterNotebookPanelVisible.next(false);
+  }
+
+  // Expand the Jupyter Notebook panel
+  public openJupyterNotebookPanel(): void {
+    if (!this.enabled) return;
+    const wid = this.workflowActionService.getWorkflow().wid;
+    const mappingKey = "mapping_wid_" + wid;
+    // Check if there is corresponding mapping data
+    if (wid === undefined || !this.notebookMigrationService.hasMapping(mappingKey)) {
+      this.notificationService.warning("No Jupyter notebook associated with this workflow.");
+      return;
+    }
+
+    // Expand only if the mapping exists
+    this.jupyterNotebookPanelVisible.next(true);
   }
 
   // Handle messages from the Jupyter notebook iframe

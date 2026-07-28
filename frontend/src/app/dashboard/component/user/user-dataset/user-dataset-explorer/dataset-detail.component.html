@@ -74,47 +74,6 @@
               nzTheme="outline"></i>
             {{ formatCount(likeCount) }}
           </nz-tag>
-
-          <button
-            *ngIf="userHasWriteAccess()"
-            nz-button
-            nzType="text"
-            class="tag-settings-btn"
-            nz-popover
-            nzPopoverTrigger="click"
-            nzPopoverPlacement="bottomRight"
-            [nzPopoverContent]="tagSettingsPopover"
-            nz-tooltip
-            nzTooltipTitle="Settings">
-            <i
-              nz-icon
-              nzType="setting"
-              nzTheme="outline"></i>
-          </button>
-
-          <ng-template #tagSettingsPopover>
-            <div>
-              <div class="tag-settings-title">Quick Settings</div>
-              <div class="tag-settings-row">
-                <span>Visibility:</span>
-                <nz-switch
-                  [ngModel]="datasetIsPublic"
-                  (ngModelChange)="onPublicStatusChange($event)"
-                  [nzDisabled]="userDatasetAccessLevel !== 'WRITE'"
-                  nzCheckedChildren="public"
-                  nzUnCheckedChildren="private"></nz-switch>
-              </div>
-              <div class="tag-settings-row">
-                <span>Downloadable:</span>
-                <nz-switch
-                  [ngModel]="datasetIsDownloadable"
-                  (ngModelChange)="onDownloadableStatusChange($event)"
-                  [nzDisabled]="!isOwner"
-                  nzCheckedChildren="allowed"
-                  nzUnCheckedChildren="blocked"></nz-switch>
-              </div>
-            </div>
-          </ng-template>
         </div>
       </div>
       <img
@@ -531,6 +490,113 @@
           </div>
         </nz-sider>
       </nz-layout>
+    </div>
+  </nz-tab>
+  <nz-tab
+    nzTitle="Settings"
+    *ngIf="userHasWriteAccess()">
+    <div class="settings-tab-content">
+      <nz-card class="settings-general-card">
+        <h3 class="settings-card-title">General</h3>
+
+        <div class="settings-name-row">
+          <div class="settings-name-label">
+            <label>Dataset name</label>
+            <p class="settings-hint">Lowercase letters, numbers and hyphens.</p>
+          </div>
+          <div class="settings-name-controls">
+            <input
+              nz-input
+              [(ngModel)]="editedDatasetName" />
+            <button
+              nz-button
+              nzType="primary"
+              (click)="onSaveDatasetName()">
+              Save
+            </button>
+          </div>
+        </div>
+
+        <nz-divider></nz-divider>
+
+        <div class="settings-field">
+          <label class="settings-field-label">Description</label>
+          <div class="settings-field-hint">Shown on cards and the Metadata tab.</div>
+          <texera-markdown-description
+            [description]="datasetDescription"
+            [editable]="userDatasetAccessLevel === 'WRITE'"
+            [enableViewMore]="true"
+            (descriptionChange)="onDatasetDescriptionChange($event)">
+          </texera-markdown-description>
+        </div>
+      </nz-card>
+
+      <nz-card class="settings-general-card">
+        <h3 class="settings-card-title">Access &amp; visibility</h3>
+
+        <div class="settings-name-row">
+          <div class="settings-name-label">
+            <label>Visibility</label>
+            <p class="settings-hint">
+              {{ datasetIsPublic ? "Public — anyone can view this dataset." : "Private — only you and invited
+              collaborators can see this dataset." }}
+            </p>
+          </div>
+          <div class="settings-name-controls">
+            <nz-switch
+              [ngModel]="datasetIsPublic"
+              (ngModelChange)="onPublicStatusChange($event)"
+              [nzDisabled]="userDatasetAccessLevel !== 'WRITE'"
+              nzCheckedChildren="public"
+              nzUnCheckedChildren="private"></nz-switch>
+          </div>
+        </div>
+
+        <nz-divider></nz-divider>
+
+        <div class="settings-name-row">
+          <div class="settings-name-label">
+            <label>Downloadable</label>
+            <p class="settings-hint">
+              {{ datasetIsDownloadable ? "Viewers can download this dataset." : "Viewers can browse files but cannot
+              download them." }}
+            </p>
+          </div>
+          <div class="settings-name-controls">
+            <nz-switch
+              [ngModel]="datasetIsDownloadable"
+              (ngModelChange)="onDownloadableStatusChange($event)"
+              [nzDisabled]="!isOwner"
+              nzCheckedChildren="allowed"
+              nzUnCheckedChildren="blocked"></nz-switch>
+          </div>
+        </div>
+      </nz-card>
+
+      <nz-card class="settings-general-card">
+        <h3 class="settings-card-title">Delete</h3>
+
+        <div class="settings-name-row">
+          <div class="settings-name-label">
+            <label>Delete dataset</label>
+            <p class="settings-hint">This permanently deletes the dataset and all of its versions.</p>
+          </div>
+          <div class="settings-name-controls">
+            <button
+              nz-button
+              nzType="text"
+              title="Delete"
+              [disabled]="!isOwner"
+              (nzOnConfirm)="onDeleteDataset()"
+              nz-popconfirm
+              nzPopconfirmTitle="Confirm to delete this dataset.">
+              <i
+                nz-icon
+                nzType="delete"></i>
+            </button>
+          </div>
+        </div>
+      </nz-card>
     </div>
   </nz-tab>
 </nz-tabs>
