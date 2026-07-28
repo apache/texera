@@ -290,6 +290,32 @@ describe("JointUIService", () => {
     });
   });
 
+  describe("getDefaultLinkCell (static)", () => {
+    it("builds a link routed with manhattan and connected with rounded corners", () => {
+      const link = JointUIService.getDefaultLinkCell();
+      expect(link).toBeInstanceOf(joint.dia.Link);
+      expect(link.get("router")).toEqual({ name: "manhattan" });
+      expect(link.get("connector")).toEqual({ name: "rounded" });
+    });
+
+    it("styles the connection stroke and hides the remove tool by default", () => {
+      const link = JointUIService.getDefaultLinkCell();
+      expect(link.attr(".connection/stroke")).toBe("#919191");
+      expect(link.attr(".connection/stroke-width")).toBe("2px");
+      // the delete affordance is present in the markup but hidden until hover.
+      expect(link.attr(".tool-remove/display")).toBe("none");
+      expect(link.attr(".tool-remove/fill")).toBe("#D8656A");
+    });
+
+    it("fills the source and target markers with the handle color", () => {
+      const link = JointUIService.getDefaultLinkCell();
+      expect(link.attr(".marker-source/fill")).toBe("#919191");
+      expect(link.attr(".marker-target/fill")).toBe("#919191");
+      expect(link.attr(".marker-source/stroke")).toBe("none");
+      expect(link.attr(".marker-target/stroke")).toBe("none");
+    });
+  });
+
   describe("getJointUserPointerName (static)", () => {
     it("prefixes the coeditor clientId with 'pointer_'", () => {
       expect(JointUIService.getJointUserPointerName({ clientId: "abc123" } as Coeditor)).toBe("pointer_abc123");

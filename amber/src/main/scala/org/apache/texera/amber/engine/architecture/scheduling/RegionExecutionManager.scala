@@ -51,7 +51,6 @@ import org.apache.texera.amber.engine.architecture.scheduling.config.{
   ResourceConfig
 }
 import org.apache.texera.amber.engine.architecture.sendsemantics.partitionings.Partitioning
-import org.apache.texera.amber.engine.architecture.worker.statistics.WorkerState
 import org.apache.texera.amber.engine.common.AmberLogging
 import org.apache.texera.amber.engine.common.FutureBijection._
 import org.apache.texera.amber.engine.common.rpc.AsyncRPCClient
@@ -107,7 +106,11 @@ class RegionExecutionManager(
     actorService: PekkoActorService,
     actorRefService: PekkoActorRefMappingService,
     maxTerminationAttempts: Int = RegionExecutionManager.DefaultMaxTerminationAttempts,
-    killRetryDelay: TwitterDuration = RegionExecutionManager.DefaultKillRetryDelay
+    killRetryDelay: TwitterDuration = RegionExecutionManager.DefaultKillRetryDelay,
+    // Loop-back write addresses (Loop Start logical op id -> its input port's
+    // state URI), shipped to every worker in InitializeExecutorRequest. See
+    // WorkflowExecutionManager.loopStartStateUris.
+    loopStartStateUris: Map[String, String] = Map.empty
 ) extends AmberLogging {
 
   initRegionExecution()
@@ -206,11 +209,11 @@ class RegionExecutionManager(
     // 3. Log whether the kills were successful
     gracefulStopRequests.transform {
       case Return(_) =>
-        logger.info(s"Region ${region.id.id} successfully terminated.")
+        logger.debug(s"Region ${region.id.id} successfully terminated.")
         regionExecution.getAllOperatorExecutions.foreach {
           case (_, opExec) =>
             opExec.getWorkerIds.foreach { workerId =>
-              opExec.getWorkerExecution(workerId).update(System.nanoTime(), WorkerState.TERMINATED)
+              opExec.getWorkerExecution(workerId).forceTerminate()
             }
         }
         Future.Unit // propagate success
@@ -431,7 +434,8 @@ class RegionExecutionManager(
                 InitializeExecutorRequest(
                   workerConfigs.length,
                   physicalOp.opExecInitInfo,
-                  physicalOp.isSourceOperator
+                  physicalOp.isSourceOperator,
+                  loopStartStateUris
                 ),
                 asyncRPCClient.mkContext(workerId)
               )
@@ -578,12 +582,14 @@ class RegionExecutionManager(
               asyncRPCClient.workerInterface
                 .startWorker(EmptyRequest(), asyncRPCClient.mkContext(workerId))
                 .map(resp =>
-                  // update worker state
+                  // Update worker state, ordered by the worker's logical state version
+                  // (not arrival time) so this RUNNING snapshot cannot clobber a later
+                  // COMPLETED if the response arrives after the worker has finished.
                   workflowExecution
                     .getRegionExecution(region.id)
                     .getOperatorExecution(opId)
                     .getWorkerExecution(workerId)
-                    .update(System.nanoTime(), resp.state)
+                    .updateState(resp.stateVersion, resp.state)
                 )
             }
         }
@@ -627,15 +633,6 @@ class RegionExecutionManager(
             .outputPorts(outputPortId.portId)
             ._1
             .reuseStorage
-        // Guard: no operator enables reuseStorage in production yet -- it
-        // activates with the loop operators, which aren't on main. Until then
-        // this fails loudly so the dormant reuse path is never silently
-        // exercised. Remove/relax this guard when introducing the loop operators.
-        require(
-          !reuseStorage,
-          s"Output port $outputPortId set reuseStorage, which is not " +
-            "supported in production yet (it activates with the loop operators)."
-        )
         Seq((resultURI, schema), (stateURI, State.schema)).foreach {
           case (uri, sch) =>
             DocumentFactory.createOrReuseDocument(uri, sch, reuseStorage)

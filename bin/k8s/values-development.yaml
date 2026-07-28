@@ -352,6 +352,12 @@ texeraEnvVars:
     value: ""
   - name: USER_SYS_DOMAIN
     value: ""
+  - name: AUTH_JWT_SECRET
+    # Obvious non-secret placeholder for LOCAL DEVELOPMENT ONLY (64 chars = 512-bit
+    # HMAC key, well above the 256-bit HS256 minimum). All services must share the
+    # same value, so this is a fixed shared string rather than a per-pod random one.
+    # Production environments MUST override this with a securely generated secret.
+    value: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 
 yWebsocketServer:
   name: y-websocket-server

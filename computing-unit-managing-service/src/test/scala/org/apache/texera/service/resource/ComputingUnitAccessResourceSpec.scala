@@ -19,7 +19,7 @@
 
 package org.apache.texera.service.resource
 
-import jakarta.ws.rs.{BadRequestException, ForbiddenException}
+import jakarta.ws.rs.{BadRequestException, ForbiddenException, NotFoundException}
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.common.config.ComputingUnitConfig
 import org.apache.texera.dao.MockTexeraDB
@@ -29,23 +29,31 @@ import org.apache.texera.dao.jooq.generated.enums.{
   UserRoleEnum,
   WorkflowComputingUnitTypeEnum
 }
-import org.apache.texera.dao.jooq.generated.tables.daos.{UserDao, WorkflowComputingUnitDao}
-import org.apache.texera.dao.jooq.generated.tables.pojos.{User, WorkflowComputingUnit}
+import org.apache.texera.dao.jooq.generated.tables.daos.{
+  ComputingUnitUserAccessDao,
+  UserDao,
+  WorkflowComputingUnitDao
+}
+import org.apache.texera.dao.jooq.generated.tables.pojos.{
+  ComputingUnitUserAccess,
+  User,
+  WorkflowComputingUnit
+}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 
 /**
-  * Spec for [[ComputingUnitAccessResource]]'s share/revoke endpoints, backed by an
-  * embedded Postgres (via [[MockTexeraDB]]).
+  * Spec for [[ComputingUnitAccessResource]] with sharing ENABLED, backed by an embedded
+  * Postgres (via [[MockTexeraDB]]). Covers the endpoints — grantAccess, revokeAccess,
+  * getComputingUnitAccessList, getOwner — and the companion-object privilege helpers
+  * (isOwner / getPrivilege / hasReadAccess / hasWriteAccess).
   *
   * The suite runs with COMPUTING_UNIT_SHARING_ENABLED=true (set in build.sbt), which
-  * `ensureSharingIsEnabled()` requires; this is asserted below so a missing env var
+  * `ensureSharingIsEnabled()` requires; the first case asserts this so a missing env var
   * fails loudly instead of silently short-circuiting every case with a ForbiddenException.
-  *
-  * The key regression these tests guard: granting/revoking to an unknown email must
-  * surface a clear IllegalArgumentException, not a NullPointerException (500), because
-  * `userDao.fetchOneByEmail` returns null for an address with no account.
+  * The sharing-DISABLED branch is covered separately by ComputingUnitAccessSharingDisabledSpec,
+  * which forks without that env var (the flag is a load-time val).
   */
 class ComputingUnitAccessResourceSpec
     extends AnyFlatSpec
@@ -90,6 +98,7 @@ class ComputingUnitAccessResourceSpec
   }
 
   private val nonExistentEmail: String = "nobody@test.com"
+  private val nonExistentCuid: Integer = 999999
 
   lazy val accessResource = new ComputingUnitAccessResource()
 
@@ -100,6 +109,15 @@ class ComputingUnitAccessResourceSpec
 
   private def accessEmails(cuid: Integer): List[String] =
     accessResource.getComputingUnitAccessList(ownerSession, cuid).map(_.email)
+
+  /** Inserts an access row directly, bypassing the grant endpoint, to set up helper tests. */
+  private def grantDirectly(uid: Integer, privilege: PrivilegeEnum): Unit = {
+    val access = new ComputingUnitUserAccess
+    access.setCuid(cuid)
+    access.setUid(uid)
+    access.setPrivilege(privilege)
+    new ComputingUnitUserAccessDao(getDSLContext.configuration()).insert(access)
+  }
 
   override protected def beforeAll(): Unit = {
     super.beforeAll()
@@ -200,5 +218,84 @@ class ComputingUnitAccessResourceSpec
     }
     ex.getResponse.getStatus shouldEqual 403
     ex.getMessage should include("does not have permission to revoke access")
+  }
+
+  // ===========================================================================
+  // getComputingUnitAccessList
+  // ===========================================================================
+
+  "getComputingUnitAccessList" should "return an empty list when nothing is granted" in {
+    accessResource.getComputingUnitAccessList(ownerSession, cuid) shouldBe empty
+  }
+
+  it should "list every grantee with their email, name, and privilege" in {
+    grantDirectly(granteeUser.getUid, PrivilegeEnum.READ)
+    grantDirectly(strangerUser.getUid, PrivilegeEnum.WRITE)
+
+    val entries = accessResource.getComputingUnitAccessList(ownerSession, cuid)
+    entries should have size 2
+
+    val byEmail = entries.map(entry => entry.email -> entry).toMap
+    byEmail(granteeUser.getEmail).name shouldEqual granteeUser.getName
+    byEmail(granteeUser.getEmail).privilege shouldEqual PrivilegeEnum.READ
+    byEmail(strangerUser.getEmail).privilege shouldEqual PrivilegeEnum.WRITE
+  }
+
+  // ===========================================================================
+  // Privilege helpers (companion object)
+  // ===========================================================================
+
+  "isOwner" should "be true only for the owner of an existing unit" in {
+    ComputingUnitAccessResource.isOwner(cuid, ownerUser.getUid) shouldBe true
+    ComputingUnitAccessResource.isOwner(cuid, strangerUser.getUid) shouldBe false
+    ComputingUnitAccessResource.isOwner(nonExistentCuid, ownerUser.getUid) shouldBe false
+  }
+
+  "getPrivilege" should "return null without a grant and the granted privilege otherwise" in {
+    ComputingUnitAccessResource.getPrivilege(cuid, strangerUser.getUid) shouldBe null
+
+    grantDirectly(granteeUser.getUid, PrivilegeEnum.READ)
+    ComputingUnitAccessResource.getPrivilege(
+      cuid,
+      granteeUser.getUid
+    ) shouldEqual PrivilegeEnum.READ
+  }
+
+  "the owner" should "have both read and write access" in {
+    ComputingUnitAccessResource.hasReadAccess(cuid, ownerUser.getUid) shouldBe true
+    ComputingUnitAccessResource.hasWriteAccess(cuid, ownerUser.getUid) shouldBe true
+  }
+
+  "a READ grantee" should "have read but not write access" in {
+    grantDirectly(granteeUser.getUid, PrivilegeEnum.READ)
+    ComputingUnitAccessResource.hasReadAccess(cuid, granteeUser.getUid) shouldBe true
+    ComputingUnitAccessResource.hasWriteAccess(cuid, granteeUser.getUid) shouldBe false
+  }
+
+  "a WRITE grantee" should "have both read and write access" in {
+    grantDirectly(granteeUser.getUid, PrivilegeEnum.WRITE)
+    ComputingUnitAccessResource.hasReadAccess(cuid, granteeUser.getUid) shouldBe true
+    ComputingUnitAccessResource.hasWriteAccess(cuid, granteeUser.getUid) shouldBe true
+  }
+
+  "a user with no grant" should "have neither read nor write access" in {
+    ComputingUnitAccessResource.hasReadAccess(cuid, strangerUser.getUid) shouldBe false
+    ComputingUnitAccessResource.hasWriteAccess(cuid, strangerUser.getUid) shouldBe false
+  }
+
+  // ===========================================================================
+  // getOwner
+  // ===========================================================================
+
+  "getOwner" should "reject a nonexistent computing unit with a 404 instead of crashing" in {
+    val ex = intercept[NotFoundException] {
+      accessResource.getOwner(ownerSession, nonExistentCuid)
+    }
+    ex.getResponse.getStatus shouldEqual 404
+    ex.getMessage should include(s"Computing unit with cuid=$nonExistentCuid does not exist")
+  }
+
+  it should "return the owner's email for an existing unit" in {
+    accessResource.getOwner(ownerSession, cuid) shouldEqual ownerUser.getEmail
   }
 }

@@ -24,6 +24,7 @@ import { DatasetService } from "../../../dashboard/service/user/dataset/dataset.
 import { ChangeDetectorRef } from "@angular/core";
 import { commonTestProviders } from "../../../common/testing/test-utils";
 import { DashboardEntry } from "../../../dashboard/type/dashboard-entry";
+import { AppSettings } from "../../../common/app-setting";
 import {
   HUB_DATASET_RESULT_DETAIL,
   HUB_WORKFLOW_RESULT_DETAIL,
@@ -81,6 +82,43 @@ describe("BrowseSectionComponent", () => {
       component.entities = [{ id: 201, type: "dataset", accessibleUserIds: [2] } as unknown as DashboardEntry];
       component.ngOnInit();
       expect(component.entityRoutes[201]).toEqual([HUB_DATASET_RESULT_DETAIL, "201"]);
+    });
+  });
+
+  describe("initializeEntry edge cases", () => {
+    it("skips entries whose id is not a number", () => {
+      component.entities = [{ id: undefined, type: "dataset", accessibleUserIds: [] } as unknown as DashboardEntry];
+      component.ngOnInit();
+      expect(Object.keys(component.entityRoutes)).toHaveLength(0);
+    });
+
+    it("throws on an unexpected entity type", () => {
+      const bad = { id: 7, type: "project", accessibleUserIds: [] } as unknown as DashboardEntry;
+      expect(() => (component as any).initializeEntry(bad)).toThrowError("Unexpected type in DashboardEntry.");
+    });
+  });
+
+  describe("cover images", () => {
+    it("builds and caches the cover URL for a dataset that has a cover image", () => {
+      const entity = {
+        id: 5,
+        type: "dataset",
+        coverImageUrl: "has-cover",
+        accessibleUserIds: [],
+      } as unknown as DashboardEntry;
+      component.entities = [entity];
+      component.ngOnInit();
+
+      expect(component.getCoverImage(entity)).toBe(`${AppSettings.getApiEndpoint()}/dataset/5/cover`);
+    });
+
+    it("falls back to the default background when no cover was cached", () => {
+      // No coverImageUrl -> loadCoverImages skips it -> getCoverImage returns the default.
+      const entity = { id: 6, type: "dataset", accessibleUserIds: [] } as unknown as DashboardEntry;
+      component.entities = [entity];
+      component.ngOnInit();
+
+      expect(component.getCoverImage(entity)).toBe(component.defaultBackground);
     });
   });
 });

@@ -25,6 +25,7 @@ import { JointGraphWrapper } from "./joint-graph-wrapper";
 import { TestBed } from "@angular/core/testing";
 import { marbles } from "rxjs-marbles";
 import {
+  mockCommentBox,
   mockPoint,
   mockResultPredicate,
   mockScanPredicate,
@@ -33,6 +34,7 @@ import {
   mockSentimentPredicate,
   mockSentimentResultLink,
 } from "./mock-workflow-data";
+import { Coeditor, Role } from "../../../../common/type/user";
 import * as joint from "jointjs";
 import { StubOperatorMetadataService } from "../../operator-metadata/stub-operator-metadata.service";
 import { WorkflowUtilService } from "../util/workflow-util.service";
@@ -816,6 +818,325 @@ describe("JointGraphWrapperService", () => {
 
       // BehaviorSubject replays the initial false, then each subsequent change
       expect(emitted).toEqual([false, true, false]);
+    });
+  });
+
+  describe("highlighting links, comment boxes and ports", () => {
+    // highlightElement() throws unless the cell is actually in the graph, so seed
+    // the cells first. Ports are tracked purely in the wrapper and need no cell.
+    const addOperators = (): void => {
+      jointGraph.addCell(jointUIService.getJointOperatorElement(mockScanPredicate, mockPoint));
+      jointGraph.addCell(jointUIService.getJointOperatorElement(mockResultPredicate, mockPoint));
+    };
+    const addLink = (): void => {
+      jointGraph.addCell(JointUIService.getJointLinkCell(mockScanResultLink));
+    };
+    const addCommentBox = (): void => {
+      jointGraph.addCell(jointUIService.getCommentElement(mockCommentBox));
+    };
+    const port = (operatorID: string, portID: string) => ({ operatorID, portID });
+
+    it("highlightLinks and unhighlightLinks track the current link ids and emit", () => {
+      addOperators();
+      addLink();
+      const highlighted: string[][] = [];
+      const unhighlighted: string[][] = [];
+      const onHighlight = jointGraphWrapper.getLinkHighlightStream().subscribe(ids => highlighted.push([...ids]));
+      const onUnhighlight = jointGraphWrapper.getLinkUnhighlightStream().subscribe(ids => unhighlighted.push([...ids]));
+
+      jointGraphWrapper.highlightLinks(mockScanResultLink.linkID);
+      expect(jointGraphWrapper.getCurrentHighlightedLinkIDs()).toEqual([mockScanResultLink.linkID]);
+      expect(highlighted).toEqual([[mockScanResultLink.linkID]]);
+
+      // re-highlighting an already-highlighted link is a no-op (no second emission)
+      jointGraphWrapper.highlightLinks(mockScanResultLink.linkID);
+      expect(highlighted).toHaveLength(1);
+
+      jointGraphWrapper.unhighlightLinks(mockScanResultLink.linkID);
+      expect(jointGraphWrapper.getCurrentHighlightedLinkIDs()).toEqual([]);
+      expect(unhighlighted).toEqual([[mockScanResultLink.linkID]]);
+
+      onHighlight.unsubscribe();
+      onUnhighlight.unsubscribe();
+    });
+
+    it("highlightCommentBoxes and unhighlightCommentBoxes track the ids and emit", () => {
+      addCommentBox();
+      const highlighted: string[][] = [];
+      const unhighlighted: string[][] = [];
+      const onHighlight = jointGraphWrapper
+        .getJointCommentBoxHighlightStream()
+        .subscribe(ids => highlighted.push([...ids]));
+      const onUnhighlight = jointGraphWrapper
+        .getJointCommentBoxUnhighlightStream()
+        .subscribe(ids => unhighlighted.push([...ids]));
+
+      jointGraphWrapper.highlightCommentBoxes(mockCommentBox.commentBoxID);
+      expect(jointGraphWrapper.getCurrentHighlightedCommentBoxIDs()).toEqual([mockCommentBox.commentBoxID]);
+      expect(highlighted).toEqual([[mockCommentBox.commentBoxID]]);
+
+      jointGraphWrapper.unhighlightCommentBoxes(mockCommentBox.commentBoxID);
+      expect(jointGraphWrapper.getCurrentHighlightedCommentBoxIDs()).toEqual([]);
+      expect(unhighlighted).toEqual([[mockCommentBox.commentBoxID]]);
+
+      onHighlight.unsubscribe();
+      onUnhighlight.unsubscribe();
+    });
+
+    it("highlightPorts and unhighlightPorts track the current ports and emit", () => {
+      const highlighted: unknown[][] = [];
+      const unhighlighted: unknown[][] = [];
+      const onHighlight = jointGraphWrapper.getJointPortHighlightStream().subscribe(ids => highlighted.push([...ids]));
+      const onUnhighlight = jointGraphWrapper
+        .getJointPortUnhighlightStream()
+        .subscribe(ids => unhighlighted.push([...ids]));
+
+      const portA = port(mockScanPredicate.operatorID, "output-0");
+      jointGraphWrapper.highlightPorts(portA);
+      expect(jointGraphWrapper.getCurrentHighlightedPortIDs()).toEqual([portA]);
+      expect(highlighted).toEqual([[portA]]);
+      // With multi-select off, highlightPorts clears the previous ports first. The
+      // port streams emit unconditionally (unlike the operator/link ones), so that
+      // pre-clear surfaces as an empty batch even though nothing was highlighted.
+      expect(unhighlighted).toEqual([[]]);
+
+      jointGraphWrapper.unhighlightPorts(portA);
+      expect(jointGraphWrapper.getCurrentHighlightedPortIDs()).toEqual([]);
+      expect(unhighlighted).toEqual([[], [portA]]);
+
+      onHighlight.unsubscribe();
+      onUnhighlight.unsubscribe();
+    });
+
+    it("single-select mode (the default) unhighlights the previous element", () => {
+      addOperators();
+      addLink();
+
+      jointGraphWrapper.highlightOperators(mockScanPredicate.operatorID);
+      expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).toEqual([mockScanPredicate.operatorID]);
+
+      // highlighting a link with multi-select off drops the operator highlight
+      jointGraphWrapper.highlightLinks(mockScanResultLink.linkID);
+      expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).toEqual([]);
+      expect(jointGraphWrapper.getCurrentHighlightedLinkIDs()).toEqual([mockScanResultLink.linkID]);
+    });
+
+    it("multi-select mode keeps previously highlighted elements", () => {
+      addOperators();
+      addLink();
+      jointGraphWrapper.setMultiSelectMode(true);
+
+      jointGraphWrapper.highlightOperators(mockScanPredicate.operatorID);
+      jointGraphWrapper.highlightLinks(mockScanResultLink.linkID);
+
+      expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).toEqual([mockScanPredicate.operatorID]);
+      expect(jointGraphWrapper.getCurrentHighlightedLinkIDs()).toEqual([mockScanResultLink.linkID]);
+    });
+
+    it("getCurrentHighlights and getCurrentHighlightedIDs aggregate every family", () => {
+      addOperators();
+      addLink();
+      addCommentBox();
+      jointGraphWrapper.setMultiSelectMode(true);
+
+      const portA = port(mockScanPredicate.operatorID, "output-0");
+      jointGraphWrapper.highlightOperators(mockScanPredicate.operatorID);
+      jointGraphWrapper.highlightLinks(mockScanResultLink.linkID);
+      jointGraphWrapper.highlightCommentBoxes(mockCommentBox.commentBoxID);
+      jointGraphWrapper.highlightPorts(portA);
+
+      expect(jointGraphWrapper.getCurrentHighlights()).toEqual({
+        operators: [mockScanPredicate.operatorID],
+        links: [mockScanResultLink.linkID],
+        commentBoxes: [mockCommentBox.commentBoxID],
+        ports: [portA],
+      });
+      // getCurrentHighlightedIDs concatenates the id-based families only (ports excluded)
+      expect(jointGraphWrapper.getCurrentHighlightedIDs()).toEqual([
+        mockScanPredicate.operatorID,
+        mockScanResultLink.linkID,
+        mockCommentBox.commentBoxID,
+      ]);
+    });
+
+    it("unhighlightElements clears operators, links, comment boxes and ports together", () => {
+      addOperators();
+      addLink();
+      addCommentBox();
+      jointGraphWrapper.setMultiSelectMode(true);
+
+      const portA = port(mockScanPredicate.operatorID, "output-0");
+      jointGraphWrapper.highlightOperators(mockScanPredicate.operatorID);
+      jointGraphWrapper.highlightLinks(mockScanResultLink.linkID);
+      jointGraphWrapper.highlightCommentBoxes(mockCommentBox.commentBoxID);
+      jointGraphWrapper.highlightPorts(portA);
+
+      // copy the lists so the call does not iterate the arrays it is mutating
+      jointGraphWrapper.unhighlightElements({
+        operators: [...jointGraphWrapper.getCurrentHighlightedOperatorIDs()],
+        links: [...jointGraphWrapper.getCurrentHighlightedLinkIDs()],
+        commentBoxes: [...jointGraphWrapper.getCurrentHighlightedCommentBoxIDs()],
+        ports: [...jointGraphWrapper.getCurrentHighlightedPortIDs()],
+      });
+
+      expect(jointGraphWrapper.getCurrentHighlights()).toEqual({
+        operators: [],
+        links: [],
+        commentBoxes: [],
+        ports: [],
+      });
+    });
+
+    it("exposes the group highlight streams, which operator highlighting does not touch", () => {
+      addOperators();
+      const emitted: unknown[] = [];
+      const onHighlight = jointGraphWrapper.getJointGroupHighlightStream().subscribe(ids => emitted.push(ids));
+      const onUnhighlight = jointGraphWrapper.getJointGroupUnhighlightStream().subscribe(ids => emitted.push(ids));
+
+      jointGraphWrapper.highlightOperators(mockScanPredicate.operatorID);
+      jointGraphWrapper.unhighlightOperators(mockScanPredicate.operatorID);
+
+      expect(emitted).toEqual([]);
+      onHighlight.unsubscribe();
+      onUnhighlight.unsubscribe();
+    });
+  });
+
+  describe("workflow flags", () => {
+    it("setReloadingWorkflow round-trips through getReloadingWorkflow", () => {
+      expect(jointGraphWrapper.getReloadingWorkflow()).toBe(false);
+
+      jointGraphWrapper.setReloadingWorkflow(true);
+      expect(jointGraphWrapper.getReloadingWorkflow()).toBe(true);
+
+      jointGraphWrapper.setReloadingWorkflow(false);
+      expect(jointGraphWrapper.getReloadingWorkflow()).toBe(false);
+    });
+
+    it("setListenPositionChange round-trips through getListenPositionChange", () => {
+      expect(jointGraphWrapper.getListenPositionChange()).toBe(true);
+
+      jointGraphWrapper.setListenPositionChange(false);
+      expect(jointGraphWrapper.getListenPositionChange()).toBe(false);
+
+      jointGraphWrapper.setListenPositionChange(true);
+      expect(jointGraphWrapper.getListenPositionChange()).toBe(true);
+    });
+  });
+
+  describe("zoom ratio bounds", () => {
+    it("setZoomProperty updates the ratio and emits it on the zoom stream", () => {
+      const emitted: number[] = [];
+      const subscription = jointGraphWrapper.getWorkflowEditorZoomStream().subscribe(ratio => emitted.push(ratio));
+
+      jointGraphWrapper.setZoomProperty(1.2);
+
+      expect(jointGraphWrapper.getZoomRatio()).toBe(1.2);
+      expect(emitted).toEqual([1.2]);
+      subscription.unsubscribe();
+    });
+
+    it("isZoomRatioMin and isZoomRatioMax report the configured bounds", () => {
+      // the wrapper itself does not clamp; it only reports where the ratio sits
+      jointGraphWrapper.setZoomProperty(JointGraphWrapper.ZOOM_MINIMUM);
+      expect(jointGraphWrapper.isZoomRatioMin()).toBe(true);
+      expect(jointGraphWrapper.isZoomRatioMax()).toBe(false);
+
+      jointGraphWrapper.setZoomProperty(JointGraphWrapper.ZOOM_MAXIMUM);
+      expect(jointGraphWrapper.isZoomRatioMax()).toBe(true);
+      expect(jointGraphWrapper.isZoomRatioMin()).toBe(false);
+
+      jointGraphWrapper.setZoomProperty(JointGraphWrapper.INIT_ZOOM_VALUE);
+      expect(jointGraphWrapper.isZoomRatioMin()).toBe(false);
+      expect(jointGraphWrapper.isZoomRatioMax()).toBe(false);
+    });
+
+    it("restoreDefaultZoomAndOffset resets the ratio and signals a paper-offset restore", () => {
+      const restores: number[] = [];
+      const subscription = jointGraphWrapper.getRestorePaperOffsetStream().subscribe(() => restores.push(1));
+      jointGraphWrapper.setZoomProperty(1.25);
+
+      jointGraphWrapper.restoreDefaultZoomAndOffset();
+
+      expect(jointGraphWrapper.getZoomRatio()).toBe(JointGraphWrapper.INIT_ZOOM_VALUE);
+      expect(restores).toHaveLength(1);
+      subscription.unsubscribe();
+    });
+  });
+
+  describe("cell layer, breakpoints and position changes", () => {
+    it("getCellLayer returns the cell's z index and throws for an unknown cell", () => {
+      jointGraph.addCell(jointUIService.getJointOperatorElement(mockScanPredicate, mockPoint));
+
+      expect(jointGraphWrapper.getCellLayer(mockScanPredicate.operatorID)).toBeGreaterThanOrEqual(0);
+      expect(() => jointGraphWrapper.getCellLayer("no-such-cell")).toThrowError(
+        "cell with ID no-such-cell doesn't exist"
+      );
+    });
+
+    it("getLinkIDsWithBreakpoint starts empty", () => {
+      expect(jointGraphWrapper.getLinkIDsWithBreakpoint()).toEqual([]);
+    });
+
+    it("getElementPositionChangeEvent reports the old and new position of a moved element", () => {
+      jointGraph.addCell(jointUIService.getJointOperatorElement(mockScanPredicate, mockPoint));
+
+      const moves: { elementID: string; newPosition: { x: number; y: number } }[] = [];
+      const subscription = jointGraphWrapper
+        .getElementPositionChangeEvent()
+        .subscribe(event => moves.push({ elementID: event.elementID, newPosition: event.newPosition }));
+
+      (jointGraph.getCell(mockScanPredicate.operatorID) as joint.dia.Element).position(100, 200);
+
+      expect(moves).toEqual([{ elementID: mockScanPredicate.operatorID, newPosition: { x: 100, y: 200 } }]);
+      subscription.unsubscribe();
+    });
+  });
+
+  describe("coeditor presence without an attached paper", () => {
+    // Every coeditor method reaches the canvas through `getMainJointPaper()?.`,
+    // so with no paper attached they must degrade to a safe no-op.
+    const coeditor: Coeditor = {
+      clientId: "client-1",
+      uid: 1,
+      name: "Alice",
+      email: "alice@x.io",
+      role: Role.REGULAR,
+      comment: "",
+      joiningReason: "",
+      color: "#ff0000",
+    };
+
+    it("add/deleteCoeditorOperatorHighlight are no-ops when no paper is attached", () => {
+      expect(() =>
+        jointGraphWrapper.addCoeditorOperatorHighlight(coeditor, mockScanPredicate.operatorID)
+      ).not.toThrow();
+      expect(() =>
+        jointGraphWrapper.deleteCoeditorOperatorHighlight(coeditor, mockScanPredicate.operatorID)
+      ).not.toThrow();
+    });
+
+    it("setCurrentEditing returns an interval that removeCurrentEditing clears", () => {
+      // Deliberately NOT using fake timers: zone.js patches setInterval/clearInterval
+      // too, and driving vitest's fake clock through that patched pair behaves
+      // differently across Node versions. This body is fully synchronous, so the
+      // 300ms animation callback can never be reached before it is cleared.
+      const clearIntervalSpy = vi.spyOn(globalThis, "clearInterval");
+      const intervalId = jointGraphWrapper.setCurrentEditing(coeditor, mockScanPredicate.operatorID);
+      try {
+        expect(intervalId).toBeDefined();
+
+        jointGraphWrapper.removeCurrentEditing(coeditor, mockScanPredicate.operatorID, intervalId);
+        expect(clearIntervalSpy).toHaveBeenCalledWith(intervalId);
+      } finally {
+        clearInterval(intervalId);
+        clearIntervalSpy.mockRestore();
+      }
+    });
+
+    it("set/removePropertyChanged are no-ops when no paper is attached", () => {
+      expect(() => jointGraphWrapper.setPropertyChanged(coeditor, mockScanPredicate.operatorID)).not.toThrow();
+      expect(() => jointGraphWrapper.removePropertyChanged(coeditor, mockScanPredicate.operatorID)).not.toThrow();
     });
   });
 });

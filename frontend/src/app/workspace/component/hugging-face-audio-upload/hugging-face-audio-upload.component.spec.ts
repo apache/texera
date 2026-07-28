@@ -17,10 +17,11 @@
  * under the License.
  */
 
-import { TestBed } from "@angular/core/testing";
+import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
 import { FormControl } from "@angular/forms";
 import { FieldTypeConfig } from "@ngx-formly/core";
+import { By } from "@angular/platform-browser";
 import { AppSettings } from "../../../common/app-setting";
 import { HuggingFaceAudioUploadComponent } from "./hugging-face-audio-upload.component";
 
@@ -120,6 +121,21 @@ describe("HuggingFaceAudioUploadComponent", () => {
     it("should return empty string for whitespace-only value", () => {
       formControl.setValue("   ");
       expect(component.previewSrc).toBe("");
+    });
+
+    it("should return localPreviewUrl when a file has been selected but upload is in progress", async () => {
+      vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:fake-preview");
+      vi.spyOn(URL, "revokeObjectURL").mockReturnValue(undefined);
+
+      const file = new File(["audio"], "clip.wav", { type: "audio/wav" });
+      const uploadPromise = component.onFileSelected(makeFileEvent(file));
+
+      expect(component.previewSrc).toBe("blob:fake-preview");
+
+      httpTestingController
+        .expectOne(r => r.url.includes("/huggingface/upload-audio"))
+        .flush({ path: "/tmp/clip.wav", fileName: "clip.wav" });
+      await uploadPromise;
     });
   });
 
@@ -238,6 +254,43 @@ describe("HuggingFaceAudioUploadComponent", () => {
       expect(req.request.headers.get("Content-Type")).toBe("application/octet-stream");
       req.flush({ path: "/tmp/clip.wav", fileName: "clip.wav" });
       await uploadPromise;
+    });
+
+    it("should discard stale upload response when cleared during upload", async () => {
+      vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:fake-preview");
+      vi.spyOn(URL, "revokeObjectURL").mockReturnValue(undefined);
+
+      const file = new File(["audio"], "clip.wav", { type: "audio/wav" });
+      const { event, input } = makeFileEventWithInput(file);
+      const uploadPromise = component.onFileSelected(event);
+
+      component.clearAudio(input);
+
+      httpTestingController
+        .expectOne(r => r.url.includes("/huggingface/upload-audio"))
+        .flush({ path: "/tmp/clip.wav", fileName: "clip.wav" });
+      await uploadPromise;
+
+      expect(formControl.value).toBe("");
+      expect(component.fileName).toBe("");
+    });
+
+    it("should discard stale upload error when cleared during upload", async () => {
+      vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:fake-preview");
+      vi.spyOn(URL, "revokeObjectURL").mockReturnValue(undefined);
+
+      const file = new File(["audio"], "clip.wav", { type: "audio/wav" });
+      const { event, input } = makeFileEventWithInput(file);
+      const uploadPromise = component.onFileSelected(event);
+
+      component.clearAudio(input);
+
+      httpTestingController
+        .expectOne(r => r.url.includes("/huggingface/upload-audio"))
+        .error(new ProgressEvent("error"));
+      await uploadPromise;
+
+      expect(component.errorMessage).toBe("");
     });
   });
 
@@ -433,6 +486,22 @@ describe("HuggingFaceAudioUploadComponent", () => {
       expect(() => component.ngOnDestroy()).not.toThrow();
     });
 
+    it("should revoke localPreviewUrl on destroy when upload preview exists", async () => {
+      const revokeSpy = vi.spyOn(URL, "revokeObjectURL").mockReturnValue(undefined);
+      vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:fake-preview");
+
+      const file = new File(["audio"], "clip.wav", { type: "audio/wav" });
+      const uploadPromise = component.onFileSelected(makeFileEvent(file));
+
+      httpTestingController
+        .expectOne(r => r.url.includes("/huggingface/upload-audio"))
+        .flush({ path: "/tmp/clip.wav", fileName: "clip.wav" });
+      await uploadPromise;
+
+      component.ngOnDestroy();
+      expect(revokeSpy).toHaveBeenCalledWith("blob:fake-preview");
+    });
+
     it("should revoke localPreviewUrl on destroy", async () => {
       const blobUrl = "blob:http://localhost/local-preview";
       vi.spyOn(URL, "createObjectURL").mockReturnValue(blobUrl);
@@ -572,6 +641,121 @@ describe("HuggingFaceAudioUploadComponent", () => {
 
       expect(formControl.value).toBe("/tmp/second.wav");
       expect(component.fileName).toBe("second.wav");
+    });
+  });
+
+  // ── Template rendering ──
+
+  describe("template rendering", () => {
+    let templateFixture: ComponentFixture<HuggingFaceAudioUploadComponent>;
+    let templateComponent: HuggingFaceAudioUploadComponent;
+
+    beforeEach(() => {
+      templateFixture = TestBed.createComponent(HuggingFaceAudioUploadComponent);
+      templateComponent = templateFixture.componentInstance;
+      const fc = new FormControl("");
+      templateComponent.field = { formControl: fc, key: "audioInput", model: {} } as unknown as FieldTypeConfig;
+    });
+
+    it("should render the file input", () => {
+      templateFixture.detectChanges();
+      expect(templateFixture.debugElement.query(By.css("input[type='file']"))).toBeTruthy();
+    });
+
+    it("should not render the preview section when there is no audio", () => {
+      templateFixture.detectChanges();
+      expect(templateFixture.debugElement.query(By.css(".hf-audio-preview"))).toBeNull();
+    });
+
+    it("should render the preview section when formControl has a data:audio value", () => {
+      templateComponent.field.formControl.setValue("data:audio/wav;base64,abc123");
+      templateFixture.detectChanges();
+      expect(templateFixture.debugElement.query(By.css(".hf-audio-preview"))).toBeTruthy();
+      expect(templateFixture.debugElement.query(By.css("audio"))).toBeTruthy();
+    });
+
+    it("should bind audio [src] to previewSrc for a data:audio value", () => {
+      templateComponent.field.formControl.setValue("data:audio/wav;base64,abc123");
+      templateFixture.detectChanges();
+      const audio = templateFixture.debugElement.query(By.css("audio")).nativeElement as HTMLAudioElement;
+      expect(audio.src).toContain("data:audio/wav");
+    });
+
+    it("should show fileName in the preview meta", () => {
+      templateComponent.field.formControl.setValue("data:audio/wav;base64,abc123");
+      templateFixture.detectChanges(); // ngOnInit runs here
+      templateComponent.fileName = "clip.wav";
+      templateFixture.detectChanges();
+      const span = templateFixture.debugElement.query(By.css(".hf-audio-meta span"));
+      expect((span.nativeElement as HTMLElement).textContent?.trim()).toBe("clip.wav");
+    });
+
+    it("should fall back to 'Selected audio' when fileName is empty and preview is shown", () => {
+      templateComponent.field.formControl.setValue("data:audio/wav;base64,abc123");
+      templateComponent.fileName = "";
+      templateFixture.detectChanges();
+      const span = templateFixture.debugElement.query(By.css(".hf-audio-meta span"));
+      expect((span.nativeElement as HTMLElement).textContent?.trim()).toBe("Selected audio");
+    });
+
+    it("should show the Uploading status span when isUploading is true and preview is visible", () => {
+      templateComponent.field.formControl.setValue("data:audio/wav;base64,abc123");
+      templateComponent.isUploading = true;
+      templateFixture.detectChanges();
+      const status = templateFixture.debugElement.query(By.css(".hf-audio-status"));
+      expect(status).toBeTruthy();
+      expect((status.nativeElement as HTMLElement).textContent?.trim()).toBe("Uploading...");
+    });
+
+    it("should hide the Uploading status span when isUploading is false", () => {
+      templateComponent.field.formControl.setValue("data:audio/wav;base64,abc123");
+      templateComponent.isUploading = false;
+      templateFixture.detectChanges();
+      expect(templateFixture.debugElement.query(By.css(".hf-audio-status"))).toBeNull();
+    });
+
+    it("should disable the Clear button when isUploading is true", () => {
+      templateComponent.field.formControl.setValue("data:audio/wav;base64,abc123");
+      templateComponent.isUploading = true;
+      templateFixture.detectChanges();
+      const btn = templateFixture.debugElement.query(By.css("button[nz-button]")).nativeElement as HTMLButtonElement;
+      expect(btn.disabled).toBe(true);
+    });
+
+    it("should enable the Clear button when isUploading is false", () => {
+      templateComponent.field.formControl.setValue("data:audio/wav;base64,abc123");
+      templateComponent.isUploading = false;
+      templateFixture.detectChanges();
+      const btn = templateFixture.debugElement.query(By.css("button[nz-button]")).nativeElement as HTMLButtonElement;
+      expect(btn.disabled).toBe(false);
+    });
+
+    it("should disable the file input when isUploading is true", () => {
+      templateComponent.isUploading = true;
+      templateFixture.detectChanges();
+      const input = templateFixture.debugElement.query(By.css("input[type='file']")).nativeElement as HTMLInputElement;
+      expect(input.disabled).toBe(true);
+    });
+
+    it("should show the error message when errorMessage is set", () => {
+      templateComponent.errorMessage = "Could not upload this audio file.";
+      templateFixture.detectChanges();
+      const errorEl = templateFixture.debugElement.query(By.css(".hf-audio-error"));
+      expect(errorEl).toBeTruthy();
+      expect((errorEl.nativeElement as HTMLElement).textContent?.trim()).toBe("Could not upload this audio file.");
+    });
+
+    it("should not render the error div when errorMessage is empty", () => {
+      templateFixture.detectChanges();
+      expect(templateFixture.debugElement.query(By.css(".hf-audio-error"))).toBeNull();
+    });
+
+    it("should call clearAudio when the Clear button is clicked", () => {
+      const clearSpy = vi.spyOn(templateComponent, "clearAudio");
+      templateComponent.field.formControl.setValue("data:audio/wav;base64,abc123");
+      templateFixture.detectChanges();
+      templateFixture.debugElement.query(By.css("button[nz-button]")).triggerEventHandler("click", null);
+      expect(clearSpy).toHaveBeenCalled();
     });
   });
 });

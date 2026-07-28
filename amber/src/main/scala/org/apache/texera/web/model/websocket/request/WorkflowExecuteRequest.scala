@@ -21,8 +21,7 @@ package org.apache.texera.web.model.websocket.request
 
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import org.apache.texera.amber.core.workflow.WorkflowSettings
-import org.apache.texera.amber.operator.LogicalOp
-import org.apache.texera.workflow.LogicalLink
+import org.apache.texera.common.compiler.model.LogicalPlanPojo
 
 case class ReplayExecutionInfo(
     @JsonDeserialize(contentAs = classOf[java.lang.Long])
@@ -39,10 +38,3 @@ case class WorkflowExecuteRequest(
     emailNotificationEnabled: Boolean,
     computingUnitId: Int
 ) extends TexeraWebSocketRequest
-
-case class LogicalPlanPojo(
-    operators: List[LogicalOp],
-    links: List[LogicalLink],
-    opsToViewResult: List[String],
-    opsToReuseResult: List[String]
-)
