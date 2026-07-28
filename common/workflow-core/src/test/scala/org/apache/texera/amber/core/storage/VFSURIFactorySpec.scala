@@ -154,6 +154,19 @@ class VFSURIFactorySpec extends AnyFlatSpec {
     )
   }
 
+  it should "not let a percent-encoded slash in the name forge extra segments" in {
+    // Decoded before splitting, this path would read as /wh/a/wid/999/... -- handing
+    // back "a" as the warehouse and shifting which `wid` the parser sees. Splitting
+    // the raw path keeps `%2F` inside its own segment, and the name is then rejected
+    // as illegal, so the URI resolves to no warehouse rather than to a wrong one.
+    assert(
+      VFSURIFactory.warehouseFromURI(new URI("vfs:///wh/a%2Fwid%2F999/wid/1/eid/2/result")).isEmpty
+    )
+    assert(
+      VFSURIFactory.warehouseFromURI(new URI("vfs:///wh/user-2%2Dfoo/wid/7/eid/3/result")).isEmpty
+    )
+  }
+
   "VFSURIFactory" should "reject an operatorId containing '/' rather than let it forge URI segments" in {
     assertThrows[IllegalArgumentException] {
       VFSURIFactory.createConsoleMessagesURI(
@@ -161,6 +174,16 @@ class VFSURIFactorySpec extends AnyFlatSpec {
         executionId,
         OperatorIdentity("a/wh/victim/b")
       )
+    }
+  }
+
+  it should "reject a warehouse name that is not safe as a URI path segment" in {
+    Seq("a/b", "a%2Fb", "", "-lead", "sp ace").foreach { bad =>
+      withClue(s"warehouse name '$bad' should be rejected: ") {
+        assertThrows[IllegalArgumentException] {
+          VFSURIFactory.createPortBaseURI(workflowId, executionId, portId, Some(bad))
+        }
+      }
     }
   }
 

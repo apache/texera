@@ -168,16 +168,33 @@ class TestWarehouseFromUri:
             is None
         )
 
-    def test_percent_encoded_name_decodes_like_java(self):
-        # java.net.URI.getPath decodes on the Scala side; urlparse does not. Without
-        # unquoting here the two languages would resolve the same URI to different
-        # warehouses, splitting one execution's data across two of them.
+    def test_percent_encoded_name_is_rejected_not_decoded(self):
+        # The raw path is split and the name must be a legal warehouse name, so a
+        # percent-encoded name resolves to no warehouse rather than to a decoded
+        # one. Decoding first would let "%2F" become a separator and pick the wrong
+        # warehouse; it would also diverge from Scala, which splits its raw path.
         assert (
             VFSURIFactory.warehouse_from_uri(
                 "vfs:///wh/user-2%2Dfoo/wid/7/eid/3/result"
             )
-            == "user-2-foo"
+            is None
         )
+
+    def test_encoded_slash_in_name_cannot_forge_segments(self):
+        # "%2F" must stay inside its own segment: decoded-then-split, this URI would
+        # read as /wh/a/wid/999/... and hand back "a" while also shifting wid.
+        assert (
+            VFSURIFactory.warehouse_from_uri(
+                "vfs:///wh/a%2Fwid%2F999/wid/1/eid/2/result"
+            )
+            is None
+        )
+
+    def test_builder_rejects_an_unsafe_warehouse_name(self):
+        with pytest.raises(ValueError, match="warehouse name must match"):
+            VFSURIFactory.create_port_base_uri(
+                WorkflowIdentity(id=7), ExecutionIdentity(id=3), _gpi(), "a/b"
+            )
 
     def test_round_trips_a_warehouse_written_by_the_python_builder(self):
         # Python can now write the segment, not just read it.

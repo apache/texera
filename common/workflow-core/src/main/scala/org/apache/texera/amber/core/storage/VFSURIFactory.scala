@@ -40,10 +40,28 @@ object VFSResourceType extends Enumeration {
 object VFSURIFactory {
   val VFS_FILE_URI_SCHEME = "vfs"
 
+  // A warehouse name becomes a URI path segment, so it is restricted to characters
+  // that carry no meaning there: no '/' to add segments, and no '%' to smuggle one
+  // in percent-encoded form. Registration applies a stricter rule still; this is the
+  // invariant the URI layer itself depends on.
+  private val warehouseNamePattern = "[A-Za-z0-9][A-Za-z0-9_-]*".r
+
+  private def isValidWarehouseName(name: String): Boolean =
+    warehouseNamePattern.pattern.matcher(name).matches()
+
   // Warehouse is carried as a leading `/wh/<name>` path segment so a storage URI
   // fully identifies which warehouse its table lives in. Absent for non-BYO storage.
   private def warehousePathSegment(warehouse: Option[String]): String =
-    warehouse.map(name => s"/wh/$name").getOrElse("")
+    warehouse
+      .map { name =>
+        require(
+          isValidWarehouseName(name),
+          s"warehouse name must match ${warehouseNamePattern.regex} " +
+            s"(it becomes a URI path segment): $name"
+        )
+        s"/wh/$name"
+      }
+      .getOrElse("")
 
   /**
     * Extracts the warehouse name encoded in a VFS URI, if present.
@@ -53,11 +71,17 @@ object VFSURIFactory {
     * so scanning the whole path would disagree with the stripper: a later segment
     * that happens to be `wh` -- e.g. inside a user-chosen operator id in a
     * console-messages URI -- would select a warehouse the URI was never built for.
+    *
+    * Splits the RAW path rather than the decoded one, so a percent-encoded slash
+    * stays inside the segment that contains it instead of becoming a separator;
+    * decoding first would let `%2F` forge path structure. The name is then required
+    * to be a legal warehouse name, so anything that could not have been written by
+    * `warehousePathSegment` resolves to no warehouse rather than to a wrong one.
     */
   def warehouseFromURI(uri: URI): Option[String] =
-    uri.getPath.stripPrefix("/").split("/").toList match {
-      case "wh" :: name :: _ if name.nonEmpty => Some(name)
-      case _                                  => None
+    Option(uri.getRawPath).toList.flatMap(_.stripPrefix("/").split("/")) match {
+      case "wh" :: name :: _ if isValidWarehouseName(name) => Some(name)
+      case _                                               => None
     }
 
   /**

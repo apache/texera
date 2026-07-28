@@ -17,7 +17,8 @@
 
 from enum import Enum
 from typing import Optional
-from urllib.parse import unquote, urlparse
+import re
+from urllib.parse import urlparse
 
 from core.util.virtual_identity import (
     serialize_global_port_identity,
@@ -35,6 +36,10 @@ class VFSResourceType(str, Enum):
     RUNTIME_STATISTICS = "runtimeStatistics"
     CONSOLE_MESSAGES = "consoleMessages"
     STATE = "state"
+
+
+# See VFSURIFactory._is_valid_warehouse_name.
+_WAREHOUSE_NAME_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]*")
 
 
 class VFSURIFactory:
@@ -89,6 +94,14 @@ class VFSURIFactory:
         )
 
     @staticmethod
+    def _is_valid_warehouse_name(name: str) -> bool:
+        """A warehouse name becomes a URI path segment, so it may not carry
+        characters that have meaning there: no "/" to add segments, and no "%" to
+        smuggle one in percent-encoded form. Mirrors VFSURIFactory (Scala).
+        """
+        return _WAREHOUSE_NAME_RE.fullmatch(name) is not None
+
+    @staticmethod
     def warehouse_from_uri(uri: str) -> Optional[str]:
         """
         Extracts the warehouse name from the optional leading "/wh/<name>" segment
@@ -97,12 +110,19 @@ class VFSURIFactory:
 
         Anchored to the leading segment, matching Scala and the leading-only strip
         in document_factory.sanitize_uri_path: a later segment that happens to be
-        "wh" must not select a warehouse. The path is unquoted first because
-        java.net.URI.getPath decodes on the Scala side while urlparse does not --
-        without it the two languages disagree on a percent-encoded name.
+        "wh" must not select a warehouse. The RAW path is split -- never decoded
+        first -- so a percent-encoded slash stays inside its own segment instead of
+        becoming a separator, and the name must be a legal warehouse name, so
+        anything that could not have been written by create_port_base_uri resolves
+        to no warehouse rather than to a wrong one. Scala splits its raw path the
+        same way, so both languages read a URI identically.
         """
-        segments = unquote(urlparse(uri).path).lstrip("/").split("/")
-        if len(segments) >= 2 and segments[0] == "wh" and segments[1]:
+        segments = urlparse(uri).path.lstrip("/").split("/")
+        if (
+            len(segments) >= 2
+            and segments[0] == "wh"
+            and VFSURIFactory._is_valid_warehouse_name(segments[1])
+        ):
             return segments[1]
         return None
 
@@ -117,6 +137,13 @@ class VFSURIFactory:
         Scala side; when None the URI is byte-for-byte what it was before warehouses
         existed.
         """
+        if warehouse is not None and not VFSURIFactory._is_valid_warehouse_name(
+            warehouse
+        ):
+            raise ValueError(
+                f"warehouse name must match {_WAREHOUSE_NAME_RE.pattern} "
+                f"(it becomes a URI path segment): {warehouse}"
+            )
         wh_segment = f"/wh/{warehouse}" if warehouse else ""
         return (
             f"{VFSURIFactory.VFS_FILE_URI_SCHEME}://{wh_segment}/wid/{workflow_id.id}"
