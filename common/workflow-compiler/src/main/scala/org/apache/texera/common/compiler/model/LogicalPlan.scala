@@ -17,14 +17,13 @@
  * under the License.
  */
 
-package org.apache.texera.workflow
+package org.apache.texera.common.compiler.model
 
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.texera.amber.core.storage.FileResolver
 import org.apache.texera.amber.core.virtualidentity.OperatorIdentity
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.source.scan.ScanSourceOpDesc
-import org.apache.texera.web.model.websocket.request.LogicalPlanPojo
 import org.jgrapht.graph.DirectedAcyclicGraph
 import org.jgrapht.util.SupplierUtil
 
@@ -88,9 +87,11 @@ case class LogicalPlan(
   }
 
   /**
-    * Resolve all user-given filename for the scan source operators to URIs, and call op.setFileUri to set the URi
+    * Resolves each scan source operator's user-given file name to a URI and sets it on the
+    * operator via `setResolvedFileName`.
     *
-    * @param errorList if given, put errors during resolving to it
+    * @param errorList if given, errors encountered during resolution are appended to it;
+    *                  otherwise the first error is thrown
     */
   def resolveScanSourceOpFileName(
       errorList: Option[ArrayBuffer[(OperatorIdentity, Throwable)]]
