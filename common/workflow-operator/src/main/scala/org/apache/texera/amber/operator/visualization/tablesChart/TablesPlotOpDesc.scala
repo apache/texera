@@ -119,20 +119,34 @@ class TablesPlotOpDesc extends PythonOperatorDescriptor with StandaloneCodeGener
     // Mirror getAttributes: a Python list literal of the selected column names.
     val columnsList =
       includedColumns.map(c => s""""${c.attributeName}"""").mkString("[", ", ", "]")
-    s"""attributes = $columnsList
-       |table = in1df.dropna(subset=attributes)
+    // The two guards mirror generatePythonCode's, which reports both conditions
+    // rather than rendering a table with no rows in it.
+    s"""def render_error(error_msg):
+       |    return '''<h1>Tables Plot is not available.</h1>
+       |              <p>Reason is: {} </p>
+       |           '''.format(error_msg)
        |
-       |filtered_table = table[attributes]
-       |headers = filtered_table.columns.tolist()
-       |cell_values = [filtered_table[col].tolist() for col in headers]
+       |attributes = $columnsList
+       |if in1df.empty:
+       |    with open("output.html", "w", encoding="utf-8") as output:
+       |        output.write(render_error("input table is empty."))
+       |else:
+       |    table = in1df.dropna(subset=attributes)
+       |    if table.empty:
+       |        with open("output.html", "w", encoding="utf-8") as output:
+       |            output.write(render_error("value column contains only non-positive numbers or nulls."))
+       |    else:
+       |        filtered_table = table[attributes]
+       |        headers = filtered_table.columns.tolist()
+       |        cell_values = [filtered_table[col].tolist() for col in headers]
        |
-       |fig = go.Figure(data=[go.Table(
-       |    header=dict(values=headers),
-       |    cells=dict(values=cell_values)
-       |)])
-       |fig.update_layout(margin=dict(l=0, r=0, b=0, t=0))
-       |fig.write_json("output.json")
-       |fig.write_html("output.html")
-       |print("Tables plot saved to output.json")""".stripMargin
+       |        fig = go.Figure(data=[go.Table(
+       |            header=dict(values=headers),
+       |            cells=dict(values=cell_values)
+       |        )])
+       |        fig.update_layout(margin=dict(l=0, r=0, b=0, t=0))
+       |        fig.write_json("output.json")
+       |        fig.write_html("output.html")
+       |        print("Tables plot saved to output.json")""".stripMargin
   }
 }
