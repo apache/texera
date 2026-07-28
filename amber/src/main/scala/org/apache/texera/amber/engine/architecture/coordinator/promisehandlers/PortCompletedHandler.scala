@@ -20,12 +20,8 @@
 package org.apache.texera.amber.engine.architecture.coordinator.promisehandlers
 
 import com.twitter.util.Future
-import org.apache.texera.amber.core.WorkflowRuntimeException
 import org.apache.texera.amber.core.workflow.GlobalPortIdentity
-import org.apache.texera.amber.engine.architecture.coordinator.{
-  CoordinatorAsyncRPCHandlerInitializer,
-  FatalError
-}
+import org.apache.texera.amber.engine.architecture.coordinator.CoordinatorAsyncRPCHandlerInitializer
 import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{
   AsyncRPCContext,
   PortCompletedRequest,
@@ -81,16 +77,13 @@ trait PortCompletedHandler {
               else operatorExecution.isOutputPortCompleted(msg.portId)
 
             if (isPortCompleted) {
-              cp.workflowExecutionManager
-                .advanceRegionExecutions(cp.actorService)
-                // Since this message is sent from a worker, any exception from the above code will be returned to that worker.
-                // Additionally, a fatal error is sent to the client, indicating that the region cannot be scheduled.
-                .onFailure {
-                  case err: WorkflowRuntimeException =>
-                    sendToClient(FatalError(err, err.relatedWorkerId))
-                  case other =>
-                    sendToClient(FatalError(other, None))
-                }
+              // Ask the coordinator to advance region executions in a later control round rather
+              // than advancing here. Advancing inline would terminate the completed region and
+              // send `EndWorker` to this very sender before this handler's own reply, and both
+              // travel the same FIFO control channel — the worker would then process `EndWorker`
+              // with the reply still queued behind it and reject the termination (see
+              // `EndHandler`). See `WorkflowExecutionManager.requestAdvanceRegionExecutions()`.
+              cp.workflowExecutionManager.requestAdvanceRegionExecutions()
             }
           case None => // currently "start" and "end" ports are not part of a region, thus no region can be found.
           // do nothing.
