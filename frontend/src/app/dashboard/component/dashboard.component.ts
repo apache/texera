@@ -24,7 +24,10 @@ import { FlarumService } from "../service/user/flarum/flarum.service";
 import { HttpErrorResponse } from "@angular/common/http";
 import { ActivatedRoute, NavigationEnd, Router, RouterLink, RouterOutlet } from "@angular/router";
 import { HubComponent } from "../../hub/component/hub.component";
-import { SocialAuthService, GoogleSigninButtonModule } from "@abacritt/angularx-social-login";
+import { SocialAuthService, GoogleSigninButtonModule, SocialUser } from "@abacritt/angularx-social-login";
+import { throwError } from "rxjs";
+import { catchError, filter } from "rxjs/operators";
+import { NotificationService } from "../../common/service/notification/notification.service";
 import { AdminSettingsService } from "../service/admin/settings/admin-settings.service";
 import { GuiConfigService } from "../../common/service/gui-config.service";
 
@@ -134,6 +137,7 @@ export class DashboardComponent implements OnInit {
     private socialAuthService: SocialAuthService,
     private route: ActivatedRoute,
     private adminSettingsService: AdminSettingsService,
+    private notificationService: NotificationService,
     protected config: GuiConfigService
   ) {}
 
@@ -162,16 +166,27 @@ export class DashboardComponent implements OnInit {
         });
       });
 
-    this.socialAuthService.authState.pipe(untilDestroyed(this)).subscribe(user => {
-      this.userService
-        .googleLogin(user.idToken)
-        .pipe(untilDestroyed(this))
-        .subscribe(() => {
-          this.ngZone.run(() => {
-            this.router.navigateByUrl(this.route.snapshot.queryParams["returnUrl"] || USER_WORKFLOW);
+    this.socialAuthService.authState
+      .pipe(
+        filter((user): user is SocialUser => user != null),
+        untilDestroyed(this)
+      )
+      .subscribe(user => {
+        this.userService
+          .externalLogin(user)
+          .pipe(
+            catchError((e: unknown) => {
+              this.notificationService.error((e as Error)?.message || "Sign-in failed");
+              return throwError(() => e);
+            }),
+            untilDestroyed(this)
+          )
+          .subscribe(() => {
+            this.ngZone.run(() => {
+              this.router.navigateByUrl(this.route.snapshot.queryParams["returnUrl"] || USER_WORKFLOW);
+            });
           });
-        });
-    });
+      });
 
     this.loadLogos();
 

@@ -29,10 +29,15 @@ import {
 } from "@angular/forms";
 import { NgIf } from "@angular/common";
 import { ActivatedRoute, Router } from "@angular/router";
-import { catchError } from "rxjs/operators";
+import { catchError, filter } from "rxjs/operators";
 import { throwError } from "rxjs";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { SocialAuthService, GoogleSigninButtonModule, FacebookLoginProvider } from "@abacritt/angularx-social-login";
+import {
+  SocialAuthService,
+  GoogleSigninButtonModule,
+  FacebookLoginProvider,
+  SocialUser,
+} from "@abacritt/angularx-social-login";
 import { UserService } from "../../../common/service/user/user.service";
 import { NotificationService } from "../../../common/service/notification/notification.service";
 import { GuiConfigService } from "../../../common/service/gui-config.service";
@@ -87,25 +92,29 @@ export class TexeraLoginComponent implements OnInit {
       });
     }
 
-    // Social sign-in: both Google and Facebook emit here after their sign-in flow.
-    // Branch on the provider — Google yields an idToken, Facebook an authToken.
-    this.socialAuthService.authState.pipe(untilDestroyed(this)).subscribe(user => {
-      const isFacebook = user.provider === FacebookLoginProvider.PROVIDER_ID;
-      const login$ = isFacebook
-        ? this.userService.facebookLogin(user.authToken)
-        : this.userService.googleLogin(user.idToken);
-      login$
-        .pipe(
-          catchError((e: unknown) => {
-            this.notificationService.error(
-              (e as Error)?.message || `${isFacebook ? "Facebook" : "Google"} sign-in failed`
-            );
-            return throwError(() => e);
-          }),
-          untilDestroyed(this)
-        )
-        .subscribe(() => this.ngZone.run(() => this.navigateAfterLogin()));
-    });
+    // External sign-in: both Google and Facebook emit here after their sign-in flow.
+    // The null filter matters — logging out emits null through this subject, and it is a
+    // ReplaySubject, so a stale value is replayed to this subscription the moment it starts.
+    this.socialAuthService.authState
+      .pipe(
+        filter((user): user is SocialUser => user != null),
+        untilDestroyed(this)
+      )
+      .subscribe(user => {
+        const isFacebook = user.provider === FacebookLoginProvider.PROVIDER_ID;
+        this.userService
+          .externalLogin(user)
+          .pipe(
+            catchError((e: unknown) => {
+              this.notificationService.error(
+                (e as Error)?.message || `${isFacebook ? "Facebook" : "Google"} sign-in failed`
+              );
+              return throwError(() => e);
+            }),
+            untilDestroyed(this)
+          )
+          .subscribe(() => this.ngZone.run(() => this.navigateAfterLogin()));
+      });
   }
 
   /**

@@ -21,11 +21,11 @@ import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { DashboardComponent } from "./dashboard.component";
 import { ChangeDetectorRef, EventEmitter, NgZone } from "@angular/core";
 import { By } from "@angular/platform-browser";
-import { EMPTY, of, throwError } from "rxjs";
+import { EMPTY, of, Subject, throwError } from "rxjs";
 
 import { UserService } from "../../common/service/user/user.service";
 import { FlarumService } from "../service/user/flarum/flarum.service";
-import { SocialAuthService } from "@abacritt/angularx-social-login";
+import { FacebookLoginProvider, SocialAuthService, SocialUser } from "@abacritt/angularx-social-login";
 import { AdminSettingsService } from "../service/admin/settings/admin-settings.service";
 import {
   ActivatedRoute,
@@ -66,6 +66,7 @@ describe("DashboardComponent", () => {
   let cdrMock: Partial<ChangeDetectorRef>;
   let ngZoneMock: Partial<NgZone>;
   let socialAuthServiceMock: Partial<SocialAuthService>;
+  let authState$: Subject<SocialUser>;
   let adminSettingsServiceMock: Partial<AdminSettingsService>;
   let activatedRouteMock: Partial<ActivatedRoute>;
 
@@ -92,6 +93,11 @@ describe("DashboardComponent", () => {
       isLogin: vi.fn().mockReturnValue(false),
       userChanged: vi.fn().mockReturnValue(of(null)),
       getCurrentUser: vi.fn().mockReturnValue(undefined),
+      externalLogin: vi.fn().mockReturnValue(of(undefined)),
+      // Present so the assertions below can prove this component never reaches past
+      // externalLogin to a provider-specific call, which is what the old code did.
+      googleLogin: vi.fn().mockReturnValue(of(undefined)),
+      facebookLogin: vi.fn().mockReturnValue(of(undefined)),
     };
 
     routerMock = {
@@ -122,8 +128,9 @@ describe("DashboardComponent", () => {
       runTask: (fn: () => any) => fn(),
     };
 
+    authState$ = new Subject<SocialUser>();
     socialAuthServiceMock = {
-      authState: EMPTY,
+      authState: authState$.asObservable(),
       // GoogleSigninButtonDirective subscribes to initState in its constructor;
       // EMPTY keeps the subscription open without triggering google.accounts.id.renderButton.
       initState: EMPTY,
@@ -397,6 +404,44 @@ describe("DashboardComponent", () => {
       // starts false so an unfetched or failed load shows no tabs, and the
       // backend /config/settings/public is the single source of the real values.
       expect(Object.values(component.sidebarTabs).every(enabled => enabled === false)).toBe(true);
+    });
+  });
+
+  // This component renders its own <asl-google-signin-button>, so it subscribes to authState
+  // itself. It used to call googleLogin(user.idToken) unconditionally, which sent a Facebook
+  // credential (idToken undefined) to the Google endpoint; the exchange now goes through
+  // UserService.externalLogin, which dispatches on the provider.
+  describe("external sign-in (authState)", () => {
+    const facebookUser = (authToken: string): SocialUser =>
+      ({ provider: FacebookLoginProvider.PROVIDER_ID, authToken }) as unknown as SocialUser;
+    const googleUser = (idToken: string): SocialUser => ({ provider: "GOOGLE", idToken }) as unknown as SocialUser;
+
+    it("hands a Google auth event to UserService.externalLogin and navigates", () => {
+      const user = googleUser("g-token");
+
+      authState$.next(user);
+
+      expect(userServiceMock.externalLogin).toHaveBeenCalledWith(user);
+      expect(routerMock.navigateByUrl).toHaveBeenCalledWith(USER_WORKFLOW);
+    });
+
+    it("does not force a Facebook auth event down the Google path", () => {
+      const user = facebookUser("fb-token");
+
+      authState$.next(user);
+
+      // The whole SocialUser is forwarded, so the provider is still known downstream —
+      // as opposed to picking off user.idToken here, which is undefined for Facebook.
+      expect(userServiceMock.externalLogin).toHaveBeenCalledWith(user);
+      expect(userServiceMock.googleLogin).not.toHaveBeenCalled();
+    });
+
+    it("ignores a null auth state instead of attempting a login", () => {
+      // Logout emits null through this subject; reacting to it would sign the user back in.
+      authState$.next(null as unknown as SocialUser);
+
+      expect(userServiceMock.externalLogin).not.toHaveBeenCalled();
+      expect(routerMock.navigateByUrl).not.toHaveBeenCalled();
     });
   });
 });

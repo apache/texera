@@ -25,6 +25,7 @@ import { Role, User } from "../../type/user";
 import { AuthService } from "./auth.service";
 import { GuiConfigService } from "../gui-config.service";
 import { catchError, map, shareReplay, switchMap } from "rxjs/operators";
+import { FacebookLoginProvider, SocialUser } from "@abacritt/angularx-social-login";
 
 /**
  * User Service manages User information. It relies on different
@@ -56,6 +57,22 @@ export class UserService {
     return this.authService
       .auth(username, password)
       .pipe(switchMap(({ accessToken }) => this.handleAccessToken(accessToken)));
+  }
+
+  /**
+   * Exchange a verified external identity for a Texera session. "External" matches the backend
+   * counterpart (`ExternalAuthProvisioner` / `ExternalProfile`); `Social*` names below belong to
+   * the angularx-social-login library, not to this codebase's vocabulary.
+   *
+   * Both providers emit on the same `SocialAuthService.authState`, so every subscriber has to
+   * dispatch on `user.provider`: Google supplies an `idToken`, Facebook an `authToken`, and the
+   * two backend endpoints verify different things. Keeping that dispatch here means the login
+   * page and the dashboard cannot drift apart on it.
+   */
+  public externalLogin(user: SocialUser): Observable<void> {
+    return user.provider === FacebookLoginProvider.PROVIDER_ID
+      ? this.facebookLogin(user.authToken)
+      : this.googleLogin(user.idToken);
   }
 
   public facebookLogin(credential: string): Observable<void> {

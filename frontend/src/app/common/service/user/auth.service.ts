@@ -18,7 +18,8 @@
  */
 
 import { HttpClient } from "@angular/common/http";
-import { Injectable } from "@angular/core";
+import { Injectable, Injector } from "@angular/core";
+import { SocialAuthService } from "@abacritt/angularx-social-login";
 import { firstValueFrom, Observable, Subscription, timer } from "rxjs";
 import { AppSettings } from "../../app-setting";
 import { Role, User } from "../../type/user";
@@ -56,7 +57,8 @@ export class AuthService {
     private notificationService: NotificationService,
     private gmailService: GmailService,
     private config: GuiConfigService,
-    private modal: NzModalService
+    private modal: NzModalService,
+    private injector: Injector
   ) {}
 
   /**
@@ -114,7 +116,20 @@ export class AuthService {
   public logout(): undefined {
     AuthService.removeAccessToken();
     this.tokenExpirationSubscription?.unsubscribe();
+    this.signOutOfSocialProviders();
     return undefined;
+  }
+
+  private signOutOfSocialProviders(): void {
+    let socialAuthService: SocialAuthService;
+    try {
+      socialAuthService = this.injector.get(SocialAuthService);
+    } catch {
+      // Social login is not configured in this context; there is no session to clear.
+      return;
+    }
+
+    socialAuthService.signOut().catch(() => {});
   }
 
   public loginWithExistingToken(): User | undefined {

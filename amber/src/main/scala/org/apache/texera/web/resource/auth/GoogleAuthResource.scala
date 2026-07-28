@@ -55,8 +55,6 @@ class GoogleAuthResource {
       val payload = idToken.getPayload
       val googleId = payload.getSubject
       val googleEmail = payload.getEmail
-      // "name" is not guaranteed on the payload; fall back to the email so we
-      // never write null into the NOT NULL user.name column
       val googleName =
         Option(payload.get("name").asInstanceOf[String]).filter(_.nonEmpty).getOrElse(googleEmail)
       val googleAvatar = Option(payload.get("picture").asInstanceOf[String])

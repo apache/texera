@@ -52,6 +52,7 @@ describe("TexeraLoginComponent", () => {
     userServiceMock = {
       login: vi.fn().mockReturnValue(of(undefined)),
       register: vi.fn().mockReturnValue(of(undefined)),
+      externalLogin: vi.fn().mockReturnValue(of(undefined)),
       googleLogin: vi.fn().mockReturnValue(of(undefined)),
       facebookLogin: vi.fn().mockReturnValue(of(undefined)),
     };
@@ -274,34 +275,47 @@ describe("TexeraLoginComponent", () => {
     });
   });
 
-  describe("social sign-in (authState)", () => {
-    it("routes a Facebook auth event to UserService.facebookLogin and navigates", () => {
+  describe("external sign-in (authState)", () => {
+    // The provider -> endpoint dispatch itself lives in UserService.externalLogin; here we only
+    // pin down that the credential is handed over intact and that nav/error handling works.
+    it("hands a Facebook auth event to UserService.externalLogin and navigates", () => {
       component.ngOnInit();
+      const user = facebookUser("fb-token");
 
-      authState$.next(facebookUser("fb-token"));
+      authState$.next(user);
 
-      expect(userServiceMock.facebookLogin).toHaveBeenCalledWith("fb-token");
-      expect(userServiceMock.googleLogin).not.toHaveBeenCalled();
+      expect(userServiceMock.externalLogin).toHaveBeenCalledWith(user);
       expect(routerMock.navigateByUrl).toHaveBeenCalledWith(USER_WORKFLOW);
     });
 
-    it("routes a Google auth event to UserService.googleLogin and navigates", () => {
+    it("hands a Google auth event to UserService.externalLogin and navigates", () => {
       component.ngOnInit();
+      const user = googleUser("g-token");
 
-      authState$.next(googleUser("g-token"));
+      authState$.next(user);
 
-      expect(userServiceMock.googleLogin).toHaveBeenCalledWith("g-token");
-      expect(userServiceMock.facebookLogin).not.toHaveBeenCalled();
+      expect(userServiceMock.externalLogin).toHaveBeenCalledWith(user);
       expect(routerMock.navigateByUrl).toHaveBeenCalledWith(USER_WORKFLOW);
     });
 
-    it("notifies and does not navigate when the social login call fails", () => {
-      vi.mocked(userServiceMock.facebookLogin!).mockReturnValueOnce(throwError(() => new Error("fb boom")));
+    it("notifies and does not navigate when the external login call fails", () => {
+      vi.mocked(userServiceMock.externalLogin!).mockReturnValueOnce(throwError(() => new Error("fb boom")));
       component.ngOnInit();
 
       authState$.next(facebookUser("fb-token"));
 
       expect(notificationServiceMock.error).toHaveBeenCalledWith("fb boom");
+      expect(routerMock.navigateByUrl).not.toHaveBeenCalled();
+    });
+
+    // Logging out pushes null through authState (and it is a ReplaySubject, so a stale value
+    // reaches any fresh subscription). Reacting to it would sign the user straight back in.
+    it("ignores a null auth state instead of attempting a login", () => {
+      component.ngOnInit();
+
+      authState$.next(null as unknown as SocialUser);
+
+      expect(userServiceMock.externalLogin).not.toHaveBeenCalled();
       expect(routerMock.navigateByUrl).not.toHaveBeenCalled();
     });
   });
