@@ -269,18 +269,18 @@ case class PhysicalPlan(
 
   /**
     * Links that any schedule must materialize, no matter what the cost-based
-    * search decides: the blocking and dependee links, plus every link incident
-    * to an operator that requires a materialized boundary (e.g. a loop
-    * boundary operator, whose regions are re-executed per iteration and must
-    * therefore be separated from their neighbors by materialized edges).
+    * search decides: the blocking and dependee links, plus every link INTO a
+    * Loop Start operator. The loop back-edge writes the next iteration's
+    * state into that link's storage (the loop-back write address resolved by
+    * `WorkflowExecutionManager.loopStartStateUris`), so the link must exist
+    * as a materialized channel. A loop's downstream boundary needs no special
+    * case here: Loop End declares its output port blocking, which the first
+    * clause already covers.
     */
   @JsonIgnore
   def getForcedMaterializedLinks: Set[PhysicalLink] = {
-    val boundaryLinks = links.filter(link =>
-      getOperator(link.fromOpId).requiresMaterializedExecution ||
-        getOperator(link.toOpId).requiresMaterializedExecution
-    )
-    getBlockingAndDependeeLinks ++ boundaryLinks
+    val loopStartInputLinks = links.filter(link => getOperator(link.toOpId).isLoopStart)
+    getBlockingAndDependeeLinks ++ loopStartInputLinks
   }
 
   @JsonIgnore

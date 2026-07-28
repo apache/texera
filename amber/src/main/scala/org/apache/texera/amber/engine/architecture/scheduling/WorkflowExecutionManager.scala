@@ -79,7 +79,7 @@ class WorkflowExecutionManager(
             throw new IllegalStateException(
               s"Loop Start input port $gpid has no InputPortConfig (got $other) -- " +
                 s"the link into a Loop Start must be materialized (the scheduler " +
-                s"forces all loop-boundary links via requiresMaterializedExecution)"
+                s"forces it; see PhysicalPlan.getForcedMaterializedLinks)"
             )
         }
         require(

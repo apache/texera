@@ -304,17 +304,16 @@ class CostBasedScheduleGenerator(
     */
   private def createRegionDAG(): DirectedAcyclicGraph[Region, RegionLink] = {
     val searchResultFuture: Future[SearchResult] = Future {
-      val boundaryOps = physicalPlan.operators
-        .filter(_.requiresMaterializedExecution)
-        .map(_.id.logicalOpId.id)
-      if (boundaryOps.nonEmpty) {
-        // Surface the forced links: the search keeps every link incident to
-        // these operators (e.g. loop boundaries) materialized and optimizes
-        // the rest of the plan under the requested mode.
+      val loopStartInputLinks =
+        physicalPlan.getForcedMaterializedLinks.diff(physicalPlan.getBlockingAndDependeeLinks)
+      if (loopStartInputLinks.nonEmpty) {
+        // Surface the forced links: the search keeps every link into a Loop
+        // Start materialized (the loop-back write target) and optimizes the
+        // rest of the plan under the requested mode.
         logger.info(
           s"WID: ${workflowContext.workflowId.id}, EID: ${workflowContext.executionId.id}, " +
-            s"forcing materialization of all links incident to operator(s) " +
-            s"${boundaryOps.toSeq.sorted.mkString(", ")} (materialized boundaries)."
+            s"forcing materialization of the link(s) into Loop Start operator(s) " +
+            s"${loopStartInputLinks.map(_.toOpId.logicalOpId.id).toSeq.sorted.mkString(", ")}."
         )
       }
       workflowContext.workflowSettings.executionMode match {

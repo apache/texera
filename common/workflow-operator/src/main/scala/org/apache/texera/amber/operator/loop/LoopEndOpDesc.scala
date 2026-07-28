@@ -40,6 +40,8 @@ class LoopEndOpDesc extends LoopOpDesc {
 
   override protected def reuseStorage: Boolean = true
 
+  override protected def outputBlocking: Boolean = true
+
   // `update` and `condition` are base64-wrapped by `pyb`; see
   // LoopOpDesc.generatePythonCode.
   override def generatePythonCode(): String = {

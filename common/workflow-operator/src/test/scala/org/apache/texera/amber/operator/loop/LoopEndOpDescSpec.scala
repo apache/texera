@@ -125,14 +125,7 @@ class LoopEndOpDescSpec extends AnyFlatSpec with LoopOpDescSpecMixin {
     assertNonParallelizable(desc().getPhysicalOp(workflowId, executionId))
   }
 
-  "LoopEndOpDesc.getPhysicalOp" should "require a materialized boundary" in {
-    // The loop back-edge is the cross-region materialized state channel, so the
-    // scheduler forces every link incident to this operator to be materialized
-    // (PhysicalOp.requiresMaterializedExecution), making it a region of its own.
-    desc().getPhysicalOp(workflowId, executionId).requiresMaterializedExecution shouldBe true
-  }
-
-  it should "not mark the physical op as a loop start" in {
+  "LoopEndOpDesc.getPhysicalOp" should "not mark the physical op as a loop start" in {
     // Only Loop Start is a jump / write-back target; the scheduler must not
     // mint a loop-back entry for a Loop End.
     desc().getPhysicalOp(workflowId, executionId).isLoopStart shouldBe false

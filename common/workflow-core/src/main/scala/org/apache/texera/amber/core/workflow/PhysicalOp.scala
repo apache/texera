@@ -198,17 +198,11 @@ case class PhysicalOp(
     // schema propagation function
     propagateSchema: SchemaPropagationFunc = SchemaPropagationFunc(schemas => schemas),
     isOneToManyOp: Boolean = false,
-    // Whether every link incident to this operator must be materialized,
-    // making the operator a region of its own (e.g. a loop boundary operator,
-    // whose back-edge is a cross-region materialized state channel and whose
-    // enclosed regions are re-executed per iteration). Unlike a blocking
-    // output port, this forces the operator's INPUT links too, which no
-    // port-level declaration can express. The schedule generator adds these
-    // links to the always-materialized set and optimizes the rest of the
-    // plan normally under the requested execution mode. Default false.
-    requiresMaterializedExecution: Boolean = false,
-    // Marks the Loop Start operator of a loop; the scheduler resolves the loop-back
-    // write address from it (see InitializeExecutorRequest.loopStartStateUris). Default false.
+    // Marks the Loop Start operator of a loop. The scheduler resolves the loop-back
+    // write address from it (see InitializeExecutorRequest.loopStartStateUris) and
+    // forces the link INTO this operator to be materialized (that link's storage IS
+    // the loop-back write target; see PhysicalPlan.getForcedMaterializedLinks).
+    // Default false.
     isLoopStart: Boolean = false,
     // hint for number of workers
     suggestedWorkerNum: Option[Int] = None,
@@ -327,13 +321,6 @@ case class PhysicalOp(
     */
   def withIsOneToManyOp(isOneToManyOp: Boolean): PhysicalOp =
     this.copy(isOneToManyOp = isOneToManyOp)
-
-  /**
-    * creates a copy specifying whether every link incident to this operator
-    * must be materialized (see the field doc)
-    */
-  def withRequiresMaterializedExecution(requiresMaterializedExecution: Boolean): PhysicalOp =
-    this.copy(requiresMaterializedExecution = requiresMaterializedExecution)
 
   /**
     * creates a copy specifying whether this operator is the Loop Start of a
