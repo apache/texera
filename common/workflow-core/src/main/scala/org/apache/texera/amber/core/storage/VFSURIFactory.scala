@@ -101,7 +101,11 @@ object VFSURIFactory {
       throw new IllegalArgumentException(s"Invalid URI scheme: ${uri.getScheme}")
     }
 
-    val segments = uri.getPath.stripPrefix("/").split("/").toList
+    // Raw path, for the same reason as warehouseFromURI: keys are located by
+    // searching the segments, so a percent-encoded slash inside a segment must not
+    // split it and shift which `wid`/`eid` the search finds. Python's decode_uri
+    // splits the raw path too, so both languages read a URI identically.
+    val segments = uri.getRawPath.stripPrefix("/").split("/").toList
 
     def extractValue(key: String): String = {
       val index = segments.indexOf(key)

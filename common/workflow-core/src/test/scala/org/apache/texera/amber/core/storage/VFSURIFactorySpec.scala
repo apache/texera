@@ -167,6 +167,18 @@ class VFSURIFactorySpec extends AnyFlatSpec {
     )
   }
 
+  it should "locate wid/eid by raw segment, so an encoded slash cannot shift them" in {
+    // Decoded before splitting, this path reads as /wh/a/wid/999/wid/1/... and the
+    // key search finds the injected `wid` first -- resolving to execution 999 and
+    // landing this execution's data under another's storage key. Python's
+    // decode_uri splits the raw path, so decoding here would also make the two
+    // languages disagree about which execution a URI belongs to.
+    val (wid, eid, _, _) =
+      VFSURIFactory.decodeURI(new URI("vfs:///wh/a%2Fwid%2F999/wid/1/eid/2/result"))
+    assert(wid == WorkflowIdentity(1))
+    assert(eid == ExecutionIdentity(2))
+  }
+
   "VFSURIFactory" should "reject an operatorId containing '/' rather than let it forge URI segments" in {
     assertThrows[IllegalArgumentException] {
       VFSURIFactory.createConsoleMessagesURI(
