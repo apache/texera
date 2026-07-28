@@ -146,10 +146,9 @@ object CanonicalFixture {
   }
 
   // Each port is a 10-row window over the 15-row table (kept small to minimize
-  // per-test Python runtime) with a deliberate partial overlap: port0 = ids
-  // 1..10, port1 = ids 6..15, so they share ids 6..10 while each owns ids the
-  // other lacks — enough to defeat hash-coincidence false passes on joins/set
-  // ops without a full cross-product.
+  // per-test Python runtime), overlapping by 5 rows so joins and set ops can't
+  // pass by hash coincidence. Rows sit out of id order in the file, so the
+  // windows are positional — not id ranges.
   def port0Rows: Seq[Tuple] = allRows.slice(0, 10)
   def port1Rows: Seq[Tuple] = allRows.slice(5, 15)
 
