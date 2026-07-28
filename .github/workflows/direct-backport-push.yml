@@ -949,9 +949,6 @@ jobs:
                 ``,
                 `Automated backport of #${prNumber} to \`${TARGET_BRANCH}\`.`,
                 ``,
-                statusLine,
-                conflictList ? `\n**Conflicting files:**\n${conflictList}` : ``,
-                ``,
                 `Source: ${MERGE_SHA} · [automation run](${runUrl})`,
                 ``,
                 `### Any related issues, documentation, discussions?`,
@@ -974,6 +971,19 @@ jobs:
                 title, body, draft: true,
               })).data;
               core.info(`Opened draft backport PR #${pr.number}.`);
+
+              // Post the how-to-finish instructions as a comment on the new
+              // backport PR (kept out of the templated body).
+              const statusComment = conflictList
+                ? `${statusLine}\n\n**Conflicting files:**\n${conflictList}`
+                : statusLine;
+              try {
+                await github.rest.issues.createComment({
+                  owner, repo, issue_number: pr.number, body: statusComment,
+                });
+              } catch (e) {
+                core.warning(`Could not comment on backport PR #${pr.number}: ${e.message}`);
+              }
             }
 
             // Assign the original author (best-effort: external authors may not
@@ -1007,13 +1017,17 @@ jobs:
 
             // Link the backport PR back from the original PR so it is not lost.
             const prUrl = `${context.serverUrl}/${owner}/${repo}/pull/${pr.number}`;
+            const reason = hadConflict
+              ? "the cherry-pick conflicts"
+              : "the backported tree failed its pre-merge build";
             try {
               await github.rest.issues.createComment({
                 owner, repo, issue_number: prNumber,
                 body:
-                  `Backport to \`${TARGET_BRANCH}\` needs manual work — opened ` +
-                  `draft PR #${pr.number} (${prUrl})` +
-                  (author ? `, assigned to @${author}` : "") + `.`,
+                  `Backport PR opened: draft #${pr.number} (${prUrl}) to ` +
+                  `\`${TARGET_BRANCH}\`` +
+                  (author ? `, assigned to @${author}` : "") +
+                  ` — needs manual work because ${reason}.`,
               });
             } catch (e) {
               core.warning(`Could not comment on #${prNumber}: ${e.message}`);
