@@ -121,7 +121,6 @@ object OperatorBehaviorSpec {
     "NestedTableOpDesc",
     "NetworkGraphOpDesc",
     "ParallelCoordinatesPlotOpDesc",
-    "PieChartOpDesc",
     "PolarChartOpDesc",
     "QuiverPlotOpDesc",
     "RadarChartOpDesc",
