@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1785161106169,
+  "lastUpdate": 1785251768265,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -6387,6 +6387,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 479.05707784913756,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Yicong Huang",
+            "username": "Yicong-Huang",
+            "email": "17627829+Yicong-Huang@users.noreply.github.com"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "5040cadf383049edf90df4195d35066379d06c4e",
+          "message": "ci: report backport auto-label decisions on the PR (#6962)\n\n### What changes were proposed in this PR?\n\nThe backport auto-label workflow\n(`.github/workflows/backport-auto-label.yml`) decides, per\nactively-supported release branch, whether to add a `release/*` label to\na `fix:` PR. Until now every skip was silent — visible only in the\nActions log. Its cheap \"is this feature on the branch?\" check compares\n**exact file paths**, so a file moved or renamed after the branch was\ncut reads as *absent* and the label is dropped with no signal to the\nauthor. #6960 hit exactly this: its files live under `coordinator/` on\n`main` but `controller/` on `release/v1.2`, so a fix that genuinely\napplied to v1.2 was never labeled.\n\nThis PR makes the workflow write its reasoning back to the PR as a\nsingle report comment:\n\n- **One row per actively-supported release branch**, with the decision\nand why:\n- ✅ **labeled** — change detected on the branch; label added (and who\nwas requested for review);\n- ⚠️ **skipped** — none of the modified files exist on the branch (the\nfiles are listed), with a prompt to check and add the label by hand if\nthe fix should be backported;\n  - 🚫 **declined** — a previously removed label (opt-out), not re-added.\n- The comment is **upserted in place** via a hidden marker, so `edited`\nre-runs update the same comment instead of stacking new ones (editing a\ncomment sends no notification, so re-runs stay quiet).\n- It links the auto-label run, and is authored by `github-actions[bot]`\nlike the existing review request (no label PAT needed).\n- Inactive branches and non-`fix:` PRs are unchanged (no comment); a\n`no-backport-needed` PR gets a one-line note instead of the table.\n\nLabeling behavior itself is unchanged — this only surfaces the decisions\nthat were already being made.\n\n### Any related issues, documentation, discussions?\n\nResolves #6961. Follow-up to the backport lifecycle automation (#6941,\n#6959). Motivated by #6960, which was silently not labeled for\n`release/v1.2`.\n\n### How was this PR tested?\n\n- YAML parses and the embedded github-script passes `node --check`\n(async-wrapped).\n- Walked the branch/label/timeline/file-status cases against #6960's\nreal data to confirm the rows and skip reasons render as intended.\n- Full end-to-end exercise needs a live `pull_request_target` event with\nthe org PAT/secrets, which only runs once merged.\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Claude Code (Claude Opus 4.8)\n\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-07-28T05:31:14Z",
+          "url": "https://github.com/apache/texera/commit/5040cadf383049edf90df4195d35066379d06c4e"
+        },
+        "date": 1785251767739,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 801.8556363520797,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 1484.11079548883,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 1580.0958095532612,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 1035.1589453254308,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 1485.4455572302256,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 1580.7493473460008,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 1102.5164326229255,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 1487.680412580575,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 1587.0625609428998,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 867.3999393679636,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 1231.755432914081,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 1266.8491066900995,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 920.3083480051613,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 1223.5704157455475,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 1270.313175619635,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 895.3487645663255,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 1189.0619043929469,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 1241.1686173283535,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 558.4422144080904,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 675.4624530820622,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 687.4266602502461,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 572.8579551410803,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 686.9629205729339,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 691.3649546366324,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 547.7722640208522,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 655.2927946700369,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 647.2848602515368,
             "unit": "tuples/sec"
           }
         ]
