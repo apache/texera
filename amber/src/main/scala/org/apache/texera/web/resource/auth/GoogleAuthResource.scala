@@ -25,25 +25,12 @@ import com.google.api.client.json.gson.GsonFactory
 import org.apache.texera.auth.JwtAuth.{TOKEN_EXPIRE_TIME_IN_MINUTES, jwtClaims, jwtToken}
 import org.apache.texera.common.config.UserSystemConfig
 import org.apache.texera.dao.SqlServer
-import org.apache.texera.dao.jooq.generated.enums.UserRoleEnum
-import org.apache.texera.dao.jooq.generated.tables.daos.UserDao
-import org.apache.texera.dao.jooq.generated.tables.pojos.User
+import org.apache.texera.dao.jooq.generated.enums.{ProviderTypeEnum, UserRoleEnum}
 import org.apache.texera.web.model.http.response.TokenIssueResponse
-import org.apache.texera.web.resource.auth.GoogleAuthResource.userDao
 
 import java.util.Collections
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
-
-object GoogleAuthResource {
-  private def userDao =
-    new UserDao(
-      SqlServer
-        .getInstance()
-        .createDSLContext()
-        .configuration
-    )
-}
 
 @Path("/auth/google")
 class GoogleAuthResource {
@@ -68,48 +55,22 @@ class GoogleAuthResource {
     if (idToken != null) {
       val payload = idToken.getPayload
       val googleId = payload.getSubject
-      val googleName = payload.get("name").asInstanceOf[String]
       val googleEmail = payload.getEmail
+      val googleName = Option(payload.get("name").asInstanceOf[String]).filter(_.nonEmpty).getOrElse(googleEmail)
+
       val googleAvatar = Option(payload.get("picture").asInstanceOf[String])
         .flatMap(_.split("/").lastOption)
         .getOrElse("")
-      val user = Option(userDao.fetchOneByGoogleId(googleId)) match {
-        case Some(user) =>
-          if (user.getName != googleName) {
-            user.setName(googleName)
-            userDao.update(user)
-          }
-          if (user.getEmail != googleEmail) {
-            user.setEmail(googleEmail)
-            userDao.update(user)
-          }
-          if (user.getGoogleAvatar != googleAvatar) {
-            user.setGoogleAvatar(googleAvatar)
-            userDao.update(user)
-          }
-          user
-        case None =>
-          Option(userDao.fetchOneByEmail(googleEmail)) match {
-            case Some(user) =>
-              if (user.getName != googleName) {
-                user.setName(googleName)
-              }
-              user.setGoogleId(googleId)
-              user.setGoogleAvatar(googleAvatar)
-              userDao.update(user)
-              user
-            case None =>
-              // create a new user with googleId
-              val user = new User
-              user.setName(googleName)
-              user.setEmail(googleEmail)
-              user.setGoogleId(googleId)
-              user.setRole(UserRoleEnum.INACTIVE)
-              user.setGoogleAvatar(googleAvatar)
-              userDao.insert(user)
-              user
-          }
-      }
+      val user = ExternalAuthProvisioner.loginOrProvision(
+        ExternalProfile(
+          ProviderTypeEnum.GOOGLE,
+          googleId,
+          googleName,
+          googleEmail,
+          Some(googleAvatar)
+        )
+      )
+
       TokenIssueResponse(jwtToken(jwtClaims(user, TOKEN_EXPIRE_TIME_IN_MINUTES)))
     } else throw new NotAuthorizedException("Login credentials are incorrect.")
   }

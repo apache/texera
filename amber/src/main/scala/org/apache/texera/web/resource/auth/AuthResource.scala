@@ -22,10 +22,10 @@ package org.apache.texera.web.resource.auth
 import org.apache.texera.auth.JwtAuth.{TOKEN_EXPIRE_TIME_IN_MINUTES, jwtClaims, jwtToken}
 import org.apache.texera.common.config.UserSystemConfig
 import org.apache.texera.dao.SqlServer
-import org.apache.texera.dao.jooq.generated.Tables.USER
-import org.apache.texera.dao.jooq.generated.enums.UserRoleEnum
-import org.apache.texera.dao.jooq.generated.tables.daos.UserDao
-import org.apache.texera.dao.jooq.generated.tables.pojos.User
+import org.apache.texera.dao.jooq.generated.Tables.{AUTH_PROVIDER, USER}
+import org.apache.texera.dao.jooq.generated.enums.{ProviderTypeEnum, UserRoleEnum}
+import org.apache.texera.dao.jooq.generated.tables.daos.{AuthProviderDao, UserDao}
+import org.apache.texera.dao.jooq.generated.tables.pojos.{AuthProvider, User}
 import org.apache.texera.web.model.http.request.auth.{UserLoginRequest, UserRegistrationRequest}
 import org.apache.texera.web.model.http.response.TokenIssueResponse
 import org.apache.texera.web.resource.auth.AuthResource._
@@ -36,49 +36,90 @@ import javax.ws.rs.core.MediaType
 
 object AuthResource {
 
-  private def userDao =
-    new UserDao(
-      SqlServer
-        .getInstance()
-        .createDSLContext()
-        .configuration
+  private def context = SqlServer.getInstance().context
+  private def userDao = new UserDao(context.configuration)
+
+  // Shared across calls: the encryptor is stateless apart from its digester, which jasypt
+  // documents as thread-safe. Constructing one per login also re-seeds a SecureRandom for
+  // the salt generator, which is the expensive part.
+  private val passwordEncryptor = new StrongPasswordEncryptor
+
+  private def localHandleExists(handle: String): Boolean = {
+    context.fetchExists(
+      context
+        .selectFrom(AUTH_PROVIDER)
+        .where(AUTH_PROVIDER.PROVIDER_TYPE.eq(ProviderTypeEnum.LOCAL))
+        .and(AUTH_PROVIDER.PROVIDER_ID.eq(handle))
     )
+  }
+
+  //TODO ASSERT THAT ALL USERS WERE MIGRATED CORRECTLY AND CHECK
 
   /**
     * Retrieve exactly one User from databases with the given username and password.
     * The password is used to validate against the hashed password stored in the db.
     *
-    * @param name     String
+    * @param handle     String
     * @param password String, plain text password
     * @return
     */
-  def retrieveUserByUsernameAndPassword(name: String, password: String): Option[User] = {
-    if (password == null) return None
-    if (name == null) return None
-    Option(
-      SqlServer
-        .getInstance()
-        .createDSLContext()
-        .select()
-        .from(USER)
-        .where(USER.NAME.eq(name))
-        .fetchOneInto(classOf[User])
-    ).filter(user => new StrongPasswordEncryptor().checkPassword(password, user.getPassword))
+  def retrieveUserByUsernameAndPassword(handle: String, password: String): Option[User] = {
+    if (password == null || handle == null) return None
+
+    val record = context
+      .select()
+      .from(AUTH_PROVIDER)
+      .join(USER)
+      .on(USER.UID.eq(AUTH_PROVIDER.UID))
+      .where(AUTH_PROVIDER.PROVIDER_ID.eq(handle))
+      .fetchOne()
+
+    Option(record).flatMap( r => {
+      val encryptedPassword = r.get(AUTH_PROVIDER.PASSWORD)
+      if(passwordEncryptor.checkPassword(encryptedPassword, password)){
+        Some(r.into(USER).into(classOf[User]))
+      }
+      else{
+        None
+      }
+    })
+  }
+
+  /**
+   * Create a user together with the LOCAL credential it logs in with. The handle is passed
+   * explicitly rather than read off `user.getName`, so that identity is never re-derived
+   * from the mutable display name.
+   */
+  private def insertLocalUser(user: User, handle: String, hashedPassword: String): Unit = {
+    SqlServer.withTransaction(SqlServer.getInstance().createDSLContext()) { ctx =>
+      val txUserDao = new UserDao(ctx.configuration())
+      val txAuthDao = new AuthProviderDao(ctx.configuration())
+
+      txUserDao.insert(user)
+
+      val auth = new AuthProvider
+      auth.setUid(user.getUid)
+      auth.setProviderType(ProviderTypeEnum.LOCAL)
+      auth.setProviderId(handle)
+      auth.setPassword(hashedPassword)
+      txAuthDao.insert(auth)
+    }
   }
 
   def createAdminUser(): Unit = {
-    val adminUsername = UserSystemConfig.adminUsername
-    val adminPassword = UserSystemConfig.adminPassword
+    val adminUsername = UserSystemConfig.adminUsername.trim
+    val adminPassword = UserSystemConfig.adminPassword.trim
 
-    if (adminUsername.trim.nonEmpty && adminPassword.trim.nonEmpty) {
+    if (adminUsername.nonEmpty && adminPassword.nonEmpty) {
       val existingUser = userDao.fetchByName(adminUsername)
       if (existingUser.isEmpty) {
         val user = new User
         user.setName(adminUsername)
         user.setEmail(adminUsername)
         user.setRole(UserRoleEnum.ADMIN)
-        user.setPassword(new StrongPasswordEncryptor().encryptPassword(adminPassword))
-        userDao.insert(user)
+
+        val hashedPassword = new StrongPasswordEncryptor().encryptPassword(adminPassword)
+        insertLocalUser(user, adminUsername, hashedPassword)
       }
     }
   }
@@ -111,8 +152,8 @@ class AuthResource {
         user.setName(username)
         user.setEmail(username)
         user.setRole(UserRoleEnum.RESTRICTED)
-        // hash the plain text password
-        user.setPassword(new StrongPasswordEncryptor().encryptPassword(request.password))
+
+        insertLocalUser(user, username, passwordEncryptor.encryptPassword(request.password))
         userDao.insert(user)
         TokenIssueResponse(jwtToken(jwtClaims(user, TOKEN_EXPIRE_TIME_IN_MINUTES)))
       case _ =>
