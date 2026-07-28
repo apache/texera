@@ -119,20 +119,37 @@ class WordCloudOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenera
   // output.html. Cannot be auto-verified (the PNG word placement is randomized,
   // so the two paths' images never match byte-for-byte) — flagged as a known
   // issue — but kept faithful for completeness.
+  // The two guards mirror generatePythonCode's: WordCloud.generate raises on a
+  // wordless string, so without them an input that is empty — or whose text
+  // column survives neither the dropna nor the word filter — crashes here where
+  // the runtime path explains itself.
   override def generateStandaloneCode(): String =
-    s"""table = in1df
-       |table = table.dropna(subset=["$textColumn"])
-       |table = table[table["$textColumn"].str.contains(r'\\w', regex=True)]
-       |text = ' '.join(table["$textColumn"])
-       |from wordcloud import WordCloud, STOPWORDS
-       |wordcloud = WordCloud(width=1920, height=1080, stopwords=set(STOPWORDS), max_words=$topN, background_color='white', include_numbers=True).generate(text)
-       |from io import BytesIO
-       |image_stream = BytesIO()
-       |wordcloud.to_image().save(image_stream, format='PNG')
-       |binary_image_data = image_stream.getvalue()
-       |import base64
-       |encoded_image_str = base64.b64encode(binary_image_data).decode("utf-8")
-       |html = f'<img src="data:image;base64,{encoded_image_str}" alt="Image" style="max-width: 100vw; max-height: 90vh; width: auto; height: auto;">'
-       |with open("output.html", "w", encoding="utf-8") as f:
-       |    f.write(html)""".stripMargin
+    s"""def render_error(error_msg):
+       |    return '''<h1>Wordcloud is not available.</h1>
+       |              <p>Reason is: {} </p>
+       |           '''.format(error_msg)
+       |
+       |table = in1df
+       |if table.empty:
+       |    with open("output.html", "w", encoding="utf-8") as f:
+       |        f.write(render_error("input table is empty."))
+       |else:
+       |    table = table.dropna(subset=["$textColumn"])
+       |    table = table[table["$textColumn"].str.contains(r'\\w', regex=True)]
+       |    if table.empty:
+       |        with open("output.html", "w", encoding="utf-8") as f:
+       |            f.write(render_error("text column does not contain words or contains only nulls."))
+       |    else:
+       |        text = ' '.join(table["$textColumn"])
+       |        from wordcloud import WordCloud, STOPWORDS
+       |        wordcloud = WordCloud(width=1920, height=1080, stopwords=set(STOPWORDS), max_words=$topN, background_color='white', include_numbers=True).generate(text)
+       |        from io import BytesIO
+       |        image_stream = BytesIO()
+       |        wordcloud.to_image().save(image_stream, format='PNG')
+       |        binary_image_data = image_stream.getvalue()
+       |        import base64
+       |        encoded_image_str = base64.b64encode(binary_image_data).decode("utf-8")
+       |        html = f'<img src="data:image;base64,{encoded_image_str}" alt="Image" style="max-width: 100vw; max-height: 90vh; width: auto; height: auto;">'
+       |        with open("output.html", "w", encoding="utf-8") as f:
+       |            f.write(html)""".stripMargin
 }
