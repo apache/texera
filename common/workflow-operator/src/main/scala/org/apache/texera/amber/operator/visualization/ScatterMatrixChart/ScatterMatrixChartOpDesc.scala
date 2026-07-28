@@ -117,14 +117,15 @@ class ScatterMatrixChartOpDesc extends PythonOperatorDescriptor with StandaloneC
 
   override def generateStandaloneCode(): String = {
     val dimensions = selectedAttributes.map(attribute => s""""$attribute"""").mkString(", ")
-    s"""if in1df.empty:
-       |    print("Scatter matrix error: input table is empty.")
-       |else:
-       |    fig = px.scatter_matrix(in1df, dimensions=[$dimensions], color="$color")
-       |    fig.update_layout(margin=dict(t=0, b=0, l=0, r=0))
-       |    fig.write_json("output.json")
-       |    fig.write_html("output.html")
-       |    print("Scatter matrix saved to output.html")""".stripMargin
+    // No empty-input guard, matching generatePythonCode: it goes straight to
+    // the figure, so an empty table raises out of px.scatter_matrix on both
+    // paths. A guard here would only be a divergence — and the one removed
+    // here printed to stdout without writing any output at all.
+    s"""fig = px.scatter_matrix(in1df, dimensions=[$dimensions], color="$color")
+       |fig.update_layout(margin=dict(t=0, b=0, l=0, r=0))
+       |fig.write_json("output.json")
+       |fig.write_html("output.html")
+       |print("Scatter matrix saved to output.html")""".stripMargin
   }
 
 }
