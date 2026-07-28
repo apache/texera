@@ -120,7 +120,6 @@ object OperatorBehaviorSpec {
     "MachineLearningScorer",
     "NestedTableOpDesc",
     "NetworkGraphOpDesc",
-    "ParallelCoordinatesPlotOpDesc",
     "QuiverPlotOpDesc",
     "RadarChartOpDesc",
     "RadarPlotOpDesc",
