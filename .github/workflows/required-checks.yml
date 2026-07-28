@@ -69,12 +69,6 @@ jobs:
   required-checks:
     # Do not rename this job — its display name is referenced in .asf.yaml.
     name: Required Checks
-    # Backport preflight/build are deliberately NOT part of this gate: they are
-    # an advisory signal, not a merge gate (a conflicting or non-building
-    # backport must not block landing on main — Direct Backport Push opens a
-    # draft backport PR after merge). They now live in the separate Backport
-    # Checks workflow and report as neutral checks, so they never appear under
-    # this "Required Checks" umbrella at all.
     needs: [precheck, build]
     if: always()
     runs-on: ubuntu-latest
