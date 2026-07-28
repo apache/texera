@@ -198,14 +198,30 @@ class ContinuousErrorBandsOpDesc extends PythonOperatorDescriptor with Standalon
         }
         .mkString("\n")
 
-    s"""fig = go.Figure()
-       |$traces
-       |fig.update_layout(margin=dict(t=0, b=0, l=0, r=0),
-       |                  xaxis_title="$xLabel",
-       |                  yaxis_title="$yLabel",
-       |                  hovermode="x")
-       |fig.write_json("output.json")
-       |fig.write_html("output.html")
-       |print("Continuous error bands saved to output.json and output.html")""".stripMargin
+    // Nested under the `else` below, so every trace line needs the extra level.
+    val indentedTraces =
+      traces.linesIterator.map(line => if (line.isEmpty) line else s"    $line").mkString("\n")
+
+    // The empty-input branch mirrors generatePythonCode's `if table.empty`
+    // guard: without it the traces index columns of a frame that has none, and
+    // an empty input silently renders a blank chart instead of saying why.
+    s"""def render_error(error_msg):
+       |    return '''<h1>Continuous Error Bands is not available.</h1>
+       |              <p>Reason is: {} </p>
+       |           '''.format(error_msg)
+       |
+       |if in1df.empty:
+       |    with open("output.html", "w", encoding="utf-8") as output:
+       |        output.write(render_error("input table is empty."))
+       |else:
+       |    fig = go.Figure()
+       |$indentedTraces
+       |    fig.update_layout(margin=dict(t=0, b=0, l=0, r=0),
+       |                      xaxis_title="$xLabel",
+       |                      yaxis_title="$yLabel",
+       |                      hovermode="x")
+       |    fig.write_json("output.json")
+       |    fig.write_html("output.html")
+       |    print("Continuous error bands saved to output.json and output.html")""".stripMargin
   }
 }
