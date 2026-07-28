@@ -587,6 +587,28 @@ class WorkflowExecutionsResourceSpec
     assert(row.getResultSize == 4096)
   }
 
+  it should "store a >2GiB size without truncation (#6978)" in {
+    val execution = insertExecution()
+    val eid = ExecutionIdentity(execution.getEid.longValue())
+    val globalPortId = GlobalPortIdentity(
+      PhysicalOpIdentity(OperatorIdentity("op-big-size"), "main"),
+      PortIdentity(),
+      input = false
+    )
+    insertOperatorPortResult(eid, globalPortId, URI.create("vfs:///big"))
+
+    // 3 GiB exceeds Int.MaxValue; a Long->Int narrowing would wrap it negative.
+    val threeGiB = 3L * 1024 * 1024 * 1024
+    WorkflowExecutionsResource.updateResultSize(eid, globalPortId, threeGiB)
+
+    val row = getDSLContext
+      .selectFrom(OPERATOR_PORT_EXECUTIONS)
+      .where(OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(execution.getEid))
+      .and(OPERATOR_PORT_EXECUTIONS.GLOBAL_PORT_ID.eq(globalPortId.serializeAsString))
+      .fetchOne()
+    assert(row.getResultSize.longValue() == threeGiB)
+  }
+
   // ─── new: getResultUriByLogicalPortId ─────────────────────────────────────
 
   "getResultUriByLogicalPortId" should "match by logical operator id, port id, and resource type" in {
