@@ -115,17 +115,15 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
 
   it should "send the provider-specific model id on provider-scoped chat routes" in {
     val code = makeDesc().generatePythonCode()
-    // Each attempt posts a copy of the payload with the provider's own model
-    // name (providerId) — the Hub ID is only valid on hf-inference itself.
-    code should include("""chat_payload = {**pipeline_payload, "model": provider_id}""")
     // hf-inference's chat-completions endpoint carries the model in the URL path.
     code should include(
       "https://router.huggingface.co/hf-inference/models/{self.MODEL_ID}/v1/chat/completions"
     )
-    // Regression guard: the chat branch posts the per-provider copy, never the
-    // shared pipeline_payload (which carries the Hub ID as "model"). Matched as
-    // one block so the assertion is anchored to the chat branch — pipeline
-    // routes elsewhere legitimately post pipeline_payload directly.
+    // The chat branch posts a per-provider copy of the payload with the
+    // provider's own model name (providerId) — the Hub ID is only valid on
+    // hf-inference itself. Matched as one block so the assertion is anchored
+    // to the chat branch: pipeline routes elsewhere legitimately post the
+    // shared pipeline_payload directly.
     code should include(
       "chat_payload = {**pipeline_payload, \"model\": provider_id}\n" +
         "                    resp = requests.post(url, headers=json_headers, json=chat_payload, timeout=120)"
