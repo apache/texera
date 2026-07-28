@@ -151,15 +151,28 @@ class LineChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenera
            |  ))""".stripMargin
       }
       .mkString("\n")
+      // The traces sit inside the non-empty branch below, so shift them in.
+      .linesIterator
+      .map(line => if (line.isEmpty) line else s"    $line")
+      .mkString("\n")
 
-    s"""fig = go.Figure()
+    s"""def render_error(error_msg) -> str:
+       |    return '''<h1>Line chart is not available.</h1>
+       |              <p>Reason is: {} </p>
+       |           '''.format(error_msg)
+       |
+       |if in1df.empty:
+       |    with open("output.html", "w", encoding="utf-8") as output:
+       |        output.write(render_error("input table is empty."))
+       |else:
+       |    fig = go.Figure()
        |$traces
-       |fig.update_layout(margin=dict(t=0, b=0, l=0, r=0),
-       |                  xaxis_title="$xLabel",
-       |                  yaxis_title="$yLabel")
-       |fig.write_json("output.json")
-       |fig.write_html("output.html")
-       |print("Line chart saved to output.json and output.html")""".stripMargin
+       |    fig.update_layout(margin=dict(t=0, b=0, l=0, r=0),
+       |                      xaxis_title="$xLabel",
+       |                      yaxis_title="$yLabel")
+       |    fig.write_json("output.json")
+       |    fig.write_html("output.html")
+       |    print("Line chart saved to output.json and output.html")""".stripMargin
   }
 
 }
