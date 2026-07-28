@@ -58,6 +58,7 @@ import { MarkdownDescriptionComponent } from "../../markdown-description/markdow
 import { NzLayoutComponent, NzContentComponent, NzSiderComponent } from "ng-zorro-antd/layout";
 import { NzWaveDirective } from "ng-zorro-antd/core/wave";
 import { NzEmptyComponent } from "ng-zorro-antd/empty";
+import { NzTabsComponent, NzTabComponent } from "ng-zorro-antd/tabs";
 import { UserDatasetFileRendererComponent } from "./user-dataset-file-renderer/user-dataset-file-renderer.component";
 import { NzCollapseComponent, NzCollapsePanelComponent } from "ng-zorro-antd/collapse";
 import { NzSelectComponent, NzOptionComponent } from "ng-zorro-antd/select";
@@ -96,6 +97,8 @@ export const ABORT_RETRY_BACKOFF_BASE_MS = 100;
     NzContentComponent,
     NzWaveDirective,
     NzEmptyComponent,
+    NzTabsComponent,
+    NzTabComponent,
     UserDatasetFileRendererComponent,
     NzSiderComponent,
     NzResizableDirective,
@@ -140,6 +143,12 @@ export class DatasetDetailComponent implements OnInit {
   public selectedVersion: DatasetVersion | undefined;
   public fileTreeNodeList: DatasetFileNode[] = [];
   public selectedVersionCreationTime: string = "";
+  // Latest version's created date, derived from versions[0] (the backend-guaranteed
+  // latest) so it stays correct regardless of which version is selected below.
+  public latestVersionCreationTime: string = "";
+  // A representative file name from the latest version, fetched independently of
+  // the current selection via retrieveDatasetLatestVersion.
+  public latestVersionFileName: string = "";
 
   public versionCreatorBaseVersion: DatasetVersion | undefined;
   public isLogin: boolean = this.userService.isLogin();
@@ -230,6 +239,7 @@ export class DatasetDetailComponent implements OnInit {
           this.did = params["did"];
           this.retrieveDatasetInfo();
           this.retrieveDatasetVersionList();
+          this.retrieveLatestVersionFile();
           return this.route.data; // or some other observable
         }),
         untilDestroyed(this)
@@ -286,6 +296,7 @@ export class DatasetDetailComponent implements OnInit {
             this.unconfirmedStagedPaths.clear();
             this.refreshPendingChanges();
             this.retrieveDatasetVersionList();
+            this.retrieveLatestVersionFile();
             this.userMakeChanges.emit();
           },
           error: (res: unknown) => {
@@ -402,9 +413,27 @@ export class DatasetDetailComponent implements OnInit {
           // by default, the selected version is the 1st element in the retrieved list
           // which is guaranteed(by the backend) to be the latest created version.
           if (this.versions.length > 0) {
+            const latestVersion = this.versions[0];
+            if (typeof latestVersion.creationTime === "number") {
+              this.latestVersionCreationTime = format(new Date(latestVersion.creationTime), "MM/dd/yyyy HH:mm:ss");
+            }
             this.selectedVersion = this.versions[0];
             this.onVersionSelected(this.selectedVersion);
           }
+        });
+    }
+  }
+
+  // Fetches the latest version (with its file tree) independently of the current
+  // selection, then derives a representative file name for the Data Card.
+  retrieveLatestVersionFile() {
+    if (this.did) {
+      this.datasetService
+        .retrieveDatasetLatestVersion(this.did)
+        .pipe(untilDestroyed(this))
+        .subscribe(version => {
+          const firstFile = this.getFirstFileNode(version.fileNodes ?? []);
+          this.latestVersionFileName = firstFile ? getFullPathFromDatasetFileNode(firstFile) : "";
         });
     }
   }
@@ -467,12 +496,21 @@ export class DatasetDetailComponent implements OnInit {
             const date = new Date(version.creationTime);
             this.selectedVersionCreationTime = format(date, "MM/dd/yyyy HH:mm:ss");
           }
-          let currentNode = this.fileTreeNodeList[0];
-          while (currentNode.type === "directory" && currentNode.children) {
-            currentNode = currentNode.children[0];
+          const currentNode = this.getFirstFileNode(this.fileTreeNodeList);
+          if (currentNode) {
+            this.loadFileContent(currentNode);
           }
-          this.loadFileContent(currentNode);
         });
+  }
+
+  // Walk from the first node into directories until reaching a file, returning a
+  // representative leaf file node (or undefined if the tree has no files).
+  private getFirstFileNode(nodes: DatasetFileNode[]): DatasetFileNode | undefined {
+    let currentNode: DatasetFileNode | undefined = nodes[0];
+    while (currentNode && currentNode.type === "directory" && currentNode.children) {
+      currentNode = currentNode.children[0];
+    }
+    return currentNode;
   }
 
   onVersionFileTreeNodeSelected(node: DatasetFileNode) {
