@@ -536,7 +536,7 @@ class ModelResource extends LazyLogging {
               model = model,
               accessPrivilege = modelAccess.getPrivilege,
               ownerEmail = ownerEmail,
-              size = 0
+              size = repositorySizeOrZero(model)
             )
           })
           .asScala
@@ -1378,6 +1378,20 @@ class ModelResource extends LazyLogging {
   // ===========================================================================
   // Private helpers
   // ===========================================================================
+
+  /** Size of a model's LakeFS repository, or 0 if LakeFS cannot answer. */
+  private def repositorySizeOrZero(model: Model): Long = {
+    try {
+      LakeFSStorageClient.retrieveRepositorySize(model.getRepositoryName)
+    } catch {
+      case e: io.lakefs.clients.sdk.ApiException =>
+        logger.error(
+          s"LakeFS ApiException for model repository '${model.getRepositoryName}': ${e.getMessage}",
+          e
+        )
+        0L
+    }
+  }
 
   private def generatePresignedResponse(
       encodedUrl: String,

@@ -21,6 +21,7 @@ package org.apache.texera.service.resource
 
 import jakarta.ws.rs._
 import jakarta.ws.rs.core._
+import org.apache.texera.amber.core.storage.util.LakeFSStorageClient
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.dao.MockTexeraDB
 import org.apache.texera.dao.jooq.generated.enums.UserRoleEnum
@@ -506,11 +507,9 @@ class ModelUploadResourceSpec
   }
 
   // ===========================================================================
-  // listModels does not compute sizes for the explicit-access branch
+  // listModels sizes
   // ===========================================================================
-  "listModels" should "report size 0 for an owned model rather than pay a LakeFS round trip" in {
-    // Pinned deliberately: computing this would cost one round trip per row, so no
-    // caller may render it. If a UI needs sizes here, batch or cache them first.
+  "listModels" should "report the repository size of an owned model" in {
     val model = newModel()
     val mid = model.model.getMid
     uploadOneShot(mid, "sized.pt", Array.fill[Byte](4096)(0x6)).getStatus shouldEqual 200
@@ -522,6 +521,18 @@ class ModelUploadResourceSpec
       .getOrElse(fail("the owned model should be listed"))
 
     listed.isOwner shouldBe true
-    listed.size shouldEqual 0L
+    listed.size should be >= 4096L
+  }
+
+  it should "still list a model whose repository size cannot be read" in {
+    // An unreadable size degrades to 0 rather than dropping the row.
+    val model = newModel()
+    val mid = model.model.getMid
+    LakeFSStorageClient.deleteRepo(model.model.getRepositoryName)
+
+    val listed = modelResource.listModels(sessionUser).find(_.model.getMid == mid)
+
+    listed should not be empty
+    listed.get.size shouldEqual 0L
   }
 }
