@@ -162,7 +162,9 @@ class TestWarehouseFromUri:
             is None
         )
         assert (
-            VFSURIFactory.warehouse_from_uri("vfs:///wid/1/eid/2/opid/wh/consolemessages")
+            VFSURIFactory.warehouse_from_uri(
+                "vfs:///wid/1/eid/2/opid/wh/consolemessages"
+            )
             is None
         )
 
@@ -171,7 +173,9 @@ class TestWarehouseFromUri:
         # unquoting here the two languages would resolve the same URI to different
         # warehouses, splitting one execution's data across two of them.
         assert (
-            VFSURIFactory.warehouse_from_uri("vfs:///wh/user-2%2Dfoo/wid/7/eid/3/result")
+            VFSURIFactory.warehouse_from_uri(
+                "vfs:///wh/user-2%2Dfoo/wid/7/eid/3/result"
+            )
             == "user-2-foo"
         )
 
