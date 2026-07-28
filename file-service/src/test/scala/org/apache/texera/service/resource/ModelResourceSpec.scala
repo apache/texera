@@ -30,6 +30,8 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 
+import scala.jdk.CollectionConverters._
+
 class ModelResourceSpec
     extends AnyFlatSpec
     with Matchers
@@ -512,5 +514,88 @@ class ModelResourceSpec
     entry should not be empty
     entry.get.isOwner shouldBe false
     entry.get.accessPrivilege shouldEqual PrivilegeEnum.READ
+  }
+
+  private def createWith(
+      name: String,
+      framework: String,
+      format: String
+  ): ModelResource.DashboardModel =
+    modelResource.createModel(
+      ModelResource.CreateModelRequest(
+        modelName = name,
+        modelDescription = "label checks",
+        isModelPublic = false,
+        isModelDownloadable = true,
+        framework = framework,
+        format = format
+      ),
+      sessionUser
+    )
+
+  "createModel" should "accept every supported framework" in {
+    ModelResource.SUPPORTED_FRAMEWORKS.zipWithIndex.foreach {
+      case (framework, i) =>
+        createWith(s"framework-ok-$i", framework, null).model.getFramework shouldEqual framework
+    }
+  }
+
+  it should "accept every supported format" in {
+    ModelResource.SUPPORTED_FORMATS.zipWithIndex.foreach {
+      case (format, i) =>
+        createWith(s"format-ok-$i", "pytorch", format).model.getFormat shouldEqual format
+    }
+  }
+
+  it should "reject an unrecognised framework" in {
+    val ex = intercept[BadRequestException] {
+      createWith("framework-bad", "banana", null)
+    }
+    ex.getMessage should include("Unsupported framework")
+    ex.getMessage should include("pytorch")
+  }
+
+  it should "reject an unrecognised format" in {
+    intercept[BadRequestException] {
+      createWith("format-bad", "pytorch", "docx")
+    }.getMessage should include("Unsupported format")
+  }
+
+  it should "treat a blank format as unspecified rather than invalid" in {
+    createWith("format-blank", "pytorch", "   ").model.getFormat shouldBe null
+  }
+
+  it should "trim surrounding whitespace off a label before validating it" in {
+    createWith("framework-padded", "  pytorch  ", null).model.getFramework shouldEqual "pytorch"
+  }
+
+  // ===========================================================================
+  // user-model-owners
+  // ===========================================================================
+  "retrieveOwners" should "return the distinct owners of the models the user can access" in {
+    createWith("owned-by-me-1", "pytorch", null)
+    createWith("owned-by-me-2", "pytorch", null)
+
+    val owners = modelResource.retrieveOwners(sessionUser).asScala.toList
+    owners should contain(ownerUser.getEmail)
+    owners.distinct shouldEqual owners
+  }
+
+  it should "not list the owner of a model the user was never granted access to" in {
+    modelResource.createModel(
+      ModelResource.CreateModelRequest(
+        modelName = "private-to-other-user",
+        modelDescription = "d",
+        isModelPublic = false,
+        isModelDownloadable = true,
+        framework = "pytorch",
+        format = null
+      ),
+      sessionUser2
+    )
+
+    // Access is granted per model, so the other user only shows up once the
+    // requester actually holds a model_user_access row for one of their models.
+    modelResource.retrieveOwners(sessionUser).asScala.toList should not contain otherUser.getEmail
   }
 }

@@ -27,6 +27,7 @@ import org.apache.texera.dao.jooq.generated.enums.UserRoleEnum
 import org.apache.texera.dao.jooq.generated.tables.daos.UserDao
 import org.apache.texera.dao.jooq.generated.tables.pojos.User
 import org.apache.texera.service.MockLakeFS
+import org.apache.texera.service.`type`.{ExistingUploadFile, ExistingUploadFilesRequest}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
@@ -35,6 +36,7 @@ import java.io.ByteArrayInputStream
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 import java.util.{Collections, Date, Locale, Optional}
+import scala.jdk.CollectionConverters._
 import scala.util.Random
 
 class ModelUploadResourceSpec
@@ -54,13 +56,25 @@ class ModelUploadResourceSpec
     user
   }
 
+  private val strangerUser: User = {
+    val user = new User
+    user.setName("model_upload_stranger")
+    user.setPassword("123")
+    user.setEmail("model_upload_stranger@test.com")
+    user.setRole(UserRoleEnum.ADMIN)
+    user
+  }
+
   lazy val modelResource = new ModelResource()
   lazy val sessionUser = new SessionUser(ownerUser)
+  lazy val strangerSession = new SessionUser(strangerUser)
 
   override protected def beforeAll(): Unit = {
     super.beforeAll()
     initializeDBAndReplaceDSLContext()
-    new UserDao(getDSLContext.configuration()).insert(ownerUser)
+    val userDao = new UserDao(getDSLContext.configuration())
+    userDao.insert(ownerUser)
+    userDao.insert(strangerUser)
   }
 
   override protected def afterAll(): Unit = {
@@ -106,6 +120,18 @@ class ModelUploadResourceSpec
       ),
       sessionUser
     )
+
+  /** Reads the `filePaths` list out of an existing-upload-files response. */
+  private def filePathsOf(response: Response): List[String] =
+    response.getEntity match {
+      case m: scala.collection.Map[_, _] =>
+        m.asInstanceOf[scala.collection.Map[String, Any]]("filePaths") match {
+          case l: java.util.List[_]       => l.asScala.map(_.toString).toList
+          case l: scala.collection.Seq[_] => l.map(_.toString).toList
+          case other                      => fail(s"Expected a list, got: ${other.getClass}")
+        }
+      case other => fail(s"Unexpected response entity type: ${other.getClass}")
+    }
 
   private def uploadOneShot(mid: Integer, path: String, bytes: Array[Byte]): Response =
     modelResource.uploadOneFileToModel(
@@ -353,5 +379,149 @@ class ModelUploadResourceSpec
         sessionUser
       )
       .getStatus shouldEqual 200
+  }
+
+  // ===========================================================================
+  // Staged changes (diff) — what the upload UI shows before a version is cut
+  // ===========================================================================
+  "getModelDiff" should "list an uploaded file as a staged change" in {
+    val model = newModel()
+    val mid = model.model.getMid
+    uploadOneShot(mid, "staged.pt", Array.fill[Byte](256)(0x9)).getStatus shouldEqual 200
+
+    val diffs = modelResource.getModelDiff(mid, sessionUser)
+    diffs.map(_.path) should contain("staged.pt")
+    diffs.find(_.path == "staged.pt").flatMap(_.sizeBytes) shouldBe Some(256L)
+  }
+
+  it should "report nothing for a model with no staged changes" in {
+    modelResource.getModelDiff(newModel().model.getMid, sessionUser) shouldBe empty
+  }
+
+  it should "stop listing a file once it has been committed into a version" in {
+    val model = newModel()
+    val mid = model.model.getMid
+    uploadOneShot(mid, "committed.pt", Array.fill[Byte](128)(0x3)).getStatus shouldEqual 200
+    modelResource.createModelVersion("v1", mid, sessionUser)
+
+    modelResource.getModelDiff(mid, sessionUser) shouldBe empty
+  }
+
+  it should "refuse a caller with no access to the model" in {
+    val model = newModel()
+    assertThrows[ForbiddenException] {
+      modelResource.getModelDiff(model.model.getMid, strangerSession)
+    }
+  }
+
+  "resetModelFileDiff" should "discard a staged file" in {
+    val model = newModel()
+    val mid = model.model.getMid
+    uploadOneShot(mid, "discard-me.pt", Array.fill[Byte](64)(0x4)).getStatus shouldEqual 200
+
+    modelResource
+      .resetModelFileDiff(mid, urlEnc("discard-me.pt"), sessionUser)
+      .getStatus shouldEqual 200
+
+    modelResource.getModelDiff(mid, sessionUser).map(_.path) should not contain "discard-me.pt"
+  }
+
+  it should "decode a url-encoded nested path" in {
+    val model = newModel()
+    val mid = model.model.getMid
+    val nested = "tokenizer/vocab file.txt"
+    uploadOneShot(mid, nested, Array.fill[Byte](32)(0x5)).getStatus shouldEqual 200
+
+    modelResource.resetModelFileDiff(mid, urlEnc(nested), sessionUser).getStatus shouldEqual 200
+
+    modelResource.getModelDiff(mid, sessionUser).map(_.path) should not contain nested
+  }
+
+  it should "refuse a caller without write access" in {
+    val model = newModel()
+    assertThrows[ForbiddenException] {
+      modelResource.resetModelFileDiff(model.model.getMid, urlEnc("x.pt"), strangerSession)
+    }
+  }
+
+  // ===========================================================================
+  // existing-upload-files — lets the UI skip re-uploading identical files
+  // ===========================================================================
+  "findExistingUploadFiles" should "match committed and staged files by path and size" in {
+    val model = newModel()
+    val mid = model.model.getMid
+    val committed = Array.fill[Byte](200)(0x1)
+    val staged = Array.fill[Byte](300)(0x2)
+
+    uploadOneShot(mid, "committed.pt", committed).getStatus shouldEqual 200
+    modelResource.createModelVersion("v1", mid, sessionUser)
+    uploadOneShot(mid, "staged.pt", staged).getStatus shouldEqual 200
+
+    val response = modelResource.findExistingUploadFiles(
+      mid,
+      ExistingUploadFilesRequest(
+        List(
+          ExistingUploadFile("committed.pt", committed.length.toLong),
+          ExistingUploadFile("staged.pt", staged.length.toLong),
+          ExistingUploadFile("committed.pt", committed.length + 1L), // right path, wrong size
+          ExistingUploadFile("absent.pt", 1L)
+        )
+      ),
+      sessionUser
+    )
+
+    response.getStatus shouldEqual 200
+    filePathsOf(response) shouldEqual List("committed.pt", "staged.pt")
+  }
+
+  it should "tolerate a null file list" in {
+    val response = modelResource.findExistingUploadFiles(
+      newModel().model.getMid,
+      ExistingUploadFilesRequest(null),
+      sessionUser
+    )
+    response.getStatus shouldEqual 200
+    filePathsOf(response) shouldBe empty
+  }
+
+  it should "reject a path that escapes the repository root" in {
+    assertThrows[BadRequestException] {
+      modelResource.findExistingUploadFiles(
+        newModel().model.getMid,
+        ExistingUploadFilesRequest(List(ExistingUploadFile("../escape.pt", 1L))),
+        sessionUser
+      )
+    }
+  }
+
+  it should "refuse a caller without write access" in {
+    val model = newModel()
+    assertThrows[ForbiddenException] {
+      modelResource.findExistingUploadFiles(
+        model.model.getMid,
+        ExistingUploadFilesRequest(List(ExistingUploadFile("a.pt", 1L))),
+        strangerSession
+      )
+    }
+  }
+
+  // ===========================================================================
+  // listModels does not compute sizes for the explicit-access branch
+  // ===========================================================================
+  "listModels" should "report size 0 for an owned model rather than pay a LakeFS round trip" in {
+    // Pinned deliberately: computing this would cost one round trip per row, so no
+    // caller may render it. If a UI needs sizes here, batch or cache them first.
+    val model = newModel()
+    val mid = model.model.getMid
+    uploadOneShot(mid, "sized.pt", Array.fill[Byte](4096)(0x6)).getStatus shouldEqual 200
+    modelResource.createModelVersion("v1", mid, sessionUser)
+
+    val listed = modelResource
+      .listModels(sessionUser)
+      .find(_.model.getMid == mid)
+      .getOrElse(fail("the owned model should be listed"))
+
+    listed.isOwner shouldBe true
+    listed.size shouldEqual 0L
   }
 }

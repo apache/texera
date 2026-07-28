@@ -24,7 +24,9 @@ import io.dropwizard.auth.Auth
 import jakarta.annotation.security.{PermitAll, RolesAllowed}
 import jakarta.ws.rs._
 import jakarta.ws.rs.core._
+import org.apache.texera.amber.core.storage.model.OnVersionedFileResource
 import org.apache.texera.amber.core.storage.util.LakeFSStorageClient
+import org.apache.texera.amber.core.storage.{DocumentFactory, FileResolver}
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.common.config.StorageConfig
 import org.apache.texera.dao.{SiteSettings, SqlServer}
@@ -43,10 +45,16 @@ import org.apache.texera.dao.jooq.generated.tables.daos.{
 }
 import org.apache.texera.dao.jooq.generated.tables.pojos.{Model, ModelUserAccess, ModelVersion}
 import org.apache.texera.dao.jooq.generated.tables.records.ModelUploadSessionRecord
-import org.apache.texera.service.`type`.DatasetFileNode
+import org.apache.texera.service.`type`.{DatasetFileNode, Diff, ExistingUploadFilesRequest}
 import org.apache.texera.service.resource.ModelAccessResource._
 import org.apache.texera.service.resource.ModelResource.{context, _}
-import org.apache.texera.service.util.ResourceUploadUtils.{put, validateAndNormalizeFilePathOrThrow}
+import org.apache.texera.service.util.PresignedDownloadUtils
+import org.apache.texera.service.util.ResourceUploadUtils.{
+  matchExistingUploads,
+  normalizeUploadRequest,
+  put,
+  validateAndNormalizeFilePathOrThrow
+}
 import org.apache.texera.service.util.S3StorageClient
 import org.apache.texera.service.util.S3StorageClient.{
   MAXIMUM_NUM_OF_MULTIPART_S3_PARTS,
@@ -60,12 +68,15 @@ import org.jooq.impl.DSL.{inline => inl}
 import org.jooq.{DSLContext, EnumType, Record2, Result}
 import software.amazon.awssdk.services.s3.model.UploadPartResponse
 
-import java.io.InputStream
+import java.io.{InputStream, OutputStream}
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
+import java.nio.file.{Files, Paths}
 import java.sql.SQLException
 import java.time.OffsetDateTime
+import java.util
 import java.util.Optional
+import java.util.zip.{ZipEntry, ZipOutputStream}
 import scala.collection.mutable.ListBuffer
 import scala.jdk.CollectionConverters._
 import scala.jdk.OptionConverters._
@@ -75,6 +86,12 @@ object ModelResource {
 
   // MVP supports a single framework; stored on the model so later frameworks can be added.
   private val DEFAULT_FRAMEWORK = "pytorch"
+
+  // Recognised values for the `framework` and `format` labels.
+  val SUPPORTED_FRAMEWORKS: Set[String] = Set("pytorch", "tensorflow", "onnx", "sklearn")
+
+  val SUPPORTED_FORMATS: Set[String] =
+    Set("torchscript", "state-dict", "safetensors", "onnx", "savedmodel", "joblib", "pickle")
 
   private def context =
     SqlServer
@@ -172,6 +189,20 @@ class ModelResource extends LazyLogging {
     * @param name The model name to validate.
     * @throws jakarta.ws.rs.BadRequestException if the name is invalid.
     */
+  /**
+    * Rejects a framework/format label the server does not recognise, so that what a
+    * later loader dispatches on is always one of a known set.
+    *
+    * @throws jakarta.ws.rs.BadRequestException if the value is outside `allowed`
+    */
+  private def validateLabel(field: String, value: String, allowed: Set[String]): Unit = {
+    if (!allowed.contains(value)) {
+      throw new BadRequestException(
+        s"Unsupported $field '$value'. Supported values: ${allowed.toList.sorted.mkString(", ")}."
+      )
+    }
+  }
+
   private def validateModelName(name: String): Unit = {
     if (name == null || !MODEL_NAME_PATTERN.matches(name)) {
       throw new BadRequestException(
@@ -255,6 +286,12 @@ class ModelResource extends LazyLogging {
 
       validateModelName(modelName)
 
+      val framework =
+        Option(request.framework).map(_.trim).filter(_.nonEmpty).getOrElse(DEFAULT_FRAMEWORK)
+      validateLabel("framework", framework, SUPPORTED_FRAMEWORKS)
+      val format = Option(request.format).map(_.trim).filter(_.nonEmpty)
+      format.foreach(validateLabel("format", _, SUPPORTED_FORMATS))
+
       // Check if a model with the same name already exists
       val duplicateExists = ctx.fetchExists(
         ctx
@@ -273,8 +310,8 @@ class ModelResource extends LazyLogging {
       model.setIsPublic(isModelPublic)
       model.setIsDownloadable(isModelDownloadable)
       model.setOwnerUid(uid)
-      model.setFramework(Option(request.framework).filter(_.nonEmpty).getOrElse(DEFAULT_FRAMEWORK))
-      model.setFormat(request.format)
+      model.setFramework(framework)
+      model.setFormat(format.orNull)
 
       // insert record and get created model with mid
       val createdModel = failOnDuplicateModelName {
@@ -711,6 +748,135 @@ class ModelResource extends LazyLogging {
   }
 
   // ===========================================================================
+  // Download
+  // ===========================================================================
+
+  @GET
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @Path("/presign-download")
+  def getPresignedUrl(
+      @QueryParam("filePath") encodedUrl: String,
+      @QueryParam("repositoryName") repositoryName: String,
+      @QueryParam("commitHash") commitHash: String,
+      @Auth user: SessionUser
+  ): Response = {
+    generatePresignedResponse(encodedUrl, repositoryName, commitHash, user.getUid)
+  }
+
+  @GET
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @Path("/presign-download-s3")
+  def getPresignedUrlWithS3(
+      @QueryParam("filePath") encodedUrl: String,
+      @QueryParam("repositoryName") repositoryName: String,
+      @QueryParam("commitHash") commitHash: String,
+      @Auth user: SessionUser
+  ): Response = {
+    generatePresignedResponse(encodedUrl, repositoryName, commitHash, user.getUid)
+  }
+
+  @GET
+  @PermitAll
+  @Path("/public-presign-download")
+  def getPublicPresignedUrl(
+      @QueryParam("filePath") encodedUrl: String,
+      @QueryParam("repositoryName") repositoryName: String,
+      @QueryParam("commitHash") commitHash: String
+  ): Response = {
+    generatePresignedResponse(encodedUrl, repositoryName, commitHash, null)
+  }
+
+  @GET
+  @PermitAll
+  @Path("/public-presign-download-s3")
+  def getPublicPresignedUrlWithS3(
+      @QueryParam("filePath") encodedUrl: String,
+      @QueryParam("repositoryName") repositoryName: String,
+      @QueryParam("commitHash") commitHash: String
+  ): Response = {
+    generatePresignedResponse(encodedUrl, repositoryName, commitHash, null)
+  }
+
+  @GET
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @Path("/{mid}/versionZip")
+  def getModelVersionZip(
+      @PathParam("mid") mid: Integer,
+      @QueryParam("mvid") mvid: Integer, // Model version ID, nullable
+      @QueryParam("latest") latest: java.lang.Boolean, // Flag to get latest version, nullable
+      @Auth user: SessionUser
+  ): Response = {
+    withTransaction(context) { ctx =>
+      if ((mvid != null && latest != null) || (mvid == null && latest == null)) {
+        throw new BadRequestException("Specify exactly one: mvid=<ID> OR latest=true")
+      }
+
+      val uid = user.getUid
+      if (!userHasReadAccess(ctx, mid, uid)) {
+        throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_MODEL_MESSAGE)
+      }
+
+      val model = getModelByID(ctx, mid)
+      // Non-owners can download only if the owner marked the model downloadable.
+      if (!userOwnModel(ctx, mid, uid) && !model.getIsDownloadable) {
+        throw new ForbiddenException("Model download is not allowed")
+      }
+
+      val modelVersion = if (mvid != null) {
+        getModelVersionByID(ctx, mvid)
+      } else {
+        getLatestModelVersion(ctx, mid).getOrElse(
+          throw new NotFoundException(ERR_MODEL_VERSION_NOT_FOUND_MESSAGE)
+        )
+      }
+
+      val modelName = model.getName
+      val repositoryName = model.getRepositoryName
+      val versionHash = modelVersion.getVersionHash
+      val objects = withLakeFSErrorHandling(
+        s"listing files of version '$versionHash' of model '$modelName'"
+      ) {
+        LakeFSStorageClient.retrieveObjectsOfVersion(repositoryName, versionHash)
+      }
+
+      if (objects.isEmpty) {
+        Response
+          .status(Response.Status.NOT_FOUND)
+          .entity(s"No objects found in version $versionHash of repository $repositoryName")
+          .build()
+      } else {
+        val streamingOutput = new StreamingOutput {
+          override def write(outputStream: OutputStream): Unit = {
+            val zipOut = new ZipOutputStream(outputStream)
+            try {
+              objects.foreach { obj =>
+                val filePath = obj.getPath
+                val file = withLakeFSErrorHandling(s"downloading file '$filePath' for the zip") {
+                  LakeFSStorageClient.getFileFromRepo(repositoryName, versionHash, filePath)
+                }
+
+                zipOut.putNextEntry(new ZipEntry(filePath))
+                Files.copy(Paths.get(file.toURI), zipOut)
+                zipOut.closeEntry()
+              }
+            } finally {
+              zipOut.close()
+            }
+          }
+        }
+
+        Response
+          .ok(streamingOutput, "application/zip")
+          .header(
+            "Content-Disposition",
+            s"""attachment; filename="$modelName-${modelVersion.getName}.zip""""
+          )
+          .build()
+      }
+    }
+  }
+
+  // ===========================================================================
   // File upload (one-shot + session-based multipart)
   // ===========================================================================
 
@@ -850,6 +1016,128 @@ class ModelResource extends LazyLogging {
 
       Response.ok().build()
     }
+  }
+
+  @GET
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @Path("/{mid}/diff")
+  def getModelDiff(
+      @PathParam("mid") mid: Integer,
+      @Auth user: SessionUser
+  ): List[Diff] = {
+    val uid = user.getUid
+    withTransaction(context) { ctx =>
+      if (!userHasReadAccess(ctx, mid, uid)) {
+        throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_MODEL_MESSAGE)
+      }
+
+      // Retrieve staged (uncommitted) changes from LakeFS
+      val model = getModelByID(ctx, mid)
+      val lakefsDiffs = withLakeFSErrorHandling {
+        LakeFSStorageClient.retrieveUncommittedObjects(model.getRepositoryName)
+      }
+
+      lakefsDiffs.map(d =>
+        Diff(
+          d.getPath,
+          d.getPathType.getValue,
+          d.getType.getValue,
+          Option(d.getSizeBytes).map(_.longValue())
+        )
+      )
+    }
+  }
+
+  @PUT
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @Path("/{mid}/diff")
+  @Consumes(Array(MediaType.APPLICATION_JSON))
+  def resetModelFileDiff(
+      @PathParam("mid") mid: Integer,
+      @QueryParam("filePath") encodedFilePath: String,
+      @Auth user: SessionUser
+  ): Response = {
+    val uid = user.getUid
+    withTransaction(context) { ctx =>
+      if (!userHasWriteAccess(ctx, mid, uid)) {
+        throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_MODEL_MESSAGE)
+      }
+      val repositoryName = getModelByID(ctx, mid).getRepositoryName
+
+      val filePath = URLDecoder.decode(encodedFilePath, StandardCharsets.UTF_8.name())
+      withLakeFSErrorHandling(s"resetting uncommitted changes of file '$filePath'") {
+        LakeFSStorageClient.resetObjectUploadOrDeletion(repositoryName, filePath)
+      }
+      Response.ok().build()
+    }
+  }
+
+  @POST
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @Path("/{mid}/existing-upload-files")
+  @Consumes(Array(MediaType.APPLICATION_JSON))
+  def findExistingUploadFiles(
+      @PathParam("mid") mid: Integer,
+      request: ExistingUploadFilesRequest,
+      @Auth user: SessionUser
+  ): Response = {
+    val uid = user.getUid
+    withTransaction(context) { ctx =>
+      if (!userHasWriteAccess(ctx, mid, uid)) {
+        throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_MODEL_MESSAGE)
+      }
+
+      // Validate before any storage work: a malformed request is rejected without
+      // spending LakeFS round trips on it.
+      val requested = normalizeUploadRequest(
+        Option(request).flatMap(request => Option(request.files)).getOrElse(List.empty)
+      )
+
+      val model = getModelByID(ctx, mid)
+      val committed = getLatestModelVersion(ctx, mid)
+        .map { v =>
+          withLakeFSErrorHandling(
+            s"retrieving committed files of model '${model.getName}'"
+          ) {
+            LakeFSStorageClient
+              .retrieveObjectsOfVersion(model.getRepositoryName, v.getVersionHash)
+              .map(obj => obj.getPath -> obj.getSizeBytes.longValue())
+          }
+        }
+        .getOrElse(List.empty)
+
+      val staged = withLakeFSErrorHandling(
+        s"retrieving staged files of model '${model.getName}'"
+      ) {
+        LakeFSStorageClient.retrieveUncommittedObjects(model.getRepositoryName)
+      }
+        .filterNot(diff => Option(diff.getType).exists(_.getValue.equalsIgnoreCase("removed")))
+        .flatMap(diff => Option(diff.getSizeBytes).map(size => diff.getPath -> size.longValue()))
+
+      val matches = matchExistingUploads(requested, committed, staged)
+
+      Response.ok(Map("filePaths" -> matches.asJava)).build()
+    }
+  }
+
+  /**
+    * This method returns all owner emails of the models that the user has access to
+    *
+    * @return OwnerEmail[]
+    */
+  @GET
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @Path("/user-model-owners")
+  def retrieveOwners(@Auth user: SessionUser): util.List[String] = {
+    context
+      .selectDistinct(USER.EMAIL)
+      .from(USER)
+      .join(MODEL)
+      .on(MODEL.OWNER_UID.eq(USER.UID))
+      .join(MODEL_USER_ACCESS)
+      .on(MODEL_USER_ACCESS.MID.eq(MODEL.MID))
+      .where(MODEL_USER_ACCESS.UID.eq(user.getUid))
+      .fetchInto(classOf[String])
   }
 
   @POST
@@ -1090,6 +1378,72 @@ class ModelResource extends LazyLogging {
   // ===========================================================================
   // Private helpers
   // ===========================================================================
+
+  private def generatePresignedResponse(
+      encodedUrl: String,
+      repositoryName: String,
+      commitHash: String,
+      uid: Integer
+  ): Response = {
+    resolveModelAndPath(encodedUrl, repositoryName, commitHash, uid) match {
+      case Left(errorResponse) =>
+        errorResponse
+
+      case Right((resolvedRepositoryName, resolvedCommitHash, resolvedFilePath)) =>
+        PresignedDownloadUtils.presignedResponse(
+          resolvedRepositoryName,
+          resolvedCommitHash,
+          resolvedFilePath
+        )
+    }
+  }
+
+  /**
+    * Resolve the (repository, commit, path) triple a presign request refers to, and
+    * verify the caller may read it. The file is addressed either directly
+    * (repositoryName + commitHash) or through a logical `/models/...` path.
+    */
+  private def resolveModelAndPath(
+      encodedUrl: String,
+      repositoryName: String,
+      commitHash: String,
+      uid: Integer
+  ): Either[Response, (String, String, String)] = {
+    val decodedPathStr = URLDecoder.decode(encodedUrl, StandardCharsets.UTF_8.name())
+
+    PresignedDownloadUtils.requireBothOrNeither(repositoryName, commitHash) match {
+      case Some(errorResponse) => Left(errorResponse)
+
+      case None =>
+        val resolved = withTransaction(context) { ctx =>
+          val (resolvedRepositoryName, resolvedCommitHash, resolvedFilePath) =
+            Option(repositoryName) match {
+              case Some(repo) =>
+                (repo, commitHash, decodedPathStr)
+              case None =>
+                val fileUri = FileResolver.resolve(decodedPathStr)
+                val document =
+                  DocumentFactory
+                    .openReadonlyDocument(fileUri)
+                    .asInstanceOf[OnVersionedFileResource]
+                (
+                  document.getRepositoryName(),
+                  document.getVersionHash(),
+                  document.getFileRelativePath()
+                )
+            }
+
+          val modelDao = new ModelDao(ctx.configuration())
+          val models = modelDao.fetchByRepositoryName(resolvedRepositoryName).asScala.toList
+
+          if (models.isEmpty || !userHasReadAccess(ctx, models.head.getMid, uid))
+            throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_MODEL_MESSAGE)
+
+          (resolvedRepositoryName, resolvedCommitHash, resolvedFilePath)
+        }
+        Right(resolved)
+    }
+  }
 
   private def fetchModelVersions(ctx: DSLContext, mid: Integer): List[ModelVersion] = {
     ctx

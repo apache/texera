@@ -23,6 +23,7 @@ import ch.qos.logback.classic.{Level, Logger}
 import io.lakefs.clients.sdk.ApiException
 import jakarta.ws.rs._
 import jakarta.ws.rs.core._
+import org.apache.texera.amber.core.storage.ResourceType
 import org.apache.texera.amber.core.storage.util.LakeFSStorageClient
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.dao.MockTexeraDB
@@ -42,8 +43,10 @@ import org.apache.texera.dao.jooq.generated.tables.pojos.{
   User
 }
 import org.apache.texera.service.MockLakeFS
+import org.apache.texera.service.`type`.{ExistingUploadFile, ExistingUploadFilesRequest}
 import org.apache.texera.service.util.S3StorageClient
 import org.jooq.SQLDialect
+import org.jooq.exception.DataAccessException
 import org.jooq.impl.DSL
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -435,12 +438,12 @@ class DatasetResourceSpec
 
     val resp = datasetResource.findExistingUploadFiles(
       dataset.getDid,
-      DatasetResource.ExistingUploadFilesRequest(
+      ExistingUploadFilesRequest(
         List(
-          DatasetResource.ExistingUploadFile("committed.csv", committed.length),
-          DatasetResource.ExistingUploadFile("staged.csv", staged.length),
-          DatasetResource.ExistingUploadFile("wrong-size.csv", staged.length + 1),
-          DatasetResource.ExistingUploadFile("missing.csv", 1L)
+          ExistingUploadFile("committed.csv", committed.length),
+          ExistingUploadFile("staged.csv", staged.length),
+          ExistingUploadFile("wrong-size.csv", staged.length + 1),
+          ExistingUploadFile("missing.csv", 1L)
         )
       ),
       sessionUser
@@ -482,8 +485,8 @@ class DatasetResourceSpec
     val requestPath = "folder/../committed.csv"
     val resp = datasetResource.findExistingUploadFiles(
       dataset.getDid,
-      DatasetResource.ExistingUploadFilesRequest(
-        List(DatasetResource.ExistingUploadFile(requestPath, committed.length))
+      ExistingUploadFilesRequest(
+        List(ExistingUploadFile(requestPath, committed.length))
       ),
       sessionUser
     )
@@ -506,7 +509,7 @@ class DatasetResourceSpec
 
     val resp = datasetResource.findExistingUploadFiles(
       dataset.getDid,
-      DatasetResource.ExistingUploadFilesRequest(null),
+      ExistingUploadFilesRequest(null),
       sessionUser
     )
 
@@ -518,8 +521,8 @@ class DatasetResourceSpec
     val ex = intercept[BadRequestException] {
       datasetResource.findExistingUploadFiles(
         baseDataset.getDid,
-        DatasetResource.ExistingUploadFilesRequest(
-          List(DatasetResource.ExistingUploadFile("bad-size.csv", -1L))
+        ExistingUploadFilesRequest(
+          List(ExistingUploadFile("bad-size.csv", -1L))
         ),
         sessionUser
       )
@@ -532,8 +535,8 @@ class DatasetResourceSpec
     val ex = intercept[ForbiddenException] {
       datasetResource.findExistingUploadFiles(
         multipartDataset.getDid,
-        DatasetResource.ExistingUploadFilesRequest(
-          List(DatasetResource.ExistingUploadFile("private.csv", 1L))
+        ExistingUploadFilesRequest(
+          List(ExistingUploadFile("private.csv", 1L))
         ),
         multipartNoWriteSessionUser
       )
@@ -563,8 +566,8 @@ class DatasetResourceSpec
     val ex = intercept[NotFoundException] {
       datasetResource.findExistingUploadFiles(
         dataset.getDid,
-        DatasetResource.ExistingUploadFilesRequest(
-          List(DatasetResource.ExistingUploadFile("missing.csv", 1L))
+        ExistingUploadFilesRequest(
+          List(ExistingUploadFile("missing.csv", 1L))
         ),
         sessionUser
       )
@@ -668,6 +671,95 @@ class DatasetResourceSpec
       )
     }
     assertStatus(ex, 404)
+  }
+
+  // A caller either addresses the file directly (repositoryName + commitHash) or lets
+  // the server resolve it from a logical path (neither). Exactly one is a client error.
+  it should "reject a repositoryName given without a commitHash" in {
+    val resp = datasetResource.getPresignedUrl(
+      urlEnc("test-cover.jpg"),
+      baseDataset.getRepositoryName,
+      null,
+      sessionUser
+    )
+
+    resp.getStatus shouldEqual Response.Status.BAD_REQUEST.getStatusCode
+    resp.getEntity.toString should include("must be provided together")
+  }
+
+  it should "reject a commitHash given without a repositoryName" in {
+    val resp = datasetResource.getPresignedUrl(
+      urlEnc("test-cover.jpg"),
+      null,
+      "main",
+      sessionUser
+    )
+
+    resp.getStatus shouldEqual Response.Status.BAD_REQUEST.getStatusCode
+  }
+
+  it should "resolve a prefixed logical path when neither repositoryName nor commitHash is given" in {
+    testDatasetVersion
+    // /datasets/<ownerEmail>/<datasetName>/<versionName>/<fileRelativePath> — routed
+    // through FileResolver and DocumentFactory rather than addressed directly.
+    val logicalPath =
+      s"/${ResourceType.Datasets}/${ownerUser.getEmail}/${baseDataset.getName}/v1/test-cover.jpg"
+
+    val resp = datasetResource.getPresignedUrl(urlEnc(logicalPath), null, null, sessionUser)
+
+    resp.getStatus shouldEqual 200
+    entityAsScalaMap(resp).get("presignedUrl") should not be None
+  }
+
+  it should "reject a logical path that is missing the datasets prefix" in {
+    testDatasetVersion
+    // The prefix is required — FileResolver has no unprefixed fallback.
+    val unprefixed = s"/${ownerUser.getEmail}/${baseDataset.getName}/v1/test-cover.jpg"
+
+    // Characterization of two pre-existing quirks, not an endorsement of either:
+    //  1. FileResolver tries localResolveFunc FIRST, so an unprefixed path is claimed as a
+    //     local filesystem path and fails when DocumentFactory cannot open it — rather
+    //     than being rejected outright as a malformed dataset path.
+    //  2. That happens inside withTransaction, so jOOQ wraps it in a DataAccessException
+    //     and the caller sees a 500 rather than a 4xx.
+    // What matters for security is the last assertion: no presigned URL is produced.
+    val ex = intercept[DataAccessException] {
+      datasetResource.getPresignedUrl(urlEnc(unprefixed), null, null, sessionUser)
+    }
+    ex.getCause shouldBe a[IOException]
+    ex.getCause.getMessage should include(unprefixed)
+  }
+
+  it should "refuse a logical path pointing at a dataset the caller cannot read" in {
+    testDatasetVersion
+    val privateRepo = s"presign-private-${System.nanoTime()}"
+    val privateDataset = new Dataset
+    privateDataset.setName(privateRepo)
+    privateDataset.setRepositoryName(privateRepo)
+    privateDataset.setDescription("presign - not readable by the requester")
+    privateDataset.setOwnerUid(otherAdminUser.getUid)
+    privateDataset.setIsPublic(false)
+    privateDataset.setIsDownloadable(true)
+    datasetDao.insert(privateDataset)
+    LakeFSStorageClient.initRepo(privateRepo)
+    LakeFSStorageClient.writeFileToRepo(
+      privateRepo,
+      "secret.bin",
+      new ByteArrayInputStream("secret".getBytes(StandardCharsets.UTF_8))
+    )
+    val version = new DatasetVersion()
+    version.setDid(privateDataset.getDid)
+    version.setCreatorUid(otherAdminUser.getUid)
+    version.setName("v1")
+    version.setVersionHash("main")
+    new DatasetVersionDao(getDSLContext.configuration()).insert(version)
+
+    val logicalPath =
+      s"/${ResourceType.Datasets}/${otherAdminUser.getEmail}/$privateRepo/v1/secret.bin"
+
+    assertThrows[ForbiddenException] {
+      datasetResource.getPresignedUrl(urlEnc(logicalPath), null, null, sessionUser)
+    }
   }
 
   "listDatasets" should "include a dataset whose LakeFS repo exists" in {

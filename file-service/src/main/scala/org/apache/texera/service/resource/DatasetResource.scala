@@ -47,10 +47,16 @@ import org.apache.texera.dao.jooq.generated.tables.pojos.{
   DatasetUserAccess,
   DatasetVersion
 }
-import org.apache.texera.service.`type`.DatasetFileNode
+import org.apache.texera.service.`type`.{DatasetFileNode, Diff, ExistingUploadFilesRequest}
 import org.apache.texera.service.resource.DatasetAccessResource._
 import org.apache.texera.service.resource.DatasetResource.{context, _}
-import org.apache.texera.service.util.ResourceUploadUtils.{put, validateAndNormalizeFilePathOrThrow}
+import org.apache.texera.service.util.PresignedDownloadUtils
+import org.apache.texera.service.util.ResourceUploadUtils.{
+  matchExistingUploads,
+  normalizeUploadRequest,
+  put,
+  validateAndNormalizeFilePathOrThrow
+}
 import org.apache.texera.service.util.S3StorageClient
 import org.apache.texera.service.util.S3StorageClient.{
   MAXIMUM_NUM_OF_MULTIPART_S3_PARTS,
@@ -155,17 +161,6 @@ object DatasetResource {
       isDatasetPublic: Boolean,
       isDatasetDownloadable: Boolean
   )
-
-  case class Diff(
-      path: String,
-      pathType: String,
-      diffType: String, // "added", "removed", "changed", etc.
-      sizeBytes: Option[Long] // Size of the changed file (None for directories)
-  )
-
-  case class ExistingUploadFile(path: String, sizeBytes: Long)
-
-  case class ExistingUploadFilesRequest(files: List[ExistingUploadFile])
 
   case class DatasetDescriptionModification(did: Integer, description: String)
 
@@ -1023,15 +1018,10 @@ class DatasetResource extends LazyLogging {
         throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
       }
 
-      val requested = Option(request)
-        .flatMap(request => Option(request.files))
-        .getOrElse(List.empty)
-        .map { file =>
-          val originalPath = file.path
-          val path = validateAndNormalizeFilePathOrThrow(originalPath)
-          if (file.sizeBytes < 0L) throw new BadRequestException("sizeBytes must be >= 0")
-          (path, originalPath, file.sizeBytes)
-        }
+      // Validate before any storage work: a malformed request is rejected.
+      val requested = normalizeUploadRequest(
+        Option(request).flatMap(request => Option(request.files)).getOrElse(List.empty)
+      )
 
       val dataset = getDatasetByID(ctx, did)
       val committed = getLatestDatasetVersion(ctx, did)
@@ -1054,14 +1044,7 @@ class DatasetResource extends LazyLogging {
         .filterNot(diff => Option(diff.getType).exists(_.getValue.equalsIgnoreCase("removed")))
         .flatMap(diff => Option(diff.getSizeBytes).map(size => diff.getPath -> size.longValue()))
 
-      val existing = (committed ++ staged).toMap
-      val matches = requested
-        .collect {
-          case (path, originalPath, size) if existing.get(path).contains(size) => originalPath
-        }
-        .toList
-        .distinct
-        .sorted
+      val matches = matchExistingUploads(requested, committed, staged)
 
       Response.ok(Map("filePaths" -> matches.asJava)).build()
     }
@@ -1510,17 +1493,11 @@ class DatasetResource extends LazyLogging {
         errorResponse
 
       case Right((resolvedRepositoryName, resolvedCommitHash, resolvedFilePath)) =>
-        val url = withLakeFSErrorHandling(
-          s"generating a presigned URL for file '$resolvedFilePath'"
-        ) {
-          LakeFSStorageClient.getFilePresignedUrl(
-            resolvedRepositoryName,
-            resolvedCommitHash,
-            resolvedFilePath
-          )
-        }
-
-        Response.ok(Map("presignedUrl" -> url)).build()
+        PresignedDownloadUtils.presignedResponse(
+          resolvedRepositoryName,
+          resolvedCommitHash,
+          resolvedFilePath
+        )
     }
   }
 
@@ -1532,59 +1509,41 @@ class DatasetResource extends LazyLogging {
   ): Either[Response, (String, String, String)] = {
     val decodedPathStr = URLDecoder.decode(encodedUrl, StandardCharsets.UTF_8.name())
 
-    (Option(repositoryName), Option(commitHash)) match {
-      case (Some(_), None) | (None, Some(_)) =>
-        // Case 1: Only one parameter is provided (error case)
-        Left(
-          Response
-            .status(Response.Status.BAD_REQUEST)
-            .entity(
-              "Both repositoryName and commitHash must be provided together, or neither should be provided."
-            )
-            .build()
-        )
+    PresignedDownloadUtils.requireBothOrNeither(repositoryName, commitHash) match {
+      case Some(errorResponse) => Left(errorResponse)
 
-      case (Some(repositoryName), Some(commit)) =>
-        // Case 2: repositoryName and commitHash are provided, validate access
-        val response = withTransaction(context) { ctx =>
+      case None =>
+        // Either both parameters were given (address the file directly) or neither
+        // (resolve it from the logical path). Both paths end in the same read check:
+        // download restrictions are enforced per endpoint, not here, so viewing works
+        // for every public dataset.
+        val resolved = withTransaction(context) { ctx =>
+          val (resolvedRepositoryName, resolvedCommitHash, resolvedFilePath) =
+            Option(repositoryName) match {
+              case Some(repo) =>
+                (repo, commitHash, decodedPathStr)
+              case None =>
+                val fileUri = FileResolver.resolve(decodedPathStr)
+                val document =
+                  DocumentFactory
+                    .openReadonlyDocument(fileUri)
+                    .asInstanceOf[OnVersionedFileResource]
+                (
+                  document.getRepositoryName(),
+                  document.getVersionHash(),
+                  document.getFileRelativePath()
+                )
+            }
+
           val datasetDao = new DatasetDao(ctx.configuration())
-          val datasets = datasetDao.fetchByRepositoryName(repositoryName).asScala.toList
+          val datasets = datasetDao.fetchByRepositoryName(resolvedRepositoryName).asScala.toList
 
           if (datasets.isEmpty || !userHasReadAccess(ctx, datasets.head.getDid, uid))
             throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
 
-          val dataset = datasets.head
-          // Standard read access check only - download restrictions handled per endpoint
-          // Non-download operations (viewing) should work for all public datasets
-
-          (repositoryName, commit, decodedPathStr)
+          (resolvedRepositoryName, resolvedCommitHash, resolvedFilePath)
         }
-        Right(response)
-
-      case (None, None) =>
-        // Case 3: Neither repositoryName nor commitHash are provided, resolve normally
-        val response = withTransaction(context) { ctx =>
-          val fileUri = FileResolver.resolve(decodedPathStr)
-          val document =
-            DocumentFactory.openReadonlyDocument(fileUri).asInstanceOf[OnVersionedFileResource]
-          val datasetDao = new DatasetDao(ctx.configuration())
-          val datasets =
-            datasetDao.fetchByRepositoryName(document.getRepositoryName()).asScala.toList
-
-          if (datasets.isEmpty || !userHasReadAccess(ctx, datasets.head.getDid, uid))
-            throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
-
-          val dataset = datasets.head
-          // Standard read access check only - download restrictions handled per endpoint
-          // Non-download operations (viewing) should work for all public datasets
-
-          (
-            document.getRepositoryName(),
-            document.getVersionHash(),
-            document.getFileRelativePath()
-          )
-        }
-        Right(response)
+        Right(resolved)
     }
   }
 

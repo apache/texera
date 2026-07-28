@@ -21,6 +21,7 @@ package org.apache.texera.service.util
 
 import jakarta.ws.rs.BadRequestException
 import org.apache.commons.io.FilenameUtils
+import org.apache.texera.service.`type`.ExistingUploadFile
 
 import java.net.{HttpURLConnection, URL}
 
@@ -68,5 +69,46 @@ object ResourceUploadUtils {
       throw new BadRequestException("Absolute paths not allowed")
     }
     normalized
+  }
+
+  /**
+    * A requested upload whose path has been normalized, keeping the caller's original
+    * spelling so it can be echoed back and correlated with the client's own queue.
+    */
+  case class NormalizedUploadFile(path: String, originalPath: String, sizeBytes: Long)
+
+  /**
+    * Validate and normalize what the client says it is about to upload.
+    *
+    * @throws jakarta.ws.rs.BadRequestException if a path is invalid or a size is negative
+    */
+  def normalizeUploadRequest(requested: List[ExistingUploadFile]): List[NormalizedUploadFile] =
+    Option(requested).getOrElse(List.empty).map { file =>
+      val originalPath = file.path
+      val path = validateAndNormalizeFilePathOrThrow(originalPath)
+      if (file.sizeBytes < 0L) throw new BadRequestException("sizeBytes must be >= 0")
+      NormalizedUploadFile(path, originalPath, file.sizeBytes)
+    }
+
+  /**
+    * Of the files the client is about to upload, return those the repository already
+    * holds with the exact same size — the client skips re-uploading those.
+    *
+    * @param requested  output of [[normalizeUploadRequest]]
+    * @param committed  (path, size) of the files in the latest committed version
+    * @param staged     (path, size) of the uncommitted files, deletions excluded
+    */
+  def matchExistingUploads(
+      requested: List[NormalizedUploadFile],
+      committed: List[(String, Long)],
+      staged: List[(String, Long)]
+  ): List[String] = {
+    val existing = (committed ++ staged).toMap
+    requested
+      .collect {
+        case file if existing.get(file.path).contains(file.sizeBytes) => file.originalPath
+      }
+      .distinct
+      .sorted
   }
 }
