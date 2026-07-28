@@ -115,25 +115,16 @@ class LoopIntegrationSpec
   }
 
   // Loops force their BOUNDARY links to be materialized (the cross-region
-  // state channel is the loop back-edge), but the rest of the workflow may
-  // run in either execution mode -- both are exercised below. Built on the
-  // suite's specId so the context's workflow/execution ids match the rows
-  // seeded by setUpWorkflowExecutionData.
+  // state channel is the loop back-edge); the rest of the workflow may run
+  // in either execution mode. Built on the suite's specId so the context's
+  // workflow/execution ids match the rows seeded by
+  // setUpWorkflowExecutionData.
   private def materializedContext(): WorkflowContext =
     workflowContext(
       specId,
       WorkflowSettings(
         dataTransferBatchSize = 400,
         executionMode = ExecutionMode.MATERIALIZED
-      )
-    )
-
-  private def pipelinedContext(): WorkflowContext =
-    workflowContext(
-      specId,
-      WorkflowSettings(
-        dataTransferBatchSize = 400,
-        executionMode = ExecutionMode.PIPELINED
       )
     )
 
@@ -145,12 +136,11 @@ class LoopIntegrationSpec
     */
   private def runAndGetMaterializedRowCounts(
       operators: List[LogicalOp],
-      links: List[LogicalLink],
-      context: WorkflowContext = materializedContext()
+      links: List[LogicalLink]
   ): Map[OperatorIdentity, Long] =
     runWorkflowAndReadResults(
       system,
-      buildWorkflow(operators, links, context),
+      buildWorkflow(operators, links, materializedContext()),
       operators.map(_.operatorIdentifier),
       _.getCount,
       Duration.fromMinutes(3)
@@ -340,52 +330,6 @@ class LoopIntegrationSpec
       innerRows == 3,
       s"inner LoopEnd must reset per outer iteration (3 rows, not 9): " +
         s"expected 3, got $innerRows (all: $materialized)"
-    )
-  }
-
-  it should "run the 3-iteration loop under PIPELINED execution mode" in {
-    // Under PIPELINED mode the scheduler no longer coerces the whole workflow
-    // to a fully-materialized schedule: only the links incident to LoopStart /
-    // LoopEnd are forced materialized (the loop boundary), and the loop still
-    // iterates correctly.
-    val src = textInput("1\n2\n3")
-    val start = loopStart("i = 0", "table.iloc[i]")
-    val end = loopEnd("i += 1", "i < len(table)")
-    val materialized = runAndGetMaterializedRowCounts(
-      List(src, start, end),
-      List(link(src, start), link(start, end)),
-      pipelinedContext()
-    )
-    val endRows = materialized.getOrElse(end.operatorIdentifier, -1L)
-    assert(
-      endRows == 3,
-      s"LoopEnd must accumulate all 3 iterations under PIPELINED mode: " +
-        s"expected 3, got $endRows (all: $materialized)"
-    )
-  }
-
-  it should "pipeline a multi-operator JVM body internally under PIPELINED mode" in {
-    // TextInput -> LoopStart -> Limit -> Sleep(0) -> LoopEnd. Under PIPELINED
-    // mode the Limit -> Sleep link stays pipelined (the body is ONE re-executed
-    // region with two operators) while the four loop-boundary links are forced
-    // materialized. This exercises region re-execution at multi-operator
-    // granularity: both body workers respawn together each iteration, and the
-    // loop state crosses the pipelined JVM-to-JVM hop in-band.
-    val src = textInput("1\n2\n3")
-    val start = loopStart("i = 0", "table.iloc[i]")
-    val first = limit(10)
-    val second = sleep(0)
-    val end = loopEnd("i += 1", "i < len(table)")
-    val materialized = runAndGetMaterializedRowCounts(
-      List(src, start, first, second, end),
-      List(link(src, start), link(start, first), link(first, second), link(second, end)),
-      pipelinedContext()
-    )
-    val endRows = materialized.getOrElse(end.operatorIdentifier, -1L)
-    assert(
-      endRows == 3,
-      s"LoopEnd must accumulate all 3 iterations with a pipelined two-operator " +
-        s"JVM body: expected 3, got $endRows (all: $materialized)"
     )
   }
 

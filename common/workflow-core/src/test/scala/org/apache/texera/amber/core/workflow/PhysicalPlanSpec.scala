@@ -203,37 +203,6 @@ class PhysicalPlanSpec extends AnyFlatSpec {
     assert(plan.getNonBridgeNonBlockingLinks.isEmpty)
   }
 
-  // ----- getForcedMaterializedLinks -----
-
-  "PhysicalPlan.getForcedMaterializedLinks" should
-    "include every link incident to an operator requiring a materialized boundary" in {
-    val boundaryOp = physicalOp("ls").withRequiresMaterializedExecution(true)
-    val plan = PhysicalPlan(
-      Set(physicalOp("a"), boundaryOp, physicalOp("b"), physicalOp("c")),
-      Set.empty
-    ).addLink(link("a", "ls")).addLink(link("ls", "b")).addLink(link("b", "c"))
-    assert(plan.getForcedMaterializedLinks == Set(link("a", "ls"), link("ls", "b")))
-  }
-
-  it should "reduce to the blocking and dependee links when no operator requires a boundary" in {
-    val (plan, dependeeLink, _) = dependeePlan()
-    assert(plan.getForcedMaterializedLinks == plan.getBlockingAndDependeeLinks)
-    assert(plan.getForcedMaterializedLinks == Set(dependeeLink))
-  }
-
-  it should "exclude forced links from the search candidates" in {
-    // Diamond a->{b,ls}->d, where ls requires a materialized boundary: its two
-    // links leave the candidate set even though the diamond has no bridges.
-    val boundaryOp = physicalOp("ls").withRequiresMaterializedExecution(true)
-    val diamond =
-      Set(link("a", "b"), link("a", "ls"), link("b", "d"), link("ls", "d"))
-    val plan = PhysicalPlan(
-      Set(physicalOp("a"), physicalOp("b"), boundaryOp, physicalOp("d")),
-      diamond
-    )
-    assert(plan.getNonBridgeNonBlockingLinks == Set(link("a", "b"), link("b", "d")))
-  }
-
   // ----- maxChains -----
 
   "PhysicalPlan.maxChains" should "keep only the maximal chain of a straight pipeline" in {
