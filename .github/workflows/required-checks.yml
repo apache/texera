@@ -216,9 +216,16 @@ jobs:
             core.setOutput("run_infra", runInfra ? "true" : "false");
             core.setOutput("run_pyright_language_service", runPyrightLanguageService ? "true" : "false");
 
-            // Backport targets: all current release/* labels on the PR.
-            const targets = [...new Set(labels.filter((n) => /^release\/.+$/.test(n)))].sort();
-            if (targets.length === 0) {
+            // Backport targets: all current release/* labels on the PR, unless
+            // `no-backport-needed` vetoes backporting entirely (e.g. a fix for
+            // a feature that does not exist on any release branch). The veto
+            // wins even if release/* labels are also present, so adding it
+            // mid-review cancels the backport apply-check/build on the re-run.
+            let targets = [...new Set(labels.filter((n) => /^release\/.+$/.test(n)))].sort();
+            if (labels.includes("no-backport-needed")) {
+              core.info("no-backport-needed present; skipping all backport targets.");
+              targets = [];
+            } else if (targets.length === 0) {
               core.info("No backport targets on PR.");
             } else {
               core.info(`Backport targets: ${targets.join(", ")}`);
@@ -275,13 +282,70 @@ jobs:
       run_pyright_language_service: ${{ needs.precheck.outputs.run_pyright_language_service == 'true' }}
     secrets: inherit
 
-  backport:
+  # Fast pre-flight: does the change even cherry-pick onto each release branch?
+  # This is a git-only job (no build), so a conflict is reported in seconds and
+  # gates the expensive backport build below — a conflicting target never spins
+  # up the full stack matrix. Post-merge, Direct Backport Push reads this job's
+  # result as the authoritative "conflicts / applies" signal.
+  backport-apply-check:
     needs: precheck
     if: ${{ needs.precheck.outputs.backport_targets != '[]' }}
     strategy:
       fail-fast: false
       matrix:
         target: ${{ fromJson(needs.precheck.outputs.backport_targets) }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR head
+        uses: actions/checkout@v7
+        with:
+          ref: refs/pull/${{ github.event.pull_request.number }}/head
+          fetch-depth: 0
+      - name: Dry-run cherry-pick onto ${{ matrix.target }}
+        run: |
+          bash ./.github/scripts/prepare-backport-checkout.sh \
+            "${{ matrix.target }}" \
+            "${{ format('{0}..{1}', github.event.pull_request.base.sha, github.event.pull_request.head.sha) }}"
+
+  # Collect the targets whose pre-flight cherry-pick succeeded. always() so a
+  # conflict on one target still lets the others build; an all-conflict run
+  # yields an empty list and skips the backport build entirely.
+  backport-buildable:
+    needs: [precheck, backport-apply-check]
+    if: ${{ always() && needs.precheck.outputs.backport_targets != '[]' }}
+    runs-on: ubuntu-latest
+    outputs:
+      targets: ${{ steps.collect.outputs.targets }}
+    steps:
+      - name: Collect targets that applied cleanly
+        id: collect
+        uses: actions/github-script@v9
+        env:
+          REQUESTED: ${{ needs.precheck.outputs.backport_targets }}
+        with:
+          script: |
+            const requested = JSON.parse(process.env.REQUESTED || "[]");
+            const { owner, repo } = context.repo;
+            const jobs = await github.paginate(
+              github.rest.actions.listJobsForWorkflowRun,
+              { owner, repo, run_id: context.runId, per_page: 100 }
+            );
+            const buildable = requested.filter((target) => {
+              const job = jobs.find(
+                (j) => j.name === `backport-apply-check (${target})`
+              );
+              return job && job.conclusion === "success";
+            });
+            core.info(`Buildable backport targets: ${JSON.stringify(buildable)}`);
+            core.setOutput("targets", JSON.stringify(buildable));
+
+  backport:
+    needs: [precheck, backport-buildable]
+    if: ${{ needs.backport-buildable.outputs.targets != '' && needs.backport-buildable.outputs.targets != '[]' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        target: ${{ fromJson(needs.backport-buildable.outputs.targets) }}
     uses: ./.github/workflows/build.yml
     with:
       checkout_ref: refs/pull/${{ github.event.pull_request.number }}/head
@@ -302,7 +366,13 @@ jobs:
   required-checks:
     # Do not rename this job — its display name is referenced in .asf.yaml.
     name: Required Checks
-    needs: [precheck, build, backport]
+    # The backport job is deliberately NOT a dependency here: it is an advisory
+    # signal, not a merge gate. A red pre-merge backport (a cherry-pick that
+    # conflicts, or a backported tree that fails to build) must not block the
+    # PR from landing on main — instead Direct Backport Push opens a draft
+    # backport PR for the author after merge. Keeping backport out of `needs`
+    # also lets this aggregator report as soon as build finishes.
+    needs: [precheck, build]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -311,7 +381,6 @@ jobs:
           declare -A results=(
             [precheck]="${{ needs.precheck.result }}"
             [build]="${{ needs.build.result }}"
-            [backport]="${{ needs.backport.result }}"
           )
           failed=0
           for job in "${!results[@]}"; do
