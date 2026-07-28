@@ -105,7 +105,7 @@ class LoopStartOpDescSpec extends AnyFlatSpec with LoopOpDescSpecMixin {
     assertNonParallelizable(desc().getPhysicalOp(workflowId, executionId))
   }
 
-  "LoopStartOpDesc.getPhysicalOp" should "mark the physical op as the loop start" in {
+  it should "mark the physical op as the loop start" in {
     // The scheduler resolves each Loop Start's loop-back write address (the
     // state URI of its input port) from this flag and delivers it to workers
     // at setup via InitializeExecutorRequest.loopStartStateUris.

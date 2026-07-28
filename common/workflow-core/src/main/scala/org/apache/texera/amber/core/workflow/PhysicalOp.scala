@@ -198,11 +198,8 @@ case class PhysicalOp(
     // schema propagation function
     propagateSchema: SchemaPropagationFunc = SchemaPropagationFunc(schemas => schemas),
     isOneToManyOp: Boolean = false,
-    // Marks the Loop Start operator of a loop. The scheduler resolves the loop-back
-    // write address from it (see InitializeExecutorRequest.loopStartStateUris) and
-    // forces the link INTO this operator to be materialized (that link's storage IS
-    // the loop-back write target; see PhysicalPlan.getForcedMaterializedLinks).
-    // Default false.
+    // Marks the Loop Start operator of a loop; the scheduler resolves the loop-back
+    // write address from it (see InitializeExecutorRequest.loopStartStateUris). Default false.
     isLoopStart: Boolean = false,
     // hint for number of workers
     suggestedWorkerNum: Option[Int] = None,

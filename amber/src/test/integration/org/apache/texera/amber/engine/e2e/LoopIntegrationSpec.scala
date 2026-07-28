@@ -114,11 +114,9 @@ class LoopIntegrationSpec
     TestKit.shutdownActorSystem(system)
   }
 
-  // Loops force their BOUNDARY links to be materialized (the cross-region
-  // state channel is the loop back-edge); the rest of the workflow may run
-  // in either execution mode. Built on the suite's specId so the context's
-  // workflow/execution ids match the rows seeded by
-  // setUpWorkflowExecutionData.
+  // Loops require MATERIALIZED execution mode (the cross-region state channel
+  // is the loop back-edge). Built on the suite's specId so the context's
+  // workflow/execution ids match the rows seeded by setUpWorkflowExecutionData.
   private def materializedContext(): WorkflowContext =
     workflowContext(
       specId,

@@ -29,16 +29,10 @@ import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, Operat
 /**
   * Shared base for the Loop Start / Loop End operator descriptors. Both are
   * single-worker, non-parallelizable CONTROL operators that code-gen a Python
-  * class from user expressions. The loop's outer boundary is pinned by two
-  * materialized links: the link INTO Loop Start (the loop back-edge writes
-  * the next iteration's state into its storage; forced by the scheduler via
-  * PhysicalOp.isLoopStart) and the link OUT OF Loop End (a blocking output
-  * port: downstream may only read the accumulated result after the loop
-  * completes). Everything between them -- Loop Start, the body, and Loop End
-  * -- may be scheduled as ordinary, possibly pipelined, regions that are
-  * re-executed per iteration. Subclasses supply the operator
-  * name/description, the generated Python body, and -- for Loop End --
-  * whether output storage is reused across region re-executions.
+  * class from user expressions and require MATERIALIZED execution (the loop
+  * back-edge is a cross-region materialized state channel). Subclasses supply
+  * the operator name/description, the generated Python body, and -- for Loop
+  * End -- whether output storage is reused across region re-executions.
   */
 abstract class LoopOpDesc extends LogicalOp {
 
@@ -64,11 +58,9 @@ abstract class LoopOpDesc extends LogicalOp {
   protected def reuseStorage: Boolean = false
 
   /**
-    * Loop End's output port is blocking: its accumulated result is complete
-    * only once the loop has finished, so downstream operators must not
-    * consume it earlier. The scheduler therefore always materializes the
-    * link out of Loop End, making it the loop's downstream boundary. Loop
-    * Start's output is NOT blocking -- it may pipeline into the body.
+    * Loop End's output is complete only when the loop finishes, so its output
+    * port is blocking (the link out of it is always materialized); Loop
+    * Start's output may pipeline into the body.
     */
   protected def outputBlocking: Boolean = false
 
@@ -107,9 +99,8 @@ abstract class LoopOpDesc extends LogicalOp {
       OperatorGroupConstants.CONTROL_GROUP,
       inputPorts = List(InputPort()),
       // Loop End reuses its output storage across region re-executions (it
-      // accumulates across the iterations of its own loop) and declares its
-      // output blocking; both flags are declared on the output port and the
-      // scheduler reads them there.
+      // accumulates across the iterations of its own loop); the flag is
+      // declared on the output port and the region scheduler reads it there.
       outputPorts = List(OutputPort(blocking = outputBlocking, reuseStorage = reuseStorage))
     )
 }

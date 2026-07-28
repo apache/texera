@@ -268,19 +268,13 @@ case class PhysicalPlan(
   }
 
   /**
-    * Links that any schedule must materialize, no matter what the cost-based
-    * search decides: the blocking and dependee links, plus every link INTO a
-    * Loop Start operator. The loop back-edge writes the next iteration's
-    * state into that link's storage (the loop-back write address resolved by
-    * `WorkflowExecutionManager.loopStartStateUris`), so the link must exist
-    * as a materialized channel. A loop's downstream boundary needs no special
-    * case here: Loop End declares its output port blocking, which the first
-    * clause already covers.
+    * Links that any schedule must materialize: the blocking and dependee
+    * links, plus every link into a Loop Start operator (the loop back-edge
+    * writes the next iteration's state into that link's storage).
     */
   @JsonIgnore
   def getForcedMaterializedLinks: Set[PhysicalLink] = {
-    val loopStartInputLinks = links.filter(link => getOperator(link.toOpId).isLoopStart)
-    getBlockingAndDependeeLinks ++ loopStartInputLinks
+    getBlockingAndDependeeLinks ++ links.filter(link => getOperator(link.toOpId).isLoopStart)
   }
 
   @JsonIgnore
@@ -313,9 +307,7 @@ case class PhysicalPlan(
     * Assuming pipelining a link is more desirable than materializing it, and optimal physical plan always pipelines
     * a bridge. We can thus use bridges to optimize the process of searching for an optimal physical plan.
     *
-    * @return All links that are neither bridges nor forced materialized
-    *         (blocking, dependee, or incident to a materialized-boundary
-    *         operator) -- i.e. the candidate links for the cost-based search.
+    * @return All non-blocking links that are not bridges.
     */
   @JsonIgnore
   def getNonBridgeNonBlockingLinks: Set[PhysicalLink] = {
