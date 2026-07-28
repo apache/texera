@@ -23,6 +23,7 @@ on:
 
 permissions:
   actions: read
+  checks: read
   contents: write
   issues: write
   pull-requests: write
@@ -147,33 +148,53 @@ jobs:
               return null;
             }
 
-            // Collect every job across the PR head's Required Checks runs so
-            // both the pre-flight apply-check and the full backport build can
-            // be inspected per target.
+            // Collect the backport build legs for the PR head. They run in
+            // Backport Checks now; during rollout, older PRs still have their
+            // legs (and the old apply-check job) in Required Checks, so gather
+            // jobs from both workflows.
             async function jobsForPr(pullRequest) {
-              const buildRuns = await github.paginate(
-                github.rest.actions.listWorkflowRuns,
-                {
-                  owner,
-                  repo,
-                  workflow_id: "required-checks.yml",
-                  head_sha: pullRequest.head.sha,
-                  per_page: 100,
-                }
-              );
-              if (buildRuns.length === 0) {
-                core.warning(`No Required Checks runs found for ${pullRequest.head.sha}.`);
-                return [];
-              }
+              const workflowFiles = ["backport-checks.yml", "required-checks.yml"];
               const allJobs = [];
-              for (const run of buildRuns) {
-                const jobs = await github.paginate(
-                  github.rest.actions.listJobsForWorkflowRun,
-                  { owner, repo, run_id: run.id, per_page: 100 }
-                );
-                allJobs.push(...jobs);
+              for (const wf of workflowFiles) {
+                let runs = [];
+                try {
+                  runs = await github.paginate(github.rest.actions.listWorkflowRuns, {
+                    owner,
+                    repo,
+                    workflow_id: wf,
+                    head_sha: pullRequest.head.sha,
+                    per_page: 100,
+                  });
+                } catch (e) {
+                  core.info(`No ${wf} runs for ${pullRequest.head.sha} (${e.status ?? "?"}).`);
+                  continue;
+                }
+                for (const run of runs) {
+                  const jobs = await github.paginate(
+                    github.rest.actions.listJobsForWorkflowRun,
+                    { owner, repo, run_id: run.id, per_page: 100 }
+                  );
+                  allJobs.push(...jobs);
+                }
               }
               return allJobs;
+            }
+
+            // The apply-check outcome is now a published check run,
+            // `backport-preflight (<target>)`: success = clean, neutral =
+            // conflict. Read the PR head's check runs to find them.
+            async function checkRunsForPr(pullRequest) {
+              try {
+                return await github.paginate(github.rest.checks.listForRef, {
+                  owner,
+                  repo,
+                  ref: pullRequest.head.sha,
+                  per_page: 100,
+                });
+              } catch (e) {
+                core.warning(`listForRef ${pullRequest.head.sha} failed: ${e.message}`);
+                return [];
+              }
             }
 
             const isDone = (job) => job.status === "completed";
@@ -193,10 +214,17 @@ jobs:
             //          job could push a conflict or open a spurious PR, so we
             //          leave it (the scheduled reconciliation, if any, or a
             //          re-push will pick it up once checks are done).
-            function classifyTargets(allJobs, requestedTargets) {
+            function classifyTargets(allJobs, checkRuns, requestedTargets) {
               const push = [];
               const pr = [];
               for (const target of requestedTargets) {
+                // Preferred apply signal: the published preflight check
+                // (success = clean, neutral = conflict).
+                const applyCheck = checkRuns.find(
+                  (c) => c.name === `backport-preflight (${target})`
+                );
+                // Rollout fallback: PRs whose last run predates the split still
+                // expose the old red/green apply-check job in Required Checks.
                 const applyJob = allJobs.find(
                   (job) => job.name === `backport-apply-check (${target})`
                 );
@@ -204,7 +232,16 @@ jobs:
                   job.name.startsWith(`backport (${target}) / `)
                 );
 
-                if (applyJob && isDone(applyJob) && !isGreen(applyJob)) {
+                // Resolve the apply signal into clean | conflict | unknown.
+                let apply = "unknown";
+                if (applyCheck && applyCheck.status === "completed") {
+                  if (applyCheck.conclusion === "success") apply = "clean";
+                  else if (applyCheck.conclusion === "neutral") apply = "conflict";
+                } else if (applyJob && isDone(applyJob)) {
+                  apply = isGreen(applyJob) ? "clean" : "conflict";
+                }
+
+                if (apply === "conflict") {
                   pr.push(target); // cherry-pick conflicts
                   continue;
                 }
@@ -213,12 +250,11 @@ jobs:
                   continue;
                 }
 
-                const applyOk = applyJob && isDone(applyJob) && isGreen(applyJob);
                 const anyBuildDone = buildJobs.some(isDone);
-                // Normal path: apply-check finished green. The `!applyJob`
-                // clause keeps older runs (before apply-check existed) working
-                // off the build legs alone during rollout.
-                if (applyOk || (!applyJob && anyBuildDone)) {
+                // Normal path: apply finished clean. The `unknown` + build-legs
+                // clause keeps older runs (before the apply signal existed)
+                // working off the build legs alone during rollout.
+                if (apply === "clean" || (apply === "unknown" && anyBuildDone)) {
                   push.push(target);
                 } else {
                   core.warning(`PR: no completed backport signal for ${target}; skipping.`);
@@ -272,7 +308,8 @@ jobs:
               }
 
               const allJobs = await jobsForPr(pullRequest);
-              const { push, pr } = classifyTargets(allJobs, requestedTargets);
+              const checkRuns = await checkRunsForPr(pullRequest);
+              const { push, pr } = classifyTargets(allJobs, checkRuns, requestedTargets);
               core.info(
                 `PR #${pullRequest.number}: push=[${push.join(", ")}] pr=[${pr.join(", ")}]`
               );
@@ -788,7 +825,12 @@ jobs:
           SUBJECT: ${{ steps.branch.outputs.subject }}
           FEATURE_ABSENT: ${{ steps.branch.outputs.feature_absent }}
         with:
-          github-token: ${{ secrets.AUTO_MERGE_TOKEN || secrets.GITHUB_TOKEN }}
+          # Open the draft as github-actions[bot], not the PAT owner, by using
+          # the default GITHUB_TOKEN. Trade-off: a GITHUB_TOKEN-opened PR does
+          # not trigger pull_request CI — acceptable because this is a draft for
+          # manual conflict/build resolution, so CI fires once the human pushes
+          # their fix to the branch.
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const {
               MERGE_SHA, TARGET_BRANCH, PR_NUMBER, MANAGER,
@@ -834,8 +876,12 @@ jobs:
             // the backport PR reads e.g. `fix(amber, v1.2): ...`. Falls back to
             // suffixing the version if the subject is not conventional.
             function backportTitle(subject, version) {
-              const m = subject.match(/^(\w+)(?:\(([^)]*)\))?(!)?:\s*(.*)$/);
-              if (!m) return `${subject} (${version})`;
+              // Drop the trailing "(#N)" GitHub appends to the squash subject
+              // so the backport title does not render as a link back to the
+              // original PR.
+              const clean = subject.replace(/\s*\(#\d+\)\s*$/, "");
+              const m = clean.match(/^(\w+)(?:\(([^)]*)\))?(!)?:\s*(.*)$/);
+              if (!m) return `${clean} (${version})`;
               const [, type, scope, bang, rest] = m;
               const newScope = scope ? `${scope}, ${version}` : version;
               return `${type}(${newScope})${bang || ""}: ${rest}`;
@@ -855,17 +901,72 @@ jobs:
               const conflictList = CONFLICT_FILES.trim()
                 ? CONFLICT_FILES.trim().split(/\s+/).map((f) => `- \`${f}\``).join("\n")
                 : "";
+              const statusLine = hadConflict
+                ? `The cherry-pick **conflicted** and was committed with conflict markers. ` +
+                  `Resolve the conflicts on this branch, then mark this PR ready for review.`
+                : `The cherry-pick applied cleanly but the backported tree failed its ` +
+                  `pre-merge build. Fix the build on this branch, then mark this PR ready for review.`;
+
+              // Carry the original PR's linked issues (its GitHub-linked
+              // closing references) and any discussion / mailing-list links
+              // into the backport so the release-branch reviewer has the same
+              // context. Plain `#N` mentions, never `Closes` — the backport
+              // must not re-close an issue the original PR already resolved.
+              let relatedSection = `Backport of #${prNumber}.`;
+              try {
+                const linked = await github.graphql(
+                  `query ($owner: String!, $repo: String!, $num: Int!) {
+                    repository(owner: $owner, name: $repo) {
+                      pullRequest(number: $num) {
+                        body
+                        closingIssuesReferences(first: 20) { nodes { number } }
+                      }
+                    }
+                  }`,
+                  { owner, repo, num: prNumber }
+                );
+                const original = linked.repository.pullRequest;
+                const issues = (original.closingIssuesReferences?.nodes || []).map(
+                  (n) => n.number
+                );
+                const discussions = [
+                  ...(original.body || "").matchAll(
+                    /https:\/\/(?:github\.com\/[^\s)]+\/discussions\/\d+|lists\.apache\.org\/[^\s)]+)/g
+                  ),
+                ].map((m) => m[0]);
+                const parts = [`Backport of #${prNumber}.`];
+                if (issues.length) {
+                  parts.push(`Originally linked ${issues.map((n) => `#${n}`).join(", ")}.`);
+                }
+                parts.push(...discussions);
+                relatedSection = parts.join(" ");
+              } catch (e) {
+                core.warning(`Could not read linked issues from #${prNumber}: ${e.message}`);
+              }
+
               const body = [
+                `### What changes were proposed in this PR?`,
+                ``,
                 `Automated backport of #${prNumber} to \`${TARGET_BRANCH}\`.`,
                 ``,
-                hadConflict
-                  ? `⚠️ The cherry-pick **conflicted** and was committed with conflict markers. ` +
-                    `Resolve the conflicts on this branch, then mark the PR ready for review.`
-                  : `The cherry-pick applied cleanly but the backported tree failed its ` +
-                    `pre-merge build. Fix the build on this branch, then mark the PR ready for review.`,
+                statusLine,
                 conflictList ? `\n**Conflicting files:**\n${conflictList}` : ``,
                 ``,
                 `Source: ${MERGE_SHA} · [automation run](${runUrl})`,
+                ``,
+                `### Any related issues, documentation, discussions?`,
+                ``,
+                relatedSection,
+                ``,
+                `### How was this PR tested?`,
+                ``,
+                `Release-branch CI runs on this branch once the ` +
+                  `${hadConflict ? "conflicts are resolved" : "build is fixed"} and ` +
+                  `this PR is marked ready for review.`,
+                ``,
+                `### Was this PR authored or co-authored using generative AI tooling?`,
+                ``,
+                `No.`,
               ].join("\n");
 
               pr = (await github.rest.pulls.create({
