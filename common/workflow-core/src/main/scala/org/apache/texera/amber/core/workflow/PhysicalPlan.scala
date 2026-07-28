@@ -260,21 +260,14 @@ case class PhysicalPlan(
                 .filter(link =>
                   getOperator(physicalOp.id).isInputLinkDependee(
                     link
-                  ) || getOperator(upstreamPhysicalOpId).isOutputLinkBlocking(link)
+                  ) || getOperator(upstreamPhysicalOpId).isOutputLinkBlocking(link) ||
+                    // the link into a Loop Start must be materialized: its
+                    // storage is the loop-back state write target
+                    getOperator(physicalOp.id).isLoopStart
                 )
             }
         }
       }
-  }
-
-  /**
-    * Links that any schedule must materialize: the blocking and dependee
-    * links, plus every link into a Loop Start operator (the loop back-edge
-    * writes the next iteration's state into that link's storage).
-    */
-  @JsonIgnore
-  def getForcedMaterializedLinks: Set[PhysicalLink] = {
-    getBlockingAndDependeeLinks ++ links.filter(link => getOperator(link.toOpId).isLoopStart)
   }
 
   @JsonIgnore
@@ -321,7 +314,7 @@ case class PhysicalPlan(
           }
         }
         .flatMap(_.toList)
-    this.links.diff(getForcedMaterializedLinks).diff(bridges.toSet)
+    this.links.diff(getBlockingAndDependeeLinks).diff(bridges.toSet)
   }
 
   /**
