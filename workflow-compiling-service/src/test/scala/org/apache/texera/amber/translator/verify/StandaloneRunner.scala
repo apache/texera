@@ -247,6 +247,10 @@ object StandaloneRunner extends LazyLogging {
           sb.append(s"if ${py(col)} in in${n}df.columns:\n")
           sb.append(s"    in${n}df[${py(col)}] = pd.to_datetime(in${n}df[${py(col)}])\n")
         }
+        doubleColumns(path).foreach { col =>
+          sb.append(s"if ${py(col)} in in${n}df.columns:\n")
+          sb.append(s"    in${n}df[${py(col)}] = in${n}df[${py(col)}].astype('float64')\n")
+        }
     }
     sb.append("\n")
 
@@ -274,12 +278,23 @@ object StandaloneRunner extends LazyLogging {
   // A missing or unreadable sidecar means no casts — the prologue then behaves
   // exactly as before.
   private def timestampColumns(input: Path): Seq[String] =
+    columnsOfType(input, AttributeType.TIMESTAMP)
+
+  // DOUBLE-typed column names. pd.read_json narrows a float column whose values
+  // are all integral to int64, while the runtime path keeps the schema's DOUBLE,
+  // so a column like 7.0 stringifies as "7" on one side and "7.0" on the other —
+  // invisible to numeric comparison, visible the moment an operator uses the
+  // column as a label (a trace name, a legend entry, hover text).
+  private def doubleColumns(input: Path): Seq[String] =
+    columnsOfType(input, AttributeType.DOUBLE)
+
+  private def columnsOfType(input: Path, attributeType: AttributeType): Seq[String] =
     scala.util
       .Try(TupleIO.readSchemaSidecar(input))
       .toOption
       .toSeq
       .flatMap(
-        _.getAttributes.filter(_.getType == AttributeType.TIMESTAMP).map(_.getName)
+        _.getAttributes.filter(_.getType == attributeType).map(_.getName)
       )
 
   // Python string literal, single-quoted with backslashes escaped. We
