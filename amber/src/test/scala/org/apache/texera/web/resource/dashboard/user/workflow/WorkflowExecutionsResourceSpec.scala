@@ -640,6 +640,21 @@ class WorkflowExecutionsResourceSpec
     assert(row.getRuntimeStatsSize == null)
   }
 
+  it should "open the stored document for measuring when a runtime stats URI is present" in {
+    // A URI is present, so the method must reach the document-open call. No
+    // document backend exists in this unit environment, so the open fails on
+    // the unsupported scheme — proving the branch executed and that the
+    // failure propagates instead of degrading into a silent no-op.
+    val execution = insertExecution(runtimeStatsUri = "mock:///runtime-stats")
+
+    val ex = intercept[UnsupportedOperationException] {
+      WorkflowExecutionsResource.updateRuntimeStatsSize(
+        ExecutionIdentity(execution.getEid.longValue())
+      )
+    }
+    assert(ex.getMessage.contains("mock"))
+  }
+
   "updateConsoleMessageSize" should "store a >2GiB size on the matching (eid, opId) row" in {
     val execution = insertExecution()
     val eid = ExecutionIdentity(execution.getEid.longValue())
@@ -676,6 +691,26 @@ class WorkflowExecutionsResourceSpec
       .and(OPERATOR_EXECUTIONS.OPERATOR_ID.eq(opId.id))
       .fetchOne()
     assert(row == null)
+  }
+
+  it should "open the stored document for measuring when a console messages URI is present" in {
+    // Same shape as the runtime-stats case above: the stored URI forces the
+    // document-open call, whose unsupported-scheme failure propagates.
+    val execution = insertExecution()
+    val opId = OperatorIdentity("op-console-uri")
+    WorkflowExecutionsResource.insertOperatorExecutions(
+      execution.getEid.longValue(),
+      opId.id,
+      URI.create("mock:///console")
+    )
+
+    val ex = intercept[UnsupportedOperationException] {
+      WorkflowExecutionsResource.updateConsoleMessageSize(
+        ExecutionIdentity(execution.getEid.longValue()),
+        opId
+      )
+    }
+    assert(ex.getMessage.contains("mock"))
   }
 
   // ─── new: getResultUriByLogicalPortId ─────────────────────────────────────
