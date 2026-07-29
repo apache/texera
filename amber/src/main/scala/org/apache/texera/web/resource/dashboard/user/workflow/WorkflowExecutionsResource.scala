@@ -678,10 +678,14 @@ class WorkflowExecutionsResource {
   @GET
   @Produces(Array(MediaType.APPLICATION_JSON))
   @Path("/{wid}/stats/{eid}")
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def retrieveWorkflowRuntimeStatistics(
       @PathParam("wid") wid: Integer,
-      @PathParam("eid") eid: Integer
+      @PathParam("eid") eid: Integer,
+      @Auth sessionUser: SessionUser
   ): List[WorkflowRuntimeStatistics] = {
+    validateUserCanAccessWorkflow(sessionUser.getUser.getUid, wid)
+
     // Create URI for runtime statistics
     val uriString: String = context
       .select(WORKFLOW_EXECUTIONS.RUNTIME_STATS_URI)
