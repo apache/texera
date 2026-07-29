@@ -444,8 +444,11 @@ class MainLoop(StoppableQueueBlockingRunnable):
         ecm = ecm_element.payload
         command = ecm.command_mapping.get(self.context.worker_id)
         channel_id = self.context.current_input_channel_id
-        logger.info(
-            f"receive channel ECM from {channel_id}, id = {ecm.id}, cmd = {command}"
+        logger.debug(
+            "receive channel ECM from {}, id = {}, cmd = {}",
+            channel_id,
+            ecm.id,
+            command,
         )
         if ecm.ecm_type != EmbeddedControlMessageType.NO_ALIGNMENT:
             self.context.pause_manager.pause_input_channel(
@@ -453,8 +456,11 @@ class MainLoop(StoppableQueueBlockingRunnable):
             )
 
         if self.context.ecm_manager.is_ecm_aligned(channel_id, ecm):
-            logger.info(
-                f"process channel ECM from {channel_id}, id = {ecm.id}, cmd = {command}"
+            logger.debug(
+                "process channel ECM from {}, id = {}, cmd = {}",
+                channel_id,
+                ecm.id,
+                command,
             )
 
             if command is not None:
@@ -470,9 +476,11 @@ class MainLoop(StoppableQueueBlockingRunnable):
                     active_channel_id
                 ) in self.context.output_manager.get_output_channel_ids():
                     if active_channel_id in downstream_channels_in_scope:
-                        logger.info(
-                            f"send ECM to {active_channel_id},"
-                            f" id = {ecm.id}, cmd = {command}"
+                        logger.debug(
+                            "send ECM to {}, id = {}, cmd = {}",
+                            active_channel_id,
+                            ecm.id,
+                            command,
                         )
                         self._send_ecm_to_channel(active_channel_id, ecm)
 
