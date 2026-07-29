@@ -409,13 +409,25 @@ const recommendRouter = new Elysia({ prefix: "/recommend" })
     set.status = 500;
     return { error: errorMessage || "Internal server error" };
   })
-  .post("/", ({ body }) => recommendOperators(body as RecommendationRequest, WorkflowSystemMetadata.getInstance()), {
-    body: t.Object({
-      operatorType: t.String({ minLength: 1 }),
-      existingOperatorTypes: t.Optional(t.Array(t.String())),
-      limit: t.Optional(t.Number()),
-    }),
-  });
+  .post(
+     "/",
+     ({ body, set }) => {
+       const req = body as RecommendationRequest;
+       const operatorType = req.operatorType.trim();
+       if (!operatorType) {
+         set.status = 400;
+         return { error: "operatorType must be a non-empty string" };
+       }
+       return recommendOperators({ ...req, operatorType }, WorkflowSystemMetadata.getInstance());
+     },
+     {
+       body: t.Object({
+         operatorType: t.String({ minLength: 1 }),
+         existingOperatorTypes: t.Optional(t.Array(t.String())),
+         limit: t.Optional(t.Number()),
+       }),
+     }
+   );
 
 function getOperatorResultSummaries(agent: TexeraAgent): Record<string, OperatorResultSummary> {
   const resultState = agent.getWorkflowResultState();

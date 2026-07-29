@@ -64,7 +64,7 @@ export interface RecommendationRequest {
 }
 
 export interface OperatorRecommendation {
-  /** Recommended operator type; always a real, catalog-known type. */
+  /** Recommended operator type (validated against the live catalog when available). */
   operatorType: string;
   /** Confidence in `[0, 1]`, monotonically non-increasing down the list. */
   score: number;

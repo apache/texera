@@ -67,6 +67,11 @@ describe("POST /recommend", () => {
     expect(res.status).toBe(400);
   });
 
+  test("rejects a whitespace-only operatorType as 400", async () => {
+     const res = await postRecommend({ operatorType: "   " });
+     expect(res.status).toBe(400);
+   });
+
   test("rejects malformed JSON as 400", async () => {
     const res = await app.handle(
       new Request(`http://localhost${API}/recommend`, {
