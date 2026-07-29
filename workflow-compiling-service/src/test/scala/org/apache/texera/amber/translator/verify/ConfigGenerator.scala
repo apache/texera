@@ -115,9 +115,27 @@ object ConfigGenerator {
     typeNameByClass.get(opClass) match {
       case None => Left(s"${opClass.getSimpleName} not registered in LogicalOp @JsonSubTypes")
       case Some(typeName) =>
-        buildObject(opClass, inputSchemas, rowCount).flatMap { baseNode =>
+        val used = mutable.Set.empty[(Int, String)]
+        buildObject(opClass, inputSchemas, used, rowCount).flatMap { baseNode =>
           baseNode.put("operatorType", typeName)
-          deserialize(baseNode, opClass).flatMap(baseOp => sweepVariants(opClass, baseNode, baseOp))
+          deserialize(baseNode, opClass).flatMap { baseOp =>
+            sweepVariants(opClass, baseNode, baseOp).flatMap { enumVariants =>
+              val optional = optionalColumnFills(opClass, inputSchemas, used).map {
+                case (jsonName, value) =>
+                  val clone = baseNode.deepCopy()
+                  clone.set[JsonNode](jsonName, value)
+                  val shown = value match {
+                    case a: ArrayNode if a.size() > 0 => a.get(0).asText
+                    case v                            => v.asText
+                  }
+                  deserialize(clone, opClass).map(op => (s"$jsonName=$shown", op))
+              }
+              optional.collectFirst { case Left(err) => err } match {
+                case Some(err) => Left(err)
+                case None      => Right(enumVariants ++ optional.collect { case Right(ok) => ok })
+              }
+            }
+          }
         }
     }
 
@@ -139,6 +157,40 @@ object ConfigGenerator {
         sweepVariants(opClass, node, opDesc)
       case _ =>
         Left(s"${opClass.getSimpleName} did not serialize to a JSON object")
+    }
+  }
+
+  /** One extra variant per OPTIONAL column knob, which [[decide]] leaves unset.
+    * Unset is the right base config — it is what most workflows carry — but it
+    * also means the branch each generator emits for a knob that IS set never runs
+    * on either path, so the two hand-written branches are never compared.
+    *
+    * Resolved AFTER the base pass from a copy of its `used` set, so the base
+    * config (and every existing test's input) is unchanged. A list knob takes a
+    * SINGLE column: the "every matching column" fill suits a required axes list,
+    * not an optional narrowing one — all thirty columns as group-by keys would
+    * make every row its own group.
+    */
+  private def optionalColumnFills(
+      clazz: Class[_],
+      schemas: Map[Int, Schema],
+      usedByBase: mutable.Set[(Int, String)]
+  ): Seq[(String, JsonNode)] = {
+    val used = mutable.Set.empty[(Int, String)] ++ usedByBase
+    configFields(clazz).flatMap { f =>
+      val jp = Option(f.getAnnotation(classOf[JsonProperty]))
+      if (!hasAutofill(f) || jp.exists(_.required)) None
+      else {
+        val jsonName = jp.map(_.value).filter(_.nonEmpty).getOrElse(f.getName)
+        val port = if (f.isAnnotationPresent(classOf[AutofillAttributeNameOnPort1])) 1 else 0
+        resolveColumn(f, schemas, port, used).toOption.map { col =>
+          val value: JsonNode =
+            if (f.isAnnotationPresent(classOf[AutofillAttributeNameList]))
+              objectMapper.createArrayNode().add(col)
+            else objectMapper.getNodeFactory.textNode(col)
+          (jsonName, value)
+        }
+      }
     }
   }
 
