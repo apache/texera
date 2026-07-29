@@ -22,7 +22,10 @@ package org.apache.texera.amber.operator.visualization.lineChart
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
-import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
+  PythonTemplateBuilderStringContext,
+  pyStringLiteral
+}
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
@@ -134,17 +137,21 @@ class LineChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenera
   override def generateStandaloneCode(): String = {
     val traces = lines.asScala
       .map { lineConf =>
+        // Values typed into the UI become escaped Python literals: the runtime
+        // path splices them as decode expressions, which a standalone script has
+        // no decoder for, and hand-written quotes break on a value containing one.
+        val colorLit = pyStringLiteral(lineConf.color)
         val colorPart =
           if (lineConf.color != "")
-            s"""line={'color':"${lineConf.color}"}, marker={'color':"${lineConf.color}"}, """
+            s"""line={'color':$colorLit}, marker={'color':$colorLit}, """
           else ""
         val namePart =
-          if (lineConf.name != "") s"""name="${lineConf.name}""""
-          else s"""name="${lineConf.yValue}""""
+          if (lineConf.name != "") s"""name=${pyStringLiteral(lineConf.name)}"""
+          else s"""name=${pyStringLiteral(lineConf.yValue)}"""
 
         s"""fig.add_trace(go.Scatter(
-           |    x=in1df["${lineConf.xValue}"],
-           |    y=in1df["${lineConf.yValue}"],
+           |    x=in1df[${pyStringLiteral(lineConf.xValue)}],
+           |    y=in1df[${pyStringLiteral(lineConf.yValue)}],
            |    mode='${lineConf.mode.getModeInPlotly}',
            |    $colorPart
            |    $namePart
@@ -168,8 +175,8 @@ class LineChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenera
        |    fig = go.Figure()
        |$traces
        |    fig.update_layout(margin=dict(t=0, b=0, l=0, r=0),
-       |                      xaxis_title="$xLabel",
-       |                      yaxis_title="$yLabel")
+       |                      xaxis_title=${pyStringLiteral(xLabel)},
+       |                      yaxis_title=${pyStringLiteral(yLabel)})
        |    fig.write_json("output.json")
        |    fig.write_html("output.html")
        |    print("Line chart saved to output.json and output.html")""".stripMargin

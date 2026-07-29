@@ -22,7 +22,10 @@ package org.apache.texera.amber.operator.visualization.dumbbellPlot
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
-import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
+  PythonTemplateBuilderStringContext,
+  pyStringLiteral
+}
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
@@ -196,11 +199,15 @@ class DumbbellPlotOpDesc extends PythonOperatorDescriptor with StandaloneCodeGen
   override def producesDataFrame(): Boolean = false
 
   override def generateStandaloneCode(): String = {
+    // Typed-in values and column names become escaped Python literals; the runtime
+    // path splices them as decode expressions, which a standalone script cannot use.
+    val comparedLit = pyStringLiteral(comparedColumnName)
+    val measurementLit = pyStringLiteral(measurementColumnName)
     val showLegendsOption = if (showLegends) "showlegend=True" else "showlegend=False"
     // Python list literal of dot column names, matching addPlotlyDots().
     val dotColumnNames =
       if (dots != null && dots.size() != 0)
-        dots.asScala.map(dot => s""""${dot.dotValue}"""").mkString(", ")
+        dots.asScala.map(dot => pyStringLiteral(dot.dotValue)).mkString(", ")
       else ""
     s"""import plotly.graph_objects as go
        |
@@ -214,29 +221,31 @@ class DumbbellPlotOpDesc extends PythonOperatorDescriptor with StandaloneCodeGen
        |        output.write(render_error("input table is empty."))
        |else:
        |    table = in1df
-       |    entityNames = list(table["$comparedColumnName"].unique())
+       |    entityNames = list(table[$comparedLit].unique())
        |    entityNames = sorted(entityNames, reverse=True)
-       |    categoryValues = ["$dumbbellStartValue", "$dumbbellEndValue"]
-       |    filtered_table = table[(table["$comparedColumnName"].isin(entityNames)) &
-       |                (table["$categoryColumnName"].isin(categoryValues))]
+       |    categoryValues = [${pyStringLiteral(dumbbellStartValue)}, ${pyStringLiteral(
+      dumbbellEndValue
+    )}]
+       |    filtered_table = table[(table[$comparedLit].isin(entityNames)) &
+       |                (table[${pyStringLiteral(categoryColumnName)}].isin(categoryValues))]
        |    fig = go.Figure()
        |    color = 'black'
        |    for entity in entityNames:
-       |        entity_data = filtered_table[filtered_table["$comparedColumnName"] == entity]
-       |        fig.add_trace(go.Scatter(x=entity_data["$measurementColumnName"],
+       |        entity_data = filtered_table[filtered_table[$comparedLit] == entity]
+       |        fig.add_trace(go.Scatter(x=entity_data[$measurementLit],
        |                                 y=[entity] * len(entity_data),
        |                                 mode='lines',
        |                                 name=entity,
        |                                 line=dict(color=color)))
-       |    fig.update_layout(xaxis_title="$measurementColumnName",
-       |                      yaxis_title="$comparedColumnName",
+       |    fig.update_layout(xaxis_title=$measurementLit,
+       |                      yaxis_title=$comparedLit,
        |                      yaxis=dict(categoryorder='array', categoryarray=entityNames),
        |                      $showLegendsOption,
        |                      margin=dict(l=0, r=0, b=60, t=0))
        |    dotColumnNames = [$dotColumnNames]
        |    for dotColumn in dotColumnNames:
        |        for entity in entityNames:
-       |            entity_dot_data = filtered_table[filtered_table["$comparedColumnName"] == entity]
+       |            entity_dot_data = filtered_table[filtered_table[$comparedLit] == entity]
        |            x_values = entity_dot_data[dotColumn].values
        |            y_values = [entity] * len(x_values)
        |            fig.add_trace(go.Scatter(x=x_values, y=y_values,

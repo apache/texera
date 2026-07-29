@@ -22,7 +22,10 @@ package org.apache.texera.amber.operator.visualization.continuousErrorBands
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
-import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
+  PythonTemplateBuilderStringContext,
+  pyStringLiteral
+}
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
@@ -160,40 +163,48 @@ class ContinuousErrorBandsOpDesc extends PythonOperatorDescriptor with Standalon
     val traces =
       bands.asScala
         .map { bandConf =>
+          // Values typed into the UI become escaped Python literals: the runtime
+          // path splices them as decode expressions, which a standalone script has
+          // no decoder for, and hand-written quotes break on a value containing one.
+          val colorLit = pyStringLiteral(bandConf.color)
           val colorPart =
             if (bandConf.color != "")
-              s"""line={'color': "${bandConf.color}"}, marker={'color': "${bandConf.color}"}, """
+              s"""line={'color': $colorLit}, marker={'color': $colorLit}, """
             else ""
           val fillColorPart =
-            if (bandConf.fillColor != "") s"""fillcolor="${bandConf.fillColor}", """ else ""
-          val name = if (bandConf.name != "") bandConf.name else bandConf.yValue
+            if (bandConf.fillColor != "")
+              s"""fillcolor=${pyStringLiteral(bandConf.fillColor)}, """
+            else ""
+          val nameLit =
+            pyStringLiteral(if (bandConf.name != "") bandConf.name else bandConf.yValue)
+          val xLit = pyStringLiteral(bandConf.xValue)
 
           s"""fig.add_trace(go.Scatter(
-             |    x=in1df["${bandConf.xValue}"],
-             |    y=in1df["${bandConf.yUpper}"],
+             |    x=in1df[$xLit],
+             |    y=in1df[${pyStringLiteral(bandConf.yUpper)}],
              |    mode='lines',
              |    marker=dict(color="#444"),
              |    line=dict(width=0),
              |    showlegend=False,
-             |    name="$name"
+             |    name=$nameLit
              |))
              |fig.add_trace(go.Scatter(
-             |    x=in1df["${bandConf.xValue}"],
-             |    y=in1df["${bandConf.yLower}"],
+             |    x=in1df[$xLit],
+             |    y=in1df[${pyStringLiteral(bandConf.yLower)}],
              |    mode='lines',
              |    marker=dict(color="#444"),
              |    line=dict(width=0),
              |    fill='tonexty',
              |    showlegend=False,
              |    $fillColorPart
-             |    name="$name"
+             |    name=$nameLit
              |))
              |fig.add_trace(go.Scatter(
-             |    x=in1df["${bandConf.xValue}"],
-             |    y=in1df["${bandConf.yValue}"],
+             |    x=in1df[$xLit],
+             |    y=in1df[${pyStringLiteral(bandConf.yValue)}],
              |    mode='${bandConf.mode.getModeInPlotly}',
              |    $colorPart
-             |    name="$name"
+             |    name=$nameLit
              |))""".stripMargin
         }
         .mkString("\n")
@@ -217,8 +228,8 @@ class ContinuousErrorBandsOpDesc extends PythonOperatorDescriptor with Standalon
        |    fig = go.Figure()
        |$indentedTraces
        |    fig.update_layout(margin=dict(t=0, b=0, l=0, r=0),
-       |                      xaxis_title="$xLabel",
-       |                      yaxis_title="$yLabel",
+       |                      xaxis_title=${pyStringLiteral(xLabel)},
+       |                      yaxis_title=${pyStringLiteral(yLabel)},
        |                      hovermode="x")
        |    fig.write_json("output.json")
        |    fig.write_html("output.html")

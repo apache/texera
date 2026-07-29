@@ -23,7 +23,10 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
-import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
+  PythonTemplateBuilderStringContext,
+  pyStringLiteral
+}
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
@@ -193,6 +196,15 @@ class GaugeChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeGener
 
   override def generateStandaloneCode(): String = {
     val stepsStr: EncodableString = serializeSteps(steps)
+    // The runtime path splices these as decode expressions, which the template
+    // macro refuses to place inside quotes. A standalone script has no decoder,
+    // so each value is emitted as a properly escaped Python literal instead —
+    // hand-written quotes would let a quote, backslash or newline in a typed-in
+    // value break the script the runtime path renders fine.
+    val valueLit = pyStringLiteral(value)
+    val deltaLit = pyStringLiteral(delta)
+    val thresholdLit = pyStringLiteral(threshold)
+    val stepsLit = pyStringLiteral(stepsStr)
     s"""import plotly.graph_objects as go
        |import plotly.io as pio
        |import json
@@ -212,13 +224,13 @@ class GaugeChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeGener
        |    with open("output.html", "w", encoding="utf-8") as output:
        |        output.write(render_error("Input table is empty."))
        |else:
-       |    gauge_value = "$value"
+       |    gauge_value = $valueLit
        |    try:
-       |        delta_ref = float("$delta") if "$delta".strip() else None
+       |        delta_ref = float($deltaLit) if $deltaLit.strip() else None
        |    except ValueError:
        |        delta_ref = None
        |    try:
-       |        threshold_val = float("$threshold") if "$threshold".strip() else None
+       |        threshold_val = float($thresholdLit) if $thresholdLit.strip() else None
        |    except ValueError:
        |        threshold_val = None
        |    table = in1df.dropna(subset=[gauge_value])
@@ -227,7 +239,7 @@ class GaugeChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeGener
        |            output.write(render_error("No non-null rows found for the value column."))
        |    else:
        |        try:
-       |            valid_steps = json.loads('''$stepsStr''')
+       |            valid_steps = json.loads($stepsLit)
        |            step_colors = generate_gray_gradient(len(valid_steps))
        |            steps_list = []
        |            for index, step_data in enumerate(valid_steps):

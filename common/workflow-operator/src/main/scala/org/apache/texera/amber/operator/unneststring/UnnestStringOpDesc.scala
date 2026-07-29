@@ -30,6 +30,7 @@ import org.apache.texera.amber.core.workflow.{
   SchemaPropagationFunc
 }
 import org.apache.texera.amber.operator.StandaloneCodeGenerator
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 import org.apache.texera.amber.operator.flatmap.FlatMapOpDesc
 import org.apache.texera.amber.operator.metadata.annotations.{AutofillAttributeName, SampleColumn}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
@@ -91,15 +92,14 @@ class UnnestStringOpDesc extends FlatMapOpDesc with StandaloneCodeGenerator {
     if (resultAttribute == null || resultAttribute.trim.isEmpty) {
       throw new RuntimeException("Result attribute cannot be empty")
     }
-    // The JVM op uses Scala's `delimiter.r.split(...)`, so delimiter is a regex.
-    // Escape backslashes and quotes to embed safely in a Python string literal.
-    val delim = Option(delimiter)
-      .getOrElse("")
-      .replace("\\", "\\\\")
-      .replace("\"", "\\\"")
+    // The JVM op uses Scala's `delimiter.r.split(...)`, so delimiter is a regex; it
+    // and the two column names are rendered as escaped Python literals.
+    val delim = pyStringLiteral(Option(delimiter).getOrElse(""))
+    val resultLit = pyStringLiteral(resultAttribute)
+    val attributeLit = pyStringLiteral(attribute)
     s"""out1df = in1df.copy()
-       |out1df["$resultAttribute"] = out1df["$attribute"].astype(str).str.split("$delim", regex=True)
-       |out1df = out1df.explode("$resultAttribute", ignore_index=True)
-       |out1df = out1df[(out1df["$resultAttribute"].notna()) & (out1df["$resultAttribute"] != "")].reset_index(drop=True)""".stripMargin
+       |out1df[$resultLit] = out1df[$attributeLit].astype(str).str.split($delim, regex=True)
+       |out1df = out1df.explode($resultLit, ignore_index=True)
+       |out1df = out1df[(out1df[$resultLit].notna()) & (out1df[$resultLit] != "")].reset_index(drop=True)""".stripMargin
   }
 }

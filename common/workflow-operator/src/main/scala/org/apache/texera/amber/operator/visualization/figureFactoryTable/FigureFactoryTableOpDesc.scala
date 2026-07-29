@@ -22,7 +22,10 @@ package org.apache.texera.amber.operator.visualization.figureFactoryTable
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
-import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
+  PythonTemplateBuilderStringContext,
+  pyStringLiteral
+}
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
@@ -142,7 +145,7 @@ class FigureFactoryTableOpDesc extends PythonOperatorDescriptor with StandaloneC
   override def producesDataFrame(): Boolean = false
 
   override def generateStandaloneCode(): String = {
-    val attributes = columns.map(c => s""""${c.attributeName}"""").mkString(", ")
+    val attributes = columns.map(c => pyStringLiteral(c.attributeName)).mkString(", ")
     s"""import plotly.figure_factory as ff
        |
        |def render_error(error_msg):
@@ -163,7 +166,9 @@ class FigureFactoryTableOpDesc extends PythonOperatorDescriptor with StandaloneC
        |        headers = filtered_table.columns.tolist()
        |        cell_values = [filtered_table[col].tolist() for col in headers]
        |        data = [headers] + list(map(list, zip(*cell_values)))
-       |        fig = ff.create_table(data, height_constant=$rowHeight, font_colors=["$fontColor"])
+       |        fig = ff.create_table(data, height_constant=$rowHeight, font_colors=[${pyStringLiteral(
+      fontColor
+    )}])
        |        for i in range(len(fig.layout.annotations)):
        |            fig.layout.annotations[i].font.size = $fontSize
        |        fig.update_layout(margin=dict(l=0, r=0, b=0, t=0))

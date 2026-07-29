@@ -28,7 +28,10 @@ import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeNa
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
-import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
+  PythonTemplateBuilderStringContext,
+  pyStringLiteral
+}
 
 import javax.validation.constraints.NotNull
 
@@ -191,20 +194,20 @@ class ECDFPlotOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerat
     val requiredColsLiteral = requiredCols.map(c => "\"" + c + "\"").mkString("[", ", ", "]")
     val args = scala.collection.mutable.ArrayBuffer[String](
       "table",
-      s"""x="$valueColumn""""
+      s"""x=${pyStringLiteral(valueColumn)}"""
     )
-    if (colorColumn.nonEmpty) args += s"""color="$colorColumn""""
-    if (separateBy.nonEmpty) args += s"""facet_col="$separateBy""""
+    if (colorColumn.nonEmpty) args += s"""color=${pyStringLiteral(colorColumn)}"""
+    if (separateBy.nonEmpty) args += s"""facet_col=${pyStringLiteral(separateBy)}"""
     yAxisMode match {
       case "count" => args += "ecdfnorm=None"
       case "sum"   => args += "ecdfnorm=None"
       case _       =>
     }
-    if (yAxisMode == "sum") args += s"""y="$valueColumn""""
-    if (cdfMode != "standard") args += s"""ecdfmode="$cdfMode""""
+    if (yAxisMode == "sum") args += s"""y=${pyStringLiteral(valueColumn)}"""
+    if (cdfMode != "standard") args += s"""ecdfmode=${pyStringLiteral(cdfMode)}"""
     if (orientation == "horizontal") args += "orientation='h'"
     if (showMarkers) args += "markers=True"
-    if (marginal != "none") args += s"""marginal="$marginal""""
+    if (marginal != "none") args += s"""marginal=${pyStringLiteral(marginal)}"""
 
     s"""def render_error(error_msg):
        |    return '''<h1>Empirical cumulative distribution plot is not available.</h1>
