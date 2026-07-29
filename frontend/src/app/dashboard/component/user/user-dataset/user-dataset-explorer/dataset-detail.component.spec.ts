@@ -18,7 +18,7 @@
  */
 
 import { ComponentFixture, TestBed } from "@angular/core/testing";
-import { ActivatedRoute } from "@angular/router";
+import { ActivatedRoute, Router } from "@angular/router";
 import { of, Subject, throwError } from "rxjs";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { MarkdownService } from "ngx-markdown";
@@ -38,6 +38,7 @@ import { Dataset, DatasetVersion } from "../../../../../common/type/dataset";
 import { DashboardDataset } from "../../../../type/dashboard-dataset.interface";
 import { HttpErrorResponse } from "@angular/common/http";
 import { format } from "date-fns";
+import { USER_DATASET } from "../../../../../app-routing.constant";
 
 describe("DatasetDetailComponent upload queue", () => {
   let fixture: ComponentFixture<DatasetDetailComponent>;
@@ -429,6 +430,8 @@ describe("DatasetDetailComponent behavior", () => {
       updateDatasetDownloadable: vi.fn(() => of({})),
       updateDatasetCoverImage: vi.fn(() => of({})),
       updateDatasetDescription: vi.fn(() => of({})),
+      updateDatasetName: vi.fn(() => of({})),
+      deleteDatasets: vi.fn(() => of({})),
       deleteDatasetFile: vi.fn(() => of({})),
       getDatasetDiff: vi.fn(() => of([])),
       multipartUpload: vi.fn(() => of()),
@@ -1006,6 +1009,174 @@ describe("DatasetDetailComponent behavior", () => {
       await component.copyCurrentFilePath();
 
       expect(notificationServiceStub.error).toHaveBeenCalledWith("Failed to copy file path");
+    });
+  });
+
+  describe("upload status, version-node selection, and trackBy", () => {
+    it("getUploadStatus maps the upload status to a progress state", () => {
+      expect(component.getUploadStatus("uploading")).toBe("active");
+      expect(component.getUploadStatus("initializing")).toBe("active");
+      expect(component.getUploadStatus("aborted")).toBe("exception");
+      expect(component.getUploadStatus("failed")).toBe("exception");
+      expect(component.getUploadStatus("finished")).toBe("success");
+    });
+
+    it("onVersionFileTreeNodeSelected loads the selected node's content", () => {
+      const node = { name: "file.csv", type: "file" } as unknown as Parameters<
+        typeof component.onVersionFileTreeNodeSelected
+      >[0];
+      const loadSpy = vi
+        .spyOn(component as unknown as { loadFileContent: (n: unknown) => void }, "loadFileContent")
+        .mockImplementation(() => {});
+
+      component.onVersionFileTreeNodeSelected(node);
+
+      expect(loadSpy).toHaveBeenCalledWith(node);
+    });
+
+    it("trackByTask returns the task's file path", () => {
+      const task = { filePath: "owner/data/file.csv" } as unknown as Parameters<typeof component.trackByTask>[1];
+      expect(component.trackByTask(0, task)).toBe("owner/data/file.csv");
+    });
+  });
+
+  describe("onSaveDatasetName", () => {
+    it("seeds editedDatasetName from the loaded dataset name", () => {
+      datasetServiceStub.getDataset.mockReturnValue(
+        of(makeDashboardDataset({ dataset: makeDataset({ name: "seed-name" }) }))
+      );
+      createComponent();
+      component.did = 5;
+      component.retrieveDatasetInfo();
+
+      expect(component.editedDatasetName).toBe("seed-name");
+    });
+
+    it("persists a valid name unchanged and toasts success", () => {
+      datasetServiceStub.updateDatasetName.mockReturnValue(of({}));
+      createComponent();
+      component.did = 5;
+      // Mixed case, hyphen and underscore are all valid: the name must be saved
+      // verbatim, not rewritten.
+      component.editedDatasetName = "My-Cool_Dataset";
+
+      component.onSaveDatasetName();
+
+      expect(datasetServiceStub.updateDatasetName).toHaveBeenCalledWith(5, "My-Cool_Dataset");
+      expect(component.datasetName).toBe("My-Cool_Dataset");
+      expect(component.editedDatasetName).toBe("My-Cool_Dataset");
+      expect(notificationServiceStub.success).toHaveBeenCalledWith("Dataset name updated to 'My-Cool_Dataset'");
+    });
+
+    it("rejects an invalid name with a validation error and does not call the rename API", () => {
+      createComponent();
+      component.did = 5;
+      component.datasetName = "original";
+      component.editedDatasetName = "My Cool Dataset"; // spaces are not allowed
+
+      component.onSaveDatasetName();
+
+      expect(datasetServiceStub.updateDatasetName).not.toHaveBeenCalled();
+      expect(component.datasetName).toBe("original");
+      expect(notificationServiceStub.error).toHaveBeenCalledWith(
+        "Invalid dataset name: only letters, numbers, underscores, and hyphens are allowed (max 128 characters)"
+      );
+    });
+
+    it("toasts an error and leaves the name unchanged when the rename fails", () => {
+      datasetServiceStub.updateDatasetName.mockReturnValue(throwError(() => new Error("boom")));
+      createComponent();
+      component.did = 5;
+      component.datasetName = "original";
+      component.editedDatasetName = "new-name";
+
+      component.onSaveDatasetName();
+
+      expect(component.datasetName).toBe("original");
+      expect(notificationServiceStub.error).toHaveBeenCalledWith("boom");
+    });
+
+    it("does nothing when there is no did", () => {
+      createComponent();
+      component.did = undefined;
+      component.editedDatasetName = "whatever";
+
+      component.onSaveDatasetName();
+
+      expect(datasetServiceStub.updateDatasetName).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("onDeleteDataset", () => {
+    it("deletes the dataset, toasts success and navigates back to the dataset list", () => {
+      datasetServiceStub.deleteDatasets.mockReturnValue(of({}));
+      createComponent();
+      const navigateSpy = vi.spyOn(TestBed.inject(Router), "navigate").mockResolvedValue(true);
+      component.did = 5;
+      component.datasetName = "DS";
+
+      component.onDeleteDataset();
+
+      expect(datasetServiceStub.deleteDatasets).toHaveBeenCalledWith(5);
+      expect(notificationServiceStub.success).toHaveBeenCalledWith("Dataset DS was deleted");
+      expect(navigateSpy).toHaveBeenCalledWith([USER_DATASET]);
+    });
+
+    it("toasts an error and does not navigate when the deletion fails", () => {
+      datasetServiceStub.deleteDatasets.mockReturnValue(throwError(() => new Error("boom")));
+      createComponent();
+      const navigateSpy = vi.spyOn(TestBed.inject(Router), "navigate").mockResolvedValue(true);
+      component.did = 5;
+
+      component.onDeleteDataset();
+
+      expect(notificationServiceStub.error).toHaveBeenCalledWith("boom");
+      expect(navigateSpy).not.toHaveBeenCalled();
+    });
+
+    it("does nothing when there is no did", () => {
+      createComponent();
+      const navigateSpy = vi.spyOn(TestBed.inject(Router), "navigate").mockResolvedValue(true);
+      component.did = undefined;
+
+      component.onDeleteDataset();
+
+      expect(datasetServiceStub.deleteDatasets).not.toHaveBeenCalled();
+      expect(navigateSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("delete button disabled state", () => {
+    // The Settings tab (and its Delete card) only render for WRITE access; the
+    // delete button itself is owner-only, mirroring the Downloadable switch's
+    // [nzDisabled]="!isOwner". Renders WRITE access with the given ownership,
+    // activates the (inactive) Settings tab so its pane is in the DOM, then
+    // returns the delete button element.
+    const renderDeleteButton = (isOwner: boolean): HTMLButtonElement => {
+      datasetServiceStub.getDataset.mockReturnValue(of(makeDashboardDataset({ accessPrivilege: "WRITE", isOwner })));
+      createComponent();
+      fixture.detectChanges();
+
+      const tabButtons: NodeListOf<HTMLElement> = fixture.nativeElement.querySelectorAll(".ant-tabs-tab-btn");
+      const settingsTab = Array.from(tabButtons).find(tab => tab.textContent?.includes("Settings"));
+      settingsTab?.click();
+      fixture.detectChanges();
+
+      return fixture.nativeElement.querySelector('button[title="Delete"]') as HTMLButtonElement;
+    };
+
+    it("disables the delete button for a non-owner with write access", () => {
+      const button = renderDeleteButton(false);
+
+      expect(button).toBeTruthy();
+      expect(button.disabled).toBe(true);
+    });
+
+    it("enables the delete button for the owner", () => {
+      const button = renderDeleteButton(true);
+
+      expect(button).toBeTruthy();
+      expect(button.disabled).toBe(false);
     });
   });
 });

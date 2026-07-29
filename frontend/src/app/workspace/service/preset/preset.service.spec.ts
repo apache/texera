@@ -456,4 +456,118 @@ describe("PresetService", () => {
       });
     });
   });
+
+  describe("updateOrCreatePreset", () => {
+    // fetchKey is backed by a synchronous `of(...)`, so the subscribe body (and
+    // the savePresets write-through it triggers) runs before the call returns.
+    it("writes the stored preset list back unchanged when the original and replacement presets are identical", () => {
+      const stored: Preset[] = [{ presetProperty: "v1" }];
+      userConfigStub.fetchKey.mockReturnValue(of(JSON.stringify(stored)));
+
+      presetService.updateOrCreatePreset(presetType, presetTarget, { presetProperty: "x" }, { presetProperty: "x" });
+
+      // list is written back unchanged: neither pushed, replaced, nor spliced.
+      expect(userConfigStub.set).toHaveBeenCalledWith(presetDictKey, JSON.stringify(stored));
+    });
+
+    it("appends the replacement when neither preset already exists", () => {
+      userConfigStub.fetchKey.mockReturnValue(of(JSON.stringify([{ presetProperty: "v1" }])));
+
+      presetService.updateOrCreatePreset(
+        presetType,
+        presetTarget,
+        { presetProperty: "missing" },
+        { presetProperty: "v2" }
+      );
+
+      expect(userConfigStub.set).toHaveBeenCalledWith(
+        presetDictKey,
+        JSON.stringify([{ presetProperty: "v1" }, { presetProperty: "v2" }])
+      );
+    });
+
+    it("writes the stored preset list back unchanged when only the replacement preset already exists", () => {
+      const stored: Preset[] = [{ presetProperty: "v1" }, { presetProperty: "v2" }];
+      userConfigStub.fetchKey.mockReturnValue(of(JSON.stringify(stored)));
+
+      presetService.updateOrCreatePreset(
+        presetType,
+        presetTarget,
+        { presetProperty: "missing" },
+        { presetProperty: "v2" }
+      );
+
+      expect(userConfigStub.set).toHaveBeenCalledWith(presetDictKey, JSON.stringify(stored));
+    });
+
+    it("implicitly deletes a preset when both the original and the replacement exist", () => {
+      userConfigStub.fetchKey.mockReturnValue(of(JSON.stringify([{ presetProperty: "v1" }, { presetProperty: "v2" }])));
+
+      // Both presets are present (membership is checked deeply via isEqual), so the
+      // implicit-delete branch removes the original (v1) and leaves the replacement (v2).
+      presetService.updateOrCreatePreset(presetType, presetTarget, { presetProperty: "v1" }, { presetProperty: "v2" });
+
+      expect(userConfigStub.set).toHaveBeenCalledWith(presetDictKey, JSON.stringify([{ presetProperty: "v2" }]));
+    });
+
+    it("replaces the original preset in place when only the original exists", () => {
+      userConfigStub.fetchKey.mockReturnValue(of(JSON.stringify([{ presetProperty: "v1" }, { presetProperty: "v2" }])));
+
+      // The original exists (deep match) but the replacement does not, so the replace
+      // branch swaps the original (v1) for the replacement (v3) at its index.
+      presetService.updateOrCreatePreset(presetType, presetTarget, { presetProperty: "v1" }, { presetProperty: "v3" });
+
+      expect(userConfigStub.set).toHaveBeenCalledWith(
+        presetDictKey,
+        JSON.stringify([{ presetProperty: "v3" }, { presetProperty: "v2" }])
+      );
+    });
+  });
+
+  describe("preset Ajv type guards", () => {
+    describe("isValidPreset", () => {
+      it("accepts an object whose values are all non-blank strings", () => {
+        expect(presetService.isValidPreset({ host: "localhost", table: "t1" })).toBe(true);
+      });
+
+      it("accepts an empty object (no properties to violate the schema)", () => {
+        expect(presetService.isValidPreset({})).toBe(true);
+      });
+
+      it("rejects a preset with a non-string value", () => {
+        expect(presetService.isValidPreset({ port: 5432 })).toBe(false);
+      });
+
+      it("rejects a preset with an empty-string value", () => {
+        expect(presetService.isValidPreset({ host: "" })).toBe(false);
+      });
+
+      it("rejects a preset whose value starts with whitespace", () => {
+        // the schema pattern ^\S.*$ requires the first character to be non-whitespace.
+        expect(presetService.isValidPreset({ host: " localhost" })).toBe(false);
+      });
+    });
+
+    describe("isValidPresetArray", () => {
+      it("accepts an array of distinct valid presets", () => {
+        expect(presetService.isValidPresetArray([{ host: "a" }, { host: "b" }])).toBe(true);
+      });
+
+      it("accepts an empty array", () => {
+        expect(presetService.isValidPresetArray([])).toBe(true);
+      });
+
+      it("rejects an array containing duplicate presets (uniqueItems)", () => {
+        expect(presetService.isValidPresetArray([{ host: "a" }, { host: "a" }])).toBe(false);
+      });
+
+      it("rejects an array whose entry is not a valid preset", () => {
+        expect(presetService.isValidPresetArray([{ port: 5432 }])).toBe(false);
+      });
+
+      it("rejects a value that is not an array", () => {
+        expect(presetService.isValidPresetArray({ host: "a" } as any)).toBe(false);
+      });
+    });
+  });
 });

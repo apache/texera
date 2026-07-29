@@ -39,7 +39,7 @@ import org.apache.texera.dao.MockTexeraDB
 import org.apache.texera.dao.jooq.generated.enums.UserRoleEnum
 import org.apache.texera.dao.jooq.generated.tables.daos._
 import org.apache.texera.dao.jooq.generated.tables.pojos._
-import org.apache.texera.workflow.LogicalLink
+import org.apache.texera.common.compiler.model.LogicalLink
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 
@@ -116,7 +116,7 @@ class DefaultCostEstimatorSpec
 
   override protected def afterEach(): Unit = {
     document.clear()
-    shutdownDB()
+    closeConnectionPool()
   }
 
   "DefaultCostEstimator" should "use fallback method when no past statistics are available" in {
