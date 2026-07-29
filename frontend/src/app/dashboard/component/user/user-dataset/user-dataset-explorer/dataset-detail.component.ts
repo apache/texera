@@ -150,12 +150,12 @@ export class DatasetDetailComponent implements OnInit {
   public selectedVersion: DatasetVersion | undefined;
   public fileTreeNodeList: DatasetFileNode[] = [];
   public selectedVersionCreationTime: string = "";
-  // Latest version's created date, derived from versions[0] (the backend-guaranteed
-  // latest) so it stays correct regardless of which version is selected below.
+  // The following three fields describe the latest version for the Data Card, all
+  // sourced from the single retrieveDatasetLatestVersion response so they stay
+  // mutually consistent and independent of the version selected in Versions & Files.
   public latestVersionCreationTime: string = "";
-  // A representative file name from the latest version, fetched independently of
-  // the current selection via retrieveDatasetLatestVersion.
   public latestVersionFileName: string = "";
+  public latestVersionSize: number | undefined;
 
   public versionCreatorBaseVersion: DatasetVersion | undefined;
   public isLogin: boolean = this.userService.isLogin();
@@ -422,10 +422,6 @@ export class DatasetDetailComponent implements OnInit {
           // by default, the selected version is the 1st element in the retrieved list
           // which is guaranteed(by the backend) to be the latest created version.
           if (this.versions.length > 0) {
-            const latestVersion = this.versions[0];
-            if (typeof latestVersion.creationTime === "number") {
-              this.latestVersionCreationTime = format(new Date(latestVersion.creationTime), "MM/dd/yyyy HH:mm:ss");
-            }
             this.selectedVersion = this.versions[0];
             this.onVersionSelected(this.selectedVersion);
           }
@@ -433,16 +429,31 @@ export class DatasetDetailComponent implements OnInit {
     }
   }
 
-  // Fetches the latest version (with its file tree) independently of the current
-  // selection, then derives a representative file name for the Data Card.
+  // Fetches the latest version independently of the current selection and derives
+  // the Data Card's latest-version facts from that single response: the file name
+  // and created date directly, and the total size via a follow-up file-tree fetch
+  // for the latest version's dvid (mirroring onVersionSelected's size lookup).
   retrieveLatestVersionFile() {
     if (this.did) {
+      const did = this.did;
       this.datasetService
-        .retrieveDatasetLatestVersion(this.did)
+        .retrieveDatasetLatestVersion(did)
         .pipe(untilDestroyed(this))
         .subscribe(version => {
           const firstFile = this.getFirstFileNode(version.fileNodes ?? []);
           this.latestVersionFileName = firstFile ? getFullPathFromDatasetFileNode(firstFile) : "";
+          this.latestVersionCreationTime =
+            typeof version.creationTime === "number"
+              ? format(new Date(version.creationTime), "MM/dd/yyyy HH:mm:ss")
+              : "";
+          if (version.dvid) {
+            this.datasetService
+              .retrieveDatasetVersionFileTree(did, version.dvid, this.isLogin)
+              .pipe(untilDestroyed(this))
+              .subscribe(data => {
+                this.latestVersionSize = data.size;
+              });
+          }
         });
     }
   }

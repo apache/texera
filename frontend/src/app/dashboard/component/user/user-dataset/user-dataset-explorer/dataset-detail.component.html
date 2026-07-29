@@ -122,8 +122,8 @@
               <span class="stat-value">{{ latestVersionFileName }}</span>
             </div>
             <div class="stat-row">
-              <span class="stat-label">Selected version size</span>
-              <span class="stat-value">{{ formatSize(currentDatasetVersionSize) }}</span>
+              <span class="stat-label">Latest version size</span>
+              <span class="stat-value">{{ formatSize(latestVersionSize) }}</span>
             </div>
           </div>
         </nz-card>
@@ -521,7 +521,7 @@
 
         <div class="settings-field">
           <label class="settings-field-label">Description</label>
-          <div class="settings-field-hint">Shown on cards and the Metadata tab.</div>
+          <div class="settings-field-hint">Shown on cards.</div>
           <texera-markdown-description
             [description]="datasetDescription"
             [editable]="userDatasetAccessLevel === 'WRITE'"

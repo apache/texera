@@ -617,37 +617,6 @@ describe("DatasetDetailComponent behavior", () => {
       expect(component.selectedVersion).toBeUndefined();
       expect(spy).not.toHaveBeenCalled();
     });
-
-    it("derives latestVersionCreationTime from versions[0], independent of which version is later selected", () => {
-      const latest = makeVersion({ dvid: 10, name: "v10", creationTime: CREATION_TS });
-      const older = makeVersion({ dvid: 9, name: "v9", creationTime: CREATION_TS - 1000 });
-      datasetServiceStub.retrieveDatasetVersionList.mockReturnValue(of([latest, older]));
-
-      createComponent();
-      component.did = 5;
-      component.retrieveDatasetVersionList();
-
-      expect(component.latestVersionCreationTime).toEqual(format(new Date(CREATION_TS), "MM/dd/yyyy HH:mm:ss"));
-
-      // Selecting an older version (as the user can from the Versions & Files tab)
-      // must not change the Data Card's "Last updated" stat.
-      component.onVersionSelected(older);
-
-      expect(component.latestVersionCreationTime).toEqual(format(new Date(CREATION_TS), "MM/dd/yyyy HH:mm:ss"));
-      expect(component.selectedVersionCreationTime).toEqual(
-        format(new Date(CREATION_TS - 1000), "MM/dd/yyyy HH:mm:ss")
-      );
-    });
-
-    it("leaves latestVersionCreationTime unset when the latest version has no creation time", () => {
-      datasetServiceStub.retrieveDatasetVersionList.mockReturnValue(of([makeVersion({ creationTime: undefined })]));
-
-      createComponent();
-      component.did = 5;
-      component.retrieveDatasetVersionList();
-
-      expect(component.latestVersionCreationTime).toBe("");
-    });
   });
 
   describe("onVersionSelected", () => {
@@ -725,6 +694,77 @@ describe("DatasetDetailComponent behavior", () => {
       component.retrieveLatestVersionFile();
 
       expect(component.latestVersionFileName).toBe("");
+    });
+
+    it("derives latestVersionCreationTime from the latest version's creationTime", () => {
+      datasetServiceStub.retrieveDatasetLatestVersion.mockReturnValue(
+        of(makeVersion({ dvid: 3, creationTime: CREATION_TS }))
+      );
+
+      createComponent();
+      component.did = 5;
+      component.retrieveLatestVersionFile();
+
+      expect(component.latestVersionCreationTime).toEqual(format(new Date(CREATION_TS), "MM/dd/yyyy HH:mm:ss"));
+    });
+
+    it("leaves latestVersionCreationTime empty when the latest version has no creation time", () => {
+      datasetServiceStub.retrieveDatasetLatestVersion.mockReturnValue(of(makeVersion({ creationTime: undefined })));
+
+      createComponent();
+      component.did = 5;
+      component.retrieveLatestVersionFile();
+
+      expect(component.latestVersionCreationTime).toBe("");
+    });
+
+    it("sets latestVersionSize from a file-tree fetch for the latest version's dvid", () => {
+      datasetServiceStub.retrieveDatasetLatestVersion.mockReturnValue(of(makeVersion({ dvid: 7 })));
+      datasetServiceStub.retrieveDatasetVersionFileTree.mockReturnValue(of({ fileNodes: [], size: 4096 }));
+
+      createComponent();
+      component.did = 5;
+      component.retrieveLatestVersionFile();
+
+      expect(datasetServiceStub.retrieveDatasetVersionFileTree).toHaveBeenCalledWith(5, 7, expect.anything());
+      expect(component.latestVersionSize).toBe(4096);
+    });
+
+    it("does not fetch a size when the latest version has no dvid", () => {
+      datasetServiceStub.retrieveDatasetLatestVersion.mockReturnValue(of(makeVersion({ dvid: undefined })));
+
+      createComponent();
+      component.did = 5;
+      component.retrieveLatestVersionFile();
+
+      expect(datasetServiceStub.retrieveDatasetVersionFileTree).not.toHaveBeenCalled();
+      expect(component.latestVersionSize).toBeUndefined();
+    });
+
+    it("keeps the latest-version facts fixed when a different version is later selected", () => {
+      datasetServiceStub.retrieveDatasetLatestVersion.mockReturnValue(
+        of(makeVersion({ dvid: 10, creationTime: CREATION_TS }))
+      );
+      datasetServiceStub.retrieveDatasetVersionFileTree.mockReturnValue(of({ fileNodes: [], size: 500 }));
+
+      createComponent();
+      component.did = 5;
+      component.retrieveLatestVersionFile();
+
+      expect(component.latestVersionSize).toBe(500);
+      expect(component.latestVersionCreationTime).toEqual(format(new Date(CREATION_TS), "MM/dd/yyyy HH:mm:ss"));
+
+      // Selecting an older version updates only the selection-scoped values; the
+      // Data Card's latest-version facts stay pinned to the latest version.
+      datasetServiceStub.retrieveDatasetVersionFileTree.mockReturnValue(of({ fileNodes: [], size: 99 }));
+      component.onVersionSelected(makeVersion({ dvid: 9, creationTime: CREATION_TS - 1000 }));
+
+      expect(component.currentDatasetVersionSize).toBe(99);
+      expect(component.selectedVersionCreationTime).toEqual(
+        format(new Date(CREATION_TS - 1000), "MM/dd/yyyy HH:mm:ss")
+      );
+      expect(component.latestVersionSize).toBe(500);
+      expect(component.latestVersionCreationTime).toEqual(format(new Date(CREATION_TS), "MM/dd/yyyy HH:mm:ss"));
     });
 
     it("does nothing when there is no did", () => {
