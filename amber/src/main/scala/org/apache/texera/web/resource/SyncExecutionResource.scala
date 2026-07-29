@@ -555,6 +555,10 @@ class SyncExecutionResource extends LazyLogging {
           // oversized-first-tuple branches return after consuming exactly one
           // tuple.
           val firstTupleIterator = document.getRange(0, 1)
+          // Publish the read to the hoisted handle before it is probed: any
+          // failure while reading or converting the first tuple must still let
+          // the catch below drain it.
+          tupleIterator = firstTupleIterator
 
           if (totalCount == 0 || !firstTupleIterator.hasNext) {
             return (
