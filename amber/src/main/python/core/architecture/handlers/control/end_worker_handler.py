@@ -37,13 +37,14 @@ class EndWorkerHandler(ControlHandler):
         has finished not only the data processing logic, but also the processing
         of all the control messages.
         """
-        # Ensure this is really the last message. Read the queued count once (InternalQueue
-        # exposes size(); the base IQueue interface does not) and branch on it.
+        # Ensure this is really the last message that asks this worker to do anything.
+        # A queued reply to one of this worker's own requests does not count: it carries
+        # no work, and the coordinator cannot order every reply it owes us before
+        # EndWorker (see InternalQueue._is_work and the Scala EndHandler).
         input_queue: InternalQueue = self.context.input_queue
-        queued_count = input_queue.size()
-        if queued_count > 0:
+        if input_queue.has_unprocessed_work():
             logger.warning(
-                f"Received EndWorker before all {queued_count} queued "
+                f"Received EndWorker before all {input_queue.size()} queued "
                 f"message(s) were processed; failing the RPC so a later "
                 f"coordinator retry succeeds once the queue has drained."
             )

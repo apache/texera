@@ -97,7 +97,8 @@ class PortCompletedHandlerSpec
     * the region stays executing); the messages it produced are then dropped so each test only
     * observes what handling `portCompleted` emits.
     */
-  private def newHarness(): (CoordinatorProcessor, mutable.ListBuffer[WorkflowFIFOMessage]) = {
+  private def coordinatorWithRegionInFlight()
+      : (CoordinatorProcessor, mutable.ListBuffer[WorkflowFIFOMessage]) = {
     val captured = mutable.ListBuffer[WorkflowFIFOMessage]()
     val cp = new CoordinatorProcessor(
       new WorkflowContext(),
@@ -159,7 +160,8 @@ class PortCompletedHandlerSpec
       case WorkflowFIFOMessage(_, _, inv: ControlInvocationPayload) => inv
     }
 
-  private def advanceRequests(
+  /** The coordinator-addressed messages asking for region executions to be advanced. */
+  private def advanceRequestsIn(
       captured: mutable.ListBuffer[WorkflowFIFOMessage]
   ): Seq[ControlInvocationPayload] =
     // The RPC proxy sends the reflected Java method name, which differs from the generated
@@ -182,14 +184,14 @@ class PortCompletedHandlerSpec
 
   "PortCompletedHandler" should
     "request the region advance as a separate control message instead of advancing inline" in {
-    val (cp, captured) = newHarness()
+    val (cp, captured) = coordinatorWithRegionInFlight()
 
     receivePortCompleted(cp, outputPortId)
     resolveStatisticsQuery(cp, captured)
 
     // The advance leaves as a coordinator-to-coordinator control message, which the coordinator
     // can only process in a later round — after this round's reply below has been sent.
-    assert(advanceRequests(captured).size == 1)
+    assert(advanceRequestsIn(captured).size == 1)
     assert(
       repliesTo(captured, workerId) == Seq(
         ReturnInvocation(portCompletedCommandId, EmptyReturn())
@@ -198,7 +200,7 @@ class PortCompletedHandlerSpec
   }
 
   it should "send nothing but the reply to the reporting worker while handling portCompleted" in {
-    val (cp, captured) = newHarness()
+    val (cp, captured) = coordinatorWithRegionInFlight()
 
     receivePortCompleted(cp, outputPortId)
     resolveStatisticsQuery(cp, captured)
@@ -214,7 +216,7 @@ class PortCompletedHandlerSpec
   }
 
   it should "mark the reported port completed before requesting the advance" in {
-    val (cp, captured) = newHarness()
+    val (cp, captured) = coordinatorWithRegionInFlight()
 
     receivePortCompleted(cp, outputPortId)
     resolveStatisticsQuery(cp, captured)
@@ -225,17 +227,17 @@ class PortCompletedHandlerSpec
       .getRegionExecution(RegionIdentity(1))
       .getOperatorExecution(physicalOp.id)
     assert(operatorExecution.isOutputPortCompleted(outputPortId))
-    assert(advanceRequests(captured).size == 1)
+    assert(advanceRequestsIn(captured).size == 1)
   }
 
   it should "not request an advance for a port that belongs to no executing region" in {
-    val (cp, captured) = newHarness()
+    val (cp, captured) = coordinatorWithRegionInFlight()
 
     // "start"/"end" ports are not part of any region, so no region resolves and nothing advances.
     receivePortCompleted(cp, PortIdentity(9))
     resolveStatisticsQuery(cp, captured)
 
-    assert(advanceRequests(captured).isEmpty)
+    assert(advanceRequestsIn(captured).isEmpty)
     assert(
       repliesTo(captured, workerId) == Seq(
         ReturnInvocation(portCompletedCommandId, EmptyReturn())
@@ -243,8 +245,27 @@ class PortCompletedHandlerSpec
     )
   }
 
+  it should "request the advance without waiting for the sender's workerExecutionCompleted" in {
+    val (cp, captured) = coordinatorWithRegionInFlight()
+
+    // The worker emits `workerExecutionCompleted` right after its last `portCompleted`
+    // (`OutputManager.finalizeOutput` appends FinalizePort before FinalizeExecutor). Region
+    // completion keys only on port completion, so booking the last port requests the advance
+    // while that request may still be queued at the coordinator — and the coordinator selects
+    // input channels out of a HashMap, so it may run the advance first and reply afterwards.
+    receivePortCompleted(cp, outputPortId)
+    resolveStatisticsQuery(cp, captured)
+
+    assert(advanceRequestsIn(captured).size == 1)
+    // Nothing here has replied to a `workerExecutionCompleted`, so the resulting `EndWorker` can
+    // legitimately reach the worker before that reply does. `EndHandler` closes this by not
+    // counting a queued reply as work — the coordinator cannot order it, so the worker tolerates
+    // it (see EndHandlerSpec, "reply successfully when only a coordinator reply is queued").
+    assert(repliesTo(captured, workerId).map(_.commandId) == Seq(portCompletedCommandId))
+  }
+
   it should "return a failed reply to the worker when its bookkeeping fails" in {
-    val (cp, captured) = newHarness()
+    val (cp, captured) = coordinatorWithRegionInFlight()
     receivePortCompleted(cp, outputPortId)
 
     // Failing the statistics query fails the handler's continuation. The reply is still chained
@@ -256,6 +277,6 @@ class PortCompletedHandlerSpec
     val reply = repliesTo(captured, workerId).head
     assert(reply.commandId == portCompletedCommandId)
     assert(reply.returnValue.isInstanceOf[ControlError])
-    assert(advanceRequests(captured).isEmpty)
+    assert(advanceRequestsIn(captured).isEmpty)
   }
 }

@@ -24,12 +24,17 @@ from typing import TypeVar, Set
 
 from core.models.internal_marker import InternalMarker
 from core.models.payload import DataPayload
+from core.util.atomic import AtomicInteger
 from core.util.customized_queue.linked_blocking_multi_queue import (
     LinkedBlockingMultiQueue,
 )
 from core.util.customized_queue.queue_base import IQueue, QueueElement
+from core.util.proto import get_one_of
 from proto.org.apache.texera.amber.core import ChannelIdentity
-from proto.org.apache.texera.amber.engine.architecture.rpc import EmbeddedControlMessage
+from proto.org.apache.texera.amber.engine.architecture.rpc import (
+    EmbeddedControlMessage,
+    ReturnInvocation,
+)
 from proto.org.apache.texera.amber.engine.common import DirectControlMessagePayloadV2
 
 
@@ -67,12 +72,38 @@ class InternalQueue(IQueue):
         self._queue_ids: Set[ChannelIdentity] = set()
         self._queue_state: Set[InternalQueue.DisableType] = set()
         self._lock = RLock()
+        # Number of queued elements that represent work; see _is_work. Maintained on
+        # put/get because the underlying multi-queue cannot be iterated, and because it
+        # must also see elements held in disabled (paused/backpressured) sub-queues.
+        self._work_count = AtomicInteger()
 
     def is_empty(self, key=None) -> bool:
         return self._queue.is_empty(key)
 
     def get(self) -> T:
-        return self._queue.get()
+        item = self._queue.get()
+        if self._is_work(item):
+            self._work_count.dec()
+        return item
+
+    @staticmethod
+    def _is_work(item) -> bool:
+        """
+        Whether an element asks this worker to do something.
+
+        A ReturnInvocation does not: processing it only fulfills a promise for a request
+        this worker already issued, and the worker discards those futures. The coordinator
+        replies to a request of ours that was still queued when it terminated our region
+        (typically worker_execution_completed) only after it has sent EndWorker, so such a
+        reply is expected to be queued here and must not block termination.
+        """
+        return not (
+            isinstance(item, DCMElement)
+            and isinstance(get_one_of(item.payload, sealed=False), ReturnInvocation)
+        )
+
+    def has_unprocessed_work(self) -> bool:
+        return self._work_count.value > 0
 
     def put(self, item: T) -> None:
         if isinstance(item, InternalQueueElement):
@@ -87,6 +118,8 @@ class InternalQueue(IQueue):
                 raise ValueError(f"item {item} is not recognized by internal queue")
         else:
             self._queue.put("SYSTEM", item)
+        if self._is_work(item):
+            self._work_count.inc()
 
     def disable(self, channel_id: ChannelIdentity) -> None:
         self._queue.disable(channel_id)

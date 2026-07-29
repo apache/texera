@@ -31,9 +31,7 @@ import org.apache.texera.amber.engine.architecture.common.{
 import org.apache.texera.amber.engine.architecture.coordinator.CoordinatorConfig
 import org.apache.texera.amber.engine.architecture.coordinator.ExecutionStateUpdate
 import org.apache.texera.amber.engine.architecture.coordinator.execution.WorkflowExecution
-import org.apache.texera.amber.engine.architecture.rpc.controlcommands.EmptyRequest
 import org.apache.texera.amber.engine.common.rpc.AsyncRPCClient
-import org.apache.texera.amber.engine.common.virtualidentity.util.COORDINATOR
 
 import java.util.concurrent.atomic.AtomicBoolean
 import scala.collection.mutable
@@ -91,26 +89,6 @@ class WorkflowExecutionManager(
         op.id.logicalOpId.id -> VFSURIFactory.stateURI(cfg.storagePairs.head._1).toString
       }
     }.toMap
-
-  /**
-    * Asks the coordinator to run `advanceRegionExecutions` in one of its *later* control rounds,
-    * rather than inline in the caller's round.
-    *
-    * This exists for ordering, not for convenience. Advancing region executions is what
-    * terminates a completed region, which sends `EndWorker` to each of its workers. A handler of
-    * a worker-initiated request that advanced inline would emit `EndWorker` before its own reply
-    * to that worker, and both travel the same FIFO control channel — so the worker would process
-    * `EndWorker` while the reply was still queued behind it and reject the termination (see
-    * `EndHandler`). A message the coordinator addresses to itself is transmitted and received
-    * before it is handled, which puts the advance a whole message behind every reply the
-    * requesting round still owed.
-    */
-  def requestAdvanceRegionExecutions(): Unit = {
-    asyncRPCClient.coordinatorInterface.coordinatorInitiateAdvanceRegionExecutions(
-      EmptyRequest(),
-      asyncRPCClient.mkContext(COORDINATOR)
-    )
-  }
 
   /**
     * Each invocation first syncs the internal statuses of each exisiting `RegionExecutionManager`, after which each
