@@ -7149,18 +7149,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ajv@npm:8.10.0":
-  version: 8.10.0
-  resolution: "ajv@npm:8.10.0"
-  dependencies:
-    fast-deep-equal: "npm:^3.1.1"
-    json-schema-traverse: "npm:^1.0.0"
-    require-from-string: "npm:^2.0.2"
-    uri-js: "npm:^4.2.2"
-  checksum: 10c0/cc2c02a89289420ea96720f728d39d4d19dbcb2c1d0363481d0a9973282b69d94c8c1a02f4c424a89a1bd888e6049f87d0f82d21b5d056546cdbb364dd043f23
-  languageName: node
-  linkType: hard
-
 "ajv@npm:8.18.0":
   version: 8.18.0
   resolution: "ajv@npm:8.18.0"
@@ -10635,7 +10623,7 @@ __metadata:
     "@vitest/browser-playwright": "npm:4.1.9"
     "@vitest/coverage-v8": "npm:4.1.9"
     ai: "npm:5.0.93"
-    ajv: "npm:8.10.0"
+    ajv: "npm:8.18.0"
     buffer: "npm:5.7.1"
     build-number-generator: "npm:3.1.0"
     concaveman: "npm:2.0.0"
