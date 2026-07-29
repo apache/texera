@@ -121,7 +121,7 @@ class FilledAreaPlotOpDesc extends PythonOperatorDescriptor {
        |                if x_values == None:
        |                    x_values = set(group[$x].unique())
        |                elif set(group[$x].unique()).intersection(x_values):
-       |                    X_values = x_values.union(set(group[$x].unique()))
+       |                    x_values = x_values.union(set(group[$x].unique()))
        |                elif not set(group[$x].unique()).intersection(x_values):
        |                    count += 1
        |                    if count > tolerance:
