@@ -83,7 +83,7 @@ class WorkflowVersionResourceSpec
   }
 
   override protected def afterAll(): Unit = {
-    shutdownDB()
+    closeConnectionPool()
   }
 
   private def createWorkflowContent(value: String): String = {

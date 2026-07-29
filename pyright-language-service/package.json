@@ -10,7 +10,7 @@
     "typescript": "6.0.3",
     "vscode-languageserver": "10.1.0",
     "vscode-ws-jsonrpc": "3.5.0",
-    "ws": "8.21.0"
+    "ws": "8.21.1"
   },
   "devDependencies": {
     "@types/express": "5.0.6",
