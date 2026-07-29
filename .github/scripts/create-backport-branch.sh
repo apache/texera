@@ -91,7 +91,13 @@ git checkout -B "${branch}" "origin/${TARGET_BRANCH}"
 # everything turns the unmerged entries into a normal (dirty) commit.
 had_conflict=false
 conflict_files=""
-if ! git cherry-pick --no-commit "${MERGE_SHA}"; then
+# Rename-detection knobs kept identical to prepare-backport-checkout.sh so a
+# green preflight and this branch don't disagree over a package/directory
+# rename. See that script for the rationale behind each setting.
+if ! git -c merge.renameLimit=999999 \
+         -c diff.renameLimit=999999 \
+         -c merge.directoryRenames=true \
+         cherry-pick -Xrename-threshold=40% --no-commit "${MERGE_SHA}"; then
   had_conflict=true
   conflict_files="$(git diff --name-only --diff-filter=U | tr '\n' ' ')"
   log "cherry-pick conflicted in: ${conflict_files}"

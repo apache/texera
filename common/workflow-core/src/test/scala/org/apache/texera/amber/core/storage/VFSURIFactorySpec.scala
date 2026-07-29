@@ -60,12 +60,13 @@ class VFSURIFactorySpec extends AnyFlatSpec {
     assert(resultURI.getPath.endsWith("/result"))
     assert(stateURI.getPath.endsWith("/state"))
 
-    val (wid, eid, globalPortIdOpt, resourceType) = VFSURIFactory.decodeURI(resultURI)
+    val VFSUriComponents(wid, eid, globalPortIdOpt, resourceType) =
+      VFSURIFactory.decodeURI(resultURI)
     assert(wid == workflowId)
     assert(eid == executionId)
     assert(globalPortIdOpt.contains(portId))
     assert(resourceType == VFSResourceType.RESULT)
-    assert(VFSURIFactory.decodeURI(stateURI)._4 == VFSResourceType.STATE)
+    assert(VFSURIFactory.decodeURI(stateURI).resourceType == VFSResourceType.STATE)
   }
 
   "VFSURIFactory.createRuntimeStatisticsURI" should "produce a runtimeStatistics URI without an opid segment" in {
@@ -74,7 +75,7 @@ class VFSURIFactorySpec extends AnyFlatSpec {
     assert(path.endsWith("/runtimestatistics"))
     assert(!path.contains("/opid/"))
 
-    val (wid, eid, globalPortIdOpt, resourceType) = VFSURIFactory.decodeURI(uri)
+    val VFSUriComponents(wid, eid, globalPortIdOpt, resourceType) = VFSURIFactory.decodeURI(uri)
     assert(wid == workflowId)
     assert(eid == executionId)
     assert(globalPortIdOpt.isEmpty)
@@ -89,7 +90,7 @@ class VFSURIFactorySpec extends AnyFlatSpec {
 
     // The current `decodeURI` does not extract the operator id (it has no
     // "opid" branch), so we only round-trip wid/eid/resourceType here.
-    val (wid, eid, globalPortIdOpt, resourceType) = VFSURIFactory.decodeURI(uri)
+    val VFSUriComponents(wid, eid, globalPortIdOpt, resourceType) = VFSURIFactory.decodeURI(uri)
     assert(wid == workflowId)
     assert(eid == executionId)
     assert(globalPortIdOpt.isEmpty)

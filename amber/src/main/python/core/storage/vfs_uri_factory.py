@@ -16,7 +16,7 @@
 # under the License.
 
 from enum import Enum
-from typing import Optional
+from typing import NamedTuple, Optional
 import re
 from urllib.parse import urlparse
 
@@ -42,18 +42,22 @@ class VFSResourceType(str, Enum):
 _WAREHOUSE_NAME_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]*")
 
 
+class VFSUriComponents(NamedTuple):
+    """The named components encoded in a VFS URI, as returned by
+    `VFSURIFactory.decode_uri`. A NamedTuple, so positional unpacking keeps
+    working alongside named access."""
+
+    workflow_id: WorkflowIdentity
+    execution_id: ExecutionIdentity
+    global_port_id: Optional[GlobalPortIdentity]
+    resource_type: VFSResourceType
+
+
 class VFSURIFactory:
     VFS_FILE_URI_SCHEME = "vfs"
 
     @staticmethod
-    def decode_uri(
-        uri: str,
-    ) -> (
-        WorkflowIdentity,
-        ExecutionIdentity,
-        Optional[GlobalPortIdentity],
-        VFSResourceType,
-    ):
+    def decode_uri(uri: str) -> "VFSUriComponents":
         """
         Parses a VFS URI and extracts its components.
         """
@@ -86,7 +90,7 @@ class VFSURIFactory:
         except ValueError:
             raise ValueError(f"Unknown resource type: {resource_type_str}")
 
-        return (
+        return VFSUriComponents(
             workflow_id,
             execution_id,
             global_port_id,
