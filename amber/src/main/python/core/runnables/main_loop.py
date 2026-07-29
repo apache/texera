@@ -89,6 +89,11 @@ class MainLoop(StoppableQueueBlockingRunnable):
         # LoopEnd (loop_counter == 0) takes a state; used for the jump RPC
         # and the setup-config URI lookup (context.loop_start_port_uris).
         self._loop_start_id: str = ""
+        # The matching state a LoopEnd will consume, stashed at consume time and
+        # actually handed to the operator at EndChannel (see
+        # _consume_pending_loop_state for why the table read must not overlap
+        # this worker's own materialization reader).
+        self._pending_loop_state: Optional[State] = None
 
         self.context = Context(worker_id, input_queue)
         self._async_rpc_server = AsyncRPCServer(output_queue, context=self.context)
@@ -115,14 +120,38 @@ class MainLoop(StoppableQueueBlockingRunnable):
 
     def _read_loop_input_table(self) -> Table:
         # The loop's input table is the Loop Start's input-port
-        # materialization -- data that already exists for the whole loop
-        # (Loop Start re-reads it every iteration; the back-edge truncates
-        # only the state doc at the same base URI, never the result doc).
-        # Reading it here at consume time means the table never has to ride
-        # inside the State content through the loop body.
+        # materialization -- a doc created once UPSTREAM of the loop, so it is
+        # stable for the whole run (the back-edge rewrites only the state doc
+        # under the same base URI, never this result doc). Reading it means the
+        # table never has to ride inside the State content through the loop
+        # body. Callers must invoke this OUTSIDE the window where this worker's
+        # own materialization reader is streaming -- see
+        # _consume_pending_loop_state.
         result_uri = VFSURIFactory.result_uri(self._loop_start_base_uri())
         document, _ = DocumentFactory.open_document(result_uri)
         return Table(list(document.get()))
+
+    def _consume_pending_loop_state(self, executor: LoopEndOperator) -> None:
+        # Run the matching consume that _process_state_frame deferred.
+        #
+        # The loop's input table is read from the Loop Start's input-port
+        # materialization -- a doc that is created once upstream of the loop
+        # and is stable for the whole run. The read is deferred to here (the
+        # EndChannel path) rather than done at consume time because at consume
+        # time THIS worker's own materialization reader is still streaming its
+        # input; issuing a second iceberg/S3 read from this thread while that
+        # reader iterates a lazily-pinned snapshot of a doc that region
+        # re-execution drops and recreates makes the reader fail with S3
+        # "Access Denied" (MinIO's answer for a deleted key). By EndChannel the
+        # reader has finished, so the two never overlap.
+        if self._pending_loop_state is None:
+            return
+        pending = self._pending_loop_state
+        self._pending_loop_state = None
+        executor.attach_loop_table(self._read_loop_input_table())
+        # A Loop End has exactly one input port (port 0); the generated
+        # operator's process_state ignores the port anyway.
+        executor.process_state(pending, 0)
 
     def _jump_to_loop_start(
         self, executor: LoopEndOperator, coordinator_interface
@@ -163,6 +192,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
             # worker, instead of killing the thread through run()'s
             # @logger.catch(reraise=True).
             try:
+                self._consume_pending_loop_state(executor)
                 if executor.condition():
                     self._jump_to_loop_start(executor, coordinator_interface)
             except Exception as err:
@@ -396,22 +426,18 @@ class MainLoop(StoppableQueueBlockingRunnable):
 
         if isinstance(executor, LoopEndOperator):
             # Matching LoopEnd (in_counter == 0): it will consume this state
-            # and jump back. Remember which LoopStart to jump to (it rides
-            # the envelope) for complete()/_jump_to_loop_start, and attach the
-            # loop's input table -- read from the Loop Start's input-port
-            # materialization -- so run_update/condition see it without it
-            # riding inside the State content through the loop body. The read
-            # runs on this main loop thread, outside DataProcessor's guarded
-            # executor session: report a failure like a UDF error instead of
-            # silently dropping the consume (which would end the loop early
-            # with a false success).
+            # and jump back. Remember which LoopStart to jump to (it rides the
+            # envelope) for complete()/_jump_to_loop_start, and STASH the state
+            # -- the operator runs its update at EndChannel instead of here,
+            # because the loop's input table is read from storage and that read
+            # must not overlap this worker's own materialization reader (see
+            # _consume_pending_loop_state). The LoopEnd emits no state
+            # downstream on the matching consume, so deferring it changes
+            # nothing observable outside the operator.
             self._loop_start_id = frame.loop_start_id
-            try:
-                executor.attach_loop_table(self._read_loop_input_table())
-            except Exception as err:
-                self.context.report_exception(err)
-                self._check_exception()
-                return
+            self._pending_loop_state = state
+            self._check_and_process_control()
+            return
 
         self.context.state_processing_manager.current_input_state = state
         self.process_input_state(

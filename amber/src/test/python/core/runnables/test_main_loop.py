@@ -2450,12 +2450,16 @@ class TestMainLoop:
         # the outer loop's id rides through unchanged
         assert emitted_id == "outer-loop"
 
-    def test_loopend_consume_invokes_operator_at_counter_zero(
+    def test_loopend_consume_defers_operator_to_end_channel(
         self, main_loop, monkeypatch
     ):
-        # loop_counter == 0 is the matching loop: the runtime runs the operator
-        # (consume) via the context switch. The operator returns None, so no
-        # state is emitted; the loop-back is driven by complete() separately.
+        # loop_counter == 0 is the matching loop. The runtime STASHES the state
+        # here and runs the operator at EndChannel instead
+        # (_consume_pending_loop_state): the loop's input table is read from the
+        # Loop Start's input-port materialization, and that read must not
+        # overlap this worker's own materialization reader, which is still
+        # streaming at consume time. Nothing observable moves: the matching
+        # consume emits no state downstream either way.
         # Reviewer feedback (#discussion_r3285892237): the envelope's loop
         # metadata (loop_counter / loop_start_id) is internal runtime data --
         # the runtime captures it onto its own instance state, and the
@@ -2475,35 +2479,52 @@ class TestMainLoop:
         # Stub the runtime's table read (the real one opens the Loop Start's
         # input-port materialization; pinned by the jump/read URI tests).
         loop_table = Table([Tuple({"v": 1})])
-        monkeypatch.setattr(main_loop, "_read_loop_input_table", lambda: loop_table)
+        reads = []
 
+        def _read():
+            reads.append(True)
+            return loop_table
+
+        monkeypatch.setattr(main_loop, "_read_loop_input_table", _read)
+
+        incoming = State({"i": 42, "acc": [1, 2, 3]})
         main_loop._process_state_frame(
-            StateFrame(
-                State({"i": 42, "acc": [1, 2, 3]}),
-                loop_counter=0,
-                loop_start_id="outer-loop",
-            )
+            StateFrame(incoming, loop_counter=0, loop_start_id="outer-loop")
         )
 
-        assert switched == [True], "consume branch must invoke the operator"
-        assert emitted == [], "operator returned None -> nothing emitted"
+        # At consume: state stashed, operator NOT invoked, table NOT read yet
+        # (no storage I/O while this worker's reader is still streaming).
+        assert switched == [], "consume must not invoke the operator yet"
+        assert reads == [], "the table must not be read at consume time"
+        assert main_loop._pending_loop_state is incoming
+        assert executor._attached_table is None
+        assert emitted == [], "the matching consume emits no state downstream"
         assert reset_calls == [], "consume / single loop must not reset output"
-        # The runtime attached the loop's input table before the consume so
-        # run_update/condition see it without it riding the State content.
-        assert executor._attached_table is loop_table
         # The runtime captured the envelope metadata onto its own instance
         # state...
         assert main_loop._loop_start_id == "outer-loop"
         # ...but never wrote it into the user-facing State the operator sees.
         # (The consume branch sets `current_input_state` BEFORE the stubbed
         # context switch, so this is exactly what the operator would receive.)
-        passed_to_operator = (
-            main_loop.context.state_processing_manager.current_input_state
+        # ...and the state it stashed for the operator carries only the inner
+        # State's keys, never the envelope names.
+        assert set(main_loop._pending_loop_state.keys()) == {"i", "acc"}
+        assert "loop_start_id" not in main_loop._pending_loop_state
+        assert "loop_counter" not in main_loop._pending_loop_state
+
+        # Then at EndChannel the deferred consume runs: the table is read once
+        # (the reader has finished by now) and handed to the operator.
+        consumed = []
+        monkeypatch.setattr(
+            executor, "process_state", lambda st, port: consumed.append((st, port))
         )
-        assert isinstance(passed_to_operator, State)
-        assert set(passed_to_operator.keys()) == {"i", "acc"}
-        assert "loop_start_id" not in passed_to_operator
-        assert "loop_counter" not in passed_to_operator
+
+        main_loop._consume_pending_loop_state(executor)
+
+        assert reads == [True], "the table is read exactly once, at EndChannel"
+        assert executor._attached_table is loop_table
+        assert consumed == [(incoming, 0)]
+        assert main_loop._pending_loop_state is None, "stash must be cleared"
 
     # ------------------------------------------------------------------ #
     # _jump_to_loop_start
