@@ -221,8 +221,9 @@ class DataProcessor(
           READY,
           RUNNING,
           () => {
+            val (state, stateVersion) = stateManager.getStateWithVersion
             asyncRPCClient.coordinatorInterface.workerStateUpdated(
-              WorkerStateUpdatedRequest(stateManager.getCurrentState),
+              WorkerStateUpdatedRequest(state, stateVersion),
               asyncRPCClient.mkContext(COORDINATOR)
             )
           }
