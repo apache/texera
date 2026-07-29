@@ -26,7 +26,7 @@ import jakarta.ws.rs._
 import jakarta.ws.rs.core._
 import org.apache.texera.amber.core.storage.model.OnVersionedFileResource
 import org.apache.texera.amber.core.storage.util.LakeFSStorageClient
-import org.apache.texera.amber.core.storage.{DocumentFactory, FileResolver}
+import org.apache.texera.amber.core.storage.{DocumentFactory, FileResolver, ResourceType}
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.common.config.StorageConfig
 import org.apache.texera.dao.{SiteSettings, SqlServer}
@@ -692,7 +692,8 @@ class ModelResource extends LazyLogging {
         insertedVersion,
         DatasetFileNode
           .fromLakeFSRepositoryCommittedObjects(
-            Map((user.getEmail, modelName, newVersionName) -> fileNodes)
+            Map((user.getEmail, modelName, newVersionName) -> fileNodes),
+            ResourceType.Models
           )
       )
     }
@@ -1487,7 +1488,8 @@ class ModelResource extends LazyLogging {
         Map(
           (ownerEmail, model.getName, modelVersion.getName) -> LakeFSStorageClient
             .retrieveObjectsOfVersion(model.getRepositoryName, modelVersion.getVersionHash)
-        )
+        ),
+        ResourceType.Models
       )
       .head
 
@@ -1524,7 +1526,8 @@ class ModelResource extends LazyLogging {
         Map(
           (model.ownerEmail, modelName, modelVersion.getName) -> LakeFSStorageClient
             .retrieveObjectsOfVersion(repositoryName, modelVersion.getVersionHash)
-        )
+        ),
+        ResourceType.Models
       )
       .head
 

@@ -26,9 +26,10 @@ import org.apache.texera.amber.core.storage.util.dataset.PhysicalFileNode
 import java.util
 import scala.collection.mutable
 
-// DatasetFileNode represents a unique file in dataset, its full path is in the format of:
-// /datasets/ownerEmail/datasetName/versionName/fileRelativePath
+// DatasetFileNode represents a unique file in a versioned resource. Its full path is in the
+// format of: /<resourceType>/ownerEmail/resourceName/versionName/fileRelativePath
 // e.g. /datasets/bob@texera.com/twitterDataset/v1/california/irvine/tw1.csv
+//      /models/bob@texera.com/resnet/v1/weights/model.pt
 class DatasetFileNode(
     val name: String, // direct name of this node
     val nodeType: String, // "file" or "directory"
@@ -71,49 +72,78 @@ class DatasetFileNode(
 object DatasetFileNode {
 
   /**
-    * Converts a map of LakeFS committed objects into a structured dataset file node tree.
-    *
-    * @param map A mapping from `(ownerEmail, datasetName, versionName)` to a list of committed objects.
-    * @return A list of root-level dataset file nodes.
+    * Builds the `/<resourceType>/ownerEmail/resourceName/versionName` skeleton that every tree
+    * shares, and returns the root together with the version node each key hangs its files from.
     */
-  def fromLakeFSRepositoryCommittedObjects(
-      map: Map[(String, String, String), List[ObjectStats]]
-  ): List[DatasetFileNode] = {
+  private def buildVersionSkeleton(
+      resourceType: ResourceType.Value,
+      keys: Iterable[(String, String, String)]
+  ): (DatasetFileNode, Map[(String, String, String), DatasetFileNode]) = {
     val rootNode = new DatasetFileNode("/", "directory", null, "")
 
-    // Root the tree at the datasets prefix node (a directory node named "datasets").
-    val datasetsNode =
-      new DatasetFileNode(ResourceType.Datasets.toString, "directory", rootNode, "")
-    rootNode.children = Some(List(datasetsNode))
+    // The prefix node names the resource kind, e.g. a directory node named "datasets".
+    val prefixNode = new DatasetFileNode(resourceType.toString, "directory", rootNode, "")
+    rootNode.children = Some(List(prefixNode))
 
-    // Owner level nodes map
     val ownerNodes = mutable.Map[String, DatasetFileNode]()
+    val versionNodes = mutable.Map[(String, String, String), DatasetFileNode]()
+
+    keys.foreach { key =>
+      val (ownerEmail, resourceName, versionName) = key
+
+      val ownerNode = ownerNodes.getOrElseUpdate(
+        ownerEmail, {
+          val newNode = new DatasetFileNode(ownerEmail, "directory", prefixNode, ownerEmail)
+          prefixNode.children = Some(prefixNode.getChildren :+ newNode)
+          newNode
+        }
+      )
+
+      val resourceNode = ownerNode.getChildren.find(_.getName == resourceName).getOrElse {
+        val newNode = new DatasetFileNode(resourceName, "directory", ownerNode, ownerEmail)
+        ownerNode.children = Some(ownerNode.getChildren :+ newNode)
+        newNode
+      }
+
+      val versionNode = resourceNode.getChildren.find(_.getName == versionName).getOrElse {
+        val newNode = new DatasetFileNode(versionName, "directory", resourceNode, ownerEmail)
+        resourceNode.children = Some(resourceNode.getChildren :+ newNode)
+        newNode
+      }
+
+      versionNodes(key) = versionNode
+    }
+
+    (rootNode, versionNodes.toMap)
+  }
+
+  // Sorts children of every node alphabetically in descending order
+  private def sortChildrenRecursively(node: DatasetFileNode): Unit = {
+    node.children = Some(node.getChildren.sortBy(_.getName)(Ordering.String.reverse))
+    node.getChildren.foreach(sortChildrenRecursively)
+  }
+
+  /**
+    * Converts a map of LakeFS committed objects into a structured file node tree.
+    *
+    * @param map A mapping from `(ownerEmail, resourceName, versionName)` to a list of committed objects.
+    * @param resourceType The resource kind the paths belong to; becomes the tree's leading segment.
+    * @return A list of root-level file nodes.
+    */
+  def fromLakeFSRepositoryCommittedObjects(
+      map: Map[(String, String, String), List[ObjectStats]],
+      resourceType: ResourceType.Value
+  ): List[DatasetFileNode] = {
+    val (rootNode, versionNodes) = buildVersionSkeleton(resourceType, map.keys)
 
     map.foreach {
-      case ((ownerEmail, datasetName, versionName), objects) =>
-        val ownerNode = ownerNodes.getOrElseUpdate(
-          ownerEmail, {
-            val newNode = new DatasetFileNode(ownerEmail, "directory", datasetsNode, ownerEmail)
-            datasetsNode.children = Some(datasetsNode.getChildren :+ newNode)
-            newNode
-          }
-        )
-
-        val datasetNode = ownerNode.getChildren.find(_.getName == datasetName).getOrElse {
-          val newNode = new DatasetFileNode(datasetName, "directory", ownerNode, ownerEmail)
-          ownerNode.children = Some(ownerNode.getChildren :+ newNode)
-          newNode
-        }
-
-        val versionNode = datasetNode.getChildren.find(_.getName == versionName).getOrElse {
-          val newNode = new DatasetFileNode(versionName, "directory", datasetNode, ownerEmail)
-          datasetNode.children = Some(datasetNode.getChildren :+ newNode)
-          newNode
-        }
+      case (key, objects) =>
+        val ownerEmail = key._1
+        val versionNode = versionNodes(key)
 
         // Directory map for efficient lookups
         val directoryMap = mutable.Map[String, DatasetFileNode]()
-        directoryMap("") = versionNode // Root of the dataset version
+        directoryMap("") = versionNode // Root of the version
 
         // Process each object (file or directory) from LakeFS
         objects.foreach { obj =>
@@ -142,62 +172,23 @@ object DatasetFileNode {
         }
     }
 
-    // Sorting function to sort children of a node alphabetically in descending order
-    def sortChildren(node: DatasetFileNode): Unit = {
-      node.children = Some(node.getChildren.sortBy(_.getName)(Ordering.String.reverse))
-      node.getChildren.foreach(sortChildren)
-    }
-
-    // Apply the sorting to the root node
-    sortChildren(rootNode)
+    sortChildrenRecursively(rootNode)
 
     rootNode.getChildren
   }
 
+  /** Physical (on-disk) file trees exist only for datasets. */
   def fromPhysicalFileNodes(
       map: Map[(String, String, String), List[PhysicalFileNode]]
   ): List[DatasetFileNode] = {
-    val rootNode = new DatasetFileNode("/", "directory", null, "")
-
-    val datasetsNode =
-      new DatasetFileNode(ResourceType.Datasets.toString, "directory", rootNode, "")
-    rootNode.children = Some(List(datasetsNode))
-
-    val ownerNodes = mutable.Map[String, DatasetFileNode]()
+    val (rootNode, versionNodes) = buildVersionSkeleton(ResourceType.Datasets, map.keys)
 
     map.foreach {
-      case ((ownerEmail, datasetName, versionName), physicalNodes) =>
-        val ownerNode = ownerNodes.getOrElseUpdate(
-          ownerEmail, {
-            val newNode = new DatasetFileNode(ownerEmail, "directory", datasetsNode, ownerEmail)
-            datasetsNode.children = Some(datasetsNode.getChildren :+ newNode)
-            newNode
-          }
-        )
-
-        val datasetNode = ownerNode.getChildren.find(_.getName == datasetName).getOrElse {
-          val newNode = new DatasetFileNode(datasetName, "directory", ownerNode, ownerEmail)
-          ownerNode.children = Some(ownerNode.getChildren :+ newNode)
-          newNode
-        }
-
-        val versionNode = datasetNode.getChildren.find(_.getName == versionName).getOrElse {
-          val newNode = new DatasetFileNode(versionName, "directory", datasetNode, ownerEmail)
-          datasetNode.children = Some(datasetNode.getChildren :+ newNode)
-          newNode
-        }
-
-        physicalNodes.foreach(node => addNodeToTree(versionNode, node, ownerEmail))
+      case (key, physicalNodes) =>
+        physicalNodes.foreach(node => addNodeToTree(versionNodes(key), node, key._1))
     }
 
-    // Sorting function to sort children of a node alphabetically in descending order
-    def sortChildren(node: DatasetFileNode): Unit = {
-      node.children = Some(node.getChildren.sortBy(_.getName)(Ordering.String.reverse))
-      node.getChildren.foreach(sortChildren)
-    }
-
-    // Apply the sorting to the root node
-    sortChildren(rootNode)
+    sortChildrenRecursively(rootNode)
 
     rootNode.getChildren
   }

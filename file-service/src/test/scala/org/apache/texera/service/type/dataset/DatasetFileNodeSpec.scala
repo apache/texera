@@ -20,6 +20,7 @@
 package org.apache.texera.service.`type`
 
 import io.lakefs.clients.sdk.model.ObjectStats
+import org.apache.texera.amber.core.storage.ResourceType
 import org.apache.texera.amber.core.storage.util.dataset.PhysicalFileNode
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -102,7 +103,8 @@ class DatasetFileNodeSpec extends AnyFlatSpec with Matchers {
       objStats("b/2.csv", 3L)
     )
     val roots = DatasetFileNode.fromLakeFSRepositoryCommittedObjects(
-      Map(("bob@texera.com", "twitter", "v1") -> objects)
+      Map(("bob@texera.com", "twitter", "v1") -> objects),
+      ResourceType.Datasets
     )
 
     // The tree is rooted at a single "datasets" prefix node; owners nest under it.
@@ -133,6 +135,70 @@ class DatasetFileNodeSpec extends AnyFlatSpec with Matchers {
 
     // Total size equals the sum of the three files.
     DatasetFileNode.calculateTotalSize(roots) shouldBe 6L
+  }
+
+  it should "root a model tree at the models prefix so paths resolve against models" in {
+    val roots = DatasetFileNode.fromLakeFSRepositoryCommittedObjects(
+      Map(("bob@texera.com", "resnet", "v1") -> List(objStats("weights/model.pt", 4L))),
+      ResourceType.Models
+    )
+
+    roots should have size 1
+    val modelsNode = roots.head
+    modelsNode.getName shouldBe "models"
+
+    val ownerNode = modelsNode.getChildren.find(_.getName == "bob@texera.com").get
+    val modelNode = ownerNode.getChildren.find(_.getName == "resnet").get
+    val versionNode = modelNode.getChildren.find(_.getName == "v1").get
+    val weightsDir = versionNode.getChildren.find(_.getName == "weights").get
+    val file = weightsDir.getChildren.find(_.getName == "model.pt").get
+
+    // FileResolver dispatches on the leading segment, so a "datasets" prefix here would send
+    // model files to the dataset table.
+    file.getFilePath shouldBe "/models/bob@texera.com/resnet/v1/weights/model.pt"
+    file.getSize shouldBe Some(4L)
+  }
+
+  // Every production caller passes a single-entry map, so owner/resource reuse across keys is
+  // otherwise unexercised.
+  it should "create each owner and resource node once when a tree spans several keys" in {
+    val roots = DatasetFileNode.fromLakeFSRepositoryCommittedObjects(
+      Map(
+        ("bob@texera.com", "twitter", "v1") -> List(objStats("a.csv", 1L)),
+        ("bob@texera.com", "twitter", "v2") -> List(objStats("b.csv", 2L)),
+        ("bob@texera.com", "reddit", "v1") -> List(objStats("c.csv", 4L)),
+        ("alice@texera.com", "twitter", "v1") -> List(objStats("d.csv", 8L))
+      ),
+      ResourceType.Datasets
+    )
+
+    val datasetsNode = roots.head
+
+    // bob appears under three keys but gets one owner node.
+    datasetsNode.getChildren.map(_.getName) should contain theSameElementsAs List(
+      "bob@texera.com",
+      "alice@texera.com"
+    )
+
+    val bob = datasetsNode.getChildren.find(_.getName == "bob@texera.com").get
+    bob.getChildren.map(_.getName) should contain theSameElementsAs List("twitter", "reddit")
+
+    // "twitter" is reused across v1 and v2 rather than duplicated.
+    val bobTwitter = bob.getChildren.find(_.getName == "twitter").get
+    bobTwitter.getChildren.map(_.getName) should contain theSameElementsAs List("v1", "v2")
+    bobTwitter.getChildren.find(_.getName == "v1").get.getChildren.map(_.getName) shouldBe List(
+      "a.csv"
+    )
+    bobTwitter.getChildren.find(_.getName == "v2").get.getChildren.map(_.getName) shouldBe List(
+      "b.csv"
+    )
+
+    // alice's "twitter" is a separate node from bob's, not a shared one.
+    val alice = datasetsNode.getChildren.find(_.getName == "alice@texera.com").get
+    alice.getChildren.map(_.getName) shouldBe List("twitter")
+    alice.getChildren.head.getChildren.head.getChildren.map(_.getName) shouldBe List("d.csv")
+
+    DatasetFileNode.calculateTotalSize(roots) shouldBe 15L
   }
 
   // -- fromPhysicalFileNodes --------------------------------------------------
