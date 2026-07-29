@@ -19,6 +19,7 @@
 
 package org.apache.texera.web.resource.auth
 
+import com.typesafe.scalalogging.Logger
 import org.apache.texera.auth.JwtAuth.{TOKEN_EXPIRE_TIME_IN_MINUTES, jwtClaims, jwtToken}
 import org.apache.texera.common.config.UserSystemConfig
 import org.apache.texera.dao.SqlServer
@@ -30,11 +31,19 @@ import org.apache.texera.web.model.http.request.auth.{UserLoginRequest, UserRegi
 import org.apache.texera.web.model.http.response.TokenIssueResponse
 import org.apache.texera.web.resource.auth.AuthResource._
 import org.jasypt.util.password.StrongPasswordEncryptor
+import org.jooq.exception.DataAccessException
 
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
 
 object AuthResource {
+
+  // Explicitly typed rather than mixing in LazyLogging: the class below imports this object's
+  // members, and inferring the object's signature through a mixin deadlocks that import.
+  private val logger: Logger = Logger(classOf[AuthResource])
+
+  /** Postgres SQLSTATE for unique_violation. */
+  private val UNIQUE_VIOLATION = "23505"
 
   private def context = SqlServer.getInstance().context
   private def userDao = new UserDao(context.configuration)
@@ -71,25 +80,25 @@ object AuthResource {
       .from(AUTH_PROVIDER)
       .join(USER)
       .on(USER.UID.eq(AUTH_PROVIDER.UID))
-      .where(AUTH_PROVIDER.PROVIDER_ID.eq(handle))
+      .where(AUTH_PROVIDER.PROVIDER_TYPE.eq(ProviderTypeEnum.LOCAL))
+      .and(AUTH_PROVIDER.PROVIDER_ID.eq(handle))
       .fetchOne()
 
-    Option(record).flatMap( r => {
+    Option(record).flatMap(r => {
       val encryptedPassword = r.get(AUTH_PROVIDER.PASSWORD)
-      if(passwordEncryptor.checkPassword(password, encryptedPassword)){
+      if (passwordEncryptor.checkPassword(password, encryptedPassword)) {
         Some(r.into(USER).into(classOf[User]))
-      }
-      else{
+      } else {
         None
       }
     })
   }
 
   /**
-   * Create a user together with the LOCAL credential it logs in with. The handle is passed
-   * explicitly rather than read off `user.getName`, so that identity is never re-derived
-   * from the mutable display name.
-   */
+    * Create a user together with the LOCAL credential it logs in with. The handle is passed
+    * explicitly rather than read off `user.getName`, so that identity is never re-derived
+    * from the mutable display name.
+    */
   private def insertLocalUser(user: User, handle: String, hashedPassword: String): Unit = {
     SqlServer.withTransaction(SqlServer.getInstance().createDSLContext()) { ctx =>
       val txUserDao = new UserDao(ctx.configuration())
@@ -110,18 +119,24 @@ object AuthResource {
     val adminUsername = UserSystemConfig.adminUsername.trim
     val adminPassword = UserSystemConfig.adminPassword.trim
 
-    if (adminUsername.nonEmpty && adminPassword.nonEmpty) {
-      val existingUser = userDao.fetchByName(adminUsername)
-      if (existingUser.isEmpty) {
-        val user = new User
-        user.setName(adminUsername)
-        user.setEmail(adminUsername)
-        user.setRole(UserRoleEnum.ADMIN)
+    if (adminUsername.isEmpty || adminPassword.isEmpty) return
 
-        val hashedPassword = new StrongPasswordEncryptor().encryptPassword(adminPassword)
-        insertLocalUser(user, adminUsername, hashedPassword)
-      }
+    if (localHandleExists(adminUsername)) return
+
+    if (userDao.fetchOneByEmail(adminUsername) != null) {
+      logger.warn(
+        s"Not creating the admin account: '$adminUsername' is already used as an email address " +
+          "by an account with no local credential. Grant that account the ADMIN role instead."
+      )
+      return
     }
+
+    val user = new User
+    user.setName(adminUsername)
+    user.setEmail(adminUsername)
+    user.setRole(UserRoleEnum.ADMIN)
+
+    insertLocalUser(user, adminUsername, passwordEncryptor.encryptPassword(adminPassword))
   }
 }
 
@@ -146,20 +161,22 @@ class AuthResource {
     val username = request.username
     if (username == null) throw new NotAcceptableException("Username cannot be null.")
     if (username.trim.isEmpty) throw new NotAcceptableException("Username cannot be empty.")
-    userDao.fetchByName(username).size() match {
-      case 0 =>
-        val user = new User
-        user.setName(username)
-        user.setEmail(username)
-        user.setRole(UserRoleEnum.RESTRICTED)
+    // Uniqueness belongs to the login handle (uq_provider_identity), not to the display name:
+    // names are mutable and admin-created accounts carry a generated one.
+    if (localHandleExists(username)) throw new NotAcceptableException("Username exists already.")
 
-        insertLocalUser(user, username, passwordEncryptor.encryptPassword(request.password))
-        userDao.insert(user)
-        TokenIssueResponse(jwtToken(jwtClaims(user, TOKEN_EXPIRE_TIME_IN_MINUTES)))
-      case _ =>
-        // the username exists already
+    val user = new User
+    user.setName(username)
+    user.setEmail(username)
+    user.setRole(UserRoleEnum.RESTRICTED)
+
+    try {
+      insertLocalUser(user, username, passwordEncryptor.encryptPassword(request.password))
+    } catch {
+      case e: DataAccessException if e.sqlState() == UNIQUE_VIOLATION =>
         throw new NotAcceptableException("Username exists already.")
     }
+    TokenIssueResponse(jwtToken(jwtClaims(user, TOKEN_EXPIRE_TIME_IN_MINUTES)))
   }
 
 }

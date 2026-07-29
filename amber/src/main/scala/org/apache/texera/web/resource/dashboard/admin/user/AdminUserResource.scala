@@ -28,7 +28,10 @@ import org.apache.texera.dao.jooq.generated.tables.daos.{AuthProviderDao, UserDa
 import org.apache.texera.dao.jooq.generated.tables.pojos.{AuthProvider, User}
 import org.apache.texera.web.resource.EmailTemplate.createRoleChangeTemplate
 import org.apache.texera.web.resource.GmailResource.sendEmail
-import org.apache.texera.web.resource.dashboard.admin.user.AdminUserResource.{passwordEncryptor, userDao}
+import org.apache.texera.web.resource.dashboard.admin.user.AdminUserResource.{
+  passwordEncryptor,
+  userDao
+}
 import org.apache.texera.web.resource.dashboard.user.quota.UserQuotaResource._
 import org.jasypt.util.password.StrongPasswordEncryptor
 import org.jooq.exception.DataAccessException
@@ -44,6 +47,7 @@ case class UserInfo(
     name: String,
     email: String,
     googleId: String,
+    localHandle: String,
     role: UserRoleEnum,
     avatar: String,
     comment: String,
@@ -85,8 +89,11 @@ class AdminUserResource {
         USER.UID,
         USER.NAME,
         USER.EMAIL,
-        googleProvider.PROVIDER_ID,
-        localProvider.PROVIDER_ID,
+        // Both joins project a column called `provider_id`. fetchInto matches a case class by
+        // field NAME, so without these aliases the two collide and googleId silently receives
+        // whichever provider_id the mapper reaches first (the LOCAL handle).
+        googleProvider.PROVIDER_ID.as("googleId"),
+        localProvider.PROVIDER_ID.as("localHandle"),
         USER.ROLE,
         USER.AVATAR,
         USER.COMMENT,
@@ -136,8 +143,8 @@ class AdminUserResource {
     val handle = "User" + random
     val password = passwordEncryptor.encryptPassword(random)
 
-    try{
-      SqlServer.withTransaction(AdminUserResource.context){ ctx=>
+    try {
+      SqlServer.withTransaction(AdminUserResource.context) { ctx =>
         val txUserDao = new UserDao(ctx.configuration())
         val txAuthDao = new AuthProviderDao(ctx.configuration())
 
@@ -153,8 +160,7 @@ class AdminUserResource {
         newAuth.setProviderId(handle)
         txAuthDao.insert(newAuth)
       }
-    }
-    catch{
+    } catch {
       case e: DataAccessException if e.sqlState() == AdminUserResource.UNIQUE_VIOLATION =>
         throw new WebApplicationException(
           new RuntimeException(s"Login handle $handle is already taken", e),

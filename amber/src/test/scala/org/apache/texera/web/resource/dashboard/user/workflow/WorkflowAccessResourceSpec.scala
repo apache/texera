@@ -82,25 +82,21 @@ class WorkflowAccessResourceSpec
     owner.setUid(ownerUid)
     owner.setName("owner")
     owner.setEmail("owner@test.com")
-    owner.setPassword("password")
 
     userWithWrite = new User
     userWithWrite.setUid(userWithWriteUid)
     userWithWrite.setName("user_with_write")
     userWithWrite.setEmail("write@test.com")
-    userWithWrite.setPassword("password")
 
     userWithRead = new User
     userWithRead.setUid(userWithReadUid)
     userWithRead.setName("user_with_read")
     userWithRead.setEmail("read@test.com")
-    userWithRead.setPassword("password")
 
     targetUser = new User
     targetUser.setUid(targetUserUid)
     targetUser.setName("target_user")
     targetUser.setEmail("target@test.com")
-    targetUser.setPassword("password")
 
     // Create test workflow
     testWorkflow = new Workflow

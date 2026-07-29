@@ -29,13 +29,13 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 
 /**
- * Integration spec for [[ExternalAuthProvisioner]] against embedded Postgres
- * ([[MockTexeraDB]] loads the real `texera_ddl.sql`, so the `auth_provider` table and
- * its `ck_provider_credential` / `uq_provider_identity` constraints are exercised).
- * `loginOrProvision` runs the same transaction the Google resources call.
- */
+  * Integration spec for [[ExternalAuthProvisioner]] against embedded Postgres
+  * ([[MockTexeraDB]] loads the real `texera_ddl.sql`, so the `auth_provider` table and
+  * its `ck_provider_credential` / `uq_provider_identity` constraints are exercised).
+  * `loginOrProvision` runs the same transaction the Google resources call.
+  */
 class ExternalAuthProvisionerSpec
-  extends AnyFlatSpec
+    extends AnyFlatSpec
     with Matchers
     with BeforeAndAfterAll
     with BeforeAndAfterEach
@@ -120,7 +120,6 @@ class ExternalAuthProvisionerSpec
     providerRowCount(user.getUid) shouldBe 1
     providerIdOf(user.getUid, ProviderTypeEnum.GOOGLE) shouldBe "google-sub-1"
   }
-
 
   // ---- returning known identity --------------------------------------------
 

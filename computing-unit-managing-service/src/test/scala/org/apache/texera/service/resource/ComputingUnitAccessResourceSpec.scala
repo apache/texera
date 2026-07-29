@@ -65,7 +65,6 @@ class ComputingUnitAccessResourceSpec
   private val ownerUser: User = {
     val user = new User
     user.setName("cu_owner")
-    user.setPassword("123")
     user.setEmail("cu_owner@test.com")
     user.setRole(UserRoleEnum.REGULAR)
     user
@@ -74,7 +73,6 @@ class ComputingUnitAccessResourceSpec
   private val granteeUser: User = {
     val user = new User
     user.setName("cu_grantee")
-    user.setPassword("123")
     user.setEmail("cu_grantee@test.com")
     user.setRole(UserRoleEnum.REGULAR)
     user
@@ -83,7 +81,6 @@ class ComputingUnitAccessResourceSpec
   private val strangerUser: User = {
     val user = new User
     user.setName("cu_stranger")
-    user.setPassword("123")
     user.setEmail("cu_stranger@test.com")
     user.setRole(UserRoleEnum.REGULAR)
     user

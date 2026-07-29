@@ -63,7 +63,6 @@ class WorkflowResourceSpec
     user.setName("test_user")
     user.setEmail("test_user@mail.com")
     user.setRole(UserRoleEnum.ADMIN)
-    user.setPassword("123")
     user.setComment("test_comment")
     user.setAccountCreationTime(exampleCreationTime)
     user
@@ -75,7 +74,6 @@ class WorkflowResourceSpec
     user.setName("test_user2")
     user.setEmail("test_user2@mail.com")
     user.setRole(UserRoleEnum.ADMIN)
-    user.setPassword("123")
     user.setComment("test_comment2")
     user.setAccountCreationTime(exampleCreationTime)
     user
@@ -213,7 +211,6 @@ class WorkflowResourceSpec
     u.setUid(Integer.valueOf(uid))
     u.setName(s"tmp_user_$uid")
     u.setRole(UserRoleEnum.REGULAR)
-    u.setPassword("pw")
     u.setComment("tmp")
     u.setAccountCreationTime(ts)
     userDao.insert(u)
@@ -264,7 +261,6 @@ class WorkflowResourceSpec
     tmp.setUid(Integer.valueOf(userId))
     tmp.setName("tmp_user")
     tmp.setRole(UserRoleEnum.REGULAR)
-    tmp.setPassword("pw")
     tmp.setComment("tmp")
     // Account creation time not set
     userDao.insert(tmp)

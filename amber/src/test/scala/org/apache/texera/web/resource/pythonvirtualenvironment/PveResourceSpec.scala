@@ -110,7 +110,6 @@ class PveResourceSpec
     user.setUid(testUid)
     user.setName("pve_resource_spec_user")
     user.setEmail(s"user_${UUID.randomUUID()}@example.com")
-    user.setPassword("password")
     userDao.insert(user)
   }
 

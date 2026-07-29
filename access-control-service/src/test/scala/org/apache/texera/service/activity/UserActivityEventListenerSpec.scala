@@ -35,7 +35,9 @@ import java.util.concurrent.ConcurrentLinkedQueue
 class UserActivityEventListenerSpec extends AnyFlatSpec with Matchers {
 
   private def sessionUser(uid: Integer): SessionUser = {
-    val u = new User(uid, "u", null, null, null, null, UserRoleEnum.REGULAR, null, null, null, null)
+    // (uid, name, email, avatar, role, comment, accountCreationTime, affiliation, joiningReason)
+    // — password/google_id/google_avatar left the pojo when credentials moved to auth_provider.
+    val u = new User(uid, "u", null, null, UserRoleEnum.REGULAR, null, null, null, null)
     new SessionUser(u)
   }
 

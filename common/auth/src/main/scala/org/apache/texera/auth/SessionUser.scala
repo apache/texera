@@ -33,6 +33,5 @@ class SessionUser(val user: User) extends Principal {
 
   def getEmail: String = user.getEmail
 
-
   def isRoleOf(role: UserRoleEnum): Boolean = user.getRole == role
 }

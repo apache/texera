@@ -30,25 +30,25 @@ import java.time.OffsetDateTime
 import scala.util.chaining.scalaUtilChainingOps
 
 /**
- * A verified external identity (Google, Facebook, ...) reduced to the fields we
- * persist. `avatar` is optional: `None` means the provider supplies no avatar, so
- * the user's existing avatar column is left untouched rather than overwritten.
- */
+  * A verified external identity (Google, Facebook, ...) reduced to the fields we
+  * persist. `avatar` is optional: `None` means the provider supplies no avatar, so
+  * the user's existing avatar column is left untouched rather than overwritten.
+  */
 final case class ExternalProfile(
-                                  providerType: ProviderTypeEnum,
-                                  providerId: String,
-                                  name: String,
-                                  email: String,
-                                  avatar: Option[String] = None
-                                )
+    providerType: ProviderTypeEnum,
+    providerId: String,
+    name: String,
+    email: String,
+    avatar: Option[String] = None
+)
 
 object ExternalAuthProvisioner {
 
   /**
-   * Resolve the user behind an external identity, creating one if necessary, and
-   * ensure its auth-provider row is present and up to date. Runs in a single
-   * transaction and returns the (possibly newly created) user.
-   */
+    * Resolve the user behind an external identity, creating one if necessary, and
+    * ensure its auth-provider row is present and up to date. Runs in a single
+    * transaction and returns the (possibly newly created) user.
+    */
   def loginOrProvision(profile: ExternalProfile): User =
     SqlServer.withTransaction(SqlServer.getInstance().createDSLContext()) { ctx =>
       val txUserDao = new UserDao(ctx.configuration())
@@ -92,9 +92,9 @@ object ExternalAuthProvisioner {
     }
 
   /**
-   * Mutate `user` in place to match `profile`, returning true iff anything changed
-   * (so the caller only issues an UPDATE when needed).
-   */
+    * Mutate `user` in place to match `profile`, returning true iff anything changed
+    * (so the caller only issues an UPDATE when needed).
+    */
   private def refresh(user: User, profile: ExternalProfile): Boolean = {
     var changed = false
     if (user.getName != profile.name) {
@@ -115,11 +115,11 @@ object ExternalAuthProvisioner {
   }
 
   private def upsertProvider(
-                              ctx: DSLContext,
-                              authDao: AuthProviderDao,
-                              user: User,
-                              profile: ExternalProfile
-                            ): Unit = {
+      ctx: DSLContext,
+      authDao: AuthProviderDao,
+      user: User,
+      profile: ExternalProfile
+  ): Unit = {
     val hasProvider = ctx.fetchExists(
       ctx
         .selectFrom(AUTH_PROVIDER)

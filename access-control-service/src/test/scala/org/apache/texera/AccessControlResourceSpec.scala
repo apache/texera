@@ -66,7 +66,6 @@ class AccessControlResourceSpec
     user.setName("testuser")
     user.setEmail("test@example.com")
     user.setRole(UserRoleEnum.REGULAR)
-    user.setPassword("password")
     user
   }
 
@@ -76,7 +75,6 @@ class AccessControlResourceSpec
     user.setName("testuser2")
     user.setEmail("test2@example.com")
     user.setRole(UserRoleEnum.REGULAR)
-    user.setPassword("password")
     user
   }
 

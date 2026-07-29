@@ -137,7 +137,6 @@ class DatasetResourceSpec
   private val ownerUser: User = {
     val user = new User
     user.setName("test_user")
-    user.setPassword("123")
     user.setEmail("test_user@test.com")
     user.setRole(UserRoleEnum.ADMIN)
     user
@@ -146,7 +145,6 @@ class DatasetResourceSpec
   private val otherAdminUser: User = {
     val user = new User
     user.setName("test_user2")
-    user.setPassword("123")
     user.setEmail("test_user2@test.com")
     user.setRole(UserRoleEnum.ADMIN)
     user
@@ -156,7 +154,6 @@ class DatasetResourceSpec
   private val multipartNoWriteUser: User = {
     val user = new User
     user.setName("multipart_user2")
-    user.setPassword("123")
     user.setEmail("multipart_user2@test.com")
     user.setRole(UserRoleEnum.REGULAR)
     user

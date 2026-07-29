@@ -33,8 +33,7 @@ class JwtAuthSpec extends AnyFlatSpec with Matchers {
     user.setUid(42)
     user.setName("alice")
     user.setEmail("alice@example.com")
-    user.setGoogleId("g-123")
-    user.setGoogleAvatar("avatar-blob")
+    user.setAvatar("avatar-blob")
     user.setRole(UserRoleEnum.ADMIN)
     user
   }
@@ -43,10 +42,19 @@ class JwtAuthSpec extends AnyFlatSpec with Matchers {
     val claims = JwtAuth.jwtClaims(buildUser(), 7)
     claims.getSubject shouldBe "alice"
     claims.getClaimValueAsString("userId") shouldBe "42"
-    claims.getClaimValueAsString("googleId") shouldBe "g-123"
     claims.getClaimValueAsString("email") shouldBe "alice@example.com"
-    claims.getClaimValueAsString("googleAvatar") shouldBe "avatar-blob"
+    claims.getClaimValueAsString("avatar") shouldBe "avatar-blob"
     claims.getClaimValueAsString("role") shouldBe UserRoleEnum.ADMIN.name
+  }
+
+  // Credentials now live in auth_provider, and the token deliberately carries none of them:
+  // it identifies the user, it does not re-present the identity that authenticated them.
+  it should "not carry any provider credential in the claims" in {
+    val claims = JwtAuth.jwtClaims(buildUser(), 7)
+    claims.hasClaim("googleId") shouldBe false
+    claims.hasClaim("googleAvatar") shouldBe false
+    claims.hasClaim("password") shouldBe false
+    claims.hasClaim("providerId") shouldBe false
   }
 
   it should "derive the expiration from config, ignoring the expireInDays argument" in {
@@ -68,8 +76,7 @@ class JwtAuthSpec extends AnyFlatSpec with Matchers {
     user.getUid shouldBe 42
     user.getName shouldBe "alice"
     user.getEmail shouldBe "alice@example.com"
-    user.getGoogleId shouldBe "g-123"
-    user.getGoogleAvatar shouldBe "avatar-blob"
+    user.getAvatar shouldBe "avatar-blob"
     user.getRole shouldBe UserRoleEnum.ADMIN
   }
 
