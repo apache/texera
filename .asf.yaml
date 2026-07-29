@@ -108,27 +108,22 @@ github:
               - context: Validate PR title
 
     - name: "Default Branch Protection"
-      target: branch
-      enforcement: active
-      conditions:
-        ref_name:
-          include:
-            - "~DEFAULT_BRANCH"
-            - "refs/heads/release/*"
-            - "refs/heads/rel/*"
-          exclude: []
-      bypass_actors:
-        # apache/root — ASF Infra team.
-        - actor_id: 118420
-          actor_type: Team
-          bypass_mode: always
-        # xuang7 — granted bypass as the v1.2 release manager.
-        - actor_id: 162244362
-          actor_type: User
-          bypass_mode: always
-      rules:
-        - type: deletion
-        - type: non_fast_forward
+      type: branch
+      branches:
+        includes:
+          - "~DEFAULT_BRANCH"
+          - "release/*"
+          - "rel/*"
+        excludes:
+          # TEMPORARY: exclude release/v1.1.0-incubating for manual
+          # release-branch maintenance; remove this entry to restore its
+          # deletion / force-push protection. All other release/* and
+          # rel/* branches stay protected.
+          - "release/v1.1.0-incubating"
+      bypass_teams:
+        - "root" # apache/root — ASF Infra team
+      restrict_deletion: true
+      restrict_force_push: true
 notifications:
   commits: commits@texera.apache.org
   issues: notifications@texera.apache.org
