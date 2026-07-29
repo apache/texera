@@ -1,6 +1,3 @@
-<<<<<<< HEAD
-# Texera Deployment
-=======
 <!--
   ~ Licensed to the Apache Software Foundation (ASF) under one
   ~ or more contributor license agreements.  See the NOTICE file
@@ -20,8 +17,7 @@
   ~ under the License.
 -->
 
-# `bin/`
->>>>>>> 214402f05 (fix: Add missing license headers to Docs (#6958))
+# Texera Deployment
 
 This directory contains Dockerfiles and configuration files for building and deploying Texera's microservices.
 
