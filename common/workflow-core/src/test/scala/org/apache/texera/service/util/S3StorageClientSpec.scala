@@ -20,6 +20,7 @@
 package org.apache.texera.service.util
 
 import org.apache.texera.common.config.StorageConfig
+import org.apache.texera.common.tags.NonParallelTest
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatest.funsuite.AnyFunSuite
 import software.amazon.awssdk.auth.credentials.{AwsBasicCredentials, StaticCredentialsProvider}
@@ -34,6 +35,7 @@ import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.jdk.CollectionConverters._
 import scala.util.Random
 
+@NonParallelTest
 class S3StorageClientSpec
     extends AnyFunSuite
     with S3StorageTestBase
@@ -435,8 +437,9 @@ class S3StorageClientSpec
     val prefix = "delete-dir/large"
     val objectCount = 1001
 
-    // Upload concurrently to keep the test reasonably fast.
-    val pool = Executors.newFixedThreadPool(16)
+    // Upload with bounded concurrency to keep the test reasonably fast without flooding the
+    // shared MinIO container (a 16-way burst was a contributor to the flakiness in issue #7049).
+    val pool = Executors.newFixedThreadPool(4)
     implicit val ec: ExecutionContext = ExecutionContext.fromExecutor(pool)
     try {
       val uploads = (0 until objectCount).map { i =>
