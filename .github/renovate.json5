@@ -46,6 +46,9 @@
   osvVulnerabilityAlerts: true,
   vulnerabilityAlerts: {
     semanticCommitType: 'fix',
+    // Drop Renovate's default `[SECURITY]` title suffix; the `security`
+    // label below already identifies these PRs.
+    commitMessageSuffix: '',
     // release/v1.2 flags the fix for backporting to the current release
     // line; bump it when a new release branch is cut.
     labels: ['dependencies', 'security', 'release/v1.2'],
@@ -160,6 +163,17 @@
       matchPackageNames: ['/^@angular/', '@schematics/angular'],
       matchUpdateTypes: ['major'],
       enabled: false,
+    },
+
+    // config:recommended pulls in :semanticPrefixFixDepsChoreOthers,
+    // which types runtime-dependency bumps as fix(...). We want the
+    // opposite: every routine bump is chore(...), and only
+    // vulnerabilityAlerts (above) uses fix(...). This catch-all runs
+    // last, so it overrides that preset; vulnerabilityAlerts is applied
+    // as a higher-priority layer for security branches and is unaffected.
+    {
+      matchPackageNames: ['*'],
+      semanticCommitType: 'chore',
     },
   ],
 }
