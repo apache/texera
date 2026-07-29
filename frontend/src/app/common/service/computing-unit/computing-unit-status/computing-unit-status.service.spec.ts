@@ -323,6 +323,20 @@ describe("ComputingUnitStatusService", () => {
       expect(openSpy).toHaveBeenCalledTimes(1);
     });
 
+    it("does nothing when the workflow id is undefined", () => {
+      const openSpy = vi.spyOn(websocketService, "openWebsocket").mockImplementation(() => {});
+      (service as any).allComputingUnitsSubject.next([mockUnit(7)]);
+
+      // The unit is cached and shouldReconnect is true, so only the isDefined(wid)
+      // guard can stop the selection: no socket is opened and nothing is selected.
+      service.selectComputingUnit(undefined, 7);
+
+      expect(openSpy).not.toHaveBeenCalled();
+      expect(service.getSelectedComputingUnitValue()).toBeNull();
+      expect((service as any).currentConnectedWid).toBeUndefined();
+      expect((service as any).currentConnectedCuid).toBeUndefined();
+    });
+
     it("reconnects when the same unit is opened under a different workflow (wid change alone)", () => {
       const openSpy = vi.spyOn(websocketService, "openWebsocket").mockImplementation(() => {});
       (service as any).allComputingUnitsSubject.next([mockUnit(7)]);
