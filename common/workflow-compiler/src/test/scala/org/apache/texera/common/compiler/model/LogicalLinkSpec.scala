@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.apache.texera.workflow
+package org.apache.texera.common.compiler.model
 
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.exc.{MismatchedInputException, ValueInstantiationException}

@@ -33,7 +33,7 @@ import org.apache.texera.amber.engine.common.virtualidentity.util.{COORDINATOR, 
 import org.apache.texera.amber.engine.common.{AmberRuntime, CheckpointState}
 import org.apache.texera.amber.engine.e2e.TestUtils.buildWorkflow
 import org.apache.texera.amber.operator.TestOperators
-import org.apache.texera.workflow.LogicalLink
+import org.apache.texera.common.compiler.model.LogicalLink
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpecLike
 
