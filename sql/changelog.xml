@@ -24,6 +24,43 @@
     xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
     http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.9.xsd">
 
+<<<<<<< HEAD
+=======
+    <!-- Add notebook and workflow_notebook_mapping tables -->
+    <changeSet id="23" author="zyratlo">
+        <sqlFile path="sql/updates/23.sql"/>
+    </changeSet>
+
+    <changeSet id="24" author="sarahasad23">
+        <sqlFile path="sql/updates/24.sql"/>
+    </changeSet>
+
+    <!-- Add feedback table -->
+    <changeSet id="25" author="arisheh">
+        <sqlFile path="sql/updates/25.sql"/>
+    </changeSet>
+
+    <!-- Add operator_port_cache table -->
+    <changeSet id="26" author="Xiao-zhen-Liu">
+        <sqlFile path="sql/updates/26.sql"/>
+    </changeSet>
+
+    <!-- Add workflow_cover_image table (per-workflow custom card cover) -->
+    <changeSet id="27" author="Ma77Ball">
+        <sqlFile path="sql/updates/27.sql"/>
+    </changeSet>
+
+    <!-- Enforce unique dataset names per owner -->
+    <changeSet id="28" author="kunwp1">
+        <sqlFile path="sql/updates/28.sql"/>
+    </changeSet>
+
+    <!-- Widen execution size columns to BIGINT (#6978) -->
+    <changeSet id="29" author="mengw15">
+        <sqlFile path="sql/updates/29.sql"/>
+    </changeSet>
+
+>>>>>>> 791d7df8a (fix(amber): store execution sizes as BIGINT to stop silent >2GiB truncation (#6980))
     <!-- example changeSet
     <changeSet id="1" author="author">
         <sqlFile path="sql/updates/1.sql"/>
