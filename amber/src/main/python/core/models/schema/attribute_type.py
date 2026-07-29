@@ -33,8 +33,11 @@ class AttributeType(Enum):
 
     STRING = 1
     INT = 2
+    # Attribute access needs Java names; RAW_TYPE_MAPPING handles raw schema strings.
+    INTEGER = 2
     LONG = 3
     BOOL = 4
+    BOOLEAN = 4
     DOUBLE = 5
     TIMESTAMP = 6
     BINARY = 7
@@ -77,6 +80,47 @@ FROM_ARROW_MAPPING = {
     lib.Type_TIMESTAMP: AttributeType.TIMESTAMP,
 }
 
+
+def _is_empty_value(v):
+    return v is None or (isinstance(v, str) and v.strip() == "")
+
+
+def _parse_bool(v):
+    if _is_empty_value(v):
+        return False
+
+    normalized_value = str(v).strip().lower()
+    if normalized_value == "true":
+        return True
+    if normalized_value == "false":
+        return False
+    return float(normalized_value) != 0
+
+
+def _parse_timestamp(v):
+    if _is_empty_value(v):
+        return datetime.datetime(1970, 1, 1, tzinfo=datetime.timezone.utc)
+
+    normalized_value = str(v)
+    if normalized_value.endswith("Z"):
+        normalized_value = normalized_value[:-1] + "+00:00"
+    parsed_value = datetime.datetime.fromisoformat(normalized_value)
+    if (
+        parsed_value.tzinfo is None
+        or parsed_value.tzinfo.utcoffset(parsed_value) is None
+    ):
+        return parsed_value.replace(tzinfo=datetime.timezone.utc)
+    return parsed_value
+
+
+FROM_STRING_PARSER_MAPPING = {
+    AttributeType.STRING: str,
+    AttributeType.INT: lambda v: 0 if _is_empty_value(v) else int(v),
+    AttributeType.LONG: lambda v: 0 if _is_empty_value(v) else int(v),
+    AttributeType.DOUBLE: lambda v: 0.0 if _is_empty_value(v) else float(v),
+    AttributeType.BOOL: _parse_bool,
+    AttributeType.TIMESTAMP: _parse_timestamp,
+}
 
 # Only single-directional mapping.
 TO_PYOBJECT_MAPPING = {
