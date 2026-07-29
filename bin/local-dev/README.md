@@ -35,6 +35,40 @@ bin/local-dev.sh --help     # full reference
 Everything in this folder is wired up by the wrapper at `bin/local-dev.sh`;
 you should not need to invoke any file inside `bin/local-dev/` directly.
 
+## Supported platforms
+
+macOS and Linux. Where the two differ, `main.sh` picks the right probe by
+platform — there is nothing to configure:
+
+| Concern | macOS | Linux |
+| --- | --- | --- |
+| Host LAN IP (the MinIO endpoint) | `route get default`, `ipconfig getifaddr` | `ip route show default`, `ip -4 addr show scope global` |
+| Artifact mtime (`watch`'s ARTIFACT MTIME column) | BSD `stat -f` | GNU `stat -c` |
+| Port → PID | `lsof` | `lsof`, falling back to `ss` |
+
+On top of the toolchain in [AGENTS.md](../../AGENTS.md) — JDK 17, Scala 2.13,
+Python 3.12, Node 24 — plus sbt and docker, Linux needs:
+
+* **iproute2** (`ip`, `ss`). Essential on every mainstream distro, so normally
+  already installed. `ip` is required: without it the host LAN IP cannot be
+  detected and `up` refuses to start rather than publish an endpoint that only
+  works from one side.
+* **docker with the compose v2 plugin.** On stock Ubuntu that is
+  `apt install docker.io docker-compose-v2`; `docker-compose-plugin` only
+  exists in Docker's own apt repository.
+* **your user in the `docker` group** — `sudo usermod -aG docker "$USER"`,
+  then log in again. Group membership does not apply to shells that are
+  already running, so a `docker compose` permission error right after that
+  command is expected.
+
+`HOST_LAN_IP` is detected for you; export it only to override the choice, e.g.
+to pin one interface on a multi-homed host. The address has to be reachable
+from **both** the host JVMs and the containers, which is why the scan skips
+container bridges (`docker0`, `br-*`, `veth*`) and overlay/VPN interfaces
+(tailscale, zerotier, wireguard): `172.17.0.1` looks like a perfectly good
+local IPv4 but is not reachable from inside another container's network
+namespace.
+
 ## Layout
 
 ```
