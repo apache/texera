@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1785251770946,
+  "lastUpdate": 1785335838152,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -6544,6 +6544,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 647.2848602515368,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Meng Wang",
+            "username": "mengw15",
+            "email": "mengw15@uci.edu"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "a61702fd10ccde130f0a24a1298adff24c4a38a5",
+          "message": "refactor(storage): return named VFSUriComponents from decodeURI (#7020)\n\n### What changes were proposed in this PR?\n\n`VFSURIFactory.decodeURI` returned a positional 4-tuple\n`(WorkflowIdentity, ExecutionIdentity, Option[GlobalPortIdentity],\nVFSResourceType)` in both Scala and Python, so its nine production call\nsites destructured positionally — mostly binding a single field through\npatterns like `val (_, _, _, resourceType) = decodeURI(uri)` — where\nnothing catches a swapped `_` position, and adding a field means\ntouching every site. The Scala doc already advertised `@return A\nVFSUriComponents object`, but no such type existed.\n\n- **Scala**: introduce `case class VFSUriComponents(workflowId,\nexecutionId, globalPortId, resourceType)` in `VFSURIFactory.scala`;\n`decodeURI` now returns it. All six production call sites\n(`DocumentFactory` ×3, `ExecutionResultService` ×2,\n`WorkflowExecutionsResource` ×1) read named fields; the compiler forced\nevery site to be updated, so none can be missed.\n- **Python**: introduce a matching `VFSUriComponents(NamedTuple)` in\n`vfs_uri_factory.py`; `decode_uri` returns it. A `NamedTuple` keeps\npositional unpacking working alongside named access, so this is\nnon-breaking for any external unpacking. The three `document_factory.py`\nsites read `.resource_type`.\n- **Tests**: the Scala and Python suites' destructurings updated to\nnamed access; `test_document_factory`'s mocked `decode_uri` now returns\na real `VFSUriComponents` (production accesses the result by name, so a\nbare tuple would no longer satisfy it).\n\nPure refactor, no behavior change, symmetric across both languages.\n\n### Any related issues, documentation, discussions?\n\nCloses #6979.\n\n### How was this PR tested?\n\n- No new tests — the existing round-trip suites pin the decoded values\nin both languages, and the refactor is validated by them:\n- Scala: `VFSURIFactorySpec` 8/8, `WorkflowExecutionsResourceSpec`\n22/22, `scalafmtCheck` (WorkflowCore + WorkflowExecutionService, main +\nTest) all pass locally.\n- Python: the two storage suites pass 21/21 locally; `ruff check` and\n`ruff format --check` clean.\n- The Scala side is additionally compile-verified: a tuple destructure\nof a case class does not compile, so every call site was necessarily\nupdated.\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Claude Code (claude-opus-4-8)",
+          "timestamp": "2026-07-29T05:53:43Z",
+          "url": "https://github.com/apache/texera/commit/a61702fd10ccde130f0a24a1298adff24c4a38a5"
+        },
+        "date": 1785335837604,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 642.0663247617687,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 1081.3288182478084,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 1166.3329546953664,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 831.1667178896706,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 1126.356342200382,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 1190.9752465280471,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 823.6688593871112,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 1147.4040461722045,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 1193.2186447407148,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 734.6817169493064,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 929.7037522882072,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 964.5087968002001,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 750.0128000934528,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 938.3798634922334,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 966.1204844439144,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 738.2406316962082,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 924.157473800611,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 938.6787016866778,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 460.62538965899506,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 534.7872876692616,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 536.9970555779418,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 456.82621799561286,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 541.5475402587119,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 535.3167612821027,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 440.45051687249145,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 505.36999200880894,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 508.65423364871265,
             "unit": "tuples/sec"
           }
         ]
