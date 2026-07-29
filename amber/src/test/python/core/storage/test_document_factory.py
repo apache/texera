@@ -22,7 +22,7 @@ import pytest
 from core.models import Schema
 from core.storage.document_factory import DocumentFactory
 from core.storage.storage_config import StorageConfig
-from core.storage.vfs_uri_factory import VFSResourceType
+from core.storage.vfs_uri_factory import VFSResourceType, VFSUriComponents
 
 
 # Avoid initializing the real config (only initializable once per process).
@@ -39,7 +39,7 @@ def schema():
 
 def _decode_returning(resource_type):
     """Helper: build a VFSURIFactory.decode_uri side_effect."""
-    return lambda _uri: (None, None, None, resource_type)
+    return lambda _uri: VFSUriComponents(None, None, None, resource_type)
 
 
 @patch("core.storage.document_factory.IcebergDocument")
