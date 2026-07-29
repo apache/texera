@@ -26,7 +26,7 @@ BEGIN;
 DO $$
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'provider_type_enum') THEN
-    CREATE TYPE provider_type_enum AS ENUM ('LOCAL', 'GOOGLE', 'FACEBOOK');
+    CREATE TYPE provider_type_enum AS ENUM ('LOCAL', 'GOOGLE');
     END IF;
 END
 $$;

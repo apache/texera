@@ -76,7 +76,7 @@ object AuthResource {
 
     Option(record).flatMap( r => {
       val encryptedPassword = r.get(AUTH_PROVIDER.PASSWORD)
-      if(passwordEncryptor.checkPassword(encryptedPassword, password)){
+      if(passwordEncryptor.checkPassword(password, encryptedPassword)){
         Some(r.into(USER).into(classOf[User]))
       }
       else{
