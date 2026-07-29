@@ -137,7 +137,7 @@ class AdminUserResource {
     val password = passwordEncryptor.encryptPassword(random)
 
     try{
-      SqlServer.withTransaction(SqlServer.getInstance().createDSLContext()){ ctx=>
+      SqlServer.withTransaction(AdminUserResource.context){ ctx=>
         val txUserDao = new UserDao(ctx.configuration())
         val txAuthDao = new AuthProviderDao(ctx.configuration())
 
