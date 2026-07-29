@@ -290,7 +290,7 @@ Angular / npm packages:
   - @ngx-formly/core@7.1.0
   - @ngx-formly/ng-zorro-antd@7.1.0
   - @vscode/iconv-lite-umd@0.7.1
-  - ajv@8.10.0
+  - ajv@8.18.0
   - backbone@1.4.1
   - balanced-match@1.0.2
   - brace-expansion@2.1.0
@@ -354,15 +354,9 @@ Dependencies under the BSD 3-Clause License
 
 Angular / npm packages:
   - d3-shape@2.1.0
+  - fast-uri@3.1.4
   - parchment@3.0.0
   - quill@2.0.3
-
---------------------------------------------------------------------------------
-Dependencies under the BSD 2-Clause License
---------------------------------------------------------------------------------
-
-Angular / npm packages:
-  - uri-js@4.4.1
 
 --------------------------------------------------------------------------------
 Dependencies under the ISC License

@@ -40,7 +40,7 @@
     "@ngx-formly/core": "7.1.0",
     "@ngx-formly/ng-zorro-antd": "7.1.0",
     "ai": "5.0.93",
-    "ajv": "8.10.0",
+    "ajv": "8.18.0",
     "concaveman": "2.0.0",
     "d3-shape": "2.1.0",
     "dagre": "0.8.5",
