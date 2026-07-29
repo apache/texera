@@ -1,0 +1,46 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Active release branches and their release managers. This file is the single
+# source of truth for the backport automation. Listing a branch here:
+#   - auto-labels new `fix:` PRs with the branch's `release/*` label
+#     (.github/workflows/backport-auto-label.yml), so backports are opt-out
+#     rather than easy-to-forget opt-in;
+#   - requests review from the branch's release manager on those PRs;
+#   - drives the post-merge backport (.github/workflows/direct-backport-push.yml):
+#     a green pre-merge backport check cherry-picks straight to the branch, a
+#     red one opens a draft backport PR assigned to the author with the manager
+#     as reviewer.
+#
+# The label name equals the branch name (e.g. branch `release/v1.2` <-> label
+# `release/v1.2`).
+#
+# `actively-supporting` controls the default: only actively-supporting branches
+# are auto-labeled on new `fix:` PRs. An inactive branch stays a valid backport
+# target — a maintainer can still add its label by hand and the apply-check /
+# post-merge backport run as usual — it just isn't offered by default. Omitting
+# the field defaults to true. When a branch reaches end-of-life, drop its entry
+# entirely.
+#
+# `manager` is a GitHub username. It may be omitted (leave the branch as a
+# backport target without an auto-requested reviewer), but is recommended.
+targets:
+  - branch: release/v1.2
+    manager: xuang7
+    actively-supporting: true
+  - branch: release/v1.1
+    manager: bobbai00
+    actively-supporting: false

@@ -60,6 +60,13 @@
     nz-input-number {
       width: 100%;
     }
+    // preserve newlines (\n) in property descriptions rendered via nzExtra,
+    // and give them breathing room from the input above
+    .ant-form-item-extra {
+      white-space: pre-line;
+      margin-top: 6px;
+      line-height: 1.4;
+    }
   }
 }
 

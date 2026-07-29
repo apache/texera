@@ -72,7 +72,7 @@ class ExecutionsMetadataPersistServiceSpec
   }
 
   override protected def afterAll(): Unit = {
-    shutdownDB()
+    closeConnectionPool()
   }
 
   override protected def beforeEach(): Unit = {
