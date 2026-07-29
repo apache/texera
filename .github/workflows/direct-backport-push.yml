@@ -398,7 +398,14 @@ jobs:
           git checkout -B "${TARGET_BRANCH}" "origin/${TARGET_BRANCH}"
           base_sha=$(git rev-parse HEAD)
           log "base_sha=${base_sha}"
-          if ! git cherry-pick --no-commit "${MERGE_SHA}"; then
+          # Rename-detection knobs kept identical to prepare-backport-checkout.sh
+          # (the preflight) so a rename resolved cleanly there does not conflict
+          # here on the straight-to-release cherry-pick. See that script for the
+          # rationale behind each setting.
+          if ! git -c merge.renameLimit=999999 \
+                   -c diff.renameLimit=999999 \
+                   -c merge.directoryRenames=true \
+                   cherry-pick -Xrename-threshold=40% --no-commit "${MERGE_SHA}"; then
             endgroup
             group "Conflict diagnosis"
             conflicts=$(git diff --name-only --diff-filter=U)
