@@ -19,14 +19,12 @@
 
 package org.apache.texera.amber.engine.common
 
-import com.typesafe.scalalogging.LazyLogging
 import org.apache.texera.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState
 
 import java.nio.file.{Files, Path, Paths}
 import java.util.concurrent.locks.Lock
-import scala.annotation.tailrec
 
-object Utils extends LazyLogging {
+object Utils {
 
   /**
     * Gets the real path of the amber home directory by:
@@ -58,33 +56,6 @@ object Utils extends LazyLogging {
     }
   }
   val AMBER_HOME_FOLDER_NAME = "amber";
-
-  /**
-    * Retry the given logic with a backoff time interval. The attempts are executed sequentially, thus blocking the thread.
-    * Backoff time is doubled after each attempt.
-    *
-    * @param attempts            total number of attempts. if n <= 1 then it will not retry at all, decreased by 1 for each recursion.
-    * @param baseBackoffTimeInMS time to wait before next attempt, started with the base time, and doubled after each attempt.
-    * @param fn                  the target function to execute.
-    * @tparam T any return type from the provided function fn.
-    * @return the provided function fn's return, or any exception that still being raised after n attempts.
-    */
-  @tailrec
-  def retry[T](attempts: Int, baseBackoffTimeInMS: Long)(fn: => T): T = {
-    try {
-      fn
-    } catch {
-      case e: Throwable =>
-        if (attempts > 1) {
-          logger.warn(
-            "retrying after " + baseBackoffTimeInMS + "ms, number of attempts left: " + (attempts - 1),
-            e
-          )
-          Thread.sleep(baseBackoffTimeInMS)
-          retry(attempts - 1, baseBackoffTimeInMS * 2)(fn)
-        } else throw e
-    }
-  }
 
   private def isAmberHomePath(path: Path): Boolean = {
     path.toRealPath().endsWith(AMBER_HOME_FOLDER_NAME)

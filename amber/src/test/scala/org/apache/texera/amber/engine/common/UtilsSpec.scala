@@ -97,41 +97,6 @@ class UtilsSpec extends AnyFlatSpec {
     }
   }
 
-  // -- retry ---------------------------------------------------------------
-
-  "Utils.retry" should "return the value on the first successful attempt without retrying" in {
-    var calls = 0
-    val result = Utils.retry(attempts = 3, baseBackoffTimeInMS = 0L) {
-      calls += 1
-      "ok"
-    }
-    assert(result == "ok")
-    assert(calls == 1)
-  }
-
-  it should "retry on failure until success and return the eventual result" in {
-    var calls = 0
-    val result = Utils.retry(attempts = 3, baseBackoffTimeInMS = 0L) {
-      calls += 1
-      if (calls < 2) throw new RuntimeException("transient")
-      "ok"
-    }
-    assert(result == "ok")
-    assert(calls == 2)
-  }
-
-  it should "rethrow the last exception after exhausting all attempts" in {
-    var calls = 0
-    val ex = intercept[RuntimeException] {
-      Utils.retry(attempts = 2, baseBackoffTimeInMS = 0L) {
-        calls += 1
-        throw new RuntimeException(s"failure-$calls")
-      }
-    }
-    assert(calls == 2)
-    assert(ex.getMessage == "failure-2")
-  }
-
   // -- withLock ------------------------------------------------------------
 
   "Utils.withLock" should "release the lock after the body returns" in {
