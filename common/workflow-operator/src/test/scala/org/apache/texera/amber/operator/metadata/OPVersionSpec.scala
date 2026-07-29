@@ -32,17 +32,22 @@ import java.util.UUID
   * (defaulting to the working directory). Whether that succeeds depends entirely
   * on how the tree was checked out — inside a `git worktree` the `.git` entry is
   * a file rather than a directory and jgit raises `RepositoryNotFoundException`,
-  * leaving the handle null. This spec therefore asserts only behavior that holds
-  * either way:
+  * leaving the handle null; in a plain clone the handle opens and an unknown path
+  * yields an empty log instead. Rather than assert whatever both happen to share,
+  * this spec pins the handle to a known state: every test forces the private
+  * static `git` field to null for its duration and restores the original value
+  * afterwards, so the assertions describe one deterministic code path regardless
+  * of how the tree was checked out (and no other suite in the JVM is affected).
   *
-  *   - a path with no commit history resolves to the `"N/A"` fallback (the handle
-  *     is null and dereferencing it throws, or the log is empty and reading the
-  *     first commit throws — both land in the same `NullPointerException` catch);
-  *   - resolution is memoized per operator name and the path is ignored on a hit.
+  * With the handle null, `git.log()` throws `NullPointerException` and resolution
+  * takes the `"N/A"` fallback. On top of that this spec pins the memoization
+  * contract: the answer is cached per operator name and the path is ignored on a
+  * cache hit.
   *
   * Deliberately NOT covered: the success path that returns a real commit hash and
-  * the `GitAPIException` catch. Both require a specific, openable repository state
-  * that is not guaranteed for a test run.
+  * the `GitAPIException` catch (which, note, leaves `opMap` unpopulated and so
+  * returns null). Both require a specific, openable repository state that is not
+  * guaranteed for a test run.
   */
 class OPVersionSpec extends AnyFlatSpec with Matchers {
 
@@ -51,49 +56,73 @@ class OPVersionSpec extends AnyFlatSpec with Matchers {
 
   private def uniqueMissingPath(): String = s"no/such/operator/path/${UUID.randomUUID()}"
 
+  private def declaredField(name: String): java.lang.reflect.Field = {
+    val field = classOf[OPVersion].getDeclaredField(name)
+    field.setAccessible(true)
+    field
+  }
+
   /** The private static memo table, so tests can seed it and clean up after themselves. */
   private def opMap: java.util.Map[String, String] = {
-    val field = classOf[OPVersion].getDeclaredField("opMap")
-    field.setAccessible(true)
-    field.get(null).asInstanceOf[java.util.Map[String, String]]
+    declaredField("opMap").get(null).asInstanceOf[java.util.Map[String, String]]
+  }
+
+  /**
+    * Runs `body` with `OPVersion`'s private static git handle forced to null, so the
+    * fallback path is exercised deterministically, then restores whatever was there.
+    */
+  private def withNullGit[T](body: => T): T = {
+    val field = declaredField("git")
+    val original = field.get(null)
+    field.set(null, null)
+    try body
+    finally field.set(null, original)
   }
 
   private def withCleanCache[T](names: String*)(body: => T): T =
     try body
     finally names.foreach(opMap.remove)
 
-  "OPVersion.getVersion" should "fall back to \"N/A\" for a path with no commit history" in {
+  "OPVersion.getVersion" should "fall back to \"N/A\" when the git handle is unavailable" in {
     val name = uniqueName()
     withCleanCache(name) {
-      OPVersion.getVersion(name, uniqueMissingPath()) shouldBe "N/A"
+      withNullGit {
+        OPVersion.getVersion(name, uniqueMissingPath()) shouldBe "N/A"
+      }
     }
   }
 
   it should "never return null, whatever it resolves" in {
     val name = uniqueName()
     withCleanCache(name) {
-      OPVersion.getVersion(name, "common/workflow-operator/src/main/scala") should not be null
+      withNullGit {
+        OPVersion.getVersion(name, "common/workflow-operator/src/main/scala") should not be null
+      }
     }
   }
 
   it should "memoize the resolved version under the operator name" in {
     val name = uniqueName()
     withCleanCache(name) {
-      opMap.containsKey(name) shouldBe false
-      val resolved = OPVersion.getVersion(name, uniqueMissingPath())
-      opMap.containsKey(name) shouldBe true
-      opMap.get(name) shouldBe resolved
+      withNullGit {
+        opMap.containsKey(name) shouldBe false
+        val resolved = OPVersion.getVersion(name, uniqueMissingPath())
+        opMap.containsKey(name) shouldBe true
+        opMap.get(name) shouldBe resolved
+      }
     }
   }
 
   it should "serve the memoized value and ignore the path on subsequent calls" in {
     val name = uniqueName()
     withCleanCache(name) {
-      // Seed a value no git lookup could ever produce: if the cache were bypassed,
-      // the call below would recompute and answer "N/A" instead.
-      opMap.put(name, "seeded-version")
-      OPVersion.getVersion(name, uniqueMissingPath()) shouldBe "seeded-version"
-      OPVersion.getVersion(name, "a/completely/different/path") shouldBe "seeded-version"
+      withNullGit {
+        // Seed a value no lookup could ever produce: if the cache were bypassed,
+        // the call below would recompute and answer "N/A" instead.
+        opMap.put(name, "seeded-version")
+        OPVersion.getVersion(name, uniqueMissingPath()) shouldBe "seeded-version"
+        OPVersion.getVersion(name, "a/completely/different/path") shouldBe "seeded-version"
+      }
     }
   }
 
@@ -101,23 +130,27 @@ class OPVersionSpec extends AnyFlatSpec with Matchers {
     val first = uniqueName()
     val second = uniqueName()
     withCleanCache(first, second) {
-      opMap.put(first, "version-of-first")
-      opMap.put(second, "version-of-second")
+      withNullGit {
+        opMap.put(first, "version-of-first")
+        opMap.put(second, "version-of-second")
 
-      val sharedPath = "common/workflow-operator/src/main/scala"
-      OPVersion.getVersion(first, sharedPath) shouldBe "version-of-first"
-      OPVersion.getVersion(second, sharedPath) shouldBe "version-of-second"
+        val sharedPath = "common/workflow-operator/src/main/scala"
+        OPVersion.getVersion(first, sharedPath) shouldBe "version-of-first"
+        OPVersion.getVersion(second, sharedPath) shouldBe "version-of-second"
+      }
     }
   }
 
   it should "resolve unknown paths consistently across repeated calls" in {
     val name = uniqueName()
     withCleanCache(name) {
-      val path = uniqueMissingPath()
-      val first = OPVersion.getVersion(name, path)
-      val second = OPVersion.getVersion(name, path)
-      first shouldBe "N/A"
-      second shouldBe first
+      withNullGit {
+        val path = uniqueMissingPath()
+        val first = OPVersion.getVersion(name, path)
+        val second = OPVersion.getVersion(name, path)
+        first shouldBe "N/A"
+        second shouldBe first
+      }
     }
   }
 }
