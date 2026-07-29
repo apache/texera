@@ -66,7 +66,7 @@ class ProjectAccessResourceSpec
   }
 
   override protected def afterAll(): Unit = {
-    shutdownDB()
+    closeConnectionPool()
   }
 
   private def createUser(uid: Int, name: String, email: String): User = {

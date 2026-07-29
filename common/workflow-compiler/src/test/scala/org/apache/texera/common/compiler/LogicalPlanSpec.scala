@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.apache.texera.workflow
+package org.apache.texera.common.compiler
 
 import org.apache.commons.vfs2.FileNotFoundException
 import org.apache.texera.amber.core.virtualidentity.OperatorIdentity
@@ -32,7 +32,7 @@ import org.apache.texera.amber.operator.udf.python.DualInputPortsPythonUDFOpDesc
 import org.apache.texera.amber.operator.udf.python.source.PythonUDFSourceOpDescV2
 import org.apache.texera.amber.operator.union.UnionOpDesc
 import org.apache.texera.amber.operator.{LogicalOp, TestOperators}
-import org.apache.texera.web.model.websocket.request.LogicalPlanPojo
+import org.apache.texera.common.compiler.model.{LogicalLink, LogicalPlan, LogicalPlanPojo}
 import org.scalatest.flatspec.AnyFlatSpec
 
 import scala.collection.mutable.ArrayBuffer
