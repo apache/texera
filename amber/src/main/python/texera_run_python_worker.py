@@ -25,6 +25,11 @@ from loguru import logger
 # at import time (#4199), which emits this deprecation warning on stderr in
 # every spawned worker. It is not actionable on our side, so filter it before
 # the import chain runs. Mirrored for pytest in amber/pyproject.toml.
+#
+# Silencing this also hides the last recurring reminder that we depend on the
+# EOL PyFilesystem2 (`fs` 2.4.16) and must hold setuptools below the
+# pkg_resources removal. That debt is tracked in #6917 — remove this filter
+# once `fs` is gone.
 warnings.filterwarnings(
     "ignore",
     message="pkg_resources is deprecated as an API.*",
