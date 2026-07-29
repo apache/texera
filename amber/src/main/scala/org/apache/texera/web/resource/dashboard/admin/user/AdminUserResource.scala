@@ -20,18 +20,21 @@
 package org.apache.texera.web.resource.dashboard.admin.user
 
 import org.apache.texera.dao.SqlServer
-import org.apache.texera.dao.jooq.generated.enums.UserRoleEnum
+import org.apache.texera.dao.jooq.generated.enums.{ProviderTypeEnum, UserRoleEnum}
 import org.apache.texera.dao.jooq.generated.tables.User.USER
+import org.apache.texera.dao.jooq.generated.tables.AuthProvider.AUTH_PROVIDER
 import org.apache.texera.dao.jooq.generated.tables.UserLastActiveTime.USER_LAST_ACTIVE_TIME
-import org.apache.texera.dao.jooq.generated.tables.daos.UserDao
-import org.apache.texera.dao.jooq.generated.tables.pojos.User
+import org.apache.texera.dao.jooq.generated.tables.daos.{AuthProviderDao, UserDao}
+import org.apache.texera.dao.jooq.generated.tables.pojos.{AuthProvider, User}
 import org.apache.texera.web.resource.EmailTemplate.createRoleChangeTemplate
 import org.apache.texera.web.resource.GmailResource.sendEmail
-import org.apache.texera.web.resource.dashboard.admin.user.AdminUserResource.userDao
+import org.apache.texera.web.resource.dashboard.admin.user.AdminUserResource.{passwordEncryptor, userDao}
 import org.apache.texera.web.resource.dashboard.user.quota.UserQuotaResource._
 import org.jasypt.util.password.StrongPasswordEncryptor
+import org.jooq.exception.DataAccessException
 
 import java.util
+import java.util.UUID
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
 import javax.ws.rs.core.{MediaType, Response}
@@ -56,6 +59,8 @@ object AdminUserResource {
       .getInstance()
       .createDSLContext()
   private def userDao = new UserDao(context.configuration)
+  private val passwordEncryptor = new StrongPasswordEncryptor
+  private val UNIQUE_VIOLATION = "23505"
 }
 
 @Path("/admin/user")
@@ -71,11 +76,17 @@ class AdminUserResource {
   @Path("/list")
   @Produces(Array(MediaType.APPLICATION_JSON))
   def list(): util.List[UserInfo] = {
+
+    val googleProvider = AUTH_PROVIDER.as("google_provider")
+    val localProvider = AUTH_PROVIDER.as("local_provider")
+
     AdminUserResource.context
       .select(
         USER.UID,
         USER.NAME,
         USER.EMAIL,
+        googleProvider.PROVIDER_ID,
+        localProvider.PROVIDER_ID,
         USER.ROLE,
         USER.AVATAR,
         USER.COMMENT,
@@ -87,6 +98,12 @@ class AdminUserResource {
       .from(USER)
       .leftJoin(USER_LAST_ACTIVE_TIME)
       .on(USER.UID.eq(USER_LAST_ACTIVE_TIME.UID))
+      .leftJoin(googleProvider)
+      .on(googleProvider.PROVIDER_TYPE.eq(ProviderTypeEnum.GOOGLE))
+      .and(googleProvider.UID.eq(USER.UID))
+      .leftJoin(localProvider)
+      .on(localProvider.PROVIDER_TYPE.eq(ProviderTypeEnum.LOCAL))
+      .and(localProvider.UID.eq(USER.UID))
       .fetchInto(classOf[UserInfo])
   }
 
@@ -115,12 +132,35 @@ class AdminUserResource {
   @POST
   @Path("/add")
   def addUser(): Unit = {
-    val random = System.currentTimeMillis().toString
-    val newUser = new User
-    newUser.setName("User" + random)
-    newUser.setPassword(new StrongPasswordEncryptor().encryptPassword(random))
-    newUser.setRole(UserRoleEnum.INACTIVE)
-    userDao.insert(newUser)
+    val random = UUID.randomUUID().toString
+    val handle = "User" + random
+    val password = passwordEncryptor.encryptPassword(random)
+
+    try{
+      SqlServer.withTransaction(SqlServer.getInstance().createDSLContext()){ ctx=>
+        val txUserDao = new UserDao(ctx.configuration())
+        val txAuthDao = new AuthProviderDao(ctx.configuration())
+
+        val newUser = new User
+        newUser.setName(handle)
+        newUser.setRole(UserRoleEnum.INACTIVE)
+        txUserDao.insert(newUser)
+
+        val newAuth = new AuthProvider()
+        newAuth.setUid(newUser.getUid)
+        newAuth.setPassword(password)
+        newAuth.setProviderType(ProviderTypeEnum.LOCAL)
+        newAuth.setProviderId(handle)
+        txAuthDao.insert(newAuth)
+      }
+    }
+    catch{
+      case e: DataAccessException if e.sqlState() == AdminUserResource.UNIQUE_VIOLATION =>
+        throw new WebApplicationException(
+          new RuntimeException(s"Login handle $handle is already taken", e),
+          Response.Status.CONFLICT
+        )
+    }
   }
 
   @GET
