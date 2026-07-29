@@ -484,6 +484,7 @@ describe("DatasetDetailComponent behavior", () => {
 
       expect(datasetServiceStub.getDataset).toHaveBeenCalled();
       expect(datasetServiceStub.retrieveDatasetVersionList).toHaveBeenCalled();
+      expect(datasetServiceStub.retrieveDatasetLatestVersion).toHaveBeenCalled();
       expect(component.likeCount).toBe(7);
       expect(component.viewCount).toBe(42);
       expect(hubServiceStub.isLiked).not.toHaveBeenCalled();
@@ -616,6 +617,37 @@ describe("DatasetDetailComponent behavior", () => {
       expect(component.selectedVersion).toBeUndefined();
       expect(spy).not.toHaveBeenCalled();
     });
+
+    it("derives latestVersionCreationTime from versions[0], independent of which version is later selected", () => {
+      const latest = makeVersion({ dvid: 10, name: "v10", creationTime: CREATION_TS });
+      const older = makeVersion({ dvid: 9, name: "v9", creationTime: CREATION_TS - 1000 });
+      datasetServiceStub.retrieveDatasetVersionList.mockReturnValue(of([latest, older]));
+
+      createComponent();
+      component.did = 5;
+      component.retrieveDatasetVersionList();
+
+      expect(component.latestVersionCreationTime).toEqual(format(new Date(CREATION_TS), "MM/dd/yyyy HH:mm:ss"));
+
+      // Selecting an older version (as the user can from the Versions & Files tab)
+      // must not change the Data Card's "Last updated" stat.
+      component.onVersionSelected(older);
+
+      expect(component.latestVersionCreationTime).toEqual(format(new Date(CREATION_TS), "MM/dd/yyyy HH:mm:ss"));
+      expect(component.selectedVersionCreationTime).toEqual(
+        format(new Date(CREATION_TS - 1000), "MM/dd/yyyy HH:mm:ss")
+      );
+    });
+
+    it("leaves latestVersionCreationTime unset when the latest version has no creation time", () => {
+      datasetServiceStub.retrieveDatasetVersionList.mockReturnValue(of([makeVersion({ creationTime: undefined })]));
+
+      createComponent();
+      component.did = 5;
+      component.retrieveDatasetVersionList();
+
+      expect(component.latestVersionCreationTime).toBe("");
+    });
   });
 
   describe("onVersionSelected", () => {
@@ -641,6 +673,66 @@ describe("DatasetDetailComponent behavior", () => {
       component.onVersionSelected(makeVersion({ dvid: undefined }));
 
       expect(datasetServiceStub.retrieveDatasetVersionFileTree).not.toHaveBeenCalled();
+    });
+
+    it("does not throw and leaves the displayed file untouched when the version has no files", () => {
+      datasetServiceStub.retrieveDatasetVersionFileTree.mockReturnValue(of({ fileNodes: [], size: 0 }));
+
+      createComponent();
+      component.did = 5;
+      component.currentDisplayedFileName = "stale.txt";
+      component.currentFileSize = 99;
+
+      expect(() => component.onVersionSelected(makeVersion({ dvid: 2 }))).not.toThrow();
+
+      expect(component.fileTreeNodeList).toEqual([]);
+      expect(component.currentDatasetVersionSize).toBe(0);
+      expect(component.currentDisplayedFileName).toBe("stale.txt");
+      expect(component.currentFileSize).toBe(99);
+    });
+  });
+
+  describe("retrieveLatestVersionFile", () => {
+    it("fetches the latest version independently and sets latestVersionFileName to the first leaf file", () => {
+      const leaf = fileLeaf("b.txt", "/root", 7);
+      datasetServiceStub.retrieveDatasetLatestVersion.mockReturnValue(of(makeVersion({ fileNodes: [leaf] })));
+
+      createComponent();
+      component.did = 5;
+      component.retrieveLatestVersionFile();
+
+      expect(datasetServiceStub.retrieveDatasetLatestVersion).toHaveBeenCalledWith(5);
+      expect(component.latestVersionFileName).toBe(getFullPathFromDatasetFileNode(leaf));
+    });
+
+    it("walks nested directories to find the first leaf file", () => {
+      const leaf = fileLeaf("c.txt", "/root/a", 3);
+      const tree: DatasetFileNode[] = [{ name: "a", type: "directory", parentDir: "/root", children: [leaf] }];
+      datasetServiceStub.retrieveDatasetLatestVersion.mockReturnValue(of(makeVersion({ fileNodes: tree })));
+
+      createComponent();
+      component.did = 5;
+      component.retrieveLatestVersionFile();
+
+      expect(component.latestVersionFileName).toBe(getFullPathFromDatasetFileNode(leaf));
+    });
+
+    it("sets latestVersionFileName to an empty string when the latest version has no files", () => {
+      datasetServiceStub.retrieveDatasetLatestVersion.mockReturnValue(of(makeVersion()));
+
+      createComponent();
+      component.did = 5;
+      component.retrieveLatestVersionFile();
+
+      expect(component.latestVersionFileName).toBe("");
+    });
+
+    it("does nothing when there is no did", () => {
+      createComponent();
+      component.did = undefined;
+      component.retrieveLatestVersionFile();
+
+      expect(datasetServiceStub.retrieveDatasetLatestVersion).not.toHaveBeenCalled();
     });
   });
 
@@ -746,6 +838,7 @@ describe("DatasetDetailComponent behavior", () => {
       expect(component.versionName).toBe("");
       expect(component.isCreatingVersion).toBe(false);
       expect(datasetServiceStub.retrieveDatasetVersionList).toHaveBeenCalled();
+      expect(datasetServiceStub.retrieveDatasetLatestVersion).toHaveBeenCalled();
       expect(emit).toHaveBeenCalled();
     });
 
