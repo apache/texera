@@ -623,9 +623,12 @@ class WorkflowExecutionsResourceSpec
     assert(found.contains(targetUri))
 
     // Sanity-check: the decoded URI is RESULT-typed and matches the target ids.
-    val (_, _, gpOpt, resType) = VFSURIFactory.decodeURI(found.get)
-    assert(resType == VFSResourceType.RESULT)
-    assert(gpOpt.exists(gp => gp.opId.logicalOpId == targetOpId && gp.portId == targetPortId))
+    val components = VFSURIFactory.decodeURI(found.get)
+    assert(components.resourceType == VFSResourceType.RESULT)
+    assert(
+      components.globalPortId
+        .exists(gp => gp.opId.logicalOpId == targetOpId && gp.portId == targetPortId)
+    )
   }
 
   it should "return None when no URI matches the requested op/port" in {
