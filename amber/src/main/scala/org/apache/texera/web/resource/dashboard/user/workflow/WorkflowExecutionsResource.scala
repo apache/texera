@@ -668,6 +668,8 @@ class WorkflowExecutionsResource {
       @PathParam("eid") eid: Integer,
       @Auth sessionUser: SessionUser
   ): List[WorkflowRuntimeStatistics] = {
+    validateUserCanAccessWorkflow(sessionUser.getUser.getUid, wid)
+
     // Create URI for runtime statistics
     val uriString: String = context
       .select(WORKFLOW_EXECUTIONS.RUNTIME_STATS_URI)
