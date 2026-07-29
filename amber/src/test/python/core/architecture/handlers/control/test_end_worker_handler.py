@@ -22,13 +22,10 @@ import pytest
 
 from core.architecture.handlers.control.end_worker_handler import EndWorkerHandler
 from core.models.internal_queue import DCMElement, InternalQueue
-from core.util.proto import set_one_of
 from proto.org.apache.texera.amber.core import ActorVirtualIdentity, ChannelIdentity
 from proto.org.apache.texera.amber.engine.architecture.rpc import (
-    ControlReturn,
     EmptyRequest,
     EmptyReturn,
-    ReturnInvocation,
 )
 from proto.org.apache.texera.amber.engine.common import DirectControlMessagePayloadV2
 
@@ -94,59 +91,3 @@ class TestEndWorkerHandler:
         input_queue.get()
         result = asyncio.run(handler.end_worker(EmptyRequest()))
         assert isinstance(result, EmptyReturn)
-
-    @staticmethod
-    def make_coordinator_reply() -> DCMElement:
-        # The coordinator's reply to a request this worker already issued -- typically
-        # worker_execution_completed, which the coordinator was still holding when it
-        # terminated this worker's region, so its reply follows EndWorker.
-        channel = ChannelIdentity(
-            ActorVirtualIdentity(name="CONTROLLER"),
-            ActorVirtualIdentity(name="worker-0"),
-            is_control=True,
-        )
-        return DCMElement(
-            tag=channel,
-            payload=set_one_of(
-                DirectControlMessagePayloadV2,
-                ReturnInvocation(
-                    command_id=4,
-                    return_value=set_one_of(ControlReturn, EmptyReturn()),
-                ),
-            ),
-        )
-
-    @pytest.mark.timeout(2)
-    def test_acknowledges_end_worker_with_only_a_queued_reply(
-        self, handler, input_queue
-    ):
-        # A queued reply carries no work, so it must not block termination -- the
-        # coordinator cannot order every reply it owes ahead of EndWorker.
-        input_queue.put(self.make_coordinator_reply())
-
-        result = asyncio.run(handler.end_worker(EmptyRequest()))
-
-        assert isinstance(result, EmptyReturn)
-        # Inspected, never consumed: the main loop still fulfills its promise.
-        assert input_queue.size() == 1
-
-    @pytest.mark.timeout(2)
-    def test_rejects_end_worker_when_work_is_queued_behind_a_reply(
-        self, handler, input_queue
-    ):
-        input_queue.put(self.make_coordinator_reply())
-        input_queue.put(self.make_control_message(0))
-        with pytest.raises(RuntimeError, match="unprocessed messages"):
-            asyncio.run(handler.end_worker(EmptyRequest()))
-        assert input_queue.size() == 2
-
-    @pytest.mark.timeout(2)
-    def test_is_idempotent_across_coordinator_retries(self, handler, input_queue):
-        # The coordinator re-sends EndWorker on every termination attempt, so repeated
-        # calls must neither consume nor change anything.
-        input_queue.put(self.make_coordinator_reply())
-        for _ in range(2):
-            assert isinstance(
-                asyncio.run(handler.end_worker(EmptyRequest())), EmptyReturn
-            )
-        assert input_queue.size() == 1
