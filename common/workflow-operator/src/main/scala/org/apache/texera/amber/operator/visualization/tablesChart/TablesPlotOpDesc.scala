@@ -36,7 +36,10 @@ class TablesPlotOpDesc extends PythonOperatorDescriptor {
   var includedColumns: List[TablesConfig] = List()
 
   private def getAttributes: String =
-    includedColumns.map(c => pyb"""${c.attributeName}""").mkString("','")
+    // Join with a plain comma: each column renders to a decode_python_template(...)
+    // call, so joining with the literal ',' would put a string right after a call
+    // and produce invalid Python.
+    includedColumns.map(c => pyb"""${c.attributeName}""").mkString(",")
 
   def manipulateTable(): PythonTemplateBuilder = {
     assert(includedColumns.nonEmpty)
