@@ -600,7 +600,11 @@ class WorkflowExecutionsResourceSpec
       PortIdentity(),
       input = false
     )
-    insertOperatorPortResult(eid, globalPortId, URI.create("vfs:///big"))
+    WorkflowExecutionsResource.insertOperatorPortResultUri(
+      eid,
+      globalPortId,
+      URI.create("vfs:///big")
+    )
 
     // 3 GiB exceeds Int.MaxValue; a Long->Int narrowing would wrap it negative.
     val threeGiB = 3L * 1024 * 1024 * 1024
