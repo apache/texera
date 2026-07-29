@@ -20,6 +20,7 @@
 package org.apache.texera.amber.util
 
 import com.fasterxml.jackson.databind.JsonNode
+import com.fasterxml.jackson.databind.node.{JsonNodeFactory, MissingNode}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -131,6 +132,59 @@ class JSONUtilsSpec extends AnyFlatSpec with Matchers {
       "1.id" -> "a",
       "2.id" -> "b"
     )
+  }
+
+  it should "flatten nested arrays with concatenated 1-based index keys when flatten=true" in {
+    // An array element that is itself an array is pushed back onto the worklist
+    // and re-processed: the inner indices concatenate onto the outer parent with
+    // no separator, so matrix[0][1] becomes "m12".
+    val node = parse("""{"m":[[1,2],[3]]}""")
+    JSONUtils.JSONToMap(node, flatten = true) shouldBe Map(
+      "m11" -> "1",
+      "m12" -> "2",
+      "m21" -> "3"
+    )
+  }
+
+  it should "render JSON null as the literal string \"null\" for nested fields when flatten=true" in {
+    val node = parse("""{"outer":{"a":null}}""")
+    JSONUtils.JSONToMap(node, flatten = true) shouldBe Map("outer.a" -> "null")
+  }
+
+  it should "contribute no entries for empty nested objects and arrays when flatten=true" in {
+    // An empty object/array is pushed onto the worklist but yields nothing once
+    // popped, so only the sibling primitive survives.
+    val node = parse("""{"emptyObj":{},"emptyArr":[],"b":"x"}""")
+    JSONUtils.JSONToMap(node, flatten = true) shouldBe Map("b" -> "x")
+  }
+
+  it should "return an empty map for a top-level empty array" in {
+    JSONUtils.JSONToMap(parse("[]"), flatten = true) shouldBe Map.empty[String, String]
+  }
+
+  it should "ignore a node that is neither object, array, nor value node" in {
+    // Defensive branch: a MissingNode is none of object/array/value, so the
+    // traversal pops it and contributes nothing. Guards against a node type
+    // that slips past all three predicates silently corrupting the result.
+    JSONUtils.JSONToMap(MissingNode.getInstance()) shouldBe Map.empty[String, String]
+  }
+
+  it should "flatten very deeply nested JSON without overflowing the stack" in {
+    // The traversal is iterative, so nesting depth lives on the heap rather than
+    // the call stack: a depth that would StackOverflow a per-level recursion must
+    // still produce the dotted leaf key. Build the tree programmatically rather
+    // than via parse() so Jackson's own parser nesting limit doesn't cap the depth
+    // before JSONToMap runs. Shape: {"a":{"a":{...{"leaf":"v"}...}}}.
+    val depth = 20000
+    var current = JsonNodeFactory.instance.objectNode()
+    current.put("leaf", "v")
+    for (_ <- 1 to depth) {
+      val parent = JsonNodeFactory.instance.objectNode()
+      parent.set[JsonNode]("a", current)
+      current = parent
+    }
+    val expectedKey = ("a." * depth) + "leaf"
+    JSONUtils.JSONToMap(current, flatten = true) shouldBe Map(expectedKey -> "v")
   }
 
   // ----- objectMapper configuration -----
