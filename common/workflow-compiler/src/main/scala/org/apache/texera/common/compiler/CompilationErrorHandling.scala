@@ -17,13 +17,19 @@
  * under the License.
  */
 
-package org.apache.texera.amber.compiler.model
+package org.apache.texera.common.compiler
 
-import org.apache.texera.amber.operator.LogicalOp
+/**
+  * Controls how the compiler reacts to a per-operator compilation error.
+  *
+  *   - [[CompilationErrorHandling.Lenient]] collects every error and returns them in the result,
+  *     with `physicalPlan = None` when any error occurred. Used for editing-time validation.
+  *   - [[CompilationErrorHandling.Strict]] throws on the first error — during file resolution,
+  *     logical-to-physical expansion, and schema propagation. Used before execution.
+  */
+sealed trait CompilationErrorHandling
 
-case class LogicalPlanPojo(
-    operators: List[LogicalOp],
-    links: List[LogicalLink],
-    opsToViewResult: List[String],
-    opsToReuseResult: List[String]
-)
+object CompilationErrorHandling {
+  case object Lenient extends CompilationErrorHandling
+  case object Strict extends CompilationErrorHandling
+}
