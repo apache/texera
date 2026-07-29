@@ -1398,6 +1398,33 @@ parse_changelog_changesets() {
     ' "$changelog"
 }
 
+# True when every error psql reported is a complaint that the object it tried
+# to create is already there — i.e. the changeSet's effect is already in the
+# schema and replaying it was a no-op.
+#
+# Why this is needed: on a fresh volume postgres runs sql/texera_ddl.sql itself
+# (compose mounts ../../sql to /docker-entrypoint-initdb.d), and that DDL is
+# kept in sync with sql/updates/*, so the changeSets we replay right afterwards
+# re-create objects that already exist. The ones incidentally written with
+# IF NOT EXISTS pass; the rest aborted `up` before the build ever started
+# (#7064) — e.g. 28.sql's dataset_owner_uid_name_key, which texera_ddl.sql
+# already creates as the auto-generated name for UNIQUE (owner_uid, name).
+#
+# Deliberately narrow. Only `already exists` counts:
+#   • `duplicate key` is a data conflict, not an applied schema change
+#   • no ERROR line at all means we cannot see why psql failed, and a failure
+#     we can't explain is never assumed harmless
+# Everything else — syntax errors, missing relations, permissions — keeps
+# failing loudly, so a genuinely incomplete schema still stops the build
+# instead of reaching jOOQ codegen.
+_sql_errors_all_already_exist() {
+    local f="${1:-}" errs=""
+    [[ -f "$f" ]] || return 1
+    errs=$(grep 'ERROR:' "$f" 2>/dev/null) || return 1
+    [[ -n "$errs" ]] || return 1
+    ! printf '%s\n' "$errs" | grep -qv 'already exists'
+}
+
 # Reconcile sql/updates/* with the live DB so jOOQ codegen (which reads the
 # database at sbt-compile time) sees the schema the checked-out code expects.
 # The repo's official runner is liquibase (sql/docker-compose.yml — manual,
@@ -1465,12 +1492,24 @@ infra_apply_sql_updates() {
                 return 1
             fi
             tui_step "postgres: applying $path (changeSet $id)"
+            # Keep psql's stderr: it holds the one line that explains an abort,
+            # and _sql_errors_all_already_exist needs it to tell "this changeSet
+            # is already in the schema" apart from a real failure.
+            local psql_err="$LOG_DIR/psql-changeset-$id.err"
             if ! sed 's/^\\c.*$//' "$sql_file" \
                     | docker exec -i "$pg" psql -U texera -d texera_db \
-                        -v ON_ERROR_STOP=1 -f - >/dev/null 2>&1; then
-                tui_err "postgres: $path failed -- inspect with: docker exec -i texera-postgres psql -U texera -d texera_db < $path"
-                return 1
+                        -v ON_ERROR_STOP=1 -f - >/dev/null 2>"$psql_err"; then
+                if _sql_errors_all_already_exist "$psql_err"; then
+                    # Fall through to the INSERT below so the changeSet is
+                    # recorded as applied and later runs stop retrying it.
+                    tui_skip "postgres: $path already in schema (recording changeSet $id)"
+                else
+                    tui_err "postgres: $path failed -- inspect with: docker exec -i texera-postgres psql -U texera -d texera_db < $path"
+                    sed 's/^/      /' "$psql_err" >&2
+                    return 1
+                fi
             fi
+            rm -f "$psql_err"
         fi
         docker exec "$pg" psql -U texera -d texera_db -qc "
             INSERT INTO public.databasechangelog

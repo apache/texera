@@ -593,5 +593,96 @@ else
     _fail "changelog references missing files:$missing_files"
 fi
 
+# 29) A changeSet the DB already satisfies must not abort `up`. On a fresh
+#     volume postgres' own /docker-entrypoint-initdb.d runs sql/texera_ddl.sql,
+#     which is kept in sync with sql/updates/*, so replaying those changeSets
+#     re-creates objects that are already there; the ones not written with
+#     IF NOT EXISTS used to kill `up` before the build ever started (#7064).
+#     `_sql_errors_all_already_exist` is the gate that tells that case apart
+#     from a real failure, so it's tested in both directions: it must say yes
+#     only for "already exists", and no for every other psql error, for a
+#     duplicate-key data conflict, and for input where it can't see any error
+#     at all (never assume harmless).
+tolerate_fn=$(awk '/^_sql_errors_all_already_exist\(\)/{f=1} f{print} f&&/^}/{exit}' "$MAIN_SH")
+if [[ -z "$tolerate_fn" ]]; then
+    _fail "_sql_errors_all_already_exist helper missing"
+else
+    _tol_dir=$(mktemp -d 2>/dev/null || mktemp -d -t ldtol)
+    _tol_check() {  # $1=label  $2=expected rc  $3=stderr contents
+        printf '%s' "$3" > "$_tol_dir/err"
+        local rc=0
+        ( eval "$tolerate_fn"; _sql_errors_all_already_exist "$_tol_dir/err" ) || rc=$?
+        if (( rc == $2 )); then
+            _pass "already-applied detector: $1"
+        else
+            _fail "already-applied detector: $1" "expected rc=$2, got rc=$rc"
+        fi
+    }
+    # Positive: the real #7064 failure, and the other spellings postgres uses
+    # for an object that is already present.
+    _tol_check "relation already exists (the #7064 failure)" 0 \
+        'psql:<stdin>:44: ERROR:  relation "dataset_owner_uid_name_key" already exists'
+    _tol_check "several already-exists errors, nothing else" 0 \
+        'psql:<stdin>:9: ERROR:  column "x" of relation "dataset" already exists
+psql:<stdin>:12: ERROR:  constraint "y" for relation "dataset" already exists
+psql:<stdin>:15: ERROR:  type "z" already exists'
+    _tol_check "already-exists around harmless NOTICE/ROLLBACK chatter" 0 \
+        'NOTICE:  Renamed 0 duplicate dataset name(s)
+psql:<stdin>:44: ERROR:  relation "dataset_owner_uid_name_key" already exists
+ROLLBACK'
+    _tol_check "non-ASCII identifier already exists" 0 \
+        'psql:<stdin>:3: ERROR:  relation "数据集_名称_key" already exists'
+    # Negative: anything we can't positively identify as already-applied has to
+    # keep failing loudly, or a genuinely broken schema reaches the sbt build.
+    _tol_check "syntax error" 1 \
+        'psql:<stdin>:7: ERROR:  syntax error at or near "ALTERR"'
+    _tol_check "missing relation" 1 \
+        'psql:<stdin>:7: ERROR:  relation "dataset" does not exist'
+    _tol_check "one already-exists mixed with one real error" 1 \
+        'psql:<stdin>:44: ERROR:  relation "dataset_owner_uid_name_key" already exists
+psql:<stdin>:51: ERROR:  syntax error at or near "COMMITT"'
+    _tol_check "duplicate key is a data conflict, not an applied change" 1 \
+        'psql:<stdin>:44: ERROR:  duplicate key value violates unique constraint "dataset_pkey"'
+    _tol_check "empty stderr" 1 ''
+    _tol_check "no ERROR line at all" 1 \
+        'NOTICE:  table "dataset" does not exist, skipping'
+    # Edge: nothing to read. Guard against the helper "succeeding" on a path
+    # that was never written, which would swallow every failure.
+    rm -f "$_tol_dir/err"
+    rc=0
+    ( eval "$tolerate_fn"; _sql_errors_all_already_exist "$_tol_dir/err" ) || rc=$?
+    if (( rc == 1 )); then
+        _pass "already-applied detector: missing stderr file"
+    else
+        _fail "already-applied detector: missing stderr file" "expected rc=1, got rc=$rc"
+    fi
+    rc=0
+    ( eval "$tolerate_fn"; _sql_errors_all_already_exist ) || rc=$?
+    if (( rc == 1 )); then
+        _pass "already-applied detector: no argument"
+    else
+        _fail "already-applied detector: no argument" "expected rc=1, got rc=$rc"
+    fi
+    rm -rf "$_tol_dir"
+fi
+
+# 30) Wiring for #29: the replay loop must consult the detector instead of
+#     aborting on the first psql failure, and must stop discarding psql's
+#     stderr — the old `2>&1` to /dev/null meant the one line that explains the
+#     abort ("relation ... already exists") never reached the operator, who was
+#     told to re-run the file by hand to find out why.
+updates_body=$(awk '/^infra_apply_sql_updates\(\)/{f=1} f{print} f&&/^}/{exit}' "$MAIN_SH")
+if [[ "$updates_body" == *"_sql_errors_all_already_exist"* ]]; then
+    _pass "infra_apply_sql_updates consults the already-applied detector"
+else
+    _fail "infra_apply_sql_updates aborts without checking for already-applied changeSets"
+fi
+if [[ "$updates_body" == *"ON_ERROR_STOP"* ]] \
+   && ! printf '%s' "$updates_body" | grep -qE '\-f -[[:space:]]*>/dev/null[[:space:]]*2>&1'; then
+    _pass "infra_apply_sql_updates keeps psql stderr for diagnosis"
+else
+    _fail "infra_apply_sql_updates still throws psql stderr away"
+fi
+
 printf "\n%d passed, %d failed\n" "$PASS" "$FAIL"
 (( FAIL == 0 ))
