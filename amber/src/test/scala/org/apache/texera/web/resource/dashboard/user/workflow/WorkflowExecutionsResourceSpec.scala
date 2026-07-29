@@ -609,6 +609,75 @@ class WorkflowExecutionsResourceSpec
     assert(row.getResultSize.longValue() == threeGiB)
   }
 
+  // ─── new: updateRuntimeStatsSize / updateConsoleMessageSize ───────────────
+
+  "updateRuntimeStatsSize" should "store a >2GiB size on the matching execution" in {
+    val execution = insertExecution()
+    val eid = ExecutionIdentity(execution.getEid.longValue())
+    val threeGiB = 3L * 1024 * 1024 * 1024
+
+    WorkflowExecutionsResource.updateRuntimeStatsSize(eid, threeGiB)
+
+    val row = getDSLContext
+      .selectFrom(WORKFLOW_EXECUTIONS)
+      .where(WORKFLOW_EXECUTIONS.EID.eq(execution.getEid))
+      .fetchOne()
+    assert(row.getRuntimeStatsSize.longValue() == threeGiB)
+  }
+
+  it should "leave the size untouched when the execution has no runtime stats URI" in {
+    val execution = insertExecution(runtimeStatsUri = null)
+
+    WorkflowExecutionsResource.updateRuntimeStatsSize(
+      ExecutionIdentity(execution.getEid.longValue())
+    )
+
+    val row = getDSLContext
+      .selectFrom(WORKFLOW_EXECUTIONS)
+      .where(WORKFLOW_EXECUTIONS.EID.eq(execution.getEid))
+      .fetchOne()
+    // The fixture never set a size, so a no-op leaves the column as inserted.
+    assert(row.getRuntimeStatsSize == null)
+  }
+
+  "updateConsoleMessageSize" should "store a >2GiB size on the matching (eid, opId) row" in {
+    val execution = insertExecution()
+    val eid = ExecutionIdentity(execution.getEid.longValue())
+    val opId = OperatorIdentity("op-console-size")
+    WorkflowExecutionsResource.insertOperatorExecutions(
+      execution.getEid.longValue(),
+      opId.id,
+      URI.create("vfs:///console-big")
+    )
+
+    val threeGiB = 3L * 1024 * 1024 * 1024
+    WorkflowExecutionsResource.updateConsoleMessageSize(eid, opId, threeGiB)
+
+    val row = getDSLContext
+      .selectFrom(OPERATOR_EXECUTIONS)
+      .where(OPERATOR_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(execution.getEid))
+      .and(OPERATOR_EXECUTIONS.OPERATOR_ID.eq(opId.id))
+      .fetchOne()
+    assert(row.getConsoleMessagesSize.longValue() == threeGiB)
+  }
+
+  it should "leave the size untouched when the operator has no console messages URI" in {
+    val execution = insertExecution()
+    val opId = OperatorIdentity("op-no-console-uri")
+
+    WorkflowExecutionsResource.updateConsoleMessageSize(
+      ExecutionIdentity(execution.getEid.longValue()),
+      opId
+    )
+
+    val row = getDSLContext
+      .selectFrom(OPERATOR_EXECUTIONS)
+      .where(OPERATOR_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(execution.getEid))
+      .and(OPERATOR_EXECUTIONS.OPERATOR_ID.eq(opId.id))
+      .fetchOne()
+    assert(row == null)
+  }
+
   // ─── new: getResultUriByLogicalPortId ─────────────────────────────────────
 
   "getResultUriByLogicalPortId" should "match by logical operator id, port id, and resource type" in {
