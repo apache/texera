@@ -70,9 +70,19 @@
       matchFileNames: ['bin/y-websocket-server/**'],
       semanticCommitScope: 'deps, y-websocket-server',
     },
+    // amber/ holds both the Scala engine and the Python (pyamber) worker,
+    // so the old blanket `pyamber` scope mislabeled Scala bumps. Split by
+    // manager: Python requirement bumps stay `pyamber`, Scala (sbt) bumps
+    // get `amber` (the directory's own name, not the Python-specific one).
     {
       matchFileNames: ['amber/**'],
+      matchManagers: ['pip_requirements'],
       semanticCommitScope: 'deps, pyamber',
+    },
+    {
+      matchFileNames: ['amber/**'],
+      matchManagers: ['sbt'],
+      semanticCommitScope: 'deps, amber',
     },
 
     // Patch bumps grouped into one weekly PR per area. Minor bumps are
@@ -101,6 +111,7 @@
     },
     {
       matchFileNames: ['amber/**'],
+      matchManagers: ['pip_requirements'],
       matchUpdateTypes: ['patch'],
       groupName: 'pyamber patch updates',
     },
@@ -131,6 +142,7 @@
     },
     {
       matchFileNames: ['amber/**'],
+      matchManagers: ['pip_requirements'],
       matchUpdateTypes: ['minor'],
       groupName: 'pyamber minor updates',
     },
