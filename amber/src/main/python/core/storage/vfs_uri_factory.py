@@ -51,6 +51,10 @@ class VFSUriComponents(NamedTuple):
     execution_id: ExecutionIdentity
     global_port_id: Optional[GlobalPortIdentity]
     resource_type: VFSResourceType
+    # The warehouse whose catalog holds this URI's table, from the optional leading
+    # "/wh/<name>" segment; None for non-BYO storage, which uses the configured
+    # default. Last so positional unpacking of the earlier fields still works.
+    warehouse: Optional[str] = None
 
 
 class VFSURIFactory:
@@ -95,6 +99,7 @@ class VFSURIFactory:
             execution_id,
             global_port_id,
             resource_type,
+            VFSURIFactory._warehouse_from(segments),
         )
 
     @staticmethod
@@ -106,22 +111,21 @@ class VFSURIFactory:
         return _WAREHOUSE_NAME_RE.fullmatch(name) is not None
 
     @staticmethod
-    def warehouse_from_uri(uri: str) -> Optional[str]:
+    def _warehouse_from(segments: list) -> Optional[str]:
         """
-        Extracts the warehouse name from the optional leading "/wh/<name>" segment
-        of a VFS URI, or None if absent. Mirrors VFSURIFactory.warehouseFromURI
-        (Scala) so a URI fully identifies which warehouse its tables live in.
+        The warehouse encoded in a VFS URI, if present. Reported as part of
+        VFSUriComponents by decode_uri, which is the only way in. Mirrors
+        VFSURIFactory.warehouseFrom (Scala).
 
-        Anchored to the leading segment, matching Scala and the leading-only strip
-        in document_factory.sanitize_uri_path: a later segment that happens to be
-        "wh" must not select a warehouse. The RAW path is split -- never decoded
-        first -- so a percent-encoded slash stays inside its own segment instead of
-        becoming a separator, and the name must be a legal warehouse name, so
-        anything that could not have been written by create_port_base_uri resolves
-        to no warehouse rather than to a wrong one. Scala splits its raw path the
-        same way, so both languages read a URI identically.
+        Anchored to the leading segment: a later segment that happens to be "wh"
+        -- e.g. inside a user-chosen operator id -- must not select a warehouse; it
+        would disagree with document_factory.sanitize_uri_path, which strips only a
+        leading one, and would route the write to another user's warehouse. The
+        segments come from the RAW path (see decode_uri), so a percent-encoded slash
+        stays inside its own segment, and the name must be a legal warehouse name,
+        so anything create_port_base_uri could not have written resolves to no
+        warehouse rather than to a wrong one.
         """
-        segments = urlparse(uri).path.lstrip("/").split("/")
         if (
             len(segments) >= 2
             and segments[0] == "wh"

@@ -60,7 +60,7 @@ class VFSURIFactorySpec extends AnyFlatSpec {
     assert(resultURI.getPath.endsWith("/result"))
     assert(stateURI.getPath.endsWith("/state"))
 
-    val VFSUriComponents(wid, eid, globalPortIdOpt, resourceType) =
+    val VFSUriComponents(wid, eid, globalPortIdOpt, resourceType, _) =
       VFSURIFactory.decodeURI(resultURI)
     assert(wid == workflowId)
     assert(eid == executionId)
@@ -75,7 +75,7 @@ class VFSURIFactorySpec extends AnyFlatSpec {
     assert(path.endsWith("/runtimestatistics"))
     assert(!path.contains("/opid/"))
 
-    val VFSUriComponents(wid, eid, globalPortIdOpt, resourceType) = VFSURIFactory.decodeURI(uri)
+    val VFSUriComponents(wid, eid, globalPortIdOpt, resourceType, _) = VFSURIFactory.decodeURI(uri)
     assert(wid == workflowId)
     assert(eid == executionId)
     assert(globalPortIdOpt.isEmpty)
@@ -90,7 +90,7 @@ class VFSURIFactorySpec extends AnyFlatSpec {
 
     // The current `decodeURI` does not extract the operator id (it has no
     // "opid" branch), so we only round-trip wid/eid/resourceType here.
-    val VFSUriComponents(wid, eid, globalPortIdOpt, resourceType) = VFSURIFactory.decodeURI(uri)
+    val VFSUriComponents(wid, eid, globalPortIdOpt, resourceType, _) = VFSURIFactory.decodeURI(uri)
     assert(wid == workflowId)
     assert(eid == executionId)
     assert(globalPortIdOpt.isEmpty)
@@ -122,7 +122,7 @@ class VFSURIFactorySpec extends AnyFlatSpec {
     }
   }
 
-  "VFSURIFactory.warehouseFromURI" should "extract the warehouse from a leading /wh/<name> segment" in {
+  "decodeURI" should "report the warehouse from a leading /wh/<name> segment" in {
     val uri =
       VFSURIFactory.createPortBaseURI(
         workflowId,
@@ -131,13 +131,16 @@ class VFSURIFactorySpec extends AnyFlatSpec {
         warehouse = Some("user-2-foo")
       )
     assert(uri.getPath.startsWith("/wh/user-2-foo/"))
-    assert(VFSURIFactory.warehouseFromURI(uri).contains("user-2-foo"))
+    // A base URI has no resource segment, so decode the derived result URI.
+    assert(
+      VFSURIFactory.decodeURI(VFSURIFactory.resultURI(uri)).warehouse.contains("user-2-foo")
+    )
   }
 
   it should "return None when no /wh/ segment is present (non-BYO URIs are unchanged)" in {
     val uri = VFSURIFactory.createPortBaseURI(workflowId, executionId, portId)
     assert(!uri.getPath.contains("/wh/"))
-    assert(VFSURIFactory.warehouseFromURI(uri).isEmpty)
+    assert(VFSURIFactory.decodeURI(VFSURIFactory.resultURI(uri)).warehouse.isEmpty)
   }
 
   it should "only honour a LEADING wh segment, never one deeper in the path" in {
@@ -146,12 +149,16 @@ class VFSURIFactorySpec extends AnyFlatSpec {
     // leading `wh/<name>/`, and would route the write to another user's warehouse.
     assert(
       VFSURIFactory
-        .warehouseFromURI(new URI("vfs:///wid/1/eid/2/opid/a/wh/victim/b/consolemessages"))
+        .decodeURI(new URI("vfs:///wid/1/eid/2/opid/a/wh/victim/b/consolemessages"))
+        .warehouse
         .isEmpty
     )
     // An operator literally named `wh` is likewise not a warehouse.
     assert(
-      VFSURIFactory.warehouseFromURI(new URI("vfs:///wid/1/eid/2/opid/wh/consolemessages")).isEmpty
+      VFSURIFactory
+        .decodeURI(new URI("vfs:///wid/1/eid/2/opid/wh/consolemessages"))
+        .warehouse
+        .isEmpty
     )
   }
 
@@ -161,10 +168,16 @@ class VFSURIFactorySpec extends AnyFlatSpec {
     // the raw path keeps `%2F` inside its own segment, and the name is then rejected
     // as illegal, so the URI resolves to no warehouse rather than to a wrong one.
     assert(
-      VFSURIFactory.warehouseFromURI(new URI("vfs:///wh/a%2Fwid%2F999/wid/1/eid/2/result")).isEmpty
+      VFSURIFactory
+        .decodeURI(new URI("vfs:///wh/a%2Fwid%2F999/wid/1/eid/2/result"))
+        .warehouse
+        .isEmpty
     )
     assert(
-      VFSURIFactory.warehouseFromURI(new URI("vfs:///wh/user-2%2Dfoo/wid/7/eid/3/result")).isEmpty
+      VFSURIFactory
+        .decodeURI(new URI("vfs:///wh/user-2%2Dfoo/wid/7/eid/3/result"))
+        .warehouse
+        .isEmpty
     )
   }
 
@@ -210,7 +223,7 @@ class VFSURIFactorySpec extends AnyFlatSpec {
         warehouse = Some("user-2-foo")
       )
     val resultURI = VFSURIFactory.resultURI(base)
-    assert(VFSURIFactory.warehouseFromURI(resultURI).contains("user-2-foo"))
+    assert(VFSURIFactory.decodeURI(resultURI).warehouse.contains("user-2-foo"))
 
     val components = VFSURIFactory.decodeURI(resultURI)
     assert(components.workflowId == workflowId)

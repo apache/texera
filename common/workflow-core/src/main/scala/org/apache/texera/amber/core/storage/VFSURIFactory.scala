@@ -45,7 +45,11 @@ case class VFSUriComponents(
     workflowId: WorkflowIdentity,
     executionId: ExecutionIdentity,
     globalPortId: Option[GlobalPortIdentity],
-    resourceType: VFSResourceType.Value
+    resourceType: VFSResourceType.Value,
+    // The warehouse whose catalog holds this URI's table, from the optional leading
+    // `/wh/<name>` segment; None for non-BYO storage, which uses the configured
+    // default. Last so positional unpacking of the earlier fields still works.
+    warehouse: Option[String] = None
 )
 
 object VFSURIFactory {
@@ -75,7 +79,8 @@ object VFSURIFactory {
       .getOrElse("")
 
   /**
-    * Extracts the warehouse name encoded in a VFS URI, if present.
+    * The warehouse encoded in a VFS URI, if present. Reported as part of
+    * [[VFSUriComponents]] by [[decodeURI]], which is the only way in.
     *
     * Anchored to the leading segment on purpose. The warehouse is written as a
     * leading `/wh/<name>` prefix and `DocumentFactory` strips only a leading one,
@@ -83,14 +88,14 @@ object VFSURIFactory {
     * that happens to be `wh` -- e.g. inside a user-chosen operator id in a
     * console-messages URI -- would select a warehouse the URI was never built for.
     *
-    * Splits the RAW path rather than the decoded one, so a percent-encoded slash
-    * stays inside the segment that contains it instead of becoming a separator;
-    * decoding first would let `%2F` forge path structure. The name is then required
-    * to be a legal warehouse name, so anything that could not have been written by
-    * `warehousePathSegment` resolves to no warehouse rather than to a wrong one.
+    * The segments come from the RAW path (see `decodeURI`), so a percent-encoded
+    * slash stays inside the segment that contains it instead of becoming a
+    * separator. The name is then required to be a legal warehouse name, so anything
+    * that could not have been written by `warehousePathSegment` resolves to no
+    * warehouse rather than to a wrong one.
     */
-  def warehouseFromURI(uri: URI): Option[String] =
-    Option(uri.getRawPath).toList.flatMap(_.stripPrefix("/").split("/")) match {
+  private def warehouseFrom(segments: List[String]): Option[String] =
+    segments match {
       case "wh" :: name :: _ if isValidWarehouseName(name) => Some(name)
       case _                                               => None
     }
@@ -134,7 +139,13 @@ object VFSURIFactory {
       .find(_.toString.toLowerCase == resourceTypeStr)
       .getOrElse(throw new IllegalArgumentException(s"Unknown resource type: $resourceTypeStr"))
 
-    VFSUriComponents(workflowId, executionId, globalPortIdOption, resourceType)
+    VFSUriComponents(
+      workflowId,
+      executionId,
+      globalPortIdOption,
+      resourceType,
+      warehouseFrom(segments)
+    )
   }
 
   /**

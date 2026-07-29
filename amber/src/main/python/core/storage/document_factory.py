@@ -79,10 +79,10 @@ class DocumentFactory:
     def create_document(uri: str, schema: Schema) -> VirtualDocument:
         parsed_uri = urlparse(uri)
         if parsed_uri.scheme == VFSURIFactory.VFS_FILE_URI_SCHEME:
-            resource_type = VFSURIFactory.decode_uri(uri).resource_type
-            namespace = DocumentFactory._resolve_namespace(resource_type)
+            components = VFSURIFactory.decode_uri(uri)
+            namespace = DocumentFactory._resolve_namespace(components.resource_type)
             storage_key = DocumentFactory.sanitize_uri_path(parsed_uri)
-            warehouse = VFSURIFactory.warehouse_from_uri(uri)
+            warehouse = components.warehouse
             # Convert Amber Schema to Iceberg Schema with LARGE_BINARY
             # field name encoding
             iceberg_schema = amber_schema_to_iceberg_schema(schema)
@@ -124,10 +124,10 @@ class DocumentFactory:
         """
         parsed_uri = urlparse(uri)
         if parsed_uri.scheme == VFSURIFactory.VFS_FILE_URI_SCHEME:
-            resource_type = VFSURIFactory.decode_uri(uri).resource_type
-            namespace = DocumentFactory._resolve_namespace(resource_type)
+            components = VFSURIFactory.decode_uri(uri)
+            namespace = DocumentFactory._resolve_namespace(components.resource_type)
             storage_key = DocumentFactory.sanitize_uri_path(parsed_uri)
-            warehouse = VFSURIFactory.warehouse_from_uri(uri)
+            warehouse = components.warehouse
             return IcebergCatalogInstance.get_instance(warehouse).table_exists(
                 f"{namespace}.{storage_key}"
             )
@@ -140,10 +140,10 @@ class DocumentFactory:
     def open_document(uri: str) -> typing.Tuple[VirtualDocument, Optional[Schema]]:
         parsed_uri = urlparse(uri)
         if parsed_uri.scheme == VFSURIFactory.VFS_FILE_URI_SCHEME:
-            resource_type = VFSURIFactory.decode_uri(uri).resource_type
-            namespace = DocumentFactory._resolve_namespace(resource_type)
+            components = VFSURIFactory.decode_uri(uri)
+            namespace = DocumentFactory._resolve_namespace(components.resource_type)
             storage_key = DocumentFactory.sanitize_uri_path(parsed_uri)
-            warehouse = VFSURIFactory.warehouse_from_uri(uri)
+            warehouse = components.warehouse
 
             table = load_table_metadata(
                 IcebergCatalogInstance.get_instance(warehouse),
