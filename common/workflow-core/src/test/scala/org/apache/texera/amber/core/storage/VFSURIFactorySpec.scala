@@ -174,10 +174,10 @@ class VFSURIFactorySpec extends AnyFlatSpec {
     // landing this execution's data under another's storage key. Python's
     // decode_uri splits the raw path, so decoding here would also make the two
     // languages disagree about which execution a URI belongs to.
-    val (wid, eid, _, _) =
+    val components =
       VFSURIFactory.decodeURI(new URI("vfs:///wh/a%2Fwid%2F999/wid/1/eid/2/result"))
-    assert(wid == WorkflowIdentity(1))
-    assert(eid == ExecutionIdentity(2))
+    assert(components.workflowId == WorkflowIdentity(1))
+    assert(components.executionId == ExecutionIdentity(2))
   }
 
   "VFSURIFactory" should "reject an operatorId containing '/' rather than let it forge URI segments" in {
@@ -212,10 +212,10 @@ class VFSURIFactorySpec extends AnyFlatSpec {
     val resultURI = VFSURIFactory.resultURI(base)
     assert(VFSURIFactory.warehouseFromURI(resultURI).contains("user-2-foo"))
 
-    val (wid, eid, globalPortIdOpt, resourceType) = VFSURIFactory.decodeURI(resultURI)
-    assert(wid == workflowId)
-    assert(eid == executionId)
-    assert(globalPortIdOpt.contains(portId))
-    assert(resourceType == VFSResourceType.RESULT)
+    val components = VFSURIFactory.decodeURI(resultURI)
+    assert(components.workflowId == workflowId)
+    assert(components.executionId == executionId)
+    assert(components.globalPortId.contains(portId))
+    assert(components.resourceType == VFSResourceType.RESULT)
   }
 }
