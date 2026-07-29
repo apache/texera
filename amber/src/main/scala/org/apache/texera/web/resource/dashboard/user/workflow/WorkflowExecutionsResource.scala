@@ -471,12 +471,12 @@ object WorkflowExecutionsResource {
       portId: PortIdentity
   ): Option[URI] = {
     def isMatchingExternalPortURI(uri: URI): Boolean = {
-      val (_, _, globalPortIdOption, resourceType) = VFSURIFactory.decodeURI(uri)
-      globalPortIdOption.exists { globalPortId =>
+      val components = VFSURIFactory.decodeURI(uri)
+      components.globalPortId.exists { globalPortId =>
         !globalPortId.portId.internal &&
         globalPortId.opId.logicalOpId == opId &&
         globalPortId.portId == portId &&
-        resourceType == VFSResourceType.RESULT
+        components.resourceType == VFSResourceType.RESULT
       }
     }
 

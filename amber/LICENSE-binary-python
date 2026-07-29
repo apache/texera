@@ -231,9 +231,9 @@ Python packages:
   - requests==2.34.2
   - s3transfer==0.16.1
   - safetensors==0.8.0
-  - tenacity==8.5.0
+  - tenacity==9.1.4
   - tokenizers==0.22.2
-  - transformers==5.3.0
+  - transformers==5.5.0
   - tzdata==2026.3
   - websocket-client==1.9.0
   - yarl==1.24.2
@@ -318,7 +318,7 @@ Python packages:
   - sympy==1.14.0
   - threadpoolctl==3.6.0
   - tifffile==2026.6.1
-  - torch==2.12.1
+  - torch==2.13.0
   - zstandard==0.25.0
 
 --------------------------------------------------------------------------------
@@ -363,7 +363,7 @@ Dependencies under the MIT-CMU License
 --------------------------------------------------------------------------------
 
 Python packages:
-  - pillow==12.2.0
+  - pillow==12.3.0
 
 Individual jars may contain their own META-INF/LICENSE and META-INF/NOTICE
 files that apply to their specific contents; those files continue to govern

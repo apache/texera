@@ -183,7 +183,22 @@ lazy val ComputingUnitManagingService = (project in file("computing-unit-managin
     Test / fork := true,
     Test / envVars += "COMPUTING_UNIT_SHARING_ENABLED" -> "true",
     Test / forkOptions := (Test / forkOptions).value
-      .withWorkingDirectory((ThisBuild / baseDirectory).value)
+      .withWorkingDirectory((ThisBuild / baseDirectory).value),
+    // Isolate the sharing-disabled suite into its own forked JVM without
+    // COMPUTING_UNIT_SHARING_ENABLED: the config flag is a load-time val, so the disabled
+    // branch can only be exercised where the env var is absent (not merely unset per-test).
+    // All other suites keep running together in one forked JVM (the pre-grouping default).
+    Test / testGrouping := {
+      val opts = (Test / forkOptions).value
+      val (disabled, enabled) =
+        (Test / definedTests).value.partition(_.name.endsWith("SharingDisabledSpec"))
+      val enabledGroup = Tests.Group("sharing-enabled", enabled, Tests.SubProcess(opts))
+      val disabledGroups = disabled.map { suite =>
+        val disabledOpts = opts.withEnvVars(opts.envVars - "COMPUTING_UNIT_SHARING_ENABLED")
+        Tests.Group(suite.name, Seq(suite), Tests.SubProcess(disabledOpts))
+      }
+      enabledGroup +: disabledGroups
+    }
   )
 lazy val FileService = (project in file("file-service"))
   .settings(commonModuleSettings)
@@ -210,8 +225,12 @@ lazy val FileService = (project in file("file-service"))
   )
 
 lazy val WorkflowOperator = (project in file("common/workflow-operator")).settings(commonModuleSettingsWithVendored).dependsOn(WorkflowCore)
+lazy val WorkflowCompiler = (project in file("common/workflow-compiler"))
+  .settings(commonModuleSettings)
+  .configs(Test)
+  .dependsOn(WorkflowOperator)
 lazy val WorkflowCompilingService = (project in file("workflow-compiling-service"))
-  .dependsOn(WorkflowOperator, Auth, Config, Resource)
+  .dependsOn(WorkflowCompiler, Auth, Config, Resource)
   .settings(commonModuleSettings)
   .settings(
     dependencyOverrides ++= Seq(
@@ -223,7 +242,7 @@ lazy val WorkflowCompilingService = (project in file("workflow-compiling-service
   )
 
 lazy val WorkflowExecutionService = (project in file("amber"))
-  .dependsOn(WorkflowOperator, Auth, Config)
+  .dependsOn(WorkflowCompiler, Auth, Config)
   .settings(commonModuleSettings)
   .settings(
     dependencyOverrides ++= Seq(
@@ -263,6 +282,7 @@ lazy val TexeraProject = (project in file("."))
     PyBuilder,
     WorkflowCore,
     WorkflowOperator,
+    WorkflowCompiler,
     // services
     AccessControlService,
     ComputingUnitManagingService,

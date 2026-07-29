@@ -21,7 +21,6 @@ package org.apache.texera.amber.engine.e2e
 
 import com.twitter.util.{Await, Duration, Promise, Return, Throw, Try}
 import org.apache.pekko.actor.ActorSystem
-import org.apache.texera.common.config.StorageConfig
 import org.apache.texera.amber.core.executor.OpExecInitInfo
 import org.apache.texera.amber.core.storage.DocumentFactory
 import org.apache.texera.amber.core.storage.model.VirtualDocument
@@ -65,10 +64,11 @@ import org.apache.texera.dao.jooq.generated.tables.pojos.{
   WorkflowVersion,
   Workflow => WorkflowPojo
 }
-import org.apache.texera.web.model.websocket.request.LogicalPlanPojo
+import org.apache.texera.common.compiler.model.LogicalPlanPojo
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource.getResultUriByLogicalPortId
 import org.apache.texera.web.service.ExecutionResultService
-import org.apache.texera.workflow.{LogicalLink, WorkflowCompiler}
+import org.apache.texera.common.compiler.model.LogicalLink
+import org.apache.texera.common.compiler.{CompilationErrorHandling, WorkflowCompiler}
 
 object TestUtils {
 
@@ -96,9 +96,13 @@ object TestUtils {
     val workflowCompiler = new WorkflowCompiler(
       context
     )
-    workflowCompiler.compile(
-      LogicalPlanPojo(operators, links, List(), List())
+    // Execution path: strict, fail-fast on compilation errors. Strict guarantees
+    // a defined physicalPlan (errors throw rather than clearing it).
+    val compilationResult = workflowCompiler.compile(
+      LogicalPlanPojo(operators, links, List(), List()),
+      CompilationErrorHandling.Strict
     )
+    Workflow.fromCompilationResult(context, compilationResult)
   }
 
   /**
@@ -219,12 +223,33 @@ object TestUtils {
     * If a test case accesses the user system through singleton resources that cache the DSLContext (e.g., executes a
     * workflow, which accesses WorkflowExecutionsResource), we use a separate texera_db specifically for such test cases.
     * Note such test cases need to clean up the database at the end of running each test case.
+    *
+    * This backs the e2e specs with MockTexeraDB's embedded Postgres instead of an external test Postgres
+    * (depends on #4179).
     */
   def initiateTexeraDBForTestCases(): Unit = {
+    org.apache.texera.dao.MockTexeraDB.ensureInitialized()
+    val embedded = org.apache.texera.dao.MockTexeraDB.getDBInstance
+
+    val dbName = "texera_db_for_test_cases_" + java.util.UUID.randomUUID().toString.replace("-", "")
+
+    scala.util.Using.resource(embedded.getPostgresDatabase.getConnection) { conn =>
+      scala.util.Using.resource(conn.createStatement()) { stmt =>
+        stmt.execute(s"CREATE DATABASE $dbName")
+      }
+    }
+
+    scala.util.Using.resource(embedded.getDatabase("postgres", dbName).getConnection) {
+      targetDbConn =>
+        scala.util.Using.resource(targetDbConn.createStatement()) { stmt =>
+          stmt.execute(org.apache.texera.dao.MockTexeraDB.getDDLScript)
+        }
+    }
+
     SqlServer.initConnection(
-      StorageConfig.jdbcUrlForTestCases,
-      StorageConfig.jdbcUsername,
-      StorageConfig.jdbcPassword
+      embedded.getJdbcUrl("postgres", dbName),
+      "postgres",
+      ""
     )
   }
 

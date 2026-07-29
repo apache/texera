@@ -45,6 +45,7 @@ import java.time.{Duration, OffsetDateTime, ZoneOffset}
 import java.util
 import java.util.Collections
 import java.util.concurrent.TimeUnit
+import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource
 
 class WorkflowResourceSpec
     extends AnyFlatSpec
@@ -60,6 +61,7 @@ class WorkflowResourceSpec
     val user = new User
     user.setUid(Integer.valueOf(1))
     user.setName("test_user")
+    user.setEmail("test_user@mail.com")
     user.setRole(UserRoleEnum.ADMIN)
     user.setPassword("123")
     user.setComment("test_comment")
@@ -71,6 +73,7 @@ class WorkflowResourceSpec
     val user = new User
     user.setUid(Integer.valueOf(2))
     user.setName("test_user2")
+    user.setEmail("test_user2@mail.com")
     user.setRole(UserRoleEnum.ADMIN)
     user.setPassword("123")
     user.setComment("test_comment2")
@@ -193,7 +196,7 @@ class WorkflowResourceSpec
   }
 
   override protected def afterAll(): Unit = {
-    shutdownDB()
+    closeConnectionPool()
   }
 
   private def getKeywordsArray(keywords: String*): util.ArrayList[String] = {
@@ -318,7 +321,7 @@ class WorkflowResourceSpec
     assert(ownerName == testUser.getName)
   }
 
-  "/search API " should "be able to search for workflows in different columns in Workflow table" in {
+  "/search API" should "be able to search for workflows in different columns in Workflow table" in {
     // testWorkflow1: {name: test_name, descrption: test_description, content: test_content}
     // search "test_name" or "test_description" or "test_content" should return testWorkflow1
     workflowResource.persistWorkflow(testWorkflow1, sessionUser1)
@@ -367,6 +370,57 @@ class WorkflowResourceSpec
     val DashboardWorkflowEntryList =
       dashboardResource.searchAllResourcesCall(sessionUser1, SearchQueryParams())
     assert(DashboardWorkflowEntryList.results.length == 2)
+  }
+
+  it should "return only single instance of workflow when owned and shared publicly" in {
+    // Create a public workflow
+    val publicWorkflow = new Workflow()
+    publicWorkflow.setName("public_workflow_1")
+    publicWorkflow.setDescription(testWorkflow1.getDescription)
+    publicWorkflow.setContent(testWorkflow1.getContent)
+    publicWorkflow.setIsPublic(true)
+
+    // Persist workflow with testUser as owner
+    workflowResource.persistWorkflow(publicWorkflow, sessionUser1)
+
+    val DashboardWorkflowEntryList =
+      dashboardResource.searchAllResourcesCall(
+        sessionUser1,
+        SearchQueryParams(),
+        includePublic = true
+      )
+    assert(DashboardWorkflowEntryList.results.length == 1)
+    assertSameWorkflow(publicWorkflow, DashboardWorkflowEntryList.results.head.workflow.get)
+  }
+
+  it should "return only single instance of workflow when publicly and explicitly shared" in {
+    // Create a public workflow
+    val publicWorkflow = new Workflow()
+    publicWorkflow.setName("public_workflow_2")
+    publicWorkflow.setDescription(testWorkflow1.getDescription)
+    publicWorkflow.setContent(testWorkflow1.getContent)
+    publicWorkflow.setIsPublic(true)
+
+    // Persist workflow with testUser as owner
+    val savedWorkflow = workflowResource.persistWorkflow(publicWorkflow, sessionUser1)
+
+    // Share workflow with read access to testUser2
+    val workflowAccessResource = new WorkflowAccessResource()
+    workflowAccessResource.grantAccess(
+      savedWorkflow.getWid,
+      testUser2.getEmail,
+      "READ",
+      sessionUser1
+    )
+
+    val DashboardWorkflowEntryList =
+      dashboardResource.searchAllResourcesCall(
+        sessionUser2,
+        SearchQueryParams(),
+        includePublic = true
+      )
+    assert(DashboardWorkflowEntryList.results.length == 1)
+    assertSameWorkflow(publicWorkflow, DashboardWorkflowEntryList.results.head.workflow.get)
   }
 
   it should "be able to search with arbitrary number of keywords in different combinations" in {
