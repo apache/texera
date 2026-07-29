@@ -901,18 +901,18 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@angular/cdk@npm:^21.0.0":
-  version: 21.2.8
-  resolution: "@angular/cdk@npm:21.2.8"
+"@angular/cdk@npm:^22.0.0":
+  version: 22.0.6
+  resolution: "@angular/cdk@npm:22.0.6"
   dependencies:
     parse5: "npm:^8.0.0"
     tslib: "npm:^2.3.0"
   peerDependencies:
-    "@angular/common": ^21.0.0 || ^22.0.0
-    "@angular/core": ^21.0.0 || ^22.0.0
-    "@angular/platform-browser": ^21.0.0 || ^22.0.0
+    "@angular/common": ^22.0.0 || ^23.0.0
+    "@angular/core": ^22.0.0 || ^23.0.0
+    "@angular/platform-browser": ^22.0.0 || ^23.0.0
     rxjs: ^6.5.3 || ^7.4.0
-  checksum: 10c0/60322d314bffb232c9b20e3993d7fff0e96193085a0d86876424c1b985658ac72d133227ef73a96ea8c6bf328049f0ad166d428714802238dfc06e338bb7fa74
+  checksum: 10c0/96979332e6006eb9358b9e109f139a1db452fe6cfbb511d774be8c28251afc8ce8e2e6d19d3836862a9435cebb35e0e0a9a281c8cbe70cd62e9a78d65e44309e
   languageName: node
   linkType: hard
 
@@ -1104,18 +1104,18 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@ant-design/icons-angular@npm:^21.0.0":
-  version: 21.0.0
-  resolution: "@ant-design/icons-angular@npm:21.0.0"
+"@ant-design/icons-angular@npm:^22.0.0":
+  version: 22.0.0
+  resolution: "@ant-design/icons-angular@npm:22.0.0"
   dependencies:
     "@ant-design/colors": "npm:^7.0.0"
     tslib: "npm:^2.0.0"
   peerDependencies:
-    "@angular/common": ^21.0.0
-    "@angular/core": ^21.0.0
-    "@angular/platform-browser": ^21.0.0
+    "@angular/common": ^22.0.0
+    "@angular/core": ^22.0.0
+    "@angular/platform-browser": ^22.0.0
     rxjs: ^6.5.3 || ^7.4.0
-  checksum: 10c0/0509dce35aa098126c415c260c6936dce28cb00d464847c14a47f513154f76a8a8a1b5deef9b6aef28971272a06fed5994a04bc18cb5d71407abb28409f412de
+  checksum: 10c0/21c4f58a2bc7ce1604efda03004d6519c02dc022f40497b5ad6c476dc233776ef414ecfaddd2a127316a2a8e27aa5ad2587b7e25c5b4287ddbb8d81b610389e8
   languageName: node
   linkType: hard
 
@@ -2445,7 +2445,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@babel/runtime@npm:7.29.2, @babel/runtime@npm:^7.12.5, @babel/runtime@npm:^7.21.0, @babel/runtime@npm:^7.22.6, @babel/runtime@npm:^7.24.7":
+"@babel/runtime@npm:7.29.2, @babel/runtime@npm:^7.12.5, @babel/runtime@npm:^7.22.6, @babel/runtime@npm:^7.24.7":
   version: 7.29.2
   resolution: "@babel/runtime@npm:7.29.2"
   checksum: 10c0/30b80a0140d16467792e1bbeb06f655b0dab70407da38dfac7fedae9c859f9ae9d846ef14ad77bd3814c064295fe9b1bc551f1541ea14646ae9f22b71a8bc17a
@@ -9268,12 +9268,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"date-fns@npm:^2.16.1":
-  version: 2.30.0
-  resolution: "date-fns@npm:2.30.0"
-  dependencies:
-    "@babel/runtime": "npm:^7.21.0"
-  checksum: 10c0/e4b521fbf22bc8c3db332bbfb7b094fd3e7627de0259a9d17c7551e2d2702608a7307a449206065916538e384f37b181565447ce2637ae09828427aed9cb5581
+"date-fns@npm:^4.1.0":
+  version: 4.4.0
+  resolution: "date-fns@npm:4.4.0"
+  checksum: 10c0/988f0a13db183f5dfc85c36bbb6847a9c135a9225888bbea4005876ec15539a8613c21a07370a4e7ea543918d5a1cafb423c528b42cdbbde5fdfddb178126b21
   languageName: node
   linkType: hard
 
@@ -11015,7 +11013,7 @@ __metadata:
     monaco-breakpoints: "npm:0.2.0"
     monaco-editor: "npm:@codingame/monaco-vscode-editor-api@25.1.2"
     monaco-languageclient: "npm:10.7.0"
-    ng-zorro-antd: "npm:21.3.2"
+    ng-zorro-antd: "npm:22.0.0"
     ngx-color-picker: "npm:12.0.1"
     ngx-file-drop: "npm:16.0.0"
     ngx-json-viewer: "npm:3.2.1"
@@ -13410,22 +13408,22 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ng-zorro-antd@npm:21.3.2":
-  version: 21.3.2
-  resolution: "ng-zorro-antd@npm:21.3.2"
+"ng-zorro-antd@npm:22.0.0":
+  version: 22.0.0
+  resolution: "ng-zorro-antd@npm:22.0.0"
   dependencies:
-    "@angular/cdk": "npm:^21.0.0"
-    "@ant-design/icons-angular": "npm:^21.0.0"
+    "@angular/cdk": "npm:^22.0.0"
+    "@ant-design/icons-angular": "npm:^22.0.0"
     "@ctrl/tinycolor": "npm:^3.6.0"
-    date-fns: "npm:^2.16.1"
+    date-fns: "npm:^4.1.0"
     tslib: "npm:^2.3.0"
   peerDependencies:
-    "@angular/common": ^21.0.0
-    "@angular/core": ^21.0.0
-    "@angular/forms": ^21.0.0
-    "@angular/platform-browser": ^21.0.0
-    "@angular/router": ^21.0.0
-  checksum: 10c0/2ce6641a6465dde92d8c12297a830de10782eedc30d6097e31822b5ca3ff610f9e064763f8f83c7b8aee65cf04f6f5deb6da52e0ba1e5463713bf63c16b3b259
+    "@angular/common": ^22.0.0
+    "@angular/core": ^22.0.0
+    "@angular/forms": ^22.0.0
+    "@angular/platform-browser": ^22.0.0
+    "@angular/router": ^22.0.0
+  checksum: 10c0/935264603430b04efbeab8240684a3b50170d28d65d00f984135b059e4d26b2b8922b8596c90f6408b6ffb8061777a30a8aa378da782c0ec67ffde6b0ccdd5f1
   languageName: node
   linkType: hard
 

@@ -54,7 +54,7 @@
     "monaco-breakpoints": "0.2.0",
     "monaco-editor": "npm:@codingame/monaco-vscode-editor-api@25.1.2",
     "monaco-languageclient": "10.7.0",
-    "ng-zorro-antd": "21.3.2",
+    "ng-zorro-antd": "22.0.0",
     "ngx-color-picker": "12.0.1",
     "ngx-file-drop": "16.0.0",
     "ngx-json-viewer": "3.2.1",
