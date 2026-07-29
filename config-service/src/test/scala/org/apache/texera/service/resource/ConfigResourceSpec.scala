@@ -419,6 +419,7 @@ class ConfigResourceSpec
       "projects_enabled",
       "workflows_enabled",
       "datasets_enabled",
+      "models_enabled",
       "compute_enabled",
       "quota_enabled",
       "forum_enabled",

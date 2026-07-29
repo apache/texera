@@ -23,6 +23,7 @@ import { DashboardWorkflow } from "./dashboard-workflow.interface";
 import { DashboardProject } from "./dashboard-project.interface";
 import { DashboardFile } from "./dashboard-file.interface";
 import { DashboardDataset } from "./dashboard-dataset.interface";
+import { DashboardModel } from "./dashboard-model.interface";
 import { DashboardWorkflowComputingUnit } from "../../common/type/workflow-computing-unit";
 import { ExecutionMode } from "../../common/type/workflow";
 
@@ -103,6 +104,29 @@ function makeDataset(): DashboardDataset {
     },
     accessPrivilege: "READ",
     size: 5678,
+  };
+}
+
+function makeModel(): DashboardModel {
+  return {
+    isOwner: false,
+    ownerEmail: "model-owner@example.com",
+    model: {
+      mid: 606,
+      ownerUid: 60,
+      name: "My Model",
+      repositoryName: "model-606",
+      isPublic: true,
+      isDownloadable: true,
+      description: "A sample model",
+      creationTime: 1700000006000,
+      coverImage: undefined,
+      framework: "pytorch",
+      format: "safetensors",
+    },
+    accessPrivilege: "READ",
+    // 0 is what /model/list actually returns for an explicit-access row
+    size: 0,
   };
 }
 
@@ -209,6 +233,24 @@ describe("DashboardEntry", () => {
       expect(entry.coverImageUrl).toBe("http://example.com/dataset-cover.png");
     });
 
+    it("maps a DashboardModel to the Model entity and copies model fields", () => {
+      const entry = new DashboardEntry(makeModel());
+
+      expect(entry.type).toBe(EntityType.Model);
+      expect(entry.id).toBe(606);
+      expect(entry.name).toBe("My Model");
+      expect(entry.description).toBe("A sample model");
+      expect(entry.creationTime).toBe(1700000006000);
+      expect(entry.lastModifiedTime).toBe(1700000006000);
+      expect(entry.accessLevel).toBe("READ");
+      expect(entry.ownerEmail).toBe("model-owner@example.com");
+      expect(entry.ownerId).toBe(60);
+    });
+
+    it("leaves coverImageUrl undefined for a model, since models have no cover image yet", () => {
+      expect(new DashboardEntry(makeModel()).coverImageUrl).toBeUndefined();
+    });
+
     it("maps a DashboardWorkflowComputingUnit to the ComputingUnit entity and copies computing-unit fields", () => {
       const entry = new DashboardEntry(makeComputingUnit());
 
@@ -305,6 +347,19 @@ describe("DashboardEntry", () => {
       const datasetValue = makeDataset();
       expect(new DashboardEntry(datasetValue).dataset).toBe(datasetValue);
       expect(() => new DashboardEntry(makeWorkflow()).dataset).toThrowError("Value is not of type DashboardDataset");
+    });
+
+    it("model getter returns the value for a model entry and throws for others", () => {
+      const modelValue = makeModel();
+      expect(new DashboardEntry(modelValue).model).toBe(modelValue);
+      expect(() => new DashboardEntry(makeWorkflow()).model).toThrowError("Value is not of type DashboardModel");
+    });
+
+    it("does not confuse a model with a dataset", () => {
+      // Both nest their payload under a single field, so the ordered dispatch has to
+      // keep them apart rather than letting one predicate claim the other.
+      expect(() => new DashboardEntry(makeModel()).dataset).toThrowError("Value is not of type DashboardDataset");
+      expect(() => new DashboardEntry(makeDataset()).model).toThrowError("Value is not of type DashboardModel");
     });
 
     it("computingUnit getter returns the value for a computing-unit entry and throws for others", () => {

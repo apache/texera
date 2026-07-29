@@ -19,9 +19,10 @@
 
 import { Injectable } from "@angular/core";
 import { Observable, of } from "rxjs";
-import { SearchResult } from "../../type/search-result";
+import { SearchResult, SearchResultItem } from "../../type/search-result";
 import { SearchFilterParameters, searchTestEntries } from "../../type/search-filter-parameters";
 import { DashboardEntry, UserInfo } from "../../type/dashboard-entry";
+import { EntityType } from "../../../hub/service/hub.service";
 import { SortMethod } from "../../type/sort-method";
 import { map } from "rxjs/operators";
 
@@ -51,11 +52,13 @@ export class StubSearchService {
     // Igoring start count and orderBy as they are not tested in the unit tests.
     return new Observable(observer => {
       observer.next({
-        results: searchTestEntries(keywords, params, this.testEntries, type).map(i => ({
-          resourceType: i.type,
-          workflow: i.type === "workflow" ? i.workflow : undefined,
-          project: i.type === "project" ? i.project : undefined,
-        })),
+        results: searchTestEntries(keywords, params, this.testEntries, type)
+          .filter(i => i.type !== EntityType.Model)
+          .map(i => ({
+            resourceType: i.type as SearchResultItem["resourceType"],
+            workflow: i.type === "workflow" ? i.workflow : undefined,
+            project: i.type === "project" ? i.project : undefined,
+          })),
         more: false,
       });
     });

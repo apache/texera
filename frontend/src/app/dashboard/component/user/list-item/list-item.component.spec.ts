@@ -37,6 +37,7 @@ import {
   HUB_DATASET_RESULT_DETAIL,
   HUB_WORKFLOW_RESULT_DETAIL,
   USER_DATASET,
+  USER_MODEL,
   USER_PROJECT,
   USER_WORKSPACE,
 } from "../../../../app-routing.constant";
@@ -198,6 +199,95 @@ describe("ListItemComponent", () => {
       } as unknown as DashboardEntry;
       component.initializeEntry();
       expect(component.entryLink).toEqual([HUB_DATASET_RESULT_DETAIL, "301"]);
+    });
+
+    it("routes models to the user model page even when accessibleUserIds is empty", () => {
+      component.currentUid = 1;
+      component.entry = {
+        id: 400,
+        type: "model",
+        model: { isOwner: true },
+        accessibleUserIds: [],
+        ...baseStats,
+      } as unknown as DashboardEntry;
+      component.initializeEntry();
+      expect(component.entryLink).toEqual([USER_MODEL, "400"]);
+      expect(component.iconType).toBe("experiment");
+      expect(component.disableDelete).toBe(false);
+    });
+
+    it("disables delete for a model the user does not own", () => {
+      component.entry = {
+        id: 401,
+        type: "model",
+        model: { isOwner: false },
+        accessibleUserIds: [],
+        ...baseStats,
+      } as unknown as DashboardEntry;
+      component.initializeEntry();
+      expect(component.disableDelete).toBe(true);
+    });
+  });
+
+  describe("size column", () => {
+    const baseStats = { likeCount: 0, viewCount: 0, isLiked: false };
+
+    // Models report a real size from /model/list, the same as datasets do through the
+    // search path, so both render the column identically.
+    it("shows the size for a model row just as it does for a dataset row", () => {
+      component.entry = {
+        id: 500,
+        name: "my-dataset",
+        description: "",
+        type: "dataset",
+        dataset: { isOwner: true },
+        accessibleUserIds: [],
+        size: 2048,
+        ...baseStats,
+      } as unknown as DashboardEntry;
+      component.initializeEntry();
+      fixture.detectChanges();
+      expect(component.size).toBe(2048);
+      expect(fixture.nativeElement.textContent).toContain("Size:");
+
+      component.entry = {
+        id: 501,
+        name: "my-model",
+        description: "",
+        type: "model",
+        model: { isOwner: true },
+        accessibleUserIds: [],
+        size: 4096,
+        ...baseStats,
+      } as unknown as DashboardEntry;
+      component.initializeEntry();
+      fixture.detectChanges();
+      expect(component.size).toBe(4096);
+      expect(fixture.nativeElement.textContent).toContain("Size:");
+    });
+
+    it("does not carry a size over from the previously rendered entry", () => {
+      component.entry = {
+        id: 502,
+        type: "dataset",
+        dataset: { isOwner: true },
+        accessibleUserIds: [],
+        size: 9999,
+        ...baseStats,
+      } as unknown as DashboardEntry;
+      component.initializeEntry();
+
+      component.entry = {
+        id: 503,
+        type: "model",
+        model: { isOwner: true },
+        accessibleUserIds: [],
+        size: 0,
+        ...baseStats,
+      } as unknown as DashboardEntry;
+      component.initializeEntry();
+
+      expect(component.size).toBe(0);
     });
   });
 

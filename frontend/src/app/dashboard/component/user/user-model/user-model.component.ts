@@ -1,0 +1,192 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+import { AfterViewInit, Component, ViewChild } from "@angular/core";
+import { firstValueFrom } from "rxjs";
+import { UserService } from "../../../../common/service/user/user.service";
+import { ModelService } from "../../../service/user/model/model.service";
+import { SortMethod } from "../../../type/sort-method";
+import { DashboardEntry } from "../../../type/dashboard-entry";
+import { DashboardModel } from "../../../type/dashboard-model.interface";
+import { SearchResultsComponent } from "../search-results/search-results.component";
+import { CardItemComponent } from "../list-item/card-item/card-item.component";
+import { SortButtonComponent } from "../sort-button/sort-button.component";
+import { NzCardComponent } from "ng-zorro-antd/card";
+import { NzSpaceCompactItemDirective, NzSpaceCompactComponent } from "ng-zorro-antd/space";
+import { NzButtonComponent } from "ng-zorro-antd/button";
+import { NzWaveDirective } from "ng-zorro-antd/core/wave";
+import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
+import { NzIconDirective } from "ng-zorro-antd/icon";
+import { NzSelectComponent } from "ng-zorro-antd/select";
+import { FormsModule } from "@angular/forms";
+
+@UntilDestroy()
+@Component({
+  selector: "texera-model-section",
+  templateUrl: "user-model.component.html",
+  styleUrls: ["user-model.component.scss"],
+  imports: [
+    NzCardComponent,
+    NzSpaceCompactItemDirective,
+    NzSpaceCompactComponent,
+    NzButtonComponent,
+    NzWaveDirective,
+    ɵNzTransitionPatchDirective,
+    NzIconDirective,
+    NzSelectComponent,
+    FormsModule,
+    SortButtonComponent,
+    SearchResultsComponent,
+    CardItemComponent,
+  ],
+})
+export class UserModelComponent implements AfterViewInit {
+  private static readonly VIEW_MODE_STORAGE_KEY = "texera.userModel.viewMode";
+
+  public sortMethod = SortMethod.CreateTimeDesc;
+  public isLogin = this.userService.isLogin();
+  public currentUid = this.userService.getCurrentUser()?.uid;
+  public viewType: "list" | "card" =
+    localStorage.getItem(UserModelComponent.VIEW_MODE_STORAGE_KEY) === "list" ? "list" : "card";
+
+  public searchKeywords: string[] = [];
+
+  private cachedModels: DashboardModel[] | null = null;
+
+  private _searchResultsComponent?: SearchResultsComponent;
+  @ViewChild(SearchResultsComponent) get searchResultsComponent(): SearchResultsComponent {
+    if (this._searchResultsComponent) {
+      return this._searchResultsComponent;
+    }
+    throw new Error("Property cannot be accessed before it is initialized.");
+  }
+
+  set searchResultsComponent(value: SearchResultsComponent) {
+    this._searchResultsComponent = value;
+  }
+
+  constructor(
+    private userService: UserService,
+    private modelService: ModelService
+  ) {
+    this.userService
+      .userChanged()
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
+        this.isLogin = this.userService.isLogin();
+        this.currentUid = this.userService.getCurrentUser()?.uid;
+      });
+  }
+
+  ngAfterViewInit() {
+    this.userService
+      .userChanged()
+      .pipe(untilDestroyed(this))
+      .subscribe(() => this.search(true));
+    this.search(true);
+  }
+
+  public setViewType(viewType: "list" | "card"): void {
+    if (this.viewType === viewType) {
+      return;
+    }
+    this.viewType = viewType;
+    localStorage.setItem(UserModelComponent.VIEW_MODE_STORAGE_KEY, viewType);
+  }
+
+  /**
+   * Re-runs the client-side filter and sort over the accessible models.
+   *
+   * @param forced when true, discards the cached list and refetches
+   */
+  async search(forced: boolean = false): Promise<void> {
+    if (forced) {
+      this.cachedModels = null;
+    }
+    if (!this._searchResultsComponent) {
+      return;
+    }
+
+    this.searchResultsComponent.reset(async (start, count) => {
+      const models = await this.accessibleModels();
+      const matching = this.sortModels(models.filter(model => this.matchesKeyword(model)));
+      return {
+        entries: matching.slice(start, start + count).map(model => new DashboardEntry(model)),
+        more: start + count < matching.length,
+      };
+    });
+    await this.searchResultsComponent.loadMore();
+  }
+
+  public deleteModel(entry: DashboardEntry): void {
+    const mid = entry.model.model.mid;
+    if (mid === undefined) {
+      return;
+    }
+    this.modelService
+      .deleteModel(mid)
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
+        this.cachedModels = this.cachedModels?.filter(model => model.model.mid !== mid) ?? null;
+        this.searchResultsComponent.entries = this.searchResultsComponent.entries.filter(
+          modelEntry => modelEntry.model.model.mid !== mid
+        );
+      });
+  }
+
+  private async accessibleModels(): Promise<DashboardModel[]> {
+    if (this.cachedModels === null) {
+      this.cachedModels = await firstValueFrom(this.modelService.retrieveAccessibleModels());
+    }
+    return this.cachedModels;
+  }
+
+  private matchesKeyword(model: DashboardModel): boolean {
+    const keywords = this.searchKeywords.map(keyword => keyword.trim().toLowerCase()).filter(keyword => keyword !== "");
+    if (keywords.length === 0) {
+      return true;
+    }
+    const haystack = [
+      model.model.name,
+      model.model.description,
+      model.model.framework,
+      model.model.format,
+      model.ownerEmail,
+    ]
+      .filter((field): field is string => typeof field === "string")
+      .map(field => field.toLowerCase());
+
+    return keywords.every(keyword => haystack.some(field => field.includes(keyword)));
+  }
+
+  private sortModels(models: DashboardModel[]): DashboardModel[] {
+    const byName = (a: DashboardModel, b: DashboardModel) => a.model.name.localeCompare(b.model.name);
+    const byCreation = (a: DashboardModel, b: DashboardModel) =>
+      (a.model.creationTime ?? 0) - (b.model.creationTime ?? 0);
+
+    switch (this.sortMethod) {
+      case SortMethod.NameAsc:
+        return [...models].sort(byName);
+      case SortMethod.NameDesc:
+        return [...models].sort((a, b) => byName(b, a));
+      default:
+        return [...models].sort((a, b) => byCreation(b, a));
+    }
+  }
+}

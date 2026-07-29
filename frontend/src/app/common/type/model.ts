@@ -16,10 +16,16 @@
  * limitations under the License.
  */
 
-/**
- * The leading segment of a logical file path, identifying the resource kind (e.g. /datasets/...).
- */
-export enum ResourceType {
-  Datasets = "datasets",
-  Models = "models",
+export interface Model {
+  mid: number | undefined;
+  ownerUid: number | undefined;
+  name: string;
+  repositoryName: string | undefined;
+  isPublic: boolean;
+  isDownloadable: boolean;
+  description: string;
+  creationTime: number | undefined;
+  coverImage: string | undefined;
+  framework: string | undefined;
+  format: string | undefined;
 }

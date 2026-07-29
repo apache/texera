@@ -20,6 +20,7 @@
 import {
   isDashboardDataset,
   isDashboardFile,
+  isDashboardModel,
   isDashboardProject,
   isDashboardWorkflow,
   isDashboardWorkflowComputingUnit,
@@ -28,6 +29,7 @@ import { DashboardWorkflow } from "./dashboard-workflow.interface";
 import { DashboardProject } from "./dashboard-project.interface";
 import { DashboardFile } from "./dashboard-file.interface";
 import { DashboardDataset } from "./dashboard-dataset.interface";
+import { DashboardModel } from "./dashboard-model.interface";
 import { DashboardWorkflowComputingUnit } from "../../common/type/workflow-computing-unit";
 import { ExecutionMode } from "../../common/type/workflow";
 
@@ -99,6 +101,26 @@ const datasetFixture: DashboardDataset = {
   },
   accessPrivilege: "READ",
   size: 2048,
+};
+
+const modelFixture: DashboardModel = {
+  isOwner: false,
+  ownerEmail: "bob@example.com",
+  model: {
+    mid: 4,
+    ownerUid: 11,
+    name: "My Model",
+    repositoryName: "model-4",
+    isPublic: true,
+    isDownloadable: true,
+    description: "A sample model",
+    creationTime: 1700000000000,
+    coverImage: undefined,
+    framework: "pytorch",
+    format: "safetensors",
+  },
+  accessPrivilege: "READ",
+  size: 0,
 };
 
 const computingUnitFixture: DashboardWorkflowComputingUnit = {
@@ -236,6 +258,42 @@ describe("isDashboardDataset", () => {
   it("should return false when dataset is null", () => {
     // A null payload must be rejected even though typeof null === "object".
     expect(isDashboardDataset({ dataset: null })).toBe(false);
+  });
+});
+
+describe("isDashboardModel", () => {
+  it("should return true for a realistic DashboardModel", () => {
+    expect(isDashboardModel(modelFixture)).toBe(true);
+  });
+
+  it("should return false for null and undefined", () => {
+    expect(isDashboardModel(null)).toBe(false);
+    expect(isDashboardModel(undefined)).toBe(false);
+  });
+
+  it("should return false for an object without a model field", () => {
+    expect(isDashboardModel({})).toBe(false);
+  });
+
+  it("should return false when model is not an object", () => {
+    expect(isDashboardModel({ model: "not an object" })).toBe(false);
+  });
+
+  it("should return false when model is null", () => {
+    // A null payload must be rejected even though typeof null === "object".
+    expect(isDashboardModel({ model: null })).toBe(false);
+  });
+
+  it("should not claim a dataset, and no other predicate should claim a model", () => {
+    // DashboardEntry dispatches through these in order, so overlap would silently
+    // route one resource kind into the other's branch.
+    expect(isDashboardModel(datasetFixture)).toBe(false);
+    expect(isDashboardDataset(modelFixture)).toBe(false);
+    expect(isDashboardWorkflow(modelFixture)).toBe(false);
+    expect(isDashboardFile(modelFixture)).toBe(false);
+    // isDashboardProject matches any object with a string name and no workflow, so a
+    // flattened model payload would be claimed by it — the nesting is what protects us.
+    expect(isDashboardProject(modelFixture)).toBe(false);
   });
 });
 

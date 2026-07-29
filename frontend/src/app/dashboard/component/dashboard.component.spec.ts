@@ -276,6 +276,7 @@ describe("DashboardComponent", () => {
       projects_enabled: true,
       workflows_enabled: true,
       datasets_enabled: true,
+      models_enabled: true,
       compute_enabled: true,
       quota_enabled: true,
       forum_enabled: true,
@@ -283,8 +284,9 @@ describe("DashboardComponent", () => {
     };
     fixture.detectChanges();
 
-    // 7 "Your Work" links (incl. Python Venvs) + 4 admin links + 1 about link + 1 feedback link = 13
-    expect(fixture.debugElement.queryAll(By.directive(RouterLink)).length).toBe(13);
+    // 8 "Your Work" links (incl. Python Venvs and Models) + 4 admin links + 1 about link
+    // + 1 feedback link = 14
+    expect(fixture.debugElement.queryAll(By.directive(RouterLink)).length).toBe(14);
   });
 
   describe("sidebar active-route highlighting (#3490)", () => {
@@ -297,6 +299,7 @@ describe("DashboardComponent", () => {
       projects_enabled: true,
       workflows_enabled: true,
       datasets_enabled: true,
+      models_enabled: true,
       compute_enabled: true,
       quota_enabled: true,
       forum_enabled: true,

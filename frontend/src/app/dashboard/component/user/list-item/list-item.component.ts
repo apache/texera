@@ -48,12 +48,14 @@ import {
   DEFAULT_DATASET_NAME,
   validateDatasetName,
 } from "../../../service/user/dataset/dataset.service";
+import { DEFAULT_MODEL_NAME, ModelService, validateModelName } from "../../../service/user/model/model.service";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { extractErrorMessage } from "../../../../common/util/error";
 import {
   HUB_DATASET_RESULT_DETAIL,
   HUB_WORKFLOW_RESULT_DETAIL,
   USER_DATASET,
+  USER_MODEL,
   USER_PROJECT,
   USER_WORKSPACE,
 } from "../../../../app-routing.constant";
@@ -137,6 +139,7 @@ export class ListItemComponent implements OnChanges {
     private modalService: NzModalService,
     private workflowPersistService: WorkflowPersistService,
     private datasetService: DatasetService,
+    private modelService: ModelService,
     private modal: NzModalService,
     private hubService: HubService,
     private downloadService: DownloadService,
@@ -170,6 +173,14 @@ export class ListItemComponent implements OnChanges {
           this.entryLink = [HUB_DATASET_RESULT_DETAIL, String(this.entry.id)];
         }
         this.iconType = "database";
+        this.size = this.entry.size;
+      }
+    } else if (this.entry.type === "model") {
+      if (typeof this.entry.id === "number") {
+        this.disableDelete = !this.entry.model.isOwner;
+        // accessibleUserIds is populated only by dashboard/search
+        this.entryLink = [USER_MODEL, String(this.entry.id)];
+        this.iconType = "experiment";
         this.size = this.entry.size;
       }
     } else if (this.entry.type === "file") {
@@ -238,6 +249,20 @@ export class ListItemComponent implements OnChanges {
         },
         nzFooter: null,
         nzTitle: "Share this dataset with others",
+        nzCentered: true,
+        nzWidth: "700px",
+      });
+    } else if (this.entry.type === "model") {
+      modal = this.modalService.create({
+        nzContent: ShareAccessComponent,
+        nzData: {
+          writeAccess: this.entry.accessLevel === "WRITE",
+          type: "model",
+          id: this.entry.id,
+          allOwners: await firstValueFrom(this.modelService.retrieveOwners()),
+        },
+        nzFooter: null,
+        nzTitle: "Share this model with others",
         nzCentered: true,
         nzWidth: "700px",
       });
@@ -339,10 +364,10 @@ export class ListItemComponent implements OnChanges {
   }
 
   public confirmUpdateCustomName(name: string): void {
-    const newName = this.entry.type === "workflow" ? name || DEFAULT_WORKFLOW_NAME : name || DEFAULT_DATASET_NAME;
+    const newName = name || this.defaultNameForType();
 
-    if (this.entry.type === "dataset") {
-      const nameError = validateDatasetName(newName);
+    if (this.entry.type === "dataset" || this.entry.type === "model") {
+      const nameError = this.entry.type === "model" ? validateModelName(newName) : validateDatasetName(newName);
       if (nameError) {
         this.notificationService.error(nameError);
         this.entry.name = this.originalName;
@@ -365,7 +390,21 @@ export class ListItemComponent implements OnChanges {
         newName,
         this.originalName
       );
+    } else if (this.entry.type === "model") {
+      this.updateProperty(
+        this.modelService.updateModelName.bind(this.modelService),
+        "name",
+        newName,
+        this.originalName
+      );
     }
+  }
+
+  private defaultNameForType(): string {
+    if (this.entry.type === "workflow") {
+      return DEFAULT_WORKFLOW_NAME;
+    }
+    return this.entry.type === "model" ? DEFAULT_MODEL_NAME : DEFAULT_DATASET_NAME;
   }
 
   public confirmUpdateCustomDescription(description: string | undefined): void {
@@ -381,6 +420,13 @@ export class ListItemComponent implements OnChanges {
     } else if (this.entry.type === "dataset") {
       this.updateProperty(
         this.datasetService.updateDatasetDescription.bind(this.datasetService),
+        "description",
+        updatedDescription,
+        this.originalDescription
+      );
+    } else if (this.entry.type === "model") {
+      this.updateProperty(
+        this.modelService.updateModelDescription.bind(this.modelService),
         "description",
         updatedDescription,
         this.originalDescription
