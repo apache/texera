@@ -666,6 +666,8 @@ class TestMainLoop:
         stats_invocation = elem.payload.return_invocation
         worker_metrics_response = stats_invocation.return_value.worker_metrics_response
         stats = worker_metrics_response.metrics.worker_statistics
+        # a missing/dropped version would echo through the read-back below; guard it
+        assert worker_metrics_response.metrics.state_version > 0
 
         metrics = WorkerMetrics(
             worker_state=WorkerState.RUNNING,
@@ -692,6 +694,9 @@ class TestMainLoop:
                 control_processing_time=stats.control_processing_time,
                 idle_time=stats.idle_time,
             ),
+            # version is the worker's logical state clock; read it from the actual
+            # report rather than pinning a brittle count (covered by StateManager tests).
+            state_version=worker_metrics_response.metrics.state_version,
         )
 
         assert elem == DCMElement(
@@ -1099,13 +1104,21 @@ class TestMainLoop:
         output_queue,
     ):
         input_queue.put(mock_pause)
-        assert output_queue.get() == DCMElement(
+        elem = output_queue.get()
+        # version is the worker's logical state clock; read it from the actual
+        # report rather than pinning a brittle count (covered by StateManager tests).
+        state_version = elem.payload.return_invocation.return_value.worker_state_response.state_version
+        # a missing/dropped version would echo through the read-back; guard it
+        assert state_version > 0
+        assert elem == DCMElement(
             tag=mock_control_output_channel,
             payload=DirectControlMessagePayloadV2(
                 return_invocation=ReturnInvocation(
                     command_id=command_sequence,
                     return_value=ControlReturn(
-                        worker_state_response=WorkerStateResponse(WorkerState.PAUSED)
+                        worker_state_response=WorkerStateResponse(
+                            WorkerState.PAUSED, state_version=state_version
+                        )
                     ),
                 )
             ),
@@ -1120,13 +1133,21 @@ class TestMainLoop:
         output_queue,
     ):
         input_queue.put(mock_resume)
-        assert output_queue.get() == DCMElement(
+        elem = output_queue.get()
+        # version is the worker's logical state clock; read it from the actual
+        # report rather than pinning a brittle count (covered by StateManager tests).
+        state_version = elem.payload.return_invocation.return_value.worker_state_response.state_version
+        # a missing/dropped version would echo through the read-back; guard it
+        assert state_version > 0
+        assert elem == DCMElement(
             tag=mock_control_output_channel,
             payload=DirectControlMessagePayloadV2(
                 return_invocation=ReturnInvocation(
                     command_id=command_sequence,
                     return_value=ControlReturn(
-                        worker_state_response=WorkerStateResponse(WorkerState.RUNNING)
+                        worker_state_response=WorkerStateResponse(
+                            WorkerState.RUNNING, state_version=state_version
+                        )
                     ),
                 )
             ),
