@@ -67,6 +67,11 @@ object Utils extends LazyLogging {
     * for callers on an actor or coordinator thread, where a `Thread.sleep` would also stall
     * unrelated work queued on that thread.
     *
+    * This is the non-blocking half of the pair: for blocking work, use
+    * `org.apache.texera.common.util.RetryUtil.withBackoff` in `common/util`, which takes the same
+    * attempts-and-doubling knobs. It lives in a separate module because this variant needs
+    * `com.twitter:util-core`, which only `amber` declares.
+    *
     * A synchronous throw while evaluating `fn` counts as a failed attempt, same as a failed
     * `Future`. Fatal errors are never retried in either shape: they propagate immediately.
     *
