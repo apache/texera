@@ -10719,10 +10719,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"fuse.js@npm:6.5.3":
-  version: 6.5.3
-  resolution: "fuse.js@npm:6.5.3"
-  checksum: 10c0/702c75e60660d36476d164063cfc4fd65586ccf4d2e466cd7598928545e2516f9d9138e5c323681ff69ee227973d0c507ba1b2f1c7f281450aefaf0fec5b0a83
+"fuse.js@npm:7.5.0":
+  version: 7.5.0
+  resolution: "fuse.js@npm:7.5.0"
+  checksum: 10c0/1fa51a66063b9b0579921ed1d774864e5e027719d3a4fdb469e6636befa4a9f2f7da626c07da757c6e1ef8a761c7bd3a217e6ecc8e16f0276e1a0f8dd941ff77
   languageName: node
   linkType: hard
 
@@ -11005,7 +11005,7 @@ __metadata:
     eslint-plugin-rxjs: "npm:5.0.3"
     eslint-plugin-rxjs-angular: "npm:2.0.1"
     file-saver: "npm:2.0.5"
-    fuse.js: "npm:6.5.3"
+    fuse.js: "npm:7.5.0"
     html2canvas: "npm:1.4.1"
     jointjs: "npm:3.5.4"
     jsdom: "npm:25.0.1"
