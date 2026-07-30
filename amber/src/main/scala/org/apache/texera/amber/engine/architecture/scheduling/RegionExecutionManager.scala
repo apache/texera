@@ -186,7 +186,7 @@ class RegionExecutionManager(
 
   private def terminateWorkers(regionExecution: RegionExecution) = {
     implicit val timer: Timer = new JavaTimer(true)
-    val killTimeout = com.twitter.util.Duration.fromMilliseconds(5000)
+    val killTimeout = com.twitter.util.Duration.fromMilliseconds(1000)
     // 1. Send EndWorkers with timeout
     val endWorkerRequests =
       regionExecution.getAllOperatorExecutions.flatMap {
