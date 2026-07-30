@@ -26,14 +26,17 @@ import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeNa
 
 import javax.validation.constraints.NotNull
 
-//type constraint: value can only be numeric
+// Type constraint: both axes can only be numeric. The keys are the PROPERTY names —
+// the `@JsonProperty` values, which is what the property editor looks up
+// (`control.value[prop]`) — not the Scala field names; keyed by the latter the rule
+// matched nothing and neither the UI nor the config generator enforced it.
 @JsonSchemaInject(json = """
 {
   "attributeTypeRules": {
-    "yValue": {
+    "y": {
       "enum": ["integer", "long", "double"]
     },
-    "xValue": {
+    "x": {
       "enum": ["integer", "long", "double"]
     }
   }

@@ -69,9 +69,13 @@ class TimeSeriesOpDesc extends PythonOperatorDescriptor with StandaloneCodeGener
   @AutofillAttributeName
   var facetColumn: EncodableString = "No Selection"
 
+  // Declared as a schema enum rather than named in the description: the code reads
+  // exactly two values (`plotType == "area"` else a line), so a free-text box let a
+  // typo through and silently drew a line — no error, just not what was asked for.
   @JsonProperty(value = "line", defaultValue = "line", required = true)
   @JsonSchemaTitle("Plot Type")
   @JsonPropertyDescription("Select the type of time series plot (line, area).")
+  @JsonSchemaInject(json = """{ "enum": ["line", "area"], "default": "line" }""")
   @NotBlank(message = "Plot Type cannot be empty")
   var plotType: String = "line"
 
