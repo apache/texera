@@ -77,7 +77,11 @@ github:
           exclude: []
           include:
             - "~DEFAULT_BRANCH"
-            - "refs/heads/release/*"
+            # Merge queue rules do NOT support wildcard ref patterns, so
+            # release branches must be listed explicitly (not release/*).
+            # Add each release line here as it is cut.
+            - "refs/heads/release/v1.1"
+            - "refs/heads/release/v1.2"
       rules:
         - type: deletion
         - type: non_fast_forward
