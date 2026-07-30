@@ -51,6 +51,10 @@ import org.apache.texera.amber.operator.visualization.bulletChart.{
   BulletChartStepDefinition
 }
 
+import org.apache.texera.amber.operator.visualization.dumbbellPlot.{
+  DumbbellDotConfig,
+  DumbbellPlotOpDesc
+}
 import org.apache.texera.amber.operator.visualization.filledAreaPlot.FilledAreaPlotOpDesc
 import org.apache.texera.amber.operator.machineLearning.Scorer.classificationMetricsFnc
 import org.apache.texera.amber.operator.machineLearning.Scorer.regressionMetricsFnc
@@ -209,6 +213,7 @@ object CuratedHandlers {
     KeywordSearchTransformHandler,
     ProjectionTransformHandler,
     BulletChartVisualizationHandler,
+    DumbbellPlotVisualizationHandler,
     ImageVisualizerVisualizationHandler,
     FilledAreaPlotVisualizationHandler,
     SklearnLinearRegressionTransformHandler,
@@ -857,6 +862,40 @@ object BulletChartVisualizationHandler extends TransformHandler {
     desc.deltaReference = "3"
     desc.thresholdValue = "4.5"
     desc.steps = steps
+
+    (desc, CanonicalFixture.writeInputs(testRoot, 1))
+  }
+}
+
+/** DumbbellPlot: curated CONFIG over the shared canonical fixture. A dumbbell is
+  * one line per entity between the entity's value in two categories, so the two
+  * category values have to be values the entity actually has — which the auto tier
+  * cannot know: it fills both with the canonical string, leaving start == end and
+  * every line a point.
+  *
+  * `node_src` = n3 / n1 is the pair that works on this fixture: `bob` holds both
+  * (score 1.2 → 2.8) and so does `1` (1.7 → 0.5), giving two real dumbbells, while
+  * eve, dave and grace hold one each and stay single points — both branches drawn
+  * at once. `comparedColumnName` is a STRING column on purpose: plotly's trace
+  * `name` rejects a numpy number, so a numeric column raises there instead of
+  * plotting (reported upstream, not worked around here).
+  */
+object DumbbellPlotVisualizationHandler extends TransformHandler {
+  override val opDescClass: Class[_ <: LogicalOp] = classOf[DumbbellPlotOpDesc]
+
+  override def fixture(testRoot: Path): (LogicalOp, Map[PortIdentity, Path]) = {
+    val dots = new util.ArrayList[DumbbellDotConfig]()
+    val dot = new DumbbellDotConfig()
+    dot.dotValue = "open"
+    dots.add(dot)
+
+    val desc = new DumbbellPlotOpDesc()
+    desc.categoryColumnName = "node_src"
+    desc.dumbbellStartValue = "n3"
+    desc.dumbbellEndValue = "n1"
+    desc.measurementColumnName = "score"
+    desc.comparedColumnName = "name"
+    desc.dots = dots
 
     (desc, CanonicalFixture.writeInputs(testRoot, 1))
   }
