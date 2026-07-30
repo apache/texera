@@ -64,11 +64,15 @@ import scala.concurrent.duration.{Duration => ScalaDuration}
 
 object RegionExecutionManager {
 
-  // Max EndWorker retries before termination fails. ~30s at DefaultKillRetryDelay (200ms).
-  private[scheduling] val DefaultMaxTerminationAttempts: Int = 150
-
-  private[scheduling] val DefaultKillRetryDelay: TwitterDuration =
-    TwitterDuration.fromMilliseconds(200)
+  // Terminating a region is deterministic: `EndWorker` plus `gracefulStop` either succeed, or the
+  // engine has a bug that retrying cannot fix. Retries therefore only ride out a transient
+  // failure, so the budget is one attempt plus three backed-off retries (200 + 400 + 800 ms =
+  // 1.4s of waiting) rather than the former 150 attempts at a flat 200ms, which held a whole
+  // region's teardown for ~30s before the failure surfaced.
+  //
+  // The schedule doubles as the retry budget: one attempt per delay, plus the initial attempt.
+  private[scheduling] val DefaultKillRetryDelays: Seq[TwitterDuration] =
+    Seq(200L, 400L, 800L).map(TwitterDuration.fromMilliseconds)
 }
 
 /**
@@ -105,8 +109,10 @@ class RegionExecutionManager(
     coordinatorConfig: CoordinatorConfig,
     actorService: PekkoActorService,
     actorRefService: PekkoActorRefMappingService,
-    maxTerminationAttempts: Int = RegionExecutionManager.DefaultMaxTerminationAttempts,
-    killRetryDelay: TwitterDuration = RegionExecutionManager.DefaultKillRetryDelay,
+    // Backoff before each retry of a failed region termination. One retry per delay, so the
+    // schedule's length is the retry budget.
+    killRetryDelays: Seq[TwitterDuration] = RegionExecutionManager.DefaultKillRetryDelays,
+    killRetryTimer: Timer = new JavaTimer(true),
     // Loop-back write addresses (Loop Start logical op id -> its input port's
     // state URI), shipped to every worker in InitializeExecutorRequest. See
     // WorkflowExecutionManager.loopStartStateUris.
@@ -125,7 +131,7 @@ class RegionExecutionManager(
     Unexecuted
   )
   private val terminationFutureRef: AtomicReference[Future[Unit]] = new AtomicReference(null)
-  private val killRetryTimer: Timer = new JavaTimer(true)
+  private val maxTerminationAttempts: Int = killRetryDelays.size + 1
 
   /**
     * Sync the status of `RegionExecution` and transition this manager's phase to `Completed` only when the
@@ -246,13 +252,15 @@ class RegionExecutionManager(
           )
         )
       case err =>
+        // Safe by construction: `attempt < maxTerminationAttempts == killRetryDelays.size + 1`.
+        val retryDelay = killRetryDelays(attempt - 1)
         logger.warn(
           s"Failed to terminate region ${region.id.id} on attempt $attempt of $maxTerminationAttempts. " +
-            s"Retrying in ${killRetryDelay.inMilliseconds} ms.",
+            s"Retrying in ${retryDelay.inMilliseconds} ms.",
           err
         )
         Future
-          .sleep(killRetryDelay)(killRetryTimer)
+          .sleep(retryDelay)(killRetryTimer)
           .flatMap(_ => terminateWorkersWithRetry(regionExecution, attempt + 1))
     }
   }

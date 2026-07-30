@@ -19,7 +19,7 @@
 
 package org.apache.texera.amber.engine.architecture.scheduling
 
-import com.twitter.util.{Duration => TwitterDuration, Future}
+import com.twitter.util.{Duration => TwitterDuration, Future, JavaTimer, Time, Timer}
 import org.apache.pekko.actor.ActorSystem
 import org.apache.pekko.testkit.TestKit
 import org.apache.texera.amber.core.storage.VFSURIFactory
@@ -76,6 +76,11 @@ class RegionExecutionManagerSpec
   override def afterAll(): Unit = {
     TestKit.shutdownActorSystem(system)
   }
+
+  // Stand-in delay for the tests that care about the retry budget (how many attempts a schedule
+  // buys) rather than about the waits themselves. The backoff values are asserted separately with
+  // `RecordingInlineTimer`.
+  private val fastRetryDelay: TwitterDuration = TwitterDuration.fromMilliseconds(5)
 
   "RegionExecutionManager" should "send gracefulStop only after EndWorker succeeds" in {
     val fixture = createSingleRegionFixture(endWorkerResponse = _ => None)
@@ -140,8 +145,7 @@ class RegionExecutionManagerSpec
     // EndWorker always fails: a worker that never finishes draining.
     val fixture = createSingleRegionFixture(
       endWorkerResponse = _ => Some(transientEndWorkerFailure),
-      maxTerminationAttempts = 3,
-      killRetryDelay = TwitterDuration.fromMilliseconds(5)
+      killRetryDelays = Seq.fill(2)(fastRetryDelay)
     )
 
     launchRegion(fixture.manager)
@@ -156,11 +160,14 @@ class RegionExecutionManagerSpec
     assert(fixture.actorRefService.hasActorRef(fixture.workerId))
   }
 
-  it should "give up after a single attempt when the budget is one" in {
+  it should "give up after a single attempt when no retries are configured" in {
+    // An empty backoff schedule means no retries: the first failure is final, and nothing is
+    // ever handed to the retry timer.
+    val timer = new RecordingInlineTimer
     val fixture = createSingleRegionFixture(
       endWorkerResponse = _ => Some(transientEndWorkerFailure),
-      maxTerminationAttempts = 1,
-      killRetryDelay = TwitterDuration.fromMilliseconds(5)
+      killRetryDelays = Seq.empty,
+      killRetryTimer = timer
     )
 
     launchRegion(fixture.manager)
@@ -172,6 +179,7 @@ class RegionExecutionManagerSpec
     assert(failure.getMessage.contains("could not be terminated after 1 attempt"))
     assert(failure.getMessage.contains(fixture.workerId.toString))
     assert(fixture.rpcProbe.endWorkerCalls.size == 1)
+    assert(timer.recordedDelays.isEmpty)
   }
 
   it should "complete when EndWorker finally succeeds on the last permitted attempt" in {
@@ -186,8 +194,7 @@ class RegionExecutionManagerSpec
         } else {
           Some(EmptyReturn())
         },
-      maxTerminationAttempts = 2,
-      killRetryDelay = TwitterDuration.fromMilliseconds(5)
+      killRetryDelays = Seq(fastRetryDelay)
     )
 
     launchRegion(fixture.manager)
@@ -205,8 +212,7 @@ class RegionExecutionManagerSpec
     // name each stuck worker (so the user can act on it) and chain the underlying failure as cause.
     val fixture = createMultiWorkerGiveUpFixture(
       workerCount = 3,
-      maxTerminationAttempts = 2,
-      killRetryDelay = TwitterDuration.fromMilliseconds(5)
+      killRetryDelays = Seq(fastRetryDelay)
     )
 
     launchRegion(fixture.manager)
@@ -225,13 +231,62 @@ class RegionExecutionManagerSpec
     assert(fixture.rpcProbe.endWorkerCalls.size == fixture.workerIds.size * 2)
   }
 
-  it should "default to a bounded ~30s termination budget" in {
-    // 150 attempts * 200 ms ≈ 30 s. These defaults are the documented contract for how long a
-    // stuck region blocks before failing loudly; pin them so changes are deliberate.
-    assert(RegionExecutionManager.DefaultMaxTerminationAttempts == 150)
+  it should "default to a bounded ~1.4s termination budget" in {
+    // One attempt plus 3 retries at 200/400/800 ms: ~1.4 s of waiting, not the former
+    // 150 x 200 ms (~30 s). This is the documented contract for how long a stuck region blocks
+    // before failing loudly; pin it so changes are deliberate.
     assert(
-      RegionExecutionManager.DefaultKillRetryDelay == TwitterDuration.fromMilliseconds(200)
+      RegionExecutionManager.DefaultKillRetryDelays ==
+        Seq(200L, 400L, 800L).map(TwitterDuration.fromMilliseconds)
     )
+    assert(
+      RegionExecutionManager.DefaultKillRetryDelays
+        .foldLeft(TwitterDuration.Zero)(_ + _) == TwitterDuration.fromMilliseconds(1400)
+    )
+  }
+
+  it should "back off exponentially and stop once the retry schedule is exhausted" in {
+    // Pins the waits the manager actually asks for -- 200, then 400, then 800 ms -- and that the
+    // schedule's length is the retry budget (4 EndWorker attempts for 3 delays). The inline timer
+    // runs each sleep immediately, so this is exact and costs no wall-clock time.
+    val timer = new RecordingInlineTimer
+    Time.withCurrentTimeFrozen { _ =>
+      val fixture = createSingleRegionFixture(
+        endWorkerResponse = _ => Some(transientEndWorkerFailure),
+        killRetryTimer = timer
+      )
+
+      launchRegion(fixture.manager)
+      val failure = intercept[IllegalStateException] {
+        await(requestRegionCompletion(fixture.manager))
+      }
+
+      assert(failure.getMessage.contains("could not be terminated after 4 attempts"))
+      assert(fixture.rpcProbe.endWorkerCalls.size == 4)
+      assert(timer.recordedDelays == RegionExecutionManager.DefaultKillRetryDelays)
+    }
+  }
+
+  it should "spend only the delays it needs when a retry succeeds" in {
+    // A region that terminates on attempt 2 must wait 200 ms once and stop there, rather than
+    // walking the rest of the schedule.
+    val attempts = new atomic.AtomicInteger(0)
+    val timer = new RecordingInlineTimer
+    Time.withCurrentTimeFrozen { _ =>
+      val fixture = createSingleRegionFixture(
+        endWorkerResponse = _ =>
+          if (attempts.incrementAndGet() == 1) Some(transientEndWorkerFailure)
+          else Some(EmptyReturn()),
+        killRetryTimer = timer
+      )
+
+      launchRegion(fixture.manager)
+      await(requestRegionCompletion(fixture.manager))
+
+      assert(fixture.manager.isCompleted)
+      assert(fixture.rpcProbe.endWorkerCalls.size == 2)
+      assert(timer.recordedDelays == RegionExecutionManager.DefaultKillRetryDelays.take(1))
+    }
   }
 
   it should "surface the underlying cause when an output port schema is unavailable" in {
@@ -325,8 +380,8 @@ class RegionExecutionManagerSpec
 
   private def createSingleRegionFixture(
       endWorkerResponse: WorkerRpcCall => Option[ControlReturn],
-      maxTerminationAttempts: Int = RegionExecutionManager.DefaultMaxTerminationAttempts,
-      killRetryDelay: TwitterDuration = RegionExecutionManager.DefaultKillRetryDelay
+      killRetryDelays: Seq[TwitterDuration] = RegionExecutionManager.DefaultKillRetryDelays,
+      killRetryTimer: Timer = new JavaTimer(true)
   ): SingleRegionFixture = {
     val physicalOp = createSourceOp("test-op")
     val workerId = createWorkerId(physicalOp)
@@ -354,8 +409,8 @@ class RegionExecutionManagerSpec
       CoordinatorConfig(None, None, None, None),
       coordinator.actorService,
       coordinator.actorRefService,
-      maxTerminationAttempts,
-      killRetryDelay
+      killRetryDelays,
+      killRetryTimer
     )
 
     SingleRegionFixture(
@@ -379,8 +434,7 @@ class RegionExecutionManagerSpec
   // aggregation over multiple workers.
   private def createMultiWorkerGiveUpFixture(
       workerCount: Int,
-      maxTerminationAttempts: Int,
-      killRetryDelay: TwitterDuration
+      killRetryDelays: Seq[TwitterDuration]
   ): MultiWorkerFixture = {
     val physicalOp = createSourceOp("multi-op")
     val workerIds = createWorkerIds(physicalOp, workerCount)
@@ -402,8 +456,7 @@ class RegionExecutionManagerSpec
       CoordinatorConfig(None, None, None, None),
       coordinator.actorService,
       coordinator.actorRefService,
-      maxTerminationAttempts,
-      killRetryDelay
+      killRetryDelays
     )
 
     MultiWorkerFixture(manager, rpcProbe, workerIds)
