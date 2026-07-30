@@ -71,9 +71,31 @@ class LineConfig {
   @JsonSchemaTitle("Line Name")
   var name: EncodableString = ""
 
+  // Mirrors plotly's own colour rule (_plotly_utils/basevalidators.py, ColorValidator):
+  // it strips every space and lowercases, then accepts 3- or 6-digit hex, an
+  // rgb/rgba/hsl/hsla/hsv/hsva call, a `var(--…)` theme variable, or a name from its
+  // CSS list. Two consequences shape what this looks like. Letters are matched through
+  // character classes because the browser compiles this with `new RegExp(pattern)`,
+  // which takes no inline `(?i)`. And `\s*` sits between every element, not just
+  // between tokens, because plotly strips spaces before matching — it really does
+  // accept `#ff ffff` and `r g b(1,2,3)`, and rejecting those would make the box
+  // stricter than the library it feeds. Empty stays legal: both code paths omit the
+  // colour argument entirely, letting plotly pick from the template's colorway.
+  //
+  // Deliberately loose in one direction: the name branch is lexical, so a misspelling
+  // still reaches plotly (matching exactly would mean copying its 148 CSS names in
+  // here). It does reject what a free-text box let through before: `1`, `#12`, `#ggg`,
+  // `#ffff`, `rgb(1,2)`, `rgb(-1,2,3)`. `examples` offers a legal sample to whatever
+  // needs one, the verification config generator included.
   @JsonProperty(value = "color", required = false)
   @JsonSchemaTitle("Line Color")
   @JsonPropertyDescription("must be a valid CSS color or hex color string")
+  @JsonSchemaInject(json = """
+{
+  "pattern": "^\\s*$|^\\s*#(?:\\s*[0-9a-fA-F]){3}(?:(?:\\s*[0-9a-fA-F]){3})?\\s*$|^\\s*(?:[rR]\\s*[gG]\\s*[bB]|[hH]\\s*[sS]\\s*[lL]|[hH]\\s*[sS]\\s*[vV])(?:\\s*[aA])?\\s*\\(\\s*(?:\\s*[0-9.])+(?:\\s*%)?(?:\\s*,(?:\\s*[0-9.])+(?:\\s*%)?){2,3}\\s*\\)\\s*$|^\\s*[vV]\\s*[aA]\\s*[rR]\\s*\\(\\s*-\\s*-[^)]*\\)\\s*$|^\\s*[a-zA-Z][a-zA-Z\\s]*$",
+  "examples": ["red"]
+}
+""")
   var color: EncodableString = ""
 
 }
