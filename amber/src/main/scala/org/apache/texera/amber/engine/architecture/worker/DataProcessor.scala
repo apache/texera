@@ -121,11 +121,20 @@ class DataProcessor(
     }
   }
 
-  private[this] def processInputState(state: State, port: Int): Unit = {
+  private[this] def processInputState(
+      state: State,
+      port: Int,
+      loopCounter: Long,
+      loopStartId: String
+  ): Unit = {
     try {
       val outputState = executor.processState(state, port)
       if (outputState.isDefined) {
-        outputManager.emitState(outputState.get)
+        // Carry the incoming loop envelope through unchanged: loop operators
+        // are Python-only, so a JVM operator inside a loop body only ever
+        // forwards the envelope (the +1/-1 bookkeeping lives in the Python
+        // runtime's _process_state_frame).
+        outputManager.emitState(outputState.get, loopCounter, loopStartId)
       }
     } catch safely {
       case e =>
@@ -220,8 +229,8 @@ class DataProcessor(
         )
         inputManager.initBatch(channelId, tuples)
         processInputTuple(inputManager.getNextTuple)
-      case StateFrame(state) =>
-        processInputState(state, portId.id)
+      case StateFrame(state, loopCounter, loopStartId) =>
+        processInputState(state, portId.id, loopCounter, loopStartId)
     }
     statisticsManager.increaseDataProcessingTime(System.nanoTime() - dataProcessingStartTime)
   }
