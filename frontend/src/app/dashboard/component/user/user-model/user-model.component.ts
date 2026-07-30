@@ -18,9 +18,13 @@
 
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { AfterViewInit, Component, ViewChild } from "@angular/core";
+import { Router } from "@angular/router";
 import { firstValueFrom } from "rxjs";
+import { NzModalService } from "ng-zorro-antd/modal";
 import { UserService } from "../../../../common/service/user/user.service";
 import { ModelService } from "../../../service/user/model/model.service";
+import { UserModelCreatorComponent } from "./user-model-creator/user-model-creator.component";
+import { USER_MODEL } from "../../../../app-routing.constant";
 import { SortMethod } from "../../../type/sort-method";
 import { DashboardEntry } from "../../../type/dashboard-entry";
 import { DashboardModel } from "../../../type/dashboard-model.interface";
@@ -83,7 +87,9 @@ export class UserModelComponent implements AfterViewInit {
 
   constructor(
     private userService: UserService,
-    private modelService: ModelService
+    private modelService: ModelService,
+    private modalService: NzModalService,
+    private router: Router
   ) {
     this.userService
       .userChanged()
@@ -148,6 +154,32 @@ export class UserModelComponent implements AfterViewInit {
           modelEntry => modelEntry.model.model.mid !== mid
         );
       });
+  }
+
+  public onClickOpenModelAddComponent(): void {
+    const modal = this.modalService.create({
+      nzTitle: "Create New Model",
+      nzContent: UserModelCreatorComponent,
+      nzFooter: null,
+      nzBodyStyle: {
+        resize: "both",
+        overflow: "auto",
+        minHeight: "200px",
+        minWidth: "550px",
+        maxWidth: "90vw",
+        maxHeight: "80vh",
+      },
+      nzWidth: "fit-content",
+    });
+
+    modal.afterClose.pipe(untilDestroyed(this)).subscribe(result => {
+      if (result != null) {
+        const created = result as DashboardModel;
+        // Drop the cache so returning to the list shows the new model.
+        this.cachedModels = null;
+        this.router.navigate([`${USER_MODEL}/${created.model.mid}`]);
+      }
+    });
   }
 
   private async accessibleModels(): Promise<DashboardModel[]> {

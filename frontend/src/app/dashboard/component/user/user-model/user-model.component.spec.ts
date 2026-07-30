@@ -26,7 +26,9 @@ import { DashboardModel } from "../../../type/dashboard-model.interface";
 import { SortMethod } from "../../../type/sort-method";
 import { commonTestImports, commonTestProviders } from "../../../../common/testing/test-utils";
 import { NzModalService } from "ng-zorro-antd/modal";
-import { provideRouter } from "@angular/router";
+import { provideRouter, Router } from "@angular/router";
+import { UserModelCreatorComponent } from "./user-model-creator/user-model-creator.component";
+import { USER_MODEL } from "../../../../app-routing.constant";
 import { WorkflowPersistService } from "../../../../common/service/workflow-persist/workflow-persist.service";
 import { DatasetService } from "../../../service/user/dataset/dataset.service";
 import { WorkflowCoverService } from "../../../service/user/workflow-cover/workflow-cover.service";
@@ -224,5 +226,42 @@ describe("UserModelComponent", () => {
 
     const second = TestBed.createComponent(UserModelComponent);
     expect(second.componentInstance.viewType).toBe("list");
+  });
+
+  describe("onClickOpenModelAddComponent", () => {
+    it("opens the model creator with no footer", () => {
+      const create = vi
+        .spyOn(TestBed.inject(NzModalService), "create")
+        .mockReturnValue({ afterClose: of(null) } as never);
+
+      component.onClickOpenModelAddComponent();
+
+      expect(create).toHaveBeenCalledTimes(1);
+      const config = create.mock.calls[0][0];
+      expect(config.nzContent).toBe(UserModelCreatorComponent);
+      expect(config.nzFooter).toBeNull();
+      // Create-only, so unlike the dataset creator there is no nzData to pass.
+      expect(config.nzData).toBeUndefined();
+    });
+
+    it("navigates to the new model on a non-null close", () => {
+      vi.spyOn(TestBed.inject(NzModalService), "create").mockReturnValue({
+        afterClose: of(makeModel({ mid: 77 })),
+      } as never);
+      const navigate = vi.spyOn(TestBed.inject(Router), "navigate").mockResolvedValue(true);
+
+      component.onClickOpenModelAddComponent();
+
+      expect(navigate).toHaveBeenCalledWith([`${USER_MODEL}/77`]);
+    });
+
+    it("does not navigate when the modal is dismissed", () => {
+      vi.spyOn(TestBed.inject(NzModalService), "create").mockReturnValue({ afterClose: of(null) } as never);
+      const navigate = vi.spyOn(TestBed.inject(Router), "navigate").mockResolvedValue(true);
+
+      component.onClickOpenModelAddComponent();
+
+      expect(navigate).not.toHaveBeenCalled();
+    });
   });
 });
