@@ -19,7 +19,6 @@
 
 package org.apache.texera.web.resource.auth
 
-import com.typesafe.scalalogging.Logger
 import org.apache.texera.auth.JwtAuth.{TOKEN_EXPIRE_TIME_IN_MINUTES, jwtClaims, jwtToken}
 import org.apache.texera.common.config.UserSystemConfig
 import org.apache.texera.dao.SqlServer
@@ -68,7 +67,7 @@ object AuthResource {
     * Retrieve exactly one User from databases with the given username and password.
     * The password is used to validate against the hashed password stored in the db.
     *
-    * @param handle     String
+    * @param name     String
     * @param password String, plain text password
     * @return
     */
@@ -158,25 +157,38 @@ class AuthResource {
   @POST
   @Path("/register")
   def register(request: UserRegistrationRequest): TokenIssueResponse = {
-    val username = request.username
-    if (username == null) throw new NotAcceptableException("Username cannot be null.")
-    if (username.trim.isEmpty) throw new NotAcceptableException("Username cannot be empty.")
-    // Uniqueness belongs to the login handle (uq_provider_identity), not to the display name:
-    // names are mutable and admin-created accounts carry a generated one.
-    if (localHandleExists(username)) throw new NotAcceptableException("Username exists already.")
+    val username = Option(request.username).getOrElse("").trim
+    val useremail = Option(request.email).getOrElse("").trim
+    val userpassword = request.password
+    if (username.isEmpty)
+      throw new NotAcceptableException("Username cannot be empty")
+    if (useremail.isEmpty)
+      throw new NotAcceptableException("Email cannot be empty")
+    if (!useremail.matches("""^[^\s@]+@[^\s@]+\.[^\s@]+$"""))
+      throw new NotAcceptableException("Email format is invalid.")
+    if (userpassword == null || userpassword.isEmpty)
+      throw new NotAcceptableException("Password cannot be empty")
 
-    val user = new User
-    user.setName(username)
-    user.setEmail(username)
-    user.setRole(UserRoleEnum.RESTRICTED)
+    // Check if email already exists
+    val usernameExists = !userDao.fetchByName(username).isEmpty
+    val emailExists = userDao.fetchOneByEmail(useremail) != null
 
-    try {
-      insertLocalUser(user, username, passwordEncryptor.encryptPassword(request.password))
-    } catch {
-      case e: DataAccessException if e.sqlState() == UNIQUE_VIOLATION =>
+    (usernameExists, emailExists) match {
+      case (true, _) =>
         throw new NotAcceptableException("Username exists already.")
+      case (_, true) =>
+        throw new NotAcceptableException("Email exists already.")
+      case (false, false) =>
+        val user = new User
+        user.setName(username)
+        user.setEmail(useremail)
+        user.setRole(UserRoleEnum.RESTRICTED)
+        insertLocalUser()
+        // hash the plain text password
+        user.setPassword(new StrongPasswordEncryptor().encryptPassword(userpassword))
+        userDao.insert(user)
+        TokenIssueResponse(jwtToken(jwtClaims(user, TOKEN_EXPIRE_TIME_IN_MINUTES)))
     }
-    TokenIssueResponse(jwtToken(jwtClaims(user, TOKEN_EXPIRE_TIME_IN_MINUTES)))
   }
 
 }

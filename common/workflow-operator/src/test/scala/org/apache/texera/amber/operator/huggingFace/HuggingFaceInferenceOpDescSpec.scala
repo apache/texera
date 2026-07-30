@@ -304,6 +304,41 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
     code should not include "open(audio_input"
   }
 
+  it should "re-validate every redirect hop in _fetch_remote_url instead of following blindly" in {
+    // requests follows redirects by default, which would skip the scheme/IP
+    // checks on the redirect target: a 302 to http://169.254.169.254/... or an
+    // internal host would be fetched. The helper must disable automatic
+    // redirects and re-run _validate_remote_url on each hop.
+    val code = makeDesc(task = "image-to-image", inputImageColumn = "img").generatePythonCode()
+    // Automatic redirect-following is off, and no redirect-following variant
+    // of the fetch remains anywhere in the helper.
+    code should include(
+      "resp = requests.get(current_url, timeout=120, stream=True, allow_redirects=False)"
+    )
+    code should not include "resp = requests.get(url, timeout=120, stream=True)"
+    // The per-hop validator exists and runs BEFORE the request inside the loop.
+    code should include("def _validate_remote_url(self, url):")
+    val validateCall = code.indexOf("self._validate_remote_url(current_url)")
+    val fetchCall = code.indexOf("resp = requests.get(current_url")
+    validateCall should be > 0
+    fetchCall should be > validateCall
+    // Every redirect status is intercepted; relative Location values are
+    // resolved against the current URL before re-validation.
+    code should include("if resp.status_code in (301, 302, 303, 307, 308):")
+    code should include("current_url = _urljoin(current_url, location)")
+    // Degenerate redirects fail closed: missing Location and unbounded chains.
+    code should include("Redirect response has no Location header.")
+    code should include("MAX_REDIRECT_HOPS = 5")
+    code should include("Too many redirects")
+    // The validator keeps the full pre-existing checks (https-only + public
+    // address) so each hop gets the same scrutiny as the original URL, and
+    // takes an allowlist stance (globally-routable only) that also blocks the
+    // CGNAT/shared range the predicate list alone misses.
+    code should include("""if parsed.scheme != "https":""")
+    code should include("not ip.is_global")
+    code should include("ip.is_multicast")
+  }
+
   it should "treat pandas NA sentinels (NaN, pd.NA, NaT) as missing in _read_binary_value" in {
     // isinstance(value, float) only catches float('nan'); pd.NA / NaT are not
     // floats and previously fell through to be str()-ified into bytes. The
