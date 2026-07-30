@@ -1417,6 +1417,14 @@ parse_changelog_changesets() {
 # Everything else — syntax errors, missing relations, permissions — keeps
 # failing loudly, so a genuinely incomplete schema still stops the build
 # instead of reaching jOOQ codegen.
+#
+# The "already in the schema" equivalence holds only while texera_ddl.sql stays
+# in sync with sql/updates/* (it does, by construction). psql runs with
+# ON_ERROR_STOP=1 and halts at the first error, so "every error is already-exists"
+# proves the whole changeSet is a no-op only when every object it touches is
+# already present. Were the two to drift, a changeSet mixing an existing object
+# (hit first) with a genuinely new one would be recorded as applied without the
+# new object ever being created — surfacing later as a jOOQ codegen failure.
 _sql_errors_all_already_exist() {
     local f="${1:-}" errs=""
     [[ -f "$f" ]] || return 1

@@ -631,7 +631,7 @@ psql:<stdin>:15: ERROR:  type "z" already exists'
 psql:<stdin>:44: ERROR:  relation "dataset_owner_uid_name_key" already exists
 ROLLBACK'
     _tol_check "non-ASCII identifier already exists" 0 \
-        'psql:<stdin>:3: ERROR:  relation "数据集_名称_key" already exists'
+        'psql:<stdin>:3: ERROR:  relation "café_naïve_key" already exists'
     # Negative: anything we can't positively identify as already-applied has to
     # keep failing loudly, or a genuinely broken schema reaches the sbt build.
     _tol_check "syntax error" 1 \
