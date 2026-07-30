@@ -58,8 +58,9 @@
         <sqlFile path="sql/updates/29.sql"/>
     </changeSet>
 
+    <!-- Split auth credentials out of "user" into auth_provider -->
     <changeSet id="30" author="Neilk1021">
-        <sqlFile path="sql/updates/29.sql"/>
+        <sqlFile path="sql/updates/30.sql"/>
     </changeSet>
 
     <!-- example changeSet

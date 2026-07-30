@@ -50,8 +50,8 @@ class AuthResourceSpec
     with MockTexeraDB {
 
   // Every handle this spec registers starts with this, so cleanup can target the rows it
-  // made. `register` sets email = handle, and cleanup keys off email because tests here
-  // deliberately rewrite `name`.
+  // made. Registration takes the email separately from the handle, so `register` derives one
+  // (see `emailFor`); cleanup keys off email because tests here deliberately rewrite `name`.
   private val handlePrefix = "authspec_"
 
   private var userDao: UserDao = _
@@ -84,8 +84,11 @@ class AuthResourceSpec
 
   // ---- helpers -------------------------------------------------------------
 
+  /** Registration validates the email's shape, so a bare handle cannot double as one. */
+  private def emailFor(handle: String): String = handle + "@example.com"
+
   private def register(handle: String, password: String): Unit =
-    resource.register(UserRegistrationRequest(handle, password))
+    resource.register(UserRegistrationRequest(handle, emailFor(handle), password))
 
   /** The LOCAL login handle recorded for a user, or null if they have no LOCAL row. */
   private def localHandleOf(uid: Integer): String =
@@ -100,6 +103,9 @@ class AuthResourceSpec
     getDSLContext.fetchCount(USER, USER.EMAIL.eq(email))
 
   private def userByEmail(email: String): User = userDao.fetchOneByEmail(email)
+
+  /** The account `register(handle, _)` created, looked up the way cleanup keys off it. */
+  private def userByHandle(handle: String): User = userByEmail(emailFor(handle))
 
   /** Rename the display name, the way an admin edit or a social-login refresh would. */
   private def renameDisplayName(uid: Integer, newName: String): Unit = {
@@ -132,7 +138,7 @@ class AuthResourceSpec
     val handle = handlePrefix + "alice"
     register(handle, "pw-alice")
 
-    val user = userByEmail(handle)
+    val user = userByHandle(handle)
     user should not be null
     localHandleOf(user.getUid) shouldBe handle
 
@@ -162,7 +168,7 @@ class AuthResourceSpec
   it should "log in the local account when an external identity shares its provider id" in {
     val handle = handlePrefix + "liam"
     register(handle, "pw-liam")
-    val uid = userByEmail(handle).getUid
+    val uid = userByHandle(handle).getUid
 
     // Same string as Liam's local handle, but registered under GOOGLE on another account —
     // permitted by uq_provider_identity, and previously enough to make fetchOne() throw.
@@ -209,7 +215,7 @@ class AuthResourceSpec
   it should "keep login working after the display name is rewritten" in {
     val handle = handlePrefix + "frank"
     register(handle, "pw-frank")
-    val uid = userByEmail(handle).getUid
+    val uid = userByHandle(handle).getUid
 
     // exactly what AdminUserResource.updateUser and ExternalAuthProvisioner.refresh do
     renameDisplayName(uid, "Frank The Renamed")
@@ -223,7 +229,7 @@ class AuthResourceSpec
   it should "log in the right user when another account's display name collides with the handle" in {
     val handle = handlePrefix + "grace"
     register(handle, "pw-grace")
-    val uid = userByEmail(handle).getUid
+    val uid = userByHandle(handle).getUid
 
     // a social signup whose provider display name happens to equal Grace's login handle
     seedExternalUser(handle, handlePrefix + "grace-social@example.com", "google-sub-grace")
