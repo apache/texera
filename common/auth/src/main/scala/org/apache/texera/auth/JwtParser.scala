@@ -26,6 +26,7 @@ import org.jose4j.jwt.JwtClaims
 import org.jose4j.lang.UnresolvableKeyException
 
 import java.util.Optional
+import scala.util.chaining.scalaUtilChainingOps
 
 /** Single source of truth for converting a verified JWT into a [[SessionUser]].
   *
@@ -61,18 +62,16 @@ object JwtParser extends LazyLogging {
     // call writes Integer; widen via Number to handle both cases.
     val userId = claims.getClaimValue("userId", classOf[Number]).intValue()
     val role = UserRoleEnum.valueOf(claims.getClaimValue("role").asInstanceOf[String])
-    val avatar = claims.getClaimValue("avatar", classOf[String])
-    val user = new User(
-      userId,
-      userName,
-      email,
-      avatar,
-      role,
-      null,
-      null,
-      null,
-      null
+    val googleAvatar = claims.getClaimValue("avatar", classOf[String])
+
+    new SessionUser(
+      new User().tap { user =>
+        user.setUid(userId)
+        user.setName(userName)
+        user.setEmail(email)
+        user.setRole(role)
+        user.setAvatar(googleAvatar)
+      }
     )
-    new SessionUser(user)
   }
 }
