@@ -110,6 +110,9 @@ export class HubSearchResultComponent implements OnInit, AfterViewInit {
     const url = this.router.url;
     if (url.includes("dataset")) {
       this.searchType = "dataset";
+      // Datasets have no last-modified/execution time, so EditTimeDesc leaves the sort key NULL.
+      // Default to CreateTimeDesc so newly created datasets appear first.
+      this.sortMethod = SortMethod.CreateTimeDesc;
     } else if (url.includes("workflow")) {
       this.searchType = "workflow";
     }

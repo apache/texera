@@ -64,7 +64,9 @@ import { FormsModule } from "@angular/forms";
   ],
 })
 export class UserDatasetComponent implements AfterViewInit {
-  public sortMethod = SortMethod.EditTimeDesc;
+  // Datasets have no "last modified" timestamp, so EditTimeDesc leaves the sort key NULL for every
+  // row and produces an undefined order. Default to CreateTimeDesc so newly created datasets appear first.
+  public sortMethod = SortMethod.CreateTimeDesc;
   lastSortMethod: SortMethod | null = null;
   public isLogin = this.userService.isLogin();
   public currentUid = this.userService.getCurrentUser()?.uid;
