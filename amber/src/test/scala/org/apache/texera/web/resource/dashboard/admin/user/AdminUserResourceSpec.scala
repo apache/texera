@@ -24,10 +24,13 @@ import org.apache.texera.dao.jooq.generated.Tables.{AUTH_PROVIDER, USER}
 import org.apache.texera.dao.jooq.generated.enums.{ProviderTypeEnum, UserRoleEnum}
 import org.apache.texera.dao.jooq.generated.tables.daos.{AuthProviderDao, UserDao}
 import org.apache.texera.dao.jooq.generated.tables.pojos.{AuthProvider, User}
+import org.jooq.exception.DataAccessException
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, LoneElement}
 
+import javax.ws.rs.WebApplicationException
+import javax.ws.rs.core.Response
 import scala.jdk.CollectionConverters._
 
 /**
@@ -140,6 +143,25 @@ class AdminUserResourceSpec
     localHandleOf(created.getUid) shouldBe handle
     infoFor(created.getUid).name shouldBe "Friendly Name"
     infoFor(created.getUid).localHandle shouldBe handle
+  }
+
+  // `addUser` cannot collide (its handle is a fresh UUID), so the mapping is driven through
+  // `createLocalAccount` directly — otherwise a taken handle would surface as a raw 500.
+  it should "reject a handle that is already taken with a 409 rather than a 500" in {
+    resource.createLocalAccount("taken-handle", "pw")
+
+    val thrown = the[WebApplicationException] thrownBy
+      resource.createLocalAccount("taken-handle", "another-pw")
+
+    thrown.getResponse.getStatus shouldBe Response.Status.CONFLICT.getStatusCode
+    allUsers should have size 1
+  }
+
+  // Only unique_violation means "handle taken"; every other database error must keep its own
+  // identity instead of being relabelled a conflict.
+  it should "let a database error that is not a unique violation propagate unchanged" in {
+    // provider_id is VARCHAR(256), so an over-long handle fails with 22001, not 23505
+    a[DataAccessException] should be thrownBy resource.createLocalAccount("h" * 300, "pw")
   }
 
   // ---- list ----------------------------------------------------------------

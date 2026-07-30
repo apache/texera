@@ -299,6 +299,16 @@ class AuthResourceSpec
     localHandleOf(uid) shouldBe UserSystemConfig.adminUsername
   }
 
+  // A deployment that leaves USER_SYS_ADMIN_USERNAME/PASSWORD blank gets no admin account at
+  // all, rather than one with an empty handle or an empty password.
+  it should "create nothing when the admin credentials are not configured" in {
+    AuthResource.createAdminUser("", "some-password")
+    AuthResource.createAdminUser(handlePrefix + "no-password-admin", "")
+
+    getDSLContext.fetchCount(USER, USER.EMAIL.like(handlePrefix + "%")) shouldBe 0
+    getDSLContext.fetchCount(AUTH_PROVIDER, AUTH_PROVIDER.PROVIDER_ID.eq("")) shouldBe 0
+  }
+
   it should "not fail when the admin address is already held by an account with no local row" in {
     // e.g. somebody signed in with Google using the configured admin address
     seedExternalUser("Google Admin", UserSystemConfig.adminUsername, "google-sub-admin")

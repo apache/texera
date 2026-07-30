@@ -168,6 +168,52 @@ class ExternalAuthProvisionerSpec
     userDao.fetchOneByUid(updated.getUid).getAvatar shouldBe "newpic"
   }
 
+  it should "adopt the provider's new email address for a known identity" in {
+    val created = ExternalAuthProvisioner.loginOrProvision(
+      ExternalProfile(
+        ProviderTypeEnum.GOOGLE,
+        "sub-rename",
+        "Renamer",
+        "before" + emailDomain,
+        Some("pic")
+      )
+    )
+
+    val updated = ExternalAuthProvisioner.loginOrProvision(
+      ExternalProfile(
+        ProviderTypeEnum.GOOGLE,
+        "sub-rename",
+        "Renamer",
+        "after" + emailDomain,
+        Some("pic")
+      )
+    )
+
+    updated.getUid shouldBe created.getUid
+    userDao.fetchOneByUid(created.getUid).getEmail shouldBe "after" + emailDomain
+    userCountByEmail("before") shouldBe 0
+  }
+
+  // `avatar = None` is the documented contract for providers that supply no picture: the
+  // column keeps whatever it held rather than being blanked on every login.
+  it should "leave the stored avatar untouched when the provider supplies none" in {
+    val existing = seedUser("Keeper", "keeper", avatar = "keep-me")
+
+    val result = ExternalAuthProvisioner.loginOrProvision(
+      ExternalProfile(
+        ProviderTypeEnum.GOOGLE,
+        "sub-keeper",
+        "Keeper",
+        "keeper" + emailDomain,
+        None
+      )
+    )
+
+    result.getUid shouldBe existing.getUid
+    result.getAvatar shouldBe "keep-me"
+    userDao.fetchOneByUid(existing.getUid).getAvatar shouldBe "keep-me"
+  }
+
   // ---- email match, no provider yet ----------------------------------------
 
   it should "link a new provider to an existing email-matched user instead of creating a duplicate" in {

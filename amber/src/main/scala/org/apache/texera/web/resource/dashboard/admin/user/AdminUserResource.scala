@@ -140,8 +140,16 @@ class AdminUserResource {
   @Path("/add")
   def addUser(): Unit = {
     val random = UUID.randomUUID().toString
-    val handle = "User" + random
-    val password = passwordEncryptor.encryptPassword(random)
+    createLocalAccount("User" + random, random)
+  }
+
+  /**
+    * Create a user together with the LOCAL credential it logs in with. Split out of `addUser`
+    * so the collision path is reachable: `addUser` derives its handle from a fresh UUID and
+    * so cannot produce the unique violation this maps to a 409.
+    */
+  private[user] def createLocalAccount(handle: String, rawPassword: String): Unit = {
+    val password = passwordEncryptor.encryptPassword(rawPassword)
 
     try {
       SqlServer.withTransaction(AdminUserResource.context) { ctx =>

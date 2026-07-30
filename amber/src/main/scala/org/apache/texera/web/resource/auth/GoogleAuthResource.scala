@@ -19,7 +19,7 @@
 
 package org.apache.texera.web.resource.auth
 
-import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier
+import com.google.api.client.googleapis.auth.oauth2.{GoogleIdToken, GoogleIdTokenVerifier}
 import com.google.api.client.http.javanet.NetHttpTransport
 import com.google.api.client.json.gson.GsonFactory
 import org.apache.texera.auth.JwtAuth.{TOKEN_EXPIRE_TIME_IN_MINUTES, jwtClaims, jwtToken}
@@ -31,6 +31,30 @@ import java.util.Collections
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
 
+object GoogleAuthResource {
+
+  /**
+    * Reduce a verified Google id-token payload to the fields we persist. Google omits `name`
+    * for accounts with no profile name, and the provisioner writes `name` straight to a NOT
+    * NULL column, so the address stands in for it. Only the last path segment of `picture` is
+    * kept — the frontend rebuilds the full `lh3.googleusercontent.com` URL around it.
+    */
+  private[auth] def profileOf(payload: GoogleIdToken.Payload): ExternalProfile = {
+    val googleEmail = payload.getEmail
+    ExternalProfile(
+      ProviderTypeEnum.GOOGLE,
+      payload.getSubject,
+      Option(payload.get("name").asInstanceOf[String]).filter(_.nonEmpty).getOrElse(googleEmail),
+      googleEmail,
+      Some(
+        Option(payload.get("picture").asInstanceOf[String])
+          .flatMap(_.split("/").lastOption)
+          .getOrElse("")
+      )
+    )
+  }
+}
+
 @Path("/auth/google")
 class GoogleAuthResource {
   final private lazy val clientId = UserSystemConfig.googleClientId
@@ -39,39 +63,31 @@ class GoogleAuthResource {
   @Path("/clientid")
   def getClientId: String = clientId
 
-  @POST
-  @Consumes(Array(MediaType.TEXT_PLAIN))
-  @Produces(Array(MediaType.APPLICATION_JSON))
-  @Path("/login")
-  def login(credential: String): TokenIssueResponse = {
-    val idToken =
+  /**
+    * Verify `credential` against Google, yielding its payload, or None if it is not a valid
+    * token for this client. The only seam that reaches the network, so tests override it
+    * instead of signing a token; kept a method rather than a constructor parameter because
+    * Jersey instantiates this resource from `classOf[GoogleAuthResource]`.
+    */
+  protected def verifiedPayload(credential: String): Option[GoogleIdToken.Payload] =
+    Option(
       new GoogleIdTokenVerifier.Builder(new NetHttpTransport, GsonFactory.getDefaultInstance)
         .setAudience(
           Collections.singletonList(clientId)
         )
         .build()
         .verify(credential)
-    if (idToken != null) {
-      val payload = idToken.getPayload
-      val googleId = payload.getSubject
-      val googleEmail = payload.getEmail
-      val googleName =
-        Option(payload.get("name").asInstanceOf[String]).filter(_.nonEmpty).getOrElse(googleEmail)
+    ).map(_.getPayload)
 
-      val googleAvatar = Option(payload.get("picture").asInstanceOf[String])
-        .flatMap(_.split("/").lastOption)
-        .getOrElse("")
-      val user = ExternalAuthProvisioner.loginOrProvision(
-        ExternalProfile(
-          ProviderTypeEnum.GOOGLE,
-          googleId,
-          googleName,
-          googleEmail,
-          Some(googleAvatar)
-        )
-      )
-
-      TokenIssueResponse(jwtToken(jwtClaims(user, TOKEN_EXPIRE_TIME_IN_MINUTES)))
-    } else throw new NotAuthorizedException("Login credentials are incorrect.")
-  }
+  @POST
+  @Consumes(Array(MediaType.TEXT_PLAIN))
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  @Path("/login")
+  def login(credential: String): TokenIssueResponse =
+    verifiedPayload(credential) match {
+      case Some(payload) =>
+        val user = ExternalAuthProvisioner.loginOrProvision(GoogleAuthResource.profileOf(payload))
+        TokenIssueResponse(jwtToken(jwtClaims(user, TOKEN_EXPIRE_TIME_IN_MINUTES)))
+      case None => throw new NotAuthorizedException("Login credentials are incorrect.")
+    }
 }

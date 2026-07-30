@@ -38,9 +38,6 @@ import javax.ws.rs.core.MediaType
 object AuthResource {
   private val logger: Logger = Logger(classOf[AuthResource])
 
-  /** Postgres SQLSTATE for unique_violation. */
-  private val UNIQUE_VIOLATION = "23505"
-
   private def context = SqlServer.getInstance().context
   private def userDao = new UserDao(context.configuration)
 
@@ -108,10 +105,15 @@ object AuthResource {
     }
   }
 
-  def createAdminUser(): Unit = {
-    val adminUsername = UserSystemConfig.adminUsername.trim
-    val adminPassword = UserSystemConfig.adminPassword.trim
+  def createAdminUser(): Unit =
+    createAdminUser(UserSystemConfig.adminUsername.trim, UserSystemConfig.adminPassword.trim)
 
+  /**
+    * Bootstrap the configured admin account, doing nothing if it already exists. The credentials
+    * are parameters rather than reads of [[UserSystemConfig]] because those are object vals
+    * resolved once per JVM, which leaves the unconfigured case unreachable from a test.
+    */
+  private[auth] def createAdminUser(adminUsername: String, adminPassword: String): Unit = {
     if (adminUsername.isEmpty || adminPassword.isEmpty) return
 
     if (localHandleExists(adminUsername)) return
