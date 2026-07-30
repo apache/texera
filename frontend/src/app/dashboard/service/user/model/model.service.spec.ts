@@ -29,7 +29,8 @@ import {
   validateModelName,
 } from "./model.service";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
-import { Model } from "../../../../common/type/model";
+import { Model, ModelVersion } from "../../../../common/type/model";
+import { DatasetFileNode } from "../../../../common/type/datasetVersionFileTree";
 import { DashboardModel } from "../../../type/dashboard-model.interface";
 
 const API = "api";
@@ -60,6 +61,23 @@ function buildDashboardModel(overrides: Partial<DashboardModel> = {}): Dashboard
     size: 0,
     ...overrides,
   };
+}
+
+function buildModelVersion(overrides: Partial<ModelVersion> = {}): ModelVersion {
+  return {
+    mvid: 10,
+    mid: 1,
+    creatorUid: 1,
+    name: "v1",
+    versionHash: "commit-abc",
+    creationTime: 1,
+    fileNodes: undefined,
+    ...overrides,
+  };
+}
+
+function buildFileNode(name: string): DatasetFileNode {
+  return { name, type: "file", parentDir: "/datasets/owner@example.com/my-model/v1", size: 4 };
 }
 
 describe("ModelService", () => {
@@ -159,6 +177,78 @@ describe("ModelService", () => {
     const pending = firstValueFrom(service.retrieveOwners());
     httpMock.expectOne(`${API}/${MODEL_BASE_URL}/user-model-owners`).flush(["a@b.com"]);
     expect(await pending).toEqual(["a@b.com"]);
+  });
+
+  it("retrieveModelVersionList gets the mid-scoped version list", async () => {
+    const pending = firstValueFrom(service.retrieveModelVersionList(5));
+    const req = httpMock.expectOne(`${API}/${MODEL_BASE_URL}/5/version/list`);
+    expect(req.request.method).toBe("GET");
+    req.flush([buildModelVersion()]);
+    expect((await pending).length).toBe(1);
+  });
+
+  it("retrieveModelLatestVersion folds fileNodes onto the version", async () => {
+    const pending = firstValueFrom(service.retrieveModelLatestVersion(5));
+    const req = httpMock.expectOne(`${API}/${MODEL_BASE_URL}/5/version/latest`);
+    req.flush({ modelVersion: buildModelVersion(), fileNodes: [buildFileNode("model.pt")] });
+
+    const version = await pending;
+    expect(version.name).toBe("v1");
+    expect(version.fileNodes?.map(node => node.name)).toEqual(["model.pt"]);
+  });
+
+  it("retrieveModelVersionFileTree gets the version's root file nodes and size", async () => {
+    const pending = firstValueFrom(service.retrieveModelVersionFileTree(5, 10));
+    const req = httpMock.expectOne(`${API}/${MODEL_BASE_URL}/5/version/10/rootFileNodes`);
+    expect(req.request.method).toBe("GET");
+    req.flush({ fileNodes: [buildFileNode("model.pt")], size: 42 });
+    expect(await pending).toEqual({ fileNodes: [buildFileNode("model.pt")], size: 42 });
+  });
+
+  it("retrieveModelVersionZip sets mvid when a version is specified", () => {
+    service.retrieveModelVersionZip(5, 10).subscribe();
+    const req = httpMock.expectOne(r => r.url === `${API}/${MODEL_BASE_URL}/5/versionZip`);
+    expect(req.request.params.get("mvid")).toBe("10");
+    expect(req.request.params.get("latest")).toBeNull();
+    expect(req.request.responseType).toBe("blob");
+    req.flush(new Blob());
+  });
+
+  it("retrieveModelVersionZip sets latest=true when mvid is omitted", () => {
+    service.retrieveModelVersionZip(5).subscribe();
+    const req = httpMock.expectOne(r => r.url === `${API}/${MODEL_BASE_URL}/5/versionZip`);
+    expect(req.request.params.get("latest")).toBe("true");
+    expect(req.request.params.get("mvid")).toBeNull();
+    req.flush(new Blob());
+  });
+
+  it("retrieveModelVersionSingleFile resolves the presigned URL then GETs the blob", async () => {
+    // The logical path must carry the models prefix; a /datasets/... path would resolve
+    // against the dataset table on the backend.
+    const filePath = "/models/owner@example.com/my-model/v1/weights/model.pt";
+    const blob = new Blob(["bytes"]);
+    const pending = firstValueFrom(service.retrieveModelVersionSingleFile(filePath));
+
+    const presignReq = httpMock.expectOne(
+      `${API}/${MODEL_BASE_URL}/presign-download?filePath=${encodeURIComponent(filePath)}`
+    );
+    expect(presignReq.request.method).toBe("GET");
+    presignReq.flush({ presignedUrl: "https://s3.example/blob" });
+
+    const blobReq = httpMock.expectOne("https://s3.example/blob");
+    expect(blobReq.request.responseType).toBe("blob");
+    blobReq.flush(blob);
+
+    expect(await pending).toBe(blob);
+  });
+
+  it("retrieveModelVersionSingleFile uses the public presign endpoint when anonymous", () => {
+    const filePath = "/models/owner@example.com/my-model/v1/f.txt";
+    service.retrieveModelVersionSingleFile(filePath, false).subscribe();
+    httpMock
+      .expectOne(`${API}/${MODEL_BASE_URL}/public-presign-download?filePath=${encodeURIComponent(filePath)}`)
+      .flush({ presignedUrl: "https://s3.example/x" });
+    httpMock.expectOne("https://s3.example/x").flush(new Blob());
   });
 
   it("surfaces a server error to the caller", async () => {

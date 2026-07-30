@@ -21,6 +21,7 @@ import { TestBed } from "@angular/core/testing";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { getMimeType, MIME_TYPES, UserDatasetFileRendererComponent } from "./user-dataset-file-renderer.component";
 import { DatasetService } from "../../../../../service/user/dataset/dataset.service";
+import { ModelService } from "../../../../../service/user/model/model.service";
 import { NotificationService } from "../../../../../../common/service/notification/notification.service";
 import { DomSanitizer } from "@angular/platform-browser";
 import { commonTestProviders } from "../../../../../../common/testing/test-utils";
@@ -98,6 +99,27 @@ describe("UserDatasetFileRendererComponent", () => {
       expect(spy).toHaveBeenCalledWith("notes.txt", true);
       expect(component.displayPlainText).toBe(true);
       expect(component.isLoading).toBe(false);
+    });
+
+    it("fetches through ModelService when resourceType is model", () => {
+      const blob = new Blob(["hello"], { type: "text/plain" });
+      const modelSpy = vi
+        .spyOn(TestBed.inject(ModelService), "retrieveModelVersionSingleFile")
+        .mockReturnValue(of(blob));
+      const datasetSpy = vi.spyOn(TestBed.inject(DatasetService), "retrieveDatasetVersionSingleFile");
+      component.resourceType = "model";
+      // Models reuse did/dvid to carry mid/mvid; they only gate the request.
+      component.did = 1;
+      component.dvid = 2;
+      component.filePath = "/models/owner@example.com/resnet/v1/notes.txt";
+      component.isLogin = true;
+      component.fileSize = 100;
+
+      component.reloadFileContent();
+
+      expect(modelSpy).toHaveBeenCalledWith("/models/owner@example.com/resnet/v1/notes.txt", true);
+      expect(datasetSpy).not.toHaveBeenCalled();
+      expect(component.displayPlainText).toBe(true);
     });
   });
 

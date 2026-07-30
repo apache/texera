@@ -19,7 +19,9 @@
 
 import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from "@angular/core";
 import { DatasetService } from "../../../../../service/user/dataset/dataset.service";
+import { ModelService } from "../../../../../service/user/model/model.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+import { Observable } from "rxjs";
 import * as Papa from "papaparse";
 import { ParseResult } from "papaparse";
 import { DomSanitizer, SafeUrl } from "@angular/platform-browser";
@@ -160,11 +162,16 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges, OnDe
   @Input()
   isLogin: boolean = false;
 
+  /** Which resource the ids and filePath above refer to. Models pass mid/mvid as did/dvid. */
+  @Input()
+  resourceType: "dataset" | "model" = "dataset";
+
   @Output()
   loadFile = new EventEmitter<{ file: string; prefix: string }>();
 
   constructor(
     private datasetService: DatasetService,
+    private modelService: ModelService,
     private sanitizer: DomSanitizer,
     private notificationService: NotificationService
   ) {}
@@ -191,6 +198,13 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges, OnDe
     this.showImageModal = !this.showImageModal;
   }
 
+  private fetchFile(): Observable<Blob> {
+    if (this.resourceType === "model") {
+      return this.modelService.retrieveModelVersionSingleFile(this.filePath, this.isLogin);
+    }
+    return this.datasetService.retrieveDatasetVersionSingleFile(this.filePath, this.isLogin);
+  }
+
   reloadFileContent() {
     this.turnOffAllDisplay();
 
@@ -209,8 +223,7 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges, OnDe
     // Load file
     this.isLoading = true;
     if (this.did && this.dvid && this.filePath != "") {
-      this.datasetService
-        .retrieveDatasetVersionSingleFile(this.filePath, this.isLogin)
+      this.fetchFile()
         .pipe(untilDestroyed(this))
         .subscribe({
           next: blob => {

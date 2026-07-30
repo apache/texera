@@ -17,10 +17,12 @@
  */
 
 import { Injectable } from "@angular/core";
-import { HttpClient } from "@angular/common/http";
+import { HttpClient, HttpParams } from "@angular/common/http";
 import { Observable } from "rxjs";
+import { map, switchMap } from "rxjs/operators";
 import { AppSettings } from "../../../../common/app-setting";
-import { Model } from "../../../../common/type/model";
+import { Model, ModelVersion } from "../../../../common/type/model";
+import { DatasetFileNode } from "../../../../common/type/datasetVersionFileTree";
 import { DashboardModel } from "../../../type/dashboard-model.interface";
 
 export const MODEL_BASE_URL = "model";
@@ -32,6 +34,10 @@ export const MODEL_UPDATE_PUBLICITY_URL = "update/publicity";
 export const MODEL_UPDATE_DOWNLOADABLE_URL = "update/downloadable";
 export const MODEL_LIST_URL = MODEL_BASE_URL + "/list";
 export const MODEL_GET_OWNERS_URL = MODEL_BASE_URL + "/user-model-owners";
+
+export const MODEL_VERSION_BASE_URL = "version";
+export const MODEL_VERSION_RETRIEVE_LIST_URL = MODEL_VERSION_BASE_URL + "/list";
+export const MODEL_VERSION_LATEST_URL = MODEL_VERSION_BASE_URL + "/latest";
 
 export const DEFAULT_MODEL_NAME = "Untitled-model";
 
@@ -118,5 +124,70 @@ export class ModelService {
 
   public retrieveOwners(): Observable<string[]> {
     return this.http.get<string[]>(`${AppSettings.getApiEndpoint()}/${MODEL_GET_OWNERS_URL}`);
+  }
+
+  /**
+   * Retrieve a model's versions, newest first. No isLogin variant: models have no public
+   * version endpoint yet, which arrives with the hub work under #6494 that makes them browsable.
+   */
+  public retrieveModelVersionList(mid: number): Observable<ModelVersion[]> {
+    return this.http.get<ModelVersion[]>(
+      `${AppSettings.getApiEndpoint()}/${MODEL_BASE_URL}/${mid}/${MODEL_VERSION_RETRIEVE_LIST_URL}`
+    );
+  }
+
+  public retrieveModelLatestVersion(mid: number): Observable<ModelVersion> {
+    return this.http
+      .get<{
+        modelVersion: ModelVersion;
+        fileNodes: DatasetFileNode[];
+      }>(`${AppSettings.getApiEndpoint()}/${MODEL_BASE_URL}/${mid}/${MODEL_VERSION_LATEST_URL}`)
+      .pipe(
+        map(response => {
+          response.modelVersion.fileNodes = response.fileNodes;
+          return response.modelVersion;
+        })
+      );
+  }
+
+  public retrieveModelVersionFileTree(
+    mid: number,
+    mvid: number
+  ): Observable<{ fileNodes: DatasetFileNode[]; size: number }> {
+    return this.http.get<{ fileNodes: DatasetFileNode[]; size: number }>(
+      `${AppSettings.getApiEndpoint()}/${MODEL_BASE_URL}/${mid}/${MODEL_VERSION_BASE_URL}/${mvid}/rootFileNodes`
+    );
+  }
+
+  /**
+   * Retrieve a model version as a zip. The backend requires exactly one of mvid or latest.
+   */
+  public retrieveModelVersionZip(mid: number, mvid?: number): Observable<Blob> {
+    let params = new HttpParams();
+
+    if (mvid !== undefined && mvid !== null) {
+      params = params.set("mvid", mvid.toString());
+    } else {
+      params = params.set("latest", "true");
+    }
+
+    return this.http.get(`${AppSettings.getApiEndpoint()}/${MODEL_BASE_URL}/${mid}/versionZip`, {
+      params,
+      responseType: "blob",
+    });
+  }
+
+  /**
+   * Retrieve a single file from a model version through a presigned URL.
+   *
+   * @param filePath Logical path of the file, e.g. "/models/bob@texera.com/resnet/v1/model.pt".
+   */
+  public retrieveModelVersionSingleFile(filePath: string, isLogin: boolean = true): Observable<Blob> {
+    const endpointSegment = isLogin ? "presign-download" : "public-presign-download";
+    const endpoint = `${AppSettings.getApiEndpoint()}/${MODEL_BASE_URL}/${endpointSegment}?filePath=${encodeURIComponent(filePath)}`;
+
+    return this.http
+      .get<{ presignedUrl: string }>(endpoint)
+      .pipe(switchMap(({ presignedUrl }) => this.http.get(presignedUrl, { responseType: "blob" })));
   }
 }

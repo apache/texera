@@ -1,0 +1,326 @@
+<!--
+  Licensed to the Apache Software Foundation (ASF) under one
+  or more contributor license agreements.  See the NOTICE file
+  distributed with this work for additional information
+  regarding copyright ownership.  The ASF licenses this file
+  to you under the Apache License, Version 2.0 (the
+  "License"); you may not use this file except in compliance
+  with the License.  You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing,
+  software distributed under the License is distributed on an
+  "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+  KIND, either express or implied.  See the License for the
+  specific language governing permissions and limitations
+  under the License.
+-->
+
+<div *ngIf="!isMaximized">
+  <nz-card>
+    <div class="model-header">
+      <div class="model-header-meta">
+        <h2>Model: {{modelName}}</h2>
+        <nz-card-meta
+          style="padding-top: 5px"
+          [nzDescription]="descriptionTemplate">
+          <ng-template #descriptionTemplate>
+            Created at:
+            <span
+              nz-tooltip
+              [nzTooltipTitle]="modelCreationTimeTooltip">
+              {{modelCreationTime}}
+            </span>
+          </ng-template>
+        </nz-card-meta>
+
+        <div class="status-tag-row">
+          <nz-tag
+            class="status-tag"
+            [ngClass]="{ 'tag-public': modelIsPublic }">
+            <i
+              nz-icon
+              [nzType]="modelIsPublic ? 'global' : 'lock'"
+              nzTheme="outline"></i>
+            {{ modelIsPublic ? "Public" : "Private" }}
+          </nz-tag>
+
+          <nz-tag
+            class="status-tag"
+            [ngClass]="{ 'tag-downloadable': modelIsDownloadable }">
+            <i
+              nz-icon
+              [nzType]="modelIsDownloadable ? 'download' : 'stop'"
+              nzTheme="outline"></i>
+            {{ modelIsDownloadable ? "Downloadable" : "Download restricted" }}
+          </nz-tag>
+
+          <nz-tag
+            *ngIf="modelFramework"
+            class="status-tag tag-framework">
+            <i
+              nz-icon
+              nzType="experiment"
+              nzTheme="outline"></i>
+            {{ modelFramework }}
+          </nz-tag>
+
+          <nz-tag
+            *ngIf="modelFormat"
+            class="status-tag tag-format">
+            <i
+              nz-icon
+              nzType="file-text"
+              nzTheme="outline"></i>
+            {{ modelFormat }}
+          </nz-tag>
+
+          <button
+            *ngIf="userHasWriteAccess()"
+            nz-button
+            nzType="text"
+            class="tag-settings-btn"
+            nz-popover
+            nzPopoverTrigger="click"
+            nzPopoverPlacement="bottomRight"
+            [nzPopoverContent]="tagSettingsPopover"
+            nz-tooltip
+            nzTooltipTitle="Settings">
+            <i
+              nz-icon
+              nzType="setting"
+              nzTheme="outline"></i>
+          </button>
+
+          <ng-template #tagSettingsPopover>
+            <div>
+              <div class="tag-settings-title">Quick Settings</div>
+              <div class="tag-settings-row">
+                <span>Visibility:</span>
+                <nz-switch
+                  [ngModel]="modelIsPublic"
+                  (ngModelChange)="onPublicStatusChange($event)"
+                  [nzDisabled]="userModelAccessLevel !== 'WRITE'"
+                  nzCheckedChildren="public"
+                  nzUnCheckedChildren="private"></nz-switch>
+              </div>
+              <div class="tag-settings-row">
+                <span>Downloadable:</span>
+                <nz-switch
+                  [ngModel]="modelIsDownloadable"
+                  (ngModelChange)="onDownloadableStatusChange($event)"
+                  [nzDisabled]="!isOwner"
+                  nzCheckedChildren="allowed"
+                  nzUnCheckedChildren="blocked"></nz-switch>
+              </div>
+            </div>
+          </ng-template>
+        </div>
+      </div>
+    </div>
+
+    <div class="description-section">
+      <texera-markdown-description
+        [description]="modelDescription"
+        [editable]="userModelAccessLevel === 'WRITE'"
+        [enableViewMore]="true"
+        (descriptionChange)="onModelDescriptionChange($event)">
+      </texera-markdown-description>
+    </div>
+  </nz-card>
+</div>
+<nz-layout>
+  <nz-content style="background-color: white">
+    <nz-card>
+      <div style="display: flex; justify-content: space-between; align-items: center">
+        <div class="file-info">
+          <h3 class="file-title">
+            <span class="file-title-main">
+              <b>{{ currentDisplayedFileName }}</b>
+
+              <button
+                nz-button
+                nzType="text"
+                nzSize="small"
+                class="copy-path-btn"
+                nz-tooltip
+                nzTooltipTitle="Copy file path"
+                *ngIf="currentDisplayedFileName"
+                (click)="copyCurrentFilePath()">
+                <i
+                  nz-icon
+                  nzType="copy"
+                  nzTheme="twotone">
+                </i>
+              </button>
+            </span>
+
+            <span
+              *ngIf="currentFileSize"
+              class="file-size">
+              <i
+                nz-icon
+                nzType="file"
+                nzTheme="outline"
+                class="icon-file"></i>
+              {{ formatSize(currentFileSize) }}
+            </span>
+          </h3>
+        </div>
+        <div style="display: flex">
+          <button
+            nz-button
+            *ngIf="selectedVersion"
+            nz-tooltip="Download the file"
+            [disabled]="!isLogin || !isDownloadAllowed()"
+            (click)="onClickDownloadCurrentFile()">
+            <i
+              nz-icon
+              nzTheme="outline"
+              nzType="download">
+            </i>
+          </button>
+          <button
+            nz-button
+            *ngIf="!isMaximized && selectedVersion"
+            nz-tooltip="Maximize View"
+            (click)="onClickScaleTheView()">
+            <i
+              nz-icon
+              nzTheme="outline"
+              nzType="expand">
+            </i>
+          </button>
+          <button
+            nz-button
+            *ngIf="isMaximized && selectedVersion"
+            nz-tooltip="Minimize View"
+            (click)="onClickScaleTheView()">
+            <i
+              nz-icon
+              nzTheme="outline"
+              nzType="compress">
+            </i>
+          </button>
+          <button
+            *ngIf="!isRightBarCollapsed"
+            nz-button
+            nz-tooltip="Hide the right bar"
+            (click)="onClickHideRightBar()">
+            <i
+              nz-icon
+              nzTheme="outline"
+              nzType="right">
+            </i>
+          </button>
+          <button
+            *ngIf="isRightBarCollapsed"
+            nz-button
+            nz-tooltip="Show Tree"
+            (click)="onClickHideRightBar()">
+            <i
+              nz-icon
+              nzTheme="outline"
+              nzType="left">
+            </i>
+          </button>
+        </div>
+      </div>
+    </nz-card>
+    <nz-empty
+      class="empty-version-indicator"
+      *ngIf="!selectedVersion"
+      nzNotFoundContent="No version is selected"></nz-empty>
+
+    <texera-user-dataset-file-renderer
+      *ngIf="selectedVersion"
+      resourceType="model"
+      [isMaximized]="isMaximized"
+      [did]="mid"
+      [dvid]="selectedVersion.mvid"
+      [filePath]="currentDisplayedFileName"
+      [fileSize]="currentFileSize"
+      [isLogin]="isLogin"
+      class="file-renderer">
+    </texera-user-dataset-file-renderer>
+  </nz-content>
+  <nz-sider
+    *ngIf="!isRightBarCollapsed"
+    nzTheme="light"
+    [nzWidth]="siderWidth"
+    nz-resizable
+    [nzMinWidth]="MIN_SIDER_WIDTH"
+    [nzMaxWidth]="MAX_SIDER_WIDTH"
+    (nzResize)="onSideResize($event)">
+    <nz-resize-handle nzDirection="left">
+      <div class="sider-resize-line">
+        <i
+          class="sider-resize-handle"
+          nz-icon
+          nzType="more"
+          nzTheme="outline"></i>
+      </div>
+    </nz-resize-handle>
+    <div class="right-sider">
+      <nz-collapse nzGhost>
+        <nz-collapse-panel
+          nzHeader="Current Versions"
+          nzActive="true">
+          <div class="version-storage">
+            <h6 style="font-weight: lighter; font-size: 0.9em">Choose a Version:</h6>
+            <div class="select-and-button-container">
+              <nz-select
+                nzShowSearch
+                nzAllowClear
+                nzPlaceHolder="Select a version"
+                (ngModelChange)="onVersionSelected($event)"
+                [(ngModel)]="selectedVersion">
+                <nz-option
+                  *ngFor="let version of versions"
+                  [nzValue]="version"
+                  [nzLabel]="version.name"></nz-option>
+              </nz-select>
+              <button
+                nz-button
+                nz-tooltip="Download Model"
+                (click)="onClickDownloadVersionAsZip()"
+                *ngIf="selectedVersion"
+                [disabled]="!isLogin || !isDownloadAllowed()"
+                class="spaced-button">
+                <i
+                  nz-icon
+                  nzType="download"
+                  nzTheme="outline"></i>
+              </button>
+            </div>
+            <ng-container *ngIf="selectedVersion">
+              <div class="version-size">
+                <i
+                  nz-icon
+                  nzType="database"
+                  nzTheme="outline"
+                  class="icon-database"></i>
+                Version Size: {{ formatSize(currentModelVersionSize) }}
+              </div>
+              <div
+                *ngIf="selectedVersionCreationTime"
+                class="version-date">
+                <i
+                  nz-icon
+                  nzType="calendar"
+                  nzTheme="outline"
+                  class="icon-database"></i>
+                Created at: {{ selectedVersionCreationTime }}
+              </div>
+            </ng-container>
+          </div>
+          <texera-user-dataset-version-filetree
+            [fileTreeNodes]="fileTreeNodeList"
+            (selectedTreeNode)="onVersionFileTreeNodeSelected($event)">
+          </texera-user-dataset-version-filetree>
+        </nz-collapse-panel>
+      </nz-collapse>
+    </div>
+  </nz-sider>
+</nz-layout>

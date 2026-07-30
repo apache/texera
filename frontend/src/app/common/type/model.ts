@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+import { DatasetFileNode } from "./datasetVersionFileTree";
+
 export interface Model {
   mid: number | undefined;
   ownerUid: number | undefined;
@@ -28,4 +30,14 @@ export interface Model {
   coverImage: string | undefined;
   framework: string | undefined;
   format: string | undefined;
+}
+
+export interface ModelVersion {
+  mvid: number | undefined;
+  mid: number;
+  creatorUid: number;
+  name: string;
+  versionHash: string | undefined;
+  creationTime: number | undefined;
+  fileNodes: DatasetFileNode[] | undefined;
 }
