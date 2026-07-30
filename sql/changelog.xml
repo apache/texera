@@ -53,7 +53,8 @@
         <sqlFile path="sql/updates/28.sql"/>
     </changeSet>
 
-    <changeSet id="29" author="Neilk1021">
+    <!-- Widen execution size columns to BIGINT (#6978) -->
+    <changeSet id="29" author="mengw15">
         <sqlFile path="sql/updates/29.sql"/>
     </changeSet>
 

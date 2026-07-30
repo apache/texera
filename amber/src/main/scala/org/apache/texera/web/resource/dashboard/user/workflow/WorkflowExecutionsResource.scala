@@ -404,7 +404,7 @@ object WorkflowExecutionsResource {
   ): Unit = {
     context
       .update(OPERATOR_PORT_EXECUTIONS)
-      .set(OPERATOR_PORT_EXECUTIONS.RESULT_SIZE, Integer.valueOf(size.toInt))
+      .set(OPERATOR_PORT_EXECUTIONS.RESULT_SIZE, java.lang.Long.valueOf(size))
       .where(OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(eid.id.toInt))
       .and(OPERATOR_PORT_EXECUTIONS.GLOBAL_PORT_ID.eq(globalPortId.serializeAsString))
       .execute()
@@ -424,13 +424,25 @@ object WorkflowExecutionsResource {
       .map(URI.create)
 
     if (statsUriOpt.isPresent) {
-      val size = DocumentFactory.openDocument(statsUriOpt.get)._1.getTotalFileSize
-      context
-        .update(WORKFLOW_EXECUTIONS)
-        .set(WORKFLOW_EXECUTIONS.RUNTIME_STATS_SIZE, Integer.valueOf(size.toInt))
-        .where(WORKFLOW_EXECUTIONS.EID.eq(eid.id.toInt))
-        .execute()
+      updateRuntimeStatsSize(
+        eid,
+        DocumentFactory.openDocument(statsUriOpt.get)._1.getTotalFileSize
+      )
     }
+  }
+
+  /**
+    * Stores an already-measured runtime statistics size, mirroring updateResultSize.
+    *
+    * @param eid  Execution ID associated with the runtime statistics document.
+    * @param size Size of the runtime statistics in bytes.
+    */
+  def updateRuntimeStatsSize(eid: ExecutionIdentity, size: Long): Unit = {
+    context
+      .update(WORKFLOW_EXECUTIONS)
+      .set(WORKFLOW_EXECUTIONS.RUNTIME_STATS_SIZE, java.lang.Long.valueOf(size))
+      .where(WORKFLOW_EXECUTIONS.EID.eq(eid.id.toInt))
+      .execute()
   }
 
   /**
@@ -449,14 +461,28 @@ object WorkflowExecutionsResource {
       .map(URI.create)
 
     if (uriOpt.isPresent) {
-      val size = DocumentFactory.openDocument(uriOpt.get)._1.getTotalFileSize
-      context
-        .update(OPERATOR_EXECUTIONS)
-        .set(OPERATOR_EXECUTIONS.CONSOLE_MESSAGES_SIZE, Integer.valueOf(size.toInt))
-        .where(OPERATOR_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(eid.id.toInt))
-        .and(OPERATOR_EXECUTIONS.OPERATOR_ID.eq(opId.id))
-        .execute()
+      updateConsoleMessageSize(
+        eid,
+        opId,
+        DocumentFactory.openDocument(uriOpt.get)._1.getTotalFileSize
+      )
     }
+  }
+
+  /**
+    * Stores an already-measured console message size, mirroring updateResultSize.
+    *
+    * @param eid  Execution ID associated with the console message.
+    * @param opId Operator ID of the corresponding operator.
+    * @param size Size of the console messages in bytes.
+    */
+  def updateConsoleMessageSize(eid: ExecutionIdentity, opId: OperatorIdentity, size: Long): Unit = {
+    context
+      .update(OPERATOR_EXECUTIONS)
+      .set(OPERATOR_EXECUTIONS.CONSOLE_MESSAGES_SIZE, java.lang.Long.valueOf(size))
+      .where(OPERATOR_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(eid.id.toInt))
+      .and(OPERATOR_EXECUTIONS.OPERATOR_ID.eq(opId.id))
+      .execute()
   }
 
   /**
@@ -662,10 +688,14 @@ class WorkflowExecutionsResource {
   @GET
   @Produces(Array(MediaType.APPLICATION_JSON))
   @Path("/{wid}/stats/{eid}")
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def retrieveWorkflowRuntimeStatistics(
       @PathParam("wid") wid: Integer,
-      @PathParam("eid") eid: Integer
+      @PathParam("eid") eid: Integer,
+      @Auth sessionUser: SessionUser
   ): List[WorkflowRuntimeStatistics] = {
+    validateUserCanAccessWorkflow(sessionUser.getUser.getUid, wid)
+
     // Create URI for runtime statistics
     val uriString: String = context
       .select(WORKFLOW_EXECUTIONS.RUNTIME_STATS_URI)
