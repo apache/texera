@@ -33,9 +33,10 @@ import org.apache.texera.amber.engine.architecture.rpc.controlreturns.EmptyRetur
 
 /** Advance the region executions of this workflow.
   *
-  * The coordinator sends this to itself via `WorkflowExecutionManager.requestAdvanceRegionExecutions()`
-  * so that the advance — which terminates completed regions and therefore sends `EndWorker` to
-  * their workers — runs in its own control round, after every reply the requesting round owed.
+  * A handler that needs region executions advanced sends this to itself rather than advancing
+  * inline (see `PortCompletedHandler`), so that the advance — which terminates completed regions
+  * and therefore sends `EndWorker` to their workers — runs in its own control round, after every
+  * reply the requesting round owed.
   *
   * possible sender: coordinator (itself)
   */

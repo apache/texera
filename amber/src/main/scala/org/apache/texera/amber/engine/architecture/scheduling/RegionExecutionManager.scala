@@ -138,11 +138,12 @@ class RegionExecutionManager(
     * have finished processing all control messages; a worker that has not fails the request, and
     * `terminateWorkersWithRetry` re-sends `EndWorker` after `killRetryDelay`.
     *
-    * Because a worker rejects `EndWorker` while anything is still queued for it, termination must not be triggered
-    * from inside the handler of a request sent by one of these workers — the `EndWorker` would be emitted before that
-    * handler's own reply and overtake it on their shared FIFO control channel. Handlers therefore request the advance
-    * that reaches here via `WorkflowExecutionManager.requestAdvanceRegionExecutions()`, which defers it to a later
-    * coordinator round (see `PortCompletedHandler`).
+    * Because a worker rejects `EndWorker` while work is still queued for it, termination must not be triggered from
+    * inside the handler of a request sent by one of these workers — the `EndWorker` would be emitted before that
+    * handler's own reply and overtake it on their shared FIFO control channel. Such handlers therefore send themselves
+    * a `CoordinatorInitiateAdvanceRegionExecutions` instead of advancing inline, which defers the advance that reaches
+    * here to a later coordinator round (see `PortCompletedHandler`). That orders the replies already produced; for one
+    * the coordinator has not produced yet, `EndHandler` does not count a queued reply as work.
     *
     * 2. Only after all workers have processed all control messages do we send a `gracefulStop` (pekko message) to each
     * worker. JVM workers will be terminated by `gracefulStop`. Python proxy workes will also be terminated by

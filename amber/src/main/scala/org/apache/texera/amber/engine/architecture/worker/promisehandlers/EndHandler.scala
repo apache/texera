@@ -46,7 +46,7 @@ trait EndHandler {
     * the data processing logic, but also the processing of all the control messages.
     *
     * A queued reply to one of this worker's own requests does not count: it carries no work (see
-    * `hasUnprocessedWork`), and the coordinator cannot order all of its replies before `EndWorker`.
+    * `findUnprocessedWork`), and the coordinator cannot order all of its replies before `EndWorker`.
     * The coordinator defers region advancement to a later control round precisely so that
     * `EndWorker` follows the replies it owes (see `PortCompletedHandler`), but that only orders
     * requests it has already handled. A request of this worker's that is still queued at the
