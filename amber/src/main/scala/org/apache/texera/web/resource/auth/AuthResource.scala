@@ -19,6 +19,7 @@
 
 package org.apache.texera.web.resource.auth
 
+import com.typesafe.scalalogging.Logger
 import org.apache.texera.auth.JwtAuth.{TOKEN_EXPIRE_TIME_IN_MINUTES, jwtClaims, jwtToken}
 import org.apache.texera.common.config.UserSystemConfig
 import org.apache.texera.dao.SqlServer
@@ -30,15 +31,11 @@ import org.apache.texera.web.model.http.request.auth.{UserLoginRequest, UserRegi
 import org.apache.texera.web.model.http.response.TokenIssueResponse
 import org.apache.texera.web.resource.auth.AuthResource._
 import org.jasypt.util.password.StrongPasswordEncryptor
-import org.jooq.exception.DataAccessException
 
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
 
 object AuthResource {
-
-  // Explicitly typed rather than mixing in LazyLogging: the class below imports this object's
-  // members, and inferring the object's signature through a mixin deadlocks that import.
   private val logger: Logger = Logger(classOf[AuthResource])
 
   /** Postgres SQLSTATE for unique_violation. */
@@ -47,9 +44,6 @@ object AuthResource {
   private def context = SqlServer.getInstance().context
   private def userDao = new UserDao(context.configuration)
 
-  // Shared across calls: the encryptor is stateless apart from its digester, which jasypt
-  // documents as thread-safe. Constructing one per login also re-seeds a SecureRandom for
-  // the salt generator, which is the expensive part.
   private val passwordEncryptor = new StrongPasswordEncryptor
 
   private def localHandleExists(handle: String): Boolean = {
@@ -67,12 +61,12 @@ object AuthResource {
     * Retrieve exactly one User from databases with the given username and password.
     * The password is used to validate against the hashed password stored in the db.
     *
-    * @param name     String
+    * @param username String
     * @param password String, plain text password
     * @return
     */
-  def retrieveUserByUsernameAndPassword(handle: String, password: String): Option[User] = {
-    if (password == null || handle == null) return None
+  def retrieveUserByUsernameAndPassword(username: String, password: String): Option[User] = {
+    if (password == null || username == null) return None
 
     val record = context
       .select()
@@ -80,7 +74,7 @@ object AuthResource {
       .join(USER)
       .on(USER.UID.eq(AUTH_PROVIDER.UID))
       .where(AUTH_PROVIDER.PROVIDER_TYPE.eq(ProviderTypeEnum.LOCAL))
-      .and(AUTH_PROVIDER.PROVIDER_ID.eq(handle))
+      .and(AUTH_PROVIDER.PROVIDER_ID.eq(username))
       .fetchOne()
 
     Option(record).flatMap(r => {
@@ -183,7 +177,11 @@ class AuthResource {
         user.setName(username)
         user.setEmail(useremail)
         user.setRole(UserRoleEnum.RESTRICTED)
-        insertLocalUser(user, username, AuthResource.passwordEncryptor.encryptPassword(userpassword))
+        insertLocalUser(
+          user,
+          username,
+          AuthResource.passwordEncryptor.encryptPassword(userpassword)
+        )
         TokenIssueResponse(jwtToken(jwtClaims(user, TOKEN_EXPIRE_TIME_IN_MINUTES)))
     }
   }
