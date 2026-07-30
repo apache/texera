@@ -63,9 +63,17 @@ import scala.concurrent.duration.DurationInt
   * result-table row count, read from iceberg after the run. LoopEnd is an
   * identity pass-through on data, so the rows it materializes equal the rows
   * that flowed through it: a single (outermost) LoopEnd accumulates every
-  * iteration (3 for the single loop; 9 for the terminal outer LoopEnd of the
-  * 3x3 nested loop), and an inner LoopEnd resets once per outer iteration (so
-  * 3, not 9).
+  * iteration (3 for the single loop; 4 for the terminal outer LoopEnd of the
+  * 2x2 nested loop), and an inner LoopEnd resets once per outer iteration (so
+  * 2, not 4).
+  *
+  * Iteration counts are data-driven (`i < len(table)`), so the input length is
+  * the cost knob: every iteration re-executes its region and respawns every
+  * worker in it (~2s per Python worker). The single-loop tests keep a 3-row
+  * input so one loop takes the same back-edge twice in a row; the nested tests
+  * use a 2-row input (2 outer x 2 inner) because nesting depth, not the
+  * per-level iteration count, is what exercises the counter/routing envelope,
+  * and 3x3 nearly doubles the suite's worker respawns for no extra coverage.
   *
   * NOTE: the cumulative `ExecutionStatsUpdate` output count is NOT usable as
   * the iteration count here. A loop region's workers are recreated on every
@@ -130,7 +138,10 @@ class LoopIntegrationSpec
     * Run the loop workflow to completion and return each operator's materialized
     * RESULT-table row count, keyed by operator id. Delegates to the shared
     * `TestUtils.runWorkflowAndReadResults` harness (a correct loop terminates
-    * within the 3-minute deadline; a broken one hangs until it).
+    * within the 90-second deadline; a broken one hangs until it). The deadline
+    * is ~2.5x the slowest healthy case on CI (the nested 2x2 workflows, ~35s on
+    * the 3-core macOS runner). A hung run burns the whole deadline and is then
+    * re-run by `withRetry`, so a loose deadline directly inflates CI time.
     */
   private def runAndGetMaterializedRowCounts(
       operators: List[LogicalOp],
@@ -141,7 +152,7 @@ class LoopIntegrationSpec
       buildWorkflow(operators, links, materializedContext()),
       operators.map(_.operatorIdentifier),
       _.getCount,
-      Duration.fromMinutes(3)
+      Duration.fromSeconds(90)
     )
 
   private def textInput(text: String): TextInputSourceOpDesc = {
@@ -207,13 +218,13 @@ class LoopIntegrationSpec
     )
   }
 
-  it should "run a nested loop for exactly 9 inner iterations (3 outer x 3 inner)" in {
+  it should "run a nested loop for exactly 4 inner iterations (2 outer x 2 inner)" in {
     // TextInput -> OuterStart -> InnerStart -> InnerEnd -> OuterEnd.
     //
-    // The outer LoopStart emits the WHOLE 3-row table on each outer iteration
-    // (output = "table"), so the inner loop iterates over 3 rows; with 3 outer
-    // iterations the inner body runs 3 x 3 = 9 times. Because every LoopEnd is
-    // an identity pass-through on data, the same 9 rows flow out of the
+    // The outer LoopStart emits the WHOLE 2-row table on each outer iteration
+    // (output = "table"), so the inner loop iterates over 2 rows; with 2 outer
+    // iterations the inner body runs 2 x 2 = 4 times. Because every LoopEnd is
+    // an identity pass-through on data, the same 4 rows flow out of the
     // terminal outer LoopEnd.
     //
     // This is the case that exercises the loop_counter increment/decrement and
@@ -221,8 +232,8 @@ class LoopIntegrationSpec
     // see InitializeExecutorRequest.loopStartPortUris): the outer loop's state
     // passes THROUGH the inner LoopStart (+1) and inner LoopEnd (-1) untouched,
     // and is consumed only at the outer LoopEnd (counter == 0). A routing or
-    // counter bug would change the 9, or mis-consume and hang.
-    val src = textInput("1\n2\n3")
+    // counter bug would change the 4, or mis-consume and hang.
+    val src = textInput("1\n2")
     val outerStart = loopStart("i = 0", "table")
     val innerStart = loopStart("j = 0", "table.iloc[j]")
     val innerEnd = loopEnd("j += 1", "j < len(table)")
@@ -236,21 +247,21 @@ class LoopIntegrationSpec
         link(innerEnd, outerEnd)
       )
     )
-    // The outer LoopEnd accumulates all 9 rows; the INNER LoopEnd resets once
+    // The outer LoopEnd accumulates all 4 rows; the INNER LoopEnd resets once
     // per outer iteration (see main_loop's reset_output_storage call site), so
-    // it holds only the last outer iteration's 3 rows. The inner == 3
+    // it holds only the last outer iteration's 2 rows. The inner == 2
     // assertion is the one that fails against the pre-fix code.
     val outerRows = materialized.getOrElse(outerEnd.operatorIdentifier, -1L)
     val innerRows = materialized.getOrElse(innerEnd.operatorIdentifier, -1L)
     assert(
-      outerRows == 9,
-      s"outer LoopEnd must accumulate all 9 inner-iteration rows: " +
-        s"expected 9, got $outerRows (all: $materialized)"
+      outerRows == 4,
+      s"outer LoopEnd must accumulate all 4 inner-iteration rows: " +
+        s"expected 4, got $outerRows (all: $materialized)"
     )
     assert(
-      innerRows == 3,
-      s"inner LoopEnd must reset per outer iteration (3 rows, not 9): " +
-        s"expected 3, got $innerRows (all: $materialized)"
+      innerRows == 2,
+      s"inner LoopEnd must reset per outer iteration (2 rows, not 4): " +
+        s"expected 2, got $innerRows (all: $materialized)"
     )
   }
 
@@ -297,8 +308,8 @@ class LoopIntegrationSpec
     // and a single loop with a JVM chain; those were removed as separate
     // tests because each loop iteration respawns every worker in the
     // re-executed regions (~2s per Python worker), making every extra e2e
-    // workflow expensive (~1 minute per nested case in CI).
-    val src = textInput("1\n2\n3")
+    // workflow expensive (tens of seconds per nested case in CI).
+    val src = textInput("1\n2")
     val outerStart = loopStart("i = 0", "table")
     val innerStart = loopStart("j = 0", "table.iloc[j]")
     val first = limit(10)
@@ -319,15 +330,15 @@ class LoopIntegrationSpec
     val outerRows = materialized.getOrElse(outerEnd.operatorIdentifier, -1L)
     val innerRows = materialized.getOrElse(innerEnd.operatorIdentifier, -1L)
     assert(
-      outerRows == 9,
-      s"outer LoopEnd must accumulate all 9 inner-iteration rows with two " +
-        s"chained JVM operators in the inner body: expected 9, got $outerRows " +
+      outerRows == 4,
+      s"outer LoopEnd must accumulate all 4 inner-iteration rows with two " +
+        s"chained JVM operators in the inner body: expected 4, got $outerRows " +
         s"(all: $materialized)"
     )
     assert(
-      innerRows == 3,
-      s"inner LoopEnd must reset per outer iteration (3 rows, not 9): " +
-        s"expected 3, got $innerRows (all: $materialized)"
+      innerRows == 2,
+      s"inner LoopEnd must reset per outer iteration (2 rows, not 4): " +
+        s"expected 2, got $innerRows (all: $materialized)"
     )
   }
 

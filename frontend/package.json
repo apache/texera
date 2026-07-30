@@ -45,7 +45,7 @@
     "d3-shape": "2.1.0",
     "dagre": "0.8.5",
     "file-saver": "2.0.5",
-    "fuse.js": "6.5.3",
+    "fuse.js": "7.5.0",
     "html2canvas": "1.4.1",
     "jointjs": "3.5.4",
     "jszip": "3.10.1",
