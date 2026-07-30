@@ -22,16 +22,18 @@ package org.apache.texera.amber.operator.source.sql.asterixdb
 import kong.unirest.json.JSONObject
 import kong.unirest.{HttpResponse, JsonNode, Unirest}
 
+import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
-import scala.collection.mutable.Map
 import scala.jdk.CollectionConverters.IteratorHasAsScala
 import scala.util.{Failure, Success, Try}
 
 object AsterixDBConnUtil {
 
   // as asterixDB version update is unlikely to happen, this map
-  // is only updated when a new AsterixDBSourceOpExec is initialized
-  var asterixDBVersionMapping: Map[String, String] = Map()
+  // is only updated when a new AsterixDBSourceOpExec is initialized.
+  // Several of those can initialize concurrently in one JVM, so the map has to
+  // tolerate concurrent updates.
+  val asterixDBVersionMapping: mutable.Map[String, String] = TrieMap.empty
 
   def queryAsterixDB(
       host: String,
@@ -82,7 +84,7 @@ object AsterixDBConnUtil {
       parentName: String,
       host: String,
       port: String
-  ): Predef.Map[String, String] = {
+  ): Map[String, String] = {
     val result: mutable.Map[String, String] = mutable.Map()
     val response = queryAsterixDB(
       host,
