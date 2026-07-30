@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1785335840849,
+  "lastUpdate": 1785420421511,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -6701,6 +6701,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 508.65423364871265,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Yicong Huang",
+            "username": "Yicong-Huang",
+            "email": "17627829+Yicong-Huang@users.noreply.github.com"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "ebfd1db5f9c8c427a406cf09318e7012436edbde",
+          "message": "fix(ci): use **/* excludes in branch-creation ruleset to unfreeze the merge queue (#7123)\n\n### What changes were proposed in this PR?\n\nFix the `Restrict Branch Creation` ruleset excludes so all allowlisted\nprefixes match at any depth: `release/**/*`, `backport/**/*`,\n`dependabot/**/*`, and `gh-readonly-queue/**/*` (previously\n`gh-readonly-queue/*`; `main` and `gh-pages` stay exact).\n\nGitHub ruleset globs do not cross `/`, and — contrary to intuition —\neven a trailing `**` still only matches a single segment. The merge\nqueue's temp branches nest the base ref and are multi-segment\n(`gh-readonly-queue/main/pr-N`, `gh-readonly-queue/release/v1.2/pr-N`),\nso `gh-readonly-queue/*` (and `**`) never matched them; the `creation`\nrule blocked the queue from creating its temp branch, freezing merges to\n`main` and every release branch. `**/*` matches at any depth (and still\nmatches single-segment refs), so the queue can form again. Dependabot\nbranches are multi-segment too, hence `dependabot/**/*`.\n\n### Any related issues, documentation, discussions?\n\nRegression from #7121, which activated the `Restrict Branch Creation`\nruleset. Unblocks backport PRs such as #7101.\n\n### How was this PR tested?\n\nVerified empirically against the live GitHub rulesets API on a fork:\nbuilt the ruleset from this exact `.asf.yaml` and queried `GET\n/rules/branches/...`. `creation` is no longer active on\n`gh-readonly-queue/main/pr-1`, `gh-readonly-queue/release/v1.2/pr-7101`,\n`release/v1.2`, `release/v1.1`, `backport/*`, `dependabot/npm/*`,\n`main`, or `gh-pages` (all allowed); unrelated branches (`feature/*`)\nstay blocked. The earlier `gh-readonly-queue/**` was confirmed to still\nleave `creation` active on those multi-segment refs.\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Claude Code (Claude Opus 4.8)\n\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-07-30T08:47:10Z",
+          "url": "https://github.com/apache/texera/commit/ebfd1db5f9c8c427a406cf09318e7012436edbde"
+        },
+        "date": 1785420420968,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 667.489861220324,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 1077.0881464232245,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 1161.850759916535,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 852.6829280787607,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 1124.2584247876352,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 1148.3202382994295,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 839.2503356428555,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 1118.6733449740368,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 1151.5934631924722,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 712.2304354966259,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 901.2722279006454,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 932.805793729096,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 732.8368687461474,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 897.8185177666409,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 931.4645216593608,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 730.7034586614058,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 892.7556849996384,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 913.5219865063038,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 445.0874882527058,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 516.4233566820868,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 524.0790578587721,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 451.2363200684386,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 513.8289383039366,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 517.942486256787,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 434.3276127536742,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 489.46103898960746,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 499.04080035729436,
             "unit": "tuples/sec"
           }
         ]
