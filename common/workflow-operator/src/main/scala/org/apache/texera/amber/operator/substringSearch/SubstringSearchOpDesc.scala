@@ -26,7 +26,7 @@ import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, Workflow
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PhysicalOp}
 import org.apache.texera.amber.operator.StandaloneCodeGenerator
 import org.apache.texera.amber.operator.filter.FilterOpDesc
-import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
+import org.apache.texera.amber.operator.metadata.annotations.{AutofillAttributeName, SampleColumn}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
@@ -36,6 +36,7 @@ class SubstringSearchOpDesc extends FilterOpDesc with StandaloneCodeGenerator {
   @JsonSchemaTitle("attribute")
   @JsonPropertyDescription("column to search substring on")
   @AutofillAttributeName
+  @SampleColumn("name")
   var attribute: String = _
 
   @JsonProperty(required = true)
