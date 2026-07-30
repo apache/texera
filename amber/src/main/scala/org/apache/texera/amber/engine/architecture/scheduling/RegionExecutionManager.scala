@@ -186,7 +186,7 @@ class RegionExecutionManager(
 
   private def terminateWorkers(regionExecution: RegionExecution) = {
     implicit val timer: Timer = new JavaTimer(true)
-    val killTimeout = TwitterDuration(30, TimeUnit.SECONDS)
+    val killTimeout = com.twitter.util.Duration.fromMilliseconds(5000)
     // 1. Send EndWorkers with timeout
     val endWorkerRequests =
       regionExecution.getAllOperatorExecutions.flatMap {
@@ -229,7 +229,7 @@ class RegionExecutionManager(
           case (_, opExec) =>
             opExec.getWorkerIds.foreach { workerId =>
               opExec.getWorkerExecution(workerId).forceTerminate()
-              // Remove the actorRef so that no other actors can find the worker and send messages.
+              // Remove the actorRef after successful termination so other actors cannot reach the worker.
               actorRefService.removeActorRef(workerId)
               // Restarted regions reuse actorId. Remove stale control channels so the
               // coordinator does not reuse old control-message sequence numbers for new workers.
