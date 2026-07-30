@@ -669,6 +669,10 @@ FAKE_IP
     _lan_check "default route interface has no global v4: falls back to scan" "192.168.1.42" \
         'default via 10.0.0.1 dev ppp0 proto static' \
         '2: enp5s0    inet 192.168.1.42/24 scope global enp5s0'
+    _lan_check "default route over a bridge/VPN is skipped, not trusted" "10.10.10.30" \
+        'default via 172.17.0.1 dev docker0 proto static' \
+        '3: docker0    inet 172.17.0.1/16 scope global docker0
+2: eth0    inet 10.10.10.30/24 scope global eth0'
     _lan_check "nothing but loopback" "" '' ''
     _lan_check "only excluded interfaces" "" \
         '' \

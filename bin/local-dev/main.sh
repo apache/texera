@@ -487,6 +487,13 @@ _detect_host_lan_ip_linux() {
     #    stripping the /prefix that `ip -o addr` appends.
     iface=$(ip -4 route show default 2>/dev/null \
         | awk '{ for (i = 1; i < NF; i++) if ($i == "dev") { print $(i+1); exit } }')
+    # A default route over a container bridge or an overlay/VPN tunnel points at
+    # an address the containers can't reach back, which is the whole thing this
+    # variable must avoid — drop such an interface so the scan below wins.
+    case "$iface" in
+        docker*|br-*|bridge*|virbr*|veth*|tun*|tap*|cni*|flannel*|cali*|kube*|tailscale*|zt*|wg*)
+            iface="" ;;
+    esac
     if [[ -n "$iface" ]]; then
         addr=$(ip -4 -o addr show dev "$iface" scope global 2>/dev/null \
             | awk '{ split($4, a, "/"); print a[1]; exit }')
@@ -525,17 +532,18 @@ _require_host_lan_ip() {
     [[ -n "${HOST_LAN_IP:-}" ]] && return 0
     HOST_LAN_IP="$(_detect_host_lan_ip)" || HOST_LAN_IP=""
     if [[ -z "$HOST_LAN_IP" ]]; then
-        local probes=""
+        local probes="" bridge_note=""
         case "$(uname -s 2>/dev/null)" in
             Darwin) probes="\`route get default\` / en0-en10" ;;
-            Linux)  probes="\`ip route show default\` / \`ip -4 addr show scope global\`" ;;
-            *)      probes="the macOS and Linux probes" ;;
+            Linux)  probes="\`ip route show default\` / \`ip -4 addr show scope global\`"
+                    bridge_note=" outside the container bridges" ;;
+            *)      probes="the macOS and Linux probes"
+                    bridge_note=" outside the container bridges" ;;
         esac
         echo "FATAL: could not detect a host LAN IP." >&2
         echo "       MinIO needs an address reachable from both docker (lakekeeper" >&2
         echo "       does S3 ops) and the host (JVMs read signed URLs back); none" >&2
-        echo "       of $probes offered a non-loopback IPv4" >&2
-        echo "       outside the container bridges." >&2
+        echo "       of $probes offered a non-loopback IPv4${bridge_note}." >&2
         echo "       Connect to a network or export HOST_LAN_IP=<your-IP> explicitly." >&2
         exit 1
     fi
