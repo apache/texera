@@ -1971,6 +1971,17 @@ svc_source_hash() {
 }
 
 # Per-service dirty check (the SRC * indicator). Two-stage:
+# Set a file's mtime one second into the past, in whichever `touch` dialect is
+# present. Used to build the comparison reference for the fast path below; see
+# there for why the second of slack is needed. A missing path is a quiet no-op.
+_stamp_backdate() {
+    [[ -f "${1:-}" ]] || return 0
+    # GNU coreutils, then BSD/macOS `-A` (adjust the timestamps by -1 second).
+    touch -d '1 second ago' "$1" 2>/dev/null \
+        || touch -A -01 "$1" 2>/dev/null \
+        || true
+}
+
 #   Fast path  (~22 ms): is any tracked source newer than the stamp file's
 #                        mtime? If not, definitely clean.
 #   Slow path (~100 ms): compute current source hash and compare to the hash
@@ -2003,10 +2014,26 @@ svc_src_changed() {
             while IFS= read -r d; do
                 [[ -n "$d" ]] && dirs+=("$d")
             done < <(_svc_src_dirs "$svc")
+            # `find -newer` is *strictly* newer, and the stamp is written at the
+            # end of a build — right before you edit the file you were just
+            # building. An edit inside the filesystem's timestamp granularity
+            # therefore shares the stamp's mtime exactly and used to be
+            # invisible here, so `auto` skipped the rebuild (#7075). Compare
+            # against a throwaway marker one second behind the stamp instead.
+            # The slack only widens the candidate set; the content hash below
+            # still decides. The stamp itself keeps its real mtime, so the
+            # refresh at the end of the slow path converges as before.
+            local cmp_ref="$stamp"
+            local marker="$BUILD_STAMP_DIR/.${svc}.cmp"
+            if touch -r "$stamp" "$marker" 2>/dev/null; then
+                _stamp_backdate "$marker"
+                cmp_ref="$marker"
+            fi
             local newer=""
             newer=$(find "${dirs[@]}" \
                 \( -name "*.scala" -o -name "*.java" -o -name "*.proto" \) \
-                -newer "$stamp" -type f -print 2>/dev/null | head -1)
+                -newer "$cmp_ref" -type f -print 2>/dev/null | head -1)
+            rm -f "$marker"
             if [[ -z "$newer" ]]; then
                 return 1   # nothing changed since last stamp → clean
             fi
