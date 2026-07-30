@@ -29,7 +29,6 @@ import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
-import org.apache.texera.amber.operator.metadata.annotations.ColorValue
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
 
@@ -45,7 +44,6 @@ class FigureFactoryTableOpDesc extends PythonOperatorDescriptor with StandaloneC
   @JsonProperty(required = false)
   @JsonSchemaTitle("Font Color (Hex Code)")
   @JsonPropertyDescription("Font color of the Figure Factory Table")
-  @ColorValue
   var fontColor: EncodableString = "#000000"
 
   @JsonProperty(required = false)

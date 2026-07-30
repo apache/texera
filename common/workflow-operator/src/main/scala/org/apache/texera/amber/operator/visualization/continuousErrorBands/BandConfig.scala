@@ -22,7 +22,7 @@ package org.apache.texera.amber.operator.visualization.continuousErrorBands
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
-import org.apache.texera.amber.operator.metadata.annotations.{AutofillAttributeName, ColorValue}
+import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.visualization.lineChart.LineConfig
 
 import javax.validation.constraints.NotNull
@@ -46,6 +46,5 @@ class BandConfig extends LineConfig {
   @JsonProperty(required = false)
   @JsonSchemaTitle("Fill Color")
   @JsonPropertyDescription("must be a valid CSS color or hex color string")
-  @ColorValue
   var fillColor: EncodableString = ""
 }
