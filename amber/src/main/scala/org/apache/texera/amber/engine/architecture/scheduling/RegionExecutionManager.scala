@@ -172,7 +172,9 @@ class RegionExecutionManager(
   }
 
   private def terminateWorkers(regionExecution: RegionExecution) = {
-    // 1. Send EndWorkers to every worker
+    implicit val timer: Timer = new JavaTimer(true)
+    val killTimeout = TwitterDuration(30, TimeUnit.SECONDS)
+    // 1. Send EndWorkers with timeout
     val endWorkerRequests =
       regionExecution.getAllOperatorExecutions.flatMap {
         case (_, opExec) =>
@@ -183,9 +185,11 @@ class RegionExecutionManager(
       }.toSeq
 
     val endWorkerFuture: Future[Unit] =
-      Future.collect(endWorkerRequests).unit
+      Future.collect(endWorkerRequests)
+        .within(killTimeout)
+        .unit
 
-    // 2. Send GracefulStops only after 1 has finished
+    // 2. Send GracefulStops with timeout
     val gracefulStopRequests: Future[Unit] =
       endWorkerFuture.flatMap { _ =>
         val gracefulStops =
@@ -193,20 +197,16 @@ class RegionExecutionManager(
             case (_, opExec) =>
               opExec.getWorkerIds.map { workerId =>
                 val actorRef = actorRefService.getActorRef(workerId)
-                // Remove the actorRef so that no other actors can find the worker and send messages.
-                actorRefService.removeActorRef(workerId)
-                // Restarted regions reuse actorId. Remove stale control channels so the
-                // coordinator does not reuse old control-message sequence numbers for new workers.
-                asyncRPCClient.inputGateway.removeControlChannel(workerId)
-                asyncRPCClient.outputGateway.removeControlChannel(workerId)
                 gracefulStop(actorRef, ScalaDuration(5, TimeUnit.SECONDS)).asTwitter()
               }
           }.toSeq
 
-        Future.collect(gracefulStops).unit
+        Future.collect(gracefulStops)
+          .within(killTimeout)
+          .unit
       }
 
-    // 3. Log whether the kills were successful
+    // 3. Cleanup only after all gracefulStops succeed
     gracefulStopRequests.transform {
       case Return(_) =>
         logger.debug(s"Region ${region.id.id} successfully terminated.")
@@ -214,6 +214,12 @@ class RegionExecutionManager(
           case (_, opExec) =>
             opExec.getWorkerIds.foreach { workerId =>
               opExec.getWorkerExecution(workerId).forceTerminate()
+              // Remove the actorRef so that no other actors can find the worker and send messages.
+              actorRefService.removeActorRef(workerId)
+              // Restarted regions reuse actorId. Remove stale control channels so the
+              // coordinator does not reuse old control-message sequence numbers for new workers.
+              asyncRPCClient.inputGateway.removeControlChannel(workerId)
+              asyncRPCClient.outputGateway.removeControlChannel(workerId)
             }
         }
         Future.Unit // propagate success
