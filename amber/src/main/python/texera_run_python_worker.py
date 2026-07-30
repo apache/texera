@@ -15,6 +15,11 @@
 # specific language governing permissions and limitations
 # under the License.
 
+<<<<<<< HEAD
+=======
+import base64
+import json
+>>>>>>> 6e5ab8922 (fix(engine): Base64-encode Python worker startup config to survive Windows argv (#5917))
 import sys
 from loguru import logger
 
@@ -49,6 +54,7 @@ def init_loguru_logger(stream_log_level) -> None:
     logger.add(sys.stderr, level=stream_log_level)
 
 
+<<<<<<< HEAD
 if __name__ == "__main__":
     (
         _,
@@ -73,6 +79,77 @@ if __name__ == "__main__":
         s3_large_binaries_base_uri,
     ) = sys.argv
     init_loguru_logger(logger_level)
+=======
+# Keys the JVM side (PythonWorkflowWorker) sends in the startup-config JSON.
+# Declared here so any drift between the two sides fails loudly instead of being
+# silently misassigned, as could happen with the previous positional unpacking.
+EXPECTED_CONFIG_KEYS = frozenset(
+    {
+        "workerId",
+        "outputPort",
+        "loggerLevel",
+        "rPath",
+        "icebergCatalogType",
+        "icebergPostgresCatalogUriWithoutScheme",
+        "icebergPostgresCatalogUsername",
+        "icebergPostgresCatalogPassword",
+        "icebergRestCatalogUri",
+        "icebergRestCatalogWarehouseName",
+        "icebergTableNamespace",
+        "icebergTableStateNamespace",
+        "icebergFileStorageDirectoryPath",
+        "icebergTableCommitBatchSize",
+        "s3Endpoint",
+        "s3Region",
+        "s3AuthUsername",
+        "s3AuthPassword",
+        "s3LargeBinariesBaseUri",
+    }
+)
+
+
+def parse_startup_config(raw_config: str) -> dict:
+    """Parse and validate the startup configuration.
+
+    The configuration is passed by name (see PythonWorkflowWorker on the JVM
+    side) as a Base64-encoded JSON object. Base64 is used so the argument carries
+    no quotes or spaces and survives command-line argv quoting on every platform
+    (a raw JSON string loses its quotes on Windows). The two sides must agree on
+    an exact key set; key order is irrelevant since it is a JSON object. Any drift
+    fails loudly:
+      - a missing or unexpected key raises ValueError;
+      - a non-string value raises TypeError.
+    """
+    config = json.loads(base64.b64decode(raw_config).decode("utf-8"))
+    if not isinstance(config, dict):
+        raise TypeError(
+            f"startup config must be a JSON object, got {type(config).__name__}"
+        )
+
+    actual_keys = set(config)
+    missing = EXPECTED_CONFIG_KEYS - actual_keys
+    unexpected = actual_keys - EXPECTED_CONFIG_KEYS
+    if missing or unexpected:
+        raise ValueError(
+            f"startup config key mismatch: missing={sorted(missing)}, "
+            f"unexpected={sorted(unexpected)}"
+        )
+
+    non_string_keys = sorted(k for k, v in config.items() if not isinstance(v, str))
+    if non_string_keys:
+        raise TypeError(
+            f"startup config values must be strings; non-string keys: {non_string_keys}"
+        )
+
+    return config
+
+
+def main(raw_config: str) -> None:
+    """Start a Python worker from its validated Base64-encoded JSON startup config."""
+    config = parse_startup_config(raw_config)
+
+    init_loguru_logger(config["loggerLevel"])
+>>>>>>> 6e5ab8922 (fix(engine): Base64-encode Python worker startup config to survive Windows argv (#5917))
     StorageConfig.initialize(
         iceberg_catalog_type,
         iceberg_postgres_catalog_uri_without_scheme,
