@@ -20,9 +20,11 @@
 package org.apache.texera.service.util
 
 import org.apache.texera.amber.core.tuple.LargeBinary
+import org.apache.texera.common.tags.NonParallelTest
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.BeforeAndAfterEach
 
+@NonParallelTest
 class LargeBinaryManagerSpec extends AnyFunSuite with S3StorageTestBase with BeforeAndAfterEach {
 
   /** Execution id used by the bulk of the tests. */
