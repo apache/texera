@@ -187,16 +187,6 @@ export function memoryPercentage(usage: string, limit: string): number {
   return Math.min(percentage, 100);
 }
 
-export function findNearestValidStep(value: number, jvmMemorySteps: number[]): number {
-  if (jvmMemorySteps.length === 0) return 1;
-  if (jvmMemorySteps.includes(value)) return value;
-
-  // Find the closest step value
-  return jvmMemorySteps.reduce((prev, curr) => {
-    return Math.abs(curr - value) < Math.abs(prev - value) ? curr : prev;
-  });
-}
-
 export function validateName(trimmedName: string): string | null {
   if (!trimmedName) return "Computing unit name cannot be empty";
   if (trimmedName.length > 128) return "Computing unit name cannot exceed 128 characters";
@@ -285,8 +275,8 @@ function buildJvmMemorySteps(maxGb: number, start: number): number[] {
 }
 
 function buildJvmMemoryMarks(steps: number[]): Record<number, string> {
-  return steps.reduce<Record<number, string>>((marks, step) => {
-    marks[step] = `${step}G`;
+  return steps.reduce<Record<number, string>>((marks, step, index) => {
+    marks[index] = `${step}G`;
     return marks;
   }, {});
 }
@@ -299,23 +289,24 @@ export function getJvmMemorySliderConfig(selectedMemory: string): JvmMemorySlide
     const steps = buildJvmMemorySteps(cuMemoryInGb, 1);
 
     return {
-      jvmMemoryMax: cuMemoryInGb,
+      jvmMemoryMax: steps.length - 1,
       showJvmMemorySlider: false,
       jvmMemorySteps: steps,
       jvmMemoryMarks: buildJvmMemoryMarks(steps),
-      jvmMemorySliderValue: defaultValue,
+      jvmMemorySliderValue: steps.indexOf(defaultValue),
       selectedJvmMemorySize: `${defaultValue}G`,
     };
   }
 
   const steps = buildJvmMemorySteps(cuMemoryInGb, 2);
+  const defaultIndex = steps.indexOf(2);
 
   return {
-    jvmMemoryMax: cuMemoryInGb,
+    jvmMemoryMax: steps.length - 1,
     showJvmMemorySlider: true,
     jvmMemorySteps: steps,
     jvmMemoryMarks: buildJvmMemoryMarks(steps),
-    jvmMemorySliderValue: 2,
+    jvmMemorySliderValue: defaultIndex !== -1 ? defaultIndex : 0,
     selectedJvmMemorySize: "2G",
   };
 }
