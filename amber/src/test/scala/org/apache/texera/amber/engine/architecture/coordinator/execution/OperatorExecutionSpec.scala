@@ -42,10 +42,10 @@ class OperatorExecutionSpec extends AnyFlatSpec {
     PortTupleMetricsMapping(PortIdentity(portIdx), TupleMetrics(count, size))
 
   /**
-    * Push `(state, stats)` onto an existing `WorkerExecution`. Production
-    * code applies updates only if the timestamp is newer than the
-    * previously-recorded one; we use a monotonically increasing nano-clock
-    * surrogate so each call wins.
+    * Push `(state, stats)` onto an existing `WorkerExecution`. Production code
+    * orders state by a monotonic logical version and stats by timestamp, applying
+    * an update only when it is newer; we use a single monotonically increasing
+    * surrogate for both so each call wins.
     */
   private var clock: Long = 0L
   private def applyUpdate(
@@ -54,14 +54,15 @@ class OperatorExecutionSpec extends AnyFlatSpec {
       stats: WorkerStatistics
   ): Unit = {
     clock += 1
-    worker.update(clock, state, stats)
+    worker.updateState(clock, state)
+    worker.updateStats(clock, stats)
   }
   private def setState(
       worker: org.apache.texera.amber.engine.architecture.deploysemantics.layer.WorkerExecution,
       state: WorkerState
   ): Unit = {
     clock += 1
-    worker.update(clock, state)
+    worker.updateState(clock, state)
   }
 
   // ---------------------------------------------------------------------------

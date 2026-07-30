@@ -19,12 +19,13 @@
 
 package org.apache.texera.amber.engine.common
 
+import com.twitter.util.{Duration, Future, Timer}
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.texera.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState
 
 import java.nio.file.{Files, Path, Paths}
 import java.util.concurrent.locks.Lock
-import scala.annotation.tailrec
+import scala.util.control.NonFatal
 
 object Utils extends LazyLogging {
 
@@ -60,31 +61,50 @@ object Utils extends LazyLogging {
   val AMBER_HOME_FOLDER_NAME = "amber";
 
   /**
-    * Retry the given logic with a backoff time interval. The attempts are executed sequentially, thus blocking the thread.
-    * Backoff time is doubled after each attempt.
+    * Retry the given logic with a backoff time interval, doubling the backoff after each attempt.
     *
-    * @param attempts            total number of attempts. if n <= 1 then it will not retry at all, decreased by 1 for each recursion.
+    * The waits are scheduled on `timer`, so no thread is blocked between attempts. That matters
+    * for callers on an actor or coordinator thread, where a `Thread.sleep` would also stall
+    * unrelated work queued on that thread.
+    *
+    * A synchronous throw while evaluating `fn` counts as a failed attempt, same as a failed
+    * `Future`. Fatal errors are never retried in either shape: they propagate immediately.
+    *
+    * @param attempts            total number of attempts. if n <= 1 then it will not retry at all.
     * @param baseBackoffTimeInMS time to wait before next attempt, started with the base time, and doubled after each attempt.
-    * @param fn                  the target function to execute.
-    * @tparam T any return type from the provided function fn.
-    * @return the provided function fn's return, or any exception that still being raised after n attempts.
+    * @param timer               schedules the waits between attempts; no thread is blocked.
+    * @param onRetry             invoked before each wait with the failure, the 1-based number of the
+    *                            attempt that just failed, and the backoff about to be waited in ms.
+    *                            Override it to log with caller context.
+    * @param fn                  the target function to execute, re-evaluated on each attempt.
+    * @tparam T any value type the provided function fn's `Future` yields.
+    * @return `fn`'s eventual value, or the last failure once `attempts` is exhausted.
     */
-  @tailrec
-  def retry[T](attempts: Int, baseBackoffTimeInMS: Long)(fn: => T): T = {
-    try {
-      fn
-    } catch {
-      case e: Throwable =>
-        if (attempts > 1) {
-          logger.warn(
-            "retrying after " + baseBackoffTimeInMS + "ms, number of attempts left: " + (attempts - 1),
-            e
-          )
-          Thread.sleep(baseBackoffTimeInMS)
-          retry(attempts - 1, baseBackoffTimeInMS * 2)(fn)
-        } else throw e
-    }
+  def retry[T](
+      attempts: Int,
+      baseBackoffTimeInMS: Long,
+      timer: Timer,
+      onRetry: (Throwable, Int, Long) => Unit = logRetryAttempt
+  )(fn: => Future[T]): Future[T] = {
+    def attempt(attemptNumber: Int, backoffTimeInMS: Long): Future[T] =
+      Future(fn).flatten.rescue {
+        // `NonFatal` so that a fatal handed back as a failed `Future` is not retried either, which
+        // also matches how the blocking backoff loops elsewhere in the repo catch `Exception`.
+        case NonFatal(e) if attemptNumber < attempts =>
+          onRetry(e, attemptNumber, backoffTimeInMS)
+          Future
+            .sleep(Duration.fromMilliseconds(backoffTimeInMS))(timer)
+            .flatMap(_ => attempt(attemptNumber + 1, backoffTimeInMS * 2))
+      }
+
+    attempt(attemptNumber = 1, backoffTimeInMS = baseBackoffTimeInMS)
   }
+
+  private def logRetryAttempt(failure: Throwable, attempt: Int, backoffTimeInMS: Long): Unit =
+    logger.warn(
+      "retrying after " + backoffTimeInMS + "ms, attempts made so far: " + attempt,
+      failure
+    )
 
   private def isAmberHomePath(path: Path): Boolean = {
     path.toRealPath().endsWith(AMBER_HOME_FOLDER_NAME)

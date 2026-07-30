@@ -57,6 +57,9 @@ import { FormlyNgZorroAntdModule } from "@ngx-formly/ng-zorro-antd";
 import { ComputingUnitStatusService } from "../../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
 import { MockComputingUnitStatusService } from "../../../../common/service/computing-unit/computing-unit-status/mock-computing-unit-status.service";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
+import { DynamicSchemaService } from "../../../service/dynamic-schema/dynamic-schema.service";
+import { NotificationService } from "../../../../common/service/notification/notification.service";
+import { WorkflowGraph } from "../../../service/workflow-graph/model/workflow-graph";
 
 const { marbles } = configure({ run: false });
 
@@ -2140,6 +2143,129 @@ describe("OperatorPropertyEditFrameComponent", () => {
       component.onFormChanges({ tableName: "table1", optionalField: undefined });
 
       expect(emittedEvent).toEqual({ tableName: "table1" });
+    });
+  });
+
+  describe("modify-operator-logic gating", () => {
+    it("allowModifyOperatorLogic re-enables editing", () => {
+      fixture.detectChanges();
+      component.setInteractivity(false);
+
+      component.allowModifyOperatorLogic();
+
+      expect(component.interactive).toBe(true);
+    });
+
+    it("confirmModifyOperatorLogic pushes the change and locks the form again", () => {
+      fixture.detectChanges();
+      component.currentOperatorId = mockScanPredicate.operatorID;
+      const modifySpy = vi.spyOn(component.executeWorkflowService, "modifyOperatorLogic").mockImplementation(() => {});
+      component.setInteractivity(true);
+
+      component.confirmModifyOperatorLogic();
+
+      expect(modifySpy).toHaveBeenCalledWith(mockScanPredicate.operatorID);
+      expect(component.interactive).toBe(false);
+    });
+
+    it("confirmModifyOperatorLogic reports a failure and leaves the form editable", () => {
+      fixture.detectChanges();
+      component.currentOperatorId = mockScanPredicate.operatorID;
+      vi.spyOn(component.executeWorkflowService, "modifyOperatorLogic").mockImplementation(() => {
+        throw new Error("cannot modify while running");
+      });
+      const errorSpy = vi.spyOn(TestBed.inject(NotificationService), "error").mockImplementation(() => {});
+      component.setInteractivity(true);
+
+      component.confirmModifyOperatorLogic();
+
+      expect(errorSpy).toHaveBeenCalledWith("cannot modify while running");
+      expect(component.interactive).toBe(true);
+    });
+
+    it("confirmModifyOperatorLogic does nothing when no operator is selected", () => {
+      fixture.detectChanges();
+      component.currentOperatorId = undefined;
+      const modifySpy = vi.spyOn(component.executeWorkflowService, "modifyOperatorLogic");
+
+      component.confirmModifyOperatorLogic();
+
+      expect(modifySpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("subscription handlers", () => {
+    it("retitles the form only when the renamed operator is the current one", () => {
+      fixture.detectChanges();
+      component.currentOperatorId = mockScanPredicate.operatorID;
+      component.formTitle = "original";
+      // getTexeraGraph() narrows to WorkflowGraphReadonly; the instance really is a
+      // WorkflowGraph, whose display-name subject is only pushed by the shared-model
+      // handler, so drive it directly to exercise the subscriber.
+      const graph = workflowActionService.getTexeraGraph() as unknown as WorkflowGraph;
+
+      graph.operatorDisplayNameChangedSubject.next({
+        operatorID: "some-other-operator",
+        newDisplayName: "ignored",
+      });
+      expect(component.formTitle).toBe("original");
+
+      graph.operatorDisplayNameChangedSubject.next({
+        operatorID: mockScanPredicate.operatorID,
+        newDisplayName: "renamed",
+      });
+      expect(component.formTitle).toBe("renamed");
+    });
+
+    it("mirrors the workflow-modification flag onto the form's interactivity", () => {
+      fixture.detectChanges();
+      component.currentOperatorId = mockScanPredicate.operatorID;
+
+      workflowActionService.disableWorkflowModification();
+      expect(component.interactive).toBe(false);
+
+      workflowActionService.enableWorkflowModification();
+      expect(component.interactive).toBe(true);
+    });
+
+    it("ignores the workflow-modification flag while no operator is selected", () => {
+      fixture.detectChanges();
+      component.currentOperatorId = undefined;
+      component.setInteractivity(true);
+
+      workflowActionService.disableWorkflowModification();
+
+      expect(component.interactive).toBe(true);
+      workflowActionService.enableWorkflowModification();
+    });
+
+    it("re-renders only when the current operator's dynamic schema changes", () => {
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      workflowActionService.addOperator(mockResultPredicate, mockPoint);
+      fixture.detectChanges();
+      component.currentOperatorId = mockScanPredicate.operatorID;
+      const dynamicSchemaService = TestBed.inject(DynamicSchemaService);
+      const rerenderSpy = vi.spyOn(component, "rerenderEditorForm").mockImplementation(() => {});
+      // setDynamicSchema is a no-op when the schema is unchanged, so vary it to force an emit.
+      const bumped = (schema: typeof mockScanSourceSchema) => ({ ...schema, operatorVersion: "bumped" });
+
+      dynamicSchemaService.setDynamicSchema(mockResultPredicate.operatorID, bumped(mockViewResultsSchema));
+      expect(rerenderSpy).not.toHaveBeenCalled();
+
+      dynamicSchemaService.setDynamicSchema(mockScanPredicate.operatorID, bumped(mockScanSourceSchema));
+      expect(rerenderSpy).toHaveBeenCalled();
+    });
+  });
+
+  describe("rerenderEditorForm", () => {
+    it("is a no-op when no operator is selected", () => {
+      fixture.detectChanges();
+      component.currentOperatorId = undefined;
+      component.formTitle = "untouched";
+
+      component.rerenderEditorForm();
+
+      expect(component.formTitle).toBe("untouched");
     });
   });
 });

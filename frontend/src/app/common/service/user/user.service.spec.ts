@@ -28,6 +28,7 @@ import { firstValueFrom, Subject, throwError } from "rxjs";
 import { commonTestProviders } from "../../testing/test-utils";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { GuiConfigService } from "../gui-config.service";
+import { Role, User } from "../../type/user";
 
 describe("UserService", () => {
   let service: UserService;
@@ -58,7 +59,7 @@ describe("UserService", () => {
       .userChanged()
       .pipe(skip(1))
       .subscribe(user => expect(user).toBeTruthy());
-    service.register("test", "password").subscribe(() => {
+    service.register("test", "test@example.com", "password").subscribe(() => {
       expect((service as any).currentUser).toBeTruthy();
     });
   });
@@ -80,7 +81,7 @@ describe("UserService", () => {
       .userChanged()
       .pipe(skip(1))
       .subscribe(user => expect(user).toBeFalsy());
-    service.register("existing_user", "password").subscribe(() => {
+    service.register("existing_user", "existing_user@example.com", "password").subscribe(() => {
       expect((service as any).currentUser).toBeFalsy();
     });
   });
@@ -169,5 +170,85 @@ describe("UserService", () => {
     vi.spyOn(config, "loadPostLogin").mockReturnValue(throwError(() => new Error("simulated 500")));
     await firstValueFrom(service.login("test", "password"));
     expect(service.isLogin()).toBe(true);
+  });
+
+  // ─── current-user state ───────────────────────────────────────────────────
+
+  const baseUser: User = {
+    uid: 1,
+    name: "alice",
+    email: "alice@x.io",
+    role: Role.REGULAR,
+    comment: "",
+    joiningReason: "",
+  };
+
+  it("changeUser sets the current user (assigning a color) and emits it on userChanged", async () => {
+    // The constructor already replayed an initial `undefined`; skip it and wait
+    // for the emission our changeUser call produces.
+    const nextEmission = firstValueFrom(service.userChanged().pipe(skip(1)));
+
+    (service as any).changeUser(baseUser);
+
+    expect(service.getCurrentUser()).toMatchObject({ uid: 1, name: "alice" });
+    expect(service.getCurrentUser()?.color).toMatch(/^hsl\(/);
+    expect(await nextEmission).toMatchObject({ uid: 1, name: "alice" });
+  });
+
+  it("isAdmin reflects only the ADMIN role of the current user", () => {
+    expect(service.isAdmin()).toBe(false); // no user
+
+    (service as any).changeUser({ ...baseUser, role: Role.REGULAR });
+    expect(service.isAdmin()).toBe(false);
+
+    (service as any).changeUser({ ...baseUser, role: Role.ADMIN });
+    expect(service.isAdmin()).toBe(true);
+  });
+
+  // ─── avatar fetching ──────────────────────────────────────────────────────
+
+  it("getAvatar returns undefined for an empty avatar id", async () => {
+    expect(await firstValueFrom(service.getAvatar(""))).toBeUndefined();
+  });
+
+  it("getAvatar returns the cached object URL while the entry is still fresh", async () => {
+    (service as any).cache.set("cached-id", { url: "blob:cached", expiry: Date.now() + 60_000 });
+    expect(await firstValueFrom(service.getAvatar("cached-id"))).toBe("blob:cached");
+  });
+
+  describe("getAvatar network path", () => {
+    // fetchBlob() goes through the native `fetch`/`URL` globals (not HttpClient),
+    // so stub them deterministically and restore the originals afterwards.
+    let originalFetch: typeof globalThis.fetch;
+    let originalCreateObjectURL: typeof URL.createObjectURL;
+
+    beforeEach(() => {
+      originalFetch = globalThis.fetch;
+      originalCreateObjectURL = URL.createObjectURL;
+    });
+
+    afterEach(() => {
+      globalThis.fetch = originalFetch;
+      URL.createObjectURL = originalCreateObjectURL;
+    });
+
+    it("fetches the avatar, wraps the blob in an object URL, and caches it", async () => {
+      const blob = new Blob(["img"]);
+      globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, blob: () => Promise.resolve(blob) }) as any;
+      URL.createObjectURL = vi.fn().mockReturnValue("blob:fetched");
+
+      const result = await firstValueFrom(service.getAvatar("remote-id"));
+
+      expect(result).toBe("blob:fetched");
+      expect(globalThis.fetch).toHaveBeenCalledWith("https://lh3.googleusercontent.com/a/remote-id", {
+        referrerPolicy: "no-referrer",
+      });
+      expect(URL.createObjectURL).toHaveBeenCalledWith(blob);
+    });
+
+    it("returns undefined when the avatar fetch fails", async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({ ok: false, status: 500 }) as any;
+      expect(await firstValueFrom(service.getAvatar("bad-id"))).toBeUndefined();
+    });
   });
 });
