@@ -20,14 +20,11 @@
 package org.apache.texera.amber.engine.architecture.controller.promisehandlers
 
 import com.twitter.util.Future
-import org.apache.texera.amber.core.WorkflowRuntimeException
 import org.apache.texera.amber.core.workflow.GlobalPortIdentity
-import org.apache.texera.amber.engine.architecture.controller.{
-  ControllerAsyncRPCHandlerInitializer,
-  FatalError
-}
+import org.apache.texera.amber.engine.architecture.controller.ControllerAsyncRPCHandlerInitializer
 import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{
   AsyncRPCContext,
+  EmptyRequest,
   PortCompletedRequest,
   QueryStatisticsRequest,
   StatisticsUpdateTarget
@@ -81,16 +78,17 @@ trait PortCompletedHandler {
               else operatorExecution.isOutputPortCompleted(msg.portId)
 
             if (isPortCompleted) {
-              cp.workflowExecutionCoordinator
-                .coordinateRegionExecutors(cp.actorService)
-                // Since this message is sent from a worker, any exception from the above code will be returned to that worker.
-                // Additionally, a fatal error is sent to the client, indicating that the region cannot be scheduled.
-                .onFailure {
-                  case err: WorkflowRuntimeException =>
-                    sendToClient(FatalError(err, err.relatedWorkerId))
-                  case other =>
-                    sendToClient(FatalError(other, None))
-                }
+              // Advance region executions in a later control round instead of here. Advancing
+              // inline terminates the completed region and sends `EndWorker` to this very sender
+              // before this handler's own reply, on the same control channel — the worker would
+              // then process `EndWorker` with the reply still queued behind it and reject the
+              // termination (see `EndHandler`). A message the controller addresses to itself is
+              // transmitted and received before it is handled, so the advance lands behind the
+              // reply below.
+              controllerInterface.controllerInitiateAdvanceRegionExecutions(
+                EmptyRequest(),
+                CONTROLLER
+              )
             }
           case None => // currently "start" and "end" ports are not part of a region, thus no region can be found.
           // do nothing.
