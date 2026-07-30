@@ -51,7 +51,6 @@ import org.apache.texera.amber.engine.architecture.scheduling.config.{
   ResourceConfig
 }
 import org.apache.texera.amber.engine.architecture.sendsemantics.partitionings.Partitioning
-import org.apache.texera.amber.engine.architecture.worker.statistics.WorkerState
 import org.apache.texera.amber.engine.common.AmberLogging
 import org.apache.texera.amber.engine.common.FutureBijection._
 import org.apache.texera.amber.engine.common.rpc.AsyncRPCClient
@@ -132,8 +131,16 @@ class RegionExecutionCoordinator(
     *
     * Additionally, this method will also terminate all the workers of this region:
     *
-    * 1.  An `EndWorker` control message is first sent to all the workers. This will be the last message each worker
-    * receives. We wait for all workers have replied to indicate they have finished processing all control messages.
+    * 1.  An `EndWorker` control message is first sent to all the workers. We wait for all workers to reply that they
+    * have finished processing all control messages; a worker that has not fails the request, and
+    * `terminateWorkersWithRetry` re-sends `EndWorker` after `killRetryDelay`.
+    *
+    * Because a worker rejects `EndWorker` while work is still queued for it, termination must not be triggered from
+    * inside the handler of a request sent by one of these workers — the `EndWorker` would be emitted before that
+    * handler's own reply and overtake it on their shared FIFO control channel. Such handlers therefore send themselves
+    * a `ControllerInitiateAdvanceRegionExecutions` instead of advancing inline, which defers the advance that reaches
+    * here to a later controller round (see `PortCompletedHandler`). That orders the replies already produced; for one
+    * the controller has not produced yet, `EndHandler` does not count a queued reply as work.
     *
     * 2. Only after all workers have processed all control messages do we send a `gracefulStop` (pekko message) to each
     * worker. JVM workers will be terminated by `gracefulStop`. Python proxy workes will also be terminated by
@@ -211,7 +218,7 @@ class RegionExecutionCoordinator(
         regionExecution.getAllOperatorExecutions.foreach {
           case (_, opExec) =>
             opExec.getWorkerIds.foreach { workerId =>
-              opExec.getWorkerExecution(workerId).update(System.nanoTime(), WorkerState.TERMINATED)
+              opExec.getWorkerExecution(workerId).forceTerminate()
             }
         }
         Future.Unit // propagate success
@@ -579,12 +586,14 @@ class RegionExecutionCoordinator(
               asyncRPCClient.workerInterface
                 .startWorker(EmptyRequest(), asyncRPCClient.mkContext(workerId))
                 .map(resp =>
-                  // update worker state
+                  // Update worker state, ordered by the worker's logical state version
+                  // (not arrival time) so this RUNNING snapshot cannot clobber a later
+                  // COMPLETED if the response arrives after the worker has finished.
                   workflowExecution
                     .getRegionExecution(region.id)
                     .getOperatorExecution(opId)
                     .getWorkerExecution(workerId)
-                    .update(System.nanoTime(), resp.state)
+                    .updateState(resp.stateVersion, resp.state)
                 )
             }
         }
@@ -600,10 +609,20 @@ class RegionExecutionCoordinator(
         val portBaseURI = portConfig.storageURIBase
         val resultURI = VFSURIFactory.resultURI(portBaseURI)
         val stateURI = VFSURIFactory.stateURI(portBaseURI)
-        val schemaOptional =
-          region.getOperator(outputPortId.opId).outputPorts(outputPortId.portId)._3
         val schema =
-          schemaOptional.getOrElse(throw new IllegalStateException("Schema is missing"))
+          region.getOperator(outputPortId.opId).outputPorts(outputPortId.portId)._3 match {
+            case Right(resolvedSchema) => resolvedSchema
+            case Left(cause)           =>
+              // The output port schema failed to resolve (e.g. a dataset the workflow reads is not
+              // shared with the running user, making its file and inferred schema unavailable).
+              // Surface the underlying cause instead of a generic "Schema is missing" (issue #3546).
+              val reason = Option(cause.getMessage).getOrElse(cause.toString)
+              logger.error(s"Output schema unavailable for port $outputPortId", cause)
+              throw new IllegalStateException(
+                s"Failed to resolve the output schema: $reason",
+                cause
+              )
+          }
         DocumentFactory.createDocument(resultURI, schema)
         DocumentFactory.createDocument(stateURI, State.schema)
         if (!isRestart) {
