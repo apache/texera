@@ -20,7 +20,7 @@
 package org.apache.texera.amber.engine.architecture.scheduling
 
 import org.apache.pekko.pattern.gracefulStop
-import com.twitter.util.{Duration => TwitterDuration, Future, JavaTimer, Return, Throw, Timer}
+import com.twitter.util.{Future, JavaTimer, Return, Throw, Timer}
 import org.apache.texera.amber.core.state.State
 import org.apache.texera.amber.core.storage.{DocumentFactory, VFSURIFactory}
 import org.apache.texera.amber.core.virtualidentity.ActorVirtualIdentity
@@ -51,7 +51,7 @@ import org.apache.texera.amber.engine.architecture.scheduling.config.{
   ResourceConfig
 }
 import org.apache.texera.amber.engine.architecture.sendsemantics.partitionings.Partitioning
-import org.apache.texera.amber.engine.common.AmberLogging
+import org.apache.texera.amber.engine.common.{AmberLogging, Utils}
 import org.apache.texera.amber.engine.common.FutureBijection._
 import org.apache.texera.amber.engine.common.rpc.AsyncRPCClient
 import org.apache.texera.amber.engine.common.virtualidentity.util.COORDINATOR
@@ -66,13 +66,12 @@ object RegionExecutionManager {
 
   // Terminating a region is deterministic: `EndWorker` plus `gracefulStop` either succeed, or the
   // engine has a bug that retrying cannot fix. Retries therefore only ride out a transient
-  // failure, so the budget is one attempt plus three backed-off retries (200 + 400 + 800 ms =
-  // 1.4s of waiting) rather than the former 150 attempts at a flat 200ms, which held a whole
-  // region's teardown for ~30s before the failure surfaced.
-  //
-  // The schedule doubles as the retry budget: one attempt per delay, plus the initial attempt.
-  private[scheduling] val DefaultKillRetryDelays: Seq[TwitterDuration] =
-    Seq(200L, 400L, 800L).map(TwitterDuration.fromMilliseconds)
+  // failure. With `Utils.retryAsync`'s doubling backoff, 4 attempts from a 200ms base wait
+  // 200 + 400 + 800 ms = 1.4s in the worst case, where the former 150 attempts at a flat 200ms
+  // held a whole region's teardown for ~30s before the failure surfaced.
+  private[scheduling] val DefaultMaxTerminationAttempts: Int = 4
+
+  private[scheduling] val DefaultKillRetryBaseBackoffMs: Long = 200L
 }
 
 /**
@@ -109,9 +108,10 @@ class RegionExecutionManager(
     coordinatorConfig: CoordinatorConfig,
     actorService: PekkoActorService,
     actorRefService: PekkoActorRefMappingService,
-    // Backoff before each retry of a failed region termination. One retry per delay, so the
-    // schedule's length is the retry budget.
-    killRetryDelays: Seq[TwitterDuration] = RegionExecutionManager.DefaultKillRetryDelays,
+    // Region-termination retry budget, handed to `Utils.retryAsync`: `maxTerminationAttempts`
+    // attempts, waiting `killRetryBaseBackoffMs` before the first retry and doubling after each.
+    maxTerminationAttempts: Int = RegionExecutionManager.DefaultMaxTerminationAttempts,
+    killRetryBaseBackoffMs: Long = RegionExecutionManager.DefaultKillRetryBaseBackoffMs,
     killRetryTimer: Timer = new JavaTimer(true),
     // Loop-back write addresses (Loop Start logical op id -> its input port's
     // state URI), shipped to every worker in InitializeExecutorRequest. See
@@ -131,7 +131,6 @@ class RegionExecutionManager(
     Unexecuted
   )
   private val terminationFutureRef: AtomicReference[Future[Unit]] = new AtomicReference(null)
-  private val maxTerminationAttempts: Int = killRetryDelays.size + 1
 
   /**
     * Sync the status of `RegionExecution` and transition this manager's phase to `Completed` only when the
@@ -229,40 +228,42 @@ class RegionExecutionManager(
     }
   }
 
-  private def terminateWorkersWithRetry(
-      regionExecution: RegionExecution,
-      attempt: Int = 1
-  ): Future[Unit] = {
-    terminateWorkers(regionExecution).rescue {
-      case err if attempt >= maxTerminationAttempts =>
-        val workerIds = regionExecution.getAllOperatorExecutions.flatMap {
-          case (_, opExec) => opExec.getWorkerIds
-        }.toSeq
-        val attemptsLabel = if (attempt == 1) "1 attempt" else s"$attempt attempts"
-        logger.error(
-          s"Region ${region.id.id} could not be terminated after $attemptsLabel; giving up. " +
-            s"Workers still not terminated: ${workerIds.mkString(", ")}.",
-          err
-        )
-        Future.exception(
-          new IllegalStateException(
-            s"Region ${region.id.id} could not be terminated after $attemptsLabel " +
-              s"(workers still not terminated: ${workerIds.mkString(", ")}).",
+  private def terminateWorkersWithRetry(regionExecution: RegionExecution): Future[Unit] = {
+    Utils
+      .retryAsync(
+        attempts = maxTerminationAttempts,
+        baseBackoffTimeInMS = killRetryBaseBackoffMs,
+        timer = killRetryTimer,
+        onRetry = (err, attempt, backoffTimeInMS) =>
+          logger.warn(
+            s"Failed to terminate region ${region.id.id} on attempt $attempt of " +
+              s"$maxTerminationAttempts. Retrying in $backoffTimeInMS ms.",
             err
           )
-        )
-      case err =>
-        // Safe by construction: `attempt < maxTerminationAttempts == killRetryDelays.size + 1`.
-        val retryDelay = killRetryDelays(attempt - 1)
-        logger.warn(
-          s"Failed to terminate region ${region.id.id} on attempt $attempt of $maxTerminationAttempts. " +
-            s"Retrying in ${retryDelay.inMilliseconds} ms.",
-          err
-        )
-        Future
-          .sleep(retryDelay)(killRetryTimer)
-          .flatMap(_ => terminateWorkersWithRetry(regionExecution, attempt + 1))
-    }
+      ) {
+        terminateWorkers(regionExecution)
+      }
+      .rescue {
+        // Every attempt failed. Name the workers that are still alive so the user can act on it.
+        case err =>
+          val workerIds = regionExecution.getAllOperatorExecutions.flatMap {
+            case (_, opExec) => opExec.getWorkerIds
+          }.toSeq
+          val attemptsLabel =
+            if (maxTerminationAttempts <= 1) "1 attempt" else s"$maxTerminationAttempts attempts"
+          logger.error(
+            s"Region ${region.id.id} could not be terminated after $attemptsLabel; giving up. " +
+              s"Workers still not terminated: ${workerIds.mkString(", ")}.",
+            err
+          )
+          Future.exception(
+            new IllegalStateException(
+              s"Region ${region.id.id} could not be terminated after $attemptsLabel " +
+                s"(workers still not terminated: ${workerIds.mkString(", ")}).",
+              err
+            )
+          )
+      }
   }
 
   def isCompleted: Boolean = currentPhaseRef.get == Completed

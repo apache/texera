@@ -19,7 +19,7 @@
 
 package org.apache.texera.amber.engine.architecture.scheduling
 
-import com.twitter.util.{Await, Duration, Future, Time, Timer, TimerTask}
+import com.twitter.util.{Await, Duration, Future}
 import org.apache.pekko.actor.{Actor, ActorRef, Props}
 import org.apache.pekko.testkit.{TestActorRef, TestKit}
 import org.apache.texera.amber.core.executor.OpExecWithClassName
@@ -66,8 +66,8 @@ object RegionExecutionManagerTestSupport {
   val StartWorker = "startWorker"
   val EndWorker = "endWorker"
 
-  // Generous deadline for the polling helpers below. Production timing under test (notably the
-  // default 200/400/800 ms `killRetryDelays` in `RegionExecutionManager`) fits comfortably; the
+  // Generous deadline for the polling helpers below. Production timing under test (notably
+  // `RegionExecutionManager`'s default 200/400/800 ms termination backoff) fits comfortably; the
   // rest is headroom for slow CI.
   val testTimeout: Duration = Duration.fromSeconds(5)
 
@@ -148,31 +148,6 @@ object RegionExecutionManagerTestSupport {
           throw new AssertionError(s"Unexpected worker RPC in test: $other")
       }
     }
-  }
-
-  /**
-    * A `Timer` that records the delay of every task scheduled on it and then runs the task
-    * inline instead of waiting.
-    *
-    * Used inside `Time.withCurrentTimeFrozen` so that `when - Time.now` is exactly the delay
-    * `Future.sleep` asked for. That makes a retry backoff schedule assertable exactly, on the
-    * test thread, without the test spending that time asleep.
-    */
-  class RecordingInlineTimer extends Timer {
-    private val delays: mutable.ArrayBuffer[Duration] = mutable.ArrayBuffer()
-
-    def recordedDelays: Seq[Duration] = delays.toSeq
-
-    def scheduleOnce(when: Time)(f: => Unit): TimerTask = {
-      delays += (when - Time.now)
-      f
-      new TimerTask { def cancel(): Unit = () }
-    }
-
-    def schedulePeriodically(when: Time, period: Duration)(f: => Unit): TimerTask =
-      throw new AssertionError("the region termination path must not schedule periodic tasks")
-
-    def stop(): Unit = ()
   }
 
   class IdleActor extends Actor {

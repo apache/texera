@@ -19,6 +19,7 @@
 
 package org.apache.texera.amber.engine.common
 
+import com.twitter.util.{Duration, Future, Timer}
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.texera.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState
 
@@ -85,6 +86,49 @@ object Utils extends LazyLogging {
         } else throw e
     }
   }
+
+  /**
+    * Asynchronous twin of [[retry]]: same attempt-and-doubling-backoff contract, for logic that
+    * returns a `Future`. Nothing blocks -- the wait between attempts is scheduled on `timer` --
+    * so this is the variant to use on an actor or coordinator thread, where [[retry]]'s
+    * `Thread.sleep` would also stall unrelated work on that thread.
+    *
+    * A synchronous throw while evaluating `fn` is treated as a failed attempt, exactly as in
+    * [[retry]]. Fatal errors are not retried; they propagate immediately.
+    *
+    * @param attempts            total number of attempts. if n <= 1 then it will not retry at all.
+    * @param baseBackoffTimeInMS time to wait before next attempt, started with the base time, and doubled after each attempt.
+    * @param timer               schedules the waits between attempts; no thread is blocked.
+    * @param onRetry             invoked before each wait with the failure, the 1-based number of the
+    *                            attempt that just failed, and the backoff about to be waited in ms.
+    *                            Override it to log with caller context; the default mirrors [[retry]].
+    * @param fn                  the target function to execute, re-evaluated on each attempt.
+    * @tparam T any value type the provided function fn's `Future` yields.
+    * @return `fn`'s eventual value, or the last failure once `attempts` is exhausted.
+    */
+  def retryAsync[T](
+      attempts: Int,
+      baseBackoffTimeInMS: Long,
+      timer: Timer,
+      onRetry: (Throwable, Int, Long) => Unit = logRetryAttempt
+  )(fn: => Future[T]): Future[T] = {
+    def attempt(attemptNumber: Int, backoffTimeInMS: Long): Future[T] =
+      Future(fn).flatten.rescue {
+        case e if attemptNumber < attempts =>
+          onRetry(e, attemptNumber, backoffTimeInMS)
+          Future
+            .sleep(Duration.fromMilliseconds(backoffTimeInMS))(timer)
+            .flatMap(_ => attempt(attemptNumber + 1, backoffTimeInMS * 2))
+      }
+
+    attempt(attemptNumber = 1, backoffTimeInMS = baseBackoffTimeInMS)
+  }
+
+  private def logRetryAttempt(failure: Throwable, attempt: Int, backoffTimeInMS: Long): Unit =
+    logger.warn(
+      "retrying after " + backoffTimeInMS + "ms, attempts made so far: " + attempt,
+      failure
+    )
 
   private def isAmberHomePath(path: Path): Boolean = {
     path.toRealPath().endsWith(AMBER_HOME_FOLDER_NAME)
