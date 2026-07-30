@@ -48,8 +48,8 @@ Compile / scalacOptions ++= Seq(
 /////////////////////////////////////////////////////////////////////////////
 
 // This module is deliberately dependency-free apart from the test framework:
-// every other module depends on it, so anything added here lands on every
-// service's classpath. Callers pass their own logger in through the hooks
+// any module may depend on it, so anything added here reaches the classpath of
+// every service that does. Callers pass their own logger in through the hooks
 // instead of the module pulling in a logging library.
 libraryDependencies ++= Seq(
   "org.scalatest" %% "scalatest" % "3.2.15" % Test // ScalaTest (for unit tests)

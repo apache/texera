@@ -23,10 +23,8 @@ import org.scalatest.flatspec.AnyFlatSpec
 
 class LakeFSStorageClientSpec extends AnyFlatSpec {
 
-  // The health-check backoff now comes from the shared `RetryUtil.withBackoff`, whose contract
-  // (progression, give-up wrapping, interrupt handling) is covered by `RetryUtilSpec` in
-  // `common/util` -- including an interrupt during the backoff sleep, which the loop that used to
-  // live here let escape without restoring the interrupt status.
+  // `healthCheck` retries through the shared `RetryUtil.withBackoff`; that contract (progression,
+  // give-up wrapping, interrupt fail-fast) is covered by `RetryUtilSpec` in `common/util`.
 
   "parsePhysicalAddress" should "split a well-formed address into bucket and key" in {
     assert(

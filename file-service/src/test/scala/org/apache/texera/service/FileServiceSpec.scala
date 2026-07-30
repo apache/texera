@@ -115,8 +115,8 @@ class FileServiceSpec extends AnyFlatSpec {
   }
 
   it should "propagate a fatal Throwable immediately without retrying or wrapping it" in {
-    // Only NonFatal failures are transient, so an Error must escape on the first attempt: it is
-    // neither retried nor wrapped in the \"Failed to ... after N attempts\" RuntimeException.
+    // A fatal throwable is not transient, so it must escape on the first attempt: it is neither
+    // retried nor wrapped in the "Failed to ... after N attempts" RuntimeException.
     var attempts = 0
     val delays = ListBuffer.empty[Long]
     val err = intercept[StackOverflowError] {

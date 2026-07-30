@@ -25,8 +25,9 @@ import scala.util.control.NonFatal
 /**
   * Retry with exponential backoff, for blocking work.
   *
-  * Every module can reach this one, so a new retry loop should not be written by hand. If the work
-  * returns a `Future` rather than blocking, use the non-blocking sibling
+  * This module has no dependencies of its own, so any module may depend on it rather than writing
+  * another retry loop by hand. If the work returns a `Future` rather than blocking, use the
+  * non-blocking sibling
   * `org.apache.texera.amber.engine.common.Utils.retry` in `amber` instead: it takes the same
   * attempts-and-doubling-backoff knobs but waits on a `Timer`, which matters on an actor or
   * coordinator thread where `Thread.sleep` would stall unrelated work queued behind it.
@@ -54,9 +55,12 @@ object RetryUtil {
     * failed attempt) until it succeeds or `maxAttempts` is reached. The final failure is wrapped
     * with `description` and the last exception as its cause.
     *
-    * Only `NonFatal` failures are treated as transient. An `InterruptedException` -- raised by the
-    * operation or by the wait between attempts -- fails fast with the interrupt status restored,
-    * so a caller shutting the thread down is never made to sit through the remaining backoff.
+    * Only `NonFatal` failures are treated as transient, which is the same predicate the
+    * non-blocking sibling uses. Note that `NonFatal` admits non-fatal `Error`s -- `AssertionError`,
+    * `java.io.IOError`, `ServiceConfigurationError` -- so those are retried rather than propagated
+    * straight away. An `InterruptedException` -- raised by the operation or by the wait between
+    * attempts -- fails fast with the interrupt status restored, so a caller shutting the thread
+    * down is never made to sit through the remaining backoff.
     *
     * @param description        verb phrase naming the work, e.g. "connect to lake fs server". It is
     *                           interpolated into every message: "Failed to $description after ...".

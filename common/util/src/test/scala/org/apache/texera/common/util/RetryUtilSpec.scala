@@ -29,18 +29,18 @@ import scala.util.control.ControlThrowable
   * Contract of the shared blocking backoff retry. `sleep` is injected everywhere so the backoff
   * progression is asserted exactly without any test waiting.
   *
-  * These cases are the union of what the two hand-rolled loops this util replaced were tested for
-  * (`LakeFSStorageClient.retryWithBackoff`, `FileService.awaitDependency`), plus the interrupt
-  * during a backoff sleep, which the LakeFS copy did not handle.
+  * Coverage is the full contract both blocking callers rely on: the doubling progression, which
+  * failures count as transient, the give-up wrapping, and interrupt fail-fast during the operation
+  * and during a backoff sleep.
   */
 class RetryUtilSpec extends AnyFlatSpec {
 
-  private def noRetryHook: RetryAttempt => Unit = _ => ()
+  private def noopRetryHook: RetryAttempt => Unit = _ => ()
 
   "RetryUtil.withBackoff" should "return the operation's value on first success without sleeping" in {
     val delays = ListBuffer.empty[Long]
     var attempts = 0
-    val result = RetryUtil.withBackoff("reach the store", 5, 200L, noRetryHook, delays += _) {
+    val result = RetryUtil.withBackoff("reach the store", 5, 200L, noopRetryHook, delays += _) {
       attempts += 1
       "value"
     }
@@ -52,7 +52,7 @@ class RetryUtilSpec extends AnyFlatSpec {
   it should "retry until success and double the delay after each failed attempt" in {
     val delays = ListBuffer.empty[Long]
     var attempts = 0
-    val result = RetryUtil.withBackoff("reach the store", 5, 200L, noRetryHook, delays += _) {
+    val result = RetryUtil.withBackoff("reach the store", 5, 200L, noopRetryHook, delays += _) {
       attempts += 1
       if (attempts < 3) throw new RuntimeException("transient")
       attempts
@@ -65,7 +65,7 @@ class RetryUtilSpec extends AnyFlatSpec {
     // Guards against a hardcoded base: from 50ms the progression must be 50, 100, 200.
     val delays = ListBuffer.empty[Long]
     intercept[RuntimeException] {
-      RetryUtil.withBackoff("reach the store", 4, 50L, noRetryHook, delays += _) {
+      RetryUtil.withBackoff("reach the store", 4, 50L, noopRetryHook, delays += _) {
         throw new RuntimeException("down")
       }
     }
@@ -76,7 +76,7 @@ class RetryUtilSpec extends AnyFlatSpec {
     // Boundary for `attempt >= maxAttempts`: success on the very last attempt must still count.
     val delays = ListBuffer.empty[Long]
     var attempts = 0
-    RetryUtil.withBackoff("reach the store", 3, 200L, noRetryHook, delays += _) {
+    RetryUtil.withBackoff("reach the store", 3, 200L, noopRetryHook, delays += _) {
       attempts += 1
       if (attempts < 3) throw new RuntimeException("transient")
     }
@@ -88,7 +88,7 @@ class RetryUtilSpec extends AnyFlatSpec {
     val cause = new RuntimeException("still down")
     var attempts = 0
     val failure = intercept[RuntimeException] {
-      RetryUtil.withBackoff("connect to lake fs server", 3, 200L, noRetryHook, _ => ()) {
+      RetryUtil.withBackoff("connect to lake fs server", 3, 200L, noopRetryHook, _ => ()) {
         attempts += 1
         throw cause
       }
@@ -102,7 +102,7 @@ class RetryUtilSpec extends AnyFlatSpec {
     val delays = ListBuffer.empty[Long]
     var attempts = 0
     val failure = intercept[RuntimeException] {
-      RetryUtil.withBackoff("reach the store", 1, 200L, noRetryHook, delays += _) {
+      RetryUtil.withBackoff("reach the store", 1, 200L, noopRetryHook, delays += _) {
         attempts += 1
         throw new RuntimeException("still down")
       }
@@ -136,7 +136,7 @@ class RetryUtilSpec extends AnyFlatSpec {
   it should "fail fast and restore the interrupt status when the operation is interrupted" in {
     val delays = ListBuffer.empty[Long]
     val failure = intercept[RuntimeException] {
-      RetryUtil.withBackoff("reach the store", 5, 200L, noRetryHook, delays += _) {
+      RetryUtil.withBackoff("reach the store", 5, 200L, noopRetryHook, delays += _) {
         throw new InterruptedException("interrupted")
       }
     }
@@ -148,15 +148,15 @@ class RetryUtilSpec extends AnyFlatSpec {
   }
 
   it should "fail fast and restore the interrupt status when interrupted during a backoff sleep" in {
-    // The hole in the LakeFS copy: its `sleep` sat inside the `catch`, so an interrupt raised
-    // while waiting escaped raw, with the interrupt flag left cleared.
+    // A `catch` cannot catch what its own body throws, so an interrupt raised by the wait needs
+    // handling of its own; without it the exception escapes raw and the flag stays cleared.
     var attempts = 0
     val failure = intercept[RuntimeException] {
       RetryUtil.withBackoff(
         "reach the store",
         5,
         200L,
-        noRetryHook,
+        noopRetryHook,
         _ => throw new InterruptedException("interrupted")
       ) {
         attempts += 1
@@ -176,12 +176,31 @@ class RetryUtilSpec extends AnyFlatSpec {
     var attempts = 0
     object Fatal extends ControlThrowable
     intercept[ControlThrowable] {
-      RetryUtil.withBackoff("reach the store", 5, 200L, noRetryHook, delays += _) {
+      RetryUtil.withBackoff("reach the store", 5, 200L, noopRetryHook, delays += _) {
         attempts += 1
         throw Fatal
       }
     }
     assert(attempts == 1)
     assert(delays.isEmpty)
+  }
+
+  it should "retry a non-fatal Error, which the predicate admits despite it not being an Exception" in {
+    // `NonFatal` is wider than `Exception`: an `AssertionError` (or `java.io.IOError`,
+    // `ServiceConfigurationError`) is transient here, so it is retried and then wrapped like any
+    // other failure. Pinned because it is the one behavior difference from the `case e: Exception`
+    // loops this util replaced.
+    val delays = ListBuffer.empty[Long]
+    var attempts = 0
+    val cause = new AssertionError("assertion blew up")
+    val failure = intercept[RuntimeException] {
+      RetryUtil.withBackoff("reach the store", 3, 200L, noopRetryHook, delays += _) {
+        attempts += 1
+        throw cause
+      }
+    }
+    assert(attempts == 3)
+    assert(delays.toList == List(200L, 400L))
+    assert(failure.getCause eq cause)
   }
 }

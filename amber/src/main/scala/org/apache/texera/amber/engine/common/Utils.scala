@@ -93,8 +93,8 @@ object Utils extends LazyLogging {
   )(fn: => Future[T]): Future[T] = {
     def attempt(attemptNumber: Int, backoffTimeInMS: Long): Future[T] =
       Future(fn).flatten.rescue {
-        // `NonFatal` so that a fatal handed back as a failed `Future` is not retried either, which
-        // also matches how the blocking backoff loops elsewhere in the repo catch `Exception`.
+        // `NonFatal` so that a fatal handed back as a failed `Future` is not retried either, matching
+        // the blocking sibling `RetryUtil.withBackoff`, which uses the same `NonFatal` predicate.
         case NonFatal(e) if attemptNumber < attempts =>
           onRetry(e, attemptNumber, backoffTimeInMS)
           Future
