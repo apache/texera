@@ -71,6 +71,7 @@ function makeWorkflowItem(wid: number, ownerId: number): SearchResultItem {
     projectIDs: [],
     accessLevel: "WRITE",
     ownerId,
+    coverImage: null,
   };
   return { resourceType: "workflow", workflow };
 }

@@ -41,8 +41,8 @@ import org.apache.texera.web.resource.dashboard.hub.EntityType
 import org.apache.texera.web.resource.dashboard.hub.HubResource.recordCloneAction
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource.hasReadAccess
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowResource._
-import org.jooq.impl.DSL.{groupConcatDistinct, noCondition}
-import org.jooq.{Condition, DSLContext, Record9, Result, SelectOnConditionStep}
+import org.jooq.impl.DSL.{groupConcatDistinct, noCondition, max}
+import org.jooq.{Condition, DSLContext, Record10, Result, SelectOnConditionStep}
 
 import java.sql.Timestamp
 import java.util
@@ -119,7 +119,8 @@ object WorkflowResource {
       ownerName: String,
       workflow: Workflow,
       projectIDs: List[Integer],
-      ownerId: Integer
+      ownerId: Integer,
+      coverImage: Option[String]
   )
 
   case class WorkflowWithPrivilege(
@@ -185,7 +186,7 @@ object WorkflowResource {
     }
   }
 
-  def baseWorkflowSelect(): SelectOnConditionStep[Record9[
+  def baseWorkflowSelect(): SelectOnConditionStep[Record10[
     Integer,
     String,
     String,
@@ -193,6 +194,7 @@ object WorkflowResource {
     Timestamp,
     PrivilegeEnum,
     Integer,
+    String,
     String,
     String
   ]] = {
@@ -206,7 +208,8 @@ object WorkflowResource {
         WORKFLOW_USER_ACCESS.PRIVILEGE,
         WORKFLOW_OF_USER.UID,
         USER.NAME,
-        groupConcatDistinct(WORKFLOW_OF_PROJECT.PID).as("projects")
+        groupConcatDistinct(WORKFLOW_OF_PROJECT.PID).as("projects"),
+        max(WORKFLOW_COVER_IMAGE.IMAGE).as("cover_image")
       )
       .from(WORKFLOW)
       .leftJoin(WORKFLOW_USER_ACCESS)
@@ -217,10 +220,12 @@ object WorkflowResource {
       .on(USER.UID.eq(WORKFLOW_OF_USER.UID))
       .leftJoin(WORKFLOW_OF_PROJECT)
       .on(WORKFLOW.WID.eq(WORKFLOW_OF_PROJECT.WID))
+      .leftJoin(WORKFLOW_COVER_IMAGE)
+      .on(WORKFLOW.WID.eq(WORKFLOW_COVER_IMAGE.WID))
   }
 
   def mapWorkflowEntries(
-      workflowEntries: Result[Record9[
+      workflowEntries: Result[Record10[
         Integer,
         String,
         String,
@@ -228,6 +233,7 @@ object WorkflowResource {
         Timestamp,
         PrivilegeEnum,
         Integer,
+        String,
         String,
         String
       ]],
@@ -249,7 +255,8 @@ object WorkflowResource {
           if (workflowRecord.component9() == null) List[Integer]()
           else
             workflowRecord.component9().split(',').map(str => Integer.valueOf(str)).toList,
-          workflowRecord.into(WORKFLOW_OF_USER).getUid
+          workflowRecord.into(WORKFLOW_OF_USER).getUid,
+          Option(workflowRecord.get("cover_image", classOf[String]))
         )
       )
       .asScala
@@ -578,7 +585,8 @@ class WorkflowResource extends LazyLogging {
         user.getName,
         workflowDao.fetchOneByWid(workflow.getWid),
         List[Integer](),
-        user.getUid
+        user.getUid,
+        None
       )
     }
 
