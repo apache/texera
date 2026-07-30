@@ -46,7 +46,7 @@ import { DatasetStagedObject } from "../../../../../common/type/dataset-staged-o
 import { NzModalService } from "ng-zorro-antd/modal";
 import { AdminSettingsService } from "../../../../service/admin/settings/admin-settings.service";
 import { HttpErrorResponse, HttpStatusCode } from "@angular/common/http";
-import { Subscription } from "rxjs";
+import { EMPTY, Subscription } from "rxjs";
 import { formatCount, formatSpeed, formatTime, parseIntOrDefault } from "src/app/common/util/format.util";
 import { format } from "date-fns";
 import { NgIf, NgClass, NgFor } from "@angular/common";
@@ -156,6 +156,8 @@ export class DatasetDetailComponent implements OnInit {
   public latestVersionCreationTime: string = "";
   public latestVersionFileName: string = "";
   public latestVersionSize: number | undefined;
+  // Holds the in-flight latest-version fetch so a later call can supersede it.
+  private latestVersionFileSubscription: Subscription | undefined;
 
   public versionCreatorBaseVersion: DatasetVersion | undefined;
   public isLogin: boolean = this.userService.isLogin();
@@ -436,24 +438,32 @@ export class DatasetDetailComponent implements OnInit {
   retrieveLatestVersionFile() {
     if (this.did) {
       const did = this.did;
-      this.datasetService
+      // Both fetches live in one subscription (chained with switchMap rather than
+      // nested subscribes) so dropping it cancels whichever is still in flight:
+      // a call started here supersedes any earlier one, and a slow response from
+      // the superseded call can no longer overwrite fresher facts out of order.
+      this.latestVersionFileSubscription?.unsubscribe();
+      this.latestVersionFileSubscription = this.datasetService
         .retrieveDatasetLatestVersion(did)
-        .pipe(untilDestroyed(this))
-        .subscribe(version => {
-          const firstFile = this.getFirstFileNode(version.fileNodes ?? []);
-          this.latestVersionFileName = firstFile ? getFullPathFromDatasetFileNode(firstFile) : "";
-          this.latestVersionCreationTime =
-            typeof version.creationTime === "number"
-              ? format(new Date(version.creationTime), "MM/dd/yyyy HH:mm:ss")
-              : "";
-          if (version.dvid) {
-            this.datasetService
-              .retrieveDatasetVersionFileTree(did, version.dvid, this.isLogin)
-              .pipe(untilDestroyed(this))
-              .subscribe(data => {
-                this.latestVersionSize = data.size;
-              });
-          }
+        .pipe(
+          switchMap(version => {
+            const firstFile = this.getFirstFileNode(version.fileNodes ?? []);
+            this.latestVersionFileName = firstFile ? getFullPathFromDatasetFileNode(firstFile) : "";
+            this.latestVersionCreationTime =
+              typeof version.creationTime === "number"
+                ? format(new Date(version.creationTime), "MM/dd/yyyy HH:mm:ss")
+                : "";
+            if (!version.dvid) {
+              // Nothing to size: clear rather than keep a previous call's size.
+              this.latestVersionSize = undefined;
+              return EMPTY;
+            }
+            return this.datasetService.retrieveDatasetVersionFileTree(did, version.dvid, this.isLogin);
+          }),
+          untilDestroyed(this)
+        )
+        .subscribe(data => {
+          this.latestVersionSize = data.size;
         });
     }
   }

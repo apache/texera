@@ -101,6 +101,7 @@ describe("DatasetDetailComponent upload queue", () => {
                 fileNodes: [],
               })
             ),
+            retrieveDatasetVersionFileTree: vi.fn(() => of({ fileNodes: [], size: 1024 })),
             getDatasetDiff: vi.fn(() => of([])),
             createDatasetVersion: vi.fn(() => of({})),
             deleteDatasetFile: vi.fn(() => of({})),
@@ -317,7 +318,8 @@ describe("DatasetDetailComponent upload queue", () => {
     // tab's content into the DOM until it has been selected at least once.
     const tabButtons: NodeListOf<HTMLElement> = fixture.nativeElement.querySelectorAll(".ant-tabs-tab-btn");
     const versionsTab = Array.from(tabButtons).find(tab => tab.textContent?.includes("Versions & Files"));
-    versionsTab?.click();
+    expect(versionsTab).toBeTruthy();
+    (versionsTab as HTMLElement).click();
     fixture.detectChanges();
 
     // Flush the viewport's init microtask, then render the rows.
@@ -739,6 +741,47 @@ describe("DatasetDetailComponent behavior", () => {
 
       expect(datasetServiceStub.retrieveDatasetVersionFileTree).not.toHaveBeenCalled();
       expect(component.latestVersionSize).toBeUndefined();
+    });
+
+    it("clears a previously fetched latestVersionSize when the latest version has no dvid", () => {
+      datasetServiceStub.retrieveDatasetLatestVersion.mockReturnValue(of(makeVersion({ dvid: 7 })));
+      datasetServiceStub.retrieveDatasetVersionFileTree.mockReturnValue(of({ fileNodes: [], size: 4096 }));
+
+      createComponent();
+      component.did = 5;
+      component.retrieveLatestVersionFile();
+
+      expect(component.latestVersionSize).toBe(4096);
+
+      // Without a dvid there is no size to show, so the stale one must not linger.
+      datasetServiceStub.retrieveDatasetLatestVersion.mockReturnValue(of(makeVersion({ dvid: undefined })));
+      component.retrieveLatestVersionFile();
+
+      expect(component.latestVersionSize).toBeUndefined();
+    });
+
+    it("ignores a superseded call's size response that resolves after a newer one", () => {
+      // The first call's file-tree request never completes before the second starts.
+      const pendingTree = new Subject<{ fileNodes: DatasetFileNode[]; size: number }>();
+      datasetServiceStub.retrieveDatasetLatestVersion.mockReturnValue(of(makeVersion({ dvid: 7 })));
+      datasetServiceStub.retrieveDatasetVersionFileTree.mockReturnValue(pendingTree);
+
+      createComponent();
+      component.did = 5;
+      component.retrieveLatestVersionFile();
+
+      expect(component.latestVersionSize).toBeUndefined();
+
+      // A second call supersedes the first and resolves immediately.
+      datasetServiceStub.retrieveDatasetVersionFileTree.mockReturnValue(of({ fileNodes: [], size: 200 }));
+      component.retrieveLatestVersionFile();
+
+      expect(component.latestVersionSize).toBe(200);
+
+      // The superseded response arriving late must not overwrite the fresher size.
+      pendingTree.next({ fileNodes: [], size: 999 });
+
+      expect(component.latestVersionSize).toBe(200);
     });
 
     it("keeps the latest-version facts fixed when a different version is later selected", () => {
@@ -1311,7 +1354,8 @@ describe("DatasetDetailComponent behavior", () => {
 
       const tabButtons: NodeListOf<HTMLElement> = fixture.nativeElement.querySelectorAll(".ant-tabs-tab-btn");
       const settingsTab = Array.from(tabButtons).find(tab => tab.textContent?.includes("Settings"));
-      settingsTab?.click();
+      expect(settingsTab).toBeTruthy();
+      (settingsTab as HTMLElement).click();
       fixture.detectChanges();
 
       return fixture.nativeElement.querySelector('button[title="Delete"]') as HTMLButtonElement;
