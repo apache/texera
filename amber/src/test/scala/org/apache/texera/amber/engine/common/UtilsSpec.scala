@@ -101,51 +101,16 @@ class UtilsSpec extends AnyFlatSpec {
 
   // -- retry ---------------------------------------------------------------
 
-  "Utils.retry" should "return the value on the first successful attempt without retrying" in {
-    var calls = 0
-    val result = Utils.retry(attempts = 3, baseBackoffTimeInMS = 0L) {
-      calls += 1
-      "ok"
-    }
-    assert(result == "ok")
-    assert(calls == 1)
-  }
+  // `retry` is exercised with `RecordingInlineTimer`: it captures the delay of each scheduled wait
+  // and runs it immediately, so the backoff schedule is asserted exactly and no test spends that
+  // time asleep. `Time.withCurrentTimeFrozen` makes `when - Time.now` equal the delay
+  // `Future.sleep` asked for.
 
-  it should "retry on failure until success and return the eventual result" in {
-    var calls = 0
-    val result = Utils.retry(attempts = 3, baseBackoffTimeInMS = 0L) {
-      calls += 1
-      if (calls < 2) throw new RuntimeException("transient")
-      "ok"
-    }
-    assert(result == "ok")
-    assert(calls == 2)
-  }
-
-  it should "rethrow the last exception after exhausting all attempts" in {
-    var calls = 0
-    val ex = intercept[RuntimeException] {
-      Utils.retry(attempts = 2, baseBackoffTimeInMS = 0L) {
-        calls += 1
-        throw new RuntimeException(s"failure-$calls")
-      }
-    }
-    assert(calls == 2)
-    assert(ex.getMessage == "failure-2")
-  }
-
-  // -- retryAsync ----------------------------------------------------------
-
-  // The async twin of `retry` is exercised with `RecordingInlineTimer`: it captures the delay of
-  // each scheduled wait and runs it immediately, so the backoff schedule is asserted exactly and
-  // no test spends that time asleep. `Time.withCurrentTimeFrozen` makes `when - Time.now` equal
-  // the delay `Future.sleep` asked for.
-
-  "Utils.retryAsync" should "return the value on the first successful attempt without waiting" in {
+  "Utils.retry" should "return the value on the first successful attempt without waiting" in {
     val timer = new RecordingInlineTimer
     var calls = 0
     val result = Await.result(
-      Utils.retryAsync(attempts = 3, baseBackoffTimeInMS = 200L, timer = timer) {
+      Utils.retry(attempts = 3, baseBackoffTimeInMS = 200L, timer = timer) {
         calls += 1
         Future.value("ok")
       }
@@ -161,7 +126,7 @@ class UtilsSpec extends AnyFlatSpec {
     Time.withCurrentTimeFrozen { _ =>
       val failure = intercept[RuntimeException] {
         Await.result(
-          Utils.retryAsync(attempts = 4, baseBackoffTimeInMS = 200L, timer = timer) {
+          Utils.retry(attempts = 4, baseBackoffTimeInMS = 200L, timer = timer) {
             calls += 1
             Future.exception(new RuntimeException(s"failure-$calls"))
           }
@@ -179,7 +144,7 @@ class UtilsSpec extends AnyFlatSpec {
     var calls = 0
     Time.withCurrentTimeFrozen { _ =>
       val result = Await.result(
-        Utils.retryAsync(attempts = 4, baseBackoffTimeInMS = 200L, timer = timer) {
+        Utils.retry(attempts = 4, baseBackoffTimeInMS = 200L, timer = timer) {
           calls += 1
           if (calls < 3) Future.exception(new RuntimeException("transient"))
           else Future.value(calls)
@@ -196,7 +161,7 @@ class UtilsSpec extends AnyFlatSpec {
     Time.withCurrentTimeFrozen { _ =>
       intercept[RuntimeException] {
         Await.result(
-          Utils.retryAsync(
+          Utils.retry(
             attempts = 3,
             baseBackoffTimeInMS = 200L,
             timer = timer,
@@ -218,7 +183,7 @@ class UtilsSpec extends AnyFlatSpec {
     val timer = new RecordingInlineTimer
     var calls = 0
     val result = Await.result(
-      Utils.retryAsync(attempts = 3, baseBackoffTimeInMS = 1L, timer = timer) {
+      Utils.retry(attempts = 3, baseBackoffTimeInMS = 1L, timer = timer) {
         calls += 1
         if (calls < 2) throw new IllegalStateException("sync boom")
         Future.value("ok")
@@ -229,13 +194,13 @@ class UtilsSpec extends AnyFlatSpec {
   }
 
   it should "make a single attempt when attempts is one or less" in {
-    // Mirrors `retry`: a budget of 1 (or a nonsensical 0) means no retry at all.
+    // A budget of 1 -- or a nonsensical 0 -- means no retry at all, and no wait either.
     Seq(1, 0).foreach { attempts =>
       val timer = new RecordingInlineTimer
       var calls = 0
       val failure = intercept[RuntimeException] {
         Await.result(
-          Utils.retryAsync(attempts = attempts, baseBackoffTimeInMS = 200L, timer = timer) {
+          Utils.retry(attempts = attempts, baseBackoffTimeInMS = 200L, timer = timer) {
             calls += 1
             Future.exception(new RuntimeException("only-once"))
           }

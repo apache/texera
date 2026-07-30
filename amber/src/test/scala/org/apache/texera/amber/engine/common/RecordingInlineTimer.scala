@@ -28,7 +28,7 @@ import scala.collection.mutable
   * instead of waiting.
   *
   * Use it inside `Time.withCurrentTimeFrozen` so that `when - Time.now` is exactly the delay
-  * `Future.sleep` asked for. That makes a backoff schedule (e.g. `Utils.retryAsync`'s) assertable
+  * `Future.sleep` asked for. That makes a backoff schedule (e.g. `Utils.retry`'s) assertable
   * exactly, on the test thread, without the test spending that time asleep.
   */
 class RecordingInlineTimer extends Timer {

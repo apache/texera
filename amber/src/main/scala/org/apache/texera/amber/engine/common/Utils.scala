@@ -25,7 +25,6 @@ import org.apache.texera.amber.engine.architecture.rpc.controlreturns.WorkflowAg
 
 import java.nio.file.{Files, Path, Paths}
 import java.util.concurrent.locks.Lock
-import scala.annotation.tailrec
 
 object Utils extends LazyLogging {
 
@@ -61,52 +60,26 @@ object Utils extends LazyLogging {
   val AMBER_HOME_FOLDER_NAME = "amber";
 
   /**
-    * Retry the given logic with a backoff time interval. The attempts are executed sequentially, thus blocking the thread.
-    * Backoff time is doubled after each attempt.
+    * Retry the given logic with a backoff time interval, doubling the backoff after each attempt.
     *
-    * @param attempts            total number of attempts. if n <= 1 then it will not retry at all, decreased by 1 for each recursion.
-    * @param baseBackoffTimeInMS time to wait before next attempt, started with the base time, and doubled after each attempt.
-    * @param fn                  the target function to execute.
-    * @tparam T any return type from the provided function fn.
-    * @return the provided function fn's return, or any exception that still being raised after n attempts.
-    */
-  @tailrec
-  def retry[T](attempts: Int, baseBackoffTimeInMS: Long)(fn: => T): T = {
-    try {
-      fn
-    } catch {
-      case e: Throwable =>
-        if (attempts > 1) {
-          logger.warn(
-            "retrying after " + baseBackoffTimeInMS + "ms, number of attempts left: " + (attempts - 1),
-            e
-          )
-          Thread.sleep(baseBackoffTimeInMS)
-          retry(attempts - 1, baseBackoffTimeInMS * 2)(fn)
-        } else throw e
-    }
-  }
-
-  /**
-    * Asynchronous twin of [[retry]]: same attempt-and-doubling-backoff contract, for logic that
-    * returns a `Future`. Nothing blocks -- the wait between attempts is scheduled on `timer` --
-    * so this is the variant to use on an actor or coordinator thread, where [[retry]]'s
-    * `Thread.sleep` would also stall unrelated work on that thread.
+    * The waits are scheduled on `timer`, so no thread is blocked between attempts. That matters
+    * for callers on an actor or coordinator thread, where a `Thread.sleep` would also stall
+    * unrelated work queued on that thread.
     *
-    * A synchronous throw while evaluating `fn` is treated as a failed attempt, exactly as in
-    * [[retry]]. Fatal errors are not retried; they propagate immediately.
+    * A synchronous throw while evaluating `fn` counts as a failed attempt. Fatal errors are not
+    * retried; they propagate immediately.
     *
     * @param attempts            total number of attempts. if n <= 1 then it will not retry at all.
     * @param baseBackoffTimeInMS time to wait before next attempt, started with the base time, and doubled after each attempt.
     * @param timer               schedules the waits between attempts; no thread is blocked.
     * @param onRetry             invoked before each wait with the failure, the 1-based number of the
     *                            attempt that just failed, and the backoff about to be waited in ms.
-    *                            Override it to log with caller context; the default mirrors [[retry]].
+    *                            Override it to log with caller context.
     * @param fn                  the target function to execute, re-evaluated on each attempt.
     * @tparam T any value type the provided function fn's `Future` yields.
     * @return `fn`'s eventual value, or the last failure once `attempts` is exhausted.
     */
-  def retryAsync[T](
+  def retry[T](
       attempts: Int,
       baseBackoffTimeInMS: Long,
       timer: Timer,

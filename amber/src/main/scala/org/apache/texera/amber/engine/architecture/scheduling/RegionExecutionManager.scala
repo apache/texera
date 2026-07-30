@@ -66,7 +66,7 @@ object RegionExecutionManager {
 
   // Terminating a region is deterministic: `EndWorker` plus `gracefulStop` either succeed, or the
   // engine has a bug that retrying cannot fix. Retries therefore only ride out a transient
-  // failure. With `Utils.retryAsync`'s doubling backoff, 4 attempts from a 200ms base wait
+  // failure. With `Utils.retry`'s doubling backoff, 4 attempts from a 200ms base wait
   // 200 + 400 + 800 ms = 1.4s in the worst case, where the former 150 attempts at a flat 200ms
   // held a whole region's teardown for ~30s before the failure surfaced.
   private[scheduling] val DefaultMaxTerminationAttempts: Int = 4
@@ -108,7 +108,7 @@ class RegionExecutionManager(
     coordinatorConfig: CoordinatorConfig,
     actorService: PekkoActorService,
     actorRefService: PekkoActorRefMappingService,
-    // Region-termination retry budget, handed to `Utils.retryAsync`: `maxTerminationAttempts`
+    // Region-termination retry budget, handed to `Utils.retry`: `maxTerminationAttempts`
     // attempts, waiting `killRetryBaseBackoffMs` before the first retry and doubling after each.
     maxTerminationAttempts: Int = RegionExecutionManager.DefaultMaxTerminationAttempts,
     killRetryBaseBackoffMs: Long = RegionExecutionManager.DefaultKillRetryBaseBackoffMs,
@@ -230,7 +230,7 @@ class RegionExecutionManager(
 
   private def terminateWorkersWithRetry(regionExecution: RegionExecution): Future[Unit] = {
     Utils
-      .retryAsync(
+      .retry(
         attempts = maxTerminationAttempts,
         baseBackoffTimeInMS = killRetryBaseBackoffMs,
         timer = killRetryTimer,

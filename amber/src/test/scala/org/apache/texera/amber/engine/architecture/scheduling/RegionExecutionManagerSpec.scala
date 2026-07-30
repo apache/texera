@@ -245,7 +245,7 @@ class RegionExecutionManagerSpec
   it should "back off exponentially and stop once the retry budget is exhausted" in {
     // Pins what the defaults mean in practice: the manager asks for 200, then 400, then 800 ms,
     // and makes 4 EndWorker attempts. Asserted through the timer rather than through
-    // `Utils.retryAsync`'s own unit tests, so a wrong base or attempt count here is caught too.
+    // `Utils.retry`'s own unit tests, so a wrong base or attempt count here is caught too.
     // The inline timer runs each wait immediately, so this costs no wall-clock time.
     val timer = new RecordingInlineTimer
     Time.withCurrentTimeFrozen { _ =>
