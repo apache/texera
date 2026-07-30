@@ -45,6 +45,16 @@ object EnvironmentalVariable {
   val ENV_USER_JWT_TOKEN = "USER_JWT_TOKEN"
   val ENV_AUTH_JWT_SECRET = "AUTH_JWT_SECRET"
 
+  /**
+    * Node mounter (out-of-pod FUSE mounting) related vars, injected into the CU pod.
+    * The CU pod asks the per-node mounter (at NODE_IP:port) to mount, then reads the result
+    * under the in-pod mount root exposed via mount propagation.
+    */
+  val ENV_NODE_IP = "NODE_IP"
+  val ENV_MOUNTER_PORT = "TEXERA_MOUNTER_PORT"
+  val ENV_CU_ID = "TEXERA_CU_ID"
+  val ENV_MOUNT_IN_POD_ROOT = "TEXERA_MOUNT_IN_POD_ROOT"
+
   // JDBC
   val ENV_JDBC_URL = "STORAGE_JDBC_URL"
   val ENV_JDBC_USERNAME = "STORAGE_JDBC_USERNAME"
