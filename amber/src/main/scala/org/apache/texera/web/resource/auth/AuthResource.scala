@@ -183,10 +183,7 @@ class AuthResource {
         user.setName(username)
         user.setEmail(useremail)
         user.setRole(UserRoleEnum.RESTRICTED)
-        insertLocalUser()
-        // hash the plain text password
-        user.setPassword(new StrongPasswordEncryptor().encryptPassword(userpassword))
-        userDao.insert(user)
+        insertLocalUser(user, username, AuthResource.passwordEncryptor.encryptPassword(userpassword))
         TokenIssueResponse(jwtToken(jwtClaims(user, TOKEN_EXPIRE_TIME_IN_MINUTES)))
     }
   }
