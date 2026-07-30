@@ -102,22 +102,36 @@ class AuthResource {
   @POST
   @Path("/register")
   def register(request: UserRegistrationRequest): TokenIssueResponse = {
-    val username = request.username
-    if (username == null) throw new NotAcceptableException("Username cannot be null.")
-    if (username.trim.isEmpty) throw new NotAcceptableException("Username cannot be empty.")
-    userDao.fetchByName(username).size() match {
-      case 0 =>
+    val username = Option(request.username).getOrElse("").trim
+    val useremail = Option(request.email).getOrElse("").trim
+    val userpassword = request.password
+    if (username.isEmpty)
+      throw new NotAcceptableException("Username cannot be empty")
+    if (useremail.isEmpty)
+      throw new NotAcceptableException("Email cannot be empty")
+    if (!useremail.matches("""^[^\s@]+@[^\s@]+\.[^\s@]+$"""))
+      throw new NotAcceptableException("Email format is invalid.")
+    if (userpassword == null || userpassword.isEmpty)
+      throw new NotAcceptableException("Password cannot be empty")
+
+    // Check if email already exists
+    val usernameExists = !userDao.fetchByName(username).isEmpty
+    val emailExists = userDao.fetchOneByEmail(useremail) != null
+
+    (usernameExists, emailExists) match {
+      case (true, _) =>
+        throw new NotAcceptableException("Username exists already.")
+      case (_, true) =>
+        throw new NotAcceptableException("Email exists already.")
+      case (false, false) =>
         val user = new User
         user.setName(username)
-        user.setEmail(username)
+        user.setEmail(useremail)
         user.setRole(UserRoleEnum.RESTRICTED)
         // hash the plain text password
-        user.setPassword(new StrongPasswordEncryptor().encryptPassword(request.password))
+        user.setPassword(new StrongPasswordEncryptor().encryptPassword(userpassword))
         userDao.insert(user)
         TokenIssueResponse(jwtToken(jwtClaims(user, TOKEN_EXPIRE_TIME_IN_MINUTES)))
-      case _ =>
-        // the username exists already
-        throw new NotAcceptableException("Username exists already.")
     }
   }
 

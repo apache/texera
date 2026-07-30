@@ -58,7 +58,7 @@ describe("UserService", () => {
       .userChanged()
       .pipe(skip(1))
       .subscribe(user => expect(user).toBeTruthy());
-    service.register("test", "password").subscribe(() => {
+    service.register("test", "test@example.com", "password").subscribe(() => {
       expect((service as any).currentUser).toBeTruthy();
     });
   });
@@ -80,7 +80,7 @@ describe("UserService", () => {
       .userChanged()
       .pipe(skip(1))
       .subscribe(user => expect(user).toBeFalsy());
-    service.register("existing_user", "password").subscribe(() => {
+    service.register("existing_user", "existing_user@example.com", "password").subscribe(() => {
       expect((service as any).currentUser).toBeFalsy();
     });
   });
