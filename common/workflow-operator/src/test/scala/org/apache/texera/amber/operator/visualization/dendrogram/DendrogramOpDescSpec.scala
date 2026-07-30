@@ -79,8 +79,11 @@ class DendrogramOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matchers
     assert(carries(code, "coord_b"))
     assert(carries(code, "label_col"))
     code should include("create_dendrogram")
-    // empty threshold falls back to color_threshold=None
-    code should include("color_threshold=None")
+    // Whether the threshold is a number, the string "default" or unset is decided by
+    // Python's own float() at run time, so the code carries the decision, not a value.
+    code should include("_threshold = None")
+    code should include("_threshold = float(_threshold_raw)")
+    code should include("color_threshold=_threshold")
   }
 
   it should "generate python code carrying a non-empty threshold when configured" in {
@@ -90,6 +93,8 @@ class DendrogramOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matchers
     opDesc.threshold = "42.5"
     val code = opDesc.generatePythonCode()
     assert(carries(code, "42.5"))
-    code should not include "color_threshold=None"
+    // The value reaches scipy through float(), so it arrives as a number rather than
+    // as the string the runtime path splices.
+    code should include("_threshold = float(_threshold_raw)")
   }
 }

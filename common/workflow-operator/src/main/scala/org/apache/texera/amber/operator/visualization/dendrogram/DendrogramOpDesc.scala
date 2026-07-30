@@ -22,7 +22,10 @@ package org.apache.texera.amber.operator.visualization.dendrogram
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
-import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
+  PythonTemplateBuilderStringContext,
+  pyStringLiteral
+}
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
@@ -84,22 +87,44 @@ class DendrogramOpDesc extends PythonOperatorDescriptor with StandaloneCodeGener
       OperatorGroupConstants.VISUALIZATION_SCIENTIFIC_GROUP
     )
 
+  /** How the typed-in threshold becomes scipy's `color_threshold`, as Python.
+    *
+    * scipy compares the threshold against the linkage distances, so a number must
+    * arrive as a number — but the argument also accepts the literal `"default"`
+    * (scipy's own 0.7 * max distance), so a non-number must stay a string. Which is
+    * which is decided by Python's own `float()` at run time, not by a Scala guess at
+    * Python's numeric syntax: the two paths emit this identical block, and differ
+    * only in how the raw value is introduced (a decode expression on the runtime
+    * path, an escaped literal in the standalone script). The value is stripped
+    * first: scipy matches `"default"` exactly, so a stray space would otherwise turn
+    * a working threshold into an error page.
+    */
+  private def thresholdLogic(indent: String): String =
+    Seq(
+      "if not _threshold_raw:",
+      "    _threshold = None",
+      "else:",
+      "    try:",
+      "        _threshold = float(_threshold_raw)",
+      "    except ValueError:",
+      "        _threshold = _threshold_raw"
+    ).mkString("\n" + indent)
+
   private def createDendrogram(): PythonTemplateBuilder = {
     assert(xVal.nonEmpty, "Value X Column cannot be empty")
     assert(yVal.nonEmpty, "Value Y Column cannot be empty")
     assert(labels.nonEmpty, "Labels cannot be empty")
-    val strippedThreshold: EncodableString = threshold.trim
-    val isThreshold =
-      if (strippedThreshold.nonEmpty) pyb"color_threshold=$strippedThreshold"
-      else "color_threshold=None"
+    val logic = thresholdLogic(" " * 12)
     pyb"""
-       |        x = np.array(table[$xVal])
-       |        y = np.array(table[$yVal])
-       |        data = np.column_stack((x, y))
-       |        labels = table[$labels].tolist()
+       |            x = np.array(table[$xVal])
+       |            y = np.array(table[$yVal])
+       |            data = np.column_stack((x, y))
+       |            labels = table[$labels].tolist()
+       |            _threshold_raw = $threshold.strip()
+       |            $logic
        |
-       |        fig = ff.create_dendrogram(data, labels=labels, $isThreshold)
-       |        fig.update_layout(yaxis_title="Linkage Distance", margin=dict(l=0, r=0, b=0, t=0))
+       |            fig = ff.create_dendrogram(data, labels=labels, color_threshold=_threshold)
+       |            fig.update_layout(yaxis_title="Linkage Distance", margin=dict(l=0, r=0, b=0, t=0))
        |"""
   }
 
@@ -125,10 +150,13 @@ class DendrogramOpDesc extends PythonOperatorDescriptor with StandaloneCodeGener
          |        if table.empty:
          |           yield {'html-content': self.render_error("input table is empty.")}
          |           return
-         |        ${createDendrogram()}
-         |        # convert fig to html content
-         |        html = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False)
-         |        yield {'html-content': html}
+         |        try:
+         |            ${createDendrogram()}
+         |            # convert fig to html content
+         |            html = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False)
+         |            yield {'html-content': html}
+         |        except Exception as e:
+         |            yield {'html-content': self.render_error(f"General error: {str(e)}")}
          |
          |"""
     finalcode.encode
@@ -137,29 +165,39 @@ class DendrogramOpDesc extends PythonOperatorDescriptor with StandaloneCodeGener
   override def producesDataFrame(): Boolean = false
 
   override def generateStandaloneCode(): String = {
-    val thresholdArg =
-      if (threshold.trim.nonEmpty) s"color_threshold=${threshold.trim}" else "color_threshold=None"
+
     s"""import numpy as np
        |import plotly.figure_factory as ff
        |
        |def render_error(error_msg):
+       |    # Indented to match the runtime path's own render_error, so the error page
+       |    # is byte-identical on both paths.
        |    return '''<h1>Dendrogram is not available.</h1>
-       |              <p>Reason is: {} </p>
-       |           '''.format(error_msg)
+       |                  <p>Reason is: {} </p>
+       |               '''.format(error_msg)
        |
        |if in1df.empty:
        |    with open("output.html", "w", encoding="utf-8") as output:
        |        output.write(render_error("input table is empty."))
        |else:
-       |    x = np.array(in1df["$xVal"])
-       |    y = np.array(in1df["$yVal"])
-       |    data = np.column_stack((x, y))
-       |    labels = in1df["$labels"].tolist()
-       |    fig = ff.create_dendrogram(data, labels=labels, $thresholdArg)
-       |    fig.update_layout(yaxis_title="Linkage Distance", margin=dict(l=0, r=0, b=0, t=0))
-       |    fig.write_json("output.json")
-       |    fig.write_html("output.html")
-       |    print("Dendrogram saved to output.html")""".stripMargin
+       |    # Mirrors the runtime path's guard: an input the dendrogram cannot use (a
+       |    # threshold that is neither a number nor "default", say) renders the same
+       |    # General error page instead of aborting the script.
+       |    try:
+       |        x = np.array(in1df[${pyStringLiteral(xVal)}])
+       |        y = np.array(in1df[${pyStringLiteral(yVal)}])
+       |        data = np.column_stack((x, y))
+       |        labels = in1df[${pyStringLiteral(labels)}].tolist()
+       |        _threshold_raw = ${pyStringLiteral(threshold)}.strip()
+       |        ${thresholdLogic(" " * 8)}
+       |        fig = ff.create_dendrogram(data, labels=labels, color_threshold=_threshold)
+       |        fig.update_layout(yaxis_title="Linkage Distance", margin=dict(l=0, r=0, b=0, t=0))
+       |        fig.write_json("output.json")
+       |        fig.write_html("output.html")
+       |        print("Dendrogram saved to output.html")
+       |    except Exception as e:
+       |        with open("output.html", "w", encoding="utf-8") as output:
+       |            output.write(render_error(f"General error: {str(e)}"))""".stripMargin
   }
 
 }
