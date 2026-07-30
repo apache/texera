@@ -77,6 +77,7 @@ export class LocalLoginComponent implements OnInit {
     this.allForms = this.formBuilder.group({
       loginUsername: new FormControl("", [Validators.required]),
       registerUsername: new FormControl("", [Validators.required]),
+      registerEmail: new FormControl("", [Validators.required, Validators.email]),
       loginPassword: new FormControl("", [Validators.required, Validators.minLength(6)]),
       registerPassword: new FormControl("", [Validators.required, Validators.minLength(6)]),
       registerConfirmationPassword: new FormControl("", [Validators.required, this.confirmationValidator]),
@@ -143,8 +144,14 @@ export class LocalLoginComponent implements OnInit {
     this.registerErrorMessage = undefined;
     const registerPassword = this.allForms.get("registerPassword")?.value;
     const registerConfirmationPassword = this.allForms.get("registerConfirmationPassword")?.value;
-    const registerUsername = this.allForms.get("registerUsername")?.value.trim();
-    const validation = UserService.validateUsername(registerUsername);
+    const registerEmail = (this.allForms.get("registerEmail")?.value ?? "").trim();
+    const registerUsername = (this.allForms.get("registerUsername")?.value ?? "").trim();
+
+    const validateEmail = UserService.validateEmail(registerEmail);
+    if (!validateEmail.result) {
+      this.registerErrorMessage = validateEmail.message;
+      return;
+    }
     if (registerPassword.length < 6) {
       this.registerErrorMessage = "Password length should be greater than 5";
       return;
@@ -153,13 +160,15 @@ export class LocalLoginComponent implements OnInit {
       this.registerErrorMessage = "Passwords do not match";
       return;
     }
-    if (!validation.result) {
-      this.registerErrorMessage = validation.message;
+
+    const validateUsername = UserService.validateUsername(registerUsername);
+    if (!validateUsername.result) {
+      this.registerErrorMessage = validateUsername.message;
       return;
     }
     // register the credentials with backend
     this.userService
-      .register(registerUsername, registerPassword)
+      .register(registerUsername, registerEmail, registerPassword)
       .pipe(
         catchError((e: unknown) => {
           const errorMessage = (e as Error)?.message || "Registration failed";
