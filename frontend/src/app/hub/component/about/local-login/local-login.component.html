@@ -34,6 +34,12 @@
       <ng-container *ngIf="control.hasError('required')">Please confirm your password. </ng-container>
       <ng-container *ngIf="control.hasError('confirm')">Two passwords are inconsistent. </ng-container>
     </ng-template>
+    <ng-template
+      #emailErrorTip
+      let-control>
+      <ng-container *ngIf="control.hasError('required')">Please input your email. </ng-container>
+      <ng-container *ngIf="control.hasError('email')">Please input a valid email. </ng-container>
+    </ng-template>
 
     <nz-tab nzTitle="Sign In">
       <form
@@ -91,6 +97,17 @@
                 nz-input
                 formControlName="registerUsername"
                 placeholder="Username" />
+            </nz-input-group>
+          </nz-form-control>
+        </nz-form-item>
+        <nz-form-item>
+          <nz-form-control [nzErrorTip]="emailErrorTip">
+            <nz-input-group nzPrefixIcon="mail">
+              <input
+                type="email"
+                nz-input
+                formControlName="registerEmail"
+                placeholder="Email" />
             </nz-input-group>
           </nz-form-control>
         </nz-form-item>
