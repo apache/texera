@@ -25,6 +25,7 @@ import org.apache.texera.amber.engine.architecture.rpc.controlreturns.WorkflowAg
 
 import java.nio.file.{Files, Path, Paths}
 import java.util.concurrent.locks.Lock
+import scala.util.control.NonFatal
 
 object Utils extends LazyLogging {
 
@@ -66,8 +67,8 @@ object Utils extends LazyLogging {
     * for callers on an actor or coordinator thread, where a `Thread.sleep` would also stall
     * unrelated work queued on that thread.
     *
-    * A synchronous throw while evaluating `fn` counts as a failed attempt. Fatal errors are not
-    * retried; they propagate immediately.
+    * A synchronous throw while evaluating `fn` counts as a failed attempt, same as a failed
+    * `Future`. Fatal errors are never retried in either shape: they propagate immediately.
     *
     * @param attempts            total number of attempts. if n <= 1 then it will not retry at all.
     * @param baseBackoffTimeInMS time to wait before next attempt, started with the base time, and doubled after each attempt.
@@ -87,7 +88,9 @@ object Utils extends LazyLogging {
   )(fn: => Future[T]): Future[T] = {
     def attempt(attemptNumber: Int, backoffTimeInMS: Long): Future[T] =
       Future(fn).flatten.rescue {
-        case e if attemptNumber < attempts =>
+        // `NonFatal` so that a fatal handed back as a failed `Future` is not retried either, which
+        // also matches how the blocking backoff loops elsewhere in the repo catch `Exception`.
+        case NonFatal(e) if attemptNumber < attempts =>
           onRetry(e, attemptNumber, backoffTimeInMS)
           Future
             .sleep(Duration.fromMilliseconds(backoffTimeInMS))(timer)

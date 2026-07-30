@@ -193,6 +193,30 @@ class UtilsSpec extends AnyFlatSpec {
     assert(calls == 2)
   }
 
+  it should "not retry a fatal error, whether thrown or returned as a failed Future" in {
+    // A fatal is not a transient failure, so it must escape on the first attempt. The two shapes
+    // travel different paths -- a synchronous throw is filtered by `Future(fn)`'s `Try`, a failed
+    // `Future` reaches the `rescue` guard -- and both have to behave the same way.
+    Seq[(String, () => Future[String])](
+      "as a failed Future" -> (() => Future.exception(new InterruptedException("fatal"))),
+      "thrown synchronously" -> (() => throw new InterruptedException("fatal"))
+    ).foreach {
+      case (shape, body) =>
+        val timer = new RecordingInlineTimer
+        var calls = 0
+        intercept[InterruptedException] {
+          Await.result(
+            Utils.retry(attempts = 4, baseBackoffTimeInMS = 200L, timer = timer) {
+              calls += 1
+              body()
+            }
+          )
+        }
+        assert(calls == 1, s"fatal $shape was retried")
+        assert(timer.recordedDelaysInMillis.isEmpty, s"fatal $shape caused a backoff wait")
+    }
+  }
+
   it should "make a single attempt when attempts is one or less" in {
     // A budget of 1 -- or a nonsensical 0 -- means no retry at all, and no wait either.
     Seq(1, 0).foreach { attempts =>
