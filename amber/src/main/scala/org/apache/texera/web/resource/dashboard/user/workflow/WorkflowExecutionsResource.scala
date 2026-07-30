@@ -234,22 +234,6 @@ object WorkflowExecutionsResource {
     restrictionMap.toMap
   }
 
-  def insertOperatorPortResultUri(
-      eid: ExecutionIdentity,
-      globalPortId: GlobalPortIdentity,
-      uri: URI
-  ): Unit = {
-    context
-      .insertInto(OPERATOR_PORT_EXECUTIONS)
-      .columns(
-        OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID,
-        OPERATOR_PORT_EXECUTIONS.GLOBAL_PORT_ID,
-        OPERATOR_PORT_EXECUTIONS.RESULT_URI
-      )
-      .values(eid.id.toInt, globalPortId.serializeAsString, uri.toString)
-      .execute()
-  }
-
   def insertOperatorExecutions(
       eid: Long,
       opId: String,
