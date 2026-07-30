@@ -20,7 +20,7 @@
 package org.apache.texera.amber.operator.visualization.histogram
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
-import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
+import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
@@ -51,10 +51,17 @@ class HistogramChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeG
   @AutofillAttributeName
   var separateBy: EncodableString = ""
 
-  @JsonProperty(required = false, defaultValue = "")
+  // Declared as a schema enum rather than named in the description: plotly accepts
+  // only these, and a free-text box let a typo through to a raw plotly error at run
+  // time. `none` is the operator's own sentinel — px rejects it, so the argument is
+  // omitted instead, as ECDFPlot's marginal does.
+  @JsonProperty(required = false, defaultValue = "none")
   @JsonSchemaTitle("Distribution Type")
-  @JsonPropertyDescription("Distribution type (rug, box, violin).")
-  var marginal: EncodableString = ""
+  @JsonPropertyDescription("Optional marginal plot to display alongside the histogram.")
+  @JsonSchemaInject(
+    json = """{ "enum": ["none", "rug", "box", "violin", "histogram"], "default": "none" }"""
+  )
+  var marginal: EncodableString = "none"
 
   @JsonProperty(required = false)
   @JsonSchemaTitle("Pattern")
@@ -77,7 +84,7 @@ class HistogramChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeG
     var patternParam = pyb""
     if (color.nonEmpty) colorParam = pyb", color = $color"
     if (separateBy.nonEmpty) categoryParam = pyb", facet_col = $separateBy"
-    if (marginal.nonEmpty) marginalParam = pyb", marginal=$marginal"
+    if (marginal.nonEmpty && marginal != "none") marginalParam = pyb", marginal=$marginal"
     if (pattern != "") patternParam = pyb", pattern_shape=$pattern"
 
     pyb"""
@@ -129,7 +136,9 @@ class HistogramChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeG
   override def generateStandaloneCode(): String = {
     val colorParam = if (color.nonEmpty) s""", color="$color"""" else ""
     val categoryParam = if (separateBy.nonEmpty) s""", facet_col="$separateBy"""" else ""
-    val marginalParam = if (marginal.nonEmpty) s""", marginal="$marginal"""" else ""
+    val marginalParam =
+      if (marginal.nonEmpty && marginal != "none") s""", marginal="$marginal""""
+      else ""
     val patternParam = if (pattern.nonEmpty) s""", pattern_shape="$pattern"""" else ""
     s"""def render_error(error_msg):
        |    return '''<h1>Histogram chart is not available.</h1>
