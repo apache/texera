@@ -18,9 +18,15 @@
  */
 
 import { Component, EventEmitter, OnInit, Output, ViewChild } from "@angular/core";
-import { ActivatedRoute } from "@angular/router";
+import { ActivatedRoute, Router } from "@angular/router";
+import { USER_DATASET } from "../../../../../app-routing.constant";
+import { extractErrorMessage } from "../../../../../common/util/error";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { DatasetService, MultipartUploadProgress } from "../../../../service/user/dataset/dataset.service";
+import {
+  DatasetService,
+  MultipartUploadProgress,
+  validateDatasetName,
+} from "../../../../service/user/dataset/dataset.service";
 import { NzResizeEvent, NzResizableDirective, NzResizeHandleComponent } from "ng-zorro-antd/resizable";
 import {
   DatasetFileNode,
@@ -41,7 +47,7 @@ import { NzModalService } from "ng-zorro-antd/modal";
 import { AdminSettingsService } from "../../../../service/admin/settings/admin-settings.service";
 import { HttpErrorResponse, HttpStatusCode } from "@angular/common/http";
 import { Subscription } from "rxjs";
-import { formatCount, formatSpeed, formatTime } from "src/app/common/util/format.util";
+import { formatCount, formatSpeed, formatTime, parseIntOrDefault } from "src/app/common/util/format.util";
 import { format } from "date-fns";
 import { NgIf, NgClass, NgFor } from "@angular/common";
 import { NzCardComponent, NzCardMetaComponent } from "ng-zorro-antd/card";
@@ -51,7 +57,7 @@ import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patc
 import { NzIconDirective } from "ng-zorro-antd/icon";
 import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
 import { NzButtonComponent } from "ng-zorro-antd/button";
-import { NzPopoverDirective } from "ng-zorro-antd/popover";
+import { NzPopconfirmDirective } from "ng-zorro-antd/popconfirm";
 import { NzSwitchComponent } from "ng-zorro-antd/switch";
 import { FormsModule } from "@angular/forms";
 import { MarkdownDescriptionComponent } from "../../markdown-description/markdown-description.component";
@@ -68,6 +74,7 @@ import { NzProgressComponent } from "ng-zorro-antd/progress";
 import { UserDatasetStagedObjectsListComponent } from "./user-dataset-staged-objects-list/user-dataset-staged-objects-list.component";
 import { NzInputDirective } from "ng-zorro-antd/input";
 import { CdkFixedSizeVirtualScroll, CdkVirtualForOf, CdkVirtualScrollViewport } from "@angular/cdk/scrolling";
+import { NzTabsComponent, NzTabComponent } from "ng-zorro-antd/tabs";
 
 export const THROTTLE_TIME_MS = 1000;
 export const ABORT_RETRY_MAX_ATTEMPTS = 10;
@@ -88,7 +95,7 @@ export const ABORT_RETRY_BACKOFF_BASE_MS = 100;
     NzIconDirective,
     NzSpaceCompactItemDirective,
     NzButtonComponent,
-    NzPopoverDirective,
+    NzPopconfirmDirective,
     NzSwitchComponent,
     FormsModule,
     MarkdownDescriptionComponent,
@@ -114,11 +121,14 @@ export const ABORT_RETRY_BACKOFF_BASE_MS = 100;
     CdkVirtualScrollViewport,
     CdkFixedSizeVirtualScroll,
     CdkVirtualForOf,
+    NzTabsComponent,
+    NzTabComponent,
   ],
 })
 export class DatasetDetailComponent implements OnInit {
   public did: number | undefined;
   public datasetName: string = "";
+  public editedDatasetName: string = "";
   public datasetDescription: string = "";
   public datasetCreationTime: string = "";
   public datasetCreationTimeTooltip: string = "";
@@ -194,6 +204,7 @@ export class DatasetDetailComponent implements OnInit {
 
   constructor(
     private route: ActivatedRoute,
+    private router: Router,
     private modalService: NzModalService,
     private datasetService: DatasetService,
     private notificationService: NotificationService,
@@ -359,6 +370,7 @@ export class DatasetDetailComponent implements OnInit {
         .subscribe(dashboardDataset => {
           const dataset = dashboardDataset.dataset;
           this.datasetName = dataset.name;
+          this.editedDatasetName = dataset.name;
           this.datasetDescription = dataset.description;
           this.userDatasetAccessLevel = dashboardDataset.accessPrivilege;
           this.datasetIsPublic = dataset.isPublic;
@@ -503,20 +515,29 @@ export class DatasetDetailComponent implements OnInit {
     return fileName;
   }
 
+  // A missing key or failed fetch keeps the field defaults; NaN here would
+  // silently stall the upload queue (`activeUploads < NaN` is always false).
   private loadUploadSettings(): void {
     this.adminSettingsService
-      .getSetting("multipart_upload_chunk_size_mib")
+      .getPublicSetting("multipart_upload_chunk_size_mib")
       .pipe(untilDestroyed(this))
-      .subscribe(value => (this.chunkSizeMiB = parseInt(value)));
+      .subscribe({
+        next: value => (this.chunkSizeMiB = parseIntOrDefault(value, this.chunkSizeMiB)),
+        error: () => {},
+      });
     this.adminSettingsService
-      .getSetting("max_number_of_concurrent_uploading_file_chunks")
+      .getPublicSetting("max_number_of_concurrent_uploading_file_chunks")
       .pipe(untilDestroyed(this))
-      .subscribe(value => (this.maxConcurrentChunks = parseInt(value)));
+      .subscribe({
+        next: value => (this.maxConcurrentChunks = parseIntOrDefault(value, this.maxConcurrentChunks)),
+        error: () => {},
+      });
     this.adminSettingsService
-      .getSetting("max_number_of_concurrent_uploading_file")
+      .getPublicSetting("max_number_of_concurrent_uploading_file")
       .pipe(untilDestroyed(this))
-      .subscribe(value => {
-        this.maxConcurrentFiles = parseInt(value);
+      .subscribe({
+        next: value => (this.maxConcurrentFiles = parseIntOrDefault(value, this.maxConcurrentFiles)),
+        error: () => {},
       });
   }
 
@@ -904,6 +925,52 @@ export class DatasetDetailComponent implements OnInit {
         error: () => {
           this.datasetDescription = previousDescription;
           this.notificationService.error("Failed to update dataset description");
+        },
+      });
+  }
+
+  onSaveDatasetName(): void {
+    if (!this.did) {
+      return;
+    }
+    // Reject invalid names outright instead of silently rewriting them, matching
+    // the shared validation used by the other rename entry points (PR #6426).
+    const name = this.editedDatasetName;
+    const nameError = validateDatasetName(name);
+    if (nameError) {
+      this.notificationService.error(nameError);
+      return;
+    }
+
+    this.datasetService
+      .updateDatasetName(this.did, name)
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: () => {
+          this.datasetName = name;
+          this.editedDatasetName = name;
+          this.notificationService.success(`Dataset name updated to '${name}'`);
+        },
+        error: (err: unknown) => {
+          this.notificationService.error(extractErrorMessage(err));
+        },
+      });
+  }
+
+  onDeleteDataset(): void {
+    if (!this.did) {
+      return;
+    }
+    this.datasetService
+      .deleteDatasets(this.did)
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: () => {
+          this.notificationService.success(`Dataset ${this.datasetName} was deleted`);
+          this.router.navigate([USER_DATASET]);
+        },
+        error: (err: unknown) => {
+          this.notificationService.error(extractErrorMessage(err));
         },
       });
   }
