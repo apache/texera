@@ -609,10 +609,20 @@ class RegionExecutionCoordinator(
         val portBaseURI = portConfig.storageURIBase
         val resultURI = VFSURIFactory.resultURI(portBaseURI)
         val stateURI = VFSURIFactory.stateURI(portBaseURI)
-        val schemaOptional =
-          region.getOperator(outputPortId.opId).outputPorts(outputPortId.portId)._3
         val schema =
-          schemaOptional.getOrElse(throw new IllegalStateException("Schema is missing"))
+          region.getOperator(outputPortId.opId).outputPorts(outputPortId.portId)._3 match {
+            case Right(resolvedSchema) => resolvedSchema
+            case Left(cause)           =>
+              // The output port schema failed to resolve (e.g. a dataset the workflow reads is not
+              // shared with the running user, making its file and inferred schema unavailable).
+              // Surface the underlying cause instead of a generic "Schema is missing" (issue #3546).
+              val reason = Option(cause.getMessage).getOrElse(cause.toString)
+              logger.error(s"Output schema unavailable for port $outputPortId", cause)
+              throw new IllegalStateException(
+                s"Failed to resolve the output schema: $reason",
+                cause
+              )
+          }
         DocumentFactory.createDocument(resultURI, schema)
         DocumentFactory.createDocument(stateURI, State.schema)
         if (!isRestart) {

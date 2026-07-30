@@ -872,5 +872,38 @@ class WorkflowExecutionsResourceSpec
     val result = WorkflowExecutionsResource invokePrivate privateMethod(testWorkflowWid, testUser)
     assert(result.isEmpty)
   }
+  // ─── new: endpoint auth-annotation audit (#6977) ──────────────────────────
+
+  "WorkflowExecutionsResource endpoints" should "all declare @RolesAllowed and take an @Auth user" in {
+    val httpAnnotations: Seq[Class[_ <: java.lang.annotation.Annotation]] =
+      Seq(
+        classOf[javax.ws.rs.GET],
+        classOf[javax.ws.rs.PUT],
+        classOf[javax.ws.rs.POST],
+        classOf[javax.ws.rs.DELETE]
+      )
+    val handlers = classOf[WorkflowExecutionsResource].getDeclaredMethods.toSeq
+      .filter(m => httpAnnotations.exists(a => m.getAnnotation(a) != null))
+    assert(handlers.nonEmpty)
+
+    // exportResultToLocal authenticates manually: it serves a browser form-submit
+    // download, which cannot carry an Authorization header, so the JWT arrives as
+    // a form field and is verified in-method via JwtParser.parseToken (including
+    // the role check). Any other handler must use the declarative annotations.
+    val manuallyAuthenticated = Set("exportResultToLocal")
+
+    val offenders = handlers.filterNot(m => manuallyAuthenticated.contains(m.getName)).filter { m =>
+      val hasRoles =
+        m.getAnnotation(classOf[javax.annotation.security.RolesAllowed]) != null
+      val hasAuthParam = m.getParameterAnnotations.exists(
+        _.exists(_.annotationType() == classOf[io.dropwizard.auth.Auth])
+      )
+      !(hasRoles && hasAuthParam)
+    }
+    assert(
+      offenders.isEmpty,
+      s"endpoints missing @RolesAllowed/@Auth: ${offenders.map(_.getName).sorted.mkString(", ")}"
+    )
+  }
 
 }
