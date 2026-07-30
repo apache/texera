@@ -41,6 +41,7 @@ class CoordinatorAsyncRPCHandlerInitializer(
     with ResumeHandler
     with StartWorkflowHandler
     with PortCompletedHandler
+    with AdvanceRegionExecutionsHandler
     with ConsoleMessageHandler
     with RetryWorkflowHandler
     with EvaluatePythonExpressionHandler
