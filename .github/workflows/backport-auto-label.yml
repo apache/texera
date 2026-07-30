@@ -19,7 +19,27 @@
 # .github/release-branches.yml and request review from each branch's release
 # manager. The author (or a committer) removes a release/* label to decline the
 # backport for that branch — a removal is remembered (via the timeline), so a
-# later edit never silently re-adds a label the author took off.
+# later edit never silently re-adds a label the author took off. `fix(ci):` PRs
+# only touch CI and are never backported, so they are left alone.
+#
+# Every decision is also written back to the PR as a single, in-place-updated
+# report comment: one row per actively-supported release branch saying whether
+# the label was added (change detected on that branch) or skipped, and why. The
+# per-branch existence check only compares exact file paths, so a moved/renamed
+# file reads as "absent" even when the fix applies — the skip rows tell the
+# author to double-check and add the label by hand when that happens.
+#
+# Two tokens are needed, so the work is split across two github-script steps
+# rather than building a second Octokit inside one script (github-script's
+# patched `require` cannot resolve @actions/github from the workspace):
+#   - "Label" runs under the fine-grained PAT (falling back to the default
+#     token). Only labels added by the PAT retrigger the backport pre-merge
+#     check — labels added by the default GITHUB_TOKEN do not trigger
+#     downstream workflows. This step does every read and every label write,
+#     then hands the review/report decisions to the next step.
+#   - "Report" runs under the default GITHUB_TOKEN so the review request and
+#     the report comment are attributed to github-actions[bot], not the PAT
+#     owner, and do not retrigger any comment-/review-driven workflow.
 
 name: Backport Auto Label
 
@@ -58,151 +78,318 @@ jobs:
           echo "entries=${entries}" >> "$GITHUB_OUTPUT"
           echo "Release branch targets: ${entries}"
 
-      - name: Label fix PRs and request release-manager review
+      # Label step: runs under the PAT so a resulting `labeled` event retriggers
+      # the backport pre-merge check. It does all reads and label writes, then
+      # emits the review/report decisions for the bot-authored step below.
+      - name: Label fix PRs
+        id: label
         uses: actions/github-script@v9
         env:
           ENTRIES: ${{ steps.targets.outputs.entries }}
         with:
-          # Add the label with the fine-grained PAT (falling back to the
-          # default token) so the resulting `labeled` event retriggers the
-          # backport pre-merge check in Required Checks. Labels applied by the
-          # default GITHUB_TOKEN do not trigger downstream workflows.
           github-token: ${{ secrets.AUTO_MERGE_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             const entries = JSON.parse(process.env.ENTRIES || "[]");
-            if (entries.length === 0) {
-              core.info("No release branches configured; nothing to label.");
+            const { owner, repo } = context.repo;
+            const pr = context.payload.pull_request;
+            const title = pr.title || "";
+
+            // Everything the report step needs, decided here and handed over as
+            // a single JSON output. mode ∈ none | no-backport | report.
+            //   rows:           one per actively-supported branch { branch, status, note }
+            //   reviewRequests: managers to ping for the labels we just added
+            async function decide() {
+              if (entries.length === 0) {
+                core.info("No release branches configured; nothing to label.");
+                return { mode: "none" };
+              }
+
+              // Conventional-commit `fix:` (optional scope, optional `!`). Other
+              // types (feat/chore/docs/...) are not auto-backported and, since
+              // they are never backport candidates, get no report comment.
+              const m = title.match(/^fix(?:\(([^)]*)\))?!?:/i);
+              if (!m) {
+                core.info(`PR #${pr.number} title is not a fix (\"${title}\"); skipping.`);
+                return { mode: "none" };
+              }
+
+              // `fix(ci):` touches CI/tooling only; it never lands on a release
+              // branch, so treat it like a non-fix and skip auto-labeling.
+              const scopes = (m[1] || "")
+                .split(",")
+                .map((s) => s.trim().toLowerCase())
+                .filter(Boolean);
+              if (scopes.includes("ci")) {
+                core.info(`PR #${pr.number} is fix(ci) — CI-only, never backported; skipping.`);
+                return { mode: "none" };
+              }
+
+              const author = pr.user?.login;
+              const currentLabels = new Set((pr.labels || []).map((l) => l.name));
+
+              // Hard manual override: a maintainer marks a PR that must never be
+              // backported (e.g. it fixes a feature that only exists on main).
+              if (currentLabels.has("no-backport-needed")) {
+                core.info(`PR #${pr.number} has no-backport-needed; skipping all backport labels.`);
+                return { mode: "no-backport" };
+              }
+
+              // A fix for a feature that does not exist on a release branch
+              // should not be backported there. The reliable, cheap signal: the
+              // files the PR *modifies* (not the ones it adds — a backportable
+              // fix may add files too) don't exist on that branch at all. If
+              // every modified file is absent, the feature isn't there, so skip
+              // the target. Any ambiguity (a modified file still exists, or the
+              // existence check errors) keeps the label and lets the apply-check
+              // decide — we would rather over-label than drop a real backport.
+              // Returns the list of modified paths it checked so the report can
+              // name them when the branch looks absent.
+              async function analyzeBranch(prNumber, branch) {
+                const files = await github.paginate(github.rest.pulls.listFiles, {
+                  owner, repo, pull_number: prNumber, per_page: 100,
+                });
+                const preexisting = files
+                  .filter((f) => f.status !== "added")
+                  .map((f) => (f.status === "renamed" ? f.previous_filename : f.filename));
+                if (preexisting.length === 0) {
+                  return { absent: false, checked: [] }; // pure-add fix applies cleanly
+                }
+                for (const path of preexisting) {
+                  try {
+                    await github.rest.repos.getContent({ owner, repo, path, ref: branch });
+                    return { absent: false, checked: preexisting }; // a modified file exists
+                  } catch (e) {
+                    if (e.status === 404) continue;
+                    core.warning(`getContent ${path}@${branch} failed (${e.status ?? "?"}); assuming present.`);
+                    return { absent: false, checked: preexisting };
+                  }
+                }
+                return { absent: true, checked: preexisting }; // every modified file absent
+              }
+
+              // Labels the author (or anyone) explicitly removed. Re-adding one
+              // would override a deliberate opt-out, so we skip those forever.
+              const timeline = await github.paginate(
+                github.rest.issues.listEventsForTimeline,
+                { owner, repo, issue_number: pr.number, per_page: 100 }
+              );
+              const removed = new Set(
+                timeline
+                  .filter((e) => e.event === "unlabeled" && e.label?.name)
+                  .map((e) => e.label.name)
+              );
+
+              async function ensureLabelExists(name) {
+                try {
+                  await github.rest.issues.getLabel({ owner, repo, name });
+                } catch (e) {
+                  if (e.status !== 404) throw e;
+                  // Match the colour of the existing release/* labels.
+                  await github.rest.issues.createLabel({
+                    owner,
+                    repo,
+                    name,
+                    color: "ccebc2",
+                    description: `back porting to ${name}`,
+                  });
+                  core.info(`Created missing label ${name}.`);
+                }
+              }
+
+              // One row per actively-supported branch: { branch, status, note }.
+              // status ∈ labeled | skipped | declined. reviewRequests holds the
+              // { manager, branch } pings the report step sends as the bot.
+              const rows = [];
+              const reviewRequests = [];
+
+              for (const entry of entries) {
+                const label = entry.branch;
+                const manager = entry.manager;
+
+                // Only actively-supporting branches are analyzed / auto-labeled.
+                // An inactive branch stays a valid manual target (label it by
+                // hand and the apply-check / post-merge backport still run) — it
+                // just isn't offered by default and is left out of the report.
+                if (!entry.active) {
+                  core.info(`${label} is not actively-supporting; not auto-labeling.`);
+                  continue;
+                }
+                if (currentLabels.has(label)) {
+                  core.info(`PR #${pr.number} already has ${label}.`);
+                  rows.push({
+                    branch: label,
+                    status: "labeled",
+                    note: "Already labeled — this fix is queued to backport here.",
+                  });
+                  continue;
+                }
+                if (removed.has(label)) {
+                  core.info(`${label} was removed on PR #${pr.number} (opt-out); not re-adding.`);
+                  rows.push({
+                    branch: label,
+                    status: "declined",
+                    note:
+                      "Label was removed earlier (opt-out); not re-added. Re-add " +
+                      "it by hand if this fix should be backported here after all.",
+                  });
+                  continue;
+                }
+
+                const analysis = await analyzeBranch(pr.number, label);
+                if (analysis.absent) {
+                  core.info(`PR #${pr.number}: all modified files absent on ${label}; feature not on that release — skipping.`);
+                  const fileList = analysis.checked
+                    .map((f) => `\`${f}\``)
+                    .join(", ");
+                  rows.push({
+                    branch: label,
+                    status: "skipped",
+                    note:
+                      "Not labeled automatically — none of the files this PR " +
+                      `modifies exist on this branch (${fileList}). The fix may ` +
+                      "target code that isn't on this release, or the files were " +
+                      "moved/renamed after the branch was cut. **Please check and " +
+                      `add \`${label}\` by hand if this fix should be backported here.**`,
+                  });
+                  continue;
+                }
+
+                await ensureLabelExists(label);
+                await github.rest.issues.addLabels({
+                  owner,
+                  repo,
+                  issue_number: pr.number,
+                  labels: [label],
+                });
+                core.info(`Added ${label} to PR #${pr.number}.`);
+
+                const note = analysis.checked.length > 0
+                  ? "Change detected on this branch — label added; this fix is queued to backport here."
+                  : "Label added by default (this fix only adds files); the pre-merge backport check confirms it applies.";
+                rows.push({ branch: label, status: "labeled", note });
+
+                if (manager && manager !== author) {
+                  reviewRequests.push({ manager, branch: label });
+                } else if (manager === author) {
+                  core.info(`Release manager ${manager} is the author; skipping review request.`);
+                }
+              }
+
+              if (rows.length === 0) {
+                core.info("No actively-supporting release branches to report.");
+                return { mode: "none" };
+              }
+              return { mode: "report", rows, reviewRequests };
+            }
+
+            // Only hand work to the report step when there is something to say;
+            // a "none" outcome leaves the output unset so that step is skipped.
+            // The output is named `decisions`, not `result`: actions/github-script
+            // always writes the script's return value to an output called `result`
+            // after the body runs, which would clobber an explicit setOutput of the
+            // same name (this script returns nothing, so that would blank it out).
+            const result = await decide();
+            if (result.mode !== "none") {
+              core.setOutput("decisions", JSON.stringify(result));
+            }
+
+      # Report step: runs under the default GITHUB_TOKEN so the review request
+      # and the report comment are authored by github-actions[bot] and do not
+      # retrigger comment-/review-driven workflows. It only touches the PR when
+      # the label step handed it something to say.
+      - name: Report backport decisions
+        if: ${{ steps.label.outputs.decisions }}
+        uses: actions/github-script@v9
+        env:
+          RESULT: ${{ steps.label.outputs.decisions }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const result = JSON.parse(process.env.RESULT || '{"mode":"none"}');
+            if (result.mode === "none") {
+              core.info("Nothing to report.");
               return;
             }
 
             const { owner, repo } = context.repo;
             const pr = context.payload.pull_request;
-            const title = pr.title || "";
+            const runUrl =
+              `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`;
 
-            // Conventional-commit `fix:` (optional scope, optional `!`). Other
-            // types (feat/chore/docs/...) are not auto-backported.
-            if (!/^fix(\([^)]*\))?!?:/i.test(title)) {
-              core.info(`PR #${pr.number} title is not a fix (\"${title}\"); skipping.`);
-              return;
-            }
-
-            const author = pr.user?.login;
-            const currentLabels = new Set((pr.labels || []).map((l) => l.name));
-
-            // Hard manual override: a maintainer marks a PR that must never be
-            // backported (e.g. it fixes a feature that only exists on main).
-            if (currentLabels.has("no-backport-needed")) {
-              core.info(`PR #${pr.number} has no-backport-needed; skipping all backport labels.`);
-              return;
-            }
-
-            // A fix for a feature that does not exist on a release branch
-            // should not be backported there. The reliable, cheap signal: the
-            // files the PR *modifies* (not the ones it adds — a backportable
-            // fix may add files too) don't exist on that branch at all. If
-            // every modified file is absent, the feature isn't there, so skip
-            // the target. Any ambiguity (a modified file still exists, or the
-            // existence check errors) keeps the label and lets the apply-check
-            // decide — we would rather over-label than drop a real backport.
-            async function featureAbsentOnBranch(prNumber, branch) {
-              const files = await github.paginate(github.rest.pulls.listFiles, {
-                owner, repo, pull_number: prNumber, per_page: 100,
-              });
-              const preexisting = files
-                .filter((f) => f.status !== "added")
-                .map((f) => (f.status === "renamed" ? f.previous_filename : f.filename));
-              if (preexisting.length === 0) return false; // pure-add fix applies cleanly
-              for (const path of preexisting) {
-                try {
-                  await github.rest.repos.getContent({ owner, repo, path, ref: branch });
-                  return false; // a modified file exists on the branch
-                } catch (e) {
-                  if (e.status === 404) continue;
-                  core.warning(`getContent ${path}@${branch} failed (${e.status ?? "?"}); assuming present.`);
-                  return false;
-                }
-              }
-              return true; // every modified file is absent from the branch
-            }
-
-            // Labels the author (or anyone) explicitly removed. Re-adding one
-            // would override a deliberate opt-out, so we skip those forever.
-            const timeline = await github.paginate(
-              github.rest.issues.listEventsForTimeline,
-              { owner, repo, issue_number: pr.number, per_page: 100 }
-            );
-            const removed = new Set(
-              timeline
-                .filter((e) => e.event === "unlabeled" && e.label?.name)
-                .map((e) => e.label.name)
-            );
-
-            async function ensureLabelExists(name) {
+            // A single hidden marker lets us update one report comment in place
+            // rather than stack a fresh comment on every `edited` event.
+            // Editing a comment sends no new notification, so re-runs are quiet.
+            const REPORT_MARKER = "<!-- backport-auto-label-report -->";
+            async function upsertReport(bodyMarkdown) {
+              const body = `${REPORT_MARKER}\n${bodyMarkdown}`;
+              const comments = await github.paginate(
+                github.rest.issues.listComments,
+                { owner, repo, issue_number: pr.number, per_page: 100 }
+              );
+              const existing = comments.find((c) =>
+                (c.body || "").includes(REPORT_MARKER)
+              );
               try {
-                await github.rest.issues.getLabel({ owner, repo, name });
+                if (existing) {
+                  await github.rest.issues.updateComment({
+                    owner, repo, comment_id: existing.id, body,
+                  });
+                  core.info(`Updated backport report comment ${existing.id}.`);
+                } else {
+                  await github.rest.issues.createComment({
+                    owner, repo, issue_number: pr.number, body,
+                  });
+                  core.info("Created backport report comment.");
+                }
               } catch (e) {
-                if (e.status !== 404) throw e;
-                // Match the colour of the existing release/* labels.
-                await github.rest.issues.createLabel({
+                core.warning(`Could not upsert report comment (status ${e.status ?? "?"}): ${e.message}`);
+              }
+            }
+
+            if (result.mode === "no-backport") {
+              await upsertReport(
+                "### Backport auto-label report\n\n" +
+                "This `fix:` PR carries **`no-backport-needed`**, so no release " +
+                "branch was auto-labeled. Remove that label if this fix should " +
+                "be backported after all.\n\n" +
+                `_[Auto-label run](${runUrl})._`
+              );
+              return;
+            }
+
+            // Request review from each labeled branch's release manager as the
+            // bot, then note the successful pings on the matching report row.
+            const rowByBranch = new Map(result.rows.map((r) => [r.branch, r]));
+            for (const req of result.reviewRequests || []) {
+              try {
+                await github.rest.pulls.requestReviewers({
                   owner,
                   repo,
-                  name,
-                  color: "ccebc2",
-                  description: `back porting to ${name}`,
+                  pull_number: pr.number,
+                  reviewers: [req.manager],
                 });
-                core.info(`Created missing label ${name}.`);
+                core.info(`Requested review from ${req.manager} for ${req.branch}.`);
+                const row = rowByBranch.get(req.branch);
+                if (row) row.note += ` Requested review from @${req.manager}.`;
+              } catch (e) {
+                core.warning(
+                  `Could not request review from ${req.manager} (status ${e.status ?? "?"}): ${e.message}`
+                );
               }
             }
 
-            for (const entry of entries) {
-              const label = entry.branch;
-              const manager = entry.manager;
-
-              // Only actively-supporting branches are auto-labeled. An inactive
-              // branch stays a valid manual target (label it by hand and the
-              // apply-check / post-merge backport still run) — just not by
-              // default.
-              if (!entry.active) {
-                core.info(`${label} is not actively-supporting; not auto-labeling.`);
-                continue;
-              }
-              if (currentLabels.has(label)) {
-                core.info(`PR #${pr.number} already has ${label}.`);
-                continue;
-              }
-              if (removed.has(label)) {
-                core.info(`${label} was removed on PR #${pr.number} (opt-out); not re-adding.`);
-                continue;
-              }
-              if (await featureAbsentOnBranch(pr.number, label)) {
-                core.info(`PR #${pr.number}: all modified files absent on ${label}; feature not on that release — skipping.`);
-                continue;
-              }
-
-              await ensureLabelExists(label);
-              await github.rest.issues.addLabels({
-                owner,
-                repo,
-                issue_number: pr.number,
-                labels: [label],
-              });
-              core.info(`Added ${label} to PR #${pr.number}.`);
-
-              if (manager && manager !== author) {
-                try {
-                  await github.rest.pulls.requestReviewers({
-                    owner,
-                    repo,
-                    pull_number: pr.number,
-                    reviewers: [manager],
-                  });
-                  core.info(`Requested review from ${manager} for ${label}.`);
-                } catch (e) {
-                  core.warning(
-                    `Could not request review from ${manager} (status ${e.status ?? "?"}): ${e.message}`
-                  );
-                }
-              } else if (manager === author) {
-                core.info(`Release manager ${manager} is the author; skipping review request.`);
-              }
-            }
+            // Render the per-branch decisions as a single report comment.
+            const emoji = { labeled: "✅", skipped: "⚠️", declined: "🚫" };
+            const rows = result.rows
+              .map((r) => `| ${emoji[r.status] || ""} \`${r.branch}\` | ${r.note} |`)
+              .join("\n");
+            await upsertReport(
+              "### Backport auto-label report\n\n" +
+              "This `fix:` PR was checked against each actively-supported " +
+              "release branch. `release/*` labels drive the post-merge " +
+              "backport, so add or remove one to change where this fix lands.\n\n" +
+              "| Release branch | Analysis |\n| --- | --- |\n" +
+              rows +
+              "\n\n" +
+              `_[Auto-label run](${runUrl})._`
+            );

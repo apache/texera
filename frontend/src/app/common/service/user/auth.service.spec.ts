@@ -104,11 +104,11 @@ describe("AuthService", () => {
   });
 
   describe("HTTP auth endpoints", () => {
-    it("register() POSTs username/password to the register endpoint", () => {
-      service.register("alice", "pw").subscribe();
+    it("register() POSTs username/email/password to the register endpoint", () => {
+      service.register("alice", "alice@example.com", "pw").subscribe();
       const req = httpMock.expectOne(`${api}/${AuthService.REGISTER_ENDPOINT}`);
       expect(req.request.method).toEqual("POST");
-      expect(req.request.body).toEqual({ username: "alice", password: "pw" });
+      expect(req.request.body).toEqual({ username: "alice", email: "alice@example.com", password: "pw" });
       req.flush({ accessToken: "t" });
     });
 
@@ -130,7 +130,11 @@ describe("AuthService", () => {
     });
 
     const errorCases = [
-      { name: "register", call: () => service.register("alice", "pw"), endpoint: AuthService.REGISTER_ENDPOINT },
+      {
+        name: "register",
+        call: () => service.register("alice", "alice@example.com", "pw"),
+        endpoint: AuthService.REGISTER_ENDPOINT,
+      },
       { name: "auth", call: () => service.auth("alice", "pw"), endpoint: AuthService.LOGIN_ENDPOINT },
       { name: "googleAuth", call: () => service.googleAuth("cred"), endpoint: AuthService.GOOGLE_LOGIN_ENDPOINT },
     ];
