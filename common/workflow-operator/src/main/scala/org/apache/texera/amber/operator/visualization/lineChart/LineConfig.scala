@@ -22,7 +22,7 @@ package org.apache.texera.amber.operator.visualization.lineChart
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
-import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
+import org.apache.texera.amber.operator.metadata.annotations.{AutofillAttributeName, ColorValue}
 
 import javax.validation.constraints.NotNull
 
@@ -71,6 +71,7 @@ class LineConfig {
   @JsonProperty(value = "color", required = false)
   @JsonSchemaTitle("Line Color")
   @JsonPropertyDescription("must be a valid CSS color or hex color string")
+  @ColorValue
   var color: EncodableString = ""
 
 }
