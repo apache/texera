@@ -23,7 +23,7 @@ import { ActivatedRoute } from "@angular/router";
 import { NZ_MODAL_DATA, NzModalModule, NzModalRef, NzModalService } from "ng-zorro-antd/modal";
 import type { ModalOptions } from "ng-zorro-antd/modal";
 import { config, of, throwError } from "rxjs";
-import Fuse from "fuse.js";
+import type { FuseResult } from "fuse.js";
 
 import { WorkflowExecutionHistoryComponent } from "./workflow-execution-history.component";
 import { WorkflowRuntimeStatisticsComponent } from "./workflow-runtime-statistics/workflow-runtime-statistics.component";
@@ -90,7 +90,7 @@ function makeDefaultEntries(): WorkflowExecutionsEntry[] {
   ];
 }
 
-function fuseResults(...items: WorkflowExecutionsEntry[]): Fuse.FuseResult<WorkflowExecutionsEntry>[] {
+function fuseResults(...items: WorkflowExecutionsEntry[]): FuseResult<WorkflowExecutionsEntry>[] {
   return items.map((item, refIndex) => ({ item, refIndex }));
 }
 
