@@ -24,6 +24,16 @@
     xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
     http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.9.xsd">
 
+    <!-- Widen execution size columns to BIGINT (#6978).
+         Kept identical to main's entry: Liquibase identifies an applied change
+         by its (id, author, changelog path) tuple, and all three match main's
+         changeSet 29 here, so a deployment upgrading from v1.2 to main sees it
+         as already run instead of re-executing it. Ids 23-28 are main-only
+         changes that do not exist on this branch. -->
+    <changeSet id="29" author="mengw15">
+        <sqlFile path="sql/updates/29.sql"/>
+    </changeSet>
+
     <!-- example changeSet
     <changeSet id="1" author="author">
         <sqlFile path="sql/updates/1.sql"/>

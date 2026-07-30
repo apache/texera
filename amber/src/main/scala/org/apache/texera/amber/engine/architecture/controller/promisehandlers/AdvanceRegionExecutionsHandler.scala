@@ -20,40 +20,45 @@
 package org.apache.texera.amber.engine.architecture.controller.promisehandlers
 
 import com.twitter.util.Future
+import org.apache.texera.amber.core.WorkflowRuntimeException
 import org.apache.texera.amber.engine.architecture.controller.{
   ControllerAsyncRPCHandlerInitializer,
-  ExecutionStatsUpdate,
-  RuntimeStatisticsPersist
+  FatalError
 }
 import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{
   AsyncRPCContext,
-  WorkerStateUpdatedRequest
+  EmptyRequest
 }
 import org.apache.texera.amber.engine.architecture.rpc.controlreturns.EmptyReturn
-import org.apache.texera.amber.util.VirtualIdentityUtils
 
-/** indicate the state change of a worker
+/** Advance the region executions of this workflow.
   *
-  * possible sender: worker
+  * A handler that needs region executions advanced sends this to itself rather than advancing
+  * inline (see `PortCompletedHandler`), so that the advance — which terminates completed regions
+  * and therefore sends `EndWorker` to their workers — runs in its own control round, after every
+  * reply the requesting round owed.
+  *
+  * possible sender: controller (itself)
   */
-trait WorkerStateUpdatedHandler {
+trait AdvanceRegionExecutionsHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
 
-  override def workerStateUpdated(
-      msg: WorkerStateUpdatedRequest,
+  override def controllerInitiateAdvanceRegionExecutions(
+      request: EmptyRequest,
       ctx: AsyncRPCContext
   ): Future[EmptyReturn] = {
-    val physicalOpId = VirtualIdentityUtils.getPhysicalOpId(ctx.sender)
-    // set the state
-    cp.workflowExecution.getRunningRegionExecutions
-      .find(_.hasOperatorExecution(physicalOpId))
-      .map(_.getOperatorExecution(physicalOpId))
-      .foreach(operatorExecution =>
-        operatorExecution.getWorkerExecution(ctx.sender).updateState(msg.stateVersion, msg.state)
-      )
-    val stats = cp.workflowExecution.getAllRegionExecutionsStats
-    sendToClient(ExecutionStatsUpdate(stats))
-    sendToClient(RuntimeStatisticsPersist(stats))
+    cp.workflowExecutionCoordinator
+      .coordinateRegionExecutors(cp.actorService)
+      // The requester is the controller itself and discards this reply, so a failure has no
+      // caller to propagate to. A fatal error is sent to the client, indicating that the region
+      // cannot be scheduled.
+      .onFailure {
+        case err: WorkflowRuntimeException =>
+          sendToClient(FatalError(err, err.relatedWorkerId))
+        case other =>
+          sendToClient(FatalError(other, None))
+      }
     EmptyReturn()
   }
+
 }
