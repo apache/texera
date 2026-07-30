@@ -198,7 +198,8 @@ class RegionExecutionManager(
       }.toSeq
 
     val endWorkerFuture: Future[Unit] =
-      Future.collect(endWorkerRequests)
+      Future
+        .collect(endWorkerRequests)
         .within(killTimeout)
         .unit
 
@@ -214,7 +215,8 @@ class RegionExecutionManager(
               }
           }.toSeq
 
-        Future.collect(gracefulStops)
+        Future
+          .collect(gracefulStops)
           .within(killTimeout)
           .unit
       }
