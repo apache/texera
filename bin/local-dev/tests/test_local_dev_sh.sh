@@ -593,5 +593,72 @@ else
     _fail "changelog references missing files:$missing_files"
 fi
 
+# 29) Regression for #7075: `find -newer` is *strictly* newer, so a source whose
+#     mtime equals the build stamp's is invisible to the fast filter and `auto`
+#     reports "everything up-to-date" without rebuilding it. The read side
+#     therefore compares against a throwaway marker one second behind the stamp.
+#     Deterministic: the colliding mtime is forced with `touch -r`, not raced.
+stamp_fn=$(awk 'index($0, "_stamp_backdate()") == 1 {f=1} f{print} f && /^}/{exit}' "$MAIN_SH")
+if [[ -z "$stamp_fn" ]]; then
+    _fail "_stamp_backdate helper missing"
+else
+    _sd=$(mktemp -d 2>/dev/null || mktemp -d -t ldsd)
+    mkdir -p "$_sd/src"
+    # Older.scala must end up comfortably behind the stamp, further back than
+    # the one second of slack the marker adds — hence a real wait rather than a
+    # computed timestamp, which has no portable spelling.
+    : > "$_sd/src/Older.scala"
+    sleep 2
+    : > "$_sd/stamp"
+    : > "$_sd/src/Same.scala"
+    touch -r "$_sd/stamp" "$_sd/src/Same.scala"   # exactly the stamp's mtime
+
+    # The bug itself, characterised: comparing against the stamp misses it.
+    naive=$(find "$_sd/src" -name '*.scala' -newer "$_sd/stamp" -print 2>/dev/null)
+    if [[ "$naive" != *"Same.scala"* ]]; then
+        _pass "stamp backdate: bare \`-newer \$stamp\` misses an equal mtime (the bug)"
+    else
+        _fail "stamp backdate: premise no longer holds — -newer saw an equal mtime" \
+            "found: $naive"
+    fi
+
+    # The fix: a marker one second behind the stamp sees it.
+    marker="$_sd/marker"
+    ( eval "$stamp_fn"
+      touch -r "$_sd/stamp" "$marker" && _stamp_backdate "$marker" ) 2>/dev/null
+    fixed=$(find "$_sd/src" -name '*.scala' -newer "$marker" -print 2>/dev/null)
+    if [[ "$fixed" == *"Same.scala"* ]]; then
+        _pass "stamp backdate: backdated marker sees the equal-mtime edit"
+    else
+        _fail "stamp backdate: backdated marker still misses the edit" "found: '$fixed'"
+    fi
+    # Negative: the slack must not drag genuinely older sources in, or every
+    # tick pays the content hash forever.
+    if [[ "$fixed" != *"Older.scala"* ]]; then
+        _pass "stamp backdate: a clearly older source stays clean"
+    else
+        _fail "stamp backdate: slack flagged an older source" "found: $fixed"
+    fi
+    # Negative: a missing path must be a quiet no-op, not an error spray.
+    err=$( ( eval "$stamp_fn"; _stamp_backdate "$_sd/nope" ) 2>&1 ); rc=$?
+    if (( rc == 0 )) && [[ -z "$err" ]]; then
+        _pass "stamp backdate: missing file is a quiet no-op"
+    else
+        _fail "stamp backdate: missing file was noisy" "rc=$rc err='$err'"
+    fi
+    rm -rf "$_sd"
+fi
+
+# 30) Wiring: the jvm dirty check must compare against the backdated marker
+#     rather than the stamp, or #7075 is only half fixed (the shell path is the
+#     one that gates the rebuild; tui.py only colours the SRC column).
+src_changed_body=$(awk 'index($0, "svc_src_changed()") == 1 {f=1} f{print} f && /^}/{exit}' "$MAIN_SH")
+if [[ "$src_changed_body" == *"_stamp_backdate"* ]] \
+   && ! printf '%s\n' "$src_changed_body" | grep -qE '\-newer "\$stamp"'; then
+    _pass "svc_src_changed compares against the backdated marker"
+else
+    _fail "svc_src_changed still compares directly against \$stamp"
+fi
+
 printf "\n%d passed, %d failed\n" "$PASS" "$FAIL"
 (( FAIL == 0 ))
