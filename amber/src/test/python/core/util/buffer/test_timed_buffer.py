@@ -130,8 +130,8 @@ class TestFlushOnSize:
 
 class TestFlushOnTime:
     def test_elapsed_interval_triggers_flush(self, clock):
-        # Interval of 2000ms -> 2.0s threshold. timedelta.seconds is an
-        # integer, so 3 whole seconds (>= 2.0) triggers the time-based flush.
+        # Interval of 2000ms -> 2.0s threshold, so 3 seconds triggers the
+        # time-based flush.
         buffer = TimedBuffer(max_message_num=100, max_flush_interval_in_ms=2000)
         buffer.put(_make_message())
         _advance(clock, 3)
@@ -165,6 +165,31 @@ class TestFlushOnTime:
         # Clock not advanced at all.
         assert list(buffer.get()) == []
         assert len(buffer._buffer) == 1
+
+    def test_sub_second_interval_triggers_flush(self, clock):
+        # The default interval is 500ms, so sub-second thresholds are the
+        # common case. 0.6s is past a 0.5s threshold.
+        buffer = TimedBuffer(max_message_num=100, max_flush_interval_in_ms=500)
+        buffer.put(_make_message())
+        _advance(clock, 0.6)
+        assert len(list(buffer.get())) == 1
+        assert len(buffer._buffer) == 0
+
+    def test_sub_second_interval_withholds_before_the_threshold(self, clock):
+        buffer = TimedBuffer(max_message_num=100, max_flush_interval_in_ms=500)
+        buffer.put(_make_message())
+        _advance(clock, 0.4)
+        assert list(buffer.get()) == []
+        assert len(buffer._buffer) == 1
+
+    def test_whole_day_elapsed_triggers_flush(self, clock):
+        # timedelta carries whole days separately from the seconds field, so
+        # an exact multiple of 24h must still count as elapsed time.
+        buffer = TimedBuffer(max_message_num=100, max_flush_interval_in_ms=2000)
+        buffer.put(_make_message())
+        _advance(clock, 86400)
+        assert len(list(buffer.get())) == 1
+        assert len(buffer._buffer) == 0
 
 
 class TestDefaults:
