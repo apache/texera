@@ -134,8 +134,15 @@ class TexeraWebSocketRequestSpec extends AnyFlatSpec with Matchers {
       )
     )
 
-  // The 13 strings the Angular client is allowed to put in "type". Spelled out rather
-  // than derived so a rename shows up as a set diff instead of quietly re-deriving.
+  // The 13 "type" strings the SERVER accepts, i.e. the backend registry. Spelled out
+  // rather than derived so a rename shows up as a set diff instead of quietly
+  // re-deriving.
+  //
+  // Deliberately not phrased as "what the client sends": the frontend's
+  // `TexeraWebsocketRequestTypeMap` is a superset. It also declares
+  // `ResultExportRequest`, which on the backend is an HTTP model
+  // (web/model/http/request/result/, served by WorkflowExecutionsResource) and not a
+  // TexeraWebSocketRequest subtype at all — see the divergence test below.
   private val expectedTypeIds: Set[String] = Set(
     "EditingTimeCompilationRequest",
     "HeartBeatRequest",
@@ -153,7 +160,7 @@ class TexeraWebSocketRequestSpec extends AnyFlatSpec with Matchers {
   )
 
   "TexeraWebSocketRequest @JsonSubTypes" should
-    "register exactly the wire type ids the Angular client sends" in {
+    "register exactly the wire type ids the server accepts" in {
     val subTypes = classOf[TexeraWebSocketRequest].getAnnotation(classOf[JsonSubTypes])
     subTypes should not be null
     subTypes.value().map(_.value().getSimpleName).toSet shouldBe expectedTypeIds
@@ -181,7 +188,21 @@ class TexeraWebSocketRequestSpec extends AnyFlatSpec with Matchers {
   }
 
   "an unknown type id" should "be rejected instead of silently ignored" in {
-    // A stale/typo'd client is a real path; it must fail loudly at the mapper.
+    // A stale or typo'd client is a real path; it must fail loudly at the mapper
+    // rather than bind to some same-shaped sibling. The id is deliberately one that
+    // exists nowhere on either side, so the test cannot be misread as a claim about
+    // any real type.
+    val ex = intercept[InvalidTypeIdException](read("""{"type":"NoSuchWebSocketRequest"}"""))
+    ex.getMessage should include("NoSuchWebSocketRequest")
+  }
+
+  "the frontend-only ResultExportRequest id" should "not be accepted over the websocket" in {
+    // The TS `TexeraWebsocketRequestTypeMap` declares `ResultExportRequest`, but the
+    // backend class of that name is an HTTP model (web/model/http/request/result/,
+    // reached through WorkflowExecutionsResource.exportResultToDataset) and is not a
+    // TexeraWebSocketRequest subtype. Pinning the rejection documents the divergence:
+    // if result export is ever moved onto the socket, this test is the reminder that
+    // the subtype has to be registered too.
     val ex = intercept[InvalidTypeIdException](read("""{"type":"ResultExportRequest"}"""))
     ex.getMessage should include("ResultExportRequest")
   }
@@ -190,7 +211,9 @@ class TexeraWebSocketRequestSpec extends AnyFlatSpec with Matchers {
     val ex = intercept[InvalidTypeIdException](
       read("""{"requestID":"req-1","operatorID":"op-2","pageIndex":3,"pageSize":25}""")
     )
-    ex.getMessage should include("missing type id property 'type'")
+    // The exception type is the contract here; the message check stays deliberately
+    // loose (just the property name) because Jackson's exact wording is version-specific.
+    ex.getMessage should include("type")
   }
 
   "ResultPaginationRequest" should "fill in the three optional column fields when absent" in {

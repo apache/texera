@@ -176,7 +176,12 @@ class TexeraWebSocketEventSpec extends AnyFlatSpec with Matchers {
     "RegionUpdateEvent" -> RegionUpdateEvent(List((24L, List("op-25"))))
   )
 
-  // Spelled out rather than derived, so a class rename surfaces as a set diff.
+  // The backend's registered set, spelled out rather than derived so a class rename
+  // surfaces as a set diff. Deliberately not phrased as "what the client resolves":
+  // the frontend's `TexeraWebsocketEventTypeMap` is a superset — it also keys on the
+  // outbound-only events below (which reach it fine via the simple-name fallback)
+  // plus a couple with no backend producer at all, e.g. OperatorCurrentTuplesUpdateEvent
+  // and RecoveryStartedEvent.
   private val expectedTypeIds: Set[String] = Set(
     "HeartBeatResponse",
     "WorkflowErrorEvent",
@@ -192,7 +197,7 @@ class TexeraWebSocketEventSpec extends AnyFlatSpec with Matchers {
   )
 
   "TexeraWebSocketEvent @JsonSubTypes" should
-    "register exactly the wire type ids the Angular client resolves" in {
+    "register exactly the wire type ids the backend declares" in {
     val subTypes = classOf[TexeraWebSocketEvent].getAnnotation(classOf[JsonSubTypes])
     subTypes should not be null
     subTypes.value().map(_.value().getSimpleName).toSet shouldBe expectedTypeIds
