@@ -26,7 +26,11 @@ import { DatasetFileNode } from "../../../../common/type/datasetVersionFileTree"
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { AdminSettingsService } from "../../../service/admin/settings/admin-settings.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { DatasetService } from "../../../service/user/dataset/dataset.service";
+import { MultipartUploadService } from "../../../service/user/file-resource/multipart-upload.service";
+import {
+  DATASET_FILE_RESOURCE_ENDPOINT,
+  FileResourceEndpoint,
+} from "../../../service/user/file-resource/file-resource-endpoint";
 import { formatSize } from "../../../../common/util/size-formatter.util";
 import { parseIntOrDefault } from "../../../../common/util/format.util";
 import {
@@ -58,15 +62,15 @@ import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patc
 export class FilesUploaderComponent {
   @Input() showUploadAlert: boolean = false;
   /**
-   * Optional context fields supplied by the embedding component. When the
-   * uploader is used inside `DatasetDetailComponent`, the parent passes
-   * `ownerEmail` and `datasetName` so the uploader can address staged files
-   * under the right owner/dataset path. When used standalone (e.g. dataset
-   * creation flow), they default to empty.
+   * Optional context supplied by the embedding component so the uploader can address staged files
+   * under the right owner/resource path. When used standalone they default to empty, and the
+   * conflict lookups are skipped.
    */
   @Input() ownerEmail: string = "";
-  @Input() datasetName: string = "";
-  @Input() did: number | undefined;
+  @Input() resourceName: string = "";
+  @Input() resourceId: number | undefined;
+  /** Which resource family the ids above belong to. */
+  @Input() endpoint: FileResourceEndpoint = DATASET_FILE_RESOURCE_ENDPOINT;
 
   @Output() uploadedFiles = new EventEmitter<FileUploadItem[]>();
 
@@ -80,7 +84,7 @@ export class FilesUploaderComponent {
   constructor(
     private notificationService: NotificationService,
     private adminSettingsService: AdminSettingsService,
-    private datasetService: DatasetService,
+    private multipartUploadService: MultipartUploadService,
     private modal: NzModalService
   ) {
     // A missing key or failed fetch keeps the initializer default above.
@@ -179,7 +183,7 @@ export class FilesUploaderComponent {
           fileName,
           path: item.name,
           size: formatSize(item.file.size),
-          hint: "A file with the same path and size exists in this dataset. Skip only if you expect it is the same file.",
+          hint: "A file with the same path and size already exists here. Skip only if you expect it is the same file.",
         },
         nzFooter: [
           ...(showForAll ? [button("Upload For All", "uploadAll"), button("Skip For All", "skipAll")] : []),
@@ -273,10 +277,10 @@ export class FilesUploaderComponent {
     this.fileUploadBannerMessage = bannerMessage;
   }
 
-  private getOwnerAndName(): { ownerEmail: string; datasetName: string } {
+  private getOwnerAndName(): { ownerEmail: string; resourceName: string } {
     return {
       ownerEmail: this.ownerEmail,
-      datasetName: this.datasetName,
+      resourceName: this.resourceName,
     };
   }
 
@@ -314,7 +318,7 @@ export class FilesUploaderComponent {
 
     Promise.allSettled(filePromises)
       .then(async results => {
-        const { ownerEmail, datasetName } = this.getOwnerAndName();
+        const { ownerEmail, resourceName } = this.getOwnerAndName();
 
         const successfulUploads = results
           .filter((r): r is PromiseFulfilledResult<FileUploadItem | null> => r.status === "fulfilled")
@@ -322,13 +326,16 @@ export class FilesUploaderComponent {
           .filter((item): item is FileUploadItem => item !== null);
 
         const activePathsPromise: Promise<string[]> =
-          ownerEmail && datasetName
-            ? firstValueFrom(this.datasetService.listMultipartUploads(ownerEmail, datasetName)).catch(() => [])
+          ownerEmail && resourceName
+            ? firstValueFrom(
+                this.multipartUploadService.listMultipartUploads(this.endpoint, ownerEmail, resourceName)
+              ).catch(() => [])
             : Promise.resolve([]);
-        const existingPathsPromise: Promise<string[]> = this.did
+        const existingPathsPromise: Promise<string[]> = this.resourceId
           ? firstValueFrom(
-              this.datasetService.findExistingUploadFiles(
-                this.did,
+              this.multipartUploadService.findExistingUploadFiles(
+                this.endpoint,
+                this.resourceId,
                 successfulUploads.map(item => ({ path: item.name, sizeBytes: item.file.size }))
               )
             ).catch(() => [])

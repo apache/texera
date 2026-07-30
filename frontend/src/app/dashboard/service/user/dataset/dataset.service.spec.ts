@@ -87,6 +87,7 @@ class FakeXMLHttpRequest {
   };
   status = 0;
   url = "";
+  aborted = false;
   readonly requestHeaders = new Map<string, string>();
   private listeners = new Map<string, EventListener[]>();
 
@@ -102,7 +103,9 @@ class FakeXMLHttpRequest {
     FakeXMLHttpRequest.instances.push(this);
   }
 
-  abort(): void {}
+  abort(): void {
+    this.aborted = true;
+  }
 
   addEventListener(type: string, listener: EventListener): void {
     this.listeners.set(type, [...(this.listeners.get(type) ?? []), listener]);
@@ -649,6 +652,36 @@ describe("DatasetService", () => {
     expect(err).not.toBeNull();
     expect(emissions[0]).toMatchObject({ status: "initializing", percentage: 0 });
     expect(emissions.at(-1)).toMatchObject({ status: "failed", percentage: 0 });
+  });
+
+  it("multipartUpload aborts the in-flight part request when the caller unsubscribes", () => {
+    vi.stubGlobal("XMLHttpRequest", FakeXMLHttpRequest);
+    FakeXMLHttpRequest.instances = [];
+    const file = new File([new Uint8Array(4)], "t.bin");
+
+    const subscription = service.multipartUpload("o@e.com", "ds", "t.bin", file, 4, 1, false).subscribe();
+    http.expectOne(isInit).flush({ missingParts: [1], completedPartsCount: 0 });
+
+    const xhr = FakeXMLHttpRequest.instances[0];
+    expect(xhr.aborted).toBe(false);
+    subscription.unsubscribe();
+    expect(xhr.aborted).toBe(true);
+  });
+
+  it("multipartUpload omits the auth header when no access token is available", () => {
+    const tokenSpy = vi.spyOn(AuthService, "getAccessToken").mockReturnValue(null);
+    vi.stubGlobal("XMLHttpRequest", FakeXMLHttpRequest);
+    FakeXMLHttpRequest.instances = [];
+    try {
+      const file = new File([new Uint8Array(4)], "anon.bin");
+      const subscription = service.multipartUpload("o@e.com", "ds", "anon.bin", file, 4, 1, false).subscribe();
+      http.expectOne(isInit).flush({ missingParts: [1], completedPartsCount: 0 });
+
+      expect(FakeXMLHttpRequest.instances[0].requestHeaders.has("Authorization")).toBe(false);
+      subscription.unsubscribe();
+    } finally {
+      tokenSpy.mockRestore();
+    }
   });
 
   it("multipartUpload smooths, throttles and shifts the progress statistics across events", async () => {

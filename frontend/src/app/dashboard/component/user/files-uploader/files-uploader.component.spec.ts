@@ -21,7 +21,7 @@ import { of } from "rxjs";
 import { NgxFileDropEntry } from "ngx-file-drop";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { AdminSettingsService } from "../../../service/admin/settings/admin-settings.service";
-import { DatasetService } from "../../../service/user/dataset/dataset.service";
+import { MultipartUploadService } from "../../../service/user/file-resource/multipart-upload.service";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { FileUploadItem } from "../../../type/dashboard-file.interface";
 import { FilesUploaderComponent } from "./files-uploader.component";
@@ -58,7 +58,7 @@ const droppedFile = (relativePath: string, file: File): NgxFileDropEntry =>
 describe("FilesUploaderComponent", () => {
   let component: FilesUploaderComponent;
   let modals: CapturedModal[];
-  let datasetService: {
+  let multipartUploadService: {
     listMultipartUploads: ReturnType<typeof vi.fn>;
     findExistingUploadFiles: ReturnType<typeof vi.fn>;
   };
@@ -74,7 +74,7 @@ describe("FilesUploaderComponent", () => {
     const adminSettingsService = {
       getPublicSetting: vi.fn().mockReturnValue(of("20")),
     } as unknown as AdminSettingsService;
-    datasetService = {
+    multipartUploadService = {
       listMultipartUploads: vi.fn().mockReturnValue(of(["failed.csv"])),
       findExistingUploadFiles: vi.fn().mockReturnValue(of(["done.csv"])),
     };
@@ -82,12 +82,12 @@ describe("FilesUploaderComponent", () => {
     component = new FilesUploaderComponent(
       { error: vi.fn() } as unknown as NotificationService,
       adminSettingsService,
-      datasetService as unknown as DatasetService,
+      multipartUploadService as unknown as MultipartUploadService,
       modal
     );
     component.ownerEmail = "owner@example.com";
-    component.datasetName = "dataset";
-    component.did = 7;
+    component.resourceName = "dataset";
+    component.resourceId = 7;
   });
 
   it("keeps the default upload size limit when the public setting is missing, and parses it when present", () => {
@@ -95,7 +95,7 @@ describe("FilesUploaderComponent", () => {
       new FilesUploaderComponent(
         { error: vi.fn() } as unknown as NotificationService,
         { getPublicSetting: vi.fn().mockReturnValue(of(value)) } as unknown as AdminSettingsService,
-        datasetService as unknown as DatasetService,
+        multipartUploadService as unknown as MultipartUploadService,
         { create: vi.fn() } as unknown as NzModalService
       );
 
@@ -129,8 +129,8 @@ describe("FilesUploaderComponent", () => {
   });
 
   it("asks both questions when the same file has an active upload session and an existing match", async () => {
-    datasetService.listMultipartUploads.mockReturnValue(of(["same.csv"]));
-    datasetService.findExistingUploadFiles.mockReturnValue(of(["same.csv"]));
+    multipartUploadService.listMultipartUploads.mockReturnValue(of(["same.csv"]));
+    multipartUploadService.findExistingUploadFiles.mockReturnValue(of(["same.csv"]));
     const emitted = new Promise<FileUploadItem[]>(resolve => component.uploadedFiles.subscribe(resolve));
 
     component.fileDropped([droppedFile("same.csv", new File(["same"], "same.csv"))]);
@@ -149,8 +149,8 @@ describe("FilesUploaderComponent", () => {
   });
 
   it("skips all matching files after one Skip For All choice", async () => {
-    datasetService.listMultipartUploads.mockReturnValue(of([]));
-    datasetService.findExistingUploadFiles.mockReturnValue(of(["one.csv", "two.csv"]));
+    multipartUploadService.listMultipartUploads.mockReturnValue(of([]));
+    multipartUploadService.findExistingUploadFiles.mockReturnValue(of(["one.csv", "two.csv"]));
     const emitted = new Promise<FileUploadItem[]>(resolve => component.uploadedFiles.subscribe(resolve));
 
     component.fileDropped([
@@ -169,8 +169,8 @@ describe("FilesUploaderComponent", () => {
   });
 
   it("uploads all matching files after one Upload For All choice", async () => {
-    datasetService.listMultipartUploads.mockReturnValue(of([]));
-    datasetService.findExistingUploadFiles.mockReturnValue(of(["one.csv", "two.csv"]));
+    multipartUploadService.listMultipartUploads.mockReturnValue(of([]));
+    multipartUploadService.findExistingUploadFiles.mockReturnValue(of(["one.csv", "two.csv"]));
     const emitted = new Promise<FileUploadItem[]>(resolve => component.uploadedFiles.subscribe(resolve));
 
     component.fileDropped([

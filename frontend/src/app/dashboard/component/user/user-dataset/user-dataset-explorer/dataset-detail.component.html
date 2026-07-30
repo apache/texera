@@ -338,9 +338,9 @@
           nzActive="true"
           nzHeader="Create New Version">
           <texera-user-files-uploader
-            [did]="did"
+            [resourceId]="did"
             [ownerEmail]="ownerEmail"
-            [datasetName]="datasetName"
+            [resourceName]="datasetName"
             (uploadedFiles)="onNewUploadFilesChanged($event)">
           </texera-user-files-uploader>
 
