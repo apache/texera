@@ -22,7 +22,10 @@ package org.apache.texera.amber.operator.visualization.contourPlot
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
-import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
+  PythonTemplateBuilderStringContext,
+  pyStringLiteral
+}
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
@@ -105,29 +108,36 @@ class ContourPlotOpDesc extends PythonOperatorDescriptor with StandaloneCodeGene
        |import plotly.io as pio
        |
        |class ProcessTableOperator(UDFTableOperator):
+       |    def render_error(self, error_msg):
+       |        return '''<h1>Contour plot is not available.</h1>
+       |                  <p>Reason is: {} </p>
+       |               '''.format(error_msg)
        |
        |    @overrides
        |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
-       |        x = table[$x].values
-       |        y = table[$y].values
-       |        z = table[$z].values
-       |        grid_size = int($gridSize)
-       |        connGaps = True if '$connectGaps' == 'true' else False
+       |        try:
+       |            x = table[$x].values
+       |            y = table[$y].values
+       |            z = table[$z].values
+       |            grid_size = int($gridSize)
+       |            connGaps = True if '$connectGaps' == 'true' else False
        |
-       |        grid_x, grid_y = np.meshgrid(np.linspace(min(x), max(x), grid_size), np.linspace(min(y), max(y), grid_size))
-       |        grid_z = griddata((x, y), z, (grid_x, grid_y), method='cubic')
+       |            grid_x, grid_y = np.meshgrid(np.linspace(min(x), max(x), grid_size), np.linspace(min(y), max(y), grid_size))
+       |            grid_z = griddata((x, y), z, (grid_x, grid_y), method='cubic')
        |
-       |        fig = go.Figure(data=go.Contour(
-       |            x=np.linspace(min(x), max(x), grid_size),
-       |            y=np.linspace(min(y), max(y), grid_size),
-       |            z=grid_z,
-       |            connectgaps=connGaps,
-       |            contours_coloring ='${coloringMethod.getColoringMethod}',
-       |            colorbar_title=$z
-       |        ))
-       |        fig.update_layout(title='Contour Plot')
-       |        html = pio.to_html(fig, include_plotlyjs='cdn', full_html=False)
-       |        yield {'html-content': html}
+       |            fig = go.Figure(data=go.Contour(
+       |                x=np.linspace(min(x), max(x), grid_size),
+       |                y=np.linspace(min(y), max(y), grid_size),
+       |                z=grid_z,
+       |                connectgaps=connGaps,
+       |                contours_coloring ='${coloringMethod.getColoringMethod}',
+       |                colorbar_title=$z
+       |            ))
+       |            fig.update_layout(title='Contour Plot')
+       |            html = pio.to_html(fig, include_plotlyjs='cdn', full_html=False)
+       |            yield {'html-content': html}
+       |        except Exception as e:
+       |            yield {'html-content': self.render_error(f"General error: {str(e)}")}
        |""".encode
   }
 
@@ -137,25 +147,38 @@ class ContourPlotOpDesc extends PythonOperatorDescriptor with StandaloneCodeGene
     s"""import numpy as np
        |from scipy.interpolate import griddata
        |
-       |x = in1df["$x"].values
-       |y = in1df["$y"].values
-       |z = in1df["$z"].values
-       |grid_size = int("$gridSize")
-       |connGaps = True if "$connectGaps" == "true" else False
+       |def render_error(error_msg):
+       |    # Indented to match the runtime path's own render_error, so the error page
+       |    # is byte-identical on both paths.
+       |    return '''<h1>Contour plot is not available.</h1>
+       |                  <p>Reason is: {} </p>
+       |               '''.format(error_msg)
        |
-       |grid_x, grid_y = np.meshgrid(np.linspace(min(x), max(x), grid_size), np.linspace(min(y), max(y), grid_size))
-       |grid_z = griddata((x, y), z, (grid_x, grid_y), method='cubic')
+       |# Mirrors the runtime path's guard: an input the plot cannot use (a grid size
+       |# that is not a number, say) renders the same error page instead of aborting.
+       |try:
+       |    x = in1df[${pyStringLiteral(x)}].values
+       |    y = in1df[${pyStringLiteral(y)}].values
+       |    z = in1df[${pyStringLiteral(z)}].values
+       |    grid_size = int(${pyStringLiteral(gridSize)})
+       |    connGaps = True if ${pyStringLiteral(connectGaps.toString)} == "true" else False
        |
-       |fig = go.Figure(data=go.Contour(
-       |    x=np.linspace(min(x), max(x), grid_size),
-       |    y=np.linspace(min(y), max(y), grid_size),
-       |    z=grid_z,
-       |    connectgaps=connGaps,
-       |    contours_coloring='${coloringMethod.getColoringMethod}',
-       |    colorbar_title="$z"
-       |))
-       |fig.update_layout(title='Contour Plot')
-       |fig.write_json("output.json")
-       |fig.write_html("output.html")
-       |print("Contour plot saved to output.json and output.html")""".stripMargin
+       |    grid_x, grid_y = np.meshgrid(np.linspace(min(x), max(x), grid_size), np.linspace(min(y), max(y), grid_size))
+       |    grid_z = griddata((x, y), z, (grid_x, grid_y), method='cubic')
+       |
+       |    fig = go.Figure(data=go.Contour(
+       |        x=np.linspace(min(x), max(x), grid_size),
+       |        y=np.linspace(min(y), max(y), grid_size),
+       |        z=grid_z,
+       |        connectgaps=connGaps,
+       |        contours_coloring='${coloringMethod.getColoringMethod}',
+       |        colorbar_title=${pyStringLiteral(z)}
+       |    ))
+       |    fig.update_layout(title='Contour Plot')
+       |    fig.write_json("output.json")
+       |    fig.write_html("output.html")
+       |    print("Contour plot saved to output.json and output.html")
+       |except Exception as e:
+       |    with open("output.html", "w", encoding="utf-8") as output:
+       |        output.write(render_error(f"General error: {str(e)}"))""".stripMargin
 }
