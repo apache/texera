@@ -25,7 +25,10 @@ import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{
   AsyncRPCContext,
   EmptyRequest
 }
-import org.apache.texera.amber.engine.architecture.rpc.controlreturns.EmptyReturn
+import org.apache.texera.amber.engine.architecture.rpc.controlreturns.{
+  EmptyReturn,
+  ReturnInvocation
+}
 import org.apache.texera.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.METHOD_QUERY_STATISTICS
 import org.apache.texera.amber.engine.architecture.worker.WorkflowWorker.{
   ActorCommandElement,
@@ -109,5 +112,69 @@ class EndHandlerSpec extends AnyFlatSpec {
     val handler = createEndHandlerForQueue(queueWithActorCommand())
 
     assertEndWorkerFails(handler)
+  }
+
+  /**
+    * A reply to one of this worker's own requests is not work, and the coordinator cannot order
+    * every reply it owes before `EndWorker`: it defers region advancement to a later control round
+    * so `EndWorker` follows the requests it has already handled, but a request still queued at the
+    * coordinator when that advance runs — `workerExecutionCompleted`, emitted right after the last
+    * `portCompleted` — is replied to afterwards, and the coordinator selects input channels out of
+    * a `HashMap`, so there is no cross-channel order. Such a reply must not block termination.
+    */
+  private def coordinatorReply(seq: Long, commandId: Long): DPInputQueueElement =
+    FIFOMessageElement(
+      WorkflowFIFOMessage(
+        ChannelIdentity(COORDINATOR, workerId, isControl = true),
+        seq,
+        ReturnInvocation(commandId, EmptyReturn())
+      )
+    )
+
+  it should "reply successfully when only a coordinator reply is queued" in {
+    val queue = new LinkedBlockingQueue[DPInputQueueElement]()
+    queue.put(coordinatorReply(seq = 0, commandId = 3))
+    val handler = createEndHandlerForQueue(queue)
+
+    assert(await(handler.endWorker(EmptyRequest(), rpcContext)) == EmptyReturn())
+    // The reply is only inspected, never consumed: the DP thread still fulfills its promise.
+    assert(queue.size() == 1)
+  }
+
+  it should "reply successfully when several coordinator replies are queued" in {
+    val queue = new LinkedBlockingQueue[DPInputQueueElement]()
+    queue.put(coordinatorReply(seq = 0, commandId = 3))
+    queue.put(coordinatorReply(seq = 1, commandId = 4))
+    val handler = createEndHandlerForQueue(queue)
+
+    assert(await(handler.endWorker(EmptyRequest(), rpcContext)) == EmptyReturn())
+    assert(queue.size() == 2)
+  }
+
+  it should "fail when work is queued behind a coordinator reply" in {
+    // The scan must not stop at the head: a reply followed by a real request is still work.
+    val queue = new LinkedBlockingQueue[DPInputQueueElement]()
+    queue.put(coordinatorReply(seq = 0, commandId = 3))
+    queue.put(
+      FIFOMessageElement(
+        WorkflowFIFOMessage(
+          ChannelIdentity(COORDINATOR, workerId, isControl = true),
+          1,
+          ControlInvocation(METHOD_QUERY_STATISTICS, EmptyRequest(), rpcContext, 5)
+        )
+      )
+    )
+    val handler = createEndHandlerForQueue(queue)
+
+    assertEndWorkerFails(handler)
+    assert(queue.size() == 2)
+  }
+
+  it should "not consume queued messages when it fails" in {
+    val queue = queueWithFifoControlMessage()
+    val handler = createEndHandlerForQueue(queue)
+
+    assertEndWorkerFails(handler)
+    assert(queue.size() == 1)
   }
 }

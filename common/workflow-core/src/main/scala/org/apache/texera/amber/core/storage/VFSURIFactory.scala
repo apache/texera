@@ -37,6 +37,17 @@ object VFSResourceType extends Enumeration {
   val STATE: Value = Value("state")
 }
 
+/**
+  * The named components encoded in a VFS URI, as returned by
+  * [[VFSURIFactory.decodeURI]].
+  */
+case class VFSUriComponents(
+    workflowId: WorkflowIdentity,
+    executionId: ExecutionIdentity,
+    globalPortId: Option[GlobalPortIdentity],
+    resourceType: VFSResourceType.Value
+)
+
 object VFSURIFactory {
   val VFS_FILE_URI_SCHEME = "vfs"
 
@@ -47,12 +58,7 @@ object VFSURIFactory {
     * @return A `VFSUriComponents` object with the extracted data.
     * @throws java.lang.IllegalArgumentException if the URI is malformed.
     */
-  def decodeURI(uri: URI): (
-      WorkflowIdentity,
-      ExecutionIdentity,
-      Option[GlobalPortIdentity],
-      VFSResourceType.Value
-  ) = {
+  def decodeURI(uri: URI): VFSUriComponents = {
     if (uri.getScheme != VFS_FILE_URI_SCHEME) {
       throw new IllegalArgumentException(s"Invalid URI scheme: ${uri.getScheme}")
     }
@@ -80,7 +86,7 @@ object VFSURIFactory {
       .find(_.toString.toLowerCase == resourceTypeStr)
       .getOrElse(throw new IllegalArgumentException(s"Unknown resource type: $resourceTypeStr"))
 
-    (workflowId, executionId, globalPortIdOption, resourceType)
+    VFSUriComponents(workflowId, executionId, globalPortIdOption, resourceType)
   }
 
   /**
