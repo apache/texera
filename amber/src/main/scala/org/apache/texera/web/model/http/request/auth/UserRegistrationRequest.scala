@@ -19,4 +19,4 @@
 
 package org.apache.texera.web.model.http.request.auth
 
-case class UserRegistrationRequest(username: String, password: String)
+case class UserRegistrationRequest(username: String, email: String, password: String)

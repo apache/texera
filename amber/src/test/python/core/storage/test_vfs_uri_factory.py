@@ -80,13 +80,12 @@ class TestDecodeUriRoundTrip:
         base = VFSURIFactory.create_port_base_uri(wid, eid, gpi)
         uri = VFSURIFactory.result_uri(base)
 
-        decoded_wid, decoded_eid, decoded_gpi, resource_type = VFSURIFactory.decode_uri(
-            uri
-        )
+        components = VFSURIFactory.decode_uri(uri)
 
-        assert decoded_wid.id == 42
-        assert decoded_eid.id == 9
-        assert resource_type == VFSResourceType.RESULT
+        assert components.workflow_id.id == 42
+        assert components.execution_id.id == 9
+        assert components.resource_type == VFSResourceType.RESULT
+        decoded_gpi = components.global_port_id
         assert decoded_gpi is not None
         assert decoded_gpi.op_id.logical_op_id.id == "opA"
         assert decoded_gpi.op_id.layer_name == "main"
@@ -98,25 +97,21 @@ class TestDecodeUriRoundTrip:
         wid, eid, gpi = WorkflowIdentity(id=5), ExecutionIdentity(id=6), _gpi()
         uri = VFSURIFactory.state_uri(VFSURIFactory.create_port_base_uri(wid, eid, gpi))
 
-        decoded_wid, decoded_eid, decoded_gpi, resource_type = VFSURIFactory.decode_uri(
-            uri
-        )
+        components = VFSURIFactory.decode_uri(uri)
 
-        assert decoded_wid.id == 5
-        assert decoded_eid.id == 6
-        assert resource_type == VFSResourceType.STATE
-        assert decoded_gpi.op_id.logical_op_id.id == "myOp"
+        assert components.workflow_id.id == 5
+        assert components.execution_id.id == 6
+        assert components.resource_type == VFSResourceType.STATE
+        assert components.global_port_id.op_id.logical_op_id.id == "myOp"
 
     def test_decode_returns_none_port_when_globalportid_absent(self):
         # A URI without a globalportid segment yields a None port identity,
         # exercising the optional branch in decode_uri.
-        wid, eid, port, resource_type = VFSURIFactory.decode_uri(
-            "vfs:///wid/11/eid/22/result"
-        )
-        assert wid.id == 11
-        assert eid.id == 22
-        assert port is None
-        assert resource_type == VFSResourceType.RESULT
+        components = VFSURIFactory.decode_uri("vfs:///wid/11/eid/22/result")
+        assert components.workflow_id.id == 11
+        assert components.execution_id.id == 22
+        assert components.global_port_id is None
+        assert components.resource_type == VFSResourceType.RESULT
 
 
 class TestDecodeUriErrorPaths:

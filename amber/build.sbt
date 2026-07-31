@@ -301,7 +301,7 @@ libraryDependencies += "com.esotericsoftware" % "kryo5" % "5.6.0"
 libraryDependencies += "io.altoo" %% "pekko-kryo-serialization" % "1.3.0"
 
 // https://mvnrepository.com/artifact/io.altoo/scala-kryo-serialization
-libraryDependencies += "io.altoo" %% "scala-kryo-serialization" % "1.3.0"
+libraryDependencies += "io.altoo" %% "scala-kryo-serialization" % "1.5.2"
 
 // https://mvnrepository.com/artifact/com.twitter/util-core
 libraryDependencies += "com.twitter" %% "util-core" % "22.12.0"

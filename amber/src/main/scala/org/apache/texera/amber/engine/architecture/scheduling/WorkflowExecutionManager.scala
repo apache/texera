@@ -96,6 +96,10 @@ class WorkflowExecutionManager(
     * in `Completed` status (phase).
     *
     * After the syncs, if there are no running region(s), it will start new regions (if available).
+    *
+    * Callers handling a worker-initiated request must not call this directly; they send themselves a
+    * `CoordinatorInitiateAdvanceRegionExecutions` (see `PortCompletedHandler`) so the resulting
+    * `EndWorker` cannot overtake the reply that request still owes.
     */
   def advanceRegionExecutions(actorService: PekkoActorService): Future[Unit] = {
     val unfinishedRegionManagers =

@@ -19,7 +19,7 @@
 
 package org.apache.texera.amber.operator.source.scan.text
 
-import com.fasterxml.jackson.annotation.JsonProperty
+import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.tuple.Schema
@@ -39,6 +39,7 @@ class TextInputSourceOpDesc
   @JsonProperty(required = true)
   @JsonSchemaTitle("Text")
   @JsonSchemaInject(json = UIWidget.UIWidgetTextArea)
+  @JsonPropertyDescription("Enter the input text. By default, each line becomes one tuple.")
   var textInput: String = _
 
   override def getPhysicalOp(

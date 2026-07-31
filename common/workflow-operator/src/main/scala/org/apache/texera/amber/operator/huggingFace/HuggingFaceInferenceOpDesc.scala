@@ -29,7 +29,7 @@ import org.apache.texera.amber.operator.huggingFace.codegen.{
   CodegenContext,
   ImageTaskCodegen,
   MediaGenCodegen,
-  PythonCodegenBase,
+  HuggingFaceCodegenBase,
   QaRankingCodegen,
   TaskCodegen,
   TextGenCodegen
@@ -47,12 +47,12 @@ import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
   * `TaskCodegen` implementations registered in `registeredCodegens`.
   *
   * The Python script that runs at execution time is assembled by
-  * `PythonCodegenBase.render(ctx, codegen)`, which composes the shared
+  * `HuggingFaceCodegenBase.render(ctx, codegen)`, which composes the shared
   * provider-fallback / request-loop infrastructure with the per-task
   * payload + parse snippets supplied by the selected `TaskCodegen`.
   *
   * User-provided string fields are typed as [[EncodableString]] so the
-  * `pyb"..."` macro inside `PythonCodegenBase` emits them as
+  * `pyb"..."` macro inside `HuggingFaceCodegenBase` emits them as
   * base64-decoded expressions at runtime instead of raw Python literals —
   * this is what allows the operator to satisfy
   * `PythonCodeRawInvalidTextSpec`'s contract that arbitrary `@JsonProperty`
@@ -246,7 +246,7 @@ class HuggingFaceInferenceOpDesc extends PythonOperatorDescriptor {
       sentencesColumn = safeSentencesColumn
     )
 
-    PythonCodegenBase.render(ctx, codegenForTask(safeTask))
+    HuggingFaceCodegenBase.render(ctx, codegenForTask(safeTask))
   }
 
   override def operatorInfo: OperatorInfo =

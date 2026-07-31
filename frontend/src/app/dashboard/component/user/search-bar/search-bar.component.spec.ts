@@ -149,22 +149,23 @@ describe("SearchBarComponent", () => {
 
   it("addToCache evicts the oldest entry once 20 queries are cached", () => {
     const cache = (component as any).searchCache as Map<string, string[]>;
-    const order = (component as any).queryOrder as string[];
 
     for (let i = 0; i < 20; i++) {
       (component as any).addToCache(`q${i}`, [`r${i}`]);
     }
     expect(cache.size).toBe(20);
     expect(cache.has("q0")).toBe(true);
-    expect(order[0]).toBe("q0");
+    expect([...cache.keys()][0]).toBe("q0");
 
     (component as any).addToCache("q20", ["r20"]);
 
     expect(cache.size).toBe(20);
     expect(cache.has("q0")).toBe(false);
     expect(cache.has("q20")).toBe(true);
-    expect(order[0]).toBe("q1");
-    expect(order[order.length - 1]).toBe("q20");
+    // The Map's own iteration order is the eviction order.
+    const keys = [...cache.keys()];
+    expect(keys[0]).toBe("q1");
+    expect(keys[keys.length - 1]).toBe("q20");
   });
 
   describe("convertToName", () => {
