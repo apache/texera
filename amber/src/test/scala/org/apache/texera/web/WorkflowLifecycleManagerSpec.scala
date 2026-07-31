@@ -40,6 +40,7 @@ class WorkflowLifecycleManagerSpec extends AnyFlatSpec with BeforeAndAfterAll {
     ActorSystem("WorkflowLifecycleManagerSpec-test", AmberRuntime.pekkoConfig)
 
   private var previousActorSystem: AnyRef = _
+  private var previousSerde: AnyRef = _
 
   private def getAmberRuntimeField(name: String): AnyRef = {
     val field = AmberRuntime.getClass.getDeclaredField(name)
@@ -56,10 +57,12 @@ class WorkflowLifecycleManagerSpec extends AnyFlatSpec with BeforeAndAfterAll {
   override protected def beforeAll(): Unit = {
     super.beforeAll()
     previousActorSystem = getAmberRuntimeField("_actorSystem")
+    previousSerde = getAmberRuntimeField("_serde")
     setAmberRuntimeField("_actorSystem", testSystem)
   }
 
   override protected def afterAll(): Unit = {
+    setAmberRuntimeField("_serde", previousSerde)
     setAmberRuntimeField("_actorSystem", previousActorSystem)
     TestKit.shutdownActorSystem(testSystem)
     super.afterAll()
