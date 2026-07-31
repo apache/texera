@@ -102,17 +102,13 @@ object FileResolver {
 
     // Requires <prefix>/ownerEmail/resourceName/versionName/<file> (>= 5 segments) whose leading
     // segment names a known resource type.
-    if (pathSegments.length < 5 || !ResourceType.isValidPrefix(pathSegments(0))) {
+    if (pathSegments.length < 5) {
       return None
     }
 
-    val resourceType = ResourceType.withName(pathSegments(0)) // safe: guarded by isValidPrefix
-    val ownerEmail = pathSegments(1)
-    val resourceName = pathSegments(2)
-    val versionName = pathSegments(3)
-    val fileRelativePathSegments = pathSegments.drop(4)
-
-    Some((resourceType, ownerEmail, resourceName, versionName, fileRelativePathSegments))
+    ResourceType.fromPrefix(pathSegments(0)).map { resourceType =>
+      (resourceType, pathSegments(1), pathSegments(2), pathSegments(3), pathSegments.drop(4))
+    }
   }
 
   /**
