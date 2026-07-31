@@ -88,6 +88,8 @@ on:
   workflow_dispatch:
 
 permissions:
+  # actions: read backs the queued-job backlog probe for runner routing.
+  actions: read
   contents: write
 
 concurrency:
@@ -101,9 +103,15 @@ jobs:
     # run). Lifted from required-checks.yml's precheck so the trigger
     # surface matches amber-integration exactly.
     name: Precheck
-    runs-on: ubuntu-latest
+    # Control-plane resilience: with the ci:self-hosted label this job
+    # runs on arc-light-linux so a jammed GitHub-hosted pool cannot stall
+    # the pipeline. Availability cannot be probed before this job runs, so
+    # the repo variable ARC_AVAILABLE is the kill switch: set it to
+    # 'false' when the cluster is down to route back to ubuntu-latest.
+    runs-on: ${{ (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'ci:self-hosted') && vars.ARC_AVAILABLE != 'false') && 'arc-light-linux' || 'ubuntu-latest' }}
     outputs:
       run_bench: ${{ steps.decide.outputs.run_bench }}
+      linux_runner: ${{ steps.decide.outputs.linux_runner }}
     steps:
       - name: Wait for Pull Request Labeler
         if: github.event_name == 'pull_request'
@@ -132,6 +140,10 @@ jobs:
       - name: Decide whether to run bench
         id: decide
         uses: actions/github-script@v9
+        env:
+          # Optional PAT (administration:read) for the runner availability
+          # probe; see precheck.yml.
+          ARC_STATUS_TOKEN: ${{ secrets.ARC_STATUS_TOKEN }}
         with:
           script: |
             const eventName = context.eventName;
@@ -139,6 +151,7 @@ jobs:
               // push to main / workflow_dispatch always run.
               core.info(`event=${eventName} — running unconditionally`);
               core.setOutput("run_bench", "true");
+              core.setOutput("linux_runner", "ubuntu-latest");
               return;
             }
             // Re-fetch labels: the labeler may have just added some.
@@ -168,12 +181,43 @@ jobs:
                 : "No trigger label present; skipping bench."
             );
             core.setOutput("run_bench", shouldRun ? "true" : "false");
+            // ci:self-hosted routes the bench onto the dedicated
+            // arc-bench-linux runner. Availability-only fallback: benchmark
+            // numbers must come from consistent hardware, so a busy bench
+            // runner means WAIT (queue), never drift to GitHub-hosted —
+            // only a set with no online runner at all falls back.
+            let linuxRunner = labels.includes("ci:self-hosted") ? "arc-bench-linux" : "ubuntu-latest";
+            if (linuxRunner === "arc-bench-linux" && process.env.ARC_STATUS_TOKEN) {
+              try {
+                const res = await fetch(
+                  `https://api.github.com/repos/${context.repo.owner}/${context.repo.repo}/actions/runners?per_page=100`,
+                  {
+                    headers: {
+                      authorization: `Bearer ${process.env.ARC_STATUS_TOKEN}`,
+                      accept: "application/vnd.github+json",
+                    },
+                  }
+                );
+                if (!res.ok) throw new Error(`runner list HTTP ${res.status}`);
+                const online = (await res.json()).runners?.some(
+                  (r) => r.status === "online" && r.labels.some((l) => l.name === "arc-bench-linux")
+                );
+                if (!online) {
+                  linuxRunner = "ubuntu-latest";
+                  core.warning("arc-bench-linux has no online runner; falling back to ubuntu-latest.");
+                }
+              } catch (e) {
+                core.warning(`Runner availability probe failed (${e.message}); trusting the label.`);
+              }
+            }
+            core.setOutput("linux_runner", linuxRunner);
+            core.info(`Linux runner: ${linuxRunner}`);
 
   bench:
     name: Bench
     needs: precheck
     if: ${{ needs.precheck.outputs.run_bench == 'true' }}
-    runs-on: ubuntu-latest
+    runs-on: ${{ needs.precheck.outputs.linux_runner }}
     env:
       JAVA_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
       JVM_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8

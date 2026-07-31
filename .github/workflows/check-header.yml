@@ -27,7 +27,12 @@ on:
 jobs:
   test:
     name: Check License Headers
-    runs-on: ubuntu-latest
+    # Control-plane resilience: merge-queue entries (and labeled PRs) run
+    # this job on arc-light-linux so a jammed GitHub-hosted pool cannot
+    # stall the pipeline. Availability cannot be probed before this job runs, so
+    # the repo variable ARC_AVAILABLE is the kill switch: set it to
+    # 'false' when the cluster is down to route back to ubuntu-latest.
+    runs-on: ${{ ((github.event_name == 'merge_group' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'ci:self-hosted'))) && vars.ARC_AVAILABLE != 'false') && 'arc-light-linux' || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@v7
       - uses: apache/skywalking-eyes@61275cc80d0798a405cb070f7d3a8aaf7cf2c2c1 # v0.8.0

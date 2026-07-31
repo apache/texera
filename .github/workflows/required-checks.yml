@@ -33,6 +33,9 @@ on:
   workflow_dispatch:
 
 permissions:
+  # actions: read is required by the called precheck.yml (backlog probe);
+  # a reusable workflow's permissions must be a subset of its caller's.
+  actions: read
   checks: write
   contents: read
   pull-requests: read
@@ -56,6 +59,9 @@ jobs:
     needs: precheck
     uses: ./.github/workflows/build.yml
     with:
+      heavy_runner: ${{ needs.precheck.outputs.heavy_runner }}
+      medium_runner: ${{ needs.precheck.outputs.medium_runner }}
+      light_runner: ${{ needs.precheck.outputs.light_runner }}
       run_frontend: ${{ needs.precheck.outputs.run_frontend == 'true' }}
       run_amber: ${{ needs.precheck.outputs.run_amber == 'true' }}
       run_amber_integration: ${{ needs.precheck.outputs.run_amber_integration == 'true' }}
@@ -72,7 +78,9 @@ jobs:
     name: Required Checks
     needs: [precheck, build]
     if: always()
-    runs-on: ubuntu-latest
+    # Control-plane resilience: follow precheck's probed routing (label
+    # present AND the scale set has online runners); ubuntu-latest otherwise.
+    runs-on: ${{ needs.precheck.outputs.light_runner == 'arc-light-linux' && 'arc-light-linux' || 'ubuntu-latest' }}
     steps:
       - name: Verify all required checks succeeded or were skipped
         run: |
