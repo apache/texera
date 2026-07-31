@@ -126,9 +126,10 @@ class SessionStateSpec extends AnyFlatSpec with Matchers with MockFactory {
     state.getCurrentWorkflowState shouldBe None
   }
 
-  it should "remove registered sessions and retain their computing-unit access level" in {
+  it should "remove registered sessions, cleaning up subscriptions, and retain their computing-unit access level" in {
     val sessionId = UUID.randomUUID().toString
     val state = new SessionState(stub[Session])
+    val service = new TestWorkflowService(3L)
     SessionState.setState(sessionId, state)
     try {
       SessionState.getState(sessionId) shouldBe state
@@ -138,7 +139,18 @@ class SessionStateSpec extends AnyFlatSpec with Matchers with MockFactory {
       state.setUserComputingUnitAccess(PrivilegeEnum.WRITE)
       state.getUserComputingUnitAccess shouldBe PrivilegeEnum.WRITE
 
+      state.subscribe(service)
+      service.workflowConnectCalls shouldBe 1
+      service.executionConnectCalls shouldBe 1
+
       SessionState.removeState(sessionId)
+      service.workflowSubscription.disposeCalls shouldBe 1
+      service.executionSubscription.disposeCalls shouldBe 1
+      service.disconnectCalls shouldBe 1
+
+      // state object should retain its access level even after being removed from the registry
+      state.getUserComputingUnitAccess shouldBe PrivilegeEnum.WRITE
+
       SessionState.getAllSessionStates should not contain state
       a[NoSuchElementException] should be thrownBy SessionState.getState(sessionId)
     } finally {
