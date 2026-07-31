@@ -89,6 +89,15 @@ object DatasetResource {
       .getInstance()
       .createDSLContext()
 
+  // Builds a resource logical path (/<resourceType>/ownerEmail/resourceName/relativePath).
+  private def logicalPath(
+      resourceType: ResourceType.Value,
+      ownerEmail: String,
+      resourceName: String,
+      relativePath: String
+  ): String =
+    s"$resourceType/$ownerEmail/$resourceName/$relativePath"
+
   private def singleFileUploadMaxBytes(defaultMiB: Long = 20L): Long =
     SiteSettings.getLong("single_file_upload_max_size_mib", defaultMiB) * 1024L * 1024L
 
@@ -227,6 +236,8 @@ class DatasetResource extends LazyLogging {
 
   private val COVER_IMAGE_SIZE_LIMIT_BYTES: Long = 10 * 1024 * 1024 // 10 MB
   private val ALLOWED_IMAGE_EXTENSIONS: Set[String] = Set(".jpg", ".jpeg", ".png", ".gif", ".webp")
+
+  private val resourceType = ResourceType.Datasets
 
   /**
     * Helper function to get the dataset from DB with additional information including user access privilege and owner email
@@ -2244,7 +2255,7 @@ class DatasetResource extends LazyLogging {
       val document = DocumentFactory
         .openReadonlyDocument(
           FileResolver.resolve(
-            s"${ResourceType.Datasets}/${owner.getEmail}/${dataset.getName}/$normalized"
+            logicalPath(resourceType, owner.getEmail, dataset.getName, normalized)
           )
         )
         .asInstanceOf[OnVersionedFileResource]
@@ -2300,7 +2311,7 @@ class DatasetResource extends LazyLogging {
 
       val owner = getOwner(ctx, did)
       val fullPath =
-        s"${ResourceType.Datasets}/${owner.getEmail}/${dataset.getName}/$coverImage"
+        logicalPath(resourceType, owner.getEmail, dataset.getName, coverImage)
 
       val document = DocumentFactory
         .openReadonlyDocument(FileResolver.resolve(fullPath))
@@ -2350,7 +2361,7 @@ class DatasetResource extends LazyLogging {
         case Some(coverImage) =>
           val owner = getOwner(ctx, did)
           val fullPath =
-            s"${ResourceType.Datasets}/${owner.getEmail}/${dataset.getName}/$coverImage"
+            logicalPath(resourceType, owner.getEmail, dataset.getName, coverImage)
 
           val document = DocumentFactory
             .openReadonlyDocument(FileResolver.resolve(fullPath))

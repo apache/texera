@@ -80,7 +80,7 @@ object DocumentFactory {
   def createDocument(uri: URI, schema: Schema): VirtualDocument[_] = {
     uri.getScheme match {
       case VFS_FILE_URI_SCHEME =>
-        val (_, _, _, resourceType) = decodeURI(uri)
+        val resourceType = decodeURI(uri).resourceType
         val storageKey = sanitizeURIPath(uri)
         val namespace = resolveNamespace(resourceType)
 
@@ -123,7 +123,7 @@ object DocumentFactory {
   def documentExists(uri: URI): Boolean = {
     uri.getScheme match {
       case VFS_FILE_URI_SCHEME =>
-        val (_, _, _, resourceType) = decodeURI(uri)
+        val resourceType = decodeURI(uri).resourceType
         val storageKey = sanitizeURIPath(uri)
         val namespace = resolveNamespace(resourceType)
         IcebergCatalogInstance
@@ -170,7 +170,7 @@ object DocumentFactory {
       case DATASET_FILE_URI_SCHEME => (new DatasetFileDocument(uri), None)
       case MODEL_FILE_URI_SCHEME   => (new ModelFileDocument(uri), None)
       case VFS_FILE_URI_SCHEME =>
-        val (_, _, _, resourceType) = decodeURI(uri)
+        val resourceType = decodeURI(uri).resourceType
         val storageKey = sanitizeURIPath(uri)
         val namespace = resolveNamespace(resourceType)
 

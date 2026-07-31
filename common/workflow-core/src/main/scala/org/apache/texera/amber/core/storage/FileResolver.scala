@@ -98,6 +98,9 @@ object FileResolver {
     val filePath = Paths.get(fileName)
     val pathSegments = (0 until filePath.getNameCount).map(filePath.getName(_).toString).toArray
 
+    // Match the resource type exactly: parsePrefixedPath is called per resource kind, so a path
+    // whose leading segment is a *different* valid prefix (e.g. a model path passed to the dataset
+    // resolver) must yield None here, otherwise it would resolve against the wrong table.
     if (pathSegments.length < 5 || pathSegments(0) != resourceType.toString) {
       return None
     }

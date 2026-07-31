@@ -17,6 +17,8 @@
 
 from threading import Condition
 
+import pytest
+
 from core.models.single_blocking_io import SingleBlockingIO
 
 
@@ -114,3 +116,115 @@ class TestReadline:
         assert cond.notify_calls >= 1
         # The value is cleared after being handed out.
         assert io.value is None
+
+    def test_keeps_waiting_across_spurious_wakeups(self):
+        # A wakeup that does not publish a value must not end the loop:
+        # readline() has to re-check `value` and park again, otherwise pdb
+        # would receive None as a command line.
+        cond = ScriptedCondition()
+        io = SingleBlockingIO(cond)
+
+        def produce_on_third_wakeup():
+            if cond.wait_calls == 3:
+                io.write("late")
+                io.flush()
+
+        cond.on_wait = produce_on_third_wakeup
+
+        assert io.readline() == "late\n"
+        assert cond.wait_calls == 3
+        # Every parking round also notifies the producer side.
+        assert cond.notify_calls == 3
+
+    def test_ignores_a_limit_argument(self):
+        # pdb calls readline() through the IO API, which may pass a limit;
+        # the value is always handed out whole regardless.
+        io = SingleBlockingIO(Condition())
+        io.write("abcdef")
+        io.flush()
+
+        assert io.readline(2) == "abcdef\n"
+
+    def test_clears_the_value_even_when_waiting_raises(self):
+        # The clear lives in a `finally`, so an interrupted wait must not
+        # leave a stale line behind for the next reader to pick up.
+        cond = ScriptedCondition()
+        io = SingleBlockingIO(cond)
+
+        def explode():
+            io.value = "half-delivered\n"
+            raise KeyboardInterrupt
+
+        cond.on_wait = explode
+
+        with pytest.raises(KeyboardInterrupt):
+            io.readline()
+
+        assert io.value is None
+
+    def test_consecutive_lines_are_delivered_in_order(self):
+        # The IO holds one line at a time; a write/flush/readline cycle must
+        # be repeatable without any state leaking between lines.
+        io = SingleBlockingIO(Condition())
+
+        for line in ("first", "second", "third"):
+            io.write(line)
+            io.flush()
+            assert io.readline() == f"{line}\n"
+            assert io.value is None
+            assert io.buf == ""
+
+    def test_a_flush_overwrites_an_unread_value(self):
+        # Documented single-element semantics: there is no queue, so a second
+        # flush before a read replaces the pending line.
+        io = SingleBlockingIO(Condition())
+        io.write("stale")
+        io.flush()
+        io.write("fresh")
+        io.flush()
+
+        assert io.readline() == "fresh\n"
+
+
+class TestUnsupportedIOOperations:
+    """The remaining IO methods are deliberate no-ops: pdb never calls them,
+    but SingleBlockingIO is handed to pdb as a full IO, so they must be inert
+    rather than raising or returning junk."""
+
+    @pytest.mark.parametrize(
+        "call",
+        [
+            pytest.param(lambda io: io.close(), id="close"),
+            pytest.param(lambda io: io.fileno(), id="fileno"),
+            pytest.param(lambda io: io.isatty(), id="isatty"),
+            pytest.param(lambda io: io.read(4), id="read"),
+            pytest.param(lambda io: io.readable(), id="readable"),
+            pytest.param(lambda io: io.readlines(4), id="readlines"),
+            pytest.param(lambda io: io.seek(0, 0), id="seek"),
+            pytest.param(lambda io: io.seekable(), id="seekable"),
+            pytest.param(lambda io: io.tell(), id="tell"),
+            pytest.param(lambda io: io.truncate(0), id="truncate"),
+            pytest.param(lambda io: io.writable(), id="writable"),
+            pytest.param(lambda io: io.writelines(["a", "b"]), id="writelines"),
+            pytest.param(lambda io: io.__next__(), id="next"),
+            pytest.param(lambda io: io.__iter__(), id="iter"),
+            pytest.param(lambda io: io.__enter__(), id="enter"),
+            pytest.param(lambda io: io.__exit__(None, None, None), id="exit"),
+        ],
+    )
+    def test_no_op_methods_return_none_without_raising(self, call):
+        io = SingleBlockingIO(Condition())
+
+        assert call(io) is None
+
+    def test_no_op_methods_do_not_disturb_the_pending_line(self):
+        io = SingleBlockingIO(Condition())
+        io.write("payload")
+        io.flush()
+
+        io.close()
+        io.writelines(["ignored"])
+        io.truncate(0)
+
+        # None of the inert methods may consume or mutate the buffered line.
+        assert io.readline() == "payload\n"

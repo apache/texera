@@ -28,4 +28,10 @@ package org.apache.texera.amber.core.storage
 object ResourceType extends Enumeration {
   val Datasets: Value = Value("datasets")
   val Models: Value = Value("models")
+
+  /**
+    * Returns true if the given path segment names a known resource type.
+    * Used to validate the leading prefix of a logical path.
+    */
+  def isValidPrefix(segment: String): Boolean = values.exists(_.toString == segment)
 }

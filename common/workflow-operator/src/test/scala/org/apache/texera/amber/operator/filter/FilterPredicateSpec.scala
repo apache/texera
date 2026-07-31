@@ -145,4 +145,69 @@ class FilterPredicateSpec extends AnyFlatSpec with Matchers {
     p.equals(null) shouldBe false
     p.equals("not a predicate") shouldBe false
   }
+
+  // --- attribute types that no other test reaches ----------------------------
+
+  it should "route ANY columns through the string comparison path" in {
+    // ANY shares the STRING case of the type switch: the field is stringified and
+    // then compared numerically when both sides parse.
+    val t = singleFieldTuple(AttributeType.ANY, java.lang.Integer.valueOf(42))
+    new FilterPredicate("col", ComparisonType.GREATER_THAN, "9").evaluate(t) shouldBe true
+    new FilterPredicate("col", ComparisonType.EQUAL_TO, "42").evaluate(t) shouldBe true
+    new FilterPredicate("col", ComparisonType.LESS_THAN, "9").evaluate(t) shouldBe false
+  }
+
+  it should "fall back to lexicographic comparison when an ANY field is not numeric" in {
+    val t = singleFieldTuple(AttributeType.ANY, java.lang.Boolean.TRUE)
+    new FilterPredicate("col", ComparisonType.EQUAL_TO, "true").evaluate(t) shouldBe true
+    new FilterPredicate("col", ComparisonType.NOT_EQUAL_TO, "false").evaluate(t) shouldBe true
+  }
+
+  it should "reject attribute types it cannot compare" in {
+    val t = singleFieldTuple(AttributeType.BINARY, Array[Byte](1, 2, 3))
+    val ex = intercept[RuntimeException] {
+      new FilterPredicate("col", ComparisonType.EQUAL_TO, "1").evaluate(t)
+    }
+    ex.getMessage shouldBe "unsupported attribute type: binary"
+  }
+
+  it should "still answer the null checks on an otherwise unsupported type" in {
+    // IS_NULL / IS_NOT_NULL short-circuit before the type switch, so a BINARY
+    // column is filterable for nullness even though it cannot be compared.
+    val t = singleFieldTuple(AttributeType.BINARY, Array[Byte](1))
+    new FilterPredicate("col", ComparisonType.IS_NOT_NULL, null).evaluate(t) shouldBe true
+    new FilterPredicate("col", ComparisonType.IS_NULL, null).evaluate(t) shouldBe false
+  }
+
+  // --- value-side parsing ----------------------------------------------------
+
+  it should "compare a numeric string field lexicographically when the value is not numeric" in {
+    // The tuple side parses as a number but the user-supplied value does not, so
+    // the numeric attempt aborts and both sides are compared as text.
+    val t = singleFieldTuple(AttributeType.STRING, "10")
+    new FilterPredicate("col", ComparisonType.LESS_THAN, "abc").evaluate(t) shouldBe true
+    new FilterPredicate("col", ComparisonType.EQUAL_TO, "abc").evaluate(t) shouldBe false
+  }
+
+  it should "propagate a parse failure when the value cannot be read as the column's type" in {
+    val doubleTuple = singleFieldTuple(AttributeType.DOUBLE, java.lang.Double.valueOf(1.0))
+    intercept[NumberFormatException] {
+      new FilterPredicate("col", ComparisonType.EQUAL_TO, "not-a-number").evaluate(doubleTuple)
+    }
+    val longTuple = singleFieldTuple(AttributeType.LONG, java.lang.Long.valueOf(1L))
+    intercept[NumberFormatException] {
+      new FilterPredicate("col", ComparisonType.EQUAL_TO, "1.5").evaluate(longTuple)
+    }
+  }
+
+  it should "trim surrounding whitespace off the value for boolean, long and timestamp columns" in {
+    new FilterPredicate("col", ComparisonType.EQUAL_TO, "  TrUe  ")
+      .evaluate(singleFieldTuple(AttributeType.BOOLEAN, java.lang.Boolean.TRUE)) shouldBe true
+    new FilterPredicate("col", ComparisonType.EQUAL_TO, "  100  ")
+      .evaluate(singleFieldTuple(AttributeType.LONG, java.lang.Long.valueOf(100L))) shouldBe true
+    new FilterPredicate("col", ComparisonType.LESS_THAN, "  2021-01-01 00:00:00  ")
+      .evaluate(
+        singleFieldTuple(AttributeType.TIMESTAMP, Timestamp.valueOf("2020-01-01 00:00:00"))
+      ) shouldBe true
+  }
 }

@@ -42,7 +42,7 @@ object FileListerSourceOpExec {
   ): (String, String, String) = {
     val segments = datasetVersionPath.split("/").filter(_.nonEmpty)
     require(
-      segments.length >= 4 && segments.head == ResourceType.Datasets.toString,
+      segments.length >= 4 && ResourceType.isValidPrefix(segments.head),
       s"Invalid dataset version path '$datasetVersionPath'; " +
         "expected /datasets/ownerEmail/datasetName/versionName"
     )

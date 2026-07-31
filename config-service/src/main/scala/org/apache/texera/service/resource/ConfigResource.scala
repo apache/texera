@@ -27,7 +27,6 @@ import jakarta.ws.rs.{Consumes, GET, POST, PUT, Path, PathParam, Produces}
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.common.config.{
   ApplicationConfig,
-  AuthConfig,
   ComputingUnitConfig,
   DefaultsConfig,
   GuiConfig,
@@ -80,7 +79,6 @@ class ConfigResource {
     Map(
       // flags from the gui.conf
       "exportExecutionResultEnabled" -> GuiConfig.guiWorkflowWorkspaceExportExecutionResultEnabled,
-      "autoAttributeCorrectionEnabled" -> GuiConfig.guiWorkflowWorkspaceAutoAttributeCorrectionEnabled,
       "selectingFilesFromDatasetsEnabled" -> GuiConfig.guiWorkflowWorkspaceSelectingFilesFromDatasetsEnabled,
       "userPresetEnabled" -> GuiConfig.guiWorkflowWorkspaceUserPresetEnabled,
       "workflowExecutionsTrackingEnabled" -> GuiConfig.guiWorkflowWorkspaceWorkflowExecutionsTrackingEnabled,
@@ -96,9 +94,7 @@ class ConfigResource {
       "activeTimeInMinutes" -> GuiConfig.guiWorkflowWorkspaceActiveTimeInMinutes,
       "copilotEnabled" -> GuiConfig.guiWorkflowWorkspaceCopilotEnabled,
       "limitColumns" -> GuiConfig.guiWorkflowWorkspaceLimitColumns,
-      "pythonNotebookMigrationEnabled" -> GuiConfig.guiWorkflowWorkspacePythonNotebookMigrationEnabled,
-      // flags from the auth.conf if needed
-      "expirationTimeInMinutes" -> AuthConfig.jwtExpirationMinutes
+      "pythonNotebookMigrationEnabled" -> GuiConfig.guiWorkflowWorkspacePythonNotebookMigrationEnabled
     )
 
   // Engine configs.
