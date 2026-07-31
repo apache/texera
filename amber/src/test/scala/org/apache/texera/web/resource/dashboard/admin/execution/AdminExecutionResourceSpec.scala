@@ -44,6 +44,7 @@ import org.scalatest.matchers.should.Matchers
 
 import java.sql.Timestamp
 import java.util.UUID
+import java.util.concurrent.TimeUnit
 
 class AdminExecutionResourceSpec
     extends AnyFlatSpec
@@ -52,9 +53,12 @@ class AdminExecutionResourceSpec
     with BeforeAndAfterEach
     with MockTexeraDB {
 
-  // Random ids keep parallel spec files from colliding on the shared embedded DB.
+  // MockTexeraDB's embedded Postgres is a JVM singleton shared by all suites, which
+  // run sequentially. Random ids keep this suite's rows from colliding with data other
+  // suites may have left behind in that shared DB.
   private val testWid = 4000 + scala.util.Random.nextInt(1000)
   private val testUid = 4000 + scala.util.Random.nextInt(1000)
+  private val secondWid = testWid + 1
 
   private var testUser: User = _
   private var testWorkflow: Workflow = _
@@ -117,7 +121,7 @@ class AdminExecutionResourceSpec
     val vidSubquery = getDSLContext
       .select(WORKFLOW_VERSION.VID)
       .from(WORKFLOW_VERSION)
-      .where(WORKFLOW_VERSION.WID.eq(testWid))
+      .where(WORKFLOW_VERSION.WID.in(testWid, secondWid))
 
     getDSLContext
       .deleteFrom(WORKFLOW_EXECUTIONS)
@@ -125,10 +129,13 @@ class AdminExecutionResourceSpec
       .execute()
     getDSLContext
       .deleteFrom(WORKFLOW_USER_ACCESS)
-      .where(WORKFLOW_USER_ACCESS.WID.eq(testWid))
+      .where(WORKFLOW_USER_ACCESS.WID.in(testWid, secondWid))
       .execute()
-    getDSLContext.deleteFrom(WORKFLOW_VERSION).where(WORKFLOW_VERSION.WID.eq(testWid)).execute()
-    getDSLContext.deleteFrom(WORKFLOW).where(WORKFLOW.WID.eq(testWid)).execute()
+    getDSLContext
+      .deleteFrom(WORKFLOW_VERSION)
+      .where(WORKFLOW_VERSION.WID.in(testWid, secondWid))
+      .execute()
+    getDSLContext.deleteFrom(WORKFLOW).where(WORKFLOW.WID.in(testWid, secondWid)).execute()
     getDSLContext.deleteFrom(USER).where(USER.UID.eq(testUid)).execute()
   }
 
@@ -162,6 +169,40 @@ class AdminExecutionResourceSpec
     access.setWid(testWid)
     access.setPrivilege(privilege)
     workflowUserAccessDao.insert(access)
+  }
+
+  // Seeds a full second workflow (workflow + version + one execution) owned by
+  // testUser, whose latest execution ends `endOffsetMillis` before "now". Used to
+  // give the ordering test two workflows with distinct end times.
+  private def seedSecondWorkflow(endOffsetMillis: Long): Unit = {
+    val workflow = new Workflow
+    workflow.setWid(secondWid)
+    workflow.setName("second_workflow_" + UUID.randomUUID().toString.substring(0, 8))
+    workflow.setContent("{}")
+    workflow.setDescription("second")
+    workflow.setCreationTime(new Timestamp(System.currentTimeMillis()))
+    workflow.setLastModifiedTime(new Timestamp(System.currentTimeMillis()))
+    workflowDao.insert(workflow)
+
+    val version = new WorkflowVersion
+    version.setWid(secondWid)
+    version.setContent("{}")
+    version.setCreationTime(new Timestamp(System.currentTimeMillis()))
+    workflowVersionDao.insert(version)
+
+    val execution = new WorkflowExecutions
+    execution.setVid(version.getVid)
+    execution.setUid(testUser.getUid)
+    execution.setStatus(3.toByte)
+    execution.setResult("")
+    execution.setLogLocation("")
+    val now = System.currentTimeMillis()
+    execution.setStartingTime(new Timestamp(now - endOffsetMillis - 1000))
+    execution.setLastUpdateTime(new Timestamp(now - endOffsetMillis))
+    execution.setBookmarked(false)
+    execution.setName("second-run")
+    execution.setEnvironmentVersion("test-env-1.0")
+    workflowExecutionsDao.insert(execution)
   }
 
   private def emptyFilter: java.util.List[String] = new java.util.ArrayList[String]()
@@ -256,12 +297,17 @@ class AdminExecutionResourceSpec
     list(filter = filterOf("COMPLETED")) shouldBe empty
   }
 
-  it should "apply sorting without error when a sort field is provided" in {
-    seedExecution()
+  it should "order the results by the sort field and direction" in {
+    // testWid's latest execution ends ~now; the second workflow's ends 10 minutes earlier.
+    seedExecution(name = "recent")
+    seedSecondWorkflow(endOffsetMillis = TimeUnit.MINUTES.toMillis(10))
 
-    val rows = list(sortField = "end_time")
+    // desc by end_time -> the more recently finished workflow (testWid) comes first
+    list(sortField = "end_time").map(_.workflowId) shouldBe List(testWid, secondWid)
 
-    rows should have size 1
-    rows.head.workflowId shouldBe testWid
+    // asc by end_time -> the older one comes first
+    val ascending =
+      resource.listWorkflows(new SessionUser(testUser), 20, 0, "end_time", "asc", emptyFilter)
+    ascending.map(_.workflowId) shouldBe List(secondWid, testWid)
   }
 }
