@@ -94,7 +94,14 @@ abstract class LoopOpDesc extends LogicalOp {
       operatorName,
       operatorDescription,
       OperatorGroupConstants.CONTROL_GROUP,
-      inputPorts = List(InputPort()),
+      // A loop operator takes exactly one link on its input port. Every reader
+      // on a materialized input port replays that port's states independently,
+      // so a second link would deliver the loop state twice per iteration; a
+      // Loop Start additionally needs a single reader for the scheduler to
+      // resolve its bookkeeping URIs from. Declaring it here is what makes the
+      // GUI refuse to draw the second link, instead of the plan being rejected
+      // only at StartWorkflow (discussion #6966).
+      inputPorts = List(InputPort(disallowMultiLinks = true)),
       // Loop End reuses its output storage across region re-executions (it
       // accumulates across the iterations of its own loop); the flag is
       // declared on the output port and the region scheduler reads it there.
