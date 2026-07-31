@@ -42,7 +42,7 @@ import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBui
   * loading, audio MIME inference, media-URL fetching, etc.) will be added
   * in subsequent PRs as the corresponding task families land.
   */
-object PythonCodegenBase {
+object HuggingFaceCodegenBase {
 
   def render(ctx: CodegenContext, codegen: TaskCodegen): String = {
     val payload = codegen.payloadPython(ctx)

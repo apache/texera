@@ -90,6 +90,18 @@ describe("DatasetDetailComponent upload queue", () => {
               })
             ),
             retrieveDatasetVersionList: vi.fn(() => of([])),
+            retrieveDatasetLatestVersion: vi.fn(() =>
+              of({
+                dvid: 1,
+                did: 1,
+                creatorUid: 1,
+                name: "v1",
+                versionHash: undefined,
+                creationTime: undefined,
+                fileNodes: [],
+              })
+            ),
+            retrieveDatasetVersionFileTree: vi.fn(() => of({ fileNodes: [], size: 1024 })),
             getDatasetDiff: vi.fn(() => of([])),
             createDatasetVersion: vi.fn(() => of({})),
             deleteDatasetFile: vi.fn(() => of({})),
@@ -301,7 +313,15 @@ describe("DatasetDetailComponent upload queue", () => {
 
   it("renders the virtualized pending list and re-measures viewports on panel expand", async () => {
     dropFiles("f1.txt", "f2.txt", "f3.txt", "f4.txt", "f5.txt");
+
+    // The upload UI lives in the "Versions & Files" tab; nz-tabs does not render a
+    // tab's content into the DOM until it has been selected at least once.
+    const tabButtons: NodeListOf<HTMLElement> = fixture.nativeElement.querySelectorAll(".ant-tabs-tab-btn");
+    const versionsTab = Array.from(tabButtons).find(tab => tab.textContent?.includes("Versions & Files"));
+    expect(versionsTab).toBeTruthy();
+    (versionsTab as HTMLElement).click();
     fixture.detectChanges();
+
     // Flush the viewport's init microtask, then render the rows.
     await Promise.resolve();
     fixture.detectChanges();
@@ -423,6 +443,7 @@ describe("DatasetDetailComponent behavior", () => {
     datasetServiceStub = {
       getDataset: vi.fn(() => of(makeDashboardDataset())),
       retrieveDatasetVersionList: vi.fn(() => of([])),
+      retrieveDatasetLatestVersion: vi.fn(() => of(makeVersion())),
       getDatasetCoverUrl: vi.fn(() => of({ url: "http://cover" })),
       retrieveDatasetVersionFileTree: vi.fn(() => of({ fileNodes: [fileLeaf("a.txt", "/root", 1)], size: 1 })),
       createDatasetVersion: vi.fn(() => of(makeVersion())),
@@ -465,6 +486,7 @@ describe("DatasetDetailComponent behavior", () => {
 
       expect(datasetServiceStub.getDataset).toHaveBeenCalled();
       expect(datasetServiceStub.retrieveDatasetVersionList).toHaveBeenCalled();
+      expect(datasetServiceStub.retrieveDatasetLatestVersion).toHaveBeenCalled();
       expect(component.likeCount).toBe(7);
       expect(component.viewCount).toBe(42);
       expect(hubServiceStub.isLiked).not.toHaveBeenCalled();
@@ -623,6 +645,178 @@ describe("DatasetDetailComponent behavior", () => {
 
       expect(datasetServiceStub.retrieveDatasetVersionFileTree).not.toHaveBeenCalled();
     });
+
+    it("does not throw and leaves the displayed file untouched when the version has no files", () => {
+      datasetServiceStub.retrieveDatasetVersionFileTree.mockReturnValue(of({ fileNodes: [], size: 0 }));
+
+      createComponent();
+      component.did = 5;
+      component.currentDisplayedFileName = "stale.txt";
+      component.currentFileSize = 99;
+
+      expect(() => component.onVersionSelected(makeVersion({ dvid: 2 }))).not.toThrow();
+
+      expect(component.fileTreeNodeList).toEqual([]);
+      expect(component.currentDatasetVersionSize).toBe(0);
+      expect(component.currentDisplayedFileName).toBe("stale.txt");
+      expect(component.currentFileSize).toBe(99);
+    });
+  });
+
+  describe("retrieveLatestVersionFile", () => {
+    it("fetches the latest version independently and sets latestVersionFileName to the first leaf file", () => {
+      const leaf = fileLeaf("b.txt", "/root", 7);
+      datasetServiceStub.retrieveDatasetLatestVersion.mockReturnValue(of(makeVersion({ fileNodes: [leaf] })));
+
+      createComponent();
+      component.did = 5;
+      component.retrieveLatestVersionFile();
+
+      expect(datasetServiceStub.retrieveDatasetLatestVersion).toHaveBeenCalledWith(5);
+      expect(component.latestVersionFileName).toBe(getFullPathFromDatasetFileNode(leaf));
+    });
+
+    it("walks nested directories to find the first leaf file", () => {
+      const leaf = fileLeaf("c.txt", "/root/a", 3);
+      const tree: DatasetFileNode[] = [{ name: "a", type: "directory", parentDir: "/root", children: [leaf] }];
+      datasetServiceStub.retrieveDatasetLatestVersion.mockReturnValue(of(makeVersion({ fileNodes: tree })));
+
+      createComponent();
+      component.did = 5;
+      component.retrieveLatestVersionFile();
+
+      expect(component.latestVersionFileName).toBe(getFullPathFromDatasetFileNode(leaf));
+    });
+
+    it("sets latestVersionFileName to an empty string when the latest version has no files", () => {
+      datasetServiceStub.retrieveDatasetLatestVersion.mockReturnValue(of(makeVersion()));
+
+      createComponent();
+      component.did = 5;
+      component.retrieveLatestVersionFile();
+
+      expect(component.latestVersionFileName).toBe("");
+    });
+
+    it("derives latestVersionCreationTime from the latest version's creationTime", () => {
+      datasetServiceStub.retrieveDatasetLatestVersion.mockReturnValue(
+        of(makeVersion({ dvid: 3, creationTime: CREATION_TS }))
+      );
+
+      createComponent();
+      component.did = 5;
+      component.retrieveLatestVersionFile();
+
+      expect(component.latestVersionCreationTime).toEqual(format(new Date(CREATION_TS), "MM/dd/yyyy HH:mm:ss"));
+    });
+
+    it("leaves latestVersionCreationTime empty when the latest version has no creation time", () => {
+      datasetServiceStub.retrieveDatasetLatestVersion.mockReturnValue(of(makeVersion({ creationTime: undefined })));
+
+      createComponent();
+      component.did = 5;
+      component.retrieveLatestVersionFile();
+
+      expect(component.latestVersionCreationTime).toBe("");
+    });
+
+    it("sets latestVersionSize from a file-tree fetch for the latest version's dvid", () => {
+      datasetServiceStub.retrieveDatasetLatestVersion.mockReturnValue(of(makeVersion({ dvid: 7 })));
+      datasetServiceStub.retrieveDatasetVersionFileTree.mockReturnValue(of({ fileNodes: [], size: 4096 }));
+
+      createComponent();
+      component.did = 5;
+      component.retrieveLatestVersionFile();
+
+      expect(datasetServiceStub.retrieveDatasetVersionFileTree).toHaveBeenCalledWith(5, 7, expect.anything());
+      expect(component.latestVersionSize).toBe(4096);
+    });
+
+    it("does not fetch a size when the latest version has no dvid", () => {
+      datasetServiceStub.retrieveDatasetLatestVersion.mockReturnValue(of(makeVersion({ dvid: undefined })));
+
+      createComponent();
+      component.did = 5;
+      component.retrieveLatestVersionFile();
+
+      expect(datasetServiceStub.retrieveDatasetVersionFileTree).not.toHaveBeenCalled();
+      expect(component.latestVersionSize).toBeUndefined();
+    });
+
+    it("clears a previously fetched latestVersionSize when the latest version has no dvid", () => {
+      datasetServiceStub.retrieveDatasetLatestVersion.mockReturnValue(of(makeVersion({ dvid: 7 })));
+      datasetServiceStub.retrieveDatasetVersionFileTree.mockReturnValue(of({ fileNodes: [], size: 4096 }));
+
+      createComponent();
+      component.did = 5;
+      component.retrieveLatestVersionFile();
+
+      expect(component.latestVersionSize).toBe(4096);
+
+      // Without a dvid there is no size to show, so the stale one must not linger.
+      datasetServiceStub.retrieveDatasetLatestVersion.mockReturnValue(of(makeVersion({ dvid: undefined })));
+      component.retrieveLatestVersionFile();
+
+      expect(component.latestVersionSize).toBeUndefined();
+    });
+
+    it("ignores a superseded call's size response that resolves after a newer one", () => {
+      // The first call's file-tree request never completes before the second starts.
+      const pendingTree = new Subject<{ fileNodes: DatasetFileNode[]; size: number }>();
+      datasetServiceStub.retrieveDatasetLatestVersion.mockReturnValue(of(makeVersion({ dvid: 7 })));
+      datasetServiceStub.retrieveDatasetVersionFileTree.mockReturnValue(pendingTree);
+
+      createComponent();
+      component.did = 5;
+      component.retrieveLatestVersionFile();
+
+      expect(component.latestVersionSize).toBeUndefined();
+
+      // A second call supersedes the first and resolves immediately.
+      datasetServiceStub.retrieveDatasetVersionFileTree.mockReturnValue(of({ fileNodes: [], size: 200 }));
+      component.retrieveLatestVersionFile();
+
+      expect(component.latestVersionSize).toBe(200);
+
+      // The superseded response arriving late must not overwrite the fresher size.
+      pendingTree.next({ fileNodes: [], size: 999 });
+
+      expect(component.latestVersionSize).toBe(200);
+    });
+
+    it("keeps the latest-version facts fixed when a different version is later selected", () => {
+      datasetServiceStub.retrieveDatasetLatestVersion.mockReturnValue(
+        of(makeVersion({ dvid: 10, creationTime: CREATION_TS }))
+      );
+      datasetServiceStub.retrieveDatasetVersionFileTree.mockReturnValue(of({ fileNodes: [], size: 500 }));
+
+      createComponent();
+      component.did = 5;
+      component.retrieveLatestVersionFile();
+
+      expect(component.latestVersionSize).toBe(500);
+      expect(component.latestVersionCreationTime).toEqual(format(new Date(CREATION_TS), "MM/dd/yyyy HH:mm:ss"));
+
+      // Selecting an older version updates only the selection-scoped values; the
+      // Data Card's latest-version facts stay pinned to the latest version.
+      datasetServiceStub.retrieveDatasetVersionFileTree.mockReturnValue(of({ fileNodes: [], size: 99 }));
+      component.onVersionSelected(makeVersion({ dvid: 9, creationTime: CREATION_TS - 1000 }));
+
+      expect(component.currentDatasetVersionSize).toBe(99);
+      expect(component.selectedVersionCreationTime).toEqual(
+        format(new Date(CREATION_TS - 1000), "MM/dd/yyyy HH:mm:ss")
+      );
+      expect(component.latestVersionSize).toBe(500);
+      expect(component.latestVersionCreationTime).toEqual(format(new Date(CREATION_TS), "MM/dd/yyyy HH:mm:ss"));
+    });
+
+    it("does nothing when there is no did", () => {
+      createComponent();
+      component.did = undefined;
+      component.retrieveLatestVersionFile();
+
+      expect(datasetServiceStub.retrieveDatasetLatestVersion).not.toHaveBeenCalled();
+    });
   });
 
   describe("isDownloadAllowed and userHasWriteAccess", () => {
@@ -727,6 +921,7 @@ describe("DatasetDetailComponent behavior", () => {
       expect(component.versionName).toBe("");
       expect(component.isCreatingVersion).toBe(false);
       expect(datasetServiceStub.retrieveDatasetVersionList).toHaveBeenCalled();
+      expect(datasetServiceStub.retrieveDatasetLatestVersion).toHaveBeenCalled();
       expect(emit).toHaveBeenCalled();
     });
 
@@ -1159,7 +1354,8 @@ describe("DatasetDetailComponent behavior", () => {
 
       const tabButtons: NodeListOf<HTMLElement> = fixture.nativeElement.querySelectorAll(".ant-tabs-tab-btn");
       const settingsTab = Array.from(tabButtons).find(tab => tab.textContent?.includes("Settings"));
-      settingsTab?.click();
+      expect(settingsTab).toBeTruthy();
+      (settingsTab as HTMLElement).click();
       fixture.detectChanges();
 
       return fixture.nativeElement.querySelector('button[title="Delete"]') as HTMLButtonElement;
