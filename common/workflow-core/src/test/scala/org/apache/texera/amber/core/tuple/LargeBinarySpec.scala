@@ -127,7 +127,7 @@ class LargeBinarySpec extends AnyFlatSpec {
     // a fresh thread starts with no base URI, so the generating constructor fails fast
     val outcome = onFreshThread(None)(new LargeBinary())
     assert(outcome.isLeft)
-    assert(outcome.left.exists(_.isInstanceOf[IllegalStateException]))
+    assert(outcome.swap.toOption.exists(_.isInstanceOf[IllegalStateException]))
   }
 
   "LargeBinary JSON" should "serialize to the bare URI string via @JsonValue" in {
