@@ -34,6 +34,7 @@ import org.apache.texera.amber.operator.metadata.annotations.{
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
 import java.lang.reflect.{Field, Modifier, ParameterizedType}
+import javax.validation.constraints.{DecimalMin, Min}
 import scala.collection.mutable
 import scala.jdk.CollectionConverters._
 import scala.util.Try
@@ -120,15 +121,27 @@ object ConfigGenerator {
           baseNode.put("operatorType", typeName)
           deserialize(baseNode, opClass).flatMap { baseOp =>
             sweepVariants(opClass, baseNode, baseOp).flatMap { enumVariants =>
-              val optional = optionalColumnFills(opClass, inputSchemas, used).map {
-                case (jsonName, value) =>
-                  val clone = baseNode.deepCopy()
-                  clone.set[JsonNode](jsonName, value)
-                  val shown = value match {
-                    case a: ArrayNode if a.size() > 0 => a.get(0).asText
-                    case v                            => v.asText
-                  }
-                  deserialize(clone, opClass).map(op => (s"$jsonName=$shown", op))
+              // Two extra variants, not one per knob: an operator's knobs are worth
+              // exercising, but bisecting a rare failure by hand costs less than a
+              // run per field. So all optional knobs are filled together, and all
+              // free-text knobs take the hostile value together.
+              //
+              // A row from the UI's `+` button is one of those optional knobs, not a
+              // variant of its own: for a list the base leaves empty it IS the "now
+              // it is set" case, exactly like a scalar going from unset to set.
+              val fills = Seq(
+                merged(
+                  "optionals",
+                  optionalColumnFills(opClass, inputSchemas, used) ++
+                    optionalScalarFills(opClass, baseNode, "", inputSchemas, rowCount) ++
+                    extraRowFills(opClass, baseNode, inputSchemas, used, rowCount)
+                ),
+                merged("hostileText", hostileTextFills(opClass, baseNode, ""))
+              ).flatten
+              val optional = fills.map { fill =>
+                val clone = baseNode.deepCopy()
+                fill.at.foreach { case (pointer, value) => setAtPointer(clone, pointer, value) }
+                deserialize(clone, opClass).map(op => (fill.label, op))
               }
               optional.collectFirst { case Left(err) => err } match {
                 case Some(err) => Left(err)
@@ -160,22 +173,26 @@ object ConfigGenerator {
     }
   }
 
-  /** One extra variant per OPTIONAL column knob, which [[decide]] leaves unset.
-    * Unset is the right base config — it is what most workflows carry — but it
-    * also means the branch each generator emits for a knob that IS set never runs
-    * on either path, so the two hand-written branches are never compared.
+  /** A set of pointer → value edits applied to one clone of the base config, under
+    * one label.
+    */
+  private final case class Fills(label: String, at: Seq[(String, JsonNode)])
+
+  /** One fill per OPTIONAL column knob, which [[decide]] leaves unset. Unset is the
+    * right base config — it is what most workflows carry — but it also means the
+    * branch each generator emits for a knob that IS set never runs on either path,
+    * so the two hand-written branches are never compared.
     *
-    * Resolved AFTER the base pass from a copy of its `used` set, so the base
-    * config (and every existing test's input) is unchanged. A list knob takes a
-    * SINGLE column: the "every matching column" fill suits a required axes list,
-    * not an optional narrowing one — all thirty columns as group-by keys would
-    * make every row its own group.
+    * Resolved from a copy of the base pass's `used` set, so the base config is
+    * unchanged. A list knob takes a SINGLE column: the "every matching column" fill
+    * suits a required axes list, not an optional narrowing one — all thirty columns
+    * as group-by keys would make every row its own group.
     */
   private def optionalColumnFills(
       clazz: Class[_],
       schemas: Map[Int, Schema],
       usedByBase: mutable.Set[(Int, String)]
-  ): Seq[(String, JsonNode)] = {
+  ): Seq[Fills] = {
     val used = mutable.Set.empty[(Int, String)] ++ usedByBase
     configFields(clazz).flatMap { f =>
       val jp = Option(f.getAnnotation(classOf[JsonProperty]))
@@ -188,11 +205,309 @@ object ConfigGenerator {
             if (f.isAnnotationPresent(classOf[AutofillAttributeNameList]))
               objectMapper.createArrayNode().add(col)
             else objectMapper.getNodeFactory.textNode(col)
-          (jsonName, value)
+          Fills(s"$jsonName=$col", Seq((s"/$jsonName", value)))
         }
       }
     }
   }
+
+  /** One fill per `+`-row list, appending ONE MORE row than the base carries: the first
+    * row for an optional list (empty, as the UI starts it), a second for a required one.
+    *
+    * For an optional list that is the point — its rows are otherwise never populated.
+    * For a required one it reaches only the code BETWEEN rows (the separator each path
+    * joins them with, whatever an operator does with several at once); NOT a mis-indexed
+    * value, since both generators read every value off the loop variable.
+    *
+    * The row is built by the same pass as the first, from a copy of the base `used` set,
+    * so its column knobs land on different columns.
+    */
+  private def extraRowFills(
+      clazz: Class[_],
+      baseNode: JsonNode,
+      schemas: Map[Int, Schema],
+      usedByBase: mutable.Set[(Int, String)],
+      rowCount: Int
+  ): Seq[Fills] = {
+    val used = mutable.Set.empty[(Int, String)] ++ usedByBase
+    configFields(clazz).flatMap { f =>
+      val childPath = pointerOf(f, "")
+      val rows = baseNode.at(childPath)
+      for {
+        row <- if (isList(f.getType)) elementType(f).toOption.filter(isNestedObject) else None
+        if rows.isArray
+        next <- buildObject(row, schemas, used, rowCount).toOption
+      } yield {
+        // Fill the new row's own optional knobs too — the `optionals` variant is
+        // computed against the BASE config, where this row does not exist yet, so
+        // otherwise the row arrives with every free-value knob at its default and a
+        // step whose bounds are both empty is dropped by the operator.
+        rowFills(row, next, "", schemas, rowCount).foreach {
+          case (pointer, value) => setAtPointer(next, pointer, value)
+        }
+        Fills(childPath, Seq((s"$childPath/${rows.size()}", next)))
+      }
+    }
+  }
+
+  /** One variant out of many fills, labelled with the fields it sets. `None` when
+    * there is nothing to fill, so an operator without such knobs gains no variant.
+    */
+  private def merged(kind: String, fills: Seq[Fills]): Option[Fills] = {
+    val at = fills.flatMap(_.at)
+    if (at.isEmpty) None
+    else {
+      val names = at.map(_._1.stripPrefix("/")).distinct
+      val shown = names.mkString(",")
+      val label = if (shown.length <= 60) shown else s"${names.size} fields"
+      Some(Fills(s"$kind($label)", at))
+    }
+  }
+
+  /** Extra variants for the OPTIONAL free-value scalar knobs — a number or a
+    * string the user types in, as opposed to a column picker or a dropdown.
+    * [[decide]] leaves these unset for the same reason [[optionalColumnFills]]'s
+    * knobs are unset, and they need the same treatment: the branch each generator
+    * emits for a knob that IS set (a gauge's delta arrow, a step row's range)
+    * never runs on either path, so the two hand-written branches are never
+    * compared.
+    *
+    * Every knob found here ends up in ONE variant (see [[merged]]), the row ones
+    * included: a row is what the UI's `+` button adds, and its fields are read as a
+    * unit anyway (a step's start AND end make one range).
+    *
+    * "Unset" is read off `baseNode` rather than re-derived, so a knob the base
+    * pass DID fill — one carrying a `defaultValue` or a declared enum — is left
+    * alone.
+    */
+  private def optionalScalarFills(
+      clazz: Class[_],
+      baseNode: JsonNode,
+      path: String,
+      schemas: Map[Int, Schema],
+      rowCount: Int
+  ): Seq[Fills] =
+    configFields(clazz).flatMap { f =>
+      val childPath = pointerOf(f, path)
+      rowType(f) match {
+        case Some(row) =>
+          // Recurse into containers whatever their own required-ness: an optional
+          // knob often sits inside a required list of rows.
+          rowPaths(f, baseNode.at(childPath), childPath).flatMap { rowPath =>
+            val fills = rowFills(row, baseNode, rowPath, schemas, rowCount)
+            if (fills.isEmpty) None else Some(Fills(s"${rowPath.stripPrefix("/")}=filled", fills))
+          }
+        case None =>
+          leafFill(f, baseNode, childPath, schemas, rowCount)
+            .map(fill => Fills(s"${fill._1.stripPrefix("/")}=${fill._2.asText}", Seq(fill)))
+            .toSeq
+      }
+    }
+
+  /** Value for the hostile variant of a knob that takes arbitrary text. Legal —
+    * a user can type it into any text box — but it ends a Python string literal,
+    * which is what a generator splicing it unescaped gets wrong.
+    */
+  private val HostileString = "a\"b"
+
+  /** Every knob that accepts ARBITRARY TEXT, to carry [[HostileString]] — all of
+    * them in one variant (see [[merged]]). This is the escaping check, and it is
+    * generic on purpose: a new operator is covered the day it is verified, with
+    * nothing to register.
+    *
+    * "Arbitrary text" excludes every string whose value is constrained, because
+    * there the hostile value would be rejected before any escaping mattered: a
+    * column picker, a declared enum, a CSS color, and a number-in-a-string (which
+    * declares bounds). Unlike [[optionalScalarFills]] this does not care whether
+    * the base pass filled the knob — a label carrying a default is spliced just the
+    * same — so the variant replaces whatever value is there.
+    */
+  private def hostileTextFills(clazz: Class[_], baseNode: JsonNode, path: String): Seq[Fills] =
+    configFields(clazz).flatMap { f =>
+      val childPath = pointerOf(f, path)
+      rowType(f) match {
+        case Some(row) =>
+          rowPaths(f, baseNode.at(childPath), childPath).flatMap { rowPath =>
+            val fills = hostileTextFills(row, baseNode, rowPath).flatMap(_.at)
+            if (fills.isEmpty) None
+            else Some(Fills(s"${rowPath.stripPrefix("/")}=hostileText", fills))
+          }
+        case None =>
+          hostileLeaf(f, childPath)
+            .map(fill => Fills(s"${fill._1.stripPrefix("/")}=hostileText", Seq(fill)))
+            .toSeq
+      }
+    }
+
+  private def hostileLeaf(f: Field, childPath: String): Option[(String, JsonNode)] =
+    if (
+      hasAutofill(f) || f.getType != classOf[String] || declaredEnumValues(f).nonEmpty ||
+      !patternAccepts(f, HostileString) || declaredRange(f) != Bounds(None, None)
+    ) None
+    else Some((childPath, objectMapper.getNodeFactory.textNode(HostileString)))
+
+  /** Whether a field's declared `pattern` accepts `value` — the field's own answer to
+    * "can this be typed here", so the declaration decides rather than this generator.
+    * A field that declares nothing accepts anything.
+    *
+    * The point of asking instead of skipping every field that HAS a pattern: a pattern
+    * exists to exclude what the consumer would reject, which for many fields is nothing
+    * at all. Such a field still needs the escaping check — and the escaping bugs this
+    * variant found were in exactly that kind of knob.
+    *
+    * `matches` is a full-string match, which is what the property editor applies too
+    * (`Validators.pattern` wraps a string pattern in `^(?:…)$`).
+    */
+  private def patternAccepts(f: Field, value: String): Boolean =
+    schemaKey(f, "pattern").filter(_.isTextual).map(_.asText) match {
+      case Some(p) => Try(value.matches(p)).getOrElse(false)
+      case None    => true
+    }
+
+  /** Every optional scalar knob under one nested row, as pointer → value.
+    *
+    * The knobs of one row get DISTINCT values, ascending in declaration order: a row
+    * is often a pair that has to differ to mean anything — a step's start and end,
+    * where the operator drops the step unless `start < end` — and one shared value
+    * would collapse it. The first knob keeps the value it would have had on its own,
+    * so a single-knob row is unaffected.
+    */
+  private def rowFills(
+      clazz: Class[_],
+      baseNode: JsonNode,
+      path: String,
+      schemas: Map[Int, Schema],
+      rowCount: Int
+  ): Seq[(String, JsonNode)] = {
+    var ordinal = 0
+    configFields(clazz).flatMap { f =>
+      val childPath = pointerOf(f, path)
+      rowType(f) match {
+        case Some(row) =>
+          rowPaths(f, baseNode.at(childPath), childPath)
+            .flatMap(rowPath => rowFills(row, baseNode, rowPath, schemas, rowCount))
+        case None =>
+          val fill = leafFill(f, baseNode, childPath, schemas, rowCount, ordinal)
+          if (fill.nonEmpty) ordinal += 1
+          fill.toSeq
+      }
+    }
+  }
+
+  /** A field's JSON Pointer, under the pointer of the object that holds it. */
+  private def pointerOf(f: Field, path: String): String = s"$path/${jsonNameOf(f)}"
+
+  /** The key a field carries in the config JSON. */
+  private def jsonNameOf(f: Field): String =
+    Option(f.getAnnotation(classOf[JsonProperty]))
+      .map(_.value)
+      .filter(_.nonEmpty)
+      .getOrElse(f.getName)
+
+  /** The nested-row type a field holds — its `List[Row]` / `Option[Row]` element
+    * type, or its own type when the field IS the row. `None` for a scalar field.
+    */
+  private def rowType(f: Field): Option[Class[_]] = {
+    val t = f.getType
+    if (isList(t) || isOption(t)) elementType(f).toOption.filter(isNestedObject)
+    else if (isNestedObject(t)) Some(t)
+    else None
+  }
+
+  /** The pointer of each row present at `childPath` — one per array element, or
+    * the node itself when the field holds a single row. Empty when nothing is
+    * there to fill (an absent `Option`, a scalar list).
+    */
+  private def rowPaths(f: Field, child: JsonNode, childPath: String): Seq[String] =
+    if (isList(f.getType) || isOption(f.getType))
+      if (child.isArray) (0 until child.size()).map(i => s"$childPath/$i")
+      else if (child.isObject) Seq(childPath)
+      else Seq.empty
+    else if (child.isObject) Seq(childPath)
+    else Seq.empty
+
+  /** The fill for one optional free-value scalar knob, or `None` if this field
+    * isn't one (a column picker, a required field, or a knob the base pass filled).
+    *
+    * `ordinal` is the knob's position among the ones filled in the same row (0 for a
+    * top-level knob, which has no siblings to differ from): it scales the value so
+    * the knobs of one row do not collide — see [[rowFills]].
+    */
+  private def leafFill(
+      f: Field,
+      baseNode: JsonNode,
+      childPath: String,
+      schemas: Map[Int, Schema],
+      rowCount: Int,
+      ordinal: Int = 0
+  ): Option[(String, JsonNode)] = {
+    val required = Option(f.getAnnotation(classOf[JsonProperty])).exists(_.required)
+    // "Unset" means the base pass did not fill it: the key still carries the value a
+    // fresh instance has (see [[defaultsOf]] — every key is present, as the UI sends
+    // them, so absence alone no longer tells us anything).
+    val current = baseNode.at(childPath)
+    val unset = current.isMissingNode ||
+      current == defaultsOf(f.getDeclaringClass).path(jsonNameOf(f))
+    // A knob whose values the field DECLARES is left to its declaration: the enum
+    // sweep covers a declared value list, and a knob with a `pattern` takes its own
+    // declared example — the canonical value is not among what either accepts.
+    if (
+      hasAutofill(f) || required || !unset ||
+      declaredEnumValues(f).size > 1 || !isFreeScalar(f.getType)
+    ) None
+    else if (declaresPattern(f)) declaredExample(f).map(v => (childPath, v))
+    else if (f.getType == classOf[String])
+      // The canonical string is "1", so the n-th knob reads as "1", "2", … — distinct,
+      // ascending, and each still parses where the operator wants a number.
+      Some((childPath, objectMapper.getNodeFactory.textNode((ordinal + 1).toString)))
+    else
+      scalarNode(
+        f.getType,
+        None,
+        schemas,
+        mutable.Set.empty,
+        NumHint(declaredRange(f), rowCount)
+      ).toOption
+        .map { v =>
+          val scaled =
+            if (ordinal == 0) v
+            else objectMapper.getNodeFactory.numberNode(v.asDouble() * (ordinal + 1))
+          (childPath, scaled)
+        }
+  }
+
+  /** A knob whose accepted values the field DESCRIBES with a `pattern`: the canonical
+    * value almost certainly isn't one of them, and the hostile value certainly isn't
+    * — the declaration itself rejects it, so there is no escaping left to check.
+    * What such a knob gets filled with is its own declared `examples` (see
+    * [[declaredExample]]) rather than anything this generator picks.
+    */
+  private def declaresPattern(f: Field): Boolean =
+    schemaKey(f, "pattern").exists(_.isTextual)
+
+  /** The first value a field offers under `examples` — a legal sample the operator
+    * states itself, so nothing here has to invent one for a constrained knob.
+    */
+  private def declaredExample(f: Field): Option[JsonNode] =
+    schemaKey(f, "examples").filter(_.isArray).flatMap(_.elements().asScala.toSeq.headOption)
+
+  /** One key out of a field's own `@JsonSchemaInject` JSON. */
+  private def schemaKey(f: Field, key: String): Option[JsonNode] =
+    Option(f.getAnnotation(classOf[JsonSchemaInject]))
+      .map(_.json)
+      .filter(_.nonEmpty)
+      .flatMap(js => Try(objectMapper.readTree(js)).toOption)
+      .map(_.path(key))
+      .filterNot(_.isMissingNode)
+
+  /** A type whose value the user types in freely — the fills of
+    * [[optionalScalarFills]]. Boolean is excluded: the enum sweep already covers
+    * both of its values.
+    */
+  private def isFreeScalar(t: Class[_]): Boolean =
+    t == classOf[String] || t == classOf[Int] || t == classOf[java.lang.Integer] ||
+      t == classOf[Short] || t == classOf[Long] || t == classOf[java.lang.Long] ||
+      t == classOf[Double] || t == classOf[java.lang.Double] || t == classOf[Float]
 
   private def deserialize(
       node: ObjectNode,
@@ -247,7 +562,9 @@ object ConfigGenerator {
         if (child.isMissingNode || child.isNull) Seq.empty
         else {
           val t = f.getType
-          if (isList(t))
+          val declared = declaredEnumValues(f)
+          if (declared.size > 1) Seq(EnumSite(childPath, declared))
+          else if (isList(t))
             elementType(f).toOption.toSeq.flatMap { elem =>
               if (child.isArray)
                 (0 until child.size()).flatMap(i => enumSiteFor(elem, node, s"$childPath/$i"))
@@ -282,8 +599,11 @@ object ConfigGenerator {
     }
     (cur, tokens.last) match {
       case (o: ObjectNode, name) => o.set[JsonNode](name, value)
-      case (a: ArrayNode, idx)   => a.set(idx.toInt, value); ()
-      case _                     => ()
+      // One past the end appends — the `+`-row fill adds a row rather than
+      // replacing one.
+      case (a: ArrayNode, idx) if idx.toInt == a.size() => a.add(value); ()
+      case (a: ArrayNode, idx)                          => a.set(idx.toInt, value); ()
+      case _                                            => ()
     }
   }
 
@@ -321,7 +641,7 @@ object ConfigGenerator {
       used: mutable.Set[(Int, String)],
       rowCount: Int
   ): Either[String, ObjectNode] = {
-    val node = objectMapper.createObjectNode()
+    val node = defaultsOf(clazz)
     configFields(clazz).foreach { f =>
       decide(f, schemas, used, rowCount) match {
         case Fill(name, value) => node.set[JsonNode](name, value)
@@ -331,6 +651,25 @@ object ConfigGenerator {
     }
     Right(node)
   }
+
+  /** A fresh instance's own values, as the starting JSON — what the UI submits for a
+    * form nobody touched, where every key is present carrying the operator's default.
+    *
+    * Leaving a skipped knob's key OUT instead produces a shape the UI cannot: a
+    * config object built through a `@JsonCreator` constructor then receives `null`
+    * for the missing keys, overwriting the field initializers, and a generator that
+    * reads them crashes on a value no user can enter (BulletChart's step bounds).
+    * Empty when the class has no usable no-arg constructor.
+    */
+  private def defaultsOf(clazz: Class[_]): ObjectNode =
+    Try(clazz.getDeclaredConstructor())
+      .flatMap { ctor =>
+        ctor.setAccessible(true)
+        Try(objectMapper.valueToTree[JsonNode](ctor.newInstance()))
+      }
+      .toOption
+      .collect { case o: ObjectNode => o }
+      .getOrElse(objectMapper.createObjectNode())
 
   private sealed trait Decision
   private case class Fill(jsonName: String, value: JsonNode) extends Decision
@@ -361,8 +700,11 @@ object ConfigGenerator {
     // trace per row) that the native and generated paths disagree on.
     if (autofill && !required) Skip
     else {
+      // A field declaring its values in the annotation counts as meaningful just as
+      // an enum-TYPED one does: the sweep flips it from the base config, so it has
+      // to BE in the base config (a `defaultValue = ""` alone would skip it).
       val meaningful = required || autofill || f.getType.isEnum || isBoolean || isList(f.getType) ||
-        isOption(f.getType) || isNestedObject(f.getType) || jp
+        isOption(f.getType) || isNestedObject(f.getType) || declaredEnumValues(f).size > 1 || jp
         .map(_.defaultValue)
         .exists(_.nonEmpty)
 
@@ -409,13 +751,37 @@ object ConfigGenerator {
     else {
       val t = f.getType
       if (isList(t))
-        elementType(f).flatMap(scalarOrNested(_, schemas, used, rowCount)).map { e =>
-          val arr: ArrayNode = objectMapper.createArrayNode(); arr.add(e); arr
-        }
+        // An OPTIONAL list starts EMPTY, the way the UI does: its `+` button adds the
+        // first row, so a config nobody touched has none, and the branch an operator
+        // takes for "no rows at all" is only reached this way. A REQUIRED list gets
+        // one row — its operator asserts the list is non-empty, so zero is not a
+        // config it can run. Either way the extra row comes from [[extraRowFills]].
+        if (!Option(f.getAnnotation(classOf[JsonProperty])).exists(_.required))
+          Right(objectMapper.createArrayNode())
+        else
+          elementType(f).flatMap(scalarOrNested(_, schemas, used, rowCount)).map { e =>
+            val arr: ArrayNode = objectMapper.createArrayNode(); arr.add(e); arr
+          }
       else if (isOption(t))
         elementType(f).flatMap(scalarOrNested(_, schemas, used, rowCount))
+      else if (declaredEnumValues(f).size > 1) Right(declaredEnumDefault(f))
       else scalarNode(t, defaultOf(f), schemas, used, NumHint(declaredRange(f), rowCount))
     }
+  }
+
+  /** The base value for a field whose values are declared in its annotation: the
+    * `default` the annotation names, else its first value. Never the canonical
+    * string — for such a field that is a value the operator does not accept.
+    */
+  private def declaredEnumDefault(f: Field): JsonNode = {
+    val declared = declaredEnumValues(f)
+    Option(f.getAnnotation(classOf[JsonSchemaInject]))
+      .map(_.json)
+      .filter(_.nonEmpty)
+      .flatMap(js => Try(objectMapper.readTree(js).path("default")).toOption)
+      .filterNot(_.isMissingNode)
+      .filter(declared.contains)
+      .getOrElse(declared.head)
   }
 
   /** A node for a list element or Option inner type — no field-level default or
@@ -427,21 +793,36 @@ object ConfigGenerator {
       used: mutable.Set[(Int, String)],
       rowCount: Int
   ): Either[String, JsonNode] =
-    scalarNode(clazz, None, schemas, used, NumHint(None, rowCount))
+    scalarNode(clazz, None, schemas, used, NumHint(Bounds(None, None), rowCount))
 
-  /** How to fill a numeric field: `@JsonProperty(defaultValue)` if present, else
-    * the middle of the declared `[min, max]` range (e.g. an opacity's 0–1 → 0.5),
-    * else half the row count (the middle of `[0, rowCount]`, e.g. Limit).
+  /** How to fill a numeric field: `@JsonProperty(defaultValue)` if present, else the
+    * middle of a declared `[min, max]` (an opacity's 0.0–1.0 → 0.5), else twice a
+    * lower bound declared on its own, else half the row count (the middle of
+    * `[0, rowCount]`, e.g. Limit).
+    *
+    * Twice, because a field that declares `>= 30` usually also defaults to 30, so
+    * filling the bound itself would just re-run the base config; `max mid` keeps a
+    * `>= 0` knob off zero. Doubling can only overshoot a ceiling the field does not
+    * declare, and a field with a ceiling is supposed to declare it — which is why the
+    * `[min, max]` case must stay: RadarChart's and Scatterplot's opacity declare one,
+    * and doubling their floor of 0 would hand them 5.
+    *
+    * An upper bound declared ALONE is not handled: no field does that, so there would
+    * be no way to tell whether the code was right.
     */
-  private final case class NumHint(range: Option[(Double, Double)], rowCount: Int)
+  private final case class NumHint(bounds: Bounds, rowCount: Int)
+
+  private final case class Bounds(min: Option[Double], max: Option[Double])
 
   private def numericFill(default: Option[String], hint: NumHint): Double =
     default.flatMap(s => Try(s.trim.toDouble).toOption) match {
       case Some(d) => d
       case None =>
-        hint.range match {
-          case Some((mn, mx)) => (mn + mx) / 2.0
-          case None           => hint.rowCount / 2.0
+        val mid = hint.rowCount / 2.0
+        hint.bounds match {
+          case Bounds(Some(mn), Some(mx)) => (mn + mx) / 2.0
+          case Bounds(Some(mn), None)     => (mn * 2) max mid
+          case _                          => mid
         }
     }
 
@@ -477,19 +858,46 @@ object ConfigGenerator {
     else Left(s"unhandled type ${t.getName}")
   }
 
-  /** The `[minimum, maximum]` a field declares via `@JsonSchemaInject` (e.g. an
-    * opacity's 0.0–1.0). `None` if the field declares no complete range.
+  /** The values a field declares via its own `@JsonSchemaInject(json = ...)`
+    * `enum` array — a String field the UI renders as a dropdown (e.g. an ECDF's
+    * cdfMode = standard / reversed / complementary). To the JVM these are plain
+    * Strings, so [[enumSiteFor]]'s `isEnum` check can't see them, yet each value
+    * takes a different branch in the generated code exactly as a real enum does.
+    * Empty unless the annotation carries an array (TimeSeries declares
+    * `"enum": "autofill"`, a UI directive rather than a value list).
     */
-  private def declaredRange(f: Field): Option[(Double, Double)] =
-    Option(f.getAnnotation(classOf[JsonSchemaInject])).map(_.json).filter(_.nonEmpty).flatMap {
-      js =>
-        Try {
-          val node = objectMapper.readTree(js)
-          val mn = node.path("minimum")
-          val mx = node.path("maximum")
-          if (mn.isNumber && mx.isNumber) Some((mn.asDouble(), mx.asDouble())) else None
-        }.toOption.flatten
-    }
+  private def declaredEnumValues(f: Field): Seq[JsonNode] =
+    Option(f.getAnnotation(classOf[JsonSchemaInject]))
+      .map(_.json)
+      .filter(_.nonEmpty)
+      .toSeq
+      .flatMap { js =>
+        Try(objectMapper.readTree(js).path("enum")).toOption.toSeq
+          .filter(_.isArray)
+          .flatMap(_.elements().asScala.toSeq)
+      }
+
+  /** The bounds a field declares, from either of the two places an operator states
+    * them: `@JsonSchemaInject`'s `minimum`/`maximum` (an opacity's 0.0–1.0), which the
+    * UI reads, and javax validation's `@DecimalMin`/`@Min` (a row height's floor of 30),
+    * which the compiler's validation pass reads. Either bound may be absent.
+    */
+  private def declaredRange(f: Field): Bounds = {
+    val schema = Option(f.getAnnotation(classOf[JsonSchemaInject]))
+      .map(_.json)
+      .filter(_.nonEmpty)
+      .flatMap(js => Try(objectMapper.readTree(js)).toOption)
+    def fromSchema(key: String): Option[Double] =
+      schema.map(_.path(key)).filter(_.isNumber).map(_.asDouble())
+    Bounds(
+      fromSchema("minimum")
+        .orElse(Option(f.getAnnotation(classOf[DecimalMin])).flatMap(a => asDouble(a.value)))
+        .orElse(Option(f.getAnnotation(classOf[Min])).map(_.value.toDouble)),
+      fromSchema("maximum")
+    )
+  }
+
+  private def asDouble(s: String): Option[Double] = Try(s.trim.toDouble).toOption
 
   // ── reflection helpers ───────────────────────────────────────────────────
 
