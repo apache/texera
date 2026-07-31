@@ -86,8 +86,9 @@ class FileResolverSpec
   // Unprefixed form (no resource-type segment); no longer resolvable as a dataset.
   private val unprefixedDataset1TxtFilePath = "/test_user@test.com/test_dataset/v1/1.txt"
 
-  // "models" is not the dataset prefix, so this is not a dataset path.
-  private val nonDatasetPrefixFilePath = "/models/test_user@test.com/test_dataset/v1/1.txt"
+  // The leading segment is not a known resource type, so this is not a resolvable path.
+  private val unknownResourceTypeFilePath =
+    "/notAResourceType/test_user@test.com/test_dataset/v1/1.txt"
 
   override protected def beforeAll(): Unit = {
     initializeDBAndReplaceDSLContext()
@@ -124,18 +125,16 @@ class FileResolverSpec
     )
   }
 
-  "FileResolver" should "not resolve an unprefixed dataset path (the datasets prefix is required)" in {
-    // Without the datasets prefix the path is not a dataset path; it falls through to the
-    // local-file resolver and fails.
+  "FileResolver" should "not resolve a path without a resource-type prefix" in {
+    // Without a leading resource-type segment the path is not resolvable
     assertThrows[FileNotFoundException] {
       FileResolver.resolve(unprefixedDataset1TxtFilePath)
     }
   }
 
-  "FileResolver" should "not resolve a path whose prefix is not the datasets prefix" in {
-    // "models" is not the dataset prefix, so this is not a dataset path.
+  "FileResolver" should "not resolve a path whose prefix is not a known resource type" in {
     assertThrows[FileNotFoundException] {
-      FileResolver.resolve(nonDatasetPrefixFilePath)
+      FileResolver.resolve(unknownResourceTypeFilePath)
     }
   }
 

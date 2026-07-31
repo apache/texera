@@ -65,10 +65,10 @@ class TestDatasetFileDocumentInit:
         with pytest.raises(ValueError, match="Invalid file path format"):
             DatasetFileDocument("/bob@x.com/ds/v1/file.csv")
 
-    def test_rejects_non_datasets_prefix(self, auth_env):
-        # Any other leading segment (e.g. "models") is not the datasets prefix.
-        with pytest.raises(ValueError, match="Invalid file path format"):
-            DatasetFileDocument("/models/bob@x.com/ds/v1/file.csv")
+    def test_rejects_unknown_resource_type_prefix(self, auth_env):
+        # A leading segment that is not a known resource type is rejected.
+        with pytest.raises(ValueError, match="Unknown resource type prefix"):
+            DatasetFileDocument("/notAResourceType/bob@x.com/ds/v1/file.csv")
 
     def test_rejects_path_with_too_few_segments(self, auth_env):
         with pytest.raises(ValueError, match="Invalid file path format"):

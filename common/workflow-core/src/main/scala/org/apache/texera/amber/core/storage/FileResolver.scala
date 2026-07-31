@@ -88,7 +88,7 @@ object FileResolver {
     val filePath = Paths.get(fileName)
     val pathSegments = (0 until filePath.getNameCount).map(filePath.getName(_).toString).toArray
 
-    if (pathSegments.length < 5 || pathSegments(0) != ResourceType.Datasets.toString) {
+    if (pathSegments.length < 5 || !ResourceType.isValidPrefix(pathSegments(0))) {
       return None
     }
 

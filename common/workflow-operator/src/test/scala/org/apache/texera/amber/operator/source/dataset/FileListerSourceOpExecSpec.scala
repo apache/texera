@@ -47,15 +47,15 @@ class FileListerSourceOpExecSpec extends AnyFlatSpec {
     assert(version == "v2")
   }
 
-  it should "reject an unprefixed path (the datasets prefix is required)" in {
+  it should "reject a path without a resource-type prefix" in {
     assertThrows[IllegalArgumentException] {
       FileListerSourceOpExec.parseDatasetVersionPath("/alice/ds/v1")
     }
   }
 
-  it should "reject a path whose prefix is not the datasets prefix" in {
+  it should "reject a path whose prefix is not a known resource type" in {
     assertThrows[IllegalArgumentException] {
-      FileListerSourceOpExec.parseDatasetVersionPath("/models/alice/ds/v1")
+      FileListerSourceOpExec.parseDatasetVersionPath("/notAResourceType/alice/ds/v1")
     }
   }
 

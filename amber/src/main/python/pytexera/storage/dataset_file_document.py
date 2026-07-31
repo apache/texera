@@ -65,11 +65,17 @@ class DatasetFileDocument:
         """
         parts = file_path.strip("/").split("/")
 
-        if len(parts) < 5 or parts[0] != ResourceType.DATASETS.value:
+        if len(parts) < 5:
             raise ValueError(
                 "Invalid file path format. Expected: "
                 "/datasets/ownerEmail/datasetName/versionName/fileRelativePath"
             )
+
+        # Validate the leading prefix against the known resource types.
+        try:
+            self.resource_type = ResourceType(parts[0])
+        except ValueError:
+            raise ValueError(f"Unknown resource type prefix: {parts[0]!r}")
 
         self.owner_email = parts[1]
         self.dataset_name = parts[2]
@@ -95,7 +101,7 @@ class DatasetFileDocument:
         """
         headers = {"Authorization": f"Bearer {self.jwt_token}"}
         encoded_file_path = urllib.parse.quote(
-            f"/{ResourceType.DATASETS.value}"
+            f"/{self.resource_type.value}"
             f"/{self.owner_email}"
             f"/{self.dataset_name}"
             f"/{self.version_name}"
