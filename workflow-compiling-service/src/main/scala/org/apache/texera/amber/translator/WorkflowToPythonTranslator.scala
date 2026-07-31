@@ -20,7 +20,8 @@
 package org.apache.texera.amber.translator
 
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.texera.amber.compiler.model.LogicalPlan
+import org.apache.texera.amber.core.virtualidentity.OperatorIdentity
+import org.apache.texera.common.compiler.model.LogicalPlan
 import org.apache.texera.amber.operator.StandaloneCodeGenerator
 
 import scala.collection.mutable
@@ -115,7 +116,7 @@ class WorkflowToPythonTranslator extends LazyLogging {
       .filter(key => outgoingFromPort(key) == 0)
     val dataFrameLeafPorts = leafPorts.filter {
       case (opId, _) =>
-        logicalPlan.getOperator(opId) match {
+        logicalPlan.getOperator(OperatorIdentity(opId)) match {
           case gen: StandaloneCodeGenerator => gen.producesDataFrame()
           case _                            => false
         }
@@ -131,7 +132,7 @@ class WorkflowToPythonTranslator extends LazyLogging {
         .foreach {
           case (opId, portIdx) =>
             val varName = outputVar((opId, portIdx))
-            val displayName = logicalPlan.getOperator(opId).operatorInfo.userFriendlyName
+            val displayName = logicalPlan.getOperator(OperatorIdentity(opId)).operatorInfo.userFriendlyName
             val portSuffix = if (outputVar.keys.count(_._1 == opId) > 1) s" port $portIdx" else ""
             script += s"""print("\\n[$displayName$portSuffix] $varName:")"""
             script += s"print($varName.head())"

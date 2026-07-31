@@ -24,7 +24,7 @@ import com.typesafe.scalalogging.LazyLogging
 import jakarta.annotation.security.RolesAllowed
 import jakarta.ws.rs.core.MediaType
 import jakarta.ws.rs.{Consumes, POST, Path, Produces}
-import org.apache.texera.amber.compiler.model.{LogicalPlan, LogicalPlanPojo}
+import org.apache.texera.common.compiler.model.{LogicalPlan, LogicalPlanPojo}
 import org.apache.texera.amber.translator.WorkflowToPythonTranslator
 
 @JsonTypeInfo(
