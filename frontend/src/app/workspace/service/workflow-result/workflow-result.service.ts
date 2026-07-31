@@ -273,7 +273,6 @@ export class OperatorResultService {
 export class OperatorPaginationResultService {
   private pendingRequests: Map<string, Subject<PaginatedResultEvent>> = new Map();
   private resultCache: Map<number, ReadonlyArray<object>> = new Map();
-  private prevStatsCache: Record<string, Record<string, number>> = {};
   private statsCache: Record<string, Record<string, number>> = {};
   private currentPageIndex: number = 1;
   private currentTotalNumTuples: number = 0;
@@ -291,10 +290,6 @@ export class OperatorPaginationResultService {
 
   public getStats(): Record<string, Record<string, number>> {
     return this.statsCache;
-  }
-
-  public getPrevStats(): Record<string, Record<string, number>> {
-    return this.prevStatsCache;
   }
 
   public getCurrentPageIndex(): number {
@@ -378,13 +373,7 @@ export class OperatorPaginationResultService {
   }
 
   public handleStatsUpdate(statsUpdate: Record<string, Record<string, number>>): void {
-    if (!this.statsCache) {
-      this.statsCache = statsUpdate;
-      this.prevStatsCache = statsUpdate;
-    } else {
-      this.prevStatsCache = this.statsCache;
-      this.statsCache = statsUpdate;
-    }
+    this.statsCache = statsUpdate;
   }
 
   private handlePaginationResult(res: PaginatedResultEvent): void {

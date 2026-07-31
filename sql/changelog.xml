@@ -53,9 +53,14 @@
         <sqlFile path="sql/updates/28.sql"/>
     </changeSet>
 
-    <!-- Prefix dataset paths in stored workflow content with "datasets/" -->
-    <changeSet id="29" author="tanishqgandhi1908">
+    <!-- Widen execution size columns to BIGINT (#6978) -->
+    <changeSet id="29" author="mengw15">
         <sqlFile path="sql/updates/29.sql"/>
+    </changeSet>
+
+    <!-- Prefix dataset paths in stored workflow content with "datasets/" -->
+    <changeSet id="30" author="tanishqgandhi1908">
+        <sqlFile path="sql/updates/30.sql"/>
     </changeSet>
 
     <!-- example changeSet

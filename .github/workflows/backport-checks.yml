@@ -1,0 +1,140 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# Backport preflight, kept out of Required Checks so a conflicting backport is
+# never a red X on the PR and never reads like a required check failed. For
+# each release/* label:
+#   1. apply-check: a git-only dry-run cherry-pick onto the release branch.
+#   2. backport: for targets that apply cleanly, build the backported tree so
+#      "applies but does not compile on the release branch" is caught pre-merge.
+# Neither job fails on a bad backport — the apply outcome is written to an
+# artifact and the Backport Preflight Publish workflow (workflow_run) turns it
+# into a `backport-preflight (<target>)` check that is `neutral` (grey) on a
+# conflict and `success` on a clean apply. Publishing lives in that companion
+# because this workflow runs on `pull_request`, whose token is read-only on
+# fork PRs (renovate, external contributors) and so cannot create check runs.
+# Post-merge, Direct Backport Push reads the neutral/success check and the
+# backport build legs to decide push-straight vs. open-a-draft-PR.
+name: Backport Checks
+
+on:
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - labeled
+      - unlabeled
+
+permissions:
+  checks: write
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: backport-checks-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  # Reused so the release/* target list (and the label -> stack mapping the
+  # backport build needs) is derived exactly as the main build derives it.
+  precheck:
+    uses: ./.github/workflows/precheck.yml
+
+  # Fast git-only pre-flight: does the change even cherry-pick onto each
+  # release branch? One job loops the targets (each is seconds), records
+  # applied/conflict per target, and emits the clean-target list so a
+  # conflicting target never spins up the expensive backport build below.
+  apply-check:
+    needs: precheck
+    if: ${{ needs.precheck.outputs.backport_targets != '[]' }}
+    runs-on: ubuntu-latest
+    outputs:
+      buildable: ${{ steps.check.outputs.buildable }}
+    steps:
+      - name: Checkout PR head
+        uses: actions/checkout@v7
+        with:
+          ref: refs/pull/${{ github.event.pull_request.number }}/head
+          fetch-depth: 0
+      - name: Dry-run cherry-pick each target
+        id: check
+        env:
+          TARGETS: ${{ needs.precheck.outputs.backport_targets }}
+          RANGE: ${{ format('{0}..{1}', github.event.pull_request.base.sha, github.event.pull_request.head.sha) }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -uo pipefail
+          mkdir -p preflight
+          results='[]'
+          buildable='[]'
+          for target in $(echo "$TARGETS" | jq -r '.[]'); do
+            # Clear any leftover cherry-pick from the previous target so the
+            # script's `git checkout -B` is not blocked by an unmerged index.
+            git cherry-pick --abort 2>/dev/null || true
+            git rebase --abort 2>/dev/null || true
+            if bash ./.github/scripts/prepare-backport-checkout.sh "$target" "$RANGE"; then
+              echo "[preflight] ${target}: applies cleanly"
+              applied=true
+              buildable=$(echo "$buildable" | jq -c --arg t "$target" '. + [$t]')
+            else
+              echo "[preflight] ${target}: conflicts"
+              applied=false
+            fi
+            results=$(echo "$results" | jq -c --arg t "$target" --argjson a "$applied" '. + [{target: $t, applied: $a}]')
+          done
+          git cherry-pick --abort 2>/dev/null || true
+          echo "buildable=${buildable}" >> "$GITHUB_OUTPUT"
+          printf '%s\n' "$results" > preflight/results.json
+          jq -nc --argjson pr "$PR_NUMBER" --arg sha "$HEAD_SHA" '{pr: $pr, head_sha: $sha}' > preflight/meta.json
+          echo "Results: ${results}"
+          echo "Buildable: ${buildable}"
+      - name: Upload preflight results
+        uses: actions/upload-artifact@v4
+        with:
+          name: backport-preflight
+          path: preflight/
+          retention-days: 3
+
+  # Build the backported tree for targets that applied cleanly, so a clean
+  # cherry-pick that nonetheless fails to compile on the release branch is
+  # caught before merge (Direct Backport Push reads these legs to decide
+  # push-straight vs. open-a-draft-PR). Same stack selection as the main build.
+  backport:
+    needs: [precheck, apply-check]
+    if: ${{ needs.apply-check.outputs.buildable != '' && needs.apply-check.outputs.buildable != '[]' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        target: ${{ fromJson(needs.apply-check.outputs.buildable) }}
+    uses: ./.github/workflows/build.yml
+    with:
+      checkout_ref: refs/pull/${{ github.event.pull_request.number }}/head
+      backport_target_branch: ${{ matrix.target }}
+      backport_commit_range: ${{ format('{0}..{1}', github.event.pull_request.base.sha, github.event.pull_request.head.sha) }}
+      job_name_suffix: ""
+      run_frontend: ${{ needs.precheck.outputs.run_frontend == 'true' }}
+      run_amber: ${{ needs.precheck.outputs.run_amber == 'true' }}
+      run_amber_integration: ${{ needs.precheck.outputs.run_amber_integration == 'true' }}
+      run_platform: ${{ needs.precheck.outputs.run_platform == 'true' }}
+      run_platform_integration: ${{ needs.precheck.outputs.run_platform_integration == 'true' }}
+      run_pyamber: ${{ needs.precheck.outputs.run_pyamber == 'true' }}
+      run_agent_service: ${{ needs.precheck.outputs.run_agent_service == 'true' }}
+      run_infra: ${{ needs.precheck.outputs.run_infra == 'true' }}
+      run_pyright_language_service: ${{ needs.precheck.outputs.run_pyright_language_service == 'true' }}
+    secrets: inherit
