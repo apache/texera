@@ -30,6 +30,7 @@ object KubernetesConfig {
   val computeUnitServiceName: String = conf.getString("kubernetes.compute-unit-service-name")
   val computeUnitPoolName: String = conf.getString("kubernetes.compute-unit-pool-name")
   val computeUnitPoolNamespace: String = conf.getString("kubernetes.compute-unit-pool-namespace")
+  val computeUnitPodNamePrefix: String = conf.getString("kubernetes.compute-unit-pod-name-prefix")
   val computeUnitImageName: String = conf.getString("kubernetes.image-name")
   val computingUnitImagePullPolicy: String = conf.getString("kubernetes.image-pull-policy")
 
@@ -64,4 +65,8 @@ object KubernetesConfig {
 
   // GPU resource key used directly in Kubernetes resource specifications
   val gpuResourceKey: String = conf.getString("kubernetes.computing-unit-gpu-resource-key")
+
+  // Per-node mounter that performs the FUSE mount outside the (unprivileged) CU pod.
+  val mounterPort: Int = conf.getInt("kubernetes.mounter-port")
+  val mounterHostRoot: String = conf.getString("kubernetes.mounter-host-root")
 }

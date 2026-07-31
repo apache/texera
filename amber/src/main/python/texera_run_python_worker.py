@@ -17,6 +17,7 @@
 
 import base64
 import json
+import os
 import sys
 from loguru import logger
 
@@ -58,6 +59,7 @@ EXPECTED_CONFIG_KEYS = frozenset(
     {
         "workerId",
         "outputPort",
+        "mountedDatasets",
         "loggerLevel",
         "rPath",
         "icebergCatalogType",
@@ -141,9 +143,12 @@ def main(raw_config: str) -> None:
     # Setting R_HOME environment variable for R-UDF usage
     r_path = config["rPath"]
     if r_path:
-        import os
-
         os.environ["R_HOME"] = r_path
+
+    # Hand the mounted-dataset variable bindings (a JSON object of
+    # {variableName: localMountPath}) to ExecutorManager, which injects each one
+    # into the UDF module as a module-level variable holding its local path.
+    os.environ["MOUNTED_DATASETS"] = config["mountedDatasets"]
 
     PythonWorker(
         worker_id=config["workerId"],

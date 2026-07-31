@@ -64,6 +64,8 @@ spec:
               value: {{ .Values.workflowComputingUnitPool.namespace }}
             - name: KUBERNETES_COMPUTE_UNIT_SERVICE_NAME
               value: {{ .Values.workflowComputingUnitPool.name }}-svc
+            - name: KUBERNETES_COMPUTE_UNIT_POD_NAME_PREFIX
+              value: {{ .Values.workflowComputingUnitPool.podNamePrefix }}
             - name: KUBERNETES_IMAGE_NAME
               value: {{ .Values.texera.imageRegistry }}/{{ .Values.workflowComputingUnitPool.imageName }}:{{ .Values.texera.imageTag }}
             # TexeraDB Access

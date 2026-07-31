@@ -237,4 +237,39 @@ class PythonUDFOpDescV2Spec extends AnyFlatSpec with Matchers {
       case other                   => fail(s"expected OpExecWithCode, got $other")
     }
   }
+
+  private def binding(name: String, path: String): DatasetVariableMapping = {
+    val m = new DatasetVariableMapping
+    m.variableName = name
+    m.datasetPath = path
+    m
+  }
+
+  "PythonUDFOpDescV2 dataset-variable bindings" should
+    "carry no mounted datasets when nothing is bound" in {
+    val d = new PythonUDFOpDescV2
+    d.code = "yield t"
+    d.getPhysicalOp(workflowId, executionId).mountedDatasets shouldBe empty
+  }
+
+  it should "ignore fully blank dataset-variable rows" in {
+    val d = new PythonUDFOpDescV2
+    d.code = "yield t"
+    d.datasetVariables = List(binding("", ""), binding("   ", "   "))
+    d.getPhysicalOp(workflowId, executionId).mountedDatasets shouldBe empty
+  }
+
+  it should "reject a variable name that is not a valid Python identifier" in {
+    val d = new PythonUDFOpDescV2
+    d.datasetVariables = List(binding("1bad", "/bob@texera.com/twitterDataset/v1"))
+    val ex = intercept[RuntimeException] { d.getPhysicalOp(workflowId, executionId) }
+    ex.getMessage should include("not a valid Python variable name")
+  }
+
+  it should "reject a bound variable with no dataset selected" in {
+    val d = new PythonUDFOpDescV2
+    d.datasetVariables = List(binding("A", "   "))
+    val ex = intercept[RuntimeException] { d.getPhysicalOp(workflowId, executionId) }
+    ex.getMessage should include("No dataset selected")
+  }
 }
