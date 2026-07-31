@@ -68,12 +68,17 @@ class AuthResourceSpec
   override protected def afterEach(): Unit = cleanup()
 
   private def cleanup(): Unit = {
-    getDSLContext.deleteFrom(USER).where(USER.NAME.like("authspec_%")).execute()
+    // startsWith escapes SQL LIKE wildcards, so the literal "authspec_" prefix is matched exactly.
+    getDSLContext.deleteFrom(USER).where(USER.NAME.startsWith("authspec_")).execute()
     // createAdminUser() seeds the configured admin — remove it too so the test starts clean.
     getDSLContext.deleteFrom(USER).where(USER.NAME.eq(UserSystemConfig.adminUsername)).execute()
   }
 
-  private def seedUser(name: String, password: String, role: UserRoleEnum = UserRoleEnum.REGULAR): User = {
+  private def seedUser(
+      name: String,
+      password: String,
+      role: UserRoleEnum = UserRoleEnum.REGULAR
+  ): User = {
     val user = new User
     user.setName(name)
     user.setEmail(s"$name@example.com")
@@ -90,7 +95,9 @@ class AuthResourceSpec
 
   "retrieveUserByUsernameAndPassword" should "return the user for correct credentials" in {
     seedUser(uname("ok"), "secret")
-    AuthResource.retrieveUserByUsernameAndPassword(uname("ok"), "secret").map(_.getName) shouldBe Some(uname("ok"))
+    AuthResource
+      .retrieveUserByUsernameAndPassword(uname("ok"), "secret")
+      .map(_.getName) shouldBe Some(uname("ok"))
   }
 
   it should "return None for a wrong password" in {
@@ -139,23 +146,31 @@ class AuthResourceSpec
   }
 
   it should "reject an empty username" in {
-    val ex = intercept[NotAcceptableException](resource.register(UserRegistrationRequest("   ", uemail("eu"), "pw")))
+    val ex = intercept[NotAcceptableException](
+      resource.register(UserRegistrationRequest("   ", uemail("eu"), "pw"))
+    )
     ex.getMessage should include("Username")
   }
 
   it should "reject an empty email" in {
-    val ex = intercept[NotAcceptableException](resource.register(UserRegistrationRequest(uname("ee"), "  ", "pw")))
+    val ex = intercept[NotAcceptableException](
+      resource.register(UserRegistrationRequest(uname("ee"), "  ", "pw"))
+    )
     ex.getMessage should include("Email cannot be empty")
   }
 
   it should "reject a malformed email" in {
     val ex =
-      intercept[NotAcceptableException](resource.register(UserRegistrationRequest(uname("mf"), "not-an-email", "pw")))
+      intercept[NotAcceptableException](
+        resource.register(UserRegistrationRequest(uname("mf"), "not-an-email", "pw"))
+      )
     ex.getMessage should include("Email format is invalid")
   }
 
   it should "reject an empty password" in {
-    val ex = intercept[NotAcceptableException](resource.register(UserRegistrationRequest(uname("ep"), uemail("ep"), "")))
+    val ex = intercept[NotAcceptableException](
+      resource.register(UserRegistrationRequest(uname("ep"), uemail("ep"), ""))
+    )
     ex.getMessage should include("Password")
   }
 
