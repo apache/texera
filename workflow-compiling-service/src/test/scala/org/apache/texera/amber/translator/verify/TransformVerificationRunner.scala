@@ -87,7 +87,9 @@ import org.apache.texera.amber.operator.visualization.treeplot.TreePlotOpDesc
 import org.apache.texera.amber.operator.visualization.volcanoPlot.VolcanoPlotOpDesc
 import org.apache.texera.amber.operator.visualization.waterfallChart.WaterfallChartOpDesc
 import org.apache.texera.amber.operator.visualization.windRoseChart.WindRoseChartOpDesc
+import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path}
+import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Success, Try}
 
 /**
@@ -496,7 +498,11 @@ object TransformVerificationRunner {
       workDir = testRoot
     )
 
-    if (visualizationJsonOps.contains(opClass)) {
+    // A JSON-compared operator can still legitimately render its own error page
+    // instead of a figure (a non-numeric threshold, no non-null rows). There is
+    // then no Plotly payload to compare on either path, so compare what the user
+    // actually sees — the HTML.
+    if (visualizationJsonOps.contains(opClass) && hasPlotlyFigure(actual)) {
       val expected = testRoot.resolve("output.json")
       if (!Files.exists(expected)) {
         throw new AssertionError(s"standalone visualization path did not produce $expected")
@@ -508,6 +514,25 @@ object TransformVerificationRunner {
         throw new AssertionError(s"standalone visualization path did not produce $expected")
       }
       VisualizationHtmlComparator.assertEqual(actual, expected)
+    }
+  }
+
+  /** True if the runtime path's visualization output carries a Plotly figure —
+    * either a `json-content` payload or an `html-content` holding a
+    * `Plotly.newPlot(...)` call. False for an operator's own error page.
+    */
+  private def hasPlotlyFigure(visualizationJsonl: Path): Boolean = {
+    val line = Files
+      .readAllLines(visualizationJsonl, StandardCharsets.UTF_8)
+      .asScala
+      .find(_.trim.nonEmpty)
+      .getOrElse(throw new AssertionError(s"$visualizationJsonl is empty"))
+    val node = objectMapper.readTree(line)
+    val json = node.get("json-content")
+    if (json != null && !json.isNull && json.asText().nonEmpty) true
+    else {
+      val html = node.get("html-content")
+      html != null && !html.isNull && html.asText().contains("Plotly.newPlot(")
     }
   }
 }
