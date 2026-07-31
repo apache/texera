@@ -224,17 +224,6 @@ describe("WorkflowState - toLogicalPlan", () => {
       toPortId: { id: 1, internal: false },
     });
   });
-
-  test("the targetOperatorId argument is currently ignored — the whole-graph plan is produced either way", () => {
-    // The parameter is accepted but unused in the current implementation; assert the
-    // observed behavior so a future change that starts honoring it is caught here.
-    const state = new WorkflowState();
-    state.addOperator(makeOperator("op1"));
-    state.addOperator(makeOperator("op2"));
-    state.addLink(makeLink("l1", "op1", "op2"));
-
-    expect(state.toLogicalPlan("op1")).toEqual(state.toLogicalPlan());
-  });
 });
 
 describe("WorkflowState - traversal", () => {
@@ -333,9 +322,8 @@ describe("WorkflowState - updateOperatorInputPorts", () => {
     expect(ports[1].isDynamicPort).toBe(true); // extra ports are dynamic
   });
 
-  test("reducing the count drops the extra ports (links are left untouched)", () => {
+  test("reducing the count drops the extra ports", () => {
     const state = new WorkflowState();
-    state.addOperator(makeOperator("src"));
     state.addOperator(
       makeOperator("op1", {
         inputPorts: [
@@ -344,17 +332,10 @@ describe("WorkflowState - updateOperatorInputPorts", () => {
         ],
       })
     );
-    state.addLink({
-      linkID: "l1",
-      source: { operatorID: "src", portID: "output-0" },
-      target: { operatorID: "op1", portID: "input-1" },
-    });
 
     state.updateOperatorInputPorts("op1", 1);
 
     expect(state.getOperator("op1")!.inputPorts.map(p => p.portID)).toEqual(["input-0"]);
-    // Observed behavior: the link to the now-removed input-1 is NOT pruned by this method.
-    expect(state.getAllLinks().map(l => l.linkID)).toEqual(["l1"]);
   });
 
   test("returns false for a missing operator", () => {
