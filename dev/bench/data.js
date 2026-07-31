@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1785420424166,
+  "lastUpdate": 1785504729659,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -6858,6 +6858,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 499.04080035729436,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Eugene Gu",
+            "username": "eugenegujing",
+            "email": "eugenegujing@outlook.com"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "45b7b20e05864bca98def642e329d501e664413e",
+          "message": "test(frontend): add unit test coverage for ContextMenuComponent actions (#7148)\n\n### What changes were proposed in this PR?\n\n`ContextMenuComponent` backs the canvas right-click menu, but its\nexisting 13 tests only cover `canExecuteOperator` and its helpers; none\nof the action methods was invoked by any test.\n\nThis PR extends `context-menu.component.spec.ts` with 16 tests covering\nthe remaining public surface:\n\n- `onCopy` / `onPaste`: delegate to `OperatorMenuService`, each also\nasserting the sibling method is not called.\n- `onCut`: copy happens before delete (asserted via mock invocation\norder).\n- `onDelete` (mocked): all three deletion kinds are issued with the\nsnapshotted id lists inside exactly one `bundleActions` call; nothing is\ndeleted when the `bundleActions` callback is not run; the\n`hasLinkWithID` guard skips links no longer in the graph; highlighted\nids are snapshotted before deletion mutates the live highlight arrays.\n- `onDelete` (real `WorkflowActionService` on a seeded graph): deleting\nan operator together with its attached highlighted link does not\ndouble-delete the link (the real `deleteLinkWithID` throws on a missing\nlink); a standalone highlighted link is deleted while its endpoint\noperators survive; highlighted comment boxes are deleted; the whole\nmixed deletion is a single undo stack entry that one undo fully\nrestores.\n- `hasHighlightedLinks`: false/true per link highlight state.\n- `onClickExportHighlightedExecutionResult`: modal opens with\n`ResultExportationComponent`, the workflow name, and the `context-menu`\nsource marker.\n- Constructor subscriptions: `highlightedOperatorIds` /\n`highlightedCommentBoxIds` follow the service stream emissions.\n\nNo production code is changed. The only shared-stub change is the\n`OperatorMenuService` stub's two highlight streams becoming\n`BehaviorSubject`s instead of `of([])` so the subscription tests can\npush emissions; both emit `[]` on subscribe, so the pre-existing tests\nare unaffected.\n\n### Any related issues, documentation, discussions?\n\nCloses #7147\n\n### How was this PR tested?\n\nThis PR only adds tests. From `frontend/`, `npx ng test --watch=false\n--include='**/context-menu.component.spec.ts'` passes 29/29 (13\npre-existing + 16 new); prettier and eslint are clean. With coverage\nenabled, `context-menu.component.ts` reaches 100% statements, functions\nand branches.\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nCo-authored by: Claude Code (Claude Fable 5)",
+          "timestamp": "2026-07-31T03:57:45Z",
+          "url": "https://github.com/apache/texera/commit/45b7b20e05864bca98def642e329d501e664413e"
+        },
+        "date": 1785504729087,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 653.931644983556,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 1120.8520733871164,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 1179.421651646414,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 827.054899756203,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 1122.9451978968991,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 1183.5243160138368,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 881.2430114565152,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 1144.6896269649483,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 1173.814581148647,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 735.2840150609519,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 918.8089225316893,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 939.4023009954595,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 727.0077575311877,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 927.2360063034199,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 938.1906105594779,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 733.5015291704303,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 892.9093884204923,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 930.8165538481381,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 454.98833398536954,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 523.457679439538,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 527.8818039472249,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 454.7535196803161,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 520.6675067255412,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 529.9935106153508,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 442.030421716938,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 505.51930601278815,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 503.134040883661,
             "unit": "tuples/sec"
           }
         ]
