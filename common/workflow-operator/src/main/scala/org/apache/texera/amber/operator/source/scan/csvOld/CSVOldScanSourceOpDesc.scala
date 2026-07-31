@@ -21,7 +21,7 @@ package org.apache.texera.amber.operator.source.scan.csvOld
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.github.tototoshi.csv.{CSVReader, DefaultCSVFormat}
-import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
+import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.storage.DocumentFactory
 import org.apache.texera.amber.core.tuple.AttributeTypeUtils.inferSchemaFromRows
@@ -30,6 +30,7 @@ import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, Workflow
 import org.apache.texera.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
 import org.apache.texera.amber.operator.StandaloneCodeGenerator
 import org.apache.texera.amber.operator.source.scan.ScanSourceOpDesc
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
 import java.io.IOException
@@ -38,9 +39,16 @@ import java.nio.file.Paths
 
 class CSVOldScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerator {
 
+  // Almost anything — only a leading newline fails, in pandas; see CSVScanSourceOpDesc.
   @JsonProperty(defaultValue = ",")
   @JsonSchemaTitle("Delimiter")
   @JsonPropertyDescription("delimiter to separate each line into fields")
+  @JsonSchemaInject(json = """
+{
+  "pattern": "^(?!\\n)[\\s\\S]*$",
+  "examples": [","]
+}
+""")
   var customDelimiter: Option[String] = Some(",")
 
   @JsonProperty(defaultValue = "true")
@@ -79,13 +87,16 @@ class CSVOldScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerat
   override def generateStandaloneCode(): String = {
     val rawPath = fileName.getOrElse("")
     val basename = Paths.get(new URI(rawPath).getPath).getFileName.toString
-    val sep = customDelimiter.getOrElse(",")
+    // First character, empty means comma — the same resolution the reader below does —
+    // and escaped, so every value the field accepts survives being spliced into Python.
+    // See CSVScanSourceOpDesc for what handing pandas the raw value did.
+    val sep = customDelimiter.filter(_.nonEmpty).getOrElse(",").charAt(0).toString
     val encoding = fileEncoding.toString.replace("_", "-").toLowerCase
     val headerArg = if (hasHeader) "0" else "None"
 
     val args = scala.collection.mutable.ArrayBuffer[String]()
     args += s"""filepath_or_buffer="$basename""""
-    args += s"""sep="$sep""""
+    args += s"sep=${pyStringLiteral(sep)}"
     args += s"""encoding="$encoding""""
     args += s"header=$headerArg"
 

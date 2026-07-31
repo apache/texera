@@ -20,7 +20,7 @@
 package org.apache.texera.amber.operator.source.scan.csv
 
 import com.fasterxml.jackson.annotation.{JsonInclude, JsonProperty, JsonPropertyDescription}
-import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
+import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import com.univocity.parsers.csv.{CsvFormat, CsvParser, CsvParserSettings}
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.storage.DocumentFactory
@@ -31,6 +31,7 @@ import org.apache.texera.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
 import org.apache.texera.amber.operator.StandaloneCodeGenerator
 import org.apache.texera.amber.operator.source.scan.ScanSourceOpDesc
 import org.apache.texera.amber.operator.source.scan.csv.CSVScanSourceOpExec
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
 import java.io.{IOException, InputStreamReader}
@@ -39,10 +40,25 @@ import java.nio.file.Paths
 
 class CSVScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerator {
 
+  // Almost anything: the delimiter reaches the parser as `charAt(0)` and empty is read
+  // as the default comma, so a longer value is not refused, it just has its tail
+  // ignored. The one value that does fail is a leading NEWLINE — measured, both readers
+  // here take it, but pandas refuses it outright ("Specified \n as separator"), so the
+  // exported script would die on a config the platform runs. Excluded through a
+  // lookahead rather than an `^$` alternative because `$` in Java and Python also
+  // matches before a trailing newline, which would let `"\n"` back in; the lookahead
+  // reads the same in all three engines. `examples` gives a legal sample to whatever
+  // needs one.
   @JsonProperty(defaultValue = ",")
   @JsonSchemaTitle("Delimiter")
   @JsonPropertyDescription("delimiter to separate each line into fields")
   @JsonInclude(JsonInclude.Include.NON_ABSENT)
+  @JsonSchemaInject(json = """
+{
+  "pattern": "^(?!\\n)[\\s\\S]*$",
+  "examples": [","]
+}
+""")
   var customDelimiter: Option[String] = None
 
   @JsonProperty(defaultValue = "true")
@@ -148,14 +164,18 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerator 
     val rawPath = fileName.getOrElse("")
     val basename = Paths.get(new URI(rawPath).getPath).getFileName.toString
 
-    val sep = customDelimiter.getOrElse(",")
+    // Resolve the delimiter the same way the parser above does — first character, empty
+    // means comma — and escape it. Every value the field accepts has to survive this:
+    // pandas reads a separator longer than one character as a REGULAR EXPRESSION, and a
+    // backslash spliced raw produced `sep="\"`, which is not valid Python at all.
+    val sep = customDelimiter.filter(_.nonEmpty).getOrElse(",").charAt(0).toString
     // Texera's encoding enum uses values like UTF_8; pandas expects utf-8.
     val encoding = fileEncoding.toString.replace("_", "-").toLowerCase
     val headerArg = if (hasHeader) "0" else "None"
 
     val args = scala.collection.mutable.ArrayBuffer[String]()
     args += s"""filepath_or_buffer="$basename""""
-    args += s"""sep="$sep""""
+    args += s"sep=${pyStringLiteral(sep)}"
     args += s"""encoding="$encoding""""
     args += s"header=$headerArg"
 
