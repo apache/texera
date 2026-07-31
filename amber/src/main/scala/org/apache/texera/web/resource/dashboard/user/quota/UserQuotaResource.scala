@@ -149,10 +149,7 @@ object UserQuotaResource {
         .where(OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(eid))
         .fetch()
         .asScala
-        .map(r =>
-          Option(r.get(OPERATOR_PORT_EXECUTIONS.RESULT_SIZE)).getOrElse(0).asInstanceOf[Integer]
-        )
-        .map(_.toLong)
+        .map(r => Option(r.get(OPERATOR_PORT_EXECUTIONS.RESULT_SIZE)).map(_.toLong).getOrElse(0L))
         .sum
 
       val logSize = context
@@ -162,11 +159,8 @@ object UserQuotaResource {
         .fetch()
         .asScala
         .map(r =>
-          Option(r.get(OPERATOR_EXECUTIONS.CONSOLE_MESSAGES_SIZE))
-            .getOrElse(0)
-            .asInstanceOf[Integer]
+          Option(r.get(OPERATOR_EXECUTIONS.CONSOLE_MESSAGES_SIZE)).map(_.toLong).getOrElse(0L)
         )
-        .map(_.toLong)
         .sum
 
       QuotaStorage(

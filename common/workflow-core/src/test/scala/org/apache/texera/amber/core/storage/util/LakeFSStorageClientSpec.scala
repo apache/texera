@@ -21,55 +21,10 @@ package org.apache.texera.amber.core.storage.util
 
 import org.scalatest.flatspec.AnyFlatSpec
 
-import scala.collection.mutable.ListBuffer
-
 class LakeFSStorageClientSpec extends AnyFlatSpec {
 
-  "retryWithBackoff" should "run the operation once and not sleep when it succeeds immediately" in {
-    var attempts = 0
-    val delays = ListBuffer.empty[Long]
-    LakeFSStorageClient.retryWithBackoff(5, 200L, delays += _) {
-      attempts += 1
-    }
-    assert(attempts == 1)
-    assert(delays.isEmpty)
-  }
-
-  it should "retry until success and double the delay after each failed attempt" in {
-    var attempts = 0
-    val delays = ListBuffer.empty[Long]
-    LakeFSStorageClient.retryWithBackoff(5, 200L, delays += _) {
-      attempts += 1
-      if (attempts < 3) throw new RuntimeException("transient")
-    }
-    assert(attempts == 3)
-    assert(delays.toList == List(200L, 400L))
-  }
-
-  it should "give up after maxAttempts and preserve the last failure as the cause" in {
-    var attempts = 0
-    val cause = new RuntimeException("still down")
-    val ex = intercept[RuntimeException] {
-      LakeFSStorageClient.retryWithBackoff(3, 200L, _ => ()) {
-        attempts += 1
-        throw cause
-      }
-    }
-    assert(attempts == 3)
-    assert(ex.getMessage.contains("after 3 attempts"))
-    assert(ex.getCause eq cause)
-  }
-
-  it should "fail fast and restore the interrupt status when interrupted" in {
-    val ex = intercept[RuntimeException] {
-      LakeFSStorageClient.retryWithBackoff(5, 200L, _ => ()) {
-        throw new InterruptedException("interrupted")
-      }
-    }
-    // Thread.interrupted() both reads and clears the flag, so the interrupt was restored.
-    assert(Thread.interrupted())
-    assert(ex.getCause.isInstanceOf[InterruptedException])
-  }
+  // `healthCheck` retries through the shared `RetryUtil.withBackoff`; that contract (progression,
+  // give-up wrapping, interrupt fail-fast) is covered by `RetryUtilSpec` in `common/util`.
 
   "parsePhysicalAddress" should "split a well-formed address into bucket and key" in {
     assert(

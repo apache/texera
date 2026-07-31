@@ -462,21 +462,67 @@ fi
 # `localhost` only works for the host. `texera-minio` only works inside the
 # docker network. The host's LAN IP works from BOTH (host loopback for the
 # host, docker NAT'd out-and-back for the container).
-_detect_host_lan_ip() {
+#
+# Both platform probes follow the same two steps: the interface backing the
+# default route first (most reliable on a laptop that may have wifi +
+# thunderbolt + tailscale all active), then a scan as a fallback.
+_detect_host_lan_ip_darwin() {
     local iface="" ip=""
-    # 1. The interface backing the default route — most reliable on a
-    #    laptop that may have wifi + thunderbolt + tailscale all active.
     iface=$(route get default 2>/dev/null | awk '/interface:/{print $2; exit}')
     if [[ -n "$iface" ]]; then
         ip=$(ipconfig getifaddr "$iface" 2>/dev/null)
         [[ -n "$ip" && "$ip" != 127.* ]] && { printf '%s\n' "$ip"; return 0; }
     fi
-    # 2. Fallback: linux `hostname -I`-equivalent walk over en*.
     for iface in en0 en1 en2 en3 en4 en5 en6 en7 en8 en9 en10; do
         ip=$(ipconfig getifaddr "$iface" 2>/dev/null)
         [[ -n "$ip" && "$ip" != 127.* ]] && { printf '%s\n' "$ip"; return 0; }
     done
     return 1
+}
+
+_detect_host_lan_ip_linux() {
+    command -v ip >/dev/null 2>&1 || return 1
+    local iface="" addr="" idx="" dev="" fam="" cidr=""
+    # 1. Interface backing the default route — take its first global IPv4,
+    #    stripping the /prefix that `ip -o addr` appends.
+    iface=$(ip -4 route show default 2>/dev/null \
+        | awk '{ for (i = 1; i < NF; i++) if ($i == "dev") { print $(i+1); exit } }')
+    # A default route over a container bridge or an overlay/VPN tunnel points at
+    # an address the containers can't reach back, which is the whole thing this
+    # variable must avoid — drop such an interface so the scan below wins.
+    case "$iface" in
+        docker*|br-*|bridge*|virbr*|veth*|tun*|tap*|cni*|flannel*|cali*|kube*|tailscale*|zt*|wg*)
+            iface="" ;;
+    esac
+    if [[ -n "$iface" ]]; then
+        addr=$(ip -4 -o addr show dev "$iface" scope global 2>/dev/null \
+            | awk '{ split($4, a, "/"); print a[1]; exit }')
+        [[ -n "$addr" && "$addr" != 127.* ]] && { printf '%s\n' "$addr"; return 0; }
+    fi
+    # 2. Scan every global IPv4, skipping the interfaces that would defeat the
+    #    purpose of this address. A container bridge (docker0, br-*, veth*) is
+    #    reachable from the host but not from inside another container's
+    #    network namespace the way MinIO needs; an overlay/VPN address
+    #    (tailscale, zerotier) is not reachable from the docker bridge at all.
+    while read -r idx dev fam cidr _rest; do
+        [[ "$fam" == "inet" ]] || continue
+        case "$dev" in
+            lo|docker*|br-*|bridge*|virbr*|veth*|tun*|tap*|cni*|flannel*|cali*|kube*|tailscale*|zt*|wg*)
+                continue ;;
+        esac
+        addr="${cidr%%/*}"
+        [[ -n "$addr" && "$addr" != 127.* ]] && { printf '%s\n' "$addr"; return 0; }
+    done < <(ip -4 -o addr show scope global 2>/dev/null)
+    return 1
+}
+
+_detect_host_lan_ip() {
+    case "$(uname -s 2>/dev/null)" in
+        Darwin) _detect_host_lan_ip_darwin ;;
+        Linux)  _detect_host_lan_ip_linux ;;
+        # Anything else (BSD, WSL oddities): try both rather than give up.
+        *)      _detect_host_lan_ip_darwin || _detect_host_lan_ip_linux ;;
+    esac
 }
 # Lazy resolver — called from subcommands that actually need to publish a
 # host-reachable S3 endpoint (cmd_up, cmd_auto). Subcommands like
@@ -486,10 +532,18 @@ _require_host_lan_ip() {
     [[ -n "${HOST_LAN_IP:-}" ]] && return 0
     HOST_LAN_IP="$(_detect_host_lan_ip)" || HOST_LAN_IP=""
     if [[ -z "$HOST_LAN_IP" ]]; then
+        local probes="" bridge_note=""
+        case "$(uname -s 2>/dev/null)" in
+            Darwin) probes="\`route get default\` / en0-en10" ;;
+            Linux)  probes="\`ip route show default\` / \`ip -4 addr show scope global\`"
+                    bridge_note=" outside the container bridges" ;;
+            *)      probes="the macOS and Linux probes"
+                    bridge_note=" outside the container bridges" ;;
+        esac
         echo "FATAL: could not detect a host LAN IP." >&2
         echo "       MinIO needs an address reachable from both docker (lakekeeper" >&2
         echo "       does S3 ops) and the host (JVMs read signed URLs back); none" >&2
-        echo "       of \`route get default\` / en0-en10 had a non-loopback IPv4." >&2
+        echo "       of $probes offered a non-loopback IPv4${bridge_note}." >&2
         echo "       Connect to a network or export HOST_LAN_IP=<your-IP> explicitly." >&2
         exit 1
     fi
@@ -1133,20 +1187,23 @@ _install_hint() {
         node)
             printf "  ${BOLD}install Node 20+ (needed for frontend & agent-service):${RESET}\n"
             printf "    macOS:   brew install node\n"
+            printf "    Linux:   use a version manager below — distro packages\n"
+            printf "             (apt/dnf nodejs) are older than the frontend needs\n"
             printf "    nvm:     nvm install --lts && nvm use --lts\n"
             printf "    fnm:     fnm install --lts\n"
             printf "    volta:   volta install node\n"
             ;;
         yarn)
             printf "  ${BOLD}install yarn (needed for the frontend):${RESET}\n"
+            printf "    any OS:  corepack enable    ${DIM}# ships with Node; frontend pins yarn@4${RESET}\n"
             printf "    macOS:   brew install yarn\n"
-            printf "    npm:     npm install -g yarn\n"
-            printf "    corepack: corepack enable\n"
+            printf "    Linux:   npm install -g yarn\n"
             ;;
         bun)
             printf "  ${BOLD}install bun (needed for agent-service):${RESET}\n"
             printf "    macOS:   brew install oven-sh/bun/bun\n"
-            printf "    curl:    curl -fsSL https://bun.sh/install | bash\n"
+            printf "    Linux:   curl -fsSL https://bun.sh/install | bash\n"
+            printf "    npm:     npm install -g bun\n"
             ;;
         sbt)
             printf "  ${BOLD}install sbt (needed to build the JVM services):${RESET}\n"
@@ -1156,7 +1213,8 @@ _install_hint() {
         docker)
             printf "  ${BOLD}install Docker (needed for postgres/minio/lakefs/lakekeeper/litellm):${RESET}\n"
             printf "    macOS:   download Docker Desktop from https://docker.com/products/docker-desktop\n"
-            printf "    Linux:   apt install docker.io docker-compose-plugin\n"
+            printf "    Linux:   apt install docker.io docker-compose-v2    ${DIM}# dnf: moby-engine docker-compose${RESET}\n"
+            printf "             then sudo usermod -aG docker \"\$USER\" and log back in\n"
             ;;
         *)
             printf "  ${DIM}no install hint for: %s${RESET}\n" "$tool"
@@ -1194,9 +1252,53 @@ _diagnose_node() {
 }
 
 # --------- helpers ---------
+# PID of whatever is listening on a TCP port, or nothing. Always exits 0 —
+# "empty output" is the contract for "nothing is listening", and callers
+# (svc_running_pid, wait_for_port, the status table) rely on that.
+#
+# lsof first: it ships with macOS and is what this has always used. But it is
+# not a default package on Debian/Ubuntu/Fedora, and when it is missing every
+# native service reads as stopped — `up` then relaunches services that are
+# already running and `down` silently no-ops. So fall back to `ss` from
+# iproute2, which is essential on any modern Linux.
 listen_pid_for_port() {
-    # || true so pipefail doesn't kill us when nothing is listening
-    lsof -nP -iTCP:"$1" -sTCP:LISTEN -t 2>/dev/null | head -1 || true
+    local port="$1" pid=""
+    if command -v lsof >/dev/null 2>&1; then
+        # || true so pipefail doesn't kill us when nothing is listening
+        pid=$(lsof -nP -iTCP:"$port" -sTCP:LISTEN -t 2>/dev/null | head -1 || true)
+        [[ -n "$pid" ]] && { printf '%s\n' "$pid"; return 0; }
+    fi
+    if command -v ss >/dev/null 2>&1; then
+        # `ss -lntp` prints e.g.
+        #   LISTEN 0 511 127.0.0.1:8080 0.0.0.0:* users:(("java",pid=4827,fd=9))
+        # Match on the local-address column ending in :<port> so :18080 doesn't
+        # answer for :8080. No -H: it postdates the iproute2 in older distros.
+        pid=$(ss -lntp 2>/dev/null \
+            | awk -v suffix=":$port" '$4 ~ suffix"$" { print; exit }' \
+            | grep -o 'pid=[0-9]*' | head -1 | cut -d= -f2 || true)
+        [[ -n "$pid" ]] && { printf '%s\n' "$pid"; return 0; }
+    fi
+    return 0
+}
+
+# Modification time of a file as "YYYY-MM-DD HH:MM", in whichever stat dialect
+# is present. Non-zero and silent if the file is missing or unreadable, so
+# callers can substitute their own placeholder.
+#
+# GNU coreutils and BSD disagree completely here: BSD's `stat -f FMT -t TIMEFMT`
+# reads `-f` as "file system info" under GNU, which then treats the format
+# strings as filenames — it writes a diagnostic to stderr, prints filesystem
+# fields on stdout and exits 1. Probe rather than branch on `uname` so a
+# GNU-coreutils macOS also works.
+_file_mtime_str() {
+    local f="${1:-}"
+    [[ -n "$f" && -e "$f" ]] || return 1
+    if stat -c '%y' "$f" >/dev/null 2>&1; then
+        # GNU: "2026-07-29 20:06:12.123456789 +0000" → keep date + HH:MM
+        stat -c '%y' "$f" 2>/dev/null | cut -c1-16
+    else
+        stat -f "%Sm" -t "%Y-%m-%d %H:%M" "$f" 2>/dev/null
+    fi
 }
 
 # Branch + short-sha of the deploy source ($REPO_ROOT), tab-separated, each
@@ -1671,14 +1773,14 @@ svc_artifact_mtime() {
                     done <<< "$globbed"
                 fi
                 if [[ ${#main_jars[@]} -gt 0 ]]; then
-                    stat -f "%Sm" -t "%Y-%m-%d %H:%M" "${main_jars[0]}"
+                    _file_mtime_str "${main_jars[0]}" || echo "—"
                     return
                 fi
             fi
             echo "—"
             ;;
-        bun)    stat -f "%Sm" -t "%Y-%m-%d %H:%M" "$(amap_get SVC_CWD "$svc")/bun.lock" 2>/dev/null || echo "—" ;;
-        yarn)   stat -f "%Sm" -t "%Y-%m-%d %H:%M" "$(amap_get SVC_CWD "$svc")/yarn.lock" 2>/dev/null || echo "—" ;;
+        bun)    _file_mtime_str "$(amap_get SVC_CWD "$svc")/bun.lock" || echo "—" ;;
+        yarn)   _file_mtime_str "$(amap_get SVC_CWD "$svc")/yarn.lock" || echo "—" ;;
         docker) echo "—" ;;
     esac
 }
@@ -1971,6 +2073,17 @@ svc_source_hash() {
 }
 
 # Per-service dirty check (the SRC * indicator). Two-stage:
+# Set a file's mtime one second into the past, in whichever `touch` dialect is
+# present. Used to build the comparison reference for the fast path below; see
+# there for why the second of slack is needed. A missing path is a quiet no-op.
+_stamp_backdate() {
+    [[ -f "${1:-}" ]] || return 0
+    # GNU coreutils, then BSD/macOS `-A` (adjust the timestamps by -1 second).
+    touch -d '1 second ago' "$1" 2>/dev/null \
+        || touch -A -01 "$1" 2>/dev/null \
+        || true
+}
+
 #   Fast path  (~22 ms): is any tracked source newer than the stamp file's
 #                        mtime? If not, definitely clean.
 #   Slow path (~100 ms): compute current source hash and compare to the hash
@@ -2003,10 +2116,26 @@ svc_src_changed() {
             while IFS= read -r d; do
                 [[ -n "$d" ]] && dirs+=("$d")
             done < <(_svc_src_dirs "$svc")
+            # `find -newer` is *strictly* newer, and the stamp is written at the
+            # end of a build — right before you edit the file you were just
+            # building. An edit inside the filesystem's timestamp granularity
+            # therefore shares the stamp's mtime exactly and used to be
+            # invisible here, so `auto` skipped the rebuild (#7075). Compare
+            # against a throwaway marker one second behind the stamp instead.
+            # The slack only widens the candidate set; the content hash below
+            # still decides. The stamp itself keeps its real mtime, so the
+            # refresh at the end of the slow path converges as before.
+            local cmp_ref="$stamp"
+            local marker="$BUILD_STAMP_DIR/.${svc}.cmp"
+            if touch -r "$stamp" "$marker" 2>/dev/null; then
+                _stamp_backdate "$marker"
+                cmp_ref="$marker"
+            fi
             local newer=""
             newer=$(find "${dirs[@]}" \
                 \( -name "*.scala" -o -name "*.java" -o -name "*.proto" \) \
-                -newer "$stamp" -type f -print 2>/dev/null | head -1)
+                -newer "$cmp_ref" -type f -print 2>/dev/null | head -1)
+            rm -f "$marker"
             if [[ -z "$newer" ]]; then
                 return 1   # nothing changed since last stamp → clean
             fi

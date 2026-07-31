@@ -269,7 +269,7 @@ class DatasetResourceSpec
   }
 
   override protected def afterAll(): Unit = {
-    try shutdownDB()
+    try closeConnectionPool()
     finally {
       try savedLevels.foreach { case (name, prev) => setLoggerLevel(name, prev) } finally super
         .afterAll()
@@ -1590,8 +1590,7 @@ class DatasetResourceSpec
     val filePath = uniqueFilePath("init-session-row-locked")
     initUpload(filePath, numParts = 2).getStatus shouldEqual 200
 
-    val connectionProvider = getDSLContext.configuration().connectionProvider()
-    val connection = connectionProvider.acquire()
+    val connection = newRawConnection()
     connection.setAutoCommit(false)
 
     try {
@@ -1613,7 +1612,7 @@ class DatasetResourceSpec
       ex.getResponse.getStatus shouldEqual 409
     } finally {
       connection.rollback()
-      connectionProvider.release(connection)
+      connection.close()
     }
 
     // lock released => init works again
@@ -1979,8 +1978,8 @@ class DatasetResourceSpec
     val filePath = uniqueFilePath("init-lock-409")
     initUpload(filePath, numParts = 2).getStatus shouldEqual 200
 
-    val connectionProvider = getDSLContext.configuration().connectionProvider()
-    val connection = connectionProvider.acquire()
+    // Open a completely independent connection to simulate a second concurrent user
+    val connection = newRawConnection()
     connection.setAutoCommit(false)
 
     try {
@@ -2002,7 +2001,7 @@ class DatasetResourceSpec
       ex.getResponse.getStatus shouldEqual 409
     } finally {
       connection.rollback()
-      connectionProvider.release(connection)
+      connection.close()
     }
   }
 
@@ -2222,8 +2221,7 @@ class DatasetResourceSpec
     initUpload(filePath, numParts = 2)
     val uploadId = fetchUploadIdOrFail(filePath)
 
-    val connectionProvider = getDSLContext.configuration().connectionProvider()
-    val connection = connectionProvider.acquire()
+    val connection = newRawConnection()
     connection.setAutoCommit(false)
 
     try {
@@ -2244,7 +2242,7 @@ class DatasetResourceSpec
       assertStatus(ex, 409)
     } finally {
       connection.rollback()
-      connectionProvider.release(connection)
+      connection.close()
     }
 
     uploadPart(filePath, 1, minPartBytes(3.toByte)).getStatus shouldEqual 200
@@ -2255,8 +2253,7 @@ class DatasetResourceSpec
     initUpload(filePath, numParts = 2)
     val uploadId = fetchUploadIdOrFail(filePath)
 
-    val connectionProvider = getDSLContext.configuration().connectionProvider()
-    val connection = connectionProvider.acquire()
+    val connection = newRawConnection()
     connection.setAutoCommit(false)
 
     try {
@@ -2274,7 +2271,7 @@ class DatasetResourceSpec
       uploadPart(filePath, 2, tinyBytes(9.toByte)).getStatus shouldEqual 200
     } finally {
       connection.rollback()
-      connectionProvider.release(connection)
+      connection.close()
     }
   }
 
@@ -2461,8 +2458,7 @@ class DatasetResourceSpec
     initUpload(filePath, numParts = 1)
     uploadPart(filePath, 1, tinyBytes(1.toByte)).getStatus shouldEqual 200
 
-    val connectionProvider = getDSLContext.configuration().connectionProvider()
-    val connection = connectionProvider.acquire()
+    val connection = newRawConnection()
     connection.setAutoCommit(false)
 
     try {
@@ -2482,7 +2478,7 @@ class DatasetResourceSpec
       assertStatus(ex, 409)
     } finally {
       connection.rollback()
-      connectionProvider.release(connection)
+      connection.close()
     }
   }
 
@@ -2522,8 +2518,7 @@ class DatasetResourceSpec
     val filePath = uniqueFilePath("abort-lock-race")
     initUpload(filePath, numParts = 1)
 
-    val connectionProvider = getDSLContext.configuration().connectionProvider()
-    val connection = connectionProvider.acquire()
+    val connection = newRawConnection()
     connection.setAutoCommit(false)
 
     try {
@@ -2543,7 +2538,7 @@ class DatasetResourceSpec
       assertStatus(ex, 409)
     } finally {
       connection.rollback()
-      connectionProvider.release(connection)
+      connection.close()
     }
   }
 

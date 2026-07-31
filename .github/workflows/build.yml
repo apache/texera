@@ -309,9 +309,11 @@ jobs:
               "Auth/jacoco" \
               "Config/jacoco" \
               "Resource/jacoco" \
+              "Util/jacoco" \
               "PyBuilder/jacoco" \
               "WorkflowCore/jacoco" \
               "WorkflowOperator/jacoco" \
+              "WorkflowCompiler/jacoco" \
               "WorkflowExecutionService/jacoco"
       - name: Upload amber and common coverage to Codecov
         if: always()

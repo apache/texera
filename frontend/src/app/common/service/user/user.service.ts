@@ -81,9 +81,9 @@ export class UserService {
     this.changeUser(undefined);
   }
 
-  public register(username: string, password: string): Observable<void> {
+  public register(username: string, email: string, password: string): Observable<void> {
     return this.authService
-      .register(username, password)
+      .register(username, email, password)
       .pipe(switchMap(({ accessToken }) => this.handleAccessToken(accessToken)));
   }
 
@@ -132,6 +132,24 @@ export class UserService {
       return { result: false, message: "Username should not be empty." };
     }
     return { result: true, message: "Username frontend validation success." };
+  }
+
+  /**
+   * check the given parameter is a syntactically valid email address for registration
+   * @param email
+   */
+  static validateEmail(email: string): { result: boolean; message: string } {
+    const trimmed = (email ?? "").trim();
+    if (trimmed.length === 0) {
+      return { result: false, message: "Email should not be empty." };
+    }
+    // Pragmatic email regex: non-whitespace + @ + non-whitespace + . + non-whitespace.
+    // Matches what most users expect; we leave authoritative validation to the backend.
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(trimmed)) {
+      return { result: false, message: "Email format is invalid." };
+    }
+    return { result: true, message: "Email frontend validation success." };
   }
 
   getAvatar(googleAvatar: string): Observable<string | undefined> {
