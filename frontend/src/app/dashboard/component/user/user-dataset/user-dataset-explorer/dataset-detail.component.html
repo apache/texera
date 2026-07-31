@@ -128,6 +128,125 @@
           </div>
         </nz-card>
       </div>
+
+      <nz-card class="data-card data-card-metadata">
+        <h3 class="data-card-heading">Metadata</h3>
+        <nz-divider class="metadata-divider"></nz-divider>
+        <nz-collapse
+          nzGhost
+          nzExpandIconPosition="end"
+          class="contributors-collapse">
+          <nz-collapse-panel nzHeader="Contributors">
+            <div class="contributor-list">
+              <div
+                *ngFor="let contributor of datasetContributors"
+                class="contributor-card">
+                <button
+                  *ngIf="userHasWriteAccess()"
+                  nz-button
+                  nzType="text"
+                  nzSize="small"
+                  class="contributor-actions"
+                  nz-dropdown
+                  nzTrigger="click"
+                  nzPlacement="bottomRight"
+                  [nzDropdownMenu]="contributorActionsMenu">
+                  <i
+                    nz-icon
+                    nzType="more"></i>
+                </button>
+                <nz-dropdown-menu #contributorActionsMenu="nzDropdownMenu">
+                  <ul
+                    nz-menu
+                    class="contributor-actions-menu">
+                    <li
+                      nz-menu-item
+                      (click)="onEditContributor(contributor)">
+                      <i
+                        nz-icon
+                        nzType="edit"></i>
+                      Edit
+                    </li>
+                    <li
+                      nz-menu-item
+                      nzDanger
+                      nz-popconfirm
+                      [nzPopconfirmTitle]="'Delete contributor &quot;' + contributor.name + '&quot;?'"
+                      nzOkText="Delete"
+                      nzOkDanger
+                      (nzOnConfirm)="onDeleteContributor(contributor)">
+                      <i
+                        nz-icon
+                        nzType="delete"></i>
+                      Delete
+                    </li>
+                  </ul>
+                </nz-dropdown-menu>
+                <div class="contributor-name">
+                  <span
+                    nz-tooltip
+                    [nzTooltipTitle]="contributor.name"
+                    >{{ contributor.name }}</span
+                  >
+                  <i
+                    *ngIf="contributor.creator"
+                    nz-icon
+                    nzType="star"
+                    nzTheme="fill"
+                    class="creator-star"
+                    nz-tooltip
+                    nzTooltipTitle="Original creator"></i>
+                </div>
+                <div
+                  class="contributor-row"
+                  nz-tooltip
+                  [nzTooltipTitle]="contributor.email">
+                  <span class="contributor-label">Email</span>
+                  <span
+                    class="contributor-value"
+                    [class.empty]="!contributor.email"
+                    >{{ contributor.email || "—" }}</span
+                  >
+                </div>
+                <div
+                  class="contributor-row"
+                  nz-tooltip
+                  [nzTooltipTitle]="contributor.affiliation">
+                  <span class="contributor-label">Affiliation</span>
+                  <span
+                    class="contributor-value"
+                    [class.empty]="!contributor.affiliation"
+                    >{{ contributor.affiliation || "—" }}</span
+                  >
+                </div>
+                <div
+                  class="contributor-row"
+                  nz-tooltip
+                  [nzTooltipTitle]="contributor.comments">
+                  <span class="contributor-label">Comments</span>
+                  <span
+                    class="contributor-value"
+                    [class.empty]="!contributor.comments"
+                    >{{ contributor.comments || "—" }}</span
+                  >
+                </div>
+              </div>
+              <div
+                *ngIf="userHasWriteAccess()"
+                class="contributor-card-add"
+                role="button"
+                tabindex="0"
+                (click)="onAddContributor()"
+                (keydown.enter)="onAddContributor()">
+                <i
+                  nz-icon
+                  nzType="plus"
+                  class="add-icon"></i>
+              </div>
+            </div>
+          </nz-collapse-panel>
+        </nz-collapse>
+      </nz-card>
     </div>
   </nz-tab>
   <nz-tab nzTitle="Versions & Files">

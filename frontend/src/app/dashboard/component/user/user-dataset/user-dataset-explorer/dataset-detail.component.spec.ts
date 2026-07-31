@@ -34,7 +34,7 @@ import { FileUploadItem } from "../../../../type/dashboard-file.interface";
 import { DatasetFileNode, getFullPathFromDatasetFileNode } from "../../../../../common/type/datasetVersionFileTree";
 import { DatasetStagedObject } from "../../../../../common/type/dataset-staged-object";
 import { commonTestImports, commonTestProviders } from "../../../../../common/testing/test-utils";
-import { Dataset, DatasetVersion } from "../../../../../common/type/dataset";
+import { Contributor, Dataset, DatasetVersion } from "../../../../../common/type/dataset";
 import { DashboardDataset } from "../../../../type/dashboard-dataset.interface";
 import { HttpErrorResponse } from "@angular/common/http";
 import { format } from "date-fns";
@@ -370,6 +370,7 @@ describe("DatasetDetailComponent behavior", () => {
   let downloadServiceStub: MockService;
   let hubServiceStub: MockService;
   let adminSettingsServiceStub: MockService;
+  let modalServiceStub: MockService;
 
   const CREATION_TS = 1_700_000_000_000;
 
@@ -418,7 +419,7 @@ describe("DatasetDetailComponent behavior", () => {
       imports: [DatasetDetailComponent, ...commonTestImports],
       providers: [
         { provide: ActivatedRoute, useValue: { params: of(params), data: of({}) } },
-        { provide: NzModalService, useValue: {} },
+        { provide: NzModalService, useValue: modalServiceStub },
         { provide: DatasetService, useValue: datasetServiceStub },
         { provide: NotificationService, useValue: notificationServiceStub },
         { provide: DownloadService, useValue: downloadServiceStub },
@@ -451,6 +452,7 @@ describe("DatasetDetailComponent behavior", () => {
       updateDatasetDownloadable: vi.fn(() => of({})),
       updateDatasetCoverImage: vi.fn(() => of({})),
       updateDatasetDescription: vi.fn(() => of({})),
+      updateDatasetContributors: vi.fn(() => of(undefined)),
       updateDatasetName: vi.fn(() => of({})),
       deleteDatasets: vi.fn(() => of({})),
       deleteDatasetFile: vi.fn(() => of({})),
@@ -459,6 +461,7 @@ describe("DatasetDetailComponent behavior", () => {
       finalizeMultipartUpload: vi.fn(() => of({})),
     };
     notificationServiceStub = { success: vi.fn(), error: vi.fn(), info: vi.fn() };
+    modalServiceStub = { create: vi.fn() };
     downloadServiceStub = {
       downloadDatasetVersion: vi.fn(() => of(new Blob())),
       downloadSingleFile: vi.fn(() => of(new Blob())),
@@ -1373,6 +1376,107 @@ describe("DatasetDetailComponent behavior", () => {
 
       expect(button).toBeTruthy();
       expect(button.disabled).toBe(false);
+    });
+  });
+
+  describe("contributors", () => {
+    const contributorA: Contributor = {
+      name: "Contributor A",
+      creator: true,
+      affiliation: "Test Lab",
+      email: "contributor-a@test.com",
+      comments: "",
+    };
+    const contributorB: Contributor = {
+      name: "Contributor B",
+      creator: false,
+      affiliation: "Test Lab",
+      email: "contributor-b@test.com",
+      comments: "notes",
+    };
+
+    it("maps contributors from the dashboard dataset and falls back to an empty list", () => {
+      datasetServiceStub.getDataset.mockReturnValue(of(makeDashboardDataset({ contributors: [contributorA] })));
+      createComponent();
+      component.did = 5;
+
+      component.retrieveDatasetInfo();
+      expect(component.datasetContributors).toEqual([contributorA]);
+
+      datasetServiceStub.getDataset.mockReturnValue(of(makeDashboardDataset()));
+      component.retrieveDatasetInfo();
+      expect(component.datasetContributors).toEqual([]);
+    });
+
+    it("onAddContributor appends the modal result and persists the list", () => {
+      modalServiceStub.create.mockReturnValue({ afterClose: of(contributorB) });
+      createComponent();
+      component.did = 5;
+      component.datasetContributors = [contributorA];
+
+      component.onAddContributor();
+
+      expect(component.datasetContributors).toEqual([contributorA, contributorB]);
+      expect(datasetServiceStub.updateDatasetContributors).toHaveBeenCalledWith(5, [contributorA, contributorB]);
+      expect(notificationServiceStub.success).toHaveBeenCalledWith("Contributors updated");
+    });
+
+    it("onAddContributor does not persist when the modal is cancelled", () => {
+      modalServiceStub.create.mockReturnValue({ afterClose: of(undefined) });
+      createComponent();
+      component.did = 5;
+      component.datasetContributors = [contributorA];
+
+      component.onAddContributor();
+
+      expect(component.datasetContributors).toEqual([contributorA]);
+      expect(datasetServiceStub.updateDatasetContributors).not.toHaveBeenCalled();
+    });
+
+    it("onEditContributor replaces the edited row and persists the list", () => {
+      const updated = { ...contributorA, affiliation: "Another Test Lab" };
+      modalServiceStub.create.mockReturnValue({ afterClose: of(updated) });
+      createComponent();
+      component.did = 5;
+      component.datasetContributors = [contributorA, contributorB];
+
+      component.onEditContributor(contributorA);
+
+      expect(component.datasetContributors).toEqual([updated, contributorB]);
+      expect(datasetServiceStub.updateDatasetContributors).toHaveBeenCalledWith(5, [updated, contributorB]);
+    });
+
+    it("onDeleteContributor removes the row and persists the list", () => {
+      createComponent();
+      component.did = 5;
+      component.datasetContributors = [contributorA, contributorB];
+
+      component.onDeleteContributor(contributorA);
+
+      expect(component.datasetContributors).toEqual([contributorB]);
+      expect(datasetServiceStub.updateDatasetContributors).toHaveBeenCalledWith(5, [contributorB]);
+    });
+
+    it("rolls the list back and notifies when persisting fails", () => {
+      datasetServiceStub.updateDatasetContributors.mockReturnValue(throwError(() => new Error("boom")));
+      createComponent();
+      component.did = 5;
+      component.datasetContributors = [contributorA, contributorB];
+
+      component.onDeleteContributor(contributorB);
+
+      expect(component.datasetContributors).toEqual([contributorA, contributorB]);
+      expect(notificationServiceStub.error).toHaveBeenCalledWith("Failed to update contributors");
+    });
+
+    it("does not call the service when did is missing", () => {
+      createComponent();
+      component.did = undefined;
+      component.datasetContributors = [contributorA];
+
+      component.onDeleteContributor(contributorA);
+
+      expect(datasetServiceStub.updateDatasetContributors).not.toHaveBeenCalled();
     });
   });
 });
