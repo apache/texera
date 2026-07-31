@@ -1,0 +1,111 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# Liveness probe for the self-hosted runner fleet. `beat` runs a trivial
+# job on the fleet every 15 minutes; a stale last-success means the fleet
+# is down. Two consumers act on that signal:
+#   - precheck.yml queries the last successful heartbeat directly (plain
+#     GITHUB_TOKEN) and falls back to GitHub-hosted runners for the build
+#     tiers when it is stale.
+#   - `watchdog` mirrors the verdict into the ARC_AVAILABLE repository
+#     variable, which the first-hop runs-on expressions (unable to call
+#     APIs) consult. The workflow GITHUB_TOKEN cannot write variables
+#     ("Resource not accessible by integration"), so watchdog uses
+#     AUTO_MERGE_TOKEN (collaborator suffices for the Variables API) and
+#     degrades to log-only when the secret is absent.
+name: Runner Heartbeat
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+permissions:
+  actions: read
+
+concurrency:
+  group: runner-heartbeat
+  # A beat stuck queueing on a dead fleet is superseded by the next tick
+  # instead of piling up.
+  cancel-in-progress: true
+
+jobs:
+  beat:
+    runs-on: arc-light-linux
+    timeout-minutes: 5
+    steps:
+      - name: Prove the fleet is alive
+        run: echo "self-hosted fleet alive at $(date -u +%FT%TZ) on $RUNNER_NAME"
+
+  watchdog:
+    runs-on: ubuntu-slim
+    timeout-minutes: 5
+    steps:
+      - name: Mirror fleet health into ARC_AVAILABLE
+        uses: actions/github-script@v9
+        env:
+          VAR_TOKEN: ${{ secrets.AUTO_MERGE_TOKEN }}
+        with:
+          script: |
+            const STALE_MS = 35 * 60 * 1000;
+            const { data } = await github.rest.actions.listWorkflowRuns({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: "runner-heartbeat.yml",
+              status: "success",
+              per_page: 1,
+            });
+            const last = data.workflow_runs?.[0];
+            const lastOk = last ? new Date(last.updated_at).getTime() : 0;
+            const healthy = Date.now() - lastOk <= STALE_MS;
+            core.info(
+              `fleet ${healthy ? "healthy" : "STALE"}; last successful heartbeat: ` +
+              (lastOk ? new Date(lastOk).toISOString() : "never")
+            );
+            if (!process.env.VAR_TOKEN) {
+              core.warning("AUTO_MERGE_TOKEN not set; cannot update ARC_AVAILABLE (log-only).");
+              return;
+            }
+            const desired = healthy ? "true" : "false";
+            const headers = {
+              authorization: `Bearer ${process.env.VAR_TOKEN}`,
+              accept: "application/vnd.github+json",
+            };
+            const base = `https://api.github.com/repos/${context.repo.owner}/${context.repo.repo}/actions/variables`;
+            const cur = await fetch(`${base}/ARC_AVAILABLE`, { headers });
+            if (cur.status === 404) {
+              const res = await fetch(base, {
+                method: "POST",
+                headers,
+                body: JSON.stringify({ name: "ARC_AVAILABLE", value: desired }),
+              });
+              if (!res.ok) throw new Error(`create ARC_AVAILABLE: HTTP ${res.status}`);
+              core.notice(`ARC_AVAILABLE created as ${desired}`);
+            } else if (cur.ok) {
+              const { value } = await cur.json();
+              if (value !== desired) {
+                const res = await fetch(`${base}/ARC_AVAILABLE`, {
+                  method: "PATCH",
+                  headers,
+                  body: JSON.stringify({ name: "ARC_AVAILABLE", value: desired }),
+                });
+                if (!res.ok) throw new Error(`update ARC_AVAILABLE: HTTP ${res.status}`);
+                core.notice(`ARC_AVAILABLE flipped to ${desired}`);
+              }
+            } else {
+              throw new Error(`read ARC_AVAILABLE: HTTP ${cur.status}`);
+            }

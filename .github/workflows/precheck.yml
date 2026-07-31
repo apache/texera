@@ -125,6 +125,9 @@ jobs:
           # only to probe self-hosted runner availability. Optional — when
           # absent the ci:self-hosted label is trusted without probing.
           ARC_STATUS_TOKEN: ${{ secrets.ARC_STATUS_TOKEN }}
+          # Manual/auto kill switch mirrored by runner-heartbeat.yml's
+          # watchdog; 'false' forces every Linux tier back to GitHub-hosted.
+          ARC_AVAILABLE: ${{ vars.ARC_AVAILABLE }}
         with:
           script: |
             const eventName = context.eventName;
@@ -388,6 +391,43 @@ jobs:
                 (runAgentService ? 1 : 0) +
                 (runPyrightLanguageService ? 1 : 0),
             };
+            // Kill switch: ARC_AVAILABLE=false (manual, or flipped by the
+            // runner-heartbeat watchdog) forces every tier to GitHub-hosted.
+            if (selfHosted && process.env.ARC_AVAILABLE === "false") {
+              for (const k of Object.keys(tiers)) tiers[k] = "ubuntu-latest";
+              core.warning("ARC_AVAILABLE=false; routing all Linux tiers to GitHub-hosted runners.");
+            }
+            // Heartbeat fallback: runner-heartbeat.yml proves fleet liveness
+            // every 15 minutes. Stale last-success (with history present)
+            // means the fleet is down — fall back without needing any extra
+            // credential (plain GITHUB_TOKEN, actions: read).
+            if (selfHosted && tiers.light_runner !== "ubuntu-latest") {
+              try {
+                const STALE_MS = 35 * 60 * 1000;
+                const ok = await github.rest.actions.listWorkflowRuns({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  workflow_id: "runner-heartbeat.yml",
+                  status: "success",
+                  per_page: 1,
+                });
+                const any = await github.rest.actions.listWorkflowRuns({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  workflow_id: "runner-heartbeat.yml",
+                  per_page: 1,
+                });
+                const hasHistory = (any.data.workflow_runs ?? []).length > 0;
+                const last = ok.data.workflow_runs?.[0];
+                const lastOk = last ? new Date(last.updated_at).getTime() : 0;
+                if (hasHistory && Date.now() - lastOk > STALE_MS) {
+                  for (const k of Object.keys(tiers)) tiers[k] = "ubuntu-latest";
+                  core.warning("Runner heartbeat is stale; routing all Linux tiers to GitHub-hosted runners.");
+                }
+              } catch (e) {
+                core.info(`Heartbeat check skipped (${e.message}).`);
+              }
+            }
             if (selfHosted && process.env.ARC_STATUS_TOKEN) {
               try {
                 const res = await fetch(

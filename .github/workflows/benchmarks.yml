@@ -144,6 +144,8 @@ jobs:
           # Optional PAT (administration:read) for the runner availability
           # probe; see precheck.yml.
           ARC_STATUS_TOKEN: ${{ secrets.ARC_STATUS_TOKEN }}
+          # Kill switch mirrored by runner-heartbeat.yml's watchdog.
+          ARC_AVAILABLE: ${{ vars.ARC_AVAILABLE }}
         with:
           script: |
             const eventName = context.eventName;
@@ -187,6 +189,10 @@ jobs:
             // runner means WAIT (queue), never drift to GitHub-hosted —
             // only a set with no online runner at all falls back.
             let linuxRunner = labels.includes("ci:self-hosted") ? "arc-bench-linux" : "ubuntu-latest";
+            if (linuxRunner === "arc-bench-linux" && process.env.ARC_AVAILABLE === "false") {
+              linuxRunner = "ubuntu-latest";
+              core.warning("ARC_AVAILABLE=false; bench falls back to ubuntu-latest.");
+            }
             if (linuxRunner === "arc-bench-linux" && process.env.ARC_STATUS_TOKEN) {
               try {
                 const res = await fetch(
