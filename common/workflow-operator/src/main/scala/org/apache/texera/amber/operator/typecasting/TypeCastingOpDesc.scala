@@ -28,6 +28,7 @@ import org.apache.texera.amber.core.workflow._
 import org.apache.texera.amber.operator.StandaloneCodeGenerator
 import org.apache.texera.amber.operator.map.MapOpDesc
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
 class TypeCastingOpDesc extends MapOpDesc with StandaloneCodeGenerator {
@@ -80,25 +81,25 @@ class TypeCastingOpDesc extends MapOpDesc with StandaloneCodeGenerator {
 
     val lines = scala.collection.mutable.ArrayBuffer[String]("out1df = in1df.copy()")
     units.foreach { unit =>
-      val col = unit.attribute
+      val colLit = pyStringLiteral(unit.attribute)
       // Use pd.to_numeric / pd.to_datetime with errors="coerce" so unparseable
       // values become NaN/NaT instead of raising — matches a best-effort
       // standalone reproduction of Texera's per-row cast.
       val expr = unit.resultType match {
-        case AttributeType.STRING                       => s"""out1df["$col"].astype(str)"""
+        case AttributeType.STRING                       => s"""out1df[$colLit].astype(str)"""
         case AttributeType.INTEGER | AttributeType.LONG =>
           // Match JVM AttributeTypeUtils.parseInteger, which casts Double via
           // `.toInt` (truncate toward zero). pandas .astype("Int64") on a float
           // with non-integer values raises TypeError, so truncate explicitly
           // via int() while preserving NaN as pd.NA.
-          s"""pd.to_numeric(out1df["$col"], errors="coerce").apply(lambda x: pd.NA if pd.isna(x) else int(x)).astype("Int64")"""
+          s"""pd.to_numeric(out1df[$colLit], errors="coerce").apply(lambda x: pd.NA if pd.isna(x) else int(x)).astype("Int64")"""
         case AttributeType.DOUBLE =>
-          s"""pd.to_numeric(out1df["$col"], errors="coerce").astype("float64")"""
-        case AttributeType.BOOLEAN   => s"""out1df["$col"].astype(bool)"""
-        case AttributeType.TIMESTAMP => s"""pd.to_datetime(out1df["$col"], errors="coerce")"""
-        case _                       => s"""out1df["$col"]"""
+          s"""pd.to_numeric(out1df[$colLit], errors="coerce").astype("float64")"""
+        case AttributeType.BOOLEAN   => s"""out1df[$colLit].astype(bool)"""
+        case AttributeType.TIMESTAMP => s"""pd.to_datetime(out1df[$colLit], errors="coerce")"""
+        case _                       => s"""out1df[$colLit]"""
       }
-      lines += s"""out1df["$col"] = $expr"""
+      lines += s"""out1df[$colLit] = $expr"""
     }
     lines.mkString("\n")
   }

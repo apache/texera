@@ -28,6 +28,7 @@ import org.apache.texera.amber.operator.StandaloneCodeGenerator
 import org.apache.texera.amber.operator.filter.FilterOpDesc
 import org.apache.texera.amber.operator.metadata.annotations.{AutofillAttributeName, SampleColumn}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
 class SubstringSearchOpDesc extends FilterOpDesc with StandaloneCodeGenerator {
@@ -81,11 +82,9 @@ class SubstringSearchOpDesc extends FilterOpDesc with StandaloneCodeGenerator {
     // JVM uses String.contains (case-sensitive) or toLowerCase.contains
     // (case-insensitive). pandas str.contains with regex=False is the direct
     // equivalent — the substring is matched literally, not as a regex.
-    val pyLiteral = toPyDoubleQuotedLiteral(Option(substring).getOrElse(""))
+    val pyLiteral = pyStringLiteral(Option(substring).getOrElse(""))
     val caseArg = if (isCaseSensitive) "True" else "False"
-    s"""out1df = in1df[in1df["$attribute"].astype(str).str.contains($pyLiteral, regex=False, case=$caseArg, na=False)].reset_index(drop=True)"""
+    val attrLit = pyStringLiteral(attribute)
+    s"""out1df = in1df[in1df[$attrLit].astype(str).str.contains($pyLiteral, regex=False, case=$caseArg, na=False)].reset_index(drop=True)"""
   }
-
-  private def toPyDoubleQuotedLiteral(s: String): String =
-    "\"" + s.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
 }

@@ -28,6 +28,7 @@ import org.apache.texera.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
 import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.annotations.{AutofillAttributeName, SampleColumn}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
 import javax.validation.constraints.NotNull
@@ -82,6 +83,6 @@ class HtmlVizOpDesc extends LogicalOp with StandaloneCodeGenerator {
   // "html-content" column is the value of htmlContentAttrName, passed through
   // unconverted (the exec does not coerce either).
   override def generateStandaloneCode(): String =
-    s"""out1df = pd.DataFrame({"html-content": in1df["$htmlContentAttrName"]})"""
+    s"""out1df = pd.DataFrame({"html-content": in1df[${pyStringLiteral(htmlContentAttrName)}]})"""
 
 }

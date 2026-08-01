@@ -22,7 +22,10 @@ package org.apache.texera.amber.operator.visualization.carpetPlot
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
-import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
+  PythonTemplateBuilderStringContext,
+  pyStringLiteral
+}
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
@@ -134,21 +137,25 @@ class CarpetPlotOpDesc extends PythonOperatorDescriptor with StandaloneCodeGener
 
   override def producesDataFrame(): Boolean = false
 
-  override def generateStandaloneCode(): String =
-    s"""table = in1df.dropna(subset=["$a", "$b", "$y"]).copy()
+  override def generateStandaloneCode(): String = {
+    val aLit = pyStringLiteral(a)
+    val bLit = pyStringLiteral(b)
+    val yLit = pyStringLiteral(y)
+    s"""table = in1df.dropna(subset=[$aLit, $bLit, $yLit]).copy()
        |if table.empty:
        |    print("Carpet plot error: No valid rows after removing nulls")
        |else:
-       |    table["$a"] = table["$a"].astype(float)
-       |    table["$b"] = table["$b"].astype(float)
-       |    table["$y"] = table["$y"].astype(float)
+       |    table[$aLit] = table[$aLit].astype(float)
+       |    table[$bLit] = table[$bLit].astype(float)
+       |    table[$yLit] = table[$yLit].astype(float)
        |    fig = go.Figure(go.Carpet(
-       |        a=table["$a"],
-       |        b=table["$b"],
-       |        y=table["$y"]
+       |        a=table[$aLit],
+       |        b=table[$bLit],
+       |        y=table[$yLit]
        |    ))
        |    fig.write_json("output.json")
        |    fig.write_html("output.html")
        |    print("Carpet plot saved to output.json and output.html")""".stripMargin
+  }
 
 }

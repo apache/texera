@@ -191,10 +191,11 @@ class ECDFPlotOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerat
 
   override def generateStandaloneCode(): String = {
     val requiredCols = List(valueColumn, colorColumn, separateBy).filter(_.nonEmpty)
-    val requiredColsLiteral = requiredCols.map(c => "\"" + c + "\"").mkString("[", ", ", "]")
+    val requiredColsLiteral = requiredCols.map(pyStringLiteral).mkString("[", ", ", "]")
+    val valueLit = pyStringLiteral(valueColumn)
     val args = scala.collection.mutable.ArrayBuffer[String](
       "table",
-      s"""x=${pyStringLiteral(valueColumn)}"""
+      s"""x=$valueLit"""
     )
     if (colorColumn.nonEmpty) args += s"""color=${pyStringLiteral(colorColumn)}"""
     if (separateBy.nonEmpty) args += s"""facet_col=${pyStringLiteral(separateBy)}"""
@@ -203,7 +204,7 @@ class ECDFPlotOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerat
       case "sum"   => args += "ecdfnorm=None"
       case _       =>
     }
-    if (yAxisMode == "sum") args += s"""y=${pyStringLiteral(valueColumn)}"""
+    if (yAxisMode == "sum") args += s"""y=$valueLit"""
     if (cdfMode != "standard") args += s"""ecdfmode=${pyStringLiteral(cdfMode)}"""
     if (orientation == "horizontal") args += "orientation='h'"
     if (showMarkers) args += "markers=True"
@@ -219,8 +220,8 @@ class ECDFPlotOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerat
        |        output.write(render_error("input table is empty."))
        |else:
        |    table = in1df.dropna(subset=$requiredColsLiteral).copy()
-       |    table["$valueColumn"] = pd.to_numeric(table["$valueColumn"], errors='coerce')
-       |    table.dropna(subset=["$valueColumn"], inplace=True)
+       |    table[$valueLit] = pd.to_numeric(table[$valueLit], errors='coerce')
+       |    table.dropna(subset=[$valueLit], inplace=True)
        |    if table.empty:
        |        with open("output.html", "w", encoding="utf-8") as output:
        |            output.write(render_error("no valid rows left after removing missing or non-numeric values."))

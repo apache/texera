@@ -22,7 +22,10 @@ package org.apache.texera.amber.operator.visualization.filledAreaPlot
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
-import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
+  PythonTemplateBuilderStringContext,
+  pyStringLiteral
+}
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
@@ -173,31 +176,35 @@ class FilledAreaPlotOpDesc extends PythonOperatorDescriptor with StandaloneCodeG
   override def producesDataFrame(): Boolean = false
 
   override def generateStandaloneCode(): String = {
-    val colorArg = if (color.nonEmpty) s""", color="$color"""" else ""
-    val facetColumnArg = if (facetColumn) s""", facet_col="$lineGroup"""" else ""
-    val lineGroupArg = if (lineGroup.nonEmpty) s""", line_group="$lineGroup"""" else ""
-    val patternParam = if (pattern.nonEmpty) s""", pattern_shape="$pattern"""" else ""
+    val xLit = pyStringLiteral(x)
+    val yLit = pyStringLiteral(y)
+    val lineGroupLit = pyStringLiteral(lineGroup)
+    val colorArg = if (color.nonEmpty) s""", color=${pyStringLiteral(color)}""" else ""
+    val facetColumnArg = if (facetColumn) s""", facet_col=$lineGroupLit""" else ""
+    val lineGroupArg = if (lineGroup.nonEmpty) s""", line_group=$lineGroupLit""" else ""
+    val patternParam =
+      if (pattern.nonEmpty) s""", pattern_shape=${pyStringLiteral(pattern)}""" else ""
     s"""columns = list(in1df.columns)
        |error = ""
-       |if "$x" not in columns or "$y" not in columns:
+       |if $xLit not in columns or $yLit not in columns:
        |    error = "missing attributes"
-       |elif "$lineGroup" != "":
-       |    grouped = in1df.groupby("$lineGroup")
+       |elif $lineGroupLit != "":
+       |    grouped = in1df.groupby($lineGroupLit)
        |    x_values = None
        |    tolerance = (len(grouped) // 100) * 5
        |    count = 0
        |    for _, group in grouped:
        |        if x_values == None:
-       |            x_values = set(group["$x"].unique())
-       |        elif set(group["$x"].unique()).intersection(x_values):
-       |            x_values = x_values.union(set(group["$x"].unique()))
-       |        elif not set(group["$x"].unique()).intersection(x_values):
+       |            x_values = set(group[$xLit].unique())
+       |        elif set(group[$xLit].unique()).intersection(x_values):
+       |            x_values = x_values.union(set(group[$xLit].unique()))
+       |        elif not set(group[$xLit].unique()).intersection(x_values):
        |            count += 1
        |            if count > tolerance:
        |                error = "X attributes not shared across groups"
        |
        |if error == "":
-       |    fig = px.area(in1df, x="$x", y="$y"$colorArg$facetColumnArg$lineGroupArg$patternParam)
+       |    fig = px.area(in1df, x=$xLit, y=$yLit$colorArg$facetColumnArg$lineGroupArg$patternParam)
        |    fig.update_layout(margin=dict(l=0, r=0, b=0, t=0))
        |    fig.write_json("output.json")
        |    fig.write_html("output.html")

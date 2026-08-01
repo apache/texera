@@ -28,7 +28,10 @@ import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCod
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
-import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
+  PythonTemplateBuilderStringContext,
+  pyStringLiteral
+}
 
 import javax.validation.constraints.NotNull
 
@@ -126,21 +129,23 @@ class PolarChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeGener
   override def producesDataFrame(): Boolean = false
 
   override def generateStandaloneCode(): String = {
+    val rLit = pyStringLiteral(r)
+    val thetaLit = pyStringLiteral(theta)
     s"""import numpy as np
        |
        |if in1df is None or in1df.empty:
        |    with open("output.html", "w", encoding="utf-8") as output:
        |        output.write('<h3>No data available for Polar Chart</h3>')
-       |elif "$r" not in in1df.columns or "$theta" not in in1df.columns:
+       |elif $rLit not in in1df.columns or $thetaLit not in in1df.columns:
        |    with open("output.html", "w", encoding="utf-8") as output:
        |        output.write('<h3>Selected columns not found in input table</h3>')
-       |elif not np.issubdtype(in1df["$r"].dtype, np.number) or not np.issubdtype(in1df["$theta"].dtype, np.number):
+       |elif not np.issubdtype(in1df[$rLit].dtype, np.number) or not np.issubdtype(in1df[$thetaLit].dtype, np.number):
        |    with open("output.html", "w", encoding="utf-8") as output:
        |        output.write('<h3>Selected columns must be numeric</h3>')
        |else:
        |    fig = go.Figure(data=go.Scatterpolargl(
-       |        r=in1df["$r"].values,
-       |        theta=in1df["$theta"].values,
+       |        r=in1df[$rLit].values,
+       |        theta=in1df[$thetaLit].values,
        |        mode='markers',
        |        marker=dict(size=10, opacity=0.7, line=dict(color='white'))
        |    ))

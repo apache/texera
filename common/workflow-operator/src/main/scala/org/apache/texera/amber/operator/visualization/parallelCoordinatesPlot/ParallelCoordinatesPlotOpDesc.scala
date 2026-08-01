@@ -31,7 +31,10 @@ import org.apache.texera.amber.operator.metadata.annotations.{
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
-import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
+  PythonTemplateBuilderStringContext,
+  pyStringLiteral
+}
 
 import javax.validation.constraints.{NotNull, Size}
 
@@ -138,11 +141,12 @@ class ParallelCoordinatesPlotOpDesc extends PythonOperatorDescriptor with Standa
   override def producesDataFrame(): Boolean = false
 
   override def generateStandaloneCode(): String = {
-    val dimCols = dimensions.map(c => "\"" + c + "\"").mkString("[", ", ", "]")
+    val dimCols = dimensions.map(pyStringLiteral).mkString("[", ", ", "]")
+    val colorLit = pyStringLiteral(color)
     val colorFilter =
-      if (color != null && color.nonEmpty) s""" & (in1df["$color"].notnull())""" else ""
+      if (color != null && color.nonEmpty) s""" & (in1df[$colorLit].notnull())""" else ""
     val colorArg =
-      if (color != null && color.nonEmpty) s""", color="$color"""" else ""
+      if (color != null && color.nonEmpty) s""", color=$colorLit""" else ""
 
     s"""def render_error(error_msg):
        |    return '''<h1>Parallel coordinates plot is not available.</h1>

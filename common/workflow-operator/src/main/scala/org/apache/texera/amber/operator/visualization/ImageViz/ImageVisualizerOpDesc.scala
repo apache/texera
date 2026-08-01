@@ -22,7 +22,10 @@ package org.apache.texera.amber.operator.visualization.ImageViz
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
-import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
+  PythonTemplateBuilderStringContext,
+  pyStringLiteral
+}
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
@@ -127,7 +130,7 @@ class ImageVisualizerOpDesc extends PythonOperatorDescriptor with StandaloneCode
        |
        |all_images_html = f"{LT}div{GT}" + "".join(
        |    encode_image_to_html(binary_image_data)
-       |    for binary_image_data in in1df["$binaryContent"]
+       |    for binary_image_data in in1df[${pyStringLiteral(binaryContent)}]
        |) + f"{LT}/div{GT}"
        |
        |with open("output.html", "w", encoding="utf-8") as output:

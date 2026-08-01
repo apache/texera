@@ -28,6 +28,7 @@ import org.apache.texera.amber.operator.StandaloneCodeGenerator
 import org.apache.texera.amber.operator.filter.FilterOpDesc
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
 class KeywordSearchOpDesc extends FilterOpDesc with StandaloneCodeGenerator {
@@ -89,8 +90,9 @@ class KeywordSearchOpDesc extends FilterOpDesc with StandaloneCodeGenerator {
     val regexSpecials = Set('.', '^', '$', '*', '+', '?', '(', ')', '[', ']', '{', '}', '|', '\\')
     val escaped = terms.map(_.flatMap(c => if (regexSpecials.contains(c)) s"\\$c" else c.toString))
     val pattern = escaped.mkString("\\b(?:", "|", ")\\b")
-    val pyLiteral = "\"" + pattern.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
+    val pyLiteral = pyStringLiteral(pattern)
+    val attrLit = pyStringLiteral(attribute)
 
-    s"""out1df = in1df[in1df["$attribute"].astype(str).str.contains($pyLiteral, regex=True, case=False, na=False)].reset_index(drop=True)"""
+    s"""out1df = in1df[in1df[$attrLit].astype(str).str.contains($pyLiteral, regex=True, case=False, na=False)].reset_index(drop=True)"""
   }
 }

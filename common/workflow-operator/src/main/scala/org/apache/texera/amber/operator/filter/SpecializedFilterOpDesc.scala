@@ -25,6 +25,7 @@ import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, Workflow
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PhysicalOp}
 import org.apache.texera.amber.operator.StandaloneCodeGenerator
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
 class SpecializedFilterOpDesc extends FilterOpDesc with StandaloneCodeGenerator {
@@ -65,14 +66,14 @@ class SpecializedFilterOpDesc extends FilterOpDesc with StandaloneCodeGenerator 
   override def generateStandaloneCode(): String = {
     if (predicates.isEmpty) return "out1df = in1df.copy()"
     val conditions = predicates.map { p =>
-      val col = p.attribute
+      val colLit = pyStringLiteral(p.attribute)
       p.condition match {
-        case ComparisonType.IS_NULL     => s"""(in1df["$col"].isna())"""
-        case ComparisonType.IS_NOT_NULL => s"""(in1df["$col"].notna())"""
+        case ComparisonType.IS_NULL     => s"""(in1df[$colLit].isna())"""
+        case ComparisonType.IS_NOT_NULL => s"""(in1df[$colLit].notna())"""
         case other =>
           val op = other.getName // returns "=", ">=", "<", etc. (see ComparisonType.java)
           val pyOp = if (op == "=") "==" else op
-          s"""(in1df["$col"] $pyOp ${coerceValue(p.value)})"""
+          s"""(in1df[$colLit] $pyOp ${coerceValue(p.value)})"""
       }
     }
     s"out1df = in1df[${conditions.mkString(" | ")}].reset_index(drop=True)"
@@ -89,7 +90,7 @@ class SpecializedFilterOpDesc extends FilterOpDesc with StandaloneCodeGenerator 
           raw.toDouble.toString
         } catch {
           case _: NumberFormatException =>
-            s""""${raw.replace("\"", "\\\"")}""""
+            pyStringLiteral(raw)
         }
     }
   }

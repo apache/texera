@@ -22,7 +22,10 @@ package org.apache.texera.amber.operator.visualization.candlestickChart
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
-import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
+  PythonTemplateBuilderStringContext,
+  pyStringLiteral
+}
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
@@ -122,11 +125,11 @@ class CandlestickChartOpDesc extends PythonOperatorDescriptor with StandaloneCod
 
   override def generateStandaloneCode(): String =
     s"""fig = go.Figure(data=[go.Candlestick(
-       |    x=in1df["$date"],
-       |    open=in1df["$open"],
-       |    high=in1df["$high"],
-       |    low=in1df["$low"],
-       |    close=in1df["$close"]
+       |    x=in1df[${pyStringLiteral(date)}],
+       |    open=in1df[${pyStringLiteral(open)}],
+       |    high=in1df[${pyStringLiteral(high)}],
+       |    low=in1df[${pyStringLiteral(low)}],
+       |    close=in1df[${pyStringLiteral(close)}]
        |)])
        |fig.update_layout(title='Candlestick Chart')
        |fig.write_json("output.json")
