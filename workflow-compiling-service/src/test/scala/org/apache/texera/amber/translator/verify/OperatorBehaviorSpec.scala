@@ -111,9 +111,14 @@ object OperatorBehaviorSpec {
 
   // Families not yet ready for verification — skipped by default everywhere
   // (local + CI) until they're worked on. ML uses family substrings (Sklearn /
-  // HuggingFace catch every variant); viz / source / UDF ops are listed by exact
-  // name because substrings like "Chart"/"Plot" would also match core viz ops we
-  // want to keep (BarChart, DotPlot, ...).
+  // HuggingFace catch every variant); viz ops are listed by exact name because
+  // substrings like "Chart"/"Plot" would also match core viz ops we want to keep
+  // (BarChart, DotPlot, ...).
+  //
+  // Every entry names an operator that WOULD run: [[discoverStandaloneOperators]]
+  // already drops anything without a `StandaloneCodeGenerator` mixin, so listing
+  // the source and UDF operators here changed nothing and only made the list read
+  // as though they were pending.
   private val DefaultLocalSkip: Seq[String] = Seq(
     "Sklearn",
     "HuggingFace",
@@ -137,19 +142,7 @@ object OperatorBehaviorSpec {
     "VolcanoPlotOpDesc",
     "WaterfallChartOpDesc",
     "WindRoseChartOpDesc",
-    "WordCloudOpDesc",
-    "FileListerSourceOpDesc",
-    "AsterixDBSourceOpDesc",
-    "MySQLSourceOpDesc",
-    "PostgreSQLSourceOpDesc",
-    "TwitterFullArchiveSearchSourceOpDesc",
-    "TwitterSearchSourceOpDesc",
-    "RedditSearchSourceOpDesc",
-    "PythonLambdaFunctionOpDesc",
-    "PythonTableReducerOpDesc",
-    "JavaUDFOpDesc",
-    "RUDFOpDesc",
-    "RUDFSourceOpDesc"
+    "WordCloudOpDesc"
   )
 
   private lazy val onlyPatterns: Seq[String] = patterns("VERIFY_ONLY")
