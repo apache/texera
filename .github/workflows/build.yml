@@ -620,6 +620,8 @@ jobs:
         # specs. The Java @TagAnnotation makes the marker visible to
         # ScalaTest's reflection, so `-n TAG` correctly narrows the
         # run.
+        # WorkflowOperator/test is here for the same reason, with its own tag:
+        # its Python-dependent tests need packages the `amber` job lacks.
         #
         # scalafmtCheckAll + scalafixAll --check are run here as well
         # because an integration-only PR fires only the
@@ -646,6 +648,7 @@ jobs:
         run: |
           sbt scalafmtCheckAll \
               "scalafixAll --check" \
+              "WorkflowOperator/test" \
               "WorkflowExecutionService/test"
       - name: Build amber dist for the texera-web boot test
         # Boot smoke test for texera-web (mirrors platform-integration for the

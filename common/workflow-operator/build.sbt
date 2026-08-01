@@ -35,6 +35,14 @@ ThisBuild / conflictManager := ConflictManager.latestRevision
 // Restrict parallel execution of tests to avoid conflicts
 Global / concurrentRestrictions += Tags.limit(Tags.Test, 1)
 
+// A test needing more than a bare Python interpreter is tagged, so the amber job
+// excludes it and amber-integration, which installs operator-requirements.txt,
+// runs it. The amber job already sets this env var on the step that invokes
+// WorkflowOperator/jacoco, so no workflow change is needed for the exclusion.
+Test / testOptions ++= TestFilters.integrationSplit(
+  envVar = "AMBER_TEST_FILTER",
+  tag = "org.apache.texera.amber.operator.tags.IntegrationTest"
+)
 
 /////////////////////////////////////////////////////////////////////////////
 // Compiler Options

@@ -21,8 +21,10 @@ package org.apache.texera.amber.util
 
 import com.typesafe.config.ConfigFactory
 import org.apache.texera.amber.operator.PythonOperatorDescriptor
+import org.apache.texera.amber.operator.tags.IntegrationTest
 import org.apache.texera.amber.pybuilder.PythonReflectionTextUtils.truncateBlock
 import org.apache.texera.amber.pybuilder.PythonReflectionUtils
+import org.scalatest.Tag
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.nio.charset.StandardCharsets
@@ -260,6 +262,31 @@ final class PythonCodeRawInvalidTextSpec extends AnyFunSuite {
 
     if (allFindings.nonEmpty) {
       fail(PythonReflectionUtils.renderReport(allFindings, total = total))
+    }
+  }
+
+  /** py_compile above only parses the emitted code; running it needs the packages
+    * it imports. Tagged, so only amber-integration — the job that installs them —
+    * runs this. There a missing package is a defect; elsewhere it is a local-setup
+    * fact, so cancel rather than fail.
+    */
+  test(
+    "the Python interpreter operator templates run in should import pandas and plotly",
+    Tag(classOf[IntegrationTest].getName)
+  ) {
+    val provisioned = sys.env.get("AMBER_TEST_FILTER").contains("integration-only")
+    def unavailable(message: String): Nothing =
+      if (provisioned) fail(message) else cancel(message)
+
+    val python = loadPythonExeFromUdfConf().getOrElse(unavailable("no runnable python"))
+    val imported = Try {
+      val process = new ProcessBuilder(python, "-c", "import pandas, plotly")
+        .redirectErrorStream(true)
+        .start()
+      process.waitFor(60, TimeUnit.SECONDS) && process.exitValue() == 0
+    }
+    if (!imported.getOrElse(false)) {
+      unavailable(s"'$python' cannot import pandas and plotly")
     }
   }
 
