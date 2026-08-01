@@ -39,10 +39,10 @@ class WebsocketPayloadSizeTunerSpec extends AnyFlatSpec with Matchers with MockF
   }
 
   "contextInitialized" should "look up the server container by its class name and tune both limits" in {
-    val maxKB = 64
+    val maxKiB = 64
     val container = mock[ServerContainer]
-    (container.setDefaultMaxTextMessageBufferSize(_: Int)).expects(maxKB * 1024).once()
-    (container.setDefaultMaxBinaryMessageBufferSize(_: Int)).expects(maxKB * 1024).once()
+    (container.setDefaultMaxTextMessageBufferSize(_: Int)).expects(maxKiB * 1024).once()
+    (container.setDefaultMaxBinaryMessageBufferSize(_: Int)).expects(maxKiB * 1024).once()
 
     new WebsocketPayloadSizeTuner(maxKB).contextInitialized(eventWith(container))
   }
