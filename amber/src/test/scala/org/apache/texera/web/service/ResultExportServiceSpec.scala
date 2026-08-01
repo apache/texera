@@ -415,8 +415,11 @@ class ResultExportServiceSpec
   // the file-name construction and the dataset upload.
   // ===========================================================================
 
-  private val testWorkflowWid = 5000 + scala.util.Random.nextInt(1000)
-  private val testUserId = 5000 + scala.util.Random.nextInt(1000)
+  // Fixed, not randomised. MockTexeraDB hands every suite its own UUID-named database
+  // (MockTexeraDB.scala:120), so there is no cross-suite key to dodge — and random ids
+  // only make a failure message that quotes one impossible to reproduce.
+  private val testWorkflowWid = 5001
+  private val testUserId = 5002
 
   private var testUser: User = _
   private var testVersion: WorkflowVersion = _
@@ -786,14 +789,25 @@ class ResultExportServiceSpec
     * from the environment and cannot be redirected from a test.
     */
   private def withUploadServer(status: Int)(body: ArrayBuffer[RecordedUpload] => Unit): Unit = {
-    // Deliberately `fail`, not `assume`/`cancel`. The port below is the real file-service
-    // port, so anyone running the local stack has it bound — and a cancellation would
-    // silently delete the strongest tests in this suite while the build stayed green.
-    // A loud failure with an actionable message is the safer default.
-    if (uploadEndpoint.getPath != "/api/dataset/did/upload") {
+    // The stub server can only stand in for an endpoint that is plain-HTTP, loopback and
+    // carries an explicit port; anything else and the production code would make a real
+    // network call to a host we are not serving, while we bind a local port for nothing.
+    // So validate the whole shape, not just the path.
+    //
+    // And deliberately `fail`, not `assume`/`cancel`: the port is the real file-service
+    // port, so a cancellation would silently delete the strongest tests in this suite
+    // while the build stayed green. A loud, actionable failure is the safer default.
+    val loopbackHosts = Set("localhost", "127.0.0.1", "::1", "[::1]")
+    val endpointIsServable =
+      uploadEndpoint.getProtocol == "http" &&
+        loopbackHosts.contains(uploadEndpoint.getHost) &&
+        uploadEndpoint.getPort > 0 &&
+        uploadEndpoint.getPath == "/api/dataset/did/upload"
+    if (!endpointIsServable) {
       fail(
-        s"the file-service upload endpoint is overridden in this environment " +
-          s"(path=${uploadEndpoint.getPath}); unset the override to run this suite"
+        s"the file-service upload endpoint is overridden to something this suite cannot " +
+          s"stand in for ($uploadEndpoint); it must be plain http on a loopback host with an " +
+          s"explicit port and the default path. Unset the override and re-run."
       )
     }
     val recorded = ArrayBuffer.empty[RecordedUpload]
