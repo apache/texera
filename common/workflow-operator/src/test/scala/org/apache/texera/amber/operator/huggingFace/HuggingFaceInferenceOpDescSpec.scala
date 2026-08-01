@@ -647,4 +647,12 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
     val outSchema = out(desc.operatorInfo.outputPorts.head.id)
     outSchema.getAttributeNames.contains("hf_response") shouldBe true
   }
+
+  it should "treat a 401 as retryable so one provider's auth failure doesn't abort the fallback" in {
+    val code = makeDesc().generatePythonCode()
+    // 401 is in the retryable set -> the loop tries the next provider instead of bailing.
+    code should include("RETRYABLE = (400, 401, 404, 422, 429, 502, 503)")
+    // The old short-circuit (return immediately on the first 401) must be gone.
+    code should not include ("            if resp.status_code == 401:\n                return resp, None")
+  }
 }
