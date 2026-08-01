@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1785504732385,
+  "lastUpdate": 1785589541383,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -7015,6 +7015,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 503.134040883661,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Xinyuan Lin",
+            "username": "aglinxinyuan",
+            "email": "xinyual3@uci.edu"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "10099a50fff787a3af8fb859cb43ef761c31eaa1",
+          "message": "test(amber): add HubResourceSpec covering the hub action and count APIs (#7239)\n\n### What changes were proposed in this PR?\n\n`HubResource` was the largest untested class in the repo — **166 lines,\n0% covered** — while its three siblings in the same package were already\ndone:\n\n| Class | Coverage |\n|---|---|\n| `ActionType` | 100% |\n| `EntityType` | 100% |\n| `EntityTables` | 92.3% |\n| `HubResource` | **0%** |\n\nThe three existing hub specs are pure in-memory tests of dispatch and\nJackson round-trips; none touches `HubResource`, so there is no overlap.\n\nIt is worth real tests rather than a coverage pass. It is not bulk jOOQ\nCRUD but ~14 methods of dispatch, validation and aggregation that happen\nto persist through jOOQ. 41 tests against `MockTexeraDB` (in-JVM\nembedded Postgres, per-suite database, no Docker) cover:\n\n- per-entity-type table dispatch for likes, clones and view counts —\nincluding that workflow and dataset counts stay apart when their ids\ncollide\n- the IPv4 guard on the audited remote address\n- like/unlike idempotence against the `(uid, wid)` primary key\n- clone auditing: every attempt is audited, but only one clone row per\nuser survives\n- the view-count backfill, **and** its suppression when `view` is not\namong the requested actions\n- `getTops` ranking, its public-only filter, and its limit fallback\n- the batch `getCounts` request-validation guards\n- `userAccess` de-duplication and per-entity access-table routing\n\n**Assertion strength was measured, not claimed.** 23 mutations of\n`HubResource` across three batches; every predicted red was observed and\nthere were no collateral failures. A sample:\n\n| Mutation | Result |\n|---|---|\n| `ipv4Pattern.matches()` → `userIp != null` | red — ip column no longer\nleft null for `::1` |\n| `if (isLike && !alreadyLiked)` → `if (isLike)` | red — duplicate-key\nviolation |\n| `getTops orderBy(count.desc())` → `asc()` | red — wrong two workflows\nreturned |\n| `getCounts` view-backfill made unconditional | red — proves the\nabsence assertion is not vacuous |\n| `userAccess` dataset branch → workflow tables | red — grantees crossed\nbetween entities |\n| `recordUserAction` resource type hard-coded | red — equal ids no\nlonger kept apart |\n\nTwo empty-input tests are explicitly commented as pinning the contract\n(empty in, empty out) rather than the early-return branch, because jOOQ\nrenders an empty `IN` list as a false predicate and the query returns\nempty with or without the guard. Flagging that rather than letting the\ntest name overclaim.\n\nOne production oddity surfaced and is documented in the spec rather than\npinned: `WorkflowResource`'s `isOwner` uses\n`workflowRecord.into(WORKFLOW_OF_USER).getUid.eq(uid)` — Scala's\n`AnyRef.eq`, i.e. reference comparison on boxed `Integer`s, which is\nonly reliable inside the −128..127 `Integer` cache. Demonstrated by\nexperiment: with uids 71001/71002 two `isOwner shouldBe true` assertions\nfail while `ownerId` compares equal one line earlier; with uids 101/102\nthey pass. The spec asserts only the negatives, which survive a\nvalue-equality fix.\n\nNo production file is touched.\n\n### Any related issues, documentation, discussions?\n\nCloses #7236\n\n### How was this PR tested?\n\n41 new tests. Run with the three pre-existing hub specs to confirm no\ninterference — 83 tests, Java 17:\n\n```\nsbt \"WorkflowExecutionService/testOnly org.apache.texera.web.resource.dashboard.hub.*Spec\"\n```\n\n```\n[info] Suites: completed 4, aborted 0\n[info] Tests: succeeded 83, failed 0, canceled 0, ignored 0, pending 0\n[info] All tests passed.\n```\n\n`Test/scalafmtCheck` and `Test/scalafix --check` both `[success]`.\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Claude Code (Opus 5)",
+          "timestamp": "2026-08-01T10:17:48Z",
+          "url": "https://github.com/apache/texera/commit/10099a50fff787a3af8fb859cb43ef761c31eaa1"
+        },
+        "date": 1785589540940,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 721.0013079280966,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 1366.959189501677,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 1482.3685668369621,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 954.604989722286,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 1415.7610550276072,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 1506.8921828627679,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 1013.3537045531625,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 1422.0577512446448,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 1498.107029589859,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 835.293146142168,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 1155.3430347229933,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 1185.4546412801462,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 868.7956121741721,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 1145.8405517289586,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 1183.298865561939,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 873.2883665364011,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 1130.7866470560105,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 1163.0358509315627,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 527.1092531357998,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 641.7795692914119,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 655.3182101785844,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 536.8188485867212,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 645.1876427204725,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 649.4409735590805,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 506.2970740352645,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 603.0619562496659,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 615.6889612724036,
             "unit": "tuples/sec"
           }
         ]
