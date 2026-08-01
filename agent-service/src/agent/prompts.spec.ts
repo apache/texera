@@ -61,7 +61,7 @@ describe("buildSystemPrompt", () => {
 
     expect(prompt).toContain("## Filter");
     expect(prompt).toContain("Description: Keeps rows that match a condition.");
-    expect(prompt).toContain('"condition": {\n      "type": "string"');
+    expect(prompt).toMatch(/"condition":\s*\{\s*"type":\s*"string"/);
     expect(prompt).not.toContain("## PythonUDFV2");
     expect(prompt).not.toContain("## RUDF");
     expect(prompt).not.toContain("## Python UDF Guide");
