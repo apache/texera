@@ -19,7 +19,7 @@
 
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
-import { Subject } from "rxjs";
+import { ReplaySubject } from "rxjs";
 import * as joint from "jointjs";
 import { MiniMapComponent } from "./mini-map.component";
 import { MAIN_CANVAS } from "../workflow-editor.component";
@@ -96,6 +96,7 @@ describe("MiniMapComponent", () => {
   let workflowActionService: WorkflowActionService;
   let panelService: PanelService;
   let editorStub: HTMLDivElement | undefined;
+  let mainPaper$: ReplaySubject<joint.dia.Paper>;
 
   /**
    * `localStorage` is a jsdom global shared by every test in this file, and
@@ -138,6 +139,17 @@ describe("MiniMapComponent", () => {
     component = fixture.componentInstance;
     workflowActionService = TestBed.inject(WorkflowActionService);
     panelService = TestBed.inject(PanelService);
+
+    // Own the paper stream rather than casting the wrapper's getter back to a Subject.
+    // `getMainJointPaperAttachedStream()` is declared `Observable<Paper>`, so calling
+    // `.next()` on its result only works because it happens to be a ReplaySubject today;
+    // switching it to `.asObservable()` would break the spec silently. Stubbing the
+    // getter depends on the declared type only. ReplaySubject(1) so a paper attached
+    // before the component subscribes in ngAfterViewInit is still delivered.
+    mainPaper$ = new ReplaySubject<joint.dia.Paper>(1);
+    vi.spyOn(workflowActionService.getJointGraphWrapper(), "getMainJointPaperAttachedStream").mockReturnValue(
+      mainPaper$.asObservable()
+    );
   });
 
   /** Gives the mini-map container a size, which jsdom otherwise reports as 0. */
@@ -165,9 +177,7 @@ describe("MiniMapComponent", () => {
 
   /** Publishes `paper` on the stream the mini-map subscribes to in ngAfterViewInit. */
   function attachMainPaper(paper: StubPaper): void {
-    (workflowActionService.getJointGraphWrapper().getMainJointPaperAttachedStream() as Subject<joint.dia.Paper>).next(
-      paper as unknown as joint.dia.Paper
-    );
+    mainPaper$.next(paper as unknown as joint.dia.Paper);
   }
 
   it("should create", () => {
