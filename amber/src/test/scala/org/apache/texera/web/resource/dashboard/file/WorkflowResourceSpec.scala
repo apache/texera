@@ -22,9 +22,14 @@ package org.apache.texera.web.resource.dashboard.file
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.dao.MockTexeraDB
 import org.apache.texera.dao.jooq.generated.Tables.{USER, WORKFLOW, WORKFLOW_OF_PROJECT}
-import org.apache.texera.dao.jooq.generated.enums.UserRoleEnum
-import org.apache.texera.dao.jooq.generated.tables.daos.UserDao
-import org.apache.texera.dao.jooq.generated.tables.pojos.{Project, User, Workflow}
+import org.apache.texera.dao.jooq.generated.enums.{PrivilegeEnum, UserRoleEnum}
+import org.apache.texera.dao.jooq.generated.tables.daos.{UserDao, WorkflowUserAccessDao}
+import org.apache.texera.dao.jooq.generated.tables.pojos.{
+  Project,
+  User,
+  Workflow,
+  WorkflowUserAccess
+}
 import org.apache.texera.web.resource.dashboard.DashboardResource.SearchQueryParams
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowResource.CoverImageRequest
 import org.apache.texera.web.resource.dashboard.user.project.ProjectResource
@@ -940,10 +945,17 @@ class WorkflowResourceSpec
     assert(workflowResource.retrieveIDs(sessionUser1).asScala.contains(wid.toString))
   }
 
-  "WorkflowResource.retrieveOwners" should "list owners only for accessible workflows" in {
-    assert(workflowResource.retrieveOwners(sessionUser2).isEmpty) // user2 owns nothing yet
-    seedWorkflow(sessionUser1, "owned-wf")
-    assert(!workflowResource.retrieveOwners(sessionUser1).isEmpty)
+  "WorkflowResource.retrieveOwners" should "return the owner email of every accessible workflow" in {
+    assert(workflowResource.retrieveOwners(sessionUser2).isEmpty) // user2 has no access yet
+    val wid = seedWorkflow(sessionUser1, "owned-wf").workflow.getWid
+
+    // the owner sees itself as the owner
+    assert(workflowResource.retrieveOwners(sessionUser1).asScala.toList == List(testUser.getEmail))
+
+    // grant user2 read access -> user2 now sees user1 (the owner), not itself
+    new WorkflowUserAccessDao(getDSLContext.configuration())
+      .merge(new WorkflowUserAccess(testUser2.getUid, wid, PrivilegeEnum.READ))
+    assert(workflowResource.retrieveOwners(sessionUser2).asScala.toList == List(testUser.getEmail))
   }
 
   "WorkflowResource name/type/description/owner/size lookups" should "reflect the seeded workflow" in {
