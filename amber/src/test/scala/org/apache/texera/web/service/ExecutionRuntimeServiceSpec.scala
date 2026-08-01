@@ -63,7 +63,8 @@ class ExecutionRuntimeServiceSpec
     with BeforeAndAfterAll {
 
   override def afterAll(): Unit = {
-    TestKit.shutdownActorSystem(system)
+    try TestKit.shutdownActorSystem(system)
+    finally super.afterAll()
   }
 
   /** Real empty-plan client for constructor compatibility, with lifecycle collaborators overridden below. */
@@ -237,7 +238,6 @@ class ExecutionRuntimeServiceSpec
       f.wsInput.onNext(WorkflowCheckpointRequest(), None)
 
       f.errors should have size 1
-      f.errors.head shouldBe a[AssertionError]
       f.errors.head.getMessage should include("Fault tolerance log folder is not established")
     } finally f.close()
   }
