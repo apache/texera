@@ -35,6 +35,7 @@ import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, Operat
 import org.apache.texera.amber.operator.source.SourceOperatorDescriptor
 import org.apache.texera.amber.operator.source.scan.{FileAttributeType, FileDecodingMethod}
 import org.apache.texera.amber.operator.source.scan.text.TextSourceOpDesc
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
 class FileScanOpDesc
@@ -103,7 +104,7 @@ class FileScanOpDesc
       attributeType == FileAttributeType.BINARY || attributeType == FileAttributeType.LARGE_BINARY
     val openArgs =
       if (isBinary) """"rb""""
-      else s""""r", encoding="$enc""""
+      else s""""r", encoding=${pyStringLiteral(enc)}"""
 
     buf += "_rows = []"
     buf += "for _fn in in1df.iloc[:, 0]:"
@@ -140,10 +141,11 @@ class FileScanOpDesc
       }
     }
 
+    val colLit = pyStringLiteral(col)
     if (emitFilename) {
-      buf += s"""out1df = pd.DataFrame(_rows, columns=["filename", "$col"])"""
+      buf += s"""out1df = pd.DataFrame(_rows, columns=["filename", $colLit])"""
     } else {
-      buf += s"""out1df = pd.DataFrame({"$col": _rows})"""
+      buf += s"""out1df = pd.DataFrame({$colLit: _rows})"""
     }
 
     buf.mkString("\n")

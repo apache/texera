@@ -36,6 +36,7 @@ import org.apache.texera.amber.operator.metadata.annotations.{
   AutofillAttributeNameOnPort1
 }
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
 object HashJoinOpDesc {
@@ -214,7 +215,7 @@ class HashJoinOpDesc[K] extends LogicalOp with StandaloneCodeGenerator {
       case JoinType.FULL_OUTER  => "outer"
     }
     val merge =
-      s"""out1df = in1df.merge(in2df, how="$how", left_on=$buildKeyLit, """ +
+      s"""out1df = in1df.merge(in2df, how=${pyStringLiteral(how)}, left_on=$buildKeyLit, """ +
         s"""right_on=$probeKeyLit, suffixes=("", "#@1"))"""
     val tail =
       if (buildAttributeName != probeAttributeName)

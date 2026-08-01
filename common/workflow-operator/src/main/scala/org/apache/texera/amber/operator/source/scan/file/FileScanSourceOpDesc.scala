@@ -37,6 +37,7 @@ import org.apache.texera.amber.operator.source.scan.{
   FileDecodingMethod,
   ScanSourceOpDesc
 }
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
 import java.net.URI
@@ -80,21 +81,24 @@ class FileScanSourceOpDesc
     val basename = Paths.get(new URI(rawPath).getPath).getFileName.toString
     val col = attributeName
     val enc = encoding.toString.replace("_", "-").toLowerCase
+    val basenameLit = pyStringLiteral(basename)
+    val colLit = pyStringLiteral(col)
+    val encLit = pyStringLiteral(enc)
     val buf = scala.collection.mutable.ArrayBuffer[String]()
 
     if (extract)
-      buf += s"""# WARNING: extract=true is not supported in standalone mode; provide the unarchived "$basename" directly."""
+      buf += s"""# WARNING: extract=true is not supported in standalone mode; provide the unarchived $basenameLit directly."""
 
     val isBinary =
       attributeType == FileAttributeType.BINARY || attributeType == FileAttributeType.LARGE_BINARY
 
     if (attributeType.isSingle) {
       val openArgs =
-        if (isBinary) s""""$basename", "rb""""
-        else s""""$basename", "r", encoding="$enc""""
+        if (isBinary) s"""$basenameLit, "rb""""
+        else s"""$basenameLit, "r", encoding=$encLit"""
       val dfCols =
-        if (outputFileName) s"""{"filename": "$basename", "$col": [_f.read()]}"""
-        else s"""{"$col": [_f.read()]}"""
+        if (outputFileName) s"""{"filename": $basenameLit, $colLit: [_f.read()]}"""
+        else s"""{$colLit: [_f.read()]}"""
       buf += s"""with open($openArgs) as _f:"""
       buf += s"""    out1df = pd.DataFrame($dfCols)"""
     } else {
@@ -114,17 +118,17 @@ class FileScanSourceOpDesc
           case None    => s"_lines[$start:]"
         }
         val dfCols =
-          if (outputFileName) s"""{"filename": "$basename", "$col": $sliceExpr}"""
-          else s"""{"$col": $sliceExpr}"""
-        buf += s"""with open("$basename", "r", encoding="$enc") as _f:"""
+          if (outputFileName) s"""{"filename": $basenameLit, $colLit: $sliceExpr}"""
+          else s"""{$colLit: $sliceExpr}"""
+        buf += s"""with open($basenameLit, "r", encoding=$encLit) as _f:"""
         buf += s"""    _lines = [$castExpr for l in _f]"""
         buf += s"""out1df = pd.DataFrame($dfCols)"""
       } else {
         val dfCols =
           if (outputFileName)
-            s"""{"filename": "$basename", "$col": [$castExpr for l in _f]}"""
-          else s"""{"$col": [$castExpr for l in _f]}"""
-        buf += s"""with open("$basename", "r", encoding="$enc") as _f:"""
+            s"""{"filename": $basenameLit, $colLit: [$castExpr for l in _f]}"""
+          else s"""{$colLit: [$castExpr for l in _f]}"""
+        buf += s"""with open($basenameLit, "r", encoding=$encLit) as _f:"""
         buf += s"""    out1df = pd.DataFrame($dfCols)"""
       }
     }

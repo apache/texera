@@ -30,6 +30,7 @@ import org.apache.texera.amber.operator.metadata.annotations.UIWidget
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.operator.source.SourceOperatorDescriptor
 import org.apache.texera.amber.operator.source.scan.FileAttributeType
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
 class TextInputSourceOpDesc
@@ -77,6 +78,7 @@ class TextInputSourceOpDesc
   override def generateStandaloneCode(): String = {
     val text = objectMapper.writeValueAsString(textInput)
     val col = attributeName
+    val colLit = pyStringLiteral(col)
     val buf = scala.collection.mutable.ArrayBuffer[String]()
 
     buf += s"_text = $text"
@@ -86,7 +88,7 @@ class TextInputSourceOpDesc
 
     if (attributeType.isSingle) {
       val valueExpr = if (isBinary) """_text.encode("utf-8")""" else "_text"
-      buf += s"""out1df = pd.DataFrame({"$col": [$valueExpr]})"""
+      buf += s"""out1df = pd.DataFrame({$colLit: [$valueExpr]})"""
     } else {
       val castExpr = attributeType match {
         case FileAttributeType.INTEGER   => "int(l)"
@@ -104,9 +106,9 @@ class TextInputSourceOpDesc
           case None    => s"_lines[$start:]"
         }
         buf += s"""_lines = [$castExpr for l in _text.splitlines()]"""
-        buf += s"""out1df = pd.DataFrame({"$col": $sliceExpr})"""
+        buf += s"""out1df = pd.DataFrame({$colLit: $sliceExpr})"""
       } else {
-        buf += s"""out1df = pd.DataFrame({"$col": [$castExpr for l in _text.splitlines()]})"""
+        buf += s"""out1df = pd.DataFrame({$colLit: [$castExpr for l in _text.splitlines()]})"""
       }
     }
 

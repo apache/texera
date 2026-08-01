@@ -95,9 +95,9 @@ class CSVOldScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerat
     val headerArg = if (hasHeader) "0" else "None"
 
     val args = scala.collection.mutable.ArrayBuffer[String]()
-    args += s"""filepath_or_buffer="$basename""""
+    args += s"""filepath_or_buffer=${pyStringLiteral(basename)}"""
     args += s"sep=${pyStringLiteral(sep)}"
-    args += s"""encoding="$encoding""""
+    args += s"""encoding=${pyStringLiteral(encoding)}"""
     args += s"header=$headerArg"
 
     offset.foreach { o =>

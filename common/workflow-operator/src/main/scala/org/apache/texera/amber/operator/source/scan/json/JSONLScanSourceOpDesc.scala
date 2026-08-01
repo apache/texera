@@ -29,6 +29,7 @@ import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, Workflow
 import org.apache.texera.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
 import org.apache.texera.amber.operator.StandaloneCodeGenerator
 import org.apache.texera.amber.operator.source.scan.ScanSourceOpDesc
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 import org.apache.texera.amber.util.JSONUtils.{JSONToMap, objectMapper}
 
 import java.io._
@@ -51,9 +52,9 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerato
     val enc = fileEncoding.toString.replace("_", "-").toLowerCase
 
     val readArgs = scala.collection.mutable.ArrayBuffer[String]()
-    readArgs += s""""$basename""""
+    readArgs += pyStringLiteral(basename)
     readArgs += "lines=True"
-    readArgs += s"""encoding="$enc""""
+    readArgs += s"""encoding=${pyStringLiteral(enc)}"""
     if (offset.isEmpty) limit.foreach(l => readArgs += s"nrows=$l")
 
     val readExpr = s"pd.read_json(${readArgs.mkString(", ")})"

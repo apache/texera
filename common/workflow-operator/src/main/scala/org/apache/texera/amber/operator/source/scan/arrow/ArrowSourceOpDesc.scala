@@ -28,6 +28,7 @@ import org.apache.texera.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
 import org.apache.texera.amber.operator.StandaloneCodeGenerator
 import org.apache.texera.amber.operator.source.scan.ScanSourceOpDesc
 import org.apache.texera.amber.util.ArrowUtils
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector.ipc.ArrowFileReader
@@ -46,7 +47,7 @@ class ArrowSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerator {
   override def generateStandaloneCode(): String = {
     val rawPath = fileName.getOrElse("")
     val basename = Paths.get(new URI(rawPath).getPath).getFileName.toString
-    s"""out1df = pd.read_feather("$basename")"""
+    s"""out1df = pd.read_feather(${pyStringLiteral(basename)})"""
   }
 
   @throws[IOException]

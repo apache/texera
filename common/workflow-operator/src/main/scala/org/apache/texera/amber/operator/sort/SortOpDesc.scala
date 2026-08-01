@@ -21,7 +21,10 @@ package org.apache.texera.amber.operator.sort
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import org.apache.texera.amber.core.tuple.Schema
-import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
+  PythonTemplateBuilderStringContext,
+  pyStringLiteral
+}
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
@@ -83,7 +86,7 @@ class SortOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
     )
 
   override def generateStandaloneCode(): String = {
-    val cols = attributes.map(c => s""""${c.attributeName}"""").mkString("[", ", ", "]")
+    val cols = attributes.map(c => pyStringLiteral(c.attributeName)).mkString("[", ", ", "]")
     val ascending = attributes
       .map(c => if (c.sortPreference == SortPreference.ASC) "True" else "False")
       .mkString("[", ", ", "]")
