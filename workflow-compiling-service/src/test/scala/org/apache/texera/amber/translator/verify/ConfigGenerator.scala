@@ -237,7 +237,7 @@ object ConfigGenerator {
       for {
         row <- if (isList(f.getType)) elementType(f).toOption.filter(isNestedObject) else None
         if rows.isArray
-        next <- buildObject(row, schemas, used, rowCount).toOption
+        next <- buildObject(row, schemas, used, rowCount, distinctNumbers = true).toOption
       } yield {
         // Fill the new row's own optional knobs too — the `optionals` variant is
         // computed against the BASE config, where this row does not exist yet, so
@@ -452,18 +452,21 @@ object ConfigGenerator {
     // A knob whose values the field DECLARES is left to its declaration: the enum
     // sweep covers a declared value list, and a knob with a `pattern` takes its own
     // declared example — the canonical value is not among what either accepts.
+    // An optional knob is typed by what its Option holds, so `start`/`end` declared
+    // as Option[Double] are swept like the bare numbers they are.
+    val scalarType = effectiveScalarType(f)
     if (
       hasAutofill(f) || required || !unset ||
-      declaredEnumValues(f).size > 1 || !isFreeScalar(f.getType)
+      declaredEnumValues(f).size > 1 || !isFreeScalar(scalarType)
     ) None
     else if (declaresPattern(f)) declaredExample(f).map(v => (childPath, v))
-    else if (f.getType == classOf[String])
-      // The canonical string is "1", so the n-th knob reads as "1", "2", … — distinct,
-      // ascending, and each still parses where the operator wants a number.
+    else if (scalarType == classOf[String])
+      // The canonical string is "1", so the n-th knob reads as "1", "2", … — distinct
+      // and ascending, so the knobs filled in one row do not collide.
       Some((childPath, objectMapper.getNodeFactory.textNode((ordinal + 1).toString)))
     else
       scalarNode(
-        f.getType,
+        scalarType,
         None,
         schemas,
         mutable.Set.empty,
@@ -640,18 +643,43 @@ object ConfigGenerator {
       clazz: Class[_],
       schemas: Map[Int, Schema],
       used: mutable.Set[(Int, String)],
-      rowCount: Int
+      rowCount: Int,
+      distinctNumbers: Boolean = false
   ): Either[String, ObjectNode] = {
     val node = defaultsOf(clazz)
+    // Inside a row, the n-th plain numeric knob gets n + 1, the way the n-th string
+    // knob reads "1", "2", …: a step's `start` and `end` would otherwise both be
+    // filled with the same number and the operator rejects the pair as start >= end.
+    // A knob that declares its own default or bound keeps what the declaration says,
+    // and a top-level knob keeps [[numericFill]]'s row-relative value — it is swept
+    // on its own, so it has no sibling to collide with.
+    var numericOrdinal = 0
     configFields(clazz).foreach { f =>
       decide(f, schemas, used, rowCount) match {
-        case Fill(name, value) => node.set[JsonNode](name, value)
-        case Skip              => ()
-        case Fail(reason)      => return Left(s"${clazz.getSimpleName}.${f.getName}: $reason")
+        case Fill(name, value) =>
+          val filled =
+            if (distinctNumbers && value.isNumber && !declaresOwnNumber(f)) {
+              numericOrdinal += 1
+              val nf = objectMapper.getNodeFactory
+              if (value.isIntegralNumber) nf.numberNode(numericOrdinal)
+              else nf.numberNode(numericOrdinal.toDouble)
+            } else value
+          node.set[JsonNode](name, filled)
+        case Skip         => ()
+        case Fail(reason) => return Left(s"${clazz.getSimpleName}.${f.getName}: $reason")
       }
     }
     Right(node)
   }
+
+  /** True when the field's annotations already say what number it holds — a
+    * `defaultValue` or a declared bound — so the row-distinct numbering leaves it be.
+    */
+  private def declaresOwnNumber(f: Field): Boolean =
+    defaultOf(f).exists(_.trim.nonEmpty) || {
+      val bounds = declaredRange(f)
+      bounds.min.nonEmpty || bounds.max.nonEmpty
+    }
 
   /** A fresh instance's own values, as the starting JSON — what the UI submits for a
     * form nobody touched, where every key is present carrying the operator's default.
@@ -861,7 +889,7 @@ object ConfigGenerator {
     else if (t == classOf[String])
       Right(nf.textNode(default.getOrElse(CanonicalString)))
     else if (isNestedObject(t))
-      buildObject(t, schemas, used, hint.rowCount)
+      buildObject(t, schemas, used, hint.rowCount, distinctNumbers = true)
     else Left(s"unhandled type ${t.getName}")
   }
 
@@ -963,6 +991,13 @@ object ConfigGenerator {
           case _ => Left(s"${f.getName} has no generic element type")
         }
     }
+
+  /** What a field holds as a scalar: an `Option`'s element type, else the field type
+    * itself. Everything that reasons about a knob's type goes through this, so an
+    * optional knob is treated exactly like the bare value it wraps.
+    */
+  private def effectiveScalarType(f: Field): Class[_] =
+    if (isOption(f.getType)) elementType(f).getOrElse(f.getType) else f.getType
 
   /** The element class `@JsonDeserialize(contentAs = ...)` names, and the only place
     * a Scala `Option[Double]`'s element type survives: the generic signature erases
