@@ -33,6 +33,7 @@ import org.apache.texera.amber.operator.StandaloneCodeGenerator
 import org.apache.texera.amber.operator.map.MapOpDesc
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
 /**
@@ -99,11 +100,11 @@ class DictionaryMatcherOpDesc extends MapOpDesc with StandaloneCodeGenerator {
     val resultCol = Option(resultAttribute)
       .filter(_.trim.nonEmpty)
       .getOrElse("matched")
-    val attrPy = toPyDoubleQuotedLiteral(Option(attribute).getOrElse(""))
-    val resultPy = toPyDoubleQuotedLiteral(resultCol)
+    val attrPy = pyStringLiteral(Option(attribute).getOrElse(""))
+    val resultPy = pyStringLiteral(resultCol)
     val mt = Option(matchingType).getOrElse(MatchingType.SCANBASED)
 
-    val entriesLiteral = entries.map(toPyDoubleQuotedLiteral).mkString("[", ", ", "]")
+    val entriesLiteral = entries.map(pyStringLiteral).mkString("[", ", ", "]")
 
     mt match {
       case MatchingType.SCANBASED =>
@@ -139,12 +140,10 @@ class DictionaryMatcherOpDesc extends MapOpDesc with StandaloneCodeGenerator {
         // will diverge from JVM behavior.
         val tokenSetsLiteral = entries
           .map(tokenizeForConjunction)
-          .map(toks =>
-            toks.toList.sorted.map(toPyDoubleQuotedLiteral).mkString("frozenset({", ", ", "})")
-          )
+          .map(toks => toks.toList.sorted.map(pyStringLiteral).mkString("frozenset({", ", ", "})"))
           .mkString("[", ", ", "]")
         val stopWordsLiteral = DictionaryMatcherOpDesc.STOP_WORDS.toList.sorted
-          .map(toPyDoubleQuotedLiteral)
+          .map(pyStringLiteral)
           .mkString("frozenset({", ", ", "})")
         s"""import re as _texera_dm_re
            |_TEXERA_DM_STOPWORDS = $stopWordsLiteral
@@ -167,9 +166,6 @@ class DictionaryMatcherOpDesc extends MapOpDesc with StandaloneCodeGenerator {
       .toSet
       .filterNot(DictionaryMatcherOpDesc.STOP_WORDS.contains)
   }
-
-  private def toPyDoubleQuotedLiteral(s: String): String =
-    "\"" + s.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
 }
 
 private object DictionaryMatcherOpDesc {

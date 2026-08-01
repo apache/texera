@@ -26,6 +26,7 @@ import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, Workflow
 import org.apache.texera.amber.core.workflow._
 import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
 class IfOpDesc extends LogicalOp with StandaloneCodeGenerator {
@@ -86,7 +87,7 @@ class IfOpDesc extends LogicalOp with StandaloneCodeGenerator {
   // the rest of the translator doesn't define.
   override def generateStandaloneCode(): String = {
     val globalName = "_texera_if_" + Option(conditionName).getOrElse("")
-    val globalLit = "\"" + globalName.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
+    val globalLit = pyStringLiteral(globalName)
     s"""_texera_if_cond = bool(globals().get($globalLit, True))
        |if _texera_if_cond:
        |    out2df = in2df.copy()

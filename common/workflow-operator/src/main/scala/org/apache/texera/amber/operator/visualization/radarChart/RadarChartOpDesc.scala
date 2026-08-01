@@ -31,7 +31,10 @@ import org.apache.texera.amber.operator.metadata.annotations.{
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
-import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
+  PythonTemplateBuilderStringContext,
+  pyStringLiteral
+}
 
 import javax.validation.constraints.{NotEmpty, NotNull}
 
@@ -169,9 +172,9 @@ class RadarChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeGener
   override def producesDataFrame(): Boolean = false
 
   override def generateStandaloneCode(): String = {
-    val valueColsList = valueColumns.map(col => "\"" + col + "\"").mkString("[", ", ", "]")
+    val valueColsList = valueColumns.map(pyStringLiteral).mkString("[", ", ", "]")
     val requiredCols =
-      (Seq("\"" + nameColumn + "\"") ++ valueColumns.map(col => "\"" + col + "\""))
+      (Seq(pyStringLiteral(nameColumn)) ++ valueColumns.map(pyStringLiteral))
         .mkString("[", ", ", "]")
     s"""def render_error(error_msg):
        |    return '''<h1>RadarChart is not available.</h1>
@@ -203,7 +206,7 @@ class RadarChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeGener
        |                r=values,
        |                theta=categories_closed,
        |                fill='toself',
-       |                name=str(row["$nameColumn"]),
+       |                name=str(row[${pyStringLiteral(nameColumn)}]),
        |                opacity=$fillOpacity
        |            ))
        |        fig.update_layout(

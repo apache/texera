@@ -27,6 +27,7 @@ import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PhysicalOp,
 import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
 @JsonSchemaInject(json = """
@@ -100,10 +101,8 @@ class SortPartitionsOpDesc extends LogicalOp with StandaloneCodeGenerator {
   // NaN > +Inf (NaN last), while pandas treats NaN as missing and places it at
   // na_position — so NaN sorts FIRST in this Python translation.
   override def generateStandaloneCode(): String = {
-    val col = toPyDoubleQuotedLiteral(Option(sortAttributeName).getOrElse(""))
+    val col = pyStringLiteral(Option(sortAttributeName).getOrElse(""))
     s"""out1df = in1df.sort_values(by=$col, ascending=True, kind="mergesort", na_position="first").reset_index(drop=True)"""
   }
 
-  private def toPyDoubleQuotedLiteral(s: String): String =
-    "\"" + s.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
 }

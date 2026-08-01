@@ -26,6 +26,7 @@ import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, Workflow
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PhysicalOp}
 import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
 import scala.collection.mutable.ListBuffer
@@ -84,14 +85,11 @@ class StableMergeSortOpDesc extends LogicalOp with StandaloneCodeGenerator {
     val criteria = Option(keys).getOrElse(ListBuffer.empty)
     if (criteria.isEmpty) return "out1df = in1df.copy()"
     val cols = criteria
-      .map(c => toPyDoubleQuotedLiteral(c.attributeName))
+      .map(c => pyStringLiteral(c.attributeName))
       .mkString("[", ", ", "]")
     val ascending = criteria
       .map(c => if (c.sortPreference == SortPreference.ASC) "True" else "False")
       .mkString("[", ", ", "]")
     s"""out1df = in1df.sort_values(by=$cols, ascending=$ascending, kind="mergesort", na_position="last").reset_index(drop=True)"""
   }
-
-  private def toPyDoubleQuotedLiteral(s: String): String =
-    "\"" + s.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
 }

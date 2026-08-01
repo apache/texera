@@ -32,6 +32,7 @@ import org.apache.texera.amber.core.workflow._
 import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeNameList
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
 import javax.validation.constraints.{NotNull, Size}
@@ -189,14 +190,14 @@ class AggregateOpDesc extends LogicalOp with StandaloneCodeGenerator {
 
     if (keys.isEmpty) {
       val rowEntries = aggs
-        .map(agg => s"    ${toPyDoubleQuotedLiteral(agg.resultAttribute)}: ${aggExprScalar(agg)},")
+        .map(agg => s"    ${pyStringLiteral(agg.resultAttribute)}: ${aggExprScalar(agg)},")
         .mkString("\n")
       s"""$concatHelper
          |out1df = pd.DataFrame([{
          |$rowEntries
          |}])""".stripMargin
     } else {
-      val keysLit = keys.map(toPyDoubleQuotedLiteral).mkString("[", ", ", "]")
+      val keysLit = keys.map(pyStringLiteral).mkString("[", ", ", "]")
       val aggLines = aggs.zipWithIndex
         .map {
           case (agg, i) =>
@@ -219,7 +220,7 @@ class AggregateOpDesc extends LogicalOp with StandaloneCodeGenerator {
   private def aggExprScalar(agg: AggregationOperation): String = {
     val attrLit =
       if (agg.attribute == null || agg.attribute.isEmpty) "None"
-      else toPyDoubleQuotedLiteral(agg.attribute)
+      else pyStringLiteral(agg.attribute)
     agg.aggFunction match {
       case AggregationFunction.SUM     => s"in1df[$attrLit].sum()"
       case AggregationFunction.AVERAGE => s"in1df[$attrLit].mean()"
@@ -235,8 +236,8 @@ class AggregateOpDesc extends LogicalOp with StandaloneCodeGenerator {
   private def aggExprGroupby(agg: AggregationOperation, groups: String): String = {
     val attrLit =
       if (agg.attribute == null || agg.attribute.isEmpty) "None"
-      else toPyDoubleQuotedLiteral(agg.attribute)
-    val resultLit = toPyDoubleQuotedLiteral(agg.resultAttribute)
+      else pyStringLiteral(agg.attribute)
+    val resultLit = pyStringLiteral(agg.resultAttribute)
     agg.aggFunction match {
       case AggregationFunction.SUM     => s"$groups[$attrLit].sum().rename($resultLit)"
       case AggregationFunction.AVERAGE => s"$groups[$attrLit].mean().rename($resultLit)"
@@ -250,7 +251,4 @@ class AggregateOpDesc extends LogicalOp with StandaloneCodeGenerator {
         s"$groups[$attrLit].apply(_texera_agg_concat).rename($resultLit)"
     }
   }
-
-  private def toPyDoubleQuotedLiteral(s: String): String =
-    "\"" + s.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
 }

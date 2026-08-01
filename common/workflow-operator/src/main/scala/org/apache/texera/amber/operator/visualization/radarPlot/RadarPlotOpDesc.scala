@@ -31,7 +31,10 @@ import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCod
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
-import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
+  PythonTemplateBuilderStringContext,
+  pyStringLiteral
+}
 
 import javax.validation.constraints.NotEmpty
 
@@ -236,10 +239,10 @@ class RadarPlotOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenera
 
   override def generateStandaloneCode(): String = {
     val attributes = Option(selectedAttributes).getOrElse(Nil)
-    val attrList = attributes.map(attr => "\"" + attr + "\"").mkString(", ")
+    val attrList = attributes.map(pyStringLiteral).mkString(", ")
     def optionalColumn(column: EncodableString): String =
       Option(column).filterNot(col => col.isEmpty || col == "No Selection") match {
-        case Some(col) => "\"" + col + "\""
+        case Some(col) => pyStringLiteral(col)
         case None      => "None"
       }
     val traceNameCol = optionalColumn(traceNameAttribute)
