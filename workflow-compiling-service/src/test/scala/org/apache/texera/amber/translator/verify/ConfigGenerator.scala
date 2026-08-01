@@ -21,6 +21,7 @@ package org.apache.texera.amber.translator.verify
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonSubTypes}
 import com.fasterxml.jackson.databind.JsonNode
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.fasterxml.jackson.databind.node.{ArrayNode, ObjectNode}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInject
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
@@ -763,7 +764,13 @@ object ConfigGenerator {
             val arr: ArrayNode = objectMapper.createArrayNode(); arr.add(e); arr
           }
       else if (isOption(t))
-        elementType(f).flatMap(scalarOrNested(_, schemas, used, rowCount))
+        // An optional scalar is filled like the bare type: the `defaultValue` and any
+        // declared range sit on the field, not on the element, so a Grid Size that
+        // declares 10 is still filled with 10 rather than a generic number.
+        elementType(f).flatMap { elem =>
+          if (isNestedObject(elem)) scalarOrNested(elem, schemas, used, rowCount)
+          else scalarNode(elem, defaultOf(f), schemas, used, NumHint(declaredRange(f), rowCount))
+        }
       else if (declaredEnumValues(f).size > 1) Right(declaredEnumDefault(f))
       else scalarNode(t, defaultOf(f), schemas, used, NumHint(declaredRange(f), rowCount))
     }
@@ -943,15 +950,29 @@ object ConfigGenerator {
     * signature.
     */
   private def elementType(f: Field): Either[String, Class[_]] =
-    f.getGenericType match {
-      case p: ParameterizedType =>
-        p.getActualTypeArguments.headOption match {
-          case Some(c: Class[_])           => Right(c)
-          case Some(pt: ParameterizedType) => Right(pt.getRawType.asInstanceOf[Class[_]])
-          case _                           => Left(s"cannot resolve element type of ${f.getName}")
+    contentAs(f) match {
+      case Some(c) => Right(c)
+      case None =>
+        f.getGenericType match {
+          case p: ParameterizedType =>
+            p.getActualTypeArguments.headOption match {
+              case Some(c: Class[_])           => Right(c)
+              case Some(pt: ParameterizedType) => Right(pt.getRawType.asInstanceOf[Class[_]])
+              case _                           => Left(s"cannot resolve element type of ${f.getName}")
+            }
+          case _ => Left(s"${f.getName} has no generic element type")
         }
-      case _ => Left(s"${f.getName} has no generic element type")
     }
+
+  /** The element class `@JsonDeserialize(contentAs = ...)` names, and the only place
+    * a Scala `Option[Double]`'s element type survives: the generic signature erases
+    * it to Object, which is why Jackson needs the annotation too. Checked before the
+    * signature so an operator that carries it is read the way Jackson reads it.
+    */
+  private def contentAs(f: Field): Option[Class[_]] =
+    Option(f.getAnnotation(classOf[JsonDeserialize]))
+      .map(_.contentAs())
+      .filterNot(c => c == classOf[java.lang.Void] || c == classOf[Void])
 
   /** A type we should recurse into and build as a nested JSON object: not a
     * primitive/boxed/String/enum/collection, and it actually declares config
