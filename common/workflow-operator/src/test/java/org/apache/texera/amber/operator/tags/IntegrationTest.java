@@ -32,6 +32,11 @@ import org.scalatest.TagAnnotation;
  * AMBER_TEST_FILTER block in {@code common/workflow-operator/build.sbt} for how
  * it routes to {@code amber-integration}.
  *
+ * <p>Apply it to a whole spec as an annotation, or to a single case — {@code
+ * test(name, Tag(classOf[IntegrationTest].getName))} in a FunSuite,
+ * {@code taggedAs} in a FlatSpec — so that a spec's cheaper assertions stay in
+ * the unit job and its coverage report.
+ *
  * <p>amber's own tag lives in {@code amber/src/test/integration} and is not
  * reachable here, since amber depends on this module rather than the reverse.
  *
