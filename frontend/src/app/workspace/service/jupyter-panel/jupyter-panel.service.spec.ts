@@ -24,7 +24,7 @@ import { HttpClientTestingModule, HttpTestingController } from "@angular/common/
 import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { NotebookMigrationService } from "../notebook-migration/notebook-migration.service";
 import { GuiConfigService } from "src/app/common/service/gui-config.service";
-import { firstValueFrom, of } from "rxjs";
+import { firstValueFrom, of, throwError } from "rxjs";
 
 describe("JupyterPanelService", () => {
   let service: JupyterPanelService;
@@ -59,6 +59,7 @@ describe("JupyterPanelService", () => {
 
     mockNotification = {
       warning: vi.fn(),
+      error: vi.fn(),
     };
 
     mockNotebook = {
@@ -72,6 +73,7 @@ describe("JupyterPanelService", () => {
       deleteMapping: vi.fn(),
       setMapping: vi.fn(),
       getJupyterURL: vi.fn().mockResolvedValue("http://jupyter"),
+      deleteNotebookAndMapping: vi.fn().mockReturnValue(of({ success: true, deleted: 1 })),
     };
 
     mockGuiConfig = { env: { pythonNotebookMigrationEnabled: true } };
@@ -96,7 +98,7 @@ describe("JupyterPanelService", () => {
   });
 
   // Panel visibility
-  it("should open and close panel", () => {
+  it("should open panel and hide it after deleting the notebook", () => {
     let state: boolean | null = null;
 
     service.jupyterNotebookPanelVisible$.subscribe(v => (state = v));
@@ -104,8 +106,57 @@ describe("JupyterPanelService", () => {
     service.openPanel("JupyterNotebookPanel");
     expect(state).toBe(true);
 
-    service.closeJupyterNotebookPanel();
+    service.deleteJupyterNotebook();
+    expect(mockNotebook.deleteNotebookAndMapping).toHaveBeenCalledWith(1);
     expect(state).toBe(false);
+  });
+
+  it("deleteJupyterNotebook clears local state and unhighlights on success", () => {
+    let visible: boolean | null = null;
+    let exists: boolean | null = null;
+    service.jupyterNotebookPanelVisible$.subscribe(v => (visible = v));
+    service.jupyterNotebookExists$.subscribe(v => (exists = v));
+    (service as any).jupyterNotebookPanelVisible.next(true);
+    (service as any).jupyterNotebookExists.next(true);
+
+    service.deleteJupyterNotebook();
+
+    expect(mockNotebook.deleteNotebookAndMapping).toHaveBeenCalledWith(1);
+    expect(mockNotebook.deleteMapping).toHaveBeenCalledWith("mapping_wid_1");
+    expect(visible).toBe(false);
+    expect(exists).toBe(false);
+    expect(mockWorkflow.unhighlightOperators).toHaveBeenCalled();
+    expect(mockWorkflow.unhighlightLinks).toHaveBeenCalled();
+  });
+
+  it("deleteJupyterNotebook keeps the panel open and notifies on failure", () => {
+    mockNotebook.deleteNotebookAndMapping.mockReturnValueOnce(throwError(() => new Error("boom")));
+    let visible: boolean | null = null;
+    service.jupyterNotebookPanelVisible$.subscribe(v => (visible = v));
+    (service as any).jupyterNotebookPanelVisible.next(true);
+
+    service.deleteJupyterNotebook();
+
+    expect(mockNotification.error).toHaveBeenCalled();
+    expect(visible).toBe(true);
+    expect(mockNotebook.deleteMapping).not.toHaveBeenCalled();
+  });
+
+  it("deleteJupyterNotebook only resets local state for the default wid 0 (no backend call)", () => {
+    mockWorkflow.getWorkflow.mockReturnValue({ wid: 0 });
+    let visible: boolean | null = null;
+    let exists: boolean | null = null;
+    service.jupyterNotebookPanelVisible$.subscribe(v => (visible = v));
+    service.jupyterNotebookExists$.subscribe(v => (exists = v));
+    (service as any).jupyterNotebookPanelVisible.next(true);
+    (service as any).jupyterNotebookExists.next(true);
+
+    service.deleteJupyterNotebook();
+
+    // wid 0 is the unsaved default workflow, so no backend delete should fire.
+    expect(mockNotebook.deleteNotebookAndMapping).not.toHaveBeenCalled();
+    expect(visible).toBe(false);
+    expect(exists).toBe(false);
   });
 
   it("should minimize panel", () => {
@@ -152,6 +203,20 @@ describe("JupyterPanelService", () => {
     expect(state).toBe(true);
   });
 
+  it("openPanel flags jupyterNotebookExists$ so the toolbar expand button appears after an in-place import", () => {
+    const states: boolean[] = [];
+    service.jupyterNotebookExists$.subscribe(v => states.push(v));
+    expect(states.at(-1)).toBe(false);
+
+    // Wrong panel name does not flip the flag.
+    service.openPanel("WrongPanel");
+    expect(states.at(-1)).toBe(false);
+
+    // Opening the jupyter panel records that the workflow now has a notebook.
+    service.openPanel("JupyterNotebookPanel");
+    expect(states.at(-1)).toBe(true);
+  });
+
   // HTTP fetchNotebookAndMapping
   it("should return 0 when exists=false", async () => {
     const resultPromise = firstValueFrom((service as any).fetchNotebookAndMapping(1, 1));
@@ -186,6 +251,9 @@ describe("JupyterPanelService", () => {
 
     expect(mockWorkflow.workflowMetaDataChanged).toHaveBeenCalled();
     expect(mockNotebook.deleteMapping).toHaveBeenCalledWith("mapping_wid_1");
+    // Data-loss guard: switching workflows must never delete a notebook from the
+    // backend. It only drops the in-memory mapping.
+    expect(mockNotebook.deleteNotebookAndMapping).not.toHaveBeenCalled();
 
     const req = httpMock.expectOne(r => r.url.includes("/notebook-migration/fetch-notebook-and-mapping"));
     req.flush({ exists: false });
@@ -391,10 +459,11 @@ describe("JupyterPanelService", () => {
       expect(state).toBe(false);
     });
 
-    it("closeJupyterNotebookPanel does not flip visibility or delete the mapping", () => {
-      // BehaviorSubject's initial value is false; the meaningful assertion is
-      // that the side effect (deleteMapping) was never called.
-      service.closeJupyterNotebookPanel();
+    it("deleteJupyterNotebook does not call the backend or delete the mapping when disabled", () => {
+      // When the feature is disabled the method returns early, so neither the
+      // backend delete nor the local mapping drop should run.
+      service.deleteJupyterNotebook();
+      expect(mockNotebook.deleteNotebookAndMapping).not.toHaveBeenCalled();
       expect(mockNotebook.deleteMapping).not.toHaveBeenCalled();
     });
 
