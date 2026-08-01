@@ -22,7 +22,10 @@ package org.apache.texera.amber.operator.visualization.ganttChart
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
-import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
+  PythonTemplateBuilderStringContext,
+  pyStringLiteral
+}
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
@@ -149,10 +152,15 @@ class GanttChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeGener
   override def producesDataFrame(): Boolean = false
 
   override def generateStandaloneCode(): String = {
+    val colorLit = pyStringLiteral(color)
+    val startLit = pyStringLiteral(start)
+    val finishLit = pyStringLiteral(finish)
+    val taskLit = pyStringLiteral(task)
     val optionalFilter =
-      if (color.nonEmpty) s""" & (in1df["$color"].notnull())""" else ""
-    val colorSetting = if (color.nonEmpty) s""", color="$color"""" else ""
-    val patternSetting = if (pattern.nonEmpty) s""", pattern_shape="$pattern"""" else ""
+      if (color.nonEmpty) s""" & (in1df[$colorLit].notnull())""" else ""
+    val colorSetting = if (color.nonEmpty) s""", color=$colorLit""" else ""
+    val patternSetting =
+      if (pattern.nonEmpty) s""", pattern_shape=${pyStringLiteral(pattern)}""" else ""
 
     s"""def render_error(error_msg):
        |    return '''<h1>Gantt Chart is not available.</h1>
@@ -163,12 +171,12 @@ class GanttChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeGener
        |    with open("output.html", "w", encoding="utf-8") as output:
        |        output.write(render_error("Input table is empty."))
        |else:
-       |    table = in1df[(in1df["$start"].notnull()) & (in1df["$finish"].notnull())$optionalFilter].copy()
+       |    table = in1df[(in1df[$startLit].notnull()) & (in1df[$finishLit].notnull())$optionalFilter].copy()
        |    if table.empty:
        |        with open("output.html", "w", encoding="utf-8") as output:
        |            output.write(render_error("One or more of your input columns have all missing values"))
        |    else:
-       |        fig = px.timeline(table, x_start="$start", x_end="$finish", y="$task"$colorSetting$patternSetting)
+       |        fig = px.timeline(table, x_start=$startLit, x_end=$finishLit, y=$taskLit$colorSetting$patternSetting)
        |        fig.update_yaxes(autorange='reversed')
        |        fig.update_layout(margin=dict(t=0, b=0, l=0, r=0))
        |        fig.write_json("output.json")

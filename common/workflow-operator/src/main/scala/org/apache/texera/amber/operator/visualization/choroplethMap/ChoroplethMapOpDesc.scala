@@ -22,7 +22,10 @@ package org.apache.texera.amber.operator.visualization.choroplethMap
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
-import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
+  PythonTemplateBuilderStringContext,
+  pyStringLiteral
+}
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
@@ -132,7 +135,9 @@ class ChoroplethMapOpDesc extends PythonOperatorDescriptor with StandaloneCodeGe
 
   override def producesDataFrame(): Boolean = false
 
-  override def generateStandaloneCode(): String =
+  override def generateStandaloneCode(): String = {
+    val locationsLit = pyStringLiteral(locations)
+    val colorLit = pyStringLiteral(color)
     // The error page is written to output.html, the same file a plotted chart lands
     // in, so a reason for "no chart" is where the reader looks for the chart —
     // printing it to the terminal alone left output.html absent. render_error's
@@ -151,13 +156,14 @@ class ChoroplethMapOpDesc extends PythonOperatorDescriptor with StandaloneCodeGe
        |if in1df.empty:
        |    fail("Input table is empty.")
        |else:
-       |    in1df = in1df.dropna(subset=["$locations", "$color"])
+       |    in1df = in1df.dropna(subset=[$locationsLit, $colorLit])
        |    if in1df.empty:
        |        fail("No valid rows left (every row has at least 1 missing value).")
        |    else:
-       |        fig = px.choropleth(in1df, locations="$locations", color="$color", color_continuous_scale=px.colors.sequential.Plasma)
+       |        fig = px.choropleth(in1df, locations=$locationsLit, color=$colorLit, color_continuous_scale=px.colors.sequential.Plasma)
        |        fig.update_layout(margin={"r":0,"t":0,"l":0,"b":0})
        |        fig.write_json("output.json")
        |        fig.write_html("output.html")
        |        print("Choropleth map saved to output.json and output.html")""".stripMargin
+  }
 }

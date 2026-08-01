@@ -21,7 +21,10 @@ package org.apache.texera.amber.operator.visualization.histogram2d
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
-import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
+  PythonTemplateBuilderStringContext,
+  pyStringLiteral
+}
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
@@ -126,6 +129,8 @@ class Histogram2DOpDesc extends PythonOperatorDescriptor with StandaloneCodeGene
   override def generateStandaloneCode(): String = {
     assert(xBins > 0, s"X Bins must be > 0, but got $xBins")
     assert(yBins > 0, s"Y Bins must be > 0, but got $yBins")
+    val xLit = pyStringLiteral(xColumn)
+    val yLit = pyStringLiteral(yColumn)
 
     s"""import plotly.express as px
        |
@@ -136,15 +141,15 @@ class Histogram2DOpDesc extends PythonOperatorDescriptor with StandaloneCodeGene
        |    with open("output.html", "w", encoding="utf-8") as output:
        |        output.write(render_error("Input table is empty."))
        |else:
-       |    in1df.dropna(subset=["$xColumn", "$yColumn"], inplace=True)
+       |    in1df.dropna(subset=[$xLit, $yLit], inplace=True)
        |    if in1df.empty:
        |        with open("output.html", "w", encoding="utf-8") as output:
        |            output.write(render_error("No rows after dropping nulls."))
        |    else:
        |        fig = px.density_heatmap(
        |            in1df,
-       |            x="$xColumn",
-       |            y="$yColumn",
+       |            x=$xLit,
+       |            y=$yLit,
        |            nbinsx=$xBins,
        |            nbinsy=$yBins,
        |            histnorm='${normalize.getValue}',

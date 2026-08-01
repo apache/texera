@@ -22,7 +22,10 @@ package org.apache.texera.amber.operator.visualization.hierarchychart
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
-import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
+  PythonTemplateBuilderStringContext,
+  pyStringLiteral
+}
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
@@ -142,7 +145,8 @@ class HierarchyChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeG
   override def producesDataFrame(): Boolean = false
 
   override def generateStandaloneCode(): String = {
-    val attributes = hierarchy.map(section => s""""${section.attributeName}"""").mkString(", ")
+    val attributes = hierarchy.map(section => pyStringLiteral(section.attributeName)).mkString(", ")
+    val valueLit = pyStringLiteral(value)
     // The error page is written to output.html, the same file a plotted chart lands
     // in, so a reason for "no chart" is where the reader looks for the chart —
     // printing it to the terminal alone left output.html absent. render_error's
@@ -161,13 +165,13 @@ class HierarchyChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeG
        |if in1df.empty:
        |    fail("input table is empty.")
        |else:
-       |    in1df["$value"] = in1df[in1df["$value"] > 0]["$value"]
+       |    in1df[$valueLit] = in1df[in1df[$valueLit] > 0][$valueLit]
        |    in1df.dropna(subset=[$attributes], inplace=True)
        |    if in1df.empty:
        |        fail("value column contains only non-positive numbers or nulls.")
        |    else:
-       |        fig = px.${hierarchyChartType.getPlotlyExpressApiName}(in1df, path=[$attributes], values="$value",
-       |                         color="$value", hover_data=[$attributes],
+       |        fig = px.${hierarchyChartType.getPlotlyExpressApiName}(in1df, path=[$attributes], values=$valueLit,
+       |                         color=$valueLit, hover_data=[$attributes],
        |                         color_continuous_scale='RdBu')
        |        fig.update_layout(margin=dict(l=0, r=0, b=0, t=0))
        |        fig.write_json("output.json")

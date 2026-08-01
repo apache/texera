@@ -22,7 +22,10 @@ package org.apache.texera.amber.operator.visualization.barChart
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
-import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
+  PythonTemplateBuilderStringContext,
+  pyStringLiteral
+}
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
@@ -161,14 +164,16 @@ class BarChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerat
 
   override def generateStandaloneCode(): String = {
     val hasCategory = categoryColumn.nonEmpty && categoryColumn != "No Selection"
-    val colorArg = if (hasCategory) s""""$categoryColumn"""" else "None"
-    val patternArg = if (pattern.nonEmpty) s""""$pattern"""" else "None"
+    val colorArg = if (hasCategory) pyStringLiteral(categoryColumn) else "None"
+    val patternArg = if (pattern.nonEmpty) pyStringLiteral(pattern) else "None"
+    val fieldsLit = pyStringLiteral(fields)
+    val valueLit = pyStringLiteral(value)
 
     val barArgs =
       if (horizontalOrientation)
-        s"""y="$fields", x="$value", color=$colorArg, pattern_shape=$patternArg, orientation='h'"""
+        s"""y=$fieldsLit, x=$valueLit, color=$colorArg, pattern_shape=$patternArg, orientation='h'"""
       else
-        s"""y="$value", x="$fields", color=$colorArg, pattern_shape=$patternArg"""
+        s"""y=$valueLit, x=$fieldsLit, color=$colorArg, pattern_shape=$patternArg"""
 
     // The error page is written to output.html, the same file a plotted chart lands
     // in, so a reason for "no chart" is where the reader looks for the chart —
@@ -185,7 +190,7 @@ class BarChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerat
        |        output.write(render_error(error_msg))
        |    print(f"Bar chart error: {error_msg}")
        |
-       |if "$fields" == "$value":
+       |if $fieldsLit == $valueLit:
        |    fail("Fields should not have the same value.")
        |elif in1df.empty:
        |    # Checked before the dropna, unlike the runtime path: an empty table read
@@ -193,7 +198,7 @@ class BarChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerat
        |    # would raise a KeyError instead of reporting the empty table.
        |    fail("Table should not have any empty/null values or fields.")
        |else:
-       |    in1df = in1df.dropna(subset=["$value", "$fields"])
+       |    in1df = in1df.dropna(subset=[$valueLit, $fieldsLit])
        |    if in1df.empty:
        |        fail("Table should not have any empty/null values or fields.")
        |    else:
