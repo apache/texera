@@ -144,18 +144,16 @@ class ContourPlotOpDesc extends PythonOperatorDescriptor with StandaloneCodeGene
   override def producesDataFrame(): Boolean = false
 
   override def generateStandaloneCode(): String =
+    // render_error's continuation line keeps the runtime path's indentation — the
+    // HTML is triple-quoted, so those spaces reach the browser.
     s"""import numpy as np
        |from scipy.interpolate import griddata
        |
        |def render_error(error_msg):
-       |    # Indented to match the runtime path's own render_error, so the error page
-       |    # is byte-identical on both paths.
        |    return '''<h1>Contour plot is not available.</h1>
        |                  <p>Reason is: {} </p>
        |               '''.format(error_msg)
        |
-       |# Mirrors the runtime path's guard: an input the plot cannot use (a grid size
-       |# that is not a number, say) renders the same error page instead of aborting.
        |try:
        |    x = in1df[${pyStringLiteral(x)}].values
        |    y = in1df[${pyStringLiteral(y)}].values

@@ -205,13 +205,15 @@ class GaugeChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeGener
     val deltaLit = pyStringLiteral(delta)
     val thresholdLit = pyStringLiteral(threshold)
     val stepsLit = pyStringLiteral(stepsStr)
+    // render_error's continuation line keeps the runtime path's indentation — the
+    // HTML is triple-quoted, so those spaces reach the browser.
     s"""import plotly.graph_objects as go
        |import plotly.io as pio
        |import json
        |
        |def render_error(error_msg):
        |    return '''<h1>Gauge chart is not available.</h1>
-       |              <p>Reason: {} </p>'''.format(error_msg)
+       |                  <p>Reason: {} </p>'''.format(error_msg)
        |
        |def generate_gray_gradient(step_count):
        |    colors = []
@@ -251,9 +253,6 @@ class GaugeChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeGener
        |        except Exception:
        |            steps_list = []
        |
-       |        # Mirror the platform path: one gauge per row, concatenated into a
-       |        # single <div>. output.json holds the FIRST figure (what the
-       |        # platform's html-content exposes first) for the parity comparison.
        |        html_chunks = []
        |        first_fig = None
        |        for _, row in table.iterrows():

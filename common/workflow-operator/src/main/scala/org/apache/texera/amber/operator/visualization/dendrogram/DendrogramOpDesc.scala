@@ -166,12 +166,12 @@ class DendrogramOpDesc extends PythonOperatorDescriptor with StandaloneCodeGener
 
   override def generateStandaloneCode(): String = {
 
+    // render_error's continuation line keeps the runtime path's indentation — the
+    // HTML is triple-quoted, so those spaces reach the browser.
     s"""import numpy as np
        |import plotly.figure_factory as ff
        |
        |def render_error(error_msg):
-       |    # Indented to match the runtime path's own render_error, so the error page
-       |    # is byte-identical on both paths.
        |    return '''<h1>Dendrogram is not available.</h1>
        |                  <p>Reason is: {} </p>
        |               '''.format(error_msg)
@@ -180,9 +180,6 @@ class DendrogramOpDesc extends PythonOperatorDescriptor with StandaloneCodeGener
        |    with open("output.html", "w", encoding="utf-8") as output:
        |        output.write(render_error("input table is empty."))
        |else:
-       |    # Mirrors the runtime path's guard: an input the dendrogram cannot use (a
-       |    # threshold that is neither a number nor "default", say) renders the same
-       |    # General error page instead of aborting the script.
        |    try:
        |        x = np.array(in1df[${pyStringLiteral(xVal)}])
        |        y = np.array(in1df[${pyStringLiteral(yVal)}])
