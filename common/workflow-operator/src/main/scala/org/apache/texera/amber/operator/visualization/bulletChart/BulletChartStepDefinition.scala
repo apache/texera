@@ -20,21 +20,27 @@
 package org.apache.texera.amber.operator.visualization.bulletChart
 
 import com.fasterxml.jackson.annotation.{JsonCreator, JsonProperty}
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 
 /**
   * Defines a step range used for qualitative segments in the Bullet Chart.
+  *
+  * Numeric bounds, not text: they are only ever used as `float(...)`. `contentAs` is
+  * required and must name the boxed class — Scala erases the element type, and the
+  * primitive would read a blank as 0.
   */
 
 class BulletChartStepDefinition {
   @JsonProperty("start")
   @JsonSchemaTitle("Start")
-  var start: EncodableString = ""
+  @JsonDeserialize(contentAs = classOf[java.lang.Double])
+  var start: Option[Double] = None
 
   @JsonProperty("end")
   @JsonSchemaTitle("End")
-  var end: EncodableString = ""
+  @JsonDeserialize(contentAs = classOf[java.lang.Double])
+  var end: Option[Double] = None
 
   // @JsonCreator on the two-arg constructor (params carry @JsonProperty) so
   // Jackson deserializes step objects via it, while the no-arg primary ctor is
@@ -43,8 +49,8 @@ class BulletChartStepDefinition {
   // exists; our fork's class predated it without the annotation.
   @JsonCreator
   def this(
-      @JsonProperty("start") start: EncodableString,
-      @JsonProperty("end") end: EncodableString
+      @JsonProperty("start") start: Option[Double],
+      @JsonProperty("end") end: Option[Double]
   ) = {
     this()
     this.start = start

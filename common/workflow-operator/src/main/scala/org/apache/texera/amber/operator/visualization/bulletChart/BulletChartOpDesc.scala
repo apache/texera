@@ -20,13 +20,14 @@
 package org.apache.texera.amber.operator.visualization.bulletChart
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
   PythonTemplateBuilderStringContext,
   pyStringLiteral
 }
-import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
+import org.apache.texera.amber.pybuilder.PyStringTypes.{EncodableString, PythonLiteral}
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
@@ -59,16 +60,27 @@ class BulletChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeGene
   @NotNull(message = "Value cannot be empty")
   var value: EncodableString = ""
 
+  // Numbers, not text: both are only ever used as `float(...)`. A typed-in word in
+  // Delta Reference rendered the error page and in Threshold Value was discarded
+  // silently; declaring them numeric lets the form reject it before the run.
+  //
+  // `contentAs` is required: Scala erases `Option[Double]`'s element type, so
+  // without it Jackson leaves the raw JSON value inside the Option and the first
+  // use throws ClassCastException. It names the boxed class deliberately — the
+  // primitive would coerce a blank to 0 instead of None, which for Threshold Value
+  // is the difference between "at zero" and "no threshold drawn".
   @JsonProperty(value = "deltaReference", required = true)
   @JsonSchemaTitle("Delta Reference")
   @JsonPropertyDescription("The reference value for the delta indicator. e.g., 100")
   @NotNull(message = "Delta Reference cannot be empty")
-  var deltaReference: EncodableString = ""
+  @JsonDeserialize(contentAs = classOf[java.lang.Double])
+  var deltaReference: Option[Double] = None
 
   @JsonProperty(value = "thresholdValue", required = false)
   @JsonSchemaTitle("Threshold Value")
   @JsonPropertyDescription("The performance threshold value. e.g., 100")
-  var thresholdValue: EncodableString = ""
+  @JsonDeserialize(contentAs = classOf[java.lang.Double])
+  var thresholdValue: Option[Double] = None
 
   @JsonProperty(value = "steps", required = false)
   @JsonSchemaTitle("Steps")
@@ -96,14 +108,21 @@ class BulletChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeGene
   }
 
   override def generatePythonCode(): String = {
-    // Convert the Scala list of steps into a list of dictionaries
-    val stepsStr = if (steps != null && !steps.isEmpty) {
-      val stepsSeq =
-        steps.asScala.map(step => pyb"""{"start": ${step.start}, "end": ${step.end}}""")
-      "[" + stepsSeq.mkString(", ") + "]"
-    } else {
-      "[]"
-    }
+    // The reference is required, so an unset value keeps the 0 the generated code
+    // used to fall back to; the threshold is optional and stays absent as None.
+    val deltaReferenceExpr: PythonLiteral = deltaReference.getOrElse(0.0).toString
+    val thresholdExpr: PythonLiteral = thresholdValue.map(_.toString).getOrElse("None")
+
+    // Steps whose bounds are both filled in, as a list literal of numbers. A
+    // half-filled step is dropped here rather than in the generated code: now that
+    // the bounds are numbers, "not filled in" is the only invalid case left.
+    val stepsExpr: PythonLiteral =
+      Option(steps)
+        .map(_.asScala.toSeq)
+        .getOrElse(Seq.empty)
+        .flatMap(step => step.start.zip(step.end))
+        .map { case (start, end) => s"""{"start": $start, "end": $end}""" }
+        .mkString("[", ", ", "]")
 
     val finalCode =
       pyb"""
@@ -127,24 +146,18 @@ class BulletChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeGene
          |            colors.append(f"hsl(0, 0%, {lightness}%)")
          |        return colors
          |
-         |    # Validate and convert user-provided step definitions
+         |    # Validate user-provided step definitions
          |    def generate_valid_steps(self, steps_data):
          |        valid_steps = []
          |        self.step_errors = []
          |
          |        for index, step in enumerate(steps_data):
-         |            start = step.get('start', '')
-         |            end = step.get('end', '')
-         |            if start and end:
-         |                try:
-         |                    s_val = float(start)
-         |                    e_val = float(end)
-         |                    if s_val < e_val:
-         |                        valid_steps.append({"start": s_val, "end": e_val})
-         |                    else:
-         |                        self.step_errors.append(f"Step {index + 1}: start ≥ end ({s_val} ≥ {e_val})")
-         |                except Exception as e:
-         |                    self.step_errors.append(f"Step {index + 1}: Invalid step values: start='{start}', end='{end}'")
+         |            s_val = step["start"]
+         |            e_val = step["end"]
+         |            if s_val < e_val:
+         |                valid_steps.append({"start": s_val, "end": e_val})
+         |            else:
+         |                self.step_errors.append(f"Step {index + 1}: start ≥ end ({s_val} ≥ {e_val})")
          |        return valid_steps
          |
          |    @overrides
@@ -155,7 +168,7 @@ class BulletChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeGene
          |
          |        try:
          |            value_col = $value
-         |            delta_ref = float($deltaReference) if $deltaReference.strip() else 0
+         |            delta_ref = $deltaReferenceExpr
          |
          |            if value_col not in table.columns:
          |                yield {'html-content': self.render_error(f"Column '{value_col}' not found in input table.")}
@@ -166,25 +179,17 @@ class BulletChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeGene
          |                yield {'html-content': self.render_error("No valid data rows found after dropping nulls.")}
          |                return
          |
-         |            try:
-         |                threshold_val = float($thresholdValue) if $thresholdValue.strip() else None
-         |            except ValueError:
-         |                threshold_val = None
+         |            threshold_val = $thresholdExpr
          |
-         |            # Parse and validate steps input
-         |            try:
-         |                steps_data = $stepsStr
-         |                valid_steps = self.generate_valid_steps(steps_data)
-         |                step_colors = self.generate_gray_gradient(len(valid_steps))
-         |                steps_list = []
-         |                for index, step_data in enumerate(valid_steps):
-         |                    color = step_colors[index]
-         |                    steps_list.append({
-         |                        "range": [step_data["start"], step_data["end"]],
-         |                        "color": color
-         |                    })
-         |            except Exception:
-         |                steps_list = []
+         |            valid_steps = self.generate_valid_steps($stepsExpr)
+         |            step_colors = self.generate_gray_gradient(len(valid_steps))
+         |            steps_list = []
+         |            for index, step_data in enumerate(valid_steps):
+         |                color = step_colors[index]
+         |                steps_list.append({
+         |                    "range": [step_data["start"], step_data["end"]],
+         |                    "color": color
+         |                })
          |
          |            # Iterate through up to 10 rows of the input table
          |            count = 0
@@ -255,25 +260,20 @@ class BulletChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeGene
   override def generateStandaloneCode(): String = {
     assertRequiredFields()
 
-    // Step bounds are strings, matching the platform path: there `${step.start}`
-    // is an EncodableString, which pyb renders as a runtime string (base64-decode
-    // expression), so `start`/`end` are strings on both paths and
-    // generate_valid_steps' `float(...)` / `if start and end` behave identically.
-    // Here they become escaped literals — the decode expression is unavailable in
-    // a standalone script, and hand-written quotes would break on a value that
-    // contains one.
-    val stepsLiteral =
-      if (steps != null && !steps.isEmpty)
-        steps.asScala
-          .map(step =>
-            s"""{"start": ${pyStringLiteral(step.start)}, "end": ${pyStringLiteral(step.end)}}"""
-          )
-          .mkString("[", ", ", "]")
-      else "[]"
-
+    // The column name is typed-in text, so it is emitted as a properly escaped
+    // Python literal. The numeric settings carry no text and are emitted as numbers,
+    // the same as the runtime path, so the two scripts agree without either of them
+    // parsing anything.
     val valueLit = pyStringLiteral(value)
-    val deltaReferenceLit = pyStringLiteral(deltaReference)
-    val thresholdValueLit = pyStringLiteral(thresholdValue)
+    val deltaReferenceExpr = deltaReference.getOrElse(0.0).toString
+    val thresholdExpr = thresholdValue.map(_.toString).getOrElse("None")
+    val stepsExpr =
+      Option(steps)
+        .map(_.asScala.toSeq)
+        .getOrElse(Seq.empty)
+        .flatMap(step => step.start.zip(step.end))
+        .map { case (start, end) => s"""{"start": $start, "end": $end}""" }
+        .mkString("[", ", ", "]")
 
     // render_error's continuation line keeps the runtime path's indentation — the
     // HTML is triple-quoted, so those spaces reach the browser.
@@ -292,18 +292,12 @@ class BulletChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeGene
        |    valid_steps = []
        |    step_errors = []
        |    for index, step in enumerate(steps_data):
-       |        start = step.get('start', '')
-       |        end = step.get('end', '')
-       |        if start and end:
-       |            try:
-       |                s_val = float(start)
-       |                e_val = float(end)
-       |                if s_val < e_val:
-       |                    valid_steps.append({"start": s_val, "end": e_val})
-       |                else:
-       |                    step_errors.append(f"Step {index + 1}: start >= end ({s_val} >= {e_val})")
-       |            except Exception:
-       |                step_errors.append(f"Step {index + 1}: Invalid step values: start='{start}', end='{end}'")
+       |        s_val = step["start"]
+       |        e_val = step["end"]
+       |        if s_val < e_val:
+       |            valid_steps.append({"start": s_val, "end": e_val})
+       |        else:
+       |            step_errors.append(f"Step {index + 1}: start >= end ({s_val} >= {e_val})")
        |    return valid_steps, step_errors
        |
        |if in1df.empty:
@@ -312,7 +306,7 @@ class BulletChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeGene
        |else:
        |    try:
        |        value_col = $valueLit
-       |        delta_ref = float($deltaReferenceLit) if $deltaReferenceLit.strip() else 0
+       |        delta_ref = $deltaReferenceExpr
        |        if value_col not in in1df.columns:
        |            with open("output.html", "w", encoding="utf-8") as output:
        |                output.write(render_error(f"Column '{value_col}' not found in input table."))
@@ -322,11 +316,8 @@ class BulletChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeGene
        |                with open("output.html", "w", encoding="utf-8") as output:
        |                    output.write(render_error("No valid data rows found after dropping nulls."))
        |            else:
-       |                try:
-       |                    threshold_val = float($thresholdValueLit) if $thresholdValueLit.strip() else None
-       |                except ValueError:
-       |                    threshold_val = None
-       |                valid_steps, step_errors = generate_valid_steps($stepsLiteral)
+       |                threshold_val = $thresholdExpr
+       |                valid_steps, step_errors = generate_valid_steps($stepsExpr)
        |                step_colors = generate_gray_gradient(len(valid_steps))
        |                steps_list = []
        |                for index, step_data in enumerate(valid_steps):

@@ -20,13 +20,14 @@
 package org.apache.texera.amber.operator.visualization.contourPlot
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
   PythonTemplateBuilderStringContext,
   pyStringLiteral
 }
-import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
+import org.apache.texera.amber.pybuilder.PyStringTypes.{EncodableString, PythonLiteral}
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
@@ -68,10 +69,14 @@ class ContourPlotOpDesc extends PythonOperatorDescriptor with StandaloneCodeGene
   @NotNull(message = "z cannot be empty")
   var z: EncodableString = ""
 
+  // Numeric, not text: the value is only ever used as `int(...)`. `contentAs` is
+  // required and must name the boxed class — Scala erases the element type, and the
+  // primitive would read a blank as 0.
   @JsonProperty(required = false, defaultValue = "10")
   @JsonSchemaTitle("Grid Size")
   @JsonPropertyDescription("Grid resolution of the final image")
-  var gridSize: EncodableString = ""
+  @JsonDeserialize(contentAs = classOf[Integer])
+  var gridSize: Option[Int] = None
 
   @JsonProperty(required = false, defaultValue = "true")
   @JsonSchemaTitle("Connect Gaps")
@@ -101,6 +106,9 @@ class ContourPlotOpDesc extends PythonOperatorDescriptor with StandaloneCodeGene
     )
 
   override def generatePythonCode(): String = {
+    // A number in the generated code, so it needs no int() around it.
+    val gridSizeLiteral: PythonLiteral =
+      gridSize.getOrElse(ContourPlotOpDesc.DefaultGridSize).toString
     pyb"""from pytexera import *
        |import numpy as np
        |import plotly.graph_objects as go
@@ -119,7 +127,7 @@ class ContourPlotOpDesc extends PythonOperatorDescriptor with StandaloneCodeGene
        |            x = table[$x].values
        |            y = table[$y].values
        |            z = table[$z].values
-       |            grid_size = int($gridSize)
+       |            grid_size = $gridSizeLiteral
        |            connGaps = True if '$connectGaps' == 'true' else False
        |
        |            grid_x, grid_y = np.meshgrid(np.linspace(min(x), max(x), grid_size), np.linspace(min(y), max(y), grid_size))
@@ -158,7 +166,7 @@ class ContourPlotOpDesc extends PythonOperatorDescriptor with StandaloneCodeGene
        |    x = in1df[${pyStringLiteral(x)}].values
        |    y = in1df[${pyStringLiteral(y)}].values
        |    z = in1df[${pyStringLiteral(z)}].values
-       |    grid_size = int(${pyStringLiteral(gridSize)})
+       |    grid_size = ${gridSize.getOrElse(ContourPlotOpDesc.DefaultGridSize)}
        |    connGaps = True if ${pyStringLiteral(connectGaps.toString)} == "true" else False
        |
        |    grid_x, grid_y = np.meshgrid(np.linspace(min(x), max(x), grid_size), np.linspace(min(y), max(y), grid_size))
@@ -179,4 +187,10 @@ class ContourPlotOpDesc extends PythonOperatorDescriptor with StandaloneCodeGene
        |except Exception as e:
        |    with open("output.html", "w", encoding="utf-8") as output:
        |        output.write(render_error(f"General error: {str(e)}"))""".stripMargin
+}
+
+object ContourPlotOpDesc {
+
+  /** Matches the form's `defaultValue`, so an unset Grid Size plots at 10. */
+  private val DefaultGridSize: Int = 10
 }

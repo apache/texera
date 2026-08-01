@@ -19,15 +19,28 @@
 package org.apache.texera.amber.operator.visualization.gaugeChart
 
 import com.fasterxml.jackson.annotation.JsonProperty
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 
+/**
+  * A step's bounds are numbers, not text: the operator only ever uses them as
+  * `float(...)`, and a non-numeric bound used to be swallowed — the gauge rendered
+  * with no steps at all and no explanation. Declaring them numeric lets the form
+  * reject a typed-in word before the run.
+  *
+  * `contentAs` is required: Scala erases `Option[Double]`'s element type, so
+  * without it Jackson leaves the raw JSON value inside the Option and the first
+  * use throws ClassCastException. It names the boxed class deliberately — the
+  * primitive would coerce a blank to 0 instead of None.
+  */
 class GaugeChartSteps {
   @JsonProperty("start")
   @JsonSchemaTitle("Start")
-  var start: EncodableString = ""
+  @JsonDeserialize(contentAs = classOf[java.lang.Double])
+  var start: Option[Double] = None
 
   @JsonProperty("end")
   @JsonSchemaTitle("End")
-  var end: EncodableString = ""
+  @JsonDeserialize(contentAs = classOf[java.lang.Double])
+  var end: Option[Double] = None
 }

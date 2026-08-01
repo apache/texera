@@ -19,15 +19,14 @@
 package org.apache.texera.amber.operator.visualization.gaugeChart
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.module.scala.DefaultScalaModule
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
   PythonTemplateBuilderStringContext,
   pyStringLiteral
 }
-import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
+import org.apache.texera.amber.pybuilder.PyStringTypes.{EncodableString, PythonLiteral}
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
@@ -43,15 +42,20 @@ class GaugeChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeGener
   @NotNull(message = "Gauge Value cannot be empty")
   var value: EncodableString = ""
 
+  // Numeric, not text: both are only ever used as `float(...)`. `contentAs` is
+  // required and must name the boxed class — Scala erases the element type, and the
+  // primitive would read a blank as 0, a real baseline rather than "unset".
   @JsonProperty(value = "delta", required = false)
   @JsonSchemaTitle("Delta")
   @JsonPropertyDescription("The baseline value used to calculate the delta from the gauge value")
-  var delta: EncodableString = ""
+  @JsonDeserialize(contentAs = classOf[java.lang.Double])
+  var delta: Option[Double] = None
 
   @JsonProperty(value = "threshold", required = false)
   @JsonSchemaTitle("Threshold Value")
   @JsonPropertyDescription("Defines a boundary or target value shown on the gauge chart")
-  var threshold: EncodableString = ""
+  @JsonDeserialize(contentAs = classOf[java.lang.Double])
+  var threshold: Option[Double] = None
 
   @JsonProperty(value = "steps", required = false)
   @JsonSchemaTitle("Steps")
@@ -72,21 +76,26 @@ class GaugeChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeGener
       OperatorGroupConstants.VISUALIZATION_FINANCIAL_GROUP
     )
 
-  private val mapper = new ObjectMapper()
-  mapper.registerModule(DefaultScalaModule)
+  /** An unset number reaches the generated code as Python's `None`. */
+  private def numberOrNone(value: Option[Double]): PythonLiteral =
+    value.map(_.toString).getOrElse("None")
 
-  private def serializeSteps(steps: List[GaugeChartSteps]): String = {
-    mapper.writeValueAsString(steps)
-  }
+  /** The steps whose bounds are both filled in, as a list literal of numbers. */
+  private def stepsLiteral: PythonLiteral =
+    steps
+      .flatMap(step => step.start.zip(step.end))
+      .map { case (start, end) => s"""{"start": $start, "end": $end}""" }
+      .mkString("[", ", ", "]")
 
   override def generatePythonCode(): String = {
-    val stepsStr: EncodableString = serializeSteps(steps)
+    val deltaExpr = numberOrNone(delta)
+    val thresholdExpr = numberOrNone(threshold)
+    val stepsExpr = stepsLiteral
 
     pyb"""
          |from pytexera import *
          |import plotly.graph_objects as go
          |import plotly.io as pio
-         |import json
          |
          |class ProcessTableOperator(UDFTableOperator):
          |
@@ -109,32 +118,23 @@ class GaugeChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeGener
          |
          |        try:
          |            gauge_value = $value
-         |            try:
-         |                delta_ref = float($delta) if $delta.strip() else None
-         |            except ValueError:
-         |                delta_ref = None
-         |            try:
-         |                threshold_val = float($threshold) if $threshold.strip() else None
-         |            except ValueError:
-         |                threshold_val = None
+         |            delta_ref = $deltaExpr
+         |            threshold_val = $thresholdExpr
          |
          |            table = table.dropna(subset=[gauge_value])
          |            if table.empty:
          |                yield {'html-content': self.render_error("No non-null rows found for the value column.")}
          |                return
          |
-         |            try:
-         |                valid_steps = json.loads($stepsStr)
-         |                step_colors = self.generate_gray_gradient(len(valid_steps))
-         |                steps_list = []
-         |                for index, step_data in enumerate(valid_steps):
-         |                    color = step_colors[index]
-         |                    steps_list.append({
-         |                        "range": [float(step_data["start"]), float(step_data["end"])],
-         |                        "color": color
-         |                    })
-         |            except Exception:
-         |                steps_list = []
+         |            valid_steps = $stepsExpr
+         |            step_colors = self.generate_gray_gradient(len(valid_steps))
+         |            steps_list = []
+         |            for index, step_data in enumerate(valid_steps):
+         |                color = step_colors[index]
+         |                steps_list.append({
+         |                    "range": [step_data["start"], step_data["end"]],
+         |                    "color": color
+         |                })
          |
          |            html_chunks = []
          |            for _, row in table.iterrows():
@@ -195,21 +195,18 @@ class GaugeChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeGener
   override def producesDataFrame(): Boolean = false
 
   override def generateStandaloneCode(): String = {
-    val stepsStr: EncodableString = serializeSteps(steps)
-    // The runtime path splices these as decode expressions, which the template
-    // macro refuses to place inside quotes. A standalone script has no decoder,
-    // so each value is emitted as a properly escaped Python literal instead —
-    // hand-written quotes would let a quote, backslash or newline in a typed-in
-    // value break the script the runtime path renders fine.
+    // The column name is typed-in text, so it is emitted as a properly escaped
+    // Python literal — hand-written quotes would let a quote, backslash or newline
+    // in it break the script the runtime path renders fine. The numeric settings
+    // carry no text and are emitted as numbers, the same as the runtime path.
     val valueLit = pyStringLiteral(value)
-    val deltaLit = pyStringLiteral(delta)
-    val thresholdLit = pyStringLiteral(threshold)
-    val stepsLit = pyStringLiteral(stepsStr)
+    val deltaExpr = numberOrNone(delta)
+    val thresholdExpr = numberOrNone(threshold)
+    val stepsExpr = stepsLiteral
     // render_error's continuation line keeps the runtime path's indentation — the
     // HTML is triple-quoted, so those spaces reach the browser.
     s"""import plotly.graph_objects as go
        |import plotly.io as pio
-       |import json
        |
        |def render_error(error_msg):
        |    return '''<h1>Gauge chart is not available.</h1>
@@ -227,31 +224,22 @@ class GaugeChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeGener
        |        output.write(render_error("Input table is empty."))
        |else:
        |    gauge_value = $valueLit
-       |    try:
-       |        delta_ref = float($deltaLit) if $deltaLit.strip() else None
-       |    except ValueError:
-       |        delta_ref = None
-       |    try:
-       |        threshold_val = float($thresholdLit) if $thresholdLit.strip() else None
-       |    except ValueError:
-       |        threshold_val = None
+       |    delta_ref = $deltaExpr
+       |    threshold_val = $thresholdExpr
        |    table = in1df.dropna(subset=[gauge_value])
        |    if table.empty:
        |        with open("output.html", "w", encoding="utf-8") as output:
        |            output.write(render_error("No non-null rows found for the value column."))
        |    else:
-       |        try:
-       |            valid_steps = json.loads($stepsLit)
-       |            step_colors = generate_gray_gradient(len(valid_steps))
-       |            steps_list = []
-       |            for index, step_data in enumerate(valid_steps):
-       |                color = step_colors[index]
-       |                steps_list.append({
-       |                    "range": [float(step_data["start"]), float(step_data["end"])],
-       |                    "color": color
-       |                })
-       |        except Exception:
-       |            steps_list = []
+       |        valid_steps = $stepsExpr
+       |        step_colors = generate_gray_gradient(len(valid_steps))
+       |        steps_list = []
+       |        for index, step_data in enumerate(valid_steps):
+       |            color = step_colors[index]
+       |            steps_list.append({
+       |                "range": [step_data["start"], step_data["end"]],
+       |                "color": color
+       |            })
        |
        |        html_chunks = []
        |        first_fig = None

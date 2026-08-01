@@ -844,23 +844,23 @@ object KeywordSearchTransformHandler extends TransformHandler {
 
 /** BulletChart: curated CONFIG over the shared canonical fixture. The auto tier
   * builds `steps: [{}]` — a list field always gets exactly one element, and the
-  * element's `start`/`end` are free-form strings it has no basis to fill — and
-  * `generatePythonCode` then NPEs on the null `start`. The steps below bracket
-  * the fixture's `score` range (0.5–5.5); the runtime path renders one bullet
-  * per row while the JSON comparator validates the first Plotly payload.
+  * element's `start`/`end` are optional numbers it has no basis to fill — leaving a
+  * step the operator drops, so no step range is exercised at all. The steps below
+  * bracket the fixture's `score` range (0.5–5.5); the runtime path renders one
+  * bullet per row while the JSON comparator validates the first Plotly payload.
   */
 object BulletChartVisualizationHandler extends TransformHandler {
   override val opDescClass: Class[_ <: LogicalOp] = classOf[BulletChartOpDesc]
 
   override def fixture(testRoot: Path): (LogicalOp, Map[PortIdentity, Path]) = {
     val steps = new util.ArrayList[BulletChartStepDefinition]()
-    steps.add(new BulletChartStepDefinition("0", "3"))
-    steps.add(new BulletChartStepDefinition("3", "6"))
+    steps.add(new BulletChartStepDefinition(Some(0), Some(3)))
+    steps.add(new BulletChartStepDefinition(Some(3), Some(6)))
 
     val desc = new BulletChartOpDesc()
     desc.value = "score"
-    desc.deltaReference = "3"
-    desc.thresholdValue = "4.5"
+    desc.deltaReference = Some(3)
+    desc.thresholdValue = Some(4.5)
     desc.steps = steps
 
     (desc, CanonicalFixture.writeInputs(testRoot, 1))
