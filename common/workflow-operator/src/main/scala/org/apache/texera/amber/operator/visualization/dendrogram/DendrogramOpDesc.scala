@@ -20,13 +20,14 @@
 package org.apache.texera.amber.operator.visualization.dendrogram
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
   PythonTemplateBuilderStringContext,
   pyStringLiteral
 }
-import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
+import org.apache.texera.amber.pybuilder.PyStringTypes.{EncodableString, PythonLiteral}
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
@@ -67,10 +68,15 @@ class DendrogramOpDesc extends PythonOperatorDescriptor with StandaloneCodeGener
   @NotNull(message = "Labels cannot be empty")
   var labels: EncodableString = ""
 
+  // Numeric, not text: scipy compares it against the linkage distances, so a string
+  // raises. `contentAs` is required and must name the boxed class — Scala erases the
+  // element type, and the primitive would read a blank as 0, which colors every link
+  // the same rather than meaning "unset".
   @JsonProperty(defaultValue = "", required = false)
   @JsonSchemaTitle("Color Threshold")
   @JsonPropertyDescription("Value at which separation of clusters will be made")
-  var threshold: EncodableString = ""
+  @JsonDeserialize(contentAs = classOf[java.lang.Double])
+  var threshold: Option[Double] = None
 
   override def getOutputSchemas(
       inputSchemas: Map[PortIdentity, Schema]
@@ -87,43 +93,22 @@ class DendrogramOpDesc extends PythonOperatorDescriptor with StandaloneCodeGener
       OperatorGroupConstants.VISUALIZATION_SCIENTIFIC_GROUP
     )
 
-  /** How the typed-in threshold becomes scipy's `color_threshold`, as Python.
-    *
-    * scipy compares the threshold against the linkage distances, so a number must
-    * arrive as a number — but the argument also accepts the literal `"default"`
-    * (scipy's own 0.7 * max distance), so a non-number must stay a string. Which is
-    * which is decided by Python's own `float()` at run time, not by a Scala guess at
-    * Python's numeric syntax: the two paths emit this identical block, and differ
-    * only in how the raw value is introduced (a decode expression on the runtime
-    * path, an escaped literal in the standalone script). The value is stripped
-    * first: scipy matches `"default"` exactly, so a stray space would otherwise turn
-    * a working threshold into an error page.
+  /** An unset threshold reaches the generated code as Python's `None`, which is
+    * scipy's own 0.7 * max distance — what a blank field already meant.
     */
-  private def thresholdLogic(indent: String): String =
-    Seq(
-      "if not _threshold_raw:",
-      "    _threshold = None",
-      "else:",
-      "    try:",
-      "        _threshold = float(_threshold_raw)",
-      "    except ValueError:",
-      "        _threshold = _threshold_raw"
-    ).mkString("\n" + indent)
+  private def thresholdExpr: PythonLiteral = threshold.map(_.toString).getOrElse("None")
 
   private def createDendrogram(): PythonTemplateBuilder = {
     assert(xVal.nonEmpty, "Value X Column cannot be empty")
     assert(yVal.nonEmpty, "Value Y Column cannot be empty")
     assert(labels.nonEmpty, "Labels cannot be empty")
-    val logic = thresholdLogic(" " * 12)
     pyb"""
        |            x = np.array(table[$xVal])
        |            y = np.array(table[$yVal])
        |            data = np.column_stack((x, y))
        |            labels = table[$labels].tolist()
-       |            _threshold_raw = $threshold.strip()
-       |            $logic
        |
-       |            fig = ff.create_dendrogram(data, labels=labels, color_threshold=_threshold)
+       |            fig = ff.create_dendrogram(data, labels=labels, color_threshold=$thresholdExpr)
        |            fig.update_layout(yaxis_title="Linkage Distance", margin=dict(l=0, r=0, b=0, t=0))
        |"""
   }
@@ -185,9 +170,7 @@ class DendrogramOpDesc extends PythonOperatorDescriptor with StandaloneCodeGener
        |        y = np.array(in1df[${pyStringLiteral(yVal)}])
        |        data = np.column_stack((x, y))
        |        labels = in1df[${pyStringLiteral(labels)}].tolist()
-       |        _threshold_raw = ${pyStringLiteral(threshold)}.strip()
-       |        ${thresholdLogic(" " * 8)}
-       |        fig = ff.create_dendrogram(data, labels=labels, color_threshold=_threshold)
+       |        fig = ff.create_dendrogram(data, labels=labels, color_threshold=$thresholdExpr)
        |        fig.update_layout(yaxis_title="Linkage Distance", margin=dict(l=0, r=0, b=0, t=0))
        |        fig.write_json("output.json")
        |        fig.write_html("output.html")

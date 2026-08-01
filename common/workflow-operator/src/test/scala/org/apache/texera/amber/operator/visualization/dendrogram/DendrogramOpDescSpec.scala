@@ -19,6 +19,8 @@
 
 package org.apache.texera.amber.operator.visualization.dendrogram
 
+import org.apache.texera.amber.operator.LogicalOp
+import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -79,22 +81,48 @@ class DendrogramOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matchers
     assert(carries(code, "coord_b"))
     assert(carries(code, "label_col"))
     code should include("create_dendrogram")
-    // Whether the threshold is a number, the string "default" or unset is decided by
-    // Python's own float() at run time, so the code carries the decision, not a value.
-    code should include("_threshold = None")
-    code should include("_threshold = float(_threshold_raw)")
-    code should include("color_threshold=_threshold")
+    // An unset threshold arrives as None, scipy's own 0.7 * max distance.
+    code should include("color_threshold=None")
   }
 
-  it should "generate python code carrying a non-empty threshold when configured" in {
+  it should "generate python code passing a configured threshold as a number" in {
     opDesc.xVal = "coord_a"
     opDesc.yVal = "coord_b"
     opDesc.labels = "label_col"
-    opDesc.threshold = "42.5"
+    opDesc.threshold = Some(42.5)
     val code = opDesc.generatePythonCode()
-    assert(carries(code, "42.5"))
-    // The value reaches scipy through float(), so it arrives as a number rather than
-    // as the string the runtime path splices.
-    code should include("_threshold = float(_threshold_raw)")
+    // A number, not a decoded string: scipy compares the threshold against the
+    // linkage distances, so a string raises there.
+    code should include("color_threshold=42.5")
+    code should not include "color_threshold=None"
+  }
+
+  /** `Option[Double]` erases its element type, so Jackson needs
+    * `@JsonDeserialize(contentAs = ...)` to know what to build. Without it a JSON
+    * string is left inside the Option unconverted and the first use throws
+    * ClassCastException.
+    */
+  private def readThreshold(json: String): Option[Double] =
+    objectMapper
+      .readValue(s"""{"operatorType":"Dendrogram"$json}""", classOf[LogicalOp])
+      .asInstanceOf[DendrogramOpDesc]
+      .threshold
+
+  "DendrogramOpDesc.threshold" should "deserialize a JSON number" in {
+    readThreshold(""","threshold":42.5""") shouldBe Some(42.5)
+  }
+
+  it should "deserialize the numeric string a workflow saved before the field was numeric" in {
+    readThreshold(""","threshold":"42.5"""") shouldBe Some(42.5)
+  }
+
+  it should "read an absent, null or blank value as unset rather than as zero" in {
+    readThreshold("") shouldBe None
+    readThreshold(""","threshold":null""") shouldBe None
+    readThreshold(""","threshold":""""") shouldBe None
+  }
+
+  it should "hold a Double, not the raw JSON value" in {
+    readThreshold(""","threshold":"42.5"""").map(_ * 2) shouldBe Some(85.0)
   }
 }
