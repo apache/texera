@@ -19,16 +19,23 @@
 
 package org.apache.texera.service.util
 
+import org.apache.texera.common.config.StorageConfig
+import org.apache.texera.common.tags.NonParallelTest
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatest.funsuite.AnyFunSuite
-import software.amazon.awssdk.services.s3.model.S3Error
+import software.amazon.awssdk.auth.credentials.{AwsBasicCredentials, StaticCredentialsProvider}
+import software.amazon.awssdk.regions.Region
+import software.amazon.awssdk.services.s3.model._
+import software.amazon.awssdk.services.s3.{S3Client, S3Configuration}
 
-import java.io.ByteArrayInputStream
+import java.io.{ByteArrayInputStream, IOException, InputStream}
 import java.util.concurrent.Executors
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.jdk.CollectionConverters._
 import scala.util.Random
 
+@NonParallelTest
 class S3StorageClientSpec
     extends AnyFunSuite
     with S3StorageTestBase
@@ -45,12 +52,63 @@ class S3StorageClientSpec
   override def afterAll(): Unit = {
     // Best-effort cleanup of the prefixes these tests use (deleteDirectory rejects an empty prefix).
     try {
-      Seq("test", "delete-dir").foreach(S3StorageClient.deleteDirectory(testBucketName, _))
+      Seq("test", "delete-dir", "multipart")
+        .foreach(S3StorageClient.deleteDirectory(testBucketName, _))
     } catch {
       case _: Exception => // Ignore cleanup errors
     }
+    try rawClient.close()
+    catch { case _: Exception => }
     super.afterAll()
   }
+
+  /**
+    * A second S3 client pointed at the same MinIO container. S3StorageClient exposes only
+    * `uploadPartWithRequest` from the multipart API, so the surrounding create/complete/list
+    * calls are issued directly instead of being mocked away.
+    */
+  private lazy val rawClient: S3Client = {
+    val credentials = AwsBasicCredentials.create(StorageConfig.s3Username, StorageConfig.s3Password)
+    S3Client
+      .builder()
+      .credentialsProvider(StaticCredentialsProvider.create(credentials))
+      .region(Region.of(StorageConfig.s3Region))
+      .endpointOverride(java.net.URI.create(StorageConfig.s3Endpoint))
+      .serviceConfiguration(S3Configuration.builder().pathStyleAccessEnabled(true).build())
+      .build()
+  }
+
+  private def startMultipartUpload(objectKey: String): String =
+    rawClient
+      .createMultipartUpload(
+        CreateMultipartUploadRequest.builder().bucket(testBucketName).key(objectKey).build()
+      )
+      .uploadId()
+
+  private def completeMultipartUpload(
+      objectKey: String,
+      uploadId: String,
+      parts: Seq[CompletedPart]
+  ): Unit =
+    rawClient.completeMultipartUpload(
+      CompleteMultipartUploadRequest
+        .builder()
+        .bucket(testBucketName)
+        .key(objectKey)
+        .uploadId(uploadId)
+        .multipartUpload(CompletedMultipartUpload.builder().parts(parts.asJava).build())
+        .build()
+    )
+
+  /** Upload ids still pending (i.e. neither completed nor aborted) for the given key. */
+  private def pendingUploadIds(objectKey: String): Seq[String] =
+    rawClient
+      .listMultipartUploads(ListMultipartUploadsRequest.builder().bucket(testBucketName).build())
+      .uploads()
+      .asScala
+      .filter(_.key() == objectKey)
+      .map(_.uploadId())
+      .toSeq
 
   // Helper methods
   private def createInputStream(data: String): ByteArrayInputStream = {
@@ -379,8 +437,9 @@ class S3StorageClientSpec
     val prefix = "delete-dir/large"
     val objectCount = 1001
 
-    // Upload concurrently to keep the test reasonably fast.
-    val pool = Executors.newFixedThreadPool(16)
+    // Upload with bounded concurrency to keep the test reasonably fast without flooding the
+    // shared MinIO container (a 16-way burst was a contributor to the flakiness in issue #7049).
+    val pool = Executors.newFixedThreadPool(4)
     implicit val ec: ExecutionContext = ExecutionContext.fromExecutor(pool)
     try {
       val uploads = (0 until objectCount).map { i =>
@@ -437,5 +496,227 @@ class S3StorageClientSpec
     assert(thrown.getMessage.contains("delete-dir/locked-00.txt")) // first key is listed
     assert(!thrown.getMessage.contains(f"delete-dir/locked-$cap%02d.txt")) // capped key is not
     assert(thrown.getMessage.contains(s"and ${errorCount - cap} more"))
+  }
+
+  test("deleteDirectory should reject an empty prefix instead of wiping the bucket") {
+    val guard = "delete-dir/guarded-object.txt"
+    S3StorageClient.uploadObject(testBucketName, guard, createInputStream("keep me"))
+
+    val thrown = intercept[IllegalArgumentException] {
+      S3StorageClient.deleteDirectory(testBucketName, "")
+    }
+    assert(thrown.getMessage.contains("directoryPrefix must not be empty"))
+
+    // The bucket is untouched.
+    val survivor = S3StorageClient.downloadObject(testBucketName, guard)
+    assert(new String(readInputStream(survivor)) == "keep me")
+    survivor.close()
+    S3StorageClient.deleteObject(testBucketName, guard)
+  }
+
+  // ========================================
+  // directoryExists Tests
+  // ========================================
+
+  test("directoryExists should treat a prefix with and without a trailing slash the same") {
+    val prefix = "test/exists-dir"
+    S3StorageClient.uploadObject(
+      testBucketName,
+      s"$prefix/object.txt",
+      createInputStream("data")
+    )
+
+    assert(S3StorageClient.directoryExists(testBucketName, prefix))
+    assert(S3StorageClient.directoryExists(testBucketName, s"$prefix/"))
+
+    S3StorageClient.deleteObject(testBucketName, s"$prefix/object.txt")
+  }
+
+  test("directoryExists should be false for a prefix that only matches an object name") {
+    // "test/exists-file" names an object, not a directory, so no key starts with
+    // "test/exists-file/".
+    val objectKey = "test/exists-file"
+    S3StorageClient.uploadObject(testBucketName, objectKey, createInputStream("data"))
+
+    assert(!S3StorageClient.directoryExists(testBucketName, objectKey))
+
+    S3StorageClient.deleteObject(testBucketName, objectKey)
+  }
+
+  test("directoryExists should be false for an unused prefix") {
+    assert(!S3StorageClient.directoryExists(testBucketName, "test/never-written"))
+  }
+
+  // ========================================
+  // createBucketIfNotExist Tests
+  // ========================================
+
+  test("createBucketIfNotExist should be idempotent for an existing bucket") {
+    // beforeAll already created it; a second call takes the headBucket-succeeds path.
+    S3StorageClient.createBucketIfNotExist(testBucketName)
+    S3StorageClient.createBucketIfNotExist(testBucketName)
+
+    // The bucket is still usable afterwards.
+    val objectKey = "test/after-recreate.txt"
+    S3StorageClient.uploadObject(testBucketName, objectKey, createInputStream("still here"))
+    val stream = S3StorageClient.downloadObject(testBucketName, objectKey)
+    assert(new String(readInputStream(stream)) == "still here")
+    stream.close()
+    S3StorageClient.deleteObject(testBucketName, objectKey)
+  }
+
+  // ========================================
+  // uploadPartWithRequest Tests
+  // ========================================
+
+  test("uploadPartWithRequest should stream a part when the content length is known") {
+    val objectKey = "multipart/known-length.bin"
+    val partData = "part payload with a known length".getBytes
+    val uploadId = startMultipartUpload(objectKey)
+
+    val response = S3StorageClient.uploadPartWithRequest(
+      testBucketName,
+      objectKey,
+      uploadId,
+      partNumber = 1,
+      createInputStream(partData),
+      contentLength = Some(partData.length.toLong)
+    )
+
+    assert(response.eTag() != null && response.eTag().nonEmpty)
+    completeMultipartUpload(
+      objectKey,
+      uploadId,
+      Seq(CompletedPart.builder().partNumber(1).eTag(response.eTag()).build())
+    )
+
+    val stream = S3StorageClient.downloadObject(testBucketName, objectKey)
+    assert(readInputStream(stream).sameElements(partData))
+    stream.close()
+    S3StorageClient.deleteObject(testBucketName, objectKey)
+  }
+
+  test("uploadPartWithRequest should buffer the whole stream when no content length is given") {
+    val objectKey = "multipart/unknown-length.bin"
+    val partData = "part payload with no declared length".getBytes
+    val uploadId = startMultipartUpload(objectKey)
+
+    val response = S3StorageClient.uploadPartWithRequest(
+      testBucketName,
+      objectKey,
+      uploadId,
+      partNumber = 1,
+      createInputStream(partData),
+      contentLength = None
+    )
+
+    completeMultipartUpload(
+      objectKey,
+      uploadId,
+      Seq(CompletedPart.builder().partNumber(1).eTag(response.eTag()).build())
+    )
+
+    val stream = S3StorageClient.downloadObject(testBucketName, objectKey)
+    assert(readInputStream(stream).sameElements(partData))
+    stream.close()
+    S3StorageClient.deleteObject(testBucketName, objectKey)
+  }
+
+  test("uploadPartWithRequest should assemble parts in part-number order") {
+    // Two parts: every part but the last must be at least 5 MiB, so the head is sized exactly
+    // at the multipart minimum and the tail is short.
+    val objectKey = "multipart/ordered-parts.bin"
+    val head = Array.fill[Byte](S3StorageClient.MINIMUM_NUM_OF_MULTIPART_S3_PART.toInt)(1.toByte)
+    val tail = Array.fill[Byte](1024)(2.toByte)
+    val uploadId = startMultipartUpload(objectKey)
+
+    val firstETag = S3StorageClient
+      .uploadPartWithRequest(
+        testBucketName,
+        objectKey,
+        uploadId,
+        partNumber = 1,
+        createInputStream(head),
+        contentLength = Some(head.length.toLong)
+      )
+      .eTag()
+    val secondETag = S3StorageClient
+      .uploadPartWithRequest(
+        testBucketName,
+        objectKey,
+        uploadId,
+        partNumber = 2,
+        createInputStream(tail),
+        contentLength = None
+      )
+      .eTag()
+
+    completeMultipartUpload(
+      objectKey,
+      uploadId,
+      Seq(
+        CompletedPart.builder().partNumber(1).eTag(firstETag).build(),
+        CompletedPart.builder().partNumber(2).eTag(secondETag).build()
+      )
+    )
+
+    val stream = S3StorageClient.downloadObject(testBucketName, objectKey)
+    val downloaded = readInputStream(stream)
+    stream.close()
+
+    assert(downloaded.length == head.length + tail.length)
+    assert(downloaded.take(head.length).sameElements(head))
+    assert(downloaded.drop(head.length).sameElements(tail))
+
+    S3StorageClient.deleteObject(testBucketName, objectKey)
+  }
+
+  test("uploadPartWithRequest should fail for an unknown upload id") {
+    val objectKey = "multipart/no-such-upload.bin"
+    val thrown = intercept[S3Exception] {
+      S3StorageClient.uploadPartWithRequest(
+        testBucketName,
+        objectKey,
+        uploadId = "not-a-real-upload-id",
+        partNumber = 1,
+        createInputStream("payload"),
+        contentLength = None
+      )
+    }
+    assert(thrown.statusCode() == 404)
+  }
+
+  // ========================================
+  // uploadObject failure-path Tests
+  // ========================================
+
+  test("uploadObject should abort the multipart upload when the source stream fails") {
+    // Fails only after the first full part has been read, so a multipart upload is already
+    // in flight when the error surfaces.
+    val objectKey = "multipart/failing-source.bin"
+    val firstPart =
+      Array.fill[Byte](S3StorageClient.MINIMUM_NUM_OF_MULTIPART_S3_PART.toInt)(7.toByte)
+
+    val failingStream = new InputStream {
+      private val delegate = new ByteArrayInputStream(firstPart)
+      override def read(): Int = throw new IOException("stream broke")
+      override def read(b: Array[Byte], off: Int, len: Int): Int = {
+        val n = delegate.read(b, off, len)
+        if (n <= 0) throw new IOException("stream broke") else n
+      }
+    }
+
+    val thrown = intercept[IOException] {
+      S3StorageClient.uploadObject(testBucketName, objectKey, failingStream)
+    }
+    assert(thrown.getMessage == "stream broke")
+
+    // The in-flight upload was aborted, so no orphaned upload is left behind...
+    assert(pendingUploadIds(objectKey).isEmpty)
+    // ...and no object was published under the key.
+    val missing = intercept[S3Exception] {
+      S3StorageClient.downloadObject(testBucketName, objectKey)
+    }
+    assert(missing.statusCode() == 404)
   }
 }

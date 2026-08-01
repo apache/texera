@@ -22,6 +22,8 @@ package org.apache.texera.amber.operator.aggregate
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
 import org.scalatest.flatspec.AnyFlatSpec
 
+import java.sql.Timestamp
+
 /**
   * Coverage notes:
   * `AggregateOpSpec` (in this same package) already exercises the happy paths for
@@ -182,5 +184,214 @@ class AggregationOperationSpec extends AnyFlatSpec {
     assert(a.count == 4)
     assert(a == b)
     assert(a.hashCode == b.hashCode)
+  }
+
+  // --- getAggFunc: the accepting side of the four-clause type guard ----------
+
+  // SUM/MIN/MAX each guard on
+  // `!= INTEGER && != DOUBLE && != LONG && != TIMESTAMP`. The existing tests
+  // only drive the rejecting side plus INTEGER/DOUBLE, so the chain is never
+  // walked to its later clauses; TIMESTAMP in particular has to pass all four.
+  private val supportedAggTypes = Seq(
+    AttributeType.INTEGER,
+    AttributeType.DOUBLE,
+    AttributeType.LONG,
+    AttributeType.TIMESTAMP
+  )
+
+  private val guardedAggregations = Seq(
+    AggregationFunction.SUM -> "sum",
+    AggregationFunction.MIN -> "min",
+    AggregationFunction.MAX -> "max"
+  )
+
+  it should "accept every supported attribute type on SUM, MIN and MAX" in {
+    for ((func, name) <- guardedAggregations; t <- supportedAggTypes)
+      assert(op(func).getAggFunc(t) != null, s"$name should accept $t")
+  }
+
+  it should "reject unsupported attribute types on SUM, MIN and MAX, naming the aggregation and the type" in {
+    val unsupported =
+      Seq(AttributeType.STRING, AttributeType.BOOLEAN, AttributeType.BINARY)
+    for ((func, name) <- guardedAggregations; t <- unsupported) {
+      val ex = intercept[UnsupportedOperationException](op(func).getAggFunc(t))
+      assert(ex.getMessage == s"Unsupported attribute type for $name aggregation: $t")
+    }
+  }
+
+  // --- AVERAGE over TIMESTAMP: the timestamp branch of getNumericalValue -----
+
+  // Everywhere else AVERAGE is driven over DOUBLE, which takes the
+  // `value.toString.toDouble` path. A TIMESTAMP column is the only route into
+  // the `parseTimestamp(...).getTime` branch.
+  private val earlier = Timestamp.valueOf("2020-03-05 10:00:00")
+  private val later = Timestamp.valueOf("2020-03-05 11:00:00")
+  private val midpointMillis = (earlier.getTime + later.getTime) / 2.0
+
+  "AVERAGE over a TIMESTAMP column" should "average the values' epoch milliseconds" in {
+    val agg = op(AggregationFunction.AVERAGE).getAggFunc(AttributeType.TIMESTAMP)
+    val state = Seq(earlier, later)
+      .map(ts => tupleOf("v", AttributeType.TIMESTAMP, ts))
+      .foldLeft(agg.init())(agg.iterate)
+
+    assert(agg.finalAgg(state).asInstanceOf[java.lang.Double] == midpointMillis)
+  }
+
+  it should "combine per-worker partials through merge" in {
+    val agg = op(AggregationFunction.AVERAGE).getAggFunc(AttributeType.TIMESTAMP)
+    val p1 = agg.iterate(agg.init(), tupleOf("v", AttributeType.TIMESTAMP, earlier))
+    val p2 = agg.iterate(agg.init(), tupleOf("v", AttributeType.TIMESTAMP, later))
+
+    val merged = agg.merge(p1, p2)
+
+    assert(agg.finalAgg(merged).asInstanceOf[java.lang.Double] == midpointMillis)
+  }
+
+  it should "ignore null timestamps and return null when every value is null" in {
+    val agg = op(AggregationFunction.AVERAGE).getAggFunc(AttributeType.TIMESTAMP)
+
+    val mixed = Seq[AnyRef](earlier, null, later)
+      .map(ts => tupleOf("v", AttributeType.TIMESTAMP, ts))
+      .foldLeft(agg.init())(agg.iterate)
+    assert(agg.finalAgg(mixed).asInstanceOf[java.lang.Double] == midpointMillis)
+
+    val allNull =
+      agg.iterate(agg.init(), tupleOf("v", AttributeType.TIMESTAMP, null))
+    assert(agg.finalAgg(allNull) == null)
+  }
+
+  // --- merge: the partial-combination lambda of each aggregation --------------
+
+  // `AggregateOpSpec` drives init/iterate/finalAgg for every aggregation but only
+  // ever merges AVERAGE/CONCAT partials. The `merge` lambdas of SUM, COUNT, MIN
+  // and MAX are what the global stage calls when several workers report in, so
+  // each one is exercised here directly and cross-checked against the equivalent
+  // single-pass aggregation.
+
+  private def aggregateAll(
+      agg: DistributedAggregation[Object],
+      t: AttributeType,
+      values: Seq[AnyRef]
+  ): Object =
+    agg.finalAgg(values.map(v => tupleOf("v", t, v)).foldLeft(agg.init())(agg.iterate))
+
+  "SUM aggregation merge" should "add two partials, matching a single-pass SUM" in {
+    val agg = op(AggregationFunction.SUM).getAggFunc(AttributeType.LONG)
+    val left = Seq[AnyRef](Long.box(1L), Long.box(2L))
+    val right = Seq[AnyRef](Long.box(10L), Long.box(20L))
+
+    val p1 = left.map(v => tupleOf("v", AttributeType.LONG, v)).foldLeft(agg.init())(agg.iterate)
+    val p2 = right.map(v => tupleOf("v", AttributeType.LONG, v)).foldLeft(agg.init())(agg.iterate)
+
+    assert(agg.finalAgg(agg.merge(p1, p2)) == Long.box(33L))
+    assert(agg.finalAgg(agg.merge(p1, p2)) == aggregateAll(agg, AttributeType.LONG, left ++ right))
+    // merging with an untouched (zero) partial must be a no-op
+    assert(agg.finalAgg(agg.merge(p1, agg.init())) == Long.box(3L))
+  }
+
+  "COUNT aggregation merge" should "add the per-worker counts" in {
+    val agg = op(AggregationFunction.COUNT).getAggFunc(AttributeType.INTEGER)
+    val p1 = Seq[AnyRef](Int.box(1), null, Int.box(3))
+      .map(v => tupleOf("v", AttributeType.INTEGER, v))
+      .foldLeft(agg.init())(agg.iterate)
+    val p2 = Seq[AnyRef](Int.box(4))
+      .map(v => tupleOf("v", AttributeType.INTEGER, v))
+      .foldLeft(agg.init())(agg.iterate)
+
+    // COUNT(v) skips the null, so 2 + 1 == 3
+    assert(agg.finalAgg(agg.merge(p1, p2)) == Int.box(3))
+    assert(agg.finalAgg(agg.merge(agg.init(), agg.init())) == Int.box(0))
+  }
+
+  "MIN and MAX aggregation merge" should "pick the smaller and larger partial respectively" in {
+    val minAgg = op(AggregationFunction.MIN).getAggFunc(AttributeType.DOUBLE)
+    val maxAgg = op(AggregationFunction.MAX).getAggFunc(AttributeType.DOUBLE)
+    val left = Seq[AnyRef](Double.box(4.0), Double.box(9.0))
+    val right = Seq[AnyRef](Double.box(-1.5), Double.box(2.0))
+
+    def partialOf(agg: DistributedAggregation[Object], values: Seq[AnyRef]): Object =
+      values.map(v => tupleOf("v", AttributeType.DOUBLE, v)).foldLeft(agg.init())(agg.iterate)
+
+    assert(
+      minAgg.finalAgg(minAgg.merge(partialOf(minAgg, left), partialOf(minAgg, right)))
+        == Double.box(-1.5)
+    )
+    // merge must be symmetric
+    assert(
+      minAgg.finalAgg(minAgg.merge(partialOf(minAgg, right), partialOf(minAgg, left)))
+        == Double.box(-1.5)
+    )
+    assert(
+      maxAgg.finalAgg(maxAgg.merge(partialOf(maxAgg, left), partialOf(maxAgg, right)))
+        == Double.box(9.0)
+    )
+    assert(
+      maxAgg.finalAgg(maxAgg.merge(partialOf(maxAgg, right), partialOf(maxAgg, left)))
+        == Double.box(9.0)
+    )
+  }
+
+  "MIN aggregation merge" should "stay neutral when one side saw no values" in {
+    val agg = op(AggregationFunction.MIN).getAggFunc(AttributeType.INTEGER)
+    val seen = agg.iterate(agg.init(), tupleOf("v", AttributeType.INTEGER, Int.box(7)))
+
+    // An empty partial is the sentinel maxValue, so it must lose the comparison.
+    assert(agg.finalAgg(agg.merge(seen, agg.init())) == Int.box(7))
+    assert(agg.finalAgg(agg.merge(agg.init(), seen)) == Int.box(7))
+    // Two empty partials still finalize to null (no rows anywhere).
+    assert(agg.finalAgg(agg.merge(agg.init(), agg.init())) == null)
+  }
+
+  // --- CONCAT: a null first value seeds the partial with an empty string ------
+
+  "CONCAT aggregation" should "swallow leading nulls but keep interior ones as empty slots" in {
+    // AggregateOpSpec only ever concatenates a null in the middle of the stream.
+    // A null on the very first tuple takes the `partial == ""` side of the branch
+    // and leaves the partial empty, so — unlike an interior null — it does not
+    // occupy a slot in the comma-joined output.
+    val agg = op(AggregationFunction.CONCAT).getAggFunc(AttributeType.STRING)
+    val result = Seq[AnyRef](null, "red", null, "blue")
+      .map(v => tupleOf("v", AttributeType.STRING, v))
+      .foldLeft(agg.init())(agg.iterate)
+
+    assert(agg.finalAgg(result) == "red,,blue")
+  }
+
+  it should "return an empty string when every value is null" in {
+    val agg = op(AggregationFunction.CONCAT).getAggFunc(AttributeType.STRING)
+    val onlyNull = agg.iterate(agg.init(), tupleOf("v", AttributeType.STRING, null))
+
+    assert(agg.finalAgg(onlyNull) == "")
+  }
+
+  it should "stringify non-string values it is pointed at" in {
+    // CONCAT is schema-restricted to STRING columns in the UI, but the executor
+    // only ever calls `.toString`, so an INTEGER column still concatenates.
+    val agg = op(AggregationFunction.CONCAT).getAggFunc(AttributeType.STRING)
+    val result = Seq[AnyRef](Int.box(1), Int.box(2))
+      .map(v => tupleOf("v", AttributeType.INTEGER, v))
+      .foldLeft(agg.init())(agg.iterate)
+
+    assert(agg.finalAgg(result) == "1,2")
+  }
+
+  // --- getAggregationAttribute / getFinal: message and identity guarantees ----
+
+  "getAggregationAttribute" should "name the unknown aggregation function in its error" in {
+    val ex = intercept[RuntimeException](op(null).getAggregationAttribute(AttributeType.INTEGER))
+    assert(ex.getMessage == "Unknown aggregation function: null")
+  }
+
+  "getFinal" should "produce a detached copy that re-reads the result column" in {
+    val original = op(AggregationFunction.MAX, attribute = "src", resultAttribute = "dst")
+    val copy = original.getFinal
+
+    assert(copy ne original)
+    assert(copy.aggFunction == AggregationFunction.MAX)
+    // the final stage reads and writes the same (result) column
+    assert(copy.attribute == "dst")
+    assert(copy.resultAttribute == "dst")
+    // the original is left untouched
+    assert(original.attribute == "src")
   }
 }

@@ -32,7 +32,8 @@ import org.apache.texera.web.model.websocket.event.{
   WorkflowErrorEvent,
   WorkflowStateEvent
 }
-import org.apache.texera.web.model.websocket.request.{LogicalPlanPojo, WorkflowExecuteRequest}
+import org.apache.texera.common.compiler.model.LogicalPlanPojo
+import org.apache.texera.web.model.websocket.request.WorkflowExecuteRequest
 import org.apache.texera.web.storage.ExecutionStateStore
 import org.apache.texera.web.storage.ExecutionStateStore.updateWorkflowState
 import org.scalatest.flatspec.AnyFlatSpec
