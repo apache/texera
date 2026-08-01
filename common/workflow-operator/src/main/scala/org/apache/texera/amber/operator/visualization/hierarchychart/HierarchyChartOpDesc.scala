@@ -143,13 +143,28 @@ class HierarchyChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeG
 
   override def generateStandaloneCode(): String = {
     val attributes = hierarchy.map(section => s""""${section.attributeName}"""").mkString(", ")
-    s"""if in1df.empty:
-       |    print("Hierarchy chart error: input table is empty.")
+    // The error page is written to output.html, the same file a plotted chart lands
+    // in, so a reason for "no chart" is where the reader looks for the chart —
+    // printing it to the terminal alone left output.html absent. render_error's
+    // continuation line keeps the runtime path's indentation, since the HTML is
+    // triple-quoted and those spaces reach the browser.
+    s"""def render_error(error_msg):
+       |    return '''<h1>Hierarchy chart is not available.</h1>
+       |                  <p>Reason is: {} </p>
+       |               '''.format(error_msg)
+       |
+       |def fail(error_msg):
+       |    with open("output.html", "w", encoding="utf-8") as output:
+       |        output.write(render_error(error_msg))
+       |    print(f"Hierarchy chart error: {error_msg}")
+       |
+       |if in1df.empty:
+       |    fail("input table is empty.")
        |else:
        |    in1df["$value"] = in1df[in1df["$value"] > 0]["$value"]
        |    in1df.dropna(subset=[$attributes], inplace=True)
        |    if in1df.empty:
-       |        print("Hierarchy chart error: value column contains only non-positive numbers or nulls.")
+       |        fail("value column contains only non-positive numbers or nulls.")
        |    else:
        |        fig = px.${hierarchyChartType.getPlotlyExpressApiName}(in1df, path=[$attributes], values="$value",
        |                         color="$value", hover_data=[$attributes],

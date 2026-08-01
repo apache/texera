@@ -162,25 +162,43 @@ class BoxViolinPlotOpDesc extends PythonOperatorDescriptor with StandaloneCodeGe
     val quartileMethod =
       if (quartileType == null) "linear" else quartileType.getQuartiletype
 
-    s"""in1df = in1df.dropna(subset=["$value"])
-       |if not in1df.empty:
-       |    if $violin:
-       |        if $horizontal:
-       |            fig = px.violin(in1df, x="$value", box=True, points='all')
-       |        else:
-       |            fig = px.violin(in1df, y="$value", box=True, points='all')
-       |    else:
-       |        if $horizontal:
-       |            fig = px.box(in1df, x="$value", boxmode="overlay", points='all')
-       |        else:
-       |            fig = px.box(in1df, y="$value", boxmode="overlay", points='all')
-       |    fig.update_traces(quartilemethod="$quartileMethod", col=1)
-       |    fig.update_layout(margin=dict(t=0, b=0, l=0, r=0))
-       |    fig.write_json("output.json")
-       |    fig.write_html("output.html")
-       |    print("Box/Violin Plot saved to output.json and output.html")
+    // The error page is written to output.html, the same file a plotted chart lands
+    // in, so a reason for "no chart" is where the reader looks for the chart —
+    // printing it to the terminal alone left output.html absent. render_error's
+    // continuation line keeps the runtime path's indentation, since the HTML is
+    // triple-quoted and those spaces reach the browser.
+    s"""def render_error(error_msg):
+       |    return '''<h1>Box/Violin Plot is not available.</h1>
+       |                  <p>Reason is: {} </p>
+       |               '''.format(error_msg)
+       |
+       |def fail(error_msg):
+       |    with open("output.html", "w", encoding="utf-8") as output:
+       |        output.write(render_error(error_msg))
+       |    print(f"Box/Violin Plot error: {error_msg}")
+       |
+       |if in1df.empty:
+       |    fail("input table is empty.")
        |else:
-       |    print("Box/Violin Plot error: value column contains only non-positive numbers or nulls.")""".stripMargin
+       |    in1df = in1df.dropna(subset=["$value"])
+       |    if in1df.empty:
+       |        fail("value column contains only non-positive numbers or nulls.")
+       |    else:
+       |        if $violin:
+       |            if $horizontal:
+       |                fig = px.violin(in1df, x="$value", box=True, points='all')
+       |            else:
+       |                fig = px.violin(in1df, y="$value", box=True, points='all')
+       |        else:
+       |            if $horizontal:
+       |                fig = px.box(in1df, x="$value", boxmode="overlay", points='all')
+       |            else:
+       |                fig = px.box(in1df, y="$value", boxmode="overlay", points='all')
+       |        fig.update_traces(quartilemethod="$quartileMethod", col=1)
+       |        fig.update_layout(margin=dict(t=0, b=0, l=0, r=0))
+       |        fig.write_json("output.json")
+       |        fig.write_html("output.html")
+       |        print("Box/Violin Plot saved to output.json and output.html")""".stripMargin
   }
 
 }
