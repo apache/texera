@@ -218,8 +218,8 @@ class ContinuousErrorBandsOpDesc extends PythonOperatorDescriptor with Standalon
     // an empty input silently renders a blank chart instead of saying why.
     s"""def render_error(error_msg):
        |    return '''<h1>Continuous Error Bands is not available.</h1>
-       |              <p>Reason is: {} </p>
-       |           '''.format(error_msg)
+       |                  <p>Reason is: {} </p>
+       |               '''.format(error_msg)
        |
        |if in1df.empty:
        |    with open("output.html", "w", encoding="utf-8") as output:

@@ -156,8 +156,8 @@ class GanttChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeGener
 
     s"""def render_error(error_msg):
        |    return '''<h1>Gantt Chart is not available.</h1>
-       |              <p>Reason: {} </p>
-       |           '''.format(error_msg)
+       |                  <p>Reason: {} </p>
+       |               '''.format(error_msg)
        |
        |if in1df.empty:
        |    with open("output.html", "w", encoding="utf-8") as output:

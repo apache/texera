@@ -202,7 +202,7 @@ class TreePlotOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerat
        |
        |def render_error(error_msg):
        |    return f'''<h1>Tree Plot is not available.</h1>
-       |               <p>Reason: {error_msg} </p>'''
+       |                   <p>Reason: {error_msg} </p>'''
        |
        |def make_annotations(pos):
        |    font_color = 'rgb(250,250,250)'

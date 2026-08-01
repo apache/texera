@@ -126,8 +126,8 @@ class WordCloudOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenera
   override def generateStandaloneCode(): String =
     s"""def render_error(error_msg):
        |    return '''<h1>Wordcloud is not available.</h1>
-       |              <p>Reason is: {} </p>
-       |           '''.format(error_msg)
+       |                  <p>Reason is: {} </p>
+       |               '''.format(error_msg)
        |
        |table = in1df
        |if table.empty:

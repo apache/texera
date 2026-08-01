@@ -146,8 +146,8 @@ class ParallelCoordinatesPlotOpDesc extends PythonOperatorDescriptor with Standa
 
     s"""def render_error(error_msg):
        |    return '''<h1>Parallel coordinates plot is not available.</h1>
-       |              <p>Reason is: {} </p>
-       |           '''.format(error_msg)
+       |                  <p>Reason is: {} </p>
+       |               '''.format(error_msg)
        |
        |if in1df.empty:
        |    with open("output.html", "w", encoding="utf-8") as output:

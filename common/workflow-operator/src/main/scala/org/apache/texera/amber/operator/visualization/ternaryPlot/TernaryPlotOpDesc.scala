@@ -167,8 +167,8 @@ class TernaryPlotOpDesc extends PythonOperatorDescriptor with StandaloneCodeGene
       if (colorEnabled && colorDataField.nonEmpty) s""", color="$colorDataField"""" else ""
     s"""def render_error(error_msg):
        |    return '''<h1>TernaryPlot is not available.</h1>
-       |              <p>Reasons are: {} </p>
-       |           '''.format(error_msg)
+       |                  <p>Reasons are: {} </p>
+       |               '''.format(error_msg)
        |
        |if in1df.empty:
        |    with open("output.html", "w", encoding="utf-8") as output:
