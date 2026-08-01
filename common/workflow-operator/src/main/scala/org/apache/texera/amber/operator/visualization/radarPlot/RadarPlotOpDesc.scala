@@ -245,12 +245,14 @@ class RadarPlotOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenera
     val traceNameCol = optionalColumn(traceNameAttribute)
     val traceColorCol = optionalColumn(traceColorAttribute)
 
+    // render_error's continuation line keeps the runtime path's indentation — the
+    // HTML is triple-quoted, so those spaces reach the browser.
     s"""import numpy as np
        |
        |def render_error(error_msg):
        |    return '''<h1>Radar Plot is not available.</h1>
-       |              <p>Reason is: {} </p>
-       |           '''.format(error_msg)
+       |                  <p>Reason is: {} </p>
+       |               '''.format(error_msg)
        |
        |if in1df.empty:
        |    with open("output.html", "w", encoding="utf-8") as output:
