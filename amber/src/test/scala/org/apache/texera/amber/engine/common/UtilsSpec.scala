@@ -19,10 +19,12 @@
 
 package org.apache.texera.amber.engine.common
 
+import com.twitter.util.{Await, Future, Time}
 import org.apache.texera.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState
 import org.scalatest.flatspec.AnyFlatSpec
 
 import java.util.concurrent.locks.ReentrantLock
+import scala.collection.mutable
 
 class UtilsSpec extends AnyFlatSpec {
 
@@ -99,37 +101,139 @@ class UtilsSpec extends AnyFlatSpec {
 
   // -- retry ---------------------------------------------------------------
 
-  "Utils.retry" should "return the value on the first successful attempt without retrying" in {
+  // `retry` is exercised with `RecordingInlineTimer`: it captures the delay of each scheduled wait
+  // and runs it immediately, so the backoff schedule is asserted exactly and no test spends that
+  // time asleep. `Time.withCurrentTimeFrozen` makes `when - Time.now` equal the delay
+  // `Future.sleep` asked for.
+
+  "Utils.retry" should "return the value on the first successful attempt without waiting" in {
+    val timer = new RecordingInlineTimer
     var calls = 0
-    val result = Utils.retry(attempts = 3, baseBackoffTimeInMS = 0L) {
-      calls += 1
-      "ok"
-    }
+    val result = Await.result(
+      Utils.retry(attempts = 3, baseBackoffTimeInMS = 200L, timer = timer) {
+        calls += 1
+        Future.value("ok")
+      }
+    )
     assert(result == "ok")
     assert(calls == 1)
+    assert(timer.recordedDelaysInMillis.isEmpty)
   }
 
-  it should "retry on failure until success and return the eventual result" in {
+  it should "double the backoff after each failed attempt" in {
+    val timer = new RecordingInlineTimer
     var calls = 0
-    val result = Utils.retry(attempts = 3, baseBackoffTimeInMS = 0L) {
-      calls += 1
-      if (calls < 2) throw new RuntimeException("transient")
-      "ok"
+    Time.withCurrentTimeFrozen { _ =>
+      val failure = intercept[RuntimeException] {
+        Await.result(
+          Utils.retry(attempts = 4, baseBackoffTimeInMS = 200L, timer = timer) {
+            calls += 1
+            Future.exception(new RuntimeException(s"failure-$calls"))
+          }
+        )
+      }
+      // The last failure is what surfaces, and 4 attempts spend exactly 3 waits.
+      assert(failure.getMessage == "failure-4")
+      assert(calls == 4)
+      assert(timer.recordedDelaysInMillis == Seq(200L, 400L, 800L))
     }
+  }
+
+  it should "stop waiting as soon as an attempt succeeds" in {
+    val timer = new RecordingInlineTimer
+    var calls = 0
+    Time.withCurrentTimeFrozen { _ =>
+      val result = Await.result(
+        Utils.retry(attempts = 4, baseBackoffTimeInMS = 200L, timer = timer) {
+          calls += 1
+          if (calls < 3) Future.exception(new RuntimeException("transient"))
+          else Future.value(calls)
+        }
+      )
+      assert(result == 3)
+      assert(timer.recordedDelaysInMillis == Seq(200L, 400L))
+    }
+  }
+
+  it should "report the failed attempt number and the upcoming backoff to onRetry" in {
+    val timer = new RecordingInlineTimer
+    val observed = mutable.ArrayBuffer[(String, Int, Long)]()
+    Time.withCurrentTimeFrozen { _ =>
+      intercept[RuntimeException] {
+        Await.result(
+          Utils.retry(
+            attempts = 3,
+            baseBackoffTimeInMS = 200L,
+            timer = timer,
+            onRetry =
+              (err, attempt, backoffMs) => observed += ((err.getMessage, attempt, backoffMs))
+          ) {
+            Future.exception(new RuntimeException("boom"))
+          }
+        )
+      }
+      // Called once per wait (never after the final attempt), with 1-based attempt numbers.
+      assert(observed.toSeq == Seq(("boom", 1, 200L), ("boom", 2, 400L)))
+    }
+  }
+
+  it should "retry a synchronous throw from the body, not just a failed Future" in {
+    // The body is by-name, so a `Future`-returning expression can still blow up before it ever
+    // produces a Future; that must be retried like any other failure rather than escaping.
+    val timer = new RecordingInlineTimer
+    var calls = 0
+    val result = Await.result(
+      Utils.retry(attempts = 3, baseBackoffTimeInMS = 1L, timer = timer) {
+        calls += 1
+        if (calls < 2) throw new IllegalStateException("sync boom")
+        Future.value("ok")
+      }
+    )
     assert(result == "ok")
     assert(calls == 2)
   }
 
-  it should "rethrow the last exception after exhausting all attempts" in {
-    var calls = 0
-    val ex = intercept[RuntimeException] {
-      Utils.retry(attempts = 2, baseBackoffTimeInMS = 0L) {
-        calls += 1
-        throw new RuntimeException(s"failure-$calls")
-      }
+  it should "not retry a fatal error, whether thrown or returned as a failed Future" in {
+    // A fatal is not a transient failure, so it must escape on the first attempt. The two shapes
+    // travel different paths -- a synchronous throw is filtered by `Future(fn)`'s `Try`, a failed
+    // `Future` reaches the `rescue` guard -- and both have to behave the same way.
+    Seq[(String, () => Future[String])](
+      "as a failed Future" -> (() => Future.exception(new InterruptedException("fatal"))),
+      "thrown synchronously" -> (() => throw new InterruptedException("fatal"))
+    ).foreach {
+      case (shape, body) =>
+        val timer = new RecordingInlineTimer
+        var calls = 0
+        intercept[InterruptedException] {
+          Await.result(
+            Utils.retry(attempts = 4, baseBackoffTimeInMS = 200L, timer = timer) {
+              calls += 1
+              body()
+            }
+          )
+        }
+        assert(calls == 1, s"fatal $shape was retried")
+        assert(timer.recordedDelaysInMillis.isEmpty, s"fatal $shape caused a backoff wait")
     }
-    assert(calls == 2)
-    assert(ex.getMessage == "failure-2")
+  }
+
+  it should "make a single attempt when attempts is one or less" in {
+    // A budget of 1 -- or a nonsensical 0 -- means no retry at all, and no wait either.
+    Seq(1, 0).foreach { attempts =>
+      val timer = new RecordingInlineTimer
+      var calls = 0
+      val failure = intercept[RuntimeException] {
+        Await.result(
+          Utils.retry(attempts = attempts, baseBackoffTimeInMS = 200L, timer = timer) {
+            calls += 1
+            Future.exception(new RuntimeException("only-once"))
+          }
+        )
+      }
+      assert(failure.getMessage == "only-once", s"attempts = $attempts")
+      assert(calls == 1, s"attempts = $attempts")
+      assert(timer.recordedDelaysInMillis.isEmpty, s"attempts = $attempts")
+    }
   }
 
   // -- withLock ------------------------------------------------------------

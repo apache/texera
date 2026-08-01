@@ -99,6 +99,9 @@ class ExecutorManager:
             f"{Path(self.fs.getsyspath('/')).joinpath(file_name)}."
         )
 
+        # Clear importlib's directory listing cache so freshly written
+        # temporary modules are discoverable on systems with coarse mtime.
+        importlib.invalidate_caches()
         # gen_module_file_name guarantees module_name is unique across
         # the process, so import_module will always cleanly load source
         # from the tmp fs we just wrote — no re-import / reload dance.
