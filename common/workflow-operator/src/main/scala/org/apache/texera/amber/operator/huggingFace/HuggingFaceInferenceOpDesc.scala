@@ -20,7 +20,7 @@
 package org.apache.texera.amber.operator.huggingFace
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
-import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
+import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 import org.apache.texera.amber.operator.PythonOperatorDescriptor
@@ -34,7 +34,7 @@ import org.apache.texera.amber.operator.huggingFace.codegen.{
   TaskCodegen,
   TextGenCodegen
 }
-import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
+import org.apache.texera.amber.operator.metadata.annotations.{AutofillAttributeName, UIWidget}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 
@@ -65,6 +65,7 @@ class HuggingFaceInferenceOpDesc extends PythonOperatorDescriptor {
   @JsonPropertyDescription(
     "Your Hugging Face API token (from https://huggingface.co/settings/tokens)"
   )
+  @JsonSchemaInject(json = UIWidget.UIWidgetPassword)
   var hfApiToken: EncodableString = ""
 
   @JsonProperty(value = "task", required = true, defaultValue = "text-generation")
