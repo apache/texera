@@ -44,7 +44,7 @@ class WebsocketPayloadSizeTunerSpec extends AnyFlatSpec with Matchers with MockF
     (container.setDefaultMaxTextMessageBufferSize(_: Int)).expects(maxKiB * 1024).once()
     (container.setDefaultMaxBinaryMessageBufferSize(_: Int)).expects(maxKiB * 1024).once()
 
-    new WebsocketPayloadSizeTuner(maxKB).contextInitialized(eventWith(container))
+    new WebsocketPayloadSizeTuner(maxKiB).contextInitialized(eventWith(container))
   }
 
   it should "convert a one-KiB payload limit to exactly 1024 bytes" in {
