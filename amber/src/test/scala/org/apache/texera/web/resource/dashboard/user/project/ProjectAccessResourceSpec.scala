@@ -180,14 +180,18 @@ class ProjectAccessResourceSpec
     assert(entries.contains(AccessEntry(writer.getEmail, writer.getName, PrivilegeEnum.WRITE)))
   }
 
-  "ProjectAccessResource.grantAccess" should "let a writer grant READ access to another user" in {
+  "ProjectAccessResource.grantAccess" should "let a WRITE grantee grant READ access to another user" in {
     val project = projectResource.createProject(new SessionUser(owner), "grant-project")
+    // writer is a non-owner WRITE grantee, so it is allowed to grant access.
+    projectUserAccessDao.merge(
+      new ProjectUserAccess(writerUid, project.getPid, PrivilegeEnum.WRITE)
+    )
 
     projectAccessResource.grantAccess(
       project.getPid,
       reader.getEmail,
       "READ",
-      new SessionUser(owner)
+      new SessionUser(writer)
     )
 
     assert(
