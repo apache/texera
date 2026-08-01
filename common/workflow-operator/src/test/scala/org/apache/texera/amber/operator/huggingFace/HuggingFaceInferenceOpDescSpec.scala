@@ -647,4 +647,11 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
     val outSchema = out(desc.operatorInfo.outputPorts.head.id)
     outSchema.getAttributeNames.contains("hf_response") shouldBe true
   }
+
+  it should "validate base64 in the binary-column fallback so plain text isn't decoded to garbage" in {
+    val code = makeDesc().generatePythonCode()
+    // validate=True makes b64decode reject non-base64 input, so real text falls
+    // through to utf-8 instead of decoding to garbage bytes.
+    code should include("base64.b64decode(val, validate=True)")
+  }
 }
