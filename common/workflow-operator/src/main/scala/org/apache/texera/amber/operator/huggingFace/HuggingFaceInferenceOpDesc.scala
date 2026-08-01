@@ -20,7 +20,7 @@
 package org.apache.texera.amber.operator.huggingFace
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
-import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
+import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 import org.apache.texera.amber.operator.PythonOperatorDescriptor
@@ -142,9 +142,10 @@ class HuggingFaceInferenceOpDesc extends PythonOperatorDescriptor {
   @JsonPropertyDescription("Maximum number of tokens to generate (1-4096)")
   var maxNewTokens: java.lang.Integer = 256
 
-  @JsonProperty(value = "temperature", required = false, defaultValue = "0.7")
+  @JsonProperty(value = "temperature", required = false)
   @JsonSchemaTitle("Temperature")
   @JsonPropertyDescription("Sampling temperature (0.0 = deterministic, up to 2.0)")
+  @JsonSchemaInject(json = """{ "minimum": 0.0, "maximum": 2.0, "default": 0.7 }""")
   var temperature: java.lang.Double = 0.7
 
   @JsonProperty(
