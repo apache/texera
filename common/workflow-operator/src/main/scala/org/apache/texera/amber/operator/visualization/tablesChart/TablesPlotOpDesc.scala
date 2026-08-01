@@ -26,6 +26,7 @@ import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 
 import javax.validation.constraints.NotEmpty
 class TablesPlotOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
@@ -118,7 +119,7 @@ class TablesPlotOpDesc extends PythonOperatorDescriptor with StandaloneCodeGener
     assert(includedColumns.nonEmpty)
     // Mirror getAttributes: a Python list literal of the selected column names.
     val columnsList =
-      includedColumns.map(c => s""""${c.attributeName}"""").mkString("[", ", ", "]")
+      includedColumns.map(c => pyStringLiteral(c.attributeName)).mkString("[", ", ", "]")
     // The two guards mirror generatePythonCode's, which reports both conditions
     // rather than rendering a table with no rows in it.
     s"""def render_error(error_msg):

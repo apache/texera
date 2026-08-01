@@ -23,6 +23,7 @@ import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBui
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 import org.apache.texera.amber.operator.StandaloneCodeGenerator
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 
 abstract class SklearnClassifierOpDesc extends SklearnModelOpDesc with StandaloneCodeGenerator {
 
@@ -74,10 +75,13 @@ abstract class SklearnClassifierOpDesc extends SklearnModelOpDesc with Standalon
     val estimator = getImportStatements.split(" ").last
     val cvPart = if (countVectorizer) "CountVectorizer()," else ""
     val tfidfPart = if (tfidfTransformer) "TfidfTransformer()," else ""
+    val textLit = pyStringLiteral(text)
+    val targetLit = pyStringLiteral(target)
+    val modelNameLit = pyStringLiteral(getUserFriendlyModelName)
     val trainX =
-      if (countVectorizer) s"""in1df["$text"]""" else s"""in1df.drop("$target", axis=1)"""
+      if (countVectorizer) s"""in1df[$textLit]""" else s"""in1df.drop($targetLit, axis=1)"""
     val testX =
-      if (countVectorizer) s"""in2df["$text"]""" else s"""in2df.drop("$target", axis=1)"""
+      if (countVectorizer) s"""in2df[$textLit]""" else s"""in2df.drop($targetLit, axis=1)"""
 
     s"""${getImportStatements}
        |from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
@@ -86,11 +90,11 @@ abstract class SklearnClassifierOpDesc extends SklearnModelOpDesc with Standalon
        |import numpy as np
        |import pandas as pd
        |
-       |Y_train = in1df["$target"]
+       |Y_train = in1df[$targetLit]
        |X_train = $trainX
        |model = make_pipeline($cvPart$tfidfPart$estimator()).fit(X_train, Y_train)
        |
-       |Y_test = in2df["$target"]
+       |Y_test = in2df[$targetLit]
        |X_test = $testX
        |predictions = model.predict(X_test)
        |print("Overall Accuracy:", round(accuracy_score(Y_test, predictions), 4))
@@ -99,6 +103,6 @@ abstract class SklearnClassifierOpDesc extends SklearnModelOpDesc with Standalon
        |recalls = recall_score(Y_test, predictions, average=None)
        |for i, class_name in enumerate(np.unique(Y_test)):
        |    print("Class", repr(class_name), " - F1:", round(f1s[i], 4), ", Precision:", round(precisions[i], 4), ", Recall:", round(recalls[i], 4))
-       |out1df = pd.DataFrame([{"model_name": "${getUserFriendlyModelName}", "model": model}])""".stripMargin
+       |out1df = pd.DataFrame([{"model_name": $modelNameLit, "model": model}])""".stripMargin
   }
 }

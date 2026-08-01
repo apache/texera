@@ -29,6 +29,7 @@ import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCod
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 
 import javax.validation.constraints.NotNull
 class Scatter3dChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
@@ -130,6 +131,9 @@ class Scatter3dChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeG
   override def producesDataFrame(): Boolean = false
 
   override def generateStandaloneCode(): String = {
+    val xLit = pyStringLiteral(x)
+    val yLit = pyStringLiteral(y)
+    val zLit = pyStringLiteral(z)
     s"""def render_error(error_msg):
        |    return '''<h1>Chart is not available.</h1>
        |                  <p>Reason is: {} </p>
@@ -141,9 +145,9 @@ class Scatter3dChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeG
        |else:
        |    table = in1df
        |    fig = go.Figure(data=[go.Scatter3d(
-       |        x=table["$x"],
-       |        y=table["$y"],
-       |        z=table["$z"],
+       |        x=table[$xLit],
+       |        y=table[$yLit],
+       |        z=table[$zLit],
        |        mode='markers',
        |        marker=dict(
        |            size=12,
@@ -154,9 +158,9 @@ class Scatter3dChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeG
        |    fig.update_traces(marker=dict(size=5, opacity=0.8))
        |    fig.update_layout(
        |        scene=dict(
-       |            xaxis_title='X:' + "$x",
-       |            yaxis_title='Y:' + "$y",
-       |            zaxis_title='Z:' + "$z"
+       |            xaxis_title='X:' + $xLit,
+       |            yaxis_title='Y:' + $yLit,
+       |            zaxis_title='Z:' + $zLit
        |        ),
        |        margin=dict(t=0, b=0, l=0, r=0)
        |    )

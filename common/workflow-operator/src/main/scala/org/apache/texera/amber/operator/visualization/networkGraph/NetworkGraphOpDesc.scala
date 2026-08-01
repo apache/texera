@@ -29,6 +29,7 @@ import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCod
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 
 import javax.validation.constraints.NotNull
 
@@ -198,6 +199,11 @@ class NetworkGraphOpDesc extends PythonOperatorDescriptor with StandaloneCodeGen
   override def producesDataFrame(): Boolean = false
 
   override def generateStandaloneCode(): String = {
+    val sourceLit = pyStringLiteral(source)
+    val destinationLit = pyStringLiteral(destination)
+    // The <br> is part of the emitted title, so it is escaped with the value
+    // rather than left outside the literal.
+    val titleLit = pyStringLiteral(s"<br>$title")
     s"""import networkx as nx
        |
        |def render_error(error_msg):
@@ -209,19 +215,19 @@ class NetworkGraphOpDesc extends PythonOperatorDescriptor with StandaloneCodeGen
        |    with open("output.html", "w", encoding="utf-8") as output:
        |        output.write(render_error("Table should not have any empty/null values or fields."))
        |else:
-       |    table = in1df.dropna(subset=["$source"]).dropna(subset=["$destination"]).copy()
+       |    table = in1df.dropna(subset=[$sourceLit]).dropna(subset=[$destinationLit]).copy()
        |    if table.empty:
        |        with open("output.html", "w", encoding="utf-8") as output:
        |            output.write(render_error("Table should not have any empty/null values or fields."))
        |    else:
-       |        sources = table["$source"]
-       |        destinations = table["$destination"]
+       |        sources = table[$sourceLit]
+       |        destinations = table[$destinationLit]
        |        nodes = list(dict.fromkeys(pd.concat([sources, destinations]).tolist()))
        |        G = nx.Graph()
        |        for node in nodes:
        |            G.add_node(node)
        |        for _, row in table.iterrows():
-       |            G.add_edges_from([(row["$source"], row["$destination"])])
+       |            G.add_edges_from([(row[$sourceLit], row[$destinationLit])])
        |        pos = nx.spring_layout(G, k=0.5, iterations=50, seed=0)
        |        for n, p in pos.items():
        |            G.nodes[n]["pos"] = p
@@ -279,7 +285,7 @@ class NetworkGraphOpDesc extends PythonOperatorDescriptor with StandaloneCodeGen
        |        fig = go.Figure(
        |            data=[edge_trace, node_trace],
        |            layout=go.Layout(
-       |                title="<br>$title",
+       |                title=$titleLit,
        |                hovermode="closest",
        |                showlegend=False,
        |                margin=dict(b=20, l=5, r=5, t=40),

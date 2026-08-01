@@ -26,7 +26,10 @@ import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCod
 import org.apache.texera.amber.operator.metadata.annotations.{AutofillAttributeName, SampleColumn}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
-import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
+  PythonTemplateBuilderStringContext,
+  pyStringLiteral
+}
 class HuggingFaceTextSummarizationOpDesc
     extends PythonOperatorDescriptor
     with StandaloneCodeGenerator {
@@ -88,13 +91,13 @@ class HuggingFaceTextSummarizationOpDesc
        |
        |out1df = in1df.copy()
        |_summaries = []
-       |for _text in out1df["$attribute"]:
+       |for _text in out1df[${pyStringLiteral(attribute)}]:
        |    inputs = tokenizer([_text], padding="max_length", truncation=True, max_length=512, return_tensors="pt")
        |    input_ids = inputs.input_ids.to(device)
        |    attention_mask = inputs.attention_mask.to(device)
        |    output = model.generate(input_ids, attention_mask=attention_mask)
        |    _summaries.append(tokenizer.decode(output[0], skip_special_tokens=True))
-       |out1df["$resultAttribute"] = _summaries""".stripMargin
+       |out1df[${pyStringLiteral(resultAttribute)}] = _summaries""".stripMargin
   }
 
   override def operatorInfo: OperatorInfo =

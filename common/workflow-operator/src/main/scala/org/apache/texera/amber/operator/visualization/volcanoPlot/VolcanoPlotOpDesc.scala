@@ -28,6 +28,7 @@ import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 
 import javax.validation.constraints.NotNull
 
@@ -126,6 +127,8 @@ class VolcanoPlotOpDesc extends PythonOperatorDescriptor with StandaloneCodeGene
   override def producesDataFrame(): Boolean = false
 
   override def generateStandaloneCode(): String = {
+    val pvalueLit = pyStringLiteral(pvalueColumn)
+    val effectLit = pyStringLiteral(effectColumn)
     s"""import numpy as np
        |
        |def render_error(msg):
@@ -134,22 +137,22 @@ class VolcanoPlotOpDesc extends PythonOperatorDescriptor with StandaloneCodeGene
        |if in1df.empty:
        |    with open("output.html", "w", encoding="utf-8") as output:
        |        output.write(render_error("Input table is empty."))
-       |elif "$pvalueColumn" not in in1df.columns or "$effectColumn" not in in1df.columns:
+       |elif $pvalueLit not in in1df.columns or $effectLit not in in1df.columns:
        |    with open("output.html", "w", encoding="utf-8") as output:
        |        output.write(render_error("Missing required columns in table."))
        |else:
-       |    table = in1df[in1df["$pvalueColumn"] > 0].copy()
+       |    table = in1df[in1df[$pvalueLit] > 0].copy()
        |    if table.empty:
        |        with open("output.html", "w", encoding="utf-8") as output:
        |            output.write(render_error("No rows with valid p-values."))
        |    else:
-       |        table["-log10(pvalue)"] = -np.log10(table["$pvalueColumn"])
+       |        table["-log10(pvalue)"] = -np.log10(table[$pvalueLit])
        |        fig = px.scatter(
        |            table,
-       |            x="$effectColumn",
+       |            x=$effectLit,
        |            y="-log10(pvalue)",
        |            hover_name=table.columns[0],
-       |            color="$effectColumn",
+       |            color=$effectLit,
        |            color_continuous_scale="RdBu",
        |            title="Volcano Plot"
        |        )

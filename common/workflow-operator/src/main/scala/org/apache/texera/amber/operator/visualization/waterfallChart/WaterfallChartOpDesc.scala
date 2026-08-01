@@ -29,6 +29,7 @@ import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCod
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 
 import javax.validation.constraints.NotNull
 
@@ -133,8 +134,8 @@ class WaterfallChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeG
        |        output.write(render_error("input table is empty."))
        |else:
        |    table = in1df
-       |    x_values = table["$xColumn"]
-       |    y_values = table["$yColumn"]
+       |    x_values = table[${pyStringLiteral(xColumn)}]
+       |    y_values = table[${pyStringLiteral(yColumn)}]
        |
        |    fig = go.Figure(go.Waterfall(
        |        name="Waterfall", orientation="v",

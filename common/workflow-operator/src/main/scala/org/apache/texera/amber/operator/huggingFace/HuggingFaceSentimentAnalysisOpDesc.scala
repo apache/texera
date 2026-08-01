@@ -26,7 +26,10 @@ import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCod
 import org.apache.texera.amber.operator.metadata.annotations.{AutofillAttributeName, SampleColumn}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
-import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
+  PythonTemplateBuilderStringContext,
+  pyStringLiteral
+}
 class HuggingFaceSentimentAnalysisOpDesc
     extends PythonOperatorDescriptor
     with StandaloneCodeGenerator {
@@ -96,6 +99,9 @@ class HuggingFaceSentimentAnalysisOpDesc
   // same per-row softmax-over-3-labels logic to in1df, adding the three DOUBLE
   // result columns (in the same order as getOutputSchemas) to produce out1df.
   override def generateStandaloneCode(): String = {
+    val positiveLit = pyStringLiteral(resultAttributePositive)
+    val neutralLit = pyStringLiteral(resultAttributeNeutral)
+    val negativeLit = pyStringLiteral(resultAttributeNegative)
     s"""from transformers import AutoModelForSequenceClassification
        |from transformers import AutoTokenizer, AutoConfig
        |import numpy as np
@@ -107,10 +113,10 @@ class HuggingFaceSentimentAnalysisOpDesc
        |model = AutoModelForSequenceClassification.from_pretrained(model_name)
        |
        |out1df = in1df.copy()
-       |labels = {"positive": "$resultAttributePositive", "neutral": "$resultAttributeNeutral", "negative": "$resultAttributeNegative"}
-       |for _col in ("$resultAttributePositive", "$resultAttributeNeutral", "$resultAttributeNegative"):
+       |labels = {"positive": $positiveLit, "neutral": $neutralLit, "negative": $negativeLit}
+       |for _col in ($positiveLit, $neutralLit, $negativeLit):
        |    out1df[_col] = 0.0
-       |for _idx, _text in out1df["$attribute"].items():
+       |for _idx, _text in out1df[${pyStringLiteral(attribute)}].items():
        |    encoded_input = tokenizer(_text, return_tensors='pt')
        |    output = model(**encoded_input)
        |    scores = softmax(output[0][0].detach().numpy())

@@ -29,6 +29,7 @@ import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCod
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 
 import javax.validation.constraints.NotNull
 
@@ -147,6 +148,8 @@ class RangeSliderOpDesc extends PythonOperatorDescriptor with StandaloneCodeGene
 
   override def generateStandaloneCode(): String = {
     val functionType = duplicateType.getFunctionType
+    val xAxisLit = pyStringLiteral(xAxis)
+    val yAxisLit = pyStringLiteral(yAxis)
     s"""def render_error(error_msg):
        |    return '''<h1>RangeChart is not available.</h1>
        |                  <p>Reason is: {} </p>
@@ -155,22 +158,22 @@ class RangeSliderOpDesc extends PythonOperatorDescriptor with StandaloneCodeGene
        |if in1df.empty:
        |    with open("output.html", "w", encoding="utf-8") as output:
        |        output.write(render_error("input table is empty."))
-       |elif "$yAxis".strip() == "" or "$xAxis".strip() == "":
+       |elif $yAxisLit.strip() == "" or $xAxisLit.strip() == "":
        |    with open("output.html", "w", encoding="utf-8") as output:
        |        output.write(render_error("Y-axis or X-axis is empty"))
        |else:
        |    table = in1df
-       |    table = table.dropna(subset=["$xAxis", "$yAxis"])
-       |    functionType = "$functionType"
+       |    table = table.dropna(subset=[$xAxisLit, $yAxisLit])
+       |    functionType = ${pyStringLiteral(functionType)}
        |    if functionType.lower() == "mean":
-       |        table = table.groupby("$xAxis")["$yAxis"].mean().reset_index()
+       |        table = table.groupby($xAxisLit)[$yAxisLit].mean().reset_index()
        |    elif functionType.lower() == "sum":
-       |        table = table.groupby("$xAxis")["$yAxis"].sum().reset_index()
+       |        table = table.groupby($xAxisLit)[$yAxisLit].sum().reset_index()
        |    fig = go.Figure()
-       |    fig.add_trace(go.Scatter(x=table["$xAxis"], y=table["$yAxis"], mode="markers+lines"))
+       |    fig.add_trace(go.Scatter(x=table[$xAxisLit], y=table[$yAxisLit], mode="markers+lines"))
        |    fig.update_layout(
-       |        xaxis_title="$xAxis",
-       |        yaxis_title="$yAxis",
+       |        xaxis_title=$xAxisLit,
+       |        yaxis_title=$yAxisLit,
        |        xaxis=dict(
        |            rangeslider=dict(
        |                visible=True

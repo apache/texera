@@ -28,6 +28,7 @@ import org.apache.texera.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
 import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
 import javax.validation.constraints.NotNull
@@ -89,7 +90,8 @@ class UrlVizOpDesc extends LogicalOp with StandaloneCodeGenerator {
 
   // Mirrors UrlVizOpExec: wrap each urlContentAttrName value in the exact same
   // iframe HTML document and emit it as the "html-content" column.
-  override def generateStandaloneCode(): String =
+  override def generateStandaloneCode(): String = {
+    val urlLit = pyStringLiteral(urlContentAttrName)
     s"""def _texera_urlviz_iframe(u):
        |    return (
        |        '<!DOCTYPE html>\\n'
@@ -103,6 +105,7 @@ class UrlVizOpDesc extends LogicalOp with StandaloneCodeGenerator {
        |        '</body>\\n'
        |        '</html>'
        |    )
-       |out1df = pd.DataFrame({"html-content": in1df["$urlContentAttrName"].apply(_texera_urlviz_iframe)})""".stripMargin
+       |out1df = pd.DataFrame({"html-content": in1df[$urlLit].apply(_texera_urlviz_iframe)})""".stripMargin
+  }
 
 }

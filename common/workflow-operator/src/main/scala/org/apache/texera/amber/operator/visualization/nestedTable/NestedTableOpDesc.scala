@@ -25,6 +25,7 @@ import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 
 import java.util
 import javax.validation.constraints.NotEmpty
@@ -148,12 +149,12 @@ class NestedTableOpDesc extends PythonOperatorDescriptor with StandaloneCodeGene
         val name =
           if (config.newName != null && config.newName.nonEmpty) config.newName
           else config.originalName
-        s"""("${config.attributeGroup}", "$name")"""
+        s"""(${pyStringLiteral(config.attributeGroup)}, ${pyStringLiteral(name)})"""
       }
       .mkString(",\n        ")
 
     val rowValues = sortedColumns
-      .map(config => s"""row["${config.originalName}"]""")
+      .map(config => s"""row[${pyStringLiteral(config.originalName)}]""")
       .mkString(", ")
 
     s"""import pandas as pd

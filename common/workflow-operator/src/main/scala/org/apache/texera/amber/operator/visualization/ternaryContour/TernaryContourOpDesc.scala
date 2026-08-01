@@ -23,7 +23,10 @@ import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.workflow.OutputPort.OutputMode
-import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
+  PythonTemplateBuilderStringContext,
+  pyStringLiteral
+}
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
@@ -175,6 +178,10 @@ class TernaryContourOpDesc extends PythonOperatorDescriptor with StandaloneCodeG
   override def producesDataFrame(): Boolean = false
 
   override def generateStandaloneCode(): String = {
+    val firstLit = pyStringLiteral(firstVariable)
+    val secondLit = pyStringLiteral(secondVariable)
+    val thirdLit = pyStringLiteral(thirdVariable)
+    val fourthLit = pyStringLiteral(fourthVariable)
     s"""import plotly.figure_factory as ff
        |import numpy as np
        |
@@ -188,22 +195,22 @@ class TernaryContourOpDesc extends PythonOperatorDescriptor with StandaloneCodeG
        |        output.write(render_error("Input table is empty."))
        |else:
        |    table = in1df.copy()
-       |    table.dropna(subset=["$firstVariable", "$secondVariable", "$thirdVariable", "$fourthVariable"], inplace=True)
-       |    table = table[(table[["$firstVariable", "$secondVariable", "$thirdVariable"]] >= 0).all(axis=1)]
-       |    s = table["$firstVariable"] + table["$secondVariable"] + table["$thirdVariable"]
+       |    table.dropna(subset=[$firstLit, $secondLit, $thirdLit, $fourthLit], inplace=True)
+       |    table = table[(table[[$firstLit, $secondLit, $thirdLit]] >= 0).all(axis=1)]
+       |    s = table[$firstLit] + table[$secondLit] + table[$thirdLit]
        |    table = table[s > 0]
        |    if table.empty:
        |        with open("output.html", "w", encoding="utf-8") as output:
        |            output.write(render_error("No valid rows left (every row has at least 1 missing value)."))
        |    else:
-       |        A = table["$firstVariable"].to_numpy()
-       |        B = table["$secondVariable"].to_numpy()
-       |        C = table["$thirdVariable"].to_numpy()
-       |        Z = table["$fourthVariable"].to_numpy()
+       |        A = table[$firstLit].to_numpy()
+       |        B = table[$secondLit].to_numpy()
+       |        C = table[$thirdLit].to_numpy()
+       |        Z = table[$fourthLit].to_numpy()
        |        fig = ff.create_ternary_contour(
        |            np.array([A, B, C]),
        |            Z,
-       |            pole_labels=["$firstVariable", "$secondVariable", "$thirdVariable"],
+       |            pole_labels=[$firstLit, $secondLit, $thirdLit],
        |            interp_mode='cartesian'
        |        )
        |        fig.write_json("output.json")

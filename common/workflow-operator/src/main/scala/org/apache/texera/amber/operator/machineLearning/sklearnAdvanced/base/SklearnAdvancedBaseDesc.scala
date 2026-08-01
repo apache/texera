@@ -32,6 +32,7 @@ import org.apache.texera.amber.operator.metadata.annotations.{
 }
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 trait ParamClass {
   def getName: String
 
@@ -109,20 +110,22 @@ abstract class SklearnMLOperatorDescriptor[T <: ParamClass]
       val typ = ele.parameter.getType
       workflowParam.append(s"$name = {},")
       if (ele.parametersSource) {
-        portParam.append(s"""$typ(table["${ele.attribute}"].values[i]),""")
-        paramString.append(s"""$name = $typ(table["${ele.attribute}"].values[i]),""")
+        val attrLit = pyStringLiteral(ele.attribute)
+        portParam.append(s"""$typ(table[$attrLit].values[i]),""")
+        paramString.append(s"""$name = $typ(table[$attrLit].values[i]),""")
       } else {
         portParam.append(s"$typ (${ele.value}),")
         paramString.append(s"$name = $typ (${ele.value}),")
       }
     }
-    (paramString.toString, s""""$workflowParam".format($portParam)""")
+    (paramString.toString, s"""${pyStringLiteral(workflowParam.toString)}.format($portParam)""")
   }
 
   private def getLoopTimesStandalone(paraList: List[HyperParameters[T]]): String =
     paraList
       .collectFirst {
-        case ele if ele.parametersSource => s"""table["${ele.attribute}"].values.shape[0]"""
+        case ele if ele.parametersSource =>
+          s"""table[${pyStringLiteral(ele.attribute)}].values.shape[0]"""
       }
       .getOrElse("1")
 
@@ -208,7 +211,7 @@ abstract class SklearnMLOperatorDescriptor[T <: ParamClass]
   }
 
   override def generateStandaloneCode(): String = {
-    val listFeatures = selectedFeatures.map(feature => s""""$feature"""").mkString(",")
+    val listFeatures = selectedFeatures.map(pyStringLiteral).mkString(",")
     val trainingName = getImportStatements.split(" ").last
     val (trainingParamPlain, paramStringPlain) = getParameterStandalone(paraList)
     val loopTimesPlain = getLoopTimesStandalone(paraList)
@@ -218,7 +221,7 @@ abstract class SklearnMLOperatorDescriptor[T <: ParamClass]
        |
        |dataset = in1df
        |table = in2df
-       |y_train = dataset["$groundTruthAttribute"]
+       |y_train = dataset[${pyStringLiteral(groundTruthAttribute)}]
        |features = [$listFeatures]
        |X_train = dataset[features]
        |loop_times = $loopTimesPlain

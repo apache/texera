@@ -32,6 +32,7 @@ import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentit
 import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.annotations.{AutofillAttributeName, HideAnnotation}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 
 class MachineLearningScorerOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
   @JsonProperty(required = true, defaultValue = "false")
@@ -224,8 +225,8 @@ class MachineLearningScorerOpDesc extends PythonOperatorDescriptor with Standalo
        |    result[metric] = metrics_func[metric](y_true, y_pred)
        |  return pd.DataFrame(result, index=[0])
        |
-       |y_true = in1df["$actualValueColumn"]
-       |y_pred = in1df["$predictValueColumn"]
+       |y_true = in1df[${pyStringLiteral(actualValueColumn)}]
+       |y_pred = in1df[${pyStringLiteral(predictValueColumn)}]
        |metric_list = [${getSelectedMetrics()}]
        |if $isRegressionStr:
        |    out1df = regression_metrics(y_true, y_pred, metric_list)

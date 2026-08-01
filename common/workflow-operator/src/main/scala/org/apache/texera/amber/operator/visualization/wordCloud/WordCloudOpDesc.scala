@@ -34,6 +34,7 @@ import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeNa
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.operator.visualization.ImageUtility
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 
 import javax.validation.constraints.NotNull
 class WordCloudOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
@@ -123,7 +124,8 @@ class WordCloudOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenera
   // wordless string, so without them an input that is empty — or whose text
   // column survives neither the dropna nor the word filter — crashes here where
   // the runtime path explains itself.
-  override def generateStandaloneCode(): String =
+  override def generateStandaloneCode(): String = {
+    val textLit = pyStringLiteral(textColumn)
     s"""def render_error(error_msg):
        |    return '''<h1>Wordcloud is not available.</h1>
        |                  <p>Reason is: {} </p>
@@ -134,13 +136,13 @@ class WordCloudOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenera
        |    with open("output.html", "w", encoding="utf-8") as f:
        |        f.write(render_error("input table is empty."))
        |else:
-       |    table = table.dropna(subset=["$textColumn"])
-       |    table = table[table["$textColumn"].str.contains(r'\\w', regex=True)]
+       |    table = table.dropna(subset=[$textLit])
+       |    table = table[table[$textLit].str.contains(r'\\w', regex=True)]
        |    if table.empty:
        |        with open("output.html", "w", encoding="utf-8") as f:
        |            f.write(render_error("text column does not contain words or contains only nulls."))
        |    else:
-       |        text = ' '.join(table["$textColumn"])
+       |        text = ' '.join(table[$textLit])
        |        from wordcloud import WordCloud, STOPWORDS
        |        wordcloud = WordCloud(width=1920, height=1080, stopwords=set(STOPWORDS), max_words=$topN, background_color='white', include_numbers=True).generate(text)
        |        from io import BytesIO
@@ -152,4 +154,5 @@ class WordCloudOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenera
        |        html = f'<img src="data:image;base64,{encoded_image_str}" alt="Image" style="max-width: 100vw; max-height: 90vh; width: auto; height: auto;">'
        |        with open("output.html", "w", encoding="utf-8") as f:
        |            f.write(html)""".stripMargin
+  }
 }

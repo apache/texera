@@ -23,6 +23,7 @@ import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBui
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 import org.apache.texera.amber.operator.StandaloneCodeGenerator
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 import org.apache.texera.amber.operator.sklearn.SklearnModelOpDesc
 
 class SklearnTrainingOpDesc extends SklearnModelOpDesc with StandaloneCodeGenerator {
@@ -64,17 +65,20 @@ class SklearnTrainingOpDesc extends SklearnModelOpDesc with StandaloneCodeGenera
     val estimator = getImportStatements.split(" ").last
     val cvPart = if (countVectorizer) "CountVectorizer()," else ""
     val tfidfPart = if (tfidfTransformer) "TfidfTransformer()," else ""
+    val targetLit = pyStringLiteral(target)
+    val modelNameLit = pyStringLiteral(getUserFriendlyModelName)
     val trainX =
-      if (countVectorizer) s"""in1df["$text"]""" else s"""in1df.drop("$target", axis=1)"""
+      if (countVectorizer) s"""in1df[${pyStringLiteral(text)}]"""
+      else s"""in1df.drop($targetLit, axis=1)"""
 
     s"""${getImportStatements}
        |from sklearn.pipeline import make_pipeline
        |from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
        |import pandas as pd
        |
-       |Y = in1df["$target"]
+       |Y = in1df[$targetLit]
        |X = $trainX
        |model = make_pipeline($cvPart$tfidfPart$estimator()).fit(X, Y)
-       |out1df = pd.DataFrame([{"model_name": "${getUserFriendlyModelName}", "model": model}])""".stripMargin
+       |out1df = pd.DataFrame([{"model_name": $modelNameLit, "model": model}])""".stripMargin
   }
 }

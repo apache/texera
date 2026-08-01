@@ -26,7 +26,10 @@ import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCod
 import org.apache.texera.amber.operator.metadata.annotations.{AutofillAttributeName, SampleColumn}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
-import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
+  PythonTemplateBuilderStringContext,
+  pyStringLiteral
+}
 class HuggingFaceSpamSMSDetectionOpDesc
     extends PythonOperatorDescriptor
     with StandaloneCodeGenerator {
@@ -75,13 +78,16 @@ class HuggingFaceSpamSMSDetectionOpDesc
   // pipeline once, run it per row, and add the BOOLEAN spam flag (LABEL_1) and
   // the DOUBLE score columns (in getOutputSchemas order) to produce out1df.
   override def generateStandaloneCode(): String = {
+    val attributeLit = pyStringLiteral(attribute)
+    val spamLit = pyStringLiteral(resultAttributeSpam)
+    val probabilityLit = pyStringLiteral(resultAttributeProbability)
     s"""from transformers import pipeline
        |
        |_pipeline = pipeline("text-classification", model="mrm8488/bert-tiny-finetuned-sms-spam-detection")
        |out1df = in1df.copy()
-       |_results = [_pipeline(_t)[0] for _t in out1df["$attribute"]]
-       |out1df["$resultAttributeSpam"] = [_r["label"] == "LABEL_1" for _r in _results]
-       |out1df["$resultAttributeProbability"] = [_r["score"] for _r in _results]""".stripMargin
+       |_results = [_pipeline(_t)[0] for _t in out1df[$attributeLit]]
+       |out1df[$spamLit] = [_r["label"] == "LABEL_1" for _r in _results]
+       |out1df[$probabilityLit] = [_r["score"] for _r in _results]""".stripMargin
   }
 
   override def operatorInfo: OperatorInfo =

@@ -29,6 +29,7 @@ import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCod
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 
 import javax.validation.constraints.NotNull
 
@@ -136,6 +137,9 @@ class SankeyDiagramOpDesc extends PythonOperatorDescriptor with StandaloneCodeGe
   override def producesDataFrame(): Boolean = false
 
   override def generateStandaloneCode(): String = {
+    val sourceLit = pyStringLiteral(sourceAttribute)
+    val targetLit = pyStringLiteral(targetAttribute)
+    val valueLit = pyStringLiteral(valueAttribute)
     s"""def render_error(error_msg):
        |    return '''<h1>Sankey Diagram is not available.</h1>
        |                  <p>Reasons are: {} </p>
@@ -145,14 +149,14 @@ class SankeyDiagramOpDesc extends PythonOperatorDescriptor with StandaloneCodeGe
        |    with open("output.html", "w", encoding="utf-8") as output:
        |        output.write(render_error("Input table is empty."))
        |else:
-       |    table = in1df.groupby(["$sourceAttribute", "$targetAttribute"])["$valueAttribute"].sum().reset_index(name="value")
+       |    table = in1df.groupby([$sourceLit, $targetLit])[$valueLit].sum().reset_index(name="value")
        |    if table.empty:
        |        with open("output.html", "w", encoding="utf-8") as output:
        |            output.write(render_error("No valid rows left (every row has at least 1 missing value)."))
        |    else:
-       |        labels = pd.concat([table["$sourceAttribute"], table["$targetAttribute"]]).unique().tolist()
-       |        table["source_index"] = table["$sourceAttribute"].apply(lambda x: labels.index(x))
-       |        table["target_index"] = table["$targetAttribute"].apply(lambda x: labels.index(x))
+       |        labels = pd.concat([table[$sourceLit], table[$targetLit]]).unique().tolist()
+       |        table["source_index"] = table[$sourceLit].apply(lambda x: labels.index(x))
+       |        table["target_index"] = table[$targetLit].apply(lambda x: labels.index(x))
        |        fig = go.Figure(data=[go.Sankey(
        |            node=dict(
        |                pad=15,

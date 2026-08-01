@@ -30,7 +30,10 @@ import org.apache.texera.amber.operator.metadata.annotations.{
 }
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
-import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
+  PythonTemplateBuilderStringContext,
+  pyStringLiteral
+}
 
 class SklearnTestingOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
   @JsonProperty(required = true, defaultValue = "false")
@@ -114,12 +117,14 @@ class SklearnTestingOpDesc extends PythonOperatorDescriptor with StandaloneCodeG
 
   override def generateStandaloneCode(): String = {
     val isRegressionStr = if (isRegression) "True" else "False"
+    val modelLit = pyStringLiteral(model)
+    val targetLit = pyStringLiteral(target)
     s"""from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score, root_mean_squared_error, mean_absolute_error, r2_score
        |
-       |model = in1df["$model"].iloc[0]
+       |model = in1df[$modelLit].iloc[0]
        |out1df = in1df.copy()
-       |Y = in2df["$target"]
-       |X = in2df.drop("$target", axis=1)
+       |Y = in2df[$targetLit]
+       |X = in2df.drop($targetLit, axis=1)
        |predictions = model.predict(X.squeeze())
        |if $isRegressionStr:
        |    out1df["R2"] = r2_score(Y, predictions)

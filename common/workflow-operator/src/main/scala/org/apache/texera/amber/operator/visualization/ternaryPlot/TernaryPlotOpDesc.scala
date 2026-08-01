@@ -29,6 +29,7 @@ import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCod
 import org.apache.texera.amber.operator.metadata.annotations.{AutofillAttributeName, SampleColumn}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 
 import javax.validation.constraints.NotNull
 
@@ -164,7 +165,12 @@ class TernaryPlotOpDesc extends PythonOperatorDescriptor with StandaloneCodeGene
 
   override def generateStandaloneCode(): String = {
     val colorArg =
-      if (colorEnabled && colorDataField.nonEmpty) s""", color="$colorDataField"""" else ""
+      if (colorEnabled && colorDataField.nonEmpty)
+        s""", color=${pyStringLiteral(colorDataField)}"""
+      else ""
+    val firstLit = pyStringLiteral(firstVariable)
+    val secondLit = pyStringLiteral(secondVariable)
+    val thirdLit = pyStringLiteral(thirdVariable)
     s"""def render_error(error_msg):
        |    return '''<h1>TernaryPlot is not available.</h1>
        |                  <p>Reasons are: {} </p>
@@ -174,12 +180,12 @@ class TernaryPlotOpDesc extends PythonOperatorDescriptor with StandaloneCodeGene
        |    with open("output.html", "w", encoding="utf-8") as output:
        |        output.write(render_error("Input table is empty."))
        |else:
-       |    table = in1df.dropna(subset=["$firstVariable", "$secondVariable", "$thirdVariable"]).copy()
+       |    table = in1df.dropna(subset=[$firstLit, $secondLit, $thirdLit]).copy()
        |    if table.empty:
        |        with open("output.html", "w", encoding="utf-8") as output:
        |            output.write(render_error("No valid rows left (every row has at least 1 missing value)."))
        |    else:
-       |        fig = px.scatter_ternary(table, a="$firstVariable", b="$secondVariable", c="$thirdVariable"$colorArg)
+       |        fig = px.scatter_ternary(table, a=$firstLit, b=$secondLit, c=$thirdLit$colorArg)
        |        fig.write_json("output.json")
        |        fig.write_html("output.html")
        |        print("Ternary plot saved to output.html")""".stripMargin

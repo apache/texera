@@ -30,6 +30,7 @@ import org.apache.texera.amber.operator.metadata.annotations.{
   AutofillAttributeNameOnPort1
 }
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 
 class SklearnPredictionOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
   @JsonProperty(value = "Model Attribute", required = true, defaultValue = "model")
@@ -95,19 +96,21 @@ class SklearnPredictionOpDesc extends PythonOperatorDescriptor with StandaloneCo
   }
 
   override def generateStandaloneCode(): String = {
+    val modelLit = pyStringLiteral(model)
+    val resultLit = pyStringLiteral(resultAttribute)
     if (groundTruthAttribute.nonEmpty) {
       s"""from sklearn.pipeline import Pipeline
          |
-         |model = in1df["$model"].iloc[0]
+         |model = in1df[$modelLit].iloc[0]
          |out1df = in2df.copy()
-         |X = in2df.drop("$groundTruthAttribute", axis=1)
-         |out1df["$resultAttribute"] = model.predict(X)""".stripMargin
+         |X = in2df.drop(${pyStringLiteral(groundTruthAttribute)}, axis=1)
+         |out1df[$resultLit] = model.predict(X)""".stripMargin
     } else {
       s"""from sklearn.pipeline import Pipeline
          |
-         |model = in1df["$model"].iloc[0]
+         |model = in1df[$modelLit].iloc[0]
          |out1df = in2df.copy()
-         |out1df["$resultAttribute"] = [str(p) for p in model.predict(in2df)]""".stripMargin
+         |out1df[$resultLit] = [str(p) for p in model.predict(in2df)]""".stripMargin
     }
   }
 }

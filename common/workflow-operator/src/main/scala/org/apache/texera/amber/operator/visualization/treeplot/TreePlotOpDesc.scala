@@ -28,6 +28,7 @@ import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.annotations.{AutofillAttributeName, SampleColumn}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 
 import javax.validation.constraints.NotNull
 
@@ -274,7 +275,7 @@ class TreePlotOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerat
        |        output.write(render_error("Input table is empty."))
        |else:
        |    edges = []
-       |    for item in in1df["$edgeListColumn"].dropna():
+       |    for item in in1df[${pyStringLiteral(edgeListColumn)}].dropna():
        |        try:
        |            edge = ast.literal_eval(str(item))
        |            if isinstance(edge, (list, tuple)) and len(edge) == 2:
@@ -284,7 +285,9 @@ class TreePlotOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerat
        |
        |    if not edges:
        |        with open("output.html", "w", encoding="utf-8") as output:
-       |            output.write(render_error("No valid [parent, child] pairs found in column " + "$edgeListColumn" + "."))
+       |            output.write(render_error("No valid [parent, child] pairs found in column " + ${pyStringLiteral(
+      edgeListColumn
+    )} + "."))
        |    else:
        |        try:
        |            position = compute_tree_layout(edges)

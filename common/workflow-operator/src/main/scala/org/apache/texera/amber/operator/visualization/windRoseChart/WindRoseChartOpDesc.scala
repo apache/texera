@@ -30,6 +30,7 @@ import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCod
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 import javax.validation.constraints.NotNull
 
 class WindRoseChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
@@ -130,9 +131,11 @@ class WindRoseChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeGe
   override def producesDataFrame(): Boolean = false
 
   override def generateStandaloneCode(): String = {
+    val rLit = pyStringLiteral(rColumn)
     val colorArg =
       if (colorColumn != null && colorColumn.nonEmpty) s"""
-       |            color="$colorColumn",""" else ""
+       |            color=${pyStringLiteral(colorColumn)},"""
+      else ""
     s"""def render_error(error_msg) -> str:
        |    return '''<h1>Wind Rose chart is not available.</h1>
        |                  <p>Reason is: {} </p>
@@ -141,15 +144,15 @@ class WindRoseChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeGe
        |if in1df.empty:
        |    with open("output.html", "w", encoding="utf-8") as output:
        |        output.write(render_error("input table is empty."))
-       |elif in1df["$rColumn"].dtype.kind not in ["i", "u", "f"]:
+       |elif in1df[$rLit].dtype.kind not in ["i", "u", "f"]:
        |    with open("output.html", "w", encoding="utf-8") as output:
        |        output.write(render_error("Radial column must be numeric (int, float, or double)."))
        |else:
        |    table = in1df
        |    fig = px.bar_polar(
        |        table,
-       |        r="$rColumn",
-       |        theta="$thetaColumn",$colorArg
+       |        r=$rLit,
+       |        theta=${pyStringLiteral(thetaColumn)},$colorArg
        |        color_discrete_sequence=px.colors.sequential.Plasma_r
        |    )
        |    fig.write_json("output.json")

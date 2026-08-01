@@ -27,6 +27,7 @@ import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 
 import javax.validation.constraints.{NotBlank, NotNull}
 
@@ -161,9 +162,14 @@ class TimeSeriesOpDesc extends PythonOperatorDescriptor with StandaloneCodeGener
     val dropnaCols = List(timeColumn, valueColumn) ++
       (if (CategoryColumn != "No Selection") Some(CategoryColumn) else None) ++
       (if (facetColumn != "No Selection") Some(facetColumn) else None)
-    val dropnaStr = dropnaCols.map(c => s""""$c"""").mkString("[", ", ", "]")
-    val colorArg = if (CategoryColumn != "No Selection") s""", color="$CategoryColumn"""" else ""
-    val facetArg = if (facetColumn != "No Selection") s""", facet_col="$facetColumn"""" else ""
+    val dropnaStr = dropnaCols.map(pyStringLiteral).mkString("[", ", ", "]")
+    val colorArg =
+      if (CategoryColumn != "No Selection") s""", color=${pyStringLiteral(CategoryColumn)}"""
+      else ""
+    val facetArg =
+      if (facetColumn != "No Selection") s""", facet_col=${pyStringLiteral(facetColumn)}""" else ""
+    val timeLit = pyStringLiteral(timeColumn)
+    val valueLit = pyStringLiteral(valueColumn)
     val plotFunc = if (plotType == "area") "px.area" else "px.line"
     val showSlider = if (showRangeSlider) "True" else "False"
 
@@ -176,20 +182,20 @@ class TimeSeriesOpDesc extends PythonOperatorDescriptor with StandaloneCodeGener
        |else:
        |    try:
        |        table = in1df.copy()
-       |        table["$timeColumn"] = pd.to_datetime(table["$timeColumn"], errors='coerce')
-       |        table = table.dropna(subset=$dropnaStr).sort_values(by="$timeColumn")
+       |        table[$timeLit] = pd.to_datetime(table[$timeLit], errors='coerce')
+       |        table = table.dropna(subset=$dropnaStr).sort_values(by=$timeLit)
        |        if table.empty:
        |            with open("output.html", "w", encoding="utf-8") as output:
        |                output.write(render_error("Table became empty after filtering."))
        |        else:
-       |            fig = $plotFunc(table, x="$timeColumn", y="$valueColumn"$colorArg$facetArg)
+       |            fig = $plotFunc(table, x=$timeLit, y=$valueLit$colorArg$facetArg)
        |            if $showSlider:
        |                fig.update_xaxes(rangeslider_visible=True)
        |            fig.update_layout(
        |                margin=dict(l=0, r=0, t=30, b=0),
        |                title=dict(text="Time Series Plot", x=0.5),
-       |                xaxis_title="$timeColumn",
-       |                yaxis_title="$valueColumn",
+       |                xaxis_title=$timeLit,
+       |                yaxis_title=$valueLit,
        |                template="plotly_white"
        |            )
        |            fig.write_json("output.json")

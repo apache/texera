@@ -28,6 +28,7 @@ import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 
 import javax.validation.constraints.NotNull
 
@@ -125,23 +126,27 @@ class StripChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeGener
   override def producesDataFrame(): Boolean = false
 
   override def generateStandaloneCode(): String = {
-    val colorByParam = if (colorBy != null && colorBy.nonEmpty) s""", color="$colorBy"""" else ""
+    val xLit = pyStringLiteral(x)
+    val yLit = pyStringLiteral(y)
+    val colorByLit = pyStringLiteral(colorBy)
+    val facetColumnLit = pyStringLiteral(facetColumn)
+    val colorByParam = if (colorBy != null && colorBy.nonEmpty) s""", color=$colorByLit""" else ""
     val facetColParam =
-      if (facetColumn != null && facetColumn.nonEmpty) s""", facet_col="$facetColumn"""" else ""
+      if (facetColumn != null && facetColumn.nonEmpty) s""", facet_col=$facetColumnLit""" else ""
     s"""data = {
-       |    "$x": in1df["$x"],
-       |    "$y": in1df["$y"]
+       |    $xLit: in1df[$xLit],
+       |    $yLit: in1df[$yLit]
        |}
-       |if "$colorBy":
-       |    data["$colorBy"] = in1df["$colorBy"]
-       |if "$facetColumn":
-       |    data["$facetColumn"] = in1df["$facetColumn"]
+       |if $colorByLit:
+       |    data[$colorByLit] = in1df[$colorByLit]
+       |if $facetColumnLit:
+       |    data[$facetColumnLit] = in1df[$facetColumnLit]
        |
-       |fig = px.strip(data, x="$x", y="$y"$colorByParam$facetColParam)
+       |fig = px.strip(data, x=$xLit, y=$yLit$colorByParam$facetColParam)
        |fig.update_traces(marker=dict(size=8, line=dict(width=0.5, color='DarkSlateGrey')))
        |fig.update_layout(
-       |    xaxis_title="$x",
-       |    yaxis_title="$y",
+       |    xaxis_title=$xLit,
+       |    yaxis_title=$yLit,
        |    hovermode='closest'
        |)
        |fig.write_json("output.json")

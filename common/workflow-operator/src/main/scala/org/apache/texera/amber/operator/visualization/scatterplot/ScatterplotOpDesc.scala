@@ -29,6 +29,7 @@ import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCod
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 
 import javax.validation.constraints.NotNull
 
@@ -181,17 +182,17 @@ class ScatterplotOpDesc extends PythonOperatorDescriptor with StandaloneCodeGene
   override def generateStandaloneCode(): String = {
     val dropCols = List(xColumn, yColumn, colorColumn)
       .filter(_.nonEmpty)
-      .map(c => "\"" + c + "\"")
+      .map(pyStringLiteral)
       .mkString("[", ", ", "]")
     val args = scala.collection.mutable.ArrayBuffer[String](
-      s"""x="$xColumn"""",
-      s"""y="$yColumn"""",
+      s"""x=${pyStringLiteral(xColumn)}""",
+      s"""y=${pyStringLiteral(yColumn)}""",
       s"opacity=$alpha"
     )
-    if (colorColumn.nonEmpty) args += s"""color="$colorColumn""""
+    if (colorColumn.nonEmpty) args += s"""color=${pyStringLiteral(colorColumn)}"""
     if (xLogScale) args += "log_x=True"
     if (yLogScale) args += "log_y=True"
-    if (hoverName.nonEmpty) args += s"""hover_name="$hoverName""""
+    if (hoverName.nonEmpty) args += s"""hover_name=${pyStringLiteral(hoverName)}"""
 
     s"""def render_error(error_msg):
        |    return '''<h1>Scatter Plot is not available.</h1>

@@ -29,6 +29,7 @@ import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCod
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 
 import javax.validation.constraints.NotNull
 
@@ -162,6 +163,10 @@ class QuiverPlotOpDesc extends PythonOperatorDescriptor with StandaloneCodeGener
   override def producesDataFrame(): Boolean = false
 
   override def generateStandaloneCode(): String = {
+    val xLit = pyStringLiteral(x)
+    val yLit = pyStringLiteral(y)
+    val uLit = pyStringLiteral(u)
+    val vLit = pyStringLiteral(v)
     s"""import plotly.figure_factory as ff
        |import numpy as np
        |
@@ -175,7 +180,7 @@ class QuiverPlotOpDesc extends PythonOperatorDescriptor with StandaloneCodeGener
        |        output.write(render_error("Input table is empty."))
        |else:
        |    table = in1df
-       |    required_columns = {"$x", "$y", "$u", "$v"}
+       |    required_columns = {$xLit, $yLit, $uLit, $vLit}
        |    if not required_columns.issubset(table.columns):
        |        with open("output.html", "w", encoding="utf-8") as output:
        |            output.write(render_error(f"Input table must contain columns: {', '.join(required_columns)}"))
@@ -189,8 +194,8 @@ class QuiverPlotOpDesc extends PythonOperatorDescriptor with StandaloneCodeGener
        |        else:
        |            try:
        |                fig = ff.create_quiver(
-       |                    table["$x"], table["$y"],
-       |                    table["$u"], table["$v"],
+       |                    table[$xLit], table[$yLit],
+       |                    table[$uLit], table[$vLit],
        |                    scale=0.1
        |                )
        |                fig.write_json("output.json")

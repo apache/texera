@@ -28,6 +28,7 @@ import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentit
 import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 
 class SklearnLinearRegressionOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
 
@@ -90,27 +91,29 @@ class SklearnLinearRegressionOpDesc extends PythonOperatorDescriptor with Standa
     )
   }
 
-  override def generateStandaloneCode(): String =
+  override def generateStandaloneCode(): String = {
+    val targetLit = pyStringLiteral(target)
     s"""from sklearn.metrics import mean_absolute_error, r2_score
        |from sklearn.pipeline import make_pipeline
        |from sklearn.linear_model import LinearRegression
        |from sklearn.preprocessing import PolynomialFeatures
        |import pandas as pd
        |
-       |Y_train = in1df["$target"]
-       |X_train = in1df.drop("$target", axis=1)
+       |Y_train = in1df[$targetLit]
+       |X_train = in1df.drop($targetLit, axis=1)
        |pipeline = make_pipeline(
        |    PolynomialFeatures(degree=$degree),
        |    LinearRegression()
        |)
        |model = pipeline.fit(X_train, Y_train)
        |
-       |Y_test = in2df["$target"]
-       |X_test = in2df.drop("$target", axis=1)
+       |Y_test = in2df[$targetLit]
+       |X_test = in2df.drop($targetLit, axis=1)
        |predictions = model.predict(X_test)
        |mae = round(mean_absolute_error(Y_test, predictions), 4)
        |r2 = round(r2_score(Y_test, predictions), 4)
        |print("MAE:", mae, ", R2:", r2)
        |out1df = pd.DataFrame([{"model_name": "LinearRegression", "model": model}])""".stripMargin
+  }
 
 }
