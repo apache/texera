@@ -93,6 +93,13 @@ class MainLoop(StoppableQueueBlockingRunnable):
         # same iteration's state arrives once per branch. Workers are recreated
         # on each region re-execution, so this instance flag is per iteration.
         self._loop_state_consumed: bool = False
+        # Whether this LoopEnd forwarded an UNstamped counter-0 state instead
+        # of consuming it. Paired with _loop_state_consumed by
+        # _check_loop_state_arrived: forwarding one and never taking a stamped
+        # one means the loop's own state reached here with its stamp lost.
+        # _loop_state_consumed is the stamped-only marker BECAUSE the unstamped
+        # branch in _process_state_frame returns before setting it.
+        self._forwarded_unstamped_state: bool = False
 
         self.context = Context(worker_id, input_queue)
         self._async_rpc_server = AsyncRPCServer(output_queue, context=self.context)
@@ -126,6 +133,42 @@ class MainLoop(StoppableQueueBlockingRunnable):
         # loop_counter == 0, so the next iteration's input starts at depth 0.
         writer.put_one(executor.state.to_tuple(0))
         writer.close()
+
+    def _check_loop_state_arrived(self) -> None:
+        # Keep the LOUD failure for a real loop state that lost its stamp
+        # upstream. Forwarding unstamped states (above) is right for a body
+        # operator's own boundary state, but it also swallows the symptom of
+        # the bug class #6660/#6661 fixed: a hop that blanks the envelope makes
+        # the loop's own state arrive unstamped, and forwarding it leaves
+        # _loop_table None, so condition() returns False and the loop stops
+        # after one iteration -- a WRONG RESULT reported as success.
+        #
+        # The two cases are told apart once the input port is done rather than
+        # on arrival: a LoopEnd that forwarded an unstamped state and never
+        # took a stamped one cannot have been looking at a body operator's
+        # boundary state -- its own state never arrived. Deciding at EndChannel
+        # is order-independent (the body operator's state may arrive before or
+        # after the loop's; EndChannel is PORT_ALIGNMENT, so every channel on
+        # the port has been drained) and reads nothing out of the State, so it
+        # keeps working once the input table stops riding inside it (#6971).
+        #
+        # Called from _process_end_channel, NOT complete(): complete() runs
+        # after port_completed has gone out for the input port and every output
+        # port, and region completion is port-based, so a raise there would be
+        # reported only once the coordinator already considers the region done.
+        #
+        # The check is deliberately narrow -- "forwarded an unstamped state AND
+        # never took a stamped one", not "never took a stamped one". A LoopEnd
+        # completing without any matching state is legal (see
+        # LoopEndOperator.eval_condition's _loop_table guard); only positive
+        # evidence that a boundary state arrived unstamped is a lost envelope.
+        if self._forwarded_unstamped_state and not self._loop_state_consumed:
+            raise RuntimeError(
+                "Loop End received a loop-boundary state with no LoopStart "
+                "stamp and never received its own (stamped) loop state: the "
+                "loop envelope was lost upstream, so this loop would silently "
+                "stop after one iteration"
+            )
 
     def complete(self) -> None:
         """
@@ -375,6 +418,21 @@ class MainLoop(StoppableQueueBlockingRunnable):
             # by the outer LoopStart's id stamped on the envelope (a first-entry
             # state has no stamp): step one level deeper and forward, keeping
             # the outer loop's id.
+            #
+            # The UNstamped case deliberately does NOT mirror the Loop End
+            # branch below: it falls through to the operator, whose
+            # process_state MERGES the incoming keys into the loop variables.
+            # That asymmetry is forced, not an oversight. The back-edge writes
+            # the next iteration's variables to this LoopStart's own input-port
+            # state URI with the very same "no loop" envelope
+            # (_jump_to_loop_start -> State.to_tuple(0)), so an unstamped
+            # counter-0 frame here is indistinguishable from -- and normally
+            # IS -- the loop's own state. A LoopEnd may forward instead of
+            # consuming because its inbound loop state is always stamped by the
+            # matching LoopStart; a LoopStart has no such signal. Consequence
+            # of the merge: an upstream or body operator emitting a key that
+            # collides with a loop variable overwrites it, and one emitting
+            # `table` trips _reserved_name_error in produce_state_on_finish.
             self._emit_and_save_state(state, in_counter + 1, frame.loop_start_id)
             self._check_and_process_control()
             return
@@ -390,7 +448,8 @@ class MainLoop(StoppableQueueBlockingRunnable):
                 # Forward it downstream unchanged, skipping the operator, like
                 # any default pass-through: consuming it would clobber the
                 # captured back-jump id with "" and hand run_update a State
-                # with no `table` payload (#discussion_r3648708075).
+                # with no `table` payload.
+                self._forwarded_unstamped_state = True
                 self._emit_and_save_state(state, in_counter, frame.loop_start_id)
                 self._check_and_process_control()
                 return
@@ -426,6 +485,11 @@ class MainLoop(StoppableQueueBlockingRunnable):
 
     def _process_end_channel(self) -> None:
         self.process_input_state()
+        try:
+            self._check_loop_state_arrived()
+        except Exception as err:
+            self.context.report_exception(err)
+            self._check_exception()
         if self.context.exception_manager.has_exception():
             # A state-emission error was reported on the main loop thread (see
             # _emit_and_save_state). Hold the region: skip port_completed and

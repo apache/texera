@@ -44,8 +44,8 @@ import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.limit.LimitOpDesc
 import org.apache.texera.amber.operator.loop.{LoopEndOpDesc, LoopStartOpDesc}
 import org.apache.texera.amber.operator.sleep.SleepOpDesc
-import org.apache.texera.amber.operator.udf.python.PythonUDFOpDescV2
 import org.apache.texera.amber.operator.source.scan.text.TextInputSourceOpDesc
+import org.apache.texera.amber.operator.udf.python.PythonUDFOpDescV2
 import org.apache.texera.amber.tags.IntegrationTest
 import org.apache.texera.common.compiler.model.LogicalLink
 import org.scalatest.flatspec.AnyFlatSpecLike

@@ -42,12 +42,9 @@ trait StartChannelHandler {
     try {
       val outputState = dp.executor.produceStateOnStart(portId.id)
       if (outputState.isDefined) {
-        // Deliberate "no loop" envelope defaults (loopCounter = 0,
-        // loopStartId = ""): this is operator-ORIGINATED boundary state, not
-        // a forwarded loop state, so it carries no LoopStart stamp. The
-        // Python LoopEnd runtime keys on that missing stamp to pass such
-        // states through instead of consuming them (see
-        // main_loop._process_state_frame).
+        // Operator-ORIGINATED boundary state, so no LoopStart stamp
+        // (loopCounter = 0, loopStartId = ""); see
+        // `main_loop._process_state_frame` for how a Loop End treats it.
         dp.outputManager.emitState(outputState.get)
       }
     } catch safely {
