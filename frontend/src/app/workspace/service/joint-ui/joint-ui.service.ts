@@ -498,10 +498,10 @@ export class JointUIService {
    * Sets the operator's border stroke, returning early when it is already that
    * color. A same-value attr() write would not re-render (Backbone's Model.set
    * no-ops via _.isEqual), but attr() still deep-clones and deep-compares the
-   * whole attrs tree before reaching that check (~46us on our elements). On
-   * operator add the validation pass and the operator-add restore both request
-   * a border color for the same operator, so skipping the second call's
-   * clone/compare here is worth roughly 99% of its cost.
+   * whole attrs tree before reaching that check (~46us on our elements, down to
+   * ~0.6us when skipped). On operator add the validation pass and the
+   * operator-add restore both request a border color for the same operator, so
+   * skipping the second call's clone/compare here is worth roughly 99% of it.
    */
   private paintOperatorBorder(jointPaper: joint.dia.Paper, operatorID: string, color: string): void {
     const model = jointPaper.getModelById(operatorID);
