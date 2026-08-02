@@ -418,24 +418,26 @@ class MainLoop(StoppableQueueBlockingRunnable):
             # by the outer LoopStart's id stamped on the envelope (a first-entry
             # state has no stamp): step one level deeper and forward, keeping
             # the outer loop's id.
-            #
-            # The UNstamped case deliberately does NOT mirror the Loop End
-            # branch below: it falls through to the operator, whose
-            # process_state MERGES the incoming keys into the loop variables.
-            # That asymmetry is forced, not an oversight. The back-edge writes
-            # the next iteration's variables to this LoopStart's own input-port
-            # state URI with the very same "no loop" envelope
-            # (_jump_to_loop_start -> State.to_tuple(0)), so an unstamped
-            # counter-0 frame here is indistinguishable from -- and normally
-            # IS -- the loop's own state. A LoopEnd may forward instead of
-            # consuming because its inbound loop state is always stamped by the
-            # matching LoopStart; a LoopStart has no such signal. Consequence
-            # of the merge: an upstream or body operator emitting a key that
-            # collides with a loop variable overwrites it, and one emitting
-            # `table` trips _reserved_name_error in produce_state_on_finish.
             self._emit_and_save_state(state, in_counter + 1, frame.loop_start_id)
             self._check_and_process_control()
             return
+
+        # A LoopStart handles only the STAMPED case above. An UNstamped
+        # counter-0 state at a LoopStart takes neither branch: it falls all the
+        # way through to process_input_state at the bottom, and the operator's
+        # process_state MERGES its keys into the loop variables. That is the
+        # opposite of what the LoopEnd branch below does with the identical
+        # frame, and the asymmetry is forced, not an oversight. The back-edge
+        # writes the next iteration's variables to the LoopStart's own
+        # input-port state URI with that very same "no loop" envelope
+        # (_jump_to_loop_start -> State.to_tuple(0)), so an unstamped counter-0
+        # frame at a LoopStart is indistinguishable from -- and normally IS --
+        # the loop's own state. A LoopEnd may forward instead of consuming
+        # because its inbound loop state is always stamped by the matching
+        # LoopStart; a LoopStart has no such signal. Consequence of the merge:
+        # an upstream or body operator emitting a key that collides with a loop
+        # variable overwrites it, and one emitting `table` trips
+        # _reserved_name_error in produce_state_on_finish (see #7248).
 
         if isinstance(executor, LoopEndOperator):
             if not frame.loop_start_id:
