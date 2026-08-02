@@ -137,7 +137,7 @@ object ConfigGenerator {
                     optionalScalarFills(opClass, baseNode, "", inputSchemas, rowCount) ++
                     extraRowFills(opClass, baseNode, inputSchemas, used, rowCount)
                 ),
-                merged("hostileText", hostileTextFills(opClass, baseNode, ""))
+                merged("hostileText", numbered(hostileTextFills(opClass, baseNode, "")))
               ).flatten
               val optional = fills.map { fill =>
                 val clone = baseNode.deepCopy()
@@ -346,6 +346,35 @@ object ConfigGenerator {
       !patternAccepts(f, HostileString) || declaredRange(f) != Bounds(None, None)
     ) None
     else Some((childPath, objectMapper.getNodeFactory.textNode(HostileString)))
+
+  /** Number the knobs of the hostile variant so no two carry the same text: the first
+    * keeps [[HostileString]], the n-th reads `a"b2`, `a"b3`, … Every one still holds
+    * the quote, so the escaping this variant exists for is unchanged.
+    *
+    * Needed because the knobs land in ONE variant (see [[merged]]). Where they are the
+    * names of columns the operator CREATES, one shared value asks for several columns
+    * of the same name and the schema rejects the config outright — the run then fails
+    * on something this generator invented rather than on a divergence. Numbering also
+    * says which knob a surviving value came from.
+    *
+    * Applied here rather than inside [[hostileTextFills]] because that walk recurses
+    * into nested rows, and the count has to span the whole variant, not restart per
+    * row the way [[rowFills]]'s ordinal does.
+    */
+  private def numbered(fills: Seq[Fills]): Seq[Fills] = {
+    var n = 0
+    fills.map(f =>
+      Fills(
+        f.label,
+        f.at.map {
+          case (pointer, _) =>
+            n += 1
+            val text = if (n == 1) HostileString else s"$HostileString$n"
+            (pointer, objectMapper.getNodeFactory.textNode(text))
+        }
+      )
+    )
+  }
 
   /** Whether a field's declared `pattern` accepts `value` — the field's own answer to
     * "can this be typed here", so the declaration decides rather than this generator.
