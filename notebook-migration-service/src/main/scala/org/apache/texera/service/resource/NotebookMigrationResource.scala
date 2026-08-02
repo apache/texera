@@ -17,7 +17,7 @@
 
 package org.apache.texera.service.resource
 
-import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.typesafe.scalalogging.LazyLogging
 import io.dropwizard.auth.Auth
@@ -48,6 +48,30 @@ object NotebookMigrationResource extends LazyLogging {
   // rather than raw-interpolated.
   private def successUrlJson(url: String): String =
     mapper.writeValueAsString(mapper.createObjectNode().put("success", true).put("url", url))
+
+  // Build a {"success": true, "deleted": <count>} body via the mapper. The count lets the
+  // caller distinguish a real deletion (1) from a no-op when nothing was stored (0).
+  private def successDeletedJson(deleted: Int): String =
+    mapper.writeValueAsString(
+      mapper.createObjectNode().put("success", true).put("deleted", deleted)
+    )
+
+  // Read the required integer `wid` from a request body. Returns Left(400) when the field is
+  // missing or not an integer so the caller can short-circuit. Without this a missing wid NPEs
+  // into a 500 and a non-integer wid silently coerces to 0 via asInt().
+  private def readWid(json: JsonNode): Either[Response, java.lang.Integer] = {
+    val widNode = json.get("wid")
+    if (widNode == null || !widNode.isInt) {
+      Left(
+        Response
+          .status(Response.Status.BAD_REQUEST)
+          .entity(errorJson("Missing or invalid 'wid'"))
+          .build()
+      )
+    } else {
+      Right(widNode.asInt())
+    }
+  }
 
   private val jupyterUrl = StorageConfig.jupyterURL
   private val jupyterToken = StorageConfig.jupyterToken
@@ -223,7 +247,10 @@ object NotebookMigrationResource extends LazyLogging {
     try {
       val json = mapper.readTree(body)
 
-      val wid: java.lang.Integer = json.get("wid").asInt()
+      val wid: java.lang.Integer = readWid(json) match {
+        case Left(badRequest) => return badRequest
+        case Right(w)         => w
+      }
       val vid: java.lang.Integer = json.get("vid").asInt()
       val mappingNode = json.get("mapping")
       val notebookNode = json.get("notebook")
@@ -311,7 +338,10 @@ object NotebookMigrationResource extends LazyLogging {
     try {
       val json = mapper.readTree(body)
 
-      val wid: java.lang.Integer = json.get("wid").asInt()
+      val wid: java.lang.Integer = readWid(json) match {
+        case Left(badRequest) => return badRequest
+        case Right(w)         => w
+      }
       val vid: java.lang.Integer = json.get("vid").asInt()
 
       // Only a user with write access to the workflow may fetch its notebook.
@@ -374,6 +404,49 @@ object NotebookMigrationResource extends LazyLogging {
           .build()
     }
   }
+
+  // Delete notebook + mapping for a workflow. The notebook -> workflow_notebook_mapping FK is
+  // ON DELETE CASCADE, so deleting the notebook row removes its mapping rows too. notebook.wid
+  // is UNIQUE (one notebook per workflow), so wid alone identifies the row and vid is not needed.
+  def deleteNotebookAndMapping(body: String, uid: java.lang.Integer): Response = {
+    try {
+      val json = mapper.readTree(body)
+
+      val wid: java.lang.Integer = readWid(json) match {
+        case Left(badRequest) => return badRequest
+        case Right(w)         => w
+      }
+
+      // Only a user with write access to the workflow may delete its notebook.
+      if (!WorkflowAccessResource.hasWriteAccess(wid, uid)) {
+        return Response
+          .status(Response.Status.FORBIDDEN)
+          .entity(errorJson(s"No write access to workflow $wid"))
+          .build()
+      }
+
+      val dsl = SqlServer.getInstance().createDSLContext()
+
+      // execute() returns the affected row count: 1 when a notebook was removed, 0 when the
+      // workflow had nothing stored (idempotent no-op).
+      val deleted: Int = SqlServer.withTransaction(dsl) { ctx =>
+        ctx
+          .deleteFrom(Notebook.NOTEBOOK)
+          .where(Notebook.NOTEBOOK.WID.eq(wid))
+          .execute()
+      }
+
+      Response.ok(successDeletedJson(deleted)).build()
+
+    } catch {
+      case NonFatal(e) =>
+        logger.error("Error deleting notebook and mapping", e)
+        Response
+          .status(Response.Status.INTERNAL_SERVER_ERROR)
+          .entity(errorJson(e.getMessage))
+          .build()
+    }
+  }
 }
 
 @Path("/notebook-migration")
@@ -415,5 +488,12 @@ class NotebookMigrationResource extends LazyLogging {
   def fetchNotebookAndMapping(body: String, @Auth user: SessionUser): Response = {
     logger.info("Fetching notebook and mapping")
     NotebookMigrationResource.fetchNotebookAndMapping(body, user.getUid)
+  }
+
+  @POST
+  @Path("/delete-notebook-and-mapping")
+  def deleteNotebookAndMapping(body: String, @Auth user: SessionUser): Response = {
+    logger.info("Deleting notebook and mapping")
+    NotebookMigrationResource.deleteNotebookAndMapping(body, user.getUid)
   }
 }

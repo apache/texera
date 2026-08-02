@@ -19,6 +19,11 @@
 
 package org.apache.texera.amber.operator.visualization.ecdfPlot
 
+import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
+import org.apache.texera.amber.core.workflow.PortIdentity
+import org.apache.texera.amber.operator.LogicalOp
+import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
+import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -96,5 +101,198 @@ class ECDFPlotOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matchers {
 
     val code = opDesc.generatePythonCode()
     assert(carries(code, "ecdf_value_col"))
+  }
+
+  // --- helpers for the argument-shape assertions -----------------------------
+
+  // Every column name spliced into the emitted Python becomes a decode site, so
+  // counting them on one line tells us how many columns that line references.
+  private val decodeSite = "self.decode_python_template"
+
+  private def decodeSiteCount(s: String): Int =
+    s.split(java.util.regex.Pattern.quote(decodeSite), -1).length - 1
+
+  private def lineContaining(code: String, marker: String): String =
+    code.linesIterator
+      .find(_.contains(marker))
+      .getOrElse(fail(s"no line containing '$marker' in:\n$code"))
+
+  // --- operator metadata ------------------------------------------------------
+
+  "ECDFPlotOpDesc.operatorInfo" should
+    "advertise the visualization name, group, and a 1-in/1-out shape" in {
+    val info = opDesc.operatorInfo
+    info.userFriendlyName shouldBe "Empirical Cumulative Distribution Plot"
+    info.operatorDescription shouldBe
+      "Visualize the empirical cumulative distribution of a numeric column."
+    info.operatorGroupName shouldBe OperatorGroupConstants.VISUALIZATION_STATISTICAL_GROUP
+    info.inputPorts should have length 1
+    info.outputPorts should have length 1
+  }
+
+  "ECDFPlotOpDesc.getOutputSchemas" should
+    "emit a single html-content STRING column keyed by the declared output port" in {
+    opDesc.valueColumn = "score"
+    val inputPort = opDesc.operatorInfo.inputPorts.head.id
+    val out = opDesc.getOutputSchemas(
+      Map(inputPort -> Schema().add("score", AttributeType.DOUBLE))
+    )
+
+    out.keySet shouldBe Set(opDesc.operatorInfo.outputPorts.head.id)
+    val schema = out(opDesc.operatorInfo.outputPorts.head.id)
+    schema.getAttributeNames should contain theSameElementsAs List("html-content")
+    schema.getAttribute("html-content").getType shouldBe AttributeType.STRING
+  }
+
+  it should "ignore the input schema entirely (the plot output shape is fixed)" in {
+    opDesc.valueColumn = "score"
+    val fromEmpty = opDesc.getOutputSchemas(Map.empty[PortIdentity, Schema])
+    val fromPopulated = opDesc.getOutputSchemas(
+      Map(PortIdentity(7) -> Schema().add("anything", AttributeType.INTEGER))
+    )
+    fromEmpty shouldBe fromPopulated
+  }
+
+  // --- createPlotlyFigure: the argument list it assembles ---------------------
+
+  "ECDFPlotOpDesc.createPlotlyFigure" should
+    "emit only the value column when every optional setting is left at its default" in {
+    opDesc.valueColumn = "score"
+    val call = lineContaining(opDesc.createPlotlyFigure().plain, "px.ecdf(")
+
+    decodeSiteCount(call) shouldBe 1
+    call should include(s"px.ecdf(table, x=$decodeSite")
+    call should not include "ecdfnorm"
+    call should not include ", y="
+    call should not include "color="
+    call should not include "facet_col="
+    call should not include "ecdfmode="
+    call should not include "orientation="
+    call should not include "markers=True"
+    call should not include "marginal="
+  }
+
+  it should "request a cumulative sum by turning off normalization and passing y" in {
+    opDesc.valueColumn = "score"
+    opDesc.yAxisMode = "sum"
+    val call = lineContaining(opDesc.createPlotlyFigure().plain, "px.ecdf(")
+
+    call should include("ecdfnorm=None")
+    call should include(s", y=$decodeSite")
+    // the value column is spliced twice: once as x, once as y
+    decodeSiteCount(call) shouldBe 2
+  }
+
+  it should "turn off normalization without a y argument for raw counts" in {
+    opDesc.valueColumn = "score"
+    opDesc.yAxisMode = "count"
+    val call = lineContaining(opDesc.createPlotlyFigure().plain, "px.ecdf(")
+
+    call should include("ecdfnorm=None")
+    call should not include ", y="
+    decodeSiteCount(call) shouldBe 1
+  }
+
+  it should "omit ecdfmode, orientation and marginal when they hold their default values" in {
+    opDesc.valueColumn = "score"
+    opDesc.cdfMode = "standard"
+    opDesc.orientation = "vertical"
+    opDesc.marginal = "none"
+    opDesc.showMarkers = false
+    val call = lineContaining(opDesc.createPlotlyFigure().plain, "px.ecdf(")
+
+    call should not include "ecdfmode="
+    call should not include "orientation="
+    call should not include "marginal="
+    call should not include "markers="
+  }
+
+  // --- manipulateTable: the dropna column list -------------------------------
+
+  "ECDFPlotOpDesc.manipulateTable" should
+    "require only the value column when no optional column is configured" in {
+    opDesc.valueColumn = "score"
+    val required = lineContaining(opDesc.manipulateTable().plain, "required_cols = [")
+
+    decodeSiteCount(required) shouldBe 1
+    assert(carries(required, "score"))
+  }
+
+  it should "require the color and separate-by columns too when they are configured" in {
+    opDesc.valueColumn = "score"
+    opDesc.colorColumn = "group"
+    opDesc.separateBy = "category"
+    val required = lineContaining(opDesc.manipulateTable().plain, "required_cols = [")
+
+    decodeSiteCount(required) shouldBe 3
+    assert(carries(required, "score"))
+    assert(carries(required, "group"))
+    assert(carries(required, "category"))
+  }
+
+  it should "coerce the value column to numeric and drop the rows that fail" in {
+    opDesc.valueColumn = "score"
+    val table = opDesc.manipulateTable().plain
+
+    table should include("pd.to_numeric(")
+    table should include("errors='coerce'")
+    table should include("inplace=True")
+  }
+
+  // --- generated code ---------------------------------------------------------
+
+  "ECDFPlotOpDesc.generatePythonCode" should
+    "wrap the figure in a table operator that guards both empty-table cases" in {
+    opDesc.valueColumn = "score"
+    val code = opDesc.generatePythonCode()
+
+    code should include("class ProcessTableOperator(UDFTableOperator)")
+    code should include("def process_table")
+    code should include("input table is empty.")
+    code should include("no valid rows left after removing missing or non-numeric values.")
+    code should include("plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False)")
+    code should include("yield {'html-content': html}")
+  }
+
+  // --- JSON round-trip --------------------------------------------------------
+
+  "ECDFPlotOpDesc" should "round-trip all of its config fields through the polymorphic base" in {
+    opDesc.valueColumn = "score"
+    opDesc.colorColumn = "group"
+    opDesc.separateBy = "category"
+    opDesc.yAxisMode = "sum"
+    opDesc.cdfMode = "complementary"
+    opDesc.orientation = "horizontal"
+    opDesc.showMarkers = true
+    opDesc.marginal = "rug"
+
+    val restored =
+      objectMapper.readValue(objectMapper.writeValueAsString(opDesc), classOf[LogicalOp])
+
+    restored shouldBe a[ECDFPlotOpDesc]
+    val d = restored.asInstanceOf[ECDFPlotOpDesc]
+    d.valueColumn shouldBe "score"
+    d.colorColumn shouldBe "group"
+    d.separateBy shouldBe "category"
+    d.yAxisMode shouldBe "sum"
+    d.cdfMode shouldBe "complementary"
+    d.orientation shouldBe "horizontal"
+    d.showMarkers shouldBe true
+    d.marginal shouldBe "rug"
+  }
+
+  it should "keep its documented defaults when deserialized from a minimal JSON payload" in {
+    val json =
+      """{"operatorType":"ECDFPlot","operatorID":"ECDFPlot-1","valueColumn":"score"}"""
+    val d = objectMapper.readValue(json, classOf[LogicalOp]).asInstanceOf[ECDFPlotOpDesc]
+
+    d.valueColumn shouldBe "score"
+    d.colorColumn shouldBe ""
+    d.separateBy shouldBe ""
+    d.yAxisMode shouldBe "probability"
+    d.cdfMode shouldBe "standard"
+    d.orientation shouldBe "vertical"
+    d.showMarkers shouldBe false
+    d.marginal shouldBe "none"
   }
 }

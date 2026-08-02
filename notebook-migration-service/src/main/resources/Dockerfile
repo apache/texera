@@ -17,8 +17,9 @@
 
 FROM jupyter/base-notebook:notebook-6.5.4
 
-# Copy custom JavaScript for Jupyter and the startup script
+# Copy custom JavaScript/CSS for Jupyter and the startup script
 COPY custom.js /home/jovyan/.jupyter/custom/custom.js
+COPY custom.css /home/jovyan/.jupyter/custom/custom.css
 COPY start-texera-jupyter.sh /usr/local/bin/start-texera-jupyter.sh
 
 # Ensure correct permissions. custom.js must stay writable by jovyan so the

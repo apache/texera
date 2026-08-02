@@ -42,6 +42,17 @@ if (!ajvInstance.getKeyword("enable-presets")) {
   ajvInstance.addKeyword({ keyword: "enable-presets", schemaType: "boolean" });
 }
 
+/**
+ * Regression coverage for PresetService: the dictionary-backed read/write of
+ * operator presets, the toast the user sees for each write, preset validation
+ * against the operator's 'enable-presets' schema, and the static schema helpers.
+ *
+ * Breakage this catches: losing the empty-list default so the very first preset
+ * saved for an operator type parses `null` and throws; routing a save/delete
+ * toast to the wrong NzMessageService severity, or dropping the caller's
+ * message so the user sees the generic default; and accepting an operator
+ * schema that has no `properties` at all instead of rejecting it.
+ */
 describe("PresetService", () => {
   let userConfigStub: {
     fetchKey: ReturnType<typeof vi.fn>;
@@ -163,6 +174,37 @@ describe("PresetService", () => {
       expect(messageStub.error).not.toHaveBeenCalled();
     });
 
+    it("routes an explicitly passed message to the NzMessageService method for its severity", () => {
+      const severities = ["error", "info", "success", "warning"] as const;
+
+      for (const severity of severities) {
+        presetService.savePresets(
+          presetType,
+          presetTarget,
+          [{ presetProperty: "v1" }],
+          `saved as ${severity}`,
+          severity
+        );
+      }
+
+      for (const severity of severities) {
+        // exactly one toast per severity: a mis-wired case would show up here as
+        // a missing call on one method and a doubled call on another.
+        expect(messageStub[severity]).toHaveBeenCalledTimes(1);
+        expect(messageStub[severity]).toHaveBeenCalledWith(`saved as ${severity}`);
+      }
+    });
+
+    it("deletePreset reports the caller's message as an error toast", () => {
+      userConfigStub.fetchKey.mockReturnValue(of(JSON.stringify([{ presetProperty: "v1" }, { presetProperty: "v2" }])));
+
+      // PresetWrapperComponent.deletePreset passes exactly this shape.
+      presetService.deletePreset(presetType, presetTarget, { presetProperty: "v1" }, "Deleted preset: v1", "error");
+
+      expect(messageStub.error).toHaveBeenCalledWith("Deleted preset: v1");
+      expect(messageStub.success).not.toHaveBeenCalled();
+    });
+
     it("createPreset appends to existing presets and writes back", () => {
       const existing: Preset[] = [{ presetProperty: "v1" }];
       userConfigStub.fetchKey.mockReturnValue(of(JSON.stringify(existing)));
@@ -173,6 +215,16 @@ describe("PresetService", () => {
         presetDictKey,
         JSON.stringify([{ presetProperty: "v1" }, { presetProperty: "v2" }])
       );
+    });
+
+    it("createPreset stores the first preset when the dictionary has no entry yet", () => {
+      // The very first save for an operator type: fetchKey resolves to null, and
+      // the missing entry has to read as an empty list rather than being parsed.
+      userConfigStub.fetchKey.mockReturnValue(of(null));
+
+      presetService.createPreset(presetType, presetTarget, { presetProperty: "v1" });
+
+      expect(userConfigStub.set).toHaveBeenCalledWith(presetDictKey, JSON.stringify([{ presetProperty: "v1" }]));
     });
 
     it("createPreset does not write the preset back when it already exists", async () => {
@@ -392,6 +444,14 @@ describe("PresetService", () => {
       expect(() =>
         PresetService.getOperatorPresetSchema(<CustomJSONSchema7>{ type: "object", properties: {} })
       ).toThrow();
+    });
+
+    it("getOperatorPresetSchema throws when the operator schema omits properties entirely", () => {
+      // Distinct from the empty-`properties` case above, which fails the later
+      // "no preset properties" check instead.
+      expect(() => PresetService.getOperatorPresetSchema(<CustomJSONSchema7>{ type: "object" })).toThrow(
+        /has no properties$/
+      );
     });
 
     it("getOperatorPresetSchema throws when no property is preset-enabled", () => {

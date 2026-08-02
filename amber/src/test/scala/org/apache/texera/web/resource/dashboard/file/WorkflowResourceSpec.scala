@@ -22,16 +22,22 @@ package org.apache.texera.web.resource.dashboard.file
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.dao.MockTexeraDB
 import org.apache.texera.dao.jooq.generated.Tables.{USER, WORKFLOW, WORKFLOW_OF_PROJECT}
-import org.apache.texera.dao.jooq.generated.enums.UserRoleEnum
-import org.apache.texera.dao.jooq.generated.tables.daos.UserDao
-import org.apache.texera.dao.jooq.generated.tables.pojos.{Project, User, Workflow}
+import org.apache.texera.dao.jooq.generated.enums.{PrivilegeEnum, UserRoleEnum}
+import org.apache.texera.dao.jooq.generated.tables.daos.{UserDao, WorkflowUserAccessDao}
+import org.apache.texera.dao.jooq.generated.tables.pojos.{
+  Project,
+  User,
+  Workflow,
+  WorkflowUserAccess
+}
 import org.apache.texera.web.resource.dashboard.DashboardResource.SearchQueryParams
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowResource.CoverImageRequest
 import org.apache.texera.web.resource.dashboard.user.project.ProjectResource
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowResource
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowResource.{
   DashboardWorkflow,
-  WorkflowIDs
+  WorkflowIDs,
+  WorkflowWithPrivilege
 }
 import org.apache.texera.web.resource.dashboard.{DashboardResource, FulltextSearchQueryUtils}
 import org.jooq.Condition
@@ -45,6 +51,9 @@ import java.time.{Duration, OffsetDateTime, ZoneOffset}
 import java.util
 import java.util.Collections
 import java.util.concurrent.TimeUnit
+import javax.ws.rs.ForbiddenException
+import scala.jdk.CollectionConverters._
+import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource
 
 class WorkflowResourceSpec
     extends AnyFlatSpec
@@ -60,6 +69,7 @@ class WorkflowResourceSpec
     val user = new User
     user.setUid(Integer.valueOf(1))
     user.setName("test_user")
+    user.setEmail("test_user@mail.com")
     user.setRole(UserRoleEnum.ADMIN)
     user.setPassword("123")
     user.setComment("test_comment")
@@ -71,6 +81,7 @@ class WorkflowResourceSpec
     val user = new User
     user.setUid(Integer.valueOf(2))
     user.setName("test_user2")
+    user.setEmail("test_user2@mail.com")
     user.setRole(UserRoleEnum.ADMIN)
     user.setPassword("123")
     user.setComment("test_comment2")
@@ -318,7 +329,7 @@ class WorkflowResourceSpec
     assert(ownerName == testUser.getName)
   }
 
-  "/search API " should "be able to search for workflows in different columns in Workflow table" in {
+  "/search API" should "be able to search for workflows in different columns in Workflow table" in {
     // testWorkflow1: {name: test_name, descrption: test_description, content: test_content}
     // search "test_name" or "test_description" or "test_content" should return testWorkflow1
     workflowResource.persistWorkflow(testWorkflow1, sessionUser1)
@@ -367,6 +378,57 @@ class WorkflowResourceSpec
     val DashboardWorkflowEntryList =
       dashboardResource.searchAllResourcesCall(sessionUser1, SearchQueryParams())
     assert(DashboardWorkflowEntryList.results.length == 2)
+  }
+
+  it should "return only single instance of workflow when owned and shared publicly" in {
+    // Create a public workflow
+    val publicWorkflow = new Workflow()
+    publicWorkflow.setName("public_workflow_1")
+    publicWorkflow.setDescription(testWorkflow1.getDescription)
+    publicWorkflow.setContent(testWorkflow1.getContent)
+    publicWorkflow.setIsPublic(true)
+
+    // Persist workflow with testUser as owner
+    workflowResource.persistWorkflow(publicWorkflow, sessionUser1)
+
+    val DashboardWorkflowEntryList =
+      dashboardResource.searchAllResourcesCall(
+        sessionUser1,
+        SearchQueryParams(),
+        includePublic = true
+      )
+    assert(DashboardWorkflowEntryList.results.length == 1)
+    assertSameWorkflow(publicWorkflow, DashboardWorkflowEntryList.results.head.workflow.get)
+  }
+
+  it should "return only single instance of workflow when publicly and explicitly shared" in {
+    // Create a public workflow
+    val publicWorkflow = new Workflow()
+    publicWorkflow.setName("public_workflow_2")
+    publicWorkflow.setDescription(testWorkflow1.getDescription)
+    publicWorkflow.setContent(testWorkflow1.getContent)
+    publicWorkflow.setIsPublic(true)
+
+    // Persist workflow with testUser as owner
+    val savedWorkflow = workflowResource.persistWorkflow(publicWorkflow, sessionUser1)
+
+    // Share workflow with read access to testUser2
+    val workflowAccessResource = new WorkflowAccessResource()
+    workflowAccessResource.grantAccess(
+      savedWorkflow.getWid,
+      testUser2.getEmail,
+      "READ",
+      sessionUser1
+    )
+
+    val DashboardWorkflowEntryList =
+      dashboardResource.searchAllResourcesCall(
+        sessionUser2,
+        SearchQueryParams(),
+        includePublic = true
+      )
+    assert(DashboardWorkflowEntryList.results.length == 1)
+    assertSameWorkflow(publicWorkflow, DashboardWorkflowEntryList.results.head.workflow.get)
   }
 
   it should "be able to search with arbitrary number of keywords in different combinations" in {
@@ -845,6 +907,142 @@ class WorkflowResourceSpec
 
     assert(result.workflow.getName == "test_create_workflow")
     assert(result.coverImage.isEmpty)
+  }
+
+  // ─── read/query and mutation endpoints (issue #7224) ────────────────────────
+
+  // Each test seeds its own workflow (createWorkflow mutates the pojo's wid, so a
+  // shared fixture cannot be re-created); afterEach deletes them.
+  private def seedWorkflow(
+      user: SessionUser,
+      name: String,
+      description: String = "desc",
+      content: String = "{}"
+  ): DashboardWorkflow = {
+    val workflow = new Workflow()
+    workflow.setName(name)
+    workflow.setDescription(description)
+    workflow.setContent(content)
+    workflowResource.createWorkflow(workflow, user)
+  }
+
+  "WorkflowResource.retrieveWorkflow" should "return the workflow for a user with access" in {
+    val wid = seedWorkflow(sessionUser1, "retrieve-me", "the-desc", "{\"a\":1}").workflow.getWid
+    val result: WorkflowWithPrivilege = workflowResource.retrieveWorkflow(wid, sessionUser1)
+    assert(result.wid == wid)
+    assert(result.name == "retrieve-me")
+    assert(result.description == "the-desc")
+    assert(!result.readonly) // the owner has write access
+  }
+
+  it should "throw ForbiddenException for a user without access" in {
+    val wid = seedWorkflow(sessionUser1, "no-access-wf").workflow.getWid
+    assertThrows[ForbiddenException](workflowResource.retrieveWorkflow(wid, sessionUser2))
+  }
+
+  "WorkflowResource.retrieveIDs" should "return the ids of the user's accessible workflows" in {
+    val wid = seedWorkflow(sessionUser1, "id-wf").workflow.getWid
+    assert(workflowResource.retrieveIDs(sessionUser1).asScala.contains(wid.toString))
+  }
+
+  "WorkflowResource.retrieveOwners" should "return the owner email of every accessible workflow" in {
+    assert(workflowResource.retrieveOwners(sessionUser2).isEmpty) // user2 has no access yet
+    val wid = seedWorkflow(sessionUser1, "owned-wf").workflow.getWid
+
+    // the owner sees itself as the owner
+    assert(workflowResource.retrieveOwners(sessionUser1).asScala.toList == List(testUser.getEmail))
+
+    // grant user2 read access -> user2 now sees user1 (the owner), not itself
+    new WorkflowUserAccessDao(getDSLContext.configuration())
+      .merge(new WorkflowUserAccess(testUser2.getUid, wid, PrivilegeEnum.READ))
+    assert(workflowResource.retrieveOwners(sessionUser2).asScala.toList == List(testUser.getEmail))
+  }
+
+  "WorkflowResource name/type/description/owner/size lookups" should "reflect the seeded workflow" in {
+    val content = "{\"nodes\":42}"
+    val wid = seedWorkflow(sessionUser1, "lookup-wf", "look-desc", content).workflow.getWid
+
+    assert(workflowResource.getWorkflowName(wid) == "lookup-wf")
+    assert(workflowResource.getWorkflowType(wid) == "Private") // not public by default
+    assert(workflowResource.getWorkflowDescription(wid) == "look-desc")
+    assert(workflowResource.getOwnerName(wid) == testUser.getName)
+
+    val sizes = workflowResource.getSize(java.util.List.of(wid))
+    assert(sizes.get(wid) == content.length)
+  }
+
+  "WorkflowResource.getSize" should "return an empty map for a null or empty id list" in {
+    assert(workflowResource.getSize(null).isEmpty)
+    assert(workflowResource.getSize(Collections.emptyList()).isEmpty)
+  }
+
+  "WorkflowResource.updateWorkflowName" should "rename the workflow" in {
+    val wid = seedWorkflow(sessionUser1, "before-name").workflow.getWid
+    val update = new Workflow()
+    update.setWid(wid)
+    update.setName("after-name")
+
+    workflowResource.updateWorkflowName(update, sessionUser1)
+    assert(workflowResource.getWorkflowName(wid) == "after-name")
+  }
+
+  "WorkflowResource.updateWorkflowDescription" should "update the description" in {
+    val wid = seedWorkflow(sessionUser1, "desc-wf", "old-desc").workflow.getWid
+    val update = new Workflow()
+    update.setWid(wid)
+    update.setDescription("new-desc")
+
+    workflowResource.updateWorkflowDescription(update, sessionUser1)
+    assert(workflowResource.getWorkflowDescription(wid) == "new-desc")
+  }
+
+  "WorkflowResource.makePublic / makePrivate" should "flip the public flag and publish/unpublish the workflow" in {
+    val wid = seedWorkflow(sessionUser1, "pub-wf").workflow.getWid
+    assert(workflowResource.getWorkflowType(wid) == "Private")
+
+    workflowResource.makePublic(wid, sessionUser1)
+    assert(workflowResource.getWorkflowType(wid) == "Public")
+    assert(workflowResource.retrievePublicWorkflow(wid).wid == wid)
+
+    workflowResource.makePrivate(wid, sessionUser1)
+    assert(workflowResource.getWorkflowType(wid) == "Private")
+  }
+
+  it should "reject a user without write access with ForbiddenException" in {
+    val wid = seedWorkflow(sessionUser1, "pub-forbidden").workflow.getWid
+    assertThrows[ForbiddenException](workflowResource.makePublic(wid, sessionUser2))
+  }
+
+  "WorkflowResource.searchWorkflowByOperator" should "return only workflows whose content contains the operator" in {
+    val wid = seedWorkflow(
+      sessionUser1,
+      "csv-wf",
+      "d",
+      "{\"operators\":[{\"operatorType\":\"CSVFileScan\"}]}"
+    ).workflow.getWid
+    seedWorkflow(sessionUser1, "filter-wf", "d", "{\"operators\":[{\"operatorType\":\"Filter\"}]}")
+
+    val hits = workflowResource.searchWorkflowByOperator("CSVFileScan", sessionUser1)
+    assert(hits == List(wid.toString))
+  }
+
+  "WorkflowResource.duplicateWorkflow" should "create a distinct copy owned by the user" in {
+    // duplicateWorkflow reassigns operator ids, so the content must have an operators array.
+    val wid = seedWorkflow(
+      sessionUser1,
+      "dup-src",
+      "d",
+      "{\"operators\":[{\"operatorID\":\"op1\",\"operatorType\":\"CSVFileScan\"}]}"
+    ).workflow.getWid
+
+    val copies = workflowResource.duplicateWorkflow(WorkflowIDs(List(wid), None), sessionUser1)
+
+    assert(copies.size == 1)
+    assert(copies.head.workflow.getName == "dup-src_copy")
+    assert(copies.head.workflow.getWid != wid) // a new workflow, not the original
+    val names =
+      workflowResource.retrieveWorkflowsBySessionUser(sessionUser1).map(_.workflow.getName)
+    assert(names.contains("dup-src") && names.contains("dup-src_copy"))
   }
 
 }

@@ -31,11 +31,11 @@ package org.apache.texera.amber.operator.huggingFace.codegen
   *    zero-shot-image-classification, image-text-to-text, image-to-image.
   *
   * Per-row `current_image_bytes` is resolved upstream in
-  * [[PythonCodegenBase]]'s `process_table` (either from the operator's
+  * [[HuggingFaceCodegenBase]]'s `process_table` (either from the operator's
   * uploaded image or from `INPUT_IMAGE_COLUMN`). The image helpers
   * (`_read_image_input`, `_compress_image_bytes`, `_image_input_as_base64`,
   * `_read_binary_value`, `_looks_like_html`, `_html_to_image_bytes`,
-  * `_extract_json_arg`) live in PythonCodegenBase alongside the per-task
+  * `_extract_json_arg`) live in HuggingFaceCodegenBase alongside the per-task
   * tuples (`image_only_tasks`, `image_prompt_tasks`, `image_tasks`).
   */
 object ImageTaskCodegen extends TaskCodegen {

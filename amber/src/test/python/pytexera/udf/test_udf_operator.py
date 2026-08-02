@@ -18,10 +18,12 @@
 import datetime
 from typing import Iterator, Optional
 
+import pandas
 import pytest
 import pytexera.udf.udf_operator as udf_operator
 
 from pytexera import AttributeType, Tuple, TupleLike, UDFOperatorV2
+from pytexera import UDFBatchOperator, UDFSourceOperator, UDFTableOperator
 from pytexera.udf.udf_operator import _UiParameterSupport
 
 
@@ -141,6 +143,45 @@ class SuperOpenConflictingParameterOperator(UDFOperatorV2):
 
     def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
         yield tuple_
+
+
+class InvalidValueParameterOperator(UDFOperatorV2):
+    def _texera_injected_ui_parameters(self):
+        return {"count": "not-a-number"}
+
+    def open(self):
+        self.count_parameter = self.UiParameter("count", AttributeType.INT)
+
+    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
+        yield tuple_
+
+
+class NoOpenParameterSupport(_UiParameterSupport):
+    """A _UiParameterSupport subclass that defines no open() hook.
+
+    __init_subclass__ has nothing to wrap here and must bail out instead
+    of installing a wrapper around a non-existent attribute.
+    """
+
+
+class BaseHookTupleOperator(UDFOperatorV2):
+    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
+        yield from super().process_tuple(tuple_, port)
+
+
+class BaseHookSourceOperator(UDFSourceOperator):
+    def produce(self):
+        yield from super().produce()
+
+
+class BaseHookTableOperator(UDFTableOperator):
+    def process_table(self, table, port: int):
+        yield from super().process_table(table, port)
+
+
+class BaseHookBatchOperator(UDFBatchOperator):
+    def process_batch(self, batch, port: int):
+        yield from super().process_batch(batch, port)
 
 
 class TestUiParameterSupport:
@@ -351,3 +392,111 @@ class TestUiParameterSupport:
             first_operator._ui_parameter_injected_values
             is not second_operator._ui_parameter_injected_values
         )
+
+    def test_subclass_without_open_is_left_unwrapped(self):
+        # Not every _UiParameterSupport subclass declares open(); the
+        # wrapper installation must be skipped rather than fabricating an
+        # open() attribute on such a class.
+        assert getattr(NoOpenParameterSupport, "open", None) is None
+
+        support = NoOpenParameterSupport()
+        parameter = support.UiParameter("absent", AttributeType.STRING)
+
+        # UiParameter still works: the state is lazily initialised, and an
+        # un-injected name resolves to None.
+        assert parameter.value is None
+        assert support._ui_parameter_injected_values == {}
+        assert support._ui_parameter_name_types == {"absent": AttributeType.STRING}
+
+    @pytest.mark.parametrize(
+        ("raw_value", "attr_type"),
+        [
+            ("not-a-number", AttributeType.INT),
+            ("not-a-number", AttributeType.LONG),
+            ("12.5.6", AttributeType.DOUBLE),
+            ("not-a-timestamp", AttributeType.TIMESTAMP),
+        ],
+    )
+    def test_parse_unparseable_value_raises_value_error(self, raw_value, attr_type):
+        with pytest.raises(ValueError) as exc_info:
+            _UiParameterSupport._parse(raw_value, attr_type)
+
+        message = str(exc_info.value)
+        assert f"Failed to parse UiParameter value {raw_value!r}" in message
+        assert f"as {attr_type.name}" in message
+        assert f"valid {attr_type.name.lower()} value" in message
+        # The underlying parser error is chained, not swallowed.
+        assert exc_info.value.__cause__ is not None
+
+    def test_unparseable_injected_value_fails_at_open(self):
+        operator = InvalidValueParameterOperator()
+
+        with pytest.raises(ValueError, match="Failed to parse UiParameter value"):
+            operator.open()
+
+    def test_wrapped_open_resets_the_in_progress_flag_after_a_failure(self):
+        # The flag is cleared in a finally block, so a second open() after
+        # a failing one must re-apply the injected values (rather than take
+        # the "already in progress" shortcut and skip injection).
+        operator = InvalidValueParameterOperator()
+        with pytest.raises(ValueError):
+            operator.open()
+
+        assert operator._ui_parameter_open_in_progress is False
+
+        with pytest.raises(ValueError):
+            operator.open()
+
+
+class TestBaseOperatorHooks:
+    """Every UDF base class ships a default generator body so a user
+    operator can call super() (or leave an optional hook alone) and simply
+    produce nothing. Each default must yield exactly one None, which the
+    runtime filters out -- returning a non-generator would break the
+    caller's `for ... in` loop instead.
+    """
+
+    def test_tuple_operator_defaults_yield_nothing_useful(self):
+        operator = BaseHookTupleOperator()
+
+        assert operator.open() is None
+        assert list(operator.process_tuple(Tuple({"x": 1}), 0)) == [None]
+        assert list(operator.on_finish(0)) == [None]
+        assert operator.close() is None
+
+    def test_source_operator_defaults_yield_nothing_useful(self):
+        operator = BaseHookSourceOperator()
+
+        assert operator.open() is None
+        assert list(operator.produce()) == [None]
+        assert operator.close() is None
+
+    def test_table_operator_defaults_yield_nothing_useful(self):
+        operator = BaseHookTableOperator()
+        table = pandas.DataFrame({"x": [1, 2]})
+
+        assert operator.open() is None
+        assert list(operator.process_table(table, 0)) == [None]
+        assert operator.close() is None
+
+    def test_batch_operator_defaults_yield_nothing_useful(self):
+        operator = BaseHookBatchOperator()
+        batch = pandas.DataFrame({"x": [1, 2]})
+
+        assert operator.open() is None
+        assert list(operator.process_batch(batch, 0)) == [None]
+        assert operator.close() is None
+
+    @pytest.mark.parametrize(
+        ("operator_class", "hook_name"),
+        [
+            (UDFOperatorV2, "process_tuple"),
+            (UDFSourceOperator, "produce"),
+            (UDFTableOperator, "process_table"),
+            (UDFBatchOperator, "process_batch"),
+        ],
+    )
+    def test_processing_hook_is_abstract(self, operator_class, hook_name):
+        # The default body exists for super() delegation only -- a user
+        # operator must still implement the hook.
+        assert hook_name in operator_class.__abstractmethods__
