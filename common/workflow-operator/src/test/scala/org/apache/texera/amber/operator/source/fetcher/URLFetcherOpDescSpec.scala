@@ -95,14 +95,23 @@ class URLFetcherOpDescSpec extends AnyFlatSpec with Matchers {
   "URLFetcherOpDesc.generateStandaloneCode" should
     "fetch the URL and decode the body as UTF-8 text" in {
     configured(DecodingMethod.UTF_8).generateStandaloneCode() shouldBe
-      """import urllib.request
+      """import http.client
+        |import urllib.request
         |_url = "https://example.test/data"
         |try:
         |    with urllib.request.urlopen(_url) as _resp:
         |        _content = _resp.read()
-        |except Exception:
+        |except (OSError, http.client.HTTPException):
         |    _content = f"Fetch failed for URL: {_url}".encode("utf-8")
         |out1df = pd.DataFrame({"URL content": [_content.decode("utf-8")]})""".stripMargin
+  }
+
+  // The executor guards only the fetch, so a value with no scheme stops it. `Exception`
+  // would swallow that too and hand back a row where the platform stopped.
+  it should "let a value that is not a URL through, not just fetch failures" in {
+    val code = configured(DecodingMethod.UTF_8).generateStandaloneCode()
+    code should include("except (OSError, http.client.HTTPException):")
+    code should not include "except Exception:"
   }
 
   it should "keep the raw bytes when decoding is not UTF-8" in {

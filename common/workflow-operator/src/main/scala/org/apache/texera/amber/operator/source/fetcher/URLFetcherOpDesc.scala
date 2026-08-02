@@ -107,12 +107,22 @@ class URLFetcherOpDesc extends SourceOperatorDescriptor with StandaloneCodeGener
     val isUtf8 = decodingMethod == DecodingMethod.UTF_8
     val valueExpr = if (isUtf8) """_content.decode("utf-8")""" else "_content"
     val buf = scala.collection.mutable.ArrayBuffer[String]()
+    buf += "import http.client"
     buf += "import urllib.request"
     buf += s"_url = $urlLiteral"
+    // Catch the fetch failures, not everything: the executor guards only the fetch, so
+    // a value with no scheme stops it, and `except Exception` here would swallow that
+    // and hand back a row instead. The two are told apart by type -- a fetch raises
+    // OSError (URLError, HTTPError, TimeoutError) or HTTPException on a malformed
+    // response, a missing scheme raises ValueError.
+    // Still divergent, and not fixable this way: a scheme that merely is not RECOGNISED
+    // ("htp://x") stops the executor but reaches Python as URLError, and the two
+    // languages do not recognise the same schemes anyway -- Java takes `mailto:`,
+    // urlopen does not -- so no list of schemes is right on both sides.
     buf += "try:"
     buf += "    with urllib.request.urlopen(_url) as _resp:"
     buf += "        _content = _resp.read()"
-    buf += "except Exception:"
+    buf += "except (OSError, http.client.HTTPException):"
     buf += """    _content = f"Fetch failed for URL: {_url}".encode("utf-8")"""
     buf += s"""out1df = pd.DataFrame({"URL content": [$valueExpr]})"""
     buf.mkString("\n")
