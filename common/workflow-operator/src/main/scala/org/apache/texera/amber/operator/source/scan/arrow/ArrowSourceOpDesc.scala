@@ -47,7 +47,17 @@ class ArrowSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerator {
   override def generateStandaloneCode(): String = {
     val rawPath = fileName.getOrElse("")
     val basename = Paths.get(new URI(rawPath).getPath).getFileName.toString
-    s"""out1df = pd.read_feather(${pyStringLiteral(basename)})"""
+    val read = s"""out1df = pd.read_feather(${pyStringLiteral(basename)})"""
+    // The executor drops `offset` rows and then takes `limit` of them. Feather has
+    // no row-range read, so the same window is taken once the frame is in memory.
+    val window = (offset, limit) match {
+      case (Some(o), Some(l)) => Some(s"$o:${o + l}")
+      case (Some(o), None)    => Some(s"$o:")
+      case (None, Some(l))    => Some(s":$l")
+      case _                  => None
+    }
+    (read +: window.map(w => s"out1df = out1df.iloc[$w].reset_index(drop=True)").toSeq)
+      .mkString("\n")
   }
 
   @throws[IOException]
