@@ -81,4 +81,17 @@ class JSONLScanSourceOpExecSpec extends AnyFlatSpec {
     val exec = new JSONLScanSourceOpExec(descString(uri, limit = Some(2)))
     assert(drain(exec).map(_.head) == Seq(0, 1))
   }
+
+  it should "start at the offset and keep every row after it" in {
+    val uri = writeJsonl("""{"v":0}""", """{"v":1}""", """{"v":2}""", """{"v":3}""", """{"v":4}""")
+    val exec = new JSONLScanSourceOpExec(descString(uri, offset = Some(2)))
+    assert(drain(exec).map(_.head) == Seq(2, 3, 4))
+  }
+
+  it should "apply the limit relative to the offset" in {
+    val uri = writeJsonl("""{"v":0}""", """{"v":1}""", """{"v":2}""", """{"v":3}""", """{"v":4}""")
+    // The window is shorter than the offset itself, which used to empty it out.
+    val exec = new JSONLScanSourceOpExec(descString(uri, limit = Some(2), offset = Some(2)))
+    assert(drain(exec).map(_.head) == Seq(2, 3))
+  }
 }
