@@ -30,6 +30,19 @@ import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, Operat
 
 import javax.validation.constraints.{NotBlank, NotNull}
 
+// type constraint: the time axis is an instant and the plotted value is a measurement.
+// Neither is enforced today: a non-time column is coerced with errors='coerce', so
+// every row becomes NaT and the dropna that follows reports an empty table without
+// naming the cause, and a text value column silently degenerates the y axis into a
+// categorical one.
+@JsonSchemaInject(json = """
+{
+  "attributeTypeRules": {
+    "timeColumn": { "enum": ["timestamp"] },
+    "valueColumn": { "enum": ["integer", "long", "double"] }
+  }
+}
+""")
 class TimeSeriesOpDesc extends PythonOperatorDescriptor {
 
   @JsonProperty(value = "timeColumn", required = true)
