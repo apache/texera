@@ -647,4 +647,15 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
     val outSchema = out(desc.operatorInfo.outputPorts.head.id)
     outSchema.getAttributeNames.contains("hf_response") shouldBe true
   }
+
+  it should "validate config with raise ValueError rather than assert (which python -O strips)" in {
+    val code = makeDesc().generatePythonCode()
+    // No `assert` in the generated script — asserts are removed under `python -O`,
+    // silently disabling the checks, and raise AssertionError rather than ValueError.
+    code should not include ("assert ")
+    // The pre-loop config checks now raise ValueError explicitly.
+    code should include("if prompt_col not in table.columns:")
+    code should include("if not (ctx_col and ctx_col in table.columns):")
+    code should include("if not (sent_col and sent_col in table.columns):")
+  }
 }
