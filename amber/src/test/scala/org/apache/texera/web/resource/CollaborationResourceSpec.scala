@@ -41,12 +41,12 @@ import java.util.concurrent.{Future => JFuture}
 import javax.websocket.{RemoteEndpoint, Session}
 import scala.collection.mutable.ArrayBuffer
 
-// Unit tests for CollaborationResource's session bookkeeping and message
-// fan-out. The only collaborator is the javax.websocket.Session interface, so
-// everything here runs in-process against mocks — no database, filesystem or
-// network. The two branches that reach WorkflowAccessResource.hasWriteAccess
-// (the read-only TryLockRequest rejection and the lock hand-off inside
-// myOnClose) need SqlServer and are deliberately left uncovered.
+// Unit tests for CollaborationResource's session bookkeeping, message fan-out
+// and lock-request handling. Most cases drive a mocked javax.websocket.Session
+// with no external collaborators; the TryLockRequest cases that reach
+// WorkflowAccessResource.hasWriteAccess additionally mix in MockTexeraDB and
+// seed a workflow_user_access row so the privilege check reads a real value.
+// The lock hand-off inside myOnClose still needs SqlServer and is left uncovered.
 class CollaborationResourceSpec
     extends AnyFlatSpec
     with Matchers
