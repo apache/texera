@@ -35,6 +35,7 @@ import org.apache.texera.amber.operator.filter.{
 }
 import org.apache.texera.amber.operator.hashJoin.{HashJoinOpDesc, JoinType}
 import org.apache.texera.amber.operator.keywordSearch.KeywordSearchOpDesc
+import org.apache.texera.amber.operator.projection.{AttributeUnit, ProjectionOpDesc}
 import org.apache.texera.amber.operator.regex.RegexOpDesc
 import org.apache.texera.amber.operator.sleep.SleepOpDesc
 import org.apache.texera.amber.operator.typecasting.{TypeCastingOpDesc, TypeCastingUnit}
@@ -195,6 +196,7 @@ object CuratedHandlers {
     AggregateTransformHandler,
     SpecializedFilterTransformHandler,
     DistinctTransformHandler,
+    ProjectionTransformHandler,
     HashJoinTransformHandler,
     TypeCastingTransformHandler,
     SleepTransformHandler,
@@ -448,6 +450,36 @@ object SpecializedFilterTransformHandler extends TransformHandler {
   * duplicates; survivors keep first-occurrence order (JVM LinkedHashSet ==
   * pandas drop_duplicates keep="first"), so the positional comparator holds.
   */
+/**
+  * Curated handler for [[ProjectionOpDesc]]. Its `attributes` list is not declared
+  * `required`, so the auto tier starts it empty the way the UI does — and
+  * `getPhysicalOp` refuses an empty list. Pinning one row is all this needs; the
+  * runner derives the rest of the variants from it.
+  */
+object ProjectionTransformHandler extends TransformHandler {
+  override val opDescClass: Class[_ <: LogicalOp] = classOf[ProjectionOpDesc]
+
+  override def fixture(testRoot: Path): (LogicalOp, Map[PortIdentity, Path]) = {
+    val columns = Seq(
+      ("id", AttributeType.INTEGER),
+      ("name", AttributeType.STRING),
+      ("score", AttributeType.DOUBLE)
+    )
+    val rows = Seq(
+      Seq[Any](1, "a", 1.5),
+      Seq[Any](2, "b", 2.5),
+      Seq[Any](3, "c", 3.5)
+    )
+    val inputPath =
+      CuratedHandlers.writeFixture(testRoot.resolve("input_port_0.jsonl"), columns, rows)
+    val op = new ProjectionOpDesc()
+    // A blank alias is the untouched state of the row the `+` button adds, and it is
+    // the branch where the operator keeps the original name.
+    op.attributes = List(new AttributeUnit("id", ""))
+    (op, Map(PortIdentity(0) -> inputPath))
+  }
+}
+
 object DistinctTransformHandler extends TransformHandler {
   override val opDescClass: Class[_ <: LogicalOp] = classOf[DistinctOpDesc]
 
