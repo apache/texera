@@ -39,10 +39,16 @@ class KeywordSearchOpDesc extends FilterOpDesc with StandaloneCodeGenerator {
   @AutofillAttributeName
   var attribute: String = _
 
+  // The value is a Lucene query, so the parser below decides what can be typed here.
+  // Its lexer needs double quotes in pairs — one on its own ends the query mid-token
+  // and `parse` throws, failing the operator rather than matching nothing. That is the
+  // one rule statable exactly: ^ ( ) [ ] { } and / also carry query syntax, but which
+  // uses of them parse depends on what follows, and a pattern strict enough to cover
+  // them would reject phrase and range queries that work.
   @JsonProperty(required = true)
   @JsonSchemaTitle("keywords")
   @JsonPropertyDescription("keywords")
-  @JsonSchemaInject(json = """{"minLength": 1}""")
+  @JsonSchemaInject(json = """{"minLength": 1, "pattern": "[^\"]*(?:\"[^\"]*\"[^\"]*)*"}""")
   var keyword: String = _
 
   @JsonProperty(required = true, defaultValue = "false")
