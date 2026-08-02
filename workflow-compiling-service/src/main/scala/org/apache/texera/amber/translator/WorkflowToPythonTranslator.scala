@@ -132,7 +132,8 @@ class WorkflowToPythonTranslator extends LazyLogging {
         .foreach {
           case (opId, portIdx) =>
             val varName = outputVar((opId, portIdx))
-            val displayName = logicalPlan.getOperator(OperatorIdentity(opId)).operatorInfo.userFriendlyName
+            val displayName =
+              logicalPlan.getOperator(OperatorIdentity(opId)).operatorInfo.userFriendlyName
             val portSuffix = if (outputVar.keys.count(_._1 == opId) > 1) s" port $portIdx" else ""
             script += s"""print("\\n[$displayName$portSuffix] $varName:")"""
             script += s"print($varName.head())"
