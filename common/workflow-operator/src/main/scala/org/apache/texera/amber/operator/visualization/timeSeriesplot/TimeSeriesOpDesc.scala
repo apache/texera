@@ -35,9 +35,7 @@ import javax.validation.constraints.{NotBlank, NotNull}
 {
   "attributeTypeRules": {
     "timeColumn": { "enum": ["timestamp"] },
-    "valueColumn": { "enum": ["integer", "long", "double"] },
-    "categoryColumn": { "enum": ["string"] },
-    "facetColumn": { "enum": ["string"] }
+    "valueColumn": { "enum": ["integer", "long", "double"] }
   }
 }
 """)
