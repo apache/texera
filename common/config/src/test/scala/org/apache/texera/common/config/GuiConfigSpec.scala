@@ -41,9 +41,6 @@ class GuiConfigSpec extends AnyFlatSpec with Matchers {
     ifUnset("GUI_WORKFLOW_WORKSPACE_EXPORT_EXECUTION_RESULT_ENABLED")(
       GuiConfig.guiWorkflowWorkspaceExportExecutionResultEnabled shouldBe false
     )
-    ifUnset("GUI_WORKFLOW_WORKSPACE_AUTO_ATTRIBUTE_CORRECTION_ENABLED")(
-      GuiConfig.guiWorkflowWorkspaceAutoAttributeCorrectionEnabled shouldBe true
-    )
     ifUnset("GUI_WORKFLOW_WORKSPACE_SELECTING_FILES_FROM_DATASETS_ENABLED")(
       GuiConfig.guiWorkflowWorkspaceSelectingFilesFromDatasetsEnabled shouldBe true
     )

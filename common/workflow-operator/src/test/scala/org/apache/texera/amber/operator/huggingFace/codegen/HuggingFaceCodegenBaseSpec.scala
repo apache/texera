@@ -23,7 +23,7 @@ import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-class PythonCodegenBaseSpec extends AnyFlatSpec with Matchers {
+class HuggingFaceCodegenBaseSpec extends AnyFlatSpec with Matchers {
 
   // A stand-in TaskCodegen whose payload/parse snippets are distinctive
   // sentinels. Because payloadPython/parsePython return plain Python source
@@ -59,8 +59,8 @@ class PythonCodegenBaseSpec extends AnyFlatSpec with Matchers {
       safeTemp = safeTemp
     )
 
-  "PythonCodegenBase.render" should "emit the ProcessTableOperator skeleton and shared helpers" in {
-    val out = PythonCodegenBase.render(makeCtx(), StubCodegen)
+  "HuggingFaceCodegenBase.render" should "emit the ProcessTableOperator skeleton and shared helpers" in {
+    val out = HuggingFaceCodegenBase.render(makeCtx(), StubCodegen)
     out should include("class ProcessTableOperator(UDFTableOperator):")
     out should include("def open(self):")
     out should include("def process_table(")
@@ -73,7 +73,7 @@ class PythonCodegenBaseSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "splice the per-task codegen's payload and parse snippets into the template" in {
-    val out = PythonCodegenBase.render(makeCtx(), StubCodegen)
+    val out = HuggingFaceCodegenBase.render(makeCtx(), StubCodegen)
     out should include("STUB_PAYLOAD_zX7q42")
     out should include("STUB_PARSE_zX7q42")
   }
@@ -82,8 +82,8 @@ class PythonCodegenBaseSpec extends AnyFlatSpec with Matchers {
     // The same context routed through two different codegens must yield the
     // spliced fragments of whichever codegen is passed, proving the base is a
     // pure host for the codegen's snippets.
-    val stub = PythonCodegenBase.render(makeCtx(), StubCodegen)
-    val real = PythonCodegenBase.render(makeCtx(), TextGenCodegen)
+    val stub = HuggingFaceCodegenBase.render(makeCtx(), StubCodegen)
+    val real = HuggingFaceCodegenBase.render(makeCtx(), TextGenCodegen)
     stub should include("STUB_PAYLOAD_zX7q42")
     real should not include "STUB_PAYLOAD_zX7q42"
     // TextGenCodegen's real payload/parse markers appear only in the real run.
@@ -96,13 +96,14 @@ class PythonCodegenBaseSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "interpolate the numeric context fields as raw Python literals" in {
-    val out = PythonCodegenBase.render(makeCtx(safeMaxTokens = 512, safeTemp = 0.9), StubCodegen)
+    val out =
+      HuggingFaceCodegenBase.render(makeCtx(safeMaxTokens = 512, safeTemp = 0.9), StubCodegen)
     out should include("self.MAX_NEW_TOKENS = 512")
     out should include("self.TEMPERATURE = 0.9")
   }
 
   it should "assign user-provided strings via runtime base64 decode expressions, not raw literals" in {
-    val out = PythonCodegenBase.render(makeCtx(), StubCodegen)
+    val out = HuggingFaceCodegenBase.render(makeCtx(), StubCodegen)
     // Every user-supplied string field open() assigns is set through the safe
     // decode helper. This covers all EncodableString context fields, including
     // the result/task and per-task (image/audio/context/labels/sentences)
@@ -125,7 +126,7 @@ class PythonCodegenBaseSpec extends AnyFlatSpec with Matchers {
   it should "never leak raw user-provided string values into the generated source" in {
     // Sentinels contain underscores, which base64 output cannot contain, so a
     // literal match here can only mean the raw value leaked past the encoder.
-    val out = PythonCodegenBase.render(
+    val out = HuggingFaceCodegenBase.render(
       makeCtx(
         hfApiToken = "MARKER_TOKEN_zXyq42",
         modelId = "MARKER_MODEL_zXyq42",
