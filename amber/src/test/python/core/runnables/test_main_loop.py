@@ -2584,6 +2584,47 @@ class TestMainLoop:
             _create,
         )
 
+    @pytest.mark.timeout(2)
+    def test_complete_flushes_prints_from_the_user_condition(
+        self, main_loop, monkeypatch
+    ):
+        # complete() flushes console messages on entry, before condition()
+        # runs, and then shuts the worker down -- so without a second flush a
+        # print() inside the user's condition would be captured and never sent.
+        class _PrintingLoopEnd(LoopEndOperator):
+            def condition(self):
+                print("hello from condition")
+                return False
+
+        executor = _PrintingLoopEnd()
+        main_loop.context.executor_manager.executor = executor
+
+        console_msgs = []
+        monkeypatch.setattr(
+            main_loop, "_send_console_message", lambda msg: console_msgs.append(msg)
+        )
+        monkeypatch.setattr(main_loop.data_processor, "stop", lambda: None)
+        monkeypatch.setattr(
+            main_loop.context.state_manager, "transit_to", lambda state: None
+        )
+        monkeypatch.setattr(main_loop.context, "close", lambda: None)
+
+        class _Coordinator:
+            def worker_execution_completed(self, request):
+                pass
+
+        monkeypatch.setattr(
+            main_loop._async_rpc_client, "coordinator_stub", lambda: _Coordinator()
+        )
+
+        main_loop.complete()
+
+        printed = [m for m in console_msgs if "hello from condition" in m.title]
+        assert printed, (
+            "a print() in the user's condition must reach the console before "
+            f"the worker completes; sent: {[m.title for m in console_msgs]}"
+        )
+
     def test_deferred_consume_captures_user_prints(self, main_loop, monkeypatch):
         # The `update` runs on the main loop thread, outside
         # DataProcessor._executor_session, so its print capture has to be

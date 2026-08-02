@@ -215,6 +215,10 @@ class MainLoop(StoppableQueueBlockingRunnable):
                 self.context.report_exception(err)
                 self._check_exception()
                 return
+            # The opening flush above happened before condition() ran, and the
+            # worker is about to shut down, so anything it printed would never
+            # be sent. (_check_exception flushes on the error path.)
+            self._check_and_report_console_messages(force_flush=True)
         executor.close()
         # stop the data processing thread
         self.data_processor.stop()
