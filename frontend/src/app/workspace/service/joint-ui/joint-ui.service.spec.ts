@@ -395,11 +395,10 @@ describe("JointUIService", () => {
         const { paper, attrSpy } = makePaperWithModel();
         const service = new JointUIService(emptyMetadataStub as never);
         service.changeOperatorState(paper, "op-1", state);
-        // The bundled attr payload is the first call; pluck the state class entry.
+        // The attr payload is an object keyed by selectors; pluck the state class entry.
         const [payload] = attrSpy.mock.calls[0];
         expect(payload[`.${operatorStateClass}`]).toEqual({ text: state.toString(), fill: color });
-        // The border stroke is written separately through the guarded setter.
-        expect(attrSpy).toHaveBeenCalledWith("rect.body/stroke", color);
+        expect(payload["rect.body"]).toEqual({ stroke: color });
       });
     });
   });

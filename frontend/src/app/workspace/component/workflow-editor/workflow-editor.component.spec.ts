@@ -914,7 +914,7 @@ describe("WorkflowEditorComponent", () => {
 
       it("paints the execution-state stroke (orange) for a valid operator with a cached Running status", () => {
         // Navigation-return with a mid-run operator: the border must be restored
-        // to the running color, not the default (see #5726 / #3614).
+        // to the running color, not the default (see #3614).
         vi.spyOn(workflowStatusService, "getCurrentStatus").mockReturnValue(cachedStatus(OperatorState.Running));
         vi.spyOn(validationWorkflowService, "validateOperator").mockReturnValue({ isValid: true });
 
