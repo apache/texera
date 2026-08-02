@@ -132,10 +132,15 @@ object ConfigGenerator {
               // it is set" case, exactly like a scalar going from unset to set.
               val fills = Seq(
                 merged(
-                  "optionals",
-                  optionalColumnFills(opClass, inputSchemas, used) ++
-                    optionalScalarFills(opClass, baseNode, "", inputSchemas, rowCount) ++
-                    extraRowFills(opClass, baseNode, inputSchemas, used, rowCount)
+                  "optionals", {
+                    // One counter for the whole variant: the existing rows and the row
+                    // appended below are filled by separate walks, and restarting per
+                    // walk gave two rows the same value.
+                    val ordinal = new Ordinal
+                    optionalColumnFills(opClass, inputSchemas, used) ++
+                      optionalScalarFills(opClass, baseNode, "", inputSchemas, rowCount, ordinal) ++
+                      extraRowFills(opClass, baseNode, inputSchemas, used, rowCount, ordinal)
+                  }
                 ),
                 merged("hostileText", numbered(hostileTextFills(opClass, baseNode, "")))
               ).flatten
@@ -228,7 +233,8 @@ object ConfigGenerator {
       baseNode: JsonNode,
       schemas: Map[Int, Schema],
       usedByBase: mutable.Set[(Int, String)],
-      rowCount: Int
+      rowCount: Int,
+      ordinal: Ordinal
   ): Seq[Fills] = {
     val used = mutable.Set.empty[(Int, String)] ++ usedByBase
     configFields(clazz).flatMap { f =>
@@ -243,7 +249,7 @@ object ConfigGenerator {
         // computed against the BASE config, where this row does not exist yet, so
         // otherwise the row arrives with every free-value knob at its default and a
         // step whose bounds are both empty is dropped by the operator.
-        rowFills(row, next, "", schemas, rowCount).foreach {
+        rowFills(row, next, "", schemas, rowCount, ordinal).foreach {
           case (pointer, value) => setAtPointer(next, pointer, value)
         }
         Fills(childPath, Seq((s"$childPath/${rows.size()}", next)))
@@ -286,7 +292,8 @@ object ConfigGenerator {
       baseNode: JsonNode,
       path: String,
       schemas: Map[Int, Schema],
-      rowCount: Int
+      rowCount: Int,
+      ordinal: Ordinal
   ): Seq[Fills] =
     configFields(clazz).flatMap { f =>
       val childPath = pointerOf(f, path)
@@ -295,7 +302,7 @@ object ConfigGenerator {
           // Recurse into containers whatever their own required-ness: an optional
           // knob often sits inside a required list of rows.
           rowPaths(f, baseNode.at(childPath), childPath).flatMap { rowPath =>
-            val fills = rowFills(row, baseNode, rowPath, schemas, rowCount)
+            val fills = rowFills(row, baseNode, rowPath, schemas, rowCount, ordinal)
             if (fills.isEmpty) None else Some(Fills(s"${rowPath.stripPrefix("/")}=filled", fills))
           }
         case None =>
@@ -394,35 +401,49 @@ object ConfigGenerator {
       case None    => true
     }
 
+  /** A running position shared by every row filled into one variant, so no two of
+    * those knobs are handed the same value. One counter rather than one per row:
+    * rows collide with each other as readily as knobs within a row do, and where the
+    * knob is an output column NAME — Projection's `alias` — two rows carrying the
+    * same one is a config the operator refuses outright.
+    */
+  private final class Ordinal {
+    private var n = 0
+
+    /** The position a knob would take. Advances only once one actually does, so a
+      * field that yields no fill leaves no gap in the numbering.
+      */
+    def peek: Int = n
+    def taken(): Unit = n += 1
+  }
+
   /** Every optional scalar knob under one nested row, as pointer → value.
     *
-    * The knobs of one row get DISTINCT values, ascending in declaration order: a row
-    * is often a pair that has to differ to mean anything — a step's start and end,
-    * where the operator drops the step unless `start < end` — and one shared value
-    * would collapse it. The first knob keeps the value it would have had on its own,
-    * so a single-knob row is unaffected.
+    * The knobs get DISTINCT values, ascending: a row is often a pair that has to
+    * differ to mean anything — a step's start and end, where the operator drops the
+    * step unless `start < end` — and one shared value would collapse it. The first
+    * knob keeps the value it would have had on its own, so a lone knob is unaffected.
     */
   private def rowFills(
       clazz: Class[_],
       baseNode: JsonNode,
       path: String,
       schemas: Map[Int, Schema],
-      rowCount: Int
-  ): Seq[(String, JsonNode)] = {
-    var ordinal = 0
+      rowCount: Int,
+      ordinal: Ordinal
+  ): Seq[(String, JsonNode)] =
     configFields(clazz).flatMap { f =>
       val childPath = pointerOf(f, path)
       rowType(f) match {
         case Some(row) =>
           rowPaths(f, baseNode.at(childPath), childPath)
-            .flatMap(rowPath => rowFills(row, baseNode, rowPath, schemas, rowCount))
+            .flatMap(rowPath => rowFills(row, baseNode, rowPath, schemas, rowCount, ordinal))
         case None =>
-          val fill = leafFill(f, baseNode, childPath, schemas, rowCount, ordinal)
-          if (fill.nonEmpty) ordinal += 1
+          val fill = leafFill(f, baseNode, childPath, schemas, rowCount, ordinal.peek)
+          if (fill.nonEmpty) ordinal.taken()
           fill.toSeq
       }
     }
-  }
 
   /** A field's JSON Pointer, under the pointer of the object that holds it. */
   private def pointerOf(f: Field, path: String): String = s"$path/${jsonNameOf(f)}"

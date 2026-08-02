@@ -39,6 +39,11 @@ class ProjectionOpDesc extends MapOpDesc with StandaloneCodeGenerator {
   @JsonPropertyDescription("check to drop the selected attributes")
   var isDrop: Boolean = false
 
+  // Declared required because it already is: `getPhysicalOp` refuses an empty list.
+  // Saying so puts the refusal in the form rather than at run time.
+  @JsonProperty(required = true)
+  @JsonSchemaTitle("Attributes")
+  @JsonPropertyDescription("the attributes to keep, or to drop when Drop Option is set")
   var attributes: List[AttributeUnit] = List()
 
   override def getPhysicalOp(
