@@ -87,6 +87,12 @@ class MainLoop(StoppableQueueBlockingRunnable):
         # LoopEnd (loop_counter == 0) takes a state; used for the jump RPC
         # and the setup-config URI lookup (context.loop_start_state_uris).
         self._loop_start_id: str = ""
+        # Whether this LoopEnd already consumed its loop state this execution.
+        # A loop body may branch and converge on the Loop End, and every reader
+        # on its input port replays that branch's states independently, so the
+        # same iteration's state arrives once per branch. Workers are recreated
+        # on each region re-execution, so this instance flag is per iteration.
+        self._loop_state_consumed: bool = False
 
         self.context = Context(worker_id, input_queue)
         self._async_rpc_server = AsyncRPCServer(output_queue, context=self.context)
@@ -388,9 +394,21 @@ class MainLoop(StoppableQueueBlockingRunnable):
                 self._emit_and_save_state(state, in_counter, frame.loop_start_id)
                 self._check_and_process_control()
                 return
-            # Matching LoopEnd (in_counter == 0, stamped): it will consume
-            # this state and jump back. Remember which LoopStart to jump to
-            # (it rides the envelope) for complete()/_jump_to_loop_start.
+            # Matching LoopEnd (in_counter == 0, stamped): it will consume this
+            # state and jump back. Remember which LoopStart to jump to (it
+            # rides the envelope) for complete()/_jump_to_loop_start.
+            #
+            # With a branching loop body, each branch's reader replays the same
+            # iteration's state, so this fires once per inbound link. Consume
+            # only the first: running the user's `update` again would advance
+            # the loop variables once per branch. The copies are identical --
+            # they are the same state emitted by the one matching LoopStart --
+            # so dropping them loses nothing (a consume emits nothing
+            # downstream either way).
+            if self._loop_state_consumed:
+                self._check_and_process_control()
+                return
+            self._loop_state_consumed = True
             self._loop_start_id = frame.loop_start_id
 
         self.context.state_processing_manager.current_input_state = state

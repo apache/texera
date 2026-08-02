@@ -46,7 +46,7 @@ import { DatasetStagedObject } from "../../../../../common/type/dataset-staged-o
 import { NzModalService } from "ng-zorro-antd/modal";
 import { AdminSettingsService } from "../../../../service/admin/settings/admin-settings.service";
 import { HttpErrorResponse, HttpStatusCode } from "@angular/common/http";
-import { Subscription } from "rxjs";
+import { EMPTY, Subscription } from "rxjs";
 import { formatCount, formatSpeed, formatTime, parseIntOrDefault } from "src/app/common/util/format.util";
 import { format } from "date-fns";
 import { NgIf, NgClass, NgFor } from "@angular/common";
@@ -64,6 +64,7 @@ import { MarkdownDescriptionComponent } from "../../markdown-description/markdow
 import { NzLayoutComponent, NzContentComponent, NzSiderComponent } from "ng-zorro-antd/layout";
 import { NzWaveDirective } from "ng-zorro-antd/core/wave";
 import { NzEmptyComponent } from "ng-zorro-antd/empty";
+import { NzTabsComponent, NzTabComponent } from "ng-zorro-antd/tabs";
 import { UserDatasetFileRendererComponent } from "./user-dataset-file-renderer/user-dataset-file-renderer.component";
 import { NzCollapseComponent, NzCollapsePanelComponent } from "ng-zorro-antd/collapse";
 import { NzSelectComponent, NzOptionComponent } from "ng-zorro-antd/select";
@@ -74,7 +75,6 @@ import { NzProgressComponent } from "ng-zorro-antd/progress";
 import { UserDatasetStagedObjectsListComponent } from "./user-dataset-staged-objects-list/user-dataset-staged-objects-list.component";
 import { NzInputDirective } from "ng-zorro-antd/input";
 import { CdkFixedSizeVirtualScroll, CdkVirtualForOf, CdkVirtualScrollViewport } from "@angular/cdk/scrolling";
-import { NzTabsComponent, NzTabComponent } from "ng-zorro-antd/tabs";
 
 export const THROTTLE_TIME_MS = 1000;
 export const ABORT_RETRY_MAX_ATTEMPTS = 10;
@@ -103,6 +103,8 @@ export const ABORT_RETRY_BACKOFF_BASE_MS = 100;
     NzContentComponent,
     NzWaveDirective,
     NzEmptyComponent,
+    NzTabsComponent,
+    NzTabComponent,
     UserDatasetFileRendererComponent,
     NzSiderComponent,
     NzResizableDirective,
@@ -121,8 +123,6 @@ export const ABORT_RETRY_BACKOFF_BASE_MS = 100;
     CdkVirtualScrollViewport,
     CdkFixedSizeVirtualScroll,
     CdkVirtualForOf,
-    NzTabsComponent,
-    NzTabComponent,
   ],
 })
 export class DatasetDetailComponent implements OnInit {
@@ -150,6 +150,14 @@ export class DatasetDetailComponent implements OnInit {
   public selectedVersion: DatasetVersion | undefined;
   public fileTreeNodeList: DatasetFileNode[] = [];
   public selectedVersionCreationTime: string = "";
+  // The following three fields describe the latest version for the Data Card, all
+  // sourced from the single retrieveDatasetLatestVersion response so they stay
+  // mutually consistent and independent of the version selected in Versions & Files.
+  public latestVersionCreationTime: string = "";
+  public latestVersionFileName: string = "";
+  public latestVersionSize: number | undefined;
+  // Holds the in-flight latest-version fetch so a later call can supersede it.
+  private latestVersionFileSubscription: Subscription | undefined;
 
   public versionCreatorBaseVersion: DatasetVersion | undefined;
   public isLogin: boolean = this.userService.isLogin();
@@ -241,6 +249,7 @@ export class DatasetDetailComponent implements OnInit {
           this.did = params["did"];
           this.retrieveDatasetInfo();
           this.retrieveDatasetVersionList();
+          this.retrieveLatestVersionFile();
           return this.route.data; // or some other observable
         }),
         untilDestroyed(this)
@@ -297,6 +306,7 @@ export class DatasetDetailComponent implements OnInit {
             this.unconfirmedStagedPaths.clear();
             this.refreshPendingChanges();
             this.retrieveDatasetVersionList();
+            this.retrieveLatestVersionFile();
             this.userMakeChanges.emit();
           },
           error: (res: unknown) => {
@@ -421,6 +431,43 @@ export class DatasetDetailComponent implements OnInit {
     }
   }
 
+  // Fetches the latest version independently of the current selection and derives
+  // the Data Card's latest-version facts from that single response: the file name
+  // and created date directly, and the total size via a follow-up file-tree fetch
+  // for the latest version's dvid (mirroring onVersionSelected's size lookup).
+  retrieveLatestVersionFile() {
+    if (this.did) {
+      const did = this.did;
+      // Both fetches live in one subscription (chained with switchMap rather than
+      // nested subscribes) so dropping it cancels whichever is still in flight:
+      // a call started here supersedes any earlier one, and a slow response from
+      // the superseded call can no longer overwrite fresher facts out of order.
+      this.latestVersionFileSubscription?.unsubscribe();
+      this.latestVersionFileSubscription = this.datasetService
+        .retrieveDatasetLatestVersion(did)
+        .pipe(
+          switchMap(version => {
+            const firstFile = this.getFirstFileNode(version.fileNodes ?? []);
+            this.latestVersionFileName = firstFile ? getFullPathFromDatasetFileNode(firstFile) : "";
+            this.latestVersionCreationTime =
+              typeof version.creationTime === "number"
+                ? format(new Date(version.creationTime), "MM/dd/yyyy HH:mm:ss")
+                : "";
+            if (!version.dvid) {
+              // Nothing to size: clear rather than keep a previous call's size.
+              this.latestVersionSize = undefined;
+              return EMPTY;
+            }
+            return this.datasetService.retrieveDatasetVersionFileTree(did, version.dvid, this.isLogin);
+          }),
+          untilDestroyed(this)
+        )
+        .subscribe(data => {
+          this.latestVersionSize = data.size;
+        });
+    }
+  }
+
   loadFileContent(node: DatasetFileNode) {
     this.currentDisplayedFileName = getFullPathFromDatasetFileNode(node);
     this.currentFileSize = node.size;
@@ -479,12 +526,21 @@ export class DatasetDetailComponent implements OnInit {
             const date = new Date(version.creationTime);
             this.selectedVersionCreationTime = format(date, "MM/dd/yyyy HH:mm:ss");
           }
-          let currentNode = this.fileTreeNodeList[0];
-          while (currentNode.type === "directory" && currentNode.children) {
-            currentNode = currentNode.children[0];
+          const currentNode = this.getFirstFileNode(this.fileTreeNodeList);
+          if (currentNode) {
+            this.loadFileContent(currentNode);
           }
-          this.loadFileContent(currentNode);
         });
+  }
+
+  // Walk from the first node into directories until reaching a file, returning a
+  // representative leaf file node (or undefined if the tree has no files).
+  private getFirstFileNode(nodes: DatasetFileNode[]): DatasetFileNode | undefined {
+    let currentNode: DatasetFileNode | undefined = nodes[0];
+    while (currentNode && currentNode.type === "directory" && currentNode.children) {
+      currentNode = currentNode.children[0];
+    }
+    return currentNode;
   }
 
   onVersionFileTreeNodeSelected(node: DatasetFileNode) {

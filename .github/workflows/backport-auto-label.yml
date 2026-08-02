@@ -284,9 +284,13 @@ jobs:
 
             // Only hand work to the report step when there is something to say;
             // a "none" outcome leaves the output unset so that step is skipped.
+            // The output is named `decisions`, not `result`: actions/github-script
+            // always writes the script's return value to an output called `result`
+            // after the body runs, which would clobber an explicit setOutput of the
+            // same name (this script returns nothing, so that would blank it out).
             const result = await decide();
             if (result.mode !== "none") {
-              core.setOutput("result", JSON.stringify(result));
+              core.setOutput("decisions", JSON.stringify(result));
             }
 
       # Report step: runs under the default GITHUB_TOKEN so the review request
@@ -294,10 +298,10 @@ jobs:
       # retrigger comment-/review-driven workflows. It only touches the PR when
       # the label step handed it something to say.
       - name: Report backport decisions
-        if: ${{ steps.label.outputs.result }}
+        if: ${{ steps.label.outputs.decisions }}
         uses: actions/github-script@v9
         env:
-          RESULT: ${{ steps.label.outputs.result }}
+          RESULT: ${{ steps.label.outputs.decisions }}
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |

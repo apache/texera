@@ -93,6 +93,7 @@ describe("LocalLoginComponent", () => {
           "loginPassword",
           "loginUsername",
           "registerConfirmationPassword",
+          "registerEmail",
           "registerPassword",
           "registerUsername",
         ].sort()
@@ -106,6 +107,20 @@ describe("LocalLoginComponent", () => {
       registerUsername.setValue("");
       expect(loginUsername.hasError("required")).toBe(true);
       expect(registerUsername.hasError("required")).toBe(true);
+    });
+
+    it("requires registerEmail and enforces email format", () => {
+      const registerEmail = component.allForms.get("registerEmail")!;
+      registerEmail.setValue("");
+      expect(registerEmail.hasError("required")).toBe(true);
+
+      registerEmail.setValue("not-an-email");
+      expect(registerEmail.hasError("email")).toBe(true);
+
+      registerEmail.setValue("alice@example.com");
+      expect(registerEmail.valid).toBe(true);
+      expect(registerEmail.hasError("email")).toBe(false);
+      expect(registerEmail.hasError("required")).toBe(false);
     });
 
     it("requires passwords and enforces minLength(6)", () => {
@@ -264,6 +279,7 @@ describe("LocalLoginComponent", () => {
       const validateSpy = vi.spyOn(UserService, "validateUsername").mockReturnValue({ result: true, message: "ok" });
       component.allForms.patchValue({
         registerUsername: "alice",
+        registerEmail: "alice@example.com",
         registerPassword: "abc",
         registerConfirmationPassword: "abc",
       });
@@ -279,6 +295,7 @@ describe("LocalLoginComponent", () => {
       vi.spyOn(UserService, "validateUsername").mockReturnValue({ result: true, message: "ok" });
       component.allForms.patchValue({
         registerUsername: "alice",
+        registerEmail: "alice@example.com",
         registerPassword: "abcdef",
         registerConfirmationPassword: "ghijkl",
       });
@@ -294,8 +311,10 @@ describe("LocalLoginComponent", () => {
         result: false,
         message: "Username should not be empty.",
       });
+      vi.spyOn(UserService, "validateEmail").mockReturnValue({ result: true, message: "ok" });
       component.allForms.patchValue({
         registerUsername: "",
+        registerEmail: "alice@example.com",
         registerPassword: "abcdef",
         registerConfirmationPassword: "abcdef",
       });
@@ -306,17 +325,79 @@ describe("LocalLoginComponent", () => {
       expect(userServiceMock.register).not.toHaveBeenCalled();
     });
 
-    it("calls UserService.register with the trimmed username and surfaces a success notification", () => {
-      vi.spyOn(UserService, "validateUsername").mockReturnValue({ result: true, message: "ok" });
+    it("sets registerErrorMessage when the email is empty", () => {
+      vi.spyOn(UserService, "validateEmail").mockReturnValue({
+        result: false,
+        message: "Email should not be empty.",
+      });
       component.allForms.patchValue({
-        registerUsername: "  alice  ",
+        registerUsername: "alice",
+        registerEmail: "",
         registerPassword: "abcdef",
         registerConfirmationPassword: "abcdef",
       });
 
       component.register();
 
-      expect(userServiceMock.register).toHaveBeenCalledWith("alice", "abcdef");
+      expect(component.registerErrorMessage).toBe("Email should not be empty.");
+      expect(userServiceMock.register).not.toHaveBeenCalled();
+    });
+
+    it("sets registerErrorMessage when the email is malformed", () => {
+      vi.spyOn(UserService, "validateEmail").mockReturnValue({
+        result: false,
+        message: "Email format is invalid.",
+      });
+      component.allForms.patchValue({
+        registerUsername: "alice",
+        registerEmail: "not-an-email",
+        registerPassword: "abcdef",
+        registerConfirmationPassword: "abcdef",
+      });
+
+      component.register();
+
+      expect(component.registerErrorMessage).toBe("Email format is invalid.");
+      expect(userServiceMock.register).not.toHaveBeenCalled();
+    });
+
+    it("checks email validity before username validity", () => {
+      // Email validation runs before username validation in register(), so a
+      // bad email must short-circuit the flow even if username is also bad.
+      const validateUsernameSpy = vi
+        .spyOn(UserService, "validateUsername")
+        .mockReturnValue({ result: false, message: "Username should not be empty." });
+      const validateEmailSpy = vi
+        .spyOn(UserService, "validateEmail")
+        .mockReturnValue({ result: false, message: "Email format is invalid." });
+      component.allForms.patchValue({
+        registerUsername: "",
+        registerEmail: "not-an-email",
+        registerPassword: "abcdef",
+        registerConfirmationPassword: "abcdef",
+      });
+
+      component.register();
+
+      expect(component.registerErrorMessage).toBe("Email format is invalid.");
+      expect(validateUsernameSpy).not.toHaveBeenCalled();
+      expect(validateEmailSpy).toHaveBeenCalledWith("not-an-email");
+      expect(userServiceMock.register).not.toHaveBeenCalled();
+    });
+
+    it("calls UserService.register with the trimmed username,email and surfaces a success notification", () => {
+      vi.spyOn(UserService, "validateUsername").mockReturnValue({ result: true, message: "ok" });
+      vi.spyOn(UserService, "validateEmail").mockReturnValue({ result: true, message: "ok" });
+      component.allForms.patchValue({
+        registerUsername: "  alice  ",
+        registerEmail: "  alice@example.com  ",
+        registerPassword: "abcdef",
+        registerConfirmationPassword: "abcdef",
+      });
+
+      component.register();
+
+      expect(userServiceMock.register).toHaveBeenCalledWith("alice", "alice@example.com", "abcdef");
       expect(notificationServiceMock.success).toHaveBeenCalledWith(
         "Your account has been created. Please contact the Texera administrator to activate your account."
       );
@@ -325,9 +406,11 @@ describe("LocalLoginComponent", () => {
 
     it("surfaces the error's message via NotificationService.error on failure", () => {
       vi.spyOn(UserService, "validateUsername").mockReturnValue({ result: true, message: "ok" });
+      vi.spyOn(UserService, "validateEmail").mockReturnValue({ result: true, message: "ok" });
       vi.mocked(userServiceMock.register!).mockReturnValueOnce(throwError(() => new Error("nope")));
       component.allForms.patchValue({
         registerUsername: "alice",
+        registerEmail: "alice@example.com",
         registerPassword: "abcdef",
         registerConfirmationPassword: "abcdef",
       });
@@ -340,9 +423,11 @@ describe("LocalLoginComponent", () => {
 
     it("falls back to 'Registration failed' when the error has no message", () => {
       vi.spyOn(UserService, "validateUsername").mockReturnValue({ result: true, message: "ok" });
+      vi.spyOn(UserService, "validateEmail").mockReturnValue({ result: true, message: "ok" });
       vi.mocked(userServiceMock.register!).mockReturnValueOnce(throwError(() => ({})));
       component.allForms.patchValue({
         registerUsername: "alice",
+        registerEmail: "alice@example.com",
         registerPassword: "abcdef",
         registerConfirmationPassword: "abcdef",
       });
