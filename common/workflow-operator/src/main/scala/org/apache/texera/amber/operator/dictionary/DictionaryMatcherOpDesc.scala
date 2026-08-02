@@ -31,7 +31,7 @@ import org.apache.texera.amber.core.workflow.{
 }
 import org.apache.texera.amber.operator.StandaloneCodeGenerator
 import org.apache.texera.amber.operator.map.MapOpDesc
-import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
+import org.apache.texera.amber.operator.metadata.annotations.{AutofillAttributeName, SampleColumn}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 import org.apache.texera.amber.util.JSONUtils.objectMapper
@@ -45,9 +45,15 @@ class DictionaryMatcherOpDesc extends MapOpDesc with StandaloneCodeGenerator {
   @JsonProperty(value = "Dictionary", required = true)
   @JsonPropertyDescription("dictionary values separated by a comma") var dictionary: String = _
 
+  // Verification matches against a text column holding the value it fills a dictionary
+  // with, in rows that are single words a stemmer leaves alone -- the conjunction
+  // branch runs Lucene's stemmer on one side and nothing on the other, so a word that
+  // stems agrees either way.
   @JsonProperty(value = "Attribute", required = true)
   @JsonPropertyDescription("column name to match")
-  @AutofillAttributeName var attribute: String = _
+  @AutofillAttributeName
+  @SampleColumn("name")
+  var attribute: String = _
 
   @JsonProperty(value = "result attribute", required = true, defaultValue = "matched")
   @JsonPropertyDescription("column name of the matching result") var resultAttribute: String = _
