@@ -90,7 +90,13 @@ class MainLoop(StoppableQueueBlockingRunnable):
         # LoopEnd (loop_counter == 0) takes a state; used for the jump RPC
         # and the setup-config URI lookup (context.loop_start_port_uris).
         self._loop_start_id: str = ""
-        # The matching state a LoopEnd will consume, stashed at consume time and
+        # Whether this LoopEnd already took its loop state this execution.
+        # A loop body may branch and converge on the Loop End, and every reader
+        # on its input port replays that branch's states independently, so the
+        # same iteration's state arrives once per branch. Workers are recreated
+        # on each region re-execution, so this instance flag is per iteration.
+        self._loop_state_consumed: bool = False
+        # The matching state a LoopEnd will consume, stashed when taken and
         # actually handed to the operator at EndChannel (see
         # _consume_pending_loop_state for why the table read must not overlap
         # this worker's own materialization reader).
@@ -446,24 +452,28 @@ class MainLoop(StoppableQueueBlockingRunnable):
 
         if isinstance(executor, LoopEndOperator):
             # Matching LoopEnd (in_counter == 0): it will consume this state
-            # and jump back. Remember which LoopStart to jump to (it rides the
-            # envelope) for complete()/_jump_to_loop_start, and STASH the state
-            # -- the operator runs its update at EndChannel instead of here,
-            # because the loop's input table is read from storage and that read
-            # must not overlap this worker's own materialization reader (see
-            # _consume_pending_loop_state). The LoopEnd emits no state
-            # downstream on the matching consume, so deferring it changes
-            # nothing observable outside the operator.
+            # and jump back. Remember which LoopStart to jump to (it rides
+            # the envelope) for complete()/_jump_to_loop_start, and STASH the
+            # state -- the operator runs its update at EndChannel instead of
+            # here, because the loop's input table is read from storage and
+            # that read must not overlap this worker's own materialization
+            # reader (see _consume_pending_loop_state). The LoopEnd emits no
+            # state downstream on the matching consume, so deferring it
+            # changes nothing observable outside the operator.
+            #
+            # With a branching loop body, each branch's reader replays the same
+            # iteration's state, so this fires once per inbound link. Take only
+            # the first: running the user's `update` again would advance the
+            # loop variables once per branch, and a second stash would silently
+            # overwrite the pending one. The copies are identical -- they are
+            # the same state emitted by the one matching LoopStart -- so
+            # dropping them loses nothing (a consume emits nothing downstream
+            # either way).
+            if self._loop_state_consumed:
+                self._check_and_process_control()
+                return
+            self._loop_state_consumed = True
             self._loop_start_id = frame.loop_start_id
-            # One matching state per region execution: a Loop End is
-            # non-parallelizable (LoopOpDesc.withParallelizable(false)) and its
-            # matching LoopStart emits one state per iteration, so a second
-            # frame here would mean the loop's routing invariants broke --
-            # overwriting the slot would silently skip an update.
-            assert self._pending_loop_state is None, (
-                "a second matching loop state arrived in one region execution; "
-                f"already holding {self._pending_loop_state}"
-            )
             self._pending_loop_state = state
             self._check_and_process_control()
             return

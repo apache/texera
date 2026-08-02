@@ -2526,6 +2526,58 @@ class TestMainLoop:
         assert consumed == [(incoming, 0)]
         assert main_loop._pending_loop_state is None, "stash must be cleared"
 
+    def test_loopend_consumes_its_loop_state_once_per_iteration(
+        self, main_loop, monkeypatch
+    ):
+        # A loop body may branch and converge on the Loop End, so its input
+        # port takes fan-in. Every reader on that port replays its own
+        # branch's states, so the SAME iteration's state arrives once per
+        # branch. Only the first may be taken: running the user's `update`
+        # again would advance the loop variables once per branch (e.g. `i += 1`
+        # twice), ending the loop early with wrong results. Since the consume
+        # is deferred to EndChannel, the duplicate must also not overwrite the
+        # stashed state -- assert through the whole deferred path, not just the
+        # stash.
+        executor = _FalseLoopEnd()
+        main_loop.context.executor_manager.executor = executor
+        emitted, switched, reset_calls = self._capture_state_emit(
+            main_loop, monkeypatch
+        )
+        monkeypatch.setattr(
+            main_loop.context.state_processing_manager,
+            "get_output_state",
+            lambda: None,
+        )
+        monkeypatch.setattr(
+            main_loop, "_read_loop_input_table", lambda: Table([Tuple({"v": 1})])
+        )
+        consumed = []
+        monkeypatch.setattr(
+            executor, "process_state", lambda st, port: consumed.append((st, port))
+        )
+
+        first = State({"i": 42})
+        second = State({"i": 42})
+
+        def deliver(state):
+            main_loop._process_state_frame(
+                StateFrame(state, loop_counter=0, loop_start_id="outer-loop")
+            )
+
+        deliver(first)  # branch A
+        deliver(second)  # branch B replays the same iteration's state
+
+        assert main_loop._loop_state_consumed is True
+        assert main_loop._pending_loop_state is first, "the duplicate must not stash"
+        assert emitted == [], "a consume emits nothing downstream, duplicate or not"
+        assert reset_calls == []
+        assert main_loop._loop_start_id == "outer-loop"
+
+        main_loop._consume_pending_loop_state(executor)
+
+        assert switched == [], "the deferred consume does not switch context"
+        assert consumed == [(first, 0)], "the operator must update exactly once"
+
     # ------------------------------------------------------------------ #
     # _jump_to_loop_start
     #
