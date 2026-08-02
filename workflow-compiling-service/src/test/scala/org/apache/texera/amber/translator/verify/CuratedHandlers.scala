@@ -23,7 +23,6 @@ import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tup
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.distinct.DistinctOpDesc
-import org.apache.texera.amber.operator.dictionary.{DictionaryMatcherOpDesc, MatchingType}
 import org.apache.texera.amber.operator.aggregate.{
   AggregateOpDesc,
   AggregationFunction,
@@ -196,7 +195,6 @@ object CuratedHandlers {
     AggregateTransformHandler,
     SpecializedFilterTransformHandler,
     DistinctTransformHandler,
-    DictionaryMatcherTransformHandler,
     HashJoinTransformHandler,
     TypeCastingTransformHandler,
     SleepTransformHandler,
@@ -468,35 +466,6 @@ object DistinctTransformHandler extends TransformHandler {
     val inputPath =
       CuratedHandlers.writeFixture(testRoot.resolve("input_port_0.jsonl"), columns, rows)
     (new DistinctOpDesc(), Map(PortIdentity(0) -> inputPath))
-  }
-}
-
-/** DictionaryMatcher fixture that actually matches, chosen so all three swept
-  * MatchingType branches agree between the JVM (Lucene) and standalone paths.
-  * cat/dog/car are Porter2-invariant (stemming leaves them unchanged), so the
-  * CONJUNCTION branch — where standalone lacks Lucene's stemmer — still matches.
-  * dictionary = "cat,dog" over `word` = [cat, dog, car] yields
-  * [matched, matched, unmatched] under exact / substring / conjunction alike.
-  */
-object DictionaryMatcherTransformHandler extends TransformHandler {
-  override val opDescClass: Class[_ <: LogicalOp] = classOf[DictionaryMatcherOpDesc]
-
-  override def fixture(testRoot: Path): (LogicalOp, Map[PortIdentity, Path]) = {
-    val columns = Seq(("word", AttributeType.STRING))
-    val rows = Seq(
-      Seq[Any]("cat"),
-      Seq[Any]("dog"),
-      Seq[Any]("car")
-    )
-    val inputPath =
-      CuratedHandlers.writeFixture(testRoot.resolve("input_port_0.jsonl"), columns, rows)
-
-    val desc = new DictionaryMatcherOpDesc()
-    desc.attribute = "word"
-    desc.dictionary = "cat,dog"
-    desc.resultAttribute = "matched"
-    desc.matchingType = MatchingType.SCANBASED
-    (desc, Map(PortIdentity(0) -> inputPath))
   }
 }
 
