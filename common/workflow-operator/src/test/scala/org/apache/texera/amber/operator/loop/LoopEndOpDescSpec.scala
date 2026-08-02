@@ -49,8 +49,11 @@ class LoopEndOpDescSpec extends AnyFlatSpec with LoopOpDescSpecMixin {
     info.outputPorts should have length 1
   }
 
-  it should "disallow more than one link into its input port" in {
-    assertSingleInputLink(desc())
+  it should "allow more than one link into its input port" in {
+    // A loop body may branch and converge on the Loop End, so fan-in is
+    // supported: the runtime consumes the loop state once per iteration
+    // however many branches replay it (MainLoop._process_state_frame).
+    assertDisallowsMultiInputLinks(desc(), expected = false)
   }
 
   "LoopEndOpDesc.generatePythonCode" should "wrap user inputs in the base64 decode template" in {

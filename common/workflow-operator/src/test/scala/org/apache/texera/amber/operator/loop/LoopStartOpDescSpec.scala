@@ -47,7 +47,7 @@ class LoopStartOpDescSpec extends AnyFlatSpec with LoopOpDescSpecMixin {
   }
 
   it should "disallow more than one link into its input port" in {
-    assertSingleInputLink(desc())
+    assertDisallowsMultiInputLinks(desc(), expected = true)
   }
 
   "LoopStartOpDesc.generatePythonCode" should "wrap user inputs in the base64 decode template" in {
