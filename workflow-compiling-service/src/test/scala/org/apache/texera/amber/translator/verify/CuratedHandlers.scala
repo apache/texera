@@ -155,12 +155,9 @@ object CuratedHandlers {
 
   /** All sklearn curated handlers, auto-derived from [[registeredOps]]. Filters
     * per family by `isAssignableFrom`, keeping only concrete leaf ops and
-    * excluding each abstract base. `SklearnLinearRegressionOpDesc` is excluded
-    * from the classifier family so its bespoke standalone handler
-    * ([[SklearnLinearRegressionTransformHandler]]) stays authoritative — it is
-    * not actually a `SklearnClassifierOpDesc` subclass, but the exclusion makes
-    * that invariant explicit and future-proof. The three families are disjoint
-    * hierarchies, so no op is double-counted.
+    * excluding each abstract base. The three families are disjoint hierarchies, so
+    * no op is double-counted. An op that also has a hand-written handler needs no
+    * exclusion here — [[all]] puts the hand-written one later, so it wins.
     */
   private def sklearnAutoHandlers: Seq[TransformHandler] = {
     val trainingBase = classOf[SklearnTrainingOpDesc]
@@ -171,10 +168,7 @@ object CuratedHandlers {
       trainingBase.isAssignableFrom(c) && c != trainingBase && isConcrete(c)
     )
     val classifierOps = registeredOps.filter(c =>
-      classifierBase.isAssignableFrom(c) &&
-        c != classifierBase &&
-        c != classOf[SklearnLinearRegressionOpDesc] &&
-        isConcrete(c)
+      classifierBase.isAssignableFrom(c) && c != classifierBase && isConcrete(c)
     )
     val advancedOps = registeredOps.filter(c =>
       advancedBase.isAssignableFrom(c) && c != advancedBase && isConcrete(c)
@@ -198,7 +192,13 @@ object CuratedHandlers {
   val sklearnAutoClasses: Set[Class[_ <: LogicalOp]] =
     sklearnAutoHandlers.map(_.opDescClass).toSet
 
-  val all: Seq[TransformHandler] = Seq(
+  /** The sklearn families first, the hand-written handlers after, because
+    * [[byClass]] keeps the LAST entry for a class: a handler written by hand wins
+    * over the one its family derives, the same way a hand-written handler is simply
+    * the only one anywhere else. Registering one is then a single edit, with no
+    * second step to remember and nothing that fails silently when it is forgotten.
+    */
+  val all: Seq[TransformHandler] = sklearnAutoHandlers ++ Seq(
     AggregateTransformHandler,
     SpecializedFilterTransformHandler,
     DistinctTransformHandler,
@@ -217,7 +217,7 @@ object CuratedHandlers {
     HuggingFaceSpamSMSDetectionTransformHandler,
     RegexTransformHandler,
     StableMergeSortTransformHandler
-  ) ++ sklearnAutoHandlers
+  )
 
   val byClass: Map[Class[_ <: LogicalOp], TransformHandler] =
     all.map(h => h.opDescClass -> h).toMap
