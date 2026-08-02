@@ -27,6 +27,8 @@ import org.apache.texera.amber.operator.source.scan.ScanSourceOpDesc
 import org.apache.texera.amber.operator.source.scan.file.{FileScanOpDesc, FileScanSourceOpDesc}
 import org.apache.texera.amber.operator.source.scan.text.TextInputSourceOpDesc
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.databind.node.ObjectNode
+import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector.ipc.ArrowFileWriter
 import org.apache.arrow.vector.types.FloatingPointPrecision
@@ -34,8 +36,9 @@ import org.apache.arrow.vector.types.pojo.{ArrowType, Field, FieldType, Schema =
 import org.apache.arrow.vector.{Float8Vector, IntVector, VarCharVector, VectorSchemaRoot}
 
 import java.nio.channels.FileChannel
-import java.nio.charset.StandardCharsets
+import java.nio.charset.{Charset, StandardCharsets}
 import java.nio.file.{Files, Path, StandardOpenOption}
+import scala.collection.mutable
 import scala.jdk.CollectionConverters._
 import scala.util.{Try, Using}
 
@@ -86,11 +89,13 @@ object SourceCategoryRunner {
     * but it is currently commented out of `@JsonSubTypes`, so the suite doesn't
     * enumerate it.)
     */
-  private val encoderByFileType: Map[String, Path => Path] = Map(
+  private val encoderByFileType: Map[String, (Path, Charset) => Path] = Map(
     "CSV" -> CanonicalSourceFixture.writeCsv,
     "CSVOld" -> CanonicalSourceFixture.writeCsv,
     "JSONL" -> CanonicalSourceFixture.writeJsonl,
-    "Arrow" -> CanonicalSourceFixture.writeArrow
+    // Arrow is binary and its descriptor declares fileEncoding ignored, so the
+    // charset a variant asks for has nothing to apply to.
+    "Arrow" -> ((dir, _) => CanonicalSourceFixture.writeArrow(dir))
   )
 
   /**
@@ -142,40 +147,126 @@ object SourceCategoryRunner {
       }
     )
 
+  private def newScanSource(opDescClass: Class[_ <: LogicalOp]): ScanSourceOpDesc =
+    opDescClass.getDeclaredConstructor().newInstance() match {
+      case s: ScanSourceOpDesc => s
+      case other =>
+        throw new IllegalArgumentException(
+          s"${opDescClass.getSimpleName} has no curated handler and is not a " +
+            s"ScanSourceOpDesc (${other.getClass.getName})"
+        )
+    }
+
   /**
-    * Build the configured OpDesc: a hand-written curated handler if one is
-    * registered, otherwise the auto path — instantiate the operator, encode the
-    * shared fixture in the format it declares, and point `fileName` at the file.
+    * Every configuration of one source worth running, as (label, op, its own
+    * directory).
+    *
+    * Each variant gets a directory of its own holding its OWN copy of the fixture,
+    * because the generated script reads the file by bare name (`pd.read_csv(
+    * "sample.csv")`) out of the directory it runs in. Two variants wanting two
+    * different `sample.csv` files cannot share one.
     */
-  private def makeOpDesc(opDescClass: Class[_ <: LogicalOp], testRoot: Path): LogicalOp =
+  private def variantsFor(
+      opDescClass: Class[_ <: LogicalOp],
+      testRoot: Path
+  ): Seq[(String, LogicalOp, Path)] = {
+    // Punctuation collapses to '_', so two labels differing only in punctuation
+    // would name the same directory and share one fixture and one output dir. Fail
+    // loudly instead of letting a variant quietly run someone else's file.
+    val taken = mutable.Set.empty[String]
+    def dirFor(label: String): Path = {
+      val name = label.replaceAll("[^A-Za-z0-9]+", "_")
+      require(taken.add(name), s"two variants of $opDescClass both map to the directory '$name'")
+      Files.createDirectories(testRoot.resolve(name))
+    }
+
     curatedHandlersByClass.get(opDescClass) match {
-      case Some(handler) => handler.makeOpDesc(testRoot)
+      case Some(handler) =>
+        val dir = dirFor("default")
+        Seq(("default", handler.makeOpDesc(dir), dir))
       case None =>
-        val scan = opDescClass.getDeclaredConstructor().newInstance() match {
-          case s: ScanSourceOpDesc => s
-          case other =>
-            throw new IllegalArgumentException(
-              s"${opDescClass.getSimpleName} has no curated handler and is not a " +
-                s"ScanSourceOpDesc (${other.getClass.getName})"
-            )
-        }
-        val fileType = scan.fileTypeName.getOrElse("")
+        val fileType = declaredFileType(opDescClass).getOrElse("")
         val encoder = encoderByFileType.getOrElse(
           fileType,
           throw new IllegalArgumentException(
             s"No encoder for ${opDescClass.getSimpleName} (fileTypeName='$fileType')"
           )
         )
-        scan.fileName = Some(encoder(testRoot).toUri.toString)
-        scan
+        val base = {
+          val dir = dirFor("default")
+          val op = newScanSource(opDescClass)
+          op.fileName = Some(encoder(dir, op.fileEncoding.getCharset).toUri.toString)
+          ("default", op: LogicalOp, dir)
+        }
+        base +: generatedVariants(opDescClass, encoder, dirFor)
     }
+  }
 
-  /** Runs the parity test for the operator. Throws on mismatch. */
+  /**
+    * The variants the shared [[ConfigGenerator]] derives from the operator's own
+    * fields — the base config with every knob filled, plus one per enum branch
+    * (`hasHeader`, JSONL's `flatten`). Nothing to register per operator: a knob
+    * added to a source is swept the day it is added.
+    *
+    * `fileEncoding` is swept like any other enum, and the fixture FOLLOWS it: each
+    * variant's file is written in the charset that variant declares. Encoding is a
+    * statement about the bytes, so a UTF_16 config over a file left in UTF-8 would
+    * only compare how each path fails.
+    *
+    * Variants that serialize identically are dropped — an operator that ignores
+    * `fileEncoding` (Arrow declares `@JsonIgnoreProperties`) would otherwise run the
+    * same config three times.
+    */
+  private def generatedVariants(
+      opDescClass: Class[_ <: LogicalOp],
+      encoder: (Path, Charset) => Path,
+      dirFor: String => Path
+  ): Seq[(String, LogicalOp, Path)] = {
+    val seen = mutable.Set.empty[String]
+    ConfigGenerator
+      .generateVariants(opDescClass, Map.empty, CanonicalSourceFixture.rows.size)
+      .fold(
+        reason =>
+          throw new IllegalStateException(
+            s"cannot auto-configure ${opDescClass.getSimpleName}: $reason"
+          ),
+        identity
+      )
+      .flatMap {
+        case (label, op) =>
+          val scan = op.asInstanceOf[ScanSourceOpDesc]
+          val shape = objectMapper.valueToTree[ObjectNode](scan)
+          shape.remove("fileName") // every variant reads its own copy of the file
+          if (!seen.add(shape.toString)) None
+          else {
+            // "default" is already the bare newInstance config above; this one is
+            // the generator's, which additionally fills limit and offset.
+            val name = if (label == "default") "auto-base" else label
+            val dir = dirFor(name)
+            scan.fileName = Some(encoder(dir, scan.fileEncoding.getCharset).toUri.toString)
+            Some((name, scan: LogicalOp, dir))
+          }
+      }
+  }
+
+  /** Runs the parity test for the operator, once per variant. Throws on mismatch. */
   def run(opDescClass: Class[_ <: LogicalOp]): Unit = {
     val testRoot = Files.createTempDirectory(s"op-behavior-${opDescClass.getSimpleName}-")
-    val opDesc = makeOpDesc(opDescClass, testRoot)
+    variantsFor(opDescClass, testRoot).foreach {
+      case (label, opDesc, workDir) =>
+        try runVariant(opDesc, workDir)
+        catch {
+          case e: Throwable =>
+            throw new AssertionError(s"[variant: $label] ${e.getMessage}", e)
+        }
+    }
+  }
 
-    val actualDir = testRoot.resolve("actual")
+  /** Drive one configured source through both paths inside `workDir`, which holds
+    * that variant's fixture, and assert the two tables match.
+    */
+  private def runVariant(opDesc: LogicalOp, workDir: Path): Unit = {
+    val actualDir = workDir.resolve("actual")
     Files.createDirectories(actualDir)
 
     val pathA = OpExecHarness.execute(opDesc, inputs = Map.empty, outputDir = actualDir)
@@ -183,7 +274,7 @@ object SourceCategoryRunner {
       opDesc = opDesc,
       inputs = Map.empty,
       outputPortCount = 1,
-      workDir = testRoot
+      workDir = workDir
     )
 
     val actual = pathA.outputs(PortIdentity(0))
@@ -264,27 +355,36 @@ object CanonicalSourceFixture {
       .toVector
   }
 
-  /** Write the rows as a header-first, comma-delimited CSV. */
-  def writeCsv(dir: Path): Path = {
+  /** Write the rows as a header-first, comma-delimited CSV encoded in `charset`.
+    *
+    * The charset is a parameter because it describes the BYTES, not the config: a
+    * variant declaring `fileEncoding = UTF_16` over a file left in UTF-8 would
+    * compare nothing but how each path fails.
+    */
+  def writeCsv(dir: Path, charset: Charset): Path = {
     val path = dir.resolve("sample.csv")
     val header = schema.getAttributes.map(_.getName).mkString(",")
     val body = rows.map { t =>
       schema.getAttributes.map(a => t.getField(a.getName).toString).mkString(",")
     }
-    Files.write(
-      path,
-      ((header +: body).mkString("\n") + "\n").getBytes(StandardCharsets.UTF_8)
-    )
+    Files.write(path, ((header +: body).mkString("\n") + "\n").getBytes(charset))
     path
   }
 
   /** Write the rows as JSON Lines (one object per line, keys in schema order).
     * Reuses [[TupleIO.writeTuples]] — the same writer the transform fixtures
     * use; it also drops a `.schema.json` sidecar the source ignores.
+    *
+    * That writer is shared and always writes UTF-8, so a variant asking for another
+    * charset gets the bytes transcoded afterwards rather than a second writer.
     */
-  def writeJsonl(dir: Path): Path = {
+  def writeJsonl(dir: Path, charset: Charset): Path = {
     val path = dir.resolve("sample.jsonl")
     TupleIO.writeTuples(path, rows.iterator, schema)
+    if (charset != StandardCharsets.UTF_8) {
+      val text = new String(Files.readAllBytes(path), StandardCharsets.UTF_8)
+      Files.write(path, text.getBytes(charset))
+    }
     path
   }
 
