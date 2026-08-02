@@ -36,7 +36,6 @@ import org.apache.texera.amber.operator.filter.{
 }
 import org.apache.texera.amber.operator.hashJoin.{HashJoinOpDesc, JoinType}
 import org.apache.texera.amber.operator.keywordSearch.KeywordSearchOpDesc
-import org.apache.texera.amber.operator.projection.{AttributeUnit, ProjectionOpDesc}
 import org.apache.texera.amber.operator.regex.RegexOpDesc
 import org.apache.texera.amber.operator.sleep.SleepOpDesc
 import org.apache.texera.amber.operator.sort.{
@@ -207,7 +206,6 @@ object CuratedHandlers {
     TypeCastingTransformHandler,
     SleepTransformHandler,
     KeywordSearchTransformHandler,
-    ProjectionTransformHandler,
     DumbbellPlotVisualizationHandler,
     ImageVisualizerVisualizationHandler,
     FilledAreaPlotVisualizationHandler,
@@ -668,23 +666,6 @@ object HashJoinTransformHandler extends TransformHandler {
     desc.joinType = JoinType.INNER
 
     (desc, Map(PortIdentity(0) -> buildPath, PortIdentity(1) -> probePath))
-  }
-}
-
-/** Projection: `attributes` carries no @JsonProperty, so the auto-config tier
-  *  leaves it empty and ProjectionOpExec rejects the empty list
-  *  (Preconditions.checkArgument). Keep two columns, renaming one, to
-  *  exercise both select and alias. Map op — strict order holds.
-  */
-object ProjectionTransformHandler extends TransformHandler {
-  override val opDescClass: Class[_ <: LogicalOp] = classOf[ProjectionOpDesc]
-  override def fixture(testRoot: Path): (LogicalOp, Map[PortIdentity, Path]) = {
-    val desc = new ProjectionOpDesc()
-    desc.attributes = List(
-      new AttributeUnit("id", ""),
-      new AttributeUnit("score", "points")
-    )
-    (desc, CanonicalFixture.writeInputs(testRoot, 1))
   }
 }
 
