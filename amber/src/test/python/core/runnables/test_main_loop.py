@@ -2584,6 +2584,139 @@ class TestMainLoop:
             _create,
         )
 
+    def test_deferred_consume_captures_user_prints(self, main_loop, monkeypatch):
+        # The `update` runs on the main loop thread, outside
+        # DataProcessor._executor_session, so its print capture has to be
+        # applied explicitly here -- otherwise a print() in the user's update
+        # goes to the worker's stdout and never reaches the console.
+        class _PrintingLoopEnd(LoopEndOperator):
+            def condition(self):
+                return False
+
+            def process_state(self, state, port):
+                print("hello from update")
+                return None
+
+        executor = _PrintingLoopEnd()
+        main_loop.context.executor_manager.executor = executor
+        main_loop._pending_loop_state = State({"i": 1})
+        monkeypatch.setattr(
+            main_loop, "_read_loop_input_table", lambda: Table([Tuple({"v": 1})])
+        )
+
+        main_loop._consume_pending_loop_state(executor)
+
+        printed = [
+            msg
+            for msg in main_loop.context.console_message_manager.get_messages(
+                force_flush=True
+            )
+            if "hello from update" in msg.title
+        ]
+        assert printed, "the user's print must be captured as a console message"
+        assert printed[0].msg_type == ConsoleMessageType.PRINT
+
+    def test_read_loop_input_table_opens_the_result_uri_of_the_configured_base(
+        self, main_loop, monkeypatch
+    ):
+        # The other half of the base-URI split (the jump test pins the state
+        # URI): the loop's input table is read from result_uri(base) of the
+        # SAME configured base, through DocumentFactory.open_document.
+        main_loop._loop_start_id = "outer-loop"
+        main_loop.context.loop_start_port_uris = {"outer-loop": "vfs:///wf/port/outer"}
+
+        opened = []
+        rows = [Tuple({"v": 1}), Tuple({"v": 2})]
+
+        class _Doc:
+            def get(self):
+                return iter(rows)
+
+        monkeypatch.setattr(
+            "core.runnables.main_loop.DocumentFactory.open_document",
+            lambda uri: (opened.append(uri) or (_Doc(), None)),
+        )
+
+        table = main_loop._read_loop_input_table()
+
+        assert opened == [VFSURIFactory.result_uri("vfs:///wf/port/outer")]
+        assert isinstance(table, Table)
+        assert list(table.as_tuples()) == rows
+
+    def test_read_loop_input_table_raises_when_uri_not_configured(
+        self, main_loop, monkeypatch
+    ):
+        # Same fail-loud contract as the back-edge write: a LoopEnd whose
+        # captured id has no setup-config entry must raise rather than read
+        # from a guessed location.
+        main_loop._loop_start_id = "outer-loop"
+        main_loop.context.loop_start_port_uris = {}
+        opened = []
+        monkeypatch.setattr(
+            "core.runnables.main_loop.DocumentFactory.open_document",
+            lambda uri: (opened.append(uri) or (None, None)),
+        )
+
+        with pytest.raises(RuntimeError, match="no loop bookkeeping URI"):
+            main_loop._read_loop_input_table()
+
+        assert opened == [], "must fail before touching storage"
+
+    @pytest.mark.timeout(2)
+    def test_end_channel_holds_the_region_when_the_deferred_consume_fails(
+        self, main_loop, monkeypatch
+    ):
+        # The deferred consume runs the table read and the user's `update`.
+        # Both can fail, and the failure must hold the region: complete() is
+        # the tail of _process_end_channel, so reporting the error there would
+        # arrive after port_completed had already been sent for every port and
+        # would read as a false success (region completion is port-based).
+        class _BoomLoopEnd(LoopEndOperator):
+            def condition(self):
+                return False
+
+            def process_state(self, state, port):
+                raise ValueError("name 'i' is not defined")
+
+        executor = _BoomLoopEnd()
+        main_loop.context.executor_manager.executor = executor
+        main_loop._pending_loop_state = State({"i": 1})
+        monkeypatch.setattr(
+            main_loop, "_read_loop_input_table", lambda: Table([Tuple({"v": 1})])
+        )
+
+        completed = []
+        port_completed_calls = []
+        console_msgs = []
+        monkeypatch.setattr(main_loop, "process_input_state", lambda *a, **k: None)
+        monkeypatch.setattr(main_loop, "process_input_tuple", lambda: None)
+        monkeypatch.setattr(main_loop, "complete", lambda: completed.append(True))
+        monkeypatch.setattr(
+            main_loop, "_send_console_message", lambda msg: console_msgs.append(msg)
+        )
+        monkeypatch.setattr(
+            main_loop.context.pause_manager,
+            "pause",
+            lambda pause_type, change_state=True: None,
+        )
+
+        class _Coordinator:
+            def port_completed(self, request):
+                port_completed_calls.append(request)
+
+        monkeypatch.setattr(
+            main_loop._async_rpc_client, "coordinator_stub", lambda: _Coordinator()
+        )
+
+        main_loop._process_end_channel()
+
+        assert main_loop.context.exception_manager.has_exception()
+        error_msgs = [m for m in console_msgs if m.msg_type == ConsoleMessageType.ERROR]
+        assert len(error_msgs) == 1
+        assert "name 'i' is not defined" in error_msgs[0].title
+        assert port_completed_calls == [], "no port may be reported complete"
+        assert completed == [], "the worker must not complete"
+
     def test_jump_to_loop_start_sends_rpc_then_writes_state_in_order(
         self, main_loop, monkeypatch
     ):

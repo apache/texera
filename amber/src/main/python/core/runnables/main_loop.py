@@ -46,6 +46,7 @@ from core.runnables.data_processor import DataProcessor
 from core.storage.document_factory import DocumentFactory
 from core.storage.vfs_uri_factory import VFSURIFactory
 from core.util import StoppableQueueBlockingRunnable, get_one_of
+from core.util.console_message.replace_print import replace_print
 from core.util.console_message.timestamp import current_time_in_local_timezone
 from core.util.customized_queue.queue_base import QueueElement
 from core.util.virtual_identity import get_logical_op_id
@@ -120,13 +121,16 @@ class MainLoop(StoppableQueueBlockingRunnable):
 
     def _read_loop_input_table(self) -> Table:
         # The loop's input table is the Loop Start's input-port
-        # materialization -- a doc created once UPSTREAM of the loop, so it is
-        # stable for the whole run (the back-edge rewrites only the state doc
-        # under the same base URI, never this result doc). Reading it means the
-        # table never has to ride inside the State content through the loop
-        # body. Callers must invoke this OUTSIDE the window where this worker's
-        # own materialization reader is streaming -- see
-        # _consume_pending_loop_state.
+        # materialization: the output doc of whatever feeds this loop level.
+        # It is stable for the duration of the loop level that reads it -- the
+        # back-edge rewrites only the state doc under the same base URI, never
+        # this result doc. For an INNER loop that upstream is the outer Loop
+        # Start, whose output doc is recreated on each OUTER iteration; that is
+        # still stable across every inner iteration that reads it, which is the
+        # window that matters here. Reading it means the table never has to
+        # ride inside the State content through the loop body. Callers must
+        # invoke this OUTSIDE the window where this worker's own materialization
+        # reader is streaming -- see _consume_pending_loop_state.
         result_uri = VFSURIFactory.result_uri(self._loop_start_base_uri())
         document, _ = DocumentFactory.open_document(result_uri)
         return Table(list(document.get()))
@@ -135,9 +139,9 @@ class MainLoop(StoppableQueueBlockingRunnable):
         # Run the matching consume that _process_state_frame deferred.
         #
         # The loop's input table is read from the Loop Start's input-port
-        # materialization -- a doc that is created once upstream of the loop
-        # and is stable for the whole run. The read is deferred to here (the
-        # EndChannel path) rather than done at consume time because at consume
+        # materialization (see _read_loop_input_table for its lifetime). The
+        # read is deferred to here rather than done at consume time because at
+        # consume
         # time THIS worker's own materialization reader is still streaming its
         # input; issuing a second iceberg/S3 read from this thread while that
         # reader iterates a lazily-pinned snapshot of a doc that region
@@ -150,8 +154,14 @@ class MainLoop(StoppableQueueBlockingRunnable):
         self._pending_loop_state = None
         executor.attach_loop_table(self._read_loop_input_table())
         # A Loop End has exactly one input port (port 0); the generated
-        # operator's process_state ignores the port anyway.
-        executor.process_state(pending, 0)
+        # operator's process_state ignores the port anyway. The user's `update`
+        # runs here, on the main loop thread rather than inside
+        # DataProcessor._executor_session, so capture its prints explicitly --
+        # otherwise they go to the worker's stdout instead of the console.
+        with replace_print(
+            self.context.worker_id, self.context.console_message_manager.print_buf
+        ):
+            executor.process_state(pending, 0)
 
     def _jump_to_loop_start(
         self, executor: LoopEndOperator, coordinator_interface
@@ -192,8 +202,14 @@ class MainLoop(StoppableQueueBlockingRunnable):
             # worker, instead of killing the thread through run()'s
             # @logger.catch(reraise=True).
             try:
-                self._consume_pending_loop_state(executor)
-                if executor.condition():
+                # condition() is user code on the main loop thread, same as the
+                # `update` in the deferred consume: capture its prints too.
+                with replace_print(
+                    self.context.worker_id,
+                    self.context.console_message_manager.print_buf,
+                ):
+                    should_iterate = executor.condition()
+                if should_iterate:
                     self._jump_to_loop_start(executor, coordinator_interface)
             except Exception as err:
                 self.context.report_exception(err)
@@ -435,6 +451,15 @@ class MainLoop(StoppableQueueBlockingRunnable):
             # downstream on the matching consume, so deferring it changes
             # nothing observable outside the operator.
             self._loop_start_id = frame.loop_start_id
+            # One matching state per region execution: a Loop End is
+            # non-parallelizable (LoopOpDesc.withParallelizable(false)) and its
+            # matching LoopStart emits one state per iteration, so a second
+            # frame here would mean the loop's routing invariants broke --
+            # overwriting the slot would silently skip an update.
+            assert self._pending_loop_state is None, (
+                "a second matching loop state arrived in one region execution; "
+                f"already holding {self._pending_loop_state}"
+            )
             self._pending_loop_state = state
             self._check_and_process_control()
             return
@@ -454,6 +479,21 @@ class MainLoop(StoppableQueueBlockingRunnable):
 
     def _process_end_channel(self) -> None:
         self.process_input_state()
+        # Run the deferred loop consume HERE, not in complete(): complete() is
+        # the tail of this method, by which point port_completed has been sent
+        # for every output port, so a failing read or `update` would be
+        # reported after the coordinator already considers the region done
+        # (region completion is port-based) -- a reported error that still
+        # reads as success. Running it before the has_exception() hold below
+        # puts it under the same guard as a state-emission failure. This is
+        # still past the reader: EndChannel means it finished streaming.
+        executor = self.context.executor_manager.executor
+        if isinstance(executor, LoopEndOperator):
+            try:
+                self._consume_pending_loop_state(executor)
+            except Exception as err:
+                self.context.report_exception(err)
+                self._check_exception()
         if self.context.exception_manager.has_exception():
             # A state-emission error was reported on the main loop thread (see
             # _emit_and_save_state). Hold the region: skip port_completed and

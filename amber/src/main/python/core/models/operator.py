@@ -444,8 +444,11 @@ class LoopEndOperator(TableOperator):
         # condition() short-circuits to False (see eval_condition).
         self.state: State = State()
         # Set by the runtime (attach_loop_table) right before the matching
-        # consume; run_update reads it. Distinct from _loop_table so the
-        # "consumed" marker is still only set by a SUCCESSFUL update.
+        # consume and cleared by run_update as it takes it, so the missing-table
+        # guard fires on every iteration rather than only the first. It stays
+        # separate from _loop_table because _loop_table doubles as the
+        # "consumed" marker that condition() short-circuits on, and only a
+        # SUCCESSFUL update may set that.
         self._attached_table: Optional[Table] = None
         self._loop_table: Optional[Table] = None
 
@@ -475,6 +478,9 @@ class LoopEndOperator(TableOperator):
                 "runtime must call attach_loop_table on the matching consume"
             )
         input_table = self._attached_table
+        # Take it: a later iteration that never got a table must raise above
+        # rather than silently run the update against the previous one.
+        self._attached_table = None
         namespace = {**state, _TABLE_KEY: input_table}
         # Pass the namespace as exec globals (not a locals-only mapping) so a
         # comprehension / generator expression / lambda in the user's `update`
