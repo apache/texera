@@ -20,7 +20,7 @@
 package org.apache.texera.amber.operator.source.fetcher
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
-import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
+import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
@@ -32,11 +32,21 @@ import org.apache.texera.amber.util.JSONUtils.objectMapper
 
 class URLFetcherOpDesc extends SourceOperatorDescriptor with StandaloneCodeGenerator {
 
+  // No `pattern`: the reader is `java.net.URL`, which asks only that the value carry
+  // a scheme its JVM has a handler for. That is not something a regex can state --
+  // one excluding `www.example.com` would still pass `htp://x`, so it would advertise
+  // a validation the field does not have. `examples` offers a realistic value without
+  // claiming to constrain anything.
   @JsonProperty(required = true)
   @JsonSchemaTitle("URL")
   @JsonPropertyDescription(
     "Only accepts standard URL format"
   )
+  @JsonSchemaInject(json = """
+{
+  "examples": ["https://example.com"]
+}
+""")
   var url: String = _
 
   @JsonProperty(required = true)

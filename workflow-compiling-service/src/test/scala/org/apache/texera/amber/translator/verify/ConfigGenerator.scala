@@ -450,8 +450,12 @@ object ConfigGenerator {
     val unset = current.isMissingNode ||
       current == defaultsOf(f.getDeclaringClass).path(jsonNameOf(f))
     // A knob whose values the field DECLARES is left to its declaration: the enum
-    // sweep covers a declared value list, and a knob with a `pattern` takes its own
-    // declared example — the canonical value is not among what either accepts.
+    // sweep covers a declared value list, and a knob offering an `examples` value
+    // takes that one. Reading `examples` on its own, rather than only alongside a
+    // `pattern`, is the point: a field can state a realistic value ("https://
+    // example.com" for a URL) without having to invent a constraint to hang it on,
+    // and inventing one to steer this generator would reject values the platform
+    // accepts.
     // An optional knob is typed by what its Option holds, so `start`/`end` declared
     // as Option[Double] are swept like the bare numbers they are.
     val scalarType = effectiveScalarType(f)
@@ -459,7 +463,7 @@ object ConfigGenerator {
       hasAutofill(f) || required || !unset ||
       declaredEnumValues(f).size > 1 || !isFreeScalar(scalarType)
     ) None
-    else if (declaresPattern(f)) declaredExample(f).map(v => (childPath, v))
+    else if (declaredExample(f).isDefined) declaredExample(f).map(v => (childPath, v))
     else if (scalarType == classOf[String])
       // The canonical string is "1", so the n-th knob reads as "1", "2", … — distinct
       // and ascending, so the knobs filled in one row do not collide.
@@ -483,17 +487,8 @@ object ConfigGenerator {
         }
   }
 
-  /** A knob whose accepted values the field DESCRIBES with a `pattern`: the canonical
-    * value almost certainly isn't one of them, and the hostile value certainly isn't
-    * — the declaration itself rejects it, so there is no escaping left to check.
-    * What such a knob gets filled with is its own declared `examples` (see
-    * [[declaredExample]]) rather than anything this generator picks.
-    */
-  private def declaresPattern(f: Field): Boolean =
-    schemaKey(f, "pattern").exists(_.isTextual)
-
   /** The first value a field offers under `examples` — a legal sample the operator
-    * states itself, so nothing here has to invent one for a constrained knob.
+    * states itself, so nothing here has to invent one.
     */
   private def declaredExample(f: Field): Option[JsonNode] =
     schemaKey(f, "examples").filter(_.isArray).flatMap(_.elements().asScala.toSeq.headOption)
@@ -778,10 +773,10 @@ object ConfigGenerator {
         // declares 10 is still filled with 10 rather than a generic number.
         elementType(f).flatMap { elem =>
           if (isNestedObject(elem)) scalarOrNested(elem, schemas, used, rowCount)
-          else scalarNode(elem, defaultOf(f), schemas, used, NumHint(declaredRange(f), rowCount))
+          else scalarNode(elem, baseValueOf(f), schemas, used, NumHint(declaredRange(f), rowCount))
         }
       else if (declaredEnumValues(f).size > 1) Right(declaredEnumDefault(f))
-      else scalarNode(t, defaultOf(f), schemas, used, NumHint(declaredRange(f), rowCount))
+      else scalarNode(t, baseValueOf(f), schemas, used, NumHint(declaredRange(f), rowCount))
     }
   }
 
@@ -799,6 +794,18 @@ object ConfigGenerator {
       .filter(declared.contains)
       .getOrElse(declared.head)
   }
+
+  /** What the base config should carry for a scalar field, before this generator
+    * invents anything: the operator's own `defaultValue` if it has one, else the
+    * value it offers under `examples`.
+    *
+    * `examples` matters most on a REQUIRED field, which [[leafFill]] never reaches —
+    * a required knob with no default would otherwise take the canonical "1", and "1"
+    * is not a URL, a regex or a delimiter. A field can now say what a realistic value
+    * looks like without declaring a constraint it does not have.
+    */
+  private def baseValueOf(f: Field): Option[String] =
+    defaultOf(f).orElse(declaredExample(f).filter(_.isTextual).map(_.asText))
 
   /** A node for a list element or Option inner type — no field-level default or
     * range annotation (those live on the field, not the element type).
