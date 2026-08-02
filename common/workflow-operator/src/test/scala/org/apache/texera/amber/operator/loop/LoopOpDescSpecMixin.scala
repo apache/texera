@@ -74,6 +74,17 @@ trait LoopOpDescSpecMixin extends Matchers {
     physical.outputPorts.size shouldBe opDesc.operatorInfo.outputPorts.size
   }
 
+  protected def assertSingleInputLink(opDesc: LogicalOp): Assertion = {
+    // Both loop operators take exactly one inbound link. Every reader on a
+    // materialized input port replays that port's states independently, so a
+    // second link would deliver the loop state twice per iteration (double
+    // `update`, double back-edge); a Loop Start additionally needs the single
+    // reader for the scheduler to resolve its bookkeeping URIs from. The flag
+    // is what stops the GUI drawing the second link at all, rather than the
+    // plan failing at StartWorkflow (discussion #6966).
+    opDesc.operatorInfo.inputPorts.head.disallowMultiLinks shouldBe true
+  }
+
   protected def assertOpExecWithPythonCodeForClass(
       physical: PhysicalOp,
       expectedSubclassDecl: String

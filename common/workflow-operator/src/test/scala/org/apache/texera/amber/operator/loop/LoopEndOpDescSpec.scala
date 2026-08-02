@@ -50,11 +50,7 @@ class LoopEndOpDescSpec extends AnyFlatSpec with LoopOpDescSpecMixin {
   }
 
   it should "disallow more than one link into its input port" in {
-    // Each reader on an input port replays the loop state independently, so a
-    // second link would make this Loop End consume the same iteration twice
-    // (double `update`, double back-edge). Declaring it on the port stops the
-    // GUI from drawing the second link (discussion #6966).
-    desc().operatorInfo.inputPorts.head.disallowMultiLinks shouldBe true
+    assertSingleInputLink(desc())
   }
 
   "LoopEndOpDesc.generatePythonCode" should "wrap user inputs in the base64 decode template" in {

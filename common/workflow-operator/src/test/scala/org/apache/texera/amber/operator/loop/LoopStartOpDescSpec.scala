@@ -47,12 +47,7 @@ class LoopStartOpDescSpec extends AnyFlatSpec with LoopOpDescSpecMixin {
   }
 
   it should "disallow more than one link into its input port" in {
-    // The runtime resolves the loop's bookkeeping URIs from this port's single
-    // reader (WorkflowExecutionManager requires exactly one storage pair), and
-    // every extra reader would replay the loop state again. Declaring it on
-    // the port is what stops the GUI from drawing a second link at all, rather
-    // than failing at StartWorkflow (discussion #6966).
-    desc().operatorInfo.inputPorts.head.disallowMultiLinks shouldBe true
+    assertSingleInputLink(desc())
   }
 
   "LoopStartOpDesc.generatePythonCode" should "wrap user inputs in the base64 decode template" in {

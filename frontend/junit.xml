@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<testsuites name="vitest tests" tests="7" failures="0" errors="0" time="0.0921976">
+    <testsuite name="src/app/workspace/service/validation/validation-workflow.service.spec.ts" timestamp="2026-08-02T00:56:33.419Z" hostname="Lin-PC" tests="7" failures="0" errors="0" skipped="0" time="0.0921976">
+        <testcase classname="src/app/workspace/service/validation/validation-workflow.service.spec.ts" name="ValidationWorkflowService &gt; should be created" time="0.0151824">
+        </testcase>
+        <testcase classname="src/app/workspace/service/validation/validation-workflow.service.spec.ts" name="ValidationWorkflowService &gt; should receive true from validateOperator when operator box is connected and required properties are complete " time="0.0264242">
+        </testcase>
+        <testcase classname="src/app/workspace/service/validation/validation-workflow.service.spec.ts" name="ValidationWorkflowService &gt; should subscribe the changes of validateOperatorStream when operator box is connected and required properties are complete " time="0.0107309">
+        </testcase>
+        <testcase classname="src/app/workspace/service/validation/validation-workflow.service.spec.ts" name="ValidationWorkflowService &gt; should receive false from validateOperator when operator box is not connected or required properties are not complete " time="0.0074604">
+        </testcase>
+        <testcase classname="src/app/workspace/service/validation/validation-workflow.service.spec.ts" name="ValidationWorkflowService &gt; should subscribe the changes of validateOperatorStream when operator link is deleted after valid status " time="0.0084658">
+        </testcase>
+        <testcase classname="src/app/workspace/service/validation/validation-workflow.service.spec.ts" name="ValidationWorkflowService &gt; should consider disabled operators when validating workflow" time="0.0107504">
+            <system-out>
+{
+  mockScan2: {
+    isValid: false,
+    messages: { required: &quot;must have required property &apos;tableName&apos;&quot; }
+  }
+}
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/app/workspace/service/validation/validation-workflow.service.spec.ts" name="ValidationWorkflowService &gt; should report an operator invalid when a disallowMultiInputs port has two enabled links" time="0.0116385">
+        </testcase>
+    </testsuite>
+</testsuites>
