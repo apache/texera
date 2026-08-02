@@ -309,6 +309,7 @@ jobs:
               "Auth/jacoco" \
               "Config/jacoco" \
               "Resource/jacoco" \
+              "Util/jacoco" \
               "PyBuilder/jacoco" \
               "WorkflowCore/jacoco" \
               "WorkflowOperator/jacoco" \
