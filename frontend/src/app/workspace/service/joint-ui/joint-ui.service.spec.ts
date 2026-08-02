@@ -361,7 +361,7 @@ describe("JointUIService", () => {
       service.changeOperatorColor(paper, "op-1", false);
       expect(attrSpy).toHaveBeenCalledWith("rect.body/stroke", "red");
     });
-    it("skips the write when the border is already the requested color (see #5726)", () => {
+    it("skips the write when the border is already the requested color", () => {
       const { paper, attrSpy } = makePaperWithModel();
       // model reports it is already neutral; the guarded setter must not rewrite it
       attrSpy.mockImplementation((selector: string) => (selector === "rect.body/stroke" ? "#CFCFCF" : undefined));
