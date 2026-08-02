@@ -46,10 +46,6 @@ import org.apache.texera.amber.operator.sort.{
 }
 import org.apache.texera.amber.operator.typecasting.{TypeCastingOpDesc, TypeCastingUnit}
 import org.apache.texera.amber.operator.visualization.ImageViz.ImageVisualizerOpDesc
-import org.apache.texera.amber.operator.visualization.bulletChart.{
-  BulletChartOpDesc,
-  BulletChartStepDefinition
-}
 
 import org.apache.texera.amber.operator.visualization.dumbbellPlot.{
   DumbbellDotConfig,
@@ -212,7 +208,6 @@ object CuratedHandlers {
     SleepTransformHandler,
     KeywordSearchTransformHandler,
     ProjectionTransformHandler,
-    BulletChartVisualizationHandler,
     DumbbellPlotVisualizationHandler,
     ImageVisualizerVisualizationHandler,
     FilledAreaPlotVisualizationHandler,
@@ -839,31 +834,6 @@ object KeywordSearchTransformHandler extends TransformHandler {
     desc.isCaseSensitive = false
 
     (desc, Map(PortIdentity(0) -> inputPath))
-  }
-}
-
-/** BulletChart: curated CONFIG over the shared canonical fixture. The auto tier
-  * builds `steps: [{}]` — a list field always gets exactly one element, and the
-  * element's `start`/`end` are optional numbers it has no basis to fill — leaving a
-  * step the operator drops, so no step range is exercised at all. The steps below
-  * bracket the fixture's `score` range (0.5–5.5); the runtime path renders one
-  * bullet per row while the JSON comparator validates the first Plotly payload.
-  */
-object BulletChartVisualizationHandler extends TransformHandler {
-  override val opDescClass: Class[_ <: LogicalOp] = classOf[BulletChartOpDesc]
-
-  override def fixture(testRoot: Path): (LogicalOp, Map[PortIdentity, Path]) = {
-    val steps = new util.ArrayList[BulletChartStepDefinition]()
-    steps.add(new BulletChartStepDefinition(Some(0), Some(3)))
-    steps.add(new BulletChartStepDefinition(Some(3), Some(6)))
-
-    val desc = new BulletChartOpDesc()
-    desc.value = "score"
-    desc.deltaReference = Some(3)
-    desc.thresholdValue = Some(4.5)
-    desc.steps = steps
-
-    (desc, CanonicalFixture.writeInputs(testRoot, 1))
   }
 }
 
