@@ -42,20 +42,19 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerator 
 
   // Almost anything: the delimiter reaches the parser as `charAt(0)` and empty is read
   // as the default comma, so a longer value is not refused, it just has its tail
-  // ignored. The one value that does fail is a leading NEWLINE — measured, both readers
-  // here take it, but pandas refuses it outright ("Specified \n as separator"), so the
-  // exported script would die on a config the platform runs. Excluded through a
-  // lookahead rather than an `^$` alternative because `$` in Java and Python also
-  // matches before a trailing newline, which would let `"\n"` back in; the lookahead
-  // reads the same in all three engines. `examples` gives a legal sample to whatever
-  // needs one.
+  // ignored. A leading NEWLINE is the one value the two paths disagree on — the reader
+  // here takes it and returns the whole line as a single field, while pandas refuses it
+  // outright ("Specified \n as separator"). That is an accepted divergence, not
+  // something to exclude: the form must not reject a config the platform runs.
+  // `examples` offers a realistic value to whatever needs one -- a delimiter that
+  // does not occur inside the data, since the fixture is fixed and a separator the
+  // rows happen to contain makes both readers parse ragged lines, differently.
   @JsonProperty(defaultValue = ",")
   @JsonSchemaTitle("Delimiter")
   @JsonPropertyDescription("delimiter to separate each line into fields")
   @JsonInclude(JsonInclude.Include.NON_ABSENT)
   @JsonSchemaInject(json = """
 {
-  "pattern": "^(?!\\n)[\\s\\S]*$",
   "examples": [","]
 }
 """)
