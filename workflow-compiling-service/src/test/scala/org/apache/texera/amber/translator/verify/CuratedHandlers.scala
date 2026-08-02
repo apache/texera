@@ -38,11 +38,6 @@ import org.apache.texera.amber.operator.hashJoin.{HashJoinOpDesc, JoinType}
 import org.apache.texera.amber.operator.keywordSearch.KeywordSearchOpDesc
 import org.apache.texera.amber.operator.regex.RegexOpDesc
 import org.apache.texera.amber.operator.sleep.SleepOpDesc
-import org.apache.texera.amber.operator.sort.{
-  SortCriteriaUnit,
-  SortPreference,
-  StableMergeSortOpDesc
-}
 import org.apache.texera.amber.operator.typecasting.{TypeCastingOpDesc, TypeCastingUnit}
 import org.apache.texera.amber.operator.visualization.ImageViz.ImageVisualizerOpDesc
 
@@ -213,8 +208,7 @@ object CuratedHandlers {
     IfTransformHandler,
     MachineLearningScorerTransformHandler,
     HuggingFaceSpamSMSDetectionTransformHandler,
-    RegexTransformHandler,
-    StableMergeSortTransformHandler
+    RegexTransformHandler
   )
 
   val byClass: Map[Class[_ <: LogicalOp], TransformHandler] =
@@ -581,32 +575,6 @@ object RegexTransformHandler extends TransformHandler {
         Map(PortIdentity(0) -> dotInput)
       )
     )
-  }
-}
-
-/**
-  * Curated handler for [[StableMergeSortOpDesc]]. Reuses the shared canonical
-  * fixture (no bespoke input) and only PINS the sort key to `name` — a column
-  * that carries tie groups ("1"×3, alice/bob/carol/dave ×2) in shuffled row
-  * order. The auto tier instead sorts on `id` (the first unused column), which
-  * is unique, so ties never occur and the operator's defining STABLE property
-  * is never exercised. With a tied key, a non-stable sort would reorder
-  * equal-key rows differently from the JVM incremental stable merge, so this
-  * pins that behavior; the runner's enum sweep runs both ASC and DESC (ties stay
-  * in input order regardless of direction, matching `na_position`-independent
-  * stability on both sides). Sort output is order-sensitive, so the comparator
-  * checks row order strictly.
-  */
-object StableMergeSortTransformHandler extends TransformHandler {
-  override val opDescClass: Class[_ <: LogicalOp] = classOf[StableMergeSortOpDesc]
-
-  override def fixture(testRoot: Path): (LogicalOp, Map[PortIdentity, Path]) = {
-    val criteria = new SortCriteriaUnit()
-    criteria.attributeName = "name"
-    criteria.sortPreference = SortPreference.ASC
-    val desc = new StableMergeSortOpDesc()
-    desc.keys = ListBuffer(criteria)
-    (desc, CanonicalFixture.writeInputs(testRoot, 1))
   }
 }
 
