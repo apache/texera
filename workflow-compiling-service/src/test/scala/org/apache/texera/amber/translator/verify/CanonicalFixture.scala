@@ -98,7 +98,12 @@ object CanonicalFixture {
     new Attribute(
       "csv_list",
       AttributeType.STRING
-    ) // comma-delimited, 1–4 tokens per row: split/explode ops need real fan-out
+    ), // comma-delimited, 1–4 tokens per row: split/explode ops need real fan-out
+    new Attribute(
+      "mixed_case",
+      AttributeType.STRING
+    ) // a third lower-case, a third upper, a third letterless: a case flag has to
+    // change WHICH rows match, and on any other column it changes nothing
   )
 
   /** Schemas ConfigGenerator resolves @AutofillAttributeName fields against. */

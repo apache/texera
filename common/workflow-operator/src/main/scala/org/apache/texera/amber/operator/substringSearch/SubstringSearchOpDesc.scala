@@ -20,7 +20,7 @@
 package org.apache.texera.amber.operator.substringSearch
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
-import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
+import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PhysicalOp}
@@ -33,16 +33,25 @@ import org.apache.texera.amber.util.JSONUtils.objectMapper
 
 class SubstringSearchOpDesc extends FilterOpDesc with StandaloneCodeGenerator {
 
+  // Verification reads a column holding lower-case, upper-case and letterless rows,
+  // so that flipping Case Sensitive changes WHICH rows match. On a single-case column
+  // it changes nothing and the sweep decides nothing.
   @JsonProperty(required = true)
   @JsonSchemaTitle("attribute")
   @JsonPropertyDescription("column to search substring on")
   @AutofillAttributeName
-  @SampleColumn("name")
+  @SampleColumn("mixed_case")
   var attribute: String = _
 
+  // A letter-bearing sample, for the same reason -- case cannot matter to a digit.
   @JsonProperty(required = true)
   @JsonSchemaTitle("Substring")
   @JsonPropertyDescription("substring")
+  @JsonSchemaInject(json = """
+{
+  "examples": ["ab"]
+}
+""")
   var substring: String = _
 
   @JsonProperty(required = true, defaultValue = "false")

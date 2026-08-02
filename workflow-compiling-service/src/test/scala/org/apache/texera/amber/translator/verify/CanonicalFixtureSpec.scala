@@ -179,6 +179,18 @@ class CanonicalFixtureSpec extends AnyFlatSpec with Matchers {
     }
   }
 
+  // A case flag is only worth sweeping where flipping it changes WHICH rows match,
+  // which needs rows of all three kinds in EVERY window a test reads — hence the
+  // per-port check rather than one over the whole table.
+  it should "expose mixed_case with lower, upper and letterless rows on every port" in {
+    Seq(CanonicalFixture.port0Rows, CanonicalFixture.port1Rows).foreach { rows =>
+      val values = rows.map(_.getField[String]("mixed_case"))
+      values.count(v => v.exists(_.isLower)) should be > 0
+      values.count(v => v.exists(_.isUpper) && !v.exists(_.isLower)) should be > 0
+      values.count(v => !v.exists(_.isLetter)) should be > 0
+    }
+  }
+
   it should "write one JSONL fixture per requested input port" in {
     val root = Files.createTempDirectory("canonical-fixture-")
     val inputs = CanonicalFixture.writeInputs(root, inputPortCount = 2)
