@@ -51,13 +51,28 @@ object JwtAuth {
     jws.getCompactSerialization
   }
 
-  def jwtClaims(user: User, expireInDays: Int): JwtClaims = {
+  /**
+    * Build the claim set for `user`. The claim names are a contract with the hand-written
+    * TypeScript reader in `frontend/src/app/common/service/user/auth.service.ts`, which is not
+    * compiled against this file — so renaming one here silently breaks the frontend. `avatar`
+    * now lives on `"user"` rather than a Google-specific column, but the claim keeps its
+    * `googleAvatar` name until the frontend is migrated in lockstep.
+    *
+    * `googleId` is passed in rather than read off `user`, because the GOOGLE provider id lives
+    * in `auth_provider` and this module must stay DB-free: the four specs in
+    * `access-control-service` / `config-service` and the token re-issue paths in
+    * `ResultExportService` / `ComputingUnitManagingResource` all call this with no
+    * `auth_provider` context. Those re-issued tokens are service-to-service and never reach
+    * the browser, so omitting the claim there is harmless.
+    */
+  def jwtClaims(user: User, expireInDays: Int, googleId: Option[String] = None): JwtClaims = {
     val claims = new JwtClaims
     claims.setSubject(user.getName)
     claims.setClaim("userId", user.getUid)
     claims.setClaim("email", user.getEmail)
     claims.setClaim("role", user.getRole)
-    claims.setClaim("avatar", user.getAvatar)
+    claims.setClaim("googleAvatar", user.getAvatar)
+    googleId.foreach(claims.setClaim("googleId", _))
     claims.setExpirationTimeMinutesInTheFuture(TOKEN_EXPIRE_TIME_IN_MINUTES.toFloat)
     claims
   }

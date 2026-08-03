@@ -40,7 +40,7 @@ class JwtParserSpec extends AnyFlatSpec with Matchers {
     claims.setClaim("userId", 42)
     claims.setClaim("email", "alice@example.com")
     claims.setClaim("role", UserRoleEnum.ADMIN.name)
-    claims.setClaim("avatar", "avatar-blob")
+    claims.setClaim("googleAvatar", "avatar-blob")
     claims.setExpirationTimeMinutesInTheFuture(10f)
     claims
   }
@@ -158,7 +158,7 @@ class JwtParserSpec extends AnyFlatSpec with Matchers {
     bob.setClaim("userId", 7)
     bob.setClaim("email", "bob@example.com")
     bob.setClaim("role", UserRoleEnum.REGULAR.name)
-    bob.setClaim("avatar", "bob-avatar")
+    bob.setClaim("googleAvatar", "bob-avatar")
     bob.setExpirationTimeMinutesInTheFuture(10f)
 
     val aliceUser = JwtParser.parseToken(JwtAuth.jwtToken(alice)).get().getUser

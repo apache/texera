@@ -62,7 +62,10 @@ object JwtParser extends LazyLogging {
     // call writes Integer; widen via Number to handle both cases.
     val userId = claims.getClaimValue("userId", classOf[Number]).intValue()
     val role = UserRoleEnum.valueOf(claims.getClaimValue("role").asInstanceOf[String])
-    val googleAvatar = claims.getClaimValue("avatar", classOf[String])
+    val googleAvatar = claims.getClaimValue("googleAvatar", classOf[String])
+    // The `googleId` claim is deliberately written but not read back: nothing server-side
+    // needs it (credentials live in auth_provider), and the only consumer is the frontend,
+    // which reads it straight off the raw token.
 
     new SessionUser(
       new User().tap { user =>

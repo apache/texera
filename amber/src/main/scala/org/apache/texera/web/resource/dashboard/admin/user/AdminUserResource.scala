@@ -24,17 +24,13 @@ import org.apache.texera.dao.jooq.generated.enums.{ProviderTypeEnum, UserRoleEnu
 import org.apache.texera.dao.jooq.generated.tables.User.USER
 import org.apache.texera.dao.jooq.generated.tables.AuthProvider.AUTH_PROVIDER
 import org.apache.texera.dao.jooq.generated.tables.UserLastActiveTime.USER_LAST_ACTIVE_TIME
-import org.apache.texera.dao.jooq.generated.tables.daos.{AuthProviderDao, UserDao}
-import org.apache.texera.dao.jooq.generated.tables.pojos.{AuthProvider, User}
+import org.apache.texera.dao.jooq.generated.tables.daos.UserDao
+import org.apache.texera.dao.jooq.generated.tables.pojos.User
 import org.apache.texera.web.resource.EmailTemplate.createRoleChangeTemplate
 import org.apache.texera.web.resource.GmailResource.sendEmail
-import org.apache.texera.web.resource.dashboard.admin.user.AdminUserResource.{
-  passwordEncryptor,
-  userDao
-}
+import org.apache.texera.web.resource.auth.LocalAuthProvisioner
+import org.apache.texera.web.resource.dashboard.admin.user.AdminUserResource.userDao
 import org.apache.texera.web.resource.dashboard.user.quota.UserQuotaResource._
-import org.jasypt.util.password.StrongPasswordEncryptor
-import org.jooq.exception.DataAccessException
 
 import java.util
 import java.util.UUID
@@ -49,7 +45,9 @@ case class UserInfo(
     googleId: String,
     localHandle: String,
     role: UserRoleEnum,
-    avatar: String,
+    // `"user".avatar` is no longer Google-specific, but this is the JSON key
+    // `admin-user.component.html` binds, so the wire name stays until the frontend migrates.
+    googleAvatar: String,
     comment: String,
     lastLogin: java.time.OffsetDateTime, // will be null if never logged in
     accountCreation: java.time.OffsetDateTime,
@@ -63,8 +61,6 @@ object AdminUserResource {
       .getInstance()
       .createDSLContext()
   private def userDao = new UserDao(context.configuration)
-  private val passwordEncryptor = new StrongPasswordEncryptor
-  private val UNIQUE_VIOLATION = "23505"
 }
 
 @Path("/admin/user")
@@ -89,13 +85,15 @@ class AdminUserResource {
         USER.UID,
         USER.NAME,
         USER.EMAIL,
-        // Both joins project a column called `provider_id`. fetchInto matches a case class by
-        // field NAME, so without these aliases the two collide and googleId silently receives
-        // whichever provider_id the mapper reaches first (the LOCAL handle).
+        // fetchInto maps onto a Scala case class POSITIONALLY, not by name: a case class has no
+        // no-arg constructor, so jOOQ falls through to ImmutablePOJOMapper. So the column order
+        // below must track the UserInfo field order. `last_active_time` landing on `lastLogin` two
+        // entries down only works because of that. The aliases are documentation (both joins
+        // project a column called `provider_id`); they do not drive the mapping.
         googleProvider.PROVIDER_ID.as("googleId"),
         localProvider.PROVIDER_ID.as("localHandle"),
         USER.ROLE,
-        USER.AVATAR,
+        USER.AVATAR.as("googleAvatar"),
         USER.COMMENT,
         USER_LAST_ACTIVE_TIME.LAST_ACTIVE_TIME,
         USER.ACCOUNT_CREATION_TIME,
@@ -148,34 +146,8 @@ class AdminUserResource {
     * so the collision path is reachable: `addUser` derives its handle from a fresh UUID and
     * so cannot produce the unique violation this maps to a 409.
     */
-  private[user] def createLocalAccount(handle: String, rawPassword: String): Unit = {
-    val password = passwordEncryptor.encryptPassword(rawPassword)
-
-    try {
-      SqlServer.withTransaction(AdminUserResource.context) { ctx =>
-        val txUserDao = new UserDao(ctx.configuration())
-        val txAuthDao = new AuthProviderDao(ctx.configuration())
-
-        val newUser = new User
-        newUser.setName(handle)
-        newUser.setRole(UserRoleEnum.INACTIVE)
-        txUserDao.insert(newUser)
-
-        val newAuth = new AuthProvider()
-        newAuth.setUid(newUser.getUid)
-        newAuth.setPassword(password)
-        newAuth.setProviderType(ProviderTypeEnum.LOCAL)
-        newAuth.setProviderId(handle)
-        txAuthDao.insert(newAuth)
-      }
-    } catch {
-      case e: DataAccessException if e.sqlState() == AdminUserResource.UNIQUE_VIOLATION =>
-        throw new WebApplicationException(
-          new RuntimeException(s"Login handle $handle is already taken", e),
-          Response.Status.CONFLICT
-        )
-    }
-  }
+  private[user] def createLocalAccount(handle: String, rawPassword: String): Unit =
+    LocalAuthProvisioner.createLocalAccount(handle, rawPassword)
 
   @GET
   @Path("/created_workflows")

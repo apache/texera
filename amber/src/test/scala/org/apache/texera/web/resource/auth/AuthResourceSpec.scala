@@ -211,6 +211,32 @@ class AuthResourceSpec
     ex.getMessage should include("Email exists")
   }
 
+  // The taken-handle check has to ask auth_provider, not "user".name: an external login rewrites
+  // the display name but never the handle, so a name-based guard let the handle through and the
+  // insert then died on uq_provider_identity as a 500 instead of this 406.
+  it should "reject a taken handle even when the owner's display name has since drifted" in {
+    val owner = seedUser(uname("drift"), "pw")
+    // keep the cleanup prefix so the renamed row is still collected
+    owner.setName(uname("drift_renamed_by_google"))
+    userDao.update(owner)
+
+    val ex = intercept[NotAcceptableException](
+      resource.register(UserRegistrationRequest(uname("drift"), uemail("drift_other"), "pw2"))
+    )
+    ex.getMessage should include("Username exists")
+  }
+
+  // The mirror case: a display name that is not a handle must not block registration.
+  it should "allow a handle that only collides with some other account's display name" in {
+    val squatter = seedUser(uname("squatter"), "pw")
+    squatter.setName(uname("wanted"))
+    userDao.update(squatter)
+
+    val response =
+      resource.register(UserRegistrationRequest(uname("wanted"), uemail("wanted"), "pw2"))
+    subjectOf(response.accessToken) shouldBe uname("wanted")
+  }
+
   // ─── createAdminUser ────────────────────────────────────────────────────────
 
   "createAdminUser" should "insert the configured admin with the ADMIN role and a hashed password" in {

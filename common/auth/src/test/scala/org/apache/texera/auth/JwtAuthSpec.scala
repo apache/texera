@@ -43,18 +43,27 @@ class JwtAuthSpec extends AnyFlatSpec with Matchers {
     claims.getSubject shouldBe "alice"
     claims.getClaimValueAsString("userId") shouldBe "42"
     claims.getClaimValueAsString("email") shouldBe "alice@example.com"
-    claims.getClaimValueAsString("avatar") shouldBe "avatar-blob"
+    claims.getClaimValueAsString("googleAvatar") shouldBe "avatar-blob"
     claims.getClaimValueAsString("role") shouldBe UserRoleEnum.ADMIN.name
   }
 
-  // Credentials now live in auth_provider, and the token deliberately carries none of them:
-  // it identifies the user, it does not re-present the identity that authenticated them.
-  it should "not carry any provider credential in the claims" in {
+  // Passwords live in auth_provider and never leave it. `googleId` is a different matter: it is
+  // an identifier, not a credential, and the frontend still reads it off the token.
+  it should "not carry any password in the claims" in {
     val claims = JwtAuth.jwtClaims(buildUser(), 7)
-    claims.hasClaim("googleId") shouldBe false
-    claims.hasClaim("googleAvatar") shouldBe false
     claims.hasClaim("password") shouldBe false
     claims.hasClaim("providerId") shouldBe false
+  }
+
+  // The GOOGLE provider id is not on the User pojo any more, so callers with no auth_provider
+  // context (service-to-service token re-issue) simply omit it rather than writing null.
+  it should "omit the googleId claim when no provider id is supplied" in {
+    JwtAuth.jwtClaims(buildUser(), 7).hasClaim("googleId") shouldBe false
+  }
+
+  it should "carry the googleId claim when a provider id is supplied" in {
+    val claims = JwtAuth.jwtClaims(buildUser(), 7, Some("google-sub-123"))
+    claims.getClaimValueAsString("googleId") shouldBe "google-sub-123"
   }
 
   it should "derive the expiration from config, ignoring the expireInDays argument" in {

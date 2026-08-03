@@ -111,6 +111,25 @@ class AdminUserResourceSpec
     user
   }
 
+  /**
+    * Seed a credential row. `password` is left null for external providers because
+    * ck_provider_credential requires a password for LOCAL and only for LOCAL. The
+    * auth_provider FK is ON DELETE CASCADE, so `cleanup`'s user delete clears these.
+    */
+  private def seedProvider(
+      uid: Int,
+      providerType: ProviderTypeEnum,
+      providerId: String,
+      password: String = null
+  ): Unit =
+    getDSLContext
+      .insertInto(AUTH_PROVIDER)
+      .set(AUTH_PROVIDER.UID, Integer.valueOf(uid))
+      .set(AUTH_PROVIDER.PROVIDER_TYPE, providerType)
+      .set(AUTH_PROVIDER.PROVIDER_ID, providerId)
+      .set(AUTH_PROVIDER.PASSWORD, password)
+      .execute()
+
   private def seedWorkflow(): Workflow = {
     val workflow = new Workflow
     workflow.setWid(testWid)
@@ -167,6 +186,33 @@ class AdminUserResourceSpec
 
   it should "not return a user that has not been seeded" in {
     resource.list().asScala.exists(_.uid == primaryUid) shouldBe false
+  }
+
+  // The projection maps onto UserInfo positionally, and it left-joins auth_provider twice for
+  // the two credential kinds. Nothing else observes that the columns land on the fields they
+  // are meant to, which is the whole risk of a positional mapping — so pin it here for a user
+  // holding both credentials at once.
+  it should "report both credential handles and the avatar for a user with LOCAL and GOOGLE rows" in {
+    val user = makeUser(primaryUid, "dual")
+    user.setAvatar("avatar-blob")
+    userDao.insert(user)
+    seedProvider(primaryUid, ProviderTypeEnum.LOCAL, "dual-handle", password = "hashed")
+    seedProvider(primaryUid, ProviderTypeEnum.GOOGLE, "google-sub-dual")
+
+    val listed = resource.list().asScala.find(_.uid == primaryUid)
+
+    listed.map(u => (u.name, u.localHandle, u.googleId, u.googleAvatar)) shouldBe Some(
+      ("dual", "dual-handle", "google-sub-dual", "avatar-blob")
+    )
+  }
+
+  it should "leave the credential handles null for a user with no auth_provider rows" in {
+    userDao.insert(makeUser(primaryUid, "credential-less"))
+
+    val listed = resource.list().asScala.find(_.uid == primaryUid)
+
+    listed.map(_.localHandle) shouldBe Some(null)
+    listed.map(_.googleId) shouldBe Some(null)
   }
 
   // ─── addUser ────────────────────────────────────────────────────────────

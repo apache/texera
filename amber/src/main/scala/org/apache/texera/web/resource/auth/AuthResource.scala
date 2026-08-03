@@ -25,12 +25,11 @@ import org.apache.texera.common.config.UserSystemConfig
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.jooq.generated.Tables.{AUTH_PROVIDER, USER}
 import org.apache.texera.dao.jooq.generated.enums.{ProviderTypeEnum, UserRoleEnum}
-import org.apache.texera.dao.jooq.generated.tables.daos.{AuthProviderDao, UserDao}
-import org.apache.texera.dao.jooq.generated.tables.pojos.{AuthProvider, User}
+import org.apache.texera.dao.jooq.generated.tables.daos.UserDao
+import org.apache.texera.dao.jooq.generated.tables.pojos.User
 import org.apache.texera.web.model.http.request.auth.{UserLoginRequest, UserRegistrationRequest}
 import org.apache.texera.web.model.http.response.TokenIssueResponse
 import org.apache.texera.web.resource.auth.AuthResource._
-import org.jasypt.util.password.StrongPasswordEncryptor
 
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
@@ -40,19 +39,6 @@ object AuthResource {
 
   private def context = SqlServer.getInstance().context
   private def userDao = new UserDao(context.configuration)
-
-  private val passwordEncryptor = new StrongPasswordEncryptor
-
-  private def localHandleExists(handle: String): Boolean = {
-    context.fetchExists(
-      context
-        .selectFrom(AUTH_PROVIDER)
-        .where(AUTH_PROVIDER.PROVIDER_TYPE.eq(ProviderTypeEnum.LOCAL))
-        .and(AUTH_PROVIDER.PROVIDER_ID.eq(handle))
-    )
-  }
-
-  //TODO ASSERT THAT ALL USERS WERE MIGRATED CORRECTLY AND CHECK
 
   /**
     * Retrieve exactly one User from databases with the given username and password.
@@ -76,33 +62,12 @@ object AuthResource {
 
     Option(record).flatMap(r => {
       val encryptedPassword = r.get(AUTH_PROVIDER.PASSWORD)
-      if (passwordEncryptor.checkPassword(password, encryptedPassword)) {
+      if (LocalAuthProvisioner.checkPassword(password, encryptedPassword)) {
         Some(r.into(USER).into(classOf[User]))
       } else {
         None
       }
     })
-  }
-
-  /**
-    * Create a user together with the LOCAL credential it logs in with. The handle is passed
-    * explicitly rather than read off `user.getName`, so that identity is never re-derived
-    * from the mutable display name.
-    */
-  private def insertLocalUser(user: User, handle: String, hashedPassword: String): Unit = {
-    SqlServer.withTransaction(SqlServer.getInstance().createDSLContext()) { ctx =>
-      val txUserDao = new UserDao(ctx.configuration())
-      val txAuthDao = new AuthProviderDao(ctx.configuration())
-
-      txUserDao.insert(user)
-
-      val auth = new AuthProvider
-      auth.setUid(user.getUid)
-      auth.setProviderType(ProviderTypeEnum.LOCAL)
-      auth.setProviderId(handle)
-      auth.setPassword(hashedPassword)
-      txAuthDao.insert(auth)
-    }
   }
 
   def createAdminUser(): Unit =
@@ -116,7 +81,7 @@ object AuthResource {
   private[auth] def createAdminUser(adminUsername: String, adminPassword: String): Unit = {
     if (adminUsername.isEmpty || adminPassword.isEmpty) return
 
-    if (localHandleExists(adminUsername)) return
+    if (LocalAuthProvisioner.handleExists(adminUsername)) return
 
     if (userDao.fetchOneByEmail(adminUsername) != null) {
       logger.warn(
@@ -131,7 +96,7 @@ object AuthResource {
     user.setEmail(adminUsername)
     user.setRole(UserRoleEnum.ADMIN)
 
-    insertLocalUser(user, adminUsername, passwordEncryptor.encryptPassword(adminPassword))
+    LocalAuthProvisioner.createLocalAccount(user, adminUsername, adminPassword)
   }
 }
 
@@ -145,7 +110,11 @@ class AuthResource {
   def login(request: UserLoginRequest): TokenIssueResponse = {
     retrieveUserByUsernameAndPassword(request.username, request.password) match {
       case Some(user) =>
-        TokenIssueResponse(jwtToken(jwtClaims(user, TOKEN_EXPIRE_TIME_IN_MINUTES)))
+        // An account can hold both a LOCAL and a GOOGLE credential, and the frontend expects
+        // `googleId` in the token regardless of which one was used to sign in.
+        val googleId =
+          ExternalAuthProvisioner.providerIdOf(user.getUid, ProviderTypeEnum.GOOGLE)
+        TokenIssueResponse(jwtToken(jwtClaims(user, TOKEN_EXPIRE_TIME_IN_MINUTES, googleId)))
       case None => throw new NotAuthorizedException("Login credentials are incorrect.")
     }
   }
@@ -165,8 +134,11 @@ class AuthResource {
     if (userpassword == null || userpassword.isEmpty)
       throw new NotAcceptableException("Password cannot be empty")
 
-    // Check if email already exists
-    val usernameExists = !userDao.fetchByName(username).isEmpty
+    // The username being registered becomes a LOCAL login handle, so the handle is what has to
+    // be free, not the display name. Asking `"user".name` instead both missed genuinely taken
+    // handles (letting the insert die on uq_provider_identity as a 500) and rejected free ones,
+    // because an external login rewrites the display name but never the handle.
+    val usernameExists = LocalAuthProvisioner.handleExists(username)
     val emailExists = userDao.fetchOneByEmail(useremail) != null
 
     (usernameExists, emailExists) match {
@@ -179,11 +151,8 @@ class AuthResource {
         user.setName(username)
         user.setEmail(useremail)
         user.setRole(UserRoleEnum.RESTRICTED)
-        insertLocalUser(
-          user,
-          username,
-          AuthResource.passwordEncryptor.encryptPassword(userpassword)
-        )
+        // Loses the race to a concurrent registration of the same handle as a 409.
+        LocalAuthProvisioner.createLocalAccount(user, username, userpassword)
         TokenIssueResponse(jwtToken(jwtClaims(user, TOKEN_EXPIRE_TIME_IN_MINUTES)))
     }
   }

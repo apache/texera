@@ -28,6 +28,8 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 
+import javax.ws.rs.NotAuthorizedException
+
 /**
   * Integration spec for [[ExternalAuthProvisioner]] against embedded Postgres
   * ([[MockTexeraDB]] loads the real `texera_ddl.sql`, so the `auth_provider` table and
@@ -107,7 +109,8 @@ class ExternalAuthProvisionerSpec
         "google-sub-1",
         "New User",
         "new" + emailDomain,
-        Some("avatar1")
+        emailVerified = true,
+        avatar = Some("avatar1")
       )
     )
 
@@ -130,7 +133,8 @@ class ExternalAuthProvisionerSpec
         "google-sub-return",
         "Ret",
         "ret" + emailDomain,
-        Some("a")
+        emailVerified = true,
+        avatar = Some("a")
       )
 
     val first = ExternalAuthProvisioner.loginOrProvision(profile)
@@ -141,14 +145,18 @@ class ExternalAuthProvisionerSpec
     userCountByEmail("ret") shouldBe 1
   }
 
-  it should "refresh drifted profile fields for a known identity" in {
+  // The display name is the user's to edit and is not identity — the login handle lives in
+  // auth_provider.provider_id. Re-deriving it from the provider on every login silently reverted
+  // any rename made in Texera, so refresh leaves it alone and only the avatar follows the drift.
+  it should "refresh the avatar but keep the local display name for a known identity" in {
     ExternalAuthProvisioner.loginOrProvision(
       ExternalProfile(
         ProviderTypeEnum.GOOGLE,
         "sub-drift",
         "Old Name",
         "drift" + emailDomain,
-        Some("oldpic")
+        emailVerified = true,
+        avatar = Some("oldpic")
       )
     )
     val updated = ExternalAuthProvisioner.loginOrProvision(
@@ -157,15 +165,82 @@ class ExternalAuthProvisionerSpec
         "sub-drift",
         "New Name",
         "drift" + emailDomain,
-        Some("newpic")
+        emailVerified = true,
+        avatar = Some("newpic")
       )
     )
 
-    updated.getName shouldBe "New Name"
+    updated.getName shouldBe "Old Name"
     updated.getAvatar shouldBe "newpic"
     // confirm it persisted, not just mutated in memory
-    userDao.fetchOneByUid(updated.getUid).getName shouldBe "New Name"
+    userDao.fetchOneByUid(updated.getUid).getName shouldBe "Old Name"
     userDao.fetchOneByUid(updated.getUid).getAvatar shouldBe "newpic"
+  }
+
+  // ---- unverified email ------------------------------------------------------
+
+  // The email address is the only thing tying a first-time external identity to an account, so
+  // an unverified one must not be able to link onto — or squat on — someone else's row. The
+  // rejection reuses the generic credential error so it cannot be used to enumerate addresses.
+  it should "refuse to link a first-time identity onto an existing account on an unverified email" in {
+    val existing = seedUser("Victim", "victim")
+
+    assertThrows[NotAuthorizedException] {
+      ExternalAuthProvisioner.loginOrProvision(
+        ExternalProfile(
+          ProviderTypeEnum.GOOGLE,
+          "sub-attacker",
+          "Attacker",
+          "victim" + emailDomain,
+          emailVerified = false
+        )
+      )
+    }
+
+    providerRowCount(existing.getUid) shouldBe 0
+    userDao.fetchOneByUid(existing.getUid).getName shouldBe "Victim"
+  }
+
+  it should "refuse to provision a brand-new account on an unverified email" in {
+    assertThrows[NotAuthorizedException] {
+      ExternalAuthProvisioner.loginOrProvision(
+        ExternalProfile(
+          ProviderTypeEnum.GOOGLE,
+          "sub-unverified",
+          "Unverified",
+          "unverified" + emailDomain,
+          emailVerified = false
+        )
+      )
+    }
+
+    userCountByEmail("unverified") shouldBe 0
+  }
+
+  // A provider that stops vouching for the address must not be able to move it either.
+  it should "not adopt an unverified email for a known identity" in {
+    val created = ExternalAuthProvisioner.loginOrProvision(
+      ExternalProfile(
+        ProviderTypeEnum.GOOGLE,
+        "sub-unverified-drift",
+        "Drifter",
+        "verified" + emailDomain,
+        emailVerified = true
+      )
+    )
+
+    ExternalAuthProvisioner.loginOrProvision(
+      ExternalProfile(
+        ProviderTypeEnum.GOOGLE,
+        "sub-unverified-drift",
+        "Drifter",
+        "hijack" + emailDomain,
+        emailVerified = false
+      )
+    )
+
+    userDao.fetchOneByUid(created.getUid).getEmail shouldBe "verified" + emailDomain
+    userCountByEmail("hijack") shouldBe 0
   }
 
   it should "adopt the provider's new email address for a known identity" in {
@@ -175,7 +250,8 @@ class ExternalAuthProvisionerSpec
         "sub-rename",
         "Renamer",
         "before" + emailDomain,
-        Some("pic")
+        emailVerified = true,
+        avatar = Some("pic")
       )
     )
 
@@ -185,7 +261,8 @@ class ExternalAuthProvisionerSpec
         "sub-rename",
         "Renamer",
         "after" + emailDomain,
-        Some("pic")
+        emailVerified = true,
+        avatar = Some("pic")
       )
     )
 
@@ -205,7 +282,8 @@ class ExternalAuthProvisionerSpec
         "sub-keeper",
         "Keeper",
         "keeper" + emailDomain,
-        None
+        emailVerified = true,
+        avatar = None
       )
     )
 
@@ -225,7 +303,8 @@ class ExternalAuthProvisionerSpec
         "sub-link",
         "Local User",
         "linkme" + emailDomain,
-        Some("pic")
+        emailVerified = true,
+        avatar = Some("pic")
       )
     )
 
@@ -246,7 +325,8 @@ class ExternalAuthProvisionerSpec
         "new-sub",
         "Rotating",
         "rotate" + emailDomain,
-        Some("p")
+        emailVerified = true,
+        avatar = Some("p")
       )
     )
 
