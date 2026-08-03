@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,34 +17,22 @@
  * under the License.
  */
 
-import { DatasetFileNode } from "./datasetVersionFileTree";
+\c texera_db
 
-export interface DatasetVersion {
-  dvid: number | undefined;
-  did: number;
-  creatorUid: number;
-  name: string;
-  versionHash: string | undefined;
-  creationTime: number | undefined;
-  fileNodes: DatasetFileNode[] | undefined;
-}
+SET search_path TO texera_db;
 
-export interface Contributor {
-  name: string;
-  creator: boolean;
-  affiliation?: string;
-  email?: string;
-  comments?: string;
-}
+BEGIN;
 
-export interface Dataset {
-  did: number | undefined;
-  ownerUid: number | undefined;
-  name: string;
-  isPublic: boolean;
-  isDownloadable: boolean;
-  storagePath: string | undefined;
-  description: string;
-  creationTime: number | undefined;
-  coverImage: string | undefined;
-}
+CREATE TABLE IF NOT EXISTS dataset_contributor
+(
+    cid           SERIAL PRIMARY KEY,
+    did           INT NOT NULL,
+    name          VARCHAR(256) NOT NULL,
+    creator       BOOLEAN NOT NULL DEFAULT FALSE,
+    email         VARCHAR(256),
+    affiliation   VARCHAR(256),
+    comments      TEXT,
+    FOREIGN KEY (did) REFERENCES dataset(did) ON DELETE CASCADE
+);
+
+COMMIT;
