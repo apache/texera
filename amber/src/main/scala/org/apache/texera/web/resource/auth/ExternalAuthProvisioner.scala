@@ -1,5 +1,3 @@
-package org.apache.texera.web.resource.auth
-
 /*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -19,6 +17,9 @@ package org.apache.texera.web.resource.auth
  * under the License.
  */
 
+package org.apache.texera.web.resource.auth
+
+import com.typesafe.scalalogging.LazyLogging
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.jooq.generated.Tables.{AUTH_PROVIDER, USER}
 import org.apache.texera.dao.jooq.generated.enums.{ProviderTypeEnum, UserRoleEnum}
@@ -27,22 +28,29 @@ import org.apache.texera.dao.jooq.generated.tables.pojos.{AuthProvider, User}
 import org.jooq.DSLContext
 
 import java.time.OffsetDateTime
+import javax.ws.rs.NotAuthorizedException
 import scala.util.chaining.scalaUtilChainingOps
 
 /**
   * A verified external identity (Google, Facebook, ...) reduced to the fields we
   * persist. `avatar` is optional: `None` means the provider supplies no avatar, so
   * the user's existing avatar column is left untouched rather than overwritten.
+  *
+  * `emailVerified` reports whether the provider itself vouches for `email`. It has no
+  * default on purpose: an email address is what links an external identity to an
+  * existing account, so treating an unverified one as trusted is an account-takeover
+  * path, and a defaulted flag is how that mistake comes back.
   */
 final case class ExternalProfile(
     providerType: ProviderTypeEnum,
     providerId: String,
     name: String,
     email: String,
+    emailVerified: Boolean,
     avatar: Option[String] = None
 )
 
-object ExternalAuthProvisioner {
+object ExternalAuthProvisioner extends LazyLogging {
 
   /**
     * Resolve the user behind an external identity, creating one if necessary, and
@@ -71,6 +79,20 @@ object ExternalAuthProvisioner {
           }
 
         case None =>
+          // First time we have seen this identity, so the email address is the only thing
+          // tying it to an account. It is either an existing one to link onto, or a new row that
+          // claims the address. Trusting an unverified address for that lets anyone who can
+          // mint an `email` claim take over, or squat on, someone else's account. The error
+          // is deliberately the same one a bad credential yields, so this does not become an
+          // oracle for which addresses are registered.
+          if (!profile.emailVerified) {
+            logger.warn(
+              s"Refusing to provision ${profile.providerType} identity ${profile.providerId}: " +
+                "the provider did not verify its email address."
+            )
+            throw new NotAuthorizedException("Login credentials are incorrect.")
+          }
+
           val user = Option(txUserDao.fetchOneByEmail(profile.email)) match {
             case Some(existing) =>
               existing.tap { user =>
@@ -91,17 +113,33 @@ object ExternalAuthProvisioner {
       }
     }
 
+  /** The external id `uid` authenticates with at `providerType`, if it has one. */
+  def providerIdOf(uid: Integer, providerType: ProviderTypeEnum): Option[String] =
+    Option(
+      SqlServer
+        .getInstance()
+        .context
+        .select(AUTH_PROVIDER.PROVIDER_ID)
+        .from(AUTH_PROVIDER)
+        .where(AUTH_PROVIDER.UID.eq(uid))
+        .and(AUTH_PROVIDER.PROVIDER_TYPE.eq(providerType))
+        .fetchOne(AUTH_PROVIDER.PROVIDER_ID)
+    )
+
   /**
     * Mutate `user` in place to match `profile`, returning true iff anything changed
     * (so the caller only issues an UPDATE when needed).
+    *
+    * `name` is deliberately not refreshed. It is the display name the user owns and may
+    * have edited in Texera, and it is not identity — the login handle lives in
+    * `auth_provider.provider_id`. Re-deriving it from the provider on every login silently
+    * reverted such edits.
     */
   private def refresh(user: User, profile: ExternalProfile): Boolean = {
     var changed = false
-    if (user.getName != profile.name) {
-      user.setName(profile.name)
-      changed = true
-    }
-    if (user.getEmail != profile.email) {
+    // Same reasoning as the link path: only a provider-verified address may move the
+    // column that identifies the account.
+    if (profile.emailVerified && user.getEmail != profile.email) {
       user.setEmail(profile.email)
       changed = true
     }

@@ -37,7 +37,7 @@ object GoogleAuthResource {
     * Reduce a verified Google id-token payload to the fields we persist. Google omits `name`
     * for accounts with no profile name, and the provisioner writes `name` straight to a NOT
     * NULL column, so the address stands in for it. Only the last path segment of `picture` is
-    * kept — the frontend rebuilds the full `lh3.googleusercontent.com` URL around it.
+    * kept. The frontend rebuilds the full `lh3.googleusercontent.com` URL around it.
     */
   private[auth] def profileOf(payload: GoogleIdToken.Payload): ExternalProfile = {
     val googleEmail = payload.getEmail
@@ -46,11 +46,11 @@ object GoogleAuthResource {
       payload.getSubject,
       Option(payload.get("name").asInstanceOf[String]).filter(_.nonEmpty).getOrElse(googleEmail),
       googleEmail,
-      Some(
-        Option(payload.get("picture").asInstanceOf[String])
-          .flatMap(_.split("/").lastOption)
-          .getOrElse("")
-      )
+      // getEmailVerified boxes to null when the claim is absent; absent means unverified.
+      emailVerified = Option(payload.getEmailVerified).exists(_.booleanValue()),
+      avatar = Option(payload.get("picture").asInstanceOf[String])
+        .filter(_.nonEmpty)
+        .map(_.split("/").last)
     )
   }
 }
@@ -86,8 +86,13 @@ class GoogleAuthResource {
   def login(credential: String): TokenIssueResponse =
     verifiedPayload(credential) match {
       case Some(payload) =>
-        val user = ExternalAuthProvisioner.loginOrProvision(GoogleAuthResource.profileOf(payload))
-        TokenIssueResponse(jwtToken(jwtClaims(user, TOKEN_EXPIRE_TIME_IN_MINUTES)))
+        val profile = GoogleAuthResource.profileOf(payload)
+        val user = ExternalAuthProvisioner.loginOrProvision(profile)
+        // The frontend reads `googleId` off the raw token; the provider id is already in hand
+        // here, so no lookup is needed.
+        TokenIssueResponse(
+          jwtToken(jwtClaims(user, TOKEN_EXPIRE_TIME_IN_MINUTES, Some(profile.providerId)))
+        )
       case None => throw new NotAuthorizedException("Login credentials are incorrect.")
     }
 }

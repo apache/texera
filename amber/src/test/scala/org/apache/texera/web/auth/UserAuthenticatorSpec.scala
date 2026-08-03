@@ -37,7 +37,7 @@ class UserAuthenticatorSpec extends AnyFlatSpec with Matchers {
     claims.setClaim("userId", 42)
     claims.setClaim("email", "alice@example.com")
     claims.setClaim("role", UserRoleEnum.ADMIN.name)
-    claims.setClaim("avatar", "avatar-blob")
+    claims.setClaim("googleAvatar", "avatar-blob")
     claims.setExpirationTimeMinutesInTheFuture(10f)
     claims
   }

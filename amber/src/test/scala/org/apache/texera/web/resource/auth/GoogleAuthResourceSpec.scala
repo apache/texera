@@ -77,17 +77,20 @@ class GoogleAuthResourceSpec
   /**
     * A payload shaped like Google's. `name` and `picture` are ordinary JSON members rather than
     * typed fields, and passing null omits them — which is exactly the case the name fallback
-    * exists for.
+    * exists for. `emailVerified` defaults to true because that is the ordinary case; the
+    * provisioner refuses an unverified address outright.
     */
   private def payload(
       subject: String,
       email: String,
       name: String = "Given Name",
-      picture: String = "https://lh3.googleusercontent.com/a/AVATAR-ID"
+      picture: String = "https://lh3.googleusercontent.com/a/AVATAR-ID",
+      emailVerified: java.lang.Boolean = true
   ): GoogleIdToken.Payload = {
     val p = new GoogleIdToken.Payload()
     p.setSubject(subject)
     p.setEmail(email)
+    p.setEmailVerified(emailVerified)
     if (name != null) p.set("name", name)
     if (picture != null) p.set("picture", picture)
     p
@@ -153,10 +156,32 @@ class GoogleAuthResourceSpec
     userByEmail("avatar").getAvatar shouldBe "AVATAR-ID"
   }
 
-  it should "store an empty avatar when the payload carries no picture" in {
+  // A missing `picture` maps to None, not Some("") — so the provisioner's documented
+  // "leave the stored avatar alone" path is reachable instead of blanking the column.
+  it should "leave the avatar unset when the payload carries no picture" in {
     loginWith(payload("google-sub-nopic", "nopic" + emailDomain, picture = null))
 
-    userByEmail("nopic").getAvatar shouldBe ""
+    userByEmail("nopic").getAvatar shouldBe null
+  }
+
+  it should "keep an already-stored avatar when a later login carries no picture" in {
+    loginWith(payload("google-sub-keeppic", "keeppic" + emailDomain))
+    userByEmail("keeppic").getAvatar shouldBe "AVATAR-ID"
+
+    loginWith(payload("google-sub-keeppic", "keeppic" + emailDomain, picture = null))
+
+    userByEmail("keeppic").getAvatar shouldBe "AVATAR-ID"
+  }
+
+  // ---- unverified email ----------------------------------------------------
+
+  it should "reject a payload whose email Google has not verified" in {
+    val resource = new StubbedGoogleAuthResource(
+      Some(payload("google-sub-unverified", "unverified" + emailDomain, emailVerified = false))
+    )
+
+    assertThrows[NotAuthorizedException](resource.login("stubbed-credential"))
+    userByEmail("unverified") shouldBe null
   }
 
   // ---- verification failure ------------------------------------------------
