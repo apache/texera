@@ -17,11 +17,13 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Compare two JSONL DataFrames produced by the translation validation harness.
+Compare the two paths' outputs for one operator: JSONL DataFrames, or the Plotly
+figure a visualization operator renders.
 
 Usage: compare.py [--unordered] [--ignore-cols c1,c2]
                   [--model-cols c1,c2 --probe features.jsonl]
                   <actual.jsonl> <expected.jsonl>
+       compare.py --plotly <actual.jsonl> <expected.json>
 
   --unordered   Sort both DataFrames lexicographically by all columns before
                 comparing, so rows match as a set/bag rather than positionally.
@@ -46,19 +48,33 @@ Usage: compare.py [--unordered] [--ignore-cols c1,c2]
                 model uses its own feature_names_in_ to select columns, so the
                 probe may include extra columns (e.g. the training target).
 
-Exit 0  - DataFrames equal (and model predictions match, if --model-cols)
-Exit 1  - DataFrames differ / model predictions differ; detail on stderr
+  --plotly      Compare Plotly figures instead of DataFrames. The actual side is
+                a one-row JSONL with `html-content` or `json-content`; for
+                `html-content` the first `Plotly.newPlot(...)` payload is
+                extracted. The expected side is the standalone path's
+                `fig.write_json(...)`. Only data and layout are compared, with
+                display-only `uid` fields stripped and floats matched by
+                tolerance. Takes none of the DataFrame flags.
+
+Exit 0  - Outputs equal (and model predictions match, if --model-cols)
+Exit 1  - Outputs differ; detail on stderr
 Exit 2  - Bad invocation
 
 Persistent mode: `compare.py --serve` imports pandas once and then serves many
 comparisons over its lifetime, reading one JSON job per line on stdin and
 writing one JSON result per line on stdout. This avoids paying the ~214 ms
 pandas import on every comparison (the comparison itself is ~ms). It reuses the
-exact same `_run_comparison` used by the CLI, so behavior is identical.
+exact same functions the CLI calls, so behavior is identical.
 
-  request   {"actual": "<abs>", "expected": "<abs>", "unordered": false,
-             "ignoreCols": [], "modelCols": [], "probe": null}\n
+  request   {"kind": "dataframe", "actual": "<abs>", "expected": "<abs>",
+             "unordered": false, "ignoreCols": [], "modelCols": [],
+             "probe": null}\n
+            {"kind": "plotly", "actual": "<abs>", "expected": "<abs>"}\n
   response  {"exit": 0|1, "stdout": "", "stderr": "<diff on mismatch>"}\n
+
+`kind` defaults to "dataframe". Both kinds are served by the same worker so a
+run needs one comparison pool rather than one per output shape; the Plotly side
+needs nothing pandas does not already pull in.
 
 A mismatch is exit 1 with the diff on `stderr`, mirroring the CLI's nonzero
 exit so the Scala side's ComparatorMismatchException path is unchanged. A
@@ -187,12 +203,127 @@ def _run_comparison(
     return None
 
 
+def _load_actual_plot(path) -> dict:
+    import json
+
+    with open(path, "r", encoding="utf-8") as fh:
+        line = next((raw for raw in fh if raw.strip()), None)
+    if line is None:
+        raise AssertionError(f"{path} is empty")
+
+    row = json.loads(line)
+    if "json-content" in row and row["json-content"]:
+        value = row["json-content"]
+        return json.loads(value) if isinstance(value, str) else value
+    if "html-content" in row and row["html-content"]:
+        return _plotly_payload_from_html(row["html-content"])
+    raise AssertionError(f"{path} has neither html-content nor json-content")
+
+
+def _plotly_payload_from_html(html: str) -> dict:
+    """Pull the data/layout arguments out of the first Plotly.newPlot(...) call.
+
+    Scanned with a JSON decoder rather than a regex because the payload is
+    arbitrary nested JSON that no bracket-matching pattern handles reliably.
+    """
+    import json
+
+    marker = "Plotly.newPlot("
+    start = html.find(marker)
+    if start < 0:
+        raise AssertionError("html-content does not contain Plotly.newPlot(...)")
+
+    decoder = json.JSONDecoder()
+    index = start + len(marker)
+    args: list = []
+    while len(args) < 4:
+        while index < len(html) and html[index] in " \t\r\n,":
+            index += 1
+        value, consumed = decoder.raw_decode(html[index:])
+        args.append(value)
+        index += consumed
+
+    return {"data": args[1], "layout": args[2]}
+
+
+def _load_expected_plot(path) -> dict:
+    import json
+
+    with open(path, "r", encoding="utf-8") as fh:
+        value = json.load(fh)
+    return {"data": value.get("data", []), "layout": value.get("layout", {})}
+
+
+def _strip_unstable(value):
+    """Remove display-only fields that are unrelated to chart semantics."""
+    if isinstance(value, dict):
+        return {
+            key: _strip_unstable(child)
+            for key, child in value.items()
+            if key not in {"uid"}
+        }
+    if isinstance(value, list):
+        return [_strip_unstable(child) for child in value]
+    return value
+
+
+def _plots_equal(actual, expected) -> bool:
+    import math
+
+    if isinstance(actual, (int, float)) and isinstance(expected, (int, float)):
+        return math.isclose(float(actual), float(expected), rel_tol=1e-9, abs_tol=1e-12)
+    if isinstance(actual, dict) and isinstance(expected, dict):
+        return actual.keys() == expected.keys() and all(
+            _plots_equal(actual[key], expected[key]) for key in actual.keys()
+        )
+    if isinstance(actual, list) and isinstance(expected, list):
+        return len(actual) == len(expected) and all(
+            _plots_equal(left, right) for left, right in zip(actual, expected)
+        )
+    return actual == expected
+
+
+def _run_plotly_comparison(actual_path, expected_path) -> "str | None":
+    """Compare two Plotly figures. Returns None if they match, or a human diff
+    string if they differ — the same contract as `_run_comparison`, so the CLI
+    and the --serve loop treat both kinds identically."""
+    import json
+
+    actual = _strip_unstable(_load_actual_plot(actual_path))
+    expected = _strip_unstable(_load_expected_plot(expected_path))
+    if _plots_equal(actual, expected):
+        return None
+    return "\n".join(
+        [
+            "Plotly JSON mismatch",
+            "--- actual ---",
+            json.dumps(actual, indent=2, sort_keys=True),
+            "--- expected ---",
+            json.dumps(expected, indent=2, sort_keys=True),
+        ]
+    )
+
+
 def main() -> None:
     args = sys.argv[1:]
     unordered = False
     ignore_cols: list = []
     model_cols: list = []
     probe_path = None
+
+    if args and args[0] == "--plotly":
+        if len(args) != 3:
+            print(
+                f"usage: {sys.argv[0]} --plotly <actual.jsonl> <expected.json>",
+                file=sys.stderr,
+            )
+            sys.exit(2)
+        msg = _run_plotly_comparison(args[1], args[2])
+        if msg is not None:
+            print(msg, file=sys.stderr)
+            sys.exit(1)
+        return
+
     while args and args[0].startswith("--"):
         if args[0] == "--unordered":
             unordered = True
@@ -239,8 +370,8 @@ def serve() -> None:
     """Persistent comparison server. See the module docstring for the protocol.
 
     pandas is imported once (at module load, above). Each job runs the same
-    `_run_comparison` the CLI uses. A comparison error is reported as exit 1
-    with the diff on `stderr`; only closing stdin ends the loop.
+    function the CLI calls for its kind. A comparison error is reported as
+    exit 1 with the diff on `stderr`; only closing stdin ends the loop.
     """
     import io
     import json
@@ -258,14 +389,17 @@ def serve() -> None:
         try:
             job = json.loads(line)
             with redirect_stdout(out_buf), redirect_stderr(err_buf):
-                msg = _run_comparison(
-                    job["actual"],
-                    job["expected"],
-                    job.get("unordered", False),
-                    job.get("ignoreCols", []),
-                    job.get("modelCols", []),
-                    job.get("probe"),
-                )
+                if job.get("kind", "dataframe") == "plotly":
+                    msg = _run_plotly_comparison(job["actual"], job["expected"])
+                else:
+                    msg = _run_comparison(
+                        job["actual"],
+                        job["expected"],
+                        job.get("unordered", False),
+                        job.get("ignoreCols", []),
+                        job.get("modelCols", []),
+                        job.get("probe"),
+                    )
             resp = {
                 "exit": 0 if msg is None else 1,
                 "stdout": out_buf.getvalue(),
