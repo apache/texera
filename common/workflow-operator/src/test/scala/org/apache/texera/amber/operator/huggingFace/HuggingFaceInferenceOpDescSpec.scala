@@ -661,4 +661,11 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
       .path("type")
       .asText() shouldBe "password"
   }
+
+  it should "report a clear error when a configured image/audio column is missing from the input table" in {
+    val code = makeDesc().generatePythonCode()
+    code should include("Input Image Column '")
+    code should include("Input Audio Column '")
+    code should include("not found in the input table")
+  }
 }

@@ -568,7 +568,13 @@ object HuggingFaceCodegenBase {
        |        audio_error = None
        |        if task in image_tasks and not use_image_column:
        |            if not has_image_upload:
-       |                image_error = "No image source. Set an Input Image Column or upload an image."
+       |                if self.INPUT_IMAGE_COLUMN and str(self.INPUT_IMAGE_COLUMN).strip():
+       |                    image_error = (
+       |                        f"Input Image Column '{self.INPUT_IMAGE_COLUMN}' not found in the input table. "
+       |                        f"Available columns: {list(table.columns)}"
+       |                    )
+       |                else:
+       |                    image_error = "No image source. Set an Input Image Column or upload an image."
        |            else:
        |                try:
        |                    image_bytes = self._read_image_input()
@@ -576,7 +582,13 @@ object HuggingFaceCodegenBase {
        |                    image_error = f"Could not read image input ({type(e).__name__}: {e})"
        |        if task in audio_only_tasks and not use_audio_column:
        |            if not has_audio_upload:
-       |                audio_error = "No audio source. Set an Input Audio Column or upload audio."
+       |                if self.INPUT_AUDIO_COLUMN and str(self.INPUT_AUDIO_COLUMN).strip():
+       |                    audio_error = (
+       |                        f"Input Audio Column '{self.INPUT_AUDIO_COLUMN}' not found in the input table. "
+       |                        f"Available columns: {list(table.columns)}"
+       |                    )
+       |                else:
+       |                    audio_error = "No audio source. Set an Input Audio Column or upload audio."
        |            else:
        |                try:
        |                    audio_bytes = self._read_audio_input()
