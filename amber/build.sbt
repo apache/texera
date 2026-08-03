@@ -312,7 +312,7 @@ libraryDependencies += "io.altoo" %% "scala-kryo-serialization" % "1.5.2"
 libraryDependencies += "com.twitter" %% "util-core" % "22.12.0"
 
 // https://mvnrepository.com/artifact/com.typesafe.play/play-json
-libraryDependencies += "com.typesafe.play" %% "play-json" % "2.9.4"
+libraryDependencies += "com.typesafe.play" %% "play-json" % "2.10.8"
 
 // https://mvnrepository.com/artifact/org.fusesource.leveldbjni/leveldbjni-all
 libraryDependencies += "org.fusesource.leveldbjni" % "leveldbjni-all" % "1.8"
