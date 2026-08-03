@@ -64,7 +64,6 @@ import org.apache.texera.amber.operator.huggingFace.HuggingFaceSpamSMSDetectionO
 import com.fasterxml.jackson.databind.ObjectMapper
 import java.nio.file.{Files, Path}
 import java.util
-import scala.collection.mutable.ListBuffer
 import scala.jdk.CollectionConverters._
 
 /**
