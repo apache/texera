@@ -24,6 +24,7 @@ import io.lakefs.clients.sdk._
 import io.lakefs.clients.sdk.model.ResetCreation.TypeEnum
 import io.lakefs.clients.sdk.model._
 import org.apache.texera.common.config.StorageConfig
+import org.apache.texera.common.util.RetryUtil
 
 import java.io.{File, FileOutputStream, InputStream}
 import java.net.URI
@@ -75,50 +76,13 @@ object LakeFSStorageClient extends LazyLogging {
   private val branchName: String = "main"
 
   def healthCheck(): Unit = {
-    retryWithBackoff(HealthCheckMaxAttempts, HealthCheckInitialDelayMillis) {
+    RetryUtil.withBackoff(
+      description = "connect to lake fs server",
+      maxAttempts = HealthCheckMaxAttempts,
+      initialDelayMillis = HealthCheckInitialDelayMillis,
+      onRetry = attempt => logger.warn(attempt.message)
+    ) {
       this.healthCheckApi.healthCheck().execute()
-    }
-  }
-
-  /**
-    * Runs `operation`, retrying on failure with exponential backoff (the delay
-    * doubles after each failed attempt) until it succeeds or `maxAttempts` is
-    * reached. The final failure is rethrown with the last exception as its cause.
-    * If interrupted while waiting, restores the interrupt status and fails fast.
-    *
-    * `sleep` is injectable so the backoff can be exercised in tests without real waiting.
-    */
-  private[util] def retryWithBackoff(
-      maxAttempts: Int,
-      initialDelayMillis: Long,
-      sleep: Long => Unit = Thread.sleep
-  )(operation: => Unit): Unit = {
-    var attempt = 1
-    var delayMillis = initialDelayMillis
-    while (true) {
-      try {
-        operation
-        return
-      } catch {
-        case ie: InterruptedException =>
-          // Restore the interrupt status and fail fast rather than retrying.
-          Thread.currentThread().interrupt()
-          throw new RuntimeException("Interrupted while waiting to retry lake fs health check", ie)
-        case e: Exception =>
-          if (attempt >= maxAttempts) {
-            throw new RuntimeException(
-              s"Failed to connect to lake fs server after $maxAttempts attempts: ${e.getMessage}",
-              e
-            )
-          }
-          logger.warn(
-            s"LakeFS not reachable (attempt $attempt/$maxAttempts): ${e.getMessage}. " +
-              s"Retrying in ${delayMillis}ms..."
-          )
-          sleep(delayMillis)
-          attempt += 1
-          delayMillis *= 2
-      }
     }
   }
 

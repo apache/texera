@@ -42,7 +42,7 @@ import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBui
   * loading, audio MIME inference, media-URL fetching, etc.) will be added
   * in subsequent PRs as the corresponding task families land.
   */
-object PythonCodegenBase {
+object HuggingFaceCodegenBase {
 
   def render(ctx: CodegenContext, codegen: TaskCodegen): String = {
     val payload = codegen.payloadPython(ctx)
@@ -128,6 +128,10 @@ object PythonCodegenBase {
        |    # Hard cap on bytes pulled from an external (user/response-provided) URL.
        |    MAX_REMOTE_FETCH_BYTES = 25 * 1024 * 1024
        |
+       |    # Redirect-chain bound for _fetch_remote_url. Redirects are followed
+       |    # manually so every hop is re-validated (https-only, public address).
+       |    MAX_REDIRECT_HOPS = 5
+       |
        |    def open(self):
        |        # User-provided strings reach the operator via base64-encoded
        |        # decode expressions so they cannot break Python syntax or
@@ -201,9 +205,18 @@ object PythonCodegenBase {
        |            prov_task = prov.get("task", "")
        |            try:
        |                if self.TASK in ("text-generation", "image-text-to-text"):
-       |                    route = self.CHAT_ROUTES.get(provider_name, "v1/chat/completions")
-       |                    url = f"https://router.huggingface.co/{provider_name}/{route}"
-       |                    resp = requests.post(url, headers=json_headers, json=pipeline_payload, timeout=120)
+       |                    if provider_name == "hf-inference":
+       |                        # hf-inference expects the model in the URL path, like the
+       |                        # pipeline route below.
+       |                        url = f"https://router.huggingface.co/hf-inference/models/{self.MODEL_ID}/v1/chat/completions"
+       |                    else:
+       |                        route = self.CHAT_ROUTES.get(provider_name, "v1/chat/completions")
+       |                        url = f"https://router.huggingface.co/{provider_name}/{route}"
+       |                    # Provider-scoped routes need the provider's own model name
+       |                    # (providerId), not the HF Hub ID. Copy instead of mutating:
+       |                    # pipeline_payload is reused for the next provider attempt.
+       |                    chat_payload = {**pipeline_payload, "model": provider_id}
+       |                    resp = requests.post(url, headers=json_headers, json=chat_payload, timeout=120)
        |                elif is_model_author and prov_task in ("image-to-text", "image-text-to-text") and provider_name not in ("zai-org",):
        |                    url = f"https://router.huggingface.co/{provider_name}/v1/chat/completions"
        |                    img_b64 = ""
@@ -704,13 +717,16 @@ object PythonCodegenBase {
        |    # branches of _call_provider).
        |    # ──────────────────────────────────────────────────────────────────
        |
-       |    def _fetch_remote_url(self, url):
-       |        '''Fetch an external URL with SSRF hardening. Returns (content_type, data).
-       |        Enforces https-only, rejects private/loopback/link-local/reserved
-       |        addresses (covers the 169.254.169.254 cloud-metadata endpoint), and
-       |        caps the response at MAX_REMOTE_FETCH_BYTES. The address check runs
-       |        before the request, so it mitigates but does not fully prevent DNS
-       |        rebinding (requests re-resolves on connect).
+       |    def _validate_remote_url(self, url):
+       |        '''Validate one URL before it is fetched: https-only, has a host,
+       |        and every address the host resolves to is a globally-routable
+       |        public address (rejects private/loopback/link-local/reserved/
+       |        multicast/CGNAT addresses, covering the 169.254.169.254
+       |        cloud-metadata endpoint). Called on the original
+       |        URL and again on every redirect hop, so a redirect can neither
+       |        downgrade the scheme nor point at an internal address. The
+       |        address check runs before the request, so it mitigates but does
+       |        not fully prevent DNS rebinding (requests re-resolves on connect).
        |        '''
        |        import ipaddress
        |        import socket
@@ -727,10 +743,43 @@ object PythonCodegenBase {
        |            raise ValueError(f"Could not resolve host '{host}': {e}")
        |        for info in addrinfos:
        |            ip = ipaddress.ip_address(info[4][0])
-       |            if (ip.is_private or ip.is_loopback or ip.is_link_local
-       |                    or ip.is_reserved or ip.is_multicast or ip.is_unspecified):
+       |            # Allowlist stance: require a globally-routable address. The
+       |            # explicit predicates stay because is_global misses some ranges
+       |            # (CPython reports multicast as global) — belt-and-suspenders,
+       |            # and it also covers the CGNAT/shared range (100.64.0.0/10)
+       |            # that the predicate list alone lets through.
+       |            if (not ip.is_global or ip.is_private or ip.is_loopback
+       |                    or ip.is_link_local or ip.is_reserved or ip.is_multicast
+       |                    or ip.is_unspecified):
        |                raise ValueError(f"Refusing to fetch from non-public address {ip}.")
-       |        resp = requests.get(url, timeout=120, stream=True)
+       |
+       |    def _fetch_remote_url(self, url):
+       |        '''Fetch an external URL with SSRF hardening. Returns (content_type, data).
+       |        Redirects are never followed automatically: each hop is re-validated
+       |        by _validate_remote_url and the chain is bounded by
+       |        MAX_REDIRECT_HOPS, so a redirect cannot escape the https-only /
+       |        public-address checks. The body is capped at MAX_REMOTE_FETCH_BYTES.
+       |        '''
+       |        from urllib.parse import urljoin as _urljoin
+       |        current_url = url
+       |        resp = None
+       |        for _hop in range(self.MAX_REDIRECT_HOPS + 1):
+       |            self._validate_remote_url(current_url)
+       |            resp = requests.get(current_url, timeout=120, stream=True, allow_redirects=False)
+       |            if resp.status_code in (301, 302, 303, 307, 308):
+       |                location = resp.headers.get("Location", "")
+       |                resp.close()
+       |                if not location:
+       |                    raise ValueError("Redirect response has no Location header.")
+       |                # Location may be relative; resolve it against the current
+       |                # URL. The result is re-validated at the top of the loop.
+       |                current_url = _urljoin(current_url, location)
+       |            else:
+       |                break
+       |        else:
+       |            raise ValueError(
+       |                f"Too many redirects (more than {self.MAX_REDIRECT_HOPS}) while fetching remote URL."
+       |            )
        |        resp.raise_for_status()
        |        content_type = resp.headers.get("Content-Type", "")
        |        total = 0
