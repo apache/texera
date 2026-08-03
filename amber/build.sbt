@@ -290,7 +290,7 @@ libraryDependencies += "com.univocity" % "univocity-parsers" % "2.9.1"
 libraryDependencies += "com.konghq" % "unirest-java" % "3.14.5"
 
 // https://mvnrepository.com/artifact/com.github.marianobarrios/lbmq
-libraryDependencies += "com.github.marianobarrios" % "lbmq" % "0.6.0"
+libraryDependencies += "com.github.marianobarrios" % "lbmq" % "0.7.0"
 
 // https://mvnrepository.com/artifact/org.jooq/jooq
 libraryDependencies += "org.jooq" % "jooq" % "3.19.36"
