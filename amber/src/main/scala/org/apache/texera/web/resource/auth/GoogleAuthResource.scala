@@ -89,13 +89,16 @@ class GoogleAuthResource {
           }
           user
         case None =>
-          Option(userDao.fetchOneByEmail(googleEmail)) match {
+          Option(AuthResource.fetchUserByEmailIgnoreCase(googleEmail)) match {
             case Some(user) =>
               if (user.getName != googleName) {
                 user.setName(googleName)
               }
               user.setGoogleId(googleId)
               user.setGoogleAvatar(googleAvatar)
+              if (user.getIsPlaceholder) {
+                AuthResource.claimPlaceholder(user)
+              }
               userDao.update(user)
               user
             case None =>
