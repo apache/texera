@@ -20,30 +20,86 @@
 package org.apache.texera.web.service
 
 import com.fasterxml.jackson.core.JsonProcessingException
+import com.sun.net.httpserver.{HttpExchange, HttpHandler, HttpServer}
 import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector.ipc.ArrowFileReader
 import org.apache.arrow.vector.util.ByteArrayReadableSeekableByteChannel
+import org.apache.texera.amber.core.storage.VFSURIFactory
 import org.apache.texera.amber.core.storage.model.VirtualDocument
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema, Tuple}
-import org.apache.texera.amber.core.virtualidentity.WorkflowIdentity
+import org.apache.texera.amber.core.virtualidentity.{
+  ExecutionIdentity,
+  OperatorIdentity,
+  PhysicalOpIdentity,
+  WorkflowIdentity
+}
+import org.apache.texera.amber.core.workflow.{GlobalPortIdentity, PortIdentity}
 import org.apache.texera.amber.util.ArrowUtils
+import org.apache.texera.auth.JwtAuth
+import org.apache.texera.dao.MockTexeraDB
+import org.apache.texera.dao.jooq.generated.Tables.{OPERATOR_PORT_EXECUTIONS, WORKFLOW_EXECUTIONS}
+import org.apache.texera.dao.jooq.generated.enums.WorkflowComputingUnitTypeEnum
+import org.apache.texera.dao.jooq.generated.tables.daos.{
+  UserDao,
+  WorkflowComputingUnitDao,
+  WorkflowDao,
+  WorkflowExecutionsDao,
+  WorkflowVersionDao
+}
+import org.apache.texera.dao.jooq.generated.tables.pojos.{
+  User,
+  Workflow,
+  WorkflowComputingUnit,
+  WorkflowExecutions,
+  WorkflowVersion
+}
 import org.apache.texera.web.model.http.request.result.{OperatorExportInfo, ResultExportRequest}
-import org.scalatest.PrivateMethodTester
+import org.apache.texera.web.model.http.response.result.ResultExportResponse
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, PrivateMethodTester}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-import java.io.{ByteArrayInputStream, ByteArrayOutputStream, InputStream}
-import java.net.URI
+import java.io.{ByteArrayInputStream, ByteArrayOutputStream, InputStream, OutputStream}
+import java.net.{InetSocketAddress, URI, URL}
 import java.nio.charset.StandardCharsets
+import java.sql.Timestamp
+import java.util.UUID
+import java.util.zip.ZipInputStream
 import javax.ws.rs.WebApplicationException
-import javax.ws.rs.core.Response
+import javax.ws.rs.core.{Response, StreamingOutput}
+import scala.collection.mutable.ArrayBuffer
 
-// Unit tests for the ResultExportService request helpers parseOperators and
-// validateExportRequest, plus the private export-encoding writers. Constructing
-// the service is cheap (it only stores the identity and computing-unit id), and
-// every writer takes a VirtualDocument parameter, so an in-spec fake document is
-// enough — no Iceberg, MinIO or DB is involved.
-class ResultExportServiceSpec extends AnyFlatSpec with Matchers with PrivateMethodTester {
+/**
+  * Unit tests for ResultExportService.
+  *
+  * Two layers are covered:
+  *
+  *  - The pure helpers (parseOperators / validateExportRequest) and the private
+  *    export-encoding writers. Every writer takes a VirtualDocument parameter,
+  *    so an in-spec fake document is enough for those.
+  *
+  *  - The request-level entry points (exportToLocal / exportToDataset /
+  *    exportOperatorResultAsStream) and the upload plumbing, which read the
+  *    execution and version tables. Those run against MockTexeraDB's embedded
+  *    Postgres and, for the upload, against a local stand-in for the file
+  *    service.
+  *
+  * Breakage caught: an operator whose result is missing silently producing a
+  * truncated download instead of a hard failure or a placeholder ZIP entry; a
+  * per-operator failure aborting a whole multi-operator dataset export instead
+  * of being collected; the generated file name losing the workflow version,
+  * the parquet→zip extension mapping, or the path-separator stripping that
+  * keeps it a single path segment; and the dataset upload posting to the wrong
+  * URL, dropping the URL-encoding of the file path, or omitting the signed
+  * bearer token that authenticates the exporting user to the file service.
+  */
+class ResultExportServiceSpec
+    extends AnyFlatSpec
+    with Matchers
+    with PrivateMethodTester
+    with BeforeAndAfterAll
+    with BeforeAndAfterEach
+    with MockTexeraDB {
 
   private val service = new ResultExportService(WorkflowIdentity(1L), computingUnitId = 0)
 
@@ -348,5 +404,510 @@ class ResultExportServiceSpec extends AnyFlatSpec with Matchers with PrivateMeth
 
     utf8(wrapped) shouldBe "payload"
     wrapped.closed shouldBe false
+  }
+
+  // ===========================================================================
+  // Request-level entry points. These read WORKFLOW_EXECUTIONS /
+  // OPERATOR_PORT_EXECUTIONS / WORKFLOW_VERSION, so they need the embedded
+  // Postgres. They deliberately stop short of opening a result document: that
+  // needs a live Iceberg catalog, which is out of reach here. What is covered
+  // is everything around it — the guards, the error mapping, the ZIP framing,
+  // the file-name construction and the dataset upload.
+  // ===========================================================================
+
+  // Fixed, not randomised. MockTexeraDB hands every suite its own UUID-named database
+  // (MockTexeraDB.scala:120), so there is no cross-suite key to dodge — and random ids
+  // only make a failure message that quotes one impossible to reproduce.
+  private val testWorkflowWid = 5001
+  private val testUserId = 5002
+
+  private var testUser: User = _
+  private var testVersion: WorkflowVersion = _
+  private var testComputingUnit: WorkflowComputingUnit = _
+  private var workflowExecutionsDao: WorkflowExecutionsDao = _
+
+  override protected def beforeAll(): Unit = {
+    initializeDBAndReplaceDSLContext()
+
+    testUser = new User
+    testUser.setUid(testUserId)
+    testUser.setName("export_user")
+    testUser.setEmail("export@example.com")
+    testUser.setPassword("password")
+    new UserDao(getDSLContext.configuration()).insert(testUser)
+
+    val workflow = new Workflow
+    workflow.setWid(testWorkflowWid)
+    workflow.setName("wf-" + UUID.randomUUID().toString.substring(0, 8))
+    workflow.setContent("{}")
+    workflow.setDescription("")
+    workflow.setCreationTime(new Timestamp(System.currentTimeMillis()))
+    workflow.setLastModifiedTime(new Timestamp(System.currentTimeMillis()))
+    new WorkflowDao(getDSLContext.configuration()).insert(workflow)
+
+    testVersion = new WorkflowVersion
+    testVersion.setWid(testWorkflowWid)
+    testVersion.setContent("{}")
+    testVersion.setCreationTime(new Timestamp(System.currentTimeMillis()))
+    new WorkflowVersionDao(getDSLContext.configuration()).insert(testVersion)
+
+    testComputingUnit = new WorkflowComputingUnit
+    testComputingUnit.setUid(testUserId)
+    testComputingUnit.setName("export-unit")
+    testComputingUnit.setCreationTime(new Timestamp(System.currentTimeMillis()))
+    testComputingUnit.setType(WorkflowComputingUnitTypeEnum.local)
+    testComputingUnit.setUri("local://test")
+    testComputingUnit.setResource("{}")
+    new WorkflowComputingUnitDao(getDSLContext.configuration()).insert(testComputingUnit)
+
+    workflowExecutionsDao = new WorkflowExecutionsDao(getDSLContext.configuration())
+  }
+
+  // Executions are per-test state: several cases below distinguish "no
+  // execution at all" from "an execution with no stored result URI".
+  override protected def afterEach(): Unit = {
+    val eids = getDSLContext
+      .select(WORKFLOW_EXECUTIONS.EID)
+      .from(WORKFLOW_EXECUTIONS)
+      .where(WORKFLOW_EXECUTIONS.VID.eq(testVersion.getVid))
+    getDSLContext
+      .deleteFrom(OPERATOR_PORT_EXECUTIONS)
+      .where(OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID.in(eids))
+      .execute()
+    getDSLContext
+      .deleteFrom(WORKFLOW_EXECUTIONS)
+      .where(WORKFLOW_EXECUTIONS.VID.eq(testVersion.getVid))
+      .execute()
+  }
+
+  override protected def afterAll(): Unit = closeConnectionPool()
+
+  // The service under test, bound to the seeded workflow and computing unit so
+  // that getLatestExecutionId resolves against the rows this spec inserts.
+  private def exportService: ResultExportService =
+    new ResultExportService(
+      WorkflowIdentity(testWorkflowWid.longValue()),
+      computingUnitId = testComputingUnit.getCuid
+    )
+
+  private def dbRequestWith(
+      operators: List[OperatorExportInfo],
+      datasetIds: List[Int] = List.empty,
+      filename: String = "",
+      workflowName: String = "wf"
+  ): ResultExportRequest =
+    requestWith(operators).copy(
+      workflowId = testWorkflowWid,
+      workflowName = workflowName,
+      datasetIds = datasetIds,
+      filename = filename,
+      computingUnitId = testComputingUnit.getCuid
+    )
+
+  private def insertExecution(): WorkflowExecutions = {
+    val execution = new WorkflowExecutions
+    execution.setVid(testVersion.getVid)
+    execution.setUid(testUser.getUid)
+    execution.setStatus(0.toByte)
+    execution.setResult("")
+    execution.setLogLocation("")
+    execution.setStartingTime(new Timestamp(System.currentTimeMillis()))
+    execution.setBookmarked(false)
+    execution.setName("export-execution")
+    execution.setEnvironmentVersion("test-env-1.0")
+    execution.setCuid(testComputingUnit.getCuid)
+    workflowExecutionsDao.insert(execution)
+    execution
+  }
+
+  private def insertResultUri(eid: Integer, resultUri: String): Unit =
+    getDSLContext
+      .insertInto(OPERATOR_PORT_EXECUTIONS)
+      .columns(
+        OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID,
+        OPERATOR_PORT_EXECUTIONS.GLOBAL_PORT_ID,
+        OPERATOR_PORT_EXECUTIONS.RESULT_URI
+      )
+      .values(eid, "port-" + UUID.randomUUID().toString.substring(0, 8), resultUri)
+      .execute()
+
+  // A well-formed external-output result URI, i.e. exactly the shape
+  // getResultUriByLogicalPortId decodes and matches against.
+  private def resultUriOf(eid: Integer, operatorId: String): String =
+    VFSURIFactory
+      .resultURI(
+        VFSURIFactory.createPortBaseURI(
+          WorkflowIdentity(testWorkflowWid.longValue()),
+          ExecutionIdentity(eid.longValue()),
+          GlobalPortIdentity(
+            PhysicalOpIdentity(OperatorIdentity(operatorId), "main"),
+            PortIdentity(),
+            input = false
+          )
+        )
+      )
+      .toString
+
+  private val timestampPattern = """\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}"""
+
+  // -- exportOperatorResultAsStream -------------------------------------------
+
+  "exportOperatorResultAsStream" should "yield no stream when the workflow never ran" in {
+    val op = OperatorExportInfo("op-1", "csv")
+    val (stream, fileName) =
+      exportService.exportOperatorResultAsStream(dbRequestWith(List(op)), op)
+
+    stream shouldBe null
+    fileName shouldBe None
+  }
+
+  it should "yield no stream when no stored result URI belongs to the operator" in {
+    val execution = insertExecution()
+    // A result URI exists for the execution, but for a *different* logical
+    // operator: the lookup must decode it, reject it, and fall through to the
+    // null-document guard rather than handing back someone else's result.
+    insertResultUri(execution.getEid, resultUriOf(execution.getEid, "other-op"))
+
+    val op = OperatorExportInfo("op-1", "csv")
+    val (stream, fileName) =
+      exportService.exportOperatorResultAsStream(dbRequestWith(List(op)), op)
+
+    stream shouldBe null
+    fileName shouldBe None
+  }
+
+  // -- exportToLocal -----------------------------------------------------------
+
+  // The next two tests assert the same message because both guards in
+  // `exportOperatorAsStream` raise it. The FIXTURE is what tells them apart: the first
+  // seeds no execution (so only the `execIdOpt.isEmpty` guard can fire), the second seeds
+  // one (so that guard cannot fire, and reaching the throw proves the null-document guard
+  // did). Naming them for the guard they actually hit keeps that honest.
+
+  "exportToLocal" should "fail loudly when the workflow has no execution at all" in {
+    val request = dbRequestWith(List(OperatorExportInfo("op-1", "csv")))
+
+    val ex = intercept[RuntimeException] {
+      exportService.exportToLocal(request)
+    }
+    ex.getMessage shouldBe "Failed to export operator"
+  }
+
+  it should "fail loudly when the execution exists but the operator stored no result" in {
+    // An execution row exists, so `getLatestExecutionId` returns a value and the first
+    // guard is out of play; the operator simply never registered a result URI.
+    insertExecution()
+    val request = dbRequestWith(List(OperatorExportInfo("op-1", "csv")))
+
+    val ex = intercept[RuntimeException] {
+      exportService.exportToLocal(request)
+    }
+    ex.getMessage shouldBe "Failed to export operator"
+  }
+
+  it should "reject a multi-operator export when the workflow never ran" in {
+    val request = dbRequestWith(
+      List(OperatorExportInfo("op-1", "csv"), OperatorExportInfo("op-2", "arrow"))
+    )
+
+    val ex = intercept[WebApplicationException] {
+      exportService.exportToLocal(request)
+    }
+    ex.getMessage shouldBe s"No execution result for workflow $testWorkflowWid"
+  }
+
+  it should "stream a ZIP with one placeholder entry per result-less operator" in {
+    insertExecution()
+    val request = dbRequestWith(
+      List(OperatorExportInfo("op-1", "csv"), OperatorExportInfo("op-2", "arrow"))
+    )
+
+    val response = exportService.exportToLocal(request)
+
+    response.getStatus shouldBe Response.Status.OK.getStatusCode
+    response.getMediaType.toString shouldBe "application/zip"
+    response.getHeaderString("Content-Disposition") should fullyMatch regex
+      s"""attachment; filename="wf-$timestampPattern\\.zip""""
+
+    // Drive the streaming body: the ZIP is only produced when the container
+    // writes the entity out.
+    val body = new ByteArrayOutputStream()
+    response.getEntity.asInstanceOf[StreamingOutput].write(body)
+
+    readZipEntries(body.toByteArray) shouldBe List(
+      "op-1-empty.txt" -> "Operator op-1 has no results",
+      "op-2-empty.txt" -> "Operator op-2 has no results"
+    )
+  }
+
+  private def readZipEntries(bytes: Array[Byte]): List[(String, String)] = {
+    val zipIn = new ZipInputStream(new ByteArrayInputStream(bytes))
+    try {
+      Iterator
+        .continually(zipIn.getNextEntry)
+        .takeWhile(_ != null)
+        .map(entry => entry.getName -> new String(zipIn.readAllBytes(), StandardCharsets.UTF_8))
+        .toList
+    } finally zipIn.close()
+  }
+
+  // -- exportToDataset ---------------------------------------------------------
+
+  "exportToDataset" should "report an error when the workflow never ran" in {
+    val response =
+      exportService.exportToDataset(
+        testUser,
+        dbRequestWith(List(OperatorExportInfo("op-1", "csv")))
+      )
+
+    response.getStatus shouldBe Response.Status.OK.getStatusCode
+    response.getEntity shouldBe ResultExportResponse(
+      "error",
+      s"Workflow $testWorkflowWid has no execution result"
+    )
+  }
+
+  it should "collect one message per operator rather than stopping at the first" in {
+    insertExecution()
+    val request = dbRequestWith(
+      List(OperatorExportInfo("op-1", "csv"), OperatorExportInfo("op-2", "arrow"))
+    )
+
+    val response = exportService.exportToDataset(testUser, request)
+
+    response.getEntity shouldBe ResultExportResponse(
+      "error",
+      "No results to export for operator OperatorExportInfo(op-1,csv)\n" +
+        "No results to export for operator OperatorExportInfo(op-2,arrow)"
+    )
+  }
+
+  it should "turn a thrown per-operator failure into an error entry and keep going" in {
+    val execution = insertExecution()
+    // A stored URI the VFS decoder rejects outright, so the lookup throws
+    // instead of returning None — the path the per-operator catch exists for.
+    insertResultUri(execution.getEid, "mock:///not-a-vfs-uri")
+
+    // TWO operators. The bad URI is stored against the execution rather than a single
+    // operator, so both lookups throw — which is exactly the point: the try/catch lives
+    // INSIDE the foreach (ResultExportService.scala:105-114), so op-2 must still be
+    // attempted after op-1 blows up. Hoist the catch outside the loop and only op-1's
+    // line survives, failing the second assertion.
+    val response =
+      exportService.exportToDataset(
+        testUser,
+        dbRequestWith(List(OperatorExportInfo("op-1", "csv"), OperatorExportInfo("op-2", "csv")))
+      )
+
+    val entity = response.getEntity.asInstanceOf[ResultExportResponse]
+    entity.status shouldBe "error"
+    val lines = entity.message.split("\n").toList
+    lines should have size 2
+    // The "Error exporting operator" prefix is what distinguishes "the export threw"
+    // from the guard-returned "No results to export" messages asserted above.
+    lines.head should startWith("Error exporting operator OperatorExportInfo(op-1,csv): ")
+    lines(1) should startWith("Error exporting operator OperatorExportInfo(op-2,csv): ")
+  }
+
+  // -- generateFileName --------------------------------------------------------
+
+  private val generateFileName = PrivateMethod[String](Symbol("generateFileName"))
+
+  "generateFileName" should "combine workflow name, operator id, latest version and timestamp" in {
+    val name = exportService invokePrivate generateFileName(dbRequestWith(Nil), "sink", "csv")
+
+    name should fullyMatch regex s"""wf-opsink-v${testVersion.getVid}-$timestampPattern\\.csv"""
+  }
+
+  it should "give a parquet export a .zip extension because the payload is an archive" in {
+    val name = exportService invokePrivate generateFileName(dbRequestWith(Nil), "sink", "parquet")
+
+    name should fullyMatch regex s"""wf-opsink-v${testVersion.getVid}-$timestampPattern\\.zip"""
+  }
+
+  it should "strip path separators so the name stays a single path segment" in {
+    val request = dbRequestWith(Nil, workflowName = "a/b\\c")
+
+    val name = exportService invokePrivate generateFileName(request, "d/e\\f", "csv")
+
+    name should startWith("abc-opdef-v")
+    name should not include "/"
+    name should not include "\\"
+  }
+
+  // -- saveStreamToDataset / saveToDatasets ------------------------------------
+
+  private val saveStreamToDataset =
+    PrivateMethod[(Option[String], Option[String])](Symbol("saveStreamToDataset"))
+
+  private val noopWriter: OutputStream => Unit = _ => ()
+
+  "saveStreamToDataset" should "name the export with the generated file name" in {
+    val (success, error) =
+      exportService invokePrivate saveStreamToDataset(
+        "sink",
+        testUser,
+        dbRequestWith(Nil),
+        "csv",
+        noopWriter
+      )
+
+    error shouldBe None
+    success.getOrElse(fail("expected a success message")) should fullyMatch regex
+      s"""csv export done for operator sink -> file: wf-opsink-v${testVersion.getVid}-$timestampPattern\\.csv"""
+  }
+
+  it should "prefer the request's filename override over the generated name" in {
+    val (success, error) =
+      exportService invokePrivate saveStreamToDataset(
+        "sink",
+        testUser,
+        dbRequestWith(Nil, filename = "chosen.csv"),
+        "csv",
+        noopWriter
+      )
+
+    error shouldBe None
+    success shouldBe Some("csv export done for operator sink -> file: chosen.csv")
+  }
+
+  private case class RecordedUpload(
+      method: String,
+      path: String,
+      rawQuery: String,
+      contentType: String,
+      authorization: String,
+      body: String
+  )
+
+  private lazy val uploadEndpoint: URL =
+    new URL(ResultExportService.fileServiceUploadOneFileToDatasetEndpoint)
+
+  /**
+    * Stands a throw-away HTTP server up on the very host/port the production
+    * upload endpoint points at, since that endpoint is fixed at class-load time
+    * from the environment and cannot be redirected from a test.
+    */
+  private def withUploadServer(status: Int)(body: ArrayBuffer[RecordedUpload] => Unit): Unit = {
+    // The stub server can only stand in for an endpoint that is plain-HTTP, loopback and
+    // carries an explicit port; anything else and the production code would make a real
+    // network call to a host we are not serving, while we bind a local port for nothing.
+    // So validate the whole shape, not just the path.
+    //
+    // And deliberately `fail`, not `assume`/`cancel`: the port is the real file-service
+    // port, so a cancellation would silently delete the strongest tests in this suite
+    // while the build stayed green. A loud, actionable failure is the safer default.
+    val loopbackHosts = Set("localhost", "127.0.0.1", "::1", "[::1]")
+    val endpointIsServable =
+      uploadEndpoint.getProtocol == "http" &&
+        loopbackHosts.contains(uploadEndpoint.getHost) &&
+        uploadEndpoint.getPort > 0 &&
+        uploadEndpoint.getPath == "/api/dataset/did/upload"
+    if (!endpointIsServable) {
+      fail(
+        s"the file-service upload endpoint is overridden to something this suite cannot " +
+          s"stand in for ($uploadEndpoint); it must be plain http on a loopback host with an " +
+          s"explicit port and the default path. Unset the override and re-run."
+      )
+    }
+    val recorded = ArrayBuffer.empty[RecordedUpload]
+    // Catch Exception, not just IOException: an endpoint override without an explicit port
+    // makes getPort return -1, and `new InetSocketAddress(-1)` throws IllegalArgumentException.
+    val server =
+      try HttpServer.create(new InetSocketAddress(uploadEndpoint.getPort), 0)
+      catch {
+        case e: Exception =>
+          fail(
+            s"cannot bind port ${uploadEndpoint.getPort} for the stub upload server: " +
+              s"${e.getMessage}. That is the file-service port — stop the local stack and re-run."
+          )
+      }
+    server.createContext(
+      "/",
+      new HttpHandler {
+        override def handle(exchange: HttpExchange): Unit = {
+          val payload = new String(exchange.getRequestBody.readAllBytes(), StandardCharsets.UTF_8)
+          recorded += RecordedUpload(
+            method = exchange.getRequestMethod,
+            path = exchange.getRequestURI.getPath,
+            rawQuery = exchange.getRequestURI.getRawQuery,
+            contentType = exchange.getRequestHeaders.getFirst("Content-Type"),
+            authorization = exchange.getRequestHeaders.getFirst("Authorization"),
+            body = payload
+          )
+          exchange.sendResponseHeaders(status, -1)
+          exchange.close()
+        }
+      }
+    )
+    server.start()
+    try body(recorded)
+    finally server.stop(0)
+  }
+
+  it should "POST the exported bytes to the file service once per dataset" in {
+    withUploadServer(200) { recorded =>
+      val request = dbRequestWith(
+        Nil,
+        datasetIds = List(7, 8),
+        filename = "my file.csv",
+        workflowName = "wf name"
+      )
+
+      val (success, error) =
+        exportService invokePrivate saveStreamToDataset(
+          "sink",
+          testUser,
+          request,
+          "csv",
+          (out: OutputStream) => out.write("hello".getBytes(StandardCharsets.UTF_8))
+        )
+
+      error shouldBe None
+      success shouldBe Some("csv export done for operator sink -> file: my file.csv")
+
+      // The `did` placeholder in the endpoint template is replaced per dataset.
+      recorded.map(_.path).toList shouldBe List(
+        "/api/dataset/7/upload",
+        "/api/dataset/8/upload"
+      )
+      recorded.foreach { upload =>
+        upload.method shouldBe "POST"
+        upload.contentType shouldBe "application/octet-stream"
+        // Both query values are URL-encoded, so the spaces survive as '+'.
+        upload.rawQuery shouldBe "filePath=my+file.csv&message=Export+from+workflow+wf+name"
+        upload.body shouldBe "hello"
+        // A genuinely signed token for the exporting user, not a placeholder:
+        // the consumer verifies the HMAC against the service's own secret.
+        upload.authorization should startWith("Bearer ")
+        val claims =
+          JwtAuth.jwtConsumer.processToClaims(upload.authorization.stripPrefix("Bearer "))
+        claims.getSubject shouldBe testUser.getName
+        claims.getClaimValue("email") shouldBe testUser.getEmail
+      }
+    }
+  }
+
+  it should "map a rejected upload to an error message naming the dataset" in {
+    withUploadServer(500) { recorded =>
+      val request = dbRequestWith(Nil, datasetIds = List(9), filename = "f.csv")
+
+      val (success, error) =
+        exportService invokePrivate saveStreamToDataset(
+          "sink",
+          testUser,
+          request,
+          "csv",
+          noopWriter
+        )
+
+      recorded should have size 1
+      success shouldBe None
+      error shouldBe Some(
+        "csv export failed for operator sink: " +
+          "Error uploading file to dataset 9: " +
+          "Failed to upload file. Server responded with: 500"
+      )
+    }
   }
 }

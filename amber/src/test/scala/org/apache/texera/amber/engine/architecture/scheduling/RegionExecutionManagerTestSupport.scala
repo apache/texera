@@ -66,9 +66,9 @@ object RegionExecutionManagerTestSupport {
   val StartWorker = "startWorker"
   val EndWorker = "endWorker"
 
-  // Generous deadline for the polling helpers below. Production timing under test (notably the
-  // 200 ms `killRetryDelay` in `RegionExecutionManager`) fits comfortably; the rest is
-  // headroom for slow CI.
+  // Generous deadline for the polling helpers below. Production timing under test (notably
+  // `RegionExecutionManager`'s default 200/400/800 ms termination backoff) fits comfortably; the
+  // rest is headroom for slow CI.
   val testTimeout: Duration = Duration.fromSeconds(5)
 
   case class WorkerRpcCall(

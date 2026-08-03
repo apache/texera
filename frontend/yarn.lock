@@ -981,12 +981,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@angular/compiler@npm:21.2.18":
-  version: 21.2.18
-  resolution: "@angular/compiler@npm:21.2.18"
+"@angular/compiler@npm:21.2.19":
+  version: 21.2.19
+  resolution: "@angular/compiler@npm:21.2.19"
   dependencies:
     tslib: "npm:^2.3.0"
-  checksum: 10c0/1ab4b39e8eeac97544574e6987733a486ed7ee0a78d44ffed3ca6bdf23505300204315f8dd13e7150a104224f6f3b85869351b83d67df9ef7fcd96f5a82fef2b
+  checksum: 10c0/ae3993ed73a4731e1ccd84518fc20520273e6afd38cc040af0ef423c0b60d57fd4a72dbfb955009e6bb67a4119cd118d2fc82486e0b17924ce7f35ce0037da2f
   languageName: node
   linkType: hard
 
@@ -7607,18 +7607,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ajv@npm:8.10.0":
-  version: 8.10.0
-  resolution: "ajv@npm:8.10.0"
-  dependencies:
-    fast-deep-equal: "npm:^3.1.1"
-    json-schema-traverse: "npm:^1.0.0"
-    require-from-string: "npm:^2.0.2"
-    uri-js: "npm:^4.2.2"
-  checksum: 10c0/cc2c02a89289420ea96720f728d39d4d19dbcb2c1d0363481d0a9973282b69d94c8c1a02f4c424a89a1bd888e6049f87d0f82d21b5d056546cdbb364dd043f23
-  languageName: node
-  linkType: hard
-
 "ajv@npm:8.18.0":
   version: 8.18.0
   resolution: "ajv@npm:8.18.0"
@@ -10731,10 +10719,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"fuse.js@npm:6.5.3":
-  version: 6.5.3
-  resolution: "fuse.js@npm:6.5.3"
-  checksum: 10c0/702c75e60660d36476d164063cfc4fd65586ccf4d2e466cd7598928545e2516f9d9138e5c323681ff69ee227973d0c507ba1b2f1c7f281450aefaf0fec5b0a83
+"fuse.js@npm:7.5.0":
+  version: 7.5.0
+  resolution: "fuse.js@npm:7.5.0"
+  checksum: 10c0/1fa51a66063b9b0579921ed1d774864e5e027719d3a4fdb469e6636befa4a9f2f7da626c07da757c6e1ef8a761c7bd3a217e6ecc8e16f0276e1a0f8dd941ff77
   languageName: node
   linkType: hard
 
@@ -10968,7 +10956,7 @@ __metadata:
     "@angular/cdk": "npm:21.2.14"
     "@angular/cli": "npm:21.2.19"
     "@angular/common": "npm:21.2.18"
-    "@angular/compiler": "npm:21.2.18"
+    "@angular/compiler": "npm:21.2.19"
     "@angular/compiler-cli": "npm:21.2.18"
     "@angular/core": "npm:21.2.18"
     "@angular/forms": "npm:21.2.18"
@@ -11006,7 +10994,7 @@ __metadata:
     "@vitest/browser-playwright": "npm:4.1.10"
     "@vitest/coverage-v8": "npm:4.1.10"
     ai: "npm:5.0.93"
-    ajv: "npm:8.10.0"
+    ajv: "npm:8.18.0"
     buffer: "npm:5.7.1"
     build-number-generator: "npm:3.1.0"
     concaveman: "npm:2.0.0"
@@ -11017,7 +11005,7 @@ __metadata:
     eslint-plugin-rxjs: "npm:5.0.3"
     eslint-plugin-rxjs-angular: "npm:2.0.1"
     file-saver: "npm:2.0.5"
-    fuse.js: "npm:6.5.3"
+    fuse.js: "npm:7.5.0"
     html2canvas: "npm:1.4.1"
     jointjs: "npm:3.5.4"
     jsdom: "npm:25.0.1"

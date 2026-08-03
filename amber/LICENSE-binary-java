@@ -242,7 +242,7 @@ Scala/Java jars:
   - com.flipkart.zjsonpatch.zjsonpatch-0.4.16.jar
   - com.github.ben-manes.caffeine.caffeine-2.9.3.jar
   - com.github.dirkraft.dropwizard.dropwizard-file-assets-0.0.2.jar
-  - com.github.nscala-time.nscala-time_2.13-2.32.0.jar
+  - com.github.nscala-time.nscala-time_2.13-2.34.0.jar
   - com.github.sisyphsu.dateparser-1.0.11.jar
   - com.github.sisyphsu.retree-1.0.4.jar
   - com.github.toastshaman.dropwizard-auth-jwt-1.1.2-0.jar
@@ -299,7 +299,7 @@ Scala/Java jars:
   - dev.failsafe.failsafe-3.3.2.jar
   - io.airlift.aircompressor-2.0.2.jar
   - io.altoo.pekko-kryo-serialization_2.13-1.3.0.jar
-  - io.altoo.scala-kryo-serialization_2.13-1.3.0.jar
+  - io.altoo.scala-kryo-serialization_2.13-1.5.2.jar
   - io.dropwizard-bundles.dropwizard-redirect-bundle-1.0.5.jar
   - io.dropwizard.dropwizard-auth-1.3.23.jar
   - io.dropwizard.dropwizard-client-1.3.23.jar
@@ -367,7 +367,7 @@ Scala/Java jars:
   - io.reactivex.rxjava3.rxjava-3.1.12.jar
   - javax.inject.javax.inject-1.jar
   - javax.validation.validation-api-2.0.1.Final.jar
-  - joda-time.joda-time-2.11.0.jar
+  - joda-time.joda-time-2.13.0.jar
   - net.jodah.failsafe-2.4.4.jar
   - org.agrona.agrona-1.22.0.jar
   - org.apache.arrow.arrow-format-19.0.0.jar
@@ -487,21 +487,21 @@ Scala/Java jars:
   - org.jetbrains.kotlin.kotlin-stdlib-jdk7-1.9.10.jar
   - org.jetbrains.kotlin.kotlin-stdlib-jdk8-1.9.10.jar
   - org.jheaps.jheaps-0.11.jar
-  - org.joda.joda-convert-2.2.2.jar
+  - org.joda.joda-convert-2.2.3.jar
   - org.jooq.jooq-3.19.36.jar
   - org.json4s.json4s-ast_2.13-4.0.6.jar
   - org.json4s.json4s-jackson-core_2.13-4.0.6.jar
-  - org.lz4.lz4-java-1.8.0.jar
+  - at.yawk.lz4.lz4-java-1.10.2.jar
   - org.objenesis.objenesis-3.4.jar
   - org.openapitools.jackson-databind-nullable-0.2.6.jar
   - org.roaringbitmap.RoaringBitmap-1.3.0.jar
-  - org.scala-lang.modules.scala-collection-compat_2.13-2.13.0.jar
+  - org.scala-lang.modules.scala-collection-compat_2.13-2.14.0.jar
   - org.scala-lang.modules.scala-collection-contrib_2.13-0.3.0.jar
   - org.scala-lang.modules.scala-parser-combinators_2.13-1.1.2.jar
   - org.scala-lang.scala-library-2.13.18.jar
   - org.scala-lang.scala-reflect-2.13.18.jar
   - org.scalactic.scalactic_2.13-3.2.20.jar
-  - org.slf4j.log4j-over-slf4j-2.0.16.jar
+  - org.slf4j.log4j-over-slf4j-2.0.17.jar
   - org.typelevel.cats-effect-kernel_2.13-3.6.3.jar
   - org.typelevel.cats-effect-std_2.13-3.6.3.jar
   - org.typelevel.cats-effect_2.13-3.6.3.jar
@@ -609,7 +609,7 @@ Dependencies under the BSD 2-Clause License
 
 Scala/Java jars:
   - com.github.luben.zstd-jni-1.5.6-6.jar
-  - com.github.marianobarrios.lbmq-0.6.0.jar
+  - com.github.marianobarrios.lbmq-0.7.0.jar
   - dnsjava.dnsjava-3.6.1.jar
   - org.codehaus.woodstox.stax2-api-4.2.1.jar
   - org.postgresql.postgresql-42.7.13.jar
