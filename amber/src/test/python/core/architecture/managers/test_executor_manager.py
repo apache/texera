@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import gc
 import sys
 import pytest
 from unittest.mock import MagicMock
@@ -37,6 +38,17 @@ from pytexera import *
 class TestSourceOperator(UDFSourceOperator):
     def produce(self) -> Iterator[Union[TupleLike, TableLike, None]]:
         yield Tuple({"test": "data"})
+"""
+
+NON_ASCII_OPERATOR_CODE = """
+from pytexera import *
+
+class NonAsciiOperator(UDFOperatorV2):
+    # コメント: user code may contain any Unicode text.
+    GREETING = "café"
+
+    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
+        yield tuple_
 """
 
 
@@ -255,29 +267,57 @@ class TestExecutorManager:
             )
         assert "SourceOperator API" in str(exc_info.value)
 
+    def test_non_ascii_udf_source_round_trip(self, executor_manager):
+        # importlib decodes the written source file as UTF-8 (PEP 3120), so
+        # the write side must be pinned to UTF-8 as well; the locale default
+        # (e.g. cp1252 on Windows, or LC_ALL=C) would break the write.
+        executor_manager.initialize_executor(
+            code=NON_ASCII_OPERATOR_CODE, is_source=False, language="python"
+        )
+        assert executor_manager.executor.GREETING == "café"
+
+    def test_tmp_dir_is_reclaimed_when_manager_is_abandoned(self):
+        # `fs` reclaimed the tmp directory on GC (FS.__del__ -> TempFS.close()
+        # -> clean()). A manager dropped without close() must still not leak,
+        # so the TemporaryDirectory finalizer has to reproduce that.
+        manager = ExecutorManager()
+        root = manager.tmp_dir
+        assert root.exists()
+        sys.path.remove(str(root))
+        del manager
+        gc.collect()
+        assert not root.exists()
+
     def test_close_when_sys_path_entry_already_removed(self):
-        # Exercise the except ValueError branch: if the tmp fs path has
+        # Exercise the except ValueError branch: if the tmp directory has
         # already been pulled out of sys.path by something else, close()
         # should swallow the error and finish cleanly.
-        from pathlib import Path
-
         manager = ExecutorManager()
-        root = Path(manager.fs.getsyspath("/"))
+        root = manager.tmp_dir
         sys.path.remove(str(root))
         manager.close()
         assert str(root) not in sys.path
+        assert not root.exists()
 
-    def test_close_when_fs_materialized_but_no_executor_loaded(self):
-        # Exercise the branch where self.fs was touched (so the early
+    def test_close_when_tmp_dir_materialized_but_no_executor_loaded(self):
+        # Exercise the branch where self.tmp_dir was touched (so the early
         # return is skipped) but operator_module_name is still None,
         # meaning the sys.modules.pop branch must NOT execute.
-        from pathlib import Path
-
         manager = ExecutorManager()
-        root = Path(manager.fs.getsyspath("/"))
+        root = manager.tmp_dir
         assert manager.operator_module_name is None
         manager.close()
         assert str(root) not in sys.path
+        assert not root.exists()
+
+    def test_close_is_noop_when_tmp_dir_never_materialized(self):
+        # The early return: no tmp directory was ever created, so close()
+        # must not touch sys.path and must not raise.
+        manager = ExecutorManager()
+        before = list(sys.path)
+        manager.close()
+        assert sys.path == before
+        assert "tmp_dir" not in manager.__dict__
 
 
 REPLACEMENT_OPERATOR_CODE = """
