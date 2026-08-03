@@ -89,6 +89,7 @@ class GmailResourceSpec extends AnyFlatSpec {
       )
     }
 
+  requireNoRealGmailSender()
   it should "fall back to the session user's email when the request carries an empty receiver" in {
     requireNoRealGmailSender()
     // An empty receiver reaching `sendEmail` unchanged fails the format regex and surfaces as a

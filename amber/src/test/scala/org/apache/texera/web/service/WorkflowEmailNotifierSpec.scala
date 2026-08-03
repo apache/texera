@@ -43,8 +43,8 @@ import javax.ws.rs.NotFoundException
   *   - `createDashboardUrl` starts emitting `:80`/`:443`/no-port links, or drops the workflow id
   *     from the deep link, so the mail points somewhere the user cannot open;
   *   - `formatTimestamp` stops pinning UTC or changes the human-readable pattern (the JVM default
-  *     zone and locale are deliberately set to non-UTC/US-English around the assertion so that a
-  *     switch to `ZoneId.systemDefault()` renders a different clock time);
+  *     zone is deliberately set to non-UTC around the assertion; the locale is pinned to US so the
+  *     expected month/day text is stable across environments);
   *   - the terminal-state set stops covering a state that ends or suspends an execution, which
   *     would silently drop the only email a user gets for that run.
   *
