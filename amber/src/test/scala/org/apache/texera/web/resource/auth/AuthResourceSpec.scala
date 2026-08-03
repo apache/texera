@@ -216,7 +216,7 @@ class AuthResourceSpec
     claimed.getIsPlaceholder shouldBe false
     encryptor.checkPassword("secret-pw", claimed.getPassword) shouldBe true
     claimed.getRole shouldEqual UserRoleEnum.INACTIVE
-    claimed.getComment should include("Claimed contributor placeholder")
+    claimed.getComment should include("Claimed contributor placeholder at ")
   }
 
   it should "allow logging in with the claimed credentials" in {

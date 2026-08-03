@@ -33,6 +33,8 @@ import org.apache.texera.web.resource.auth.AuthResource._
 import org.jooq.impl.DSL
 import org.jasypt.util.password.StrongPasswordEncryptor
 
+import java.time.Instant
+import java.time.temporal.ChronoUnit
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
 
@@ -86,8 +88,10 @@ object AuthResource {
 
   def claimPlaceholder(user: User): Unit = {
     user.setIsPlaceholder(false)
+    val claimedAt = Instant.now().truncatedTo(ChronoUnit.SECONDS)
     user.setComment(
-      Option(user.getComment).map(_ + "; ").getOrElse("") + "Claimed contributor placeholder"
+      Option(user.getComment).map(_ + "; ").getOrElse("") +
+        s"Claimed contributor placeholder at $claimedAt"
     )
   }
 
