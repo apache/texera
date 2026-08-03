@@ -28,9 +28,10 @@ import org.apache.texera.amber.core.virtualidentity.{
 }
 import org.apache.texera.amber.core.workflow.{GlobalPortIdentity, PortIdentity}
 import org.apache.texera.amber.util.serde.GlobalPortIdentitySerde.SerdeOps
+import org.apache.texera.auth.SessionUser
 import org.apache.texera.dao.MockTexeraDB
 import org.apache.texera.dao.jooq.generated.Tables._
-import org.apache.texera.dao.jooq.generated.enums.WorkflowComputingUnitTypeEnum
+import org.apache.texera.dao.jooq.generated.enums.{PrivilegeEnum, WorkflowComputingUnitTypeEnum}
 import org.apache.texera.dao.jooq.generated.tables.daos.{
   DatasetDao,
   UserDao,
@@ -52,6 +53,7 @@ import org.apache.texera.web.service.ExecutionResultService
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, PrivateMethodTester}
 
+import javax.ws.rs.{BadRequestException, ForbiddenException, WebApplicationException}
 import java.net.URI
 import java.sql.Timestamp
 import java.util.UUID
@@ -159,6 +161,12 @@ class WorkflowExecutionsResourceSpec
     getDSLContext
       .deleteFrom(WORKFLOW_VERSION)
       .where(WORKFLOW_VERSION.WID.eq(testWorkflowWid))
+      .execute()
+
+    // Access grants seeded by the endpoint tests must go before the workflow row.
+    getDSLContext
+      .deleteFrom(WORKFLOW_USER_ACCESS)
+      .where(WORKFLOW_USER_ACCESS.WID.eq(testWorkflowWid))
       .execute()
 
     getDSLContext
@@ -895,6 +903,143 @@ class WorkflowExecutionsResourceSpec
     assert(
       offenders.isEmpty,
       s"endpoints missing @RolesAllowed/@Auth: ${offenders.map(_.getName).sorted.mkString(", ")}"
+    )
+  }
+
+  // ─── access-controlled instance endpoints (jOOQ metadata only) ─────────────
+  // The result/log-URI and replay paths (DocumentFactory / ReplayLogRecord) are
+  // out of scope; these cover the DB-metadata portion of each endpoint.
+
+  private val resource = new WorkflowExecutionsResource
+
+  private def session(user: User): SessionUser = new SessionUser(user)
+
+  private def grantReadAccess(uid: Integer = testUserId): Unit =
+    getDSLContext
+      .insertInto(WORKFLOW_USER_ACCESS)
+      .set(WORKFLOW_USER_ACCESS.WID, Integer.valueOf(testWorkflowWid))
+      .set(WORKFLOW_USER_ACCESS.UID, uid)
+      .set(WORKFLOW_USER_ACCESS.PRIVILEGE, PrivilegeEnum.READ)
+      .execute()
+
+  private def userWithoutAccess(): User = {
+    val u = new User
+    u.setUid(testUserId + 5000)
+    u.setName("no_access_user")
+    u.setEmail("noaccess@example.com")
+    u.setPassword("password")
+    u
+  }
+
+  "retrieveExecutionsOfWorkflow" should "return an empty list when the user lacks read access" in {
+    val result =
+      resource.retrieveExecutionsOfWorkflow(testWorkflowWid, session(userWithoutAccess()), null)
+    assert(result.isEmpty)
+  }
+
+  it should "return the workflow's executions for an authorized user" in {
+    grantReadAccess()
+    insertExecution()
+    insertExecution()
+    val result = resource.retrieveExecutionsOfWorkflow(testWorkflowWid, session(testUser), null)
+    assert(result.size == 2)
+  }
+
+  it should "reject an invalid status filter with a BadRequestException" in {
+    grantReadAccess()
+    assertThrows[BadRequestException](
+      resource.retrieveExecutionsOfWorkflow(
+        testWorkflowWid,
+        session(testUser),
+        "definitely-not-a-status"
+      )
+    )
+  }
+
+  "retrieveLatestExecutionEntry" should "throw ForbiddenException when the workflow has no executions" in {
+    grantReadAccess()
+    assertThrows[ForbiddenException](
+      resource.retrieveLatestExecutionEntry(testWorkflowWid, session(testUser))
+    )
+  }
+
+  it should "return the most recently created execution entry" in {
+    grantReadAccess()
+    insertExecution(name = "first")
+    val latest = insertExecution(name = "second")
+    val entry = resource.retrieveLatestExecutionEntry(testWorkflowWid, session(testUser))
+    // same VID, so the highest EID is the latest
+    assert(entry.eId == latest.getEid)
+    assert(entry.name == "second")
+  }
+
+  "retrieveInteractionHistory" should "return an empty list when the user lacks read access" in {
+    val result =
+      resource.retrieveInteractionHistory(
+        testWorkflowWid,
+        Integer.valueOf(1),
+        session(userWithoutAccess())
+      )
+    assert(result.isEmpty)
+  }
+
+  "setExecutionAreBookmarked" should "reject a user without access" in {
+    val exec = insertExecution()
+    assertThrows[WebApplicationException](
+      resource.setExecutionAreBookmarked(
+        ExecutionGroupBookmarkRequest(testWorkflowWid, Array(exec.getEid), isBookmarked = false),
+        session(userWithoutAccess())
+      )
+    )
+  }
+
+  it should "bookmark executions that are currently un-bookmarked" in {
+    grantReadAccess()
+    val exec = insertExecution() // bookmarked = false
+    resource.setExecutionAreBookmarked(
+      ExecutionGroupBookmarkRequest(testWorkflowWid, Array(exec.getEid), isBookmarked = false),
+      session(testUser)
+    )
+    assert(workflowExecutionsDao.fetchOneByEid(exec.getEid).getBookmarked == true)
+  }
+
+  it should "un-bookmark executions that are currently bookmarked" in {
+    grantReadAccess()
+    val exec = insertExecution()
+    resource.setExecutionAreBookmarked(
+      ExecutionGroupBookmarkRequest(testWorkflowWid, Array(exec.getEid), isBookmarked = true),
+      session(testUser)
+    )
+    assert(workflowExecutionsDao.fetchOneByEid(exec.getEid).getBookmarked == false)
+  }
+
+  "updateWorkflowExecutionsName" should "rename the execution" in {
+    grantReadAccess()
+    val exec = insertExecution(name = "old-name")
+    resource.updateWorkflowExecutionsName(
+      ExecutionRenameRequest(testWorkflowWid, exec.getEid, "new-name"),
+      session(testUser)
+    )
+    assert(workflowExecutionsDao.fetchOneByEid(exec.getEid).getName == "new-name")
+  }
+
+  "groupDeleteExecutionsOfWorkflow" should "delete the execution rows" in {
+    grantReadAccess()
+    val e1 = insertExecution()
+    val e2 = insertExecution()
+    resource.groupDeleteExecutionsOfWorkflow(
+      ExecutionGroupDeleteRequest(testWorkflowWid, Array(e1.getEid, e2.getEid)),
+      session(testUser)
+    )
+    assert(workflowExecutionsDao.fetchOneByEid(e1.getEid) == null)
+    assert(workflowExecutionsDao.fetchOneByEid(e2.getEid) == null)
+  }
+
+  "retrieveWorkflowRuntimeStatistics" should "throw when the execution has no runtime-stats URI" in {
+    grantReadAccess()
+    val exec = insertExecution() // runtimeStatsUri = null
+    assertThrows[java.util.NoSuchElementException](
+      resource.retrieveWorkflowRuntimeStatistics(testWorkflowWid, exec.getEid, session(testUser))
     )
   }
 

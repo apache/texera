@@ -428,4 +428,45 @@ class PveResourceSpec
     val resp = new PveResource().deletePveFromDb(-1, sessionUser)
     resp.getStatus shouldBe Response.Status.NOT_FOUND.getStatusCode
   }
+
+  "PveResource.getSystemPackages" should "wrap the manager's list under a 'system' key" in {
+    // PveManager.systemPackages is a lazy val resolved via a (mocked) `pip freeze`,
+    // so allow the process call in case this test is the first to force resolution.
+    expectProcessCalls()
+    val result = new PveResource().getSystemPackages
+    result.keySet.asScala shouldBe Set("system")
+    result.get("system") shouldBe PveManager.getSystemPackages.toList.asJava
+  }
+
+  "PveResource.fetchPVEs" should "return 400 when the cuid query parameter is missing" in {
+    val resp = new PveResource().fetchPVEs(null)
+    resp.getStatus shouldBe Response.Status.BAD_REQUEST.getStatusCode
+  }
+
+  it should "return the environments of a computing unit" in {
+    expectProcessCalls()
+    PveManager.createNewPve(testCuid, queue, testPveName)
+
+    val resp = new PveResource().fetchPVEs(Int.box(testCuid))
+    resp.getStatus shouldBe Response.Status.OK.getStatusCode
+    val pves = resp.getEntity.asInstanceOf[java.util.List[java.util.Map[String, Object]]].asScala
+    pves.map(_.get("pveName")) should contain(testPveName)
+  }
+
+  "PveResource.deletePackage" should "return 200 when the uninstall succeeds" in {
+    expectProcessCalls()
+    PveManager.createNewPve(testCuid, queue, testPveName)
+    PveManager.installUserPackages(List("colorama==0.4.6"), testCuid, queue, testPveName)
+
+    val resp = new PveResource().deletePackage(testCuid, testPveName, "colorama")
+    resp.getStatus shouldBe Response.Status.OK.getStatusCode
+  }
+
+  it should "return 400 when the package is part of the system set" in {
+    expectProcessCalls()
+    PveManager.createNewPve(testCuid, queue, testPveName)
+
+    val resp = new PveResource().deletePackage(testCuid, testPveName, "pyarrow")
+    resp.getStatus shouldBe Response.Status.BAD_REQUEST.getStatusCode
+  }
 }

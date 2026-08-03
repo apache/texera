@@ -20,191 +20,272 @@
 package org.apache.texera.web.resource.dashboard.admin.user
 
 import org.apache.texera.dao.MockTexeraDB
-import org.apache.texera.dao.jooq.generated.Tables.{AUTH_PROVIDER, USER}
-import org.apache.texera.dao.jooq.generated.enums.{ProviderTypeEnum, UserRoleEnum}
-import org.apache.texera.dao.jooq.generated.tables.daos.{AuthProviderDao, UserDao}
-import org.apache.texera.dao.jooq.generated.tables.pojos.{AuthProvider, User}
-import org.jooq.exception.DataAccessException
+import org.apache.texera.dao.jooq.generated.Tables._
+import org.apache.texera.dao.jooq.generated.enums.{PrivilegeEnum, UserRoleEnum}
+import org.apache.texera.dao.jooq.generated.tables.daos.{
+  UserDao,
+  WorkflowDao,
+  WorkflowExecutionsDao,
+  WorkflowOfUserDao,
+  WorkflowUserAccessDao,
+  WorkflowVersionDao
+}
+import org.apache.texera.dao.jooq.generated.tables.pojos.{
+  User,
+  Workflow,
+  WorkflowExecutions,
+  WorkflowOfUser,
+  WorkflowUserAccess,
+  WorkflowVersion
+}
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, LoneElement}
 
+import java.sql.Timestamp
+import java.util.UUID
 import javax.ws.rs.WebApplicationException
-import javax.ws.rs.core.Response
 import scala.jdk.CollectionConverters._
 
-/**
-  * Integration spec for [[AdminUserResource]] against embedded Postgres.
-  *
-  * Two things are worth pinning down here: the local login handle an admin-created account
-  * gets (it is no longer readable off `"user".name`, which an admin may rename), and the fact
-  * that `list()` joins `auth_provider` twice — once per provider — so the two handles must
-  * not bleed into each other's column.
-  */
 class AdminUserResourceSpec
     extends AnyFlatSpec
     with Matchers
     with BeforeAndAfterAll
     with BeforeAndAfterEach
-    with LoneElement
     with MockTexeraDB {
 
+  private val primaryUid = 90000 + scala.util.Random.nextInt(5000)
+  private val secondaryUid = primaryUid + 1
+  private val testWid = 90000 + scala.util.Random.nextInt(5000)
+
   private var userDao: UserDao = _
-  private var authDao: AuthProviderDao = _
-  private var resource: AdminUserResource = _
+  private var workflowDao: WorkflowDao = _
+  private var workflowVersionDao: WorkflowVersionDao = _
+  private var workflowExecutionsDao: WorkflowExecutionsDao = _
+  private var workflowOfUserDao: WorkflowOfUserDao = _
+  private var workflowUserAccessDao: WorkflowUserAccessDao = _
+
+  private val resource = new AdminUserResource
 
   override protected def beforeAll(): Unit = {
     initializeDBAndReplaceDSLContext()
     userDao = new UserDao(getDSLContext.configuration())
-    authDao = new AuthProviderDao(getDSLContext.configuration())
-    resource = new AdminUserResource()
+    workflowDao = new WorkflowDao(getDSLContext.configuration())
+    workflowVersionDao = new WorkflowVersionDao(getDSLContext.configuration())
+    workflowExecutionsDao = new WorkflowExecutionsDao(getDSLContext.configuration())
+    workflowOfUserDao = new WorkflowOfUserDao(getDSLContext.configuration())
+    workflowUserAccessDao = new WorkflowUserAccessDao(getDSLContext.configuration())
   }
 
-  override protected def afterAll(): Unit = shutdownDB()
+  override protected def afterAll(): Unit = closeConnectionPool()
 
-  override protected def beforeEach(): Unit = cleanup()
-  override protected def afterEach(): Unit = cleanup()
+  // Wipe everything this spec seeds, children before parents, after each test.
+  private def cleanup(): Unit = {
+    getDSLContext
+      .deleteFrom(WORKFLOW_EXECUTIONS)
+      .where(WORKFLOW_EXECUTIONS.UID.in(primaryUid, secondaryUid))
+      .execute()
+    getDSLContext.deleteFrom(WORKFLOW_VERSION).where(WORKFLOW_VERSION.WID.eq(testWid)).execute()
+    getDSLContext
+      .deleteFrom(WORKFLOW_USER_ACCESS)
+      .where(WORKFLOW_USER_ACCESS.WID.eq(testWid))
+      .execute()
+    getDSLContext.deleteFrom(WORKFLOW_OF_USER).where(WORKFLOW_OF_USER.WID.eq(testWid)).execute()
+    getDSLContext.deleteFrom(WORKFLOW).where(WORKFLOW.WID.eq(testWid)).execute()
+    getDSLContext.deleteFrom(USER).where(USER.UID.in(primaryUid, secondaryUid)).execute()
+    // addUser() inserts an INACTIVE user with an auto-generated uid and a "User<millis>" name.
+    getDSLContext
+      .deleteFrom(USER)
+      .where(USER.ROLE.eq(UserRoleEnum.INACTIVE).and(USER.NAME.like("User%")))
+      .execute()
+  }
 
-  // This suite owns its embedded database, so clearing "user" is enough; auth_provider
-  // rows go with it via ON DELETE CASCADE.
-  private def cleanup(): Unit = getDSLContext.deleteFrom(USER).execute()
-
-  // ---- helpers -------------------------------------------------------------
-
-  private def seedUser(name: String, email: String): User = {
+  private def makeUser(uid: Int, name: String, role: UserRoleEnum = UserRoleEnum.REGULAR): User = {
     val user = new User
+    user.setUid(uid)
     user.setName(name)
-    user.setEmail(email)
-    user.setRole(UserRoleEnum.REGULAR)
-    userDao.insert(user)
+    user.setEmail(
+      s"admin_user_spec_${uid}_${UUID.randomUUID().toString.substring(0, 8)}@example.com"
+    )
+    user.setPassword("password")
+    user.setRole(role)
     user
   }
 
-  private def seedProvider(
-      uid: Integer,
-      providerType: ProviderTypeEnum,
-      providerId: String,
-      password: String = null
-  ): Unit = {
-    val auth = new AuthProvider
-    auth.setUid(uid)
-    auth.setProviderType(providerType)
-    auth.setProviderId(providerId)
-    if (password != null) auth.setPassword(password)
-    authDao.insert(auth)
+  private def seedWorkflow(): Workflow = {
+    val workflow = new Workflow
+    workflow.setWid(testWid)
+    workflow.setName("admin_user_spec_wf_" + UUID.randomUUID().toString.substring(0, 8))
+    workflow.setContent("{}")
+    workflow.setDescription("desc")
+    workflow.setCreationTime(new Timestamp(System.currentTimeMillis()))
+    workflow.setLastModifiedTime(new Timestamp(System.currentTimeMillis()))
+    workflowDao.insert(workflow)
+    workflow
   }
 
-  private def infoFor(uid: Integer): UserInfo =
-    resource.list().asScala.find(_.uid == uid).getOrElse(fail(s"uid $uid missing from list()"))
+  private def seedExecution(uid: Int): WorkflowExecutions = {
+    seedWorkflow()
+    val version = new WorkflowVersion
+    version.setWid(testWid)
+    version.setContent("{}")
+    version.setCreationTime(new Timestamp(System.currentTimeMillis()))
+    workflowVersionDao.insert(version)
 
-  private def localHandleOf(uid: Integer): String =
-    getDSLContext
-      .select(AUTH_PROVIDER.PROVIDER_ID)
-      .from(AUTH_PROVIDER)
-      .where(AUTH_PROVIDER.UID.eq(uid))
-      .and(AUTH_PROVIDER.PROVIDER_TYPE.eq(ProviderTypeEnum.LOCAL))
-      .fetchOne(AUTH_PROVIDER.PROVIDER_ID)
+    val execution = new WorkflowExecutions
+    execution.setVid(version.getVid)
+    execution.setUid(uid)
+    execution.setStatus(0.toByte)
+    execution.setResult("")
+    execution.setLogLocation("")
+    execution.setStartingTime(new Timestamp(System.currentTimeMillis()))
+    execution.setBookmarked(false)
+    execution.setName("admin_user_spec_exec")
+    execution.setEnvironmentVersion("test-env-1.0")
+    workflowExecutionsDao.insert(execution)
+    execution
+  }
 
-  private def allUsers: Seq[User] = userDao.findAll().asScala.toSeq
+  override protected def afterEach(): Unit = cleanup()
 
-  // ---- addUser -------------------------------------------------------------
+  // ─── list ───────────────────────────────────────────────────────────────
 
-  behavior of "addUser"
+  "list" should "return the seeded users with their name, email, and role" in {
+    val a = makeUser(primaryUid, "alice", UserRoleEnum.ADMIN)
+    val b = makeUser(secondaryUid, "bob", UserRoleEnum.REGULAR)
+    userDao.insert(a)
+    userDao.insert(b)
 
-  it should "give the new account a local handle matching its generated name" in {
+    val listed = resource.list().asScala
+    val alice = listed.find(_.uid == primaryUid)
+    val bob = listed.find(_.uid == secondaryUid)
+
+    alice.map(u => (u.name, u.email, u.role)) shouldBe Some(
+      ("alice", a.getEmail, UserRoleEnum.ADMIN)
+    )
+    bob.map(u => (u.name, u.email, u.role)) shouldBe Some(("bob", b.getEmail, UserRoleEnum.REGULAR))
+  }
+
+  it should "not return a user that has not been seeded" in {
+    resource.list().asScala.exists(_.uid == primaryUid) shouldBe false
+  }
+
+  // ─── addUser ────────────────────────────────────────────────────────────
+
+  "addUser" should "persist a new INACTIVE user" in {
+    val before = userDao.fetchByRole(UserRoleEnum.INACTIVE).size()
+
     resource.addUser()
 
-    val created = allUsers.loneElement
-    created.getRole shouldBe UserRoleEnum.INACTIVE
-    localHandleOf(created.getUid) shouldBe created.getName
+    val after = userDao.fetchByRole(UserRoleEnum.INACTIVE)
+    after.size() shouldBe before + 1
+    // The newly added user has a generated non-empty name and no password left blank.
+    after.asScala.exists(u => u.getName.startsWith("User") && u.getPassword != null) shouldBe true
   }
 
-  it should "generate distinct handles for accounts created in quick succession" in {
-    resource.addUser()
-    resource.addUser()
-    resource.addUser()
+  // ─── updateUser ─────────────────────────────────────────────────────────
 
-    val handles = allUsers.map(u => localHandleOf(u.getUid))
-    handles should have size 3
-    handles.distinct should have size 3
-    handles.foreach(_ should not be null)
+  "updateUser" should "update a user's editable fields and round-trip via a re-read" in {
+    val user = makeUser(primaryUid, "original", UserRoleEnum.REGULAR)
+    userDao.insert(user)
+
+    val edit = new User
+    edit.setUid(primaryUid)
+    edit.setName("renamed")
+    edit.setEmail(user.getEmail) // unchanged email → no conflict
+    edit.setRole(UserRoleEnum.REGULAR) // unchanged role → no e-mail side effect
+    edit.setComment("a new comment")
+    resource.updateUser(edit)
+
+    val reread = userDao.fetchOneByUid(primaryUid)
+    reread.getName shouldBe "renamed"
+    reread.getComment shouldBe "a new comment"
+    reread.getRole shouldBe UserRoleEnum.REGULAR
   }
 
-  it should "leave the handle alone when the display name is later changed" in {
-    resource.addUser()
-    val created = allUsers.loneElement
-    val handle = created.getName
+  it should "reject an update whose email already belongs to another user" in {
+    val alice = makeUser(primaryUid, "alice", UserRoleEnum.REGULAR)
+    val bob = makeUser(secondaryUid, "bob", UserRoleEnum.REGULAR)
+    userDao.insert(alice)
+    userDao.insert(bob)
 
-    val renamed = userDao.fetchOneByUid(created.getUid)
-    renamed.setName("Friendly Name")
-    renamed.setEmail("friendly@example.com")
-    resource.updateUser(renamed)
+    val edit = new User
+    edit.setUid(secondaryUid) // updating bob…
+    edit.setName("bob")
+    edit.setEmail(alice.getEmail) // …to alice's email → conflict
+    edit.setRole(UserRoleEnum.REGULAR)
 
-    localHandleOf(created.getUid) shouldBe handle
-    infoFor(created.getUid).name shouldBe "Friendly Name"
-    infoFor(created.getUid).localHandle shouldBe handle
+    a[WebApplicationException] should be thrownBy resource.updateUser(edit)
   }
 
-  // `addUser` cannot collide (its handle is a fresh UUID), so the mapping is driven through
-  // `createLocalAccount` directly — otherwise a taken handle would surface as a raw 500.
-  it should "reject a handle that is already taken with a 409 rather than a 500" in {
-    resource.createLocalAccount("taken-handle", "pw")
+  // ─── getCreatedWorkflow ───────────────────────────────────────────────────
 
-    val thrown = the[WebApplicationException] thrownBy
-      resource.createLocalAccount("taken-handle", "another-pw")
-
-    thrown.getResponse.getStatus shouldBe Response.Status.CONFLICT.getStatusCode
-    allUsers should have size 1
+  "getCreatedWorkflow" should "return an empty list for a user with no created workflows" in {
+    userDao.insert(makeUser(primaryUid, "creator"))
+    resource.getCreatedWorkflow(primaryUid) shouldBe empty
   }
 
-  // Only unique_violation means "handle taken"; every other database error must keep its own
-  // identity instead of being relabelled a conflict.
-  it should "let a database error that is not a unique violation propagate unchanged" in {
-    // provider_id is VARCHAR(256), so an over-long handle fails with 22001, not 23505
-    a[DataAccessException] should be thrownBy resource.createLocalAccount("h" * 300, "pw")
+  it should "return the workflows the user created" in {
+    userDao.insert(makeUser(primaryUid, "creator"))
+    val workflow = seedWorkflow()
+    val ownership = new WorkflowOfUser
+    ownership.setUid(primaryUid)
+    ownership.setWid(testWid)
+    workflowOfUserDao.insert(ownership)
+
+    val created = resource.getCreatedWorkflow(primaryUid)
+    created.map(_.workflowId) shouldBe List(Integer.valueOf(testWid))
+    created.head.workflowName shouldBe workflow.getName
   }
 
-  // ---- list ----------------------------------------------------------------
+  // ─── getAccessedWorkflow ──────────────────────────────────────────────────
 
-  behavior of "list"
-
-  it should "report the local handle for a password account" in {
-    val user = seedUser("Local Only", "local@example.com")
-    seedProvider(user.getUid, ProviderTypeEnum.LOCAL, "local-handle", password = "hashed")
-
-    val info = infoFor(user.getUid)
-    info.localHandle shouldBe "local-handle"
-    info.googleId shouldBe null
+  "getAccessedWorkflow" should "return an empty list for a user with no workflow access" in {
+    userDao.insert(makeUser(primaryUid, "viewer"))
+    resource.getAccessedWorkflow(primaryUid).asScala shouldBe empty
   }
 
-  it should "report the google id for an external account" in {
-    val user = seedUser("Google Only", "google@example.com")
-    seedProvider(user.getUid, ProviderTypeEnum.GOOGLE, "google-sub-1")
+  it should "return the workflow ids the user can access" in {
+    userDao.insert(makeUser(primaryUid, "viewer"))
+    seedWorkflow()
+    val access = new WorkflowUserAccess
+    access.setUid(primaryUid)
+    access.setWid(testWid)
+    access.setPrivilege(PrivilegeEnum.READ)
+    workflowUserAccessDao.insert(access)
 
-    val info = infoFor(user.getUid)
-    info.googleId shouldBe "google-sub-1"
-    info.localHandle shouldBe null
+    resource.getAccessedWorkflow(primaryUid).asScala should contain(Integer.valueOf(testWid))
   }
 
-  it should "keep the two handles in their own columns for an account holding both" in {
-    val user = seedUser("Both", "both@example.com")
-    seedProvider(user.getUid, ProviderTypeEnum.LOCAL, "both-handle", password = "hashed")
-    seedProvider(user.getUid, ProviderTypeEnum.GOOGLE, "google-sub-2")
+  // ─── getUserQuota ─────────────────────────────────────────────────────────
 
-    val info = infoFor(user.getUid)
-    info.localHandle shouldBe "both-handle"
-    info.googleId shouldBe "google-sub-2"
-    info.name shouldBe "Both"
-    info.email shouldBe "both@example.com"
+  "getUserQuota" should "return an empty array for a user with no executions" in {
+    userDao.insert(makeUser(primaryUid, "quota_user"))
+    resource.getUserQuota(primaryUid) shouldBe empty
   }
 
-  // Two left joins against the same table are what make this a risk: without the
-  // provider_type predicates a user with several providers would fan out into one row each.
-  it should "return one row per user even when a user has several providers" in {
-    val user = seedUser("Both", "both@example.com")
-    seedProvider(user.getUid, ProviderTypeEnum.LOCAL, "both-handle-2", password = "hashed")
-    seedProvider(user.getUid, ProviderTypeEnum.GOOGLE, "google-sub-3")
+  it should "return one quota entry per execution the user owns" in {
+    userDao.insert(makeUser(primaryUid, "quota_user"))
+    val execution = seedExecution(primaryUid)
 
-    resource.list().asScala.count(_.uid == user.getUid) shouldBe 1
+    val quota = resource.getUserQuota(primaryUid)
+    quota should have length 1
+    quota.head.eid shouldBe execution.getEid
+    quota.head.workflowId shouldBe Integer.valueOf(testWid)
+    // No operator_port/operator rows seeded → result and log sizes are zero.
+    quota.head.resultBytes shouldBe 0L
+    quota.head.logBytes shouldBe 0L
+  }
+
+  // ─── deleteCollection ─────────────────────────────────────────────────────
+
+  "deleteCollection" should "delete the target execution row" in {
+    userDao.insert(makeUser(primaryUid, "collection_user"))
+    val execution = seedExecution(primaryUid)
+    workflowExecutionsDao.fetchOneByEid(execution.getEid) should not be null
+
+    resource.deleteCollection(execution.getEid)
+
+    workflowExecutionsDao.fetchOneByEid(execution.getEid) shouldBe null
   }
 }

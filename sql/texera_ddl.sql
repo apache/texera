@@ -65,6 +65,7 @@ DROP TABLE IF EXISTS dataset_upload_session_part CASCADE;
 DROP TABLE IF EXISTS dataset CASCADE;
 DROP TABLE IF EXISTS dataset_user_access CASCADE;
 DROP TABLE IF EXISTS dataset_version CASCADE;
+DROP TABLE IF EXISTS dataset_contributor CASCADE;
 DROP TABLE IF EXISTS public_project CASCADE;
 DROP TABLE IF EXISTS project_user_access CASCADE;
 DROP TABLE IF EXISTS workflow_user_likes CASCADE;
@@ -322,6 +323,19 @@ CREATE TABLE IF NOT EXISTS dataset_version
     name          VARCHAR(128) NOT NULL,
     version_hash  VARCHAR(64) NOT NULL,
     creation_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (did) REFERENCES dataset(did) ON DELETE CASCADE
+    );
+
+-- dataset_contributor
+CREATE TABLE IF NOT EXISTS dataset_contributor
+(
+    cid           SERIAL PRIMARY KEY,
+    did           INT NOT NULL,
+    name          VARCHAR(256) NOT NULL,
+    creator       BOOLEAN NOT NULL DEFAULT FALSE,
+    email         VARCHAR(256),
+    affiliation   VARCHAR(256),
+    comments      TEXT,
     FOREIGN KEY (did) REFERENCES dataset(did) ON DELETE CASCADE
     );
 

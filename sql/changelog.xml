@@ -58,9 +58,14 @@
         <sqlFile path="sql/updates/29.sql"/>
     </changeSet>
 
-    <!-- Split auth credentials out of "user" into auth_provider -->
-    <changeSet id="30" author="Neilk1021">
+    <!-- Add dataset_contributor table (contributor metadata for datasets) -->
+    <changeSet id="30" author="xuang7">
         <sqlFile path="sql/updates/30.sql"/>
+    </changeSet>
+
+    <!-- Migrate user database>
+    <changeSet id="31" author="Neilk1021">
+        <sqlFile path="sql/updates/31.sql"/>
     </changeSet>
 
     <!-- example changeSet

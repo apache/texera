@@ -32,6 +32,7 @@ import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.apache.texera.amber.operator.metadata.OperatorMetadataGenerator
 
 class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
 
@@ -646,5 +647,18 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
     val out = desc.getOutputSchemas(Map(PortIdentity(0) -> inputSchema))
     val outSchema = out(desc.operatorInfo.outputPorts.head.id)
     outSchema.getAttributeNames.contains("hf_response") shouldBe true
+  }
+
+  it should "mask the API token field as a password widget in the generated schema" in {
+    val tokenProp = OperatorMetadataGenerator
+      .generateOperatorJsonSchema(classOf[HuggingFaceInferenceOpDesc])
+      .path("properties")
+      .path("hfApiToken")
+    tokenProp
+      .path("widget")
+      .path("formlyConfig")
+      .path("templateOptions")
+      .path("type")
+      .asText() shouldBe "password"
   }
 }

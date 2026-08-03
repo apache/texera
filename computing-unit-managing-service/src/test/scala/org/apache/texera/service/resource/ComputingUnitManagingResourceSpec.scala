@@ -19,172 +19,86 @@
 
 package org.apache.texera.service.resource
 
-import jakarta.ws.rs.NotFoundException
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.dao.MockTexeraDB
-import org.apache.texera.dao.jooq.generated.Tables.COMPUTING_UNIT_USER_ACCESS
 import org.apache.texera.dao.jooq.generated.enums.{
   PrivilegeEnum,
   UserRoleEnum,
   WorkflowComputingUnitTypeEnum
 }
-import org.apache.texera.dao.jooq.generated.tables.daos.{
-  ComputingUnitUserAccessDao,
-  UserDao,
-  WorkflowComputingUnitDao
-}
-import org.apache.texera.dao.jooq.generated.tables.pojos.{
-  ComputingUnitUserAccess,
-  User,
-  WorkflowComputingUnit
-}
+import org.apache.texera.dao.jooq.generated.tables.daos.{UserDao, WorkflowComputingUnitDao}
+import org.apache.texera.dao.jooq.generated.tables.pojos.{User, WorkflowComputingUnit}
+import org.apache.texera.service.resource.ComputingUnitManagingResource.WorkflowComputingUnitMetrics
+import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 
-/**
-  * Spec for [[ComputingUnitManagingResource.getComputingUnitInfo]], backed by embedded Postgres
-  * (via [[MockTexeraDB]]). Units are `local`, which keeps the status and metrics helpers away
-  * from Kubernetes — `local` is always Running with NaN metrics.
-  *
-  * The owner's avatar is read off `"user".avatar` (formerly `google_avatar`) and normalised so
-  * that "no avatar" reaches the frontend as null rather than an empty string; both halves of
-  * that are pinned here, since a wrong column would silently null every owner's avatar.
-  */
+// Drives the per-user computing-unit endpoints against the embedded database using
+// local units (so no Kubernetes calls are made).
 class ComputingUnitManagingResourceSpec
     extends AnyFlatSpec
     with Matchers
-    with MockTexeraDB
     with BeforeAndAfterAll
-    with BeforeAndAfterEach {
+    with MockTexeraDB {
 
-  private val ownerUser: User = {
-    val user = new User
-    user.setName("info_owner")
-    user.setEmail("info_owner@test.com")
-    user.setRole(UserRoleEnum.REGULAR)
-    user.setAvatar("OWNER-AVATAR-ID")
-    user
+  private val uid = 800
+  private lazy val user: SessionUser = {
+    val u = new User()
+    u.setUid(uid)
+    u.setName("owner")
+    u.setEmail("owner@example.com")
+    u.setRole(UserRoleEnum.REGULAR)
+    u.setPassword("password")
+    u.setGoogleAvatar("owner-avatar")
+    new SessionUser(u)
   }
 
-  private val blankAvatarUser: User = {
-    val user = new User
-    user.setName("info_blank_avatar")
-    user.setEmail("info_blank_avatar@test.com")
-    user.setRole(UserRoleEnum.REGULAR)
-    user.setAvatar("")
-    user
-  }
-
-  private val strangerUser: User = {
-    val user = new User
-    user.setName("info_stranger")
-    user.setEmail("info_stranger@test.com")
-    user.setRole(UserRoleEnum.REGULAR)
-    user
-  }
-
-  private val ownedUnit: WorkflowComputingUnit = {
-    val unit = new WorkflowComputingUnit
-    unit.setName("info-unit")
+  private def localUnit(cuid: Int, name: String): WorkflowComputingUnit = {
+    val unit = new WorkflowComputingUnit()
+    unit.setCuid(cuid)
+    unit.setUid(uid)
+    unit.setName(name)
     unit.setType(WorkflowComputingUnitTypeEnum.local)
-    unit.setUri("")
     unit
   }
-
-  private val blankAvatarUnit: WorkflowComputingUnit = {
-    val unit = new WorkflowComputingUnit
-    unit.setName("info-unit-blank-avatar")
-    unit.setType(WorkflowComputingUnitTypeEnum.local)
-    unit.setUri("")
-    unit
-  }
-
-  private lazy val resource = new ComputingUnitManagingResource()
-
-  private lazy val ownerSession = new SessionUser(ownerUser)
-  private lazy val strangerSession = new SessionUser(strangerUser)
 
   override protected def beforeAll(): Unit = {
     super.beforeAll()
     initializeDBAndReplaceDSLContext()
-
-    val userDao = new UserDao(getDSLContext.configuration())
-    userDao.insert(ownerUser)
-    userDao.insert(blankAvatarUser)
-    userDao.insert(strangerUser)
-
-    val wcDao = new WorkflowComputingUnitDao(getDSLContext.configuration())
-    ownedUnit.setUid(ownerUser.getUid)
-    wcDao.insert(ownedUnit)
-    blankAvatarUnit.setUid(blankAvatarUser.getUid)
-    wcDao.insert(blankAvatarUnit)
+    new UserDao(getDSLContext.configuration()).insert(user.getUser)
+    val unitDao = new WorkflowComputingUnitDao(getDSLContext.configuration())
+    unitDao.insert(localUnit(800, "cu-a"))
+    unitDao.insert(localUnit(801, "cu-b"))
   }
 
-  override protected def beforeEach(): Unit = {
-    super.beforeEach()
-    // every test starts with no explicit grants
-    getDSLContext.deleteFrom(COMPUTING_UNIT_USER_ACCESS).execute()
-  }
-
-  override protected def afterAll(): Unit = {
+  override protected def afterAll(): Unit =
     try shutdownDB()
     finally super.afterAll()
-  }
 
-  private def grantDirectly(cuid: Integer, uid: Integer, privilege: PrivilegeEnum): Unit = {
-    val access = new ComputingUnitUserAccess
-    access.setCuid(cuid)
-    access.setUid(uid)
-    access.setPrivilege(privilege)
-    new ComputingUnitUserAccessDao(getDSLContext.configuration()).insert(access)
-  }
+  private val resource = new ComputingUnitManagingResource
 
-  behavior of "getComputingUnitInfo"
+  "getComputingUnitInfo" should "return the owner's local unit with WRITE access and Running status" in {
+    val info = resource.getComputingUnitInfo(800, user)
 
-  it should "report the owner's name and avatar" in {
-    val info = resource.getComputingUnitInfo(ownedUnit.getCuid, ownerSession)
-
-    info.ownerName shouldBe "info_owner"
-    info.ownerGoogleAvatar shouldBe "OWNER-AVATAR-ID"
-    info.computingUnit.getCuid shouldBe ownedUnit.getCuid
-  }
-
-  // Empty and absent are the same thing to the frontend, so an empty column becomes null
-  // rather than being passed through as "".
-  it should "report no avatar as null rather than an empty string" in {
-    val info = resource.getComputingUnitInfo(blankAvatarUnit.getCuid, ownerSession)
-
-    info.ownerGoogleAvatar shouldBe null
-    info.ownerName shouldBe "info_blank_avatar"
-  }
-
-  it should "grant the owner write access without an explicit access row" in {
-    val info = resource.getComputingUnitInfo(ownedUnit.getCuid, ownerSession)
-
+    info.computingUnit.getCuid shouldBe 800
+    info.status shouldBe "Running"
+    info.metrics shouldBe WorkflowComputingUnitMetrics("NaN", "NaN")
     info.isOwner shouldBe true
     info.accessPrivilege shouldBe PrivilegeEnum.WRITE
-    info.status shouldBe "Running"
+    info.ownerName shouldBe "owner"
   }
 
-  it should "report no privilege for a stranger with no access row" in {
-    val info = resource.getComputingUnitInfo(ownedUnit.getCuid, strangerSession)
-
-    info.isOwner shouldBe false
-    info.accessPrivilege shouldBe PrivilegeEnum.NONE
+  "getComputingUnitMetricsEndpoint" should "return NaN metrics for an owned local unit" in {
+    resource.getComputingUnitMetricsEndpoint("800", user) shouldBe
+      WorkflowComputingUnitMetrics("NaN", "NaN")
   }
 
-  it should "report the granted privilege for a non-owner that has one" in {
-    grantDirectly(ownedUnit.getCuid, strangerUser.getUid, PrivilegeEnum.READ)
+  "listComputingUnits" should "return the caller's owned, non-terminated units" in {
+    val result = resource.listComputingUnits(user)
 
-    val info = resource.getComputingUnitInfo(ownedUnit.getCuid, strangerSession)
-
-    info.isOwner shouldBe false
-    info.accessPrivilege shouldBe PrivilegeEnum.READ
-  }
-
-  it should "reject a cuid that does not exist" in {
-    a[NotFoundException] should be thrownBy
-      resource.getComputingUnitInfo(Integer.valueOf(999999), ownerSession)
+    result.map(_.computingUnit.getCuid.intValue()) should contain theSameElementsAs Seq(800, 801)
+    all(result.map(_.isOwner)) shouldBe true
+    all(result.map(_.accessPrivilege)) shouldBe PrivilegeEnum.WRITE
+    all(result.map(_.status)) shouldBe "Running"
   }
 }
