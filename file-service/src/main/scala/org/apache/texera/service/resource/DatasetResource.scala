@@ -34,6 +34,7 @@ import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.SqlServer.withTransaction
 import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
 import org.apache.texera.dao.jooq.generated.tables.Dataset.DATASET
+import org.apache.texera.dao.jooq.generated.tables.DatasetContributor.DATASET_CONTRIBUTOR
 import org.apache.texera.dao.jooq.generated.tables.DatasetUserAccess.DATASET_USER_ACCESS
 import org.apache.texera.dao.jooq.generated.tables.DatasetVersion.DATASET_VERSION
 import org.apache.texera.dao.jooq.generated.tables.User.USER
@@ -175,12 +176,74 @@ object DatasetResource {
     normalized
   }
 
+  /**
+    * Helper function to get the contributors using the did
+    */
+  def getContributorsByDid(ctx: DSLContext, did: Integer): List[Contributor] = {
+    ctx
+      .selectFrom(DATASET_CONTRIBUTOR)
+      .where(DATASET_CONTRIBUTOR.DID.eq(did))
+      .fetch()
+      .asScala
+      .toList
+      .map { record =>
+        Contributor(
+          name = record.getName,
+          creator = record.getCreator,
+          affiliation = record.getAffiliation,
+          email = record.getEmail,
+          comments = record.getComments
+        )
+      }
+  }
+
+  /**
+    * Helper function to insert the contributors of a dataset in one batch
+    */
+  def insertContributors(ctx: DSLContext, did: Integer, contributors: List[Contributor]): Unit = {
+    val records = contributors.map { contributor =>
+      if (contributor == null || contributor.name == null || contributor.name.trim.isEmpty) {
+        throw new BadRequestException("Each contributor must have a name")
+      }
+      if (
+        contributor.name.length > 256 ||
+        Option(contributor.email).exists(_.length > 256) ||
+        Option(contributor.affiliation).exists(_.length > 256)
+      ) {
+        throw new BadRequestException("Contributor fields must not exceed 256 characters")
+      }
+      val record = ctx.newRecord(DATASET_CONTRIBUTOR)
+      record.setDid(did)
+      record.setName(contributor.name)
+      record.setCreator(contributor.creator)
+      record.setAffiliation(contributor.affiliation)
+      record.setEmail(contributor.email)
+      record.setComments(contributor.comments)
+      record
+    }
+    ctx.batchInsert(records.asJava).execute()
+  }
+
+  case class Contributor(
+      name: String,
+      creator: Boolean = false,
+      affiliation: String = null,
+      email: String = null,
+      comments: String = null
+  )
+
+  case class DatasetContributorsModification(
+      did: Integer,
+      contributors: Option[List[Contributor]] = None
+  )
+
   case class DashboardDataset(
       dataset: Dataset,
       ownerEmail: String,
       accessPrivilege: EnumType,
       isOwner: Boolean,
-      size: Long
+      size: Long,
+      contributors: List[Contributor] = Nil
   )
 
   case class DashboardDatasetVersion(
@@ -192,7 +255,8 @@ object DatasetResource {
       datasetName: String,
       datasetDescription: String,
       isDatasetPublic: Boolean,
-      isDatasetDownloadable: Boolean
+      isDatasetDownloadable: Boolean,
+      contributors: Option[List[Contributor]] = None
   )
 
   case class Diff(
@@ -257,7 +321,8 @@ class DatasetResource extends LazyLogging {
       isOwner,
       withLakeFSErrorHandling(s"retrieving the size of dataset '${targetDataset.getName}'") {
         LakeFSStorageClient.retrieveRepositorySize(targetDataset.getRepositoryName)
-      }
+      },
+      contributors = DatasetResource.getContributorsByDid(ctx, did)
     )
   }
 
@@ -309,6 +374,9 @@ class DatasetResource extends LazyLogging {
           .fetchOne()
       }
 
+      val savedContributors = request.contributors.getOrElse(Nil)
+      DatasetResource.insertContributors(ctx, createdDataset.getDid, savedContributors)
+
       // Initialize the repository in LakeFS
       val repositoryName = s"dataset-${createdDataset.getDid}"
       try {
@@ -347,7 +415,8 @@ class DatasetResource extends LazyLogging {
         user.getEmail,
         PrivilegeEnum.WRITE,
         isOwner = true,
-        0
+        0,
+        savedContributors
       )
     }
   }
@@ -490,6 +559,34 @@ class DatasetResource extends LazyLogging {
 
       dataset.setDescription(modificator.description)
       datasetDao.update(dataset)
+      Response.ok().build()
+    }
+  }
+
+  @POST
+  @Consumes(Array(MediaType.APPLICATION_JSON))
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @Path("/update/contributors")
+  def updateDatasetContributors(
+      modificator: DatasetContributorsModification,
+      @Auth user: SessionUser
+  ): Response = {
+    withTransaction(context) { ctx =>
+      if (!userHasWriteAccess(ctx, modificator.did, user.getUid)) {
+        throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
+      }
+
+      ctx
+        .delete(DATASET_CONTRIBUTOR)
+        .where(DATASET_CONTRIBUTOR.DID.eq(modificator.did))
+        .execute()
+      DatasetResource.insertContributors(
+        ctx,
+        modificator.did,
+        modificator.contributors.getOrElse(Nil)
+      )
+
       Response.ok().build()
     }
   }

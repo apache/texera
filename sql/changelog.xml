@@ -58,6 +58,11 @@
         <sqlFile path="sql/updates/29.sql"/>
     </changeSet>
 
+    <!-- Add dataset_contributor table (contributor metadata for datasets) -->
+    <changeSet id="30" author="xuang7">
+        <sqlFile path="sql/updates/30.sql"/>
+    </changeSet>
+
     <!-- example changeSet
     <changeSet id="1" author="author">
         <sqlFile path="sql/updates/1.sql"/>
