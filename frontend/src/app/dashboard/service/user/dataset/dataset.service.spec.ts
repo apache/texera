@@ -226,6 +226,19 @@ describe("DatasetService", () => {
     req.flush(buildDashboardDataset());
   });
 
+  it("createDataset omits blank optional contributor fields", () => {
+    const contributors: Contributor[] = [
+      { name: "Contributor A", creator: false, affiliation: "  ", email: "", comments: undefined },
+    ];
+    service.createDataset(buildDataset(), contributors).subscribe();
+
+    const req = http.expectOne(`${API}/${DATASET_BASE_URL}/create`);
+    expect(req.request.body.contributors).toEqual([
+      { name: "Contributor A", creator: false, affiliation: undefined, email: undefined, comments: undefined },
+    ]);
+    req.flush(buildDashboardDataset());
+  });
+
   // ─── updateDatasetContributors ────────────────────────────────────────────
 
   it("updateDatasetContributors POSTs the did and list, omitting blank optional fields", () => {
@@ -254,6 +267,14 @@ describe("DatasetService", () => {
         },
       ],
     });
+    req.flush(null);
+  });
+
+  it("updateDatasetContributors sends an empty list when all contributors are removed", () => {
+    service.updateDatasetContributors(7, []).subscribe();
+
+    const req = http.expectOne(`${API}/${DATASET_BASE_URL}/update/contributors`);
+    expect(req.request.body).toEqual({ did: 7, contributors: [] });
     req.flush(null);
   });
 

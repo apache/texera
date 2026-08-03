@@ -131,6 +131,56 @@ describe("DatasetDetailComponent upload queue", () => {
     fixture.detectChanges();
   });
 
+  describe("contributor cards", () => {
+    const full: Contributor = {
+      name: "Contributor A",
+      creator: true,
+      affiliation: "Test Lab",
+      email: "contributor-a@test.com",
+      comments: "notes",
+    };
+    const blank: Contributor = { name: "Contributor B", creator: false };
+
+    beforeEach(() => {
+      component.datasetContributors = [full, blank];
+      component.userDatasetAccessLevel = "WRITE";
+      fixture.detectChanges();
+    });
+
+    it("renders one card per contributor with values, a creator star, and dashes for blanks", () => {
+      const cards: NodeListOf<HTMLElement> = fixture.nativeElement.querySelectorAll(".contributor-card");
+      expect(cards.length).toBe(2);
+
+      expect(cards[0].querySelector(".contributor-name")?.textContent).toContain("Contributor A");
+      expect(cards[0].querySelector(".creator-star")).not.toBeNull();
+      expect(cards[0].textContent).toContain("contributor-a@test.com");
+
+      expect(cards[1].querySelector(".creator-star")).toBeNull();
+      const blankValues: NodeListOf<HTMLElement> = cards[1].querySelectorAll(".contributor-value.empty");
+      expect(blankValues.length).toBe(3);
+      blankValues.forEach(value => expect(value.textContent?.trim()).toBe("—"));
+    });
+
+    it("shows edit controls only with write access", () => {
+      expect(fixture.nativeElement.querySelector(".contributor-actions")).not.toBeNull();
+      expect(fixture.nativeElement.querySelector(".contributor-card-add")).not.toBeNull();
+
+      component.userDatasetAccessLevel = "READ";
+      fixture.detectChanges();
+
+      expect(fixture.nativeElement.querySelector(".contributor-actions")).toBeNull();
+      expect(fixture.nativeElement.querySelector(".contributor-card-add")).toBeNull();
+    });
+
+    it("starts adding a contributor when the add tile is clicked", () => {
+      const onAdd = vi.spyOn(component, "onAddContributor").mockImplementation(() => {});
+
+      (fixture.nativeElement.querySelector(".contributor-card-add") as HTMLElement).click();
+
+      expect(onAdd).toHaveBeenCalledTimes(1);
+    });
+  });
+
   it("starts at most maxConcurrentFiles uploads immediately and queues the rest", () => {
     dropFiles("f1.txt", "f2.txt", "f3.txt", "f4.txt", "f5.txt");
 
