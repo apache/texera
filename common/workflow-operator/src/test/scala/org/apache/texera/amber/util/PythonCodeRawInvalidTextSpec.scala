@@ -297,11 +297,9 @@ final class PythonCodeRawInvalidTextSpec extends AnyFunSuite {
     val ok = new AtomicInteger(0)
     val checked = new AtomicInteger(0)
 
-    // Checked concurrently, up to the pool's worker count at a time: each
-    // descriptor's check is independent, and the fan-out is what turns the pool's
-    // workers into parallel interpreters rather than a queue in front of one.
-    // Bounded by the pool itself — a submission past the cap blocks until a
-    // worker is returned — so this cannot outrun the interpreters available.
+    // Checked concurrently: the fan-out is what turns the pool's workers into
+    // parallel interpreters rather than a queue in front of one. The pool bounds
+    // it — a submission past the cap blocks until a worker is returned.
     val allFindings = awaitAll(descriptorCandidates.map { descriptorClass => () =>
       val checkResult =
         PythonReflectionUtils.checkDescriptorWithCode(
