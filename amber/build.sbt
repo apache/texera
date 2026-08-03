@@ -318,7 +318,7 @@ libraryDependencies += "com.typesafe.play" %% "play-json" % "2.9.4"
 libraryDependencies += "org.fusesource.leveldbjni" % "leveldbjni-all" % "1.8"
 
 // https://mvnrepository.com/artifact/com.github.nscala-time/nscala-time
-libraryDependencies += "com.github.nscala-time" %% "nscala-time" % "2.32.0"
+libraryDependencies += "com.github.nscala-time" %% "nscala-time" % "2.34.0"
 
 // https://mvnrepository.com/artifact/com.google.guava/guava
 libraryDependencies += "com.google.guava" % "guava" % "29.0-jre"
