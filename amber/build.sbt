@@ -290,7 +290,7 @@ libraryDependencies += "com.univocity" % "univocity-parsers" % "2.9.1"
 libraryDependencies += "com.konghq" % "unirest-java" % "3.14.5"
 
 // https://mvnrepository.com/artifact/com.github.marianobarrios/lbmq
-libraryDependencies += "com.github.marianobarrios" % "lbmq" % "0.6.0"
+libraryDependencies += "com.github.marianobarrios" % "lbmq" % "0.7.0"
 
 // https://mvnrepository.com/artifact/org.jooq/jooq
 libraryDependencies += "org.jooq" % "jooq" % "3.19.36"
@@ -318,7 +318,7 @@ libraryDependencies += "com.typesafe.play" %% "play-json" % "2.9.4"
 libraryDependencies += "org.fusesource.leveldbjni" % "leveldbjni-all" % "1.8"
 
 // https://mvnrepository.com/artifact/com.github.nscala-time/nscala-time
-libraryDependencies += "com.github.nscala-time" %% "nscala-time" % "2.32.0"
+libraryDependencies += "com.github.nscala-time" %% "nscala-time" % "2.34.0"
 
 // https://mvnrepository.com/artifact/com.google.guava/guava
 libraryDependencies += "com.google.guava" % "guava" % "29.0-jre"

@@ -3479,7 +3479,7 @@ class DatasetResourceSpec
     LakeFSStorageClient.retrieveUncommittedObjects(repoName).size shouldEqual totalFiles
 
     // after commit: 110 files should appear as committed objects
-    val commit = LakeFSStorageClient.withCreateVersion(repoName, "commit all files") {}
+    val commit = LakeFSStorageClient.createCommit(repoName, "main", "commit all files")
     LakeFSStorageClient.retrieveObjectsOfVersion(repoName, commit.getId).size shouldEqual totalFiles
   }
 }
