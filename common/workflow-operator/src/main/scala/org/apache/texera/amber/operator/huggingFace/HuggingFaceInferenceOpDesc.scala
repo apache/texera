@@ -146,6 +146,7 @@ class HuggingFaceInferenceOpDesc extends PythonOperatorDescriptor {
   @JsonProperty(value = "temperature", required = false)
   @JsonSchemaTitle("Temperature")
   @JsonPropertyDescription("Sampling temperature (0.0 = deterministic, up to 2.0)")
+  @JsonSchemaInject(json = """{ "minimum": 0.0, "maximum": 2.0, "default": 0.7 }""")
   var temperature: java.lang.Double = 0.7
 
   @JsonProperty(
