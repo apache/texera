@@ -609,7 +609,7 @@ Dependencies under the BSD 2-Clause License
 
 Scala/Java jars:
   - com.github.luben.zstd-jni-1.5.6-6.jar
-  - com.github.marianobarrios.lbmq-0.6.0.jar
+  - com.github.marianobarrios.lbmq-0.7.0.jar
   - dnsjava.dnsjava-3.6.1.jar
   - org.codehaus.woodstox.stax2-api-4.2.1.jar
   - org.postgresql.postgresql-42.7.13.jar
