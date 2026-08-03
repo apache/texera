@@ -63,7 +63,7 @@
         <sqlFile path="sql/updates/30.sql"/>
     </changeSet>
 
-    <!-- Migrate user database>
+    <!-- Split auth credentials out of "user" into auth_provider -->
     <changeSet id="31" author="Neilk1021">
         <sqlFile path="sql/updates/31.sql"/>
     </changeSet>
