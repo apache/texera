@@ -31,6 +31,7 @@ import org.apache.texera.amber.core.virtualidentity.{
 import org.apache.texera.amber.core.workflow.{PhysicalPlan, PortIdentity}
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.util.JSONUtils.objectMapper
+import org.apache.texera.amber.util.python.PythonWorkerPool
 
 import java.io.File
 import java.nio.charset.StandardCharsets
@@ -281,7 +282,7 @@ object PyOpExecHarness extends LazyLogging {
   }
 
   // Original one-process-per-operator path. Retained as the fallback and as the
-  // behavior selected by VERIFY_PYTHON_WORKER=0.
+  // behavior selected by TEXERA_TEST_PYTHON_WORKER=0.
   private def runDriverSubprocess(
       driverPath: Path,
       configPath: Path,

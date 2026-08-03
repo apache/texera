@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.apache.texera.amber.translator.verify
+package org.apache.texera.amber.util.python
 
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.typesafe.scalalogging.LazyLogging
@@ -34,27 +34,33 @@ import scala.util.control.NonFatal
 
 /**
   * Pools of persistent Python "worker" processes that eliminate the per-call
-  * interpreter-boot + heavy-import cost the verify harness otherwise pays on
-  * every subprocess spawn (profiled at ~260-310 ms, ~96% of a per-operator run;
-  * the actual work on the canonical fixtures is ~ms). A worker imports its
-  * heavy libraries ONCE at startup, then serves many jobs over its lifetime.
+  * interpreter-boot + import cost a test otherwise pays on every subprocess
+  * spawn. Testing operators one at a time does not scale when each one costs a
+  * spawn: a bare `-I -S` interpreter boots in ~25 ms, and once pandas and plotly
+  * are imported a spawn costs ~260-310 ms — ~96% of a job whose real work is
+  * ~4 ms. A worker pays that once at startup, then serves many jobs over its
+  * lifetime, so N spawns become one.
   *
-  * Generic over the worker script: [[StandaloneRunner]] runs rendered standalone
-  * scripts (`standalone_worker.py`), [[Comparator]] runs DataFrame comparisons
-  * (`compare.py --serve`), and [[PyOpExecHarness]] runs platform operators
-  * (`py_op_driver.py --serve`). Each distinct (resource, launchArgs, python, env)
-  * combination gets its own sub-pool.
+  * Lives in test scope here, rather than beside a single caller, because tests in
+  * several modules run generated operator code and would otherwise each
+  * hand-roll a driver, a stdout protocol and a timeout. Other modules reach it
+  * through a `test->test` dependency on this one.
+  *
+  * Generic over the worker script — the pool never interprets the payload — so
+  * one implementation serves a syntax check, template execution and DataFrame
+  * comparison alike. Each distinct (resource, interpreterArgs, launchArgs,
+  * python, env) combination gets its own sub-pool.
   *
   * Protocol (line-delimited JSON, shared by all worker scripts):
   *   startup   worker -> pool:  {"ready": true}
   *   request   pool -> worker:  <caller-supplied JSON object>\n
   *   response  worker -> pool:  {"exit": <int>, "stdout": "...", "stderr": "..."}\n
   *
-  * Concurrency: the verify spec runs with ScalaTest `-P4`, so up to 4 calls can
-  * be in flight per path. Each sub-pool holds up to [[maxWorkers]] workers; each
-  * serves one job at a time (borrow -> run -> return). A worker script may chdir
-  * per job, so a worker must never run two jobs at once — the borrow/return
-  * discipline guarantees that.
+  * Concurrency: callers submit from several threads at once — a spec run with
+  * ScalaTest's `-P4`, or one test fanning its cases out — so each sub-pool holds
+  * up to [[maxWorkers]] workers, each serving one job at a time (borrow -> run
+  * -> return). A worker script may chdir per job, so a worker must never run two
+  * jobs at once — the borrow/return discipline guarantees that.
   *
   * Robustness: an ordinary *job* failure comes back as an [[Outcome]] with
   * `exit != 0` (worker keeps running). Only a hard interpreter crash ends a
@@ -73,43 +79,56 @@ object PythonWorkerPool extends LazyLogging {
   final class WorkerDiedException(message: String, cause: Throwable = null)
       extends RuntimeException(message, cause)
 
-  /** Feature toggle. `VERIFY_PYTHON_WORKER=0` (or `false`/`off`) forces the old
+  /** Feature toggle. `TEXERA_TEST_PYTHON_WORKER=0` (or `false`/`off`) forces the
     * one-subprocess-per-call paths everywhere — an escape hatch for debugging a
     * suspected isolation leak. Default on.
     */
   val enabled: Boolean =
-    !sys.env.get("VERIFY_PYTHON_WORKER").map(_.trim.toLowerCase).exists(Set("0", "false", "off"))
+    !sys.env
+      .get("TEXERA_TEST_PYTHON_WORKER")
+      .map(_.trim.toLowerCase)
+      .exists(Set("0", "false", "off"))
 
-  /** Max live workers per sub-pool. Defaults to 4 to match ScalaTest's `-P4`;
-    * override via `VERIFY_PYTHON_WORKERS`.
+  /** Max live workers per sub-pool. Defaults to 4 to match ScalaTest's `-P4`, so
+    * the two concurrency bounds agree on how many interpreters may be live;
+    * override via `TEXERA_TEST_PYTHON_WORKERS`. Public so a caller fanning out
+    * jobs within one test can size that fan-out to the workers it will get.
     */
-  private val maxWorkers: Int =
+  val maxWorkers: Int =
     sys.env
-      .get("VERIFY_PYTHON_WORKERS")
+      .get("TEXERA_TEST_PYTHON_WORKERS")
       .flatMap(s => scala.util.Try(s.trim.toInt).toOption)
       .filter(_ > 0)
       .getOrElse(4)
 
   /**
-    * Run one job through a pooled worker for `resourcePath` launched with
-    * `launchArgs` and extra environment `env` (e.g. PYTHONPATH for the
-    * py_op_driver worker). `request` is the worker-specific JSON payload (the
-    * pool does not interpret it). Throws [[WorkerDiedException]] on a hard
-    * worker crash.
+    * Run one job through a pooled worker for `resourcePath`, launched as
+    * `pythonExe <interpreterArgs> <script> <launchArgs>` with extra environment
+    * `env`. `request` is the worker-specific JSON payload (the pool does not
+    * interpret it). Throws [[WorkerDiedException]] on a hard worker crash.
+    *
+    * `interpreterArgs` are the flags that must precede the script — a syntax
+    * checker wants `-I -S` so it validates under the same isolation a one-shot
+    * `python -I -S -m py_compile` gave it. `launchArgs` are the script's own
+    * (e.g. `--serve`), and `env` carries what a flag cannot (e.g. PYTHONPATH).
+    * All three are part of a worker's identity: one started differently is not
+    * interchangeable, so it gets its own sub-pool.
     */
   def run(
       resourcePath: String,
       launchArgs: Seq[String],
       pythonExe: String,
       request: ObjectNode,
-      env: Map[String, String] = Map.empty
+      env: Map[String, String] = Map.empty,
+      interpreterArgs: Seq[String] = Seq.empty
   ): Outcome = {
-    // env is part of a worker's identity: one started with a different
-    // PYTHONPATH is not interchangeable, so it gets its own sub-pool.
     val envKey = env.toSeq.sorted.map { case (k, v) => s"$k=$v" }
-    val key = (resourcePath +: pythonExe +: (launchArgs ++ envKey)).mkString(" ")
-    val pool =
-      pools.computeIfAbsent(key, _ => new Pool(resourcePath, launchArgs, pythonExe, env))
+    val key =
+      (resourcePath +: pythonExe +: (interpreterArgs ++ launchArgs ++ envKey)).mkString(" ")
+    val pool = pools.computeIfAbsent(
+      key,
+      _ => new Pool(resourcePath, launchArgs, pythonExe, env, interpreterArgs)
+    )
     pool.run(request)
   }
 
@@ -125,7 +144,8 @@ object PythonWorkerPool extends LazyLogging {
       resourcePath: String,
       launchArgs: Seq[String],
       pythonExe: String,
-      env: Map[String, String]
+      env: Map[String, String],
+      interpreterArgs: Seq[String]
   ) {
     private val idle = new LinkedBlockingQueue[Worker]()
     private val liveCount = new AtomicInteger(0)
@@ -162,7 +182,8 @@ object PythonWorkerPool extends LazyLogging {
     }
 
     private def create(): Worker = {
-      val cmd = (pythonExe +: ensureScript().toString +: launchArgs).asJava
+      val cmd =
+        (((pythonExe +: interpreterArgs) :+ ensureScript().toString) ++ launchArgs).asJava
       val pb = new ProcessBuilder(cmd).redirectErrorStream(false)
       env.foreach { case (k, v) => pb.environment().put(k, v) }
       val w = new Worker(pb.start(), s"$resourcePath ${launchArgs.mkString(" ")}".trim)

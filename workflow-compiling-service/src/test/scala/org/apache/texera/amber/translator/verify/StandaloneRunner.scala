@@ -22,6 +22,7 @@ package org.apache.texera.amber.translator.verify
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.texera.amber.core.tuple.AttributeType
 import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator}
+import org.apache.texera.amber.util.python.PythonWorkerPool
 
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path}
@@ -142,7 +143,7 @@ object StandaloneRunner extends LazyLogging {
   }
 
   // Original one-process-per-operator path. Retained as the fallback and as the
-  // behavior selected by VERIFY_STANDALONE_WORKER=0.
+  // behavior selected by TEXERA_TEST_PYTHON_WORKER=0.
   private def runSubprocess(
       scriptPath: Path,
       workDir: Path,

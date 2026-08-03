@@ -21,6 +21,7 @@ package org.apache.texera.amber.translator.verify
 
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.texera.amber.util.JSONUtils.objectMapper
+import org.apache.texera.amber.util.python.PythonWorkerPool
 
 import java.nio.file.{Files, Path, StandardCopyOption}
 import scala.collection.mutable.ArrayBuffer
@@ -111,7 +112,7 @@ object Comparator extends LazyLogging {
   }
 
   // Original one-subprocess-per-comparison CLI path. Retained as the fallback
-  // and as the behavior selected by VERIFY_PYTHON_WORKER=0.
+  // and as the behavior selected by TEXERA_TEST_PYTHON_WORKER=0.
   private def runCli(
       actual: Path,
       expected: Path,

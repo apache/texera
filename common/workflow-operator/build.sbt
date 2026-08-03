@@ -35,6 +35,20 @@ ThisBuild / conflictManager := ConflictManager.latestRevision
 // Restrict parallel execution of tests to avoid conflicts
 Global / concurrentRestrictions += Tags.limit(Tags.Test, 1)
 
+// A test needing more than a bare Python interpreter is tagged, so the amber job
+// excludes it and amber-integration, which installs operator-requirements.txt,
+// runs it. The amber job already sets this env var on the step that invokes
+// WorkflowOperator/jacoco, so no workflow change is needed for the exclusion.
+// -P4 bounds ScalaTest's ParallelTestExecution pool on the integration side,
+// where the tagged tests drive Python subprocesses: at core-count concurrency the
+// interpreters contend, while a fixed 4 is deterministic across machines and
+// matches PythonWorkerPool's default worker cap, so the two bounds agree on how
+// many interpreters may be live.
+Test / testOptions ++= TestFilters.integrationSplit(
+  envVar = "AMBER_TEST_FILTER",
+  tag = "org.apache.texera.amber.operator.tags.IntegrationTest",
+  integrationOnlyExtra = Seq("-P4")
+)
 
 /////////////////////////////////////////////////////////////////////////////
 // Compiler Options
