@@ -122,7 +122,7 @@ class FileScanSourceOpDesc
           else s"""{$colLit: $sliceExpr}"""
         buf += s"""with open($basenameLit, "r", encoding=$encLit) as _f:"""
         buf += s"""    _lines = [$castExpr for l in _f]"""
-        buf += s"""out1df = pd.DataFrame($dfCols)"""
+        buf += s"""    out1df = pd.DataFrame($dfCols)"""
       } else {
         val dfCols =
           if (outputFileName)
