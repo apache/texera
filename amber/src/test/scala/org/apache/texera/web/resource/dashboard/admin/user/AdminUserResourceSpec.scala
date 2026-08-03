@@ -21,7 +21,7 @@ package org.apache.texera.web.resource.dashboard.admin.user
 
 import org.apache.texera.dao.MockTexeraDB
 import org.apache.texera.dao.jooq.generated.Tables._
-import org.apache.texera.dao.jooq.generated.enums.{PrivilegeEnum, UserRoleEnum}
+import org.apache.texera.dao.jooq.generated.enums.{PrivilegeEnum, ProviderTypeEnum, UserRoleEnum}
 import org.apache.texera.dao.jooq.generated.tables.daos.{
   UserDao,
   WorkflowDao,
@@ -107,7 +107,6 @@ class AdminUserResourceSpec
     user.setEmail(
       s"admin_user_spec_${uid}_${UUID.randomUUID().toString.substring(0, 8)}@example.com"
     )
-    user.setPassword("password")
     user.setRole(role)
     user
   }
@@ -179,8 +178,17 @@ class AdminUserResourceSpec
 
     val after = userDao.fetchByRole(UserRoleEnum.INACTIVE)
     after.size() shouldBe before + 1
-    // The newly added user has a generated non-empty name and no password left blank.
-    after.asScala.exists(u => u.getName.startsWith("User") && u.getPassword != null) shouldBe true
+    // The newly added user has a generated non-empty name, and the LOCAL credential it logs in
+    // with lives in auth_provider (not on "user"), with its password hash set.
+    after.asScala.exists(u =>
+      u.getName.startsWith("User") && getDSLContext.fetchExists(
+        getDSLContext
+          .selectFrom(AUTH_PROVIDER)
+          .where(AUTH_PROVIDER.UID.eq(u.getUid))
+          .and(AUTH_PROVIDER.PROVIDER_TYPE.eq(ProviderTypeEnum.LOCAL))
+          .and(AUTH_PROVIDER.PASSWORD.isNotNull)
+      )
+    ) shouldBe true
   }
 
   // ─── updateUser ─────────────────────────────────────────────────────────

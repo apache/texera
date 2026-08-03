@@ -395,7 +395,7 @@ class ComputingUnitManagingResource {
       val userDao = new UserDao(ctx.configuration())
       val ownerUser = Option(userDao.fetchOneByUid(user.getUid))
       val ownerGoogleAvatar: String =
-        ownerUser.flatMap(u => Option(u.getGoogleAvatar).filter(_.nonEmpty)).orNull
+        ownerUser.flatMap(u => Option(u.getAvatar).filter(_.nonEmpty)).orNull
       val ownerUsername: String =
         ownerUser.flatMap(u => Option(u.getName).filter(_.nonEmpty)).orNull
 
@@ -555,7 +555,7 @@ class ComputingUnitManagingResource {
     val userDao = new UserDao(context.configuration())
     val ownerUser = Option(userDao.fetchOneByUid(unit.getUid))
     val ownerGoogleAvatar: String =
-      ownerUser.flatMap(u => Option(u.getGoogleAvatar).filter(_.nonEmpty)).orNull
+      ownerUser.flatMap(u => Option(u.getAvatar).filter(_.nonEmpty)).orNull
     val ownerUsername: String =
       ownerUser.flatMap(u => Option(u.getName).filter(_.nonEmpty)).orNull
 

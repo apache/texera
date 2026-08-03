@@ -22,10 +22,10 @@ package org.apache.texera.web.resource.auth
 import org.apache.texera.auth.JwtAuth
 import org.apache.texera.common.config.UserSystemConfig
 import org.apache.texera.dao.MockTexeraDB
-import org.apache.texera.dao.jooq.generated.Tables.USER
-import org.apache.texera.dao.jooq.generated.enums.UserRoleEnum
-import org.apache.texera.dao.jooq.generated.tables.daos.UserDao
-import org.apache.texera.dao.jooq.generated.tables.pojos.User
+import org.apache.texera.dao.jooq.generated.Tables.{AUTH_PROVIDER, USER}
+import org.apache.texera.dao.jooq.generated.enums.{ProviderTypeEnum, UserRoleEnum}
+import org.apache.texera.dao.jooq.generated.tables.daos.{AuthProviderDao, UserDao}
+import org.apache.texera.dao.jooq.generated.tables.pojos.{AuthProvider, User}
 import org.apache.texera.web.model.http.request.auth.{UserLoginRequest, UserRegistrationRequest}
 import org.jasypt.util.password.StrongPasswordEncryptor
 import org.scalatest.flatspec.AnyFlatSpec
@@ -49,6 +49,7 @@ class AuthResourceSpec
   private val encryptor = new StrongPasswordEncryptor()
 
   private var userDao: UserDao = _
+  private var authDao: AuthProviderDao = _
   private var resource: AuthResource = _
 
   private def uname(tag: String): String = s"authspec_${tag}_$runId"
@@ -61,12 +62,14 @@ class AuthResourceSpec
 
   override protected def beforeEach(): Unit = {
     userDao = new UserDao(getDSLContext.configuration())
+    authDao = new AuthProviderDao(getDSLContext.configuration())
     resource = new AuthResource()
     cleanup()
   }
 
   override protected def afterEach(): Unit = cleanup()
 
+  // The auth_provider FK is ON DELETE CASCADE, so deleting the user clears its credential rows.
   private def cleanup(): Unit = {
     // startsWith escapes SQL LIKE wildcards, so the literal "authspec_" prefix is matched exactly.
     getDSLContext.deleteFrom(USER).where(USER.NAME.startsWith("authspec_")).execute()
@@ -74,6 +77,7 @@ class AuthResourceSpec
     getDSLContext.deleteFrom(USER).where(USER.NAME.eq(UserSystemConfig.adminUsername)).execute()
   }
 
+  /** Seed a user plus the LOCAL auth_provider row it logs in with, mirroring `insertLocalUser`. */
   private def seedUser(
       name: String,
       password: String,
@@ -82,11 +86,27 @@ class AuthResourceSpec
     val user = new User
     user.setName(name)
     user.setEmail(s"$name@example.com")
-    user.setPassword(encryptor.encryptPassword(password))
     user.setRole(role)
     userDao.insert(user)
+
+    val auth = new AuthProvider
+    auth.setUid(user.getUid)
+    auth.setProviderType(ProviderTypeEnum.LOCAL)
+    // The login handle is the provider id, not the (mutable) display name.
+    auth.setProviderId(name)
+    auth.setPassword(encryptor.encryptPassword(password))
+    authDao.insert(auth)
     user
   }
+
+  /** The stored LOCAL password hash for a login handle. */
+  private def storedPasswordOf(handle: String): String =
+    getDSLContext
+      .select(AUTH_PROVIDER.PASSWORD)
+      .from(AUTH_PROVIDER)
+      .where(AUTH_PROVIDER.PROVIDER_TYPE.eq(ProviderTypeEnum.LOCAL))
+      .and(AUTH_PROVIDER.PROVIDER_ID.eq(handle))
+      .fetchOne(AUTH_PROVIDER.PASSWORD)
 
   private def subjectOf(token: String): String =
     JwtAuth.jwtConsumer.processToClaims(token).getSubject
@@ -141,8 +161,9 @@ class AuthResourceSpec
     stored.getRole shouldBe UserRoleEnum.RESTRICTED
     stored.getEmail shouldBe uemail("reg")
     // stored hashed, not in plain text, but verifies against the plain password
-    stored.getPassword should not be "pw"
-    encryptor.checkPassword("pw", stored.getPassword) shouldBe true
+    val storedPassword = storedPasswordOf(uname("reg"))
+    storedPassword should not be "pw"
+    encryptor.checkPassword("pw", storedPassword) shouldBe true
   }
 
   it should "reject an empty username" in {
@@ -198,7 +219,10 @@ class AuthResourceSpec
     val admins = userDao.fetchByName(UserSystemConfig.adminUsername)
     admins.size() shouldBe 1
     admins.get(0).getRole shouldBe UserRoleEnum.ADMIN
-    encryptor.checkPassword(UserSystemConfig.adminPassword, admins.get(0).getPassword) shouldBe true
+    encryptor.checkPassword(
+      UserSystemConfig.adminPassword,
+      storedPasswordOf(UserSystemConfig.adminUsername)
+    ) shouldBe true
   }
 
   it should "not create a second admin when one already exists" in {

@@ -48,8 +48,7 @@ class ComputingUnitManagingResourceSpec
     u.setName("owner")
     u.setEmail("owner@example.com")
     u.setRole(UserRoleEnum.REGULAR)
-    u.setPassword("password")
-    u.setGoogleAvatar("owner-avatar")
+    u.setAvatar("owner-avatar")
     new SessionUser(u)
   }
 

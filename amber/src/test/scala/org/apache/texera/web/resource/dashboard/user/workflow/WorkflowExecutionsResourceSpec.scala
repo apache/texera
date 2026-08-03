@@ -927,7 +927,6 @@ class WorkflowExecutionsResourceSpec
     u.setUid(testUserId + 5000)
     u.setName("no_access_user")
     u.setEmail("noaccess@example.com")
-    u.setPassword("password")
     u
   }
 
