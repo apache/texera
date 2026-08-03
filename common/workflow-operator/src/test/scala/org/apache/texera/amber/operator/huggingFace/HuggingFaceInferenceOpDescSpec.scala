@@ -32,6 +32,7 @@ import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.apache.texera.amber.operator.metadata.OperatorMetadataGenerator
 
 class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
 
@@ -654,5 +655,18 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
     code should include("RETRYABLE = (400, 401, 404, 422, 429, 502, 503)")
     // The old short-circuit (return immediately on the first 401) must be gone.
     code should not include ("            if resp.status_code == 401:\n                return resp, None")
+  }
+
+  it should "mask the API token field as a password widget in the generated schema" in {
+    val tokenProp = OperatorMetadataGenerator
+      .generateOperatorJsonSchema(classOf[HuggingFaceInferenceOpDesc])
+      .path("properties")
+      .path("hfApiToken")
+    tokenProp
+      .path("widget")
+      .path("formlyConfig")
+      .path("templateOptions")
+      .path("type")
+      .asText() shouldBe "password"
   }
 }

@@ -100,6 +100,19 @@ describe("AdminUserComponent", () => {
     expect(component).toBeTruthy();
   }));
 
+  it("shows a placeholder tag only for placeholder accounts", () => {
+    component.listOfDisplayUser = [
+      { uid: 1, name: "test1", email: "test1@example.com", isPlaceholder: true } as any,
+      { uid: 2, name: "test2", email: "test2@example.com" } as any,
+    ];
+    fixture.detectChanges();
+
+    const tags: NodeListOf<HTMLElement> = fixture.nativeElement.querySelectorAll("nz-tag");
+    const placeholderTags = Array.from(tags).filter(tag => tag.textContent?.includes("placeholder"));
+    expect(placeholderTags.length).toBe(1);
+    expect(placeholderTags[0].closest("tr")?.textContent).toContain("test1");
+  });
+
   it("should search email case-insensitively", () => {
     component.userList = [
       {
