@@ -90,6 +90,20 @@ trait TransformHandler {
     */
   def extraScenarios(testRoot: Path): Seq[(String, LogicalOp, Map[PortIdentity, Path])] =
     Seq.empty
+
+  /** Variant kinds this fixture cannot take — `"optionals"`, `"hostileText"`. Default:
+    * none, and that is the answer for almost every fixture.
+    *
+    * The one case it exists for: a knob whose legal values are decided by a SIBLING
+    * field, which the knob itself has no way to declare. A filter predicate's `value`
+    * is parsed as the type of the column its `attribute` names, so what may be typed
+    * there is a property of the pair, not of `value`.
+    *
+    * It lives on the handler rather than in a table beside the runner because it
+    * describes THIS fixture, not the operator: a predicate over a string column takes
+    * the hostile value fine. Whoever rewrites the fixture sees it and can drop it.
+    */
+  def unfillableVariants: Set[String] = Set.empty
 }
 
 /**
@@ -432,6 +446,13 @@ object SklearnTextFixture {
 object SpecializedFilterTransformHandler extends TransformHandler {
 
   override val opDescClass: Class[_ <: LogicalOp] = classOf[SpecializedFilterOpDesc]
+
+  /** `id > 8` compares against an INTEGER column, and the platform parses the predicate
+    * `value` as that column's type — so the hostile string is refused by the number
+    * parser before any escaping could matter. Drop this the day the fixture filters on
+    * string columns only.
+    */
+  override val unfillableVariants: Set[String] = Set("hostileText")
 
   override def fixture(testRoot: Path): (LogicalOp, Map[PortIdentity, Path]) = {
     val desc = new SpecializedFilterOpDesc()

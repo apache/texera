@@ -182,8 +182,41 @@ object SourceCategoryRunner {
 
     curatedHandlersByClass.get(opDescClass) match {
       case Some(handler) =>
-        val dir = dirFor("default")
-        Seq(("default", handler.makeOpDesc(dir), dir))
+        val baseDir = dirFor("default")
+        val base = handler.makeOpDesc(baseDir)
+        // Every variant calls the handler AGAIN rather than reusing `base`: the handler
+        // writes its fixture into the directory it is given, and a second op carrying
+        // the first one's `fileName` would read a file outside the directory it runs in.
+        // No enum sweep: both curated sources are the text family, whose `attributeType`
+        // says how to PARSE the fixture (`alice` is not an integer) and whose
+        // `fileEncoding` describes its BYTES — flipping either without rewriting the
+        // fixture compares nothing but how the two paths fail. The auto branch below
+        // rewrites its fixture per variant and does sweep them.
+        ConfigGenerator
+          .fullVariantEditsOf(base, Map.empty, handler.rowCount, sweepEnums = false)
+          .fold(
+            reason =>
+              throw new IllegalStateException(
+                s"cannot vary ${opDescClass.getSimpleName}: $reason"
+              ),
+            identity
+          )
+          .map { variant =>
+            if (variant.at.isEmpty) ("default", base, baseDir)
+            else {
+              val dir = dirFor(variant.label)
+              val op = ConfigGenerator
+                .applyVariant(handler.makeOpDesc(dir), variant)
+                .fold(
+                  reason =>
+                    throw new IllegalStateException(
+                      s"cannot build ${opDescClass.getSimpleName} variant '${variant.label}': $reason"
+                    ),
+                  identity
+                )
+              (variant.label, op, dir)
+            }
+          }
       case None =>
         val fileType = declaredFileType(opDescClass).getOrElse("")
         val encoder = encoderByFileType.getOrElse(
@@ -299,6 +332,13 @@ trait SourceHandler {
     * OpDesc instance whose `fileName` (or analogous URI field) points at it.
     */
   def makeOpDesc(testRoot: Path): LogicalOp
+
+  /** How many rows the fixture holds. Only the handler knows — it writes its own,
+    * rather than the shared [[CanonicalSourceFixture]]. A row-window knob the
+    * variants fill (`limit`, `offset`) is sized against this, so that the value they
+    * take keeps some rows and drops some instead of landing past the end.
+    */
+  def rowCount: Int
 }
 
 /**
@@ -439,6 +479,8 @@ object TextInputHandler extends SourceHandler {
 
   override val opDescClass: Class[_ <: LogicalOp] = classOf[TextInputSourceOpDesc]
 
+  override val rowCount: Int = 3
+
   override def makeOpDesc(testRoot: Path): LogicalOp = {
     val desc = new TextInputSourceOpDesc()
     desc.textInput = "alice\nbob\ncarol"
@@ -450,6 +492,8 @@ object TextInputHandler extends SourceHandler {
 object FileScanSourceHandler extends SourceHandler {
 
   override val opDescClass: Class[_ <: LogicalOp] = classOf[FileScanSourceOpDesc]
+
+  override val rowCount: Int = 3
 
   override def makeOpDesc(testRoot: Path): LogicalOp = {
     val txtPath = testRoot.resolve("sample.txt")

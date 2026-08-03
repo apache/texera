@@ -320,22 +320,40 @@ object TransformVerificationRunner {
     val testRoot = Files.createTempDirectory(s"verify-${opClass.getSimpleName}-")
 
     // Resolve the run list: each entry is (label, configured op, its inputs).
-    // Curated ops yield a single hand-written config (plus any extraScenarios);
-    // auto ops yield the base config PLUS one variant per enum value, so each
+    // Both tiers yield the base config PLUS one variant per enum value, so each
     // enum branch (e.g. a line chart's mode = line / dots / line+dots) is
-    // exercised, not just the default. Variants of one fixture share input files;
+    // exercised, not just the default, PLUS the `optionals` and `hostileText`
+    // variants. Variants of one fixture share input files; a curated handler's
     // extraScenarios carry their own (structurally different) inputs.
     val runs: Seq[(String, LogicalOp, Map[PortIdentity, Path])] =
       (if (forceAuto) None else CuratedHandlers.byClass.get(opClass)) match {
         case Some(handler) =>
           val (op, in) = handler.fixture(testRoot)
-          // Sweep the curated op's enums too (e.g. Aggregate's sum/min/max/…);
-          // fall back to the single curated config if it can't be swept or the
-          // op is enum-sweep-exempt (its enum values are cross-constrained with a
-          // sibling field, so a blind sweep produces invalid configs).
+          // The variants are derived against the handler's OWN fixture, not the
+          // canonical one — a curated handler writes the table its operator needs,
+          // so that is what an optional column knob has to resolve against.
+          //
+          // An enum-sweep-exempt op still gets the fills: what is cross-constrained
+          // with a sibling field is its ENUM values, so a blind sweep produces invalid
+          // configs — filling an optional knob or splicing a quote does not.
+          //
+          // Fall back to the single curated config if it can't be varied at all.
           val primary =
-            if (enumSweepExempt(opClass)) Seq("default" -> op)
-            else ConfigGenerator.variantsOf(op).fold(_ => Seq("default" -> op), identity)
+            ConfigGenerator
+              .fullVariantsOf(
+                op,
+                schemasOf(in),
+                rowCountOf(in),
+                sweepEnums = !enumSweepExempt(opClass)
+              )
+              .fold(_ => Seq("default" -> op), identity)
+              // A variant kind the fixture states it cannot take (see
+              // [[TransformHandler.unfillableVariants]]); `merged` labels each one
+              // `kind(fields…)`.
+              .filterNot {
+                case (label, _) =>
+                  handler.unfillableVariants.exists(kind => label.startsWith(s"$kind("))
+              }
           primary.map { case (label, o) => (label, o, in) } ++ handler.extraScenarios(testRoot)
         case None =>
           val vs = ConfigGenerator
@@ -366,6 +384,26 @@ object TransformVerificationRunner {
         }
     }
   }
+
+  /** The schema of each input file, keyed by port index — what a curated handler
+    * actually wrote, read back off the sidecar its writer drops. A file without one
+    * contributes no schema, so a column knob resolved against that port simply finds
+    * nothing to fill and the variant is skipped rather than built on a guess.
+    */
+  private def schemasOf(inputs: Map[PortIdentity, Path]): Map[Int, Schema] =
+    inputs.flatMap {
+      case (portId, path) => Try(TupleIO.readSchemaSidecar(path)).toOption.map(portId.id -> _)
+    }
+
+  /** How many rows port 0 holds — the hint a numeric knob's fill is scaled against
+    * (a `limit` worth running is one that keeps some rows and drops some).
+    */
+  private def rowCountOf(inputs: Map[PortIdentity, Path]): Int =
+    inputs
+      .get(PortIdentity(0))
+      .flatMap(path => Try(Files.readAllLines(path).asScala.count(_.trim.nonEmpty)).toOption)
+      .filter(_ > 0)
+      .getOrElse(ConfigGenerator.DefaultRowCount)
 
   /** Run one configured variant of `opDesc` through both paths against `inputs`,
     * writing all intermediate/output files under `workDir`, and assert parity on
