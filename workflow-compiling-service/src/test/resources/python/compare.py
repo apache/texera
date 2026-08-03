@@ -82,7 +82,11 @@ comparison error never kills the server; only closing stdin (EOF) ends it.
 """
 import sys
 
-import pandas as pd
+# pandas is imported where it is used, not here: the --plotly comparison needs
+# nothing from it, and a module-level import would make that one-shot invocation
+# pay ~500 ms for an interpreter that then compares two JSON documents. `serve()`
+# imports it eagerly at startup instead, so a pooled worker still pays it once
+# rather than once per DataFrame comparison.
 
 
 def _compare_model_predictions(actual, expected, model_cols, probe_path) -> None:
@@ -92,6 +96,7 @@ def _compare_model_predictions(actual, expected, model_cols, probe_path) -> None
     import pickle
 
     import numpy as np
+    import pandas as pd
 
     if probe_path is None:
         raise AssertionError("--model-cols requires --probe with a feature set")
@@ -157,6 +162,8 @@ def _run_comparison(
     diff string if they differ (exit-1 condition). Unexpected errors (e.g. a
     bad input file) propagate to the caller. This is the single source of
     comparison truth shared by the CLI and the --serve loop."""
+    import pandas as pd
+
     actual = pd.read_json(actual_path, lines=True)
     expected = pd.read_json(expected_path, lines=True)
 
@@ -369,14 +376,19 @@ def main() -> None:
 def serve() -> None:
     """Persistent comparison server. See the module docstring for the protocol.
 
-    pandas is imported once (at module load, above). Each job runs the same
-    function the CLI calls for its kind. A comparison error is reported as
-    exit 1 with the diff on `stderr`; only closing stdin ends the loop.
+    Each job runs the same function the CLI calls for its kind. A comparison
+    error is reported as exit 1 with the diff on `stderr`; only closing stdin
+    ends the loop.
     """
     import io
     import json
     import traceback
     from contextlib import redirect_stderr, redirect_stdout
+
+    # Eagerly, before signalling ready: the point of a persistent worker is that
+    # this cost is paid once per worker instead of once per comparison, and
+    # `ready` should mean the worker is warm.
+    import pandas  # noqa: F401
 
     sys.stdout.write(json.dumps({"ready": True}) + "\n")
     sys.stdout.flush()
