@@ -55,6 +55,17 @@ export function validateDatasetName(name: string): string | null {
   return null;
 }
 
+// Blank optional fields are omitted from requests so they are stored as NULL
+// instead of empty strings.
+function normalizeContributor(contributor: Contributor): Contributor {
+  return {
+    ...contributor,
+    email: contributor.email?.trim() || undefined,
+    affiliation: contributor.affiliation?.trim() || undefined,
+    comments: contributor.comments?.trim() || undefined,
+  };
+}
+
 export const DATASET_PUBLIC_VERSION_BASE_URL = "publicVersion";
 export const DATASET_PUBLIC_VERSION_RETRIEVE_LIST_URL = DATASET_PUBLIC_VERSION_BASE_URL + "/list";
 export const DATASET_GET_OWNERS_URL = DATASET_BASE_URL + "/user-dataset-owners";
@@ -83,7 +94,7 @@ export class DatasetService {
       datasetDescription: dataset.description,
       isDatasetPublic: dataset.isPublic,
       isDatasetDownloadable: dataset.isDownloadable,
-      contributors,
+      contributors: contributors.map(normalizeContributor),
     });
   }
 
@@ -588,7 +599,7 @@ export class DatasetService {
   public updateDatasetContributors(did: number, contributors: ReadonlyArray<Contributor>): Observable<void> {
     return this.http.post<void>(`${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/update/contributors`, {
       did,
-      contributors,
+      contributors: contributors.map(normalizeContributor),
     });
   }
 }

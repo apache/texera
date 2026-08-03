@@ -32,9 +32,9 @@ export interface DatasetVersion {
 export interface Contributor {
   name: string;
   creator: boolean;
-  affiliation: string;
-  email: string;
-  comments: string;
+  affiliation?: string;
+  email?: string;
+  comments?: string;
 }
 
 export interface Dataset {

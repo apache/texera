@@ -237,7 +237,8 @@
                 role="button"
                 tabindex="0"
                 (click)="onAddContributor()"
-                (keydown.enter)="onAddContributor()">
+                (keydown.enter)="onAddContributor()"
+                (keydown.space)="$event.preventDefault(); onAddContributor()">
                 <i
                   nz-icon
                   nzType="plus"

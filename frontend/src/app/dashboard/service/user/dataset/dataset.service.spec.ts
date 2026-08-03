@@ -228,15 +228,32 @@ describe("DatasetService", () => {
 
   // ─── updateDatasetContributors ────────────────────────────────────────────
 
-  it("updateDatasetContributors POSTs the did and full list under /update/contributors", () => {
+  it("updateDatasetContributors POSTs the did and list, omitting blank optional fields", () => {
     const contributors: Contributor[] = [
-      { name: "Contributor B", creator: false, affiliation: "Test Lab", email: "contributor-b@test.com", comments: "" },
+      {
+        name: "Contributor B",
+        creator: false,
+        affiliation: "Test Lab",
+        email: " contributor-b@test.com ",
+        comments: "",
+      },
     ];
     service.updateDatasetContributors(7, contributors).subscribe();
 
     const req = http.expectOne(`${API}/${DATASET_BASE_URL}/update/contributors`);
     expect(req.request.method).toBe("POST");
-    expect(req.request.body).toEqual({ did: 7, contributors });
+    expect(req.request.body).toEqual({
+      did: 7,
+      contributors: [
+        {
+          name: "Contributor B",
+          creator: false,
+          affiliation: "Test Lab",
+          email: "contributor-b@test.com",
+          comments: undefined,
+        },
+      ],
+    });
     req.flush(null);
   });
 
