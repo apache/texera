@@ -254,8 +254,11 @@ message InitializeExecutorRequest {
   int32 totalWorkerCount = 1;
   core.OpExecInitInfo opExecInitInfo = 2;
   bool isSource = 3;
-  // Loop bookkeeping addresses: Loop Start logical operator id -> BASE URI of
-  // that Loop Start's input port materialization. Constant per execution
+  // Loop bookkeeping addresses: Loop Start logical operator id -> the BASE
+  // URI of the materialized port that Loop Start's input port READS FROM,
+  // i.e. the upstream operator's output-port materialization (the storage
+  // pair of the Loop Start's input port config), not a port of the Loop
+  // Start itself. Constant per execution
   // (minted at schedule time); a Loop End worker selects the entry by the
   // loop_start_id carried on the consumed StateFrame and derives two URIs
   // from the base:

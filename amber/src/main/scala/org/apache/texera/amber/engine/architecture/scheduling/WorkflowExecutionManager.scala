@@ -58,9 +58,12 @@ class WorkflowExecutionManager(
   /**
     * Loop bookkeeping addresses shipped to every worker at setup; semantics are
     * documented on `InitializeExecutorRequest.loopStartPortUris` (controlcommands.proto).
-    * The value is the BASE URI of the Loop Start's input port materialization;
-    * the Python worker derives the state URI (loop-back write) and the result
-    * URI (the loop's input table, read at consume time) from it.
+    * The value is the BASE URI of the materialized port the Loop Start's
+    * input port READS FROM -- the upstream operator's output-port
+    * materialization (`cfg.storagePairs.head._1` below), not a port of the
+    * Loop Start itself. The Python worker derives the state URI (loop-back
+    * write) and the result URI (the loop's input table, read at consume time)
+    * from it.
     *
     * Derived from the final (resource-allocated) schedule, so the URIs are
     * exactly the ones `AssignPort` later ships to the Loop Start's input

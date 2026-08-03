@@ -444,11 +444,14 @@ class LoopEndOperator(TableOperator):
         # condition() short-circuits to False (see eval_condition).
         self.state: State = State()
         # Set by the runtime (attach_loop_table) right before the matching
-        # consume and cleared by run_update as it takes it, so the missing-table
-        # guard fires on every iteration rather than only the first. It stays
-        # separate from _loop_table because _loop_table doubles as the
-        # "consumed" marker that condition() short-circuits on, and only a
-        # SUCCESSFUL update may set that.
+        # consume and taken (cleared) by run_update. The clear is defensive
+        # rather than load-bearing today -- a worker instance handles a single
+        # iteration (workers are recreated per region execution), so there is
+        # no second consume within one instance for a stale table to leak
+        # into -- but nothing may run an update against a table it was not
+        # explicitly handed. It stays separate from _loop_table because
+        # _loop_table doubles as the "consumed" marker that condition()
+        # short-circuits on, and only a SUCCESSFUL update may set that.
         self._attached_table: Optional[Table] = None
         self._loop_table: Optional[Table] = None
 

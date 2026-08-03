@@ -28,6 +28,7 @@ from threading import Thread
 from core.models import (
     DataFrame,
     InternalQueue,
+    Schema,
     State,
     StateFrame,
     Table,
@@ -2532,12 +2533,10 @@ class TestMainLoop:
         # A loop body may branch and converge on the Loop End, so its input
         # port takes fan-in. Every reader on that port replays its own
         # branch's states, so the SAME iteration's state arrives once per
-        # branch. Only the first may be taken: running the user's `update`
-        # again would advance the loop variables once per branch (e.g. `i += 1`
-        # twice), ending the loop early with wrong results. Since the consume
-        # is deferred to EndChannel, the duplicate must also not overwrite the
-        # stashed state -- assert through the whole deferred path, not just the
-        # stash.
+        # branch. The stash must take the FIRST and drop the rest -- a later
+        # arrival silently overwriting _pending_loop_state would make the
+        # consumed copy depend on reader scheduling. Assert through the whole
+        # deferred path, not just the stash.
         executor = _FalseLoopEnd()
         main_loop.context.executor_manager.executor = executor
         emitted, switched, reset_calls = self._capture_state_emit(
@@ -2577,6 +2576,10 @@ class TestMainLoop:
 
         assert switched == [], "the deferred consume does not switch context"
         assert consumed == [(first, 0)], "the operator must update exactly once"
+        # The consume re-arms the duplicate guard (everything on the port is
+        # already in by EndChannel), making the flag per-execution by
+        # construction rather than by worker recreation.
+        assert main_loop._loop_state_consumed is False
 
     # ------------------------------------------------------------------ #
     # _jump_to_loop_start
@@ -2643,12 +2646,24 @@ class TestMainLoop:
         # complete() flushes console messages on entry, before condition()
         # runs, and then shuts the worker down -- so without a second flush a
         # print() inside the user's condition would be captured and never sent.
+        #
+        # Mirrors LoopEndOpDesc.generatePythonCode: the user's text goes
+        # through eval_condition, i.e. eval() against a bare namespace dict --
+        # NOT a method of a module-level class -- so the print executes in a
+        # frame whose globals have no __name__. The capture must survive that
+        # (replace_print looks the module name up with .get); a plain method
+        # here would pass even with a capture that crashes on the generated
+        # path.
         class _PrintingLoopEnd(LoopEndOperator):
             def condition(self):
-                print("hello from condition")
-                return False
+                return self.eval_condition("print('hello from condition') or False")
 
         executor = _PrintingLoopEnd()
+        # eval_condition short-circuits to False before a consume; run a
+        # minimal successful update first so the user expression actually
+        # evaluates (this is the state a real matching consume leaves behind).
+        executor.attach_loop_table(Table([Tuple({"v": 1})]))
+        executor.run_update("pass", State())
         main_loop.context.executor_manager.executor = executor
 
         console_msgs = []
@@ -2682,12 +2697,19 @@ class TestMainLoop:
         # DataProcessor._executor_session, so its print capture has to be
         # applied explicitly here -- otherwise a print() in the user's update
         # goes to the worker's stdout and never reaches the console.
+        #
+        # Mirrors LoopEndOpDesc.generatePythonCode: the user's text goes
+        # through run_update, i.e. exec() against a bare namespace dict, so
+        # the print executes in a frame whose globals have no __name__ and the
+        # capture must survive that (replace_print looks the module name up
+        # with .get). A plain print() in an overridden method here would pass
+        # even with a capture that crashes on the generated path.
         class _PrintingLoopEnd(LoopEndOperator):
             def condition(self):
-                return False
+                return self.eval_condition("False")
 
             def process_state(self, state, port):
-                print("hello from update")
+                self.run_update("print('hello from update')\ni += 1", state)
                 return None
 
         executor = _PrintingLoopEnd()
@@ -2720,6 +2742,15 @@ class TestMainLoop:
 
         opened = []
         rows = [Tuple({"v": 1}), Tuple({"v": 2})]
+        schema = Schema(raw_schema={"v": "LONG"})
+        casts = []
+        for tup in rows:
+            monkeypatch.setattr(
+                tup,
+                "cast_to_schema",
+                lambda s, _t=tup: casts.append((_t, s)),
+                raising=True,
+            )
 
         class _Doc:
             def get(self):
@@ -2727,7 +2758,7 @@ class TestMainLoop:
 
         monkeypatch.setattr(
             "core.runnables.main_loop.DocumentFactory.open_document",
-            lambda uri: (opened.append(uri) or (_Doc(), None)),
+            lambda uri: (opened.append(uri) or (_Doc(), schema)),
         )
 
         table = main_loop._read_loop_input_table()
@@ -2735,6 +2766,9 @@ class TestMainLoop:
         assert opened == [VFSURIFactory.result_uri("vfs:///wf/port/outer")]
         assert isinstance(table, Table)
         assert list(table.as_tuples()) == rows
+        # Every tuple is normalized to the doc's schema, exactly like the
+        # input-port reader that streams this same doc.
+        assert casts == [(tup, schema) for tup in rows]
 
     def test_read_loop_input_table_raises_when_uri_not_configured(
         self, main_loop, monkeypatch

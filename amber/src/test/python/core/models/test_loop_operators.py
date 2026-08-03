@@ -280,6 +280,12 @@ class TestLoopEndMatchingBranch:
         op.process_state(State({"i": 2}), port=0)
         assert op.condition() is False  # i became 3, 3 < 3 is False
 
+        # Each update TAKES its attach: a further update without a fresh
+        # attach must fail loud rather than silently reuse the previous
+        # table (the clear in run_update is what this pins).
+        with pytest.raises(RuntimeError, match="not attached"):
+            op.process_state(State({"i": 3}), port=0)
+
 
 # ---------------------------------------------------------------------------
 # Nested-loop counter behaviour -- LoopStart +1, LoopEnd -1, and the
