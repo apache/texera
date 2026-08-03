@@ -48,6 +48,12 @@ interface StoreNotebookResponse {
   message: string;
 }
 
+interface DeleteNotebookResponse {
+  success: boolean;
+  deleted?: number;
+  message?: string;
+}
+
 @Injectable({
   providedIn: "root",
 })
@@ -207,6 +213,22 @@ export class NotebookMigrationService {
     };
 
     return this.http.post<StoreNotebookResponse>(dbAPIUrl, payload, { headers });
+  }
+
+  // Delete the stored notebook and its mapping for a workflow. The backend's
+  // notebook -> workflow_notebook_mapping FK is ON DELETE CASCADE, and wid alone
+  // identifies the notebook, so only wid is sent. `deleted` is 1 when a notebook
+  // was removed, 0 when nothing was stored.
+  public deleteNotebookAndMapping(wid: number | undefined): Observable<DeleteNotebookResponse> {
+    if (!this.enabled) {
+      return of({ success: false, message: "Notebook migration feature is disabled" });
+    }
+    const dbAPIUrl = `${AppSettings.getApiEndpoint()}/notebook-migration/delete-notebook-and-mapping`;
+    const headers = new HttpHeaders({ "Content-Type": "application/json" });
+
+    const payload = { wid };
+
+    return this.http.post<DeleteNotebookResponse>(dbAPIUrl, payload, { headers });
   }
 
   public hasMapping(id: string): boolean {

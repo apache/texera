@@ -58,9 +58,14 @@
         <sqlFile path="sql/updates/29.sql"/>
     </changeSet>
 
-    <!-- Prefix dataset paths in stored workflow content with "datasets/" -->
-    <changeSet id="30" author="tanishqgandhi1908">
+    <!-- Add dataset_contributor table (contributor metadata for datasets) -->
+    <changeSet id="30" author="xuang7">
         <sqlFile path="sql/updates/30.sql"/>
+    </changeSet>
+
+    <!-- Prefix dataset paths in stored workflow content with "datasets/" -->
+    <changeSet id="31" author="tanishqgandhi1908">
+        <sqlFile path="sql/updates/31.sql"/>
     </changeSet>
 
     <!-- example changeSet
