@@ -52,6 +52,7 @@ DROP TABLE IF EXISTS operator_port_cache CASCADE;
 DROP TABLE IF EXISTS workflow_user_access CASCADE;
 DROP TABLE IF EXISTS workflow_of_user CASCADE;
 DROP TABLE IF EXISTS user_config CASCADE;
+DROP TABLE IF EXISTS auth_provider CASCADE;
 DROP TABLE IF EXISTS "user" CASCADE;
 DROP TABLE IF EXISTS user_last_active_time CASCADE;
 DROP TABLE IF EXISTS workflow CASCADE;
@@ -79,7 +80,6 @@ DROP TABLE IF EXISTS computing_unit_user_access CASCADE;
 DROP TABLE IF EXISTS notebook CASCADE;
 DROP TABLE IF EXISTS workflow_notebook_mapping CASCADE;
 DROP TABLE IF EXISTS virtual_environments CASCADE;
-DROP TYPE IF EXISTS provider_type_enum CASCADE;
 
 -- ============================================
 -- 4. Create PostgreSQL enum types
@@ -88,6 +88,7 @@ DROP TYPE IF EXISTS provider_type_enum CASCADE;
 DROP TYPE IF EXISTS user_role_enum CASCADE;
 DROP TYPE IF EXISTS privilege_enum CASCADE;
 DROP TYPE IF EXISTS action_enum CASCADE;
+DROP TYPE IF EXISTS provider_type_enum CASCADE;
 
 CREATE TYPE user_role_enum AS ENUM ('INACTIVE', 'RESTRICTED', 'REGULAR', 'ADMIN');
 CREATE TYPE action_enum AS ENUM ('like', 'unlike', 'view', 'clone');
@@ -105,7 +106,7 @@ CREATE TABLE IF NOT EXISTS "user"
     uid                     SERIAL PRIMARY KEY,
     name                    VARCHAR(256) NOT NULL,
     email                   VARCHAR(256) UNIQUE,
-    avatar           VARCHAR(100),
+    avatar                  VARCHAR(100),
     role                    user_role_enum NOT NULL DEFAULT 'INACTIVE',
     comment                 TEXT,
     account_creation_time   TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -118,7 +119,7 @@ CREATE TABLE IF NOT EXISTS auth_provider
     uid               INT                 NOT NULL,
     provider_type     provider_type_enum  NOT NULL,
     provider_id       VARCHAR(256)        NOT NULL,
-    password          VARCHAR(256),
+    password          VARCHAR(256), -- hashed credential; only for LOCAL
     created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
     PRIMARY KEY (uid, provider_type),
     FOREIGN KEY (uid) REFERENCES "user"(uid) ON DELETE CASCADE,
