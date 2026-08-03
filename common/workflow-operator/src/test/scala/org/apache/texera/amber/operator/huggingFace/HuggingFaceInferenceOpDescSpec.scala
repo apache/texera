@@ -661,4 +661,13 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
       .path("type")
       .asText() shouldBe "password"
   }
+
+  it should "give a clear error when the result column collides with an input column" in {
+    val desc = makeDesc(resultColumn = "prompt")
+    val inputSchema = Schema().add("prompt", AttributeType.STRING)
+    val ex = intercept[RuntimeException] {
+      desc.getOutputSchemas(Map(PortIdentity(0) -> inputSchema))
+    }
+    ex.getMessage should include("Result column 'prompt'")
+  }
 }
