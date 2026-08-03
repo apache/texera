@@ -1169,15 +1169,19 @@ jobs:
         run: python -m pytest bin/ -v --tb=short
 
   pyright-language-service:
-    # Typecheck-only job for the standalone Pyright LSP bridge (the language
-    # server the frontend code editor talks to). It is not part of the
-    # frontend yarn workspace and has no other CI coverage, so a dependency
-    # bump here — e.g. a Dependabot vscode-languageserver major — would
-    # otherwise merge unvalidated. `yarn install --frozen-lockfile` proves
-    # the committed classic-yarn lockfile still resolves against the bumped
-    # package.json, and `tsc --noEmit` catches any API breakage the bump
-    # introduces. No dist is built and the server is never booted, so this
-    # stays a fast, docker-free job.
+    # Typecheck + smoke job for the standalone Pyright LSP bridge (the
+    # language server the frontend code editor talks to). It is not part of
+    # the frontend yarn workspace and has no other CI coverage, so a
+    # dependency bump here — e.g. a Dependabot vscode-languageserver major —
+    # would otherwise merge unvalidated. `yarn install --frozen-lockfile`
+    # proves the committed classic-yarn lockfile still resolves against the
+    # bumped package.json, `tsc --noEmit` catches API breakage at the type
+    # level, and the smoke test boots the bridge as a real subprocess and
+    # drives a live LSP session over the WebSocket — the only check that
+    # catches a bump that typechecks but breaks the service at runtime.
+    # No dist is built (allowImportingTsExtensions forces --noEmit, so the
+    # service runs from TypeScript through ts-node, exactly as `yarn start`
+    # does) and no docker is needed, so this stays a fast job.
     if: ${{ inputs.run_pyright_language_service }}
     name: ${{ format('pyright-language-service{0}', inputs.job_name_suffix) }}
     runs-on: ubuntu-latest
@@ -1209,3 +1213,11 @@ jobs:
       - name: Typecheck
         # allowImportingTsExtensions in tsconfig.json requires --noEmit.
         run: yarn tsc --noEmit
+      - name: Run smoke tests
+        # Boots the bridge as a real subprocess on port 3000 and drives a live
+        # LSP session over the WebSocket, so this is the first coverage that
+        # actually starts the server (the typecheck above never did). Runs
+        # ubuntu-only and docker-free; `yarn install` above already pulled
+        # pyright, and no Python interpreter is needed because
+        # undefined-variable detection comes from pyright's own binder.
+        run: yarn test
