@@ -41,7 +41,8 @@ import scala.jdk.CollectionConverters.IteratorHasAsScala
 import scala.util.{Success, Try}
 
 /**
-  * Unified object for resolving both VFS resources and local/dataset files.
+  * Unified object for resolving local files and versioned-resource (dataset / model) logical
+  * paths to physical URIs.
   */
 object FileResolver {
 
