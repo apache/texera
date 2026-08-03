@@ -39,11 +39,9 @@ Global / concurrentRestrictions += Tags.limit(Tags.Test, 1)
 // excludes it and amber-integration, which installs operator-requirements.txt,
 // runs it. The amber job already sets this env var on the step that invokes
 // WorkflowOperator/jacoco, so no workflow change is needed for the exclusion.
-// -P4 bounds ScalaTest's ParallelTestExecution pool on the integration side,
-// where the tagged tests drive Python subprocesses: at core-count concurrency the
-// interpreters contend, while a fixed 4 is deterministic across machines and
-// matches PythonWorkerPool's default worker cap, so the two bounds agree on how
-// many interpreters may be live.
+// -P4 bounds ScalaTest's ParallelTestExecution pool on the integration side, whose
+// tagged tests drive Python subprocesses. It matches PythonWorkerPool's default
+// worker cap so the two bounds agree rather than multiply.
 Test / testOptions ++= TestFilters.integrationSplit(
   envVar = "AMBER_TEST_FILTER",
   tag = "org.apache.texera.amber.operator.tags.IntegrationTest",
