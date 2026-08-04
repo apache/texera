@@ -732,6 +732,7 @@ __metadata:
   languageName: node
   linkType: hard
 
+<<<<<<< HEAD
 "@angular/core@npm:21.2.17":
   version: 21.2.17
   resolution: "@angular/core@npm:21.2.17"
@@ -739,6 +740,15 @@ __metadata:
     tslib: "npm:^2.3.0"
   peerDependencies:
     "@angular/compiler": 21.2.17
+=======
+"@angular/core@npm:21.2.19":
+  version: 21.2.19
+  resolution: "@angular/core@npm:21.2.19"
+  dependencies:
+    tslib: "npm:^2.3.0"
+  peerDependencies:
+    "@angular/compiler": 21.2.19
+>>>>>>> f51a8a91b (fix(deps, frontend): update dependency @angular/core to v21.2.19 (#7288))
     rxjs: ^6.5.3 || ^7.4.0
     zone.js: ~0.15.0 || ~0.16.0
   peerDependenciesMeta:
@@ -746,7 +756,11 @@ __metadata:
       optional: true
     zone.js:
       optional: true
+<<<<<<< HEAD
   checksum: 10c0/70aa13cfec6d221c23c427f794409d541b80cd4feb65ef668810e1e927efde645c02c450404a4eb9691d6da17a04732abe5a9d4550b934dfeb459f8ca0f274d8
+=======
+  checksum: 10c0/a060ee271acb93b5a633e5ab66bdf8fc6d13d17782b25d381ec51c5d664778de740d661b17ea36175a15d286422ad96760c1c0accf8b44a1ad6175d38869a7fd
+>>>>>>> f51a8a91b (fix(deps, frontend): update dependency @angular/core to v21.2.19 (#7288))
   languageName: node
   linkType: hard
 
@@ -10582,6 +10596,7 @@ __metadata:
     "@angular-eslint/template-parser": "npm:21.3.1"
     "@angular/animations": "npm:21.2.17"
     "@angular/cdk": "npm:21.2.14"
+<<<<<<< HEAD
     "@angular/cli": "npm:21.2.18"
     "@angular/common": "npm:21.2.17"
     "@angular/compiler": "npm:21.2.17"
@@ -10592,6 +10607,18 @@ __metadata:
     "@angular/platform-browser": "npm:21.2.17"
     "@angular/platform-browser-dynamic": "npm:21.2.17"
     "@angular/router": "npm:21.2.17"
+=======
+    "@angular/cli": "npm:21.2.19"
+    "@angular/common": "npm:21.2.18"
+    "@angular/compiler": "npm:21.2.19"
+    "@angular/compiler-cli": "npm:21.2.18"
+    "@angular/core": "npm:21.2.19"
+    "@angular/forms": "npm:21.2.18"
+    "@angular/localize": "npm:21.2.18"
+    "@angular/platform-browser": "npm:21.2.18"
+    "@angular/platform-browser-dynamic": "npm:21.2.18"
+    "@angular/router": "npm:21.2.18"
+>>>>>>> f51a8a91b (fix(deps, frontend): update dependency @angular/core to v21.2.19 (#7288))
     "@auth0/angular-jwt": "npm:5.1.0"
     "@codingame/monaco-vscode-java-default-extension": "npm:8.0.4"
     "@codingame/monaco-vscode-python-default-extension": "npm:8.0.4"
