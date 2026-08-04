@@ -22,13 +22,14 @@ package org.apache.texera.amber.operator.timeSeriesPlot
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.LogicalOp
-import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
+import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorMetadataGenerator}
 import org.apache.texera.amber.operator.visualization.timeSeriesplot.TimeSeriesOpDesc
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.nio.charset.StandardCharsets
 import java.util.Base64
+import scala.jdk.CollectionConverters._
 
 class TimeSeriesOpDescSpec extends AnyFunSuite {
 
@@ -184,6 +185,20 @@ class TimeSeriesOpDescSpec extends AnyFunSuite {
 
   test("showRangeSlider defaults to false on a freshly constructed descriptor") {
     assert(!new TimeSeriesOpDesc().showRangeSlider)
+  }
+
+  test("the generated schema offers Plot Type as exactly the two values the code reads") {
+    // The property is declared under the name "line", which is what saved workflows carry.
+    val plotType = OperatorMetadataGenerator
+      .generateOperatorJsonSchema(classOf[TimeSeriesOpDesc])
+      .path("properties")
+      .path("line")
+
+    assert(plotType.path("enum").elements().asScala.map(_.asText()).toList == List("line", "area"))
+    // the schema default is what the descriptor itself starts at, so an untouched form
+    // and an untouched descriptor draw the same chart
+    assert(plotType.path("default").asText() == "line")
+    assert(plotType.path("default").asText() == new TimeSeriesOpDesc().plotType)
   }
 
   // --- generated code shape ----------------------------------------------------
