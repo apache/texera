@@ -17,34 +17,40 @@
  * under the License.
  */
 
-import { DatasetFileNode } from "./datasetVersionFileTree";
-
-export interface DatasetVersion {
-  dvid: number | undefined;
-  did: number;
-  creatorUid: number;
-  name: string;
-  versionHash: string | undefined;
-  creationTime: number | undefined;
-  fileNodes: DatasetFileNode[] | undefined;
+.contributor-form {
+  width: 80%;
+  margin: auto;
 }
 
-export interface Contributor {
-  name: string;
-  creator: boolean;
-  affiliation?: string;
-  email?: string;
-  comments?: string;
+.save-btn {
+  background-color: #ffffff;
+  color: #007bff;
+  border: 1px solid lightgray;
+  padding: 5px 20px;
+  cursor: pointer;
+  margin-left: 15%;
+  margin-right: 5%;
+  width: 30%;
+  text-align: center;
+  &:hover {
+    background-color: darken(#007bff, 10%);
+    color: #ffffff;
+  }
 }
 
-export interface Dataset {
-  did: number | undefined;
-  ownerUid: number | undefined;
-  name: string;
-  isPublic: boolean;
-  isDownloadable: boolean;
-  storagePath: string | undefined;
-  description: string;
-  creationTime: number | undefined;
-  coverImage: string | undefined;
+.cancel-btn {
+  background-color: #ffffff;
+  color: #ff0000;
+  border: 1px solid lightgray;
+  padding: 5px 20px;
+  cursor: pointer;
+  margin-right: 15%;
+  margin-left: 5%;
+  margin-top: 5%;
+  width: 30%;
+  text-align: center;
+  &:hover {
+    background-color: darken(#ff0000, 10%);
+    color: #ffffff;
+  }
 }
