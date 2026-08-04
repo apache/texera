@@ -27,14 +27,17 @@ import org.apache.texera.dao.jooq.generated.tables.daos.{AuthProviderDao, UserDa
 import org.apache.texera.dao.jooq.generated.tables.pojos.{AuthProvider, User}
 import org.jooq.DSLContext
 
+import java.net.URI
 import java.time.OffsetDateTime
 import javax.ws.rs.NotAuthorizedException
 import scala.util.chaining.scalaUtilChainingOps
+import scala.util.Try
 
 /**
   * A verified external identity (Google, Facebook, ...) reduced to the fields we
-  * persist. `avatar` is optional: `None` means the provider supplies no avatar, so
-  * the user's existing avatar column is left untouched rather than overwritten.
+  * persist. `avatar` is the complete URL the provider supplied, and is optional:
+  * `None` means the provider supplies no avatar, so the user's existing avatar column
+  * is left untouched rather than overwritten.
   *
   * `emailVerified` reports whether the provider itself vouches for `email`. It has no
   * default on purpose: an email address is what links an external identity to an
@@ -51,6 +54,40 @@ final case class ExternalProfile(
 )
 
 object ExternalAuthProvisioner extends LazyLogging {
+  // ── avatar host allowlist ──
+  private val ALLOWED_AVATAR_HOST_SUFFIXES: Set[String] = Set(
+    "googleusercontent.com"
+  )
+
+  /** Allow an exact host or any subdomain of an allowlisted suffix. */
+  private[auth] def isAllowedAvatarHost(host: String): Boolean = {
+    if (host == null || host.isEmpty) return false
+    val lower = host.toLowerCase
+    ALLOWED_AVATAR_HOST_SUFFIXES.exists(suffix => lower == suffix || lower.endsWith("." + suffix))
+  }
+
+  /**
+    * The avatar URL to persist, or `None` to leave the stored value alone. Anything that is not
+    * an http(s) URL on an allowlisted host is dropped rather than rejected: a surprising avatar
+    * is not a reason to deny someone a login, and treating it as "provider supplied no avatar"
+    * falls back to the initials avatar.
+    */
+  private[auth] def sanitizedAvatar(profile: ExternalProfile): Option[String] =
+    profile.avatar.filter { url =>
+      val host = Try(URI.create(url)).toOption.filter { uri =>
+        val scheme = Option(uri.getScheme).map(_.toLowerCase)
+        scheme.contains("http") || scheme.contains("https")
+      }.flatMap(uri => Option(uri.getHost))
+
+      val allowed = host.exists(isAllowedAvatarHost)
+      if (!allowed) {
+        logger.warn(
+          s"Ignoring avatar from ${profile.providerType} identity ${profile.providerId}: " +
+            s"'$url' is not an http(s) URL on an allowlisted host."
+        )
+      }
+      allowed
+    }
 
   /**
     * Resolve the user behind an external identity, creating one if necessary, and

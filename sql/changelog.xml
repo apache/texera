@@ -68,6 +68,11 @@
         <sqlFile path="sql/updates/31.sql"/>
     </changeSet>
 
+    <!-- Store the provider's full avatar URL instead of a Google-specific fragment -->
+    <changeSet id="32" author="Neilk1021">
+        <sqlFile path="sql/updates/32.sql"/>
+    </changeSet>
+
     <!-- example changeSet
     <changeSet id="1" author="author">
         <sqlFile path="sql/updates/1.sql"/>

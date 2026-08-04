@@ -106,7 +106,8 @@ CREATE TABLE IF NOT EXISTS "user"
     uid                     SERIAL PRIMARY KEY,
     name                    VARCHAR(256) NOT NULL,
     email                   VARCHAR(256) UNIQUE,
-    avatar                  VARCHAR(100),
+    -- full avatar URL as supplied by the identity provider; hosts are allowlisted on write
+    avatar                  VARCHAR(512),
     role                    user_role_enum NOT NULL DEFAULT 'INACTIVE',
     comment                 TEXT,
     account_creation_time   TIMESTAMPTZ NOT NULL DEFAULT now(),

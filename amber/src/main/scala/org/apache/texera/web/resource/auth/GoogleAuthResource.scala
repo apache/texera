@@ -36,8 +36,15 @@ object GoogleAuthResource {
   /**
     * Reduce a verified Google id-token payload to the fields we persist. Google omits `name`
     * for accounts with no profile name, and the provisioner writes `name` straight to a NOT
-    * NULL column, so the address stands in for it. Only the last path segment of `picture` is
-    * kept. The frontend rebuilds the full `lh3.googleusercontent.com` URL around it.
+    * NULL column, so the address stands in for it.
+    *
+    * `picture` is kept as the complete URL Google supplied. It used to be reduced to its last
+    * path segment with the frontend rebuilding `lh3.googleusercontent.com` around it, which
+    * made the stored value meaningless for any other provider. [[ExternalAuthProvisioner]]
+    * allowlists the host before storing it.
+    *
+    * An absent `picture` maps to `None` rather than `Some("")`, so the provisioner's documented
+    * "leave the stored avatar alone" path is reachable instead of blanking the column.
     */
   private[auth] def profileOf(payload: GoogleIdToken.Payload): ExternalProfile = {
     val googleEmail = payload.getEmail
@@ -48,9 +55,7 @@ object GoogleAuthResource {
       googleEmail,
       // getEmailVerified boxes to null when the claim is absent; absent means unverified.
       emailVerified = Option(payload.getEmailVerified).exists(_.booleanValue()),
-      avatar = Option(payload.get("picture").asInstanceOf[String])
-        .filter(_.nonEmpty)
-        .map(_.split("/").last)
+      avatar = Option(payload.get("picture").asInstanceOf[String]).map(_.trim).filter(_.nonEmpty)
     )
   }
 }
