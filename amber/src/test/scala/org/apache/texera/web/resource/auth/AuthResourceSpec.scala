@@ -140,6 +140,7 @@ class AuthResourceSpec
     val stored = persisted.get(0)
     stored.getRole shouldBe UserRoleEnum.INACTIVE
     stored.getEmail shouldBe uemail("reg")
+    stored.getIsPlaceholder shouldBe false
     // stored hashed, not in plain text, but verifies against the plain password
     stored.getPassword should not be "pw"
     encryptor.checkPassword("pw", stored.getPassword) shouldBe true
@@ -186,6 +187,88 @@ class AuthResourceSpec
     val existing = seedUser(uname("dupeowner"), "pw")
     val ex = intercept[NotAcceptableException](
       resource.register(UserRegistrationRequest(uname("dupenew"), existing.getEmail, "pw2"))
+    )
+    ex.getMessage should include("Email exists")
+  }
+
+  // ─── register: placeholder claiming ─────────────────────────────────────────
+
+  private def seedPlaceholder(name: String, email: String): User = {
+    val user = new User
+    user.setName(name)
+    user.setEmail(email)
+    user.setRole(UserRoleEnum.INACTIVE)
+    user.setIsPlaceholder(true)
+    user.setComment("Auto-created as contributor of dataset 1")
+    userDao.insert(user)
+    user
+  }
+
+  it should "claim a placeholder account with the matching email" in {
+    val placeholder = seedPlaceholder(uname("ghost"), uemail("claim"))
+
+    val response =
+      resource.register(UserRegistrationRequest(uname("claimer"), uemail("claim"), "secret-pw"))
+
+    response.accessToken should not be empty
+    val claimed = userDao.fetchOneByEmail(uemail("claim"))
+    claimed.getUid shouldEqual placeholder.getUid
+    claimed.getIsPlaceholder shouldBe false
+    encryptor.checkPassword("secret-pw", claimed.getPassword) shouldBe true
+    claimed.getRole shouldEqual UserRoleEnum.INACTIVE
+    claimed.getComment should include("Claimed contributor placeholder at ")
+  }
+
+  it should "allow logging in with the claimed credentials" in {
+    seedPlaceholder(uname("ghost2"), uemail("claimlogin"))
+    resource.register(UserRegistrationRequest(uname("claimer2"), uemail("claimlogin"), "secret-pw"))
+
+    AuthResource.retrieveUserByUsernameAndPassword(
+      uname("claimer2"),
+      "secret-pw"
+    ) should not be None
+  }
+
+  it should "not claim an INACTIVE account that has credentials" in {
+    val real = new User
+    real.setName(uname("real"))
+    real.setEmail(uemail("real"))
+    real.setGoogleId(s"google-$runId")
+    real.setRole(UserRoleEnum.INACTIVE)
+    userDao.insert(real)
+
+    val ex = intercept[NotAcceptableException](
+      resource.register(UserRegistrationRequest(uname("attacker"), uemail("real"), "attacker-pw"))
+    )
+    ex.getMessage should include("Email exists")
+
+    val untouched = userDao.fetchOneByEmail(uemail("real"))
+    untouched.getPassword shouldBe null
+    untouched.getGoogleId shouldEqual s"google-$runId"
+    untouched.getIsPlaceholder shouldBe false
+  }
+
+  it should "reject claiming with an already-taken username" in {
+    seedUser(uname("taken"), "pw")
+    seedPlaceholder(uname("ghost3"), uemail("clash"))
+
+    val ex = intercept[NotAcceptableException](
+      resource.register(UserRegistrationRequest(uname("taken"), uemail("clash"), "pw2"))
+    )
+    ex.getMessage should include("Username exists")
+
+    userDao.fetchOneByEmail(uemail("clash")).getIsPlaceholder shouldBe true
+  }
+
+  it should "reject a duplicate email that differs only in case" in {
+    val existing = seedUser(uname("case"), "pw")
+    existing.setEmail(s"MixedCase_$runId@Example.com")
+    userDao.update(existing)
+
+    val ex = intercept[NotAcceptableException](
+      resource.register(
+        UserRegistrationRequest(uname("casenew"), s"mixedcase_$runId@example.com", "pw2")
+      )
     )
     ex.getMessage should include("Email exists")
   }

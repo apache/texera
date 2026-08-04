@@ -207,6 +207,7 @@
               class="container"
               (click)="startEdit(user, 'name')">
               {{user.name}}
+              <nz-tag *ngIf="user.isPlaceholder">placeholder</nz-tag>
             </div>
           </ng-container>
           <ng-template #editNameTemplate>
