@@ -417,6 +417,22 @@ class WorkflowAccessResourceSpec
     user
   }
 
+  "WorkflowAccessResource.grantAccess" should "reject granting to a placeholder account" in {
+    val placeholder = seedUserWithoutAccess("wf_placeholder", "wf-placeholder@test.com")
+    placeholder.setPassword(null)
+    placeholder.setIsPlaceholder(true)
+    userDao.update(placeholder)
+
+    assertThrows[BadRequestException] {
+      workflowAccessResource.grantAccess(
+        testWorkflowWid,
+        "wf-placeholder@test.com",
+        "READ",
+        new SessionUser(userWithWrite)
+      )
+    }
+  }
+
   "WorkflowAccessResource.getOwner" should "return the workflow owner's email" in {
     assert(workflowAccessResource.getOwner(testWorkflowWid) == "owner@test.com")
   }
