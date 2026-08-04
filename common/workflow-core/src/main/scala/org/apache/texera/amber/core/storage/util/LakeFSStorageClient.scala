@@ -66,7 +66,6 @@ object LakeFSStorageClient extends LazyLogging {
   private lazy val branchesApi: BranchesApi = new BranchesApi(apiClient)
   private lazy val commitsApi: CommitsApi = new CommitsApi(apiClient)
   private lazy val refsApi: RefsApi = new RefsApi(apiClient)
-  private lazy val stagingApi: StagingApi = new StagingApi(apiClient)
   private lazy val experimentalApi: ExperimentalApi = new ExperimentalApi(apiClient)
   private lazy val healthCheckApi: HealthCheckApi = new HealthCheckApi(apiClient)
 
@@ -159,50 +158,13 @@ object LakeFSStorageClient extends LazyLogging {
   }
 
   /**
-    * Removes a file from the repository (similar to Git rm).
-    *
-    * @param repoName Repository name.
-    * @param branch   Branch name.
-    * @param filePath Path in the repository to delete.
-    */
-  def removeFileFromRepo(repoName: String, branch: String, filePath: String): Unit = {
-    objectsApi.deleteObject(repoName, branch, filePath).execute()
-  }
-
-  /**
-    * Executes operations and creates a commit (similar to a transactional commit).
-    *
-    * @param repoName      Repository name.
-    * @param commitMessage Commit message.
-    * @param operations    File operations to perform before committing.
-    */
-  def withCreateVersion(repoName: String, commitMessage: String)(
-      operations: => Unit
-  ): Commit = {
-    operations
-    val commit = new CommitCreation()
-      .message(commitMessage)
-
-    commitsApi.commit(repoName, branchName, commit).execute()
-  }
-
-  /**
-    * Retrieves file content from a specific commit and path.
+    * Generates a presigned URL for downloading a file directly from the underlying object store,
+    * bypassing the LakeFS server.
     *
     * @param repoName     Repository name.
     * @param commitHash   Commit hash of the version.
     * @param filePath     Path to the file in the repository.
-    */
-  def retrieveFileContent(repoName: String, commitHash: String, filePath: String): File = {
-    objectsApi.getObject(repoName, commitHash, filePath).execute()
-  }
-
-  /**
-    * Retrieves file content from a specific commit and path.
-    *
-    * @param repoName     Repository name.
-    * @param commitHash   Commit hash of the version.
-    * @param filePath     Path to the file in the repository.
+    * @return             A time-limited presigned URL pointing at the object's physical address.
     */
   def getFilePresignedUrl(repoName: String, commitHash: String, filePath: String): String = {
     objectsApi.statObject(repoName, commitHash, filePath).presign(true).execute().getPhysicalAddress
