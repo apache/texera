@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,34 +17,12 @@
  * under the License.
  */
 
-import { DatasetFileNode } from "./datasetVersionFileTree";
+package org.apache.texera.common.util
 
-export interface DatasetVersion {
-  dvid: number | undefined;
-  did: number;
-  creatorUid: number;
-  name: string;
-  versionHash: string | undefined;
-  creationTime: number | undefined;
-  fileNodes: DatasetFileNode[] | undefined;
-}
+object EmailUtil {
+  private val EmailPattern = "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$".r
 
-export interface Contributor {
-  name: string;
-  creator: boolean;
-  affiliation?: string;
-  email?: string;
-  comments?: string;
-}
+  def isValid(email: String): Boolean = EmailPattern.matches(email)
 
-export interface Dataset {
-  did: number | undefined;
-  ownerUid: number | undefined;
-  name: string;
-  isPublic: boolean;
-  isDownloadable: boolean;
-  storagePath: string | undefined;
-  description: string;
-  creationTime: number | undefined;
-  coverImage: string | undefined;
+  def normalize(email: String): String = email.trim.toLowerCase
 }

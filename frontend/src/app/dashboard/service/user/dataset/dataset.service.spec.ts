@@ -25,7 +25,7 @@ import { DATASET_BASE_URL, DatasetService, MultipartUploadProgress, validateData
 import { AppSettings } from "../../../../common/app-setting";
 import { AuthService } from "../../../../common/service/user/auth.service";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
-import { Dataset, DatasetVersion } from "../../../../common/type/dataset";
+import { Contributor, Dataset, DatasetVersion } from "../../../../common/type/dataset";
 import { DashboardDataset } from "../../../type/dashboard-dataset.interface";
 import { DatasetFileNode } from "../../../../common/type/datasetVersionFileTree";
 import { DatasetStagedObject } from "../../../../common/type/dataset-staged-object";
@@ -203,9 +203,79 @@ describe("DatasetService", () => {
       datasetDescription: "desc",
       isDatasetPublic: true,
       isDatasetDownloadable: true,
+      contributors: [],
     });
     req.flush(dashboard);
     expect(await pending).toEqual(dashboard);
+  });
+
+  it("createDataset includes contributors in the request body when present", () => {
+    const contributors: Contributor[] = [
+      {
+        name: "Contributor A",
+        creator: true,
+        affiliation: "Test Lab",
+        email: "contributor-a@test.com",
+        comments: "collected the data",
+      },
+    ];
+    service.createDataset(buildDataset(), contributors).subscribe();
+
+    const req = http.expectOne(`${API}/${DATASET_BASE_URL}/create`);
+    expect(req.request.body.contributors).toEqual(contributors);
+    req.flush(buildDashboardDataset());
+  });
+
+  it("createDataset omits blank optional contributor fields", () => {
+    const contributors: Contributor[] = [
+      { name: "Contributor A", creator: false, affiliation: "  ", email: "", comments: undefined },
+    ];
+    service.createDataset(buildDataset(), contributors).subscribe();
+
+    const req = http.expectOne(`${API}/${DATASET_BASE_URL}/create`);
+    expect(req.request.body.contributors).toEqual([
+      { name: "Contributor A", creator: false, affiliation: undefined, email: undefined, comments: undefined },
+    ]);
+    req.flush(buildDashboardDataset());
+  });
+
+  // ─── updateDatasetContributors ────────────────────────────────────────────
+
+  it("updateDatasetContributors POSTs the did and list, omitting blank optional fields", () => {
+    const contributors: Contributor[] = [
+      {
+        name: "Contributor B",
+        creator: false,
+        affiliation: "Test Lab",
+        email: " contributor-b@test.com ",
+        comments: "",
+      },
+    ];
+    service.updateDatasetContributors(7, contributors).subscribe();
+
+    const req = http.expectOne(`${API}/${DATASET_BASE_URL}/update/contributors`);
+    expect(req.request.method).toBe("POST");
+    expect(req.request.body).toEqual({
+      did: 7,
+      contributors: [
+        {
+          name: "Contributor B",
+          creator: false,
+          affiliation: "Test Lab",
+          email: "contributor-b@test.com",
+          comments: undefined,
+        },
+      ],
+    });
+    req.flush(null);
+  });
+
+  it("updateDatasetContributors sends an empty list when all contributors are removed", () => {
+    service.updateDatasetContributors(7, []).subscribe();
+
+    const req = http.expectOne(`${API}/${DATASET_BASE_URL}/update/contributors`);
+    expect(req.request.body).toEqual({ did: 7, contributors: [] });
+    req.flush(null);
   });
 
   // ─── getDataset (login vs public branch) ──────────────────────────────────
