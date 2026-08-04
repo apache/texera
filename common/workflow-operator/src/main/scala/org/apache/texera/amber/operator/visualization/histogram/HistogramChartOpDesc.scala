@@ -51,15 +51,16 @@ class HistogramChartOpDesc extends PythonOperatorDescriptor {
   @AutofillAttributeName
   var separateBy: EncodableString = ""
 
-  // `none` is our own sentinel, not a px value: it means omit the argument, the way
-  // ECDFPlot's marginal already works.
-  @JsonProperty(required = false, defaultValue = "none")
+  // Empty stays the "no marginal plot" value instead of a `none` sentinel: saved
+  // workflows already hold it, and a stored value outside the enum would fail the
+  // property editor's validation.
+  @JsonProperty(required = false, defaultValue = "")
   @JsonSchemaTitle("Distribution Type")
   @JsonPropertyDescription("Optional marginal plot to display alongside the histogram.")
   @JsonSchemaInject(
-    json = """{ "enum": ["none", "rug", "box", "violin", "histogram"], "default": "none" }"""
+    json = """{ "enum": ["", "rug", "box", "violin", "histogram"], "default": "" }"""
   )
-  var marginal: EncodableString = "none"
+  var marginal: EncodableString = ""
 
   @JsonProperty(required = false)
   @JsonSchemaTitle("Pattern")
@@ -82,7 +83,7 @@ class HistogramChartOpDesc extends PythonOperatorDescriptor {
     var patternParam = pyb""
     if (color.nonEmpty) colorParam = pyb", color = $color"
     if (separateBy.nonEmpty) categoryParam = pyb", facet_col = $separateBy"
-    if (marginal.nonEmpty && marginal != "none") marginalParam = pyb", marginal=$marginal"
+    if (marginal.nonEmpty) marginalParam = pyb", marginal=$marginal"
     if (pattern != "") patternParam = pyb", pattern_shape=$pattern"
 
     pyb"""
