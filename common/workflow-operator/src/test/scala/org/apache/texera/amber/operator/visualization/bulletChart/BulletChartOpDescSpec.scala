@@ -88,6 +88,14 @@ class BulletChartOpDescSpec extends AnyFlatSpec with Matchers {
     code should include regex """generate_valid_steps\(\[\]\)"""
   }
 
+  it should "emit no steps when steps is null" in {
+    // Steps is optional, so an explicit null in the payload leaves the field null
+    // rather than an empty list; that is no steps, not a failure.
+    val op = configured
+    op.steps = null
+    op.generatePythonCode() should include regex """generate_valid_steps\(\[\]\)"""
+  }
+
   it should "emit each configured step's bounds as numbers, dropping a half-filled step" in {
     val op = configured
     val steps: JList[BulletChartStepDefinition] = new util.ArrayList[BulletChartStepDefinition]()

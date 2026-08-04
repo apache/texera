@@ -112,4 +112,18 @@ class GaugeChartOpDescSpec extends AnyFlatSpec with Matchers {
     val code = d.generatePythonCode()
     code should include("""valid_steps = [{"start": 0.0, "end": 50.0}]""")
   }
+
+  it should "emit no steps when the payload sets steps to null" in {
+    // Steps is optional, so an explicit null leaves the field null rather than an empty
+    // list; that is no steps, not a failure.
+    val d = objectMapper
+      .readValue(
+        """{"operatorType": "GaugeChart", "value": "score", "steps": null}""",
+        classOf[LogicalOp]
+      )
+      .asInstanceOf[GaugeChartOpDesc]
+    d.steps shouldBe null
+
+    d.generatePythonCode() should include("valid_steps = []")
+  }
 }

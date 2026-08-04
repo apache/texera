@@ -76,9 +76,12 @@ class GaugeChartOpDesc extends PythonOperatorDescriptor {
   private def numberOrNone(value: Option[Double]): PythonLiteral =
     value.map(_.toString).getOrElse("None")
 
-  /** The steps whose bounds are both filled in, as a list literal of numbers. */
+  /** The steps whose bounds are both filled in, as a list literal of numbers.
+    * The field is optional, so an explicit null leaves it null; that is no steps.
+    */
   private def stepsLiteral: PythonLiteral =
-    steps
+    Option(steps)
+      .getOrElse(List.empty)
       .flatMap(step => step.start.zip(step.end))
       .map { case (start, end) => s"""{"start": $start, "end": $end}""" }
       .mkString("[", ", ", "]")
