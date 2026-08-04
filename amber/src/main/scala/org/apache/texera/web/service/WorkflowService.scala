@@ -50,7 +50,7 @@ import org.apache.texera.amber.error.ErrorUtils.{
   getStackTraceWithAllCauses
 }
 import org.apache.texera.dao.jooq.generated.tables.pojos.User
-import org.apache.texera.observability.TexeraTracer
+import org.apache.texera.observability.{SpanAttrs, TexeraTracer}
 import org.apache.texera.service.util.LargeBinaryManager
 import org.apache.texera.web.model.websocket.event.TexeraWebSocketEvent
 import org.apache.texera.web.model.websocket.request.WorkflowExecuteRequest
@@ -181,10 +181,12 @@ class WorkflowService(
   }
 
   /** Sets up and launches a workflow execution inside a run-level span so
-    * setup-path logs carry its trace id. The span covers the synchronous
-    * setup and the handoff to async execution via `executeWorkflow()`; it
-    * does not span the full async run. The real execution failure is
-    * recorded onto the current span from `errorHandler`.
+    * setup-path logs carry its trace id. The span covers only the synchronous
+    * setup and the handoff to async execution via `executeWorkflow()`; it does
+    * not span the full async run. Only synchronous setup failures are recorded
+    * on the span (in the catch below); async execution failures arrive via
+    * `errorHandler` after the span has ended and are surfaced through the
+    * metadata store instead.
     */
   def initExecutionService(
       req: WorkflowExecuteRequest,
@@ -193,7 +195,7 @@ class WorkflowService(
   ): Unit = {
     val span = TexeraTracer.tracer
       .spanBuilder("WorkflowService.initExecutionService")
-      .setAttribute("texera.workflow.id", workflowId.id.toString)
+      .setAttribute(SpanAttrs.WorkflowId, Long.box(workflowId.id))
       .startSpan()
     val scope = span.makeCurrent()
     try {
@@ -228,7 +230,7 @@ class WorkflowService(
         convertToJson(req.engineVersion),
         req.computingUnitId
       )
-      span.setAttribute("texera.execution.id", workflowContext.executionId.id.toString)
+      span.setAttribute(SpanAttrs.ExecutionId, Long.box(workflowContext.executionId.id))
       // A run has started: record the start counter and stamp its start time.
       org.apache.texera.web.observability.WorkflowMetricsRecorder
         .onStart(workflowContext.executionId)
@@ -276,11 +278,12 @@ class WorkflowService(
           }
           val (operatorId, workerId) = getOperatorFromActorIdOpt(fromActorOpt)
           logger.error("error during execution", t)
-          // Record the real execution failure on the run-level span. Handled
-          // here rather than in initExecutionService's catch because this is
-          // where the failure is actually caught (it does not propagate up).
-          span.recordException(t)
-          span.setStatus(StatusCode.ERROR)
+          // Do NOT touch `span` here: this handler is passed into
+          // WorkflowExecutionService and invoked asynchronously (runtime,
+          // websocket, startWorkflow callbacks) after initExecutionService has
+          // returned and the setup span has already ended, so recording onto it
+          // would be a silent no-op. The failure is surfaced via the metadata
+          // store below; setup-span errors are recorded in the catch block.
           executionStateStore.statsStore.updateState(stats =>
             stats.withEndTimeStamp(System.currentTimeMillis())
           )
