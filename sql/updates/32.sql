@@ -17,12 +17,19 @@
  * under the License.
  */
 
--- Store the identity provider's full avatar URL instead of a Google-specific URL fragment.
+-- Relocate login credentials out of "user" into auth_provider, and make the avatar column
+-- provider-neutral.
 --
--- "user".avatar used to hold only the last path segment of Google's `picture` claim, and the
--- frontend rebuilt `https://lh3.googleusercontent.com/a/<fragment>` around it. That made the
--- column meaningless for any other provider. This promotes the stored fragments to complete
--- URLs so the value is self-describing and provider-agnostic.
+-- Part 1 moves `password` / `google_id` into an auth_provider row per (user, provider), so a
+-- user can hold several external identities instead of exactly one Google account.
+--
+-- Part 2 promotes the avatar from a Google-specific URL fragment to the provider's complete
+-- URL. It used to hold only the last path segment of Google's `picture` claim, with the
+-- frontend rebuilding `https://lh3.googleusercontent.com/a/<fragment>` around it, which made
+-- the column meaningless for any other provider.
+--
+-- Both parts run in one transaction: part 2 depends on the google_avatar -> avatar rename in
+-- part 1, so they cannot be applied independently.
 
 \c texera_db
 
@@ -30,16 +37,174 @@ SET search_path TO texera_db;
 
 BEGIN;
 
--- 1. A full URL does not fit in the old width.
+-- ============================================================================
+-- Part 1: credentials move to auth_provider
+-- ============================================================================
+
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'provider_type_enum') THEN
+        CREATE TYPE provider_type_enum AS ENUM ('LOCAL', 'GOOGLE');
+    END IF;
+END
+$$;
+
+-- provider_id is nullable here and tightened to NOT NULL below, once the backfill has given
+-- every row a handle.
+CREATE TABLE IF NOT EXISTS auth_provider
+(
+    uid               INT                 NOT NULL,
+    provider_type     provider_type_enum  NOT NULL,
+    provider_id       VARCHAR(256),
+    password          VARCHAR(256), -- hashed credential; only for LOCAL
+    created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (uid, provider_type),
+    FOREIGN KEY (uid) REFERENCES "user"(uid) ON DELETE CASCADE,
+    CONSTRAINT uq_provider_identity UNIQUE (provider_type, provider_id)
+);
+
+ALTER TABLE auth_provider DROP CONSTRAINT IF EXISTS ck_provider_credential;
+
+DO $$
+DECLARE
+    offenders TEXT;
+    orphans   TEXT;
+    has_placeholder BOOLEAN;
+BEGIN
+    -- `is_placeholder` accounts (migration 31) deliberately have no credential, so they are
+    -- not orphans and must not be reported as such. Checked dynamically because this migration
+    -- also has to run against databases predating that column.
+    SELECT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'texera_db' AND table_name = 'user' AND column_name = 'is_placeholder'
+    ) INTO has_placeholder;
+
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'texera_db' AND table_name = 'user' AND column_name = 'password'
+    ) THEN
+        -- upgrading from the pre-auth_provider schema: handles come straight from "user"
+        SELECT string_agg(DISTINCT quote_literal(name), ', ')
+        INTO offenders
+        FROM "user"
+        WHERE password IS NOT NULL
+          AND (btrim(name) = '' OR name <> btrim(name) OR name IN (
+            SELECT name FROM "user" WHERE password IS NOT NULL
+            GROUP BY name HAVING count(*) > 1));
+
+        IF has_placeholder THEN
+            EXECUTE $q$
+                SELECT string_agg(uid::TEXT, ', ')
+                FROM "user"
+                WHERE password IS NULL AND google_id IS NULL AND NOT is_placeholder
+            $q$ INTO orphans;
+        ELSE
+            SELECT string_agg(uid::TEXT, ', ')
+            INTO orphans
+            FROM "user"
+            WHERE password IS NULL AND google_id IS NULL;
+        END IF;
+    ELSE
+        SELECT string_agg(DISTINCT quote_literal(u.name), ', ')
+        INTO offenders
+        FROM "user" u
+                 JOIN auth_provider a ON a.uid = u.uid AND a.provider_type = 'LOCAL'
+        WHERE a.provider_id IS NULL
+          AND (btrim(u.name) = '' OR u.name <> btrim(u.name) OR u.name IN (
+            SELECT u2.name
+            FROM "user" u2
+                     JOIN auth_provider a2 ON a2.uid = u2.uid AND a2.provider_type = 'LOCAL'
+            WHERE a2.provider_id IS NULL
+            GROUP BY u2.name HAVING count(*) > 1));
+    END IF;
+
+    IF offenders IS NOT NULL THEN
+        RAISE EXCEPTION 'migration 32: cannot promote "user".name to a login handle - '
+                        'the following names are duplicated, blank, or whitespace-padded: %. '
+                        'Resolve them and re-run.', offenders;
+    END IF;
+
+    IF orphans IS NOT NULL THEN
+        RAISE NOTICE 'migration 32: uid(s) % have neither a password nor a google_id, so they '
+                     'get no auth_provider row and cannot log in.', orphans;
+    END IF;
+END
+$$;
+
+-- Backfill one auth_provider row per credential the user already had.
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'texera_db' AND table_name = 'user' AND column_name = 'password'
+    ) THEN
+        INSERT INTO auth_provider (uid, provider_type, provider_id, password)
+        SELECT uid, 'LOCAL'::provider_type_enum, name, password
+        FROM "user"
+        WHERE password IS NOT NULL
+        ON CONFLICT (uid, provider_type) DO NOTHING;
+
+        INSERT INTO auth_provider (uid, provider_type, provider_id)
+        SELECT uid, 'GOOGLE'::provider_type_enum, google_id
+        FROM "user"
+        WHERE google_id IS NOT NULL
+        ON CONFLICT (uid, provider_type) DO NOTHING;
+    END IF;
+END
+$$;
+
+-- Fill handles left NULL by an earlier version of this migration; a no-op otherwise.
+UPDATE auth_provider a
+SET provider_id = u.name
+FROM "user" u
+WHERE u.uid = a.uid
+  AND a.provider_type = 'LOCAL'
+  AND a.provider_id IS NULL;
+
+-- Every row now has a handle, so make it mandatory and restore the credential check in its
+-- new shape: a password exists for LOCAL and only for LOCAL.
+ALTER TABLE auth_provider ALTER COLUMN provider_id SET NOT NULL;
+ALTER TABLE auth_provider
+    ADD CONSTRAINT ck_provider_credential CHECK ((provider_type = 'LOCAL') = (password IS NOT NULL));
+
+-- Keep the avatar as a provider-neutral profile column on "user" (rename in place).
+-- Guarded so it is a no-op on a fresh DB where "user" already has "avatar".
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'texera_db' AND table_name = 'user' AND column_name = 'google_avatar'
+    ) AND NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'texera_db' AND table_name = 'user' AND column_name = 'avatar'
+    ) THEN
+        ALTER TABLE "user" RENAME COLUMN google_avatar TO avatar;
+    END IF;
+END
+$$;
+
+-- ck_nulltest constrained password/google_id, which are about to disappear. Its "every user
+-- has a credential" rule cannot be a row-level check once credentials live in a child table,
+-- so it is dropped rather than reshaped: a user with no auth_provider row is now legal and
+-- simply cannot log in.
+ALTER TABLE "user" DROP CONSTRAINT IF EXISTS ck_nulltest;
+ALTER TABLE "user" DROP COLUMN IF EXISTS password;
+ALTER TABLE "user" DROP COLUMN IF EXISTS google_id;
+
+-- ============================================================================
+-- Part 2: the avatar becomes the provider's full URL
+-- ============================================================================
+
+-- A full URL does not fit in the old width.
 ALTER TABLE "user" ALTER COLUMN avatar TYPE VARCHAR(512);
 
--- 2. Pictureless Google logins used to record an empty string; NULL is now the single
---    representation of "this user has no avatar", so the frontend has one case to handle.
+-- Pictureless Google logins used to record an empty string; NULL is now the single
+-- representation of "this user has no avatar", so the frontend has one case to handle.
 UPDATE "user" SET avatar = NULL WHERE avatar = '';
 
--- 3. Promote the remaining bare fragments to absolute URLs. The `NOT LIKE` guard makes this
---    idempotent and leaves already-absolute values (from a re-run, or from a provider added
---    after this migration) untouched.
+-- Promote the remaining bare fragments to absolute URLs. The `NOT LIKE` guard makes this
+-- idempotent and leaves already-absolute values (from a re-run, or from a provider added
+-- after this migration) untouched.
 UPDATE "user"
 SET avatar = 'https://lh3.googleusercontent.com/a/' || avatar
 WHERE avatar IS NOT NULL

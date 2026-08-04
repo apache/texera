@@ -63,12 +63,8 @@
         <sqlFile path="sql/updates/30.sql"/>
     </changeSet>
 
-    <!-- Split auth credentials out of "user" into auth_provider -->
-    <changeSet id="31" author="Neilk1021">
-        <sqlFile path="sql/updates/31.sql"/>
-    </changeSet>
-
-    <!-- Store the provider's full avatar URL instead of a Google-specific fragment -->
+    <!-- Split auth credentials out of "user" into auth_provider, and store the provider's
+         full avatar URL instead of a Google-specific fragment -->
     <changeSet id="32" author="Neilk1021">
         <sqlFile path="sql/updates/32.sql"/>
     </changeSet>
