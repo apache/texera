@@ -27,6 +27,7 @@ import org.apache.texera.common.config.UserSystemConfig
 import org.apache.texera.dao.jooq.generated.enums.ProviderTypeEnum
 import org.apache.texera.web.model.http.response.TokenIssueResponse
 
+import java.io.IOException
 import java.util.Collections
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
@@ -63,21 +64,26 @@ class GoogleAuthResource {
   @Path("/clientid")
   def getClientId: String = clientId
 
+  private lazy val verifier =
+    new GoogleIdTokenVerifier.Builder(new NetHttpTransport, GsonFactory.getDefaultInstance)
+      .setAudience(Collections.singletonList(clientId))
+      .build()
+
   /**
     * Verify `credential` against Google, yielding its payload, or None if it is not a valid
     * token for this client. The only seam that reaches the network, so tests override it
     * instead of signing a token; kept a method rather than a constructor parameter because
     * Jersey instantiates this resource from `classOf[GoogleAuthResource]`.
     */
-  protected def verifiedPayload(credential: String): Option[GoogleIdToken.Payload] =
-    Option(
-      new GoogleIdTokenVerifier.Builder(new NetHttpTransport, GsonFactory.getDefaultInstance)
-        .setAudience(
-          Collections.singletonList(clientId)
-        )
-        .build()
-        .verify(credential)
-    ).map(_.getPayload)
+  protected def verifiedPayload(credential: String): Option[GoogleIdToken.Payload] = {
+    val idToken =
+      try Option(GoogleIdToken.parse(GsonFactory.getDefaultInstance, credential))
+      catch {
+        case _: IllegalArgumentException | _: IOException => None
+      }
+
+    idToken.filter(verifier.verify).map(_.getPayload)
+  }
 
   @POST
   @Consumes(Array(MediaType.TEXT_PLAIN))
