@@ -63,6 +63,11 @@
         <sqlFile path="sql/updates/30.sql"/>
     </changeSet>
 
+    <!-- Link dataset contributors to user accounts (placeholder accounts) -->
+    <changeSet id="31" author="xuang7">
+        <sqlFile path="sql/updates/31.sql"/>
+    </changeSet>
+
     <!-- Split auth credentials out of "user" into auth_provider, and store the provider's
          full avatar URL instead of a Google-specific fragment -->
     <changeSet id="32" author="Neilk1021">

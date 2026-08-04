@@ -111,7 +111,13 @@ CREATE TABLE IF NOT EXISTS "user"
     comment                 TEXT,
     account_creation_time   TIMESTAMPTZ NOT NULL DEFAULT now(),
     affiliation             VARCHAR(128),
-    joining_reason          VARCHAR(500)
+    joining_reason          VARCHAR(500),
+    -- placeholder accounts are auto-created for dataset contributors and carry no credentials until claimed
+    is_placeholder          BOOLEAN NOT NULL DEFAULT FALSE
+    -- ck_nulltest ("every non-placeholder account has a credential") is deliberately not
+    -- carried over: credentials now live in auth_provider, so the rule spans two tables and
+    -- cannot be a row-level CHECK. A user with no auth_provider row is legal and simply
+    -- cannot log in; migration 32 reports any it finds.
     );
 
 CREATE TABLE IF NOT EXISTS auth_provider
@@ -126,6 +132,9 @@ CREATE TABLE IF NOT EXISTS auth_provider
     CONSTRAINT uq_provider_identity UNIQUE (provider_type, provider_id),
     CONSTRAINT ck_provider_credential CHECK ((provider_type = 'LOCAL') = (password IS NOT NULL))
     );
+
+-- Contributor emails are resolved with lower(email) lookups.
+CREATE INDEX idx_user_email_lower ON "user" (lower(email));
 
 -- user_config
 CREATE TABLE IF NOT EXISTS user_config
@@ -337,8 +346,15 @@ CREATE TABLE IF NOT EXISTS dataset_contributor
     email         VARCHAR(256),
     affiliation   VARCHAR(256),
     comments      TEXT,
-    FOREIGN KEY (did) REFERENCES dataset(did) ON DELETE CASCADE
+    uid           INT,
+    FOREIGN KEY (did) REFERENCES dataset(did) ON DELETE CASCADE,
+    FOREIGN KEY (uid) REFERENCES "user"(uid) ON DELETE SET NULL
     );
+
+-- Per-dataset contributor emails are unique (blank emails exempt).
+CREATE UNIQUE INDEX idx_dataset_contributor_did_email
+    ON dataset_contributor (did, lower(trim(email)))
+    WHERE email IS NOT NULL AND trim(email) <> '';
 
 CREATE TABLE IF NOT EXISTS dataset_upload_session
 (

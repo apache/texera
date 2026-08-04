@@ -22,6 +22,7 @@ package org.apache.texera.web.resource.auth
 import com.typesafe.scalalogging.Logger
 import org.apache.texera.auth.JwtAuth.{TOKEN_EXPIRE_TIME_IN_MINUTES, jwtClaims, jwtToken}
 import org.apache.texera.common.config.UserSystemConfig
+import org.apache.texera.common.util.EmailUtil
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.jooq.generated.Tables.{AUTH_PROVIDER, USER}
 import org.apache.texera.dao.jooq.generated.enums.{ProviderTypeEnum, UserRoleEnum}
@@ -30,7 +31,10 @@ import org.apache.texera.dao.jooq.generated.tables.pojos.User
 import org.apache.texera.web.model.http.request.auth.{UserLoginRequest, UserRegistrationRequest}
 import org.apache.texera.web.model.http.response.TokenIssueResponse
 import org.apache.texera.web.resource.auth.AuthResource._
+import org.jooq.impl.DSL
 
+import java.time.Instant
+import java.time.temporal.ChronoUnit
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
 
@@ -68,6 +72,31 @@ object AuthResource {
         None
       }
     })
+  }
+
+  /**
+    * Email identity is matched case-insensitively (backed by idx_user_email_lower),
+    * while stored emails keep their original casing.
+    */
+  def fetchUserByEmailIgnoreCase(email: String): User =
+    SqlServer
+      .getInstance()
+      .createDSLContext()
+      .selectFrom(USER)
+      .where(DSL.lower(USER.EMAIL).eq(EmailUtil.normalize(email)))
+      .fetchOneInto(classOf[User])
+
+  /**
+    * Marks a placeholder account (auto-created for a dataset contributor) as
+    * claimed, leaving persistence to the caller.
+    */
+  def claimPlaceholder(user: User): Unit = {
+    user.setIsPlaceholder(false)
+    val claimedAt = Instant.now().truncatedTo(ChronoUnit.SECONDS)
+    user.setComment(
+      Option(user.getComment).map(_ + "; ").getOrElse("") +
+        s"Claimed contributor placeholder at $claimedAt"
+    )
   }
 
   def createAdminUser(): Unit =
@@ -129,7 +158,7 @@ class AuthResource {
       throw new NotAcceptableException("Username cannot be empty")
     if (useremail.isEmpty)
       throw new NotAcceptableException("Email cannot be empty")
-    if (!useremail.matches("""^[^\s@]+@[^\s@]+\.[^\s@]+$"""))
+    if (!EmailUtil.isValid(useremail))
       throw new NotAcceptableException("Email format is invalid.")
     if (userpassword == null || userpassword.isEmpty)
       throw new NotAcceptableException("Password cannot be empty")
@@ -139,7 +168,23 @@ class AuthResource {
     // handles (letting the insert die on uq_provider_identity as a 500) and rejected free ones,
     // because an external login rewrites the display name but never the handle.
     val usernameExists = LocalAuthProvisioner.handleExists(username)
-    val emailExists = userDao.fetchOneByEmail(useremail) != null
+    val existingByEmail = fetchUserByEmailIgnoreCase(useremail)
+    val emailExists = existingByEmail != null
+
+    // A placeholder account (created for a dataset contributor, never had any
+    // credential) is claimed by the first registration with its email. The
+    // account keeps its uid, so existing contributor links stay valid, and it
+    // stays INACTIVE until an admin approves it.
+    //
+    // The credential is written to auth_provider rather than onto the user row, in the same
+    // transaction as the claim, so the account cannot end up marked claimed with nothing to
+    // log in with.
+    if (!usernameExists && emailExists && existingByEmail.getIsPlaceholder) {
+      existingByEmail.setName(username)
+      claimPlaceholder(existingByEmail)
+      LocalAuthProvisioner.claimWithLocalCredential(existingByEmail, username, userpassword)
+      return TokenIssueResponse(jwtToken(jwtClaims(existingByEmail, TOKEN_EXPIRE_TIME_IN_MINUTES)))
+    }
 
     (usernameExists, emailExists) match {
       case (true, _) =>

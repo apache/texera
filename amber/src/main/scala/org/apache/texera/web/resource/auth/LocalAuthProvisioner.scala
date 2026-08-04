@@ -104,6 +104,37 @@ object LocalAuthProvisioner {
     }
   }
 
+  /**
+    * Persist `user` and give it a LOCAL credential in one transaction, for an account row that
+    * already exists — claiming a dataset-contributor placeholder. The counterpart to
+    * [[createLocalAccount]], which inserts the user instead of updating it; both write the
+    * credential in the same transaction as the user row so an account can never be left in a
+    * state where it looks claimed but has nothing to log in with.
+    */
+  def claimWithLocalCredential(user: User, handle: String, rawPassword: String): Unit = {
+    val hashedPassword = hashPassword(rawPassword)
+
+    try {
+      SqlServer.withTransaction(SqlServer.getInstance().createDSLContext()) { ctx =>
+        new UserDao(ctx.configuration()).update(user)
+
+        val auth = new AuthProvider
+        auth.setUid(user.getUid)
+        auth.setProviderType(ProviderTypeEnum.LOCAL)
+        auth.setProviderId(handle)
+        auth.setPassword(hashedPassword)
+        new AuthProviderDao(ctx.configuration()).insert(auth)
+      }
+    } catch {
+      case e: DataAccessException if e.sqlState() == UNIQUE_VIOLATION =>
+        throw new WebApplicationException(
+          s"Login handle $handle is already taken",
+          e,
+          Response.Status.CONFLICT
+        )
+    }
+  }
+
   /** Create an INACTIVE account whose display name is its login handle. */
   def createLocalAccount(handle: String, rawPassword: String): Unit = {
     val user = new User

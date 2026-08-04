@@ -135,7 +135,15 @@ object ExternalAuthProvisioner extends LazyLogging {
           val user = Option(txUserDao.fetchOneByEmail(profile.email)) match {
             case Some(existing) =>
               existing.tap { user =>
-                if (refresh(user, profile)) txUserDao.update(user)
+                // A placeholder account (auto-created for a dataset contributor, never had a
+                // credential) is claimed by the first external identity that proves ownership
+                // of its email. It keeps its uid, so existing contributor links stay valid.
+                // Reaching here already required profile.emailVerified.
+                val claimed = user.getIsPlaceholder
+                if (claimed) AuthResource.claimPlaceholder(user)
+                // refresh() must run regardless so its mutations are applied
+                val drifted = refresh(user, profile)
+                if (drifted || claimed) txUserDao.update(user)
               }
             case None =>
               val created = new User()

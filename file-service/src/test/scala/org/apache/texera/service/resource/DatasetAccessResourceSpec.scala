@@ -19,7 +19,7 @@
 
 package org.apache.texera.service.resource
 
-import jakarta.ws.rs.ForbiddenException
+import jakarta.ws.rs.{BadRequestException, ForbiddenException}
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.dao.MockTexeraDB
 import org.apache.texera.dao.jooq.generated.enums.{PrivilegeEnum, UserRoleEnum}
@@ -264,6 +264,25 @@ class DatasetAccessResourceSpec
     entries.head.email shouldEqual readGranteeUser.getEmail
     entries.head.name shouldEqual readGranteeUser.getName
     entries.head.privilege shouldEqual PrivilegeEnum.READ
+  }
+
+  it should "reject granting to a placeholder account" in {
+    val placeholder = new User
+    placeholder.setName("ds_placeholder")
+    placeholder.setEmail("ds-placeholder@test.com")
+    placeholder.setRole(UserRoleEnum.INACTIVE)
+    placeholder.setIsPlaceholder(true)
+    new UserDao(getDSLContext.configuration()).insert(placeholder)
+
+    assertThrows[BadRequestException] {
+      accessResource.grantAccess(
+        privateDataset.getDid,
+        "ds-placeholder@test.com",
+        "READ",
+        ownerSession
+      )
+    }
+    accessList(privateDataset.getDid) shouldBe empty
   }
 
   it should "update the privilege in place when re-granting with a different privilege" in {

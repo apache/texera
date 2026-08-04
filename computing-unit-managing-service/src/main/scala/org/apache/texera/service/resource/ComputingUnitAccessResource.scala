@@ -120,7 +120,7 @@ class ComputingUnitAccessResource {
     */
   private def resolveUidByEmail(email: String): Integer = {
     val user = userDao.fetchOneByEmail(email)
-    if (user == null) {
+    if (user == null || user.getIsPlaceholder) {
       throw new BadRequestException("User with the given email does not exist")
     }
     user.getUid
