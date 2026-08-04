@@ -136,12 +136,17 @@ object ExternalAuthProvisioner extends LazyLogging {
                 if (refresh(user, profile)) txUserDao.update(user)
               }
             case None =>
-              new User().tap { user =>
-                user.setName(profile.name)
-                user.setEmail(profile.email)
-                profile.avatar.foreach(user.setAvatar)
-                user.setRole(UserRoleEnum.INACTIVE)
-                txUserDao.insert(user)
+              val created = new User()
+              created.setName(profile.name)
+              created.setEmail(profile.email)
+              profile.avatar.foreach(created.setAvatar)
+              created.setRole(UserRoleEnum.INACTIVE)
+              try {
+                txUserDao.insert(created)
+                created
+              } catch {
+                case e: org.jooq.exception.DataAccessException if e.sqlState() == "23505" =>
+                  Option(txUserDao.fetchOneByEmail(profile.email)).getOrElse(throw e)
               }
           }
 
