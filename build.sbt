@@ -117,6 +117,9 @@ val nettyDependencyOverrides = Seq(
 // keep the org.apache.log4j API available at runtime.
 ThisBuild / excludeDependencies += ExclusionRule("log4j", "log4j")
 
+// Dependency-free helpers (retry/backoff, ...) that any module may depend on. Keep it that way:
+// anything added here reaches the classpath of every service that depends on it.
+lazy val Util = (project in file("common/util")).settings(commonModuleSettings)
 lazy val DAO = (project in file("common/dao")).settings(commonModuleSettings)
 lazy val Config = (project in file("common/config")).settings(commonModuleSettings)
 lazy val Resource = (project in file("common/resource")).settings(commonModuleSettings)
@@ -126,7 +129,8 @@ lazy val Auth = (project in file("common/auth"))
   .dependsOn(DAO, Config)
   .dependsOn(DAO % "test->test") // reuse MockTexeraDB embedded Postgres in tests
 lazy val ConfigService = (project in file("config-service"))
-  .dependsOn(Auth, Config, Resource)
+  .dependsOn(Auth, Config, DAO, Resource)
+  .dependsOn(DAO % "test->test") // reuse MockTexeraDB embedded Postgres in tests
   .settings(commonModuleSettings)
   .settings(
     dependencyOverrides ++= Seq(
@@ -155,13 +159,20 @@ lazy val PyBuilder = (project in file("common/pybuilder"))
 
 lazy val WorkflowCore = (project in file("common/workflow-core"))
   .settings(commonModuleSettings)
-  .dependsOn(DAO, Config, PyBuilder)
+  .dependsOn(DAO, Config, PyBuilder, Util)
   .configs(Test)
   .dependsOn(DAO % "test->test") // test scope dependency
 lazy val ComputingUnitManagingService = (project in file("computing-unit-managing-service"))
   .dependsOn(WorkflowCore, Auth, Config, Resource)
+  .configs(Test)
+  .dependsOn(DAO % "test->test") // reuse MockTexeraDB embedded Postgres in tests
   .settings(commonModuleSettings)
+  .configs(Test)
+  .dependsOn(DAO % "test->test", Auth % "test->test") // reuse MockTexeraDB embedded Postgres in tests
   .settings(
+    // MockTexeraDB swaps a JVM-wide singleton (SqlServer's embedded Postgres),
+    // so run suites serially to avoid cross-suite races.
+    Test / parallelExecution := false,
     dependencyOverrides ++= Seq(
       // override it as io.dropwizard 4 require 2.16.1 or higher
       "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonVersion,
@@ -171,11 +182,35 @@ lazy val ComputingUnitManagingService = (project in file("computing-unit-managin
       // with "Scala module 2.18.8 requires Jackson Databind version >= 2.18.0
       // and < 2.19.0 - Found jackson-databind version 2.21.0").
       "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion
-    ) ++ nettyDependencyOverrides
+    ) ++ nettyDependencyOverrides,
+    // Fork the test JVM so the sharing feature flag can be enabled: ComputingUnitConfig
+    // reads computing-unit.conf's sharing.enabled as a load-time val (default false,
+    // overridable only via the COMPUTING_UNIT_SHARING_ENABLED env var), and the
+    // access-resource tests need it on to reach the share/revoke code paths. Also run
+    // from the repo root so MockTexeraDB can resolve sql/texera_ddl.sql by relative path.
+    Test / fork := true,
+    Test / envVars += "COMPUTING_UNIT_SHARING_ENABLED" -> "true",
+    Test / forkOptions := (Test / forkOptions).value
+      .withWorkingDirectory((ThisBuild / baseDirectory).value),
+    // Isolate the sharing-disabled suite into its own forked JVM without
+    // COMPUTING_UNIT_SHARING_ENABLED: the config flag is a load-time val, so the disabled
+    // branch can only be exercised where the env var is absent (not merely unset per-test).
+    // All other suites keep running together in one forked JVM (the pre-grouping default).
+    Test / testGrouping := {
+      val opts = (Test / forkOptions).value
+      val (disabled, enabled) =
+        (Test / definedTests).value.partition(_.name.endsWith("SharingDisabledSpec"))
+      val enabledGroup = Tests.Group("sharing-enabled", enabled, Tests.SubProcess(opts))
+      val disabledGroups = disabled.map { suite =>
+        val disabledOpts = opts.withEnvVars(opts.envVars - "COMPUTING_UNIT_SHARING_ENABLED")
+        Tests.Group(suite.name, Seq(suite), Tests.SubProcess(disabledOpts))
+      }
+      enabledGroup +: disabledGroups
+    }
   )
 lazy val FileService = (project in file("file-service"))
   .settings(commonModuleSettings)
-  .dependsOn(WorkflowCore, Auth, Config, Resource)
+  .dependsOn(WorkflowCore, Auth, Config, Resource, Util)
   .configs(Test)
   .dependsOn(DAO % "test->test") // test scope dependency
   .settings(
@@ -198,8 +233,12 @@ lazy val FileService = (project in file("file-service"))
   )
 
 lazy val WorkflowOperator = (project in file("common/workflow-operator")).settings(commonModuleSettingsWithVendored).dependsOn(WorkflowCore)
+lazy val WorkflowCompiler = (project in file("common/workflow-compiler"))
+  .settings(commonModuleSettings)
+  .configs(Test)
+  .dependsOn(WorkflowOperator)
 lazy val WorkflowCompilingService = (project in file("workflow-compiling-service"))
-  .dependsOn(WorkflowOperator, Auth, Config, Resource)
+  .dependsOn(WorkflowCompiler, Auth, Config, Resource)
   .settings(commonModuleSettings)
   .settings(
     dependencyOverrides ++= Seq(
@@ -211,7 +250,7 @@ lazy val WorkflowCompilingService = (project in file("workflow-compiling-service
   )
 
 lazy val WorkflowExecutionService = (project in file("amber"))
-  .dependsOn(WorkflowOperator, Auth, Config)
+  .dependsOn(WorkflowCompiler, Auth, Config)
   .settings(commonModuleSettings)
   .settings(
     dependencyOverrides ++= Seq(
@@ -247,10 +286,12 @@ lazy val TexeraProject = (project in file("."))
     Auth,
     Config,
     Resource,
+    Util,
     DAO,
     PyBuilder,
     WorkflowCore,
     WorkflowOperator,
+    WorkflowCompiler,
     // services
     AccessControlService,
     ComputingUnitManagingService,

@@ -73,7 +73,7 @@ class DocumentFactory:
     def create_document(uri: str, schema: Schema) -> VirtualDocument:
         parsed_uri = urlparse(uri)
         if parsed_uri.scheme == VFSURIFactory.VFS_FILE_URI_SCHEME:
-            _, _, _, resource_type = VFSURIFactory.decode_uri(uri)
+            resource_type = VFSURIFactory.decode_uri(uri).resource_type
             namespace = DocumentFactory._resolve_namespace(resource_type)
             storage_key = DocumentFactory.sanitize_uri_path(parsed_uri)
             # Convert Amber Schema to Iceberg Schema with LARGE_BINARY
@@ -116,7 +116,7 @@ class DocumentFactory:
         """
         parsed_uri = urlparse(uri)
         if parsed_uri.scheme == VFSURIFactory.VFS_FILE_URI_SCHEME:
-            _, _, _, resource_type = VFSURIFactory.decode_uri(uri)
+            resource_type = VFSURIFactory.decode_uri(uri).resource_type
             namespace = DocumentFactory._resolve_namespace(resource_type)
             storage_key = DocumentFactory.sanitize_uri_path(parsed_uri)
             return IcebergCatalogInstance.get_instance().table_exists(
@@ -131,7 +131,7 @@ class DocumentFactory:
     def open_document(uri: str) -> typing.Tuple[VirtualDocument, Optional[Schema]]:
         parsed_uri = urlparse(uri)
         if parsed_uri.scheme == VFSURIFactory.VFS_FILE_URI_SCHEME:
-            _, _, _, resource_type = VFSURIFactory.decode_uri(uri)
+            resource_type = VFSURIFactory.decode_uri(uri).resource_type
             namespace = DocumentFactory._resolve_namespace(resource_type)
             storage_key = DocumentFactory.sanitize_uri_path(parsed_uri)
 

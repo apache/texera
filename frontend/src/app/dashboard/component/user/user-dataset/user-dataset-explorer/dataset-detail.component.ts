@@ -18,16 +18,22 @@
  */
 
 import { Component, EventEmitter, OnInit, Output, ViewChild } from "@angular/core";
-import { ActivatedRoute } from "@angular/router";
+import { ActivatedRoute, Router } from "@angular/router";
+import { USER_DATASET } from "../../../../../app-routing.constant";
+import { extractErrorMessage } from "../../../../../common/util/error";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { DatasetService, MultipartUploadProgress } from "../../../../service/user/dataset/dataset.service";
+import {
+  DatasetService,
+  MultipartUploadProgress,
+  validateDatasetName,
+} from "../../../../service/user/dataset/dataset.service";
 import { NzResizeEvent, NzResizableDirective, NzResizeHandleComponent } from "ng-zorro-antd/resizable";
 import {
   DatasetFileNode,
   getFullPathFromDatasetFileNode,
   getRelativePathFromDatasetFileNode,
 } from "../../../../../common/type/datasetVersionFileTree";
-import { DatasetVersion } from "../../../../../common/type/dataset";
+import { Contributor, DatasetVersion } from "../../../../../common/type/dataset";
 import { switchMap, throttleTime } from "rxjs/operators";
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
 import { DownloadService } from "../../../../service/user/download/download.service";
@@ -40,10 +46,14 @@ import { DatasetStagedObject } from "../../../../../common/type/dataset-staged-o
 import { NzModalService } from "ng-zorro-antd/modal";
 import { AdminSettingsService } from "../../../../service/admin/settings/admin-settings.service";
 import { HttpErrorResponse, HttpStatusCode } from "@angular/common/http";
-import { Subscription } from "rxjs";
-import { formatCount, formatSpeed, formatTime } from "src/app/common/util/format.util";
+import { EMPTY, Subscription } from "rxjs";
+import { formatCount, formatSpeed, formatTime, parseIntOrDefault } from "src/app/common/util/format.util";
+import { replaceOneImmutable } from "src/app/common/util/array-utils";
 import { format } from "date-fns";
 import { NgIf, NgClass, NgFor } from "@angular/common";
+import { NzDropdownDirective, NzDropdownMenuComponent } from "ng-zorro-antd/dropdown";
+import { NzMenuDirective, NzMenuItemComponent } from "ng-zorro-antd/menu";
+import { UserDatasetContributorEditorComponent } from "./user-dataset-contributor-editor/user-dataset-contributor-editor.component";
 import { NzCardComponent, NzCardMetaComponent } from "ng-zorro-antd/card";
 import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
 import { NzTagComponent } from "ng-zorro-antd/tag";
@@ -51,13 +61,14 @@ import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patc
 import { NzIconDirective } from "ng-zorro-antd/icon";
 import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
 import { NzButtonComponent } from "ng-zorro-antd/button";
-import { NzPopoverDirective } from "ng-zorro-antd/popover";
+import { NzPopconfirmDirective } from "ng-zorro-antd/popconfirm";
 import { NzSwitchComponent } from "ng-zorro-antd/switch";
 import { FormsModule } from "@angular/forms";
 import { MarkdownDescriptionComponent } from "../../markdown-description/markdown-description.component";
 import { NzLayoutComponent, NzContentComponent, NzSiderComponent } from "ng-zorro-antd/layout";
 import { NzWaveDirective } from "ng-zorro-antd/core/wave";
 import { NzEmptyComponent } from "ng-zorro-antd/empty";
+import { NzTabsComponent, NzTabComponent } from "ng-zorro-antd/tabs";
 import { UserDatasetFileRendererComponent } from "./user-dataset-file-renderer/user-dataset-file-renderer.component";
 import { NzCollapseComponent, NzCollapsePanelComponent } from "ng-zorro-antd/collapse";
 import { NzSelectComponent, NzOptionComponent } from "ng-zorro-antd/select";
@@ -88,7 +99,7 @@ export const ABORT_RETRY_BACKOFF_BASE_MS = 100;
     NzIconDirective,
     NzSpaceCompactItemDirective,
     NzButtonComponent,
-    NzPopoverDirective,
+    NzPopconfirmDirective,
     NzSwitchComponent,
     FormsModule,
     MarkdownDescriptionComponent,
@@ -96,6 +107,8 @@ export const ABORT_RETRY_BACKOFF_BASE_MS = 100;
     NzContentComponent,
     NzWaveDirective,
     NzEmptyComponent,
+    NzTabsComponent,
+    NzTabComponent,
     UserDatasetFileRendererComponent,
     NzSiderComponent,
     NzResizableDirective,
@@ -114,11 +127,16 @@ export const ABORT_RETRY_BACKOFF_BASE_MS = 100;
     CdkVirtualScrollViewport,
     CdkFixedSizeVirtualScroll,
     CdkVirtualForOf,
+    NzDropdownDirective,
+    NzDropdownMenuComponent,
+    NzMenuDirective,
+    NzMenuItemComponent,
   ],
 })
 export class DatasetDetailComponent implements OnInit {
   public did: number | undefined;
   public datasetName: string = "";
+  public editedDatasetName: string = "";
   public datasetDescription: string = "";
   public datasetCreationTime: string = "";
   public datasetCreationTimeTooltip: string = "";
@@ -128,6 +146,7 @@ export class DatasetDetailComponent implements OnInit {
   public userDatasetAccessLevel: "READ" | "WRITE" | "NONE" = "NONE";
   public ownerEmail: string = "";
   public isOwner: boolean = false;
+  public datasetContributors: ReadonlyArray<Contributor> = [];
 
   public currentDisplayedFileName: string = "";
   public currentFileSize: number | undefined;
@@ -140,6 +159,14 @@ export class DatasetDetailComponent implements OnInit {
   public selectedVersion: DatasetVersion | undefined;
   public fileTreeNodeList: DatasetFileNode[] = [];
   public selectedVersionCreationTime: string = "";
+  // The following three fields describe the latest version for the Data Card, all
+  // sourced from the single retrieveDatasetLatestVersion response so they stay
+  // mutually consistent and independent of the version selected in Versions & Files.
+  public latestVersionCreationTime: string = "";
+  public latestVersionFileName: string = "";
+  public latestVersionSize: number | undefined;
+  // Holds the in-flight latest-version fetch so a later call can supersede it.
+  private latestVersionFileSubscription: Subscription | undefined;
 
   public versionCreatorBaseVersion: DatasetVersion | undefined;
   public isLogin: boolean = this.userService.isLogin();
@@ -194,6 +221,7 @@ export class DatasetDetailComponent implements OnInit {
 
   constructor(
     private route: ActivatedRoute,
+    private router: Router,
     private modalService: NzModalService,
     private datasetService: DatasetService,
     private notificationService: NotificationService,
@@ -230,6 +258,7 @@ export class DatasetDetailComponent implements OnInit {
           this.did = params["did"];
           this.retrieveDatasetInfo();
           this.retrieveDatasetVersionList();
+          this.retrieveLatestVersionFile();
           return this.route.data; // or some other observable
         }),
         untilDestroyed(this)
@@ -286,6 +315,7 @@ export class DatasetDetailComponent implements OnInit {
             this.unconfirmedStagedPaths.clear();
             this.refreshPendingChanges();
             this.retrieveDatasetVersionList();
+            this.retrieveLatestVersionFile();
             this.userMakeChanges.emit();
           },
           error: (res: unknown) => {
@@ -359,6 +389,7 @@ export class DatasetDetailComponent implements OnInit {
         .subscribe(dashboardDataset => {
           const dataset = dashboardDataset.dataset;
           this.datasetName = dataset.name;
+          this.editedDatasetName = dataset.name;
           this.datasetDescription = dataset.description;
           this.userDatasetAccessLevel = dashboardDataset.accessPrivilege;
           this.datasetIsPublic = dataset.isPublic;
@@ -388,6 +419,7 @@ export class DatasetDetailComponent implements OnInit {
                 .pop() || "";
             this.datasetCreationTimeTooltip = `${format(date, "zzzz")} (${timeZoneName})`;
           }
+          this.datasetContributors = dashboardDataset.contributors || [];
         });
     }
   }
@@ -405,6 +437,43 @@ export class DatasetDetailComponent implements OnInit {
             this.selectedVersion = this.versions[0];
             this.onVersionSelected(this.selectedVersion);
           }
+        });
+    }
+  }
+
+  // Fetches the latest version independently of the current selection and derives
+  // the Data Card's latest-version facts from that single response: the file name
+  // and created date directly, and the total size via a follow-up file-tree fetch
+  // for the latest version's dvid (mirroring onVersionSelected's size lookup).
+  retrieveLatestVersionFile() {
+    if (this.did) {
+      const did = this.did;
+      // Both fetches live in one subscription (chained with switchMap rather than
+      // nested subscribes) so dropping it cancels whichever is still in flight:
+      // a call started here supersedes any earlier one, and a slow response from
+      // the superseded call can no longer overwrite fresher facts out of order.
+      this.latestVersionFileSubscription?.unsubscribe();
+      this.latestVersionFileSubscription = this.datasetService
+        .retrieveDatasetLatestVersion(did)
+        .pipe(
+          switchMap(version => {
+            const firstFile = this.getFirstFileNode(version.fileNodes ?? []);
+            this.latestVersionFileName = firstFile ? getFullPathFromDatasetFileNode(firstFile) : "";
+            this.latestVersionCreationTime =
+              typeof version.creationTime === "number"
+                ? format(new Date(version.creationTime), "MM/dd/yyyy HH:mm:ss")
+                : "";
+            if (!version.dvid) {
+              // Nothing to size: clear rather than keep a previous call's size.
+              this.latestVersionSize = undefined;
+              return EMPTY;
+            }
+            return this.datasetService.retrieveDatasetVersionFileTree(did, version.dvid, this.isLogin);
+          }),
+          untilDestroyed(this)
+        )
+        .subscribe(data => {
+          this.latestVersionSize = data.size;
         });
     }
   }
@@ -467,12 +536,21 @@ export class DatasetDetailComponent implements OnInit {
             const date = new Date(version.creationTime);
             this.selectedVersionCreationTime = format(date, "MM/dd/yyyy HH:mm:ss");
           }
-          let currentNode = this.fileTreeNodeList[0];
-          while (currentNode.type === "directory" && currentNode.children) {
-            currentNode = currentNode.children[0];
+          const currentNode = this.getFirstFileNode(this.fileTreeNodeList);
+          if (currentNode) {
+            this.loadFileContent(currentNode);
           }
-          this.loadFileContent(currentNode);
         });
+  }
+
+  // Walk from the first node into directories until reaching a file, returning a
+  // representative leaf file node (or undefined if the tree has no files).
+  private getFirstFileNode(nodes: DatasetFileNode[]): DatasetFileNode | undefined {
+    let currentNode: DatasetFileNode | undefined = nodes[0];
+    while (currentNode && currentNode.type === "directory" && currentNode.children) {
+      currentNode = currentNode.children[0];
+    }
+    return currentNode;
   }
 
   onVersionFileTreeNodeSelected(node: DatasetFileNode) {
@@ -503,20 +581,29 @@ export class DatasetDetailComponent implements OnInit {
     return fileName;
   }
 
+  // A missing key or failed fetch keeps the field defaults; NaN here would
+  // silently stall the upload queue (`activeUploads < NaN` is always false).
   private loadUploadSettings(): void {
     this.adminSettingsService
-      .getSetting("multipart_upload_chunk_size_mib")
+      .getPublicSetting("multipart_upload_chunk_size_mib")
       .pipe(untilDestroyed(this))
-      .subscribe(value => (this.chunkSizeMiB = parseInt(value)));
+      .subscribe({
+        next: value => (this.chunkSizeMiB = parseIntOrDefault(value, this.chunkSizeMiB)),
+        error: () => {},
+      });
     this.adminSettingsService
-      .getSetting("max_number_of_concurrent_uploading_file_chunks")
+      .getPublicSetting("max_number_of_concurrent_uploading_file_chunks")
       .pipe(untilDestroyed(this))
-      .subscribe(value => (this.maxConcurrentChunks = parseInt(value)));
+      .subscribe({
+        next: value => (this.maxConcurrentChunks = parseIntOrDefault(value, this.maxConcurrentChunks)),
+        error: () => {},
+      });
     this.adminSettingsService
-      .getSetting("max_number_of_concurrent_uploading_file")
+      .getPublicSetting("max_number_of_concurrent_uploading_file")
       .pipe(untilDestroyed(this))
-      .subscribe(value => {
-        this.maxConcurrentFiles = parseInt(value);
+      .subscribe({
+        next: value => (this.maxConcurrentFiles = parseIntOrDefault(value, this.maxConcurrentFiles)),
+        error: () => {},
       });
   }
 
@@ -908,6 +995,52 @@ export class DatasetDetailComponent implements OnInit {
       });
   }
 
+  onSaveDatasetName(): void {
+    if (!this.did) {
+      return;
+    }
+    // Reject invalid names outright instead of silently rewriting them, matching
+    // the shared validation used by the other rename entry points (PR #6426).
+    const name = this.editedDatasetName;
+    const nameError = validateDatasetName(name);
+    if (nameError) {
+      this.notificationService.error(nameError);
+      return;
+    }
+
+    this.datasetService
+      .updateDatasetName(this.did, name)
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: () => {
+          this.datasetName = name;
+          this.editedDatasetName = name;
+          this.notificationService.success(`Dataset name updated to '${name}'`);
+        },
+        error: (err: unknown) => {
+          this.notificationService.error(extractErrorMessage(err));
+        },
+      });
+  }
+
+  onDeleteDataset(): void {
+    if (!this.did) {
+      return;
+    }
+    this.datasetService
+      .deleteDatasets(this.did)
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: () => {
+          this.notificationService.success(`Dataset ${this.datasetName} was deleted`);
+          this.router.navigate([USER_DATASET]);
+        },
+        error: (err: unknown) => {
+          this.notificationService.error(extractErrorMessage(err));
+        },
+      });
+  }
+
   async copyCurrentFilePath(): Promise<void> {
     if (!this.currentDisplayedFileName) {
       return;
@@ -919,5 +1052,58 @@ export class DatasetDetailComponent implements OnInit {
     } catch (error) {
       this.notificationService.error("Failed to copy file path");
     }
+  }
+
+  onAddContributor(): void {
+    this.openContributorEditor("Add Contributor", null, newContributor => [
+      ...this.datasetContributors,
+      newContributor,
+    ]);
+  }
+
+  onEditContributor(contributor: Contributor): void {
+    this.openContributorEditor("Edit Contributor", contributor, updated =>
+      replaceOneImmutable(this.datasetContributors, c => c === contributor, updated)
+    );
+  }
+
+  onDeleteContributor(contributor: Contributor): void {
+    this.saveContributors(this.datasetContributors.filter(c => c !== contributor));
+  }
+
+  private openContributorEditor(
+    title: string,
+    data: Contributor | null,
+    apply: (result: Contributor) => ReadonlyArray<Contributor>
+  ): void {
+    const modal = this.modalService.create({
+      nzTitle: title,
+      nzContent: UserDatasetContributorEditorComponent,
+      nzFooter: null,
+      nzData: data,
+    });
+    modal.afterClose.pipe(untilDestroyed(this)).subscribe(result => {
+      if (result) {
+        this.saveContributors(apply(result));
+      }
+    });
+  }
+
+  private saveContributors(next: ReadonlyArray<Contributor>): void {
+    if (!this.did) {
+      return;
+    }
+    const previous = this.datasetContributors;
+    this.datasetContributors = next;
+    this.datasetService
+      .updateDatasetContributors(this.did, next)
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: () => this.notificationService.success("Contributors updated"),
+        error: () => {
+          this.datasetContributors = previous;
+          this.notificationService.error("Failed to update contributors");
+        },
+      });
   }
 }

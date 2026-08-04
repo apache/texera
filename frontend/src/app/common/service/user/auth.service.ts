@@ -62,13 +62,15 @@ export class AuthService {
    * This method will handle the request for user registration.
    * It will automatically login, save the user account inside and trigger userChangeEvent when success
    * @param username
+   * @param email
    * @param password
    */
-  public register(username: string, password: string): Observable<Readonly<{ accessToken: string }>> {
+  public register(username: string, email: string, password: string): Observable<Readonly<{ accessToken: string }>> {
     return this.http.post<Readonly<{ accessToken: string }>>(
       `${AppSettings.getApiEndpoint()}/${AuthService.REGISTER_ENDPOINT}`,
       {
         username,
+        email,
         password,
       }
     );

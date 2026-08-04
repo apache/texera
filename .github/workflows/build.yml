@@ -122,7 +122,7 @@ jobs:
       - name: Prepare Yarn 4.14.1
         run: corepack enable && corepack prepare yarn@4.14.1 --activate
       - name: Setup Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: "3.12"
       - name: Install dependency
@@ -228,7 +228,7 @@ jobs:
         env:
           PGPASSWORD: postgres
       - name: Setup sbt launcher
-        uses: sbt/setup-sbt@66fb4376e81982c7d92a4074170846fff88e2e30 # v1.5.0
+        uses: sbt/setup-sbt@6444f4c8111de4b9059c3975def104b03cfaa5f0 # v1.5.2
       - uses: coursier/cache-action@95e5b1029b6b86e7bac033ee44a0697d8a527d2d # v8.1.1
         with:
           extraSbtFiles: '["*.sbt", "project/**.{scala,sbt}", "project/build.properties" ]'
@@ -291,14 +291,29 @@ jobs:
           AMBER_TEST_FILTER: skip-integration
           # unit job uses its provisioned postgres catalog; default (rest) needs a Lakekeeper not run here
           STORAGE_ICEBERG_CATALOG_TYPE: postgres
+          # Backstop for CI log volume: the chatty per-worker/per-message engine
+          # logs are DEBUG in source; pin the JVM root and the spawned Python UDF
+          # workers so nothing at INFO leaks into the CI console. Re-running the
+          # job with "Enable debug logging" (which sets runner.debug to '1')
+          # flips both to DEBUG, bringing the full engine trace back on demand.
+          # Mind the spelling: logback's level is WARN, but loguru (the Python
+          # worker) only knows WARNING and raises ValueError on "WARN" — which
+          # crashes the worker at startup before it hands its port back,
+          # hanging the whole job. pekko.loglevel shares loguru's vocabulary;
+          # PekkoConfig.normalizePekkoLogLevel translates the logback spelling
+          # so the JVM knob can stay WARN here.
+          TEXERA_SERVICE_LOG_LEVEL: ${{ runner.debug == '1' && 'DEBUG' || 'WARN' }}
+          UDF_PYTHON_LOG_STREAMHANDLER_LEVEL: ${{ runner.debug == '1' && 'DEBUG' || 'WARNING' }}
         run: |
           sbt "DAO/jacoco" \
               "Auth/jacoco" \
               "Config/jacoco" \
               "Resource/jacoco" \
+              "Util/jacoco" \
               "PyBuilder/jacoco" \
               "WorkflowCore/jacoco" \
               "WorkflowOperator/jacoco" \
+              "WorkflowCompiler/jacoco" \
               "WorkflowExecutionService/jacoco"
       - name: Upload amber and common coverage to Codecov
         if: always()
@@ -330,6 +345,12 @@ jobs:
     # cutting lints (scalafmt / scalafix) and the amber dist + binary
     # license check stay in `amber`; this job is tests-only.
     if: ${{ inputs.run_amber_integration }}
+    # A Python UDF worker that fails to start (e.g. a bad log level) leaves the
+    # JVM blocked on the proxy handshake with no internal timeout, so the whole
+    # job would otherwise hang until GitHub's 6h cap. Fail fast instead: recent
+    # green runs take 9-17 minutes, so 25 leaves headroom for a cold cache or a
+    # slow macOS runner without masking a real hang.
+    timeout-minutes: 25
     strategy:
       # macOS provisions postgres / minio / lakekeeper natively because
       # GitHub-hosted macOS runners have no Docker (and `services:`
@@ -360,7 +381,7 @@ jobs:
           distribution: "temurin"
           java-version: 17
       - name: Setup Python for Scala-Python integration tests
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: "3.11"
       - name: Show Python
@@ -446,7 +467,7 @@ jobs:
         env:
           PGPASSWORD: postgres
       - name: Setup sbt launcher
-        uses: sbt/setup-sbt@66fb4376e81982c7d92a4074170846fff88e2e30 # v1.5.0
+        uses: sbt/setup-sbt@6444f4c8111de4b9059c3975def104b03cfaa5f0 # v1.5.2
       - uses: coursier/cache-action@95e5b1029b6b86e7bac033ee44a0697d8a527d2d # v8.1.1
         with:
           extraSbtFiles: '["*.sbt", "project/**.{scala,sbt}", "project/build.properties" ]'
@@ -609,6 +630,19 @@ jobs:
         # by amber's unit-test coverage.
         env:
           AMBER_TEST_FILTER: integration-only
+          # Backstop for CI log volume: the chatty per-worker/per-message engine
+          # logs are DEBUG in source; pin the JVM root and the spawned Python UDF
+          # workers so nothing at INFO leaks into the CI console. Re-running the
+          # job with "Enable debug logging" (which sets runner.debug to '1')
+          # flips both to DEBUG, bringing the full engine trace back on demand.
+          # Mind the spelling: logback's level is WARN, but loguru (the Python
+          # worker) only knows WARNING and raises ValueError on "WARN" — which
+          # crashes the worker at startup before it hands its port back,
+          # hanging the whole job. pekko.loglevel shares loguru's vocabulary;
+          # PekkoConfig.normalizePekkoLogLevel translates the logback spelling
+          # so the JVM knob can stay WARN here.
+          TEXERA_SERVICE_LOG_LEVEL: ${{ runner.debug == '1' && 'DEBUG' || 'WARN' }}
+          UDF_PYTHON_LOG_STREAMHANDLER_LEVEL: ${{ runner.debug == '1' && 'DEBUG' || 'WARNING' }}
         run: |
           sbt scalafmtCheckAll \
               "scalafixAll --check" \
@@ -638,9 +672,36 @@ jobs:
         # root (the default) that resolves to ./amber and reads
         # amber/src/main/resources/web-config.yml (port 8080).
         if: matrix.os == 'ubuntu-latest'
+        env:
+          # Quiet boot logs, same wiring as the test steps above. Safe here:
+          # smoke-boot's verdict is LISTEN-based, never log-scraping (#6332).
+          TEXERA_SERVICE_LOG_LEVEL: ${{ runner.debug == '1' && 'DEBUG' || 'WARN' }}
         run: .github/scripts/smoke-boot.sh "/tmp/dists/amber-*/bin/texera-web-application" 8080
+      - name: Smoke-test computing-unit-master boots
+        # computing-unit-master boots on postgres only, like texera-web: main
+        # starts a LOCAL Pekko actor master (clusterMode defaults to false with
+        # no --cluster arg, so no external seed/discovery and the cluster-only
+        # checkip.amazonaws.com lookup is never reached), then run() calls
+        # SqlServer.initConnection against the postgres provisioned above. The
+        # boot-time result-store cleanup is gated on
+        # ApplicationConfig.cleanupAllExecutionResults, which defaults to false,
+        # so no iceberg / S3 access. Config resolves via Utils.amberHomePath to
+        # amber/src/main/resources/computing-unit-master-config.yml (port 8085).
+        # Reuses the amber dist built + unzipped above for the texera-web boot.
+        if: matrix.os == 'ubuntu-latest'
+        env:
+          # Quiet boot logs, same wiring as the test steps above. Safe here:
+          # smoke-boot's verdict is LISTEN-based, never log-scraping (#6332).
+          TEXERA_SERVICE_LOG_LEVEL: ${{ runner.debug == '1' && 'DEBUG' || 'WARN' }}
+        run: .github/scripts/smoke-boot.sh "/tmp/dists/amber-*/bin/computing-unit-master" 8085
       - name: Run Python integration tests
         # --junit-xml feeds the Test Analytics upload below.
+        env:
+          # Pytest runs with -s, so loguru's default stderr sink prints
+          # straight into the CI log; pin it to WARNING (loguru has no WARN)
+          # and flip to DEBUG on debug re-runs. Sinks that tests add with an
+          # explicit level are unaffected.
+          LOGURU_LEVEL: ${{ runner.debug == '1' && 'DEBUG' || 'WARNING' }}
         run: |
           cd amber && pytest -m integration --junit-xml=junit-integration.xml -sv
       - name: Upload amber integration test results to Codecov
@@ -713,7 +774,7 @@ jobs:
           distribution: "temurin"
           java-version: 17
       - name: Setup sbt launcher
-        uses: sbt/setup-sbt@66fb4376e81982c7d92a4074170846fff88e2e30 # v1.5.0
+        uses: sbt/setup-sbt@6444f4c8111de4b9059c3975def104b03cfaa5f0 # v1.5.2
       - uses: coursier/cache-action@95e5b1029b6b86e7bac033ee44a0697d8a527d2d # v8.1.1
         with:
           extraSbtFiles: '["*.sbt", "project/**.{scala,sbt}", "project/build.properties" ]'
@@ -727,6 +788,12 @@ jobs:
       - name: Build dist and run ${{ matrix.service }} tests with coverage
         # Single sbt invocation so dist + test share compiled state. Use
         # `jacoco` so the codecov upload step has a report to pick up.
+        env:
+          # CI log-volume backstop, same wiring as the amber jobs: every
+          # platform service reads this into its Dropwizard logging config
+          # (logback vocabulary, hence WARN); a re-run with "Enable debug
+          # logging" flips it to DEBUG.
+          TEXERA_SERVICE_LOG_LEVEL: ${{ runner.debug == '1' && 'DEBUG' || 'WARN' }}
         run: sbt "${{ matrix.sbt_project }}/dist" "${{ matrix.sbt_project }}/jacoco"
       - name: Unzip ${{ matrix.service }} dist and check binary LICENSE + NOTICE
         # Each platform service has its own LICENSE-binary / NOTICE-binary at
@@ -847,7 +914,7 @@ jobs:
           distribution: "temurin"
           java-version: 17
       - name: Setup sbt launcher
-        uses: sbt/setup-sbt@66fb4376e81982c7d92a4074170846fff88e2e30 # v1.5.0
+        uses: sbt/setup-sbt@6444f4c8111de4b9059c3975def104b03cfaa5f0 # v1.5.2
       - uses: coursier/cache-action@95e5b1029b6b86e7bac033ee44a0697d8a527d2d # v8.1.1
         with:
           extraSbtFiles: '["*.sbt", "project/**.{scala,sbt}", "project/build.properties" ]'
@@ -912,6 +979,9 @@ jobs:
         # without a runtime classpath/linkage crash (#6220).
         env:
           TEXERA_HOME: ${{ github.workspace }}
+          # Quiet boot logs, same wiring as the amber jobs. Safe here:
+          # smoke-boot's verdict is LISTEN-based, never log-scraping (#6332).
+          TEXERA_SERVICE_LOG_LEVEL: ${{ runner.debug == '1' && 'DEBUG' || 'WARN' }}
         run: .github/scripts/smoke-boot.sh "/tmp/dists/${{ matrix.service }}-*/bin/${{ matrix.service }}" "${{ matrix.port }}"
 
   pyamber:
@@ -943,7 +1013,7 @@ jobs:
         if: ${{ inputs.backport_target_branch != '' }}
         run: bash ./.github/scripts/prepare-backport-checkout.sh "${{ inputs.backport_target_branch }}" "${{ inputs.backport_commit_range }}"
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install dependencies
@@ -1000,6 +1070,12 @@ jobs:
         # --junit-xml emits a JUnit-XML report alongside the coverage XML
         # so the Test Analytics upload below can feed Codecov's failing-
         # test PR comments and flaky-test detection on main.
+        env:
+          # Pytest runs with -s, so loguru's default stderr sink prints
+          # straight into the CI log; pin it to WARNING (loguru has no WARN)
+          # and flip to DEBUG on debug re-runs. Sinks that tests add with an
+          # explicit level are unaffected.
+          LOGURU_LEVEL: ${{ runner.debug == '1' && 'DEBUG' || 'WARNING' }}
         run: |
           cd amber && pytest -m "not integration" --cov=src/main/python --cov-report=xml --junit-xml=junit.xml -sv
       - name: Upload pyamber coverage to Codecov
@@ -1071,6 +1147,12 @@ jobs:
         # --reporter=junit emits a JUnit-XML alongside coverage so the
         # Test Analytics upload below can feed Codecov's failing-test PR
         # comments and flaky-test detection on main.
+        env:
+          # CI log-volume backstop, same wiring as the JVM jobs. env.ts
+          # validates against ["ERROR","WARN","INFO","DEBUG"] before mapping
+          # to pino's lowercase levels, so the logback spelling WARN is the
+          # right one here too.
+          TEXERA_SERVICE_LOG_LEVEL: ${{ runner.debug == '1' && 'DEBUG' || 'WARN' }}
         run: bun test --coverage --coverage-reporter=lcov --reporter=junit --reporter-outfile=junit.xml
       - name: Upload agent-service coverage to Codecov
         if: matrix.os == 'ubuntu-latest' && always()
@@ -1120,7 +1202,7 @@ jobs:
         if: ${{ inputs.backport_target_branch != '' }}
         run: bash ./.github/scripts/prepare-backport-checkout.sh "${{ inputs.backport_target_branch }}" "${{ inputs.backport_commit_range }}"
       - name: Setup Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install Python test deps

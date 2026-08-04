@@ -65,7 +65,7 @@ export class StubAuthService implements PublicInterfaceOf<AuthService> {
     return undefined;
   }
 
-  register(username: string, password: string): Observable<Readonly<{ accessToken: string }>> {
+  register(username: string, email: string, password: string): Observable<Readonly<{ accessToken: string }>> {
     if (username !== "existing_user") {
       return of(MOCK_TOKEN);
     } else {

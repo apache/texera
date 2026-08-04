@@ -48,6 +48,26 @@
         <sqlFile path="sql/updates/27.sql"/>
     </changeSet>
 
+    <!-- Enforce unique dataset names per owner -->
+    <changeSet id="28" author="kunwp1">
+        <sqlFile path="sql/updates/28.sql"/>
+    </changeSet>
+
+    <!-- Widen execution size columns to BIGINT (#6978) -->
+    <changeSet id="29" author="mengw15">
+        <sqlFile path="sql/updates/29.sql"/>
+    </changeSet>
+
+    <!-- Add dataset_contributor table (contributor metadata for datasets) -->
+    <changeSet id="30" author="xuang7">
+        <sqlFile path="sql/updates/30.sql"/>
+    </changeSet>
+
+    <!-- Link dataset contributors to user accounts (placeholder accounts) -->
+    <changeSet id="31" author="xuang7">
+        <sqlFile path="sql/updates/31.sql"/>
+    </changeSet>
+
     <!-- example changeSet
     <changeSet id="1" author="author">
         <sqlFile path="sql/updates/1.sql"/>
