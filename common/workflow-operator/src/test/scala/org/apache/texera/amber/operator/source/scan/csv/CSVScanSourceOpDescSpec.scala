@@ -20,6 +20,8 @@
 package org.apache.texera.amber.operator.source.scan.csv
 
 import com.fasterxml.jackson.databind.JsonNode
+import com.fasterxml.jackson.databind.node.TextNode
+import com.github.fge.jsonschema.main.JsonSchemaFactory
 import org.apache.texera.amber.core.storage.FileResolver
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.workflow.WorkflowContext.{
@@ -56,6 +58,15 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
       .generateOperatorJsonSchema(opDescClass)
       .path("properties")
       .path("customDelimiter")
+
+  // The property editor validates a stored delimiter against the schema, so validate
+  // the same way rather than restating the bound the schema declares.
+  private def schemaValidates(propertySchema: JsonNode, delimiter: String): Boolean =
+    JsonSchemaFactory
+      .byDefault()
+      .getJsonSchema(propertySchema)
+      .validate(TextNode.valueOf(delimiter))
+      .isSuccess
 
   // Writes a CSV whose header row has an empty column (the third position),
   // e.g. `id,name,,age`, and returns the absolute path.
@@ -248,13 +259,23 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
         withClue(s"$name: ") {
           val propertySchema = delimiterSchema(opDescClass)
           assert(propertySchema.path("type").asText() == "string")
-          // The upper bound is what the property editor validates a stored delimiter
-          // against, so one character is the longest it calls valid and anything
-          // longer -- `,;`, `;abc` -- is what it starts flagging.
           assert(propertySchema.path("maxLength").asInt() == 1)
-          // Deliberately no lower bound: the field is optional and every reader
-          // resolves an empty delimiter to a comma, so clearing it stays valid.
-          assert(propertySchema.path("minLength").isMissingNode)
+        }
+    }
+  }
+
+  it should "validate an empty or one-character delimiter and refuse a longer one" in {
+    delimiterOwners.foreach {
+      case (name, opDescClass) =>
+        withClue(s"$name: ") {
+          val propertySchema = delimiterSchema(opDescClass)
+          // Empty stays valid: the field is optional and every reader resolves an
+          // empty delimiter to a comma, so clearing it must not be an error.
+          assert(schemaValidates(propertySchema, ""))
+          assert(schemaValidates(propertySchema, ","))
+          assert(schemaValidates(propertySchema, ";"))
+          assert(!schemaValidates(propertySchema, ",;"))
+          assert(!schemaValidates(propertySchema, ";abc"))
         }
     }
   }
