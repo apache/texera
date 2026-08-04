@@ -74,10 +74,12 @@ object ExternalAuthProvisioner extends LazyLogging {
     */
   private[auth] def sanitizedAvatar(profile: ExternalProfile): Option[String] =
     profile.avatar.filter { url =>
-      val host = Try(URI.create(url)).toOption.filter { uri =>
-        val scheme = Option(uri.getScheme).map(_.toLowerCase)
-        scheme.contains("http") || scheme.contains("https")
-      }.flatMap(uri => Option(uri.getHost))
+      val host = Try(URI.create(url)).toOption
+        .filter { uri =>
+          val scheme = Option(uri.getScheme).map(_.toLowerCase)
+          scheme.contains("http") || scheme.contains("https")
+        }
+        .flatMap(uri => Option(uri.getHost))
 
       val allowed = host.exists(isAllowedAvatarHost)
       if (!allowed) {
@@ -139,7 +141,7 @@ object ExternalAuthProvisioner extends LazyLogging {
               val created = new User()
               created.setName(profile.name)
               created.setEmail(profile.email)
-              profile.avatar.foreach(created.setAvatar)
+              sanitizedAvatar(profile).foreach(created.setAvatar)
               created.setRole(UserRoleEnum.INACTIVE)
               try {
                 txUserDao.insert(created)
@@ -185,7 +187,7 @@ object ExternalAuthProvisioner extends LazyLogging {
       user.setEmail(profile.email)
       changed = true
     }
-    profile.avatar.foreach { avatar =>
+    sanitizedAvatar(profile).foreach { avatar =>
       if (user.getAvatar != avatar) {
         user.setAvatar(avatar)
         changed = true

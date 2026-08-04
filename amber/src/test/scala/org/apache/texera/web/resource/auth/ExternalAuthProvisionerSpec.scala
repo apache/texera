@@ -66,6 +66,12 @@ class ExternalAuthProvisionerSpec
 
   // ---- helpers -------------------------------------------------------------
 
+  /**
+    * An avatar URL on an allowlisted host. The provisioner drops anything else, so tests that
+    * expect an avatar to be stored have to use a host the allowlist actually accepts.
+    */
+  private def avatarUrl(id: String): String = s"https://lh3.googleusercontent.com/a/$id"
+
   /** Seed a user row directly; uid is DB-assigned and read back into the pojo. */
   private def seedUser(name: String, localPart: String, avatar: String = null): User = {
     val user = new User
@@ -110,14 +116,14 @@ class ExternalAuthProvisionerSpec
         "New User",
         "new" + emailDomain,
         emailVerified = true,
-        avatar = Some("avatar1")
+        avatar = Some(avatarUrl("avatar1"))
       )
     )
 
     user.getUid should not be null
     user.getName shouldBe "New User"
     user.getEmail shouldBe "new" + emailDomain
-    user.getAvatar shouldBe "avatar1"
+    user.getAvatar shouldBe avatarUrl("avatar1")
     user.getRole shouldBe UserRoleEnum.INACTIVE
 
     providerRowCount(user.getUid) shouldBe 1
@@ -134,7 +140,7 @@ class ExternalAuthProvisionerSpec
         "Ret",
         "ret" + emailDomain,
         emailVerified = true,
-        avatar = Some("a")
+        avatar = Some(avatarUrl("a"))
       )
 
     val first = ExternalAuthProvisioner.loginOrProvision(profile)
@@ -156,7 +162,7 @@ class ExternalAuthProvisionerSpec
         "Old Name",
         "drift" + emailDomain,
         emailVerified = true,
-        avatar = Some("oldpic")
+        avatar = Some(avatarUrl("oldpic"))
       )
     )
     val updated = ExternalAuthProvisioner.loginOrProvision(
@@ -166,15 +172,15 @@ class ExternalAuthProvisionerSpec
         "New Name",
         "drift" + emailDomain,
         emailVerified = true,
-        avatar = Some("newpic")
+        avatar = Some(avatarUrl("newpic"))
       )
     )
 
     updated.getName shouldBe "Old Name"
-    updated.getAvatar shouldBe "newpic"
+    updated.getAvatar shouldBe avatarUrl("newpic")
     // confirm it persisted, not just mutated in memory
     userDao.fetchOneByUid(updated.getUid).getName shouldBe "Old Name"
-    userDao.fetchOneByUid(updated.getUid).getAvatar shouldBe "newpic"
+    userDao.fetchOneByUid(updated.getUid).getAvatar shouldBe avatarUrl("newpic")
   }
 
   // ---- unverified email ------------------------------------------------------
@@ -251,7 +257,7 @@ class ExternalAuthProvisionerSpec
         "Renamer",
         "before" + emailDomain,
         emailVerified = true,
-        avatar = Some("pic")
+        avatar = Some(avatarUrl("pic"))
       )
     )
 
@@ -262,7 +268,7 @@ class ExternalAuthProvisionerSpec
         "Renamer",
         "after" + emailDomain,
         emailVerified = true,
-        avatar = Some("pic")
+        avatar = Some(avatarUrl("pic"))
       )
     )
 
@@ -274,7 +280,7 @@ class ExternalAuthProvisionerSpec
   // `avatar = None` is the documented contract for providers that supply no picture: the
   // column keeps whatever it held rather than being blanked on every login.
   it should "leave the stored avatar untouched when the provider supplies none" in {
-    val existing = seedUser("Keeper", "keeper", avatar = "keep-me")
+    val existing = seedUser("Keeper", "keeper", avatar = avatarUrl("keep-me"))
 
     val result = ExternalAuthProvisioner.loginOrProvision(
       ExternalProfile(
@@ -288,8 +294,79 @@ class ExternalAuthProvisionerSpec
     )
 
     result.getUid shouldBe existing.getUid
-    result.getAvatar shouldBe "keep-me"
-    userDao.fetchOneByUid(existing.getUid).getAvatar shouldBe "keep-me"
+    result.getAvatar shouldBe avatarUrl("keep-me")
+    userDao.fetchOneByUid(existing.getUid).getAvatar shouldBe avatarUrl("keep-me")
+  }
+
+  // ---- avatar host allowlist -------------------------------------------------
+
+  // The stored avatar is a provider-supplied URL the frontend renders directly, so an
+  // unexpected host is dropped rather than persisted. Dropping beats rejecting: a surprising
+  // avatar is not a reason to deny a login, and the user falls back to the initials avatar.
+  it should "drop an avatar served from a host outside the allowlist" in {
+    val user = ExternalAuthProvisioner.loginOrProvision(
+      ExternalProfile(
+        ProviderTypeEnum.GOOGLE,
+        "sub-badhost",
+        "Bad Host",
+        "badhost" + emailDomain,
+        emailVerified = true,
+        avatar = Some("https://evil.example.com/tracker.gif")
+      )
+    )
+
+    user.getAvatar shouldBe null
+    userDao.fetchOneByUid(user.getUid).getAvatar shouldBe null
+  }
+
+  it should "drop a non-http(s) avatar such as a javascript: or data: URL" in {
+    val user = ExternalAuthProvisioner.loginOrProvision(
+      ExternalProfile(
+        ProviderTypeEnum.GOOGLE,
+        "sub-badscheme",
+        "Bad Scheme",
+        "badscheme" + emailDomain,
+        emailVerified = true,
+        avatar = Some("javascript:alert(1)")
+      )
+    )
+
+    user.getAvatar shouldBe null
+  }
+
+  // A provider that starts serving avatars from an unexpected host must not be able to
+  // overwrite one that is already stored.
+  it should "keep the stored avatar when a later login supplies a disallowed host" in {
+    val existing = seedUser("Holder", "holder", avatar = avatarUrl("original"))
+    seedExternalProvider(existing.getUid, ProviderTypeEnum.GOOGLE, "sub-holder")
+
+    ExternalAuthProvisioner.loginOrProvision(
+      ExternalProfile(
+        ProviderTypeEnum.GOOGLE,
+        "sub-holder",
+        "Holder",
+        "holder" + emailDomain,
+        emailVerified = true,
+        avatar = Some("https://evil.example.com/tracker.gif")
+      )
+    )
+
+    userDao.fetchOneByUid(existing.getUid).getAvatar shouldBe avatarUrl("original")
+  }
+
+  it should "accept an avatar on a subdomain of an allowlisted host" in {
+    val user = ExternalAuthProvisioner.loginOrProvision(
+      ExternalProfile(
+        ProviderTypeEnum.GOOGLE,
+        "sub-subdomain",
+        "Subdomain",
+        "subdomain" + emailDomain,
+        emailVerified = true,
+        avatar = Some("https://lh6.googleusercontent.com/a/OTHER-CDN")
+      )
+    )
+
+    user.getAvatar shouldBe "https://lh6.googleusercontent.com/a/OTHER-CDN"
   }
 
   // ---- email match, no provider yet ----------------------------------------
@@ -304,7 +381,7 @@ class ExternalAuthProvisionerSpec
         "Local User",
         "linkme" + emailDomain,
         emailVerified = true,
-        avatar = Some("pic")
+        avatar = Some(avatarUrl("pic"))
       )
     )
 
@@ -326,7 +403,7 @@ class ExternalAuthProvisionerSpec
         "Rotating",
         "rotate" + emailDomain,
         emailVerified = true,
-        avatar = Some("p")
+        avatar = Some(avatarUrl("p"))
       )
     )
 

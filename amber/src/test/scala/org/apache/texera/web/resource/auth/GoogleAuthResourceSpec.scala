@@ -150,14 +150,12 @@ class GoogleAuthResourceSpec
     userByEmail("blank").getName shouldBe "blank" + emailDomain
   }
 
-  it should "store only the last path segment of the picture URL" in {
+  it should "store the picture URL in full" in {
     loginWith(payload("google-sub-avatar", "avatar" + emailDomain))
 
-    userByEmail("avatar").getAvatar shouldBe "AVATAR-ID"
+    userByEmail("avatar").getAvatar shouldBe "https://lh3.googleusercontent.com/a/AVATAR-ID"
   }
 
-  // A missing `picture` maps to None, not Some("") — so the provisioner's documented
-  // "leave the stored avatar alone" path is reachable instead of blanking the column.
   it should "leave the avatar unset when the payload carries no picture" in {
     loginWith(payload("google-sub-nopic", "nopic" + emailDomain, picture = null))
 
@@ -165,12 +163,13 @@ class GoogleAuthResourceSpec
   }
 
   it should "keep an already-stored avatar when a later login carries no picture" in {
+    val stored = "https://lh3.googleusercontent.com/a/AVATAR-ID"
     loginWith(payload("google-sub-keeppic", "keeppic" + emailDomain))
-    userByEmail("keeppic").getAvatar shouldBe "AVATAR-ID"
+    userByEmail("keeppic").getAvatar shouldBe stored
 
     loginWith(payload("google-sub-keeppic", "keeppic" + emailDomain, picture = null))
 
-    userByEmail("keeppic").getAvatar shouldBe "AVATAR-ID"
+    userByEmail("keeppic").getAvatar shouldBe stored
   }
 
   // ---- unverified email ----------------------------------------------------
@@ -193,11 +192,11 @@ class GoogleAuthResourceSpec
   }
 
   // The one case that runs the real `verifiedPayload` rather than the stub. A string that is not
-  // three dot-separated parts fails in the local JWT parse, so no request to Google is made and
-  // this stays a unit test. Characterises today's behaviour: the parse error propagates, which
-  // Jersey renders as a 500 rather than the 401 a bad credential gets.
-  it should "fail on a malformed credential before reaching Google" in {
-    an[IllegalArgumentException] should be thrownBy new GoogleAuthResource().login("not-a-jwt")
+  // three dot-separated parts fails the local JWT parse, so no request to Google is made and this
+  // stays a unit test. The parse failure is swallowed into None, so a malformed credential yields
+  // the same 401 as any other bad credential instead of escaping as a 500.
+  it should "reject a malformed credential with a 401 before reaching Google" in {
+    a[NotAuthorizedException] should be thrownBy new GoogleAuthResource().login("not-a-jwt")
   }
 
   // ---- client id -----------------------------------------------------------
