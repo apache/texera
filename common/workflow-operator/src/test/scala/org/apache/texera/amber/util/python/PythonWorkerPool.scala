@@ -26,8 +26,18 @@ import org.apache.texera.amber.util.JSONUtils.objectMapper
 import java.io.{BufferedReader, BufferedWriter, InputStreamReader, OutputStreamWriter}
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path, StandardCopyOption}
-import java.util.concurrent.{ConcurrentHashMap, LinkedBlockingQueue, TimeUnit}
+import java.util.concurrent.{
+  Callable,
+  ConcurrentHashMap,
+  ExecutionException,
+  ExecutorService,
+  Executors,
+  LinkedBlockingQueue,
+  TimeUnit,
+  TimeoutException
+}
 import java.util.concurrent.atomic.AtomicInteger
+import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.jdk.CollectionConverters._
 import scala.util.control.NonFatal
@@ -161,6 +171,11 @@ object PythonWorkerPool extends LazyLogging {
     pool.run(request, timeouts)
   }
 
+  /** How long a caller at the worker cap waits before re-examining it. Not a
+    * deadline — see [[Pool.borrow]].
+    */
+  private val CapRecheckMillis: Long = 250
+
   private val pools = new ConcurrentHashMap[String, Pool]()
 
   Runtime.getRuntime.addShutdownHook(new Thread(() => shutdownAll()))
@@ -194,10 +209,11 @@ object PythonWorkerPool extends LazyLogging {
       }
     }
 
+    @tailrec
     private def borrow(timeouts: Timeouts): Worker = {
       val existing = idle.poll()
-      if (existing != null) return existing
-      if (liveCount.getAndIncrement() < maxWorkers) {
+      if (existing != null) existing
+      else if (liveCount.getAndIncrement() < maxWorkers) {
         try create(timeouts)
         catch {
           case e: Throwable =>
@@ -206,7 +222,13 @@ object PythonWorkerPool extends LazyLogging {
         }
       } else {
         liveCount.decrementAndGet()
-        idle.take() // at the cap — block until a worker is returned
+        // At the cap. Waiting outright for a returned worker would strand this
+        // caller when the ones ahead are discarded instead: a discard frees a
+        // slot without putting anything back. So wait only briefly, then look at
+        // the cap again — the next pass starts a replacement. A long queue still
+        // waits as long as it takes; that is the caller's own backlog, not a hang.
+        val returned = idle.poll(CapRecheckMillis, TimeUnit.MILLISECONDS)
+        if (returned != null) returned else borrow(timeouts)
       }
     }
 
@@ -264,6 +286,13 @@ object PythonWorkerPool extends LazyLogging {
     // deadline, and only closing the pipe — killing the process — releases it.
     private val lines = new LinkedBlockingQueue[Option[String]]()
 
+    // Owns the writing end for the same reason.
+    private val writer: ExecutorService = Executors.newSingleThreadExecutor { r =>
+      val t = new Thread(r, "python-worker-stdin")
+      t.setDaemon(true)
+      t
+    }
+
     private val outThread: Thread = {
       val t = new Thread(() => {
         val r =
@@ -318,9 +347,7 @@ object PythonWorkerPool extends LazyLogging {
 
     def run(request: ObjectNode, timeoutMillis: Long): Outcome =
       try {
-        stdin.write(objectMapper.writeValueAsString(request))
-        stdin.write("\n")
-        stdin.flush()
+        send(request, timeoutMillis)
         val node = objectMapper.readTree(nextLine(timeoutMillis, "answer"))
         Outcome(
           node.path("exit").asInt(1),
@@ -335,6 +362,37 @@ object PythonWorkerPool extends LazyLogging {
             e
           )
       }
+
+    /** Hand the request over, on the same deadline as the answer. A worker that
+      * has stopped reading its stdin blocks the write as soon as the payload
+      * outgrows the pipe buffer, and that write is no more interruptible than the
+      * read, so it too runs on a thread of its own — a daemon, so a lost one
+      * cannot keep the JVM alive. Killing the worker closes the pipe, which is
+      * what releases that thread.
+      */
+    private def send(request: ObjectNode, timeoutMillis: Long): Unit = {
+      val write = writer.submit(new Callable[Unit] {
+        override def call(): Unit = {
+          stdin.write(objectMapper.writeValueAsString(request))
+          stdin.write("\n")
+          stdin.flush()
+        }
+      })
+      try write.get(timeoutMillis, TimeUnit.MILLISECONDS)
+      catch {
+        case _: TimeoutException =>
+          destroy()
+          throw new WorkerDiedException(
+            s"python worker [$label] did not read its request within ${timeoutMillis}ms;" +
+              s" killed it. stderr:\n${drainErr()}"
+          )
+        case e: ExecutionException =>
+          throw new WorkerDiedException(
+            s"I/O error sending to python worker [$label]: ${e.getCause.getMessage}",
+            e.getCause
+          )
+      }
+    }
 
     /** One protocol line, or a [[WorkerDiedException]]: the worker ended the
       * stream, or it went `timeoutMillis` without writing. `what` names what was
@@ -357,13 +415,21 @@ object PythonWorkerPool extends LazyLogging {
 
     private def drainErr(): String = errBuf.synchronized(errBuf.toString)
 
-    /** Idempotent: called on a crash, a timeout, and again on pool shutdown. */
+    /** Idempotent: called on a crash, a timeout, and again on pool shutdown.
+      *
+      * The process goes first and the streams after: a write blocked on a full
+      * pipe only comes back once the pipe has no reader, and closing the buffered
+      * writer would try to flush into that same pipe — so closing first is itself
+      * a way to hang. Nothing is flushed on the way out; a worker being destroyed
+      * has no use for the rest of a request.
+      */
     def destroy(): Unit = {
-      try stdin.close()
-      catch { case NonFatal(_) => () }
+      writer.shutdownNow()
       process.destroy()
       try if (!process.waitFor(2, TimeUnit.SECONDS)) process.destroyForcibly()
       catch { case NonFatal(_) => process.destroyForcibly() }
+      try process.getOutputStream.close()
+      catch { case NonFatal(_) => () }
     }
   }
 }

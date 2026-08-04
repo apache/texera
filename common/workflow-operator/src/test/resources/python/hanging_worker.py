@@ -22,7 +22,10 @@ timeout exists for. A crash is not a substitute — that closes the pipe and the
 read returns on its own.
 
   --hang-before-ready  never announce readiness
-  (default)            announce readiness, then never answer a request
+  --deaf               announce readiness, then never read stdin at all, which
+                       blocks the parent's write once the request outgrows the
+                       pipe buffer
+  (default)            announce readiness, read a request, then never answer it
 """
 from __future__ import annotations
 
@@ -44,6 +47,9 @@ def main() -> None:
 
     sys.stdout.write(json.dumps({"ready": True}) + "\n")
     sys.stdout.flush()
+
+    if "--deaf" in sys.argv:
+        _sleep_forever()
 
     for _ in sys.stdin:
         _sleep_forever()

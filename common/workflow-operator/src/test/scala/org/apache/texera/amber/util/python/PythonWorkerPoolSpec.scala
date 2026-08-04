@@ -22,17 +22,22 @@ package org.apache.texera.amber.util.python
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.funsuite.AnyFunSuite
 
-import java.util.concurrent.TimeUnit
+import java.util.concurrent.{Executors, TimeUnit}
+import scala.concurrent.duration._
+import scala.concurrent.{Await, ExecutionContext, ExecutionContextExecutorService, Future}
 import scala.util.Try
 
 /**
   * What the pool owes a caller when a worker misbehaves. An ordinary job failure
-  * is the other suites' business; this one is about the two ways a worker stops
-  * being usable, and it exists because only one of them ends by itself: a crash
-  * closes the pipe and the read returns, while a worker that stays alive without
-  * answering would hold the reading thread forever — a read on a process pipe
-  * answers neither an interrupt nor a deadline, so a suite-level timeout cannot
-  * unblock it.
+  * is the other suites' business; this one is about a worker that stays alive and
+  * stops taking part, which is the case that does not end by itself: a crash
+  * closes the pipe and the pending read returns, while silence would hold the
+  * caller forever — neither a read nor a write on a process pipe answers an
+  * interrupt or a deadline, so no suite-level timeout can release one.
+  *
+  * Every wait here is bounded and runs on daemon threads, so a regression fails
+  * these tests instead of wedging the run: a lost non-daemon thread parked on a
+  * pipe would keep the JVM, and the build, alive.
   *
   * The fixture worker is stdlib-only and runs under `-I -S`, so this needs an
   * interpreter but none of the operator packages.
@@ -48,6 +53,11 @@ final class PythonWorkerPoolSpec extends AnyFunSuite {
   private val ShortTimeouts: PythonWorkerPool.Timeouts =
     PythonWorkerPool.Timeouts(responseMillis = 1500, startupMillis = 1500)
 
+  /** Ceiling on a whole case, well above the deadlines under test. Reaching it
+    * means something never gave up.
+    */
+  private val Bound: FiniteDuration = 25.seconds
+
   /** Any interpreter serves — the fixture imports only `json` and `time` — so
     * this deliberately skips the configured `python.path` the suites that need
     * pandas resolve. A machine without one cancels rather than fails.
@@ -62,21 +72,42 @@ final class PythonWorkerPoolSpec extends AnyFunSuite {
     List("python3", "python", "py").find(isRunnable).getOrElse(cancel("no runnable python"))
   }
 
-  private def runHanging(launchArgs: Seq[String]): PythonWorkerPool.WorkerDiedException =
+  private def onDaemonThreads[T](threads: Int)(body: ExecutionContext => T): T = {
+    val pool = Executors.newFixedThreadPool(
+      threads,
+      (r: Runnable) => {
+        val t = new Thread(r, "pool-spec-caller")
+        t.setDaemon(true)
+        t
+      }
+    )
+    val ec: ExecutionContextExecutorService = ExecutionContext.fromExecutorService(pool)
+    try body(ec)
+    finally pool.shutdownNow()
+  }
+
+  private def hangingCall(
+      launchArgs: Seq[String],
+      request: com.fasterxml.jackson.databind.node.ObjectNode = objectMapper.createObjectNode()
+  ): PythonWorkerPool.Outcome =
+    PythonWorkerPool.run(
+      resourcePath = HangingWorker,
+      launchArgs = launchArgs,
+      pythonExe = python(),
+      request = request,
+      interpreterArgs = Seq("-I", "-S"),
+      timeouts = ShortTimeouts
+    )
+
+  /** The call, on a daemon thread and under [[Bound]], expected to give up. */
+  private def interceptBounded(call: => Any): PythonWorkerPool.WorkerDiedException =
     intercept[PythonWorkerPool.WorkerDiedException] {
-      PythonWorkerPool.run(
-        resourcePath = HangingWorker,
-        launchArgs = launchArgs,
-        pythonExe = python(),
-        request = objectMapper.createObjectNode(),
-        interpreterArgs = Seq("-I", "-S"),
-        timeouts = ShortTimeouts
-      )
+      onDaemonThreads(1)(ec => Await.result(Future(call)(ec), Bound))
     }
 
   test("a worker that takes the job and stops answering is killed and reported") {
     val startedAt = System.nanoTime()
-    val thrown = runHanging(Seq.empty)
+    val thrown = interceptBounded(hangingCall(Seq.empty))
     val elapsedMillis = (System.nanoTime() - startedAt) / 1000000
 
     assert(thrown.getMessage.contains("did not answer"))
@@ -88,15 +119,42 @@ final class PythonWorkerPoolSpec extends AnyFunSuite {
 
   test("a worker that never signals ready is killed and reported") {
     val startedAt = System.nanoTime()
-    val thrown = runHanging(Seq("--hang-before-ready"))
+    val thrown = interceptBounded(hangingCall(Seq("--hang-before-ready")))
     val elapsedMillis = (System.nanoTime() - startedAt) / 1000000
 
     assert(thrown.getMessage.contains("did not signal ready"))
     assert(elapsedMillis < PythonWorkerPool.Timeouts.Default.startupMillis / 2)
   }
 
+  test("a worker that never reads its request is killed and reported") {
+    val request = objectMapper.createObjectNode()
+    // Past any pipe buffer, so the write cannot simply be handed to the kernel and
+    // left there: it is the blocked write itself that has to be given up on.
+    request.put("source", "x" * (4 * 1024 * 1024))
+
+    val thrown = interceptBounded(hangingCall(Seq("--deaf"), request))
+
+    assert(thrown.getMessage.contains("did not read its request"))
+    assert(thrown.getMessage.contains("killed it"))
+  }
+
+  test("a caller waiting at the worker cap is not stranded by a discarded worker") {
+    // One caller more than there are workers, all onto a worker that goes quiet:
+    // those holding a worker time out and are discarded, which frees a slot
+    // without handing anything back, and the caller waiting at the cap has to
+    // notice that rather than wait for a hand-back that never comes.
+    val callers = PythonWorkerPool.maxWorkers + 1
+
+    val outcomes = onDaemonThreads(callers) { implicit ec =>
+      Await.result(Future.sequence(Seq.fill(callers)(Future(Try(hangingCall(Seq.empty))))), Bound)
+    }
+
+    assert(outcomes.length == callers)
+    assert(outcomes.forall(_.isFailure))
+  }
+
   test("the pool still serves jobs after it has discarded a timed-out worker") {
-    runHanging(Seq.empty)
+    interceptBounded(hangingCall(Seq.empty))
 
     val request = objectMapper.createObjectNode()
     request.put("source", "x = 1\n")
