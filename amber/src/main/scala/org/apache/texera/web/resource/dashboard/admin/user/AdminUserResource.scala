@@ -47,7 +47,8 @@ case class UserInfo(
     lastLogin: java.time.OffsetDateTime, // will be null if never logged in
     accountCreation: java.time.OffsetDateTime,
     affiliation: String,
-    joiningReason: String
+    joiningReason: String,
+    isPlaceholder: Boolean
 )
 
 object AdminUserResource {
@@ -83,7 +84,8 @@ class AdminUserResource {
         USER_LAST_ACTIVE_TIME.LAST_ACTIVE_TIME,
         USER.ACCOUNT_CREATION_TIME,
         USER.AFFILIATION,
-        USER.JOINING_REASON
+        USER.JOINING_REASON,
+        USER.IS_PLACEHOLDER
       )
       .from(USER)
       .leftJoin(USER_LAST_ACTIVE_TIME)

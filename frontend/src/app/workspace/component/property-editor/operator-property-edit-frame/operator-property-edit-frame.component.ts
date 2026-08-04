@@ -544,7 +544,11 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
    * @param event
    */
   onFormChanges(event: Record<string, unknown>): void {
-    this.sourceFormChangeEventStream.next(event);
+    const requiredFields = this.currentOperatorSchema?.jsonSchema?.required ?? [];
+    const cleanedEvent = Object.fromEntries(
+      Object.entries(event).filter(([key, value]) => value != null || requiredFields.includes(key))
+    );
+    this.sourceFormChangeEventStream.next(cleanedEvent);
   }
 
   /**
@@ -1118,7 +1122,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
 
       if (isDefined(mapSource.enum)) {
         mappedField.validators.inEnum = {
-          expression: (c: AbstractControl) => mapSource.enum?.includes(c.value ?? ""),
+          expression: (c: AbstractControl) => c.value == null || mapSource.enum?.includes(c.value),
           message: (error: any, field: FormlyFieldConfig) =>
             `"${field.formControl?.value}" is no longer a valid option`,
         };

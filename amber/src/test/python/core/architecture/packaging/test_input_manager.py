@@ -15,209 +15,346 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import threading
+from unittest.mock import MagicMock, patch
 
 import pyarrow
 import pytest
 
 import core.architecture.packaging.input_manager as input_manager_module
 from core.architecture.packaging.input_manager import InputManager
-from core.models import InternalQueue, Schema
-from core.models.payload import DataFrame, DataPayload, StateFrame
+from core.models.payload import DataFrame, StateFrame
+from core.models.schema.schema import Schema
 from core.models.state import State
 from proto.org.apache.texera.amber.core import (
     ActorVirtualIdentity,
     ChannelIdentity,
     PortIdentity,
 )
-from proto.org.apache.texera.amber.engine.architecture.sendsemantics import (
-    Partitioning,
-)
 
-WORKER_ID = "Worker:WF1-test-main-0"
+WORKER_ID = "Worker:WF0-test-op-main-0"
 
 
-def _channel_id(from_name: str, is_control: bool = False) -> ChannelIdentity:
+def _channel(name: str, is_control: bool = False) -> ChannelIdentity:
     return ChannelIdentity(
-        ActorVirtualIdentity(from_name),
+        ActorVirtualIdentity(name),
         ActorVirtualIdentity(WORKER_ID),
-        is_control,
+        is_control=is_control,
     )
 
 
-class _RecordingReaderRunnable:
-    """Stands in for InputPortMaterializationReaderRunnable, whose real
-    constructor parses the URI and instantiates a partitioner. Records the
-    constructor arguments for assertions."""
-
-    def __init__(self, uri, queue, worker_actor_id, partitioning):
-        self.uri = uri
-        self.queue = queue
-        self.worker_actor_id = worker_actor_id
-        self.partitioning = partitioning
+def _reader_stub(finished: bool, channel_name: str) -> MagicMock:
+    reader = MagicMock()
+    reader.finished.return_value = finished
+    reader.channel_id = _channel(channel_name)
+    return reader
 
 
-class _StubReaderRunnable:
-    """A minimal runnable exposing just what start_input_port_mat_reader_threads
-    touches: finished(), run(), and channel_id (used in the thread name)."""
+class TestPortIdentityDefaults:
+    """PortIdentity arrives from protobuf, where an unset scalar can reach
+    Python as None. Both add_input_port and register_input must normalise
+    those to the (0, False) defaults *before* the identity is used as a
+    dict key -- otherwise the same logical port registered through the two
+    paths would hash to two different entries.
+    """
 
-    def __init__(self, finished: bool):
-        self._finished = finished
-        self.channel_id = "stub-channel"
-        self.ran = threading.Event()
-        self.ran_on_daemon_thread = None
+    @pytest.fixture
+    def manager(self):
+        return InputManager(worker_id=WORKER_ID, input_queue=MagicMock())
 
-    def finished(self) -> bool:
-        return self._finished
-
-    def run(self) -> None:
-        self.ran_on_daemon_thread = threading.current_thread().daemon
-        self.ran.set()
-
-
-@pytest.fixture
-def input_queue():
-    return InternalQueue()
-
-
-@pytest.fixture
-def input_manager(input_queue):
-    return InputManager(WORKER_ID, input_queue)
-
-
-@pytest.fixture
-def schema():
-    return Schema(raw_schema={"name": "STRING", "age": "INTEGER"})
-
-
-class TestAddInputPort:
-    def test_none_port_fields_are_normalized(self, input_manager, schema):
+    def test_add_input_port_defaults_unset_fields(self, manager):
         port_id = PortIdentity(id=None, internal=None)
+        schema = Schema(raw_schema={"x": "INTEGER"})
 
-        input_manager.add_input_port(port_id, schema, [], [])
+        manager.add_input_port(port_id, schema, [], [])
 
-        # The passed-in identity is normalized in place, and the port is
-        # stored under the normalized key.
         assert port_id.id == 0
         assert port_id.internal is False
-        normalized = PortIdentity(id=0, internal=False)
-        assert input_manager.get_port(normalized).get_schema() is schema
+        # The normalised identity is what got keyed, so a canonical
+        # PortIdentity(0, False) resolves to the very same port.
+        assert manager.get_port(PortIdentity(0, False)).get_schema() == schema
 
-    def test_re_adding_same_port_keeps_original_worker_port(
-        self, input_manager, schema
-    ):
-        port_id = PortIdentity(id=0, internal=False)
-        input_manager.add_input_port(port_id, schema, [], [])
-        original_port = input_manager.get_port(port_id)
+    def test_register_input_defaults_unset_fields(self, manager):
+        canonical = PortIdentity(0, False)
+        manager.add_input_port(canonical, Schema(raw_schema={"x": "INTEGER"}), [], [])
+        channel_id = _channel("upstream")
 
-        other_schema = Schema(raw_schema={"other": "STRING"})
-        input_manager.add_input_port(
-            PortIdentity(id=0, internal=False), other_schema, [], []
-        )
+        manager.register_input(channel_id, PortIdentity(id=None, internal=None))
 
-        assert input_manager.get_port(port_id) is original_port
-        assert input_manager.get_port(port_id).get_schema() is schema
+        # Registering with the un-normalised identity must attach the
+        # channel to the already-added port, not create a second one.
+        assert manager.get_port_id(channel_id) == canonical
+        assert manager.get_port(canonical).get_channels() == {channel_id}
+        assert manager.get_all_data_channel_ids() == {channel_id}
 
-    def test_none_normalized_port_dedups_against_existing_port(
-        self, input_manager, schema, monkeypatch
-    ):
-        monkeypatch.setattr(
-            input_manager_module,
-            "InputPortMaterializationReaderRunnable",
-            _RecordingReaderRunnable,
-        )
-        input_manager.add_input_port(
-            PortIdentity(id=0, internal=False), schema, ["uri-a"], [Partitioning()]
-        )
-        original_port = input_manager.get_port(PortIdentity(id=0, internal=False))
+    def test_add_input_port_twice_keeps_the_first_worker_port(self, manager):
+        port_id = PortIdentity(0, False)
+        first_schema = Schema(raw_schema={"x": "INTEGER"})
+        manager.add_input_port(port_id, first_schema, [], [])
+        manager.register_input(_channel("upstream"), port_id)
 
-        other_schema = Schema(raw_schema={"other": "STRING"})
-        input_manager.add_input_port(
-            PortIdentity(id=None, internal=None),
-            other_schema,
-            ["uri-b"],
-            [Partitioning()],
-        )
+        # A re-add (e.g. a second AddInputChannel for the same port) must
+        # not wipe the channels already registered against the port.
+        manager.add_input_port(port_id, Schema(raw_schema={"y": "STRING"}), [], [])
 
-        # The None-field identity normalizes to port 0, so this counts as a
-        # re-add: the original WorkerPort and its schema are kept ...
-        port_id = PortIdentity(id=0, internal=False)
-        assert input_manager.get_port(port_id) is original_port
-        assert input_manager.get_port(port_id).get_schema() is schema
-        # ... but set_up_input_port_mat_reader_threads is called
-        # unconditionally, so the port's reader list is still replaced.
-        readers = input_manager.get_input_port_mat_reader_threads()[port_id]
-        assert [reader.uri for reader in readers] == ["uri-b"]
+        port = manager.get_port(port_id)
+        assert port.get_schema() == first_schema
+        assert len(port.get_channels()) == 1
 
 
-class TestRegisterInput:
-    def test_binds_channel_to_port_in_both_directions(self, input_manager, schema):
-        port_id = PortIdentity(id=1, internal=False)
-        channel_id = _channel_id("upstream-worker")
-        input_manager.add_input_port(port_id, schema, [], [])
+class TestChannelRegistration:
+    @pytest.fixture
+    def manager(self):
+        return InputManager(worker_id=WORKER_ID, input_queue=MagicMock())
 
-        input_manager.register_input(channel_id, port_id)
+    def test_re_registering_channel_leaves_stale_reverse_mapping(self, manager):
+        port_a, port_b = PortIdentity(0, False), PortIdentity(1, False)
+        channel_id = _channel("upstream")
+        for port_id in (port_a, port_b):
+            manager.add_input_port(port_id, Schema(raw_schema={"x": "INTEGER"}), [], [])
 
-        assert input_manager.get_port_id(channel_id) == port_id
-        assert channel_id in input_manager.get_port(port_id).get_channels()
-
-    def test_none_port_fields_are_normalized(self, input_manager, schema):
-        normalized = PortIdentity(id=0, internal=False)
-        channel_id = _channel_id("upstream-worker")
-        input_manager.add_input_port(PortIdentity(id=0, internal=False), schema, [], [])
-
-        input_manager.register_input(channel_id, PortIdentity(id=None, internal=None))
-
-        assert input_manager.get_port_id(channel_id) == normalized
-        assert channel_id in input_manager.get_port(normalized).get_channels()
-
-    def test_re_registering_channel_leaves_stale_reverse_mapping(
-        self, input_manager, schema
-    ):
-        port_a = PortIdentity(id=0, internal=False)
-        port_b = PortIdentity(id=1, internal=False)
-        channel_id = _channel_id("upstream-worker")
-        input_manager.add_input_port(port_a, schema, [], [])
-        input_manager.add_input_port(port_b, schema, [], [])
-
-        input_manager.register_input(channel_id, port_a)
-        input_manager.register_input(channel_id, port_b)
+        manager.register_input(channel_id, port_a)
+        manager.register_input(channel_id, port_b)
 
         # The forward mapping is updated to the new port ...
-        assert input_manager.get_port_id(channel_id) == port_b
-        assert channel_id in input_manager.get_port(port_b).get_channels()
+        assert manager.get_port_id(channel_id) == port_b
+        assert channel_id in manager.get_port(port_b).get_channels()
         # ... but the old port's channel set is never cleaned up, so the
         # channel remains in both reverse mappings (current behavior).
-        assert channel_id in input_manager.get_port(port_a).get_channels()
+        assert channel_id in manager.get_port(port_a).get_channels()
+
+    def test_data_channel_ids_exclude_control_channels(self, manager):
+        port_id = PortIdentity(0, False)
+        data_channel = _channel("upstream", is_control=False)
+        control_channel = _channel("controller", is_control=True)
+        manager.add_input_port(port_id, Schema(raw_schema={"x": "INTEGER"}), [], [])
+        manager.register_input(data_channel, port_id)
+        manager.register_input(control_channel, port_id)
+
+        assert manager.get_all_data_channel_ids() == {data_channel}
+        assert set(manager.get_all_channel_ids()) == {data_channel, control_channel}
+
+
+class TestInputPortMaterializationReaderThreads:
+    @pytest.fixture
+    def manager(self):
+        return InputManager(worker_id=WORKER_ID, input_queue=MagicMock())
+
+    def test_reader_runnables_are_built_per_uri_and_exposed(self, manager):
+        port_id = PortIdentity(0, False)
+        partitioning_a = MagicMock(name="partitioning-a")
+        partitioning_b = MagicMock(name="partitioning-b")
+
+        with patch.object(
+            input_manager_module, "InputPortMaterializationReaderRunnable"
+        ) as runnable_cls:
+            manager.add_input_port(
+                port_id,
+                Schema(raw_schema={"x": "INTEGER"}),
+                ["vfs:///a", "vfs:///b"],
+                [partitioning_a, partitioning_b],
+            )
+
+        # One runnable per (uri, partitioning) pair, wired to this
+        # worker's shared input queue.
+        assert runnable_cls.call_count == 2
+        assert [call.kwargs["uri"] for call in runnable_cls.call_args_list] == [
+            "vfs:///a",
+            "vfs:///b",
+        ]
+        assert [
+            call.kwargs["partitioning"] for call in runnable_cls.call_args_list
+        ] == [
+            partitioning_a,
+            partitioning_b,
+        ]
+        assert runnable_cls.call_args.kwargs["worker_actor_id"] == ActorVirtualIdentity(
+            WORKER_ID
+        )
+        assert runnable_cls.call_args.kwargs["queue"] is manager._input_queue
+
+        registered = manager.get_input_port_mat_reader_threads()
+        assert list(registered) == [port_id]
+        assert len(registered[port_id]) == 2
+
+    def test_no_uris_registers_an_empty_runnable_list(self, manager):
+        port_id = PortIdentity(0, False)
+
+        manager.add_input_port(port_id, Schema(raw_schema={"x": "INTEGER"}), [], [])
+
+        assert manager.get_input_port_mat_reader_threads() == {port_id: []}
+
+    def test_mismatched_uris_and_partitionings_are_rejected(self, manager):
+        with pytest.raises(AssertionError):
+            manager.set_up_input_port_mat_reader_threads(
+                PortIdentity(0, False), ["vfs:///a"], []
+            )
+
+    def test_second_set_up_replaces_previous_readers(self, manager):
+        port_id = PortIdentity(0, False)
+        reader_a, reader_b = MagicMock(name="reader-a"), MagicMock(name="reader-b")
+
+        with patch.object(
+            input_manager_module,
+            "InputPortMaterializationReaderRunnable",
+            side_effect=[reader_a, reader_b],
+        ):
+            manager.set_up_input_port_mat_reader_threads(
+                port_id, ["vfs:///a"], [MagicMock()]
+            )
+            manager.set_up_input_port_mat_reader_threads(
+                port_id, ["vfs:///b"], [MagicMock()]
+            )
+
+        # The port's reader list is replaced wholesale, not appended to.
+        assert manager.get_input_port_mat_reader_threads()[port_id] == [reader_b]
+
+    def test_start_threads_skips_already_finished_readers(self, manager):
+        # A reader that already drained its materialized input must not be
+        # replayed: restarting it would re-emit every tuple plus a second
+        # StartChannel/EndChannel pair on the same channel.
+        pending = _reader_stub(finished=False, channel_name="pending")
+        drained = _reader_stub(finished=True, channel_name="drained")
+        manager._input_port_mat_reader_runnables[PortIdentity(0, False)] = [
+            pending,
+            drained,
+        ]
+
+        with patch.object(input_manager_module, "threading") as threading_mock:
+            manager.start_input_port_mat_reader_threads()
+
+        threading_mock.Thread.assert_called_once_with(
+            target=pending.run,
+            daemon=True,
+            name=f"port_mat_reader_runnable_thread_{pending.channel_id}",
+        )
+        # Daemon threads are started, never joined, by this call.
+        threading_mock.Thread.return_value.start.assert_called_once_with()
+
+    def test_start_threads_covers_every_port(self, manager):
+        first = _reader_stub(finished=False, channel_name="first")
+        second = _reader_stub(finished=False, channel_name="second")
+        manager._input_port_mat_reader_runnables[PortIdentity(0, False)] = [first]
+        manager._input_port_mat_reader_runnables[PortIdentity(1, False)] = [second]
+
+        with patch.object(input_manager_module, "threading") as threading_mock:
+            manager.start_input_port_mat_reader_threads()
+
+        started_targets = {
+            call.kwargs["target"] for call in threading_mock.Thread.call_args_list
+        }
+        assert started_targets == {first.run, second.run}
+
+
+class TestProcessDataPayload:
+    @pytest.fixture
+    def manager(self):
+        manager = InputManager(worker_id=WORKER_ID, input_queue=MagicMock())
+        manager.add_input_port(
+            PortIdentity(0, False), Schema(raw_schema={"x": "INTEGER"}), [], []
+        )
+        manager.register_input(_channel("upstream"), PortIdentity(0, False))
+        return manager
+
+    def test_unknown_payload_type_is_rejected(self, manager):
+        channel_id = _channel("upstream")
+
+        # An unrecognised DataPayload must fail loudly rather than be
+        # silently dropped -- the tuple stream would go missing otherwise.
+        with pytest.raises(NotImplementedError):
+            list(manager.process_data_payload(channel_id, MagicMock(name="payload")))
+
+    def test_unknown_payload_type_still_records_the_current_channel(self, manager):
+        channel_id = _channel("upstream")
+
+        with pytest.raises(NotImplementedError):
+            list(manager.process_data_payload(channel_id, object()))
+
+        assert manager._current_channel_id == channel_id
+
+    def test_state_frame_envelope_is_forwarded_untouched(self, manager):
+        channel_id = _channel("upstream")
+        state_frame = StateFrame(frame=State({"i": 1}), loop_counter=3)
+
+        outputs = list(manager.process_data_payload(channel_id, state_frame))
+
+        # The whole envelope is yielded (not just .frame) so the runtime can
+        # read its loop_counter off it.
+        assert outputs == [state_frame]
+        assert outputs[0].loop_counter == 3
+
+    def test_data_frame_is_expanded_into_schema_bearing_tuples(self, manager):
+        channel_id = _channel("upstream")
+        schema = Schema(raw_schema={"x": "INTEGER"})
+        table = pyarrow.Table.from_pydict(
+            {"x": [1, 2]}, schema=schema.as_arrow_schema()
+        )
+
+        outputs = list(manager.process_data_payload(channel_id, DataFrame(frame=table)))
+
+        assert [t["x"] for t in outputs] == [1, 2]
+        assert all(t._schema == schema for t in outputs)
+
+    def test_empty_data_frame_yields_no_tuples(self, manager):
+        channel_id = _channel("upstream")
+        schema = Schema(raw_schema={"x": "INTEGER"})
+        empty_table = schema.as_arrow_schema().empty_table()
+
+        outputs = list(
+            manager.process_data_payload(channel_id, DataFrame(frame=empty_table))
+        )
+
+        assert outputs == []
+
+    def test_state_frame_through_unregistered_channel_passes_through(self, manager):
+        # The StateFrame branch never touches the channel/port tables, so a
+        # channel that was never registered still passes state through.
+        state_frame = StateFrame(frame=State({"i": 2}))
+
+        outputs = list(
+            manager.process_data_payload(_channel("never-registered"), state_frame)
+        )
+
+        assert outputs == [state_frame]
+
+    def test_data_frame_through_unregistered_channel_fails_lazily(self, manager):
+        schema = Schema(raw_schema={"x": "INTEGER"})
+        table = pyarrow.Table.from_pydict({"x": [1]}, schema=schema.as_arrow_schema())
+
+        # process_data_payload is a generator: creating it raises nothing ...
+        generator = manager.process_data_payload(
+            _channel("never-registered"), DataFrame(frame=table)
+        )
+        # ... the unknown-channel lookup fails only upon iteration.
+        with pytest.raises(KeyError):
+            list(generator)
 
 
 class TestPortCompletion:
-    def test_completing_a_channel_marks_only_its_port(self, input_manager, schema):
-        port_a = PortIdentity(id=0, internal=False)
-        port_b = PortIdentity(id=1, internal=False)
-        channel_a = _channel_id("upstream-a")
-        channel_b = _channel_id("upstream-b")
-        input_manager.add_input_port(port_a, schema, [], [])
-        input_manager.add_input_port(port_b, schema, [], [])
-        input_manager.register_input(channel_a, port_a)
-        input_manager.register_input(channel_b, port_b)
+    @pytest.fixture
+    def manager(self):
+        return InputManager(worker_id=WORKER_ID, input_queue=MagicMock())
 
-        input_manager.complete_current_port(channel_a)
+    def test_ports_complete_independently(self):
+        manager = InputManager(worker_id=WORKER_ID, input_queue=MagicMock())
+        port_a, port_b = PortIdentity(0, False), PortIdentity(1, False)
+        channel_a, channel_b = _channel("a"), _channel("b")
+        for port_id, channel_id in ((port_a, channel_a), (port_b, channel_b)):
+            manager.add_input_port(port_id, Schema(raw_schema={"x": "INTEGER"}), [], [])
+            manager.register_input(channel_id, port_id)
 
-        assert input_manager.get_port(port_a).completed is True
-        assert input_manager.get_port(port_b).completed is False
-        assert input_manager.all_ports_completed() is False
+        assert manager.all_ports_completed() is False
 
-        input_manager.complete_current_port(channel_b)
+        manager.complete_current_port(channel_a)
+        assert manager.all_ports_completed() is False
 
-        assert input_manager.all_ports_completed() is True
+        manager.complete_current_port(channel_b)
+        assert manager.all_ports_completed() is True
+        assert set(manager.get_all_channel_ids()) == {channel_a, channel_b}
 
-    def test_all_ports_completed_is_vacuously_true_without_ports(self, input_manager):
-        assert input_manager.all_ports_completed() is True
+    def test_all_ports_completed_is_vacuously_true_without_ports(self, manager):
+        assert manager.all_ports_completed() is True
 
-    def test_completing_one_channel_completes_the_whole_port(
-        self, input_manager, schema
-    ):
+    def test_completing_one_channel_completes_the_whole_port(self, manager):
         # Completing ONE channel marks the WHOLE port as completed, even if
         # the port's other channels are still open. InputManager itself never
         # counts channels; it relies on its only caller, end_channel_handler,
@@ -225,185 +362,13 @@ class TestPortCompletion:
         # so the handler fires only after every channel of the port has
         # delivered the marker. If that alignment ever changes, completing a
         # port this early would silently drop the open channels' data.
-        port_id = PortIdentity(id=0, internal=False)
-        channel_a = _channel_id("upstream-a")
-        channel_b = _channel_id("upstream-b")
-        input_manager.add_input_port(port_id, schema, [], [])
-        input_manager.register_input(channel_a, port_id)
-        input_manager.register_input(channel_b, port_id)
+        port_id = PortIdentity(0, False)
+        channel_a, channel_b = _channel("upstream-a"), _channel("upstream-b")
+        manager.add_input_port(port_id, Schema(raw_schema={"x": "INTEGER"}), [], [])
+        manager.register_input(channel_a, port_id)
+        manager.register_input(channel_b, port_id)
 
-        input_manager.complete_current_port(channel_a)
+        manager.complete_current_port(channel_a)
 
-        assert input_manager.get_port(port_id).completed is True
-        assert input_manager.all_ports_completed() is True
-
-
-class TestChannelIds:
-    def test_data_channel_ids_exclude_control_channels(self, input_manager, schema):
-        port_id = PortIdentity(id=0, internal=False)
-        data_channel = _channel_id("upstream-worker", is_control=False)
-        control_channel = _channel_id("controller", is_control=True)
-        input_manager.add_input_port(port_id, schema, [], [])
-        input_manager.register_input(data_channel, port_id)
-        input_manager.register_input(control_channel, port_id)
-
-        assert input_manager.get_all_data_channel_ids() == {data_channel}
-        assert set(input_manager.get_all_channel_ids()) == {
-            data_channel,
-            control_channel,
-        }
-
-
-class TestSetUpInputPortMatReaderThreads:
-    def test_mismatched_uris_and_partitionings_raise(self, input_manager):
-        with pytest.raises(AssertionError):
-            input_manager.set_up_input_port_mat_reader_threads(
-                PortIdentity(id=0, internal=False), ["uri-a"], []
-            )
-
-    def test_creates_one_reader_per_uri(self, input_manager, input_queue, monkeypatch):
-        monkeypatch.setattr(
-            input_manager_module,
-            "InputPortMaterializationReaderRunnable",
-            _RecordingReaderRunnable,
-        )
-        port_id = PortIdentity(id=0, internal=False)
-        partitionings = [Partitioning(), Partitioning()]
-
-        input_manager.set_up_input_port_mat_reader_threads(
-            port_id, ["uri-a", "uri-b"], partitionings
-        )
-
-        readers = input_manager.get_input_port_mat_reader_threads()[port_id]
-        assert [reader.uri for reader in readers] == ["uri-a", "uri-b"]
-        assert readers[0].partitioning is partitionings[0]
-        assert readers[1].partitioning is partitionings[1]
-        for reader in readers:
-            assert reader.queue is input_queue
-            assert reader.worker_actor_id == ActorVirtualIdentity(WORKER_ID)
-
-    def test_second_set_up_replaces_previous_readers(self, input_manager, monkeypatch):
-        monkeypatch.setattr(
-            input_manager_module,
-            "InputPortMaterializationReaderRunnable",
-            _RecordingReaderRunnable,
-        )
-        port_id = PortIdentity(id=0, internal=False)
-
-        input_manager.set_up_input_port_mat_reader_threads(
-            port_id, ["uri-a"], [Partitioning()]
-        )
-        input_manager.set_up_input_port_mat_reader_threads(
-            port_id, ["uri-b"], [Partitioning()]
-        )
-
-        # The port's reader list is replaced wholesale, not appended to.
-        readers = input_manager.get_input_port_mat_reader_threads()[port_id]
-        assert [reader.uri for reader in readers] == ["uri-b"]
-
-
-class TestStartInputPortMatReaderThreads:
-    def test_only_unfinished_readers_are_started(self, input_manager):
-        finished_reader = _StubReaderRunnable(finished=True)
-        unfinished_reader = _StubReaderRunnable(finished=False)
-        input_manager._input_port_mat_reader_runnables[
-            PortIdentity(id=0, internal=False)
-        ] = [finished_reader, unfinished_reader]
-
-        input_manager.start_input_port_mat_reader_threads()
-
-        assert unfinished_reader.ran.wait(timeout=5)
-        # The reader must run off the caller's thread, on a daemon thread.
-        assert unfinished_reader.ran_on_daemon_thread is True
-        assert not finished_reader.ran.is_set()
-
-
-class TestProcessDataPayload:
-    @pytest.fixture
-    def registered_channel(self, input_manager, schema):
-        port_id = PortIdentity(id=0, internal=False)
-        channel_id = _channel_id("upstream-worker")
-        input_manager.add_input_port(port_id, schema, [], [])
-        input_manager.register_input(channel_id, port_id)
-        return channel_id
-
-    def test_data_frame_yields_tuples_with_port_schema(
-        self, input_manager, schema, registered_channel
-    ):
-        table = pyarrow.Table.from_pydict(
-            {"name": ["Alice", "Bob"], "age": [10, 20]},
-            schema=schema.as_arrow_schema(),
-        )
-
-        results = list(
-            input_manager.process_data_payload(
-                registered_channel, DataFrame(frame=table)
-            )
-        )
-
-        assert [tuple_["name"] for tuple_ in results] == ["Alice", "Bob"]
-        assert [tuple_["age"] for tuple_ in results] == [10, 20]
-        # Each tuple is built against the schema of the channel's port.
-        for tuple_ in results:
-            assert tuple_._schema is schema
-
-    def test_state_frame_is_passed_through(self, input_manager, registered_channel):
-        state = State({"i": 2})
-
-        results = list(
-            input_manager.process_data_payload(
-                registered_channel, StateFrame(frame=state)
-            )
-        )
-
-        assert len(results) == 1
-        assert results[0] is state
-
-    def test_unknown_payload_type_raises(self, input_manager, registered_channel):
-        with pytest.raises(NotImplementedError):
-            list(input_manager.process_data_payload(registered_channel, DataPayload()))
-
-    def test_empty_data_frame_yields_no_tuples(
-        self, input_manager, schema, registered_channel
-    ):
-        empty_table = schema.as_arrow_schema().empty_table()
-
-        results = list(
-            input_manager.process_data_payload(
-                registered_channel, DataFrame(frame=empty_table)
-            )
-        )
-
-        assert results == []
-
-    def test_state_frame_through_unregistered_channel_passes_through(
-        self, input_manager
-    ):
-        # The StateFrame branch never touches the channel/port tables, so a
-        # channel that was never registered still passes state through.
-        state = State({"i": 2})
-
-        results = list(
-            input_manager.process_data_payload(
-                _channel_id("never-registered"), StateFrame(frame=state)
-            )
-        )
-
-        assert len(results) == 1
-        assert results[0] is state
-
-    def test_data_frame_through_unregistered_channel_fails_lazily(
-        self, input_manager, schema
-    ):
-        table = pyarrow.Table.from_pydict(
-            {"name": ["Alice"], "age": [10]},
-            schema=schema.as_arrow_schema(),
-        )
-
-        # process_data_payload is a generator: creating it raises nothing ...
-        generator = input_manager.process_data_payload(
-            _channel_id("never-registered"), DataFrame(frame=table)
-        )
-        # ... the unknown-channel lookup fails only upon iteration.
-        with pytest.raises(KeyError):
-            list(generator)
+        assert manager.get_port(port_id).completed is True
+        assert manager.all_ports_completed() is True

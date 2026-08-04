@@ -48,6 +48,7 @@ export interface User
     accountCreation?: Second;
     affiliation?: string;
     joiningReason: string;
+    isPlaceholder?: boolean;
   }> {}
 
 export interface File

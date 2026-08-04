@@ -17,37 +17,27 @@
  * under the License.
  */
 
-package org.apache.texera.amber.engine.architecture.messaginglayer
+package org.apache.texera.common.util
 
-import scala.collection.mutable
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-/* The abstracted FIFO/exactly-once logic */
-class OrderingEnforcer[T] {
+class EmailUtilSpec extends AnyFlatSpec with Matchers {
 
-  val ofoMap = new mutable.LongMap[T]
-  var current = 0L
-
-  def setCurrent(value: Long): Unit = {
-    current = value
+  "isValid" should "accept a well-formed address" in {
+    EmailUtil.isValid("user@example.com") shouldBe true
+    EmailUtil.isValid("first.last+tag@sub.example.co") shouldBe true
   }
 
-  def isDuplicated(sequenceNumber: Long): Boolean =
-    sequenceNumber < current || ofoMap.contains(sequenceNumber)
-
-  def isAhead(sequenceNumber: Long): Boolean = sequenceNumber > current
-
-  def stash(sequenceNumber: Long, data: T): Unit = {
-    ofoMap(sequenceNumber) = data
+  it should "reject malformed addresses" in {
+    EmailUtil.isValid("not-an-email") shouldBe false
+    EmailUtil.isValid("missing@tld") shouldBe false
+    EmailUtil.isValid("two words@example.com") shouldBe false
+    EmailUtil.isValid("") shouldBe false
   }
 
-  def enforceFIFO(data: T): List[T] = {
-    val res = mutable.ArrayBuffer[T](data)
-    current += 1
-    while (ofoMap.contains(current)) {
-      res.append(ofoMap(current))
-      ofoMap.remove(current)
-      current += 1
-    }
-    res.toList
+  "normalize" should "trim whitespace and lowercase" in {
+    EmailUtil.normalize("  User@Example.COM  ") shouldBe "user@example.com"
+    EmailUtil.normalize("already@lower.case") shouldBe "already@lower.case"
   }
 }

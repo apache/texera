@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { Dataset } from "../../common/type/dataset";
+import { Contributor, Dataset } from "../../common/type/dataset";
 
 export interface DashboardDataset {
   isOwner: boolean;
@@ -25,4 +25,5 @@ export interface DashboardDataset {
   dataset: Dataset;
   accessPrivilege: "READ" | "WRITE" | "NONE";
   size: number;
+  contributors?: Contributor[];
 }
