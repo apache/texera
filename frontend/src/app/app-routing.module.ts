@@ -28,6 +28,7 @@ import { UserComputingUnitComponent } from "./dashboard/component/user/user-comp
 import { UserVenvComponent } from "./dashboard/component/user/user-venv/user-venv.component";
 import { WorkspaceComponent } from "./workspace/component/workspace.component";
 import { AboutComponent } from "./hub/component/about/about.component";
+import { TexeraLoginComponent } from "./hub/component/login/texera-login.component";
 import { AuthGuardService } from "./common/service/user/auth-guard.service";
 import { AdminUserComponent } from "./dashboard/component/admin/user/admin-user.component";
 import { AdminExecutionComponent } from "./dashboard/component/admin/execution/admin-execution.component";
@@ -45,6 +46,13 @@ import { HubSearchResultComponent } from "./hub/component/hub-search-result/hub-
 import { AdminSettingsComponent } from "./dashboard/component/admin/settings/admin-settings.component";
 
 const routes: Routes = [];
+
+// Full-page login: a top-level route (sibling of the DashboardComponent shell) so it renders
+// in the root outlet without the navbar/sidebar chrome.
+routes.push({
+  path: "login",
+  component: TexeraLoginComponent,
+});
 
 routes.push({
   path: "",

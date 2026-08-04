@@ -23,7 +23,7 @@ import { ActivatedRouteSnapshot, Router, RouterStateSnapshot } from "@angular/ro
 import { AuthGuardService } from "./auth-guard.service";
 import { UserService } from "./user.service";
 import { MOCK_USER, StubUserService } from "./stub-user.service";
-import { ABOUT } from "../../../app-routing.constant";
+import { LOGIN } from "../../../app-routing.constant";
 import { commonTestProviders } from "../../testing/test-utils";
 
 describe("AuthGuardService", () => {
@@ -54,16 +54,16 @@ describe("AuthGuardService", () => {
     expect(routerSpy.navigate).not.toHaveBeenCalled();
   });
 
-  it("blocks navigation and redirects to ABOUT with a null returnUrl from the root url", () => {
+  it("blocks navigation and redirects to LOGIN with a null returnUrl from the root url", () => {
     userService.user = undefined;
     expect(guard.canActivate(route, stateAt("/"))).toBe(false);
-    expect(routerSpy.navigate).toHaveBeenCalledWith([ABOUT], { queryParams: { returnUrl: null } });
+    expect(routerSpy.navigate).toHaveBeenCalledWith([LOGIN], { queryParams: { returnUrl: null } });
   });
 
   it("blocks navigation and preserves the return url for a deep link", () => {
     userService.user = undefined;
     expect(guard.canActivate(route, stateAt("/dashboard/user/workflow/42"))).toBe(false);
-    expect(routerSpy.navigate).toHaveBeenCalledWith([ABOUT], {
+    expect(routerSpy.navigate).toHaveBeenCalledWith([LOGIN], {
       queryParams: { returnUrl: "/dashboard/user/workflow/42" },
     });
   });

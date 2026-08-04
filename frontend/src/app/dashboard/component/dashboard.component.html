@@ -249,11 +249,14 @@
         <ng-container *ngIf="isLogin">
           <texera-user-icon></texera-user-icon>
         </ng-container>
-        <asl-google-signin-button
-          *ngIf="!isLogin && this.config.env.googleLogin"
-          type="standard"
-          size="large"
-          [width]="200"></asl-google-signin-button>
+        <!-- The only route into the login page for a logged-out visitor; every other way in
+             is a redirect from the auth guard or the 401 interceptor. -->
+        <a
+          *ngIf="!isLogin"
+          class="nav-login-link"
+          [routerLink]="LOGIN">
+          Sign in
+        </a>
       </div>
 
       <nz-content>

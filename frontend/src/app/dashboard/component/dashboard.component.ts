@@ -24,7 +24,6 @@ import { FlarumService } from "../service/user/flarum/flarum.service";
 import { HttpErrorResponse } from "@angular/common/http";
 import { ActivatedRoute, NavigationEnd, Router, RouterLink, RouterOutlet } from "@angular/router";
 import { HubComponent } from "../../hub/component/hub.component";
-import { SocialAuthService, GoogleSigninButtonModule } from "@abacritt/angularx-social-login";
 import { AdminSettingsService } from "../service/admin/settings/admin-settings.service";
 import { GuiConfigService } from "../../common/service/gui-config.service";
 
@@ -42,6 +41,7 @@ import {
   USER_QUOTA,
   USER_WORKFLOW,
   USER_FEEDBACK,
+  LOGIN,
 } from "../../app-routing.constant";
 import { Version } from "../../../environments/version";
 import { SidebarTabs } from "../../common/type/gui-config";
@@ -74,7 +74,6 @@ import { UserIconComponent } from "./user/user-icon/user-icon.component";
     NzIconDirective,
     SearchBarComponent,
     UserIconComponent,
-    GoogleSigninButtonModule,
     NzContentComponent,
     RouterOutlet,
   ],
@@ -111,6 +110,7 @@ export class DashboardComponent implements OnInit {
     about_enabled: false,
   };
 
+  protected readonly LOGIN = LOGIN;
   protected readonly USER_PROJECT = USER_PROJECT;
   protected readonly USER_WORKFLOW = USER_WORKFLOW;
   protected readonly USER_DATASET = USER_DATASET;
@@ -131,7 +131,6 @@ export class DashboardComponent implements OnInit {
     private router: Router,
     private flarumService: FlarumService,
     private ngZone: NgZone,
-    private socialAuthService: SocialAuthService,
     private route: ActivatedRoute,
     private adminSettingsService: AdminSettingsService,
     protected config: GuiConfigService
@@ -161,17 +160,6 @@ export class DashboardComponent implements OnInit {
           this.forumLogin();
         });
       });
-
-    this.socialAuthService.authState.pipe(untilDestroyed(this)).subscribe(user => {
-      this.userService
-        .googleLogin(user.idToken)
-        .pipe(untilDestroyed(this))
-        .subscribe(() => {
-          this.ngZone.run(() => {
-            this.router.navigateByUrl(this.route.snapshot.queryParams["returnUrl"] || USER_WORKFLOW);
-          });
-        });
-    });
 
     this.loadLogos();
 
