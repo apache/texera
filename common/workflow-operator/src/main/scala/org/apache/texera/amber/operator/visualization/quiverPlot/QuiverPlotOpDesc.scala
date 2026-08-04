@@ -26,7 +26,7 @@ import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBui
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
-import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
+import org.apache.texera.amber.operator.metadata.annotations.{AutofillAttributeName, SampleColumn}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
@@ -73,6 +73,7 @@ class QuiverPlotOpDesc extends PythonOperatorDescriptor with StandaloneCodeGener
   @JsonSchemaTitle("u")
   @JsonPropertyDescription("Column for the vector component in the x-direction")
   @AutofillAttributeName
+  @SampleColumn("uvec")
   @NotNull(message = "u cannot be empty")
   var u: EncodableString = ""
 
@@ -80,6 +81,7 @@ class QuiverPlotOpDesc extends PythonOperatorDescriptor with StandaloneCodeGener
   @JsonSchemaTitle("v")
   @JsonPropertyDescription("Column for the vector component in the y-direction")
   @AutofillAttributeName
+  @SampleColumn("log2fc")
   @NotNull(message = "v cannot be empty")
   var v: EncodableString = ""
 
@@ -168,7 +170,6 @@ class QuiverPlotOpDesc extends PythonOperatorDescriptor with StandaloneCodeGener
     val uLit = pyStringLiteral(u)
     val vLit = pyStringLiteral(v)
     s"""import plotly.figure_factory as ff
-       |import numpy as np
        |
        |def render_error(error_msg):
        |    return '''<h1>Quiver Plot is not available.</h1>

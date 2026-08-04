@@ -125,7 +125,6 @@ object OperatorBehaviorSpec {
     "MachineLearningScorer",
     "NestedTableOpDesc",
     "NetworkGraphOpDesc",
-    "QuiverPlotOpDesc",
     "RadarChartOpDesc",
     "RadarPlotOpDesc",
     "RangeSliderOpDesc",
