@@ -27,7 +27,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 
-import java.net.{InetAddress, InetSocketAddress, URLDecoder}
+import java.net.{InetSocketAddress, URLDecoder}
 import java.nio.charset.StandardCharsets.UTF_8
 import java.nio.file.Files
 import java.util.concurrent.{ConcurrentLinkedQueue, ExecutorService, Executors}
