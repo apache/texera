@@ -117,7 +117,8 @@ object ConfigGenerator {
   def generateVariants(
       opClass: Class[_ <: LogicalOp],
       inputSchemas: Map[Int, Schema],
-      rowCount: Int = DefaultRowCount
+      rowCount: Int = DefaultRowCount,
+      pinned: Map[String, JsonNode] = Map.empty
   ): Either[String, Seq[(String, LogicalOp)]] =
     typeNameByClass.get(opClass) match {
       case None => Left(s"${opClass.getSimpleName} not registered in LogicalOp @JsonSubTypes")
@@ -125,11 +126,12 @@ object ConfigGenerator {
         val used = mutable.Set.empty[(Int, String)]
         buildObject(opClass, inputSchemas, used, rowCount).flatMap { baseNode =>
           baseNode.put("operatorType", typeName)
+          pinned.foreach { case (field, value) => baseNode.set[JsonNode](field, value) }
           applyAll(
             opClass,
             baseNode,
             None,
-            allVariants(opClass, baseNode, inputSchemas, used, rowCount)
+            allVariants(opClass, baseNode, inputSchemas, used, rowCount, pinned = pinned.keySet)
           )
         }
     }
@@ -233,9 +235,10 @@ object ConfigGenerator {
       schemas: Map[Int, Schema],
       used: mutable.Set[(Int, String)],
       rowCount: Int,
-      sweepEnums: Boolean = true
+      sweepEnums: Boolean = true,
+      pinned: Set[String] = Set.empty
   ): Seq[Variant] =
-    Variant.Base +: ((if (sweepEnums) enumVariants(opClass, baseNode) else Seq.empty) ++
+    Variant.Base +: ((if (sweepEnums) enumVariants(opClass, baseNode, pinned) else Seq.empty) ++
       extraVariants(opClass, baseNode, schemas, used, rowCount))
 
   /** The two multi-knob variants, so called because each moves every knob of its kind
@@ -775,14 +778,17 @@ object ConfigGenerator {
     */
   private def enumVariants(
       opClass: Class[_ <: LogicalOp],
-      baseNode: ObjectNode
+      baseNode: ObjectNode,
+      pinned: Set[String] = Set.empty
   ): Seq[Variant] =
-    enumSites(opClass, baseNode, "").flatMap { site =>
-      val baseVal = baseNode.at(site.pointer)
-      site.values.filterNot(_ == baseVal).map { v =>
-        Variant(s"${site.pointer.stripPrefix("/")}=${v.asText}", Seq((site.pointer, v)))
+    enumSites(opClass, baseNode, "")
+      .filterNot(site => pinned.contains(site.pointer.stripPrefix("/")))
+      .flatMap { site =>
+        val baseVal = baseNode.at(site.pointer)
+        site.values.filterNot(_ == baseVal).map { v =>
+          Variant(s"${site.pointer.stripPrefix("/")}=${v.asText}", Seq((site.pointer, v)))
+        }
       }
-    }
 
   /** An enum-typed position in the config JSON: its JSON Pointer plus every
     * possible JSON value (each enum constant serialized via its `@JsonValue`).

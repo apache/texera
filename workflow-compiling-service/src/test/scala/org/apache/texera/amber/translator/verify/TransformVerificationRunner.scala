@@ -19,6 +19,8 @@
 
 package org.apache.texera.amber.translator.verify
 
+import com.fasterxml.jackson.databind.JsonNode
+import com.fasterxml.jackson.databind.node.BooleanNode
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.util.JSONUtils.objectMapper
@@ -113,6 +115,32 @@ object TransformVerificationRunner {
     * each curated column with every target type. The curated fixture already
     * covers each branch with a type-compatible column, so no sweep is needed.
     */
+  /**
+    * Knobs held at one value instead of being swept, because the other value
+    * selects non-determinism rather than a different behavior to check.
+    *
+    * Split's "Auto-Generate Seed" is the case: with it on, the executor seeds
+    * from the clock, so that run agrees with nothing — its own previous run
+    * included — and there is no output for a script to reproduce. Everything
+    * else about the operator is deterministic, so pinning the knob covers the
+    * partition itself rather than abandoning the operator over one switch. The
+    * pinned value is the one under test, and [[pinnedTierNote]] states it in the
+    * test name so the run does not read as full coverage.
+    *
+    * Distinct from [[enumSweepExemptOps]], where the values are all legitimate
+    * and only the blind RE-PAIRING with a sibling field is wrong.
+    */
+  val pinnedKnobs: Map[Class[_], Map[String, JsonNode]] = Map(
+    classOf[SplitOpDesc] -> Map("random" -> BooleanNode.FALSE)
+  )
+
+  /** How a pinned operator's tier reads in the report, e.g. `auto, random=false`. */
+  private def pinnedTierNote(opClass: Class[_ <: LogicalOp]): String =
+    pinnedKnobs
+      .get(opClass)
+      .map(_.map { case (field, value) => s"$field=${value.asText}" }.mkString(", ", ", ", ""))
+      .getOrElse("")
+
   val enumSweepExemptOps: Set[Class[_]] = Set(
     classOf[TypeCastingOpDesc],
     // Aggregate's sweepable enum is each aggregation's `aggFunction`, but the
@@ -201,11 +229,6 @@ object TransformVerificationRunner {
     classOf[DummyOpDesc] ->
       ("harness gap: placeholder operator with no physical execution — " +
         "LogicalOp.getPhysicalOp throws NotImplementedError"),
-    classOf[SplitOpDesc] ->
-      ("not reproducible by construction: 'Auto-Generate Seed' defaults to true " +
-        "and the executor then seeds from the clock, so the operator disagrees " +
-        "with its own previous run and there is nothing for a script to match; " +
-        "the seeded branch does agree, but the boolean sweep always covers both"),
     classOf[SklearnPredictionOpDesc] ->
       ("trained-model input: the operator consumes a fitted sklearn model on " +
         "its model port; a JSONL fixture written from the JVM cannot carry a " +
@@ -277,7 +300,7 @@ object TransformVerificationRunner {
                         "model output: emits a BINARY (trained-model) column; " +
                           "requires a curated numeric fixture, not the auto tier"
                       )
-                    case Success(_) => Runnable("auto")
+                    case Success(_) => Runnable(s"auto${pinnedTierNote(opClass)}")
                   }
               }
           case Success(_) =>
@@ -348,7 +371,8 @@ object TransformVerificationRunner {
             .generateVariants(
               opClass,
               CanonicalFixture.schemasByPort,
-              CanonicalFixture.port0Rows.size
+              CanonicalFixture.port0Rows.size,
+              pinnedKnobs.getOrElse(opClass, Map.empty)
             )
             .fold(
               reason => throw new IllegalStateException(s"cannot auto-configure: $reason"),
