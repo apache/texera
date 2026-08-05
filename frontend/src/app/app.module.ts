@@ -99,6 +99,7 @@ import { NzModalCommentBoxComponent } from "./workspace/component/workflow-edito
 import { NzCommentModule } from "ng-zorro-antd/comment";
 import { AdminUserComponent } from "./dashboard/component/admin/user/admin-user.component";
 import { AdminExecutionComponent } from "./dashboard/component/admin/execution/admin-execution.component";
+import { AdminComputingUnitComponent } from "./dashboard/component/admin/computing-unit/admin-computing-unit.component";
 import { NzPopconfirmModule } from "ng-zorro-antd/popconfirm";
 import { AdminGuardService } from "./dashboard/service/admin/guard/admin-guard.service";
 import { ContextMenuComponent } from "./workspace/component/workflow-editor/context-menu/context-menu/context-menu.component";
@@ -289,6 +290,7 @@ registerLocaleData(en);
     DashboardComponent,
     AdminUserComponent,
     AdminExecutionComponent,
+    AdminComputingUnitComponent,
     UserIconComponent,
     UserAvatarComponent,
     LocalLoginComponent,
