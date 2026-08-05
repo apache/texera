@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1785857841475,
+  "lastUpdate": 1785942029251,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -7643,6 +7643,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 504.880977539988,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Xinyuan Lin",
+            "username": "aglinxinyuan",
+            "email": "xinyual3@uci.edu"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "0f2cd49c39781d683f35e02547da45fbe5adc3c3",
+          "message": "fix(amber, frontend): serve created datasets to the admin quota modal (#7318)\n\n### What changes were proposed in this PR?\n\nThe admin user-quota modal (`UserQuotaComponent` opened from the admin\nuser list) fails to load its \"created datasets\" panel: the request 404s.\n\n**Root cause:** `AdminUserService.getCreatedDatasets()` targets\n`/admin/user/created_datasets`, but `AdminUserResource` never exposed\nthat endpoint. The only `created_datasets` endpoint lives on\n`UserQuotaResource` (`/quota/created_datasets`), and it derives the uid\nfrom the authenticated session (`@Auth current_user`) with no `user_id`\nparameter — so it cannot serve \"datasets of the user an admin is\ninspecting\" (it would return the admin's own datasets instead).\n\n| | Before | After |\n|---|---|---|\n| Frontend request | `GET /admin/user/created_datasets` (no params) |\n`GET /admin/user/created_datasets?user_id=<uid>` |\n| Backend | no such route → 404 |\n`AdminUserResource.getCreatedDatasets(user_id)` → datasets owned by\n`user_id` |\n\n```\nadmin quota modal ──> AdminUserService.getCreatedDatasets(uid)\n                          │  before: GET /admin/user/created_datasets            ──> 404 (route missing)\n                          │  after:  GET /admin/user/created_datasets?user_id=N  ──> AdminUserResource\n                          │                                                            └─> DatasetStatisticsUtils.getUserCreatedDatasets(N)\n```\n\nChanges:\n- `AdminUserResource.scala`: add `GET\n/admin/user/created_datasets?user_id=N` (ADMIN-only, like the sibling\n`created_workflows` / `access_workflows` / `user_quota_size` endpoints),\ndelegating to `DatasetStatisticsUtils.getUserCreatedDatasets`.\n- `admin-user.service.ts`: `getCreatedDatasets(uid)` now sends the uid\nas the `user_id` query param (it previously accepted the uid and\nsilently dropped it).\n\n### Any related issues, documentation, discussions?\n\nCloses #7317\n\n### How was this PR tested?\n\nWritten test-first (both new tests were confirmed failing before the\nfix):\n\n- `AdminUserResourceSpec`: two new tests for `getCreatedDatasets` —\nempty list for a user with no datasets, and only the queried user's\ndatasets are returned (a second user's dataset is excluded).\n- `admin-user.service.spec.ts`: the `getCreatedDatasets` test now\nasserts the `user_id` query param is sent (previously asserted no params\nwere sent).\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Claude Code (Opus 5)\n\n---------\n\nSigned-off-by: Xinyuan Lin <xinyual3@uci.edu>\nCo-authored-by: Copilot Autofix powered by AI <175728472+Copilot@users.noreply.github.com>",
+          "timestamp": "2026-08-05T06:32:46Z",
+          "url": "https://github.com/apache/texera/commit/0f2cd49c39781d683f35e02547da45fbe5adc3c3"
+        },
+        "date": 1785942028723,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 647.2934662305616,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 1093.7580489740274,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 1143.3038643885163,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 829.5865344404009,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 1100.7034409121636,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 1133.4195042989343,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 852.318872228101,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 1117.3838778691563,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 1145.975563348393,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 712.3514356487387,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 892.3027080996986,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 922.4620508510093,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 714.6759018039598,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 897.2453549498734,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 922.2936075405447,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 710.0143377632814,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 866.8674958561164,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 899.1604976603247,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 441.72601542805853,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 515.7005650719838,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 511.20386974067435,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 424.6753798012224,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 507.0272490494632,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 516.8777997890012,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 433.79104657522566,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 488.84989193815727,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 496.4099008114076,
             "unit": "tuples/sec"
           }
         ]
