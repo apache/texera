@@ -1,0 +1,178 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+
+<main class="card">
+  <div class="brand">
+    <img
+      src="assets/logos/logo.png"
+      alt="Texera" />
+    <span class="sub">Data science, together</span>
+  </div>
+
+  <div
+    *ngIf="config.env.localLogin"
+    class="tabs">
+    <div
+      class="tab"
+      [class.active]="mode === 'signin'"
+      (click)="setMode('signin')">
+      Sign In
+    </div>
+    <div
+      class="tab"
+      [class.active]="mode === 'signup'"
+      (click)="setMode('signup')">
+      Sign Up
+    </div>
+  </div>
+
+  <!-- One entry per identity provider. Google renders its own button (GIS). -->
+  <div class="social-buttons">
+    <div
+      *ngIf="config.env.googleLogin"
+      class="google-wrapper">
+      <asl-google-signin-button
+        type="standard"
+        size="large"
+        [width]="328"></asl-google-signin-button>
+    </div>
+  </div>
+
+  <div
+    *ngIf="config.env.localLogin && config.env.googleLogin"
+    class="divider">
+    or continue with
+  </div>
+
+  <form
+    *ngIf="config.env.localLogin"
+    class="form"
+    [formGroup]="form"
+    (ngSubmit)="submit()">
+    <div class="field">
+      <span class="icon">
+        <svg
+          viewBox="0 0 1024 1024"
+          fill="currentColor">
+          <path
+            d="M858.5 763.6a374 374 0 0 0-80.6-119.5 375.63 375.63 0 0 0-119.5-80.6c-.4-.2-.8-.3-1.2-.5C719.5 518 760 444.7 760 362c0-137-111-248-248-248S264 225 264 362c0 82.7 40.5 156 102.8 201.1-.4.2-.8.3-1.2.5-44.8 18.9-85 46-119.5 80.6a375.63 375.63 0 0 0-80.6 119.5A371.7 371.7 0 0 0 136 901.8a8 8 0 0 0 8 8.2h60c4.4 0 7.9-3.5 8-7.8 2-77.2 33-149.5 87.8-204.3 56.7-56.7 132-87.9 212.2-87.9s155.5 31.2 212.2 87.9C779 752.7 810 825 812 902.2c.1 4.4 3.6 7.8 8 7.8h60a8 8 0 0 0 8-8.2c-1-47.8-10.9-94.3-29.5-138.2zM512 534c-45.9 0-89.1-17.9-121.6-50.4S340 407.9 340 362c0-45.9 17.9-89.1 50.4-121.6S466.1 190 512 190s89.1 17.9 121.6 50.4S684 316.1 684 362c0 45.9-17.9 89.1-50.4 121.6S557.9 534 512 534z" />
+        </svg>
+      </span>
+      <input
+        type="text"
+        formControlName="username"
+        placeholder="Username"
+        autocomplete="username" />
+    </div>
+
+    <!-- Registration requires an email address; sign-in does not ask for one. -->
+    <div
+      *ngIf="mode === 'signup'"
+      class="field">
+      <span class="icon">
+        <svg
+          viewBox="0 0 1024 1024"
+          fill="currentColor">
+          <path
+            d="M928 160H96c-17.7 0-32 14.3-32 32v640c0 17.7 14.3 32 32 32h832c17.7 0 32-14.3 32-32V192c0-17.7-14.3-32-32-32zm-40 110.8V792H136V270.8l-27.6-21.5 39.3-50.5 42.8 33.3h643.1l42.8-33.3 39.3 50.5-27.7 21.5zM833.6 232L512 482 190.4 232l-42.8-33.3-39.3 50.5 27.6 21.5 341.6 265.6a55.99 55.99 0 0 0 68.7 0L888 270.8l27.6-21.5-39.3-50.5-42.7 33.2z" />
+        </svg>
+      </span>
+      <input
+        type="email"
+        formControlName="email"
+        placeholder="Email"
+        autocomplete="email" />
+    </div>
+
+    <div class="field">
+      <span class="icon">
+        <svg
+          viewBox="0 0 1024 1024"
+          fill="currentColor">
+          <path
+            d="M832 464h-68V240c0-70.7-57.3-128-128-128H388c-70.7 0-128 57.3-128 128v224h-68c-17.7 0-32 14.3-32 32v384c0 17.7 14.3 32 32 32h640c17.7 0 32-14.3 32-32V496c0-17.7-14.3-32-32-32zM332 240c0-30.9 25.1-56 56-56h248c30.9 0 56 25.1 56 56v224H332V240zm460 600H232V536h560v304zM484 701v53c0 4.4 3.6 8 8 8h40c4.4 0 8-3.6 8-8v-53a48.01 48.01 0 1 0-56 0z" />
+        </svg>
+      </span>
+      <input
+        [type]="passwordVisible ? 'text' : 'password'"
+        formControlName="password"
+        placeholder="Password"
+        [attr.autocomplete]="mode === 'signup' ? 'new-password' : 'current-password'" />
+      <button
+        type="button"
+        class="toggle"
+        [attr.aria-label]="passwordVisible ? 'Hide password' : 'Show password'"
+        (click)="togglePasswordVisibility()">
+        <svg
+          viewBox="0 0 1024 1024"
+          fill="currentColor">
+          <path
+            d="M942.2 486.2C847.4 286.5 704.1 186 512 186c-192.2 0-335.4 100.5-430.2 300.3a60.3 60.3 0 0 0 0 51.5C176.6 737.5 319.9 838 512 838c192.2 0 335.4-100.5 430.2-300.3 7.7-16.2 7.7-35 0-51.5zM512 766c-161.3 0-279.4-81.8-362.7-254C232.6 339.8 350.7 258 512 258c161.3 0 279.4 81.8 362.7 254C791.5 684.2 673.4 766 512 766zm-4-430c-97.2 0-176 78.8-176 176s78.8 176 176 176 176-78.8 176-176-78.8-176-176-176zm0 288c-61.9 0-112-50.1-112-112s50.1-112 112-112 112 50.1 112 112-50.1 112-112 112z" />
+        </svg>
+      </button>
+    </div>
+
+    <div
+      *ngIf="mode === 'signup'"
+      class="field">
+      <span class="icon">
+        <svg
+          viewBox="0 0 1024 1024"
+          fill="currentColor">
+          <path
+            d="M832 464h-68V240c0-70.7-57.3-128-128-128H388c-70.7 0-128 57.3-128 128v224h-68c-17.7 0-32 14.3-32 32v384c0 17.7 14.3 32 32 32h640c17.7 0 32-14.3 32-32V496c0-17.7-14.3-32-32-32zM332 240c0-30.9 25.1-56 56-56h248c30.9 0 56 25.1 56 56v224H332V240zm460 600H232V536h560v304zM484 701v53c0 4.4 3.6 8 8 8h40c4.4 0 8-3.6 8-8v-53a48.01 48.01 0 1 0-56 0z" />
+        </svg>
+      </span>
+      <input
+        [type]="passwordVisible ? 'text' : 'password'"
+        formControlName="confirm"
+        placeholder="Confirm password"
+        autocomplete="new-password" />
+    </div>
+
+    <p
+      *ngIf="mode === 'signup'"
+      class="hint">
+      Password must be at least 6 characters. After registering, contact the Texera administrator to activate your
+      account.
+    </p>
+
+    <p
+      *ngIf="errorMessage"
+      class="error">
+      {{ errorMessage }}
+    </p>
+
+    <button
+      type="submit"
+      class="btn-primary">
+      {{ mode === "signup" ? "Sign up" : "Sign in" }}
+    </button>
+  </form>
+
+  <p class="foot">
+    Apache Texera (Incubating) ·
+    <a
+      href="https://texera.apache.org/"
+      target="_blank"
+      rel="noopener"
+      >texera.apache.org</a
+    >
+  </p>
+</main>
