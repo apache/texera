@@ -109,18 +109,73 @@ object OperatorBehaviorSpec {
   private def patterns(envVar: String): Seq[String] =
     sys.env.getOrElse(envVar, "").split(",").iterator.map(_.trim).filter(_.nonEmpty).toSeq
 
-  // Families not yet ready for verification — skipped by default everywhere
-  // (local + CI) until they're worked on. ML uses family substrings (Sklearn /
-  // HuggingFace catch every variant); viz ops are listed by exact name because
-  // substrings like "Chart"/"Plot" would also match core viz ops we want to keep
-  // (BarChart, DotPlot, ...).
+  // Operators not yet ready for verification — skipped by default everywhere
+  // (local + CI) until they're worked on. Listed one per name so each leaves the
+  // list on its own, the way every other operator has: a family substring hides
+  // how many are behind it, and "Sklearn" was holding back a whole tier that had
+  // been runnable for a while. HuggingFace is still a substring only because its
+  // four operators are one family with one blocker.
   //
   // Every entry names an operator that WOULD run: [[discoverStandaloneOperators]]
   // already drops anything without a `StandaloneCodeGenerator` mixin, so listing
   // the source and UDF operators here changed nothing and only made the list read
   // as though they were pending.
   private val DefaultLocalSkip: Seq[String] = Seq(
-    "Sklearn",
+    "SklearnAdvancedKNNClassifierTrainerOpDesc",
+    "SklearnAdvancedKNNRegressorTrainerOpDesc",
+    "SklearnAdvancedSVCTrainerOpDesc",
+    "SklearnAdvancedSVRTrainerOpDesc",
+    "SklearnBaggingOpDesc",
+    "SklearnBernoulliNaiveBayesOpDesc",
+    "SklearnComplementNaiveBayesOpDesc",
+    "SklearnDecisionTreeOpDesc",
+    "SklearnDummyClassifierOpDesc",
+    "SklearnExtraTreeOpDesc",
+    "SklearnExtraTreesOpDesc",
+    "SklearnGaussianNaiveBayesOpDesc",
+    "SklearnGradientBoostingOpDesc",
+    "SklearnKNNOpDesc",
+    "SklearnLinearRegressionOpDesc",
+    "SklearnLinearSVMOpDesc",
+    "SklearnLogisticRegressionCVOpDesc",
+    "SklearnLogisticRegressionOpDesc",
+    "SklearnMultiLayerPerceptronOpDesc",
+    "SklearnMultinomialNaiveBayesOpDesc",
+    "SklearnNearestCentroidOpDesc",
+    "SklearnPassiveAggressiveOpDesc",
+    "SklearnPerceptronOpDesc",
+    "SklearnProbabilityCalibrationOpDesc",
+    "SklearnRandomForestOpDesc",
+    "SklearnRidgeCVOpDesc",
+    "SklearnRidgeOpDesc",
+    "SklearnSDGOpDesc",
+    "SklearnSVMOpDesc",
+    "SklearnTrainingAdaptiveBoostingOpDesc",
+    "SklearnTrainingBaggingOpDesc",
+    "SklearnTrainingBernoulliNaiveBayesOpDesc",
+    "SklearnTrainingComplementNaiveBayesOpDesc",
+    "SklearnTrainingDecisionTreeOpDesc",
+    "SklearnTrainingDummyClassifierOpDesc",
+    "SklearnTrainingExtraTreeOpDesc",
+    "SklearnTrainingExtraTreesOpDesc",
+    "SklearnTrainingGaussianNaiveBayesOpDesc",
+    "SklearnTrainingGradientBoostingOpDesc",
+    "SklearnTrainingKNNOpDesc",
+    "SklearnTrainingLinearRegressionOpDesc",
+    "SklearnTrainingLinearSVMOpDesc",
+    "SklearnTrainingLogisticRegressionCVOpDesc",
+    "SklearnTrainingLogisticRegressionOpDesc",
+    "SklearnTrainingMultiLayerPerceptronOpDesc",
+    "SklearnTrainingMultinomialNaiveBayesOpDesc",
+    "SklearnTrainingNearestCentroidOpDesc",
+    "SklearnTrainingPassiveAggressiveOpDesc",
+    "SklearnTrainingPerceptronOpDesc",
+    "SklearnTrainingProbabilityCalibrationOpDesc",
+    "SklearnTrainingRandomForestOpDesc",
+    "SklearnTrainingRidgeCVOpDesc",
+    "SklearnTrainingRidgeOpDesc",
+    "SklearnTrainingSDGOpDesc",
+    "SklearnTrainingSVMOpDesc",
     "HuggingFace",
     "MachineLearningScorer",
     "NetworkGraphOpDesc",
