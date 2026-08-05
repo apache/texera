@@ -77,7 +77,10 @@ class AuthResourceSpec
     getDSLContext.deleteFrom(USER).where(USER.NAME.eq(UserSystemConfig.adminUsername)).execute()
   }
 
-  /** Seed a user plus the LOCAL auth_provider row it logs in with, mirroring `insertLocalUser`. */
+  /**
+    * Seed a user plus the LOCAL auth_provider row it logs in with, mirroring
+    * `LocalAuthProvisioner.createLocalAccount`.
+    */
   private def seedUser(
       name: String,
       password: String,

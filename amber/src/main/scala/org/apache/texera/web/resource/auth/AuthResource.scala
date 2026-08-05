@@ -196,7 +196,7 @@ class AuthResource {
         user.setName(username)
         user.setEmail(useremail)
         user.setRole(UserRoleEnum.RESTRICTED)
-        // Loses the race to a concurrent registration of the same handle as a 409.
+        // Reports losing the race to a concurrent registration of the same handle as a 409.
         LocalAuthProvisioner.createLocalAccount(user, username, userpassword)
         TokenIssueResponse(jwtToken(jwtClaims(user, TOKEN_EXPIRE_TIME_IN_MINUTES)))
     }

@@ -43,7 +43,6 @@ case class UserInfo(
     name: String,
     email: String,
     googleId: String,
-    localHandle: String,
     role: UserRoleEnum,
     // `"user".avatar` is no longer Google-specific, but this is the JSON key
     // `admin-user.component.html` binds, so the wire name stays until the frontend migrates.
@@ -79,7 +78,6 @@ class AdminUserResource {
   def list(): util.List[UserInfo] = {
 
     val googleProvider = AUTH_PROVIDER.as("google_provider")
-    val localProvider = AUTH_PROVIDER.as("local_provider")
 
     AdminUserResource.context
       .select(
@@ -88,11 +86,11 @@ class AdminUserResource {
         USER.EMAIL,
         // fetchInto maps onto a Scala case class POSITIONALLY, not by name: a case class has no
         // no-arg constructor, so jOOQ falls through to ImmutablePOJOMapper. So the column order
-        // below must track the UserInfo field order. `last_active_time` landing on `lastLogin` two
-        // entries down only works because of that. The aliases are documentation (both joins
-        // project a column called `provider_id`); they do not drive the mapping.
+        // below must track the UserInfo field order — adding, removing or reordering a projected
+        // column here without doing the same to UserInfo silently shifts every later field.
+        // `last_active_time` landing on `lastLogin` only works because of that. The aliases are
+        // documentation; they do not drive the mapping.
         googleProvider.PROVIDER_ID.as("googleId"),
-        localProvider.PROVIDER_ID.as("localHandle"),
         USER.ROLE,
         USER.AVATAR.as("googleAvatar"),
         USER.COMMENT,
@@ -108,9 +106,6 @@ class AdminUserResource {
       .leftJoin(googleProvider)
       .on(googleProvider.PROVIDER_TYPE.eq(ProviderTypeEnum.GOOGLE))
       .and(googleProvider.UID.eq(USER.UID))
-      .leftJoin(localProvider)
-      .on(localProvider.PROVIDER_TYPE.eq(ProviderTypeEnum.LOCAL))
-      .and(localProvider.UID.eq(USER.UID))
       .fetchInto(classOf[UserInfo])
   }
 

@@ -59,7 +59,7 @@ object JwtAuth {
     * `googleAvatar` name until the frontend is migrated in lockstep.
     *
     * `googleId` is passed in rather than read off `user`, because the GOOGLE provider id lives
-    * in `auth_provider` and this module must stay DB-free: the four specs in
+    * in `auth_provider` and this module must stay DB-free: the specs in
     * `access-control-service` / `config-service` and the token re-issue paths in
     * `ResultExportService` / `ComputingUnitManagingResource` all call this with no
     * `auth_provider` context. Those re-issued tokens are service-to-service and never reach
