@@ -120,6 +120,7 @@ import { AboutComponent } from "./hub/component/about/about.component";
 import { TexeraLoginComponent } from "./hub/component/login/texera-login.component";
 import { NzLayoutModule } from "ng-zorro-antd/layout";
 import { AuthGuardService } from "./common/service/user/auth-guard.service";
+import { GuestGuardService } from "./common/service/user/guest-guard.service";
 import { MarkdownModule } from "ngx-markdown";
 import { FileSaverService } from "./dashboard/service/user/file/file-saver.service";
 import { DragDropModule } from "@angular/cdk/drag-drop";
@@ -376,6 +377,7 @@ registerLocaleData(en);
     { provide: ErrorHandler, useClass: GlobalErrorHandler },
     provideNzI18n(en_US),
     AuthGuardService,
+    GuestGuardService,
     AdminGuardService,
     DatePipe,
     UserService,

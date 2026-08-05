@@ -40,6 +40,34 @@ texera-user-icon {
   padding: 0 24px;
 }
 
+// The only route into /login for a logged-out visitor, occupying the slot texera-user-icon
+// takes once signed in — hence the matching 24px gutter. Sized and coloured to read as an
+// ng-zorro primary button so it sits naturally beside the rest of the navbar.
+.nav-login-link {
+  flex: none;
+  margin: 0 24px;
+  padding: 0 16px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 4px;
+  background-color: #1890ff;
+  color: white;
+  font-size: 14px;
+  white-space: nowrap;
+  transition: background-color 0.2s;
+
+  &:hover,
+  &:focus {
+    background-color: #40a9ff;
+    color: white;
+  }
+
+  &:active {
+    background-color: #096dd9;
+  }
+}
+
 button {
   border: none;
 }

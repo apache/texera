@@ -30,6 +30,7 @@ import { WorkspaceComponent } from "./workspace/component/workspace.component";
 import { AboutComponent } from "./hub/component/about/about.component";
 import { TexeraLoginComponent } from "./hub/component/login/texera-login.component";
 import { AuthGuardService } from "./common/service/user/auth-guard.service";
+import { GuestGuardService } from "./common/service/user/guest-guard.service";
 import { AdminUserComponent } from "./dashboard/component/admin/user/admin-user.component";
 import { AdminExecutionComponent } from "./dashboard/component/admin/execution/admin-execution.component";
 import { AdminGuardService } from "./dashboard/service/admin/guard/admin-guard.service";
@@ -48,10 +49,12 @@ import { AdminSettingsComponent } from "./dashboard/component/admin/settings/adm
 const routes: Routes = [];
 
 // Full-page login: a top-level route (sibling of the DashboardComponent shell) so it renders
-// in the root outlet without the navbar/sidebar chrome.
+// in the root outlet without the navbar/sidebar chrome. Guarded so an already-signed-in user
+// is sent on rather than shown a sign-in form.
 routes.push({
   path: "login",
   component: TexeraLoginComponent,
+  canActivate: [GuestGuardService],
 });
 
 routes.push({
