@@ -105,7 +105,8 @@ object StandaloneRunner extends LazyLogging {
         (1 to outputPortCount).map(i => i -> workDir.resolve(s"output_port_${i - 1}.jsonl")).toMap
       else Map.empty
 
-    val source = renderScript(gen.generateStandaloneCode(), inputs, outputPaths)
+    val source =
+      renderScript(gen.generateStandaloneCode(), inputs, outputPaths, gen.standaloneHelpers())
     Files.write(scriptPath, source.getBytes(StandardCharsets.UTF_8))
 
     val (exit, stdout, stderr) = execute(scriptPath, workDir, pythonExe)
@@ -169,7 +170,8 @@ object StandaloneRunner extends LazyLogging {
   private def renderScript(
       body: String,
       inputs: Map[Int, Path],
-      outputs: Map[Int, Path]
+      outputs: Map[Int, Path],
+      helpers: Seq[String]
   ): String = {
     val sb = new StringBuilder
 
@@ -256,6 +258,14 @@ object StandaloneRunner extends LazyLogging {
     sb.append("\n")
 
     // Body verbatim — placeholders left in place.
+    // Emitted ahead of the body the way the translator does, so an operator that
+    // declares a helper is exercised here exactly as it runs in a real script.
+    helpers.foreach { helper =>
+      sb.append(helper)
+      if (!helper.endsWith("\n")) sb.append('\n')
+      sb.append('\n')
+    }
+
     sb.append("# ── operator body ──\n")
     sb.append(body)
     if (!body.endsWith("\n")) sb.append('\n')

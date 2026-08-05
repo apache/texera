@@ -23,7 +23,7 @@ import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PhysicalOp}
-import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator}
+import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator, StandaloneHelpers}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
@@ -61,25 +61,21 @@ class ReservoirSamplingOpDesc extends LogicalOp with StandaloneCodeGenerator {
     )
   }
 
-  // JVM op is Algorithm R (Vitter): fill reservoir with the first k tuples,
-  // then for tuple m+1 (m >= k) sample i = rand.nextInt(m), uniform in [0, m),
-  // and replace reservoir[i] iff i < k. RNG is `new scala.util.Random(workerCount)`
-  // — workerCount = 1 in single-worker / standalone setup, so seed = 1.
-  //
-  // Divergence: Java util.Random (LCG) and Python's Mersenne Twister produce
-  // different sequences from the same seed, so the EXACT rows kept will
-  // differ — only the distribution (uniform k-of-n sample) matches. Same
-  // tradeoff RandomKSamplingOpDesc documents.
+  override def standaloneHelpers(): Seq[String] = Seq(StandaloneHelpers.JavaRandom)
+
+  // The executor runs Algorithm R (Vitter): fill the reservoir with the first k
+  // tuples, then for tuple m+1 (m >= k) draw i = rand.nextInt(m), uniform in
+  // [0, m), and replace reservoir[i] iff i < k. Its generator is seeded with the
+  // worker count — 1 in the single-worker setup a translated script reproduces.
   override def generateStandaloneCode(): String = {
-    s"""import random as _texera_rs_rand
-       |_texera_rs_rng = _texera_rs_rand.Random(1)
+    s"""_texera_rs_rng = _TexeraJavaRandom(1)
        |_texera_rs_k = $k
        |_texera_rs_reservoir = []
        |for _texera_rs_n, _texera_rs_row in enumerate(in1df.itertuples(index=False, name=None)):
        |    if _texera_rs_n < _texera_rs_k:
        |        _texera_rs_reservoir.append(_texera_rs_row)
        |    else:
-       |        _texera_rs_i = _texera_rs_rng.randrange(_texera_rs_n)
+       |        _texera_rs_i = _texera_rs_rng.next_int(_texera_rs_n)
        |        if _texera_rs_i < _texera_rs_k:
        |            _texera_rs_reservoir[_texera_rs_i] = _texera_rs_row
        |out1df = pd.DataFrame(_texera_rs_reservoir, columns=list(in1df.columns)).reset_index(drop=True)""".stripMargin

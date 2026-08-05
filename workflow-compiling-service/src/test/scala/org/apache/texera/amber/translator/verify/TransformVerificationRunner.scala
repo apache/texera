@@ -29,8 +29,6 @@ import org.apache.texera.amber.operator.{
 }
 import org.apache.texera.amber.operator.aggregate.AggregateOpDesc
 import org.apache.texera.amber.operator.dummy.DummyOpDesc
-import org.apache.texera.amber.operator.randomksampling.RandomKSamplingOpDesc
-import org.apache.texera.amber.operator.reservoirsampling.ReservoirSamplingOpDesc
 import org.apache.texera.amber.operator.split.SplitOpDesc
 import org.apache.texera.amber.operator.sklearn.SklearnPredictionOpDesc
 import org.apache.texera.amber.operator.sklearn.SklearnClassifierOpDesc
@@ -203,18 +201,11 @@ object TransformVerificationRunner {
     classOf[DummyOpDesc] ->
       ("harness gap: placeholder operator with no physical execution — " +
         "LogicalOp.getPhysicalOp throws NotImplementedError"),
-    classOf[RandomKSamplingOpDesc] ->
-      ("non-deterministic: per-row keep decisions from JVM java.util.Random " +
-        "(LCG) vs Python's Mersenne Twister select different rows even with " +
-        "equal seeds"),
-    classOf[ReservoirSamplingOpDesc] ->
-      ("non-deterministic: reservoir replacement indices from JVM " +
-        "java.util.Random (LCG) vs Python's Mersenne Twister diverge even " +
-        "with equal seeds"),
     classOf[SplitOpDesc] ->
-      ("non-deterministic: random partition mask from scala.util.Random " +
-        "(LCG) vs numpy RandomState (Mersenne Twister) diverges even with " +
-        "equal seeds"),
+      ("not reproducible by construction: 'Auto-Generate Seed' defaults to true " +
+        "and the executor then seeds from the clock, so the operator disagrees " +
+        "with its own previous run and there is nothing for a script to match; " +
+        "the seeded branch does agree, but the boolean sweep always covers both"),
     classOf[SklearnPredictionOpDesc] ->
       ("trained-model input: the operator consumes a fitted sklearn model on " +
         "its model port; a JSONL fixture written from the JVM cannot carry a " +

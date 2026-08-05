@@ -23,7 +23,7 @@ import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PhysicalOp}
-import org.apache.texera.amber.operator.StandaloneCodeGenerator
+import org.apache.texera.amber.operator.{StandaloneCodeGenerator, StandaloneHelpers}
 import org.apache.texera.amber.operator.filter.FilterOpDesc
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.util.JSONUtils.objectMapper
@@ -62,21 +62,18 @@ class RandomKSamplingOpDesc extends FilterOpDesc with StandaloneCodeGenerator {
       supportReconfiguration = true
     )
 
-  // JVM op is a per-row Bernoulli filter: keep iff (percentage/100.0) >=
-  // rand.nextDouble(), where rand is seeded with the worker count (1 in a
-  // single-worker / standalone setup).
-  //
-  // Divergence: JVM scala.util.Random wraps java.util.Random (LCG); Python's
-  // random module uses Mersenne Twister. With the same seed the EXACT rows
-  // kept will differ — only the distribution (Bernoulli(p=percentage/100))
-  // matches. Each operator instance gets its own RNG so independent samplers
-  // don't share sequence state.
+  override def standaloneHelpers(): Seq[String] = Seq(StandaloneHelpers.JavaRandom)
+
+  // The executor is a per-row Bernoulli filter: keep iff (percentage/100.0) >=
+  // rand.nextDouble(), where rand is seeded with the worker count — 1 in the
+  // single-worker setup a translated script reproduces. Drawing from the same
+  // generator keeps the exact rows, not merely the same distribution; each
+  // operator instance builds its own so independent samplers don't share state.
   override def generateStandaloneCode(): String = {
     val p = percentage / 100.0
-    s"""import random as _texera_rks_rand
-       |_texera_rks_rng = _texera_rks_rand.Random(1)
+    s"""_texera_rks_rng = _TexeraJavaRandom(1)
        |_texera_rks_mask = pd.Series(
-       |    [$p >= _texera_rks_rng.random() for _ in range(len(in1df))],
+       |    [$p >= _texera_rks_rng.next_double() for _ in range(len(in1df))],
        |    index=in1df.index, dtype=bool
        |)
        |out1df = in1df[_texera_rks_mask].reset_index(drop=True)""".stripMargin

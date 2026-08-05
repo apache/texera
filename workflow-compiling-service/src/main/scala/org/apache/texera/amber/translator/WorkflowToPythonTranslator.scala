@@ -57,6 +57,19 @@ class WorkflowToPythonTranslator extends LazyLogging {
     // getTopologicalOpIds() uses jgrapht internally — no need for a custom topo sort
     val topoOrder = logicalPlan.getTopologicalOpIds.asScala.toList
 
+    // Helper definitions the operator bodies below refer to. Collected across the
+    // whole plan and deduplicated by text, so a workflow holding two operators
+    // that share one helper still emits it once. Order follows the topological
+    // order, which keeps the script stable for a given plan.
+    val helpers = topoOrder
+      .map(logicalPlan.getOperator)
+      .collect { case gen: StandaloneCodeGenerator => gen.standaloneHelpers() }
+      .flatten
+      .distinct
+    if (helpers.nonEmpty) {
+      helpers.foreach { helper => script += helper; script += "" }
+    }
+
     for (opIdentity <- topoOrder) {
       val opId = opIdentity.id
       val op = logicalPlan.getOperator(opIdentity)
