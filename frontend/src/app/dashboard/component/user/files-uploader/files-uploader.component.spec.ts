@@ -148,6 +148,96 @@ describe("FilesUploaderComponent", () => {
     expect((await emitted).map(item => item.name)).toEqual(["same.csv"]);
   });
 
+  /**
+   * The Restart choices are the half of the conflict dialog the existing tests never take. They
+   * differ from Resume by exactly one observable: `item.restart`, which is what makes the uploader
+   * call the backend with type=forceRestart instead of continuing the existing multipart session.
+   * A Resume/Restart mix-up therefore silently resumes a session the user asked to discard.
+   */
+  it("marks a file for force-restart when Restart is chosen", async () => {
+    datasetService.findExistingUploadFiles.mockReturnValue(of([]));
+    const emitted = new Promise<FileUploadItem[]>(resolve => component.uploadedFiles.subscribe(resolve));
+
+    component.fileDropped([droppedFile("failed.csv", new File(["half"], "failed.csv"))]);
+
+    await waitUntil(() => modals.length === 1);
+    modals[0].nzFooter.find(button => button.label === "Restart")?.onClick();
+
+    const items = await emitted;
+    expect(items.map(item => item.name)).toEqual(["failed.csv"]);
+    expect(items[0].restart).toBe(true);
+  });
+
+  it("leaves the restart flag unset when Resume is chosen", async () => {
+    // The counterpart of the test above: same file, other button. Without this pair, a
+    // markForceRestart call added to the Resume branch would go unnoticed.
+    datasetService.findExistingUploadFiles.mockReturnValue(of([]));
+    const emitted = new Promise<FileUploadItem[]>(resolve => component.uploadedFiles.subscribe(resolve));
+
+    component.fileDropped([droppedFile("failed.csv", new File(["half"], "failed.csv"))]);
+
+    await waitUntil(() => modals.length === 1);
+    modals[0].nzFooter.find(button => button.label === "Resume")?.onClick();
+
+    const items = await emitted;
+    expect(items.map(item => item.name)).toEqual(["failed.csv"]);
+    expect(items[0].restart).toBeFalsy();
+  });
+
+  it("restarts every remaining conflicting file after one Restart For All choice", async () => {
+    datasetService.listMultipartUploads.mockReturnValue(of(["one.csv", "two.csv"]));
+    datasetService.findExistingUploadFiles.mockReturnValue(of([]));
+    const emitted = new Promise<FileUploadItem[]>(resolve => component.uploadedFiles.subscribe(resolve));
+
+    component.fileDropped([
+      droppedFile("one.csv", new File(["one"], "one.csv")),
+      droppedFile("two.csv", new File(["two"], "two.csv")),
+    ]);
+
+    await waitUntil(() => modals.length === 1);
+    modals[0].nzFooter.find(button => button.label === "Restart For All")?.onClick();
+
+    const items = await emitted;
+    expect(items.map(item => item.name)).toEqual(["one.csv", "two.csv"]);
+    // Both files carry the flag, and the second one never prompted - the "For All" latch has to
+    // apply the restart itself rather than just suppressing the dialog.
+    expect(items.map(item => item.restart)).toEqual([true, true]);
+    expect(modals).toHaveLength(1);
+  });
+
+  it("resumes every remaining conflicting file after one Resume For All choice", async () => {
+    datasetService.listMultipartUploads.mockReturnValue(of(["one.csv", "two.csv"]));
+    datasetService.findExistingUploadFiles.mockReturnValue(of([]));
+    const emitted = new Promise<FileUploadItem[]>(resolve => component.uploadedFiles.subscribe(resolve));
+
+    component.fileDropped([
+      droppedFile("one.csv", new File(["one"], "one.csv")),
+      droppedFile("two.csv", new File(["two"], "two.csv")),
+    ]);
+
+    await waitUntil(() => modals.length === 1);
+    modals[0].nzFooter.find(button => button.label === "Resume For All")?.onClick();
+
+    const items = await emitted;
+    expect(items.map(item => item.name)).toEqual(["one.csv", "two.csv"]);
+    // Distinguishes the two latches: resumeAll must NOT set the flag restartAll sets.
+    expect(items.every(item => !item.restart)).toBe(true);
+    expect(modals).toHaveLength(1);
+  });
+
+  it("passes a non-conflicting file straight through without prompting", async () => {
+    datasetService.listMultipartUploads.mockReturnValue(of(["other.csv"]));
+    datasetService.findExistingUploadFiles.mockReturnValue(of([]));
+    const emitted = new Promise<FileUploadItem[]>(resolve => component.uploadedFiles.subscribe(resolve));
+
+    component.fileDropped([droppedFile("clean.csv", new File(["clean"], "clean.csv"))]);
+
+    const items = await emitted;
+    expect(items.map(item => item.name)).toEqual(["clean.csv"]);
+    expect(items[0].restart).toBeFalsy();
+    expect(modals).toHaveLength(0);
+  });
+
   it("skips all matching files after one Skip For All choice", async () => {
     datasetService.listMultipartUploads.mockReturnValue(of([]));
     datasetService.findExistingUploadFiles.mockReturnValue(of(["one.csv", "two.csv"]));
