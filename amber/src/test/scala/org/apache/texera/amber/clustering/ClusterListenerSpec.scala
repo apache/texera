@@ -31,9 +31,10 @@ import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 
 import java.util.UUID
-import java.util.concurrent.{Future => JFuture}
+import java.util.concurrent.{ConcurrentLinkedQueue, Future => JFuture}
 import javax.websocket.{RemoteEndpoint, Session}
 import scala.collection.mutable.ArrayBuffer
+import scala.jdk.CollectionConverters.CollectionHasAsScala
 import scala.concurrent.duration._
 
 /**
@@ -87,21 +88,30 @@ class ClusterListenerSpec
     * SessionState registry is JVM-global, so a session left behind is called by a LATER test's
     * listener against an expired mock ("Unexpected call: Session.getAsyncRemote"). Observed.
     */
-  private def withSession[A](body: ArrayBuffer[String] => A): A = {
+  private def withSession[A](body: (() => Seq[String]) => A): A = {
     val (id, sent) = mockSession()
-    try body(sent)
+    // The body receives a snapshot function rather than the live queue, so every assertion reads a
+    // consistent point-in-time view instead of iterating a collection the actor thread is appending to.
+    try body(() => sent.asScala.toList)
     finally scala.util.Try(SessionState.removeState(id))
   }
 
-  /** A session whose outbound frames are collected, so the fan-out is observable. */
-  private def mockSession(): (String, ArrayBuffer[String]) = {
-    val sent = ArrayBuffer[String]()
+  /**
+    * A session whose outbound frames are collected, so the fan-out is observable.
+    *
+    * The queue is concurrent on purpose: `sendText` is invoked on the listener's actor thread while
+    * the assertions read it from the test thread inside `awaitAssert`. A plain ArrayBuffer would be
+    * an unsynchronised hand-off across those two threads - the very hazard this suite exists to
+    * document on the production side.
+    */
+  private def mockSession(): (String, ConcurrentLinkedQueue[String]) = {
+    val sent = new ConcurrentLinkedQueue[String]()
     val async = mock[RemoteEndpoint.Async]
     (async
       .sendText(_: String))
       .expects(*)
       .onCall { (text: String) =>
-        sent.synchronized { sent += text }
+        sent.add(text)
         null.asInstanceOf[JFuture[Void]]
       }
       .anyNumberOfTimes()
@@ -163,30 +173,35 @@ class ClusterListenerSpec
   it should "recompute the node count and push it to every open session on a membership event" in {
     // Register the session BEFORE the listener exists, so nothing mutates the registry while a
     // listener is iterating it (see withListener's note), and remove it after the listener stops.
-    withSession { sent =>
+    withSession { sentFrames =>
+      // Restore the sentinel in a local finally, not just in afterAll: amber runs suites
+      // concurrently in one JVM, so a sibling reading this global should not be able to observe -1
+      // for any longer than this case needs it.
+      val previous = ClusterListener.numWorkerNodesInCluster
       ClusterListener.numWorkerNodesInCluster = -1
+      try {
+        // Creating the listener subscribes it with InitialStateAsEvents, so the already-Up member is
+        // replayed to it as a MemberUp. That is what drives updateClusterStatus here - no synthetic
+        // Member is needed, and none could be built (Member is private[cluster]).
+        withListener { _ =>
+          awaitAssert(
+            {
+              // The count is recomputed from live membership, not left at the sentinel.
+              ClusterListener.numWorkerNodesInCluster shouldBe 1
 
-      // Creating the listener subscribes it with InitialStateAsEvents, so the already-Up member is
-      // replayed to it as a MemberUp. That is what drives updateClusterStatus here - no synthetic
-      // Member is needed, and none could be built (Member is private[cluster]).
-      withListener { _ =>
-        awaitAssert(
-          {
-            // The count is recomputed from live membership, not left at the sentinel.
-            ClusterListener.numWorkerNodesInCluster shouldBe 1
-
-            val counts = sent.toSeq
-              .map(objectMapper.readTree)
-              .filter(_.get("type").asText() == "ClusterStatusUpdateEvent")
-              .map(_.get("numWorkers").asInt())
-            // Every open session is told, and told the recomputed number.
-            counts should not be empty
-            counts.last shouldBe 1
-          },
-          15.seconds,
-          500.millis
-        )
-      }
+              val counts = sentFrames()
+                .map(objectMapper.readTree)
+                .filter(_.get("type").asText() == "ClusterStatusUpdateEvent")
+                .map(_.get("numWorkers").asInt())
+              // Every open session is told, and told the recomputed number.
+              counts should not be empty
+              counts.last shouldBe 1
+            },
+            15.seconds,
+            500.millis
+          )
+        }
+      } finally ClusterListener.numWorkerNodesInCluster = previous
     }
   }
 
@@ -199,8 +214,16 @@ class ClusterListenerSpec
     // next request exactly like one that never failed. (Checked - a version of this test written
     // with `!` stayed green with the catch-all replaced by a `throw`.)
     val listener = TestActorRef[ClusterListener](Props[ClusterListener]())
-
-    noException should be thrownBy listener.receive("not a cluster event")
+    try {
+      noException should be thrownBy listener.receive("not a cluster event")
+    } finally {
+      // Stopped for the same reason the others are: it subscribed in preStart, and a listener left
+      // running keeps iterating the shared SessionState registry on every membership event.
+      watch(listener)
+      system.stop(listener)
+      expectTerminated(listener, 10.seconds)
+      unwatch(listener)
+    }
   }
 
   // Not asserted separately: that postStop unsubscribes. Every case above stops its listener via
