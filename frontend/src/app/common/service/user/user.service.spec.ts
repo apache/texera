@@ -207,17 +207,13 @@ describe("UserService", () => {
 
   // ─── avatar fetching ──────────────────────────────────────────────────────
 
-  // The stored value is the provider's complete URL, not a Google-specific fragment, so it is
-  // fetched as-is and is also the cache key.
-  const AVATAR_URL = "https://lh3.googleusercontent.com/a/AVATAR-ID";
-
-  it("getAvatar returns undefined for an empty avatar url", async () => {
+  it("getAvatar returns undefined for an empty avatar id", async () => {
     expect(await firstValueFrom(service.getAvatar(""))).toBeUndefined();
   });
 
   it("getAvatar returns the cached object URL while the entry is still fresh", async () => {
-    (service as any).cache.set(AVATAR_URL, { url: "blob:cached", expiry: Date.now() + 60_000 });
-    expect(await firstValueFrom(service.getAvatar(AVATAR_URL))).toBe("blob:cached");
+    (service as any).cache.set("cached-id", { url: "blob:cached", expiry: Date.now() + 60_000 });
+    expect(await firstValueFrom(service.getAvatar("cached-id"))).toBe("blob:cached");
   });
 
   describe("getAvatar network path", () => {
@@ -241,29 +237,18 @@ describe("UserService", () => {
       globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, blob: () => Promise.resolve(blob) }) as any;
       URL.createObjectURL = vi.fn().mockReturnValue("blob:fetched");
 
-      const result = await firstValueFrom(service.getAvatar(AVATAR_URL));
+      const result = await firstValueFrom(service.getAvatar("remote-id"));
 
       expect(result).toBe("blob:fetched");
-      // fetched verbatim — no CDN prefix is reconstructed here any more
-      expect(globalThis.fetch).toHaveBeenCalledWith(AVATAR_URL, {
+      expect(globalThis.fetch).toHaveBeenCalledWith("https://lh3.googleusercontent.com/a/remote-id", {
         referrerPolicy: "no-referrer",
       });
       expect(URL.createObjectURL).toHaveBeenCalledWith(blob);
     });
 
-    it("fetches an avatar hosted anywhere the backend allowed, not just Google's CDN", async () => {
-      const blob = new Blob(["img"]);
-      globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, blob: () => Promise.resolve(blob) }) as any;
-      URL.createObjectURL = vi.fn().mockReturnValue("blob:other");
-
-      const otherHost = "https://avatars.example-provider.com/u/12345";
-      expect(await firstValueFrom(service.getAvatar(otherHost))).toBe("blob:other");
-      expect(globalThis.fetch).toHaveBeenCalledWith(otherHost, { referrerPolicy: "no-referrer" });
-    });
-
     it("returns undefined when the avatar fetch fails", async () => {
       globalThis.fetch = vi.fn().mockResolvedValue({ ok: false, status: 500 }) as any;
-      expect(await firstValueFrom(service.getAvatar("https://lh3.googleusercontent.com/a/BAD"))).toBeUndefined();
+      expect(await firstValueFrom(service.getAvatar("bad-id"))).toBeUndefined();
     });
   });
 });

@@ -27,7 +27,6 @@ import org.apache.texera.common.config.UserSystemConfig
 import org.apache.texera.dao.jooq.generated.enums.ProviderTypeEnum
 import org.apache.texera.web.model.http.response.TokenIssueResponse
 
-import java.io.IOException
 import java.util.Collections
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
@@ -37,15 +36,8 @@ object GoogleAuthResource {
   /**
     * Reduce a verified Google id-token payload to the fields we persist. Google omits `name`
     * for accounts with no profile name, and the provisioner writes `name` straight to a NOT
-    * NULL column, so the address stands in for it.
-    *
-    * `picture` is kept as the complete URL Google supplied. It used to be reduced to its last
-    * path segment with the frontend rebuilding `lh3.googleusercontent.com` around it, which
-    * made the stored value meaningless for any other provider. [[ExternalAuthProvisioner]]
-    * allowlists the host before storing it.
-    *
-    * An absent `picture` maps to `None` rather than `Some("")`, so the provisioner's documented
-    * "leave the stored avatar alone" path is reachable instead of blanking the column.
+    * NULL column, so the address stands in for it. Only the last path segment of `picture` is
+    * kept — the frontend rebuilds the full `lh3.googleusercontent.com` URL around it.
     */
   private[auth] def profileOf(payload: GoogleIdToken.Payload): ExternalProfile = {
     val googleEmail = payload.getEmail
@@ -54,9 +46,9 @@ object GoogleAuthResource {
       payload.getSubject,
       Option(payload.get("name").asInstanceOf[String]).filter(_.nonEmpty).getOrElse(googleEmail),
       googleEmail,
-      // getEmailVerified boxes to null when the claim is absent; absent means unverified.
-      emailVerified = Option(payload.getEmailVerified).exists(_.booleanValue()),
-      avatar = Option(payload.get("picture").asInstanceOf[String]).map(_.trim).filter(_.nonEmpty)
+      avatar = Option(payload.get("picture").asInstanceOf[String])
+        .flatMap(_.split("/").lastOption)
+        .getOrElse("")
     )
   }
 }
@@ -80,15 +72,8 @@ class GoogleAuthResource {
     * instead of signing a token; kept a method rather than a constructor parameter because
     * Jersey instantiates this resource from `classOf[GoogleAuthResource]`.
     */
-  protected def verifiedPayload(credential: String): Option[GoogleIdToken.Payload] = {
-    val idToken =
-      try Option(GoogleIdToken.parse(GsonFactory.getDefaultInstance, credential))
-      catch {
-        case _: IllegalArgumentException | _: IOException => None
-      }
-
-    idToken.filter(verifier.verify).map(_.getPayload)
-  }
+  protected def verifiedPayload(credential: String): Option[GoogleIdToken.Payload] =
+    Option(verifier.verify(credential)).map(_.getPayload)
 
   @POST
   @Consumes(Array(MediaType.TEXT_PLAIN))

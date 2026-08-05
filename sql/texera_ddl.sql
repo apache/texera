@@ -106,7 +106,7 @@ CREATE TABLE IF NOT EXISTS "user"
     uid                     SERIAL PRIMARY KEY,
     name                    VARCHAR(256) NOT NULL,
     email                   VARCHAR(256) UNIQUE,
-    avatar                  VARCHAR(512),
+    avatar                  VARCHAR(100),
     role                    user_role_enum NOT NULL DEFAULT 'INACTIVE',
     comment                 TEXT,
     account_creation_time   TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -114,10 +114,6 @@ CREATE TABLE IF NOT EXISTS "user"
     joining_reason          VARCHAR(500),
     -- placeholder accounts are auto-created for dataset contributors and carry no credentials until claimed
     is_placeholder          BOOLEAN NOT NULL DEFAULT FALSE
-    -- ck_nulltest ("every non-placeholder account has a credential") is deliberately not
-    -- carried over: credentials now live in auth_provider, so the rule spans two tables and
-    -- cannot be a row-level CHECK. A user with no auth_provider row is legal and simply
-    -- cannot log in; migration 32 reports any it finds.
     );
 
 CREATE TABLE IF NOT EXISTS auth_provider

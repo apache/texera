@@ -17,29 +17,19 @@
  * under the License.
  */
 
--- Relocate login credentials out of "user" into auth_provider, and make the avatar column
--- provider-neutral.
+-- Relocate login credentials out of "user" into auth_provider.
 --
--- Part 1 moves `password` / `google_id` into an auth_provider row per (user, provider), so a
--- user can hold several external identities instead of exactly one Google account.
---
--- Part 2 promotes the avatar from a Google-specific URL fragment to the provider's complete
--- URL. It used to hold only the last path segment of Google's `picture` claim, with the
--- frontend rebuilding `https://lh3.googleusercontent.com/a/<fragment>` around it, which made
--- the column meaningless for any other provider.
---
--- Both parts run in one transaction: part 2 depends on the google_avatar -> avatar rename in
--- part 1, so they cannot be applied independently.
+-- Moves `password` / `google_id` into an auth_provider row per (user, provider), so a user can
+-- hold several external identities instead of exactly one Google account, and renames
+-- `google_avatar` to the provider-neutral `avatar`. The rename is in place: the column keeps
+-- its width and every stored value, so this migration does not change what any user's avatar
+-- resolves to.
 
 \c texera_db
 
 SET search_path TO texera_db;
 
 BEGIN;
-
--- ============================================================================
--- Part 1: credentials move to auth_provider
--- ============================================================================
 
 DO $$
 BEGIN
@@ -190,25 +180,5 @@ $$;
 ALTER TABLE "user" DROP CONSTRAINT IF EXISTS ck_nulltest;
 ALTER TABLE "user" DROP COLUMN IF EXISTS password;
 ALTER TABLE "user" DROP COLUMN IF EXISTS google_id;
-
--- ============================================================================
--- Part 2: the avatar becomes the provider's full URL
--- ============================================================================
-
--- A full URL does not fit in the old width.
-ALTER TABLE "user" ALTER COLUMN avatar TYPE VARCHAR(512);
-
--- Pictureless Google logins used to record an empty string; NULL is now the single
--- representation of "this user has no avatar", so the frontend has one case to handle.
-UPDATE "user" SET avatar = NULL WHERE avatar = '';
-
--- Promote the remaining bare fragments to absolute URLs. The `NOT LIKE` guard makes this
--- idempotent and leaves already-absolute values (from a re-run, or from a provider added
--- after this migration) untouched.
-UPDATE "user"
-SET avatar = 'https://lh3.googleusercontent.com/a/' || avatar
-WHERE avatar IS NOT NULL
-  AND avatar NOT LIKE 'http://%'
-  AND avatar NOT LIKE 'https://%';
 
 COMMIT;

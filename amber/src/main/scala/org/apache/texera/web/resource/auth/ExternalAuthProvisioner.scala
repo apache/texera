@@ -25,71 +25,47 @@ import org.apache.texera.dao.jooq.generated.Tables.{AUTH_PROVIDER, USER}
 import org.apache.texera.dao.jooq.generated.enums.{ProviderTypeEnum, UserRoleEnum}
 import org.apache.texera.dao.jooq.generated.tables.daos.{AuthProviderDao, UserDao}
 import org.apache.texera.dao.jooq.generated.tables.pojos.{AuthProvider, User}
+import org.apache.texera.common.util.EmailUtil
 import org.jooq.DSLContext
+import org.jooq.impl.DSL
 
-import java.net.URI
 import java.time.OffsetDateTime
-import javax.ws.rs.NotAuthorizedException
 import scala.util.chaining.scalaUtilChainingOps
-import scala.util.Try
 
 /**
-  * A verified external identity (Google, Facebook, ...) reduced to the fields we
-  * persist. `avatar` is the complete URL the provider supplied, and is optional:
-  * `None` means the provider supplies no avatar, so the user's existing avatar column
-  * is left untouched rather than overwritten.
-  *
-  * `emailVerified` reports whether the provider itself vouches for `email`. It has no
-  * default on purpose: an email address is what links an external identity to an
-  * existing account, so treating an unverified one as trusted is an account-takeover
-  * path, and a defaulted flag is how that mistake comes back.
+  * A verified external identity (Google, Facebook, ...) reduced to the fields we persist.
   */
 final case class ExternalProfile(
     providerType: ProviderTypeEnum,
     providerId: String,
     name: String,
     email: String,
-    emailVerified: Boolean,
-    avatar: Option[String] = None
+    avatar: String
 )
 
 object ExternalAuthProvisioner extends LazyLogging {
-  // ── avatar host allowlist ──
-  private val ALLOWED_AVATAR_HOST_SUFFIXES: Set[String] = Set(
-    "googleusercontent.com"
-  )
-
-  /** Allow an exact host or any subdomain of an allowlisted suffix. */
-  private[auth] def isAllowedAvatarHost(host: String): Boolean = {
-    if (host == null || host.isEmpty) return false
-    val lower = host.toLowerCase
-    ALLOWED_AVATAR_HOST_SUFFIXES.exists(suffix => lower == suffix || lower.endsWith("." + suffix))
-  }
 
   /**
-    * The avatar URL to persist, or `None` to leave the stored value alone. Anything that is not
-    * an http(s) URL on an allowlisted host is dropped rather than rejected: a surprising avatar
-    * is not a reason to deny someone a login, and treating it as "provider supplied no avatar"
-    * falls back to the initials avatar.
+    * The account owning `email`, matched case-insensitively and within the caller's transaction
+    * so it reads that transaction's own writes.
+    *
+    * Case-insensitivity is required, not a nicety: `"user".email` is a plain case-sensitive
+    * UNIQUE and `idx_user_email_lower` is not unique, so `Alice@x.com` and `alice@x.com` can
+    * coexist. Registration stores the address as the user typed it while contributor
+    * placeholders are stored lower-cased, so the casings provably differ in practice. An
+    * exact-match lookup here would miss, insert a second account without violating any
+    * constraint, and silently strand the original account's data.
+    *
+    * Mirrors `AuthResource.fetchUserByEmailIgnoreCase`, which cannot be reused directly because
+    * it opens its own DSLContext.
     */
-  private[auth] def sanitizedAvatar(profile: ExternalProfile): Option[String] =
-    profile.avatar.filter { url =>
-      val host = Try(URI.create(url)).toOption
-        .filter { uri =>
-          val scheme = Option(uri.getScheme).map(_.toLowerCase)
-          scheme.contains("http") || scheme.contains("https")
-        }
-        .flatMap(uri => Option(uri.getHost))
-
-      val allowed = host.exists(isAllowedAvatarHost)
-      if (!allowed) {
-        logger.warn(
-          s"Ignoring avatar from ${profile.providerType} identity ${profile.providerId}: " +
-            s"'$url' is not an http(s) URL on an allowlisted host."
-        )
-      }
-      allowed
-    }
+  private def userByEmailIgnoreCase(ctx: DSLContext, email: String): Option[User] =
+    Option(
+      ctx
+        .selectFrom(USER)
+        .where(DSL.lower(USER.EMAIL).eq(EmailUtil.normalize(email)))
+        .fetchOneInto(classOf[User])
+    )
 
   /**
     * Resolve the user behind an external identity, creating one if necessary, and
@@ -118,27 +94,14 @@ object ExternalAuthProvisioner extends LazyLogging {
           }
 
         case None =>
-          // First time we have seen this identity, so the email address is the only thing
-          // tying it to an account. It is either an existing one to link onto, or a new row that
-          // claims the address. Trusting an unverified address for that lets anyone who can
-          // mint an `email` claim take over, or squat on, someone else's account. The error
-          // is deliberately the same one a bad credential yields, so this does not become an
-          // oracle for which addresses are registered.
-          if (!profile.emailVerified) {
-            logger.warn(
-              s"Refusing to provision ${profile.providerType} identity ${profile.providerId}: " +
-                "the provider did not verify its email address."
-            )
-            throw new NotAuthorizedException("Login credentials are incorrect.")
-          }
-
-          val user = Option(txUserDao.fetchOneByEmail(profile.email)) match {
+          // First time we have seen this identity, so the email address is the only thing tying
+          // it to an account: either an existing one to link onto, or a new row that claims it.
+          val user = userByEmailIgnoreCase(ctx, profile.email) match {
             case Some(existing) =>
               existing.tap { user =>
                 // A placeholder account (auto-created for a dataset contributor, never had a
-                // credential) is claimed by the first external identity that proves ownership
-                // of its email. It keeps its uid, so existing contributor links stay valid.
-                // Reaching here already required profile.emailVerified.
+                // credential) is claimed by the first external identity that presents its email.
+                // It keeps its uid, so existing contributor links stay valid.
                 val claimed = user.getIsPlaceholder
                 if (claimed) AuthResource.claimPlaceholder(user)
                 // refresh() must run regardless so its mutations are applied
@@ -149,14 +112,15 @@ object ExternalAuthProvisioner extends LazyLogging {
               val created = new User()
               created.setName(profile.name)
               created.setEmail(profile.email)
-              sanitizedAvatar(profile).foreach(created.setAvatar)
+              created.setAvatar(profile.avatar)
               created.setRole(UserRoleEnum.INACTIVE)
               try {
                 txUserDao.insert(created)
                 created
               } catch {
+                // A concurrent registration of the same address won the race; adopt its row.
                 case e: org.jooq.exception.DataAccessException if e.sqlState() == "23505" =>
-                  Option(txUserDao.fetchOneByEmail(profile.email)).getOrElse(throw e)
+                  userByEmailIgnoreCase(ctx, profile.email).getOrElse(throw e)
               }
           }
 
@@ -181,25 +145,20 @@ object ExternalAuthProvisioner extends LazyLogging {
   /**
     * Mutate `user` in place to match `profile`, returning true iff anything changed
     * (so the caller only issues an UPDATE when needed).
-    *
-    * `name` is deliberately not refreshed. It is the display name the user owns and may
-    * have edited in Texera, and it is not identity — the login handle lives in
-    * `auth_provider.provider_id`. Re-deriving it from the provider on every login silently
-    * reverted such edits.
     */
   private def refresh(user: User, profile: ExternalProfile): Boolean = {
     var changed = false
-    // Same reasoning as the link path: only a provider-verified address may move the
-    // column that identifies the account.
-    if (profile.emailVerified && user.getEmail != profile.email) {
+    if (user.getName != profile.name) {
+      user.setName(profile.name)
+      changed = true
+    }
+    if (user.getEmail != profile.email) {
       user.setEmail(profile.email)
       changed = true
     }
-    sanitizedAvatar(profile).foreach { avatar =>
-      if (user.getAvatar != avatar) {
-        user.setAvatar(avatar)
-        changed = true
-      }
+    if (user.getAvatar != profile.avatar) {
+      user.setAvatar(profile.avatar)
+      changed = true
     }
     changed
   }
