@@ -649,6 +649,13 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
     outSchema.getAttributeNames.contains("hf_response") shouldBe true
   }
 
+  it should "validate base64 in the binary-column fallback so plain text isn't decoded to garbage" in {
+    val code = makeDesc().generatePythonCode()
+    // validate=True makes b64decode reject non-base64 input, so real text falls
+    // through to utf-8 instead of decoding to garbage bytes.
+    code should include("base64.b64decode(val, validate=True)")
+  }
+
   it should "treat a 401 as retryable so one provider's auth failure doesn't abort the fallback" in {
     val code = makeDesc().generatePythonCode()
     // 401 is in the retryable set -> the loop tries the next provider instead of bailing.

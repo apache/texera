@@ -888,7 +888,7 @@ object HuggingFaceCodegenBase {
        |        # base64-encoded bytes. Anything else is treated as raw bytes, never
        |        # as a path to open.
        |        try:
-       |            return base64.b64decode(val)
+       |            return base64.b64decode(val, validate=True)
        |        except Exception:
        |            return val.encode("utf-8")
        |
