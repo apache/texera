@@ -71,6 +71,89 @@ describe("BreakpointConditionInputComponent", () => {
     component.closeEmitter.emit();
   });
 
+  /**
+   * The popup has no layout of its own: it is positioned by arithmetic over the Monaco editor's
+   * reported geometry. The stub above supplies distinguishable non-zero values
+   * (glyphMarginLeft 10, editor rect top 20 / left 30, line bottom 40, scrollTop 5), so every
+   * expectation below is a specific number rather than a zero that jsdom would produce anyway.
+   */
+  describe("popup placement", () => {
+    it("offsets left by the glyph margin and the fixed popup width", () => {
+      // 30 (rect.left) + 10 (glyphMarginLeft) - 0 (scrollLeft) - 160 (popup width)
+      expect(component.left()).toBe(-120);
+    });
+
+    it("places the top at the bottom of the target line, less the scroll offset", () => {
+      // 20 (rect.top) + 40 (line bottom) - 5 (scrollTop)
+      expect(component.top()).toBe(55);
+    });
+
+    it("subtracts the horizontal scroll offset", () => {
+      // Only left() reads scrollLeft; a copy-paste of top()'s body would miss this.
+      component.monacoEditor = {
+        ...component.monacoEditor,
+        getScrollLeft: () => 25,
+      } as unknown as editor.IStandaloneCodeEditor;
+
+      expect(component.left()).toBe(-145);
+    });
+
+    it("falls back to 0 rather than throwing when there is no editor yet", () => {
+      const stub = component.monacoEditor;
+      component.monacoEditor = undefined as unknown as editor.IStandaloneCodeEditor;
+      try {
+        // The guards exist because the popup can be rendered a tick before the editor is attached.
+        expect(component.left()).toBe(0);
+        expect(component.top()).toBe(0);
+      } finally {
+        // afterEach disposes the editor, so put the stub back.
+        component.monacoEditor = stub;
+      }
+    });
+
+    it("falls back to 0 for top() when no line is targeted", () => {
+      component.lineNum = undefined;
+      expect(component.top()).toBe(0);
+      // left() does not depend on the line, so it still resolves.
+      expect(component.left()).toBe(-120);
+    });
+
+    it("writes both css offsets when the target line changes", () => {
+      mockUdfDebugService.getCondition.mockReturnValue("x > 1");
+      component.lineNum = 3;
+      const changes: SimpleChanges = {
+        lineNum: { currentValue: 3, previousValue: 1, firstChange: false, isFirstChange: () => false },
+      };
+
+      component.ngOnChanges(changes);
+
+      expect(component.topPosition).toBe("55px");
+      expect(component.leftPosition).toBe("-120px");
+    });
+  });
+
+  describe("visibility", () => {
+    it("is visible only while a line is targeted", () => {
+      // The template keys its *ngIf on this, so an inverted getter leaves the popup stuck open.
+      expect(component.isVisible).toBe(true);
+
+      component.lineNum = undefined;
+      expect(component.isVisible).toBe(false);
+    });
+  });
+
+  it("ignores a keypress when no line is targeted", () => {
+    component.lineNum = undefined;
+    const emitted = vi.fn();
+    component.closeEmitter.subscribe(emitted);
+
+    component.handleEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+
+    // Neither saved nor closed: with no line there is nothing to attach a condition to.
+    expect(mockUdfDebugService.doUpdateBreakpointCondition).not.toHaveBeenCalled();
+    expect(emitted).not.toHaveBeenCalled();
+  });
+
   it("should create the component", () => {
     expect(component).toBeTruthy();
   });
