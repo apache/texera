@@ -59,12 +59,12 @@ class AdminComputingUnitResource {
   /**
     * List every non-terminated computing unit across all users (ADMIN-only).
     *
-    * NOTE: every row is reported as WRITE, but nothing yet honours that on the write side. The
+    * TODO: every row is reported as WRITE, but nothing yet honours that on the write side. The
     * mutating endpoints on [[ComputingUnitManagingResource]] gate on ownership alone
     * (`userOwnComputingUnit`, or `ComputingUnitAccessResource.hasWriteAccess`, neither of which
     * has an ADMIN bypass), so an admin acting on a unit it does not own gets 400/403 from
-    * terminate, rename, /metrics and /limits. A client must not present these rows as writable
-    * until those endpoints grow an admin bypass.
+    * terminate, rename, /metrics and /limits. Give those endpoints an ADMIN bypass; until then a
+    * client must not present these rows as writable.
     */
   @GET
   @Path("/list")
@@ -84,11 +84,10 @@ class AdminComputingUnitResource {
         .asScala
         .toList
 
-    // Same reconcile-then-render sequence as ComputingUnitManagingResource.listComputingUnits, but
-    // the Kubernetes round trips deliberately stay outside the transaction so a pooled connection
-    // is not held open across them. Only the write is wrapped: reconcileVanishedKubernetesUnits
-    // retires vanished units via jOOQ's batchUpdate, which under autocommit commits per
-    // statement — a mid-batch failure would otherwise leave some units retired and the rest not.
+    // Unlike ComputingUnitManagingResource.listComputingUnits, only the reconcile write is wrapped
+    // in a transaction, not the whole method: the Kubernetes round trips stay outside so a pooled
+    // connection is not held open across them, and wrapping the batchUpdate keeps a mid-batch
+    // failure from retiring only some vanished units (autocommit would commit per statement).
 
     // Pod phases decide which Kubernetes units are still alive.
     val podPhases = ComputingUnitHelpers.podPhasesFor(activeUnits)
