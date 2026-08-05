@@ -269,8 +269,8 @@ class ProjectResourceSpec
     val pid = resource.createProject(session(owner), "p").getPid
     resource.updateProjectColor(pid, "123456", session(owner))
 
-    // Wrong length, and a right-length value with a non-hex digit: the guard checks both, so a
-    // length-only check would let "GGGGGG" through and a regex-only check would let "" through.
+    // Wrong length, and a right-length value with a non-hex digit: this exercises both the
+    // length and hex-digit validation branches in updateProjectColor.
     Seq("12345", "1234567", "GGGGGG", "12G", "").foreach { bad =>
       withClue(s"colour '$bad': ") {
         assertThrows[BadRequestException] {
