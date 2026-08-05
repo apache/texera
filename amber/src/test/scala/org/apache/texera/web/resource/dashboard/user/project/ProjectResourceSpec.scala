@@ -254,6 +254,75 @@ class ProjectResourceSpec
     workflowOfProjectCount(wid, pid) shouldBe 0
   }
 
+  it should "accept both 3- and 6-digit hex colours and persist the last one" in {
+    val pid = resource.createProject(session(owner), "p").getPid
+
+    resource.updateProjectColor(pid, "AABBCC", session(owner))
+    resource.getProject(pid).getColor shouldBe "AABBCC"
+
+    // The shorthand form is legal too, and the value is stored verbatim rather than expanded.
+    resource.updateProjectColor(pid, "f0a", session(owner))
+    resource.getProject(pid).getColor shouldBe "f0a"
+  }
+
+  it should "reject colours that are not 3 or 6 hex digits, leaving the stored one intact" in {
+    val pid = resource.createProject(session(owner), "p").getPid
+    resource.updateProjectColor(pid, "123456", session(owner))
+
+    // Wrong length, and a right-length value with a non-hex digit: this exercises both the
+    // length and hex-digit validation branches in updateProjectColor.
+    Seq("12345", "1234567", "GGGGGG", "12G", "").foreach { bad =>
+      withClue(s"colour '$bad': ") {
+        assertThrows[BadRequestException] {
+          resource.updateProjectColor(pid, bad, session(owner))
+        }
+      }
+    }
+
+    resource.getProject(pid).getColor shouldBe "123456"
+  }
+
+  it should "reject a null colour before dereferencing it" in {
+    val pid = resource.createProject(session(owner), "p").getPid
+
+    // The null check has to come first; without it the length read is an NPE rather than a 400.
+    assertThrows[BadRequestException] {
+      resource.updateProjectColor(pid, null, session(owner))
+    }
+  }
+
+  it should "clear a project's colour" in {
+    val pid = resource.createProject(session(owner), "p").getPid
+    resource.updateProjectColor(pid, "ABCDEF", session(owner))
+
+    resource.deleteProjectColor(pid)
+
+    resource.getProject(pid).getColor shouldBe null
+  }
+
+  it should "list only the workflows belonging to the given project" in {
+    val pid = resource.createProject(session(owner), "p").getPid
+    val other = resource.createProject(session(owner), "other").getPid
+    val inProject = seedWorkflow(ownerUid)
+    val elsewhere = seedWorkflow(ownerUid)
+    resource.addWorkflowToProject(pid, inProject, session(owner))
+    resource.addWorkflowToProject(other, elsewhere, session(owner))
+
+    // Two projects each holding one workflow, so a filter that ignored the pid would return both.
+    resource.listProjectWorkflows(pid, session(owner)).map(_.workflow.getWid) shouldBe List(
+      inProject
+    )
+    resource.listProjectWorkflows(other, session(owner)).map(_.workflow.getWid) shouldBe List(
+      elsewhere
+    )
+  }
+
+  it should "return no workflows for a project that holds none" in {
+    val pid = resource.createProject(session(owner), "empty").getPid
+
+    resource.listProjectWorkflows(pid, session(owner)) shouldBe empty
+  }
+
   it should "delete a project" in {
     val pid = resource.createProject(session(owner), "doomed").getPid
     resource.getProject(pid) should not be null

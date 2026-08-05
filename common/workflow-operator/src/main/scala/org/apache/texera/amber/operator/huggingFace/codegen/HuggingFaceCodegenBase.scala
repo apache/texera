@@ -195,7 +195,7 @@ object HuggingFaceCodegenBase {
        |        Returns (response, provider_summary). provider_summary is None on
        |        success or a string describing what failed.
        |        '''
-       |        RETRYABLE = (400, 404, 422, 429, 502, 503)
+       |        RETRYABLE = (400, 401, 404, 422, 429, 502, 503)
        |        last_resp = None
        |        errors = []
        |        for prov in providers:
@@ -246,8 +246,6 @@ object HuggingFaceCodegenBase {
        |                errors.append(f"{provider_name}: {type(e).__name__}")
        |                continue
        |            if resp.status_code in (200, 201):
-       |                return resp, None
-       |            if resp.status_code == 401:
        |                return resp, None
        |            try:
        |                detail = resp.json().get("error", resp.text[:200])
@@ -894,7 +892,7 @@ object HuggingFaceCodegenBase {
        |        # base64-encoded bytes. Anything else is treated as raw bytes, never
        |        # as a path to open.
        |        try:
-       |            return base64.b64decode(val)
+       |            return base64.b64decode(val, validate=True)
        |        except Exception:
        |            return val.encode("utf-8")
        |
