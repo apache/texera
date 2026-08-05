@@ -67,8 +67,10 @@ class AdminComputingUnitResourceSpec
     u.setName(name)
     u.setEmail(s"user$uid@example.com")
     u.setRole(UserRoleEnum.ADMIN)
-    u.setPassword("password")
-    u.setGoogleAvatar(s"avatar-$uid")
+    // Credentials live in auth_provider now, and this spec exercises the listing rather than
+    // login, so the user needs none. The avatar column is provider-neutral; the DTO field it
+    // feeds is still named ownerGoogleAvatar.
+    u.setAvatar(s"avatar-$uid")
     u
   }
 
