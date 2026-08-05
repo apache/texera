@@ -64,13 +64,16 @@ object IcebergCatalogInstance {
   /**
     * Retrieves the catalog for the given warehouse, creating and caching it on first access.
     *
-    * @param warehouse the warehouse to obtain a catalog for; defaults to the configured warehouse.
+    * @param warehouse the warehouse to obtain a catalog for; `None` uses the configured
+    *                  default, mirroring the Python side's `Optional[str]`.
     * @return the Iceberg catalog for that warehouse.
     */
-  def getInstance(warehouse: String = defaultWarehouse): Catalog =
+  def getInstance(warehouse: Option[String] = None): Catalog = {
+    val name = warehouse.getOrElse(defaultWarehouse)
     synchronized {
-      catalogs.getOrElseUpdate(cacheKey(warehouse), createCatalog(warehouse))
+      catalogs.getOrElseUpdate(cacheKey(name), createCatalog(name))
     }
+  }
 
   private def createCatalog(warehouse: String): Catalog =
     StorageConfig.icebergCatalogType match {
@@ -97,10 +100,10 @@ object IcebergCatalogInstance {
     * Replaces the cached catalog for a warehouse, primarily for testing or reconfiguration.
     *
     * @param catalog   the catalog to cache.
-    * @param warehouse the warehouse to cache it under; defaults to the configured warehouse.
+    * @param warehouse the warehouse to cache it under; `None` uses the configured default.
     */
-  def replaceInstance(catalog: Catalog, warehouse: String = defaultWarehouse): Unit =
+  def replaceInstance(catalog: Catalog, warehouse: Option[String] = None): Unit =
     synchronized {
-      catalogs(cacheKey(warehouse)) = catalog
+      catalogs(cacheKey(warehouse.getOrElse(defaultWarehouse))) = catalog
     }
 }

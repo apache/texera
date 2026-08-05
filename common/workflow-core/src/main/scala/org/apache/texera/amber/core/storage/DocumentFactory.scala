@@ -40,11 +40,6 @@ object DocumentFactory {
   private def sanitizeURIPath(uri: URI): String =
     uri.getPath.stripPrefix("/").replaceFirst("^wh/[^/]+/", "").replace("/", "_")
 
-  // The warehouse a URI's table lives in, carried as a leading `/wh/<name>` path
-  // segment; absent for non-BYO storage, which falls back to the configured warehouse.
-  private def warehouseOf(components: VFSUriComponents): String =
-    components.warehouse.getOrElse(StorageConfig.icebergRESTCatalogWarehouseName)
-
   private def resolveNamespace(resourceType: VFSResourceType.Value): String =
     resourceType match {
       case RESULT             => StorageConfig.icebergTableResultNamespace
@@ -82,7 +77,7 @@ object DocumentFactory {
     uri.getScheme match {
       case VFS_FILE_URI_SCHEME =>
         val components = decodeURI(uri)
-        val warehouse = warehouseOf(components)
+        val warehouse = components.warehouse
         val resourceType = components.resourceType
         val storageKey = sanitizeURIPath(uri)
         val namespace = resolveNamespace(resourceType)
@@ -128,7 +123,7 @@ object DocumentFactory {
     uri.getScheme match {
       case VFS_FILE_URI_SCHEME =>
         val components = decodeURI(uri)
-        val warehouse = warehouseOf(components)
+        val warehouse = components.warehouse
         val resourceType = components.resourceType
         val storageKey = sanitizeURIPath(uri)
         val namespace = resolveNamespace(resourceType)
@@ -176,7 +171,7 @@ object DocumentFactory {
       case DATASET_FILE_URI_SCHEME => (new DatasetFileDocument(uri), None)
       case VFS_FILE_URI_SCHEME =>
         val components = decodeURI(uri)
-        val warehouse = warehouseOf(components)
+        val warehouse = components.warehouse
         val resourceType = components.resourceType
         val storageKey = sanitizeURIPath(uri)
         val namespace = resolveNamespace(resourceType)

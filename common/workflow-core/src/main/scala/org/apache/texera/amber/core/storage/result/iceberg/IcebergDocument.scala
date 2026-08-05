@@ -19,7 +19,6 @@
 
 package org.apache.texera.amber.core.storage.result.iceberg
 
-import org.apache.texera.common.config.StorageConfig
 import org.apache.texera.amber.core.storage.IcebergCatalogInstance
 import org.apache.texera.amber.core.storage.model.{BufferedItemWriter, VirtualDocument}
 import org.apache.texera.amber.core.storage.util.StorageUtil.{withLock, withReadLock, withWriteLock}
@@ -58,7 +57,7 @@ object Constants {
   * @param tableSchema    schema of the table.
   * @param serde          function to serialize T into an Iceberg Record.
   * @param deserde        function to deserialize an Iceberg Record into T.
-  * @param warehouse      the warehouse whose catalog backs this table; defaults to the configured warehouse.
+  * @param warehouse      the warehouse whose catalog backs this table; `None` uses the configured default.
   * @tparam T type of the data items stored in the Iceberg table.
   */
 private[storage] class IcebergDocument[T >: Null <: AnyRef](
@@ -67,7 +66,7 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
     val tableSchema: org.apache.iceberg.Schema,
     val serde: (org.apache.iceberg.Schema, T) => Record,
     val deserde: (org.apache.iceberg.Schema, Record) => T,
-    val warehouse: String = StorageConfig.icebergRESTCatalogWarehouseName
+    val warehouse: Option[String] = None
 ) extends VirtualDocument[T]
     with OnIceberg {
 

@@ -73,6 +73,6 @@ object LocalHadoopIcebergCatalog {
         IcebergCatalogInstance.replaceInstance(created)
         created
       }
-      warehouses.foreach(name => IcebergCatalogInstance.replaceInstance(installed, name))
+      warehouses.foreach(name => IcebergCatalogInstance.replaceInstance(installed, Some(name)))
     }
 }
