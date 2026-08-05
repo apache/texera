@@ -265,14 +265,14 @@ class HuggingFaceInferenceOpDesc extends PythonOperatorDescriptor {
   ): Map[PortIdentity, Schema] = {
     val inputSchema = inputSchemas.values.head
     val resultCol = resolvedResultColumn
-    if (inputSchema.containsAttribute((resultCol))) {
+    if (inputSchema.containsAttribute(resultCol)) {
       throw new RuntimeException(
         s"Result column '$resultCol' already exists in the input table. " +
           "Choose a different Result Column Name."
       )
     }
     Map(
-      operatorInfo.outputPorts.head.id -> inputSchemas.values.head
+      operatorInfo.outputPorts.head.id -> inputSchema
         .add(resultCol, AttributeType.STRING)
     )
   }
