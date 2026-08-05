@@ -101,7 +101,7 @@ class ClusterListenerSpec
       .sendText(_: String))
       .expects(*)
       .onCall { (text: String) =>
-        sent += text
+        sent.synchronized { sent += text }
         null.asInstanceOf[JFuture[Void]]
       }
       .anyNumberOfTimes()
