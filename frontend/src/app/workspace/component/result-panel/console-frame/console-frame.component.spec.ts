@@ -322,9 +322,9 @@ describe("ConsoleFrameComponent", () => {
 
       // non-empty message -> collapse header; empty message -> plain title
       const text = fixture.nativeElement.textContent as string;
-      expect(fixture.debugElement.query(By.css(".collapse-message-header")).nativeElement.textContent).toContain(
-        "header A"
-      );
+      const collapseHeader = fixture.debugElement.query(By.css(".collapse-message-header"));
+      expect(collapseHeader).toBeTruthy();
+      expect(collapseHeader.nativeElement.textContent).toContain("header A");
       expect(text).toContain("plain B");
 
       // both rows show a source tag; both show a timestamp tag (the rendered date
@@ -364,7 +364,7 @@ describe("ConsoleFrameComponent", () => {
       // clicking each action button reaches its handler / service
       const buttons = fixture.debugElement.queryAll(By.css(".console-input-container button"));
       expect(buttons.length).toBe(4);
-      buttons.forEach(button => button.triggerEventHandler("click", {}));
+      buttons.forEach(button => button.triggerEventHandler("click", null));
       expect(skipTuples).toHaveBeenCalled();
       expect(retryExecution).toHaveBeenCalled();
       expect(doStep).toHaveBeenCalled();
@@ -373,8 +373,10 @@ describe("ConsoleFrameComponent", () => {
       // entering a command and pressing enter submits it through the websocket
       // (target input[nz-input] specifically — the nz-select renders its own input too)
       component.command = "break";
-      fixture.debugElement.query(By.css("input[nz-input]")).triggerEventHandler("keyup.enter", {});
+      fixture.debugElement.query(By.css("input[nz-input]")).triggerEventHandler("keyup.enter", null);
+      // targetWorker defaults to ALL_WORKERS, so the command is broadcast to every worker id
       expect(send).toHaveBeenCalledWith("DebugCommandRequest", { operatorId: "op1", workerId: "w-0", cmd: "break" });
+      expect(send).toHaveBeenCalledWith("DebugCommandRequest", { operatorId: "op1", workerId: "w-1", cmd: "break" });
     });
   });
 });
