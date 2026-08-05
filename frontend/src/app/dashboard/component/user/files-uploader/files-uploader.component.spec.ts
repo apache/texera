@@ -150,9 +150,10 @@ describe("FilesUploaderComponent", () => {
 
   /**
    * The Restart choices are the half of the conflict dialog the existing tests never take. They
-   * differ from Resume by exactly one observable: `item.restart`, which is what makes the uploader
-   * call the backend with type=forceRestart instead of continuing the existing multipart session.
-   * A Resume/Restart mix-up therefore silently resumes a session the user asked to discard.
+   * differ from Resume by exactly one observable: `item.restart`, which flips from its default
+   * `false` to `true` and makes the uploader call the backend with type=forceRestart instead of
+   * continuing the existing multipart session. A Resume/Restart mix-up therefore silently resumes a
+   * session the user asked to discard.
    */
   it("marks a file for force-restart when Restart is chosen", async () => {
     datasetService.findExistingUploadFiles.mockReturnValue(of([]));
