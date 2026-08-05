@@ -26,7 +26,7 @@ import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBui
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
-import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
+import org.apache.texera.amber.operator.metadata.annotations.{AutofillAttributeName, SampleColumn}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
@@ -39,6 +39,7 @@ class SankeyDiagramOpDesc extends PythonOperatorDescriptor with StandaloneCodeGe
   @JsonSchemaTitle("Source Attribute")
   @JsonPropertyDescription("The source node of the Sankey diagram")
   @AutofillAttributeName
+  @SampleColumn("node_src")
   @NotNull(message = "Source Attribute cannot be empty")
   var sourceAttribute: EncodableString = ""
 
@@ -46,6 +47,7 @@ class SankeyDiagramOpDesc extends PythonOperatorDescriptor with StandaloneCodeGe
   @JsonSchemaTitle("Target Attribute")
   @JsonPropertyDescription("The target node of the Sankey diagram")
   @AutofillAttributeName
+  @SampleColumn("node_dst")
   @NotNull(message = "Target Attribute cannot be empty")
   var targetAttribute: EncodableString = ""
 
@@ -53,6 +55,7 @@ class SankeyDiagramOpDesc extends PythonOperatorDescriptor with StandaloneCodeGe
   @JsonSchemaTitle("Value Attribute")
   @JsonPropertyDescription("The value/volume of the flow between source and target")
   @AutofillAttributeName
+  @SampleColumn("score")
   @NotNull(message = "Value Attribute cannot be empty")
   var valueAttribute: EncodableString = ""
 
