@@ -23,6 +23,7 @@ import org.apache.texera.amber.core.tuple.{AttributeType, Schema, Tuple}
 import org.apache.texera.amber.util.IcebergUtil
 import org.apache.iceberg.catalog.Catalog
 import org.apache.iceberg.data.IcebergGenerics
+import org.apache.iceberg.inmemory.InMemoryCatalog
 import org.apache.iceberg.{Schema => IcebergSchema, Table}
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpec
@@ -45,7 +46,9 @@ class IcebergTableWriterSpec extends AnyFlatSpec with BeforeAndAfterAll {
 
   override def beforeAll(): Unit = {
     warehouseDir = Files.createTempDirectory("iceberg-table-writer-spec")
-    catalog = IcebergUtil.createHadoopCatalog("writer-spec", warehouseDir)
+    val testCatalog = new InMemoryCatalog()
+    testCatalog.initialize("writer-spec", Map("warehouse" -> warehouseDir.toString).asJava)
+    catalog = testCatalog
   }
 
   override def afterAll(): Unit = {

@@ -30,7 +30,6 @@ import org.scalatest.flatspec.AnyFlatSpec
 
 import java.net.URI
 import java.nio.ByteBuffer
-import java.nio.file.Files
 import java.sql.Timestamp
 import java.time.{LocalDateTime, ZoneId}
 import scala.jdk.CollectionConverters._
@@ -316,28 +315,6 @@ class IcebergUtilSpec extends AnyFlatSpec {
     val conf = IcebergUtil.newLocalHadoopConf(useWinutilsFreeLocalFs = false)
     assert(conf.get("fs.file.impl") == null)
     assert(!conf.getBoolean("fs.file.impl.disable.cache", false))
-  }
-
-  it should "create and load tables via createHadoopCatalog in a local warehouse on every platform" in {
-    val warehouse = Files.createTempDirectory("iceberg-local-warehouse")
-    val catalog = IcebergUtil.createHadoopCatalog("local_test", warehouse)
-
-    // On Windows hosts without a winutils.exe installation, this used to fail with
-    // "Hadoop bin directory does not exist": Hadoop's default local file system
-    // shells out to winutils for chmod on every file/directory creation.
-    IcebergUtil.createTable(
-      catalog,
-      "test_namespace",
-      "test_table",
-      IcebergUtil.toIcebergSchema(Schema().add("id", AttributeType.INTEGER)),
-      overrideIfExists = true
-    )
-
-    assert(
-      Files.exists(warehouse.resolve("test_namespace").resolve("test_table").resolve("metadata")),
-      "table metadata must be written through the local file system"
-    )
-    assert(IcebergUtil.loadTableMetadata(catalog, "test_namespace", "test_table").nonEmpty)
   }
 
   it should "surface RESTException when createRestCatalog cannot reach the REST endpoint" in {

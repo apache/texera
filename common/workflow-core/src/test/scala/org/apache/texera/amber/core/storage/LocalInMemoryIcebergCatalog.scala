@@ -19,18 +19,19 @@
 
 package org.apache.texera.amber.core.storage
 
-import org.apache.texera.amber.util.IcebergUtil
+import org.apache.iceberg.inmemory.InMemoryCatalog
 
 import java.nio.file.{Files, Path}
 import java.util.Comparator
+import scala.jdk.CollectionConverters._
 
 /**
-  * Test-only helper that installs a local Hadoop-backed Iceberg catalog into the
+  * Test-only helper that installs a local in-memory Iceberg catalog into the
   * shared `IcebergCatalogInstance` singleton exactly once per JVM.
   *
   * The default configured catalog type is `rest`, which needs a live REST server;
-  * unit tests instead exercise Iceberg against a temp-directory `file:/` warehouse
-  * (via the merged winutils-free local filesystem on Windows).
+  * unit tests instead exercise Iceberg against a self-contained catalog backed by
+  * a temp-directory warehouse.
   *
   * `IcebergCatalogInstance` is a JVM-wide mutable singleton and ScalaTest runs
   * suites in the module in parallel within the same JVM, so every suite that needs
@@ -40,7 +41,7 @@ import java.util.Comparator
   * `replaceInstance`. Suites keep their tables disjoint via distinct namespaces and
   * unique (UUID) table names.
   */
-object LocalHadoopIcebergCatalog {
+object LocalInMemoryIcebergCatalog {
 
   private var initialized = false
 
@@ -57,9 +58,9 @@ object LocalHadoopIcebergCatalog {
             .forEach((p: Path) => Files.deleteIfExists(p))
           catch { case _: Throwable => () }
         }
-        IcebergCatalogInstance.replaceInstance(
-          IcebergUtil.createHadoopCatalog("wfcore-test", warehouse)
-        )
+        val catalog = new InMemoryCatalog()
+        catalog.initialize("wfcore-test", Map("warehouse" -> warehouse.toString).asJava)
+        IcebergCatalogInstance.replaceInstance(catalog)
         initialized = true
       }
     }

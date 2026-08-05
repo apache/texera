@@ -51,8 +51,8 @@ import java.util.UUID
   * The remaining groups exercise the scheme-dispatch surface of
   * `openReadonlyDocument` / `openDocument` / `createDocument` / `documentExists`:
   * the dataset / file / vfs scheme arms, the unsupported-scheme guards, and the
-  * vfs create/open/exists happy paths against a local Hadoop-backed Iceberg
-  * catalog installed via [[LocalHadoopIcebergCatalog]].
+  * vfs create/open/exists happy paths against a local in-memory Iceberg
+  * catalog installed via [[LocalInMemoryIcebergCatalog]].
   */
 class DocumentFactorySpec extends AnyFlatSpec with Matchers with BeforeAndAfterAll {
 
@@ -61,7 +61,7 @@ class DocumentFactorySpec extends AnyFlatSpec with Matchers with BeforeAndAfterA
 
   override def beforeAll(): Unit = {
     super.beforeAll()
-    LocalHadoopIcebergCatalog.ensure()
+    LocalInMemoryIcebergCatalog.ensure()
   }
 
   // ---------------------------------------------------------------------------
