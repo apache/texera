@@ -30,6 +30,7 @@ import org.apache.texera.web.resource.EmailTemplate.createRoleChangeTemplate
 import org.apache.texera.web.resource.GmailResource.sendEmail
 import org.apache.texera.web.resource.auth.LocalAuthProvisioner
 import org.apache.texera.web.resource.dashboard.admin.user.AdminUserResource.userDao
+import org.apache.texera.web.resource.dashboard.user.dataset.utils.DatasetStatisticsUtils.getUserCreatedDatasets
 import org.apache.texera.web.resource.dashboard.user.quota.UserQuotaResource._
 
 import java.util
@@ -145,6 +146,16 @@ class AdminUserResource {
     */
   private[user] def createLocalAccount(handle: String, rawPassword: String): Unit =
     LocalAuthProvisioner.createLocalAccount(handle, rawPassword)
+
+  @GET
+  @Path("/created_datasets")
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  def getCreatedDatasets(@QueryParam("user_id") user_id: Integer): List[DatasetQuota] = {
+    if (user_id == null) {
+      throw new BadRequestException("user_id is required")
+    }
+    getUserCreatedDatasets(user_id)
+  }
 
   @GET
   @Path("/created_workflows")

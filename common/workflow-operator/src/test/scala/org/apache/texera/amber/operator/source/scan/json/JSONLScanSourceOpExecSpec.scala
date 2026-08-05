@@ -81,4 +81,43 @@ class JSONLScanSourceOpExecSpec extends AnyFlatSpec {
     val exec = new JSONLScanSourceOpExec(descString(uri, limit = Some(2)))
     assert(drain(exec).map(_.head) == Seq(0, 1))
   }
+
+  it should "start at the offset and keep every row after it" in {
+    val uri = writeJsonl("""{"v":0}""", """{"v":1}""", """{"v":2}""", """{"v":3}""", """{"v":4}""")
+    val exec = new JSONLScanSourceOpExec(descString(uri, offset = Some(2)))
+    assert(drain(exec).map(_.head) == Seq(2, 3, 4))
+  }
+
+  it should "apply the limit relative to the offset" in {
+    val uri = writeJsonl("""{"v":0}""", """{"v":1}""", """{"v":2}""", """{"v":3}""", """{"v":4}""")
+    // The window is shorter than the offset itself, which used to empty it out.
+    val exec = new JSONLScanSourceOpExec(descString(uri, limit = Some(2), offset = Some(2)))
+    assert(drain(exec).map(_.head) == Seq(2, 3))
+  }
+
+  it should "split the offset window across workers, losing no row to either end" in {
+    val uri = writeJsonl("""{"v":0}""", """{"v":1}""", """{"v":2}""", """{"v":3}""", """{"v":4}""")
+    val desc = descString(uri, offset = Some(1))
+    val worker0 = new JSONLScanSourceOpExec(desc, idx = 0, workerCount = 2)
+    val worker1 = new JSONLScanSourceOpExec(desc, idx = 1, workerCount = 2)
+    assert(drain(worker0).map(_.head) == Seq(1, 2))
+    assert(drain(worker1).map(_.head) == Seq(3, 4))
+  }
+
+  it should "give the last worker the remainder of the offset-and-limit window" in {
+    val uri = writeJsonl(
+      """{"v":0}""",
+      """{"v":1}""",
+      """{"v":2}""",
+      """{"v":3}""",
+      """{"v":4}""",
+      """{"v":5}""",
+      """{"v":6}"""
+    )
+    // Four rows over three workers: one each, and the odd row goes to the last.
+    val desc = descString(uri, limit = Some(4), offset = Some(2))
+    val workers =
+      (0 until 3).map(i => new JSONLScanSourceOpExec(desc, idx = i, workerCount = 3))
+    assert(workers.map(drain(_).map(_.head)) == Seq(Seq(2), Seq(3), Seq(4, 5)))
+  }
 }
