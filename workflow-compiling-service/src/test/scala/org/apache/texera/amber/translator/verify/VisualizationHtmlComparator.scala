@@ -26,11 +26,23 @@ import java.nio.file.{Files, Path}
 
 object VisualizationHtmlComparator {
 
+  /** A pandas Styler namespaces its CSS with a uuid drawn per Styler instance, so
+    * the same table rendered twice differs in every `id=` and every selector even
+    * though the markup is identical. The uuid carries no information about the
+    * table — it only keeps two tables on one page from colliding — so it is
+    * normalized away before comparing. Only the random prefix is replaced: the
+    * `_row0_col0` suffix that identifies the cell stays, so a genuine structural
+    * difference still fails.
+    */
+  private val StylerUuid = "T_[0-9a-f]+".r
+
+  private def normalize(html: String): String = StylerUuid.replaceAllIn(html, "T_uuid")
+
   def assertEqual(actualVisualizationJsonl: Path, expectedHtmlFile: Path): Unit = {
     val actual = readActualHtml(actualVisualizationJsonl)
     val expected = new String(Files.readAllBytes(expectedHtmlFile), StandardCharsets.UTF_8)
 
-    if (actual != expected) {
+    if (normalize(actual) != normalize(expected)) {
       throw new VisualizationHtmlMismatchException(
         actual = actualVisualizationJsonl,
         expected = expectedHtmlFile,

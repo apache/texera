@@ -123,7 +123,6 @@ object OperatorBehaviorSpec {
     "Sklearn",
     "HuggingFace",
     "MachineLearningScorer",
-    "NestedTableOpDesc",
     "NetworkGraphOpDesc",
     "TablesPlotOpDesc",
     "TernaryContourOpDesc",

@@ -189,7 +189,8 @@ object TransformVerificationRunner {
 
   /** Visualization operators with deterministic HTML validation. */
   val visualizationHtmlOps: Set[Class[_]] = Set(
-    classOf[ImageVisualizerOpDesc]
+    classOf[ImageVisualizerOpDesc],
+    classOf[NestedTableOpDesc]
   )
 
   /** Triaged, explicitly-not-run operators: class → honest reason, shown in
@@ -226,10 +227,6 @@ object TransformVerificationRunner {
       ("non-deterministic image: emits a base64 PNG from the wordcloud library " +
         "whose word placement is randomized (no seed), so the two paths' images " +
         "never match byte-for-byte"),
-    classOf[NestedTableOpDesc] ->
-      ("non-deterministic HTML: emits a pandas Styler table whose element ids/" +
-        "classes embed a random per-process uuid, so the two paths' HTML never " +
-        "matches; it builds no Plotly figure, so there is no JSON to compare"),
     classOf[NetworkGraphOpDesc] ->
       ("non-deterministic layout: the native path calls nx.spring_layout with no " +
         "seed, so node coordinates are random per run (and differ from the " +
