@@ -23,6 +23,7 @@ import org.apache.texera.dao.MockTexeraDB
 import org.apache.texera.dao.jooq.generated.Tables._
 import org.apache.texera.dao.jooq.generated.enums.{PrivilegeEnum, UserRoleEnum}
 import org.apache.texera.dao.jooq.generated.tables.daos.{
+  DatasetDao,
   UserDao,
   WorkflowDao,
   WorkflowExecutionsDao,
@@ -31,6 +32,7 @@ import org.apache.texera.dao.jooq.generated.tables.daos.{
   WorkflowVersionDao
 }
 import org.apache.texera.dao.jooq.generated.tables.pojos.{
+  Dataset,
   User,
   Workflow,
   WorkflowExecutions,
@@ -59,6 +61,7 @@ class AdminUserResourceSpec
   private val testWid = 90000 + scala.util.Random.nextInt(5000)
 
   private var userDao: UserDao = _
+  private var datasetDao: DatasetDao = _
   private var workflowDao: WorkflowDao = _
   private var workflowVersionDao: WorkflowVersionDao = _
   private var workflowExecutionsDao: WorkflowExecutionsDao = _
@@ -70,6 +73,7 @@ class AdminUserResourceSpec
   override protected def beforeAll(): Unit = {
     initializeDBAndReplaceDSLContext()
     userDao = new UserDao(getDSLContext.configuration())
+    datasetDao = new DatasetDao(getDSLContext.configuration())
     workflowDao = new WorkflowDao(getDSLContext.configuration())
     workflowVersionDao = new WorkflowVersionDao(getDSLContext.configuration())
     workflowExecutionsDao = new WorkflowExecutionsDao(getDSLContext.configuration())
@@ -92,6 +96,10 @@ class AdminUserResourceSpec
       .execute()
     getDSLContext.deleteFrom(WORKFLOW_OF_USER).where(WORKFLOW_OF_USER.WID.eq(testWid)).execute()
     getDSLContext.deleteFrom(WORKFLOW).where(WORKFLOW.WID.eq(testWid)).execute()
+    getDSLContext
+      .deleteFrom(DATASET)
+      .where(DATASET.OWNER_UID.in(primaryUid, secondaryUid))
+      .execute()
     getDSLContext.deleteFrom(USER).where(USER.UID.in(primaryUid, secondaryUid)).execute()
     // addUser() inserts an INACTIVE user with an auto-generated uid and a "User<millis>" name.
     getDSLContext
@@ -122,6 +130,19 @@ class AdminUserResourceSpec
     workflow.setLastModifiedTime(new Timestamp(System.currentTimeMillis()))
     workflowDao.insert(workflow)
     workflow
+  }
+
+  private def seedDataset(uid: Int): Dataset = {
+    val dataset = new Dataset
+    dataset.setOwnerUid(uid)
+    dataset.setName("admin_user_spec_ds_" + UUID.randomUUID().toString.substring(0, 8))
+    dataset.setRepositoryName("repo-" + UUID.randomUUID().toString.substring(0, 8))
+    dataset.setIsPublic(false)
+    dataset.setIsDownloadable(true)
+    dataset.setDescription("")
+    dataset.setCreationTime(new Timestamp(System.currentTimeMillis()))
+    datasetDao.insert(dataset)
+    dataset
   }
 
   private def seedExecution(uid: Int): WorkflowExecutions = {
@@ -216,6 +237,24 @@ class AdminUserResourceSpec
     edit.setRole(UserRoleEnum.REGULAR)
 
     a[WebApplicationException] should be thrownBy resource.updateUser(edit)
+  }
+
+  // ─── getCreatedDatasets ───────────────────────────────────────────────────
+
+  "getCreatedDatasets" should "return an empty list for a user with no datasets" in {
+    userDao.insert(makeUser(primaryUid, "dataset_user"))
+    resource.getCreatedDatasets(primaryUid) shouldBe empty
+  }
+
+  it should "return only the datasets owned by the queried user" in {
+    userDao.insert(makeUser(primaryUid, "dataset_owner"))
+    userDao.insert(makeUser(secondaryUid, "other_owner"))
+    val owned = seedDataset(primaryUid)
+    seedDataset(secondaryUid)
+
+    val created = resource.getCreatedDatasets(primaryUid)
+    created.map(_.name) shouldBe List(owned.getName)
+    created.head.size shouldBe 0L
   }
 
   // ─── getCreatedWorkflow ───────────────────────────────────────────────────

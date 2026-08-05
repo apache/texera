@@ -28,6 +28,7 @@ import org.apache.texera.dao.jooq.generated.tables.pojos.User
 import org.apache.texera.web.resource.EmailTemplate.createRoleChangeTemplate
 import org.apache.texera.web.resource.GmailResource.sendEmail
 import org.apache.texera.web.resource.dashboard.admin.user.AdminUserResource.userDao
+import org.apache.texera.web.resource.dashboard.user.dataset.utils.DatasetStatisticsUtils.getUserCreatedDatasets
 import org.apache.texera.web.resource.dashboard.user.quota.UserQuotaResource._
 import org.jasypt.util.password.StrongPasswordEncryptor
 
@@ -124,6 +125,13 @@ class AdminUserResource {
     newUser.setPassword(new StrongPasswordEncryptor().encryptPassword(random))
     newUser.setRole(UserRoleEnum.INACTIVE)
     userDao.insert(newUser)
+  }
+
+  @GET
+  @Path("/created_datasets")
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  def getCreatedDatasets(@QueryParam("user_id") user_id: Integer): List[DatasetQuota] = {
+    getUserCreatedDatasets(user_id)
   }
 
   @GET
