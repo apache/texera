@@ -54,7 +54,7 @@ Compile / scalacOptions ++= Seq(
 
 libraryDependencies ++= Seq(
   "org.scalamock" %% "scalamock" % "5.2.0" % Test,                  // ScalaMock
-  "org.scalatest" %% "scalatest" % "3.2.15" % Test,                 // ScalaTest
+  "org.scalatest" %% "scalatest" % "3.2.20" % Test,                 // ScalaTest
   "junit" % "junit" % "4.13.2" % Test,                              // JUnit
   "com.novocode" % "junit-interface" % "0.11" % Test                // SBT interface for JUnit
 )
@@ -83,8 +83,8 @@ libraryDependencies ++= Seq(
 // kjetland
 libraryDependencies ++= Seq(
   "javax.validation" % "validation-api" % "2.0.1.Final",
-  "org.slf4j" % "slf4j-api" % "1.7.26",
-  "io.github.classgraph" % "classgraph" % "4.8.157",
+  "org.slf4j" % "slf4j-api" % "1.7.36",
+  "io.github.classgraph" % "classgraph" % "4.8.186",
   "ch.qos.logback" % "logback-classic" % "1.2.3" % "test",
   "com.github.java-json-tools" % "json-schema-validator" % "2.2.14" % "test",
   "com.fasterxml.jackson.module" % "jackson-module-kotlin" % jacksonVersion % "test",
@@ -112,9 +112,9 @@ dependencyOverrides ++= Seq(
 /////////////////////////////////////////////////////////////////////////////
 
 libraryDependencies ++= Seq(
-  "com.thesamet.scalapb" %% "scalapb-json4s" % "0.12.0",
+  "com.thesamet.scalapb" %% "scalapb-json4s" % "0.12.2",
   "com.github.tototoshi" %% "scala-csv" % "1.3.10",       // csv parser
-  "com.konghq" % "unirest-java" % "3.14.2",
+  "com.konghq" % "unirest-java" % "3.14.5",
   "commons-io" % "commons-io" % "2.15.1",
   "org.apache.commons" % "commons-compress" % "1.27.1",
   "org.tukaani" % "xz" % "1.9",
@@ -122,4 +122,4 @@ libraryDependencies ++= Seq(
   "org.apache.lucene" % "lucene-analyzers-common" % "8.11.4"
 )
 
-libraryDependencies += "io.github.classgraph" % "classgraph" % "4.8.184" % Test
+libraryDependencies += "io.github.classgraph" % "classgraph" % "4.8.186" % Test

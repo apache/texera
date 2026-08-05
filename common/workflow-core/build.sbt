@@ -108,7 +108,7 @@ Compile / managedSourceDirectories += (Compile / sourceManaged).value
 // ScalaPB library dependencies
 libraryDependencies ++= Seq(
   "com.thesamet.scalapb" %% "scalapb-runtime" % scalapb.compiler.Version.scalapbVersion % "protobuf",
-  "com.thesamet.scalapb" %% "scalapb-json4s" % "0.12.0"  // For ScalaPB 0.11.x
+  "com.thesamet.scalapb" %% "scalapb-json4s" % "0.12.2"  // For ScalaPB 0.11.x
 )
 
 // Enable protobuf compilation in Test
@@ -123,7 +123,7 @@ val testcontainersVersion = "0.44.1"
 
 libraryDependencies ++= Seq(
   "org.scalamock" %% "scalamock" % "5.2.0" % Test,                  // ScalaMock
-  "org.scalatest" %% "scalatest" % "3.2.15" % Test,                 // ScalaTest
+  "org.scalatest" %% "scalatest" % "3.2.20" % Test,                 // ScalaTest
   "junit" % "junit" % "4.13.2" % Test,                              // JUnit
   "com.novocode" % "junit-interface" % "0.11" % Test,               // SBT interface for JUnit
   "com.dimafeng" %% "testcontainers-scala-scalatest" % testcontainersVersion % Test,   // Testcontainers ScalaTest integration
@@ -152,7 +152,7 @@ libraryDependencies ++= Seq(
 /////////////////////////////////////////////////////////////////////////////
 // Arrow related
 val arrowVersion = "19.0.0"
-val nettyVersion = "4.2.15.Final"
+val nettyVersion = "4.2.17.Final"
 val arrowDependencies = Seq(
   // flight-core bundles the gRPC transport since Arrow 16; the standalone
   // flight-grpc artifact was discontinued after 15.0.2.
@@ -278,7 +278,7 @@ libraryDependencies ++= Seq(
   // into slf4j (and on to logback).
   "org.apache.logging.log4j" % "log4j-1.2-api" % log4jVersion,
   "org.apache.logging.log4j" % "log4j-to-slf4j" % log4jVersion,
-  "org.postgresql" % "postgresql" % "42.7.10"
+  "org.postgresql" % "postgresql" % "42.7.13"
 )
 
 /////////////////////////////////////////////////////////////////////////////
@@ -288,16 +288,16 @@ libraryDependencies ++= Seq(
 libraryDependencies ++= Seq(
   "com.github.sisyphsu" % "dateparser" % "1.0.11",                    // DateParser
   "com.google.guava" % "guava" % "31.1-jre",                          // Guava
-  "org.ehcache" % "sizeof" % "0.4.3",                                 // Ehcache SizeOf
+  "org.ehcache" % "sizeof" % "0.4.4",                                 // Ehcache SizeOf
   "org.jgrapht" % "jgrapht-core" % "1.4.0",                           // JGraphT Core
-  "com.typesafe.scala-logging" %% "scala-logging" % "3.9.5",          // Scala Logging
-  "org.eclipse.jgit" % "org.eclipse.jgit" % "5.13.0.202109080827-r",  // jgit
+  "com.typesafe.scala-logging" %% "scala-logging" % "3.9.6",          // Scala Logging
+  "org.eclipse.jgit" % "org.eclipse.jgit" % "5.13.5.202508271544-r",  // jgit
   // commons-vfs2 pulls hadoop-hdfs-client (for its HDFS provider), which drags in the
   // Hadoop client stack and, via 3.5.0, the Jersey 2.x/JAXB web stack; exclude it here too.
   "org.apache.commons" % "commons-vfs2" % "2.9.0" excludeAll(excludeHadoopJersey2Stack: _*), // for FileResolver throw VFS-related exceptions
   "io.lakefs" % "sdk" % "1.51.0",                                     // for lakeFS api calls
-  "com.typesafe" % "config" % "1.4.6",                                 // config reader
-  "org.apache.commons" % "commons-jcs3-core" % "3.2",                 // Apache Commons JCS
+  "com.typesafe" % "config" % "1.4.9",                                 // config reader
+  "org.apache.commons" % "commons-jcs3-core" % "3.2.1",                 // Apache Commons JCS
   "software.amazon.awssdk" % "s3" % "2.29.51" excludeAll(
     ExclusionRule(organization = "io.netty")
   ),

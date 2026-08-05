@@ -33,7 +33,7 @@ Universal / mappings := AddMetaInfLicenseFiles.distMappings(
 )
 
 // Dependency Versions
-val dropwizardVersion = "4.0.7"
+val dropwizardVersion = "4.0.17"
 val mockitoVersion = "5.4.0"
 
 // Test Dependencies
@@ -46,11 +46,11 @@ libraryDependencies ++= Seq(
 libraryDependencies ++= Seq(
   "io.dropwizard" % "dropwizard-core" % dropwizardVersion,
   "io.dropwizard" % "dropwizard-auth" % dropwizardVersion, // Dropwizard Authentication module
-  "io.kubernetes" % "client-java" % "21.0.0",
+  "io.kubernetes" % "client-java" % "21.0.2-legacy",
   "org.jooq" % "jooq" % "3.19.36",
   "com.typesafe" % "config" % "1.4.9",
   "com.softwaremill.sttp.client4" %% "core" % "4.0.26",
-  "com.typesafe.play" %% "play-json" % "2.10.6",
+  "com.typesafe.play" %% "play-json" % "2.10.8",
   "io.fabric8" % "kubernetes-client" % "6.12.1"
 )
 
