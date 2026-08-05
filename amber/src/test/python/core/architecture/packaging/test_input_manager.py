@@ -34,11 +34,11 @@ from proto.org.apache.texera.amber.core import (
 WORKER_ID = "Worker:WF0-test-op-main-0"
 
 
-def _channel(name: str) -> ChannelIdentity:
+def _channel(name: str, is_control: bool = False) -> ChannelIdentity:
     return ChannelIdentity(
         ActorVirtualIdentity(name),
         ActorVirtualIdentity(WORKER_ID),
-        is_control=False,
+        is_control=is_control,
     )
 
 
@@ -101,6 +101,39 @@ class TestPortIdentityDefaults:
         assert len(port.get_channels()) == 1
 
 
+class TestChannelRegistration:
+    @pytest.fixture
+    def manager(self):
+        return InputManager(worker_id=WORKER_ID, input_queue=MagicMock())
+
+    def test_re_registering_channel_leaves_stale_reverse_mapping(self, manager):
+        port_a, port_b = PortIdentity(0, False), PortIdentity(1, False)
+        channel_id = _channel("upstream")
+        for port_id in (port_a, port_b):
+            manager.add_input_port(port_id, Schema(raw_schema={"x": "INTEGER"}), [], [])
+
+        manager.register_input(channel_id, port_a)
+        manager.register_input(channel_id, port_b)
+
+        # The forward mapping is updated to the new port ...
+        assert manager.get_port_id(channel_id) == port_b
+        assert channel_id in manager.get_port(port_b).get_channels()
+        # ... but the old port's channel set is never cleaned up, so the
+        # channel remains in both reverse mappings (current behavior).
+        assert channel_id in manager.get_port(port_a).get_channels()
+
+    def test_data_channel_ids_exclude_control_channels(self, manager):
+        port_id = PortIdentity(0, False)
+        data_channel = _channel("upstream", is_control=False)
+        control_channel = _channel("controller", is_control=True)
+        manager.add_input_port(port_id, Schema(raw_schema={"x": "INTEGER"}), [], [])
+        manager.register_input(data_channel, port_id)
+        manager.register_input(control_channel, port_id)
+
+        assert manager.get_all_data_channel_ids() == {data_channel}
+        assert set(manager.get_all_channel_ids()) == {data_channel, control_channel}
+
+
 class TestInputPortMaterializationReaderThreads:
     @pytest.fixture
     def manager(self):
@@ -155,6 +188,25 @@ class TestInputPortMaterializationReaderThreads:
             manager.set_up_input_port_mat_reader_threads(
                 PortIdentity(0, False), ["vfs:///a"], []
             )
+
+    def test_second_set_up_replaces_previous_readers(self, manager):
+        port_id = PortIdentity(0, False)
+        reader_a, reader_b = MagicMock(name="reader-a"), MagicMock(name="reader-b")
+
+        with patch.object(
+            input_manager_module,
+            "InputPortMaterializationReaderRunnable",
+            side_effect=[reader_a, reader_b],
+        ):
+            manager.set_up_input_port_mat_reader_threads(
+                port_id, ["vfs:///a"], [MagicMock()]
+            )
+            manager.set_up_input_port_mat_reader_threads(
+                port_id, ["vfs:///b"], [MagicMock()]
+            )
+
+        # The port's reader list is replaced wholesale, not appended to.
+        assert manager.get_input_port_mat_reader_threads()[port_id] == [reader_b]
 
     def test_start_threads_skips_already_finished_readers(self, manager):
         # A reader that already drained its materialized input must not be
@@ -226,7 +278,7 @@ class TestProcessDataPayload:
         outputs = list(manager.process_data_payload(channel_id, state_frame))
 
         # The whole envelope is yielded (not just .frame) so the runtime can
-        # read loop_counter off it.
+        # read its loop_counter off it.
         assert outputs == [state_frame]
         assert outputs[0].loop_counter == 3
 
@@ -242,8 +294,46 @@ class TestProcessDataPayload:
         assert [t["x"] for t in outputs] == [1, 2]
         assert all(t._schema == schema for t in outputs)
 
+    def test_empty_data_frame_yields_no_tuples(self, manager):
+        channel_id = _channel("upstream")
+        schema = Schema(raw_schema={"x": "INTEGER"})
+        empty_table = schema.as_arrow_schema().empty_table()
+
+        outputs = list(
+            manager.process_data_payload(channel_id, DataFrame(frame=empty_table))
+        )
+
+        assert outputs == []
+
+    def test_state_frame_through_unregistered_channel_passes_through(self, manager):
+        # The StateFrame branch never touches the channel/port tables, so a
+        # channel that was never registered still passes state through.
+        state_frame = StateFrame(frame=State({"i": 2}))
+
+        outputs = list(
+            manager.process_data_payload(_channel("never-registered"), state_frame)
+        )
+
+        assert outputs == [state_frame]
+
+    def test_data_frame_through_unregistered_channel_fails_lazily(self, manager):
+        schema = Schema(raw_schema={"x": "INTEGER"})
+        table = pyarrow.Table.from_pydict({"x": [1]}, schema=schema.as_arrow_schema())
+
+        # process_data_payload is a generator: creating it raises nothing ...
+        generator = manager.process_data_payload(
+            _channel("never-registered"), DataFrame(frame=table)
+        )
+        # ... the unknown-channel lookup fails only upon iteration.
+        with pytest.raises(KeyError):
+            list(generator)
+
 
 class TestPortCompletion:
+    @pytest.fixture
+    def manager(self):
+        return InputManager(worker_id=WORKER_ID, input_queue=MagicMock())
+
     def test_ports_complete_independently(self):
         manager = InputManager(worker_id=WORKER_ID, input_queue=MagicMock())
         port_a, port_b = PortIdentity(0, False), PortIdentity(1, False)
@@ -260,3 +350,25 @@ class TestPortCompletion:
         manager.complete_current_port(channel_b)
         assert manager.all_ports_completed() is True
         assert set(manager.get_all_channel_ids()) == {channel_a, channel_b}
+
+    def test_all_ports_completed_is_vacuously_true_without_ports(self, manager):
+        assert manager.all_ports_completed() is True
+
+    def test_completing_one_channel_completes_the_whole_port(self, manager):
+        # Completing ONE channel marks the WHOLE port as completed, even if
+        # the port's other channels are still open. InputManager itself never
+        # counts channels; it relies on its only caller, end_channel_handler,
+        # which runs once per port: the EndChannel ECM uses PORT_ALIGNMENT,
+        # so the handler fires only after every channel of the port has
+        # delivered the marker. If that alignment ever changes, completing a
+        # port this early would silently drop the open channels' data.
+        port_id = PortIdentity(0, False)
+        channel_a, channel_b = _channel("upstream-a"), _channel("upstream-b")
+        manager.add_input_port(port_id, Schema(raw_schema={"x": "INTEGER"}), [], [])
+        manager.register_input(channel_a, port_id)
+        manager.register_input(channel_b, port_id)
+
+        manager.complete_current_port(channel_a)
+
+        assert manager.get_port(port_id).completed is True
+        assert manager.all_ports_completed() is True

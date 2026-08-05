@@ -373,6 +373,23 @@ describe("MenuComponent", () => {
     expect(setNameSpy).toHaveBeenCalledWith("renamed");
   });
 
+  // Regression coverage for #6846 (resolved by discussion #6873): the toolbar's
+  // import button wiped `wid` before auto-persist and thereby created a spurious
+  // duplicate workflow, so it was removed. Creating a workflow from a JSON file
+  // is covered by the dashboard workflow-list upload button instead.
+  describe("import workflow removal", () => {
+    it("does not render an import upload control in the toolbar", () => {
+      const element: HTMLElement = fixture.nativeElement;
+
+      expect(element.querySelector("nz-upload")).toBeNull();
+      expect(element.querySelector("button[title='import workflow']")).toBeNull();
+    });
+
+    it("does not define an onClickImportWorkflow handler", () => {
+      expect((component as any).onClickImportWorkflow).toBeUndefined();
+    });
+  });
+
   describe("onClickExportWorkflow (save)", () => {
     it("serializes the workflow content as JSON and downloads it under the workflow name", () => {
       const fakeContent = {

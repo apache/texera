@@ -134,9 +134,13 @@ class ProjectAccessResource() {
       throw new ForbiddenException(s"You do not have permission to modify project $pid")
     }
 
+    val targetUser = userDao.fetchOneByEmail(email)
+    if (targetUser == null || targetUser.getIsPlaceholder) {
+      throw new BadRequestException(s"No registered user with email $email")
+    }
     projectUserAccessDao.merge(
       new ProjectUserAccess(
-        userDao.fetchOneByEmail(email).getUid,
+        targetUser.getUid,
         pid,
         PrivilegeEnum.valueOf(privilege)
       )
