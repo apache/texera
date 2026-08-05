@@ -1,0 +1,142 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+
+<nz-card
+  class="section-title"
+  style="background-color: lightcoral">
+  <h2
+    class="page-title"
+    style="color: white">
+    Computing Units
+  </h2>
+</nz-card>
+
+<nz-table
+  #cuTable
+  nzShowSizeChanger
+  [nzScroll]="{ y: '500px' }"
+  [nzData]="computingUnits"
+  [nzLoading]="isLoading"
+  [nzLoadingIndicator]="loadingTemplate"
+  [nzPageSize]="20"
+  [nzPageSizeOptions]="[10, 20, 50, 100]"
+  class="computing-unit-table">
+  <thead>
+    <tr>
+      <th nzWidth="40px"></th>
+      <th
+        [nzSortFn]="sortByName"
+        nzWidth="20%">
+        Name
+      </th>
+      <th
+        [nzSortFn]="sortByOwner"
+        nzWidth="20%">
+        Owner
+      </th>
+      <th
+        [nzSortFn]="sortByType"
+        [nzFilters]="typeFilters"
+        [nzFilterFn]="filterByType"
+        nzWidth="12%">
+        Type
+      </th>
+      <th
+        [nzSortFn]="sortByStatus"
+        [nzFilters]="statusFilters"
+        [nzFilterFn]="filterByStatus"
+        nzWidth="12%">
+        Status
+      </th>
+      <th
+        [nzSortFn]="sortByCreated"
+        nzWidth="16%">
+        Created
+      </th>
+      <th nzWidth="20%">Resources</th>
+    </tr>
+  </thead>
+  <tbody>
+    <ng-container *ngFor="let unit of cuTable.data">
+      <tr>
+        <td
+          [nzShowExpand]="!isLocal(unit)"
+          [nzExpand]="expandedCuids.has(unit.computingUnit.cuid)"
+          (nzExpandChange)="onExpandChange(unit.computingUnit.cuid, $event)"></td>
+        <td>{{ unit.computingUnit.name }}</td>
+        <td>
+          <span class="owner-cell">
+            <texera-user-avatar
+              [googleAvatar]="unit.ownerGoogleAvatar"
+              [userName]="unit.ownerName"
+              [isOwner]="unit.isOwner"></texera-user-avatar>
+            <span>{{ unit.ownerName || "Unknown" }}</span>
+          </span>
+        </td>
+        <td>{{ unit.computingUnit.type }}</td>
+        <td>
+          <nz-badge
+            [nzColor]="getBadgeColor(unit.status)"
+            [nz-tooltip]="getStatusTooltip(unit)"
+            [nzText]="unit.status"></nz-badge>
+        </td>
+        <td [nz-tooltip]="unit.computingUnit.creationTime | date: 'medium'">
+          {{ formatRelativeTime(unit.computingUnit.creationTime) }}
+        </td>
+        <td>{{ resourceSummary(unit) }}</td>
+      </tr>
+      <tr *ngIf="expandedCuids.has(unit.computingUnit.cuid)">
+        <td></td>
+        <td colspan="6">
+          <dl class="spec-detail">
+            <div>
+              <dt>CPU</dt>
+              <dd>{{ displaySpec(unit.computingUnit.resource.cpuLimit) }}</dd>
+            </div>
+            <div>
+              <dt>Memory</dt>
+              <dd>{{ displaySpec(unit.computingUnit.resource.memoryLimit) }}</dd>
+            </div>
+            <div>
+              <dt>GPU</dt>
+              <dd>{{ displaySpec(unit.computingUnit.resource.gpuLimit) }}</dd>
+            </div>
+            <div>
+              <dt>JVM Memory</dt>
+              <dd>{{ displaySpec(unit.computingUnit.resource.jvmMemorySize) }}</dd>
+            </div>
+            <div>
+              <dt>Shared Memory</dt>
+              <dd>{{ displaySpec(unit.computingUnit.resource.shmSize) }}</dd>
+            </div>
+          </dl>
+        </td>
+      </tr>
+    </ng-container>
+  </tbody>
+</nz-table>
+
+<ng-template #loadingTemplate>
+  <div class="loading-container">
+    <nz-spin
+      nzTip="Loading..."
+      [nzSpinning]="true"
+      nzSize="large"></nz-spin>
+  </div>
+</ng-template>

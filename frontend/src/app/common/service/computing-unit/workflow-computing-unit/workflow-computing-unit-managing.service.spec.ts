@@ -22,6 +22,7 @@ import { TestBed } from "@angular/core/testing";
 import { AppSettings } from "../../../app-setting";
 import {
   WorkflowComputingUnitManagingService,
+  COMPUTING_UNIT_ADMIN_LIST_URL,
   COMPUTING_UNIT_BASE_URL,
   COMPUTING_UNIT_CREATE_URL,
   COMPUTING_UNIT_LIST_URL,
@@ -148,6 +149,17 @@ describe("WorkflowComputingUnitManagingService", () => {
     service.listComputingUnits().subscribe(r => (result = r));
 
     const req = httpMock.expectOne(`${api}/${COMPUTING_UNIT_LIST_URL}`);
+    expect(req.request.method).toEqual("GET");
+    req.flush([unitWithResource('{"cpuLimit":"1"}'), unitWithResource('{"cpuLimit":"2"}')]);
+
+    expect(result.map(u => u.computingUnit.resource)).toEqual([{ cpuLimit: "1" }, { cpuLimit: "2" }]);
+  });
+
+  it("listAllComputingUnits() GETs the admin list endpoint and parses every unit's resource", () => {
+    let result: any[] = [];
+    service.listAllComputingUnits().subscribe(r => (result = r));
+
+    const req = httpMock.expectOne(`${api}/${COMPUTING_UNIT_ADMIN_LIST_URL}`);
     expect(req.request.method).toEqual("GET");
     req.flush([unitWithResource('{"cpuLimit":"1"}'), unitWithResource('{"cpuLimit":"2"}')]);
 
