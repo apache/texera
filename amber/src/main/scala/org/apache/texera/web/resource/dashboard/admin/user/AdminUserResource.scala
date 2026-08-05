@@ -130,9 +130,12 @@ class AdminUserResource {
   @GET
   @Path("/created_datasets")
   @Produces(Array(MediaType.APPLICATION_JSON))
-  def getCreatedDatasets(@QueryParam("user_id") user_id: Integer): List[DatasetQuota] = {
-    getUserCreatedDatasets(user_id)
+def getCreatedDatasets(@QueryParam("user_id") user_id: Integer): List[DatasetQuota] = {
+  if (user_id == null) {
+    throw new WebApplicationException("Missing required query param: user_id", Response.Status.BAD_REQUEST)
   }
+  getUserCreatedDatasets(user_id)
+}
 
   @GET
   @Path("/created_workflows")
