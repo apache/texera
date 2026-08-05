@@ -46,7 +46,7 @@ import org.scalatest.matchers.should.Matchers
 
 import java.sql.Timestamp
 import java.util.UUID
-import javax.ws.rs.WebApplicationException
+import javax.ws.rs.{BadRequestException, WebApplicationException}
 import scala.jdk.CollectionConverters._
 
 class AdminUserResourceSpec
@@ -244,6 +244,10 @@ class AdminUserResourceSpec
   "getCreatedDatasets" should "return an empty list for a user with no datasets" in {
     userDao.insert(makeUser(primaryUid, "dataset_user"))
     resource.getCreatedDatasets(primaryUid) shouldBe empty
+  }
+
+  it should "reject a missing user_id with a BadRequestException" in {
+    assertThrows[BadRequestException](resource.getCreatedDatasets(null))
   }
 
   it should "return only the datasets owned by the queried user" in {
