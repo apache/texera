@@ -199,12 +199,21 @@ describe("UserVenvComponent", () => {
       expect(component.currentDraft?.newPackages).toEqual([{ name: "", versionOp: "==", version: "" }]);
     });
 
-    it("togglePackageDelete flips the deleteToggle flag", () => {
-      const pkg = { name: "x", versionOp: "==" as const, version: "1", deleteToggle: false };
-      component.togglePackageDelete(pkg);
-      expect(pkg.deleteToggle).toBe(true);
-      component.togglePackageDelete(pkg);
-      expect(pkg.deleteToggle).toBe(false);
+    it("removePackage is a no-op when there is no draft", () => {
+      component.currentDraft = null;
+      expect(() => component.removePackage(0)).not.toThrow();
+    });
+
+    it("removePackage removes the row at the given index", () => {
+      component.showPveModal();
+      component.addPackage();
+      component.addPackage();
+      component.currentDraft!.newPackages[0].name = "x";
+      component.currentDraft!.newPackages[1].name = "y";
+
+      component.removePackage(0);
+
+      expect(component.currentDraft?.newPackages).toEqual([{ name: "y", versionOp: "==", version: "" }]);
     });
   });
 
@@ -246,7 +255,7 @@ describe("UserVenvComponent", () => {
       expect(pveServiceSpy.savePve).not.toHaveBeenCalled();
     });
 
-    it("creates a new environment: formats versions, skips deleted/blank rows, then succeeds", () => {
+    it("creates a new environment: formats versions, skips blank rows, then succeeds", () => {
       component.currentDraft = {
         name: "envNew",
         newPackages: [
@@ -254,7 +263,6 @@ describe("UserVenvComponent", () => {
           { name: "b", versionOp: "==", version: "" },
           { name: "  ", versionOp: "==", version: "9" },
           { name: "c", versionOp: "<=", version: "  " },
-          { name: "d", versionOp: "==", version: "2", deleteToggle: true },
         ],
       };
       component.pveModalVisible = true;
@@ -263,7 +271,7 @@ describe("UserVenvComponent", () => {
 
       component.saveEnvironment();
 
-      // blank-name row skipped, deleteToggle row skipped, empty/whitespace versions -> "",
+      // blank-name row skipped, empty/whitespace versions -> "",
       // non-empty version formatted as "<op><version>"
       expect(pveServiceSpy.savePve).toHaveBeenCalledWith("envNew", { a: ">=1.0", b: "", c: "" });
       expect(pveServiceSpy.updateUserPve).not.toHaveBeenCalled();
