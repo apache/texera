@@ -79,6 +79,13 @@ describe("CodeareaCustomTemplateComponent", () => {
     }
 
     beforeEach(() => {
+      const workflowActionService = TestBed.inject(WorkflowActionService);
+      vi.spyOn(workflowActionService.getJointGraphWrapper(), "getCurrentHighlightedOperatorIDs").mockReturnValue([
+        "test-operator-id",
+      ]);
+      // ngOnInit reads the highlighted operator id; re-run it so operatorID is deterministic for these tests.
+      component.ngOnInit();
+
       codeEditorService = TestBed.inject(CodeEditorService);
       destroyCallbacks = [];
       // Stand-in for the workspace's ViewContainerRef. Records the onDestroy hook the component
