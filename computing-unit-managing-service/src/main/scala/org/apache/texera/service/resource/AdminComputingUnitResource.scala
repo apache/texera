@@ -42,13 +42,10 @@ object AdminComputingUnitResource {
       .createDSLContext()
 }
 
-// Nested under /computing-unit rather than the /admin/<domain> shape used by AdminUserResource and
-// AdminExecutionResource: the gateway only routes /api/computing-unit and
-// /api/access/computing-unit to this service, so /api/admin/... would fall through to the
-// /api catch-all instead. Jersey resolves /computing-unit/admin/list here rather than against
-// ComputingUnitManagingResource's @Path("/{cuid}"), because a literal path segment outranks a
-// template one; nothing else may add a two-segment literal path under /computing-unit without
-// re-checking that.
+// Path is /computing-unit/admin, not the /admin/<domain> shape other admin resources use: the
+// gateway only routes /api/computing-unit here, so /api/admin/... never reaches this service.
+// Jersey matches the literal /admin/list ahead of ComputingUnitManagingResource's @Path("/{cuid}"),
+// so don't add another two-segment literal path under /computing-unit without re-checking this.
 @Produces(Array(MediaType.APPLICATION_JSON))
 @Path("/computing-unit/admin")
 @RolesAllowed(Array("ADMIN"))
@@ -59,12 +56,9 @@ class AdminComputingUnitResource {
   /**
     * List every non-terminated computing unit across all users (ADMIN-only).
     *
-    * TODO: every row is reported as WRITE, but nothing yet honours that on the write side. The
-    * mutating endpoints on [[ComputingUnitManagingResource]] gate on ownership alone
-    * (`userOwnComputingUnit`, or `ComputingUnitAccessResource.hasWriteAccess`, neither of which
-    * has an ADMIN bypass), so an admin acting on a unit it does not own gets 400/403 from
-    * terminate, rename, /metrics and /limits. Give those endpoints an ADMIN bypass; until then a
-    * client must not present these rows as writable.
+    * TODO: rows report WRITE, but the mutating endpoints on [[ComputingUnitManagingResource]]
+    * still gate on ownership with no ADMIN bypass, so an admin acting on a unit it does not own is
+    * rejected. Add that bypass; until then a client must not present these rows as writable.
     */
   @GET
   @Path("/list")
@@ -73,9 +67,8 @@ class AdminComputingUnitResource {
   ): List[DashboardWorkflowComputingUnit] = {
     val ctx = context
 
-    // Filter to active units in SQL so terminated rows are never loaded. Spelled as an explicit
-    // `IS NULL` predicate rather than the DAO's fetchByTerminateTime(null), which would render
-    // `terminate_time IN (null)` and match no row at all.
+    // Filter active units in SQL. Explicit `IS NULL`, not the DAO's fetchByTerminateTime(null),
+    // which renders `terminate_time IN (null)` and matches nothing.
     val activeUnits =
       ctx
         .selectFrom(WORKFLOW_COMPUTING_UNIT)
@@ -84,13 +77,11 @@ class AdminComputingUnitResource {
         .asScala
         .toList
 
-    // Unlike ComputingUnitManagingResource.listComputingUnits, only the reconcile write is wrapped
-    // in a transaction, not the whole method: the Kubernetes round trips stay outside so a pooled
-    // connection is not held open across them, and wrapping the batchUpdate keeps a mid-batch
-    // failure from retiring only some vanished units (autocommit would commit per statement).
-
-    // Pod phases decide which Kubernetes units are still alive.
     val podPhases = ComputingUnitHelpers.podPhasesFor(activeUnits)
+
+    // Wrap only the reconcile write, not the Kubernetes round trips above: keeps a pooled
+    // connection from being held open across them, while the transaction makes the batchUpdate
+    // all-or-nothing (autocommit would retire only some vanished units on a mid-batch failure).
 
     val liveUnits = SqlServer.withTransaction(ctx) { txCtx =>
       ComputingUnitHelpers.reconcileVanishedKubernetesUnits(
