@@ -19,8 +19,7 @@
 
 package org.apache.texera.amber.operator.visualization.bubbleChart
 
-import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInject
-import org.apache.texera.amber.util.JSONUtils.objectMapper
+import org.apache.texera.amber.operator.metadata.OperatorMetadataGenerator
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -104,20 +103,20 @@ class BubbleChartOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matcher
     plain should include("column3")
   }
 
-  "BubbleChartOpDesc @JsonSchemaInject" should
+  "BubbleChartOpDesc's generated schema" should
     "constrain the bubble size to numeric and leave the axes unconstrained" in {
     // x and y are positions and read as any type, the way a scatter plot's do.
     // Only the size is divided by a scale factor and so has to be a number.
-    val ann = classOf[BubbleChartOpDesc].getAnnotation(classOf[JsonSchemaInject])
-    ann should not be null
-    val rules = objectMapper.readTree(ann.json).path("attributeTypeRules")
+    val schema = OperatorMetadataGenerator.generateOperatorJsonSchema(classOf[BubbleChartOpDesc])
+    val rules = schema.path("attributeTypeRules")
     rules.fieldNames().asScala.toSet shouldBe Set("zValue")
-    rules
-      .path("zValue")
-      .path("enum")
-      .elements()
-      .asScala
-      .map(_.asText())
-      .toSet shouldBe Set("integer", "long", "double")
+
+    // The key has to name a property the form actually renders; one that names
+    // nothing parses fine and constrains nothing.
+    schema.path("properties").has("zValue") shouldBe true
+
+    val allowed = rules.path("zValue").path("enum").elements().asScala.map(_.asText()).toSet
+    allowed shouldBe Set("integer", "long", "double")
+    allowed should not contain "string"
   }
 }
