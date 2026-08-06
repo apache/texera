@@ -55,7 +55,7 @@ class StorageConfigSpec extends AnyFlatSpec with Matchers {
     // feature (#6870); this guards the safe default from silently flipping to true.
     // Only assert when the env override is unset (e.g. in CI), since it would win otherwise.
     if (sys.env.get(StorageConfig.ENV_WAREHOUSE_ENABLED).isEmpty) {
-      StorageConfig.warehousesEnabled shouldBe false
+      StorageConfig.warehouseEnabled shouldBe false
     }
   }
 
