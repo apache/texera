@@ -30,6 +30,13 @@ import { CustomJSONSchema7 } from "../../../types/custom-json-schema.interface";
 import { OperatorMetadataService } from "../../../service/operator-metadata/operator-metadata.service";
 import { StubOperatorMetadataService } from "../../../service/operator-metadata/stub-operator-metadata.service";
 import { FORM_DEBOUNCE_TIME_MS } from "../../../service/execute-workflow/execute-workflow.service";
+
+/**
+ * Drains the short timers scheduled while the fixture is being set up, before the form change
+ * under test. Unrelated to FORM_DEBOUNCE_TIME_MS, which is what the assertions below actually wait
+ * on; this previously borrowed COLLAB_DEBOUNCE_TIME_MS (also 10ms) from an unrelated component.
+ */
+const SETUP_FLUSH_MS = 10;
 import { DatePipe } from "@angular/common";
 import { By } from "@angular/platform-browser";
 import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
@@ -52,7 +59,6 @@ import { SimpleChange } from "@angular/core";
 import { cloneDeep } from "lodash-es";
 
 import Ajv from "ajv";
-import { COLLAB_DEBOUNCE_TIME_MS } from "../../../../common/formly/collab-wrapper/collab-wrapper/collab-wrapper.component";
 import { FormlyNgZorroAntdModule } from "@ngx-formly/ng-zorro-antd";
 import { ComputingUnitStatusService } from "../../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
 import { MockComputingUnitStatusService } from "../../../../common/service/computing-unit/computing-unit-status/mock-computing-unit-status.service";
@@ -182,7 +188,7 @@ describe("OperatorPropertyEditFrameComponent", () => {
       currentOperatorId: new SimpleChange(undefined, mockScanPredicate.operatorID, true),
     });
     fixture.detectChanges();
-    tick(COLLAB_DEBOUNCE_TIME_MS);
+    tick(SETUP_FLUSH_MS);
 
     // stimulate a form change by the user
     const formChangeValue = { tableName: "twitter_sample" };

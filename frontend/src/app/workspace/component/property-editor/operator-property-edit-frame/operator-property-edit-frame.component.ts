@@ -1089,21 +1089,6 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
         );
       }
 
-      // TODO: we temporarily disable this due to Yjs update causing issues in Formly.
-
-      // if (
-      //   this.currentOperatorId !== undefined &&
-      //   ["string", "textarea"].includes(mappedField.type as string) &&
-      //   (mappedField.key as string) !== "password"
-      // ) {
-      //   CollabWrapperComponent.setupFieldConfig(
-      //     mappedField,
-      //     this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId).operatorType,
-      //     this.currentOperatorId,
-      //     mappedField.wrappers?.includes("preset-wrapper")
-      //   );
-      // }
-
       if (this.currentOperatorSchema?.operatorType === "Projection" && mappedField.key === "attributes") {
         mappedField.type = "repeat-section-dnd";
         mappedField.props = {
