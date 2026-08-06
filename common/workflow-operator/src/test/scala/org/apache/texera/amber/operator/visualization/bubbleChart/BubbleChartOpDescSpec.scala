@@ -19,9 +19,13 @@
 
 package org.apache.texera.amber.operator.visualization.bubbleChart
 
+import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInject
+import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+
+import scala.jdk.CollectionConverters._
 
 class BubbleChartOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matchers {
   var opDesc: BubbleChartOpDesc = _
@@ -98,5 +102,22 @@ class BubbleChartOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matcher
     plain should include("column1")
     plain should include("column2")
     plain should include("column3")
+  }
+
+  "BubbleChartOpDesc @JsonSchemaInject" should
+    "constrain the bubble size to numeric and leave the axes unconstrained" in {
+    // x and y are positions and read as any type, the way a scatter plot's do.
+    // Only the size is divided by a scale factor and so has to be a number.
+    val ann = classOf[BubbleChartOpDesc].getAnnotation(classOf[JsonSchemaInject])
+    ann should not be null
+    val rules = objectMapper.readTree(ann.json).path("attributeTypeRules")
+    rules.fieldNames().asScala.toSet shouldBe Set("zValue")
+    rules
+      .path("zValue")
+      .path("enum")
+      .elements()
+      .asScala
+      .map(_.asText())
+      .toSet shouldBe Set("integer", "long", "double")
   }
 }

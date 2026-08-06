@@ -19,12 +19,16 @@
 
 package org.apache.texera.amber.operator.visualization.windRoseChart
 
+import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInject
+import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 import java.nio.charset.StandardCharsets
 import java.util.Base64
+
+import scala.jdk.CollectionConverters._
 
 class WindRoseChartOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matchers {
 
@@ -76,5 +80,22 @@ class WindRoseChartOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Match
     assert(carries(code, "r_col"))
     assert(carries(code, "theta_col"))
     code should include("class ProcessTableOperator(UDFTableOperator)")
+  }
+
+  "WindRoseChartOpDesc @JsonSchemaInject" should
+    "constrain the radial values to numeric and leave the angle unconstrained" in {
+    // The angle is a direction label — "N", "NE" — so a rule there would reject
+    // the ordinary case. Only the wedge length has to be a number.
+    val ann = classOf[WindRoseChartOpDesc].getAnnotation(classOf[JsonSchemaInject])
+    ann should not be null
+    val rules = objectMapper.readTree(ann.json).path("attributeTypeRules")
+    rules.fieldNames().asScala.toSet shouldBe Set("rColumn")
+    rules
+      .path("rColumn")
+      .path("enum")
+      .elements()
+      .asScala
+      .map(_.asText())
+      .toSet shouldBe Set("integer", "long", "double")
   }
 }
