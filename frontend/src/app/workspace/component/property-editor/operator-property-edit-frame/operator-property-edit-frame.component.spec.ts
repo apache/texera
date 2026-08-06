@@ -30,13 +30,6 @@ import { CustomJSONSchema7 } from "../../../types/custom-json-schema.interface";
 import { OperatorMetadataService } from "../../../service/operator-metadata/operator-metadata.service";
 import { StubOperatorMetadataService } from "../../../service/operator-metadata/stub-operator-metadata.service";
 import { FORM_DEBOUNCE_TIME_MS } from "../../../service/execute-workflow/execute-workflow.service";
-
-/**
- * Drains the short timers scheduled while the fixture is being set up, before the form change
- * under test. Unrelated to FORM_DEBOUNCE_TIME_MS, which is what the assertions below actually wait
- * on; this previously borrowed COLLAB_DEBOUNCE_TIME_MS (also 10ms) from an unrelated component.
- */
-const SETUP_FLUSH_MS = 10;
 import { DatePipe } from "@angular/common";
 import { By } from "@angular/platform-browser";
 import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
@@ -66,6 +59,13 @@ import { commonTestProviders } from "../../../../common/testing/test-utils";
 import { DynamicSchemaService } from "../../../service/dynamic-schema/dynamic-schema.service";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { WorkflowGraph } from "../../../service/workflow-graph/model/workflow-graph";
+
+/**
+ * Drains the short timers scheduled while the fixture is being set up, before the form change
+ * under test. Unrelated to FORM_DEBOUNCE_TIME_MS, which is what the assertions below actually wait
+ * on; this previously borrowed COLLAB_DEBOUNCE_TIME_MS (also 10ms) from an unrelated component.
+ */
+const SETUP_FLUSH_MS = 10;
 
 const { marbles } = configure({ run: false });
 
