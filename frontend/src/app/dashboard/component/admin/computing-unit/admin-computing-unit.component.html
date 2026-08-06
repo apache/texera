@@ -73,7 +73,7 @@
     </tr>
   </thead>
   <tbody>
-    <ng-container *ngFor="let unit of cuTable.data">
+    <ng-container *ngFor="let unit of cuTable.data; trackBy: trackByCuid">
       <tr>
         <td
           [nzShowExpand]="!isLocal(unit)"
