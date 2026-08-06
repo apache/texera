@@ -94,11 +94,9 @@ class MainLoop(StoppableQueueBlockingRunnable):
         # on each region re-execution, so this instance flag is per iteration.
         self._loop_state_consumed: bool = False
         # Whether this LoopEnd forwarded an UNstamped counter-0 state instead
-        # of consuming it. Paired with _loop_state_consumed by
-        # _check_loop_state_arrived: forwarding one and never taking a stamped
-        # one means the loop's own state reached here with its stamp lost.
-        # _loop_state_consumed is the stamped-only marker BECAUSE the unstamped
-        # branch in _process_state_frame returns before setting it.
+        # of consuming it. Paired with _loop_start_id by
+        # _check_loop_state_arrived: forwarding one and never capturing a stamp
+        # means the loop's own state reached here with its stamp lost.
         self._forwarded_unstamped_state: bool = False
 
         self.context = Context(worker_id, input_queue)
@@ -162,7 +160,13 @@ class MainLoop(StoppableQueueBlockingRunnable):
         # completing without any matching state is legal (see
         # LoopEndOperator.eval_condition's _loop_table guard); only positive
         # evidence that a boundary state arrived unstamped is a lost envelope.
-        if self._forwarded_unstamped_state and not self._loop_state_consumed:
+        #
+        # "Took a stamped one" is read off _loop_start_id, which only the
+        # stamped branch writes and nothing clears -- NOT off the
+        # _loop_state_consumed fan-in dedup flag, whose lifetime is owned by
+        # the dedup and may end before this runs. Keying on the durable field
+        # keeps this guard correct wherever it is called from.
+        if self._forwarded_unstamped_state and not self._loop_start_id:
             raise RuntimeError(
                 "Loop End received a loop-boundary state with no LoopStart "
                 "stamp and never received its own (stamped) loop state: the "

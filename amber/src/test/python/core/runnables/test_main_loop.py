@@ -2665,6 +2665,15 @@ class TestMainLoop:
             assert main_loop._loop_state_consumed is True
             assert main_loop._loop_start_id == "outer-loop"
 
+            # The guard must key on the DURABLE evidence that a stamped state
+            # was taken (_loop_start_id), not on the fan-in dedup flag: that
+            # flag belongs to the dedup, and a caller may legitimately clear
+            # it once the iteration's state has been taken. Keyed on the flag,
+            # this legitimate shape would start raising the moment anything
+            # re-armed it -- so simulate that and require silence.
+            main_loop._loop_state_consumed = False
+            main_loop._check_loop_state_arrived()
+
     def test_loopend_consumes_its_loop_state_once_per_iteration(
         self, main_loop, monkeypatch
     ):
