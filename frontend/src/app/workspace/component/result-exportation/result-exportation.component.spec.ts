@@ -18,6 +18,7 @@
  */
 
 import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { By } from "@angular/platform-browser";
 import { of } from "rxjs";
 import { ResultExportationComponent } from "./result-exportation.component";
 import {
@@ -366,6 +367,104 @@ describe("ResultExportationComponent", () => {
     expect(modalCreate).toHaveBeenCalledTimes(1);
     expect(component.userAccessibleDatasets).toBe(before);
     expect(component.inputDatasetName).toBe(nameBefore);
+  });
+
+  // Renders the template in each of the states it switches on so the *ngIf / *ngFor /
+  // (click) / [(ngModel)] constructs actually execute. detectChanges() is the coverage switch.
+  describe("template rendering", () => {
+    function setAllOperators(ids: string[]): void {
+      const graph = TestBed.inject(WorkflowActionService) as unknown as {
+        getTexeraGraph: ReturnType<typeof vi.fn>;
+      };
+      graph.getTexeraGraph.mockReturnValue({
+        getAllOperators: () => ids.map(id => ({ operatorID: id })),
+      });
+    }
+
+    function restrict(entries: Record<string, string[]>): void {
+      const map = new Map<string, Set<string>>();
+      Object.entries(entries).forEach(([op, labels]) => map.set(op, new Set(labels)));
+      component.downloadability = new WorkflowResultDownloadability(map);
+    }
+
+    it("renders the restricted-export error alert when every operator is blocked", () => {
+      setAllOperators(["op-a"]);
+      restrict({ "op-a": ["Sales (a@x.com)"] });
+      fixture.detectChanges();
+
+      expect(component.isExportRestricted).toBe(true);
+      const alert = fixture.debugElement.query(By.css("nz-alert"));
+      expect(alert).toBeTruthy();
+      expect(alert.nativeElement.textContent).toContain("Export unavailable");
+    });
+
+    it("renders the partial-skip warning alert when only some operators are blocked", () => {
+      setAllOperators(["op-a", "op-b"]);
+      restrict({ "op-a": ["Sales (a@x.com)"] });
+      fixture.detectChanges();
+
+      expect(component.hasPartialNonDownloadable).toBe(true);
+      expect(fixture.nativeElement.textContent).toContain("Some operators will be skipped");
+    });
+
+    it("renders the export-type select and its output-gated options when export is allowed", () => {
+      setAllOperators(["op-a"]);
+      restrict({}); // nothing blocked -> not restricted
+      component.exportType = "csv"; // != "data"
+      component.isTableOutput = true;
+      component.isVisualizationOutput = true;
+      component.containsBinaryData = false;
+      fixture.detectChanges();
+
+      expect(component.isExportRestricted).toBe(false);
+      expect(fixture.debugElement.query(By.css("#exportTypeInput"))).toBeTruthy();
+    });
+
+    it("renders the filename input when the export type is 'data'", () => {
+      setAllOperators(["op-a"]);
+      restrict({});
+      component.exportType = "data";
+      fixture.detectChanges();
+
+      expect(fixture.debugElement.query(By.css("#filenameInput"))).toBeTruthy();
+    });
+
+    it("renders the local Export button and exports on click", () => {
+      setAllOperators(["op-a"]);
+      restrict({});
+      component.destination = "local";
+      fixture.detectChanges();
+
+      const exportBtn = fixture.debugElement
+        .queryAll(By.css("button"))
+        .find(btn => btn.nativeElement.textContent.trim() === "Export");
+      expect(exportBtn).toBeTruthy();
+
+      exportBtn!.triggerEventHandler("click", null);
+      expect(exportWorkflowExecutionResult).toHaveBeenCalledTimes(1);
+      expect(exportWorkflowExecutionResult.mock.calls[0][7]).toBe("local");
+    });
+
+    it("renders the dataset destination with its list and create button", () => {
+      setAllOperators(["op-a"]);
+      restrict({});
+      component.destination = "dataset";
+      fixture.detectChanges();
+
+      // the dataset search input drives the (input) handler
+      const search = fixture.debugElement.query(By.css("input[name='datasetName']"));
+      expect(search).toBeTruthy();
+      search.triggerEventHandler("input", { target: { value: "" } });
+
+      // the create-new-dataset button opens the creator modal
+      const createBtn = fixture.debugElement
+        .queryAll(By.css("button"))
+        .find(btn => btn.nativeElement.textContent.includes("Create New Dataset"));
+      expect(createBtn).toBeTruthy();
+
+      createBtn!.triggerEventHandler("click", null);
+      expect(modalCreate).toHaveBeenCalledTimes(1);
+    });
   });
 });
 
