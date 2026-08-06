@@ -107,6 +107,69 @@ import scala.util.{Failure, Success, Try}
   */
 object TransformVerificationRunner {
 
+  /**
+    * Per-operator knob handling: a value this operator's variants must carry,
+    * and where it applies. Two needs, one table, because both answer the same
+    * question — what does the generator have to be told about this operator's
+    * knobs that its metadata does not say.
+    *
+    * `Pinned` holds a knob at one value and keeps it out of the sweep, for a
+    * knob whose other value selects non-determinism rather than a different
+    * behavior to check. Split's "Auto-Generate Seed" is the case: with it on the
+    * executor seeds from the clock, so that run agrees with nothing — its own
+    * previous run included — and there is no output for a script to reproduce.
+    * Everything else about the operator is deterministic, so pinning covers the
+    * partition rather than abandoning the operator over one switch. The value
+    * reaches the test name via [[pinnedTierNote]], so the run does not read as
+    * full coverage.
+    *
+    * `WithOptionals` sets a knob inside the `optionals` variant, for a branch
+    * that needs a switch AND the field it governs. Ternary Plot colours its
+    * points only when `colorEnabled` is on and `colorDataField` is set, and the
+    * two belong to different mechanisms: the sweep turns the switch on with the
+    * column empty, the optional fill supplies the column with the switch off, so
+    * neither variant generated the coloured branch. Naming the switch here puts
+    * it in the variant that fills the column.
+    *
+    * Named per operator rather than applied wholesale, because switches are not
+    * generally independent: turning every Boolean on in that variant paired
+    * Sklearn's `countVectorizer` with `tfidfTransformer` (mutually exclusive
+    * text pipelines), asked File Scan to extract an archive from a plain file,
+    * and re-enabled the very auto-seed switch the first scope holds off.
+    *
+    * Distinct from [[enumSweepExemptOps]], which is about an operator's enums as
+    * a whole rather than one named knob.
+    */
+  sealed trait KnobScope
+  object KnobScope {
+    case object Pinned extends KnobScope
+    case object WithOptionals extends KnobScope
+  }
+
+  final case class Knob(field: String, value: JsonNode, scope: KnobScope)
+
+  val knobOverrides: Map[Class[_], Seq[Knob]] = Map(
+    classOf[SplitOpDesc] -> Seq(Knob("random", BooleanNode.FALSE, KnobScope.Pinned)),
+    classOf[TernaryPlotOpDesc] -> Seq(
+      Knob("colorEnabled", BooleanNode.TRUE, KnobScope.WithOptionals)
+    )
+  )
+
+  /** This operator's overrides for one scope, as the generator takes them. */
+  private def knobsFor(opClass: Class[_ <: LogicalOp], scope: KnobScope): Map[String, JsonNode] =
+    knobOverrides
+      .getOrElse(opClass, Seq.empty)
+      .filter(_.scope == scope)
+      .map(k => k.field -> k.value)
+      .toMap
+
+  /** How a pinned operator's tier reads in the report, e.g. `auto, random=false`. */
+  private def pinnedTierNote(opClass: Class[_ <: LogicalOp]): String = {
+    val pinned = knobsFor(opClass, KnobScope.Pinned)
+    if (pinned.isEmpty) ""
+    else pinned.map { case (field, value) => s"$field=${value.asText}" }.mkString(", ", ", ", "")
+  }
+
   /** Curated ops whose enum sweep must be suppressed: an enum value is only
     * valid in combination with a sibling field, so flipping it in isolation
     * yields an invalid config. TypeCasting's `resultType` is legal only for
@@ -115,32 +178,6 @@ object TransformVerificationRunner {
     * each curated column with every target type. The curated fixture already
     * covers each branch with a type-compatible column, so no sweep is needed.
     */
-  /**
-    * Knobs held at one value instead of being swept, because the other value
-    * selects non-determinism rather than a different behavior to check.
-    *
-    * Split's "Auto-Generate Seed" is the case: with it on, the executor seeds
-    * from the clock, so that run agrees with nothing — its own previous run
-    * included — and there is no output for a script to reproduce. Everything
-    * else about the operator is deterministic, so pinning the knob covers the
-    * partition itself rather than abandoning the operator over one switch. The
-    * pinned value is the one under test, and [[pinnedTierNote]] states it in the
-    * test name so the run does not read as full coverage.
-    *
-    * Distinct from [[enumSweepExemptOps]], where the values are all legitimate
-    * and only the blind RE-PAIRING with a sibling field is wrong.
-    */
-  val pinnedKnobs: Map[Class[_], Map[String, JsonNode]] = Map(
-    classOf[SplitOpDesc] -> Map("random" -> BooleanNode.FALSE)
-  )
-
-  /** How a pinned operator's tier reads in the report, e.g. `auto, random=false`. */
-  private def pinnedTierNote(opClass: Class[_ <: LogicalOp]): String =
-    pinnedKnobs
-      .get(opClass)
-      .map(_.map { case (field, value) => s"$field=${value.asText}" }.mkString(", ", ", ", ""))
-      .getOrElse("")
-
   val enumSweepExemptOps: Set[Class[_]] = Set(
     classOf[TypeCastingOpDesc],
     // Aggregate's sweepable enum is each aggregation's `aggFunction`, but the
@@ -372,7 +409,8 @@ object TransformVerificationRunner {
               opClass,
               CanonicalFixture.schemasByPort,
               CanonicalFixture.port0Rows.size,
-              pinnedKnobs.getOrElse(opClass, Map.empty)
+              knobsFor(opClass, KnobScope.Pinned),
+              knobsFor(opClass, KnobScope.WithOptionals)
             )
             .fold(
               reason => throw new IllegalStateException(s"cannot auto-configure: $reason"),

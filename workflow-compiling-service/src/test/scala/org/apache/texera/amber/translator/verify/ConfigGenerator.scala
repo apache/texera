@@ -118,7 +118,8 @@ object ConfigGenerator {
       opClass: Class[_ <: LogicalOp],
       inputSchemas: Map[Int, Schema],
       rowCount: Int = DefaultRowCount,
-      pinned: Map[String, JsonNode] = Map.empty
+      pinned: Map[String, JsonNode] = Map.empty,
+      switches: Map[String, JsonNode] = Map.empty
   ): Either[String, Seq[(String, LogicalOp)]] =
     typeNameByClass.get(opClass) match {
       case None => Left(s"${opClass.getSimpleName} not registered in LogicalOp @JsonSubTypes")
@@ -131,7 +132,15 @@ object ConfigGenerator {
             opClass,
             baseNode,
             None,
-            allVariants(opClass, baseNode, inputSchemas, used, rowCount, pinned = pinned.keySet)
+            allVariants(
+              opClass,
+              baseNode,
+              inputSchemas,
+              used,
+              rowCount,
+              pinned = pinned.keySet,
+              switches = switches
+            )
           )
         }
     }
@@ -236,10 +245,11 @@ object ConfigGenerator {
       used: mutable.Set[(Int, String)],
       rowCount: Int,
       sweepEnums: Boolean = true,
-      pinned: Set[String] = Set.empty
+      pinned: Set[String] = Set.empty,
+      switches: Map[String, JsonNode] = Map.empty
   ): Seq[Variant] =
     Variant.Base +: ((if (sweepEnums) enumVariants(opClass, baseNode, pinned) else Seq.empty) ++
-      extraVariants(opClass, baseNode, schemas, used, rowCount))
+      extraVariants(opClass, baseNode, schemas, used, rowCount, switches))
 
   /** The two multi-knob variants, so called because each moves every knob of its kind
     * at once. An operator's knobs are worth exercising, but bisecting a rare failure
@@ -255,7 +265,8 @@ object ConfigGenerator {
       baseNode: ObjectNode,
       schemas: Map[Int, Schema],
       used: mutable.Set[(Int, String)],
-      rowCount: Int
+      rowCount: Int,
+      switches: Map[String, JsonNode] = Map.empty
   ): Seq[Variant] =
     Seq(
       merged(
@@ -268,7 +279,10 @@ object ConfigGenerator {
           val taken = mutable.Set.empty[(Int, String)] ++ used
           optionalColumnFills(opClass, schemas, taken, baseNode) ++
             optionalScalarFills(opClass, baseNode, "", schemas, taken, rowCount, ordinal) ++
-            extraRowFills(opClass, baseNode, schemas, taken, rowCount, ordinal)
+            extraRowFills(opClass, baseNode, schemas, taken, rowCount, ordinal) ++
+            switches.toSeq.sortBy(_._1).map {
+              case (field, value) => Variant(s"$field=${value.asText}", Seq((s"/$field", value)))
+            }
         }
       ),
       merged("hostileText", numbered(hostileTextFills(opClass, baseNode, "")))

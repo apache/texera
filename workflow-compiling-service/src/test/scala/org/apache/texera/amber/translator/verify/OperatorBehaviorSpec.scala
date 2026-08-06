@@ -180,8 +180,6 @@ object OperatorBehaviorSpec {
     "MachineLearningScorer",
     "NetworkGraphOpDesc",
     "TablesPlotOpDesc",
-    "TernaryContourOpDesc",
-    "TernaryPlotOpDesc",
     "TimeSeriesOpDesc",
     "TreePlotOpDesc",
     "UrlVizOpDesc",
