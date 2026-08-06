@@ -20,7 +20,7 @@
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { of, throwError } from "rxjs";
-import { NzMessageModule, NzMessageService } from "ng-zorro-antd/message";
+import { NzMessageService } from "ng-zorro-antd/message";
 import { AdminComputingUnitComponent } from "./admin-computing-unit.component";
 import { WorkflowComputingUnitManagingService } from "../../../../common/service/computing-unit/workflow-computing-unit/workflow-computing-unit-managing.service";
 import { DashboardWorkflowComputingUnit } from "../../../../common/type/workflow-computing-unit";
@@ -86,7 +86,7 @@ describe("AdminComputingUnitComponent", () => {
         { provide: UserService, useClass: StubUserService },
         ...commonTestProviders,
       ],
-      imports: [AdminComputingUnitComponent, HttpClientTestingModule, NzMessageModule],
+      imports: [AdminComputingUnitComponent, HttpClientTestingModule],
     }).compileComponents();
 
     fixture = TestBed.createComponent(AdminComputingUnitComponent);
@@ -105,10 +105,8 @@ describe("AdminComputingUnitComponent", () => {
     expect(component).toBeTruthy();
   });
 
-  // The only test that renders the template. Every binding a row uses — including the
-  // `date` pipe on the creation-time tooltip — resolves here and nowhere else, so a pipe or
-  // directive missing from the component's `imports` fails this test instead of only the
-  // AOT app build (which the other specs, deliberately render-free, never exercise).
+  // The only test that renders the template, so a pipe/directive missing from the component's
+  // `imports` (e.g. the `date` pipe) fails here instead of only in the AOT app build.
   it("renders a row per unit", () => {
     vi.mocked(service.listAllComputingUnits).mockReturnValue(of([makeUnit()]));
 
