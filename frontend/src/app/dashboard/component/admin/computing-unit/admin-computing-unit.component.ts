@@ -124,7 +124,7 @@ export class AdminComputingUnitComponent implements OnInit {
       .pipe(
         switchMap(() =>
           this.computingUnitService.listAllComputingUnits().pipe(
-            catchError(err => {
+            catchError((err: unknown) => {
               this.messageService.error(extractErrorMessage(err));
               return EMPTY;
             })
@@ -148,7 +148,7 @@ export class AdminComputingUnitComponent implements OnInit {
           this.computingUnits = units;
           this.isLoading = false;
         },
-        error: err => {
+        error: (err: unknown) => {
           // Clear the spinner so a failed load doesn't spin forever.
           this.isLoading = false;
           this.messageService.error(extractErrorMessage(err));
