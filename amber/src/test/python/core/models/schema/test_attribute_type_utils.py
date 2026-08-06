@@ -147,7 +147,7 @@ class TestCreateArrowFieldWithMetadata:
 
     def test_large_binary_field_carries_marker_metadata(self):
         field = create_arrow_field_with_metadata("payload", AttributeType.LARGE_BINARY)
-        assert field.metadata == LARGE_BINARY_METADATA
+        assert field.metadata[TEXERA_TYPE_METADATA_KEY] == LARGE_BINARY_METADATA_VALUE
 
     @pytest.mark.parametrize(
         "attr_type",
@@ -175,7 +175,7 @@ class TestCreateArrowFieldWithMetadata:
     def test_unicode_name_survives_on_a_large_binary_field(self):
         field = create_arrow_field_with_metadata("列名", AttributeType.LARGE_BINARY)
         assert field.name == "列名"
-        assert field.metadata == LARGE_BINARY_METADATA
+        assert field.metadata[TEXERA_TYPE_METADATA_KEY] == LARGE_BINARY_METADATA_VALUE
 
     @pytest.mark.parametrize(
         "invalid_type",
@@ -186,10 +186,12 @@ class TestCreateArrowFieldWithMetadata:
             pytest.param(pa.string(), id="arrow-type"),
         ],
     )
-def test_non_attribute_type_raises_type_or_key_error(self, invalid_type):
-    """Non-AttributeType inputs should fail fast (exception type is an implementation detail)."""
-    with pytest.raises((KeyError, TypeError)):
-        create_arrow_field_with_metadata("f", invalid_type)
+    def test_non_attribute_type_raises_type_or_key_error(self, invalid_type):
+        """Non-AttributeType inputs fail fast; the exact exception is an
+        implementation detail of the mapping lookup."""
+        with pytest.raises((KeyError, TypeError)):
+            create_arrow_field_with_metadata("f", invalid_type)
+
 
 class TestRoundTrip:
     @pytest.mark.parametrize("attr_type", list(AttributeType), ids=lambda t: t.name)
