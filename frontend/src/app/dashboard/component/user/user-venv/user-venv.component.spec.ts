@@ -17,7 +17,9 @@
  * under the License.
  */
 
+import { ApplicationRef } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { By } from "@angular/platform-browser";
 import { NoopAnimationsModule } from "@angular/platform-browser/animations";
 import { DeleteOutline, FileAddOutline, PlusOutline } from "@ant-design/icons-angular/icons";
 import { NzIconModule } from "ng-zorro-antd/icon";
@@ -306,6 +308,14 @@ describe("UserVenvComponent", () => {
       expect(component.currentDraft).not.toBeNull();
       expect(component.pveModalVisible).toBe(true);
     });
+
+    it("is a no-op when there is no draft", () => {
+      component.currentDraft = null;
+      component.saveEnvironment();
+      expect(pveServiceSpy.savePve).not.toHaveBeenCalled();
+      expect(pveServiceSpy.updateUserPve).not.toHaveBeenCalled();
+      expect(component.saving).toBe(false);
+    });
   });
 
   describe("confirmDeletePve", () => {
@@ -375,6 +385,132 @@ describe("UserVenvComponent", () => {
     it("returns the veid, or undefined when absent", () => {
       expect(component.trackByVeid(0, { veid: 42, name: "", newPackages: [] })).toBe(42);
       expect(component.trackByVeid(1, { name: "", newPackages: [] })).toBeUndefined();
+    });
+  });
+
+  // The class is well covered above; these exercise the template itself — the list
+  // branches and the nz-modal body/footer, which render into the CDK overlay.
+  describe("template rendering", () => {
+    type Draft = NonNullable<UserVenvComponent["currentDraft"]>;
+
+    // nz-modal renders into the overlay attached to ApplicationRef, so tick() after
+    // detectChanges to flush its embedded view.
+    const flushOverlay = (): void => {
+      fixture.detectChanges();
+      TestBed.inject(ApplicationRef).tick();
+    };
+    // Assert an element exists so a bad selector fails as "not found" instead of a null deref.
+    const q = <E extends Element>(root: ParentNode, selector: string): E => {
+      const el = root.querySelector(selector);
+      expect(el, `expected to find "${selector}"`).not.toBeNull();
+      return el as unknown as E;
+    };
+    const overlay = (): HTMLElement => q<HTMLElement>(document, ".cdk-overlay-container");
+    // Pick a footer button by its label so the tests survive button reordering.
+    const footerButton = (root: ParentNode, label: string): HTMLButtonElement => {
+      const btn = Array.from(root.querySelectorAll<HTMLButtonElement>(".footer-all button")).find(
+        b => b.textContent?.trim() === label
+      );
+      expect(btn, `expected a footer button labelled "${label}"`).toBeDefined();
+      return btn as HTMLButtonElement;
+    };
+
+    const openModalWith = (draft: Draft): HTMLElement => {
+      component.currentDraft = draft;
+      component.pveModalVisible = true;
+      flushOverlay();
+      return overlay();
+    };
+
+    const seedList = (records: UserPveRecord[]): void => {
+      pveServiceSpy.listUserPves.mockReturnValue(of(records));
+      fixture.detectChanges();
+    };
+
+    it("shows the empty-state message and no list when there are no environments", () => {
+      seedList([]);
+      const host = fixture.nativeElement as HTMLElement;
+      expect(host.querySelector(".python-env-page-empty")?.textContent).toContain("No environments yet");
+      expect(host.querySelector("ul.python-env-page-list")).toBeNull();
+    });
+
+    it("opens an empty draft modal from the Create button", () => {
+      fixture.detectChanges();
+      fixture.debugElement.query(By.css(".create-btn")).triggerEventHandler("click", {});
+      expect(component.pveModalVisible).toBe(true);
+      expect(component.currentDraft).toEqual({ name: "", newPackages: [] });
+    });
+
+    it("renders a row per environment (with the unnamed fallback) and opens the row on click", () => {
+      seedList([
+        { veid: 1, name: "envA", packages: {} },
+        { veid: 2, name: "", packages: {} },
+      ] as UserPveRecord[]);
+
+      const rows = fixture.debugElement.queryAll(By.css("li.python-env-page-item"));
+      expect(rows.length).toBe(2);
+      expect((fixture.nativeElement as HTMLElement).textContent).toContain("(unnamed)");
+
+      rows[0].triggerEventHandler("click", {});
+      expect(component.pveModalVisible).toBe(true);
+      expect(component.currentDraft?.name).toBe("envA");
+    });
+
+    it("fires confirmDeletePve from the row delete icon and stops row-open propagation", () => {
+      seedList([{ veid: 3, name: "envDel", packages: {} }] as UserPveRecord[]);
+      const stopPropagation = vi.fn();
+      fixture.debugElement.query(By.css(".python-env-delete-icon")).triggerEventHandler("click", { stopPropagation });
+      expect(stopPropagation).toHaveBeenCalled();
+      expect(confirmSpy).toHaveBeenCalledTimes(1);
+      expect(component.pveModalVisible).toBe(false);
+    });
+
+    it("renders the modal form, package header, one row per package, and the footer when open", () => {
+      fixture.detectChanges();
+      const o = openModalWith({
+        name: "envForm",
+        newPackages: [
+          { name: "numpy", versionOp: "==", version: "1.2" },
+          { name: "pandas", versionOp: ">=", version: "2.0" },
+        ],
+      });
+
+      expect(o.querySelector(".ve-form")).not.toBeNull();
+      // header row (*ngIf newPackages.length > 0) + one row per package
+      expect(o.querySelectorAll(".package-row").length).toBe(3);
+      expect(o.querySelector(".add-btn button")).not.toBeNull();
+      expect(o.querySelectorAll(".footer-all button").length).toBe(2);
+    });
+
+    it("drives the modal package controls and the Save footer button through the DOM", () => {
+      fixture.detectChanges();
+      const o = openModalWith({ name: "envDrive", newPackages: [{ name: "x", versionOp: "==", version: "1" }] });
+
+      q<HTMLButtonElement>(o, ".add-btn button").click();
+      flushOverlay();
+      expect(component.currentDraft?.newPackages.length).toBe(2);
+
+      q<HTMLButtonElement>(o, ".package-row .user-package-inputs button").click();
+      expect(component.currentDraft?.newPackages[0].deleteToggle).toBe(true);
+
+      footerButton(o, "Save").click();
+      expect(pveServiceSpy.savePve).toHaveBeenCalledWith("envDrive", {});
+    });
+
+    it("closes the modal from the footer Close button", () => {
+      fixture.detectChanges();
+      const o = openModalWith({ name: "envClose", newPackages: [] });
+      footerButton(o, "Close").click();
+      expect(component.pveModalVisible).toBe(false);
+      expect(component.currentDraft).toBeNull();
+    });
+
+    it("closes the modal on the nz-modal cancel (X / mask) output", () => {
+      fixture.detectChanges();
+      openModalWith({ name: "envCancel", newPackages: [] });
+      fixture.debugElement.query(By.css("nz-modal")).triggerEventHandler("nzOnCancel", null);
+      expect(component.pveModalVisible).toBe(false);
+      expect(component.currentDraft).toBeNull();
     });
   });
 });
