@@ -104,6 +104,23 @@ describe("AdminComputingUnitComponent", () => {
     expect(component).toBeTruthy();
   });
 
+  // The only test that renders the template. Every binding a row uses — including the
+  // `date` pipe on the creation-time tooltip — resolves here and nowhere else, so a pipe or
+  // directive missing from the component's `imports` fails this test instead of only the
+  // AOT app build (which the other specs, deliberately render-free, never exercise).
+  it("renders a row per unit", () => {
+    vi.mocked(service.listAllComputingUnits).mockReturnValue(of([makeUnit()]));
+
+    fixture.detectChanges();
+
+    // nz-table adds a hidden measure row to tbody, so match on the owner cell every data row has.
+    const dataRows = Array.from<HTMLElement>(fixture.nativeElement.querySelectorAll("tbody tr")).filter(
+      row => row.querySelector("texera-user-avatar") !== null
+    );
+    expect(dataRows.length).toBe(1);
+    expect(dataRows[0].textContent).toContain("alice");
+  });
+
   it("fetchData loads all units and clears the loading flag", () => {
     const units = [makeUnit(), makeUnit({ computingUnit: { ...makeUnit().computingUnit, cuid: 2 } })];
     vi.mocked(service.listAllComputingUnits).mockReturnValue(of(units));

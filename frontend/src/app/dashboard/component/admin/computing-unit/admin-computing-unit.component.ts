@@ -21,7 +21,7 @@ import { Component, OnInit } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { interval } from "rxjs";
 import { switchMap } from "rxjs/operators";
-import { NgFor, NgIf } from "@angular/common";
+import { DatePipe, NgFor, NgIf } from "@angular/common";
 import {
   NzTableComponent,
   NzTheadComponent,
@@ -71,6 +71,7 @@ const NOT_APPLICABLE = "NaN";
     UserAvatarComponent,
     NgFor,
     NgIf,
+    DatePipe,
   ],
 })
 export class AdminComputingUnitComponent implements OnInit {
