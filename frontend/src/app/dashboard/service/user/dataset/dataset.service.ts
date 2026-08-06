@@ -20,7 +20,7 @@
 import { Injectable } from "@angular/core";
 import { HttpClient, HttpErrorResponse, HttpParams } from "@angular/common/http";
 import { catchError, map, mergeMap, switchMap, tap, toArray } from "rxjs/operators";
-import { Dataset, DatasetVersion } from "../../../../common/type/dataset";
+import { Contributor, Dataset, DatasetVersion } from "../../../../common/type/dataset";
 import { AppSettings } from "../../../../common/app-setting";
 import { EMPTY, from, Observable, throwError } from "rxjs";
 import { DashboardDataset } from "../../../type/dashboard-dataset.interface";
@@ -55,6 +55,17 @@ export function validateDatasetName(name: string): string | null {
   return null;
 }
 
+// Blank optional fields are omitted from requests so they are stored as NULL
+// instead of empty strings.
+function normalizeContributor(contributor: Contributor): Contributor {
+  return {
+    ...contributor,
+    email: contributor.email?.trim() || undefined,
+    affiliation: contributor.affiliation?.trim() || undefined,
+    comments: contributor.comments?.trim() || undefined,
+  };
+}
+
 export const DATASET_PUBLIC_VERSION_BASE_URL = "publicVersion";
 export const DATASET_PUBLIC_VERSION_RETRIEVE_LIST_URL = DATASET_PUBLIC_VERSION_BASE_URL + "/list";
 export const DATASET_GET_OWNERS_URL = DATASET_BASE_URL + "/user-dataset-owners";
@@ -77,12 +88,13 @@ export class DatasetService {
     private config: GuiConfigService
   ) {}
 
-  public createDataset(dataset: Dataset): Observable<DashboardDataset> {
+  public createDataset(dataset: Dataset, contributors: Contributor[] = []): Observable<DashboardDataset> {
     return this.http.post<DashboardDataset>(`${AppSettings.getApiEndpoint()}/${DATASET_CREATE_URL}`, {
       datasetName: dataset.name,
       datasetDescription: dataset.description,
       isDatasetPublic: dataset.isPublic,
       isDatasetDownloadable: dataset.isDownloadable,
+      contributors: contributors.map(normalizeContributor),
     });
   }
 
@@ -582,5 +594,12 @@ export class DatasetService {
 
   public getDatasetCoverUrl(did: number): Observable<{ url: string | null }> {
     return this.http.get<{ url: string | null }>(`${AppSettings.getApiEndpoint()}/dataset/${did}/cover-url`);
+  }
+
+  public updateDatasetContributors(did: number, contributors: ReadonlyArray<Contributor>): Observable<void> {
+    return this.http.post<void>(`${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/update/contributors`, {
+      did,
+      contributors: contributors.map(normalizeContributor),
+    });
   }
 }

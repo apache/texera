@@ -100,12 +100,12 @@ describe("AdminUserService", () => {
     req.flush([]);
   });
 
-  it("getCreatedDatasets() GETs without a query param", () => {
+  it("getCreatedDatasets() sends the uid as a user_id query param", () => {
     service.getCreatedDatasets(9).subscribe();
 
-    const req = httpMock.expectOne(USER_CREATED_DATASETS);
+    const req = httpMock.expectOne(r => r.url === USER_CREATED_DATASETS);
     expect(req.request.method).toEqual("GET");
-    expect(req.request.params.keys().length).toEqual(0);
+    expect(req.request.params.get("user_id")).toEqual("9");
     req.flush([]);
   });
 

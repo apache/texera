@@ -65,6 +65,7 @@ DROP TABLE IF EXISTS dataset_upload_session_part CASCADE;
 DROP TABLE IF EXISTS dataset CASCADE;
 DROP TABLE IF EXISTS dataset_user_access CASCADE;
 DROP TABLE IF EXISTS dataset_version CASCADE;
+DROP TABLE IF EXISTS dataset_contributor CASCADE;
 DROP TABLE IF EXISTS public_project CASCADE;
 DROP TABLE IF EXISTS project_user_access CASCADE;
 DROP TABLE IF EXISTS workflow_user_likes CASCADE;
@@ -110,9 +111,14 @@ CREATE TABLE IF NOT EXISTS "user"
     account_creation_time   TIMESTAMPTZ NOT NULL DEFAULT now(),
     affiliation             VARCHAR(128),
     joining_reason          VARCHAR(500),
-    -- check that either password or google_id is not null
-    CONSTRAINT ck_nulltest CHECK ((password IS NOT NULL) OR (google_id IS NOT NULL))
+    -- placeholder accounts are auto-created for dataset contributors and carry no credentials until claimed
+    is_placeholder          BOOLEAN NOT NULL DEFAULT FALSE,
+    -- every non-placeholder account must have a credential
+    CONSTRAINT ck_nulltest CHECK ((password IS NOT NULL) OR (google_id IS NOT NULL) OR is_placeholder)
     );
+
+-- Contributor emails are resolved with lower(email) lookups.
+CREATE INDEX idx_user_email_lower ON "user" (lower(email));
 
 -- user_config
 CREATE TABLE IF NOT EXISTS user_config
@@ -313,6 +319,26 @@ CREATE TABLE IF NOT EXISTS dataset_version
     creation_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (did) REFERENCES dataset(did) ON DELETE CASCADE
     );
+
+-- dataset_contributor
+CREATE TABLE IF NOT EXISTS dataset_contributor
+(
+    cid           SERIAL PRIMARY KEY,
+    did           INT NOT NULL,
+    name          VARCHAR(256) NOT NULL,
+    creator       BOOLEAN NOT NULL DEFAULT FALSE,
+    email         VARCHAR(256),
+    affiliation   VARCHAR(256),
+    comments      TEXT,
+    uid           INT,
+    FOREIGN KEY (did) REFERENCES dataset(did) ON DELETE CASCADE,
+    FOREIGN KEY (uid) REFERENCES "user"(uid) ON DELETE SET NULL
+    );
+
+-- Per-dataset contributor emails are unique (blank emails exempt).
+CREATE UNIQUE INDEX idx_dataset_contributor_did_email
+    ON dataset_contributor (did, lower(trim(email)))
+    WHERE email IS NOT NULL AND trim(email) <> '';
 
 CREATE TABLE IF NOT EXISTS dataset_upload_session
 (

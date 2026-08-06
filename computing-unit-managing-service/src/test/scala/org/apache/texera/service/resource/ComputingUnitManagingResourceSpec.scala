@@ -19,6 +19,7 @@
 
 package org.apache.texera.service.resource
 
+import jakarta.ws.rs.NotFoundException
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.dao.MockTexeraDB
 import org.apache.texera.dao.jooq.generated.enums.{
@@ -53,19 +54,51 @@ class ComputingUnitManagingResourceSpec
     new SessionUser(u)
   }
 
-  private def localUnit(cuid: Int, name: String): WorkflowComputingUnit = {
+  // Fixtures for the terminate tests. The units acted on are owned by "victim" (uid 901), not by
+  // `user` (uid 800), so they never show up in listComputingUnits(user)'s exact-set assertion.
+  private def makeUser(id: Int, name: String, role: UserRoleEnum): User = {
+    val u = new User()
+    u.setUid(id)
+    u.setName(name)
+    u.setEmail(s"$name@example.com")
+    u.setRole(role)
+    u.setPassword("password")
+    u
+  }
+  private lazy val adminUser: SessionUser =
+    new SessionUser(makeUser(900, "admin", UserRoleEnum.ADMIN))
+  private lazy val strangerUser: SessionUser =
+    new SessionUser(makeUser(902, "stranger", UserRoleEnum.REGULAR))
+
+  private def localUnit(cuid: Int, name: String): WorkflowComputingUnit =
+    localUnitOwnedBy(cuid, uid, name)
+
+  private def localUnitOwnedBy(cuid: Int, ownerUid: Int, name: String): WorkflowComputingUnit = {
     val unit = new WorkflowComputingUnit()
     unit.setCuid(cuid)
-    unit.setUid(uid)
+    unit.setUid(ownerUid)
     unit.setName(name)
     unit.setType(WorkflowComputingUnitTypeEnum.local)
     unit
   }
 
+  private def insertLocalUnit(cuid: Int, ownerUid: Int, name: String): Unit =
+    new WorkflowComputingUnitDao(getDSLContext.configuration())
+      .insert(localUnitOwnedBy(cuid, ownerUid, name))
+
+  private def isTerminated(cuid: Int): Boolean =
+    new WorkflowComputingUnitDao(getDSLContext.configuration())
+      .fetchOneByCuid(cuid)
+      .getTerminateTime != null
+
   override protected def beforeAll(): Unit = {
     super.beforeAll()
     initializeDBAndReplaceDSLContext()
-    new UserDao(getDSLContext.configuration()).insert(user.getUser)
+    val userDao = new UserDao(getDSLContext.configuration())
+    userDao.insert(user.getUser)
+    userDao.insert(adminUser.getUser)
+    userDao.insert(makeUser(901, "victim", UserRoleEnum.REGULAR))
+    userDao.insert(strangerUser.getUser)
     val unitDao = new WorkflowComputingUnitDao(getDSLContext.configuration())
     unitDao.insert(localUnit(800, "cu-a"))
     unitDao.insert(localUnit(801, "cu-b"))
@@ -100,5 +133,36 @@ class ComputingUnitManagingResourceSpec
     all(result.map(_.isOwner)) shouldBe true
     all(result.map(_.accessPrivilege)) shouldBe PrivilegeEnum.WRITE
     all(result.map(_.status)) shouldBe "Running"
+  }
+
+  "terminateComputingUnit" should "let an admin terminate a unit it does not own" in {
+    insertLocalUnit(cuid = 910, ownerUid = 901, name = "victim-cu")
+
+    val response = resource.terminateComputingUnit(910, adminUser)
+
+    response.getStatus shouldBe 200
+    isTerminated(910) shouldBe true
+  }
+
+  it should "reject a non-admin acting on a unit it does not own with 400 and not terminate it" in {
+    insertLocalUnit(cuid = 911, ownerUid = 901, name = "victim-cu-2")
+
+    val response = resource.terminateComputingUnit(911, strangerUser)
+
+    response.getStatus shouldBe 400
+    isTerminated(911) shouldBe false
+  }
+
+  it should "let an owner terminate its own unit" in {
+    insertLocalUnit(cuid = 912, ownerUid = 902, name = "stranger-own-cu")
+
+    val response = resource.terminateComputingUnit(912, strangerUser)
+
+    response.getStatus shouldBe 200
+    isTerminated(912) shouldBe true
+  }
+
+  it should "return 404 when an admin terminates a nonexistent unit" in {
+    a[NotFoundException] should be thrownBy resource.terminateComputingUnit(99999, adminUser)
   }
 }
