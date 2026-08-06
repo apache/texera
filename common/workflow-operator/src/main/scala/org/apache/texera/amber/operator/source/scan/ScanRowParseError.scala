@@ -82,8 +82,8 @@ object ScanRowParseError {
 
   /**
     * Re-parses each raw field against its attribute type; the first failure identifies
-    * the offending column. Missing trailing fields are treated as null (as the scan does)
-    * and thus never fail.
+    * the offending column. Missing trailing fields are ignored (equivalent to treating
+    * them as null for failure detection) and thus never fail.
     */
   private def findFailingColumn(
       rawFields: Seq[Any],
