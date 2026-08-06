@@ -69,7 +69,6 @@ export class SearchBarComponent {
   };
 
   private searchCache = new Map<string, string[]>();
-  private queryOrder: string[] = [];
 
   constructor(
     private router: Router,
@@ -119,12 +118,13 @@ export class SearchBarComponent {
     }
   }
 
+  // A Map iterates in insertion order, and addToCache is only reached on a cache
+  // miss, so the oldest key is always the first one.
   private addToCache(query: string, results: string[]): void {
-    if (this.queryOrder.length >= 20) {
-      const oldestQuery = this.queryOrder.shift();
+    if (this.searchCache.size >= 20) {
+      const oldestQuery = this.searchCache.keys().next().value;
       this.searchCache.delete(oldestQuery!);
     }
-    this.queryOrder.push(query);
     this.searchCache.set(query, results);
   }
 

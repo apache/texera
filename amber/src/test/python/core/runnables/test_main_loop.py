@@ -743,6 +743,8 @@ class TestMainLoop:
         stats_invocation = elem.payload.return_invocation
         worker_metrics_response = stats_invocation.return_value.worker_metrics_response
         stats = worker_metrics_response.metrics.worker_statistics
+        # a missing/dropped version would echo through the read-back below; guard it
+        assert worker_metrics_response.metrics.state_version > 0
 
         metrics = WorkerMetrics(
             worker_state=WorkerState.RUNNING,
@@ -769,6 +771,9 @@ class TestMainLoop:
                 control_processing_time=stats.control_processing_time,
                 idle_time=stats.idle_time,
             ),
+            # version is the worker's logical state clock; read it from the actual
+            # report rather than pinning a brittle count (covered by StateManager tests).
+            state_version=worker_metrics_response.metrics.state_version,
         )
 
         assert elem == DCMElement(
@@ -1176,13 +1181,21 @@ class TestMainLoop:
         output_queue,
     ):
         input_queue.put(mock_pause)
-        assert output_queue.get() == DCMElement(
+        elem = output_queue.get()
+        # version is the worker's logical state clock; read it from the actual
+        # report rather than pinning a brittle count (covered by StateManager tests).
+        state_version = elem.payload.return_invocation.return_value.worker_state_response.state_version
+        # a missing/dropped version would echo through the read-back; guard it
+        assert state_version > 0
+        assert elem == DCMElement(
             tag=mock_control_output_channel,
             payload=DirectControlMessagePayloadV2(
                 return_invocation=ReturnInvocation(
                     command_id=command_sequence,
                     return_value=ControlReturn(
-                        worker_state_response=WorkerStateResponse(WorkerState.PAUSED)
+                        worker_state_response=WorkerStateResponse(
+                            WorkerState.PAUSED, state_version=state_version
+                        )
                     ),
                 )
             ),
@@ -1197,13 +1210,21 @@ class TestMainLoop:
         output_queue,
     ):
         input_queue.put(mock_resume)
-        assert output_queue.get() == DCMElement(
+        elem = output_queue.get()
+        # version is the worker's logical state clock; read it from the actual
+        # report rather than pinning a brittle count (covered by StateManager tests).
+        state_version = elem.payload.return_invocation.return_value.worker_state_response.state_version
+        # a missing/dropped version would echo through the read-back; guard it
+        assert state_version > 0
+        assert elem == DCMElement(
             tag=mock_control_output_channel,
             payload=DirectControlMessagePayloadV2(
                 return_invocation=ReturnInvocation(
                     command_id=command_sequence,
                     return_value=ControlReturn(
-                        worker_state_response=WorkerStateResponse(WorkerState.RUNNING)
+                        worker_state_response=WorkerStateResponse(
+                            WorkerState.RUNNING, state_version=state_version
+                        )
                     ),
                 )
             ),
@@ -2473,6 +2494,43 @@ class TestMainLoop:
         assert set(passed_to_operator.keys()) == {"i", "acc"}
         assert "loop_start_id" not in passed_to_operator
         assert "loop_counter" not in passed_to_operator
+
+    def test_loopend_consumes_its_loop_state_once_per_iteration(
+        self, main_loop, monkeypatch
+    ):
+        # A loop body may branch and converge on the Loop End, so its input
+        # port takes fan-in. Every reader on that port replays its own
+        # branch's states, so the SAME iteration's state arrives once per
+        # branch. Only the first may be consumed: running the user's `update`
+        # again would advance the loop variables once per branch (e.g. `i += 1`
+        # twice), ending the loop early with wrong results.
+        main_loop.context.executor_manager.executor = _FalseLoopEnd()
+        emitted, switched, reset_calls = self._capture_state_emit(
+            main_loop, monkeypatch
+        )
+        monkeypatch.setattr(
+            main_loop.context.state_processing_manager,
+            "get_output_state",
+            lambda: None,
+        )
+
+        def deliver():
+            main_loop._process_state_frame(
+                StateFrame(
+                    State({"i": 42}),
+                    loop_counter=0,
+                    loop_start_id="outer-loop",
+                )
+            )
+
+        deliver()  # branch A
+        deliver()  # branch B replays the same iteration's state
+
+        assert switched == [True], "the operator must consume exactly once"
+        assert emitted == [], "a consume emits nothing downstream, duplicate or not"
+        assert reset_calls == []
+        assert main_loop._loop_start_id == "outer-loop"
+        assert main_loop._loop_state_consumed is True
 
     # ------------------------------------------------------------------ #
     # _jump_to_loop_start

@@ -421,17 +421,17 @@ describe("OperatorPaginationResultService", () => {
   });
 
   describe("handleStatsUpdate", () => {
-    it("rotates the current stats into the previous slot on each update", () => {
+    it("replaces the current stats on each update", () => {
       const first = { colA: { count: 1 } };
       const second = { colA: { count: 2 } };
 
+      expect(service.getStats()).toEqual({});
+
       service.handleStatsUpdate(first);
       expect(service.getStats()).toEqual(first);
-      expect(service.getPrevStats()).toEqual({});
 
       service.handleStatsUpdate(second);
       expect(service.getStats()).toEqual(second);
-      expect(service.getPrevStats()).toEqual(first);
     });
   });
 

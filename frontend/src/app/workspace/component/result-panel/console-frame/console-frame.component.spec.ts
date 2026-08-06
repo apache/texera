@@ -18,6 +18,7 @@
  */
 
 import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { By } from "@angular/platform-browser";
 import { Subject } from "rxjs";
 import { ConsoleFrameComponent } from "./console-frame.component";
 import { OperatorMetadataService } from "../../../service/operator-metadata/operator-metadata.service";
@@ -287,6 +288,95 @@ describe("ConsoleFrameComponent", () => {
 
       expect(component.workerIds).toEqual(["w-5"]);
       expect(component.consoleMessages).toEqual([consoleMessage("PRINT")]);
+    });
+  });
+
+  // The tests above drive the class directly; these render the template so its
+  // *ngFor / *ngIf / (click) / [(ngModel)] branches actually execute.
+  describe("template rendering", () => {
+    // A message with a body (renders the collapse panel) that carries a worker id,
+    // and one with an empty body (renders the plain title branch) and no worker.
+    const withBody: ConsoleMessage = {
+      ...consoleMessage("PRINT"),
+      message: "hello body",
+      title: "header A",
+      workerId: "w-0",
+      source: "srcA",
+    };
+    const noBody: ConsoleMessage = {
+      ...consoleMessage("ERROR"),
+      message: "",
+      title: "plain B",
+      workerId: "",
+      source: "srcB",
+    };
+
+    it("renders one row per message with its body, source, timestamp and worker tags", () => {
+      component.consoleMessages = [withBody, noBody];
+      component.showSource = true;
+      component.showTimestamp = true;
+      fixture.detectChanges();
+
+      const rows = fixture.debugElement.queryAll(By.css(".console-message-entry"));
+      expect(rows.length).toBe(2);
+
+      // non-empty message -> collapse header; empty message -> plain title
+      const text = fixture.nativeElement.textContent as string;
+      const collapseHeader = fixture.debugElement.query(By.css(".collapse-message-header"));
+      expect(collapseHeader).toBeTruthy();
+      expect(collapseHeader.nativeElement.textContent).toContain("header A");
+      expect(text).toContain("plain B");
+
+      // both rows show a source tag; both show a timestamp tag (the rendered date
+      // string is intentionally NOT asserted — it is timezone-dependent)
+      expect(fixture.debugElement.queryAll(By.css(".source-tag")).length).toBe(2);
+      expect(fixture.debugElement.queryAll(By.css(".timestamp-tag")).length).toBe(2);
+      // only the message with a worker id renders the worker tag
+      expect(fixture.debugElement.queryAll(By.css(".worker-tag")).length).toBe(1);
+    });
+
+    it("hides the source and timestamp tags when the toggles are off", () => {
+      component.consoleMessages = [withBody, noBody];
+      component.showSource = false;
+      component.showTimestamp = false;
+      fixture.detectChanges();
+
+      expect(fixture.debugElement.queryAll(By.css(".console-message-entry")).length).toBe(2);
+      expect(fixture.debugElement.queryAll(By.css(".source-tag")).length).toBe(0);
+      expect(fixture.debugElement.queryAll(By.css(".timestamp-tag")).length).toBe(0);
+    });
+
+    it("does not render the debug input group when console input is disabled", () => {
+      component.consoleInputEnabled = false;
+      fixture.detectChanges();
+      expect(fixture.debugElement.query(By.css(".console-input-container"))).toBeNull();
+    });
+
+    it("renders the debug input group and wires its buttons and command input when enabled", () => {
+      component.operatorId = "op1";
+      component.workerIds = ["w-0", "w-1"];
+      component.targetWorker = component.ALL_WORKERS;
+      component.consoleInputEnabled = true;
+      fixture.detectChanges();
+
+      expect(fixture.debugElement.query(By.css(".console-input-container"))).toBeTruthy();
+
+      // clicking each action button reaches its handler / service
+      const buttons = fixture.debugElement.queryAll(By.css(".console-input-container button"));
+      expect(buttons.length).toBe(4);
+      buttons.forEach(button => button.triggerEventHandler("click", null));
+      expect(skipTuples).toHaveBeenCalled();
+      expect(retryExecution).toHaveBeenCalled();
+      expect(doStep).toHaveBeenCalled();
+      expect(doContinue).toHaveBeenCalled();
+
+      // entering a command and pressing enter submits it through the websocket
+      // (target input[nz-input] specifically — the nz-select renders its own input too)
+      component.command = "break";
+      fixture.debugElement.query(By.css("input[nz-input]")).triggerEventHandler("keyup.enter", null);
+      // targetWorker defaults to ALL_WORKERS, so the command is broadcast to every worker id
+      expect(send).toHaveBeenCalledWith("DebugCommandRequest", { operatorId: "op1", workerId: "w-0", cmd: "break" });
+      expect(send).toHaveBeenCalledWith("DebugCommandRequest", { operatorId: "op1", workerId: "w-1", cmd: "break" });
     });
   });
 });

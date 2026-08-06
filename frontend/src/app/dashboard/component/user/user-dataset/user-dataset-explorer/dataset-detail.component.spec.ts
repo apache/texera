@@ -18,7 +18,7 @@
  */
 
 import { ComponentFixture, TestBed } from "@angular/core/testing";
-import { ActivatedRoute } from "@angular/router";
+import { ActivatedRoute, Router } from "@angular/router";
 import { of, Subject, throwError } from "rxjs";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { MarkdownService } from "ngx-markdown";
@@ -34,10 +34,11 @@ import { FileUploadItem } from "../../../../type/dashboard-file.interface";
 import { DatasetFileNode, getFullPathFromDatasetFileNode } from "../../../../../common/type/datasetVersionFileTree";
 import { DatasetStagedObject } from "../../../../../common/type/dataset-staged-object";
 import { commonTestImports, commonTestProviders } from "../../../../../common/testing/test-utils";
-import { Dataset, DatasetVersion } from "../../../../../common/type/dataset";
+import { Contributor, Dataset, DatasetVersion } from "../../../../../common/type/dataset";
 import { DashboardDataset } from "../../../../type/dashboard-dataset.interface";
 import { HttpErrorResponse } from "@angular/common/http";
 import { format } from "date-fns";
+import { USER_DATASET } from "../../../../../app-routing.constant";
 
 describe("DatasetDetailComponent upload queue", () => {
   let fixture: ComponentFixture<DatasetDetailComponent>;
@@ -89,6 +90,18 @@ describe("DatasetDetailComponent upload queue", () => {
               })
             ),
             retrieveDatasetVersionList: vi.fn(() => of([])),
+            retrieveDatasetLatestVersion: vi.fn(() =>
+              of({
+                dvid: 1,
+                did: 1,
+                creatorUid: 1,
+                name: "v1",
+                versionHash: undefined,
+                creationTime: undefined,
+                fileNodes: [],
+              })
+            ),
+            retrieveDatasetVersionFileTree: vi.fn(() => of({ fileNodes: [], size: 1024 })),
             getDatasetDiff: vi.fn(() => of([])),
             createDatasetVersion: vi.fn(() => of({})),
             deleteDatasetFile: vi.fn(() => of({})),
@@ -116,6 +129,56 @@ describe("DatasetDetailComponent upload queue", () => {
     // Log in so ngOnInit reaches loadUploadSettings (maxConcurrentFiles = 3).
     (TestBed.inject(UserService) as unknown as StubUserService).userChangeSubject.next(MOCK_USER);
     fixture.detectChanges();
+  });
+
+  describe("contributor cards", () => {
+    const full: Contributor = {
+      name: "Contributor A",
+      creator: true,
+      affiliation: "Test Lab",
+      email: "contributor-a@test.com",
+      comments: "notes",
+    };
+    const blank: Contributor = { name: "Contributor B", creator: false };
+
+    beforeEach(() => {
+      component.datasetContributors = [full, blank];
+      component.userDatasetAccessLevel = "WRITE";
+      fixture.detectChanges();
+    });
+
+    it("renders one card per contributor with values, a creator star, and dashes for blanks", () => {
+      const cards: NodeListOf<HTMLElement> = fixture.nativeElement.querySelectorAll(".contributor-card");
+      expect(cards.length).toBe(2);
+
+      expect(cards[0].querySelector(".contributor-name")?.textContent).toContain("Contributor A");
+      expect(cards[0].querySelector(".creator-star")).not.toBeNull();
+      expect(cards[0].textContent).toContain("contributor-a@test.com");
+
+      expect(cards[1].querySelector(".creator-star")).toBeNull();
+      const blankValues: NodeListOf<HTMLElement> = cards[1].querySelectorAll(".contributor-value.empty");
+      expect(blankValues.length).toBe(3);
+      blankValues.forEach(value => expect(value.textContent?.trim()).toBe("—"));
+    });
+
+    it("shows edit controls only with write access", () => {
+      expect(fixture.nativeElement.querySelector(".contributor-actions")).not.toBeNull();
+      expect(fixture.nativeElement.querySelector(".contributor-card-add")).not.toBeNull();
+
+      component.userDatasetAccessLevel = "READ";
+      fixture.detectChanges();
+
+      expect(fixture.nativeElement.querySelector(".contributor-actions")).toBeNull();
+      expect(fixture.nativeElement.querySelector(".contributor-card-add")).toBeNull();
+    });
+
+    it("starts adding a contributor when the add tile is clicked", () => {
+      const onAdd = vi.spyOn(component, "onAddContributor").mockImplementation(() => {});
+
+      (fixture.nativeElement.querySelector(".contributor-card-add") as HTMLElement).click();
+
+      expect(onAdd).toHaveBeenCalledTimes(1);
+    });
   });
 
   it("starts at most maxConcurrentFiles uploads immediately and queues the rest", () => {
@@ -300,7 +363,15 @@ describe("DatasetDetailComponent upload queue", () => {
 
   it("renders the virtualized pending list and re-measures viewports on panel expand", async () => {
     dropFiles("f1.txt", "f2.txt", "f3.txt", "f4.txt", "f5.txt");
+
+    // The upload UI lives in the "Versions & Files" tab; nz-tabs does not render a
+    // tab's content into the DOM until it has been selected at least once.
+    const tabButtons: NodeListOf<HTMLElement> = fixture.nativeElement.querySelectorAll(".ant-tabs-tab-btn");
+    const versionsTab = Array.from(tabButtons).find(tab => tab.textContent?.includes("Versions & Files"));
+    expect(versionsTab).toBeTruthy();
+    (versionsTab as HTMLElement).click();
     fixture.detectChanges();
+
     // Flush the viewport's init microtask, then render the rows.
     await Promise.resolve();
     fixture.detectChanges();
@@ -349,6 +420,7 @@ describe("DatasetDetailComponent behavior", () => {
   let downloadServiceStub: MockService;
   let hubServiceStub: MockService;
   let adminSettingsServiceStub: MockService;
+  let modalServiceStub: MockService;
 
   const CREATION_TS = 1_700_000_000_000;
 
@@ -397,7 +469,7 @@ describe("DatasetDetailComponent behavior", () => {
       imports: [DatasetDetailComponent, ...commonTestImports],
       providers: [
         { provide: ActivatedRoute, useValue: { params: of(params), data: of({}) } },
-        { provide: NzModalService, useValue: {} },
+        { provide: NzModalService, useValue: modalServiceStub },
         { provide: DatasetService, useValue: datasetServiceStub },
         { provide: NotificationService, useValue: notificationServiceStub },
         { provide: DownloadService, useValue: downloadServiceStub },
@@ -422,6 +494,7 @@ describe("DatasetDetailComponent behavior", () => {
     datasetServiceStub = {
       getDataset: vi.fn(() => of(makeDashboardDataset())),
       retrieveDatasetVersionList: vi.fn(() => of([])),
+      retrieveDatasetLatestVersion: vi.fn(() => of(makeVersion())),
       getDatasetCoverUrl: vi.fn(() => of({ url: "http://cover" })),
       retrieveDatasetVersionFileTree: vi.fn(() => of({ fileNodes: [fileLeaf("a.txt", "/root", 1)], size: 1 })),
       createDatasetVersion: vi.fn(() => of(makeVersion())),
@@ -429,12 +502,16 @@ describe("DatasetDetailComponent behavior", () => {
       updateDatasetDownloadable: vi.fn(() => of({})),
       updateDatasetCoverImage: vi.fn(() => of({})),
       updateDatasetDescription: vi.fn(() => of({})),
+      updateDatasetContributors: vi.fn(() => of(undefined)),
+      updateDatasetName: vi.fn(() => of({})),
+      deleteDatasets: vi.fn(() => of({})),
       deleteDatasetFile: vi.fn(() => of({})),
       getDatasetDiff: vi.fn(() => of([])),
       multipartUpload: vi.fn(() => of()),
       finalizeMultipartUpload: vi.fn(() => of({})),
     };
     notificationServiceStub = { success: vi.fn(), error: vi.fn(), info: vi.fn() };
+    modalServiceStub = { create: vi.fn() };
     downloadServiceStub = {
       downloadDatasetVersion: vi.fn(() => of(new Blob())),
       downloadSingleFile: vi.fn(() => of(new Blob())),
@@ -462,6 +539,7 @@ describe("DatasetDetailComponent behavior", () => {
 
       expect(datasetServiceStub.getDataset).toHaveBeenCalled();
       expect(datasetServiceStub.retrieveDatasetVersionList).toHaveBeenCalled();
+      expect(datasetServiceStub.retrieveDatasetLatestVersion).toHaveBeenCalled();
       expect(component.likeCount).toBe(7);
       expect(component.viewCount).toBe(42);
       expect(hubServiceStub.isLiked).not.toHaveBeenCalled();
@@ -620,6 +698,178 @@ describe("DatasetDetailComponent behavior", () => {
 
       expect(datasetServiceStub.retrieveDatasetVersionFileTree).not.toHaveBeenCalled();
     });
+
+    it("does not throw and leaves the displayed file untouched when the version has no files", () => {
+      datasetServiceStub.retrieveDatasetVersionFileTree.mockReturnValue(of({ fileNodes: [], size: 0 }));
+
+      createComponent();
+      component.did = 5;
+      component.currentDisplayedFileName = "stale.txt";
+      component.currentFileSize = 99;
+
+      expect(() => component.onVersionSelected(makeVersion({ dvid: 2 }))).not.toThrow();
+
+      expect(component.fileTreeNodeList).toEqual([]);
+      expect(component.currentDatasetVersionSize).toBe(0);
+      expect(component.currentDisplayedFileName).toBe("stale.txt");
+      expect(component.currentFileSize).toBe(99);
+    });
+  });
+
+  describe("retrieveLatestVersionFile", () => {
+    it("fetches the latest version independently and sets latestVersionFileName to the first leaf file", () => {
+      const leaf = fileLeaf("b.txt", "/root", 7);
+      datasetServiceStub.retrieveDatasetLatestVersion.mockReturnValue(of(makeVersion({ fileNodes: [leaf] })));
+
+      createComponent();
+      component.did = 5;
+      component.retrieveLatestVersionFile();
+
+      expect(datasetServiceStub.retrieveDatasetLatestVersion).toHaveBeenCalledWith(5);
+      expect(component.latestVersionFileName).toBe(getFullPathFromDatasetFileNode(leaf));
+    });
+
+    it("walks nested directories to find the first leaf file", () => {
+      const leaf = fileLeaf("c.txt", "/root/a", 3);
+      const tree: DatasetFileNode[] = [{ name: "a", type: "directory", parentDir: "/root", children: [leaf] }];
+      datasetServiceStub.retrieveDatasetLatestVersion.mockReturnValue(of(makeVersion({ fileNodes: tree })));
+
+      createComponent();
+      component.did = 5;
+      component.retrieveLatestVersionFile();
+
+      expect(component.latestVersionFileName).toBe(getFullPathFromDatasetFileNode(leaf));
+    });
+
+    it("sets latestVersionFileName to an empty string when the latest version has no files", () => {
+      datasetServiceStub.retrieveDatasetLatestVersion.mockReturnValue(of(makeVersion()));
+
+      createComponent();
+      component.did = 5;
+      component.retrieveLatestVersionFile();
+
+      expect(component.latestVersionFileName).toBe("");
+    });
+
+    it("derives latestVersionCreationTime from the latest version's creationTime", () => {
+      datasetServiceStub.retrieveDatasetLatestVersion.mockReturnValue(
+        of(makeVersion({ dvid: 3, creationTime: CREATION_TS }))
+      );
+
+      createComponent();
+      component.did = 5;
+      component.retrieveLatestVersionFile();
+
+      expect(component.latestVersionCreationTime).toEqual(format(new Date(CREATION_TS), "MM/dd/yyyy HH:mm:ss"));
+    });
+
+    it("leaves latestVersionCreationTime empty when the latest version has no creation time", () => {
+      datasetServiceStub.retrieveDatasetLatestVersion.mockReturnValue(of(makeVersion({ creationTime: undefined })));
+
+      createComponent();
+      component.did = 5;
+      component.retrieveLatestVersionFile();
+
+      expect(component.latestVersionCreationTime).toBe("");
+    });
+
+    it("sets latestVersionSize from a file-tree fetch for the latest version's dvid", () => {
+      datasetServiceStub.retrieveDatasetLatestVersion.mockReturnValue(of(makeVersion({ dvid: 7 })));
+      datasetServiceStub.retrieveDatasetVersionFileTree.mockReturnValue(of({ fileNodes: [], size: 4096 }));
+
+      createComponent();
+      component.did = 5;
+      component.retrieveLatestVersionFile();
+
+      expect(datasetServiceStub.retrieveDatasetVersionFileTree).toHaveBeenCalledWith(5, 7, expect.anything());
+      expect(component.latestVersionSize).toBe(4096);
+    });
+
+    it("does not fetch a size when the latest version has no dvid", () => {
+      datasetServiceStub.retrieveDatasetLatestVersion.mockReturnValue(of(makeVersion({ dvid: undefined })));
+
+      createComponent();
+      component.did = 5;
+      component.retrieveLatestVersionFile();
+
+      expect(datasetServiceStub.retrieveDatasetVersionFileTree).not.toHaveBeenCalled();
+      expect(component.latestVersionSize).toBeUndefined();
+    });
+
+    it("clears a previously fetched latestVersionSize when the latest version has no dvid", () => {
+      datasetServiceStub.retrieveDatasetLatestVersion.mockReturnValue(of(makeVersion({ dvid: 7 })));
+      datasetServiceStub.retrieveDatasetVersionFileTree.mockReturnValue(of({ fileNodes: [], size: 4096 }));
+
+      createComponent();
+      component.did = 5;
+      component.retrieveLatestVersionFile();
+
+      expect(component.latestVersionSize).toBe(4096);
+
+      // Without a dvid there is no size to show, so the stale one must not linger.
+      datasetServiceStub.retrieveDatasetLatestVersion.mockReturnValue(of(makeVersion({ dvid: undefined })));
+      component.retrieveLatestVersionFile();
+
+      expect(component.latestVersionSize).toBeUndefined();
+    });
+
+    it("ignores a superseded call's size response that resolves after a newer one", () => {
+      // The first call's file-tree request never completes before the second starts.
+      const pendingTree = new Subject<{ fileNodes: DatasetFileNode[]; size: number }>();
+      datasetServiceStub.retrieveDatasetLatestVersion.mockReturnValue(of(makeVersion({ dvid: 7 })));
+      datasetServiceStub.retrieveDatasetVersionFileTree.mockReturnValue(pendingTree);
+
+      createComponent();
+      component.did = 5;
+      component.retrieveLatestVersionFile();
+
+      expect(component.latestVersionSize).toBeUndefined();
+
+      // A second call supersedes the first and resolves immediately.
+      datasetServiceStub.retrieveDatasetVersionFileTree.mockReturnValue(of({ fileNodes: [], size: 200 }));
+      component.retrieveLatestVersionFile();
+
+      expect(component.latestVersionSize).toBe(200);
+
+      // The superseded response arriving late must not overwrite the fresher size.
+      pendingTree.next({ fileNodes: [], size: 999 });
+
+      expect(component.latestVersionSize).toBe(200);
+    });
+
+    it("keeps the latest-version facts fixed when a different version is later selected", () => {
+      datasetServiceStub.retrieveDatasetLatestVersion.mockReturnValue(
+        of(makeVersion({ dvid: 10, creationTime: CREATION_TS }))
+      );
+      datasetServiceStub.retrieveDatasetVersionFileTree.mockReturnValue(of({ fileNodes: [], size: 500 }));
+
+      createComponent();
+      component.did = 5;
+      component.retrieveLatestVersionFile();
+
+      expect(component.latestVersionSize).toBe(500);
+      expect(component.latestVersionCreationTime).toEqual(format(new Date(CREATION_TS), "MM/dd/yyyy HH:mm:ss"));
+
+      // Selecting an older version updates only the selection-scoped values; the
+      // Data Card's latest-version facts stay pinned to the latest version.
+      datasetServiceStub.retrieveDatasetVersionFileTree.mockReturnValue(of({ fileNodes: [], size: 99 }));
+      component.onVersionSelected(makeVersion({ dvid: 9, creationTime: CREATION_TS - 1000 }));
+
+      expect(component.currentDatasetVersionSize).toBe(99);
+      expect(component.selectedVersionCreationTime).toEqual(
+        format(new Date(CREATION_TS - 1000), "MM/dd/yyyy HH:mm:ss")
+      );
+      expect(component.latestVersionSize).toBe(500);
+      expect(component.latestVersionCreationTime).toEqual(format(new Date(CREATION_TS), "MM/dd/yyyy HH:mm:ss"));
+    });
+
+    it("does nothing when there is no did", () => {
+      createComponent();
+      component.did = undefined;
+      component.retrieveLatestVersionFile();
+
+      expect(datasetServiceStub.retrieveDatasetLatestVersion).not.toHaveBeenCalled();
+    });
   });
 
   describe("isDownloadAllowed and userHasWriteAccess", () => {
@@ -724,6 +974,7 @@ describe("DatasetDetailComponent behavior", () => {
       expect(component.versionName).toBe("");
       expect(component.isCreatingVersion).toBe(false);
       expect(datasetServiceStub.retrieveDatasetVersionList).toHaveBeenCalled();
+      expect(datasetServiceStub.retrieveDatasetLatestVersion).toHaveBeenCalled();
       expect(emit).toHaveBeenCalled();
     });
 
@@ -1034,6 +1285,248 @@ describe("DatasetDetailComponent behavior", () => {
     it("trackByTask returns the task's file path", () => {
       const task = { filePath: "owner/data/file.csv" } as unknown as Parameters<typeof component.trackByTask>[1];
       expect(component.trackByTask(0, task)).toBe("owner/data/file.csv");
+    });
+  });
+
+  describe("onSaveDatasetName", () => {
+    it("seeds editedDatasetName from the loaded dataset name", () => {
+      datasetServiceStub.getDataset.mockReturnValue(
+        of(makeDashboardDataset({ dataset: makeDataset({ name: "seed-name" }) }))
+      );
+      createComponent();
+      component.did = 5;
+      component.retrieveDatasetInfo();
+
+      expect(component.editedDatasetName).toBe("seed-name");
+    });
+
+    it("persists a valid name unchanged and toasts success", () => {
+      datasetServiceStub.updateDatasetName.mockReturnValue(of({}));
+      createComponent();
+      component.did = 5;
+      // Mixed case, hyphen and underscore are all valid: the name must be saved
+      // verbatim, not rewritten.
+      component.editedDatasetName = "My-Cool_Dataset";
+
+      component.onSaveDatasetName();
+
+      expect(datasetServiceStub.updateDatasetName).toHaveBeenCalledWith(5, "My-Cool_Dataset");
+      expect(component.datasetName).toBe("My-Cool_Dataset");
+      expect(component.editedDatasetName).toBe("My-Cool_Dataset");
+      expect(notificationServiceStub.success).toHaveBeenCalledWith("Dataset name updated to 'My-Cool_Dataset'");
+    });
+
+    it("rejects an invalid name with a validation error and does not call the rename API", () => {
+      createComponent();
+      component.did = 5;
+      component.datasetName = "original";
+      component.editedDatasetName = "My Cool Dataset"; // spaces are not allowed
+
+      component.onSaveDatasetName();
+
+      expect(datasetServiceStub.updateDatasetName).not.toHaveBeenCalled();
+      expect(component.datasetName).toBe("original");
+      expect(notificationServiceStub.error).toHaveBeenCalledWith(
+        "Invalid dataset name: only letters, numbers, underscores, and hyphens are allowed (max 128 characters)"
+      );
+    });
+
+    it("toasts an error and leaves the name unchanged when the rename fails", () => {
+      datasetServiceStub.updateDatasetName.mockReturnValue(throwError(() => new Error("boom")));
+      createComponent();
+      component.did = 5;
+      component.datasetName = "original";
+      component.editedDatasetName = "new-name";
+
+      component.onSaveDatasetName();
+
+      expect(component.datasetName).toBe("original");
+      expect(notificationServiceStub.error).toHaveBeenCalledWith("boom");
+    });
+
+    it("does nothing when there is no did", () => {
+      createComponent();
+      component.did = undefined;
+      component.editedDatasetName = "whatever";
+
+      component.onSaveDatasetName();
+
+      expect(datasetServiceStub.updateDatasetName).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("onDeleteDataset", () => {
+    it("deletes the dataset, toasts success and navigates back to the dataset list", () => {
+      datasetServiceStub.deleteDatasets.mockReturnValue(of({}));
+      createComponent();
+      const navigateSpy = vi.spyOn(TestBed.inject(Router), "navigate").mockResolvedValue(true);
+      component.did = 5;
+      component.datasetName = "DS";
+
+      component.onDeleteDataset();
+
+      expect(datasetServiceStub.deleteDatasets).toHaveBeenCalledWith(5);
+      expect(notificationServiceStub.success).toHaveBeenCalledWith("Dataset DS was deleted");
+      expect(navigateSpy).toHaveBeenCalledWith([USER_DATASET]);
+    });
+
+    it("toasts an error and does not navigate when the deletion fails", () => {
+      datasetServiceStub.deleteDatasets.mockReturnValue(throwError(() => new Error("boom")));
+      createComponent();
+      const navigateSpy = vi.spyOn(TestBed.inject(Router), "navigate").mockResolvedValue(true);
+      component.did = 5;
+
+      component.onDeleteDataset();
+
+      expect(notificationServiceStub.error).toHaveBeenCalledWith("boom");
+      expect(navigateSpy).not.toHaveBeenCalled();
+    });
+
+    it("does nothing when there is no did", () => {
+      createComponent();
+      const navigateSpy = vi.spyOn(TestBed.inject(Router), "navigate").mockResolvedValue(true);
+      component.did = undefined;
+
+      component.onDeleteDataset();
+
+      expect(datasetServiceStub.deleteDatasets).not.toHaveBeenCalled();
+      expect(navigateSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("delete button disabled state", () => {
+    // The Settings tab (and its Delete card) only render for WRITE access; the
+    // delete button itself is owner-only, mirroring the Downloadable switch's
+    // [nzDisabled]="!isOwner". Renders WRITE access with the given ownership,
+    // activates the (inactive) Settings tab so its pane is in the DOM, then
+    // returns the delete button element.
+    const renderDeleteButton = (isOwner: boolean): HTMLButtonElement => {
+      datasetServiceStub.getDataset.mockReturnValue(of(makeDashboardDataset({ accessPrivilege: "WRITE", isOwner })));
+      createComponent();
+      fixture.detectChanges();
+
+      const tabButtons: NodeListOf<HTMLElement> = fixture.nativeElement.querySelectorAll(".ant-tabs-tab-btn");
+      const settingsTab = Array.from(tabButtons).find(tab => tab.textContent?.includes("Settings"));
+      expect(settingsTab).toBeTruthy();
+      (settingsTab as HTMLElement).click();
+      fixture.detectChanges();
+
+      return fixture.nativeElement.querySelector('button[title="Delete"]') as HTMLButtonElement;
+    };
+
+    it("disables the delete button for a non-owner with write access", () => {
+      const button = renderDeleteButton(false);
+
+      expect(button).toBeTruthy();
+      expect(button.disabled).toBe(true);
+    });
+
+    it("enables the delete button for the owner", () => {
+      const button = renderDeleteButton(true);
+
+      expect(button).toBeTruthy();
+      expect(button.disabled).toBe(false);
+    });
+  });
+
+  describe("contributors", () => {
+    const contributorA: Contributor = {
+      name: "Contributor A",
+      creator: true,
+      affiliation: "Test Lab",
+      email: "contributor-a@test.com",
+      comments: "",
+    };
+    const contributorB: Contributor = {
+      name: "Contributor B",
+      creator: false,
+      affiliation: "Test Lab",
+      email: "contributor-b@test.com",
+      comments: "notes",
+    };
+
+    it("maps contributors from the dashboard dataset and falls back to an empty list", () => {
+      datasetServiceStub.getDataset.mockReturnValue(of(makeDashboardDataset({ contributors: [contributorA] })));
+      createComponent();
+      component.did = 5;
+
+      component.retrieveDatasetInfo();
+      expect(component.datasetContributors).toEqual([contributorA]);
+
+      datasetServiceStub.getDataset.mockReturnValue(of(makeDashboardDataset()));
+      component.retrieveDatasetInfo();
+      expect(component.datasetContributors).toEqual([]);
+    });
+
+    it("onAddContributor appends the modal result and persists the list", () => {
+      modalServiceStub.create.mockReturnValue({ afterClose: of(contributorB) });
+      createComponent();
+      component.did = 5;
+      component.datasetContributors = [contributorA];
+
+      component.onAddContributor();
+
+      expect(component.datasetContributors).toEqual([contributorA, contributorB]);
+      expect(datasetServiceStub.updateDatasetContributors).toHaveBeenCalledWith(5, [contributorA, contributorB]);
+      expect(notificationServiceStub.success).toHaveBeenCalledWith("Contributors updated");
+    });
+
+    it("onAddContributor does not persist when the modal is cancelled", () => {
+      modalServiceStub.create.mockReturnValue({ afterClose: of(undefined) });
+      createComponent();
+      component.did = 5;
+      component.datasetContributors = [contributorA];
+
+      component.onAddContributor();
+
+      expect(component.datasetContributors).toEqual([contributorA]);
+      expect(datasetServiceStub.updateDatasetContributors).not.toHaveBeenCalled();
+    });
+
+    it("onEditContributor replaces the edited row and persists the list", () => {
+      const updated = { ...contributorA, affiliation: "Another Test Lab" };
+      modalServiceStub.create.mockReturnValue({ afterClose: of(updated) });
+      createComponent();
+      component.did = 5;
+      component.datasetContributors = [contributorA, contributorB];
+
+      component.onEditContributor(contributorA);
+
+      expect(component.datasetContributors).toEqual([updated, contributorB]);
+      expect(datasetServiceStub.updateDatasetContributors).toHaveBeenCalledWith(5, [updated, contributorB]);
+    });
+
+    it("onDeleteContributor removes the row and persists the list", () => {
+      createComponent();
+      component.did = 5;
+      component.datasetContributors = [contributorA, contributorB];
+
+      component.onDeleteContributor(contributorA);
+
+      expect(component.datasetContributors).toEqual([contributorB]);
+      expect(datasetServiceStub.updateDatasetContributors).toHaveBeenCalledWith(5, [contributorB]);
+    });
+
+    it("rolls the list back and notifies when persisting fails", () => {
+      datasetServiceStub.updateDatasetContributors.mockReturnValue(throwError(() => new Error("boom")));
+      createComponent();
+      component.did = 5;
+      component.datasetContributors = [contributorA, contributorB];
+
+      component.onDeleteContributor(contributorB);
+
+      expect(component.datasetContributors).toEqual([contributorA, contributorB]);
+      expect(notificationServiceStub.error).toHaveBeenCalledWith("Failed to update contributors");
+    });
+
+    it("does not call the service when did is missing", () => {
+      createComponent();
+      component.did = undefined;
+      component.datasetContributors = [contributorA];
+
+      component.onDeleteContributor(contributorA);
+
+      expect(datasetServiceStub.updateDatasetContributors).not.toHaveBeenCalled();
     });
   });
 });

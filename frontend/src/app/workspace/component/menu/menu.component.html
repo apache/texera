@@ -121,18 +121,6 @@
             nz-icon
             nzType="delete"></i>
         </button>
-        <nz-upload
-          [nzDisabled]="!isWorkflowModifiable"
-          [nzBeforeUpload]="onClickImportWorkflow">
-          <button
-            nz-button
-            [disabled]="!isWorkflowModifiable"
-            title="import workflow">
-            <i
-              nz-icon
-              nzType="upload"></i>
-          </button>
-        </nz-upload>
         <button
           (click)="onClickExportWorkflow()"
           nz-button
