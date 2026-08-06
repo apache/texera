@@ -19,8 +19,8 @@
 
 import { Component, OnInit } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { interval } from "rxjs";
-import { switchMap } from "rxjs/operators";
+import { EMPTY, interval } from "rxjs";
+import { catchError, switchMap } from "rxjs/operators";
 import { DatePipe, NgFor, NgIf } from "@angular/common";
 import {
   NzTableComponent,
@@ -38,6 +38,7 @@ import { NzCardComponent } from "ng-zorro-antd/card";
 import { NzBadgeComponent } from "ng-zorro-antd/badge";
 import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
 import { NzSpinComponent } from "ng-zorro-antd/spin";
+import { NzMessageService } from "ng-zorro-antd/message";
 import { WorkflowComputingUnitManagingService } from "../../../../common/service/computing-unit/workflow-computing-unit/workflow-computing-unit-managing.service";
 import { DashboardWorkflowComputingUnit } from "../../../../common/type/workflow-computing-unit";
 import { getComputingUnitBadgeColor, getComputingUnitStatusTooltip } from "../../../../common/util/computing-unit.util";
@@ -109,16 +110,27 @@ export class AdminComputingUnitComponent implements OnInit {
   readonly filterByStatus: NzTableFilterFn<DashboardWorkflowComputingUnit> = (selected: string[], unit) =>
     selected.includes(unit.status);
 
-  constructor(private computingUnitService: WorkflowComputingUnitManagingService) {}
+  constructor(
+    private computingUnitService: WorkflowComputingUnitManagingService,
+    private messageService: NzMessageService
+  ) {}
 
   ngOnInit(): void {
     this.fetchData();
 
     // Refresh so status changes and new units surface without a manual reload; switchMap
-    // drops a stale in-flight request if the interval fires again before it resolves.
+    // drops a stale in-flight request if the interval fires again before it resolves. A failed
+    // poll is caught inside switchMap so one error does not terminate the interval.
     interval(COMPUTING_UNIT_REFRESH_INTERVAL_MS)
       .pipe(
-        switchMap(() => this.computingUnitService.listAllComputingUnits()),
+        switchMap(() =>
+          this.computingUnitService.listAllComputingUnits().pipe(
+            catchError(err => {
+              this.messageService.error(this.errorMessage(err));
+              return EMPTY;
+            })
+          )
+        ),
         untilDestroyed(this)
       )
       .subscribe(units => (this.computingUnits = units));
@@ -133,10 +145,21 @@ export class AdminComputingUnitComponent implements OnInit {
     this.computingUnitService
       .listAllComputingUnits()
       .pipe(untilDestroyed(this))
-      .subscribe(units => {
-        this.computingUnits = units;
-        this.isLoading = false;
+      .subscribe({
+        next: units => {
+          this.computingUnits = units;
+          this.isLoading = false;
+        },
+        error: err => {
+          // Clear the spinner so the table does not spin forever on a failed load.
+          this.isLoading = false;
+          this.messageService.error(this.errorMessage(err));
+        },
       });
+  }
+
+  private errorMessage(err: unknown): string {
+    return (err as { error?: { message?: string } }).error?.message || (err as Error).message;
   }
 
   /**

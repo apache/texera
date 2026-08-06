@@ -19,7 +19,8 @@
 
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
-import { of } from "rxjs";
+import { of, throwError } from "rxjs";
+import { NzMessageModule, NzMessageService } from "ng-zorro-antd/message";
 import { AdminComputingUnitComponent } from "./admin-computing-unit.component";
 import { WorkflowComputingUnitManagingService } from "../../../../common/service/computing-unit/workflow-computing-unit/workflow-computing-unit-managing.service";
 import { DashboardWorkflowComputingUnit } from "../../../../common/type/workflow-computing-unit";
@@ -85,7 +86,7 @@ describe("AdminComputingUnitComponent", () => {
         { provide: UserService, useClass: StubUserService },
         ...commonTestProviders,
       ],
-      imports: [AdminComputingUnitComponent, HttpClientTestingModule],
+      imports: [AdminComputingUnitComponent, HttpClientTestingModule, NzMessageModule],
     }).compileComponents();
 
     fixture = TestBed.createComponent(AdminComputingUnitComponent);
@@ -129,6 +130,17 @@ describe("AdminComputingUnitComponent", () => {
 
     expect(component.computingUnits).toEqual(units);
     expect(component.isLoading).toBe(false);
+  });
+
+  it("fetchData clears the loading flag and shows a message when the fetch fails", () => {
+    const errorSpy = vi.spyOn(TestBed.inject(NzMessageService), "error").mockReturnValue({} as any);
+    vi.mocked(service.listAllComputingUnits).mockReturnValue(throwError(() => ({ error: { message: "boom" } })));
+
+    component.fetchData();
+
+    // On error the spinner must stop rather than spin forever, and the failure is surfaced.
+    expect(component.isLoading).toBe(false);
+    expect(errorSpy).toHaveBeenCalledWith("boom");
   });
 
   describe("resourceSummary", () => {
