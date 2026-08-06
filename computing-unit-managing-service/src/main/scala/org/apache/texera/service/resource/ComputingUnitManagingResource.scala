@@ -42,7 +42,11 @@ import org.apache.texera.common.config.{
 }
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.SqlServer.withTransaction
-import org.apache.texera.dao.jooq.generated.enums.{PrivilegeEnum, WorkflowComputingUnitTypeEnum}
+import org.apache.texera.dao.jooq.generated.enums.{
+  PrivilegeEnum,
+  UserRoleEnum,
+  WorkflowComputingUnitTypeEnum
+}
 import org.apache.texera.dao.jooq.generated.tables.daos.{
   ComputingUnitUserAccessDao,
   UserDao,
@@ -599,7 +603,8 @@ class ComputingUnitManagingResource {
       @PathParam("cuid") cuid: Integer,
       @Auth user: SessionUser
   ): Response = {
-    if (!userOwnComputingUnit(context, cuid, user.getUid)) {
+    // ADMINs may terminate any unit; everyone else must own it.
+    if (!user.isRoleOf(UserRoleEnum.ADMIN) && !userOwnComputingUnit(context, cuid, user.getUid)) {
       return Response
         .status(Response.Status.BAD_REQUEST)
         .entity(s"User has no access to the computing unit")
