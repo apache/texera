@@ -193,10 +193,7 @@ export class WorkflowState {
     const validInputPorts = new Set(newInputPorts.map(port => port.portID));
 
     for (const link of this.getAllLinks()) {
-      if (
-        link.target.operatorID === operatorId &&
-        !validInputPorts.has(link.target.portID)
-      ) {
+      if (link.target.operatorID === operatorId && !validInputPorts.has(link.target.portID)) {
         this.deleteLink(link.linkID);
       }
     }
