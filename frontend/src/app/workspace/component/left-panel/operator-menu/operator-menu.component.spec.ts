@@ -35,8 +35,8 @@ import { JointUIService } from "../../../service/joint-ui/joint-ui.service";
 import { WorkflowUtilService } from "../../../service/workflow-graph/util/workflow-util.service";
 import { NzDropDownModule } from "ng-zorro-antd/dropdown";
 import { NzCollapseModule } from "ng-zorro-antd/collapse";
-import { NzAutocompleteOptionComponent } from "ng-zorro-antd/auto-complete";
-import * as joint from "jointjs";
+import type { NzAutocompleteOptionComponent } from "ng-zorro-antd/auto-complete";
+import type * as joint from "jointjs";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
 
 describe("OperatorPanelComponent", () => {
