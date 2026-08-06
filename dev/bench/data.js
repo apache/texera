@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1785942039602,
+  "lastUpdate": 1786023161938,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -7800,6 +7800,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 496.4099008114076,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Meng Wang",
+            "username": "mengw15",
+            "email": "mengw15@uci.edu"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "cc8308740361324f7f129657dad6dc395abeeb1c",
+          "message": "test(frontend): extend UserVenvComponent template coverage (#7334)\n\n### What changes were proposed in this PR?\n\nExtends `user-venv.component.spec.ts` to render the template branches\nthe existing\nclass-focused tests never exercised, taking the template from ~36% to\n100%\n(`user-venv.component.html` 102/102). 9 new tests plus one class-guard\ntest:\n\n- **list branches** — the empty-state message when there are no\nenvironments; a\nrow per environment (with the `(unnamed)` fallback); clicking a row\nopens its\ndraft; the delete icon fires `confirmDeletePve` and stops row-open\npropagation.\n- **modal** — the Create button opens an empty draft; opening the modal\nrenders\nthe form, the package header, one row per package, and the footer into\nthe CDK\noverlay; the add-package / delete-toggle / Save / Close controls are\ndriven\nthrough the DOM; the `nz-modal` cancel (X/mask) output closes the modal.\n- a `saveEnvironment` no-op-without-draft guard test brings the class to\n100% too.\n\nInteractions go through the DOM (`By.css` + `triggerEventHandler` /\nnative\n`click`); the `nz-modal` body/footer render into the overlay, flushed\nwith\n`ApplicationRef.tick()`. The backing `WorkflowPveService` is mocked; no\nlayout\nassertions. No production code was changed.\n\n### Any related issues, documentation, discussions?\n\nCloses #7331.\n\n### How was this PR tested?\n\n`ng test --watch=false --include\nsrc/app/dashboard/component/user/user-venv/user-venv.component.spec.ts`\n— 33 passed, run 3× for determinism (the modal renders into the\noverlay). Coverage\n(`--coverage`) confirms `user-venv.component.html` at 102/102 and the\ncomponent\nclass at 89/89. The failure path was verified by breaking an assertion\n(red,\nnon-zero exit); eslint and prettier are clean.\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Claude Code (Opus 4.8 [1M context])",
+          "timestamp": "2026-08-06T05:46:01Z",
+          "url": "https://github.com/apache/texera/commit/cc8308740361324f7f129657dad6dc395abeeb1c"
+        },
+        "date": 1786023161353,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 630.4465663882582,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 1066.804538095528,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 1123.0479607644684,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 778.6713686249294,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 1106.1374519349608,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 1144.8717981559403,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 833.9731276328162,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 1111.3867507081886,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 1143.1797108254898,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 704.752273798553,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 899.2579640134504,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 928.1566753315827,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 727.1059907641536,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 896.4936559098629,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 920.3829675554838,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 700.4918725038217,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 879.0996157298661,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 895.1865229586755,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 426.8328113043203,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 512.1995551233193,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 516.1664949788935,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 436.4684248140763,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 512.0544205080448,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 517.6740494690318,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 420.53311108231304,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 491.077649219723,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 492.84498723605725,
             "unit": "tuples/sec"
           }
         ]
