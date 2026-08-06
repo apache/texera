@@ -43,13 +43,13 @@ import { WorkflowComputingUnitManagingService } from "../../../../common/service
 import { DashboardWorkflowComputingUnit } from "../../../../common/type/workflow-computing-unit";
 import { getComputingUnitBadgeColor, getComputingUnitStatusTooltip } from "../../../../common/util/computing-unit.util";
 import { formatRelativeTime } from "../../../../common/util/format.util";
+import { extractErrorMessage } from "../../../../common/util/error";
 import { UserAvatarComponent } from "../../user/user-avatar/user-avatar.component";
 
-// How often the table refreshes so live status (Pending -> Running) and newly created
-// units stay fresh, matching the poll cadence of the admin executions page.
+// Poll cadence for live status, matching the admin executions page.
 const COMPUTING_UNIT_REFRESH_INTERVAL_MS = 5000;
 
-// A computing unit's specs are "NaN" placeholders for local units, which have no limits.
+// Local units have no limits; their specs come back as this placeholder.
 const NOT_APPLICABLE = "NaN";
 
 @UntilDestroy()
@@ -118,15 +118,14 @@ export class AdminComputingUnitComponent implements OnInit {
   ngOnInit(): void {
     this.fetchData();
 
-    // Refresh so status changes and new units surface without a manual reload; switchMap
-    // drops a stale in-flight request if the interval fires again before it resolves. A failed
-    // poll is caught inside switchMap so one error does not terminate the interval.
+    // switchMap drops a stale in-flight request; catchError is inside it so one failed poll
+    // shows a message but does not terminate the interval.
     interval(COMPUTING_UNIT_REFRESH_INTERVAL_MS)
       .pipe(
         switchMap(() =>
           this.computingUnitService.listAllComputingUnits().pipe(
             catchError(err => {
-              this.messageService.error(this.errorMessage(err));
+              this.messageService.error(extractErrorMessage(err));
               return EMPTY;
             })
           )
@@ -137,8 +136,7 @@ export class AdminComputingUnitComponent implements OnInit {
   }
 
   /**
-   * Load every computing unit once, showing the loading indicator (used on init only, so
-   * the background poll never flashes the spinner over an already-populated table).
+   * Initial load, with the spinner. Only init calls this, so the poll never re-flashes it.
    */
   fetchData(): void {
     this.isLoading = true;
@@ -151,20 +149,15 @@ export class AdminComputingUnitComponent implements OnInit {
           this.isLoading = false;
         },
         error: err => {
-          // Clear the spinner so the table does not spin forever on a failed load.
+          // Clear the spinner so a failed load doesn't spin forever.
           this.isLoading = false;
-          this.messageService.error(this.errorMessage(err));
+          this.messageService.error(extractErrorMessage(err));
         },
       });
   }
 
-  private errorMessage(err: unknown): string {
-    return (err as { error?: { message?: string } }).error?.message || (err as Error).message;
-  }
-
   /**
-   * Track rows by cuid so a poll (which replaces every row object) reuses DOM instead of
-   * rebuilding each row's avatar/badge/tooltip every 5s.
+   * Track by cuid so the 5s poll (which replaces every row object) reuses row DOM.
    */
   trackByCuid(_index: number, unit: DashboardWorkflowComputingUnit): number {
     return unit.computingUnit.cuid;
@@ -189,8 +182,7 @@ export class AdminComputingUnitComponent implements OnInit {
   }
 
   /**
-   * One-line "size" summary shown in the table's Resources column, e.g. "2 CPU · 4Gi · 1 GPU".
-   * GPU is omitted when there is none. Local units have no limits.
+   * The Resources-column summary, e.g. "2 CPU · 4Gi · 1 GPU" (GPU omitted when none).
    */
   resourceSummary(unit: DashboardWorkflowComputingUnit): string {
     if (this.isLocal(unit)) {
