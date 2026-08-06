@@ -140,6 +140,14 @@ export class AdminComputingUnitComponent implements OnInit {
   }
 
   /**
+   * Track rows by cuid so a poll (which replaces every row object) reuses DOM instead of
+   * rebuilding each row's avatar/badge/tooltip every 5s.
+   */
+  trackByCuid(_index: number, unit: DashboardWorkflowComputingUnit): number {
+    return unit.computingUnit.cuid;
+  }
+
+  /**
    * Toggle whether a row's full spec detail is shown.
    */
   onExpandChange(cuid: number, expanded: boolean): void {
