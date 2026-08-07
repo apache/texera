@@ -171,6 +171,21 @@ class ComputingUnitAccessResourceSpec
     accessEmails(cuid) shouldBe empty
   }
 
+  it should "reject granting to a placeholder account with a 400" in {
+    val placeholder = new User
+    placeholder.setName("cu_placeholder")
+    placeholder.setEmail("cu-placeholder@test.com")
+    placeholder.setRole(UserRoleEnum.INACTIVE)
+    placeholder.setIsPlaceholder(true)
+    new UserDao(getDSLContext.configuration()).insert(placeholder)
+
+    val ex = intercept[BadRequestException] {
+      accessResource.grantAccess(ownerSession, cuid, "cu-placeholder@test.com", PrivilegeEnum.READ)
+    }
+    ex.getResponse.getStatus shouldEqual 400
+    accessEmails(cuid) shouldBe empty
+  }
+
   it should "update the privilege in place when re-granting with a different privilege" in {
     accessResource.grantAccess(ownerSession, cuid, granteeUser.getEmail, PrivilegeEnum.READ)
     accessResource.grantAccess(ownerSession, cuid, granteeUser.getEmail, PrivilegeEnum.WRITE)

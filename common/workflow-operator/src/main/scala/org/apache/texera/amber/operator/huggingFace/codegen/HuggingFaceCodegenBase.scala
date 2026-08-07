@@ -195,7 +195,7 @@ object HuggingFaceCodegenBase {
        |        Returns (response, provider_summary). provider_summary is None on
        |        success or a string describing what failed.
        |        '''
-       |        RETRYABLE = (400, 404, 422, 429, 502, 503)
+       |        RETRYABLE = (400, 401, 404, 422, 429, 502, 503)
        |        last_resp = None
        |        errors = []
        |        for prov in providers:
@@ -246,8 +246,6 @@ object HuggingFaceCodegenBase {
        |                errors.append(f"{provider_name}: {type(e).__name__}")
        |                continue
        |            if resp.status_code in (200, 201):
-       |                return resp, None
-       |            if resp.status_code == 401:
        |                return resp, None
        |            try:
        |                detail = resp.json().get("error", resp.text[:200])
@@ -506,28 +504,32 @@ object HuggingFaceCodegenBase {
        |
        |        # --- validate prompt column exists (skipped for image tasks and binary-only audio tasks) ---
        |        if task not in image_tasks and task not in audio_only_tasks:
-       |            assert prompt_col in table.columns, (
-       |                f"Prompt column '{prompt_col}' not found in input table. "
-       |                f"Available columns: {list(table.columns)}"
-       |            )
+       |            if prompt_col not in table.columns:
+       |                raise ValueError(
+       |                    f"Prompt column '{prompt_col}' not found in input table. "
+       |                    f"Available columns: {list(table.columns)}"
+       |                )
        |        if task == "zero-shot-classification":
        |            labels = [l.strip() for l in str(self.CANDIDATE_LABELS).split(",") if l.strip()]
-       |            assert labels, (
-       |                "Candidate Labels are required for zero-shot-classification. "
-       |                "Provide a comma-separated list of labels."
-       |            )
+       |            if not labels:
+       |                raise ValueError(
+       |                    "Candidate Labels are required for zero-shot-classification. "
+       |                    "Provide a comma-separated list of labels."
+       |                )
        |        if task == "question-answering":
        |            ctx_col = self.CONTEXT_COLUMN
-       |            assert ctx_col and ctx_col in table.columns, (
-       |                f"Context column '{ctx_col}' not found in input table. "
-       |                f"Available columns: {list(table.columns)}"
-       |            )
+       |            if not (ctx_col and ctx_col in table.columns):
+       |                raise ValueError(
+       |                    f"Context column '{ctx_col}' not found in input table. "
+       |                    f"Available columns: {list(table.columns)}"
+       |                )
        |        if task in ("sentence-similarity", "text-ranking"):
        |            sent_col = self.SENTENCES_COLUMN
-       |            assert sent_col and sent_col in table.columns, (
-       |                f"Sentences column '{sent_col}' not found in input table. "
-       |                f"Available columns: {list(table.columns)}"
-       |            )
+       |            if not (sent_col and sent_col in table.columns):
+       |                raise ValueError(
+       |                    f"Sentences column '{sent_col}' not found in input table. "
+       |                    f"Available columns: {list(table.columns)}"
+       |                )
        |
        |        # --- handle empty table ---
        |        if table.empty:
@@ -890,7 +892,7 @@ object HuggingFaceCodegenBase {
        |        # base64-encoded bytes. Anything else is treated as raw bytes, never
        |        # as a path to open.
        |        try:
-       |            return base64.b64decode(val)
+       |            return base64.b64decode(val, validate=True)
        |        except Exception:
        |            return val.encode("utf-8")
        |
