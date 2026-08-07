@@ -50,6 +50,17 @@ jobs:
     steps:
       - name: Prove the fleet is alive
         run: echo "self-hosted fleet alive at $(date -u +%FT%TZ) on $RUNNER_NAME"
+      - name: Clean up job artifacts
+        # The beat checks nothing out, but it runs every 15 minutes on a
+        # classic runner, so even an empty workspace directory is worth leaving
+        # clean. always() so a failed or cancelled beat cleans up too. Also
+        # reports disk headroom, which is the fleet health signal this
+        # workflow exists to watch.
+        if: ${{ always() && runner.environment == 'self-hosted' }}
+        run: |
+          find "${GITHUB_WORKSPACE:?}" -mindepth 1 -maxdepth 1 -exec rm -rf -- {} + 2>/dev/null ||
+            echo "::warning::workspace cleanup incomplete on ${RUNNER_NAME:-this runner}"
+          df -h "$GITHUB_WORKSPACE" 2>/dev/null | tail -n 1 || true
 
   watchdog:
     runs-on: ubuntu-slim

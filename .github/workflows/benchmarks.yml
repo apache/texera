@@ -219,6 +219,15 @@ jobs:
             core.setOutput("linux_runner", linuxRunner);
             core.info(`Linux runner: ${linuxRunner}`);
 
+      - name: Clean up job artifacts
+        # No checkout here, but a classic self-hosted runner still keeps the
+        # workspace directory it created for this job; leave it empty for the
+        # next one. always() so a failed or cancelled job cleans up too.
+        if: ${{ always() && runner.environment == 'self-hosted' }}
+        run: |
+          find "${GITHUB_WORKSPACE:?}" -mindepth 1 -maxdepth 1 -exec rm -rf -- {} + 2>/dev/null ||
+            echo "::warning::workspace cleanup incomplete on ${RUNNER_NAME:-this runner}"
+
   bench:
     name: Bench
     needs: precheck
@@ -466,3 +475,22 @@ jobs:
           alert-threshold: "150%"
           comment-on-alert: false
           summary-always: true
+
+      - name: Clean up job artifacts
+        # arc-bench-linux is a dedicated machine every bench run lands on, so
+        # its leftovers (sbt target/, bench-results/, the main-baseline
+        # checkout) accumulate faster than anywhere else — and stale state on
+        # the bench box is a comparability risk, not just a disk one. Runs
+        # after the artifact upload above, so no results are lost. always() so
+        # a failed or cancelled run cleans up too; the GitHub-hosted fallback
+        # is a throwaway VM and skips it. `git clean -x` covers gitignored
+        # build output, `-ff` nested git dirs; .git stays so the next
+        # checkout is incremental. The fallback covers a run whose checkout
+        # never completed.
+        if: ${{ always() && runner.environment == 'self-hosted' }}
+        working-directory: ${{ github.workspace }}
+        run: |
+          rm -rf /tmp/protoc.zip
+          git clean -xdff ||
+            find . -mindepth 1 -maxdepth 1 -exec rm -rf -- {} + ||
+            echo "::warning::workspace cleanup incomplete on ${RUNNER_NAME:-this runner}"

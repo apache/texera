@@ -534,3 +534,12 @@ jobs:
               core.info(`Backport targets: ${targets.join(", ")}`);
             }
             core.setOutput("backport_targets", JSON.stringify(targets));
+
+      - name: Clean up job artifacts
+        # No checkout here, but a classic self-hosted runner still keeps the
+        # workspace directory it created for this job; leave it empty for the
+        # next one. always() so a failed or cancelled job cleans up too.
+        if: ${{ always() && runner.environment == 'self-hosted' }}
+        run: |
+          find "${GITHUB_WORKSPACE:?}" -mindepth 1 -maxdepth 1 -exec rm -rf -- {} + 2>/dev/null ||
+            echo "::warning::workspace cleanup incomplete on ${RUNNER_NAME:-this runner}"

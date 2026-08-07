@@ -36,3 +36,16 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: apache/skywalking-eyes@61275cc80d0798a405cb070f7d3a8aaf7cf2c2c1 # v0.8.0
+      - name: Clean up job artifacts
+        # Classic self-hosted runners hand this workspace to the next job
+        # as-is; drop whatever license-eye wrote into it. always() so a failed
+        # or cancelled job cleans up too; the GitHub-hosted fallback is a
+        # throwaway VM and skips it. .git stays so the next checkout is
+        # incremental; the fallback covers a job whose checkout never
+        # completed.
+        if: ${{ always() && runner.environment == 'self-hosted' }}
+        working-directory: ${{ github.workspace }}
+        run: |
+          git clean -xdff ||
+            find . -mindepth 1 -maxdepth 1 -exec rm -rf -- {} + ||
+            echo "::warning::workspace cleanup incomplete on ${RUNNER_NAME:-this runner}"

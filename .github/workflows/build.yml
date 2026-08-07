@@ -193,6 +193,31 @@ jobs:
           report_type: test_results
           disable_search: true
           fail_ci_if_error: false
+      - name: Clean up job artifacts
+        # The arc-* runners are classic (non-ephemeral): the same workspace,
+        # /tmp and docker daemon are handed to the next job that lands on the
+        # machine, so this job's output (here: node_modules/, .yarn/cache,
+        # dist/) would pile up until the runner's root disk fills. Every
+        # self-hosted job below ends with the same kind of step.
+        #
+        # always() so a failed or cancelled job cleans up too. GitHub-hosted
+        # legs (windows / macos / ubuntu-latest fallback) are throwaway VMs
+        # and skip it. `git clean -x` covers gitignored build output, `-ff`
+        # nested git dirs; .git itself stays so the next checkout is
+        # incremental (fixed size, unlike the build output). The fallback
+        # covers a job whose checkout never completed, and a cleanup that
+        # still cannot finish degrades to a warning rather than turning an
+        # otherwise-green (and merge-gating) job red.
+        #
+        # Deliberately kept inline rather than in a shared script: backport
+        # runs replace the tree with a release branch that predates any new
+        # script, and cleanup must not depend on the tree it is cleaning.
+        if: ${{ always() && runner.environment == 'self-hosted' }}
+        working-directory: ${{ github.workspace }}
+        run: |
+          git clean -xdff ||
+            find . -mindepth 1 -maxdepth 1 -exec rm -rf -- {} + ||
+            echo "::warning::workspace cleanup incomplete on ${RUNNER_NAME:-this runner}"
 
   amber:
     # The amber job runs the cross-cutting Scala lints (scalafmtCheckAll,
@@ -355,6 +380,18 @@ jobs:
           flags: amber
           report_type: test_results
           fail_ci_if_error: false
+      - name: Clean up job artifacts
+        # Drops the sbt target/ trees, the dist zip, and the dist this job
+        # unpacked under /tmp (which also survives the job on a classic
+        # runner). The `services:` postgres is removed by the runner itself.
+        # See the frontend job above for the full rationale.
+        if: ${{ always() && runner.environment == 'self-hosted' }}
+        working-directory: ${{ github.workspace }}
+        run: |
+          rm -rf /tmp/dists /tmp/notice-amber.txt
+          git clean -xdff ||
+            find . -mindepth 1 -maxdepth 1 -exec rm -rf -- {} + ||
+            echo "::warning::workspace cleanup incomplete on ${RUNNER_NAME:-this runner}"
 
   amber-integration:
     # Runs Scala tests tagged @org.apache.texera.amber.tags.IntegrationTest —
@@ -734,6 +771,21 @@ jobs:
           flags: amber-integration
           report_type: test_results
           fail_ci_if_error: false
+      - name: Clean up job artifacts
+        # This job starts its infra with `docker run -d` rather than
+        # `services:`, so nothing removes those containers for it — and on a
+        # classic runner they keep running, holding ports 5432 / 9000 / 8181
+        # against the next job (whose own `docker run` would then fail on the
+        # name and the port). -v also drops the anonymous volumes postgres
+        # declares. See the frontend job above for the full rationale.
+        if: ${{ always() && runner.environment == 'self-hosted' }}
+        working-directory: ${{ github.workspace }}
+        run: |
+          docker rm -f -v postgres minio lakekeeper >/dev/null 2>&1 || true
+          rm -rf /tmp/dists /tmp/protoc.zip
+          git clean -xdff ||
+            find . -mindepth 1 -maxdepth 1 -exec rm -rf -- {} + ||
+            echo "::warning::workspace cleanup incomplete on ${RUNNER_NAME:-this runner}"
 
   platform:
     # Per-service build, test, and license check for the non-amber Scala
@@ -861,6 +913,17 @@ jobs:
           report_type: test_results
           disable_search: true
           fail_ci_if_error: false
+      - name: Clean up job artifacts
+        # Six matrix entries share one runner pool, each leaving its own sbt
+        # target/ tree and unpacked dist behind. See the frontend job above
+        # for the full rationale.
+        if: ${{ always() && runner.environment == 'self-hosted' }}
+        working-directory: ${{ github.workspace }}
+        run: |
+          rm -rf /tmp/dists "/tmp/notice-${{ matrix.service }}.txt"
+          git clean -xdff ||
+            find . -mindepth 1 -maxdepth 1 -exec rm -rf -- {} + ||
+            echo "::warning::workspace cleanup incomplete on ${RUNNER_NAME:-this runner}"
 
   platform-integration:
     # Boot smoke test for the platform services (mirrors amber-integration: an
@@ -1001,6 +1064,19 @@ jobs:
           # smoke-boot's verdict is LISTEN-based, never log-scraping (#6332).
           TEXERA_SERVICE_LOG_LEVEL: ${{ runner.debug == '1' && 'DEBUG' || 'WARN' }}
         run: .github/scripts/smoke-boot.sh "/tmp/dists/${{ matrix.service }}-*/bin/${{ matrix.service }}" "${{ matrix.port }}"
+      - name: Clean up job artifacts
+        # minio / lakefs are started with `docker run -d` for the file-service
+        # entry only, but removing them unconditionally is harmless (a missing
+        # container is ignored). See the frontend job above for the full
+        # rationale.
+        if: ${{ always() && runner.environment == 'self-hosted' }}
+        working-directory: ${{ github.workspace }}
+        run: |
+          docker rm -f -v minio lakefs >/dev/null 2>&1 || true
+          rm -rf /tmp/dists
+          git clean -xdff ||
+            find . -mindepth 1 -maxdepth 1 -exec rm -rf -- {} + ||
+            echo "::warning::workspace cleanup incomplete on ${RUNNER_NAME:-this runner}"
 
   pyamber:
     if: ${{ inputs.run_pyamber }}
@@ -1118,6 +1194,17 @@ jobs:
           report_type: test_results
           disable_search: true
           fail_ci_if_error: false
+      - name: Clean up job artifacts
+        # Three python legs land on the same pool; each leaves generated proto
+        # bindings, .pytest_cache and coverage output in the workspace. See
+        # the frontend job above for the full rationale.
+        if: ${{ always() && runner.environment == 'self-hosted' }}
+        working-directory: ${{ github.workspace }}
+        run: |
+          rm -rf /tmp/protoc.zip /tmp/pip-licenses.csv
+          git clean -xdff ||
+            find . -mindepth 1 -maxdepth 1 -exec rm -rf -- {} + ||
+            echo "::warning::workspace cleanup incomplete on ${RUNNER_NAME:-this runner}"
 
   agent-service:
     if: ${{ inputs.run_agent_service }}
@@ -1192,6 +1279,16 @@ jobs:
           report_type: test_results
           disable_search: true
           fail_ci_if_error: false
+      - name: Clean up job artifacts
+        # working-directory overrides the job default (agent-service) so the
+        # clean covers the whole workspace, not just that subdirectory. See
+        # the frontend job above for the full rationale.
+        if: ${{ always() && runner.environment == 'self-hosted' }}
+        working-directory: ${{ github.workspace }}
+        run: |
+          git clean -xdff ||
+            find . -mindepth 1 -maxdepth 1 -exec rm -rf -- {} + ||
+            echo "::warning::workspace cleanup incomplete on ${RUNNER_NAME:-this runner}"
 
   infra:
     # Generic project-tooling job — runs the lightweight (no docker, no
@@ -1254,6 +1351,15 @@ jobs:
         # pass, and any future tooling test suite under bin/ comes
         # along without this workflow being edited.
         run: python -m pytest bin/ -v --tb=short
+      - name: Clean up job artifacts
+        # Leftovers here are the checkout plus the pytest caches. See the
+        # frontend job above for the full rationale.
+        if: ${{ always() && runner.environment == 'self-hosted' }}
+        working-directory: ${{ github.workspace }}
+        run: |
+          git clean -xdff ||
+            find . -mindepth 1 -maxdepth 1 -exec rm -rf -- {} + ||
+            echo "::warning::workspace cleanup incomplete on ${RUNNER_NAME:-this runner}"
 
   pyright-language-service:
     # Typecheck-only job for the standalone Pyright LSP bridge (the language
@@ -1296,3 +1402,13 @@ jobs:
       - name: Typecheck
         # allowImportingTsExtensions in tsconfig.json requires --noEmit.
         run: yarn tsc --noEmit
+      - name: Clean up job artifacts
+        # working-directory overrides the job default (pyright-language-service)
+        # so the clean covers the whole workspace, node_modules/ included. See
+        # the frontend job above for the full rationale.
+        if: ${{ always() && runner.environment == 'self-hosted' }}
+        working-directory: ${{ github.workspace }}
+        run: |
+          git clean -xdff ||
+            find . -mindepth 1 -maxdepth 1 -exec rm -rf -- {} + ||
+            echo "::warning::workspace cleanup incomplete on ${RUNNER_NAME:-this runner}"

@@ -115,6 +115,22 @@ jobs:
           name: backport-preflight
           path: preflight/
           retention-days: 3
+      - name: Clean up job artifacts
+        # Classic self-hosted runners hand this workspace to the next job
+        # as-is. The dry-run cherry-picks leave it parked on a release branch,
+        # so also abort any half-applied pick before cleaning. Runs after the
+        # artifact upload above, so the preflight results are already safe.
+        # always() so a failed or cancelled job cleans up too; the
+        # GitHub-hosted fallback is a throwaway VM and skips it. .git stays so
+        # the next checkout is incremental; the fallback covers a job whose
+        # checkout never completed.
+        if: ${{ always() && runner.environment == 'self-hosted' }}
+        working-directory: ${{ github.workspace }}
+        run: |
+          git cherry-pick --abort 2>/dev/null || true
+          git clean -xdff ||
+            find . -mindepth 1 -maxdepth 1 -exec rm -rf -- {} + ||
+            echo "::warning::workspace cleanup incomplete on ${RUNNER_NAME:-this runner}"
 
   # Build the backported tree for targets that applied cleanly, so a clean
   # cherry-pick that nonetheless fails to compile on the release branch is
