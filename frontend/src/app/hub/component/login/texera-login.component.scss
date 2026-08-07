@@ -17,13 +17,10 @@
  * under the License.
  */
 
-$primary: #1890ff;
-$primary-hover: #40a9ff;
-$primary-active: #096dd9;
-$text: rgba(0, 0, 0, 0.85);
 $text-secondary: rgba(0, 0, 0, 0.45);
-$border: #d9d9d9;
+$error: #ff4d4f;
 $bg: #f0f2f5;
+$card-bg: #fff;
 
 :host {
   display: flex;
@@ -39,19 +36,10 @@ $bg: #f0f2f5;
   box-sizing: border-box;
 }
 
-a {
-  color: $primary;
-  text-decoration: none;
-
-  &:hover {
-    color: $primary-hover;
-  }
-}
-
 .card {
   width: 100%;
   max-width: 400px;
-  background: #fff;
+  background: $card-bg;
   border-radius: 8px;
   box-shadow:
     0 6px 16px -8px rgba(0, 0, 0, 0.08),
@@ -74,44 +62,10 @@ a {
 
   .sub {
     font-size: 13px;
-    color: $text-secondary;
     letter-spacing: 0.02em;
   }
 }
 
-/* tabs */
-.tabs {
-  display: flex;
-  margin-bottom: 22px;
-  border-bottom: 1px solid #f0f0f0;
-}
-
-.tab {
-  flex: 1;
-  text-align: center;
-  padding: 10px 0 12px;
-  font-size: 15px;
-  cursor: pointer;
-  color: $text-secondary;
-  border-bottom: 2px solid transparent;
-  margin-bottom: -1px;
-  transition:
-    color 0.2s,
-    border-color 0.2s;
-  user-select: none;
-
-  &:hover {
-    color: $primary;
-  }
-
-  &.active {
-    color: $primary;
-    font-weight: 500;
-    border-bottom-color: $primary;
-  }
-}
-
-/* social sign-in buttons */
 .social-buttons {
   display: flex;
   flex-direction: column;
@@ -119,163 +73,24 @@ a {
   gap: 12px;
 }
 
-/* google button (rendered by the social-login library) */
 .google-wrapper {
   display: flex;
   justify-content: center;
 }
 
-/* divider */
-.divider {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  margin: 24px 0;
-  color: $text-secondary;
-  font-size: 13px;
-
-  &::before,
-  &::after {
-    content: "";
-    flex: 1;
-    height: 1px;
-    background: #f0f0f0;
-  }
-}
-
-/* fields */
 .form {
   display: flex;
   flex-direction: column;
   gap: 16px;
 }
 
-.field {
-  position: relative;
-  display: flex;
-  align-items: center;
-
-  .icon {
-    position: absolute;
-    left: 12px;
-    display: flex;
-    color: $text-secondary;
-    pointer-events: none;
-
-    svg {
-      width: 15px;
-      height: 15px;
-    }
-  }
-
-  input {
-    width: 100%;
-    height: 44px;
-    padding: 0 12px 0 38px;
-    font-size: 15px;
-    color: $text;
-    border: 1px solid $border;
-    border-radius: 6px;
-    background: #fff;
-    outline: none;
-    transition:
-      border-color 0.2s,
-      box-shadow 0.2s;
-    font-family: inherit;
-
-    &::placeholder {
-      color: #bfbfbf;
-    }
-
-    &:hover {
-      border-color: $primary-hover;
-    }
-
-    &:focus {
-      border-color: $primary;
-      box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
-    }
-  }
-
-  .toggle {
-    position: absolute;
-    right: 10px;
-    background: none;
-    border: none;
-    cursor: pointer;
-    color: $text-secondary;
-    display: flex;
-    padding: 4px;
-
-    &:hover {
-      color: $text;
-    }
-
-    svg {
-      width: 16px;
-      height: 16px;
-    }
-  }
-}
-
-.row-extra {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 13px;
-  margin-top: -4px;
-}
-
-.remember {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  color: $text;
-  cursor: pointer;
-  user-select: none;
-
-  input {
-    width: 15px;
-    height: 15px;
-    accent-color: $primary;
-    cursor: pointer;
-    margin: 0;
-  }
-}
-
-.btn-primary {
-  width: 100%;
-  height: 44px;
-  margin-top: 4px;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  background: $primary;
-  color: #fff;
-  font-size: 15px;
-  font-weight: 500;
-  font-family: inherit;
-  transition:
-    background 0.2s,
-    box-shadow 0.2s;
-
-  &:hover {
-    background: $primary-hover;
-  }
-
-  &:active {
-    background: $primary-active;
-  }
-}
-
 .hint {
   font-size: 13px;
-  color: $text-secondary;
   margin: 2px 2px -4px;
 }
 
 .error {
-  color: #ff4d4f;
+  color: $error;
   font-size: 13px;
   margin: -6px 2px 0;
 }
@@ -283,6 +98,63 @@ a {
 .foot {
   text-align: center;
   font-size: 13px;
-  color: $text-secondary;
   margin-top: 26px;
+}
+
+:host ::ng-deep {
+  .ant-tabs-content-holder {
+    display: none;
+  }
+
+  .ant-tabs-top > .ant-tabs-nav {
+    margin-bottom: 22px;
+  }
+
+  .ant-tabs-nav-list {
+    width: 100%;
+  }
+
+  .ant-tabs-tab {
+    flex: 1;
+    justify-content: center;
+    padding: 10px 0 12px;
+    font-size: 15px;
+  }
+
+  .ant-tabs-top > .ant-tabs-nav .ant-tabs-tab + .ant-tabs-tab {
+    margin-left: 0;
+  }
+
+  .ant-input-affix-wrapper {
+    height: 44px;
+    border-radius: 6px;
+    font-size: 15px;
+
+    > .ant-input {
+      font-size: 15px;
+    }
+  }
+
+  .ant-input-prefix {
+    margin-right: 11px;
+    color: $text-secondary;
+    font-size: 15px;
+  }
+
+  .ant-input-password-icon {
+    font-size: 16px;
+  }
+
+  .ant-btn-lg {
+    height: 44px;
+    border-radius: 6px;
+    font-size: 15px;
+    font-weight: 500;
+  }
+
+  .ant-divider-horizontal.ant-divider-with-text {
+    margin: 24px 0;
+    color: $text-secondary;
+    font-size: 13px;
+  }
 }

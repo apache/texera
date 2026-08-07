@@ -22,142 +22,129 @@
     <img
       src="assets/logos/logo.png"
       alt="Texera" />
-    <span class="sub">Data science, together</span>
+    <span
+      nz-typography
+      nzType="secondary"
+      class="sub"
+      >Data science, together</span
+    >
   </div>
 
-  @if(config.env.localLogin){
-    <div
-      class="tabs">
-      <div
-        class="tab"
-        [class.active]="mode === 'signin'"
-        (click)="setMode('signin')">
-        Sign In
-      </div>
-      <div
-        class="tab"
-        [class.active]="mode === 'signup'"
-        (click)="setMode('signup')">
-        Sign Up
-      </div>
-    </div>
+  @if (config.env.localLogin) {
+  <nz-tabs
+    [nzSelectedIndex]="mode === 'signin' ? 0 : 1"
+    (nzSelectedIndexChange)="setMode($event === 0 ? 'signin' : 'signup')">
+    <nz-tab nzTitle="Sign In"></nz-tab>
+    <nz-tab nzTitle="Sign Up"></nz-tab>
+  </nz-tabs>
   }
 
   <div class="social-buttons">
-    @if(config.env.googleLogin){
-      <div
-        class="google-wrapper">
-        <asl-google-signin-button
-          type="standard"
-          size="large"
-          [width]="328"></asl-google-signin-button>
-      </div>
+    @if (config.env.googleLogin) {
+    <div class="google-wrapper">
+      <asl-google-signin-button
+        type="standard"
+        size="large"
+        [width]="328"></asl-google-signin-button>
+    </div>
     }
   </div>
 
-  @if(config.env.localLogin && config.env.googleLogin){
-    <div
-      class="divider">
-      or continue with
-    </div>
+  @if (config.env.localLogin && config.env.googleLogin) {
+  <nz-divider
+    nzPlain
+    nzText="or continue with"></nz-divider>
+  } @if (config.env.localLogin) {
+  <form
+    class="form"
+    [formGroup]="form"
+    (ngSubmit)="submit()">
+    <nz-input-group
+      nzSize="large"
+      nzPrefixIcon="user">
+      <input
+        type="text"
+        nz-input
+        formControlName="username"
+        placeholder="Username"
+        autocomplete="username" />
+    </nz-input-group>
+
+    @if (mode === "signup") {
+    <nz-input-group
+      nzSize="large"
+      nzPrefixIcon="mail">
+      <input
+        type="email"
+        nz-input
+        formControlName="email"
+        placeholder="Email"
+        autocomplete="email" />
+    </nz-input-group>
+    }
+
+    <nz-input-group
+      nzSize="large"
+      nzPrefixIcon="lock"
+      [nzSuffix]="passwordToggle">
+      <input
+        [type]="passwordVisible ? 'text' : 'password'"
+        nz-input
+        formControlName="password"
+        placeholder="Password"
+        [attr.autocomplete]="mode === 'signup' ? 'new-password' : 'current-password'" />
+    </nz-input-group>
+
+    @if (mode === "signup") {
+    <nz-input-group
+      nzSize="large"
+      nzPrefixIcon="lock"
+      [nzSuffix]="passwordToggle">
+      <input
+        [type]="passwordVisible ? 'text' : 'password'"
+        nz-input
+        formControlName="confirm"
+        placeholder="Confirm password"
+        autocomplete="new-password" />
+    </nz-input-group>
+    <p
+      nz-typography
+      nzType="secondary"
+      class="hint">
+      Password must be at least 6 characters. After registering, contact the Texera administrator to activate your
+      account.
+    </p>
+    }
+
+    <p class="error">{{ errorMessage }}</p>
+
+    <button
+      nz-button
+      nzType="primary"
+      nzSize="large"
+      nzBlock
+      type="submit">
+      {{ mode === "signup" ? "Sign up" : "Sign in" }}
+    </button>
+  </form>
   }
 
-  @if(config.env.localLogin){
-    <form
-      class="form"
-      [formGroup]="form"
-      (ngSubmit)="submit()">
-      <div class="field">
-      <span class="icon">
-        <nz-icon nzType="user" nzTheme="outline" />
-      </span>
-        <input
-          type="text"
-          formControlName="username"
-          placeholder="Username"
-          autocomplete="username" />
-      </div>
+  <ng-template #passwordToggle>
+    <nz-icon
+      class="ant-input-password-icon"
+      role="button"
+      tabindex="0"
+      [attr.aria-label]="passwordVisible ? 'Hide password' : 'Show password'"
+      [nzType]="passwordVisible ? 'eye' : 'eye-invisible'"
+      nzTheme="outline"
+      (click)="togglePasswordVisibility()"
+      (keydown.enter)="togglePasswordVisibility()" />
+  </ng-template>
 
-      @if(mode === 'signup'){
-        <div
-          class="field">
-      <span class="icon">
-        <nz-icon nzType="mail" nzTheme="outline" />
-      </span>
-          <input
-            type="email"
-            formControlName="email"
-            placeholder="Email"
-            autocomplete="email" />
-        </div>
-      }
-
-      <div class="field">
-      <span class="icon">
-        <nz-icon nzType="lock" nzTheme="outline" />
-      </span>
-        <input
-          [type]="passwordVisible ? 'text' : 'password'"
-          formControlName="password"
-          placeholder="Password"
-          [attr.autocomplete]="mode === 'signup' ? 'new-password' : 'current-password'" />
-        <button
-          type="button"
-          class="toggle"
-          [attr.aria-label]="passwordVisible ? 'Hide password' : 'Show password'"
-          (click)="togglePasswordVisibility()">
-          @if (passwordVisible) {
-            <nz-icon nzType="eye" nzTheme="outline" />
-          } @else {
-            <nz-icon nzType="eye-invisible" nzTheme="outline" />
-          }
-        </button>
-      </div>
-
-      @if(mode === 'signup'){
-        <div
-          class="field">
-      <span class="icon">
-         <nz-icon nzType="lock" nzTheme="outline" />
-      </span>
-          <input
-            [type]="passwordVisible ? 'text' : 'password'"
-            formControlName="confirm"
-            placeholder="Confirm password"
-            autocomplete="new-password" />
-          <button
-            type="button"
-            class="toggle"
-            [attr.aria-label]="passwordVisible ? 'Hide password' : 'Show password'"
-            (click)="togglePasswordVisibility()">
-            @if (passwordVisible) {
-              <nz-icon nzType="eye" nzTheme="outline" />
-            } @else {
-              <nz-icon nzType="eye-invisible" nzTheme="outline" />
-            }
-          </button>
-        </div>
-        <p
-          class="hint">
-          Password must be at least 6 characters. After registering, contact the Texera administrator to activate your
-          account.
-        </p>
-      }
-
-      <p
-        class="error">
-        {{ errorMessage }}
-      </p>
-
-      <button
-        type="submit"
-        class="btn-primary">
-        {{ mode === "signup" ? "Sign up" : "Sign in" }}
-      </button>
-    </form>
-  }
-
-  <p class="foot">
+  <p
+    nz-typography
+    nzType="secondary"
+    class="foot">
     Apache Texera (Incubating) ·
     <a
       href="https://texera.apache.org/"

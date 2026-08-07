@@ -27,7 +27,6 @@ import {
   ValidationErrors,
   Validators,
 } from "@angular/forms";
-import { NgIf } from "@angular/common";
 import { ActivatedRoute, Router } from "@angular/router";
 import { catchError, filter } from "rxjs/operators";
 import { throwError } from "rxjs";
@@ -38,6 +37,11 @@ import { NotificationService } from "../../../common/service/notification/notifi
 import { GuiConfigService } from "../../../common/service/gui-config.service";
 import { USER_WORKFLOW } from "../../../app-routing.constant";
 import { NzIconDirective } from "ng-zorro-antd/icon";
+import { NzTabComponent, NzTabsComponent } from "ng-zorro-antd/tabs";
+import { NzInputDirective, NzInputGroupComponent, NzInputGroupWhitSuffixOrPrefixDirective } from "ng-zorro-antd/input";
+import { NzButtonComponent } from "ng-zorro-antd/button";
+import { NzDividerComponent } from "ng-zorro-antd/divider";
+import { NzTypographyComponent } from "ng-zorro-antd/typography";
 
 type LoginMode = "signin" | "signup";
 
@@ -54,7 +58,19 @@ type LoginMode = "signin" | "signup";
   selector: "texera-login",
   templateUrl: "./texera-login.component.html",
   styleUrls: ["./texera-login.component.scss"],
-  imports: [ReactiveFormsModule, GoogleSigninButtonModule, NzIconDirective],
+  imports: [
+    ReactiveFormsModule,
+    GoogleSigninButtonModule,
+    NzIconDirective,
+    NzTabsComponent,
+    NzTabComponent,
+    NzInputGroupComponent,
+    NzInputGroupWhitSuffixOrPrefixDirective,
+    NzInputDirective,
+    NzButtonComponent,
+    NzDividerComponent,
+    NzTypographyComponent,
+  ],
 })
 export class TexeraLoginComponent implements OnInit {
   public mode: LoginMode = "signin";
