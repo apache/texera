@@ -72,6 +72,31 @@ We use [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/):
   - `chore(deps): bump dependency versions`
 - The PR title becomes the final squashed commit message upon merge.
 
+Pick the type by what happens to the behavior, not by how large the change is:
+
+| Your change | Type |
+| ----------- | ---- |
+| A functionality worked before and no longer does | `fix` |
+| A functionality or a form of support never existed and you are adding it | `feat` |
+| A functionality exists and you are removing support for it | `feat` |
+| A functionality works but is hard to use, and you are reworking it | `feat` |
+| The change leaves the user-facing behavior unchanged | `refactor` |
+
+`refactor` claims the **user-facing** behavior is identical. A test that pins a user-facing API must keep passing untouched — changing one of its assertions means the behavior moved, so the PR is a `feat` or a `fix`. A test that pins internals mirrors the implementation and may be rewritten alongside the code it mirrors.
+
+Tests and dependency bumps use a two-part scope:
+
+| Your change | Title |
+| ----------- | ----- |
+| A test-only PR | `test(<module>): ...` |
+| Repairing a broken or flaky test | `fix(test, <module>): ...` |
+| A dependency bump that patches a CVE | `fix(deps, <module>): ...` |
+| Any other dependency bump | `chore(deps, <module>): ...` |
+
+Omit the module for bumps that span modules, and use `ci: ...` for CI-only changes, including GitHub Actions bumps.
+
+A PR targeting a release branch appends the version as the last scope component — a backport of `fix(deps, frontend): ...` to `release/v1.2` becomes `fix(deps, frontend, v1.2): ...`. Never put a version tag on a PR targeting `main`.
+
 #### PR Description Should Include:
 - **Purpose:** use `Closes #1234` to auto-close an issue.
 - **Summary:** short overview of your changes.
