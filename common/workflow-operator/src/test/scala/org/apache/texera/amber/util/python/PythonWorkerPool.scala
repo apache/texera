@@ -161,22 +161,32 @@ object PythonWorkerPool extends LazyLogging {
       interpreterArgs: Seq[String] = Seq.empty,
       timeouts: Timeouts = Timeouts.Default
   ): Outcome = {
-    val envKey = env.toSeq.sorted.map { case (k, v) => s"$k=$v" }
-    val key =
-      (resourcePath +: pythonExe +: (interpreterArgs ++ launchArgs ++ envKey)).mkString(" ")
     val pool = pools.computeIfAbsent(
-      key,
+      Key(resourcePath, pythonExe, interpreterArgs.toList, launchArgs.toList, env.toList.sorted),
       _ => new Pool(resourcePath, launchArgs, pythonExe, env, interpreterArgs)
     )
     pool.run(request, timeouts)
   }
+
+  /** What makes two launches the same worker. Compared field by field rather than
+    * as one joined string, so a value carrying whatever the separator was — a
+    * python path with a space in it, a PYTHONPATH — cannot make two different
+    * launches share a pool.
+    */
+  private final case class Key(
+      resourcePath: String,
+      pythonExe: String,
+      interpreterArgs: List[String],
+      launchArgs: List[String],
+      env: List[(String, String)]
+  )
 
   /** How long a caller at the worker cap waits before re-examining it. Not a
     * deadline — see [[Pool.borrow]].
     */
   private val CapRecheckMillis: Long = 250
 
-  private val pools = new ConcurrentHashMap[String, Pool]()
+  private val pools = new ConcurrentHashMap[Key, Pool]()
 
   Runtime.getRuntime.addShutdownHook(new Thread(() => shutdownAll()))
 
