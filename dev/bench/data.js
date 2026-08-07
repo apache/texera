@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1786023164923,
+  "lastUpdate": 1786108234196,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -7957,6 +7957,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 492.84498723605725,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Meng Wang",
+            "username": "mengw15",
+            "email": "mengw15@uci.edu"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "ae17c8fafbb213897579a574519004bf0d66ad20",
+          "message": "test(frontend): render ResultExportationComponent template branches for coverage (#7365)\n\n### What changes were proposed in this PR?\n\nExtends `ResultExportationComponent`'s spec so the **template** actually\nrenders\neach of its branches. The class was already fully unit-tested, but the\nexisting\ntests drive the class directly and never render most of the dialog,\nleaving its\n`*ngIf` / `*ngFor` / `(click)` / `[(ngModel)]` constructs unexecuted. No\nproduction code was changed.\n\n6 tests, each putting the component in a state the template switches on\nand then\ncalling `detectChanges()`:\n\n- the restricted-export error `nz-alert` (every operator blocked);\n- the partial-skip warning `nz-alert` (some but not all operators\nblocked);\n- the export-type `nz-select` and its output-gated `nz-option` arms\n  (`isTableOutput` / `isVisualizationOutput` / `containsBinaryData`);\n- the filename input when `exportType === \"data\"`;\n- the local **Export** button — driven through the DOM\n(`triggerEventHandler(\"click\")`) and asserting the export service double\nwas\n  called with the `local` destination;\n- the dataset destination — the search input's `(input)` handler, the\n`*ngFor` dataset list, and the **Create New Dataset** button (asserts\nthe\n  modal-service double opens the creator).\n\nPer the component's determinism notes: no fake timers, no\nlayout/geometry\nassertions, and no timezone-sensitive date assertions — the tests assert\non\nrendered text, element presence, and the injected service doubles.\n\n### Any related issues, documentation, discussions?\n\nCloses #7361\n\n### How was this PR tested?\n\nExtended unit tests, run locally in `frontend/` (all green; the failure\npath was\nverified by breaking an assertion to confirm the suite goes red):\n\n```\nng test --watch=false --include src/app/workspace/component/result-exportation/result-exportation.component.spec.ts\n# Test Files 1 passed (1) | Tests 26 passed (26)\nprettier --write <spec>   # clean\neslint  <spec>            # clean\n```\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Claude Code (Opus 4.8 [1M context])",
+          "timestamp": "2026-08-07T11:24:13Z",
+          "url": "https://github.com/apache/texera/commit/ae17c8fafbb213897579a574519004bf0d66ad20"
+        },
+        "date": 1786108233632,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 585.5781835080625,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 1027.6432554048556,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 1099.9748898557125,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 702.8824800374408,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 1083.6438127682525,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 1151.4309709335032,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 825.5838464256789,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 1106.2992100861677,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 1144.792344837007,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 668.8169597866289,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 898.6079967476537,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 927.105675086835,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 712.3281477490842,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 895.4932070502616,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 915.8408227625865,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 715.116464316114,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 887.7145448896234,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 906.3306186242854,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 439.05148336134056,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 520.8311898824106,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 520.2514232139371,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 430.61552179024466,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 507.42613437474347,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 517.5494199770454,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 420.74176161234476,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 491.2524938015283,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 496.91214320141927,
             "unit": "tuples/sec"
           }
         ]
