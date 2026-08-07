@@ -442,7 +442,8 @@ describe("ResultExportationComponent", () => {
 
       exportBtn!.triggerEventHandler("click", null);
       expect(exportWorkflowExecutionResult).toHaveBeenCalledTimes(1);
-      expect(exportWorkflowExecutionResult.mock.calls[0][7]).toBe("local");
+      const args = exportWorkflowExecutionResult.mock.calls[0];
+      expect(args[7]).toBe("local");
     });
 
     it("renders the dataset destination with its list and create button", () => {
@@ -455,6 +456,13 @@ describe("ResultExportationComponent", () => {
       const search = fixture.debugElement.query(By.css("input[name='datasetName']"));
       expect(search).toBeTruthy();
       search.triggerEventHandler("input", { target: { value: "" } });
+
+      // The nz-auto-option list the *ngFor drives is bound to
+      // `filteredUserAccessibleDatasets`; assert the component fed it exactly the
+      // WRITE dataset (the READ one is filtered out), so the list branch has real data
+      // behind it. The option content itself only enters the DOM once the autocomplete
+      // panel expands, which jsdom does not drive, so it is not asserted here.
+      expect(component.filteredUserAccessibleDatasets.map(d => d.dataset.name)).toEqual(["writable"]);
 
       // the create-new-dataset button opens the creator modal
       const createBtn = fixture.debugElement
