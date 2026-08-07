@@ -61,7 +61,6 @@ class HuggingFaceSentimentAnalysisOpDesc extends PythonOperatorDescriptor {
     pyb"""from pytexera import *
        |from transformers import pipeline
        |from transformers import AutoModelForSequenceClassification
-       |from transformers import TFAutoModelForSequenceClassification
        |from transformers import AutoTokenizer, AutoConfig
        |import numpy as np
        |from scipy.special import softmax

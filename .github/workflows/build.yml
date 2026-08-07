@@ -304,16 +304,28 @@ jobs:
           # so the JVM knob can stay WARN here.
           TEXERA_SERVICE_LOG_LEVEL: ${{ runner.debug == '1' && 'DEBUG' || 'WARN' }}
           UDF_PYTHON_LOG_STREAMHANDLER_LEVEL: ${{ runner.debug == '1' && 'DEBUG' || 'WARNING' }}
+          BACKPORT_TARGET_BRANCH: ${{ inputs.backport_target_branch }}
         run: |
-          sbt "DAO/jacoco" \
-              "Auth/jacoco" \
-              "Config/jacoco" \
-              "Resource/jacoco" \
-              "PyBuilder/jacoco" \
-              "WorkflowCore/jacoco" \
-              "WorkflowOperator/jacoco" \
-              "WorkflowCompiler/jacoco" \
-              "WorkflowExecutionService/jacoco"
+          # Backport builds filter by the checked-out build.sbt.
+          want=(DAO Auth Config Resource Util PyBuilder WorkflowCore
+                WorkflowOperator WorkflowCompiler WorkflowExecutionService)
+          tasks=()
+          if [ -n "${BACKPORT_TARGET_BRANCH}" ]; then
+            for m in "${want[@]}"; do
+              if grep -qE "^lazy val ${m}([[:space:]]|=)" build.sbt; then
+                tasks+=("${m}/jacoco")
+              else
+                echo "::notice::${m} is not in this branch's build.sbt; skipping its tests"
+              fi
+            done
+            if [ "${#tasks[@]}" -eq 0 ]; then
+              echo "::error::no coverage modules resolved from build.sbt"
+              exit 1
+            fi
+          else
+            for m in "${want[@]}"; do tasks+=("${m}/jacoco"); done
+          fi
+          sbt "${tasks[@]}"
       - name: Upload amber and common coverage to Codecov
         if: always()
         uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
@@ -784,9 +796,23 @@ jobs:
           psql -h localhost -U postgres -f sql/texera_lakefs.sql
         env:
           PGPASSWORD: postgres
+      - name: Check ${{ matrix.sbt_project }} exists in this tree
+        # Skip the leg on backport builds when the release tree lacks this service.
+        id: module_check
+        env:
+          BACKPORT_TARGET_BRANCH: ${{ inputs.backport_target_branch }}
+          SBT_PROJECT: ${{ matrix.sbt_project }}
+        run: |
+          if [ -n "${BACKPORT_TARGET_BRANCH}" ] && ! grep -qE "^lazy val ${SBT_PROJECT}([[:space:]]|=)" build.sbt; then
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::${SBT_PROJECT} is not in this branch's build.sbt (branch cut before it existed); skipping"
+          else
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          fi
       - name: Build dist and run ${{ matrix.service }} tests with coverage
         # Single sbt invocation so dist + test share compiled state. Use
         # `jacoco` so the codecov upload step has a report to pick up.
+        if: ${{ steps.module_check.outputs.present == 'true' }}
         env:
           # CI log-volume backstop, same wiring as the amber jobs: every
           # platform service reads this into its Dropwizard logging config
@@ -804,6 +830,7 @@ jobs:
         #     generate_notice_binary.py and diff against the committed file.
         #     Drift means a dep changed without rerunning the generator — fix:
         #       ./bin/licensing/generate_notice_binary.py ${{ matrix.service }}/NOTICE-binary /tmp/dists/${{ matrix.service }}-*/lib
+        if: ${{ steps.module_check.outputs.present == 'true' }}
         run: |
           set -euo pipefail
           mkdir -p /tmp/dists
@@ -824,7 +851,7 @@ jobs:
       - name: Upload ${{ matrix.service }} coverage to Codecov
         # Per-service flag so each matrix entry has its own Codecov view
         # rather than being merged into one umbrella `platform` flag.
-        if: always()
+        if: ${{ always() && steps.module_check.outputs.present == 'true' }}
         uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
@@ -833,7 +860,7 @@ jobs:
           fail_ci_if_error: false
       - name: Upload ${{ matrix.service }} test results to Codecov
         # Per-service Test Analytics, mirroring the coverage upload flag.
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && steps.module_check.outputs.present == 'true' }}
         uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
@@ -924,20 +951,35 @@ jobs:
           psql -h localhost -U postgres -f sql/texera_lakefs.sql
         env:
           PGPASSWORD: postgres
+      - name: Check ${{ matrix.sbt_project }} exists in this tree
+        # Same guard as the `platform` job.
+        id: module_check
+        env:
+          BACKPORT_TARGET_BRANCH: ${{ inputs.backport_target_branch }}
+          SBT_PROJECT: ${{ matrix.sbt_project }}
+        run: |
+          if [ -n "${BACKPORT_TARGET_BRANCH}" ] && ! grep -qE "^lazy val ${SBT_PROJECT}([[:space:]]|=)" build.sbt; then
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::${SBT_PROJECT} is not in this branch's build.sbt (branch cut before it existed); skipping"
+          else
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          fi
       - name: Build ${{ matrix.service }} dist
         # Self-build on this job's own classpath (mirrors amber-integration
         # compiling its own tests) rather than downloading an artifact from the
         # `platform` job, so the two stay independent and run in parallel. No
         # jacoco here — unit tests + coverage live in `platform`.
+        if: ${{ steps.module_check.outputs.present == 'true' }}
         run: sbt "${{ matrix.sbt_project }}/dist"
       - name: Unzip ${{ matrix.service }} dist
+        if: ${{ steps.module_check.outputs.present == 'true' }}
         run: |
           mkdir -p /tmp/dists
           unzip -q ${{ matrix.service }}/target/universal/${{ matrix.service }}-*.zip -d /tmp/dists/
       - name: Start MinIO
         # file-service's boot creates its S3 bucket via S3StorageClient; only
         # that service needs an object store, so the rest of the matrix skips this.
-        if: ${{ matrix.object_store }}
+        if: ${{ matrix.object_store && steps.module_check.outputs.present == 'true' }}
         run: |
           docker run -d --name minio --network host \
             -e MINIO_ROOT_USER=texera_minio \
@@ -954,7 +996,7 @@ jobs:
         # LakeFSStorageClient.healthCheck(), so this must be up for it to reach a
         # listening state. Config mirrors bin/single-node (compose + .env),
         # adapted to CI creds (postgres/postgres @ localhost).
-        if: ${{ matrix.object_store }}
+        if: ${{ matrix.object_store && steps.module_check.outputs.present == 'true' }}
         run: |
           docker run -d --name lakefs --network host \
             -e LAKEFS_DATABASE_TYPE=postgres \
@@ -976,6 +1018,7 @@ jobs:
       - name: Smoke-test ${{ matrix.service }} boots
         # Launch the packaged service and assert it reaches LISTEN on its port
         # without a runtime classpath/linkage crash (#6220).
+        if: ${{ steps.module_check.outputs.present == 'true' }}
         env:
           TEXERA_HOME: ${{ github.workspace }}
           # Quiet boot logs, same wiring as the amber jobs. Safe here:
