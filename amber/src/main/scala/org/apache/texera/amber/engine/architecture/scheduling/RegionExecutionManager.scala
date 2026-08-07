@@ -23,7 +23,7 @@ import org.apache.pekko.pattern.gracefulStop
 import com.twitter.util.{Future, JavaTimer, Return, Throw, Timer}
 import org.apache.texera.amber.core.state.State
 import org.apache.texera.amber.core.storage.{DocumentFactory, VFSURIFactory}
-import org.apache.texera.amber.core.virtualidentity.ActorVirtualIdentity
+import org.apache.texera.amber.core.virtualidentity.{ActorVirtualIdentity, PhysicalOpIdentity}
 import org.apache.texera.amber.core.workflow.{GlobalPortIdentity, PhysicalLink, PhysicalOp}
 import org.apache.texera.amber.engine.architecture.common.{
   PekkoActorRefMappingService,
@@ -59,7 +59,7 @@ import org.apache.texera.web.SessionState
 import org.apache.texera.web.model.websocket.event.RegionStateEvent
 
 import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicReference
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 import scala.concurrent.duration.{Duration => ScalaDuration}
 
 object RegionExecutionManager {
@@ -133,6 +133,16 @@ class RegionExecutionManager(
   private val terminationFutureRef: AtomicReference[Future[Unit]] = new AtomicReference(null)
 
   /**
+    * Set once `EndWorker` has gone out to this region's workers. From that point a worker refuses
+    * any further request, so the coordinator must send none — see `isTerminating`.
+    *
+    * Deliberately not derived from `terminationFutureRef`: that reference is CAS-ed only after
+    * `terminateWorkersWithRetry` has been constructed, and constructing it already runs
+    * `terminateWorkers`, so it would flip after the fan-out rather than before it.
+    */
+  private val endWorkerSentRef: AtomicBoolean = new AtomicBoolean(false)
+
+  /**
     * Sync the status of `RegionExecution` and transition this manager's phase to `Completed` only when the
     * manager is currently in `ExecutingNonDependeePortsPhase`, all the ports of this region are completed, and
     * all workers in this region are terminated.
@@ -185,6 +195,10 @@ class RegionExecutionManager(
   }
 
   private def terminateWorkers(regionExecution: RegionExecution) = {
+    // From here on these workers refuse anything else the coordinator might send them, so report
+    // the region as terminating before the fan-out rather than after it.
+    endWorkerSentRef.set(true)
+
     // 1. Send EndWorkers to every worker
     val endWorkerRequests =
       regionExecution.getAllOperatorExecutions.flatMap {
@@ -277,8 +291,22 @@ class RegionExecutionManager(
   def isCompleted: Boolean = currentPhaseRef.get == Completed
 
   /**
+    * True once this region's workers have been sent `EndWorker`. A request arriving after it is work
+    * the worker must do, so `EndHandler` refuses to terminate and this region pays a retry — callers
+    * that would otherwise address a worker of this region must consult this first.
+    */
+  def isTerminating: Boolean = endWorkerSentRef.get
+
+  /** Whether `opId` is one of this region's operators. */
+  def containsPhysicalOp(opId: PhysicalOpIdentity): Boolean =
+    region.getOperators.exists(_.id == opId)
+
+  /**
     * Returns the region termination future if termination has been initiated.
     * This is only set by `tryCompleteRegionExecution()`.
+    *
+    * Not a substitute for `isTerminating`: this is CAS-ed after the future is constructed, and
+    * constructing it already begins the `EndWorker` fan-out.
     */
   def getTerminationFutureOpt: Option[Future[Unit]] = Option(terminationFutureRef.get)
 

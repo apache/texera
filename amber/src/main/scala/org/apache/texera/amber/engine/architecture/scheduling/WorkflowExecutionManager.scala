@@ -22,6 +22,7 @@ package org.apache.texera.amber.engine.architecture.scheduling
 import com.twitter.util.Future
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.texera.amber.core.storage.VFSURIFactory
+import org.apache.texera.amber.core.virtualidentity.PhysicalOpIdentity
 import org.apache.texera.amber.core.workflow.{GlobalPortIdentity, PhysicalLink}
 import org.apache.texera.amber.engine.architecture.scheduling.config.InputPortConfig
 import org.apache.texera.amber.engine.architecture.common.{
@@ -177,6 +178,21 @@ class WorkflowExecutionManager(
 
   def hasUnfinishedRegionManagers: Boolean = {
     regionExecutionManagers.values.exists(!_.isCompleted)
+  }
+
+  /**
+    * Whether `opId` belongs to a region whose workers have already been sent `EndWorker`, and which
+    * therefore must not be sent anything further.
+    *
+    * Call this at the point of use rather than caching the answer: a caller that spans several
+    * coordinator rounds — `QueryWorkerStatisticsHandler` awaits one operator layer before emitting
+    * the next — would otherwise act on an answer from before a region started tearing down, which is
+    * exactly the window this guards.
+    */
+  def isRegionTerminating(opId: PhysicalOpIdentity): Boolean = {
+    regionExecutionManagers.values.exists(manager =>
+      manager.isTerminating && manager.containsPhysicalOp(opId)
+    )
   }
 
 }
