@@ -331,7 +331,10 @@ describe("LeftPanelComponent", () => {
       fixture.debugElement.query(By.css(`#${containerId} li[nz-menu-item]:not(.cdk-drag)`));
 
     it("clicking a tab in the collapsed dock opens that frame", () => {
-      // default state is collapsed (width 0) -> #docked-buttons shows the enabled tabs
+      component.width = 0;
+      fixture.detectChanges();
+
+      // collapsed state (width 0) -> #docked-buttons shows the enabled tabs
       const versionsTab = tabForFrame("docked-buttons", 2);
       expect(versionsTab).toBeTruthy();
 
