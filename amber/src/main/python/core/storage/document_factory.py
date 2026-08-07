@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import re
 import typing
 import urllib
 from typing import Optional
@@ -67,21 +68,27 @@ class DocumentFactory:
         :param uri: Result of urllib.parse.urlparse(). Could be quoted.
         :return: Unquoted and sanitized format of uri.
         """
-        return urllib.parse.unquote(uri.path).lstrip("/").replace("/", "_")
+        path = urllib.parse.unquote(uri.path).lstrip("/")
+        # Strip the optional leading "wh/<name>/" segment so the storage key is
+        # identical regardless of which warehouse the URI targets (matches
+        # DocumentFactory.scala).
+        path = re.sub(r"^wh/[^/]+/", "", path)
+        return path.replace("/", "_")
 
     @staticmethod
     def create_document(uri: str, schema: Schema) -> VirtualDocument:
         parsed_uri = urlparse(uri)
         if parsed_uri.scheme == VFSURIFactory.VFS_FILE_URI_SCHEME:
-            resource_type = VFSURIFactory.decode_uri(uri).resource_type
-            namespace = DocumentFactory._resolve_namespace(resource_type)
+            components = VFSURIFactory.decode_uri(uri)
+            namespace = DocumentFactory._resolve_namespace(components.resource_type)
             storage_key = DocumentFactory.sanitize_uri_path(parsed_uri)
+            warehouse = components.warehouse
             # Convert Amber Schema to Iceberg Schema with LARGE_BINARY
             # field name encoding
             iceberg_schema = amber_schema_to_iceberg_schema(schema)
 
             create_table(
-                IcebergCatalogInstance.get_instance(),
+                IcebergCatalogInstance.get_instance(warehouse),
                 namespace,
                 storage_key,
                 iceberg_schema,
@@ -94,6 +101,7 @@ class DocumentFactory:
                 iceberg_schema,
                 amber_tuples_to_arrow_table,
                 arrow_table_to_amber_tuples,
+                warehouse,
             )
 
         else:
@@ -116,10 +124,11 @@ class DocumentFactory:
         """
         parsed_uri = urlparse(uri)
         if parsed_uri.scheme == VFSURIFactory.VFS_FILE_URI_SCHEME:
-            resource_type = VFSURIFactory.decode_uri(uri).resource_type
-            namespace = DocumentFactory._resolve_namespace(resource_type)
+            components = VFSURIFactory.decode_uri(uri)
+            namespace = DocumentFactory._resolve_namespace(components.resource_type)
             storage_key = DocumentFactory.sanitize_uri_path(parsed_uri)
-            return IcebergCatalogInstance.get_instance().table_exists(
+            warehouse = components.warehouse
+            return IcebergCatalogInstance.get_instance(warehouse).table_exists(
                 f"{namespace}.{storage_key}"
             )
 
@@ -131,12 +140,13 @@ class DocumentFactory:
     def open_document(uri: str) -> typing.Tuple[VirtualDocument, Optional[Schema]]:
         parsed_uri = urlparse(uri)
         if parsed_uri.scheme == VFSURIFactory.VFS_FILE_URI_SCHEME:
-            resource_type = VFSURIFactory.decode_uri(uri).resource_type
-            namespace = DocumentFactory._resolve_namespace(resource_type)
+            components = VFSURIFactory.decode_uri(uri)
+            namespace = DocumentFactory._resolve_namespace(components.resource_type)
             storage_key = DocumentFactory.sanitize_uri_path(parsed_uri)
+            warehouse = components.warehouse
 
             table = load_table_metadata(
-                IcebergCatalogInstance.get_instance(),
+                IcebergCatalogInstance.get_instance(warehouse),
                 namespace,
                 storage_key,
             )
@@ -152,6 +162,7 @@ class DocumentFactory:
                 table.schema(),
                 amber_tuples_to_arrow_table,
                 arrow_table_to_amber_tuples,
+                warehouse,
             )
             return document, amber_schema
 

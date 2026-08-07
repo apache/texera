@@ -195,7 +195,7 @@ class AuthResource {
         val user = new User
         user.setName(username)
         user.setEmail(useremail)
-        user.setRole(UserRoleEnum.RESTRICTED)
+        user.setRole(UserRoleEnum.INACTIVE)
         // Reports losing the race to a concurrent registration of the same handle as a 409.
         LocalAuthProvisioner.createLocalAccount(user, username, userpassword)
         TokenIssueResponse(jwtToken(jwtClaims(user, TOKEN_EXPIRE_TIME_IN_MINUTES)))
