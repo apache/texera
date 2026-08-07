@@ -94,6 +94,7 @@
     "@angular-devkit/core": "21.2.18",
     "@angular-devkit/schematics": "21.2.18",
     "@angular-eslint/eslint-plugin": "21.3.1",
+<<<<<<< HEAD
     "@angular-eslint/eslint-plugin-template": "21.3.1",
     "@angular-eslint/template-parser": "21.3.1",
     "@angular/cli": "21.2.18",
@@ -101,6 +102,15 @@
     "@nx/angular": "23.0.0",
     "@schematics/angular": "21.2.18",
     "@types/backbone": "1.4.15",
+=======
+    "@angular-eslint/eslint-plugin-template": "21.4.0",
+    "@angular-eslint/template-parser": "21.4.0",
+    "@angular/cli": "21.2.19",
+    "@angular/compiler-cli": "21.2.18",
+    "@nx/angular": "23.0.2",
+    "@schematics/angular": "21.2.19",
+    "@types/backbone": "1.4.23",
+>>>>>>> 42e09f57b (fix(deps, frontend): update dependency nx to v23.0.2 (#7378))
     "@types/concaveman": "1.1.6",
     "@types/d3-shape": "2.1.2",
     "@types/dagre": "0.7.47",
@@ -129,7 +139,11 @@
     "fs-extra": "10.0.1",
     "jsdom": "25.0.1",
     "nodecat": "2.0.0",
+<<<<<<< HEAD
     "nx": "23.0.0",
+=======
+    "nx": "23.0.2",
+>>>>>>> 42e09f57b (fix(deps, frontend): update dependency nx to v23.0.2 (#7378))
     "playwright": "1.59.1",
     "prettier": "3.2.5",
     "prettier-eslint-cli": "8.0.1",
