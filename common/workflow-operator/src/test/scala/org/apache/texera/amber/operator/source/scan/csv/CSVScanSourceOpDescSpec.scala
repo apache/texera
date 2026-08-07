@@ -19,13 +19,18 @@
 
 package org.apache.texera.amber.operator.source.scan.csv
 
+import com.fasterxml.jackson.databind.JsonNode
+import com.fasterxml.jackson.databind.node.TextNode
+import com.github.fge.jsonschema.main.JsonSchemaFactory
 import org.apache.texera.amber.core.storage.FileResolver
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.workflow.WorkflowContext.{
   DEFAULT_EXECUTION_ID,
   DEFAULT_WORKFLOW_ID
 }
-import org.apache.texera.amber.operator.TestOperators
+import org.apache.texera.amber.operator.{LogicalOp, TestOperators}
+import org.apache.texera.amber.operator.metadata.OperatorMetadataGenerator
+import org.apache.texera.amber.operator.source.scan.ScanSourceOpDesc
 import org.apache.texera.amber.operator.source.scan.csvOld.CSVOldScanSourceOpDesc
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
@@ -42,6 +47,27 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     parallelCsvScanSourceOpDesc = new ParallelCSVScanSourceOpDesc()
   }
 
+  private val delimiterOwners: List[(String, Class[_ <: LogicalOp])] = List(
+    "CSV" -> classOf[CSVScanSourceOpDesc],
+    "parallel CSV" -> classOf[ParallelCSVScanSourceOpDesc],
+    "old CSV" -> classOf[CSVOldScanSourceOpDesc]
+  )
+
+  private def delimiterSchema(opDescClass: Class[_ <: LogicalOp]): JsonNode =
+    OperatorMetadataGenerator
+      .generateOperatorJsonSchema(opDescClass)
+      .path("properties")
+      .path("customDelimiter")
+
+  // The property editor validates a stored delimiter against the schema, so validate
+  // the same way rather than restating the bound the schema declares.
+  private def schemaValidates(propertySchema: JsonNode, delimiter: String): Boolean =
+    JsonSchemaFactory
+      .byDefault()
+      .getJsonSchema(propertySchema)
+      .validate(TextNode.valueOf(delimiter))
+      .isSuccess
+
   // Writes a CSV whose header row has an empty column (the third position),
   // e.g. `id,name,,age`, and returns the absolute path.
   private def writeCsvWithEmptyHeader(): String = {
@@ -52,6 +78,23 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
       "id,name,,age\n1,Alice,x,30\n2,Bob,y,25\n".getBytes(StandardCharsets.UTF_8)
     )
     tmpFile.toString
+  }
+
+  // Writes a three-column `;`-separated CSV and returns the absolute path.
+  private def writeSemicolonCsv(): String = {
+    val tmpFile = Files.createTempFile("semicolon-", ".csv")
+    tmpFile.toFile.deleteOnExit()
+    Files.write(
+      tmpFile,
+      "id;name;age\n1;Alice;30\n2;Bob;25\n".getBytes(StandardCharsets.UTF_8)
+    )
+    tmpFile.toString
+  }
+
+  private def columnNames(opDesc: ScanSourceOpDesc, path: String): List[String] = {
+    opDesc.fileName = Some(path)
+    opDesc.setResolvedFileName(FileResolver.resolve(path))
+    opDesc.sourceSchema().getAttributes.map(_.getName).toList
   }
 
   it should "infer schema from single-line-data csv" in {
@@ -208,6 +251,50 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
 
     val names = oldCsvScanSourceOpDesc.sourceSchema().getAttributes.map(_.getName).toList
     assert(names == List("id", "name", "column-3", "age"))
+  }
+
+  it should "declare the delimiter as a single character on every CSV scan" in {
+    delimiterOwners.foreach {
+      case (name, opDescClass) =>
+        withClue(s"$name: ") {
+          val propertySchema = delimiterSchema(opDescClass)
+          assert(propertySchema.path("type").asText() == "string")
+          assert(propertySchema.path("maxLength").asInt() == 1)
+        }
+    }
+  }
+
+  it should "validate an empty or one-character delimiter and refuse a longer one" in {
+    delimiterOwners.foreach {
+      case (name, opDescClass) =>
+        withClue(s"$name: ") {
+          val propertySchema = delimiterSchema(opDescClass)
+          // Empty stays valid: the field is optional and every reader resolves an
+          // empty delimiter to a comma, so clearing it must not be an error.
+          assert(schemaValidates(propertySchema, ""))
+          assert(schemaValidates(propertySchema, ","))
+          assert(schemaValidates(propertySchema, ";"))
+          assert(!schemaValidates(propertySchema, ",;"))
+          assert(!schemaValidates(propertySchema, ";abc"))
+        }
+    }
+  }
+
+  it should "read a multi-character delimiter as its first character" in {
+    // What the constraint gives up: a saved workflow holding a longer delimiter now
+    // shows as invalid in the property editor. Its run is unchanged, which is what
+    // this pins -- the characters past the first never reached a parser.
+    val path = writeSemicolonCsv()
+    val csv = new CSVScanSourceOpDesc()
+    csv.customDelimiter = Some(";abc")
+    val parallelCsv = new ParallelCSVScanSourceOpDesc()
+    parallelCsv.customDelimiter = Some(";abc")
+    val oldCsv = new CSVOldScanSourceOpDesc()
+    oldCsv.customDelimiter = Some(";abc")
+
+    assert(columnNames(csv, path) == List("id", "name", "age"))
+    assert(columnNames(parallelCsv, path) == List("id", "name", "age"))
+    assert(columnNames(oldCsv, path) == List("id", "name", "age"))
   }
 
 }

@@ -187,6 +187,20 @@ class TimeSeriesOpDescSpec extends AnyFunSuite {
     assert(!new TimeSeriesOpDesc().showRangeSlider)
   }
 
+  test("the generated schema offers Plot Type as exactly the two values the code reads") {
+    // The property is declared under the name "line", which is what saved workflows carry.
+    val plotType = OperatorMetadataGenerator
+      .generateOperatorJsonSchema(classOf[TimeSeriesOpDesc])
+      .path("properties")
+      .path("line")
+
+    assert(plotType.path("enum").elements().asScala.map(_.asText()).toList == List("line", "area"))
+    // the schema default is what the descriptor itself starts at, so an untouched form
+    // and an untouched descriptor draw the same chart
+    assert(plotType.path("default").asText() == "line")
+    assert(plotType.path("default").asText() == new TimeSeriesOpDesc().plotType)
+  }
+
   // --- generated code shape ----------------------------------------------------
 
   test("generated code coerces the time column, sorts by it, and guards both empty cases") {
