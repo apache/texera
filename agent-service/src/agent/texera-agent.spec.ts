@@ -221,7 +221,7 @@ describe("TexeraAgent", () => {
       expect(after.maxOperatorResultCharLimit).toBe(before.maxOperatorResultCharLimit);
     });
 
-    test("hands out a copy, so an edit to the returned object does not stick", () => {
+    test("returns a new settings object (mutating primitive fields does not stick)", () => {
       agent.getSettings().maxSteps = 12345;
 
       expect(agent.getSettings().maxSteps).not.toBe(12345);
