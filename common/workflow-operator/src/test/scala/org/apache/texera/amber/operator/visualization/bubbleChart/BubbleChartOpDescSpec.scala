@@ -50,6 +50,38 @@ class BubbleChartOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matcher
     )
   }
 
+  it should "color by the chosen column when color is enabled" in {
+    opDesc.xValue = "column1"
+    opDesc.yValue = "column2"
+    opDesc.zValue = "column3"
+    opDesc.enableColor = true
+    opDesc.colorCategory = "column4"
+
+    opDesc.createPlotlyFigure().plain should include(
+      "fig = go.Figure(px.scatter(table, x=column1, y=column2, size=column3, color=column4, size_max=100))"
+    )
+  }
+
+  // px.scatter(color='') raises, so an unset column has to fall back to uniform bubbles.
+  it should "omit color when color is enabled but no column is chosen" in {
+    opDesc.xValue = "column1"
+    opDesc.yValue = "column2"
+    opDesc.zValue = "column3"
+    opDesc.enableColor = true
+
+    opDesc.createPlotlyFigure().plain should not include "color="
+  }
+
+  it should "omit color when a column is chosen but color is disabled" in {
+    opDesc.xValue = "column1"
+    opDesc.yValue = "column2"
+    opDesc.zValue = "column3"
+    opDesc.enableColor = false
+    opDesc.colorCategory = "column4"
+
+    opDesc.createPlotlyFigure().plain should not include "column4"
+  }
+
   it should "throw assertion error if variable xValue is empty" in {
     assertThrows[AssertionError] {
       opDesc.createPlotlyFigure()

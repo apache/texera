@@ -20,7 +20,7 @@
 package org.apache.texera.amber.operator.visualization.bubbleChart
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
-import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
+import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
@@ -65,13 +65,15 @@ class BubbleChartOpDesc extends PythonOperatorDescriptor {
   @JsonProperty(value = "enableColor", defaultValue = "false")
   @JsonSchemaTitle("Enable Color")
   @JsonPropertyDescription("Colors bubbles using a data column")
+  @JsonSchemaInject(json = """{"toggleHidden" : ["colorCategory"]}""")
   var enableColor: Boolean = false
 
-  @JsonProperty(value = "colorCategory", required = true)
+  @JsonProperty(value = "colorCategory", required = false)
   @JsonSchemaTitle("Color-Column")
-  @JsonPropertyDescription("Picks data column to color bubbles with if color is enabled")
+  @JsonPropertyDescription(
+    "Optional data column to color bubbles with; leave empty for uniform bubbles"
+  )
   @AutofillAttributeName
-  @NotNull(message = "Color-Column cannot be empty")
   var colorCategory: EncodableString = ""
 
   override def getOutputSchemas(
@@ -104,11 +106,10 @@ class BubbleChartOpDesc extends PythonOperatorDescriptor {
     assert(xValue.nonEmpty, "X-Column cannot be empty")
     assert(yValue.nonEmpty, "Y-Column cannot be empty")
     assert(zValue.nonEmpty, "Z-Column cannot be empty")
+    // An unset column counts as "no color" even with the toggle on, else px.scatter(color='') fails.
+    val colorArg = if (enableColor && colorCategory.nonEmpty) pyb", color=$colorCategory" else pyb""
     pyb"""
-         |        if '$enableColor' == 'true':
-         |            fig = go.Figure(px.scatter(table, x=$xValue, y=$yValue, size=$zValue, size_max=100, color=$colorCategory))
-         |        else:
-         |            fig = go.Figure(px.scatter(table, x=$xValue, y=$yValue, size=$zValue, size_max=100))
+         |        fig = go.Figure(px.scatter(table, x=$xValue, y=$yValue, size=$zValue$colorArg, size_max=100))
          |"""
   }
 
