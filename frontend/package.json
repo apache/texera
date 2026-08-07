@@ -93,7 +93,7 @@
     "@angular-eslint/template-parser": "21.4.0",
     "@angular/cli": "21.2.19",
     "@angular/compiler-cli": "21.2.18",
-    "@nx/angular": "23.0.1",
+    "@nx/angular": "23.0.2",
     "@schematics/angular": "21.2.19",
     "@types/backbone": "1.4.23",
     "@types/concaveman": "1.1.6",
