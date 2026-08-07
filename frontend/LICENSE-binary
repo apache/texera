@@ -366,6 +366,7 @@ Angular / npm packages:
 Third-party assets:
   - Project Jupyter logo
     frontend/src/assets/notebook_migration_tool/tool_popup_diagram.png
+    frontend/src/assets/notebook_migration_tool/jupyter-logo.svg
     https://github.com/jupyter/design
 
 --------------------------------------------------------------------------------

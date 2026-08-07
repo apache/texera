@@ -55,10 +55,6 @@ class AdminComputingUnitResource {
 
   /**
     * List every non-terminated computing unit across all users (ADMIN-only).
-    *
-    * TODO: rows report WRITE, but the mutating endpoints on [[ComputingUnitManagingResource]]
-    * still gate on ownership with no ADMIN bypass, so an admin acting on a unit it does not own is
-    * rejected. Add that bypass; until then a client must not present these rows as writable.
     */
   @GET
   @Path("/list")

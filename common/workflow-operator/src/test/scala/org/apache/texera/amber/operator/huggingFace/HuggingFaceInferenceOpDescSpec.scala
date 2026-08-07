@@ -694,4 +694,13 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
     code should include("Input Audio Column '")
     code should include("not found in the input table")
   }
+
+  it should "give a clear error when the result column collides with an input column" in {
+    val desc = makeDesc(resultColumn = "prompt")
+    val inputSchema = Schema().add("prompt", AttributeType.STRING)
+    val ex = intercept[RuntimeException] {
+      desc.getOutputSchemas(Map(PortIdentity(0) -> inputSchema))
+    }
+    ex.getMessage should include("Result column 'prompt'")
+  }
 }

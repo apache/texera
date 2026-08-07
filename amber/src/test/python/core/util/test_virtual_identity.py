@@ -159,6 +159,17 @@ class TestSerializeGlobalPortIdentity:
         with pytest.raises(ValueError, match="layerName must not contain"):
             serialize_global_port_identity(_gpi(layer="main_source_0_op"))
 
+    def test_rejects_slash_in_logical_op_id(self):
+        # A '/' would add path segments to the VFS URI this string is interpolated
+        # into, letting an id forge structure the URI never meant to have. Matches
+        # the guard in GlobalPortIdentitySerde (Scala).
+        with pytest.raises(ValueError, match="logicalOpId must not contain"):
+            serialize_global_port_identity(_gpi(op_id="a/wh/victim/b"))
+
+    def test_rejects_slash_in_layer_name(self):
+        with pytest.raises(ValueError, match="layerName must not contain"):
+            serialize_global_port_identity(_gpi(layer="main/wh/victim"))
+
     def test_rejects_negative_port_id(self):
         # Port ids are array indices and must be non-negative.
         with pytest.raises(ValueError, match="portId must be non-negative"):
