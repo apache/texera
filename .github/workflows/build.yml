@@ -297,6 +297,14 @@ jobs:
         #       ./bin/licensing/generate_notice_binary.py amber/NOTICE-binary /tmp/dists/amber-*/lib --extras amber/NOTICE-binary-python
         run: |
           set -euo pipefail
+          # Self-heal before unpacking: on a classic runner /tmp survives the
+          # job, and a previous run's unpacked dist makes unzip stop on an
+          # interactive overwrite prompt (no stdin -> exit 1). The cleanup step
+          # at the end of every job removes this, but a job killed outright
+          # (OOM, runner restart) never gets there, so the entry point cannot
+          # assume a clean slate. Every `docker run --name` below is guarded
+          # the same way.
+          rm -rf /tmp/dists/amber-*
           mkdir -p /tmp/dists
           unzip -q amber/target/universal/amber-*.zip -d /tmp/dists/
 
@@ -388,7 +396,7 @@ jobs:
         if: ${{ always() && runner.environment == 'self-hosted' }}
         working-directory: ${{ github.workspace }}
         run: |
-          rm -rf /tmp/dists /tmp/notice-amber.txt
+          rm -rf /tmp/dists/amber-* /tmp/notice-amber.txt
           git clean -xdff ||
             find . -mindepth 1 -maxdepth 1 -exec rm -rf -- {} + ||
             echo "::warning::workspace cleanup incomplete on ${RUNNER_NAME:-this runner}"
@@ -492,6 +500,9 @@ jobs:
         # Linux docker image here.
         run: |
           if [ "$RUNNER_OS" = "Linux" ]; then
+            # Self-heal: a killed job can leave this container behind on a
+            # classic runner, and the name would then be taken.
+            docker rm -f -v postgres >/dev/null 2>&1 || true
             docker run -d --name postgres \
               -p 5432:5432 \
               -e POSTGRES_PASSWORD=postgres \
@@ -538,6 +549,7 @@ jobs:
         # S3-protocol surface that has been stable across releases.
         run: |
           if [ "$RUNNER_OS" = "Linux" ]; then
+            docker rm -f -v minio >/dev/null 2>&1 || true
             docker run -d --name minio --network host \
               -e MINIO_ROOT_USER=texera_minio \
               -e MINIO_ROOT_PASSWORD=password \
@@ -574,6 +586,7 @@ jobs:
               -e LAKEKEEPER__PG_DATABASE_URL_WRITE \
               -e LAKEKEEPER__PG_ENCRYPTION_KEY \
               vakamo/lakekeeper:${LAKEKEEPER_VERSION} migrate
+            docker rm -f -v lakekeeper >/dev/null 2>&1 || true
             docker run -d --name lakekeeper --network host \
               -e LAKEKEEPER__PG_DATABASE_URL_READ \
               -e LAKEKEEPER__PG_DATABASE_URL_WRITE \
@@ -717,6 +730,8 @@ jobs:
       - name: Unzip amber dist
         if: runner.os == 'Linux'
         run: |
+          # Self-heal: see the amber job's unzip step.
+          rm -rf /tmp/dists/amber-*
           mkdir -p /tmp/dists
           unzip -q amber/target/universal/amber-*.zip -d /tmp/dists/
       - name: Smoke-test texera-web boots
@@ -782,7 +797,7 @@ jobs:
         working-directory: ${{ github.workspace }}
         run: |
           docker rm -f -v postgres minio lakekeeper >/dev/null 2>&1 || true
-          rm -rf /tmp/dists /tmp/protoc.zip
+          rm -rf /tmp/dists/amber-* /tmp/protoc.zip
           git clean -xdff ||
             find . -mindepth 1 -maxdepth 1 -exec rm -rf -- {} + ||
             echo "::warning::workspace cleanup incomplete on ${RUNNER_NAME:-this runner}"
@@ -877,6 +892,8 @@ jobs:
         #       ./bin/licensing/generate_notice_binary.py ${{ matrix.service }}/NOTICE-binary /tmp/dists/${{ matrix.service }}-*/lib
         run: |
           set -euo pipefail
+          # Self-heal: see the amber job's unzip step.
+          rm -rf /tmp/dists/${{ matrix.service }}-*
           mkdir -p /tmp/dists
           unzip -q ${{ matrix.service }}/target/universal/${{ matrix.service }}-*.zip -d /tmp/dists/
 
@@ -920,7 +937,7 @@ jobs:
         if: ${{ always() && runner.environment == 'self-hosted' }}
         working-directory: ${{ github.workspace }}
         run: |
-          rm -rf /tmp/dists "/tmp/notice-${{ matrix.service }}.txt"
+          rm -rf /tmp/dists/${{ matrix.service }}-* "/tmp/notice-${{ matrix.service }}.txt"
           git clean -xdff ||
             find . -mindepth 1 -maxdepth 1 -exec rm -rf -- {} + ||
             echo "::warning::workspace cleanup incomplete on ${RUNNER_NAME:-this runner}"
@@ -1014,6 +1031,8 @@ jobs:
         run: sbt "${{ matrix.sbt_project }}/dist"
       - name: Unzip ${{ matrix.service }} dist
         run: |
+          # Self-heal: see the amber job's unzip step.
+          rm -rf /tmp/dists/${{ matrix.service }}-*
           mkdir -p /tmp/dists
           unzip -q ${{ matrix.service }}/target/universal/${{ matrix.service }}-*.zip -d /tmp/dists/
       - name: Start MinIO
@@ -1021,6 +1040,7 @@ jobs:
         # that service needs an object store, so the rest of the matrix skips this.
         if: ${{ matrix.object_store }}
         run: |
+          docker rm -f -v minio >/dev/null 2>&1 || true
           docker run -d --name minio --network host \
             -e MINIO_ROOT_USER=texera_minio \
             -e MINIO_ROOT_PASSWORD=password \
@@ -1038,6 +1058,7 @@ jobs:
         # adapted to CI creds (postgres/postgres @ localhost).
         if: ${{ matrix.object_store }}
         run: |
+          docker rm -f -v lakefs >/dev/null 2>&1 || true
           docker run -d --name lakefs --network host \
             -e LAKEFS_DATABASE_TYPE=postgres \
             -e "LAKEFS_DATABASE_POSTGRES_CONNECTION_STRING=postgres://postgres:postgres@localhost:5432/texera_lakefs?sslmode=disable" \
@@ -1073,7 +1094,7 @@ jobs:
         working-directory: ${{ github.workspace }}
         run: |
           docker rm -f -v minio lakefs >/dev/null 2>&1 || true
-          rm -rf /tmp/dists
+          rm -rf /tmp/dists/${{ matrix.service }}-*
           git clean -xdff ||
             find . -mindepth 1 -maxdepth 1 -exec rm -rf -- {} + ||
             echo "::warning::workspace cleanup incomplete on ${RUNNER_NAME:-this runner}"
