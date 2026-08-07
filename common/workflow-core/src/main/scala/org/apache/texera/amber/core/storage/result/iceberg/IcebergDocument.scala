@@ -57,6 +57,7 @@ object Constants {
   * @param tableSchema    schema of the table.
   * @param serde          function to serialize T into an Iceberg Record.
   * @param deserde        function to deserialize an Iceberg Record into T.
+  * @param warehouse      the warehouse whose catalog backs this table; `None` uses the configured default.
   * @tparam T type of the data items stored in the Iceberg table.
   */
 private[storage] class IcebergDocument[T >: Null <: AnyRef](
@@ -64,13 +65,14 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
     val tableName: String,
     val tableSchema: org.apache.iceberg.Schema,
     val serde: (org.apache.iceberg.Schema, T) => Record,
-    val deserde: (org.apache.iceberg.Schema, Record) => T
+    val deserde: (org.apache.iceberg.Schema, Record) => T,
+    val warehouse: Option[String] = None
 ) extends VirtualDocument[T]
     with OnIceberg {
 
   private val lock = new ReentrantReadWriteLock()
 
-  @transient lazy val catalog: Catalog = IcebergCatalogInstance.getInstance()
+  @transient lazy val catalog: Catalog = IcebergCatalogInstance.getInstance(warehouse)
 
   /**
     * Returns the URI of the table location.

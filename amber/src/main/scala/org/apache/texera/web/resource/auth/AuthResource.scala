@@ -168,7 +168,7 @@ class AuthResource {
         val user = new User
         user.setName(username)
         user.setEmail(useremail)
-        user.setRole(UserRoleEnum.RESTRICTED)
+        user.setRole(UserRoleEnum.INACTIVE)
         // hash the plain text password
         user.setPassword(new StrongPasswordEncryptor().encryptPassword(userpassword))
         userDao.insert(user)

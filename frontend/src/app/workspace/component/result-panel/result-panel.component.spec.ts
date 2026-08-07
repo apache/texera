@@ -18,7 +18,7 @@
  */
 
 import { ComponentFixture, TestBed } from "@angular/core/testing";
-import { ElementRef } from "@angular/core";
+import { Component, ElementRef } from "@angular/core";
 import { CdkDragEnd } from "@angular/cdk/drag-drop";
 import { NzResizeEvent } from "ng-zorro-antd/resizable";
 
@@ -664,4 +664,92 @@ describe("ResultPanelComponent", () => {
       expect(setItemSpy).not.toHaveBeenCalledWith("result-panel-style", expect.anything());
     });
   });
+
+  describe("template rendering", () => {
+    // Query, assert the element is present, then dispatch the event (a real MouseEvent
+    // for clicks so handlers calling stopPropagation()/preventDefault() work).
+    const fire = (css: string, event: string, payload: unknown): void => {
+      const el = fixture.debugElement.query(By.css(css));
+      expect(el).toBeTruthy();
+      el.triggerEventHandler(event, payload);
+    };
+
+    it("renders the docked panel chrome and wires the close / reset actions", () => {
+      component.width = DEFAULT_WIDTH;
+      fixture.detectChanges();
+      const closeSpy = vi.spyOn(component, "closePanel").mockImplementation(() => {});
+      const resetSpy = vi.spyOn(component, "resetPanelPosition").mockImplementation(() => {});
+
+      expect(fixture.debugElement.query(By.css("#content"))).toBeTruthy();
+      fire("#result-buttons li[nz-menu-item]", "click", new MouseEvent("click")); // header close
+      fire("#panel-button button", "click", new MouseEvent("click")); // reset-position
+      fire("#panel-button li[nz-menu-item]", "click", new MouseEvent("click")); // in-panel close
+
+      expect(closeSpy).toHaveBeenCalled();
+      expect(resetSpy).toHaveBeenCalled();
+    });
+
+    it("renders only the collapsed open button and wires openPanel when width is 0", () => {
+      component.width = 0;
+      fixture.detectChanges();
+      const openSpy = vi.spyOn(component, "openPanel").mockImplementation(() => {});
+
+      // the panel body is hidden while collapsed
+      expect(fixture.debugElement.query(By.css("#content"))).toBeNull();
+      fire("#result-buttons li[nz-menu-item]", "click", new MouseEvent("click")); // the open item
+
+      expect(openSpy).toHaveBeenCalled();
+    });
+
+    it("interpolates the operator title into the panel title", () => {
+      component.width = DEFAULT_WIDTH;
+      component.operatorTitle = "My Operator";
+      fixture.detectChanges();
+
+      const title = fixture.debugElement.query(By.css("#title")).nativeElement as HTMLElement;
+      expect(title.textContent).toContain("Result Panel: My Operator");
+    });
+
+    it("omits the separator in the title when no operator is selected", () => {
+      component.width = DEFAULT_WIDTH;
+      component.operatorTitle = "";
+      fixture.detectChanges();
+
+      const title = fixture.debugElement.query(By.css("#title")).nativeElement as HTMLElement;
+      expect(title.textContent?.trim()).toBe("Result Panel");
+    });
+
+    it("shows the no-results tab when there are no frames", () => {
+      component.width = DEFAULT_WIDTH;
+      component.frameComponentConfigs.clear();
+      fixture.detectChanges();
+
+      expect((fixture.nativeElement as HTMLElement).textContent).toContain("No results available to display.");
+    });
+
+    it("renders a tab per frame when frames are present", () => {
+      component.width = DEFAULT_WIDTH;
+      component.frameComponentConfigs.set("Result", { component: StubFrame, componentInputs: {} });
+      component.frameComponentConfigs.set("Console", { component: StubFrame, componentInputs: {} });
+      fixture.detectChanges();
+
+      const text = (fixture.nativeElement as HTMLElement).textContent ?? "";
+      expect(text).toContain("Result");
+      expect(text).toContain("Console");
+      expect(text).not.toContain("No results available to display.");
+    });
+
+    it("renders the resize handles when the panel is docked", () => {
+      component.width = DEFAULT_WIDTH;
+      vi.spyOn(component, "isPanelDocked").mockReturnValue(true);
+      fixture.detectChanges();
+
+      expect(fixture.debugElement.query(By.css("nz-resize-handles"))).toBeTruthy();
+    });
+  });
 });
+
+// A trivial standalone frame so *ngComponentOutlet can instantiate a tab's content
+// without pulling in a real result-frame component's dependency graph.
+@Component({ standalone: true, template: "" })
+class StubFrame {}
