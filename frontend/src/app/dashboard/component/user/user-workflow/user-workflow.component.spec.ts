@@ -1022,8 +1022,13 @@ describe("SavedWorkflowSectionComponent", () => {
     });
 
     describe("template rendering", () => {
+      const VIEW_MODE_KEY = "texera.userWorkflow.viewMode";
       const q = (selector: string) => fixture.debugElement.query(By.css(selector));
 
+      afterEach(() => {
+        vi.restoreAllMocks();
+        localStorage.removeItem(VIEW_MODE_KEY);
+      });
       // The multi-select toolbar only renders when at least one entry is checked.
       // Clone a real fixture entry (preserving its prototype) so the rendered
       // search-results can display it, and flip `checked` on the copy so the shared
