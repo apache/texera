@@ -21,8 +21,7 @@ import { Component } from "@angular/core";
 import { NzRowDirective, NzColDirective } from "ng-zorro-antd/grid";
 
 /**
- * Static marketing copy for the platform. The login form it used to embed now lives on the
- * dedicated /login page, which left this component with no state to track.
+ * Static marketing copy for the platform.
  */
 @Component({
   selector: "texera-about",

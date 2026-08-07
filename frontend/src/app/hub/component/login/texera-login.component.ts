@@ -37,6 +37,7 @@ import { UserService } from "../../../common/service/user/user.service";
 import { NotificationService } from "../../../common/service/notification/notification.service";
 import { GuiConfigService } from "../../../common/service/gui-config.service";
 import { USER_WORKFLOW } from "../../../app-routing.constant";
+import { NzIconDirective } from "ng-zorro-antd/icon";
 
 type LoginMode = "signin" | "signup";
 
@@ -53,7 +54,7 @@ type LoginMode = "signin" | "signup";
   selector: "texera-login",
   templateUrl: "./texera-login.component.html",
   styleUrls: ["./texera-login.component.scss"],
-  imports: [NgIf, ReactiveFormsModule, GoogleSigninButtonModule],
+  imports: [ReactiveFormsModule, GoogleSigninButtonModule, NzIconDirective],
 })
 export class TexeraLoginComponent implements OnInit {
   public mode: LoginMode = "signin";
