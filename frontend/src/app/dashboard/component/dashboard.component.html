@@ -253,6 +253,9 @@
              is a redirect from the auth guard or the 401 interceptor. -->
         <a
           *ngIf="!isLogin"
+          nz-button
+          nzType="primary"
+          nzSize="large"
           class="nav-login-link"
           [routerLink]="LOGIN">
           Sign in

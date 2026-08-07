@@ -53,6 +53,7 @@ import { NgIf } from "@angular/common";
 import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
 import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
 import { NzIconDirective } from "ng-zorro-antd/icon";
+import { NzButtonComponent } from "ng-zorro-antd/button";
 import { SearchBarComponent } from "./user/search-bar/search-bar.component";
 import { UserIconComponent } from "./user/user-icon/user-icon.component";
 
@@ -72,6 +73,7 @@ import { UserIconComponent } from "./user/user-icon/user-icon.component";
     NzTooltipDirective,
     RouterLink,
     NzIconDirective,
+    NzButtonComponent,
     SearchBarComponent,
     UserIconComponent,
     NzContentComponent,
