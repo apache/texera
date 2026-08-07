@@ -64,9 +64,20 @@ final class PythonCodeRawInvalidTextSpec extends AnyFunSuite {
   /** Runs the given work concurrently and returns the results in submission
     * order, rethrowing the first failure so it fails the test. Sized to the pool
     * so the threads match the workers available to serve them.
+    *
+    * Daemon threads: a task parked on a subprocess pipe answers no interrupt, so
+    * `shutdownNow` need not end it, and a non-daemon one left there would hold the
+    * JVM — and the build — open after [[PassTimeout]] has already failed the test.
     */
   private def awaitAll[T](work: Seq[() => T]): Seq[T] = {
-    val threads = Executors.newFixedThreadPool(PythonWorkerPool.maxWorkers)
+    val threads = Executors.newFixedThreadPool(
+      PythonWorkerPool.maxWorkers,
+      (r: Runnable) => {
+        val t = new Thread(r, "py-compile-check")
+        t.setDaemon(true)
+        t
+      }
+    )
     try {
       implicit val ec: ExecutionContext = ExecutionContext.fromExecutorService(threads)
       Await.result(Future.sequence(work.map(w => Future(w()))), PassTimeout)
@@ -354,7 +365,10 @@ final class PythonCodeRawInvalidTextSpec extends AnyFunSuite {
       val process = new ProcessBuilder(python, "-c", "import pandas, plotly")
         .redirectErrorStream(true)
         .start()
-      process.waitFor(60, TimeUnit.SECONDS) && process.exitValue() == 0
+      // Killed on the way out: a probe that ran out of time is still running, and
+      // would otherwise leak into the rest of the run.
+      if (process.waitFor(60, TimeUnit.SECONDS)) process.exitValue() == 0
+      else { process.destroyForcibly(); false }
     }
     if (!imported.getOrElse(false)) {
       unavailable(s"'$python' cannot import pandas and plotly")
