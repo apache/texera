@@ -4319,19 +4319,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-<<<<<<< HEAD
-"@nx/angular@npm:23.0.0":
-  version: 23.0.0
-  resolution: "@nx/angular@npm:23.0.0"
-  dependencies:
-    "@nx/devkit": "npm:23.0.0"
-    "@nx/eslint": "npm:23.0.0"
-    "@nx/js": "npm:23.0.0"
-    "@nx/module-federation": "npm:23.0.0"
-    "@nx/rspack": "npm:23.0.0"
-    "@nx/web": "npm:23.0.0"
-    "@nx/webpack": "npm:23.0.0"
-=======
 "@nx/angular@npm:23.0.2":
   version: 23.0.2
   resolution: "@nx/angular@npm:23.0.2"
@@ -4343,7 +4330,6 @@ __metadata:
     "@nx/rspack": "npm:23.0.2"
     "@nx/web": "npm:23.0.2"
     "@nx/webpack": "npm:23.0.2"
->>>>>>> 42e09f57b (fix(deps, frontend): update dependency nx to v23.0.2 (#7378))
     "@phenomnomnominal/tsquery": "npm:~6.2.0"
     "@typescript-eslint/type-utils": "npm:^8.0.0"
     enquirer: "npm:~2.3.6"
@@ -4368,15 +4354,6 @@ __metadata:
       optional: true
     ng-packagr:
       optional: true
-<<<<<<< HEAD
-  checksum: 10c0/fcd398c3fc76346aec0dfc4fe9139d884218d9d99775e06952eccae00ce66caeb27a4566e91e700f649e6d5c3db6909d76049ce95ec2b3d45d34f4292aac656c
-  languageName: node
-  linkType: hard
-
-"@nx/devkit@npm:23.0.0":
-  version: 23.0.0
-  resolution: "@nx/devkit@npm:23.0.0"
-=======
   checksum: 10c0/2126ddcab7f026cb93b5ca4322dceff6e2ff7fcd3c17697be196c99f6b2f9885c23d2bc14242fc9c5d6f2671b38d9ff4249a9de0e2636a42ca2a4c14f63a24e2
   languageName: node
   linkType: hard
@@ -4384,7 +4361,6 @@ __metadata:
 "@nx/devkit@npm:23.0.2":
   version: 23.0.2
   resolution: "@nx/devkit@npm:23.0.2"
->>>>>>> 42e09f57b (fix(deps, frontend): update dependency nx to v23.0.2 (#7378))
   dependencies:
     "@zkochan/js-yaml": "npm:0.0.7"
     ejs: "npm:5.0.1"
@@ -4396,18 +4372,6 @@ __metadata:
     yargs-parser: "npm:21.1.1"
   peerDependencies:
     nx: ">= 22 <= 24 || ^23.0.0-0"
-<<<<<<< HEAD
-  checksum: 10c0/f82665090d0e493ec654145cb77a2881d9a43ba781f358ad4e862f688465ce95892ac4d8c9a217d46821b255ce880bce01ebf1463c40c905ccb3cd60444adaaf
-  languageName: node
-  linkType: hard
-
-"@nx/eslint@npm:23.0.0":
-  version: 23.0.0
-  resolution: "@nx/eslint@npm:23.0.0"
-  dependencies:
-    "@nx/devkit": "npm:23.0.0"
-    "@nx/js": "npm:23.0.0"
-=======
   checksum: 10c0/5defefc74e1bc280895ea45144e721d8f53fc8e3175ee7a8fe35bb369b0ca6a908f01c5b87cbb72bc718c1a59654f882976994414eb215c5221795ec3320943a
   languageName: node
   linkType: hard
@@ -4418,16 +4382,11 @@ __metadata:
   dependencies:
     "@nx/devkit": "npm:23.0.2"
     "@nx/js": "npm:23.0.2"
->>>>>>> 42e09f57b (fix(deps, frontend): update dependency nx to v23.0.2 (#7378))
     semver: "npm:^7.6.3"
     tslib: "npm:^2.3.0"
     typescript: "npm:~5.9.2"
   peerDependencies:
-<<<<<<< HEAD
-    "@nx/jest": 23.0.0
-=======
     "@nx/jest": 23.0.2
->>>>>>> 42e09f57b (fix(deps, frontend): update dependency nx to v23.0.2 (#7378))
     "@zkochan/js-yaml": 0.0.7
     eslint: ^8.0.0 || ^9.0.0 || ^10.0.0
   peerDependenciesMeta:
@@ -4435,15 +4394,6 @@ __metadata:
       optional: true
     "@zkochan/js-yaml":
       optional: true
-<<<<<<< HEAD
-  checksum: 10c0/77e55662cceadd0575486615328f9b50482963aeae0323d621fa7c0ea033a66c9f436e15b818899c381cd3f98a85c9b5e38ba837dec67384f403f2ed598e7e36
-  languageName: node
-  linkType: hard
-
-"@nx/js@npm:23.0.0":
-  version: 23.0.0
-  resolution: "@nx/js@npm:23.0.0"
-=======
   checksum: 10c0/97a5151b581169ac328748d442c9d580b6ebfe5d5445a862f1b0bc4294251a835302f6b8aaae01730f2d0a3b251e9b3083863faf885b427c5e894e2bb49e3d5e
   languageName: node
   linkType: hard
@@ -4451,7 +4401,6 @@ __metadata:
 "@nx/js@npm:23.0.2":
   version: 23.0.2
   resolution: "@nx/js@npm:23.0.2"
->>>>>>> 42e09f57b (fix(deps, frontend): update dependency nx to v23.0.2 (#7378))
   dependencies:
     "@babel/core": "npm:^7.23.2"
     "@babel/plugin-proposal-decorators": "npm:^7.22.7"
@@ -4460,13 +4409,8 @@ __metadata:
     "@babel/preset-env": "npm:^7.23.2"
     "@babel/preset-typescript": "npm:^7.22.5"
     "@babel/runtime": "npm:^7.22.6"
-<<<<<<< HEAD
-    "@nx/devkit": "npm:23.0.0"
-    "@nx/workspace": "npm:23.0.0"
-=======
     "@nx/devkit": "npm:23.0.2"
     "@nx/workspace": "npm:23.0.2"
->>>>>>> 42e09f57b (fix(deps, frontend): update dependency nx to v23.0.2 (#7378))
     "@zkochan/js-yaml": "npm:0.0.7"
     babel-plugin-const-enum: "npm:^1.0.1"
     babel-plugin-macros: "npm:^3.1.0"
@@ -4492,19 +4436,6 @@ __metadata:
       optional: true
     verdaccio:
       optional: true
-<<<<<<< HEAD
-  checksum: 10c0/789c605fe546bc7ae62b580786b1a4d41f6de95304a0a6352a0411abc1e2c8d1ae2b69a4d98a9121c061218793b65f24e15b0dfa7665807fa747cb079b1ee0fe
-  languageName: node
-  linkType: hard
-
-"@nx/module-federation@npm:23.0.0":
-  version: 23.0.0
-  resolution: "@nx/module-federation@npm:23.0.0"
-  dependencies:
-    "@nx/devkit": "npm:23.0.0"
-    "@nx/js": "npm:23.0.0"
-    "@nx/web": "npm:23.0.0"
-=======
   checksum: 10c0/9b3ee6b4478c262ecc77106df6467547b0fb2d60cab6f209c72e41b5870d544604206d22547184a4642decdff510d3e55ea924883a5f622dae5987cb79b189ee
   languageName: node
   linkType: hard
@@ -4516,7 +4447,6 @@ __metadata:
     "@nx/devkit": "npm:23.0.2"
     "@nx/js": "npm:23.0.2"
     "@nx/web": "npm:23.0.2"
->>>>>>> 42e09f57b (fix(deps, frontend): update dependency nx to v23.0.2 (#7378))
     "@rspack/core": "npm:1.6.8"
     express: "npm:^4.21.2"
     http-proxy-middleware: "npm:^3.0.5"
@@ -4531,15 +4461,6 @@ __metadata:
       optional: true
     "@module-federation/node":
       optional: true
-<<<<<<< HEAD
-  checksum: 10c0/b7e3f4e694e43d6a3d477e66a2f873a8e51c234c02d80ad5ff09bac675c5f41d5d8cd8394b5d087aabe9f49dbb4c27df8f8a302da16ab176a20c2cac8241c9f1
-  languageName: node
-  linkType: hard
-
-"@nx/nx-darwin-arm64@npm:23.0.0":
-  version: 23.0.0
-  resolution: "@nx/nx-darwin-arm64@npm:23.0.0"
-=======
   checksum: 10c0/a56c9cf79f9b7636c285864c1437180dad680ed68160ac0edd756632a2bc27f2331e6cf3df4c97ea22cf4f0a14395b93cc2fb62f8fb6fc3648398c3e852e295d
   languageName: node
   linkType: hard
@@ -4547,138 +4468,73 @@ __metadata:
 "@nx/nx-darwin-arm64@npm:23.0.2":
   version: 23.0.2
   resolution: "@nx/nx-darwin-arm64@npm:23.0.2"
->>>>>>> 42e09f57b (fix(deps, frontend): update dependency nx to v23.0.2 (#7378))
   conditions: os=darwin & cpu=arm64
   languageName: node
   linkType: hard
 
-<<<<<<< HEAD
-"@nx/nx-darwin-x64@npm:23.0.0":
-  version: 23.0.0
-  resolution: "@nx/nx-darwin-x64@npm:23.0.0"
-=======
 "@nx/nx-darwin-x64@npm:23.0.2":
   version: 23.0.2
   resolution: "@nx/nx-darwin-x64@npm:23.0.2"
->>>>>>> 42e09f57b (fix(deps, frontend): update dependency nx to v23.0.2 (#7378))
   conditions: os=darwin & cpu=x64
   languageName: node
   linkType: hard
 
-<<<<<<< HEAD
-"@nx/nx-freebsd-x64@npm:23.0.0":
-  version: 23.0.0
-  resolution: "@nx/nx-freebsd-x64@npm:23.0.0"
-=======
 "@nx/nx-freebsd-x64@npm:23.0.2":
   version: 23.0.2
   resolution: "@nx/nx-freebsd-x64@npm:23.0.2"
->>>>>>> 42e09f57b (fix(deps, frontend): update dependency nx to v23.0.2 (#7378))
   conditions: os=freebsd & cpu=x64
   languageName: node
   linkType: hard
 
-<<<<<<< HEAD
-"@nx/nx-linux-arm-gnueabihf@npm:23.0.0":
-  version: 23.0.0
-  resolution: "@nx/nx-linux-arm-gnueabihf@npm:23.0.0"
-=======
 "@nx/nx-linux-arm-gnueabihf@npm:23.0.2":
   version: 23.0.2
   resolution: "@nx/nx-linux-arm-gnueabihf@npm:23.0.2"
->>>>>>> 42e09f57b (fix(deps, frontend): update dependency nx to v23.0.2 (#7378))
   conditions: os=linux & cpu=arm
   languageName: node
   linkType: hard
 
-<<<<<<< HEAD
-"@nx/nx-linux-arm64-gnu@npm:23.0.0":
-  version: 23.0.0
-  resolution: "@nx/nx-linux-arm64-gnu@npm:23.0.0"
-=======
 "@nx/nx-linux-arm64-gnu@npm:23.0.2":
   version: 23.0.2
   resolution: "@nx/nx-linux-arm64-gnu@npm:23.0.2"
->>>>>>> 42e09f57b (fix(deps, frontend): update dependency nx to v23.0.2 (#7378))
   conditions: os=linux & cpu=arm64 & libc=glibc
   languageName: node
   linkType: hard
 
-<<<<<<< HEAD
-"@nx/nx-linux-arm64-musl@npm:23.0.0":
-  version: 23.0.0
-  resolution: "@nx/nx-linux-arm64-musl@npm:23.0.0"
-=======
 "@nx/nx-linux-arm64-musl@npm:23.0.2":
   version: 23.0.2
   resolution: "@nx/nx-linux-arm64-musl@npm:23.0.2"
->>>>>>> 42e09f57b (fix(deps, frontend): update dependency nx to v23.0.2 (#7378))
   conditions: os=linux & cpu=arm64 & libc=musl
   languageName: node
   linkType: hard
 
-<<<<<<< HEAD
-"@nx/nx-linux-x64-gnu@npm:23.0.0":
-  version: 23.0.0
-  resolution: "@nx/nx-linux-x64-gnu@npm:23.0.0"
-=======
 "@nx/nx-linux-x64-gnu@npm:23.0.2":
   version: 23.0.2
   resolution: "@nx/nx-linux-x64-gnu@npm:23.0.2"
->>>>>>> 42e09f57b (fix(deps, frontend): update dependency nx to v23.0.2 (#7378))
   conditions: os=linux & cpu=x64 & libc=glibc
   languageName: node
   linkType: hard
 
-<<<<<<< HEAD
-"@nx/nx-linux-x64-musl@npm:23.0.0":
-  version: 23.0.0
-  resolution: "@nx/nx-linux-x64-musl@npm:23.0.0"
-=======
 "@nx/nx-linux-x64-musl@npm:23.0.2":
   version: 23.0.2
   resolution: "@nx/nx-linux-x64-musl@npm:23.0.2"
->>>>>>> 42e09f57b (fix(deps, frontend): update dependency nx to v23.0.2 (#7378))
   conditions: os=linux & cpu=x64 & libc=musl
   languageName: node
   linkType: hard
 
-<<<<<<< HEAD
-"@nx/nx-win32-arm64-msvc@npm:23.0.0":
-  version: 23.0.0
-  resolution: "@nx/nx-win32-arm64-msvc@npm:23.0.0"
-=======
 "@nx/nx-win32-arm64-msvc@npm:23.0.2":
   version: 23.0.2
   resolution: "@nx/nx-win32-arm64-msvc@npm:23.0.2"
->>>>>>> 42e09f57b (fix(deps, frontend): update dependency nx to v23.0.2 (#7378))
   conditions: os=win32 & cpu=arm64
   languageName: node
   linkType: hard
 
-<<<<<<< HEAD
-"@nx/nx-win32-x64-msvc@npm:23.0.0":
-  version: 23.0.0
-  resolution: "@nx/nx-win32-x64-msvc@npm:23.0.0"
-=======
 "@nx/nx-win32-x64-msvc@npm:23.0.2":
   version: 23.0.2
   resolution: "@nx/nx-win32-x64-msvc@npm:23.0.2"
->>>>>>> 42e09f57b (fix(deps, frontend): update dependency nx to v23.0.2 (#7378))
   conditions: os=win32 & cpu=x64
   languageName: node
   linkType: hard
 
-<<<<<<< HEAD
-"@nx/rspack@npm:23.0.0":
-  version: 23.0.0
-  resolution: "@nx/rspack@npm:23.0.0"
-  dependencies:
-    "@nx/devkit": "npm:23.0.0"
-    "@nx/js": "npm:23.0.0"
-    "@nx/module-federation": "npm:23.0.0"
-    "@nx/web": "npm:23.0.0"
-=======
 "@nx/rspack@npm:23.0.2":
   version: 23.0.2
   resolution: "@nx/rspack@npm:23.0.2"
@@ -4687,7 +4543,6 @@ __metadata:
     "@nx/js": "npm:23.0.2"
     "@nx/module-federation": "npm:23.0.2"
     "@nx/web": "npm:23.0.2"
->>>>>>> 42e09f57b (fix(deps, frontend): update dependency nx to v23.0.2 (#7378))
     "@phenomnomnominal/tsquery": "npm:~6.2.0"
     autoprefixer: "npm:^10.4.9"
     browserslist: "npm:^4.26.0"
@@ -4727,18 +4582,6 @@ __metadata:
       optional: true
     "@rspack/plugin-react-refresh":
       optional: true
-<<<<<<< HEAD
-  checksum: 10c0/46aa4e0a1b14c0afd69752fb904a454505306d45eedd523949461f904d93f24f368a3d598dd16d2605532ad5fc0a774b4bed2221267544a28c094f50aa7d1698
-  languageName: node
-  linkType: hard
-
-"@nx/web@npm:23.0.0":
-  version: 23.0.0
-  resolution: "@nx/web@npm:23.0.0"
-  dependencies:
-    "@nx/devkit": "npm:23.0.0"
-    "@nx/js": "npm:23.0.0"
-=======
   checksum: 10c0/5fd4e7561ebdb8265201fa7ca4f1d92d2f9197bb0bc7b4b7f09bb367778021af6ed744b9a71970aaddea5daac3cefc4bafcaf1c6c1ffea27e1782e3d38c27922
   languageName: node
   linkType: hard
@@ -4749,27 +4592,17 @@ __metadata:
   dependencies:
     "@nx/devkit": "npm:23.0.2"
     "@nx/js": "npm:23.0.2"
->>>>>>> 42e09f57b (fix(deps, frontend): update dependency nx to v23.0.2 (#7378))
     detect-port: "npm:^2.1.0"
     http-server: "npm:^14.1.0"
     picocolors: "npm:^1.1.0"
     tslib: "npm:^2.3.0"
   peerDependencies:
-<<<<<<< HEAD
-    "@nx/cypress": 23.0.0
-    "@nx/eslint": 23.0.0
-    "@nx/jest": 23.0.0
-    "@nx/playwright": 23.0.0
-    "@nx/vite": 23.0.0
-    "@nx/webpack": 23.0.0
-=======
     "@nx/cypress": 23.0.2
     "@nx/eslint": 23.0.2
     "@nx/jest": 23.0.2
     "@nx/playwright": 23.0.2
     "@nx/vite": 23.0.2
     "@nx/webpack": 23.0.2
->>>>>>> 42e09f57b (fix(deps, frontend): update dependency nx to v23.0.2 (#7378))
   peerDependenciesMeta:
     "@nx/cypress":
       optional: true
@@ -4783,19 +4616,6 @@ __metadata:
       optional: true
     "@nx/webpack":
       optional: true
-<<<<<<< HEAD
-  checksum: 10c0/a7927d792b2a814431f179c634ff064bd658b4fe7ca52d299b74071dfdcff9f0ae4636cd43291bc40ffe54d089f62ef232dae403f8961da7ce31eaf273fda513
-  languageName: node
-  linkType: hard
-
-"@nx/webpack@npm:23.0.0":
-  version: 23.0.0
-  resolution: "@nx/webpack@npm:23.0.0"
-  dependencies:
-    "@babel/core": "npm:^7.23.2"
-    "@nx/devkit": "npm:23.0.0"
-    "@nx/js": "npm:23.0.0"
-=======
   checksum: 10c0/8b1509515c9304587fa00be42d7b58e6cabe1e4ddbd80856d163bcbab07dc1f871ae03ed5456dff4757cff2ec38302b3c8c9307a45656a50cf99baf8cb9b2f32
   languageName: node
   linkType: hard
@@ -4807,7 +4627,6 @@ __metadata:
     "@babel/core": "npm:^7.23.2"
     "@nx/devkit": "npm:23.0.2"
     "@nx/js": "npm:23.0.2"
->>>>>>> 42e09f57b (fix(deps, frontend): update dependency nx to v23.0.2 (#7378))
     "@phenomnomnominal/tsquery": "npm:~6.2.0"
     ajv: "npm:^8.0.0"
     autoprefixer: "npm:^10.4.9"
@@ -4850,21 +4669,6 @@ __metadata:
       optional: true
     webpack-dev-server:
       optional: true
-<<<<<<< HEAD
-  checksum: 10c0/874327468e57c67bcfc48ab4f2866e2875e89916434884c76375797b71f409a5cd4f70b8404bed252843cddc9b7823781461a1fed7a414ea39add5e36a78142c
-  languageName: node
-  linkType: hard
-
-"@nx/workspace@npm:23.0.0":
-  version: 23.0.0
-  resolution: "@nx/workspace@npm:23.0.0"
-  dependencies:
-    "@nx/devkit": "npm:23.0.0"
-    "@zkochan/js-yaml": "npm:0.0.7"
-    chalk: "npm:^4.1.0"
-    enquirer: "npm:~2.3.6"
-    nx: "npm:23.0.0"
-=======
   checksum: 10c0/5eb21d3e8a99e10e09a36e1f8a907cde17b208bd45ce6d1a3e5c979f019690ada09815cab0ea3e712d56479e1c1435088a65ee44e4597a7a4434def4f625bb18
   languageName: node
   linkType: hard
@@ -4878,16 +4682,11 @@ __metadata:
     chalk: "npm:^4.1.0"
     enquirer: "npm:~2.3.6"
     nx: "npm:23.0.2"
->>>>>>> 42e09f57b (fix(deps, frontend): update dependency nx to v23.0.2 (#7378))
     picomatch: "npm:4.0.4"
     semver: "npm:^7.6.3"
     tslib: "npm:^2.3.0"
     yargs-parser: "npm:21.1.1"
-<<<<<<< HEAD
-  checksum: 10c0/0144f4e5dce08ffe890cb6d40a7c98fac93452b89678731d53f30b1faa879531ed28fb8da848ce52bd0abe4cf40ac3a7b886a0ad5bec8c6056b504f9d5af491a
-=======
   checksum: 10c0/711478a7dcd3817b5d5a130c95b3df21636c0dd9615b0a2c6b269673b51ab90856c5dae6c8b6d6654a0570be3f738b3f142714d88b3c5bd2000d89cb45a7ce94
->>>>>>> 42e09f57b (fix(deps, frontend): update dependency nx to v23.0.2 (#7378))
   languageName: node
   linkType: hard
 
@@ -10402,7 +10201,20 @@ __metadata:
   languageName: node
   linkType: hard
 
-"form-data@npm:4.0.5, form-data@npm:^4.0.0, form-data@npm:^4.0.5":
+"form-data@npm:4.0.6":
+  version: 4.0.6
+  resolution: "form-data@npm:4.0.6"
+  dependencies:
+    asynckit: "npm:^0.4.0"
+    combined-stream: "npm:^1.0.8"
+    es-set-tostringtag: "npm:^2.1.0"
+    hasown: "npm:^2.0.4"
+    mime-types: "npm:^2.1.35"
+  checksum: 10c0/43947a77bf0ff45c6ceed789778982d47a3f3e720a74b71721174ebf3310a5f1a8be1d6b38a3ee3688e8a18a2c4273073ec0844cd37efda3eaf46d41c9c318ff
+  languageName: node
+  linkType: hard
+
+"form-data@npm:^4.0.0, form-data@npm:^4.0.5":
   version: 4.0.5
   resolution: "form-data@npm:4.0.5"
   dependencies:
@@ -10812,15 +10624,9 @@ __metadata:
     "@ngneat/until-destroy": "npm:8.1.4"
     "@ngx-formly/core": "npm:7.1.0"
     "@ngx-formly/ng-zorro-antd": "npm:7.1.0"
-<<<<<<< HEAD
-    "@nx/angular": "npm:23.0.0"
+    "@nx/angular": "npm:23.0.2"
     "@schematics/angular": "npm:21.2.18"
     "@types/backbone": "npm:1.4.15"
-=======
-    "@nx/angular": "npm:23.0.2"
-    "@schematics/angular": "npm:21.2.19"
-    "@types/backbone": "npm:1.4.23"
->>>>>>> 42e09f57b (fix(deps, frontend): update dependency nx to v23.0.2 (#7378))
     "@types/concaveman": "npm:1.1.6"
     "@types/d3-shape": "npm:2.1.2"
     "@types/dagre": "npm:0.7.47"
@@ -10870,11 +10676,7 @@ __metadata:
     ngx-json-viewer: "npm:3.2.1"
     ngx-markdown: "npm:21.2.0"
     nodecat: "npm:2.0.0"
-<<<<<<< HEAD
-    nx: "npm:23.0.0"
-=======
     nx: "npm:23.0.2"
->>>>>>> 42e09f57b (fix(deps, frontend): update dependency nx to v23.0.2 (#7378))
     papaparse: "npm:5.4.1"
     path-browserify: "npm:1.0.1"
     playwright: "npm:1.59.1"
@@ -10963,12 +10765,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"hasown@npm:2.0.2":
-  version: 2.0.2
-  resolution: "hasown@npm:2.0.2"
+"hasown@npm:2.0.4, hasown@npm:^2.0.4":
+  version: 2.0.4
+  resolution: "hasown@npm:2.0.4"
   dependencies:
     function-bind: "npm:^1.1.2"
-  checksum: 10c0/3769d434703b8ac66b209a4cca0737519925bbdb61dd887f93a16372b14694c63ff4e797686d87c90f08168e81082248b9b028bad60d4da9e0d1148766f56eb9
+  checksum: 10c0/2d8de939e270b70618f8cebb69746620db10617dbb495bc66ddad326955ea24d3ca4af133aff3eb7c1853e0218f867bc2b050ec26fe02e3aea58f880ffc5e506
   languageName: node
   linkType: hard
 
@@ -12881,7 +12683,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"mime-types@npm:2.1.35, mime-types@npm:^2.1.12, mime-types@npm:^2.1.27, mime-types@npm:~2.1.24, mime-types@npm:~2.1.34, mime-types@npm:~2.1.35":
+"mime-types@npm:2.1.35, mime-types@npm:^2.1.12, mime-types@npm:^2.1.27, mime-types@npm:^2.1.35, mime-types@npm:~2.1.24, mime-types@npm:~2.1.34, mime-types@npm:~2.1.35":
   version: 2.1.35
   resolution: "mime-types@npm:2.1.35"
   dependencies:
@@ -13631,33 +13433,15 @@ __metadata:
   languageName: node
   linkType: hard
 
-<<<<<<< HEAD
-"nx@npm:23.0.0":
-  version: 23.0.0
-  resolution: "nx@npm:23.0.0"
-=======
 "nx@npm:23.0.2":
   version: 23.0.2
   resolution: "nx@npm:23.0.2"
->>>>>>> 42e09f57b (fix(deps, frontend): update dependency nx to v23.0.2 (#7378))
   dependencies:
     "@emnapi/core": "npm:1.4.5"
     "@emnapi/runtime": "npm:1.4.5"
     "@emnapi/wasi-threads": "npm:1.0.4"
     "@jest/diff-sequences": "npm:30.0.1"
     "@napi-rs/wasm-runtime": "npm:0.2.4"
-<<<<<<< HEAD
-    "@nx/nx-darwin-arm64": "npm:23.0.0"
-    "@nx/nx-darwin-x64": "npm:23.0.0"
-    "@nx/nx-freebsd-x64": "npm:23.0.0"
-    "@nx/nx-linux-arm-gnueabihf": "npm:23.0.0"
-    "@nx/nx-linux-arm64-gnu": "npm:23.0.0"
-    "@nx/nx-linux-arm64-musl": "npm:23.0.0"
-    "@nx/nx-linux-x64-gnu": "npm:23.0.0"
-    "@nx/nx-linux-x64-musl": "npm:23.0.0"
-    "@nx/nx-win32-arm64-msvc": "npm:23.0.0"
-    "@nx/nx-win32-x64-msvc": "npm:23.0.0"
-=======
     "@nx/nx-darwin-arm64": "npm:23.0.2"
     "@nx/nx-darwin-x64": "npm:23.0.2"
     "@nx/nx-freebsd-x64": "npm:23.0.2"
@@ -13668,7 +13452,6 @@ __metadata:
     "@nx/nx-linux-x64-musl": "npm:23.0.2"
     "@nx/nx-win32-arm64-msvc": "npm:23.0.2"
     "@nx/nx-win32-x64-msvc": "npm:23.0.2"
->>>>>>> 42e09f57b (fix(deps, frontend): update dependency nx to v23.0.2 (#7378))
     "@tybys/wasm-util": "npm:0.9.0"
     "@yarnpkg/lockfile": "npm:1.1.0"
     "@zkochan/js-yaml": "npm:0.0.7"
@@ -13713,7 +13496,7 @@ __metadata:
     figures: "npm:3.2.0"
     flat: "npm:5.0.2"
     follow-redirects: "npm:1.16.0"
-    form-data: "npm:4.0.5"
+    form-data: "npm:4.0.6"
     fs-constants: "npm:1.0.0"
     function-bind: "npm:1.1.2"
     get-caller-file: "npm:2.0.5"
@@ -13723,12 +13506,8 @@ __metadata:
     has-flag: "npm:4.0.0"
     has-symbols: "npm:1.1.0"
     has-tostringtag: "npm:1.0.2"
-<<<<<<< HEAD
-    hasown: "npm:2.0.2"
-=======
     hasown: "npm:2.0.4"
     https-proxy-agent: "npm:5.0.1"
->>>>>>> 42e09f57b (fix(deps, frontend): update dependency nx to v23.0.2 (#7378))
     ieee754: "npm:1.2.1"
     ignore: "npm:7.0.5"
     inherits: "npm:2.0.4"
@@ -13771,7 +13550,7 @@ __metadata:
     strip-bom: "npm:3.0.0"
     supports-color: "npm:7.2.0"
     tar-stream: "npm:2.2.0"
-    tmp: "npm:0.2.6"
+    tmp: "npm:0.2.7"
     tsconfig-paths: "npm:4.2.0"
     tslib: "npm:2.8.1"
     util-deprecate: "npm:1.0.2"
@@ -13815,11 +13594,7 @@ __metadata:
   bin:
     nx: ./dist/bin/nx.js
     nx-cloud: ./dist/bin/nx-cloud.js
-<<<<<<< HEAD
-  checksum: 10c0/a12e272b9e2208adabdf5e2d331771029e2d19a53e7a9bdb8b067bae3931598042e05d503d8df58661588cc7158a4d92266e1d408f385ce6e85031139823e0f0
-=======
   checksum: 10c0/214201e6f2c07a5c315f7a8630519b879023157a1443cb3fd0bb2d0a9a5132671bfc7e92809f818bad506d4e2894b9d64ec4d5ae30632d11c359e350df4cb0e5
->>>>>>> 42e09f57b (fix(deps, frontend): update dependency nx to v23.0.2 (#7378))
   languageName: node
   linkType: hard
 
@@ -17084,10 +16859,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"tmp@npm:0.2.6":
-  version: 0.2.6
-  resolution: "tmp@npm:0.2.6"
-  checksum: 10c0/fa5b9bfbe60f70904aba5c96b4970e9158d99867891302d10320fe35eee1e45f42946fded4cf5c8514baa087bebee44419029b7deb227da05a68b5205a12d8ab
+"tmp@npm:0.2.7":
+  version: 0.2.7
+  resolution: "tmp@npm:0.2.7"
+  checksum: 10c0/59eb55584f2f07210d3231b6a1f6b5c2b9794d8a7b509c8ee867ed2acad6d2245ee2448b7937b676ffbff3155a70077edde8a69f9d7cf0f90c86a62e8910c357
   languageName: node
   linkType: hard
 
