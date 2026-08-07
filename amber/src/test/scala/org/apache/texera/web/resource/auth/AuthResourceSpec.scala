@@ -131,14 +131,14 @@ class AuthResourceSpec
 
   // ─── register ─────────────────────────────────────────────────────────────
 
-  "register" should "persist a RESTRICTED user with a hashed password and issue a token" in {
+  "register" should "persist an INACTIVE user with a hashed password and issue a token" in {
     val response = resource.register(UserRegistrationRequest(uname("reg"), uemail("reg"), "pw"))
 
     subjectOf(response.accessToken) shouldBe uname("reg")
     val persisted = userDao.fetchByName(uname("reg"))
     persisted.size() shouldBe 1
     val stored = persisted.get(0)
-    stored.getRole shouldBe UserRoleEnum.RESTRICTED
+    stored.getRole shouldBe UserRoleEnum.INACTIVE
     stored.getEmail shouldBe uemail("reg")
     stored.getIsPlaceholder shouldBe false
     // stored hashed, not in plain text, but verifies against the plain password
