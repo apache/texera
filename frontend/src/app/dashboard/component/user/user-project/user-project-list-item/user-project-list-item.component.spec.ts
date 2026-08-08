@@ -31,6 +31,7 @@ import { StubUserService } from "../../../../../common/service/user/stub-user.se
 import { UserService } from "../../../../../common/service/user/user.service";
 import { commonTestProviders } from "../../../../../common/testing/test-utils";
 import { ShareAccessComponent } from "../../share-access/share-access.component";
+import { DatePipe } from "@angular/common";
 import { of } from "rxjs";
 import { MarkdownModule } from "ngx-markdown";
 
@@ -238,11 +239,11 @@ describe("UserProjectListItemComponent", () => {
       const el = render({ name: "quarterly", creationTime: januaryFirst1970 });
 
       expect(el.textContent).toContain("quarterly");
-      // Matched as a shape rather than a literal: the pipe renders in the runner's local zone, so
-      // a fixed string would pin the timezone instead of the yyyy-MM-dd HH:mm format.
-      expect(el.querySelector("nz-list-item-meta-description p")?.textContent?.trim()).toMatch(
-        /^Created: \d{4}-\d{2}-\d{2} \d{2}:\d{2}$/
-      );
+      // Expected value is formatted here with the same pipe and format string, so the assertion
+      // pins both the yyyy-MM-dd HH:mm format and the timestamp it was given, without hard-coding
+      // a literal that would only hold in one timezone.
+      const expected = new DatePipe("en-US").transform(januaryFirst1970, "yyyy-MM-dd HH:mm");
+      expect(el.querySelector("nz-list-item-meta-description p")?.textContent?.trim()).toBe(`Created: ${expected}`);
     });
 
     it("hides every editing control from a read-only viewer", () => {
