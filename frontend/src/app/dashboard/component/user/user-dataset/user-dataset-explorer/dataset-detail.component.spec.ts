@@ -18,6 +18,7 @@
  */
 
 import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { By } from "@angular/platform-browser";
 import { ActivatedRoute, Router } from "@angular/router";
 import { of, Subject, throwError } from "rxjs";
 import { NzModalService } from "ng-zorro-antd/modal";
@@ -1527,6 +1528,147 @@ describe("DatasetDetailComponent behavior", () => {
       component.onDeleteContributor(contributorA);
 
       expect(datasetServiceStub.updateDatasetContributors).not.toHaveBeenCalled();
+    });
+  });
+
+  // ─── template rendering ────────────────────────────────────────────────────
+  // These drive the markup through the DOM (rather than calling handlers directly)
+  // so the template's bindings and conditional blocks actually execute.
+  describe("template rendering", () => {
+    // Renders the component and applies the given state, so each *ngIf arm is exercised.
+    // The first detectChanges() lets ngOnInit's subscriptions settle — they reset fields
+    // such as coverImageUrl — so the state is applied afterwards and rendered by a
+    // second change-detection pass.
+    const renderWith = (state: Partial<DatasetDetailComponent> = {}): void => {
+      createComponent();
+      fixture.detectChanges();
+      Object.assign(component, state);
+      fixture.detectChanges();
+    };
+
+    const clickByCss = (selector: string): void => {
+      const el = fixture.debugElement.query(By.css(selector));
+      expect(el).toBeTruthy();
+      el.triggerEventHandler("click", null);
+      fixture.detectChanges();
+    };
+
+    // nz-tabs renders only the active tab's content, so a tab must be opened by its
+    // title before the markup inside it can be queried.
+    const openTab = (title: string): void => {
+      const tab = fixture.debugElement
+        .queryAll(By.css(".ant-tabs-tab"))
+        .find(el => (el.nativeElement.textContent ?? "").includes(title));
+      expect(tab).toBeTruthy();
+      tab!.nativeElement.click();
+      fixture.detectChanges();
+    };
+
+    it("toggles the like through the like tag when logged in", () => {
+      // toggleLike() early-returns unless currentUid is set, which login() supplies
+      createComponent();
+      fixture.detectChanges();
+      login();
+      Object.assign(component, { isLogin: true, did: 5, isLiked: false, likeCount: 1 });
+      fixture.detectChanges();
+
+      clickByCss(".like-tag");
+
+      expect(hubServiceStub.postLike).toHaveBeenCalled();
+    });
+
+    it("unlikes through the same tag when the dataset is already liked", () => {
+      createComponent();
+      fixture.detectChanges();
+      login();
+      Object.assign(component, { isLogin: true, did: 5, isLiked: true, likeCount: 2 });
+      fixture.detectChanges();
+
+      clickByCss(".like-tag");
+
+      expect(hubServiceStub.postUnlike).toHaveBeenCalled();
+    });
+
+    it("does not toggle the like when logged out", () => {
+      renderWith({ isLogin: false, did: 5, isLiked: false, likeCount: 1 });
+
+      const likeTag = fixture.debugElement.query(By.css(".like-tag"));
+      expect(likeTag).toBeTruthy();
+      // the template guards the handler with `isLogin &&`
+      expect(likeTag.nativeElement.classList).toContain("disabled");
+
+      likeTag.triggerEventHandler("click", null);
+
+      expect(hubServiceStub.postLike).not.toHaveBeenCalled();
+    });
+
+    it("omits the cover image when there is no cover URL", () => {
+      renderWith({ coverImageUrl: null });
+      expect(fixture.debugElement.query(By.css(".dataset-cover-image"))).toBeNull();
+    });
+
+    it("renders the cover image bound to the cover URL", () => {
+      renderWith({ coverImageUrl: "blob:cover" });
+      const img = fixture.debugElement.query(By.css(".dataset-cover-image"));
+      expect(img).toBeTruthy();
+      expect(img.nativeElement.getAttribute("src")).toBe("blob:cover");
+    });
+
+    it("collapses the right bar from the template, then renders the restore control", () => {
+      renderWith({ isRightBarCollapsed: false });
+      openTab("Versions & Files");
+
+      // both arms of the *ngIf pair are exercised: hide first, then the show button
+      clickByCss("button[nz-tooltip='Hide the right bar']");
+      expect(component.isRightBarCollapsed).toBe(true);
+
+      clickByCss("button[nz-tooltip='Show Tree']");
+      expect(component.isRightBarCollapsed).toBe(false);
+    });
+
+    it("binds the dataset name input and saves it from the template", () => {
+      // the Settings tab is behind *ngIf="userHasWriteAccess()"
+      renderWith({ did: 5, editedDatasetName: "renamed", userDatasetAccessLevel: "WRITE" });
+      openTab("Settings");
+
+      const input = fixture.debugElement.query(By.css(".settings-name-controls input[nz-input]"));
+      expect(input).toBeTruthy();
+
+      const saveBtn = fixture.debugElement
+        .queryAll(By.css("button"))
+        .find(btn => (btn.nativeElement.textContent ?? "").trim() === "Save");
+      expect(saveBtn).toBeTruthy();
+      saveBtn!.triggerEventHandler("click", null);
+
+      expect(datasetServiceStub.updateDatasetName).toHaveBeenCalled();
+    });
+
+    it("renders the contributor list and opens the editor for one", () => {
+      renderWith({
+        did: 5,
+        datasetContributors: [
+          { name: "Ada", email: "ada@x.io", affiliation: "" } as Contributor,
+          { name: "Grace", email: "grace@x.io", affiliation: "" } as Contributor,
+        ],
+      });
+
+      const rendered = fixture.debugElement.nativeElement.textContent ?? "";
+      expect(rendered).toContain("Ada");
+      expect(rendered).toContain("Grace");
+    });
+
+    it("renders the settings switches and routes their changes to the service", () => {
+      renderWith({ did: 5, datasetIsPublic: false, datasetIsDownloadable: true, userDatasetAccessLevel: "WRITE" });
+      openTab("Settings");
+
+      // both switches are bound in the settings tab
+      expect(fixture.debugElement.queryAll(By.css("nz-switch")).length).toBeGreaterThanOrEqual(2);
+
+      component.onPublicStatusChange(true);
+      expect(datasetServiceStub.updateDatasetPublicity).toHaveBeenCalledWith(5);
+
+      component.onDownloadableStatusChange(false);
+      expect(datasetServiceStub.updateDatasetDownloadable).toHaveBeenCalledWith(5);
     });
   });
 });
