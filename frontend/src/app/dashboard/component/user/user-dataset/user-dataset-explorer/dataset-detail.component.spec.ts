@@ -22,7 +22,11 @@ import { ActivatedRoute, Router } from "@angular/router";
 import { of, Subject, throwError } from "rxjs";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { MarkdownService } from "ngx-markdown";
-import { DatasetDetailComponent } from "./dataset-detail.component";
+import {
+  DatasetDetailComponent,
+  ABORT_RETRY_BACKOFF_BASE_MS,
+  ABORT_RETRY_MAX_ATTEMPTS,
+} from "./dataset-detail.component";
 import { DatasetService, MultipartUploadProgress } from "../../../../service/user/dataset/dataset.service";
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
 import { DownloadService } from "../../../../service/user/download/download.service";
@@ -129,6 +133,146 @@ describe("DatasetDetailComponent upload queue", () => {
     // Log in so ngOnInit reaches loadUploadSettings (maxConcurrentFiles = 3).
     (TestBed.inject(UserService) as unknown as StubUserService).userChangeSubject.next(MOCK_USER);
     fixture.detectChanges();
+  });
+
+  /**
+   * Aborting an in-flight upload has to survive the backend still finalizing the previous attempt:
+   * the abort call is retried on 409 up to ABORT_RETRY_MAX_ATTEMPTS, a 404 means it is already gone,
+   * and the caller's callback must fire exactly once down every one of those paths.
+   */
+  describe("aborting an upload", () => {
+    let finalize: ReturnType<typeof vi.fn>;
+
+    beforeEach(() => {
+      vi.useFakeTimers();
+      finalize = TestBed.inject(DatasetService).finalizeMultipartUpload as unknown as ReturnType<typeof vi.fn>;
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    /** Starts an upload and reports progress, leaving one task in flight. */
+    function inFlight(name = "a.txt") {
+      dropFiles(name);
+      uploadSubjects[0].next({ filePath: name, percentage: 10, status: "uploading", totalTime: 0 });
+      return component.uploadTasks.find(t => t.filePath === name)!;
+    }
+
+    const conflict = () => throwError(() => ({ status: 409 }) as any);
+    const gone = () => throwError(() => ({ status: 404 }) as any);
+
+    it("marks the task aborted and tells the caller once", () => {
+      const task = inFlight();
+      const onAborted = vi.fn();
+
+      component.onClickAbortUploadProgress(task as any, onAborted);
+
+      expect(finalize).toHaveBeenCalledWith("owner@texera.com", "test-dataset", "a.txt", true);
+      expect(component.uploadTasks.find(t => t.filePath === "a.txt")!.status).toBe("aborted");
+      expect(onAborted).toHaveBeenCalledTimes(1);
+    });
+
+    it("stops listening to the upload it aborted", () => {
+      const task = inFlight();
+
+      component.onClickAbortUploadProgress(task as any);
+
+      // The progress stream is unsubscribed, so a late event cannot resurrect the task.
+      uploadSubjects[0].next({ filePath: "a.txt", percentage: 100, status: "finished", totalTime: 1 });
+      expect(component.uploadTasks.find(t => t.filePath === "a.txt")!.status).toBe("aborted");
+    });
+
+    it("treats a 404 as already aborted rather than an error", () => {
+      finalize.mockReturnValueOnce(gone());
+      const task = inFlight();
+      const onAborted = vi.fn();
+
+      component.onClickAbortUploadProgress(task as any, onAborted);
+
+      expect(onAborted).toHaveBeenCalledTimes(1);
+      expect(finalize).toHaveBeenCalledTimes(1);
+    });
+
+    it("retries a 409 after a backoff and finishes once the server catches up", () => {
+      // The server is still finalizing the previous attempt; the abort has to wait it out.
+      finalize.mockReturnValueOnce(conflict());
+      const task = inFlight();
+      const onAborted = vi.fn();
+
+      component.onClickAbortUploadProgress(task as any, onAborted);
+      expect(onAborted).not.toHaveBeenCalled();
+
+      vi.advanceTimersByTime(ABORT_RETRY_BACKOFF_BASE_MS);
+
+      expect(finalize).toHaveBeenCalledTimes(2);
+      expect(onAborted).toHaveBeenCalledTimes(1);
+    });
+
+    it("backs off further on each successive conflict", () => {
+      finalize.mockReturnValue(conflict());
+      const task = inFlight();
+
+      component.onClickAbortUploadProgress(task as any);
+      expect(finalize).toHaveBeenCalledTimes(1);
+
+      // First wait is BASE * 1, the second BASE * 2, so BASE alone is not enough for the third call.
+      vi.advanceTimersByTime(ABORT_RETRY_BACKOFF_BASE_MS);
+      expect(finalize).toHaveBeenCalledTimes(2);
+
+      vi.advanceTimersByTime(ABORT_RETRY_BACKOFF_BASE_MS);
+      expect(finalize).toHaveBeenCalledTimes(2);
+
+      vi.advanceTimersByTime(ABORT_RETRY_BACKOFF_BASE_MS);
+      expect(finalize).toHaveBeenCalledTimes(3);
+    });
+
+    it("gives up after the attempt limit but still reports the abort", () => {
+      // Without the bound this would retry forever against a permanently conflicted server.
+      finalize.mockReturnValue(conflict());
+      const task = inFlight();
+      const onAborted = vi.fn();
+
+      component.onClickAbortUploadProgress(task as any, onAborted);
+      vi.advanceTimersByTime(ABORT_RETRY_BACKOFF_BASE_MS * ABORT_RETRY_MAX_ATTEMPTS * (ABORT_RETRY_MAX_ATTEMPTS + 1));
+
+      expect(finalize).toHaveBeenCalledTimes(ABORT_RETRY_MAX_ATTEMPTS + 1);
+      expect(onAborted).toHaveBeenCalledTimes(1);
+    });
+
+    it("reports the abort once even on an error the retry does not cover", () => {
+      finalize.mockReturnValueOnce(throwError(() => ({ status: 500 }) as any));
+      const task = inFlight();
+      const onAborted = vi.fn();
+
+      component.onClickAbortUploadProgress(task as any, onAborted);
+
+      expect(onAborted).toHaveBeenCalledTimes(1);
+      expect(finalize).toHaveBeenCalledTimes(1);
+    });
+
+    it("frees the concurrency slot so a queued upload can start", () => {
+      // Aborting has to release the slot as an ordinary completion would; otherwise the queue
+      // stalls behind an upload that is no longer running.
+      dropFiles("a.txt", "b.txt", "c.txt", "d.txt");
+      expect(uploadedPaths).toEqual(["a.txt", "b.txt", "c.txt"]);
+      uploadSubjects[0].next({ filePath: "a.txt", percentage: 10, status: "uploading", totalTime: 0 });
+      const task = component.uploadTasks.find(t => t.filePath === "a.txt")!;
+
+      component.onClickAbortUploadProgress(task as any);
+
+      expect(uploadedPaths).toContain("d.txt");
+    });
+
+    it("cancelExistingUpload aborts an upload that is still running", () => {
+      inFlight("b.txt");
+      const onCanceled = vi.fn();
+
+      component.cancelExistingUpload("b.txt", onCanceled);
+
+      expect(finalize).toHaveBeenCalledWith("owner@texera.com", "test-dataset", "b.txt", true);
+      expect(onCanceled).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe("contributor cards", () => {
