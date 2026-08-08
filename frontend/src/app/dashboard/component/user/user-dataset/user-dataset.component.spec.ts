@@ -387,6 +387,9 @@ describe("UserDatasetComponent", () => {
  * These tests mount it for real: the view toggle, the sort wiring and the bindings handed to the
  * results list all live only in the template.
  */
+/** Mirrors UserDatasetComponent's private static VIEW_MODE_STORAGE_KEY. */
+const VIEW_MODE_STORAGE_KEY = "texera.userDataset.viewMode";
+
 describe("UserDatasetComponent rendering", () => {
   let fixture: ComponentFixture<UserDatasetComponent>;
   let component: UserDatasetComponent;
@@ -394,8 +397,9 @@ describe("UserDatasetComponent rendering", () => {
 
   beforeEach(async () => {
     // viewType is seeded from localStorage at construction, so a view chosen by an earlier test
-    // would leak into this one.
-    localStorage.clear();
+    // would leak into this one. Only this component's key is removed, so nothing else in the
+    // shared jsdom store is disturbed.
+    localStorage.removeItem(VIEW_MODE_STORAGE_KEY);
     searchSpy = vi.fn(() => of({ entries: [], more: false, hasMismatch: false }));
     await TestBed.configureTestingModule({
       imports: [UserDatasetComponent, ...commonTestImports],
@@ -427,10 +431,13 @@ describe("UserDatasetComponent rendering", () => {
    */
   function viewButtons(): { list: HTMLButtonElement; card: HTMLButtonElement } {
     const host = fixture.nativeElement as HTMLElement;
-    return {
-      list: host.querySelector<HTMLButtonElement>('button[title="List View"]')!,
-      card: host.querySelector<HTMLButtonElement>('button[title="Card View"]')!,
-    };
+    const list = host.querySelector<HTMLButtonElement>('button[title="List View"]');
+    const card = host.querySelector<HTMLButtonElement>('button[title="Card View"]');
+    // Named up front so a renamed title fails as a missing button rather than a null dereference
+    // three lines later.
+    expect(list, 'no button titled "List View"').not.toBeNull();
+    expect(card, 'no button titled "Card View"').not.toBeNull();
+    return { list: list!, card: card! };
   }
 
   it("starts in card view with only that button highlighted", () => {
@@ -495,9 +502,10 @@ describe("UserDatasetComponent rendering", () => {
   it("opens the create-dataset flow from the toolbar button", () => {
     const spy = vi.spyOn(component, "onClickOpenDatasetAddComponent").mockImplementation(() => {});
     const host = fixture.nativeElement as HTMLElement;
-    const create = host.querySelector<HTMLButtonElement>("button.create-btn")!;
+    const create = host.querySelector<HTMLButtonElement>("button.create-btn");
+    expect(create, "no button matching .create-btn").not.toBeNull();
 
-    create.click();
+    create!.click();
 
     expect(spy).toHaveBeenCalledTimes(1);
   });
