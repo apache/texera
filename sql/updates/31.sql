@@ -23,157 +23,38 @@ SET search_path TO texera_db;
 
 BEGIN;
 
--- The file resolver now requires an explicit resource-type prefix on dataset
--- logical paths (/datasets/ownerEmail/datasetName/versionName/...) so other
--- resource types (e.g. models) can be told apart by the prefix. Existing
--- workflows store unprefixed dataset paths inside workflow.content and
--- workflow_version.content, in two operator properties:
---   * fileName            (scan-source operators): /owner/name/version/file
---   * datasetVersionPath  (file-lister operator):  /owner/name/version
--- This migration prepends the "datasets" segment to both.
---
--- A value is treated as a dataset path only when its first two segments match an
--- existing (user.email, dataset.name) pair -- that pair is unique.
--- Local file paths and URLs match no dataset and are left untouched.
--- Already-prefixed values are skipped (idempotent). jsonb_set
--- uses create_missing = false so absent properties are never added.
+ALTER TABLE "user"
+    ADD COLUMN is_placeholder BOOLEAN NOT NULL DEFAULT FALSE,
+    DROP CONSTRAINT ck_nulltest,
+    ADD CONSTRAINT ck_nulltest CHECK ((password IS NOT NULL) OR (google_id IS NOT NULL) OR is_placeholder);
 
-DO $$
-DECLARE
-    wf_count INT := 0;
-    wv_count INT := 0;
-BEGIN
-    WITH affected AS (
-        SELECT w.wid
-        FROM workflow w,
-             jsonb_array_elements(w.content::jsonb -> 'operators') AS op,
-             LATERAL (
-                 SELECT op #>> '{operatorProperties,fileName}'           AS fn,
-                        op #>> '{operatorProperties,datasetVersionPath}' AS dvp
-             ) f
-        WHERE jsonb_typeof(w.content::jsonb -> 'operators') = 'array'
-          AND (
-              (f.fn IS NOT NULL AND left(f.fn, 10) <> '/datasets/'
-                 AND EXISTS (SELECT 1 FROM dataset d JOIN "user" u ON d.owner_uid = u.uid
-                             WHERE u.email = split_part(ltrim(f.fn, '/'), '/', 1)
-                               AND d.name  = split_part(ltrim(f.fn, '/'), '/', 2)))
-              OR
-              (f.dvp IS NOT NULL AND left(f.dvp, 10) <> '/datasets/'
-                 AND EXISTS (SELECT 1 FROM dataset d JOIN "user" u ON d.owner_uid = u.uid
-                             WHERE u.email = split_part(ltrim(f.dvp, '/'), '/', 1)
-                               AND d.name  = split_part(ltrim(f.dvp, '/'), '/', 2)))
-          )
-        GROUP BY w.wid
-    ),
-    updated AS (
-        UPDATE workflow w
-        SET content = jsonb_set(w.content::jsonb, '{operators}', (
-            SELECT jsonb_agg(
-                jsonb_set(
-                    jsonb_set(
-                        op,
-                        '{operatorProperties,fileName}',
-                        CASE
-                            WHEN f.fn IS NOT NULL AND left(f.fn, 10) <> '/datasets/'
-                             AND EXISTS (SELECT 1 FROM dataset d JOIN "user" u ON d.owner_uid = u.uid
-                                         WHERE u.email = split_part(ltrim(f.fn, '/'), '/', 1)
-                                           AND d.name  = split_part(ltrim(f.fn, '/'), '/', 2))
-                            THEN to_jsonb('/datasets/' || ltrim(f.fn, '/'))
-                            ELSE COALESCE(op #> '{operatorProperties,fileName}', 'null'::jsonb)
-                        END,
-                        false
-                    ),
-                    '{operatorProperties,datasetVersionPath}',
-                    CASE
-                        WHEN f.dvp IS NOT NULL AND left(f.dvp, 10) <> '/datasets/'
-                         AND EXISTS (SELECT 1 FROM dataset d JOIN "user" u ON d.owner_uid = u.uid
-                                     WHERE u.email = split_part(ltrim(f.dvp, '/'), '/', 1)
-                                       AND d.name  = split_part(ltrim(f.dvp, '/'), '/', 2))
-                        THEN to_jsonb('/datasets/' || ltrim(f.dvp, '/'))
-                        ELSE COALESCE(op #> '{operatorProperties,datasetVersionPath}', 'null'::jsonb)
-                    END,
-                    false
-                )
-                ORDER BY ord
-            )
-            FROM jsonb_array_elements(w.content::jsonb -> 'operators') WITH ORDINALITY AS t(op, ord),
-                 LATERAL (
-                     SELECT op #>> '{operatorProperties,fileName}'           AS fn,
-                            op #>> '{operatorProperties,datasetVersionPath}' AS dvp
-                 ) f
-        ))::text
-        FROM affected a
-        WHERE w.wid = a.wid
-        RETURNING 1
-    )
-    SELECT count(*) INTO wf_count FROM updated;
+ALTER TABLE dataset_contributor
+    ADD COLUMN uid INT REFERENCES "user" (uid) ON DELETE SET NULL;
 
-    WITH affected AS (
-        SELECT wv.vid
-        FROM workflow_version wv,
-             jsonb_array_elements(wv.content::jsonb -> 'operators') AS op,
-             LATERAL (
-                 SELECT op #>> '{operatorProperties,fileName}'           AS fn,
-                        op #>> '{operatorProperties,datasetVersionPath}' AS dvp
-             ) f
-        WHERE jsonb_typeof(wv.content::jsonb -> 'operators') = 'array'
-          AND (
-              (f.fn IS NOT NULL AND left(f.fn, 10) <> '/datasets/'
-                 AND EXISTS (SELECT 1 FROM dataset d JOIN "user" u ON d.owner_uid = u.uid
-                             WHERE u.email = split_part(ltrim(f.fn, '/'), '/', 1)
-                               AND d.name  = split_part(ltrim(f.fn, '/'), '/', 2)))
-              OR
-              (f.dvp IS NOT NULL AND left(f.dvp, 10) <> '/datasets/'
-                 AND EXISTS (SELECT 1 FROM dataset d JOIN "user" u ON d.owner_uid = u.uid
-                             WHERE u.email = split_part(ltrim(f.dvp, '/'), '/', 1)
-                               AND d.name  = split_part(ltrim(f.dvp, '/'), '/', 2)))
-          )
-        GROUP BY wv.vid
-    ),
-    updated AS (
-        UPDATE workflow_version wv
-        SET content = jsonb_set(wv.content::jsonb, '{operators}', (
-            SELECT jsonb_agg(
-                jsonb_set(
-                    jsonb_set(
-                        op,
-                        '{operatorProperties,fileName}',
-                        CASE
-                            WHEN f.fn IS NOT NULL AND left(f.fn, 10) <> '/datasets/'
-                             AND EXISTS (SELECT 1 FROM dataset d JOIN "user" u ON d.owner_uid = u.uid
-                                         WHERE u.email = split_part(ltrim(f.fn, '/'), '/', 1)
-                                           AND d.name  = split_part(ltrim(f.fn, '/'), '/', 2))
-                            THEN to_jsonb('/datasets/' || ltrim(f.fn, '/'))
-                            ELSE COALESCE(op #> '{operatorProperties,fileName}', 'null'::jsonb)
-                        END,
-                        false
-                    ),
-                    '{operatorProperties,datasetVersionPath}',
-                    CASE
-                        WHEN f.dvp IS NOT NULL AND left(f.dvp, 10) <> '/datasets/'
-                         AND EXISTS (SELECT 1 FROM dataset d JOIN "user" u ON d.owner_uid = u.uid
-                                     WHERE u.email = split_part(ltrim(f.dvp, '/'), '/', 1)
-                                       AND d.name  = split_part(ltrim(f.dvp, '/'), '/', 2))
-                        THEN to_jsonb('/datasets/' || ltrim(f.dvp, '/'))
-                        ELSE COALESCE(op #> '{operatorProperties,datasetVersionPath}', 'null'::jsonb)
-                    END,
-                    false
-                )
-                ORDER BY ord
-            )
-            FROM jsonb_array_elements(wv.content::jsonb -> 'operators') WITH ORDINALITY AS t(op, ord),
-                 LATERAL (
-                     SELECT op #>> '{operatorProperties,fileName}'           AS fn,
-                            op #>> '{operatorProperties,datasetVersionPath}' AS dvp
-                 ) f
-        ))::text
-        FROM affected a
-        WHERE wv.vid = a.vid
-        RETURNING 1
-    )
-    SELECT count(*) INTO wv_count FROM updated;
+-- Contributor emails are resolved with lower(email) lookups.
+CREATE INDEX idx_user_email_lower ON "user" (lower(email));
 
-    RAISE NOTICE 'Prefixed legacy dataset paths with "datasets/" in % workflow and % workflow_version row(s).', wf_count, wv_count;
-END $$;
+-- Drop legacy duplicate emails per dataset (keep the oldest row) so the
+-- unique index below can be built.
+DELETE FROM dataset_contributor dc
+USING dataset_contributor keeper
+WHERE keeper.did = dc.did
+  AND keeper.cid < dc.cid
+  AND dc.email IS NOT NULL AND trim(dc.email) <> ''
+  AND keeper.email IS NOT NULL
+  AND lower(trim(keeper.email)) = lower(trim(dc.email));
+
+-- Per-dataset contributor emails are unique (blank emails exempt).
+CREATE UNIQUE INDEX idx_dataset_contributor_did_email
+    ON dataset_contributor (did, lower(trim(email)))
+    WHERE email IS NOT NULL AND trim(email) <> '';
+
+-- Link existing contributors to registered users by normalized email.
+UPDATE dataset_contributor dc
+SET uid = u.uid
+FROM "user" u
+WHERE dc.uid IS NULL
+  AND dc.email IS NOT NULL
+  AND lower(trim(dc.email)) = lower(u.email);
 
 COMMIT;

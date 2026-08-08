@@ -25,6 +25,7 @@ import jakarta.annotation.security.{PermitAll, RolesAllowed}
 import jakarta.ws.rs._
 import jakarta.ws.rs.core._
 import org.apache.texera.common.config.StorageConfig
+import org.apache.texera.common.util.EmailUtil
 import org.apache.texera.amber.core.storage.model.OnDataset
 import org.apache.texera.amber.core.storage.util.LakeFSStorageClient
 import org.apache.texera.amber.core.storage.{DocumentFactory, FileResolver, ResourceType}
@@ -32,7 +33,7 @@ import org.apache.texera.auth.SessionUser
 import org.apache.texera.dao.SiteSettings
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.SqlServer.withTransaction
-import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
+import org.apache.texera.dao.jooq.generated.enums.{PrivilegeEnum, UserRoleEnum}
 import org.apache.texera.dao.jooq.generated.tables.Dataset.DATASET
 import org.apache.texera.dao.jooq.generated.tables.DatasetContributor.DATASET_CONTRIBUTOR
 import org.apache.texera.dao.jooq.generated.tables.DatasetUserAccess.DATASET_USER_ACCESS
@@ -201,16 +202,49 @@ object DatasetResource {
           creator = record.getCreator,
           affiliation = record.getAffiliation,
           email = record.getEmail,
-          comments = record.getComments
+          comments = record.getComments,
+          uid = Option(record.getUid)
         )
       }
   }
 
   /**
+    * Resolves a normalized contributor email to a user account, creating a
+    * placeholder account when no user with that email exists.
+    */
+  private def resolveContributorUid(
+      ctx: DSLContext,
+      did: Integer,
+      name: String,
+      normalizedEmail: String
+  ): Integer = {
+    val existing = ctx
+      .select(USER.UID)
+      .from(USER)
+      .where(DSL.lower(USER.EMAIL).eq(normalizedEmail))
+      .fetchOne(USER.UID)
+    if (existing != null) {
+      existing
+    } else {
+      val placeholder = ctx.newRecord(USER)
+      placeholder.setName(name)
+      placeholder.setEmail(normalizedEmail)
+      placeholder.setRole(UserRoleEnum.INACTIVE)
+      placeholder.setIsPlaceholder(true)
+      placeholder.setComment(s"Auto-created as contributor of dataset $did")
+      placeholder.store()
+      placeholder.getUid
+    }
+  }
+
+  /**
     * Helper function to insert the contributors of a dataset in one batch
     */
+  private def contributorEmail(contributor: Contributor): Option[String] =
+    Option(contributor.email).map(EmailUtil.normalize).filter(_.nonEmpty)
+
   def insertContributors(ctx: DSLContext, did: Integer, contributors: List[Contributor]): Unit = {
-    val records = contributors.map { contributor =>
+    contributors.foreach { contributor =>
       if (contributor == null || contributor.name == null || contributor.name.trim.isEmpty) {
         throw new BadRequestException("Each contributor must have a name")
       }
@@ -221,6 +255,19 @@ object DatasetResource {
       ) {
         throw new BadRequestException("Contributor fields must not exceed 256 characters")
       }
+      contributorEmail(contributor).foreach { email =>
+        if (!EmailUtil.isValid(email)) {
+          throw new BadRequestException(s"Invalid contributor email: ${contributor.email}")
+        }
+      }
+    }
+
+    val emails = contributors.flatMap(contributorEmail)
+    if (emails.distinct.size != emails.size) {
+      throw new BadRequestException("Each contributor of a dataset must have a distinct email")
+    }
+
+    val records = contributors.map { contributor =>
       val record = ctx.newRecord(DATASET_CONTRIBUTOR)
       record.setDid(did)
       record.setName(contributor.name)
@@ -228,6 +275,9 @@ object DatasetResource {
       record.setAffiliation(contributor.affiliation)
       record.setEmail(contributor.email)
       record.setComments(contributor.comments)
+      contributorEmail(contributor).foreach(email =>
+        record.setUid(resolveContributorUid(ctx, did, contributor.name, email))
+      )
       record
     }
     ctx.batchInsert(records.asJava).execute()
@@ -238,7 +288,8 @@ object DatasetResource {
       creator: Boolean = false,
       affiliation: String = null,
       email: String = null,
-      comments: String = null
+      comments: String = null,
+      uid: Option[Integer] = None
   )
 
   case class DatasetContributorsModification(
@@ -385,9 +436,6 @@ class DatasetResource extends LazyLogging {
           .fetchOne()
       }
 
-      val savedContributors = request.contributors.getOrElse(Nil)
-      DatasetResource.insertContributors(ctx, createdDataset.getDid, savedContributors)
-
       // Initialize the repository in LakeFS
       val repositoryName = s"dataset-${createdDataset.getDid}"
       try {
@@ -409,6 +457,10 @@ class DatasetResource extends LazyLogging {
               )
           }
       }
+
+      // After the LakeFS call so placeholder inserts don't hold user-table locks across it.
+      val savedContributors = request.contributors.getOrElse(Nil)
+      DatasetResource.insertContributors(ctx, createdDataset.getDid, savedContributors)
 
       // update repository name of the created dataset
       createdDataset.setRepositoryName(repositoryName)
