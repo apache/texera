@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1786108236758,
+  "lastUpdate": 1786194175149,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -8114,6 +8114,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 496.91214320141927,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Meng Wang",
+            "username": "mengw15",
+            "email": "mengw15@uci.edu"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "35346629ce00493927556df92fc839cb79b78dfa",
+          "message": "test(frontend): extend UserProjectListItemComponent template coverage (#7418)\n\n### What changes were proposed in this PR?\n\nRebased onto `main` after #7415 landed on the same file, and reduced to\nwhat that\nPR left uncovered. #7415 pins what each template branch *looks like* by\nputting the\ncomponent into the state directly; this PR pins the wiring that produces\nthose\nstates, so a control losing its handler fails here. Together they take\n`user-project-list-item.component.html` to 100% (110/110 statements, no\nuncovered\nbranches — it was 77/110 after #7415).\n\n8 new tests:\n\n- **colour panel** — the `[(colorPicker)]` / `(colorPickerSelect)`\noutputs, and the\n`cpExtraTemplate` menu, whose markup exists only while the picker is\nopen: its\nSave action, and its Delete action in both states (disabled while the\nproject has\nno colour, enabled and wired once one is set). None of this was\npreviously\n  rendered — it is the bulk of the gap #7410 describes.\n- **name** — the edit button opens the input, `keyup.enter` saves,\n`focusout` closes.\n- **description** — the expand/collapse controls, the edit button,\n`focusout`\n  saving, and the suffix save icon closing the editor.\n- **actions** — the share button and the delete popconfirm's\n`nzOnConfirm`.\n- three class-level gaps: the `entry` getter's guard, `ngOnInit`\nadopting a stored\ncolour, and `updateProjectColor` skipping the service when the colour is\n  unchanged (class 63/67 -> 66/67).\n\nThis block queries with `By.css` + `triggerEventHandler` rather than\n`querySelector`: `nzOnConfirm`, `keyup.enter` and `colorPickerSelect`\nare directive\noutputs, not DOM events, so a native dispatch cannot reach them. #7415's\n`MarkdownModule.forRoot()` is kept as-is. No production code was\nchanged.\n\nTests that #7415 already covers (the creation date, the `editable`\ngating, the\nread-only delete branch) were dropped from this PR rather than\nduplicated.\n\nOne statement stays uncovered: the `if (!this.entry) throw` guard inside\n`saveProjectName`'s subscribe. The `entry` getter already throws when no\nentry was\nprovided, so that branch cannot be reached — it is dead code rather than\na coverage\ngap, and removing it felt out of scope for a test-only PR.\n\n### Any related issues, documentation, discussions?\n\nCloses #7410. Builds on #7415 (#7412), which covers the same template\nfrom the\nrendering side.\n\n### How was this PR tested?\n\n`ng test --watch=false --include\nsrc/app/dashboard/component/user/user-project/user-project-list-item/user-project-list-item.component.spec.ts`\n— 28 passed (20 existing + 8 new), run 3x for determinism. Coverage\n(`--coverage`)\nconfirms `user-project-list-item.component.html` at 110/110 statements\nwith no\nuncovered branches, and the class at 66/67. The failure path was\nverified by\nbreaking an assertion (red, non-zero exit); eslint and prettier are\nclean.\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Claude Code (Opus 4.8 [1M context])",
+          "timestamp": "2026-08-08T11:52:20Z",
+          "url": "https://github.com/apache/texera/commit/35346629ce00493927556df92fc839cb79b78dfa"
+        },
+        "date": 1786194174563,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 606.4339115238084,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 1061.0250128190933,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 1148.9192172169421,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 777.3726737187358,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 1073.3429407598067,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 1125.0973159624803,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 813.7475086758922,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 1109.1406577862065,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 1138.2153982318982,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 675.8686434800773,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 897.0249321334259,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 921.9210639302976,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 702.4994008760203,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 895.8657279715035,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 916.7626555758943,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 702.8477778924552,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 880.6201678201763,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 904.7352064847914,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 433.11625707503606,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 508.36644401869205,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 519.3571582245285,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 433.70375580060045,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 506.0790899186123,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 514.8661118389861,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 420.95984582530866,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 493.8676789834652,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 498.215814866792,
             "unit": "tuples/sec"
           }
         ]
