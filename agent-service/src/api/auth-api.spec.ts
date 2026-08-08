@@ -20,13 +20,20 @@
 import { describe, expect, test } from "bun:test";
 import { createAuthHeaders, extractBearerToken, extractUserFromToken, validateToken } from "./auth-api";
 
-/** Builds a token with the given payload. Only the payload segment is ever read back. */
+/**
+ * Builds a well-formed three-segment token carrying the given payload. All three segments are
+ * required — `decodeJWT` rejects anything that is not exactly three — but only the payload one is
+ * decoded, so the header and signature just have to be present.
+ */
 function tokenWith(payload: Record<string, unknown>): string {
   const encoded = Buffer.from(JSON.stringify(payload), "utf-8").toString("base64");
   return `header.${encoded}.signature`;
 }
 
-const SECONDS = 1000;
+/** `exp` is a UNIX second count, so expiries are built in seconds throughout. */
+function nowInSeconds(): number {
+  return Math.floor(Date.now() / 1000);
+}
 
 describe("extractUserFromToken", () => {
   test("maps the JWT payload onto the user record", () => {
@@ -70,13 +77,11 @@ describe("extractUserFromToken", () => {
 
 describe("validateToken", () => {
   test("accepts a token whose expiry is still in the future", () => {
-    const exp = Math.floor((Date.now() + 60 * SECONDS) / 1000);
-    expect(validateToken(tokenWith({ userId: 1, exp }))).toBe(true);
+    expect(validateToken(tokenWith({ userId: 1, exp: nowInSeconds() + 60 }))).toBe(true);
   });
 
   test("rejects a token whose expiry has passed", () => {
-    const exp = Math.floor((Date.now() - 60 * SECONDS) / 1000);
-    expect(validateToken(tokenWith({ userId: 1, exp }))).toBe(false);
+    expect(validateToken(tokenWith({ userId: 1, exp: nowInSeconds() - 60 }))).toBe(false);
   });
 
   test("treats a token with no expiry as valid forever", () => {
@@ -94,8 +99,7 @@ describe("validateToken", () => {
   test("expiry is compared in seconds, not milliseconds", () => {
     // exp is a UNIX second count; reading it as milliseconds would place every real token in 1970
     // and reject it. A far-future second count must still validate.
-    const exp = Math.floor(Date.now() / 1000) + 3600;
-    expect(validateToken(tokenWith({ exp }))).toBe(true);
+    expect(validateToken(tokenWith({ exp: nowInSeconds() + 3600 }))).toBe(true);
   });
 });
 
