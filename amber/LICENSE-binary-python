@@ -247,7 +247,6 @@ Python packages:
   - annotated-doc==0.0.5
   - annotated-types==0.8.0
   - anyio==4.14.2
-  - appdirs==1.4.4
   - asn1crypto==1.5.1
   - attrs==26.1.0
   - betterproto==2.0.0b7
@@ -255,7 +254,6 @@ Python packages:
   - charset-normalizer==3.4.9
   - filelock==3.32.2
   - fonttools==4.63.0
-  - fs==2.4.16
   - greenlet==3.5.4
   - h11==0.16.0
   - h2==4.4.0

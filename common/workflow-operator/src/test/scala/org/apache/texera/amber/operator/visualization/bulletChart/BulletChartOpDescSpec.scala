@@ -32,7 +32,7 @@ class BulletChartOpDescSpec extends AnyFlatSpec with Matchers {
   private def configured: BulletChartOpDesc = {
     val op = new BulletChartOpDesc
     op.value = "actualValue"
-    op.deltaReference = "100"
+    op.deltaReference = Some(100)
     op
   }
 
@@ -59,40 +59,57 @@ class BulletChartOpDescSpec extends AnyFlatSpec with Matchers {
   }
 
   "BulletChartOpDesc.generatePythonCode" should "render Python source with a runtime decode site for the value column" in {
-    // EncodableString fields are NOT emitted as literal strings — the pyb
-    // macro wraps them in `self.decode_python_template.decode("<base64>")`
-    // calls. The rendered source must reference the decoder symbol at least
-    // for `value` and `deltaReference`.
+    // The column name is an EncodableString, so pyb wraps it in a decode call. The
+    // numeric settings carry no user text and add no decode site.
     val code = configured.generatePythonCode()
     code should include("plotly.graph_objects")
     val decodeOccurrences = "decode_python_template".r.findAllIn(code).length
-    decodeOccurrences should be >= 2
+    decodeOccurrences should be >= 1
+  }
+
+  it should "assign the delta reference as a number, falling back to 0 when unset" in {
+    configured.generatePythonCode() should include("delta_ref = 100.0")
+    val unset = new BulletChartOpDesc
+    unset.value = "actualValue"
+    unset.generatePythonCode() should include("delta_ref = 0.0")
+  }
+
+  it should "assign None for a threshold that is not configured" in {
+    configured.generatePythonCode() should include("threshold_val = None")
+    val withThreshold = configured
+    withThreshold.thresholdValue = Some(75.5)
+    withThreshold.generatePythonCode() should include("threshold_val = 75.5")
   }
 
   it should "default to an empty steps list when none are configured" in {
-    // The bullet-chart template ships with several unrelated `[]` literals
-    // (`colors`, `valid_steps`, `step_errors`, `steps_list`, `html_chunks`),
-    // so a bare `code should include("[]")` is too weak. Anchor on the
-    // generated `steps_data = ...` literal directly so a regression that
-    // makes it non-empty would actually fail the assertion.
+    // The template ships several unrelated `[]` literals, so anchor on the argument
+    // passed to generate_valid_steps rather than on a bare `[]`.
     val code = configured.generatePythonCode()
-    code should include regex """steps_data\s*=\s*\[\]"""
+    code should include regex """generate_valid_steps\(\[\]\)"""
   }
 
-  it should "include each configured step's start/end JSON keys with extra decode sites" in {
+  it should "emit no steps when steps is null" in {
+    // Steps is optional, so an explicit null in the payload leaves the field null
+    // rather than an empty list; that is no steps, not a failure.
+    val op = configured
+    op.steps = null
+    op.generatePythonCode() should include regex """generate_valid_steps\(\[\]\)"""
+  }
+
+  it should "emit each configured step's bounds as numbers, dropping a half-filled step" in {
     val op = configured
     val steps: JList[BulletChartStepDefinition] = new util.ArrayList[BulletChartStepDefinition]()
-    steps.add(new BulletChartStepDefinition("0", "50"))
-    steps.add(new BulletChartStepDefinition("50", "100"))
+    steps.add(new BulletChartStepDefinition(Some(0), Some(50)))
+    steps.add(new BulletChartStepDefinition(Some(50), Some(100)))
+    steps.add(new BulletChartStepDefinition(Some(100), None))
     op.steps = steps
     val code = op.generatePythonCode()
-    code should include("\"start\":")
-    code should include("\"end\":")
-    // Two steps × 2 EncodableString fields each = 4 extra decode sites on
-    // top of the value/deltaReference decodes from the base configuration.
+    code should include(
+      """generate_valid_steps([{"start": 0.0, "end": 50.0}, {"start": 50.0, "end": 100.0}])"""
+    )
+    // The bounds are numbers now, so a step adds no runtime decode site.
     val baseDecodes = "decode_python_template".r.findAllIn(configured.generatePythonCode()).length
-    val withSteps = "decode_python_template".r.findAllIn(code).length
-    withSteps shouldBe baseDecodes + 4
+    "decode_python_template".r.findAllIn(code).length shouldBe baseDecodes
   }
 
   it should "currently render a code block even with the default empty configuration (no assert guard)" in {

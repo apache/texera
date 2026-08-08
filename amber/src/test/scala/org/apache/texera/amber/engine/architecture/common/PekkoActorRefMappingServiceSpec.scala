@@ -1,0 +1,173 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+package org.apache.texera.amber.engine.architecture.common
+
+import org.apache.pekko.actor.{Actor, ActorSystem, Props}
+import org.apache.pekko.testkit.{TestActorRef, TestKit, TestProbe}
+import org.apache.texera.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
+import org.apache.texera.amber.engine.architecture.common.WorkflowActor.{
+  CreditRequest,
+  GetActorRef,
+  NetworkMessage,
+  RegisterActorRef
+}
+import org.apache.texera.amber.engine.common.ambermessage.{DataFrame, WorkflowFIFOMessage}
+import org.apache.texera.amber.engine.common.virtualidentity.util.COORDINATOR
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.flatspec.AnyFlatSpecLike
+
+import scala.concurrent.duration.DurationInt
+
+/**
+  * Unit tests for [[PekkoActorRefMappingService]].
+  *
+  * Like [[PekkoMessageTransferServiceSpec]], these tests use a minimal actor
+  * spawned by Pekko TestKit to supply the live [[ActorContext]] that
+  * [[PekkoActorService]] eagerly dereferences. Spawning it as a child of a
+  * [[TestProbe]] also makes the service's parent lookup observable.
+  */
+class PekkoActorRefMappingServiceSpec
+    extends TestKit(ActorSystem("PekkoActorRefMappingServiceSpec"))
+    with AnyFlatSpecLike
+    with BeforeAndAfterAll {
+
+  override def afterAll(): Unit = {
+    TestKit.shutdownActorSystem(system)
+  }
+
+  private val upstreamId = ActorVirtualIdentity("upstream")
+  private val workerId = ActorVirtualIdentity("mapping-service-worker")
+  private val contextCounter = new java.util.concurrent.atomic.AtomicInteger(0)
+
+  private def channelTo(destination: ActorVirtualIdentity): ChannelIdentity =
+    ChannelIdentity(
+      fromWorkerId = upstreamId,
+      toWorkerId = destination,
+      isControl = true
+    )
+
+  private def networkMessageTo(
+      destination: ActorVirtualIdentity,
+      messageId: Long,
+      sequenceNumber: Long
+  ): NetworkMessage =
+    NetworkMessage(
+      messageId,
+      WorkflowFIFOMessage(channelTo(destination), sequenceNumber, DataFrame(Array.empty))
+    )
+
+  private def newActorService(
+      id: ActorVirtualIdentity,
+      parent: TestProbe
+  ): PekkoActorService = {
+    val contextHolder =
+      TestActorRef[ActorRefMappingServiceContextHolder](
+        Props(new ActorRefMappingServiceContextHolder),
+        parent.ref,
+        s"actor-ref-mapping-context-${contextCounter.incrementAndGet()}"
+      )
+    new PekkoActorService(id, contextHolder.underlyingActor.context)
+  }
+
+  "askForCredit" should "forward a request only when the destination ref is known" in {
+    val parent = TestProbe()
+    val destination = TestProbe()
+    val unknownDestination = ActorVirtualIdentity("unknown-credit-destination")
+    val knownDestination = ActorVirtualIdentity("known-credit-destination")
+    val service = new PekkoActorRefMappingService(newActorService(workerId, parent))
+
+    service.askForCredit(channelTo(unknownDestination))
+    parent.expectNoMessage(100.millis)
+
+    service.registerActorRef(knownDestination, destination.ref)
+    val channel = channelTo(knownDestination)
+    service.askForCredit(channel)
+
+    destination.expectMsg(CreditRequest(channel))
+  }
+
+  "forwardToActor" should "stash unknown messages and ask the parent for their ref once" in {
+    val parent = TestProbe()
+    val destination = ActorVirtualIdentity("unknown-message-destination")
+    val service = new PekkoActorRefMappingService(newActorService(workerId, parent))
+    val first = networkMessageTo(destination, messageId = 1L, sequenceNumber = 0L)
+    val second = networkMessageTo(destination, messageId = 2L, sequenceNumber = 1L)
+
+    service.forwardToActor(first)
+    val lookup = parent.expectMsgType[GetActorRef]
+    assert(lookup.id == destination)
+    assert(lookup.replyTo == Set(service.self))
+
+    service.forwardToActor(second)
+    parent.expectNoMessage(100.millis)
+
+    service.clearQueriedActorRefs()
+    service.forwardToActor(networkMessageTo(destination, messageId = 3L, sequenceNumber = 2L))
+    assert(parent.expectMsgType[GetActorRef].id == destination)
+  }
+
+  "registerActorRef" should "drain stashed messages in FIFO order and notify coordinator waiters" in {
+    val parent = TestProbe()
+    val destination = ActorVirtualIdentity("coordinator-wait-destination")
+    val waiterOne = TestProbe()
+    val waiterTwo = TestProbe()
+    val registered = TestProbe()
+    val service = new PekkoActorRefMappingService(newActorService(COORDINATOR, parent))
+    val first = networkMessageTo(destination, messageId = 10L, sequenceNumber = 0L)
+    val second = networkMessageTo(destination, messageId = 11L, sequenceNumber = 1L)
+
+    service.forwardToActor(first)
+    service.forwardToActor(second)
+    service.retrieveActorRef(destination, Set(waiterOne.ref, waiterTwo.ref))
+
+    service.registerActorRef(destination, registered.ref)
+
+    registered.expectMsg(first)
+    registered.expectMsg(second)
+    waiterOne.expectMsg(RegisterActorRef(destination, registered.ref))
+    waiterTwo.expectMsg(RegisterActorRef(destination, registered.ref))
+  }
+
+  "retrieveActorRef and removeActorRef" should "reply for known refs and remove their reverse lookup" in {
+    val parent = TestProbe()
+    val destination = ActorVirtualIdentity("registered-destination")
+    val registered = TestProbe()
+    val waiter = TestProbe()
+    val service = new PekkoActorRefMappingService(newActorService(workerId, parent))
+
+    service.registerActorRef(destination, registered.ref)
+    service.retrieveActorRef(destination, Set(waiter.ref))
+
+    waiter.expectMsg(RegisterActorRef(destination, registered.ref))
+    assert(service.hasActorRef(destination))
+    assert(service.getActorRef(destination) == registered.ref)
+    assert(service.findActorVirtualIdentity(registered.ref).contains(destination))
+
+    service.removeActorRef(destination)
+
+    assert(!service.hasActorRef(destination))
+    assert(service.findActorVirtualIdentity(registered.ref).isEmpty)
+  }
+}
+
+/** Minimal actor used only to obtain a live [[ActorContext]] from Pekko TestKit. */
+class ActorRefMappingServiceContextHolder extends Actor {
+  override def receive: Receive = { case _ => () }
+}

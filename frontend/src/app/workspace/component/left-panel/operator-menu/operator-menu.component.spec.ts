@@ -17,10 +17,13 @@
  * under the License.
  */
 
-import { mockScanSourceSchema } from "../../../service/operator-metadata/mock-operator-metadata.data";
+import {
+  mockOperatorGroup,
+  mockScanSourceSchema,
+} from "../../../service/operator-metadata/mock-operator-metadata.data";
 import { UndoRedoService } from "../../../service/undo-redo/undo-redo.service";
 import { DragDropService } from "../../../service/drag-drop/drag-drop.service";
-import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { ComponentFixture, fakeAsync, TestBed, tick } from "@angular/core/testing";
 import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
 import { OperatorMenuComponent } from "./operator-menu.component";
 import { OperatorLabelComponent } from "./operator-label/operator-label.component";
@@ -32,6 +35,8 @@ import { JointUIService } from "../../../service/joint-ui/joint-ui.service";
 import { WorkflowUtilService } from "../../../service/workflow-graph/util/workflow-util.service";
 import { NzDropDownModule } from "ng-zorro-antd/dropdown";
 import { NzCollapseModule } from "ng-zorro-antd/collapse";
+import type { NzAutocompleteOptionComponent } from "ng-zorro-antd/auto-complete";
+import type * as joint from "jointjs";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
 
 describe("OperatorPanelComponent", () => {
@@ -87,6 +92,121 @@ describe("OperatorPanelComponent", () => {
 
     expect(component.autocompleteOptions.length).toBe(1);
     expect(component.autocompleteOptions[0]).toBe(mockScanSourceSchema);
+  });
+
+  /**
+   * The constructor's metadata subscription is what actually populates the panel, and none of it
+   * was covered. It filters operator types out, buckets the rest by group, and sorts each bucket -
+   * so a regression here silently drops operators from the palette or scrambles their order, with
+   * no error anywhere.
+   */
+  describe("operator list construction", () => {
+    it("buckets operators by their group name", () => {
+      // Every listed operator must land under its own declared group; a grouping bug would show up
+      // as an operator filed under the wrong key rather than as a crash.
+      component.opList.forEach((operators, group) => {
+        operators.forEach(op => expect(op.additionalMetadata.operatorGroupName).toBe(group));
+      });
+      expect(component.opList.get("Source")).toBeDefined();
+      expect(component.opList.get("Analysis")).toBeDefined();
+    });
+
+    it("sorts each group by operatorType", () => {
+      // The palette renders in Map order, so an unsorted (or differently sorted) group is a
+      // visible reshuffle for users.
+      component.opList.forEach(operators => {
+        const types = operators.map(op => op.operatorType);
+        expect(types).toEqual([...types].sort((a, b) => a.localeCompare(b)));
+      });
+    });
+
+    it("excludes PythonUDF from both the palette and the search index", () => {
+      // PythonUDF is filtered before the list is built AND before fuse.setCollection, so it must be
+      // absent from both. Asserting only the palette would miss a filter applied in one place only.
+      const listed = [...component.opList.values()].flat().map(op => op.operatorType);
+      expect(listed).not.toContain("PythonUDF");
+
+      component.onInput({ target: { value: "Python UDF" } } as unknown as Event);
+      expect(component.autocompleteOptions.map(op => op.operatorType)).not.toContain("PythonUDF");
+    });
+
+    it("takes its group headings from the metadata, not from the operators present", () => {
+      // groupNames drives the collapse panels; deriving it from opList instead would silently drop
+      // a heading whenever a group happens to contain no operators.
+      expect(component.groupNames).toEqual(mockOperatorGroup);
+    });
+  });
+
+  describe("workflow modification state", () => {
+    it("tracks whether the workflow may be modified", () => {
+      const workflowActionService = TestBed.inject(WorkflowActionService);
+      expect(component.canModify).toBe(true);
+
+      // The palette disables drag-and-drop on this flag, so a stuck value lets a user drag
+      // operators onto a read-only workflow.
+      workflowActionService.disableWorkflowModification();
+      expect(component.canModify).toBe(false);
+
+      workflowActionService.enableWorkflowModification();
+      expect(component.canModify).toBe(true);
+    });
+  });
+
+  describe("selecting a search result", () => {
+    it("places the operator relative to the current pan offset", fakeAsync(() => {
+      const workflowActionService = TestBed.inject(WorkflowActionService);
+      // Pretend the canvas has been panned; the new operator must land at a fixed point in view
+      // space, which means subtracting the paper's translation rather than using raw coordinates.
+      vi.spyOn(workflowActionService.getJointGraphWrapper(), "getMainJointPaper").mockReturnValue({
+        translate: () => ({ tx: 100, ty: 25 }),
+      } as unknown as joint.dia.Paper);
+      const addOperator = vi.spyOn(workflowActionService, "addOperator");
+
+      component.onSelectionChange({
+        nzValue: mockScanSourceSchema,
+      } as unknown as NzAutocompleteOptionComponent);
+
+      expect(addOperator).toHaveBeenCalledTimes(1);
+      expect(addOperator.mock.calls[0][1]).toEqual({ x: 300, y: 175 });
+      tick(0);
+    }));
+
+    it("falls back to the untranslated point when no paper is attached", fakeAsync(() => {
+      const workflowActionService = TestBed.inject(WorkflowActionService);
+      vi.spyOn(workflowActionService.getJointGraphWrapper(), "getMainJointPaper").mockReturnValue(
+        undefined as unknown as joint.dia.Paper
+      );
+      const addOperator = vi.spyOn(workflowActionService, "addOperator");
+
+      component.onSelectionChange({
+        nzValue: mockScanSourceSchema,
+      } as unknown as NzAutocompleteOptionComponent);
+
+      // The ?? 0 guards exist because the paper is absent until the editor mounts.
+      expect(addOperator.mock.calls[0][1]).toEqual({ x: 400, y: 200 });
+      tick(0);
+    }));
+
+    it("clears the search box asynchronously after the selection", fakeAsync(() => {
+      const workflowActionService = TestBed.inject(WorkflowActionService);
+      vi.spyOn(workflowActionService.getJointGraphWrapper(), "getMainJointPaper").mockReturnValue(
+        undefined as unknown as joint.dia.Paper
+      );
+      component.searchInputValue = "scan";
+      component.onInput({ target: { value: "scan" } } as unknown as Event);
+
+      component.onSelectionChange({
+        nzValue: mockScanSourceSchema,
+      } as unknown as NzAutocompleteOptionComponent);
+
+      // Deliberately still set right after the call: the clear is deferred through setTimeout
+      // because ng-zorro re-displays the selected value if it is cleared synchronously.
+      expect(component.searchInputValue).toBe("scan");
+
+      tick(0);
+      expect(component.searchInputValue).toBe("");
+      expect(component.autocompleteOptions).toEqual([]);
+    }));
   });
 
   it("should clear the search box when an operator from search box is dropped", () => {

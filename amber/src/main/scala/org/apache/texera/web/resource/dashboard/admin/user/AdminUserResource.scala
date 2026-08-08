@@ -28,6 +28,7 @@ import org.apache.texera.dao.jooq.generated.tables.pojos.User
 import org.apache.texera.web.resource.EmailTemplate.createRoleChangeTemplate
 import org.apache.texera.web.resource.GmailResource.sendEmail
 import org.apache.texera.web.resource.dashboard.admin.user.AdminUserResource.userDao
+import org.apache.texera.web.resource.dashboard.user.dataset.utils.DatasetStatisticsUtils.getUserCreatedDatasets
 import org.apache.texera.web.resource.dashboard.user.quota.UserQuotaResource._
 import org.jasypt.util.password.StrongPasswordEncryptor
 
@@ -47,7 +48,8 @@ case class UserInfo(
     lastLogin: java.time.OffsetDateTime, // will be null if never logged in
     accountCreation: java.time.OffsetDateTime,
     affiliation: String,
-    joiningReason: String
+    joiningReason: String,
+    isPlaceholder: Boolean
 )
 
 object AdminUserResource {
@@ -83,7 +85,8 @@ class AdminUserResource {
         USER_LAST_ACTIVE_TIME.LAST_ACTIVE_TIME,
         USER.ACCOUNT_CREATION_TIME,
         USER.AFFILIATION,
-        USER.JOINING_REASON
+        USER.JOINING_REASON,
+        USER.IS_PLACEHOLDER
       )
       .from(USER)
       .leftJoin(USER_LAST_ACTIVE_TIME)
@@ -122,6 +125,16 @@ class AdminUserResource {
     newUser.setPassword(new StrongPasswordEncryptor().encryptPassword(random))
     newUser.setRole(UserRoleEnum.INACTIVE)
     userDao.insert(newUser)
+  }
+
+  @GET
+  @Path("/created_datasets")
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  def getCreatedDatasets(@QueryParam("user_id") user_id: Integer): List[DatasetQuota] = {
+    if (user_id == null) {
+      throw new BadRequestException("user_id is required")
+    }
+    getUserCreatedDatasets(user_id)
   }
 
   @GET

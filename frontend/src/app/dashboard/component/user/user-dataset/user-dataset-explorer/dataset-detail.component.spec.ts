@@ -34,7 +34,7 @@ import { FileUploadItem } from "../../../../type/dashboard-file.interface";
 import { DatasetFileNode, getFullPathFromDatasetFileNode } from "../../../../../common/type/datasetVersionFileTree";
 import { DatasetStagedObject } from "../../../../../common/type/dataset-staged-object";
 import { commonTestImports, commonTestProviders } from "../../../../../common/testing/test-utils";
-import { Dataset, DatasetVersion } from "../../../../../common/type/dataset";
+import { Contributor, Dataset, DatasetVersion } from "../../../../../common/type/dataset";
 import { DashboardDataset } from "../../../../type/dashboard-dataset.interface";
 import { HttpErrorResponse } from "@angular/common/http";
 import { format } from "date-fns";
@@ -129,6 +129,56 @@ describe("DatasetDetailComponent upload queue", () => {
     // Log in so ngOnInit reaches loadUploadSettings (maxConcurrentFiles = 3).
     (TestBed.inject(UserService) as unknown as StubUserService).userChangeSubject.next(MOCK_USER);
     fixture.detectChanges();
+  });
+
+  describe("contributor cards", () => {
+    const full: Contributor = {
+      name: "Contributor A",
+      creator: true,
+      affiliation: "Test Lab",
+      email: "contributor-a@test.com",
+      comments: "notes",
+    };
+    const blank: Contributor = { name: "Contributor B", creator: false };
+
+    beforeEach(() => {
+      component.datasetContributors = [full, blank];
+      component.userDatasetAccessLevel = "WRITE";
+      fixture.detectChanges();
+    });
+
+    it("renders one card per contributor with values, a creator star, and dashes for blanks", () => {
+      const cards: NodeListOf<HTMLElement> = fixture.nativeElement.querySelectorAll(".contributor-card");
+      expect(cards.length).toBe(2);
+
+      expect(cards[0].querySelector(".contributor-name")?.textContent).toContain("Contributor A");
+      expect(cards[0].querySelector(".creator-star")).not.toBeNull();
+      expect(cards[0].textContent).toContain("contributor-a@test.com");
+
+      expect(cards[1].querySelector(".creator-star")).toBeNull();
+      const blankValues: NodeListOf<HTMLElement> = cards[1].querySelectorAll(".contributor-value.empty");
+      expect(blankValues.length).toBe(3);
+      blankValues.forEach(value => expect(value.textContent?.trim()).toBe("—"));
+    });
+
+    it("shows edit controls only with write access", () => {
+      expect(fixture.nativeElement.querySelector(".contributor-actions")).not.toBeNull();
+      expect(fixture.nativeElement.querySelector(".contributor-card-add")).not.toBeNull();
+
+      component.userDatasetAccessLevel = "READ";
+      fixture.detectChanges();
+
+      expect(fixture.nativeElement.querySelector(".contributor-actions")).toBeNull();
+      expect(fixture.nativeElement.querySelector(".contributor-card-add")).toBeNull();
+    });
+
+    it("starts adding a contributor when the add tile is clicked", () => {
+      const onAdd = vi.spyOn(component, "onAddContributor").mockImplementation(() => {});
+
+      (fixture.nativeElement.querySelector(".contributor-card-add") as HTMLElement).click();
+
+      expect(onAdd).toHaveBeenCalledTimes(1);
+    });
   });
 
   it("starts at most maxConcurrentFiles uploads immediately and queues the rest", () => {
@@ -370,6 +420,7 @@ describe("DatasetDetailComponent behavior", () => {
   let downloadServiceStub: MockService;
   let hubServiceStub: MockService;
   let adminSettingsServiceStub: MockService;
+  let modalServiceStub: MockService;
 
   const CREATION_TS = 1_700_000_000_000;
 
@@ -418,7 +469,7 @@ describe("DatasetDetailComponent behavior", () => {
       imports: [DatasetDetailComponent, ...commonTestImports],
       providers: [
         { provide: ActivatedRoute, useValue: { params: of(params), data: of({}) } },
-        { provide: NzModalService, useValue: {} },
+        { provide: NzModalService, useValue: modalServiceStub },
         { provide: DatasetService, useValue: datasetServiceStub },
         { provide: NotificationService, useValue: notificationServiceStub },
         { provide: DownloadService, useValue: downloadServiceStub },
@@ -451,6 +502,7 @@ describe("DatasetDetailComponent behavior", () => {
       updateDatasetDownloadable: vi.fn(() => of({})),
       updateDatasetCoverImage: vi.fn(() => of({})),
       updateDatasetDescription: vi.fn(() => of({})),
+      updateDatasetContributors: vi.fn(() => of(undefined)),
       updateDatasetName: vi.fn(() => of({})),
       deleteDatasets: vi.fn(() => of({})),
       deleteDatasetFile: vi.fn(() => of({})),
@@ -459,6 +511,7 @@ describe("DatasetDetailComponent behavior", () => {
       finalizeMultipartUpload: vi.fn(() => of({})),
     };
     notificationServiceStub = { success: vi.fn(), error: vi.fn(), info: vi.fn() };
+    modalServiceStub = { create: vi.fn() };
     downloadServiceStub = {
       downloadDatasetVersion: vi.fn(() => of(new Blob())),
       downloadSingleFile: vi.fn(() => of(new Blob())),
@@ -1373,6 +1426,107 @@ describe("DatasetDetailComponent behavior", () => {
 
       expect(button).toBeTruthy();
       expect(button.disabled).toBe(false);
+    });
+  });
+
+  describe("contributors", () => {
+    const contributorA: Contributor = {
+      name: "Contributor A",
+      creator: true,
+      affiliation: "Test Lab",
+      email: "contributor-a@test.com",
+      comments: "",
+    };
+    const contributorB: Contributor = {
+      name: "Contributor B",
+      creator: false,
+      affiliation: "Test Lab",
+      email: "contributor-b@test.com",
+      comments: "notes",
+    };
+
+    it("maps contributors from the dashboard dataset and falls back to an empty list", () => {
+      datasetServiceStub.getDataset.mockReturnValue(of(makeDashboardDataset({ contributors: [contributorA] })));
+      createComponent();
+      component.did = 5;
+
+      component.retrieveDatasetInfo();
+      expect(component.datasetContributors).toEqual([contributorA]);
+
+      datasetServiceStub.getDataset.mockReturnValue(of(makeDashboardDataset()));
+      component.retrieveDatasetInfo();
+      expect(component.datasetContributors).toEqual([]);
+    });
+
+    it("onAddContributor appends the modal result and persists the list", () => {
+      modalServiceStub.create.mockReturnValue({ afterClose: of(contributorB) });
+      createComponent();
+      component.did = 5;
+      component.datasetContributors = [contributorA];
+
+      component.onAddContributor();
+
+      expect(component.datasetContributors).toEqual([contributorA, contributorB]);
+      expect(datasetServiceStub.updateDatasetContributors).toHaveBeenCalledWith(5, [contributorA, contributorB]);
+      expect(notificationServiceStub.success).toHaveBeenCalledWith("Contributors updated");
+    });
+
+    it("onAddContributor does not persist when the modal is cancelled", () => {
+      modalServiceStub.create.mockReturnValue({ afterClose: of(undefined) });
+      createComponent();
+      component.did = 5;
+      component.datasetContributors = [contributorA];
+
+      component.onAddContributor();
+
+      expect(component.datasetContributors).toEqual([contributorA]);
+      expect(datasetServiceStub.updateDatasetContributors).not.toHaveBeenCalled();
+    });
+
+    it("onEditContributor replaces the edited row and persists the list", () => {
+      const updated = { ...contributorA, affiliation: "Another Test Lab" };
+      modalServiceStub.create.mockReturnValue({ afterClose: of(updated) });
+      createComponent();
+      component.did = 5;
+      component.datasetContributors = [contributorA, contributorB];
+
+      component.onEditContributor(contributorA);
+
+      expect(component.datasetContributors).toEqual([updated, contributorB]);
+      expect(datasetServiceStub.updateDatasetContributors).toHaveBeenCalledWith(5, [updated, contributorB]);
+    });
+
+    it("onDeleteContributor removes the row and persists the list", () => {
+      createComponent();
+      component.did = 5;
+      component.datasetContributors = [contributorA, contributorB];
+
+      component.onDeleteContributor(contributorA);
+
+      expect(component.datasetContributors).toEqual([contributorB]);
+      expect(datasetServiceStub.updateDatasetContributors).toHaveBeenCalledWith(5, [contributorB]);
+    });
+
+    it("rolls the list back and notifies when persisting fails", () => {
+      datasetServiceStub.updateDatasetContributors.mockReturnValue(throwError(() => new Error("boom")));
+      createComponent();
+      component.did = 5;
+      component.datasetContributors = [contributorA, contributorB];
+
+      component.onDeleteContributor(contributorB);
+
+      expect(component.datasetContributors).toEqual([contributorA, contributorB]);
+      expect(notificationServiceStub.error).toHaveBeenCalledWith("Failed to update contributors");
+    });
+
+    it("does not call the service when did is missing", () => {
+      createComponent();
+      component.did = undefined;
+      component.datasetContributors = [contributorA];
+
+      component.onDeleteContributor(contributorA);
+
+      expect(datasetServiceStub.updateDatasetContributors).not.toHaveBeenCalled();
     });
   });
 });

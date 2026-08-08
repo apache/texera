@@ -219,6 +219,81 @@ describe("MarkdownDescriptionComponent", () => {
     expect(component.currentMode).toBe("preview");
   });
 
+  /**
+   * The editor toolbar actions (bold, link, and so on) all route through `insert`, which was untested.
+   * It wraps whatever the user has selected, or a placeholder when nothing is, and must splice the
+   * result back without disturbing the text either side - get the offsets wrong and the toolbar
+   * silently corrupts the description it is meant to format.
+   *
+   * The tests drive the real textarea from the template, setting selectionStart/selectionEnd the
+   * way a user's selection would, rather than stubbing the ref.
+   */
+  describe("insert", () => {
+    const bold = { prefix: "**", suffix: "**", default: "bold text" };
+
+    async function editorWith(
+      content: string,
+      selection: [number, number]
+    ): Promise<ComponentFixture<MarkdownDescriptionComponent>> {
+      const fixture = await createFixture();
+      const component = fixture.componentInstance;
+      component.editable = true;
+      // First cycle runs ngOnInit, which forces preview mode; only then can edit mode be set and
+      // the textarea rendered by a second cycle. Setting it beforehand is silently overwritten.
+      fixture.detectChanges();
+      component.currentMode = "edit";
+      component.editingContent = content;
+      fixture.detectChanges();
+      const textarea = component.textareaRef.nativeElement;
+      textarea.value = content;
+      textarea.setSelectionRange(selection[0], selection[1]);
+      return fixture;
+    }
+
+    it("wraps the selected text and leaves the surrounding text intact", async () => {
+      // Select "world" out of "hello world!" - the leading "hello " and trailing "!" must survive.
+      const fixture = await editorWith("hello world!", [6, 11]);
+
+      fixture.componentInstance.insert(bold);
+
+      expect(fixture.componentInstance.editingContent).toBe("hello **world**!");
+    });
+
+    it("inserts the placeholder when nothing is selected", async () => {
+      // A collapsed caret means there is nothing to wrap, so the action's default stands in and
+      // the user can type over it.
+      const fixture = await editorWith("hello ", [6, 6]);
+
+      fixture.componentInstance.insert(bold);
+
+      expect(fixture.componentInstance.editingContent).toBe("hello **bold text**");
+    });
+
+    it("uses the action's own prefix and suffix rather than a fixed pair", async () => {
+      // A link action is asymmetric, which a hardcoded "wrap in prefix twice" would get wrong.
+      const fixture = await editorWith("see docs", [4, 8]);
+
+      fixture.componentInstance.insert({ prefix: "[", suffix: "](url)", default: "text" });
+
+      expect(fixture.componentInstance.editingContent).toBe("see [docs](url)");
+    });
+
+    it("re-renders the preview from the spliced content", async () => {
+      const fixture = await editorWith("hi", [0, 2]);
+      parse.mockClear();
+
+      fixture.componentInstance.insert(bold);
+      // Not whenStable(): insert() schedules a requestAnimationFrame to refocus the textarea, which
+      // keeps the zone permanently unstable and hangs the test. renderMarkdown settles on the
+      // microtask queue, so yielding a single tick is both sufficient and terminating.
+      await Promise.resolve();
+
+      // The preview has to follow the edit; parse must see the NEW text, not the old.
+      expect(parse).toHaveBeenCalledWith("**hi**");
+      expect(fixture.componentInstance.renderedDescription).toBe("<p>**hi**</p>");
+    });
+  });
+
   it("renderMarkdown renders non-empty input and clears on blank input without parsing", async () => {
     const fixture = await createFixture();
     const component = fixture.componentInstance;
