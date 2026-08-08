@@ -18,6 +18,11 @@
  */
 
 import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { RouterTestingModule } from "@angular/router/testing";
+import { By } from "@angular/platform-browser";
+import { HttpClientTestingModule } from "@angular/common/http/testing";
+import { UserService } from "src/app/common/service/user/user.service";
+import { StubUserService } from "src/app/common/service/user/stub-user.service";
 import { BrowseSectionComponent } from "./browse-section.component";
 import { WorkflowPersistService } from "../../../common/service/workflow-persist/workflow-persist.service";
 import { DatasetService } from "../../../dashboard/service/user/dataset/dataset.service";
@@ -120,5 +125,106 @@ describe("BrowseSectionComponent", () => {
 
       expect(component.getCoverImage(entity)).toBe(component.defaultBackground);
     });
+  });
+});
+/**
+ * The cards themselves are template-only: the specs above assert the route map and the cover-URL
+ * cache, but nothing had ever rendered a card, so the per-entity bindings and their fallbacks were
+ * unpinned. RouterTestingModule supplies the Router that the cards' routerLink needs.
+ */
+describe("BrowseSectionComponent rendering", () => {
+  let component: BrowseSectionComponent;
+  let fixture: ComponentFixture<BrowseSectionComponent>;
+
+  beforeEach(() => {
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      imports: [BrowseSectionComponent, RouterTestingModule.withRoutes([]), HttpClientTestingModule],
+      providers: [
+        // The cards embed texera-user-avatar, which injects UserService; the real one drags in
+        // AuthService and its whole dependency chain, so the shared stub stands in for it.
+        { provide: UserService, useClass: StubUserService },
+        { provide: WorkflowPersistService, useValue: {} },
+        { provide: DatasetService, useValue: {} },
+        { provide: ChangeDetectorRef, useValue: {} },
+        ...commonTestProviders,
+      ],
+    });
+    fixture = TestBed.createComponent(BrowseSectionComponent);
+    component = fixture.componentInstance;
+  });
+
+  /** Renders the section with the given entities. */
+  function render(entities: DashboardEntry[], title = "Workflows"): HTMLElement {
+    component.sectionTitle = title;
+    component.entities = entities;
+    component.ngOnInit();
+    fixture.detectChanges();
+    return fixture.nativeElement as HTMLElement;
+  }
+
+  const entity = (over: Partial<Record<string, unknown>> = {}) =>
+    ({ id: 1, type: "dataset", accessibleUserIds: [], name: "flow", ...over }) as unknown as DashboardEntry;
+
+  it("renders nothing at all for an empty section", () => {
+    const el = render([]);
+
+    expect(el.querySelector(".results-container")).toBeNull();
+  });
+
+  it("renders the section heading and one card per entity", () => {
+    const el = render([entity({ id: 1 }), entity({ id: 2 })], "Public Datasets");
+
+    expect(el.querySelector(".results-title")?.textContent?.trim()).toBe("Public Datasets");
+    expect(el.querySelectorAll("nz-card")).toHaveLength(2);
+  });
+
+  it("shows each entity's name and description", () => {
+    const el = render([entity({ name: "sales", description: "quarterly numbers" })]);
+
+    expect(el.querySelector(".card-title")?.textContent?.trim()).toBe("sales");
+    expect(el.querySelector(".card-description")?.textContent?.trim()).toBe("quarterly numbers");
+  });
+
+  it("substitutes a placeholder for a missing description", () => {
+    // Datasets published without a description would otherwise render an empty paragraph and
+    // collapse the card's layout.
+    const el = render([entity({ description: undefined })]);
+
+    expect(el.querySelector(".card-description")?.textContent?.trim()).toBe("No description available");
+  });
+
+  it("uses the cached cover image when the entity has one", () => {
+    const el = render([entity({ id: 5, coverImageUrl: "has-cover" })]);
+
+    const img = el.querySelector<HTMLImageElement>(".card-cover-image")!;
+    expect(img.getAttribute("src")).toBe(`${AppSettings.getApiEndpoint()}/dataset/5/cover`);
+  });
+
+  it("falls back to the default background when the cover image fails to load", () => {
+    // A cached cover URL can still 404; the inline error handler is the only thing that stops the
+    // card from showing a broken image.
+    const el = render([entity({ id: 5, coverImageUrl: "has-cover" })]);
+    const img = el.querySelector<HTMLImageElement>(".card-cover-image")!;
+
+    img.dispatchEvent(new Event("error"));
+
+    expect(img.src).toContain("card_background.jpg");
+  });
+
+  it("labels the avatar with the entity id", () => {
+    const el = render([entity({ id: 42 })]);
+
+    expect(el.querySelector("nz-avatar")?.textContent?.trim()).toBe("42");
+  });
+
+  it("passes the owner through to the avatar, defaulting to an empty name", () => {
+    const withOwner = fixture.debugElement.queryAll(By.css("texera-user-avatar"));
+    expect(withOwner).toHaveLength(0);
+
+    render([entity({ ownerName: "ada" }), entity({ id: 2, ownerName: undefined })]);
+
+    const avatars = fixture.debugElement.queryAll(By.css("texera-user-avatar"));
+    expect(avatars.map(a => a.componentInstance.userName)).toEqual(["ada", ""]);
   });
 });
