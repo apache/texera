@@ -238,7 +238,11 @@ describe("UserProjectListItemComponent", () => {
       const el = render({ name: "quarterly", creationTime: januaryFirst1970 });
 
       expect(el.textContent).toContain("quarterly");
-      expect(el.textContent).toContain("1970-01-01");
+      // Matched as a shape rather than a literal: the pipe renders in the runner's local zone, so
+      // a fixed string would pin the timezone instead of the yyyy-MM-dd HH:mm format.
+      expect(el.querySelector("nz-list-item-meta-description p")?.textContent?.trim()).toMatch(
+        /^Created: \d{4}-\d{2}-\d{2} \d{2}:\d{2}$/
+      );
     });
 
     it("hides every editing control from a read-only viewer", () => {
@@ -255,7 +259,10 @@ describe("UserProjectListItemComponent", () => {
       const el = render({}, true);
 
       expect(el.querySelector(".edit-name-icon")).not.toBeNull();
-      expect(el.querySelector("ul[nz-list-item-actions]")).not.toBeNull();
+      expect(el.querySelector(".edit-description-icon")).not.toBeNull();
+      // Share and delete both live in that list; count the buttons rather than just the container
+      // (nz-list-item-action renders as an <li>, so the element selector finds nothing).
+      expect(el.querySelectorAll("ul[nz-list-item-actions] button").length).toBe(2);
     });
 
     it("swaps the name for an input once the name is being edited", () => {
@@ -297,6 +304,16 @@ describe("UserProjectListItemComponent", () => {
 
       const count = hostFixture.nativeElement.querySelector(".character-count")!;
       expect(count.textContent?.trim()).toBe(`3/${component.MAX_PROJECT_DESCRIPTION_CHAR_COUNT}`);
+
+      // It must follow what is in the box, not the value the description started at.
+      const textarea = hostFixture.nativeElement.querySelector("textarea")!;
+      textarea.value = "abcdef";
+      textarea.dispatchEvent(new Event("input"));
+      hostFixture.detectChanges();
+
+      expect(hostFixture.nativeElement.querySelector(".character-count")!.textContent?.trim()).toBe(
+        `6/${component.MAX_PROJECT_DESCRIPTION_CHAR_COUNT}`
+      );
     });
 
     it("offers the save button only once the description has actually changed", () => {
