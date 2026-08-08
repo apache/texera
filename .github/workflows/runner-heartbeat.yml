@@ -15,9 +15,12 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# Liveness probe for the self-hosted runner fleet. `beat` runs a trivial
-# job on the fleet every 15 minutes; a stale last-success means the fleet
-# is down. Two consumers act on that signal:
+# Liveness and health probe for the self-hosted runner fleet. `beat` runs on
+# the fleet every 15 minutes and, beyond proving the node is reachable,
+# checks the things that make a classic (non-ephemeral) runner unusable
+# without making it unreachable: disk and inode headroom, a responsive docker
+# daemon, and the tools every build job assumes. A stale last-success means
+# the fleet is down OR unhealthy. Two consumers act on that signal:
 #   - precheck.yml queries the last successful heartbeat directly (plain
 #     GITHUB_TOKEN) and falls back to GitHub-hosted runners for the build
 #     tiers when it is stale.
@@ -50,17 +53,83 @@ jobs:
     steps:
       - name: Prove the fleet is alive
         run: echo "self-hosted fleet alive at $(date -u +%FT%TZ) on $RUNNER_NAME"
+      - name: Check node health
+        # Reachable is not the same as healthy. On a classic (non-ephemeral)
+        # runner the node keeps its disk and its docker daemon across every
+        # job it has ever run, so it can answer this heartbeat while being
+        # unable to complete any real build — a full disk, a wedged docker
+        # daemon or a tool that went missing all surface as job failures that
+        # read like code problems. Failing here is the point: the watchdog
+        # below flips ARC_AVAILABLE to false and CI routes back to
+        # GitHub-hosted runners until the node is fixed.
+        #
+        # Scope: this beat runs on one arc-light-linux runner, so what it
+        # proves about disk is that node's disk, not the heavy/medium/bench
+        # tiers'. Turning `beat` into a matrix over all four labels is the
+        # natural extension if the tiers start diverging.
+        run: |
+          set -uo pipefail
+          status=0
+          err()  { echo "::error::$1"; status=1; }
+          warn() { echo "::warning::$1"; }
+
+          # Disk is the realistic killer: build output accumulates until the
+          # root volume fills and the node starts evicting. / and the work
+          # directory can be separate volumes, so check both.
+          for mount in / "${GITHUB_WORKSPACE:-/}"; do
+            free_gib=$(($(df -Pk "$mount" | awk 'NR==2 {print $4}') / 1024 / 1024))
+            used_pct=$(df -Pk "$mount" | awk 'NR==2 {gsub(/%/,"",$5); print $5}')
+            echo "disk $mount: ${free_gib}GiB free, ${used_pct}% used"
+            if [ "$free_gib" -lt 5 ]; then
+              err "disk $mount is nearly full: ${free_gib}GiB free (${used_pct}% used)"
+            elif [ "$free_gib" -lt 15 ]; then
+              warn "disk $mount is filling up: ${free_gib}GiB free (${used_pct}% used)"
+            fi
+            # Inodes can run out with disk to spare (millions of small files
+            # from node_modules / coursier). Some filesystems report '-'.
+            inode_pct=$(df -Pi "$mount" 2>/dev/null | awk 'NR==2 {gsub(/%/,"",$5); print $5}')
+            case "$inode_pct" in
+              ''|*[!0-9]*) ;;
+              *) if [ "$inode_pct" -ge 90 ]; then warn "inode usage on $mount is ${inode_pct}%"; fi ;;
+            esac
+          done
+
+          # Tools every build job assumes. docker is absent by design on some
+          # images (the light tier runs no containers), so it only warns.
+          for tool in git curl unzip tar; do
+            command -v "$tool" >/dev/null 2>&1 || err "required tool missing: $tool"
+          done
+          if command -v docker >/dev/null 2>&1; then
+            if docker info >/dev/null 2>&1; then
+              running=$(docker ps -q | wc -l | tr -d ' ')
+              total=$(docker ps -aq | wc -l | tr -d ' ')
+              echo "docker: daemon ok, ${running} running / ${total} total container(s)"
+              # Leftovers here mean jobs are dying before their cleanup step;
+              # the named ones (postgres, minio, lakekeeper, lakefs) would then
+              # collide with the next job that wants the same name and port.
+              if [ "$total" -gt 5 ]; then
+                warn "${total} containers left on this node; job cleanup is not keeping up"
+              fi
+            else
+              err "docker CLI is present but the daemon is not responding"
+            fi
+          else
+            warn "docker is not available on this runner"
+          fi
+
+          if [ "$status" -ne 0 ]; then
+            echo "node is unhealthy — failing the heartbeat so CI falls back to GitHub-hosted runners"
+            exit 1
+          fi
+          echo "node healthy"
       - name: Clean up job artifacts
         # The beat checks nothing out, but it runs every 15 minutes on a
-        # classic runner, so even an empty workspace directory is worth leaving
-        # clean. always() so a failed or cancelled beat cleans up too. Also
-        # reports disk headroom, which is the fleet health signal this
-        # workflow exists to watch.
+        # classic runner, so even an empty workspace directory is worth
+        # leaving clean. always() so a failed or cancelled beat cleans up too.
         if: ${{ always() && runner.environment == 'self-hosted' }}
         run: |
           find "${GITHUB_WORKSPACE:?}" -mindepth 1 -maxdepth 1 -exec rm -rf -- {} + 2>/dev/null ||
             echo "::warning::workspace cleanup incomplete on ${RUNNER_NAME:-this runner}"
-          df -h "$GITHUB_WORKSPACE" 2>/dev/null | tail -n 1 || true
 
   watchdog:
     runs-on: ubuntu-slim
