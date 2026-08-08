@@ -152,9 +152,11 @@ describe("BrowseSectionComponent rendering", () => {
 
   /** Renders the section with the given entities. */
   function render(entities: DashboardEntry[], title = "Workflows"): HTMLElement {
-    component.sectionTitle = title;
-    component.entities = entities;
-    component.ngOnInit();
+    // Set the inputs and let the first change-detection cycle drive ngOnInit, as Angular does at
+    // runtime. Calling ngOnInit() by hand as well would run it twice and rebuild the cover-image
+    // cache on top of itself, hiding any non-idempotent init.
+    fixture.componentRef.setInput("entities", entities);
+    fixture.componentRef.setInput("sectionTitle", title);
     fixture.detectChanges();
     return fixture.nativeElement as HTMLElement;
   }
