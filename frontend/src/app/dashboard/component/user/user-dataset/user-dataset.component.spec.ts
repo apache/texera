@@ -422,6 +422,9 @@ describe("UserDatasetComponent rendering", () => {
   });
 
   afterEach(() => {
+    // Also on the way out: the persistence test leaves a chosen view behind, and this key is
+    // shared with the suite above.
+    localStorage.removeItem(VIEW_MODE_STORAGE_KEY);
     vi.restoreAllMocks();
   });
 
