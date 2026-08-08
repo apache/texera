@@ -1634,16 +1634,22 @@ describe("DatasetDetailComponent behavior", () => {
       const input = fixture.debugElement.query(By.css(".settings-name-controls input[nz-input]"));
       expect(input).toBeTruthy();
 
+      // drive the [(ngModel)] update path through the DOM
+      input.nativeElement.value = "typed-name";
+      input.nativeElement.dispatchEvent(new Event("input"));
+      fixture.detectChanges();
+      expect(component.editedDatasetName).toBe("typed-name");
+
       const saveBtn = fixture.debugElement
         .queryAll(By.css("button"))
         .find(btn => (btn.nativeElement.textContent ?? "").trim() === "Save");
       expect(saveBtn).toBeTruthy();
       saveBtn!.triggerEventHandler("click", null);
 
-      expect(datasetServiceStub.updateDatasetName).toHaveBeenCalled();
+      expect(datasetServiceStub.updateDatasetName).toHaveBeenCalledWith(5, "typed-name");
     });
 
-    it("renders the contributor list and opens the editor for one", () => {
+    it("renders every contributor row from the list", () => {
       renderWith({
         did: 5,
         datasetContributors: [
@@ -1657,17 +1663,24 @@ describe("DatasetDetailComponent behavior", () => {
       expect(rendered).toContain("Grace");
     });
 
-    it("renders the settings switches and routes their changes to the service", () => {
-      renderWith({ did: 5, datasetIsPublic: false, datasetIsDownloadable: true, userDatasetAccessLevel: "WRITE" });
+    it("routes the settings switches' ngModelChange bindings to the service", () => {
+      renderWith({
+        did: 5,
+        datasetIsPublic: false,
+        datasetIsDownloadable: true,
+        userDatasetAccessLevel: "WRITE",
+        isOwner: true, // the downloadable switch is [nzDisabled]="!isOwner"
+      });
       openTab("Settings");
 
-      // both switches are bound in the settings tab
-      expect(fixture.debugElement.queryAll(By.css("nz-switch")).length).toBeGreaterThanOrEqual(2);
+      const switches = fixture.debugElement.queryAll(By.css("nz-switch"));
+      expect(switches.length).toBeGreaterThanOrEqual(2);
 
-      component.onPublicStatusChange(true);
+      // fire the template's (ngModelChange) handlers rather than calling the methods
+      switches[0].triggerEventHandler("ngModelChange", true);
       expect(datasetServiceStub.updateDatasetPublicity).toHaveBeenCalledWith(5);
 
-      component.onDownloadableStatusChange(false);
+      switches[1].triggerEventHandler("ngModelChange", false);
       expect(datasetServiceStub.updateDatasetDownloadable).toHaveBeenCalledWith(5);
     });
   });
