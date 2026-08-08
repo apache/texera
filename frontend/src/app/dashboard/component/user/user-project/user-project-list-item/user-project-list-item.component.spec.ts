@@ -32,6 +32,8 @@ import { UserService } from "../../../../../common/service/user/user.service";
 import { commonTestProviders } from "../../../../../common/testing/test-utils";
 import { ShareAccessComponent } from "../../share-access/share-access.component";
 import { DatePipe } from "@angular/common";
+import { By } from "@angular/platform-browser";
+import { ColorPickerDirective } from "ngx-color-picker";
 import { of } from "rxjs";
 import { MarkdownModule } from "ngx-markdown";
 
@@ -128,6 +130,16 @@ describe("UserProjectListItemComponent", () => {
       component.updateProjectColor();
 
       expect(errorSpy).toHaveBeenCalled();
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it("does not call the service when the color is unchanged", () => {
+      const spy = vi.spyOn(userProjectService, "updateProjectColor");
+      component.entry = { ...component.entry, color: "123456" };
+      component.color = "#123456";
+
+      component.updateProjectColor();
+
       expect(spy).not.toHaveBeenCalled();
     });
 
@@ -330,6 +342,161 @@ describe("UserProjectListItemComponent", () => {
       hostFixture.detectChanges();
 
       expect(hostFixture.nativeElement.querySelector(".ant-input-clear-icon")).not.toBeNull();
+    });
+  });
+
+  /**
+   * The block above pins what each branch looks like by putting the component into that state
+   * directly. What is left unpinned is the wiring in between: the controls that produce those
+   * states, the outputs the parent listens to, and the colour menu, whose markup only exists
+   * while the picker is open. These go through the DOM so a control losing its handler fails
+   * here. Events that ng-zorro / the colour picker raise as directive outputs rather than DOM
+   * events (`nzOnConfirm`, `keyup.enter`, `colorPickerSelect`) need DebugElement, so this block
+   * queries with `By.css` instead of `querySelector`.
+   */
+  describe("rendered controls", () => {
+    // Name what was missing, so a markup change fails with the element it could not find rather
+    // than "Cannot read properties of undefined".
+    const required = <T>(value: T | null | undefined, what: string): T => {
+      if (value === null || value === undefined) {
+        throw new Error(`expected ${what} to be rendered`);
+      }
+      return value;
+    };
+    const q = (selector: string) => hostFixture.debugElement.query(By.css(selector));
+    const buttonLabelled = (label: string) =>
+      required(
+        hostFixture.debugElement
+          .queryAll(By.css("button"))
+          .find(button => (button.nativeElement.textContent ?? "").trim() === label),
+        `a button labelled "${label}"`
+      );
+
+    // The colour menu lives in `cpExtraTemplate`, so it exists only once the picker is open,
+    // which `[(cpToggle)]="editingColor"` drives.
+    const openColorPanel = () => {
+      component.editingColor = true;
+      hostFixture.detectChanges();
+    };
+
+    afterEach(() => {
+      // An open colour picker keeps document-level listeners; destroying the view tears them
+      // down so a panel cannot outlive its test.
+      hostFixture.destroy();
+    });
+
+    it("wires the colour-picker outputs to the component", () => {
+      const updateSpy = vi.spyOn(component, "updateProjectColor").mockImplementation(() => {});
+      const picker = hostFixture.debugElement.query(By.directive(ColorPickerDirective));
+
+      picker.triggerEventHandler("colorPickerChange", "#abcdef");
+      picker.triggerEventHandler("colorPickerSelect", "#abcdef");
+
+      expect(component.color).toBe("#abcdef");
+      expect(updateSpy).toHaveBeenCalled();
+    });
+
+    it("wires the colour menu's Save action", () => {
+      const updateSpy = vi.spyOn(component, "updateProjectColor").mockImplementation(() => {});
+
+      openColorPanel();
+      buttonLabelled("Save").triggerEventHandler("click", null);
+
+      expect(updateSpy).toHaveBeenCalled();
+    });
+
+    it("enables the colour menu's Delete action only once a colour is set", () => {
+      const removeSpy = vi.spyOn(component, "removeProjectColor").mockImplementation(() => {});
+
+      // testProject starts with color: null, so there is nothing to delete yet.
+      openColorPanel();
+      expect(buttonLabelled("Delete").nativeElement.disabled).toBe(true);
+
+      component.entry = { ...component.entry, color: "123456" };
+      hostFixture.detectChanges();
+      const deleteButton = buttonLabelled("Delete");
+      expect(deleteButton.nativeElement.disabled).toBe(false);
+
+      deleteButton.triggerEventHandler("click", null);
+
+      expect(removeSpy).toHaveBeenCalled();
+    });
+
+    it("opens name editing, saves on enter, and closes on focusout", () => {
+      const saveSpy = vi.spyOn(component, "saveProjectName").mockImplementation(() => {});
+
+      required(q(".edit-name-icon").parent, "the edit-name button").triggerEventHandler("click", null);
+      hostFixture.detectChanges();
+      expect(component.editingName).toBe(true);
+
+      const input = q("input");
+      input.nativeElement.value = "renamed";
+      input.triggerEventHandler("keyup.enter", {});
+      expect(saveSpy).toHaveBeenCalledWith("renamed");
+
+      input.triggerEventHandler("focusout", {});
+      expect(component.editingName).toBe(false);
+    });
+
+    it("expands and re-collapses the description through its controls", () => {
+      q('[nz-tooltip="Expand Description"]').triggerEventHandler("click", null);
+      hostFixture.detectChanges();
+      expect(component.descriptionCollapsed).toBe(false);
+
+      q('[nz-tooltip="Collapse Description"]').triggerEventHandler("click", null);
+      hostFixture.detectChanges();
+      expect(component.descriptionCollapsed).toBe(true);
+    });
+
+    it("opens description editing, saves on focusout, and closes through the save icon", () => {
+      const saveSpy = vi.spyOn(component, "saveProjectDescription").mockImplementation(() => {});
+
+      required(q(".edit-description-icon").parent, "the edit-description button").triggerEventHandler("click", null);
+      hostFixture.detectChanges();
+      expect(component.editingDescription).toBe(true);
+
+      const textarea = q("textarea");
+      textarea.nativeElement.value = "a new description";
+      hostFixture.detectChanges();
+
+      textarea.triggerEventHandler("focusout", {});
+      expect(saveSpy).toHaveBeenCalledWith("a new description");
+
+      q(".ant-input-clear-icon").triggerEventHandler("click", null);
+      hostFixture.detectChanges();
+      expect(component.editingDescription).toBe(false);
+    });
+
+    it("wires the share and delete actions", () => {
+      const shareSpy = vi.spyOn(component, "onClickOpenShareAccess").mockImplementation(() => {});
+      const deletedSpy = vi.spyOn(component.deleted, "emit");
+      const [share, remove] = hostFixture.debugElement.queryAll(By.css("ul[nz-list-item-actions] button"));
+
+      share.triggerEventHandler("click", null);
+      remove.triggerEventHandler("nzOnConfirm", null);
+
+      expect(shareSpy).toHaveBeenCalled();
+      expect(deletedSpy).toHaveBeenCalled();
+    });
+  });
+
+  describe("entry input", () => {
+    it("throws when read before an entry is provided", () => {
+      component.entry = undefined as unknown as DashboardProject;
+
+      expect(() => component.entry).toThrowError("entry property must be provided");
+    });
+  });
+
+  describe("ngOnInit", () => {
+    it("adopts the project's stored colour", () => {
+      // A fresh fixture (rather than the shared one) so ngOnInit sees the colour.
+      const fixture = TestBed.createComponent(TestHostComponent);
+      fixture.componentInstance.entry = { ...testProject, color: "123456" };
+      fixture.detectChanges();
+
+      expect(fixture.componentInstance.inner.color).toBe("123456");
+      fixture.destroy();
     });
   });
 });
