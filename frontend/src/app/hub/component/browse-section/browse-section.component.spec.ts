@@ -20,13 +20,11 @@
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { RouterTestingModule } from "@angular/router/testing";
 import { By } from "@angular/platform-browser";
-import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { UserService } from "src/app/common/service/user/user.service";
 import { StubUserService } from "src/app/common/service/user/stub-user.service";
 import { BrowseSectionComponent } from "./browse-section.component";
 import { WorkflowPersistService } from "../../../common/service/workflow-persist/workflow-persist.service";
 import { DatasetService } from "../../../dashboard/service/user/dataset/dataset.service";
-import { ChangeDetectorRef } from "@angular/core";
 import { commonTestProviders } from "../../../common/testing/test-utils";
 import { DashboardEntry } from "../../../dashboard/type/dashboard-entry";
 import { AppSettings } from "../../../common/app-setting";
@@ -47,7 +45,6 @@ describe("BrowseSectionComponent", () => {
       providers: [
         { provide: WorkflowPersistService, useValue: {} },
         { provide: DatasetService, useValue: {} },
-        { provide: ChangeDetectorRef, useValue: {} },
         ...commonTestProviders,
       ],
     });
@@ -139,14 +136,13 @@ describe("BrowseSectionComponent rendering", () => {
   beforeEach(() => {
     TestBed.resetTestingModule();
     TestBed.configureTestingModule({
-      imports: [BrowseSectionComponent, RouterTestingModule.withRoutes([]), HttpClientTestingModule],
+      imports: [BrowseSectionComponent, RouterTestingModule.withRoutes([])],
       providers: [
         // The cards embed texera-user-avatar, which injects UserService; the real one drags in
         // AuthService and its whole dependency chain, so the shared stub stands in for it.
         { provide: UserService, useClass: StubUserService },
         { provide: WorkflowPersistService, useValue: {} },
         { provide: DatasetService, useValue: {} },
-        { provide: ChangeDetectorRef, useValue: {} },
         ...commonTestProviders,
       ],
     });
