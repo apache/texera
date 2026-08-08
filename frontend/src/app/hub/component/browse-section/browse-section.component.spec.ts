@@ -130,7 +130,6 @@ describe("BrowseSectionComponent", () => {
  * unpinned. RouterTestingModule supplies the Router that the cards' routerLink needs.
  */
 describe("BrowseSectionComponent rendering", () => {
-  let component: BrowseSectionComponent;
   let fixture: ComponentFixture<BrowseSectionComponent>;
 
   beforeEach(() => {
@@ -147,7 +146,6 @@ describe("BrowseSectionComponent rendering", () => {
       ],
     });
     fixture = TestBed.createComponent(BrowseSectionComponent);
-    component = fixture.componentInstance;
   });
 
   /** Renders the section with the given entities. */
