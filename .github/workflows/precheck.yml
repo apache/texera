@@ -430,6 +430,21 @@ jobs:
             }
             if (selfHosted && process.env.ARC_STATUS_TOKEN) {
               try {
+                // Raw request rather than
+                // github.rest.actions.listSelfHostedRunnersForRepo: the
+                // `github` client is bound to the workflow GITHUB_TOKEN, and
+                // Octokit's auth hook overwrites the authorization header on
+                // every request, so one client cannot carry a second token.
+                // Listing runners needs administration:read, which only
+                // ARC_STATUS_TOKEN has. The backlog probe below stays on the
+                // SDK because actions:read is within the workflow token's
+                // reach — the split follows token scope, not style.
+                //
+                // Giving this call the SDK back means moving it into its own
+                // github-script step with `github-token: ARC_STATUS_TOKEN`,
+                // which also buys `retries` and github.paginate (this request
+                // caps at 100 runners today). Worth doing once the fleet
+                // approaches that size; see the discussion on #7172.
                 const res = await fetch(
                   `https://api.github.com/repos/${context.repo.owner}/${context.repo.repo}/actions/runners?per_page=100`,
                   {

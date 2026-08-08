@@ -195,6 +195,9 @@ jobs:
             }
             if (linuxRunner === "arc-bench-linux" && process.env.ARC_STATUS_TOKEN) {
               try {
+                // Raw request rather than the SDK because this call needs a
+                // second token (administration:read); see the same probe in
+                // precheck.yml for why one Octokit client cannot carry it.
                 const res = await fetch(
                   `https://api.github.com/repos/${context.repo.owner}/${context.repo.repo}/actions/runners?per_page=100`,
                   {

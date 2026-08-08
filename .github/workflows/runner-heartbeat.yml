@@ -161,6 +161,14 @@ jobs:
               return;
             }
             const desired = healthy ? "true" : "false";
+            // Raw requests rather than github.rest.actions.{get,create,update}
+            // RepoVariable: the `github` client above is bound to the workflow
+            // GITHUB_TOKEN, which cannot write variables, and Octokit's auth
+            // hook overwrites the authorization header on every request, so it
+            // cannot carry AUTO_MERGE_TOKEN. Unlike the runner probe in
+            // precheck.yml, every call in this step could use that token, so
+            // moving the whole step onto `github-token: AUTO_MERGE_TOKEN`
+            // would put all three back on the SDK.
             const headers = {
               authorization: `Bearer ${process.env.VAR_TOKEN}`,
               accept: "application/vnd.github+json",
