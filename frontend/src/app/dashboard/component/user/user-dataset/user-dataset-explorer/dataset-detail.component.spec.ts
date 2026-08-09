@@ -18,11 +18,16 @@
  */
 
 import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { By } from "@angular/platform-browser";
 import { ActivatedRoute, Router } from "@angular/router";
 import { of, Subject, throwError } from "rxjs";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { MarkdownService } from "ngx-markdown";
-import { DatasetDetailComponent } from "./dataset-detail.component";
+import {
+  DatasetDetailComponent,
+  ABORT_RETRY_BACKOFF_BASE_MS,
+  ABORT_RETRY_MAX_ATTEMPTS,
+} from "./dataset-detail.component";
 import { DatasetService, MultipartUploadProgress } from "../../../../service/user/dataset/dataset.service";
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
 import { DownloadService } from "../../../../service/user/download/download.service";
@@ -129,6 +134,146 @@ describe("DatasetDetailComponent upload queue", () => {
     // Log in so ngOnInit reaches loadUploadSettings (maxConcurrentFiles = 3).
     (TestBed.inject(UserService) as unknown as StubUserService).userChangeSubject.next(MOCK_USER);
     fixture.detectChanges();
+  });
+
+  /**
+   * Aborting an in-flight upload has to survive the backend still finalizing the previous attempt:
+   * the abort call is retried on 409 up to ABORT_RETRY_MAX_ATTEMPTS, a 404 means it is already gone,
+   * and the caller's callback must fire exactly once down every one of those paths.
+   */
+  describe("aborting an upload", () => {
+    let finalize: ReturnType<typeof vi.fn>;
+
+    beforeEach(() => {
+      vi.useFakeTimers();
+      finalize = TestBed.inject(DatasetService).finalizeMultipartUpload as unknown as ReturnType<typeof vi.fn>;
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    /** Starts an upload and reports progress, leaving one task in flight. */
+    function inFlight(name = "a.txt") {
+      dropFiles(name);
+      uploadSubjects[0].next({ filePath: name, percentage: 10, status: "uploading", totalTime: 0 });
+      return component.uploadTasks.find(t => t.filePath === name)!;
+    }
+
+    const conflict = () => throwError(() => ({ status: 409 }) as any);
+    const gone = () => throwError(() => ({ status: 404 }) as any);
+
+    it("marks the task aborted and tells the caller once", () => {
+      const task = inFlight();
+      const onAborted = vi.fn();
+
+      component.onClickAbortUploadProgress(task as any, onAborted);
+
+      expect(finalize).toHaveBeenCalledWith("owner@texera.com", "test-dataset", "a.txt", true);
+      expect(component.uploadTasks.find(t => t.filePath === "a.txt")!.status).toBe("aborted");
+      expect(onAborted).toHaveBeenCalledTimes(1);
+    });
+
+    it("stops listening to the upload it aborted", () => {
+      const task = inFlight();
+
+      component.onClickAbortUploadProgress(task as any);
+
+      // The progress stream is unsubscribed, so a late event cannot resurrect the task.
+      uploadSubjects[0].next({ filePath: "a.txt", percentage: 100, status: "finished", totalTime: 1 });
+      expect(component.uploadTasks.find(t => t.filePath === "a.txt")!.status).toBe("aborted");
+    });
+
+    it("treats a 404 as already aborted rather than an error", () => {
+      finalize.mockReturnValueOnce(gone());
+      const task = inFlight();
+      const onAborted = vi.fn();
+
+      component.onClickAbortUploadProgress(task as any, onAborted);
+
+      expect(onAborted).toHaveBeenCalledTimes(1);
+      expect(finalize).toHaveBeenCalledTimes(1);
+    });
+
+    it("retries a 409 after a backoff and finishes once the server catches up", () => {
+      // The server is still finalizing the previous attempt; the abort has to wait it out.
+      finalize.mockReturnValueOnce(conflict());
+      const task = inFlight();
+      const onAborted = vi.fn();
+
+      component.onClickAbortUploadProgress(task as any, onAborted);
+      expect(onAborted).not.toHaveBeenCalled();
+
+      vi.advanceTimersByTime(ABORT_RETRY_BACKOFF_BASE_MS);
+
+      expect(finalize).toHaveBeenCalledTimes(2);
+      expect(onAborted).toHaveBeenCalledTimes(1);
+    });
+
+    it("backs off further on each successive conflict", () => {
+      finalize.mockReturnValue(conflict());
+      const task = inFlight();
+
+      component.onClickAbortUploadProgress(task as any);
+      expect(finalize).toHaveBeenCalledTimes(1);
+
+      // First wait is BASE * 1, the second BASE * 2, so BASE alone is not enough for the third call.
+      vi.advanceTimersByTime(ABORT_RETRY_BACKOFF_BASE_MS);
+      expect(finalize).toHaveBeenCalledTimes(2);
+
+      vi.advanceTimersByTime(ABORT_RETRY_BACKOFF_BASE_MS);
+      expect(finalize).toHaveBeenCalledTimes(2);
+
+      vi.advanceTimersByTime(ABORT_RETRY_BACKOFF_BASE_MS);
+      expect(finalize).toHaveBeenCalledTimes(3);
+    });
+
+    it("gives up after the attempt limit but still reports the abort", () => {
+      // Without the bound this would retry forever against a permanently conflicted server.
+      finalize.mockReturnValue(conflict());
+      const task = inFlight();
+      const onAborted = vi.fn();
+
+      component.onClickAbortUploadProgress(task as any, onAborted);
+      vi.advanceTimersByTime(ABORT_RETRY_BACKOFF_BASE_MS * ABORT_RETRY_MAX_ATTEMPTS * (ABORT_RETRY_MAX_ATTEMPTS + 1));
+
+      expect(finalize).toHaveBeenCalledTimes(ABORT_RETRY_MAX_ATTEMPTS + 1);
+      expect(onAborted).toHaveBeenCalledTimes(1);
+    });
+
+    it("reports the abort once even on an error the retry does not cover", () => {
+      finalize.mockReturnValueOnce(throwError(() => ({ status: 500 }) as any));
+      const task = inFlight();
+      const onAborted = vi.fn();
+
+      component.onClickAbortUploadProgress(task as any, onAborted);
+
+      expect(onAborted).toHaveBeenCalledTimes(1);
+      expect(finalize).toHaveBeenCalledTimes(1);
+    });
+
+    it("frees the concurrency slot so a queued upload can start", () => {
+      // Aborting has to release the slot as an ordinary completion would; otherwise the queue
+      // stalls behind an upload that is no longer running.
+      dropFiles("a.txt", "b.txt", "c.txt", "d.txt");
+      expect(uploadedPaths).toEqual(["a.txt", "b.txt", "c.txt"]);
+      uploadSubjects[0].next({ filePath: "a.txt", percentage: 10, status: "uploading", totalTime: 0 });
+      const task = component.uploadTasks.find(t => t.filePath === "a.txt")!;
+
+      component.onClickAbortUploadProgress(task as any);
+
+      expect(uploadedPaths).toContain("d.txt");
+    });
+
+    it("cancelExistingUpload aborts an upload that is still running", () => {
+      inFlight("b.txt");
+      const onCanceled = vi.fn();
+
+      component.cancelExistingUpload("b.txt", onCanceled);
+
+      expect(finalize).toHaveBeenCalledWith("owner@texera.com", "test-dataset", "b.txt", true);
+      expect(onCanceled).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe("contributor cards", () => {
@@ -1527,6 +1672,160 @@ describe("DatasetDetailComponent behavior", () => {
       component.onDeleteContributor(contributorA);
 
       expect(datasetServiceStub.updateDatasetContributors).not.toHaveBeenCalled();
+    });
+  });
+
+  // ─── template rendering ────────────────────────────────────────────────────
+  // These drive the markup through the DOM (rather than calling handlers directly)
+  // so the template's bindings and conditional blocks actually execute.
+  describe("template rendering", () => {
+    // Renders the component and applies the given state, so each *ngIf arm is exercised.
+    // The first detectChanges() lets ngOnInit's subscriptions settle — they reset fields
+    // such as coverImageUrl — so the state is applied afterwards and rendered by a
+    // second change-detection pass.
+    const renderWith = (state: Partial<DatasetDetailComponent> = {}): void => {
+      createComponent();
+      fixture.detectChanges();
+      Object.assign(component, state);
+      fixture.detectChanges();
+    };
+
+    const clickByCss = (selector: string): void => {
+      const el = fixture.debugElement.query(By.css(selector));
+      expect(el).toBeTruthy();
+      el.triggerEventHandler("click", null);
+      fixture.detectChanges();
+    };
+
+    // nz-tabs renders only the active tab's content, so a tab must be opened by its
+    // title before the markup inside it can be queried.
+    const openTab = (title: string): void => {
+      const tab = fixture.debugElement
+        .queryAll(By.css(".ant-tabs-tab"))
+        .find(el => (el.nativeElement.textContent ?? "").includes(title));
+      expect(tab).toBeTruthy();
+      tab!.nativeElement.click();
+      fixture.detectChanges();
+    };
+
+    it("toggles the like through the like tag when logged in", () => {
+      // toggleLike() early-returns unless currentUid is set, which login() supplies
+      createComponent();
+      fixture.detectChanges();
+      login();
+      Object.assign(component, { isLogin: true, did: 5, isLiked: false, likeCount: 1 });
+      fixture.detectChanges();
+
+      clickByCss(".like-tag");
+
+      expect(hubServiceStub.postLike).toHaveBeenCalled();
+    });
+
+    it("unlikes through the same tag when the dataset is already liked", () => {
+      createComponent();
+      fixture.detectChanges();
+      login();
+      Object.assign(component, { isLogin: true, did: 5, isLiked: true, likeCount: 2 });
+      fixture.detectChanges();
+
+      clickByCss(".like-tag");
+
+      expect(hubServiceStub.postUnlike).toHaveBeenCalled();
+    });
+
+    it("does not toggle the like when logged out", () => {
+      renderWith({ isLogin: false, did: 5, isLiked: false, likeCount: 1 });
+
+      const likeTag = fixture.debugElement.query(By.css(".like-tag"));
+      expect(likeTag).toBeTruthy();
+      // the template guards the handler with `isLogin &&`
+      expect(likeTag.nativeElement.classList).toContain("disabled");
+
+      likeTag.triggerEventHandler("click", null);
+
+      expect(hubServiceStub.postLike).not.toHaveBeenCalled();
+    });
+
+    it("omits the cover image when there is no cover URL", () => {
+      renderWith({ coverImageUrl: null });
+      expect(fixture.debugElement.query(By.css(".dataset-cover-image"))).toBeNull();
+    });
+
+    it("renders the cover image bound to the cover URL", () => {
+      renderWith({ coverImageUrl: "blob:cover" });
+      const img = fixture.debugElement.query(By.css(".dataset-cover-image"));
+      expect(img).toBeTruthy();
+      expect(img.nativeElement.getAttribute("src")).toBe("blob:cover");
+    });
+
+    it("collapses the right bar from the template, then renders the restore control", () => {
+      renderWith({ isRightBarCollapsed: false });
+      openTab("Versions & Files");
+
+      // both arms of the *ngIf pair are exercised: hide first, then the show button
+      clickByCss("button[nz-tooltip='Hide the right bar']");
+      expect(component.isRightBarCollapsed).toBe(true);
+
+      clickByCss("button[nz-tooltip='Show Tree']");
+      expect(component.isRightBarCollapsed).toBe(false);
+    });
+
+    it("binds the dataset name input and saves it from the template", () => {
+      // the Settings tab is behind *ngIf="userHasWriteAccess()"
+      renderWith({ did: 5, editedDatasetName: "renamed", userDatasetAccessLevel: "WRITE" });
+      openTab("Settings");
+
+      const input = fixture.debugElement.query(By.css(".settings-name-controls input[nz-input]"));
+      expect(input).toBeTruthy();
+
+      // drive the [(ngModel)] update path through the DOM
+      input.nativeElement.value = "typed-name";
+      input.nativeElement.dispatchEvent(new Event("input"));
+      fixture.detectChanges();
+      expect(component.editedDatasetName).toBe("typed-name");
+
+      const saveBtn = fixture.debugElement
+        .queryAll(By.css("button"))
+        .find(btn => (btn.nativeElement.textContent ?? "").trim() === "Save");
+      expect(saveBtn).toBeTruthy();
+      saveBtn!.triggerEventHandler("click", null);
+
+      expect(datasetServiceStub.updateDatasetName).toHaveBeenCalledWith(5, "typed-name");
+    });
+
+    it("renders every contributor row from the list", () => {
+      renderWith({
+        did: 5,
+        datasetContributors: [
+          { name: "Ada", email: "ada@x.io", affiliation: "" } as Contributor,
+          { name: "Grace", email: "grace@x.io", affiliation: "" } as Contributor,
+        ],
+      });
+
+      const rendered = fixture.debugElement.nativeElement.textContent ?? "";
+      expect(rendered).toContain("Ada");
+      expect(rendered).toContain("Grace");
+    });
+
+    it("routes the settings switches' ngModelChange bindings to the service", () => {
+      renderWith({
+        did: 5,
+        datasetIsPublic: false,
+        datasetIsDownloadable: true,
+        userDatasetAccessLevel: "WRITE",
+        isOwner: true, // the downloadable switch is [nzDisabled]="!isOwner"
+      });
+      openTab("Settings");
+
+      const switches = fixture.debugElement.queryAll(By.css("nz-switch"));
+      expect(switches.length).toBeGreaterThanOrEqual(2);
+
+      // fire the template's (ngModelChange) handlers rather than calling the methods
+      switches[0].triggerEventHandler("ngModelChange", true);
+      expect(datasetServiceStub.updateDatasetPublicity).toHaveBeenCalledWith(5);
+
+      switches[1].triggerEventHandler("ngModelChange", false);
+      expect(datasetServiceStub.updateDatasetDownloadable).toHaveBeenCalledWith(5);
     });
   });
 });
