@@ -90,6 +90,11 @@ class Context:
         # Loop-back write addresses delivered at setup; see the proto field doc
         # on InitializeExecutorRequest.loopStartStateUris (controlcommands.proto).
         self.loop_start_state_uris: Dict[str, str] = {}
+        # True iff this operator sits inside a try/catch frame's cone (from
+        # InitializeExecutorRequest.guarded, set by TryCatchFramePass).
+        # Guarded: own executor failure becomes an in-band error State and the
+        # worker drains. Unguarded: default behavior — report and pause.
+        self.guarded: bool = False
 
     def report_exception(self, err: BaseException) -> None:
         """Route an operator-facing exception to the exception manager and

@@ -42,6 +42,37 @@ final case class State(values: Map[String, Any]) {
 }
 
 object State {
+
+  // Reserved key marking a State as an in-band error signal (an operator
+  // failure traveling forward as a dataflow event). The value is an envelope
+  // map: {operatorId, workerId, errorType, message}. Recognition and port
+  // poisoning happen in the worker (DataProcessor); operators are oblivious
+  // unless they explicitly consume it (try/catch frame operators do).
+  val ErrorKey = "__error__"
+  private val ErrOperatorId = "operatorId"
+
+  def errorState(operatorId: String, workerId: String, e: Throwable): State =
+    State(
+      Map(
+        ErrorKey -> Map(
+          ErrOperatorId -> operatorId,
+          "workerId" -> workerId,
+          "errorType" -> e.getClass.getName,
+          "message" -> Option(e.getMessage).getOrElse("")
+        )
+      )
+    )
+
+  def isError(state: State): Boolean = state.values.contains(ErrorKey)
+
+  /** The canonical physical-operator id of the failing operator, if this is an error State. */
+  def errorOperatorId(state: State): Option[String] =
+    state.values.get(ErrorKey) match {
+      case Some(envelope: Map[_, _]) =>
+        envelope.asInstanceOf[Map[String, Any]].get(ErrOperatorId).map(_.toString)
+      case _ => None
+    }
+
   private val Content = "content"
   // loop-control bookkeeping owned by the (Python) worker runtime; not user
   // state and never in the content JSON. Materialized as its own columns,

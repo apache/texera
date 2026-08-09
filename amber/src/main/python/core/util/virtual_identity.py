@@ -57,6 +57,20 @@ def get_logical_op_id(worker_id: str) -> str:
     raise ValueError(f"Invalid worker ID format: {worker_id}")
 
 
+def get_physical_op_id_string(worker_id: str) -> str:
+    """
+    The canonical ``<logicalOpId>/<layerName>`` physical-operator id string for
+    a worker actor name. Must stay byte-identical to the Scala side's
+    ``s"${opId.logicalOpId.id}/${opId.layerName}"`` (DataProcessor's error-State
+    envelope), because try/catch frames compare these strings against the
+    compile-time cone sets baked into their gate/merger configs.
+    """
+    match = worker_name_pattern.fullmatch(worker_id)
+    if match:
+        return f"{match.group(2)}/{match.group(3)}"
+    raise ValueError(f"Invalid worker ID format: {worker_id}")
+
+
 def serialize_global_port_identity(obj: GlobalPortIdentity) -> str:
     """
     Serialize GlobalPortIdentity into a custom human-readable string.

@@ -253,8 +253,12 @@ class WorkflowCompiler(
     logicalPlan.resolveScanSourceOpFileName(errorList)
 
     // 3. expand the logical plan to the physical plan, and get the output ports that need storage
-    val (physicalPlan, outputPortsNeedingStorage) =
+    val (rawPhysicalPlan, outputPortsNeedingStorage) =
       expandLogicalPlan(logicalPlan, logicalPlanPojo.opsToViewResult, errorList)
+
+    // 3.5 expand try/catch frames: cones, attribution configs, signal edges,
+    // gate port dependencies (no-op when the workflow has no TryCatch)
+    val physicalPlan = TryCatchFramePass.run(rawPhysicalPlan, errorList)
 
     // 4. collect the output schema for each logical op
     // even if an error is encountered during logical => physical expansion, we still want to

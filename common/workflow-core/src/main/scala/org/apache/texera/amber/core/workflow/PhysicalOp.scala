@@ -214,7 +214,12 @@ case class PhysicalOp(
     // hint for number of workers
     suggestedWorkerNum: Option[Int] = None,
     // name of the PVE to execute within
-    pveName: String = ""
+    pveName: String = "",
+    // True iff this operator sits inside a try/catch frame's cone (set by
+    // TryCatchFramePass). A guarded worker turns its own executor failure into
+    // an in-band error State and drains; an unguarded worker keeps the
+    // default behavior: report and pause.
+    isGuarded: Boolean = false
 ) extends LazyLogging {
 
   // all the "dependee" links are also blocking
@@ -322,6 +327,14 @@ case class PhysicalOp(
     */
   def withParallelizable(parallelizable: Boolean): PhysicalOp =
     this.copy(parallelizable = parallelizable)
+
+  /**
+    * Mark this operator as inside a try/catch frame's cone: its workers turn
+    * their own executor failures into in-band error States and drain, instead
+    * of the unguarded report-and-pause behavior.
+    */
+  def withGuarded(guarded: Boolean): PhysicalOp =
+    this.copy(isGuarded = guarded)
 
   /**
     * creates a copy with the specified property that whether this operator is one-to-many
@@ -528,6 +541,24 @@ case class PhysicalOp(
     */
   def isOutputLinkBlocking(link: PhysicalLink): Boolean = {
     this.outputPorts(link.fromPortId)._1.blocking
+  }
+
+  /**
+    * The actual (dependee, depender) input-port dependency pairs declared on this
+    * operator, one entry per dependency edge. Unlike `getInputPortDependencyPairs`
+    * (a flat topological processing order), this stays correct when one port
+    * depends on N ports — consecutive positions in a topological order are NOT
+    * dependency pairs once a port has multiple independent dependees.
+    * Sorted for determinism (inputPorts is an unordered Map).
+    */
+  @JsonIgnore
+  def getInputPortDependencyEdges: List[(PortIdentity, PortIdentity)] = {
+    inputPorts.values
+      .flatMap {
+        case (port, _, _) => port.dependencies.map(dependee => dependee -> port.id)
+      }
+      .toList
+      .sortBy { case (dependee, depender) => (depender.id, depender.internal, dependee.id) }
   }
 
   /**

@@ -199,13 +199,15 @@ class ExpansionGreedyScheduleGenerator(
       physicalOpId: PhysicalOpIdentity,
       regionDAG: DirectedAcyclicGraph[Region, RegionLink]
   ): Option[Set[PhysicalLink]] = {
-    // For operators like HashJoin's Probe that have dependencies between their input ports
+    // For operators like HashJoin's Probe that have dependencies between their input ports.
+    // Iterate the ACTUAL declared (dependee, depender) pairs — a port may depend
+    // on N ports (e.g. a snapshot port depending on many signal ports), so
+    // consecutive positions in the topological processing order are not pairs.
     physicalPlan
       .getOperator(physicalOpId)
-      .getInputPortDependencyPairs
-      .sliding(2, 1)
+      .getInputPortDependencyEdges
       .foreach {
-        case List(dependeePort, dependerPort) =>
+        case (dependeePort, dependerPort) =>
           // Create edges between regions
           val dependeeEdges =
             physicalPlan
@@ -216,14 +218,18 @@ class ExpansionGreedyScheduleGenerator(
               .getUpstreamPhysicalLinks(physicalOpId)
               .filter(l => l.toPortId == dependerPort)
 
-          if (dependerEdges.nonEmpty) {
-            // The depender port is connected to some edges of this same region
-            val regionOrderPairs =
-              toRegionOrderPairs(
-                dependeeEdges.head.fromOpId,
-                dependerEdges.head.fromOpId,
-                regionDAG
-              )
+          if (dependeeEdges.isEmpty) {
+            // The dependee port reads only from materialization: ordering is
+            // already enforced by storage; nothing to add for this pair.
+          } else if (dependerEdges.nonEmpty) {
+            // The depender port is connected to some edges of this same region.
+            // A dependee/depender port may have multiple incoming edges (fan-in):
+            // every dependee-side region must precede every depender-side region.
+            val regionOrderPairs = for {
+              dependeeEdge <- dependeeEdges
+              dependerEdge <- dependerEdges
+              pair <- toRegionOrderPairs(dependeeEdge.fromOpId, dependerEdge.fromOpId, regionDAG)
+            } yield pair
             // Attempt to add these depender edges to regionDAG
             try {
               regionOrderPairs.foreach {
@@ -242,8 +248,9 @@ class ExpansionGreedyScheduleGenerator(
           } else {
             // The depender port is not connected to any edges (due to materializations)
             try {
-              // Any region that the dependee port belongs to needs to run first.
-              val dependeeRegions = getRegions(dependeeEdges.head.fromOpId, regionDAG)
+              // Any region that a dependee edge belongs to needs to run first.
+              val dependeeRegions =
+                dependeeEdges.flatMap(edge => getRegions(edge.fromOpId, regionDAG)).toSet
               // Any region that this depender port belongs to need to run after those dependee regions.
               val dependerRegion = getRegions(physicalOpId, regionDAG)
                 .filter(region =>
@@ -270,7 +277,6 @@ class ExpansionGreedyScheduleGenerator(
                 )
             }
           }
-        case _ =>
       }
     None
   }

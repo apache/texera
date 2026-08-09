@@ -182,6 +182,7 @@ class PartitionInfoSpec extends AnyFlatSpec {
         "SinglePartition",
         "OneToOnePartition",
         "BroadcastPartition",
+        "SignalPartition",
         "UnknownPartition"
       )
     )
@@ -268,6 +269,7 @@ class PartitionInfoSpec extends AnyFlatSpec {
     "single" -> SinglePartition(),
     "oneToOne" -> OneToOnePartition(),
     "broadcast" -> BroadcastPartition(),
+    "signal" -> SignalPartition(),
     "none" -> UnknownPartition()
   )
 

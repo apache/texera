@@ -260,6 +260,11 @@ message InitializeExecutorRequest {
   // the consumed StateFrame and writes the next-iteration state there. Empty
   // for plans without loops.
   map<string, string> loopStartStateUris = 4;
+  // True iff this operator sits inside a try/catch frame's cone (set by
+  // TryCatchFramePass). A guarded worker turns its own executor failure into
+  // an in-band error State and drains; an unguarded worker keeps the default
+  // behavior: report and pause.
+  bool guarded = 5;
 }
 
 message UpdateExecutorRequest {

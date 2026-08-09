@@ -374,8 +374,15 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with Matchers with 
   "data processor" should "handle an exception thrown while processing a state frame" in {
     val dp = mkDataProcessor
     dp.executor = executor
+    dp.guarded = true // inside a try/catch frame: failure drains, not pauses
     dp.stateManager.transitTo(READY)
-    (outputHandler.apply _).expects(*).anyNumberOfTimes()
+    val emitted = scala.collection.mutable.ArrayBuffer[WorkflowFIFOMessage]()
+    (outputHandler.apply _)
+      .expects(*)
+      .onCall { (m: Either[MainThreadDelegateMessage, WorkflowFIFOMessage]) =>
+        m.foreach(emitted += _); ()
+      }
+      .anyNumberOfTimes()
     val inputState = State(Map("field1" -> 3))
     (
         (
@@ -390,21 +397,43 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with Matchers with 
       .getChannel(ChannelIdentity(senderWorkerId, testWorkerId, isControl = false))
       .setPortId(inputPortId)
     dp.outputManager.addPort(outputPortId, schema, None)
+    dp.outputManager.addPartitionerWithPartitioning(
+      PhysicalLink(testOpId, outputPortId, upstreamOpId, inputPortId),
+      OneToOnePartitioning(1, Seq(ChannelIdentity(testWorkerId, senderWorkerId, isControl = false)))
+    )
     noException should be thrownBy {
       dp.processDataPayload(
         ChannelIdentity(senderWorkerId, testWorkerId, isControl = false),
         StateFrame(inputState)
       )
     }
-    // handleExecutorException must engage an operator-logic pause.
-    dp.pauseManager.isPaused shouldBe true
+    // Failure is an in-band dataflow event now: no stall, an error State goes
+    // downstream, and this worker drains (executor never invoked again — no
+    // further expectations are set on the mock).
+    dp.pauseManager.isPaused shouldBe false
+    val errorFrames = emitted.map(_.payload).collect { case sf: StateFrame => sf.frame }
+    assert(errorFrames.exists(State.isError), s"expected an error State, got: $errorFrames")
+    dp.isPortPoisoned(inputPortId) shouldBe true
+    noException should be thrownBy {
+      dp.processDataPayload(
+        ChannelIdentity(senderWorkerId, testWorkerId, isControl = false),
+        DataFrame(Array(tuples.head))
+      )
+    }
   }
 
   "data processor" should "handle an exception thrown while processing an input tuple" in {
     val dp = mkDataProcessor
     dp.executor = executor
+    dp.guarded = true
     dp.stateManager.transitTo(READY)
-    (outputHandler.apply _).expects(*).anyNumberOfTimes()
+    val emitted = scala.collection.mutable.ArrayBuffer[WorkflowFIFOMessage]()
+    (outputHandler.apply _)
+      .expects(*)
+      .onCall { (m: Either[MainThreadDelegateMessage, WorkflowFIFOMessage]) =>
+        m.foreach(emitted += _); ()
+      }
+      .anyNumberOfTimes()
     (
         (
             tuple: Tuple,
@@ -419,19 +448,76 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with Matchers with 
       .getChannel(ChannelIdentity(senderWorkerId, testWorkerId, isControl = false))
       .setPortId(inputPortId)
     dp.outputManager.addPort(outputPortId, schema, None)
+    dp.outputManager.addPartitionerWithPartitioning(
+      PhysicalLink(testOpId, outputPortId, upstreamOpId, inputPortId),
+      OneToOnePartitioning(1, Seq(ChannelIdentity(testWorkerId, senderWorkerId, isControl = false)))
+    )
+    noException should be thrownBy {
+      dp.processDataPayload(
+        ChannelIdentity(senderWorkerId, testWorkerId, isControl = false),
+        DataFrame(Array(tuples.head, tuples(1)))
+      )
+    }
+    // No stall: an error State is broadcast and the worker self-drains — the
+    // second tuple in the batch must NOT reach the executor (the mock only
+    // expects the first, throwing call).
+    dp.pauseManager.isPaused shouldBe false
+    val errorFrames = emitted.map(_.payload).collect { case sf: StateFrame => sf.frame }
+    assert(errorFrames.exists(State.isError), s"expected an error State, got: $errorFrames")
+    dp.isPortPoisoned(inputPortId) shouldBe true
+    noException should be thrownBy {
+      dp.continueDataProcessing()
+    }
+  }
+
+  "data processor" should "pause on failure when unguarded (no try/catch frame), preserving the default report-and-pause behavior" in {
+    // An operator OUTSIDE any try/catch frame keeps the old product behavior:
+    // the console error is reported, the worker pauses (Python-UDF debugging /
+    // retry-current-tuple flows), and NO error State travels — nothing drains.
+    val dp = mkDataProcessor
+    dp.executor = executor // guarded stays false: the default
+    dp.stateManager.transitTo(READY)
+    val emitted = scala.collection.mutable.ArrayBuffer[WorkflowFIFOMessage]()
+    (outputHandler.apply _)
+      .expects(*)
+      .onCall { (m: Either[MainThreadDelegateMessage, WorkflowFIFOMessage]) =>
+        m.foreach(emitted += _); ()
+      }
+      .anyNumberOfTimes()
+    (
+        (
+            tuple: Tuple,
+            input: Int
+        ) => executor.processTupleMultiPort(tuple, input)
+    )
+      .expects(tuples.head, 0)
+      .throwing(new RuntimeException("boom unguarded"))
+    (adaptiveBatchingMonitor.startAdaptiveBatching _).expects().anyNumberOfTimes()
+    dp.inputManager.addPort(inputPortId, schema, List.empty, List.empty)
+    dp.inputGateway
+      .getChannel(ChannelIdentity(senderWorkerId, testWorkerId, isControl = false))
+      .setPortId(inputPortId)
+    dp.outputManager.addPort(outputPortId, schema, None)
+    dp.outputManager.addPartitionerWithPartitioning(
+      PhysicalLink(testOpId, outputPortId, upstreamOpId, inputPortId),
+      OneToOnePartitioning(1, Seq(ChannelIdentity(testWorkerId, senderWorkerId, isControl = false)))
+    )
     noException should be thrownBy {
       dp.processDataPayload(
         ChannelIdentity(senderWorkerId, testWorkerId, isControl = false),
         DataFrame(Array(tuples.head))
       )
     }
-    // handleExecutorException must engage an operator-logic pause.
     dp.pauseManager.isPaused shouldBe true
+    val errorFrames = emitted.map(_.payload).collect { case sf: StateFrame => sf.frame }
+    assert(!errorFrames.exists(State.isError), s"unguarded failure must not emit an error State")
+    dp.isPortPoisoned(inputPortId) shouldBe false
   }
 
   "data processor" should "handle an exception thrown while advancing the output iterator" in {
     val dp = mkDataProcessor
     dp.executor = executor
+    dp.guarded = true
     dp.stateManager.transitTo(READY)
     (outputHandler.apply _).expects(*).anyNumberOfTimes()
     (adaptiveBatchingMonitor.startAdaptiveBatching _).expects().anyNumberOfTimes()
@@ -453,9 +539,62 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with Matchers with 
     noException should be thrownBy {
       dp.continueDataProcessing()
     }
-    // handleExecutorException must pause the operator and reset the output iterator to empty.
-    dp.pauseManager.isPaused shouldBe true
+    // No stall: the output iterator is reset and the worker drains in place.
+    dp.pauseManager.isPaused shouldBe false
     dp.outputManager.hasUnfinishedOutput shouldBe false
+    dp.isPortPoisoned(inputPortId) shouldBe true
+  }
+
+  "data processor" should "deliver an error State to the executor, forward it, then poison the port" in {
+    val dp = mkDataProcessor
+    dp.executor = executor
+    dp.stateManager.transitTo(READY)
+    val emitted = scala.collection.mutable.ArrayBuffer[WorkflowFIFOMessage]()
+    (outputHandler.apply _)
+      .expects(*)
+      .onCall { (m: Either[MainThreadDelegateMessage, WorkflowFIFOMessage]) =>
+        m.foreach(emitted += _); ()
+      }
+      .anyNumberOfTimes()
+    val errorState =
+      State.errorState("upstreamOp/main", "some-worker", new RuntimeException("boom"))
+    // the executor SEES the error State (frame operators react to it); the
+    // default pass-through contract forwards it downstream
+    (
+        (
+            state: State,
+            port: Int
+        ) => executor.processState(state, port)
+    )
+      .expects(errorState, 0)
+      .returning(Some(errorState))
+    dp.inputManager.addPort(inputPortId, schema, List.empty, List.empty)
+    dp.inputGateway
+      .getChannel(ChannelIdentity(senderWorkerId, testWorkerId, isControl = false))
+      .setPortId(inputPortId)
+    dp.outputManager.addPort(outputPortId, schema, None)
+    dp.outputManager.addPartitionerWithPartitioning(
+      PhysicalLink(testOpId, outputPortId, upstreamOpId, inputPortId),
+      OneToOnePartitioning(1, Seq(ChannelIdentity(testWorkerId, senderWorkerId, isControl = false)))
+    )
+    dp.processDataPayload(
+      ChannelIdentity(senderWorkerId, testWorkerId, isControl = false),
+      StateFrame(errorState)
+    )
+    // forwarded downstream (drain contagion travels), and the port is poisoned
+    val forwarded = emitted.map(_.payload).collect { case sf: StateFrame => sf.frame }
+    assert(forwarded.exists(State.isError), s"expected forwarded error State, got: $forwarded")
+    dp.isPortPoisoned(inputPortId) shouldBe true
+    // data arriving on the poisoned port is discarded without invoking the
+    // executor (no processTupleMultiPort expectation is set on the mock)
+    noException should be thrownBy {
+      dp.processDataPayload(
+        ChannelIdentity(senderWorkerId, testWorkerId, isControl = false),
+        DataFrame(Array(tuples.head))
+      )
+    }
+    // the worker itself did not fail: no self-poison of other ports
+    dp.pauseManager.isPaused shouldBe false
   }
 
 }

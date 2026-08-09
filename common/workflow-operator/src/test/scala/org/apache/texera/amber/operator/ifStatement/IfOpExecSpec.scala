@@ -118,6 +118,24 @@ class IfOpExecSpec extends AnyFlatSpec {
     }
   }
 
+  it should "forward an error State untouched, keeping the routing decision" in {
+    // A failure travels downstream as a State carrying the reserved error
+    // key. It is not a routing decision and does not carry conditionName, so
+    // the If must pass it through without throwing (a failure upstream of an
+    // If must not become a second failure inside the If) and without
+    // disturbing the branch already chosen.
+    val exec = new IfOpExec(desc("flag"))
+    exec.processState(State(Map[String, Any]("flag" -> false)), 0)
+
+    val errorState = State.errorState("someop/main", "worker-0", new RuntimeException("boom"))
+    val forwarded = exec.processState(errorState, 0)
+    assert(forwarded.contains(errorState))
+
+    // still routed by the last real decision, not reset to the default
+    val out = exec.processTupleMultiPort(tuple(1), 0).toList
+    assert(out == List((tuple(1), Some(falsePortId))))
+  }
+
   it should "treat a null condition value as false (default Boolean unbox)" in {
     val exec = new IfOpExec(desc("flag"))
     // `null.asInstanceOf[Boolean]` quietly unboxes to `false` in Scala, so

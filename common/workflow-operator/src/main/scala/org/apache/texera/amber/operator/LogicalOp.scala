@@ -50,6 +50,7 @@ import org.apache.texera.amber.operator.huggingFace.{
   HuggingFaceTextSummarizationOpDesc
 }
 import org.apache.texera.amber.operator.ifStatement.IfOpDesc
+import org.apache.texera.amber.operator.trycatch.{FinallyOpDesc, TryCatchOpDesc}
 import org.apache.texera.amber.operator.intersect.IntersectOpDesc
 import org.apache.texera.amber.operator.intervalJoin.IntervalJoinOpDesc
 import org.apache.texera.amber.operator.keywordSearch.KeywordSearchOpDesc
@@ -166,6 +167,8 @@ trait StateTransferFunc
 @JsonSubTypes(
   Array(
     new Type(value = classOf[IfOpDesc], name = "If"),
+    new Type(value = classOf[TryCatchOpDesc], name = "TryCatch"),
+    new Type(value = classOf[FinallyOpDesc], name = "Finally"),
     new Type(value = classOf[SankeyDiagramOpDesc], name = "SankeyDiagram"),
     new Type(value = classOf[IcicleChartOpDesc], name = "IcicleChart"),
     new Type(value = classOf[FileListerSourceOpDesc], name = "FileLister"),

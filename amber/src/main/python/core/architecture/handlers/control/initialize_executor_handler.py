@@ -32,4 +32,7 @@ class InitializeExecutorHandler(ControlHandler):
         )
         # Loop-back write addresses; see the proto field doc on loopStartStateUris.
         self.context.loop_start_state_uris = dict(req.loop_start_state_uris)
+        # Frame membership decides the failure path: drain (guarded) vs the
+        # default report-and-pause (unguarded).
+        self.context.guarded = req.guarded
         return EmptyReturn()

@@ -201,7 +201,8 @@ class WorkerSpec
           "org.apache.texera.amber.engine.architecture.worker.DummyOperatorExecutor"
         ),
         isSource = false,
-        loopStartStateUris = Map.empty
+        loopStartStateUris = Map.empty,
+        guarded = false
       ),
       AsyncRPCContext(COORDINATOR, identifier1),
       4

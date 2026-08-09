@@ -40,18 +40,23 @@ trait EndChannelHandler {
     val portId = dp.inputGateway.getChannel(channelId).getPortId
     dp.inputManager.getPort(portId).completed = true
     dp.inputManager.initBatch(channelId, Array.empty)
-    try {
-      val outputState = dp.executor.produceStateOnFinish(portId.id)
-      if (outputState.isDefined) {
-        dp.outputManager.emitState(outputState.get)
+    // A poisoned port belongs to a failed attempt: suppress the executor's
+    // finish hooks (no post-failure side effects, no junk final emissions).
+    // Port completion below still runs so the stream terminates normally.
+    if (!dp.isPortPoisoned(portId)) {
+      try {
+        val outputState = dp.executor.produceStateOnFinish(portId.id)
+        if (outputState.isDefined) {
+          dp.outputManager.emitState(outputState.get)
+        }
+        dp.outputManager.outputIterator.setTupleOutput(
+          dp.executor.onFinishMultiPort(portId.id)
+        )
+      } catch safely {
+        case e =>
+          // report the error and fail this attempt in-band
+          dp.handleExecutorException(e)
       }
-      dp.outputManager.outputIterator.setTupleOutput(
-        dp.executor.onFinishMultiPort(portId.id)
-      )
-    } catch safely {
-      case e =>
-        // forward input tuple to the user and pause DP thread
-        dp.handleExecutorException(e)
     }
 
     dp.outputManager.outputIterator.appendSpecialTupleToEnd(

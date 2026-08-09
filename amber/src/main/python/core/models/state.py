@@ -24,6 +24,14 @@ from .tuple import Tuple
 
 
 class State(dict):
+    # Reserved key marking a State as an in-band error signal (an operator
+    # failure traveling forward as a dataflow event). Mirror of the Scala
+    # `State.ErrorKey` (core/state/State.scala): the value is an envelope with
+    # operatorId / workerId / errorType / message. Recognition and port
+    # poisoning live in the worker runtime (MainLoop), not in operators.
+    ERROR_KEY = "__error__"
+    _ERR_OPERATOR_ID = "operatorId"
+
     CONTENT = "content"
     # Loop-control bookkeeping owned by the worker runtime, NOT user state -- it
     # never appears in the content JSON. In memory it rides on the StateFrame
@@ -77,6 +85,31 @@ class State(dict):
     @classmethod
     def from_tuple(cls, row: Tuple) -> "State":
         return cls.from_json(row[cls.CONTENT])
+
+    @classmethod
+    def error(cls, operator_id: str, worker_id: str, err: BaseException) -> "State":
+        """Build the in-band error signal for a failed operator."""
+        return cls(
+            {
+                cls.ERROR_KEY: {
+                    cls._ERR_OPERATOR_ID: operator_id,
+                    "workerId": worker_id,
+                    "errorType": type(err).__name__,
+                    "message": str(err),
+                }
+            }
+        )
+
+    def is_error(self) -> bool:
+        return State.ERROR_KEY in self
+
+    def error_operator_id(self) -> Any:
+        """The failing operator's canonical physical id, or None if not an
+        error State. Used by try/catch frames for own-cone attribution."""
+        envelope = self.get(State.ERROR_KEY)
+        if isinstance(envelope, dict):
+            return envelope.get(State._ERR_OPERATOR_ID)
+        return None
 
 
 _TYPE_MARKER = "__texera_type__"

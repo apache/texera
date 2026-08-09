@@ -46,7 +46,7 @@ from core.storage.document_factory import DocumentFactory
 from core.util import StoppableQueueBlockingRunnable, get_one_of
 from core.util.console_message.timestamp import current_time_in_local_timezone
 from core.util.customized_queue.queue_base import QueueElement
-from core.util.virtual_identity import get_logical_op_id
+from core.util.virtual_identity import get_logical_op_id, get_physical_op_id_string
 from proto.org.apache.texera.amber.core import (
     ActorVirtualIdentity,
     PortIdentity,
@@ -93,6 +93,15 @@ class MainLoop(StoppableQueueBlockingRunnable):
         # same iteration's state arrives once per branch. Workers are recreated
         # on each region re-execution, so this instance flag is per iteration.
         self._loop_state_consumed: bool = False
+        # Per-port drain contagion, mirroring the Scala worker: a port is
+        # poisoned when an `__error__` State arrives on
+        # it; `_self_failed` poisons every port at once when this worker's own
+        # executor throws. Data on a poisoned port is discarded without invoking
+        # the executor and its finish hooks are suppressed -- so no
+        # post-failure side effects run in user code -- while ports still
+        # complete normally so the stream terminates instead of hanging.
+        self._poisoned_ports: typing.Set[PortIdentity] = set()
+        self._self_failed: bool = False
 
         self.context = Context(worker_id, input_queue)
         self._async_rpc_server = AsyncRPCServer(output_queue, context=self.context)
@@ -136,7 +145,14 @@ class MainLoop(StoppableQueueBlockingRunnable):
         self._check_and_report_console_messages(force_flush=True)
         coordinator_interface = self._async_rpc_client.coordinator_stub()
         executor = self.context.executor_manager.executor
-        if isinstance(executor, LoopEndOperator):
+        if isinstance(executor, LoopEndOperator) and self._self_failed:
+            # This LoopEnd's own executor failed: do not evaluate condition() or
+            # take the back-edge -- a failed iteration must not re-iterate on
+            # partial loop state. The error State already went downstream, so an
+            # enclosing try/catch frame (or the console error) reports it; the
+            # worker still completes so the stream terminates.
+            pass
+        elif isinstance(executor, LoopEndOperator):
             # condition() evaluates a user-supplied expression, and the
             # loop-back edge writes state to iceberg after the jump DCM --
             # both on this main loop thread, outside DataProcessor's guarded
@@ -336,6 +352,19 @@ class MainLoop(StoppableQueueBlockingRunnable):
         self.context.statistics_manager.update_total_execution_time(end_time)
 
     def _process_tuple(self, tuple_: Tuple) -> None:
+        port_id = self.context.tuple_processing_manager.current_input_port_id
+        if self._is_port_poisoned(port_id):
+            # This data belongs to an already-failed attempt: consume and
+            # discard without invoking the executor (no post-failure side
+            # effects in user code). No control check here -- unlike real
+            # processing, a discard is O(1), and _check_and_process_control
+            # blocks while data is disabled; control messages are still handled
+            # between batches and on markers.
+            if port_id is not None:
+                self.context.statistics_manager.increase_input_statistics(
+                    port_id, tuple_.in_mem_size()
+                )
+            return
         self.context.tuple_processing_manager.current_input_tuple = tuple_
         self.process_input_tuple()
         self._check_and_process_control()
@@ -402,6 +431,13 @@ class MainLoop(StoppableQueueBlockingRunnable):
             output_loop_counter=in_counter,
             output_loop_start_id=frame.loop_start_id,
         )
+        # Poison AFTER delivery: the executor sees the error State first (frame
+        # operators react to it; the default pass-through forwards it), then the
+        # port drains from the next data tuple on.
+        if isinstance(state, State) and state.is_error():
+            port_id = self._current_input_port_id()
+            if port_id is not None:
+                self._poisoned_ports.add(port_id)
         self._check_and_process_control()
 
     def _process_start_channel(self) -> None:
@@ -411,19 +447,14 @@ class MainLoop(StoppableQueueBlockingRunnable):
         self.process_input_state()
 
     def _process_end_channel(self) -> None:
-        self.process_input_state()
-        if self.context.exception_manager.has_exception():
-            # A state-emission error was reported on the main loop thread (see
-            # _emit_and_save_state). Hold the region: skip port_completed and
-            # complete() so the coordinator does not mark the region complete
-            # (region completion is port-based) with partial, single-iteration
-            # results. The reported error surfaces instead of a false success.
-            return
-        self.process_input_tuple()
-
-        input_port_id = self.context.input_manager.get_port_id(
-            self.context.current_input_channel_id
-        )
+        input_port_id = self._current_input_port_id()
+        # A poisoned port belongs to a failed attempt: suppress the executor's
+        # finish hooks (produce_state_on_finish / on_finish) so no post-failure
+        # side effects or junk final emissions happen. Port completion below
+        # still runs, so the stream terminates normally instead of hanging.
+        if not self._is_port_poisoned(input_port_id):
+            self.process_input_state()
+            self.process_input_tuple()
 
         if input_port_id is not None:
             self._async_rpc_client.coordinator_stub().port_completed(
@@ -628,9 +659,78 @@ class MainLoop(StoppableQueueBlockingRunnable):
             self.context.pause_manager.pause(PauseType.DEBUG_PAUSE)
 
     def _check_exception(self) -> None:
+        """Route a reported operator exception down the failure path.
+
+        Mirror of the Scala worker's `handleExecutorException`: the console
+        message always reports the error first. Then, GUARDED workers (inside
+        a try/catch frame's cone) broadcast an
+        `__error__` State so downstream workers drain and the frame can react,
+        and drain their own remaining input — ports still complete, the run
+        terminates. UNGUARDED workers keep the default product behavior:
+        EXCEPTION_PAUSE, leaving the worker inspectable and the current input
+        retriable (RetryCurrentTuple).
+        """
         if self.context.exception_manager.has_exception():
             self._check_and_report_console_messages(force_flush=True)
-            self.context.pause_manager.pause(PauseType.EXCEPTION_PAUSE)
+            if not self.context.guarded:
+                self.context.pause_manager.pause(PauseType.EXCEPTION_PAUSE)
+            elif not self._self_failed:
+                self._self_failed = True
+                self._emit_error_state()
+
+    def _emit_error_state(self) -> None:
+        """Broadcast the error State for this worker's own failure."""
+        # Read the field directly: get_exc_info() CONSUMES the exception (it
+        # nulls exc_info for the replay/debug path), and clearing it here would
+        # make the worker look healthy to every later has_exception() check.
+        exc_info = self.context.exception_manager.exc_info
+        err = exc_info[1] if exc_info else RuntimeError("operator failed")
+        try:
+            operator_id = get_physical_op_id_string(self.context.worker_id)
+        except ValueError:
+            # A malformed worker id must not raise on the failure path -- a
+            # secondary error here would lose the signal entirely. Fall back to
+            # the raw id: frame attribution then treats the error as foreign,
+            # which escalates outward (the safe direction) instead of a frame
+            # wrongly claiming it.
+            operator_id = self.context.worker_id
+        error_state = State.error(
+            operator_id,
+            self.context.worker_id,
+            err,
+        )
+        # Emit directly rather than via _emit_and_save_state: that helper
+        # funnels its own failures back into _check_exception, which is the
+        # caller of this method. Both halves of the Scala worker's emitState
+        # are needed: the network buffers for live links, AND the port state
+        # storage for MATERIALIZED links — a try-cone tail's outgoing edges
+        # (a Finally's dependee `From Try`, a gate's dependee signal ports)
+        # are materialized and have no live partitioners at all, so storage
+        # is the only road the failure signal can travel to the gate.
+        try:
+            self._emit_batches(self.context.output_manager.emit_state(error_state))
+            self.context.output_manager.save_state_to_storage_if_needed(error_state)
+        except Exception as emit_err:  # pragma: no cover - defensive
+            logger.exception(emit_err)
+
+    def _current_input_port_id(self) -> Optional[PortIdentity]:
+        """The input port the current channel belongs to, or None when the
+        channel is not registered (only reachable outside a normal data path)."""
+        channel_id = self.context.current_input_channel_id
+        if channel_id is None:
+            return None
+        try:
+            return self.context.input_manager.get_port_id(channel_id)
+        except KeyError:
+            return None
+
+    def _is_port_poisoned(self, port_id: Optional[PortIdentity]) -> bool:
+        """Whether this port belongs to an already-failed attempt: data on it is
+        discarded without invoking the executor, and the executor's finish hooks
+        for it are suppressed (per-port drain contagion)."""
+        return self._self_failed or (
+            port_id is not None and port_id in self._poisoned_ports
+        )
 
     def _check_and_report_console_messages(self, force_flush=False) -> None:
         for msg in self.context.console_message_manager.get_messages(force_flush):

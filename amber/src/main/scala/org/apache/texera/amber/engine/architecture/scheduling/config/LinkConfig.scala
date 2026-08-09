@@ -77,6 +77,16 @@ case object LinkConfig {
           )
         )
 
+      case SignalPartition() =>
+        // signal links (try/catch frame wiring): channels exist for States,
+        // ECMs and END_CHANNEL, but data tuples are dropped at the sender
+        SignalPartitioning(
+          dataTransferBatchSize,
+          fromWorkerIds.flatMap(from =>
+            toWorkerIds.map(to => ChannelIdentity(from, to, isControl = false))
+          )
+        )
+
       case UnknownPartition() =>
         RoundRobinPartitioning(
           dataTransferBatchSize,

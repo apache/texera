@@ -452,7 +452,8 @@ class RegionExecutionManager(
                   workerConfigs.length,
                   physicalOp.opExecInitInfo,
                   physicalOp.isSourceOperator,
-                  loopStartStateUris
+                  loopStartStateUris,
+                  guarded = physicalOp.isGuarded
                 ),
                 asyncRPCClient.mkContext(workerId)
               )

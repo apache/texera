@@ -203,6 +203,35 @@ class PhysicalOpSpec extends AnyFlatSpec {
     assert(op.getInputPortDependencyPairs == Nil)
   }
 
+  "PhysicalOp.getInputPortDependencyEdges" should "enumerate one pair per declared dependency, including N dependees on one port" in {
+    // a port depending on many independent ports (e.g. a snapshot port
+    // depending on N signal ports) — consecutive topological positions are
+    // NOT pairs here, the actual edges are
+    val op = newOp("g").withInputPorts(
+      List(
+        InputPort(PortIdentity(0)),
+        InputPort(PortIdentity(1)),
+        InputPort(PortIdentity(2)),
+        InputPort(
+          PortIdentity(3),
+          dependencies = Seq(PortIdentity(0), PortIdentity(1), PortIdentity(2))
+        )
+      )
+    )
+    assert(
+      op.getInputPortDependencyEdges == List(
+        PortIdentity(0) -> PortIdentity(3),
+        PortIdentity(1) -> PortIdentity(3),
+        PortIdentity(2) -> PortIdentity(3)
+      )
+    )
+  }
+
+  it should "be empty when no port declares dependencies" in {
+    val op = newOp("a").withInputPorts(List(InputPort(PortIdentity(0))))
+    assert(op.getInputPortDependencyEdges == Nil)
+  }
+
   // ----- addOutputLink guards -----
 
   "PhysicalOp.addOutputLink" should "reject links from other operators or undeclared ports" in {

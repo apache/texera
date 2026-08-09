@@ -28,6 +28,7 @@ from threading import Thread
 from core.models import (
     DataFrame,
     InternalQueue,
+    Schema,
     State,
     StateFrame,
     Tuple,
@@ -2082,17 +2083,17 @@ class TestMainLoop:
         reraise()
 
     @pytest.mark.timeout(2)
-    def test_console_message_rpc_fires_before_exception_pause(
-        self, main_loop, monkeypatch
-    ):
-        # Pin the coordinator-facing contract: when DataProcessor raises
-        # during an executor call, the stack-trace ConsoleMessage must
-        # reach the coordinator *before* the worker enters EXCEPTION_PAUSE
-        # — otherwise the UI sees a paused worker with no error to show
-        # until the user resumes. The DataProcessor side queues the
-        # message before the switch (covered by
-        # test_data_processor.TestExecutorSession); this test pins the
-        # MainLoop side: post-switch hook flushes RPCs first, pauses last.
+    def test_console_message_rpc_fires_before_error_state(self, main_loop, monkeypatch):
+        # Pin the coordinator-facing contract: when DataProcessor raises during
+        # an executor call, the stack-trace ConsoleMessage must reach the
+        # coordinator *before* the failure travels on as an in-band error State
+        # — otherwise the UI could see a drained/completed operator with no
+        # error to show. The DataProcessor side queues the message before the
+        # switch (covered by test_data_processor.TestExecutorSession); this test
+        # pins the MainLoop side: post-switch hook flushes RPCs first, emits the
+        # error State last, and does NOT pause (a GUARDED operator — inside a
+        # try/catch frame — drains rather than stalling).
+        main_loop.context.guarded = True
         events = []
 
         monkeypatch.setattr(
@@ -2104,6 +2105,11 @@ class TestMainLoop:
             main_loop.context.pause_manager,
             "pause",
             lambda pause_type, change_state=True: events.append(("pause", pause_type)),
+        )
+        monkeypatch.setattr(
+            main_loop,
+            "_emit_batches",
+            lambda batches: events.append(("emit", list(batches))),
         )
 
         try:
@@ -2125,13 +2131,139 @@ class TestMainLoop:
         main_loop._post_switch_context_checks()
 
         kinds = [e[0] for e in events]
-        assert kinds == ["rpc", "pause"], (
-            "console message must reach coordinator before pause; "
-            f"observed order: {kinds}"
+        assert kinds == ["rpc", "emit"], (
+            "console message must reach coordinator before the error State, "
+            f"and the worker must not pause; observed order: {kinds}"
         )
         assert events[0][1].msg_type == ConsoleMessageType.ERROR
         assert "boom-from-executor" in events[0][1].title
-        assert events[1][1] is PauseType.EXCEPTION_PAUSE
+        assert main_loop._self_failed
+
+    @pytest.mark.timeout(2)
+    def test_unguarded_failure_pauses_like_before_frames(self, main_loop, monkeypatch):
+        # An operator OUTSIDE any try/catch frame keeps the default product
+        # behavior on failure: console error reaches the coordinator, then the
+        # worker enters EXCEPTION_PAUSE — inspectable, current input retriable
+        # — and NO error State travels, nothing drains.
+        events = []
+        monkeypatch.setattr(
+            main_loop,
+            "_send_console_message",
+            lambda msg: events.append(("rpc", msg)),
+        )
+        monkeypatch.setattr(
+            main_loop.context.pause_manager,
+            "pause",
+            lambda pause_type, change_state=True: events.append(("pause", pause_type)),
+        )
+        monkeypatch.setattr(
+            main_loop,
+            "_emit_batches",
+            lambda batches: events.append(("emit", list(batches))),
+        )
+
+        try:
+            raise RuntimeError("boom-unframed")
+        except RuntimeError:
+            exc_info = sys.exc_info()
+        main_loop.context.exception_manager.set_exception_info(exc_info)
+        main_loop.context.console_message_manager.put_message(
+            ConsoleMessage(
+                worker_id="dummy_worker_id",
+                timestamp=current_time_in_local_timezone(),
+                msg_type=ConsoleMessageType.ERROR,
+                source="test:_capture_exc_info:0",
+                title="RuntimeError: boom-unframed",
+                message="RuntimeError: boom-unframed",
+            )
+        )
+
+        main_loop._check_exception()
+
+        kinds = [e[0] for e in events]
+        assert kinds == ["rpc", "pause"], (
+            "unguarded failure must report the console error and then pause — "
+            f"no error State; observed order: {kinds}"
+        )
+        assert events[1][1] == PauseType.EXCEPTION_PAUSE
+        assert not main_loop._self_failed
+        assert not main_loop._is_port_poisoned(PortIdentity(id=0))
+
+    @pytest.mark.timeout(2)
+    def test_error_state_reaches_materialized_state_storage(
+        self, main_loop, monkeypatch
+    ):
+        # A try-cone tail's outgoing edges (a Finally's dependee From Try, a
+        # gate's dependee signal ports) are MATERIALIZED: the worker has no
+        # live partitioners for them, so emit_state alone sends the failure
+        # signal to nobody. It must also be written to the port state storage
+        # that the materialization readers replay — mirroring the Scala
+        # worker's emitState, which always does both.
+        main_loop.context.guarded = True
+        monkeypatch.setattr(main_loop, "_send_console_message", lambda msg: None)
+        monkeypatch.setattr(main_loop, "_emit_batches", lambda batches: None)
+        saved = []
+        monkeypatch.setattr(
+            main_loop.context.output_manager,
+            "save_state_to_storage_if_needed",
+            lambda state, *args, **kwargs: saved.append(state),
+        )
+
+        try:
+            raise RuntimeError("boom")
+        except RuntimeError:
+            exc_info = sys.exc_info()
+        main_loop.context.exception_manager.set_exception_info(exc_info)
+        main_loop._check_exception()
+
+        assert len(saved) == 1
+        assert saved[0].is_error()
+
+    @pytest.mark.timeout(2)
+    def test_failed_worker_drains_instead_of_invoking_the_executor(
+        self, main_loop, monkeypatch
+    ):
+        # After its own failure, a GUARDED worker must consume remaining input
+        # without calling the executor again — that is what keeps side-effecting
+        # UDFs from running on a doomed attempt, and what lets the stream
+        # terminate instead of hanging.
+        main_loop.context.guarded = True
+        monkeypatch.setattr(main_loop, "_send_console_message", lambda msg: None)
+        monkeypatch.setattr(main_loop, "_emit_batches", lambda batches: None)
+        invoked = []
+        monkeypatch.setattr(
+            main_loop, "process_input_tuple", lambda: invoked.append("tuple")
+        )
+
+        try:
+            raise RuntimeError("boom")
+        except RuntimeError:
+            exc_info = sys.exc_info()
+        main_loop.context.exception_manager.set_exception_info(exc_info)
+        main_loop._check_exception()
+        assert main_loop._self_failed
+
+        main_loop._process_tuple(Tuple({"test-1": 10}))
+        assert invoked == [], "executor must not be invoked on a drained port"
+
+    @pytest.mark.timeout(2)
+    def test_incoming_error_state_poisons_only_its_own_port(
+        self, main_loop, monkeypatch
+    ):
+        # Per-port drain contagion: an error State arriving on one input port
+        # drains that port; other ports keep working (a Finally's From Catch
+        # side must survive its From Try side failing).
+        monkeypatch.setattr(main_loop, "_send_console_message", lambda msg: None)
+        error_state = State.error("someop/main", "worker-9", RuntimeError("upstream"))
+        port_a = PortIdentity(id=0)
+        port_b = PortIdentity(id=1)
+
+        main_loop._poisoned_ports.add(port_a)
+
+        assert main_loop._is_port_poisoned(port_a)
+        assert not main_loop._is_port_poisoned(port_b)
+        assert error_state.is_error()
+        assert error_state.error_operator_id() == "someop/main"
 
     @pytest.mark.timeout(2)
     def test_complete_reports_loopend_condition_error_instead_of_crashing(
@@ -2143,8 +2275,8 @@ class TestMainLoop:
         # session. A typo or undefined name in the condition would otherwise
         # propagate through run()'s @logger.catch(reraise=True) and kill the
         # worker thread silently. The guard must report it like a UDF error
-        # (record on the exception manager + ERROR console message +
-        # EXCEPTION_PAUSE) and skip both the loop-back edge and completion.
+        # (record on the exception manager + ERROR console message + in-band
+        # error State) and skip the loop-back edge and completion.
         class _BoomLoopEnd(LoopEndOperator):
             def __init__(self):
                 super().__init__()
@@ -2158,6 +2290,7 @@ class TestMainLoop:
 
         executor = _BoomLoopEnd()
         main_loop.context.executor_manager.executor = executor
+        main_loop.context.guarded = True  # loop bodies run inside frames' semantics
 
         console_msgs = []
         pauses = []
@@ -2173,6 +2306,7 @@ class TestMainLoop:
         monkeypatch.setattr(
             main_loop, "_jump_to_loop_start", lambda *args: jumped.append(True)
         )
+        monkeypatch.setattr(main_loop, "_emit_batches", lambda batches: None)
 
         # Must not raise: a bad condition is reported, not propagated.
         main_loop.complete()
@@ -2180,7 +2314,10 @@ class TestMainLoop:
         assert jumped == [], "must not take the loop-back edge on a failed condition"
         assert not executor.closed, "must return before completing the worker"
         assert main_loop.context.exception_manager.has_exception()
-        assert pauses == [PauseType.EXCEPTION_PAUSE]
+        # Failure travels as an in-band error State (guarded worker); the
+        # worker drains rather than stalling in EXCEPTION_PAUSE.
+        assert pauses == []
+        assert main_loop._self_failed
         error_msgs = [m for m in console_msgs if m.msg_type == ConsoleMessageType.ERROR]
         assert len(error_msgs) == 1
         assert "ValueError" in error_msgs[0].title
@@ -2194,8 +2331,8 @@ class TestMainLoop:
         # write in _jump_to_loop_start runs after the jump DCM, on the main
         # loop thread, outside DataProcessor's guarded executor session. A
         # put_one/close failure must be reported the same way as a condition
-        # error (exception manager + ERROR console message + EXCEPTION_PAUSE)
-        # and skip completion, not propagate and kill the worker thread.
+        # error (exception manager + ERROR console message + in-band error
+        # State) and skip completion, not propagate and kill the worker thread.
         class _JumpingLoopEnd(LoopEndOperator):
             def __init__(self):
                 super().__init__()
@@ -2210,6 +2347,7 @@ class TestMainLoop:
         executor = _JumpingLoopEnd()
         executor.state = State({"i": 1})
         main_loop.context.executor_manager.executor = executor
+        main_loop.context.guarded = True
         main_loop._loop_start_id = "loop-start-1"
         main_loop.context.loop_start_state_uris = {"loop-start-1": "vfs:///x/state"}
 
@@ -2239,13 +2377,15 @@ class TestMainLoop:
             "core.runnables.main_loop.DocumentFactory.create_document",
             lambda uri, schema: _Doc(),
         )
+        monkeypatch.setattr(main_loop, "_emit_batches", lambda batches: None)
 
         # Must not raise: a failed back-edge write is reported, not propagated.
         main_loop.complete()
 
         assert not executor.closed, "must return before completing the worker"
         assert main_loop.context.exception_manager.has_exception()
-        assert pauses == [PauseType.EXCEPTION_PAUSE]
+        assert pauses == []
+        assert main_loop._self_failed
         error_msgs = [m for m in console_msgs if m.msg_type == ConsoleMessageType.ERROR]
         assert len(error_msgs) == 1
         assert "iceberg commit failed" in error_msgs[0].title
@@ -2261,7 +2401,8 @@ class TestMainLoop:
         # propagates through run()'s @logger.catch(reraise=True) and kills the
         # thread, hanging the workflow with no operator-facing error. It must be
         # reported like a UDF error (exception manager + ERROR console message +
-        # EXCEPTION_PAUSE) instead.
+        # in-band error State) instead.
+        main_loop.context.guarded = True
         console_msgs = []
         pauses = []
         monkeypatch.setattr(
@@ -2289,20 +2430,25 @@ class TestMainLoop:
         main_loop._emit_and_save_state(State({"weights": 1}), 0, "")
 
         assert main_loop.context.exception_manager.has_exception()
-        assert pauses == [PauseType.EXCEPTION_PAUSE]
+        assert pauses == []
+        assert main_loop._self_failed
         error_msgs = [m for m in console_msgs if m.msg_type == ConsoleMessageType.ERROR]
         assert len(error_msgs) == 1
         assert "not JSON serializable" in error_msgs[0].title
 
     @pytest.mark.timeout(2)
-    def test_end_channel_holds_region_when_state_emit_fails(
+    def test_end_channel_completes_ports_after_a_failure_instead_of_hanging(
         self, main_loop, monkeypatch
     ):
-        # When a state-emission error is reported during _process_end_channel,
-        # the worker must NOT go on to send port_completed / complete(): those
-        # RPCs would let the coordinator mark the region complete despite the
-        # reported error (port-based region completion). The guard holds the
-        # region so the reported error is not a false success.
+        # Superseded behavior: this used to HOLD the region (skip
+        # port_completed/complete) after a reported state-emission error, so an
+        # operator failure stalled the workflow forever with no terminal state.
+        # Failure is now an in-band dataflow event: the error State went
+        # downstream (any enclosing try/catch frame reacts, and the console
+        # error is already reported), so the worker must still complete its
+        # ports and finish — the stream terminates instead of hanging, and the
+        # execution ends as failed-with-errors rather than never ending.
+        main_loop.context.guarded = True
         completed = []
         port_completed_calls = []
 
@@ -2317,6 +2463,7 @@ class TestMainLoop:
         monkeypatch.setattr(main_loop, "process_input_state", _boom_process_input_state)
         monkeypatch.setattr(main_loop, "process_input_tuple", lambda: None)
         monkeypatch.setattr(main_loop, "complete", lambda: completed.append(True))
+        monkeypatch.setattr(main_loop, "_emit_batches", lambda batches: None)
 
         class _Coordinator:
             def port_completed(self, request):
@@ -2332,12 +2479,24 @@ class TestMainLoop:
         )
         monkeypatch.setattr(main_loop, "_send_console_message", lambda msg: None)
 
+        # register the channel so the end-channel path resolves a real port id
+        channel_id = ChannelIdentity(
+            ActorVirtualIdentity("upstream"),
+            ActorVirtualIdentity("dummy_worker_id"),
+            False,
+        )
+        main_loop.context.current_input_channel_id = channel_id
+        main_loop.context.input_manager.add_input_port(
+            PortIdentity(id=0), Schema(raw_schema={"test-1": "INTEGER"}), [], []
+        )
+        main_loop.context.input_manager.register_input(channel_id, PortIdentity(id=0))
+
         main_loop._process_end_channel()
 
-        assert port_completed_calls == [], (
-            "must not complete ports after a reported error"
+        assert main_loop.context.exception_manager.has_exception()
+        assert port_completed_calls != [], (
+            "ports must still complete after a failure so the stream terminates"
         )
-        assert completed == [], "must not complete the worker after a reported error"
 
     # -- Loop counter is runtime-owned (relocated from test_loop_operators) ---
     #

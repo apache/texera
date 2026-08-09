@@ -65,6 +65,15 @@ class DataProcessor(Runnable, Stoppable):
             else:
                 self.process_tuple()
 
+    # NOTE on the failure path: `_executor_session` sets `finished_current`
+    # in its except branch, BEFORE the final context switch. The loop above
+    # re-checks the input slots only after MainLoop queued the next input and
+    # notified -- which is exactly the invariant the assertion enforces. If
+    # the cycle were marked finished only after that switch (on this thread's
+    # next wake-up), MainLoop's cycle loop would see an unfinished cycle,
+    # wake this thread once more WITHOUT queuing anything, the assertion
+    # would kill this thread, and MainLoop's next switch would wait forever.
+
     def process_internal_marker(self, internal_marker: InternalMarker) -> None:
         with self._executor_session() as (executor, port_id):
             if isinstance(internal_marker, StartChannel):
@@ -102,8 +111,18 @@ class DataProcessor(Runnable, Stoppable):
         and queue the stack trace as a console message, and always switch
         back to MainLoop on exit. Reporting must happen *before* the
         switch: MainLoop's post-switch hook flushes console messages and
-        then enters EXCEPTION_PAUSE, so anything queued after the switch
-        would arrive at the coordinator only after the worker resumes.
+        broadcasts the error State, so anything queued after the switch
+        would reach the coordinator late.
+
+        On an exception, `_set_output_tuple` never ran, so the cycle is
+        finished HERE, before the final switch — the same ordering the
+        normal path has (`_set_output_tuple` sets `finished_current` before
+        its last switch). MainLoop's cycle loop then ends the cycle on its
+        first check, exactly like a normal cycle that yielded its trailing
+        None, and this thread parks in the switch until the next input is
+        queued. (For unguarded workers the failure ping-pong is parked by
+        EXCEPTION_PAUSE instead; guarded workers drain — MainLoop's drain
+        guard skips the executor for the rest of the poisoned port.)
         """
         try:
             executor = self._context.executor_manager.executor
@@ -115,6 +134,12 @@ class DataProcessor(Runnable, Stoppable):
                 yield executor, port_id
         except Exception as err:
             self._context.report_exception(err)
+            if self._context.guarded:
+                # Drain semantics: end the cycle now. Unguarded workers leave
+                # the cycle OPEN instead — MainLoop pauses on its side of the
+                # switch and the current input stays retriable
+                # (RetryCurrentTuple), exactly the pause-and-retry flow.
+                self._context.tuple_processing_manager.finished_current.set()
         finally:
             self._switch_context()
 

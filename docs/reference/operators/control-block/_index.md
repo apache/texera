@@ -31,7 +31,9 @@ tags: [control-block]
 
 | Operator | Description |
 |----------|-------------|
+| [Finally](finally/) | Emit the winning branch of a Try Catch frame: try results on success, catch results on failure |
 | [If](if/) | If |
 | [Sleep](sleep/) | Sleep n seconds between each tuple |
+| [Try Catch](try-catch/) | Run a subgraph as one attempt; on any failure, replay the same input through a fallback subgraph |
 
-**Total**: 2 operators
+**Total**: 4 operators

@@ -35,6 +35,7 @@ message Partitioning{
     HashBasedShufflePartitioning hashBasedShufflePartitioning = 3;
     RangeBasedShufflePartitioning rangeBasedShufflePartitioning = 4;
     BroadcastPartitioning broadcastPartitioning = 5;
+    SignalPartitioning signalPartitioning = 6;
   }
 }
 
@@ -63,6 +64,14 @@ message RangeBasedShufflePartitioning {
 }
 
 message BroadcastPartitioning{
+  int32 batchSize = 1;
+  repeated core.ChannelIdentity channels = 2;
+}
+
+// Signal links (try/catch frame wiring): data tuples are dropped at the
+// sender; only States, ECMs and END_CHANNEL traverse the link. Channels must
+// still be declared so the buffers/channels exist for those control payloads.
+message SignalPartitioning{
   int32 batchSize = 1;
   repeated core.ChannelIdentity channels = 2;
 }

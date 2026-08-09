@@ -41,6 +41,7 @@ from core.architecture.sendsemantics.range_based_shuffle_partitioner import (
 from core.architecture.sendsemantics.round_robin_partitioner import (
     RoundRobinPartitioner,
 )
+from core.architecture.sendsemantics.signal_partitioner import SignalPartitioner
 from core.models import Tuple, Schema, StateFrame
 from core.models.payload import DataPayload, DataFrame
 from core.models.state import State
@@ -66,6 +67,7 @@ from proto.org.apache.texera.amber.engine.architecture.sendsemantics import (
     RoundRobinPartitioning,
     RangeBasedShufflePartitioning,
     BroadcastPartitioning,
+    SignalPartitioning,
 )
 
 
@@ -81,6 +83,7 @@ class OutputManager:
             HashBasedShufflePartitioning: HashBasedShufflePartitioner,
             RangeBasedShufflePartitioning: RangeBasedShufflePartitioner,
             BroadcastPartitioning: BroadcastPartitioner,
+            SignalPartitioning: SignalPartitioner,
         }
         self._ports: typing.Dict[PortIdentity, WorkerPort] = dict()
         self._channels: typing.Dict[ChannelIdentity, Channel] = dict()

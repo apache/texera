@@ -155,6 +155,43 @@ class TestExecutorSession:
         assert data_processor.switch_calls == 1
 
     @pytest.mark.timeout(2)
+    def test_guarded_failure_finishes_the_cycle_before_the_switch(
+        self, context, data_processor
+    ):
+        # Drain semantics (inside a try/catch frame): the failed cycle must be
+        # marked finished BEFORE the final switch, so MainLoop's cycle loop
+        # ends on its first check and never wakes this thread again without
+        # queuing an input — run()'s slot invariant would kill the thread and
+        # MainLoop's next switch would wait on it forever.
+        context.guarded = True
+        seen_at_switch = []
+
+        def capturing_switch():
+            seen_at_switch.append(
+                context.tuple_processing_manager.finished_current.is_set()
+            )
+            data_processor.switch_calls += 1
+
+        data_processor._switch_context = capturing_switch
+
+        with data_processor._executor_session():
+            raise RuntimeError("boom-guarded")
+
+        assert seen_at_switch == [True]
+
+    @pytest.mark.timeout(2)
+    def test_unguarded_failure_leaves_the_cycle_open_for_retry(
+        self, context, data_processor
+    ):
+        # Pre-frame behavior (no try/catch anywhere): MainLoop pauses on its
+        # side of the switch and the current input stays retriable
+        # (RetryCurrentTuple), so the failed cycle must NOT be force-finished.
+        with data_processor._executor_session():
+            raise RuntimeError("boom-unguarded")
+
+        assert not context.tuple_processing_manager.finished_current.is_set()
+
+    @pytest.mark.timeout(2)
     def test_clean_session_does_not_record_an_exception(self, context, data_processor):
         with data_processor._executor_session():
             pass

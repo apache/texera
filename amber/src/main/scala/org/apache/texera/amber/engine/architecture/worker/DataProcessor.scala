@@ -59,8 +59,10 @@ import org.apache.texera.amber.engine.common.ambermessage._
 import org.apache.texera.amber.engine.common.statetransition.WorkerStateManager
 import org.apache.texera.amber.engine.common.virtualidentity.util.COORDINATOR
 import org.apache.texera.amber.error.ErrorUtils.{mkConsoleMessage, safely}
+import org.apache.texera.amber.util.VirtualIdentityUtils
 
 import java.util.concurrent.LinkedBlockingQueue
+import scala.collection.mutable
 
 class DataProcessor(
     actorId: ActorVirtualIdentity,
@@ -91,6 +93,24 @@ class DataProcessor(
     inputGateway.getChannel(channelId).getQueuedCredit
   }
 
+  // Per-port drain contagion: a port is
+  // poisoned when an error State arrives on it, or all ports at once when this
+  // worker's own executor throws. Data tuples on a poisoned port are discarded
+  // without invoking the executor, and the executor's onFinish for that port is
+  // suppressed; ports still complete normally so END_CHANNEL propagation and
+  // FinalizePort behave exactly as on a healthy run.
+  private val poisonedPorts = mutable.HashSet[PortIdentity]()
+  private var selfFailed = false
+
+  // True iff this operator sits inside a try/catch frame's cone (from
+  // InitializeExecutorRequest.guarded, set by TryCatchFramePass). Guarded:
+  // own executor failure becomes an in-band error State and the worker
+  // drains. Unguarded: the default behavior — report and pause.
+  var guarded: Boolean = false
+
+  def isPortPoisoned(portId: PortIdentity): Boolean =
+    selfFailed || poisonedPorts.contains(portId)
+
   /**
     * provide API for actor to get stats of this operator
     */
@@ -102,9 +122,15 @@ class DataProcessor(
     * this function is only called by the DP thread.
     */
   private[this] def processInputTuple(tuple: Tuple): Unit = {
+    val portIdentity: PortIdentity =
+      this.inputGateway.getChannel(inputManager.currentChannelId).getPortId
+    if (isPortPoisoned(portIdentity)) {
+      // the attempt this data belongs to has already failed: consume and
+      // discard without invoking the executor
+      statisticsManager.increaseInputStatistics(portIdentity, tuple.inMemSize)
+      return
+    }
     try {
-      val portIdentity: PortIdentity =
-        this.inputGateway.getChannel(inputManager.currentChannelId).getPortId
       outputManager.outputIterator.setTupleOutput(
         executor.processTupleMultiPort(
           tuple,
@@ -116,19 +142,19 @@ class DataProcessor(
 
     } catch safely {
       case e =>
-        // forward input tuple to the user and pause DP thread
+        // report the error and fail this attempt in-band
         handleExecutorException(e)
     }
   }
 
   private[this] def processInputState(
       state: State,
-      port: Int,
+      portId: PortIdentity,
       loopCounter: Long,
       loopStartId: String
   ): Unit = {
     try {
-      val outputState = executor.processState(state, port)
+      val outputState = executor.processState(state, portId.id)
       if (outputState.isDefined) {
         // Carry the incoming loop envelope through unchanged: loop operators
         // are Python-only, so a JVM operator inside a loop body only ever
@@ -139,6 +165,13 @@ class DataProcessor(
     } catch safely {
       case e =>
         handleExecutorException(e)
+    } finally {
+      // poison AFTER delivery: the executor sees the error State (frame
+      // operators react to it; the default pass-through forwards it), then
+      // the port drains from the next data tuple on
+      if (State.isError(state)) {
+        poisonedPorts.add(portId)
+      }
     }
   }
 
@@ -231,7 +264,7 @@ class DataProcessor(
         inputManager.initBatch(channelId, tuples)
         processInputTuple(inputManager.getNextTuple)
       case StateFrame(state, loopCounter, loopStartId) =>
-        processInputState(state, portId.id, loopCounter, loopStartId)
+        processInputState(state, portId, loopCounter, loopStartId)
     }
     statisticsManager.increaseDataProcessingTime(System.nanoTime() - dataProcessingStartTime)
   }
@@ -315,7 +348,22 @@ class DataProcessor(
       asyncRPCClient.mkContext(COORDINATOR)
     )
     logger.warn(e.getLocalizedMessage + "\n" + e.getStackTrace.mkString("\n"))
-    // invoke a pause in-place
-    pauseManager.pause(OperatorLogicPause)
+    if (!guarded) {
+      // Outside any try/catch frame, keep the default product behavior:
+      // report and pause, leaving the current input retriable.
+      pauseManager.pause(OperatorLogicPause)
+      return
+    }
+    // Inside a frame, failure becomes a dataflow event: broadcast an error
+    // State on all output ports so downstream workers drain and try/catch
+    // frames can react, then drain this worker's own remaining input. Ports
+    // still complete normally — no stall, no kill.
+    if (!selfFailed) {
+      selfFailed = true
+      val opId = VirtualIdentityUtils.getPhysicalOpId(actorId)
+      outputManager.emitState(
+        State.errorState(s"${opId.logicalOpId.id}/${opId.layerName}", actorId.name, e)
+      )
+    }
   }
 }

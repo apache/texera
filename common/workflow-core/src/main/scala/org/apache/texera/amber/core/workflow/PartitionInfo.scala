@@ -33,6 +33,7 @@ import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
     new Type(value = classOf[SinglePartition], name = "single"),
     new Type(value = classOf[OneToOnePartition], name = "oneToOne"),
     new Type(value = classOf[BroadcastPartition], name = "broadcast"),
+    new Type(value = classOf[SignalPartition], name = "signal"),
     new Type(value = classOf[UnknownPartition], name = "none")
   )
 )
@@ -101,6 +102,15 @@ final case class OneToOnePartition() extends PartitionInfo {}
   * Represents the input stream needs to send to every node
   */
 final case class BroadcastPartition() extends PartitionInfo {}
+
+/**
+  * Signal links (try/catch frame wiring): data tuples are dropped at the
+  * sender; only States, ECMs and END_CHANNEL traverse the link. No producer
+  * partition ever satisfies it (default `satisfies`), so the allocator always
+  * resolves such links to the signal requirement itself — which maps to
+  * SignalPartitioning (tuples dropped at the sender).
+  */
+final case class SignalPartition() extends PartitionInfo {}
 
 /**
   * Represents there is no specific partitioning scheme of the input stream.
