@@ -471,6 +471,14 @@ describe("AdminSettingsComponent wiring", () => {
     fixture.detectChanges();
   });
 
+  afterEach(() => {
+    // nz-icon may lazily fetch its SVG assets over HTTP; drain those so verify()
+    // only asserts on requests this suite actually expects.
+    http.match(req => req.url.startsWith("assets/")).forEach(req => req.flush(""));
+    http.verify();
+    vi.restoreAllMocks();
+  });
+
   function host(): HTMLElement {
     return fixture.nativeElement as HTMLElement;
   }
