@@ -202,8 +202,8 @@ describe("ErrorFrameComponent", () => {
 
     it("groups the errors under their category headings", () => {
       const el = render([
-        fatalError({ type: { name: "COMPILATION" } as any }),
-        fatalError({ type: { name: "EXECUTION" } as any }),
+        fatalError({ type: { name: "COMPILATION" } }),
+        fatalError({ type: { name: "EXECUTION" } }),
       ]);
 
       const headings = Array.from(el.querySelectorAll(".error-category")).map(h => h.textContent?.trim());
