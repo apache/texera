@@ -92,6 +92,7 @@ CREATE TYPE user_role_enum AS ENUM ('INACTIVE', 'RESTRICTED', 'REGULAR', 'ADMIN'
 CREATE TYPE action_enum AS ENUM ('like', 'unlike', 'view', 'clone');
 CREATE TYPE privilege_enum AS ENUM ('NONE', 'READ', 'WRITE');
 CREATE TYPE workflow_computing_unit_type_enum AS ENUM ('local', 'kubernetes');
+CREATE TYPE user_warehouse_flavor_enum AS ENUM ('local', 'aws');
 
 -- ============================================
 -- 5. Create tables
@@ -247,8 +248,8 @@ CREATE TABLE IF NOT EXISTS user_warehouse
     uid                     INT          NOT NULL,
     name                    VARCHAR(128) NOT NULL,
     warehouse_name          VARCHAR(255) NOT NULL UNIQUE,
-    lakekeeper_warehouse_id UUID,
-    flavor                  VARCHAR(32)  NOT NULL,
+    lakekeeper_warehouse_id UUID         NOT NULL,
+    flavor                  user_warehouse_flavor_enum NOT NULL,
     s3_bucket               VARCHAR(255),
     s3_endpoint             VARCHAR(255),
     s3_region               VARCHAR(64),

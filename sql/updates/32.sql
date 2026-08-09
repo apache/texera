@@ -23,6 +23,8 @@ SET search_path TO texera_db;
 
 BEGIN;
 
+CREATE TYPE user_warehouse_flavor_enum AS ENUM ('local', 'aws');
+
 -- Per-user warehouse registrations (#6870): one row per warehouse a user registered.
 -- Base columns only; the assume-role (BYO-S3) columns come in a later change.
 CREATE TABLE IF NOT EXISTS user_warehouse
@@ -31,8 +33,8 @@ CREATE TABLE IF NOT EXISTS user_warehouse
     uid                     INT          NOT NULL,
     name                    VARCHAR(128) NOT NULL,
     warehouse_name          VARCHAR(255) NOT NULL UNIQUE,
-    lakekeeper_warehouse_id UUID,
-    flavor                  VARCHAR(32)  NOT NULL,
+    lakekeeper_warehouse_id UUID         NOT NULL,
+    flavor                  user_warehouse_flavor_enum NOT NULL,
     s3_bucket               VARCHAR(255),
     s3_endpoint             VARCHAR(255),
     s3_region               VARCHAR(64),

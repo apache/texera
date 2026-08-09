@@ -20,7 +20,10 @@
 package org.apache.texera.dao
 
 import org.apache.texera.dao.jooq.generated.Tables.{USER, USER_WAREHOUSE}
+import org.apache.texera.dao.jooq.generated.enums.UserWarehouseFlavorEnum
 import org.jooq.exception.DataAccessException
+
+import java.util.UUID
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -56,9 +59,10 @@ class UserWarehouseSpec extends AnyFlatSpec with Matchers with BeforeAndAfterAll
         USER_WAREHOUSE.UID,
         USER_WAREHOUSE.NAME,
         USER_WAREHOUSE.WAREHOUSE_NAME,
+        USER_WAREHOUSE.LAKEKEEPER_WAREHOUSE_ID,
         USER_WAREHOUSE.FLAVOR
       )
-      .values(uid, name, warehouseName, "local")
+      .values(uid, name, warehouseName, UUID.randomUUID(), UserWarehouseFlavorEnum.local)
       .returning(USER_WAREHOUSE.WHID)
       .fetchOne()
       .getWhid
@@ -73,16 +77,26 @@ class UserWarehouseSpec extends AnyFlatSpec with Matchers with BeforeAndAfterAll
       .fetchOne()
     row.getName shouldBe "mybucket"
     row.getWarehouseName shouldBe s"user-$uid-mybucket"
-    row.getFlavor shouldBe "local"
+    row.getFlavor shouldBe UserWarehouseFlavorEnum.local
+    row.getLakekeeperWarehouseId should not be null
     row.getCreatedAt should not be null
   }
 
-  it should "enforce one warehouse name per user" in {
+  it should "reject a duplicate display name for the same user" in {
     val uid = insertUser("duplicate-name-owner")
     insertWarehouse(uid, "dup", s"user-$uid-dup")
 
     a[DataAccessException] should be thrownBy
       insertWarehouse(uid, "dup", s"user-$uid-dup-2")
+  }
+
+  it should "reject a duplicate warehouse_name across users" in {
+    val first = insertUser("catalog-name-owner")
+    val second = insertUser("catalog-name-intruder")
+    insertWarehouse(first, "shared", "user-shared-catalog-name")
+
+    a[DataAccessException] should be thrownBy
+      insertWarehouse(second, "unrelated", "user-shared-catalog-name")
   }
 
   it should "cascade-delete a user's warehouses with the user" in {
