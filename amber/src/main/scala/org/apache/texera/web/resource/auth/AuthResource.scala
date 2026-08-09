@@ -48,7 +48,7 @@ object AuthResource {
     * Retrieve exactly one User from databases with the given username and password.
     * The password is used to validate against the hashed password stored in the db.
     *
-    * @param username String
+    * @param username the LOCAL login handle to authenticate
     * @param password String, plain text password
     * @return
     */

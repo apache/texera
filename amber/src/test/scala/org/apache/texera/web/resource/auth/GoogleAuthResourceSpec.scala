@@ -39,7 +39,7 @@ import javax.ws.rs.NotAuthorizedException
   * network round trip — so the suite overrides `verifiedPayload` and drives the resource with
   * payloads built by hand. What it pins down is everything downstream of verification: how a
   * Google payload becomes an [[ExternalProfile]] (the name fallback and the avatar reduced to
-  * its last path segment) and that an unverifiable credential is a 401 rather than a crash.
+  * its last path segment) and that a credential Google does not verify is a 401.
   */
 class GoogleAuthResourceSpec
     extends AnyFlatSpec
