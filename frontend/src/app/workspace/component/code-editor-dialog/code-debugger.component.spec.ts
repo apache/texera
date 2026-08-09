@@ -516,6 +516,13 @@ describe("CodeDebuggerComponent breakpoint gutter", () => {
     component.setupMonacoBreakpointMethods(editor);
   });
 
+  afterEach(() => {
+    // This suite drives a real MonacoBreakpoint, so tear it down the way the component does. Left
+    // alive, its editor listeners would outlive the test that registered them.
+    component.removeMonacoBreakpointMethods();
+    component.monacoEditor?.dispose();
+  });
+
   describe("gutter glyph", () => {
     it("marks a plain breakpoint", () => {
       expect(glyphFor(3, true)).toBe("monaco-breakpoint");
@@ -601,7 +608,7 @@ describe("CodeDebuggerComponent breakpoint gutter", () => {
 
       mouseDown!(gutterClick(12, { leftButton: false }));
 
-      expect(component.breakpointConditionLine).not.toBe(12);
+      expect(component.breakpointConditionLine).toBeUndefined();
     });
   });
 });
