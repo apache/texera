@@ -26,7 +26,9 @@ import { OperatorPerformanceMetrics } from "../workflow-status/performance-metri
  */
 export enum HeatmapView {
   Runtime = "runtime",
-  Throughput = "throughput",
+  // Seconds per output row — the reciprocal of throughput, so it grows (hotter) as throughput
+  // falls. Named directionally rather than "throughput" to match how the ramp reads.
+  TimePerRow = "time-per-row",
   IoImbalance = "io-imbalance",
 }
 
@@ -35,7 +37,7 @@ export enum HeatmapView {
  * worth a look).
  *
  * - Runtime:     data + control processing time — slower operators are hotter.
- * - Throughput:  seconds per output tuple — slow producers (low throughput) are
+ * - TimePerRow:  seconds per output tuple — slow producers (low throughput) are
  *                hotter; no output -> 0 (cold).
  * - IoImbalance: |out - in| / (out + in) — operators that drop OR amplify rows are
  *                hotter; a balanced operator or missing input -> 0 (cold). Normalized
@@ -45,7 +47,7 @@ export function rawMetricForView(metrics: OperatorPerformanceMetrics, view: Heat
   switch (view) {
     case HeatmapView.Runtime:
       return metrics.dataProcessingTimeNs + metrics.controlProcessingTimeNs;
-    case HeatmapView.Throughput: {
+    case HeatmapView.TimePerRow: {
       const timeSec = (metrics.dataProcessingTimeNs + metrics.controlProcessingTimeNs) / 1e9;
       return metrics.outputRows > 0 ? timeSec / metrics.outputRows : 0;
     }
@@ -63,8 +65,8 @@ export function heatmapViewTitle(view: HeatmapView): string {
   switch (view) {
     case HeatmapView.Runtime:
       return "Runtime";
-    case HeatmapView.Throughput:
-      return "Throughput";
+    case HeatmapView.TimePerRow:
+      return "Time / row";
     case HeatmapView.IoImbalance:
       return "I/O imbalance";
     default:
@@ -88,8 +90,8 @@ function formatSeconds(seconds: number): string {
 
 /**
  * Human-readable label for a raw view metric, used by the legend to show the actual value range
- * behind the color scale. Units match each view: Runtime is a duration, Throughput is time-per-row,
- * I/O imbalance is a unitless ratio.
+ * behind the color scale. Units match each view: Runtime is a duration, Time/row is seconds
+ * per row, I/O imbalance is a unitless ratio.
  */
 export function formatMetricForView(value: number, view: HeatmapView): string {
   if (!Number.isFinite(value) || value <= 0) {
@@ -98,7 +100,7 @@ export function formatMetricForView(value: number, view: HeatmapView): string {
   switch (view) {
     case HeatmapView.Runtime:
       return formatNanos(value);
-    case HeatmapView.Throughput:
+    case HeatmapView.TimePerRow:
       return `${formatSeconds(value)}/row`;
     case HeatmapView.IoImbalance:
       return value.toFixed(2);

@@ -19,8 +19,9 @@
 
 .heatmap-legend {
   position: absolute;
-  // Bottom-left, lifted above the mini-map preview toggle in the corner. The mini-map
-  // itself occupies the bottom-right of the canvas.
+  // Bottom-left of the canvas; the mini-map and its toggle buttons sit in the bottom-right
+  // corner (see mini-map.component.scss). The bottom offset lifts the legend clear of the
+  // result panel docked along the lower edge (workspace.component.scss #result).
   bottom: 72px;
   left: 0px;
   z-index: 10;
@@ -41,8 +42,8 @@
     width: 140px;
     height: 10px;
     border-radius: 2px;
-    // Mirrors the cold -> hot stops in heatmap-color.ts (scoreToColor).
-    background: linear-gradient(to right, #5b9bd5, #ffffbf, #e05a52);
+    // The gradient is bound in the template from scoreToColor(0/0.5/1) so it can't
+    // drift from the canvas ramp.
   }
 
   &__labels {

@@ -46,20 +46,20 @@ describe("rawMetricForView", () => {
     expect(rawMetricForView(m, HeatmapView.Runtime)).toBe(7_000_000);
   });
 
-  it("Throughput returns seconds per output tuple (slow producers are hotter)", () => {
+  it("Time-per-row returns seconds per output tuple (slow producers are hotter)", () => {
     // 2s of processing over 4 rows -> 0.5s per tuple
     const m = makeMetrics({ dataProcessingTimeNs: 2_000_000_000, outputRows: 4 });
-    expect(rawMetricForView(m, HeatmapView.Throughput)).toBe(0.5);
+    expect(rawMetricForView(m, HeatmapView.TimePerRow)).toBe(0.5);
   });
 
-  it("Throughput returns 0 when there is no output (cold)", () => {
+  it("Time-per-row returns 0 when there is no output (cold)", () => {
     const m = makeMetrics({ dataProcessingTimeNs: 2_000_000_000, outputRows: 0 });
-    expect(rawMetricForView(m, HeatmapView.Throughput)).toBe(0);
+    expect(rawMetricForView(m, HeatmapView.TimePerRow)).toBe(0);
   });
 
-  it("Throughput returns 0 when there is no processing time (infinitely fast -> cold)", () => {
+  it("Time-per-row returns 0 when there is no processing time (infinitely fast -> cold)", () => {
     const m = makeMetrics({ dataProcessingTimeNs: 0, controlProcessingTimeNs: 0, outputRows: 10 });
-    expect(rawMetricForView(m, HeatmapView.Throughput)).toBe(0);
+    expect(rawMetricForView(m, HeatmapView.TimePerRow)).toBe(0);
   });
 
   it("IoImbalance scores a row-dropping operator (out < in)", () => {
@@ -151,10 +151,10 @@ describe("formatMetricForView", () => {
     expect(formatMetricForView(500, HeatmapView.Runtime)).toBe("500 ns");
   });
 
-  it("formats Throughput as time-per-row", () => {
-    expect(formatMetricForView(2, HeatmapView.Throughput)).toBe("2.00 s/row");
-    expect(formatMetricForView(0.0015, HeatmapView.Throughput)).toBe("1.5 ms/row");
-    expect(formatMetricForView(0.0005, HeatmapView.Throughput)).toBe("500 µs/row");
+  it("formats Time-per-row as time-per-row", () => {
+    expect(formatMetricForView(2, HeatmapView.TimePerRow)).toBe("2.00 s/row");
+    expect(formatMetricForView(0.0015, HeatmapView.TimePerRow)).toBe("1.5 ms/row");
+    expect(formatMetricForView(0.0005, HeatmapView.TimePerRow)).toBe("500 µs/row");
   });
 
   it("formats I/O imbalance as a 2-decimal ratio", () => {
@@ -164,7 +164,7 @@ describe("formatMetricForView", () => {
 
   it("renders 0 for non-positive or non-finite values", () => {
     expect(formatMetricForView(0, HeatmapView.Runtime)).toBe("0");
-    expect(formatMetricForView(Number.NaN, HeatmapView.Throughput)).toBe("0");
+    expect(formatMetricForView(Number.NaN, HeatmapView.TimePerRow)).toBe("0");
     expect(formatMetricForView(Number.POSITIVE_INFINITY, HeatmapView.IoImbalance)).toBe("0");
   });
 });
@@ -172,7 +172,7 @@ describe("formatMetricForView", () => {
 describe("heatmapViewTitle", () => {
   it("returns a human-readable title for each view", () => {
     expect(heatmapViewTitle(HeatmapView.Runtime)).toBe("Runtime");
-    expect(heatmapViewTitle(HeatmapView.Throughput)).toBe("Throughput");
+    expect(heatmapViewTitle(HeatmapView.TimePerRow)).toBe("Time / row");
     expect(heatmapViewTitle(HeatmapView.IoImbalance)).toBe("I/O imbalance");
   });
 

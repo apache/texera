@@ -27,8 +27,10 @@
   height: 100%;
 }
 
-// Smoothly animate operator body fill changes (e.g. heat-map recolor on view switch / toggle).
-::ng-deep #workflow-editor .body {
+// Smoothly animate operator body fill changes for the heat-map recolor (view switch / toggle).
+// Scoped to the .heatmap-active class the overlay toggles, so it never animates the
+// disable/enable or validation fill paths when the overlay is off.
+::ng-deep #workflow-editor.heatmap-active .body {
   transition: fill 0.25s ease;
 }
 

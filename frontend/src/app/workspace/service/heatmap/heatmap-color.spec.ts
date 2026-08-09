@@ -40,7 +40,7 @@ describe("scoreToColor", () => {
     expect(scoreToColor(2)).toBe(scoreToColor(1));
   });
 
-  it("treats a non-finite score as cold rather than emitting an invalid color", () => {
+  it("maps non-finite scores to the ramp endpoints (NaN -> cold, Infinity -> hot)", () => {
     expect(scoreToColor(Number.NaN)).toBe(scoreToColor(0));
     expect(scoreToColor(Number.POSITIVE_INFINITY)).toBe(scoreToColor(1));
   });

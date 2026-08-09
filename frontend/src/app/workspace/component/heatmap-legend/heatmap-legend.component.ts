@@ -30,6 +30,7 @@ import {
   heatmapViewTitle,
   rawMetricForView,
 } from "../../service/heatmap/heatmap-scoring";
+import { scoreToColor } from "../../service/heatmap/heatmap-color";
 
 interface HeatmapLegendState {
   readonly view: HeatmapView;
@@ -51,6 +52,10 @@ interface HeatmapLegendState {
 })
 export class HeatmapLegendComponent {
   public readonly legend$: Observable<HeatmapLegendState | null>;
+
+  // Bind the scale bar's gradient from the same source as the operator fills (scoreToColor),
+  // so the legend can never drift from the canvas ramp.
+  public readonly scaleGradient = `linear-gradient(to right, ${scoreToColor(0)}, ${scoreToColor(0.5)}, ${scoreToColor(1)})`;
 
   constructor(
     private workflowActionService: WorkflowActionService,

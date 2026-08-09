@@ -432,11 +432,14 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
         }
       });
 
-    // Restore default fills when the overlay is turned off.
+    // Restore default fills when the overlay is turned off, and toggle the .heatmap-active
+    // class that scopes the body-fill transition, so the animation only applies while the
+    // overlay is on (not to the disable/enable or validation fill paths).
     this.wrapper
       .getHeatmapViewStream()
       .pipe(untilDestroyed(this))
       .subscribe(view => {
+        this.editor.classList.toggle("heatmap-active", view !== null);
         if (view === null) {
           this.restoreAllOperatorFills();
           this.heatmapTooltip = null;
@@ -447,6 +450,22 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     this.workflowActionService
       .getTexeraGraph()
       .getOperatorAddStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
+        const view = this.wrapper.getHeatmapView();
+        if (view !== null) {
+          this.repaintHeatmapColors(view);
+        }
+      });
+
+    // Enabling/disabling an operator rewrites its body fill via changeOperatorDisableStatus
+    // (#FFFFFF / #E0E0E0) — colors this overlay owns. Repaint so the heat-map survives a
+    // disable/enable while active, even on an otherwise idle workflow. This subscription is
+    // registered after handleDisableOperator (called earlier in ngAfterViewInit), so the
+    // repaint runs last and wins the fill.
+    this.workflowActionService
+      .getTexeraGraph()
+      .getDisabledOperatorsChangedStream()
       .pipe(untilDestroyed(this))
       .subscribe(() => {
         const view = this.wrapper.getHeatmapView();
@@ -517,6 +536,11 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     fromJointPaperEvent(this.paper, "element:mouseleave")
       .pipe(untilDestroyed(this))
       .subscribe(() => {
+        // Stay inert when the overlay is off (no tooltip is ever shown then), and skip the
+        // change-detection pass when there is nothing to clear.
+        if (this.wrapper.getHeatmapView() === null || this.heatmapTooltip === null) {
+          return;
+        }
         this.heatmapTooltip = null;
         this.changeDetectorRef.detectChanges();
       });

@@ -610,10 +610,10 @@ describe("MenuComponent", () => {
         const setSpy = vi.spyOn(workflowActionService.getJointGraphWrapper(), "setHeatmapView");
 
         component.showHeatmap = true;
-        component.heatmapView = HeatmapView.Throughput;
+        component.heatmapView = HeatmapView.TimePerRow;
         component.toggleHeatmap();
 
-        expect(setSpy).toHaveBeenCalledWith(HeatmapView.Throughput);
+        expect(setSpy).toHaveBeenCalledWith(HeatmapView.TimePerRow);
       });
 
       it("publishes null to the joint graph wrapper when disabled", () => {
