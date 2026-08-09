@@ -39,6 +39,16 @@ import javax.validation.constraints.NotNull
   */
 
 // type can be numerical only
+// The z column is the bubble size, which plotly express divides by a scale
+// factor, so text aborts the run. The x and y axes are positions and take any
+// type, the way a scatter plot's do.
+@JsonSchemaInject(json = """
+{
+  "attributeTypeRules": {
+    "zValue": { "enum": ["integer", "long", "double"] }
+  }
+}
+""")
 class BubbleChartOpDesc extends PythonOperatorDescriptor {
 
   @JsonProperty(value = "xValue", required = true)
