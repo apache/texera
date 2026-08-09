@@ -39,6 +39,8 @@ object StorageConfig {
   val icebergRESTCatalogUri: String = conf.getString("storage.iceberg.catalog.rest.uri")
   val icebergRESTCatalogWarehouseName: String =
     conf.getString("storage.iceberg.catalog.rest.warehouse-name")
+  val icebergRESTCatalogS3Bucket: String =
+    conf.getString("storage.iceberg.catalog.rest.s3-bucket")
 
   // Iceberg Postgres specifics
   val icebergPostgresCatalogUriWithoutScheme: String =
@@ -93,7 +95,9 @@ object StorageConfig {
   // Per-user warehouses (#6870). On only when the switch is on AND the catalog is REST
   // (Lakekeeper): warehouses are Lakekeeper entities, so any other catalog type keeps
   // the feature off regardless of the switch.
-  val warehouseEnabled: Boolean =
+  // warehouseEnabled is a var because tests need to exercise the enabled path
+  // (mirroring s3Endpoint above); production code never writes it.
+  var warehouseEnabled: Boolean =
     conf.getBoolean("storage.warehouse.enabled") && icebergCatalogType == "rest"
 
   // File storage configurations

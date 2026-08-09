@@ -286,9 +286,11 @@ CREATE TABLE IF NOT EXISTS workflow_executions
     log_location        TEXT,
     runtime_stats_uri   TEXT,
     runtime_stats_size  BIGINT DEFAULT 0,
+    whid                INT,
     FOREIGN KEY (vid) REFERENCES workflow_version(vid) ON DELETE CASCADE,
     FOREIGN KEY (uid) REFERENCES "user"(uid) ON DELETE CASCADE,
-    FOREIGN KEY (cuid) REFERENCES workflow_computing_unit(cuid) ON DELETE CASCADE
+    FOREIGN KEY (cuid) REFERENCES workflow_computing_unit(cuid) ON DELETE CASCADE,
+    FOREIGN KEY (whid) REFERENCES user_warehouse(whid) ON DELETE SET NULL
 );
 
 -- public_project

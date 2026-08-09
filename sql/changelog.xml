@@ -73,6 +73,11 @@
         <sqlFile path="sql/updates/32.sql"/>
     </changeSet>
 
+    <!-- Record the per-execution warehouse on workflow_executions (#6870) -->
+    <changeSet id="33" author="mengw15">
+        <sqlFile path="sql/updates/33.sql"/>
+    </changeSet>
+
     <!-- example changeSet
     <changeSet id="1" author="author">
         <sqlFile path="sql/updates/1.sql"/>

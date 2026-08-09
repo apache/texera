@@ -167,7 +167,8 @@ class SyncExecutionResource extends LazyLogging {
             WorkflowSettings(dataTransferBatchSize = ApplicationConfig.defaultDataTransferBatchSize)
           ),
         emailNotificationEnabled = false,
-        computingUnitId = computingUnitId
+        computingUnitId = computingUnitId,
+        warehouseId = None
       )
 
       workflowService.initExecutionService(
