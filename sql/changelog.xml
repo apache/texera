@@ -68,10 +68,15 @@
         <sqlFile path="sql/updates/31.sql"/>
     </changeSet>
 
+    <!-- Per-user warehouse registrations (#6870) -->
+    <changeSet id="32" author="mengw15">
+        <sqlFile path="sql/updates/32.sql"/>
+    </changeSet>
+
     <!-- Split auth credentials out of "user" into auth_provider, and store the provider's
          full avatar URL instead of a Google-specific fragment -->
-    <changeSet id="32" author="Neilk1021">
-        <sqlFile path="sql/updates/32.sql"/>
+    <changeSet id="33" author="Neilk1021">
+        <sqlFile path="sql/updates/33.sql"/>
     </changeSet>
 
     <!-- example changeSet

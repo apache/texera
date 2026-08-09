@@ -217,6 +217,41 @@ class TimeSeriesOpDescSpec extends AnyFunSuite {
     assert(py.contains(b64("date")) && py.contains(b64("value")))
   }
 
+  // --- column type rules --------------------------------------------------------
+
+  /** The rule the property editor reads to decide which columns a picker offers. */
+  private def attributeTypeRule(property: String): Set[String] =
+    OperatorMetadataGenerator
+      .generateOperatorJsonSchema(classOf[TimeSeriesOpDesc])
+      .path("attributeTypeRules")
+      .path(property)
+      .path("enum")
+      .elements()
+      .asScala
+      .map(_.asText())
+      .toSet
+
+  test("the time column accepts a date column stored as text, not only a timestamp") {
+    // A CSV source hands its dates over as STRING, and pd.to_datetime parses them,
+    // so rejecting the type would invalidate workflows that plot today.
+    assert(attributeTypeRule("timeColumn") == Set("timestamp", "string"))
+  }
+
+  test("the value column is restricted to the numeric types") {
+    assert(attributeTypeRule("valueColumn") == Set("integer", "long", "double"))
+  }
+
+  test("text the parser cannot read is dropped and reported rather than raised") {
+    // The type rule admits any string, so unparseable text still reaches the
+    // generated code; coercion turns it into NaT, dropna removes the row, and an
+    // input whose every row goes that way ends in a message instead of a traceback.
+    val py = minimalOp().generatePythonCode()
+
+    assert(py.contains("errors='coerce'"))
+    assert(dropnaSubset(py).contains(b64("date")))
+    assert(py.contains("Table became empty after filtering."))
+  }
+
   // --- JSON round-trip ---------------------------------------------------------
 
   test("the descriptor round-trips all of its config fields through the polymorphic base") {

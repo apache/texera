@@ -21,7 +21,7 @@ package org.apache.texera.amber.operator.visualization.bulletChart
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
-import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
+import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PyStringTypes.{EncodableString, PythonLiteral}
@@ -39,6 +39,15 @@ import scala.jdk.CollectionConverters._
   * Visualization Operator to visualize results as a Bullet Chart
   */
 
+// type constraint: the measured value is read as float(row[value]), so it can only
+// be a numeric column.
+@JsonSchemaInject(json = """
+{
+  "attributeTypeRules": {
+    "value": { "enum": ["integer", "long", "double"] }
+  }
+}
+""")
 class BulletChartOpDesc extends PythonOperatorDescriptor {
 
   @JsonProperty(value = "value", required = true)

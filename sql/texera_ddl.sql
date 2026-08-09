@@ -95,6 +95,7 @@ CREATE TYPE action_enum AS ENUM ('like', 'unlike', 'view', 'clone');
 CREATE TYPE privilege_enum AS ENUM ('NONE', 'READ', 'WRITE');
 CREATE TYPE workflow_computing_unit_type_enum AS ENUM ('local', 'kubernetes');
 CREATE TYPE provider_type_enum AS ENUM ('LOCAL', 'GOOGLE');
+CREATE TYPE user_warehouse_flavor_enum AS ENUM ('local', 'aws');
 
 -- ============================================
 -- 5. Create tables
@@ -249,6 +250,24 @@ CREATE TABLE IF NOT EXISTS workflow_computing_unit
     uri                TEXT NOT NULL DEFAULT '',
     resource           TEXT DEFAULT '',
     FOREIGN KEY (uid) REFERENCES "user"(uid) ON DELETE CASCADE
+);
+
+-- Per-user warehouse registrations (#6870): one row per warehouse a user registered.
+-- Base columns only; the assume-role (BYO-S3) columns come in a later change.
+CREATE TABLE IF NOT EXISTS user_warehouse
+(
+    whid                    SERIAL PRIMARY KEY,
+    uid                     INT          NOT NULL,
+    name                    VARCHAR(128) NOT NULL,
+    warehouse_name          VARCHAR(255) NOT NULL UNIQUE,
+    lakekeeper_warehouse_id UUID         NOT NULL,
+    flavor                  user_warehouse_flavor_enum NOT NULL,
+    s3_bucket               VARCHAR(255),
+    s3_endpoint             VARCHAR(255),
+    s3_region               VARCHAR(64),
+    created_at              TIMESTAMPTZ  NOT NULL DEFAULT now(),
+    UNIQUE (uid, name),
+    FOREIGN KEY (uid) REFERENCES "user" (uid) ON DELETE CASCADE
 );
 
 -- virtual_environments table
