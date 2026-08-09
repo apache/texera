@@ -39,10 +39,9 @@ import { NzModalModule, NzModalService } from "ng-zorro-antd/modal";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { provideRouter } from "@angular/router";
 import { DashboardEntry } from "../../../../type/dashboard-entry";
-import { NzTooltipModule } from "ng-zorro-antd/tooltip";
+import { NzTooltipDirective, NzTooltipModule } from "ng-zorro-antd/tooltip";
 import { commonTestProviders } from "../../../../../common/testing/test-utils";
 import type { Mocked } from "vitest";
-import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
 import { GuiConfigService } from "../../../../../common/service/gui-config.service";
 import { MockGuiConfigService } from "../../../../../common/service/gui-config.service.mock";
 
