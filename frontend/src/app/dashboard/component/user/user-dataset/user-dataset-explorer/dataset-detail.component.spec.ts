@@ -291,9 +291,10 @@ describe("DatasetDetailComponent upload queue", () => {
       setup(component);
       fixture.detectChanges();
       const host = fixture.nativeElement as HTMLElement;
-      const tabs = Array.from(host.querySelectorAll<HTMLElement>(".ant-tabs-tab"));
-      if (tabs.length > 1 && !tabs[1].classList.contains("ant-tabs-tab-active")) {
-        tabs[1].click();
+      const tabButtons = host.querySelectorAll<HTMLElement>(".ant-tabs-tab-btn");
+      const versionsTab = Array.from(tabButtons).find(tab => tab.textContent?.includes("Versions & Files"));
+      if (versionsTab && !versionsTab.closest(".ant-tabs-tab")?.classList.contains("ant-tabs-tab-active")) {
+        versionsTab.click();
         fixture.detectChanges();
       }
       return host;
