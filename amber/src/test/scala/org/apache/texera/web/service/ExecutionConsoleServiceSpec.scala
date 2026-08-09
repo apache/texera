@@ -55,10 +55,10 @@ import scala.reflect.ClassTag
   * is told, the worker-to-operator keying that decides where a message lands, and the websocket
   * handlers behind the debugger.
   *
-  * Everything here runs on an empty-plan AmberClient with a mocked coordinator, so no engine,
-  * database or Iceberg storage is involved. The Iceberg-backed writer path (`getOrCreateWriter` and
-  * the commit loop on execution state) is `private` and storage-bound, and is left uncovered rather
-  * than padded with a no-throw test.
+  * Everything here runs on an empty-plan AmberClient with a mocked coordinator, so no engine is
+  * involved. Note that ExecutionConsoleService still schedules asynchronous console persistence
+  * (writer creation + operator-executions insertion); this suite focuses on console routing/diffing
+  * and does not assert on the persistence side effects.
   */
 class ExecutionConsoleServiceSpec
     extends TestKit(ActorSystem("ExecutionConsoleServiceSpec"))
