@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { TestBed } from "@angular/core/testing";
+import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { getMimeType, MIME_TYPES, UserDatasetFileRendererComponent } from "./user-dataset-file-renderer.component";
 import { DatasetService } from "../../../../../service/user/dataset/dataset.service";
@@ -27,6 +27,7 @@ import { commonTestProviders } from "../../../../../../common/testing/test-utils
 import { of } from "rxjs";
 import * as Papa from "papaparse";
 import { SimpleChange, SimpleChanges } from "@angular/core";
+import { MarkdownModule } from "ngx-markdown";
 
 describe("UserDatasetFileRendererComponent", () => {
   let component: UserDatasetFileRendererComponent;
@@ -413,5 +414,211 @@ describe("UserDatasetFileRendererComponent", () => {
       loadWith("notes.txt", blob);
       expect(component.isFileTypePreviewUnsupported).toBe(true);
     });
+  });
+});
+
+/**
+ * The template is a viewer switch: each `displayX` flag selects exactly one preview, and the media
+ * branches additionally require `safeFileURL` so a flag on its own cannot render a source-less
+ * <img>/<video>/<audio>. The suite above drives the flags; this one checks what they put on screen.
+ *
+ * Its own TestBed configuration supplies a DomSanitizer with `sanitize`, which Angular calls when
+ * binding [src] — the stub used above only has `bypassSecurityTrustUrl` and cannot render media.
+ */
+describe("UserDatasetFileRendererComponent rendering", () => {
+  let fixture: ComponentFixture<UserDatasetFileRendererComponent>;
+  let component: UserDatasetFileRendererComponent;
+
+  beforeEach(() => {
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      // MarkdownModule.forRoot() backs the <markdown> element in the markdown preview.
+      imports: [UserDatasetFileRendererComponent, HttpClientTestingModule, MarkdownModule.forRoot()],
+      providers: [
+        DatasetService,
+        NotificationService,
+        {
+          provide: DomSanitizer,
+          useValue: {
+            bypassSecurityTrustUrl: (url: string) => url,
+            sanitize: (_context: number, value: string) => value,
+          },
+        },
+        ...commonTestProviders,
+      ],
+    });
+    fixture = TestBed.createComponent(UserDatasetFileRendererComponent);
+    component = fixture.componentInstance;
+  });
+
+  /**
+   * Applies a viewer state and renders it.
+   *
+   * The first change-detection cycle runs ngOnInit, which inspects the (empty) filePath and settles
+   * on "preview unsupported". Flags set before that cycle are silently overwritten, so the state is
+   * cleared through the component's own reset and applied afterwards.
+   */
+  function render(setup: (c: UserDatasetFileRendererComponent) => void): HTMLElement {
+    fixture.detectChanges();
+    component.turnOffAllDisplay();
+    setup(component);
+    fixture.detectChanges();
+    return fixture.nativeElement as HTMLElement;
+  }
+
+  describe("status messages", () => {
+    it("shows a spinner while the file is loading", () => {
+      const el = render(c => (c.isLoading = true));
+
+      expect(el.querySelector("nz-spin")).not.toBeNull();
+      expect(el.textContent).toContain("File content is loading");
+    });
+
+    it("shows an error alert when loading failed", () => {
+      const el = render(c => (c.isFileLoadingError = true));
+
+      expect(el.textContent).toContain("File loading encounter error.");
+    });
+
+    it("shows a distinct alert for a file that is too large", () => {
+      const el = render(c => (c.isFileSizeUnloadable = true));
+
+      expect(el.textContent).toContain("File is too large to preview");
+      expect(el.textContent).not.toContain("Preview of the file type is currently not supported");
+    });
+
+    it("shows a distinct alert for an unsupported file type", () => {
+      const el = render(c => (c.isFileTypePreviewUnsupported = true));
+
+      expect(el.textContent).toContain("Preview of the file type is currently not supported");
+      expect(el.textContent).not.toContain("File is too large to preview");
+    });
+  });
+
+  describe("tabular preview", () => {
+    it("renders the parsed header and cells for a CSV", () => {
+      const el = render(c => {
+        c.displayCSV = true;
+        c.tableDataHeader = ["name", "score"];
+        c.tableContent = [
+          ["ada", "10"],
+          ["grace", "20"],
+        ];
+      });
+
+      expect(el.querySelectorAll("th")).toHaveLength(2);
+      expect(Array.from(el.querySelectorAll("th")).map(th => th.textContent?.trim())).toEqual(["name", "score"]);
+      expect(el.textContent).toContain("grace");
+    });
+
+    it("uses the same table for a spreadsheet", () => {
+      const el = render(c => {
+        c.displayXlsx = true;
+        c.tableDataHeader = ["col"];
+        c.tableContent = [["cell"]];
+      });
+
+      expect(el.querySelector("nz-table")).not.toBeNull();
+      expect(el.textContent).toContain("cell");
+    });
+  });
+
+  describe("media previews", () => {
+    it("renders an image and opens the full-size modal when it is clicked", () => {
+      const el = render(c => {
+        c.displayImage = true;
+        c.safeFileURL = "blob:image";
+      });
+      const img = el.querySelector<HTMLImageElement>(".file-display-area img");
+      expect(img).not.toBeNull();
+
+      img!.click();
+      fixture.detectChanges();
+
+      expect(component.showImageModal).toBe(true);
+      expect(el.querySelector(".image-modal")).not.toBeNull();
+    });
+
+    it("renders a video for an MP4 and not an audio player", () => {
+      const el = render(c => {
+        c.displayMP4 = true;
+        c.safeFileURL = "blob:video";
+      });
+
+      expect(el.querySelector("video")).not.toBeNull();
+      expect(el.querySelector("audio")).toBeNull();
+    });
+
+    it("renders an audio player for an MP3 and not a video", () => {
+      const el = render(c => {
+        c.displayMP3 = true;
+        c.safeFileURL = "blob:audio";
+      });
+
+      expect(el.querySelector("audio")).not.toBeNull();
+      expect(el.querySelector("video")).toBeNull();
+    });
+
+    it("renders no media element while the safe URL is still missing", () => {
+      // The flag is set as soon as the MIME type is known, but the object URL is built
+      // asynchronously; rendering on the flag alone would emit a source-less element.
+      const el = render(c => {
+        c.displayImage = true;
+        c.displayMP4 = true;
+        c.displayMP3 = true;
+        c.safeFileURL = undefined;
+      });
+
+      expect(el.querySelector(".file-display-area img")).toBeNull();
+      expect(el.querySelector("video")).toBeNull();
+      expect(el.querySelector("audio")).toBeNull();
+    });
+  });
+
+  describe("text previews", () => {
+    it("renders markdown through the markdown viewer", () => {
+      const el = render(c => {
+        c.displayMarkdown = true;
+        c.textContent = "# heading";
+      });
+
+      expect(el.querySelector("markdown")).not.toBeNull();
+      expect(el.querySelector("ngx-json-viewer")).toBeNull();
+    });
+
+    it("renders JSON through the JSON viewer", () => {
+      const el = render(c => {
+        c.displayJson = true;
+        c.textContent = '{"a":1}';
+      });
+
+      expect(el.querySelector("ngx-json-viewer")).not.toBeNull();
+      expect(el.querySelector("markdown")).toBeNull();
+    });
+
+    it("renders plain text inline", () => {
+      const el = render(c => {
+        c.displayPlainText = true;
+        c.textContent = "hello world";
+      });
+
+      expect(el.textContent).toContain("hello world");
+      expect(el.querySelector("markdown")).toBeNull();
+    });
+  });
+
+  it("renders nothing in the display area until a viewer is selected", () => {
+    const el = render(() => {});
+
+    const area = el.querySelector(".file-display-area")!;
+    expect(area.textContent?.trim()).toBe("");
+  });
+
+  it("fills the container height only when maximized", () => {
+    const outer = render(c => (c.isMaximized = false)).querySelector<HTMLElement>("div")!;
+    expect(outer.style.height).toBe("80%");
+
+    const maximized = render(c => (c.isMaximized = true)).querySelector<HTMLElement>("div")!;
+    expect(maximized.style.height).toBe("100%");
   });
 });
