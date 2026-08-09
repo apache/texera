@@ -77,7 +77,7 @@ Two cases use a two-part scope, written as `<type>(<area>, <module>): <descripti
 | A test-only PR — adding or updating tests | `test(<module>): ...`, e.g. `test(amber): add marker replay specs` |
 | Repairing a broken or flaky test | `fix(test, <module>): ...`, e.g. `fix(test, frontend): stabilize the dashboard spec` |
 | A dependency bump that patches a CVE | `fix(deps, <module>): ...`, e.g. `fix(deps, pyamber): bump protobuf for CVE-2025-4565` |
-| Any other dependency bump | `chore(deps, <module>): ...`, e.g. `chore(deps, frontend): bump numpy to 2.0.0` |
+| Any other dependency bump | `chore(deps, <module>): ...`, e.g. `chore(deps, pyamber): bump numpy to 2.0.0` |
 
 Omit the module for bumps that span modules, and use `ci: ...` for CI-only changes, including GitHub Actions bumps.
 
