@@ -38,7 +38,10 @@ import { WorkflowActionService } from "../../service/workflow-graph/model/workfl
 import { ValidationWorkflowService, ValidationOutput } from "../../service/validation/validation-workflow.service";
 import { PanelService } from "../../service/panel/panel.service";
 import { WorkflowVersionService } from "../../../dashboard/service/user/workflow-version/workflow-version.service";
-import { WorkflowPersistService } from "../../../common/service/workflow-persist/workflow-persist.service";
+import {
+  WorkflowPersistService,
+  DEFAULT_WORKFLOW_NAME,
+} from "../../../common/service/workflow-persist/workflow-persist.service";
 import { NotificationService } from "../../../common/service/notification/notification.service";
 import { ExecutionState } from "../../types/execute-workflow.interface";
 import { HeatmapView } from "../../service/heatmap/heatmap-scoring";
@@ -50,7 +53,13 @@ import type { ComputingUnitSelectionComponent } from "../power-button/computing-
 import { WorkflowContent } from "../../../common/type/workflow";
 import { Router } from "@angular/router";
 import { ReportGenerationService } from "../../service/report-generation/report-generation.service";
-import { USER_WORKFLOW } from "../../../app-routing.constant";
+import { USER_WORKFLOW, USER_WORKSPACE } from "../../../app-routing.constant";
+import { JupyterPanelService } from "../../service/jupyter-panel/jupyter-panel.service";
+import { NotebookMigrationService } from "../../service/notebook-migration/notebook-migration.service";
+import { NotebookImportModalComponent } from "../notebook-import-modal/notebook-import-modal.component";
+import { NzUploadFile } from "ng-zorro-antd/upload";
+import { GuiConfigService } from "../../../common/service/gui-config.service";
+import { MockGuiConfigService } from "../../../common/service/gui-config.service.mock";
 import type { Mocked } from "vitest";
 
 vi.mock("file-saver", () => ({ saveAs: vi.fn() }));
@@ -372,6 +381,23 @@ describe("MenuComponent", () => {
     component.onWorkflowNameChange();
 
     expect(setNameSpy).toHaveBeenCalledWith("renamed");
+  });
+
+  // Regression coverage for #6846 (resolved by discussion #6873): the toolbar's
+  // import button wiped `wid` before auto-persist and thereby created a spurious
+  // duplicate workflow, so it was removed. Creating a workflow from a JSON file
+  // is covered by the dashboard workflow-list upload button instead.
+  describe("import workflow removal", () => {
+    it("does not render an import upload control in the toolbar", () => {
+      const element: HTMLElement = fixture.nativeElement;
+
+      expect(element.querySelector("nz-upload")).toBeNull();
+      expect(element.querySelector("button[title='import workflow']")).toBeNull();
+    });
+
+    it("does not define an onClickImportWorkflow handler", () => {
+      expect((component as any).onClickImportWorkflow).toBeUndefined();
+    });
   });
 
   describe("onClickExportWorkflow (save)", () => {
@@ -880,6 +906,448 @@ describe("MenuComponent", () => {
       component.adjustWorkflowNameWidth();
 
       expect(input.style.width).toMatch(/^\d+px$/);
+    });
+  });
+
+  describe("expand jupyter notebook panel", () => {
+    it("onClickExpandJupyterNotebookPanel delegates to JupyterPanelService", () => {
+      const openSpy = vi
+        .spyOn(TestBed.inject(JupyterPanelService), "openJupyterNotebookPanel")
+        .mockImplementation(() => {});
+
+      component.onClickExpandJupyterNotebookPanel();
+
+      expect(openSpy).toHaveBeenCalled();
+    });
+
+    it("shows the expand-jupyter button only when the flag is on and a notebook exists", () => {
+      const button = () => fixture.nativeElement.querySelector('button[title="expand Jupyter notebook"]');
+      // commonTestProviders' MockGuiConfigService defaults the flag to false, and no notebook exists.
+      expect(button()).toBeNull();
+
+      (TestBed.inject(GuiConfigService) as unknown as MockGuiConfigService).setConfig({
+        pythonNotebookMigrationEnabled: true,
+      });
+      fixture.detectChanges();
+      // Flag on but the current workflow still has no notebook -> hidden.
+      expect(button()).toBeNull();
+
+      (TestBed.inject(JupyterPanelService) as any).jupyterNotebookExists$ = of(true);
+      fixture.detectChanges();
+      // Flag on and a notebook exists -> shown.
+      expect(button()).not.toBeNull();
+    });
+
+    it("clicking the expand-jupyter button opens the panel", () => {
+      const openSpy = vi
+        .spyOn(TestBed.inject(JupyterPanelService), "openJupyterNotebookPanel")
+        .mockImplementation(() => {});
+      (TestBed.inject(GuiConfigService) as unknown as MockGuiConfigService).setConfig({
+        pythonNotebookMigrationEnabled: true,
+      });
+      (TestBed.inject(JupyterPanelService) as any).jupyterNotebookExists$ = of(true);
+      fixture.detectChanges();
+
+      const button = fixture.nativeElement.querySelector(
+        'button[title="expand Jupyter notebook"]'
+      ) as HTMLButtonElement;
+      button.click();
+
+      expect(openSpy).toHaveBeenCalled();
+    });
+  });
+
+  // Coverage for the notebook -> workflow import flow: the modal wiring, the
+  // upload guard, and the read/generate/persist pipeline. The pipeline tests
+  // double as regressions for the spinner bugs (emit true on start, emit false
+  // only at the terminal state of every path).
+  describe("notebook import", () => {
+    let notebookMigrationService: NotebookMigrationService;
+    let jupyterPanelService: JupyterPanelService;
+
+    const validNotebook = {
+      cells: [{ cell_type: "code", source: "print(1)", metadata: {} }],
+      metadata: {},
+      nbformat: 4,
+      nbformat_minor: 5,
+    };
+
+    // A real File is a Blob, so FileReader.readAsText works in jsdom; NzUploadFile
+    // is the raw File augmented at runtime, matching what nz-upload passes through.
+    function ipynbFile(content: unknown, name = "my_nb.ipynb"): NzUploadFile {
+      return new File([JSON.stringify(content)], name, { type: "application/json" }) as unknown as NzUploadFile;
+    }
+
+    beforeEach(() => {
+      notebookMigrationService = TestBed.inject(NotebookMigrationService);
+      jupyterPanelService = TestBed.inject(JupyterPanelService);
+    });
+
+    it("openImportNotebookModal opens the NotebookImportModalComponent with a requestImport callback and no menu footer", () => {
+      const createSpy = vi.spyOn(modalService, "create").mockReturnValue({} as unknown as NzModalRef);
+
+      component.openImportNotebookModal();
+
+      expect(createSpy).toHaveBeenCalledTimes(1);
+      const config = createSpy.mock.calls[0][0] as ModalOptions;
+      expect(config.nzTitle).toBe("AI Generate Workflow from Python Notebook");
+      expect(config.nzContent).toBe(NotebookImportModalComponent);
+      expect(config.nzFooter).toBeNull();
+      expect(typeof (config.nzData as { requestImport: unknown }).requestImport).toBe("function");
+    });
+
+    // Opens the modal and returns the requestImport callback the menu handed to it; calling
+    // it drives the overwrite-confirm + import decision (true => close modal, false => keep open).
+    function getRequestImport(): (file: NzUploadFile, model: string) => Promise<boolean> {
+      const createSpy = vi.spyOn(modalService, "create").mockReturnValue({} as unknown as NzModalRef);
+      component.openImportNotebookModal();
+      const config = createSpy.mock.calls[0][0] as ModalOptions;
+      return (config.nzData as { requestImport: (file: NzUploadFile, model: string) => Promise<boolean> })
+        .requestImport;
+    }
+
+    it("imports directly and resolves true when the current workflow is empty", async () => {
+      const importSpy = vi.spyOn(component, "onClickImportNotebook").mockReturnValue(false);
+      const confirmSpy = vi.spyOn(modalService, "confirm").mockImplementation(() => ({}) as NzModalRef);
+
+      const proceed = await getRequestImport()({ name: "x.ipynb" } as NzUploadFile, "gpt-4");
+
+      expect(confirmSpy).not.toHaveBeenCalled();
+      expect(importSpy).toHaveBeenCalledWith({ name: "x.ipynb" }, "gpt-4");
+      expect(proceed).toBe(true);
+    });
+
+    it("rejects a non-ipynb file: resolves false, errors, and neither confirms nor imports", async () => {
+      const importSpy = vi.spyOn(component, "onClickImportNotebook").mockReturnValue(false);
+      const confirmSpy = vi.spyOn(modalService, "confirm").mockImplementation(() => ({}) as NzModalRef);
+      const errorSpy = vi.spyOn(notificationService, "error").mockImplementation(() => {});
+
+      const proceed = await getRequestImport()({ name: "data.txt" } as NzUploadFile, "gpt-4");
+
+      // Resolving false keeps the modal open with the selection preserved; nothing started.
+      expect(proceed).toBe(false);
+      expect(errorSpy).toHaveBeenCalledWith("Please upload a valid Jupyter Notebook (.ipynb) file.");
+      expect(confirmSpy).not.toHaveBeenCalled();
+      expect(importSpy).not.toHaveBeenCalled();
+    });
+
+    it("confirms before overwriting a non-empty workflow, imports and resolves true on confirm", async () => {
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      const importSpy = vi.spyOn(component, "onClickImportNotebook").mockReturnValue(false);
+      const confirmSpy = vi.spyOn(modalService, "confirm").mockImplementation(() => ({}) as NzModalRef);
+
+      const proceedPromise = getRequestImport()({ name: "x.ipynb" } as NzUploadFile, "gpt-4");
+
+      // Confirmation is shown; the import has not started.
+      expect(confirmSpy).toHaveBeenCalledTimes(1);
+      expect(importSpy).not.toHaveBeenCalled();
+
+      // Confirming ("Overwrite") starts the import and lets the modal close.
+      const confirmConfig = confirmSpy.mock.calls[0][0] as { nzOnOk: () => void };
+      confirmConfig.nzOnOk();
+      await expect(proceedPromise).resolves.toBe(true);
+      expect(importSpy).toHaveBeenCalledWith({ name: "x.ipynb" }, "gpt-4");
+    });
+
+    it("resolves false without importing when the overwrite confirmation is cancelled", async () => {
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      const importSpy = vi.spyOn(component, "onClickImportNotebook").mockReturnValue(false);
+      const confirmSpy = vi.spyOn(modalService, "confirm").mockImplementation(() => ({}) as NzModalRef);
+
+      const proceedPromise = getRequestImport()({ name: "x.ipynb" } as NzUploadFile, "gpt-4");
+
+      // Backing out keeps the modal open (resolve false) and starts no import.
+      const confirmConfig = confirmSpy.mock.calls[0][0] as { nzOnCancel: () => void };
+      confirmConfig.nzOnCancel();
+      await expect(proceedPromise).resolves.toBe(false);
+      expect(importSpy).not.toHaveBeenCalled();
+    });
+
+    it("rejects a non-ipynb file without entering the loading state", () => {
+      const errorSpy = vi.spyOn(notificationService, "error").mockImplementation(() => {});
+      const emitSpy = vi.spyOn(component.setWaitingForLLM, "emit");
+
+      const result = component.onClickImportNotebook({ name: "data.txt" } as NzUploadFile, "gpt-4");
+
+      expect(result).toBe(false);
+      expect(errorSpy).toHaveBeenCalledWith("Please upload a valid Jupyter Notebook (.ipynb) file.");
+      expect(emitSpy).not.toHaveBeenCalledWith(true);
+    });
+
+    // Import always overwrites the current workflow: it reuses the current wid so
+    // persistWorkflow updates that row in place. When the current workflow was never
+    // saved (no wid) a new row is created and the wid changes, which routes the notebook
+    // send + panel open through JupyterPanelService.init() instead of doing it here.
+    function stubGenerationServices() {
+      // 1 == the notebook reached Jupyter; the in-place path opens the panel only on 1.
+      vi.spyOn(notebookMigrationService, "sendNotebookToJupyter").mockResolvedValue(1 as any);
+      vi.spyOn(notebookMigrationService, "sendToAIGenerateWorkflow").mockResolvedValue({
+        workflowContent: { operators: [], links: [], commentBoxes: [], settings: {} } as unknown as WorkflowContent,
+        mappingContent: {} as any,
+      });
+      vi.spyOn(notebookMigrationService, "setMapping").mockImplementation(() => {});
+      vi.spyOn(notebookMigrationService, "storeNotebookAndMapping").mockReturnValue(of({ success: true }) as any);
+      vi.spyOn(workflowActionService, "reloadWorkflow").mockImplementation(() => {});
+      vi.spyOn(jupyterPanelService, "openPanel").mockImplementation(() => {});
+      vi.spyOn(notificationService, "success").mockImplementation(() => {});
+      // The new-row branch updates the URL via Location.go; stub it out.
+      vi.spyOn(location, "go").mockImplementation(() => {});
+    }
+
+    it("overwrites the saved current workflow in place, reloads it, and opens the panel itself", async () => {
+      stubGenerationServices();
+      // Saved current workflow (wid 7); persist keeps the same wid, so the wid does not change.
+      vi.spyOn(workflowActionService, "getWorkflow").mockReturnValue({ wid: 7 } as any);
+      const persistSpy = vi.spyOn(workflowPersistService, "persistWorkflow").mockReturnValue(of({ wid: 7 } as any));
+      const autoLayoutSpy = vi.spyOn(component, "onClickAutoLayout").mockImplementation(() => {});
+      const emitSpy = vi.spyOn(component.setWaitingForLLM, "emit");
+
+      component.onClickImportNotebook(ipynbFile(validNotebook), "gpt-4");
+      await vi.waitFor(() => expect(emitSpy).toHaveBeenCalledWith(false));
+
+      expect(emitSpy).toHaveBeenCalledWith(true);
+      // Reuses the current wid so the row is overwritten in place; reloads synchronously on the
+      // live canvas and tidies the layout.
+      expect(persistSpy.mock.calls[0][0].wid).toBe(7);
+      expect(workflowActionService.reloadWorkflow).toHaveBeenCalledWith({ wid: 7 }, false);
+      expect(autoLayoutSpy).toHaveBeenCalled();
+      // wid unchanged: we send the notebook + open the panel ourselves (init() does not react).
+      expect(notebookMigrationService.sendNotebookToJupyter).toHaveBeenCalled();
+      expect(jupyterPanelService.openPanel).toHaveBeenCalledWith("JupyterNotebookPanel");
+      // Stayed on the same workflow, so the URL is not changed.
+      expect(location.go).not.toHaveBeenCalled();
+    });
+
+    it("marks isWaitingForLLM true at the start of import and false once the flow settles", async () => {
+      stubGenerationServices();
+      vi.spyOn(workflowActionService, "getWorkflow").mockReturnValue({ wid: 7 } as any);
+      vi.spyOn(workflowPersistService, "persistWorkflow").mockReturnValue(of({ wid: 7 } as any));
+      vi.spyOn(component, "onClickAutoLayout").mockImplementation(() => {});
+
+      component.onClickImportNotebook(ipynbFile(validNotebook), "gpt-4");
+      // emit(true) fires synchronously at the start of the import.
+      expect(component.isWaitingForLLM).toBe(true);
+
+      await vi.waitFor(() => expect(component.isWaitingForLLM).toBe(false));
+    });
+
+    it("disables the AI-generate button while a conversion is in flight", () => {
+      const button = () =>
+        fixture.nativeElement.querySelector('button[title="AI generate workflow"]') as HTMLButtonElement;
+      (TestBed.inject(GuiConfigService) as unknown as MockGuiConfigService).setConfig({
+        pythonNotebookMigrationEnabled: true,
+      });
+      // Isolate the waiting flag's effect from the modifiable gate.
+      component.isWorkflowModifiable = true;
+      fixture.detectChanges();
+      expect(button().disabled).toBe(false);
+
+      component.isWaitingForLLM = true;
+      fixture.detectChanges();
+      expect(button().disabled).toBe(true);
+    });
+
+    it("clicking the AI-generate button opens the import modal", () => {
+      const openSpy = vi.spyOn(component, "openImportNotebookModal").mockImplementation(() => {});
+      (TestBed.inject(GuiConfigService) as unknown as MockGuiConfigService).setConfig({
+        pythonNotebookMigrationEnabled: true,
+      });
+      component.isWorkflowModifiable = true; // enable the button so the click lands
+      fixture.detectChanges();
+
+      const button = fixture.nativeElement.querySelector('button[title="AI generate workflow"]') as HTMLButtonElement;
+      button.click();
+
+      expect(openSpy).toHaveBeenCalled();
+    });
+
+    it("does not open the panel when the notebook fails to reach Jupyter", async () => {
+      stubGenerationServices();
+      // sendNotebookToJupyter resolves 0 on failure (it toasts the error itself).
+      vi.spyOn(notebookMigrationService, "sendNotebookToJupyter").mockResolvedValue(0 as any);
+      vi.spyOn(workflowActionService, "getWorkflow").mockReturnValue({ wid: 7 } as any);
+      vi.spyOn(workflowPersistService, "persistWorkflow").mockReturnValue(of({ wid: 7 } as any));
+      vi.spyOn(component, "onClickAutoLayout").mockImplementation(() => {});
+      const emitSpy = vi.spyOn(component.setWaitingForLLM, "emit");
+
+      component.onClickImportNotebook(ipynbFile(validNotebook), "gpt-4");
+      await vi.waitFor(() => expect(emitSpy).toHaveBeenCalledWith(false));
+      // Let the sendNotebookToJupyter().then(...) microtask settle before asserting.
+      await Promise.resolve();
+
+      // The reload still happened, but the panel stays closed since the send failed.
+      expect(notebookMigrationService.sendNotebookToJupyter).toHaveBeenCalled();
+      expect(workflowActionService.reloadWorkflow).toHaveBeenCalledWith({ wid: 7 }, false);
+      expect(jupyterPanelService.openPanel).not.toHaveBeenCalled();
+    });
+
+    it("creates a new row and points the URL at it when the current workflow was never saved", async () => {
+      stubGenerationServices();
+      // Current workflow has no wid; persist returns a new wid, so the wid changes.
+      vi.spyOn(workflowActionService, "getWorkflow").mockReturnValue({ wid: undefined } as any);
+      const persistSpy = vi.spyOn(workflowPersistService, "persistWorkflow").mockReturnValue(of({ wid: 99 } as any));
+      const emitSpy = vi.spyOn(component.setWaitingForLLM, "emit");
+
+      component.onClickImportNotebook(ipynbFile(validNotebook), "gpt-4");
+      await vi.waitFor(() => expect(emitSpy).toHaveBeenCalledWith(false));
+
+      // No current wid -> the backend inserts a new row.
+      expect(persistSpy.mock.calls[0][0].wid).toBeUndefined();
+      expect(workflowActionService.reloadWorkflow).toHaveBeenCalledWith({ wid: 99 }, false);
+      expect(location.go).toHaveBeenCalledWith(`${USER_WORKSPACE}/99`);
+      // wid changed: JupyterPanelService.init() sends the notebook + opens the panel, not us,
+      // so the "sent to Jupyter" toast fires only once.
+      expect(notebookMigrationService.sendNotebookToJupyter).not.toHaveBeenCalled();
+      expect(jupyterPanelService.openPanel).not.toHaveBeenCalled();
+    });
+
+    it("on LLM error: surfaces an error notification and clears the loading flag", async () => {
+      vi.spyOn(console, "error").mockImplementation(() => {});
+      vi.spyOn(notebookMigrationService, "sendNotebookToJupyter").mockResolvedValue(undefined as any);
+      vi.spyOn(notebookMigrationService, "sendToAIGenerateWorkflow").mockRejectedValue(new Error("boom"));
+      const errorSpy = vi.spyOn(notificationService, "error").mockImplementation(() => {});
+      const emitSpy = vi.spyOn(component.setWaitingForLLM, "emit");
+
+      component.onClickImportNotebook(ipynbFile(validNotebook), "gpt-4");
+
+      await vi.waitFor(() => expect(emitSpy).toHaveBeenCalledWith(false));
+
+      expect(emitSpy).toHaveBeenCalledWith(true);
+      expect(errorSpy).toHaveBeenCalledWith("Error while communicating with LLM, check console for details");
+    });
+
+    it("on invalid notebook structure: surfaces an error, clears the loading flag, and never calls jupyter", async () => {
+      vi.spyOn(console, "error").mockImplementation(() => {});
+      const jupyterSpy = vi.spyOn(notebookMigrationService, "sendNotebookToJupyter");
+      const errorSpy = vi.spyOn(notificationService, "error").mockImplementation(() => {});
+      const emitSpy = vi.spyOn(component.setWaitingForLLM, "emit");
+
+      // No `cells` array -> the structure guard throws before any network call.
+      component.onClickImportNotebook(ipynbFile({ metadata: {} }), "gpt-4");
+
+      await vi.waitFor(() => expect(emitSpy).toHaveBeenCalledWith(false));
+
+      expect(errorSpy).toHaveBeenCalledWith("Failed to import the notebook.");
+      expect(jupyterSpy).not.toHaveBeenCalled();
+    });
+
+    it("falls back to the default workflow name when the file has no base name", async () => {
+      stubGenerationServices();
+      vi.spyOn(workflowActionService, "getWorkflow").mockReturnValue({ wid: 7 } as any);
+      const persistSpy = vi.spyOn(workflowPersistService, "persistWorkflow").mockReturnValue(of({ wid: 7 } as any));
+      const emitSpy = vi.spyOn(component.setWaitingForLLM, "emit");
+
+      // A file named ".ipynb" has an empty base name, so the default name is used.
+      component.onClickImportNotebook(ipynbFile(validNotebook, ".ipynb"), "gpt-4");
+      await vi.waitFor(() => expect(emitSpy).toHaveBeenCalledWith(false));
+
+      expect(persistSpy.mock.calls[0][0].name).toBe(`${DEFAULT_WORKFLOW_NAME}_GENERATED_BY_LLM`);
+    });
+
+    it("uses the whole file name when it has no dot", async () => {
+      stubGenerationServices();
+      vi.spyOn(workflowActionService, "getWorkflow").mockReturnValue({ wid: 7 } as any);
+      const persistSpy = vi.spyOn(workflowPersistService, "persistWorkflow").mockReturnValue(of({ wid: 7 } as any));
+      const emitSpy = vi.spyOn(component.setWaitingForLLM, "emit");
+
+      // A file named "ipynb" (no dot) passes the extension check and has no extension to strip,
+      // so the whole name becomes the base name.
+      component.onClickImportNotebook(ipynbFile(validNotebook, "ipynb"), "gpt-4");
+      await vi.waitFor(() => expect(emitSpy).toHaveBeenCalledWith(false));
+
+      expect(persistSpy.mock.calls[0][0].name).toBe("ipynb_GENERATED_BY_LLM");
+    });
+
+    it("tags code cells that arrive without a metadata object", async () => {
+      stubGenerationServices();
+      const persistSpy = vi.spyOn(workflowPersistService, "persistWorkflow").mockReturnValue(of({ wid: 5 } as any));
+      const emitSpy = vi.spyOn(component.setWaitingForLLM, "emit");
+
+      const notebookWithoutCellMetadata = {
+        cells: [{ cell_type: "code", source: "x = 1" }],
+        metadata: {},
+        nbformat: 4,
+      };
+      component.onClickImportNotebook(ipynbFile(notebookWithoutCellMetadata), "gpt-4");
+      await vi.waitFor(() => expect(emitSpy).toHaveBeenCalledWith(false));
+
+      expect(persistSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it("on persist failure: surfaces an error notification and clears the loading flag", async () => {
+      vi.spyOn(console, "error").mockImplementation(() => {});
+      vi.spyOn(notebookMigrationService, "sendToAIGenerateWorkflow").mockResolvedValue({
+        workflowContent: { operators: [], links: [], commentBoxes: [], settings: {} } as unknown as WorkflowContent,
+        mappingContent: {} as any,
+      });
+      vi.spyOn(workflowPersistService, "persistWorkflow").mockReturnValue(throwError(() => new Error("db down")));
+      const errorSpy = vi.spyOn(notificationService, "error").mockImplementation(() => {});
+      const emitSpy = vi.spyOn(component.setWaitingForLLM, "emit");
+
+      component.onClickImportNotebook(ipynbFile(validNotebook), "gpt-4");
+      await vi.waitFor(() => expect(emitSpy).toHaveBeenCalledWith(false));
+
+      expect(errorSpy).toHaveBeenCalledWith("Failed to import notebook, check console for detailed error");
+    });
+
+    it("on file read error: surfaces an error and clears the loading flag", async () => {
+      const errorSpy = vi.spyOn(notificationService, "error").mockImplementation(() => {});
+      const emitSpy = vi.spyOn(component.setWaitingForLLM, "emit");
+      // Swap in a FileReader that errors instead of loading, so reader.onerror runs.
+      const RealFileReader = globalThis.FileReader;
+      class FakeFileReader {
+        onerror: ((e: unknown) => void) | null = null;
+        onload: (() => void) | null = null;
+        readAsText(): void {
+          setTimeout(() => this.onerror?.(new Error("read fail")), 0);
+        }
+      }
+      (globalThis as any).FileReader = FakeFileReader;
+      try {
+        component.onClickImportNotebook(ipynbFile(validNotebook), "gpt-4");
+        await vi.waitFor(() => expect(errorSpy).toHaveBeenCalledWith("Failed to read the notebook file."));
+        expect(emitSpy).toHaveBeenCalledWith(false);
+      } finally {
+        (globalThis as any).FileReader = RealFileReader;
+      }
+    });
+
+    it("on non-string file content: surfaces an error and clears the loading flag", async () => {
+      vi.spyOn(console, "error").mockImplementation(() => {});
+      const errorSpy = vi.spyOn(notificationService, "error").mockImplementation(() => {});
+      const emitSpy = vi.spyOn(component.setWaitingForLLM, "emit");
+      // Swap in a FileReader that loads a non-string result, so the string guard throws.
+      const RealFileReader = globalThis.FileReader;
+      class FakeFileReader {
+        result: unknown = null;
+        onerror: (() => void) | null = null;
+        onload: (() => void) | null = null;
+        readAsText(): void {
+          setTimeout(() => this.onload?.(), 0);
+        }
+      }
+      (globalThis as any).FileReader = FakeFileReader;
+      try {
+        component.onClickImportNotebook(ipynbFile(validNotebook), "gpt-4");
+        await vi.waitFor(() => expect(emitSpy).toHaveBeenCalledWith(false));
+        expect(errorSpy).toHaveBeenCalledWith("Failed to import the notebook.");
+      } finally {
+        (globalThis as any).FileReader = RealFileReader;
+      }
+    });
+
+    it("when the LLM returns no result: surfaces an error, clears the loading flag, and never persists", async () => {
+      vi.spyOn(console, "error").mockImplementation(() => {});
+      vi.spyOn(notebookMigrationService, "sendToAIGenerateWorkflow").mockResolvedValue(undefined as any);
+      const persistSpy = vi.spyOn(workflowPersistService, "persistWorkflow");
+      const errorSpy = vi.spyOn(notificationService, "error").mockImplementation(() => {});
+      const emitSpy = vi.spyOn(component.setWaitingForLLM, "emit");
+
+      component.onClickImportNotebook(ipynbFile(validNotebook), "gpt-4");
+      await vi.waitFor(() => expect(emitSpy).toHaveBeenCalledWith(false));
+
+      expect(errorSpy).toHaveBeenCalledWith("No workflow was generated from the notebook.");
+      expect(persistSpy).not.toHaveBeenCalled();
     });
   });
 });

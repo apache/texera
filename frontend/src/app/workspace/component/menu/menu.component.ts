@@ -17,8 +17,8 @@
  * under the License.
  */
 
-import { DatePipe, Location, NgIf, NgFor, NgTemplateOutlet } from "@angular/common";
-import { Component, ElementRef, Input, OnDestroy, OnInit, ViewChild } from "@angular/core";
+import { DatePipe, Location, NgIf, NgFor, NgTemplateOutlet, AsyncPipe } from "@angular/common";
+import { Component, ElementRef, Input, OnDestroy, OnInit, ViewChild, Output, EventEmitter } from "@angular/core";
 import { Router, RouterLink } from "@angular/router";
 import { UserService } from "../../../common/service/user/user.service";
 import {
@@ -39,19 +39,18 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowUtilService } from "../../service/workflow-graph/util/workflow-util.service";
 import { WorkflowVersionService } from "../../../dashboard/service/user/workflow-version/workflow-version.service";
 import { UserProjectService } from "../../../dashboard/service/user/project/user-project.service";
-import { NzUploadFile, NzUploadComponent } from "ng-zorro-antd/upload";
 import { saveAs } from "file-saver";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { OperatorMenuService } from "../../service/operator-menu/operator-menu.service";
 import { CoeditorPresenceService } from "../../service/workflow-graph/model/coeditor-presence.service";
-import { EMPTY, firstValueFrom, of, timer } from "rxjs";
+import { EMPTY, firstValueFrom, of, timer, map } from "rxjs";
 import { isDefined } from "../../../common/util/predicate";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { ResultExportationComponent } from "../result-exportation/result-exportation.component";
 import { ReportGenerationService } from "../../service/report-generation/report-generation.service";
 import { ShareAccessComponent } from "src/app/dashboard/component/user/share-access/share-access.component";
 import { PanelService } from "../../service/panel/panel.service";
-import { USER_WORKFLOW } from "../../../app-routing.constant";
+import { USER_WORKFLOW, USER_WORKSPACE } from "../../../app-routing.constant";
 import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
 import { ComputingUnitState } from "../../../common/type/computing-unit-connection.interface";
 import { ComputingUnitSelectionComponent } from "../power-button/computing-unit-selection.component";
@@ -76,6 +75,15 @@ import { NzPopoverDirective } from "ng-zorro-antd/popover";
 import { NzSwitchComponent } from "ng-zorro-antd/switch";
 import { NzBadgeComponent } from "ng-zorro-antd/badge";
 import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
+import { JupyterPanelService } from "../../service/jupyter-panel/jupyter-panel.service";
+import { v4 as uuidv4 } from "uuid";
+import { Notebook } from "../../service/notebook-migration/migration-llm";
+import { NotebookMigrationService } from "../../service/notebook-migration/notebook-migration.service";
+import {
+  NotebookImportModalComponent,
+  NotebookImportModalData,
+} from "../notebook-import-modal/notebook-import-modal.component";
+import { NzUploadFile } from "ng-zorro-antd/upload";
 
 /**
  * MenuComponent is the top level menu bar that shows
@@ -110,7 +118,6 @@ import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
     CoeditorUserIconComponent,
     UserIconComponent,
     RouterLink,
-    NzUploadComponent,
     NzDropdownDirective,
     NzDropdownMenuComponent,
     NzMenuDirective,
@@ -126,6 +133,7 @@ import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
     NzTooltipDirective,
     DatePipe,
     NzSpaceCompactComponent,
+    AsyncPipe,
   ],
 })
 export class MenuComponent implements OnInit, OnDestroy {
@@ -154,6 +162,9 @@ export class MenuComponent implements OnInit, OnDestroy {
   @Input() public currentExecutionName: string = ""; // reset executionName
   @Input() public particularVersionDate: string = ""; // placeholder for the metadata information of a particular workflow version
   @ViewChild("workflowNameInput") workflowNameInput: ElementRef<HTMLInputElement> | undefined;
+  // Emit an event to parent component (workspace) when AI generation starts or stops
+  @Output() public setWaitingForLLM = new EventEmitter<boolean>();
+  public isWaitingForLLM = false;
 
   // variable bound with HTML to decide if the running spinner should show
   public runButtonText = "Run";
@@ -194,7 +205,9 @@ export class MenuComponent implements OnInit, OnDestroy {
     private panelService: PanelService,
     private computingUnitStatusService: ComputingUnitStatusService,
     protected config: GuiConfigService,
-    private router: Router
+    private router: Router,
+    private jupyterPanelService: JupyterPanelService,
+    private notebookMigrationService: NotebookMigrationService
   ) {
     workflowWebsocketService
       .subscribeToEvent("ExecutionDurationUpdateEvent")
@@ -604,56 +617,242 @@ export class MenuComponent implements OnInit, OnDestroy {
     this.workflowActionService.deleteOperatorsAndLinks(allOperatorIDs);
   }
 
-  public onClickImportWorkflow = (file: NzUploadFile): boolean => {
+  public get pythonNotebookMigrationEnabled(): boolean {
+    return this.config.env.pythonNotebookMigrationEnabled;
+  }
+
+  // Emits whether the current workflow has an associated Jupyter notebook, used to
+  // show the expand button only when there is a notebook to expand.
+  public get jupyterNotebookExists$() {
+    return this.jupyterPanelService.jupyterNotebookExists$;
+  }
+
+  /**
+   * Expand and redisplay the Jupyter notebook panel.
+   */
+  public onClickExpandJupyterNotebookPanel(): void {
+    this.jupyterPanelService.openJupyterNotebookPanel();
+  }
+
+  public openImportNotebookModal(): void {
+    // The modal owns the upload form and the model dropdown. It delegates the decision to
+    // proceed back here via requestImport so we keep the overwrite-confirm and the
+    // generation pipeline (and the workflow/persist/jupyter state they touch) in the menu.
+    this.modalService.create<NotebookImportModalComponent, NotebookImportModalData>({
+      nzTitle: "AI Generate Workflow from Python Notebook",
+      nzContent: NotebookImportModalComponent,
+      nzWidth: 700,
+      nzFooter: null,
+      // Center in the viewport so the overwrite confirm (also centered) overlays this modal's center.
+      nzCentered: true,
+      nzData: {
+        requestImport: (file, model) => this.confirmAndImport(file, model),
+      },
+    });
+  }
+
+  // Decides whether an import may proceed, then kicks it off. Resolves true when the import
+  // has started (the modal should close), false when the user backs out of the overwrite
+  // confirmation (the modal should stay open with the selection intact).
+  private confirmAndImport(file: NzUploadFile, model: string): Promise<boolean> {
+    // Reject a non-notebook file here, before starting anything, so the modal stays open
+    // with the selection intact (resolving false) instead of closing on a no-op import.
+    const fileExtension = file.name.split(".").pop()?.toLowerCase();
+    if (fileExtension !== "ipynb") {
+      this.notificationService.error("Please upload a valid Jupyter Notebook (.ipynb) file.");
+      return Promise.resolve(false);
+    }
+    const startImport = () => this.onClickImportNotebook(file, model);
+    // Generating overwrites the currently open workflow. Confirm first only when there is
+    // actual content to replace; a fresh empty workflow needs no prompt.
+    const graph = this.workflowActionService.getTexeraGraph();
+    const currentWorkflowHasContent = graph.getAllOperators().length > 0 || graph.getAllCommentBoxes().length > 0;
+    if (!currentWorkflowHasContent) {
+      startImport();
+      return Promise.resolve(true);
+    }
+    return new Promise<boolean>(resolve => {
+      this.modalService.confirm({
+        nzTitle: "Overwrite current workflow?",
+        nzContent:
+          "Generating will replace the contents of the workflow you have open. " +
+          "The previous version is kept in this workflow's version history.",
+        nzOkText: "Overwrite",
+        nzOkDanger: true,
+        // Center over the import modal, and leave only Cancel/Overwrite (no X, no click-outside).
+        nzCentered: true,
+        nzClosable: false,
+        nzMaskClosable: false,
+        nzOnOk: () => {
+          startImport();
+          resolve(true);
+        },
+        nzOnCancel: () => resolve(false),
+      });
+    });
+  }
+
+  public onClickImportNotebook = (file: NzUploadFile, model: string): boolean => {
     const reader = new FileReader();
+
+    // Check if the file is a Jupyter notebook based on its extension
+    const fileExtension = file.name.split(".").pop()?.toLowerCase();
+    if (fileExtension !== "ipynb") {
+      this.notificationService.error("Please upload a valid Jupyter Notebook (.ipynb) file.");
+      return false;
+    }
+
+    this.emitWaitingForLLM(true); // start loading
+
+    // Read the notebook file as text
     reader.readAsText(file as any);
-    reader.onload = () => {
+    reader.onload = async () => {
       try {
         const result = reader.result;
         if (typeof result !== "string") {
-          throw new Error("incorrect format: file is not a string");
+          throw new Error("File content is not a valid string.");
         }
 
-        const workflowContent = JSON.parse(result) as WorkflowContent;
+        // Parse the content of the .ipynb file (it's in JSON format)
+        const notebookContent = JSON.parse(result) as Notebook;
 
-        // set the workflow name using the file name without the extension
-        const fileExtensionIndex = file.name.lastIndexOf(".");
-        var workflowName: string;
-        if (fileExtensionIndex === -1) {
-          workflowName = file.name;
-        } else {
-          workflowName = file.name.substring(0, fileExtensionIndex);
-        }
-        if (workflowName.trim() === "") {
-          workflowName = DEFAULT_WORKFLOW_NAME;
+        // Validate the notebook structure
+        if (!notebookContent || !Array.isArray(notebookContent.cells)) {
+          throw new Error("Invalid notebook structure.");
         }
 
-        const workflow: Workflow = {
-          content: workflowContent,
-          name: workflowName,
-          description: undefined,
-          wid: undefined,
-          creationTime: undefined,
-          lastModifiedTime: undefined,
-          readonly: false,
-          isPublished: 0,
-        };
+        // Add UUID's to each cell in the notebook
+        for (const cell of notebookContent.cells) {
+          if (!cell.metadata) {
+            cell.metadata = {};
+          }
+          cell.metadata.uuid = uuidv4();
+        }
 
-        this.workflowActionService.enableWorkflowModification();
-        // load the fetched workflow
-        this.workflowActionService.reloadWorkflow(workflow, true);
-        // clear stack
-        this.undoRedoService.clearUndoStack();
-        this.undoRedoService.clearRedoStack();
+        // Get workflow and mapping from LLM
+        await this.notebookMigrationService
+          .sendToAIGenerateWorkflow(notebookContent, model)
+          .then(result => {
+            if (result) {
+              const { workflowContent, mappingContent } = result;
+
+              const fileExtensionIndex = file.name.lastIndexOf(".");
+              let workflowName: string;
+              if (fileExtensionIndex === -1) {
+                workflowName = file.name;
+              } else {
+                workflowName = file.name.substring(0, fileExtensionIndex);
+              }
+              if (workflowName.trim() === "") {
+                workflowName = DEFAULT_WORKFLOW_NAME;
+              }
+
+              // Always overwrite the current workflow: reuse its wid so persistWorkflow
+              // updates that row in place instead of inserting a new one (which would leave
+              // a duplicate behind). Read it now, after generation, so a wid assigned by
+              // auto-persist during the wait is picked up. If the current workflow was never
+              // saved, wid is undefined and a new row is created (there is nothing to overwrite).
+              const reuseWid = this.workflowActionService.getWorkflow().wid;
+
+              const workflow: Workflow = {
+                content: workflowContent,
+                name: `${workflowName}_GENERATED_BY_LLM`,
+                isPublished: 0,
+                description: undefined,
+                wid: reuseWid,
+                creationTime: undefined,
+                lastModifiedTime: undefined,
+                readonly: false,
+              };
+
+              this.workflowPersistService
+                .persistWorkflow(workflow)
+                .pipe(
+                  switchMap((updatedWorkflow: Workflow) => {
+                    const mappingID = "mapping_wid_" + updatedWorkflow.wid;
+
+                    this.notebookMigrationService.setMapping(mappingID, mappingContent);
+
+                    return this.notebookMigrationService
+                      .storeNotebookAndMapping(updatedWorkflow.wid, 1, mappingContent, notebookContent)
+                      .pipe(map(() => updatedWorkflow));
+                  }),
+                  untilDestroyed(this)
+                )
+                .subscribe({
+                  next: updatedWorkflow => {
+                    this.notificationService.success("Successfully generated workflow and mapping from notebook.");
+                    // Reload the generated workflow onto the current (already live) canvas so it
+                    // renders immediately; we never remount the workspace. Render synchronously
+                    // (asyncRendering = false) so the operators exist before auto-layout runs.
+                    this.workflowActionService.reloadWorkflow(updatedWorkflow, false);
+                    // Tidy the LLM-generated layout; the position changes get auto-persisted.
+                    this.onClickAutoLayout();
+                    if (reuseWid === updatedWorkflow.wid) {
+                      // Overwrote the current workflow in place: the wid did not change, so
+                      // JupyterPanelService.init() does not react. Send the notebook to Jupyter
+                      // and open the panel ourselves. Use openPanel, not openJupyterNotebookPanel:
+                      // init()'s wid-change handler is not involved and openPanel opens
+                      // unconditionally without the hasMapping gate.
+                      // sendNotebookToJupyter never rejects: it resolves 1 on success and 0 on
+                      // failure (it toasts the error itself). Open the panel only on success so we
+                      // do not float it over a blank iframe, matching the init()-driven path which
+                      // opens only when fetchNotebookAndMapping reports the send succeeded.
+                      this.notebookMigrationService.sendNotebookToJupyter(notebookContent).then(result => {
+                        if (result == 1) {
+                          this.jupyterPanelService.openPanel("JupyterNotebookPanel");
+                        }
+                      });
+                    } else {
+                      // The current workflow had never been saved, so a new row was created and the
+                      // wid changed. reloadWorkflow's synchronous wid change drives init() to fetch
+                      // the stored notebook/mapping, send it to Jupyter, and open the panel, so we
+                      // do not do that here (doing so would double the "sent to Jupyter" toast).
+                      // Point the URL at the generated workflow.
+                      this.location.go(`${USER_WORKSPACE}/${updatedWorkflow.wid}`);
+                    }
+                  },
+                  error: (err: unknown) => {
+                    this.notificationService.error("Failed to import notebook, check console for detailed error");
+                    console.error("Import notebook failed:", err);
+                    this.emitWaitingForLLM(false);
+                  },
+                  complete: () => {
+                    this.emitWaitingForLLM(false);
+                  },
+                });
+            } else {
+              this.notificationService.error("No workflow was generated from the notebook.");
+              console.error("Result is undefined");
+              this.emitWaitingForLLM(false);
+            }
+          })
+          .catch(error => {
+            this.notificationService.error("Error while communicating with LLM, check console for details");
+            console.error("Error while fetching data from LLM: ", error);
+            this.emitWaitingForLLM(false);
+          });
       } catch (error) {
-        this.notificationService.error(
-          "An error occurred when importing the workflow. Please import a workflow json file."
-        );
+        this.notificationService.error("Failed to import the notebook.");
         console.error(error);
+        this.emitWaitingForLLM(false);
       }
     };
-    return false;
+
+    reader.onerror = () => {
+      this.notificationService.error("Failed to read the notebook file.");
+      this.emitWaitingForLLM(false);
+    };
+
+    return false; // Prevent automatic upload handling
   };
+
+  // Keeps the local waiting flag and the parent-facing output in lockstep so the
+  // AI-generate button can be disabled while a conversion is in flight.
+  private emitWaitingForLLM(waiting: boolean): void {
+    this.isWaitingForLLM = waiting;
+    this.setWaitingForLLM.emit(waiting);
+  }
 
   public onClickExportWorkflow(): void {
     const workflowContent: WorkflowContent = this.workflowActionService.getWorkflowContent();

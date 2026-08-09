@@ -87,6 +87,12 @@ class MainLoop(StoppableQueueBlockingRunnable):
         # LoopEnd (loop_counter == 0) takes a state; used for the jump RPC
         # and the setup-config URI lookup (context.loop_start_state_uris).
         self._loop_start_id: str = ""
+        # Whether this LoopEnd already consumed its loop state this execution.
+        # A loop body may branch and converge on the Loop End, and every reader
+        # on its input port replays that branch's states independently, so the
+        # same iteration's state arrives once per branch. Workers are recreated
+        # on each region re-execution, so this instance flag is per iteration.
+        self._loop_state_consumed: bool = False
 
         self.context = Context(worker_id, input_queue)
         self._async_rpc_server = AsyncRPCServer(output_queue, context=self.context)
@@ -377,6 +383,18 @@ class MainLoop(StoppableQueueBlockingRunnable):
             # Matching LoopEnd (in_counter == 0): it will consume this state
             # and jump back. Remember which LoopStart to jump to (it rides
             # the envelope) for complete()/_jump_to_loop_start.
+            #
+            # With a branching loop body, each branch's reader replays the same
+            # iteration's state, so this fires once per inbound link. Consume
+            # only the first: running the user's `update` again would advance
+            # the loop variables once per branch. The copies are identical --
+            # they are the same state emitted by the one matching LoopStart --
+            # so dropping them loses nothing (a consume emits nothing
+            # downstream either way).
+            if self._loop_state_consumed:
+                self._check_and_process_control()
+                return
+            self._loop_state_consumed = True
             self._loop_start_id = frame.loop_start_id
 
         self.context.state_processing_manager.current_input_state = state
@@ -444,8 +462,11 @@ class MainLoop(StoppableQueueBlockingRunnable):
         ecm = ecm_element.payload
         command = ecm.command_mapping.get(self.context.worker_id)
         channel_id = self.context.current_input_channel_id
-        logger.info(
-            f"receive channel ECM from {channel_id}, id = {ecm.id}, cmd = {command}"
+        logger.debug(
+            "receive channel ECM from {}, id = {}, cmd = {}",
+            channel_id,
+            ecm.id,
+            command,
         )
         if ecm.ecm_type != EmbeddedControlMessageType.NO_ALIGNMENT:
             self.context.pause_manager.pause_input_channel(
@@ -453,8 +474,11 @@ class MainLoop(StoppableQueueBlockingRunnable):
             )
 
         if self.context.ecm_manager.is_ecm_aligned(channel_id, ecm):
-            logger.info(
-                f"process channel ECM from {channel_id}, id = {ecm.id}, cmd = {command}"
+            logger.debug(
+                "process channel ECM from {}, id = {}, cmd = {}",
+                channel_id,
+                ecm.id,
+                command,
             )
 
             if command is not None:
@@ -470,9 +494,11 @@ class MainLoop(StoppableQueueBlockingRunnable):
                     active_channel_id
                 ) in self.context.output_manager.get_output_channel_ids():
                     if active_channel_id in downstream_channels_in_scope:
-                        logger.info(
-                            f"send ECM to {active_channel_id},"
-                            f" id = {ecm.id}, cmd = {command}"
+                        logger.debug(
+                            "send ECM to {}, id = {}, cmd = {}",
+                            active_channel_id,
+                            ecm.id,
+                            command,
                         )
                         self._send_ecm_to_channel(active_channel_id, ecm)
 

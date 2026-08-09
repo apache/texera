@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { TestBed } from "@angular/core/testing";
+import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { getMimeType, MIME_TYPES, UserDatasetFileRendererComponent } from "./user-dataset-file-renderer.component";
 import { DatasetService } from "../../../../../service/user/dataset/dataset.service";
@@ -25,6 +25,9 @@ import { NotificationService } from "../../../../../../common/service/notificati
 import { DomSanitizer } from "@angular/platform-browser";
 import { commonTestProviders } from "../../../../../../common/testing/test-utils";
 import { of } from "rxjs";
+import * as Papa from "papaparse";
+import { SimpleChange, SimpleChanges } from "@angular/core";
+import { MarkdownModule } from "ngx-markdown";
 
 describe("UserDatasetFileRendererComponent", () => {
   let component: UserDatasetFileRendererComponent;
@@ -236,5 +239,386 @@ describe("UserDatasetFileRendererComponent", () => {
         (globalThis as unknown as { FileReader: unknown }).FileReader = realFileReader;
       }
     });
+  });
+
+  describe("ngOnChanges", () => {
+    // Realistic SimpleChange(previousValue, currentValue, firstChange) inputs so the tests
+    // don't rely on empty {} placeholders and stay valid if ngOnChanges starts reading the values.
+    const chg = (previous: unknown, current: unknown, firstChange = false): SimpleChange =>
+      new SimpleChange(previous, current, firstChange);
+
+    it("reloads when filePath changes", () => {
+      const reloadSpy = vi.spyOn(component, "reloadFileContent").mockImplementation(() => {});
+      component.ngOnChanges({ filePath: chg("/old.txt", "/new.txt") } as SimpleChanges);
+      expect(reloadSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it("reloads when both did and dvid change together", () => {
+      const reloadSpy = vi.spyOn(component, "reloadFileContent").mockImplementation(() => {});
+      component.ngOnChanges({ did: chg(1, 2), dvid: chg(3, 4) } as SimpleChanges);
+      expect(reloadSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it("does not reload when only did changes without dvid", () => {
+      const reloadSpy = vi.spyOn(component, "reloadFileContent").mockImplementation(() => {});
+      component.ngOnChanges({ did: chg(1, 2) } as SimpleChanges);
+      expect(reloadSpy).not.toHaveBeenCalled();
+    });
+
+    it("does not reload for an unrelated input change", () => {
+      const reloadSpy = vi.spyOn(component, "reloadFileContent").mockImplementation(() => {});
+      component.ngOnChanges({ isMaximized: chg(false, true) } as SimpleChanges);
+      expect(reloadSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("ngOnDestroy", () => {
+    it("revokes the object URL when one was created", () => {
+      const originalRevoke = URL.revokeObjectURL;
+      const revokeSpy = vi.fn();
+      (URL as unknown as { revokeObjectURL: unknown }).revokeObjectURL = revokeSpy;
+      try {
+        component.fileURL = "blob:to-revoke";
+        component.ngOnDestroy();
+        expect(revokeSpy).toHaveBeenCalledWith("blob:to-revoke");
+      } finally {
+        (URL as unknown as { revokeObjectURL: unknown }).revokeObjectURL = originalRevoke;
+      }
+    });
+
+    it("does nothing when no object URL exists", () => {
+      const originalRevoke = URL.revokeObjectURL;
+      const revokeSpy = vi.fn();
+      (URL as unknown as { revokeObjectURL: unknown }).revokeObjectURL = revokeSpy;
+      try {
+        component.fileURL = undefined;
+        component.ngOnDestroy();
+        expect(revokeSpy).not.toHaveBeenCalled();
+      } finally {
+        (URL as unknown as { revokeObjectURL: unknown }).revokeObjectURL = originalRevoke;
+      }
+    });
+  });
+
+  describe("turnOffAllDisplay URL cleanup", () => {
+    it("revokes both the raw and the safe object URLs when present", () => {
+      const originalRevoke = URL.revokeObjectURL;
+      const revokeSpy = vi.fn();
+      (URL as unknown as { revokeObjectURL: unknown }).revokeObjectURL = revokeSpy;
+      try {
+        component.fileURL = "blob:raw";
+        // safeFileURL is a SafeUrl (an opaque object); the code calls .toString() on it before
+        // revoking, so use an object with a toString() rather than a raw string cast.
+        component.safeFileURL = { toString: () => "blob:safe" } as unknown as typeof component.safeFileURL;
+        component.turnOffAllDisplay();
+        expect(revokeSpy).toHaveBeenCalledWith("blob:raw");
+        expect(revokeSpy).toHaveBeenCalledWith("blob:safe");
+      } finally {
+        (URL as unknown as { revokeObjectURL: unknown }).revokeObjectURL = originalRevoke;
+      }
+    });
+  });
+
+  describe("reloadFileContent viewer selection", () => {
+    // Helper: drive reloadFileContent through the async subscribe with a canned blob.
+    // fileSize is left undefined so the pre-check size guard is skipped and the
+    // blob-size branch inside next() is exercised instead.
+    function loadWith(filePath: string, blob: Blob) {
+      const datasetService = TestBed.inject(DatasetService);
+      vi.spyOn(datasetService, "retrieveDatasetVersionSingleFile").mockReturnValue(of(blob));
+      component.did = 1;
+      component.dvid = 2;
+      component.filePath = filePath;
+      component.isLogin = false;
+      component.fileSize = undefined;
+      component.reloadFileContent();
+    }
+
+    let originalCreate: typeof URL.createObjectURL;
+    let createSpy: ReturnType<typeof vi.fn>;
+
+    beforeEach(() => {
+      originalCreate = URL.createObjectURL;
+      createSpy = vi.fn(() => "blob:created");
+      (URL as unknown as { createObjectURL: unknown }).createObjectURL = createSpy;
+    });
+
+    afterEach(() => {
+      (URL as unknown as { createObjectURL: unknown }).createObjectURL = originalCreate;
+    });
+
+    it("selects the image viewer and builds a safe URL for a PNG", () => {
+      const blob = new Blob(["img"], { type: "image/png" });
+      loadWith("photo.png", blob);
+      expect(component.displayImage).toBe(true);
+      expect(createSpy).toHaveBeenCalledWith(blob);
+      expect(component.fileURL).toBe("blob:created");
+    });
+
+    it("selects the video viewer for an MP4", () => {
+      const blob = new Blob(["vid"], { type: "video/mp4" });
+      loadWith("clip.mp4", blob);
+      expect(component.displayMP4).toBe(true);
+      expect(createSpy).toHaveBeenCalledWith(blob);
+    });
+
+    it("selects the audio viewer for an MP3", () => {
+      const blob = new Blob(["aud"], { type: "audio/mpeg" });
+      loadWith("song.mp3", blob);
+      expect(component.displayMP3).toBe(true);
+      expect(createSpy).toHaveBeenCalledWith(blob);
+    });
+
+    it("selects the markdown viewer for a MD file", () => {
+      const blob = new Blob(["# hi"], { type: "text/markdown" });
+      loadWith("readme.md", blob);
+      expect(component.displayMarkdown).toBe(true);
+    });
+
+    it("selects the JSON viewer for a JSON file", () => {
+      const blob = new Blob(['{"a":1}'], { type: "application/json" });
+      loadWith("data.json", blob);
+      expect(component.displayJson).toBe(true);
+    });
+
+    // Papa.parse's property on the vite namespace is a non-configurable getter (cannot be spied or
+    // reassigned), and module-mocking papaparse is disallowed, so the real parser runs against a
+    // real CSV File and the async result is awaited via vi.waitFor.
+    it("selects the CSV viewer and parses the file into the tabular header and content", async () => {
+      // Reference the imported namespace so the papaparse import is retained for the real parse path.
+      expect(typeof Papa.parse).toBe("function");
+      const blob = new Blob(["h1,h2\na,b\n"], { type: "text/csv" });
+      loadWith("data.csv", blob);
+      expect(component.displayCSV).toBe(true);
+      await vi.waitFor(() => expect(component.tableDataHeader.length).toBeGreaterThan(0));
+      expect(component.tableDataHeader).toEqual(["h1", "h2"]);
+      expect(component.tableContent[0]).toEqual(["a", "b"]);
+    });
+
+    it("flags an oversized blob returned by the backend and warns the user", () => {
+      const notificationService = TestBed.inject(NotificationService);
+      const warnSpy = vi.spyOn(notificationService, "warning").mockImplementation(() => {});
+      // TXT limit is 1 MB; build a blob just over it. Pre-check is skipped (fileSize undefined),
+      // so the inner blob.size guard is what rejects it.
+      const oversized = new Blob(["x".repeat(1024 * 1024 + 10)], { type: "text/plain" });
+      loadWith("big.txt", oversized);
+      expect(component.isFileSizeUnloadable).toBe(true);
+      expect(warnSpy).toHaveBeenCalled();
+    });
+
+    it("re-checks preview support on the loaded blob and rejects an unsupported one", () => {
+      // The pre-check passes (first call true) but the in-callback re-check fails (subsequent false),
+      // exercising the defensive guard inside next().
+      vi.spyOn(component, "isPreviewSupported").mockReturnValueOnce(true).mockReturnValue(false);
+      const blob = new Blob(["hi"], { type: "text/plain" });
+      loadWith("notes.txt", blob);
+      expect(component.isFileTypePreviewUnsupported).toBe(true);
+    });
+  });
+});
+
+/**
+ * The template is a viewer switch: each `displayX` flag selects exactly one preview, and the media
+ * branches additionally require `safeFileURL` so a flag on its own cannot render a source-less
+ * <img>/<video>/<audio>. The suite above drives the flags; this one checks what they put on screen.
+ *
+ * Its own TestBed configuration supplies a DomSanitizer with `sanitize`, which Angular calls when
+ * binding [src] — the stub used above only has `bypassSecurityTrustUrl` and cannot render media.
+ */
+describe("UserDatasetFileRendererComponent rendering", () => {
+  let fixture: ComponentFixture<UserDatasetFileRendererComponent>;
+  let component: UserDatasetFileRendererComponent;
+
+  beforeEach(() => {
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      // MarkdownModule.forRoot() backs the <markdown> element in the markdown preview.
+      imports: [UserDatasetFileRendererComponent, HttpClientTestingModule, MarkdownModule.forRoot()],
+      providers: [
+        DatasetService,
+        NotificationService,
+        {
+          provide: DomSanitizer,
+          useValue: {
+            bypassSecurityTrustUrl: (url: string) => url,
+            sanitize: (_context: number, value: string) => value,
+          },
+        },
+        ...commonTestProviders,
+      ],
+    });
+    fixture = TestBed.createComponent(UserDatasetFileRendererComponent);
+    component = fixture.componentInstance;
+  });
+
+  /**
+   * Applies a viewer state and renders it.
+   *
+   * The first change-detection cycle runs ngOnInit, which inspects the (empty) filePath and settles
+   * on "preview unsupported". Flags set before that cycle are silently overwritten, so the state is
+   * cleared through the component's own reset and applied afterwards.
+   */
+  function render(setup: (c: UserDatasetFileRendererComponent) => void): HTMLElement {
+    fixture.detectChanges();
+    component.turnOffAllDisplay();
+    setup(component);
+    fixture.detectChanges();
+    return fixture.nativeElement as HTMLElement;
+  }
+
+  describe("status messages", () => {
+    it("shows a spinner while the file is loading", () => {
+      const el = render(c => (c.isLoading = true));
+
+      expect(el.querySelector("nz-spin")).not.toBeNull();
+      expect(el.textContent).toContain("File content is loading");
+    });
+
+    it("shows an error alert when loading failed", () => {
+      const el = render(c => (c.isFileLoadingError = true));
+
+      expect(el.textContent).toContain("File loading encounter error.");
+    });
+
+    it("shows a distinct alert for a file that is too large", () => {
+      const el = render(c => (c.isFileSizeUnloadable = true));
+
+      expect(el.textContent).toContain("File is too large to preview");
+      expect(el.textContent).not.toContain("Preview of the file type is currently not supported");
+    });
+
+    it("shows a distinct alert for an unsupported file type", () => {
+      const el = render(c => (c.isFileTypePreviewUnsupported = true));
+
+      expect(el.textContent).toContain("Preview of the file type is currently not supported");
+      expect(el.textContent).not.toContain("File is too large to preview");
+    });
+  });
+
+  describe("tabular preview", () => {
+    it("renders the parsed header and cells for a CSV", () => {
+      const el = render(c => {
+        c.displayCSV = true;
+        c.tableDataHeader = ["name", "score"];
+        c.tableContent = [
+          ["ada", "10"],
+          ["grace", "20"],
+        ];
+      });
+
+      expect(el.querySelectorAll("th")).toHaveLength(2);
+      expect(Array.from(el.querySelectorAll("th")).map(th => th.textContent?.trim())).toEqual(["name", "score"]);
+      expect(el.textContent).toContain("grace");
+    });
+
+    it("uses the same table for a spreadsheet", () => {
+      const el = render(c => {
+        c.displayXlsx = true;
+        c.tableDataHeader = ["col"];
+        c.tableContent = [["cell"]];
+      });
+
+      expect(el.querySelector("nz-table")).not.toBeNull();
+      expect(el.textContent).toContain("cell");
+    });
+  });
+
+  describe("media previews", () => {
+    it("renders an image and opens the full-size modal when it is clicked", () => {
+      const el = render(c => {
+        c.displayImage = true;
+        c.safeFileURL = "blob:image";
+      });
+      const img = el.querySelector<HTMLImageElement>(".file-display-area img");
+      expect(img).not.toBeNull();
+
+      img!.click();
+      fixture.detectChanges();
+
+      expect(component.showImageModal).toBe(true);
+      expect(el.querySelector(".image-modal")).not.toBeNull();
+    });
+
+    it("renders a video for an MP4 and not an audio player", () => {
+      const el = render(c => {
+        c.displayMP4 = true;
+        c.safeFileURL = "blob:video";
+      });
+
+      expect(el.querySelector("video")).not.toBeNull();
+      expect(el.querySelector("audio")).toBeNull();
+    });
+
+    it("renders an audio player for an MP3 and not a video", () => {
+      const el = render(c => {
+        c.displayMP3 = true;
+        c.safeFileURL = "blob:audio";
+      });
+
+      expect(el.querySelector("audio")).not.toBeNull();
+      expect(el.querySelector("video")).toBeNull();
+    });
+
+    it("renders no media element while the safe URL is still missing", () => {
+      // The flag is set as soon as the MIME type is known, but the object URL is built
+      // asynchronously; rendering on the flag alone would emit a source-less element.
+      const el = render(c => {
+        c.displayImage = true;
+        c.displayMP4 = true;
+        c.displayMP3 = true;
+        c.safeFileURL = undefined;
+      });
+
+      expect(el.querySelector(".file-display-area img")).toBeNull();
+      expect(el.querySelector("video")).toBeNull();
+      expect(el.querySelector("audio")).toBeNull();
+    });
+  });
+
+  describe("text previews", () => {
+    it("renders markdown through the markdown viewer", () => {
+      const el = render(c => {
+        c.displayMarkdown = true;
+        c.textContent = "# heading";
+      });
+
+      expect(el.querySelector("markdown")).not.toBeNull();
+      expect(el.querySelector("ngx-json-viewer")).toBeNull();
+    });
+
+    it("renders JSON through the JSON viewer", () => {
+      const el = render(c => {
+        c.displayJson = true;
+        c.textContent = '{"a":1}';
+      });
+
+      expect(el.querySelector("ngx-json-viewer")).not.toBeNull();
+      expect(el.querySelector("markdown")).toBeNull();
+    });
+
+    it("renders plain text inline", () => {
+      const el = render(c => {
+        c.displayPlainText = true;
+        c.textContent = "hello world";
+      });
+
+      expect(el.textContent).toContain("hello world");
+      expect(el.querySelector("markdown")).toBeNull();
+    });
+  });
+
+  it("renders nothing in the display area until a viewer is selected", () => {
+    const el = render(() => {});
+
+    const area = el.querySelector(".file-display-area")!;
+    expect(area.textContent?.trim()).toBe("");
+  });
+
+  it("fills the container height only when maximized", () => {
+    const outer = render(c => (c.isMaximized = false)).querySelector<HTMLElement>("div")!;
+    expect(outer.style.height).toBe("80%");
+
+    const maximized = render(c => (c.isMaximized = true)).querySelector<HTMLElement>("div")!;
+    expect(maximized.style.height).toBe("100%");
   });
 });
