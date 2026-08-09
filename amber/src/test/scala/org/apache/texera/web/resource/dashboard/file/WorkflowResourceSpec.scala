@@ -25,21 +25,14 @@ import org.apache.texera.dao.jooq.generated.Tables.{
   USER,
   WORKFLOW,
   WORKFLOW_EXECUTIONS,
-  WORKFLOW_OF_PROJECT,
   WORKFLOW_USER_CLONES,
   WORKFLOW_VERSION
 }
 import org.apache.texera.dao.jooq.generated.enums.{PrivilegeEnum, UserRoleEnum}
 import org.apache.texera.dao.jooq.generated.tables.daos.{UserDao, WorkflowUserAccessDao}
-import org.apache.texera.dao.jooq.generated.tables.pojos.{
-  Project,
-  User,
-  Workflow,
-  WorkflowUserAccess
-}
+import org.apache.texera.dao.jooq.generated.tables.pojos.{User, Workflow, WorkflowUserAccess}
 import org.apache.texera.web.resource.dashboard.DashboardResource.SearchQueryParams
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowResource.CoverImageRequest
-import org.apache.texera.web.resource.dashboard.user.project.ProjectResource
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowResource
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowResource.{
   DashboardWorkflow,
@@ -138,13 +131,6 @@ class WorkflowResourceSpec
     workflow
   }
 
-  private val testProject1: Project = {
-    val project = new Project()
-    project.setName("test_project1")
-    project.setDescription("this is project description")
-    project
-  }
-
   private val exampleEmailAddress = "name@example.com"
   private val exampleWord1 = "Lorem"
   private val exampleWord2 = "Ipsum"
@@ -168,10 +154,6 @@ class WorkflowResourceSpec
 
   private val workflowResource: WorkflowResource = {
     new WorkflowResource()
-  }
-
-  private val projectResource: ProjectResource = {
-    new ProjectResource()
   }
 
   private val dashboardResource: DashboardResource = {
@@ -198,7 +180,7 @@ class WorkflowResourceSpec
     var workflows = workflowResource.retrieveWorkflowsBySessionUser(sessionUser1)
     workflows.foreach(workflow =>
       workflowResource.deleteWorkflow(
-        WorkflowIDs(List(workflow.workflow.getWid), None),
+        WorkflowIDs(List(workflow.workflow.getWid)),
         sessionUser1
       )
     )
@@ -206,18 +188,10 @@ class WorkflowResourceSpec
     workflows = workflowResource.retrieveWorkflowsBySessionUser(sessionUser2)
     workflows.foreach(workflow =>
       workflowResource.deleteWorkflow(
-        WorkflowIDs(List(workflow.workflow.getWid), None),
+        WorkflowIDs(List(workflow.workflow.getWid)),
         sessionUser2
       )
     )
-
-    // delete all projects in the database
-    var projects = projectResource.getProjectList(sessionUser1)
-    projects.forEach(project => projectResource.deleteProject(project.pid))
-
-    projects = projectResource.getProjectList(sessionUser2)
-    projects.forEach(project => projectResource.deleteProject(project.pid))
-
   }
 
   override protected def afterAll(): Unit = {
@@ -559,27 +533,6 @@ class WorkflowResourceSpec
     assert(ownerFilter.toString == USER.EMAIL.eq("owner1").or(USER.EMAIL.eq("owner2")).toString)
   }
 
-  it should "return a proper condition for a single projectId" in {
-    val projectIdList = new java.util.ArrayList[Integer](util.Arrays.asList(Integer.valueOf(1)))
-    val projectFilter: Condition =
-      FulltextSearchQueryUtils.getContainsFilter(projectIdList, WORKFLOW_OF_PROJECT.PID)
-    assert(projectFilter.toString == WORKFLOW_OF_PROJECT.PID.eq(Integer.valueOf(1)).toString)
-  }
-
-  it should "return a proper condition for multiple projectIds" in {
-    val projectIdList = new java.util.ArrayList[Integer](
-      util.Arrays.asList(Integer.valueOf(1), Integer.valueOf(2))
-    )
-    val projectFilter: Condition =
-      FulltextSearchQueryUtils.getContainsFilter(projectIdList, WORKFLOW_OF_PROJECT.PID)
-    assert(
-      projectFilter.toString == WORKFLOW_OF_PROJECT.PID
-        .eq(Integer.valueOf(1))
-        .or(WORKFLOW_OF_PROJECT.PID.eq(Integer.valueOf(2)))
-        .toString
-    )
-  }
-
   it should "return a proper condition for a single workflowID" in {
     val workflowIdList = new java.util.ArrayList[Integer](util.Arrays.asList(Integer.valueOf(1)))
     val workflowIdFilter: Condition =
@@ -681,10 +634,8 @@ class WorkflowResourceSpec
     )
   }
 
-  "/search API" should "be able to search for resources in different tables" in {
+  "/search API" should "be able to search for resources by keyword" in {
 
-    // create different types of resources, project, workflow, and file
-    projectResource.createProject(sessionUser1, "test project1")
     workflowResource.persistWorkflow(testWorkflow1, sessionUser1)
     // search
     val DashboardClickableFileEntryList =
@@ -692,88 +643,83 @@ class WorkflowResourceSpec
         sessionUser1,
         SearchQueryParams(getKeywordsArray("test"))
       )
-    assert(DashboardClickableFileEntryList.results.length == 2)
+    assert(DashboardClickableFileEntryList.results.length == 1)
 
   }
 
   it should "return all resources when no keyword provided" in {
-    projectResource.createProject(sessionUser1, "test project1")
     workflowResource.persistWorkflow(testWorkflow1, sessionUser1)
     val DashboardClickableFileEntryList =
       dashboardResource.searchAllResourcesCall(
         sessionUser1,
         SearchQueryParams(getKeywordsArray(""))
       )
-    assert(DashboardClickableFileEntryList.results.length == 2)
+    assert(DashboardClickableFileEntryList.results.length == 1)
   }
 
   it should "return multiple matching resources from a single resource type" in {
     workflowResource.persistWorkflow(testWorkflow1, sessionUser1)
-    projectResource.createProject(sessionUser1, "common project1")
-    projectResource.createProject(sessionUser1, "common project2")
+    workflowResource.persistWorkflow(testWorkflow2, sessionUser1)
     val DashboardClickableFileEntryList =
       dashboardResource.searchAllResourcesCall(
         sessionUser1,
-        SearchQueryParams(getKeywordsArray("common"))
+        SearchQueryParams(getKeywordsArray("test"))
       )
     assert(DashboardClickableFileEntryList.results.length == 2)
   }
 
   it should "handle multiple keywords correctly" in {
-    projectResource.createProject(sessionUser1, "test project1")
     workflowResource.persistWorkflow(testWorkflow1, sessionUser1)
+    workflowResource.persistWorkflow(testWorkflow2, sessionUser1)
     val DashboardClickableFileEntryList =
       dashboardResource.searchAllResourcesCall(
         sessionUser1,
-        SearchQueryParams(getKeywordsArray("test", "project1"))
+        SearchQueryParams(getKeywordsArray("test", "workflow1"))
       )
     assert(
       DashboardClickableFileEntryList.results.length == 1
-    ) // should only return the project
+    ) // should only return test_workflow1
   }
 
   it should "filter results by different resourceType" in {
-    // create different types of resources
-    // 3 projects, 2 file, and 1 workflow,
-    projectResource.createProject(sessionUser1, "test project1")
-    projectResource.createProject(sessionUser1, "test project2")
-    projectResource.createProject(sessionUser1, "test project3")
+    // create 3 workflows
     workflowResource.persistWorkflow(testWorkflow1, sessionUser1)
+    workflowResource.persistWorkflow(testWorkflow2, sessionUser1)
+    workflowResource.persistWorkflow(testWorkflow3, sessionUser1)
     // search resources with all resourceType
     var DashboardClickableFileEntryList =
       dashboardResource.searchAllResourcesCall(
         sessionUser1,
         SearchQueryParams(getKeywordsArray("test"))
       )
-    assert(DashboardClickableFileEntryList.results.length == 4)
+    assert(DashboardClickableFileEntryList.results.length == 3)
 
     // filter resources by workflow
     DashboardClickableFileEntryList = dashboardResource.searchAllResourcesCall(
       sessionUser1,
       SearchQueryParams(resourceType = "workflow", keywords = getKeywordsArray("test"))
     )
-    assert(DashboardClickableFileEntryList.results.length == 1)
+    assert(DashboardClickableFileEntryList.results.length == 3)
 
-    // filter resources by project
+    // filter resources by dataset
     DashboardClickableFileEntryList = dashboardResource.searchAllResourcesCall(
       sessionUser1,
-      SearchQueryParams(resourceType = "project", keywords = getKeywordsArray("test"))
+      SearchQueryParams(resourceType = "dataset", keywords = getKeywordsArray("test"))
     )
-    assert(DashboardClickableFileEntryList.results.length == 3)
+    assert(DashboardClickableFileEntryList.results.isEmpty)
   }
 
   it should "return resources that match any of all provided keywords" in {
     // This test is designed to verify that the searchAllResources function correctly
     // returns resources that match all of the provided keywords
 
-    // Create different types of resources, a project, a workflow, and a file
-    projectResource.createProject(sessionUser1, "test project")
     workflowResource.persistWorkflow(testWorkflow1, sessionUser1)
+    workflowResource.persistWorkflow(testWorkflow2, sessionUser1)
     // Perform search with multiple keywords
     val DashboardClickableFileEntryList =
       dashboardResource.searchAllResourcesCall(
         sessionUser1,
-        SearchQueryParams(keywords = getKeywordsArray("test", "project"))
+        SearchQueryParams(keywords = getKeywordsArray("test", "workflow2"))
       )
 
     // Assert that the search results include resources that match any of the provided keywords
@@ -783,8 +729,8 @@ class WorkflowResourceSpec
   it should "not return resources that belong to a different user" in {
     // This test is designed to verify that the searchAllResources function does not return resources that belong to a different user
 
-    // Create a project for a different user (sessionUser2)
-    projectResource.createProject(sessionUser2, "test project2")
+    // Create a workflow for a different user (sessionUser2)
+    workflowResource.persistWorkflow(testWorkflow1, sessionUser2)
 
     // Perform search for resources using sessionUser1
     val DashboardClickableFileEntryList =
@@ -793,7 +739,7 @@ class WorkflowResourceSpec
         SearchQueryParams(keywords = getKeywordsArray("test"))
       )
 
-    // Assert that the search results do not include the project that belongs to the different user
+    // Assert that the search results do not include the workflow that belongs to the different user
     // Assuming that DashboardClickableFileEntryList is a list of resources where each resource has a `user` property
     assert(DashboardClickableFileEntryList.results.isEmpty)
   }
@@ -801,10 +747,13 @@ class WorkflowResourceSpec
   it should "paginate results correctly" in {
     // This test is designed to verify that the pagination works correctly
 
-    // Create 1 workflow, 10 projects
-    workflowResource.persistWorkflow(testWorkflow1, sessionUser1)
-    for (i <- 1 to 10) {
-      projectResource.createProject(sessionUser1, s"test project $i")
+    // Create 11 workflows
+    for (i <- 1 to 11) {
+      val workflow = new Workflow()
+      workflow.setName(s"test_pagination_workflow$i")
+      workflow.setDescription("")
+      workflow.setContent(exampleContent)
+      workflowResource.persistWorkflow(workflow, sessionUser1)
     }
 
     // Request the first page of results (page size is 10)
@@ -1050,7 +999,7 @@ class WorkflowResourceSpec
       "{\"operators\":[{\"operatorID\":\"op1\",\"operatorType\":\"CSVFileScan\"}]}"
     ).workflow.getWid
 
-    val copies = workflowResource.duplicateWorkflow(WorkflowIDs(List(wid), None), sessionUser1)
+    val copies = workflowResource.duplicateWorkflow(WorkflowIDs(List(wid)), sessionUser1)
 
     assert(copies.size == 1)
     assert(copies.head.workflow.getName == "dup-src_copy")
@@ -1242,25 +1191,7 @@ class WorkflowResourceSpec
     assert(getDSLContext.fetchCount(WORKFLOW_USER_CLONES, WORKFLOW_USER_CLONES.WID.eq(wid)) == 0)
   }
 
-  "WorkflowResource.duplicateWorkflow" should "add the copy, not the original, to the project" in {
-    val wid =
-      seedWorkflow(sessionUser1, "dup-into-project", "d", contentWithOperator).workflow.getWid
-    val pid = projectResource.createProject(sessionUser1, "dup-target-project").getPid
-
-    val copies = workflowResource.duplicateWorkflow(WorkflowIDs(List(wid), Some(pid)), sessionUser1)
-
-    assert(copies.size == 1)
-    val widsInProject = getDSLContext
-      .select(WORKFLOW_OF_PROJECT.WID)
-      .from(WORKFLOW_OF_PROJECT)
-      .where(WORKFLOW_OF_PROJECT.PID.eq(pid))
-      .fetchInto(classOf[Integer])
-      .asScala
-      .toList
-    assert(widsInProject == List(copies.head.workflow.getWid))
-  }
-
-  it should "wrap a failure raised while copying the workflow in a WebApplicationException" in {
+  "WorkflowResource.duplicateWorkflow" should "wrap a failure raised while copying the workflow in a WebApplicationException" in {
     // "{}" has no operators array, so assignNewOperatorIds throws.
     //
     // Note what this does NOT pin: transactionality. assignNewOperatorIds fails before
@@ -1271,7 +1202,7 @@ class WorkflowResourceSpec
     val wid = seedWorkflow(sessionUser1, "dup-no-operators").workflow.getWid
 
     val thrown = intercept[WebApplicationException](
-      workflowResource.duplicateWorkflow(WorkflowIDs(List(wid), None), sessionUser1)
+      workflowResource.duplicateWorkflow(WorkflowIDs(List(wid)), sessionUser1)
     )
 
     // not a ForbiddenException/BadRequestException, which the same catch swallows
@@ -1283,7 +1214,7 @@ class WorkflowResourceSpec
   "WorkflowResource.deleteWorkflow" should "wrap an unexpected failure in a WebApplicationException" in {
     // A request body without a "wids" field deserializes to a null list.
     val thrown = intercept[WebApplicationException](
-      workflowResource.deleteWorkflow(WorkflowIDs(null, None), sessionUser1)
+      workflowResource.deleteWorkflow(WorkflowIDs(null), sessionUser1)
     )
 
     assert(thrown.getClass == classOf[WebApplicationException])
@@ -1308,7 +1239,7 @@ class WorkflowResourceSpec
       .set(WORKFLOW_EXECUTIONS.RUNTIME_STATS_URI, "bogus://not-a-vfs-uri")
       .execute()
 
-    workflowResource.deleteWorkflow(WorkflowIDs(List(wid), None), sessionUser1)
+    workflowResource.deleteWorkflow(WorkflowIDs(List(wid)), sessionUser1)
 
     assert(workflowNamesOf(sessionUser1).isEmpty)
   }

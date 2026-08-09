@@ -31,7 +31,6 @@ import org.apache.texera.dao.jooq.generated.Tables._
 import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
 import org.apache.texera.dao.jooq.generated.tables.daos.{
   WorkflowDao,
-  WorkflowOfProjectDao,
   WorkflowOfUserDao,
   WorkflowUserAccessDao
 }
@@ -40,10 +39,9 @@ import org.apache.texera.service.util.LargeBinaryManager
 import org.apache.texera.web.resource.dashboard.hub.EntityType
 import org.apache.texera.web.service.WarehouseReadGuard
 import org.apache.texera.web.resource.dashboard.hub.HubResource.recordCloneAction
-import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource.hasReadAccess
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowResource._
-import org.jooq.impl.DSL.{groupConcatDistinct, noCondition, max}
-import org.jooq.{Condition, DSLContext, Record10, Result, SelectOnConditionStep}
+import org.jooq.impl.DSL.{noCondition, max}
+import org.jooq.{Condition, DSLContext, Record9, Result, SelectOnConditionStep}
 
 import java.sql.Timestamp
 import java.util
@@ -76,7 +74,6 @@ object WorkflowResource {
     new WorkflowUserAccessDao(
       context.configuration()
     )
-  private def workflowOfProjectDao = new WorkflowOfProjectDao(context.configuration)
 
   /** Max length of a stored cover-image data URL. */
   private val COVER_IMAGE_MAX_CHARS: Int = 4 * 1024 * 1024
@@ -112,20 +109,11 @@ object WorkflowResource {
     )
   }
 
-  private def workflowOfProjectExists(wid: Integer, pid: Integer): Boolean = {
-    workflowOfProjectDao.existsById(
-      context
-        .newRecord(WORKFLOW_OF_PROJECT.WID, WORKFLOW_OF_PROJECT.PID)
-        .values(wid, pid)
-    )
-  }
-
   case class DashboardWorkflow(
       isOwner: Boolean,
       accessLevel: String,
       ownerName: String,
       workflow: Workflow,
-      projectIDs: List[Integer],
       ownerId: Integer,
       coverImage: Option[String]
   )
@@ -141,7 +129,7 @@ object WorkflowResource {
       readonly: Boolean
   )
 
-  case class WorkflowIDs(wids: List[Integer], pid: Option[Integer])
+  case class WorkflowIDs(wids: List[Integer])
 
   private def updateWorkflowField(
       workflow: Workflow,
@@ -193,7 +181,7 @@ object WorkflowResource {
     }
   }
 
-  def baseWorkflowSelect(): SelectOnConditionStep[Record10[
+  def baseWorkflowSelect(): SelectOnConditionStep[Record9[
     Integer,
     String,
     String,
@@ -201,7 +189,6 @@ object WorkflowResource {
     Timestamp,
     PrivilegeEnum,
     Integer,
-    String,
     String,
     String
   ]] = {
@@ -215,7 +202,6 @@ object WorkflowResource {
         WORKFLOW_USER_ACCESS.PRIVILEGE,
         WORKFLOW_OF_USER.UID,
         USER.NAME,
-        groupConcatDistinct(WORKFLOW_OF_PROJECT.PID).as("projects"),
         max(WORKFLOW_COVER_IMAGE.IMAGE).as("cover_image")
       )
       .from(WORKFLOW)
@@ -225,14 +211,12 @@ object WorkflowResource {
       .on(WORKFLOW_OF_USER.WID.eq(WORKFLOW.WID))
       .leftJoin(USER)
       .on(USER.UID.eq(WORKFLOW_OF_USER.UID))
-      .leftJoin(WORKFLOW_OF_PROJECT)
-      .on(WORKFLOW.WID.eq(WORKFLOW_OF_PROJECT.WID))
       .leftJoin(WORKFLOW_COVER_IMAGE)
       .on(WORKFLOW.WID.eq(WORKFLOW_COVER_IMAGE.WID))
   }
 
   def mapWorkflowEntries(
-      workflowEntries: Result[Record10[
+      workflowEntries: Result[Record9[
         Integer,
         String,
         String,
@@ -240,7 +224,6 @@ object WorkflowResource {
         Timestamp,
         PrivilegeEnum,
         Integer,
-        String,
         String,
         String
       ]],
@@ -259,9 +242,6 @@ object WorkflowResource {
             .toString,
           workflowRecord.into(USER).getName,
           workflowRecord.into(WORKFLOW).into(classOf[Workflow]),
-          if (workflowRecord.component9() == null) List[Integer]()
-          else
-            workflowRecord.component9().split(',').map(str => Integer.valueOf(str)).toList,
           workflowRecord.into(WORKFLOW_OF_USER).getUid,
           Option(workflowRecord.get("cover_image", classOf[String]))
         )
@@ -497,7 +477,6 @@ class WorkflowResource extends LazyLogging {
     }
 
     val resultWorkflows: ListBuffer[DashboardWorkflow] = ListBuffer()
-    val addToProject = workflowIDs.pid.nonEmpty
     // then start a transaction and do the duplication
     try {
       context.transaction { txConfig =>
@@ -515,19 +494,6 @@ class WorkflowResource extends LazyLogging {
             ),
             sessionUser
           )
-          // if workflows also need to be added to the project
-          if (addToProject) {
-            val newWid = newWorkflow.workflow.getWid
-            if (!hasReadAccess(newWid, user.getUid)) {
-              throw new ForbiddenException("No sufficient access privilege to workflow.")
-            }
-            val pid = workflowIDs.pid.get
-            if (!workflowOfProjectExists(newWid, pid)) {
-              workflowOfProjectDao.insert(new WorkflowOfProject(newWid, pid))
-            } else {
-              throw new BadRequestException("Workflow already exists in the project")
-            }
-          }
           resultWorkflows += newWorkflow
         }
       }
@@ -594,7 +560,6 @@ class WorkflowResource extends LazyLogging {
         PrivilegeEnum.WRITE.toString,
         user.getName,
         workflowDao.fetchOneByWid(workflow.getWid),
-        List[Integer](),
         user.getUid,
         None
       )

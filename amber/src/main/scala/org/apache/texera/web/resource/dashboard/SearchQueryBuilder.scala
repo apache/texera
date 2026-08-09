@@ -35,7 +35,6 @@ object SearchQueryBuilder {
       .createDSLContext()
   val FILE_RESOURCE_TYPE = "file"
   val WORKFLOW_RESOURCE_TYPE = "workflow"
-  val PROJECT_RESOURCE_TYPE = "project"
   val DATASET_RESOURCE_TYPE = "dataset"
   val ALL_RESOURCE_TYPE = ""
 }

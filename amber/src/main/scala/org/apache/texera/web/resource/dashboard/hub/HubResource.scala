@@ -494,7 +494,6 @@ class HubResource {
               DashboardClickableFileEntry(
                 resourceType = entityType.value,
                 workflow = Some(w),
-                project = None,
                 dataset = None
               )
             }
@@ -503,7 +502,6 @@ class HubResource {
               DashboardClickableFileEntry(
                 resourceType = entityType.value,
                 workflow = None,
-                project = None,
                 dataset = Some(d)
               )
             }

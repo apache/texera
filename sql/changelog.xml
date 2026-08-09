@@ -99,6 +99,11 @@
         <sqlFile path="sql/updates/37.sql"/>
     </changeSet>
 
+    <!-- Remove the deprecated project feature (#5172) -->
+    <changeSet id="38" author="aglinxinyuan">
+        <sqlFile path="sql/updates/38.sql"/>
+    </changeSet>
+
     <!-- example changeSet
     <changeSet id="1" author="author">
         <sqlFile path="sql/updates/1.sql"/>
