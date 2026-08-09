@@ -139,7 +139,7 @@ Short, **Conventional Commits**, same shape for branch and commit subject.
 | Bug fix | `fix/marker-replay` | `fix(amber): marker replay during reconfiguration` |
 | Tests | `test/pyamber-handlers` | `test(pyamber): add handler unit tests` |
 | Chore | `chore/angular-21` | `chore(deps, frontend): upgrade to Angular 21` |
-| CI | `ci/cache-action-bump` | `ci: bump coursier/cache-action to v8.1.0` |
+| CI | `ci/merge-queue-stacking` | `ci: stack merge-queue builds by module` |
 
 Both ≤ ~60 chars. For code changes, if you use a scope, use the module name
 (`amber`, `pyamber`, `frontend`, `agent-service`, `file-service`, …) — not
@@ -153,8 +153,11 @@ the diff is:
 | Worked before, broken now | `fix` |
 | Support never existed; adding it | `feat` |
 | Support exists; removing it | `feat` |
-| Works, but is hard to use; reworking it | `feat` |
+| Reworked so user-facing behavior intentionally changes | `feat` |
 | User-facing behavior unchanged | `refactor` |
+
+Behavior is what the code does, not what a doc or an old PR description claims
+it does: implementing something that was never actually there is a `feat`.
 
 `refactor` claims the **user-facing** behavior is identical. Tests that pin a
 user-facing API must pass untouched — editing one of those assertions means
@@ -166,15 +169,17 @@ code they mirror is still a `refactor`.
 **Tests.** A test-only PR is `test(<module>): ...`. Repairing a broken or
 flaky test is a bug fix in test code: `fix(test, <module>): ...`.
 
-**Dependencies.** Split by whether the bump carries a security fix:
+**Dependencies.** `fix` only when the bump carries a security fix:
 
 | Bump | Commit |
 | --- | --- |
 | Patches a CVE | `fix(deps, <module>): ...` |
 | Everything else | `chore(deps, <module>): ...` |
-| CI-only, incl. GitHub Actions | `ci: ...` |
+| GitHub Actions | `chore(deps, ci): ...` |
 
-Omit the module for cross-module bumps (sbt).
+Omit the module for cross-module bumps (sbt). GitHub Actions bumps take `ci`
+as their module — that is what [`.github/renovate.json5`](.github/renovate.json5)
+opens them with; a bare `ci: ...` is for hand-written CI and workflow changes.
 
 **Backports.** A PR targeting `release/vX.Y` appends the version as the last
 scope component — `fix(deps, frontend, v1.2): ...`. Version tags belong only

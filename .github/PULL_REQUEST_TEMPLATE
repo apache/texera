@@ -6,13 +6,15 @@ Thanks for sending a pull request (PR)! Here are some tips for you:
   3. If the PR is work in progress, mark it a draft on GitHub.
   4. Please write your PR title to summarize what this PR proposes, we
     are following Conventional Commits style for PR titles as well:
-      - `fix` is for behavior that worked before and no longer does; adding,
-        removing, or reworking a functionality is a `feat`; a change that
-        leaves the user-facing behavior unchanged is a `refactor`.
+      - `fix` is for behavior that worked before and no longer does; adding or
+        removing a functionality, or reworking one so that user-facing behavior
+        intentionally changes, is a `feat`; a change that leaves the user-facing
+        behavior unchanged is a `refactor`.
       - A test-only PR is `test(<module>): ...`; repairing a broken test is
         `fix(test, <module>): ...`.
       - A dependency bump is `fix(deps, <module>): ...` when it patches a CVE
-        and `chore(deps, <module>): ...` otherwise.
+        and `chore(deps, <module>): ...` otherwise; GitHub Actions bumps take
+        `ci` as their module, e.g. `chore(deps, ci): ...`.
       - A PR targeting a release branch appends the version as the last scope
         component, e.g. `fix(deps, frontend, v1.2): ...`.
     See CONTRIBUTING.md for the full convention.

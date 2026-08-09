@@ -52,7 +52,7 @@ Thank you for your interest in contributing to Texera! Please follow the steps b
 - Example PR titles:
   - `feat: add a new join operator`
   - `fix(ui): prevent racing of requests`
-  - `chore(deps): bump numpy to version 2.0.0`
+  - `chore(deps, pyamber): bump numpy to version 2.0.0`
 
 ##### Choosing between `feat`, `fix`, and `refactor`
 
@@ -63,14 +63,16 @@ The type depends on what happens to the behavior, not on how large the change is
 | A functionality worked before and no longer does | `fix` |
 | A functionality or a form of support never existed and you are adding it | `feat` |
 | A functionality exists and you are removing support for it | `feat` |
-| A functionality works but is hard to use, and you are reworking it | `feat` |
+| A functionality is reworked in a way that intentionally changes user-facing behavior | `feat` |
 | The change leaves the user-facing behavior unchanged | `refactor` |
+
+Behavior is defined by the code, not by what a document or an old PR description says the code does. A functionality that was never implemented does not exist, so implementing it is a `feat` even when the docs already described it as present.
 
 `refactor` is a strong claim: it says the **user-facing** behavior is identical. The test suite is how you check that, but not every test carries the same weight. A test that pins a user-facing API is the contract — if you had to change one of its assertions to make the suite green, the behavior moved, and the PR is a `feat` or a `fix`. A test that pins internals, such as a private helper's signature, the call order between two collaborators, or the shape of an intermediate value, is mirroring the implementation; rewriting it alongside the code it mirrors is expected and still a `refactor`.
 
 ##### Tests and dependency bumps
 
-Two cases use a two-part scope, written as `<type>(<area>, <module>): <description>`:
+Test and dependency PRs take the titles below. Where the table shows a two-part scope, it is written as `<type>(<area>, <module>): <description>`:
 
 | Your change | Title |
 | ----------- | ----- |
@@ -79,7 +81,7 @@ Two cases use a two-part scope, written as `<type>(<area>, <module>): <descripti
 | A dependency bump that patches a CVE | `fix(deps, <module>): ...`, e.g. `fix(deps, pyamber): bump protobuf for CVE-2025-4565` |
 | Any other dependency bump | `chore(deps, <module>): ...`, e.g. `chore(deps, pyamber): bump numpy to 2.0.0` |
 
-Omit the module for bumps that span modules, and use `ci: ...` for CI-only changes, including GitHub Actions bumps.
+Omit the module for bumps that span modules. GitHub Actions bumps are dependency bumps too and take the `ci` module — `chore(deps, ci): ...`, or `fix(deps, ci): ...` when the bump patches a CVE — which is the form [`.github/renovate.json5`](.github/renovate.json5) opens them with. Reserve a bare `ci: ...` for hand-written CI and workflow changes.
 
 ##### Backports
 
