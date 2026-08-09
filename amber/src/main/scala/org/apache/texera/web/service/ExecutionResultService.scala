@@ -482,9 +482,7 @@ class ExecutionResultService(
     )
 
     // Refuse to read a per-user-warehouse result while the feature is off (#6930).
-    storageUriOption.foreach(uri =>
-      WarehouseReadGuard.assertReadable(VFSURIFactory.decodeURI(uri).warehouse)
-    )
+    storageUriOption.foreach(WarehouseReadGuard.assertReadable(_))
 
     storageUriOption match {
       case Some(storageUri) =>

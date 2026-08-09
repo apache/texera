@@ -19,7 +19,10 @@
 
 package org.apache.texera.web.service
 
+import org.apache.texera.amber.core.storage.VFSURIFactory
 import org.apache.texera.common.config.StorageConfig
+
+import java.net.URI
 
 /**
   * Guards reads of results that live in a per-user warehouse while the feature is off (#6930).
@@ -32,12 +35,33 @@ import org.apache.texera.common.config.StorageConfig
 object WarehouseReadGuard {
 
   def assertReadable(
-      warehouse: Option[String],
+      uri: URI,
       enabled: Boolean = StorageConfig.warehouseEnabled
-  ): Unit =
+  ): Unit = {
+    val warehouse = VFSURIFactory.decodeURI(uri).warehouse
+    // A `/wh/` prefix that decodes to no warehouse is unresolvable (illegal name); opening
+    // it would silently fall back to the shared warehouse — refuse instead (#6930).
+    if (warehouse.isEmpty && hasWarehousePrefix(uri)) {
+      throw new IllegalStateException(s"unresolvable warehouse URI: $uri")
+    }
     warehouse.filterNot(_ => enabled).foreach { name =>
       throw new IllegalStateException(
         s"this result is stored in warehouse '$name'; per-user warehouses are disabled in this deployment"
       )
     }
+  }
+
+  /**
+    * Whether a cleanup path should skip this URI: while the feature is off, best-effort
+    * cleanup must not reach into (and delete from) a disabled per-user warehouse. Loud
+    * failure is wrong here — cleanup runs on unrelated actions — so callers skip instead.
+    */
+  def skipWhileDisabled(
+      uri: URI,
+      enabled: Boolean = StorageConfig.warehouseEnabled
+  ): Boolean =
+    !enabled && (VFSURIFactory.decodeURI(uri).warehouse.isDefined || hasWarehousePrefix(uri))
+
+  private def hasWarehousePrefix(uri: URI): Boolean =
+    Option(uri.getRawPath).exists(_.startsWith("/wh/"))
 }

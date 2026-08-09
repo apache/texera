@@ -30,6 +30,7 @@ import org.apache.texera.amber.core.workflow.{GlobalPortIdentity, PortIdentity}
 import org.apache.texera.amber.util.serde.GlobalPortIdentitySerde.SerdeOps
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.dao.MockTexeraDB
+import org.apache.texera.dao.jooq.generated.enums.UserWarehouseFlavorEnum
 import org.apache.texera.dao.jooq.generated.Tables._
 import org.apache.texera.dao.jooq.generated.enums.{PrivilegeEnum, WorkflowComputingUnitTypeEnum}
 import org.apache.texera.dao.jooq.generated.tables.daos.{
@@ -218,7 +219,8 @@ class WorkflowExecutionsResourceSpec
       startOffsetMillis: Long = 0L,
       lastUpdateOffsetMillis: Option[Long] = None,
       cuid: Integer = null,
-      runtimeStatsUri: String = null
+      runtimeStatsUri: String = null,
+      whid: Integer = null
   ): WorkflowExecutions = {
     val execution = new WorkflowExecutions
     execution.setVid(testVersion.getVid)
@@ -233,6 +235,7 @@ class WorkflowExecutionsResourceSpec
     execution.setName(name)
     execution.setEnvironmentVersion("test-env-1.0")
     execution.setCuid(cuid)
+    execution.setWhid(whid)
     execution.setRuntimeStatsUri(runtimeStatsUri)
     workflowExecutionsDao.insert(execution)
     execution
@@ -973,6 +976,25 @@ class WorkflowExecutionsResourceSpec
     // same VID, so the highest EID is the latest
     assert(entry.eId == latest.getEid)
     assert(entry.name == "second")
+  }
+
+  it should "expose the execution's warehouse (whId) for last-used preselection" in {
+    grantReadAccess()
+    val warehouse = getDSLContext.newRecord(USER_WAREHOUSE)
+    warehouse.setUid(testUser.getUid)
+    warehouse.setName("latest-entry-warehouse")
+    warehouse.setWarehouseName(s"user-${testUser.getUid}-latest-entry-warehouse")
+    warehouse.setLakekeeperWarehouseId(UUID.randomUUID())
+    warehouse.setFlavor(UserWarehouseFlavorEnum.local)
+    warehouse.store()
+
+    insertExecution(name = "warehouse-run", whid = warehouse.getWhid)
+    val entry = resource.retrieveLatestExecutionEntry(testWorkflowWid, session(testUser))
+    assert(entry.whId == warehouse.getWhid)
+
+    insertExecution(name = "default-run")
+    val defaultEntry = resource.retrieveLatestExecutionEntry(testWorkflowWid, session(testUser))
+    assert(defaultEntry.whId == null)
   }
 
   "retrieveInteractionHistory" should "return an empty list when the user lacks read access" in {

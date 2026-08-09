@@ -19,6 +19,7 @@
 
 package org.apache.texera.web.resource.dashboard.user.warehouse
 
+import com.typesafe.scalalogging.LazyLogging
 import io.dropwizard.auth.Auth
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.common.config.StorageConfig
@@ -70,7 +71,7 @@ object WarehouseResource {
   */
 @Path("/warehouse")
 @Produces(Array(MediaType.APPLICATION_JSON))
-class WarehouseResource(client: LakekeeperClient) {
+class WarehouseResource(client: LakekeeperClient) extends LazyLogging {
 
   def this() = this(new LakekeeperClient())
 
@@ -144,9 +145,25 @@ class WarehouseResource(client: LakekeeperClient) {
     row.setS3Bucket(StorageConfig.icebergRESTCatalogS3Bucket)
     row.setS3Endpoint(StorageConfig.s3Endpoint)
     row.setS3Region(StorageConfig.s3Region)
-    row.store()
-    // created_at is filled by the DB default; fetch it back before serializing.
-    row.refresh()
+    try {
+      row.store()
+      // created_at is filled by the DB default; fetch it back before serializing.
+      row.refresh()
+    } catch {
+      case e: Exception =>
+        // Compensate: without the row the user could neither list nor delete the
+        // just-created warehouse, so remove it (it is empty at this point).
+        try {
+          client.deleteWarehouseEmptyFirst(warehouseId)
+        } catch {
+          case cleanup: Exception =>
+            logger.error(
+              s"failed to clean up Lakekeeper warehouse $warehouseId after a failed create",
+              cleanup
+            )
+        }
+        throw new WebApplicationException(e.getMessage, 500)
+    }
     DashboardWarehouse(
       row.getWhid,
       row.getName,

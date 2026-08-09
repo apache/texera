@@ -50,6 +50,7 @@ import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.jooq.generated.Tables.OPERATOR_EXECUTIONS
 import org.apache.texera.common.compiler.model.LogicalPlanPojo
 import org.apache.texera.web.model.websocket.request.WorkflowExecuteRequest
+import org.apache.texera.web.service.WarehouseReadGuard
 import org.apache.texera.common.compiler.model.LogicalLink
 import org.apache.texera.common.compiler.{CompilationErrorHandling, WorkflowCompiler}
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
@@ -536,6 +537,8 @@ class SyncExecutionResource extends LazyLogging {
 
       storageUriOption match {
         case Some(storageUri) =>
+          // Refuse to read a per-user-warehouse result while the feature is off (#6930).
+          WarehouseReadGuard.assertReadable(storageUri)
           val document = DocumentFactory
             .openDocument(storageUri)
             ._1
@@ -770,6 +773,8 @@ class SyncExecutionResource extends LazyLogging {
       val uriOption = getConsoleMessageUri(executionId, OperatorIdentity(opId))
 
       uriOption.flatMap { uri =>
+        // Refuse to read per-user-warehouse console messages while the feature is off (#6930).
+        WarehouseReadGuard.assertReadable(uri)
         val document = DocumentFactory
           .openDocument(uri)
           ._1

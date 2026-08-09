@@ -42,6 +42,7 @@ import org.apache.texera.dao.jooq.generated.enums.UserRoleEnum
 import org.apache.texera.dao.jooq.generated.tables.daos.WorkflowExecutionsDao
 import org.apache.texera.dao.jooq.generated.tables.pojos.{WorkflowExecutions, User => UserPojo}
 import org.apache.texera.web.model.http.request.result.ResultExportRequest
+import org.apache.texera.web.service.WarehouseReadGuard
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource._
 import org.apache.texera.web.service.{ExecutionsMetadataPersistService, ResultExportService}
 import org.jooq.DSLContext
@@ -320,6 +321,7 @@ object WorkflowExecutionsResource {
         WORKFLOW_EXECUTIONS.EID,
         WORKFLOW_EXECUTIONS.VID,
         WORKFLOW_EXECUTIONS.CUID,
+        WORKFLOW_EXECUTIONS.WHID,
         USER.NAME,
         USER.GOOGLE_AVATAR,
         WORKFLOW_EXECUTIONS.STATUS,
@@ -379,8 +381,9 @@ object WorkflowExecutionsResource {
       .where(WORKFLOW_EXECUTIONS.EID.in(eIdsList))
       .execute()
 
-    // Clear corresponding Iceberg documents
-    uris.foreach { uri =>
+    // Clear corresponding Iceberg documents. While per-user warehouses are disabled,
+    // cleanup must not reach into them (#6930) — those URIs are skipped.
+    uris.filterNot(WarehouseReadGuard.skipWhileDisabled(_)).foreach { uri =>
       try {
         DocumentFactory.openDocument(uri)._1.clear()
       } catch {
@@ -523,6 +526,7 @@ object WorkflowExecutionsResource {
       eId: Integer,
       vId: Integer,
       cuId: Integer,
+      whId: Integer,
       userName: String,
       googleAvatar: String,
       status: Byte,
@@ -581,6 +585,7 @@ class WorkflowExecutionsResource {
             WORKFLOW_EXECUTIONS.EID,
             WORKFLOW_EXECUTIONS.VID,
             WORKFLOW_EXECUTIONS.CUID,
+            WORKFLOW_EXECUTIONS.WHID,
             USER.NAME,
             USER.GOOGLE_AVATAR,
             WORKFLOW_EXECUTIONS.STATUS,
@@ -721,6 +726,8 @@ class WorkflowExecutionsResource {
     }
 
     val uri: URI = new URI(uriString)
+    // Refuse to read per-user-warehouse statistics while the feature is off (#6930).
+    WarehouseReadGuard.assertReadable(uri)
     val document = DocumentFactory.openDocument(uri)._1
 
     // Read all records from Iceberg and convert to WorkflowRuntimeStatistics

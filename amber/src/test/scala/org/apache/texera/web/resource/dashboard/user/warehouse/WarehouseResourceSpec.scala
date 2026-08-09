@@ -160,6 +160,28 @@ class WarehouseResourceSpec
     resource.status(sessionUser).warehouses shouldBe empty
   }
 
+  "a failed record write after Lakekeeper creation" should "compensate by deleting the warehouse" in {
+    // Pre-claim the catalog name under the other user so our store() trips the global
+    // UNIQUE(warehouse_name) after the (stubbed) Lakekeeper creation succeeded.
+    val squatter = getDSLContext.newRecord(USER_WAREHOUSE)
+    squatter.setUid(otherUser.getUid)
+    squatter.setName("unrelated")
+    squatter.setWarehouseName(s"user-${sessionUser.getUid}-boom")
+    squatter.setLakekeeperWarehouseId(UUID.randomUUID())
+    squatter.setFlavor(
+      org.apache.texera.dao.jooq.generated.enums.UserWarehouseFlavorEnum.local
+    )
+    squatter.store()
+
+    val error = intercept[WebApplicationException] {
+      resource.create(CreateWarehouseRequest("boom"), sessionUser)
+    }
+    error.getResponse.getStatus shouldBe 500
+    // The just-created (empty) Lakekeeper warehouse must not be orphaned.
+    deletedIds.toList shouldBe List(stubWarehouseId)
+    resource.status(sessionUser).warehouses shouldBe empty
+  }
+
   it should "not let a user delete someone else's warehouse" in {
     val created = resource.create(CreateWarehouseRequest("mine"), sessionUser)
 

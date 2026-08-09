@@ -490,7 +490,11 @@ class ResultExportService(workflowIdentity: WorkflowIdentity, computingUnitId: I
     )
 
     storageUri
-      .map(uri => DocumentFactory.openDocument(uri)._1.asInstanceOf[VirtualDocument[Tuple]])
+      .map(uri => {
+        // Refuse to export a per-user-warehouse result while the feature is off (#6930).
+        WarehouseReadGuard.assertReadable(uri)
+        DocumentFactory.openDocument(uri)._1.asInstanceOf[VirtualDocument[Tuple]]
+      })
       .orNull
   }
 

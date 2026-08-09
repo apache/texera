@@ -370,30 +370,37 @@ class WorkflowService(
     // Remove references from registry first
     WorkflowExecutionsResource.deleteConsoleMessageAndExecutionResultUris(eid)
 
-    // Clean up all result and console message documents
+    // Clean up all result and console message documents. While per-user warehouses are
+    // disabled, cleanup must not reach into them (#6930) — those URIs are skipped.
     (resultUris ++ consoleMessagesUris).foreach { uri =>
-      try DocumentFactory.openDocument(uri)._1.clear()
-      catch {
-        case error: Throwable =>
-          logger.debug(s"Error processing document at $uri: ${error.getMessage}")
-      }
+      if (WarehouseReadGuard.skipWhileDisabled(uri)) {
+        logger.info(s"skipping cleanup of $uri: per-user warehouses are disabled")
+      } else
+        try DocumentFactory.openDocument(uri)._1.clear()
+        catch {
+          case error: Throwable =>
+            logger.debug(s"Error processing document at $uri: ${error.getMessage}")
+        }
     }
 
     // Expire any Iceberg snapshots for runtime statistics
     WorkflowExecutionsResource.getRuntimeStatsUriByExecutionId(eid).foreach { uri =>
-      try {
-        DocumentFactory.openDocument(uri)._1 match {
-          case iceberg: OnIceberg => iceberg.expireSnapshots()
-          case other =>
-            logger.error(
-              s"Cannot expire snapshots: document from URI [$uri] is of type ${other.getClass.getName}. " +
-                s"Expected an instance of ${classOf[OnIceberg].getName}."
-            )
+      if (WarehouseReadGuard.skipWhileDisabled(uri)) {
+        logger.info(s"skipping snapshot expiry of $uri: per-user warehouses are disabled")
+      } else
+        try {
+          DocumentFactory.openDocument(uri)._1 match {
+            case iceberg: OnIceberg => iceberg.expireSnapshots()
+            case other =>
+              logger.error(
+                s"Cannot expire snapshots: document from URI [$uri] is of type ${other.getClass.getName}. " +
+                  s"Expected an instance of ${classOf[OnIceberg].getName}."
+              )
+          }
+        } catch {
+          case error: Throwable =>
+            logger.debug(s"Error processing document at $uri: ${error.getMessage}")
         }
-      } catch {
-        case error: Throwable =>
-          logger.debug(s"Error processing document at $uri: ${error.getMessage}")
-      }
     }
     // Delete this execution's large binaries
     LargeBinaryManager.deleteByExecution(eid.id)

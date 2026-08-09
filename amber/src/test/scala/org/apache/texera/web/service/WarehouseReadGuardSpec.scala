@@ -20,27 +20,67 @@
 package org.apache.texera.web.service
 
 import org.scalatest.flatspec.AnyFlatSpec
+
+import java.net.URI
 import org.scalatest.matchers.should.Matchers
 
 class WarehouseReadGuardSpec extends AnyFlatSpec with Matchers {
 
+  private def uri(path: String) = new URI(s"vfs://$path")
+
   "assertReadable" should "pass results that live in the shared default warehouse" in {
-    noException should be thrownBy WarehouseReadGuard.assertReadable(None, enabled = false)
-    noException should be thrownBy WarehouseReadGuard.assertReadable(None, enabled = true)
+    noException should be thrownBy
+      WarehouseReadGuard.assertReadable(uri("/wid/1/eid/2/result"), enabled = false)
+    noException should be thrownBy
+      WarehouseReadGuard.assertReadable(uri("/wid/1/eid/2/result"), enabled = true)
   }
 
   it should "pass warehouse results while the feature is enabled" in {
     noException should be thrownBy
-      WarehouseReadGuard.assertReadable(Some("user-7-mybucket"), enabled = true)
+      WarehouseReadGuard.assertReadable(
+        uri("/wh/user-7-mybucket/wid/1/eid/2/result"),
+        enabled = true
+      )
   }
 
   it should "refuse a warehouse result explicitly while the feature is off" in {
     // Naming the situation matters: resolving the URI against the shared warehouse
     // would surface "table not found" — indistinguishable from data loss (#6930).
     val error = intercept[IllegalStateException] {
-      WarehouseReadGuard.assertReadable(Some("user-7-mybucket"), enabled = false)
+      WarehouseReadGuard.assertReadable(
+        uri("/wh/user-7-mybucket/wid/1/eid/2/result"),
+        enabled = false
+      )
     }
     error.getMessage should include("user-7-mybucket")
     error.getMessage should include("disabled")
+  }
+
+  it should "refuse an unresolvable /wh/ prefix instead of falling back silently" in {
+    // decodeURI reports None for an illegal warehouse name; opening such a URI would
+    // silently resolve against the shared warehouse — in either flag state.
+    an[IllegalStateException] should be thrownBy
+      WarehouseReadGuard.assertReadable(uri("/wh/a%2Fb/wid/1/eid/2/result"), enabled = true)
+    an[IllegalStateException] should be thrownBy
+      WarehouseReadGuard.assertReadable(uri("/wh/a%2Fb/wid/1/eid/2/result"), enabled = false)
+  }
+
+  "skipWhileDisabled" should "skip exactly the warehouse-scoped URIs while the feature is off" in {
+    WarehouseReadGuard.skipWhileDisabled(
+      uri("/wh/user-7-mybucket/wid/1/eid/2/result"),
+      enabled = false
+    ) shouldBe true
+    WarehouseReadGuard.skipWhileDisabled(
+      uri("/wh/a%2Fb/wid/1/eid/2/result"),
+      enabled = false
+    ) shouldBe true
+    WarehouseReadGuard.skipWhileDisabled(
+      uri("/wid/1/eid/2/result"),
+      enabled = false
+    ) shouldBe false
+    WarehouseReadGuard.skipWhileDisabled(
+      uri("/wh/user-7-mybucket/wid/1/eid/2/result"),
+      enabled = true
+    ) shouldBe false
   }
 }
