@@ -25,7 +25,7 @@ import { commonTestProviders } from "../../../../common/testing/test-utils";
 import { of } from "rxjs";
 import { By } from "@angular/platform-browser";
 import type { Mocked } from "vitest";
-import { ExecutionQuota } from "../../../../common/type/user";
+import { ExecutionQuota, WorkflowQuota } from "../../../../common/type/user";
 import { DatasetQuota } from "../../../type/quota-statistic.interface";
 
 // Real Plotly renders into a DOM element by id; create one and assert on the
@@ -271,9 +271,11 @@ describe("UserQuotaComponent", () => {
       const tab = Array.from(host.querySelectorAll<HTMLElement>(".ant-tabs-tab")).find(t =>
         (t.textContent || "").includes(title)
       );
-      tab!.click();
+      if (!tab) {
+        throw new Error(`Result Cache spec: tab not found: ${title}`);
+      }
+      tab.click();
       fixture.detectChanges();
-      return host;
     }
 
     /** Expands the collapse panel whose header contains the given text. */
