@@ -137,7 +137,7 @@ class AccessControlResourceSpec
       computingUnitOfUserDao.insert(cuAccess)
     }
 
-    val claims = JwtAuth.jwtClaims(testUser1, 1)
+    val claims = JwtAuth.jwtClaims(testUser1)
     token = JwtAuth.jwtToken(claims)
   }
 

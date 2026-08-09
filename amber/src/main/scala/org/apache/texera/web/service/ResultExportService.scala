@@ -550,7 +550,7 @@ class ResultExportService(workflowIdentity: WorkflowIdentity, computingUnitId: I
         connection.setRequestProperty("Content-Type", "application/octet-stream")
         connection.setRequestProperty(
           "Authorization",
-          s"Bearer ${JwtAuth.jwtToken(jwtClaims(user, TOKEN_EXPIRE_TIME_IN_MINUTES))}"
+          s"Bearer ${JwtAuth.jwtToken(jwtClaims(user))}"
         )
         connection.setChunkedStreamingMode(0)
 

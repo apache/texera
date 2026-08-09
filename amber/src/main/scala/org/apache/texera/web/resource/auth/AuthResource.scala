@@ -112,7 +112,7 @@ object AuthResource {
 
     if (LocalAuthProvisioner.handleExists(adminUsername)) return
 
-    if (userDao.fetchOneByEmail(adminUsername) != null) {
+    if (fetchUserByEmailIgnoreCase(adminUsername) != null) {
       logger.warn(
         s"Not creating the admin account: '$adminUsername' is already used as an email address " +
           "by an account with no local credential. Grant that account the ADMIN role instead."
@@ -143,7 +143,7 @@ class AuthResource {
         // `googleId` in the token regardless of which one was used to sign in.
         val googleId =
           ExternalAuthProvisioner.providerIdOf(user.getUid, ProviderTypeEnum.GOOGLE)
-        TokenIssueResponse(jwtToken(jwtClaims(user, TOKEN_EXPIRE_TIME_IN_MINUTES, googleId)))
+        TokenIssueResponse(jwtToken(jwtClaims(user, googleId)))
       case None => throw new NotAuthorizedException("Login credentials are incorrect.")
     }
   }
@@ -183,7 +183,7 @@ class AuthResource {
       existingByEmail.setName(username)
       claimPlaceholder(existingByEmail)
       LocalAuthProvisioner.claimWithLocalCredential(existingByEmail, username, userpassword)
-      return TokenIssueResponse(jwtToken(jwtClaims(existingByEmail, TOKEN_EXPIRE_TIME_IN_MINUTES)))
+      return TokenIssueResponse(jwtToken(jwtClaims(existingByEmail)))
     }
 
     (usernameExists, emailExists) match {
@@ -198,7 +198,7 @@ class AuthResource {
         user.setRole(UserRoleEnum.INACTIVE)
         // Reports losing the race to a concurrent registration of the same handle as a 409.
         LocalAuthProvisioner.createLocalAccount(user, username, userpassword)
-        TokenIssueResponse(jwtToken(jwtClaims(user, TOKEN_EXPIRE_TIME_IN_MINUTES)))
+        TokenIssueResponse(jwtToken(jwtClaims(user)))
     }
   }
 

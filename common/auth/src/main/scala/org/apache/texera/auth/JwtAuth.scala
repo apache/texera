@@ -65,7 +65,7 @@ object JwtAuth {
     * `auth_provider` context. Those re-issued tokens are service-to-service and never reach
     * the browser, so omitting the claim there is harmless.
     */
-  def jwtClaims(user: User, expireInDays: Int, googleId: Option[String] = None): JwtClaims = {
+  def jwtClaims(user: User, googleId: Option[String] = None): JwtClaims = {
     val claims = new JwtClaims
     claims.setSubject(user.getName)
     claims.setClaim("userId", user.getUid)

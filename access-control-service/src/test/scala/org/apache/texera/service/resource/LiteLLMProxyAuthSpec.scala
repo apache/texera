@@ -165,7 +165,7 @@ class LiteLLMProxyAuthSpec extends AnyFlatSpec with Matchers with BeforeAndAfter
     u.setName("test")
     u.setEmail("test@example.com")
     u.setRole(role)
-    JwtAuth.jwtToken(JwtAuth.jwtClaims(u, expireInDays = 1))
+    JwtAuth.jwtToken(JwtAuth.jwtClaims(u))
   }
 
   private val chatBody = """{"model":"gpt-4o-mini","messages":[]}"""

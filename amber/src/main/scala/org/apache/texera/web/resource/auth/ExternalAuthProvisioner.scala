@@ -88,23 +88,16 @@ object ExternalAuthProvisioner extends LazyLogging {
           .fetchOne()
       ) match {
         case Some(record) =>
-          // known identity: refresh the profile fields if they drifted
           txUserDao.fetchOneByUid(record.get(USER.UID)).tap { user =>
             if (refresh(user, profile)) txUserDao.update(user)
           }
 
         case None =>
-          // First time we have seen this identity, so the email address is the only thing tying
-          // it to an account: either an existing one to link onto, or a new row that claims it.
           val user = userByEmailIgnoreCase(ctx, profile.email) match {
             case Some(existing) =>
               existing.tap { user =>
-                // A placeholder account (auto-created for a dataset contributor, never had a
-                // credential) is claimed by the first external identity that presents its email.
-                // It keeps its uid, so existing contributor links stay valid.
                 val claimed = user.getIsPlaceholder
                 if (claimed) AuthResource.claimPlaceholder(user)
-                // refresh() must run regardless so its mutations are applied
                 val drifted = refresh(user, profile)
                 if (drifted || claimed) txUserDao.update(user)
               }
@@ -118,7 +111,6 @@ object ExternalAuthProvisioner extends LazyLogging {
                 txUserDao.insert(created)
                 created
               } catch {
-                // A concurrent registration of the same address won the race; adopt its row.
                 case e: org.jooq.exception.DataAccessException if e.sqlState() == "23505" =>
                   userByEmailIgnoreCase(ctx, profile.email).getOrElse(throw e)
               }

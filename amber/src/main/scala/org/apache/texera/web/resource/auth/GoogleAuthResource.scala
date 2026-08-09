@@ -87,7 +87,7 @@ class GoogleAuthResource {
         // The frontend reads `googleId` off the raw token; the provider id is already in hand
         // here, so no lookup is needed.
         TokenIssueResponse(
-          jwtToken(jwtClaims(user, TOKEN_EXPIRE_TIME_IN_MINUTES, Some(profile.providerId)))
+          jwtToken(jwtClaims(user, Some(profile.providerId)))
         )
       case None => throw new NotAuthorizedException("Login credentials are incorrect.")
     }
