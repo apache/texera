@@ -19,10 +19,12 @@
 
 import { Component, EventEmitter, ViewChild } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { By } from "@angular/platform-browser";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { provideRouter } from "@angular/router";
 import { NzListComponent } from "ng-zorro-antd/list";
 import { NzModalService } from "ng-zorro-antd/modal";
+import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
 import { of, throwError } from "rxjs";
 import type { Mocked } from "vitest";
 import { UserDatasetListItemComponent } from "./user-dataset-list-item.component";
@@ -50,9 +52,6 @@ class TestHostComponent {
   editable = true;
   @ViewChild(UserDatasetListItemComponent, { static: true }) inner!: UserDatasetListItemComponent;
 }
-
-import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
-import { By } from "@angular/platform-browser";
 
 function makeEntry(overrides: Partial<DashboardDataset> = {}): DashboardDataset {
   return {
@@ -354,13 +353,27 @@ describe("UserDatasetListItemComponent", () => {
     });
 
     it("withholds them on a non-editable list, even from a writer", () => {
+      // Both controls carry the same pair of conditions, so both are asserted: checking only the
+      // rename would let the add-description button lose its `editable` half unnoticed.
       render({ accessPrivilege: "WRITE" }, false);
 
       expect(hasTooltip(t => t === "Customize Dataset Name")).toBe(false);
+      expect(hasTooltip(t => t === "Add Description")).toBe(false);
     });
 
     it("applies the same pair of conditions to the inline description", () => {
       render({ accessPrivilege: "READ" }, true);
+
+      (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>(".dataset-description-label")?.click();
+      fixture.detectChanges();
+
+      expect(component.editingDescription).toBe(false);
+    });
+
+    it("keeps the inline description shut on a non-editable list, even for a writer", () => {
+      // The other half of the same `&&`. Without this case the gate could be reduced to the
+      // privilege check alone and every remaining test would still pass.
+      render({ accessPrivilege: "WRITE" }, false);
 
       (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>(".dataset-description-label")?.click();
       fixture.detectChanges();
