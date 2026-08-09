@@ -89,10 +89,6 @@ import { VersionsListComponent } from "./workspace/component/left-panel/versions
 import { NzPaginationModule } from "ng-zorro-antd/pagination";
 import { JwtModule } from "@auth0/angular-jwt";
 import { AuthService } from "./common/service/user/auth.service";
-import { UserProjectComponent } from "./dashboard/component/user/user-project/user-project.component";
-import { UserProjectSectionComponent } from "./dashboard/component/user/user-project/user-project-section/user-project-section.component";
-import { NgbdModalAddProjectWorkflowComponent } from "./dashboard/component/user/user-project/user-project-section/ngbd-modal-add-project-workflow/ngbd-modal-add-project-workflow.component";
-import { NgbdModalRemoveProjectWorkflowComponent } from "./dashboard/component/user/user-project/user-project-section/ngbd-modal-remove-project-workflow/ngbd-modal-remove-project-workflow.component";
 import { PresetWrapperComponent } from "./common/formly/preset-wrapper/preset-wrapper.component";
 import { MarkdownDescriptionComponent } from "./dashboard/component/user/markdown-description/markdown-description.component";
 import { NzModalCommentBoxComponent } from "./workspace/component/workflow-editor/comment-box-modal/nz-modal-comment-box.component";
@@ -125,7 +121,6 @@ import { FileSaverService } from "./dashboard/service/user/file/file-saver.servi
 import { DragDropModule } from "@angular/cdk/drag-drop";
 import { ScrollingModule } from "@angular/cdk/scrolling";
 import { UserWorkflowListItemComponent } from "./dashboard/component/user/user-workflow/user-workflow-list-item/user-workflow-list-item.component";
-import { UserProjectListItemComponent } from "./dashboard/component/user/user-project/user-project-list-item/user-project-list-item.component";
 import { SortButtonComponent } from "./dashboard/component/user/sort-button/sort-button.component";
 import { FiltersComponent } from "./dashboard/component/user/filters/filters.component";
 import { FiltersInstructionsComponent } from "./dashboard/component/user/filters-instructions/filters-instructions.component";
@@ -133,7 +128,6 @@ import { SearchComponent } from "./dashboard/component/user/search/search.compon
 import { SearchResultsComponent } from "./dashboard/component/user/search-results/search-results.component";
 import { PortPropertyEditFrameComponent } from "./workspace/component/property-editor/port-property-edit-frame/port-property-edit-frame.component";
 import { AdminGmailComponent } from "./dashboard/component/admin/gmail/admin-gmail.component";
-import { PublicProjectComponent } from "./dashboard/component/user/user-project/public-project/public-project.component";
 import { FormlyNgZorroAntdModule } from "@ngx-formly/ng-zorro-antd";
 import { FlarumComponent } from "./dashboard/component/user/flarum/flarum.component";
 import { NzAlertModule } from "ng-zorro-antd/alert";
@@ -274,7 +268,6 @@ registerLocaleData(en);
     ScrollingModule,
     UiUdfParametersComponent,
     AdminGmailComponent,
-    PublicProjectComponent,
     WorkspaceComponent,
     MenuComponent,
     OperatorMenuComponent,
@@ -312,10 +305,6 @@ registerLocaleData(en);
     ErrorFrameComponent,
     ResultTableFrameComponent,
     OperatorPropertyEditFrameComponent,
-    UserProjectComponent,
-    UserProjectSectionComponent,
-    NgbdModalAddProjectWorkflowComponent,
-    NgbdModalRemoveProjectWorkflowComponent,
     FilesUploaderComponent,
     ConflictingFileModalContentComponent,
     UserDatasetComponent,
@@ -344,7 +333,6 @@ registerLocaleData(en);
     AboutComponent,
     TexeraLoginComponent,
     UserWorkflowListItemComponent,
-    UserProjectListItemComponent,
     SortButtonComponent,
     FiltersComponent,
     FiltersInstructionsComponent,

@@ -43,8 +43,6 @@ import { SearchService } from "../../../dashboard/service/user/search.service";
 import { commonTestProviders } from "../../../common/testing/test-utils";
 import { OperatorMetadataService } from "../../../workspace/service/operator-metadata/operator-metadata.service";
 import { StubOperatorMetadataService } from "../../../workspace/service/operator-metadata/stub-operator-metadata.service";
-import { UserProjectService } from "../../../dashboard/service/user/project/user-project.service";
-import { StubUserProjectService } from "../../../dashboard/service/user/project/stub-user-project.service";
 import { WorkflowPersistService } from "../../../common/service/workflow-persist/workflow-persist.service";
 import { StubWorkflowPersistService } from "../../../common/service/workflow-persist/stub-workflow-persist.service";
 import { DatasetService } from "../../../dashboard/service/user/dataset/dataset.service";
@@ -209,7 +207,7 @@ describe("HubSearchResultComponent", () => {
     });
 
     it("keeps the default 'workflow' searchType when the url matches neither branch", () => {
-      build("/dashboard/project");
+      build("/dashboard/other");
       expect(component.searchType).toBe("workflow");
       expect(component.sortMethod).toBe(SortMethod.EditTimeDesc);
     });
@@ -343,31 +341,7 @@ describe("HubSearchResultComponent", () => {
       expect(results.reset).toHaveBeenCalledTimes(2);
     });
 
-    it("passes projectIds=[pid] into the executeSearch loader when pid is set", async () => {
-      build("/dashboard/workflow");
-      component.pid = 42;
-      const filters = makeFiltersMock();
-      const results = makeSearchResultsMock();
-      attachChildren(filters, results);
-
-      await component.search();
-
-      const loader = results.reset.mock.calls[0][0] as (start: number, count: number) => Promise<unknown>;
-      await loader(0, 20);
-
-      expect(searchServiceMock.executeSearch).toHaveBeenCalledWith(
-        [""],
-        expect.objectContaining({ projectIds: [42] }),
-        0,
-        20,
-        "workflow",
-        SortMethod.EditTimeDesc,
-        false,
-        true
-      );
-    });
-
-    it("does not inject projectIds when pid is undefined", async () => {
+    it("forwards the filter parameters into the executeSearch loader", async () => {
       build("/dashboard/workflow");
       const filters = makeFiltersMock();
       const results = makeSearchResultsMock();
@@ -480,7 +454,6 @@ describe("HubSearchResultComponent rendered template", () => {
         { provide: SearchService, useValue: { executeSearch } },
         { provide: UserService, useClass: StubUserService },
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
-        { provide: UserProjectService, useClass: StubUserProjectService },
         { provide: WorkflowPersistService, useValue: new StubWorkflowPersistService([]) },
         { provide: DatasetService, useValue: { getDatasetCoverUrl: vi.fn(() => of({ url: undefined })) } },
         { provide: WorkflowCoverService, useValue: { getCover: vi.fn(() => of(undefined)) } },

@@ -37,7 +37,6 @@ import {
   HUB_DATASET_RESULT_DETAIL,
   HUB_WORKFLOW_RESULT_DETAIL,
   USER_DATASET,
-  USER_PROJECT,
   USER_WORKSPACE,
 } from "../../../../app-routing.constant";
 
@@ -166,12 +165,6 @@ describe("ListItemComponent", () => {
       } as unknown as DashboardEntry;
       component.initializeEntry();
       expect(component.entryLink).toEqual([HUB_WORKFLOW_RESULT_DETAIL, "101"]);
-    });
-
-    it("routes projects to the user project page", () => {
-      component.entry = { id: 200, type: "project", ...baseStats } as unknown as DashboardEntry;
-      component.initializeEntry();
-      expect(component.entryLink).toEqual([USER_PROJECT, "200"]);
     });
 
     it("routes owned datasets to the user dataset page", () => {

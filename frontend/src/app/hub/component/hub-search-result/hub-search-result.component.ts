@@ -33,7 +33,6 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { SortMethod } from "../../../dashboard/type/sort-method";
 import { UserService } from "../../../common/service/user/user.service";
 import { SearchService } from "../../../dashboard/service/user/search.service";
-import { isDefined } from "../../../common/util/predicate";
 import { firstValueFrom } from "rxjs";
 import { map } from "rxjs/operators";
 import { SortButtonComponent } from "../../../dashboard/component/user/sort-button/sort-button.component";
@@ -88,7 +87,6 @@ export class HubSearchResultComponent implements OnInit, AfterViewInit {
   }
   private masterFilterList: ReadonlyArray<string> | null = null;
 
-  @Input() public pid?: number = undefined;
   @Input() public accessLevel?: string = undefined;
   public sortMethod = SortMethod.EditTimeDesc;
   lastSortMethod: SortMethod | null = null;
@@ -147,10 +145,6 @@ export class HubSearchResultComponent implements OnInit, AfterViewInit {
     this.masterFilterList = this.filters.masterFilterList;
     this.searchKeywords = this.filters.getSearchKeywords();
     let filterParams = this.filters.getSearchFilterParameters();
-    if (isDefined(this.pid)) {
-      // force the project id in the search query to be the current pid.
-      filterParams.projectIds = [this.pid];
-    }
 
     this.searchResultsComponent.reset((start, count) => {
       return firstValueFrom(

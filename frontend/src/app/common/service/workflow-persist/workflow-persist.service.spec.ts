@@ -146,7 +146,6 @@ describe("WorkflowPersistService", () => {
       owners: [],
       ids: [],
       operators: [],
-      projectIds: [],
     };
     const keywords = ["test"];
     const entry = { workflow: { wid: 1, name: "w", content: '{"operators":[]}' } } as unknown as DashboardWorkflow;
@@ -277,26 +276,17 @@ describe("WorkflowPersistService", () => {
       expect(emitted).toBe(false);
     });
 
-    it("duplicateWorkflow POSTs only wids when no pid is provided", () => {
+    it("duplicateWorkflow POSTs the wids", () => {
       let result: DashboardWorkflow[] | undefined;
       service.duplicateWorkflow([3, 4]).subscribe(r => (result = r));
 
       const req = httpTestingController.expectOne(`${API}/${WORKFLOW_DUPLICATE_URL}`);
       expect(req.request.method).toBe("POST");
       expect(req.request.body).toEqual({ wids: [3, 4] });
-      expect(req.request.body).not.toHaveProperty("pid");
 
       const dup = [{ workflow: { wid: 10 } }] as unknown as DashboardWorkflow[];
       req.flush(dup);
       expect(result).toEqual(dup);
-    });
-
-    it("duplicateWorkflow includes pid in the body when provided", () => {
-      service.duplicateWorkflow([5], 42).subscribe();
-
-      const req = httpTestingController.expectOne(`${API}/${WORKFLOW_DUPLICATE_URL}`);
-      expect(req.request.body).toEqual({ wids: [5], pid: 42 });
-      req.flush([{ workflow: { wid: 11 } }]);
     });
 
     it("duplicateWorkflow filters out an empty-array response", () => {

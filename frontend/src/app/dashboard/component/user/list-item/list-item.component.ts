@@ -54,7 +54,6 @@ import {
   HUB_DATASET_RESULT_DETAIL,
   HUB_WORKFLOW_RESULT_DETAIL,
   USER_DATASET,
-  USER_PROJECT,
   USER_WORKSPACE,
 } from "../../../../app-routing.constant";
 import { isDefined } from "../../../../common/util/predicate";
@@ -157,9 +156,6 @@ export class ListItemComponent implements OnChanges {
         this.size = this.entry.size;
       }
       this.iconType = "project";
-    } else if (this.entry.type === "project") {
-      this.entryLink = [USER_PROJECT, String(this.entry.id)];
-      this.iconType = "container";
     } else if (this.entry.type === "dataset") {
       if (typeof this.entry.id === "number") {
         this.disableDelete = !this.entry.dataset.isOwner;

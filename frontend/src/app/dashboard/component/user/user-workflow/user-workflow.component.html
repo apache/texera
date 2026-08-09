@@ -25,7 +25,6 @@
         nz-button
         class="create-btn"
         (click)="onClickCreateNewWorkflowFromDashboard()"
-        [disabled]="accessLevel === 'READ'"
         title="Create a new workflow">
         <i
           nz-icon
@@ -39,7 +38,6 @@
         <texera-sort-button (sortMethodChange)="sortMethod = $event; search()"></texera-sort-button>
         <nz-upload [nzBeforeUpload]="onClickUploadExistingWorkflowFromLocal">
           <button
-            [disabled]="accessLevel === 'READ'"
             nz-button
             title="Upload ZIP/JSON file as workflow"
             nz-tooltip="Upload ZIP/JSON file as workflow"
@@ -118,34 +116,6 @@
             nzType="delete"></i>
         </button>
         <button
-          *ngIf="pid !== undefined"
-          [disabled]="accessLevel === 'READ'"
-          (click)="onClickOpenAddWorkflow()"
-          nz-button
-          title="Add workflow(s) to project"
-          nz-tooltip="Add workflow(s) to project"
-          nzTooltipPlacement="bottom"
-          type="button">
-          <i
-            nz-icon
-            nzTheme="outline"
-            nzType="plus-square"></i>
-        </button>
-        <button
-          *ngIf="pid !== undefined"
-          [disabled]="accessLevel === 'READ'"
-          (click)="onClickOpenRemoveWorkflow()"
-          nz-button
-          title="Remove workflow(s) from project"
-          nz-tooltip="Remove workflow(s) from project"
-          nzTooltipPlacement="bottom"
-          type="button">
-          <i
-            nz-icon
-            nzTheme="outline"
-            nzType="minus-square"></i>
-        </button>
-        <button
           nz-button
           title="List View"
           (click)="setViewType('list')"
@@ -166,9 +136,7 @@
             nzTheme="outline"></i>
         </button>
       </nz-space-compact>
-      <texera-filters
-        [pid]="pid"
-        #filters></texera-filters>
+      <texera-filters #filters></texera-filters>
     </div>
   </nz-card>
 

@@ -19,13 +19,11 @@
 
 import { DashboardFile } from "./dashboard-file.interface";
 import { DashboardWorkflow } from "./dashboard-workflow.interface";
-import { DashboardProject } from "./dashboard-project.interface";
 import { DashboardDataset } from "./dashboard-dataset.interface";
 import { DashboardWorkflowComputingUnit } from "../../common/type/workflow-computing-unit";
 import {
   isDashboardDataset,
   isDashboardFile,
-  isDashboardProject,
   isDashboardWorkflow,
   isDashboardWorkflowComputingUnit,
 } from "./type-predicates";
@@ -57,14 +55,7 @@ export class DashboardEntry {
   accessibleUserIds: number[];
   coverImageUrl?: string;
 
-  constructor(
-    public value:
-      | DashboardWorkflow
-      | DashboardProject
-      | DashboardFile
-      | DashboardDataset
-      | DashboardWorkflowComputingUnit
-  ) {
+  constructor(public value: DashboardWorkflow | DashboardFile | DashboardDataset | DashboardWorkflowComputingUnit) {
     if (isDashboardWorkflow(value)) {
       this.type = EntityType.Workflow;
       this.id = value.workflow.wid;
@@ -84,24 +75,6 @@ export class DashboardEntry {
       this.isLiked = false;
       this.accessibleUserIds = [];
       this.coverImageUrl = value.coverImage ?? undefined;
-    } else if (isDashboardProject(value)) {
-      this.type = EntityType.Project;
-      this.id = value.pid;
-      this.name = value.name;
-      this.description = "";
-      this.creationTime = value.creationTime;
-      this.lastModifiedTime = value.creationTime;
-      this.accessLevel = value.accessLevel;
-      this.ownerName = "";
-      this.ownerEmail = "";
-      this.ownerAvatar = "";
-      this.ownerId = value.ownerId;
-      this.size = 0;
-      this.viewCount = 0;
-      this.cloneCount = 0;
-      this.likeCount = 0;
-      this.isLiked = false;
-      this.accessibleUserIds = [];
     } else if (isDashboardFile(value)) {
       this.type = EntityType.File;
       this.id = value.file.fid;
@@ -182,13 +155,6 @@ export class DashboardEntry {
 
   setSize(size: number): void {
     this.size = size;
-  }
-
-  get project(): DashboardProject {
-    if (!isDashboardProject(this.value)) {
-      throw new Error("Value is not of type DashboardProject.");
-    }
-    return this.value;
   }
 
   get workflow(): DashboardWorkflow {

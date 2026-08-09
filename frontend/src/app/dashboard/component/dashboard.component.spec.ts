@@ -51,7 +51,6 @@ import {
   USER_COMPUTING_UNIT,
   USER_DATASET,
   USER_DISCUSSION,
-  USER_PROJECT,
   USER_QUOTA,
   USER_WORKFLOW,
 } from "../../app-routing.constant";
@@ -257,11 +256,9 @@ describe("DashboardComponent", () => {
   it("should hide the navbar on workflow workspace routes", () => {
     expect(component.isNavbarEnabled("/user/workflow/42")).toBe(false);
     expect(component.isNavbarEnabled("/user/workflow")).toBe(true);
-    expect(component.isNavbarEnabled("/user/project")).toBe(true);
   });
 
   it("exposes route constants without the legacy /dashboard prefix", () => {
-    expect(USER_PROJECT).toBe("/user/project");
     expect(USER_WORKFLOW).toBe("/user/workflow");
     expect(USER_DATASET).toBe("/user/dataset");
     expect(USER_COMPUTING_UNIT).toBe("/user/compute");
@@ -284,7 +281,6 @@ describe("DashboardComponent", () => {
       workflow_enabled: true,
       dataset_enabled: true,
       your_work_enabled: true,
-      projects_enabled: true,
       workflows_enabled: true,
       datasets_enabled: true,
       compute_enabled: true,
@@ -294,8 +290,8 @@ describe("DashboardComponent", () => {
     };
     fixture.detectChanges();
 
-    // 7 "Your Work" links (incl. Python Venvs) + 4 admin links + 1 about link + 1 feedback link = 13
-    expect(fixture.debugElement.queryAll(By.directive(RouterLink)).length).toBe(13);
+    // 6 "Your Work" links (incl. Python Venvs) + 4 admin links + 1 about link + 1 feedback link = 12
+    expect(fixture.debugElement.queryAll(By.directive(RouterLink)).length).toBe(12);
   });
 
   describe("sidebar active-route highlighting (#3490)", () => {
@@ -305,7 +301,6 @@ describe("DashboardComponent", () => {
       workflow_enabled: true,
       dataset_enabled: true,
       your_work_enabled: true,
-      projects_enabled: true,
       workflows_enabled: true,
       datasets_enabled: true,
       compute_enabled: true,

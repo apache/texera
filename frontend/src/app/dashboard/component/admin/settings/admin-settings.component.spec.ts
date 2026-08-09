@@ -422,7 +422,7 @@ describe("AdminSettingsComponent", () => {
 });
 /**
  * The settings form is four near-identical Save/Reset cards, three near-identical upload blocks and
- * twelve switches whose keys include two confusable singular/plural pairs (workflow_enabled vs
+ * eleven switches whose keys include two confusable singular/plural pairs (workflow_enabled vs
  * workflows_enabled, dataset_enabled vs datasets_enabled). Cross-wiring from copy-paste is the
  * realistic defect here, and the suite above never renders an interaction, so none of it was pinned.
  */
@@ -438,7 +438,6 @@ describe("AdminSettingsComponent wiring", () => {
     "workflow_enabled",
     "dataset_enabled",
     "your_work_enabled",
-    "projects_enabled",
     "workflows_enabled",
     "datasets_enabled",
     "compute_enabled",
@@ -527,7 +526,7 @@ describe("AdminSettingsComponent wiring", () => {
     });
 
     it("locks the Your Work children until Your Work itself is on", () => {
-      const yourWorkChildren = [5, 6, 7, 8, 9, 10];
+      const yourWorkChildren = [5, 6, 7, 8, 9];
 
       component.sidebarTabs.your_work_enabled = false;
       fixture.detectChanges();
@@ -544,7 +543,7 @@ describe("AdminSettingsComponent wiring", () => {
       component.sidebarTabs.your_work_enabled = false;
       fixture.detectChanges();
 
-      [0, 4, 11].forEach(i => expect(switches()[i].componentInstance.nzDisabled).toBeFalsy());
+      [0, 4, 10].forEach(i => expect(switches()[i].componentInstance.nzDisabled).toBeFalsy());
     });
   });
 
