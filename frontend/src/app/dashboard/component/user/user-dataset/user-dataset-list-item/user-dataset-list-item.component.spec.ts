@@ -51,6 +51,9 @@ class TestHostComponent {
   @ViewChild(UserDatasetListItemComponent, { static: true }) inner!: UserDatasetListItemComponent;
 }
 
+import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
+import { By } from "@angular/platform-browser";
+
 function makeEntry(overrides: Partial<DashboardDataset> = {}): DashboardDataset {
   return {
     isOwner: true,
@@ -306,6 +309,103 @@ describe("UserDatasetListItemComponent", () => {
       expect(component.deleted).toBeInstanceOf(EventEmitter);
       expect(component.duplicated).toBeInstanceOf(EventEmitter);
       expect(component.refresh).toBeInstanceOf(EventEmitter);
+    });
+  });
+  /**
+   * Whether this row offers any editing is decided in the template, and by TWO conditions rather
+   * than one: the list must be editable AND the viewer must hold WRITE on the dataset. The suite
+   * above exercises the component's methods and never renders, so neither condition was pinned.
+   */
+  describe("rendered row", () => {
+    /** Re-renders the host with the given entry and list-level editability. */
+    function render(over: Partial<DashboardDataset> = {}, editable = true): HTMLElement {
+      fixture.componentInstance.entry = makeEntry(over);
+      fixture.componentInstance.editable = editable;
+      fixture.detectChanges();
+      component = fixture.componentInstance.inner;
+      return fixture.nativeElement as HTMLElement;
+    }
+
+    /** Titles of every tooltip on the row; interpolated ones never reach the DOM as attributes. */
+    function tooltipTitles(): unknown[] {
+      return fixture.debugElement
+        .queryAll(By.directive(NzTooltipDirective))
+        .map(d => (d.injector.get(NzTooltipDirective) as NzTooltipDirective).directiveTitle);
+    }
+
+    function hasTooltip(pred: (t: string) => boolean): boolean {
+      return tooltipTitles().some(t => typeof t === "string" && pred(t));
+    }
+
+    it("offers the editing controls to a writer on an editable list", () => {
+      render({ accessPrivilege: "WRITE" }, true);
+
+      expect(hasTooltip(t => t === "Customize Dataset Name")).toBe(true);
+      expect(hasTooltip(t => t === "Add Description")).toBe(true);
+    });
+
+    it("withholds them from a reader, even on an editable list", () => {
+      // READ access must not be offered a rename it cannot persist; the list being editable is not
+      // on its own permission to change someone else's dataset.
+      render({ accessPrivilege: "READ" }, true);
+
+      expect(hasTooltip(t => t === "Customize Dataset Name")).toBe(false);
+      expect(hasTooltip(t => t === "Add Description")).toBe(false);
+    });
+
+    it("withholds them on a non-editable list, even from a writer", () => {
+      render({ accessPrivilege: "WRITE" }, false);
+
+      expect(hasTooltip(t => t === "Customize Dataset Name")).toBe(false);
+    });
+
+    it("applies the same pair of conditions to the inline description", () => {
+      render({ accessPrivilege: "READ" }, true);
+
+      (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>(".dataset-description-label")?.click();
+      fixture.detectChanges();
+
+      expect(component.editingDescription).toBe(false);
+    });
+
+    it("opens the inline description for a writer", () => {
+      render({ accessPrivilege: "WRITE" }, true);
+
+      (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>(".dataset-description-label")?.click();
+      fixture.detectChanges();
+
+      expect(component.editingDescription).toBe(true);
+    });
+
+    it("marks a dataset the viewer owns, and only that marker", () => {
+      // The two markers are mutually exclusive; showing both would tell an owner their own dataset
+      // had been shared with them.
+      render({ isOwner: true, accessPrivilege: "WRITE" });
+
+      expect(hasTooltip(t => t === "You are the owner")).toBe(true);
+      expect(hasTooltip(t => t.endsWith(" Access"))).toBe(false);
+    });
+
+    it("tells a non-owner what access they hold instead", () => {
+      // The marker interpolates the privilege, so a reader and a writer are told different things.
+      render({ isOwner: false, accessPrivilege: "READ" });
+
+      expect(hasTooltip(t => t === "You are the owner")).toBe(false);
+      expect(hasTooltip(t => t === "READ Access")).toBe(true);
+    });
+
+    it("swaps the name for an input once renaming starts", () => {
+      const el = render({ accessPrivilege: "WRITE" }, true);
+      expect(el.querySelector("nz-list-item-meta-title input")).toBeNull();
+
+      component.editingName = true;
+      fixture.detectChanges();
+
+      const input = (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>(
+        "nz-list-item-meta-title input"
+      )!;
+      expect(input).not.toBeNull();
+      expect(input.value).toBe(component.dataset.name);
     });
   });
 });
