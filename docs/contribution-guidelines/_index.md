@@ -68,9 +68,11 @@ Fork the [Texera repository](https://github.com/apache/texera) on GitHub and clo
 We use [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/):
 - Example PR titles:
   - `feat: add new join operator`
-  - `fix(ui): resolve workflow panel crash`
+  - `fix(frontend): resolve workflow panel crash`
   - `chore(deps): bump dependency versions`
 - The PR title becomes the final squashed commit message upon merge.
+
+A scope names the module the change lands in — `amber`, `pyamber`, `frontend`, `agent-service`, `file-service`, and so on. Use the module's own name rather than an informal synonym, and when a PR spans modules, scope it to the one carrying the substantive change.
 
 Pick the type by what happens to the behavior, not by how large the change is:
 

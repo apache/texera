@@ -51,8 +51,10 @@ Thank you for your interest in contributing to Texera! Please follow the steps b
 - All PR titles will be used as the **squashed commit message** when merged into the `main` branch.
 - Example PR titles:
   - `feat: add a new join operator`
-  - `fix(ui): prevent racing of requests`
+  - `fix(frontend): prevent racing of requests`
   - `chore(deps, pyamber): bump numpy to version 2.0.0`
+
+A scope names the module the change lands in — `amber`, `pyamber`, `frontend`, `agent-service`, `file-service`, and so on. Use the module's own name rather than an informal synonym, and when a PR spans modules, scope it to the one carrying the substantive change.
 
 ##### Choosing between `feat`, `fix`, and `refactor`
 
