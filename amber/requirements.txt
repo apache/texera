@@ -22,15 +22,15 @@ pyarrow==23.0.1
 betterproto==2.0.0b7
 pampy==0.3.0
 overrides==7.7.0
-typing_extensions==4.14.1
-bidict==0.22.0
+typing_extensions==4.16.0
+bidict==0.23.1
 cached_property==2.0.1
 psutil==7.2.2
 tzlocal==2.1
 # Not imported directly: s3fs (with aiobotocore) backs pyiceberg's
 # fsspec-based S3 FileIO (#4272).
-s3fs==2026.6.0
-botocore==1.42.90
+s3fs==2026.7.0
+botocore==1.43.67
 pyiceberg==0.11.1
 readerwriterlock==1.0.9
 tenacity==9.1.4
@@ -39,6 +39,6 @@ tenacity==9.1.4
 SQLAlchemy==2.0.51
 pg8000==1.31.5
 pympler==1.1
-boto3==1.42.90
+boto3==1.43.67
 requests==2.34.2
 urllib3==2.7.0
