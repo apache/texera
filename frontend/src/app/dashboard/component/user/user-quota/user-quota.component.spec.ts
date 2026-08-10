@@ -276,6 +276,7 @@ describe("UserQuotaComponent", () => {
       }
       tab.click();
       fixture.detectChanges();
+      return host;
     }
 
     /** Expands the collapse panel whose header contains the given text. */
