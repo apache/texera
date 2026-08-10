@@ -328,9 +328,15 @@ const textModel = (text: string, i = 11, o = 7) =>
     }),
   });
 
-/** Sibling of makeAgent() that takes a stand-in model, so sendMessage runs with no network. */
+/** Sibling of makeAgent() that takes a stand-in model, so sendMessage runs with no network.
+ *  Every agent built here is tracked and destroyed from `afterEach` rather than per test: a
+ *  failing assertion would skip an in-test `destroy()`, and a pending auto-persist debounce
+ *  could then fire after the fetch spy is restored and issue a real request. */
+const liveAgents: TexeraAgent[] = [];
 function makeAgentWith(model: any): TexeraAgent {
-  return new TexeraAgent({ model, modelType: "test-model", agentId: "agent-1", systemPrompt: "SYS-XYZ" });
+  const agent = new TexeraAgent({ model, modelType: "test-model", agentId: "agent-1", systemPrompt: "SYS-XYZ" });
+  liveAgents.push(agent);
+  return agent;
 }
 
 /** A source operator. `inputPorts: []` matters — a non-empty one fails validateOperatorConnection
@@ -360,7 +366,11 @@ beforeEach(() => {
     throw new Error("unexpected fetch");
   }) as any);
 });
-afterEach(() => fetchSpy.mockRestore());
+afterEach(() => {
+  // Destroy before restoring the spy — destruction is what cancels a pending auto-persist.
+  for (const agent of liveAgents.splice(0)) agent.destroy();
+  fetchSpy.mockRestore();
+});
 
 /**
  * sendMessage was the largest untested region in the file. Everything it needs is in-process:
@@ -782,11 +792,10 @@ describe("sendMessage", () => {
 /**
  * With a delegate config the agent talks to the backend, so these drive it through `fetch`.
  *
- * Two traps. Setting a delegate config makes the first turn refresh from the backend, and that
+ * One trap. Setting a delegate config makes the first turn refresh from the backend, and that
  * refresh replaces the whole workflow — so operators have to arrive through `dispatch`'s stub
- * rather than being seeded on the agent. And every test here ends with `agent.destroy()`,
- * because the auto-persist debounce would otherwise fire after the fetch spy is restored and
- * issue a real request.
+ * rather than being seeded on the agent. Destruction, which is what cancels the auto-persist
+ * debounce, is centralized in the root `afterEach` so it runs even when a test fails mid-way.
  */
 describe("delegate mode", () => {
   const wfBody = (ops: any[]) => ({
@@ -848,7 +857,6 @@ describe("delegate mode", () => {
     expect(agent.getAllSteps()[0].beforeWorkflowContent?.operators.length).toBe(1);
     await agent.sendMessage("two");
     expect(retrieves()).toBe(1);
-    agent.destroy();
   });
 
   test("a failed refresh is swallowed", async () => {
@@ -868,7 +876,6 @@ describe("delegate mode", () => {
         .getAllOperators()
         .map((o: any) => o.operatorID)
     ).toEqual(["local-op"]);
-    agent.destroy();
   });
 
   test("auto-executes after modifyOperator and keys the result at the agent step", async () => {
@@ -876,41 +883,45 @@ describe("delegate mode", () => {
     const vSpy = spyOn(WorkflowSystemMetadata.getInstance(), "validateOperatorProperties").mockReturnValue({
       isValid: true,
     } as any);
-    let n = 0;
-    const model = new MockLanguageModelV4({
-      doGenerate: async () => {
-        n++;
-        if (n === 1)
+    try {
+      let n = 0;
+      const model = new MockLanguageModelV4({
+        doGenerate: async () => {
+          n++;
+          if (n === 1)
+            return {
+              content: [
+                {
+                  type: "tool-call",
+                  toolCallId: "c1",
+                  toolName: "modifyOperator",
+                  input: JSON.stringify({ operatorId: "op-1", summary: "renamed" }),
+                },
+              ],
+              finishReason: finish("tool-calls"),
+              usage: usage(1, 1),
+              warnings: [],
+            } as any;
           return {
-            content: [
-              {
-                type: "tool-call",
-                toolCallId: "c1",
-                toolName: "modifyOperator",
-                input: JSON.stringify({ operatorId: "op-1", summary: "renamed" }),
-              },
-            ],
-            finishReason: finish("tool-calls"),
+            content: [{ type: "text", text: "d" }],
+            finishReason: finish("stop"),
             usage: usage(1, 1),
             warnings: [],
           } as any;
-        return {
-          content: [{ type: "text", text: "d" }],
-          finishReason: finish("stop"),
-          usage: usage(1, 1),
-          warnings: [],
-        } as any;
-      },
-    });
-    const agent = makeAgentWith(model);
-    agent.setDelegateConfig({ userToken: "tok", workflowId: 7, workflowName: "w" });
-    await agent.sendMessage("modify it");
-    const steps = agent.getAllSteps();
-    const txt2 = (model as any).doGenerateCalls[1].prompt[1].content[0].text;
-    expect(urls.some(u => u.includes("/api/execution/7/0/run"))).toBe(true);
-    expect((agent.getWorkflowResultState() as any).get("op-1").stepId).toBe(steps[1].id);
-    vSpy.mockRestore();
-    agent.destroy();
+        },
+      });
+      const agent = makeAgentWith(model);
+      agent.setDelegateConfig({ userToken: "tok", workflowId: 7, workflowName: "w" });
+      await agent.sendMessage("modify it");
+      const steps = agent.getAllSteps();
+      const txt2 = (model as any).doGenerateCalls[1].prompt[1].content[0].text;
+      expect(urls.some(u => u.includes("/api/execution/7/0/run"))).toBe(true);
+      expect((agent.getWorkflowResultState() as any).get("op-1").stepId).toBe(steps[1].id);
+    } finally {
+      // A leaked always-valid stub would let the rejected-modification test below pass validation
+      // and execute, so the restore has to survive a failed assertion.
+      vSpy.mockRestore();
+    }
   });
 
   test("executeOperator tool keys its result at the current head (the user step)", async () => {
@@ -920,40 +931,42 @@ describe("delegate mode", () => {
     const vSpy = spyOn(WorkflowSystemMetadata.getInstance(), "validateOperatorProperties").mockReturnValue({
       isValid: true,
     } as any);
-    let n = 0;
-    const model = new MockLanguageModelV4({
-      doGenerate: async () => {
-        n++;
-        if (n === 1)
+    try {
+      let n = 0;
+      const model = new MockLanguageModelV4({
+        doGenerate: async () => {
+          n++;
+          if (n === 1)
+            return {
+              content: [
+                {
+                  type: "tool-call",
+                  toolCallId: "c1",
+                  toolName: "executeOperator",
+                  input: JSON.stringify({ operatorId: "op-1" }),
+                },
+              ],
+              finishReason: finish("tool-calls"),
+              usage: usage(1, 1),
+              warnings: [],
+            } as any;
           return {
-            content: [
-              {
-                type: "tool-call",
-                toolCallId: "c1",
-                toolName: "executeOperator",
-                input: JSON.stringify({ operatorId: "op-1" }),
-              },
-            ],
-            finishReason: finish("tool-calls"),
+            content: [{ type: "text", text: "d" }],
+            finishReason: finish("stop"),
             usage: usage(1, 1),
             warnings: [],
           } as any;
-        return {
-          content: [{ type: "text", text: "d" }],
-          finishReason: finish("stop"),
-          usage: usage(1, 1),
-          warnings: [],
-        } as any;
-      },
-    });
-    const agent = makeAgentWith(model);
-    agent.setDelegateConfig({ userToken: "tok", workflowId: 7, workflowName: "w" });
-    await agent.sendMessage("run it");
-    const steps = agent.getAllSteps();
-    expect(urls.filter(u => u.includes("/api/execution/")).length).toBe(1);
-    expect((agent.getWorkflowResultState() as any).get("op-1").stepId).toBe(steps[0].id);
-    vSpy.mockRestore();
-    agent.destroy();
+        },
+      });
+      const agent = makeAgentWith(model);
+      agent.setDelegateConfig({ userToken: "tok", workflowId: 7, workflowName: "w" });
+      await agent.sendMessage("run it");
+      const steps = agent.getAllSteps();
+      expect(urls.filter(u => u.includes("/api/execution/")).length).toBe(1);
+      expect((agent.getWorkflowResultState() as any).get("op-1").stepId).toBe(steps[0].id);
+    } finally {
+      vSpy.mockRestore();
+    }
   });
 
   test("a tool call missing operatorId does not trigger a whole-workflow run", async () => {
@@ -985,7 +998,6 @@ describe("delegate mode", () => {
     const step = agent.getAllSteps()[1];
     expect(step.toolResults).toEqual([]);
     expect(urls.some(u => u.includes("/api/execution/"))).toBe(false);
-    agent.destroy();
   });
 
   test("a rejected modification suppresses the follow-up execution", async () => {
@@ -994,49 +1006,53 @@ describe("delegate mode", () => {
     dispatch(okExec, srcOp("op-1", { fileName: "a.csv" }));
     const saved = (WorkflowSystemMetadata as any).instance;
     (WorkflowSystemMetadata as any).instance = undefined;
-    WorkflowSystemMetadata.getInstance().loadFromMetadata({
-      operators: [
-        {
-          operatorType: "CSVFileScan",
-          jsonSchema: { type: "object", properties: { fileName: { type: "string" } }, required: ["fileName"] },
-          additionalMetadata: { userFriendlyName: "CSV", operatorDescription: "csv" },
-        },
-      ],
-    } as any);
-    let n = 0;
-    const model = new MockLanguageModelV4({
-      doGenerate: async () => {
-        n++;
-        if (n === 1)
+    try {
+      WorkflowSystemMetadata.getInstance().loadFromMetadata({
+        operators: [
+          {
+            operatorType: "CSVFileScan",
+            jsonSchema: { type: "object", properties: { fileName: { type: "string" } }, required: ["fileName"] },
+            additionalMetadata: { userFriendlyName: "CSV", operatorDescription: "csv" },
+          },
+        ],
+      } as any);
+      let n = 0;
+      const model = new MockLanguageModelV4({
+        doGenerate: async () => {
+          n++;
+          if (n === 1)
+            return {
+              content: [
+                {
+                  type: "tool-call",
+                  toolCallId: "c1",
+                  toolName: "modifyOperator",
+                  input: JSON.stringify({ operatorId: "op-1", properties: { fileName: 123 }, summary: "s" }),
+                },
+              ],
+              finishReason: finish("tool-calls"),
+              usage: usage(1, 1),
+              warnings: [],
+            } as any;
           return {
-            content: [
-              {
-                type: "tool-call",
-                toolCallId: "c1",
-                toolName: "modifyOperator",
-                input: JSON.stringify({ operatorId: "op-1", properties: { fileName: 123 }, summary: "s" }),
-              },
-            ],
-            finishReason: finish("tool-calls"),
+            content: [{ type: "text", text: "d" }],
+            finishReason: finish("stop"),
             usage: usage(1, 1),
             warnings: [],
           } as any;
-        return {
-          content: [{ type: "text", text: "d" }],
-          finishReason: finish("stop"),
-          usage: usage(1, 1),
-          warnings: [],
-        } as any;
-      },
-    });
-    const agent = makeAgentWith(model);
-    agent.setDelegateConfig({ userToken: "tok", workflowId: 7 });
-    await agent.sendMessage("bad props");
-    const step = agent.getAllSteps()[1];
-    expect(String(step.toolResults?.[0]?.output)).toStartWith("[ERROR]");
-    expect(urls.some(u => u.includes("/api/execution/"))).toBe(false);
-    agent.destroy();
-    (WorkflowSystemMetadata as any).instance = saved;
+        },
+      });
+      const agent = makeAgentWith(model);
+      agent.setDelegateConfig({ userToken: "tok", workflowId: 7 });
+      await agent.sendMessage("bad props");
+      const step = agent.getAllSteps()[1];
+      expect(String(step.toolResults?.[0]?.output)).toStartWith("[ERROR]");
+      expect(urls.some(u => u.includes("/api/execution/"))).toBe(false);
+    } finally {
+      // The swap must be undone even on a failed assertion, or the stub metadata leaks into
+      // every later test that touches the singleton.
+      (WorkflowSystemMetadata as any).instance = saved;
+    }
   });
 
   test("buildExecutionConfig projects the delegate config and live settings", async () => {
@@ -1074,7 +1090,6 @@ describe("delegate mode", () => {
       "o1",
       "o2",
     ]);
-    agent.destroy();
   });
 
   test("a failed auto-persist is logged, not thrown", async () => {
@@ -1086,6 +1101,5 @@ describe("delegate mode", () => {
     await new Promise(r => setTimeout(r, 700));
     expect(errs.length).toBe(1);
     expect(errs[0][1]).toBe("failed to auto-persist workflow");
-    agent.destroy();
   });
 });
