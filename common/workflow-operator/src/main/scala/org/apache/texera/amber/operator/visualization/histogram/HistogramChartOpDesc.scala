@@ -20,7 +20,7 @@
 package org.apache.texera.amber.operator.visualization.histogram
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
-import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
+import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
@@ -51,9 +51,15 @@ class HistogramChartOpDesc extends PythonOperatorDescriptor {
   @AutofillAttributeName
   var separateBy: EncodableString = ""
 
+  // Empty stays the "no marginal plot" value instead of a `none` sentinel: saved
+  // workflows already hold it, and a stored value outside the enum would fail the
+  // property editor's validation.
   @JsonProperty(required = false, defaultValue = "")
   @JsonSchemaTitle("Distribution Type")
-  @JsonPropertyDescription("Distribution type (rug, box, violin).")
+  @JsonPropertyDescription("Optional marginal plot to display alongside the histogram.")
+  @JsonSchemaInject(
+    json = """{ "enum": ["", "rug", "box", "violin", "histogram"], "default": "" }"""
+  )
   var marginal: EncodableString = ""
 
   @JsonProperty(required = false)

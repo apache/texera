@@ -18,6 +18,20 @@
  */
 
 import { of, Subject } from "rxjs";
+import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { By } from "@angular/platform-browser";
+import { provideRouter } from "@angular/router";
+import { NzModalService } from "ng-zorro-antd/modal";
+import { NzMessageService } from "ng-zorro-antd/message";
+import { en_US, NZ_I18N } from "ng-zorro-antd/i18n";
+import { UserService } from "../../../../common/service/user/user.service";
+import { StubUserService } from "../../../../common/service/user/stub-user.service";
+import { SearchService } from "../../../service/user/search.service";
+import { DatasetService } from "../../../service/user/dataset/dataset.service";
+import { SearchResultsComponent } from "../search-results/search-results.component";
+import { SortButtonComponent } from "../sort-button/sort-button.component";
+import { commonTestImports, commonTestProviders } from "../../../../common/testing/test-utils";
+
 import { UserDatasetComponent } from "./user-dataset.component";
 import { USER_DATASET } from "../../../../app-routing.constant";
 import { UserDatasetVersionCreatorComponent } from "./user-dataset-explorer/user-dataset-version-creator/user-dataset-version-creator.component";
@@ -366,5 +380,144 @@ describe("UserDatasetComponent", () => {
       localStorage.setItem(VIEW_MODE_KEY, "card");
       expect(makeFreshComponent().viewType).toBe("card");
     });
+  });
+});
+/**
+ * The existing suite constructs the component directly, so its template has never been rendered.
+ * These tests mount it for real: the view toggle, the sort wiring and the bindings handed to the
+ * results list all live only in the template.
+ */
+/** Mirrors UserDatasetComponent's private static VIEW_MODE_STORAGE_KEY. */
+const VIEW_MODE_STORAGE_KEY = "texera.userDataset.viewMode";
+
+describe("UserDatasetComponent rendering", () => {
+  let fixture: ComponentFixture<UserDatasetComponent>;
+  let component: UserDatasetComponent;
+  let searchSpy: ReturnType<typeof vi.fn>;
+
+  beforeEach(async () => {
+    // viewType is seeded from localStorage at construction, so a view chosen by an earlier test
+    // would leak into this one. Only this component's key is removed, so nothing else in the
+    // shared jsdom store is disturbed.
+    localStorage.removeItem(VIEW_MODE_STORAGE_KEY);
+    searchSpy = vi.fn(() => of({ entries: [], more: false, hasMismatch: false }));
+    await TestBed.configureTestingModule({
+      imports: [UserDatasetComponent, ...commonTestImports],
+      providers: [
+        { provide: NzModalService, useValue: { create: vi.fn() } },
+        { provide: UserService, useClass: StubUserService },
+        { provide: SearchService, useValue: { executeSearch: searchSpy } },
+        { provide: DatasetService, useValue: { deleteDatasets: vi.fn(() => of({} as Response)) } },
+        { provide: NzMessageService, useValue: { warning: vi.fn() } },
+        // ng-zorro defaults to zh-cn and throws NG0701 without locale data; the app registers en_US.
+        { provide: NZ_I18N, useValue: en_US },
+        provideRouter([]),
+        ...commonTestProviders,
+      ],
+    }).compileComponents();
+
+    fixture = TestBed.createComponent(UserDatasetComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+  });
+
+  afterEach(() => {
+    // Also on the way out: the persistence test leaves a chosen view behind, and this key is
+    // shared with the suite above.
+    localStorage.removeItem(VIEW_MODE_STORAGE_KEY);
+    vi.restoreAllMocks();
+  });
+
+  /**
+   * The two view-mode buttons, found by title: the sort button renders its own <button> into the
+   * same nz-space-compact, so a positional selector picks that up first.
+   */
+  function viewButtons(): { list: HTMLButtonElement; card: HTMLButtonElement } {
+    const host = fixture.nativeElement as HTMLElement;
+    const list = host.querySelector<HTMLButtonElement>('button[title="List View"]');
+    const card = host.querySelector<HTMLButtonElement>('button[title="Card View"]');
+    // Named up front so a renamed title fails as a missing button rather than a null dereference
+    // three lines later.
+    expect(list, 'no button titled "List View"').not.toBeNull();
+    expect(card, 'no button titled "Card View"').not.toBeNull();
+    return { list: list!, card: card! };
+  }
+
+  it("starts in card view with only that button highlighted", () => {
+    // nz-button renders nzType="primary" as ant-btn-primary; the highlight is how the user can tell
+    // which view they are in, so it has to follow viewType rather than being fixed.
+    const { list, card } = viewButtons();
+
+    expect(component.viewType).toBe("card");
+    expect(card.classList).toContain("ant-btn-primary");
+    expect(list.classList).not.toContain("ant-btn-primary");
+  });
+
+  it("moves the highlight when the list view is chosen", () => {
+    viewButtons().list.click();
+    fixture.detectChanges();
+
+    const { list, card } = viewButtons();
+    expect(component.viewType).toBe("list");
+    expect(list.classList).toContain("ant-btn-primary");
+    expect(card.classList).not.toContain("ant-btn-primary");
+  });
+
+  it("remembers the chosen view for the next visit", () => {
+    // The preference is persisted, so a fresh component picks it back up.
+    viewButtons().list.click();
+
+    const reopened = TestBed.createComponent(UserDatasetComponent);
+    expect(reopened.componentInstance.viewType).toBe("list");
+  });
+
+  it("passes the chosen view down to the results list", () => {
+    const results = fixture.debugElement.query(By.directive(SearchResultsComponent)).componentInstance;
+    expect(results.viewMode).toBe("card");
+
+    component.setViewType("list");
+    fixture.detectChanges();
+
+    expect(fixture.debugElement.query(By.directive(SearchResultsComponent)).componentInstance.viewMode).toBe("list");
+  });
+
+  it("marks the results list as editable and private", () => {
+    // This is the user's own dataset page, so entries are editable and the search is scoped to them.
+    const results = fixture.debugElement.query(By.directive(SearchResultsComponent)).componentInstance;
+
+    expect(results.editable).toBe(true);
+    expect(results.isPrivateSearch).toBe(true);
+  });
+
+  it("re-runs the search when the sort method changes", () => {
+    // The template statement does two things — assign then search — and dropping either leaves the
+    // list showing results in the previous order.
+    const sortButton = fixture.debugElement.query(By.directive(SortButtonComponent));
+    searchSpy.mockClear();
+
+    sortButton.componentInstance.sortMethodChange.emit(SortMethod.NameAsc);
+    fixture.detectChanges();
+
+    expect(component.sortMethod).toBe(SortMethod.NameAsc);
+    expect(searchSpy).toHaveBeenCalled();
+  });
+
+  it("opens the create-dataset flow from the toolbar button", () => {
+    const spy = vi.spyOn(component, "onClickOpenDatasetAddComponent").mockImplementation(() => {});
+    const host = fixture.nativeElement as HTMLElement;
+    const create = host.querySelector<HTMLButtonElement>("button.create-btn");
+    expect(create, "no button matching .create-btn").not.toBeNull();
+
+    create!.click();
+
+    expect(spy).toHaveBeenCalledTimes(1);
+  });
+
+  it("hides the sort button's execution-time options on the dataset page", () => {
+    // Datasets have no executions, so those sort options must not be offered.
+    const sortButton = fixture.debugElement.query(By.directive(SortButtonComponent)).componentInstance;
+
+    expect(sortButton.showEditTime).toBe(false);
+    expect(sortButton.showExecutionTime).toBe(false);
   });
 });
