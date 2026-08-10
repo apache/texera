@@ -34,6 +34,7 @@ import javax.ws.rs.core.MediaType
 object GoogleAuthResource {
 
   final private lazy val clientId = UserSystemConfig.googleClientId
+
   /**
     * Reduce a verified Google id-token payload to the fields we persist. Google omits `name`
     * for accounts with no profile name, and the provisioner writes `name` straight to a NOT
@@ -75,7 +76,6 @@ class GoogleAuthResource {
   @GET
   @Path("/clientid")
   def getClientId: String = GoogleAuthResource.clientId
-
 
   /**
     * Verify `credential` against Google, yielding its payload, or None if it is not a valid
