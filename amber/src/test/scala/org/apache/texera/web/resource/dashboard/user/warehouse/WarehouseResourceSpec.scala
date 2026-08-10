@@ -59,13 +59,19 @@ class WarehouseResourceSpec
   private val deletedIds = mutable.Buffer[UUID]()
   private val stubWarehouseId = UUID.randomUUID()
 
+  @volatile private var createFailure: Option[Exception] = None
+  @volatile private var deleteFailure: Option[Exception] = None
+
   private val stubClient: LakekeeperClient = new LakekeeperClient() {
     override def createWarehouse(warehouseName: String): UUID = {
+      createFailure.foreach(throw _)
       createdNames += warehouseName
       stubWarehouseId
     }
-    override def deleteWarehouseEmptyFirst(warehouseId: UUID): Unit =
+    override def deleteWarehouseEmptyFirst(warehouseId: UUID): Unit = {
+      deleteFailure.foreach(throw _)
       deletedIds += warehouseId
+    }
   }
 
   private val resource = new WarehouseResource(stubClient)
@@ -100,6 +106,8 @@ class WarehouseResourceSpec
 
   override protected def beforeEach(): Unit = {
     StorageConfig.warehouseEnabled = true
+    createFailure = None
+    deleteFailure = None
     createdNames.clear()
     deletedIds.clear()
     getDSLContext.deleteFrom(USER_WAREHOUSE).execute()
@@ -180,6 +188,51 @@ class WarehouseResourceSpec
     // The just-created (empty) Lakekeeper warehouse must not be orphaned.
     deletedIds.toList shouldBe List(stubWarehouseId)
     resource.status(sessionUser).warehouses shouldBe empty
+  }
+
+  "a Lakekeeper failure" should "surface as 502 on create and delete" in {
+    createFailure = Some(new RuntimeException("Lakekeeper create failed (HTTP 500): boom"))
+    val createError = intercept[WebApplicationException] {
+      resource.create(CreateWarehouseRequest("unlucky"), sessionUser)
+    }
+    createError.getResponse.getStatus shouldBe 502
+    resource.status(sessionUser).warehouses shouldBe empty
+
+    createFailure = None
+    val created = resource.create(CreateWarehouseRequest("undeletable"), sessionUser)
+    deleteFailure = Some(new RuntimeException("Lakekeeper delete failed (HTTP 500): boom"))
+    val deleteError = intercept[WebApplicationException] {
+      resource.delete(created.whid, sessionUser)
+    }
+    deleteError.getResponse.getStatus shouldBe 502
+    // The row must survive a failed Lakekeeper delete, so the user can retry.
+    resource.status(sessionUser).warehouses.map(_.whid) shouldBe List(created.whid)
+  }
+
+  "a failed compensation" should "be logged and still surface the original failure" in {
+    val squatter = getDSLContext.newRecord(USER_WAREHOUSE)
+    squatter.setUid(otherUser.getUid)
+    squatter.setName("unrelated-2")
+    squatter.setWarehouseName(s"user-${sessionUser.getUid}-doublefault")
+    squatter.setLakekeeperWarehouseId(UUID.randomUUID())
+    squatter.setFlavor(
+      org.apache.texera.dao.jooq.generated.enums.UserWarehouseFlavorEnum.local
+    )
+    squatter.store()
+
+    deleteFailure = Some(new RuntimeException("cleanup also failed"))
+    val error = intercept[WebApplicationException] {
+      resource.create(CreateWarehouseRequest("doublefault"), sessionUser)
+    }
+    error.getResponse.getStatus shouldBe 500
+    resource.status(sessionUser).warehouses shouldBe empty
+  }
+
+  "the no-arg constructor" should "build against the configured Lakekeeper client" in {
+    StorageConfig.warehouseEnabled = false
+    // Jersey instantiates the resource reflectively via this constructor; the
+    // disabled status path exercises it without any Lakekeeper call.
+    new WarehouseResource().status(sessionUser).enabled shouldBe false
   }
 
   it should "not let a user delete someone else's warehouse" in {

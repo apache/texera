@@ -65,6 +65,14 @@ class WarehouseReadGuardSpec extends AnyFlatSpec with Matchers {
       WarehouseReadGuard.assertReadable(uri("/wh/a%2Fb/wid/1/eid/2/result"), enabled = false)
   }
 
+  "the default enabled argument" should "read the configured flag" in {
+    // Covers the default-argument methods; a default-warehouse URI passes and is
+    // never skipped in either flag state, so this is deterministic regardless of
+    // the configured value.
+    noException should be thrownBy WarehouseReadGuard.assertReadable(uri("/wid/1/eid/2/result"))
+    WarehouseReadGuard.skipWhileDisabled(uri("/wid/1/eid/2/result")) shouldBe false
+  }
+
   "skipWhileDisabled" should "skip exactly the warehouse-scoped URIs while the feature is off" in {
     WarehouseReadGuard.skipWhileDisabled(
       uri("/wh/user-7-mybucket/wid/1/eid/2/result"),
