@@ -39,6 +39,11 @@ Global / concurrentRestrictions += Tags.limit(Tags.Test, 1)
 // excludes it and amber-integration, which installs operator-requirements.txt,
 // runs it. The amber job already sets this env var on the step that invokes
 // WorkflowOperator/jacoco, so no workflow change is needed for the exclusion.
+//
+// PythonCodeRawInvalidTextSpec reads the same env var and value directly, to tell
+// a missing package in amber-integration (a defect) from one on a developer's
+// machine (a local-setup fact). Renaming either without the other leaves that test
+// cancelling in the job meant to fail it.
 Test / testOptions ++= TestFilters.integrationSplit(
   envVar = "AMBER_TEST_FILTER",
   tag = "org.apache.texera.amber.operator.tags.IntegrationTest"

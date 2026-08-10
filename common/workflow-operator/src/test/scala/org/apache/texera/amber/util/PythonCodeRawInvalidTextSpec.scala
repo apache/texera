@@ -85,7 +85,7 @@ final class PythonCodeRawInvalidTextSpec extends AnyFunSuite {
     } finally threads.shutdownNow()
   }
 
-  /** Checks the pooled path could not serve. Not a failure — the spawn each one
+  /** Count of checks the pooled path could not serve. Not a failure — the spawn each one
     * fell back to is the pre-pool behavior — but a number the summary has to
     * carry, since a check passing says nothing about which path answered it.
     */
@@ -329,7 +329,7 @@ final class PythonCodeRawInvalidTextSpec extends AnyFunSuite {
 
     // Checked concurrently: the fan-out is what turns the pool's workers into
     // parallel interpreters rather than a queue in front of one. The executor is
-    // sized to maxWorkers, so nothing is submitted past the cap.
+    // sized to maxWorkers, so nothing runs past the cap.
     val allFindings = awaitAll(descriptorCandidates.map { descriptorClass => () =>
       val checkResult =
         PythonReflectionUtils.checkDescriptorWithCode(
@@ -377,6 +377,12 @@ final class PythonCodeRawInvalidTextSpec extends AnyFunSuite {
     "the Python interpreter operator templates run in should import pandas and plotly",
     Tag(classOf[IntegrationTest].getName)
   ) {
+    // Same env var and value the build reads to select this subset, in
+    // common/workflow-operator/build.sbt; keep the two in step. Nothing enforces
+    // that from here, since TestFilters is build-scope and cannot be imported: if
+    // the selector is renamed and this string is not, the test keeps running in
+    // amber-integration but cancels instead of failing, which is the non-result
+    // the tag exists to remove.
     val provisioned = sys.env.get("AMBER_TEST_FILTER").contains("integration-only")
     def unavailable(message: String): Nothing =
       if (provisioned) fail(message) else cancel(message)

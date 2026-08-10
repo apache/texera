@@ -101,7 +101,7 @@ object PythonWorkerPool extends LazyLogging {
       .map(_.trim.toLowerCase)
       .exists(Set("0", "false", "off"))
 
-  /** Max live workers per sub-pool — per sub-pool, so callers on distinct worker
+  /** Max live workers per sub-pool, so callers on distinct worker
     * scripts add up rather than share this bound. Defaults to 4, override via
     * `TEXERA_TEST_PYTHON_WORKERS`. Public so a caller fanning out jobs within one
     * test can size that fan-out to the workers it will get.
