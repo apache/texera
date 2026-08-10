@@ -49,6 +49,7 @@ describe("TexeraLoginComponent", () => {
     TestBed.resetTestingModule();
     authState$ = new Subject<SocialUser | null>();
     userServiceMock = {
+      isLogin: vi.fn().mockReturnValue(false),
       login: vi.fn().mockReturnValue(of(undefined)),
       register: vi.fn().mockReturnValue(of(undefined)),
       googleLogin: vi.fn().mockReturnValue(of(undefined)),
@@ -110,6 +111,39 @@ describe("TexeraLoginComponent", () => {
 
       expect(component.form.get("username")!.value).toBe("");
       expect(component.form.get("password")!.value).toBe("");
+    });
+
+    // Nothing on this page is useful to someone already signed in. This replaces the
+    // route guard that used to bounce them before the component was ever constructed.
+    it("sends an already-signed-in visitor to their workflows", () => {
+      (userServiceMock.isLogin as any).mockReturnValue(true);
+
+      component.ngOnInit();
+
+      expect(routerMock.navigateByUrl).toHaveBeenCalledWith(USER_WORKFLOW);
+    });
+
+    // The auth guard and the 401 interceptor both attach a returnUrl; if the visitor turns
+    // out to still be signed in, honour it rather than dumping them on the default page.
+    it("honours a returnUrl when redirecting an already-signed-in visitor", async () => {
+      await createComponent({ returnUrl: "/dashboard/user/dataset" });
+      (userServiceMock.isLogin as any).mockReturnValue(true);
+
+      component.ngOnInit();
+
+      expect(routerMock.navigateByUrl).toHaveBeenCalledWith("/dashboard/user/dataset");
+    });
+
+    it("skips the prefill and the Google subscription when already signed in", () => {
+      const config = TestBed.inject(GuiConfigService) as unknown as MockGuiConfigService;
+      config.setConfig({ defaultLocalUser: { username: "preset-user", password: "preset-pass" } });
+      (userServiceMock.isLogin as any).mockReturnValue(true);
+
+      component.ngOnInit();
+      authState$.next(googleUser("tok"));
+
+      expect(component.form.get("username")!.value).toBe("");
+      expect(userServiceMock.googleLogin).not.toHaveBeenCalled();
     });
   });
 
