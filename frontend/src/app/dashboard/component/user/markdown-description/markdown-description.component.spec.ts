@@ -309,4 +309,93 @@ describe("MarkdownDescriptionComponent", () => {
     expect(parse).not.toHaveBeenCalled();
     expect(component.renderedDescription).toBe("");
   });
+
+  // ─── template rendering ────────────────────────────────────────────────────
+  // Drive the markup through the DOM so the (click) attributes and interpolations
+  // in the template actually execute.
+  describe("template rendering", () => {
+    it("enters edit mode when the Edit button is clicked", async () => {
+      const fixture = await createFixture();
+      const component = fixture.componentInstance;
+      component.editable = true;
+      fixture.detectChanges();
+
+      const editBtn = fixture.nativeElement.querySelector(".md-actions button") as HTMLButtonElement;
+      expect(editBtn).toBeTruthy();
+      editBtn.click();
+      fixture.detectChanges();
+
+      expect(component.currentMode).toBe("edit");
+      // the edit-mode arm of the template now renders
+      expect(fixture.nativeElement.querySelector(".md-split")).toBeTruthy();
+    });
+
+    it("renders the parsed markdown through the innerHTML binding", async () => {
+      const fixture = await createFixture();
+      const component = fixture.componentInstance;
+      component.description = "hello";
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      const rendered = fixture.nativeElement.querySelector(".md-rendered") as HTMLElement;
+      expect(rendered).toBeTruthy();
+      expect(rendered.innerHTML).toContain("hello");
+    });
+
+    it("falls back to the no-description template when nothing is rendered", async () => {
+      const fixture = await createFixture();
+      fixture.componentInstance.description = "";
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(fixture.nativeElement.querySelector(".md-rendered")).toBeNull();
+      expect(fixture.nativeElement.textContent).toContain("No description provided.");
+    });
+
+    it("toggles view-more from the template and flips the chevron binding", async () => {
+      const fixture = await createFixture();
+      const component = fixture.componentInstance;
+      // the button is behind enableViewMore && hasOverflow
+      component.enableViewMore = true;
+      component.hasOverflow = true;
+      fixture.detectChanges();
+
+      const viewMoreBtn = fixture.nativeElement.querySelector(".view-more-btn") as HTMLButtonElement;
+      expect(viewMoreBtn).toBeTruthy();
+      // nz-icon renders [nzType] as an `anticon-<type>` class, so the chevron binding is
+      // observable alongside the label interpolation
+      const chevronType = (): string | undefined =>
+        Array.from(viewMoreBtn.querySelector("i")?.classList ?? [])
+          .find(cls => cls.startsWith("anticon-"))
+          ?.replace("anticon-", "");
+
+      expect(viewMoreBtn.textContent).toContain("View more");
+      expect(chevronType()).toBe("down");
+
+      viewMoreBtn.click();
+      fixture.detectChanges();
+
+      expect(component.isExpanded).toBe(true);
+      expect(viewMoreBtn.textContent).toContain("View less");
+      expect(chevronType()).toBe("up");
+
+      viewMoreBtn.click();
+      fixture.detectChanges();
+
+      expect(component.isExpanded).toBe(false);
+      expect(viewMoreBtn.textContent).toContain("View more");
+      expect(chevronType()).toBe("down");
+    });
+
+    it("omits the view-more control when the description does not overflow", async () => {
+      const fixture = await createFixture();
+      fixture.componentInstance.enableViewMore = true;
+      fixture.componentInstance.hasOverflow = false;
+      fixture.detectChanges();
+
+      expect(fixture.nativeElement.querySelector(".view-more-btn")).toBeNull();
+    });
+  });
 });

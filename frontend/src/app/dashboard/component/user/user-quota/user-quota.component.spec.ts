@@ -23,8 +23,9 @@ import { UserQuotaService } from "../../../service/user/quota/user-quota.service
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
 import { of } from "rxjs";
+import { By } from "@angular/platform-browser";
 import type { Mocked } from "vitest";
-import { ExecutionQuota } from "../../../../common/type/user";
+import { ExecutionQuota, WorkflowQuota } from "../../../../common/type/user";
 import { DatasetQuota } from "../../../type/quota-statistic.interface";
 
 // Real Plotly renders into a DOM element by id; create one and assert on the
@@ -256,6 +257,99 @@ describe("UserQuotaComponent", () => {
       expect(gd.layout.title).toMatchObject({ text: "Line Title" });
       expect(gd.layout.xaxis.title).toMatchObject({ text: "X Label" });
       expect(gd.layout.yaxis.title).toMatchObject({ text: "Y Label" });
+    });
+  });
+  /**
+   * The Result Cache tab is template-only: the suite above drives the component's data and charts
+   * and never renders this tab, so the per-execution row — including the size it reports and the id
+   * its delete button carries — was unexercised.
+   */
+  describe("result cache tab", () => {
+    /** Selects a tab by its title and returns the host element. */
+    function openTab(title: string): HTMLElement {
+      const host = fixture.nativeElement as HTMLElement;
+      const tab = Array.from(host.querySelectorAll<HTMLElement>(".ant-tabs-tab")).find(t =>
+        (t.textContent || "").includes(title)
+      );
+      if (!tab) {
+        throw new Error(`Result Cache spec: tab not found: ${title}`);
+      }
+      tab.click();
+      fixture.detectChanges();
+      return host;
+    }
+
+    /** Expands the collapse panel whose header contains the given text. */
+    function openPanel(host: HTMLElement, header: string): void {
+      const panel = Array.from(host.querySelectorAll<HTMLElement>(".ant-collapse-header")).find(h =>
+        (h.textContent || "").includes(header)
+      );
+      panel!.click();
+      fixture.detectChanges();
+    }
+
+    /** Renders the Result Cache tab with the given workflows and opens the first panel. */
+    function renderCache(workflows: any[], openHeader = "wf-1"): HTMLElement {
+      // ngOnInit loads the quota and resets `workflows`, so the first cycle has to run before the
+      // fixture data is put in place, or it is wiped before anything renders.
+      fixture.detectChanges();
+      component.workflows = workflows;
+      fixture.detectChanges();
+      const host = openTab("Result Cache");
+      openPanel(host, openHeader);
+      return host;
+    }
+
+    const workflow = (workflowId: number, executions: any[]) => ({
+      workflowId,
+      workflowName: `wf-${workflowId}`,
+      executions,
+    });
+
+    it("groups the executions under one panel per workflow", () => {
+      const host = renderCache([workflow(1, [execution(10, 1, 1, 1, 1)]), workflow(2, [execution(20, 2, 1, 1, 1)])]);
+
+      const headers = Array.from(host.querySelectorAll(".ant-collapse-header")).map(h => h.textContent?.trim());
+      expect(headers).toEqual(["wf-1", "wf-2"]);
+    });
+
+    it("lists every execution of the opened workflow", () => {
+      const host = renderCache([workflow(1, [execution(10, 1, 1, 1, 1), execution(11, 1, 1, 1, 1)])]);
+
+      const eids = Array.from(host.querySelectorAll("tbody tr")).map(r =>
+        r.querySelectorAll("td")[1]?.textContent?.trim()
+      );
+      expect(eids).toEqual(["10", "11"]);
+    });
+
+    it("reports the cache size as result plus log plus runtime statistics", () => {
+      // Three separate byte counts are added together. Distinct powers of two, so dropping or
+      // double-counting any one of them lands on a different total rather than coincidentally
+      // matching — which is exactly how a missing term would otherwise go unnoticed.
+      const host = renderCache([workflow(1, [execution(10, 1, 1024, 4096, 2048)])]);
+
+      const sizeCell = host.querySelectorAll("tbody tr td")[2];
+      expect(sizeCell.textContent?.trim()).toBe(component.formatSize(1024 + 4096 + 2048));
+    });
+
+    it("deletes the collection of the row it was pressed on", () => {
+      // The row carries the execution id; passing the workflow id would delete the wrong cache.
+      const spy = vi.spyOn(component, "deleteCollection").mockImplementation(() => {});
+      const host = renderCache([workflow(1, [execution(10, 1, 1, 1, 1), execution(11, 1, 1, 1, 1)])]);
+
+      const secondRowButton = host.querySelectorAll("tbody tr")[1].querySelector("button")!;
+      secondRowButton.click();
+      // nz-popconfirm defers the action to its confirmation, so trigger that directly.
+      fixture.debugElement.queryAll(By.css("button[nz-popconfirm]"))[1].triggerEventHandler("nzOnConfirm", null);
+
+      expect(spy).toHaveBeenCalledWith(11);
+    });
+
+    it("pages the executions rather than listing all of them", () => {
+      const executions = Array.from({ length: 5 }, (_, i) => execution(100 + i, 1, 1, 1, 1));
+      const host = renderCache([workflow(1, executions)]);
+
+      expect(host.querySelectorAll("tbody tr").length).toBe(3);
     });
   });
 });

@@ -34,6 +34,13 @@ class DualInputPortsPythonUDFOpDescV2Spec extends AnyFlatSpec with Matchers {
   private val workflowId = WorkflowIdentity(1L)
   private val executionId = ExecutionIdentity(1L)
 
+  private def uiParameter(name: String, value: String): UiUDFParameter = {
+    val parameter = new UiUDFParameter
+    parameter.attribute = new Attribute(name, AttributeType.INTEGER)
+    parameter.value = value
+    parameter
+  }
+
   private def twoPortSchemas(dataSchema: Schema): Map[PortIdentity, Schema] =
     Map(
       PortIdentity() -> Schema().add(new Attribute("model", AttributeType.STRING)),
@@ -85,6 +92,24 @@ class DualInputPortsPythonUDFOpDescV2Spec extends AnyFlatSpec with Matchers {
     val physical = d.getPhysicalOp(workflowId, executionId)
     physical.parallelizable shouldBe true
     physical.suggestedWorkerNum shouldBe Some(2)
+  }
+
+  it should "inject configured UI parameters into the generated Python code" in {
+    val d = new DualInputPortsPythonUDFOpDescV2
+    d.code = """from pytexera import *
+        |
+        |class ProcessTupleOperator(UDFOperatorV2):
+        |    def process_tuple(self, tuple_, port):
+        |        yield tuple_
+        |""".stripMargin
+    d.uiParameters = List(uiParameter("count", "7"))
+
+    d.getPhysicalOp(workflowId, executionId).opExecInitInfo match {
+      case OpExecWithCode(code, "python") =>
+        code should include("def _texera_injected_ui_parameters")
+        code should include("self.decode_python_template")
+      case other => fail(s"expected Python OpExecWithCode, got $other")
+    }
   }
 
   it should "reject a blank virtual-environment name when the default env is disabled" in {
@@ -154,6 +179,7 @@ class DualInputPortsPythonUDFOpDescV2Spec extends AnyFlatSpec with Matchers {
     d.defaultEnv = false
     d.envName = "myenv"
     d.outputColumns = List(new Attribute("res", AttributeType.INTEGER))
+    d.uiParameters = List(uiParameter("count", "7"))
     val restored = objectMapper.readValue(objectMapper.writeValueAsString(d), classOf[LogicalOp])
     restored shouldBe a[DualInputPortsPythonUDFOpDescV2]
     val r = restored.asInstanceOf[DualInputPortsPythonUDFOpDescV2]
@@ -163,5 +189,7 @@ class DualInputPortsPythonUDFOpDescV2Spec extends AnyFlatSpec with Matchers {
     r.defaultEnv shouldBe false
     r.envName shouldBe "myenv"
     r.outputColumns shouldBe List(new Attribute("res", AttributeType.INTEGER))
+    r.uiParameters.map(_.attribute) shouldBe List(new Attribute("count", AttributeType.INTEGER))
+    r.uiParameters.map(_.value) shouldBe List("7")
   }
 }
