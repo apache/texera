@@ -18,29 +18,20 @@
  */
 
 $text-secondary: rgba(0, 0, 0, 0.45);
-$error: #ff4d4f;
-$bg: #f0f2f5;
-$card-bg: #fff;
-
 :host {
   display: flex;
   align-items: center;
   justify-content: center;
   min-height: 100vh;
+  background: #f0f2f5;
   padding: 32px 16px;
-  background: $bg;
-  -webkit-font-smoothing: antialiased;
-}
-
-* {
-  box-sizing: border-box;
 }
 
 .card {
-  width: 100%;
   max-width: 400px;
-  background: $card-bg;
+  background: #fff;
   border-radius: 8px;
+  box-sizing: border-box;
   box-shadow:
     0 6px 16px -8px rgba(0, 0, 0, 0.08),
     0 9px 28px 0 rgba(0, 0, 0, 0.05),
@@ -49,11 +40,9 @@ $card-bg: #fff;
 }
 
 .brand {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 28px;
+  text-align: center;
+  gap: 12px;
+  margin-bottom: 12px;
 
   img {
     height: 46px;
@@ -90,7 +79,7 @@ $card-bg: #fff;
 }
 
 .error {
-  color: $error;
+  color: #ff4d4f;
   font-size: 13px;
   margin: -6px 2px 0;
 }
