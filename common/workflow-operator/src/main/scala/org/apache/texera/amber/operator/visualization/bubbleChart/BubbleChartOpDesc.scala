@@ -166,8 +166,11 @@ class BubbleChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeGene
   override def producesDataFrame(): Boolean = false
 
   override def generateStandaloneCode(): String = {
+    // Same rule as the platform path: an unset column is "no color" even with the
+    // toggle on, else px.scatter(color='') fails.
     val colorArg =
-      if (enableColor) s""", color=${pyStringLiteral(colorCategory)}""" else ""
+      if (enableColor && colorCategory.nonEmpty) s""", color=${pyStringLiteral(colorCategory)}"""
+      else ""
     val xLit = pyStringLiteral(xValue)
     val yLit = pyStringLiteral(yValue)
     val zLit = pyStringLiteral(zValue)
