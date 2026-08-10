@@ -41,6 +41,8 @@ $text-secondary: rgba(0, 0, 0, 0.45);
 
 .brand {
   text-align: center;
+
+  margin-top: 6px;
   margin-bottom: 12px;
 
   img {
@@ -49,7 +51,7 @@ $text-secondary: rgba(0, 0, 0, 0.45);
   }
 
   .sub {
-    padding-top: 12px;
+    padding-top: 14px;
     font-size: 13px;
     letter-spacing: 0.02em;
   }
