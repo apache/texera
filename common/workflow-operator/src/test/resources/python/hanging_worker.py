@@ -25,7 +25,14 @@ read returns on its own.
   --deaf               announce readiness, then never read stdin at all, which
                        blocks the parent's write once the request outgrows the
                        pipe buffer
-  (default)            announce readiness, read a request, then never answer it
+  --babble             announce a line that is not the protocol at all
+  (default)            announce readiness, then answer every request except one
+                       asking to hang: {"hang": true} is read and never answered
+
+Whether a request is answered is a property of the request, not of a flag,
+because the pool keys a sub-pool by script, args and env: a test that needs a
+hung worker and a healthy job in the *same* sub-pool cannot get them from two
+different launches.
 """
 from __future__ import annotations
 
@@ -45,14 +52,28 @@ def main() -> None:
     if "--hang-before-ready" in sys.argv:
         _sleep_forever()
 
+    if "--babble" in sys.argv:
+        # Then stay alive: it is the parent that has to end this process, since
+        # nothing else would reap a worker rejected before it joined the pool.
+        sys.stdout.write("not a protocol line\n")
+        sys.stdout.flush()
+        _sleep_forever()
+
     sys.stdout.write(json.dumps({"ready": True}) + "\n")
     sys.stdout.flush()
 
     if "--deaf" in sys.argv:
         _sleep_forever()
 
-    for _ in sys.stdin:
-        _sleep_forever()
+    for line in sys.stdin:
+        try:
+            request = json.loads(line)
+        except ValueError:
+            request = {}
+        if request.get("hang"):
+            _sleep_forever()
+        sys.stdout.write(json.dumps({"exit": 0, "stdout": "", "stderr": ""}) + "\n")
+        sys.stdout.flush()
 
 
 if __name__ == "__main__":

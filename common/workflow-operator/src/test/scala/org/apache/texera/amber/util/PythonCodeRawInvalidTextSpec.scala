@@ -37,6 +37,7 @@ import java.util.concurrent.{Executors, TimeUnit}
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.util.Try
+import scala.util.control.NonFatal
 
 /**
   * Regression tests for validation pipeline used for PythonOperatorDescriptor codegen.
@@ -84,13 +85,20 @@ final class PythonCodeRawInvalidTextSpec extends AnyFunSuite {
     } finally threads.shutdownNow()
   }
 
+  /** Checks the pooled path could not serve. Not a failure — the spawn each one
+    * fell back to is the pre-pool behavior — but a number the summary has to
+    * carry, since a check passing says nothing about which path answered it.
+    */
+  private val spawnFallbacks = new AtomicInteger(0)
+
   /** Syntax-checks one generated module, through a pooled worker when available.
     *
     * The worker is launched with the same `-I -S` isolation the one-shot path
     * uses, so what the check accepts is unchanged; it just stops paying an
     * interpreter boot — the whole cost of a check whose real work is under a
-    * millisecond — once per descriptor. A hard worker crash falls back to the
-    * spawn, so behavior is never worse than before the pool.
+    * millisecond — once per descriptor. A worker the pool cannot give out, or
+    * loses mid-job, falls back to the spawn, so behavior is never worse than
+    * before the pool.
     */
   private def syntaxCheck(
       pythonExecutable: String,
@@ -121,7 +129,18 @@ final class PythonCodeRawInvalidTextSpec extends AnyFunSuite {
     if (PythonWorkerPool.enabled) {
       try viaPool
       catch {
-        case _: PythonWorkerPool.WorkerDiedException =>
+        // Anything the pooled path throws leaves the spawn as the answer, which is
+        // what makes it never worse than before: not only a worker that died
+        // mid-job, but equally an interpreter that could not be started at all —
+        // `ProcessBuilder.start` throws a bare IOException, which the pool passes
+        // through, and 4-way concurrency is a live way to reach it. Counted, so a
+        // run the pool served none of does not read as a green pooled run.
+        case NonFatal(thrown) =>
+          println(
+            s"[py-compile FALLBACK ${spawnFallbacks.incrementAndGet()}] $descriptorName: " +
+              s"pooled worker unavailable, spawning instead: " +
+              truncateBlock(thrown.toString, maxLines = 3, maxChars = 500)
+          )
           pyCompile(pythonExecutable, pythonSource)
       }
     } else pyCompile(pythonExecutable, pythonSource)
@@ -309,8 +328,8 @@ final class PythonCodeRawInvalidTextSpec extends AnyFunSuite {
     val checked = new AtomicInteger(0)
 
     // Checked concurrently: the fan-out is what turns the pool's workers into
-    // parallel interpreters rather than a queue in front of one. The pool bounds
-    // it — a submission past the cap blocks until a worker is returned.
+    // parallel interpreters rather than a queue in front of one. The executor is
+    // sized to maxWorkers, so nothing is submitted past the cap.
     val allFindings = awaitAll(descriptorCandidates.map { descriptorClass => () =>
       val checkResult =
         PythonReflectionUtils.checkDescriptorWithCode(
@@ -340,7 +359,9 @@ final class PythonCodeRawInvalidTextSpec extends AnyFunSuite {
       findings
     }).flatten
 
-    println(s"[py-compile SUMMARY] ok=${ok.get()}/$total")
+    println(
+      s"[py-compile SUMMARY] ok=${ok.get()}/$total, spawn fallbacks=${spawnFallbacks.get()}"
+    )
 
     if (allFindings.nonEmpty) {
       fail(PythonReflectionUtils.renderReport(allFindings, total = total))

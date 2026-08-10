@@ -66,10 +66,10 @@ import scala.util.control.NonFatal
   *   request   pool -> worker:  <caller-supplied JSON object>\n
   *   response  worker -> pool:  {"exit": <int>, "stdout": "...", "stderr": "..."}\n
   *
-  * Concurrency: callers submit from several threads at once — a spec run with
-  * ScalaTest's `-P4`, or one test fanning its cases out — so each sub-pool holds
-  * up to [[maxWorkers]] workers, each serving one job at a time (borrow -> run
-  * -> return). A worker script may chdir per job, so a worker must never run two
+  * Concurrency: callers submit from several threads at once — one test fanning
+  * its cases out, or suites running in parallel — so each sub-pool holds up to
+  * [[maxWorkers]] workers, each serving one job at a time (borrow -> run ->
+  * return). A worker script may chdir per job, so a worker must never run two
   * jobs at once — the borrow/return discipline guarantees that.
   *
   * Robustness: an ordinary *job* failure comes back as an [[Outcome]] with
@@ -100,10 +100,10 @@ object PythonWorkerPool extends LazyLogging {
       .map(_.trim.toLowerCase)
       .exists(Set("0", "false", "off"))
 
-  /** Max live workers per sub-pool. Defaults to 4 to match ScalaTest's `-P4`, so
-    * the two concurrency bounds agree on how many interpreters may be live;
-    * override via `TEXERA_TEST_PYTHON_WORKERS`. Public so a caller fanning out
-    * jobs within one test can size that fan-out to the workers it will get.
+  /** Max live workers per sub-pool — per sub-pool, so callers on distinct worker
+    * scripts add up rather than share this bound. Defaults to 4, override via
+    * `TEXERA_TEST_PYTHON_WORKERS`. Public so a caller fanning out jobs within one
+    * test can size that fan-out to the workers it will get.
     */
   val maxWorkers: Int =
     sys.env
@@ -141,7 +141,9 @@ object PythonWorkerPool extends LazyLogging {
     * Run one job through a pooled worker for `resourcePath`, launched as
     * `pythonExe <interpreterArgs> <script> <launchArgs>` with extra environment
     * `env`. `request` is the worker-specific JSON payload (the pool does not
-    * interpret it). Throws [[WorkerDiedException]] on a hard worker crash.
+    * interpret it). Throws [[WorkerDiedException]] for every worker the pool could
+    * not give out or keep — one that would not start, would not report ready, or
+    * died mid-job — so one `catch` covers a caller's whole fallback.
     *
     * `interpreterArgs` are the flags that must precede the script — a syntax
     * checker wants `-I -S` so it validates under the same isolation a one-shot
@@ -213,7 +215,13 @@ object PythonWorkerPool extends LazyLogging {
         idle.offer(w) // healthy — return to pool
         outcome
       } catch {
-        case e: WorkerDiedException =>
+        // Every throw, not only a WorkerDiedException: an interrupt on this
+        // thread — what an executor's `shutdownNow` sends — leaves the blocking
+        // read or write as an InterruptedException, which `NonFatal` excludes and
+        // [[Worker.run]] therefore does not wrap. A worker left neither returned
+        // nor discarded costs this sub-pool a slot for the life of the JVM, and
+        // its answer may still be in flight, so it cannot be reused either way.
+        case e: Throwable =>
           discard(w)
           throw e
       }
@@ -247,8 +255,31 @@ object PythonWorkerPool extends LazyLogging {
         (((pythonExe +: interpreterArgs) :+ ensureScript().toString) ++ launchArgs).asJava
       val pb = new ProcessBuilder(cmd).redirectErrorStream(false)
       env.foreach { case (k, v) => pb.environment().put(k, v) }
-      val w = new Worker(pb.start(), s"$resourcePath ${launchArgs.mkString(" ")}".trim)
-      w.awaitReady(timeouts.startupMillis)
+      // A worker that cannot be started is a worker death like any other, so it
+      // leaves through the same exception: `start` throws a bare IOException — no
+      // interpreter at that path, or the OS out of processes under a fan-out — and
+      // a caller's fallback is written against [[WorkerDiedException]].
+      val process =
+        try pb.start()
+        catch {
+          case NonFatal(e) =>
+            throw new WorkerDiedException(
+              s"could not start python worker for $resourcePath: ${e.getMessage}",
+              e
+            )
+        }
+      val w = new Worker(process, s"$resourcePath ${launchArgs.mkString(" ")}".trim)
+      // Anything thrown before the worker joins `all` — a startup that timed out,
+      // an interrupt on this thread — leaves an interpreter nothing else would
+      // reap: not the caller, which never gets the handle, and not the shutdown
+      // hook, which walks `all`. `destroy` is idempotent, so a worker that already
+      // killed itself on the way out is no exception to that.
+      try w.awaitReady(timeouts.startupMillis)
+      catch {
+        case e: Throwable =>
+          w.destroy()
+          throw e
+      }
       all.synchronized(all.add(w))
       logger.debug(s"Started python worker for $resourcePath (live=${liveCount.get}/$maxWorkers)")
       w
@@ -344,13 +375,23 @@ object PythonWorkerPool extends LazyLogging {
       * import failed) or never gets there, surface its stderr. A worker that
       * fails here is killed: it is not in the pool's set yet, so nothing else
       * will reap it.
+      *
+      * A first line that is not the protocol at all counts as not ready, rather
+      * than throwing whatever the parser throws: the caller's contract here is
+      * [[WorkerDiedException]], and an escape past it would leave this
+      * interpreter with nothing to reap it. The line goes into the message —
+      * stderr is empty when a script writes its noise to stdout.
       */
     def awaitReady(timeoutMillis: Long): Unit = {
       val line = nextLine(timeoutMillis, "signal ready")
-      if (!objectMapper.readTree(line).path("ready").asBoolean(false)) {
+      val ready =
+        try objectMapper.readTree(line).path("ready").asBoolean(false)
+        catch { case NonFatal(_) => false }
+      if (!ready) {
         destroy()
         throw new WorkerDiedException(
-          s"python worker [$label] did not signal ready. stderr:\n${drainErr()}"
+          s"python worker [$label] did not signal ready; it wrote: ${abbreviate(line)}." +
+            s" stderr:\n${drainErr()}"
         )
       }
     }
@@ -424,6 +465,10 @@ object PythonWorkerPool extends LazyLogging {
       }
 
     private def drainErr(): String = errBuf.synchronized(errBuf.toString)
+
+    /** Enough of a stray protocol line to recognize it, not a whole traceback. */
+    private def abbreviate(line: String): String =
+      if (line.length <= 200) line else s"${line.take(200)}... (${line.length} chars)"
 
     /** Idempotent: called on a crash, a timeout, and again on pool shutdown.
       *

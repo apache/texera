@@ -19,6 +19,7 @@
 
 package org.apache.texera.amber.util.python
 
+import com.fasterxml.jackson.databind.node.ObjectNode
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -45,13 +46,19 @@ import scala.util.Try
 final class PythonWorkerPoolSpec extends AnyFunSuite {
 
   private val HangingWorker = "/python/hanging_worker.py"
-  private val CompileWorker = "/python/py_compile_worker.py"
 
   /** Short enough to keep the suite quick, far enough above process startup to
-    * not be mistaken for one: the fixture never answers, so it cannot race.
+    * not be mistaken for one: a fixture asked to hang never answers at all, so
+    * these deadlines cannot race it.
     */
   private val ShortTimeouts: PythonWorkerPool.Timeouts =
     PythonWorkerPool.Timeouts(responseMillis = 1500, startupMillis = 1500)
+
+  /** For the case that interrupts its own callers: far enough out that they are
+    * certainly still waiting on the worker, not already past their deadline.
+    */
+  private val PatientTimeouts: PythonWorkerPool.Timeouts =
+    PythonWorkerPool.Timeouts(responseMillis = 60000, startupMillis = 60000)
 
   /** Ceiling on a whole case, well above the deadlines under test. Reaching it
     * means something never gave up.
@@ -86,9 +93,10 @@ final class PythonWorkerPoolSpec extends AnyFunSuite {
     finally pool.shutdownNow()
   }
 
-  private def hangingCall(
+  private def call(
       launchArgs: Seq[String],
-      request: com.fasterxml.jackson.databind.node.ObjectNode = objectMapper.createObjectNode()
+      request: ObjectNode,
+      timeouts: PythonWorkerPool.Timeouts
   ): PythonWorkerPool.Outcome =
     PythonWorkerPool.run(
       resourcePath = HangingWorker,
@@ -96,8 +104,25 @@ final class PythonWorkerPoolSpec extends AnyFunSuite {
       pythonExe = python(),
       request = request,
       interpreterArgs = Seq("-I", "-S"),
-      timeouts = ShortTimeouts
+      timeouts = timeouts
     )
+
+  /** A job the fixture takes and never answers. `hang` travels in the request
+    * rather than in `launchArgs` so that [[healthyCall]] lands in the same
+    * sub-pool: `Key` covers the script, its arguments and the environment, and a
+    * job routed elsewhere would be served by a pool whose queue this suite never
+    * touched.
+    */
+  private def hangingCall(
+      launchArgs: Seq[String],
+      request: ObjectNode = objectMapper.createObjectNode(),
+      timeouts: PythonWorkerPool.Timeouts = ShortTimeouts
+  ): PythonWorkerPool.Outcome =
+    call(launchArgs, request.deepCopy().put("hang", true), timeouts)
+
+  /** A job in that same sub-pool which the fixture does answer. */
+  private def healthyCall(): PythonWorkerPool.Outcome =
+    call(Seq.empty, objectMapper.createObjectNode(), ShortTimeouts)
 
   /** The call, on a daemon thread and under [[Bound]], expected to give up. */
   private def interceptBounded(call: => Any): PythonWorkerPool.WorkerDiedException =
@@ -139,10 +164,11 @@ final class PythonWorkerPoolSpec extends AnyFunSuite {
   }
 
   test("a caller waiting at the worker cap is not stranded by a discarded worker") {
-    // One caller more than there are workers, all onto a worker that goes quiet:
-    // those holding a worker time out and are discarded, which frees a slot
-    // without handing anything back, and the caller waiting at the cap has to
-    // notice that rather than wait for a hand-back that never comes.
+    // One caller more than there are workers, all onto workers that go quiet:
+    // those holding one time out and are discarded, which frees a slot without
+    // handing anything back, and the caller waiting at the cap has to notice that
+    // rather than wait for a hand-back that never comes. The discards it is
+    // waiting on happen on workers other than the one ahead of it.
     val callers = PythonWorkerPool.maxWorkers + 1
 
     val outcomes = onDaemonThreads(callers) { implicit ec =>
@@ -156,17 +182,61 @@ final class PythonWorkerPoolSpec extends AnyFunSuite {
   test("the pool still serves jobs after it has discarded a timed-out worker") {
     interceptBounded(hangingCall(Seq.empty))
 
-    val request = objectMapper.createObjectNode()
-    request.put("source", "x = 1\n")
-    request.put("name", "healthy.py")
-    val outcome = PythonWorkerPool.run(
-      resourcePath = CompileWorker,
-      launchArgs = Seq.empty,
-      pythonExe = python(),
-      request = request,
-      interpreterArgs = Seq("-I", "-S")
-    )
+    // Deliberately the sub-pool the discard happened in — see [[hangingCall]] —
+    // so what is asserted is that a pool short one worker starts a replacement,
+    // not that an untouched pool works.
+    assert(healthyCall().exit == 0)
+  }
 
-    assert(outcome.exit == 0)
+  test("an interpreter that cannot be started reaches the caller as a worker death") {
+    // Not the IOException ProcessBuilder raises: a caller's fallback is written
+    // against WorkerDiedException, and a pool that cannot hand out a worker at all
+    // is the case that fallback exists for.
+    val thrown = intercept[PythonWorkerPool.WorkerDiedException] {
+      PythonWorkerPool.run(
+        resourcePath = HangingWorker,
+        launchArgs = Seq.empty,
+        pythonExe = "no-such-python-on-this-machine",
+        request = objectMapper.createObjectNode(),
+        interpreterArgs = Seq("-I", "-S"),
+        timeouts = ShortTimeouts
+      )
+    }
+
+    assert(thrown.getMessage.contains("could not start python worker"))
+  }
+
+  test("a caller interrupted mid-job does not cost the pool a worker") {
+    val workers = PythonWorkerPool.maxWorkers
+
+    // Every slot taken by a job nobody will answer, and then the callers are
+    // interrupted — `shutdownNow` is what an executor does to a fan-out whose test
+    // has already failed. An interrupt is not a WorkerDiedException, so a worker
+    // left neither returned nor discarded would cost this sub-pool that slot for
+    // the rest of the JVM.
+    onDaemonThreads(workers) { implicit ec =>
+      Seq.fill(workers)(Future(Try(hangingCall(Seq.empty, timeouts = PatientTimeouts))))
+      // Enough for the callers to be waiting on a worker rather than starting one;
+      // the slot has to come back wherever the interrupt lands, so this only
+      // decides which of the two paths the case exercises.
+      Thread.sleep(500)
+    }
+
+    // Serving `workers` jobs again is the whole assertion: a leaked slot leaves
+    // these at the cap, rechecking it until [[Bound]] runs out.
+    val outcomes = onDaemonThreads(workers) { implicit ec =>
+      Await.result(Future.sequence(Seq.fill(workers)(Future(healthyCall()))), Bound)
+    }
+
+    assert(outcomes.forall(_.exit == 0))
+  }
+
+  test("a worker whose first line is not the protocol is killed and reported") {
+    val thrown = interceptBounded(hangingCall(Seq("--babble")))
+
+    assert(thrown.getMessage.contains("did not signal ready"))
+    // Named in the message: stderr is empty when a script writes its noise to
+    // stdout, so the line itself is the only evidence of what went wrong.
+    assert(thrown.getMessage.contains("not a protocol line"))
   }
 }
