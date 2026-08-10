@@ -69,7 +69,7 @@ final class PythonWorkerPoolSpec extends AnyFunSuite {
     * this deliberately skips the configured `python.path` the suites that need
     * pandas resolve. A machine without one cancels rather than fails.
     */
-  private def python(): String = {
+  private lazy val python: String = {
     def isRunnable(exe: String): Boolean =
       Try(new ProcessBuilder(exe, "--version").redirectErrorStream(true).start()).toOption
         .exists { p =>
@@ -101,7 +101,7 @@ final class PythonWorkerPoolSpec extends AnyFunSuite {
     PythonWorkerPool.run(
       resourcePath = HangingWorker,
       launchArgs = launchArgs,
-      pythonExe = python(),
+      pythonExe = python,
       request = request,
       interpreterArgs = Seq("-I", "-S"),
       timeouts = timeouts

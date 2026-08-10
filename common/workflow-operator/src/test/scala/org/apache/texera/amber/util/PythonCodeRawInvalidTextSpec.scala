@@ -131,9 +131,9 @@ final class PythonCodeRawInvalidTextSpec extends AnyFunSuite {
       catch {
         // Anything the pooled path throws leaves the spawn as the answer, which is
         // what makes it never worse than before: not only a worker that died
-        // mid-job, but equally an interpreter that could not be started at all —
-        // `ProcessBuilder.start` throws a bare IOException, which the pool passes
-        // through, and 4-way concurrency is a live way to reach it. Counted, so a
+        // mid-job, but equally one the pool could not hand out at all. Those
+        // arrive as WorkerDiedException; NonFatal also covers the steps outside
+        // that contract, such as materializing the worker script. Counted, so a
         // run the pool served none of does not read as a green pooled run.
         case NonFatal(thrown) =>
           println(

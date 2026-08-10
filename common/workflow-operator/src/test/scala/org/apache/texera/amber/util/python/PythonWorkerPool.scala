@@ -47,9 +47,9 @@ import scala.util.control.NonFatal
   * interpreter-boot + import cost a test otherwise pays on every subprocess
   * spawn. Testing operators one at a time does not scale when each one costs a
   * spawn: a bare `-I -S` interpreter boots in ~25 ms, and once pandas and plotly
-  * are imported a spawn costs ~260-310 ms — ~96% of a job whose real work is
-  * ~4 ms. A worker pays that once at startup, then serves many jobs over its
-  * lifetime, so N spawns become one.
+  * are imported a spawn costs ~260-310 ms — the imports ~96% of that — dwarfing
+  * the ~4 ms of real work a job does. A worker pays that once at startup, then
+  * serves many jobs over its lifetime, so N spawns become one.
   *
   * Lives in test scope here, rather than beside a single caller, because tests in
   * several modules run generated operator code and would otherwise each
@@ -84,8 +84,9 @@ object PythonWorkerPool extends LazyLogging {
   /** Worker response: process-like exit code plus captured streams. */
   final case class Outcome(exit: Int, stdout: String, stderr: String)
 
-  /** Thrown when a worker dies mid-job (hard crash / broken pipe). Callers
-    * catch this and fall back to a one-shot subprocess.
+  /** Thrown for a worker the pool could not give out or keep: one that would not
+    * start, one that never signalled ready, or one that died or fell silent
+    * mid-job. Callers catch this and fall back to a one-shot subprocess.
     */
   final class WorkerDiedException(message: String, cause: Throwable = null)
       extends RuntimeException(message, cause)
