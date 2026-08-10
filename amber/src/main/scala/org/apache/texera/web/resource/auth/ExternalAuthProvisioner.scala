@@ -74,7 +74,7 @@ object ExternalAuthProvisioner extends LazyLogging {
     */
   def loginOrProvision(profile: ExternalProfile): User = {
 
-    try{
+    try {
       provision(profile)
     } catch {
       case e: org.jooq.exception.DataAccessException if e.sqlState() == "23505" =>
