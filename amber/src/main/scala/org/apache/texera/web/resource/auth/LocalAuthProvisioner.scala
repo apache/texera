@@ -42,7 +42,6 @@ import javax.ws.rs.core.Response
 object LocalAuthProvisioner {
 
   /** Postgres unique-violation SQLSTATE. */
-  private val UNIQUE_VIOLATION = "23505"
 
   private val passwordEncryptor = new StrongPasswordEncryptor
 
@@ -95,7 +94,7 @@ object LocalAuthProvisioner {
         txAuthDao.insert(auth)
       }
     } catch {
-      case e: DataAccessException if e.sqlState() == UNIQUE_VIOLATION =>
+      case e: DataAccessException if e.sqlState() == AuthResource.UNIQUE_VIOLATION =>
         val message =
           if (handleExists(handle)) s"Login handle $handle is already taken"
           else s"Email ${user.getEmail} is already registered"
@@ -125,7 +124,7 @@ object LocalAuthProvisioner {
         new AuthProviderDao(ctx.configuration()).insert(auth)
       }
     } catch {
-      case e: DataAccessException if e.sqlState() == UNIQUE_VIOLATION =>
+      case e: DataAccessException if e.sqlState() == AuthResource.UNIQUE_VIOLATION =>
         val message =
           if (handleExists(handle)) s"Login handle $handle is already taken"
           else s"Account for ${user.getEmail} has already been claimed"

@@ -26,7 +26,6 @@ import org.apache.texera.common.util.EmailUtil
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.jooq.generated.Tables.{AUTH_PROVIDER, USER}
 import org.apache.texera.dao.jooq.generated.enums.{ProviderTypeEnum, UserRoleEnum}
-import org.apache.texera.dao.jooq.generated.tables.daos.UserDao
 import org.apache.texera.dao.jooq.generated.tables.pojos.User
 import org.apache.texera.web.model.http.request.auth.{UserLoginRequest, UserRegistrationRequest}
 import org.apache.texera.web.model.http.response.TokenIssueResponse
@@ -42,7 +41,8 @@ object AuthResource {
   private val logger: Logger = Logger(classOf[AuthResource])
 
   private def context = SqlServer.getInstance().context
-  private def userDao = new UserDao(context.configuration)
+
+  private[auth] val UNIQUE_VIOLATION = "23505"
 
   /**
     * Retrieve exactly one User from databases with the given username and password.
