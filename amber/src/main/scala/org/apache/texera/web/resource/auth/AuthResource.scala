@@ -20,7 +20,7 @@
 package org.apache.texera.web.resource.auth
 
 import com.typesafe.scalalogging.Logger
-import org.apache.texera.auth.JwtAuth.{TOKEN_EXPIRE_TIME_IN_MINUTES, jwtClaims, jwtToken}
+import org.apache.texera.auth.JwtAuth.{jwtClaims, jwtToken}
 import org.apache.texera.common.config.UserSystemConfig
 import org.apache.texera.common.util.EmailUtil
 import org.apache.texera.dao.SqlServer

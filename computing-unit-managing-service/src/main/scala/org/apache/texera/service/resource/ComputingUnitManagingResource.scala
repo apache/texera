@@ -26,7 +26,7 @@ import jakarta.annotation.security.RolesAllowed
 import jakarta.ws.rs._
 import jakarta.ws.rs.core.{MediaType, Response}
 import org.apache.commons.lang3.StringUtils
-import org.apache.texera.auth.JwtAuth.{TOKEN_EXPIRE_TIME_IN_MINUTES, jwtClaims}
+import org.apache.texera.auth.JwtAuth.jwtClaims
 import org.apache.texera.auth.{JwtAuth, SessionUser}
 import org.apache.texera.common.config.KubernetesConfig.{
   cpuLimitOptions,

@@ -22,7 +22,7 @@ package org.apache.texera.web.resource.auth
 import com.google.api.client.googleapis.auth.oauth2.{GoogleIdToken, GoogleIdTokenVerifier}
 import com.google.api.client.http.javanet.NetHttpTransport
 import com.google.api.client.json.gson.GsonFactory
-import org.apache.texera.auth.JwtAuth.{TOKEN_EXPIRE_TIME_IN_MINUTES, jwtClaims, jwtToken}
+import org.apache.texera.auth.JwtAuth.{jwtClaims, jwtToken}
 import org.apache.texera.common.config.UserSystemConfig
 import org.apache.texera.dao.jooq.generated.enums.ProviderTypeEnum
 import org.apache.texera.web.model.http.response.TokenIssueResponse
