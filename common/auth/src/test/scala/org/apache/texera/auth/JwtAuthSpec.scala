@@ -66,15 +66,11 @@ class JwtAuthSpec extends AnyFlatSpec with Matchers {
     claims.getClaimValueAsString("googleId") shouldBe "google-sub-123"
   }
 
-  it should "derive the expiration from config, ignoring the expireInDays argument" in {
-    // two very different expireInDays values must yield the same config-derived expiry window
-    def expiryWindowMinutes(expireInDays: Int): Double = {
-      val claims = JwtAuth.jwtClaims(buildUser())
-      claims.getExpirationTime should not be null
-      claims.getExpirationTime.getValue / 60.0 - NumericDate.now().getValue / 60.0
-    }
-    expiryWindowMinutes(1) shouldBe (AuthConfig.jwtExpirationMinutes.toDouble +- 2.0)
-    expiryWindowMinutes(100000) shouldBe (AuthConfig.jwtExpirationMinutes.toDouble +- 2.0)
+  it should "derive the expiration from AuthConfig.jwtExpirationMinutes" in {
+    val claims = JwtAuth.jwtClaims(buildUser())
+    claims.getExpirationTime should not be null
+    val windowMinutes = claims.getExpirationTime.getValue / 60.0 - NumericDate.now().getValue / 60.0
+    windowMinutes shouldBe (AuthConfig.jwtExpirationMinutes.toDouble +- 2.0)
   }
 
   it should "produce a token that round-trips back to the same user via JwtParser" in {
