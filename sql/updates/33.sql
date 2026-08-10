@@ -49,11 +49,13 @@ CREATE TABLE IF NOT EXISTS auth_provider
     password          VARCHAR(256), -- hashed credential; only for LOCAL
     created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
     PRIMARY KEY (uid, provider_type),
-    FOREIGN KEY (uid) REFERENCES "user"(uid) ON DELETE CASCADE,
-    CONSTRAINT uq_provider_identity UNIQUE (provider_type, provider_id)
+    FOREIGN KEY (uid) REFERENCES "user"(uid) ON DELETE CASCADE
 );
 
+-- Both constraints are (re-)added at the end, so drop them first to keep this file re-runnable
+-- on a database that already has them.
 ALTER TABLE auth_provider DROP CONSTRAINT IF EXISTS ck_provider_credential;
+ALTER TABLE auth_provider DROP CONSTRAINT IF EXISTS uq_provider_identity;
 
 -- Report the accounts that end up unable to log in. This only reports: a name that is blank,
 -- padded or shared is normalized into a usable handle further down rather than rejected, because
@@ -104,10 +106,9 @@ BEGIN
         SELECT 1 FROM information_schema.columns
         WHERE table_schema = 'texera_db' AND table_name = 'user' AND column_name = 'password'
     ) THEN
-        -- The handle is deliberately left NULL here and minted below. `uq_provider_identity`
-        -- is already in force and treats NULLs as distinct, so inserting the raw name would
-        -- abort on the first pair of users sharing one — before the normalization that resolves
-        -- it could run.
+        -- The handle is left NULL here and minted below, where trimming, blank names and
+        -- collisions are all resolved in one place; `provider_id IS NULL` is what marks a row
+        -- as not yet minted.
         INSERT INTO auth_provider (uid, provider_type, password)
         SELECT uid, 'LOCAL'::provider_type_enum, password
         FROM "user"
@@ -138,9 +139,9 @@ DECLARE
     iterations INT := 0;
 BEGIN
     -- Trim, give a name that is blank or whitespace-only a deterministic stand-in, and separate
-    -- names that are already shared. The de-duplication has to happen inside this statement, not
-    -- only in the loop below: `uq_provider_identity` is in force, so two accounts named "john"
-    -- would collide with each other *within this one UPDATE* before any later pass could fix it.
+    -- names that are already shared. Separating them here rather than leaving all of it to the
+    -- loop below settles the common case in one pass, so the loop only has to resolve the
+    -- residue: a minted "-<uid>" handle that collides with a literal one.
     FOR rec IN
         UPDATE auth_provider a
         SET provider_id = CASE
@@ -221,9 +222,16 @@ BEGIN
 END
 $$;
 
--- Every row now has a handle, so make it mandatory and restore the credential check in its
--- new shape: a password exists for LOCAL and only for LOCAL.
+-- Every row now has a handle, so make it mandatory, enforce uniqueness, and restore the
+-- credential check in its new shape: a password exists for LOCAL and only for LOCAL.
+--
+-- uq_provider_identity belongs here rather than in CREATE TABLE: Postgres checks a
+-- non-deferrable UNIQUE as each index tuple is inserted, so in force it aborts the minting
+-- UPDATE above the moment that derives a colliding handle, before the loop can resolve it.
+-- Same ordering as 28.sql, which deduplicates before adding dataset_owner_uid_name_key.
 ALTER TABLE auth_provider ALTER COLUMN provider_id SET NOT NULL;
+ALTER TABLE auth_provider
+    ADD CONSTRAINT uq_provider_identity UNIQUE (provider_type, provider_id);
 ALTER TABLE auth_provider
     ADD CONSTRAINT ck_provider_credential CHECK ((provider_type = 'LOCAL') = (password IS NOT NULL));
 
