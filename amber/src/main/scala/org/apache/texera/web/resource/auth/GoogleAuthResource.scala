@@ -68,8 +68,8 @@ class GoogleAuthResource {
 
   /**
     * Verify `credential` against Google, yielding its payload, or None if it is not a valid
-    * token for this client. The only seam that reaches the network, so tests override it
-    * instead of signing a token; kept a method rather than a constructor parameter because
+    * token for this client. This is the only seam that reaches the network, so tests override
+    * it instead of signing a token; it is kept as a method rather than a parameter because
     * Jersey instantiates this resource from `classOf[GoogleAuthResource]`.
     */
   protected def verifiedPayload(credential: String): Option[GoogleIdToken.Payload] =
