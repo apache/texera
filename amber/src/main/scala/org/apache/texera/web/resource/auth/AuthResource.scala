@@ -21,6 +21,7 @@ package org.apache.texera.web.resource.auth
 
 import org.apache.texera.auth.JwtAuth.{TOKEN_EXPIRE_TIME_IN_MINUTES, jwtClaims, jwtToken}
 import org.apache.texera.common.config.UserSystemConfig
+import org.apache.texera.common.util.EmailUtil
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.jooq.generated.Tables.USER
 import org.apache.texera.dao.jooq.generated.enums.UserRoleEnum
@@ -29,8 +30,11 @@ import org.apache.texera.dao.jooq.generated.tables.pojos.User
 import org.apache.texera.web.model.http.request.auth.{UserLoginRequest, UserRegistrationRequest}
 import org.apache.texera.web.model.http.response.TokenIssueResponse
 import org.apache.texera.web.resource.auth.AuthResource._
+import org.jooq.impl.DSL
 import org.jasypt.util.password.StrongPasswordEncryptor
 
+import java.time.Instant
+import java.time.temporal.ChronoUnit
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
 
@@ -64,6 +68,31 @@ object AuthResource {
         .where(USER.NAME.eq(name))
         .fetchOneInto(classOf[User])
     ).filter(user => new StrongPasswordEncryptor().checkPassword(password, user.getPassword))
+  }
+
+  /**
+    * Marks a placeholder account (auto-created for a dataset contributor) as
+    * claimed, leaving persistence to the caller.
+    */
+  /**
+    * Email identity is matched case-insensitively (backed by idx_user_email_lower),
+    * while stored emails keep their original casing.
+    */
+  def fetchUserByEmailIgnoreCase(email: String): User =
+    SqlServer
+      .getInstance()
+      .createDSLContext()
+      .selectFrom(USER)
+      .where(DSL.lower(USER.EMAIL).eq(EmailUtil.normalize(email)))
+      .fetchOneInto(classOf[User])
+
+  def claimPlaceholder(user: User): Unit = {
+    user.setIsPlaceholder(false)
+    val claimedAt = Instant.now().truncatedTo(ChronoUnit.SECONDS)
+    user.setComment(
+      Option(user.getComment).map(_ + "; ").getOrElse("") +
+        s"Claimed contributor placeholder at $claimedAt"
+    )
   }
 
   def createAdminUser(): Unit = {
@@ -102,22 +131,48 @@ class AuthResource {
   @POST
   @Path("/register")
   def register(request: UserRegistrationRequest): TokenIssueResponse = {
-    val username = request.username
-    if (username == null) throw new NotAcceptableException("Username cannot be null.")
-    if (username.trim.isEmpty) throw new NotAcceptableException("Username cannot be empty.")
-    userDao.fetchByName(username).size() match {
-      case 0 =>
+    val username = Option(request.username).getOrElse("").trim
+    val useremail = Option(request.email).getOrElse("").trim
+    val userpassword = request.password
+    if (username.isEmpty)
+      throw new NotAcceptableException("Username cannot be empty")
+    if (useremail.isEmpty)
+      throw new NotAcceptableException("Email cannot be empty")
+    if (!EmailUtil.isValid(useremail))
+      throw new NotAcceptableException("Email format is invalid.")
+    if (userpassword == null || userpassword.isEmpty)
+      throw new NotAcceptableException("Password cannot be empty")
+
+    val usernameExists = !userDao.fetchByName(username).isEmpty
+    val existingByEmail = fetchUserByEmailIgnoreCase(useremail)
+    val emailExists = existingByEmail != null
+
+    // A placeholder account (created for a dataset contributor, never had any
+    // credential) is claimed by the first registration with its email. The
+    // account keeps its uid, so existing contributor links stay valid, and it
+    // stays INACTIVE until an admin approves it.
+    if (!usernameExists && emailExists && existingByEmail.getIsPlaceholder) {
+      existingByEmail.setName(username)
+      existingByEmail.setPassword(new StrongPasswordEncryptor().encryptPassword(userpassword))
+      claimPlaceholder(existingByEmail)
+      userDao.update(existingByEmail)
+      return TokenIssueResponse(jwtToken(jwtClaims(existingByEmail, TOKEN_EXPIRE_TIME_IN_MINUTES)))
+    }
+
+    (usernameExists, emailExists) match {
+      case (true, _) =>
+        throw new NotAcceptableException("Username exists already.")
+      case (_, true) =>
+        throw new NotAcceptableException("Email exists already.")
+      case (false, false) =>
         val user = new User
         user.setName(username)
-        user.setEmail(username)
-        user.setRole(UserRoleEnum.RESTRICTED)
+        user.setEmail(useremail)
+        user.setRole(UserRoleEnum.INACTIVE)
         // hash the plain text password
-        user.setPassword(new StrongPasswordEncryptor().encryptPassword(request.password))
+        user.setPassword(new StrongPasswordEncryptor().encryptPassword(userpassword))
         userDao.insert(user)
         TokenIssueResponse(jwtToken(jwtClaims(user, TOKEN_EXPIRE_TIME_IN_MINUTES)))
-      case _ =>
-        // the username exists already
-        throw new NotAcceptableException("Username exists already.")
     }
   }
 

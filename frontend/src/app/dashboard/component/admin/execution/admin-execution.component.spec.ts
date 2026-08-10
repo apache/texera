@@ -262,6 +262,13 @@ describe("AdminExecutionComponent methods (#6550)", () => {
       expect(component.getStatusColor("SOMETHING_ELSE")).toBe("black");
     });
 
+    it("getStatusColor maps the remaining statuses", () => {
+      expect(component.getStatusColor("READY")).toBe("lightgreen");
+      expect(component.getStatusColor("PAUSED")).toBe("purple");
+      expect(component.getStatusColor("FAILED")).toBe("gray");
+      expect(component.getStatusColor("JUST COMPLETED")).toBe("blue");
+    });
+
     it("convertTimeToTimestamp renders the timestamp via toLocaleString", () => {
       // Assert against the same locale call so the test is timezone-independent.
       const expected = new Date(NOW).toLocaleString("en-US", { timeZoneName: "short" });
@@ -325,6 +332,23 @@ describe("AdminExecutionComponent methods (#6550)", () => {
       const newFresh = makeExecution({ executionStatus: "COMPLETED", endTime: NOW - 2000 });
       expect(component.dataCheck(oldJustCompleted, newFresh)).toBe(false);
     });
+
+    it("dataCheck flags execution-name and workflow-name changes when the status is unchanged", () => {
+      const base = makeExecution({ executionStatus: "RUNNING", executionName: "e1", workflowName: "w1" });
+
+      const renamedExecution = makeExecution({ executionStatus: "RUNNING", executionName: "e2", workflowName: "w1" });
+      expect(component.dataCheck(base, renamedExecution)).toBe(true);
+
+      const renamedWorkflow = makeExecution({ executionStatus: "RUNNING", executionName: "e1", workflowName: "w2" });
+      expect(component.dataCheck(base, renamedWorkflow)).toBe(true);
+    });
+
+    it("dataCheck returns false when status, execution name and workflow name are all unchanged", () => {
+      const base = makeExecution({ executionStatus: "RUNNING", executionName: "e1", workflowName: "w1" });
+      const identical = makeExecution({ executionStatus: "RUNNING", executionName: "e1", workflowName: "w1" });
+
+      expect(component.dataCheck(base, identical)).toBe(false);
+    });
   });
 
   describe("data + table", () => {
@@ -367,6 +391,38 @@ describe("AdminExecutionComponent methods (#6550)", () => {
 
       expect(component.sortField).toBe(NO_SORT);
       expect(component.sortDirection).toBe(NO_SORT);
+    });
+
+    it("onSortChange maps a descend order to the 'desc' direction", () => {
+      vi.mocked(service.getExecutionList).mockClear();
+
+      component.onSortChange("workflowName", "descend");
+
+      expect(component.sortField).toBe("workflowName");
+      expect(component.sortDirection).toBe("desc");
+      expect(service.getExecutionList).toHaveBeenCalledTimes(1);
+    });
+
+    it("onSortChange is a no-op when a non-active field is cleared", () => {
+      component.sortField = "executionName";
+      component.sortDirection = "asc";
+      vi.mocked(service.getExecutionList).mockClear();
+
+      // Clearing (sortOrder null) a field that is not the active sort field neither
+      // resets the sort nor refetches.
+      component.onSortChange("workflowName", null);
+
+      expect(component.sortField).toBe("executionName");
+      expect(component.sortDirection).toBe("asc");
+      expect(service.getExecutionList).not.toHaveBeenCalled();
+    });
+
+    it("filterByStatus matches only executions whose status contains a selected value", () => {
+      const running = makeExecution({ executionStatus: "RUNNING" });
+
+      expect(component.filterByStatus(["RUN"], running)).toBe(true);
+      expect(component.filterByStatus(["FAILED"], running)).toBe(false);
+      expect(component.filterByStatus(["FAILED", "RUNNING"], running)).toBe(true);
     });
   });
 
@@ -415,5 +471,160 @@ describe("AdminExecutionComponent methods (#6550)", () => {
         nzTitle: "Execution results of Workflow: My Workflow",
       });
     });
+  });
+
+  describe("lifecycle polling", () => {
+    // The clock tick and background-refresh intervals are hard-coded in the component
+    // (1s and 5s respectively); mirror them here to drive the fake timers.
+    const TICK_MS = 1000;
+    const REFRESH_MS = 5000;
+
+    it("ngOnInit loads the current page and starts the 1s clock tick", () => {
+      const firstExec = makeExecution({ workflowId: 5 });
+      vi.mocked(service.getExecutionList).mockReturnValue(of([firstExec]));
+      vi.mocked(service.getTotalWorkflows).mockReturnValue(of(2));
+      const updateSpy = vi.spyOn(component, "updateTimeStatus");
+
+      component.ngOnInit();
+
+      // The initial fetch resolves synchronously (of(...)) and populates the view.
+      expect(component.listOfExecutions).toEqual([firstExec]);
+      expect(component.totalWorkflows).toBe(2);
+      expect(component.isLoading).toBe(false);
+
+      updateSpy.mockClear();
+      vi.mocked(service.getExecutionList).mockClear();
+
+      // A clock tick recomputes elapsed time client-side without hitting the service.
+      vi.advanceTimersByTime(TICK_MS);
+
+      expect(updateSpy).toHaveBeenCalled();
+      expect(service.getExecutionList).not.toHaveBeenCalled();
+    });
+
+    it("ngOnInit polls the current page every 5s and leaves the total untouched when it did not change", () => {
+      vi.mocked(service.getExecutionList).mockReturnValue(of([makeExecution({ workflowId: 5 })]));
+      vi.mocked(service.getTotalWorkflows).mockReturnValue(of(2));
+
+      component.ngOnInit();
+      expect(component.totalWorkflows).toBe(2);
+
+      // Next poll returns fresh rows but the same total.
+      const polledExec = makeExecution({ workflowId: 9, executionStatus: "RUNNING" });
+      vi.mocked(service.getExecutionList).mockClear();
+      vi.mocked(service.getExecutionList).mockReturnValue(of([polledExec]));
+      vi.mocked(service.getTotalWorkflows).mockReturnValue(of(2));
+
+      vi.advanceTimersByTime(REFRESH_MS);
+
+      expect(service.getExecutionList).toHaveBeenCalledTimes(1);
+      expect(component.listOfExecutions).toEqual([polledExec]);
+      // The total is unchanged, so applyCurrentPage must not reassign/churn it.
+      expect(component.totalWorkflows).toBe(2);
+    });
+
+    it("ngOnDestroy clears the clock interval so it stops ticking", () => {
+      vi.mocked(service.getExecutionList).mockReturnValue(of([]));
+      vi.mocked(service.getTotalWorkflows).mockReturnValue(of(0));
+      component.ngOnInit();
+
+      const updateSpy = vi.spyOn(component, "updateTimeStatus");
+      component.ngOnDestroy();
+
+      vi.advanceTimersByTime(TICK_MS * 3);
+
+      expect(updateSpy).not.toHaveBeenCalled();
+    });
+  });
+});
+
+describe("AdminExecutionComponent template rendering", () => {
+  let component: AdminExecutionComponent;
+  let fixture: ComponentFixture<AdminExecutionComponent>;
+  let service: AdminExecutionService;
+
+  const makeExecution = (overrides: Partial<Execution> = {}): Execution => ({
+    workflowName: "a-very-long-workflow-name-to-truncate",
+    workflowId: 11,
+    userName: "alice",
+    userId: 1,
+    executionId: 21,
+    executionStatus: "COMPLETED",
+    executionTime: 3661_000,
+    executionName: "run-1",
+    startTime: 1_700_000_000_000,
+    endTime: 1_700_000_100_000,
+    access: true,
+    ...overrides,
+  });
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      providers: [AdminExecutionService, ...commonTestProviders],
+      imports: [AdminExecutionComponent, HttpClientTestingModule, NzDropDownModule, NzModalModule],
+    }).compileComponents();
+
+    fixture = TestBed.createComponent(AdminExecutionComponent);
+    component = fixture.componentInstance;
+    service = TestBed.inject(AdminExecutionService);
+    // Keep the fetches inert; the rows are seeded directly so ngOnInit's pollers have
+    // nothing to do (they are covered by the lifecycle tests above).
+    vi.spyOn(service, "getExecutionList").mockReturnValue(of([]));
+    vi.spyOn(service, "getTotalWorkflows").mockReturnValue(of(0));
+  });
+
+  afterEach(() => fixture.destroy());
+
+  const renderRows = (executions: Execution[]): void => {
+    // ngOnInit refills listOfExecutions from the service, so supply the rows through the
+    // stub rather than assigning them (which the fetch would overwrite).
+    vi.mocked(service.getExecutionList).mockReturnValue(of(executions));
+    fixture.detectChanges();
+    fixture.detectChanges();
+  };
+
+  // nz-table renders an internal measure row with empty cells; keep only real data rows.
+  const dataRows = () =>
+    fixture.debugElement
+      .queryAll(By.css("tbody tr"))
+      .filter(row => !row.nativeElement.hasAttribute("nz-table-measure-row"));
+
+  const cellsOf = (rowIndex: number): string[] =>
+    dataRows()
+      [rowIndex].queryAll(By.css("td"))
+      .map(td => (td.nativeElement.textContent ?? "").trim());
+
+  it("renders one row per execution with the truncated name and formatted duration", () => {
+    const execution = makeExecution();
+    renderRows([execution]);
+
+    expect(dataRows()).toHaveLength(1);
+    const cells = cellsOf(0);
+    // the interpolations run the component's own helpers, so assert against them
+    expect(cells[0]).toContain(component.maxStringLength(execution.workflowName, 16));
+    expect(cells[0]).toContain(String(execution.workflowId));
+    expect(cells.join(" ")).toContain(component.convertSecondsToTime(execution.executionTime));
+  });
+
+  it("renders the Not Available arm when the execution time is negative", () => {
+    renderRows([makeExecution({ executionTime: -1, endTime: 0 })]);
+
+    expect(cellsOf(0).join(" ")).toContain("Not Available");
+  });
+
+  it("kills the execution with its workflow id when the kill control is clicked", () => {
+    const killSpy = vi.spyOn(component, "killExecution").mockImplementation(() => {});
+    renderRows([makeExecution({ executionStatus: "RUNNING", workflowId: 42 })]);
+
+    // nz-icon renders [nzType] as an `anticon-<type>` class; the kill button is the one
+    // carrying the "stop" icon (nz-tooltip is a directive input and never reaches the DOM).
+    const killButton = fixture.debugElement
+      .queryAll(By.css("tbody tr button"))
+      .find(btn => btn.nativeElement.querySelector("i.anticon-stop"));
+    expect(killButton).toBeTruthy();
+
+    killButton!.triggerEventHandler("click", null);
+
+    expect(killSpy).toHaveBeenCalledWith(42);
   });
 });

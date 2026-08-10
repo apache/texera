@@ -32,6 +32,7 @@ import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.apache.texera.amber.operator.metadata.OperatorMetadataGenerator
 
 class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
 
@@ -111,6 +112,23 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
     code should include("self.TEMPERATURE")
     // Parse — text-gen pulls choices[0].message.content out of the response.
     code should include("""body["choices"][0]["message"]["content"]""")
+  }
+
+  it should "send the provider-specific model id on provider-scoped chat routes" in {
+    val code = makeDesc().generatePythonCode()
+    // hf-inference's chat-completions endpoint carries the model in the URL path.
+    code should include(
+      "https://router.huggingface.co/hf-inference/models/{self.MODEL_ID}/v1/chat/completions"
+    )
+    // The chat branch posts a per-provider copy of the payload with the
+    // provider's own model name (providerId) — the Hub ID is only valid on
+    // hf-inference itself. Matched as one block so the assertion is anchored
+    // to the chat branch: pipeline routes elsewhere legitimately post the
+    // shared pipeline_payload directly.
+    code should include(
+      "chat_payload = {**pipeline_payload, \"model\": provider_id}\n" +
+        "                    resp = requests.post(url, headers=json_headers, json=chat_payload, timeout=120)"
+    )
   }
 
   it should
@@ -302,6 +320,41 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
     code should not include "requests.get(audio_input"
     code should not include "os.path.exists(audio_input)"
     code should not include "open(audio_input"
+  }
+
+  it should "re-validate every redirect hop in _fetch_remote_url instead of following blindly" in {
+    // requests follows redirects by default, which would skip the scheme/IP
+    // checks on the redirect target: a 302 to http://169.254.169.254/... or an
+    // internal host would be fetched. The helper must disable automatic
+    // redirects and re-run _validate_remote_url on each hop.
+    val code = makeDesc(task = "image-to-image", inputImageColumn = "img").generatePythonCode()
+    // Automatic redirect-following is off, and no redirect-following variant
+    // of the fetch remains anywhere in the helper.
+    code should include(
+      "resp = requests.get(current_url, timeout=120, stream=True, allow_redirects=False)"
+    )
+    code should not include "resp = requests.get(url, timeout=120, stream=True)"
+    // The per-hop validator exists and runs BEFORE the request inside the loop.
+    code should include("def _validate_remote_url(self, url):")
+    val validateCall = code.indexOf("self._validate_remote_url(current_url)")
+    val fetchCall = code.indexOf("resp = requests.get(current_url")
+    validateCall should be > 0
+    fetchCall should be > validateCall
+    // Every redirect status is intercepted; relative Location values are
+    // resolved against the current URL before re-validation.
+    code should include("if resp.status_code in (301, 302, 303, 307, 308):")
+    code should include("current_url = _urljoin(current_url, location)")
+    // Degenerate redirects fail closed: missing Location and unbounded chains.
+    code should include("Redirect response has no Location header.")
+    code should include("MAX_REDIRECT_HOPS = 5")
+    code should include("Too many redirects")
+    // The validator keeps the full pre-existing checks (https-only + public
+    // address) so each hop gets the same scrutiny as the original URL, and
+    // takes an allowlist stance (globally-routable only) that also blocks the
+    // CGNAT/shared range the predicate list alone misses.
+    code should include("""if parsed.scheme != "https":""")
+    code should include("not ip.is_global")
+    code should include("ip.is_multicast")
   }
 
   it should "treat pandas NA sentinels (NaN, pd.NA, NaT) as missing in _read_binary_value" in {
@@ -594,5 +647,53 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
     val out = desc.getOutputSchemas(Map(PortIdentity(0) -> inputSchema))
     val outSchema = out(desc.operatorInfo.outputPorts.head.id)
     outSchema.getAttributeNames.contains("hf_response") shouldBe true
+  }
+
+  it should "validate config with raise ValueError rather than assert (which python -O strips)" in {
+    val code = makeDesc().generatePythonCode()
+    // No `assert` in the generated script — asserts are removed under `python -O`,
+    // silently disabling the checks, and raise AssertionError rather than ValueError.
+    code should not include ("assert ")
+    // The pre-loop config checks now raise ValueError explicitly.
+    code should include("if prompt_col not in table.columns:")
+    code should include("if not (ctx_col and ctx_col in table.columns):")
+    code should include("if not (sent_col and sent_col in table.columns):")
+  }
+
+  it should "validate base64 in the binary-column fallback so plain text isn't decoded to garbage" in {
+    val code = makeDesc().generatePythonCode()
+    // validate=True makes b64decode reject non-base64 input, so real text falls
+    // through to utf-8 instead of decoding to garbage bytes.
+    code should include("base64.b64decode(val, validate=True)")
+  }
+
+  it should "treat a 401 as retryable so one provider's auth failure doesn't abort the fallback" in {
+    val code = makeDesc().generatePythonCode()
+    // 401 is in the retryable set -> the loop tries the next provider instead of bailing.
+    code should include("RETRYABLE = (400, 401, 404, 422, 429, 502, 503)")
+    // The old short-circuit (return immediately on the first 401) must be gone.
+    code should not include ("            if resp.status_code == 401:\n                return resp, None")
+  }
+
+  it should "mask the API token field as a password widget in the generated schema" in {
+    val tokenProp = OperatorMetadataGenerator
+      .generateOperatorJsonSchema(classOf[HuggingFaceInferenceOpDesc])
+      .path("properties")
+      .path("hfApiToken")
+    tokenProp
+      .path("widget")
+      .path("formlyConfig")
+      .path("templateOptions")
+      .path("type")
+      .asText() shouldBe "password"
+  }
+
+  it should "give a clear error when the result column collides with an input column" in {
+    val desc = makeDesc(resultColumn = "prompt")
+    val inputSchema = Schema().add("prompt", AttributeType.STRING)
+    val ex = intercept[RuntimeException] {
+      desc.getOutputSchemas(Map(PortIdentity(0) -> inputSchema))
+    }
+    ex.getMessage should include("Result column 'prompt'")
   }
 }

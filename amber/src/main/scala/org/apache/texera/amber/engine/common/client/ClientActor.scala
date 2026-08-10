@@ -156,6 +156,6 @@ private[client] class ClientActor extends Actor with AmberLogging {
       sender() ! Ack
       coordinator ! x
     case other =>
-      logger.warn("client actor cannot handle " + other) //skip
+      logger.debug("client actor cannot handle " + other) //skip
   }
 }

@@ -28,6 +28,7 @@ import com.dimafeng.testcontainers.{
 }
 import io.lakefs.clients.sdk.ApiException
 import org.apache.texera.common.config.StorageConfig
+import org.apache.texera.common.tags.NonParallelTest
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.testcontainers.containers.Network
@@ -47,7 +48,15 @@ import java.nio.charset.StandardCharsets
   * The method is a thin LakeFS-SDK passthrough (statObject -> mtime), so it can only be
   * exercised against a real LakeFS. This spins up the same Postgres + MinIO + LakeFS stack
   * the file-service tests use, with Postgres backing the LakeFS metadata store.
+  *
+  * Tagged [[NonParallelTest]] so `common/workflow-core/build.sbt` gives this suite its own forked
+  * JVM. It repoints two JVM-wide singletons — `StorageConfig.s3Endpoint` and
+  * `StorageConfig.lakefsEndpoint` — at its containers, and `LakeFSStorageClient.apiClient` is a
+  * `lazy val` that captures the endpoint on first use and never releases it. Sharing a JVM with
+  * `LakeFSStorageClientSpec`, which points the same endpoint at a loopback stub, would make
+  * whichever suite ran second talk to the other one's server.
   */
+@NonParallelTest
 class LakeFSStorageClientMtimeSpec
     extends AnyFlatSpec
     with Matchers

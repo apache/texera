@@ -1,0 +1,129 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# Companion to Backport Checks. That workflow runs on `pull_request`, whose
+# token is read-only on fork PRs and so cannot create check runs; this one runs
+# on `workflow_run` in the base-repo context with `checks: write`, so it can.
+# It reads the preflight artifact and publishes one `backport-preflight
+# (<target>)` check per target: `success` when the change cherry-picks cleanly
+# onto that release branch, `neutral` (grey — never a red X, never a merge
+# blocker) when it conflicts. A conflicting backport is expected and handled
+# after merge by Direct Backport Push, which opens a draft backport PR.
+name: Backport Preflight Publish
+
+on:
+  workflow_run:
+    workflows:
+      - Backport Checks
+    types:
+      - completed
+
+permissions:
+  actions: read
+  checks: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download preflight artifact
+        id: download
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: backport-preflight
+          path: preflight
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+
+      - name: Publish neutral/success preflight checks
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const fs = require("fs");
+            const { owner, repo } = context.repo;
+
+            // The artifact is absent when Backport Checks requested no targets
+            // (a non-backport PR, or every release/* label removed). Fall back
+            // to the workflow_run's head SHA and an empty result set so the
+            // stale-check cleanup below still runs.
+            let results = [];
+            let headSha = context.payload.workflow_run.head_sha;
+            try {
+              results = JSON.parse(fs.readFileSync("preflight/results.json", "utf8"));
+            } catch (e) {
+              core.info(`No preflight results artifact (${e.code || e.message}); nothing to publish.`);
+            }
+            try {
+              const meta = JSON.parse(fs.readFileSync("preflight/meta.json", "utf8"));
+              if (meta.head_sha) headSha = meta.head_sha;
+            } catch (e) {
+              core.info("No preflight meta; using workflow_run head SHA.");
+            }
+            if (!headSha) {
+              core.warning("No head SHA resolved; skipping.");
+              return;
+            }
+
+            for (const r of results) {
+              const applied = r.applied === true;
+              await github.rest.checks.create({
+                owner,
+                repo,
+                name: `backport-preflight (${r.target})`,
+                head_sha: headSha,
+                status: "completed",
+                conclusion: applied ? "success" : "neutral",
+                output: {
+                  title: applied
+                    ? `Cherry-picks cleanly onto ${r.target}`
+                    : `Conflicts on ${r.target} — needs a manual backport`,
+                  summary: applied
+                    ? `The change applies cleanly onto \`${r.target}\`. If this PR merges it is cherry-picked straight to the release branch.`
+                    : `The change does not apply cleanly onto \`${r.target}\`. This is advisory and does not block merging: after merge, Direct Backport Push opens a draft backport PR for manual conflict resolution. Remove the \`${r.target}\` label to decline the backport.`,
+                },
+              });
+              core.info(`Published backport-preflight (${r.target}) = ${applied ? "success" : "neutral"}.`);
+            }
+
+            // Cancel stale preflight checks for targets no longer requested
+            // (e.g. a release/* label was removed): a leftover grey/green mark
+            // for a target that is gone is misleading.
+            const current = new Set(results.map((r) => r.target));
+            const checks = await github.paginate(github.rest.checks.listForRef, {
+              owner,
+              repo,
+              ref: headSha,
+              per_page: 100,
+            });
+            for (const check of checks) {
+              const m = check.name.match(/^backport-preflight \((.+)\)$/);
+              if (!m || current.has(m[1])) continue;
+              if (check.status === "completed" && check.conclusion === "cancelled") continue;
+              try {
+                await github.rest.checks.update({
+                  owner,
+                  repo,
+                  check_run_id: check.id,
+                  status: "completed",
+                  conclusion: "cancelled",
+                });
+                core.info(`Cancelled stale ${check.name}.`);
+              } catch (e) {
+                core.warning(`Failed to cancel ${check.name}: ${e.message}`);
+              }
+            }
