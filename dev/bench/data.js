@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1786280154991,
+  "lastUpdate": 1786367037714,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -8428,6 +8428,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 548.9465041508774,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Meng Wang",
+            "username": "mengw15",
+            "email": "mengw15@uci.edu"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "42d08a3701cd06542bcfa92728116302723b2536",
+          "message": "test(frontend): cover the remaining branches in three dashboard components (#7503)\n\n### What changes were proposed in this PR?\n\nCovers the branches the three specs never reached. 22 new tests; every\nfunction in all\nthree files is now executed.\n\n| file | statements | branches | functions |\n| --- | --- | --- | --- |\n| `user-computing-unit.component.ts` | 37/37 | 12/12 | 11/11 |\n| `user-dataset-file-renderer.component.ts` | 142/142 | 65/68 | 25/25 |\n| `files-uploader.component.ts` | 139/140 | 78/82 | 37/37 |\n\n**UserComputingUnitComponent** — the session subscription updating\n`isLogin`/`currentUid`,\nthe mapping of fetched units into dashboard entries, the 1s poller (it\nrefreshes on each\ntick and stops once the component is destroyed), and both arms of\n`terminateComputingUnit`.\n\nThe poll test calls `ngOnInit()` directly rather than `detectChanges()`:\nthe fixture's\nNgZone is created outside the `fakeAsync` zone, so a poll scheduled\nthrough it lands on\nthe real timer queue where `tick()` cannot drive it.\n`discardPeriodicTasks()` drops the\nunbounded interval, and `fixture.destroy()` in `afterEach` keeps it from\nticking into a\nlater test.\n\n**UserDatasetFileRendererComponent** — the spreadsheet branch\n(previously unhit in full),\nthe CSV empty-result and read-failure arms, and the guard that stops a\nfetch when the\ndataset ids are missing.\n\nThe spreadsheet tests build a real `.xlsx` with JSZip (already a\ndependency, and already\nused this way in `user-workflow.component.spec.ts`) and run the real\n`read-excel-file`\nrather than mocking the module; one workbook leaves a gap in a row so\nboth arms of the\ncell-to-string mapping run. jsdom's `Blob` has no `arrayBuffer()`, which\nis how\n`read-excel-file` reads its input, so the helper attaches the buffer it\njust built to that\none blob instead of patching `Blob.prototype`. For CSV, `FileReader` is\nreplaced with a\nfake that settles on a microtask, which is what makes the empty-result\nand error arms\ndeterministic — `Papa.parse` cannot be spied here (the existing spec\ndocuments why).\n\n**FilesUploaderComponent** — the drop paths that never yield an\nuploadable file (oversized\nfile, dropped directory, unreadable entry, including the singular/plural\nfailure banner),\nthe lookup paths (no dataset context, failed lookup, null result, and an\nunexpected failure\nof the whole drop with and without an error message), the fallback used\nwhen a conflicting\npath ends in a separator, the settings-request failure the constructor\nswallows, and the\nteardown that stops a late setting reaching a destroyed component.\n\nNo production code was changed.\n\n### Coverage that is not reachable\n\nThree branches and one statement stay uncovered because no test can\nreach them:\n\n- `user-dataset-file-renderer.component.ts:203` and `:223` — the\n`?? this.DEFAULT_MAX_SIZE` / `|| this.DEFAULT_MAX_SIZE` fallbacks. Both\nare reached only\nafter `isPreviewSupported` has confirmed via `hasOwnProperty` that the\nkey exists in\n`MIME_TYPE_SIZE_LIMITS_MB`, and every value in that map is a positive\nnumber, so neither\n  fallback can be taken.\n- `user-dataset-file-renderer.component.ts:372` — `if (cell != \"\")`\ninside\n`for (const cell in row)`. `for...in` yields index strings (\"0\", \"1\",\n…), which are never\n`\"\"`, so the condition is always true and the \"filter out all empty row\"\nstep filters\n  nothing. That is a defect rather than a coverage gap.\n- `files-uploader.component.ts:58` — a statement whose source range runs\nbackwards\n(`58:35 -> 50:None`) into the `@Component` decorator: the\ncompiler-emitted `ngDevMode`\nguard on the class declaration, not application code. The one genuinely\nreachable gap\nattributed near it — the constructor's `error: () => {}` arm — is now\ncovered, taking\n  function coverage to 37/37.\n\n- `user-dataset-file-renderer.component.ts` sets `isLoading = true`\nimmediately above the\n`did && dvid && filePath` guard and never clears it when that guard\nfails, so a renderer\ngiven a `filePath` before its dataset ids shows a spinner that never\nstops. The id-guard\ntest pins this with a comment saying it characterizes a defect and what\nto flip once it\n  is fixed.\n\n### Defects worth recording\n\n`getMimeType` uppercases a file's extension and looks it up as a **key**\nof `MIME_TYPES`.\nThe Excel key is `MSEXCEL`, so only a file named `*.msexcel` resolves to\n`application/vnd.ms-excel`; a real `.xlsx` or `.xls` falls through to\n`OCTET_STREAM` and is\nrejected as \"preview unsupported\", which makes the whole spreadsheet\nbranch dead for real\nspreadsheets. `.jpg` has the same problem (the key is `JPEG`). The new\ntests use the suffix\nthe code actually accepts, with a comment saying so, rather than\nasserting an intent the\ncode does not implement.\n\n### Any related issues, documentation, discussions?\n\nCloses #7497.\n\n### How was this PR tested?\n\n`ng test --watch=false` over the three specs — 86 passed (64 existing +\n22 new), run 3x for\ndeterminism. Coverage (`--coverage`) gives the table above. The failure\npath was verified by\nbreaking one assertion in each of the three specs (red, non-zero exit)\nand restoring them;\neslint and prettier are clean.\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Claude Code (Opus 4.8 [1M context])",
+          "timestamp": "2026-08-10T05:28:45Z",
+          "url": "https://github.com/apache/texera/commit/42d08a3701cd06542bcfa92728116302723b2536"
+        },
+        "date": 1786367037086,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 670.0955846388074,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 1263.4975509148737,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 1394.3704947175092,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 849.9650831793934,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 1361.5054586016342,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 1438.766911076922,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 922.6573396835471,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 1360.8999083195415,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 1448.830600374629,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 780.4069647666179,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 1065.8485710999355,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 1115.7364566746642,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 818.7468964861586,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 1057.447620281453,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 1081.1869802658764,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 806.2229846443662,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 1055.5764194310555,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 1086.7771974238722,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 479.88028415034177,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 578.2462077692043,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 582.6720153137618,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 482.77396824057934,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 566.0050805703894,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 576.5519169852747,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 460.8335773047736,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 542.8000483898535,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 549.3734351994207,
             "unit": "tuples/sec"
           }
         ]
