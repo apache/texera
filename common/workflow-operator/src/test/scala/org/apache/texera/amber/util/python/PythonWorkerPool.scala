@@ -47,7 +47,7 @@ import scala.util.control.NonFatal
   * interpreter-boot + import cost a test otherwise pays on every subprocess
   * spawn. Testing operators one at a time does not scale when each one costs a
   * spawn: a bare `-I -S` interpreter boots in ~25 ms, and once pandas and plotly
-  * are imported a spawn costs ~260-310 ms — the imports ~96% of that — dwarfing
+  * are imported a spawn costs ~260-310 ms — mostly the imports — dwarfing
   * the ~4 ms of real work a job does. A worker pays that once at startup, then
   * serves many jobs over its lifetime, so N spawns become one.
   *
