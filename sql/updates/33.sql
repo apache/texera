@@ -55,9 +55,12 @@ CREATE TABLE IF NOT EXISTS auth_provider
 
 ALTER TABLE auth_provider DROP CONSTRAINT IF EXISTS ck_provider_credential;
 
+-- Report the accounts that end up unable to log in. This only reports: a name that is blank,
+-- padded or shared is normalized into a usable handle further down rather than rejected, because
+-- refusing the migration over a cosmetic name turns one untrimmed row — which `AdminUserResource`
+-- can write today — into a deployment that cannot start, and liquibase marks the changeset failed.
 DO $$
 DECLARE
-    offenders TEXT;
     orphans   TEXT;
     has_placeholder BOOLEAN;
 BEGIN
@@ -73,15 +76,6 @@ BEGIN
         SELECT 1 FROM information_schema.columns
         WHERE table_schema = 'texera_db' AND table_name = 'user' AND column_name = 'password'
     ) THEN
-        -- upgrading from the pre-auth_provider schema: handles come straight from "user"
-        SELECT string_agg(DISTINCT quote_literal(name), ', ')
-        INTO offenders
-        FROM "user"
-        WHERE password IS NOT NULL
-          AND (btrim(name) = '' OR name <> btrim(name) OR name IN (
-            SELECT name FROM "user" WHERE password IS NOT NULL
-            GROUP BY name HAVING count(*) > 1));
-
         IF has_placeholder THEN
             EXECUTE $q$
                 SELECT string_agg(uid::TEXT, ', ')
@@ -94,24 +88,6 @@ BEGIN
             FROM "user"
             WHERE password IS NULL AND google_id IS NULL;
         END IF;
-    ELSE
-        SELECT string_agg(DISTINCT quote_literal(u.name), ', ')
-        INTO offenders
-        FROM "user" u
-                 JOIN auth_provider a ON a.uid = u.uid AND a.provider_type = 'LOCAL'
-        WHERE a.provider_id IS NULL
-          AND (btrim(u.name) = '' OR u.name <> btrim(u.name) OR u.name IN (
-            SELECT u2.name
-            FROM "user" u2
-                     JOIN auth_provider a2 ON a2.uid = u2.uid AND a2.provider_type = 'LOCAL'
-            WHERE a2.provider_id IS NULL
-            GROUP BY u2.name HAVING count(*) > 1));
-    END IF;
-
-    IF offenders IS NOT NULL THEN
-        RAISE EXCEPTION 'migration 33: cannot promote "user".name to a login handle - '
-                        'the following names are duplicated, blank, or whitespace-padded: %. '
-                        'Resolve them and re-run.', offenders;
     END IF;
 
     IF orphans IS NOT NULL THEN
@@ -128,8 +104,12 @@ BEGIN
         SELECT 1 FROM information_schema.columns
         WHERE table_schema = 'texera_db' AND table_name = 'user' AND column_name = 'password'
     ) THEN
-        INSERT INTO auth_provider (uid, provider_type, provider_id, password)
-        SELECT uid, 'LOCAL'::provider_type_enum, name, password
+        -- The handle is deliberately left NULL here and minted below. `uq_provider_identity`
+        -- is already in force and treats NULLs as distinct, so inserting the raw name would
+        -- abort on the first pair of users sharing one — before the normalization that resolves
+        -- it could run.
+        INSERT INTO auth_provider (uid, provider_type, password)
+        SELECT uid, 'LOCAL'::provider_type_enum, password
         FROM "user"
         WHERE password IS NOT NULL
         ON CONFLICT (uid, provider_type) DO NOTHING;
@@ -143,13 +123,103 @@ BEGIN
 END
 $$;
 
--- Fill handles left NULL by an earlier version of this migration; a no-op otherwise.
-UPDATE auth_provider a
-SET provider_id = u.name
-FROM "user" u
-WHERE u.uid = a.uid
-  AND a.provider_type = 'LOCAL'
-  AND a.provider_id IS NULL;
+-- Mint every LOCAL handle from "user".name, normalizing rather than rejecting: the name is
+-- trimmed, a name with nothing left is replaced by a uid-derived handle, and handles that still
+-- collide are deterministically suffixed with "-<uid>" (kept: the lowest uid), truncated to fit
+-- VARCHAR(256). The loop is bounded because a suffixed handle can itself collide with a literal
+-- one, the same way 28.sql deduplicates dataset names.
+--
+-- Every change is reported via RAISE NOTICE: the handle is what the user types to log in, so an
+-- operator has to be able to see which accounts got one they would not guess and tell them.
+DO $$
+DECLARE
+    rec RECORD;
+    changed    INT := 0;
+    iterations INT := 0;
+BEGIN
+    -- Trim, give a name that is blank or whitespace-only a deterministic stand-in, and separate
+    -- names that are already shared. The de-duplication has to happen inside this statement, not
+    -- only in the loop below: `uq_provider_identity` is in force, so two accounts named "john"
+    -- would collide with each other *within this one UPDATE* before any later pass could fix it.
+    FOR rec IN
+        UPDATE auth_provider a
+        SET provider_id = CASE
+                              WHEN src.rn = 1 THEN src.base
+                              ELSE LEFT(src.base, 256 - LENGTH('-' || a.uid::TEXT))
+                                       || '-' || a.uid::TEXT
+                          END
+        FROM (
+            SELECT u.uid,
+                   u.name AS old_name,
+                   CASE
+                       WHEN btrim(u.name) = '' THEN 'user-' || u.uid::TEXT
+                       ELSE btrim(u.name)
+                   END AS base,
+                   ROW_NUMBER() OVER (
+                       PARTITION BY CASE
+                                        WHEN btrim(u.name) = '' THEN 'user-' || u.uid::TEXT
+                                        ELSE btrim(u.name)
+                                    END
+                       ORDER BY u.uid
+                   ) AS rn
+            FROM "user" u
+                     JOIN auth_provider ap
+                          ON ap.uid = u.uid
+                              AND ap.provider_type = 'LOCAL'
+                              AND ap.provider_id IS NULL
+        ) src
+        WHERE a.uid = src.uid
+          AND a.provider_type = 'LOCAL'
+          AND a.provider_id IS NULL
+        RETURNING a.uid, src.old_name, a.provider_id AS new_handle
+    LOOP
+        IF rec.old_name IS DISTINCT FROM rec.new_handle THEN
+            changed := changed + 1;
+            RAISE NOTICE 'migration 33: minted LOCAL handle for uid=%: "%" -> "%"',
+                rec.uid, rec.old_name, rec.new_handle;
+        END IF;
+    END LOOP;
+
+    -- Resolve handles shared by more than one account.
+    LOOP
+        FOR rec IN
+            UPDATE auth_provider a
+            SET provider_id = LEFT(a.provider_id, 256 - LENGTH('-' || a.uid::TEXT))
+                                  || '-' || a.uid::TEXT
+            FROM (
+                SELECT uid, provider_id AS old_handle,
+                       ROW_NUMBER() OVER (PARTITION BY provider_id ORDER BY uid) AS rn
+                FROM auth_provider
+                WHERE provider_type = 'LOCAL'
+            ) dups
+            WHERE a.uid = dups.uid AND a.provider_type = 'LOCAL' AND dups.rn > 1
+            RETURNING a.uid, dups.old_handle, a.provider_id AS new_handle
+        LOOP
+            changed := changed + 1;
+            RAISE NOTICE 'migration 33: LOCAL handle for uid=% was already taken: "%" -> "%"',
+                rec.uid, rec.old_handle, rec.new_handle;
+        END LOOP;
+
+        EXIT WHEN NOT EXISTS (
+            SELECT 1 FROM auth_provider
+            WHERE provider_type = 'LOCAL'
+            GROUP BY provider_id HAVING COUNT(*) > 1
+        );
+
+        iterations := iterations + 1;
+        IF iterations > 10 THEN
+            RAISE EXCEPTION 'migration 33: could not make LOCAL login handles unique after 10 '
+                            'passes; resolve the duplicates in "user".name manually and re-run.';
+        END IF;
+    END LOOP;
+
+    IF changed > 0 THEN
+        RAISE NOTICE 'migration 33: % LOCAL login handle(s) differ from the account name they '
+                     'were minted from; those users cannot guess their handle and must be told '
+                     'it or given a reset.', changed;
+    END IF;
+END
+$$;
 
 -- Every row now has a handle, so make it mandatory and restore the credential check in its
 -- new shape: a password exists for LOCAL and only for LOCAL.
