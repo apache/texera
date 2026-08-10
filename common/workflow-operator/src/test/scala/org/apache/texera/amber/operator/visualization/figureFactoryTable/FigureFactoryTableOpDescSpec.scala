@@ -99,4 +99,15 @@ class FigureFactoryTableOpDescSpec extends AnyFlatSpec with BeforeAndAfter with 
     assert(carries(code, "col_two"))
     code should include("class TableChartOperator(UDFTableOperator)")
   }
+
+  it should "define the render_error the empty-table branches call" in {
+    // Both empty-table branches call self.render_error; without the definition they
+    // raised AttributeError instead of rendering the message.
+    withColumns()
+    val code = opDesc.generatePythonCode()
+    code should include("def render_error(self, error_msg) -> str:")
+    code should include(
+      """return f"<h1>Figure Factory Table is not available.</h1><p>Reason is: {error_msg}</p>""""
+    )
+  }
 }

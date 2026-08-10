@@ -31,6 +31,8 @@ import { OperatorSchema } from "../../types/operator-schema.interface";
 import { of, Subject } from "rxjs";
 import { AIAssistantService } from "../../service/ai-assistant/ai-assistant.service";
 import * as monaco from "monaco-editor";
+import { UiUdfParametersSyncService } from "../../service/code-editor/ui-udf-parameters-sync.service";
+import { NotificationService } from "../../../common/service/notification/notification.service";
 
 // Operator types that the constructor's language-detection branch must map
 // to a specific language. `RUDFSource` / `RUDF` -> `r`; the three V2 Python
@@ -91,12 +93,24 @@ const buildPredicate = (operatorID: string, operatorType: string): OperatorPredi
 
 describe("CodeEditorComponent", () => {
   let workflowActionService: WorkflowActionService;
+  let uiParametersParseErrors: Subject<{ operatorId: string; message?: string }>;
+  let notificationServiceMock: { error: ReturnType<typeof vi.fn> };
 
   beforeEach(async () => {
+    uiParametersParseErrors = new Subject();
+    notificationServiceMock = { error: vi.fn() };
     await TestBed.configureTestingModule({
       providers: [
         WorkflowActionService,
         { provide: OperatorMetadataService, useClass: AugmentedStubMetadataService },
+        {
+          provide: UiUdfParametersSyncService,
+          useValue: {
+            attachToYCode: vi.fn(() => () => undefined),
+            uiParametersParseError$: uiParametersParseErrors.asObservable(),
+          },
+        },
+        { provide: NotificationService, useValue: notificationServiceMock },
         ...commonTestProviders,
       ],
       imports: [CodeEditorComponent, HttpClientTestingModule],
@@ -117,6 +131,30 @@ describe("CodeEditorComponent", () => {
     const fixture = makeFixture(mockJavaUDFPredicate);
     expect(fixture.componentInstance).toBeTruthy();
     expect(fixture.componentInstance.currentOperatorId).toBe(mockJavaUDFPredicate.operatorID);
+  });
+
+  it("shows UI parameter parser errors for the edited operator", () => {
+    const predicate = buildPredicate("python-with-invalid-parameters", "PythonUDFV2");
+    makeFixture(predicate);
+
+    uiParametersParseErrors.next({
+      operatorId: predicate.operatorID,
+      message: "UiParameter name 'count' is declared more than once.",
+    });
+
+    expect(notificationServiceMock.error).toHaveBeenCalledWith(
+      "Could not update UDF parameters: UiParameter name 'count' is declared more than once."
+    );
+  });
+
+  it("ignores UI parameter parser events for other operators and successful parses", () => {
+    const predicate = buildPredicate("python-with-valid-parameters", "PythonUDFV2");
+    makeFixture(predicate);
+
+    uiParametersParseErrors.next({ operatorId: "another-operator", message: "invalid" });
+    uiParametersParseErrors.next({ operatorId: predicate.operatorID });
+
+    expect(notificationServiceMock.error).not.toHaveBeenCalled();
   });
 
   // Language detection — the constructor maps `RUDFSource` / `RUDF` to `r`,
