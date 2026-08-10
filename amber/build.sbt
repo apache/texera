@@ -352,7 +352,7 @@ libraryDependencies += "org.apache.commons" % "commons-jcs3-core" % "3.2.1"
 
 // For supporting MultiDict
 // https://mvnrepository.com/artifact/org.scala-lang.modules/scala-collection-contrib
-libraryDependencies += "org.scala-lang.modules" %% "scala-collection-contrib" % "0.3.0"
+libraryDependencies += "org.scala-lang.modules" %% "scala-collection-contrib" % "0.4.0"
 
 // For supporting deepcopy
 // https://mvnrepository.com/artifact/io.github.kostaskougios/cloning
