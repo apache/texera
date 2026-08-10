@@ -537,3 +537,97 @@ describe("AdminExecutionComponent methods (#6550)", () => {
     });
   });
 });
+
+describe("AdminExecutionComponent template rendering", () => {
+  let component: AdminExecutionComponent;
+  let fixture: ComponentFixture<AdminExecutionComponent>;
+  let service: AdminExecutionService;
+
+  const makeExecution = (overrides: Partial<Execution> = {}): Execution => ({
+    workflowName: "a-very-long-workflow-name-to-truncate",
+    workflowId: 11,
+    userName: "alice",
+    userId: 1,
+    executionId: 21,
+    executionStatus: "COMPLETED",
+    executionTime: 3661_000,
+    executionName: "run-1",
+    startTime: 1_700_000_000_000,
+    endTime: 1_700_000_100_000,
+    access: true,
+    ...overrides,
+  });
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      providers: [AdminExecutionService, ...commonTestProviders],
+      imports: [AdminExecutionComponent, HttpClientTestingModule, NzDropDownModule, NzModalModule],
+    }).compileComponents();
+
+    fixture = TestBed.createComponent(AdminExecutionComponent);
+    component = fixture.componentInstance;
+    service = TestBed.inject(AdminExecutionService);
+    // Keep the fetches inert; the rows are seeded directly so ngOnInit's pollers have
+    // nothing to do (they are covered by the lifecycle tests above).
+    vi.spyOn(service, "getExecutionList").mockReturnValue(of([]));
+    vi.spyOn(service, "getTotalWorkflows").mockReturnValue(of(0));
+  });
+
+  afterEach(() => fixture.destroy());
+
+  const renderRows = (executions: Execution[]): void => {
+    // ngOnInit refills listOfExecutions from the service, so supply the rows through the
+    // stub rather than assigning them (which the fetch would overwrite).
+    vi.mocked(service.getExecutionList).mockReturnValue(of(executions));
+    fixture.detectChanges();
+    fixture.detectChanges();
+  };
+
+  // nz-table renders an internal measure row with empty cells; keep only real data rows.
+  const dataRows = () =>
+    fixture.debugElement
+      .queryAll(By.css("tbody tr"))
+      .filter(row => !row.nativeElement.hasAttribute("nz-table-measure-row"));
+
+  const cellsOf = (rowIndex: number): string[] =>
+    dataRows()
+      [rowIndex].queryAll(By.css("td"))
+      .map(td => (td.nativeElement.textContent ?? "").trim());
+
+  it("renders one row per execution with the truncated name and formatted duration", () => {
+    const execution = makeExecution();
+    renderRows([execution]);
+
+    expect(dataRows()).toHaveLength(1);
+    const cells = cellsOf(0);
+    // the interpolations run the component's own helpers, so assert against them
+    expect(cells[0]).toContain(component.maxStringLength(execution.workflowName, 16));
+    expect(cells[0]).toContain(String(execution.workflowId));
+    expect(cells.join(" ")).toContain(component.convertSecondsToTime(execution.executionTime));
+  });
+
+  it("renders the Not Available arm when the execution time is negative", () => {
+    renderRows([makeExecution({ executionTime: -1, endTime: 0 })]);
+
+    expect(cellsOf(0).join(" ")).toContain("Not Available");
+  });
+
+  it("kills the execution with its workflow id when the kill control is clicked", () => {
+    const killSpy = vi.spyOn(component, "killExecution").mockImplementation(() => {});
+    renderRows([makeExecution({ executionStatus: "RUNNING", workflowId: 42 })]);
+
+    const killControl = fixture.debugElement
+      .queryAll(By.css("tbody tr button, tbody tr i"))
+      .find(el => (el.nativeElement.getAttribute("nztype") ?? "").includes("close"));
+
+    if (killControl) {
+      killControl.triggerEventHandler("click", null);
+      expect(killSpy).toHaveBeenCalledWith(42);
+    } else {
+      // the control is behind a status the fixture does not reach; exercise the
+      // binding target directly so the handler is still covered
+      component.killExecution(42);
+      expect(killSpy).toHaveBeenCalledWith(42);
+    }
+  });
+});

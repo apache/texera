@@ -388,4 +388,36 @@ describe("PropertyEditorComponent", () => {
       freshFixture.destroy();
     }
   });
+
+  // ─── template rendering ────────────────────────────────────────────────────
+  // The docked buttons swap between a collapse and an expand item depending on the
+  // panel width; drive both through the DOM so each (click) binding executes.
+  describe("template rendering", () => {
+    const dockedItems = (): HTMLElement[] =>
+      Array.from(fixture.nativeElement.querySelectorAll("#docked-buttons li")) as HTMLElement[];
+
+    it("collapses the panel when the docked collapse item is clicked", () => {
+      component.width = 280;
+      fixture.detectChanges();
+
+      const items = dockedItems();
+      expect(items).toHaveLength(1); // only the collapse arm renders while open
+      items[0].click();
+      fixture.detectChanges();
+
+      expect(component.width).toBe(0);
+    });
+
+    it("reopens the panel when the collapsed docked item is clicked", () => {
+      component.width = 0;
+      fixture.detectChanges();
+
+      const items = dockedItems();
+      expect(items).toHaveLength(1); // only the expand arm renders while collapsed
+      items[0].click();
+      fixture.detectChanges();
+
+      expect(component.width).toBe(280);
+    });
+  });
 });
