@@ -109,12 +109,6 @@ class LoopStartOpDescSpec extends AnyFlatSpec with LoopOpDescSpecMixin {
     assertNonParallelizable(desc().getPhysicalOp(workflowId, executionId))
   }
 
-  "LoopStartOpDesc.getPhysicalOp" should "require materialized execution" in {
-    // The loop back-edge is the cross-region materialized state channel, so the
-    // scheduler forces a fully-materialized schedule (PhysicalOp.requiresMaterializedExecution).
-    desc().getPhysicalOp(workflowId, executionId).requiresMaterializedExecution shouldBe true
-  }
-
   it should "mark the physical op as the loop start" in {
     // The scheduler resolves each Loop Start's loop-back write address (the
     // state URI of its input port) from this flag and delivers it to workers

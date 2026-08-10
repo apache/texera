@@ -198,16 +198,6 @@ case class PhysicalOp(
     // schema propagation function
     propagateSchema: SchemaPropagationFunc = SchemaPropagationFunc(schemas => schemas),
     isOneToManyOp: Boolean = false,
-    // Whether this operator can only run correctly under a fully-materialized
-    // schedule (e.g. a loop operator, whose back-edge is a cross-region
-    // materialized state channel that requires region-based re-execution).
-    // When ANY operator in the plan sets this, the schedule generator runs the
-    // WHOLE workflow fully materialized -- every link materialized, nothing
-    // pipelined -- not just this operator's own region boundaries. Whole-plan
-    // materialization is the minimal correct behavior for loops today;
-    // restricting it to only the requiring operator's regions is a possible
-    // future optimization. Default false.
-    requiresMaterializedExecution: Boolean = false,
     // Marks the Loop Start operator of a loop; the scheduler resolves the loop-back
     // write address from it (see InitializeExecutorRequest.loopStartStateUris). Default false.
     isLoopStart: Boolean = false,
@@ -328,13 +318,6 @@ case class PhysicalOp(
     */
   def withIsOneToManyOp(isOneToManyOp: Boolean): PhysicalOp =
     this.copy(isOneToManyOp = isOneToManyOp)
-
-  /**
-    * creates a copy specifying whether this operator can only run correctly
-    * under a fully-materialized schedule (see the field doc)
-    */
-  def withRequiresMaterializedExecution(requiresMaterializedExecution: Boolean): PhysicalOp =
-    this.copy(requiresMaterializedExecution = requiresMaterializedExecution)
 
   /**
     * creates a copy specifying whether this operator is the Loop Start of a

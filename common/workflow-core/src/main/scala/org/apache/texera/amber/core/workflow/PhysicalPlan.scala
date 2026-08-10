@@ -260,7 +260,10 @@ case class PhysicalPlan(
                 .filter(link =>
                   getOperator(physicalOp.id).isInputLinkDependee(
                     link
-                  ) || getOperator(upstreamPhysicalOpId).isOutputLinkBlocking(link)
+                  ) || getOperator(upstreamPhysicalOpId).isOutputLinkBlocking(link) ||
+                    // the link into a Loop Start must be materialized: its
+                    // storage is the loop-back state write target
+                    getOperator(physicalOp.id).isLoopStart
                 )
             }
         }

@@ -58,6 +58,13 @@ abstract class LoopOpDesc extends LogicalOp {
   protected def reuseStorage: Boolean = false
 
   /**
+    * Loop End's output is complete only when the loop finishes, so its output
+    * port is blocking (the link out of it is always materialized); Loop
+    * Start's output may pipeline into the body.
+    */
+  protected def outputBlocking: Boolean = false
+
+  /**
     * Marks the Loop Start operator; the scheduler resolves each Loop Start's
     * loop-back state write address from this flag (see PhysicalOp.isLoopStart).
     * JsonIgnore: Jackson's is-getter convention would otherwise serialize this
@@ -94,10 +101,6 @@ abstract class LoopOpDesc extends LogicalOp {
       // WorkerConfig forces workerCount = 1 for non-parallelizable ops, which
       // keeps the loop state and accumulated table on a single worker.
       .withParallelizable(false)
-      // A loop's back-edge is the cross-region materialized state channel, so
-      // the loop operators only run correctly under a fully-materialized
-      // schedule; the scheduler forces it when this flag is set.
-      .withRequiresMaterializedExecution(true)
       .withIsLoopStart(isLoopStart)
 
   override def operatorInfo: OperatorInfo =
@@ -113,6 +116,6 @@ abstract class LoopOpDesc extends LogicalOp {
       // Loop End reuses its output storage across region re-executions (it
       // accumulates across the iterations of its own loop); the flag is
       // declared on the output port and the region scheduler reads it there.
-      outputPorts = List(OutputPort(reuseStorage = reuseStorage))
+      outputPorts = List(OutputPort(blocking = outputBlocking, reuseStorage = reuseStorage))
     )
 }
