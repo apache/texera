@@ -18,13 +18,17 @@
  */
 
 import { afterEach, beforeEach, describe, expect, mock, spyOn, test } from "bun:test";
-import { executeOperatorAndFormat, type ExecutionConfig } from "./workflow-execution-tools";
+import { createExecuteOperatorTool, executeOperatorAndFormat, type ExecutionConfig } from "./workflow-execution-tools";
 import { WorkflowState } from "../workflow-state";
 import { WorkflowSystemMetadata } from "../util/workflow-system-metadata";
-import type { OperatorPredicate, PortDescription } from "../../types/workflow";
+import type { OperatorLink, OperatorPredicate, PortDescription } from "../../types/workflow";
 import type { OperatorInfo, SyncExecutionResult } from "../../types/execution";
 
-function makeOperator(id: string, inputPorts: PortDescription[] = []): OperatorPredicate {
+function makeOperator(
+  id: string,
+  inputPorts: PortDescription[] = [],
+  overrides: Partial<OperatorPredicate> = {}
+): OperatorPredicate {
   return {
     operatorID: id,
     operatorType: "TestOp",
@@ -33,6 +37,15 @@ function makeOperator(id: string, inputPorts: PortDescription[] = []): OperatorP
     inputPorts,
     outputPorts: [],
     showAdvanced: false,
+    ...overrides,
+  };
+}
+
+function makeLink(source: string, sourcePort: string, target: string, targetPort: string): OperatorLink {
+  return {
+    linkID: `${source}.${sourcePort}->${target}.${targetPort}`,
+    source: { operatorID: source, portID: sourcePort },
+    target: { operatorID: target, portID: targetPort },
   };
 }
 
@@ -40,6 +53,11 @@ function stateWith(...operators: OperatorPredicate[]): WorkflowState {
   const state = new WorkflowState();
   for (const op of operators) state.addOperator(op);
   return state;
+}
+
+// The JSON body of the nth fetch the code under test issued.
+function requestBody(spy: ReturnType<typeof spyOn>, callIndex = 0): any {
+  return JSON.parse((spy.mock.calls[callIndex][1] as RequestInit).body as string);
 }
 
 function cfg(overrides: Partial<ExecutionConfig> = {}): ExecutionConfig {
@@ -88,6 +106,30 @@ describe("executeOperatorAndFormat — guards & validation", () => {
     const state = stateWith(makeOperator("op1", [{ portID: "input-0" }]));
     const result = await executeOperatorAndFormat(state, cfg(), "op1");
     expect(result).toBe("[ERROR] Operator op1:\n  - inputs: input-0 requires at least 1 input, has 0.");
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  test("merges schema and connection violations into one blocking message", async () => {
+    validateSpy.mockReturnValue({ isValid: false, messages: { limit: "must be a number" } });
+    const state = stateWith(makeOperator("op1", [{ portID: "input-0" }]));
+
+    const result = await executeOperatorAndFormat(state, cfg(), "op1");
+
+    expect(result).toBe(
+      "[ERROR] Operator op1:\n  - limit: must be a number\n  - inputs: input-0 requires at least 1 input, has 0."
+    );
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  test("rejects a single-input port that has more than one incoming link, naming it by display name", async () => {
+    const dst = makeOperator("dst", [{ portID: "input-0", displayName: "Left", disallowMultiInputs: true }]);
+    const state = stateWith(makeOperator("a"), makeOperator("b"), dst);
+    state.addLink(makeLink("a", "output-0", "dst", "input-0"));
+    state.addLink(makeLink("b", "output-0", "dst", "input-0"));
+
+    const result = await executeOperatorAndFormat(state, cfg(), "dst");
+
+    expect(result).toBe("[ERROR] Operator dst:\n  - inputs: Left requires 1 input, has 2.");
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 });
@@ -274,6 +316,198 @@ describe("executeOperatorAndFormat — operator result handling", () => {
     expect(result).toContain("0\t0"); // a head row kept
     expect(result).toContain("19\t19"); // a tail row kept
     expect(result).not.toContain("10\t10"); // a middle row dropped
+  });
+});
+
+describe("executeOperatorAndFormat — request construction", () => {
+  test("sends the upstream sub-DAG with port ordinals resolved from each operator's port list", async () => {
+    const src = makeOperator("src", [], {
+      operatorProperties: { limit: 3 },
+      outputPorts: [{ portID: "output-0" }, { portID: "output-1" }],
+    });
+    const dst = makeOperator("dst", [{ portID: "input-0" }, { portID: "input-1" }]);
+    const state = stateWith(src, dst);
+    state.addLink(makeLink("src", "output-1", "dst", "input-0"));
+    // An unknown source port falls back to ordinal 0 rather than -1.
+    state.addLink(makeLink("src", "output-9", "dst", "input-1"));
+    resolveFetch(fetchSpy, {
+      success: true,
+      state: "Completed",
+      operators: {
+        dst: { state: "Completed", inputTuples: 0, outputTuples: 1, resultMode: "table", result: [{ a: 1 }] },
+      },
+    });
+
+    await executeOperatorAndFormat(state, cfg({ workflowId: 7, computingUnitId: 3, executionTimeoutMs: 4200 }), "dst");
+
+    expect(String(fetchSpy.mock.calls[0][0])).toBe("http://localhost:8085/api/execution/7/3/run");
+    expect((fetchSpy.mock.calls[0][1] as RequestInit).headers).toMatchObject({ Authorization: "Bearer tok" });
+
+    const body = requestBody(fetchSpy);
+    expect(body.executionName).toBe("agent-execution");
+    // 4200 rather than a round 4500: with 4500 the assertion holds for ceil, round *and*
+    // floor-plus-one, so it would not notice the rounding being changed. 4200 separates them.
+    expect(body.timeoutSeconds).toBe(5);
+    expect(body.targetOperatorIds).toEqual(["dst"]);
+    expect(body.logicalPlan.opsToViewResult).toEqual(["dst"]);
+    expect(body.logicalPlan.links).toEqual([
+      {
+        fromOpId: "src",
+        fromPortId: { id: 1, internal: false },
+        toOpId: "dst",
+        toPortId: { id: 0, internal: false },
+      },
+      {
+        fromOpId: "src",
+        fromPortId: { id: 0, internal: false },
+        toOpId: "dst",
+        toPortId: { id: 1, internal: false },
+      },
+    ]);
+    // Operator properties are flattened into the wire operator alongside its ports.
+    expect(body.logicalPlan.operators).toContainEqual(
+      expect.objectContaining({ operatorID: "src", operatorType: "TestOp", limit: 3 })
+    );
+  });
+});
+
+describe("executeOperatorAndFormat — result rendering", () => {
+  test("labels input shapes with the upstream operator id, ordered by port index", async () => {
+    const dst = makeOperator("dst", [{ portID: "input-0" }, { portID: "input-1" }]);
+    const state = stateWith(makeOperator("a"), makeOperator("b"), dst);
+    state.addLink(makeLink("a", "output-0", "dst", "input-0"));
+    state.addLink(makeLink("b", "output-0", "dst", "input-1"));
+    resolveFetch(fetchSpy, {
+      success: true,
+      state: "Completed",
+      operators: {
+        dst: {
+          state: "Completed",
+          inputTuples: 0,
+          outputTuples: 99,
+          resultMode: "table",
+          totalRowCount: 4,
+          // Deliberately out of order to pin the sort by port index.
+          inputPortShapes: [
+            { portIndex: 1, rows: 20, columns: 2 },
+            { portIndex: 0, rows: 5, columns: 3 },
+          ],
+          result: [{ x: 1 }],
+        },
+      },
+    });
+
+    const result = await executeOperatorAndFormat(state, cfg(), "dst");
+
+    expect(result).toContain("Input operator(table shape): a(5, 3), b(20, 2)");
+    expect(result).toContain("Output table shape: (4, 1)"); // totalRowCount wins over outputTuples
+  });
+
+  test("falls back to outputTuples for the row count and appends operator warnings", async () => {
+    const state = stateWith(makeOperator("op1"));
+    resolveFetch(fetchSpy, {
+      success: true,
+      state: "Completed",
+      operators: {
+        op1: {
+          state: "Completed",
+          inputTuples: 0,
+          outputTuples: 3,
+          resultMode: "table",
+          warnings: ["result truncated"],
+          result: [{ x: 1 }],
+        },
+      },
+    });
+
+    const result = await executeOperatorAndFormat(state, cfg(), "op1");
+
+    expect(result.split("\n").slice(0, 3)).toEqual([
+      "Executed operator op1",
+      "Output table shape: (3, 1)",
+      "result truncated",
+    ]);
+  });
+
+  test("renders backend row indices, inserting an ellipsis row where they skip", async () => {
+    const state = stateWith(makeOperator("op1"));
+    resolveFetch(fetchSpy, {
+      success: true,
+      state: "Completed",
+      operators: {
+        op1: {
+          state: "Completed",
+          inputTuples: 0,
+          outputTuples: 4,
+          resultMode: "table",
+          totalRowCount: 4,
+          result: [
+            { __row_index__: 0, a: 1, b: "x" },
+            { __row_index__: 1, a: null, b: "NULL" },
+            { __row_index__: 10, a: true, b: "has\ttab\nand newline" },
+            { __row_index__: 11, a: { k: 1 }, b: undefined },
+          ],
+        },
+      },
+    });
+
+    const result = await executeOperatorAndFormat(state, cfg(), "op1");
+
+    expect(result.split("\n").slice(1)).toEqual([
+      "Output table shape: (4, 2)", // __row_index__ is internal and not counted as a column
+      "\ta\tb",
+      "0\t1\tx",
+      "1\tNaN\tNaN",
+      "...\t...\t...",
+      "10\ttrue\thas\\ttab\\nand newline",
+      '11\t{"k":1}\t',
+    ]);
+  });
+
+  test("emits only the summary and shape line when the operator produced zero rows", async () => {
+    const state = stateWith(makeOperator("op1"));
+    resolveFetch(fetchSpy, {
+      success: true,
+      state: "Completed",
+      operators: {
+        op1: { state: "Completed", inputTuples: 0, outputTuples: 0, resultMode: "table", result: [] },
+      },
+    });
+
+    const result = await executeOperatorAndFormat(state, cfg(), "op1");
+
+    expect(result).toBe("Executed operator op1\nOutput table shape: (0, 0)");
+  });
+});
+
+describe("createExecuteOperatorTool", () => {
+  test("resolves the config per invocation and forwards the operator id and onResult hook", async () => {
+    const state = stateWith(makeOperator("op1"));
+    resolveFetch(fetchSpy, {
+      success: true,
+      state: "Completed",
+      operators: {
+        op1: { state: "Completed", inputTuples: 0, outputTuples: 1, resultMode: "table", result: [{ a: 1 }] },
+      },
+    });
+    const onResult = mock((_id: string, _info: OperatorInfo) => {});
+    let workflowId = 42;
+    const getConfig = mock(() => cfg({ workflowId }));
+
+    const executeTool = createExecuteOperatorTool(state, getConfig, onResult);
+    const output = await executeTool.execute!({ operatorId: "op1" }, {} as any);
+    // Invoked twice, with the workflow id changing in between. One invocation cannot tell
+    // per-invocation resolution from a config captured once when the tool was built: the call
+    // count is 1 either way. The second URL is what proves the later config is the one used.
+    workflowId = 43;
+    await executeTool.execute!({ operatorId: "op1" }, {} as any);
+
+    expect(getConfig).toHaveBeenCalledTimes(2);
+    expect(output).toContain("Executed operator op1");
+    expect(String(fetchSpy.mock.calls[0][0])).toContain("/api/execution/42/0/run");
+    expect(String(fetchSpy.mock.calls[1][0])).toContain("/api/execution/43/0/run");
+    expect(onResult).toHaveBeenCalledTimes(2);
+    expect(onResult.mock.calls[0][0]).toBe("op1");
   });
 });
 

@@ -170,6 +170,15 @@ class _UiParameterSupport:
         if value is None:
             return None
 
+        if (
+            attr_type is not AttributeType.STRING
+            and isinstance(value, str)
+            and not value.strip()
+        ):
+            raise ValueError(
+                f"UiParameter value cannot be empty for type {attr_type.name}."
+            )
+
         try:
             return parser(value)
         except Exception as e:
