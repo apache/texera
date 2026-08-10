@@ -69,8 +69,9 @@ object ExternalAuthProvisioner extends LazyLogging {
 
   /**
     * Resolve the user behind an external identity, creating one if necessary, and
-    * ensure its auth-provider row is present and up to date. Runs in a single
-    * transaction and returns the (possibly newly created) user.
+    * ensure its auth-provider row is present and up to date. Each attempt runs in one
+    * transaction; a unique violation means a concurrent login won the race, so the whole
+    * attempt is re-run once and resolves against the row that login committed.
     */
   def loginOrProvision(profile: ExternalProfile): User = {
 
