@@ -65,6 +65,12 @@ object JwtAuth {
     * `auth_provider` context, as does `AuthResource.register`. Omitting the claim is harmless
     * on all of them: a service-to-service token never reaches the browser, and a freshly
     * registered LOCAL account has no Google identity to name.
+    *
+    * Note this changes the token's shape, not just where the value comes from: `googleId` was
+    * previously written unconditionally, so a local-only user's token carried `"googleId": null`
+    * and now omits the claim. The frontend declares it optional (`common/type/user.ts`), so the
+    * only reader that can tell is `flarum.service.ts`, which passes it as a Flarum account
+    * password — a path that was already broken for exactly the users who lack the claim.
     */
   def jwtClaims(user: User, googleId: Option[String] = None): JwtClaims = {
     val claims = new JwtClaims
