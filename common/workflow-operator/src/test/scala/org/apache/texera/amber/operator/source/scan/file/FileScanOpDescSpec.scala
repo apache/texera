@@ -76,6 +76,32 @@ class FileScanOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     fileScanOpExec.close()
   }
 
+  it should "read the lines after a 5-line offset from the input file path tuple when no limit is set" in {
+    fileScanOpDesc.attributeType = FileAttributeType.STRING
+    fileScanOpDesc.fileScanOffset = Option(5)
+
+    val inputTuple = Tuple(inputSchema, Array[Any](TestOperators.TestTextFilePath))
+    val fileScanOpExec =
+      new FileScanOpExec(objectMapper.writeValueAsString(fileScanOpDesc))
+
+    fileScanOpExec.open()
+    val processedTuple: Iterator[Tuple] = fileScanOpExec
+      .processTuple(inputTuple, 0)
+      .map(tupleLike =>
+        tupleLike
+          .asInstanceOf[SchemaEnforceable]
+          .enforceSchema(fileScanOpDesc.sourceSchema())
+      )
+
+    assert(processedTuple.next().getField("line").equals("line6"))
+    assert(processedTuple.next().getField("line").equals("line7"))
+    assert(processedTuple.next().getField("line").equals("line8"))
+    assert(processedTuple.next().getField("line").equals("line9"))
+    assert(processedTuple.next().getField("line").equals("line10"))
+    assertThrows[java.util.NoSuchElementException](processedTuple.next().getField("line"))
+    fileScanOpExec.close()
+  }
+
   it should "preserve the original input filename when include filename is enabled" in {
     fileScanOpDesc.attributeType = FileAttributeType.SINGLE_STRING
     fileScanOpDesc.outputFileName = true
