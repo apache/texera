@@ -109,13 +109,13 @@ BEGIN
     END IF;
 
     IF offenders IS NOT NULL THEN
-        RAISE EXCEPTION 'migration 32: cannot promote "user".name to a login handle - '
+        RAISE EXCEPTION 'migration 33: cannot promote "user".name to a login handle - '
                         'the following names are duplicated, blank, or whitespace-padded: %. '
                         'Resolve them and re-run.', offenders;
     END IF;
 
     IF orphans IS NOT NULL THEN
-        RAISE NOTICE 'migration 32: uid(s) % have neither a password nor a google_id, so they '
+        RAISE NOTICE 'migration 33: uid(s) % have neither a password nor a google_id, so they '
                      'get no auth_provider row and cannot log in.', orphans;
     END IF;
 END
