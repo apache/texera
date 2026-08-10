@@ -72,7 +72,17 @@ object ExternalAuthProvisioner extends LazyLogging {
     * ensure its auth-provider row is present and up to date. Runs in a single
     * transaction and returns the (possibly newly created) user.
     */
-  def loginOrProvision(profile: ExternalProfile): User =
+  def loginOrProvision(profile: ExternalProfile): User = {
+
+    try{
+      provision(profile)
+    } catch {
+      case e: org.jooq.exception.DataAccessException if e.sqlState() == "23505" =>
+        provision(profile)
+    }
+  }
+
+  private def provision(profile: ExternalProfile) = {
     SqlServer.withTransaction(SqlServer.getInstance().createDSLContext()) { ctx =>
       val txUserDao = new UserDao(ctx.configuration())
       val txAuthDao = new AuthProviderDao(ctx.configuration())
@@ -107,19 +117,14 @@ object ExternalAuthProvisioner extends LazyLogging {
               created.setEmail(profile.email)
               created.setAvatar(profile.avatar)
               created.setRole(UserRoleEnum.INACTIVE)
-              try {
-                txUserDao.insert(created)
-                created
-              } catch {
-                case e: org.jooq.exception.DataAccessException if e.sqlState() == "23505" =>
-                  userByEmailIgnoreCase(ctx, profile.email).getOrElse(throw e)
-              }
+              txUserDao.insert(created)
+              created
           }
-
           upsertProvider(ctx, txAuthDao, user, profile)
           user
       }
     }
+  }
 
   /** The external id `uid` authenticates with at `providerType`, if it has one. */
   def providerIdOf(uid: Integer, providerType: ProviderTypeEnum): Option[String] =
