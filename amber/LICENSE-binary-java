@@ -301,7 +301,7 @@ Scala/Java jars:
   - io.airlift.aircompressor-2.0.2.jar
   - io.altoo.pekko-kryo-serialization_2.13-1.5.1.jar
   - io.altoo.scala-kryo-serialization_2.13-1.5.2.jar
-  - io.dropwizard-bundles.dropwizard-redirect-bundle-1.0.5.jar
+  - io.dropwizard-bundles.dropwizard-redirect-bundle-1.3.5.jar
   - io.dropwizard.dropwizard-auth-1.3.23.jar
   - io.dropwizard.dropwizard-client-1.3.23.jar
   - io.dropwizard.dropwizard-configuration-1.3.23.jar
