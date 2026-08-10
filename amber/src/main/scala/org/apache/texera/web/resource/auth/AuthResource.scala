@@ -30,6 +30,7 @@ import org.apache.texera.dao.jooq.generated.tables.pojos.User
 import org.apache.texera.web.model.http.request.auth.{UserLoginRequest, UserRegistrationRequest}
 import org.apache.texera.web.model.http.response.TokenIssueResponse
 import org.apache.texera.web.resource.auth.AuthResource._
+import org.jooq.DSLContext
 import org.jooq.impl.DSL
 
 import java.time.Instant
@@ -75,11 +76,23 @@ object AuthResource {
   /**
     * Email identity is matched case-insensitively (backed by idx_user_email_lower),
     * while stored emails keep their original casing.
+    *
+    * Case-insensitivity is required, not a nicety: `"user".email` is a plain case-sensitive
+    * UNIQUE and `idx_user_email_lower` is not unique, so `Alice@x.com` and `alice@x.com` can
+    * coexist. Registration stores the address as the user typed it while contributor
+    * placeholders are stored lower-cased, so the casings provably differ in practice. An
+    * exact-match lookup would miss, insert a second account without violating any constraint,
+    * and silently strand the original account's data.
     */
   def fetchUserByEmailIgnoreCase(email: String): User =
-    SqlServer
-      .getInstance()
-      .createDSLContext()
+    fetchUserByEmailIgnoreCase(SqlServer.getInstance().createDSLContext(), email)
+
+  /**
+    * As above, against a caller-supplied context. [[ExternalAuthProvisioner]] passes its
+    * transaction's context so the lookup reads that transaction's own writes.
+    */
+  def fetchUserByEmailIgnoreCase(ctx: DSLContext, email: String): User =
+    ctx
       .selectFrom(USER)
       .where(DSL.lower(USER.EMAIL).eq(EmailUtil.normalize(email)))
       .fetchOneInto(classOf[User])

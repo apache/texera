@@ -25,10 +25,8 @@ import org.apache.texera.dao.jooq.generated.Tables.{AUTH_PROVIDER, USER}
 import org.apache.texera.dao.jooq.generated.enums.{ProviderTypeEnum, UserRoleEnum}
 import org.apache.texera.dao.jooq.generated.tables.daos.{AuthProviderDao, UserDao}
 import org.apache.texera.dao.jooq.generated.tables.pojos.{AuthProvider, User}
-import org.apache.texera.common.util.EmailUtil
 import org.jooq.DSLContext
 import org.jooq.exception.DataAccessException
-import org.jooq.impl.DSL
 
 import java.time.OffsetDateTime
 import scala.util.chaining.scalaUtilChainingOps
@@ -52,25 +50,11 @@ object ExternalAuthProvisioner extends LazyLogging {
 
   /**
     * The account owning `email`, matched case-insensitively and within the caller's transaction
-    * so it reads that transaction's own writes.
-    *
-    * Case-insensitivity is required, not a nicety: `"user".email` is a plain case-sensitive
-    * UNIQUE and `idx_user_email_lower` is not unique, so `Alice@x.com` and `alice@x.com` can
-    * coexist. Registration stores the address as the user typed it while contributor
-    * placeholders are stored lower-cased, so the casings provably differ in practice. An
-    * exact-match lookup here would miss, insert a second account without violating any
-    * constraint, and silently strand the original account's data.
-    *
-    * Mirrors `AuthResource.fetchUserByEmailIgnoreCase`, which cannot be reused directly because
-    * it opens its own DSLContext.
+    * so it reads that transaction's own writes. See
+    * [[AuthResource.fetchUserByEmailIgnoreCase]] for why the match cannot be exact.
     */
   private def userByEmailIgnoreCase(ctx: DSLContext, email: String): Option[User] =
-    Option(
-      ctx
-        .selectFrom(USER)
-        .where(DSL.lower(USER.EMAIL).eq(EmailUtil.normalize(email)))
-        .fetchOneInto(classOf[User])
-    )
+    Option(AuthResource.fetchUserByEmailIgnoreCase(ctx, email))
 
   /**
     * Resolve the user behind an external identity, creating one if necessary, and
