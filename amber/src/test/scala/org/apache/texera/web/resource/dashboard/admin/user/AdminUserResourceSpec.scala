@@ -101,7 +101,6 @@ class AdminUserResourceSpec
       .where(DATASET.OWNER_UID.in(primaryUid, secondaryUid))
       .execute()
     getDSLContext.deleteFrom(USER).where(USER.UID.in(primaryUid, secondaryUid)).execute()
-    // addUser() inserts an INACTIVE user with an auto-generated uid and a "User<millis>" name.
     getDSLContext
       .deleteFrom(USER)
       .where(USER.ROLE.eq(UserRoleEnum.INACTIVE).and(USER.NAME.like("User%")))
