@@ -27,20 +27,20 @@ import sbt._
  */
 object TestFilters {
 
-  /** @param integrationOnlyExtra further ScalaTest args for the integration side,
-   *                              e.g. "-P4" to bound its pool when a suite forks
-   *                              a process per test.
+  /** @param envVar the variable the two CI jobs set to opposite values; it has to
+   *                be the one the workflow already sets on the step that invokes
+   *                this module's tests, or neither subset is selected.
+   * @param tag     fully-qualified name of the tag annotation, as
+   *                `classOf[...].getName` gives it at the test site — ScalaTest
+   *                matches these by string, so a rename that misses one side
+   *                silently stops filtering.
    */
-  def integrationSplit(
-      envVar: String,
-      tag: String,
-      integrationOnlyExtra: Seq[String] = Seq.empty
-  ): Seq[TestOption] =
+  def integrationSplit(envVar: String, tag: String): Seq[TestOption] =
     sys.env.get(envVar) match {
       case Some("skip-integration") =>
         Seq(Tests.Argument(TestFrameworks.ScalaTest, "-l", tag))
       case Some("integration-only") =>
-        Seq(Tests.Argument(TestFrameworks.ScalaTest, Seq("-n", tag) ++ integrationOnlyExtra: _*))
+        Seq(Tests.Argument(TestFrameworks.ScalaTest, "-n", tag))
       case _ => Nil
     }
 }
