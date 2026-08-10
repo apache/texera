@@ -327,7 +327,7 @@ Scala/Java jars:
   - io.dropwizard.metrics.metrics-jvm-4.0.5.jar
   - io.dropwizard.metrics.metrics-logback-4.0.5.jar
   - io.dropwizard.metrics.metrics-servlets-4.0.5.jar
-  - io.github.kostaskougios.cloning-1.10.3.jar
+  - io.github.kostaskougios.cloning-1.13.0-jdk8.jar
   - io.grpc.grpc-api-1.79.0.jar
   - io.grpc.grpc-context-1.79.0.jar
   - io.grpc.grpc-core-1.79.0.jar
