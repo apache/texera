@@ -169,6 +169,99 @@ class TextInputSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     textScanSourceOpExec.close()
   }
 
+  it should "read all lines after the offset when no limit is specified" in {
+    assert(
+      linesFrom(offset = Some(5)) == Seq("line6", "line7", "line8", "line9", "line10")
+    )
+  }
+
+  it should "read all lines after the offset when the limit is Int.MaxValue" in {
+    assert(
+      linesFrom(offset = Some(1), limit = Some(Int.MaxValue)) ==
+        Seq("line2", "line3", "line4", "line5", "line6", "line7", "line8", "line9", "line10")
+    )
+  }
+
+  it should "read a window of lines when both offset and limit are specified" in {
+    assert(linesFrom(offset = Some(5), limit = Some(2)) == Seq("line6", "line7"))
+  }
+
+  it should "read the first lines when only a limit is specified" in {
+    assert(linesFrom(limit = Some(3)) == Seq("line1", "line2", "line3"))
+  }
+
+  it should "produce no tuples when the offset is at or past the end of the input" in {
+    assert(linesFrom(offset = Some(10)).isEmpty)
+    assert(linesFrom(offset = Some(99)).isEmpty)
+  }
+
+  it should "treat a negative offset as zero" in {
+    assert(
+      linesFrom(offset = Some(-1)) ==
+        Seq(
+          "line1",
+          "line2",
+          "line3",
+          "line4",
+          "line5",
+          "line6",
+          "line7",
+          "line8",
+          "line9",
+          "line10"
+        )
+    )
+  }
+
+  it should "ignore the offset when reading the input text into a single output tuple" in {
+    val inputString: String = readFileIntoString(TestOperators.TestTextFilePath)
+    textInputSourceOpDesc.attributeType = FileAttributeType.SINGLE_STRING
+    textInputSourceOpDesc.textInput = inputString
+    textInputSourceOpDesc.fileScanOffset = Option(5)
+    val textScanSourceOpExec =
+      new TextInputSourceOpExec(objectMapper.writeValueAsString(textInputSourceOpDesc))
+    textScanSourceOpExec.open()
+    val processedTuple: Iterator[Tuple] = textScanSourceOpExec
+      .produceTuple()
+      .map(tupleLike =>
+        tupleLike
+          .asInstanceOf[SchemaEnforceable]
+          .enforceSchema(textInputSourceOpDesc.sourceSchema())
+      )
+
+    assert(
+      processedTuple
+        .next()
+        .getField[String]("line")
+        .equals("line1\nline2\nline3\nline4\nline5\nline6\nline7\nline8\nline9\nline10")
+    )
+    assertThrows[java.util.NoSuchElementException](processedTuple.next().getField("line"))
+    textScanSourceOpExec.close()
+  }
+
+  /**
+    * Helper function collecting the "line" field of every tuple produced for
+    * the STRING attribute type with the given offset and limit.
+    */
+  private def linesFrom(offset: Option[Int] = None, limit: Option[Int] = None): Seq[String] = {
+    textInputSourceOpDesc.attributeType = FileAttributeType.STRING
+    textInputSourceOpDesc.textInput = readFileIntoString(TestOperators.TestTextFilePath)
+    textInputSourceOpDesc.fileScanOffset = offset
+    textInputSourceOpDesc.fileScanLimit = limit
+    val exec = new TextInputSourceOpExec(objectMapper.writeValueAsString(textInputSourceOpDesc))
+    exec.open()
+    try {
+      exec
+        .produceTuple()
+        .map(
+          _.asInstanceOf[SchemaEnforceable]
+            .enforceSchema(textInputSourceOpDesc.sourceSchema())
+            .getField[String]("line")
+        )
+        .toSeq
+    } finally exec.close()
+  }
+
   /**
     * Helper function using UTF-8 encoding to read text file
     * into String
