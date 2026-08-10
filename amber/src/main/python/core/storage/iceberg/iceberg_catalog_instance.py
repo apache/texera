@@ -27,49 +27,59 @@ from core.storage.storage_config import StorageConfig
 
 class IcebergCatalogInstance:
     """
-    IcebergCatalogInstance is a singleton that manages the Iceberg catalog instance.
-    Supports postgres SQL catalog and REST catalog.
-    - Provides a single shared catalog for all Iceberg table-related operations.
-    - Lazily initializes the catalog on first access.
-    - Supports replacing the catalog instance for testing or reconfiguration.
+    Manages Iceberg catalog instances, cached per warehouse.
+    - REST catalogs are keyed by warehouse so one process can read/write tables in
+      many warehouses (Design 2, warehouse-per-execution).
+    - The postgres catalog has no warehouse concept and shares a single entry.
+    - Catalogs are lazily created on first access; entries can be replaced for
+      testing or reconfiguration.
     """
 
-    _instance: Optional[Catalog] = None
+    _catalogs: dict = {}
+    _POSTGRES_KEY = "__postgres__"
 
     @classmethod
-    def get_instance(cls):
+    def get_instance(cls, warehouse: Optional[str] = None) -> Catalog:
         """
-        Retrieves the singleton Iceberg catalog instance.
-        - If the catalog is not initialized, it is lazily created using the configured
-        properties.
-        - Supports "postgres" and "rest" catalog types.
+        Retrieves the Iceberg catalog for the given warehouse, creating and caching
+        it on first use. For REST catalogs, `warehouse` selects which warehouse's
+        catalog to use (defaults to the configured warehouse when None). For the
+        postgres catalog, `warehouse` is ignored.
+        :param warehouse: the warehouse name (REST only); None uses the default.
         :return: the Iceberg catalog instance.
         """
-        if cls._instance is None:
-            catalog_type = StorageConfig.ICEBERG_CATALOG_TYPE
-            if catalog_type == "postgres":
-                cls._instance = create_postgres_catalog(
+        catalog_type = StorageConfig.ICEBERG_CATALOG_TYPE
+        if catalog_type == "postgres":
+            if cls._POSTGRES_KEY not in cls._catalogs:
+                cls._catalogs[cls._POSTGRES_KEY] = create_postgres_catalog(
                     "texera_iceberg",
                     StorageConfig.ICEBERG_FILE_STORAGE_DIRECTORY_PATH,
                     StorageConfig.ICEBERG_POSTGRES_CATALOG_URI_WITHOUT_SCHEME,
                     StorageConfig.ICEBERG_POSTGRES_CATALOG_USERNAME,
                     StorageConfig.ICEBERG_POSTGRES_CATALOG_PASSWORD,
                 )
-            elif catalog_type == "rest":
-                cls._instance = create_rest_catalog(
+            return cls._catalogs[cls._POSTGRES_KEY]
+        elif catalog_type == "rest":
+            key = warehouse or StorageConfig.ICEBERG_REST_CATALOG_WAREHOUSE_NAME
+            if key not in cls._catalogs:
+                cls._catalogs[key] = create_rest_catalog(
                     "texera_iceberg",
-                    StorageConfig.ICEBERG_REST_CATALOG_WAREHOUSE_NAME,
+                    key,
                     StorageConfig.ICEBERG_REST_CATALOG_URI,
                 )
-            else:
-                raise ValueError(f"Unsupported catalog type: {catalog_type}")
-        return cls._instance
+            return cls._catalogs[key]
+        else:
+            raise ValueError(f"Unsupported catalog type: {catalog_type}")
 
     @classmethod
-    def replace_instance(cls, catalog: Catalog):
+    def replace_instance(cls, catalog: Catalog, warehouse: Optional[str] = None):
         """
-        Replaces the existing Iceberg catalog instance.
-        - This method is useful for testing or dynamically updating the catalog.
-        :param catalog: the new Iceberg catalog instance to replace the current one.
+        Replaces the cached catalog for a warehouse (testing or reconfiguration).
+        :param catalog: the new Iceberg catalog instance.
+        :param warehouse: the warehouse to replace (REST only); None uses default.
         """
-        cls._instance = catalog
+        if StorageConfig.ICEBERG_CATALOG_TYPE == "postgres":
+            key = cls._POSTGRES_KEY
+        else:
+            key = warehouse or StorageConfig.ICEBERG_REST_CATALOG_WAREHOUSE_NAME
+        cls._catalogs[key] = catalog

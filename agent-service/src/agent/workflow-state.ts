@@ -415,7 +415,7 @@ export class WorkflowState {
     this.settings = content.settings ? { ...content.settings } : { ...DEFAULT_WORKFLOW_SETTINGS };
   }
 
-  toLogicalPlan(targetOperatorId?: string): LogicalPlan {
+  toLogicalPlan(): LogicalPlan {
     const enabledOperators = this.getAllEnabledOperators();
 
     const operators: LogicalOperator[] = enabledOperators.map(op => ({
