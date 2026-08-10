@@ -126,11 +126,10 @@ object LocalAuthProvisioner {
       }
     } catch {
       case e: DataAccessException if e.sqlState() == UNIQUE_VIOLATION =>
-        throw new WebApplicationException(
-          s"Login handle $handle is already taken",
-          e,
-          Response.Status.CONFLICT
-        )
+        val message =
+          if (handleExists(handle)) s"Login handle $handle is already taken"
+          else s"Account for ${user.getEmail} has already been claimed"
+        throw new WebApplicationException(message, e, Response.Status.CONFLICT)
     }
   }
 
