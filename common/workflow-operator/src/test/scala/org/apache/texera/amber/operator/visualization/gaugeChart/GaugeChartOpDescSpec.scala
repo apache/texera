@@ -84,10 +84,8 @@ class GaugeChartOpDescSpec extends AnyFlatSpec with Matchers {
     g.steps.head.end shouldBe Some(50)
   }
 
-  /** The numeric settings are spliced as numbers now, not decoded at runtime from a
-    * string, so what the generated code assigns is worth pinning: an unset field has
-    * to arrive as Python's `None` for the template's `is not None` guards to read it
-    * as "not configured".
+  /** An unset field has to arrive as Python's `None` for the template's
+    * `is not None` guards to read it as "not configured".
     */
   "GaugeChartOpDesc.generatePythonCode" should
     "assign delta and threshold as numbers, and None when they are unset" in {
@@ -113,5 +111,19 @@ class GaugeChartOpDescSpec extends AnyFlatSpec with Matchers {
     d.steps = List(complete, halfFilled)
     val code = d.generatePythonCode()
     code should include("""valid_steps = [{"start": 0.0, "end": 50.0}]""")
+  }
+
+  it should "emit no steps when the payload sets steps to null" in {
+    // Steps is optional, so an explicit null leaves the field null rather than an empty
+    // list; that is no steps, not a failure.
+    val d = objectMapper
+      .readValue(
+        """{"operatorType": "GaugeChart", "value": "score", "steps": null}""",
+        classOf[LogicalOp]
+      )
+      .asInstanceOf[GaugeChartOpDesc]
+    d.steps shouldBe null
+
+    d.generatePythonCode() should include("valid_steps = []")
   }
 }

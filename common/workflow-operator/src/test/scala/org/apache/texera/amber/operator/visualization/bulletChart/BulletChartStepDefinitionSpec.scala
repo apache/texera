@@ -73,11 +73,9 @@ class BulletChartStepDefinitionSpec extends AnyFlatSpec {
     assert(restored.end.contains(66))
   }
 
-  /** `Option[Double]` erases its element type, so Jackson needs
-    * `@JsonDeserialize(contentAs = ...)` on each constructor parameter to know what
-    * to build. Without it a JSON string is left inside the Option unconverted and
-    * the first arithmetic use throws ClassCastException — which a round trip cannot
-    * catch, since it writes a number back.
+  /** Reads the shapes a stored workflow can hold; a round trip cannot cover them,
+    * since it writes a number back. See GaugeChartStepsSpec for why `contentAs` is
+    * what these pin.
     */
   private def read(json: String): BulletChartStepDefinition =
     objectMapper.readValue(json, classOf[BulletChartStepDefinition])

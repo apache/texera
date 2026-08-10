@@ -35,6 +35,9 @@ import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
 
 import javax.validation.constraints.NotNull
 
+// type constraint: r / theta are the polar coordinates, and the operator already
+// refuses a non-numeric column at run time with np.issubdtype -- this states the same
+// requirement where the form can act on it.
 @JsonSchemaInject(json = """
 {
   "attributeTypeRules": {

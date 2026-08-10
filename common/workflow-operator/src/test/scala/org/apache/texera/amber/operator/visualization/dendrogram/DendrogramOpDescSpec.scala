@@ -91,16 +91,13 @@ class DendrogramOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matchers
     opDesc.labels = "label_col"
     opDesc.threshold = Some(42.5)
     val code = opDesc.generatePythonCode()
-    // A number, not a decoded string: scipy compares the threshold against the
-    // linkage distances, so a string raises there.
+    // A number, not a decoded string: a string raises inside scipy.
     code should include("color_threshold=42.5")
     code should not include "color_threshold=None"
   }
 
-  /** `Option[Double]` erases its element type, so Jackson needs
-    * `@JsonDeserialize(contentAs = ...)` to know what to build. Without it a JSON
-    * string is left inside the Option unconverted and the first use throws
-    * ClassCastException.
+  /** Reads the shapes a stored workflow can hold. Without `contentAs` a JSON string
+    * stays unconverted inside the Option and the first use throws.
     */
   private def readThreshold(json: String): Option[Double] =
     objectMapper

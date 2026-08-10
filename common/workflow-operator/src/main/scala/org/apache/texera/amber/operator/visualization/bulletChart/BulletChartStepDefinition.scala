@@ -26,34 +26,17 @@ import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 /**
   * Defines a step range used for qualitative segments in the Bullet Chart.
   *
-  * Numeric bounds, not text: they are only ever used as `float(...)`. `contentAs` is
-  * required and must name the boxed class — Scala erases the element type, and the
-  * primitive would read a blank as 0.
+  * Numeric bounds: only used as float(). contentAs names the boxed class — Option
+  * erases its element type, and a blank must not read as 0.
   */
 
-class BulletChartStepDefinition {
-  @JsonProperty("start")
-  @JsonSchemaTitle("Start")
-  @JsonDeserialize(contentAs = classOf[java.lang.Double])
-  var start: Option[Double] = None
-
-  @JsonProperty("end")
-  @JsonSchemaTitle("End")
-  @JsonDeserialize(contentAs = classOf[java.lang.Double])
-  var end: Option[Double] = None
-
-  // @JsonCreator on the two-arg constructor (params carry @JsonProperty) so
-  // Jackson deserializes step objects via it, while the no-arg primary ctor is
-  // kept for callers that build-then-set (e.g. BulletChartOpDescSpec). Upstream
-  // merged a BulletChartStepDefinitionSpec that asserts this @JsonCreator ctor
-  // exists; our fork's class predated it without the annotation.
-  @JsonCreator
-  def this(
-      @JsonProperty("start") start: Option[Double],
-      @JsonProperty("end") end: Option[Double]
-  ) = {
-    this()
-    this.start = start
-    this.end = end
-  }
-}
+class BulletChartStepDefinition @JsonCreator() (
+    @JsonProperty("start")
+    @JsonSchemaTitle("Start")
+    @JsonDeserialize(contentAs = classOf[java.lang.Double])
+    var start: Option[Double],
+    @JsonProperty("end")
+    @JsonSchemaTitle("End")
+    @JsonDeserialize(contentAs = classOf[java.lang.Double])
+    var end: Option[Double]
+)

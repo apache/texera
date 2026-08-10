@@ -68,10 +68,8 @@ class DendrogramOpDesc extends PythonOperatorDescriptor with StandaloneCodeGener
   @NotNull(message = "Labels cannot be empty")
   var labels: EncodableString = ""
 
-  // Numeric, not text: scipy compares it against the linkage distances, so a string
-  // raises. `contentAs` is required and must name the boxed class — Scala erases the
-  // element type, and the primitive would read a blank as 0, which colors every link
-  // the same rather than meaning "unset".
+  // Numeric: scipy compares it against the linkage distances. contentAs names the
+  // boxed class — Option erases its element type, and a blank must not read as 0.
   @JsonProperty(defaultValue = "", required = false)
   @JsonSchemaTitle("Color Threshold")
   @JsonPropertyDescription("Value at which separation of clusters will be made")

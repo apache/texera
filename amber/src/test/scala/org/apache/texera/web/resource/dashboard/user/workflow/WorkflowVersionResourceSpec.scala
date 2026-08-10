@@ -158,7 +158,6 @@ class WorkflowVersionResourceSpec
     user.setUid(Integer.valueOf(uid))
     user.setName(name)
     user.setEmail(s"$name@test.com")
-    user.setPassword("password")
     user
   }
 

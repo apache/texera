@@ -40,24 +40,16 @@ import java.nio.file.Paths
 
 class CSVScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerator {
 
-  // Almost anything: the delimiter reaches the parser as `charAt(0)` and empty is read
-  // as the default comma, so a longer value is not refused, it just has its tail
-  // ignored. A leading NEWLINE is the one value the two paths disagree on — the reader
-  // here takes it and returns the whole line as a single field, while pandas refuses it
-  // outright ("Specified \n as separator"). That is an accepted divergence, not
-  // something to exclude: the form must not reject a config the platform runs.
-  // `examples` offers a realistic value to whatever needs one -- a delimiter that
-  // does not occur inside the data, since the fixture is fixed and a separator the
-  // rows happen to contain makes both readers parse ragged lines, differently.
+  // One character: every reader narrows this with charAt(0), because univocity's
+  // setDelimiter and scala-csv's DefaultCSVFormat both take a Char.
+  //
+  // `examples` names a delimiter the fixture's rows do not contain, so the
+  // verification config generator does not pick one that parses them ragged.
   @JsonProperty(defaultValue = ",")
   @JsonSchemaTitle("Delimiter")
-  @JsonPropertyDescription("delimiter to separate each line into fields")
+  @JsonPropertyDescription("single character separating the fields on each line")
   @JsonInclude(JsonInclude.Include.NON_ABSENT)
-  @JsonSchemaInject(json = """
-{
-  "examples": [","]
-}
-""")
+  @JsonSchemaInject(json = """{ "maxLength": 1, "examples": [","] }""")
   var customDelimiter: Option[String] = None
 
   @JsonProperty(defaultValue = "true")

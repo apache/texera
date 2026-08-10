@@ -59,10 +59,8 @@ class BulletChartOpDescSpec extends AnyFlatSpec with Matchers {
   }
 
   "BulletChartOpDesc.generatePythonCode" should "render Python source with a runtime decode site for the value column" in {
-    // The column name is an EncodableString and is NOT emitted as a literal
-    // string — the pyb macro wraps it in a
-    // `self.decode_python_template.decode("<base64>")` call. The numeric settings
-    // carry no user text and are spliced as numbers, so they add no decode site.
+    // The column name is an EncodableString, so pyb wraps it in a decode call. The
+    // numeric settings carry no user text and add no decode site.
     val code = configured.generatePythonCode()
     code should include("plotly.graph_objects")
     val decodeOccurrences = "decode_python_template".r.findAllIn(code).length
@@ -84,13 +82,18 @@ class BulletChartOpDescSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "default to an empty steps list when none are configured" in {
-    // The bullet-chart template ships with several unrelated `[]` literals
-    // (`colors`, `valid_steps`, `step_errors`, `steps_list`, `html_chunks`), so a
-    // bare `code should include("[]")` is too weak. Anchor on the argument the
-    // generated code passes to generate_valid_steps so a regression that makes it
-    // non-empty would actually fail the assertion.
+    // The template ships several unrelated `[]` literals, so anchor on the argument
+    // passed to generate_valid_steps rather than on a bare `[]`.
     val code = configured.generatePythonCode()
     code should include regex """generate_valid_steps\(\[\]\)"""
+  }
+
+  it should "emit no steps when steps is null" in {
+    // Steps is optional, so an explicit null in the payload leaves the field null
+    // rather than an empty list; that is no steps, not a failure.
+    val op = configured
+    op.steps = null
+    op.generatePythonCode() should include regex """generate_valid_steps\(\[\]\)"""
   }
 
   it should "emit each configured step's bounds as numbers, dropping a half-filled step" in {
@@ -136,11 +139,5 @@ class BulletChartOpDescSpec extends AnyFlatSpec with Matchers {
     assertThrows[AssertionError] {
       op.generateStandaloneCode()
     }
-  }
-
-  "BulletChartStepDefinition" should "initialize with start and end unset" in {
-    val step = new BulletChartStepDefinition()
-    step.start shouldBe None
-    step.end shouldBe None
   }
 }

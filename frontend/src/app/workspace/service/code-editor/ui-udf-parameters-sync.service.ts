@@ -18,7 +18,7 @@
  */
 import { Injectable } from "@angular/core";
 import { isEqual } from "lodash-es";
-import { ReplaySubject, Subject } from "rxjs";
+import { Subject } from "rxjs";
 import { debounceTime } from "rxjs/operators";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import { UiUdfParametersParseError, UiUdfParametersParserService } from "./ui-udf-parameters-parser.service";
@@ -38,10 +38,8 @@ const UI_PARAMETER_SYNC_DEBOUNCE_TIME_MS = 200;
 /** Keeps Python UDF UI parameter structure in sync with the code editor and workflow graph. */
 @Injectable({ providedIn: "root" })
 export class UiUdfParametersSyncService {
-  private readonly uiParametersChangedSubject = new ReplaySubject<{ operatorId: string; parameters: UiUdfParameter[] }>(
-    1
-  );
-  private readonly uiParametersParseErrorSubject = new ReplaySubject<{ operatorId: string; message?: string }>(1);
+  private readonly uiParametersChangedSubject = new Subject<{ operatorId: string; parameters: UiUdfParameter[] }>();
+  private readonly uiParametersParseErrorSubject = new Subject<{ operatorId: string; message?: string }>();
 
   /** Emits when parsed UI parameter structure changes; consumers should write the parameters back to operatorProperties. */
   readonly uiParametersChanged$ = this.uiParametersChangedSubject.asObservable();

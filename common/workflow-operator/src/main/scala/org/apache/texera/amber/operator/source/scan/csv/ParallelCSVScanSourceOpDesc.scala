@@ -40,17 +40,12 @@ import java.nio.file.Paths
 
 class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerator {
 
-  // Almost anything — a leading newline is an accepted path divergence; see
-  // CSVScanSourceOpDesc.
+  // One character -- see CSVScanSourceOpDesc.
   @JsonProperty(defaultValue = ",")
   @JsonSchemaTitle("Delimiter")
-  @JsonPropertyDescription("delimiter to separate each line into fields")
+  @JsonPropertyDescription("single character separating the fields on each line")
   @JsonDeserialize(contentAs = classOf[java.lang.String])
-  @JsonSchemaInject(json = """
-{
-  "examples": [","]
-}
-""")
+  @JsonSchemaInject(json = """{ "maxLength": 1, "examples": [","] }""")
   var customDelimiter: Option[String] = None
 
   @JsonProperty(defaultValue = "true")

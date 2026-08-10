@@ -54,17 +54,16 @@ class HistogramChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeG
   @AutofillAttributeName
   var separateBy: EncodableString = ""
 
-  // Declared as a schema enum rather than named in the description: plotly accepts
-  // only these, and a free-text box let a typo through to a raw plotly error at run
-  // time. `none` is the operator's own sentinel — px rejects it, so the argument is
-  // omitted instead, as ECDFPlot's marginal does.
-  @JsonProperty(required = false, defaultValue = "none")
+  // Empty stays the "no marginal plot" value instead of a `none` sentinel: saved
+  // workflows already hold it, and a stored value outside the enum would fail the
+  // property editor's validation.
+  @JsonProperty(required = false, defaultValue = "")
   @JsonSchemaTitle("Distribution Type")
   @JsonPropertyDescription("Optional marginal plot to display alongside the histogram.")
   @JsonSchemaInject(
-    json = """{ "enum": ["none", "rug", "box", "violin", "histogram"], "default": "none" }"""
+    json = """{ "enum": ["", "rug", "box", "violin", "histogram"], "default": "" }"""
   )
-  var marginal: EncodableString = "none"
+  var marginal: EncodableString = ""
 
   @JsonProperty(required = false)
   @JsonSchemaTitle("Pattern")
@@ -87,7 +86,7 @@ class HistogramChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeG
     var patternParam = pyb""
     if (color.nonEmpty) colorParam = pyb", color = $color"
     if (separateBy.nonEmpty) categoryParam = pyb", facet_col = $separateBy"
-    if (marginal.nonEmpty && marginal != "none") marginalParam = pyb", marginal=$marginal"
+    if (marginal.nonEmpty) marginalParam = pyb", marginal=$marginal"
     if (pattern != "") patternParam = pyb", pattern_shape=$pattern"
 
     pyb"""
@@ -141,7 +140,7 @@ class HistogramChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeG
     val categoryParam =
       if (separateBy.nonEmpty) s""", facet_col=${pyStringLiteral(separateBy)}""" else ""
     val marginalParam =
-      if (marginal.nonEmpty && marginal != "none") s""", marginal=${pyStringLiteral(marginal)}"""
+      if (marginal.nonEmpty) s""", marginal=${pyStringLiteral(marginal)}"""
       else ""
     val patternParam =
       if (pattern.nonEmpty) s""", pattern_shape=${pyStringLiteral(pattern)}""" else ""

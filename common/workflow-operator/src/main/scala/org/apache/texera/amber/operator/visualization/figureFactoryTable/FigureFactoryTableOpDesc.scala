@@ -41,7 +41,7 @@ class FigureFactoryTableOpDesc extends PythonOperatorDescriptor with StandaloneC
   @DecimalMin(value = "0", message = "Font size must be a non-negative number")
   var fontSize: Double = 12
 
-  // Same shapes plotly accepts for a color as LineConfig's line color — see there.
+  // Same shapes plotly accepts for a colour as LineConfig's line colour -- see there.
   @JsonProperty(required = false)
   @JsonSchemaTitle("Font Color (Hex Code)")
   @JsonPropertyDescription("Font color of the Figure Factory Table")
@@ -113,6 +113,9 @@ class FigureFactoryTableOpDesc extends PythonOperatorDescriptor with StandaloneC
        |import plotly.io
        |
        |class TableChartOperator(UDFTableOperator):
+       |
+       |    def render_error(self, error_msg) -> str:
+       |        return f"<h1>Figure Factory Table is not available.</h1><p>Reason is: {error_msg}</p>"
        |
        |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
        |

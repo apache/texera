@@ -42,12 +42,12 @@ import scala.jdk.CollectionConverters._
   * Visualization Operator to visualize results as a Bullet Chart
   */
 
+// type constraint: the measured value is read as float(row[value]), so it can only
+// be a numeric column.
 @JsonSchemaInject(json = """
 {
   "attributeTypeRules": {
-    "value": {
-      "enum": ["integer", "long", "double"]
-    }
+    "value": { "enum": ["integer", "long", "double"] }
   }
 }
 """)
@@ -60,15 +60,8 @@ class BulletChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeGene
   @NotNull(message = "Value cannot be empty")
   var value: EncodableString = ""
 
-  // Numbers, not text: both are only ever used as `float(...)`. A typed-in word in
-  // Delta Reference rendered the error page and in Threshold Value was discarded
-  // silently; declaring them numeric lets the form reject it before the run.
-  //
-  // `contentAs` is required: Scala erases `Option[Double]`'s element type, so
-  // without it Jackson leaves the raw JSON value inside the Option and the first
-  // use throws ClassCastException. It names the boxed class deliberately — the
-  // primitive would coerce a blank to 0 instead of None, which for Threshold Value
-  // is the difference between "at zero" and "no threshold drawn".
+  // Numeric: both are only used as float(). contentAs names the boxed class —
+  // Option erases its element type, and a blank must not read as 0.
   @JsonProperty(value = "deltaReference", required = true)
   @JsonSchemaTitle("Delta Reference")
   @JsonPropertyDescription("The reference value for the delta indicator. e.g., 100")
@@ -108,14 +101,12 @@ class BulletChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeGene
   }
 
   override def generatePythonCode(): String = {
-    // The reference is required, so an unset value keeps the 0 the generated code
-    // used to fall back to; the threshold is optional and stays absent as None.
+    // The reference keeps the 0 the generated code used to fall back to; an unset
+    // threshold stays absent as None.
     val deltaReferenceExpr: PythonLiteral = deltaReference.getOrElse(0.0).toString
     val thresholdExpr: PythonLiteral = thresholdValue.map(_.toString).getOrElse("None")
 
-    // Steps whose bounds are both filled in, as a list literal of numbers. A
-    // half-filled step is dropped here rather than in the generated code: now that
-    // the bounds are numbers, "not filled in" is the only invalid case left.
+    // The steps whose bounds are both filled in, as a list literal of numbers.
     val stepsExpr: PythonLiteral =
       Option(steps)
         .map(_.asScala.toSeq)

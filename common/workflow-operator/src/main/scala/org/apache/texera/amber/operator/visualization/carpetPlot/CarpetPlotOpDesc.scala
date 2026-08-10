@@ -33,8 +33,8 @@ import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeNa
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import javax.validation.constraints.NotNull
 
-// type constraint: a / b / y are cast to float (astype(float)) to build the
-// carpet grid, so they can only be numeric columns.
+// type constraint: a / b / y are cast with astype(float) to build the carpet grid,
+// so they can only be numeric columns.
 @JsonSchemaInject(json = """
 {
   "attributeTypeRules": {

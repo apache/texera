@@ -43,7 +43,7 @@ class BandConfig extends LineConfig {
   @NotNull(message = "Y-Axis Lower Bound cannot be empty")
   var yLower: EncodableString = ""
 
-  // Same shapes plotly accepts for a color as LineConfig's line color — see there.
+  // Same shapes plotly accepts for a colour as LineConfig's line colour -- see there.
   @JsonProperty(required = false)
   @JsonSchemaTitle("Fill Color")
   @JsonPropertyDescription("must be a valid CSS color or hex color string")

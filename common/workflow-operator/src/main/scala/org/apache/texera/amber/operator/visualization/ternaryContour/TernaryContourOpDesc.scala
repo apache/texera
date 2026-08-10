@@ -43,6 +43,8 @@ import javax.validation.constraints.NotNull
   * The points can optionally be color coded using a data field.
   */
 
+// type constraint: the three variables are compared against 0 and summed as ternary
+// proportions, and the measured value is interpolated, so all four can only be numeric.
 @JsonSchemaInject(json = """
 {
   "attributeTypeRules": {

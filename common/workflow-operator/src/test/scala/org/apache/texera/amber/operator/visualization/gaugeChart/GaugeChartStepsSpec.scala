@@ -105,8 +105,7 @@ class GaugeChartStepsSpec extends AnyFlatSpec {
   }
 
   it should "hold a Double, not the raw JSON value" in {
-    // The ClassCastException a missing annotation causes surfaces at the first use
-    // of the value, not at deserialization.
+    // The ClassCastException surfaces here, at the first use, not at read time.
     assert(read("""{"start":"1.5"}""").start.map(_ * 2).contains(3.0))
   }
 

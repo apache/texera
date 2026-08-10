@@ -40,6 +40,9 @@ import javax.validation.constraints.NotNull
   * The points can optionally be color coded using a data field.
   */
 
+// type constraint: a ternary axis is a proportion, so the three variables can only be
+// numeric. Unlike the operators that raise, plotly renders a text column here -- the
+// chart is drawn from labels and means nothing, with nothing to tell the user so.
 @JsonSchemaInject(json = """
 {
   "attributeTypeRules": {

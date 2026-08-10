@@ -121,18 +121,6 @@
             nz-icon
             nzType="delete"></i>
         </button>
-        <nz-upload
-          [nzDisabled]="!isWorkflowModifiable"
-          [nzBeforeUpload]="onClickImportWorkflow">
-          <button
-            nz-button
-            [disabled]="!isWorkflowModifiable"
-            title="import workflow">
-            <i
-              nz-icon
-              nzType="upload"></i>
-          </button>
-        </nz-upload>
         <button
           (click)="onClickExportWorkflow()"
           nz-button
@@ -157,6 +145,26 @@
           <i
             nz-icon
             nzType="info-circle"></i>
+        </button>
+        <button
+          *ngIf="pythonNotebookMigrationEnabled"
+          nz-button
+          [disabled]="!isWorkflowModifiable || isWaitingForLLM"
+          (click)="openImportNotebookModal()"
+          title="AI generate workflow">
+          <i
+            nz-icon
+            nzType="robot"></i>
+        </button>
+        <button
+          *ngIf="pythonNotebookMigrationEnabled && (jupyterNotebookExists$ | async)"
+          nz-button
+          (click)="onClickExpandJupyterNotebookPanel()"
+          title="expand Jupyter notebook">
+          <img
+            class="jupyter-notebook-icon"
+            src="assets/notebook_migration_tool/jupyter-logo.svg"
+            alt="Jupyter" />
         </button>
       </nz-space-compact>
       <ng-template #utilities>

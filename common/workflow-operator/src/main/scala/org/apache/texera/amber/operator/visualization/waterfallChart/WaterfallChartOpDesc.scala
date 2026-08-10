@@ -33,6 +33,8 @@ import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 
 import javax.validation.constraints.NotNull
 
+// type constraint: each bar is a signed amount, formatted with f"{v:+}", so the y
+// column can only be numeric. The x column is the category axis and stays unconstrained.
 @JsonSchemaInject(json = """
 {
   "attributeTypeRules": {

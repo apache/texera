@@ -23,15 +23,8 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 
 /**
-  * A step's bounds are numbers, not text: the operator only ever uses them as
-  * `float(...)`, and a non-numeric bound used to be swallowed — the gauge rendered
-  * with no steps at all and no explanation. Declaring them numeric lets the form
-  * reject a typed-in word before the run.
-  *
-  * `contentAs` is required: Scala erases `Option[Double]`'s element type, so
-  * without it Jackson leaves the raw JSON value inside the Option and the first
-  * use throws ClassCastException. It names the boxed class deliberately — the
-  * primitive would coerce a blank to 0 instead of None.
+  * Numeric bounds: only used as float(). contentAs names the boxed class — Option
+  * erases its element type, and a blank must not read as 0.
   */
 class GaugeChartSteps {
   @JsonProperty("start")

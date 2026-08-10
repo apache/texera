@@ -42,9 +42,8 @@ class GaugeChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeGener
   @NotNull(message = "Gauge Value cannot be empty")
   var value: EncodableString = ""
 
-  // Numeric, not text: both are only ever used as `float(...)`. `contentAs` is
-  // required and must name the boxed class — Scala erases the element type, and the
-  // primitive would read a blank as 0, a real baseline rather than "unset".
+  // Numeric: both are only used as float(). contentAs names the boxed class —
+  // Option erases its element type, and a blank must not read as 0.
   @JsonProperty(value = "delta", required = false)
   @JsonSchemaTitle("Delta")
   @JsonPropertyDescription("The baseline value used to calculate the delta from the gauge value")
@@ -80,9 +79,12 @@ class GaugeChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeGener
   private def numberOrNone(value: Option[Double]): PythonLiteral =
     value.map(_.toString).getOrElse("None")
 
-  /** The steps whose bounds are both filled in, as a list literal of numbers. */
+  /** The steps whose bounds are both filled in, as a list literal of numbers.
+    * The field is optional, so an explicit null leaves it null; that is no steps.
+    */
   private def stepsLiteral: PythonLiteral =
-    steps
+    Option(steps)
+      .getOrElse(List.empty)
       .flatMap(step => step.start.zip(step.end))
       .map { case (start, end) => s"""{"start": $start, "end": $end}""" }
       .mkString("[", ", ", "]")

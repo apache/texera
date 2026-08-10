@@ -117,9 +117,9 @@ import { CollabWrapperComponent } from "./common/formly/collab-wrapper/collab-wr
 import { NzSwitchModule } from "ng-zorro-antd/switch";
 import { NzRadioModule } from "ng-zorro-antd/radio";
 import { AboutComponent } from "./hub/component/about/about.component";
+import { TexeraLoginComponent } from "./hub/component/login/texera-login.component";
 import { NzLayoutModule } from "ng-zorro-antd/layout";
 import { AuthGuardService } from "./common/service/user/auth-guard.service";
-import { LocalLoginComponent } from "./hub/component/about/local-login/local-login.component";
 import { MarkdownModule } from "ngx-markdown";
 import { FileSaverService } from "./dashboard/service/user/file/file-saver.service";
 import { DragDropModule } from "@angular/cdk/drag-drop";
@@ -291,7 +291,6 @@ registerLocaleData(en);
     AdminExecutionComponent,
     UserIconComponent,
     UserAvatarComponent,
-    LocalLoginComponent,
     UserWorkflowComponent,
     UserQuotaComponent,
     RowModalComponent,
@@ -343,6 +342,7 @@ registerLocaleData(en);
     ReActStepDetailModalComponent,
     CollabWrapperComponent,
     AboutComponent,
+    TexeraLoginComponent,
     UserWorkflowListItemComponent,
     UserProjectListItemComponent,
     SortButtonComponent,

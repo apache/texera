@@ -32,6 +32,8 @@ import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 
 import javax.validation.constraints.NotNull
 
+// type constraint: the p-value is filtered with `> 0` and passed to np.log10, and the
+// effect column is the quantitative x axis, so both can only be numeric.
 @JsonSchemaInject(json = """
 {
   "attributeTypeRules": {

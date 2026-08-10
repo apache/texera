@@ -31,10 +31,16 @@ import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 
 import javax.validation.constraints.{NotBlank, NotNull}
 
+// type constraint: the time axis is an instant and the plotted value is a measurement.
+// Neither is enforced today: a text value column silently degenerates the y axis into
+// a categorical one. The time axis also accepts a string, because pd.to_datetime
+// parses date text and a CSV source hands its dates over as one; a type rule cannot
+// tell such text from an unparseable value, so that half is left to the coercion,
+// which drops what it cannot read.
 @JsonSchemaInject(json = """
 {
   "attributeTypeRules": {
-    "timeColumn": { "enum": ["timestamp"] },
+    "timeColumn": { "enum": ["timestamp", "string"] },
     "valueColumn": { "enum": ["integer", "long", "double"] }
   }
 }
@@ -68,9 +74,10 @@ class TimeSeriesOpDesc extends PythonOperatorDescriptor with StandaloneCodeGener
   @AutofillAttributeName
   var facetColumn: EncodableString = "No Selection"
 
-  // Declared as a schema enum rather than named in the description: the code reads
-  // exactly two values (`plotType == "area"` else a line), so a free-text box let a
-  // typo through and silently drew a line — no error, just not what was asked for.
+  // Declared as a schema enum rather than named only in the description: the code
+  // below reads exactly two values (`plotType == "area"`, else a line), so a free-text
+  // box let a typo through and silently drew a line -- no error, just not the chart
+  // that was asked for.
   @JsonProperty(value = "line", defaultValue = "line", required = true)
   @JsonSchemaTitle("Plot Type")
   @JsonPropertyDescription("Select the type of time series plot (line, area).")

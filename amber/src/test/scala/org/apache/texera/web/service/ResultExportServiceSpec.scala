@@ -433,7 +433,6 @@ class ResultExportServiceSpec
     testUser.setUid(testUserId)
     testUser.setName("export_user")
     testUser.setEmail("export@example.com")
-    testUser.setPassword("password")
     new UserDao(getDSLContext.configuration()).insert(testUser)
 
     val workflow = new Workflow
