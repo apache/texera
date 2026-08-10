@@ -84,7 +84,7 @@ class InternalQueue(IQueue):
                         )
                         # while data is disabled, a new data sub-queue must
                         # start disabled too (before its first element is
-                        # enqueued), or it would leak data during the pause
+                        # enqueued), or it would leak data during pause/backpressure
                         if not item.tag.is_control and self._queue_state:
                             self._queue.disable(item.tag)
                         self._queue_ids.add(item.tag)
@@ -102,16 +102,18 @@ class InternalQueue(IQueue):
         self._queue.enable(channel_id)
 
     def is_control_empty(self) -> bool:
+        # snapshot: put() may add channels concurrently, and iterating the
+        # live set while it grows raises RuntimeError
         return all(
             self.is_empty(queue_id)
-            for queue_id in self._queue_ids
+            for queue_id in tuple(self._queue_ids)
             if queue_id.is_control
         )
 
     def is_data_empty(self) -> bool:
         return all(
             self.is_empty(queue_id)
-            for queue_id in self._queue_ids
+            for queue_id in tuple(self._queue_ids)
             if not queue_id.is_control
         )
 
@@ -124,14 +126,14 @@ class InternalQueue(IQueue):
     def size_control(self) -> int:
         return sum(
             self._queue.size(queue_id)
-            for queue_id in self._queue_ids
+            for queue_id in tuple(self._queue_ids)
             if queue_id.is_control
         )
 
     def size_data(self) -> int:
         return sum(
             self._queue.size(queue_id)
-            for queue_id in self._queue_ids
+            for queue_id in tuple(self._queue_ids)
             if not queue_id.is_control
         )
 
@@ -156,13 +158,13 @@ class InternalQueue(IQueue):
     def in_mem_size(self) -> int:
         return sum(
             self._queue.in_mem_size(queue_id)
-            for queue_id in self._queue_ids
+            for queue_id in tuple(self._queue_ids)
             if not queue_id.is_control
         )
 
     def is_data_enabled(self) -> bool:
         return any(
             self._queue.is_enabled(queue_id)
-            for queue_id in self._queue_ids
+            for queue_id in tuple(self._queue_ids)
             if not queue_id.is_control
         )

@@ -559,3 +559,103 @@ class TestInternalQueue:
                 queue.get()
                 dequeued += 1
             assert dequeued == total
+
+    # Regression tests below: the per-category query methods iterate
+    # _queue_ids, which put() grows on a channel's first message. Iterating
+    # the live set while another thread grows it raises RuntimeError
+    # ("Set changed size during iteration"), killing the calling thread —
+    # e.g. the DP thread polling is_data_enabled() in the main loop — so the
+    # queries must iterate a snapshot of the set instead.
+
+    @pytest.mark.parametrize(
+        "query, expected",
+        [
+            ("is_control_empty", True),
+            ("is_data_empty", True),
+            ("size_control", 0),
+            ("size_data", 0),
+            ("in_mem_size", 0),
+            ("is_data_enabled", False),
+        ],
+    )
+    def test_queries_survive_a_channel_registration_mid_iteration(
+        self, query, expected
+    ):
+        # A key whose is_control access (evaluated inside the query's
+        # iteration over _queue_ids) delivers the first-ever message of a
+        # brand-new data channel, interleaving a registration into the
+        # iteration exactly like a concurrent Flight reader thread would.
+        queue = InternalQueue()
+        outer = self
+
+        class RegisteringKey:
+            def __init__(self):
+                self.fired = 0
+
+            @property
+            def is_control(self):
+                self.fired += 1
+                late_channel = ChannelIdentity(
+                    ActorVirtualIdentity(f"late_upstream_{self.fired}"),
+                    ActorVirtualIdentity("dummy_worker_id"),
+                    False,
+                )
+                queue.put(outer.data_element(late_channel))
+                return False
+
+        registering_key = RegisteringKey()
+        queue._queue.add_sub_queue(registering_key, 2)
+        # keep this sub-queue disabled and empty so no query short-circuits
+        # on its yielded value: each one must advance the iteration past the
+        # mid-iteration registration, which raises RuntimeError on the live
+        # set and must not raise on a snapshot
+        queue._queue.disable(registering_key)
+        queue._queue_ids.add(registering_key)
+
+        assert getattr(queue, query)() == expected
+        assert registering_key.fired == 1
+
+    @pytest.mark.timeout(20)
+    def test_queries_survive_concurrent_first_time_registrations(self):
+        # realistic race: reader threads deliver first-ever messages on new
+        # data channels while the DP-thread side polls the category queries,
+        # as main_loop's _check_and_process_control does
+        queue = InternalQueue()
+        n_threads, channels_per_thread = 4, 200
+        start_barrier = threading.Barrier(n_threads + 1)
+        errors = []
+
+        def producer(thread_id):
+            try:
+                start_barrier.wait()
+                for i in range(channels_per_thread):
+                    channel = ChannelIdentity(
+                        ActorVirtualIdentity(f"upstream_{thread_id}_{i}"),
+                        ActorVirtualIdentity("dummy_worker_id"),
+                        False,
+                    )
+                    queue.put(self.data_element(channel))
+            except Exception as exc:  # pragma: no cover - failure path
+                errors.append(exc)
+
+        producers = [
+            threading.Thread(target=producer, args=(t,)) for t in range(n_threads)
+        ]
+        for producer_thread in producers:
+            producer_thread.start()
+        start_barrier.wait()
+        # a RuntimeError from any query fails the test right here
+        while any(producer_thread.is_alive() for producer_thread in producers):
+            queue.is_control_empty()
+            queue.is_data_empty()
+            queue.size_control()
+            queue.size_data()
+            queue.in_mem_size()
+            queue.is_data_enabled()
+        for producer_thread in producers:
+            producer_thread.join()
+
+        assert errors == []
+        assert queue.size_data() == n_threads * channels_per_thread
+        assert queue.size_control() == 0
+        assert queue.is_data_enabled()
