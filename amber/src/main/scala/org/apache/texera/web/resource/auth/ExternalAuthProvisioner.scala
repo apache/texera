@@ -63,7 +63,6 @@ object ExternalAuthProvisioner extends LazyLogging {
     * attempt is re-run once; if the retry violates a constraint too, that exception propagates.
     */
   def loginOrProvision(profile: ExternalProfile): User = {
-
     try {
       provision(profile)
     } catch {
@@ -72,7 +71,7 @@ object ExternalAuthProvisioner extends LazyLogging {
     }
   }
 
-  private def provision(profile: ExternalProfile) = {
+  private def provision(profile: ExternalProfile): User = {
     SqlServer.withTransaction(SqlServer.getInstance().createDSLContext()) { ctx =>
       val txUserDao = new UserDao(ctx.configuration())
       val txAuthDao = new AuthProviderDao(ctx.configuration())
@@ -88,7 +87,9 @@ object ExternalAuthProvisioner extends LazyLogging {
           .fetchOne()
       ) match {
         case Some(record) =>
-          txUserDao.fetchOneByUid(record.get(USER.UID)).tap { user =>
+          // The join above already selected every USER column, so map in place rather than
+          // re-reading the same row by uid.
+          record.into(USER).into(classOf[User]).tap { user =>
             if (refresh(user, profile)) txUserDao.update(user)
           }
 
@@ -96,10 +97,10 @@ object ExternalAuthProvisioner extends LazyLogging {
           val user = userByEmailIgnoreCase(ctx, profile.email) match {
             case Some(existing) =>
               existing.tap { user =>
-                val claimed = user.getIsPlaceholder
-                if (claimed) AuthResource.claimPlaceholder(user)
+                val wasPlaceholder = user.getIsPlaceholder
+                if (wasPlaceholder) AuthResource.claimPlaceholder(user)
                 val drifted = refresh(user, profile)
-                if (drifted || claimed) txUserDao.update(user)
+                if (drifted || wasPlaceholder) txUserDao.update(user)
               }
             case None =>
               val created = new User()
