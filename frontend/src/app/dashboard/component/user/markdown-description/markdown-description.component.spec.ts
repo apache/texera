@@ -364,20 +364,29 @@ describe("MarkdownDescriptionComponent", () => {
 
       const viewMoreBtn = fixture.nativeElement.querySelector(".view-more-btn") as HTMLButtonElement;
       expect(viewMoreBtn).toBeTruthy();
-      // the label interpolation and the chevron's [nzType] are driven by the same flag
+      // nz-icon renders [nzType] as an `anticon-<type>` class, so the chevron binding is
+      // observable alongside the label interpolation
+      const chevronType = (): string | undefined =>
+        Array.from(viewMoreBtn.querySelector("i")?.classList ?? [])
+          .find(cls => cls.startsWith("anticon-"))
+          ?.replace("anticon-", "");
+
       expect(viewMoreBtn.textContent).toContain("View more");
+      expect(chevronType()).toBe("down");
 
       viewMoreBtn.click();
       fixture.detectChanges();
 
       expect(component.isExpanded).toBe(true);
       expect(viewMoreBtn.textContent).toContain("View less");
+      expect(chevronType()).toBe("up");
 
       viewMoreBtn.click();
       fixture.detectChanges();
 
       expect(component.isExpanded).toBe(false);
       expect(viewMoreBtn.textContent).toContain("View more");
+      expect(chevronType()).toBe("down");
     });
 
     it("omits the view-more control when the description does not overflow", async () => {

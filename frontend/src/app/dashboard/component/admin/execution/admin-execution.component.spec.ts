@@ -616,18 +616,15 @@ describe("AdminExecutionComponent template rendering", () => {
     const killSpy = vi.spyOn(component, "killExecution").mockImplementation(() => {});
     renderRows([makeExecution({ executionStatus: "RUNNING", workflowId: 42 })]);
 
-    const killControl = fixture.debugElement
-      .queryAll(By.css("tbody tr button, tbody tr i"))
-      .find(el => (el.nativeElement.getAttribute("nztype") ?? "").includes("close"));
+    // nz-icon renders [nzType] as an `anticon-<type>` class; the kill button is the one
+    // carrying the "stop" icon (nz-tooltip is a directive input and never reaches the DOM).
+    const killButton = fixture.debugElement
+      .queryAll(By.css("tbody tr button"))
+      .find(btn => btn.nativeElement.querySelector("i.anticon-stop"));
+    expect(killButton).toBeTruthy();
 
-    if (killControl) {
-      killControl.triggerEventHandler("click", null);
-      expect(killSpy).toHaveBeenCalledWith(42);
-    } else {
-      // the control is behind a status the fixture does not reach; exercise the
-      // binding target directly so the handler is still covered
-      component.killExecution(42);
-      expect(killSpy).toHaveBeenCalledWith(42);
-    }
+    killButton!.triggerEventHandler("click", null);
+
+    expect(killSpy).toHaveBeenCalledWith(42);
   });
 });

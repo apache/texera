@@ -409,6 +409,9 @@ describe("PropertyEditorComponent", () => {
     });
 
     it("reopens the panel when the collapsed docked item is clicked", () => {
+      // openPanel() schedules a setTimeout that would call detectChanges() after the
+      // fixture is destroyed in afterEach; stub it the way the specs above do.
+      vi.spyOn(component as any, "updateHeightBasedOnContent").mockImplementation(() => {});
       component.width = 0;
       fixture.detectChanges();
 
