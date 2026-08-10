@@ -947,8 +947,8 @@ class WorkflowExecutionsResourceSpec
   // fetchInto maps onto WorkflowExecutionEntry POSITIONALLY (a case class has no no-arg
   // constructor, and jOOQ's mapConstructorParameterNames defaults to false), so `USER.AVATAR`
   // at projection position 5 lands on `googleAvatar` despite the names differing — exactly as
-  // `last_update_time` at position 9 lands on `completionTime`. Nothing observed either before,
-  // which is what makes an accidental column reorder silent. Pin both here.
+  // `last_update_time` at position 9 lands on `completionTime`. Neither mapping was asserted
+  // anywhere before, which is what makes an accidental column reorder silent. Pin both here.
   it should "map the owner's avatar and completion time onto the entry despite the name mismatch" in {
     grantReadAccess()
     insertExecution(lastUpdateOffsetMillis = Some(0L))

@@ -19,7 +19,7 @@
 
 package org.apache.texera.web.resource.auth
 
-import org.apache.texera.dao.SqlServer
+import org.apache.texera.dao.{SqlServer, SqlStates}
 import org.apache.texera.dao.jooq.generated.Tables.AUTH_PROVIDER
 import org.apache.texera.dao.jooq.generated.enums.{ProviderTypeEnum, UserRoleEnum}
 import org.apache.texera.dao.jooq.generated.tables.daos.{AuthProviderDao, UserDao}
@@ -40,8 +40,6 @@ import javax.ws.rs.core.Response
   * local credential is stored now lands in one place.
   */
 object LocalAuthProvisioner {
-
-  /** Postgres unique-violation SQLSTATE. */
 
   private val passwordEncryptor = new StrongPasswordEncryptor
 
@@ -94,7 +92,7 @@ object LocalAuthProvisioner {
         txAuthDao.insert(auth)
       }
     } catch {
-      case e: DataAccessException if e.sqlState() == AuthResource.UNIQUE_VIOLATION =>
+      case e: DataAccessException if e.sqlState() == SqlStates.UNIQUE_VIOLATION =>
         val message =
           if (handleExists(handle)) s"Login handle $handle is already taken"
           else s"Email ${user.getEmail} is already registered"
@@ -124,7 +122,7 @@ object LocalAuthProvisioner {
         new AuthProviderDao(ctx.configuration()).insert(auth)
       }
     } catch {
-      case e: DataAccessException if e.sqlState() == AuthResource.UNIQUE_VIOLATION =>
+      case e: DataAccessException if e.sqlState() == SqlStates.UNIQUE_VIOLATION =>
         val message =
           if (handleExists(handle)) s"Login handle $handle is already taken"
           else s"Account for ${user.getEmail} has already been claimed"

@@ -42,8 +42,6 @@ object AuthResource {
 
   private def context = SqlServer.getInstance().context
 
-  private[auth] val UNIQUE_VIOLATION = "23505"
-
   /**
     * Retrieve exactly one User from databases with the given username and password.
     * The password is used to validate against the hashed password stored in the db.

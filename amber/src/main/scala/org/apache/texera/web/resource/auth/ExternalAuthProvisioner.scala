@@ -20,13 +20,14 @@
 package org.apache.texera.web.resource.auth
 
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.texera.dao.SqlServer
+import org.apache.texera.dao.{SqlServer, SqlStates}
 import org.apache.texera.dao.jooq.generated.Tables.{AUTH_PROVIDER, USER}
 import org.apache.texera.dao.jooq.generated.enums.{ProviderTypeEnum, UserRoleEnum}
 import org.apache.texera.dao.jooq.generated.tables.daos.{AuthProviderDao, UserDao}
 import org.apache.texera.dao.jooq.generated.tables.pojos.{AuthProvider, User}
 import org.apache.texera.common.util.EmailUtil
 import org.jooq.DSLContext
+import org.jooq.exception.DataAccessException
 import org.jooq.impl.DSL
 
 import java.time.OffsetDateTime
@@ -71,14 +72,14 @@ object ExternalAuthProvisioner extends LazyLogging {
     * Resolve the user behind an external identity, creating one if necessary, and
     * ensure its auth-provider row is present and up to date. Each attempt runs in one
     * transaction. A unique violation is taken to mean a concurrent login won the race, so the
-    * attempt is re-run once; a violation from any other constraint then fails the same way.
+    * attempt is re-run once; if the retry violates a constraint too, that exception propagates.
     */
   def loginOrProvision(profile: ExternalProfile): User = {
 
     try {
       provision(profile)
     } catch {
-      case e: org.jooq.exception.DataAccessException if e.sqlState() == "23505" =>
+      case e: DataAccessException if e.sqlState() == SqlStates.UNIQUE_VIOLATION =>
         provision(profile)
     }
   }
