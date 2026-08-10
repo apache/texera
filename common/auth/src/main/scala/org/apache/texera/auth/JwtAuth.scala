@@ -62,8 +62,9 @@ object JwtAuth {
     * in `auth_provider` and this module must stay DB-free: the specs in
     * `access-control-service` / `config-service` and the token re-issue paths in
     * `ResultExportService` / `ComputingUnitManagingResource` all call this with no
-    * `auth_provider` context. Those re-issued tokens are service-to-service and never reach
-    * the browser, so omitting the claim there is harmless.
+    * `auth_provider` context, as does `AuthResource.register`. Omitting the claim is harmless
+    * on all of them: a service-to-service token never reaches the browser, and a freshly
+    * registered LOCAL account has no Google identity to name.
     */
   def jwtClaims(user: User, googleId: Option[String] = None): JwtClaims = {
     val claims = new JwtClaims
