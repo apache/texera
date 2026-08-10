@@ -40,10 +40,7 @@ $text-secondary: rgba(0, 0, 0, 0.45);
 }
 
 .brand {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
+  text-align: center;
   margin-bottom: 12px;
 
   img {
@@ -52,6 +49,7 @@ $text-secondary: rgba(0, 0, 0, 0.45);
   }
 
   .sub {
+    padding-top: 12px;
     font-size: 13px;
     letter-spacing: 0.02em;
   }
