@@ -100,6 +100,12 @@ export class TexeraLoginComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    // Nothing on this page is useful to someone already signed in, so send them straight on.
+    if (this.userService.isLogin()) {
+      this.navigateAfterLogin();
+      return;
+    }
+
     // Prefill the configured local dev credentials, as the previous login form did.
     if (this.config.env.defaultLocalUser && Object.keys(this.config.env.defaultLocalUser).length > 0) {
       this.form.patchValue({
