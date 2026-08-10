@@ -135,12 +135,13 @@ class AdminUserResource {
   @POST
   @Path("/add")
   def addUser(): Unit = {
-    val random = UUID.randomUUID().toString
-    val handle = "User" + random
+    // Two independent UUIDs: the handle is visible to anyone who can read /list, so deriving the
+    // password from it would let any such caller log in as the new account.
+    val handle = "User" + UUID.randomUUID().toString
     val user = new User
     user.setName(handle)
     user.setRole(UserRoleEnum.INACTIVE)
-    LocalAuthProvisioner.createLocalAccount(user, handle, random)
+    LocalAuthProvisioner.createLocalAccount(user, handle, UUID.randomUUID().toString)
   }
 
   @GET
