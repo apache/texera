@@ -77,19 +77,22 @@ class GoogleAuthResourceSpec
   /**
     * A payload shaped like Google's. `name` and `picture` are ordinary JSON members rather than
     * typed fields, and passing null omits them — which is exactly the case the name fallback
-    * exists for.
+    * exists for. `emailVerified` defaults to true, the only kind of payload the resource accepts;
+    * null omits the claim.
     */
   private def payload(
       subject: String,
       email: String,
       name: String = "Given Name",
-      picture: String = "https://lh3.googleusercontent.com/a/AVATAR-ID"
+      picture: String = "https://lh3.googleusercontent.com/a/AVATAR-ID",
+      emailVerified: java.lang.Boolean = true
   ): GoogleIdToken.Payload = {
     val p = new GoogleIdToken.Payload()
     p.setSubject(subject)
     p.setEmail(email)
     if (name != null) p.set("name", name)
     if (picture != null) p.set("picture", picture)
+    if (emailVerified != null) p.setEmailVerified(emailVerified)
     p
   }
 
@@ -165,6 +168,43 @@ class GoogleAuthResourceSpec
     val resource = new StubbedGoogleAuthResource(None)
 
     a[NotAuthorizedException] should be thrownBy resource.login("not-a-real-credential")
+  }
+
+  // Not merely untidy input: matching on an unverified address is an account takeover.
+  it should "reject a token whose email_verified is false, leaving the matching account alone" in {
+    loginWith(payload("google-sub-owner", "victim" + emailDomain, name = "Real Owner"))
+    val owner = userByEmail("victim").getUid
+
+    val resource = new StubbedGoogleAuthResource(
+      Some(payload("google-sub-attacker", "victim" + emailDomain, emailVerified = false))
+    )
+    a[NotAuthorizedException] should be thrownBy resource.login("stubbed-credential")
+
+    // the victim's account still points at the original identity, and no second one was added
+    googleIdOf(owner) shouldBe "google-sub-owner"
+    getDSLContext.fetchCount(USER, USER.EMAIL.eq("victim" + emailDomain)) shouldBe 1
+  }
+
+  it should "reject a token that omits email_verified rather than assuming it" in {
+    val resource = new StubbedGoogleAuthResource(
+      Some(payload("google-sub-noflag", "noflag" + emailDomain, emailVerified = null))
+    )
+
+    a[NotAuthorizedException] should be thrownBy resource.login("stubbed-credential")
+    userByEmail("noflag") shouldBe null
+  }
+
+  // A null address NPEs in `EmailUtil.normalize`, and as the name fallback violates NOT NULL.
+  it should "reject a token with no email address" in {
+    val resource = new StubbedGoogleAuthResource(Some(payload("google-sub-noemail", null)))
+
+    a[NotAuthorizedException] should be thrownBy resource.login("stubbed-credential")
+  }
+
+  it should "reject a token whose email is blank" in {
+    val resource = new StubbedGoogleAuthResource(Some(payload("google-sub-blankemail", "   ")))
+
+    a[NotAuthorizedException] should be thrownBy resource.login("stubbed-credential")
   }
 
   // ---- client id -----------------------------------------------------------

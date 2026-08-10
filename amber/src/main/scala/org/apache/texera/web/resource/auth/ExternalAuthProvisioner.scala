@@ -35,6 +35,10 @@ import scala.util.chaining.scalaUtilChainingOps
 
 /**
   * A verified external identity (Google, Facebook, ...) reduced to the fields we persist.
+  *
+  * `email` must be non-blank and provider-verified: `loginOrProvision` links the identity to the
+  * account owning that address and claims its placeholder, so an unverified address is a
+  * takeover. Each provider checks this in its own mapping function (Google: `email_verified`).
   */
 final case class ExternalProfile(
     providerType: ProviderTypeEnum,

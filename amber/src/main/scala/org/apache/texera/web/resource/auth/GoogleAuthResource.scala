@@ -33,14 +33,25 @@ import javax.ws.rs.core.MediaType
 
 object GoogleAuthResource {
 
+  final private lazy val clientId = UserSystemConfig.googleClientId
   /**
     * Reduce a verified Google id-token payload to the fields we persist. Google omits `name`
     * for accounts with no profile name, and the provisioner writes `name` straight to a NOT
     * NULL column, so the address stands in for it. Only the last path segment of `picture` is
     * kept — the frontend rebuilds the full `lh3.googleusercontent.com` URL around it.
+    *
+    * A payload with no address, or whose `email_verified` is not true, is refused rather than
+    * mapped — see [[ExternalProfile]] for why. Absent is not true: Google may omit the claim, and
+    * Workspace and custom-domain accounts can report false.
     */
   private[auth] def profileOf(payload: GoogleIdToken.Payload): ExternalProfile = {
     val googleEmail = payload.getEmail
+    if (googleEmail == null || googleEmail.isBlank) {
+      throw new NotAuthorizedException("Login credentials are incorrect.")
+    }
+    if (!Option(payload.getEmailVerified).exists(_.booleanValue)) {
+      throw new NotAuthorizedException("Login credentials are incorrect.")
+    }
     ExternalProfile(
       ProviderTypeEnum.GOOGLE,
       payload.getSubject,
@@ -51,20 +62,20 @@ object GoogleAuthResource {
         .getOrElse("")
     )
   }
-}
-
-@Path("/auth/google")
-class GoogleAuthResource {
-  final private lazy val clientId = UserSystemConfig.googleClientId
-
-  @GET
-  @Path("/clientid")
-  def getClientId: String = clientId
 
   private lazy val verifier =
     new GoogleIdTokenVerifier.Builder(new NetHttpTransport, GsonFactory.getDefaultInstance)
       .setAudience(Collections.singletonList(clientId))
       .build()
+}
+
+@Path("/auth/google")
+class GoogleAuthResource {
+
+  @GET
+  @Path("/clientid")
+  def getClientId: String = GoogleAuthResource.clientId
+
 
   /**
     * Verify `credential` against Google, yielding its payload, or None if it is not a valid
@@ -73,7 +84,7 @@ class GoogleAuthResource {
     * Jersey instantiates this resource from `classOf[GoogleAuthResource]`.
     */
   protected def verifiedPayload(credential: String): Option[GoogleIdToken.Payload] =
-    Option(verifier.verify(credential)).map(_.getPayload)
+    Option(GoogleAuthResource.verifier.verify(credential)).map(_.getPayload)
 
   @POST
   @Consumes(Array(MediaType.TEXT_PLAIN))
