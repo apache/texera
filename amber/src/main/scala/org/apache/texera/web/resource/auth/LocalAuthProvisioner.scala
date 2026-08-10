@@ -21,7 +21,7 @@ package org.apache.texera.web.resource.auth
 
 import org.apache.texera.dao.{SqlServer, SqlStates}
 import org.apache.texera.dao.jooq.generated.Tables.AUTH_PROVIDER
-import org.apache.texera.dao.jooq.generated.enums.{ProviderTypeEnum, UserRoleEnum}
+import org.apache.texera.dao.jooq.generated.enums.ProviderTypeEnum
 import org.apache.texera.dao.jooq.generated.tables.daos.{AuthProviderDao, UserDao}
 import org.apache.texera.dao.jooq.generated.tables.pojos.{AuthProvider, User}
 import org.jasypt.util.password.StrongPasswordEncryptor
@@ -128,13 +128,5 @@ object LocalAuthProvisioner {
           else s"Account for ${user.getEmail} has already been claimed"
         throw new WebApplicationException(message, e, Response.Status.CONFLICT)
     }
-  }
-
-  /** Create an INACTIVE account whose display name is its login handle. */
-  def createLocalAccount(handle: String, rawPassword: String): Unit = {
-    val user = new User
-    user.setName(handle)
-    user.setRole(UserRoleEnum.INACTIVE)
-    createLocalAccount(user, handle, rawPassword)
   }
 }
