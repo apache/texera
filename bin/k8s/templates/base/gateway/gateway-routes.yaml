@@ -154,8 +154,32 @@ spec:
         - path:
             type: PathPrefix
             value: /api/agents
-        # Ambient operator recommender endpoint (apache/texera#5240) is served
-        # by the agent-service alongside /api/agents.
+      backendRefs:
+        - name: agent-service-svc
+          port: 3001
+{{- end }}
+---
+# Operator Recommender Route (apache/texera#5240). Served by the agent-service,
+# but deliberately kept out of the agent-service HTTPRoute: that route is the
+# target of the agent BackendTrafficPolicy, which pins requests to a replica by
+# consistent-hashing X-Agent-Workflow-Id. The recommender is stateless and sends
+# no such header, so it must not inherit that affinity. Longest-prefix matching
+# gives /api/recommend priority over the /api catch-all in the static routes above.
+{{- if .Values.agentService.enabled }}
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: {{ .Release.Name }}-operator-recommender-route
+  namespace: {{ .Release.Namespace }}
+spec:
+  parentRefs:
+    - name: {{ .Release.Name }}-gateway
+  {{- if and .Values.gatewayConfig .Values.gatewayConfig.hostname }}
+  hostnames:
+    - {{ .Values.gatewayConfig.hostname }}
+  {{- end }}
+  rules:
+    - matches:
         - path:
             type: PathPrefix
             value: /api/recommend

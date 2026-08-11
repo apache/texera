@@ -121,6 +121,12 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     position: { x: number; y: number };
     recommendations: OperatorRecommendation[];
   } | null = null;
+  private readonly repositionSuggestion$ = new Subject<void>();
+
+  // Screen-pixel gap between the operator's right edge and the suggestion chips.
+  private static readonly SUGGESTION_GAP_X = 20;
+  // Screen-pixel drop below the operator box, clearing the display-name text.
+  private static readonly CHAT_POPOVER_GAP_Y = 40;
 
   // Cached agent result summaries for port label display
 
@@ -1688,9 +1694,21 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   /**
-   * Get the screen position for the chat popover relative to an operator.
+   * Screen position of a point on an operator's bounding box, applying the
+   * paper's current zoom and pan.
+   *
+   * `anchorX` / `anchorY` pick the point in box-relative fractions — 0 is the
+   * left/top edge, 0.5 the center, 1 the right/bottom edge — and `offsetX` /
+   * `offsetY` nudge it afterwards in screen pixels. Every floating overlay
+   * anchored to an operator goes through here, so the paper-to-screen transform
+   * is defined once rather than re-derived per overlay.
+   *
+   * Returns null when the operator has no cell on the paper.
    */
-  private getOperatorChatPopoverPosition(operatorId: string): { x: number; y: number } | null {
+  private getOperatorAnchorPosition(
+    operatorId: string,
+    anchor: { anchorX: number; anchorY: number; offsetX?: number; offsetY?: number }
+  ): { x: number; y: number } | null {
     const jointCell = this.paper.getModelById(operatorId);
     if (!jointCell) {
       return null;
@@ -1700,12 +1718,23 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     const scale = this.paper.scale();
     const translate = this.paper.translate();
 
-    // Position popover below the operator, centered horizontally
-    // Add extra offset for the display name text below the operator box
-    const screenX = (bbox.x + bbox.width / 2) * scale.sx + translate.tx;
-    const screenY = (bbox.y + bbox.height) * scale.sy + translate.ty + 40;
+    return {
+      x: (bbox.x + bbox.width * anchor.anchorX) * scale.sx + translate.tx + (anchor.offsetX ?? 0),
+      y: (bbox.y + bbox.height * anchor.anchorY) * scale.sy + translate.ty + (anchor.offsetY ?? 0),
+    };
+  }
 
-    return { x: screenX, y: screenY };
+  /**
+   * Get the screen position for the chat popover relative to an operator:
+   * below the operator, centered horizontally, dropped far enough to clear the
+   * display-name text under the operator box.
+   */
+  private getOperatorChatPopoverPosition(operatorId: string): { x: number; y: number } | null {
+    return this.getOperatorAnchorPosition(operatorId, {
+      anchorX: 0.5,
+      anchorY: 1,
+      offsetY: WorkflowEditorComponent.CHAT_POPOVER_GAP_Y,
+    });
   }
 
   /**
@@ -1729,15 +1758,12 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   /**
-   * Ambient operator recommender (apache/texera#5240). When an operator is
-   * added, ask the recommender for likely next operators and float them as
-   * suggestion chips on the operator's output port; clicking one materializes
-   * it. The whole feature is opt-in and self-effacing: if it is disabled or the
-   * backend returns nothing, the canvas is untouched.
+   * Ambient operator recommender (apache/texera#5240). When the user drops an
+   * operator onto the canvas, ask the recommender for likely next operators and
+   * float them as suggestion chips on the operator's output port; clicking one
+   * materializes it. The whole feature is opt-in and self-effacing: if it is
+   * disabled or the backend returns nothing, the canvas is untouched.
    */
-
-  private readonly repositionSuggestion$ = new Subject<void>();
-
   private handleOperatorRecommendation(): void {
     this.repositionSuggestion$
       .pipe(auditTime(100), untilDestroyed(this))
@@ -1747,10 +1773,11 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
       return;
     }
 
-    // Trigger: an operator was just added to the canvas.
-    this.workflowActionService
-      .getTexeraGraph()
-      .getOperatorAddStream()
+    // Trigger: the user interactively dropped an operator onto the canvas.
+    // Deliberately not the graph's operator-add stream, which also fires on
+    // workflow load, undo/redo, paste, and remote co-editor edits — none of
+    // which are a user authoring a next step.
+    this.dragDropService.operatorDropStream
       .pipe(untilDestroyed(this))
       .subscribe(operator => this.showRecommendationsFor(operator));
 
@@ -1777,7 +1804,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
       }
     });
 
-    // Keep the suggestions anchored on zoom / pan.
+    // Keep the suggestions anchored on zoom.
     this.wrapper
       .getWorkflowEditorZoomStream()
       .pipe(untilDestroyed(this))
@@ -1822,22 +1849,32 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
 
   /**
    * Materialize a clicked suggestion into a real operator wired onto the
-   * source operator's output port.
+   * source operator's output port, then suggest what could follow that new
+   * operator in turn — accepting a suggestion leaves the canvas ready for the
+   * next one, the way accepting a code completion does.
    */
   materializeRecommendation(recommendation: OperatorRecommendation): void {
     if (!this.operatorSuggestion) {
       return;
     }
     const graph = this.workflowActionService.getTexeraGraph();
+    let newOperatorID: string | undefined;
     if (graph.hasOperator(this.operatorSuggestion.operatorId)) {
       const sourceOperator = graph.getOperator(this.operatorSuggestion.operatorId);
-      this.operatorRecommendationService.materialize(
+      newOperatorID = this.operatorRecommendationService.materialize(
         sourceOperator,
         this.operatorSuggestion.sourceOutputPortID,
         recommendation.operatorType
       );
     }
     this.closeRecommendations();
+
+    // Chaining has to be explicit: a materialized operator reaches the graph
+    // through addOperatorsAndLinks, not through a drop, so the drop-gated
+    // trigger above will never fire for it.
+    if (newOperatorID !== undefined && graph.hasOperator(newOperatorID)) {
+      this.showRecommendationsFor(graph.getOperator(newOperatorID));
+    }
   }
 
   closeRecommendations(): void {
@@ -1865,16 +1902,11 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
    * operator, vertically centered — the direction its output port faces.
    */
   private getRecommendationPosition(operatorId: string): { x: number; y: number } | null {
-    const jointCell = this.paper.getModelById(operatorId);
-    if (!jointCell) {
-      return null;
-    }
-    const bbox = jointCell.getBBox();
-    const scale = this.paper.scale();
-    const translate = this.paper.translate();
-    const screenX = (bbox.x + bbox.width) * scale.sx + translate.tx + 20;
-    const screenY = (bbox.y + bbox.height / 2) * scale.sy + translate.ty;
-    return { x: screenX, y: screenY };
+    return this.getOperatorAnchorPosition(operatorId, {
+      anchorX: 1,
+      anchorY: 0.5,
+      offsetX: WorkflowEditorComponent.SUGGESTION_GAP_X,
+    });
   }
 
   /**

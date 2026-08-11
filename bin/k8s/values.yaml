@@ -343,6 +343,8 @@ texeraEnvVars:
     value: "true"
   - name: GUI_WORKFLOW_WORKSPACE_COPILOT_ENABLED
     value: "true"
+  - name: GUI_WORKFLOW_WORKSPACE_OPERATOR_RECOMMENDATION_ENABLED
+    value: "false"
   - name: COMPUTING_UNIT_SHARING_ENABLED
     value: "true"
   - name: USER_SYS_INVITE_ONLY

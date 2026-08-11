@@ -31,7 +31,7 @@ import { GuiConfigService } from "../../../common/service/gui-config.service";
  * endpoint (apache/texera#5240). Mirrors the backend `OperatorRecommendation`.
  */
 export interface OperatorRecommendation {
-  /** Recommended operator type; a real, catalog-known type. */
+  /** Recommended operator type (validated against the live catalog when available). */
   operatorType: string;
   /** Confidence in `[0, 1]`, monotonically non-increasing down the list. */
   score: number;
@@ -82,12 +82,14 @@ export class OperatorRecommendationService {
    * Returns an empty list (never errors) when the feature is disabled, the
    * operator has no output port to suggest from, or the backend call fails.
    *
+   * How many suggestions come back is the backend's call: it defaults to three
+   * and clamps anything larger, so there is nothing useful to send from here.
+   *
    * @param operator the operator that was just added to the canvas
-   * @param limit maximum number of suggestions to request
    */
-  public getRecommendations(operator: OperatorPredicate, limit?: number): Observable<OperatorRecommendation[]> {
-    // A source-less/output-less operator (e.g. a chart sink) has no output port
-    // to hang suggestions on, so we skip the backend call.
+  public getRecommendations(operator: OperatorPredicate): Observable<OperatorRecommendation[]> {
+    // An operator with no output ports (e.g. a chart sink) has no port to anchor
+    // suggestions on, so we skip the backend call.
     if (!this.isEnabled() || operator.outputPorts.length === 0) {
       return of([]);
     }
@@ -101,7 +103,6 @@ export class OperatorRecommendationService {
       .post<RecommendationResponse>(OperatorRecommendationService.RECOMMEND_API_URL, {
         operatorType: operator.operatorType,
         existingOperatorTypes,
-        ...(limit !== undefined ? { limit } : {}),
       })
       .pipe(
         map(response => response.recommendations ?? []),
@@ -115,6 +116,12 @@ export class OperatorRecommendationService {
    * of the source operator and link the source's output port to the new
    * operator's first input port. Added as a single undoable action.
    *
+   * The backend only validates suggestions against the operator catalog when its
+   * own catalog is initialized, so an unknown `recommendedType` can reach us and
+   * make `getNewOperatorPredicate` throw. Materializing is a click on an ambient
+   * hint, not an action the user asked to be told about, so a failure leaves the
+   * canvas untouched and returns `undefined` rather than surfacing an error.
+   *
    * @param sourceOperator the operator the suggestion was made from
    * @param sourceOutputPortID the output port the suggestion was anchored on
    * @param recommendedType the operator type the user clicked
@@ -125,28 +132,35 @@ export class OperatorRecommendationService {
     sourceOutputPortID: string,
     recommendedType: string
   ): string | undefined {
-    const newOperator = this.workflowUtilService.getNewOperatorPredicate(recommendedType);
+    try {
+      const newOperator = this.workflowUtilService.getNewOperatorPredicate(recommendedType);
 
-    const sourcePosition = this.workflowActionService
-      .getJointGraphWrapper()
-      .getElementPosition(sourceOperator.operatorID);
-    const newPosition: Point = {
-      x: sourcePosition.x + JointUIService.DEFAULT_OPERATOR_WIDTH + OperatorRecommendationService.MATERIALIZE_GAP_X,
-      y: sourcePosition.y,
-    };
+      const sourcePosition = this.workflowActionService
+        .getJointGraphWrapper()
+        .getElementPosition(sourceOperator.operatorID);
+      const newPosition: Point = {
+        x: sourcePosition.x + JointUIService.DEFAULT_OPERATOR_WIDTH + OperatorRecommendationService.MATERIALIZE_GAP_X,
+        y: sourcePosition.y,
+      };
 
-    const links: OperatorLink[] = [];
-    // Every recommended successor has an input port, but guard defensively so a
-    // stale rule can never throw on the canvas.
-    if (newOperator.inputPorts.length > 0) {
-      links.push({
-        linkID: this.workflowUtilService.getLinkRandomUUID(),
-        source: { operatorID: sourceOperator.operatorID, portID: sourceOutputPortID },
-        target: { operatorID: newOperator.operatorID, portID: newOperator.inputPorts[0].portID },
-      });
+      const links: OperatorLink[] = [];
+      // Every recommended successor has an input port, but guard defensively so a
+      // stale rule can never throw on the canvas.
+      if (newOperator.inputPorts.length > 0) {
+        links.push({
+          linkID: this.workflowUtilService.getLinkRandomUUID(),
+          source: { operatorID: sourceOperator.operatorID, portID: sourceOutputPortID },
+          target: { operatorID: newOperator.operatorID, portID: newOperator.inputPorts[0].portID },
+        });
+      }
+
+      this.workflowActionService.addOperatorsAndLinks([{ op: newOperator, pos: newPosition }], links);
+      return newOperator.operatorID;
+    } catch (error) {
+      // Fail soft, but leave a breadcrumb: silently doing nothing on click is
+      // otherwise indistinguishable from the feature being broken.
+      console.warn(`Unable to materialize recommended operator "${recommendedType}".`, error);
+      return undefined;
     }
-
-    this.workflowActionService.addOperatorsAndLinks([{ op: newOperator, pos: newPosition }], links);
-    return newOperator.operatorID;
   }
 }

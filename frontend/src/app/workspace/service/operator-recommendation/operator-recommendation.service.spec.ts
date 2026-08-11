@@ -165,4 +165,22 @@ describe("OperatorRecommendationService", () => {
     const [, links] = addOperatorsAndLinksSpy.mock.lastCall as [unknown, OperatorLink[]];
     expect(links.length).toBe(0);
   });
+
+  it("returns undefined and leaves the canvas untouched when the operator type is unknown", () => {
+    // The backend only validates suggestions against the operator catalog when
+    // its own catalog is initialized, so an unknown type can reach materialize
+    // and make getNewOperatorPredicate throw. Materializing must fail soft.
+    vi.spyOn(TestBed.inject(WorkflowUtilService), "getNewOperatorPredicate").mockImplementation(() => {
+      throw new Error("Unknown operator type: NotARealOperator");
+    });
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    const newId = service.materialize(makeOperator(), "output-0", "NotARealOperator");
+
+    expect(newId).toBeUndefined();
+    expect(addOperatorsAndLinksSpy).not.toHaveBeenCalled();
+    expect(warnSpy).toHaveBeenCalled();
+
+    warnSpy.mockRestore();
+  });
 });
