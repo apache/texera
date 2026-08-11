@@ -142,6 +142,13 @@ trait QueryWorkerStatisticsHandler {
             // Skip operators not included in the filtered subset (if any)
             if (opFilter.nonEmpty && !opFilter.contains(opId)) {
               Seq.empty
+            } else if (cp.workflowExecutionManager.isRegionTerminating(opId)) {
+              // The COMPLETED check below does not cover this: termination starts once every port of
+              // the region is booked complete (`RegionExecution.isCompleted`), whereas an operator
+              // reads as COMPLETED only once its workers' states say so, and a worker sends
+              // `portCompleted` before `workerExecutionCompleted`. Between the two, the region is
+              // being torn down while its operators still aggregate as RUNNING.
+              Seq.empty
             } else {
               cp.workflowExecution.getLatestOperatorExecutionOption(opId) match {
                 // Operator region has not been initialized yet; skip in this polling round.

@@ -141,6 +141,37 @@ class RegionExecutionManagerSpec
     assert(workerState(fixture) == WorkerState.TERMINATED)
   }
 
+  // A request that lands after `EndWorker` is work the worker must do, so `EndHandler` refuses to
+  // terminate and the region pays a retry. `isTerminating` is what lets the rest of the coordinator
+  // avoid that — notably `QueryWorkerStatisticsHandler`, whose layered traversal spans enough
+  // coordinator rounds to walk into a region that started tearing down after the traversal began.
+  it should "report itself as terminating from the moment EndWorker is sent" in {
+    val terminatingWhenEndWorkerSent = new atomic.AtomicBoolean(false)
+    lazy val fixture: SingleRegionFixture = createSingleRegionFixture(endWorkerResponse = _ => {
+      terminatingWhenEndWorkerSent.set(fixture.manager.isTerminating)
+      Some(EmptyReturn())
+    })
+
+    assert(!fixture.manager.isTerminating)
+    launchRegion(fixture.manager)
+    // Still false while the region is merely running: nothing has been sent yet.
+    assert(!fixture.manager.isTerminating)
+
+    await(requestRegionCompletion(fixture.manager))
+
+    // The flag has to be observable by the time EndWorker goes out, not merely afterwards.
+    assert(terminatingWhenEndWorkerSent.get)
+    assert(fixture.manager.isTerminating)
+  }
+
+  it should "recognise only its own operators as belonging to the region" in {
+    val fixture = createSingleRegionFixture(endWorkerResponse = _ => Some(EmptyReturn()))
+    val foreignOp = createSourceOp("other-op")
+
+    assert(fixture.manager.containsPhysicalOp(fixture.physicalOp.id))
+    assert(!fixture.manager.containsPhysicalOp(foreignOp.id))
+  }
+
   it should "give up with a descriptive error once the EndWorker retry budget is exhausted" in {
     // EndWorker always fails: a worker that never finishes draining.
     val fixture = createSingleRegionFixture(

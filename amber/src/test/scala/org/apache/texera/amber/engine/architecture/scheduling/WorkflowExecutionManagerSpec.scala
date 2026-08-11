@@ -31,7 +31,10 @@ import org.apache.texera.amber.core.virtualidentity.{
 import org.apache.texera.amber.core.workflow.PhysicalOp
 import org.apache.texera.amber.engine.architecture.coordinator.CoordinatorConfig
 import org.apache.texera.amber.engine.architecture.coordinator.execution.WorkflowExecution
-import org.apache.texera.amber.engine.architecture.rpc.controlreturns.EmptyReturn
+import org.apache.texera.amber.engine.architecture.rpc.controlreturns.{
+  EmptyReturn,
+  WorkflowAggregatedState
+}
 import org.apache.texera.amber.engine.architecture.scheduling.RegionExecutionManagerTestSupport._
 import org.apache.texera.amber.engine.common.AmberRuntime
 import org.scalatest.BeforeAndAfterAll
@@ -148,6 +151,72 @@ class WorkflowExecutionManagerSpec
     assert(!coordinator.actorRefService.hasActorRef(firstWorkerId))
     assert(rpcProbe.initializedWorkers.contains(secondWorkerId))
     assert(rpcProbe.startedWorkers.contains(secondWorkerId))
+  }
+
+  /**
+    * A request that reaches a worker after its `EndWorker` is work the worker must do, so
+    * `EndHandler` refuses to terminate and the region pays a retry (#6891).
+    * `QueryWorkerStatisticsHandler` consults `isRegionTerminating` to stay out of that window,
+    * which its layered traversal is otherwise wide open to: it awaits each operator layer before
+    * emitting the next, so a region can start tearing down between two layers of one query.
+    *
+    * The window this asserts is not covered by the handler's existing completed-operator skip.
+    * Termination begins once every port of the region is booked complete, whereas an operator only
+    * reads as COMPLETED once its workers' states say so — and here the worker has answered
+    * `startWorker` with RUNNING and nothing since, exactly as a real worker looks while its
+    * `workerExecutionCompleted` is still queued at the coordinator.
+    */
+  it should "report a region as terminating from the moment its EndWorker is sent" in {
+    val firstOp = createSourceOp("first-op")
+    val firstWorkerId = createWorkerId(firstOp)
+    val firstRegion = createSingleWorkerRegion(1, firstOp, firstWorkerId)
+
+    val secondOp = createSourceOp("second-op")
+    val secondWorkerId = createWorkerId(secondOp)
+    val secondRegion = createSingleWorkerRegion(2, secondOp, secondWorkerId)
+
+    val workflowExecution = WorkflowExecution()
+    seedReusableWorkerExecution(workflowExecution, seedRegionId = 101, firstOp, firstWorkerId)
+    seedReusableWorkerExecution(workflowExecution, seedRegionId = 102, secondOp, secondWorkerId)
+
+    // Hold the first region's endWorker pending, so it stays mid-teardown for the assertions.
+    val rpcProbe = new CoordinatorRpcProbe(
+      endWorkerResponse = call => if (call.receiver == firstWorkerId) None else Some(EmptyReturn())
+    )
+    val coordinator = createCoordinatorHarness()
+    registerLiveWorker(coordinator.actorRefService, firstWorkerId)
+    registerLiveWorker(coordinator.actorRefService, secondWorkerId)
+
+    val workflowManager = new WorkflowExecutionManager(
+      workflowExecution,
+      CoordinatorConfig(None, None, None, None),
+      rpcProbe.asyncRPCClient
+    )
+    workflowManager.schedule = Schedule(Map(0 -> Set(firstRegion), 1 -> Set(secondRegion)))
+    workflowManager.setupActorRefService(coordinator.actorRefService)
+
+    await(workflowManager.advanceRegionExecutions(coordinator.actorService))
+    // Running, nothing sent yet.
+    assert(!workflowManager.isRegionTerminating(firstOp.id))
+
+    val advanceFuture = workflowManager.advanceRegionExecutions(coordinator.actorService)
+    waitUntil(rpcProbe.endWorkerCalls.size == 1)
+
+    // EndWorker is on the wire and unanswered: the region must now be off limits.
+    assert(workflowManager.isRegionTerminating(firstOp.id))
+    // The operator still aggregates as RUNNING, so the completed-operator skip would not fire here.
+    assert(
+      workflowExecution.getLatestOperatorExecutionOption(firstOp.id).get.getState ==
+        WorkflowAggregatedState.RUNNING
+    )
+    // A region that has not begun terminating is unaffected.
+    assert(!workflowManager.isRegionTerminating(secondOp.id))
+
+    rpcProbe.fulfill(rpcProbe.onlyEndWorkerCall, EmptyReturn())
+    await(advanceFuture)
+
+    // Still terminating after the fact: the workers are gone, so nothing may address them again.
+    assert(workflowManager.isRegionTerminating(firstOp.id))
   }
 
   "Jumping to an operator's region" should
