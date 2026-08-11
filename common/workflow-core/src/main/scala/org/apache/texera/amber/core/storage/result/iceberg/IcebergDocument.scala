@@ -97,8 +97,11 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
   override def clear(): Unit =
     withWriteLock(lock) {
       val identifier = TableIdentifier.of(tableNamespace, tableName)
-      if (catalog.tableExists(identifier)) {
-        catalog.dropTable(identifier)
+      // One resolve for the whole check-then-drop: both steps must address the same
+      // catalog even if the cache entry is replaced between them (#7290).
+      val currentCatalog = catalog
+      if (currentCatalog.tableExists(identifier)) {
+        currentCatalog.dropTable(identifier)
       }
     }
 

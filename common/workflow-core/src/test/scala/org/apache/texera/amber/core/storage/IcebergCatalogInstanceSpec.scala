@@ -154,6 +154,46 @@ class IcebergCatalogInstanceSpec extends AnyFlatSpec with Matchers {
       be theSameInstanceAs shared
   }
 
+  "IcebergDocument.clear" should "address one catalog for the whole check-then-drop" in {
+    // Per-use resolution means per logical operation, not per call: the fake below
+    // swaps the cache entry from INSIDE the existence check, and the drop must still
+    // land on the catalog the operation started with (#7290 review, round 2).
+    class ImpostorCatalog extends FakeCatalog("impostor") {
+      @volatile var dropCalls = 0
+      override def tableExists(identifier: TableIdentifier): Boolean = true
+      override def dropTable(identifier: TableIdentifier, purge: Boolean): Boolean = {
+        dropCalls += 1; true
+      }
+    }
+    class SwappingCatalog(impostor: ImpostorCatalog) extends FakeCatalog("swapping") {
+      @volatile var dropCalls = 0
+      override def tableExists(identifier: TableIdentifier): Boolean = {
+        IcebergCatalogInstance.replaceInstance(impostor, Some("catalog-cache-spec-clear"))
+        true
+      }
+      override def dropTable(identifier: TableIdentifier, purge: Boolean): Boolean = {
+        dropCalls += 1; true
+      }
+    }
+    val impostor = new ImpostorCatalog
+    val swapping = new SwappingCatalog(impostor)
+    IcebergCatalogInstance.replaceInstance(swapping, Some("catalog-cache-spec-clear"))
+    val amberSchema = Schema().add("id", AttributeType.INTEGER)
+    val document = new IcebergDocument[Tuple](
+      "catalog_cache_spec",
+      "clear_probe",
+      IcebergUtil.toIcebergSchema(amberSchema),
+      IcebergUtil.toGenericRecord,
+      (schema, record) => IcebergUtil.fromRecord(record, IcebergUtil.fromIcebergSchema(schema)),
+      Some("catalog-cache-spec-clear")
+    )
+
+    document.clear()
+
+    swapping.dropCalls shouldBe 1
+    impostor.dropCalls shouldBe 0
+  }
+
   "IcebergDocument" should "resolve its catalog per use, seeing a replacement immediately" in {
     // Pins the per-use `def` (#7290): a `lazy val` would keep returning the catalog
     // that was current at first access, i.e. a reference the cache may have closed.
