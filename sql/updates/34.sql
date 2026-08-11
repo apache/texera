@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,16 +17,16 @@
  * under the License.
  */
 
-import { Component } from "@angular/core";
-import { NzRowDirective, NzColDirective } from "ng-zorro-antd/grid";
+\c texera_db
 
-/**
- * Static marketing copy for the platform.
- */
-@Component({
-  selector: "texera-about",
-  templateUrl: "./about.component.html",
-  styleUrls: ["./about.component.scss"],
-  imports: [NzRowDirective, NzColDirective],
-})
-export class AboutComponent {}
+SET search_path TO texera_db;
+
+BEGIN;
+
+-- Record the per-execution warehouse (#6870): which user_warehouse an execution wrote
+-- into, mirroring cuid. SET NULL on warehouse deletion — dropping a warehouse purges
+-- its data but must not erase execution history.
+ALTER TABLE workflow_executions
+    ADD COLUMN whid INT REFERENCES user_warehouse (whid) ON DELETE SET NULL;
+
+COMMIT;

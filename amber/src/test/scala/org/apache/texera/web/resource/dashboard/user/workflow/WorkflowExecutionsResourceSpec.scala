@@ -90,8 +90,7 @@ class WorkflowExecutionsResourceSpec
     testUser.setUid(testUserId)
     testUser.setName("test_user")
     testUser.setEmail("test@example.com")
-    testUser.setPassword("password")
-    testUser.setGoogleAvatar("avatar_url")
+    testUser.setAvatar("avatar_url")
 
     testWorkflow = new Workflow
     testWorkflow.setWid(testWorkflowWid)
@@ -789,7 +788,6 @@ class WorkflowExecutionsResourceSpec
     otherUser.setUid(otherUid)
     otherUser.setName("dataset-owner")
     otherUser.setEmail("owner@example.com")
-    otherUser.setPassword("password")
     userDao.insert(otherUser)
 
     val dataset = new Dataset
@@ -932,7 +930,6 @@ class WorkflowExecutionsResourceSpec
     u.setUid(testUserId + 5000)
     u.setName("no_access_user")
     u.setEmail("noaccess@example.com")
-    u.setPassword("password")
     u
   }
 
@@ -948,6 +945,22 @@ class WorkflowExecutionsResourceSpec
     insertExecution()
     val result = resource.retrieveExecutionsOfWorkflow(testWorkflowWid, session(testUser), null)
     assert(result.size == 2)
+  }
+
+  // fetchInto maps onto WorkflowExecutionEntry POSITIONALLY (a case class has no no-arg
+  // constructor, and jOOQ's mapConstructorParameterNames defaults to false), so `USER.AVATAR`
+  // at projection position 5 lands on `googleAvatar` despite the names differing — exactly as
+  // `last_update_time` at position 9 lands on `completionTime`. Neither mapping was asserted
+  // anywhere before, which is what makes an accidental column reorder silent. Pin both here.
+  it should "map the owner's avatar and completion time onto the entry despite the name mismatch" in {
+    grantReadAccess()
+    insertExecution(lastUpdateOffsetMillis = Some(0L))
+    val entry = resource.retrieveExecutionsOfWorkflow(testWorkflowWid, session(testUser), null).head
+    assert(entry.userName == testUser.getName)
+    assert(entry.googleAvatar == "avatar_url")
+    // `last_update_time` is populated, so a null here would mean position 9 never reached
+    // `completionTime` — i.e. the mapping had silently become name-based.
+    assert(entry.completionTime != null)
   }
 
   it should "reject an invalid status filter with a BadRequestException" in {

@@ -51,14 +51,12 @@ class WorkflowServiceWarehouseSpec
     val owner = new User
     owner.setName("resolve_spec_owner")
     owner.setEmail(s"user_${UUID.randomUUID()}@example.com")
-    owner.setPassword("password")
     userDao.insert(owner)
     ownerUid = owner.getUid
 
     val intruder = new User
     intruder.setName("resolve_spec_intruder")
     intruder.setEmail(s"user_${UUID.randomUUID()}@example.com")
-    intruder.setPassword("password")
     userDao.insert(intruder)
     intruderUid = intruder.getUid
 

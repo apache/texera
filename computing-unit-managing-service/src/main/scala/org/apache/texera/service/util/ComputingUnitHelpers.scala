@@ -47,7 +47,7 @@ object ComputingUnitHelpers {
         .fetchByUid(uids: _*)
         .asScala
         .map { u =>
-          val avatar = Option(u.getGoogleAvatar).filter(_.nonEmpty).orNull
+          val avatar = Option(u.getAvatar).filter(_.nonEmpty).orNull
           val name = Option(u.getName).filter(_.nonEmpty).orNull
           u.getUid -> (avatar, name)
         }

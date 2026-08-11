@@ -59,8 +59,7 @@ class ComputingUnitHelpersSpec
     u.setName(name)
     u.setEmail(email)
     u.setRole(UserRoleEnum.REGULAR)
-    u.setPassword("password")
-    u.setGoogleAvatar(avatar)
+    u.setAvatar(avatar)
     u
   }
 

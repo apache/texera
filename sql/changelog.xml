@@ -73,9 +73,15 @@
         <sqlFile path="sql/updates/32.sql"/>
     </changeSet>
 
-    <!-- Record the per-execution warehouse on workflow_executions (#6870) -->
-    <changeSet id="33" author="mengw15">
+    <!-- Split auth credentials out of "user" into auth_provider, and rename the
+         Google-specific google_avatar column to the provider-neutral avatar -->
+    <changeSet id="33" author="Neilk1021">
         <sqlFile path="sql/updates/33.sql"/>
+    </changeSet>
+
+    <!-- Record the per-execution warehouse on workflow_executions (#6870) -->
+    <changeSet id="34" author="mengw15">
+        <sqlFile path="sql/updates/34.sql"/>
     </changeSet>
 
     <!-- example changeSet

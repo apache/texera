@@ -85,14 +85,12 @@ class WarehouseResourceSpec
     val user = new User
     user.setName("warehouse_spec_user")
     user.setEmail(s"user_${UUID.randomUUID()}@example.com")
-    user.setPassword("password")
     userDao.insert(user)
     sessionUser = new SessionUser(user)
 
     val other = new User
     other.setName("warehouse_spec_other")
     other.setEmail(s"user_${UUID.randomUUID()}@example.com")
-    other.setPassword("password")
     userDao.insert(other)
     otherUser = new SessionUser(other)
   }

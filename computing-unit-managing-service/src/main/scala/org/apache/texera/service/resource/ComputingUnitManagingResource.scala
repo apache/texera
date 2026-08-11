@@ -26,7 +26,7 @@ import jakarta.annotation.security.RolesAllowed
 import jakarta.ws.rs._
 import jakarta.ws.rs.core.{MediaType, Response}
 import org.apache.commons.lang3.StringUtils
-import org.apache.texera.auth.JwtAuth.{TOKEN_EXPIRE_TIME_IN_MINUTES, jwtClaims}
+import org.apache.texera.auth.JwtAuth.jwtClaims
 import org.apache.texera.auth.{JwtAuth, SessionUser}
 import org.apache.texera.common.config.KubernetesConfig.{
   cpuLimitOptions,
@@ -380,7 +380,7 @@ class ComputingUnitManagingResource {
       }
 
       val computingUnit = new WorkflowComputingUnit()
-      val userToken = JwtAuth.jwtToken(jwtClaims(user.user, TOKEN_EXPIRE_TIME_IN_MINUTES))
+      val userToken = JwtAuth.jwtToken(jwtClaims(user.user))
       computingUnit.setUid(user.getUid)
       computingUnit.setName(param.name)
       computingUnit.setCreationTime(new Timestamp(System.currentTimeMillis()))
@@ -399,7 +399,7 @@ class ComputingUnitManagingResource {
       val userDao = new UserDao(ctx.configuration())
       val ownerUser = Option(userDao.fetchOneByUid(user.getUid))
       val ownerGoogleAvatar: String =
-        ownerUser.flatMap(u => Option(u.getGoogleAvatar).filter(_.nonEmpty)).orNull
+        ownerUser.flatMap(u => Option(u.getAvatar).filter(_.nonEmpty)).orNull
       val ownerUsername: String =
         ownerUser.flatMap(u => Option(u.getName).filter(_.nonEmpty)).orNull
 
@@ -559,7 +559,7 @@ class ComputingUnitManagingResource {
     val userDao = new UserDao(context.configuration())
     val ownerUser = Option(userDao.fetchOneByUid(unit.getUid))
     val ownerGoogleAvatar: String =
-      ownerUser.flatMap(u => Option(u.getGoogleAvatar).filter(_.nonEmpty)).orNull
+      ownerUser.flatMap(u => Option(u.getAvatar).filter(_.nonEmpty)).orNull
     val ownerUsername: String =
       ownerUser.flatMap(u => Option(u.getName).filter(_.nonEmpty)).orNull
 

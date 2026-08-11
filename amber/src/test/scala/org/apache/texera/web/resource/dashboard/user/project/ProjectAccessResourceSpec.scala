@@ -84,7 +84,6 @@ class ProjectAccessResourceSpec
     user.setUid(uid)
     user.setName(name)
     user.setEmail(email)
-    user.setPassword("password")
     user.setRole(UserRoleEnum.REGULAR)
     user
   }

@@ -50,7 +50,6 @@ class DatasetAccessResourceSpec
   private val ownerUser: User = {
     val user = new User
     user.setName("dataset_owner")
-    user.setPassword("123")
     user.setEmail("dataset_owner@test.com")
     user.setRole(UserRoleEnum.REGULAR)
     user
@@ -59,7 +58,6 @@ class DatasetAccessResourceSpec
   private val readGranteeUser: User = {
     val user = new User
     user.setName("read_grantee")
-    user.setPassword("123")
     user.setEmail("read_grantee@test.com")
     user.setRole(UserRoleEnum.REGULAR)
     user
@@ -68,7 +66,6 @@ class DatasetAccessResourceSpec
   private val writeGranteeUser: User = {
     val user = new User
     user.setName("write_grantee")
-    user.setPassword("123")
     user.setEmail("write_grantee@test.com")
     user.setRole(UserRoleEnum.REGULAR)
     user
@@ -77,7 +74,6 @@ class DatasetAccessResourceSpec
   private val strangerUser: User = {
     val user = new User
     user.setName("stranger")
-    user.setPassword("123")
     user.setEmail("stranger@test.com")
     user.setRole(UserRoleEnum.REGULAR)
     user

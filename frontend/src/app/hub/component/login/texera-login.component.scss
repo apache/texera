@@ -1,0 +1,151 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+$text-secondary: rgba(0, 0, 0, 0.45);
+:host {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background: #f0f2f5;
+  padding: 32px 16px;
+}
+
+.card {
+  max-width: 400px;
+  background: #fff;
+  border-radius: 8px;
+  box-sizing: border-box;
+  box-shadow:
+    0 6px 16px -8px rgba(0, 0, 0, 0.08),
+    0 9px 28px 0 rgba(0, 0, 0, 0.05),
+    0 12px 48px 16px rgba(0, 0, 0, 0.03);
+  padding: 40px 36px 32px;
+}
+
+.brand {
+  text-align: center;
+
+  margin-top: 6px;
+  margin-bottom: 12px;
+
+  img {
+    height: 46px;
+    width: auto;
+  }
+
+  .sub {
+    padding-top: 14px;
+    font-size: 13px;
+    letter-spacing: 0.02em;
+  }
+}
+
+.social-buttons {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.google-wrapper {
+  display: flex;
+  justify-content: center;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.hint {
+  font-size: 13px;
+  margin: 2px 2px -4px;
+}
+
+.error {
+  color: #ff4d4f;
+  font-size: 13px;
+  margin: -6px 2px 0;
+}
+
+.foot {
+  text-align: center;
+  font-size: 13px;
+  margin-top: 26px;
+}
+
+:host ::ng-deep {
+  .ant-tabs-content-holder {
+    display: none;
+  }
+
+  .ant-tabs-top > .ant-tabs-nav {
+    margin-bottom: 22px;
+  }
+
+  .ant-tabs-nav-list {
+    width: 100%;
+  }
+
+  .ant-tabs-tab {
+    flex: 1;
+    justify-content: center;
+    padding: 10px 0 12px;
+    font-size: 15px;
+  }
+
+  .ant-tabs-top > .ant-tabs-nav .ant-tabs-tab + .ant-tabs-tab {
+    margin-left: 0;
+  }
+
+  .ant-input-affix-wrapper {
+    height: 44px;
+    border-radius: 6px;
+    font-size: 15px;
+
+    > .ant-input {
+      font-size: 15px;
+    }
+  }
+
+  .ant-input-prefix {
+    margin-right: 11px;
+    color: $text-secondary;
+    font-size: 15px;
+  }
+
+  .ant-input-password-icon {
+    font-size: 16px;
+  }
+
+  .ant-btn-lg {
+    height: 44px;
+    border-radius: 6px;
+    font-size: 15px;
+    font-weight: 500;
+  }
+
+  .ant-divider-horizontal.ant-divider-with-text {
+    margin: 24px 0;
+    color: $text-secondary;
+    font-size: 13px;
+  }
+}

@@ -27,6 +27,7 @@ import org.apache.texera.amber.core.storage.util.LakeFSStorageClient
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.dao.MockTexeraDB
 import org.apache.texera.dao.jooq.generated.enums.{PrivilegeEnum, UserRoleEnum}
+import org.apache.texera.dao.jooq.generated.tables.AuthProvider.AUTH_PROVIDER
 import org.apache.texera.dao.jooq.generated.tables.DatasetUploadSession.DATASET_UPLOAD_SESSION
 import org.apache.texera.dao.jooq.generated.tables.DatasetUploadSessionPart.DATASET_UPLOAD_SESSION_PART
 import org.apache.texera.dao.jooq.generated.tables.daos.{
@@ -137,7 +138,6 @@ class DatasetResourceSpec
   private val ownerUser: User = {
     val user = new User
     user.setName("test_user")
-    user.setPassword("123")
     user.setEmail("test_user@test.com")
     user.setRole(UserRoleEnum.ADMIN)
     user
@@ -146,7 +146,6 @@ class DatasetResourceSpec
   private val otherAdminUser: User = {
     val user = new User
     user.setName("test_user2")
-    user.setPassword("123")
     user.setEmail("test_user2@test.com")
     user.setRole(UserRoleEnum.ADMIN)
     user
@@ -156,7 +155,6 @@ class DatasetResourceSpec
   private val multipartNoWriteUser: User = {
     val user = new User
     user.setName("multipart_user2")
-    user.setPassword("123")
     user.setEmail("multipart_user2@test.com")
     user.setRole(UserRoleEnum.REGULAR)
     user
@@ -674,7 +672,11 @@ class DatasetResourceSpec
     placeholder should not be null
     placeholder.getIsPlaceholder shouldBe true
     placeholder.getRole shouldEqual UserRoleEnum.INACTIVE
-    placeholder.getPassword shouldBe null
+    // credentials live in auth_provider now, and a placeholder has none at all
+    getDSLContext.fetchCount(
+      AUTH_PROVIDER,
+      AUTH_PROVIDER.UID.eq(placeholder.getUid)
+    ) shouldBe 0
 
     val firstUid = DatasetResource.getContributorsByDid(getDSLContext, did).head.uid
 

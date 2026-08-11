@@ -36,7 +36,7 @@ import org.apache.arrow.vector.ipc.ArrowFileWriter
 import org.apache.commons.io.IOUtils
 import org.apache.commons.lang3.StringUtils
 import org.apache.texera.auth.JwtAuth
-import org.apache.texera.auth.JwtAuth.{TOKEN_EXPIRE_TIME_IN_MINUTES, jwtClaims}
+import org.apache.texera.auth.JwtAuth.jwtClaims
 import org.apache.texera.dao.jooq.generated.tables.pojos.User
 import org.apache.texera.web.model.http.request.result.{OperatorExportInfo, ResultExportRequest}
 import org.apache.texera.web.model.http.response.result.ResultExportResponse
@@ -554,7 +554,7 @@ class ResultExportService(workflowIdentity: WorkflowIdentity, computingUnitId: I
         connection.setRequestProperty("Content-Type", "application/octet-stream")
         connection.setRequestProperty(
           "Authorization",
-          s"Bearer ${JwtAuth.jwtToken(jwtClaims(user, TOKEN_EXPIRE_TIME_IN_MINUTES))}"
+          s"Bearer ${JwtAuth.jwtToken(jwtClaims(user))}"
         )
         connection.setChunkedStreamingMode(0)
 
