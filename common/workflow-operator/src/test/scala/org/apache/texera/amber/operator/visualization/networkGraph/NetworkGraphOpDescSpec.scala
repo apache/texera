@@ -111,6 +111,6 @@ class NetworkGraphOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matche
     val layout = code.linesIterator
       .find(_.contains("nx.spring_layout"))
       .getOrElse(fail("generated code no longer calls nx.spring_layout"))
-    layout should include("seed=")
+    layout should include("seed=0")
   }
 }
