@@ -175,6 +175,50 @@ describe("ReportGenerationService", () => {
       expect(html).toContain("No results found for operator");
     });
 
+    it("falls back to a generic reason when the page failure carries no message", async () => {
+      deps.workflowResultService.getPaginatedResultService.mockReturnValue({
+        selectPage: vi.fn().mockReturnValue(throwError(() => new Error(""))),
+      });
+
+      await expect(htmlFor("op-1")).rejects.toBeInstanceOf(Error);
+      expect(deps.notificationService.error).toHaveBeenCalledWith(
+        "Error processing results for operator op-1: Unknown error"
+      );
+    });
+
+    it("still renders a visualization snapshot that has no wrapper div to resize", async () => {
+      deps.workflowResultService.getResultService.mockReturnValue({
+        getCurrentResultSnapshot: () => [{ "html-content": "<p>plain</p>" }],
+      });
+
+      const html = await htmlFor("op-1");
+
+      expect(html).toContain("plain");
+    });
+
+    it("notifies and fails when building the report throws outright", async () => {
+      const failure = new Error("result service unavailable");
+      deps.workflowResultService.getResultService.mockImplementation(() => {
+        throw failure;
+      });
+
+      await expect(htmlFor("op-1")).rejects.toBe(failure);
+      expect(deps.notificationService.error).toHaveBeenCalledWith(
+        "Unexpected error in retrieveOperatorInfoReport for operator op-1: result service unavailable"
+      );
+    });
+
+    it("falls back to a generic reason when that failure carries no message", async () => {
+      deps.workflowResultService.getResultService.mockImplementation(() => {
+        throw new Error("");
+      });
+
+      await expect(htmlFor("op-1")).rejects.toBeInstanceOf(Error);
+      expect(deps.notificationService.error).toHaveBeenCalledWith(
+        "Unexpected error in retrieveOperatorInfoReport for operator op-1: Unknown error"
+      );
+    });
+
     it("embeds the operator's own definition in the collapsible details block", async () => {
       deps.workflowActionService.getWorkflowContent.mockReturnValue({
         operators: [
@@ -290,6 +334,148 @@ describe("ReportGenerationService", () => {
       await expect(firstValueFrom(service.generateWorkflowSnapshot("myflow"))).rejects.toBe(
         "Workflow editor element not found"
       );
+    });
+
+    /**
+     * Before the editor can be rendered, every <image> in it is refetched and inlined as
+     * base64 so the snapshot does not depend on URLs the renderer cannot resolve. Both async
+     * sources are replaced with fakes that settle synchronously (XHR) or on a microtask
+     * (FileReader), so nothing here depends on the network or on real timing.
+     *
+     * The html2canvas render that follows is left alone — it needs a real canvas — so these
+     * assert on what the inlining step did, not on the observable's outcome.
+     */
+    describe("inlining the editor's images", () => {
+      const XLINK_HREF = "xlink:href";
+      const BASE64 = "data:image/png;base64,AAAA";
+
+      let realXhr: typeof globalThis.XMLHttpRequest;
+      let realFileReader: typeof globalThis.FileReader;
+      let editor: HTMLElement;
+      let xhrOutcome: "load" | "error";
+      let readerOutcome: "loadend" | "error";
+      let sentUrls: string[];
+
+      class FakeXhr {
+        public response: unknown = "blob-stand-in";
+        public responseType = "";
+        public onload: (() => void) | null = null;
+        public onerror: (() => void) | null = null;
+        private url = "";
+        open(_method: string, url: string): void {
+          this.url = url;
+        }
+        send(): void {
+          sentUrls.push(this.url);
+          if (xhrOutcome === "load") {
+            this.onload?.();
+          } else {
+            this.onerror?.();
+          }
+        }
+      }
+
+      class FakeFileReader {
+        public result: string | null = null;
+        public onloadend: (() => void) | null = null;
+        public onerror: (() => void) | null = null;
+        readAsDataURL(): void {
+          queueMicrotask(() => {
+            if (readerOutcome === "loadend") {
+              this.result = BASE64;
+              this.onloadend?.();
+            } else {
+              this.onerror?.();
+            }
+          });
+        }
+      }
+
+      /** Adds an SVG <image> to the editor, optionally with a source attribute. */
+      function addImage(src?: string): SVGElement {
+        const image = document.createElementNS("http://www.w3.org/2000/svg", "image");
+        if (src !== undefined) {
+          image.setAttribute(XLINK_HREF, src);
+        }
+        editor.appendChild(image);
+        return image;
+      }
+
+      /** Runs the snapshot and resolves once it settles, whichever way html2canvas goes. */
+      function runSnapshot(): Promise<void> {
+        return new Promise<void>(resolve => {
+          service.generateWorkflowSnapshot("myflow").subscribe({
+            next: () => resolve(),
+            error: () => resolve(),
+          });
+        });
+      }
+
+      beforeEach(() => {
+        sentUrls = [];
+        xhrOutcome = "load";
+        readerOutcome = "loadend";
+        realXhr = globalThis.XMLHttpRequest;
+        realFileReader = globalThis.FileReader;
+        (globalThis as unknown as { XMLHttpRequest: unknown }).XMLHttpRequest = FakeXhr;
+        (globalThis as unknown as { FileReader: unknown }).FileReader = FakeFileReader;
+        editor = document.createElement("div");
+        editor.id = "workflow-editor";
+        document.body.appendChild(editor);
+      });
+
+      afterEach(() => {
+        (globalThis as unknown as { XMLHttpRequest: unknown }).XMLHttpRequest = realXhr;
+        (globalThis as unknown as { FileReader: unknown }).FileReader = realFileReader;
+        // Two of these tests spy on console.error; without this the spy would outlive them.
+        vi.restoreAllMocks();
+        editor.remove();
+      });
+
+      it("rewrites an image's source to the fetched base64 data", async () => {
+        const image = addImage("/assets/icon.png");
+
+        await runSnapshot();
+
+        expect(sentUrls).toEqual(["/assets/icon.png"]);
+        expect(image.getAttribute("href")).toBe(BASE64);
+      });
+
+      it("leaves an image with no source alone and fetches nothing for it", async () => {
+        const image = addImage();
+
+        await runSnapshot();
+
+        expect(sentUrls).toEqual([]);
+        expect(image.getAttribute("href")).toBeNull();
+      });
+
+      it("reports an image whose bytes cannot be converted, and leaves its source alone", async () => {
+        const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+        readerOutcome = "error";
+        const image = addImage("/assets/icon.png");
+
+        await runSnapshot();
+
+        expect(consoleSpy).toHaveBeenCalledWith(
+          "Failed to load image: /assets/icon.png",
+          "Failed to convert image to Base64"
+        );
+        expect(image.getAttribute("href")).toBeNull();
+      });
+
+      it("reports an image that cannot be fetched at all", async () => {
+        const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+        xhrOutcome = "error";
+        addImage("/assets/missing.png");
+
+        await runSnapshot();
+
+        expect(consoleSpy).toHaveBeenCalledWith(
+          "Failed to load image: /assets/missing.png",
+          "Failed to load image from /assets/missing.png"
+        );
+      });
     });
   });
 });
