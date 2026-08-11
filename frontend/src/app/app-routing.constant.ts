@@ -19,6 +19,7 @@
 
 export const HOME = "/home";
 export const ABOUT = "/about";
+export const LOGIN = "/login";
 
 export const HUB = "/hub";
 export const HUB_WORKFLOW = `${HUB}/workflow`;

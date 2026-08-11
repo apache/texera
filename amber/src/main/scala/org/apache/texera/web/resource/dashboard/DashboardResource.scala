@@ -221,7 +221,7 @@ class DashboardResource {
     val scalaUserIds: Set[Integer] = userIds.asScala.toSet
 
     val records = context
-      .select(USER.UID, USER.NAME, USER.GOOGLE_AVATAR)
+      .select(USER.UID, USER.NAME, USER.AVATAR)
       .from(USER)
       .where(USER.UID.in(scalaUserIds.asJava))
       .fetch()
@@ -230,7 +230,7 @@ class DashboardResource {
       .map { record =>
         val userId = record.get(USER.UID)
         val userName = record.get(USER.NAME)
-        val googleAvatar = Option(record.get(USER.GOOGLE_AVATAR))
+        val googleAvatar = Option(record.get(USER.AVATAR))
         userId -> UserInfo(userId, userName, googleAvatar)
       }
       .toMap

@@ -22,7 +22,7 @@ import { Injectable, Injector } from "@angular/core";
 import { Router } from "@angular/router";
 import { Observable, throwError } from "rxjs";
 import { catchError } from "rxjs/operators";
-import { ABOUT } from "../../app-routing.constant";
+import { LOGIN } from "../../app-routing.constant";
 import { NotificationService } from "./notification/notification.service";
 import { UserService } from "./user/user.service";
 
@@ -66,7 +66,7 @@ export class UnauthorizedHttpInterceptor implements HttpInterceptor {
             userService.logout();
             this.notificationService.error("Your session has expired. Please log in again.");
             const currentUrl = this.router.url;
-            this.router.navigate([ABOUT], {
+            this.router.navigate([LOGIN], {
               queryParams: { returnUrl: currentUrl === "/" ? null : currentUrl },
             });
           }

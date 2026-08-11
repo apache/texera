@@ -16,28 +16,30 @@
  specific language governing permissions and limitations
  under the License.
 -->
-<div
-  class="ui-udf-parameter-list"
-  *ngIf="model?.length">
-  <div class="ui-udf-parameter-row header">
-    <div
-      class="field-cell"
-      *ngFor="let column of fieldColumns">
-      <span class="col-title">{{ column.label }}</span>
-    </div>
-  </div>
-
+<div class="ui-udf-parameters-field">
   <div
-    class="ui-udf-parameter-row"
-    *ngFor="let parameter of (model || []); let i = index; trackBy: trackByParameterName">
-    <ng-container *ngIf="field.fieldGroup?.[i] as rowField">
+    class="ui-udf-parameter-list"
+    *ngIf="model?.length">
+    <div class="ui-udf-parameter-row header">
       <div
         class="field-cell"
         *ngFor="let column of fieldColumns">
-        <formly-field
-          *ngIf="getColumnField(rowField, column) as columnField"
-          [field]="columnField"></formly-field>
+        <span class="col-title">{{ column.label }}</span>
       </div>
-    </ng-container>
+    </div>
+
+    <div
+      class="ui-udf-parameter-row"
+      *ngFor="let parameter of (model || []); let i = index; trackBy: trackByParameterName">
+      <ng-container *ngIf="field.fieldGroup?.[i] as rowField">
+        <div
+          class="field-cell"
+          *ngFor="let column of fieldColumns">
+          <formly-field
+            *ngIf="getColumnField(rowField, column) as columnField"
+            [field]="columnField"></formly-field>
+        </div>
+      </ng-container>
+    </div>
   </div>
 </div>

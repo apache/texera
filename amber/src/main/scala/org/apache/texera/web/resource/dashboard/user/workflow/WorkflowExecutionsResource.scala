@@ -42,6 +42,7 @@ import org.apache.texera.dao.jooq.generated.enums.UserRoleEnum
 import org.apache.texera.dao.jooq.generated.tables.daos.WorkflowExecutionsDao
 import org.apache.texera.dao.jooq.generated.tables.pojos.{WorkflowExecutions, User => UserPojo}
 import org.apache.texera.web.model.http.request.result.ResultExportRequest
+import org.apache.texera.web.service.WarehouseReadGuard
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource._
 import org.apache.texera.web.service.{ExecutionsMetadataPersistService, ResultExportService}
 import org.jooq.DSLContext
@@ -320,8 +321,9 @@ object WorkflowExecutionsResource {
         WORKFLOW_EXECUTIONS.EID,
         WORKFLOW_EXECUTIONS.VID,
         WORKFLOW_EXECUTIONS.CUID,
+        WORKFLOW_EXECUTIONS.WHID,
         USER.NAME,
-        USER.GOOGLE_AVATAR,
+        USER.AVATAR,
         WORKFLOW_EXECUTIONS.STATUS,
         WORKFLOW_EXECUTIONS.RESULT,
         WORKFLOW_EXECUTIONS.STARTING_TIME,
@@ -379,8 +381,9 @@ object WorkflowExecutionsResource {
       .where(WORKFLOW_EXECUTIONS.EID.in(eIdsList))
       .execute()
 
-    // Clear corresponding Iceberg documents
-    uris.foreach { uri =>
+    // Clear corresponding Iceberg documents. While per-user warehouses are disabled,
+    // cleanup must not reach into them (#6930) — those URIs are skipped.
+    uris.filterNot(WarehouseReadGuard.skipWhileDisabled(_)).foreach { uri =>
       try {
         DocumentFactory.openDocument(uri)._1.clear()
       } catch {
@@ -404,7 +407,7 @@ object WorkflowExecutionsResource {
   ): Unit = {
     context
       .update(OPERATOR_PORT_EXECUTIONS)
-      .set(OPERATOR_PORT_EXECUTIONS.RESULT_SIZE, Integer.valueOf(size.toInt))
+      .set(OPERATOR_PORT_EXECUTIONS.RESULT_SIZE, java.lang.Long.valueOf(size))
       .where(OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(eid.id.toInt))
       .and(OPERATOR_PORT_EXECUTIONS.GLOBAL_PORT_ID.eq(globalPortId.serializeAsString))
       .execute()
@@ -424,13 +427,25 @@ object WorkflowExecutionsResource {
       .map(URI.create)
 
     if (statsUriOpt.isPresent) {
-      val size = DocumentFactory.openDocument(statsUriOpt.get)._1.getTotalFileSize
-      context
-        .update(WORKFLOW_EXECUTIONS)
-        .set(WORKFLOW_EXECUTIONS.RUNTIME_STATS_SIZE, Integer.valueOf(size.toInt))
-        .where(WORKFLOW_EXECUTIONS.EID.eq(eid.id.toInt))
-        .execute()
+      updateRuntimeStatsSize(
+        eid,
+        DocumentFactory.openDocument(statsUriOpt.get)._1.getTotalFileSize
+      )
     }
+  }
+
+  /**
+    * Stores an already-measured runtime statistics size, mirroring updateResultSize.
+    *
+    * @param eid  Execution ID associated with the runtime statistics document.
+    * @param size Size of the runtime statistics in bytes.
+    */
+  def updateRuntimeStatsSize(eid: ExecutionIdentity, size: Long): Unit = {
+    context
+      .update(WORKFLOW_EXECUTIONS)
+      .set(WORKFLOW_EXECUTIONS.RUNTIME_STATS_SIZE, java.lang.Long.valueOf(size))
+      .where(WORKFLOW_EXECUTIONS.EID.eq(eid.id.toInt))
+      .execute()
   }
 
   /**
@@ -449,14 +464,28 @@ object WorkflowExecutionsResource {
       .map(URI.create)
 
     if (uriOpt.isPresent) {
-      val size = DocumentFactory.openDocument(uriOpt.get)._1.getTotalFileSize
-      context
-        .update(OPERATOR_EXECUTIONS)
-        .set(OPERATOR_EXECUTIONS.CONSOLE_MESSAGES_SIZE, Integer.valueOf(size.toInt))
-        .where(OPERATOR_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(eid.id.toInt))
-        .and(OPERATOR_EXECUTIONS.OPERATOR_ID.eq(opId.id))
-        .execute()
+      updateConsoleMessageSize(
+        eid,
+        opId,
+        DocumentFactory.openDocument(uriOpt.get)._1.getTotalFileSize
+      )
     }
+  }
+
+  /**
+    * Stores an already-measured console message size, mirroring updateResultSize.
+    *
+    * @param eid  Execution ID associated with the console message.
+    * @param opId Operator ID of the corresponding operator.
+    * @param size Size of the console messages in bytes.
+    */
+  def updateConsoleMessageSize(eid: ExecutionIdentity, opId: OperatorIdentity, size: Long): Unit = {
+    context
+      .update(OPERATOR_EXECUTIONS)
+      .set(OPERATOR_EXECUTIONS.CONSOLE_MESSAGES_SIZE, java.lang.Long.valueOf(size))
+      .where(OPERATOR_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(eid.id.toInt))
+      .and(OPERATOR_EXECUTIONS.OPERATOR_ID.eq(opId.id))
+      .execute()
   }
 
   /**
@@ -471,12 +500,12 @@ object WorkflowExecutionsResource {
       portId: PortIdentity
   ): Option[URI] = {
     def isMatchingExternalPortURI(uri: URI): Boolean = {
-      val (_, _, globalPortIdOption, resourceType) = VFSURIFactory.decodeURI(uri)
-      globalPortIdOption.exists { globalPortId =>
+      val components = VFSURIFactory.decodeURI(uri)
+      components.globalPortId.exists { globalPortId =>
         !globalPortId.portId.internal &&
         globalPortId.opId.logicalOpId == opId &&
         globalPortId.portId == portId &&
-        resourceType == VFSResourceType.RESULT
+        components.resourceType == VFSResourceType.RESULT
       }
     }
 
@@ -497,6 +526,7 @@ object WorkflowExecutionsResource {
       eId: Integer,
       vId: Integer,
       cuId: Integer,
+      whId: Integer,
       userName: String,
       googleAvatar: String,
       status: Byte,
@@ -555,8 +585,9 @@ class WorkflowExecutionsResource {
             WORKFLOW_EXECUTIONS.EID,
             WORKFLOW_EXECUTIONS.VID,
             WORKFLOW_EXECUTIONS.CUID,
+            WORKFLOW_EXECUTIONS.WHID,
             USER.NAME,
-            USER.GOOGLE_AVATAR,
+            USER.AVATAR,
             WORKFLOW_EXECUTIONS.STATUS,
             WORKFLOW_EXECUTIONS.RESULT,
             WORKFLOW_EXECUTIONS.STARTING_TIME,
@@ -662,10 +693,14 @@ class WorkflowExecutionsResource {
   @GET
   @Produces(Array(MediaType.APPLICATION_JSON))
   @Path("/{wid}/stats/{eid}")
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def retrieveWorkflowRuntimeStatistics(
       @PathParam("wid") wid: Integer,
-      @PathParam("eid") eid: Integer
+      @PathParam("eid") eid: Integer,
+      @Auth sessionUser: SessionUser
   ): List[WorkflowRuntimeStatistics] = {
+    validateUserCanAccessWorkflow(sessionUser.getUser.getUid, wid)
+
     // Create URI for runtime statistics
     val uriString: String = context
       .select(WORKFLOW_EXECUTIONS.RUNTIME_STATS_URI)
@@ -691,6 +726,8 @@ class WorkflowExecutionsResource {
     }
 
     val uri: URI = new URI(uriString)
+    // Refuse to read per-user-warehouse statistics while the feature is off (#6930).
+    WarehouseReadGuard.assertReadable(uri)
     val document = DocumentFactory.openDocument(uri)._1
 
     // Read all records from Iceberg and convert to WorkflowRuntimeStatistics

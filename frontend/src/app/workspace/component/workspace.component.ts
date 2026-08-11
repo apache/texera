@@ -63,6 +63,7 @@ import { MiniMapComponent } from "./workflow-editor/mini-map/mini-map.component"
 import { LeftPanelComponent } from "./left-panel/left-panel.component";
 import { AgentPanelComponent } from "./agent/agent-panel/agent-panel.component";
 import { PropertyEditorComponent } from "./property-editor/property-editor.component";
+import { JupyterNotebookPanelComponent } from "./jupyter-notebook-panel/jupyter-notebook-panel.component";
 
 export const SAVE_DEBOUNCE_TIME_IN_MS = 5000;
 
@@ -85,12 +86,17 @@ export const SAVE_DEBOUNCE_TIME_IN_MS = 5000;
     NgIf,
     AgentPanelComponent,
     PropertyEditorComponent,
+    JupyterNotebookPanelComponent,
   ],
 })
 export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
   public pid?: number = undefined;
   public writeAccess: boolean = false;
   public isLoading: boolean = false;
+  // variable to track whether we are waiting for AI to finish generating (whether a loading icon should show)
+  public isWaitingForLLM = false;
+  private timerInterval: ReturnType<typeof setInterval> | null = null;
+  private startTime: number | null = null;
   @ViewChild("codeEditor", { read: ViewContainerRef }) codeEditorViewRef!: ViewContainerRef;
 
   /**
@@ -198,6 +204,7 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
     // re-entered workflow starts clean instead of reusing the previous one.
     this.computingUnitStatusService.disconnect();
     this.resetWorkflowSessionState();
+    this.stopTimer();
   }
 
   /**
@@ -318,6 +325,7 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
         this.registerAutoPersistWorkflow();
       });
   }
+
   onWIDChange() {
     this.workflowActionService
       .workflowMetaDataChanged()
@@ -331,6 +339,7 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
         this.writeAccess = !metadata.readonly;
       });
   }
+
   updateViewCount() {
     let wid = this.route.snapshot.params.id;
     let uid = this.userService.getCurrentUser()?.uid;
@@ -340,6 +349,7 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
       .pipe(untilDestroyed(this))
       .subscribe();
   }
+
   public triggerCenter(): void {
     this.workflowActionService.getTexeraGraph().triggerCenterEvent();
   }
@@ -351,5 +361,44 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
 
   public get copilotEnabled(): boolean {
     return this.config.env.copilotEnabled;
+  }
+
+  onWaitingForLLMChanged(isWaiting: boolean) {
+    this.isWaitingForLLM = isWaiting;
+
+    if (isWaiting) {
+      this.startTimer();
+    } else {
+      this.stopTimer();
+    }
+  }
+
+  startTimer() {
+    this.stopTimer(); // clear any interval already running so repeated starts don't stack
+    this.startTime = Date.now();
+    this.updateElapsedTime();
+    this.timerInterval = setInterval(() => {
+      this.updateElapsedTime();
+    }, 1000);
+  }
+
+  stopTimer() {
+    if (this.timerInterval !== null) {
+      clearInterval(this.timerInterval);
+    }
+    this.timerInterval = null;
+    this.startTime = null;
+  }
+
+  updateElapsedTime() {
+    this.changeDetectorRef.detectChanges();
+  }
+
+  get formattedElapsedTime(): string {
+    if (!this.startTime) return "0:00";
+    const diff = Date.now() - this.startTime;
+    const minutes = Math.floor(diff / 60000);
+    const seconds = Math.floor((diff % 60000) / 1000);
+    return `${minutes}:${seconds.toString().padStart(2, "0")}`;
   }
 }

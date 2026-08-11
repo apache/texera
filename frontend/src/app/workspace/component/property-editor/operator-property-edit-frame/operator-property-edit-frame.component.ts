@@ -74,6 +74,7 @@ import { WorkflowPveService } from "../../../service/virtual-environment/virtual
 import { ComputingUnitStatusService } from "../../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
 import { of } from "rxjs";
 import { map, switchMap, take } from "rxjs/operators";
+import { UiUdfParametersSyncService } from "../../../service/code-editor/ui-udf-parameters-sync.service";
 
 Quill.register("modules/cursors", QuillCursors);
 
@@ -460,7 +461,8 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     private workflowStatusSerivce: WorkflowStatusService,
     private config: GuiConfigService,
     private workflowPveService: WorkflowPveService,
-    private computingUnitStatusService: ComputingUnitStatusService
+    private computingUnitStatusService: ComputingUnitStatusService,
+    private uiUdfParametersSyncService: UiUdfParametersSyncService
   ) {}
 
   private patchPythonUdfEnvironmentSchema(schema: CustomJSONSchema7, environments: string[]): CustomJSONSchema7 {
@@ -516,6 +518,25 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
           this.currentOperatorStatus = update[this.currentOperatorId];
         }
       });
+
+    this.uiUdfParametersSyncService.uiParametersChanged$
+      .pipe(untilDestroyed(this))
+      .subscribe(({ operatorId, parameters }) => {
+        if (operatorId !== this.currentOperatorId) return;
+
+        const currentOperator = this.workflowActionService.getTexeraGraph().getOperator(operatorId);
+
+        const newModel = {
+          ...cloneDeep(currentOperator.operatorProperties),
+          uiParameters: cloneDeep(parameters),
+        };
+
+        this.listeningToChange = false;
+        this.formData = cloneDeep(newModel);
+        this.workflowActionService.setOperatorProperty(operatorId, newModel);
+        this.listeningToChange = true;
+        this.changeDetectorRef.detectChanges();
+      });
   }
 
   private isHuggingFaceOperator(): boolean {
@@ -544,7 +565,11 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
    * @param event
    */
   onFormChanges(event: Record<string, unknown>): void {
-    this.sourceFormChangeEventStream.next(event);
+    const requiredFields = this.currentOperatorSchema?.jsonSchema?.required ?? [];
+    const cleanedEvent = Object.fromEntries(
+      Object.entries(event).filter(([key, value]) => value != null || requiredFields.includes(key))
+    );
+    this.sourceFormChangeEventStream.next(cleanedEvent);
   }
 
   /**
@@ -917,6 +942,10 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
               message: () => "Upload an image or select an Input Image Column for this task.",
             },
           };
+          mappedField.validation = {
+            ...mappedField.validation,
+            show: true,
+          };
         }
         if (hfKey === "audioInput") {
           mappedField.type = "huggingface-audio-upload";
@@ -944,6 +973,10 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
               },
               message: () => "Upload audio or select an Input Audio Column for this task.",
             },
+          };
+          mappedField.validation = {
+            ...mappedField.validation,
+            show: true,
           };
         }
         if (hfKey === "inputImageColumn") {
@@ -986,6 +1019,10 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
               message: () => "Select a prompt column for this task.",
             },
           };
+          mappedField.validation = {
+            ...mappedField.validation,
+            show: true,
+          };
         }
         if (["systemPrompt", "maxNewTokens", "temperature"].includes(hfKey)) {
           mappedField.expressions = {
@@ -1020,6 +1057,10 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
             },
           };
         }
+      }
+
+      if (mappedField.key === "uiParameters") {
+        mappedField.type = "ui-udf-parameters";
       }
 
       if (mappedField.key === "datasetVersionPath") {
@@ -1106,7 +1147,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
 
       if (isDefined(mapSource.enum)) {
         mappedField.validators.inEnum = {
-          expression: (c: AbstractControl) => mapSource.enum?.includes(c.value ?? ""),
+          expression: (c: AbstractControl) => c.value == null || mapSource.enum?.includes(c.value),
           message: (error: any, field: FormlyFieldConfig) =>
             `"${field.formControl?.value}" is no longer a valid option`,
         };

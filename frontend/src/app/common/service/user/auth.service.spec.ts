@@ -104,11 +104,11 @@ describe("AuthService", () => {
   });
 
   describe("HTTP auth endpoints", () => {
-    it("register() POSTs username/password to the register endpoint", () => {
-      service.register("alice", "pw").subscribe();
+    it("register() POSTs username/email/password to the register endpoint", () => {
+      service.register("alice", "alice@example.com", "pw").subscribe();
       const req = httpMock.expectOne(`${api}/${AuthService.REGISTER_ENDPOINT}`);
       expect(req.request.method).toEqual("POST");
-      expect(req.request.body).toEqual({ username: "alice", password: "pw" });
+      expect(req.request.body).toEqual({ username: "alice", email: "alice@example.com", password: "pw" });
       req.flush({ accessToken: "t" });
     });
 
@@ -130,7 +130,11 @@ describe("AuthService", () => {
     });
 
     const errorCases = [
-      { name: "register", call: () => service.register("alice", "pw"), endpoint: AuthService.REGISTER_ENDPOINT },
+      {
+        name: "register",
+        call: () => service.register("alice", "alice@example.com", "pw"),
+        endpoint: AuthService.REGISTER_ENDPOINT,
+      },
       { name: "auth", call: () => service.auth("alice", "pw"), endpoint: AuthService.LOGIN_ENDPOINT },
       { name: "googleAuth", call: () => service.googleAuth("cred"), endpoint: AuthService.GOOGLE_LOGIN_ENDPOINT },
     ];
@@ -204,6 +208,103 @@ describe("AuthService", () => {
 
       expect(modal.info).toHaveBeenCalledTimes(1);
       expect(AuthService.getAccessToken()).toBeNull();
+    });
+  });
+
+  describe("registerAutoLogout", () => {
+    afterEach(() => {
+      // Restore real timers before the outer afterEach runs logout()/verify().
+      vi.useRealTimers();
+    });
+
+    it("schedules a logout that fires once the token expiry elapses", () => {
+      vi.useFakeTimers();
+      AuthService.setAccessToken("tok");
+      jwt.isTokenExpired.mockReturnValue(false);
+      // Expiry one second into the (frozen) fake clock.
+      jwt.getTokenExpirationDate.mockReturnValue(new Date(Date.now() + 1000));
+      const logoutSpy = vi.spyOn(service, "logout");
+
+      (service as any).registerAutoLogout();
+      expect(logoutSpy).not.toHaveBeenCalled();
+
+      vi.advanceTimersByTime(1000);
+      expect(logoutSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it("does not schedule a logout when the token is already expired", () => {
+      vi.useFakeTimers();
+      AuthService.setAccessToken("tok");
+      jwt.isTokenExpired.mockReturnValue(true);
+      const logoutSpy = vi.spyOn(service, "logout");
+
+      (service as any).registerAutoLogout();
+      vi.advanceTimersByTime(1_000_000);
+
+      expect(logoutSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("invite-only registration gating", () => {
+    // Drives loginWithExistingToken down the inactive/invite-only branch and
+    // answers the registration-required probe with `true`, which is what makes
+    // openRegistrationModal run.
+    const openModalViaInactiveLogin = (): void => {
+      AuthService.setAccessToken("tok");
+      config.env.inviteOnly = true;
+      jwt.decodeToken.mockReturnValue({ ...claims, role: Role.INACTIVE });
+
+      expect(service.loginWithExistingToken()).toBeUndefined();
+
+      const req = httpMock.expectOne(r => r.url === `${api}/user/joining-reason/required`);
+      expect(req.request.method).toEqual("GET");
+      expect(req.request.params.get("uid")).toEqual("5");
+      req.flush(true);
+    };
+
+    it("opens the registration modal when registration is required", () => {
+      modal.create.mockReturnValue({
+        getContentComponent: () => ({
+          modalTitle: "Request Access",
+          getValues: () => ({ affiliation: "", reason: "" }),
+        }),
+        updateConfig: vi.fn(),
+      });
+
+      openModalViaInactiveLogin();
+
+      expect(modal.create).toHaveBeenCalledTimes(1);
+      expect(modal.create.mock.calls[0][0]).toEqual(
+        expect.objectContaining({
+          nzData: { uid: 5, email: "u@x.com", name: "Ursula" },
+          nzOkText: "Send request to Admin",
+        })
+      );
+    });
+
+    it("submitRegistration PUTs the affiliation/reason when the modal is confirmed", async () => {
+      const gmail = TestBed.inject(GmailService) as unknown as { notifyUnauthorizedLogin: ReturnType<typeof vi.fn> };
+      gmail.notifyUnauthorizedLogin = vi.fn();
+      modal.create.mockReturnValue({
+        getContentComponent: () => ({
+          modalTitle: "Request Access",
+          getValues: () => ({ affiliation: "Texera", reason: "research" }),
+        }),
+        updateConfig: vi.fn(),
+      });
+
+      openModalViaInactiveLogin();
+
+      const okHandler = modal.create.mock.calls[0][0].nzOnOk as () => Promise<boolean>;
+      const okPromise = okHandler();
+
+      const req = httpMock.expectOne(`${api}/user/joining-reason`);
+      expect(req.request.method).toEqual("PUT");
+      expect(req.request.body).toEqual({ uid: 5, affiliation: "Texera", joiningReason: "research" });
+      req.flush(null);
+
+      await expect(okPromise).resolves.toBe(true);
+      expect(gmail.notifyUnauthorizedLogin).toHaveBeenCalledWith("u@x.com", "Texera", "research");
     });
   });
 });

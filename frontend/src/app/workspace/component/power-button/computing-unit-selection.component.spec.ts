@@ -53,6 +53,7 @@ import { WorkflowExecutionsEntry } from "../../../dashboard/type/workflow-execut
 import { WorkflowMetadata } from "../../../dashboard/type/workflow-metadata.interface";
 import { ExecutionState } from "../../types/execute-workflow.interface";
 import { ComputingUnitActionsService } from "../../../common/service/computing-unit/computing-unit-actions/computing-unit-actions.service";
+import { ComputingUnitMetadataComponent } from "../../../common/util/computing-unit.util";
 
 /**
  * Builds a fully-populated DashboardWorkflowComputingUnit for driving the
@@ -665,6 +666,181 @@ describe("PowerButtonComponent", () => {
     });
   });
 
+  /**
+   * The PVE block is the largest uncovered region in the component, and the suite above stops
+   * exactly at its seams: it stubs out `runPveWebSocket` and `deleteUserPackages` so it can assert
+   * name validation without opening a socket. These drive the other side of those seams.
+   *
+   * The only environmental need is a stand-in for `WebSocket`, so `onmessage` / `onerror` can be
+   * fired by hand — jsdom has no WebSocket and the component never inspects anything but the
+   * handlers it assigns.
+   */
+  describe("the virtual-environment socket", () => {
+    /** The sockets opened during a test, newest last. */
+    let sockets: FakeSocket[];
+
+    class FakeSocket {
+      static opened: FakeSocket[] = [];
+      onmessage: ((e: { data: string }) => void) | null = null;
+      onerror: (() => void) | null = null;
+      close = vi.fn();
+      constructor(public url: string) {
+        FakeSocket.opened.push(this);
+      }
+      /** Delivers one server line to the component. */
+      say(data: string): void {
+        this.onmessage?.({ data });
+      }
+    }
+
+    /** Installs one unlocked environment and returns the component's view of it. */
+    function setPve(over: Record<string, unknown> = {}): void {
+      component.pves = [
+        {
+          name: "envone",
+          isLocked: false,
+          isInstalling: false,
+          userPackages: [],
+          newPackages: [],
+          deletingPackages: [],
+          pipOutput: "",
+          prettyPipOutput: "",
+          expanded: false,
+          ...over,
+        } as any,
+      ];
+    }
+
+    beforeEach(() => {
+      FakeSocket.opened = [];
+      sockets = FakeSocket.opened;
+      vi.stubGlobal("WebSocket", FakeSocket as unknown as typeof WebSocket);
+      vi.spyOn((component as any).notificationService, "error").mockImplementation(() => {});
+      // The socket URL is built from the selected unit's cuid, so a unit has to be selected.
+      component.selectedComputingUnit = makeComputingUnit({ name: "unit" });
+    });
+
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    it("opens a socket for the environment and locks the card while it runs", () => {
+      setPve();
+
+      component.createVirtualEnvironment(0);
+
+      expect(sockets).toHaveLength(1);
+      expect(component.pves[0].isInstalling).toBe(true);
+      expect(component.pves[0].isLocked).toBe(true);
+      expect(component.pves[0].pipOutput).toContain("Creating virtual environment");
+    });
+
+    it("trims the environment name before it reaches the socket URL", () => {
+      // The name is user input from an inline editor; an untrimmed name produces a URL for an
+      // environment the backend does not have.
+      const urlSpy = vi.spyOn(TestBed.inject(WorkflowPveService), "getPveWebSocketUrl");
+      setPve({ name: "  spaced  " });
+
+      component.createVirtualEnvironment(0);
+
+      expect(component.pves[0].name).toBe("spaced");
+      expect(urlSpy).toHaveBeenCalledWith(expect.anything(), "spaced", "create", []);
+    });
+
+    it("appends each line the server sends to the pip output", () => {
+      setPve();
+      component.createVirtualEnvironment(0);
+
+      sockets[0].say("collecting numpy");
+      sockets[0].say("installed");
+
+      expect(component.pves[0].pipOutput).toContain("collecting numpy");
+      expect(component.pves[0].pipOutput).toContain("installed");
+      // Still running: the card stays locked until the sentinel arrives.
+      expect(component.pves[0].isInstalling).toBe(true);
+    });
+
+    it("closes the socket and unlocks installing on the __DONE__ sentinel", () => {
+      // Without this the spinner never stops and the card is stuck mid-install.
+      // The continuation is stubbed out deliberately: letting the real delete/install chain run
+      // would reset isInstalling downstream, so the assertion would pass even if this branch
+      // never cleared it.
+      vi.spyOn(component as any, "deleteUserPackages").mockImplementation(() => {});
+      setPve();
+      component.createVirtualEnvironment(0);
+
+      sockets[0].say("__DONE__");
+
+      expect(component.pves[0].isInstalling).toBe(false);
+      expect(component.pves[0].socket).toBeUndefined();
+      expect(sockets[0].close).toHaveBeenCalled();
+    });
+
+    it("does not print the sentinel as though it were output", () => {
+      setPve();
+      component.createVirtualEnvironment(0);
+
+      sockets[0].say("__DONE__");
+
+      expect(component.pves[0].pipOutput).not.toContain("__DONE__");
+    });
+
+    it("reports a dropped connection in the output rather than hanging", () => {
+      setPve();
+      component.createVirtualEnvironment(0);
+
+      sockets[0].onerror?.();
+
+      expect(component.pves[0].pipOutput).toContain("[WebSocket error]");
+      expect(component.pves[0].isInstalling).toBe(false);
+      expect(component.pves[0].socket).toBeUndefined();
+    });
+
+    it("closes any socket still open on the card before starting another", () => {
+      // Re-running a create on a card that is already streaming would otherwise leave the first
+      // socket writing into the same pipOutput.
+      setPve();
+      component.createVirtualEnvironment(0);
+      const first = sockets[0];
+
+      component.pves[0] = { ...component.pves[0], isLocked: false } as any;
+      component.createVirtualEnvironment(0);
+
+      expect(first.close).toHaveBeenCalled();
+      expect(sockets).toHaveLength(2);
+    });
+
+    it("reinstalls the recorded packages once the environment is created", () => {
+      // The create socket's completion chains delete-then-install, which is how a rebuilt
+      // environment gets its packages back.
+      const deleteSpy = vi
+        .spyOn(component as any, "deleteUserPackages")
+        .mockImplementation((...args: unknown[]) => (args[1] as (() => void) | undefined)?.());
+      const installSpy = vi.spyOn(component as any, "installUserPackages").mockImplementation(() => {});
+      setPve();
+
+      component.createVirtualEnvironment(0);
+      sockets[0].say("__DONE__");
+
+      expect(deleteSpy).toHaveBeenCalled();
+      expect(installSpy).toHaveBeenCalled();
+    });
+
+    it("skips creation entirely for a locked card and only syncs its packages", () => {
+      const deleteSpy = vi
+        .spyOn(component as any, "deleteUserPackages")
+        .mockImplementation((...args: unknown[]) => (args[1] as (() => void) | undefined)?.());
+      const installSpy = vi.spyOn(component as any, "installUserPackages").mockImplementation(() => {});
+      setPve({ isLocked: true });
+
+      component.createVirtualEnvironment(0);
+
+      expect(sockets).toHaveLength(0);
+      expect(deleteSpy).toHaveBeenCalled();
+      expect(installSpy).toHaveBeenCalled();
+    });
+  });
+
   describe("createVirtualEnvironment name validation", () => {
     const VALIDATION_MSG = "Environment name must contain only letters and numbers.";
 
@@ -1261,6 +1437,153 @@ describe("PowerButtonComponent", () => {
       const host = fixture.nativeElement as HTMLElement;
       expect(host.querySelector(".connect-text")?.textContent).toContain("Connect");
       expect(host.querySelector(".unit-name-text")).toBeNull();
+    });
+  });
+
+  describe("resource display accessors", () => {
+    beforeEach(() => {
+      component.selectedComputingUnit = makeComputingUnit();
+    });
+
+    it("reads the selected unit's raw resource limits and usage", () => {
+      expect(component.getCurrentComputingUnitCpuLimit()).toBe("1");
+      expect(component.getCurrentComputingUnitMemoryLimit()).toBe("1Gi");
+      expect(component.getCurrentComputingUnitGpuLimit()).toBe("0");
+      expect(component.getCurrentComputingUnitJvmMemorySize()).toBe("1Gi");
+      expect(component.getCurrentSharedMemorySize()).toBe("64Mi");
+      expect(component.getCurrentComputingUnitCpuUsage()).toBe("N/A");
+      expect(component.getCurrentComputingUnitMemoryUsage()).toBe("N/A");
+    });
+
+    it("returns 'NaN' for every accessor when no unit is selected", () => {
+      component.selectedComputingUnit = null;
+      expect(component.getCurrentComputingUnitCpuLimit()).toBe("NaN");
+      expect(component.getCurrentComputingUnitMemoryLimit()).toBe("NaN");
+      expect(component.getCurrentComputingUnitGpuLimit()).toBe("NaN");
+      expect(component.getCurrentComputingUnitJvmMemorySize()).toBe("NaN");
+      expect(component.getCurrentSharedMemorySize()).toBe("NaN");
+      expect(component.getCurrentComputingUnitCpuUsage()).toBe("NaN");
+      expect(component.getCurrentComputingUnitMemoryUsage()).toBe("NaN");
+    });
+  });
+
+  describe("resource display getters", () => {
+    beforeEach(() => {
+      component.selectedComputingUnit = makeComputingUnit();
+    });
+
+    it("derives the display limits and units from the raw values", () => {
+      expect(component.getCpuLimit()).toBe(1);
+      expect(component.getMemoryLimit()).toBe(1);
+      expect(component.getGpuLimit()).toBe("0");
+      expect(component.getJvmMemorySize()).toBe("1Gi");
+      expect(component.getSharedMemorySize()).toBe("64Mi");
+      expect(component.getCpuLimitUnit()).toBe("CPU");
+      expect(component.getMemoryLimitUnit()).toBe("Gi");
+      expect(component.getCpuUnit()).toBe("Cores");
+      expect(component.getMemoryUnit()).toBe("Gi");
+    });
+
+    it("returns zero usage values and percentages when metrics are unavailable", () => {
+      expect(component.getCpuValue()).toBe(0);
+      expect(component.getMemoryValue()).toBe(0);
+      expect(component.getCpuPercentage()).toBe(0);
+      expect(component.getMemoryPercentage()).toBe(0);
+    });
+
+    it("maps a zero percentage to the 'success' progress status", () => {
+      expect(component.getCpuStatus()).toBe("success");
+      expect(component.getMemoryStatus()).toBe("success");
+    });
+
+    it("maps a status to a badge color", () => {
+      expect(component.getBadgeColor("Running")).toBe("green");
+      expect(component.getBadgeColor("Pending")).toBe("gold");
+      expect(component.getBadgeColor("Failed")).toBe("red");
+    });
+
+    it("describes a unit's status as a tooltip", () => {
+      expect(component.getUnitStatusTooltip(makeComputingUnit({ status: "Running" }))).toBe("Ready to use");
+      expect(component.getUnitStatusTooltip(makeComputingUnit({ status: "Pending" }))).toBe(
+        "Computing unit is starting up"
+      );
+      expect(component.getUnitStatusTooltip(makeComputingUnit({ status: "Failed" }))).toBe("Failed");
+    });
+  });
+
+  describe("trackBy helpers", () => {
+    it("trackByCuid keys a unit by its cuid", () => {
+      expect(component.trackByCuid(0, makeComputingUnit({ cuid: 77 }))).toBe(77);
+    });
+
+    it("trackByIndex returns the index", () => {
+      expect(component.trackByIndex(4)).toBe(4);
+    });
+  });
+
+  describe("cancelEditingUnitName", () => {
+    it("clears the editing state", () => {
+      component.editingNameOfUnit = 3;
+      component.editingUnitName = "half-typed";
+      component.cancelEditingUnitName();
+      expect(component.editingNameOfUnit).toBeNull();
+      expect(component.editingUnitName).toBe("");
+    });
+  });
+
+  describe("openComputingUnitMetadataModal", () => {
+    it("opens the metadata modal with the unit as nzData", () => {
+      const unit = makeComputingUnit({ cuid: 9 });
+      const createSpy = vi.spyOn(TestBed.inject(NzModalService), "create").mockReturnValue({} as any);
+      try {
+        component.openComputingUnitMetadataModal(unit);
+
+        expect(createSpy).toHaveBeenCalledWith(
+          expect.objectContaining({
+            nzTitle: "Computing Unit Information",
+            nzContent: ComputingUnitMetadataComponent,
+            nzData: unit,
+            nzFooter: null,
+          })
+        );
+      } finally {
+        createSpy.mockRestore();
+      }
+    });
+  });
+
+  describe("scrollToBottomOfPipModal", () => {
+    // The handler defers a scroll via setTimeout and reads scrollHeight, which
+    // jsdom reports as 0 — drive it with fake timers and a plain stand-in element
+    // (not a real node) so the assertion is deterministic and layout-independent.
+    it("scrolls the pip log element to the bottom on the deferred tick", () => {
+      vi.useFakeTimers();
+      const el = { scrollTop: 0, scrollHeight: 500 } as unknown as HTMLElement;
+      const getByIdSpy = vi.spyOn(document, "getElementById").mockReturnValue(el);
+      try {
+        component.scrollToBottomOfPipModal(2);
+        expect(el.scrollTop).toBe(0); // deferred; not applied yet
+        vi.runAllTimers();
+        expect(getByIdSpy).toHaveBeenCalledWith("pip-log-2");
+        expect(el.scrollTop).toBe(500);
+      } finally {
+        getByIdSpy.mockRestore();
+        vi.useRealTimers();
+      }
+    });
+
+    it("is a safe no-op when the pip log element is absent", () => {
+      vi.useFakeTimers();
+      const getByIdSpy = vi.spyOn(document, "getElementById").mockReturnValue(null);
+      try {
+        expect(() => {
+          component.scrollToBottomOfPipModal(9);
+          vi.runAllTimers();
+        }).not.toThrow();
+      } finally {
+        getByIdSpy.mockRestore();
+        vi.useRealTimers();
+      }
     });
   });
 });

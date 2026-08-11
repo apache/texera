@@ -87,9 +87,9 @@ class Context:
         self.debug_manager = DebugManager(
             self.tuple_processing_manager.context_switch_condition
         )
-        # Loop-back write addresses delivered at setup; see the proto field doc
-        # on InitializeExecutorRequest.loopStartStateUris (controlcommands.proto).
-        self.loop_start_state_uris: Dict[str, str] = {}
+        # Loop bookkeeping base URIs delivered at setup; see the proto field doc
+        # on InitializeExecutorRequest.loopStartPortUris (controlcommands.proto).
+        self.loop_start_port_uris: Dict[str, str] = {}
 
     def report_exception(self, err: BaseException) -> None:
         """Route an operator-facing exception to the exception manager and

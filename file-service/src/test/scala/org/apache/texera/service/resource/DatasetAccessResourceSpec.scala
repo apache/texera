@@ -19,7 +19,7 @@
 
 package org.apache.texera.service.resource
 
-import jakarta.ws.rs.ForbiddenException
+import jakarta.ws.rs.{BadRequestException, ForbiddenException}
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.dao.MockTexeraDB
 import org.apache.texera.dao.jooq.generated.enums.{PrivilegeEnum, UserRoleEnum}
@@ -50,7 +50,6 @@ class DatasetAccessResourceSpec
   private val ownerUser: User = {
     val user = new User
     user.setName("dataset_owner")
-    user.setPassword("123")
     user.setEmail("dataset_owner@test.com")
     user.setRole(UserRoleEnum.REGULAR)
     user
@@ -59,7 +58,6 @@ class DatasetAccessResourceSpec
   private val readGranteeUser: User = {
     val user = new User
     user.setName("read_grantee")
-    user.setPassword("123")
     user.setEmail("read_grantee@test.com")
     user.setRole(UserRoleEnum.REGULAR)
     user
@@ -68,7 +66,6 @@ class DatasetAccessResourceSpec
   private val writeGranteeUser: User = {
     val user = new User
     user.setName("write_grantee")
-    user.setPassword("123")
     user.setEmail("write_grantee@test.com")
     user.setRole(UserRoleEnum.REGULAR)
     user
@@ -77,7 +74,6 @@ class DatasetAccessResourceSpec
   private val strangerUser: User = {
     val user = new User
     user.setName("stranger")
-    user.setPassword("123")
     user.setEmail("stranger@test.com")
     user.setRole(UserRoleEnum.REGULAR)
     user
@@ -268,6 +264,25 @@ class DatasetAccessResourceSpec
     entries.head.email shouldEqual readGranteeUser.getEmail
     entries.head.name shouldEqual readGranteeUser.getName
     entries.head.privilege shouldEqual PrivilegeEnum.READ
+  }
+
+  it should "reject granting to a placeholder account" in {
+    val placeholder = new User
+    placeholder.setName("ds_placeholder")
+    placeholder.setEmail("ds-placeholder@test.com")
+    placeholder.setRole(UserRoleEnum.INACTIVE)
+    placeholder.setIsPlaceholder(true)
+    new UserDao(getDSLContext.configuration()).insert(placeholder)
+
+    assertThrows[BadRequestException] {
+      accessResource.grantAccess(
+        privateDataset.getDid,
+        "ds-placeholder@test.com",
+        "READ",
+        ownerSession
+      )
+    }
+    accessList(privateDataset.getDid) shouldBe empty
   }
 
   it should "update the privilege in place when re-granting with a different privilege" in {

@@ -512,4 +512,208 @@ describe("ShareAccessComponent", () => {
       expect(notificationSpy.success).toHaveBeenCalledWith("Dataset unpublished successfully");
     });
   });
+
+  describe("hasWriteAccess without a resolved email", () => {
+    it("returns false when the current user has no email at all", () => {
+      const c = setupComponent();
+      // Exercise the no-email early-return guard directly, independent of how the
+      // user service happens to resolve an empty/absent email.
+      c.currentEmail = undefined;
+      expect(c.hasWriteAccess).toBe(false);
+    });
+  });
+
+  describe("removeEmailTag", () => {
+    it("removes the matching email and keeps the others", () => {
+      const c = setupComponent();
+      c.emailTags = ["a@example.com", "b@example.com", "c@example.com"];
+      c.removeEmailTag("b@example.com");
+      expect(c.emailTags).toEqual(["a@example.com", "c@example.com"]);
+    });
+
+    it("leaves tags unchanged when the email is not present", () => {
+      const c = setupComponent();
+      c.emailTags = ["a@example.com"];
+      c.removeEmailTag("missing@example.com");
+      expect(c.emailTags).toEqual(["a@example.com"]);
+    });
+  });
+
+  describe("onChange", () => {
+    it("filters allOwners case-insensitively by the typed value", () => {
+      const c = setupComponent();
+      c.allOwners.push("Alice", "Bob", "alfred");
+      c.onChange("al");
+      expect(c.filteredOwners).toEqual(["Alice", "alfred"]);
+    });
+
+    it("clears filteredOwners when the value is null", () => {
+      const c = setupComponent();
+      c.allOwners.push("Alice");
+      c.filteredOwners = ["stale"];
+      c.onChange(null as unknown as string);
+      expect(c.filteredOwners).toEqual([]);
+    });
+  });
+
+  describe("onPaste with an empty existing value", () => {
+    it("defaults the existing email value to an empty string before appending", () => {
+      const c = setupComponent();
+      c.validateForm.get("email")?.reset();
+      const event = {
+        preventDefault: vi.fn(),
+        clipboardData: { getData: vi.fn().mockReturnValue("solo@example.com") },
+      } as unknown as ClipboardEvent;
+      c.onPaste(event);
+      expect(c.emailTags).toEqual(["solo@example.com"]);
+    });
+  });
+
+  describe("modal Cancel buttons", () => {
+    function captureModalRefs(): any[] {
+      const modalRefs: any[] = [];
+      modalServiceSpy.create.mockImplementation((config: any) => {
+        capturedModalConfigs.push(config);
+        const ref = { close: vi.fn() };
+        modalRefs.push(ref);
+        return ref;
+      });
+      return modalRefs;
+    }
+
+    it("closes the revoke confirmation modal without revoking when Cancel is clicked", () => {
+      const modalRefs = captureModalRefs();
+      const c = setupComponent({ currentEmail: "me@example.com" });
+      c.verifyRevokeAccess("other@example.com");
+      getFooterButton(capturedModalConfigs[0], "Cancel").onClick();
+      expect(modalRefs[0].close).toHaveBeenCalled();
+      expect(accessServiceSpy.revokeAccess).not.toHaveBeenCalled();
+    });
+
+    it("closes the downgrade modal and reloads without granting when Cancel is clicked", () => {
+      accessServiceSpy.getAccessList.mockReturnValue(
+        of([{ email: "me@example.com", name: "Me", privilege: Privilege.WRITE }])
+      );
+      const modalRefs = captureModalRefs();
+      const c = setupComponent({ currentEmail: "me@example.com", type: "workflow", id: 3 });
+      accessServiceSpy.grantAccess.mockClear();
+      accessServiceSpy.getAccessList.mockClear();
+      c.changeAccessLevel("me@example.com", "READ");
+      getFooterButton(capturedModalConfigs[0], "Cancel").onClick();
+      expect(modalRefs[0].close).toHaveBeenCalled();
+      expect(accessServiceSpy.grantAccess).not.toHaveBeenCalled();
+      // Cancel re-runs ngOnInit to restore the previous access level in the UI
+      expect(accessServiceSpy.getAccessList).toHaveBeenCalledWith("workflow", 3);
+    });
+
+    it("closes the publish modal without publishing when Cancel is clicked", () => {
+      workflowPersistSpy.getWorkflowIsPublished.mockReturnValue(of("Private"));
+      const modalRefs = captureModalRefs();
+      const c = setupComponent({ type: "workflow", inWorkspace: true });
+      c.verifyPublish();
+      getFooterButton(capturedModalConfigs[0], "Cancel").onClick();
+      expect(modalRefs[0].close).toHaveBeenCalled();
+      expect(workflowPersistSpy.updateWorkflowIsPublished).not.toHaveBeenCalled();
+      expect(workflowActionSpy.setWorkflowIsPublished).not.toHaveBeenCalled();
+    });
+
+    it("closes the unpublish modal without unpublishing when Cancel is clicked", () => {
+      workflowPersistSpy.getWorkflowIsPublished.mockReturnValue(of("Public"));
+      const modalRefs = captureModalRefs();
+      const c = setupComponent({ type: "workflow" });
+      c.verifyUnpublish();
+      getFooterButton(capturedModalConfigs[0], "Cancel").onClick();
+      expect(modalRefs[0].close).toHaveBeenCalled();
+      expect(workflowPersistSpy.updateWorkflowIsPublished).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("applyAccessLevelChange error branch", () => {
+    it("surfaces HttpErrorResponse and reloads the access list on failure", () => {
+      accessServiceSpy.grantAccess.mockReturnValue(
+        throwError(() => new HttpErrorResponse({ error: { message: "change failed" }, status: 500 }))
+      );
+      const c = setupComponent({ currentEmail: "me@example.com", type: "workflow", id: 3 });
+      accessServiceSpy.getAccessList.mockClear();
+      c.changeAccessLevel("other@example.com", "READ");
+      expect(notificationSpy.error).toHaveBeenCalledWith("change failed");
+      // the error branch reloads the access list so the UI reflects the unchanged level
+      expect(accessServiceSpy.getAccessList).toHaveBeenCalledWith("workflow", 3);
+    });
+  });
+
+  describe("unpublish error branches", () => {
+    it("unpublishWorkflow surfaces HttpErrorResponse and leaves isPublic unchanged", () => {
+      workflowPersistSpy.getWorkflowIsPublished.mockReturnValue(of("Public"));
+      workflowPersistSpy.updateWorkflowIsPublished.mockReturnValue(
+        throwError(() => new HttpErrorResponse({ error: { message: "unpublish failed" }, status: 500 }))
+      );
+      const c = setupComponent({ type: "workflow" });
+      c.unpublishWorkflow();
+      expect(notificationSpy.error).toHaveBeenCalledWith("unpublish failed");
+      expect(c.isPublic).toBe(true);
+    });
+
+    it("unpublishDataset surfaces HttpErrorResponse and leaves isPublic unchanged", () => {
+      datasetServiceSpy.getDataset.mockReturnValue(of({ dataset: { isPublic: true } }));
+      datasetServiceSpy.updateDatasetPublicity.mockReturnValue(
+        throwError(() => new HttpErrorResponse({ error: { message: "dataset unpublish failed" }, status: 500 }))
+      );
+      const c = setupComponent({ type: "dataset" });
+      c.unpublishDataset();
+      expect(notificationSpy.error).toHaveBeenCalledWith("dataset unpublish failed");
+      expect(c.isPublic).toBe(true);
+    });
+  });
+
+  describe("guard branches (no-ops)", () => {
+    it("handleInputConfirm skips empty tokens produced by trailing separators", () => {
+      const c = setupComponent();
+      c.validateForm.get("email")?.setValue("a@example.com, ; ");
+      c.handleInputConfirm();
+      expect(c.emailTags).toEqual(["a@example.com"]);
+      expect(messageSpy.error).not.toHaveBeenCalled();
+    });
+
+    it("grantAccess does nothing when there are no email tags", () => {
+      const c = setupComponent({ type: "workflow", id: 5 });
+      accessServiceSpy.grantAccess.mockClear();
+      c.emailTags = [];
+      c.grantAccess();
+      expect(accessServiceSpy.grantAccess).not.toHaveBeenCalled();
+      expect(gmailSpy.sendEmail).not.toHaveBeenCalled();
+    });
+
+    it("publishWorkflow is a no-op when the workflow is already public", () => {
+      workflowPersistSpy.getWorkflowIsPublished.mockReturnValue(of("Public"));
+      const c = setupComponent({ type: "workflow" });
+      workflowPersistSpy.updateWorkflowIsPublished.mockClear();
+      c.publishWorkflow();
+      expect(workflowPersistSpy.updateWorkflowIsPublished).not.toHaveBeenCalled();
+    });
+
+    it("unpublishWorkflow is a no-op when the workflow is already private", () => {
+      workflowPersistSpy.getWorkflowIsPublished.mockReturnValue(of("Private"));
+      const c = setupComponent({ type: "workflow" });
+      workflowPersistSpy.updateWorkflowIsPublished.mockClear();
+      c.unpublishWorkflow();
+      expect(workflowPersistSpy.updateWorkflowIsPublished).not.toHaveBeenCalled();
+    });
+
+    it("publishDataset is a no-op when the dataset is already public", () => {
+      datasetServiceSpy.getDataset.mockReturnValue(of({ dataset: { isPublic: true } }));
+      const c = setupComponent({ type: "dataset" });
+      datasetServiceSpy.updateDatasetPublicity.mockClear();
+      c.publishDataset();
+      expect(datasetServiceSpy.updateDatasetPublicity).not.toHaveBeenCalled();
+    });
+
+    it("unpublishDataset is a no-op when the dataset is already private", () => {
+      datasetServiceSpy.getDataset.mockReturnValue(of({ dataset: { isPublic: false } }));
+      const c = setupComponent({ type: "dataset" });
+      datasetServiceSpy.updateDatasetPublicity.mockClear();
+      c.unpublishDataset();
+      expect(datasetServiceSpy.updateDatasetPublicity).not.toHaveBeenCalled();
+    });
+  });
 });

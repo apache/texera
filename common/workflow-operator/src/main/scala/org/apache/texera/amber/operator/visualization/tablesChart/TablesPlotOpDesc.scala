@@ -36,7 +36,10 @@ class TablesPlotOpDesc extends PythonOperatorDescriptor {
   var includedColumns: List[TablesConfig] = List()
 
   private def getAttributes: String =
-    includedColumns.map(c => pyb"""${c.attributeName}""").mkString("','")
+    // Join with a plain comma: each column renders to a decode_python_template(...)
+    // call, so joining with the literal ',' would put a string right after a call
+    // and produce invalid Python.
+    includedColumns.map(c => pyb"""${c.attributeName}""").mkString(",")
 
   def manipulateTable(): PythonTemplateBuilder = {
     assert(includedColumns.nonEmpty, "Included Columns cannot be empty")
@@ -72,6 +75,9 @@ class TablesPlotOpDesc extends PythonOperatorDescriptor {
        |import plotly.graph_objects as go
        |import plotly.io
        |class TableChartOperator(UDFTableOperator):
+       |
+       |    def render_error(self, error_msg) -> str:
+       |        return f"<h1>Tables Plot is not available.</h1><p>Reason is: {error_msg}</p>"
        |
        |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
        |

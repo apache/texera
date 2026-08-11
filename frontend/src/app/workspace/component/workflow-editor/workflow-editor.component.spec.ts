@@ -58,7 +58,9 @@ import { ContextMenuComponent } from "./context-menu/context-menu/context-menu.c
 import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
 import { MockComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/mock-computing-unit-status.service";
 import { commonTestProviders } from "../../../common/testing/test-utils";
-import { GuiConfigService } from "../../../common/service/gui-config.service";
+import { OperatorMenuService } from "../../service/operator-menu/operator-menu.service";
+import { GuiConfigService } from "src/app/common/service/gui-config.service";
+import { MockGuiConfigService } from "src/app/common/service/gui-config.service.mock";
 import { OperatorRecommendationService } from "../../service/operator-recommendation/operator-recommendation.service";
 import type { MockInstance } from "vitest";
 
@@ -1252,113 +1254,503 @@ describe("WorkflowEditorComponent", () => {
         expect(element.attr(`.${operatorAgentActionProgressClass}/visibility`)).toEqual("hidden");
       });
     });
+
+    /**
+     * The editor's non-rendering logic: connection validation, the clipboard
+     * handlers, and the delete / select-all paths that the keyboard tests above
+     * never reach (links and comment boxes). None of these need pointer geometry,
+     * so they run under jsdom.
+     */
+    describe("connection validation, clipboard, and delete/select-all", () => {
+      /** A port magnet as JointJS hands it to validateConnection. */
+      function magnet(attributes: Record<string, string>): SVGElement {
+        const element = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+        Object.entries(attributes).forEach(([name, value]) => element.setAttribute(name, value));
+        return element as unknown as SVGElement;
+      }
+
+      function validateJointConnection(
+        sourceOperatorID: string,
+        sourceMagnet: SVGElement | undefined,
+        targetOperatorID: string,
+        targetMagnet: SVGElement | undefined
+      ): boolean {
+        const cellView = (id: string) => ({ model: { id } }) as unknown as joint.dia.CellView;
+        return component["validateJointOperatorConnection"](
+          cellView(sourceOperatorID),
+          sourceMagnet,
+          cellView(targetOperatorID),
+          targetMagnet,
+          "target" as joint.dia.LinkEnd,
+          {} as joint.dia.LinkView
+        );
+      }
+
+      /** These handlers only run while the body has focus (i.e. no input is being edited). */
+      function dispatchOnBody(event: Event): void {
+        (document.activeElement as HTMLElement)?.blur();
+        document.dispatchEvent(event);
+        fixture.detectChanges();
+      }
+
+      describe("validateJointOperatorConnection", () => {
+        beforeEach(() => {
+          workflowActionService.addOperator(mockScanPredicate, mockPoint);
+          workflowActionService.addOperator(mockSentimentPredicate, mockPoint);
+        });
+
+        it("rejects a link drawn out of an input port", () => {
+          expect(
+            validateJointConnection(
+              mockScanPredicate.operatorID,
+              magnet({ "port-group": "in", port: "input-0" }),
+              mockSentimentPredicate.operatorID,
+              magnet({ "port-group": "in", port: "input-0" })
+            )
+          ).toBe(false);
+        });
+
+        it("rejects a link dropped onto an output port", () => {
+          expect(
+            validateJointConnection(
+              mockScanPredicate.operatorID,
+              magnet({ "port-group": "out", port: "output-0" }),
+              mockSentimentPredicate.operatorID,
+              magnet({ "port-group": "out", port: "output-0" })
+            )
+          ).toBe(false);
+        });
+
+        it("delegates an output-to-input pair to the operator-level validation", () => {
+          const outMagnet = () => magnet({ "port-group": "out", port: "output-0" });
+          const inMagnet = () => magnet({ "port-group": "in", port: "input-0" });
+
+          expect(
+            validateJointConnection(
+              mockScanPredicate.operatorID,
+              outMagnet(),
+              mockSentimentPredicate.operatorID,
+              inMagnet()
+            )
+          ).toBe(true);
+
+          // Once the link exists the same pair is rejected — proving the call is
+          // really delegated to validateOperatorConnection rather than hardcoded.
+          workflowActionService.addLink(mockScanSentimentLink);
+          expect(
+            validateJointConnection(
+              mockScanPredicate.operatorID,
+              outMagnet(),
+              mockSentimentPredicate.operatorID,
+              inMagnet()
+            )
+          ).toBe(false);
+        });
+      });
+
+      describe("validateOperatorConnection guards", () => {
+        beforeEach(() => {
+          workflowActionService.addOperator(mockScanPredicate, mockPoint);
+          workflowActionService.addOperator(mockSentimentPredicate, mockPoint);
+        });
+
+        it("rejects a connection from an operator to itself", () => {
+          expect(
+            component["validateOperatorConnection"](
+              mockScanPredicate.operatorID,
+              "output-0",
+              mockScanPredicate.operatorID,
+              "input-0"
+            )
+          ).toBe(false);
+        });
+
+        it("rejects a connection that is missing a port on either end", () => {
+          expect(
+            component["validateOperatorConnection"](
+              mockScanPredicate.operatorID,
+              undefined,
+              mockSentimentPredicate.operatorID,
+              "input-0"
+            )
+          ).toBe(false);
+          expect(
+            component["validateOperatorConnection"](
+              mockScanPredicate.operatorID,
+              "output-0",
+              mockSentimentPredicate.operatorID,
+              null
+            )
+          ).toBe(false);
+        });
+
+        it("rejects a connection whose endpoint is not an operator", () => {
+          expect(
+            component["validateOperatorConnection"](
+              "not-an-operator",
+              "output-0",
+              mockSentimentPredicate.operatorID,
+              "input-0"
+            )
+          ).toBe(false);
+          expect(
+            component["validateOperatorConnection"](
+              mockScanPredicate.operatorID,
+              "output-0",
+              "not-an-operator",
+              "input-0"
+            )
+          ).toBe(false);
+        });
+      });
+
+      describe("delete", () => {
+        it("deletes highlighted links and comment boxes, not just operators", () => {
+          const texeraGraph = workflowActionService.getTexeraGraph();
+          const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
+          workflowActionService.addOperatorsAndLinks(
+            [
+              { op: mockScanPredicate, pos: mockPoint },
+              { op: mockResultPredicate, pos: mockPoint },
+            ],
+            [mockScanResultLink]
+          );
+          workflowActionService.addCommentBox(mockCommentBox);
+          // multi-select keeps both selections alive: highlighting with it off
+          // unhighlights everything else first, which would silently drop the link.
+          jointGraphWrapper.setMultiSelectMode(true);
+          jointGraphWrapper.unhighlightOperators(...jointGraphWrapper.getCurrentHighlightedOperatorIDs());
+          jointGraphWrapper.highlightLinks(mockScanResultLink.linkID);
+          jointGraphWrapper.highlightCommentBoxes(mockCommentBox.commentBoxID);
+
+          // guard the setup so the assertions below cannot pass vacuously
+          expect(texeraGraph.hasLinkWithID(mockScanResultLink.linkID)).toBe(true);
+          expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).toEqual([]);
+          expect(jointGraphWrapper.getCurrentHighlightedLinkIDs()).toContain(mockScanResultLink.linkID);
+          expect(jointGraphWrapper.getCurrentHighlightedCommentBoxIDs()).toContain(mockCommentBox.commentBoxID);
+
+          dispatchOnBody(new KeyboardEvent("keydown", { key: "Delete" }));
+
+          expect(texeraGraph.hasLinkWithID(mockScanResultLink.linkID)).toBe(false);
+          expect(texeraGraph.hasCommentBox(mockCommentBox.commentBoxID)).toBe(false);
+          // the operators were not highlighted, so they survive
+          expect(texeraGraph.hasOperator(mockScanPredicate.operatorID)).toBe(true);
+        });
+      });
+
+      describe("select all", () => {
+        it("highlights links and comment boxes as well as operators", () => {
+          const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
+          workflowActionService.addOperatorsAndLinks(
+            [
+              { op: mockScanPredicate, pos: mockPoint },
+              { op: mockResultPredicate, pos: mockPoint },
+            ],
+            [mockScanResultLink]
+          );
+          workflowActionService.addCommentBox(mockCommentBox);
+
+          dispatchOnBody(new KeyboardEvent("keydown", { key: "a", metaKey: true }));
+
+          expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).toContain(mockScanPredicate.operatorID);
+          expect(jointGraphWrapper.getCurrentHighlightedLinkIDs()).toContain(mockScanResultLink.linkID);
+          expect(jointGraphWrapper.getCurrentHighlightedCommentBoxIDs()).toContain(mockCommentBox.commentBoxID);
+        });
+      });
+
+      describe("disabled-operator stream", () => {
+        it("repaints an operator when it is disabled and again when it is re-enabled", () => {
+          workflowActionService.addOperator(mockScanPredicate, mockPoint);
+          const changeSpy = vi.spyOn(jointUIService, "changeOperatorDisableStatus");
+          try {
+            workflowActionService.disableOperators([mockScanPredicate.operatorID]);
+            expect(changeSpy).toHaveBeenCalledTimes(1);
+
+            workflowActionService.enableOperators([mockScanPredicate.operatorID]);
+            expect(changeSpy).toHaveBeenCalledTimes(2);
+          } finally {
+            changeSpy.mockRestore();
+          }
+        });
+      });
+
+      describe("clipboard", () => {
+        let operatorMenu: OperatorMenuService;
+
+        beforeEach(() => {
+          operatorMenu = TestBed.inject(OperatorMenuService);
+          workflowActionService.addOperator(mockScanPredicate, mockPoint);
+          // the copy/cut handlers read the menu's latest highlighted-element snapshot
+          workflowActionService.getJointGraphWrapper().highlightOperators(mockScanPredicate.operatorID);
+        });
+
+        it("caches the highlighted elements on copy", () => {
+          const saveSpy = vi.spyOn(operatorMenu, "saveHighlightedElements").mockImplementation(() => {});
+          try {
+            dispatchOnBody(new Event("copy"));
+            expect(saveSpy).toHaveBeenCalledTimes(1);
+            expect(workflowActionService.getTexeraGraph().hasOperator(mockScanPredicate.operatorID)).toBe(true);
+          } finally {
+            saveSpy.mockRestore();
+          }
+        });
+
+        it("caches and then deletes the highlighted elements on cut", () => {
+          const saveSpy = vi.spyOn(operatorMenu, "saveHighlightedElements").mockImplementation(() => {});
+          try {
+            dispatchOnBody(new Event("cut"));
+            expect(saveSpy).toHaveBeenCalledTimes(1);
+            expect(workflowActionService.getTexeraGraph().hasOperator(mockScanPredicate.operatorID)).toBe(false);
+          } finally {
+            saveSpy.mockRestore();
+          }
+        });
+
+        it("pastes the cached elements on paste", () => {
+          const pasteSpy = vi.spyOn(operatorMenu, "performPasteOperation").mockImplementation(() => {});
+          try {
+            dispatchOnBody(new Event("paste"));
+            expect(pasteSpy).toHaveBeenCalledTimes(1);
+          } finally {
+            pasteSpy.mockRestore();
+          }
+        });
+      });
+    });
+  });
+});
+/**
+ * Link breakpoints are a shipped feature — `gui.conf` sets `link-breakpoint-enabled = true` — but
+ * `MockGuiConfigService` defaults it to false, so `handleLinkBreakpoint` and the four handlers it
+ * installs have never run in any test. Turning the flag on before the first change-detection cycle
+ * (which is when ngAfterViewInit wires them) reaches the whole block.
+ */
+describe("WorkflowEditorComponent link breakpoints", () => {
+  let fixture: ComponentFixture<WorkflowEditorComponent>;
+  let component: WorkflowEditorComponent;
+  let workflowActionService: WorkflowActionService;
+
+  beforeEach(async () => {
+    TestBed.resetTestingModule();
+    await TestBed.configureTestingModule({
+      imports: [
+        RouterTestingModule,
+        HttpClientTestingModule,
+        NzModalModule,
+        NzDropDownModule,
+        WorkflowEditorComponent,
+        ContextMenuComponent,
+      ],
+      providers: [
+        JointUIService,
+        WorkflowUtilService,
+        UndoRedoService,
+        DragDropService,
+        ValidationWorkflowService,
+        WorkflowActionService,
+        NzContextMenuService,
+        Overlay,
+        { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
+        { provide: ComputingUnitStatusService, useClass: MockComputingUnitStatusService },
+        WorkflowStatusService,
+        ExecuteWorkflowService,
+        ...commonTestProviders,
+      ],
+    }).compileComponents();
+
+    // Both halves of the guard at workflow-editor.component.ts:202 must be satisfied, and both must
+    // be set before the first detectChanges: ngAfterViewInit reads them once, when it decides
+    // whether to install the breakpoint handlers at all.
+    (TestBed.inject(GuiConfigService) as unknown as MockGuiConfigService).setConfig({
+      linkBreakpointEnabled: true,
+    });
+    workflowActionService = TestBed.inject(WorkflowActionService);
+    workflowActionService.setHighlightingEnabled(true);
+
+    fixture = TestBed.createComponent(WorkflowEditorComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
   });
 
-  /**
-   * Ambient operator recommender (apache/texera#5240).
-   *
-   * The feature is opt-in and `handleOperatorRecommendation` reads the flag once
-   * during ngAfterViewInit, returning early when it is off — so the flag has to
-   * be set before the first change detection, not inside the individual tests.
-   */
-  describe("Ambient Operator Recommender", () => {
-    let component: WorkflowEditorComponent;
-    let fixture: ComponentFixture<WorkflowEditorComponent>;
-    let workflowActionService: WorkflowActionService;
-    let dragDropService: DragDropService;
-    let getRecommendationsSpy: MockInstance;
+  /** Adds scan -> result and returns the link plus its rendered view. */
+  function withLink() {
+    workflowActionService.addOperator(mockScanPredicate, mockPoint);
+    workflowActionService.addOperator(mockResultPredicate, mockPoint);
+    workflowActionService.addLink(mockScanResultLink);
+    const model = component.paper.getModelById(mockScanResultLink.linkID);
+    return { linkID: mockScanResultLink.linkID, model, view: model.findView(component.paper) as any };
+  }
 
-    const mockRecommendations = [{ operatorType: "NlpSentiment", score: 0.9, reason: "Analyze the text" }];
+  it("attaches a breakpoint tool to every link, hidden until it is wanted", () => {
+    // The tool is what the user clicks to set a breakpoint; without it the feature has no entry
+    // point, and leaving it visible would put a button on every link on the canvas.
+    const { view } = withLink();
 
-    // The recommender listens to the drag-drop service's drop stream. Push the
-    // dropped operator through directly rather than driving a real drag gesture,
-    // which would need a live flying-operator paper.
-    function emitOperatorDrop(operator: OperatorPredicate): void {
-      (dragDropService as any).operatorDroppedSubject.next(operator);
-    }
+    expect(view.hasTools()).toBe(true);
+    // The tool exists but stays out of sight until the cursor hovers the link or a breakpoint is
+    // set; a visible one would put a button on every link on the canvas.
+    expect(view._toolsView.tools[0].isVisible()).toBe(false);
+  });
 
-    beforeEach(async () => {
-      await TestBed.configureTestingModule({
-        imports: workflowEditorTestImports,
-        providers: workflowEditorTestProviders,
-      }).compileComponents();
-    });
+  it("highlights the link whose breakpoint button was clicked", () => {
+    const { linkID, view } = withLink();
 
-    beforeEach(() => {
-      fixture = TestBed.createComponent(WorkflowEditorComponent);
-      component = fixture.componentInstance;
-      workflowActionService = TestBed.inject(WorkflowActionService);
-      dragDropService = TestBed.inject(DragDropService);
+    (component.paper as any).trigger("tool:breakpoint", view, { shiftKey: false });
 
-      (TestBed.inject(GuiConfigService).env as any).operatorRecommendationEnabled = true;
-      getRecommendationsSpy = vi
-        .spyOn(TestBed.inject(OperatorRecommendationService), "getRecommendations")
-        .mockReturnValue(of(mockRecommendations));
+    expect(workflowActionService.getJointGraphWrapper().getCurrentHighlightedLinkIDs()).toEqual([linkID]);
+  });
 
-      // detect changes to run ngAfterViewInit and wire up the recommender
-      fixture.detectChanges();
-    });
+  it("unhighlights an already-highlighted link on a shift-click", () => {
+    // Shift is the multi-select modifier, so a second shift-click on the same link is how the user
+    // removes it from the selection rather than re-adding it.
+    const { linkID, view } = withLink();
+    (component.paper as any).trigger("tool:breakpoint", view, { shiftKey: true });
+    expect(workflowActionService.getJointGraphWrapper().getCurrentHighlightedLinkIDs()).toEqual([linkID]);
 
-    it("requests suggestions when the user drops an operator onto the canvas", () => {
-      workflowActionService.addOperator(mockScanPredicate, mockPoint);
-      emitOperatorDrop(mockScanPredicate);
+    (component.paper as any).trigger("tool:breakpoint", view, { shiftKey: true });
 
-      expect(getRecommendationsSpy).toHaveBeenCalledTimes(1);
-      expect(component.operatorSuggestion?.operatorId).toEqual(mockScanPredicate.operatorID);
-      expect(component.operatorSuggestion?.recommendations).toEqual(mockRecommendations);
-    });
+    expect(workflowActionService.getJointGraphWrapper().getCurrentHighlightedLinkIDs()).toEqual([]);
+  });
 
-    it("does not request suggestions for operators that arrive without a drop", () => {
-      // Workflow load, undo/redo, paste and remote co-editor edits all reach the
-      // graph through addOperator with no drop event, and must stay silent.
-      workflowActionService.addOperator(mockScanPredicate, mockPoint);
-      workflowActionService.addOperator(mockSentimentPredicate, mockPoint);
+  it("carries the shift modifier into multi-select mode", () => {
+    // Routed through the unhighlight branch deliberately. On the highlight branch
+    // `WorkflowActionService.highlightLinks` sets multi-select itself, so the handler's own
+    // `setMultiSelectMode` could be deleted and the assertion would still pass; `unhighlightLinks`
+    // does not touch it, leaving this handler as the only writer.
+    const { view } = withLink();
+    // multiSelect is private and has no getter; read it directly rather than adding an accessor.
+    const wrapper = workflowActionService.getJointGraphWrapper() as any;
 
-      expect(getRecommendationsSpy).not.toHaveBeenCalled();
-      expect(component.operatorSuggestion).toBeNull();
-    });
+    (component.paper as any).trigger("tool:breakpoint", view, { shiftKey: false });
+    expect(wrapper.multiSelect).toBe(false);
+    (component.paper as any).trigger("tool:breakpoint", view, { shiftKey: true });
 
-    it("dismisses the suggestions when the anchor operator is deleted", () => {
-      workflowActionService.addOperator(mockScanPredicate, mockPoint);
-      emitOperatorDrop(mockScanPredicate);
-      expect(component.operatorSuggestion).not.toBeNull();
+    expect(wrapper.multiSelect).toBe(true);
+  });
 
-      workflowActionService.deleteOperator(mockScanPredicate.operatorID);
+  it("shows and hides the tool as the breakpoint streams ask", () => {
+    // These two streams are how a link that already has a breakpoint keeps its marker visible after
+    // the cursor leaves it.
+    const { linkID, view } = withLink();
+    const wrapper = workflowActionService.getJointGraphWrapper();
+    const show = vi.spyOn(view, "showTools");
+    const hide = vi.spyOn(view, "hideTools");
 
-      expect(component.operatorSuggestion).toBeNull();
-    });
+    (wrapper as any).jointLinkBreakpointShowStream.next({ linkID });
+    (wrapper as any).jointLinkBreakpointHideStream.next({ linkID });
 
-    it("chains a fresh round of suggestions onto the operator a clicked suggestion creates", () => {
-      workflowActionService.addOperator(mockScanPredicate, mockPoint);
-      emitOperatorDrop(mockScanPredicate);
-      getRecommendationsSpy.mockClear();
+    expect(show).toHaveBeenCalledTimes(1);
+    expect(hide).toHaveBeenCalledTimes(1);
+    // Order matters, otherwise a handler pair wired to each other's stream passes: both would
+    // still be called once, just for the opposite reason.
+    expect(show.mock.invocationCallOrder[0]).toBeLessThan(hide.mock.invocationCallOrder[0]);
+  });
+});
 
-      component.materializeRecommendation(mockRecommendations[0]);
+/**
+ * Ambient operator recommender (apache/texera#5240).
+ *
+ * The feature is opt-in and `handleOperatorRecommendation` reads the flag once
+ * during ngAfterViewInit, returning early when it is off — so the flag has to
+ * be set before the first change detection, not inside the individual tests.
+ */
+describe("Ambient Operator Recommender", () => {
+  let component: WorkflowEditorComponent;
+  let fixture: ComponentFixture<WorkflowEditorComponent>;
+  let workflowActionService: WorkflowActionService;
+  let dragDropService: DragDropService;
+  let getRecommendationsSpy: MockInstance;
 
-      // Materializing never emits a drop, so chaining only works if the click
-      // path asks for suggestions itself.
-      expect(getRecommendationsSpy).toHaveBeenCalledTimes(1);
-      expect(component.operatorSuggestion).not.toBeNull();
-      expect(component.operatorSuggestion?.operatorId).not.toEqual(mockScanPredicate.operatorID);
-    });
+  const mockRecommendations = [{ operatorType: "NlpSentiment", score: 0.9, reason: "Analyze the text" }];
 
-    it("skips change detection when repositioning leaves the suggestions where they are", () => {
-      workflowActionService.addOperator(mockScanPredicate, mockPoint);
-      emitOperatorDrop(mockScanPredicate);
-      const detectChangesSpy = vi.spyOn((component as any).changeDetectorRef, "detectChanges");
+  // The recommender listens to the drag-drop service's drop stream. Push the
+  // dropped operator through directly rather than driving a real drag gesture,
+  // which would need a live flying-operator paper.
+  function emitOperatorDrop(operator: OperatorPredicate): void {
+    (dragDropService as any).operatorDroppedSubject.next(operator);
+  }
 
-      // Unchanged position: repositioning must be a no-op. Without this guard the
-      // change:position listener re-renders the component on every drag frame.
-      (component as any).repositionRecommendations();
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: workflowEditorTestImports,
+      providers: workflowEditorTestProviders,
+    }).compileComponents();
+  });
 
-      expect(detectChangesSpy).not.toHaveBeenCalled();
+  beforeEach(() => {
+    fixture = TestBed.createComponent(WorkflowEditorComponent);
+    component = fixture.componentInstance;
+    workflowActionService = TestBed.inject(WorkflowActionService);
+    dragDropService = TestBed.inject(DragDropService);
 
-      // Moving the operator does move the chips with it.
-      workflowActionService.getJointGraphWrapper().setElementPosition(mockScanPredicate.operatorID, 50, 30);
-      detectChangesSpy.mockClear();
-      (component as any).repositionRecommendations();
+    (TestBed.inject(GuiConfigService).env as any).operatorRecommendationEnabled = true;
+    getRecommendationsSpy = vi
+      .spyOn(TestBed.inject(OperatorRecommendationService), "getRecommendations")
+      .mockReturnValue(of(mockRecommendations));
 
-      expect(detectChangesSpy).toHaveBeenCalledTimes(1);
-    });
+    // detect changes to run ngAfterViewInit and wire up the recommender
+    fixture.detectChanges();
+  });
+
+  it("requests suggestions when the user drops an operator onto the canvas", () => {
+    workflowActionService.addOperator(mockScanPredicate, mockPoint);
+    emitOperatorDrop(mockScanPredicate);
+
+    expect(getRecommendationsSpy).toHaveBeenCalledTimes(1);
+    expect(component.operatorSuggestion?.operatorId).toEqual(mockScanPredicate.operatorID);
+    expect(component.operatorSuggestion?.recommendations).toEqual(mockRecommendations);
+  });
+
+  it("does not request suggestions for operators that arrive without a drop", () => {
+    // Workflow load, undo/redo, paste and remote co-editor edits all reach the
+    // graph through addOperator with no drop event, and must stay silent.
+    workflowActionService.addOperator(mockScanPredicate, mockPoint);
+    workflowActionService.addOperator(mockSentimentPredicate, mockPoint);
+
+    expect(getRecommendationsSpy).not.toHaveBeenCalled();
+    expect(component.operatorSuggestion).toBeNull();
+  });
+
+  it("dismisses the suggestions when the anchor operator is deleted", () => {
+    workflowActionService.addOperator(mockScanPredicate, mockPoint);
+    emitOperatorDrop(mockScanPredicate);
+    expect(component.operatorSuggestion).not.toBeNull();
+
+    workflowActionService.deleteOperator(mockScanPredicate.operatorID);
+
+    expect(component.operatorSuggestion).toBeNull();
+  });
+
+  it("chains a fresh round of suggestions onto the operator a clicked suggestion creates", () => {
+    workflowActionService.addOperator(mockScanPredicate, mockPoint);
+    emitOperatorDrop(mockScanPredicate);
+    getRecommendationsSpy.mockClear();
+
+    component.materializeRecommendation(mockRecommendations[0]);
+
+    // Materializing never emits a drop, so chaining only works if the click
+    // path asks for suggestions itself.
+    expect(getRecommendationsSpy).toHaveBeenCalledTimes(1);
+    expect(component.operatorSuggestion).not.toBeNull();
+    expect(component.operatorSuggestion?.operatorId).not.toEqual(mockScanPredicate.operatorID);
+  });
+
+  it("skips change detection when repositioning leaves the suggestions where they are", () => {
+    workflowActionService.addOperator(mockScanPredicate, mockPoint);
+    emitOperatorDrop(mockScanPredicate);
+    const detectChangesSpy = vi.spyOn((component as any).changeDetectorRef, "detectChanges");
+
+    // Unchanged position: repositioning must be a no-op. Without this guard the
+    // change:position listener re-renders the component on every drag frame.
+    (component as any).repositionRecommendations();
+
+    expect(detectChangesSpy).not.toHaveBeenCalled();
+
+    // Moving the operator does move the chips with it.
+    workflowActionService.getJointGraphWrapper().setElementPosition(mockScanPredicate.operatorID, 50, 30);
+    detectChangesSpy.mockClear();
+    (component as any).repositionRecommendations();
+
+    expect(detectChangesSpy).toHaveBeenCalledTimes(1);
   });
 });

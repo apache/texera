@@ -66,7 +66,6 @@ class AccessControlResourceSpec
     user.setName("testuser")
     user.setEmail("test@example.com")
     user.setRole(UserRoleEnum.REGULAR)
-    user.setPassword("password")
     user
   }
 
@@ -76,7 +75,6 @@ class AccessControlResourceSpec
     user.setName("testuser2")
     user.setEmail("test2@example.com")
     user.setRole(UserRoleEnum.REGULAR)
-    user.setPassword("password")
     user
   }
 
@@ -139,12 +137,12 @@ class AccessControlResourceSpec
       computingUnitOfUserDao.insert(cuAccess)
     }
 
-    val claims = JwtAuth.jwtClaims(testUser1, 1)
+    val claims = JwtAuth.jwtClaims(testUser1)
     token = JwtAuth.jwtToken(claims)
   }
 
   override protected def afterAll(): Unit = {
-    shutdownDB()
+    closeConnectionPool()
   }
 
   "AccessControlResource" should "return FORBIDDEN for a GET request without a token" in {
