@@ -95,9 +95,7 @@ object StorageConfig {
   // Per-user warehouses (#6870). On only when the switch is on AND the catalog is REST
   // (Lakekeeper): warehouses are Lakekeeper entities, so any other catalog type keeps
   // the feature off regardless of the switch.
-  // warehouseEnabled is a var because tests need to exercise the enabled path
-  // (mirroring s3Endpoint above); production code never writes it.
-  var warehouseEnabled: Boolean =
+  val warehouseEnabled: Boolean =
     conf.getBoolean("storage.warehouse.enabled") && icebergCatalogType == "rest"
 
   // File storage configurations

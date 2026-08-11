@@ -44,9 +44,8 @@ import scala.collection.mutable
   * Spec for [[WarehouseResource]] (#6932): the disabled-gate behavior, and the
   * create/list/delete flow against MockTexeraDB with a stubbed [[LakekeeperClient]].
   *
-  * `StorageConfig.warehouseEnabled` is a test-overridable var (like `s3Endpoint`); the
-  * only other readers take the flag as an explicit parameter, so flipping it here cannot
-  * interfere with any other suite.
+  * The feature flag is a constructor dependency, so the two gate states are two resource
+  * instances — no global state is touched, and suites cannot interfere with each other.
   */
 class WarehouseResourceSpec
     extends AnyFlatSpec
@@ -74,14 +73,13 @@ class WarehouseResourceSpec
     }
   }
 
-  private val resource = new WarehouseResource(stubClient)
+  private val resource = new WarehouseResource(stubClient, enabled = true)
+  private val disabledResource = new WarehouseResource(stubClient, enabled = false)
   private var sessionUser: SessionUser = _
   private var otherUser: SessionUser = _
-  private var originalEnabled: Boolean = _
 
   override protected def beforeAll(): Unit = {
     initializeDBAndReplaceDSLContext()
-    originalEnabled = StorageConfig.warehouseEnabled
 
     val userDao = new UserDao(getDSLContext.configuration())
     val user = new User
@@ -99,13 +97,9 @@ class WarehouseResourceSpec
     otherUser = new SessionUser(other)
   }
 
-  override protected def afterAll(): Unit = {
-    StorageConfig.warehouseEnabled = originalEnabled
-    closeConnectionPool()
-  }
+  override protected def afterAll(): Unit = closeConnectionPool()
 
   override protected def beforeEach(): Unit = {
-    StorageConfig.warehouseEnabled = true
     createFailure = None
     deleteFailure = None
     createdNames.clear()
@@ -118,17 +112,15 @@ class WarehouseResourceSpec
   // ---------------------------------------------------------------------------
 
   "status" should "report disabled with no warehouses while the flag is off" in {
-    StorageConfig.warehouseEnabled = false
-    val status = resource.status(sessionUser)
+    val status = disabledResource.status(sessionUser)
     status.enabled shouldBe false
     status.warehouses shouldBe empty
   }
 
   "create and delete" should "be refused while the flag is off" in {
-    StorageConfig.warehouseEnabled = false
     a[ForbiddenException] should be thrownBy
-      resource.create(CreateWarehouseRequest("mybucket"), sessionUser)
-    a[ForbiddenException] should be thrownBy resource.delete(1, sessionUser)
+      disabledResource.create(CreateWarehouseRequest("mybucket"), sessionUser)
+    a[ForbiddenException] should be thrownBy disabledResource.delete(1, sessionUser)
   }
 
   // ---------------------------------------------------------------------------
@@ -228,11 +220,10 @@ class WarehouseResourceSpec
     resource.status(sessionUser).warehouses shouldBe empty
   }
 
-  "the no-arg constructor" should "build against the configured Lakekeeper client" in {
-    StorageConfig.warehouseEnabled = false
-    // Jersey instantiates the resource reflectively via this constructor; the
-    // disabled status path exercises it without any Lakekeeper call.
-    new WarehouseResource().status(sessionUser).enabled shouldBe false
+  "the no-arg constructor" should "read the configured flag and client" in {
+    // Jersey instantiates the resource reflectively via this constructor; storage.conf
+    // keeps the feature off by default, so this exercises it without a Lakekeeper call.
+    new WarehouseResource().status(sessionUser).enabled shouldBe StorageConfig.warehouseEnabled
   }
 
   it should "not let a user delete someone else's warehouse" in {

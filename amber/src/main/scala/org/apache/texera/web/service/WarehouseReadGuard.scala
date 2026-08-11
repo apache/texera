@@ -25,6 +25,14 @@ import org.apache.texera.common.config.StorageConfig
 import java.net.URI
 
 /**
+  * Signals that a read was refused because it targets a per-user warehouse the deployment
+  * cannot serve. A distinct type so callers with a catch-all (e.g. SyncExecutionResource,
+  * which degrades other failures into empty results) can let this one propagate: a kill
+  * switch that silently returns "no data" is exactly the failure mode #6930 forbids.
+  */
+class WarehouseUnavailableException(message: String) extends IllegalStateException(message)
+
+/**
   * Guards reads of results that live in a per-user warehouse while the feature is off (#6930).
   *
   * The warehouse switch is a kill switch: turning it off must disable reads too, and it must
@@ -42,10 +50,10 @@ object WarehouseReadGuard {
     // A `/wh/` prefix that decodes to no warehouse is unresolvable (illegal name); opening
     // it would silently fall back to the shared warehouse — refuse instead (#6930).
     if (warehouse.isEmpty && hasWarehousePrefix(uri)) {
-      throw new IllegalStateException(s"unresolvable warehouse URI: $uri")
+      throw new WarehouseUnavailableException(s"unresolvable warehouse URI: $uri")
     }
     warehouse.filterNot(_ => enabled).foreach { name =>
-      throw new IllegalStateException(
+      throw new WarehouseUnavailableException(
         s"this result is stored in warehouse '$name'; per-user warehouses are disabled in this deployment"
       )
     }

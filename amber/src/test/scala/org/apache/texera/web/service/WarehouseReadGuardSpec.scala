@@ -65,6 +65,18 @@ class WarehouseReadGuardSpec extends AnyFlatSpec with Matchers {
       WarehouseReadGuard.assertReadable(uri("/wh/a%2Fb/wid/1/eid/2/result"), enabled = false)
   }
 
+  it should "refuse with a typed exception callers can let through their catch-alls" in {
+    // SyncExecutionResource degrades other failures into empty results; the kill-switch
+    // refusal is typed so it can be rethrown there instead of vanishing (#6930).
+    a[WarehouseUnavailableException] should be thrownBy
+      WarehouseReadGuard.assertReadable(
+        uri("/wh/user-7-mybucket/wid/1/eid/2/result"),
+        enabled = false
+      )
+    a[WarehouseUnavailableException] should be thrownBy
+      WarehouseReadGuard.assertReadable(uri("/wh/a%2Fb/wid/1/eid/2/result"), enabled = true)
+  }
+
   "the default enabled argument" should "read the configured flag" in {
     // Covers the default-argument methods; a default-warehouse URI passes and is
     // never skipped in either flag state, so this is deterministic regardless of

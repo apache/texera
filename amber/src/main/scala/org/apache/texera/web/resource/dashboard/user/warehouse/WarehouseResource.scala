@@ -75,20 +75,23 @@ object WarehouseResource {
   * warehouses, create a Local-flavor warehouse on the deployment's own object store,
   * and delete one (empty-first in Lakekeeper, purging its data files).
   *
-  * Everything except `/status` is gated by [[StorageConfig.warehouseEnabled]]; the
-  * mutating endpoints return 403 while the flag is off. `/status` always answers so the
-  * frontend can decide whether to show the feature at all.
+  * Everything except `/status` is gated by the warehouse feature flag; the mutating
+  * endpoints return 403 while it is off. `/status` always answers so the frontend can
+  * decide whether to show the feature at all.
   */
 @Path("/warehouse")
 @Produces(Array(MediaType.APPLICATION_JSON))
-class WarehouseResource(client: LakekeeperClient) extends LazyLogging {
+class WarehouseResource(client: LakekeeperClient, enabled: Boolean) extends LazyLogging {
 
-  def this() = this(new LakekeeperClient())
+  // Jersey builds the resource through this constructor. The flag is captured once,
+  // which is equivalent to reading it per call: storage.conf is resolved at class load
+  // and never changes at runtime.
+  def this() = this(new LakekeeperClient(), StorageConfig.warehouseEnabled)
 
   @GET
   @Path("/status")
   def status(@Auth current_user: SessionUser): WarehouseStatus = {
-    if (!StorageConfig.warehouseEnabled) {
+    if (!enabled) {
       return WarehouseStatus(enabled = false, warehouses = List())
     }
     val warehouses = context
@@ -194,7 +197,7 @@ class WarehouseResource(client: LakekeeperClient) extends LazyLogging {
   }
 
   private def requireEnabled(): Unit =
-    if (!StorageConfig.warehouseEnabled) {
+    if (!enabled) {
       throw new ForbiddenException("per-user warehouses are disabled in this deployment")
     }
 }
