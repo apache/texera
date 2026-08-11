@@ -116,7 +116,6 @@ class WorkflowResourceCoverSpec
     user.setUid(uid)
     user.setName(name)
     user.setEmail(s"$name@test.com")
-    user.setPassword("password")
     user
   }
 

@@ -120,7 +120,7 @@ val dropwizardDependencies = Seq(
   // https://mvnrepository.com/artifact/com.github.toastshaman/dropwizard-auth-jwt
   "com.github.toastshaman" % "dropwizard-auth-jwt" % "1.1.2-0",
   "com.github.dirkraft.dropwizard" % "dropwizard-file-assets" % "0.0.2",
-  "io.dropwizard-bundles" % "dropwizard-redirect-bundle" % "1.0.5",
+  "io.dropwizard-bundles" % "dropwizard-redirect-bundle" % "1.3.5",
   "com.liveperson" % "dropwizard-websockets" % "1.3.14",
   // https://mvnrepository.com/artifact/commons-io/commons-io
   "commons-io" % "commons-io" % "2.15.1"
@@ -191,7 +191,7 @@ val hadoopDependencies = Seq(
 // Google Service related
 val googleServiceDependencies = Seq(
   "com.google.oauth-client" % "google-oauth-client-jetty" % "1.39.0" exclude("com.google.guava", "guava"),
-  "com.google.api-client" % "google-api-client" % "2.2.0" exclude("com.google.guava", "guava"),
+  "com.google.api-client" % "google-api-client" % "2.9.0" exclude("com.google.guava", "guava"),
   "com.sun.mail" % "javax.mail" % "1.6.2"
 )
 
@@ -352,10 +352,10 @@ libraryDependencies += "org.apache.commons" % "commons-jcs3-core" % "3.2.1"
 
 // For supporting MultiDict
 // https://mvnrepository.com/artifact/org.scala-lang.modules/scala-collection-contrib
-libraryDependencies += "org.scala-lang.modules" %% "scala-collection-contrib" % "0.3.0"
+libraryDependencies += "org.scala-lang.modules" %% "scala-collection-contrib" % "0.4.0"
 
 // For supporting deepcopy
 // https://mvnrepository.com/artifact/io.github.kostaskougios/cloning
-libraryDependencies += "io.github.kostaskougios" % "cloning" % "1.10.3"
+libraryDependencies += "io.github.kostaskougios" % "cloning" % "1.13.0-jdk8"
 
 

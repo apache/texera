@@ -72,9 +72,11 @@ object HuggingFaceCodegenBase {
        |
        |# Defensive format check for MODEL_ID before it is interpolated into
        |# HF URL paths. The base host is hardcoded so the worst case isn't
-       |# SSRF, but rejecting `..` segments / query strings / fragments /
-       |# control chars keeps the operator's request shape predictable.
-       |_HF_MODEL_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*(/[A-Za-z0-9._-]+)+$$")
+       |# SSRF, but rejecting `..` traversal / query strings / fragments /
+       |# control chars keeps the operator's request shape predictable. The
+       |# leading (?!.*\.\.) rejects any `..`; the trailing /segment group is
+       |# optional so single-segment legacy IDs like `gpt2` are also accepted.
+       |_HF_MODEL_ID_PATTERN = re.compile(r"^(?!.*\.\.)[A-Za-z0-9][A-Za-z0-9._-]*(/[A-Za-z0-9._-]+)*$$")
        |
        |class ProcessTableOperator(UDFTableOperator):
        |
@@ -488,7 +490,7 @@ object HuggingFaceCodegenBase {
        |        if not _HF_MODEL_ID_PATTERN.match(self.MODEL_ID or ""):
        |            raise ValueError(
        |                f"Invalid Hugging Face model ID '{self.MODEL_ID}'. "
-       |                f"Expected format like 'org/model-name' or 'org/model-name/revision'."
+       |                f"Expected a model ID like 'gpt2', 'org/model-name', or 'org/model-name/revision'."
        |            )
        |
        |        # --- resolve API token ---
@@ -504,28 +506,32 @@ object HuggingFaceCodegenBase {
        |
        |        # --- validate prompt column exists (skipped for image tasks and binary-only audio tasks) ---
        |        if task not in image_tasks and task not in audio_only_tasks:
-       |            assert prompt_col in table.columns, (
-       |                f"Prompt column '{prompt_col}' not found in input table. "
-       |                f"Available columns: {list(table.columns)}"
-       |            )
+       |            if prompt_col not in table.columns:
+       |                raise ValueError(
+       |                    f"Prompt column '{prompt_col}' not found in input table. "
+       |                    f"Available columns: {list(table.columns)}"
+       |                )
        |        if task == "zero-shot-classification":
        |            labels = [l.strip() for l in str(self.CANDIDATE_LABELS).split(",") if l.strip()]
-       |            assert labels, (
-       |                "Candidate Labels are required for zero-shot-classification. "
-       |                "Provide a comma-separated list of labels."
-       |            )
+       |            if not labels:
+       |                raise ValueError(
+       |                    "Candidate Labels are required for zero-shot-classification. "
+       |                    "Provide a comma-separated list of labels."
+       |                )
        |        if task == "question-answering":
        |            ctx_col = self.CONTEXT_COLUMN
-       |            assert ctx_col and ctx_col in table.columns, (
-       |                f"Context column '{ctx_col}' not found in input table. "
-       |                f"Available columns: {list(table.columns)}"
-       |            )
+       |            if not (ctx_col and ctx_col in table.columns):
+       |                raise ValueError(
+       |                    f"Context column '{ctx_col}' not found in input table. "
+       |                    f"Available columns: {list(table.columns)}"
+       |                )
        |        if task in ("sentence-similarity", "text-ranking"):
        |            sent_col = self.SENTENCES_COLUMN
-       |            assert sent_col and sent_col in table.columns, (
-       |                f"Sentences column '{sent_col}' not found in input table. "
-       |                f"Available columns: {list(table.columns)}"
-       |            )
+       |            if not (sent_col and sent_col in table.columns):
+       |                raise ValueError(
+       |                    f"Sentences column '{sent_col}' not found in input table. "
+       |                    f"Available columns: {list(table.columns)}"
+       |                )
        |
        |        # --- handle empty table ---
        |        if table.empty:
@@ -566,7 +572,13 @@ object HuggingFaceCodegenBase {
        |        audio_error = None
        |        if task in image_tasks and not use_image_column:
        |            if not has_image_upload:
-       |                image_error = "No image source. Set an Input Image Column or upload an image."
+       |                if self.INPUT_IMAGE_COLUMN and str(self.INPUT_IMAGE_COLUMN).strip():
+       |                    image_error = (
+       |                        f"Input Image Column '{self.INPUT_IMAGE_COLUMN}' not found in the input table. "
+       |                        f"Available columns: {list(table.columns)}"
+       |                    )
+       |                else:
+       |                    image_error = "No image source. Set an Input Image Column or upload an image."
        |            else:
        |                try:
        |                    image_bytes = self._read_image_input()
@@ -574,7 +586,13 @@ object HuggingFaceCodegenBase {
        |                    image_error = f"Could not read image input ({type(e).__name__}: {e})"
        |        if task in audio_only_tasks and not use_audio_column:
        |            if not has_audio_upload:
-       |                audio_error = "No audio source. Set an Input Audio Column or upload audio."
+       |                if self.INPUT_AUDIO_COLUMN and str(self.INPUT_AUDIO_COLUMN).strip():
+       |                    audio_error = (
+       |                        f"Input Audio Column '{self.INPUT_AUDIO_COLUMN}' not found in the input table. "
+       |                        f"Available columns: {list(table.columns)}"
+       |                    )
+       |                else:
+       |                    audio_error = "No audio source. Set an Input Audio Column or upload audio."
        |            else:
        |                try:
        |                    audio_bytes = self._read_audio_input()
@@ -888,7 +906,7 @@ object HuggingFaceCodegenBase {
        |        # base64-encoded bytes. Anything else is treated as raw bytes, never
        |        # as a path to open.
        |        try:
-       |            return base64.b64decode(val)
+       |            return base64.b64decode(val, validate=True)
        |        except Exception:
        |            return val.encode("utf-8")
        |

@@ -238,20 +238,23 @@ class TestUiParameterSupport:
         assert _UiParameterSupport._parse(raw_value, attr_type) == expected
 
     @pytest.mark.parametrize(
-        ("raw_value", "attr_type", "expected"),
+        ("raw_value", "attr_type"),
         [
-            ("", AttributeType.INT, 0),
-            ("   ", AttributeType.LONG, 0),
-            ("", AttributeType.DOUBLE, 0.0),
-            (
-                "",
-                AttributeType.TIMESTAMP,
-                datetime.datetime(1970, 1, 1, tzinfo=datetime.timezone.utc),
-            ),
+            ("", AttributeType.INT),
+            ("   ", AttributeType.LONG),
+            ("", AttributeType.DOUBLE),
+            ("\t", AttributeType.BOOL),
+            ("", AttributeType.TIMESTAMP),
         ],
     )
-    def test_parse_empty_values(self, raw_value, attr_type, expected):
-        assert _UiParameterSupport._parse(raw_value, attr_type) == expected
+    def test_parse_empty_non_string_values_raises_value_error(
+        self, raw_value, attr_type
+    ):
+        with pytest.raises(ValueError, match="UiParameter value cannot be empty"):
+            _UiParameterSupport._parse(raw_value, attr_type)
+
+    def test_parse_empty_string_value(self):
+        assert _UiParameterSupport._parse("", AttributeType.STRING) == ""
 
     def test_java_attribute_type_aliases_parse_like_python_names(self):
         assert AttributeType.INTEGER is AttributeType.INT
@@ -262,8 +265,6 @@ class TestUiParameterSupport:
     @pytest.mark.parametrize(
         ("raw_value", "expected"),
         [
-            ("", False),
-            ("   ", False),
             ("True", True),
             ("true", True),
             ("1", True),

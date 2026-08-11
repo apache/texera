@@ -38,7 +38,7 @@ object DocumentFactory {
   val ICEBERG = "iceberg"
 
   private def sanitizeURIPath(uri: URI): String =
-    uri.getPath.stripPrefix("/").replace("/", "_")
+    uri.getPath.stripPrefix("/").replaceFirst("^wh/[^/]+/", "").replace("/", "_")
 
   private def resolveNamespace(resourceType: VFSResourceType.Value): String =
     resourceType match {
@@ -76,13 +76,15 @@ object DocumentFactory {
   def createDocument(uri: URI, schema: Schema): VirtualDocument[_] = {
     uri.getScheme match {
       case VFS_FILE_URI_SCHEME =>
-        val resourceType = decodeURI(uri).resourceType
+        val components = decodeURI(uri)
+        val warehouse = components.warehouse
+        val resourceType = components.resourceType
         val storageKey = sanitizeURIPath(uri)
         val namespace = resolveNamespace(resourceType)
 
         val icebergSchema = IcebergUtil.toIcebergSchema(schema)
         IcebergUtil.createTable(
-          IcebergCatalogInstance.getInstance(),
+          IcebergCatalogInstance.getInstance(warehouse),
           namespace,
           storageKey,
           icebergSchema,
@@ -97,7 +99,8 @@ object DocumentFactory {
           storageKey,
           icebergSchema,
           serde,
-          deserde
+          deserde,
+          warehouse
         )
       case unsupportedScheme =>
         throw new UnsupportedOperationException(
@@ -119,11 +122,13 @@ object DocumentFactory {
   def documentExists(uri: URI): Boolean = {
     uri.getScheme match {
       case VFS_FILE_URI_SCHEME =>
-        val resourceType = decodeURI(uri).resourceType
+        val components = decodeURI(uri)
+        val warehouse = components.warehouse
+        val resourceType = components.resourceType
         val storageKey = sanitizeURIPath(uri)
         val namespace = resolveNamespace(resourceType)
         IcebergCatalogInstance
-          .getInstance()
+          .getInstance(warehouse)
           .tableExists(TableIdentifier.of(namespace, storageKey))
 
       case unsupportedScheme =>
@@ -165,13 +170,15 @@ object DocumentFactory {
     uri.getScheme match {
       case DATASET_FILE_URI_SCHEME => (new DatasetFileDocument(uri), None)
       case VFS_FILE_URI_SCHEME =>
-        val resourceType = decodeURI(uri).resourceType
+        val components = decodeURI(uri)
+        val warehouse = components.warehouse
+        val resourceType = components.resourceType
         val storageKey = sanitizeURIPath(uri)
         val namespace = resolveNamespace(resourceType)
 
         val table = IcebergUtil
           .loadTableMetadata(
-            IcebergCatalogInstance.getInstance(),
+            IcebergCatalogInstance.getInstance(warehouse),
             namespace,
             storageKey
           )
@@ -190,7 +197,8 @@ object DocumentFactory {
             storageKey,
             table.schema(),
             serde,
-            deserde
+            deserde,
+            warehouse
           ),
           Some(amberSchema)
         )

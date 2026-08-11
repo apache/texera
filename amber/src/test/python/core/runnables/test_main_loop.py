@@ -2419,6 +2419,44 @@ class TestMainLoop:
         assert emitted_id == "outer-loop"
         assert reset_calls == [], "a LoopStart never resets output storage"
 
+    def test_loopstart_merges_unstamped_state_instead_of_forwarding_it(
+        self, main_loop, monkeypatch
+    ):
+        # The deliberate asymmetry with the LoopEnd branch: an UNstamped
+        # counter-0 frame at a LoopStart is MERGED into the loop variables,
+        # not forwarded. It has to be -- the back-edge writes the next
+        # iteration's variables to this LoopStart's own input-port state URI
+        # with the identical "no loop" envelope (State.to_tuple(0)), so a
+        # LoopStart cannot tell the loop's own state from an upstream/body
+        # operator's boundary state. A LoopEnd can, because its inbound loop
+        # state is always stamped.
+        class StubLoopStart(LoopStartOperator):
+            def process_table(self, table, port):
+                yield
+
+        executor = StubLoopStart()
+        main_loop.context.executor_manager.executor = executor
+        emitted, switched, reset_calls = self._capture_state_emit(
+            main_loop, monkeypatch
+        )
+        monkeypatch.setattr(
+            main_loop.context.state_processing_manager,
+            "get_output_state",
+            lambda: None,
+        )
+
+        main_loop._process_state_frame(
+            StateFrame(State({"seed": 7}), loop_counter=0, loop_start_id="")
+        )
+
+        assert emitted == [], "an unstamped state at a LoopStart is not forwarded"
+        assert switched == [True], "it reaches the operator, which merges it"
+        assert reset_calls == []
+        # It is handed to the operator as the current input state, so
+        # LoopStartOperator.process_state merges it into self.state.
+        passed = main_loop.context.state_processing_manager.current_input_state
+        assert passed == State({"seed": 7})
+
     def test_loopend_passthrough_decrements_resets_output_and_skips_operator(
         self, main_loop, monkeypatch
     ):
@@ -2526,6 +2564,148 @@ class TestMainLoop:
         assert executor._attached_table is loop_table
         assert consumed == [(incoming, 0)]
         assert main_loop._pending_loop_state is None, "stash must be cleared"
+
+    def test_loopend_forwards_unstamped_state_without_consuming(
+        self, main_loop, monkeypatch
+    ):
+        # A loop-body operator that emits its own boundary state
+        # (produce_state_on_start/finish -- a public API on both engine sides)
+        # sends it with the "no loop" envelope (counter 0, id ""). That state
+        # is NOT the loop's own boundary state: taking it would clobber the
+        # captured back-jump id with "" and then fail the deferred consume's
+        # bookkeeping-URI lookup for LoopStart ''. A real loop state is always
+        # stamped --
+        # the matching LoopStart stamps its own id on every iteration's output
+        # -- so an UNstamped counter-0 frame at a LoopEnd must be forwarded
+        # downstream unchanged, skipping the operator, like any default
+        # pass-through.
+        main_loop.context.executor_manager.executor = _FalseLoopEnd()
+        emitted, switched, reset_calls = self._capture_state_emit(
+            main_loop, monkeypatch
+        )
+        # The loop's own state was already consumed and its id captured.
+        main_loop._loop_start_id = "loop-start-1"
+
+        main_loop._process_state_frame(
+            StateFrame(
+                State({"note": "from-body-op"}),
+                loop_counter=0,
+                loop_start_id="",
+            )
+        )
+
+        assert switched == [], "unstamped state must not invoke the operator"
+        assert reset_calls == [], "unstamped state must not reset output"
+        assert emitted == [(State({"note": "from-body-op"}), 0, "")], (
+            "unstamped state must forward downstream with its envelope "
+            f"unchanged; emitted: {emitted}"
+        )
+        assert main_loop._loop_start_id == "loop-start-1", (
+            "an unstamped state must not clobber the captured back-jump id"
+        )
+        # Forwarding an unstamped state must NOT count as taking the loop's
+        # own state -- that is what the completion guard keys on.
+        assert main_loop._loop_state_consumed is False
+
+    @pytest.mark.timeout(2)
+    def test_end_channel_holds_the_region_when_only_unstamped_states_arrived(
+        self, main_loop, monkeypatch
+    ):
+        # Forwarding unstamped states is right for a body operator's own
+        # boundary state, but it must not swallow the symptom of a LOST stamp:
+        # a hop that blanks the envelope (the bug class #6660/#6661 fixed)
+        # makes the loop's OWN state arrive unstamped, and forwarding it leaves
+        # _loop_table None -> condition() False -> one iteration reported as
+        # success. A Loop End that forwarded an unstamped state and never took
+        # a stamped one must fail loudly instead -- and it must do so from
+        # _process_end_channel, BEFORE port_completed goes out, because region
+        # completion is port-based: reported from complete() the error would
+        # arrive after the coordinator already considers the region done.
+        executor = _FalseLoopEnd()
+        main_loop.context.executor_manager.executor = executor
+        self._capture_state_emit(main_loop, monkeypatch)
+
+        completed = []
+        port_completed_calls = []
+        console_msgs = []
+        monkeypatch.setattr(main_loop, "process_input_tuple", lambda: None)
+        monkeypatch.setattr(main_loop, "complete", lambda: completed.append(True))
+        monkeypatch.setattr(
+            main_loop, "_send_console_message", lambda msg: console_msgs.append(msg)
+        )
+        monkeypatch.setattr(
+            main_loop.context.pause_manager,
+            "pause",
+            lambda pause_type, change_state=True: None,
+        )
+
+        class _Coordinator:
+            def port_completed(self, request):
+                port_completed_calls.append(request)
+
+        monkeypatch.setattr(
+            main_loop._async_rpc_client, "coordinator_stub", lambda: _Coordinator()
+        )
+
+        # The loop's own state arrives with its stamp lost upstream.
+        main_loop._process_state_frame(
+            StateFrame(State({"i": 0}), loop_counter=0, loop_start_id="")
+        )
+        assert main_loop._forwarded_unstamped_state is True
+        assert main_loop._loop_state_consumed is False
+
+        monkeypatch.setattr(main_loop, "process_input_state", lambda *a, **k: None)
+        main_loop._process_end_channel()
+
+        assert main_loop.context.exception_manager.has_exception()
+        error_msgs = [m for m in console_msgs if m.msg_type == ConsoleMessageType.ERROR]
+        assert len(error_msgs) == 1
+        assert "loop envelope was lost upstream" in error_msgs[0].title
+        assert port_completed_calls == [], "no port may be reported complete"
+        assert completed == [], "the worker must not complete"
+
+    def test_complete_accepts_unstamped_state_alongside_the_loop_state(
+        self, main_loop, monkeypatch
+    ):
+        # The legitimate shape this PR enables: a body operator's boundary
+        # state is forwarded AND the loop's own stamped state is consumed. The
+        # completion guard must stay silent, in either arrival order.
+        for body_state_first in (True, False):
+            executor = _FalseLoopEnd()
+            main_loop.context.executor_manager.executor = executor
+            main_loop._forwarded_unstamped_state = False
+            main_loop._loop_state_consumed = False
+            main_loop._loop_start_id = ""
+            self._capture_state_emit(main_loop, monkeypatch)
+            monkeypatch.setattr(
+                main_loop.context.state_processing_manager,
+                "get_output_state",
+                lambda: None,
+            )
+
+            body = StateFrame(
+                State({"note": "from-body-op"}), loop_counter=0, loop_start_id=""
+            )
+            loop = StateFrame(
+                State({"i": 0}), loop_counter=0, loop_start_id="outer-loop"
+            )
+            for frame in (body, loop) if body_state_first else (loop, body):
+                main_loop._process_state_frame(frame)
+
+            # Must not raise, in either order.
+            main_loop._check_loop_state_arrived()
+            assert main_loop._forwarded_unstamped_state is True
+            assert main_loop._loop_state_consumed is True
+            assert main_loop._loop_start_id == "outer-loop"
+
+            # The guard must key on the DURABLE evidence that a stamped state
+            # was taken (_loop_start_id), not on the fan-in dedup flag: that
+            # flag belongs to the dedup, and a caller may legitimately clear
+            # it once the iteration's state has been taken. Keyed on the flag,
+            # this legitimate shape would start raising the moment anything
+            # re-armed it -- so simulate that and require silence.
+            main_loop._loop_state_consumed = False
+            main_loop._check_loop_state_arrived()
 
     def test_loopend_consumes_its_loop_state_once_per_iteration(
         self, main_loop, monkeypatch
