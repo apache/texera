@@ -100,4 +100,17 @@ class NetworkGraphOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matche
     // varies between processes, which would move the nodes from run to run.
     code should include("dict.fromkeys")
   }
+
+  it should "seed the layout so the same graph draws the same coordinates every run" in {
+    opDesc.source = "from_node"
+    opDesc.destination = "to_node"
+    val code = opDesc.generatePythonCode()
+
+    // spring_layout starts from random positions, so an unseeded call gives the
+    // same graph different coordinates on every run.
+    val layout = code.linesIterator
+      .find(_.contains("nx.spring_layout"))
+      .getOrElse(fail("generated code no longer calls nx.spring_layout"))
+    layout should include("seed=")
+  }
 }
