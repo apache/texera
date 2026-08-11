@@ -35,6 +35,7 @@ import org.apache.texera.amber.operator.metadata.annotations.{
   AutofillAttributeName,
   AutofillAttributeNameList,
   AutofillAttributeNameOnPort1,
+  CommonOpDescAnnotation,
   SampleColumn
 }
 import org.apache.texera.amber.util.JSONUtils.objectMapper
@@ -350,7 +351,7 @@ object ConfigGenerator {
           rowPaths(f, node.at(childPath), childPath)
             .foreach(rowPath => used ++= occupiedColumns(row, node, schemas, rowPath))
         case None if hasAutofill(f) =>
-          val port = if (f.isAnnotationPresent(classOf[AutofillAttributeNameOnPort1])) 1 else 0
+          val port = autofillSpec(f).map(_.port).getOrElse(0)
           val columns =
             schemas.get(port).map(_.getAttributes.map(_.getName).toSet).getOrElse(Set.empty)
           val held = node.at(childPath)
@@ -653,11 +654,10 @@ object ConfigGenerator {
     val untouched = defaultsOf(f.getDeclaringClass).path(jsonNameOf(f))
     if (required || baseNode.at(childPath) != untouched) None
     else {
-      val port = if (f.isAnnotationPresent(classOf[AutofillAttributeNameOnPort1])) 1 else 0
-      resolveColumn(f, schemas, port, used, siblings).toOption.map { col =>
+      val spec = autofillSpec(f).getOrElse(AutofillSpec(port = 0, holdsList = false))
+      resolveColumn(f, schemas, spec.port, used, siblings).toOption.map { col =>
         val value: JsonNode =
-          if (f.isAnnotationPresent(classOf[AutofillAttributeNameList]))
-            objectMapper.createArrayNode().add(col)
+          if (spec.holdsList) objectMapper.createArrayNode().add(col)
           else objectMapper.getNodeFactory.textNode(col)
         (childPath, value)
       }
@@ -999,50 +999,51 @@ object ConfigGenerator {
       rowCount: Int,
       siblings: JsonNode = noSiblings
   ): Either[String, JsonNode] = {
-    if (f.isAnnotationPresent(classOf[AutofillAttributeNameList]))
-      columnNames(schemas, 0).map { names =>
-        // Honor the field's attributeTypeRules (same production metadata scalar
-        // autofill fields use) so a numeric-only list doesn't pick up string
-        // columns; fall back to all columns if no column matches the rule.
-        val filtered = allowedTypes(f, siblings) match {
-          case Some(types) =>
-            val matching = schemas
-              .get(0)
-              .map(_.getAttributes.filter(a => types.contains(a.getType)).map(_.getName))
-              .getOrElse(Seq.empty)
-            if (matching.nonEmpty) matching else names
-          case None => names
-        }
-        val arr = objectMapper.createArrayNode(); filtered.foreach(arr.add); arr
-      }
-    else if (f.isAnnotationPresent(classOf[AutofillAttributeNameOnPort1]))
-      resolveColumn(f, schemas, 1, used, siblings).map(objectMapper.getNodeFactory.textNode)
-    else if (f.isAnnotationPresent(classOf[AutofillAttributeName]))
-      resolveColumn(f, schemas, 0, used, siblings).map(objectMapper.getNodeFactory.textNode)
-    else {
-      val t = f.getType
-      if (isList(t))
-        // An OPTIONAL list starts EMPTY, the way the UI does: its `+` button adds the
-        // first row, so a config nobody touched has none, and the branch an operator
-        // takes for "no rows at all" is only reached this way. A REQUIRED list gets
-        // one row — its operator asserts the list is non-empty, so zero is not a
-        // config it can run. Either way the extra row comes from [[extraRowFills]].
-        if (!Option(f.getAnnotation(classOf[JsonProperty])).exists(_.required))
-          Right(objectMapper.createArrayNode())
-        else
-          elementType(f).flatMap(scalarOrNested(_, schemas, used, rowCount)).map { e =>
-            val arr: ArrayNode = objectMapper.createArrayNode(); arr.add(e); arr
+    autofillSpec(f) match {
+      case Some(spec) if spec.holdsList =>
+        columnNames(schemas, spec.port).map { names =>
+          // Honor the field's attributeTypeRules (same production metadata scalar
+          // autofill fields use) so a numeric-only list doesn't pick up string
+          // columns; fall back to all columns if no column matches the rule.
+          val filtered = allowedTypes(f, siblings) match {
+            case Some(types) =>
+              val matching = schemas
+                .get(spec.port)
+                .map(_.getAttributes.filter(a => types.contains(a.getType)).map(_.getName))
+                .getOrElse(Seq.empty)
+              if (matching.nonEmpty) matching else names
+            case None => names
           }
-      else if (isOption(t))
-        // An optional scalar is filled like the bare type: the `defaultValue` and any
-        // declared range sit on the field, not on the element, so a Grid Size that
-        // declares 10 is still filled with 10 rather than a generic number.
-        elementType(f).flatMap { elem =>
-          if (isNestedObject(elem)) scalarOrNested(elem, schemas, used, rowCount)
-          else scalarNode(elem, baseValueOf(f), schemas, used, NumHint(declaredRange(f), rowCount))
+          val arr = objectMapper.createArrayNode(); filtered.foreach(arr.add); arr
         }
-      else if (declaredEnumValues(f).size > 1) Right(declaredEnumDefault(f))
-      else scalarNode(t, baseValueOf(f), schemas, used, NumHint(declaredRange(f), rowCount))
+      case Some(spec) =>
+        resolveColumn(f, schemas, spec.port, used, siblings)
+          .map(objectMapper.getNodeFactory.textNode)
+      case None =>
+        val t = f.getType
+        if (isList(t))
+          // An OPTIONAL list starts EMPTY, the way the UI does: its `+` button adds the
+          // first row, so a config nobody touched has none, and the branch an operator
+          // takes for "no rows at all" is only reached this way. A REQUIRED list gets
+          // one row — its operator asserts the list is non-empty, so zero is not a
+          // config it can run. Either way the extra row comes from [[extraRowFills]].
+          if (!Option(f.getAnnotation(classOf[JsonProperty])).exists(_.required))
+            Right(objectMapper.createArrayNode())
+          else
+            elementType(f).flatMap(scalarOrNested(_, schemas, used, rowCount)).map { e =>
+              val arr: ArrayNode = objectMapper.createArrayNode(); arr.add(e); arr
+            }
+        else if (isOption(t))
+          // An optional scalar is filled like the bare type: the `defaultValue` and any
+          // declared range sit on the field, not on the element, so a Grid Size that
+          // declares 10 is still filled with 10 rather than a generic number.
+          elementType(f).flatMap { elem =>
+            if (isNestedObject(elem)) scalarOrNested(elem, schemas, used, rowCount)
+            else
+              scalarNode(elem, baseValueOf(f), schemas, used, NumHint(declaredRange(f), rowCount))
+          }
+        else if (declaredEnumValues(f).size > 1) Right(declaredEnumDefault(f))
+        else scalarNode(t, baseValueOf(f), schemas, used, NumHint(declaredRange(f), rowCount))
     }
   }
 
@@ -1233,15 +1234,53 @@ object ConfigGenerator {
     // `@JsonIgnore` is the field's own way of saying the same thing
     // [[ignoredProperties]] handles for the class: not part of the config.
     !f.isAnnotationPresent(classOf[JsonIgnore]) &&
-      (f.isAnnotationPresent(classOf[JsonProperty]) ||
-        f.isAnnotationPresent(classOf[AutofillAttributeName]) ||
-        f.isAnnotationPresent(classOf[AutofillAttributeNameOnPort1]) ||
-        f.isAnnotationPresent(classOf[AutofillAttributeNameList]))
+      (f.isAnnotationPresent(classOf[JsonProperty]) || hasAutofill(f))
 
-  private def hasAutofill(f: Field): Boolean =
-    f.isAnnotationPresent(classOf[AutofillAttributeName]) ||
-      f.isAnnotationPresent(classOf[AutofillAttributeNameOnPort1]) ||
-      f.isAnnotationPresent(classOf[AutofillAttributeNameList])
+  private def hasAutofill(f: Field): Boolean = autofillSpec(f).isDefined
+
+  /** How a field says "fill me with a column name from input port N", and
+    * whether it holds one name or a list of them.
+    *
+    * Two spellings mean the same thing. Most operators use the
+    * `@AutofillAttributeName` family; a field can instead write out the
+    * `@JsonSchemaInject` that family is defined as (see
+    * `AutofillAttributeName`'s own declaration), which is what
+    * `SklearnModelOpDesc.text` does so that its `hide*` keys sit in the same
+    * annotation. Both emit the identical schema keys, so the UI cannot tell
+    * them apart — reading only the annotations left such a field unfilled and
+    * out of the config entirely, which read as "the operator has no text knob"
+    * rather than as a gap here.
+    */
+  private def autofillSpec(f: Field): Option[AutofillSpec] =
+    if (f.isAnnotationPresent(classOf[AutofillAttributeNameList]))
+      Some(AutofillSpec(port = 0, holdsList = true))
+    else if (f.isAnnotationPresent(classOf[AutofillAttributeNameOnPort1]))
+      Some(AutofillSpec(port = 1, holdsList = false))
+    else if (f.isAnnotationPresent(classOf[AutofillAttributeName]))
+      Some(AutofillSpec(port = 0, holdsList = false))
+    else injectedAutofill(f)
+
+  private final case class AutofillSpec(port: Int, holdsList: Boolean)
+
+  /** The `@JsonSchemaInject` spelling: an `autofill` string key naming one of
+    * the two autofill kinds, plus an optional port. Anything else in the
+    * annotation (titles, `hide*`) is ignored here.
+    */
+  private def injectedAutofill(f: Field): Option[AutofillSpec] =
+    for {
+      inject <- Option(f.getAnnotation(classOf[JsonSchemaInject]))
+      kind <- inject.strings.find(_.path == CommonOpDescAnnotation.autofill).map(_.value)
+      holdsList <-
+        if (kind == CommonOpDescAnnotation.attributeNameList) Some(true)
+        else if (kind == CommonOpDescAnnotation.attributeName) Some(false)
+        else None
+    } yield AutofillSpec(
+      port = inject.ints
+        .find(_.path == CommonOpDescAnnotation.autofillAttributeOnPort)
+        .map(_.value)
+        .getOrElse(0),
+      holdsList = holdsList
+    )
 
   private def defaultOf(f: Field): Option[String] =
     Option(f.getAnnotation(classOf[JsonProperty])).map(_.defaultValue).filter(_.nonEmpty)
