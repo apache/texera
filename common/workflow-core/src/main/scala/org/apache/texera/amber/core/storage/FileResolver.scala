@@ -75,9 +75,13 @@ object FileResolver {
     filePath.toUri
   }
 
+  private val RESOURCE_TYPE_PREFIXES = Set("datasets")
+
   /**
     * Parses a dataset file path and extracts its components.
-    * Expected format: /ownerEmail/datasetName/versionName/fileRelativePath
+    * Expected format: /datasets/ownerEmail/datasetName/versionName/fileRelativePath
+    *
+    * The first segment is a resource type prefix (e.g. "datasets") and is stripped before parsing.
     *
     * @param fileName The file path to parse
     * @return Some((ownerEmail, datasetName, versionName, fileRelativePath)) if valid, None otherwise
@@ -86,7 +90,12 @@ object FileResolver {
       fileName: String
   ): Option[(String, String, String, Array[String])] = {
     val filePath = Paths.get(fileName)
-    val pathSegments = (0 until filePath.getNameCount).map(filePath.getName(_).toString).toArray
+    var pathSegments = (0 until filePath.getNameCount).map(filePath.getName(_).toString).toArray
+
+    // Strip known resource type prefix if present
+    if (pathSegments.nonEmpty && RESOURCE_TYPE_PREFIXES.contains(pathSegments(0))) {
+      pathSegments = pathSegments.drop(1)
+    }
 
     if (pathSegments.length < 4) {
       return None
@@ -103,8 +112,8 @@ object FileResolver {
   /**
     * Attempts to resolve a given fileName to a URI.
     *
-    * The fileName format should be: /ownerEmail/datasetName/versionName/fileRelativePath
-    *   e.g. /bob@texera.com/twitterDataset/v1/california/irvine/tw1.csv
+    * The fileName format should be: /datasets/ownerEmail/datasetName/versionName/fileRelativePath
+    *   e.g. /datasets/bob@texera.com/twitterDataset/v1/california/irvine/tw1.csv
     * The output dataset URI format is: {DATASET_FILE_URI_SCHEME}:///{repositoryName}/{versionHash}/fileRelativePath
     *   e.g. {DATASET_FILE_URI_SCHEME}:///dataset-15/adeq233td/some/dir/file.txt
     *
@@ -195,7 +204,7 @@ object FileResolver {
 
   /**
     * Parses a dataset file path to extract owner email and dataset name.
-    * Expected format: /ownerEmail/datasetName/versionName/fileRelativePath
+    * Expected format: /datasets/ownerEmail/datasetName/versionName/fileRelativePath
     *
     * @param path The file path from operator properties
     * @return Some((ownerEmail, datasetName)) if path is valid, None otherwise

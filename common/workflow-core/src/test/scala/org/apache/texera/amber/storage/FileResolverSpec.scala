@@ -78,9 +78,9 @@ class FileResolverSpec
 
   private val localCsvFilePath = "common/workflow-core/src/test/resources/country_sales_small.csv"
 
-  private val datasetACsvFilePath = "/test_user@test.com/test_dataset/v2/directory/a.csv"
+  private val datasetACsvFilePath = "/datasets/test_user@test.com/test_dataset/v2/directory/a.csv"
 
-  private val dataset1TxtFilePath = "/test_user@test.com/test_dataset/v1/1.txt"
+  private val dataset1TxtFilePath = "/datasets/test_user@test.com/test_dataset/v1/1.txt"
 
   override protected def beforeAll(): Unit = {
     initializeDBAndReplaceDSLContext()

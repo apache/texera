@@ -79,6 +79,10 @@ object DatasetFileNode {
   ): List[DatasetFileNode] = {
     val rootNode = new DatasetFileNode("/", "directory", null, "")
 
+    // Add "datasets" prefix node
+    val datasetsNode = new DatasetFileNode("datasets", "directory", rootNode, "")
+    rootNode.children = Some(List(datasetsNode))
+
     // Owner level nodes map
     val ownerNodes = mutable.Map[String, DatasetFileNode]()
 
@@ -86,8 +90,8 @@ object DatasetFileNode {
       case ((ownerEmail, datasetName, versionName), objects) =>
         val ownerNode = ownerNodes.getOrElseUpdate(
           ownerEmail, {
-            val newNode = new DatasetFileNode(ownerEmail, "directory", rootNode, ownerEmail)
-            rootNode.children = Some(rootNode.getChildren :+ newNode)
+            val newNode = new DatasetFileNode(ownerEmail, "directory", datasetsNode, ownerEmail)
+            datasetsNode.children = Some(datasetsNode.getChildren :+ newNode)
             newNode
           }
         )
