@@ -93,6 +93,9 @@ class UrlVizOpDesc extends LogicalOp with StandaloneCodeGenerator {
   override def generateStandaloneCode(): String = {
     val urlLit = pyStringLiteral(urlContentAttrName)
     s"""def _texera_urlviz_iframe(u):
+       |    # "null", not Python's "None": the operator interpolates the field into a
+       |    # Scala string, and the JVM renders a null that way.
+       |    u = "null" if pd.isna(u) else u
        |    return (
        |        '<!DOCTYPE html>\\n'
        |        '<html lang="en">\\n'

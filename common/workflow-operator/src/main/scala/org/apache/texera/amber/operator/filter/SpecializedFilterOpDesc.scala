@@ -73,7 +73,11 @@ class SpecializedFilterOpDesc extends FilterOpDesc with StandaloneCodeGenerator 
         case other =>
           val op = other.getName // returns "=", ">=", "<", etc. (see ComparisonType.java)
           val pyOp = if (op == "=") "==" else op
-          s"""(in1df[$colLit] $pyOp ${coerceValue(p.value)})"""
+          // notna mirrors FilterPredicate, which answers false for every condition
+          // but IS_NULL / IS_NOT_NULL once the field is null. Only `!=` needs it —
+          // pandas answers True there, where every other operator answers False —
+          // but guarding all of them keeps the one rule visible in one place.
+          s"""(in1df[$colLit].notna() & (in1df[$colLit] $pyOp ${coerceValue(p.value)}))"""
       }
     }
     s"out1df = in1df[${conditions.mkString(" | ")}].reset_index(drop=True)"

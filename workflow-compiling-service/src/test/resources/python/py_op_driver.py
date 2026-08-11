@@ -256,6 +256,14 @@ def _jsonify(value: Any, attr_type: AttributeType) -> Any:
     """Convert a Python value into something json.dumps will accept."""
     if value is None:
         return None
+    # A missing cell reaches pandas as NaN or NaT, not None, and every branch
+    # below assumes a real value: the timestamp one formats NaT's float
+    # microsecond with a "d" code and raises. Emitting null matches the
+    # standalone path, whose to_json writes NaN and NaT that way. Scalars only —
+    # an object column can hold a list or an array, where isna answers
+    # element-wise and the result is not a truth value.
+    if pd.api.types.is_scalar(value) and pd.isna(value):
+        return None
     # pandas often hands us numpy scalars; .item() collapses them to native.
     if hasattr(value, "item") and not isinstance(value, (str, bytes)):
         try:
