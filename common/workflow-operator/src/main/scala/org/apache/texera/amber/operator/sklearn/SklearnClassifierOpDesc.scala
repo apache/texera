@@ -78,10 +78,15 @@ abstract class SklearnClassifierOpDesc extends SklearnModelOpDesc with Standalon
     val textLit = pyStringLiteral(text)
     val targetLit = pyStringLiteral(target)
     val modelNameLit = pyStringLiteral(getUserFriendlyModelName)
+    // Drop the target before selecting the text column, exactly as the operator
+    // does: picking the same column for both is reachable from the UI, and it has
+    // to fail here too rather than quietly train on the label.
     val trainX =
-      if (countVectorizer) s"""in1df[$textLit]""" else s"""in1df.drop($targetLit, axis=1)"""
+      if (countVectorizer) s"""in1df.drop($targetLit, axis=1)[$textLit]"""
+      else s"""in1df.drop($targetLit, axis=1)"""
     val testX =
-      if (countVectorizer) s"""in2df[$textLit]""" else s"""in2df.drop($targetLit, axis=1)"""
+      if (countVectorizer) s"""in2df.drop($targetLit, axis=1)[$textLit]"""
+      else s"""in2df.drop($targetLit, axis=1)"""
 
     s"""${getImportStatements}
        |from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score

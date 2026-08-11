@@ -67,8 +67,11 @@ class SklearnTrainingOpDesc extends SklearnModelOpDesc with StandaloneCodeGenera
     val tfidfPart = if (tfidfTransformer) "TfidfTransformer()," else ""
     val targetLit = pyStringLiteral(target)
     val modelNameLit = pyStringLiteral(getUserFriendlyModelName)
+    // Drop the target before selecting the text column, exactly as the operator
+    // does: picking the same column for both is reachable from the UI, and it has
+    // to fail here too rather than quietly train on the label.
     val trainX =
-      if (countVectorizer) s"""in1df[${pyStringLiteral(text)}]"""
+      if (countVectorizer) s"""in1df.drop($targetLit, axis=1)[${pyStringLiteral(text)}]"""
       else s"""in1df.drop($targetLit, axis=1)"""
 
     s"""${getImportStatements}

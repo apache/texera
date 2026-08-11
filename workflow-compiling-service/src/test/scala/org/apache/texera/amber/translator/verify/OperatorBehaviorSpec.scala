@@ -126,7 +126,6 @@ object OperatorBehaviorSpec {
     "SklearnAdvancedSVCTrainerOpDesc",
     "SklearnAdvancedSVRTrainerOpDesc",
     "SklearnBaggingOpDesc",
-    "SklearnBernoulliNaiveBayesOpDesc",
     "SklearnComplementNaiveBayesOpDesc",
     "SklearnDecisionTreeOpDesc",
     "SklearnDummyClassifierOpDesc",
@@ -179,7 +178,6 @@ object OperatorBehaviorSpec {
     "HuggingFace",
     "MachineLearningScorer",
     "NetworkGraphOpDesc",
-    "WindRoseChartOpDesc",
     "WordCloudOpDesc"
   )
 

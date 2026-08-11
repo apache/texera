@@ -27,7 +27,7 @@ import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBui
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
-import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
+import org.apache.texera.amber.operator.metadata.annotations.{AutofillAttributeName, SampleColumn}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
@@ -63,6 +63,7 @@ class WindRoseChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeGe
   @JsonSchemaTitle("Color Group")
   @JsonPropertyDescription("Optional grouping column (e.g., wind strength)")
   @AutofillAttributeName
+  @SampleColumn("node_dst")
   var colorColumn: EncodableString = _
 
   override def operatorInfo: OperatorInfo =
