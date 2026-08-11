@@ -528,17 +528,18 @@ class SyncExecutionResource extends LazyLogging {
   ): (String, Option[Any], Option[Int], Option[Int], Option[Boolean]) = {
     import com.fasterxml.jackson.databind.node.ObjectNode
 
-    try {
-      val storageUriOption = WorkflowExecutionsResource.getResultUriByLogicalPortId(
-        executionId,
-        OperatorIdentity(opId),
-        PortIdentity()
-      )
+    // Resolved and checked OUTSIDE the catch-all below: a kill-switch refusal must
+    // propagate (#6930), not degrade into an empty result.
+    val storageUriOption = WorkflowExecutionsResource.getResultUriByLogicalPortId(
+      executionId,
+      OperatorIdentity(opId),
+      PortIdentity()
+    )
+    storageUriOption.foreach(WarehouseReadGuard.assertReadable(_))
 
+    try {
       storageUriOption match {
         case Some(storageUri) =>
-          // Refuse to read a per-user-warehouse result while the feature is off (#6930).
-          WarehouseReadGuard.assertReadable(storageUri)
           val document = DocumentFactory
             .openDocument(storageUri)
             ._1
@@ -769,12 +770,13 @@ class SyncExecutionResource extends LazyLogging {
       executionId: ExecutionIdentity,
       opId: String
   ): Option[List[ConsoleMessageInfo]] = {
-    try {
-      val uriOption = getConsoleMessageUri(executionId, OperatorIdentity(opId))
+    // Resolved and checked OUTSIDE the catch-all below: a kill-switch refusal must
+    // propagate (#6930), not degrade into an empty result.
+    val uriOption = getConsoleMessageUri(executionId, OperatorIdentity(opId))
+    uriOption.foreach(WarehouseReadGuard.assertReadable(_))
 
+    try {
       uriOption.flatMap { uri =>
-        // Refuse to read per-user-warehouse console messages while the feature is off (#6930).
-        WarehouseReadGuard.assertReadable(uri)
         val document = DocumentFactory
           .openDocument(uri)
           ._1

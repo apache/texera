@@ -19,13 +19,14 @@
 
 package org.apache.texera.web.service
 
-import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
 import kong.unirest.Unirest
 import org.apache.texera.common.config.StorageConfig
 
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 import java.util.UUID
+import scala.collection.mutable.ListBuffer
 import scala.jdk.CollectionConverters.IteratorHasAsScala
 
 /**
@@ -103,6 +104,9 @@ class LakekeeperClient(catalogUri: String = StorageConfig.icebergRESTCatalogUri)
     * namespaces, then the warehouse entity itself.
     */
   def deleteWarehouseEmptyFirst(warehouseId: UUID): Unit = {
+    // 404 anywhere below means the entity is already gone — the goal state. Tolerating
+    // it makes this method idempotent, so a retry after a partial failure (e.g. the DB
+    // delete failing after the Lakekeeper delete succeeded) heals instead of wedging.
     listNamespaces(warehouseId).foreach { namespace =>
       listTables(warehouseId, namespace).foreach { table =>
         val response = Unirest
@@ -111,41 +115,64 @@ class LakekeeperClient(catalogUri: String = StorageConfig.icebergRESTCatalogUri)
           )
           .queryString("purgeRequested", "true")
           .asString()
-        failOn(response.getStatus, response.getBody, s"drop table '$namespace.$table'")
+        if (response.getStatus != 404) {
+          failOn(response.getStatus, response.getBody, s"drop table '$namespace.$table'")
+        }
       }
       val response = Unirest
         .delete(s"$catalogBase/$warehouseId/namespaces/${urlEncode(namespace)}")
         .asString()
-      failOn(response.getStatus, response.getBody, s"drop namespace '$namespace'")
+      if (response.getStatus != 404) {
+        failOn(response.getStatus, response.getBody, s"drop namespace '$namespace'")
+      }
     }
     val response = Unirest.delete(s"$managementBase/warehouse/$warehouseId").asString()
-    failOn(response.getStatus, response.getBody, "delete warehouse")
+    if (response.getStatus != 404) {
+      failOn(response.getStatus, response.getBody, "delete warehouse")
+    }
   }
 
   /** Top-level namespaces in the warehouse. Texera's execution namespaces are single-level. */
-  private def listNamespaces(warehouseId: UUID): List[String] = {
-    val response = Unirest.get(s"$catalogBase/$warehouseId/namespaces").asString()
-    failOn(response.getStatus, response.getBody, "list namespaces")
-    mapper
-      .readTree(response.getBody)
-      .get("namespaces")
-      .iterator()
-      .asScala
-      .map(parts => parts.get(0).asText())
-      .toList
-  }
+  private def listNamespaces(warehouseId: UUID): List[String] =
+    fetchAllPages(s"$catalogBase/$warehouseId/namespaces", "namespaces", "list namespaces")(parts =>
+      parts.get(0).asText()
+    )
 
-  private def listTables(warehouseId: UUID, namespace: String): List[String] = {
-    val response = Unirest
-      .get(s"$catalogBase/$warehouseId/namespaces/${urlEncode(namespace)}/tables")
-      .asString()
-    failOn(response.getStatus, response.getBody, s"list tables of '$namespace'")
-    mapper
-      .readTree(response.getBody)
-      .get("identifiers")
-      .iterator()
-      .asScala
-      .map(identifier => identifier.get("name").asText())
-      .toList
+  private def listTables(warehouseId: UUID, namespace: String): List[String] =
+    fetchAllPages(
+      s"$catalogBase/$warehouseId/namespaces/${urlEncode(namespace)}/tables",
+      "identifiers",
+      s"list tables of '$namespace'"
+    )(identifier => identifier.get("name").asText())
+
+  /**
+    * Follows `next-page-token` until exhausted: the Iceberg REST list endpoints may
+    * return partial pages, and the empty-first delete depends on seeing everything.
+    * A 404 ends the listing with what was gathered — the entity is already gone,
+    * which the idempotent delete treats as its goal state.
+    */
+  private def fetchAllPages(url: String, field: String, action: String)(
+      extract: JsonNode => String
+  ): List[String] = {
+    val results = ListBuffer[String]()
+    var pageToken: Option[String] = None
+    var more = true
+    while (more) {
+      val request = Unirest.get(url)
+      pageToken.foreach(request.queryString("pageToken", _))
+      val response = request.asString()
+      if (response.getStatus == 404) {
+        return results.toList
+      }
+      failOn(response.getStatus, response.getBody, action)
+      val tree = mapper.readTree(response.getBody)
+      tree.get(field).iterator().asScala.foreach(node => results += extract(node))
+      pageToken = Option(tree.get("next-page-token"))
+        .filterNot(_.isNull)
+        .map(_.asText())
+        .filter(_.nonEmpty)
+      more = pageToken.isDefined
+    }
+    results.toList
   }
 }

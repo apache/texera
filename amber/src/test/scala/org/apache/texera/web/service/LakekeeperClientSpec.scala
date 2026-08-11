@@ -81,20 +81,38 @@ class LakekeeperClientSpec
     s"/catalog/v1/$warehouseId/namespaces",
     (exchange: HttpExchange) => {
       val line = record(exchange)
+      val query = Option(exchange.getRequestURI.getQuery).getOrElse("")
       (exchange.getRequestMethod, exchange.getRequestURI.getPath) match {
         case ("GET", path) if path.endsWith("/namespaces") =>
           respond(exchange, 200, """{"namespaces": [["operator-port-result"]]}""")
+        // The tables listing is served in TWO pages so the client's next-page-token
+        // loop is pinned: missing the second page would leave the warehouse non-empty.
+        case ("GET", path) if path.endsWith("/tables") && !query.contains("pageToken") =>
+          respond(
+            exchange,
+            200,
+            """{"identifiers": [{"namespace": ["operator-port-result"], "name": "wid_1_eid_2_result"}],
+               |"next-page-token": "page-2"}""".stripMargin
+          )
         case ("GET", path) if path.endsWith("/tables") =>
           respond(
             exchange,
             200,
-            """{"identifiers": [{"namespace": ["operator-port-result"], "name": "wid_1_eid_2_result"}]}"""
+            """{"identifiers": [{"namespace": ["operator-port-result"], "name": "wid_1_eid_3_result"}]}"""
           )
         case ("DELETE", _) =>
           respond(exchange, 204, "")
         case _ =>
           respond(exchange, 500, s"""{"error": "unexpected $line"}""")
       }
+    }
+  )
+  private val erroringWarehouseId = UUID.randomUUID()
+  server.createContext(
+    s"/catalog/v1/$erroringWarehouseId/namespaces",
+    (exchange: HttpExchange) => {
+      record(exchange)
+      respond(exchange, 500, """{"error": "internal"}""")
     }
   )
   server.start()
@@ -124,23 +142,30 @@ class LakekeeperClientSpec
     payload.get("storage-credential").get("credential-type").asText() shouldBe "access-key"
   }
 
-  "deleteWarehouseEmptyFirst" should "purge tables, then namespaces, then the warehouse" in {
+  "deleteWarehouseEmptyFirst" should "purge every page of tables, then namespaces, then the warehouse" in {
     client.deleteWarehouseEmptyFirst(warehouseId)
 
     val deletes = requests.synchronized { requests.filter(_.startsWith("DELETE")).toList }
     deletes shouldBe List(
       s"DELETE /catalog/v1/$warehouseId/namespaces/operator-port-result/tables/wid_1_eid_2_result?purgeRequested=true",
+      s"DELETE /catalog/v1/$warehouseId/namespaces/operator-port-result/tables/wid_1_eid_3_result?purgeRequested=true",
       s"DELETE /catalog/v1/$warehouseId/namespaces/operator-port-result",
       s"DELETE /management/v1/warehouse/$warehouseId"
     )
   }
 
+  it should "treat an already-gone warehouse as deleted (404s tolerated, idempotent)" in {
+    val goneId = UUID.randomUUID()
+    // No stub context matches this warehouse → every request 404s. A retry after a
+    // partial failure must heal rather than wedge on \"not found\".
+    noException should be thrownBy client.deleteWarehouseEmptyFirst(goneId)
+  }
+
   it should "surface a Lakekeeper failure with its status and body" in {
-    val badId = UUID.randomUUID()
-    // No stub context matches this warehouse's namespace listing → 404 from the server.
     val error = intercept[RuntimeException] {
-      client.deleteWarehouseEmptyFirst(badId)
+      client.deleteWarehouseEmptyFirst(erroringWarehouseId)
     }
     error.getMessage should include("Lakekeeper")
+    error.getMessage should include("500")
   }
 }

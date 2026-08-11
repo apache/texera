@@ -21,11 +21,13 @@ package org.apache.texera.web.resource.dashboard.user.warehouse
 
 import com.typesafe.scalalogging.LazyLogging
 import io.dropwizard.auth.Auth
+import org.apache.texera.amber.core.storage.VFSURIFactory
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.common.config.StorageConfig
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.jooq.generated.Tables.USER_WAREHOUSE
 import org.apache.texera.dao.jooq.generated.enums.UserWarehouseFlavorEnum
+import org.apache.texera.dao.jooq.generated.tables.records.UserWarehouseRecord
 import org.apache.texera.web.resource.dashboard.user.warehouse.WarehouseResource._
 import org.apache.texera.web.service.LakekeeperClient
 
@@ -40,12 +42,11 @@ object WarehouseResource {
       .createDSLContext()
 
   // A warehouse's user-facing name becomes part of the Lakekeeper catalog name
-  // `user-<uid>-<name>`, which in turn becomes a VFS URI path segment — so it is
-  // restricted to the same characters VFSURIFactory accepts for a warehouse name.
-  private val warehouseNamePattern = "[A-Za-z0-9][A-Za-z0-9_-]*".r
-
+  // `user-<uid>-<name>`, which in turn becomes a VFS URI path segment — so the
+  // character rule is delegated to VFSURIFactory (the layer that parses it); the
+  // length cap is this registration layer's own constraint.
   private[warehouse] def isValidWarehouseName(name: String): Boolean =
-    name.length <= 64 && warehouseNamePattern.pattern.matcher(name).matches()
+    name.length <= 64 && VFSURIFactory.isValidWarehouseName(name)
 
   case class DashboardWarehouse(
       whid: Integer,
@@ -54,6 +55,15 @@ object WarehouseResource {
       flavor: String,
       createdAtMillis: Long
   )
+
+  private def toDashboardWarehouse(row: UserWarehouseRecord): DashboardWarehouse =
+    DashboardWarehouse(
+      row.getWhid,
+      row.getName,
+      row.getWarehouseName,
+      row.getFlavor.getLiteral,
+      row.getCreatedAt.toInstant.toEpochMilli
+    )
 
   case class WarehouseStatus(enabled: Boolean, warehouses: List[DashboardWarehouse])
 
@@ -86,15 +96,7 @@ class WarehouseResource(client: LakekeeperClient) extends LazyLogging {
       .where(USER_WAREHOUSE.UID.eq(current_user.getUid))
       .orderBy(USER_WAREHOUSE.CREATED_AT.asc())
       .fetch()
-      .map(row =>
-        DashboardWarehouse(
-          row.getWhid,
-          row.getName,
-          row.getWarehouseName,
-          row.getFlavor.getLiteral,
-          row.getCreatedAt.toInstant.toEpochMilli
-        )
-      )
+      .map(row => toDashboardWarehouse(row))
     WarehouseStatus(
       enabled = true,
       warehouses = warehouses.toArray(Array[DashboardWarehouse]()).toList
@@ -164,13 +166,7 @@ class WarehouseResource(client: LakekeeperClient) extends LazyLogging {
         }
         throw new WebApplicationException(e.getMessage, 500)
     }
-    DashboardWarehouse(
-      row.getWhid,
-      row.getName,
-      row.getWarehouseName,
-      row.getFlavor.getLiteral,
-      row.getCreatedAt.toInstant.toEpochMilli
-    )
+    toDashboardWarehouse(row)
   }
 
   @DELETE
