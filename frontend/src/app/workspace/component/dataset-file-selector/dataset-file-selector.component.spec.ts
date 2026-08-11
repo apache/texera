@@ -19,6 +19,7 @@
 
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { FormControl } from "@angular/forms";
+import { By } from "@angular/platform-browser";
 import { FieldTypeConfig } from "@ngx-formly/core";
 import { of } from "rxjs";
 import { NzModalService } from "ng-zorro-antd/modal";
@@ -33,6 +34,9 @@ describe("DatasetFileSelectorComponent", () => {
   // reads `afterClose` off the returned modal ref. Each test overrides what
   // `afterClose` emits via `mockReturnValue`.
   let modalServiceSpy: { create: ReturnType<typeof vi.fn> };
+  // Held in a variable rather than inlined into the provider so a test can flip the
+  // flag; `isFileSelectionEnabled` reads straight through to it.
+  let guiConfigStub: { env: { selectingFilesFromDatasetsEnabled: boolean } };
 
   // Attach a fresh FormControl with a known starting value, since the component
   // extends FieldType and reads/writes through `this.formControl`.
@@ -44,13 +48,14 @@ describe("DatasetFileSelectorComponent", () => {
 
   beforeEach(async () => {
     modalServiceSpy = { create: vi.fn() };
+    guiConfigStub = { env: { selectingFilesFromDatasetsEnabled: true } };
 
     await TestBed.configureTestingModule({
       imports: [DatasetFileSelectorComponent],
       providers: [
         { provide: NzModalService, useValue: modalServiceSpy },
         { provide: WorkflowActionService, useValue: {} },
-        { provide: GuiConfigService, useValue: { env: { selectingFilesFromDatasetsEnabled: true } } },
+        { provide: GuiConfigService, useValue: guiConfigStub },
       ],
     }).compileComponents();
 
@@ -91,5 +96,81 @@ describe("DatasetFileSelectorComponent", () => {
 
   it("exposes isFileSelectionEnabled from the GUI config", () => {
     expect(component.isFileSelectionEnabled).toBe(true);
+  });
+
+  /**
+   * The tests above call `onClickOpenFileSelectionModal` directly, so the template had never
+   * been rendered. What it decides: whether the path is shown at all, whether it can be typed
+   * into, and whether the picker is offered — all of which turn on the deployment-level
+   * `selectingFilesFromDatasetsEnabled` flag.
+   */
+  describe("template rendering", () => {
+    /** Renders the field with the given path, under the given deployment flag. */
+    function render(value: string, fileSelectionEnabled = true): void {
+      guiConfigStub.env.selectingFilesFromDatasetsEnabled = fileSelectionEnabled;
+      setFormControl(value);
+      fixture.detectChanges();
+    }
+
+    const input = () => fixture.debugElement.query(By.css("input"));
+    const selectFileButton = () => fixture.debugElement.query(By.css("button"));
+
+    it("shows the chosen path alongside the Select File button", () => {
+      render("/dataset/data.csv");
+
+      expect(input().nativeElement.value).toBe("/dataset/data.csv");
+      expect(selectFileButton().nativeElement.textContent.trim()).toBe("Select File");
+    });
+
+    it("leaves the path input editable even with file selection enabled", () => {
+      render("/dataset/data.csv");
+
+      // Characterizing a defect rather than asserting the intent: the template's
+      // `[readOnly]` is camelCase, so it misses NzInputDirective's `readonly` input and
+      // lands on the DOM property; the directive then host-binds
+      // `[attr.readonly]="readonly() || null"`, which clears the attribute and resets the
+      // property. So the path the picker is meant to own can still be typed over.
+      // Spelling the binding `[readonly]` makes it take effect — a production change, out
+      // of scope here. Flip this expectation to `true` when that lands.
+      expect(input().nativeElement.readOnly).toBe(false);
+    });
+
+    it("shows only the Select File button until a path has been chosen", () => {
+      render("");
+
+      expect(input()).toBeNull();
+      expect(selectFileButton()).not.toBeNull();
+    });
+
+    it("falls back to a typeable path input when file selection is disabled", () => {
+      // No picker to write the path, so the empty input has to be shown and be editable.
+      render("", false);
+
+      expect(input()).not.toBeNull();
+      expect(input().nativeElement.readOnly).toBe(false);
+      expect(selectFileButton()).toBeNull();
+    });
+
+    it("opens the selection modal when the Select File button is clicked", () => {
+      modalServiceSpy.create.mockReturnValue({ afterClose: of("/dataset/data.csv") });
+      render("");
+
+      selectFileButton().triggerEventHandler("click", null);
+
+      expect(modalServiceSpy.create).toHaveBeenCalledTimes(1);
+    });
+
+    it("does not open the modal if the button is triggered while file selection is disabled", () => {
+      render("");
+      const button = selectFileButton();
+
+      // The *ngIf normally removes the button, so reach the handler's own guard by disabling
+      // the flag without re-rendering. It is what stops a stale button from opening a picker
+      // the deployment has turned off.
+      guiConfigStub.env.selectingFilesFromDatasetsEnabled = false;
+      button.triggerEventHandler("click", null);
+
+      expect(modalServiceSpy.create).not.toHaveBeenCalled();
+    });
   });
 });

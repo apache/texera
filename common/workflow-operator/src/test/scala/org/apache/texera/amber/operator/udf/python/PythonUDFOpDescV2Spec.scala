@@ -34,6 +34,13 @@ class PythonUDFOpDescV2Spec extends AnyFlatSpec with Matchers {
   private val workflowId = WorkflowIdentity(1L)
   private val executionId = ExecutionIdentity(1L)
 
+  private def uiParameter(name: String, value: String): UiUDFParameter = {
+    val parameter = new UiUDFParameter
+    parameter.attribute = new Attribute(name, AttributeType.INTEGER)
+    parameter.value = value
+    parameter
+  }
+
   "PythonUDFOpDescV2.operatorInfo" should
     "advertise the name, Python group, dynamic ports, and a default 1-in/1-out shape" in {
     val info = (new PythonUDFOpDescV2).operatorInfo
@@ -72,6 +79,24 @@ class PythonUDFOpDescV2Spec extends AnyFlatSpec with Matchers {
     val d = new PythonUDFOpDescV2
     d.workers = 0
     intercept[IllegalArgumentException] { d.getPhysicalOp(workflowId, executionId) }
+  }
+
+  it should "inject configured UI parameters into the generated Python code" in {
+    val d = new PythonUDFOpDescV2
+    d.code = """from pytexera import *
+        |
+        |class ProcessTupleOperator(UDFOperatorV2):
+        |    def process_tuple(self, tuple_, port):
+        |        yield tuple_
+        |""".stripMargin
+    d.uiParameters = List(uiParameter("count", "7"))
+
+    d.getPhysicalOp(workflowId, executionId).opExecInitInfo match {
+      case OpExecWithCode(code, "python") =>
+        code should include("def _texera_injected_ui_parameters")
+        code should include("self.decode_python_template")
+      case other => fail(s"expected Python OpExecWithCode, got $other")
+    }
   }
 
   it should "reject a blank virtual-environment name when the default env is disabled" in {
@@ -125,6 +150,7 @@ class PythonUDFOpDescV2Spec extends AnyFlatSpec with Matchers {
     d.defaultEnv = false
     d.envName = "myenv"
     d.outputColumns = List(new Attribute("res", AttributeType.INTEGER))
+    d.uiParameters = List(uiParameter("count", "7"))
     val restored = objectMapper.readValue(objectMapper.writeValueAsString(d), classOf[LogicalOp])
     restored shouldBe a[PythonUDFOpDescV2]
     val p = restored.asInstanceOf[PythonUDFOpDescV2]
@@ -134,6 +160,8 @@ class PythonUDFOpDescV2Spec extends AnyFlatSpec with Matchers {
     p.defaultEnv shouldBe false
     p.envName shouldBe "myenv"
     p.outputColumns shouldBe List(new Attribute("res", AttributeType.INTEGER))
+    p.uiParameters.map(_.attribute) shouldBe List(new Attribute("count", AttributeType.INTEGER))
+    p.uiParameters.map(_.value) shouldBe List("7")
   }
 
   "PythonUDFOpDescV2.getPhysicalOp" should

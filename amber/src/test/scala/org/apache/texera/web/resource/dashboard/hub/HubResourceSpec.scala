@@ -86,7 +86,6 @@ class HubResourceSpec
     u.setUid(Integer.valueOf(uid))
     u.setName(name)
     u.setEmail(s"$name@test.com")
-    u.setPassword("password")
     u
   }
 

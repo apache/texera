@@ -29,7 +29,7 @@ import org.apache.texera.web.model.common.AccessEntry
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 
-import javax.ws.rs.ForbiddenException
+import javax.ws.rs.{BadRequestException, ForbiddenException}
 import scala.jdk.CollectionConverters._
 
 class ProjectAccessResourceSpec
@@ -84,7 +84,6 @@ class ProjectAccessResourceSpec
     user.setUid(uid)
     user.setName(name)
     user.setEmail(email)
-    user.setPassword("password")
     user.setRole(UserRoleEnum.REGULAR)
     user
   }
@@ -200,6 +199,28 @@ class ProjectAccessResourceSpec
         readerUid
       ) == PrivilegeEnum.READ
     )
+  }
+
+  it should "reject granting to a placeholder account" in {
+    val project = projectResource.createProject(new SessionUser(owner), "grant-placeholder-project")
+    val placeholder = new User
+    placeholder.setName("pj_placeholder")
+    placeholder.setEmail("pj-placeholder@test.com")
+    placeholder.setRole(UserRoleEnum.INACTIVE)
+    placeholder.setIsPlaceholder(true)
+    userDao.insert(placeholder)
+    try {
+      assertThrows[BadRequestException](
+        projectAccessResource.grantAccess(
+          project.getPid,
+          "pj-placeholder@test.com",
+          "READ",
+          new SessionUser(owner)
+        )
+      )
+    } finally {
+      getDSLContext.deleteFrom(USER).where(USER.UID.eq(placeholder.getUid)).execute()
+    }
   }
 
   it should "reject a user without write access with ForbiddenException" in {

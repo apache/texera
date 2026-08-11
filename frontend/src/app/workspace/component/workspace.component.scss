@@ -31,6 +31,12 @@ texera-menu {
   background-color: white;
 }
 
+texera-jupyter-notebook-panel {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
 texera-mini-map {
   position: absolute;
   bottom: 0;
@@ -56,4 +62,28 @@ texera-workflow-editor {
 
 :host {
   user-select: none;
+}
+
+.openai-spinner {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.llm-spinner-text {
+  margin-top: 20px;
+  text-align: center;
+}
+
+.elapsed-time {
+  color: #ff4d4f;
+  font-weight: 500;
 }
