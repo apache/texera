@@ -103,6 +103,19 @@ trait TransformHandler {
     * the hostile value fine. Whoever rewrites the fixture sees it and can drop it.
     */
   def unfillableVariants: Set[String] = Set.empty
+
+  /** The [[SharedFixture]] every port of [[fixture]] is written from, when there
+    * is one. Answering `Some` is what earns the `nulls` case, which the runner
+    * builds by writing that same table with one cell per column emptied.
+    *
+    * Default `None`, and that is the answer for a fixture assembled for one
+    * operator: its rows were chosen to arrange something (a join that pairs, a
+    * predicate that matches a proper subset), and emptying cells in it asks a
+    * different question than the one it was written for. A shared table is
+    * different in kind — it already answers for a whole family, and it says which
+    * of its columns are load-bearing through [[SharedFixture.keepFilled]].
+    */
+  def sharedFixture: Option[SharedFixture] = None
 }
 
 /**
@@ -269,11 +282,8 @@ object CuratedHandlers {
     * same rows from the shared [[SklearnFixture]] resource.
     */
   def writeClassification2Input(testRoot: Path): (Path, Path) = {
-    val train = testRoot.resolve("input_port_0.jsonl")
-    val test = testRoot.resolve("input_port_1.jsonl")
-    TupleIO.writeTuples(train, SklearnFixture.rows.iterator, SklearnFixture.schema)
-    TupleIO.writeTuples(test, SklearnFixture.rows.iterator, SklearnFixture.schema)
-    (train, test)
+    val inputs = SklearnFixture.write(testRoot, inputPortCount = 2, withGaps = false)
+    (inputs(PortIdentity(0)), inputs(PortIdentity(1)))
   }
 
   /** Estimators whose `fit` rejects the sparse matrix `CountVectorizer` emits
@@ -341,13 +351,24 @@ object CuratedHandlers {
   * Source of truth: src/test/resources/verify/sklearn_fixture.json. `schema`
   * below stays authoritative for column types (JSON has no typed columns).
   */
-object SklearnFixture {
+object SklearnFixture extends SharedFixture {
 
   val schema: Schema = new Schema(
     new Attribute("x1", AttributeType.DOUBLE),
     new Attribute("x2", AttributeType.DOUBLE),
     new Attribute("y", AttributeType.INTEGER)
   )
+
+  /** Both ports get the whole table: the classifier operators train on port 0 and
+    * test on port 1, and the point of the pair is the two ports, not two datasets.
+    */
+  override def rowsFor(port: Int): Seq[Tuple] = rows
+
+  /** `y` keeps every value: it is the label the estimator fits against, so a hole
+    * in it asks what sklearn does with an unlabelled row rather than what the
+    * operator does with a missing feature.
+    */
+  override val keepFilled: Set[String] = Set("y")
 
   private val fixtureResource = "/verify/sklearn_fixture.json"
 
@@ -390,12 +411,18 @@ object SklearnFixture {
   * Source of truth: src/test/resources/verify/sklearn_text_fixture.json (mirrors
   * [[SklearnFixture]]); `schema` below stays authoritative for column types.
   */
-object SklearnTextFixture {
+object SklearnTextFixture extends SharedFixture {
 
   val schema: Schema = new Schema(
     new Attribute("note", AttributeType.STRING),
     new Attribute("y", AttributeType.INTEGER)
   )
+
+  /** Both ports get the whole table, as in [[SklearnFixture]]. */
+  override def rowsFor(port: Int): Seq[Tuple] = rows
+
+  /** `y` is the label, for the reason [[SklearnFixture.keepFilled]] gives. */
+  override val keepFilled: Set[String] = Set("y")
 
   private val fixtureResource = "/verify/sklearn_text_fixture.json"
 
@@ -422,12 +449,6 @@ object SklearnTextFixture {
         b.build()
       }
       .toVector
-  }
-
-  /** Write the text table to `path` (columns in order: note, y). */
-  def write(path: Path): Path = {
-    TupleIO.writeTuples(path, rows.iterator, schema)
-    path
   }
 }
 
@@ -904,16 +925,17 @@ object FilledAreaPlotVisualizationHandler extends TransformHandler {
 abstract class SklearnTrainingTransformHandler extends TransformHandler {
   protected def newDesc(): SklearnTrainingOpDesc
 
+  override def sharedFixture: Option[SharedFixture] = Some(SklearnFixture)
+
   override def fixture(testRoot: Path): (LogicalOp, Map[PortIdentity, Path]) = {
-    val inputPath = testRoot.resolve("input_port_0.jsonl")
-    TupleIO.writeTuples(inputPath, SklearnFixture.rows.iterator, SklearnFixture.schema)
+    val inputs = SklearnFixture.write(testRoot, inputPortCount = 1, withGaps = false)
 
     val desc = newDesc()
     desc.target = "y"
     desc.countVectorizer = false
     desc.tfidfTransformer = false
 
-    (desc, Map(PortIdentity(0) -> inputPath))
+    (desc, inputs)
   }
 
   /** The `countVectorizer=true` branch: features come from a single text column
@@ -926,7 +948,7 @@ abstract class SklearnTrainingTransformHandler extends TransformHandler {
     if (!CuratedHandlers.supportsCountVectorizer(opDescClass)) return Seq.empty
     val dir = testRoot.resolve("cv_text")
     Files.createDirectories(dir)
-    val input = SklearnTextFixture.write(dir.resolve("input_port_0.jsonl"))
+    val inputs = SklearnTextFixture.write(dir, inputPortCount = 1, withGaps = false)
 
     val desc = newDesc()
     desc.target = "y"
@@ -934,7 +956,7 @@ abstract class SklearnTrainingTransformHandler extends TransformHandler {
     desc.tfidfTransformer = false
     desc.text = "note"
 
-    Seq(("countVectorizer_text", desc, Map(PortIdentity(0) -> input)))
+    Seq(("countVectorizer_text", desc, inputs))
   }
 }
 
@@ -946,6 +968,8 @@ abstract class SklearnTrainingTransformHandler extends TransformHandler {
   */
 abstract class SklearnClassifierTransformHandler extends TransformHandler {
   protected def newDesc(): SklearnClassifierOpDesc
+
+  override def sharedFixture: Option[SharedFixture] = Some(SklearnFixture)
 
   override def fixture(testRoot: Path): (LogicalOp, Map[PortIdentity, Path]) = {
     val (train, test) = CuratedHandlers.writeClassification2Input(testRoot)
@@ -966,15 +990,14 @@ abstract class SklearnClassifierTransformHandler extends TransformHandler {
     if (!CuratedHandlers.supportsCountVectorizer(opDescClass)) return Seq.empty
     val dir = testRoot.resolve("cv_text")
     Files.createDirectories(dir)
-    val train = SklearnTextFixture.write(dir.resolve("input_port_0.jsonl"))
-    val test = SklearnTextFixture.write(dir.resolve("input_port_1.jsonl"))
+    val inputs = SklearnTextFixture.write(dir, inputPortCount = 2, withGaps = false)
 
     val desc = newDesc()
     desc.target = "y"
     desc.countVectorizer = true
     desc.text = "note"
 
-    Seq(("countVectorizer_text", desc, Map(PortIdentity(0) -> train, PortIdentity(1) -> test)))
+    Seq(("countVectorizer_text", desc, inputs))
   }
 }
 
@@ -999,8 +1022,9 @@ abstract class SklearnAdvancedTrainerTransformHandler extends TransformHandler {
   protected def newDesc(): SklearnMLOperatorDescriptor[_]
 
   override def fixture(testRoot: Path): (LogicalOp, Map[PortIdentity, Path]) = {
-    val train = testRoot.resolve("input_port_0.jsonl")
-    TupleIO.writeTuples(train, SklearnFixture.rows.iterator, SklearnFixture.schema)
+    val train = SklearnFixture.write(testRoot, inputPortCount = 1, withGaps = false)(
+      PortIdentity(0)
+    )
 
     val desc = newDesc()
     desc.groundTruthAttribute = "y"

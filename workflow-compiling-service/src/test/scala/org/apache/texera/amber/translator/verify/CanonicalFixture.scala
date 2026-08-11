@@ -34,7 +34,7 @@ import scala.jdk.CollectionConverters._
   * set ops and joins, and the canonical value "1" present in some-but-not-all
   * rows so ConfigGenerator-filled free-form predicates match a proper subset.
   */
-object CanonicalFixture {
+object CanonicalFixture extends SharedFixture {
 
   // Columns are semantically named and type-correct so @SampleColumn-tagged or
   // type-constrained fields can be filled with realistic input (a valid OHLC
@@ -157,9 +157,16 @@ object CanonicalFixture {
   def port0Rows: Seq[Tuple] = allRows.slice(0, 10)
   def port1Rows: Seq[Tuple] = allRows.slice(5, 15)
 
+  override def rowsFor(port: Int): Seq[Tuple] = if (port == 0) port0Rows else port1Rows
+
+  /** `id` keeps every value: it is what joins and set operations match on, and
+    * emptying it would change which rows pair up rather than what a null does.
+    */
+  override val keepFilled: Set[String] = Set("id")
+
   /** Write one JSONL fixture per 0-based input port. At most 2 ports. */
   def writeInputs(testRoot: Path, inputPortCount: Int): Map[PortIdentity, Path] =
-    writeInputs(testRoot, inputPortCount, withGaps = false)
+    write(testRoot, inputPortCount, withGaps = false)
 
   /** As [[writeInputs]], but with one cell per column emptied.
     *
@@ -169,58 +176,7 @@ object CanonicalFixture {
     * `AttributeTypeUtils.parseField` passes through by design. The two paths do
     * not agree on it for free, since a JVM null and a pandas NaN are different
     * things, so it takes a fixture of its own to hold them to it.
-    *
-    * `id` keeps every value: it is what joins and set operations match on, and
-    * emptying it would change which rows pair up rather than what a null does.
     */
   def writeInputsWithGaps(testRoot: Path, inputPortCount: Int): Map[PortIdentity, Path] =
-    writeInputs(testRoot, inputPortCount, withGaps = true)
-
-  private def writeInputs(
-      testRoot: Path,
-      inputPortCount: Int,
-      withGaps: Boolean
-  ): Map[PortIdentity, Path] = {
-    require(
-      inputPortCount >= 1 && inputPortCount <= 2,
-      s"unsupported input port count: $inputPortCount"
-    )
-    (0 until inputPortCount).map { port =>
-      val rows = if (port == 0) port0Rows else port1Rows
-      val path = testRoot.resolve(s"input_port_$port.jsonl")
-      TupleIO.writeTuples(
-        path,
-        (if (withGaps) emptyOneCellPerColumn(rows) else rows).iterator,
-        schema
-      )
-      PortIdentity(port) -> path
-    }.toMap
-  }
-
-  /** One empty cell per column, spread across rows so no row is wholly empty —
-    * an operator that reads two columns should still meet a row where one is
-    * filled and the other is not. Placement is by column position, so it is the
-    * same on every run.
-    */
-  private[verify] def emptyOneCellPerColumn(rows: Seq[Tuple]): Seq[Tuple] = {
-    val holes: Map[Int, Set[String]] = schema.getAttributes.zipWithIndex
-      .filter { case (attr, _) => attr.getName != "id" }
-      .map { case (attr, i) => (i % rows.size) -> attr.getName }
-      .groupBy(_._1)
-      .map { case (row, pairs) => row -> pairs.map(_._2).toSet }
-    rows.zipWithIndex.map {
-      case (t, rowIdx) =>
-        val emptied = holes.getOrElse(rowIdx, Set.empty)
-        if (emptied.isEmpty) t
-        else {
-          val b = Tuple.builder(schema)
-          schema.getAttributes.foreach { attr =>
-            val v: AnyRef =
-              if (emptied.contains(attr.getName)) null else t.getField[AnyRef](attr.getName)
-            b.add(attr, v)
-          }
-          b.build()
-        }
-    }
-  }
+    write(testRoot, inputPortCount, withGaps = true)
 }

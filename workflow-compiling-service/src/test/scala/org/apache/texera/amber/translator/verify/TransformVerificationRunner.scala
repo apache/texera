@@ -404,7 +404,9 @@ object TransformVerificationRunner {
                 case (label, _) =>
                   handler.unfillableVariants.exists(kind => label.startsWith(s"$kind("))
               }
-          primary.map { case (label, o) => (label, o, in) } ++ handler.extraScenarios(testRoot)
+          primary.map { case (label, o) => (label, o, in) } ++
+            handler.extraScenarios(testRoot) ++
+            handler.sharedFixture.toSeq.flatMap(nullsCase(opClass, op, testRoot, _))
         case None =>
           val vs = ConfigGenerator
             .generateVariants(
@@ -420,7 +422,8 @@ object TransformVerificationRunner {
             )
           val inputPortCount = vs.head._2.operatorInfo.inputPorts.size
           val in = CanonicalFixture.writeInputs(testRoot, inputPortCount)
-          vs.map { case (label, o) => (label, o, in) } ++ nullsCase(opClass, vs.head._2, testRoot)
+          vs.map { case (label, o) => (label, o, in) } ++
+            nullsCase(opClass, vs.head._2, testRoot, CanonicalFixture)
       }
 
     runs.foreach {
@@ -441,33 +444,45 @@ object TransformVerificationRunner {
     * platform itself fails on one, each with the issue tracking it. They keep every
     * other variant; only the `nulls` case is withheld, so the day the platform stops
     * failing the entry comes out and the case starts running with nothing else to do.
+    *
+    * A key matches its subclasses too, so one entry covers a whole family: every
+    * sklearn estimator fails the same way for the same reason, in code they all
+    * inherit, and naming them one by one would be fifty entries that come out on the
+    * same day.
     */
   private val nullsBlockedBy: Map[Class[_], String] = Map(
     classOf[SubstringSearchOpDesc] -> "apache/texera#7548",
     classOf[UnnestStringOpDesc] -> "apache/texera#7548",
-    classOf[DumbbellPlotOpDesc] -> "apache/texera#7562"
+    classOf[DumbbellPlotOpDesc] -> "apache/texera#7562",
+    classOf[SklearnTrainingOpDesc] -> "apache/texera#7582",
+    classOf[SklearnClassifierOpDesc] -> "apache/texera#7582"
   )
 
-  /** One extra run per auto-configured operator, on a table with one empty cell per
-    * column (see [[CanonicalFixture.writeInputsWithGaps]]). It takes the base config
-    * rather than crossing with the other variants: what an operator does with a null
-    * is a property of the operator, and multiplying it across every knob would buy
-    * more runtime than signal.
+  private def nullsBlocked(opClass: Class[_ <: LogicalOp]): Boolean =
+    nullsBlockedBy.keys.exists(_.isAssignableFrom(opClass))
+
+  /** One extra run per operator, on `fixture` with one empty cell per column (see
+    * [[SharedFixture.emptyOneCellPerColumn]]). It takes the base config rather than
+    * crossing with the other variants: what an operator does with a null is a
+    * property of the operator, and multiplying it across every knob would buy more
+    * runtime than signal.
     *
-    * Curated operators sit this out. Their handler writes the table its operator
-    * needs, and emptying cells in it breaks the very thing the handler was written
-    * to arrange.
+    * The table it runs on is whichever SHARED one the operator already runs on:
+    * [[CanonicalFixture]] for the auto tier, and for a curated handler the table it
+    * names through [[TransformHandler.sharedFixture]]. A handler that assembled its
+    * fixture for one operator names none and sits this out.
     */
   private def nullsCase(
       opClass: Class[_ <: LogicalOp],
       base: LogicalOp,
-      testRoot: Path
+      testRoot: Path,
+      fixture: SharedFixture
   ): Seq[(String, LogicalOp, Map[PortIdentity, Path])] =
-    if (nullsBlockedBy.contains(opClass)) Seq.empty
+    if (nullsBlocked(opClass)) Seq.empty
     else {
       val dir = testRoot.resolve("nulls-input")
       Files.createDirectories(dir)
-      val in = CanonicalFixture.writeInputsWithGaps(dir, base.operatorInfo.inputPorts.size)
+      val in = fixture.write(dir, base.operatorInfo.inputPorts.size, withGaps = true)
       Seq(("nulls", base, in))
     }
 
