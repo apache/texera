@@ -92,6 +92,17 @@ class SklearnPredictionOpDescSpec extends AnyFlatSpec with Matchers {
     code should include("yield tuple_")
   }
 
+  // This operator adds a column to the user's rows, so a row it cannot predict
+  // on keeps its place with an empty result rather than disappearing.
+  it should "keep a row with a missing value and leave its result empty" in {
+    val d = new SklearnPredictionOpDesc
+    d.model = "model"
+    d.resultAttribute = "prediction"
+    val code = d.generatePythonCode()
+    code should include("isna().any(axis=None)")
+    code should include("] = None")
+  }
+
   "SklearnPredictionOpDesc" should
     "round-trip its config fields through the polymorphic base" in {
     val d = new SklearnPredictionOpDesc

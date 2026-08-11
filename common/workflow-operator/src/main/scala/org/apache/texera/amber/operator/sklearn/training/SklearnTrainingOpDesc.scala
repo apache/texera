@@ -39,6 +39,8 @@ class SklearnTrainingOpDesc extends SklearnModelOpDesc {
        |class ProcessTableOperator(UDFTableOperator):
        |    @overrides
        |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
+       |        table = ${if (countVectorizer) pyb"table.dropna(subset=[$text, $target])"
+    else "table.dropna()"} #remove missing values
        |        Y = table[$target]
        |        X = table.drop($target, axis=1)
        |        X = ${if (countVectorizer) pyb"X[$text]" else "X"}

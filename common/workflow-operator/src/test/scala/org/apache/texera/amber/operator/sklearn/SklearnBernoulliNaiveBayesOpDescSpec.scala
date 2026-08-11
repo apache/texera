@@ -65,6 +65,14 @@ class SklearnBernoulliNaiveBayesOpDescSpec extends AnyFlatSpec with Matchers {
     code should include("Bernoulli Naive Bayes")
   }
 
+  // The same table statement serves both ports, so training and scoring skip a
+  // row with a missing value alike.
+  it should "drop rows with missing values before fitting and before scoring" in {
+    val d = new SklearnBernoulliNaiveBayesOpDesc
+    d.target = "y"
+    d.generatePythonCode() should include("table.dropna()")
+  }
+
   "SklearnBernoulliNaiveBayesOpDesc" should
     "round-trip its config fields through the polymorphic base" in {
     val d = new SklearnBernoulliNaiveBayesOpDesc

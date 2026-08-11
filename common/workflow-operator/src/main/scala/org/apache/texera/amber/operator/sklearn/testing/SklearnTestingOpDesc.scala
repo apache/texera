@@ -66,7 +66,7 @@ class SklearnTestingOpDesc extends PythonOperatorDescriptor {
          |            self.data.append(tuple_)
          |        else:
          |            model = tuple_[$model]
-         |            table = Table(self.data)
+         |            table = Table(self.data).dropna() #remove missing values
          |            Y = table[$target]
          |            X = table.drop($target, axis=1)
          |            predictions = model.predict(X.squeeze())

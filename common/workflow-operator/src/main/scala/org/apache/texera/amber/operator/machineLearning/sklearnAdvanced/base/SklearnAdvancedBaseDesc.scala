@@ -117,8 +117,9 @@ abstract class SklearnMLOperatorDescriptor[T <: ParamClass] extends PythonOperat
          |      self.dataset = table
          |
          |    if port == 1 :
-         |      y_train = self.dataset[$groundTruthAttribute]
-         |      X_train = self.dataset[features]
+         |      dataset = self.dataset.dropna(subset=features + [$groundTruthAttribute]) #remove missing values
+         |      y_train = dataset[$groundTruthAttribute]
+         |      X_train = dataset[features]
          |      loop_times = ${getLoopTimes(paraList)}
          |
          |      for i in range(loop_times):
