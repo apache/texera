@@ -20,6 +20,7 @@
 package org.apache.texera.amber.core.storage.result.iceberg
 
 import org.apache.texera.common.config.StorageConfig
+import org.apache.texera.amber.core.storage.IcebergCatalogInstance
 import org.apache.texera.amber.core.storage.model.BufferedItemWriter
 import org.apache.texera.amber.util.IcebergUtil
 import org.apache.iceberg.catalog.Catalog
@@ -41,7 +42,8 @@ import scala.collection.mutable.ArrayBuffer
   * **Thread Safety**: This writer is **NOT thread-safe**, so only one thread should call this writer.
   *
   * @param writerIdentifier a unique identifier used to prefix the created files.
-  * @param catalog the Iceberg catalog to manage table metadata.
+  * @param warehouse the warehouse whose catalog manages the table metadata; `None` uses the
+  *                  configured default.
   * @param tableNamespace the namespace of the Iceberg table.
   * @param tableName the name of the Iceberg table.
   * @param tableSchema the schema of the Iceberg table.
@@ -50,12 +52,16 @@ import scala.collection.mutable.ArrayBuffer
   */
 private[storage] class IcebergTableWriter[T](
     val writerIdentifier: String,
-    val catalog: Catalog,
+    val warehouse: Option[String],
     val tableNamespace: String,
     val tableName: String,
     val tableSchema: Schema,
     val serde: (org.apache.iceberg.Schema, T) => Record
 ) extends BufferedItemWriter[T] {
+
+  // Resolved per use (#7290): the catalog cache is bounded and closes evicted entries,
+  // so the writer must not pin one across its lifetime.
+  private def catalog: Catalog = IcebergCatalogInstance.getInstance(warehouse)
 
   // Buffer to hold items before flushing to the table
   private val buffer = new ArrayBuffer[T]()

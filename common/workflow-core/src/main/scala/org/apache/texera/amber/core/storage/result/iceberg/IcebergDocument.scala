@@ -72,7 +72,10 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
 
   private val lock = new ReentrantReadWriteLock()
 
-  @transient lazy val catalog: Catalog = IcebergCatalogInstance.getInstance(warehouse)
+  // Resolved per use, never held: the catalog cache is bounded and closes evicted
+  // entries (#7290), so a pinned reference could outlive its catalog. A public def
+  // (not a lazy val) also means a replaced/rebuilt catalog is picked up immediately.
+  def catalog: Catalog = IcebergCatalogInstance.getInstance(warehouse)
 
   /**
     * Returns the URI of the table location.
@@ -141,7 +144,7 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
   override def writer(writerIdentifier: String): BufferedItemWriter[T] = {
     new IcebergTableWriter[T](
       writerIdentifier,
-      catalog,
+      warehouse,
       tableNamespace,
       tableName,
       tableSchema,
