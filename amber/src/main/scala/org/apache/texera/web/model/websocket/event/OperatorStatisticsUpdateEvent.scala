@@ -30,7 +30,9 @@ case class OperatorAggregatedMetrics(
     numWorkers: Long,
     aggregatedDataProcessingTime: Long,
     aggregatedControlProcessingTime: Long,
-    aggregatedIdleTime: Long
+    aggregatedIdleTime: Long,
+    // Provenance: the operator completed by reusing cached results (no workers ran).
+    reusedFromCache: Boolean = false
 )
 
 case class OperatorStatisticsUpdateEvent(operatorStatistics: Map[String, OperatorAggregatedMetrics])

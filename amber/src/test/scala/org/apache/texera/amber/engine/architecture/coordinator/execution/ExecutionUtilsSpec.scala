@@ -190,11 +190,13 @@ class ExecutionUtilsSpec extends AnyFlatSpec {
       numWorkers: Int = 0,
       dataTime: Long = 0,
       controlTime: Long = 0,
-      idleTime: Long = 0
+      idleTime: Long = 0,
+      reused: Boolean = false
   ): OperatorMetrics =
     OperatorMetrics(
       state,
-      OperatorStatistics(input, output, numWorkers, dataTime, controlTime, idleTime)
+      OperatorStatistics(input, output, numWorkers, dataTime, controlTime, idleTime),
+      reusedFromCache = reused
     )
 
   "ExecutionUtils.aggregateMetrics" should "return UNINITIALIZED defaults when given no metrics" in {
@@ -336,5 +338,28 @@ class ExecutionUtilsSpec extends AnyFlatSpec {
     assert(result.operatorStatistics.outputMetrics.isEmpty)
     assert(result.operatorStatistics.numWorkers == 3)
     assert(result.operatorStatistics.dataProcessingTime == 12)
+  }
+
+  // -- aggregateMetrics: reused-from-cache provenance ----------------------
+
+  it should "report reusedFromCache only when every physical operator is reused" in {
+    val reusedA = metricsWith(WorkflowAggregatedState.COMPLETED, reused = true)
+    val reusedB = metricsWith(WorkflowAggregatedState.COMPLETED, reused = true)
+    val computed = metricsWith(WorkflowAggregatedState.COMPLETED)
+
+    assert(ExecutionUtils.aggregateMetrics(List(reusedA, reusedB)).reusedFromCache)
+    assert(!ExecutionUtils.aggregateMetrics(List(reusedA, computed)).reusedFromCache)
+    assert(!ExecutionUtils.aggregateMetrics(List(computed)).reusedFromCache)
+  }
+
+  it should "default reusedFromCache to false for empty input and untouched metrics" in {
+    // Empty input takes the early-return path, whose default is false. This is
+    // the empty-cache property for the flag: nothing sets it until a producer does.
+    assert(!ExecutionUtils.aggregateMetrics(Iterable.empty).reusedFromCache)
+    assert(
+      !ExecutionUtils
+        .aggregateMetrics(List(metricsWith(WorkflowAggregatedState.RUNNING)))
+        .reusedFromCache
+    )
   }
 }

@@ -77,7 +77,11 @@ object ExecutionUtils {
         dataProcessingTimeSum,
         controlProcessingTimeSum,
         idleTimeSum
-      )
+      ),
+      // A logical operator is reused from cache only when every one of its
+      // physical operators is. `metrics` is non-empty here, so this cannot
+      // hold vacuously.
+      reusedFromCache = metrics.forall(_.reusedFromCache)
     )
   }
 
