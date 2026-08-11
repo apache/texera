@@ -96,7 +96,6 @@ class CollaborationResourceSpec
     user.setUid(Integer.valueOf(accessUid))
     user.setName("collab_lock_user")
     user.setRole(UserRoleEnum.REGULAR)
-    user.setPassword("pw")
     new UserDao(getDSLContext.configuration()).insert(user)
 
     val workflow = new Workflow

@@ -49,8 +49,7 @@ class ComputingUnitManagingResourceSpec
     u.setName("owner")
     u.setEmail("owner@example.com")
     u.setRole(UserRoleEnum.REGULAR)
-    u.setPassword("password")
-    u.setGoogleAvatar("owner-avatar")
+    u.setAvatar("owner-avatar")
     new SessionUser(u)
   }
 
@@ -62,7 +61,8 @@ class ComputingUnitManagingResourceSpec
     u.setName(name)
     u.setEmail(s"$name@example.com")
     u.setRole(role)
-    u.setPassword("password")
+    // Credentials live in auth_provider now, and this spec exercises computing-unit ownership
+    // rather than login, so the user needs none.
     u
   }
   private lazy val adminUser: SessionUser =

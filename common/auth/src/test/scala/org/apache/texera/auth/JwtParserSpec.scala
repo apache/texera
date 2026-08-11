@@ -38,7 +38,6 @@ class JwtParserSpec extends AnyFlatSpec with Matchers {
     val claims = new JwtClaims
     claims.setSubject("alice")
     claims.setClaim("userId", 42)
-    claims.setClaim("googleId", "g-123")
     claims.setClaim("email", "alice@example.com")
     claims.setClaim("role", UserRoleEnum.ADMIN.name)
     claims.setClaim("googleAvatar", "avatar-blob")
@@ -46,19 +45,17 @@ class JwtParserSpec extends AnyFlatSpec with Matchers {
     claims
   }
 
-  "JwtParser.claimsToSessionUser" should "populate every issued claim including googleAvatar" in {
+  "JwtParser.claimsToSessionUser" should "populate every issued claim including avatar" in {
     val user: User = JwtParser.claimsToSessionUser(buildClaims()).getUser
     user.getUid shouldBe 42
     user.getName shouldBe "alice"
     user.getEmail shouldBe "alice@example.com"
-    user.getGoogleId shouldBe "g-123"
-    user.getGoogleAvatar shouldBe "avatar-blob"
+    user.getAvatar shouldBe "avatar-blob"
     user.getRole shouldBe UserRoleEnum.ADMIN
   }
 
-  it should "leave non-issued slots null (password, comment, accountCreation, affiliation, joiningReason)" in {
+  it should "leave non-issued slots null (comment, accountCreation, affiliation, joiningReason)" in {
     val user: User = JwtParser.claimsToSessionUser(buildClaims()).getUser
-    user.getPassword shouldBe null
     user.getComment shouldBe null
     user.getAccountCreationTime shouldBe null
     user.getAffiliation shouldBe null
@@ -71,7 +68,7 @@ class JwtParserSpec extends AnyFlatSpec with Matchers {
     parsed.isPresent shouldBe true
     val u = parsed.get().getUser
     u.getUid shouldBe 42
-    u.getGoogleAvatar shouldBe "avatar-blob"
+    u.getAvatar shouldBe "avatar-blob"
   }
 
   "JwtParser.parseToken" should "return empty on a structurally invalid token" in {
@@ -159,7 +156,6 @@ class JwtParserSpec extends AnyFlatSpec with Matchers {
     val bob = new JwtClaims
     bob.setSubject("bob")
     bob.setClaim("userId", 7)
-    bob.setClaim("googleId", "g-bob")
     bob.setClaim("email", "bob@example.com")
     bob.setClaim("role", UserRoleEnum.REGULAR.name)
     bob.setClaim("googleAvatar", "bob-avatar")
@@ -183,7 +179,7 @@ class JwtParserSpec extends AnyFlatSpec with Matchers {
     first.getUid shouldBe second.getUid
     first.getName shouldBe second.getName
     first.getEmail shouldBe second.getEmail
-    first.getGoogleAvatar shouldBe second.getGoogleAvatar
+    first.getAvatar shouldBe second.getAvatar
     first.getRole shouldBe second.getRole
   }
 

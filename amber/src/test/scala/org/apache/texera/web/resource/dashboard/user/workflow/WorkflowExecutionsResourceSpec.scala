@@ -30,6 +30,7 @@ import org.apache.texera.amber.core.workflow.{GlobalPortIdentity, PortIdentity}
 import org.apache.texera.amber.util.serde.GlobalPortIdentitySerde.SerdeOps
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.dao.MockTexeraDB
+import org.apache.texera.dao.jooq.generated.enums.UserWarehouseFlavorEnum
 import org.apache.texera.dao.jooq.generated.Tables._
 import org.apache.texera.dao.jooq.generated.enums.{PrivilegeEnum, WorkflowComputingUnitTypeEnum}
 import org.apache.texera.dao.jooq.generated.tables.daos.{
@@ -89,8 +90,7 @@ class WorkflowExecutionsResourceSpec
     testUser.setUid(testUserId)
     testUser.setName("test_user")
     testUser.setEmail("test@example.com")
-    testUser.setPassword("password")
-    testUser.setGoogleAvatar("avatar_url")
+    testUser.setAvatar("avatar_url")
 
     testWorkflow = new Workflow
     testWorkflow.setWid(testWorkflowWid)
@@ -218,7 +218,8 @@ class WorkflowExecutionsResourceSpec
       startOffsetMillis: Long = 0L,
       lastUpdateOffsetMillis: Option[Long] = None,
       cuid: Integer = null,
-      runtimeStatsUri: String = null
+      runtimeStatsUri: String = null,
+      whid: Integer = null
   ): WorkflowExecutions = {
     val execution = new WorkflowExecutions
     execution.setVid(testVersion.getVid)
@@ -233,6 +234,7 @@ class WorkflowExecutionsResourceSpec
     execution.setName(name)
     execution.setEnvironmentVersion("test-env-1.0")
     execution.setCuid(cuid)
+    execution.setWhid(whid)
     execution.setRuntimeStatsUri(runtimeStatsUri)
     workflowExecutionsDao.insert(execution)
     execution
@@ -786,7 +788,6 @@ class WorkflowExecutionsResourceSpec
     otherUser.setUid(otherUid)
     otherUser.setName("dataset-owner")
     otherUser.setEmail("owner@example.com")
-    otherUser.setPassword("password")
     userDao.insert(otherUser)
 
     val dataset = new Dataset
@@ -929,7 +930,6 @@ class WorkflowExecutionsResourceSpec
     u.setUid(testUserId + 5000)
     u.setName("no_access_user")
     u.setEmail("noaccess@example.com")
-    u.setPassword("password")
     u
   }
 
@@ -945,6 +945,22 @@ class WorkflowExecutionsResourceSpec
     insertExecution()
     val result = resource.retrieveExecutionsOfWorkflow(testWorkflowWid, session(testUser), null)
     assert(result.size == 2)
+  }
+
+  // fetchInto maps onto WorkflowExecutionEntry POSITIONALLY (a case class has no no-arg
+  // constructor, and jOOQ's mapConstructorParameterNames defaults to false), so `USER.AVATAR`
+  // at projection position 5 lands on `googleAvatar` despite the names differing — exactly as
+  // `last_update_time` at position 9 lands on `completionTime`. Neither mapping was asserted
+  // anywhere before, which is what makes an accidental column reorder silent. Pin both here.
+  it should "map the owner's avatar and completion time onto the entry despite the name mismatch" in {
+    grantReadAccess()
+    insertExecution(lastUpdateOffsetMillis = Some(0L))
+    val entry = resource.retrieveExecutionsOfWorkflow(testWorkflowWid, session(testUser), null).head
+    assert(entry.userName == testUser.getName)
+    assert(entry.googleAvatar == "avatar_url")
+    // `last_update_time` is populated, so a null here would mean position 9 never reached
+    // `completionTime` — i.e. the mapping had silently become name-based.
+    assert(entry.completionTime != null)
   }
 
   it should "reject an invalid status filter with a BadRequestException" in {
@@ -973,6 +989,25 @@ class WorkflowExecutionsResourceSpec
     // same VID, so the highest EID is the latest
     assert(entry.eId == latest.getEid)
     assert(entry.name == "second")
+  }
+
+  it should "expose the execution's warehouse (whId) for last-used preselection" in {
+    grantReadAccess()
+    val warehouse = getDSLContext.newRecord(USER_WAREHOUSE)
+    warehouse.setUid(testUser.getUid)
+    warehouse.setName("latest-entry-warehouse")
+    warehouse.setWarehouseName(s"user-${testUser.getUid}-latest-entry-warehouse")
+    warehouse.setLakekeeperWarehouseId(UUID.randomUUID())
+    warehouse.setFlavor(UserWarehouseFlavorEnum.local)
+    warehouse.store()
+
+    insertExecution(name = "warehouse-run", whid = warehouse.getWhid)
+    val entry = resource.retrieveLatestExecutionEntry(testWorkflowWid, session(testUser))
+    assert(entry.whId == warehouse.getWhid)
+
+    insertExecution(name = "default-run")
+    val defaultEntry = resource.retrieveLatestExecutionEntry(testWorkflowWid, session(testUser))
+    assert(defaultEntry.whId == null)
   }
 
   "retrieveInteractionHistory" should "return an empty list when the user lacks read access" in {

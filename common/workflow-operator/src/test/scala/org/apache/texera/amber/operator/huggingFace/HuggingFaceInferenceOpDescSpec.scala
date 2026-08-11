@@ -141,6 +141,10 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
     code should include("if not _HF_MODEL_ID_PATTERN.match(")
     code should include("raise ValueError(")
     code should include("Invalid Hugging Face model ID")
+    // #7196: reject `..` path traversal (leading negative lookahead) and accept
+    // single-segment legacy IDs like `gpt2` (trailing /segment group optional).
+    code should include("(?!.*\\.\\.)")
+    code should include("(/[A-Za-z0-9._-]+)*$")
   }
 
   it should "not leak raw user-input strings into the generated Python source" in {
@@ -686,6 +690,13 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
       .path("templateOptions")
       .path("type")
       .asText() shouldBe "password"
+  }
+
+  it should "report a clear error when a configured image/audio column is missing from the input table" in {
+    val code = makeDesc().generatePythonCode()
+    code should include("Input Image Column '")
+    code should include("Input Audio Column '")
+    code should include("not found in the input table")
   }
 
   it should "give a clear error when the result column collides with an input column" in {

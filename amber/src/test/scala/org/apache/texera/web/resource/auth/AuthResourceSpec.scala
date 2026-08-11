@@ -22,10 +22,10 @@ package org.apache.texera.web.resource.auth
 import org.apache.texera.auth.JwtAuth
 import org.apache.texera.common.config.UserSystemConfig
 import org.apache.texera.dao.MockTexeraDB
-import org.apache.texera.dao.jooq.generated.Tables.USER
-import org.apache.texera.dao.jooq.generated.enums.UserRoleEnum
-import org.apache.texera.dao.jooq.generated.tables.daos.UserDao
-import org.apache.texera.dao.jooq.generated.tables.pojos.User
+import org.apache.texera.dao.jooq.generated.Tables.{AUTH_PROVIDER, USER}
+import org.apache.texera.dao.jooq.generated.enums.{ProviderTypeEnum, UserRoleEnum}
+import org.apache.texera.dao.jooq.generated.tables.daos.{AuthProviderDao, UserDao}
+import org.apache.texera.dao.jooq.generated.tables.pojos.{AuthProvider, User}
 import org.apache.texera.web.model.http.request.auth.{UserLoginRequest, UserRegistrationRequest}
 import org.jasypt.util.password.StrongPasswordEncryptor
 import org.scalatest.flatspec.AnyFlatSpec
@@ -49,6 +49,7 @@ class AuthResourceSpec
   private val encryptor = new StrongPasswordEncryptor()
 
   private var userDao: UserDao = _
+  private var authDao: AuthProviderDao = _
   private var resource: AuthResource = _
 
   private def uname(tag: String): String = s"authspec_${tag}_$runId"
@@ -61,12 +62,14 @@ class AuthResourceSpec
 
   override protected def beforeEach(): Unit = {
     userDao = new UserDao(getDSLContext.configuration())
+    authDao = new AuthProviderDao(getDSLContext.configuration())
     resource = new AuthResource()
     cleanup()
   }
 
   override protected def afterEach(): Unit = cleanup()
 
+  // The auth_provider FK is ON DELETE CASCADE, so deleting the user clears its credential rows.
   private def cleanup(): Unit = {
     // startsWith escapes SQL LIKE wildcards, so the literal "authspec_" prefix is matched exactly.
     getDSLContext.deleteFrom(USER).where(USER.NAME.startsWith("authspec_")).execute()
@@ -74,6 +77,10 @@ class AuthResourceSpec
     getDSLContext.deleteFrom(USER).where(USER.NAME.eq(UserSystemConfig.adminUsername)).execute()
   }
 
+  /**
+    * Seed a user plus the LOCAL auth_provider row it logs in with, mirroring
+    * `LocalAuthProvisioner.createLocalAccount`.
+    */
   private def seedUser(
       name: String,
       password: String,
@@ -82,11 +89,36 @@ class AuthResourceSpec
     val user = new User
     user.setName(name)
     user.setEmail(s"$name@example.com")
-    user.setPassword(encryptor.encryptPassword(password))
     user.setRole(role)
     userDao.insert(user)
+
+    val auth = new AuthProvider
+    auth.setUid(user.getUid)
+    auth.setProviderType(ProviderTypeEnum.LOCAL)
+    // The login handle is the provider id, not the (mutable) display name.
+    auth.setProviderId(name)
+    auth.setPassword(encryptor.encryptPassword(password))
+    authDao.insert(auth)
     user
   }
+
+  /** The external id `uid` authenticates with at `providerType`, if it has one. */
+  private def providerIdOf(uid: Integer, providerType: ProviderTypeEnum): String =
+    getDSLContext
+      .select(AUTH_PROVIDER.PROVIDER_ID)
+      .from(AUTH_PROVIDER)
+      .where(AUTH_PROVIDER.UID.eq(uid))
+      .and(AUTH_PROVIDER.PROVIDER_TYPE.eq(providerType))
+      .fetchOne(AUTH_PROVIDER.PROVIDER_ID)
+
+  /** The stored LOCAL password hash for a login handle. */
+  private def storedPasswordOf(handle: String): String =
+    getDSLContext
+      .select(AUTH_PROVIDER.PASSWORD)
+      .from(AUTH_PROVIDER)
+      .where(AUTH_PROVIDER.PROVIDER_TYPE.eq(ProviderTypeEnum.LOCAL))
+      .and(AUTH_PROVIDER.PROVIDER_ID.eq(handle))
+      .fetchOne(AUTH_PROVIDER.PASSWORD)
 
   private def subjectOf(token: String): String =
     JwtAuth.jwtConsumer.processToClaims(token).getSubject
@@ -142,8 +174,9 @@ class AuthResourceSpec
     stored.getEmail shouldBe uemail("reg")
     stored.getIsPlaceholder shouldBe false
     // stored hashed, not in plain text, but verifies against the plain password
-    stored.getPassword should not be "pw"
-    encryptor.checkPassword("pw", stored.getPassword) shouldBe true
+    val storedPassword = storedPasswordOf(uname("reg"))
+    storedPassword should not be "pw"
+    encryptor.checkPassword("pw", storedPassword) shouldBe true
   }
 
   it should "reject an empty username" in {
@@ -204,6 +237,31 @@ class AuthResourceSpec
     user
   }
 
+  /**
+    * Seed an external (non-LOCAL) credential for an existing user. ck_provider_credential
+    * requires a password for LOCAL and only for LOCAL, so this leaves it null.
+    */
+  private def seedExternalProvider(
+      uid: Integer,
+      providerType: ProviderTypeEnum,
+      providerId: String
+  ): Unit = {
+    val auth = new AuthProvider
+    auth.setUid(uid)
+    auth.setProviderType(providerType)
+    auth.setProviderId(providerId)
+    authDao.insert(auth)
+  }
+
+  /** Whether `uid` holds a credential of the given kind. */
+  private def hasProvider(uid: Integer, providerType: ProviderTypeEnum): Boolean =
+    getDSLContext.fetchExists(
+      getDSLContext
+        .selectFrom(AUTH_PROVIDER)
+        .where(AUTH_PROVIDER.UID.eq(uid))
+        .and(AUTH_PROVIDER.PROVIDER_TYPE.eq(providerType))
+    )
+
   it should "claim a placeholder account with the matching email" in {
     val placeholder = seedPlaceholder(uname("ghost"), uemail("claim"))
 
@@ -214,7 +272,8 @@ class AuthResourceSpec
     val claimed = userDao.fetchOneByEmail(uemail("claim"))
     claimed.getUid shouldEqual placeholder.getUid
     claimed.getIsPlaceholder shouldBe false
-    encryptor.checkPassword("secret-pw", claimed.getPassword) shouldBe true
+    // the credential lives in auth_provider, keyed by the login handle just registered
+    encryptor.checkPassword("secret-pw", storedPasswordOf(uname("claimer"))) shouldBe true
     claimed.getRole shouldEqual UserRoleEnum.INACTIVE
     claimed.getComment should include("Claimed contributor placeholder at ")
   }
@@ -233,9 +292,9 @@ class AuthResourceSpec
     val real = new User
     real.setName(uname("real"))
     real.setEmail(uemail("real"))
-    real.setGoogleId(s"google-$runId")
     real.setRole(UserRoleEnum.INACTIVE)
     userDao.insert(real)
+    seedExternalProvider(real.getUid, ProviderTypeEnum.GOOGLE, s"google-$runId")
 
     val ex = intercept[NotAcceptableException](
       resource.register(UserRegistrationRequest(uname("attacker"), uemail("real"), "attacker-pw"))
@@ -243,9 +302,10 @@ class AuthResourceSpec
     ex.getMessage should include("Email exists")
 
     val untouched = userDao.fetchOneByEmail(uemail("real"))
-    untouched.getPassword shouldBe null
-    untouched.getGoogleId shouldEqual s"google-$runId"
     untouched.getIsPlaceholder shouldBe false
+    // no LOCAL credential was grafted on, and the Google identity is intact
+    hasProvider(untouched.getUid, ProviderTypeEnum.LOCAL) shouldBe false
+    providerIdOf(untouched.getUid, ProviderTypeEnum.GOOGLE) shouldEqual s"google-$runId"
   }
 
   it should "reject claiming with an already-taken username" in {
@@ -273,6 +333,32 @@ class AuthResourceSpec
     ex.getMessage should include("Email exists")
   }
 
+  // The taken-handle check has to ask auth_provider, not "user".name: an external login rewrites
+  // the display name but never the handle, so a name-based guard let the handle through and the
+  // insert then died on uq_provider_identity as a 500 instead of this 406.
+  it should "reject a taken handle even when the owner's display name has since drifted" in {
+    val owner = seedUser(uname("drift"), "pw")
+    // keep the cleanup prefix so the renamed row is still collected
+    owner.setName(uname("drift_renamed_by_google"))
+    userDao.update(owner)
+
+    val ex = intercept[NotAcceptableException](
+      resource.register(UserRegistrationRequest(uname("drift"), uemail("drift_other"), "pw2"))
+    )
+    ex.getMessage should include("Username exists")
+  }
+
+  // The mirror case: a display name that is not a handle must not block registration.
+  it should "allow a handle that only collides with some other account's display name" in {
+    val squatter = seedUser(uname("squatter"), "pw")
+    squatter.setName(uname("wanted"))
+    userDao.update(squatter)
+
+    val response =
+      resource.register(UserRegistrationRequest(uname("wanted"), uemail("wanted"), "pw2"))
+    subjectOf(response.accessToken) shouldBe uname("wanted")
+  }
+
   // ─── createAdminUser ────────────────────────────────────────────────────────
 
   "createAdminUser" should "insert the configured admin with the ADMIN role and a hashed password" in {
@@ -281,7 +367,10 @@ class AuthResourceSpec
     val admins = userDao.fetchByName(UserSystemConfig.adminUsername)
     admins.size() shouldBe 1
     admins.get(0).getRole shouldBe UserRoleEnum.ADMIN
-    encryptor.checkPassword(UserSystemConfig.adminPassword, admins.get(0).getPassword) shouldBe true
+    encryptor.checkPassword(
+      UserSystemConfig.adminPassword,
+      storedPasswordOf(UserSystemConfig.adminUsername)
+    ) shouldBe true
   }
 
   it should "not create a second admin when one already exists" in {

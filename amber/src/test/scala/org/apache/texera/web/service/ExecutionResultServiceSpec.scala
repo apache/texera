@@ -93,7 +93,6 @@ class ExecutionResultServiceSpec
     user.setUid(testUid)
     user.setName("execution-result-test-user")
     user.setEmail(s"u$testUid@example.com")
-    user.setPassword("password")
     new UserDao(getDSLContext.configuration()).insert(user)
 
     val workflow = new Workflow

@@ -334,7 +334,8 @@ class ExpansionGreedyScheduleGenerator(
     createPortBaseURI(
       workflowId = workflowContext.workflowId,
       executionId = workflowContext.executionId,
-      globalPortId = outputPortId
+      globalPortId = outputPortId,
+      warehouse = workflowContext.warehouse
     )
   }
 
