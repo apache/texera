@@ -209,11 +209,12 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
               throw new RuntimeException("seek operation should not be called")
             }
 
-            // refresh the table's snapshots
-            if (table.isEmpty) {
-              table = loadTableMetadata()
-            }
-            table.foreach(_.refresh())
+            // Re-resolve the table from the current catalog instead of refreshing a
+            // pinned one (#7290): a Table held across polls keeps its REST operations
+            // bound to a catalog the bounded cache may have closed, and re-resolving
+            // also keeps this warehouse's cache entry live for as long as the reader
+            // polls. Snapshot continuity lives in lastSnapshotId, not in the Table.
+            table = loadTableMetadata()
 
             // Retrieve and sort the file scan tasks by file sequence number.
             // Materialize inside `Using.resource` so the `planFiles()`
