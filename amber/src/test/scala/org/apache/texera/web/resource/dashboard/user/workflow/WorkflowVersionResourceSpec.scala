@@ -41,7 +41,7 @@ import org.apache.texera.dao.jooq.generated.tables.pojos.{
 import org.jooq.impl.DSL
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, PrivateMethodTester}
 
 import java.sql.Timestamp
 import java.util.UUID
@@ -55,6 +55,7 @@ class WorkflowVersionResourceSpec
     with Matchers
     with BeforeAndAfterAll
     with BeforeAndAfterEach
+    with PrivateMethodTester
     with MockTexeraDB {
 
   private val testWorkflowWid = 2000 + scala.util.Random.nextInt(1000)
@@ -452,5 +453,75 @@ class WorkflowVersionResourceSpec
     val cloned = workflowDao.fetchOneByWid(newWid)
     cloned should not be null
     cloned.getName should include("_copy")
+  }
+
+  // ─── version-importance helpers (pure JSON/timestamp logic) ────────────────
+
+  private val isSnapshotImportant = PrivateMethod[Boolean](Symbol("isSnapshotImportant"))
+  private val isVersionImportant = PrivateMethod[Boolean](Symbol("isVersionImportant"))
+  private val isWithinTimeLimit = PrivateMethod[Boolean](Symbol("isWithinTimeLimit"))
+  private val encodeVersionImportance =
+    PrivateMethod[List[WorkflowVersionResource.VersionEntry]](Symbol("encodeVersionImportance"))
+
+  "isSnapshotImportant" should "treat a patch whose ops are all 'replace' as unimportant" in {
+    val content = """[{"op":"replace","path":"/operatorPositions/x","value":1}]"""
+    (WorkflowVersionResource invokePrivate isSnapshotImportant(content)) shouldBe false
+  }
+
+  it should "treat a patch containing any non-replace op as important" in {
+    val content = """[{"op":"replace","path":"/a"},{"op":"add","path":"/operators/0"}]"""
+    (WorkflowVersionResource invokePrivate isSnapshotImportant(content)) shouldBe true
+  }
+
+  it should "treat an empty patch as unimportant" in {
+    (WorkflowVersionResource invokePrivate isSnapshotImportant("[]")) shouldBe false
+  }
+
+  "isVersionImportant" should "treat a patch touching only operator positions as unimportant" in {
+    val content = """[{"op":"replace","path":"/operatorPositions/op-1/x","value":5}]"""
+    (WorkflowVersionResource invokePrivate isVersionImportant(content)) shouldBe false
+  }
+
+  it should "treat a patch touching anything else as important" in {
+    val content = """[{"op":"replace","path":"/operators/0/properties","value":{}}]"""
+    (WorkflowVersionResource invokePrivate isVersionImportant(content)) shouldBe true
+  }
+
+  "isWithinTimeLimit" should "hold for timestamps closer together than the aggregate limit" in {
+    val later = new Timestamp(1_700_000_000_000L)
+    val earlier = new Timestamp(later.getTime - TimeUnit.SECONDS.toMillis(1))
+    (WorkflowVersionResource invokePrivate isWithinTimeLimit(later, earlier)) shouldBe true
+  }
+
+  it should "not hold once the gap exceeds the aggregate limit" in {
+    val later = new Timestamp(1_700_000_000_000L)
+    val earlier = new Timestamp(later.getTime - TimeUnit.DAYS.toMillis(30))
+    (WorkflowVersionResource invokePrivate isWithinTimeLimit(later, earlier)) shouldBe false
+  }
+
+  "encodeVersionImportance" should "always mark the latest version important and aggregate close ones" in {
+    val base = 1_700_000_000_000L
+    def version(vid: Int, offsetMillis: Long, content: String): WorkflowVersion = {
+      val v = new WorkflowVersion
+      v.setVid(vid)
+      v.setWid(testWorkflowWid)
+      v.setContent(content)
+      v.setCreationTime(new Timestamp(base - offsetMillis))
+      v
+    }
+
+    val positional = """[{"op":"replace","path":"/operatorPositions/op-1/x","value":5}]"""
+    val meaningful = """[{"op":"replace","path":"/operators/0/properties","value":{}}]"""
+
+    val encoded = WorkflowVersionResource invokePrivate encodeVersionImportance(
+      List(
+        version(3, 0L, positional), // latest — important regardless of content
+        version(2, TimeUnit.SECONDS.toMillis(1), meaningful), // within the aggregate window
+        version(1, TimeUnit.DAYS.toMillis(30), meaningful) // outside it, judged on content
+      )
+    )
+
+    encoded.map(_.vId) shouldBe List(3, 2, 1)
+    encoded.map(_.importance) shouldBe List(true, false, true)
   }
 }

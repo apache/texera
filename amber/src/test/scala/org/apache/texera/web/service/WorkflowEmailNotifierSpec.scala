@@ -25,6 +25,7 @@ import org.apache.texera.dao.MockTexeraDB
 import org.apache.texera.dao.jooq.generated.Tables.WORKFLOW
 import org.apache.texera.dao.jooq.generated.tables.daos.WorkflowDao
 import org.apache.texera.dao.jooq.generated.tables.pojos.Workflow
+import org.apache.texera.web.resource.EmailMessage
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.{BeforeAndAfterAll, PrivateMethodTester}
 
@@ -64,6 +65,7 @@ class WorkflowEmailNotifierSpec
   private val testWorkflowName: String = "notifier_wf_" + UUID.randomUUID().toString.substring(0, 8)
   private val userEmail = "recipient@example.com"
 
+  private val createEmailMessage = PrivateMethod[EmailMessage](Symbol("createEmailMessage"))
   private val createDashboardUrl = PrivateMethod[String](Symbol("createDashboardUrl"))
   private val createEmailSubject = PrivateMethod[String](Symbol("createEmailSubject"))
   private val createEmailContent = PrivateMethod[String](Symbol("createEmailContent"))
@@ -215,5 +217,36 @@ class WorkflowEmailNotifierSpec
       )
     }
     assert(ex.getMessage.contains(unseededWid.toString))
+  }
+
+  // ─── createEmailMessage ────────────────────────────────────────────────────
+
+  "createEmailMessage" should "address the recipient and carry the subject and content for the state" in {
+    val notifier = notifierFor("http://texera.example.com:8080/dashboard")
+    val message = notifier invokePrivate createEmailMessage(KILLED)
+
+    assert(message.receiver == userEmail)
+    // the assembled subject must match what the dedicated builder produces for the same state
+    assert(message.subject == (notifier invokePrivate createEmailSubject(KILLED)))
+    assert(message.content.contains(testWorkflowName))
+    assert(message.content.contains(testWid.toString))
+    assert(message.content.contains(KILLED.name))
+  }
+
+  // ─── sendStatusEmail ───────────────────────────────────────────────────────
+
+  // Only the invalid-recipient arm is driven here: it returns before reaching
+  // GmailResource.sendEmail, so no SMTP call is made. The valid-address arm would dispatch
+  // for real, so it belongs to the integration tier.
+  "sendStatusEmail" should "return without dispatching when the recipient address is invalid" in {
+    val notifier =
+      new WorkflowEmailNotifier(
+        testWid.toLong,
+        "not-an-email",
+        new URI("http://texera.example.com")
+      )
+
+    notifier.sendStatusEmail(COMPLETED) // must not throw and must not reach Gmail
+    assert(!(notifier invokePrivate isValidEmail("not-an-email")))
   }
 }
