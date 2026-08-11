@@ -72,12 +72,6 @@ private[storage] class IcebergTableWriter[T](
 
   override val bufferSize: Int = StorageConfig.icebergTableCommitBatchSize
 
-  // Load the Iceberg table
-  private val table: Table =
-    IcebergUtil
-      .loadTableMetadata(catalog, tableNamespace, tableName)
-      .get
-
   /**
     * Open the writer and clear the buffer.
     */
@@ -112,6 +106,12 @@ private[storage] class IcebergTableWriter[T](
     */
   private def flushBuffer(): Unit = {
     if (buffer.nonEmpty) {
+      // Resolve the table per flush (#7290): an eagerly-held Table would pin REST
+      // operations backed by a catalog the bounded cache may close, and resolving
+      // here also keeps this warehouse's cache entry live for the whole execution.
+      val table: Table = IcebergUtil
+        .loadTableMetadata(catalog, tableNamespace, tableName)
+        .get
       // Create a unique file path using the writer's identifier and the filename index
       val location = table.location().stripSuffix("/")
       val filepathString = s"$location/${writerIdentifier}_$filenameIdx"

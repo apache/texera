@@ -19,6 +19,7 @@
 
 package org.apache.texera.amber.core.storage
 
+import com.google.common.base.Ticker
 import org.apache.texera.amber.core.storage.result.iceberg.IcebergDocument
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema, Tuple}
 import org.apache.texera.amber.util.IcebergUtil
@@ -27,19 +28,18 @@ import org.apache.iceberg.catalog.{Catalog, Namespace, TableIdentifier}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
+import java.time.Duration
+
 /**
   * Spec for the bounded catalog cache (#7290): a genuine replacement closes the
   * catalog it displaces, a same-instance re-registration does not (that is what
   * [[LocalHadoopIcebergCatalog.ensure]] relies on), and holders resolve their
   * catalog per use so a replacement is visible immediately.
   *
-  * Size-based eviction is deliberately not exercised: forcing it would flood the
-  * JVM-wide cache that parallel suites share and could evict their live catalog.
-  * The close-on-removal wiring it would exercise is pinned by the replacement
-  * cases below, which Guava routes through the same removal listener.
-  *
-  * Every test uses its own spec-unique warehouse key, so nothing here can touch
-  * another suite's cache entries.
+  * Size and idle eviction are exercised on isolated caches built through the
+  * package-private factory (with a manual ticker), never on the JVM-wide cache
+  * that parallel suites share. Tests that do touch the shared cache use their
+  * own spec-unique warehouse keys.
   */
 class IcebergCatalogInstanceSpec extends AnyFlatSpec with Matchers {
 
@@ -56,6 +56,62 @@ class IcebergCatalogInstanceSpec extends AnyFlatSpec with Matchers {
       throw new UnsupportedOperationException
     override def loadTable(identifier: TableIdentifier): Table =
       throw new UnsupportedOperationException
+  }
+
+  /** A ticker the tests advance by hand, making idle expiry deterministic. */
+  private class ManualTicker extends Ticker {
+    @volatile private var nanos = 0L
+    def advance(duration: Duration): Unit = nanos += duration.toNanos
+    override def read(): Long = nanos
+  }
+
+  "the catalog cache" should "evict and close entries beyond the size bound" in {
+    val cache =
+      IcebergCatalogInstance.buildCatalogCache(2, Duration.ofMinutes(60), new ManualTicker)
+    val fakes = (1 to 3).map(i => new FakeCatalog(s"size-$i"))
+
+    fakes.zipWithIndex.foreach { case (fake, i) => cache.put(s"warehouse-$i", fake) }
+
+    cache.size() should be <= 2L
+    // Writes process eviction notifications synchronously; the evicted entry is closed.
+    fakes.count(_.closed) should be >= 1
+  }
+
+  it should "close an entry left idle beyond the expiry window" in {
+    val ticker = new ManualTicker
+    val cache = IcebergCatalogInstance.buildCatalogCache(64, Duration.ofMinutes(60), ticker)
+    val idle = new FakeCatalog("idle")
+    cache.put("idle", idle)
+
+    ticker.advance(Duration.ofMinutes(61))
+    // Reads alone may defer removal processing; cleanUp() drains it deterministically.
+    cache.cleanUp()
+
+    cache.getIfPresent("idle") shouldBe null
+    idle.closed shouldBe true
+  }
+
+  it should "surface loader failures with their original exception type" in {
+    val cache =
+      IcebergCatalogInstance.buildCatalogCache(64, Duration.ofMinutes(60), new ManualTicker)
+
+    // Guava wraps a runtime failure in UncheckedExecutionException and a checked one
+    // in ExecutionException; getOrLoad must rethrow the original in both cases.
+    val runtimeFailure = intercept[IllegalArgumentException] {
+      IcebergCatalogInstance.getOrLoad(
+        cache,
+        "unsupported",
+        () => throw new IllegalArgumentException("Unsupported catalog type")
+      )
+    }
+    runtimeFailure.getMessage should include("Unsupported catalog type")
+
+    an[java.io.IOException] should be thrownBy
+      IcebergCatalogInstance.getOrLoad(
+        cache,
+        "unreachable",
+        () => throw new java.io.IOException("connection refused")
+      )
   }
 
   "getInstance" should "return the catalog installed for its warehouse" in {

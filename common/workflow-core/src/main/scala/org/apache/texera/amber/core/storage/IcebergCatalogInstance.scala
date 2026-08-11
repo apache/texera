@@ -19,13 +19,16 @@
 
 package org.apache.texera.amber.core.storage
 
+import com.google.common.base.Ticker
 import com.google.common.cache.{Cache, CacheBuilder, RemovalListener, RemovalNotification}
+import com.google.common.util.concurrent.{ExecutionError, UncheckedExecutionException}
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.texera.common.config.StorageConfig
 import org.apache.texera.amber.util.IcebergUtil
 import org.apache.iceberg.catalog.Catalog
 
-import java.util.concurrent.{Callable, TimeUnit}
+import java.time.Duration
+import java.util.concurrent.{Callable, ExecutionException}
 import scala.util.Try
 
 /**
@@ -50,23 +53,37 @@ object IcebergCatalogInstance extends LazyLogging {
   // Sizing mirrors HuggingFaceModelResource's bounded-cache precedent: generous enough
   // that eviction never hits a warehouse in active use, small enough to bound the JVM.
   private val CatalogCacheMaxSize = 64L
-  private val CatalogCacheExpireAfterAccessMinutes = 60L
+  private val CatalogCacheExpireAfterAccess = Duration.ofMinutes(60)
 
-  private val catalogs: Cache[String, Catalog] = CacheBuilder
-    .newBuilder()
-    .maximumSize(CatalogCacheMaxSize)
-    .expireAfterAccess(CatalogCacheExpireAfterAccessMinutes, TimeUnit.MINUTES)
-    .removalListener(new RemovalListener[String, Catalog] {
-      override def onRemoval(notification: RemovalNotification[String, Catalog]): Unit =
-        notification.getValue match {
-          case closeable: AutoCloseable =>
-            Try(closeable.close()).failed.foreach(error =>
-              logger.warn(s"failed to close evicted catalog '${notification.getKey}'", error)
-            )
-          case _ =>
-        }
-    })
-    .build[String, Catalog]()
+  /**
+    * Builds a catalog cache with the eviction wiring `getInstance` relies on.
+    * Package-private so the spec can exercise size and idle eviction on isolated
+    * instances with a manual ticker, instead of flooding the JVM-wide cache below.
+    */
+  private[storage] def buildCatalogCache(
+      maximumSize: Long,
+      expireAfterAccess: Duration,
+      ticker: Ticker
+  ): Cache[String, Catalog] =
+    CacheBuilder
+      .newBuilder()
+      .maximumSize(maximumSize)
+      .expireAfterAccess(expireAfterAccess)
+      .ticker(ticker)
+      .removalListener(new RemovalListener[String, Catalog] {
+        override def onRemoval(notification: RemovalNotification[String, Catalog]): Unit =
+          notification.getValue match {
+            case closeable: AutoCloseable =>
+              Try(closeable.close()).failed.foreach(error =>
+                logger.warn(s"failed to close evicted catalog '${notification.getKey}'", error)
+              )
+            case _ =>
+          }
+      })
+      .build[String, Catalog]()
+
+  private val catalogs: Cache[String, Catalog] =
+    buildCatalogCache(CatalogCacheMaxSize, CatalogCacheExpireAfterAccess, Ticker.systemTicker())
 
   // Cache key for the warehouse-agnostic catalog types. Not a legal warehouse name,
   // so it cannot collide with a REST warehouse.
@@ -96,15 +113,34 @@ object IcebergCatalogInstance extends LazyLogging {
     */
   def getInstance(warehouse: Option[String] = None): Catalog = {
     val name = warehouse.getOrElse(defaultWarehouse)
-    // get(key, loader) locks per key, not globally: a cache miss's REST config
-    // round trip no longer blocks lookups of other warehouses.
-    catalogs.get(
-      cacheKey(name),
-      new Callable[Catalog] {
-        override def call(): Catalog = createCatalog(name)
-      }
-    )
+    getOrLoad(catalogs, cacheKey(name), () => createCatalog(name))
   }
+
+  /**
+    * `Cache.get` wraps loader failures (`UncheckedExecutionException`, `ExecutionException`,
+    * `ExecutionError`); unwrap them so `createCatalog` failures keep the types they had
+    * before the cache existed. Package-private so the spec can pin the unwrapping against
+    * an isolated cache with a throwing loader.
+    */
+  private[storage] def getOrLoad(
+      cache: Cache[String, Catalog],
+      key: String,
+      loader: () => Catalog
+  ): Catalog =
+    try {
+      // get(key, loader) locks per key, not globally: a cache miss's REST config
+      // round trip no longer blocks lookups of other warehouses.
+      cache.get(
+        key,
+        new Callable[Catalog] {
+          override def call(): Catalog = loader()
+        }
+      )
+    } catch {
+      case e: UncheckedExecutionException => throw e.getCause
+      case e: ExecutionException          => throw e.getCause
+      case e: ExecutionError              => throw e.getCause
+    }
 
   private def createCatalog(warehouse: String): Catalog =
     StorageConfig.icebergCatalogType match {
@@ -137,10 +173,13 @@ object IcebergCatalogInstance extends LazyLogging {
     val key = cacheKey(warehouse.getOrElse(defaultWarehouse))
     // Guava reports a same-value put as a replacement, which would fire the removal
     // listener and close a catalog that is still installed: the shared test catalog
-    // is ensure()d repeatedly (and under several names) by parallel suites. Skip the
-    // no-op re-put so only a genuine replacement closes the previous catalog.
-    if (catalogs.getIfPresent(key) ne catalog) {
-      catalogs.put(key, catalog)
+    // is ensure()d repeatedly (and under several names) by parallel suites. The
+    // putIfAbsent/replace pair keeps re-registration race-free: only a genuine
+    // replacement fires the listener, and a lost race leaves the winner installed.
+    val map = catalogs.asMap()
+    val previous = map.putIfAbsent(key, catalog)
+    if (previous != null && (previous ne catalog)) {
+      map.replace(key, previous, catalog)
     }
   }
 }
