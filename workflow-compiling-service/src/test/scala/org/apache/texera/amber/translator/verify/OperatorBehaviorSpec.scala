@@ -179,9 +179,6 @@ object OperatorBehaviorSpec {
     "HuggingFace",
     "MachineLearningScorer",
     "NetworkGraphOpDesc",
-    "UrlVizOpDesc",
-    "VolcanoPlotOpDesc",
-    "WaterfallChartOpDesc",
     "WindRoseChartOpDesc",
     "WordCloudOpDesc"
   )

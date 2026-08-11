@@ -26,7 +26,7 @@ import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBui
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
-import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
+import org.apache.texera.amber.operator.metadata.annotations.{AutofillAttributeName, SampleColumn}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 
@@ -52,6 +52,7 @@ class VolcanoPlotOpDesc extends PythonOperatorDescriptor with StandaloneCodeGene
       "and is used for the x-axis of the volcano plot."
   )
   @AutofillAttributeName
+  @SampleColumn("log2fc")
   @NotNull(message = "Effect Size (log2 Fold Change) cannot be empty")
   var effectColumn: EncodableString = ""
 
@@ -63,6 +64,7 @@ class VolcanoPlotOpDesc extends PythonOperatorDescriptor with StandaloneCodeGene
       "plotted on the y-axis to indicate statistical significance."
   )
   @AutofillAttributeName
+  @SampleColumn("pvalue")
   @NotNull(message = "P-Value Column cannot be empty")
   var pvalueColumn: EncodableString = ""
 
