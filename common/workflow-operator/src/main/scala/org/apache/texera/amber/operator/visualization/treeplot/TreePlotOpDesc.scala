@@ -196,10 +196,12 @@ class TreePlotOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerat
   override def generateStandaloneCode(): String = {
     s"""import ast
        |
-       |try:
-       |    from igraph import Graph
-       |except ImportError:
-       |    Graph = None
+       |from igraph import Graph
+       |
+       |# Only a layout failure renders an error page; everything else propagates,
+       |# matching the operator's own error handling.
+       |class TreeLayoutError(Exception):
+       |    pass
        |
        |def render_error(error_msg):
        |    return f'''<h1>Tree Plot is not available.</h1>
@@ -230,45 +232,18 @@ class TreePlotOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerat
        |    return annotations
        |
        |def compute_tree_layout(edges):
-       |    if Graph is not None:
-       |        graph = Graph.TupleList(edges, directed=True)
-       |        labels = graph.vs['name']
-       |        layout = graph.layout('rt')
-       |        return {
-       |            labels[index]: (layout[index][0], -layout[index][1])
-       |            for index in range(len(labels))
-       |        }
-       |
-       |    nodes = []
-       |    children = {}
-       |    parents = {}
-       |    for parent, child in edges:
-       |        if parent not in nodes:
-       |            nodes.append(parent)
-       |        if child not in nodes:
-       |            nodes.append(child)
-       |        children.setdefault(parent, []).append(child)
-       |        parents[child] = parent
-       |
-       |    roots = [node for node in nodes if node not in parents] or nodes[:1]
-       |    position = {}
-       |    next_x = 0
-       |
-       |    def place(node, depth):
-       |        nonlocal next_x
-       |        child_nodes = children.get(node, [])
-       |        if not child_nodes:
-       |            x = next_x
-       |            next_x += 1
-       |        else:
-       |            child_x = [place(child, depth + 1) for child in child_nodes]
-       |            x = sum(child_x) / len(child_x)
-       |        position[node] = (x, -depth)
-       |        return x
-       |
-       |    for root in roots:
-       |        place(root, 0)
-       |    return position
+       |    graph = Graph.TupleList(edges, directed=True)
+       |    labels = graph.vs['name']
+       |    layout_algorithm = 'rt'
+       |    try:
+       |        layout = graph.layout(layout_algorithm)
+       |    except Exception as e:
+       |        raise TreeLayoutError(f"Layout algorithm '{layout_algorithm}' failed: {e}")
+       |    # Invert the y-axis to make the tree grow top-down.
+       |    return {
+       |        labels[index]: (layout[index][0], -layout[index][1])
+       |        for index in range(len(labels))
+       |    }
        |
        |if in1df.empty:
        |    with open("output.html", "w", encoding="utf-8") as output:
@@ -334,7 +309,7 @@ class TreePlotOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerat
        |            fig.write_json("output.json")
        |            fig.write_html("output.html")
        |            print("Tree plot saved to output.html")
-       |        except Exception as e:
+       |        except TreeLayoutError as e:
        |            with open("output.html", "w", encoding="utf-8") as output:
        |                output.write(render_error(str(e)))""".stripMargin
   }

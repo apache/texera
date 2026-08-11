@@ -25,7 +25,7 @@ import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBui
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
-import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
+import org.apache.texera.amber.operator.metadata.annotations.{AutofillAttributeName, SampleColumn}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 
@@ -51,6 +51,7 @@ class TimeSeriesOpDesc extends PythonOperatorDescriptor with StandaloneCodeGener
   @JsonSchemaTitle("Time Column")
   @JsonPropertyDescription("The column containing time/date values (e.g., Date, Timestamp).")
   @AutofillAttributeName
+  @SampleColumn("start_ts")
   @NotNull(message = "Time Column cannot be empty")
   var timeColumn: EncodableString = ""
 
@@ -66,12 +67,14 @@ class TimeSeriesOpDesc extends PythonOperatorDescriptor with StandaloneCodeGener
   @JsonSchemaTitle("Category Column")
   @JsonPropertyDescription("Optional - A categorical column to create separate lines.")
   @AutofillAttributeName
+  @SampleColumn("node_src")
   var CategoryColumn: EncodableString = "No Selection"
 
   @JsonProperty(value = "facetColumn", required = false, defaultValue = "No Selection")
   @JsonSchemaTitle("Facet Column")
   @JsonPropertyDescription("Optional - A column to create separate subplots.")
   @AutofillAttributeName
+  @SampleColumn("node_dst")
   var facetColumn: EncodableString = "No Selection"
 
   // Declared as a schema enum rather than named only in the description: the code
