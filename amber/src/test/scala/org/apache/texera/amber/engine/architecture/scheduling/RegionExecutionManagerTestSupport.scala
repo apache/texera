@@ -57,7 +57,7 @@ import org.apache.texera.amber.engine.common.ambermessage.WorkflowFIFOMessage
 import org.apache.texera.amber.engine.common.rpc.AsyncRPCClient
 import org.apache.texera.amber.engine.common.virtualidentity.util.COORDINATOR
 import org.apache.texera.amber.util.VirtualIdentityUtils
-
+import org.apache.texera.amber.engine.architecture.coordinator.Coordinator
 import scala.collection.mutable
 
 object RegionExecutionManagerTestSupport {
@@ -79,7 +79,8 @@ object RegionExecutionManagerTestSupport {
 
   case class CoordinatorHarnessFixture(
       actorService: PekkoActorService,
-      actorRefService: PekkoActorRefMappingService
+      actorRefService: PekkoActorRefMappingService,
+      coordinatorRef: ActorRef
   )
 
   /**
@@ -154,7 +155,7 @@ object RegionExecutionManagerTestSupport {
     override def receive: Receive = { case _ => () }
   }
 
-  class CoordinatorHarness extends WorkflowActor(None, COORDINATOR) {
+  class CoordinatorHarness(rpcProbe: CoordinatorRpcProbe) extends WorkflowActor(None, COORDINATOR) {
     override def handleInputMessage(id: Long, workflowMsg: WorkflowFIFOMessage): Unit = ()
 
     override def getQueuedCredit(channelId: ChannelIdentity): Long = 0
@@ -164,6 +165,18 @@ object RegionExecutionManagerTestSupport {
     override def initState(): Unit = ()
 
     override def loadFromCheckpoint(chkpt: CheckpointState): Unit = ()
+
+    override def receive: Receive = {
+      case Coordinator.CleanupWorkerChannels(workerIds) =>
+        workerIds.foreach { workerId =>
+          rpcProbe.inputGateway.removeControlChannel(workerId)
+          rpcProbe.outputGateway.removeControlChannel(workerId)
+          actorRefMappingService.removeActorRef(workerId)
+        }
+
+      case msg =>
+        super.receive(msg)
+    }
   }
 
   def createSourceOp(logicalOpId: String): PhysicalOp =
@@ -242,13 +255,14 @@ object RegionExecutionManagerTestSupport {
 trait RegionExecutionManagerTestSupport { self: TestKit =>
   import RegionExecutionManagerTestSupport._
 
-  protected def createCoordinatorHarness(): CoordinatorHarnessFixture = {
-    val coordinatorRef = TestActorRef(new CoordinatorHarness)
+  protected def createCoordinatorHarness(rpcProbe: CoordinatorRpcProbe = new CoordinatorRpcProbe(_ => None)): CoordinatorHarnessFixture = {
+    val coordinatorRef = TestActorRef(new CoordinatorHarness(rpcProbe))
     coordinatorRef.underlyingActor.actorService.getAvailableNodeAddressesFunc = () =>
       Array(coordinatorRef.path.address)
     CoordinatorHarnessFixture(
       actorService = coordinatorRef.underlyingActor.actorService,
-      actorRefService = coordinatorRef.underlyingActor.actorRefMappingService
+      actorRefService = coordinatorRef.underlyingActor.actorRefMappingService,
+      coordinatorRef = coordinatorRef
     )
   }
 

@@ -61,17 +61,20 @@ import org.apache.texera.web.model.websocket.event.RegionStateEvent
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 import scala.concurrent.duration.{Duration => ScalaDuration}
+import org.apache.texera.amber.engine.architecture.coordinator.Coordinator
 
 object RegionExecutionManager {
 
   // Terminating a region is deterministic: `EndWorker` plus `gracefulStop` either succeed, or the
   // engine has a bug that retrying cannot fix. Retries therefore only ride out a transient
-  // failure. With `Utils.retry`'s doubling backoff, 4 attempts from a 200ms base wait
-  // 200 + 400 + 800 ms = 1.4s in the worst case, where the former 150 attempts at a flat 200ms
-  // held a whole region's teardown for ~30s before the failure surfaced.
+  // failure. With `Utils.retry`'s doubling backoff and a 6s timeout per attempt, 4 attempts
+  // take ~25.4s in the worst case (4 × 6s + 1.4s backoff), compared with the former
+  // 150 attempts at a flat 200ms, which held a whole region's teardown for ~30s before failure.
   private[scheduling] val DefaultMaxTerminationAttempts: Int = 4
 
   private[scheduling] val DefaultKillRetryBaseBackoffMs: Long = 200L
+
+  private[scheduling] val DefaultTerminationTimeoutMs: Long = 6000L
 }
 
 /**
@@ -113,6 +116,7 @@ class RegionExecutionManager(
     maxTerminationAttempts: Int = RegionExecutionManager.DefaultMaxTerminationAttempts,
     killRetryBaseBackoffMs: Long = RegionExecutionManager.DefaultKillRetryBaseBackoffMs,
     killRetryTimer: Timer = new JavaTimer(true),
+    terminationTimeoutMs: Long = RegionExecutionManager.DefaultTerminationTimeoutMs,
     // Loop-back write addresses (Loop Start logical op id -> its input port's
     // state URI), shipped to every worker in InitializeExecutorRequest. See
     // WorkflowExecutionManager.loopStartStateUris.
@@ -185,8 +189,8 @@ class RegionExecutionManager(
   }
 
   private def terminateWorkers(regionExecution: RegionExecution) = {
-    implicit val timer: Timer = new JavaTimer(true)
-    val killTimeout = com.twitter.util.Duration.fromMilliseconds(1000)
+    implicit val timer: Timer = killRetryTimer
+    val killTimeout = com.twitter.util.Duration.fromMilliseconds(terminationTimeoutMs)
     // 1. Send EndWorkers with timeout
     val endWorkerRequests =
       regionExecution.getAllOperatorExecutions.flatMap {
@@ -225,18 +229,16 @@ class RegionExecutionManager(
     gracefulStopRequests.transform {
       case Return(_) =>
         logger.debug(s"Region ${region.id.id} successfully terminated.")
+        val allWorkerIds = regionExecution.getAllOperatorExecutions.toSeq.flatMap {
+          case (_, opExec) => opExec.getWorkerIds
+        }
         regionExecution.getAllOperatorExecutions.foreach {
           case (_, opExec) =>
             opExec.getWorkerIds.foreach { workerId =>
               opExec.getWorkerExecution(workerId).forceTerminate()
-              // Remove the actorRef after successful termination so other actors cannot reach the worker.
-              actorRefService.removeActorRef(workerId)
-              // Restarted regions reuse actorId. Remove stale control channels so the
-              // coordinator does not reuse old control-message sequence numbers for new workers.
-              asyncRPCClient.inputGateway.removeControlChannel(workerId)
-              asyncRPCClient.outputGateway.removeControlChannel(workerId)
             }
         }
+        actorService.self ! Coordinator.CleanupWorkerChannels(allWorkerIds)
         Future.Unit // propagate success
       case Throw(err) =>
         logger.warn(s"Error when terminating region ${region.id}.")

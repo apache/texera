@@ -44,7 +44,7 @@ import org.apache.texera.amber.engine.common.ambermessage.{
 import org.apache.texera.amber.engine.common.virtualidentity.util.{CLIENT, COORDINATOR, SELF}
 import org.apache.texera.amber.engine.common.{CheckpointState, SerializedState}
 import org.apache.texera.web.SessionState
-
+import org.apache.texera.amber.core.virtualidentity.ActorVirtualIdentity
 import scala.concurrent.duration.DurationInt
 
 object CoordinatorConfig {
@@ -66,7 +66,7 @@ final case class CoordinatorConfig(
 )
 
 object Coordinator {
-
+  case class CleanupWorkerChannels(workerIds: Seq[ActorVirtualIdentity])
   def props(
       workflowContext: WorkflowContext,
       physicalPlan: PhysicalPlan,
@@ -190,7 +190,15 @@ class Coordinator(
   }
 
   override def receive: Receive = {
-    super.receive orElse handleDirectInvocation orElse handleReplayMessages
+    case Coordinator.CleanupWorkerChannels(workerIds) =>
+      workerIds.foreach { workerId =>
+        cp.asyncRPCClient.inputGateway.removeControlChannel(workerId)
+        cp.asyncRPCClient.outputGateway.removeControlChannel(workerId)
+        cp.actorRefService.removeActorRef(workerId)
+      }
+
+    case msg =>
+      (super.receive orElse handleDirectInvocation orElse handleReplayMessages)(msg)
   }
 
   /** flow-control */
