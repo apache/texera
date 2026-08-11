@@ -21,9 +21,10 @@ import sbt._
 /**
  * Selects a module's tagged tests for the fast-unit job or the integration job:
  * skip-integration excludes them, integration-only runs only them, unset runs
- * everything. Shared because the mapping is identical in every module, while the
- * env var and the tag are not — the tag annotation has to live somewhere the
- * module's own Test config can see.
+ * everything, and any other value fails the build rather than quietly running
+ * everything in a job that selected a subset. Shared because the mapping is
+ * identical in every module, while the env var and the tag are not — the tag
+ * annotation has to live somewhere the module's own Test config can see.
  */
 object TestFilters {
 
@@ -41,6 +42,7 @@ object TestFilters {
         Seq(Tests.Argument(TestFrameworks.ScalaTest, "-l", tag))
       case Some("integration-only") =>
         Seq(Tests.Argument(TestFrameworks.ScalaTest, "-n", tag))
-      case _ => Nil
+      case Some(other) => sys.error(s"unrecognized $envVar value: $other")
+      case None        => Nil
     }
 }

@@ -285,7 +285,7 @@ jobs:
         # so common modules' tests are listed explicitly here.
         #
         # AMBER_TEST_FILTER=skip-integration excludes the integration-tagged
-        # specs of two modules, each under its own tag: amber/build.sbt drops
+        # tests of two modules, each under its own tag: amber/build.sbt drops
         # @org.apache.texera.amber.tags.IntegrationTest, and
         # common/workflow-operator/build.sbt drops
         # @org.apache.texera.amber.operator.tags.IntegrationTest. Both run in the

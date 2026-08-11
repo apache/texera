@@ -116,8 +116,8 @@ object PythonWorkerPool extends LazyLogging {
   /** How long a caller waits on a worker before the pool kills and discards it.
     * A read on a process pipe cannot be interrupted — a suite or executor timeout
     * leaves the reading thread stuck on it — so a worker that stays alive without
-    * answering has to be bounded here. `response` keeps the 30 seconds the
-    * one-shot spawn this pool replaced allowed a job; `startup` is longer because
+    * answering has to be bounded here. `responseMillis` keeps the 30 seconds the
+    * one-shot spawn this pool replaced allowed a job; `startupMillis` is longer because
     * a worker imports its libraries before it reports ready, and a loaded CI
     * machine makes that slow. Override in seconds via
     * `TEXERA_TEST_PYTHON_WORKER_TIMEOUT` / `TEXERA_TEST_PYTHON_WORKER_STARTUP_TIMEOUT`.
@@ -149,7 +149,8 @@ object PythonWorkerPool extends LazyLogging {
     * `interpreterArgs` are the flags that must precede the script — a syntax
     * checker wants `-I -S` so it validates under the same isolation a one-shot
     * `python -I -S -m py_compile` gave it. `launchArgs` are the script's own
-    * (e.g. `--serve`), and `env` carries what a flag cannot (e.g. PYTHONPATH).
+    * (e.g. `--serve`), and `env` carries what a flag cannot — though not
+    * PYTHONPATH or any other PYTHON* var, which the `-I` above makes CPython ignore.
     * All three are part of a worker's identity: one started differently is not
     * interchangeable, so it gets its own sub-pool. `timeouts` is not — it bounds
     * this call, so a caller whose jobs are slower than most can raise it without
