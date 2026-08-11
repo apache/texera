@@ -33,7 +33,7 @@ import {
   getFullPathFromDatasetFileNode,
   getRelativePathFromDatasetFileNode,
 } from "../../../../../common/type/datasetVersionFileTree";
-import { DatasetVersion } from "../../../../../common/type/dataset";
+import { Contributor, DatasetVersion } from "../../../../../common/type/dataset";
 import { switchMap, throttleTime } from "rxjs/operators";
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
 import { DownloadService } from "../../../../service/user/download/download.service";
@@ -48,8 +48,12 @@ import { AdminSettingsService } from "../../../../service/admin/settings/admin-s
 import { HttpErrorResponse, HttpStatusCode } from "@angular/common/http";
 import { EMPTY, Subscription } from "rxjs";
 import { formatCount, formatSpeed, formatTime, parseIntOrDefault } from "src/app/common/util/format.util";
+import { replaceOneImmutable } from "src/app/common/util/array-utils";
 import { format } from "date-fns";
 import { NgIf, NgClass, NgFor } from "@angular/common";
+import { NzDropdownDirective, NzDropdownMenuComponent } from "ng-zorro-antd/dropdown";
+import { NzMenuDirective, NzMenuItemComponent } from "ng-zorro-antd/menu";
+import { UserDatasetContributorEditorComponent } from "./user-dataset-contributor-editor/user-dataset-contributor-editor.component";
 import { NzCardComponent, NzCardMetaComponent } from "ng-zorro-antd/card";
 import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
 import { NzTagComponent } from "ng-zorro-antd/tag";
@@ -123,6 +127,10 @@ export const ABORT_RETRY_BACKOFF_BASE_MS = 100;
     CdkVirtualScrollViewport,
     CdkFixedSizeVirtualScroll,
     CdkVirtualForOf,
+    NzDropdownDirective,
+    NzDropdownMenuComponent,
+    NzMenuDirective,
+    NzMenuItemComponent,
   ],
 })
 export class DatasetDetailComponent implements OnInit {
@@ -138,6 +146,7 @@ export class DatasetDetailComponent implements OnInit {
   public userDatasetAccessLevel: "READ" | "WRITE" | "NONE" = "NONE";
   public ownerEmail: string = "";
   public isOwner: boolean = false;
+  public datasetContributors: ReadonlyArray<Contributor> = [];
 
   public currentDisplayedFileName: string = "";
   public currentFileSize: number | undefined;
@@ -410,6 +419,7 @@ export class DatasetDetailComponent implements OnInit {
                 .pop() || "";
             this.datasetCreationTimeTooltip = `${format(date, "zzzz")} (${timeZoneName})`;
           }
+          this.datasetContributors = dashboardDataset.contributors || [];
         });
     }
   }
@@ -1042,5 +1052,58 @@ export class DatasetDetailComponent implements OnInit {
     } catch (error) {
       this.notificationService.error("Failed to copy file path");
     }
+  }
+
+  onAddContributor(): void {
+    this.openContributorEditor("Add Contributor", null, newContributor => [
+      ...this.datasetContributors,
+      newContributor,
+    ]);
+  }
+
+  onEditContributor(contributor: Contributor): void {
+    this.openContributorEditor("Edit Contributor", contributor, updated =>
+      replaceOneImmutable(this.datasetContributors, c => c === contributor, updated)
+    );
+  }
+
+  onDeleteContributor(contributor: Contributor): void {
+    this.saveContributors(this.datasetContributors.filter(c => c !== contributor));
+  }
+
+  private openContributorEditor(
+    title: string,
+    data: Contributor | null,
+    apply: (result: Contributor) => ReadonlyArray<Contributor>
+  ): void {
+    const modal = this.modalService.create({
+      nzTitle: title,
+      nzContent: UserDatasetContributorEditorComponent,
+      nzFooter: null,
+      nzData: data,
+    });
+    modal.afterClose.pipe(untilDestroyed(this)).subscribe(result => {
+      if (result) {
+        this.saveContributors(apply(result));
+      }
+    });
+  }
+
+  private saveContributors(next: ReadonlyArray<Contributor>): void {
+    if (!this.did) {
+      return;
+    }
+    const previous = this.datasetContributors;
+    this.datasetContributors = next;
+    this.datasetService
+      .updateDatasetContributors(this.did, next)
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: () => this.notificationService.success("Contributors updated"),
+        error: () => {
+          this.datasetContributors = previous;
+          this.notificationService.error("Failed to update contributors");
+        },
+      });
   }
 }

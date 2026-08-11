@@ -20,7 +20,7 @@
 package org.apache.texera.amber.operator.visualization.carpetPlot
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
-import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
+import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
@@ -30,6 +30,17 @@ import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeNa
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import javax.validation.constraints.NotNull
 
+// type constraint: a / b / y are cast with astype(float) to build the carpet grid,
+// so they can only be numeric columns.
+@JsonSchemaInject(json = """
+{
+  "attributeTypeRules": {
+    "a": { "enum": ["integer", "long", "double"] },
+    "b": { "enum": ["integer", "long", "double"] },
+    "y": { "enum": ["integer", "long", "double"] }
+  }
+}
+""")
 class CarpetPlotOpDesc extends PythonOperatorDescriptor {
 
   @JsonProperty(value = "a", required = true)

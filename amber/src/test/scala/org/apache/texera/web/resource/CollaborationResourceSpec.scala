@@ -20,31 +20,56 @@
 package org.apache.texera.web.resource
 
 import org.apache.texera.amber.util.JSONUtils
-import org.apache.texera.dao.jooq.generated.tables.pojos.User
+import org.apache.texera.dao.MockTexeraDB
+import org.apache.texera.dao.jooq.generated.Tables.{USER, WORKFLOW, WORKFLOW_USER_ACCESS}
+import org.apache.texera.dao.jooq.generated.enums.{PrivilegeEnum, UserRoleEnum}
+import org.apache.texera.dao.jooq.generated.tables.daos.{
+  UserDao,
+  WorkflowDao,
+  WorkflowUserAccessDao
+}
+import org.apache.texera.dao.jooq.generated.tables.pojos.{User, Workflow, WorkflowUserAccess}
 import org.apache.texera.web.model.collab.request._
 import org.apache.texera.web.resource.CollaborationResource._
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.BeforeAndAfterEach
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
+import java.sql.Timestamp
 import java.util.concurrent.{Future => JFuture}
 import javax.websocket.{RemoteEndpoint, Session}
 import scala.collection.mutable.ArrayBuffer
 
-// Unit tests for CollaborationResource's session bookkeeping and message
-// fan-out. The only collaborator is the javax.websocket.Session interface, so
-// everything here runs in-process against mocks — no database, filesystem or
-// network. The two branches that reach WorkflowAccessResource.hasWriteAccess
-// (the read-only TryLockRequest rejection and the lock hand-off inside
-// myOnClose) need SqlServer and are deliberately left uncovered.
+// Unit tests for CollaborationResource's session bookkeeping, message fan-out
+// and lock-request handling. Most cases drive a mocked javax.websocket.Session
+// with no external collaborators; the TryLockRequest cases that reach
+// WorkflowAccessResource.hasWriteAccess additionally mix in MockTexeraDB and
+// seed a workflow_user_access row so the privilege check reads a real value.
+// The lock hand-off inside myOnClose still needs SqlServer and is left uncovered.
 class CollaborationResourceSpec
     extends AnyFlatSpec
     with Matchers
     with MockFactory
-    with BeforeAndAfterEach {
+    with BeforeAndAfterAll
+    with BeforeAndAfterEach
+    with MockTexeraDB {
 
   private var resource: CollaborationResource = _
+
+  // Fixed ids for the DB-backed lock tests; a user, a workflow and one
+  // workflow_user_access row are seeded per test so checkIsReadOnly ->
+  // WorkflowAccessResource.hasWriteAccess reads a real privilege.
+  private val accessUid = 8201
+  private val accessWid = 8301
+
+  override protected def beforeAll(): Unit = {
+    initializeDBAndReplaceDSLContext()
+  }
+
+  override protected def afterAll(): Unit = {
+    closeConnectionPool()
+  }
 
   // The five maps live on the companion object, i.e. they are JVM-wide mutable
   // state shared by every test in the suite. Clearing them here is what keeps
@@ -55,7 +80,55 @@ class CollaborationResourceSpec
     sessionIdUIdMap.clear()
     wIdSessionIdsMap.clear()
     wIdLockHolderSessionIdMap.clear()
+    cleanupAccess()
     resource = new CollaborationResource()
+  }
+
+  override def afterEach(): Unit = {
+    cleanupAccess()
+  }
+
+  // Seeds user accessUid + workflow accessWid + a workflow_user_access row with
+  // the given privilege, so WorkflowAccessResource.getPrivilege(accessWid,
+  // accessUid) returns it.
+  private def seedAccess(privilege: PrivilegeEnum): Unit = {
+    val user = new User
+    user.setUid(Integer.valueOf(accessUid))
+    user.setName("collab_lock_user")
+    user.setRole(UserRoleEnum.REGULAR)
+    new UserDao(getDSLContext.configuration()).insert(user)
+
+    val workflow = new Workflow
+    workflow.setWid(Integer.valueOf(accessWid))
+    workflow.setName("collab-lock-wf")
+    workflow.setContent("{}")
+    workflow.setDescription("")
+    workflow.setCreationTime(new Timestamp(System.currentTimeMillis()))
+    workflow.setLastModifiedTime(new Timestamp(System.currentTimeMillis()))
+    new WorkflowDao(getDSLContext.configuration()).insert(workflow)
+
+    new WorkflowUserAccessDao(getDSLContext.configuration())
+      .insert(
+        new WorkflowUserAccess(Integer.valueOf(accessUid), Integer.valueOf(accessWid), privilege)
+      )
+  }
+
+  private def cleanupAccess(): Unit = {
+    getDSLContext
+      .deleteFrom(WORKFLOW_USER_ACCESS)
+      .where(WORKFLOW_USER_ACCESS.WID.eq(accessWid))
+      .execute()
+    getDSLContext.deleteFrom(WORKFLOW).where(WORKFLOW.WID.eq(accessWid)).execute()
+    getDSLContext.deleteFrom(USER).where(USER.UID.eq(accessUid)).execute()
+  }
+
+  // A session already registered on accessWid as accessUid, ready to TryLock.
+  private def lockingSession(id: String): (Session, ArrayBuffer[String]) = {
+    val (session, sent) = mockSession(id, uId = Some(accessUid))
+    resource.myOnOpen(session)
+    resource.myOnMsg(session, send(WIdRequest(accessWid)))
+    sent.clear()
+    (session, sent)
   }
 
   /**
@@ -293,5 +366,49 @@ class CollaborationResourceSpec
 
     a[NoSuchElementException] should be thrownBy
       resource.myOnMsg(session, send(AcquireLockRequest()))
+  }
+
+  // -- locking that consults WorkflowAccessResource (DB-backed) ---------------
+
+  "TryLockRequest from a read-only user" should "reject the lock and mark the workflow read-only" in {
+    seedAccess(PrivilegeEnum.READ)
+    val (session, sent) = lockingSession("s1")
+
+    resource.myOnMsg(session, send(TryLockRequest()))
+
+    sent should have size 2
+    sent.head should include("LockRejectedEvent")
+    sent(1) should include("WorkflowAccessEvent")
+    sent(1) should include("\"workflowReadonly\":true")
+    // a read-only attempt records the null sentinel so the holder slot exists
+    wIdLockHolderSessionIdMap should contain key accessWid
+    wIdLockHolderSessionIdMap(accessWid) shouldBe null
+  }
+
+  "TryLockRequest from a writable user with no current holder" should "grant the lock" in {
+    seedAccess(PrivilegeEnum.WRITE)
+    val (session, sent) = lockingSession("s1")
+
+    resource.myOnMsg(session, send(TryLockRequest()))
+
+    sent should have size 2
+    sent.head should include("WorkflowAccessEvent")
+    sent.head should include("\"workflowReadonly\":false")
+    sent(1) should include("LockGrantedEvent")
+    wIdLockHolderSessionIdMap(accessWid) shouldBe "s1"
+  }
+
+  "TryLockRequest from a writable user" should "be rejected when another session holds the lock" in {
+    seedAccess(PrivilegeEnum.WRITE)
+    val (session, sent) = lockingSession("s1")
+    wIdLockHolderSessionIdMap(accessWid) = "other-session" // a different holder
+
+    resource.myOnMsg(session, send(TryLockRequest()))
+
+    sent should have size 2
+    sent.head should include("WorkflowAccessEvent")
+    sent.head should include("\"workflowReadonly\":false")
+    sent(1) should include("LockRejectedEvent")
+    wIdLockHolderSessionIdMap(accessWid) shouldBe "other-session" // unchanged
   }
 }
