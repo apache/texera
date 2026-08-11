@@ -31,10 +31,11 @@ import org.scalatest.matchers.should.Matchers
 import java.time.Duration
 
 /**
-  * Spec for the bounded catalog cache (#7290): a genuine replacement closes the
-  * catalog it displaces, a same-instance re-registration does not (that is what
-  * [[LocalHadoopIcebergCatalog.ensure]] relies on), and holders resolve their
-  * catalog per use so a replacement is visible immediately.
+  * Spec for the bounded catalog cache (#7290): only *evicted* entries are closed --
+  * a catalog displaced by replaceInstance stays open, because the replacing caller
+  * may still hold and later restore it (wrap-and-restore, as amber's integration
+  * IcebergDocumentSpec does) -- and holders resolve their catalog per use so a
+  * replacement is visible immediately.
   *
   * Size and idle eviction are exercised on isolated caches built through the
   * package-private factory (with a manual ticker), never on the JVM-wide cache
@@ -122,24 +123,27 @@ class IcebergCatalogInstanceSpec extends AnyFlatSpec with Matchers {
       installed
   }
 
-  "replaceInstance" should "close the catalog it displaces" in {
-    val first = new FakeCatalog("first")
-    val second = new FakeCatalog("second")
-    IcebergCatalogInstance.replaceInstance(first, Some("catalog-cache-spec-replace"))
+  "replaceInstance" should "leave the displaced catalog open for its owner (wrap-and-restore)" in {
+    // Integration tests wrap the shared catalog in a spy and restore it afterwards;
+    // closing the displaced instance would hand back a dead catalog (#7290 review).
+    val original = new FakeCatalog("original")
+    val wrapper = new FakeCatalog("wrapper")
+    IcebergCatalogInstance.replaceInstance(original, Some("catalog-cache-spec-replace"))
 
-    IcebergCatalogInstance.replaceInstance(second, Some("catalog-cache-spec-replace"))
+    IcebergCatalogInstance.replaceInstance(wrapper, Some("catalog-cache-spec-replace"))
+    original.closed shouldBe false
 
-    first.closed shouldBe true
-    second.closed shouldBe false
+    IcebergCatalogInstance.replaceInstance(original, Some("catalog-cache-spec-replace"))
+    wrapper.closed shouldBe false
     IcebergCatalogInstance.getInstance(
       Some("catalog-cache-spec-replace")
     ) should be theSameInstanceAs
-      second
+      original
   }
 
-  it should "not close a catalog that is re-registered unchanged" in {
+  it should "keep a re-registered shared instance open" in {
     // LocalHadoopIcebergCatalog.ensure re-puts one shared instance from every suite
-    // (and under several warehouse names); a same-instance put must stay a no-op.
+    // (and under several warehouse names); none of that may close it.
     val shared = new FakeCatalog("shared")
     IcebergCatalogInstance.replaceInstance(shared, Some("catalog-cache-spec-idempotent"))
 

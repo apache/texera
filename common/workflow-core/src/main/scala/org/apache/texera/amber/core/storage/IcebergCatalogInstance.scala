@@ -44,9 +44,14 @@ import scala.util.Try
   *
   * The cache is bounded (#7290): per-user warehouses (#6870) make the set of catalogs a
   * long-lived JVM touches unbounded, and each REST catalog holds an HTTP client. Entries
-  * fall out by size or idleness and are closed by the removal listener; the next access
-  * simply rebuilds one. Callers must therefore resolve their catalog per use instead of
-  * holding one across an execution (see IcebergDocument / IcebergTableWriter).
+  * that fall out by size or idleness are closed; the next access simply rebuilds one.
+  * Callers must therefore resolve their catalog per use instead of holding one across an
+  * execution (see IcebergDocument / IcebergTableWriter).
+  *
+  * Only *evicted* entries are closed. A catalog displaced by [[replaceInstance]] is the
+  * caller's to manage: whoever replaces an entry may still hold (and restore) the old
+  * reference -- tests wrap-and-restore the shared catalog, and endpoint reconfiguration
+  * (#7358) will swap catalogs the same way.
   */
 object IcebergCatalogInstance extends LazyLogging {
 
@@ -72,12 +77,17 @@ object IcebergCatalogInstance extends LazyLogging {
       .ticker(ticker)
       .removalListener(new RemovalListener[String, Catalog] {
         override def onRemoval(notification: RemovalNotification[String, Catalog]): Unit =
-          notification.getValue match {
-            case closeable: AutoCloseable =>
-              Try(closeable.close()).failed.foreach(error =>
-                logger.warn(s"failed to close evicted catalog '${notification.getKey}'", error)
-              )
-            case _ =>
+          // wasEvicted is true only for size/idle eviction. An explicit replacement must
+          // NOT close the displaced catalog: the replacing caller may still hold it
+          // (wrap-and-restore in tests, catalog reconfiguration later).
+          if (notification.wasEvicted()) {
+            notification.getValue match {
+              case closeable: AutoCloseable =>
+                Try(closeable.close()).failed.foreach(error =>
+                  logger.warn(s"failed to close evicted catalog '${notification.getKey}'", error)
+                )
+              case _ =>
+            }
           }
       })
       .build[String, Catalog]()
@@ -169,17 +179,6 @@ object IcebergCatalogInstance extends LazyLogging {
     * @param catalog   the catalog to cache.
     * @param warehouse the warehouse to cache it under; `None` uses the configured default.
     */
-  def replaceInstance(catalog: Catalog, warehouse: Option[String] = None): Unit = {
-    val key = cacheKey(warehouse.getOrElse(defaultWarehouse))
-    // Guava reports a same-value put as a replacement, which would fire the removal
-    // listener and close a catalog that is still installed: the shared test catalog
-    // is ensure()d repeatedly (and under several names) by parallel suites. The
-    // putIfAbsent/replace pair keeps re-registration race-free: only a genuine
-    // replacement fires the listener, and a lost race leaves the winner installed.
-    val map = catalogs.asMap()
-    val previous = map.putIfAbsent(key, catalog)
-    if (previous != null && (previous ne catalog)) {
-      map.replace(key, previous, catalog)
-    }
-  }
+  def replaceInstance(catalog: Catalog, warehouse: Option[String] = None): Unit =
+    catalogs.put(cacheKey(warehouse.getOrElse(defaultWarehouse)), catalog)
 }
