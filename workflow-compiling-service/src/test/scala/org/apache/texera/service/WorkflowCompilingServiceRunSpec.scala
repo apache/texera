@@ -37,7 +37,10 @@ class WorkflowCompilingServiceRunSpec extends AnyFlatSpec with Matchers {
 
   // Mirrors AccessControlServiceRunSpec: run() is driven against a mocked Dropwizard
   // environment so the wiring it installs can be asserted without starting a server.
-  private def runService(): (JerseyEnvironment, MutableServletContextHandler) = {
+  // run() starts an operator-metadata warmup thread and swaps the global SqlServer
+  // instance, so it is executed once for the whole suite and the resulting mocks are
+  // shared; the assertions below only read recorded interactions.
+  private lazy val ranService: (JerseyEnvironment, MutableServletContextHandler) = {
     val jersey = mock(classOf[JerseyEnvironment])
     val servlets = mock(classOf[ServletEnvironment])
     val context = mock(classOf[MutableServletContextHandler])
@@ -54,25 +57,25 @@ class WorkflowCompilingServiceRunSpec extends AnyFlatSpec with Matchers {
   }
 
   "WorkflowCompilingService.run" should "serve the API under /api/*" in {
-    val (jersey, _) = runService()
+    val (jersey, _) = ranService
     verify(jersey).setUrlPattern("/api/*")
   }
 
   it should "register the health check and compilation endpoints" in {
-    val (jersey, _) = runService()
+    val (jersey, _) = ranService
     verify(jersey).register(classOf[HealthCheckResource])
     verify(jersey).register(classOf[WorkflowCompilationResource])
   }
 
   it should "install the auth stack" in {
-    val (jersey, _) = runService()
+    val (jersey, _) = ranService
     // AuthFeatures.register: without RolesAllowedDynamicFeature Jersey ignores @RolesAllowed
     verify(jersey).register(classOf[RolesAllowedDynamicFeature])
     verify(jersey).register(classOf[UnauthorizedExceptionMapper])
   }
 
   it should "add the request-logging filter to the application context" in {
-    val (_, context) = runService()
+    val (_, context) = ranService
     verify(context).addFilter(isA(classOf[FilterHolder]), eqTo("/*"), any())
   }
 
