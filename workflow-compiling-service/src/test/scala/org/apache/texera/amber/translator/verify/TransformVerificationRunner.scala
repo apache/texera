@@ -36,7 +36,9 @@ import org.apache.texera.amber.operator.sklearn.SklearnPredictionOpDesc
 import org.apache.texera.amber.operator.sklearn.SklearnClassifierOpDesc
 import org.apache.texera.amber.operator.sklearn.training.SklearnTrainingOpDesc
 import org.apache.texera.amber.operator.sklearn.testing.SklearnTestingOpDesc
+import org.apache.texera.amber.operator.substringSearch.SubstringSearchOpDesc
 import org.apache.texera.amber.operator.typecasting.TypeCastingOpDesc
+import org.apache.texera.amber.operator.unneststring.UnnestStringOpDesc
 import org.apache.texera.amber.operator.visualization.wordCloud.WordCloudOpDesc
 import org.apache.texera.amber.operator.union.UnionOpDesc
 import org.apache.texera.amber.operator.visualization.DotPlot.DotPlotOpDesc
@@ -418,7 +420,7 @@ object TransformVerificationRunner {
             )
           val inputPortCount = vs.head._2.operatorInfo.inputPorts.size
           val in = CanonicalFixture.writeInputs(testRoot, inputPortCount)
-          vs.map { case (label, o) => (label, o, in) }
+          vs.map { case (label, o) => (label, o, in) } ++ nullsCase(opClass, vs.head._2, testRoot)
       }
 
     runs.foreach {
@@ -434,6 +436,40 @@ object TransformVerificationRunner {
         }
     }
   }
+
+  /** Operators whose two paths are known to disagree on an empty cell because the
+    * platform itself fails on one, each with the issue tracking it. They keep every
+    * other variant; only the `nulls` case is withheld, so the day the platform stops
+    * failing the entry comes out and the case starts running with nothing else to do.
+    */
+  private val nullsBlockedBy: Map[Class[_], String] = Map(
+    classOf[SubstringSearchOpDesc] -> "apache/texera#7548",
+    classOf[UnnestStringOpDesc] -> "apache/texera#7548",
+    classOf[DumbbellPlotOpDesc] -> "apache/texera#7562"
+  )
+
+  /** One extra run per auto-configured operator, on a table with one empty cell per
+    * column (see [[CanonicalFixture.writeInputsWithGaps]]). It takes the base config
+    * rather than crossing with the other variants: what an operator does with a null
+    * is a property of the operator, and multiplying it across every knob would buy
+    * more runtime than signal.
+    *
+    * Curated operators sit this out. Their handler writes the table its operator
+    * needs, and emptying cells in it breaks the very thing the handler was written
+    * to arrange.
+    */
+  private def nullsCase(
+      opClass: Class[_ <: LogicalOp],
+      base: LogicalOp,
+      testRoot: Path
+  ): Seq[(String, LogicalOp, Map[PortIdentity, Path])] =
+    if (nullsBlockedBy.contains(opClass)) Seq.empty
+    else {
+      val dir = testRoot.resolve("nulls-input")
+      Files.createDirectories(dir)
+      val in = CanonicalFixture.writeInputsWithGaps(dir, base.operatorInfo.inputPorts.size)
+      Seq(("nulls", base, in))
+    }
 
   /** The schema of each input file, keyed by port index — what a curated handler
     * actually wrote, read back off the sidecar its writer drops. A file without one

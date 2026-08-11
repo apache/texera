@@ -203,4 +203,26 @@ class CanonicalFixtureSpec extends AnyFlatSpec with Matchers {
     an[IllegalArgumentException] should be thrownBy
       CanonicalFixture.writeInputs(root, inputPortCount = 3)
   }
+
+  it should "empty every column but id exactly once in the gapped table" in {
+    val rows = CanonicalFixture.emptyOneCellPerColumn(CanonicalFixture.port0Rows)
+    rows.size shouldBe CanonicalFixture.port0Rows.size
+
+    CanonicalFixture.schema.getAttributes.foreach { attr =>
+      val empties = rows.count(_.getField[AnyRef](attr.getName) == null)
+      // id carries the joins, so it keeps every value; everything else gets one
+      // hole, which is what makes the case a null case rather than an empty table.
+      if (attr.getName == "id") empties shouldBe 0
+      else empties shouldBe 1
+    }
+  }
+
+  it should "leave every row in the gapped table with something in it" in {
+    val names = CanonicalFixture.schema.getAttributes.map(_.getName)
+    CanonicalFixture.emptyOneCellPerColumn(CanonicalFixture.port0Rows).foreach { t =>
+      // A wholly empty row would test the operator's handling of an empty table
+      // instead, and would say nothing about a null beside a filled neighbour.
+      names.count(n => t.getField[AnyRef](n) != null) should be > 0
+    }
+  }
 }
