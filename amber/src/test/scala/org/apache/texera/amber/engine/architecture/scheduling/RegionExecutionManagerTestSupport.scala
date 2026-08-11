@@ -255,7 +255,9 @@ object RegionExecutionManagerTestSupport {
 trait RegionExecutionManagerTestSupport { self: TestKit =>
   import RegionExecutionManagerTestSupport._
 
-  protected def createCoordinatorHarness(rpcProbe: CoordinatorRpcProbe = new CoordinatorRpcProbe(_ => None)): CoordinatorHarnessFixture = {
+  protected def createCoordinatorHarness(
+      rpcProbe: CoordinatorRpcProbe = new CoordinatorRpcProbe(_ => None)
+  ): CoordinatorHarnessFixture = {
     val coordinatorRef = TestActorRef(new CoordinatorHarness(rpcProbe))
     coordinatorRef.underlyingActor.actorService.getAvailableNodeAddressesFunc = () =>
       Array(coordinatorRef.path.address)
