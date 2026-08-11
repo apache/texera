@@ -40,6 +40,7 @@ import { WorkflowSnapshotService } from "../../../dashboard/service/user/workflo
 
 import { WorkflowSettings } from "src/app/common/type/workflow";
 import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
+import { WarehouseService } from "../../../common/service/warehouse/warehouse.service";
 import { AuthService } from "src/app/common/service/user/auth.service";
 import { StubAuthService } from "src/app/common/service/user/stub-auth.service";
 import { UserService } from "src/app/common/service/user/user.service";
@@ -397,6 +398,27 @@ describe("ExecuteWorkflowService", () => {
     expect(wsSendSpy).toHaveBeenCalledWith(
       "WorkflowExecuteRequest",
       expect.objectContaining({ computingUnitId: 99, emailNotificationEnabled: true, executionName: "exec" })
+    );
+  }));
+
+  it("sendExecutionRequest carries the picked warehouse id, and none when unset (#6933)", fakeAsync(() => {
+    const warehouseService = TestBed.inject(WarehouseService);
+    const wsSendSpy = vi.spyOn(service["workflowWebsocketService"], "send");
+    const settings = service["workflowActionService"].getWorkflowSettings();
+
+    warehouseService.selectWarehouse(7);
+    service.sendExecutionRequest("exec", {} as LogicalPlan, settings, false, undefined);
+    tick(FORM_DEBOUNCE_TIME_MS + 1);
+    flush();
+    expect(wsSendSpy).toHaveBeenLastCalledWith("WorkflowExecuteRequest", expect.objectContaining({ warehouseId: 7 }));
+
+    warehouseService.selectWarehouse(undefined);
+    service.sendExecutionRequest("exec", {} as LogicalPlan, settings, false, undefined);
+    tick(FORM_DEBOUNCE_TIME_MS + 1);
+    flush();
+    expect(wsSendSpy).toHaveBeenLastCalledWith(
+      "WorkflowExecuteRequest",
+      expect.objectContaining({ warehouseId: undefined })
     );
   }));
 

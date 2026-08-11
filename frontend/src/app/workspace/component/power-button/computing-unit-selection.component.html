@@ -58,6 +58,20 @@
     </div>
   </div>
 
+  <nz-select
+    *ngIf="warehouseEnabled && warehouses.length > 0"
+    class="warehouse-select"
+    nzSize="small"
+    nz-tooltip
+    nzTooltipTitle="Warehouse this execution writes to"
+    [ngModel]="selectedWarehouseId"
+    (ngModelChange)="onWarehouseSelected($event)">
+    <nz-option
+      *ngFor="let warehouse of warehouses; trackBy: trackByWhid"
+      [nzValue]="warehouse.whid"
+      [nzLabel]="warehouse.name"></nz-option>
+  </nz-select>
+
   <button
     nz-button
     nz-dropdown

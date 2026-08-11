@@ -1,0 +1,116 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+
+<div class="section-container subsection-grid-container">
+  <nz-card class="section-title">
+    <h2 class="page-title">Warehouses</h2>
+    <div class="button-group">
+      <button
+        nz-button
+        class="create-btn"
+        (click)="showCreateModal()"
+        [disabled]="!warehouseEnabled"
+        title="Create Warehouse">
+        <i
+          nz-icon
+          nzType="file-add"
+          nzTheme="outline"></i>
+        <span>Create Warehouse</span>
+      </button>
+    </div>
+  </nz-card>
+
+  <nz-card
+    class="section-list-container"
+    [nzBodyStyle]="{ height: '100%' }">
+    <div class="warehouse-page">
+      <div
+        *ngIf="!warehouseEnabled"
+        class="warehouse-page-empty">
+        Per-user warehouses are disabled in this deployment.
+      </div>
+
+      <div
+        *ngIf="warehouseEnabled && warehouses.length === 0"
+        class="warehouse-page-empty">
+        No warehouses yet. Click <strong>Create Warehouse</strong> to create one.
+      </div>
+
+      <ul
+        *ngIf="warehouseEnabled && warehouses.length > 0"
+        class="warehouse-page-list">
+        <li
+          *ngFor="let warehouse of warehouses; trackBy: trackByWhid"
+          class="warehouse-page-item">
+          <span
+            class="warehouse-name"
+            nz-tooltip
+            [nzTooltipTitle]="warehouse.warehouseName">
+            {{ warehouse.name }}
+          </span>
+          <span class="warehouse-meta"> {{ warehouse.flavor }} · created {{ warehouse.createdAtMillis | date }} </span>
+          <i
+            nz-icon
+            nzType="delete"
+            class="warehouse-delete-icon"
+            nz-tooltip
+            nzTooltipTitle="Delete warehouse and all data stored in it"
+            (click)="confirmDelete(warehouse)"
+            role="button"
+            aria-label="Delete warehouse">
+          </i>
+        </li>
+      </ul>
+    </div>
+  </nz-card>
+</div>
+
+<nz-modal
+  [nzVisible]="createModalVisible"
+  nzTitle="Create Warehouse"
+  (nzOnCancel)="closeCreateModal()"
+  [nzFooter]="createFooter">
+  <ng-template #createFooter>
+    <button
+      nz-button
+      nzType="default"
+      (click)="closeCreateModal()">
+      Cancel
+    </button>
+    <button
+      nz-button
+      nzType="primary"
+      id="confirm-create-warehouse-btn"
+      [disabled]="!newWarehouseName.trim()"
+      [nzLoading]="creating"
+      (click)="createWarehouse()">
+      Create
+    </button>
+  </ng-template>
+
+  <ng-container *nzModalContent>
+    <input
+      nz-input
+      placeholder="Warehouse name"
+      maxlength="64"
+      [(ngModel)]="newWarehouseName"
+      (keyup.enter)="createWarehouse()" />
+    <p class="warehouse-name-hint">Letters, digits, '-' and '_' only; must start with a letter or digit.</p>
+  </ng-container>
+</nz-modal>

@@ -54,6 +54,8 @@ import { WorkflowMetadata } from "../../../dashboard/type/workflow-metadata.inte
 import { ExecutionState } from "../../types/execute-workflow.interface";
 import { ComputingUnitActionsService } from "../../../common/service/computing-unit/computing-unit-actions/computing-unit-actions.service";
 import { ComputingUnitMetadataComponent } from "../../../common/util/computing-unit.util";
+import { WarehouseService } from "../../../common/service/warehouse/warehouse.service";
+import { DashboardWarehouse } from "../../../common/type/warehouse";
 
 /**
  * Builds a fully-populated DashboardWorkflowComputingUnit for driving the
@@ -1088,6 +1090,117 @@ describe("PowerButtonComponent", () => {
       emit(100);
 
       expect(latestSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("warehouse picker (#6933)", () => {
+    function makeWarehouse(whid: number, name: string): DashboardWarehouse {
+      return { whid, name, warehouseName: `user-1-${name}`, flavor: "local", createdAtMillis: 0 };
+    }
+
+    // Mirrors bootWithMetaStream, additionally pinning the warehouse status and
+    // the latest-execution response the preselection logic consumes.
+    function bootPicker(opts: {
+      enabled: boolean;
+      warehouses: DashboardWarehouse[];
+      latest?: Partial<WorkflowExecutionsEntry> | "error";
+    }): {
+      comp: ComputingUnitSelectionComponent;
+      pickerFixture: ComponentFixture<ComputingUnitSelectionComponent>;
+      emit: (wid: number) => void;
+    } {
+      vi.spyOn(TestBed.inject(WarehouseService), "getStatus").mockReturnValue(
+        of({ enabled: opts.enabled, warehouses: opts.warehouses })
+      );
+      const execService = TestBed.inject(WorkflowExecutionsService);
+      if (opts.latest === "error") {
+        vi.spyOn(execService, "retrieveLatestWorkflowExecution").mockReturnValue(
+          throwError(() => new Error("no execution"))
+        );
+      } else if (opts.latest !== undefined) {
+        vi.spyOn(execService, "retrieveLatestWorkflowExecution").mockReturnValue(
+          of(opts.latest as WorkflowExecutionsEntry)
+        );
+      }
+      const actionService = TestBed.inject(WorkflowActionService);
+      const meta$ = new Subject<WorkflowMetadata>();
+      vi.spyOn(actionService, "workflowMetaDataChanged").mockReturnValue(meta$.asObservable());
+      let currentMeta: WorkflowMetadata = { ...DEFAULT_WORKFLOW };
+      vi.spyOn(actionService, "getWorkflowMetadata").mockImplementation(() => currentMeta);
+      const pickerFixture = TestBed.createComponent(ComputingUnitSelectionComponent);
+      pickerFixture.detectChanges();
+      const comp = pickerFixture.componentInstance;
+      vi.spyOn(comp, "selectComputingUnit").mockImplementation(() => {});
+      const emit = (wid: number) => {
+        currentMeta = { ...DEFAULT_WORKFLOW, wid };
+        meta$.next(currentMeta);
+      };
+      return { comp, pickerFixture, emit };
+    }
+
+    it("preselects the latest execution's warehouse when it still exists", () => {
+      const { emit } = bootPicker({
+        enabled: true,
+        warehouses: [makeWarehouse(1, "first"), makeWarehouse(2, "second")],
+        latest: { cuId: 55, whId: 2 },
+      });
+
+      emit(100);
+
+      expect(TestBed.inject(WarehouseService).getSelectedWarehouseIdValue()).toBe(2);
+    });
+
+    it("falls back to the first warehouse when the latest execution used none", () => {
+      const { emit } = bootPicker({
+        enabled: true,
+        warehouses: [makeWarehouse(1, "first"), makeWarehouse(2, "second")],
+        latest: { cuId: 55, whId: null as unknown as number },
+      });
+
+      emit(100);
+
+      expect(TestBed.inject(WarehouseService).getSelectedWarehouseIdValue()).toBe(1);
+    });
+
+    it("still preselects the first warehouse when there is no execution history", () => {
+      const { emit } = bootPicker({
+        enabled: true,
+        warehouses: [makeWarehouse(1, "first")],
+        latest: "error",
+      });
+
+      emit(100);
+
+      expect(TestBed.inject(WarehouseService).getSelectedWarehouseIdValue()).toBe(1);
+    });
+
+    it("never picks a warehouse while the feature is disabled, and hides the select", () => {
+      // Warehouses alongside enabled=false cannot come from the real backend; the
+      // artificial combination pins that the flag alone suppresses preselection.
+      const { pickerFixture, emit } = bootPicker({
+        enabled: false,
+        warehouses: [makeWarehouse(1, "first")],
+        latest: { cuId: 55, whId: 1 },
+      });
+
+      emit(100);
+
+      expect(TestBed.inject(WarehouseService).getSelectedWarehouseIdValue()).toBeUndefined();
+      expect(pickerFixture.nativeElement.querySelector(".warehouse-select")).toBeNull();
+    });
+
+    it("renders the select when enabled, and a manual pick writes through to the service", () => {
+      const { comp, pickerFixture } = bootPicker({
+        enabled: true,
+        warehouses: [makeWarehouse(1, "first"), makeWarehouse(2, "second")],
+      });
+
+      pickerFixture.detectChanges();
+      expect(pickerFixture.nativeElement.querySelector(".warehouse-select")).toBeTruthy();
+
+      comp.onWarehouseSelected(2);
+      expect(TestBed.inject(WarehouseService).getSelectedWarehouseIdValue()).toBe(2);
+      expect(comp.trackByWhid(0, makeWarehouse(2, "second"))).toBe(2);
     });
   });
 

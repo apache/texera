@@ -29,6 +29,12 @@
   min-width: 220px;
   max-width: 280px;
 
+  .warehouse-select {
+    min-width: 110px;
+    max-width: 160px;
+    margin-right: 4px;
+  }
+
   &.metrics-visible {
     min-width: 290px;
     max-width: none;

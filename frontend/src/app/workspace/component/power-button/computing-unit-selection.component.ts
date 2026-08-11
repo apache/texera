@@ -27,6 +27,8 @@ import { isDefined } from "../../../common/util/predicate";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { extractErrorMessage } from "../../../common/util/error";
 import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
+import { WarehouseService } from "../../../common/service/warehouse/warehouse.service";
+import { DashboardWarehouse } from "../../../common/type/warehouse";
 import { NzModalService, NzModalComponent, NzModalContentDirective } from "ng-zorro-antd/modal";
 import { WorkflowExecutionsService } from "../../../dashboard/service/user/workflow-executions/workflow-executions.service";
 import { WorkflowExecutionsEntry } from "../../../dashboard/type/workflow-executions-entry";
@@ -153,6 +155,16 @@ export class ComputingUnitSelectionComponent implements OnInit {
   selectedComputingUnit: DashboardWorkflowComputingUnit | null = null;
   allComputingUnits: DashboardWorkflowComputingUnit[] = [];
 
+  // Per-user warehouse picker (#6933): shown only when the deployment reports
+  // the feature enabled and the user has at least one warehouse.
+  warehouseEnabled: boolean = false;
+  warehouses: DashboardWarehouse[] = [];
+  selectedWarehouseId?: number;
+  // The latest execution's warehouse; the warehouse list and the latest
+  // execution are fetched concurrently, so preselection re-runs after
+  // whichever response lands last.
+  private lastExecutionWhid?: number;
+
   // visibility of the shared create-computing-unit modal
   addComputeUnitModalVisible = false;
 
@@ -180,7 +192,8 @@ export class ComputingUnitSelectionComponent implements OnInit {
     private cdr: ChangeDetectorRef,
     private computingUnitActionsService: ComputingUnitActionsService,
     private workflowPveService: WorkflowPveService,
-    private ngZone: NgZone
+    private ngZone: NgZone,
+    private warehouseService: WarehouseService
   ) {}
 
   ngOnInit(): void {
@@ -224,6 +237,29 @@ export class ComputingUnitSelectionComponent implements OnInit {
       .pipe(untilDestroyed(this))
       .subscribe(units => {
         this.allComputingUnits = units;
+      });
+
+    // Warehouse picker state (#6933). The pick itself lives in WarehouseService,
+    // where ExecuteWorkflowService reads it at execution time.
+    this.warehouseService
+      .getStatus()
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: status => {
+          this.warehouseEnabled = status.enabled;
+          this.warehouses = [...status.warehouses];
+          this.applyWarehousePreselect();
+        },
+        error: (err: unknown) => {
+          console.error("Failed to fetch warehouse status", err);
+        },
+      });
+
+    this.warehouseService
+      .getSelectedWarehouseId()
+      .pipe(untilDestroyed(this))
+      .subscribe(whid => {
+        this.selectedWarehouseId = whid;
       });
 
     this.registerWorkflowMetadataSubscription();
@@ -275,12 +311,16 @@ export class ComputingUnitSelectionComponent implements OnInit {
               .subscribe({
                 next: (latestWorkflowExecution: WorkflowExecutionsEntry) => {
                   this.selectComputingUnit(this.workflowId, latestWorkflowExecution.cuId);
+                  this.lastExecutionWhid = latestWorkflowExecution.whId ?? undefined;
+                  this.applyWarehousePreselect();
                 },
                 error: (err: unknown) => {
                   const runningUnit = this.allComputingUnits.find(unit => unit.status === "Running");
                   if (runningUnit) {
                     this.selectComputingUnit(this.workflowId, runningUnit.computingUnit.cuid);
                   }
+                  // No execution history: still preselect a warehouse (the first one).
+                  this.applyWarehousePreselect();
                 },
               });
           }
@@ -295,6 +335,27 @@ export class ComputingUnitSelectionComponent implements OnInit {
     if (isDefined(cuid) && wid !== DEFAULT_WORKFLOW.wid) {
       this.computingUnitStatusService.selectComputingUnit(wid, cuid);
     }
+  }
+
+  /**
+   * Mirrors the CU preselection for warehouses (#6933): pick the latest
+   * execution's warehouse when it still exists, else the user's first
+   * warehouse — so a run needs no explicit pick.
+   */
+  private applyWarehousePreselect(): void {
+    if (!this.warehouseEnabled || this.warehouses.length === 0) {
+      return;
+    }
+    const lastUsed = this.warehouses.find(warehouse => warehouse.whid === this.lastExecutionWhid);
+    this.warehouseService.selectWarehouse((lastUsed ?? this.warehouses[0]).whid);
+  }
+
+  onWarehouseSelected(whid: number): void {
+    this.warehouseService.selectWarehouse(whid);
+  }
+
+  public trackByWhid(_idx: number, warehouse: DashboardWarehouse): number {
+    return warehouse.whid;
   }
 
   isComputingUnitRunning(): boolean {

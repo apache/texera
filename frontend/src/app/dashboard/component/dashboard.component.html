@@ -110,6 +110,18 @@
             <span>Compute</span>
           </li>
           <li
+            *ngIf="warehouseEnabled"
+            nz-menu-item
+            nz-tooltip="Manage warehouses"
+            nzMatchRouter="true"
+            nzTooltipPlacement="right"
+            [routerLink]="USER_WAREHOUSE">
+            <span
+              nz-icon
+              nzType="database"></span>
+            <span>Warehouses</span>
+          </li>
+          <li
             nz-menu-item
             nz-tooltip="Manage saved Python virtual environments"
             nzMatchRouter="true"
