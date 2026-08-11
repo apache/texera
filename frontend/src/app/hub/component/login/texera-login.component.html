@@ -47,10 +47,21 @@
         size="large"
         [width]="328"></asl-google-signin-button>
     </div>
+    } @if (config.env.appleLogin) {
+    <button
+      nz-button
+      nzSize="large"
+      class="apple-button"
+      type="button"
+      [disabled]="appleSignInPending"
+      (click)="signInWithApple()">
+      <nz-icon nzType="apple" />
+      Continue with Apple
+    </button>
     }
   </div>
 
-  @if (config.env.localLogin && config.env.googleLogin) {
+  @if (config.env.localLogin && (config.env.googleLogin || config.env.appleLogin)) {
   <nz-divider
     nzPlain
     nzText="or continue with"></nz-divider>

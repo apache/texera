@@ -46,6 +46,7 @@ export class AuthService {
   public static readonly REFRESH_TOKEN = "auth/refresh";
   public static readonly REGISTER_ENDPOINT = "auth/register";
   public static readonly GOOGLE_LOGIN_ENDPOINT = "auth/google/login";
+  public static readonly APPLE_LOGIN_ENDPOINT = "auth/apple/login";
 
   private tokenExpirationSubscription?: Subscription;
 
@@ -84,6 +85,20 @@ export class AuthService {
   public googleAuth(credential: string): Observable<Readonly<{ accessToken: string }>> {
     return this.http.post<Readonly<{ accessToken: string }>>(
       `${AppSettings.getApiEndpoint()}/${AuthService.GOOGLE_LOGIN_ENDPOINT}`,
+      credential,
+      {
+        headers: {
+          "Content-Type": "text/plain",
+          Accept: "application/json",
+        },
+      }
+    );
+  }
+
+  /** Exchanges an Apple identity token for a Texera access token. */
+  public appleAuth(credential: string): Observable<Readonly<{ accessToken: string }>> {
+    return this.http.post<Readonly<{ accessToken: string }>>(
+      `${AppSettings.getApiEndpoint()}/${AuthService.APPLE_LOGIN_ENDPOINT}`,
       credential,
       {
         headers: {

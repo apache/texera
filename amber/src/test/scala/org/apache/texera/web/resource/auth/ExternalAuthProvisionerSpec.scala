@@ -158,6 +158,28 @@ class ExternalAuthProvisionerSpec
     userDao.fetchOneByUid(updated.getUid).getAvatar shouldBe "newpic"
   }
 
+  // A provider that sends no avatar (Apple never does) must not blank one another provider set on
+  // the same account, and must not store "" on a fresh account either.
+  it should "leave a stored avatar alone when the provider supplies none" in {
+    val created = ExternalAuthProvisioner.loginOrProvision(
+      profile("sub-keeppic", "Keeper", "keeppic" + emailDomain, avatar = "kept")
+    )
+
+    ExternalAuthProvisioner.loginOrProvision(
+      profile("sub-keeppic", "Keeper", "keeppic" + emailDomain, avatar = "")
+    )
+
+    userDao.fetchOneByUid(created.getUid).getAvatar shouldBe "kept"
+  }
+
+  it should "leave a new account's avatar unset when the provider supplies none" in {
+    val created = ExternalAuthProvisioner.loginOrProvision(
+      profile("sub-nopic", "Pictureless", "nopic" + emailDomain, avatar = "")
+    )
+
+    userDao.fetchOneByUid(created.getUid).getAvatar shouldBe null
+  }
+
   it should "adopt the provider's new email address for a known identity" in {
     val created = ExternalAuthProvisioner.loginOrProvision(
       profile("sub-rename", "Renamer", "before" + emailDomain)

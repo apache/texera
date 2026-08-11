@@ -330,6 +330,8 @@ texeraEnvVars:
     value: "true"
   - name: GUI_LOGIN_GOOGLE_LOGIN
     value: "true"
+  - name: GUI_LOGIN_APPLE_LOGIN
+    value: "true"
   - name: GUI_DATASET_SINGLE_FILE_UPLOAD_MAXIMUM_SIZE_MB
     value: "1024"
   - name: GUI_WORKFLOW_WORKSPACE_EXPORT_EXECUTION_RESULT_ENABLED
@@ -345,6 +347,8 @@ texeraEnvVars:
   - name: USER_SYS_INVITE_ONLY
     value: "true"
   - name: USER_SYS_GOOGLE_CLIENT_ID
+    value: ""
+  - name: USER_SYS_APPLE_CLIENT_ID
     value: ""
   - name: USER_SYS_GOOGLE_SMTP_GMAIL
     value: ""

@@ -37,6 +37,10 @@ import scala.util.chaining.scalaUtilChainingOps
   * `email` must be non-blank and provider-verified: `loginOrProvision` links the identity to the
   * account owning that address and claims its placeholder, so an unverified address is a
   * takeover. Each provider checks this in its own mapping function (Google: `email_verified`).
+  *
+  * A blank `avatar` means the provider supplied none — Apple never sends one — and leaves whatever
+  * is already stored alone. Overwriting it would mean an Apple login blanks the picture a Google
+  * login had set on the same account.
   */
 final case class ExternalProfile(
     providerType: ProviderTypeEnum,
@@ -106,7 +110,7 @@ object ExternalAuthProvisioner extends LazyLogging {
               val created = new User()
               created.setName(profile.name)
               created.setEmail(profile.email)
-              created.setAvatar(profile.avatar)
+              if (profile.avatar.nonEmpty) created.setAvatar(profile.avatar)
               created.setRole(UserRoleEnum.INACTIVE)
               txUserDao.insert(created)
               created
@@ -144,7 +148,7 @@ object ExternalAuthProvisioner extends LazyLogging {
       user.setEmail(profile.email)
       changed = true
     }
-    if (user.getAvatar != profile.avatar) {
+    if (profile.avatar.nonEmpty && user.getAvatar != profile.avatar) {
       user.setAvatar(profile.avatar)
       changed = true
     }

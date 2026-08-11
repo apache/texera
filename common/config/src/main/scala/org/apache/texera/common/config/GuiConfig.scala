@@ -29,6 +29,8 @@ object GuiConfig {
     conf.getBoolean("gui.login.local-login")
   val guiLoginGoogleLogin: Boolean =
     conf.getBoolean("gui.login.google-login")
+  val guiLoginAppleLogin: Boolean =
+    conf.getBoolean("gui.login.apple-login")
   val guiLoginDefaultLocalUserUsername: String =
     if (conf.hasPath("gui.login.default-local-user.username"))
       conf.getString("gui.login.default-local-user.username")

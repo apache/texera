@@ -28,7 +28,10 @@ import { AppSettings } from "../app-setting";
 // least invasive fix.
 const ACCESS_TOKEN_KEY = "access_token";
 
-type PreLoginConfig = Pick<GuiConfig, "localLogin" | "googleLogin" | "defaultLocalUser" | "attributionEnabled">;
+type PreLoginConfig = Pick<
+  GuiConfig,
+  "localLogin" | "googleLogin" | "appleLogin" | "defaultLocalUser" | "attributionEnabled"
+>;
 // Fields served by /config/amber.
 type AmberConfig = Pick<GuiConfig, "defaultDataTransferBatchSize">;
 type GuiOnlyConfig = Omit<GuiConfig, keyof PreLoginConfig | keyof AmberConfig | "inviteOnly">;

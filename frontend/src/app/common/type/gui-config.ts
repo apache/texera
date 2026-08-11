@@ -24,6 +24,7 @@ export interface GuiConfig {
   selectingFilesFromDatasetsEnabled: boolean;
   localLogin: boolean;
   googleLogin: boolean;
+  appleLogin: boolean;
   inviteOnly: boolean;
   userPresetEnabled: boolean;
   workflowExecutionsTrackingEnabled: boolean;

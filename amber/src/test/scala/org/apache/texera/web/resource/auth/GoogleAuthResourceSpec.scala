@@ -156,10 +156,21 @@ class GoogleAuthResourceSpec
     userByEmail("avatar").getAvatar shouldBe "AVATAR-ID"
   }
 
-  it should "store an empty avatar when the payload carries no picture" in {
+  // A provider that sends no picture leaves the column alone rather than writing "", so that an
+  // Apple login — Apple never sends one — cannot blank the avatar a Google login set.
+  it should "leave the avatar unset when the payload carries no picture" in {
     loginWith(payload("google-sub-nopic", "nopic" + emailDomain, picture = null))
 
-    userByEmail("nopic").getAvatar shouldBe ""
+    userByEmail("nopic").getAvatar shouldBe null
+  }
+
+  it should "keep an already-stored avatar when a later login carries no picture" in {
+    loginWith(payload("google-sub-keeppic", "keeppic" + emailDomain))
+    userByEmail("keeppic").getAvatar shouldBe "AVATAR-ID"
+
+    loginWith(payload("google-sub-keeppic", "keeppic" + emailDomain, picture = null))
+
+    userByEmail("keeppic").getAvatar shouldBe "AVATAR-ID"
   }
 
   // ---- verification failure ------------------------------------------------

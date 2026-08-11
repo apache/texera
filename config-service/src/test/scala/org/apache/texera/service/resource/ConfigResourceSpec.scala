@@ -132,6 +132,7 @@ class ConfigResourceSpec
     payload.keySet shouldBe Set(
       "localLogin",
       "googleLogin",
+      "appleLogin",
       "defaultLocalUser",
       "attributionEnabled",
       "deploymentVersionCheckEnabled",
@@ -166,6 +167,7 @@ class ConfigResourceSpec
     payload.keySet should contain noneOf (
       "localLogin",
       "googleLogin",
+      "appleLogin",
       "defaultLocalUser",
       "attributionEnabled"
     )

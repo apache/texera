@@ -26,6 +26,7 @@ import { vi } from "vitest";
 
 import { TexeraLoginComponent } from "./texera-login.component";
 import { UserService } from "../../../common/service/user/user.service";
+import { AppleAuthService } from "../../../common/service/user/apple-auth.service";
 import { NotificationService } from "../../../common/service/notification/notification.service";
 import { GuiConfigService } from "../../../common/service/gui-config.service";
 import { MockGuiConfigService } from "../../../common/service/gui-config.service.mock";
@@ -40,6 +41,7 @@ describe("TexeraLoginComponent", () => {
   let notificationServiceMock: Partial<NotificationService>;
   let routerMock: Partial<Router>;
   let socialAuthServiceMock: Partial<SocialAuthService>;
+  let appleAuthServiceMock: { signIn: ReturnType<typeof vi.fn> };
   // Typed to allow null so the replayed-logout case can be exercised.
   let authState$: Subject<SocialUser | null>;
 
@@ -53,7 +55,10 @@ describe("TexeraLoginComponent", () => {
       login: vi.fn().mockReturnValue(of(undefined)),
       register: vi.fn().mockReturnValue(of(undefined)),
       googleLogin: vi.fn().mockReturnValue(of(undefined)),
+      appleLogin: vi.fn().mockReturnValue(of(undefined)),
     };
+    // Apple's flow is a click, not a subject, so the service is stubbed rather than a stream.
+    appleAuthServiceMock = { signIn: vi.fn().mockResolvedValue("apple-id-token") };
     notificationServiceMock = { error: vi.fn(), success: vi.fn() };
     routerMock = { navigateByUrl: vi.fn() };
     socialAuthServiceMock = {
@@ -71,6 +76,7 @@ describe("TexeraLoginComponent", () => {
         { provide: Router, useValue: routerMock },
         { provide: ActivatedRoute, useValue: { snapshot: { queryParams } as Partial<ActivatedRouteSnapshot> } },
         { provide: SocialAuthService, useValue: socialAuthServiceMock },
+        { provide: AppleAuthService, useValue: appleAuthServiceMock },
         ...commonTestProviders,
       ],
     }).compileComponents();
@@ -153,6 +159,38 @@ describe("TexeraLoginComponent", () => {
       component.setMode("signup");
       expect(component.mode).toBe("signup");
       expect(component.errorMessage).toBeUndefined();
+    });
+  });
+
+  describe("signInWithApple", () => {
+    it("exchanges Apple's token for a session and redirects", async () => {
+      await component.signInWithApple();
+
+      expect(userServiceMock.appleLogin).toHaveBeenCalledWith("apple-id-token");
+      expect(routerMock.navigateByUrl).toHaveBeenCalledWith(USER_WORKFLOW);
+      expect(component.appleSignInPending).toBe(false);
+    });
+
+    // Dismissing Apple's popup yields no token; that is not a failure to report.
+    it("does nothing when the popup yields no token", async () => {
+      appleAuthServiceMock.signIn.mockResolvedValue(undefined);
+
+      await component.signInWithApple();
+
+      expect(userServiceMock.appleLogin).not.toHaveBeenCalled();
+      expect(notificationServiceMock.error).not.toHaveBeenCalled();
+      expect(component.appleSignInPending).toBe(false);
+    });
+
+    it("surfaces a failed exchange and clears the pending flag", async () => {
+      (userServiceMock.appleLogin as ReturnType<typeof vi.fn>).mockReturnValue(
+        throwError(() => new Error("Apple sign-in failed"))
+      );
+
+      await component.signInWithApple();
+
+      expect(notificationServiceMock.error).toHaveBeenCalledWith("Apple sign-in failed");
+      expect(component.appleSignInPending).toBe(false);
     });
   });
 
