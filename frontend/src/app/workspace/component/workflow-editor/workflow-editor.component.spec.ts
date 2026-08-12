@@ -1653,7 +1653,7 @@ describe("WorkflowEditorComponent link breakpoints", () => {
 /**
  * Ambient operator recommender (apache/texera#5240).
  *
- * The feature is opt-in and `handleOperatorRecommendation` reads the flag once
+ * The feature is opt-in and `handleNextOperatorSuggestions` reads the flag once
  * during ngAfterViewInit, returning early when it is off — so the flag has to
  * be set before the first change detection, not inside the individual tests.
  */
@@ -1700,8 +1700,8 @@ describe("Ambient Operator Recommender", () => {
     emitOperatorDrop(mockScanPredicate);
 
     expect(getRecommendationsSpy).toHaveBeenCalledTimes(1);
-    expect(component.operatorSuggestion?.operatorId).toEqual(mockScanPredicate.operatorID);
-    expect(component.operatorSuggestion?.recommendations).toEqual(mockRecommendations);
+    expect(component.nextOperatorSuggestion?.operatorId).toEqual(mockScanPredicate.operatorID);
+    expect(component.nextOperatorSuggestion?.recommendations).toEqual(mockRecommendations);
   });
 
   it("does not request suggestions for operators that arrive without a drop", () => {
@@ -1711,7 +1711,20 @@ describe("Ambient Operator Recommender", () => {
     workflowActionService.addOperator(mockSentimentPredicate, mockPoint);
 
     expect(getRecommendationsSpy).not.toHaveBeenCalled();
-    expect(component.operatorSuggestion).toBeNull();
+    expect(component.nextOperatorSuggestion).toBeNull();
+  });
+
+  it("does not suggest when the drop already wired the output port", () => {
+    // dragDropped links on both branches — dropping onto an existing edge, and
+    // proximity auto-linking — so the operator can arrive with a successor.
+    workflowActionService.addOperator(mockScanPredicate, mockPoint);
+    workflowActionService.addOperator(mockResultPredicate, mockPoint);
+    workflowActionService.addLink(mockScanResultLink);
+
+    emitOperatorDrop(mockScanPredicate);
+
+    expect(getRecommendationsSpy).not.toHaveBeenCalled();
+    expect(component.nextOperatorSuggestion).toBeNull();
   });
 
   it("ignores a response that arrives after the user dismissed the suggestions", () => {
@@ -1724,7 +1737,7 @@ describe("Ambient Operator Recommender", () => {
     (component.paper as any).trigger("blank:pointerdown");
     inFlight.next(mockRecommendations);
 
-    expect(component.operatorSuggestion).toBeNull();
+    expect(component.nextOperatorSuggestion).toBeNull();
   });
 
   it("lets the newest request win when an older response lands last", () => {
@@ -1739,20 +1752,20 @@ describe("Ambient Operator Recommender", () => {
 
     // The superseded request answers last; it must not show stale chips.
     first.next(mockRecommendations);
-    expect(component.operatorSuggestion).toBeNull();
+    expect(component.nextOperatorSuggestion).toBeNull();
 
     second.next(mockRecommendations);
-    expect(component.operatorSuggestion?.operatorId).toEqual(mockSentimentPredicate.operatorID);
+    expect(component.nextOperatorSuggestion?.operatorId).toEqual(mockSentimentPredicate.operatorID);
   });
 
   it("dismisses the suggestions when the anchor operator is deleted", () => {
     workflowActionService.addOperator(mockScanPredicate, mockPoint);
     emitOperatorDrop(mockScanPredicate);
-    expect(component.operatorSuggestion).not.toBeNull();
+    expect(component.nextOperatorSuggestion).not.toBeNull();
 
     workflowActionService.deleteOperator(mockScanPredicate.operatorID);
 
-    expect(component.operatorSuggestion).toBeNull();
+    expect(component.nextOperatorSuggestion).toBeNull();
   });
 
   it("chains a fresh round of suggestions onto the operator a clicked suggestion creates", () => {
@@ -1760,13 +1773,13 @@ describe("Ambient Operator Recommender", () => {
     emitOperatorDrop(mockScanPredicate);
     getRecommendationsSpy.mockClear();
 
-    component.materializeRecommendation(mockRecommendations[0]);
+    component.materializeNextOperatorSuggestion(mockRecommendations[0]);
 
     // Materializing never emits a drop, so chaining only works if the click
     // path asks for suggestions itself.
     expect(getRecommendationsSpy).toHaveBeenCalledTimes(1);
-    expect(component.operatorSuggestion).not.toBeNull();
-    expect(component.operatorSuggestion?.operatorId).not.toEqual(mockScanPredicate.operatorID);
+    expect(component.nextOperatorSuggestion).not.toBeNull();
+    expect(component.nextOperatorSuggestion?.operatorId).not.toEqual(mockScanPredicate.operatorID);
   });
 
   it("skips change detection when repositioning leaves the suggestions where they are", () => {
@@ -1776,14 +1789,14 @@ describe("Ambient Operator Recommender", () => {
 
     // Unchanged position: repositioning must be a no-op. Without this guard the
     // change:position listener re-renders the component on every drag frame.
-    (component as any).repositionRecommendations();
+    (component as any).repositionNextOperatorSuggestions();
 
     expect(detectChangesSpy).not.toHaveBeenCalled();
 
     // Moving the operator does move the chips with it.
     workflowActionService.getJointGraphWrapper().setElementPosition(mockScanPredicate.operatorID, 50, 30);
     detectChangesSpy.mockClear();
-    (component as any).repositionRecommendations();
+    (component as any).repositionNextOperatorSuggestions();
 
     expect(detectChangesSpy).toHaveBeenCalledTimes(1);
   });

@@ -70,7 +70,7 @@
 
 // Ambient operator recommender: faded next-operator suggestions,
 // anchored just off the source operator's output port and vertically centered.
-.operator-recommendation-container {
+.next-operator-suggestion-container {
   position: absolute;
   pointer-events: auto;
   z-index: 15;
@@ -80,7 +80,7 @@
   gap: 4px;
 }
 
-.operator-recommendation-item {
+.next-operator-suggestion-item {
   display: inline-flex;
   align-items: center;
   padding: 2px 10px;
@@ -107,7 +107,7 @@
   }
 }
 
-.operator-recommendation-name {
+.next-operator-suggestion-name {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
