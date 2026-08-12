@@ -52,7 +52,6 @@ class DatasetResourceSpec
     user.setName("owner_user")
     user.setRole(UserRoleEnum.ADMIN)
     user.setEmail("owner_user@mail.com")
-    user.setPassword("123")
     user.setComment("test_comment")
     user.setAccountCreationTime(exampleCreationTime)
     user
@@ -64,7 +63,6 @@ class DatasetResourceSpec
     user.setName("test_user")
     user.setEmail("test_user@mail.com")
     user.setRole(UserRoleEnum.REGULAR)
-    user.setPassword("123")
     user.setComment("test_comment2")
     user.setAccountCreationTime(exampleCreationTime)
     user

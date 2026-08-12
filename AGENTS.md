@@ -29,7 +29,7 @@ engine, an Angular UI, and the agent service. JVM modules wired in
 | --- | --- | --- |
 | Workflow execution engine (Amber) | `amber/` | [amber/README.md](amber/README.md) |
 | Backend services | `config-service/`, `access-control-service/`, `file-service/`, `computing-unit-managing-service/`, `workflow-compiling-service/`, `notebook-migration-service/` | `build.sbt` |
-| Shared Scala libs | `common/` (`auth`, `config`, `dao`, `workflow-core`, `workflow-operator`, `pybuilder`) | `build.sbt` |
+| Shared Scala libs | `common/` (`auth`, `config`, `dao`, `util`, `workflow-core`, `workflow-operator`, `pybuilder`) | `build.sbt` |
 | Frontend (Angular) | `frontend/` | [frontend/README.md](frontend/README.md) |
 | Agent service (Bun/TS, LLM agents) | `agent-service/` | `agent-service/package.json` |
 | Pyright language service | `pyright-language-service/` | [pyright-language-service/README.md](pyright-language-service/README.md) |
@@ -138,18 +138,52 @@ Short, **Conventional Commits**, same shape for branch and commit subject.
 | Feature | `feat/agent-workflow-edit` | `feat(agent-service): enable workflow edit` |
 | Bug fix | `fix/marker-replay` | `fix(amber): marker replay during reconfiguration` |
 | Tests | `test/pyamber-handlers` | `test(pyamber): add handler unit tests` |
-| Chore | `chore/angular-21` | `chore(deps): upgrade frontend to Angular 21` |
-| CI | `ci/cache-action-bump` | `ci: bump coursier/cache-action to v8.1.0` |
+| Chore | `chore/angular-21` | `chore(deps, frontend): upgrade to Angular 21` |
+| CI | `ci/merge-queue-stacking` | `ci: stack merge-queue builds by module` |
 
 Both ≤ ~60 chars. For code changes, if you use a scope, use the module name
 (`amber`, `pyamber`, `frontend`, `agent-service`, `file-service`, …) — not
-`amber-python`. Dependency-only updates split by semantics: `fix(deps): ...` for
-runtime/production dependency bumps (they ship to users),
-`chore(deps): ...` for dev/toolchain-only bumps, and `ci: ...` for
-CI-only changes (including GitHub Actions bumps). Append the module
-as a second scope when the bump is module-specific, e.g.
-`fix(deps, pyamber): ...`; omit it for cross-module bumps (sbt). No `Co-authored-by:` trailer for the repo
-owner.
+`amber-python`. No `Co-authored-by:` trailer for the repo owner.
+
+**Choosing the type** turns on what happens to the behavior, not on how big
+the diff is:
+
+| The change | Type |
+| --- | --- |
+| Worked before, broken now | `fix` |
+| Support never existed; adding it | `feat` |
+| Support exists; removing it | `feat` |
+| Reworked so user-facing behavior intentionally changes | `feat` |
+| User-facing behavior unchanged | `refactor` |
+
+Behavior is what the code does, not what a doc or an old PR description claims
+it does: implementing something that was never actually there is a `feat`.
+
+`refactor` claims the **user-facing** behavior is identical. Tests that pin a
+user-facing API must pass untouched — editing one of those assertions means
+the behavior moved, so it is a `feat` or a `fix`. Tests that pin internals (a
+private helper's signature, call order between collaborators, the shape of an
+intermediate value) mirror the implementation, so rewriting them alongside the
+code they mirror is still a `refactor`.
+
+**Tests.** A test-only PR is `test(<module>): ...`. Repairing a broken or
+flaky test is a bug fix in test code: `fix(test, <module>): ...`.
+
+**Dependencies.** `fix` only when the bump carries a security fix:
+
+| Bump | Commit |
+| --- | --- |
+| Patches a CVE | `fix(deps, <module>): ...` |
+| Everything else | `chore(deps, <module>): ...` |
+| GitHub Actions | `chore(deps, ci): ...` |
+
+Omit the module for cross-module bumps (sbt). GitHub Actions bumps take `ci`
+as their module — that is what [`.github/renovate.json5`](.github/renovate.json5)
+opens them with; a bare `ci: ...` is for hand-written CI and workflow changes.
+
+**Backports.** A PR targeting `release/vX.Y` appends the version as the last
+scope component — `fix(deps, frontend, v1.2): ...`. Version tags belong only
+on release-branch PRs, never on one targeting `main`.
 
 ### Issues and PRs
 
@@ -193,7 +227,7 @@ write/adjust test (red)  ->  edit source (green)  ->  refactor
 | New feature / behavior change | Failing test, then implement. |
 | Bug fix | Regression test reproducing the bug, then fix. |
 | Code with **no tests** | **Characterization tests** pin current behavior first; only then change source. |
-| Refactor (no behavior change) | Tests stay green throughout — no assertion edits. |
+| Refactor (no user-facing behavior change) | Tests stay green throughout. User-facing API assertions stay untouched; tests that mirror internals may be rewritten with the code. |
 
 Every test must cover:
 

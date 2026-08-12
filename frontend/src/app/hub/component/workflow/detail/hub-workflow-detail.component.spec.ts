@@ -40,6 +40,13 @@ import { MarkdownDescriptionComponent } from "../../../../dashboard/component/us
 import { WorkflowEditorComponent } from "../../../../workspace/component/workflow-editor/workflow-editor.component";
 import { MiniMapComponent } from "../../../../workspace/component/workflow-editor/mini-map/mini-map.component";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
+import { DragDropModule } from "@angular/cdk/drag-drop";
+import { MarkdownService } from "ngx-markdown";
+import {
+  workflowEditorTestImports,
+  workflowEditorTestProviders,
+} from "../../../../workspace/component/workflow-editor/workflow-editor.test-utils";
+import { PanelService } from "../../../../workspace/service/panel/panel.service";
 
 @Component({ selector: "texera-markdown-description", standalone: true, template: "" })
 class StubMarkdownDescriptionComponent {
@@ -438,5 +445,99 @@ describe("HubWorkflowDetailComponent", () => {
       component.changeViewDisplayStyle();
       expect(component.displayPreciseViewCount).toBe(false);
     });
+  });
+});
+/**
+ * The suite above stubs the three child components out via `TestBed.overrideComponent`, and that
+ * is what puts `hub-workflow-detail.component.html` at 0% coverage: any override makes Angular
+ * re-JIT the component from its retained decorator metadata, and the re-compiled template has no
+ * source map back to the .html, so every binding still executes but none is attributed. The
+ * component's own .ts sits at 98% while its template reports 0/46 — only attribution loss produces
+ * that gap (see #7458).
+ *
+ * This block renders the component with its REAL children instead, which restores attribution. It
+ * keeps its own TestBed so the 32 tests above keep their mocked WorkflowActionService and their
+ * assertions on it; the real service is needed here only because the real editor injects
+ * DynamicSchemaService, which reads the graph's operator streams.
+ */
+describe("HubWorkflowDetailComponent rendered with its real children", () => {
+  let fixture: ComponentFixture<HubWorkflowDetailComponent>;
+
+  function render(opts: { isHub: boolean }): void {
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      imports: [
+        HubWorkflowDetailComponent,
+        NzIconModule.forChild([ArrowLeftOutline, EyeOutline, LikeOutline, UserOutline]),
+        DragDropModule,
+        ...workflowEditorTestImports,
+      ],
+      providers: [
+        ...workflowEditorTestProviders,
+        PanelService,
+        // The real markdown child renders <markdown>, which injects MarkdownService.
+        { provide: MarkdownService, useValue: { parse: (v: string) => v } },
+        // isHub is false when the wid arrives as modal data and true when it comes from the route,
+        // which is the switch the template's two halves hang off.
+        { provide: NZ_MODAL_DATA, useValue: opts.isHub ? undefined : { wid: 5 } },
+        {
+          provide: ActivatedRoute,
+          useValue: { snapshot: { params: opts.isHub ? { id: "5" } : {} } },
+        },
+        { provide: Router, useValue: { navigateByUrl: vi.fn(), navigate: vi.fn() } },
+        {
+          provide: HubService,
+          useValue: {
+            getCounts: () => of([{ entityId: 5, entityType: EntityType.Workflow, counts: {} }]),
+            postView: () => of(7),
+            isLiked: () => of([]),
+            postLike: () => of(true),
+            postUnlike: () => of(true),
+            cloneWorkflow: () => of(99),
+          },
+        },
+        {
+          provide: WorkflowPersistService,
+          useValue: {
+            retrieveWorkflow: () => of({} as Workflow),
+            retrievePublicWorkflow: () => of({} as Workflow),
+            getOwnerName: () => of("owner"),
+            getWorkflowName: () => of("name"),
+            getWorkflowDescription: () => of("desc"),
+          },
+        },
+        { provide: NotificationService, useValue: { error: vi.fn(), success: vi.fn() } },
+        { provide: UserService, useClass: StubUserService },
+        ...commonTestProviders,
+      ],
+    });
+    fixture = TestBed.createComponent(HubWorkflowDetailComponent);
+    fixture.detectChanges();
+  }
+
+  it("renders the real editor and mini-map rather than stubs", () => {
+    // The point of this block: if these resolve to the stubbed selectors the template is
+    // re-JITed and its coverage silently goes to zero again.
+    render({ isHub: true });
+
+    const host = fixture.nativeElement as HTMLElement;
+    expect(host.querySelector("texera-workflow-editor")).not.toBeNull();
+    expect(host.querySelector("texera-mini-map")).not.toBeNull();
+  });
+
+  it("shows the back button when the id came from the route", () => {
+    // Asserted on the rendered DOM rather than on `isHub`: the class flag is set either way, so a
+    // class-state assertion cannot tell whether the template consults it.
+    render({ isHub: true });
+
+    expect((fixture.nativeElement as HTMLElement).querySelector(".go-back-button")).not.toBeNull();
+  });
+
+  it("hides the back button when the wid arrived as modal data", () => {
+    // The converse. Without it the `*ngIf` could be replaced by a constant and the positive case
+    // above would still pass.
+    render({ isHub: false });
+
+    expect((fixture.nativeElement as HTMLElement).querySelector(".go-back-button")).toBeNull();
   });
 });

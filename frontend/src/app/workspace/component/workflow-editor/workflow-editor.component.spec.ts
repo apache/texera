@@ -59,6 +59,8 @@ import { ComputingUnitStatusService } from "../../../common/service/computing-un
 import { MockComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/mock-computing-unit-status.service";
 import { commonTestProviders } from "../../../common/testing/test-utils";
 import { OperatorMenuService } from "../../service/operator-menu/operator-menu.service";
+import { GuiConfigService } from "src/app/common/service/gui-config.service";
+import { MockGuiConfigService } from "src/app/common/service/gui-config.service.mock";
 
 describe("WorkflowEditorComponent", () => {
   /**
@@ -885,15 +887,16 @@ describe("WorkflowEditorComponent", () => {
      */
     describe("operator border restoration after navigation", () => {
       let workflowStatusService: WorkflowStatusService;
-      const cachedCompleted = {
+      const cachedStatus = (operatorState: OperatorState) => ({
         [mockScanPredicate.operatorID]: {
-          operatorState: OperatorState.Completed,
+          operatorState,
           aggregatedInputRowCount: 0,
           inputPortMetrics: {},
           aggregatedOutputRowCount: 0,
           outputPortMetrics: {},
         },
-      };
+      });
+      const cachedCompleted = cachedStatus(OperatorState.Completed);
       const getStroke = (operatorID: string): string =>
         component.paper.getModelById(operatorID).attr("rect.body/stroke") as string;
 
@@ -909,6 +912,18 @@ describe("WorkflowEditorComponent", () => {
         fixture.detectChanges();
 
         expect(getStroke(mockScanPredicate.operatorID)).toBe("green");
+      });
+
+      it("paints the execution-state stroke (orange) for a valid operator with a cached Running status", () => {
+        // Navigation-return with a mid-run operator: the border must be restored
+        // to the running color, not the default (see #3614).
+        vi.spyOn(workflowStatusService, "getCurrentStatus").mockReturnValue(cachedStatus(OperatorState.Running));
+        vi.spyOn(validationWorkflowService, "validateOperator").mockReturnValue({ isValid: true });
+
+        workflowActionService.addOperator(mockScanPredicate, mockPoint);
+        fixture.detectChanges();
+
+        expect(getStroke(mockScanPredicate.operatorID)).toBe("orange");
       });
 
       it("falls back to the default valid stroke (#CFCFCF) when no cached status exists", () => {
@@ -1513,5 +1528,132 @@ describe("WorkflowEditorComponent", () => {
         });
       });
     });
+  });
+});
+/**
+ * Link breakpoints are a shipped feature — `gui.conf` sets `link-breakpoint-enabled = true` — but
+ * `MockGuiConfigService` defaults it to false, so `handleLinkBreakpoint` and the four handlers it
+ * installs have never run in any test. Turning the flag on before the first change-detection cycle
+ * (which is when ngAfterViewInit wires them) reaches the whole block.
+ */
+describe("WorkflowEditorComponent link breakpoints", () => {
+  let fixture: ComponentFixture<WorkflowEditorComponent>;
+  let component: WorkflowEditorComponent;
+  let workflowActionService: WorkflowActionService;
+
+  beforeEach(async () => {
+    TestBed.resetTestingModule();
+    await TestBed.configureTestingModule({
+      imports: [
+        RouterTestingModule,
+        HttpClientTestingModule,
+        NzModalModule,
+        NzDropDownModule,
+        WorkflowEditorComponent,
+        ContextMenuComponent,
+      ],
+      providers: [
+        JointUIService,
+        WorkflowUtilService,
+        UndoRedoService,
+        DragDropService,
+        ValidationWorkflowService,
+        WorkflowActionService,
+        NzContextMenuService,
+        Overlay,
+        { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
+        { provide: ComputingUnitStatusService, useClass: MockComputingUnitStatusService },
+        WorkflowStatusService,
+        ExecuteWorkflowService,
+        ...commonTestProviders,
+      ],
+    }).compileComponents();
+
+    // Both halves of the guard at workflow-editor.component.ts:202 must be satisfied, and both must
+    // be set before the first detectChanges: ngAfterViewInit reads them once, when it decides
+    // whether to install the breakpoint handlers at all.
+    (TestBed.inject(GuiConfigService) as unknown as MockGuiConfigService).setConfig({
+      linkBreakpointEnabled: true,
+    });
+    workflowActionService = TestBed.inject(WorkflowActionService);
+    workflowActionService.setHighlightingEnabled(true);
+
+    fixture = TestBed.createComponent(WorkflowEditorComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+  });
+
+  /** Adds scan -> result and returns the link plus its rendered view. */
+  function withLink() {
+    workflowActionService.addOperator(mockScanPredicate, mockPoint);
+    workflowActionService.addOperator(mockResultPredicate, mockPoint);
+    workflowActionService.addLink(mockScanResultLink);
+    const model = component.paper.getModelById(mockScanResultLink.linkID);
+    return { linkID: mockScanResultLink.linkID, model, view: model.findView(component.paper) as any };
+  }
+
+  it("attaches a breakpoint tool to every link, hidden until it is wanted", () => {
+    // The tool is what the user clicks to set a breakpoint; without it the feature has no entry
+    // point, and leaving it visible would put a button on every link on the canvas.
+    const { view } = withLink();
+
+    expect(view.hasTools()).toBe(true);
+    // The tool exists but stays out of sight until the cursor hovers the link or a breakpoint is
+    // set; a visible one would put a button on every link on the canvas.
+    expect(view._toolsView.tools[0].isVisible()).toBe(false);
+  });
+
+  it("highlights the link whose breakpoint button was clicked", () => {
+    const { linkID, view } = withLink();
+
+    (component.paper as any).trigger("tool:breakpoint", view, { shiftKey: false });
+
+    expect(workflowActionService.getJointGraphWrapper().getCurrentHighlightedLinkIDs()).toEqual([linkID]);
+  });
+
+  it("unhighlights an already-highlighted link on a shift-click", () => {
+    // Shift is the multi-select modifier, so a second shift-click on the same link is how the user
+    // removes it from the selection rather than re-adding it.
+    const { linkID, view } = withLink();
+    (component.paper as any).trigger("tool:breakpoint", view, { shiftKey: true });
+    expect(workflowActionService.getJointGraphWrapper().getCurrentHighlightedLinkIDs()).toEqual([linkID]);
+
+    (component.paper as any).trigger("tool:breakpoint", view, { shiftKey: true });
+
+    expect(workflowActionService.getJointGraphWrapper().getCurrentHighlightedLinkIDs()).toEqual([]);
+  });
+
+  it("carries the shift modifier into multi-select mode", () => {
+    // Routed through the unhighlight branch deliberately. On the highlight branch
+    // `WorkflowActionService.highlightLinks` sets multi-select itself, so the handler's own
+    // `setMultiSelectMode` could be deleted and the assertion would still pass; `unhighlightLinks`
+    // does not touch it, leaving this handler as the only writer.
+    const { view } = withLink();
+    // multiSelect is private and has no getter; read it directly rather than adding an accessor.
+    const wrapper = workflowActionService.getJointGraphWrapper() as any;
+
+    (component.paper as any).trigger("tool:breakpoint", view, { shiftKey: false });
+    expect(wrapper.multiSelect).toBe(false);
+    (component.paper as any).trigger("tool:breakpoint", view, { shiftKey: true });
+
+    expect(wrapper.multiSelect).toBe(true);
+  });
+
+  it("shows and hides the tool as the breakpoint streams ask", () => {
+    // These two streams are how a link that already has a breakpoint keeps its marker visible after
+    // the cursor leaves it.
+    const { linkID, view } = withLink();
+    const wrapper = workflowActionService.getJointGraphWrapper();
+    const show = vi.spyOn(view, "showTools");
+    const hide = vi.spyOn(view, "hideTools");
+
+    (wrapper as any).jointLinkBreakpointShowStream.next({ linkID });
+    (wrapper as any).jointLinkBreakpointHideStream.next({ linkID });
+
+    expect(show).toHaveBeenCalledTimes(1);
+    expect(hide).toHaveBeenCalledTimes(1);
+    // Order matters, otherwise a handler pair wired to each other's stream passes: both would
+    // still be called once, just for the opposite reason.
+    expect(show.mock.invocationCallOrder[0]).toBeLessThan(hide.mock.invocationCallOrder[0]);
   });
 });

@@ -121,11 +121,11 @@ class RegionExecutionManager(
     killRetryBaseBackoffMs: Long = RegionExecutionManager.DefaultKillRetryBaseBackoffMs,
     killRetryTimer: Timer = new JavaTimer(true),
     terminationTimeoutMs: Long = RegionExecutionManager.DefaultTerminationTimeoutMs,
-    // Loop-back write addresses (Loop Start logical op id -> its input port's
-    // state URI), shipped to every worker in InitializeExecutorRequest. See
-    // WorkflowExecutionManager.loopStartStateUris.
-    loopStartStateUris: Map[String, String] = Map.empty
-) extends AmberLogging {
+    // Loop bookkeeping addresses (Loop Start logical op id -> its input
+    // port's BASE materialization URI), shipped to every worker in
+    // InitializeExecutorRequest. See WorkflowExecutionManager.loopStartPortUris.
+    loopStartPortUris: Map[String, String] = Map.empty
+  ) extends AmberLogging {
 
   initRegionExecution()
 
@@ -462,7 +462,7 @@ class RegionExecutionManager(
                   workerConfigs.length,
                   physicalOp.opExecInitInfo,
                   physicalOp.isSourceOperator,
-                  loopStartStateUris
+                  loopStartPortUris
                 ),
                 asyncRPCClient.mkContext(workerId)
               )

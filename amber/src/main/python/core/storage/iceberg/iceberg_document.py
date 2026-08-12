@@ -63,6 +63,7 @@ class IcebergDocument(VirtualDocument[T]):
         table_schema: Schema,
         serde: Callable[[Schema, Iterable[T]], pa.Table],
         deserde: Callable[[Schema, pa.Table], Iterable[T]],
+        warehouse: Optional[str] = None,
     ):
         self.table_namespace = table_namespace
         self.table_name = table_name
@@ -71,7 +72,7 @@ class IcebergDocument(VirtualDocument[T]):
         self.deserde = deserde
 
         self.lock = rwlock.RWLockFair()
-        self.catalog = IcebergCatalogInstance.get_instance()
+        self.catalog = IcebergCatalogInstance.get_instance(warehouse)
 
     def get_uri(self) -> ParseResult:
         """Returns the URI of the table location."""

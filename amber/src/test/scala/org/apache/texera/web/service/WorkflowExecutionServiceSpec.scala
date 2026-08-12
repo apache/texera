@@ -68,7 +68,8 @@ class WorkflowExecutionServiceSpec extends AnyFlatSpec with Matchers {
       replayFromExecution = None,
       workflowSettings = WorkflowSettings(),
       emailNotificationEnabled = false,
-      computingUnitId = 0
+      computingUnitId = 0,
+      warehouseId = None
     )
     new WorkflowExecutionService(
       null,
