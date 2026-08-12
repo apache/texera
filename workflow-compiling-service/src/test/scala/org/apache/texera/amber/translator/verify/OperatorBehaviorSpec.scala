@@ -121,7 +121,6 @@ object OperatorBehaviorSpec {
   // the source and UDF operators here changed nothing and only made the list read
   // as though they were pending.
   private val DefaultLocalSkip: Seq[String] = Seq(
-    "SklearnDecisionTreeOpDesc",
     "SklearnDummyClassifierOpDesc",
     "SklearnExtraTreeOpDesc",
     "SklearnExtraTreesOpDesc",
