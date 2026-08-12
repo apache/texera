@@ -149,7 +149,7 @@ object PythonWorkerPool extends LazyLogging {
     * `interpreterArgs` are the flags that must precede the script — a syntax
     * checker wants `-I -S` so it validates under the same isolation a one-shot
     * `python -I -S -m py_compile` gave it. `launchArgs` are the script's own
-    * (e.g. `--serve`), and `env` carries what a flag cannot — though not
+    * (e.g. `--deaf`), and `env` carries what a flag cannot — though not
     * PYTHONPATH or any other PYTHON* var, which the `-I` above makes CPython ignore.
     * All three are part of a worker's identity: one started differently is not
     * interchangeable, so it gets its own sub-pool. `timeouts` is not — it bounds

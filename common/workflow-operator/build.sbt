@@ -36,7 +36,7 @@ ThisBuild / conflictManager := ConflictManager.latestRevision
 Global / concurrentRestrictions += Tags.limit(Tags.Test, 1)
 
 // A test needing more than a bare Python interpreter is tagged, so the amber job
-// excludes it, and amber-integration, which installs operator-requirements.txt,
+// excludes it, and amber-integration, which installs amber's requirements files,
 // runs it. The amber job already sets this env var on the step that invokes
 // WorkflowOperator/jacoco, so no workflow change is needed for the exclusion.
 //
