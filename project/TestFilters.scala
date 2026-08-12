@@ -34,21 +34,15 @@ import sbt._
 object TestFilters {
 
   /**
-   * @param envVar               name of the env var the CI jobs set
-   * @param tag                  fully-qualified tag name, as ScalaTest's -n/-l expect
-   * @param integrationOnlyExtra extra ScalaTest args for the integration side only
-   *                             (e.g. "-P4" to bound its parallel pool)
+   * @param envVar name of the env var the CI jobs set
+   * @param tag    fully-qualified tag name, as ScalaTest's -n/-l expect
    */
-  def integrationSplit(
-      envVar: String,
-      tag: String,
-      integrationOnlyExtra: Seq[String] = Seq.empty
-  ): Seq[TestOption] =
+  def integrationSplit(envVar: String, tag: String): Seq[TestOption] =
     sys.env.get(envVar) match {
       case Some("skip-integration") =>
         Seq(Tests.Argument(TestFrameworks.ScalaTest, "-l", tag))
       case Some("integration-only") =>
-        Seq(Tests.Argument(TestFrameworks.ScalaTest, Seq("-n", tag) ++ integrationOnlyExtra: _*))
+        Seq(Tests.Argument(TestFrameworks.ScalaTest, "-n", tag))
       case _ => Nil
     }
 }

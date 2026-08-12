@@ -47,16 +47,26 @@ ThisBuild / conflictManager := ConflictManager.latestRevision
 Global / concurrentRestrictions += Tags.limit(Tags.Test, 1)
 
 // The fast-unit / integration test split; the selection logic itself is shared
-// in project/TestFilters.scala. The integration side takes -P4 to bound
-// ScalaTest's ParallelTestExecution pool: OperatorBehaviorSpec forks a Python
-// subprocess per operator, and at core-count concurrency (e.g. 12) resource
-// contention caused rare flakes. A fixed 4 stays deterministic across machines
-// (incl. CI runners) while still running ~3x faster than serial.
+// in project/TestFilters.scala.
 Test / testOptions ++= TestFilters.integrationSplit(
   envVar = "WCS_TEST_FILTER",
-  tag = "org.apache.texera.amber.translator.verify.tags.IntegrationTest",
-  integrationOnlyExtra = Seq("-P4")
+  tag = "org.apache.texera.amber.translator.verify.tags.IntegrationTest"
 )
+
+// -P4 bounds ScalaTest's ParallelTestExecution pool, and only this module wants
+// it: OperatorBehaviorSpec forks a Python subprocess per operator, and at
+// core-count concurrency (e.g. 12) resource contention caused rare flakes. A
+// fixed 4 stays deterministic across machines (incl. CI runners) while still
+// running ~3x faster than serial, and it matches PythonWorkerPool's own default
+// worker cap so the two bounds agree rather than multiply. It lives here rather
+// than in the shared helper so that helper stays identical for every module.
+// sbt concatenates the ScalaTest arguments of every testOptions entry, so this
+// lands in the same argument list as the -n above.
+Test / testOptions ++= {
+  if (sys.env.get("WCS_TEST_FILTER").contains("integration-only"))
+    Seq(Tests.Argument(TestFrameworks.ScalaTest, "-P4"))
+  else Nil
+}
 
 /////////////////////////////////////////////////////////////////////////////
 // Compiler Options
