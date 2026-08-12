@@ -44,10 +44,12 @@ class UserWarehouseSpec extends AnyFlatSpec with Matchers with BeforeAndAfterAll
     try closeConnectionPool()
     finally super.afterAll()
 
+  // Credentials live in auth_provider now, and the ck_nulltest constraint that used to require
+  // one on the user row went with them, so a warehouse owner needs nothing but a name.
   private def insertUser(name: String): Integer =
     getDSLContext
-      .insertInto(USER, USER.NAME, USER.PASSWORD)
-      .values(name, "password")
+      .insertInto(USER, USER.NAME)
+      .values(name)
       .returning(USER.UID)
       .fetchOne()
       .getUid

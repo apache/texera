@@ -21,7 +21,7 @@ package org.apache.texera.web.resource.dashboard.admin.user
 
 import org.apache.texera.dao.MockTexeraDB
 import org.apache.texera.dao.jooq.generated.Tables._
-import org.apache.texera.dao.jooq.generated.enums.{PrivilegeEnum, UserRoleEnum}
+import org.apache.texera.dao.jooq.generated.enums.{PrivilegeEnum, ProviderTypeEnum, UserRoleEnum}
 import org.apache.texera.dao.jooq.generated.tables.daos.{
   DatasetDao,
   UserDao,
@@ -101,7 +101,6 @@ class AdminUserResourceSpec
       .where(DATASET.OWNER_UID.in(primaryUid, secondaryUid))
       .execute()
     getDSLContext.deleteFrom(USER).where(USER.UID.in(primaryUid, secondaryUid)).execute()
-    // addUser() inserts an INACTIVE user with an auto-generated uid and a "User<millis>" name.
     getDSLContext
       .deleteFrom(USER)
       .where(USER.ROLE.eq(UserRoleEnum.INACTIVE).and(USER.NAME.like("User%")))
@@ -115,10 +114,28 @@ class AdminUserResourceSpec
     user.setEmail(
       s"admin_user_spec_${uid}_${UUID.randomUUID().toString.substring(0, 8)}@example.com"
     )
-    user.setPassword("password")
     user.setRole(role)
     user
   }
+
+  /**
+    * Seed a credential row. `password` is left null for external providers because
+    * ck_provider_credential requires a password for LOCAL and only for LOCAL. The
+    * auth_provider FK is ON DELETE CASCADE, so `cleanup`'s user delete clears these.
+    */
+  private def seedProvider(
+      uid: Int,
+      providerType: ProviderTypeEnum,
+      providerId: String,
+      password: String = null
+  ): Unit =
+    getDSLContext
+      .insertInto(AUTH_PROVIDER)
+      .set(AUTH_PROVIDER.UID, Integer.valueOf(uid))
+      .set(AUTH_PROVIDER.PROVIDER_TYPE, providerType)
+      .set(AUTH_PROVIDER.PROVIDER_ID, providerId)
+      .set(AUTH_PROVIDER.PASSWORD, password)
+      .execute()
 
   private def seedWorkflow(): Workflow = {
     val workflow = new Workflow
@@ -191,6 +208,29 @@ class AdminUserResourceSpec
     resource.list().asScala.exists(_.uid == primaryUid) shouldBe false
   }
 
+  // The projection maps onto UserInfo positionally, so a column landing on the wrong field is
+  // silent. Nothing else observes it — pin it here for a user holding both credential kinds,
+  // which also proves the LOCAL row does not leak into the GOOGLE-joined column.
+  it should "report the google id and the avatar for a user with LOCAL and GOOGLE rows" in {
+    val user = makeUser(primaryUid, "dual")
+    user.setAvatar("avatar-blob")
+    userDao.insert(user)
+    seedProvider(primaryUid, ProviderTypeEnum.LOCAL, "dual-handle", password = "hashed")
+    seedProvider(primaryUid, ProviderTypeEnum.GOOGLE, "google-sub-dual")
+
+    val listed = resource.list().asScala.find(_.uid == primaryUid)
+
+    listed.map(u => (u.name, u.googleId, u.googleAvatar)) shouldBe Some(
+      ("dual", "google-sub-dual", "avatar-blob")
+    )
+  }
+
+  it should "leave the google id null for a user with no auth_provider rows" in {
+    userDao.insert(makeUser(primaryUid, "credential-less"))
+
+    resource.list().asScala.find(_.uid == primaryUid).map(_.googleId) shouldBe Some(null)
+  }
+
   // ─── addUser ────────────────────────────────────────────────────────────
 
   "addUser" should "persist a new INACTIVE user" in {
@@ -200,8 +240,17 @@ class AdminUserResourceSpec
 
     val after = userDao.fetchByRole(UserRoleEnum.INACTIVE)
     after.size() shouldBe before + 1
-    // The newly added user has a generated non-empty name and no password left blank.
-    after.asScala.exists(u => u.getName.startsWith("User") && u.getPassword != null) shouldBe true
+    // The newly added user has a generated non-empty name, and the LOCAL credential it logs in
+    // with lives in auth_provider (not on "user"), with its password hash set.
+    after.asScala.exists(u =>
+      u.getName.startsWith("User") && getDSLContext.fetchExists(
+        getDSLContext
+          .selectFrom(AUTH_PROVIDER)
+          .where(AUTH_PROVIDER.UID.eq(u.getUid))
+          .and(AUTH_PROVIDER.PROVIDER_TYPE.eq(ProviderTypeEnum.LOCAL))
+          .and(AUTH_PROVIDER.PASSWORD.isNotNull)
+      )
+    ) shouldBe true
   }
 
   // ─── updateUser ─────────────────────────────────────────────────────────

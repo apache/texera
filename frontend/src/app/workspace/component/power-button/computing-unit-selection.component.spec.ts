@@ -666,6 +666,181 @@ describe("PowerButtonComponent", () => {
     });
   });
 
+  /**
+   * The PVE block is the largest uncovered region in the component, and the suite above stops
+   * exactly at its seams: it stubs out `runPveWebSocket` and `deleteUserPackages` so it can assert
+   * name validation without opening a socket. These drive the other side of those seams.
+   *
+   * The only environmental need is a stand-in for `WebSocket`, so `onmessage` / `onerror` can be
+   * fired by hand — jsdom has no WebSocket and the component never inspects anything but the
+   * handlers it assigns.
+   */
+  describe("the virtual-environment socket", () => {
+    /** The sockets opened during a test, newest last. */
+    let sockets: FakeSocket[];
+
+    class FakeSocket {
+      static opened: FakeSocket[] = [];
+      onmessage: ((e: { data: string }) => void) | null = null;
+      onerror: (() => void) | null = null;
+      close = vi.fn();
+      constructor(public url: string) {
+        FakeSocket.opened.push(this);
+      }
+      /** Delivers one server line to the component. */
+      say(data: string): void {
+        this.onmessage?.({ data });
+      }
+    }
+
+    /** Installs one unlocked environment and returns the component's view of it. */
+    function setPve(over: Record<string, unknown> = {}): void {
+      component.pves = [
+        {
+          name: "envone",
+          isLocked: false,
+          isInstalling: false,
+          userPackages: [],
+          newPackages: [],
+          deletingPackages: [],
+          pipOutput: "",
+          prettyPipOutput: "",
+          expanded: false,
+          ...over,
+        } as any,
+      ];
+    }
+
+    beforeEach(() => {
+      FakeSocket.opened = [];
+      sockets = FakeSocket.opened;
+      vi.stubGlobal("WebSocket", FakeSocket as unknown as typeof WebSocket);
+      vi.spyOn((component as any).notificationService, "error").mockImplementation(() => {});
+      // The socket URL is built from the selected unit's cuid, so a unit has to be selected.
+      component.selectedComputingUnit = makeComputingUnit({ name: "unit" });
+    });
+
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    it("opens a socket for the environment and locks the card while it runs", () => {
+      setPve();
+
+      component.createVirtualEnvironment(0);
+
+      expect(sockets).toHaveLength(1);
+      expect(component.pves[0].isInstalling).toBe(true);
+      expect(component.pves[0].isLocked).toBe(true);
+      expect(component.pves[0].pipOutput).toContain("Creating virtual environment");
+    });
+
+    it("trims the environment name before it reaches the socket URL", () => {
+      // The name is user input from an inline editor; an untrimmed name produces a URL for an
+      // environment the backend does not have.
+      const urlSpy = vi.spyOn(TestBed.inject(WorkflowPveService), "getPveWebSocketUrl");
+      setPve({ name: "  spaced  " });
+
+      component.createVirtualEnvironment(0);
+
+      expect(component.pves[0].name).toBe("spaced");
+      expect(urlSpy).toHaveBeenCalledWith(expect.anything(), "spaced", "create", []);
+    });
+
+    it("appends each line the server sends to the pip output", () => {
+      setPve();
+      component.createVirtualEnvironment(0);
+
+      sockets[0].say("collecting numpy");
+      sockets[0].say("installed");
+
+      expect(component.pves[0].pipOutput).toContain("collecting numpy");
+      expect(component.pves[0].pipOutput).toContain("installed");
+      // Still running: the card stays locked until the sentinel arrives.
+      expect(component.pves[0].isInstalling).toBe(true);
+    });
+
+    it("closes the socket and unlocks installing on the __DONE__ sentinel", () => {
+      // Without this the spinner never stops and the card is stuck mid-install.
+      // The continuation is stubbed out deliberately: letting the real delete/install chain run
+      // would reset isInstalling downstream, so the assertion would pass even if this branch
+      // never cleared it.
+      vi.spyOn(component as any, "deleteUserPackages").mockImplementation(() => {});
+      setPve();
+      component.createVirtualEnvironment(0);
+
+      sockets[0].say("__DONE__");
+
+      expect(component.pves[0].isInstalling).toBe(false);
+      expect(component.pves[0].socket).toBeUndefined();
+      expect(sockets[0].close).toHaveBeenCalled();
+    });
+
+    it("does not print the sentinel as though it were output", () => {
+      setPve();
+      component.createVirtualEnvironment(0);
+
+      sockets[0].say("__DONE__");
+
+      expect(component.pves[0].pipOutput).not.toContain("__DONE__");
+    });
+
+    it("reports a dropped connection in the output rather than hanging", () => {
+      setPve();
+      component.createVirtualEnvironment(0);
+
+      sockets[0].onerror?.();
+
+      expect(component.pves[0].pipOutput).toContain("[WebSocket error]");
+      expect(component.pves[0].isInstalling).toBe(false);
+      expect(component.pves[0].socket).toBeUndefined();
+    });
+
+    it("closes any socket still open on the card before starting another", () => {
+      // Re-running a create on a card that is already streaming would otherwise leave the first
+      // socket writing into the same pipOutput.
+      setPve();
+      component.createVirtualEnvironment(0);
+      const first = sockets[0];
+
+      component.pves[0] = { ...component.pves[0], isLocked: false } as any;
+      component.createVirtualEnvironment(0);
+
+      expect(first.close).toHaveBeenCalled();
+      expect(sockets).toHaveLength(2);
+    });
+
+    it("reinstalls the recorded packages once the environment is created", () => {
+      // The create socket's completion chains delete-then-install, which is how a rebuilt
+      // environment gets its packages back.
+      const deleteSpy = vi
+        .spyOn(component as any, "deleteUserPackages")
+        .mockImplementation((...args: unknown[]) => (args[1] as (() => void) | undefined)?.());
+      const installSpy = vi.spyOn(component as any, "installUserPackages").mockImplementation(() => {});
+      setPve();
+
+      component.createVirtualEnvironment(0);
+      sockets[0].say("__DONE__");
+
+      expect(deleteSpy).toHaveBeenCalled();
+      expect(installSpy).toHaveBeenCalled();
+    });
+
+    it("skips creation entirely for a locked card and only syncs its packages", () => {
+      const deleteSpy = vi
+        .spyOn(component as any, "deleteUserPackages")
+        .mockImplementation((...args: unknown[]) => (args[1] as (() => void) | undefined)?.());
+      const installSpy = vi.spyOn(component as any, "installUserPackages").mockImplementation(() => {});
+      setPve({ isLocked: true });
+
+      component.createVirtualEnvironment(0);
+
+      expect(sockets).toHaveLength(0);
+      expect(deleteSpy).toHaveBeenCalled();
+      expect(installSpy).toHaveBeenCalled();
+    });
+  });
+
   describe("createVirtualEnvironment name validation", () => {
     const VALIDATION_MSG = "Environment name must contain only letters and numbers.";
 

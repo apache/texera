@@ -39,6 +39,8 @@ object StorageConfig {
   val icebergRESTCatalogUri: String = conf.getString("storage.iceberg.catalog.rest.uri")
   val icebergRESTCatalogWarehouseName: String =
     conf.getString("storage.iceberg.catalog.rest.warehouse-name")
+  val icebergRESTCatalogS3Bucket: String =
+    conf.getString("storage.iceberg.catalog.rest.s3-bucket")
 
   // Iceberg Postgres specifics
   val icebergPostgresCatalogUriWithoutScheme: String =

@@ -24,28 +24,13 @@
     nzTip="Loading workflow...">
   </nz-spin>
 </div>
-<div class="openai-spinner">
-  <nz-spin
-    [nzSize]="'large'"
-    [nzSpinning]="isWaitingForLLM"></nz-spin>
-
-  @if (isWaitingForLLM) {
-  <div class="llm-spinner-text">
-    <div>Waiting for LLM response...</div>
-    <div>Estimated time 1-5 minutes</div>
-    <div class="elapsed-time">Do not close this tab</div>
-    <div class="elapsed-time">Elapsed time: {{ formattedElapsedTime }}</div>
-  </div>
-  }
-</div>
 <div id="result">
   <texera-result-panel></texera-result-panel>
 </div>
 <texera-workflow-editor></texera-workflow-editor>
 <texera-menu
   [writeAccess]="writeAccess"
-  [pid]="pid"
-  (setWaitingForLLM)="onWaitingForLLMChanged($event)">
+  [pid]="pid">
 </texera-menu>
 <texera-mini-map class="box"></texera-mini-map>
 <texera-left-panel> </texera-left-panel>

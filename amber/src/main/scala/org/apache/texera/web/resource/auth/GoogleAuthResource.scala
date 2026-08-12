@@ -19,101 +19,87 @@
 
 package org.apache.texera.web.resource.auth
 
-import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier
+import com.google.api.client.googleapis.auth.oauth2.{GoogleIdToken, GoogleIdTokenVerifier}
 import com.google.api.client.http.javanet.NetHttpTransport
 import com.google.api.client.json.gson.GsonFactory
-import org.apache.texera.auth.JwtAuth.{TOKEN_EXPIRE_TIME_IN_MINUTES, jwtClaims, jwtToken}
+import org.apache.texera.auth.JwtAuth.{jwtClaims, jwtToken}
 import org.apache.texera.common.config.UserSystemConfig
-import org.apache.texera.dao.SqlServer
-import org.apache.texera.dao.jooq.generated.enums.UserRoleEnum
-import org.apache.texera.dao.jooq.generated.tables.daos.UserDao
-import org.apache.texera.dao.jooq.generated.tables.pojos.User
+import org.apache.texera.dao.jooq.generated.enums.ProviderTypeEnum
 import org.apache.texera.web.model.http.response.TokenIssueResponse
-import org.apache.texera.web.resource.auth.GoogleAuthResource.userDao
 
 import java.util.Collections
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
 
 object GoogleAuthResource {
-  private def userDao =
-    new UserDao(
-      SqlServer
-        .getInstance()
-        .createDSLContext()
-        .configuration
+
+  final private lazy val clientId = UserSystemConfig.googleClientId
+
+  /**
+    * Reduce a verified Google id-token payload to the fields we persist. Google omits `name`
+    * for accounts with no profile name, and the provisioner writes `name` straight to a NOT
+    * NULL column, so the address stands in for it. Only the last path segment of `picture` is
+    * kept — the frontend rebuilds the full `lh3.googleusercontent.com` URL around it.
+    *
+    * A payload with no address, or whose `email_verified` is not true, is refused rather than
+    * mapped — see [[ExternalProfile]] for why. Absent is not true: Google may omit the claim, and
+    * Workspace and custom-domain accounts can report false.
+    */
+  private[auth] def profileOf(payload: GoogleIdToken.Payload): ExternalProfile = {
+    val googleEmail = payload.getEmail
+    if (googleEmail == null || googleEmail.isBlank) {
+      throw new NotAuthorizedException("Login credentials are incorrect.")
+    }
+    if (!Option(payload.getEmailVerified).exists(_.booleanValue)) {
+      throw new NotAuthorizedException("Login credentials are incorrect.")
+    }
+    ExternalProfile(
+      ProviderTypeEnum.GOOGLE,
+      payload.getSubject,
+      Option(payload.get("name").asInstanceOf[String]).filter(_.nonEmpty).getOrElse(googleEmail),
+      googleEmail,
+      avatar = Option(payload.get("picture").asInstanceOf[String])
+        .flatMap(_.split("/").lastOption)
+        .getOrElse("")
     )
+  }
+
+  private lazy val verifier =
+    new GoogleIdTokenVerifier.Builder(new NetHttpTransport, GsonFactory.getDefaultInstance)
+      .setAudience(Collections.singletonList(clientId))
+      .build()
 }
 
 @Path("/auth/google")
 class GoogleAuthResource {
-  final private lazy val clientId = UserSystemConfig.googleClientId
 
   @GET
   @Path("/clientid")
-  def getClientId: String = clientId
+  def getClientId: String = GoogleAuthResource.clientId
+
+  /**
+    * Verify `credential` against Google, yielding its payload, or None if it is not a valid
+    * token for this client. This is the only seam that reaches the network, so tests override
+    * it instead of signing a token; it is kept as a method rather than a parameter because
+    * Jersey instantiates this resource from `classOf[GoogleAuthResource]`.
+    */
+  protected def verifiedPayload(credential: String): Option[GoogleIdToken.Payload] =
+    Option(GoogleAuthResource.verifier.verify(credential)).map(_.getPayload)
 
   @POST
   @Consumes(Array(MediaType.TEXT_PLAIN))
   @Produces(Array(MediaType.APPLICATION_JSON))
   @Path("/login")
-  def login(credential: String): TokenIssueResponse = {
-    val idToken =
-      new GoogleIdTokenVerifier.Builder(new NetHttpTransport, GsonFactory.getDefaultInstance)
-        .setAudience(
-          Collections.singletonList(clientId)
+  def login(credential: String): TokenIssueResponse =
+    verifiedPayload(credential) match {
+      case Some(payload) =>
+        val profile = GoogleAuthResource.profileOf(payload)
+        val user = ExternalAuthProvisioner.loginOrProvision(profile)
+        // The frontend reads `googleId` off the raw token; the provider id is already in hand
+        // here, so no lookup is needed.
+        TokenIssueResponse(
+          jwtToken(jwtClaims(user, Some(profile.providerId)))
         )
-        .build()
-        .verify(credential)
-    if (idToken != null) {
-      val payload = idToken.getPayload
-      val googleId = payload.getSubject
-      val googleName = payload.get("name").asInstanceOf[String]
-      val googleEmail = payload.getEmail
-      val googleAvatar = Option(payload.get("picture").asInstanceOf[String])
-        .flatMap(_.split("/").lastOption)
-        .getOrElse("")
-      val user = Option(userDao.fetchOneByGoogleId(googleId)) match {
-        case Some(user) =>
-          if (user.getName != googleName) {
-            user.setName(googleName)
-            userDao.update(user)
-          }
-          if (user.getEmail != googleEmail) {
-            user.setEmail(googleEmail)
-            userDao.update(user)
-          }
-          if (user.getGoogleAvatar != googleAvatar) {
-            user.setGoogleAvatar(googleAvatar)
-            userDao.update(user)
-          }
-          user
-        case None =>
-          Option(AuthResource.fetchUserByEmailIgnoreCase(googleEmail)) match {
-            case Some(user) =>
-              if (user.getName != googleName) {
-                user.setName(googleName)
-              }
-              user.setGoogleId(googleId)
-              user.setGoogleAvatar(googleAvatar)
-              if (user.getIsPlaceholder) {
-                AuthResource.claimPlaceholder(user)
-              }
-              userDao.update(user)
-              user
-            case None =>
-              // create a new user with googleId
-              val user = new User
-              user.setName(googleName)
-              user.setEmail(googleEmail)
-              user.setGoogleId(googleId)
-              user.setRole(UserRoleEnum.INACTIVE)
-              user.setGoogleAvatar(googleAvatar)
-              userDao.insert(user)
-              user
-          }
-      }
-      TokenIssueResponse(jwtToken(jwtClaims(user, TOKEN_EXPIRE_TIME_IN_MINUTES)))
-    } else throw new NotAuthorizedException("Login credentials are incorrect.")
-  }
+      case None => throw new NotAuthorizedException("Login credentials are incorrect.")
+    }
 }

@@ -19,19 +19,19 @@
 
 package org.apache.texera.web.resource.auth
 
-import org.apache.texera.auth.JwtAuth.{TOKEN_EXPIRE_TIME_IN_MINUTES, jwtClaims, jwtToken}
+import com.typesafe.scalalogging.Logger
+import org.apache.texera.auth.JwtAuth.{jwtClaims, jwtToken}
 import org.apache.texera.common.config.UserSystemConfig
 import org.apache.texera.common.util.EmailUtil
 import org.apache.texera.dao.SqlServer
-import org.apache.texera.dao.jooq.generated.Tables.USER
-import org.apache.texera.dao.jooq.generated.enums.UserRoleEnum
-import org.apache.texera.dao.jooq.generated.tables.daos.UserDao
+import org.apache.texera.dao.jooq.generated.Tables.{AUTH_PROVIDER, USER}
+import org.apache.texera.dao.jooq.generated.enums.{ProviderTypeEnum, UserRoleEnum}
 import org.apache.texera.dao.jooq.generated.tables.pojos.User
 import org.apache.texera.web.model.http.request.auth.{UserLoginRequest, UserRegistrationRequest}
 import org.apache.texera.web.model.http.response.TokenIssueResponse
 import org.apache.texera.web.resource.auth.AuthResource._
+import org.jooq.DSLContext
 import org.jooq.impl.DSL
-import org.jasypt.util.password.StrongPasswordEncryptor
 
 import java.time.Instant
 import java.time.temporal.ChronoUnit
@@ -39,53 +39,68 @@ import javax.ws.rs._
 import javax.ws.rs.core.MediaType
 
 object AuthResource {
+  private val logger: Logger = Logger(classOf[AuthResource])
 
-  private def userDao =
-    new UserDao(
-      SqlServer
-        .getInstance()
-        .createDSLContext()
-        .configuration
-    )
+  private def context = SqlServer.getInstance().context
 
   /**
     * Retrieve exactly one User from databases with the given username and password.
     * The password is used to validate against the hashed password stored in the db.
     *
-    * @param name     String
+    * @param username the LOCAL login handle to authenticate
     * @param password String, plain text password
     * @return
     */
-  def retrieveUserByUsernameAndPassword(name: String, password: String): Option[User] = {
-    if (password == null) return None
-    if (name == null) return None
-    Option(
-      SqlServer
-        .getInstance()
-        .createDSLContext()
-        .select()
-        .from(USER)
-        .where(USER.NAME.eq(name))
-        .fetchOneInto(classOf[User])
-    ).filter(user => new StrongPasswordEncryptor().checkPassword(password, user.getPassword))
+  def retrieveUserByUsernameAndPassword(username: String, password: String): Option[User] = {
+    if (password == null || username == null) return None
+
+    val record = context
+      .select()
+      .from(AUTH_PROVIDER)
+      .join(USER)
+      .on(USER.UID.eq(AUTH_PROVIDER.UID))
+      .where(AUTH_PROVIDER.PROVIDER_TYPE.eq(ProviderTypeEnum.LOCAL))
+      .and(AUTH_PROVIDER.PROVIDER_ID.eq(username))
+      .fetchOne()
+
+    Option(record).flatMap(r => {
+      val encryptedPassword = r.get(AUTH_PROVIDER.PASSWORD)
+      if (LocalAuthProvisioner.checkPassword(password, encryptedPassword)) {
+        Some(r.into(USER).into(classOf[User]))
+      } else {
+        None
+      }
+    })
   }
+
+  /**
+    * Email identity is matched case-insensitively (backed by idx_user_email_lower),
+    * while stored emails keep their original casing.
+    *
+    * Case-insensitivity is required, not a nicety: `"user".email` is a plain case-sensitive
+    * UNIQUE and `idx_user_email_lower` is not unique, so `Alice@x.com` and `alice@x.com` can
+    * coexist. Registration stores the address as the user typed it while contributor
+    * placeholders are stored lower-cased, so the casings provably differ in practice. An
+    * exact-match lookup would miss, insert a second account without violating any constraint,
+    * and silently strand the original account's data.
+    */
+  def fetchUserByEmailIgnoreCase(email: String): User =
+    fetchUserByEmailIgnoreCase(SqlServer.getInstance().createDSLContext(), email)
+
+  /**
+    * As above, against a caller-supplied context. [[ExternalAuthProvisioner]] passes its
+    * transaction's context so the lookup reads that transaction's own writes.
+    */
+  def fetchUserByEmailIgnoreCase(ctx: DSLContext, email: String): User =
+    ctx
+      .selectFrom(USER)
+      .where(DSL.lower(USER.EMAIL).eq(EmailUtil.normalize(email)))
+      .fetchOneInto(classOf[User])
 
   /**
     * Marks a placeholder account (auto-created for a dataset contributor) as
     * claimed, leaving persistence to the caller.
     */
-  /**
-    * Email identity is matched case-insensitively (backed by idx_user_email_lower),
-    * while stored emails keep their original casing.
-    */
-  def fetchUserByEmailIgnoreCase(email: String): User =
-    SqlServer
-      .getInstance()
-      .createDSLContext()
-      .selectFrom(USER)
-      .where(DSL.lower(USER.EMAIL).eq(EmailUtil.normalize(email)))
-      .fetchOneInto(classOf[User])
-
   def claimPlaceholder(user: User): Unit = {
     user.setIsPlaceholder(false)
     val claimedAt = Instant.now().truncatedTo(ChronoUnit.SECONDS)
@@ -95,21 +110,33 @@ object AuthResource {
     )
   }
 
-  def createAdminUser(): Unit = {
-    val adminUsername = UserSystemConfig.adminUsername
-    val adminPassword = UserSystemConfig.adminPassword
+  def createAdminUser(): Unit =
+    createAdminUser(UserSystemConfig.adminUsername.trim, UserSystemConfig.adminPassword.trim)
 
-    if (adminUsername.trim.nonEmpty && adminPassword.trim.nonEmpty) {
-      val existingUser = userDao.fetchByName(adminUsername)
-      if (existingUser.isEmpty) {
-        val user = new User
-        user.setName(adminUsername)
-        user.setEmail(adminUsername)
-        user.setRole(UserRoleEnum.ADMIN)
-        user.setPassword(new StrongPasswordEncryptor().encryptPassword(adminPassword))
-        userDao.insert(user)
-      }
+  /**
+    * Bootstrap the configured admin account, doing nothing if it already exists. The credentials
+    * are parameters rather than reads of [[UserSystemConfig]] because those are object vals
+    * resolved once per JVM, which leaves the unconfigured case unreachable from a test.
+    */
+  private[auth] def createAdminUser(adminUsername: String, adminPassword: String): Unit = {
+    if (adminUsername.isEmpty || adminPassword.isEmpty) return
+
+    if (LocalAuthProvisioner.handleExists(adminUsername)) return
+
+    if (fetchUserByEmailIgnoreCase(adminUsername) != null) {
+      logger.warn(
+        s"Not creating the admin account: '$adminUsername' is already used as an email address " +
+          "by an account with no local credential. Grant that account the ADMIN role instead."
+      )
+      return
     }
+
+    val user = new User
+    user.setName(adminUsername)
+    user.setEmail(adminUsername)
+    user.setRole(UserRoleEnum.ADMIN)
+
+    LocalAuthProvisioner.createLocalAccount(user, adminUsername, adminPassword)
   }
 }
 
@@ -123,7 +150,11 @@ class AuthResource {
   def login(request: UserLoginRequest): TokenIssueResponse = {
     retrieveUserByUsernameAndPassword(request.username, request.password) match {
       case Some(user) =>
-        TokenIssueResponse(jwtToken(jwtClaims(user, TOKEN_EXPIRE_TIME_IN_MINUTES)))
+        // An account can hold both a LOCAL and a GOOGLE credential, and the frontend expects
+        // `googleId` in the token regardless of which one was used to sign in.
+        val googleId =
+          ExternalAuthProvisioner.providerIdOf(user.getUid, ProviderTypeEnum.GOOGLE)
+        TokenIssueResponse(jwtToken(jwtClaims(user, googleId)))
       case None => throw new NotAuthorizedException("Login credentials are incorrect.")
     }
   }
@@ -143,7 +174,11 @@ class AuthResource {
     if (userpassword == null || userpassword.isEmpty)
       throw new NotAcceptableException("Password cannot be empty")
 
-    val usernameExists = !userDao.fetchByName(username).isEmpty
+    // The username being registered becomes a LOCAL login handle, so the handle is what has to
+    // be free, not the display name. Asking `"user".name` instead both missed genuinely taken
+    // handles (letting the insert die on uq_provider_identity as a 500) and rejected free ones,
+    // because an external login rewrites the display name but never the handle.
+    val usernameExists = LocalAuthProvisioner.handleExists(username)
     val existingByEmail = fetchUserByEmailIgnoreCase(useremail)
     val emailExists = existingByEmail != null
 
@@ -151,12 +186,15 @@ class AuthResource {
     // credential) is claimed by the first registration with its email. The
     // account keeps its uid, so existing contributor links stay valid, and it
     // stays INACTIVE until an admin approves it.
+    //
+    // The credential is written to auth_provider rather than onto the user row, in the same
+    // transaction as the claim, so the account cannot end up marked claimed with nothing to
+    // log in with.
     if (!usernameExists && emailExists && existingByEmail.getIsPlaceholder) {
       existingByEmail.setName(username)
-      existingByEmail.setPassword(new StrongPasswordEncryptor().encryptPassword(userpassword))
       claimPlaceholder(existingByEmail)
-      userDao.update(existingByEmail)
-      return TokenIssueResponse(jwtToken(jwtClaims(existingByEmail, TOKEN_EXPIRE_TIME_IN_MINUTES)))
+      LocalAuthProvisioner.claimWithLocalCredential(existingByEmail, username, userpassword)
+      return TokenIssueResponse(jwtToken(jwtClaims(existingByEmail)))
     }
 
     (usernameExists, emailExists) match {
@@ -169,10 +207,9 @@ class AuthResource {
         user.setName(username)
         user.setEmail(useremail)
         user.setRole(UserRoleEnum.INACTIVE)
-        // hash the plain text password
-        user.setPassword(new StrongPasswordEncryptor().encryptPassword(userpassword))
-        userDao.insert(user)
-        TokenIssueResponse(jwtToken(jwtClaims(user, TOKEN_EXPIRE_TIME_IN_MINUTES)))
+        // Reports losing the race to a concurrent registration of the same handle as a 409.
+        LocalAuthProvisioner.createLocalAccount(user, username, userpassword)
+        TokenIssueResponse(jwtToken(jwtClaims(user)))
     }
   }
 
