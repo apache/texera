@@ -34,6 +34,8 @@ import org.apache.texera.amber.operator.dummy.DummyOpDesc
 import org.apache.texera.amber.operator.split.SplitOpDesc
 import org.apache.texera.amber.operator.sklearn.SklearnPredictionOpDesc
 import org.apache.texera.amber.operator.sklearn.SklearnClassifierOpDesc
+import org.apache.texera.amber.operator.sklearn.SklearnLinearRegressionOpDesc
+import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.base.SklearnMLOperatorDescriptor
 import org.apache.texera.amber.operator.sklearn.training.SklearnTrainingOpDesc
 import org.apache.texera.amber.operator.regex.RegexOpDesc
 import org.apache.texera.amber.operator.sklearn.testing.SklearnTestingOpDesc
@@ -579,7 +581,11 @@ object TransformVerificationRunner {
     classOf[RegexOpDesc] -> "apache/texera#7548",
     classOf[DumbbellPlotOpDesc] -> "apache/texera#7562",
     classOf[SklearnTrainingOpDesc] -> "apache/texera#7582",
-    classOf[SklearnClassifierOpDesc] -> "apache/texera#7582"
+    classOf[SklearnClassifierOpDesc] -> "apache/texera#7582",
+    // Named on their own: neither descends from the two bases above, so the
+    // family match does not reach them.
+    classOf[SklearnLinearRegressionOpDesc] -> "apache/texera#7582",
+    classOf[SklearnMLOperatorDescriptor[_]] -> "apache/texera#7582"
   )
 
   private def nullsBlocked(opClass: Class[_ <: LogicalOp]): Boolean =
