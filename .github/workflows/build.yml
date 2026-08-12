@@ -161,7 +161,19 @@ jobs:
       - name: Install Playwright Chromium
         run: yarn --cwd frontend playwright install ${{ matrix.os == 'ubuntu-latest' && '--with-deps' || '' }} chromium
       - name: Run frontend browser-mode tests
-        run: yarn --cwd frontend ng run gui:test-browser
+        run: yarn --cwd frontend ng run gui:test-browser --coverage --coverage-reporters=lcovonly
+      - name: Upload frontend browser-mode coverage to Codecov
+        # These tests already exercise code the jsdom run cannot reach (Monaco, real
+        # pointer input); without this upload those lines are reported as uncovered.
+        # vitest.browser.config.ts writes to coverage-browser/ so this does not collide
+        # with the jsdom run's coverage/gui/lcov.info.
+        if: matrix.os == 'ubuntu-latest' && always()
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./frontend/coverage-browser/**/lcov.info
+          flags: frontend
+          fail_ci_if_error: false
       - name: Upload frontend browser-mode test results to Codecov
         # vitest.browser.config.ts emits junit-browser.xml (distinct from
         # the unit-test report). Same `frontend` flag — Codecov merges
