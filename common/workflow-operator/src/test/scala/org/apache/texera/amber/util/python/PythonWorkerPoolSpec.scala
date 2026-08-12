@@ -249,9 +249,7 @@ final class PythonWorkerPoolSpec extends AnyFunSuite {
     // what went wrong, with an empty stdout as the evidence.
     val request = objectMapper.createObjectNode().put("drop-exit", true)
 
-    val thrown = intercept[PythonWorkerPool.WorkerDiedException] {
-      call(Seq.empty, request, ShortTimeouts)
-    }
+    val thrown = interceptBounded(call(Seq.empty, request, ShortTimeouts))
 
     assert(thrown.getMessage.contains("without an exit code"))
     assert(thrown.getMessage.contains("stdout"))
