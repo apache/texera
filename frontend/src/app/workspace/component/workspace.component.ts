@@ -63,6 +63,7 @@ import { MiniMapComponent } from "./workflow-editor/mini-map/mini-map.component"
 import { LeftPanelComponent } from "./left-panel/left-panel.component";
 import { AgentPanelComponent } from "./agent/agent-panel/agent-panel.component";
 import { PropertyEditorComponent } from "./property-editor/property-editor.component";
+import { JupyterNotebookPanelComponent } from "./jupyter-notebook-panel/jupyter-notebook-panel.component";
 
 export const SAVE_DEBOUNCE_TIME_IN_MS = 5000;
 
@@ -85,6 +86,7 @@ export const SAVE_DEBOUNCE_TIME_IN_MS = 5000;
     NgIf,
     AgentPanelComponent,
     PropertyEditorComponent,
+    JupyterNotebookPanelComponent,
   ],
 })
 export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
@@ -318,6 +320,7 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
         this.registerAutoPersistWorkflow();
       });
   }
+
   onWIDChange() {
     this.workflowActionService
       .workflowMetaDataChanged()
@@ -331,6 +334,7 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
         this.writeAccess = !metadata.readonly;
       });
   }
+
   updateViewCount() {
     let wid = this.route.snapshot.params.id;
     let uid = this.userService.getCurrentUser()?.uid;
@@ -340,6 +344,7 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
       .pipe(untilDestroyed(this))
       .subscribe();
   }
+
   public triggerCenter(): void {
     this.workflowActionService.getTexeraGraph().triggerCenterEvent();
   }

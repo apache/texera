@@ -18,11 +18,16 @@
  */
 
 import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { By } from "@angular/platform-browser";
 import { ActivatedRoute, Router } from "@angular/router";
 import { of, Subject, throwError } from "rxjs";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { MarkdownService } from "ngx-markdown";
-import { DatasetDetailComponent } from "./dataset-detail.component";
+import {
+  DatasetDetailComponent,
+  ABORT_RETRY_BACKOFF_BASE_MS,
+  ABORT_RETRY_MAX_ATTEMPTS,
+} from "./dataset-detail.component";
 import { DatasetService, MultipartUploadProgress } from "../../../../service/user/dataset/dataset.service";
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
 import { DownloadService } from "../../../../service/user/download/download.service";
@@ -34,7 +39,7 @@ import { FileUploadItem } from "../../../../type/dashboard-file.interface";
 import { DatasetFileNode, getFullPathFromDatasetFileNode } from "../../../../../common/type/datasetVersionFileTree";
 import { DatasetStagedObject } from "../../../../../common/type/dataset-staged-object";
 import { commonTestImports, commonTestProviders } from "../../../../../common/testing/test-utils";
-import { Dataset, DatasetVersion } from "../../../../../common/type/dataset";
+import { Contributor, Dataset, DatasetVersion } from "../../../../../common/type/dataset";
 import { DashboardDataset } from "../../../../type/dashboard-dataset.interface";
 import { HttpErrorResponse } from "@angular/common/http";
 import { format } from "date-fns";
@@ -129,6 +134,419 @@ describe("DatasetDetailComponent upload queue", () => {
     // Log in so ngOnInit reaches loadUploadSettings (maxConcurrentFiles = 3).
     (TestBed.inject(UserService) as unknown as StubUserService).userChangeSubject.next(MOCK_USER);
     fixture.detectChanges();
+  });
+
+  /**
+   * Aborting an in-flight upload has to survive the backend still finalizing the previous attempt:
+   * the abort call is retried on 409 up to ABORT_RETRY_MAX_ATTEMPTS, a 404 means it is already gone,
+   * and the caller's callback must fire exactly once down every one of those paths.
+   */
+  describe("aborting an upload", () => {
+    let finalize: ReturnType<typeof vi.fn>;
+
+    beforeEach(() => {
+      vi.useFakeTimers();
+      finalize = TestBed.inject(DatasetService).finalizeMultipartUpload as unknown as ReturnType<typeof vi.fn>;
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    /** Starts an upload and reports progress, leaving one task in flight. */
+    function inFlight(name = "a.txt") {
+      dropFiles(name);
+      uploadSubjects[0].next({ filePath: name, percentage: 10, status: "uploading", totalTime: 0 });
+      return component.uploadTasks.find(t => t.filePath === name)!;
+    }
+
+    const conflict = () => throwError(() => ({ status: 409 }) as any);
+    const gone = () => throwError(() => ({ status: 404 }) as any);
+
+    it("marks the task aborted and tells the caller once", () => {
+      const task = inFlight();
+      const onAborted = vi.fn();
+
+      component.onClickAbortUploadProgress(task as any, onAborted);
+
+      expect(finalize).toHaveBeenCalledWith("owner@texera.com", "test-dataset", "a.txt", true);
+      expect(component.uploadTasks.find(t => t.filePath === "a.txt")!.status).toBe("aborted");
+      expect(onAborted).toHaveBeenCalledTimes(1);
+    });
+
+    it("stops listening to the upload it aborted", () => {
+      const task = inFlight();
+
+      component.onClickAbortUploadProgress(task as any);
+
+      // The progress stream is unsubscribed, so a late event cannot resurrect the task.
+      uploadSubjects[0].next({ filePath: "a.txt", percentage: 100, status: "finished", totalTime: 1 });
+      expect(component.uploadTasks.find(t => t.filePath === "a.txt")!.status).toBe("aborted");
+    });
+
+    it("treats a 404 as already aborted rather than an error", () => {
+      finalize.mockReturnValueOnce(gone());
+      const task = inFlight();
+      const onAborted = vi.fn();
+
+      component.onClickAbortUploadProgress(task as any, onAborted);
+
+      expect(onAborted).toHaveBeenCalledTimes(1);
+      expect(finalize).toHaveBeenCalledTimes(1);
+    });
+
+    it("retries a 409 after a backoff and finishes once the server catches up", () => {
+      // The server is still finalizing the previous attempt; the abort has to wait it out.
+      finalize.mockReturnValueOnce(conflict());
+      const task = inFlight();
+      const onAborted = vi.fn();
+
+      component.onClickAbortUploadProgress(task as any, onAborted);
+      expect(onAborted).not.toHaveBeenCalled();
+
+      vi.advanceTimersByTime(ABORT_RETRY_BACKOFF_BASE_MS);
+
+      expect(finalize).toHaveBeenCalledTimes(2);
+      expect(onAborted).toHaveBeenCalledTimes(1);
+    });
+
+    it("backs off further on each successive conflict", () => {
+      finalize.mockReturnValue(conflict());
+      const task = inFlight();
+
+      component.onClickAbortUploadProgress(task as any);
+      expect(finalize).toHaveBeenCalledTimes(1);
+
+      // First wait is BASE * 1, the second BASE * 2, so BASE alone is not enough for the third call.
+      vi.advanceTimersByTime(ABORT_RETRY_BACKOFF_BASE_MS);
+      expect(finalize).toHaveBeenCalledTimes(2);
+
+      vi.advanceTimersByTime(ABORT_RETRY_BACKOFF_BASE_MS);
+      expect(finalize).toHaveBeenCalledTimes(2);
+
+      vi.advanceTimersByTime(ABORT_RETRY_BACKOFF_BASE_MS);
+      expect(finalize).toHaveBeenCalledTimes(3);
+    });
+
+    it("gives up after the attempt limit but still reports the abort", () => {
+      // Without the bound this would retry forever against a permanently conflicted server.
+      finalize.mockReturnValue(conflict());
+      const task = inFlight();
+      const onAborted = vi.fn();
+
+      component.onClickAbortUploadProgress(task as any, onAborted);
+      vi.advanceTimersByTime(ABORT_RETRY_BACKOFF_BASE_MS * ABORT_RETRY_MAX_ATTEMPTS * (ABORT_RETRY_MAX_ATTEMPTS + 1));
+
+      expect(finalize).toHaveBeenCalledTimes(ABORT_RETRY_MAX_ATTEMPTS + 1);
+      expect(onAborted).toHaveBeenCalledTimes(1);
+    });
+
+    it("reports the abort once even on an error the retry does not cover", () => {
+      finalize.mockReturnValueOnce(throwError(() => ({ status: 500 }) as any));
+      const task = inFlight();
+      const onAborted = vi.fn();
+
+      component.onClickAbortUploadProgress(task as any, onAborted);
+
+      expect(onAborted).toHaveBeenCalledTimes(1);
+      expect(finalize).toHaveBeenCalledTimes(1);
+    });
+
+    it("frees the concurrency slot so a queued upload can start", () => {
+      // Aborting has to release the slot as an ordinary completion would; otherwise the queue
+      // stalls behind an upload that is no longer running.
+      dropFiles("a.txt", "b.txt", "c.txt", "d.txt");
+      expect(uploadedPaths).toEqual(["a.txt", "b.txt", "c.txt"]);
+      uploadSubjects[0].next({ filePath: "a.txt", percentage: 10, status: "uploading", totalTime: 0 });
+      const task = component.uploadTasks.find(t => t.filePath === "a.txt")!;
+
+      component.onClickAbortUploadProgress(task as any);
+
+      expect(uploadedPaths).toContain("d.txt");
+    });
+
+    it("cancelExistingUpload aborts an upload that is still running", () => {
+      inFlight("b.txt");
+      const onCanceled = vi.fn();
+
+      component.cancelExistingUpload("b.txt", onCanceled);
+
+      expect(finalize).toHaveBeenCalledWith("owner@texera.com", "test-dataset", "b.txt", true);
+      expect(onCanceled).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  /**
+   * The explorer's toolbar and upload panel are template-only: whether a download is offered at all,
+   * which of the maximize/minimize pair is showing, and what an in-flight upload reports. The suite
+   * around this one drives component state and never asserts on what is rendered.
+   */
+  describe("rendered explorer", () => {
+    /**
+     * Applies some state and renders the "Versions & Files" tab. nz-tabs only instantiates the
+     * active tab, and the toolbar under test lives in the second one, so it has to be selected
+     * before anything in it exists to assert on.
+     */
+    function render(setup: (c: DatasetDetailComponent) => void = () => {}): HTMLElement {
+      setup(component);
+      fixture.detectChanges();
+      const host = fixture.nativeElement as HTMLElement;
+      const tabButtons = host.querySelectorAll<HTMLElement>(".ant-tabs-tab-btn");
+      const versionsTab = Array.from(tabButtons).find(tab => tab.textContent?.includes("Versions & Files"));
+      if (versionsTab && !versionsTab.closest(".ant-tabs-tab")?.classList.contains("ant-tabs-tab-active")) {
+        versionsTab.click();
+        fixture.detectChanges();
+      }
+      return host;
+    }
+
+    /** The button carrying the given tooltip, or undefined. */
+    function byTooltip(title: string): HTMLButtonElement | undefined {
+      return Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>("button")).find(
+        b => b.getAttribute("nz-tooltip") === title
+      );
+    }
+
+    const aVersion = { dvid: 1, did: 1, creatorUid: 1, name: "v1" } as any;
+
+    describe("download gating", () => {
+      it("offers the file download to a logged-in user who is allowed to download", () => {
+        render(c => {
+          c.selectedVersion = aVersion;
+          c.isLogin = true;
+          vi.spyOn(c, "isDownloadAllowed").mockReturnValue(true);
+        });
+
+        expect(byTooltip("Download the file")!.disabled).toBe(false);
+      });
+
+      it("withholds it from a signed-out visitor", () => {
+        render(c => {
+          c.selectedVersion = aVersion;
+          c.isLogin = false;
+          vi.spyOn(c, "isDownloadAllowed").mockReturnValue(true);
+        });
+
+        expect(byTooltip("Download the file")!.disabled).toBe(true);
+      });
+
+      it("withholds it when the dataset is not downloadable", () => {
+        // Both halves of the guard matter: being signed in is not on its own permission to take
+        // a copy of someone else's non-downloadable dataset.
+        render(c => {
+          c.selectedVersion = aVersion;
+          c.isLogin = true;
+          vi.spyOn(c, "isDownloadAllowed").mockReturnValue(false);
+        });
+
+        expect(byTooltip("Download the file")!.disabled).toBe(true);
+      });
+
+      it("applies the same rule to the whole-version download", () => {
+        render(c => {
+          c.selectedVersion = aVersion;
+          c.isLogin = true;
+          vi.spyOn(c, "isDownloadAllowed").mockReturnValue(false);
+        });
+
+        expect(byTooltip("Download Dataset")!.disabled).toBe(true);
+      });
+
+      it("offers no download at all until a version is selected", () => {
+        render(c => {
+          c.selectedVersion = undefined;
+          c.isLogin = true;
+        });
+
+        expect(byTooltip("Download the file")).toBeUndefined();
+        expect(byTooltip("Download Dataset")).toBeUndefined();
+      });
+    });
+
+    describe("view size toggle", () => {
+      it("offers only Maximize while the view is normal", () => {
+        render(c => {
+          c.selectedVersion = aVersion;
+          c.isMaximized = false;
+        });
+
+        expect(byTooltip("Maximize View")).toBeDefined();
+        expect(byTooltip("Minimize View")).toBeUndefined();
+      });
+
+      it("offers only Minimize once the view is maximized", () => {
+        // Showing both, or the wrong one, leaves the user with no way back.
+        render(c => {
+          c.selectedVersion = aVersion;
+          c.isMaximized = true;
+        });
+
+        expect(byTooltip("Minimize View")).toBeDefined();
+        expect(byTooltip("Maximize View")).toBeUndefined();
+      });
+    });
+
+    describe("file heading", () => {
+      it("offers the copy-path control only once a file is on screen", () => {
+        const el = render(c => (c.currentDisplayedFileName = ""));
+        expect(el.querySelector(".copy-path-btn")).toBeNull();
+
+        render(c => (c.currentDisplayedFileName = "a/b.csv"));
+        expect((fixture.nativeElement as HTMLElement).querySelector(".copy-path-btn")).not.toBeNull();
+      });
+
+      it("copies the path of the file being shown", () => {
+        const spy = vi.spyOn(component, "copyCurrentFilePath").mockResolvedValue(undefined);
+        const el = render(c => (c.currentDisplayedFileName = "a/b.csv"));
+
+        el.querySelector<HTMLElement>(".copy-path-btn")!.click();
+
+        expect(spy).toHaveBeenCalledTimes(1);
+      });
+
+      it("shows the file size in human units, and nothing when it is unknown", () => {
+        const el = render(c => {
+          c.currentDisplayedFileName = "a/b.csv";
+          c.currentFileSize = 2048;
+        });
+        expect(el.querySelector(".file-size")?.textContent).toContain("2");
+
+        render(c => (c.currentFileSize = undefined));
+        expect((fixture.nativeElement as HTMLElement).querySelector(".file-size")).toBeNull();
+      });
+    });
+
+    describe("version details", () => {
+      it("reports the version size and creation time once a version is chosen", () => {
+        const el = render(c => {
+          c.selectedVersion = aVersion;
+          c.currentDatasetVersionSize = 1024;
+          c.selectedVersionCreationTime = "2026-01-02 03:04";
+        });
+
+        expect(el.querySelector(".version-size")?.textContent).toContain("Version Size:");
+        expect(el.querySelector(".version-date")?.textContent).toContain("2026-01-02 03:04");
+      });
+
+      it("hides the creation time when the version has none", () => {
+        const el = render(c => {
+          c.selectedVersion = aVersion;
+          c.selectedVersionCreationTime = "";
+        });
+
+        expect(el.querySelector(".version-date")).toBeNull();
+      });
+    });
+
+    describe("upload progress", () => {
+      /**
+       * Puts one task on the panel in the given state and opens it. The panel is gated on the
+       * separate activeUploads counter rather than on uploadTasks, and ng-zorro collapses it by
+       * default, so both have to be arranged before its body exists.
+       */
+      function withTask(over: Record<string, unknown>): HTMLElement {
+        const el = render(c => {
+          (c as any).activeUploads = 1;
+          (c as any).uploadTasks = [
+            {
+              filePath: "big.csv",
+              percentage: 40,
+              status: "uploading",
+              uploadSpeed: 1024,
+              totalTime: 12,
+              estimatedTimeRemaining: 30,
+              ...over,
+            },
+          ];
+        });
+        const header = Array.from(el.querySelectorAll<HTMLElement>(".ant-collapse-header")).find(h =>
+          (h.textContent || "").includes("Uploading:")
+        );
+        header!.click();
+        fixture.detectChanges();
+        return el;
+      }
+
+      it("shows no statistics while an upload is still initializing", () => {
+        // There is nothing to report yet; showing a 0 B/s row reads as a stalled upload.
+        const el = withTask({ status: "initializing" });
+
+        expect(el.querySelector(".upload-stats")).toBeNull();
+      });
+
+      it("reports speed and both timings while an upload runs", () => {
+        const el = withTask({ status: "uploading" });
+
+        const stats = el.querySelector(".upload-stats")!;
+        expect(stats.textContent).toContain("elapsed");
+        expect(stats.textContent).toContain("left");
+        expect(stats.querySelector(".fixed-width-speed")).not.toBeNull();
+      });
+
+      it("replaces the live figures with a total once the upload finishes", () => {
+        const el = withTask({ status: "finished" });
+
+        const stats = el.querySelector(".upload-stats")!;
+        expect(stats.textContent).toContain("Upload time:");
+        expect(stats.textContent).not.toContain("left");
+      });
+
+      it("reports a total for an aborted upload too", () => {
+        const el = withTask({ status: "aborted" });
+
+        expect(el.querySelector(".upload-stats")!.textContent).toContain("Upload time:");
+      });
+    });
+  });
+
+  describe("contributor cards", () => {
+    const full: Contributor = {
+      name: "Contributor A",
+      creator: true,
+      affiliation: "Test Lab",
+      email: "contributor-a@test.com",
+      comments: "notes",
+    };
+    const blank: Contributor = { name: "Contributor B", creator: false };
+
+    beforeEach(() => {
+      component.datasetContributors = [full, blank];
+      component.userDatasetAccessLevel = "WRITE";
+      fixture.detectChanges();
+    });
+
+    it("renders one card per contributor with values, a creator star, and dashes for blanks", () => {
+      const cards: NodeListOf<HTMLElement> = fixture.nativeElement.querySelectorAll(".contributor-card");
+      expect(cards.length).toBe(2);
+
+      expect(cards[0].querySelector(".contributor-name")?.textContent).toContain("Contributor A");
+      expect(cards[0].querySelector(".creator-star")).not.toBeNull();
+      expect(cards[0].textContent).toContain("contributor-a@test.com");
+
+      expect(cards[1].querySelector(".creator-star")).toBeNull();
+      const blankValues: NodeListOf<HTMLElement> = cards[1].querySelectorAll(".contributor-value.empty");
+      expect(blankValues.length).toBe(3);
+      blankValues.forEach(value => expect(value.textContent?.trim()).toBe("—"));
+    });
+
+    it("shows edit controls only with write access", () => {
+      expect(fixture.nativeElement.querySelector(".contributor-actions")).not.toBeNull();
+      expect(fixture.nativeElement.querySelector(".contributor-card-add")).not.toBeNull();
+
+      component.userDatasetAccessLevel = "READ";
+      fixture.detectChanges();
+
+      expect(fixture.nativeElement.querySelector(".contributor-actions")).toBeNull();
+      expect(fixture.nativeElement.querySelector(".contributor-card-add")).toBeNull();
+    });
+
+    it("starts adding a contributor when the add tile is clicked", () => {
+      const onAdd = vi.spyOn(component, "onAddContributor").mockImplementation(() => {});
+
+      (fixture.nativeElement.querySelector(".contributor-card-add") as HTMLElement).click();
+
+      expect(onAdd).toHaveBeenCalledTimes(1);
+    });
   });
 
   it("starts at most maxConcurrentFiles uploads immediately and queues the rest", () => {
@@ -370,6 +788,7 @@ describe("DatasetDetailComponent behavior", () => {
   let downloadServiceStub: MockService;
   let hubServiceStub: MockService;
   let adminSettingsServiceStub: MockService;
+  let modalServiceStub: MockService;
 
   const CREATION_TS = 1_700_000_000_000;
 
@@ -418,7 +837,7 @@ describe("DatasetDetailComponent behavior", () => {
       imports: [DatasetDetailComponent, ...commonTestImports],
       providers: [
         { provide: ActivatedRoute, useValue: { params: of(params), data: of({}) } },
-        { provide: NzModalService, useValue: {} },
+        { provide: NzModalService, useValue: modalServiceStub },
         { provide: DatasetService, useValue: datasetServiceStub },
         { provide: NotificationService, useValue: notificationServiceStub },
         { provide: DownloadService, useValue: downloadServiceStub },
@@ -451,6 +870,7 @@ describe("DatasetDetailComponent behavior", () => {
       updateDatasetDownloadable: vi.fn(() => of({})),
       updateDatasetCoverImage: vi.fn(() => of({})),
       updateDatasetDescription: vi.fn(() => of({})),
+      updateDatasetContributors: vi.fn(() => of(undefined)),
       updateDatasetName: vi.fn(() => of({})),
       deleteDatasets: vi.fn(() => of({})),
       deleteDatasetFile: vi.fn(() => of({})),
@@ -459,6 +879,7 @@ describe("DatasetDetailComponent behavior", () => {
       finalizeMultipartUpload: vi.fn(() => of({})),
     };
     notificationServiceStub = { success: vi.fn(), error: vi.fn(), info: vi.fn() };
+    modalServiceStub = { create: vi.fn() };
     downloadServiceStub = {
       downloadDatasetVersion: vi.fn(() => of(new Blob())),
       downloadSingleFile: vi.fn(() => of(new Blob())),
@@ -1373,6 +1794,261 @@ describe("DatasetDetailComponent behavior", () => {
 
       expect(button).toBeTruthy();
       expect(button.disabled).toBe(false);
+    });
+  });
+
+  describe("contributors", () => {
+    const contributorA: Contributor = {
+      name: "Contributor A",
+      creator: true,
+      affiliation: "Test Lab",
+      email: "contributor-a@test.com",
+      comments: "",
+    };
+    const contributorB: Contributor = {
+      name: "Contributor B",
+      creator: false,
+      affiliation: "Test Lab",
+      email: "contributor-b@test.com",
+      comments: "notes",
+    };
+
+    it("maps contributors from the dashboard dataset and falls back to an empty list", () => {
+      datasetServiceStub.getDataset.mockReturnValue(of(makeDashboardDataset({ contributors: [contributorA] })));
+      createComponent();
+      component.did = 5;
+
+      component.retrieveDatasetInfo();
+      expect(component.datasetContributors).toEqual([contributorA]);
+
+      datasetServiceStub.getDataset.mockReturnValue(of(makeDashboardDataset()));
+      component.retrieveDatasetInfo();
+      expect(component.datasetContributors).toEqual([]);
+    });
+
+    it("onAddContributor appends the modal result and persists the list", () => {
+      modalServiceStub.create.mockReturnValue({ afterClose: of(contributorB) });
+      createComponent();
+      component.did = 5;
+      component.datasetContributors = [contributorA];
+
+      component.onAddContributor();
+
+      expect(component.datasetContributors).toEqual([contributorA, contributorB]);
+      expect(datasetServiceStub.updateDatasetContributors).toHaveBeenCalledWith(5, [contributorA, contributorB]);
+      expect(notificationServiceStub.success).toHaveBeenCalledWith("Contributors updated");
+    });
+
+    it("onAddContributor does not persist when the modal is cancelled", () => {
+      modalServiceStub.create.mockReturnValue({ afterClose: of(undefined) });
+      createComponent();
+      component.did = 5;
+      component.datasetContributors = [contributorA];
+
+      component.onAddContributor();
+
+      expect(component.datasetContributors).toEqual([contributorA]);
+      expect(datasetServiceStub.updateDatasetContributors).not.toHaveBeenCalled();
+    });
+
+    it("onEditContributor replaces the edited row and persists the list", () => {
+      const updated = { ...contributorA, affiliation: "Another Test Lab" };
+      modalServiceStub.create.mockReturnValue({ afterClose: of(updated) });
+      createComponent();
+      component.did = 5;
+      component.datasetContributors = [contributorA, contributorB];
+
+      component.onEditContributor(contributorA);
+
+      expect(component.datasetContributors).toEqual([updated, contributorB]);
+      expect(datasetServiceStub.updateDatasetContributors).toHaveBeenCalledWith(5, [updated, contributorB]);
+    });
+
+    it("onDeleteContributor removes the row and persists the list", () => {
+      createComponent();
+      component.did = 5;
+      component.datasetContributors = [contributorA, contributorB];
+
+      component.onDeleteContributor(contributorA);
+
+      expect(component.datasetContributors).toEqual([contributorB]);
+      expect(datasetServiceStub.updateDatasetContributors).toHaveBeenCalledWith(5, [contributorB]);
+    });
+
+    it("rolls the list back and notifies when persisting fails", () => {
+      datasetServiceStub.updateDatasetContributors.mockReturnValue(throwError(() => new Error("boom")));
+      createComponent();
+      component.did = 5;
+      component.datasetContributors = [contributorA, contributorB];
+
+      component.onDeleteContributor(contributorB);
+
+      expect(component.datasetContributors).toEqual([contributorA, contributorB]);
+      expect(notificationServiceStub.error).toHaveBeenCalledWith("Failed to update contributors");
+    });
+
+    it("does not call the service when did is missing", () => {
+      createComponent();
+      component.did = undefined;
+      component.datasetContributors = [contributorA];
+
+      component.onDeleteContributor(contributorA);
+
+      expect(datasetServiceStub.updateDatasetContributors).not.toHaveBeenCalled();
+    });
+  });
+
+  // ─── template rendering ────────────────────────────────────────────────────
+  // These drive the markup through the DOM (rather than calling handlers directly)
+  // so the template's bindings and conditional blocks actually execute.
+  describe("template rendering", () => {
+    // Renders the component and applies the given state, so each *ngIf arm is exercised.
+    // The first detectChanges() lets ngOnInit's subscriptions settle — they reset fields
+    // such as coverImageUrl — so the state is applied afterwards and rendered by a
+    // second change-detection pass.
+    const renderWith = (state: Partial<DatasetDetailComponent> = {}): void => {
+      createComponent();
+      fixture.detectChanges();
+      Object.assign(component, state);
+      fixture.detectChanges();
+    };
+
+    const clickByCss = (selector: string): void => {
+      const el = fixture.debugElement.query(By.css(selector));
+      expect(el).toBeTruthy();
+      el.triggerEventHandler("click", null);
+      fixture.detectChanges();
+    };
+
+    // nz-tabs renders only the active tab's content, so a tab must be opened by its
+    // title before the markup inside it can be queried.
+    const openTab = (title: string): void => {
+      const tab = fixture.debugElement
+        .queryAll(By.css(".ant-tabs-tab"))
+        .find(el => (el.nativeElement.textContent ?? "").includes(title));
+      expect(tab).toBeTruthy();
+      tab!.nativeElement.click();
+      fixture.detectChanges();
+    };
+
+    it("toggles the like through the like tag when logged in", () => {
+      // toggleLike() early-returns unless currentUid is set, which login() supplies
+      createComponent();
+      fixture.detectChanges();
+      login();
+      Object.assign(component, { isLogin: true, did: 5, isLiked: false, likeCount: 1 });
+      fixture.detectChanges();
+
+      clickByCss(".like-tag");
+
+      expect(hubServiceStub.postLike).toHaveBeenCalled();
+    });
+
+    it("unlikes through the same tag when the dataset is already liked", () => {
+      createComponent();
+      fixture.detectChanges();
+      login();
+      Object.assign(component, { isLogin: true, did: 5, isLiked: true, likeCount: 2 });
+      fixture.detectChanges();
+
+      clickByCss(".like-tag");
+
+      expect(hubServiceStub.postUnlike).toHaveBeenCalled();
+    });
+
+    it("does not toggle the like when logged out", () => {
+      renderWith({ isLogin: false, did: 5, isLiked: false, likeCount: 1 });
+
+      const likeTag = fixture.debugElement.query(By.css(".like-tag"));
+      expect(likeTag).toBeTruthy();
+      // the template guards the handler with `isLogin &&`
+      expect(likeTag.nativeElement.classList).toContain("disabled");
+
+      likeTag.triggerEventHandler("click", null);
+
+      expect(hubServiceStub.postLike).not.toHaveBeenCalled();
+    });
+
+    it("omits the cover image when there is no cover URL", () => {
+      renderWith({ coverImageUrl: null });
+      expect(fixture.debugElement.query(By.css(".dataset-cover-image"))).toBeNull();
+    });
+
+    it("renders the cover image bound to the cover URL", () => {
+      renderWith({ coverImageUrl: "blob:cover" });
+      const img = fixture.debugElement.query(By.css(".dataset-cover-image"));
+      expect(img).toBeTruthy();
+      expect(img.nativeElement.getAttribute("src")).toBe("blob:cover");
+    });
+
+    it("collapses the right bar from the template, then renders the restore control", () => {
+      renderWith({ isRightBarCollapsed: false });
+      openTab("Versions & Files");
+
+      // both arms of the *ngIf pair are exercised: hide first, then the show button
+      clickByCss("button[nz-tooltip='Hide the right bar']");
+      expect(component.isRightBarCollapsed).toBe(true);
+
+      clickByCss("button[nz-tooltip='Show Tree']");
+      expect(component.isRightBarCollapsed).toBe(false);
+    });
+
+    it("binds the dataset name input and saves it from the template", () => {
+      // the Settings tab is behind *ngIf="userHasWriteAccess()"
+      renderWith({ did: 5, editedDatasetName: "renamed", userDatasetAccessLevel: "WRITE" });
+      openTab("Settings");
+
+      const input = fixture.debugElement.query(By.css(".settings-name-controls input[nz-input]"));
+      expect(input).toBeTruthy();
+
+      // drive the [(ngModel)] update path through the DOM
+      input.nativeElement.value = "typed-name";
+      input.nativeElement.dispatchEvent(new Event("input"));
+      fixture.detectChanges();
+      expect(component.editedDatasetName).toBe("typed-name");
+
+      const saveBtn = fixture.debugElement
+        .queryAll(By.css("button"))
+        .find(btn => (btn.nativeElement.textContent ?? "").trim() === "Save");
+      expect(saveBtn).toBeTruthy();
+      saveBtn!.triggerEventHandler("click", null);
+
+      expect(datasetServiceStub.updateDatasetName).toHaveBeenCalledWith(5, "typed-name");
+    });
+
+    it("renders every contributor row from the list", () => {
+      renderWith({
+        did: 5,
+        datasetContributors: [
+          { name: "Ada", email: "ada@x.io", affiliation: "" } as Contributor,
+          { name: "Grace", email: "grace@x.io", affiliation: "" } as Contributor,
+        ],
+      });
+
+      const rendered = fixture.debugElement.nativeElement.textContent ?? "";
+      expect(rendered).toContain("Ada");
+      expect(rendered).toContain("Grace");
+    });
+
+    it("routes the settings switches' ngModelChange bindings to the service", () => {
+      renderWith({
+        did: 5,
+        datasetIsPublic: false,
+        datasetIsDownloadable: true,
+        userDatasetAccessLevel: "WRITE",
+        isOwner: true, // the downloadable switch is [nzDisabled]="!isOwner"
+      });
+      openTab("Settings");
+
+      const switches = fixture.debugElement.queryAll(By.css("nz-switch"));
+      expect(switches.length).toBeGreaterThanOrEqual(2);
+
+      // fire the template's (ngModelChange) handlers rather than calling the methods
+      switches[0].triggerEventHandler("ngModelChange", true);
+      expect(datasetServiceStub.updateDatasetPublicity).toHaveBeenCalledWith(5);
+
+      switches[1].triggerEventHandler("ngModelChange", false);
+      expect(datasetServiceStub.updateDatasetDownloadable).toHaveBeenCalledWith(5);
     });
   });
 });

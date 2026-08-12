@@ -144,7 +144,12 @@ class ExecutionConsoleService(
     consoleMessageOpIdToWriterMap.getOrElseUpdate(
       opId.id, {
         val uri = VFSURIFactory
-          .createConsoleMessagesURI(workflowContext.workflowId, workflowContext.executionId, opId)
+          .createConsoleMessagesURI(
+            workflowContext.workflowId,
+            workflowContext.executionId,
+            opId,
+            warehouse = workflowContext.warehouse
+          )
         val writer = DocumentFactory
           .createDocument(uri, ResultSchema.consoleMessagesSchema)
           .writer("console_messages")

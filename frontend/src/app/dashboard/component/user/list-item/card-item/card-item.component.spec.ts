@@ -28,6 +28,7 @@ import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { of, throwError, Subject } from "rxjs";
 import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
+import { By } from "@angular/platform-browser";
 import { RouterTestingModule } from "@angular/router/testing";
 import { StubUserService } from "../../../../../common/service/user/stub-user.service";
 import { UserService } from "../../../../../common/service/user/user.service";
@@ -892,6 +893,161 @@ describe("CardItemComponent", () => {
 
       expect(component.isLiked).toBe(false);
       expect(component.likeCount).toBe(0);
+    });
+  });
+
+  describe("template rendering", () => {
+    // Query, assert the element is present, then dispatch the event — a real
+    // MouseEvent for clicks so handlers calling stopPropagation()/preventDefault() work.
+    const fire = (css: string, event: string, payload: unknown): void => {
+      const el = fixture.debugElement.query(By.css(css));
+      expect(el).toBeTruthy();
+      el.triggerEventHandler(event, payload);
+    };
+
+    it("renders the full private-search action set for an owned workflow (and no like button)", () => {
+      component.entry = makeWorkflowEntry();
+      component.isPrivateSearch = true;
+      component.currentUid = 1;
+      fixture.detectChanges();
+
+      const de = fixture.debugElement;
+      expect(de.query(By.css(".card-checkbox"))).toBeTruthy();
+      expect(de.query(By.css(".edit-btn"))).toBeTruthy();
+      expect(de.query(By.css('button[title="Detail"]'))).toBeTruthy();
+      expect(de.query(By.css('button[title="Share"]'))).toBeTruthy();
+      expect(de.query(By.css('button[title="Copy"]'))).toBeTruthy();
+      expect(de.query(By.css('button[title="Download"]'))).toBeTruthy();
+      expect(de.query(By.css(".delete-btn"))).toBeTruthy();
+      // the like button is only rendered in non-private mode
+      expect(de.query(By.css(".like-btn"))).toBeNull();
+    });
+
+    it("wires each private-search action click to its handler / output", () => {
+      component.entry = makeWorkflowEntry();
+      component.isPrivateSearch = true;
+      component.currentUid = 1;
+      fixture.detectChanges();
+
+      const detailSpy = vi.spyOn(component, "openDetailModal").mockImplementation(() => {});
+      const shareSpy = vi.spyOn(component, "onClickOpenShareAccess").mockImplementation(async () => {});
+      const downloadSpy = vi.spyOn(component, "onClickDownload").mockImplementation(async () => {});
+      let duplicated = false;
+      component.duplicated.subscribe(() => (duplicated = true));
+      let deleted = false;
+      component.deleted.subscribe(() => (deleted = true));
+
+      fire('button[title="Detail"]', "click", new MouseEvent("click"));
+      fire('button[title="Share"]', "click", new MouseEvent("click"));
+      fire('button[title="Download"]', "click", new MouseEvent("click"));
+      fire('button[title="Copy"]', "click", new MouseEvent("click"));
+      fire(".delete-btn", "nzOnConfirm", undefined);
+
+      expect(detailSpy).toHaveBeenCalled();
+      expect(shareSpy).toHaveBeenCalled();
+      expect(downloadSpy).toHaveBeenCalled();
+      expect(duplicated).toBe(true);
+      expect(deleted).toBe(true);
+    });
+
+    it("enters name-editing mode from the edit button and swaps the display for the input", () => {
+      component.entry = makeWorkflowEntry();
+      component.isPrivateSearch = true;
+      fixture.detectChanges();
+
+      // Trigger via the DOM; onEditName sets editingName synchronously (its setTimeout
+      // focus callback never runs in this synchronous test — no fake timers needed).
+      fire(".edit-btn", "click", new MouseEvent("click"));
+      expect(component.editingName).toBe(true);
+
+      fixture.detectChanges();
+      expect(fixture.debugElement.query(By.css(".resource-name-edit-input"))).toBeTruthy();
+      expect(fixture.debugElement.query(By.css(".resource-name"))).toBeNull();
+
+      // pressing Enter in the edit input confirms the rename (real key event so the
+      // Angular keydown.enter binding fires through its event plugin)
+      const confirmSpy = vi.spyOn(component, "confirmUpdateCustomName").mockImplementation(() => {});
+      const editInput = fixture.debugElement.query(By.css(".resource-name-edit-input"))
+        .nativeElement as HTMLInputElement;
+      editInput.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+      expect(confirmSpy).toHaveBeenCalled();
+    });
+
+    it("renders and wires the cover-image controls when the cover is editable", () => {
+      // A workflow entry with a cover url makes the component compute hasCustomImage = true
+      // through its public entry input, so we don't reach into the private customImage field.
+      component.entry = makeWorkflowEntry({ coverImageUrl: "http://example.com/cover.png" });
+      component.isPrivateSearch = true;
+      component.initializeEntry(); // process the entry input (mirrors the ngOnChanges path)
+      fixture.detectChanges();
+      expect(component.canEditCover).toBe(true);
+      expect(component.hasCustomImage).toBe(true);
+
+      const cameraSpy = vi.spyOn(component, "openImagePicker").mockImplementation(() => {});
+      const resetSpy = vi.spyOn(component, "resetImage").mockImplementation(() => {});
+      fire('button[title="Change cover image"]', "click", new MouseEvent("click"));
+      fire('button[title="Reset to default image"]', "click", new MouseEvent("click"));
+
+      expect(cameraSpy).toHaveBeenCalled();
+      expect(resetSpy).toHaveBeenCalled();
+
+      // selecting a file fires the hidden input's (change) handler
+      const imageSelectedSpy = vi.spyOn(component, "onImageSelected").mockImplementation(async () => {});
+      fire('input[type="file"]', "change", { target: { files: [] } });
+      expect(imageSelectedSpy).toHaveBeenCalled();
+    });
+
+    it("renders the like button in non-private mode and toggles like on click", () => {
+      component.entry = makeWorkflowEntry();
+      component.isPrivateSearch = false;
+      component.currentUid = 1;
+      component.isLiked = false;
+      fixture.detectChanges();
+
+      const likeBtn = fixture.debugElement.query(By.css(".like-btn"));
+      expect(likeBtn).toBeTruthy();
+      expect(fixture.debugElement.query(By.css(".card-checkbox"))).toBeNull();
+      expect(fixture.debugElement.query(By.css(".private-actions"))).toBeNull();
+
+      const toggleSpy = vi.spyOn(component, "toggleLike").mockImplementation(() => {});
+      likeBtn.triggerEventHandler("click", new MouseEvent("click"));
+      expect(toggleSpy).toHaveBeenCalled();
+    });
+
+    it("reflects liked state and disables the like button without a current user", () => {
+      component.entry = makeWorkflowEntry();
+      component.isPrivateSearch = false;
+      component.isLiked = true;
+      component.currentUid = undefined;
+      fixture.detectChanges();
+
+      const likeBtn = fixture.debugElement.query(By.css(".like-btn")).nativeElement as HTMLButtonElement;
+      expect(likeBtn.classList.contains("liked")).toBe(true);
+      expect(likeBtn.disabled).toBe(true);
+    });
+
+    it("shows Download but hides Detail/Copy/checkbox for a dataset in private mode", () => {
+      component.entry = makeDatasetEntry();
+      component.isPrivateSearch = true;
+      fixture.detectChanges();
+
+      const de = fixture.debugElement;
+      expect(de.query(By.css('button[title="Download"]'))).toBeTruthy();
+      expect(de.query(By.css('button[title="Share"]'))).toBeTruthy();
+      expect(de.query(By.css('button[title="Detail"]'))).toBeNull();
+      expect(de.query(By.css('button[title="Copy"]'))).toBeNull();
+      expect(de.query(By.css(".card-checkbox"))).toBeNull();
+    });
+
+    it("renders the size row when a size is set and handles a cover-image load error", () => {
+      component.entry = makeWorkflowEntry();
+      component.size = 2048;
+      fixture.detectChanges();
+      expect(fixture.debugElement.query(By.css('span[title="Size"]'))).toBeTruthy();
+
+      const errorSpy = vi.spyOn(component, "onCoverError").mockImplementation(() => {});
+      fire(".card-preview-image", "error", {});
+      expect(errorSpy).toHaveBeenCalled();
     });
   });
 });

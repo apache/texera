@@ -18,6 +18,7 @@
  */
 
 import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { By } from "@angular/platform-browser";
 import { FormControl } from "@angular/forms";
 import { HuggingFaceImageUploadComponent } from "./hugging-face-image-upload.component";
 import { commonTestProviders } from "../../../common/testing/test-utils";
@@ -601,6 +602,81 @@ describe("HuggingFaceImageUploadComponent", () => {
       } finally {
         teardown();
       }
+    });
+  });
+
+  // ── Rendered template ──
+
+  describe("template rendering", () => {
+    const DATA_URL = "data:image/jpeg;base64,AAA";
+
+    const preview = () => fixture.debugElement.query(By.css(".hf-image-preview"));
+
+    /** Put the component in the "image selected" state and render it. */
+    function renderWithImage(fileName = ""): void {
+      component.fileName = fileName;
+      component.formControl.setValue(DATA_URL);
+      fixture.detectChanges();
+    }
+
+    it("renders no preview panel while no image is selected", () => {
+      expect(preview()).toBeNull();
+    });
+
+    it("renders the preview image bound to the stored data URL", () => {
+      renderWithImage();
+
+      expect(preview()).toBeTruthy();
+      const img = fixture.debugElement.query(By.css(".hf-image-preview img"));
+      expect(img.nativeElement.getAttribute("src")).toBe(DATA_URL);
+      expect(img.nativeElement.getAttribute("alt")).toBe("Uploaded Hugging Face task input");
+    });
+
+    it("labels the preview with the default text when no file name is known", () => {
+      renderWithImage();
+
+      expect(fixture.debugElement.query(By.css(".hf-image-meta span")).nativeElement.textContent.trim()).toBe(
+        "Uploaded image"
+      );
+    });
+
+    it("labels the preview with the selected file name once one is known", () => {
+      renderWithImage("cat.png");
+
+      expect(fixture.debugElement.query(By.css(".hf-image-meta span")).nativeElement.textContent.trim()).toBe(
+        "cat.png"
+      );
+    });
+
+    it("the Clear button clears the image and removes the preview panel", () => {
+      renderWithImage("cat.png");
+
+      fixture.debugElement.query(By.css(".hf-image-meta button")).triggerEventHandler("click", null);
+      fixture.detectChanges();
+
+      expect(component.formControl.value).toBe("");
+      expect(component.fileName).toBe("");
+      expect(preview()).toBeNull();
+    });
+
+    it("renders the error message when one is set", () => {
+      component.errorMessage = "Choose an image file.";
+      fixture.detectChanges();
+
+      const error = fixture.debugElement.query(By.css(".hf-image-error"));
+      expect(error).toBeTruthy();
+      expect(error.nativeElement.textContent.trim()).toBe("Choose an image file.");
+    });
+
+    it("a change event with no file selected leaves the control untouched", () => {
+      const input = fixture.debugElement.query(By.css("input[type='file']"));
+
+      input.nativeElement.dispatchEvent(new Event("change"));
+      fixture.detectChanges();
+
+      expect(component.formControl.value).toBe("");
+      expect(component.errorMessage).toBe("");
+      expect(preview()).toBeNull();
     });
   });
 });
