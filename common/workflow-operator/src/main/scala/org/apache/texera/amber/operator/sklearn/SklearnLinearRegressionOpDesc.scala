@@ -26,7 +26,7 @@ import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBui
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
-import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
+import org.apache.texera.amber.operator.metadata.annotations.{AutofillAttributeName, SampleColumn}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 
@@ -36,6 +36,9 @@ class SklearnLinearRegressionOpDesc extends PythonOperatorDescriptor with Standa
   @JsonPropertyDescription("Attribute in your dataset corresponding to target.")
   @JsonProperty(required = true)
   @AutofillAttributeName
+  // The label the estimator fits against. Test-only steering: without it the
+  // first column wins, which on a feature/label table is a feature.
+  @SampleColumn("y")
   var target: EncodableString = _
 
   @JsonSchemaTitle("Degree")
