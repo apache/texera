@@ -95,7 +95,12 @@ class TypeCastingOpDesc extends MapOpDesc with StandaloneCodeGenerator {
           s"""pd.to_numeric(out1df[$colLit], errors="coerce").apply(lambda x: pd.NA if pd.isna(x) else int(x)).astype("Int64")"""
         case AttributeType.DOUBLE =>
           s"""pd.to_numeric(out1df[$colLit], errors="coerce").astype("float64")"""
-        case AttributeType.BOOLEAN   => s"""out1df[$colLit].astype(bool)"""
+        case AttributeType.BOOLEAN =>
+          // `.astype(bool)` reads NaN as True, because NaN is a non-zero float.
+          // AttributeTypeUtils.parseField returns a null field untouched, so the
+          // hole has to survive the cast: pandas' nullable "boolean" holds it,
+          // numpy's bool cannot.
+          s"""out1df[$colLit].apply(lambda x: pd.NA if pd.isna(x) else bool(x)).astype("boolean")"""
         case AttributeType.TIMESTAMP => s"""pd.to_datetime(out1df[$colLit], errors="coerce")"""
         case _                       => s"""out1df[$colLit]"""
       }
