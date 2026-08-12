@@ -498,8 +498,15 @@ describe("UserVenvComponent", () => {
       flushOverlay();
       expect(component.currentDraft?.newPackages.length).toBe(2);
 
+      // The row delete button is behind a popconfirm: the first click only opens the
+      // popover, and the row survives until the confirm button is clicked.
       q<HTMLButtonElement>(o, ".package-row .user-package-inputs button").click();
-      expect(component.currentDraft?.newPackages[0].deleteToggle).toBe(true);
+      flushOverlay();
+      expect(component.currentDraft?.newPackages.length).toBe(2);
+
+      q<HTMLButtonElement>(overlay(), ".ant-popover-buttons button.ant-btn-primary").click();
+      flushOverlay();
+      expect(component.currentDraft?.newPackages.length).toBe(1);
 
       footerButton(o, "Save").click();
       expect(pveServiceSpy.savePve).toHaveBeenCalledWith("envDrive", {});
