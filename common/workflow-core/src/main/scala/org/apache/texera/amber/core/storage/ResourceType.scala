@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,29 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { ExecutionState } from "../../workspace/types/execute-workflow.interface";
 
-export interface WorkflowExecutionsEntry {
-  eId: number;
-  vId: number;
-  cuId: number;
-  sId: number;
-  userName: string;
-  avatar: string;
-  name: string;
-  startingTime: number;
-  completionTime: number;
-  status: number;
-  result: string;
-  bookmarked: boolean;
-  logLocation: string;
+package org.apache.texera.amber.core.storage
+
+/**
+  * The leading segment of a logical file path, identifying which resource kind (and thus which
+  * backing table) a path belongs to.
+  *
+  * Path shape: /<prefix>/ownerEmail/resourceName/versionName/fileRelativePath
+  */
+object ResourceType extends Enumeration {
+  val Datasets: Value = Value("datasets")
+
+  def isValidPrefix(segment: String): Boolean = values.exists(_.toString == segment)
 }
-
-export const EXECUTION_STATUS_CODE: Record<number, string> = {
-  0: ExecutionState.Initializing,
-  1: ExecutionState.Running,
-  2: ExecutionState.Paused,
-  3: ExecutionState.Completed,
-  4: ExecutionState.Failed,
-  5: ExecutionState.Killed,
-};
