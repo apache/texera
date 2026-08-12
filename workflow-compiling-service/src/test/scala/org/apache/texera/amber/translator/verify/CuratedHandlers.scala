@@ -50,9 +50,7 @@ import org.apache.texera.amber.operator.machineLearning.Scorer.classificationMet
 import org.apache.texera.amber.operator.machineLearning.Scorer.regressionMetricsFnc
 import org.apache.texera.amber.operator.machineLearning.Scorer.MachineLearningScorerOpDesc
 import org.apache.texera.amber.operator.sklearn.training.SklearnTrainingOpDesc
-import org.apache.texera.amber.operator.sklearn.training.SklearnTrainingGaussianNaiveBayesOpDesc
 import org.apache.texera.amber.operator.sklearn.SklearnClassifierOpDesc
-import org.apache.texera.amber.operator.sklearn.SklearnGaussianNaiveBayesOpDesc
 import org.apache.texera.amber.operator.sklearn.SklearnLinearRegressionOpDesc
 import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.base.SklearnMLOperatorDescriptor
 import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.base.{
@@ -88,19 +86,21 @@ trait TransformHandler {
   def extraScenarios(testRoot: Path): Seq[(String, LogicalOp, Map[PortIdentity, Path])] =
     Seq.empty
 
-  /** Variant kinds this fixture cannot take — `"optionals"`, `"hostileText"`. Default:
-    * none, and that is the answer for almost every fixture.
+  /** Variant kinds this fixture cannot take — `"optionals"`, `"hostileText"` — each
+    * with why, which the coverage report prints. Default: none, and that is the
+    * answer for almost every fixture.
     *
     * The one case it exists for: a knob whose legal values are decided by a SIBLING
     * field, which the knob itself has no way to declare. A filter predicate's `value`
     * is parsed as the type of the column its `attribute` names, so what may be typed
     * there is a property of the pair, not of `value`.
     *
-    * It lives on the handler rather than in a table beside the runner because it
-    * describes THIS fixture, not the operator: a predicate over a string column takes
-    * the hostile value fine. Whoever rewrites the fixture sees it and can drop it.
+    * It lives on the handler rather than in [[TransformVerificationRunner.variantsNotRun]]
+    * because it describes THIS fixture, not the operator: a predicate over a string
+    * column takes the hostile value fine. Whoever rewrites the fixture sees it and
+    * can drop it.
     */
-  def unfillableVariants: Set[String] = Set.empty
+  def unfillableVariants: Map[String, String] = Map.empty
 
   /** Opts this fixture into the `nulls` case, naming the columns it must never
     * empty because their VALUE is what the fixture was built to arrange rather
@@ -260,23 +260,6 @@ object CuratedHandlers {
     (inputs(PortIdentity(0)), inputs(PortIdentity(1)))
   }
 
-  /** Estimators whose `fit` rejects the sparse matrix `CountVectorizer` emits
-    * (dense-only), so the `countVectorizer=true` text scenario doesn't apply.
-    * `GaussianNB` validates X without `accept_sparse` and raises "Sparse data
-    * was passed for X, but dense data is required"; text classification uses the
-    * Multinomial/Bernoulli/Complement NB variants instead. `countVectorizer=true`
-    * on these is an invalid production config, not a translation gap, so the
-    * scenario is skipped rather than flagged.
-    */
-  private val denseOnlyForCountVectorizer: Set[Class[_ <: LogicalOp]] =
-    Set(
-      classOf[SklearnGaussianNaiveBayesOpDesc],
-      classOf[SklearnTrainingGaussianNaiveBayesOpDesc]
-    )
-
-  def supportsCountVectorizer(opClass: Class[_ <: LogicalOp]): Boolean =
-    !denseOnlyForCountVectorizer.contains(opClass)
-
   /** The hyperparameter the advanced trainer's primary fixture carries: the first
     * numeric one the operator offers, resolved from its
     * `SklearnMLOperatorDescriptor[T]` type argument. The rest get a scenario each
@@ -293,14 +276,6 @@ object CuratedHandlers {
     hp.attribute = "param_val" // column read when the sweep flips parametersSource=true
     hp
   }
-
-  /** KNN hyperparameters whose declared type cannot produce what sklearn accepts,
-    * so no value runs: `metric` is declared `int` against a string from a fixed
-    * set, and `metric_params` wants a dict no converter returns. Excluded so the
-    * operator's other hyperparameters stay covered rather than the whole operator
-    * going dark. An operator bug, not a translation one, and on main too.
-    */
-  val miswiredHyperParameters: Set[String] = Set("metric", "metric_params")
 
   /** Every hyperparameter this operator offers, in declaration order. */
   def allHyperParameters(opClass: Class[_ <: LogicalOp]): Seq[ParamClass] =
@@ -375,12 +350,13 @@ object SpecializedFilterTransformHandler extends TransformHandler {
 
   override val opDescClass: Class[_ <: LogicalOp] = classOf[SpecializedFilterOpDesc]
 
-  /** `id > 8` compares against an INTEGER column, and the platform parses the predicate
-    * `value` as that column's type — so the hostile string is refused by the number
-    * parser before any escaping could matter. Drop this the day the fixture filters on
-    * string columns only.
-    */
-  override val unfillableVariants: Set[String] = Set("hostileText")
+  /** Drop this the day the fixture filters on string columns only. */
+  override val unfillableVariants: Map[String, String] = Map(
+    "hostileText" ->
+      ("`id > 8` compares against an INTEGER column, and the platform parses the " +
+        "predicate value as that column's type, so the number parser refuses the " +
+        "hostile string before any escaping could matter")
+  )
 
   override def fixture(testRoot: Path): (LogicalOp, Map[PortIdentity, Path]) = {
     val desc = new SpecializedFilterOpDesc()
@@ -627,11 +603,11 @@ object HuggingFaceSpamSMSDetectionTransformHandler extends TransformHandler {
   * round-trips identically on both paths (JVM `AttributeTypeUtils` vs the
   * generated pandas), covering the value-comparable branches of
   * `generateStandaloneCode`'s `resultType` match: STRING, INTEGER, LONG, DOUBLE,
-  * BOOLEAN. The op is listed in [[TransformVerificationRunner.enumSweepExemptOps]]
-  * so the blind one-enum-at-a-time sweep — which would re-pair each fixed column
-  * with every target type — is suppressed; the units below already exercise each
-  * branch. Map op: both paths keep input row order, so strict positional equality
-  * holds.
+  * BOOLEAN. The op has an `enumSweep` row in
+  * [[TransformVerificationRunner.variantsNotRun]], suppressing the blind
+  * one-enum-at-a-time sweep that would re-pair each fixed column with every target
+  * type; the units below already exercise each branch. Map op: both paths keep
+  * input row order, so strict positional equality holds.
   *
   * TIMESTAMP is intentionally omitted: the two runtimes serialize a Timestamp
   * differently to JSONL (native emits an ISO string `"2024-01-01 09:00:00.0"`,
@@ -838,13 +814,23 @@ object FilledAreaPlotVisualizationHandler extends TransformHandler {
 abstract class SklearnAdvancedTrainerTransformHandler extends TransformHandler {
   protected def newDesc(): SklearnMLOperatorDescriptor[_]
 
-  /** No hostile string can legally reach `paraList/0/value`: what it means is
-    * decided by the `parameter` beside it, and every one of those is a number or
-    * a fixed set of words. A spliced `a"b` fails at the conversion rather than at
-    * any escaping, so the variant has no target here. [[extraScenarios]] is what
-    * exercises the field, with a value each hyperparameter's own type accepts.
+  /** KNN hyperparameters whose declared type cannot produce what sklearn accepts,
+    * so no value runs: `metric` is declared `int` against a string from a fixed
+    * set, and `metric_params` wants a dict no converter returns. Excluded so the
+    * operator's other hyperparameters stay covered rather than the whole operator
+    * going dark. An operator bug, not a translation one, and on main too.
     */
-  override val unfillableVariants: Set[String] = Set("hostileText")
+  private val miswiredHyperParameters: Set[String] = Set("metric", "metric_params")
+
+  /** [[extraScenarios]] is what exercises `paraList/0/value` instead, with a value
+    * each hyperparameter's own type accepts.
+    */
+  override val unfillableVariants: Map[String, String] = Map(
+    "hostileText" ->
+      ("what paraList/0/value may hold is decided by the `parameter` beside it, and " +
+        "every one of those is a number or a word from a fixed set, so a spliced " +
+        "a\"b fails at the conversion rather than at any escaping")
+  )
 
   override def fixture(testRoot: Path): (LogicalOp, Map[PortIdentity, Path]) = {
     val train = SklearnFixture.write(testRoot, inputPortCount = 1, withGaps = false)(
@@ -883,7 +869,7 @@ abstract class SklearnAdvancedTrainerTransformHandler extends TransformHandler {
     CuratedHandlers
       .allHyperParameters(opDescClass)
       .filterNot(_.getName == chosen.getName)
-      .filterNot(p => CuratedHandlers.miswiredHyperParameters.contains(p.getName))
+      .filterNot(p => miswiredHyperParameters.contains(p.getName))
       .map { p =>
         val dir = testRoot.resolve(s"param_${p.getName}")
         Files.createDirectories(dir)
@@ -923,7 +909,7 @@ abstract class SklearnAdvancedTrainerTransformHandler extends TransformHandler {
   * conditional JSON-schema rule), so ConfigGenerator skips the optional autofill
   * field and leaves it null — invalid for a non-count function, which NPEs in
   * AggregateOpExec. This pins valid (function, column) pairs. Enum-sweep-exempt
-  * (see [[TransformVerificationRunner.enumSweepExemptOps]]): the sweep flips each
+  * (see [[TransformVerificationRunner.variantsNotRun]]): the sweep flips each
   * element's function in isolation and would re-pair, e.g., concat with a numeric
   * column; the fixture already covers each function with a type-compatible column.
   * Aggregate inherits the unordered `orderSensitive` default, so

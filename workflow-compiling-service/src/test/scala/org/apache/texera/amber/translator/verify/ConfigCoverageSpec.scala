@@ -19,6 +19,7 @@
 
 package org.apache.texera.amber.translator.verify
 
+import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.source.SourceOperatorDescriptor
 import org.scalatest.flatspec.AnyFlatSpec
@@ -31,7 +32,8 @@ import org.scalatest.matchers.should.Matchers
   *
   * Hard-asserts the must-run set: the operators that must appear as RUNNABLE for
   * the demo to be credible. Flagged operators are always reported with a reason —
-  * never silently passed.
+  * never silently passed, and neither is a single withheld KIND of run
+  * (see [[reportWithheldRuns]]).
   */
 class ConfigCoverageSpec extends AnyFlatSpec with Matchers {
 
@@ -78,12 +80,48 @@ class ConfigCoverageSpec extends AnyFlatSpec with Matchers {
       case (name, kind, tier) => info(f"  $tier%-50s [$kind%-10s] $name")
     }
 
+    reportWithheldRuns(operators)
+
     val failedTargets = rows.collect {
       case (name, _, tier) if mustRun.contains(name) && !tier.startsWith("RUNNABLE") =>
         s"$name → $tier"
     }
     withClue(s"must-run operators not runnable: $failedTargets") {
       failedTargets shouldBe empty
+    }
+  }
+
+  /** RUNNABLE is per operator, but a runnable operator can still be missing one
+    * KIND of run. Report those too, or the table reads as fuller than it is.
+    *
+    * Split by whether anyone should be waiting: a pending fix is a line someone
+    * deletes when an issue closes, by design is an answer. Both name the operator,
+    * so a family entry expands to the estimators it actually covers.
+    */
+  private def reportWithheldRuns(operators: Seq[Class[_ <: LogicalOp]]): Unit = {
+    import TransformVerificationRunner._
+
+    val withheld = for {
+      opClass <- operators
+      (kind, reason) <- withheldRunsFor(opClass)
+    } yield (opClass.getSimpleName, kind, reason)
+
+    val unfillable = for {
+      (opClass, handler) <- CuratedHandlers.byClass.toSeq
+      (kind, why) <- handler.unfillableVariants
+    } yield (opClass.getSimpleName, kind, why)
+
+    val pending = withheld.collect { case (n, k, PendingFix(issue)) => (n, k, issue) }
+    val byDesign = withheld.collect { case (n, k, ByDesign(why)) => (n, k, why) }
+    info(
+      s"Runs withheld: ${pending.size} pending a fix, " +
+        s"${byDesign.size + unfillable.size} not applicable by design"
+    )
+    pending.sorted.foreach {
+      case (name, kind, issue) => info(f"  PENDING  $kind%-20s $name%-45s $issue")
+    }
+    (byDesign ++ unfillable).sorted.foreach {
+      case (name, kind, why) => info(f"  BY-DESIGN $kind%-20s $name%-45s $why")
     }
   }
 }

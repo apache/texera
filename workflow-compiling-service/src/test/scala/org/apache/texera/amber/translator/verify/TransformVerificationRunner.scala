@@ -34,9 +34,11 @@ import org.apache.texera.amber.operator.dummy.DummyOpDesc
 import org.apache.texera.amber.operator.split.SplitOpDesc
 import org.apache.texera.amber.operator.sklearn.SklearnPredictionOpDesc
 import org.apache.texera.amber.operator.sklearn.SklearnClassifierOpDesc
+import org.apache.texera.amber.operator.sklearn.SklearnGaussianNaiveBayesOpDesc
 import org.apache.texera.amber.operator.sklearn.SklearnLinearRegressionOpDesc
 import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.base.SklearnMLOperatorDescriptor
 import org.apache.texera.amber.operator.sklearn.training.SklearnTrainingOpDesc
+import org.apache.texera.amber.operator.sklearn.training.SklearnTrainingGaussianNaiveBayesOpDesc
 import org.apache.texera.amber.operator.regex.RegexOpDesc
 import org.apache.texera.amber.operator.sklearn.testing.SklearnTestingOpDesc
 import org.apache.texera.amber.operator.substringSearch.SubstringSearchOpDesc
@@ -142,8 +144,8 @@ object TransformVerificationRunner {
     * text pipelines), asked File Scan to extract an archive from a plain file,
     * and re-enabled the very auto-seed switch the first scope holds off.
     *
-    * Distinct from [[enumSweepExemptOps]], which is about an operator's enums as
-    * a whole rather than one named knob.
+    * Distinct from an `enumSweep` row in [[variantsNotRun]], which is about an
+    * operator's enums as a whole rather than one named knob.
     */
   sealed trait KnobScope
   object KnobScope {
@@ -198,9 +200,19 @@ object TransformVerificationRunner {
   final case class AltScenario(
       label: String,
       fixture: SharedFixture,
-      pinned: Map[String, JsonNode],
-      appliesTo: Class[_ <: LogicalOp] => Boolean = _ => true
+      pinned: Map[String, JsonNode]
   )
+
+  /** Every kind of run a [[variantsNotRun]] row can name: the derived variants,
+    * plus the [[AltScenario]] labels (an alt scenario IS one kind of run). Named
+    * so a row cannot misspell one and silently stop suppressing anything.
+    */
+  object RunKind {
+    val Nulls = "nulls"
+    val EnumSweep = "enumSweep"
+    val CountVectorizerText = "countVectorizer_text"
+    val TfidfText = "tfidf_text"
+  }
 
   /** Keyed by BASE class, not by concrete operator: a newly registered sklearn
     * estimator is covered with no entry of its own, matching how the families
@@ -211,16 +223,15 @@ object TransformVerificationRunner {
     // pipeline is built is the branch under test, and the two are alternatives,
     // not a knob crossed with everything else.
     val countVectorizerText = AltScenario(
-      label = "countVectorizer_text",
+      label = RunKind.CountVectorizerText,
       fixture = SklearnTextFixture,
       pinned = Map(
         "countVectorizer" -> BooleanNode.TRUE,
         "tfidfTransformer" -> BooleanNode.FALSE
-      ),
-      appliesTo = CuratedHandlers.supportsCountVectorizer
+      )
     )
     val tfidfText = countVectorizerText.copy(
-      label = "tfidf_text",
+      label = RunKind.TfidfText,
       pinned = Map(
         "countVectorizer" -> BooleanNode.TRUE,
         "tfidfTransformer" -> BooleanNode.TRUE
@@ -232,12 +243,14 @@ object TransformVerificationRunner {
     )
   }
 
-  /** The alternate-table scenarios this operator takes, resolved by family. */
+  /** The alternate-table scenarios this operator takes, resolved by family and
+    * minus any [[variantsNotRun]] names.
+    */
   private def altScenariosFor(opClass: Class[_ <: LogicalOp]): Seq[AltScenario] =
     altFixtureScenarios
       .collectFirst { case (base, scenarios) if base.isAssignableFrom(opClass) => scenarios }
       .getOrElse(Seq.empty)
-      .filter(_.appliesTo(opClass))
+      .filterNot(alt => notRun(opClass, alt.label))
 
   /** How a pinned operator's tier reads in the report, e.g. `auto, random=false`. */
   private def pinnedTierNote(opClass: Class[_ <: LogicalOp]): String = {
@@ -246,37 +259,94 @@ object TransformVerificationRunner {
     else pinned.map { case (field, value) => s"$field=${value.asText}" }.mkString(", ", ", ", "")
   }
 
-  /** Curated ops whose enum sweep must be suppressed: an enum value is only
-    * valid in combination with a sibling field, so flipping it in isolation
-    * yields an invalid config. TypeCasting's `resultType` is legal only for
-    * certain source column types (attributeTypeRules), and the native executor
-    * throws on an illegal cast (e.g. INTEGER → Timestamp); a blind sweep re-pairs
-    * each curated column with every target type. The curated fixture already
-    * covers each branch with a type-compatible column, so no sweep is needed.
+  /** Why one kind of run is left out for an operator. The distinction is whether
+    * anyone should be waiting for it: [[PendingFix]] is a debt someone closes,
+    * [[ByDesign]] is an answer that will not change.
     */
-  val enumSweepExemptOps: Set[Class[_]] = Set(
-    classOf[TypeCastingOpDesc],
-    // Aggregate's sweepable enum is each aggregation's `aggFunction`, but the
-    // function is cross-constrained with its `attribute` column type (concat→string,
-    // sum/avg/min/max→numeric) and with COUNT(*)'s empty attribute. A blind sweep
-    // re-pairs functions with the wrong column. The curated fixture already covers
-    // every function with a type-compatible column, so no sweep is needed.
-    classOf[AggregateOpDesc]
-  )
+  sealed trait NotRunReason
+  final case class PendingFix(issue: String) extends NotRunReason
+  final case class ByDesign(why: String) extends NotRunReason
 
-  /** Whether the enum sweep is suppressed for `opClass`. True for
-    * [[enumSweepExemptOps]] and for the whole sklearn classifier/training
-    * families: their only sweepable enums are the `countVectorizer` /
-    * `tfidfTransformer` booleans, which flip the feature source between the
-    * numeric default and a text column — structurally incompatible with one
-    * fixture. That branch is covered by a dedicated `extraScenarios` text
-    * fixture instead, so the sweep would only regenerate invalid numeric+text
-    * combinations.
+  final case class NotRun(op: Class[_], kind: String, reason: NotRunReason)
+
+  /** The runs an operator does not get, and why.
+    *
+    * One table rather than one per kind. Every row makes the same statement, so
+    * the coverage report can print them together, and the next exemption has an
+    * obvious home instead of arriving as another set somewhere else.
+    *
+    * `op` matches its subclasses, so one row covers a family. `kind` is a
+    * [[RunKind]].
+    *
+    * A curated handler's own [[TransformHandler.unfillableVariants]] stays where
+    * it is: those describe the table that handler wrote rather than the operator,
+    * and change when the fixture is rewritten.
     */
-  private def enumSweepExempt(opClass: Class[_ <: LogicalOp]): Boolean =
-    enumSweepExemptOps.contains(opClass) ||
-      classOf[SklearnClassifierOpDesc].isAssignableFrom(opClass) ||
-      classOf[SklearnTrainingOpDesc].isAssignableFrom(opClass)
+  val variantsNotRun: Seq[NotRun] = {
+    // The platform raises on an empty cell, so the two paths cannot be compared
+    // on one until it stops.
+    val emptyCellRaises: Seq[(Class[_], String)] = Seq(
+      classOf[SubstringSearchOpDesc] -> "apache/texera#7548",
+      classOf[UnnestStringOpDesc] -> "apache/texera#7548",
+      classOf[RegexOpDesc] -> "apache/texera#7548",
+      classOf[DumbbellPlotOpDesc] -> "apache/texera#7562",
+      classOf[SklearnTrainingOpDesc] -> "apache/texera#7582",
+      classOf[SklearnClassifierOpDesc] -> "apache/texera#7582",
+      // These two descend from PythonOperatorDescriptor rather than a sklearn
+      // base, so the family rows above do not reach them.
+      classOf[SklearnLinearRegressionOpDesc] -> "apache/texera#7582",
+      classOf[SklearnMLOperatorDescriptor[_]] -> "apache/texera#7582"
+    )
+
+    // GaussianNB validates X without accept_sparse, so a text pipeline is an
+    // invalid configuration for it rather than a translation gap.
+    val dense = ByDesign("GaussianNB rejects the sparse matrix CountVectorizer emits")
+    val denseOnly = for {
+      op <- Seq(
+        classOf[SklearnGaussianNaiveBayesOpDesc],
+        classOf[SklearnTrainingGaussianNaiveBayesOpDesc]
+      )
+      label <- Seq(RunKind.CountVectorizerText, RunKind.TfidfText)
+    } yield NotRun(op, label, dense)
+
+    emptyCellRaises.map {
+      case (op, issue) => NotRun(op, RunKind.Nulls, PendingFix(issue))
+    } ++ Seq(
+      // An enum whose legal values depend on a sibling field: flipping it alone
+      // builds a config the curated fixture already covers properly.
+      NotRun(
+        classOf[TypeCastingOpDesc],
+        RunKind.EnumSweep,
+        ByDesign(
+          "resultType is legal only for certain source column types, and the native " +
+            "executor throws on an illegal cast; the fixture pairs each type with a " +
+            "compatible column already"
+        )
+      ),
+      NotRun(
+        classOf[AggregateOpDesc],
+        RunKind.EnumSweep,
+        ByDesign(
+          "aggFunction is cross-constrained with its attribute's type and with " +
+            "COUNT(*)'s empty attribute; the fixture pairs each function with a " +
+            "compatible column already"
+        )
+      )
+    ) ++ denseOnly
+  }
+
+  /** Every kind of run withheld from this operator, with why. This is the whole of
+    * what the coverage report needs, so it never walks the table itself. One entry
+    * per kind: a family row and an operator row for the same kind are the same
+    * statement twice, and the first one wins.
+    */
+  def withheldRunsFor(opClass: Class[_ <: LogicalOp]): Seq[(String, NotRunReason)] =
+    variantsNotRun
+      .collect { case NotRun(op, kind, reason) if op.isAssignableFrom(opClass) => kind -> reason }
+      .distinctBy(_._1)
+
+  private def notRun(opClass: Class[_ <: LogicalOp], kind: String): Boolean =
+    withheldRunsFor(opClass).exists(_._1 == kind)
 
   /** Visualization operators with deterministic Plotly JSON validation. */
   val visualizationJsonOps: Set[Class[_]] = Set(
@@ -477,7 +547,7 @@ object TransformVerificationRunner {
                 op,
                 schemasOf(in),
                 rowCountOf(in),
-                sweepEnums = !enumSweepExempt(opClass)
+                sweepEnums = !notRun(opClass, RunKind.EnumSweep)
               )
               .fold(_ => Seq("default" -> op), identity)
               // A variant kind the fixture states it cannot take (see
@@ -485,7 +555,7 @@ object TransformVerificationRunner {
               // `kind(fields…)`.
               .filterNot {
                 case (label, _) =>
-                  handler.unfillableVariants.exists(kind => label.startsWith(s"$kind("))
+                  handler.unfillableVariants.keys.exists(kind => label.startsWith(s"$kind("))
               }
           primary.map { case (label, o) => (label, o, in) } ++
             handler.extraScenarios(testRoot) ++
@@ -555,28 +625,6 @@ object TransformVerificationRunner {
     }
   }
 
-  /** Operators the platform itself fails on with an empty cell, each with the
-    * issue tracking it. Only the `nulls` case is withheld, so the day the platform
-    * stops failing the entry comes out and the case runs with nothing else to do.
-    * A key matches its subclasses, so one entry covers a family that fails the
-    * same way in code they all inherit.
-    */
-  private val nullsBlockedBy: Map[Class[_], String] = Map(
-    classOf[SubstringSearchOpDesc] -> "apache/texera#7548",
-    classOf[UnnestStringOpDesc] -> "apache/texera#7548",
-    classOf[RegexOpDesc] -> "apache/texera#7548",
-    classOf[DumbbellPlotOpDesc] -> "apache/texera#7562",
-    classOf[SklearnTrainingOpDesc] -> "apache/texera#7582",
-    classOf[SklearnClassifierOpDesc] -> "apache/texera#7582",
-    // Named on their own: neither descends from the two bases above, so the
-    // family match does not reach them.
-    classOf[SklearnLinearRegressionOpDesc] -> "apache/texera#7582",
-    classOf[SklearnMLOperatorDescriptor[_]] -> "apache/texera#7582"
-  )
-
-  private def nullsBlocked(opClass: Class[_ <: LogicalOp]): Boolean =
-    nullsBlockedBy.keys.exists(_.isAssignableFrom(opClass))
-
   /** One extra run per operator, on `fixture` with one empty cell per column (see
     * [[SharedFixture.emptyOneCellPerColumn]]). It takes the base config rather than
     * crossing with the other variants: what an operator does with a null is a
@@ -593,7 +641,7 @@ object TransformVerificationRunner {
       testRoot: Path,
       fixture: SharedFixture
   ): Seq[(String, LogicalOp, Map[PortIdentity, Path])] =
-    if (nullsBlocked(opClass)) Seq.empty
+    if (notRun(opClass, RunKind.Nulls)) Seq.empty
     else {
       val dir = testRoot.resolve("nulls-input")
       Files.createDirectories(dir)
@@ -613,7 +661,7 @@ object TransformVerificationRunner {
       testRoot: Path,
       keepFilled: Set[String]
   ): Seq[(String, LogicalOp, Map[PortIdentity, Path])] =
-    if (nullsBlocked(opClass)) Seq.empty
+    if (notRun(opClass, RunKind.Nulls)) Seq.empty
     else {
       val dir = testRoot.resolve("nulls-input")
       Files.createDirectories(dir)
