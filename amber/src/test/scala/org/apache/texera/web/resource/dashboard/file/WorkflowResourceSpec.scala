@@ -1060,7 +1060,7 @@ class WorkflowResourceSpec
     assert(names.contains("dup-src") && names.contains("dup-src_copy"))
   }
 
-  // ─── shared-access and failure paths (issue #7224) ──────────────────────────
+  // ─── shared-access and failure paths (issue #7591) ──────────────────────────
 
   // Content with an operators array: duplicate/clone reassign operator ids and fail
   // on content that has none.
@@ -1196,7 +1196,13 @@ class WorkflowResourceSpec
   }
 
   "WorkflowResource.cloneWorkflow" should "copy the workflow to the caller and record the clone" in {
+    // The source is made public because that is the flow this endpoint serves: the hub's clone
+    // button, on someone else's published workflow. Cloning a *private* workflow the caller has
+    // no access to also succeeds today -- cloneWorkflow fetches by wid with no `hasReadAccess`
+    // guard, unlike retrieveWorkflow and duplicateWorkflow -- but that is a gap to fix in the
+    // resource, not a contract to pin here, so this test does not assert it either way.
     val wid = seedWorkflow(sessionUser1, "clone-src", "d", contentWithOperator).workflow.getWid
+    workflowResource.makePublic(wid, sessionUser1)
 
     val newWid = workflowResource.cloneWorkflow(wid, sessionUser2, cloneRequest)
 
@@ -1206,7 +1212,7 @@ class WorkflowResourceSpec
     assert(clone.description == "d")
     assert(!clone.content.contains("\"op1\"")) // operator ids are reassigned
     assert(clone.content.contains("\"CSVFileScan\""))
-    assert(!clone.isPublished) // a clone starts out private
+    assert(!clone.isPublished) // the clone starts private; the source's publicness is not inherited
     // the clone belongs to the caller, not to the original owner
     assert(workflowResource.getOwnerName(newWid) == testUser2.getName)
     assert(
