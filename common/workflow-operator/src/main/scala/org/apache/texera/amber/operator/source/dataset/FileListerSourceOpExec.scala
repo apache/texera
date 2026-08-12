@@ -49,7 +49,6 @@ object FileListerSourceOpExec {
     (segments(0), segments(1), segments(2), segments(3))
   }
 
-
   private[dataset] def canonicalVersionPath(
       resourceTypePrefix: String,
       ownerEmail: String,
