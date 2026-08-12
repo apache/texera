@@ -1772,13 +1772,14 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
    * disabled or the backend returns nothing, the canvas is untouched.
    */
   private handleNextOperatorSuggestions(): void {
-    this.repositionNextOperatorSuggestion$
-      .pipe(auditTime(100), untilDestroyed(this))
-      .subscribe(() => this.repositionNextOperatorSuggestions());
-
     if (!this.operatorRecommendationService.isEnabled()) {
       return;
     }
+
+    // Repositioning is throttled: change:position fires once per drag frame.
+    this.repositionNextOperatorSuggestion$
+      .pipe(auditTime(100), untilDestroyed(this))
+      .subscribe(() => this.repositionNextOperatorSuggestions());
 
     // Every suggestion request — from a drop or from chaining after a click —
     // goes through this one pipeline. switchMap unsubscribes the previous
@@ -1851,15 +1852,18 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     // a nearby operator. The next step is chosen in that case, so suggesting
     // another one would both be noise and risk placing it on top of the
     // successor the drop just created.
-    const sourcePortID = operator.outputPorts[0].portID;
-    const portIsTaken = this.workflowActionService
-      .getTexeraGraph()
-      .getAllLinks()
-      .some(link => link.source.operatorID === operator.operatorID && link.source.portID === sourcePortID);
-    if (portIsTaken) {
+    if (this.isOutputPortLinked(operator.operatorID, operator.outputPorts[0].portID)) {
       return;
     }
     this.nextOperatorSuggestionRequest$.next(operator);
+  }
+
+  /** Whether `portID` on `operatorID` already has a link leaving it. */
+  private isOutputPortLinked(operatorID: string, portID: string): boolean {
+    return this.workflowActionService
+      .getTexeraGraph()
+      .getAllLinks()
+      .some(link => link.source.operatorID === operatorID && link.source.portID === portID);
   }
 
   /** Render the result of the most recent, uncancelled suggestion request. */
@@ -1899,7 +1903,14 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     }
     const graph = this.workflowActionService.getTexeraGraph();
     let newOperatorID: string | undefined;
-    if (graph.hasOperator(this.nextOperatorSuggestion.operatorId)) {
+    // Re-check the port: nothing dismisses the chips when the user hand-draws a
+    // link out of the anchor port, because that gesture starts on the port and
+    // fires element:pointerdown rather than the blank:pointerdown we listen for.
+    // Without this the click would add a second successor on top of the first.
+    if (
+      graph.hasOperator(this.nextOperatorSuggestion.operatorId) &&
+      !this.isOutputPortLinked(this.nextOperatorSuggestion.operatorId, this.nextOperatorSuggestion.sourceOutputPortID)
+    ) {
       const sourceOperator = graph.getOperator(this.nextOperatorSuggestion.operatorId);
       newOperatorID = this.operatorRecommendationService.materialize(
         sourceOperator,

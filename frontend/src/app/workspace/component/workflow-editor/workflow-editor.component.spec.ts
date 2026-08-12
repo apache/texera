@@ -1715,7 +1715,7 @@ describe("Ambient Operator Recommender", () => {
   });
 
   it("does not suggest when the drop already wired the output port", () => {
-    // dragDropped links on both branches — dropping onto an existing edge, and
+    // dragDropped adds links on both branches — dropping onto an existing edge, and
     // proximity auto-linking — so the operator can arrive with a successor.
     workflowActionService.addOperator(mockScanPredicate, mockPoint);
     workflowActionService.addOperator(mockResultPredicate, mockPoint);
@@ -1724,6 +1724,23 @@ describe("Ambient Operator Recommender", () => {
     emitOperatorDrop(mockScanPredicate);
 
     expect(getRecommendationsSpy).not.toHaveBeenCalled();
+    expect(component.nextOperatorSuggestion).toBeNull();
+  });
+
+  it("does not materialize when the anchor port acquired a link while the chips were up", () => {
+    const materializeSpy = vi.spyOn(TestBed.inject(OperatorRecommendationService), "materialize");
+    workflowActionService.addOperator(mockScanPredicate, mockPoint);
+    emitOperatorDrop(mockScanPredicate);
+    expect(component.nextOperatorSuggestion).not.toBeNull();
+
+    // The user hand-draws a link out of the anchor port. That gesture starts on
+    // the port, so it never fires the blank:pointerdown that dismisses the chips.
+    workflowActionService.addOperator(mockResultPredicate, mockPoint);
+    workflowActionService.addLink(mockScanResultLink);
+
+    component.materializeNextOperatorSuggestion(mockRecommendations[0]);
+
+    expect(materializeSpy).not.toHaveBeenCalled();
     expect(component.nextOperatorSuggestion).toBeNull();
   });
 
