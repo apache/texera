@@ -854,7 +854,7 @@ describe("SavedWorkflowSectionComponent", () => {
           const entries = component.searchResultsComponent.entries;
           expect(entries.map(e => e.name)).toEqual(["dup", "existing"]);
           expect(entries[0].ownerName).toBe("Angular");
-          expect(entries[0].ownerGoogleAvatar).toBe("avatar_url_2");
+          expect(entries[0].ownerAvatar).toBe("avatar_url_2");
           expect(entries[0].accessibleUserIds).toEqual([1]);
         });
 
@@ -904,7 +904,7 @@ describe("SavedWorkflowSectionComponent", () => {
 
           const entry = component.searchResultsComponent.entries[0];
           expect(entry.ownerName).toBe("NoAvatar");
-          expect(entry.ownerGoogleAvatar).toBe("");
+          expect(entry.ownerAvatar).toBe("");
         });
 
         it("does nothing when the entry has no wid", async () => {
