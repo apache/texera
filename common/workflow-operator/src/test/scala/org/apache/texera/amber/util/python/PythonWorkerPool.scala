@@ -398,15 +398,26 @@ object PythonWorkerPool extends LazyLogging {
       }
     }
 
+    /** An answer without an exit code is the worker breaking protocol, not a job
+      * that failed, so it leaves as a worker death — the same refusal to guess
+      * [[awaitReady]] makes about the startup line. Defaulting it would report the
+      * caller's own input as the thing that failed, with an empty stdout as the
+      * evidence, where a death routes to the caller's fallback instead. An absent
+      * stream is a different matter: empty is what it means.
+      */
     def run(request: ObjectNode, timeoutMillis: Long): Outcome =
       try {
         send(request, timeoutMillis)
-        val node = objectMapper.readTree(nextLine(timeoutMillis, "answer"))
-        Outcome(
-          node.path("exit").asInt(1),
-          node.path("stdout").asText(""),
-          node.path("stderr").asText("")
-        )
+        val line = nextLine(timeoutMillis, "answer")
+        val node = objectMapper.readTree(line)
+        val exit = node.path("exit")
+        if (!exit.isNumber) {
+          throw new WorkerDiedException(
+            s"python worker [$label] answered without an exit code;" +
+              s" it wrote: ${abbreviate(line)}"
+          )
+        }
+        Outcome(exit.asInt(), node.path("stdout").asText(""), node.path("stderr").asText(""))
       } catch {
         case e: WorkerDiedException => throw e
         case NonFatal(e) =>

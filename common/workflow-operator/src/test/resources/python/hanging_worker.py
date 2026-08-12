@@ -27,7 +27,8 @@ read returns on its own.
                        pipe buffer
   --babble             announce a line that is not the protocol at all
   (default)            announce readiness, then answer every request except one
-                       asking to hang: {"hang": true} is read and never answered
+                       asking to hang: {"hang": true} is read and never answered.
+                       {"drop-exit": true} is answered without an exit code
 
 Whether a request is answered is a property of the request, not of a flag,
 because the pool keys a sub-pool by script, args and env: a test that needs a
@@ -72,6 +73,12 @@ def main() -> None:
             request = {}
         if request.get("hang"):
             _sleep_forever()
+        if request.get("drop-exit"):
+            # Parses as the protocol, but leaves out the one field the parent
+            # cannot supply for itself.
+            sys.stdout.write(json.dumps({"stdout": "", "stderr": ""}) + "\n")
+            sys.stdout.flush()
+            continue
         sys.stdout.write(json.dumps({"exit": 0, "stdout": "", "stderr": ""}) + "\n")
         sys.stdout.flush()
 

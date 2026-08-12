@@ -244,6 +244,19 @@ final class PythonWorkerPoolSpec extends AnyFunSuite {
     assert(outcomes.forall(_.exit == 0))
   }
 
+  test("a worker that answers without an exit code is reported as the worker") {
+    // Not as a job that failed: a default would name the caller's own request as
+    // what went wrong, with an empty stdout as the evidence.
+    val request = objectMapper.createObjectNode().put("drop-exit", true)
+
+    val thrown = intercept[PythonWorkerPool.WorkerDiedException] {
+      call(Seq.empty, request, ShortTimeouts)
+    }
+
+    assert(thrown.getMessage.contains("without an exit code"))
+    assert(thrown.getMessage.contains("stdout"))
+  }
+
   test("a worker whose first line is not the protocol is killed and reported") {
     val thrown = interceptBounded(hangingCall(Seq("--babble")))
 
