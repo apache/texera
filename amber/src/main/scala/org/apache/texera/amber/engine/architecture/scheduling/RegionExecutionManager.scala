@@ -19,17 +19,24 @@
 
 package org.apache.texera.amber.engine.architecture.scheduling
 
-import org.apache.pekko.pattern.gracefulStop
+import com.twitter.util.Promise
 import com.twitter.util.{Future, JavaTimer, Return, Throw, Timer}
+
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicReference
+
+import org.apache.pekko.pattern.gracefulStop
+
 import org.apache.texera.amber.core.state.State
 import org.apache.texera.amber.core.storage.{DocumentFactory, VFSURIFactory}
 import org.apache.texera.amber.core.virtualidentity.ActorVirtualIdentity
 import org.apache.texera.amber.core.workflow.{GlobalPortIdentity, PhysicalLink, PhysicalOp}
 import org.apache.texera.amber.engine.architecture.common.{
+  ExecutorDeployment,
   PekkoActorRefMappingService,
-  PekkoActorService,
-  ExecutorDeployment
+  PekkoActorService
 }
+import org.apache.texera.amber.engine.architecture.coordinator.Coordinator
 import org.apache.texera.amber.engine.architecture.coordinator.execution.{
   OperatorExecution,
   RegionExecution,
@@ -51,17 +58,14 @@ import org.apache.texera.amber.engine.architecture.scheduling.config.{
   ResourceConfig
 }
 import org.apache.texera.amber.engine.architecture.sendsemantics.partitionings.Partitioning
-import org.apache.texera.amber.engine.common.{AmberLogging, Utils}
 import org.apache.texera.amber.engine.common.FutureBijection._
 import org.apache.texera.amber.engine.common.rpc.AsyncRPCClient
 import org.apache.texera.amber.engine.common.virtualidentity.util.COORDINATOR
+import org.apache.texera.amber.engine.common.{AmberLogging, Utils}
 import org.apache.texera.web.SessionState
 import org.apache.texera.web.model.websocket.event.RegionStateEvent
 
-import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicReference
 import scala.concurrent.duration.{Duration => ScalaDuration}
-import org.apache.texera.amber.engine.architecture.coordinator.Coordinator
 
 object RegionExecutionManager {
 
@@ -201,32 +205,27 @@ class RegionExecutionManager(
           }
       }.toSeq
 
-    val endWorkerFuture: Future[Unit] =
+    val terminationAttempt =
       Future
         .collect(endWorkerRequests)
-        .within(killTimeout)
         .unit
+        .flatMap { _ =>
+          // 2. Only send GracefulStops after all EndWorkers have succeeded.
+          val gracefulStopRequests =
+            regionExecution.getAllOperatorExecutions.flatMap {
+              case (_, opExec) =>
+                opExec.getWorkerIds.map { workerId =>
+                  val actorRef = actorRefService.getActorRef(workerId)
+                  gracefulStop(actorRef, ScalaDuration(5, TimeUnit.SECONDS)).asTwitter()
+                }
+            }.toSeq
 
-    // 2. Send GracefulStops with timeout
-    val gracefulStopRequests: Future[Unit] =
-      endWorkerFuture.flatMap { _ =>
-        val gracefulStops =
-          regionExecution.getAllOperatorExecutions.flatMap {
-            case (_, opExec) =>
-              opExec.getWorkerIds.map { workerId =>
-                val actorRef = actorRefService.getActorRef(workerId)
-                gracefulStop(actorRef, ScalaDuration(5, TimeUnit.SECONDS)).asTwitter()
-              }
-          }.toSeq
+          Future.collect(gracefulStopRequests).unit
+        }
+        .within(killTimeout)
 
-        Future
-          .collect(gracefulStops)
-          .within(killTimeout)
-          .unit
-      }
-
-    // 3. Cleanup only after all gracefulStops succeed
-    gracefulStopRequests.transform {
+    // 3. Cleanup only after graceful termination succeeds.
+    terminationAttempt.transform {
       case Return(_) =>
         logger.debug(s"Region ${region.id.id} successfully terminated.")
         val allWorkerIds = regionExecution.getAllOperatorExecutions.toSeq.flatMap {
@@ -238,8 +237,9 @@ class RegionExecutionManager(
               opExec.getWorkerExecution(workerId).forceTerminate()
             }
         }
-        actorService.self ! Coordinator.CleanupWorkerChannels(allWorkerIds)
-        Future.Unit // propagate success
+        val cleanupPromise = Promise[Unit]()
+        actorService.self ! Coordinator.CleanupWorkerChannels(allWorkerIds, cleanupPromise)
+        cleanupPromise
       case Throw(err) =>
         logger.warn(s"Error when terminating region ${region.id}.")
         Future.exception(err) // propagate failure

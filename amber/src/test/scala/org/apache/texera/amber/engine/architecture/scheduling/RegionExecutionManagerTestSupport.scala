@@ -20,8 +20,10 @@
 package org.apache.texera.amber.engine.architecture.scheduling
 
 import com.twitter.util.{Await, Duration, Future}
+
 import org.apache.pekko.actor.{Actor, ActorRef, Props}
 import org.apache.pekko.testkit.{TestActorRef, TestKit}
+
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.virtualidentity.{
   ActorVirtualIdentity,
@@ -39,6 +41,7 @@ import org.apache.texera.amber.engine.architecture.common.{
   PekkoActorService,
   WorkflowActor
 }
+import org.apache.texera.amber.engine.architecture.coordinator.Coordinator
 import org.apache.texera.amber.engine.architecture.coordinator.execution.WorkflowExecution
 import org.apache.texera.amber.engine.architecture.messaginglayer.{
   NetworkInputGateway,
@@ -57,7 +60,7 @@ import org.apache.texera.amber.engine.common.ambermessage.WorkflowFIFOMessage
 import org.apache.texera.amber.engine.common.rpc.AsyncRPCClient
 import org.apache.texera.amber.engine.common.virtualidentity.util.COORDINATOR
 import org.apache.texera.amber.util.VirtualIdentityUtils
-import org.apache.texera.amber.engine.architecture.coordinator.Coordinator
+
 import scala.collection.mutable
 
 object RegionExecutionManagerTestSupport {
@@ -166,16 +169,17 @@ object RegionExecutionManagerTestSupport {
 
     override def loadFromCheckpoint(chkpt: CheckpointState): Unit = ()
 
-    override def receive: Receive = {
-      case Coordinator.CleanupWorkerChannels(workerIds) =>
-        workerIds.foreach { workerId =>
-          rpcProbe.inputGateway.removeControlChannel(workerId)
-          rpcProbe.outputGateway.removeControlChannel(workerId)
-          actorRefMappingService.removeActorRef(workerId)
-        }
+    override def receive: Receive =
+      handleCleanupWorkerChannels orElse super.receive
 
-      case msg =>
-        super.receive(msg)
+    private def handleCleanupWorkerChannels: Receive = {
+      case Coordinator.CleanupWorkerChannels(workerIds, completionPromise) =>
+        Coordinator.cleanupWorkerChannels(
+          workerIds,
+          rpcProbe.asyncRPCClient,
+          actorRefMappingService
+        )
+        completionPromise.setDone()
     }
   }
 
