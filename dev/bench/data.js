@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1786453270910,
+  "lastUpdate": 1786540408407,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -8742,6 +8742,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 721.6483744965528,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Xinyuan Lin",
+            "username": "aglinxinyuan",
+            "email": "xinyual3@uci.edu"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "5021bc6f1a96d00cb26aa9c3a82c86fee67da0a9",
+          "message": "test(frontend): click the toolbar buttons rather than calling their handlers (#7547)\n\n### What changes were proposed in this PR?\n\nThe suite calls the handlers directly, which is not the same thing:\ncoverage for `(click)=\"onClickX()\"` lands on the generated listener\nbody, so a button wired to the wrong handler — or to none — looks\nperfectly tested today.\n\nAdds 2 tests that click the real elements. The first is table-driven\nover six visually near-identical icon buttons, since a copy-paste\nleaving two of them on the same handler is the realistic defect. The\nsecond asserts the converse: clicking auto-layout must not also reset\nthe panels.\n\n**Verified by mutation**, all reverted (template diff empty):\n\n| Mutation | Result |\n|---|---|\n| auto layout wired to reset panels | red |\n| close panels wired to reset panels | red |\n| generate report unwired | red |\n| reset zoom wired to auto layout | red |\n| add comment unwired | red |\n| reset panels wired to close panels | red |\n\n### Deliberately not included\n\nThe four display switches live in the `#executionSettings` popover,\nwhich ng-zorro instantiates into a CDK overlay only on open. Opening the\nfirst `NzPopoverDirective` on the page yields one switch, not four —\nlocating the right one needs more overlay plumbing than four lines\njustify. They remain uncovered, and the issue records how to reach them.\n\nNo production file is touched.\n\n### Any related issues, documentation, discussions?\n\nCloses #7546\n\n### How was this PR tested?\n\n```\nnpx ng test --watch=false --include=\"**/menu.component.spec.ts\"\n```\n\n```\n Test Files  1 passed (1)\n      Tests  83 passed (83)\n```\n\n2 new on top of the existing 81. `yarn format:ci` passes.\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Claude Code (Opus 5)",
+          "timestamp": "2026-08-12T05:34:38Z",
+          "url": "https://github.com/apache/texera/commit/5021bc6f1a96d00cb26aa9c3a82c86fee67da0a9"
+        },
+        "date": 1786540407995,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 559.7401613404836,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 1062.551337841944,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 1151.6297164685193,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 740.6710518244424,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 1091.295423735459,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 1155.2330221239106,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 780.803551474335,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 1110.3000082106796,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 1139.6692756606512,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 655.6460116409924,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 895.267195232368,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 922.2647858128369,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 676.5139031422523,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 893.2238399143179,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 918.3177043638242,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 683.8132796389834,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 885.379098147796,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 907.9402186861353,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 426.54726555416426,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 504.1195247496592,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 506.25213547490944,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 409.7903228129599,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 490.4023618217342,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 494.3610553427684,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 388.19924655444726,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 476.98104925961,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 482.21080510850237,
             "unit": "tuples/sec"
           }
         ]
