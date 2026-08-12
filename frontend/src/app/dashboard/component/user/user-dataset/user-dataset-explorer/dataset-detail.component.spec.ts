@@ -276,6 +276,229 @@ describe("DatasetDetailComponent upload queue", () => {
     });
   });
 
+  /**
+   * The explorer's toolbar and upload panel are template-only: whether a download is offered at all,
+   * which of the maximize/minimize pair is showing, and what an in-flight upload reports. The suite
+   * around this one drives component state and never asserts on what is rendered.
+   */
+  describe("rendered explorer", () => {
+    /**
+     * Applies some state and renders the "Versions & Files" tab. nz-tabs only instantiates the
+     * active tab, and the toolbar under test lives in the second one, so it has to be selected
+     * before anything in it exists to assert on.
+     */
+    function render(setup: (c: DatasetDetailComponent) => void = () => {}): HTMLElement {
+      setup(component);
+      fixture.detectChanges();
+      const host = fixture.nativeElement as HTMLElement;
+      const tabButtons = host.querySelectorAll<HTMLElement>(".ant-tabs-tab-btn");
+      const versionsTab = Array.from(tabButtons).find(tab => tab.textContent?.includes("Versions & Files"));
+      if (versionsTab && !versionsTab.closest(".ant-tabs-tab")?.classList.contains("ant-tabs-tab-active")) {
+        versionsTab.click();
+        fixture.detectChanges();
+      }
+      return host;
+    }
+
+    /** The button carrying the given tooltip, or undefined. */
+    function byTooltip(title: string): HTMLButtonElement | undefined {
+      return Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>("button")).find(
+        b => b.getAttribute("nz-tooltip") === title
+      );
+    }
+
+    const aVersion = { dvid: 1, did: 1, creatorUid: 1, name: "v1" } as any;
+
+    describe("download gating", () => {
+      it("offers the file download to a logged-in user who is allowed to download", () => {
+        render(c => {
+          c.selectedVersion = aVersion;
+          c.isLogin = true;
+          vi.spyOn(c, "isDownloadAllowed").mockReturnValue(true);
+        });
+
+        expect(byTooltip("Download the file")!.disabled).toBe(false);
+      });
+
+      it("withholds it from a signed-out visitor", () => {
+        render(c => {
+          c.selectedVersion = aVersion;
+          c.isLogin = false;
+          vi.spyOn(c, "isDownloadAllowed").mockReturnValue(true);
+        });
+
+        expect(byTooltip("Download the file")!.disabled).toBe(true);
+      });
+
+      it("withholds it when the dataset is not downloadable", () => {
+        // Both halves of the guard matter: being signed in is not on its own permission to take
+        // a copy of someone else's non-downloadable dataset.
+        render(c => {
+          c.selectedVersion = aVersion;
+          c.isLogin = true;
+          vi.spyOn(c, "isDownloadAllowed").mockReturnValue(false);
+        });
+
+        expect(byTooltip("Download the file")!.disabled).toBe(true);
+      });
+
+      it("applies the same rule to the whole-version download", () => {
+        render(c => {
+          c.selectedVersion = aVersion;
+          c.isLogin = true;
+          vi.spyOn(c, "isDownloadAllowed").mockReturnValue(false);
+        });
+
+        expect(byTooltip("Download Dataset")!.disabled).toBe(true);
+      });
+
+      it("offers no download at all until a version is selected", () => {
+        render(c => {
+          c.selectedVersion = undefined;
+          c.isLogin = true;
+        });
+
+        expect(byTooltip("Download the file")).toBeUndefined();
+        expect(byTooltip("Download Dataset")).toBeUndefined();
+      });
+    });
+
+    describe("view size toggle", () => {
+      it("offers only Maximize while the view is normal", () => {
+        render(c => {
+          c.selectedVersion = aVersion;
+          c.isMaximized = false;
+        });
+
+        expect(byTooltip("Maximize View")).toBeDefined();
+        expect(byTooltip("Minimize View")).toBeUndefined();
+      });
+
+      it("offers only Minimize once the view is maximized", () => {
+        // Showing both, or the wrong one, leaves the user with no way back.
+        render(c => {
+          c.selectedVersion = aVersion;
+          c.isMaximized = true;
+        });
+
+        expect(byTooltip("Minimize View")).toBeDefined();
+        expect(byTooltip("Maximize View")).toBeUndefined();
+      });
+    });
+
+    describe("file heading", () => {
+      it("offers the copy-path control only once a file is on screen", () => {
+        const el = render(c => (c.currentDisplayedFileName = ""));
+        expect(el.querySelector(".copy-path-btn")).toBeNull();
+
+        render(c => (c.currentDisplayedFileName = "a/b.csv"));
+        expect((fixture.nativeElement as HTMLElement).querySelector(".copy-path-btn")).not.toBeNull();
+      });
+
+      it("copies the path of the file being shown", () => {
+        const spy = vi.spyOn(component, "copyCurrentFilePath").mockResolvedValue(undefined);
+        const el = render(c => (c.currentDisplayedFileName = "a/b.csv"));
+
+        el.querySelector<HTMLElement>(".copy-path-btn")!.click();
+
+        expect(spy).toHaveBeenCalledTimes(1);
+      });
+
+      it("shows the file size in human units, and nothing when it is unknown", () => {
+        const el = render(c => {
+          c.currentDisplayedFileName = "a/b.csv";
+          c.currentFileSize = 2048;
+        });
+        expect(el.querySelector(".file-size")?.textContent).toContain("2");
+
+        render(c => (c.currentFileSize = undefined));
+        expect((fixture.nativeElement as HTMLElement).querySelector(".file-size")).toBeNull();
+      });
+    });
+
+    describe("version details", () => {
+      it("reports the version size and creation time once a version is chosen", () => {
+        const el = render(c => {
+          c.selectedVersion = aVersion;
+          c.currentDatasetVersionSize = 1024;
+          c.selectedVersionCreationTime = "2026-01-02 03:04";
+        });
+
+        expect(el.querySelector(".version-size")?.textContent).toContain("Version Size:");
+        expect(el.querySelector(".version-date")?.textContent).toContain("2026-01-02 03:04");
+      });
+
+      it("hides the creation time when the version has none", () => {
+        const el = render(c => {
+          c.selectedVersion = aVersion;
+          c.selectedVersionCreationTime = "";
+        });
+
+        expect(el.querySelector(".version-date")).toBeNull();
+      });
+    });
+
+    describe("upload progress", () => {
+      /**
+       * Puts one task on the panel in the given state and opens it. The panel is gated on the
+       * separate activeUploads counter rather than on uploadTasks, and ng-zorro collapses it by
+       * default, so both have to be arranged before its body exists.
+       */
+      function withTask(over: Record<string, unknown>): HTMLElement {
+        const el = render(c => {
+          (c as any).activeUploads = 1;
+          (c as any).uploadTasks = [
+            {
+              filePath: "big.csv",
+              percentage: 40,
+              status: "uploading",
+              uploadSpeed: 1024,
+              totalTime: 12,
+              estimatedTimeRemaining: 30,
+              ...over,
+            },
+          ];
+        });
+        const header = Array.from(el.querySelectorAll<HTMLElement>(".ant-collapse-header")).find(h =>
+          (h.textContent || "").includes("Uploading:")
+        );
+        header!.click();
+        fixture.detectChanges();
+        return el;
+      }
+
+      it("shows no statistics while an upload is still initializing", () => {
+        // There is nothing to report yet; showing a 0 B/s row reads as a stalled upload.
+        const el = withTask({ status: "initializing" });
+
+        expect(el.querySelector(".upload-stats")).toBeNull();
+      });
+
+      it("reports speed and both timings while an upload runs", () => {
+        const el = withTask({ status: "uploading" });
+
+        const stats = el.querySelector(".upload-stats")!;
+        expect(stats.textContent).toContain("elapsed");
+        expect(stats.textContent).toContain("left");
+        expect(stats.querySelector(".fixed-width-speed")).not.toBeNull();
+      });
+
+      it("replaces the live figures with a total once the upload finishes", () => {
+        const el = withTask({ status: "finished" });
+
+        const stats = el.querySelector(".upload-stats")!;
+        expect(stats.textContent).toContain("Upload time:");
+        expect(stats.textContent).not.toContain("left");
+      });
+
+      it("reports a total for an aborted upload too", () => {
+        const el = withTask({ status: "aborted" });
+
+        expect(el.querySelector(".upload-stats")!.textContent).toContain("Upload time:");
+      });
+    });
+  });
+
   describe("contributor cards", () => {
     const full: Contributor = {
       name: "Contributor A",

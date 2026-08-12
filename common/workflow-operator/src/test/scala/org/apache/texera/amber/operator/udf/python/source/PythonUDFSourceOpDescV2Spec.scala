@@ -24,6 +24,7 @@ import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
+import org.apache.texera.amber.operator.udf.python.UiUDFParameter
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -32,6 +33,13 @@ class PythonUDFSourceOpDescV2Spec extends AnyFlatSpec with Matchers {
 
   private val workflowId = WorkflowIdentity(1L)
   private val executionId = ExecutionIdentity(1L)
+
+  private def uiParameter(name: String, value: String): UiUDFParameter = {
+    val parameter = new UiUDFParameter
+    parameter.attribute = new Attribute(name, AttributeType.INTEGER)
+    parameter.value = value
+    parameter
+  }
 
   "PythonUDFSourceOpDescV2.operatorInfo" should
     "advertise the 1-out Python UDF source (no inputs, one output, reconfigurable)" in {
@@ -70,6 +78,24 @@ class PythonUDFSourceOpDescV2Spec extends AnyFlatSpec with Matchers {
     intercept[IllegalArgumentException] { d.getPhysicalOp(workflowId, executionId) }
   }
 
+  it should "inject configured UI parameters into the generated Python code" in {
+    val d = new PythonUDFSourceOpDescV2
+    d.code = """from pytexera import *
+        |
+        |class GenerateOperator(UDFSourceOperator):
+        |    def produce(self):
+        |        yield
+        |""".stripMargin
+    d.uiParameters = List(uiParameter("count", "7"))
+
+    d.getPhysicalOp(workflowId, executionId).opExecInitInfo match {
+      case OpExecWithCode(code, "python") =>
+        code should include("def _texera_injected_ui_parameters")
+        code should include("self.decode_python_template")
+      case other => fail(s"expected Python OpExecWithCode, got $other")
+    }
+  }
+
   it should "reject a blank virtual-environment name when the default env is disabled" in {
     val d = new PythonUDFSourceOpDescV2
     d.code = "yield"
@@ -104,6 +130,7 @@ class PythonUDFSourceOpDescV2Spec extends AnyFlatSpec with Matchers {
     d.defaultEnv = false
     d.envName = "venv"
     d.columns = List(new Attribute("a", AttributeType.STRING))
+    d.uiParameters = List(uiParameter("count", "7"))
     val restored = objectMapper.readValue(objectMapper.writeValueAsString(d), classOf[LogicalOp])
     restored shouldBe a[PythonUDFSourceOpDescV2]
     val p = restored.asInstanceOf[PythonUDFSourceOpDescV2]
@@ -112,5 +139,7 @@ class PythonUDFSourceOpDescV2Spec extends AnyFlatSpec with Matchers {
     p.defaultEnv shouldBe false
     p.envName shouldBe "venv"
     p.columns shouldBe List(new Attribute("a", AttributeType.STRING))
+    p.uiParameters.map(_.attribute) shouldBe List(new Attribute("count", AttributeType.INTEGER))
+    p.uiParameters.map(_.value) shouldBe List("7")
   }
 }

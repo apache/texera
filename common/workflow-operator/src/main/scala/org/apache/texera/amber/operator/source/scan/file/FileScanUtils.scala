@@ -110,22 +110,21 @@ private[file] object FileScanUtils {
             TupleLike(fields.toSeq: _*)
         }
       } else {
-        fileEntries.flatMap(entry =>
-          new BufferedReader(new InputStreamReader(entry, fileEncoding.getCharset))
+        fileEntries.flatMap { entry =>
+          val lines = new BufferedReader(new InputStreamReader(entry, fileEncoding.getCharset))
             .lines()
             .iterator()
             .asScala
-            .slice(
-              fileScanOffset.getOrElse(0),
-              fileScanOffset.getOrElse(0) + fileScanLimit.getOrElse(Int.MaxValue)
-            )
+            .drop(fileScanOffset.getOrElse(0))
+          fileScanLimit
+            .fold(lines)(lines.take)
             .map(line =>
               TupleLike(attributeType match {
                 case FileAttributeType.SINGLE_STRING => line
                 case _                               => parseField(line, attributeType.getType)
               })
             )
-        )
+        }
       }
 
     new AutoClosingIterator(rawIterator, () => closeables.foreach(_.close()))

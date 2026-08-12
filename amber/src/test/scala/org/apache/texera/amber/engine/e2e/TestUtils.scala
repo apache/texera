@@ -260,7 +260,6 @@ object TestUtils {
     user.setUid(Integer.valueOf(id))
     user.setName(s"test_user_$id")
     user.setRole(UserRoleEnum.ADMIN)
-    user.setPassword("123")
     user.setEmail(s"test_user_$id@test.com")
     user
   }

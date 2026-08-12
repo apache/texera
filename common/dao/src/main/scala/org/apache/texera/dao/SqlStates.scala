@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,17 +17,18 @@
  * under the License.
  */
 
-.login-form-button {
-  width: 100%;
-}
+package org.apache.texera.dao
 
-.form {
-  border: 2px solid black;
-  border-radius: 5px;
-  margin: 16px;
-  padding: 20px;
+/**
+  * SQLSTATE codes callers match on when turning a `DataAccessException` into an HTTP response.
+  *
+  * These live beside [[SqlServer]] rather than in whichever resource happens to need one first:
+  * the code is a property of the database, not of any one endpoint, and the callers that catch it
+  * sit in unrelated packages. A constant owned by one of those packages is unreachable from the
+  * rest, so each would keep its own literal.
+  */
+object SqlStates {
 
-  ::ng-deep nz-form-item {
-    margin-bottom: 12px;
-  }
+  /** Postgres unique-violation: a unique constraint or primary key was already satisfied. */
+  val UNIQUE_VIOLATION = "23505"
 }
