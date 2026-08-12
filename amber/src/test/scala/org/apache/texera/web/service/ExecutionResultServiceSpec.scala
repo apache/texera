@@ -101,6 +101,9 @@ import scala.collection.immutable.ListMap
 import scala.collection.mutable
 import scala.jdk.CollectionConverters._
 import scala.reflect.ClassTag
+import java.util.UUID
+import scala.concurrent.Await
+import scala.concurrent.duration.DurationInt
 
 class ExecutionResultServiceSpec
     extends AnyFlatSpec
@@ -124,11 +127,15 @@ class ExecutionResultServiceSpec
 
   override protected def beforeAll(): Unit = {
     initializeDBAndReplaceDSLContext()
-    system = ActorSystem("ExecutionResultServiceSpec")
+    // Suffixed so two ActorSystems can never contend for the same name if this spec is ever run
+    // alongside another in one JVM.
+    system = ActorSystem(s"ExecutionResultServiceSpec-${UUID.randomUUID()}")
   }
 
   override protected def afterAll(): Unit = {
-    system.terminate()
+    // terminate() is asynchronous; without the await the JVM can move on to shutdownDB() while the
+    // dispatcher threads are still running, which is how this kind of fixture starts hanging.
+    Await.ready(system.terminate(), 30.seconds)
     shutdownDB()
   }
 
@@ -172,7 +179,13 @@ class ExecutionResultServiceSpec
     executionsDao = new WorkflowExecutionsDao(getDSLContext.configuration())
   }
 
+  /** Every ResultEvents subscription made during a test, disposed when that test ends. */
+  private val openObservers = mutable.ArrayBuffer.empty[Disposable]
+
   override protected def afterEach(): Unit = {
+    openObservers.foreach(_.dispose())
+    openObservers.clear()
+
     val ctx = getDSLContext
     // Scope every delete to the test's own ids so this spec stays safe
     // if it ever shares a DB with another spec.
@@ -1014,6 +1027,10 @@ class ExecutionResultServiceSpec
 
       // The persisted size must be the document's own file size, not some other
       // measure of the result (a row count, or a hard-coded zero).
+      // The persisted size must be the document's own file size, not some other
+      // measure of the result (a row count, or a hard-coded zero). Nothing is closed
+      // afterwards because VirtualDocument exposes no close(); its only teardown is
+      // clear(), which deletes the data rather than releasing a handle.
       val expectedSize = DocumentFactory.openDocument(uri)._1.getTotalFileSize
       expectedSize should not be 0L
       storedResultSize(executionId, "erss-snapshot-stats") shouldBe expectedSize
@@ -1323,13 +1340,19 @@ class ExecutionResultServiceSpec
   /** A Cancellable that counts cancellations, standing in for AmberRuntime's scheduled poll. */
   private final class RecordingCancellable(initiallyCancelled: Boolean = false)
       extends Cancellable {
+
+    /** Counts calls, not successful cancellations -- the tests assert how often production asks. */
     var cancelCount = 0
     private var cancelled = initiallyCancelled
 
+    // Follows Cancellable's contract: true only if THIS call did the cancelling. Returning true
+    // unconditionally would quietly diverge from the real scheduler if production ever branches on
+    // the result.
     override def cancel(): Boolean = {
       cancelCount += 1
+      val didCancel = !cancelled
       cancelled = true
-      true
+      didCancel
     }
 
     override def isCancelled: Boolean = cancelled
@@ -1355,10 +1378,15 @@ class ExecutionResultServiceSpec
     private val collected = mutable.ArrayBuffer.empty[TexeraWebSocketEvent]
     val errors: mutable.ArrayBuffer[Throwable] = mutable.ArrayBuffer.empty[Throwable]
 
-    workflowStateStore.resultStore.getWebsocketEventObservable.subscribe(
-      (evts: Iterable[TexeraWebSocketEvent]) => collected ++= evts,
-      (err: Throwable) => errors += err
-    )
+    // Held and disposed in afterEach: an observer left subscribed keeps collecting into this
+    // buffer after its test has finished, and retains the buffer with it.
+    private val subscription: Disposable =
+      workflowStateStore.resultStore.getWebsocketEventObservable.subscribe(
+        (evts: Iterable[TexeraWebSocketEvent]) => collected ++= evts,
+        (err: Throwable) => errors += err
+      )
+
+    openObservers += subscription
 
     def updates: List[WebResultUpdateEvent] =
       collected.collect { case e: WebResultUpdateEvent => e }.toList
