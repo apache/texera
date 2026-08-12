@@ -494,9 +494,12 @@ object TransformVerificationRunner {
                 case (label, _) =>
                   handler.unfillableVariants.exists(kind => label.startsWith(s"$kind("))
               }
+          // No nulls case here: a curated fixture is assembled for one operator,
+          // and emptying cells in rows chosen to arrange something (a join that
+          // pairs, a predicate that matches a proper subset) asks a different
+          // question than the one they were written for.
           primary.map { case (label, o) => (label, o, in) } ++
-            handler.extraScenarios(testRoot) ++
-            handler.sharedFixture.toSeq.flatMap(nullsCase(opClass, op, testRoot, _))
+            handler.extraScenarios(testRoot)
         case None =>
           val fixture = fixtureFor(opClass)
           val vs = ConfigGenerator
@@ -589,10 +592,9 @@ object TransformVerificationRunner {
     * property of the operator, and multiplying it across every knob would buy more
     * runtime than signal.
     *
-    * The table it runs on is whichever SHARED one the operator already runs on:
-    * for the auto tier the one [[fixtureFor]] resolves, and for a curated handler
-    * the table it names through [[TransformHandler.sharedFixture]]. A handler that
-    * assembled its fixture for one operator names none and sits this out.
+    * The table it runs on is the shared one [[fixtureFor]] resolves, so this is an
+    * auto-tier case only: a curated handler assembles its fixture for one operator
+    * and there is no shared table to re-derive with holes.
     */
   private def nullsCase(
       opClass: Class[_ <: LogicalOp],

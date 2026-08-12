@@ -103,19 +103,6 @@ trait TransformHandler {
     * the hostile value fine. Whoever rewrites the fixture sees it and can drop it.
     */
   def unfillableVariants: Set[String] = Set.empty
-
-  /** The [[SharedFixture]] every port of [[fixture]] is written from, when there
-    * is one. Answering `Some` is what earns the `nulls` case, which the runner
-    * builds by writing that same table with one cell per column emptied.
-    *
-    * Default `None`, and that is the answer for a fixture assembled for one
-    * operator: its rows were chosen to arrange something (a join that pairs, a
-    * predicate that matches a proper subset), and emptying cells in it asks a
-    * different question than the one it was written for. A shared table is
-    * different in kind — it already answers for a whole family, and it says which
-    * of its columns are load-bearing through [[SharedFixture.keepFilled]].
-    */
-  def sharedFixture: Option[SharedFixture] = None
 }
 
 /**
