@@ -26,7 +26,7 @@ import java.lang.annotation.Target;
 
 /**
  * Test-only metadata for transform verification: names the column in the shared
- * verification fixture (CanonicalFixture) that should fill this
+ * verification fixture the operator runs on that should fill this
  * {@code @AutofillAttributeName} field when the operator is auto-configured.
  *
  * <p>It lets a field declare a <em>semantic</em> sample that the column's

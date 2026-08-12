@@ -140,27 +140,6 @@ object CuratedHandlers {
   private def isConcrete(cls: Class[_]): Boolean =
     !java.lang.reflect.Modifier.isAbstract(cls.getModifiers)
 
-  /** Auto-discovery factory for the [[SklearnTrainingTransformHandler]] family:
-    * every concrete `SklearnTrainingOpDesc` subclass, instantiated by
-    * reflection.
-    */
-  private def trainingHandler(cls: Class[_ <: LogicalOp]): SklearnTrainingTransformHandler =
-    new SklearnTrainingTransformHandler {
-      override val opDescClass: Class[_ <: LogicalOp] = cls
-      override protected def newDesc(): SklearnTrainingOpDesc =
-        cls.getDeclaredConstructor().newInstance().asInstanceOf[SklearnTrainingOpDesc]
-    }
-
-  /** Auto-discovery factory for the [[SklearnClassifierTransformHandler]]
-    * family: every concrete `SklearnClassifierOpDesc` subclass.
-    */
-  private def classifierHandler(cls: Class[_ <: LogicalOp]): SklearnClassifierTransformHandler =
-    new SklearnClassifierTransformHandler {
-      override val opDescClass: Class[_ <: LogicalOp] = cls
-      override protected def newDesc(): SklearnClassifierOpDesc =
-        cls.getDeclaredConstructor().newInstance().asInstanceOf[SklearnClassifierOpDesc]
-    }
-
   /** Auto-discovery factory for the [[SklearnAdvancedTrainerTransformHandler]]
     * family: every concrete `SklearnMLOperatorDescriptor` subclass.
     */
@@ -179,30 +158,38 @@ object CuratedHandlers {
     * no op is double-counted. An op that also has a hand-written handler needs no
     * exclusion here — [[all]] puts the hand-written one later, so it wins.
     */
-  private def sklearnAutoHandlers: Seq[TransformHandler] = {
-    val trainingBase = classOf[SklearnTrainingOpDesc]
-    val classifierBase = classOf[SklearnClassifierOpDesc]
-    val advancedBase = classOf[SklearnMLOperatorDescriptor[_]]
+  /** The concrete leaf ops under one sklearn base, excluding the base itself.
+    *
+    * No hard-coded baseline: a new sklearn operator is picked up automatically
+    * the moment it is registered in LogicalOp's @JsonSubTypes — zero per-op code
+    * here. The test suite (ConfigCoverageSpec / TransformVerificationRunnerSpec)
+    * is the safety net: a mis-discovered or misbehaving op fails its own parity
+    * check rather than being frozen by an assertion.
+    */
+  private def sklearnFamily(base: Class[_]): Seq[Class[_ <: LogicalOp]] =
+    registeredOps.filter(c => base.isAssignableFrom(c) && c != base && isConcrete(c))
 
-    val trainingOps = registeredOps.filter(c =>
-      trainingBase.isAssignableFrom(c) && c != trainingBase && isConcrete(c)
-    )
-    val classifierOps = registeredOps.filter(c =>
-      classifierBase.isAssignableFrom(c) && c != classifierBase && isConcrete(c)
-    )
-    val advancedOps = registeredOps.filter(c =>
-      advancedBase.isAssignableFrom(c) && c != advancedBase && isConcrete(c)
-    )
+  private def trainingOps = sklearnFamily(classOf[SklearnTrainingOpDesc])
+  private def classifierOps = sklearnFamily(classOf[SklearnClassifierOpDesc])
+  private def advancedOps = sklearnFamily(classOf[SklearnMLOperatorDescriptor[_]])
 
-    // No hard-coded baseline: a new sklearn operator is picked up automatically
-    // the moment it is registered in LogicalOp's @JsonSubTypes — zero per-op
-    // code here. The test suite (ConfigCoverageSpec / TransformVerificationRunnerSpec)
-    // is the safety net: a mis-discovered or misbehaving op fails its own parity
-    // check rather than being frozen by an assertion.
-    trainingOps.map(trainingHandler) ++
-      classifierOps.map(classifierHandler) ++
-      advancedOps.map(advancedTrainerHandler)
-  }
+  /** Every sklearn op, whichever tier serves it. `X = table.drop(target)` feeds
+    * each remaining column to `fit`, so all three families take the numeric
+    * table rather than canonical, whose string columns end the fit.
+    */
+  val sklearnNumericClasses: Set[Class[_ <: LogicalOp]] =
+    (trainingOps ++ classifierOps ++ advancedOps).toSet
+
+  /** The sklearn family still served by a curated handler: an advanced trainer
+    * holds a `paraList` of `HyperParameters[T]`, whose `T` is the operator's own
+    * parameter enum — erased, and resolvable only from the descriptor's generic
+    * superclass, which [[ConfigGenerator]] cannot do. The training and
+    * classifier families need no handler: they take the numeric table through
+    * [[TransformVerificationRunner.fixtureFor]] and the text branch through an
+    * [[TransformVerificationRunner.AltScenario]].
+    */
+  private def sklearnAutoHandlers: Seq[TransformHandler] =
+    advancedOps.map(advancedTrainerHandler)
 
   /** Op classes served by the auto-discovered sklearn tier. Exposed so
     * [[TransformVerificationRunner.disposition]] can label them `ml-auto`
@@ -278,8 +265,8 @@ object CuratedHandlers {
   }
 
   /** Two-input balanced binary-classification fixture (train on port 0, test on
-    * port 1) for the Sklearn classifier/regressor operators. Both ports get the
-    * same rows from the shared [[SklearnFixture]] resource.
+    * port 1) from the shared [[SklearnFixture]] resource. Both ports get the
+    * same rows.
     */
   def writeClassification2Input(testRoot: Path): (Path, Path) = {
     val inputs = SklearnFixture.write(testRoot, inputPortCount = 2, withGaps = false)
@@ -911,93 +898,6 @@ object FilledAreaPlotVisualizationHandler extends TransformHandler {
     desc.facetColumn = false
 
     (desc, CanonicalFixture.writeInputs(testRoot, 1))
-  }
-}
-
-/** Shared fixture for the Sklearn training operators: a small, separable
-  * 2-feature binary-classification dataset (numeric only — the canonical
-  * auto-fixture's string column can't be fit by sklearn). The fitted model
-  * lands in a BINARY column the comparator ignores (functionally equivalent
-  * but not bit-identical across paths); model_name and output shape are still
-  * compared, so each operator is verified to run to completion on both paths.
-  * Each concrete handler only supplies its estimator-specific OpDesc.
-  */
-abstract class SklearnTrainingTransformHandler extends TransformHandler {
-  protected def newDesc(): SklearnTrainingOpDesc
-
-  override def sharedFixture: Option[SharedFixture] = Some(SklearnFixture)
-
-  override def fixture(testRoot: Path): (LogicalOp, Map[PortIdentity, Path]) = {
-    val inputs = SklearnFixture.write(testRoot, inputPortCount = 1, withGaps = false)
-
-    val desc = newDesc()
-    desc.target = "y"
-    desc.countVectorizer = false
-    desc.tfidfTransformer = false
-
-    (desc, inputs)
-  }
-
-  /** The `countVectorizer=true` branch: features come from a single text column
-    * (`X = X[text]`), incompatible with the numeric default, so it runs as its
-    * own scenario on the text fixture rather than as an enum-sweep variant.
-    */
-  override def extraScenarios(
-      testRoot: Path
-  ): Seq[(String, LogicalOp, Map[PortIdentity, Path])] = {
-    if (!CuratedHandlers.supportsCountVectorizer(opDescClass)) return Seq.empty
-    val dir = testRoot.resolve("cv_text")
-    Files.createDirectories(dir)
-    val inputs = SklearnTextFixture.write(dir, inputPortCount = 1, withGaps = false)
-
-    val desc = newDesc()
-    desc.target = "y"
-    desc.countVectorizer = true
-    desc.tfidfTransformer = false
-    desc.text = "note"
-
-    Seq(("countVectorizer_text", desc, inputs))
-  }
-}
-
-/** Shared two-input fixture for the Sklearn classifier operators (training
-  * port 0 + testing port 1). The fitted model lands in a BINARY column; the
-  * comparator unpickles both paths' models and compares their predictions on
-  * the training features, verifying behavior, not bytes. Each concrete handler
-  * supplies its estimator-specific OpDesc.
-  */
-abstract class SklearnClassifierTransformHandler extends TransformHandler {
-  protected def newDesc(): SklearnClassifierOpDesc
-
-  override def sharedFixture: Option[SharedFixture] = Some(SklearnFixture)
-
-  override def fixture(testRoot: Path): (LogicalOp, Map[PortIdentity, Path]) = {
-    val (train, test) = CuratedHandlers.writeClassification2Input(testRoot)
-    val desc = newDesc()
-    desc.target = "y"
-    desc.countVectorizer = false
-    (desc, Map(PortIdentity(0) -> train, PortIdentity(1) -> test))
-  }
-
-  /** The `countVectorizer=true` branch: train/test features come from a single
-    * text column (`X = X[text]`), incompatible with the numeric default, so it
-    * runs as its own scenario on the text fixture (both ports) rather than as an
-    * enum-sweep variant.
-    */
-  override def extraScenarios(
-      testRoot: Path
-  ): Seq[(String, LogicalOp, Map[PortIdentity, Path])] = {
-    if (!CuratedHandlers.supportsCountVectorizer(opDescClass)) return Seq.empty
-    val dir = testRoot.resolve("cv_text")
-    Files.createDirectories(dir)
-    val inputs = SklearnTextFixture.write(dir, inputPortCount = 2, withGaps = false)
-
-    val desc = newDesc()
-    desc.target = "y"
-    desc.countVectorizer = true
-    desc.text = "note"
-
-    Seq(("countVectorizer_text", desc, inputs))
   }
 }
 

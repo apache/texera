@@ -75,6 +75,21 @@ trait SharedFixture {
     }.toMap
   }
 
+  /** Schemas ConfigGenerator resolves @AutofillAttributeName fields against.
+    * Every port sees the same columns: a fixture's ports differ in which ROWS
+    * they get, not in shape.
+    */
+  final def schemasByPort: Map[Int, Schema] = Map(0 -> schema, 1 -> schema)
+
+  /** Write one JSONL fixture per 0-based input port, every cell filled. */
+  final def writeInputs(dir: Path, inputPortCount: Int): Map[PortIdentity, Path] =
+    write(dir, inputPortCount, withGaps = false)
+
+  /** How many rows port 0 gets — what a row-count-sensitive knob (`limit`,
+    * `offset`) is sized against so its value keeps some rows and drops some.
+    */
+  final def port0RowCount: Int = rowsFor(0).size
+
   /** One empty cell per column, spread across rows so no row is wholly empty — an
     * operator that reads two columns should still meet a row where one is filled
     * and the other is not. Placement is by column position, so it is the same on

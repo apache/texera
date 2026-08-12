@@ -154,16 +154,93 @@ object TransformVerificationRunner {
     classOf[SplitOpDesc] -> Seq(Knob("random", BooleanNode.FALSE, KnobScope.Pinned)),
     classOf[TernaryPlotOpDesc] -> Seq(
       Knob("colorEnabled", BooleanNode.TRUE, KnobScope.WithOptionals)
+    ),
+    // Both text switches are pinned off on the numeric table: the pipeline they
+    // build reads a column that table does not have, and `tfidfTransformer` has
+    // no meaning at all outside a CountVectorizer pipeline (the schema hides it
+    // when the vectorizer is off). Their branches are generated against the text
+    // table by the [[AltScenario]]s instead.
+    classOf[SklearnClassifierOpDesc] -> Seq(
+      Knob("countVectorizer", BooleanNode.FALSE, KnobScope.Pinned),
+      Knob("tfidfTransformer", BooleanNode.FALSE, KnobScope.Pinned)
+    ),
+    classOf[SklearnTrainingOpDesc] -> Seq(
+      Knob("countVectorizer", BooleanNode.FALSE, KnobScope.Pinned),
+      Knob("tfidfTransformer", BooleanNode.FALSE, KnobScope.Pinned)
     )
   )
 
-  /** This operator's overrides for one scope, as the generator takes them. */
+  /** This operator's overrides for one scope, as the generator takes them.
+    * Exact class first, then base class, so a family can be named once instead
+    * of per estimator.
+    */
   private def knobsFor(opClass: Class[_ <: LogicalOp], scope: KnobScope): Map[String, JsonNode] =
     knobOverrides
-      .getOrElse(opClass, Seq.empty)
+      .get(opClass)
+      .orElse(knobOverrides.collectFirst {
+        case (base, knobs) if base.isAssignableFrom(opClass) => knobs
+      })
+      .getOrElse(Seq.empty)
       .filter(_.scope == scope)
       .map(k => k.field -> k.value)
       .toMap
+
+  /** A second generation pass for a branch that needs a DIFFERENT table than the
+    * operator's default one.
+    *
+    * A swept variant cannot switch tables: [[ConfigGenerator]] resolves every
+    * column picker against ONE schema, so `countVectorizer=true` swept off the
+    * numeric table fills `text` with a numeric column. The branch is generated
+    * separately instead — against the table it needs, with the switch pinned on
+    * so the sweep leaves it alone.
+    *
+    * The curated tier's equivalent is [[TransformHandler.extraScenarios]], which
+    * carries a hand-written config; this is the auto-tier twin, so it declares
+    * only WHICH table and WHICH pins and lets the generator write the config.
+    */
+  final case class AltScenario(
+      label: String,
+      fixture: SharedFixture,
+      pinned: Map[String, JsonNode],
+      appliesTo: Class[_ <: LogicalOp] => Boolean = _ => true
+  )
+
+  /** Keyed by BASE class, not by concrete operator: a newly registered sklearn
+    * estimator is covered with no entry of its own, matching how the families
+    * themselves are discovered.
+    */
+  val altFixtureScenarios: Map[Class[_], Seq[AltScenario]] = {
+    // One scenario per text pipeline rather than a sweep inside one: which
+    // pipeline is built is the branch under test, and the two are alternatives,
+    // not a knob crossed with everything else.
+    val countVectorizerText = AltScenario(
+      label = "countVectorizer_text",
+      fixture = SklearnTextFixture,
+      pinned = Map(
+        "countVectorizer" -> BooleanNode.TRUE,
+        "tfidfTransformer" -> BooleanNode.FALSE
+      ),
+      appliesTo = CuratedHandlers.supportsCountVectorizer
+    )
+    val tfidfText = countVectorizerText.copy(
+      label = "tfidf_text",
+      pinned = Map(
+        "countVectorizer" -> BooleanNode.TRUE,
+        "tfidfTransformer" -> BooleanNode.TRUE
+      )
+    )
+    Map(
+      classOf[SklearnClassifierOpDesc] -> Seq(countVectorizerText, tfidfText),
+      classOf[SklearnTrainingOpDesc] -> Seq(countVectorizerText, tfidfText)
+    )
+  }
+
+  /** The alternate-table scenarios this operator takes, resolved by family. */
+  private def altScenariosFor(opClass: Class[_ <: LogicalOp]): Seq[AltScenario] =
+    altFixtureScenarios
+      .collectFirst { case (base, scenarios) if base.isAssignableFrom(opClass) => scenarios }
+      .getOrElse(Seq.empty)
+      .filter(_.appliesTo(opClass))
 
   /** How a pinned operator's tier reads in the report, e.g. `auto, random=false`. */
   private def pinnedTierNote(opClass: Class[_ <: LogicalOp]): String = {
@@ -300,6 +377,17 @@ object TransformVerificationRunner {
     */
   private def forceAuto: Boolean = sys.env.get("VERIFY_FORCE_AUTO").contains("1")
 
+  /** The shared table an operator runs on in the AUTO tier. Which table an
+    * operator takes is its own axis (see [[SharedFixture]]); the auto tier used
+    * to be pinned to [[CanonicalFixture]], which is why an operator needing a
+    * narrower table had to be curated just to name one. sklearn cannot fit
+    * canonical's string columns — `X = table.drop(target)` feeds every
+    * remaining column to `fit` — so its families take the numeric table.
+    */
+  private[verify] def fixtureFor(opClass: Class[_ <: LogicalOp]): SharedFixture =
+    if (CuratedHandlers.sklearnNumericClasses.contains(opClass)) SklearnFixture
+    else CanonicalFixture
+
   /** Static classification — cheap (reflection only, no subprocesses), called
     * at spec construction time to decide test-vs-ignore.
     */
@@ -321,7 +409,7 @@ object TransformVerificationRunner {
               if (CuratedHandlers.sklearnAutoClasses.contains(opClass)) Runnable("ml-auto")
               else Runnable("curated")
             else
-              ConfigGenerator.generate(opClass, CanonicalFixture.schemasByPort) match {
+              ConfigGenerator.generate(opClass, fixtureFor(opClass).schemasByPort) match {
                 case Left(reason) => Flagged(s"cannot auto-configure: $reason")
                 case Right(configured) =>
                   Try(configured.operatorInfo.inputPorts.size) match {
@@ -329,15 +417,17 @@ object TransformVerificationRunner {
                       Flagged(s"operatorInfo failed on generated config: ${e.getMessage}")
                     case Success(n) if n < 1 || n > 2 =>
                       Flagged(s"unsupported input port count: $n")
-                    case Success(_) if outputHasBinaryColumn(configured) =>
-                      // A trained-model (BINARY) output can only be exercised
-                      // with a curated numeric fixture — the canonical auto
-                      // fixture has a string column sklearn can't fit, and the
-                      // model itself isn't byte-comparable across paths. Such
-                      // ops must be registered in CuratedHandlers to run.
+                    case Success(_)
+                        if outputHasBinaryColumn(configured, fixtureFor(opClass)) &&
+                          fixtureFor(opClass) == CanonicalFixture =>
+                      // A trained-model (BINARY) output cannot be fit on the
+                      // canonical table, whose string columns reach `fit`. The
+                      // model itself is not byte-comparable either, but that is
+                      // handled for every tier alike (see modelColumns in run).
+                      // An op that names a numeric fixture is fine here.
                       Flagged(
                         "model output: emits a BINARY (trained-model) column; " +
-                          "requires a curated numeric fixture, not the auto tier"
+                          "requires a numeric fixture, not the canonical table"
                       )
                     case Success(_) => Runnable(s"auto${pinnedTierNote(opClass)}")
                   }
@@ -352,10 +442,10 @@ object TransformVerificationRunner {
     * getOutputSchemas, and a throw (schema needs real inputs) reads as "no
     * detectable BINARY column" so the op falls through to its normal tier.
     */
-  private def outputHasBinaryColumn(configured: LogicalOp): Boolean =
+  private def outputHasBinaryColumn(configured: LogicalOp, fixture: SharedFixture): Boolean =
     configured match {
       case p: PythonOperatorDescriptor =>
-        val inputSchemas = CanonicalFixture.schemasByPort.map {
+        val inputSchemas = fixture.schemasByPort.map {
           case (port, schema) => PortIdentity(port) -> schema
         }
         Try(p.getOutputSchemas(inputSchemas)).toOption
@@ -408,11 +498,12 @@ object TransformVerificationRunner {
             handler.extraScenarios(testRoot) ++
             handler.sharedFixture.toSeq.flatMap(nullsCase(opClass, op, testRoot, _))
         case None =>
+          val fixture = fixtureFor(opClass)
           val vs = ConfigGenerator
             .generateVariants(
               opClass,
-              CanonicalFixture.schemasByPort,
-              CanonicalFixture.port0Rows.size,
+              fixture.schemasByPort,
+              fixture.port0RowCount,
               knobsFor(opClass, KnobScope.Pinned),
               knobsFor(opClass, KnobScope.WithOptionals)
             )
@@ -421,9 +512,40 @@ object TransformVerificationRunner {
               identity
             )
           val inputPortCount = vs.head._2.operatorInfo.inputPorts.size
-          val in = CanonicalFixture.writeInputs(testRoot, inputPortCount)
+          val in = fixture.writeInputs(testRoot, inputPortCount)
           vs.map { case (label, o) => (label, o, in) } ++
-            nullsCase(opClass, vs.head._2, testRoot, CanonicalFixture)
+            nullsCase(opClass, vs.head._2, testRoot, fixture) ++
+            altScenariosFor(opClass).flatMap { alt =>
+              // Each scenario writes under its own directory: two tables in one
+              // testRoot would otherwise both claim input_port_0.jsonl.
+              val dir = testRoot.resolve(alt.label)
+              Files.createDirectories(dir)
+              ConfigGenerator
+                .generateVariants(
+                  opClass,
+                  alt.fixture.schemasByPort,
+                  alt.fixture.port0RowCount,
+                  pinned = alt.pinned,
+                  switches = knobsFor(opClass, KnobScope.WithOptionals)
+                )
+                .fold(
+                  reason =>
+                    throw new IllegalStateException(
+                      s"cannot auto-configure ${alt.label}: $reason"
+                    ),
+                  identity
+                )
+                // The branch's own column knob is OPTIONAL (`text` carries no
+                // `required`), so the base config leaves it unset and code
+                // generation dereferences a null. `optionals` is the variant
+                // that fills it — and it inherits the pins, so it is the one
+                // that actually exercises the branch.
+                .filter { case (label, _) => label.startsWith("optionals") }
+                .map {
+                  case (label, o) =>
+                    (s"${alt.label}/$label", o, alt.fixture.writeInputs(dir, inputPortCount))
+                }
+            }
       }
 
     runs.foreach {

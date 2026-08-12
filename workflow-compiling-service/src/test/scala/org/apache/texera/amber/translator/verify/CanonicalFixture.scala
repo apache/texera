@@ -106,9 +106,6 @@ object CanonicalFixture extends SharedFixture {
     // change WHICH rows match, and on any other column it changes nothing
   )
 
-  /** Schemas ConfigGenerator resolves @AutofillAttributeName fields against. */
-  val schemasByPort: Map[Int, Schema] = Map(0 -> schema, 1 -> schema)
-
   // ── Data source ──
   // The rows are NOT generated at runtime — they live in a single, checked-in,
   // human-readable JSON file that IS the source of truth:
@@ -163,10 +160,6 @@ object CanonicalFixture extends SharedFixture {
     * emptying it would change which rows pair up rather than what a null does.
     */
   override val keepFilled: Set[String] = Set("id")
-
-  /** Write one JSONL fixture per 0-based input port. At most 2 ports. */
-  def writeInputs(testRoot: Path, inputPortCount: Int): Map[PortIdentity, Path] =
-    write(testRoot, inputPortCount, withGaps = false)
 
   /** As [[writeInputs]], but with one cell per column emptied.
     *
