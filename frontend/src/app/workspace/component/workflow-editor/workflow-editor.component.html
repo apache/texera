@@ -53,7 +53,7 @@
     class="operator-recommendation-container"
     [style.left.px]="operatorSuggestion.position.x"
     [style.top.px]="operatorSuggestion.position.y">
-    @for (recommendation of operatorSuggestion.recommendations; track recommendation.operatorType) {
+    @for (recommendation of operatorSuggestion.recommendations; track $index) {
     <button
       type="button"
       class="operator-recommendation-item"
