@@ -494,12 +494,9 @@ object TransformVerificationRunner {
                 case (label, _) =>
                   handler.unfillableVariants.exists(kind => label.startsWith(s"$kind("))
               }
-          // No nulls case here: a curated fixture is assembled for one operator,
-          // and emptying cells in rows chosen to arrange something (a join that
-          // pairs, a predicate that matches a proper subset) asks a different
-          // question than the one they were written for.
           primary.map { case (label, o) => (label, o, in) } ++
-            handler.extraScenarios(testRoot)
+            handler.extraScenarios(testRoot) ++
+            handler.nullsKeepFilled.toSeq.flatMap(curatedNullsCase(opClass, op, in, testRoot, _))
         case None =>
           val fixture = fixtureFor(opClass)
           val vs = ConfigGenerator
@@ -592,9 +589,9 @@ object TransformVerificationRunner {
     * property of the operator, and multiplying it across every knob would buy more
     * runtime than signal.
     *
-    * The table it runs on is the shared one [[fixtureFor]] resolves, so this is an
-    * auto-tier case only: a curated handler assembles its fixture for one operator
-    * and there is no shared table to re-derive with holes.
+    * The auto tier's form: the table is the shared one [[fixtureFor]] resolves, so
+    * the holes come from the fixture itself. See [[curatedNullsCase]] for the other
+    * tier, which has no fixture object to ask.
     */
   private def nullsCase(
       opClass: Class[_ <: LogicalOp],
@@ -608,6 +605,37 @@ object TransformVerificationRunner {
       Files.createDirectories(dir)
       val in = fixture.write(dir, base.operatorInfo.inputPorts.size, withGaps = true)
       Seq(("nulls", base, in))
+    }
+
+  /** [[nullsCase]] for the curated tier, where there is no fixture object to write
+    * a second time: the handler's own files are read back, holed, and rewritten.
+    * So a handler opts in by naming its load-bearing columns and nothing else, and
+    * [[TransformHandler.fixture]] keeps returning paths.
+    */
+  private def curatedNullsCase(
+      opClass: Class[_ <: LogicalOp],
+      base: LogicalOp,
+      inputs: Map[PortIdentity, Path],
+      testRoot: Path,
+      keepFilled: Set[String]
+  ): Seq[(String, LogicalOp, Map[PortIdentity, Path])] =
+    if (nullsBlocked(opClass)) Seq.empty
+    else {
+      val dir = testRoot.resolve("nulls-input")
+      Files.createDirectories(dir)
+      val holed = inputs.map {
+        case (portId, path) =>
+          val schema = TupleIO.readSchemaSidecar(path)
+          val rows = TupleIO.readTuples(path, schema).toSeq
+          val out = dir.resolve(path.getFileName.toString)
+          TupleIO.writeTuples(
+            out,
+            SharedFixture.emptyOneCellPerColumn(rows, schema, keepFilled).iterator,
+            schema
+          )
+          portId -> out
+      }
+      Seq(("nulls", base, holed))
     }
 
   /** The schema of each input file, keyed by port index — what a curated handler

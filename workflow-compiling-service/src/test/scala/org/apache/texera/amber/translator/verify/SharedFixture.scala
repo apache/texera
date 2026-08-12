@@ -90,12 +90,28 @@ trait SharedFixture {
     */
   final def port0RowCount: Int = rowsFor(0).size
 
+  /** This table's rows with [[SharedFixture.emptyOneCellPerColumn]] applied. */
+  private[verify] def emptyOneCellPerColumn(rows: Seq[Tuple]): Seq[Tuple] =
+    SharedFixture.emptyOneCellPerColumn(rows, schema, keepFilled)
+}
+
+object SharedFixture {
+
   /** One empty cell per column, spread across rows so no row is wholly empty — an
     * operator that reads two columns should still meet a row where one is filled
     * and the other is not. Placement is by column position, so it is the same on
     * every run.
+    *
+    * Free-standing rather than a member, because a curated handler's table has no
+    * [[SharedFixture]] behind it: the runner reads back the rows the handler wrote
+    * and punches the holes here.
     */
-  private[verify] def emptyOneCellPerColumn(rows: Seq[Tuple]): Seq[Tuple] = {
+  def emptyOneCellPerColumn(
+      rows: Seq[Tuple],
+      schema: Schema,
+      keepFilled: Set[String]
+  ): Seq[Tuple] = {
+    if (rows.isEmpty) return rows
     val holes: Map[Int, Set[String]] = schema.getAttributes.zipWithIndex
       .filterNot { case (attr, _) => keepFilled.contains(attr.getName) }
       .map { case (attr, i) => (i % rows.size) -> attr.getName }

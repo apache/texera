@@ -103,6 +103,18 @@ trait TransformHandler {
     * the hostile value fine. Whoever rewrites the fixture sees it and can drop it.
     */
   def unfillableVariants: Set[String] = Set.empty
+
+  /** Opts this fixture into the `nulls` case, naming the columns it must never
+    * empty because their VALUE is what the fixture was built to arrange rather
+    * than data under test: a join key that has to pair, a grouping key that has
+    * to group. Emptying one of those changes what the test asks instead of asking
+    * what the operator does with a null.
+    *
+    * `None` sits the case out, which is the honest answer until someone has read
+    * the fixture and decided what is load-bearing in it. `Some(Set.empty)` is a
+    * real answer too: no column in this table carries the arrangement.
+    */
+  def nullsKeepFilled: Option[Set[String]] = None
 }
 
 /**
@@ -601,6 +613,12 @@ object RegexTransformHandler extends TransformHandler {
   */
 object HashJoinTransformHandler extends TransformHandler {
   override val opDescClass: Class[_ <: LogicalOp] = classOf[HashJoinOpDesc[_]]
+
+  /** `id` is what the two sides pair on: empty it and the rows stop matching, so
+    * the run would be asking about an inner join that finds nothing rather than
+    * about a null. The payload columns carry no arrangement and take the holes.
+    */
+  override def nullsKeepFilled: Option[Set[String]] = Some(Set("id"))
 
   override def fixture(testRoot: Path): (LogicalOp, Map[PortIdentity, Path]) = {
     val buildSchema = new Schema(
