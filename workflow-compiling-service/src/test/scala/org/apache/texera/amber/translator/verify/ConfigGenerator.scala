@@ -1238,18 +1238,14 @@ object ConfigGenerator {
 
   private def hasAutofill(f: Field): Boolean = autofillSpec(f).isDefined
 
-  /** How a field says "fill me with a column name from input port N", and
-    * whether it holds one name or a list of them.
+  /** How a field says "fill me with a column name from input port N", and whether
+    * it holds one name or a list of them.
     *
-    * Two spellings mean the same thing. Most operators use the
-    * `@AutofillAttributeName` family; a field can instead write out the
-    * `@JsonSchemaInject` that family is defined as (see
-    * `AutofillAttributeName`'s own declaration), which is what
-    * `SklearnModelOpDesc.text` does so that its `hide*` keys sit in the same
-    * annotation. Both emit the identical schema keys, so the UI cannot tell
-    * them apart — reading only the annotations left such a field unfilled and
-    * out of the config entirely, which read as "the operator has no text knob"
-    * rather than as a gap here.
+    * Two spellings mean the same thing: the `@AutofillAttributeName` family, or
+    * the `@JsonSchemaInject` that family is defined as, which `SklearnModelOpDesc.text`
+    * writes out so its `hide*` keys sit in one annotation. They emit identical
+    * schema keys, so reading only the annotations left such a field out of the
+    * config entirely — which read as the operator having no such knob.
     */
   private def autofillSpec(f: Field): Option[AutofillSpec] =
     if (f.isAnnotationPresent(classOf[AutofillAttributeNameList]))

@@ -161,14 +161,12 @@ object CanonicalFixture extends SharedFixture {
     */
   override val keepFilled: Set[String] = Set("id")
 
-  /** As [[writeInputs]], but with one cell per column emptied.
-    *
-    * The table above has every cell filled, so nothing in the default run says
-    * what an operator does with a value that isn't there — and an empty cell is
-    * ordinary input: a blank in a CSV reaches an operator as null, which
-    * `AttributeTypeUtils.parseField` passes through by design. The two paths do
-    * not agree on it for free, since a JVM null and a pandas NaN are different
-    * things, so it takes a fixture of its own to hold them to it.
+  /** As [[writeInputs]], but with one cell per column emptied. The table above
+    * has every cell filled, so nothing else says what an operator does with a
+    * value that isn't there — and an empty cell is ordinary input, a blank in a
+    * CSV that `AttributeTypeUtils.parseField` passes through by design. A JVM
+    * null and a pandas NaN are different things, so the two paths do not agree
+    * on one for free.
     */
   def writeInputsWithGaps(testRoot: Path, inputPortCount: Int): Map[PortIdentity, Path] =
     write(testRoot, inputPortCount, withGaps = true)

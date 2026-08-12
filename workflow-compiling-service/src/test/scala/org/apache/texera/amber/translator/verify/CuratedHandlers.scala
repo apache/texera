@@ -305,18 +305,11 @@ object CuratedHandlers {
     hp
   }
 
-  /** Hyperparameters whose declared type does not match what sklearn accepts, so
-    * no value can make them run. Both are KNN's and both are on main.
-    *
-    * `metric` is declared `int` while KNeighborsClassifier wants a string from a
-    * fixed set, so the emitted `int(...)` hands it the wrong type. `metric_params`
-    * wants a dict, and the emitted `str(...)` can only ever produce a string, so
-    * no text the user types can reach it as one. Choosing either in the UI fails
-    * the run outright, on both paths.
-    *
-    * Excluded so the operator's other hyperparameters stay covered rather than
-    * the whole operator going dark. Fixing the enum is an operator change, not a
-    * translation one.
+  /** KNN hyperparameters whose declared type cannot produce what sklearn accepts,
+    * so no value runs: `metric` is declared `int` against a string from a fixed
+    * set, and `metric_params` wants a dict no converter returns. Excluded so the
+    * operator's other hyperparameters stay covered rather than the whole operator
+    * going dark. An operator bug, not a translation one, and on main too.
     */
   val miswiredHyperParameters: Set[String] = Set("metric", "metric_params")
 
@@ -966,17 +959,11 @@ object FilledAreaPlotVisualizationHandler extends TransformHandler {
 abstract class SklearnAdvancedTrainerTransformHandler extends TransformHandler {
   protected def newDesc(): SklearnMLOperatorDescriptor[_]
 
-  /** `paraList/0/value` is this operator's only free-text field, and no hostile
-    * string can legally reach it. Its meaning is decided by the `parameter`
-    * beside it, and every one of those is either a number or a fixed set of
-    * words — `C` a float, `degree` an int, `kernel` one of sklearn's kernels,
-    * `probability` "true" or "false". A spliced `a"b` therefore fails at the
-    * conversion rather than at any escaping, on both paths, and the run ends
-    * before there is anything to compare.
-    *
-    * The escaping this variant looks for is worth checking and simply has no
-    * target here. What the field's values do get is [[extraScenarios]], which
-    * exercises every hyperparameter with a value its own type accepts.
+  /** No hostile string can legally reach `paraList/0/value`: what it means is
+    * decided by the `parameter` beside it, and every one of those is a number or
+    * a fixed set of words. A spliced `a"b` fails at the conversion rather than at
+    * any escaping, so the variant has no target here. [[extraScenarios]] is what
+    * exercises the field, with a value each hyperparameter's own type accepts.
     */
   override val unfillableVariants: Set[String] = Set("hostileText")
 
@@ -1003,17 +990,12 @@ abstract class SklearnAdvancedTrainerTransformHandler extends TransformHandler {
     (desc, Map(PortIdentity(0) -> train, PortIdentity(1) -> param))
   }
 
-  /** One scenario per hyperparameter the operator offers.
-    *
-    * [[fixture]] can only carry one, and the sweep cannot reach the rest: the
-    * `parameter` field is typed `T`, so the generator sees an erased Object and
-    * has no enum to walk. Yet each hyperparameter is converted differently in
+  /** One scenario per hyperparameter, because each is converted differently in
     * the emitted Python — `kernel` stays a string, `degree` goes through `int`,
-    * `probability` through a lambda comparing against "true" — and those are the
-    * lines this operator family exists to translate. Testing one of six said
-    * nothing about the other five.
-    *
-    * The enum is resolvable here, as [[fixture]] already shows, so walk it.
+    * `probability` through a lambda — and those are the lines this family exists
+    * to translate. [[fixture]] carries one and the sweep cannot reach the rest,
+    * the `parameter` field being typed `T` and so an erased Object to the
+    * generator. The enum is resolvable here, as [[fixture]] shows, so walk it.
     */
   override def extraScenarios(
       testRoot: Path

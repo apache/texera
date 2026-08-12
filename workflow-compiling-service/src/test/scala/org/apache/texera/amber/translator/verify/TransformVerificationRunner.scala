@@ -189,17 +189,11 @@ object TransformVerificationRunner {
       .toMap
 
   /** A second generation pass for a branch that needs a DIFFERENT table than the
-    * operator's default one.
-    *
-    * A swept variant cannot switch tables: [[ConfigGenerator]] resolves every
-    * column picker against ONE schema, so `countVectorizer=true` swept off the
-    * numeric table fills `text` with a numeric column. The branch is generated
-    * separately instead — against the table it needs, with the switch pinned on
-    * so the sweep leaves it alone.
-    *
-    * The curated tier's equivalent is [[TransformHandler.extraScenarios]], which
-    * carries a hand-written config; this is the auto-tier twin, so it declares
-    * only WHICH table and WHICH pins and lets the generator write the config.
+    * operator's default one. A swept variant cannot switch tables, since
+    * [[ConfigGenerator]] resolves every column picker against ONE schema, so the
+    * branch is generated separately against the table it needs with its switch
+    * pinned on. The auto-tier twin of [[TransformHandler.extraScenarios]]: it
+    * names only the table and the pins, and the generator writes the config.
     */
   final case class AltScenario(
       label: String,
@@ -565,15 +559,11 @@ object TransformVerificationRunner {
     }
   }
 
-  /** Operators whose two paths are known to disagree on an empty cell because the
-    * platform itself fails on one, each with the issue tracking it. They keep every
-    * other variant; only the `nulls` case is withheld, so the day the platform stops
-    * failing the entry comes out and the case starts running with nothing else to do.
-    *
-    * A key matches its subclasses too, so one entry covers a whole family: every
-    * sklearn estimator fails the same way for the same reason, in code they all
-    * inherit, and naming them one by one would be fifty entries that come out on the
-    * same day.
+  /** Operators the platform itself fails on with an empty cell, each with the
+    * issue tracking it. Only the `nulls` case is withheld, so the day the platform
+    * stops failing the entry comes out and the case runs with nothing else to do.
+    * A key matches its subclasses, so one entry covers a family that fails the
+    * same way in code they all inherit.
     */
   private val nullsBlockedBy: Map[Class[_], String] = Map(
     classOf[SubstringSearchOpDesc] -> "apache/texera#7548",

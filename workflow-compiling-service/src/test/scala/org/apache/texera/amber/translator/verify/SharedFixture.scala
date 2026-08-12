@@ -32,8 +32,6 @@ import java.nio.file.Path
   * config. [[CanonicalFixture]] is the wide mixed-type table most operators take;
   * the sklearn families share two narrow ones because `X = table.drop(target)`
   * feeds every remaining column to `fit`, which a string or timestamp column ends.
-  * Both are shared tables, so both can carry what a shared table makes affordable:
-  * a derived table is one derivation for a family rather than one per operator.
   */
 trait SharedFixture {
 
