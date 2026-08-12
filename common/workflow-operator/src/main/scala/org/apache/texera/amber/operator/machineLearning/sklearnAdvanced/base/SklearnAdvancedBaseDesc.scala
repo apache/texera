@@ -114,8 +114,13 @@ abstract class SklearnMLOperatorDescriptor[T <: ParamClass]
         portParam.append(s"""$typ(table[$attrLit].values[i]),""")
         paramString.append(s"""$name = $typ(table[$attrLit].values[i]),""")
       } else {
-        portParam.append(s"$typ (${ele.value}),")
-        paramString.append(s"$name = $typ (${ele.value}),")
+        // The value is written by the user as text and converted by `typ` in the
+        // emitted code, so it has to arrive as a Python string literal. Numeric
+        // hyperparameters survived without this because `float(1.0)` happens to
+        // parse; a string one emitted `str(rbf)` and raised NameError.
+        val valueLit = pyStringLiteral(ele.value)
+        portParam.append(s"$typ ($valueLit),")
+        paramString.append(s"$name = $typ ($valueLit),")
       }
     }
     (paramString.toString, s"""${pyStringLiteral(workflowParam.toString)}.format($portParam)""")
