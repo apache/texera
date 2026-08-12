@@ -55,6 +55,7 @@ import org.apache.texera.amber.operator.visualization.ScatterMatrixChart.Scatter
 import org.apache.texera.amber.operator.machineLearning.Scorer.MachineLearningScorerOpDesc
 import org.apache.texera.amber.operator.sklearn.SklearnPredictionOpDesc
 import org.apache.texera.amber.operator.sklearn.training.SklearnTrainingLogisticRegressionOpDesc
+import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.SVCTrainer.SklearnAdvancedSVCTrainerOpDesc
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -103,8 +104,14 @@ class TransformVerificationRunnerSpec extends AnyFlatSpec with Matchers {
     disposition(classOf[MachineLearningScorerOpDesc]) shouldBe Runnable("curated")
   }
 
-  it should "route sklearn ops to the ml-auto tier (auto-discovered shared fixture)" in {
-    disposition(classOf[SklearnTrainingLogisticRegressionOpDesc]) shouldBe Runnable("ml-auto")
+  it should "route a sklearn estimator to the auto tier on the numeric table" in {
+    disposition(classOf[SklearnTrainingLogisticRegressionOpDesc]) shouldBe
+      Runnable("auto, countVectorizer=false, tfidfTransformer=false")
+    fixtureFor(classOf[SklearnTrainingLogisticRegressionOpDesc]) shouldBe SklearnFixture
+  }
+
+  it should "keep the advanced trainers curated, their paraList being unresolvable" in {
+    disposition(classOf[SklearnAdvancedSVCTrainerOpDesc]) shouldBe Runnable("curated")
   }
 
   it should "route auto-configurable operators to the auto tier" in {

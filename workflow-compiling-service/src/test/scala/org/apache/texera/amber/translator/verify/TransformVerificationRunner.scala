@@ -400,11 +400,7 @@ object TransformVerificationRunner {
                 Runnable("visualization")
               else Flagged("visualization: no DataFrame output to compare")
             else if (!forceAuto && CuratedHandlers.byClass.contains(opClass))
-              // The sklearn family is a systematic, auto-discovered tier with a
-              // shared fixture + predict-compare — label it "ml-auto" so
-              // "curated" is reserved for genuine one-off fixtures (joins, etc.).
-              if (CuratedHandlers.sklearnAutoClasses.contains(opClass)) Runnable("ml-auto")
-              else Runnable("curated")
+              Runnable("curated")
             else
               ConfigGenerator.generate(opClass, fixtureFor(opClass).schemasByPort) match {
                 case Left(reason) => Flagged(s"cannot auto-configure: $reason")

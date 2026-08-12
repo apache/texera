@@ -61,10 +61,8 @@ import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.base.{
 }
 import org.apache.texera.amber.operator.ifStatement.IfOpDesc
 import org.apache.texera.amber.operator.huggingFace.HuggingFaceSpamSMSDetectionOpDesc
-import com.fasterxml.jackson.databind.ObjectMapper
 import java.nio.file.{Files, Path}
 import java.util
-import scala.jdk.CollectionConverters._
 
 /**
   * A curated handler ships a configured OpDesc and the input fixtures it
@@ -189,14 +187,6 @@ object CuratedHandlers {
   private def sklearnAutoHandlers: Seq[TransformHandler] =
     advancedOps.map(advancedTrainerHandler)
 
-  /** Op classes served by the auto-discovered sklearn tier. Exposed so
-    * [[TransformVerificationRunner.disposition]] can label them `ml-auto`
-    * (a systematic shared-fixture + predict-compare category) instead of
-    * `curated`, which is then reserved for genuine one-off fixtures.
-    */
-  val sklearnAutoClasses: Set[Class[_ <: LogicalOp]] =
-    sklearnAutoHandlers.map(_.opDescClass).toSet
-
   /** The sklearn families first, the hand-written handlers after, because
     * [[byClass]] keeps the LAST entry for a class: a handler written by hand wins
     * over the one its family derives, the same way a hand-written handler is simply
@@ -287,11 +277,10 @@ object CuratedHandlers {
   def supportsCountVectorizer(opClass: Class[_ <: LogicalOp]): Boolean =
     !denseOnlyForCountVectorizer.contains(opClass)
 
-  /** One real hyperparameter for an advanced sklearn trainer, so the parameter-
-    * handling logic is actually exercised (vs. an empty sweep). Resolves the
-    * operator's parameter enum (its `SklearnMLOperatorDescriptor[T]` type
-    * argument), picks the first numeric hyperparameter, and gives it a fixed
-    * value — e.g. KNN `n_neighbors = 3`, SVC/SVR `C = 1.0`.
+  /** The hyperparameter the advanced trainer's primary fixture carries: the first
+    * numeric one the operator offers, resolved from its
+    * `SklearnMLOperatorDescriptor[T]` type argument. The rest get a scenario each
+    * through [[SklearnAdvancedTrainerTransformHandler.extraScenarios]].
     */
   def sampleHyperParameter(opClass: Class[_ <: LogicalOp]): HyperParameters[ParamClass] = {
     val consts = allHyperParameters(opClass)
@@ -323,6 +312,9 @@ object CuratedHandlers {
     */
   def sampleValueFor(p: ParamClass): String =
     p.getType match {
+      // 3 rather than 1: several of these are degenerate at 1 — `max_iter` barely
+      // trains, `degree` collapses to linear — and two paths can agree on an
+      // equally untrained model without that meaning anything.
       case "int"              => "3"
       case "float" | "double" => "1.0"
       case "str"              => sampleStringValueFor(p.getName)
@@ -365,119 +357,6 @@ object CuratedHandlers {
       case _           => t = null
     }
     throw new IllegalStateException(s"cannot resolve param enum for ${opClass.getName}")
-  }
-}
-
-/**
-  * The shared numeric dataset for the Sklearn operator families, promoted to a
-  * checked-in JSON resource (mirrors [[CanonicalFixture]]) so the table is
-  * human-readable and lives in one place instead of duplicated inline across
-  * handlers. A small, well-separated 2-feature binary-classification table:
-  * 6 rows per class — enough members for cv=5 estimators (LogisticRegressionCV,
-  * probability calibration). Numeric-only because sklearn cannot fit the
-  * canonical auto-fixture's string columns.
-  *
-  * Source of truth: src/test/resources/verify/sklearn_fixture.json. `schema`
-  * below stays authoritative for column types (JSON has no typed columns).
-  */
-object SklearnFixture extends SharedFixture {
-
-  val schema: Schema = new Schema(
-    new Attribute("x1", AttributeType.DOUBLE),
-    new Attribute("x2", AttributeType.DOUBLE),
-    new Attribute("y", AttributeType.INTEGER)
-  )
-
-  /** Both ports get the whole table: the classifier operators train on port 0 and
-    * test on port 1, and the point of the pair is the two ports, not two datasets.
-    */
-  override def rowsFor(port: Int): Seq[Tuple] = rows
-
-  /** `y` keeps every value: it is the label the estimator fits against, so a hole
-    * in it asks what sklearn does with an unlabelled row rather than what the
-    * operator does with a missing feature.
-    */
-  override val keepFilled: Set[String] = Set("y")
-
-  private val fixtureResource = "/verify/sklearn_fixture.json"
-
-  val rows: Vector[Tuple] = {
-    val stream = Option(getClass.getResourceAsStream(fixtureResource))
-      .getOrElse(sys.error(s"sklearn fixture not found on classpath: $fixtureResource"))
-    val root =
-      try new ObjectMapper().readTree(stream)
-      finally stream.close()
-    root
-      .elements()
-      .asScala
-      .map { node =>
-        val b = Tuple.builder(schema)
-        schema.getAttributes.foreach { attr =>
-          val cell = node.get(attr.getName)
-          require(cell != null, s"sklearn fixture row missing column '${attr.getName}'")
-          val value: AnyRef = attr.getType match {
-            case AttributeType.INTEGER => Int.box(cell.asInt())
-            case AttributeType.DOUBLE  => Double.box(cell.asDouble())
-            case _                     => cell.asText()
-          }
-          b.add(attr, value)
-        }
-        b.build()
-      }
-      .toVector
-  }
-}
-
-/**
-  * Text dataset for the sklearn `countVectorizer=true` path. Two token-disjoint
-  * classes so `CountVectorizer` + any estimator separates them perfectly and
-  * both paths predict identically (deterministic parity). Mirrors
-  * [[SklearnFixture]]'s 6-rows-per-class size so cv=5 estimators
-  * (LogisticRegressionCV, probability calibration) have enough members. `note`
-  * is column 0 so the model probe — which feeds a text pipeline the probe's
-  * first column as a Series — picks it up as the vectorized feature.
-  *
-  * Source of truth: src/test/resources/verify/sklearn_text_fixture.json (mirrors
-  * [[SklearnFixture]]); `schema` below stays authoritative for column types.
-  */
-object SklearnTextFixture extends SharedFixture {
-
-  val schema: Schema = new Schema(
-    new Attribute("note", AttributeType.STRING),
-    new Attribute("y", AttributeType.INTEGER)
-  )
-
-  /** Both ports get the whole table, as in [[SklearnFixture]]. */
-  override def rowsFor(port: Int): Seq[Tuple] = rows
-
-  /** `y` is the label, for the reason [[SklearnFixture.keepFilled]] gives. */
-  override val keepFilled: Set[String] = Set("y")
-
-  private val fixtureResource = "/verify/sklearn_text_fixture.json"
-
-  val rows: Vector[Tuple] = {
-    val stream = Option(getClass.getResourceAsStream(fixtureResource))
-      .getOrElse(sys.error(s"sklearn text fixture not found on classpath: $fixtureResource"))
-    val root =
-      try new ObjectMapper().readTree(stream)
-      finally stream.close()
-    root
-      .elements()
-      .asScala
-      .map { node =>
-        val b = Tuple.builder(schema)
-        schema.getAttributes.foreach { attr =>
-          val cell = node.get(attr.getName)
-          require(cell != null, s"sklearn text fixture row missing column '${attr.getName}'")
-          val value: AnyRef = attr.getType match {
-            case AttributeType.INTEGER => Int.box(cell.asInt())
-            case _                     => cell.asText()
-          }
-          b.add(attr, value)
-        }
-        b.build()
-      }
-      .toVector
   }
 }
 
@@ -950,11 +829,11 @@ object FilledAreaPlotVisualizationHandler extends TransformHandler {
 }
 
 /** Advanced (hyperparameter-sweep) trainers: train on port 0, parameter table
-  * on port 1. We set one real hyperparameter (the family's first numeric one —
-  * KNN `n_neighbors = 3`, SVC/SVR `C = 1.0`) so the parameter-handling logic
-  * (`getParameter` and the param string both code paths build) is actually
-  * exercised, not skipped with an empty paraList. The model lands in a BINARY
-  * column compared by prediction behavior.
+  * on port 1. The primary fixture carries the family's first numeric
+  * hyperparameter so the parameter-handling logic (`getParameter` and the param
+  * string both code paths build) is exercised rather than skipped with an empty
+  * paraList; [[SklearnAdvancedTrainerTransformHandler.extraScenarios]] covers the
+  * rest. The model lands in a BINARY column compared by prediction behavior.
   */
 abstract class SklearnAdvancedTrainerTransformHandler extends TransformHandler {
   protected def newDesc(): SklearnMLOperatorDescriptor[_]
