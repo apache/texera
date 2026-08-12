@@ -79,6 +79,18 @@ final class PythonWorkerPoolSpec extends AnyFunSuite {
     List("python3", "python", "py").find(isRunnable).getOrElse(cancel("no runnable python"))
   }
 
+  /** Resolves [[python]] here so that the cancel lands on the test thread. Forced
+    * inside a case, it would be forced inside a `Future`, and by the time it
+    * reached `intercept` a cancellation is a RuntimeException like any other: the
+    * cases would fail on a machine without an interpreter instead of cancelling,
+    * and the one at the cap would record it as the failure it asserts on and pass
+    * without ever reaching the cap.
+    */
+  override def withFixture(test: NoArgTest): org.scalatest.Outcome = {
+    val _ = python
+    super.withFixture(test)
+  }
+
   private def onDaemonThreads[T](threads: Int)(body: ExecutionContext => T): T = {
     val pool = Executors.newFixedThreadPool(
       threads,
