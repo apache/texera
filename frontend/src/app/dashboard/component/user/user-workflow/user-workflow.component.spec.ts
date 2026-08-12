@@ -18,6 +18,7 @@
  */
 
 import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { By } from "@angular/platform-browser";
 import { RouterTestingModule } from "@angular/router/testing";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { FormsModule, ReactiveFormsModule } from "@angular/forms";
@@ -853,7 +854,7 @@ describe("SavedWorkflowSectionComponent", () => {
           const entries = component.searchResultsComponent.entries;
           expect(entries.map(e => e.name)).toEqual(["dup", "existing"]);
           expect(entries[0].ownerName).toBe("Angular");
-          expect(entries[0].ownerGoogleAvatar).toBe("avatar_url_2");
+          expect(entries[0].ownerAvatar).toBe("avatar_url_2");
           expect(entries[0].accessibleUserIds).toEqual([1]);
         });
 
@@ -903,7 +904,7 @@ describe("SavedWorkflowSectionComponent", () => {
 
           const entry = component.searchResultsComponent.entries[0];
           expect(entry.ownerName).toBe("NoAvatar");
-          expect(entry.ownerGoogleAvatar).toBe("");
+          expect(entry.ownerAvatar).toBe("");
         });
 
         it("does nothing when the entry has no wid", async () => {
@@ -1017,6 +1018,149 @@ describe("SavedWorkflowSectionComponent", () => {
 
           expect(searchSpy).toHaveBeenCalledWith(true);
         });
+      });
+    });
+
+    describe("template rendering", () => {
+      const VIEW_MODE_KEY = "texera.userWorkflow.viewMode";
+      const q = (selector: string) => fixture.debugElement.query(By.css(selector));
+
+      afterEach(() => {
+        vi.restoreAllMocks();
+        localStorage.removeItem(VIEW_MODE_KEY);
+      });
+      // The multi-select toolbar only renders when at least one entry is checked.
+      // Clone a real fixture entry (preserving its prototype) so the rendered
+      // search-results can display it, and flip `checked` on the copy so the shared
+      // fixture is not mutated.
+      const renderWithSelection = () => {
+        const source = testWorkflowEntries[0];
+        const checkedEntry = Object.assign(Object.create(Object.getPrototypeOf(source)), source);
+        checkedEntry.checked = true;
+        component.searchResultsComponent.entries = [checkedEntry];
+        fixture.detectChanges();
+      };
+
+      it("hides the multi-select actions until an entry is checked", () => {
+        component.searchResultsComponent.entries = [];
+        fixture.detectChanges();
+        expect(q('[title="Batch Select"]')).toBeNull();
+
+        renderWithSelection();
+        expect(q('[title="Batch Select"]')).toBeTruthy();
+      });
+
+      it("wires the Create Workflow button", () => {
+        const spy = vi.spyOn(component, "onClickCreateNewWorkflowFromDashboard").mockImplementation(() => {});
+        q(".create-btn").triggerEventHandler("click", null);
+        expect(spy).toHaveBeenCalled();
+      });
+
+      it("re-searches when the sort button changes the sort method", () => {
+        const searchSpy = vi.spyOn(component, "search").mockResolvedValue(undefined);
+        q("texera-sort-button").triggerEventHandler("sortMethodChange", "NameAsc");
+        expect(component.sortMethod).toBe("NameAsc");
+        expect(searchSpy).toHaveBeenCalled();
+      });
+
+      it("wires the Batch Select button", () => {
+        renderWithSelection();
+        const spy = vi.spyOn(component, "toggleSelection").mockImplementation(() => {});
+        q('[title="Batch Select"]').triggerEventHandler("click", null);
+        expect(spy).toHaveBeenCalled();
+      });
+
+      it("wires the Download-as-ZIP button", () => {
+        renderWithSelection();
+        const spy = vi.spyOn(component, "onClickOpenDownloadZip").mockResolvedValue(undefined);
+        q('[title="Download added workflow as a ZIP file"]').triggerEventHandler("click", null);
+        expect(spy).toHaveBeenCalled();
+      });
+
+      it("wires the Duplicate-selected button", () => {
+        renderWithSelection();
+        const spy = vi.spyOn(component, "onClickDuplicateSelectedWorkflows").mockImplementation(() => {});
+        q('[nz-tooltip="Duplicate selected workflows"]').triggerEventHandler("click", null);
+        expect(spy).toHaveBeenCalled();
+      });
+
+      it("wires the Delete-selected popconfirm", () => {
+        renderWithSelection();
+        const spy = vi.spyOn(component, "handleConfirmDeleteSelectedWorkflows").mockImplementation(() => {});
+        q('[nzPopconfirmTitle="Confirm to delete selected workflows."]').triggerEventHandler("nzOnConfirm", null);
+        expect(spy).toHaveBeenCalled();
+      });
+
+      it("shows and wires the project add/remove buttons when a pid is set", () => {
+        component.pid = 1;
+        fixture.detectChanges();
+        const addSpy = vi.spyOn(component, "onClickOpenAddWorkflow").mockImplementation(() => {});
+        const removeSpy = vi.spyOn(component, "onClickOpenRemoveWorkflow").mockImplementation(() => {});
+
+        q('[title="Add workflow(s) to project"]').triggerEventHandler("click", null);
+        q('[title="Remove workflow(s) from project"]').triggerEventHandler("click", null);
+
+        expect(addSpy).toHaveBeenCalled();
+        expect(removeSpy).toHaveBeenCalled();
+      });
+
+      it("switches the view type through the List/Card buttons", () => {
+        component.viewType = "card";
+        fixture.detectChanges();
+
+        q('[title="List View"]').triggerEventHandler("click", null);
+        expect(component.viewType).toBe("list");
+
+        fixture.detectChanges();
+        q('[title="Card View"]').triggerEventHandler("click", null);
+        expect(component.viewType).toBe("card");
+      });
+
+      it("wires the rendered search-results outputs to the component", () => {
+        const results = fixture.debugElement.query(By.directive(SearchResultsComponent));
+        const deleteSpy = vi.spyOn(component, "deleteWorkflow").mockImplementation(() => {});
+        const duplicateSpy = vi.spyOn(component, "onClickDuplicateWorkflow").mockResolvedValue(undefined);
+        const refreshSpy = vi.spyOn(component, "refreshSearchResult").mockImplementation(() => {});
+        const tooltipSpy = vi.spyOn(component, "updateTooltip").mockImplementation(() => {});
+        const entry = testWorkflowEntries[0];
+
+        results.triggerEventHandler("deleted", entry);
+        results.triggerEventHandler("duplicated", entry);
+        results.triggerEventHandler("refresh", undefined);
+        results.triggerEventHandler("notifyWorkflow", undefined);
+
+        expect(deleteSpy).toHaveBeenCalledWith(entry);
+        expect(duplicateSpy).toHaveBeenCalledWith(entry);
+        expect(refreshSpy).toHaveBeenCalled();
+        expect(tooltipSpy).toHaveBeenCalled();
+      });
+
+      it("renders the workflow card template in card view and wires its outputs", () => {
+        const source = testWorkflowEntries[0];
+        const entry = Object.assign(Object.create(Object.getPrototypeOf(source)), source);
+        component.viewType = "card";
+        component.searchResultsComponent.entries = [entry];
+        fixture.detectChanges();
+
+        const card = fixture.debugElement.query(By.css("texera-card-item"));
+        expect(card).toBeTruthy();
+
+        const deleteSpy = vi.spyOn(component, "deleteWorkflow").mockImplementation(() => {});
+        const duplicateSpy = vi.spyOn(component, "onClickDuplicateWorkflow").mockResolvedValue(undefined);
+        const refreshSpy = vi.spyOn(component, "refreshSearchResult").mockImplementation(() => {});
+        const checkboxSpy = vi
+          .spyOn(component.searchResultsComponent, "onEntryCheckboxChange")
+          .mockImplementation(() => {});
+
+        card.triggerEventHandler("deleted", undefined);
+        card.triggerEventHandler("duplicated", undefined);
+        card.triggerEventHandler("refresh", undefined);
+        card.triggerEventHandler("checkboxChanged", undefined);
+
+        expect(deleteSpy).toHaveBeenCalledWith(entry);
+        expect(duplicateSpy).toHaveBeenCalledWith(entry);
+        expect(refreshSpy).toHaveBeenCalled();
+        expect(checkboxSpy).toHaveBeenCalled();
       });
     });
   });

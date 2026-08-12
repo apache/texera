@@ -348,4 +348,63 @@ describe("PresetWrapperComponent", () => {
       expect(messageStub.error).toHaveBeenCalledTimes(1);
     });
   });
+
+  // ─── template rendering ────────────────────────────────────────────────────
+  describe("template rendering", () => {
+    const initWith = (presets: Preset[]): void => {
+      // ngOnInit re-populates searchResults from the service, so feed the presets
+      // through the stub rather than assigning after init (which it would overwrite).
+      presetServiceStub.getPresets.mockReturnValue(of(presets));
+      component.field = buildField();
+      component.ngOnInit();
+      fixture.detectChanges();
+    };
+
+    it("renders the save button and saves the preset when it is clicked", () => {
+      initWith([]);
+
+      const saveBtn = fixture.nativeElement.querySelector(".save-button") as HTMLButtonElement;
+      expect(saveBtn).toBeTruthy();
+
+      const savePreset = vi.spyOn(component, "savePreset").mockImplementation(() => {});
+      saveBtn.click();
+
+      expect(savePreset).toHaveBeenCalled();
+    });
+
+    it("feeds the dropdown *ngFor with one entry per preset, titled and described", () => {
+      // The rows live in an nz-dropdown-menu that only mounts into a CDK overlay on a
+      // real user open, which jsdom does not drive; assert the list the *ngFor is bound
+      // to and the interpolations it renders for each row instead.
+      initWith([testPreset, otherPreset]);
+
+      expect(component.searchResults).toEqual([testPreset, otherPreset]);
+      // the title cell renders the preset's value under the field's own key, and the
+      // description cell joins the remaining values
+      expect(component.getEntryTitle(testPreset)).toBe(testPreset[fieldKey]);
+      expect(component.getEntryDescription(testPreset)).toBe("otherPresetValue");
+    });
+
+    it("binds an empty dropdown list when there are no presets", () => {
+      initWith([]);
+
+      expect(component.searchResults).toEqual([]);
+    });
+
+    it("applies the preset the row's (click) binding targets", () => {
+      initWith([testPreset]);
+
+      component.applyPreset(testPreset);
+
+      expect(presetServiceStub.applyPreset).toHaveBeenCalledWith(expect.anything(), expect.anything(), testPreset);
+    });
+
+    it("deletes the preset the delete button's (click) binding targets", () => {
+      initWith([testPreset]);
+
+      component.deletePreset(testPreset);
+
+      expect(presetServiceStub.deletePreset).toHaveBeenCalled();
+    });
+  });
 });

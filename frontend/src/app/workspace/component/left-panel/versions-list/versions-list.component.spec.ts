@@ -216,4 +216,87 @@ describe("VersionsListComponent", () => {
       expect(component.selectedRowIndex).toBe(0);
     });
   });
+  /**
+   * The table's own logic lives in the template: which rows survive the collapse predicate, the
+   * descending version number, and the selection highlight. The class-level specs above drive
+   * collapse() and getDisplayedVersionId() directly and never render, so none of it was pinned.
+   */
+  describe("rendered table", () => {
+    /** Renders the given entries and returns the rows that survived the *ngIf. */
+    function renderRows(entries: ReturnType<typeof makeEntry>[]): HTMLTableRowElement[] {
+      component.versionsList = entries as any;
+      fixture.detectChanges();
+      return Array.from(fixture.nativeElement.querySelectorAll("tbody tr"));
+    }
+
+    it("renders no table at all until the versions have loaded", () => {
+      component.versionsList = undefined as any;
+      fixture.detectChanges();
+
+      expect(fixture.nativeElement.querySelector("#versions-list")).toBeNull();
+    });
+
+    it("labels the columns from versionTableHeaders", () => {
+      renderRows([makeEntry(1, true)]);
+
+      const headers = Array.from(fixture.nativeElement.querySelectorAll("thead th")).map(th =>
+        (th as HTMLElement).textContent?.trim()
+      );
+      expect(headers).toEqual(component.versionTableHeaders);
+    });
+
+    it("hides an unimportant version while it is collapsed", () => {
+      // The predicate is (!importance && expand) || importance: minor versions stay folded away
+      // until their important parent is expanded, which is the whole point of the collapse.
+      const rows = renderRows([makeEntry(3, true), makeEntry(2, false, false), makeEntry(1, false, false)]);
+
+      expect(rows).toHaveLength(1);
+    });
+
+    it("reveals an unimportant version once it is expanded", () => {
+      const rows = renderRows([makeEntry(3, true), makeEntry(2, false, true), makeEntry(1, false, false)]);
+
+      expect(rows).toHaveLength(2);
+    });
+
+    it("numbers the versions downwards, newest first", () => {
+      const rows = renderRows([makeEntry(3, true), makeEntry(2, true), makeEntry(1, true)]);
+
+      const numbers = rows.map(r => r.querySelectorAll("td")[0].textContent?.trim());
+      expect(numbers).toEqual(["3", "2", "1"]);
+    });
+
+    it("marks only the selected row", () => {
+      component.selectedRowIndex = 1;
+      const rows = renderRows([makeEntry(2, true), makeEntry(1, true)]);
+
+      expect(rows[0].classList).not.toContain("selected-row");
+      expect(rows[1].classList).toContain("selected-row");
+    });
+
+    it("offers the expand control only on an important version", () => {
+      const rows = renderRows([makeEntry(2, true), makeEntry(1, false, true)]);
+
+      expect(rows[0].querySelector("[nztableexpand], .ant-table-row-expand-icon")).not.toBeNull();
+      expect(rows[1].querySelector(".ant-table-row-expand-icon")).toBeNull();
+    });
+
+    it("asks for the version behind the row that was clicked", () => {
+      const getVersion = vi.spyOn(component, "getVersion").mockImplementation(() => {});
+      const rows = renderRows([makeEntry(30, true), makeEntry(20, true)]);
+
+      rows[1].querySelector<HTMLButtonElement>("button.version-link")!.click();
+
+      // vId of the clicked row, its displayed (descending) number, and its index.
+      expect(getVersion).toHaveBeenCalledWith(20, 1, 1);
+    });
+
+    it("shows the timestamp in the compact date format", () => {
+      const rows = renderRows([makeEntry(1, true)]);
+
+      expect(rows[0].querySelector("button.version-link")!.textContent?.trim()).toMatch(
+        /^\d{2}\/\d{2}\/\d{2} \d{2}:\d{2}:\d{2}$/
+      );
+    });
+  });
 });

@@ -21,7 +21,7 @@ package org.apache.texera.amber.operator.visualization.dendrogram
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
-import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
+import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PyStringTypes.{EncodableString, PythonLiteral}
@@ -33,6 +33,16 @@ import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
 
 import javax.validation.constraints.NotNull
 
+// type constraint: xVal / yVal are stacked into a numeric point matrix for
+// hierarchical clustering, so they can only be numeric columns.
+@JsonSchemaInject(json = """
+{
+  "attributeTypeRules": {
+    "xVal": { "enum": ["integer", "long", "double"] },
+    "yVal": { "enum": ["integer", "long", "double"] }
+  }
+}
+""")
 class DendrogramOpDesc extends PythonOperatorDescriptor {
   @JsonProperty(value = "xVal", required = true)
   @JsonSchemaTitle("Value X Column")

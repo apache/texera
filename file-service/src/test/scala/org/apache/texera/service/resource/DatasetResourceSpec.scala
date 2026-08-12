@@ -27,6 +27,7 @@ import org.apache.texera.amber.core.storage.util.LakeFSStorageClient
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.dao.MockTexeraDB
 import org.apache.texera.dao.jooq.generated.enums.{PrivilegeEnum, UserRoleEnum}
+import org.apache.texera.dao.jooq.generated.tables.AuthProvider.AUTH_PROVIDER
 import org.apache.texera.dao.jooq.generated.tables.DatasetUploadSession.DATASET_UPLOAD_SESSION
 import org.apache.texera.dao.jooq.generated.tables.DatasetUploadSessionPart.DATASET_UPLOAD_SESSION_PART
 import org.apache.texera.dao.jooq.generated.tables.daos.{
@@ -137,7 +138,6 @@ class DatasetResourceSpec
   private val ownerUser: User = {
     val user = new User
     user.setName("test_user")
-    user.setPassword("123")
     user.setEmail("test_user@test.com")
     user.setRole(UserRoleEnum.ADMIN)
     user
@@ -146,7 +146,6 @@ class DatasetResourceSpec
   private val otherAdminUser: User = {
     val user = new User
     user.setName("test_user2")
-    user.setPassword("123")
     user.setEmail("test_user2@test.com")
     user.setRole(UserRoleEnum.ADMIN)
     user
@@ -156,7 +155,6 @@ class DatasetResourceSpec
   private val multipartNoWriteUser: User = {
     val user = new User
     user.setName("multipart_user2")
-    user.setPassword("123")
     user.setEmail("multipart_user2@test.com")
     user.setRole(UserRoleEnum.REGULAR)
     user
@@ -370,11 +368,12 @@ class DatasetResourceSpec
 
     val createdDataset = datasetResource.createDataset(createDatasetRequest, sessionUser)
 
-    createdDataset.contributors should contain theSameElementsAs contributors
-    DatasetResource.getContributorsByDid(
-      getDSLContext,
-      createdDataset.dataset.getDid
+    createdDataset.contributors.map(
+      _.copy(uid = None)
     ) should contain theSameElementsAs contributors
+    DatasetResource
+      .getContributorsByDid(getDSLContext, createdDataset.dataset.getDid)
+      .map(_.copy(uid = None)) should contain theSameElementsAs contributors
   }
 
   it should "delete dataset successfully if user owns it" in {
@@ -477,10 +476,9 @@ class DatasetResourceSpec
     )
 
     response.getStatus shouldEqual 200
-    DatasetResource.getContributorsByDid(
-      getDSLContext,
-      did
-    ) should contain theSameElementsAs replacement
+    DatasetResource
+      .getContributorsByDid(getDSLContext, did)
+      .map(_.copy(uid = None)) should contain theSameElementsAs replacement
   }
 
   it should "clear all contributors when given an empty list" in {
@@ -627,6 +625,138 @@ class DatasetResourceSpec
     datasetResource.deleteDataset(did, sessionUser).getStatus shouldEqual 200
 
     DatasetResource.getContributorsByDid(getDSLContext, did) shouldBe empty
+  }
+
+  "contributor-user linking" should "link a contributor to an existing user by email, case-insensitively" in {
+    val createdDataset = datasetResource.createDataset(
+      DatasetResource.CreateDatasetRequest(
+        datasetName = "link-existing-ds",
+        datasetDescription = "dataset for linking test",
+        isDatasetPublic = false,
+        isDatasetDownloadable = true,
+        contributors = Some(
+          List(
+            DatasetResource
+              .Contributor("test1", creator = true, "Test Lab A", " TEST_USER@test.com ", null)
+          )
+        )
+      ),
+      sessionUser
+    )
+
+    val contributors =
+      DatasetResource.getContributorsByDid(getDSLContext, createdDataset.dataset.getDid)
+    contributors.head.uid shouldEqual Some(ownerUser.getUid)
+  }
+
+  it should "create a placeholder user for an unknown email and reuse it on re-save" in {
+    val createdDataset = datasetResource.createDataset(
+      DatasetResource.CreateDatasetRequest(
+        datasetName = "link-placeholder-ds",
+        datasetDescription = "dataset for placeholder test",
+        isDatasetPublic = false,
+        isDatasetDownloadable = true,
+        contributors = Some(
+          List(
+            DatasetResource
+              .Contributor("test1", creator = false, "Test Lab B", "Ghost@Nowhere.com", null)
+          )
+        )
+      ),
+      sessionUser
+    )
+    val did = createdDataset.dataset.getDid
+
+    val userDao = new UserDao(getDSLContext.configuration())
+    val placeholder = userDao.fetchOneByEmail("ghost@nowhere.com")
+    placeholder should not be null
+    placeholder.getIsPlaceholder shouldBe true
+    placeholder.getRole shouldEqual UserRoleEnum.INACTIVE
+    // credentials live in auth_provider now, and a placeholder has none at all
+    getDSLContext.fetchCount(
+      AUTH_PROVIDER,
+      AUTH_PROVIDER.UID.eq(placeholder.getUid)
+    ) shouldBe 0
+
+    val firstUid = DatasetResource.getContributorsByDid(getDSLContext, did).head.uid
+
+    datasetResource.updateDatasetContributors(
+      DatasetResource.DatasetContributorsModification(
+        did,
+        Some(
+          List(
+            DatasetResource
+              .Contributor("test1", creator = false, "Test Lab B", "ghost@nowhere.com", "updated")
+          )
+        )
+      ),
+      sessionUser
+    )
+
+    DatasetResource.getContributorsByDid(getDSLContext, did).head.uid shouldEqual firstUid
+    userDao.fetchByEmail("ghost@nowhere.com").size() shouldEqual 1
+  }
+
+  it should "leave the contributor unlinked when no email is given" in {
+    val createdDataset = datasetResource.createDataset(
+      DatasetResource.CreateDatasetRequest(
+        datasetName = "link-noemail-ds",
+        datasetDescription = "dataset for unlinked test",
+        isDatasetPublic = false,
+        isDatasetDownloadable = true,
+        contributors = Some(
+          List(DatasetResource.Contributor("test1", creator = false, "Test Lab C", null, null))
+        )
+      ),
+      sessionUser
+    )
+
+    DatasetResource
+      .getContributorsByDid(getDSLContext, createdDataset.dataset.getDid)
+      .head
+      .uid shouldEqual None
+  }
+
+  it should "reject an invalid contributor email" in {
+    assertThrows[BadRequestException] {
+      datasetResource.createDataset(
+        DatasetResource.CreateDatasetRequest(
+          datasetName = "link-bademail-ds",
+          datasetDescription = "dataset for invalid email test",
+          isDatasetPublic = false,
+          isDatasetDownloadable = true,
+          contributors = Some(
+            List(
+              DatasetResource
+                .Contributor("test1", creator = false, "Test Lab D", "not-an-email", null)
+            )
+          )
+        ),
+        sessionUser
+      )
+    }
+  }
+
+  it should "reject two contributors sharing the same email, case-insensitively" in {
+    assertThrows[BadRequestException] {
+      datasetResource.createDataset(
+        DatasetResource.CreateDatasetRequest(
+          datasetName = "link-dupemail-ds",
+          datasetDescription = "dataset for duplicate email test",
+          isDatasetPublic = false,
+          isDatasetDownloadable = true,
+          contributors = Some(
+            List(
+              DatasetResource
+                .Contributor("test1", creator = false, "Test Lab E", "shared@test.com", null),
+              DatasetResource
+                .Contributor("test2", creator = false, "Test Lab E", " Shared@Test.com ", null)
+            )
+          )
+        ),
+        sessionUser
+      )
+    }
   }
 
   "findExistingUploadFiles" should "match committed and staged files by path and size" in {

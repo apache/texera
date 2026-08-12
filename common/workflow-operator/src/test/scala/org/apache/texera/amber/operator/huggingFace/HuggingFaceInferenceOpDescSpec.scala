@@ -141,6 +141,10 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
     code should include("if not _HF_MODEL_ID_PATTERN.match(")
     code should include("raise ValueError(")
     code should include("Invalid Hugging Face model ID")
+    // #7196: reject `..` path traversal (leading negative lookahead) and accept
+    // single-segment legacy IDs like `gpt2` (trailing /segment group optional).
+    code should include("(?!.*\\.\\.)")
+    code should include("(/[A-Za-z0-9._-]+)*$")
   }
 
   it should "not leak raw user-input strings into the generated Python source" in {
@@ -649,6 +653,32 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
     outSchema.getAttributeNames.contains("hf_response") shouldBe true
   }
 
+  it should "validate config with raise ValueError rather than assert (which python -O strips)" in {
+    val code = makeDesc().generatePythonCode()
+    // No `assert` in the generated script — asserts are removed under `python -O`,
+    // silently disabling the checks, and raise AssertionError rather than ValueError.
+    code should not include ("assert ")
+    // The pre-loop config checks now raise ValueError explicitly.
+    code should include("if prompt_col not in table.columns:")
+    code should include("if not (ctx_col and ctx_col in table.columns):")
+    code should include("if not (sent_col and sent_col in table.columns):")
+  }
+
+  it should "validate base64 in the binary-column fallback so plain text isn't decoded to garbage" in {
+    val code = makeDesc().generatePythonCode()
+    // validate=True makes b64decode reject non-base64 input, so real text falls
+    // through to utf-8 instead of decoding to garbage bytes.
+    code should include("base64.b64decode(val, validate=True)")
+  }
+
+  it should "treat a 401 as retryable so one provider's auth failure doesn't abort the fallback" in {
+    val code = makeDesc().generatePythonCode()
+    // 401 is in the retryable set -> the loop tries the next provider instead of bailing.
+    code should include("RETRYABLE = (400, 401, 404, 422, 429, 502, 503)")
+    // The old short-circuit (return immediately on the first 401) must be gone.
+    code should not include ("            if resp.status_code == 401:\n                return resp, None")
+  }
+
   it should "mask the API token field as a password widget in the generated schema" in {
     val tokenProp = OperatorMetadataGenerator
       .generateOperatorJsonSchema(classOf[HuggingFaceInferenceOpDesc])
@@ -660,5 +690,21 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
       .path("templateOptions")
       .path("type")
       .asText() shouldBe "password"
+  }
+
+  it should "report a clear error when a configured image/audio column is missing from the input table" in {
+    val code = makeDesc().generatePythonCode()
+    code should include("Input Image Column '")
+    code should include("Input Audio Column '")
+    code should include("not found in the input table")
+  }
+
+  it should "give a clear error when the result column collides with an input column" in {
+    val desc = makeDesc(resultColumn = "prompt")
+    val inputSchema = Schema().add("prompt", AttributeType.STRING)
+    val ex = intercept[RuntimeException] {
+      desc.getOutputSchemas(Map(PortIdentity(0) -> inputSchema))
+    }
+    ex.getMessage should include("Result column 'prompt'")
   }
 }

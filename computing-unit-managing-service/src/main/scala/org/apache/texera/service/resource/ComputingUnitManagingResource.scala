@@ -26,7 +26,7 @@ import jakarta.annotation.security.RolesAllowed
 import jakarta.ws.rs._
 import jakarta.ws.rs.core.{MediaType, Response}
 import org.apache.commons.lang3.StringUtils
-import org.apache.texera.auth.JwtAuth.{TOKEN_EXPIRE_TIME_IN_MINUTES, jwtClaims}
+import org.apache.texera.auth.JwtAuth.jwtClaims
 import org.apache.texera.auth.{JwtAuth, SessionUser}
 import org.apache.texera.common.config.KubernetesConfig.{
   cpuLimitOptions,
@@ -42,7 +42,11 @@ import org.apache.texera.common.config.{
 }
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.SqlServer.withTransaction
-import org.apache.texera.dao.jooq.generated.enums.{PrivilegeEnum, WorkflowComputingUnitTypeEnum}
+import org.apache.texera.dao.jooq.generated.enums.{
+  PrivilegeEnum,
+  UserRoleEnum,
+  WorkflowComputingUnitTypeEnum
+}
 import org.apache.texera.dao.jooq.generated.tables.daos.{
   ComputingUnitUserAccessDao,
   UserDao,
@@ -155,7 +159,7 @@ object ComputingUnitManagingResource {
       metrics: WorkflowComputingUnitMetrics,
       isOwner: Boolean,
       accessPrivilege: EnumType,
-      ownerGoogleAvatar: String,
+      ownerAvatar: String,
       ownerName: String
   )
 
@@ -376,7 +380,7 @@ class ComputingUnitManagingResource {
       }
 
       val computingUnit = new WorkflowComputingUnit()
-      val userToken = JwtAuth.jwtToken(jwtClaims(user.user, TOKEN_EXPIRE_TIME_IN_MINUTES))
+      val userToken = JwtAuth.jwtToken(jwtClaims(user.user))
       computingUnit.setUid(user.getUid)
       computingUnit.setName(param.name)
       computingUnit.setCreationTime(new Timestamp(System.currentTimeMillis()))
@@ -394,8 +398,8 @@ class ComputingUnitManagingResource {
 
       val userDao = new UserDao(ctx.configuration())
       val ownerUser = Option(userDao.fetchOneByUid(user.getUid))
-      val ownerGoogleAvatar: String =
-        ownerUser.flatMap(u => Option(u.getGoogleAvatar).filter(_.nonEmpty)).orNull
+      val ownerAvatar: String =
+        ownerUser.flatMap(u => Option(u.getAvatar).filter(_.nonEmpty)).orNull
       val ownerUsername: String =
         ownerUser.flatMap(u => Option(u.getName).filter(_.nonEmpty)).orNull
 
@@ -445,7 +449,7 @@ class ComputingUnitManagingResource {
         ComputingUnitHelpers.getComputingUnitMetrics(insertedUnit),
         isOwner = true,
         accessPrivilege = PrivilegeEnum.WRITE,
-        ownerGoogleAvatar,
+        ownerAvatar,
         ownerUsername
       )
     }
@@ -554,8 +558,8 @@ class ComputingUnitManagingResource {
     val unit = getComputingUnitByCuid(context, cuid)
     val userDao = new UserDao(context.configuration())
     val ownerUser = Option(userDao.fetchOneByUid(unit.getUid))
-    val ownerGoogleAvatar: String =
-      ownerUser.flatMap(u => Option(u.getGoogleAvatar).filter(_.nonEmpty)).orNull
+    val ownerAvatar: String =
+      ownerUser.flatMap(u => Option(u.getAvatar).filter(_.nonEmpty)).orNull
     val ownerUsername: String =
       ownerUser.flatMap(u => Option(u.getName).filter(_.nonEmpty)).orNull
 
@@ -580,7 +584,7 @@ class ComputingUnitManagingResource {
           PrivilegeEnum.NONE
         }
       },
-      ownerGoogleAvatar,
+      ownerAvatar,
       ownerUsername
     )
   }
@@ -599,7 +603,8 @@ class ComputingUnitManagingResource {
       @PathParam("cuid") cuid: Integer,
       @Auth user: SessionUser
   ): Response = {
-    if (!userOwnComputingUnit(context, cuid, user.getUid)) {
+    // ADMINs may terminate any unit; everyone else must own it.
+    if (!user.isRoleOf(UserRoleEnum.ADMIN) && !userOwnComputingUnit(context, cuid, user.getUid)) {
       return Response
         .status(Response.Status.BAD_REQUEST)
         .entity(s"User has no access to the computing unit")

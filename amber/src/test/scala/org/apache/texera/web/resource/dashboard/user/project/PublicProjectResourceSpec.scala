@@ -53,7 +53,6 @@ class PublicProjectResourceSpec
     user.setEmail(
       s"public_project_spec_${uid}_${UUID.randomUUID().toString.substring(0, 8)}@example.com"
     )
-    user.setPassword("password")
     user.setRole(UserRoleEnum.ADMIN)
     user
   }

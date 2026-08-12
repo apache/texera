@@ -23,6 +23,7 @@ import { HttpClientTestingModule, HttpTestingController } from "@angular/common/
 import { NzCardModule } from "ng-zorro-antd/card";
 import { NzMessageService } from "ng-zorro-antd/message";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
+import { By } from "@angular/platform-browser";
 
 describe("AdminSettingsComponent", () => {
   let component: AdminSettingsComponent;
@@ -416,6 +417,247 @@ describe("AdminSettingsComponent", () => {
           (globalThis as any).FileReader = realFileReader;
         }
       });
+    });
+  });
+});
+/**
+ * The settings form is four near-identical Save/Reset cards, three near-identical upload blocks and
+ * twelve switches whose keys include two confusable singular/plural pairs (workflow_enabled vs
+ * workflows_enabled, dataset_enabled vs datasets_enabled). Cross-wiring from copy-paste is the
+ * realistic defect here, and the suite above never renders an interaction, so none of it was pinned.
+ */
+describe("AdminSettingsComponent wiring", () => {
+  let component: AdminSettingsComponent;
+  let fixture: ComponentFixture<AdminSettingsComponent>;
+  let http: HttpTestingController;
+
+  /** Sidebar switches in the order the template renders them. */
+  const SWITCH_KEYS = [
+    "hub_enabled",
+    "home_enabled",
+    "workflow_enabled",
+    "dataset_enabled",
+    "your_work_enabled",
+    "projects_enabled",
+    "workflows_enabled",
+    "datasets_enabled",
+    "compute_enabled",
+    "quota_enabled",
+    "forum_enabled",
+    "about_enabled",
+  ] as const;
+
+  /** Numeric inputs in the order the template renders them. */
+  const NUMBER_FIELDS = [
+    "maxConcurrentFiles",
+    "maxFileSizeMiB",
+    "maxConcurrentChunks",
+    "chunkSizeMiB",
+    "csvMaxColumns",
+  ] as const;
+
+  beforeEach(async () => {
+    TestBed.resetTestingModule();
+    await TestBed.configureTestingModule({
+      imports: [AdminSettingsComponent, HttpClientTestingModule, NzCardModule],
+    }).compileComponents();
+
+    http = TestBed.inject(HttpTestingController);
+    fixture = TestBed.createComponent(AdminSettingsComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+    // ngOnInit loads the settings; answer it so the form starts from a known state.
+    http.expectOne("/api/config/settings").flush({});
+    fixture.detectChanges();
+  });
+
+  afterEach(() => {
+    // nz-icon may lazily fetch its SVG assets over HTTP; drain those so verify()
+    // only asserts on requests this suite actually expects.
+    http.match(req => req.url.startsWith("assets/")).forEach(req => req.flush(""));
+    http.verify();
+    vi.restoreAllMocks();
+  });
+
+  function host(): HTMLElement {
+    return fixture.nativeElement as HTMLElement;
+  }
+
+  function switches() {
+    return fixture.debugElement.queryAll(By.css("nz-switch"));
+  }
+
+  function numberInputs() {
+    return fixture.debugElement.queryAll(By.css("nz-input-number"));
+  }
+
+  /** Buttons carrying the given trimmed label, in document order. */
+  function buttonsLabelled(label: string): HTMLButtonElement[] {
+    return Array.from(host().querySelectorAll<HTMLButtonElement>("button")).filter(
+      b => b.textContent?.trim() === label
+    );
+  }
+
+  describe("sidebar switches", () => {
+    it("gives every switch its own setting, in template order", () => {
+      // The point of the test: workflow_enabled/workflows_enabled and dataset_enabled/
+      // datasets_enabled are one character apart, and a swap between them is invisible on screen.
+      expect(switches().length).toBe(SWITCH_KEYS.length);
+
+      SWITCH_KEYS.forEach((key, i) => {
+        SWITCH_KEYS.forEach(k => ((component.sidebarTabs as any)[k] = false));
+
+        switches()[i].triggerEventHandler("ngModelChange", true);
+
+        const flipped = SWITCH_KEYS.filter(k => (component.sidebarTabs as any)[k]);
+        expect(flipped).toEqual([key]);
+      });
+    });
+
+    it("locks the Hub children until Hub itself is on", () => {
+      const hubChildren = [1, 2, 3];
+
+      component.sidebarTabs.hub_enabled = false;
+      fixture.detectChanges();
+      hubChildren.forEach(i => expect(switches()[i].componentInstance.nzDisabled).toBe(true));
+
+      component.sidebarTabs.hub_enabled = true;
+      fixture.detectChanges();
+      hubChildren.forEach(i => expect(switches()[i].componentInstance.nzDisabled).toBe(false));
+    });
+
+    it("locks the Your Work children until Your Work itself is on", () => {
+      const yourWorkChildren = [5, 6, 7, 8, 9, 10];
+
+      component.sidebarTabs.your_work_enabled = false;
+      fixture.detectChanges();
+      yourWorkChildren.forEach(i => expect(switches()[i].componentInstance.nzDisabled).toBe(true));
+
+      component.sidebarTabs.your_work_enabled = true;
+      fixture.detectChanges();
+      yourWorkChildren.forEach(i => expect(switches()[i].componentInstance.nzDisabled).toBe(false));
+    });
+
+    it("never locks the two section switches or About", () => {
+      // Locking a section behind itself would make it impossible to switch back on.
+      component.sidebarTabs.hub_enabled = false;
+      component.sidebarTabs.your_work_enabled = false;
+      fixture.detectChanges();
+
+      [0, 4, 11].forEach(i => expect(switches()[i].componentInstance.nzDisabled).toBeFalsy());
+    });
+  });
+
+  describe("numeric settings", () => {
+    it("gives every number input its own field, in template order", () => {
+      expect(numberInputs().length).toBe(NUMBER_FIELDS.length);
+
+      NUMBER_FIELDS.forEach((field, i) => {
+        numberInputs()[i].triggerEventHandler("ngModelChange", 42 + i);
+
+        expect((component as any)[field]).toBe(42 + i);
+      });
+
+      // Distinct values, so a shared target would have collapsed them.
+      const values = NUMBER_FIELDS.map(f => (component as any)[f]);
+      expect(new Set(values).size).toBe(NUMBER_FIELDS.length);
+    });
+  });
+
+  describe("card buttons", () => {
+    it("routes each card's Save to that card's own handler", () => {
+      const spies = {
+        saveLogos: vi.spyOn(component, "saveLogos").mockImplementation(() => {}),
+        saveTabs: vi.spyOn(component, "saveTabs").mockImplementation(() => {}),
+        saveDatasetSettings: vi.spyOn(component, "saveDatasetSettings").mockImplementation(() => {}),
+        saveCsvSettings: vi.spyOn(component, "saveCsvSettings").mockImplementation(() => {}),
+      };
+      const saves = buttonsLabelled("Save");
+      expect(saves.length).toBe(4);
+
+      saves.forEach(b => b.click());
+
+      expect(spies.saveLogos).toHaveBeenCalledTimes(1);
+      expect(spies.saveTabs).toHaveBeenCalledTimes(1);
+      expect(spies.saveDatasetSettings).toHaveBeenCalledTimes(1);
+      expect(spies.saveCsvSettings).toHaveBeenCalledTimes(1);
+    });
+
+    it("routes each card's Reset to that card's own handler", () => {
+      const spies = {
+        resetBranding: vi.spyOn(component, "resetBranding").mockImplementation(() => {}),
+        resetTabs: vi.spyOn(component, "resetTabs").mockImplementation(() => {}),
+        resetDatasetSettings: vi.spyOn(component, "resetDatasetSettings").mockImplementation(() => {}),
+        resetCsvSettings: vi.spyOn(component, "resetCsvSettings").mockImplementation(() => {}),
+      };
+      const resets = buttonsLabelled("Reset");
+      expect(resets.length).toBe(4);
+
+      resets.forEach(b => b.click());
+
+      expect(spies.resetBranding).toHaveBeenCalledTimes(1);
+      expect(spies.resetTabs).toHaveBeenCalledTimes(1);
+      expect(spies.resetDatasetSettings).toHaveBeenCalledTimes(1);
+      expect(spies.resetCsvSettings).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("branding uploads", () => {
+    const PICKERS = [
+      { label: "Choose a Logo", key: "logo" },
+      { label: "Choose a Mini Logo", key: "mini_logo" },
+      { label: "Choose a Favicon", key: "favicon" },
+    ] as const;
+
+    function fileInputs(): HTMLInputElement[] {
+      return Array.from(host().querySelectorAll<HTMLInputElement>('input[type="file"]'));
+    }
+
+    it("points each picker at its own hidden input", () => {
+      // Three identical blocks; a copy-pasted template reference would open the wrong picker.
+      const inputs = fileInputs();
+      expect(inputs.length).toBe(PICKERS.length);
+      const clicks = inputs.map(i => vi.spyOn(i, "click").mockImplementation(() => {}));
+
+      PICKERS.forEach((picker, i) => {
+        buttonsLabelled(picker.label)[0].click();
+
+        expect(clicks[i]).toHaveBeenCalledTimes(1);
+        clicks.forEach((c, j) => j !== i && expect(c).toHaveBeenCalledTimes(j < i ? 1 : 0));
+      });
+    });
+
+    it("tags each hidden input's change with its own setting key", () => {
+      const spy = vi.spyOn(component, "onFileChange").mockImplementation(() => {});
+
+      fileInputs().forEach(input => input.dispatchEvent(new Event("change")));
+
+      expect(spy.mock.calls.map(c => c[0])).toEqual(PICKERS.map(p => p.key));
+    });
+
+    it("shows no preview until something has been chosen", () => {
+      // Without the *ngIf on each preview, a card renders a broken image on first load.
+      expect(host().querySelectorAll("img.preview-img").length).toBe(0);
+    });
+
+    it("previews only the images that have been chosen", () => {
+      component.logoData = "data:image/png;base64,LOGO";
+      fixture.detectChanges();
+
+      const previews = Array.from(host().querySelectorAll<HTMLImageElement>("img.preview-img"));
+      expect(previews.length).toBe(1);
+      expect(previews[0].alt).toBe("Logo Preview");
+      expect(previews[0].getAttribute("src")).toBe("data:image/png;base64,LOGO");
+    });
+
+    it("previews each image beside its own label", () => {
+      component.logoData = "LOGO";
+      component.miniLogoData = "MINI";
+      component.faviconData = "FAV";
+      fixture.detectChanges();
+
+      const previews = Array.from(host().querySelectorAll<HTMLImageElement>("img.preview-img"));
+      expect(previews.map(i => i.getAttribute("src"))).toEqual(["LOGO", "MINI", "FAV"]);
     });
   });
 });

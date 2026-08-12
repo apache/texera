@@ -320,6 +320,7 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
         this.registerAutoPersistWorkflow();
       });
   }
+
   onWIDChange() {
     this.workflowActionService
       .workflowMetaDataChanged()
@@ -333,6 +334,7 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
         this.writeAccess = !metadata.readonly;
       });
   }
+
   updateViewCount() {
     let wid = this.route.snapshot.params.id;
     let uid = this.userService.getCurrentUser()?.uid;
@@ -342,6 +344,7 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
       .pipe(untilDestroyed(this))
       .subscribe();
   }
+
   public triggerCenter(): void {
     this.workflowActionService.getTexeraGraph().triggerCenterEvent();
   }

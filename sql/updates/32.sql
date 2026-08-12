@@ -23,35 +23,24 @@ SET search_path TO texera_db;
 
 BEGIN;
 
--- Introduce ML models as a first-class resource (own primary key `mid`, own LakeFS repo namespace)
--- and add model-specific attributes (framework, format).
+CREATE TYPE user_warehouse_flavor_enum AS ENUM ('local', 'aws');
 
-CREATE TABLE IF NOT EXISTS model
+-- Per-user warehouse registrations (#6870): one row per warehouse a user registered.
+-- Base columns only; the assume-role (BYO-S3) columns come in a later change.
+CREATE TABLE IF NOT EXISTS user_warehouse
 (
-    mid             SERIAL PRIMARY KEY,
-    owner_uid       INT NOT NULL,
-    name            VARCHAR(128) NOT NULL,
-    repository_name VARCHAR(128),
-    is_public       BOOLEAN NOT NULL DEFAULT TRUE,
-    is_downloadable BOOLEAN NOT NULL DEFAULT TRUE,
-    description     TEXT NOT NULL,
-    creation_time   TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    cover_image     varchar(255),
-    framework       VARCHAR(32),
-    format          VARCHAR(32),
-    FOREIGN KEY (owner_uid) REFERENCES "user"(uid) ON DELETE CASCADE,
-    UNIQUE (owner_uid, name)
-);
-
-CREATE TABLE IF NOT EXISTS model_version
-(
-    mvid          SERIAL PRIMARY KEY,
-    mid           INT NOT NULL,
-    creator_uid   INT NOT NULL,
-    name          VARCHAR(128) NOT NULL,
-    version_hash  VARCHAR(64) NOT NULL,
-    creation_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (mid) REFERENCES model(mid) ON DELETE CASCADE
+    whid                    SERIAL PRIMARY KEY,
+    uid                     INT          NOT NULL,
+    name                    VARCHAR(128) NOT NULL,
+    warehouse_name          VARCHAR(255) NOT NULL UNIQUE,
+    lakekeeper_warehouse_id UUID         NOT NULL,
+    flavor                  user_warehouse_flavor_enum NOT NULL,
+    s3_bucket               VARCHAR(255),
+    s3_endpoint             VARCHAR(255),
+    s3_region               VARCHAR(64),
+    created_at              TIMESTAMPTZ  NOT NULL DEFAULT now(),
+    UNIQUE (uid, name),
+    FOREIGN KEY (uid) REFERENCES "user" (uid) ON DELETE CASCADE
 );
 
 COMMIT;
