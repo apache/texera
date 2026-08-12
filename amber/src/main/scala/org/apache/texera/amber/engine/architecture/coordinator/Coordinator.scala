@@ -77,8 +77,8 @@ object Coordinator {
   // actorId, so the control channels must go too: otherwise the coordinator resumes the old
   // control-message sequence numbers and the new worker discards its commands as duplicates.
   case class CleanupWorkerChannels(
-    workerIds: Seq[ActorVirtualIdentity],
-    completionPromise: Promise[Unit]
+      workerIds: Seq[ActorVirtualIdentity],
+      completionPromise: Promise[Unit]
   )
 
   def cleanupWorkerChannels(
