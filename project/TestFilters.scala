@@ -42,7 +42,7 @@ object TestFilters {
         Seq(Tests.Argument(TestFrameworks.ScalaTest, "-l", tag))
       case Some("integration-only") =>
         Seq(Tests.Argument(TestFrameworks.ScalaTest, "-n", tag))
-      case Some(other) => sys.error(s"unrecognized $envVar value: $other")
+      case Some(other) => sys.error(s"$envVar=$other: use skip-integration or integration-only")
       case None        => Nil
     }
 }
