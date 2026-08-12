@@ -1882,7 +1882,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     }
   }
 
-  closeRecommendations(): void {
+  private closeRecommendations(): void {
     if (this.operatorSuggestion) {
       this.operatorSuggestion = null;
       this.changeDetectorRef.detectChanges();
