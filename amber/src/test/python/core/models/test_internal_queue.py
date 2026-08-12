@@ -581,7 +581,7 @@ class TestInternalQueue:
     def test_queries_survive_a_channel_registration_mid_iteration(
         self, query, expected
     ):
-        # A key whose is_control access (evaluated inside the query's
+        # Registers a key whose is_control access (evaluated inside the query's
         # iteration over _queue_ids) delivers the first-ever message of a
         # brand-new data channel, interleaving a registration into the
         # iteration exactly like a concurrent Flight reader thread would.

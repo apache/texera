@@ -20,7 +20,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 from threading import RLock
-from typing import TypeVar, Set
+from typing import Tuple, TypeVar, Set
 
 from core.models.payload import DataPayload
 from core.util.customized_queue.linked_blocking_multi_queue import (
@@ -101,21 +101,26 @@ class InternalQueue(IQueue):
     def enable(self, channel_id: ChannelIdentity) -> None:
         self._queue.enable(channel_id)
 
+    def _control_queue_ids(self) -> Tuple[ChannelIdentity, ...]:
+        """Snapshot of the registered control channels.
+
+        put() can grow _queue_ids from another thread, and iterating the
+        live set while it grows raises RuntimeError, so queries must iterate
+        a snapshot taken through these helpers.
+        """
+        snapshot = tuple(self._queue_ids)
+        return tuple(queue_id for queue_id in snapshot if queue_id.is_control)
+
+    def _data_queue_ids(self) -> Tuple[ChannelIdentity, ...]:
+        """Snapshot of the registered data channels; see _control_queue_ids."""
+        snapshot = tuple(self._queue_ids)
+        return tuple(queue_id for queue_id in snapshot if not queue_id.is_control)
+
     def is_control_empty(self) -> bool:
-        # snapshot: put() may add channels concurrently, and iterating the
-        # live set while it grows raises RuntimeError
-        return all(
-            self.is_empty(queue_id)
-            for queue_id in tuple(self._queue_ids)
-            if queue_id.is_control
-        )
+        return all(self.is_empty(queue_id) for queue_id in self._control_queue_ids())
 
     def is_data_empty(self) -> bool:
-        return all(
-            self.is_empty(queue_id)
-            for queue_id in tuple(self._queue_ids)
-            if not queue_id.is_control
-        )
+        return all(self.is_empty(queue_id) for queue_id in self._data_queue_ids())
 
     def __len__(self) -> int:
         return self.size()
@@ -124,18 +129,10 @@ class InternalQueue(IQueue):
         return self._queue.size()
 
     def size_control(self) -> int:
-        return sum(
-            self._queue.size(queue_id)
-            for queue_id in tuple(self._queue_ids)
-            if queue_id.is_control
-        )
+        return sum(self._queue.size(queue_id) for queue_id in self._control_queue_ids())
 
     def size_data(self) -> int:
-        return sum(
-            self._queue.size(queue_id)
-            for queue_id in tuple(self._queue_ids)
-            if not queue_id.is_control
-        )
+        return sum(self._queue.size(queue_id) for queue_id in self._data_queue_ids())
 
     def enable_data(self, disable_type: DisableType) -> bool:
         with self._lock:
@@ -157,14 +154,10 @@ class InternalQueue(IQueue):
 
     def in_mem_size(self) -> int:
         return sum(
-            self._queue.in_mem_size(queue_id)
-            for queue_id in tuple(self._queue_ids)
-            if not queue_id.is_control
+            self._queue.in_mem_size(queue_id) for queue_id in self._data_queue_ids()
         )
 
     def is_data_enabled(self) -> bool:
         return any(
-            self._queue.is_enabled(queue_id)
-            for queue_id in tuple(self._queue_ids)
-            if not queue_id.is_control
+            self._queue.is_enabled(queue_id) for queue_id in self._data_queue_ids()
         )
