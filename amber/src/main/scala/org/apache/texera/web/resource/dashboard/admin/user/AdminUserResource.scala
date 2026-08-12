@@ -45,9 +45,7 @@ case class UserInfo(
     email: String,
     googleId: String,
     role: UserRoleEnum,
-    // `"user".avatar` is no longer Google-specific, but this is the JSON key
-    // `admin-user.component.html` binds, so the wire name stays until the frontend migrates.
-    googleAvatar: String,
+    avatar: String,
     comment: String,
     lastLogin: java.time.OffsetDateTime, // will be null if never logged in
     accountCreation: java.time.OffsetDateTime,
@@ -93,7 +91,7 @@ class AdminUserResource {
         // documentation; they do not drive the mapping.
         googleProvider.PROVIDER_ID.as("googleId"),
         USER.ROLE,
-        USER.AVATAR.as("googleAvatar"),
+        USER.AVATAR,
         USER.COMMENT,
         USER_LAST_ACTIVE_TIME.LAST_ACTIVE_TIME,
         USER.ACCOUNT_CREATION_TIME,

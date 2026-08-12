@@ -73,7 +73,7 @@ function makeEntry(overrides: Partial<DashboardWorkflowComputingUnit> = {}): Das
     metrics: { cpuUsage: "N/A", memoryUsage: "N/A" },
     isOwner: true,
     accessPrivilege: "WRITE",
-    ownerGoogleAvatar: "",
+    ownerAvatar: "",
     ownerName: "owner",
     ...overrides,
   };

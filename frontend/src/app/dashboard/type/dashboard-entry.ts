@@ -33,7 +33,7 @@ import { EntityType } from "../../hub/service/hub.service";
 
 export interface UserInfo {
   userName: string;
-  googleAvatar?: string;
+  avatar?: string;
 }
 
 export class DashboardEntry {
@@ -47,7 +47,7 @@ export class DashboardEntry {
   accessLevel: string | undefined;
   ownerName: string | undefined;
   ownerEmail: string | undefined;
-  ownerGoogleAvatar: string | undefined;
+  ownerAvatar: string | undefined;
   ownerId: number | undefined;
   size: number | undefined;
   viewCount: number;
@@ -75,7 +75,7 @@ export class DashboardEntry {
       this.accessLevel = value.accessLevel;
       this.ownerName = value.ownerName;
       this.ownerEmail = "";
-      this.ownerGoogleAvatar = "";
+      this.ownerAvatar = "";
       this.ownerId = value.ownerId;
       this.size = 0;
       this.viewCount = 0;
@@ -94,7 +94,7 @@ export class DashboardEntry {
       this.accessLevel = value.accessLevel;
       this.ownerName = "";
       this.ownerEmail = "";
-      this.ownerGoogleAvatar = "";
+      this.ownerAvatar = "";
       this.ownerId = value.ownerId;
       this.size = 0;
       this.viewCount = 0;
@@ -112,7 +112,7 @@ export class DashboardEntry {
       this.accessLevel = value.accessLevel;
       this.ownerName = "";
       this.ownerEmail = value.ownerEmail;
-      this.ownerGoogleAvatar = "";
+      this.ownerAvatar = "";
       this.ownerId = value.file.ownerUid;
       this.size = value.file.size;
       this.viewCount = 0;
@@ -130,7 +130,7 @@ export class DashboardEntry {
       this.accessLevel = value.accessPrivilege;
       this.ownerName = "";
       this.ownerEmail = value.ownerEmail;
-      this.ownerGoogleAvatar = "";
+      this.ownerAvatar = "";
       this.ownerId = value.dataset.ownerUid;
       this.size = value.size;
       this.viewCount = 0;
@@ -146,7 +146,7 @@ export class DashboardEntry {
       this.creationTime = value.computingUnit.creationTime;
       this.accessLevel = value.accessPrivilege;
       this.ownerName = "";
-      this.ownerGoogleAvatar = "";
+      this.ownerAvatar = "";
       this.ownerId = value.computingUnit.uid;
       this.viewCount = 0;
       this.cloneCount = 0;
@@ -162,8 +162,8 @@ export class DashboardEntry {
     this.ownerName = ownerName;
   }
 
-  setOwnerGoogleAvatar(ownerGoogleAvatar: string): void {
-    this.ownerGoogleAvatar = ownerGoogleAvatar;
+  setOwnerAvatar(ownerAvatar: string): void {
+    this.ownerAvatar = ownerAvatar;
   }
 
   setCount(viewCount: number, cloneCount: number, likeCount: number): void {
