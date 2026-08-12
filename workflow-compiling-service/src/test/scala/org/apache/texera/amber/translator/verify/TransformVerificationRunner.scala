@@ -590,9 +590,9 @@ object TransformVerificationRunner {
     * runtime than signal.
     *
     * The table it runs on is whichever SHARED one the operator already runs on:
-    * [[CanonicalFixture]] for the auto tier, and for a curated handler the table it
-    * names through [[TransformHandler.sharedFixture]]. A handler that assembled its
-    * fixture for one operator names none and sits this out.
+    * for the auto tier the one [[fixtureFor]] resolves, and for a curated handler
+    * the table it names through [[TransformHandler.sharedFixture]]. A handler that
+    * assembled its fixture for one operator names none and sits this out.
     */
   private def nullsCase(
       opClass: Class[_ <: LogicalOp],
