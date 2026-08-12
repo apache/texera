@@ -20,9 +20,12 @@
 Persistent worker that syntax-checks generated operator code, replacing one
 `python -I -S -B -m py_compile <file>` spawn per operator descriptor.
 
-`compile(source, path, "exec")` is what `py_compile` does before writing a
-`.pyc` and raises the same SyntaxError; skipping that write is why neither `-B`
-nor a temp file is needed here.
+`compile(source, path, "exec", dont_inherit=True)` is what `py_compile` does
+before writing a `.pyc` and raises the same SyntaxError; skipping that write is
+why neither `-B` nor a temp file is needed here. `dont_inherit` is the half a
+pooled worker cannot leave out: without it this module's own `__future__`
+import applies to every source it checks, which on CPython 3.12 rejects a
+walrus inside an annotation that the spawn accepts.
 
 Protocol (line-delimited JSON, both directions):
 
@@ -46,7 +49,7 @@ def _compile_one(source: str, name: str) -> "dict[str, object]":
     so a report names the descriptor rather than a temp path.
     """
     try:
-        compile(source, name, "exec")
+        compile(source, name, "exec", dont_inherit=True)
         return {"exit": 0, "stdout": "", "stderr": ""}
     except (SyntaxError, ValueError):
         # ValueError: sources compile() rejects outright, e.g. an embedded NUL.
