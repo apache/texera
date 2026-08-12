@@ -36,6 +36,7 @@ import org.apache.texera.amber.operator.metadata.annotations.{
   AutofillAttributeNameList,
   AutofillAttributeNameOnPort1,
   CommonOpDescAnnotation,
+  HideAnnotation,
   SampleColumn
 }
 import org.apache.texera.amber.util.JSONUtils.objectMapper
@@ -388,7 +389,7 @@ object ConfigGenerator {
       used: mutable.Set[(Int, String)],
       baseNode: JsonNode
   ): Seq[Variant] =
-    configFields(clazz).filter(hasAutofill).flatMap { f =>
+    configFields(clazz).filter(hasAutofill).filterNot(hiddenBySibling(_, baseNode)).flatMap { f =>
       columnFill(f, baseNode, pointerOf(f, ""), schemas, used, baseNode).map {
         case (pointer, value) =>
           // A list knob holds its one column in an array; name the column either way.
@@ -475,7 +476,7 @@ object ConfigGenerator {
       rowCount: Int,
       ordinal: Ordinal
   ): Seq[Variant] =
-    configFields(clazz).flatMap { f =>
+    configFields(clazz).filterNot(hiddenBySibling(_, baseNode.at(path))).flatMap { f =>
       val childPath = pointerOf(f, path)
       rowType(f) match {
         case Some(row) =>
@@ -512,7 +513,7 @@ object ConfigGenerator {
     * same — so the variant replaces whatever value is there.
     */
   private def hostileTextFills(clazz: Class[_], baseNode: JsonNode, path: String): Seq[Variant] =
-    configFields(clazz).flatMap { f =>
+    configFields(clazz).filterNot(hiddenBySibling(_, baseNode.at(path))).flatMap { f =>
       val childPath = pointerOf(f, path)
       rowType(f) match {
         case Some(row) =>
@@ -815,7 +816,7 @@ object ConfigGenerator {
     * `path` is the JSON Pointer of the sub-node currently typed by `clazz`.
     */
   private def enumSites(clazz: Class[_], node: JsonNode, path: String): Seq[EnumSite] =
-    configFields(clazz).flatMap { f =>
+    configFields(clazz).filterNot(hiddenBySibling(_, node.at(path))).flatMap { f =>
       if (hasAutofill(f)) Seq.empty
       else {
         val jp = Option(f.getAnnotation(classOf[JsonProperty]))
@@ -968,7 +969,8 @@ object ConfigGenerator {
     // "No Selection" grouping/pattern knobs (e.g. BarChart's categoryColumn /
     // pattern); forcing a real column into one produces a degenerate config (one
     // trace per row) that the native and generated paths disagree on.
-    if (autofill && !required) Skip
+    if (hiddenBySibling(f, siblings)) Skip
+    else if (autofill && !required) Skip
     else {
       // A field declaring its values in the annotation counts as meaningful just as
       // an enum-TYPED one does: the sweep flips it from the base config, so it has
@@ -1280,6 +1282,35 @@ object ConfigGenerator {
 
   private def defaultOf(f: Field): Option[String] =
     Option(f.getAnnotation(classOf[JsonProperty])).map(_.defaultValue).filter(_.nonEmpty)
+
+  /** Whether the UI hides this field, given what its siblings currently hold.
+    *
+    * A `hide*` triple says "hide me when THAT field holds THIS value", and the UI
+    * honours it, so a config that fills a hidden field is one no user can submit.
+    * Filling one was harmless where nothing read it and misleading where something
+    * did: sklearn's `text` was filled off the numeric table with the vectorizer
+    * off, a form the UI never shows.
+    *
+    * The sibling's value is read from the node being built, which starts as the
+    * operator's own defaults, so the target is present whatever the declaration
+    * order.
+    */
+  private def hiddenBySibling(f: Field, siblings: JsonNode): Boolean =
+    Option(f.getAnnotation(classOf[JsonSchemaInject])).exists { inject =>
+      val by = inject.strings.find(_.path == HideAnnotation.hideTarget).map(_.value)
+      val expected = inject.strings.find(_.path == HideAnnotation.hideExpectedValue).map(_.value)
+      val kind = inject.strings
+        .find(_.path == HideAnnotation.hideType)
+        .map(_.value)
+        .getOrElse(HideAnnotation.Type.equals)
+      (by, expected) match {
+        case (Some(target), Some(want)) =>
+          val actual = Option(siblings.get(target)).map(_.asText).getOrElse("")
+          if (kind == HideAnnotation.Type.regex) Try(actual.matches(want)).getOrElse(false)
+          else actual == want
+        case _ => false
+      }
+    }
 
   private def isList(t: Class[_]): Boolean =
     classOf[scala.collection.Seq[_]].isAssignableFrom(t) ||
