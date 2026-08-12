@@ -57,6 +57,12 @@ import scala.sys.process._
   */
 object StandaloneRunner extends LazyLogging {
 
+  /** The value both paths seed numpy's global RNG with. Any fixed number does;
+    * what matters is that the two agree, so it is declared once here and
+    * referenced by name from py_op_driver's comment.
+    */
+  private[verify] val VerifySeed: Int = 20260811
+
   /**
     * @param outputs paths to the per-port output JSONL files. Empty map iff
     *                the operator's `producesDataFrame()` returned false
@@ -188,6 +194,10 @@ object StandaloneRunner extends LazyLogging {
     sb.append("import plotly.express as px\n")
     sb.append("import plotly.graph_objects as go\n")
     sb.append("import plotly.io\n")
+    // Same seed as py_op_driver's run_config, for the reason given there. Bound
+    // under a private name and deleted so the note above still holds: a script
+    // that wants numpy has to import it, and this does not hand it one.
+    sb.append(s"import numpy as _texera_np; _texera_np.random.seed($VerifySeed); del _texera_np\n")
     sb.append("\n")
 
     // Object columns holding non-primitive values (e.g. a trained sklearn model

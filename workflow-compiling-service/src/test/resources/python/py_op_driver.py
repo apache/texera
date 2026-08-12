@@ -420,6 +420,19 @@ def run_config(config: Mapping[str, Any]) -> None:
     operator instance, so operators don't share Python-level state across jobs
     when run through the server (the isolation the per-process CLI gave for
     free)."""
+    # Both paths seed numpy's global RNG with the same value before running, so
+    # an estimator built without random_state (sklearn reads the global RNG for
+    # that) draws the same samples on each and the two models come out
+    # identical. Without it a stochastic estimator makes the parity check
+    # inconclusive in both directions: a difference could be the translation or
+    # could be the draw, and a match could be either. Per call, not per process:
+    # the worker pool reuses this process, so a job that inherited the previous
+    # job's RNG position would not line up with a fresh standalone one. Keep in
+    # step with StandaloneRunner.VerifySeed.
+    import numpy as _texera_np
+
+    _texera_np.random.seed(20260811)
+
     operator_code: str = config["operatorCode"]
     is_source: bool = bool(config.get("isSource", False))
     port_order: Sequence[int] = list(config.get("portOrder", []))
