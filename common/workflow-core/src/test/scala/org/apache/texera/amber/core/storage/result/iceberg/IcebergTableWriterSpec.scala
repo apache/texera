@@ -22,7 +22,7 @@ package org.apache.texera.amber.core.storage.result.iceberg
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema, Tuple}
 import org.apache.texera.amber.core.storage.IcebergCatalogInstance
 import org.apache.texera.amber.util.IcebergUtil
-import org.apache.iceberg.catalog.Catalog
+import org.apache.iceberg.catalog.{Catalog, Namespace, TableIdentifier}
 import org.apache.iceberg.data.IcebergGenerics
 import org.apache.iceberg.{Schema => IcebergSchema, Table}
 import org.scalatest.BeforeAndAfterAll
@@ -30,6 +30,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 
 import java.nio.file.{Files, Path}
 import java.util.UUID
+import java.util.concurrent.atomic.AtomicInteger
 import scala.jdk.CollectionConverters._
 
 class IcebergTableWriterSpec extends AnyFlatSpec with BeforeAndAfterAll {
@@ -162,5 +163,63 @@ class IcebergTableWriterSpec extends AnyFlatSpec with BeforeAndAfterAll {
       .toList
     assert(dataFiles.nonEmpty)
     assert(dataFiles.forall(_.contains("worker_42_")))
+  }
+  it should "resolve its table from the catalog installed at flush time, not at construction" in {
+    // #7290: an eagerly-held Table would keep the writer bound to the catalog that was
+    // cached when it was constructed -- a reference the bounded cache may evict and
+    // close. Swapping the warehouse entry after construction must redirect the flush.
+    val swapWarehouse = "iceberg-table-writer-spec-swap"
+    val tableName = s"tbl_${UUID.randomUUID().toString.replace("-", "")}"
+    IcebergUtil.createTable(
+      catalog,
+      tableNamespace,
+      tableName,
+      icebergSchema,
+      overrideIfExists = true
+    )
+
+    val constructionCatalog = new CountingCatalog(catalog)
+    IcebergCatalogInstance.replaceInstance(constructionCatalog, Some(swapWarehouse))
+    val writer = new IcebergTableWriter[Tuple](
+      "writer_swap",
+      Some(swapWarehouse),
+      tableNamespace,
+      tableName,
+      icebergSchema,
+      IcebergUtil.toGenericRecord
+    )
+    writer.open()
+    writer.putOne(tuple(1))
+
+    // Install a different catalog before the flush; the writer must go through it.
+    val flushCatalog = new CountingCatalog(catalog)
+    IcebergCatalogInstance.replaceInstance(flushCatalog, Some(swapWarehouse))
+    val loadsBeforeFlush = flushCatalog.loadTableCalls.get()
+
+    writer.close() // flushes the buffer
+
+    assert(
+      flushCatalog.loadTableCalls.get() > loadsBeforeFlush,
+      "the flush must load the table through the catalog installed at flush time"
+    )
+    assert(readTuples(tableName) == List(tuple(1)), "the tuple must reach the table")
+  }
+
+  /** Delegates to `delegate` while counting `loadTable` calls. */
+  private class CountingCatalog(delegate: Catalog) extends Catalog {
+    val loadTableCalls = new AtomicInteger()
+    override def name(): String = "counting"
+    override def loadTable(identifier: TableIdentifier): Table = {
+      loadTableCalls.incrementAndGet()
+      delegate.loadTable(identifier)
+    }
+    override def tableExists(identifier: TableIdentifier): Boolean =
+      delegate.tableExists(identifier)
+    override def listTables(namespace: Namespace): java.util.List[TableIdentifier] =
+      delegate.listTables(namespace)
+    override def dropTable(identifier: TableIdentifier, purge: Boolean): Boolean =
+      delegate.dropTable(identifier, purge)
+    override def renameTable(from: TableIdentifier, to: TableIdentifier): Unit =
+      delegate.renameTable(from, to)
   }
 }
