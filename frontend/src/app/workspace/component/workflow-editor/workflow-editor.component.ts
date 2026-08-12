@@ -18,7 +18,7 @@
  */
 
 import { AfterViewInit, ChangeDetectorRef, Component, ElementRef, OnDestroy, OnInit } from "@angular/core";
-import { combineLatest, fromEvent, merge, Subject } from "rxjs";
+import { combineLatest, fromEvent, merge, of, Subject } from "rxjs";
 import { NzModalCommentBoxComponent } from "./comment-box-modal/nz-modal-comment-box.component";
 import { NzModalRef, NzModalService } from "ng-zorro-antd/modal";
 import { DragDropService } from "../../service/drag-drop/drag-drop.service";
@@ -30,7 +30,7 @@ import { WorkflowActionService } from "../../service/workflow-graph/model/workfl
 import { WorkflowStatusService } from "../../service/workflow-status/workflow-status.service";
 import { ExecutionState, OperatorState } from "../../types/execute-workflow.interface";
 import { LogicalPort, OperatorLink, OperatorPredicate } from "../../types/workflow-common.interface";
-import { auditTime, filter, map, takeUntil, withLatestFrom } from "rxjs/operators";
+import { auditTime, filter, map, switchMap, takeUntil, withLatestFrom } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { UndoRedoService } from "../../service/undo-redo/undo-redo.service";
 import { WorkflowVersionService } from "../../../dashboard/service/user/workflow-version/workflow-version.service";
@@ -123,6 +123,8 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     recommendations: OperatorRecommendation[];
   } | null = null;
   private readonly repositionSuggestion$ = new Subject<void>();
+  // Drives every suggestion request; `null` cancels whatever is in flight.
+  private readonly suggestionRequest$ = new Subject<OperatorPredicate | null>();
 
   // Screen-pixel gap between the operator's right edge and the suggestion chips.
   private static readonly SUGGESTION_GAP_X = 20;
@@ -1778,13 +1780,30 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
       return;
     }
 
+    // Every suggestion request — from a drop or from chaining after a click —
+    // goes through this one pipeline. switchMap unsubscribes the previous
+    // request, so a slow response can neither overwrite newer suggestions nor
+    // re-open the overlay after the user dismissed it; `null` means "cancel".
+    this.suggestionRequest$
+      .pipe(
+        switchMap(operator =>
+          operator === null
+            ? of(null)
+            : this.operatorRecommendationService
+                .getRecommendations(operator)
+                .pipe(map(recommendations => ({ operator, recommendations })))
+        ),
+        untilDestroyed(this)
+      )
+      .subscribe(result => this.showRecommendations(result));
+
     // Trigger: the user interactively dropped an operator onto the canvas.
     // Deliberately not the graph's operator-add stream, which also fires on
     // workflow load, undo/redo, paste, and remote co-editor edits — none of
     // which are a user authoring a next step.
     this.dragDropService.operatorDropStream
       .pipe(untilDestroyed(this))
-      .subscribe(operator => this.showRecommendationsFor(operator));
+      .subscribe(operator => this.requestRecommendationsFor(operator));
 
     // Dismiss when the user clicks on blank canvas.
     fromJointPaperEvent(this.paper, "blank:pointerdown")
@@ -1820,36 +1839,40 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
       });
   }
 
-  private showRecommendationsFor(operator: OperatorPredicate): void {
+  /** Ask for suggestions on `operator`, cancelling whatever was in flight. */
+  private requestRecommendationsFor(operator: OperatorPredicate): void {
     this.closeRecommendations();
+    // An operator with no output ports (e.g. a chart sink) has no port to
+    // anchor suggestions on, so there is nothing to ask for.
     if (operator.outputPorts.length === 0) {
       return;
     }
-    const sourceOutputPortID = operator.outputPorts[0].portID;
+    this.suggestionRequest$.next(operator);
+  }
 
-    this.operatorRecommendationService
-      .getRecommendations(operator)
-      .pipe(untilDestroyed(this))
-      .subscribe(recommendations => {
-        // The operator may have been deleted while the request was in flight.
-        if (
-          recommendations.length === 0 ||
-          !this.workflowActionService.getTexeraGraph().hasOperator(operator.operatorID)
-        ) {
-          return;
-        }
-        const position = this.getRecommendationPosition(operator.operatorID);
-        if (!position) {
-          return;
-        }
-        this.operatorSuggestion = {
-          operatorId: operator.operatorID,
-          sourceOutputPortID,
-          position,
-          recommendations,
-        };
-        this.changeDetectorRef.detectChanges();
-      });
+  /** Render the result of the most recent, uncancelled suggestion request. */
+  private showRecommendations(
+    result: { operator: OperatorPredicate; recommendations: OperatorRecommendation[] } | null
+  ): void {
+    if (result === null || result.recommendations.length === 0) {
+      return;
+    }
+    const { operator, recommendations } = result;
+    // The operator may have been deleted while the request was in flight.
+    if (!this.workflowActionService.getTexeraGraph().hasOperator(operator.operatorID)) {
+      return;
+    }
+    const position = this.getRecommendationPosition(operator.operatorID);
+    if (!position) {
+      return;
+    }
+    this.operatorSuggestion = {
+      operatorId: operator.operatorID,
+      sourceOutputPortID: operator.outputPorts[0].portID,
+      position,
+      recommendations,
+    };
+    this.changeDetectorRef.detectChanges();
   }
 
   /**
@@ -1878,11 +1901,14 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     // through addOperatorsAndLinks, not through a drop, so the drop-gated
     // trigger above will never fire for it.
     if (newOperatorID !== undefined && graph.hasOperator(newOperatorID)) {
-      this.showRecommendationsFor(graph.getOperator(newOperatorID));
+      this.requestRecommendationsFor(graph.getOperator(newOperatorID));
     }
   }
 
   private closeRecommendations(): void {
+    // Cancel any in-flight request too: nulling the state alone would let a
+    // late response re-open the overlay the user just dismissed.
+    this.suggestionRequest$.next(null);
     if (this.operatorSuggestion) {
       this.operatorSuggestion = null;
       this.changeDetectorRef.detectChanges();

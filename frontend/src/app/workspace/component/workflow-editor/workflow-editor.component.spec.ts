@@ -50,7 +50,7 @@ import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { OperatorLink, OperatorPredicate } from "../../types/workflow-common.interface";
 import { tap } from "rxjs/operators";
 import { WorkflowVersionService } from "../../../dashboard/service/user/workflow-version/workflow-version.service";
-import { of } from "rxjs";
+import { of, Subject } from "rxjs";
 import { NzContextMenuService, NzDropDownModule } from "ng-zorro-antd/dropdown";
 import { ActivatedRoute, Router } from "@angular/router";
 import { RouterTestingModule } from "@angular/router/testing";
@@ -61,7 +61,10 @@ import { commonTestProviders } from "../../../common/testing/test-utils";
 import { OperatorMenuService } from "../../service/operator-menu/operator-menu.service";
 import { GuiConfigService } from "src/app/common/service/gui-config.service";
 import { MockGuiConfigService } from "src/app/common/service/gui-config.service.mock";
-import { OperatorRecommendationService } from "../../service/operator-recommendation/operator-recommendation.service";
+import {
+  OperatorRecommendation,
+  OperatorRecommendationService,
+} from "../../service/operator-recommendation/operator-recommendation.service";
 import type { MockInstance } from "vitest";
 
 describe("WorkflowEditorComponent", () => {
@@ -1709,6 +1712,37 @@ describe("Ambient Operator Recommender", () => {
 
     expect(getRecommendationsSpy).not.toHaveBeenCalled();
     expect(component.operatorSuggestion).toBeNull();
+  });
+
+  it("ignores a response that arrives after the user dismissed the suggestions", () => {
+    const inFlight = new Subject<OperatorRecommendation[]>();
+    getRecommendationsSpy.mockReturnValue(inFlight);
+    workflowActionService.addOperator(mockScanPredicate, mockPoint);
+    emitOperatorDrop(mockScanPredicate);
+
+    // The user clicks blank canvas while the request is still in flight.
+    (component.paper as any).trigger("blank:pointerdown");
+    inFlight.next(mockRecommendations);
+
+    expect(component.operatorSuggestion).toBeNull();
+  });
+
+  it("lets the newest request win when an older response lands last", () => {
+    const first = new Subject<OperatorRecommendation[]>();
+    const second = new Subject<OperatorRecommendation[]>();
+    getRecommendationsSpy.mockReturnValueOnce(first).mockReturnValueOnce(second);
+
+    workflowActionService.addOperator(mockScanPredicate, mockPoint);
+    workflowActionService.addOperator(mockSentimentPredicate, mockPoint);
+    emitOperatorDrop(mockScanPredicate);
+    emitOperatorDrop(mockSentimentPredicate);
+
+    // The superseded request answers last; it must not show stale chips.
+    first.next(mockRecommendations);
+    expect(component.operatorSuggestion).toBeNull();
+
+    second.next(mockRecommendations);
+    expect(component.operatorSuggestion?.operatorId).toEqual(mockSentimentPredicate.operatorID);
   });
 
   it("dismisses the suggestions when the anchor operator is deleted", () => {
