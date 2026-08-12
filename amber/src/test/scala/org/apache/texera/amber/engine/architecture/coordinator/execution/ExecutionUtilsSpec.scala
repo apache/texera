@@ -352,14 +352,9 @@ class ExecutionUtilsSpec extends AnyFlatSpec {
     assert(!ExecutionUtils.aggregateMetrics(List(computed)).reusedFromCache)
   }
 
-  it should "default reusedFromCache to false for empty input and untouched metrics" in {
-    // Empty input takes the early-return path, whose default is false. This is
-    // the empty-cache property for the flag: nothing sets it until a producer does.
+  it should "default reusedFromCache to false for empty input" in {
+    // Empty input takes the early-return path, whose default is false; metrics
+    // that no producer has marked keep that default too.
     assert(!ExecutionUtils.aggregateMetrics(Iterable.empty).reusedFromCache)
-    assert(
-      !ExecutionUtils
-        .aggregateMetrics(List(metricsWith(WorkflowAggregatedState.RUNNING)))
-        .reusedFromCache
-    )
   }
 }

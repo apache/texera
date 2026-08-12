@@ -237,23 +237,7 @@ class ExecutionStatsService(
     val updatedLastMetrics = lastPersistedMetrics ++ newKeys.map(_ -> defaultMetrics)
 
     // Combine new metrics with old metrics for keys that are no longer present
-    val completeMetricsMap = newMetrics ++ oldKeys.map(key => key -> updatedLastMetrics(key))
-
-    // Transform the complete metrics map to ensure consistent structure
-    completeMetricsMap.map {
-      case (key, metrics) =>
-        key -> OperatorMetrics(
-          metrics.operatorState,
-          OperatorStatistics(
-            metrics.operatorStatistics.inputMetrics,
-            metrics.operatorStatistics.outputMetrics,
-            metrics.operatorStatistics.numWorkers,
-            metrics.operatorStatistics.dataProcessingTime,
-            metrics.operatorStatistics.controlProcessingTime,
-            metrics.operatorStatistics.idleTime
-          )
-        )
-    }
+    newMetrics ++ oldKeys.map(key => key -> updatedLastMetrics(key))
   }
 
   private def storeRuntimeStatistics(
