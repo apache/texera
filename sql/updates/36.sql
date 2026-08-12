@@ -46,7 +46,13 @@ BEGIN
     WITH affected AS (
         SELECT w.wid
         FROM workflow w,
-             jsonb_array_elements(w.content::jsonb -> 'operators') AS op,
+             jsonb_array_elements(
+                 CASE
+                     WHEN jsonb_typeof(w.content::jsonb -> 'operators') = 'array'
+                         THEN w.content::jsonb -> 'operators'
+                     ELSE '[]'::jsonb
+                 END
+             ) AS op,
              LATERAL (
                  SELECT op #>> '{operatorProperties,fileName}'           AS fn,
                         op #>> '{operatorProperties,datasetVersionPath}' AS dvp
@@ -96,7 +102,13 @@ BEGIN
                 )
                 ORDER BY ord
             )
-            FROM jsonb_array_elements(w.content::jsonb -> 'operators') WITH ORDINALITY AS t(op, ord),
+            FROM jsonb_array_elements(
+                     CASE
+                         WHEN jsonb_typeof(w.content::jsonb -> 'operators') = 'array'
+                             THEN w.content::jsonb -> 'operators'
+                         ELSE '[]'::jsonb
+                     END
+                 ) WITH ORDINALITY AS t(op, ord),
                  LATERAL (
                      SELECT op #>> '{operatorProperties,fileName}'           AS fn,
                             op #>> '{operatorProperties,datasetVersionPath}' AS dvp
@@ -111,7 +123,13 @@ BEGIN
     WITH affected AS (
         SELECT wv.vid
         FROM workflow_version wv,
-             jsonb_array_elements(wv.content::jsonb -> 'operators') AS op,
+             jsonb_array_elements(
+                 CASE
+                     WHEN jsonb_typeof(wv.content::jsonb -> 'operators') = 'array'
+                         THEN wv.content::jsonb -> 'operators'
+                     ELSE '[]'::jsonb
+                 END
+             ) AS op,
              LATERAL (
                  SELECT op #>> '{operatorProperties,fileName}'           AS fn,
                         op #>> '{operatorProperties,datasetVersionPath}' AS dvp
@@ -161,7 +179,13 @@ BEGIN
                 )
                 ORDER BY ord
             )
-            FROM jsonb_array_elements(wv.content::jsonb -> 'operators') WITH ORDINALITY AS t(op, ord),
+            FROM jsonb_array_elements(
+                     CASE
+                         WHEN jsonb_typeof(wv.content::jsonb -> 'operators') = 'array'
+                             THEN wv.content::jsonb -> 'operators'
+                         ELSE '[]'::jsonb
+                     END
+                 ) WITH ORDINALITY AS t(op, ord),
                  LATERAL (
                      SELECT op #>> '{operatorProperties,fileName}'           AS fn,
                             op #>> '{operatorProperties,datasetVersionPath}' AS dvp
