@@ -110,11 +110,12 @@ trait TransformHandler {
     * to group. Emptying one of those changes what the test asks instead of asking
     * what the operator does with a null.
     *
-    * `None` sits the case out, which is the honest answer until someone has read
-    * the fixture and decided what is load-bearing in it. `Some(Set.empty)` is a
-    * real answer too: no column in this table carries the arrangement.
+    * The default is `Some(Set.empty)`: most curated tables arrange nothing that a
+    * hole would disturb, so taking part is the normal case and a fixture that
+    * cannot afford a hole says so. `None` sits the case out entirely, for a table
+    * whose every column is load-bearing.
     */
-  def nullsKeepFilled: Option[Set[String]] = None
+  def nullsKeepFilled: Option[Set[String]] = Some(Set.empty)
 }
 
 /**

@@ -35,6 +35,7 @@ import org.apache.texera.amber.operator.split.SplitOpDesc
 import org.apache.texera.amber.operator.sklearn.SklearnPredictionOpDesc
 import org.apache.texera.amber.operator.sklearn.SklearnClassifierOpDesc
 import org.apache.texera.amber.operator.sklearn.training.SklearnTrainingOpDesc
+import org.apache.texera.amber.operator.regex.RegexOpDesc
 import org.apache.texera.amber.operator.sklearn.testing.SklearnTestingOpDesc
 import org.apache.texera.amber.operator.substringSearch.SubstringSearchOpDesc
 import org.apache.texera.amber.operator.typecasting.TypeCastingOpDesc
@@ -575,6 +576,7 @@ object TransformVerificationRunner {
   private val nullsBlockedBy: Map[Class[_], String] = Map(
     classOf[SubstringSearchOpDesc] -> "apache/texera#7548",
     classOf[UnnestStringOpDesc] -> "apache/texera#7548",
+    classOf[RegexOpDesc] -> "apache/texera#7548",
     classOf[DumbbellPlotOpDesc] -> "apache/texera#7562",
     classOf[SklearnTrainingOpDesc] -> "apache/texera#7582",
     classOf[SklearnClassifierOpDesc] -> "apache/texera#7582"
