@@ -125,7 +125,7 @@ class RegionExecutionManager(
     // port's BASE materialization URI), shipped to every worker in
     // InitializeExecutorRequest. See WorkflowExecutionManager.loopStartPortUris.
     loopStartPortUris: Map[String, String] = Map.empty
-  ) extends AmberLogging {
+) extends AmberLogging {
 
   initRegionExecution()
 
