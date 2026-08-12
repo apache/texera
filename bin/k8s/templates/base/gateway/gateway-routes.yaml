@@ -162,8 +162,8 @@ spec:
 # Operator Recommender Route (apache/texera#5240). Served by the agent-service,
 # but deliberately kept out of the agent-service HTTPRoute: that route is the
 # target of the agent BackendTrafficPolicy, which pins requests to a replica by
-# consistent-hashing X-Agent-Workflow-Id. The recommender is stateless and sends
-# no such header, so it must not inherit that affinity. Longest-prefix matching
+# consistent-hashing X-Agent-Workflow-Id. The recommender is stateless and its
+# requests carry no such header, so it must not inherit that affinity. Longest-prefix matching
 # gives /api/recommend priority over the /api catch-all in the static routes above.
 {{- if .Values.agentService.enabled }}
 apiVersion: gateway.networking.k8s.io/v1
