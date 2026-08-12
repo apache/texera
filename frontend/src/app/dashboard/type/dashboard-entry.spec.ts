@@ -132,7 +132,7 @@ function makeComputingUnit(): DashboardWorkflowComputingUnit {
     },
     isOwner: true,
     accessPrivilege: "WRITE",
-    ownerGoogleAvatar: "avatar",
+    ownerAvatar: "avatar",
     ownerName: "Bob",
   };
 }
@@ -153,7 +153,7 @@ describe("DashboardEntry", () => {
       expect(entry.ownerName).toBe("Alice");
       expect(entry.ownerId).toBe(10);
       expect(entry.ownerEmail).toBe("");
-      expect(entry.ownerGoogleAvatar).toBe("");
+      expect(entry.ownerAvatar).toBe("");
       expect(entry.size).toBe(0);
       expect(entry.coverImageUrl).toBe("http://example.com/cover.png");
       expect(entry.value).toBe(value);
@@ -218,7 +218,7 @@ describe("DashboardEntry", () => {
       expect(entry.creationTime).toBe(1700000005000);
       expect(entry.accessLevel).toBe("WRITE");
       expect(entry.ownerId).toBe(50);
-      expect(entry.ownerGoogleAvatar).toBe("");
+      expect(entry.ownerAvatar).toBe("");
       // The computing-unit branch does not populate these fields.
       expect(entry.description).toBeUndefined();
       expect(entry.lastModifiedTime).toBeUndefined();
@@ -249,10 +249,10 @@ describe("DashboardEntry", () => {
       expect(entry.ownerName).toBe("Carol");
     });
 
-    it("setOwnerGoogleAvatar updates ownerGoogleAvatar", () => {
+    it("setOwnerAvatar updates ownerAvatar", () => {
       const entry = new DashboardEntry(makeWorkflow());
-      entry.setOwnerGoogleAvatar("https://example.com/avatar.png");
-      expect(entry.ownerGoogleAvatar).toBe("https://example.com/avatar.png");
+      entry.setOwnerAvatar("https://example.com/avatar.png");
+      expect(entry.ownerAvatar).toBe("https://example.com/avatar.png");
     });
 
     it("setCount updates viewCount, cloneCount and likeCount together", () => {

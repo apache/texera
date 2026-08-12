@@ -100,7 +100,7 @@ function makeComputingUnit(
     metrics: { cpuUsage: "N/A", memoryUsage: "N/A" },
     isOwner,
     accessPrivilege: "WRITE",
-    ownerGoogleAvatar: "",
+    ownerAvatar: "",
     ownerName: "owner",
   };
 }
