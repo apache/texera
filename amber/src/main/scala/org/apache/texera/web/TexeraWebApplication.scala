@@ -33,25 +33,16 @@ import org.apache.texera.auth.SessionUser
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.web.auth.JwtAuth.setupJwtAuth
 import org.apache.texera.web.resource._
-import org.apache.texera.web.resource.auth.{AuthResource, GoogleAuthResource}
+import org.apache.texera.web.resource.auth.{AuthResource, GoogleAuthResource, OrcidAuthResource}
 import org.apache.texera.web.resource.dashboard.DashboardResource
 import org.apache.texera.web.resource.dashboard.admin.execution.AdminExecutionResource
 import org.apache.texera.web.resource.dashboard.admin.user.AdminUserResource
 import org.apache.texera.web.resource.dashboard.hub.HubResource
 import org.apache.texera.web.resource.dashboard.user.UserResource
 import org.apache.texera.web.resource.dashboard.user.warehouse.WarehouseResource
-import org.apache.texera.web.resource.dashboard.user.project.{
-  ProjectAccessResource,
-  ProjectResource,
-  PublicProjectResource
-}
+import org.apache.texera.web.resource.dashboard.user.project.{ProjectAccessResource, ProjectResource, PublicProjectResource}
 import org.apache.texera.web.resource.dashboard.user.quota.UserQuotaResource
-import org.apache.texera.web.resource.dashboard.user.workflow.{
-  WorkflowAccessResource,
-  WorkflowExecutionsResource,
-  WorkflowResource,
-  WorkflowVersionResource
-}
+import org.apache.texera.web.resource.dashboard.user.workflow.{WorkflowAccessResource, WorkflowExecutionsResource, WorkflowResource, WorkflowVersionResource}
 import org.eclipse.jetty.server.session.SessionHandler
 import org.eclipse.jetty.servlet.{ErrorPageErrorHandler, FilterHolder}
 import org.eclipse.jetty.websocket.server.WebSocketUpgradeFilter
@@ -143,6 +134,7 @@ class TexeraWebApplication
 
     environment.jersey.register(classOf[AuthResource])
     environment.jersey.register(classOf[GoogleAuthResource])
+    environment.jersey.register(classOf[OrcidAuthResource])
     environment.jersey.register(classOf[UserConfigResource])
     environment.jersey.register(classOf[FeedbackResource])
     environment.jersey.register(classOf[AdminUserResource])

@@ -33,6 +33,7 @@ export class MockGuiConfigService {
     selectingFilesFromDatasetsEnabled: false,
     localLogin: true,
     googleLogin: true,
+    orcidLogin: true,
     inviteOnly: false,
     userPresetEnabled: true,
     workflowExecutionsTrackingEnabled: false,

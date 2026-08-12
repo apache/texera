@@ -25,6 +25,7 @@ import { Role, User } from "../../type/user";
 import { AuthService } from "./auth.service";
 import { GuiConfigService } from "../gui-config.service";
 import { catchError, map, shareReplay, switchMap } from "rxjs/operators";
+import { UnimplementedException } from "@angular-devkit/schematics";
 
 /**
  * User Service manages User information. It relies on different
@@ -62,6 +63,10 @@ export class UserService {
     return this.authService
       .googleAuth(credential)
       .pipe(switchMap(({ accessToken }) => this.handleAccessToken(accessToken)));
+  }
+
+  public orcidLogin(code: string): Observable<void> {
+    return this.authService.orcidAuth(code).pipe(switchMap(({ accessToken }) => this.handleAccessToken(accessToken)));
   }
 
   public isLogin(): boolean {

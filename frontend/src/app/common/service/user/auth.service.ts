@@ -46,6 +46,7 @@ export class AuthService {
   public static readonly REFRESH_TOKEN = "auth/refresh";
   public static readonly REGISTER_ENDPOINT = "auth/register";
   public static readonly GOOGLE_LOGIN_ENDPOINT = "auth/google/login";
+  public static readonly ORCID_LOGIN_ENDPOINT = "auth/orcid/login";
 
   private tokenExpirationSubscription?: Subscription;
 
@@ -79,12 +80,24 @@ export class AuthService {
   /**
    * This method will handle the request for Google login.
    * It will automatically login, save the user account inside and trigger userChangeEvent when success
-
    */
   public googleAuth(credential: string): Observable<Readonly<{ accessToken: string }>> {
     return this.http.post<Readonly<{ accessToken: string }>>(
       `${AppSettings.getApiEndpoint()}/${AuthService.GOOGLE_LOGIN_ENDPOINT}`,
       credential,
+      {
+        headers: {
+          "Content-Type": "text/plain",
+          Accept: "application/json",
+        },
+      }
+    );
+  }
+
+  public orcidAuth(code: string): Observable<Readonly<{ accessToken: string }>> {
+    return this.http.post<Readonly<{ accessToken: string }>>(
+      `${AppSettings.getApiEndpoint()}/${AuthService.GOOGLE_LOGIN_ENDPOINT}`,
+      code,
       {
         headers: {
           "Content-Type": "text/plain",

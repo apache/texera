@@ -29,7 +29,7 @@ import {
 } from "@angular/forms";
 import { ActivatedRoute, Router } from "@angular/router";
 import { catchError, filter } from "rxjs/operators";
-import { throwError } from "rxjs";
+import { EMPTY, throwError } from "rxjs";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { SocialAuthService, GoogleSigninButtonModule, SocialUser } from "@abacritt/angularx-social-login";
 import { UserService } from "../../../common/service/user/user.service";
@@ -42,6 +42,7 @@ import { NzInputDirective, NzInputGroupComponent, NzInputGroupWhitSuffixOrPrefix
 import { NzButtonComponent } from "ng-zorro-antd/button";
 import { NzDividerComponent } from "ng-zorro-antd/divider";
 import { NzTypographyComponent } from "ng-zorro-antd/typography";
+import { ORCID_STATE_KEY, OrcidAuthService, OrcidConfig } from "../../../common/service/user/orcid-auth.service";
 
 type LoginMode = "signin" | "signup";
 
@@ -76,8 +77,11 @@ export class TexeraLoginComponent implements OnInit {
   public mode: LoginMode = "signin";
   public passwordVisible = false;
   public errorMessage: string | undefined;
-
   public form: FormGroup;
+
+  // Undefined until the fetch in ngOnInit lands; the ORCID button stays disabled until then.
+  // Protected rather than private because the template reads it for that disabled binding.
+  protected orcidConfig: OrcidConfig | undefined;
 
   constructor(
     private formBuilder: FormBuilder,
@@ -87,6 +91,7 @@ export class TexeraLoginComponent implements OnInit {
     private router: Router,
     private ngZone: NgZone,
     private socialAuthService: SocialAuthService,
+    private orcidAuthService: OrcidAuthService,
     protected config: GuiConfigService
   ) {
     this.form = this.formBuilder.group({
@@ -112,6 +117,24 @@ export class TexeraLoginComponent implements OnInit {
         username: this.config.env.defaultLocalUser.username,
         password: this.config.env.defaultLocalUser.password,
       });
+    }
+
+    // Fetched up front rather than on click so the redirect is instant; until it arrives the
+    // button is disabled. EMPTY rather than a rethrow because this is background setup with no
+    // caller to propagate to — a failure leaves the button disabled, which fails safe.
+    if (this.config.env.orcidLogin) {
+      this.orcidAuthService
+        .getConfig()
+        .pipe(
+          catchError(() => {
+            this.notificationService.error("ORCID sign-in is unavailable");
+            return EMPTY;
+          }),
+          untilDestroyed(this)
+        )
+        .subscribe(orcidConfig => {
+          this.orcidConfig = orcidConfig;
+        });
     }
 
     // Google emits the signed-in user here after its own button completes the flow.
@@ -235,4 +258,32 @@ export class TexeraLoginComponent implements OnInit {
     }
     return null;
   };
+
+  /**
+   * Hand the browser to ORCID's consent screen. Unlike Google — whose SDK runs the whole
+   * handshake in a popup and emits a token — ORCID is plain authorization-code OAuth, so this
+   * leaves the app entirely and comes back at `/callback/orcid` with a `code` to exchange.
+   */
+  protected orcidLogin(): void {
+    // Unreachable while the template keeps the button disabled, but the narrowing is needed
+    // regardless, and the guard outlives whoever might drop that binding later.
+    const config = this.orcidConfig;
+    if (!config) {
+      this.notificationService.error("ORCID sign-in is unavailable");
+      return;
+    }
+
+    const state = crypto.randomUUID();
+    sessionStorage.setItem(ORCID_STATE_KEY, state);
+
+    const params = new URLSearchParams({
+      client_id: config.clientId,
+      response_type: "code",
+      scope: "/authenticate",
+      redirect_uri: `${window.location.origin}/callback/orcid`,
+      state,
+    });
+
+    window.location.href = `${config.authorizeUrl}?${params}`;
+  }
 }
