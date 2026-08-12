@@ -76,6 +76,11 @@ object Coordinator {
   // Removing a worker's actorRef stops other actors from reaching it. Restarted regions reuse
   // actorId, so the control channels must go too: otherwise the coordinator resumes the old
   // control-message sequence numbers and the new worker discards its commands as duplicates.
+  case class CleanupWorkerChannels(
+    workerIds: Seq[ActorVirtualIdentity],
+    completionPromise: Promise[Unit]
+  )
+
   def cleanupWorkerChannels(
       workerIds: Seq[ActorVirtualIdentity],
       asyncRPCClient: AsyncRPCClient,
