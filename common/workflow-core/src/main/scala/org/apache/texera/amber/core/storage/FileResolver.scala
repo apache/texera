@@ -85,11 +85,15 @@ object FileResolver {
   }
 
   /**
-    * Parses a versioned-resource file path of the form
-    * /<prefix>/ownerEmail/resourceName/versionName/fileRelativePath and extracts its components.
+    * Parses a versioned-resource file path into its components, or None if it is not well-formed.
     *
-    * The prefix is validated generically via [[ResourceType.isValidPrefix]] and returned as the
-    * matched [[ResourceType]], so a single caller can dispatch to the right backing table.
+    * Two accepted forms:
+    *   - Prefixed:  /<prefix>/ownerEmail/resourceName/versionName/fileRelativePath (>= 5 segments)
+    *     where the leading segment names a known [[ResourceType]] (dataset, model, …), so a single
+    *     caller can dispatch to the right backing table.
+    *   - Legacy unprefixed (datasets only, backward compat): /ownerEmail/datasetName/versionName/
+    *     fileRelativePath (>= 4 segments), resolved as a dataset. Models are new and always require
+    *     the /models/ prefix.
     *
     * @param fileName the file path to parse
     * @return Some((resourceType, ownerEmail, resourceName, versionName, fileRelativePath)) if valid,
@@ -101,19 +105,42 @@ object FileResolver {
     val filePath = Paths.get(fileName)
     val pathSegments = (0 until filePath.getNameCount).map(filePath.getName(_).toString).toArray
 
-    // Requires <prefix>/ownerEmail/resourceName/versionName/<file> (>= 5 segments) whose leading
-    // segment names a known resource type.
-    if (pathSegments.length < 5) {
-      return None
-    }
-
-    ResourceType.fromPrefix(pathSegments(0)).map { resourceType =>
-      (resourceType, pathSegments(1), pathSegments(2), pathSegments(3), pathSegments.drop(4))
+    pathSegments.headOption.flatMap(ResourceType.fromPrefix) match {
+      case Some(resourceType) =>
+        // Prefixed: /<prefix>/ownerEmail/resourceName/versionName/<file> (>= 5 segments).
+        if (pathSegments.length < 5) None
+        else
+          Some(
+            (resourceType, pathSegments(1), pathSegments(2), pathSegments(3), pathSegments.drop(4))
+          )
+      case None =>
+        // Legacy unprefixed dataset path (backward compat): /ownerEmail/datasetName/versionName/<file>.
+        // TODO(datasets-prefix): require the prefix once all stored paths are migrated (36.sql).
+        if (pathSegments.length >= 4)
+          Some(
+            (
+              ResourceType.Datasets,
+              pathSegments(0),
+              pathSegments(1),
+              pathSegments(2),
+              pathSegments.drop(3)
+            )
+          )
+        else None
     }
   }
 
   /**
     * Resolves a versioned-resource logical path to its physical `scheme:///` URI.
+    *
+    * The leading prefix selects the resource kind; only the per-type DB lookup and URI scheme
+    * differ, so adding a new versioned resource is a single new `case` below plus a lookup helper.
+    * An unprefixed path is resolved as a legacy dataset path (see [[parsePrefixedPath]]).
+    *
+    * Input:  /<prefix>/ownerEmail/resourceName/versionName/fileRelativePath (or legacy unprefixed)
+    * Output: {scheme}:///{repositoryName}/{versionHash}/fileRelativePath
+    *   e.g. /datasets/bob@x.com/twitter/v1/dir/f.csv -> dataset:///dataset-15/adeq233td/dir/f.csv
+    *        /models/bob@x.com/resnet/v1/weights/m.pt -> model:///model-15/adeq233td/weights/m.pt
     *
     * @throws java.io.FileNotFoundException if the path is not a valid versioned-resource path, the
     *                                       resource/version does not exist, or the URI is malformed

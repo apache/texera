@@ -477,5 +477,93 @@ describe("ReportGenerationService", () => {
         );
       });
     });
+
+    /**
+     * Once the images are inlined, the editor is handed to html2canvas and whatever canvas comes
+     * back is encoded as a PNG. Substituting the renderer with `vi.mock("html2canvas")` does not
+     * work here: @angular/build's unit-test runner runs spec files with `isolate: false`, so they
+     * share one module registry and MenuComponent's spec — which pulls this service in
+     * transitively — can pin the real html2canvas before this file's mock is ever registered.
+     * The real renderer is used instead, with jsdom given the three pieces it lacks: a 2D
+     * context, an <img> that reports a data-URL source as loaded, and a PNG encoder.
+     */
+    describe("rendering the editor to a PNG", () => {
+      const RENDERED_PNG = "data:image/png;base64,RENDERED";
+
+      let realImage: typeof globalThis.Image;
+      let toDataUrl: ReturnType<typeof vi.spyOn>;
+      let editor: HTMLElement;
+
+      /**
+       * html2canvas draws the cloned editor onto a canvas; none of those calls affect what the
+       * service does with the result, so a context that accepts every call stands in for one.
+       */
+      function permissiveContext(): CanvasRenderingContext2D {
+        return new Proxy({}, { get: () => () => undefined }) as CanvasRenderingContext2D;
+      }
+
+      /** html2canvas rasterizes the clone through an <img> pointed at a serialized SVG. */
+      class InstantImage {
+        public onload: (() => void) | null = null;
+        public onerror: (() => void) | null = null;
+        private source = "";
+        get src(): string {
+          return this.source;
+        }
+        set src(value: string) {
+          this.source = value;
+          queueMicrotask(() => this.onload?.());
+        }
+      }
+
+      beforeEach(() => {
+        vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockImplementation(
+          () => permissiveContext() as unknown as never
+        );
+        toDataUrl = vi.spyOn(HTMLCanvasElement.prototype, "toDataURL").mockReturnValue(RENDERED_PNG);
+        realImage = globalThis.Image;
+        (globalThis as unknown as { Image: unknown }).Image = InstantImage;
+        editor = document.createElement("div");
+        editor.id = "workflow-editor";
+        document.body.appendChild(editor);
+      });
+
+      afterEach(() => {
+        (globalThis as unknown as { Image: unknown }).Image = realImage;
+        vi.restoreAllMocks();
+        editor.remove();
+      });
+
+      it("emits the rendered editor as a PNG data URL and then completes", async () => {
+        const emitted: string[] = [];
+        let completed = false;
+
+        await new Promise<void>((resolve, reject) => {
+          service.generateWorkflowSnapshot("myflow").subscribe({
+            next: value => emitted.push(value),
+            error: reject,
+            complete: () => {
+              completed = true;
+              resolve();
+            },
+          });
+        });
+
+        expect(emitted).toEqual([RENDERED_PNG]);
+        expect(completed).toBe(true);
+        // PNG specifically: the report embeds the snapshot in an <img>, so the format is not
+        // the encoder's default choice to make.
+        expect(toDataUrl).toHaveBeenCalledWith("image/png");
+      });
+
+      it("fails when the editor cannot be rendered", async () => {
+        const failure = new Error("canvas unavailable");
+        toDataUrl.mockImplementation(() => {
+          throw failure;
+        });
+
+        await expect(firstValueFrom(service.generateWorkflowSnapshot("myflow"))).rejects.toBe(failure);
+      });
+    });
   });
 });
