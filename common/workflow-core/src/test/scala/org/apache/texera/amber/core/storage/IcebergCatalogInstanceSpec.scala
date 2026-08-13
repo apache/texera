@@ -31,10 +31,11 @@ import org.scalatest.matchers.should.Matchers
 import java.time.Duration
 
 /**
-  * Spec for the bounded catalog cache (#7290): only *evicted* entries are closed --
-  * a catalog displaced by replaceInstance stays open, because the replacing caller
-  * may still hold and later restore it (wrap-and-restore, as amber's integration
-  * IcebergDocumentSpec does) -- and holders resolve their catalog per use so a
+  * Spec for the bounded catalog cache (#7290): only *idle-expired* entries are closed.
+  * A size-evicted catalog is dropped un-closed (it may be mid-operation under load),
+  * a catalog displaced by replaceInstance stays open (the replacing caller may still
+  * hold and later restore it -- wrap-and-restore, as amber's integration
+  * IcebergDocumentSpec does), and holders resolve their catalog per operation so a
   * replacement is visible immediately.
   *
   * Size and idle eviction are exercised on isolated caches built through the
@@ -66,7 +67,9 @@ class IcebergCatalogInstanceSpec extends AnyFlatSpec with Matchers {
     override def read(): Long = nanos
   }
 
-  "the catalog cache" should "evict and close entries beyond the size bound" in {
+  "the catalog cache" should "drop entries beyond the size bound without closing them" in {
+    // Size pressure means more simultaneously hot warehouses than the bound; the
+    // evicted catalog may be mid-operation, so it must decay via GC, never be closed.
     val cache =
       IcebergCatalogInstance.buildCatalogCache(2, Duration.ofMinutes(60), new ManualTicker)
     val fakes = (1 to 3).map(i => new FakeCatalog(s"size-$i"))
@@ -74,8 +77,7 @@ class IcebergCatalogInstanceSpec extends AnyFlatSpec with Matchers {
     fakes.zipWithIndex.foreach { case (fake, i) => cache.put(s"warehouse-$i", fake) }
 
     cache.size() should be <= 2L
-    // Writes process eviction notifications synchronously; the evicted entry is closed.
-    fakes.count(_.closed) should be >= 1
+    fakes.count(_.closed) shouldBe 0
   }
 
   it should "close an entry left idle beyond the expiry window" in {

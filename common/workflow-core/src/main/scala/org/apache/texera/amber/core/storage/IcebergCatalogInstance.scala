@@ -20,7 +20,13 @@
 package org.apache.texera.amber.core.storage
 
 import com.google.common.base.Ticker
-import com.google.common.cache.{Cache, CacheBuilder, RemovalListener, RemovalNotification}
+import com.google.common.cache.{
+  Cache,
+  CacheBuilder,
+  RemovalCause,
+  RemovalListener,
+  RemovalNotification
+}
 import com.google.common.util.concurrent.{ExecutionError, UncheckedExecutionException}
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.texera.common.config.StorageConfig
@@ -43,10 +49,16 @@ import scala.util.Try
   * and ignore the warehouse argument.
   *
   * The cache is bounded (#7290): per-user warehouses (#6870) make the set of catalogs a
-  * long-lived JVM touches unbounded, and each REST catalog holds an HTTP client. Entries
-  * that fall out by size or idleness are closed; the next access simply rebuilds one.
-  * Callers must therefore resolve their catalog per use instead of holding one across an
-  * execution (see IcebergDocument / IcebergTableWriter).
+  * long-lived JVM touches unbounded, and each REST catalog holds an HTTP client. An entry
+  * idle for the expiry window is closed -- nothing can be using it, and idle entries are
+  * exactly what a long-lived JVM accumulates. An entry evicted by *size* is only dropped,
+  * never closed: size pressure means more simultaneously hot warehouses than the bound,
+  * and closing a hot catalog would fail the operations still using it. Load degrades into
+  * rebuild churn (the dropped catalog decays once its in-flight users finish), not errors.
+  *
+  * Callers must therefore resolve their catalog per logical operation instead of holding
+  * one across an execution -- that is also what keeps a dropped catalog's lifetime bounded
+  * by the operation using it (see IcebergDocument / IcebergTableWriter).
   *
   * Only *evicted* entries are closed. A catalog displaced by [[replaceInstance]] is the
   * caller's to manage: whoever replaces an entry may still hold (and restore) the old
@@ -77,14 +89,15 @@ object IcebergCatalogInstance extends LazyLogging {
       .ticker(ticker)
       .removalListener(new RemovalListener[String, Catalog] {
         override def onRemoval(notification: RemovalNotification[String, Catalog]): Unit =
-          // wasEvicted is true only for size/idle eviction. An explicit replacement must
-          // NOT close the displaced catalog: the replacing caller may still hold it
-          // (wrap-and-restore in tests, catalog reconfiguration later).
-          if (notification.wasEvicted()) {
+          // Close ONLY idle-expired entries. A size-evicted catalog may be mid-operation
+          // (overload = more hot warehouses than the bound) and a replaced one is still
+          // the replacing caller's (wrap-and-restore in tests, reconfiguration later);
+          // both are dropped un-closed and decay once their last user finishes.
+          if (notification.getCause == RemovalCause.EXPIRED) {
             notification.getValue match {
               case closeable: AutoCloseable =>
                 Try(closeable.close()).failed.foreach(error =>
-                  logger.warn(s"failed to close evicted catalog '${notification.getKey}'", error)
+                  logger.warn(s"failed to close expired catalog '${notification.getKey}'", error)
                 )
               case _ =>
             }
