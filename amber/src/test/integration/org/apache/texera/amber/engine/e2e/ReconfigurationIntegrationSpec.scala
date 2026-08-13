@@ -29,8 +29,8 @@ import org.apache.texera.amber.core.executor.{OpExecInitInfo, OpExecWithCode}
 import org.apache.texera.amber.core.tuple.Tuple
 import org.apache.texera.amber.core.virtualidentity.OperatorIdentity
 import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.engine.architecture.controller.{
-  ControllerConfig,
+import org.apache.texera.amber.engine.architecture.coordinator.{
+  CoordinatorConfig,
   ExecutionStateUpdate
 }
 import org.apache.texera.amber.engine.architecture.rpc.controlcommands.EmptyRequest
@@ -46,7 +46,7 @@ import org.apache.texera.amber.engine.e2e.TestUtils.{
 import org.apache.texera.amber.operator.source.scan.text.TextInputSourceOpDesc
 import org.apache.texera.amber.operator.{LogicalOp, TestOperators}
 import org.apache.texera.amber.tags.IntegrationTest
-import org.apache.texera.workflow.LogicalLink
+import org.apache.texera.common.compiler.model.LogicalLink
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, Outcome, Retries}
 import org.scalatest.flatspec.AnyFlatSpecLike
 
@@ -134,7 +134,7 @@ class ReconfigurationIntegrationSpec
         system,
         workflow.context,
         workflow.physicalPlan,
-        ControllerConfig.default,
+        CoordinatorConfig.default,
         _ => {}
       )
       val completion = Promise[Unit]()
@@ -142,7 +142,7 @@ class ReconfigurationIntegrationSpec
         if (evt.state == COMPLETED) completion.updateIfEmpty(Return(()))
       })
       Await.result(
-        client.controllerInterface.startWorkflow(EmptyRequest(), ()),
+        client.coordinatorInterface.startWorkflow(EmptyRequest(), ()),
         warmupCap
       )
       Await.result(completion, warmupCap)

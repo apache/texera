@@ -21,7 +21,6 @@ package org.apache.texera.amber.engine.e2e
 
 import com.twitter.util.{Await, Duration, Promise, Return, Throw, Try}
 import org.apache.pekko.actor.ActorSystem
-import org.apache.texera.common.config.StorageConfig
 import org.apache.texera.amber.core.executor.OpExecInitInfo
 import org.apache.texera.amber.core.storage.DocumentFactory
 import org.apache.texera.amber.core.storage.model.VirtualDocument
@@ -32,10 +31,11 @@ import org.apache.texera.amber.core.virtualidentity.{
   WorkflowIdentity
 }
 import org.apache.texera.amber.core.workflow.{PortIdentity, WorkflowContext, WorkflowSettings}
-import org.apache.texera.amber.engine.architecture.controller.{
-  ControllerConfig,
+import org.apache.texera.amber.engine.architecture.coordinator.{
+  CoordinatorConfig,
   ExecutionStateUpdate,
   FatalError,
+  OperatorPortResultUriAvailable,
   Workflow
 }
 import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{
@@ -64,9 +64,11 @@ import org.apache.texera.dao.jooq.generated.tables.pojos.{
   WorkflowVersion,
   Workflow => WorkflowPojo
 }
-import org.apache.texera.web.model.websocket.request.LogicalPlanPojo
+import org.apache.texera.common.compiler.model.LogicalPlanPojo
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource.getResultUriByLogicalPortId
-import org.apache.texera.workflow.{LogicalLink, WorkflowCompiler}
+import org.apache.texera.web.service.ExecutionResultService
+import org.apache.texera.common.compiler.model.LogicalLink
+import org.apache.texera.common.compiler.{CompilationErrorHandling, WorkflowCompiler}
 
 object TestUtils {
 
@@ -94,9 +96,13 @@ object TestUtils {
     val workflowCompiler = new WorkflowCompiler(
       context
     )
-    workflowCompiler.compile(
-      LogicalPlanPojo(operators, links, List(), List())
+    // Execution path: strict, fail-fast on compilation errors. Strict guarantees
+    // a defined physicalPlan (errors throw rather than clearing it).
+    val compilationResult = workflowCompiler.compile(
+      LogicalPlanPojo(operators, links, List(), List()),
+      CompilationErrorHandling.Strict
     )
+    Workflow.fromCompilationResult(context, compilationResult)
   }
 
   /**
@@ -157,11 +163,19 @@ object TestUtils {
       system,
       workflow.context,
       workflow.physicalPlan,
-      ControllerConfig.default,
+      CoordinatorConfig.default,
       e => completion.updateIfEmpty(Throw(e))
     )
     try {
       client.registerCallback[FatalError](evt => completion.updateIfEmpty(Throw(evt.e)))
+      // The engine emits `OperatorPortResultUriAvailable` for each
+      // materialized output port; production wires this to a DB insert in
+      // `ExecutionResultService.persistOperatorPortResultUri`. The e2e
+      // harness doesn't construct an `ExecutionResultService` (it builds an
+      // `AmberClient` directly), so register the same callback here so the
+      // post-completion `readMaterializedResults` lookup via
+      // `getResultUriByLogicalPortId` finds the rows.
+      registerResultUriPersistence(client, workflow.context.executionId)
       client.registerCallback[ExecutionStateUpdate](evt => {
         if (evt.state == COMPLETED) {
           completion.updateIfEmpty(
@@ -169,12 +183,24 @@ object TestUtils {
           )
         }
       })
-      Await.result(client.controllerInterface.startWorkflow(EmptyRequest(), ()))
+      Await.result(client.coordinatorInterface.startWorkflow(EmptyRequest(), ()))
       Await.result(completion, completionTimeout)
     } finally {
       client.shutdown()
     }
   }
+
+  /**
+    * Mirror the production `OperatorPortResultUriAvailable` → DB write that
+    * `ExecutionResultService.persistOperatorPortResultUri` does, but driven
+    * from a test-owned `AmberClient`. Specs that build their own client
+    * (the harness above, or `shouldReconfigure` for the pause/resume flow)
+    * call this so subsequent `getResultUriByLogicalPortId` lookups succeed.
+    */
+  def registerResultUriPersistence(client: AmberClient, executionId: ExecutionIdentity): Unit =
+    client.registerCallback[OperatorPortResultUriAvailable](evt =>
+      ExecutionResultService.persistOperatorPortResultUri(executionId, evt)
+    )
 
   /**
     * Convenience over `runWorkflowAndReadResults` for the common case: run
@@ -197,12 +223,33 @@ object TestUtils {
     * If a test case accesses the user system through singleton resources that cache the DSLContext (e.g., executes a
     * workflow, which accesses WorkflowExecutionsResource), we use a separate texera_db specifically for such test cases.
     * Note such test cases need to clean up the database at the end of running each test case.
+    *
+    * This backs the e2e specs with MockTexeraDB's embedded Postgres instead of an external test Postgres
+    * (depends on #4179).
     */
   def initiateTexeraDBForTestCases(): Unit = {
+    org.apache.texera.dao.MockTexeraDB.ensureInitialized()
+    val embedded = org.apache.texera.dao.MockTexeraDB.getDBInstance
+
+    val dbName = "texera_db_for_test_cases_" + java.util.UUID.randomUUID().toString.replace("-", "")
+
+    scala.util.Using.resource(embedded.getPostgresDatabase.getConnection) { conn =>
+      scala.util.Using.resource(conn.createStatement()) { stmt =>
+        stmt.execute(s"CREATE DATABASE $dbName")
+      }
+    }
+
+    scala.util.Using.resource(embedded.getDatabase("postgres", dbName).getConnection) {
+      targetDbConn =>
+        scala.util.Using.resource(targetDbConn.createStatement()) { stmt =>
+          stmt.execute(org.apache.texera.dao.MockTexeraDB.getDDLScript)
+        }
+    }
+
     SqlServer.initConnection(
-      StorageConfig.jdbcUrlForTestCases,
-      StorageConfig.jdbcUsername,
-      StorageConfig.jdbcPassword
+      embedded.getJdbcUrl("postgres", dbName),
+      "postgres",
+      ""
     )
   }
 
@@ -213,7 +260,6 @@ object TestUtils {
     user.setUid(Integer.valueOf(id))
     user.setName(s"test_user_$id")
     user.setRole(UserRoleEnum.ADMIN)
-    user.setPassword("123")
     user.setEmail(s"test_user_$id@test.com")
     user
   }
@@ -298,11 +344,12 @@ object TestUtils {
       system,
       workflow.context,
       workflow.physicalPlan,
-      ControllerConfig.default,
+      CoordinatorConfig.default,
       error => {}
     )
     // Timeout for control-command acks (start/pause/reconfigure/resume).
     val commandTimeout = Duration.fromSeconds(30)
+    registerResultUriPersistence(client, workflow.context.executionId)
     val completion = Promise[Unit]()
     var result: Map[OperatorIdentity, List[Tuple]] = null
     client.registerCallback[ExecutionStateUpdate](evt => {
@@ -312,12 +359,12 @@ object TestUtils {
       }
     })
     Await.result(
-      client.controllerInterface.startWorkflow(EmptyRequest(), ()),
+      client.coordinatorInterface.startWorkflow(EmptyRequest(), ()),
       commandTimeout
     )
     val pausedReached = stateReached(client, PAUSED)
     Await.result(
-      client.controllerInterface.pauseWorkflow(EmptyRequest(), ()),
+      client.coordinatorInterface.pauseWorkflow(EmptyRequest(), ()),
       commandTimeout
     )
     Await.result(pausedReached, commandTimeout)
@@ -325,7 +372,7 @@ object TestUtils {
       workflow.physicalPlan.getPhysicalOpsOfLogicalOp(op.operatorIdentifier)
     )
     Await.result(
-      client.controllerInterface.reconfigureWorkflow(
+      client.coordinatorInterface.reconfigureWorkflow(
         WorkflowReconfigureRequest(
           reconfiguration = physicalOps.map(op => UpdateExecutorRequest(op.id, newOpExecInitInfo)),
           reconfigurationId = "test-reconfigure-1"
@@ -335,7 +382,7 @@ object TestUtils {
       commandTimeout
     )
     Await.result(
-      client.controllerInterface.resumeWorkflow(EmptyRequest(), ()),
+      client.coordinatorInterface.resumeWorkflow(EmptyRequest(), ()),
       commandTimeout
     )
     Await.result(completion, Duration.fromMinutes(1))

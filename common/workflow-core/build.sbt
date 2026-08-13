@@ -34,6 +34,45 @@ ThisBuild / conflictManager := ConflictManager.latestRevision
 // Restrict parallel execution of tests to avoid conflicts
 Global / concurrentRestrictions += Tags.limit(Tags.Test, 1)
 
+// Suites tagged @org.apache.texera.common.tags.NonParallelTest must not run concurrently with one
+// another. They share a JVM-wide singleton backed by an external resource — the MinIO-backed
+// suites mixing S3StorageTestBase share one S3StorageClient.s3Client and one
+// StorageConfig.s3Endpoint pointed at a single MinIO container — so ScalaTest's parallel suite
+// distributor otherwise runs them together, they contend, and intermittently time out (flaky; see
+// issue #7049). The Global Tags.limit(Tags.Test, 1) above only bounds sbt task concurrency, not
+// ScalaTest's in-JVM distributor.
+//
+// Give each tagged suite its own forked JVM; sbt runs forked groups one at a time (the
+// Tags.ForkedTestGroup limit), so tagged suites never overlap. Every untagged suite stays in a
+// single forked group and keeps running in parallel inside that one JVM. This mirrors the
+// FileService testcontainer setup (Test/fork := true + per-group SubProcess), which is the shape
+// sbt-jacoco supports for forked coverage — a partially-forked layout (some groups InProcess)
+// breaks jacoco's offline instrumentation in the forked JVMs. Forked JVMs default their working
+// directory to the module dir; pin it to the repo root to match the in-process cwd.
+//
+// sbt discovers ScalaTest suites by subclass fingerprint, not by annotation, so the tag is not
+// visible in `definedTests`; load each suite class through the test class loader and check for the
+// annotation reflectively (loadClass does not run static initializers; a load failure falls back
+// to the parallel group).
+Test / fork := true
+Test / forkOptions := (Test / forkOptions).value
+  .withWorkingDirectory((ThisBuild / baseDirectory).value)
+Test / testGrouping := {
+  val opts = (Test / forkOptions).value
+  val loader = (Test / testLoader).value
+  val nonParallelTag =
+    loader
+      .loadClass("org.apache.texera.common.tags.NonParallelTest")
+      .asInstanceOf[Class[_ <: java.lang.annotation.Annotation]]
+  val (serial, parallel) = (Test / definedTests).value.partition { test =>
+    try loader.loadClass(test.name).isAnnotationPresent(nonParallelTag)
+    catch { case _: Throwable => false }
+  }
+  val serialGroups =
+    serial.map(suite => Tests.Group(suite.name, Seq(suite), Tests.SubProcess(opts)))
+  Tests.Group("parallel", parallel, Tests.SubProcess(opts)) +: serialGroups
+}
+
 
 /////////////////////////////////////////////////////////////////////////////
 // Compiler Options
@@ -97,7 +136,7 @@ libraryDependencies ++= Seq(
 // Jackson-related Dependencies
 /////////////////////////////////////////////////////////////////////////////
 
-val jacksonVersion = "2.18.6"
+val jacksonVersion = "2.18.8"
 libraryDependencies ++= Seq(
   "javax.validation" % "validation-api" % "2.0.1.Final",
   "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion,        // Jackson Databind
@@ -112,20 +151,22 @@ libraryDependencies ++= Seq(
 
 /////////////////////////////////////////////////////////////////////////////
 // Arrow related
-val arrowVersion = "15.0.2"
-val nettyVersion = "4.1.96.Final"
+val arrowVersion = "19.0.0"
+val nettyVersion = "4.2.15.Final"
 val arrowDependencies = Seq(
-  // https://mvnrepository.com/artifact/org.apache.arrow/flight-grpc
-  "org.apache.arrow" % "flight-grpc" % arrowVersion,
+  // flight-core bundles the gRPC transport since Arrow 16; the standalone
+  // flight-grpc artifact was discontinued after 15.0.2.
   // https://mvnrepository.com/artifact/org.apache.arrow/flight-core
   "org.apache.arrow" % "flight-core" % arrowVersion
 )
 
 libraryDependencies ++= arrowDependencies
 
-// Netty dependency overrides to ensure compatibility with Arrow
-// Arrow 14.0.1 requires Netty 4.1.96.Final for proper memory allocation
-// The chunkSize field issue occurs when Netty versions are mismatched
+// Netty dependency overrides to ensure compatibility with Arrow 19.0.0, which
+// targets the Netty 4.2 line. The whole family must be pinned to one version:
+// arrow-memory-netty reaches into Netty allocator internals, so a 4.1/4.2 split
+// breaks it (NoClassDefFoundError: ThreadAwareExecutor). Kept in sync with the
+// same list in the root build.sbt (amber module).
 dependencyOverrides ++= Seq(
   "io.netty" % "netty-all" % nettyVersion,
   "io.netty" % "netty-buffer" % nettyVersion,
@@ -140,59 +181,103 @@ dependencyOverrides ++= Seq(
   "io.netty" % "netty-transport" % nettyVersion,
   "io.netty" % "netty-transport-classes-epoll" % nettyVersion,
   "io.netty" % "netty-transport-native-epoll" % nettyVersion,
-  "io.netty" % "netty-transport-native-unix-common" % nettyVersion
+  "io.netty" % "netty-transport-native-unix-common" % nettyVersion,
+  // Arrow 19's transitive deps pull jackson-databind past the 2.18 line that
+  // jackson-module-scala is pinned to; force the Jackson core family back to
+  // jacksonVersion so the Scala module can initialize (else Test aborts with
+  // "Scala module 2.18.x requires Jackson Databind version >= 2.18.0 and
+  // < 2.19.0").
+  "com.fasterxml.jackson.core" % "jackson-core" % jacksonVersion,
+  "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion,
+  "com.fasterxml.jackson.core" % "jackson-annotations" % jacksonVersion
 )
 
 /////////////////////////////////////////////////////////////////////////////
 // Iceberg-related Dependencies
 /////////////////////////////////////////////////////////////////////////////
 val excludeJersey = ExclusionRule(organization = "com.sun.jersey")
-val excludeGlassfishJersey = ExclusionRule(organization = "org.glassfish.jersey")
+// Hadoop 3.3.2+ ships jersey-json via the com.github.pjfanning fork; its Jersey 1.x
+// providers break Jersey 2 auto-discovery at startup, so exclude it as well.
+val excludeJerseyJsonFork = ExclusionRule(organization = "com.github.pjfanning", name = "jersey-json")
+// Hadoop 3.5.0 moved its web stack from Jersey 1.x (com.sun.jersey) to Jersey 2.x
+// (org.glassfish.jersey.{core,containers,inject}) plus the glassfish JAXB runtime,
+// istack-commons, and the Jakarta JSP API. ExclusionRule matches the organization string
+// exactly, so a bare "org.glassfish.jersey" rule matches none of the real artifacts.
+// Texera uses hadoop only as a filesystem client, so none of this servlet/JAX-RS/JAXB web
+// stack is needed. Excluding it here keeps those jars out of every downstream service dist
+// and, for services still on a Jersey 2.x server stack (amber), avoids evicting the Jersey
+// their auth wiring depends on.
+val excludeHadoopJersey2Stack = Seq(
+  ExclusionRule(organization = "org.glassfish.jersey.core"),
+  ExclusionRule(organization = "org.glassfish.jersey.containers"),
+  ExclusionRule(organization = "org.glassfish.jersey.inject"),
+  ExclusionRule(organization = "org.glassfish.jaxb"),
+  ExclusionRule(organization = "com.sun.istack"),
+  ExclusionRule(organization = "jakarta.servlet.jsp")
+)
 val excludeSlf4j = ExclusionRule(organization = "org.slf4j")
 val excludeJetty = ExclusionRule(organization = "org.eclipse.jetty")
 val excludeJsp = ExclusionRule(organization = "javax.servlet.jsp")
 val excludeXmlBind = ExclusionRule(organization = "javax.xml.bind")
 val excludeJackson = ExclusionRule(organization = "com.fasterxml.jackson.core")
 val excludeJacksonModule = ExclusionRule(organization = "com.fasterxml.jackson.module")
+val excludeNetty = ExclusionRule(organization = "io.netty")
+val log4jVersion = "2.26.1"
+// Iceberg 1.9.2 pairs with parquet 1.15.2, clearing the parquet-avro CVEs
+// (CVE-2025-30065, CVE-2025-46762) pulled in transitively by older releases.
+val icebergVersion = "1.9.2"
 
 libraryDependencies ++= Seq(
-  "org.apache.iceberg" % "iceberg-api" % "1.7.1",
-  "org.apache.iceberg" % "iceberg-parquet" % "1.7.1" excludeAll(
+  "org.apache.iceberg" % "iceberg-api" % icebergVersion,
+  "org.apache.iceberg" % "iceberg-parquet" % icebergVersion excludeAll(
     excludeJackson,
     excludeJacksonModule
   ),
-  "org.apache.iceberg" % "iceberg-core" % "1.7.1" excludeAll(
+  "org.apache.iceberg" % "iceberg-core" % icebergVersion excludeAll(
     excludeJackson,
     excludeJacksonModule
   ),
-  "org.apache.iceberg" % "iceberg-data" % "1.7.1" excludeAll(
+  "org.apache.iceberg" % "iceberg-data" % icebergVersion excludeAll(
     excludeJackson,
     excludeJacksonModule
   ),
-  "org.apache.iceberg" % "iceberg-aws" % "1.7.1" excludeAll(
+  "org.apache.iceberg" % "iceberg-aws" % icebergVersion excludeAll(
     excludeJackson,
     excludeJacksonModule
   ),
-  "org.apache.hadoop" % "hadoop-common" % "3.3.1" excludeAll(
-    excludeXmlBind,
-    excludeGlassfishJersey,
-    excludeJersey,
-    excludeSlf4j,
-    excludeJetty,
-    excludeJsp,
-    excludeJackson,
-    excludeJacksonModule
+  "org.apache.hadoop" % "hadoop-common" % "3.5.0" excludeAll(
+    (Seq(
+      excludeXmlBind,
+      excludeJersey,
+      excludeJerseyJsonFork,
+      excludeSlf4j,
+      excludeJetty,
+      excludeJsp,
+      excludeJackson,
+      excludeJacksonModule
+    ) ++ excludeHadoopJersey2Stack): _*
   ),
-  "org.apache.hadoop" % "hadoop-mapreduce-client-core" % "3.3.1" excludeAll(
-    excludeXmlBind,
-    excludeGlassfishJersey,
-    excludeJersey,
-    excludeSlf4j,
-    excludeJetty,
-    excludeJsp,
-    excludeJackson,
-    excludeJacksonModule
+  // hadoop 3.4 adds a direct netty-all dependency; exclude it — the netty
+  // artifacts this module needs are declared explicitly above.
+  "org.apache.hadoop" % "hadoop-mapreduce-client-core" % "3.5.0" excludeAll(
+    (Seq(
+      excludeXmlBind,
+      excludeJersey,
+      excludeJerseyJsonFork,
+      excludeSlf4j,
+      excludeJetty,
+      excludeJsp,
+      excludeJackson,
+      excludeJacksonModule,
+      excludeNetty
+    ) ++ excludeHadoopJersey2Stack): _*
   ),
+  // log4j:log4j is excluded build-wide (root build.sbt) because 1.x is EOL
+  // with open CVEs. These log4j 2.x bridges keep hadoop/zookeeper's
+  // org.apache.log4j calls working by routing them through the log4j 2 API
+  // into slf4j (and on to logback).
+  "org.apache.logging.log4j" % "log4j-1.2-api" % log4jVersion,
+  "org.apache.logging.log4j" % "log4j-to-slf4j" % log4jVersion,
   "org.postgresql" % "postgresql" % "42.7.10"
 )
 
@@ -207,7 +292,9 @@ libraryDependencies ++= Seq(
   "org.jgrapht" % "jgrapht-core" % "1.4.0",                           // JGraphT Core
   "com.typesafe.scala-logging" %% "scala-logging" % "3.9.5",          // Scala Logging
   "org.eclipse.jgit" % "org.eclipse.jgit" % "5.13.0.202109080827-r",  // jgit
-  "org.apache.commons" % "commons-vfs2" % "2.9.0",                     // for FileResolver throw VFS-related exceptions
+  // commons-vfs2 pulls hadoop-hdfs-client (for its HDFS provider), which drags in the
+  // Hadoop client stack and, via 3.5.0, the Jersey 2.x/JAXB web stack; exclude it here too.
+  "org.apache.commons" % "commons-vfs2" % "2.9.0" excludeAll(excludeHadoopJersey2Stack: _*), // for FileResolver throw VFS-related exceptions
   "io.lakefs" % "sdk" % "1.51.0",                                     // for lakeFS api calls
   "com.typesafe" % "config" % "1.4.6",                                 // config reader
   "org.apache.commons" % "commons-jcs3-core" % "3.2",                 // Apache Commons JCS

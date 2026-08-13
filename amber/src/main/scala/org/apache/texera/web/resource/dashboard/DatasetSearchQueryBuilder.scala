@@ -66,30 +66,38 @@ object DatasetSearchQueryBuilder extends SearchQueryBuilder with LazyLogging {
       params: DashboardResource.SearchQueryParams,
       includePublic: Boolean = false
   ): TableLike[_] = {
+    // Case 1: if `uid` is (set) and `includePublic` is false
+    // -> return ONLY datasets that given `uid` has explicit access to.
+    // Case 2: if `uid` is (null) and `includePublic` is true
+    // -> return ONLY datasets that are public
+    // Case 3: if `uid` is (set) and `includePublic` is true
+    // -> Union of datasets that are public and explicitly shared with user is returned
+    // Case 4: if `uid` is (null) and `includePublic` is false
+    // -> return public datasets by default as user might not be logged in
     val baseJoin = DATASET
       .leftJoin(DATASET_USER_ACCESS)
       .on(DATASET_USER_ACCESS.DID.eq(DATASET.DID))
+      .and(if (uid == null) DSL.falseCondition() else DATASET_USER_ACCESS.UID.eq(uid))
       .leftJoin(USER)
       .on(USER.UID.eq(DATASET.OWNER_UID))
 
-    // Default condition starts as true, ensuring all datasets are selected initially.
-    var condition: Condition = DSL.trueCondition()
-
-    if (uid == null) {
-      // If `uid` is null, the user is not logged in or performing a public search
-      // We only select datasets marked as public
-      condition = DATASET.IS_PUBLIC.eq(true)
-    } else {
-      // When `uid` is present, we add a condition to only include datasets with direct user access.
-      val userAccessCondition = DATASET_USER_ACCESS.UID.eq(uid)
-
-      if (includePublic) {
-        // If `includePublic` is true, we extend visibility to public datasets as well.
-        condition = userAccessCondition.or(DATASET.IS_PUBLIC.eq(true))
+    // Set the `condition` where clause here
+    val condition: Condition =
+      if (uid == null) {
+        // Case 2 and 4
+        // Get all the public datasets by default
+        DATASET.IS_PUBLIC.eq(true)
       } else {
-        condition = userAccessCondition
+        if (includePublic) {
+          // Case 3
+          // Get all the datasets that `uid` has access to and the public datasets
+          DATASET.IS_PUBLIC.eq(true).or(DATASET_USER_ACCESS.UID.isNotNull)
+        } else {
+          // Case 1
+          // If `includePublic` is false get only user accessible datasets
+          DATASET_USER_ACCESS.UID.isNotNull
+        }
       }
-    }
     baseJoin.where(condition)
   }
 
@@ -140,7 +148,12 @@ object DatasetSearchQueryBuilder extends SearchQueryBuilder with LazyLogging {
     val dd = DashboardDataset(
       dataset,
       owner.getEmail,
-      record.get(DATASET_USER_ACCESS.PRIVILEGE, classOf[PrivilegeEnum]),
+      Option(
+        record.get(
+          DATASET_USER_ACCESS.PRIVILEGE,
+          classOf[PrivilegeEnum]
+        )
+      ).getOrElse(PrivilegeEnum.NONE),
       dataset.getOwnerUid == uid,
       size
     )

@@ -22,6 +22,7 @@ import { NZ_MODAL_DATA, NzModalRef } from "ng-zorro-antd/modal";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { DatasetFileNode, getFullPathFromDatasetFileNode } from "../../../common/type/datasetVersionFileTree";
 import { DatasetVersion } from "../../../common/type/dataset";
+import { ResourceType } from "../../../common/type/resource-type";
 import { DashboardDataset } from "../../../dashboard/type/dashboard-dataset.interface";
 import { DatasetService } from "../../../dashboard/service/user/dataset/dataset.service";
 import { NzRowDirective, NzColDirective } from "ng-zorro-antd/grid";
@@ -33,6 +34,7 @@ import { UserDatasetVersionFiletreeComponent } from "../../../dashboard/componen
 import { NzButtonComponent } from "ng-zorro-antd/button";
 import { NzWaveDirective } from "ng-zorro-antd/core/wave";
 import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
+import { filterDatasetOption } from "./dataset-search.util";
 
 @UntilDestroy()
 @Component({
@@ -70,6 +72,10 @@ export class DatasetSelectionModalComponent implements OnInit {
     private datasetService: DatasetService
   ) {}
 
+  // Search filter for the dataset dropdown: matches the typed text against both the
+  // dataset name and its numeric id (shown as `#<id>`). See filterDatasetOption.
+  datasetFilterOption = filterDatasetOption;
+
   ngOnInit() {
     this.datasetService
       .retrieveAccessibleDatasets()
@@ -78,7 +84,8 @@ export class DatasetSelectionModalComponent implements OnInit {
         this.datasets = datasets;
         const selectedPath = this.data.selectedPath;
         if (selectedPath) {
-          const [ownerEmail, datasetName, versionName] = selectedPath.split("/").filter(part => part.length > 0);
+          // Stored paths always carry the resource-type prefix; skip it so that owner/dataset/version line up.
+          const [, ownerEmail, datasetName, versionName] = selectedPath.split("/").filter(part => part.length > 0);
           this.selectedDataset = this.datasets.find(
             dataset => dataset.ownerEmail === ownerEmail && dataset.dataset.name === datasetName
           );
@@ -113,7 +120,7 @@ export class DatasetSelectionModalComponent implements OnInit {
           this.fileTree = data.fileNodes;
         });
       if (!this.data.fileMode) {
-        this.selectedPath = `/${this.selectedDataset.ownerEmail}/${this.selectedDataset.dataset.name}/${this.selectedVersion.name}`;
+        this.selectedPath = `/${ResourceType.Datasets}/${this.selectedDataset.ownerEmail}/${this.selectedDataset.dataset.name}/${this.selectedVersion.name}`;
       }
     }
   }

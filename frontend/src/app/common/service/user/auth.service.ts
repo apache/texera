@@ -62,13 +62,15 @@ export class AuthService {
    * This method will handle the request for user registration.
    * It will automatically login, save the user account inside and trigger userChangeEvent when success
    * @param username
+   * @param email
    * @param password
    */
-  public register(username: string, password: string): Observable<Readonly<{ accessToken: string }>> {
+  public register(username: string, email: string, password: string): Observable<Readonly<{ accessToken: string }>> {
     return this.http.post<Readonly<{ accessToken: string }>>(
       `${AppSettings.getApiEndpoint()}/${AuthService.REGISTER_ENDPOINT}`,
       {
         username,
+        email,
         password,
       }
     );
@@ -163,7 +165,10 @@ export class AuthService {
       name: this.jwtHelperService.decodeToken(token).sub,
       email: email,
       googleId: this.jwtHelperService.decodeToken(token).googleId,
-      googleAvatar: this.jwtHelperService.decodeToken(token).googleAvatar,
+      // The claim was `googleAvatar` until the avatar stopped being Google-specific. Tokens
+      // predating the rename stay valid for a week, so either name is accepted; the fallback
+      // can go once they have all expired.
+      avatar: this.jwtHelperService.decodeToken(token).avatar ?? this.jwtHelperService.decodeToken(token).googleAvatar,
       role: role,
       comment: this.jwtHelperService.decodeToken(token).comment,
       joiningReason: this.jwtHelperService.decodeToken(token).joiningReason,

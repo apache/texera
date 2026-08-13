@@ -51,7 +51,7 @@ class SchemaNotAvailableException(message: String) extends Exception(message)
 object PhysicalOp {
 
   /** all source operators should use sourcePhysicalOp to give the following configs:
-    *  1) it initializes at the controller jvm.
+    *  1) it initializes at the coordinator jvm.
     *  2) it only has 1 worker actor.
     *  3) it has no input ports.
     */
@@ -80,7 +80,7 @@ object PhysicalOp {
       executionId,
       opExecInitInfo,
       parallelizable = false,
-      locationPreference = Some(PreferController)
+      locationPreference = Some(PreferCoordinator)
     )
 
   def oneToOnePhysicalOp(
@@ -154,7 +154,7 @@ object PhysicalOp {
       opExecInitInfo: OpExecInitInfo
   ): PhysicalOp = {
     manyToOnePhysicalOp(physicalOpId, workflowId, executionId, opExecInitInfo)
-      .withLocationPreference(Some(PreferController))
+      .withLocationPreference(Some(PreferCoordinator))
   }
 }
 
@@ -208,6 +208,10 @@ case class PhysicalOp(
     // restricting it to only the requiring operator's regions is a possible
     // future optimization. Default false.
     requiresMaterializedExecution: Boolean = false,
+    // Marks the Loop Start operator of a loop; the scheduler resolves the loop's
+    // bookkeeping base URI from it (loop-back write address + input-table read;
+    // see InitializeExecutorRequest.loopStartPortUris). Default false.
+    isLoopStart: Boolean = false,
     // hint for number of workers
     suggestedWorkerNum: Option[Int] = None,
     // name of the PVE to execute within
@@ -332,6 +336,13 @@ case class PhysicalOp(
     */
   def withRequiresMaterializedExecution(requiresMaterializedExecution: Boolean): PhysicalOp =
     this.copy(requiresMaterializedExecution = requiresMaterializedExecution)
+
+  /**
+    * creates a copy specifying whether this operator is the Loop Start of a
+    * loop (see the field doc)
+    */
+  def withIsLoopStart(isLoopStart: Boolean): PhysicalOp =
+    this.copy(isLoopStart = isLoopStart)
 
   /**
     * Creates a copy of the PhysicalOp with the schema of a specified input port updated.

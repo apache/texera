@@ -32,6 +32,7 @@ import { OperatorPredicate } from "../../types/workflow-common.interface";
 import { mockScanSourceSchema } from "../operator-metadata/mock-operator-metadata.data";
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
 import { commonTestProviders } from "../../../common/testing/test-utils";
+import { CustomJSONSchema7 } from "../../types/custom-json-schema.interface";
 
 describe("DynamicSchemaService", () => {
   beforeEach(() => {
@@ -141,4 +142,120 @@ describe("DynamicSchemaService", () => {
       m.expect(dynamicSchemaService.getOperatorDynamicSchemaChangedStream()).toBeObservable(expected);
     })
   );
+});
+
+describe("DynamicSchemaService.mutateProperty", () => {
+  const matchByName = (name: string) => (propertyName: string, _: CustomJSONSchema7) => propertyName === name;
+  const markMutated = (_: string, propertyValue: CustomJSONSchema7): CustomJSONSchema7 => ({
+    ...propertyValue,
+    description: "mutated",
+  });
+
+  it("should replace a matched top-level property without mutating the original schema", () => {
+    const original = {
+      type: "object",
+      properties: {
+        target: { type: "string", description: "original" },
+        other: { type: "number" },
+      },
+    } as CustomJSONSchema7;
+
+    const result = DynamicSchemaService.mutateProperty(original, matchByName("target"), markMutated);
+
+    // the returned schema has the matched property mutated
+    expect((result.properties!.target as CustomJSONSchema7).description).toEqual("mutated");
+    // the non-matching property is left untouched
+    expect(result.properties!.other).toEqual({ type: "number" });
+    // the original schema object is deep cloned and stays unchanged
+    expect((original.properties!.target as CustomJSONSchema7).description).toEqual("original");
+    expect(result).not.toBe(original);
+  });
+
+  it("should recurse into nested object properties to find the matched property", () => {
+    const original = {
+      type: "object",
+      properties: {
+        nested: {
+          type: "object",
+          properties: {
+            deepTarget: { type: "string", description: "original" },
+          },
+        },
+      },
+    } as CustomJSONSchema7;
+
+    const result = DynamicSchemaService.mutateProperty(original, matchByName("deepTarget"), markMutated);
+
+    const nested = result.properties!.nested as CustomJSONSchema7;
+    expect((nested.properties!.deepTarget as CustomJSONSchema7).description).toEqual("mutated");
+  });
+
+  it("should recurse into definitions to find the matched property", () => {
+    const original = {
+      type: "object",
+      definitions: {
+        target: { type: "string", description: "original" },
+      },
+    } as CustomJSONSchema7;
+
+    const result = DynamicSchemaService.mutateProperty(original, matchByName("target"), markMutated);
+
+    expect((result.definitions!.target as CustomJSONSchema7).description).toEqual("mutated");
+  });
+
+  it("should recurse into array items and single-schema items to find the matched property", () => {
+    const original = {
+      type: "object",
+      properties: {
+        listTuple: {
+          type: "array",
+          items: [
+            {
+              type: "object",
+              properties: {
+                target: { type: "string", description: "original" },
+              },
+            },
+          ],
+        },
+        listSchema: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              target: { type: "string", description: "original" },
+            },
+          },
+        },
+      },
+    } as CustomJSONSchema7;
+
+    const result = DynamicSchemaService.mutateProperty(original, matchByName("target"), markMutated);
+
+    const listTuple = result.properties!.listTuple as CustomJSONSchema7;
+    const firstItem = (listTuple.items as CustomJSONSchema7[])[0];
+    expect((firstItem.properties!.target as CustomJSONSchema7).description).toEqual("mutated");
+
+    const listSchema = result.properties!.listSchema as CustomJSONSchema7;
+    const itemSchema = listSchema.items as CustomJSONSchema7;
+    expect((itemSchema.properties!.target as CustomJSONSchema7).description).toEqual("mutated");
+  });
+
+  it("should not invoke the mutation function when nothing matches", () => {
+    const original = {
+      type: "object",
+      properties: {
+        a: { type: "string" },
+        b: { type: "number" },
+      },
+    } as CustomJSONSchema7;
+    const mutationSpy = vi.fn((_: string, value: CustomJSONSchema7) => value);
+
+    const result = DynamicSchemaService.mutateProperty(original, matchByName("missing"), mutationSpy);
+
+    expect(mutationSpy).not.toHaveBeenCalled();
+    // with no match the clone is structurally equal to the original
+    expect(result).toEqual(original);
+    expect(result).not.toBe(original);
+  });
 });

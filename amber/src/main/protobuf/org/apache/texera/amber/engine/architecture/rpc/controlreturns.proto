@@ -32,7 +32,7 @@ option (scalapb.options) = {
 message ControlReturn {
   // Oneof block for various return types
   oneof sealed_value {
-    // controller responses
+    // coordinator responses
     RetrieveWorkflowStateResponse retrieveWorkflowStateResponse = 1;
     PropagateEmbeddedControlMessageResponse propagateEmbeddedControlMessageResponse = 2;
     TakeGlobalCheckpointResponse takeGlobalCheckpointResponse = 3;
@@ -134,6 +134,8 @@ message StartWorkflowResponse {
 
 message WorkerStateResponse {
   worker.WorkerState state = 1 [(scalapb.field).no_box = true];
+  // Monotonic per-worker version of state, for causal ordering by the controller.
+  int64 state_version = 2;
 }
 
 message WorkerMetricsResponse {

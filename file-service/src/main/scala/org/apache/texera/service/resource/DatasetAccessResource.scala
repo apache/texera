@@ -39,8 +39,6 @@ import org.apache.texera.service.resource.DatasetAccessResource.{
 }
 import org.jooq.{DSLContext, EnumType}
 
-import javax.ws.rs.ForbiddenException
-
 object DatasetAccessResource {
   private def context: DSLContext =
     SqlServer
@@ -181,10 +179,14 @@ class DatasetAccessResource {
       }
       val datasetUserAccessDao = new DatasetUserAccessDao(ctx.configuration())
       val userDao = new UserDao(ctx.configuration())
+      val targetUser = userDao.fetchOneByEmail(email)
+      if (targetUser == null || targetUser.getIsPlaceholder) {
+        throw new BadRequestException(s"No registered user with email $email")
+      }
       datasetUserAccessDao.merge(
         new DatasetUserAccess(
           did,
-          userDao.fetchOneByEmail(email).getUid,
+          targetUser.getUid,
           PrivilegeEnum.valueOf(privilege)
         )
       )

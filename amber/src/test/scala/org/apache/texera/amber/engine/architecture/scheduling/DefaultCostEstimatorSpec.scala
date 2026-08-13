@@ -29,7 +29,7 @@ import org.apache.texera.amber.engine.architecture.scheduling.resourcePolicies.{
   DefaultResourceAllocator,
   ExecutionClusterInfo
 }
-import org.apache.texera.amber.engine.common.virtualidentity.util.CONTROLLER
+import org.apache.texera.amber.engine.common.virtualidentity.util.COORDINATOR
 import org.apache.texera.amber.engine.e2e.TestUtils.buildWorkflow
 import org.apache.texera.amber.operator.TestOperators
 import org.apache.texera.amber.operator.aggregate.{AggregateOpDesc, AggregationFunction}
@@ -39,7 +39,7 @@ import org.apache.texera.dao.MockTexeraDB
 import org.apache.texera.dao.jooq.generated.enums.UserRoleEnum
 import org.apache.texera.dao.jooq.generated.tables.daos._
 import org.apache.texera.dao.jooq.generated.tables.pojos._
-import org.apache.texera.workflow.LogicalLink
+import org.apache.texera.common.compiler.model.LogicalLink
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 
@@ -65,7 +65,6 @@ class DefaultCostEstimatorSpec
     user.setUid(Integer.valueOf(1))
     user.setName("test_user")
     user.setRole(UserRoleEnum.ADMIN)
-    user.setPassword("123")
     user.setEmail("test_user@test.com")
     user
   }
@@ -116,7 +115,7 @@ class DefaultCostEstimatorSpec
 
   override protected def afterEach(): Unit = {
     document.clear()
-    shutdownDB()
+    closeConnectionPool()
   }
 
   "DefaultCostEstimator" should "use fallback method when no past statistics are available" in {
@@ -142,7 +141,7 @@ class DefaultCostEstimatorSpec
     val costEstimator = new DefaultCostEstimator(
       workflow.context,
       resourceAllocator,
-      CONTROLLER
+      COORDINATOR
     )
     val ports = workflow.physicalPlan.operators.flatMap(op =>
       op.inputPorts.keys
@@ -236,7 +235,7 @@ class DefaultCostEstimatorSpec
     val costEstimator = new DefaultCostEstimator(
       workflow.context,
       resourceAllocator,
-      CONTROLLER
+      COORDINATOR
     )
 
     val ports = workflow.physicalPlan.operators.flatMap(op =>
@@ -348,7 +347,7 @@ class DefaultCostEstimatorSpec
     val searchResult = new CostBasedScheduleGenerator(
       workflow.context,
       workflow.physicalPlan,
-      CONTROLLER
+      COORDINATOR
     ).bottomUpSearch()
 
     val groupByRegion =
@@ -366,7 +365,7 @@ class DefaultCostEstimatorSpec
     val costEstimator = new DefaultCostEstimator(
       workflow.context,
       resourceAllocator,
-      CONTROLLER
+      COORDINATOR
     )
 
     val (_, groupByRegionCost) = costEstimator.allocateResourcesAndEstimateCost(groupByRegion, 1)

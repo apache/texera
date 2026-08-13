@@ -33,7 +33,7 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { ExecutionMode, WorkflowContent } from "../../../../common/type/workflow";
 import { NzUploadFile, NzUploadComponent } from "ng-zorro-antd/upload";
-import * as JSZip from "jszip";
+import JSZip from "jszip";
 import { FiltersComponent } from "../filters/filters.component";
 import { SearchResultsComponent } from "../search-results/search-results.component";
 import { CardItemComponent } from "../list-item/card-item/card-item.component";
@@ -351,7 +351,7 @@ export class UserWorkflowComponent implements AfterViewInit {
           const userInfo = userIdToInfoMap[duplicatedWorkflowInfo.ownerId];
           if (userInfo) {
             entry.setOwnerName(userInfo.userName);
-            entry.setOwnerGoogleAvatar(userInfo.googleAvatar ?? "");
+            entry.setOwnerAvatar(userInfo.avatar ?? "");
           }
           if (this.currentUid !== undefined) {
             entry.setAccessUsers([this.currentUid]);

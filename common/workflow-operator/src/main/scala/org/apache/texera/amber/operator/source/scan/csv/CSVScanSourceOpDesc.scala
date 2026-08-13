@@ -20,7 +20,7 @@
 package org.apache.texera.amber.operator.source.scan.csv
 
 import com.fasterxml.jackson.annotation.{JsonInclude, JsonProperty, JsonPropertyDescription}
-import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
+import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import com.univocity.parsers.csv.{CsvFormat, CsvParser, CsvParserSettings}
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.storage.DocumentFactory
@@ -37,10 +37,13 @@ import java.net.URI
 
 class CSVScanSourceOpDesc extends ScanSourceOpDesc {
 
+  // One character: every reader narrows this with charAt(0), because univocity's
+  // setDelimiter and scala-csv's DefaultCSVFormat both take a Char.
   @JsonProperty(defaultValue = ",")
   @JsonSchemaTitle("Delimiter")
-  @JsonPropertyDescription("delimiter to separate each line into fields")
+  @JsonPropertyDescription("single character separating the fields on each line")
   @JsonInclude(JsonInclude.Include.NON_ABSENT)
+  @JsonSchemaInject(json = """{ "maxLength": 1 }""")
   var customDelimiter: Option[String] = None
 
   @JsonProperty(defaultValue = "true")
@@ -78,15 +81,25 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc {
   }
 
   override def sourceSchema(): Schema = {
-    if (customDelimiter.isEmpty || !fileResolved()) {
-      return null
+    val delimiterChar = customDelimiter.filter(_.nonEmpty).getOrElse(",").charAt(0)
+    require(
+      fileResolved(),
+      "No file selected. Please select a valid .csv file from the 'File' dropdown in the right panel."
+    )
+
+    val uri = new URI(fileName.get)
+    if (uri.getScheme == "file") {
+      require(
+        new java.io.File(uri).isFile,
+        "The selected item is a folder or does not exist. Please select an actual .csv file from the 'File' dropdown."
+      )
     }
-    val stream = DocumentFactory.openReadonlyDocument(new URI(fileName.get)).asInputStream()
+    val stream = DocumentFactory.openReadonlyDocument(uri).asInputStream()
     val inputReader =
       new InputStreamReader(stream, fileEncoding.getCharset)
 
     val csvFormat = new CsvFormat()
-    csvFormat.setDelimiter(customDelimiter.get.charAt(0))
+    csvFormat.setDelimiter(delimiterChar)
     csvFormat.setLineSeparator("\n")
     val csvSetting = new CsvParserSettings()
     csvSetting.setMaxCharsPerColumn(-1)

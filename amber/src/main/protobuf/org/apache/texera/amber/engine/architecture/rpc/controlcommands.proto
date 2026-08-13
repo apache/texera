@@ -34,7 +34,7 @@ option (scalapb.options) = {
 
 message ControlRequest {
   oneof sealed_value {
-    // request for controller
+    // request for coordinator
     PropagateEmbeddedControlMessageRequest propagateEmbeddedControlMessageRequest = 1;
     TakeGlobalCheckpointRequest takeGlobalCheckpointRequest = 2;
     DebugCommandRequest debugCommandRequest = 3;
@@ -146,7 +146,7 @@ enum ConsoleMessageType{
 }
 
 message ConsoleMessage {
-  option (scalapb.message).extends = "org.apache.texera.amber.engine.architecture.controller.ClientEvent";
+  option (scalapb.message).extends = "org.apache.texera.amber.engine.architecture.coordinator.ClientEvent";
   string worker_id = 1;
   google.protobuf.Timestamp timestamp = 2  [(scalapb.field).no_box = true];
   ConsoleMessageType msg_type = 3;
@@ -166,6 +166,8 @@ message PortCompletedRequest {
 
 message WorkerStateUpdatedRequest {
   worker.WorkerState state = 1 [(scalapb.field).no_box = true];
+  // Monotonic per-worker version of state, for causal ordering by the controller.
+  int64 state_version = 2;
 }
 
 message LinkWorkersRequest {
@@ -252,6 +254,21 @@ message InitializeExecutorRequest {
   int32 totalWorkerCount = 1;
   core.OpExecInitInfo opExecInitInfo = 2;
   bool isSource = 3;
+  // Loop bookkeeping addresses: Loop Start logical operator id -> the BASE
+  // URI of the materialized port that Loop Start's input port READS FROM,
+  // i.e. the upstream operator's output-port materialization (the storage
+  // pair of the Loop Start's input port config), not a port of the Loop
+  // Start itself. Constant per execution
+  // (minted at schedule time); a Loop End worker selects the entry by the
+  // loop_start_id carried on the consumed StateFrame and derives two URIs
+  // from the base:
+  //   - state URI (VFSURIFactory.state_uri): the loop-back write address for
+  //     the next-iteration state;
+  //   - result URI (VFSURIFactory.result_uri): the loop's input table, read
+  //     at consume time so the table never rides inside the State content
+  //     through the loop body.
+  // Empty for plans without loops.
+  map<string, string> loopStartPortUris = 4;
 }
 
 message UpdateExecutorRequest {

@@ -1,0 +1,2054 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { By } from "@angular/platform-browser";
+import { ActivatedRoute, Router } from "@angular/router";
+import { of, Subject, throwError } from "rxjs";
+import { NzModalService } from "ng-zorro-antd/modal";
+import { MarkdownService } from "ngx-markdown";
+import {
+  DatasetDetailComponent,
+  ABORT_RETRY_BACKOFF_BASE_MS,
+  ABORT_RETRY_MAX_ATTEMPTS,
+} from "./dataset-detail.component";
+import { DatasetService, MultipartUploadProgress } from "../../../../service/user/dataset/dataset.service";
+import { NotificationService } from "../../../../../common/service/notification/notification.service";
+import { DownloadService } from "../../../../service/user/download/download.service";
+import { UserService } from "../../../../../common/service/user/user.service";
+import { MOCK_USER, StubUserService } from "../../../../../common/service/user/stub-user.service";
+import { HubService } from "../../../../../hub/service/hub.service";
+import { AdminSettingsService } from "../../../../service/admin/settings/admin-settings.service";
+import { FileUploadItem } from "../../../../type/dashboard-file.interface";
+import { DatasetFileNode, getFullPathFromDatasetFileNode } from "../../../../../common/type/datasetVersionFileTree";
+import { DatasetStagedObject } from "../../../../../common/type/dataset-staged-object";
+import { commonTestImports, commonTestProviders } from "../../../../../common/testing/test-utils";
+import { Contributor, Dataset, DatasetVersion } from "../../../../../common/type/dataset";
+import { DashboardDataset } from "../../../../type/dashboard-dataset.interface";
+import { HttpErrorResponse } from "@angular/common/http";
+import { format } from "date-fns";
+import { USER_DATASET } from "../../../../../app-routing.constant";
+
+describe("DatasetDetailComponent upload queue", () => {
+  let fixture: ComponentFixture<DatasetDetailComponent>;
+  let component: DatasetDetailComponent;
+  let uploadSubjects: Subject<MultipartUploadProgress>[];
+  let uploadedPaths: string[];
+  let multipartUploadSpy: ReturnType<typeof vi.fn>;
+
+  const makeFileItem = (name: string): FileUploadItem => ({
+    file: new File(["x"], name),
+    name,
+    description: "",
+    uploadProgress: 0,
+    isUploadingFlag: false,
+    restart: false,
+  });
+
+  const dropFiles = (...names: string[]) => component.onNewUploadFilesChanged(names.map(makeFileItem));
+
+  const finishUpload = (index: number, filePath: string, totalTime = 1) =>
+    uploadSubjects[index].next({ filePath, percentage: 100, status: "finished", totalTime });
+
+  beforeEach(() => {
+    uploadSubjects = [];
+    uploadedPaths = [];
+    multipartUploadSpy = vi.fn((_ownerEmail: string, _datasetName: string, filePath: string) => {
+      const progress = new Subject<MultipartUploadProgress>();
+      uploadSubjects.push(progress);
+      uploadedPaths.push(filePath);
+      return progress.asObservable();
+    });
+
+    TestBed.configureTestingModule({
+      imports: [DatasetDetailComponent, ...commonTestImports],
+      providers: [
+        { provide: ActivatedRoute, useValue: { params: of({ did: 1 }), data: of({}) } },
+        { provide: NzModalService, useValue: {} },
+        {
+          provide: DatasetService,
+          useValue: {
+            multipartUpload: multipartUploadSpy,
+            finalizeMultipartUpload: vi.fn(() => of({})),
+            getDataset: vi.fn(() =>
+              of({
+                dataset: { name: "test-dataset", description: "", isPublic: false, isDownloadable: true },
+                accessPrivilege: "WRITE",
+                ownerEmail: "owner@texera.com",
+                isOwner: true,
+              })
+            ),
+            retrieveDatasetVersionList: vi.fn(() => of([])),
+            retrieveDatasetLatestVersion: vi.fn(() =>
+              of({
+                dvid: 1,
+                did: 1,
+                creatorUid: 1,
+                name: "v1",
+                versionHash: undefined,
+                creationTime: undefined,
+                fileNodes: [],
+              })
+            ),
+            retrieveDatasetVersionFileTree: vi.fn(() => of({ fileNodes: [], size: 1024 })),
+            getDatasetDiff: vi.fn(() => of([])),
+            createDatasetVersion: vi.fn(() => of({})),
+            deleteDatasetFile: vi.fn(() => of({})),
+          },
+        },
+        { provide: NotificationService, useValue: { success: vi.fn(), error: vi.fn(), info: vi.fn() } },
+        { provide: DownloadService, useValue: {} },
+        { provide: UserService, useClass: StubUserService },
+        {
+          provide: HubService,
+          useValue: {
+            getCounts: vi.fn(() => of([{ counts: { like: 0 } }])),
+            postView: vi.fn(() => of(0)),
+            isLiked: vi.fn(() => of([{ isLiked: false }])),
+          },
+        },
+        { provide: AdminSettingsService, useValue: { getPublicSetting: vi.fn(() => of("3")) } },
+        { provide: MarkdownService, useValue: { parse: vi.fn(() => "") } },
+        ...commonTestProviders,
+      ],
+    });
+
+    fixture = TestBed.createComponent(DatasetDetailComponent);
+    component = fixture.componentInstance;
+    // Log in so ngOnInit reaches loadUploadSettings (maxConcurrentFiles = 3).
+    (TestBed.inject(UserService) as unknown as StubUserService).userChangeSubject.next(MOCK_USER);
+    fixture.detectChanges();
+  });
+
+  /**
+   * Aborting an in-flight upload has to survive the backend still finalizing the previous attempt:
+   * the abort call is retried on 409 up to ABORT_RETRY_MAX_ATTEMPTS, a 404 means it is already gone,
+   * and the caller's callback must fire exactly once down every one of those paths.
+   */
+  describe("aborting an upload", () => {
+    let finalize: ReturnType<typeof vi.fn>;
+
+    beforeEach(() => {
+      vi.useFakeTimers();
+      finalize = TestBed.inject(DatasetService).finalizeMultipartUpload as unknown as ReturnType<typeof vi.fn>;
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    /** Starts an upload and reports progress, leaving one task in flight. */
+    function inFlight(name = "a.txt") {
+      dropFiles(name);
+      uploadSubjects[0].next({ filePath: name, percentage: 10, status: "uploading", totalTime: 0 });
+      return component.uploadTasks.find(t => t.filePath === name)!;
+    }
+
+    const conflict = () => throwError(() => ({ status: 409 }) as any);
+    const gone = () => throwError(() => ({ status: 404 }) as any);
+
+    it("marks the task aborted and tells the caller once", () => {
+      const task = inFlight();
+      const onAborted = vi.fn();
+
+      component.onClickAbortUploadProgress(task as any, onAborted);
+
+      expect(finalize).toHaveBeenCalledWith("owner@texera.com", "test-dataset", "a.txt", true);
+      expect(component.uploadTasks.find(t => t.filePath === "a.txt")!.status).toBe("aborted");
+      expect(onAborted).toHaveBeenCalledTimes(1);
+    });
+
+    it("stops listening to the upload it aborted", () => {
+      const task = inFlight();
+
+      component.onClickAbortUploadProgress(task as any);
+
+      // The progress stream is unsubscribed, so a late event cannot resurrect the task.
+      uploadSubjects[0].next({ filePath: "a.txt", percentage: 100, status: "finished", totalTime: 1 });
+      expect(component.uploadTasks.find(t => t.filePath === "a.txt")!.status).toBe("aborted");
+    });
+
+    it("treats a 404 as already aborted rather than an error", () => {
+      finalize.mockReturnValueOnce(gone());
+      const task = inFlight();
+      const onAborted = vi.fn();
+
+      component.onClickAbortUploadProgress(task as any, onAborted);
+
+      expect(onAborted).toHaveBeenCalledTimes(1);
+      expect(finalize).toHaveBeenCalledTimes(1);
+    });
+
+    it("retries a 409 after a backoff and finishes once the server catches up", () => {
+      // The server is still finalizing the previous attempt; the abort has to wait it out.
+      finalize.mockReturnValueOnce(conflict());
+      const task = inFlight();
+      const onAborted = vi.fn();
+
+      component.onClickAbortUploadProgress(task as any, onAborted);
+      expect(onAborted).not.toHaveBeenCalled();
+
+      vi.advanceTimersByTime(ABORT_RETRY_BACKOFF_BASE_MS);
+
+      expect(finalize).toHaveBeenCalledTimes(2);
+      expect(onAborted).toHaveBeenCalledTimes(1);
+    });
+
+    it("backs off further on each successive conflict", () => {
+      finalize.mockReturnValue(conflict());
+      const task = inFlight();
+
+      component.onClickAbortUploadProgress(task as any);
+      expect(finalize).toHaveBeenCalledTimes(1);
+
+      // First wait is BASE * 1, the second BASE * 2, so BASE alone is not enough for the third call.
+      vi.advanceTimersByTime(ABORT_RETRY_BACKOFF_BASE_MS);
+      expect(finalize).toHaveBeenCalledTimes(2);
+
+      vi.advanceTimersByTime(ABORT_RETRY_BACKOFF_BASE_MS);
+      expect(finalize).toHaveBeenCalledTimes(2);
+
+      vi.advanceTimersByTime(ABORT_RETRY_BACKOFF_BASE_MS);
+      expect(finalize).toHaveBeenCalledTimes(3);
+    });
+
+    it("gives up after the attempt limit but still reports the abort", () => {
+      // Without the bound this would retry forever against a permanently conflicted server.
+      finalize.mockReturnValue(conflict());
+      const task = inFlight();
+      const onAborted = vi.fn();
+
+      component.onClickAbortUploadProgress(task as any, onAborted);
+      vi.advanceTimersByTime(ABORT_RETRY_BACKOFF_BASE_MS * ABORT_RETRY_MAX_ATTEMPTS * (ABORT_RETRY_MAX_ATTEMPTS + 1));
+
+      expect(finalize).toHaveBeenCalledTimes(ABORT_RETRY_MAX_ATTEMPTS + 1);
+      expect(onAborted).toHaveBeenCalledTimes(1);
+    });
+
+    it("reports the abort once even on an error the retry does not cover", () => {
+      finalize.mockReturnValueOnce(throwError(() => ({ status: 500 }) as any));
+      const task = inFlight();
+      const onAborted = vi.fn();
+
+      component.onClickAbortUploadProgress(task as any, onAborted);
+
+      expect(onAborted).toHaveBeenCalledTimes(1);
+      expect(finalize).toHaveBeenCalledTimes(1);
+    });
+
+    it("frees the concurrency slot so a queued upload can start", () => {
+      // Aborting has to release the slot as an ordinary completion would; otherwise the queue
+      // stalls behind an upload that is no longer running.
+      dropFiles("a.txt", "b.txt", "c.txt", "d.txt");
+      expect(uploadedPaths).toEqual(["a.txt", "b.txt", "c.txt"]);
+      uploadSubjects[0].next({ filePath: "a.txt", percentage: 10, status: "uploading", totalTime: 0 });
+      const task = component.uploadTasks.find(t => t.filePath === "a.txt")!;
+
+      component.onClickAbortUploadProgress(task as any);
+
+      expect(uploadedPaths).toContain("d.txt");
+    });
+
+    it("cancelExistingUpload aborts an upload that is still running", () => {
+      inFlight("b.txt");
+      const onCanceled = vi.fn();
+
+      component.cancelExistingUpload("b.txt", onCanceled);
+
+      expect(finalize).toHaveBeenCalledWith("owner@texera.com", "test-dataset", "b.txt", true);
+      expect(onCanceled).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  /**
+   * The explorer's toolbar and upload panel are template-only: whether a download is offered at all,
+   * which of the maximize/minimize pair is showing, and what an in-flight upload reports. The suite
+   * around this one drives component state and never asserts on what is rendered.
+   */
+  describe("rendered explorer", () => {
+    /**
+     * Applies some state and renders the "Versions & Files" tab. nz-tabs only instantiates the
+     * active tab, and the toolbar under test lives in the second one, so it has to be selected
+     * before anything in it exists to assert on.
+     */
+    function render(setup: (c: DatasetDetailComponent) => void = () => {}): HTMLElement {
+      setup(component);
+      fixture.detectChanges();
+      const host = fixture.nativeElement as HTMLElement;
+      const tabButtons = host.querySelectorAll<HTMLElement>(".ant-tabs-tab-btn");
+      const versionsTab = Array.from(tabButtons).find(tab => tab.textContent?.includes("Versions & Files"));
+      if (versionsTab && !versionsTab.closest(".ant-tabs-tab")?.classList.contains("ant-tabs-tab-active")) {
+        versionsTab.click();
+        fixture.detectChanges();
+      }
+      return host;
+    }
+
+    /** The button carrying the given tooltip, or undefined. */
+    function byTooltip(title: string): HTMLButtonElement | undefined {
+      return Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>("button")).find(
+        b => b.getAttribute("nz-tooltip") === title
+      );
+    }
+
+    const aVersion = { dvid: 1, did: 1, creatorUid: 1, name: "v1" } as any;
+
+    describe("download gating", () => {
+      it("offers the file download to a logged-in user who is allowed to download", () => {
+        render(c => {
+          c.selectedVersion = aVersion;
+          c.isLogin = true;
+          vi.spyOn(c, "isDownloadAllowed").mockReturnValue(true);
+        });
+
+        expect(byTooltip("Download the file")!.disabled).toBe(false);
+      });
+
+      it("withholds it from a signed-out visitor", () => {
+        render(c => {
+          c.selectedVersion = aVersion;
+          c.isLogin = false;
+          vi.spyOn(c, "isDownloadAllowed").mockReturnValue(true);
+        });
+
+        expect(byTooltip("Download the file")!.disabled).toBe(true);
+      });
+
+      it("withholds it when the dataset is not downloadable", () => {
+        // Both halves of the guard matter: being signed in is not on its own permission to take
+        // a copy of someone else's non-downloadable dataset.
+        render(c => {
+          c.selectedVersion = aVersion;
+          c.isLogin = true;
+          vi.spyOn(c, "isDownloadAllowed").mockReturnValue(false);
+        });
+
+        expect(byTooltip("Download the file")!.disabled).toBe(true);
+      });
+
+      it("applies the same rule to the whole-version download", () => {
+        render(c => {
+          c.selectedVersion = aVersion;
+          c.isLogin = true;
+          vi.spyOn(c, "isDownloadAllowed").mockReturnValue(false);
+        });
+
+        expect(byTooltip("Download Dataset")!.disabled).toBe(true);
+      });
+
+      it("offers no download at all until a version is selected", () => {
+        render(c => {
+          c.selectedVersion = undefined;
+          c.isLogin = true;
+        });
+
+        expect(byTooltip("Download the file")).toBeUndefined();
+        expect(byTooltip("Download Dataset")).toBeUndefined();
+      });
+    });
+
+    describe("view size toggle", () => {
+      it("offers only Maximize while the view is normal", () => {
+        render(c => {
+          c.selectedVersion = aVersion;
+          c.isMaximized = false;
+        });
+
+        expect(byTooltip("Maximize View")).toBeDefined();
+        expect(byTooltip("Minimize View")).toBeUndefined();
+      });
+
+      it("offers only Minimize once the view is maximized", () => {
+        // Showing both, or the wrong one, leaves the user with no way back.
+        render(c => {
+          c.selectedVersion = aVersion;
+          c.isMaximized = true;
+        });
+
+        expect(byTooltip("Minimize View")).toBeDefined();
+        expect(byTooltip("Maximize View")).toBeUndefined();
+      });
+    });
+
+    describe("file heading", () => {
+      it("offers the copy-path control only once a file is on screen", () => {
+        const el = render(c => (c.currentDisplayedFileName = ""));
+        expect(el.querySelector(".copy-path-btn")).toBeNull();
+
+        render(c => (c.currentDisplayedFileName = "a/b.csv"));
+        expect((fixture.nativeElement as HTMLElement).querySelector(".copy-path-btn")).not.toBeNull();
+      });
+
+      it("copies the path of the file being shown", () => {
+        const spy = vi.spyOn(component, "copyCurrentFilePath").mockResolvedValue(undefined);
+        const el = render(c => (c.currentDisplayedFileName = "a/b.csv"));
+
+        el.querySelector<HTMLElement>(".copy-path-btn")!.click();
+
+        expect(spy).toHaveBeenCalledTimes(1);
+      });
+
+      it("shows the file size in human units, and nothing when it is unknown", () => {
+        const el = render(c => {
+          c.currentDisplayedFileName = "a/b.csv";
+          c.currentFileSize = 2048;
+        });
+        expect(el.querySelector(".file-size")?.textContent).toContain("2");
+
+        render(c => (c.currentFileSize = undefined));
+        expect((fixture.nativeElement as HTMLElement).querySelector(".file-size")).toBeNull();
+      });
+    });
+
+    describe("version details", () => {
+      it("reports the version size and creation time once a version is chosen", () => {
+        const el = render(c => {
+          c.selectedVersion = aVersion;
+          c.currentDatasetVersionSize = 1024;
+          c.selectedVersionCreationTime = "2026-01-02 03:04";
+        });
+
+        expect(el.querySelector(".version-size")?.textContent).toContain("Version Size:");
+        expect(el.querySelector(".version-date")?.textContent).toContain("2026-01-02 03:04");
+      });
+
+      it("hides the creation time when the version has none", () => {
+        const el = render(c => {
+          c.selectedVersion = aVersion;
+          c.selectedVersionCreationTime = "";
+        });
+
+        expect(el.querySelector(".version-date")).toBeNull();
+      });
+    });
+
+    describe("upload progress", () => {
+      /**
+       * Puts one task on the panel in the given state and opens it. The panel is gated on the
+       * separate activeUploads counter rather than on uploadTasks, and ng-zorro collapses it by
+       * default, so both have to be arranged before its body exists.
+       */
+      function withTask(over: Record<string, unknown>): HTMLElement {
+        const el = render(c => {
+          (c as any).activeUploads = 1;
+          (c as any).uploadTasks = [
+            {
+              filePath: "big.csv",
+              percentage: 40,
+              status: "uploading",
+              uploadSpeed: 1024,
+              totalTime: 12,
+              estimatedTimeRemaining: 30,
+              ...over,
+            },
+          ];
+        });
+        const header = Array.from(el.querySelectorAll<HTMLElement>(".ant-collapse-header")).find(h =>
+          (h.textContent || "").includes("Uploading:")
+        );
+        header!.click();
+        fixture.detectChanges();
+        return el;
+      }
+
+      it("shows no statistics while an upload is still initializing", () => {
+        // There is nothing to report yet; showing a 0 B/s row reads as a stalled upload.
+        const el = withTask({ status: "initializing" });
+
+        expect(el.querySelector(".upload-stats")).toBeNull();
+      });
+
+      it("reports speed and both timings while an upload runs", () => {
+        const el = withTask({ status: "uploading" });
+
+        const stats = el.querySelector(".upload-stats")!;
+        expect(stats.textContent).toContain("elapsed");
+        expect(stats.textContent).toContain("left");
+        expect(stats.querySelector(".fixed-width-speed")).not.toBeNull();
+      });
+
+      it("replaces the live figures with a total once the upload finishes", () => {
+        const el = withTask({ status: "finished" });
+
+        const stats = el.querySelector(".upload-stats")!;
+        expect(stats.textContent).toContain("Upload time:");
+        expect(stats.textContent).not.toContain("left");
+      });
+
+      it("reports a total for an aborted upload too", () => {
+        const el = withTask({ status: "aborted" });
+
+        expect(el.querySelector(".upload-stats")!.textContent).toContain("Upload time:");
+      });
+    });
+  });
+
+  describe("contributor cards", () => {
+    const full: Contributor = {
+      name: "Contributor A",
+      creator: true,
+      affiliation: "Test Lab",
+      email: "contributor-a@test.com",
+      comments: "notes",
+    };
+    const blank: Contributor = { name: "Contributor B", creator: false };
+
+    beforeEach(() => {
+      component.datasetContributors = [full, blank];
+      component.userDatasetAccessLevel = "WRITE";
+      fixture.detectChanges();
+    });
+
+    it("renders one card per contributor with values, a creator star, and dashes for blanks", () => {
+      const cards: NodeListOf<HTMLElement> = fixture.nativeElement.querySelectorAll(".contributor-card");
+      expect(cards.length).toBe(2);
+
+      expect(cards[0].querySelector(".contributor-name")?.textContent).toContain("Contributor A");
+      expect(cards[0].querySelector(".creator-star")).not.toBeNull();
+      expect(cards[0].textContent).toContain("contributor-a@test.com");
+
+      expect(cards[1].querySelector(".creator-star")).toBeNull();
+      const blankValues: NodeListOf<HTMLElement> = cards[1].querySelectorAll(".contributor-value.empty");
+      expect(blankValues.length).toBe(3);
+      blankValues.forEach(value => expect(value.textContent?.trim()).toBe("—"));
+    });
+
+    it("shows edit controls only with write access", () => {
+      expect(fixture.nativeElement.querySelector(".contributor-actions")).not.toBeNull();
+      expect(fixture.nativeElement.querySelector(".contributor-card-add")).not.toBeNull();
+
+      component.userDatasetAccessLevel = "READ";
+      fixture.detectChanges();
+
+      expect(fixture.nativeElement.querySelector(".contributor-actions")).toBeNull();
+      expect(fixture.nativeElement.querySelector(".contributor-card-add")).toBeNull();
+    });
+
+    it("starts adding a contributor when the add tile is clicked", () => {
+      const onAdd = vi.spyOn(component, "onAddContributor").mockImplementation(() => {});
+
+      (fixture.nativeElement.querySelector(".contributor-card-add") as HTMLElement).click();
+
+      expect(onAdd).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it("starts at most maxConcurrentFiles uploads immediately and queues the rest", () => {
+    dropFiles("f1.txt", "f2.txt", "f3.txt", "f4.txt", "f5.txt");
+
+    expect(multipartUploadSpy).toHaveBeenCalledTimes(3);
+    expect(uploadedPaths).toEqual(["f1.txt", "f2.txt", "f3.txt"]);
+    expect(component.activeCount).toBe(3);
+    expect(component.queuedCount).toBe(2);
+    expect(component.queuedFileNames).toEqual(["f4.txt", "f5.txt"]);
+  });
+
+  it("does nothing when an empty file list is dropped", () => {
+    dropFiles();
+
+    expect(multipartUploadSpy).not.toHaveBeenCalled();
+    expect(component.activeCount).toBe(0);
+    expect(component.queuedCount).toBe(0);
+    expect(component.queuedFileNames).toEqual([]);
+  });
+
+  it("starts the next queued upload when an active upload finishes", () => {
+    dropFiles("f1.txt", "f2.txt", "f3.txt", "f4.txt", "f5.txt");
+
+    finishUpload(0, "f1.txt");
+
+    expect(multipartUploadSpy).toHaveBeenCalledTimes(4);
+    expect(uploadedPaths[3]).toBe("f4.txt");
+    expect(component.activeCount).toBe(3);
+    expect(component.queuedCount).toBe(1);
+    expect(component.queuedFileNames).toEqual(["f5.txt"]);
+  });
+
+  it("removes a cancelled file from the pending queue without starting it", () => {
+    dropFiles("f1.txt", "f2.txt", "f3.txt", "f4.txt", "f5.txt");
+
+    component.cancelExistingUpload("f4.txt");
+
+    expect(multipartUploadSpy).toHaveBeenCalledTimes(3);
+    expect(component.queuedCount).toBe(1);
+    expect(component.queuedFileNames).toEqual(["f5.txt"]);
+  });
+
+  it("ignores cancellation of a file that is neither active nor queued", () => {
+    dropFiles("f1.txt", "f2.txt", "f3.txt", "f4.txt");
+
+    component.cancelExistingUpload("missing.txt");
+
+    expect(component.activeCount).toBe(3);
+    expect(component.queuedCount).toBe(1);
+    expect(component.queuedFileNames).toEqual(["f4.txt"]);
+  });
+
+  // #5586: the template reads queuedFileNames on every change-detection pass,
+  // so it must not allocate a new array unless the queue changed.
+  it("keeps the same queuedFileNames array reference while the queue is unchanged", () => {
+    dropFiles("f1.txt", "f2.txt", "f3.txt", "f4.txt", "f5.txt");
+
+    const firstRead = component.queuedFileNames;
+
+    expect(component.queuedFileNames).toBe(firstRead);
+  });
+
+  it("exposes a new queuedFileNames array after the queue changes", () => {
+    dropFiles("f1.txt", "f2.txt", "f3.txt", "f4.txt", "f5.txt");
+    const beforeCancel = component.queuedFileNames;
+
+    component.cancelExistingUpload("f4.txt");
+
+    expect(component.queuedFileNames).not.toBe(beforeCancel);
+    expect(component.queuedFileNames).toEqual(["f5.txt"]);
+  });
+
+  it("identifies pending queue entries by file name in trackByPendingFile", () => {
+    expect(component.trackByPendingFile(0, "dir/a.txt")).toBe("dir/a.txt");
+  });
+
+  // A resumed upload with no missing parts finishes with totalTime exactly 0;
+  // the slot must still be released.
+  it("releases the concurrency slot when a finished upload reports totalTime 0", () => {
+    dropFiles("f1.txt", "f2.txt", "f3.txt", "f4.txt");
+
+    finishUpload(0, "f1.txt", 0);
+
+    expect(multipartUploadSpy).toHaveBeenCalledTimes(4);
+    expect(uploadedPaths[3]).toBe("f4.txt");
+    expect(component.activeCount).toBe(3);
+    expect(component.queuedCount).toBe(0);
+  });
+
+  // The Pending header updates per file, so the Finished header must too — it
+  // cannot wait for the throttled staged-objects refetch.
+  it("updates the Finished count immediately when uploads finish", () => {
+    dropFiles("f1.txt", "f2.txt", "f3.txt", "f4.txt");
+    expect(component.pendingChangesCount).toBe(0);
+
+    finishUpload(0, "f1.txt");
+    expect(component.pendingChangesCount).toBe(1);
+
+    finishUpload(1, "f2.txt");
+    expect(component.pendingChangesCount).toBe(2);
+  });
+
+  it("reconciles the optimistic Finished count with a diff response", () => {
+    dropFiles("f1.txt", "f2.txt", "f3.txt");
+    finishUpload(0, "f1.txt");
+    finishUpload(1, "f2.txt");
+
+    const diff: DatasetStagedObject[] = [{ path: "f1.txt", pathType: "file", diffType: "added", sizeBytes: 1 }];
+    component.onStagedObjectsUpdated(diff);
+
+    // f1 is confirmed by the response; f2 stays counted until a response includes it.
+    expect(component.pendingChangesCount).toBe(2);
+
+    component.onStagedObjectsUpdated([...diff, { path: "f2.txt", pathType: "file", diffType: "added", sizeBytes: 1 }]);
+    expect(component.pendingChangesCount).toBe(2);
+  });
+
+  it("keeps an in-progress upload's slot while progress events stream in", () => {
+    dropFiles("f1.txt", "f2.txt", "f3.txt", "f4.txt");
+
+    uploadSubjects[0].next({ filePath: "f1.txt", percentage: 50, status: "uploading" });
+
+    expect(component.uploadTasks.find(t => t.filePath === "f1.txt")?.percentage).toBe(50);
+    expect(component.activeCount).toBe(3);
+    expect(component.queuedCount).toBe(1);
+  });
+
+  it("does not double-count a finished upload already confirmed by a diff response", () => {
+    dropFiles("f1.txt");
+    finishUpload(0, "f1.txt");
+    component.onStagedObjectsUpdated([{ path: "f1.txt", pathType: "file", diffType: "added", sizeBytes: 1 }]);
+    expect(component.pendingChangesCount).toBe(1);
+
+    dropFiles("f1.txt"); // re-upload the already-staged file
+    finishUpload(1, "f1.txt");
+
+    expect(component.pendingChangesCount).toBe(1);
+  });
+
+  it("does not start queued uploads beyond a lowered concurrency limit", () => {
+    dropFiles("f1.txt", "f2.txt", "f3.txt", "f4.txt");
+    component.maxConcurrentFiles = 1;
+
+    finishUpload(0, "f1.txt");
+
+    expect(component.activeCount).toBe(2);
+    expect(component.queuedCount).toBe(1);
+    expect(multipartUploadSpy).toHaveBeenCalledTimes(3);
+  });
+
+  it("clears the Finished count when a version is created", () => {
+    dropFiles("f1.txt");
+    finishUpload(0, "f1.txt");
+    expect(component.pendingChangesCount).toBe(1);
+
+    component.versionName = "v1";
+    component.onClickOpenVersionCreator();
+
+    expect(component.pendingChangesCount).toBe(0);
+  });
+
+  it("does not remove a re-uploaded file's active task when hiding its finished predecessor", () => {
+    vi.useFakeTimers();
+    try {
+      dropFiles("a.txt");
+      finishUpload(0, "a.txt"); // schedules the finished row to hide in 5s
+
+      dropFiles("a.txt"); // re-upload the same name within the 5s window
+      vi.advanceTimersByTime(5000);
+
+      expect(component.uploadTasks).toHaveLength(1);
+      expect(component.uploadTasks[0].status).not.toBe("finished");
+      expect(component.activeCount).toBe(1);
+
+      finishUpload(1, "a.txt");
+      expect(component.activeCount).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("renders the virtualized pending list and re-measures viewports on panel expand", async () => {
+    dropFiles("f1.txt", "f2.txt", "f3.txt", "f4.txt", "f5.txt");
+
+    // The upload UI lives in the "Versions & Files" tab; nz-tabs does not render a
+    // tab's content into the DOM until it has been selected at least once.
+    const tabButtons: NodeListOf<HTMLElement> = fixture.nativeElement.querySelectorAll(".ant-tabs-tab-btn");
+    const versionsTab = Array.from(tabButtons).find(tab => tab.textContent?.includes("Versions & Files"));
+    expect(versionsTab).toBeTruthy();
+    (versionsTab as HTMLElement).click();
+    fixture.detectChanges();
+
+    // Flush the viewport's init microtask, then render the rows.
+    await Promise.resolve();
+    fixture.detectChanges();
+
+    expect(component.pendingListHeightPx).toBe(2 * component.PENDING_ROW_HEIGHT_PX);
+    const rows = fixture.nativeElement.querySelectorAll(".pending-file-row");
+    expect(rows.length).toBe(2);
+
+    // Expand the Pending / Uploading / Finished panels.
+    const headers: NodeListOf<HTMLElement> = fixture.nativeElement.querySelectorAll(
+      ".upload-status-panels .ant-collapse-header"
+    );
+    expect(headers.length).toBe(3);
+    headers.forEach(header => header.click());
+    fixture.detectChanges();
+    // Flush the checkViewportSize timers.
+    await new Promise(resolve => setTimeout(resolve));
+
+    // Collapsing again must be a no-op for the re-measure handler.
+    headers.forEach(header => header.click());
+    fixture.detectChanges();
+
+    // Cancel a queued file from its row.
+    const cancelButton = fixture.nativeElement.querySelector(".pending-file-row button") as HTMLButtonElement;
+    cancelButton.click();
+    expect(component.queuedCount).toBe(1);
+    expect(component.queuedFileNames).toEqual(["f5.txt"]);
+  });
+
+  it("counts a staged file deletion immediately", () => {
+    const node: DatasetFileNode = { name: "a.txt", type: "file", parentDir: "/owner@texera.com/test-dataset/v1" };
+
+    component.onPreviouslyUploadedFileDeleted(node);
+
+    expect(component.pendingChangesCount).toBe(1);
+  });
+});
+
+describe("DatasetDetailComponent behavior", () => {
+  let fixture: ComponentFixture<DatasetDetailComponent>;
+  let component: DatasetDetailComponent;
+
+  type MockService = Record<string, ReturnType<typeof vi.fn>>;
+  let datasetServiceStub: MockService;
+  let notificationServiceStub: MockService;
+  let downloadServiceStub: MockService;
+  let hubServiceStub: MockService;
+  let adminSettingsServiceStub: MockService;
+  let modalServiceStub: MockService;
+
+  const CREATION_TS = 1_700_000_000_000;
+
+  const makeDataset = (overrides: Partial<Dataset> = {}): Dataset => ({
+    did: 5,
+    ownerUid: 9,
+    name: "ds",
+    isPublic: false,
+    isDownloadable: true,
+    storagePath: undefined,
+    description: "desc",
+    creationTime: undefined,
+    coverImage: undefined,
+    ...overrides,
+  });
+
+  const makeDashboardDataset = (overrides: Partial<DashboardDataset> = {}): DashboardDataset => ({
+    isOwner: false,
+    ownerEmail: "owner@texera.com",
+    dataset: makeDataset(),
+    accessPrivilege: "NONE",
+    size: 0,
+    ...overrides,
+  });
+
+  const makeVersion = (overrides: Partial<DatasetVersion> = {}): DatasetVersion => ({
+    dvid: 1,
+    did: 5,
+    creatorUid: 9,
+    name: "v1",
+    versionHash: undefined,
+    creationTime: undefined,
+    fileNodes: undefined,
+    ...overrides,
+  });
+
+  const fileLeaf = (name: string, parentDir: string, size: number): DatasetFileNode => ({
+    name,
+    type: "file",
+    parentDir,
+    size,
+  });
+
+  const createComponent = (params: Record<string, unknown> = { did: 5 }): void => {
+    TestBed.configureTestingModule({
+      imports: [DatasetDetailComponent, ...commonTestImports],
+      providers: [
+        { provide: ActivatedRoute, useValue: { params: of(params), data: of({}) } },
+        { provide: NzModalService, useValue: modalServiceStub },
+        { provide: DatasetService, useValue: datasetServiceStub },
+        { provide: NotificationService, useValue: notificationServiceStub },
+        { provide: DownloadService, useValue: downloadServiceStub },
+        { provide: UserService, useClass: StubUserService },
+        { provide: HubService, useValue: hubServiceStub },
+        { provide: AdminSettingsService, useValue: adminSettingsServiceStub },
+        { provide: MarkdownService, useValue: { parse: vi.fn(() => "") } },
+        ...commonTestProviders,
+      ],
+    });
+    fixture = TestBed.createComponent(DatasetDetailComponent);
+    component = fixture.componentInstance;
+  };
+
+  // The StubUserService emits MOCK_USER in its own constructor, before the
+  // component subscribes, so currentUid starts undefined; re-emit to log in.
+  const login = (): void => {
+    (TestBed.inject(UserService) as unknown as StubUserService).userChangeSubject.next(MOCK_USER);
+  };
+
+  beforeEach(() => {
+    datasetServiceStub = {
+      getDataset: vi.fn(() => of(makeDashboardDataset())),
+      retrieveDatasetVersionList: vi.fn(() => of([])),
+      retrieveDatasetLatestVersion: vi.fn(() => of(makeVersion())),
+      getDatasetCoverUrl: vi.fn(() => of({ url: "http://cover" })),
+      retrieveDatasetVersionFileTree: vi.fn(() => of({ fileNodes: [fileLeaf("a.txt", "/root", 1)], size: 1 })),
+      createDatasetVersion: vi.fn(() => of(makeVersion())),
+      updateDatasetPublicity: vi.fn(() => of({})),
+      updateDatasetDownloadable: vi.fn(() => of({})),
+      updateDatasetCoverImage: vi.fn(() => of({})),
+      updateDatasetDescription: vi.fn(() => of({})),
+      updateDatasetContributors: vi.fn(() => of(undefined)),
+      updateDatasetName: vi.fn(() => of({})),
+      deleteDatasets: vi.fn(() => of({})),
+      deleteDatasetFile: vi.fn(() => of({})),
+      getDatasetDiff: vi.fn(() => of([])),
+      multipartUpload: vi.fn(() => of()),
+      finalizeMultipartUpload: vi.fn(() => of({})),
+    };
+    notificationServiceStub = { success: vi.fn(), error: vi.fn(), info: vi.fn() };
+    modalServiceStub = { create: vi.fn() };
+    downloadServiceStub = {
+      downloadDatasetVersion: vi.fn(() => of(new Blob())),
+      downloadSingleFile: vi.fn(() => of(new Blob())),
+    };
+    hubServiceStub = {
+      getCounts: vi.fn(() => of([{ counts: { like: 0 } }])),
+      postView: vi.fn(() => of(0)),
+      isLiked: vi.fn(() => of([{ isLiked: false }])),
+      postLike: vi.fn(() => of(true)),
+      postUnlike: vi.fn(() => of(true)),
+    };
+    adminSettingsServiceStub = { getPublicSetting: vi.fn(() => of("50")) };
+  });
+
+  describe("ngOnInit", () => {
+    it("loads info, versions, like and view counts but skips liked/upload settings without a current user", () => {
+      hubServiceStub.getCounts.mockReturnValue(of([{ counts: { like: 7 } }]));
+      hubServiceStub.postView.mockReturnValue(of(42));
+
+      createComponent({ did: 5 });
+      // Drive the genuine logged-out path rather than relying on StubUserService's emission
+      // quirk (its user makes isLogin default to true).
+      component.isLogin = false;
+      fixture.detectChanges();
+
+      expect(datasetServiceStub.getDataset).toHaveBeenCalled();
+      expect(datasetServiceStub.retrieveDatasetVersionList).toHaveBeenCalled();
+      expect(datasetServiceStub.retrieveDatasetLatestVersion).toHaveBeenCalled();
+      expect(component.likeCount).toBe(7);
+      expect(component.viewCount).toBe(42);
+      expect(hubServiceStub.isLiked).not.toHaveBeenCalled();
+      expect(adminSettingsServiceStub.getPublicSetting).not.toHaveBeenCalled();
+    });
+
+    it("fetches liked status and upload settings for a logged-in user", () => {
+      hubServiceStub.isLiked.mockReturnValue(of([{ isLiked: true }]));
+
+      createComponent({ did: 5 });
+      login();
+      fixture.detectChanges();
+
+      expect(hubServiceStub.isLiked).toHaveBeenCalled();
+      expect(component.isLiked).toBe(true);
+      expect(adminSettingsServiceStub.getPublicSetting).toHaveBeenCalled();
+    });
+
+    it("keeps the default upload settings when the public settings are missing", () => {
+      adminSettingsServiceStub.getPublicSetting.mockReturnValue(of(null));
+
+      createComponent({ did: 5 });
+      login();
+      fixture.detectChanges();
+
+      expect(component.chunkSizeMiB).toBe(50);
+      expect(component.maxConcurrentChunks).toBe(10);
+      expect(component.maxConcurrentFiles).toBe(3);
+    });
+
+    it("makes no hub calls when the route carries no did", () => {
+      createComponent({});
+      component.ngOnInit();
+
+      expect(datasetServiceStub.getDataset).not.toHaveBeenCalled();
+      expect(hubServiceStub.getCounts).not.toHaveBeenCalled();
+      expect(hubServiceStub.postView).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("retrieveDatasetInfo", () => {
+    it("maps dataset fields, formats numeric creation time, and resolves the cover image url", () => {
+      const dashboard = makeDashboardDataset({
+        isOwner: true,
+        ownerEmail: "o@e.com",
+        accessPrivilege: "WRITE",
+        dataset: makeDataset({
+          name: "N",
+          description: "D",
+          isPublic: true,
+          isDownloadable: false,
+          coverImage: "cover.png",
+          creationTime: CREATION_TS,
+        }),
+      });
+      datasetServiceStub.getDataset.mockReturnValue(of(dashboard));
+      datasetServiceStub.getDatasetCoverUrl.mockReturnValue(of({ url: "http://c" }));
+
+      createComponent();
+      component.did = 5;
+      component.retrieveDatasetInfo();
+
+      expect(component.datasetName).toBe("N");
+      expect(component.datasetDescription).toBe("D");
+      expect(component.userDatasetAccessLevel).toBe("WRITE");
+      expect(component.datasetIsPublic).toBe(true);
+      expect(component.datasetIsDownloadable).toBe(false);
+      expect(component.ownerEmail).toBe("o@e.com");
+      expect(component.isOwner).toBe(true);
+      expect(component.coverImageUrl).toBe("http://c");
+      expect(component.datasetCreationTime).toEqual(format(new Date(CREATION_TS), "MM/dd/yyyy HH:mm:ss"));
+      expect(component.datasetCreationTime).toMatch(/^\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}:\d{2}$/);
+    });
+
+    it("nulls the cover image url when its retrieval fails", () => {
+      datasetServiceStub.getDataset.mockReturnValue(
+        of(makeDashboardDataset({ dataset: makeDataset({ coverImage: "c.png" }) }))
+      );
+      datasetServiceStub.getDatasetCoverUrl.mockReturnValue(throwError(() => new Error("boom")));
+
+      createComponent();
+      component.did = 5;
+      component.coverImageUrl = "stale";
+      component.retrieveDatasetInfo();
+
+      expect(component.coverImageUrl).toBeNull();
+    });
+
+    it("leaves the cover image url null and skips the cover fetch when there is no cover image", () => {
+      datasetServiceStub.getDataset.mockReturnValue(
+        of(makeDashboardDataset({ dataset: makeDataset({ coverImage: undefined }) }))
+      );
+
+      createComponent();
+      component.did = 5;
+      component.coverImageUrl = "stale";
+      component.retrieveDatasetInfo();
+
+      expect(component.coverImageUrl).toBeNull();
+      expect(datasetServiceStub.getDatasetCoverUrl).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("retrieveDatasetVersionList", () => {
+    it("selects the first version and delegates to onVersionSelected when the list is non-empty", () => {
+      const v1 = makeVersion({ dvid: 10, name: "v10" });
+      const v2 = makeVersion({ dvid: 9, name: "v9" });
+      datasetServiceStub.retrieveDatasetVersionList.mockReturnValue(of([v1, v2]));
+
+      createComponent();
+      component.did = 5;
+      const spy = vi.spyOn(component, "onVersionSelected");
+      component.retrieveDatasetVersionList();
+
+      expect(component.versions).toEqual([v1, v2]);
+      expect(component.selectedVersion).toEqual(v1);
+      expect(spy).toHaveBeenCalledWith(v1);
+    });
+
+    it("makes no selection when the version list is empty", () => {
+      datasetServiceStub.retrieveDatasetVersionList.mockReturnValue(of([]));
+
+      createComponent();
+      component.did = 5;
+      component.selectedVersion = undefined;
+      const spy = vi.spyOn(component, "onVersionSelected");
+      component.retrieveDatasetVersionList();
+
+      expect(component.versions).toEqual([]);
+      expect(component.selectedVersion).toBeUndefined();
+      expect(spy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("onVersionSelected", () => {
+    it("walks nested directories to the first file leaf and loads it", () => {
+      const leaf = fileLeaf("c.txt", "/root/a", 42);
+      const tree: DatasetFileNode[] = [{ name: "a", type: "directory", parentDir: "/root", children: [leaf] }];
+      datasetServiceStub.retrieveDatasetVersionFileTree.mockReturnValue(of({ fileNodes: tree, size: 100 }));
+
+      createComponent();
+      component.did = 5;
+      component.onVersionSelected(makeVersion({ dvid: 2, creationTime: CREATION_TS }));
+
+      expect(component.fileTreeNodeList).toEqual(tree);
+      expect(component.currentDatasetVersionSize).toBe(100);
+      expect(component.currentDisplayedFileName).toBe(getFullPathFromDatasetFileNode(leaf));
+      expect(component.currentFileSize).toBe(42);
+      expect(component.selectedVersionCreationTime).toMatch(/^\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}:\d{2}$/);
+    });
+
+    it("does not fetch a file tree for a version without a dvid", () => {
+      createComponent();
+      component.did = 5;
+      component.onVersionSelected(makeVersion({ dvid: undefined }));
+
+      expect(datasetServiceStub.retrieveDatasetVersionFileTree).not.toHaveBeenCalled();
+    });
+
+    it("does not throw and leaves the displayed file untouched when the version has no files", () => {
+      datasetServiceStub.retrieveDatasetVersionFileTree.mockReturnValue(of({ fileNodes: [], size: 0 }));
+
+      createComponent();
+      component.did = 5;
+      component.currentDisplayedFileName = "stale.txt";
+      component.currentFileSize = 99;
+
+      expect(() => component.onVersionSelected(makeVersion({ dvid: 2 }))).not.toThrow();
+
+      expect(component.fileTreeNodeList).toEqual([]);
+      expect(component.currentDatasetVersionSize).toBe(0);
+      expect(component.currentDisplayedFileName).toBe("stale.txt");
+      expect(component.currentFileSize).toBe(99);
+    });
+  });
+
+  describe("retrieveLatestVersionFile", () => {
+    it("fetches the latest version independently and sets latestVersionFileName to the first leaf file", () => {
+      const leaf = fileLeaf("b.txt", "/root", 7);
+      datasetServiceStub.retrieveDatasetLatestVersion.mockReturnValue(of(makeVersion({ fileNodes: [leaf] })));
+
+      createComponent();
+      component.did = 5;
+      component.retrieveLatestVersionFile();
+
+      expect(datasetServiceStub.retrieveDatasetLatestVersion).toHaveBeenCalledWith(5);
+      expect(component.latestVersionFileName).toBe(getFullPathFromDatasetFileNode(leaf));
+    });
+
+    it("walks nested directories to find the first leaf file", () => {
+      const leaf = fileLeaf("c.txt", "/root/a", 3);
+      const tree: DatasetFileNode[] = [{ name: "a", type: "directory", parentDir: "/root", children: [leaf] }];
+      datasetServiceStub.retrieveDatasetLatestVersion.mockReturnValue(of(makeVersion({ fileNodes: tree })));
+
+      createComponent();
+      component.did = 5;
+      component.retrieveLatestVersionFile();
+
+      expect(component.latestVersionFileName).toBe(getFullPathFromDatasetFileNode(leaf));
+    });
+
+    it("sets latestVersionFileName to an empty string when the latest version has no files", () => {
+      datasetServiceStub.retrieveDatasetLatestVersion.mockReturnValue(of(makeVersion()));
+
+      createComponent();
+      component.did = 5;
+      component.retrieveLatestVersionFile();
+
+      expect(component.latestVersionFileName).toBe("");
+    });
+
+    it("derives latestVersionCreationTime from the latest version's creationTime", () => {
+      datasetServiceStub.retrieveDatasetLatestVersion.mockReturnValue(
+        of(makeVersion({ dvid: 3, creationTime: CREATION_TS }))
+      );
+
+      createComponent();
+      component.did = 5;
+      component.retrieveLatestVersionFile();
+
+      expect(component.latestVersionCreationTime).toEqual(format(new Date(CREATION_TS), "MM/dd/yyyy HH:mm:ss"));
+    });
+
+    it("leaves latestVersionCreationTime empty when the latest version has no creation time", () => {
+      datasetServiceStub.retrieveDatasetLatestVersion.mockReturnValue(of(makeVersion({ creationTime: undefined })));
+
+      createComponent();
+      component.did = 5;
+      component.retrieveLatestVersionFile();
+
+      expect(component.latestVersionCreationTime).toBe("");
+    });
+
+    it("sets latestVersionSize from a file-tree fetch for the latest version's dvid", () => {
+      datasetServiceStub.retrieveDatasetLatestVersion.mockReturnValue(of(makeVersion({ dvid: 7 })));
+      datasetServiceStub.retrieveDatasetVersionFileTree.mockReturnValue(of({ fileNodes: [], size: 4096 }));
+
+      createComponent();
+      component.did = 5;
+      component.retrieveLatestVersionFile();
+
+      expect(datasetServiceStub.retrieveDatasetVersionFileTree).toHaveBeenCalledWith(5, 7, expect.anything());
+      expect(component.latestVersionSize).toBe(4096);
+    });
+
+    it("does not fetch a size when the latest version has no dvid", () => {
+      datasetServiceStub.retrieveDatasetLatestVersion.mockReturnValue(of(makeVersion({ dvid: undefined })));
+
+      createComponent();
+      component.did = 5;
+      component.retrieveLatestVersionFile();
+
+      expect(datasetServiceStub.retrieveDatasetVersionFileTree).not.toHaveBeenCalled();
+      expect(component.latestVersionSize).toBeUndefined();
+    });
+
+    it("clears a previously fetched latestVersionSize when the latest version has no dvid", () => {
+      datasetServiceStub.retrieveDatasetLatestVersion.mockReturnValue(of(makeVersion({ dvid: 7 })));
+      datasetServiceStub.retrieveDatasetVersionFileTree.mockReturnValue(of({ fileNodes: [], size: 4096 }));
+
+      createComponent();
+      component.did = 5;
+      component.retrieveLatestVersionFile();
+
+      expect(component.latestVersionSize).toBe(4096);
+
+      // Without a dvid there is no size to show, so the stale one must not linger.
+      datasetServiceStub.retrieveDatasetLatestVersion.mockReturnValue(of(makeVersion({ dvid: undefined })));
+      component.retrieveLatestVersionFile();
+
+      expect(component.latestVersionSize).toBeUndefined();
+    });
+
+    it("ignores a superseded call's size response that resolves after a newer one", () => {
+      // The first call's file-tree request never completes before the second starts.
+      const pendingTree = new Subject<{ fileNodes: DatasetFileNode[]; size: number }>();
+      datasetServiceStub.retrieveDatasetLatestVersion.mockReturnValue(of(makeVersion({ dvid: 7 })));
+      datasetServiceStub.retrieveDatasetVersionFileTree.mockReturnValue(pendingTree);
+
+      createComponent();
+      component.did = 5;
+      component.retrieveLatestVersionFile();
+
+      expect(component.latestVersionSize).toBeUndefined();
+
+      // A second call supersedes the first and resolves immediately.
+      datasetServiceStub.retrieveDatasetVersionFileTree.mockReturnValue(of({ fileNodes: [], size: 200 }));
+      component.retrieveLatestVersionFile();
+
+      expect(component.latestVersionSize).toBe(200);
+
+      // The superseded response arriving late must not overwrite the fresher size.
+      pendingTree.next({ fileNodes: [], size: 999 });
+
+      expect(component.latestVersionSize).toBe(200);
+    });
+
+    it("keeps the latest-version facts fixed when a different version is later selected", () => {
+      datasetServiceStub.retrieveDatasetLatestVersion.mockReturnValue(
+        of(makeVersion({ dvid: 10, creationTime: CREATION_TS }))
+      );
+      datasetServiceStub.retrieveDatasetVersionFileTree.mockReturnValue(of({ fileNodes: [], size: 500 }));
+
+      createComponent();
+      component.did = 5;
+      component.retrieveLatestVersionFile();
+
+      expect(component.latestVersionSize).toBe(500);
+      expect(component.latestVersionCreationTime).toEqual(format(new Date(CREATION_TS), "MM/dd/yyyy HH:mm:ss"));
+
+      // Selecting an older version updates only the selection-scoped values; the
+      // Data Card's latest-version facts stay pinned to the latest version.
+      datasetServiceStub.retrieveDatasetVersionFileTree.mockReturnValue(of({ fileNodes: [], size: 99 }));
+      component.onVersionSelected(makeVersion({ dvid: 9, creationTime: CREATION_TS - 1000 }));
+
+      expect(component.currentDatasetVersionSize).toBe(99);
+      expect(component.selectedVersionCreationTime).toEqual(
+        format(new Date(CREATION_TS - 1000), "MM/dd/yyyy HH:mm:ss")
+      );
+      expect(component.latestVersionSize).toBe(500);
+      expect(component.latestVersionCreationTime).toEqual(format(new Date(CREATION_TS), "MM/dd/yyyy HH:mm:ss"));
+    });
+
+    it("does nothing when there is no did", () => {
+      createComponent();
+      component.did = undefined;
+      component.retrieveLatestVersionFile();
+
+      expect(datasetServiceStub.retrieveDatasetLatestVersion).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("isDownloadAllowed and userHasWriteAccess", () => {
+    beforeEach(() => createComponent());
+
+    it("always allows the owner to download, even when the dataset is not downloadable", () => {
+      component.isOwner = true;
+      component.datasetIsDownloadable = false;
+      expect(component.isDownloadAllowed()).toBe(true);
+    });
+
+    it("allows a non-owner to download a public downloadable dataset without explicit access", () => {
+      component.isOwner = false;
+      component.datasetIsDownloadable = true;
+      component.datasetIsPublic = true;
+      component.userDatasetAccessLevel = "NONE";
+      expect(component.isDownloadAllowed()).toBe(true);
+    });
+
+    it("blocks a non-owner from a private downloadable dataset without access", () => {
+      component.isOwner = false;
+      component.datasetIsDownloadable = true;
+      component.datasetIsPublic = false;
+      component.userDatasetAccessLevel = "NONE";
+      expect(component.isDownloadAllowed()).toBe(false);
+    });
+
+    it("blocks download when the dataset is not downloadable", () => {
+      component.isOwner = false;
+      component.datasetIsDownloadable = false;
+      component.datasetIsPublic = true;
+      expect(component.isDownloadAllowed()).toBe(false);
+    });
+
+    it("reports write access only for the WRITE privilege", () => {
+      component.userDatasetAccessLevel = "WRITE";
+      expect(component.userHasWriteAccess()).toBe(true);
+      component.userDatasetAccessLevel = "READ";
+      expect(component.userHasWriteAccess()).toBe(false);
+      component.userDatasetAccessLevel = "NONE";
+      expect(component.userHasWriteAccess()).toBe(false);
+    });
+  });
+
+  describe("publicity and downloadable toggles", () => {
+    it("marks the dataset public and toasts on success", () => {
+      createComponent();
+      component.did = 5;
+      component.datasetName = "MyDS";
+      component.onPublicStatusChange(true);
+
+      expect(component.datasetIsPublic).toBe(true);
+      expect(notificationServiceStub.success).toHaveBeenCalledWith("Dataset MyDS is now public");
+    });
+
+    it("keeps the public flag and toasts an error when the publicity update fails", () => {
+      datasetServiceStub.updateDatasetPublicity.mockReturnValue(throwError(() => new Error("boom")));
+      createComponent();
+      component.did = 5;
+      component.datasetIsPublic = false;
+      component.onPublicStatusChange(true);
+
+      expect(component.datasetIsPublic).toBe(false);
+      expect(notificationServiceStub.error).toHaveBeenCalledWith("Fail to change the dataset publicity");
+    });
+
+    it("marks downloads not-allowed and toasts on success", () => {
+      createComponent();
+      component.did = 5;
+      component.onDownloadableStatusChange(false);
+
+      expect(component.datasetIsDownloadable).toBe(false);
+      expect(notificationServiceStub.success).toHaveBeenCalledWith("Dataset downloads are now not allowed");
+    });
+
+    it("keeps the downloadable flag and toasts an error when the update fails", () => {
+      datasetServiceStub.updateDatasetDownloadable.mockReturnValue(throwError(() => new Error("boom")));
+      createComponent();
+      component.did = 5;
+      component.datasetIsDownloadable = true;
+      component.onDownloadableStatusChange(false);
+
+      expect(component.datasetIsDownloadable).toBe(true);
+      expect(notificationServiceStub.error).toHaveBeenCalledWith("Failed to change the dataset download permission");
+    });
+  });
+
+  describe("onClickOpenVersionCreator", () => {
+    it("creates a version, clears the name, refreshes the list and emits a change on success", () => {
+      datasetServiceStub.createDatasetVersion.mockReturnValue(of(makeVersion()));
+      datasetServiceStub.retrieveDatasetVersionList.mockReturnValue(of([]));
+      createComponent();
+      component.did = 5;
+      component.versionName = "v2";
+      const emit = vi.fn();
+      component.userMakeChanges.subscribe(emit);
+
+      component.onClickOpenVersionCreator();
+
+      expect(datasetServiceStub.createDatasetVersion).toHaveBeenCalledWith(5, "v2");
+      expect(notificationServiceStub.success).toHaveBeenCalledWith("Version Created");
+      expect(component.versionName).toBe("");
+      expect(component.isCreatingVersion).toBe(false);
+      expect(datasetServiceStub.retrieveDatasetVersionList).toHaveBeenCalled();
+      expect(datasetServiceStub.retrieveDatasetLatestVersion).toHaveBeenCalled();
+      expect(emit).toHaveBeenCalled();
+    });
+
+    it("surfaces the backend message and resets the in-progress flag on failure", () => {
+      datasetServiceStub.createDatasetVersion.mockReturnValue(throwError(() => ({ error: { message: "boom" } })));
+      createComponent();
+      component.did = 5;
+      component.versionName = "v2";
+
+      component.onClickOpenVersionCreator();
+
+      expect(notificationServiceStub.error).toHaveBeenCalledWith("Version creation failed: boom");
+      expect(component.isCreatingVersion).toBe(false);
+    });
+
+    it("ignores a second click while a version creation is already in progress", () => {
+      datasetServiceStub.createDatasetVersion.mockReturnValue(new Subject());
+      createComponent();
+      component.did = 5;
+
+      component.onClickOpenVersionCreator();
+      component.onClickOpenVersionCreator();
+
+      expect(datasetServiceStub.createDatasetVersion).toHaveBeenCalledTimes(1);
+      expect(component.isCreatingVersion).toBe(true);
+    });
+  });
+
+  describe("downloads", () => {
+    it("downloads the selected version as a zip when did and dvid are present", () => {
+      createComponent();
+      component.did = 5;
+      component.datasetName = "DS";
+      component.selectedVersion = makeVersion({ dvid: 3, name: "v3" });
+
+      component.onClickDownloadVersionAsZip();
+
+      expect(downloadServiceStub.downloadDatasetVersion).toHaveBeenCalledWith(5, 3, "DS", "v3");
+    });
+
+    it("does not download a zip when no version is selected", () => {
+      createComponent();
+      component.did = 5;
+      component.selectedVersion = undefined;
+
+      component.onClickDownloadVersionAsZip();
+
+      expect(downloadServiceStub.downloadDatasetVersion).not.toHaveBeenCalled();
+    });
+
+    it("uses the public endpoint to download the current file for a public non-owner dataset", () => {
+      createComponent();
+      component.did = 5;
+      component.selectedVersion = makeVersion({ dvid: 3 });
+      component.datasetIsPublic = true;
+      component.isOwner = false;
+      component.currentDisplayedFileName = "/a/b/c.txt";
+
+      component.onClickDownloadCurrentFile();
+
+      expect(downloadServiceStub.downloadSingleFile).toHaveBeenCalledWith("/a/b/c.txt", false);
+    });
+
+    it("uses the authenticated endpoint to download the current file for the owner", () => {
+      createComponent();
+      component.did = 5;
+      component.selectedVersion = makeVersion({ dvid: 3 });
+      component.datasetIsPublic = true;
+      component.isOwner = true;
+      component.currentDisplayedFileName = "/a/b/c.txt";
+
+      component.onClickDownloadCurrentFile();
+
+      expect(downloadServiceStub.downloadSingleFile).toHaveBeenCalledWith("/a/b/c.txt", true);
+    });
+
+    it("does not download the current file without a selected version dvid", () => {
+      createComponent();
+      component.did = 5;
+      component.selectedVersion = undefined;
+
+      component.onClickDownloadCurrentFile();
+
+      expect(downloadServiceStub.downloadSingleFile).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("staged objects and view flags", () => {
+    beforeEach(() => createComponent());
+
+    it("tracks the pending-change count from staged objects", () => {
+      const staged: DatasetStagedObject[] = [
+        { path: "a", pathType: "file", diffType: "added", sizeBytes: 1 },
+        { path: "b", pathType: "file", diffType: "added", sizeBytes: 1 },
+      ];
+      component.onStagedObjectsUpdated(staged);
+      expect(component.pendingChangesCount).toBe(2);
+      expect(component.userHasPendingChanges).toBe(true);
+
+      component.onStagedObjectsUpdated([]);
+      expect(component.pendingChangesCount).toBe(0);
+      expect(component.userHasPendingChanges).toBe(false);
+    });
+
+    it("toggles the maximize, right-bar and precise-view-count flags", () => {
+      expect(component.isMaximized).toBe(false);
+      component.onClickScaleTheView();
+      expect(component.isMaximized).toBe(true);
+
+      expect(component.isRightBarCollapsed).toBe(false);
+      component.onClickHideRightBar();
+      expect(component.isRightBarCollapsed).toBe(true);
+
+      expect(component.displayPreciseViewCount).toBe(false);
+      component.changeViewDisplayStyle();
+      expect(component.displayPreciseViewCount).toBe(true);
+    });
+  });
+
+  describe("toggleLike", () => {
+    it("unlikes and decrements the like count when currently liked", () => {
+      hubServiceStub.postUnlike.mockReturnValue(of(true));
+      hubServiceStub.getCounts.mockReturnValue(of([{ counts: { like: 4 } }]));
+      createComponent();
+      component.did = 5;
+      component.currentUid = MOCK_USER.uid;
+      component.isLiked = true;
+      component.likeCount = 5;
+
+      component.toggleLike();
+
+      expect(hubServiceStub.postUnlike).toHaveBeenCalled();
+      expect(component.isLiked).toBe(false);
+      expect(component.likeCount).toBe(4);
+    });
+
+    it("likes and increments the like count when not currently liked", () => {
+      hubServiceStub.postLike.mockReturnValue(of(true));
+      hubServiceStub.getCounts.mockReturnValue(of([{ counts: { like: 6 } }]));
+      createComponent();
+      component.did = 5;
+      component.currentUid = MOCK_USER.uid;
+      component.isLiked = false;
+      component.likeCount = 5;
+
+      component.toggleLike();
+
+      expect(hubServiceStub.postLike).toHaveBeenCalled();
+      expect(component.isLiked).toBe(true);
+      expect(component.likeCount).toBe(6);
+    });
+
+    it("does nothing when no user is logged in", () => {
+      createComponent();
+      component.did = 5;
+      component.currentUid = undefined;
+
+      component.toggleLike();
+
+      expect(hubServiceStub.postLike).not.toHaveBeenCalled();
+      expect(hubServiceStub.postUnlike).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("cover image and description persistence", () => {
+    it("refreshes the cover url and toasts success after setting a cover image", () => {
+      datasetServiceStub.updateDatasetCoverImage.mockReturnValue(of({}));
+      datasetServiceStub.getDatasetCoverUrl.mockReturnValue(of({ url: "http://new" }));
+      createComponent();
+      component.did = 5;
+      component.selectedVersion = makeVersion({ name: "v1" });
+
+      component.onSetCoverImage("img.png");
+
+      expect(datasetServiceStub.updateDatasetCoverImage).toHaveBeenCalledWith(5, "v1/img.png");
+      expect(component.coverImageUrl).toBe("http://new");
+      expect(notificationServiceStub.success).toHaveBeenCalledWith("Cover image updated.");
+    });
+
+    it("surfaces the backend message when setting the cover image fails", () => {
+      datasetServiceStub.updateDatasetCoverImage.mockReturnValue(
+        throwError(() => new HttpErrorResponse({ error: { message: "nope" }, status: 400 }))
+      );
+      createComponent();
+      component.did = 5;
+      component.selectedVersion = makeVersion({ name: "v1" });
+
+      component.onSetCoverImage("img.png");
+
+      expect(notificationServiceStub.error).toHaveBeenCalledWith("nope");
+    });
+
+    it("does nothing when there is no selected version to attach the cover to", () => {
+      createComponent();
+      component.did = 5;
+      component.selectedVersion = undefined;
+
+      component.onSetCoverImage("img.png");
+
+      expect(datasetServiceStub.updateDatasetCoverImage).not.toHaveBeenCalled();
+    });
+
+    it("persists a changed description and updates the field", () => {
+      datasetServiceStub.updateDatasetDescription.mockReturnValue(of({}));
+      createComponent();
+      component.did = 5;
+      component.datasetDescription = "old";
+
+      component.onDatasetDescriptionChange("new");
+
+      expect(datasetServiceStub.updateDatasetDescription).toHaveBeenCalledWith(5, "new");
+      expect(component.datasetDescription).toBe("new");
+    });
+
+    it("skips the persistence call when the description is unchanged", () => {
+      createComponent();
+      component.did = 5;
+      component.datasetDescription = "same";
+
+      component.onDatasetDescriptionChange("same");
+
+      expect(datasetServiceStub.updateDatasetDescription).not.toHaveBeenCalled();
+    });
+
+    it("reverts the description and toasts an error when persistence fails", () => {
+      datasetServiceStub.updateDatasetDescription.mockReturnValue(throwError(() => new Error("boom")));
+      createComponent();
+      component.did = 5;
+      component.datasetDescription = "old";
+
+      component.onDatasetDescriptionChange("new");
+
+      expect(component.datasetDescription).toBe("old");
+      expect(notificationServiceStub.error).toHaveBeenCalledWith("Failed to update dataset description");
+    });
+  });
+
+  describe("copyCurrentFilePath", () => {
+    let originalClipboardDescriptor: PropertyDescriptor | undefined;
+    let writeText: ReturnType<typeof vi.fn>;
+
+    beforeEach(() => {
+      // Capture the original own-property descriptor (undefined if navigator has no own
+      // `clipboard`, e.g. under jsdom) so afterEach can restore the exact shape.
+      originalClipboardDescriptor = Object.getOwnPropertyDescriptor(navigator, "clipboard");
+      writeText = vi.fn().mockResolvedValue(undefined);
+      Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
+      createComponent();
+    });
+
+    afterEach(() => {
+      if (originalClipboardDescriptor) {
+        Object.defineProperty(navigator, "clipboard", originalClipboardDescriptor);
+      } else {
+        delete (navigator as any).clipboard;
+      }
+    });
+
+    it("writes the displayed path to the clipboard and toasts success", async () => {
+      component.currentDisplayedFileName = "/a/b/c.txt";
+
+      await component.copyCurrentFilePath();
+
+      expect(writeText).toHaveBeenCalledWith("/a/b/c.txt");
+      expect(notificationServiceStub.success).toHaveBeenCalledWith("File path copied to clipboard");
+    });
+
+    it("does nothing when no file is displayed", async () => {
+      component.currentDisplayedFileName = "";
+
+      await component.copyCurrentFilePath();
+
+      expect(writeText).not.toHaveBeenCalled();
+    });
+
+    it("toasts an error when the clipboard write rejects", async () => {
+      writeText.mockRejectedValue(new Error("denied"));
+      component.currentDisplayedFileName = "/a/b/c.txt";
+
+      await component.copyCurrentFilePath();
+
+      expect(notificationServiceStub.error).toHaveBeenCalledWith("Failed to copy file path");
+    });
+  });
+
+  describe("upload status, version-node selection, and trackBy", () => {
+    it("getUploadStatus maps the upload status to a progress state", () => {
+      expect(component.getUploadStatus("uploading")).toBe("active");
+      expect(component.getUploadStatus("initializing")).toBe("active");
+      expect(component.getUploadStatus("aborted")).toBe("exception");
+      expect(component.getUploadStatus("failed")).toBe("exception");
+      expect(component.getUploadStatus("finished")).toBe("success");
+    });
+
+    it("onVersionFileTreeNodeSelected loads the selected node's content", () => {
+      const node = { name: "file.csv", type: "file" } as unknown as Parameters<
+        typeof component.onVersionFileTreeNodeSelected
+      >[0];
+      const loadSpy = vi
+        .spyOn(component as unknown as { loadFileContent: (n: unknown) => void }, "loadFileContent")
+        .mockImplementation(() => {});
+
+      component.onVersionFileTreeNodeSelected(node);
+
+      expect(loadSpy).toHaveBeenCalledWith(node);
+    });
+
+    it("trackByTask returns the task's file path", () => {
+      const task = { filePath: "owner/data/file.csv" } as unknown as Parameters<typeof component.trackByTask>[1];
+      expect(component.trackByTask(0, task)).toBe("owner/data/file.csv");
+    });
+  });
+
+  describe("onSaveDatasetName", () => {
+    it("seeds editedDatasetName from the loaded dataset name", () => {
+      datasetServiceStub.getDataset.mockReturnValue(
+        of(makeDashboardDataset({ dataset: makeDataset({ name: "seed-name" }) }))
+      );
+      createComponent();
+      component.did = 5;
+      component.retrieveDatasetInfo();
+
+      expect(component.editedDatasetName).toBe("seed-name");
+    });
+
+    it("persists a valid name unchanged and toasts success", () => {
+      datasetServiceStub.updateDatasetName.mockReturnValue(of({}));
+      createComponent();
+      component.did = 5;
+      // Mixed case, hyphen and underscore are all valid: the name must be saved
+      // verbatim, not rewritten.
+      component.editedDatasetName = "My-Cool_Dataset";
+
+      component.onSaveDatasetName();
+
+      expect(datasetServiceStub.updateDatasetName).toHaveBeenCalledWith(5, "My-Cool_Dataset");
+      expect(component.datasetName).toBe("My-Cool_Dataset");
+      expect(component.editedDatasetName).toBe("My-Cool_Dataset");
+      expect(notificationServiceStub.success).toHaveBeenCalledWith("Dataset name updated to 'My-Cool_Dataset'");
+    });
+
+    it("rejects an invalid name with a validation error and does not call the rename API", () => {
+      createComponent();
+      component.did = 5;
+      component.datasetName = "original";
+      component.editedDatasetName = "My Cool Dataset"; // spaces are not allowed
+
+      component.onSaveDatasetName();
+
+      expect(datasetServiceStub.updateDatasetName).not.toHaveBeenCalled();
+      expect(component.datasetName).toBe("original");
+      expect(notificationServiceStub.error).toHaveBeenCalledWith(
+        "Invalid dataset name: only letters, numbers, underscores, and hyphens are allowed (max 128 characters)"
+      );
+    });
+
+    it("toasts an error and leaves the name unchanged when the rename fails", () => {
+      datasetServiceStub.updateDatasetName.mockReturnValue(throwError(() => new Error("boom")));
+      createComponent();
+      component.did = 5;
+      component.datasetName = "original";
+      component.editedDatasetName = "new-name";
+
+      component.onSaveDatasetName();
+
+      expect(component.datasetName).toBe("original");
+      expect(notificationServiceStub.error).toHaveBeenCalledWith("boom");
+    });
+
+    it("does nothing when there is no did", () => {
+      createComponent();
+      component.did = undefined;
+      component.editedDatasetName = "whatever";
+
+      component.onSaveDatasetName();
+
+      expect(datasetServiceStub.updateDatasetName).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("onDeleteDataset", () => {
+    it("deletes the dataset, toasts success and navigates back to the dataset list", () => {
+      datasetServiceStub.deleteDatasets.mockReturnValue(of({}));
+      createComponent();
+      const navigateSpy = vi.spyOn(TestBed.inject(Router), "navigate").mockResolvedValue(true);
+      component.did = 5;
+      component.datasetName = "DS";
+
+      component.onDeleteDataset();
+
+      expect(datasetServiceStub.deleteDatasets).toHaveBeenCalledWith(5);
+      expect(notificationServiceStub.success).toHaveBeenCalledWith("Dataset DS was deleted");
+      expect(navigateSpy).toHaveBeenCalledWith([USER_DATASET]);
+    });
+
+    it("toasts an error and does not navigate when the deletion fails", () => {
+      datasetServiceStub.deleteDatasets.mockReturnValue(throwError(() => new Error("boom")));
+      createComponent();
+      const navigateSpy = vi.spyOn(TestBed.inject(Router), "navigate").mockResolvedValue(true);
+      component.did = 5;
+
+      component.onDeleteDataset();
+
+      expect(notificationServiceStub.error).toHaveBeenCalledWith("boom");
+      expect(navigateSpy).not.toHaveBeenCalled();
+    });
+
+    it("does nothing when there is no did", () => {
+      createComponent();
+      const navigateSpy = vi.spyOn(TestBed.inject(Router), "navigate").mockResolvedValue(true);
+      component.did = undefined;
+
+      component.onDeleteDataset();
+
+      expect(datasetServiceStub.deleteDatasets).not.toHaveBeenCalled();
+      expect(navigateSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("delete button disabled state", () => {
+    // The Settings tab (and its Delete card) only render for WRITE access; the
+    // delete button itself is owner-only, mirroring the Downloadable switch's
+    // [nzDisabled]="!isOwner". Renders WRITE access with the given ownership,
+    // activates the (inactive) Settings tab so its pane is in the DOM, then
+    // returns the delete button element.
+    const renderDeleteButton = (isOwner: boolean): HTMLButtonElement => {
+      datasetServiceStub.getDataset.mockReturnValue(of(makeDashboardDataset({ accessPrivilege: "WRITE", isOwner })));
+      createComponent();
+      fixture.detectChanges();
+
+      const tabButtons: NodeListOf<HTMLElement> = fixture.nativeElement.querySelectorAll(".ant-tabs-tab-btn");
+      const settingsTab = Array.from(tabButtons).find(tab => tab.textContent?.includes("Settings"));
+      expect(settingsTab).toBeTruthy();
+      (settingsTab as HTMLElement).click();
+      fixture.detectChanges();
+
+      return fixture.nativeElement.querySelector('button[title="Delete"]') as HTMLButtonElement;
+    };
+
+    it("disables the delete button for a non-owner with write access", () => {
+      const button = renderDeleteButton(false);
+
+      expect(button).toBeTruthy();
+      expect(button.disabled).toBe(true);
+    });
+
+    it("enables the delete button for the owner", () => {
+      const button = renderDeleteButton(true);
+
+      expect(button).toBeTruthy();
+      expect(button.disabled).toBe(false);
+    });
+  });
+
+  describe("contributors", () => {
+    const contributorA: Contributor = {
+      name: "Contributor A",
+      creator: true,
+      affiliation: "Test Lab",
+      email: "contributor-a@test.com",
+      comments: "",
+    };
+    const contributorB: Contributor = {
+      name: "Contributor B",
+      creator: false,
+      affiliation: "Test Lab",
+      email: "contributor-b@test.com",
+      comments: "notes",
+    };
+
+    it("maps contributors from the dashboard dataset and falls back to an empty list", () => {
+      datasetServiceStub.getDataset.mockReturnValue(of(makeDashboardDataset({ contributors: [contributorA] })));
+      createComponent();
+      component.did = 5;
+
+      component.retrieveDatasetInfo();
+      expect(component.datasetContributors).toEqual([contributorA]);
+
+      datasetServiceStub.getDataset.mockReturnValue(of(makeDashboardDataset()));
+      component.retrieveDatasetInfo();
+      expect(component.datasetContributors).toEqual([]);
+    });
+
+    it("onAddContributor appends the modal result and persists the list", () => {
+      modalServiceStub.create.mockReturnValue({ afterClose: of(contributorB) });
+      createComponent();
+      component.did = 5;
+      component.datasetContributors = [contributorA];
+
+      component.onAddContributor();
+
+      expect(component.datasetContributors).toEqual([contributorA, contributorB]);
+      expect(datasetServiceStub.updateDatasetContributors).toHaveBeenCalledWith(5, [contributorA, contributorB]);
+      expect(notificationServiceStub.success).toHaveBeenCalledWith("Contributors updated");
+    });
+
+    it("onAddContributor does not persist when the modal is cancelled", () => {
+      modalServiceStub.create.mockReturnValue({ afterClose: of(undefined) });
+      createComponent();
+      component.did = 5;
+      component.datasetContributors = [contributorA];
+
+      component.onAddContributor();
+
+      expect(component.datasetContributors).toEqual([contributorA]);
+      expect(datasetServiceStub.updateDatasetContributors).not.toHaveBeenCalled();
+    });
+
+    it("onEditContributor replaces the edited row and persists the list", () => {
+      const updated = { ...contributorA, affiliation: "Another Test Lab" };
+      modalServiceStub.create.mockReturnValue({ afterClose: of(updated) });
+      createComponent();
+      component.did = 5;
+      component.datasetContributors = [contributorA, contributorB];
+
+      component.onEditContributor(contributorA);
+
+      expect(component.datasetContributors).toEqual([updated, contributorB]);
+      expect(datasetServiceStub.updateDatasetContributors).toHaveBeenCalledWith(5, [updated, contributorB]);
+    });
+
+    it("onDeleteContributor removes the row and persists the list", () => {
+      createComponent();
+      component.did = 5;
+      component.datasetContributors = [contributorA, contributorB];
+
+      component.onDeleteContributor(contributorA);
+
+      expect(component.datasetContributors).toEqual([contributorB]);
+      expect(datasetServiceStub.updateDatasetContributors).toHaveBeenCalledWith(5, [contributorB]);
+    });
+
+    it("rolls the list back and notifies when persisting fails", () => {
+      datasetServiceStub.updateDatasetContributors.mockReturnValue(throwError(() => new Error("boom")));
+      createComponent();
+      component.did = 5;
+      component.datasetContributors = [contributorA, contributorB];
+
+      component.onDeleteContributor(contributorB);
+
+      expect(component.datasetContributors).toEqual([contributorA, contributorB]);
+      expect(notificationServiceStub.error).toHaveBeenCalledWith("Failed to update contributors");
+    });
+
+    it("does not call the service when did is missing", () => {
+      createComponent();
+      component.did = undefined;
+      component.datasetContributors = [contributorA];
+
+      component.onDeleteContributor(contributorA);
+
+      expect(datasetServiceStub.updateDatasetContributors).not.toHaveBeenCalled();
+    });
+  });
+
+  // ─── template rendering ────────────────────────────────────────────────────
+  // These drive the markup through the DOM (rather than calling handlers directly)
+  // so the template's bindings and conditional blocks actually execute.
+  describe("template rendering", () => {
+    // Renders the component and applies the given state, so each *ngIf arm is exercised.
+    // The first detectChanges() lets ngOnInit's subscriptions settle — they reset fields
+    // such as coverImageUrl — so the state is applied afterwards and rendered by a
+    // second change-detection pass.
+    const renderWith = (state: Partial<DatasetDetailComponent> = {}): void => {
+      createComponent();
+      fixture.detectChanges();
+      Object.assign(component, state);
+      fixture.detectChanges();
+    };
+
+    const clickByCss = (selector: string): void => {
+      const el = fixture.debugElement.query(By.css(selector));
+      expect(el).toBeTruthy();
+      el.triggerEventHandler("click", null);
+      fixture.detectChanges();
+    };
+
+    // nz-tabs renders only the active tab's content, so a tab must be opened by its
+    // title before the markup inside it can be queried.
+    const openTab = (title: string): void => {
+      const tab = fixture.debugElement
+        .queryAll(By.css(".ant-tabs-tab"))
+        .find(el => (el.nativeElement.textContent ?? "").includes(title));
+      expect(tab).toBeTruthy();
+      tab!.nativeElement.click();
+      fixture.detectChanges();
+    };
+
+    it("toggles the like through the like tag when logged in", () => {
+      // toggleLike() early-returns unless currentUid is set, which login() supplies
+      createComponent();
+      fixture.detectChanges();
+      login();
+      Object.assign(component, { isLogin: true, did: 5, isLiked: false, likeCount: 1 });
+      fixture.detectChanges();
+
+      clickByCss(".like-tag");
+
+      expect(hubServiceStub.postLike).toHaveBeenCalled();
+    });
+
+    it("unlikes through the same tag when the dataset is already liked", () => {
+      createComponent();
+      fixture.detectChanges();
+      login();
+      Object.assign(component, { isLogin: true, did: 5, isLiked: true, likeCount: 2 });
+      fixture.detectChanges();
+
+      clickByCss(".like-tag");
+
+      expect(hubServiceStub.postUnlike).toHaveBeenCalled();
+    });
+
+    it("does not toggle the like when logged out", () => {
+      renderWith({ isLogin: false, did: 5, isLiked: false, likeCount: 1 });
+
+      const likeTag = fixture.debugElement.query(By.css(".like-tag"));
+      expect(likeTag).toBeTruthy();
+      // the template guards the handler with `isLogin &&`
+      expect(likeTag.nativeElement.classList).toContain("disabled");
+
+      likeTag.triggerEventHandler("click", null);
+
+      expect(hubServiceStub.postLike).not.toHaveBeenCalled();
+    });
+
+    it("omits the cover image when there is no cover URL", () => {
+      renderWith({ coverImageUrl: null });
+      expect(fixture.debugElement.query(By.css(".dataset-cover-image"))).toBeNull();
+    });
+
+    it("renders the cover image bound to the cover URL", () => {
+      renderWith({ coverImageUrl: "blob:cover" });
+      const img = fixture.debugElement.query(By.css(".dataset-cover-image"));
+      expect(img).toBeTruthy();
+      expect(img.nativeElement.getAttribute("src")).toBe("blob:cover");
+    });
+
+    it("collapses the right bar from the template, then renders the restore control", () => {
+      renderWith({ isRightBarCollapsed: false });
+      openTab("Versions & Files");
+
+      // both arms of the *ngIf pair are exercised: hide first, then the show button
+      clickByCss("button[nz-tooltip='Hide the right bar']");
+      expect(component.isRightBarCollapsed).toBe(true);
+
+      clickByCss("button[nz-tooltip='Show Tree']");
+      expect(component.isRightBarCollapsed).toBe(false);
+    });
+
+    it("binds the dataset name input and saves it from the template", () => {
+      // the Settings tab is behind *ngIf="userHasWriteAccess()"
+      renderWith({ did: 5, editedDatasetName: "renamed", userDatasetAccessLevel: "WRITE" });
+      openTab("Settings");
+
+      const input = fixture.debugElement.query(By.css(".settings-name-controls input[nz-input]"));
+      expect(input).toBeTruthy();
+
+      // drive the [(ngModel)] update path through the DOM
+      input.nativeElement.value = "typed-name";
+      input.nativeElement.dispatchEvent(new Event("input"));
+      fixture.detectChanges();
+      expect(component.editedDatasetName).toBe("typed-name");
+
+      const saveBtn = fixture.debugElement
+        .queryAll(By.css("button"))
+        .find(btn => (btn.nativeElement.textContent ?? "").trim() === "Save");
+      expect(saveBtn).toBeTruthy();
+      saveBtn!.triggerEventHandler("click", null);
+
+      expect(datasetServiceStub.updateDatasetName).toHaveBeenCalledWith(5, "typed-name");
+    });
+
+    it("renders every contributor row from the list", () => {
+      renderWith({
+        did: 5,
+        datasetContributors: [
+          { name: "Ada", email: "ada@x.io", affiliation: "" } as Contributor,
+          { name: "Grace", email: "grace@x.io", affiliation: "" } as Contributor,
+        ],
+      });
+
+      const rendered = fixture.debugElement.nativeElement.textContent ?? "";
+      expect(rendered).toContain("Ada");
+      expect(rendered).toContain("Grace");
+    });
+
+    it("routes the settings switches' ngModelChange bindings to the service", () => {
+      renderWith({
+        did: 5,
+        datasetIsPublic: false,
+        datasetIsDownloadable: true,
+        userDatasetAccessLevel: "WRITE",
+        isOwner: true, // the downloadable switch is [nzDisabled]="!isOwner"
+      });
+      openTab("Settings");
+
+      const switches = fixture.debugElement.queryAll(By.css("nz-switch"));
+      expect(switches.length).toBeGreaterThanOrEqual(2);
+
+      // fire the template's (ngModelChange) handlers rather than calling the methods
+      switches[0].triggerEventHandler("ngModelChange", true);
+      expect(datasetServiceStub.updateDatasetPublicity).toHaveBeenCalledWith(5);
+
+      switches[1].triggerEventHandler("ngModelChange", false);
+      expect(datasetServiceStub.updateDatasetDownloadable).toHaveBeenCalledWith(5);
+    });
+  });
+});

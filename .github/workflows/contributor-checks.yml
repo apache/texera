@@ -51,14 +51,20 @@ permissions:
 
 jobs:
   contributor-checks:
-    if: github.event.sender.type != 'Bot'
+    # Skip automated PR/issue openers. GitHub App bots (e.g. dependabot)
+    # have sender.type == 'Bot', but Renovate runs under a regular User
+    # account (`renovate-bot`, type: User) and would otherwise be nagged
+    # for not following the template, so exclude it explicitly by login.
+    if: >-
+      github.event.sender.type != 'Bot' &&
+      github.event.sender.login != 'renovate-bot'
     runs-on: ubuntu-latest
     steps:
       # pull_request_target and issues both resolve to the trusted base
       # branch (never the fork head), so checking out the message
       # templates below is safe. They live in .txt files so editing the
       # wording does not touch workflow logic.
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
           sparse-checkout: |
@@ -69,7 +75,7 @@ jobs:
       # other triggers exist for the template check (step 2).
       - name: Welcome first-time contributors
         if: github.event.action == 'opened'
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
@@ -156,7 +162,7 @@ jobs:
       # warning once it is. Runs on every trigger (open, edit, and issue
       # type changes) so it can resolve itself.
       - name: Warn when the template is not followed
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |

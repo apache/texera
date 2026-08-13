@@ -290,6 +290,32 @@ describe("JointUIService", () => {
     });
   });
 
+  describe("getDefaultLinkCell (static)", () => {
+    it("builds a link routed with manhattan and connected with rounded corners", () => {
+      const link = JointUIService.getDefaultLinkCell();
+      expect(link).toBeInstanceOf(joint.dia.Link);
+      expect(link.get("router")).toEqual({ name: "manhattan" });
+      expect(link.get("connector")).toEqual({ name: "rounded" });
+    });
+
+    it("styles the connection stroke and hides the remove tool by default", () => {
+      const link = JointUIService.getDefaultLinkCell();
+      expect(link.attr(".connection/stroke")).toBe("#919191");
+      expect(link.attr(".connection/stroke-width")).toBe("2px");
+      // the delete affordance is present in the markup but hidden until hover.
+      expect(link.attr(".tool-remove/display")).toBe("none");
+      expect(link.attr(".tool-remove/fill")).toBe("#D8656A");
+    });
+
+    it("fills the source and target markers with the handle color", () => {
+      const link = JointUIService.getDefaultLinkCell();
+      expect(link.attr(".marker-source/fill")).toBe("#919191");
+      expect(link.attr(".marker-target/fill")).toBe("#919191");
+      expect(link.attr(".marker-source/stroke")).toBe("none");
+      expect(link.attr(".marker-target/stroke")).toBe("none");
+    });
+  });
+
   describe("getJointUserPointerName (static)", () => {
     it("prefixes the coeditor clientId with 'pointer_'", () => {
       expect(JointUIService.getJointUserPointerName({ clientId: "abc123" } as Coeditor)).toBe("pointer_abc123");
@@ -334,6 +360,21 @@ describe("JointUIService", () => {
       const service = new JointUIService(emptyMetadataStub as never);
       service.changeOperatorColor(paper, "op-1", false);
       expect(attrSpy).toHaveBeenCalledWith("rect.body/stroke", "red");
+    });
+    it("skips the write when the border is already the requested color", () => {
+      const { paper, attrSpy } = makePaperWithModel();
+      // model reports it is already neutral; the guarded setter must not rewrite it
+      attrSpy.mockImplementation((selector: string) => (selector === "rect.body/stroke" ? "#CFCFCF" : undefined));
+      const service = new JointUIService(emptyMetadataStub as never);
+      service.changeOperatorColor(paper, "op-1", true);
+      expect(attrSpy).not.toHaveBeenCalledWith("rect.body/stroke", "#CFCFCF");
+    });
+    it("writes the border when the current color differs", () => {
+      const { paper, attrSpy } = makePaperWithModel();
+      attrSpy.mockImplementation((selector: string) => (selector === "rect.body/stroke" ? "red" : undefined));
+      const service = new JointUIService(emptyMetadataStub as never);
+      service.changeOperatorColor(paper, "op-1", true);
+      expect(attrSpy).toHaveBeenCalledWith("rect.body/stroke", "#CFCFCF");
     });
   });
 

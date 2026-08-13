@@ -21,7 +21,7 @@ package org.apache.texera.amber.operator.source.scan.csvOld
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.github.tototoshi.csv.{CSVReader, DefaultCSVFormat}
-import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
+import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.storage.DocumentFactory
 import org.apache.texera.amber.core.tuple.AttributeTypeUtils.inferSchemaFromRows
@@ -36,9 +36,11 @@ import java.net.URI
 
 class CSVOldScanSourceOpDesc extends ScanSourceOpDesc {
 
+  // One character -- see CSVScanSourceOpDesc.
   @JsonProperty(defaultValue = ",")
   @JsonSchemaTitle("Delimiter")
-  @JsonPropertyDescription("delimiter to separate each line into fields")
+  @JsonPropertyDescription("single character separating the fields on each line")
+  @JsonSchemaInject(json = """{ "maxLength": 1 }""")
   var customDelimiter: Option[String] = Some(",")
 
   @JsonProperty(defaultValue = "true")
@@ -75,13 +77,22 @@ class CSVOldScanSourceOpDesc extends ScanSourceOpDesc {
   }
 
   override def sourceSchema(): Schema = {
-    if (customDelimiter.isEmpty || !fileResolved()) {
-      return null
+    val delimiterChar = customDelimiter.filter(_.nonEmpty).getOrElse(",").charAt(0)
+    require(
+      fileResolved(),
+      "No file selected. Please select a valid .csv file from the 'File' dropdown in the right panel."
+    )
+
+    val uri = new URI(fileName.get)
+    if (uri.getScheme == "file") {
+      require(
+        new java.io.File(uri).isFile,
+        "The selected item is a folder or does not exist. Please select an actual .csv file from the 'File' dropdown."
+      )
     }
-    // infer schema from the first few lines of the file
-    val file = DocumentFactory.openReadonlyDocument(new URI(fileName.get)).asFile()
+    val file = DocumentFactory.openReadonlyDocument(uri).asFile()
     implicit object CustomFormat extends DefaultCSVFormat {
-      override val delimiter: Char = customDelimiter.get.charAt(0)
+      override val delimiter: Char = delimiterChar
     }
     var reader: CSVReader =
       CSVReader.open(file, fileEncoding.getCharset.name())(CustomFormat)

@@ -68,6 +68,36 @@
   z-index: 10;
 }
 
+// Cover-image controls, revealed on hover.
+.card-image-controls {
+  position: absolute;
+  bottom: 4px;
+  right: 4px;
+  z-index: 11;
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.card-item:hover .card-image-controls {
+  opacity: 1;
+}
+
+.image-control-btn {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: 50%;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.35);
+
+  &:hover {
+    color: #fff;
+    background: rgba(0, 0, 0, 0.55);
+  }
+}
+
 .owner-info {
   min-width: 0;
 

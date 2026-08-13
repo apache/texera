@@ -22,7 +22,7 @@ package org.apache.texera.amber.operator.source.scan.csv
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.github.tototoshi.csv.{CSVReader, DefaultCSVFormat}
-import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
+import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.storage.DocumentFactory
 import org.apache.texera.amber.core.tuple.AttributeTypeUtils.inferSchemaFromRows
@@ -37,10 +37,12 @@ import java.net.URI
 
 class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc {
 
+  // One character -- see CSVScanSourceOpDesc.
   @JsonProperty(defaultValue = ",")
   @JsonSchemaTitle("Delimiter")
-  @JsonPropertyDescription("delimiter to separate each line into fields")
+  @JsonPropertyDescription("single character separating the fields on each line")
   @JsonDeserialize(contentAs = classOf[java.lang.String])
+  @JsonSchemaInject(json = """{ "maxLength": 1 }""")
   var customDelimiter: Option[String] = None
 
   @JsonProperty(defaultValue = "true")
@@ -79,12 +81,22 @@ class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc {
   }
 
   override def sourceSchema(): Schema = {
-    if (customDelimiter.isEmpty || !fileResolved()) {
-      return null
+    val delimiterChar = customDelimiter.filter(_.nonEmpty).getOrElse(",").charAt(0)
+    require(
+      fileResolved(),
+      "No file selected. Please select a valid .csv file from the 'File' dropdown in the right panel."
+    )
+
+    val uri = new URI(fileName.get)
+    if (uri.getScheme == "file") {
+      require(
+        new java.io.File(uri).isFile,
+        "The selected item is a folder or does not exist. Please select an actual .csv file from the 'File' dropdown."
+      )
     }
-    val file = DocumentFactory.openReadonlyDocument(new URI(fileName.get)).asFile()
+    val file = DocumentFactory.openReadonlyDocument(uri).asFile()
     implicit object CustomFormat extends DefaultCSVFormat {
-      override val delimiter: Char = customDelimiter.get.charAt(0)
+      override val delimiter: Char = delimiterChar
 
     }
     var reader: CSVReader = CSVReader.open(file)(CustomFormat)

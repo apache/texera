@@ -89,8 +89,8 @@ def sqlite_iceberg_catalog():
     catalog-agnostic, so the sqlite backend exercises the same code path.
 
     Module-scoped so all tests in this file share one warehouse, and so
-    namespace creation only happens once. We save/restore the original
-    `IcebergCatalogInstance` singleton so other test modules that expect
+    namespace creation only happens once. We save/restore the
+    `IcebergCatalogInstance` cache so other test modules that expect
     a real postgres-backed catalog (e.g. test_iceberg_document.py) are
     not affected by our replacement.
     """
@@ -117,7 +117,7 @@ def sqlite_iceberg_catalog():
             s3_large_binaries_base_uri="s3://texera-large-binaries/objects/0/",
         )
 
-    original_instance = IcebergCatalogInstance._instance
+    original_catalogs = dict(IcebergCatalogInstance._catalogs)
     db_path = f"{_WAREHOUSE_DIR}/catalog.sqlite"
     catalog = SqlCatalog(
         "texera_iceberg_e2e",
@@ -134,7 +134,8 @@ def sqlite_iceberg_catalog():
     try:
         yield catalog
     finally:
-        IcebergCatalogInstance.replace_instance(original_instance)
+        IcebergCatalogInstance._catalogs.clear()
+        IcebergCatalogInstance._catalogs.update(original_catalogs)
 
 
 def _fresh_base_uri() -> str:
@@ -162,7 +163,7 @@ def test_state_written_by_output_manager_is_replayed_by_reader():
     port_id = PortIdentity(id=0, internal=False)
     worker_schema_for_result = State.SCHEMA  # producer-side: only state matters
 
-    # 1. RegionExecutionCoordinator's responsibility: provision result +
+    # 1. RegionExecutionManager's responsibility: provision result +
     # state documents at the port base URI before any worker starts.
     # We emulate that here.
     DocumentFactory.create_document(

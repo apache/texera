@@ -31,12 +31,18 @@ import org.scalatest.matchers.should.Matchers
 
 import java.security.Principal
 import java.util.concurrent.ConcurrentLinkedQueue
+import scala.util.chaining.scalaUtilChainingOps
 
 class UserActivityEventListenerSpec extends AnyFlatSpec with Matchers {
 
   private def sessionUser(uid: Integer): SessionUser = {
-    val u = new User(uid, "u", null, null, null, null, UserRoleEnum.REGULAR, null, null, null, null)
-    new SessionUser(u)
+    new SessionUser(
+      new User().tap { user =>
+        user.setUid(uid)
+        user.setName("u")
+        user.setRole(UserRoleEnum.REGULAR)
+      }
+    )
   }
 
   private def buildEvent(eventType: RequestEvent.Type, sc: SecurityContext): RequestEvent = {

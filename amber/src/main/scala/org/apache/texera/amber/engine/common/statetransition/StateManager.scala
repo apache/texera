@@ -43,6 +43,25 @@ class StateManager[T](
 
   private var currentState: T = initialState
 
+  // Monotonically increasing version, bumped on every successful state transition.
+  // It is the state machine's logical clock: because a single owner drives all
+  // transitions, the version totally orders them in causal order. Reporting this
+  // version alongside the state lets remote observers (e.g. the controller) reject
+  // stale state reports that arrive out of order, without relying on wall-clock
+  // timestamps that cannot be compared across processes. Must mirror the Python
+  // StateManager (amber/src/main/python/core/architecture/managers/state_manager.py).
+  private var stateVersion: Long = 0L
+
+  def getStateVersion: Long = stateVersion
+
+  /**
+    * Returns the current state together with its version as one pair, so a report
+    * site cannot interleave a transition between reading the state and reading the
+    * version. Every state-report site must use this instead of separate
+    * getCurrentState/getStateVersion calls.
+    */
+  def getStateWithVersion: (T, Long) = (currentState, stateVersion)
+
   def assertState(state: T): Unit = {
     if (currentState != state) {
       throw InvalidStateException(
@@ -84,6 +103,7 @@ class StateManager[T](
       throw InvalidTransitionException(s"cannot transit from $currentState to $state", actorId)
     }
     currentState = state
+    stateVersion += 1
   }
 
 }

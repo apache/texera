@@ -31,11 +31,11 @@ package org.apache.texera.amber.operator.huggingFace.codegen
   *    zero-shot-image-classification, image-text-to-text, image-to-image.
   *
   * Per-row `current_image_bytes` is resolved upstream in
-  * [[PythonCodegenBase]]'s `process_table` (either from the operator's
+  * [[HuggingFaceCodegenBase]]'s `process_table` (either from the operator's
   * uploaded image or from `INPUT_IMAGE_COLUMN`). The image helpers
   * (`_read_image_input`, `_compress_image_bytes`, `_image_input_as_base64`,
   * `_read_binary_value`, `_looks_like_html`, `_html_to_image_bytes`,
-  * `_extract_json_arg`) live in PythonCodegenBase alongside the per-task
+  * `_extract_json_arg`) live in HuggingFaceCodegenBase alongside the per-task
   * tuples (`image_only_tasks`, `image_prompt_tasks`, `image_tasks`).
   */
 object ImageTaskCodegen extends TaskCodegen {
@@ -90,26 +90,16 @@ object ImageTaskCodegen extends TaskCodegen {
       |                use_raw_binary_body = True
       |                raw_binary_headers = image_headers
       |            elif task == "zero-shot-image-classification":
-      |                # Zero-shot requires the caller to supply candidate labels.
-      |                # We reuse the prompt column as a comma-separated label list so
-      |                # the task is shippable without a dedicated operator field.
-      |                # TODO: replace with a first-class `candidateLabels` field once
-      |                # the property panel supports task-specific inputs.
-      |                #
-      |                # Fail fast if usable labels can't be derived. Both modes lead to
-      |                # a meaningless inference call:
-      |                #   1. Empty prompt column          -> labels = []
-      |                #      The HF API rejects candidate_labels: [] with an opaque 400.
-      |                #   2. Missing prompt column        -> upstream sets prompt_value
-      |                #      to the fallback "What is shown in this image?", which has
-      |                #      no comma, so labels collapses to a single nonsense entry.
-      |                # Zero-shot classification needs >= 2 candidate labels to be
-      |                # meaningful — surface a configuration error in both cases.
-      |                labels = [s.strip() for s in prompt_value.split(",") if s.strip()]
+      |                # Prefer the dedicated candidateLabels property; fall back to
+      |                # the prompt column for backward compatibility.
+      |                label_source = (self.CANDIDATE_LABELS or "").strip() if self.CANDIDATE_LABELS else ""
+      |                if not label_source and prompt_value:
+      |                    label_source = prompt_value
+      |                labels = [s.strip() for s in label_source.split(",") if s.strip()]
       |                if len(labels) < 2:
       |                    raise ValueError(
       |                        "zero-shot-image-classification requires at least 2 candidate "
-      |                        "labels: provide a comma-separated list in the prompt column."
+      |                        "labels: provide a comma-separated list in the Candidate Labels field."
       |                    )
       |                payload = {
       |                    "inputs": self._image_input_as_base64(current_image_bytes),

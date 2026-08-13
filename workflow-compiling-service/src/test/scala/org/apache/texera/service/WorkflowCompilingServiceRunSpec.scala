@@ -19,12 +19,65 @@
 
 package org.apache.texera.service
 
-import org.apache.texera.auth.RoleAnnotationEnforcer
+import io.dropwizard.core.setup.Environment
+import io.dropwizard.jersey.DropwizardResourceConfig
+import io.dropwizard.jersey.setup.JerseyEnvironment
+import io.dropwizard.jetty.MutableServletContextHandler
+import io.dropwizard.jetty.setup.ServletEnvironment
+import org.apache.texera.auth.{RoleAnnotationEnforcer, UnauthorizedExceptionMapper}
 import org.apache.texera.service.resource.{HealthCheckResource, WorkflowCompilationResource}
+import org.eclipse.jetty.servlet.FilterHolder
+import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature
+import org.mockito.ArgumentMatchers.{any, eq => eqTo, isA}
+import org.mockito.Mockito.{mock, verify, when}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 class WorkflowCompilingServiceRunSpec extends AnyFlatSpec with Matchers {
+
+  // Mirrors AccessControlServiceRunSpec: run() is driven against a mocked Dropwizard
+  // environment so the wiring it installs can be asserted without starting a server.
+  // run() starts an operator-metadata warmup thread and swaps the global SqlServer
+  // instance, so it is executed once for the whole suite and the resulting mocks are
+  // shared; the assertions below only read recorded interactions.
+  private lazy val ranService: (JerseyEnvironment, MutableServletContextHandler) = {
+    val jersey = mock(classOf[JerseyEnvironment])
+    val servlets = mock(classOf[ServletEnvironment])
+    val context = mock(classOf[MutableServletContextHandler])
+    val env = mock(classOf[Environment])
+    when(env.jersey).thenReturn(jersey)
+    when(env.servlets).thenReturn(servlets)
+    when(env.getApplicationContext).thenReturn(context)
+    when(jersey.getResourceConfig).thenReturn(DropwizardResourceConfig.forTesting())
+
+    val service = new WorkflowCompilingService
+    service.run(mock(classOf[WorkflowCompilingServiceConfiguration]), env)
+
+    (jersey, context)
+  }
+
+  "WorkflowCompilingService.run" should "serve the API under /api/*" in {
+    val (jersey, _) = ranService
+    verify(jersey).setUrlPattern("/api/*")
+  }
+
+  it should "register the health check and compilation endpoints" in {
+    val (jersey, _) = ranService
+    verify(jersey).register(classOf[HealthCheckResource])
+    verify(jersey).register(classOf[WorkflowCompilationResource])
+  }
+
+  it should "install the auth stack" in {
+    val (jersey, _) = ranService
+    // AuthFeatures.register: without RolesAllowedDynamicFeature Jersey ignores @RolesAllowed
+    verify(jersey).register(classOf[RolesAllowedDynamicFeature])
+    verify(jersey).register(classOf[UnauthorizedExceptionMapper])
+  }
+
+  it should "add the request-logging filter to the application context" in {
+    val (_, context) = ranService
+    verify(context).addFilter(isA(classOf[FilterHolder]), eqTo("/*"), any())
+  }
 
   // Every endpoint this service registers declares @RolesAllowed/@PermitAll/@DenyAll.
   "WorkflowCompilingService's registered resources" should "all declare access control" in {

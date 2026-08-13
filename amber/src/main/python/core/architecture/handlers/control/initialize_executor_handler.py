@@ -30,4 +30,6 @@ class InitializeExecutorHandler(ControlHandler):
         self.context.executor_manager.initialize_executor(
             op_exec_with_code.code, req.is_source, op_exec_with_code.language
         )
+        # Loop bookkeeping base URIs; see the proto field doc on loopStartPortUris.
+        self.context.loop_start_port_uris = dict(req.loop_start_port_uris)
         return EmptyReturn()

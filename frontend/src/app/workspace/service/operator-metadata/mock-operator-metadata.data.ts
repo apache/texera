@@ -302,6 +302,36 @@ export const mockJavaUDFSchema: OperatorSchema = {
   operatorVersion: "p1",
 };
 
+export const mockHuggingFaceSchema: OperatorSchema = {
+  operatorType: "HuggingFace",
+  additionalMetadata: {
+    userFriendlyName: "HuggingFace Inference",
+    operatorDescription: "Run inference on a HuggingFace model",
+    operatorGroupName: "Analysis",
+    inputPorts: [{}],
+    outputPorts: [{}],
+  },
+  jsonSchema: {
+    properties: {
+      task: { type: "string", title: "task" },
+      modelId: { type: "string", title: "model ID" },
+      promptColumn: { type: "string", title: "prompt column" },
+      imageInput: { type: "string", title: "image input" },
+      audioInput: { type: "string", title: "audio input" },
+      inputImageColumn: { type: "string", title: "input image column" },
+      inputAudioColumn: { type: "string", title: "input audio column" },
+      systemPrompt: { type: "string", title: "system prompt" },
+      maxNewTokens: { type: "integer", title: "max new tokens" },
+      temperature: { type: "number", title: "temperature" },
+      contextColumn: { type: "string", title: "context column" },
+      candidateLabels: { type: "string", title: "candidate labels" },
+      sentencesColumn: { type: "string", title: "sentences column" },
+    },
+    type: "object",
+  },
+  operatorVersion: "hf1",
+};
+
 export const mockOperatorSchemaList: ReadonlyArray<OperatorSchema> = [
   mockScanSourceSchema,
   mockFileSourceSchema,
@@ -315,6 +345,7 @@ export const mockOperatorSchemaList: ReadonlyArray<OperatorSchema> = [
   mockUnionSchema,
   mockPythonUDFSchema,
   mockJavaUDFSchema,
+  mockHuggingFaceSchema,
 ];
 
 export const mockOperatorGroup: ReadonlyArray<GroupInfo> = [

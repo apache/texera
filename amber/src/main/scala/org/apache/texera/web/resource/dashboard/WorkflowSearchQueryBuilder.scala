@@ -29,6 +29,7 @@ import org.jooq.impl.DSL.groupConcatDistinct
 import org.jooq.{Condition, GroupField, Record, TableLike}
 
 import scala.jdk.CollectionConverters.CollectionHasAsScala
+import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
 
 object WorkflowSearchQueryBuilder extends SearchQueryBuilder {
 
@@ -52,7 +53,8 @@ object WorkflowSearchQueryBuilder extends SearchQueryBuilder {
       uid = WORKFLOW_OF_USER.UID,
       ownerId = WORKFLOW_OF_USER.UID,
       userName = USER.NAME,
-      projectsOfWorkflow = groupConcatDistinct(WORKFLOW_OF_PROJECT.PID)
+      projectsOfWorkflow = groupConcatDistinct(WORKFLOW_OF_PROJECT.PID),
+      workflowCoverImage = DSL.max(WORKFLOW_COVER_IMAGE.IMAGE).as("workflow_cover_image")
     )
   }
 
@@ -64,6 +66,7 @@ object WorkflowSearchQueryBuilder extends SearchQueryBuilder {
     val baseQuery = WORKFLOW
       .leftJoin(WORKFLOW_USER_ACCESS)
       .on(WORKFLOW_USER_ACCESS.WID.eq(WORKFLOW.WID))
+      .and(if (uid == null) DSL.falseCondition() else WORKFLOW_USER_ACCESS.UID.eq(uid))
       .leftJoin(WORKFLOW_OF_USER)
       .on(WORKFLOW_OF_USER.WID.eq(WORKFLOW.WID))
       .leftJoin(USER)
@@ -72,13 +75,16 @@ object WorkflowSearchQueryBuilder extends SearchQueryBuilder {
       .on(WORKFLOW_OF_PROJECT.WID.eq(WORKFLOW.WID))
       .leftJoin(PROJECT_USER_ACCESS)
       .on(PROJECT_USER_ACCESS.PID.eq(WORKFLOW_OF_PROJECT.PID))
+      .and(if (uid == null) DSL.falseCondition() else PROJECT_USER_ACCESS.UID.eq(uid))
+      .leftJoin(WORKFLOW_COVER_IMAGE)
+      .on(WORKFLOW_COVER_IMAGE.WID.eq(WORKFLOW.WID))
 
     var condition: Condition = DSL.trueCondition()
     if (uid == null) {
       condition = WORKFLOW.IS_PUBLIC.eq(true)
     } else {
       val privateAccessCondition =
-        WORKFLOW_USER_ACCESS.UID.eq(uid).or(PROJECT_USER_ACCESS.UID.eq(uid))
+        WORKFLOW_USER_ACCESS.UID.eq(uid).or(PROJECT_USER_ACCESS.UID.isNotNull)
       if (includePublic) {
         condition = privateAccessCondition.or(WORKFLOW.IS_PUBLIC.eq(true))
       } else {
@@ -146,10 +152,10 @@ object WorkflowSearchQueryBuilder extends SearchQueryBuilder {
   ): DashboardResource.DashboardClickableFileEntry = {
     val pidField = groupConcatDistinct(WORKFLOW_OF_PROJECT.PID)
     val dw = DashboardWorkflow(
-      record.into(WORKFLOW_OF_USER).getUid.eq(uid),
-      record
-        .get(WORKFLOW_USER_ACCESS.PRIVILEGE)
-        .toString,
+      record.into(WORKFLOW_OF_USER).getUid == uid,
+      Option(record.get(WORKFLOW_USER_ACCESS.PRIVILEGE, classOf[PrivilegeEnum]))
+        .map(_.toString)
+        .getOrElse(PrivilegeEnum.NONE.toString),
       record.into(USER).getName,
       record.into(WORKFLOW).into(classOf[Workflow]),
       if (record.get(pidField) == null) {
@@ -162,7 +168,8 @@ object WorkflowSearchQueryBuilder extends SearchQueryBuilder {
           .map(number => Integer.valueOf(number))
           .toList
       },
-      record.into(USER).getUid
+      record.into(USER).getUid,
+      Option(record.get("workflow_cover_image", classOf[String]))
     )
     DashboardClickableFileEntry(SearchQueryBuilder.WORKFLOW_RESOURCE_TYPE, workflow = Some(dw))
   }
