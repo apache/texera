@@ -161,6 +161,25 @@ class RegionExecutionManagerSpec
     assert(!fixture.manager.isCompleted)
   }
 
+  it should "clean up control channels and actor refs after successful termination" in {
+    val fixture = createSingleRegionFixture(
+      endWorkerResponse = _ => Some(EmptyReturn())
+    )
+
+    launchRegion(fixture.manager)
+    val completion = requestRegionCompletion(fixture.manager)
+    await(completion)
+
+    // Manager should be completed
+    assert(fixture.manager.isCompleted)
+
+    // Actor ref should be removed
+    assert(!fixture.actorRefService.hasActorRef(fixture.workerId))
+
+    // Control channels should be removed
+    assertControlChannelsAreRemoved(fixture)
+  }
+
   it should "give up with a descriptive error once the EndWorker retry budget is exhausted" in {
     // EndWorker always fails: a worker that never finishes draining.
     val fixture = createSingleRegionFixture(
