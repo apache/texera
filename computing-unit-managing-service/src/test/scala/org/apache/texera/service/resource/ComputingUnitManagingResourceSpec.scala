@@ -176,7 +176,7 @@ class ComputingUnitManagingResourceSpec
     info.isOwner shouldBe true
     info.accessPrivilege shouldBe PrivilegeEnum.WRITE
     info.ownerName shouldBe "owner"
-    info.ownerGoogleAvatar shouldBe "owner-avatar"
+    info.ownerAvatar shouldBe "owner-avatar"
   }
 
   it should "report READ access for a grantee holding READ access" in {
@@ -282,7 +282,7 @@ class ComputingUnitManagingResourceSpec
     created.accessPrivilege shouldBe PrivilegeEnum.WRITE
     created.ownerName shouldBe "creator"
     // makeUser sets no avatar, so the owner-avatar lookup resolves to null
-    created.ownerGoogleAvatar shouldBe null
+    created.ownerAvatar shouldBe null
 
     // The unit is persisted, not just echoed back
     unitName(cuid) shouldBe "local-cu"
