@@ -71,22 +71,52 @@ class InternalQueue(IQueue):
         return self._queue.is_empty(key)
 
     def get(self) -> T:
-        return self._queue.get()
+        """Blocking get of the next available element.
+
+        Data channels register enabled even during a disable window, because
+        ECMs ride data channels and one swallowed by a channel that came up
+        disabled would never be acked. A DataElement arriving here during
+        such a window is withheld instead: its channel is closed and the
+        element goes back to its sub-queue's head, for enable_data() to
+        release. An ECM queued behind it on the same channel is therefore
+        delayed until resume, which is unavoidable without unbounded
+        buffering, and is what main does for channels disable_data() closed.
+
+        Assumes a single consumer; only PauseManager and BackpressureHandler
+        toggle the disable state, and only on the input queue.
+        """
+        while True:
+            item = self._queue.get()
+            # a control-tagged DataElement cannot occur today, but the tag is
+            # wire-derived: withholding one would close a control sub-queue,
+            # which enable_data() never reopens
+            if (
+                not isinstance(item, DataElement)
+                or item.tag.is_control
+                or not self._queue_state
+            ):
+                return item
+            with self._lock:
+                # enable_data() may have cleared the last reason since the
+                # check above; closing the channel now would strand it
+                if not self._queue_state:
+                    return item
+                # disable first: the element must never be dequeuable in between
+                self._queue.disable(item.tag)
+                self._queue.put_first(item.tag, item)
 
     def put(self, item: T) -> None:
         if isinstance(item, InternalQueueElement):
             if item.tag not in self._queue_ids:
-                # registration must not interleave with disable_data/enable_data
+                # both the lock and the re-check are load-bearing:
+                # disable_data/enable_data iterate _queue_ids live, and a
+                # second add_sub_queue for the same channel would replace its
+                # sub-queue with an empty one, dropping whatever it holds
                 with self._lock:
                     if item.tag not in self._queue_ids:
                         self._queue.add_sub_queue(
                             item.tag, 1 if item.tag.is_control else 2
                         )
-                        # while data is disabled, a new data sub-queue must
-                        # start disabled too (before its first element is
-                        # enqueued), or it would leak data during pause/backpressure
-                        if not item.tag.is_control and self._queue_state:
-                            self._queue.disable(item.tag)
                         self._queue_ids.add(item.tag)
             if isinstance(item, (DataElement, ECMElement, DCMElement)):
                 self._queue.put(item.tag, item)
@@ -158,6 +188,11 @@ class InternalQueue(IQueue):
         )
 
     def is_data_enabled(self) -> bool:
+        # channels registered mid-disable come up enabled (see get()), so
+        # per-channel state alone would report data as enabled during a pause
+        # and let main_loop's wait-loop exit and resume processing
+        if self._queue_state:
+            return False
         return any(
             self._queue.is_enabled(queue_id) for queue_id in self._data_queue_ids()
         )
