@@ -535,6 +535,9 @@ class WorkflowResource extends LazyLogging {
       @Auth sessionUser: SessionUser,
       @Context request: HttpServletRequest
   ): Integer = {
+    if (!WorkflowAccessResource.hasReadAccess(wid, sessionUser.getUid)) {
+      throw new ForbiddenException("No sufficient access privilege.")
+    }
     val oldWorkflow: Workflow = workflowDao.fetchOneByWid(wid)
     val newWorkflow: DashboardWorkflow = createWorkflow(
       new Workflow(
