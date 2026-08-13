@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.apache.texera.amber.core.storage
+package org.apache.texera.amber.core.storage.result.iceberg
 
 import org.apache.iceberg.Table
 import org.apache.iceberg.catalog.{Catalog, Namespace, TableIdentifier}

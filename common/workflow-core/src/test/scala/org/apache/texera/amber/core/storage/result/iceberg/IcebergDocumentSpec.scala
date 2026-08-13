@@ -19,7 +19,7 @@
 
 package org.apache.texera.amber.core.storage.result.iceberg
 
-import org.apache.texera.amber.core.storage.{CountingCatalog, IcebergCatalogInstance}
+import org.apache.texera.amber.core.storage.IcebergCatalogInstance
 import org.apache.texera.amber.core.storage.LocalHadoopIcebergCatalog
 import org.apache.texera.amber.core.storage.model.VirtualDocument
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema, Tuple}

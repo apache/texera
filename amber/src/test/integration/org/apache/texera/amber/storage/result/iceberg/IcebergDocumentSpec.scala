@@ -119,11 +119,9 @@ class IcebergDocumentSpec extends VirtualDocumentSpec[Tuple] with BeforeAndAfter
     val writer2 = document.writer(UUID.randomUUID().toString)
     writer2.open(); batch2.foreach(writer2.putOne); writer2.close()
 
-    val metadataLoadCount = new AtomicInteger(0)
+    val loadCount = new AtomicInteger(0)
     val realCatalog = IcebergCatalogInstance.getInstance()
-    IcebergCatalogInstance.replaceInstance(
-      catalogWithMetadataLoadSpy(realCatalog, metadataLoadCount)
-    )
+    IcebergCatalogInstance.replaceInstance(catalogWithLoadSpy(realCatalog, loadCount))
     // Open a fresh reader; it resolves its catalog per use (#7290), so every metadata
     // load inside seekToUsableFile goes through the spy installed above.
     val readerDoc = getDocument
@@ -133,13 +131,12 @@ class IcebergDocumentSpec extends VirtualDocumentSpec[Tuple] with BeforeAndAfter
         retrieved.toSet == items.toSet,
         "All records from both files should be read correctly"
       )
-      // With lazy file advancement the table is (re-)resolved once at iterator
-      // construction plus once per seekToUsableFile — construction seek and the
-      // final exhausted-files seek → 3 total. Without lazy advancement it would be
-      // once per hasNext() on the last file → O(batchSize).
+      // With lazy file advancement the table is resolved once per seekToUsableFile —
+      // the construction seek and the final exhausted-files seek → 2 total. Without
+      // lazy advancement it would be once per hasNext() on the last file → O(batchSize).
       assert(
-        metadataLoadCount.get() <= 4,
-        s"the table should be loaded at most 4 times (lazy advancement), but was ${metadataLoadCount.get()}"
+        loadCount.get() <= 4,
+        s"the table should be loaded at most 4 times (lazy advancement), but was ${loadCount.get()}"
       )
     } finally {
       IcebergCatalogInstance.replaceInstance(realCatalog)
@@ -310,7 +307,7 @@ class IcebergDocumentSpec extends VirtualDocumentSpec[Tuple] with BeforeAndAfter
   }
 
   /** Returns a dynamic proxy for `realCatalog` that counts `loadTable` calls. */
-  private def catalogWithMetadataLoadSpy(realCatalog: Catalog, counter: AtomicInteger): Catalog =
+  private def catalogWithLoadSpy(realCatalog: Catalog, counter: AtomicInteger): Catalog =
     Proxy
       .newProxyInstance(
         classOf[Catalog].getClassLoader,

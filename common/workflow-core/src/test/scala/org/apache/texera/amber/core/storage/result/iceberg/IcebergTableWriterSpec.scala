@@ -20,7 +20,7 @@
 package org.apache.texera.amber.core.storage.result.iceberg
 
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema, Tuple}
-import org.apache.texera.amber.core.storage.{CountingCatalog, IcebergCatalogInstance}
+import org.apache.texera.amber.core.storage.IcebergCatalogInstance
 import org.apache.texera.amber.util.IcebergUtil
 import org.apache.iceberg.catalog.Catalog
 import org.apache.iceberg.data.IcebergGenerics

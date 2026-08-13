@@ -94,6 +94,43 @@ class IcebergCatalogInstanceSpec extends AnyFlatSpec with Matchers {
     idle.closed shouldBe true
   }
 
+  it should "tolerate a catalog whose close fails, and still drop the entry" in {
+    val ticker = new ManualTicker
+    val cache = IcebergCatalogInstance.buildCatalogCache(64, Duration.ofMinutes(60), ticker)
+    val faulty = new FakeCatalog("faulty") {
+      override def close(): Unit = throw new IllegalStateException("close failed")
+    }
+    cache.put("faulty", faulty)
+
+    ticker.advance(Duration.ofMinutes(61))
+    noException should be thrownBy cache.cleanUp()
+
+    cache.getIfPresent("faulty") shouldBe null
+  }
+
+  it should "leave a catalog that is not closable alone when it expires" in {
+    // Hadoop/postgres catalogs need not implement AutoCloseable; expiry must not fail.
+    val ticker = new ManualTicker
+    val cache = IcebergCatalogInstance.buildCatalogCache(64, Duration.ofMinutes(60), ticker)
+    val notClosable = new Catalog {
+      override def name(): String = "not-closable"
+      override def listTables(namespace: Namespace): java.util.List[TableIdentifier] =
+        throw new UnsupportedOperationException
+      override def dropTable(identifier: TableIdentifier, purge: Boolean): Boolean =
+        throw new UnsupportedOperationException
+      override def renameTable(from: TableIdentifier, to: TableIdentifier): Unit =
+        throw new UnsupportedOperationException
+      override def loadTable(identifier: TableIdentifier): Table =
+        throw new UnsupportedOperationException
+    }
+    cache.put("not-closable", notClosable)
+
+    ticker.advance(Duration.ofMinutes(61))
+    noException should be thrownBy cache.cleanUp()
+
+    cache.getIfPresent("not-closable") shouldBe null
+  }
+
   it should "surface loader failures with their original exception type" in {
     val cache =
       IcebergCatalogInstance.buildCatalogCache(64, Duration.ofMinutes(60), new ManualTicker)
@@ -115,6 +152,10 @@ class IcebergCatalogInstanceSpec extends AnyFlatSpec with Matchers {
         "unreachable",
         () => throw new java.io.IOException("connection refused")
       )
+
+    // Errors ride the third wrapper, ExecutionError.
+    an[StackOverflowError] should be thrownBy
+      IcebergCatalogInstance.getOrLoad(cache, "fatal", () => throw new StackOverflowError("boom"))
   }
 
   "getInstance" should "return the catalog installed for its warehouse" in {
@@ -208,13 +249,14 @@ class IcebergCatalogInstanceSpec extends AnyFlatSpec with Matchers {
       (schema, record) => IcebergUtil.fromRecord(record, IcebergUtil.fromIcebergSchema(schema)),
       Some("catalog-cache-spec-swap")
     )
+    def catalogSeenAfterInstalling(catalog: Catalog): Catalog = {
+      IcebergCatalogInstance.replaceInstance(catalog, Some("catalog-cache-spec-swap"))
+      document.catalog
+    }
     val before = new FakeCatalog("before")
     val after = new FakeCatalog("after")
 
-    IcebergCatalogInstance.replaceInstance(before, Some("catalog-cache-spec-swap"))
-    document.catalog should be theSameInstanceAs before
-
-    IcebergCatalogInstance.replaceInstance(after, Some("catalog-cache-spec-swap"))
-    document.catalog should be theSameInstanceAs after
+    catalogSeenAfterInstalling(before) should be theSameInstanceAs before
+    catalogSeenAfterInstalling(after) should be theSameInstanceAs after
   }
 }
