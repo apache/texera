@@ -177,7 +177,7 @@ final class PythonWorkerPoolSpec extends AnyFunSuite {
 
   test("a caller waiting at the worker cap is not stranded by a discarded worker") {
     // One caller more than there are workers, all onto workers that go quiet:
-    // the callers holding one time out and their workers are discarded, which
+    // the callers that hold one time out, and their workers are discarded, which
     // frees a slot without handing anything back, and the caller waiting at the
     // cap has to notice that rather than wait for a hand-back that never comes.
     // The discards it is waiting on happen on workers other than the one ahead
