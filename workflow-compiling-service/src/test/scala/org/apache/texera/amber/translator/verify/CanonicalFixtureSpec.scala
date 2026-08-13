@@ -37,6 +37,17 @@ class CanonicalFixtureSpec extends AnyFlatSpec with Matchers {
     (ids1 diff ids0) should not be empty
   }
 
+  // The windows are a rule over the table's size rather than fixed indices, so
+  // that a row added to the JSON is read by a port instead of falling off the
+  // end. Fixed indices made that silent: the row was simply never fed to
+  // anything, and every assertion above still held.
+  it should "leave no row outside both ports" in {
+    val onAPort = (CanonicalFixture.port0Rows ++ CanonicalFixture.port1Rows)
+      .map(_.getField[Integer]("id"))
+      .toSet
+    onAPort shouldBe CanonicalFixture.allRows.map(_.getField[Integer]("id")).toSet
+  }
+
   it should "contain the canonical value \"1\" in some but not all name cells" in {
     val names = CanonicalFixture.port0Rows.map(_.getField[String]("name"))
     names.count(_ == "1") should be > 0

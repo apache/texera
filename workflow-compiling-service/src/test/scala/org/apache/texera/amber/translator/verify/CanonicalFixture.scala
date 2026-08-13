@@ -152,12 +152,19 @@ object CanonicalFixture extends SharedFixture {
       .toVector
   }
 
-  // Each port is a 10-row window over the 15-row table (kept small to minimize
-  // per-test Python runtime), overlapping by 5 rows so joins and set ops can't
-  // pass by hash coincidence. Rows sit out of id order in the file, so the
-  // windows are positional — not id ranges.
-  def port0Rows: Seq[Tuple] = allRows.slice(0, 10)
-  def port1Rows: Seq[Tuple] = allRows.slice(5, 15)
+  // Each port takes two thirds of the table, from opposite ends, so the ports
+  // overlap by the remaining third and no row sits outside both. The overlap is
+  // what stops joins and set ops passing by hash coincidence: ports holding the
+  // same rows make intersect and union the same answer, and disjoint ports make
+  // both empty, which a broken operator produces too. Two thirds rather than a
+  // fixed count so a row added to the JSON widens the windows instead of falling
+  // off the end, and a port stays well under the whole table — these windows are
+  // what every per-test Python run is sized by. At 15 rows this is positions 0-9
+  // and 5-14. Rows sit out of id order in the file, so the windows are
+  // positional — not id ranges.
+  private def windowSize: Int = allRows.size * 2 / 3
+  def port0Rows: Seq[Tuple] = allRows.take(windowSize)
+  def port1Rows: Seq[Tuple] = allRows.takeRight(windowSize)
 
   override def rowsFor(port: Int): Seq[Tuple] = if (port == 0) port0Rows else port1Rows
 
