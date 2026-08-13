@@ -32,11 +32,19 @@ export class FlarumService {
 
   register() {
     const user = this.userService.getCurrentUser();
+    // Flarum identifies an account by email, so there is nothing to register without one. An
+    // account can lack one between an identity-only login (ORCID) and the prompt that collects it.
+    const email = user?.email;
+    if (!email) {
+      // Thrown rather than returned as a failing observable to match `auth()` below, whose
+      // non-null assertions throw synchronously for a caller with no user at all.
+      throw new Error("A Texera account needs an email address to use the forum.");
+    }
     return this.http.post(
       "forum/api/users",
       {
         data: {
-          attributes: { username: user!.email.split("@")[0] + user!.uid, email: user!.email, password: user!.googleId },
+          attributes: { username: email.split("@")[0] + user!.uid, email: email, password: user!.googleId },
         },
       },
       { headers: { Authorization: "Token hdebsyxiigyklxgsqivyswwiisohzlnezzzzzzzz;userId=1" } }

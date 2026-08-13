@@ -38,7 +38,9 @@ export interface User
   extends Readonly<{
     uid: number;
     name: string;
-    email: string;
+    // Absent until supplied: an ORCID login authenticates an iD and asserts no address, so the
+    // account exists with none until the email prompt is answered (see `UserService`).
+    email?: string;
     googleId?: string;
     role: Role;
     color?: string;

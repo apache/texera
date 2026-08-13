@@ -89,6 +89,11 @@
         <sqlFile path="sql/updates/35.sql"/>
     </changeSet>
 
+    <!-- Allow ORCID as an identity provider in auth_provider.provider_type -->
+    <changeSet id="36" author="Neilk1021">
+        <sqlFile path="sql/updates/36.sql"/>
+    </changeSet>
+
     <!-- example changeSet
     <changeSet id="1" author="author">
         <sqlFile path="sql/updates/1.sql"/>

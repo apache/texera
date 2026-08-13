@@ -20,14 +20,21 @@
 package org.apache.texera.web.resource.auth
 
 import com.typesafe.scalalogging.Logger
+import io.dropwizard.auth.Auth
 import org.apache.texera.auth.JwtAuth.{jwtClaims, jwtToken}
+import org.apache.texera.auth.SessionUser
 import org.apache.texera.common.config.UserSystemConfig
 import org.apache.texera.common.util.EmailUtil
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.jooq.generated.Tables.{AUTH_PROVIDER, USER}
 import org.apache.texera.dao.jooq.generated.enums.{ProviderTypeEnum, UserRoleEnum}
+import org.apache.texera.dao.jooq.generated.tables.daos.UserDao
 import org.apache.texera.dao.jooq.generated.tables.pojos.User
-import org.apache.texera.web.model.http.request.auth.{UserLoginRequest, UserRegistrationRequest}
+import org.apache.texera.web.model.http.request.auth.{
+  SetEmailRequest,
+  UserLoginRequest,
+  UserRegistrationRequest
+}
 import org.apache.texera.web.model.http.response.TokenIssueResponse
 import org.apache.texera.web.resource.auth.AuthResource._
 import org.jooq.DSLContext
@@ -35,8 +42,9 @@ import org.jooq.impl.DSL
 
 import java.time.Instant
 import java.time.temporal.ChronoUnit
+import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
-import javax.ws.rs.core.MediaType
+import javax.ws.rs.core.{MediaType, Response}
 
 object AuthResource {
   private val logger: Logger = Logger(classOf[AuthResource])
@@ -144,6 +152,121 @@ object AuthResource {
 @Consumes(Array(MediaType.APPLICATION_JSON))
 @Produces(Array(MediaType.APPLICATION_JSON))
 class AuthResource {
+
+  /**
+    * Give the signed-in account the email address it does not have yet, and reissue its token so
+    * the `email` claim stops being null.
+    *
+    * This exists because an identity-only provider (ORCID) authenticates someone without
+    * asserting an address, while email is what the rest of the product addresses a user by —
+    * dataset paths are built from it and every access grant names one. So the account is real and
+    * signed in, but inert until this runs.
+    *
+    * The address is whatever the user typed, so it buys nothing that a verified one would:
+    *
+    *   - It may create the account's own identity (the ordinary case) or claim a contributor
+    *     placeholder, both of which the register path already does on an unverified address
+    *     (see `register`).
+    *   - It may never attach the caller to an account that already holds a credential. That
+    *     account's owner has not consented, and anyone can type their address — it is the takeover
+    *     [[ExternalProfile]] describes. Those callers are told to sign in with that account
+    *     instead, and can link ORCID to it afterwards.
+    *
+    * Filling a blank only: changing an address that is already set is a different operation, with
+    * a different threat model, and is refused here.
+    */
+  @PUT
+  @Path("/email")
+  @RolesAllowed(Array("INACTIVE", "RESTRICTED", "REGULAR", "ADMIN"))
+  def setEmail(request: SetEmailRequest, @Auth sessionUser: SessionUser): TokenIssueResponse = {
+    val email = Option(request.email).getOrElse("").trim
+    if (email.isEmpty) throw new NotAcceptableException("Email cannot be empty")
+    if (!EmailUtil.isValid(email)) throw new NotAcceptableException("Email format is invalid.")
+
+    val user = SqlServer.withTransaction(SqlServer.getInstance().createDSLContext()) { ctx =>
+      val txUserDao = new UserDao(ctx.configuration())
+
+      // Re-read inside the transaction: the pojo on the session was built from the token and may
+      // be minutes old, so it is not evidence about the row as it stands now.
+      val current = txUserDao.fetchOneByUid(sessionUser.getUid)
+      if (current == null) throw new NotAuthorizedException("Login credentials are incorrect.")
+      if (current.getEmail != null) {
+        throw new WebApplicationException(
+          "This account already has an email address.",
+          Response.Status.CONFLICT
+        )
+      }
+
+      Option(fetchUserByEmailIgnoreCase(ctx, email)) match {
+        case None =>
+          current.setEmail(email)
+          txUserDao.update(current)
+          current
+
+        case Some(existing) if existing.getIsPlaceholder =>
+          adoptPlaceholder(ctx, txUserDao, current, existing)
+
+        case Some(_) =>
+          throw new WebApplicationException(
+            "That email address already belongs to an account. Sign in to that account instead.",
+            Response.Status.CONFLICT
+          )
+      }
+    }
+
+    TokenIssueResponse(
+      jwtToken(
+        jwtClaims(user, ExternalAuthProvisioner.providerIdOf(user.getUid, ProviderTypeEnum.GOOGLE))
+      )
+    )
+  }
+
+  /**
+    * Move the caller's external identity onto the contributor placeholder that owns `email`, and
+    * drop the account the identity provider created moments ago.
+    *
+    * Keeping the placeholder's uid is the whole point: dataset contributor rows already reference
+    * it, and re-pointing those instead would mean touching every table that FKs to `"user"`. It
+    * mirrors what `register` does when a registration presents a placeholder's address.
+    *
+    * Discarding the caller's own row is only safe because of what it cannot have accumulated: it
+    * has no email, so nothing email-keyed can name it, and it is INACTIVE, so every
+    * content-creating endpoint (all of which require REGULAR or ADMIN) has refused it. A caller
+    * past that point keeps its account and is refused instead.
+    */
+  private def adoptPlaceholder(
+      ctx: DSLContext,
+      txUserDao: UserDao,
+      current: User,
+      placeholder: User
+  ): User = {
+    val callerIsEmpty = current.getRole == UserRoleEnum.INACTIVE
+    val placeholderHasCredential = ctx.fetchExists(
+      ctx.selectFrom(AUTH_PROVIDER).where(AUTH_PROVIDER.UID.eq(placeholder.getUid))
+    )
+    if (!callerIsEmpty || placeholderHasCredential) {
+      throw new WebApplicationException(
+        "That email address already belongs to an account. Sign in to that account instead.",
+        Response.Status.CONFLICT
+      )
+    }
+
+    ctx
+      .update(AUTH_PROVIDER)
+      .set(AUTH_PROVIDER.UID, placeholder.getUid)
+      .where(AUTH_PROVIDER.UID.eq(current.getUid))
+      .execute()
+
+    // The provider's display name is the user's own, so it wins over the one whoever listed them
+    // as a contributor typed.
+    placeholder.setName(current.getName)
+    claimPlaceholder(placeholder)
+    txUserDao.update(placeholder)
+
+    // Last, so the provider rows have already moved off it: auth_provider cascades on delete.
+    txUserDao.deleteById(current.getUid)
+    placeholder
+  }
 
   @POST
   @Path("/login")

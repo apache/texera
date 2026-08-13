@@ -175,7 +175,9 @@ export class AdminUserComponent implements OnInit {
     this.editUid = user.uid;
     this.editAttribute = attribute;
     this.editName = user.name;
-    this.editEmail = user.email;
+    // An identity-only login (ORCID) can leave an account with no address until its owner supplies
+    // one, and the edit field is a plain string.
+    this.editEmail = user.email ?? "";
     this.editRole = user.role;
     this.editComment = user.comment;
 

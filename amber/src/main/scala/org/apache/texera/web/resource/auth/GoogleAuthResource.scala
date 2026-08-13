@@ -59,7 +59,9 @@ object GoogleAuthResource {
       ProviderTypeEnum.GOOGLE,
       payload.getSubject,
       Option(payload.get("name").asInstanceOf[String]).filter(_.nonEmpty).getOrElse(googleEmail),
-      googleEmail,
+      // Always `Some`: the checks above refuse a payload without a verified address, so Google
+      // remains an email-asserting provider and keeps linking to existing accounts.
+      Some(googleEmail),
       avatar = AvatarUtil.sanitize(Option(payload.get("picture").asInstanceOf[String]))
     )
   }

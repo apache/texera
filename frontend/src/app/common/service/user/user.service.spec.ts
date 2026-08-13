@@ -29,16 +29,27 @@ import { commonTestProviders } from "../../testing/test-utils";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { GuiConfigService } from "../gui-config.service";
 import { Role, User } from "../../type/user";
+import { NzModalService } from "ng-zorro-antd/modal";
 
 describe("UserService", () => {
   let service: UserService;
   let config: GuiConfigService;
+  let modal: { create: ReturnType<typeof vi.fn> };
 
   beforeEach(() => {
     AuthService.removeAccessToken();
+    modal = { create: vi.fn().mockReturnValue({ getContentComponent: () => ({}), updateConfig: vi.fn() }) };
+
     TestBed.configureTestingModule({
       imports: [HttpClientTestingModule],
-      providers: [UserService, { provide: AuthService, useClass: StubAuthService }, ...commonTestProviders],
+      providers: [
+        UserService,
+        { provide: AuthService, useClass: StubAuthService },
+        // UserService prompts for an email when the signed-in account has none; the mock records
+        // whether it would have opened without pulling NzModalModule into the suite.
+        { provide: NzModalService, useValue: modal },
+        ...commonTestProviders,
+      ],
     });
 
     service = TestBed.inject(UserService);
@@ -193,6 +204,40 @@ describe("UserService", () => {
     expect(service.getCurrentUser()).toMatchObject({ uid: 1, name: "alice" });
     expect(service.getCurrentUser()?.color).toMatch(/^hsl\(/);
     expect(await nextEmission).toMatchObject({ uid: 1, name: "alice" });
+  });
+
+  // ─── the missing-email prompt ─────────────────────────────────────────────
+
+  // Only an identity-only provider (ORCID) produces an emailless account, and it cannot own a
+  // dataset with a resolvable path or be named in an access grant until one is supplied.
+  it("prompts for an email when the signed-in account has none", () => {
+    (service as any).changeUser({ ...baseUser, email: undefined });
+
+    expect(modal.create).toHaveBeenCalledTimes(1);
+    expect(modal.create.mock.calls[0][0].nzData).toMatchObject({ name: "alice" });
+  });
+
+  it("prefills the prompt with the address ORCID published", async () => {
+    await firstValueFrom(service.orcidLogin("auth-code"));
+    (service as any).changeUser({ ...baseUser, email: undefined });
+
+    // StubAuthService returns no suggestion, so the field is left blank rather than invented.
+    expect(modal.create.mock.calls[0][0].nzData.suggestedEmail).toBeUndefined();
+  });
+
+  it("does not prompt when the account already has an address", () => {
+    (service as any).changeUser(baseUser);
+
+    expect(modal.create).not.toHaveBeenCalled();
+  });
+
+  // changeUser runs on every token refresh, and a second dialog stacking on the one still waiting
+  // for an answer would be unanswerable.
+  it("does not stack a second prompt while one is open", () => {
+    (service as any).changeUser({ ...baseUser, email: undefined });
+    (service as any).changeUser({ ...baseUser, email: undefined });
+
+    expect(modal.create).toHaveBeenCalledTimes(1);
   });
 
   it("isAdmin reflects only the ADMIN role of the current user", () => {

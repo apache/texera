@@ -32,11 +32,20 @@ import java.time.OffsetDateTime
 import scala.util.chaining.scalaUtilChainingOps
 
 /**
-  * A verified external identity (Google, Facebook, ...) reduced to the fields we persist.
+  * A verified external identity (Google, ORCID, ...) reduced to the fields we persist.
   *
-  * `email` must be non-blank and provider-verified: `loginOrProvision` links the identity to the
-  * account owning that address and claims its placeholder, so an unverified address is a
-  * takeover. Each provider checks this in its own mapping function (Google: `email_verified`).
+  * `email`, when present, must be non-blank and provider-verified: `loginOrProvision` links the
+  * identity to the account owning that address and claims its placeholder, so an unverified
+  * address is a takeover. Each provider checks this in its own mapping function (Google:
+  * `email_verified`).
+  *
+  * `None` means the provider authenticates an identity without asserting an address — ORCID,
+  * whose `/authenticate` scope yields an iD and a name and nothing else. Such a login provisions
+  * an account with a NULL email and is deliberately never matched to an existing one, because
+  * the only address available for matching would be one the user typed. The account is
+  * functional for signing in but not for the email-keyed parts of the product (dataset paths,
+  * access grants), so the frontend collects an address before it is useful — see
+  * `AuthResource.setEmail`.
   *
   * `avatar` is the complete URL the provider supplied, already sanitized by `AvatarUtil`.
   * `None` means the provider offered no avatar we would store, in which case the account keeps
@@ -46,7 +55,7 @@ final case class ExternalProfile(
     providerType: ProviderTypeEnum,
     providerId: String,
     name: String,
-    email: String,
+    email: Option[String],
     avatar: Option[String]
 )
 
@@ -98,7 +107,9 @@ object ExternalAuthProvisioner extends LazyLogging {
           }
 
         case None =>
-          val user = userByEmailIgnoreCase(ctx, profile.email) match {
+          // An identity-only provider (`email` is None) skips the lookup entirely rather than
+          // matching on nothing, so it always lands in the insert branch below.
+          val user = profile.email.flatMap(userByEmailIgnoreCase(ctx, _)) match {
             case Some(existing) =>
               existing.tap { user =>
                 val wasPlaceholder = user.getIsPlaceholder
@@ -109,7 +120,9 @@ object ExternalAuthProvisioner extends LazyLogging {
             case None =>
               val created = new User()
               created.setName(profile.name)
-              created.setEmail(profile.email)
+              // Left NULL for an identity-only provider. The column is nullable and its UNIQUE
+              // index tolerates repeated NULLs, so several such accounts can coexist.
+              profile.email.foreach(created.setEmail)
               profile.avatar.foreach(created.setAvatar)
               created.setRole(UserRoleEnum.INACTIVE)
               txUserDao.insert(created)
@@ -137,6 +150,10 @@ object ExternalAuthProvisioner extends LazyLogging {
   /**
     * Mutate `user` in place to match `profile`, returning true iff anything changed
     * (so the caller only issues an UPDATE when needed).
+    *
+    * A field the provider did not assert is left as it is rather than blanked: an identity-only
+    * provider carries no address, and on a returning login the account may well have one by then
+    * — collected through `AuthResource.setEmail` — which this must not undo.
     */
   private def refresh(user: User, profile: ExternalProfile): Boolean = {
     var changed = false
@@ -144,8 +161,8 @@ object ExternalAuthProvisioner extends LazyLogging {
       user.setName(profile.name)
       changed = true
     }
-    if (user.getEmail != profile.email) {
-      user.setEmail(profile.email)
+    profile.email.filter(_ != user.getEmail).foreach { email =>
+      user.setEmail(email)
       changed = true
     }
     profile.avatar.filter(_ != user.getAvatar).foreach { url =>

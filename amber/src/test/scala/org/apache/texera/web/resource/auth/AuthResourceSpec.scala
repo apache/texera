@@ -19,21 +19,25 @@
 
 package org.apache.texera.web.resource.auth
 
-import org.apache.texera.auth.JwtAuth
+import org.apache.texera.auth.{JwtAuth, SessionUser}
 import org.apache.texera.common.config.UserSystemConfig
 import org.apache.texera.dao.MockTexeraDB
 import org.apache.texera.dao.jooq.generated.Tables.{AUTH_PROVIDER, USER}
 import org.apache.texera.dao.jooq.generated.enums.{ProviderTypeEnum, UserRoleEnum}
 import org.apache.texera.dao.jooq.generated.tables.daos.{AuthProviderDao, UserDao}
 import org.apache.texera.dao.jooq.generated.tables.pojos.{AuthProvider, User}
-import org.apache.texera.web.model.http.request.auth.{UserLoginRequest, UserRegistrationRequest}
+import org.apache.texera.web.model.http.request.auth.{
+  SetEmailRequest,
+  UserLoginRequest,
+  UserRegistrationRequest
+}
 import org.jasypt.util.password.StrongPasswordEncryptor
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 
 import java.util.UUID
-import javax.ws.rs.{NotAcceptableException, NotAuthorizedException}
+import javax.ws.rs.{NotAcceptableException, NotAuthorizedException, WebApplicationException}
 
 class AuthResourceSpec
     extends AnyFlatSpec
@@ -377,5 +381,114 @@ class AuthResourceSpec
     AuthResource.createAdminUser()
     AuthResource.createAdminUser()
     userDao.fetchByName(UserSystemConfig.adminUsername).size() shouldBe 1
+  }
+
+  // ─── setEmail ───────────────────────────────────────────────────────────────
+
+  /** An account as an identity-only login leaves it: authenticated, INACTIVE, no address. */
+  private def seedEmaillessUser(tag: String, role: UserRoleEnum = UserRoleEnum.INACTIVE): User = {
+    val user = new User
+    user.setName(uname(tag))
+    user.setRole(role)
+    userDao.insert(user)
+    seedExternalProvider(user.getUid, ProviderTypeEnum.ORCID, s"0000-0002-0000-$tag")
+    user
+  }
+
+  private def emailClaimOf(token: String): AnyRef =
+    JwtAuth.jwtConsumer.processToClaims(token).getClaimValue("email")
+
+  private def statusOf(thrown: WebApplicationException): Int = thrown.getResponse.getStatus
+
+  "setEmail" should "store the address and reissue a token carrying it" in {
+    val user = seedEmaillessUser("fill")
+
+    val response = resource.setEmail(SetEmailRequest(uemail("fill")), new SessionUser(user))
+
+    userDao.fetchOneByUid(user.getUid).getEmail shouldBe uemail("fill")
+    emailClaimOf(response.accessToken) shouldBe uemail("fill")
+  }
+
+  it should "reject a malformed address" in {
+    val user = seedEmaillessUser("bad")
+
+    assertThrows[NotAcceptableException] {
+      resource.setEmail(SetEmailRequest("not-an-address"), new SessionUser(user))
+    }
+    userDao.fetchOneByUid(user.getUid).getEmail shouldBe null
+  }
+
+  it should "reject a blank address" in {
+    val user = seedEmaillessUser("blank")
+
+    assertThrows[NotAcceptableException] {
+      resource.setEmail(SetEmailRequest("   "), new SessionUser(user))
+    }
+  }
+
+  // Filling a blank only — replacing an address that is already set is a different operation with
+  // a different threat model.
+  it should "refuse to replace an address that is already set" in {
+    val user = seedUser(uname("has"), "pw")
+
+    val thrown = intercept[WebApplicationException] {
+      resource.setEmail(SetEmailRequest(uemail("other")), new SessionUser(user))
+    }
+
+    statusOf(thrown) shouldBe 409
+    userDao.fetchOneByUid(user.getUid).getEmail shouldBe s"${uname("has")}@example.com"
+  }
+
+  // Anyone can type someone else's address, so attaching to an account that already holds a
+  // credential would be a takeover of it.
+  it should "refuse an address owned by an account that holds a credential" in {
+    val owner = seedUser(uname("owner"), "pw")
+    val caller = seedEmaillessUser("intruder")
+
+    val thrown = intercept[WebApplicationException] {
+      resource.setEmail(SetEmailRequest(s"${uname("owner")}@example.com"), new SessionUser(caller))
+    }
+
+    statusOf(thrown) shouldBe 409
+    userDao.fetchOneByUid(caller.getUid).getEmail shouldBe null
+    hasProvider(owner.getUid, ProviderTypeEnum.ORCID) shouldBe false
+    hasProvider(owner.getUid, ProviderTypeEnum.LOCAL) shouldBe true
+  }
+
+  // The placeholder keeps its uid because dataset contributor rows already reference it; the
+  // caller's own row is discarded, which is only safe while it is INACTIVE and emailless.
+  it should "move the identity onto a contributor placeholder owning the address" in {
+    val placeholder = seedPlaceholder(uname("ghost"), uemail("ghost"))
+    val caller = seedEmaillessUser("claimer")
+
+    val response = resource.setEmail(SetEmailRequest(uemail("ghost")), new SessionUser(caller))
+
+    val claimed = userDao.fetchOneByUid(placeholder.getUid)
+    claimed.getIsPlaceholder shouldBe false
+    claimed.getComment should include("Claimed contributor placeholder at ")
+    claimed.getName shouldBe uname("claimer")
+    hasProvider(placeholder.getUid, ProviderTypeEnum.ORCID) shouldBe true
+    providerIdOf(placeholder.getUid, ProviderTypeEnum.ORCID) shouldBe "0000-0002-0000-claimer"
+
+    // The account the provider created moments ago is gone, and the session continues as the
+    // claimed one.
+    userDao.fetchOneByUid(caller.getUid) shouldBe null
+    subjectOf(response.accessToken) shouldBe uname("claimer")
+    emailClaimOf(response.accessToken) shouldBe uemail("ghost")
+  }
+
+  // Past INACTIVE the caller may own content, so its row cannot be discarded and the placeholder
+  // has to be left for someone who can prove the address.
+  it should "not discard a caller that is no longer INACTIVE to claim a placeholder" in {
+    val placeholder = seedPlaceholder(uname("kept"), uemail("kept"))
+    val caller = seedEmaillessUser("regular", role = UserRoleEnum.REGULAR)
+
+    val thrown = intercept[WebApplicationException] {
+      resource.setEmail(SetEmailRequest(uemail("kept")), new SessionUser(caller))
+    }
+
+    statusOf(thrown) shouldBe 409
+    userDao.fetchOneByUid(caller.getUid) should not be null
+    userDao.fetchOneByUid(placeholder.getUid).getIsPlaceholder shouldBe true
   }
 }

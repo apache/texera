@@ -47,6 +47,7 @@ export class AuthService {
   public static readonly REGISTER_ENDPOINT = "auth/register";
   public static readonly GOOGLE_LOGIN_ENDPOINT = "auth/google/login";
   public static readonly ORCID_LOGIN_ENDPOINT = "auth/orcid/login";
+  public static readonly SET_EMAIL_ENDPOINT = "auth/email";
 
   private tokenExpirationSubscription?: Subscription;
 
@@ -94,9 +95,17 @@ export class AuthService {
     );
   }
 
-  public orcidAuth(code: string): Observable<Readonly<{ accessToken: string }>> {
-    return this.http.post<Readonly<{ accessToken: string }>>(
-      `${AppSettings.getApiEndpoint()}/${AuthService.GOOGLE_LOGIN_ENDPOINT}`,
+  /**
+   * Trades the authorization code from `/callback/orcid` for a Texera token.
+   *
+   * `suggestedEmail` comes back when the account has no address yet and the ORCID record publishes
+   * one: ORCID authenticates an iD without asserting an email, so the account is signed in but
+   * still needs one before the email-keyed parts of the product (dataset paths, access grants)
+   * work. It is a prefill for that prompt only — the backend has matched nothing on it.
+   */
+  public orcidAuth(code: string): Observable<Readonly<{ accessToken: string; suggestedEmail?: string }>> {
+    return this.http.post<Readonly<{ accessToken: string; suggestedEmail?: string }>>(
+      `${AppSettings.getApiEndpoint()}/${AuthService.ORCID_LOGIN_ENDPOINT}`,
       code,
       {
         headers: {
@@ -104,6 +113,14 @@ export class AuthService {
           Accept: "application/json",
         },
       }
+    );
+  }
+
+  /** Gives the signed-in account the address it lacks, returning the reissued token. */
+  public setEmail(email: string): Observable<Readonly<{ accessToken: string }>> {
+    return this.http.put<Readonly<{ accessToken: string }>>(
+      `${AppSettings.getApiEndpoint()}/${AuthService.SET_EMAIL_ENDPOINT}`,
+      { email }
     );
   }
 
