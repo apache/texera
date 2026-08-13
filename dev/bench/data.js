@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1786540411261,
+  "lastUpdate": 1786626952717,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -8899,6 +8899,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 482.21080510850237,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Xinyuan Lin",
+            "username": "aglinxinyuan",
+            "email": "xinyual3@uci.edu"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "eefd8600b6cf75da9e5d3067bc531ac3bc4faba9",
+          "message": "fix(computing-unit): repair the owner-avatar accessor in the spec (#7633)\n\n### What changes were proposed in this PR?\n\n**`main` does not compile.** Any PR whose `build / amber` or `build /\namber-integration` jobs run after this landed fails on it regardless of\nwhat the PR itself touches — #7631 is an example, where the only change\nis four tests in an unrelated module's spec.\n\nScoping that honestly: PRs whose amber jobs ran *before* the breakage\nstill show green and would fail on re-run, and frontend-labelled PRs\nskip the amber stack, so this is \"every amber run from now until it is\nfixed\" rather than \"every open PR is red today\".\n\n`ComputingUnitManagingResourceSpec` asserts on\n`DashboardWorkflowComputingUnit.ownerGoogleAvatar`, but the field is\nnamed `ownerAvatar`, so `ComputingUnitManagingService / Test` fails with\ntwo \"value ownerGoogleAvatar is not a member\" errors.\n\nTwo PRs raced to produce it: #7563 renamed the field to `ownerAvatar`,\nwhile #7580 added assertions written against the old name. Each was\ngreen against its own base, and the combination is what breaks — the\nkind of thing per-PR CI cannot see when two PRs touch different files.\n\nThis renames the two accessor calls. Nothing else changes.\n\n### How was this PR tested?\n\nConfirmed the breakage is real and that this is the whole of it, by\nstashing the change and re-running on otherwise-clean `main`:\n\n```\nsbt \"ComputingUnitManagingService/Test/compile\"\n```\n\n| | Result |\n|---|---|\n| unpatched `main` | exit 1, exactly 2 × `value ownerGoogleAvatar is not\na member` |\n| with this change | exit 0, compiles clean |\n\nThen the spec itself:\n\n```\nsbt \"ComputingUnitManagingService/testOnly org.apache.texera.service.resource.ComputingUnitManagingResourceSpec\"\n```\n\n```\n[info] Total number of tests run: 31\n[info] Tests: succeeded 31, failed 0, canceled 0, ignored 0, pending 0\n```\n\nAll 31 pass, so the assertions were correct about the value and only the\naccessor name was stale. `Test/scalafmtCheck` and `Test/scalafix\n--check` both pass.\n\n### Any related issues, documentation, discussions?\n\nCloses #7632\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Claude Code (Opus 5)",
+          "timestamp": "2026-08-13T06:49:49Z",
+          "url": "https://github.com/apache/texera/commit/eefd8600b6cf75da9e5d3067bc531ac3bc4faba9"
+        },
+        "date": 1786626952125,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 633.8363343229947,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 1107.6002920088486,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 1208.4507484022436,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 841.0022570053261,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 1161.2414047695295,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 1186.1088511426979,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 851.8078422532287,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 1135.1567920982056,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 1198.7556455118415,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 715.612049849388,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 930.103356141254,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 954.5856130698758,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 711.1294621703486,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 928.0956033790611,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 955.668968113376,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 742.625337641247,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 921.1337235923639,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 940.8359681358495,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 445.7557695597901,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 528.1830266825655,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 534.5284315558783,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 447.781800814658,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 526.1507506461971,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 535.2115456958239,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 439.6746314691976,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 506.7599437032737,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 503.46222021183235,
             "unit": "tuples/sec"
           }
         ]
