@@ -1,0 +1,243 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+package org.apache.texera.amber.operator.source.scan.file
+
+import org.apache.texera.amber.operator.source.scan.{FileAttributeType, FileDecodingMethod}
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.flatspec.AnyFlatSpec
+
+import java.io.{BufferedOutputStream, FileOutputStream}
+import java.nio.file.{Files, Path}
+import java.util.zip.{ZipEntry, ZipOutputStream}
+
+class FileScanUtilsSpec extends AnyFlatSpec with BeforeAndAfterAll {
+
+  private val tempFiles = scala.collection.mutable.ArrayBuffer.empty[Path]
+
+  private def makeZip(entries: (String, String)*): String = {
+    val path = Files.createTempFile("filescanutils-", ".zip")
+    tempFiles += path
+    val zipOut = new ZipOutputStream(new BufferedOutputStream(new FileOutputStream(path.toFile)))
+    try {
+      entries.foreach {
+        case (name, content) =>
+          zipOut.putNextEntry(new ZipEntry(name))
+          zipOut.write(content.getBytes("UTF-8"))
+          zipOut.closeEntry()
+      }
+    } finally {
+      zipOut.close()
+    }
+    path.toFile.toURI.toString
+  }
+
+  private def makeTextFile(content: String): String = {
+    val path = Files.createTempFile("filescanutils-", ".txt")
+    tempFiles += path
+    Files.write(path, content.getBytes("UTF-8"))
+    path.toFile.toURI.toString
+  }
+
+  override def afterAll(): Unit = {
+    tempFiles.foreach(Files.deleteIfExists)
+    super.afterAll()
+  }
+
+  private def contents(tuples: Seq[org.apache.texera.amber.core.tuple.TupleLike]): Seq[Any] =
+    tuples.map(_.getFields.head)
+
+  "FileScanUtils.createTuplesFromFile" should
+    "extract every zip entry as a single-string tuple" in {
+    val tuples = FileScanUtils
+      .createTuplesFromFile(
+        fileName = makeZip("a.txt" -> "Content A", "b.txt" -> "Content B"),
+        displayFileName = "ignored-when-extracting",
+        attributeType = FileAttributeType.SINGLE_STRING,
+        fileEncoding = FileDecodingMethod.UTF_8,
+        extract = true,
+        outputFileName = false,
+        fileScanOffset = None,
+        fileScanLimit = None
+      )
+      .toSeq
+    assert(tuples.size == 2)
+    assert(contents(tuples).toSet == Set("Content A", "Content B"))
+  }
+
+  it should "drop __MACOSX metadata entries when extracting" in {
+    val tuples = FileScanUtils
+      .createTuplesFromFile(
+        fileName = makeZip("real.txt" -> "keep me", "__MACOSX/._real.txt" -> "junk"),
+        displayFileName = "d",
+        attributeType = FileAttributeType.SINGLE_STRING,
+        fileEncoding = FileDecodingMethod.UTF_8,
+        extract = true,
+        outputFileName = false,
+        fileScanOffset = None,
+        fileScanLimit = None
+      )
+      .toSeq
+    assert(contents(tuples) == Seq("keep me"))
+  }
+
+  it should "flat-map each line of an extracted entry for a per-line attribute type" in {
+    val tuples = FileScanUtils
+      .createTuplesFromFile(
+        fileName = makeZip("lines.txt" -> "l1\nl2\nl3"),
+        displayFileName = "d",
+        attributeType = FileAttributeType.STRING,
+        fileEncoding = FileDecodingMethod.UTF_8,
+        extract = true,
+        outputFileName = false,
+        fileScanOffset = None,
+        fileScanLimit = None
+      )
+      .toSeq
+    assert(contents(tuples) == Seq("l1", "l2", "l3"))
+  }
+
+  it should "skip the offset lines and return all remaining lines when no limit is set" in {
+    val tuples = FileScanUtils
+      .createTuplesFromFile(
+        fileName = makeTextFile("l1\nl2\nl3\nl4\nl5"),
+        displayFileName = "d",
+        attributeType = FileAttributeType.STRING,
+        fileEncoding = FileDecodingMethod.UTF_8,
+        extract = false,
+        outputFileName = false,
+        fileScanOffset = Some(1),
+        fileScanLimit = None
+      )
+      .toSeq
+    assert(contents(tuples) == Seq("l2", "l3", "l4", "l5"))
+  }
+
+  it should "return every line for a zero offset with no limit" in {
+    val tuples = FileScanUtils
+      .createTuplesFromFile(
+        fileName = makeTextFile("l1\nl2\nl3\nl4\nl5"),
+        displayFileName = "d",
+        attributeType = FileAttributeType.STRING,
+        fileEncoding = FileDecodingMethod.UTF_8,
+        extract = false,
+        outputFileName = false,
+        fileScanOffset = Some(0),
+        fileScanLimit = None
+      )
+      .toSeq
+    assert(contents(tuples) == Seq("l1", "l2", "l3", "l4", "l5"))
+  }
+
+  it should "return limit lines starting at the offset when both are set" in {
+    val tuples = FileScanUtils
+      .createTuplesFromFile(
+        fileName = makeTextFile("l1\nl2\nl3\nl4\nl5"),
+        displayFileName = "d",
+        attributeType = FileAttributeType.STRING,
+        fileEncoding = FileDecodingMethod.UTF_8,
+        extract = false,
+        outputFileName = false,
+        fileScanOffset = Some(1),
+        fileScanLimit = Some(2)
+      )
+      .toSeq
+    assert(contents(tuples) == Seq("l2", "l3"))
+  }
+
+  it should "return the first limit lines when only a limit is set" in {
+    val tuples = FileScanUtils
+      .createTuplesFromFile(
+        fileName = makeTextFile("l1\nl2\nl3\nl4\nl5"),
+        displayFileName = "d",
+        attributeType = FileAttributeType.STRING,
+        fileEncoding = FileDecodingMethod.UTF_8,
+        extract = false,
+        outputFileName = false,
+        fileScanOffset = None,
+        fileScanLimit = Some(2)
+      )
+      .toSeq
+    assert(contents(tuples) == Seq("l1", "l2"))
+  }
+
+  it should "return no tuples when the offset is past the end of the file" in {
+    val tuples = FileScanUtils
+      .createTuplesFromFile(
+        fileName = makeTextFile("l1\nl2\nl3\nl4\nl5"),
+        displayFileName = "d",
+        attributeType = FileAttributeType.STRING,
+        fileEncoding = FileDecodingMethod.UTF_8,
+        extract = false,
+        outputFileName = false,
+        fileScanOffset = Some(99),
+        fileScanLimit = None
+      )
+      .toSeq
+    assert(contents(tuples) == Seq.empty)
+  }
+
+  it should "return no tuples for an Int.MaxValue offset without overflowing" in {
+    val tuples = FileScanUtils
+      .createTuplesFromFile(
+        fileName = makeTextFile("l1\nl2\nl3\nl4\nl5"),
+        displayFileName = "d",
+        attributeType = FileAttributeType.STRING,
+        fileEncoding = FileDecodingMethod.UTF_8,
+        extract = false,
+        outputFileName = false,
+        fileScanOffset = Some(Int.MaxValue),
+        fileScanLimit = None
+      )
+      .toSeq
+    assert(contents(tuples) == Seq.empty)
+  }
+
+  it should "apply an offset without a limit to each extracted zip entry independently" in {
+    val tuples = FileScanUtils
+      .createTuplesFromFile(
+        fileName = makeZip("a.txt" -> "a1\na2", "b.txt" -> "b1\nb2"),
+        displayFileName = "d",
+        attributeType = FileAttributeType.STRING,
+        fileEncoding = FileDecodingMethod.UTF_8,
+        extract = true,
+        outputFileName = false,
+        fileScanOffset = Some(1),
+        fileScanLimit = None
+      )
+      .toSeq
+    assert(contents(tuples) == Seq("a2", "b2"))
+  }
+
+  it should "ignore the offset for a single-tuple attribute type" in {
+    val tuples = FileScanUtils
+      .createTuplesFromFile(
+        fileName = makeTextFile("l1\nl2\nl3\nl4\nl5"),
+        displayFileName = "d",
+        attributeType = FileAttributeType.SINGLE_STRING,
+        fileEncoding = FileDecodingMethod.UTF_8,
+        extract = false,
+        outputFileName = false,
+        fileScanOffset = Some(1),
+        fileScanLimit = None
+      )
+      .toSeq
+    assert(contents(tuples) == Seq("l1\nl2\nl3\nl4\nl5"))
+  }
+}
