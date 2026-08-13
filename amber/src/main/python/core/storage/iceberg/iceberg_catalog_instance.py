@@ -35,11 +35,6 @@ class IcebergCatalogInstance:
       testing or reconfiguration.
     """
 
-    # Deliberately unbounded, unlike the Scala side's bounded cache (#7290): a Python
-    # worker process is spawned per worker and destroyed when the execution ends
-    # (PythonWorkflowWorker.postStop), so this dict holds the single warehouse that
-    # execution used and dies with the process. If PVMs ever become long-lived (e.g.
-    # pooled across executions), this needs the same bounding the JVM singleton has.
     _catalogs: dict = {}
     _POSTGRES_KEY = "__postgres__"
 
