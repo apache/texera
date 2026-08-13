@@ -43,7 +43,8 @@ class SklearnTrainingOpDesc extends SklearnModelOpDesc with StandaloneCodeGenera
        |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
        |        Y = table[$target]
        |        X = table.drop($target, axis=1)
-       |        X = ${if (countVectorizer) pyb"X[$text]" else "X"}
+       |        ${if (countVectorizer) pyb"X = X[$text]"
+    else dropNonFeatureColumns("X", " " * 8)}
        |        model = make_pipeline(${if (countVectorizer) "CountVectorizer()," else ""} ${if (
       tfidfTransformer
     ) "TfidfTransformer(),"
@@ -73,6 +74,8 @@ class SklearnTrainingOpDesc extends SklearnModelOpDesc with StandaloneCodeGenera
     val trainX =
       if (countVectorizer) s"""in1df.drop($targetLit, axis=1)[${pyStringLiteral(text)}]"""
       else s"""in1df.drop($targetLit, axis=1)"""
+    // Blank under the text pipeline: there X is one string column by construction.
+    val narrowX = if (countVectorizer) "" else dropNonFeatureColumns("X", "")
 
     s"""${getImportStatements}
        |from sklearn.pipeline import make_pipeline
@@ -81,6 +84,7 @@ class SklearnTrainingOpDesc extends SklearnModelOpDesc with StandaloneCodeGenera
        |
        |Y = in1df[$targetLit]
        |X = $trainX
+       |$narrowX
        |model = make_pipeline($cvPart$tfidfPart$estimator()).fit(X, Y)
        |out1df = pd.DataFrame([{"model_name": $modelNameLit, "model": model}])""".stripMargin
   }

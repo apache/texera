@@ -43,7 +43,8 @@ abstract class SklearnClassifierOpDesc extends SklearnModelOpDesc with Standalon
        |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
        |        Y = table[$target]
        |        X = table.drop($target, axis=1)
-       |        X = ${if (countVectorizer) pyb"X[$text]" else "X"}
+       |        ${if (countVectorizer) pyb"X = X[$text]"
+    else dropNonFeatureColumns("X", " " * 8)}
        |        if port == 0:
        |            self.model = make_pipeline(${if (countVectorizer) "CountVectorizer(),"
     else ""} ${if (tfidfTransformer) "TfidfTransformer()," else ""} ${getImportStatements
@@ -87,6 +88,9 @@ abstract class SklearnClassifierOpDesc extends SklearnModelOpDesc with Standalon
     val testX =
       if (countVectorizer) s"""in2df.drop($targetLit, axis=1)[$textLit]"""
       else s"""in2df.drop($targetLit, axis=1)"""
+    // Blank under the text pipeline: there X is one string column by construction.
+    val narrowTrain = if (countVectorizer) "" else dropNonFeatureColumns("X_train", "")
+    val narrowTest = if (countVectorizer) "" else dropNonFeatureColumns("X_test", "")
 
     s"""${getImportStatements}
        |from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
@@ -97,10 +101,12 @@ abstract class SklearnClassifierOpDesc extends SklearnModelOpDesc with Standalon
        |
        |Y_train = in1df[$targetLit]
        |X_train = $trainX
+       |$narrowTrain
        |model = make_pipeline($cvPart$tfidfPart$estimator()).fit(X_train, Y_train)
        |
        |Y_test = in2df[$targetLit]
        |X_test = $testX
+       |$narrowTest
        |predictions = model.predict(X_test)
        |print("Overall Accuracy:", round(accuracy_score(Y_test, predictions), 4))
        |f1s = f1_score(Y_test, predictions, average=None)

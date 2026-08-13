@@ -37,6 +37,33 @@ import org.apache.texera.amber.operator.metadata.annotations.{
   SampleColumn
 }
 
+// `text` is the column Count Vectorizer tokenizes, so it takes a string and is
+// required only when that switch is on. Conditional rather than plain required,
+// so a freshly dropped operator is not flagged for a field it has no use for.
+@JsonSchemaInject(json = """
+{
+  "attributeTypeRules": {
+    "text": {
+      "enum": ["string"]
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "countVectorizer": { "const": true }
+        }
+      },
+      "then": {
+        "required": ["text"],
+        "properties": {
+          "text": { "pattern": "\\S" }
+        }
+      }
+    }
+  ]
+}
+""")
 abstract class SklearnModelOpDesc extends PythonOperatorDescriptor {
 
   @JsonSchemaTitle("Target Attribute")
@@ -82,6 +109,21 @@ abstract class SklearnModelOpDesc extends PythonOperatorDescriptor {
     )
   )
   var tfidfTransformer: Boolean = false
+
+  /** Python that narrows `frame` to the columns an estimator can fit. A column the
+    * user did not mean as a feature, a note beside the numbers, would otherwise end
+    * the run from inside scikit-learn. Booleans are kept: they fit as 0/1. What was
+    * dropped is printed, so the choice is visible rather than silent.
+    *
+    * `indent` is the leading whitespace of the statement this replaces.
+    */
+  @JsonIgnore
+  protected def dropNonFeatureColumns(frame: String, indent: String): String =
+    s"""_fittable = $frame.select_dtypes(include=["number", "bool"])
+       |${indent}_ignored = [c for c in $frame.columns if c not in _fittable.columns]
+       |${indent}if _ignored:
+       |${indent}    print("Ignoring columns an estimator cannot fit:", _ignored)
+       |${indent}$frame = _fittable""".stripMargin
 
   @JsonIgnore
   def getImportStatements: String
