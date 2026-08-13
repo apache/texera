@@ -89,7 +89,7 @@ class DatasetFileDocument:
             raise invalid_format
 
         self.jwt_token = os.getenv("USER_JWT_TOKEN")
-        self.presign_endpoint = os.getenv("FILE_SERVICE_GET_PRESIGNED_URL_ENDPOINT")
+        self.presign_endpoint = os.getenv("FILE_SERVICE_GET_DATASET_PRESIGNED_URL_ENDPOINT")
 
         if not self.jwt_token:
             raise ValueError(

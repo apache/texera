@@ -31,7 +31,7 @@ object DatasetFileDocument {
   lazy val fileServiceGetPresignURLEndpoint: String =
     sys.env
       .getOrElse(
-        EnvironmentalVariable.ENV_FILE_SERVICE_GET_PRESIGNED_URL_ENDPOINT,
+        EnvironmentalVariable.ENV_FILE_SERVICE_GET_DATASET_PRESIGNED_URL_ENDPOINT,
         "http://localhost:9092/api/dataset/presign-download"
       )
       .trim
