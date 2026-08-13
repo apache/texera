@@ -31,7 +31,7 @@ CUSTOM_ENDPOINT = "https://example.test/api/presign"
 def auth_env(monkeypatch):
     """Provide a JWT and pinned presign endpoint for the duration of one test."""
     monkeypatch.setenv("USER_JWT_TOKEN", "test-jwt-token")
-    monkeypatch.setenv("FILE_SERVICE_GET_PRESIGNED_URL_ENDPOINT", CUSTOM_ENDPOINT)
+    monkeypatch.setenv("FILE_SERVICE_GET_DATASET_PRESIGNED_URL_ENDPOINT", CUSTOM_ENDPOINT)
 
 
 def make_response(status_code: int, body=None, content: bytes = b""):
@@ -86,7 +86,7 @@ class TestDatasetFileDocumentInit:
 
     def test_requires_jwt_token_in_environment(self, monkeypatch):
         monkeypatch.delenv("USER_JWT_TOKEN", raising=False)
-        monkeypatch.setenv("FILE_SERVICE_GET_PRESIGNED_URL_ENDPOINT", CUSTOM_ENDPOINT)
+        monkeypatch.setenv("FILE_SERVICE_GET_DATASET_PRESIGNED_URL_ENDPOINT", CUSTOM_ENDPOINT)
         with pytest.raises(ValueError, match="JWT token is required"):
             DatasetFileDocument("/datasets/bob@x.com/ds/v1/file.csv")
 
@@ -98,7 +98,7 @@ class TestDatasetFileDocumentInit:
 
     def test_falls_back_to_default_endpoint_when_env_missing(self, monkeypatch):
         monkeypatch.setenv("USER_JWT_TOKEN", "tok")
-        monkeypatch.delenv("FILE_SERVICE_GET_PRESIGNED_URL_ENDPOINT", raising=False)
+        monkeypatch.delenv("FILE_SERVICE_GET_DATASET_PRESIGNED_URL_ENDPOINT", raising=False)
         doc = DatasetFileDocument("/datasets/bob@x.com/ds/v1/file.csv")
         assert doc.presign_endpoint == DEFAULT_ENDPOINT
 
@@ -110,7 +110,7 @@ class TestDatasetFileDocumentInit:
 class TestGetPresignedUrl:
     def _make_doc(self, monkeypatch, path="/datasets/bob@x.com/ds/v1/file.csv"):
         monkeypatch.setenv("USER_JWT_TOKEN", "test-jwt-token")
-        monkeypatch.setenv("FILE_SERVICE_GET_PRESIGNED_URL_ENDPOINT", CUSTOM_ENDPOINT)
+        monkeypatch.setenv("FILE_SERVICE_GET_DATASET_PRESIGNED_URL_ENDPOINT", CUSTOM_ENDPOINT)
         return DatasetFileDocument(path)
 
     def test_returns_presigned_url_field_from_json_body(self, monkeypatch):
@@ -224,7 +224,7 @@ class TestGetPresignedUrl:
 class TestReadFile:
     def _make_doc(self, monkeypatch):
         monkeypatch.setenv("USER_JWT_TOKEN", "test-jwt-token")
-        monkeypatch.setenv("FILE_SERVICE_GET_PRESIGNED_URL_ENDPOINT", CUSTOM_ENDPOINT)
+        monkeypatch.setenv("FILE_SERVICE_GET_DATASET_PRESIGNED_URL_ENDPOINT", CUSTOM_ENDPOINT)
         return DatasetFileDocument("/datasets/bob@x.com/ds/v1/file.csv")
 
     def test_returns_bytesio_with_downloaded_content(self, monkeypatch):
@@ -278,7 +278,7 @@ class TestReadFile:
 class TestTimeoutsAndRetries:
     def _make_doc(self, monkeypatch):
         monkeypatch.setenv("USER_JWT_TOKEN", "test-jwt-token")
-        monkeypatch.setenv("FILE_SERVICE_GET_PRESIGNED_URL_ENDPOINT", CUSTOM_ENDPOINT)
+        monkeypatch.setenv("FILE_SERVICE_GET_DATASET_PRESIGNED_URL_ENDPOINT", CUSTOM_ENDPOINT)
         return DatasetFileDocument("/datasets/bob@x.com/ds/v1/file.csv")
 
     def test_presigned_url_request_passes_request_timeout(self, monkeypatch):
