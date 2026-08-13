@@ -20,7 +20,11 @@
 import { WorkflowActionService } from "./workflow-action.service";
 import { UndoRedoService } from "../../undo-redo/undo-redo.service";
 import { OperatorMetadataService } from "../../operator-metadata/operator-metadata.service";
-import { JointUIService } from "../../joint-ui/joint-ui.service";
+import {
+  JointUIService,
+  operatorCoeditorChangedPropertyClass,
+  operatorCoeditorEditingClass,
+} from "../../joint-ui/joint-ui.service";
 import { JointGraphWrapper } from "./joint-graph-wrapper";
 import { TestBed } from "@angular/core/testing";
 import { marbles } from "rxjs-marbles";
@@ -1137,6 +1141,424 @@ describe("JointGraphWrapperService", () => {
     it("set/removePropertyChanged are no-ops when no paper is attached", () => {
       expect(() => jointGraphWrapper.setPropertyChanged(coeditor, mockScanPredicate.operatorID)).not.toThrow();
       expect(() => jointGraphWrapper.removePropertyChanged(coeditor, mockScanPredicate.operatorID)).not.toThrow();
+    });
+  });
+
+  describe("guard clauses for missing, wrong-typed and unhighlighted cells", () => {
+    const addScanAndResult = (): void => {
+      jointGraph.addCell(jointUIService.getJointOperatorElement(mockScanPredicate, mockPoint));
+      jointGraph.addCell(jointUIService.getJointOperatorElement(mockResultPredicate, mockPoint));
+    };
+    const addScanResultLink = (): void => {
+      jointGraph.addCell(JointUIService.getJointLinkCell(mockScanResultLink));
+    };
+
+    it("setElementPosition rejects an unknown id and a link id", () => {
+      addScanAndResult();
+      addScanResultLink();
+
+      expect(() => jointGraphWrapper.setElementPosition("no-such-cell", 10, 10)).toThrowError(
+        "element with ID no-such-cell doesn't exist"
+      );
+      expect(() => jointGraphWrapper.setElementPosition(mockScanResultLink.linkID, 10, 10)).toThrowError(
+        `${mockScanResultLink.linkID} is not an element`
+      );
+    });
+
+    it("setAbsolutePosition moves an element and rejects an unknown id and a link id", () => {
+      addScanAndResult();
+      addScanResultLink();
+
+      jointGraphWrapper.setAbsolutePosition(mockScanPredicate.operatorID, 42, 43);
+      expect(jointGraphWrapper.getElementPosition(mockScanPredicate.operatorID)).toEqual({ x: 42, y: 43 });
+
+      expect(() => jointGraphWrapper.setAbsolutePosition("no-such-cell", 1, 1)).toThrowError(
+        "element with ID no-such-cell doesn't exist"
+      );
+      expect(() => jointGraphWrapper.setAbsolutePosition(mockScanResultLink.linkID, 1, 1)).toThrowError(
+        `${mockScanResultLink.linkID} is not an element`
+      );
+    });
+
+    it("highlightOperators rejects an id that is not in the graph", () => {
+      expect(() => jointGraphWrapper.highlightOperators("no-such-operator")).toThrowError(
+        "element with ID no-such-operator doesn't exist"
+      );
+      expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).toEqual([]);
+    });
+
+    it("highlightLink rejects an unknown id and ignores an already highlighted link", () => {
+      addScanAndResult();
+      addScanResultLink();
+      const highlighted: string[][] = [];
+      const subscription = jointGraphWrapper.getLinkHighlightStream().subscribe(ids => highlighted.push([...ids]));
+
+      expect(() => jointGraphWrapper.highlightLink("no-such-link")).toThrowError(
+        "link with ID no-such-link doesn't exist"
+      );
+
+      jointGraphWrapper.highlightLink(mockScanResultLink.linkID);
+      jointGraphWrapper.highlightLink(mockScanResultLink.linkID);
+      expect(highlighted).toEqual([[mockScanResultLink.linkID]]);
+
+      subscription.unsubscribe();
+    });
+
+    it("unhighlightLink and unhighlightOperators stay silent for cells that are not highlighted", () => {
+      addScanAndResult();
+      addScanResultLink();
+      const unhighlightedLinks: string[][] = [];
+      const unhighlightedOperators: string[][] = [];
+      const onLink = jointGraphWrapper.getLinkUnhighlightStream().subscribe(ids => unhighlightedLinks.push([...ids]));
+      const onOperator = jointGraphWrapper
+        .getJointOperatorUnhighlightStream()
+        .subscribe(ids => unhighlightedOperators.push([...ids]));
+
+      jointGraphWrapper.unhighlightLink(mockScanResultLink.linkID);
+      jointGraphWrapper.unhighlightOperators(mockScanPredicate.operatorID);
+
+      expect(unhighlightedLinks).toEqual([]);
+      expect(unhighlightedOperators).toEqual([]);
+
+      onLink.unsubscribe();
+      onOperator.unsubscribe();
+    });
+
+    it("highlightCommentBoxes stays silent when every requested box is already highlighted", () => {
+      jointGraph.addCell(jointUIService.getCommentElement(mockCommentBox));
+      const highlighted: string[][] = [];
+      const subscription = jointGraphWrapper
+        .getJointCommentBoxHighlightStream()
+        .subscribe(ids => highlighted.push([...ids]));
+
+      jointGraphWrapper.highlightCommentBoxes(mockCommentBox.commentBoxID);
+      jointGraphWrapper.highlightCommentBoxes(mockCommentBox.commentBoxID);
+
+      expect(highlighted).toEqual([[mockCommentBox.commentBoxID]]);
+      subscription.unsubscribe();
+    });
+
+    it("getCellLayer reports the layer JointUIService assigned", () => {
+      addScanAndResult();
+      addScanResultLink();
+
+      // JointUIService assigns z=1 to operators and z=0 to links. The `|| 0` fallback in
+      // getCellLayer is unreachable and is deliberately not pinned: joint's Graph.addCell sets
+      // `z = maxZIndex() + 1` on any cell that arrives without one, and getCellLayer throws for a
+      // cell that is not in the graph — so `attributes.z` is never undefined by the time it reads
+      // it. The link's zero is an explicitly assigned zero, not the fallback.
+      expect(jointGraphWrapper.getCellLayer(mockScanPredicate.operatorID)).toBe(1);
+      expect(jointGraphWrapper.getCellLayer(mockScanResultLink.linkID)).toBe(0);
+    });
+
+    it("removing a highlighted cell straight from the graph unhighlights it", () => {
+      addScanAndResult();
+      addScanResultLink();
+      jointGraphWrapper.setMultiSelectMode(true);
+      jointGraphWrapper.highlightOperators(mockScanPredicate.operatorID);
+      jointGraphWrapper.highlightLinks(mockScanResultLink.linkID);
+
+      jointGraph.getCell(mockScanResultLink.linkID).remove();
+      expect(jointGraphWrapper.getCurrentHighlightedLinkIDs()).toEqual([]);
+      expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).toEqual([mockScanPredicate.operatorID]);
+
+      jointGraph.getCell(mockScanPredicate.operatorID).remove();
+      expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).toEqual([]);
+    });
+
+    it("getElementPositionChangeEvent carries the previous position across consecutive moves", () => {
+      jointGraph.addCell(jointUIService.getJointOperatorElement(mockScanPredicate, mockPoint));
+      const moves: { oldPosition: { x: number; y: number }; newPosition: { x: number; y: number } }[] = [];
+      const subscription = jointGraphWrapper
+        .getElementPositionChangeEvent()
+        .subscribe(event => moves.push({ oldPosition: event.oldPosition, newPosition: event.newPosition }));
+
+      const element = jointGraph.getCell(mockScanPredicate.operatorID) as joint.dia.Element;
+      element.position(100, 200);
+      element.position(150, 200); // only x moves
+      element.position(150, 250); // only y moves
+
+      expect(moves).toEqual([
+        { oldPosition: mockPoint, newPosition: { x: 100, y: 200 } },
+        { oldPosition: { x: 100, y: 200 }, newPosition: { x: 150, y: 200 } },
+        { oldPosition: { x: 150, y: 200 }, newPosition: { x: 150, y: 250 } },
+      ]);
+      subscription.unsubscribe();
+    });
+
+    it("getElementPositionChangeEvent errors for an element the wrapper never saw being added", () => {
+      // the position map is only filled from the cell-add stream, so a cell that predates
+      // the wrapper has no recorded position and the stream must fail loudly instead of
+      // reporting a bogus old position.
+      const preexistingGraph = new joint.dia.Graph();
+      preexistingGraph.addCell(jointUIService.getJointOperatorElement(mockScanPredicate, mockPoint));
+      const lateWrapper = new JointGraphWrapper(preexistingGraph);
+
+      let error: unknown;
+      const subscription = lateWrapper
+        .getElementPositionChangeEvent()
+        .subscribe({ error: (e: unknown) => (error = e) });
+      (preexistingGraph.getCell(mockScanPredicate.operatorID) as joint.dia.Element).position(1, 2);
+
+      expect(error).toEqual(
+        new Error(`internal error: cannot find element position for ${mockScanPredicate.operatorID}`)
+      );
+      subscription.unsubscribe();
+    });
+  });
+
+  describe("link endpoint changes", () => {
+    it("getJointLinkCellChangeStream emits the link whose endpoint was re-attached", () => {
+      jointGraph.addCell(jointUIService.getJointOperatorElement(mockScanPredicate, mockPoint));
+      jointGraph.addCell(jointUIService.getJointOperatorElement(mockResultPredicate, mockPoint));
+      jointGraph.addCell(jointUIService.getJointOperatorElement(mockSentimentPredicate, mockPoint));
+      jointGraph.addCell(JointUIService.getJointLinkCell(mockScanResultLink));
+
+      const changed: string[] = [];
+      const subscription = jointGraphWrapper
+        .getJointLinkCellChangeStream()
+        .subscribe(link => changed.push(link.id.toString()));
+
+      const link = jointGraph.getCell(mockScanResultLink.linkID) as joint.dia.Link;
+      link.set("target", { id: mockSentimentPredicate.operatorID, port: "input-0" });
+      link.set("source", { x: 10, y: 20 }); // detaching an end is a change too
+
+      expect(changed).toEqual([mockScanResultLink.linkID, mockScanResultLink.linkID]);
+      subscription.unsubscribe();
+    });
+  });
+
+  describe("auto layout", () => {
+    it("lays operators out left to right and leaves region elements where they are", () => {
+      // regions are decorations drawn around operators; feeding them to dagre would move
+      // them independently of the operators they wrap.
+      const Region = joint.dia.Element.define("region", {}, { markup: [{ tagName: "path", selector: "body" }] });
+      jointGraph.addCell(jointUIService.getJointOperatorElement(mockScanPredicate, mockPoint));
+      jointGraph.addCell(jointUIService.getJointOperatorElement(mockResultPredicate, mockPoint));
+      jointGraph.addCell(JointUIService.getJointLinkCell(mockScanResultLink));
+      const region = new Region({ position: { x: 500, y: 500 }, size: { width: 10, height: 10 } });
+      jointGraph.addCell(region);
+
+      jointGraphWrapper.autoLayoutJoint();
+
+      const scan = jointGraphWrapper.getElementPosition(mockScanPredicate.operatorID);
+      const result = jointGraphWrapper.getElementPosition(mockResultPredicate.operatorID);
+      expect(scan.x).toBeLessThan(result.x);
+      expect(region.position()).toEqual({ x: 500, y: 500 });
+    });
+  });
+
+  describe("with a joint paper attached", () => {
+    const alice: Coeditor = {
+      clientId: "client-alice",
+      uid: 1,
+      name: "Alice",
+      email: "alice@x.io",
+      role: Role.REGULAR,
+      comment: "",
+      joiningReason: "",
+      color: "#ff0000",
+    };
+    const bob: Coeditor = { ...alice, clientId: "client-bob", name: "Bob", color: "#00ff00" };
+
+    let paper: joint.dia.Paper;
+    let paperHost: HTMLDivElement;
+
+    beforeEach(() => {
+      paperHost = document.createElement("div");
+      document.body.appendChild(paperHost);
+      paper = jointGraphWrapper.attachMainJointPaper({ el: paperHost, width: 600, height: 400 });
+    });
+
+    afterEach(() => {
+      paper.remove();
+      paperHost.remove();
+    });
+
+    const addScanOperator = (): void => {
+      jointGraph.addCell(jointUIService.getJointOperatorElement(mockScanPredicate, mockPoint));
+    };
+    const editingBanner = (): { text?: string; fill?: string; visibility?: string } =>
+      (
+        paper.getModelById(mockScanPredicate.operatorID).attributes.attrs as Record<
+          string,
+          { text?: string; fill?: string; visibility?: string }
+        >
+      )[`.${operatorCoeditorEditingClass}`];
+
+    it("attachMainJointPaper binds the wrapper's own graph and publishes the paper", () => {
+      expect(paper.model).toBe(jointGraph);
+      expect(jointGraphWrapper.getMainJointPaper()).toBe(paper);
+
+      // the stream is a ReplaySubject, so a subscriber that arrives after the attach still gets it
+      const attached: joint.dia.Paper[] = [];
+      const subscription = jointGraphWrapper.getMainJointPaperAttachedStream().subscribe(p => attached.push(p));
+      expect(attached).toHaveLength(1);
+      expect(attached[0]).toBe(paper);
+      subscription.unsubscribe();
+    });
+
+    it("an async context defers highlight events and switches the paper to async rendering", () => {
+      addScanOperator();
+      jointGraph.addCell(jointUIService.getJointOperatorElement(mockResultPredicate, mockPoint));
+      jointGraphWrapper.setMultiSelectMode(true);
+      const highlighted: string[][] = [];
+      const subscription = jointGraphWrapper
+        .getJointOperatorHighlightStream()
+        .subscribe(ids => highlighted.push([...ids]));
+      const updateViews = vi.spyOn(paper, "updateViews");
+
+      expect(paper.options.async).toBe(false);
+      jointGraphWrapper.jointGraphContext.withContext({ async: true }, () => {
+        expect(paper.options.async).toBe(true);
+        jointGraphWrapper.highlightOperators(mockScanPredicate.operatorID);
+        expect(highlighted).toEqual([]);
+      });
+
+      // leaving the context restores synchronous rendering and forces the deferred views out
+      expect(paper.options.async).toBe(false);
+      expect(updateViews).toHaveBeenCalled();
+
+      // the buffered event is only drained by the next event emitted outside the context
+      jointGraphWrapper.highlightOperators(mockResultPredicate.operatorID);
+      expect(highlighted).toEqual([[mockScanPredicate.operatorID], [mockResultPredicate.operatorID]]);
+
+      // a synchronous context never deferred anything, so leaving it must not force a repaint
+      updateViews.mockClear();
+      jointGraphWrapper.jointGraphContext.withContext({ async: false }, () => {
+        expect(paper.options.async).toBe(false);
+      });
+      expect(updateViews).not.toHaveBeenCalled();
+
+      updateViews.mockRestore();
+      subscription.unsubscribe();
+    });
+
+    it("an async context still buffers when no paper was ever attached", () => {
+      const bareGraph = new joint.dia.Graph();
+      const bareWrapper = new JointGraphWrapper(bareGraph);
+      bareGraph.addCell(jointUIService.getJointOperatorElement(mockScanPredicate, mockPoint));
+      const highlighted: string[][] = [];
+      const subscription = bareWrapper.getJointOperatorHighlightStream().subscribe(ids => highlighted.push([...ids]));
+
+      expect(() =>
+        bareWrapper.jointGraphContext.withContext({ async: true }, () =>
+          bareWrapper.highlightOperators(mockScanPredicate.operatorID)
+        )
+      ).not.toThrow();
+      expect(highlighted).toEqual([]);
+
+      subscription.unsubscribe();
+    });
+
+    it("addCoeditorOperatorHighlight stacks one ring per coeditor and ignores duplicates", () => {
+      addScanOperator();
+      const view = paper.findViewByModel(mockScanPredicate.operatorID);
+      const rings = () =>
+        joint.highlighters.mask.get(view).map(stroke => ({ id: stroke.id, padding: stroke.options.padding }));
+
+      jointGraphWrapper.addCoeditorOperatorHighlight(alice, mockScanPredicate.operatorID);
+      jointGraphWrapper.addCoeditorOperatorHighlight(alice, mockScanPredicate.operatorID);
+      jointGraphWrapper.addCoeditorOperatorHighlight(bob, mockScanPredicate.operatorID);
+
+      // each additional coeditor gets a wider ring so all of them stay visible
+      expect(rings()).toEqual([
+        { id: `coeditorHighlight_${alice.clientId}_${mockScanPredicate.operatorID}`, padding: 5 },
+        { id: `coeditorHighlight_${bob.clientId}_${mockScanPredicate.operatorID}`, padding: 10 },
+      ]);
+    });
+
+    it("deleteCoeditorOperatorHighlight removes one ring and re-pads the ones behind it", () => {
+      addScanOperator();
+      const view = paper.findViewByModel(mockScanPredicate.operatorID);
+      const rings = () =>
+        joint.highlighters.mask.get(view).map(stroke => ({ id: stroke.id, padding: stroke.options.padding }));
+      jointGraphWrapper.addCoeditorOperatorHighlight(alice, mockScanPredicate.operatorID);
+      jointGraphWrapper.addCoeditorOperatorHighlight(bob, mockScanPredicate.operatorID);
+
+      // deleting a coeditor that never highlighted this operator must leave the existing
+      // rings alone: the re-pad loop below removes and re-adds rings, which reorders them.
+      jointGraphWrapper.deleteCoeditorOperatorHighlight(
+        { ...alice, clientId: "client-carol" },
+        mockScanPredicate.operatorID
+      );
+      expect(rings()).toEqual([
+        { id: `coeditorHighlight_${alice.clientId}_${mockScanPredicate.operatorID}`, padding: 5 },
+        { id: `coeditorHighlight_${bob.clientId}_${mockScanPredicate.operatorID}`, padding: 10 },
+      ]);
+
+      jointGraphWrapper.deleteCoeditorOperatorHighlight(alice, mockScanPredicate.operatorID);
+
+      // Bob's ring moves inwards to close the gap Alice left behind
+      expect(rings()).toEqual([
+        { id: `coeditorHighlight_${bob.clientId}_${mockScanPredicate.operatorID}`, padding: 5 },
+      ]);
+    });
+
+    it("setCurrentEditing writes the coeditor banner and animates its trailing dots", () => {
+      addScanOperator();
+      vi.useFakeTimers();
+      const intervalId = jointGraphWrapper.setCurrentEditing(alice, mockScanPredicate.operatorID);
+      try {
+        expect(editingBanner()).toMatchObject({
+          text: "Alice is viewing/editing...",
+          fill: alice.color,
+          visibility: "visible",
+        });
+
+        // the trailing dots cycle ... -> . -> .. -> ... on every tick
+        vi.advanceTimersByTime(300);
+        expect(editingBanner().text).toBe("Alice is viewing/editing.");
+        vi.advanceTimersByTime(300);
+        expect(editingBanner().text).toBe("Alice is viewing/editing..");
+        vi.advanceTimersByTime(300);
+        expect(editingBanner().text).toBe("Alice is viewing/editing...");
+
+        // a banner that belongs to somebody else must not be overwritten by Alice's animation
+        paper
+          .getModelById(mockScanPredicate.operatorID)
+          .attr({ [`.${operatorCoeditorEditingClass}`]: { text: "Bob is viewing/editing..." } });
+        vi.advanceTimersByTime(300);
+        expect(editingBanner().text).toBe("Bob is viewing/editing...");
+      } finally {
+        clearInterval(intervalId);
+        vi.useRealTimers();
+      }
+    });
+
+    it("removeCurrentEditing hides the banner", () => {
+      addScanOperator();
+      vi.useFakeTimers();
+      const intervalId = jointGraphWrapper.setCurrentEditing(alice, mockScanPredicate.operatorID);
+      try {
+        jointGraphWrapper.removeCurrentEditing(alice, mockScanPredicate.operatorID, intervalId);
+
+        expect(editingBanner()).toMatchObject({ text: "", visibility: "hidden" });
+      } finally {
+        clearInterval(intervalId);
+        vi.useRealTimers();
+      }
+    });
+
+    it("set/removePropertyChanged show and hide the property-changed banner", () => {
+      addScanOperator();
+      const banner = (): { text?: string; fill?: string; visibility?: string } =>
+        (
+          paper.getModelById(mockScanPredicate.operatorID).attributes.attrs as Record<
+            string,
+            { text?: string; fill?: string; visibility?: string }
+          >
+        )[`.${operatorCoeditorChangedPropertyClass}`];
+
+      jointGraphWrapper.setPropertyChanged(alice, mockScanPredicate.operatorID);
+      expect(banner()).toMatchObject({
+        text: "Alice changed property!",
+        fill: alice.color,
+        visibility: "visible",
+      });
+
+      jointGraphWrapper.removePropertyChanged(alice, mockScanPredicate.operatorID);
+      expect(banner()).toMatchObject({ text: "", visibility: "hidden" });
     });
   });
 });

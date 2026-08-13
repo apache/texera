@@ -20,10 +20,14 @@
 #   bash bin/local-dev/tests/test_local_dev_sh.sh
 # Exits 0 if every check passes, 1 otherwise.
 #
-# Kept deliberately small: bringing up the actual stack needs Docker /
-# sbt / a Mac and is out of scope for CI here. We cover the things that
-# regress quietly — script syntax, version-detection, the subcommand
-# dispatch, and graceful failure on garbage input.
+# Kept deliberately small: bringing up the actual stack needs Docker, sbt and
+# the rest of the toolchain, which is out of scope for CI here. We cover the
+# things that regress quietly — script syntax, version-detection, the
+# subcommand dispatch, and graceful failure on garbage input.
+#
+# Runs on macOS and Linux alike (CI's `infra` job covers both). Anything that
+# can only hold on one of them is guarded by a `uname` check or by probing for
+# the tool involved, and reports a skip rather than a pass.
 
 set -u
 
@@ -593,7 +597,320 @@ else
     _fail "changelog references missing files:$missing_files"
 fi
 
-# 29) A changeSet the DB already satisfies must not abort `up`. On a fresh
+# 29) Host LAN IP detection on Linux. The macOS probes (`route get default`,
+#     `ipconfig getifaddr en0..en10`) do not exist there, so `up`/`auto` used to
+#     abort with "could not detect a host LAN IP" on every Linux box (#7065).
+#     Driven against a fake `ip` so the assertions don't depend on the test
+#     machine's interfaces. The docker-bridge case is the one that matters most:
+#     the whole point of HOST_LAN_IP is an address reachable from both the host
+#     and the lakekeeper container, and 172.17.0.1 is reachable from neither
+#     side the way we need.
+lanip_fn=$(awk '/^_detect_host_lan_ip_linux\(\)/{f=1} f{print} f&&/^}/{exit}' "$MAIN_SH")
+if [[ -z "$lanip_fn" ]]; then
+    _fail "_detect_host_lan_ip_linux helper missing"
+else
+    _lan_dir=$(mktemp -d 2>/dev/null || mktemp -d -t ldlan)
+    # Fake `ip`: answers `route show default` from ip.route and
+    # `-o addr show [dev X] scope global` from ip.addr.
+    cat > "$_lan_dir/ip" <<'FAKE_IP'
+#!/usr/bin/env bash
+mode=""; want_dev=""
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        route) mode=route ;;
+        addr)  mode=addr ;;
+        dev)   shift; want_dev="${1:-}" ;;
+    esac
+    shift
+done
+case "$mode" in
+    route) cat "$0.route" 2>/dev/null ;;
+    addr)
+        if [[ -n "$want_dev" ]]; then
+            awk -v d="$want_dev" '$2 == d' "$0.addr" 2>/dev/null
+        else
+            cat "$0.addr" 2>/dev/null
+        fi
+        ;;
+esac
+FAKE_IP
+    chmod +x "$_lan_dir/ip"
+    _lan_check() {  # $1=label  $2=expected stdout ("" = must fail)  $3=route  $4=addr
+        printf '%s\n' "$3" > "$_lan_dir/ip.route"
+        printf '%s\n' "$4" > "$_lan_dir/ip.addr"
+        local got="" rc=0
+        got=$(PATH="$_lan_dir:$PATH"; eval "$lanip_fn"; _detect_host_lan_ip_linux) || rc=$?
+        if [[ -z "$2" ]]; then
+            if (( rc != 0 )) && [[ -z "$got" ]]; then
+                _pass "linux LAN IP: $1 (refuses)"
+            else
+                _fail "linux LAN IP: $1 should refuse" "rc=$rc got='$got'"
+            fi
+        elif [[ "$got" == "$2" ]]; then
+            _pass "linux LAN IP: $1 → $got"
+        else
+            _fail "linux LAN IP: $1" "expected '$2' got '$got' (rc=$rc)"
+        fi
+    }
+    _lan_check "default route interface wins" "10.10.10.30" \
+        'default via 10.10.10.1 dev eth0 proto static metric 100' \
+        '2: eth0    inet 10.10.10.30/24 brd 10.10.10.255 scope global eth0
+3: docker0    inet 172.17.0.1/16 brd 172.17.255.255 scope global docker0'
+    _lan_check "no default route: skips the docker bridge" "10.10.10.30" \
+        '' \
+        '3: docker0    inet 172.17.0.1/16 brd 172.17.255.255 scope global docker0
+2: eth0    inet 10.10.10.30/24 brd 10.10.10.255 scope global eth0'
+    _lan_check "no default route: skips bridges, veth and tailscale" "192.168.1.42" \
+        '' \
+        '4: br-abc123    inet 172.18.0.1/16 scope global br-abc123
+5: veth9f2    inet 172.19.0.1/16 scope global veth9f2
+6: tailscale0    inet 100.101.102.103/32 scope global tailscale0
+2: enp5s0    inet 192.168.1.42/24 scope global enp5s0'
+    _lan_check "default route interface has no global v4: falls back to scan" "192.168.1.42" \
+        'default via 10.0.0.1 dev ppp0 proto static' \
+        '2: enp5s0    inet 192.168.1.42/24 scope global enp5s0'
+    _lan_check "default route over a bridge/VPN is skipped, not trusted" "10.10.10.30" \
+        'default via 172.17.0.1 dev docker0 proto static' \
+        '3: docker0    inet 172.17.0.1/16 scope global docker0
+2: eth0    inet 10.10.10.30/24 scope global eth0'
+    _lan_check "nothing but loopback" "" '' ''
+    _lan_check "only excluded interfaces" "" \
+        '' \
+        '3: docker0    inet 172.17.0.1/16 scope global docker0'
+    # Negative: no iproute2 at all must fail cleanly, not emit a bogus address.
+    _lan_no_ip=$(mktemp -d 2>/dev/null || mktemp -d -t ldlan2)
+    got=""; rc=0
+    got=$(PATH="$_lan_no_ip"; eval "$lanip_fn"; _detect_host_lan_ip_linux) || rc=$?
+    if (( rc != 0 )) && [[ -z "$got" ]]; then
+        _pass "linux LAN IP: no \`ip\` on PATH (refuses)"
+    else
+        _fail "linux LAN IP: no \`ip\` should refuse" "rc=$rc got='$got'"
+    fi
+    rm -rf "$_lan_dir" "$_lan_no_ip"
+fi
+
+# 30) The dispatcher must keep the macOS probes for Darwin and only use the
+#     Linux ones on Linux — the fix must not regress the platform that worked.
+dispatch_fn=$(awk '/^_detect_host_lan_ip\(\)/{f=1} f{print} f&&/^}/{exit}' "$MAIN_SH")
+if [[ "$dispatch_fn" == *"Darwin"* ]] \
+   && [[ "$dispatch_fn" == *"_detect_host_lan_ip_darwin"* ]] \
+   && [[ "$dispatch_fn" == *"_detect_host_lan_ip_linux"* ]]; then
+    _pass "_detect_host_lan_ip dispatches per platform"
+else
+    _fail "_detect_host_lan_ip doesn't dispatch to both platform probes"
+fi
+# And the FATAL must stop naming only the macOS probes, since on Linux none of
+# them ever ran.
+if ! grep -q 'of \\`route get default\\` / en0-en10 had a non-loopback IPv4' "$MAIN_SH"; then
+    _pass "host-LAN-IP failure message is not macOS-only"
+else
+    _fail "host-LAN-IP failure message still blames route get/en0-en10 on every platform"
+fi
+
+# 31) Artifact mtime must be readable with either stat dialect. GNU coreutils
+#     rejects BSD's `stat -f "%Sm" -t FMT` outright (it reads -f as "file system
+#     info" and the format strings as filenames), so on Linux the ARTIFACT MTIME
+#     column rendered stat's error text instead of a timestamp.
+mtime_fn=$(awk '/^_file_mtime_str\(\)/{f=1} f{print} f&&/^}/{exit}' "$MAIN_SH")
+if [[ -z "$mtime_fn" ]]; then
+    _fail "_file_mtime_str helper missing"
+else
+    _mt_dir=$(mktemp -d 2>/dev/null || mktemp -d -t ldmt)
+    : > "$_mt_dir/artifact.jar"
+    got=$(eval "$mtime_fn"; _file_mtime_str "$_mt_dir/artifact.jar")
+    if [[ "$got" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}\ [0-9]{2}:[0-9]{2}$ ]]; then
+        _pass "_file_mtime_str formats YYYY-MM-DD HH:MM ($got)"
+    else
+        _fail "_file_mtime_str wrong format" "got '$got'"
+    fi
+    # Negative: a missing file must fail rather than print stat's diagnostics.
+    got=""; rc=0
+    got=$(eval "$mtime_fn"; _file_mtime_str "$_mt_dir/nope.jar" 2>&1) || rc=$?
+    if (( rc != 0 )) && [[ -z "$got" ]]; then
+        _pass "_file_mtime_str refuses a missing file quietly"
+    else
+        _fail "_file_mtime_str should fail quietly on a missing file" "rc=$rc got='$got'"
+    fi
+    got=""; rc=0
+    got=$(eval "$mtime_fn"; _file_mtime_str 2>&1) || rc=$?
+    if (( rc != 0 )) && [[ -z "$got" ]]; then
+        _pass "_file_mtime_str refuses a missing argument quietly"
+    else
+        _fail "_file_mtime_str should fail quietly with no argument" "rc=$rc got='$got'"
+    fi
+    rm -rf "$_mt_dir"
+fi
+# The BSD spelling is allowed to survive inside _file_mtime_str — that's the
+# whole point of the helper — but nowhere else, or the next call site silently
+# breaks on Linux again.
+main_outside_helper=$(awk '
+    /^_file_mtime_str\(\)/ { skip = 1 }
+    skip { if ($0 == "}") skip = 0; next }
+    { print }
+' "$MAIN_SH")
+if ! printf '%s\n' "$main_outside_helper" | grep -qE 'stat -f "%Sm" -t'; then
+    _pass "BSD stat is confined to _file_mtime_str"
+else
+    _fail "main.sh still calls BSD-only \`stat -f \"%Sm\" -t\` outside _file_mtime_str" \
+        "$(printf '%s\n' "$main_outside_helper" | grep -nE 'stat -f "%Sm" -t' | head -3 | tr '\n' '|')"
+fi
+
+# 32) Port→PID lookup must not depend on lsof. It is standard on macOS but not
+#     installed by default on Debian/Ubuntu/Fedora, and without it every native
+#     service read as "stopped" — so `up` relaunched live services and `down`
+#     silently no-opped. Tested against a real listener, with lsof shimmed out.
+listen_fn=$(awk '/^listen_pid_for_port\(\)/{f=1} f{print} f&&/^}/{exit}' "$MAIN_SH")
+if [[ -z "$listen_fn" ]]; then
+    _fail "listen_pid_for_port helper missing"
+elif ! command -v python3 >/dev/null 2>&1; then
+    _pass "skip: python3 not on PATH (port listener check)"
+else
+    _lp_dir=$(mktemp -d 2>/dev/null || mktemp -d -t ldlp)
+    # Bind an ephemeral port, print it, then hold it open until killed.
+    python3 -c '
+import socket, sys, time
+s = socket.socket(); s.bind(("127.0.0.1", 0)); s.listen(1)
+print(s.getsockname()[1], flush=True)
+time.sleep(120)
+' > "$_lp_dir/port" 2>/dev/null &
+    _lp_pid=$!
+    _lp_port=""
+    for _ in 1 2 3 4 5 6 7 8 9 10; do
+        _lp_port=$(head -1 "$_lp_dir/port" 2>/dev/null)
+        [[ -n "$_lp_port" ]] && break
+        sleep 0.3
+    done
+    if [[ -z "$_lp_port" ]]; then
+        _fail "port listener check: could not start a listener"
+    else
+        got=$(eval "$listen_fn"; listen_pid_for_port "$_lp_port")
+        if [[ "$got" == "$_lp_pid" ]]; then
+            _pass "listen_pid_for_port finds the listener ($_lp_port → $got)"
+        else
+            _fail "listen_pid_for_port didn't find the listener" \
+                "port=$_lp_port expected=$_lp_pid got='$got'"
+        fi
+        # Same answer with lsof unavailable — the Linux-without-lsof box. The
+        # fallback is `ss` from iproute2, which only exists on Linux; macOS has
+        # no equivalent and ships lsof in the base system, so there is nothing
+        # to fall back to (or to test) there.
+        if command -v ss >/dev/null 2>&1; then
+            printf '#!/bin/sh\nexit 127\n' > "$_lp_dir/lsof"; chmod +x "$_lp_dir/lsof"
+            got=$(PATH="$_lp_dir:$PATH"; eval "$listen_fn"; listen_pid_for_port "$_lp_port")
+            if [[ "$got" == "$_lp_pid" ]]; then
+                _pass "listen_pid_for_port works without lsof ($got)"
+            else
+                _fail "listen_pid_for_port needs lsof" \
+                    "port=$_lp_port expected=$_lp_pid got='$got'"
+            fi
+        else
+            _pass "skip: no \`ss\` on this platform (lsof fallback is Linux-only)"
+        fi
+        # Negative: a port nobody listens on yields empty output, not noise.
+        got=$(eval "$listen_fn"; listen_pid_for_port 1 2>&1)
+        if [[ -z "$got" ]]; then
+            _pass "listen_pid_for_port: unused port yields nothing"
+        else
+            _fail "listen_pid_for_port: unused port produced output" "got='$got'"
+        fi
+    fi
+    kill "$_lp_pid" 2>/dev/null
+    wait "$_lp_pid" 2>/dev/null
+    rm -rf "$_lp_dir"
+fi
+
+# 33) Install hints have to be actionable on Linux: `docker-compose-plugin`
+#     only exists in Docker's own apt repo (stock Ubuntu ships
+#     `docker-compose-v2`), and node/yarn/bun had no Linux line at all.
+hint_body=$(awk '/^_install_hint\(\)/{f=1} f{print} f&&/^}/{exit}' "$MAIN_SH")
+if [[ "$hint_body" != *"docker-compose-plugin"* ]] \
+   && [[ "$hint_body" == *"docker-compose-v2"* ]]; then
+    _pass "docker hint names the distro compose package"
+else
+    _fail "docker hint still points at docker-compose-plugin"
+fi
+hint_missing=""
+for tool in java python node yarn bun sbt docker; do
+    case_body=$(printf '%s\n' "$hint_body" | awk -v t="$tool" '
+        $0 ~ "^[[:space:]]*"t"\\)" {f=1}
+        f {print}
+        f && /;;/ {exit}')
+    [[ "$case_body" == *"Linux"* ]] || hint_missing+=" $tool"
+done
+if [[ -z "$hint_missing" ]]; then
+    _pass "every install hint has a Linux line"
+else
+    _fail "install hints with no Linux line:$hint_missing"
+fi
+
+# 34) Regression for #7075: `find -newer` is *strictly* newer, so a source whose
+#     mtime equals the build stamp's is invisible to the fast filter and `auto`
+#     reports "everything up-to-date" without rebuilding it. The read side
+#     therefore compares against a throwaway marker one second behind the stamp.
+#     Deterministic: the colliding mtime is forced with `touch -r`, not raced.
+stamp_fn=$(awk 'index($0, "_stamp_backdate()") == 1 {f=1} f{print} f && /^}/{exit}' "$MAIN_SH")
+if [[ -z "$stamp_fn" ]]; then
+    _fail "_stamp_backdate helper missing"
+else
+    _sd=$(mktemp -d 2>/dev/null || mktemp -d -t ldsd)
+    mkdir -p "$_sd/src"
+    # Older.scala must end up comfortably behind the stamp, further back than
+    # the one second of slack the marker adds — hence a real wait rather than a
+    # computed timestamp, which has no portable spelling.
+    : > "$_sd/src/Older.scala"
+    sleep 2
+    : > "$_sd/stamp"
+    : > "$_sd/src/Same.scala"
+    touch -r "$_sd/stamp" "$_sd/src/Same.scala"   # exactly the stamp's mtime
+
+    # The bug itself, characterised: comparing against the stamp misses it.
+    naive=$(find "$_sd/src" -name '*.scala' -newer "$_sd/stamp" -print 2>/dev/null)
+    if [[ "$naive" != *"Same.scala"* ]]; then
+        _pass "stamp backdate: bare \`-newer \$stamp\` misses an equal mtime (the bug)"
+    else
+        _fail "stamp backdate: premise no longer holds — -newer saw an equal mtime" \
+            "found: $naive"
+    fi
+
+    # The fix: a marker one second behind the stamp sees it.
+    marker="$_sd/marker"
+    ( eval "$stamp_fn"
+      touch -r "$_sd/stamp" "$marker" && _stamp_backdate "$marker" ) 2>/dev/null
+    fixed=$(find "$_sd/src" -name '*.scala' -newer "$marker" -print 2>/dev/null)
+    if [[ "$fixed" == *"Same.scala"* ]]; then
+        _pass "stamp backdate: backdated marker sees the equal-mtime edit"
+    else
+        _fail "stamp backdate: backdated marker still misses the edit" "found: '$fixed'"
+    fi
+    # Negative: the slack must not drag genuinely older sources in, or every
+    # tick pays the content hash forever.
+    if [[ "$fixed" != *"Older.scala"* ]]; then
+        _pass "stamp backdate: a clearly older source stays clean"
+    else
+        _fail "stamp backdate: slack flagged an older source" "found: $fixed"
+    fi
+    # Negative: a missing path must be a quiet no-op, not an error spray.
+    err=$( ( eval "$stamp_fn"; _stamp_backdate "$_sd/nope" ) 2>&1 ); rc=$?
+    if (( rc == 0 )) && [[ -z "$err" ]]; then
+        _pass "stamp backdate: missing file is a quiet no-op"
+    else
+        _fail "stamp backdate: missing file was noisy" "rc=$rc err='$err'"
+    fi
+    rm -rf "$_sd"
+fi
+
+# 35) Wiring: the jvm dirty check must compare against the backdated marker
+#     rather than the stamp, or #7075 is only half fixed (the shell path is the
+#     one that gates the rebuild; tui.py only colours the SRC column).
+src_changed_body=$(awk 'index($0, "svc_src_changed()") == 1 {f=1} f{print} f && /^}/{exit}' "$MAIN_SH")
+if [[ "$src_changed_body" == *"_stamp_backdate"* ]] \
+   && ! printf '%s\n' "$src_changed_body" | grep -qE '\-newer "\$stamp"'; then
+    _pass "svc_src_changed compares against the backdated marker"
+else
+    _fail "svc_src_changed still compares directly against \$stamp"
+fi
+
+# 36) A changeSet the DB already satisfies must not abort `up`. On a fresh
 #     volume postgres' own /docker-entrypoint-initdb.d runs sql/texera_ddl.sql,
 #     which is kept in sync with sql/updates/*, so replaying those changeSets
 #     re-creates objects that are already there; the ones not written with
@@ -666,7 +983,7 @@ psql:<stdin>:51: ERROR:  syntax error at or near "COMMITT"'
     rm -rf "$_tol_dir"
 fi
 
-# 30) Wiring for #29: the replay loop must consult the detector instead of
+# 37) Wiring for #36: the replay loop must consult the detector instead of
 #     aborting on the first psql failure, and must stop discarding psql's
 #     stderr — the old `2>&1` to /dev/null meant the one line that explains the
 #     abort ("relation ... already exists") never reached the operator, who was

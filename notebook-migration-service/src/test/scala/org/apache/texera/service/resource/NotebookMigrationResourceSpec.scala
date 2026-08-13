@@ -120,7 +120,6 @@ class NotebookMigrationResourceSpec
     user.setName(name)
     user.setEmail(email)
     user.setRole(UserRoleEnum.REGULAR)
-    user.setPassword("password")
     userDao.insert(user)
     user.getUid
   }
@@ -160,6 +159,9 @@ class NotebookMigrationResourceSpec
 
   private def fetchPayload(vid: Integer = seededVid): String =
     s"""{"wid": $testWid, "vid": $vid}"""
+
+  private def deletePayload(): String =
+    s"""{"wid": $testWid}"""
 
   private val resource = new NotebookMigrationResource()
 
@@ -324,6 +326,81 @@ class NotebookMigrationResourceSpec
         .getEntity
         .toString
     entity should include("\"v1\"")
+  }
+
+  // -- deleteNotebookAndMapping -----------------------------------------------
+
+  "deleteNotebookAndMapping" should "remove the notebook and cascade to its mapping, reporting deleted=1" in {
+    NotebookMigrationResource.storeNotebookAndMapping(storePayload(), writerUid)
+    getDSLContext.fetchCount(NOTEBOOK) shouldBe 1
+    getDSLContext.fetchCount(WORKFLOW_NOTEBOOK_MAPPING) shouldBe 1
+
+    val response = NotebookMigrationResource.deleteNotebookAndMapping(deletePayload(), writerUid)
+    response.getStatus shouldBe Response.Status.OK.getStatusCode
+    response.getEntity.toString should include("\"deleted\":1")
+
+    // Deleting the notebook row cascades to workflow_notebook_mapping via the FK.
+    getDSLContext.fetchCount(NOTEBOOK) shouldBe 0
+    getDSLContext.fetchCount(WORKFLOW_NOTEBOOK_MAPPING) shouldBe 0
+  }
+
+  it should "be idempotent, returning success with deleted=0 when nothing is stored" in {
+    val response = NotebookMigrationResource.deleteNotebookAndMapping(deletePayload(), writerUid)
+    response.getStatus shouldBe Response.Status.OK.getStatusCode
+    response.getEntity.toString should include("\"deleted\":0")
+  }
+
+  it should "return 403 Forbidden and delete nothing when the user lacks write access" in {
+    NotebookMigrationResource.storeNotebookAndMapping(storePayload(), writerUid)
+
+    // readerUid holds only READ access; delete requires WRITE.
+    NotebookMigrationResource
+      .deleteNotebookAndMapping(deletePayload(), readerUid)
+      .getStatus shouldBe Response.Status.FORBIDDEN.getStatusCode
+
+    getDSLContext.fetchCount(NOTEBOOK) shouldBe 1
+    getDSLContext.fetchCount(WORKFLOW_NOTEBOOK_MAPPING) shouldBe 1
+  }
+
+  it should "return 500 when the request body is malformed JSON" in {
+    // Exercises the NonFatal catch path in deleteNotebookAndMapping.
+    resource
+      .deleteNotebookAndMapping("not json", sessionUser(writerUid))
+      .getStatus shouldBe 500
+  }
+
+  // -- wid validation ---------------------------------------------------------
+
+  "store/fetch/delete" should "return 400 Bad Request when 'wid' is missing from the body" in {
+    // A missing wid must be a client error, not a 500 from the null.asInt() NPE.
+    val noWid = s"""{"vid": $seededVid}"""
+    NotebookMigrationResource
+      .storeNotebookAndMapping(noWid, writerUid)
+      .getStatus shouldBe Response.Status.BAD_REQUEST.getStatusCode
+    NotebookMigrationResource
+      .fetchNotebookAndMapping(noWid, writerUid)
+      .getStatus shouldBe Response.Status.BAD_REQUEST.getStatusCode
+    NotebookMigrationResource
+      .deleteNotebookAndMapping("""{}""", writerUid)
+      .getStatus shouldBe Response.Status.BAD_REQUEST.getStatusCode
+
+    getDSLContext.fetchCount(NOTEBOOK) shouldBe 0
+  }
+
+  it should "return 400 Bad Request when 'wid' is not an integer" in {
+    // A non-integer wid must be rejected rather than silently coerced to 0 by asInt().
+    val badWid = s"""{"wid": "not-an-int", "vid": $seededVid}"""
+    NotebookMigrationResource
+      .storeNotebookAndMapping(badWid, writerUid)
+      .getStatus shouldBe Response.Status.BAD_REQUEST.getStatusCode
+    NotebookMigrationResource
+      .fetchNotebookAndMapping(badWid, writerUid)
+      .getStatus shouldBe Response.Status.BAD_REQUEST.getStatusCode
+    NotebookMigrationResource
+      .deleteNotebookAndMapping(badWid, writerUid)
+      .getStatus shouldBe Response.Status.BAD_REQUEST.getStatusCode
+
+    getDSLContext.fetchCount(NOTEBOOK) shouldBe 0
   }
 
   // -- workflow write-access enforcement --------------------------------------

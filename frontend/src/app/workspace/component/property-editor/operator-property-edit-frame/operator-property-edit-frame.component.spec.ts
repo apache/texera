@@ -60,6 +60,7 @@ import { commonTestProviders } from "../../../../common/testing/test-utils";
 import { DynamicSchemaService } from "../../../service/dynamic-schema/dynamic-schema.service";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { WorkflowGraph } from "../../../service/workflow-graph/model/workflow-graph";
+import { UiUdfParametersSyncService } from "../../../service/code-editor/ui-udf-parameters-sync.service";
 
 const { marbles } = configure({ run: false });
 
@@ -206,6 +207,37 @@ describe("OperatorPropertyEditFrameComponent", () => {
 
     expect(operator.operatorProperties).toEqual(formChangeValue);
     expect(emitEventCounter).toEqual(1);
+  }));
+
+  it("keeps code-inferred UI parameters in the form model and subsequent form edits", fakeAsync(() => {
+    const predicate = {
+      ...mockScanPredicate,
+      operatorProperties: { tableName: "before", uiParameters: [] },
+    };
+    workflowActionService.addOperator(predicate, mockPoint);
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, predicate.operatorID, true),
+    });
+    fixture.detectChanges();
+    tick(COLLAB_DEBOUNCE_TIME_MS);
+
+    const inferredParameters = [{ attribute: { attributeName: "count", attributeType: "integer" }, value: "" }];
+    const syncService = TestBed.inject(UiUdfParametersSyncService);
+    (syncService as any).uiParametersChangedSubject.next({
+      operatorId: predicate.operatorID,
+      parameters: inferredParameters,
+    });
+
+    expect(component.formData.uiParameters).toEqual(inferredParameters);
+
+    component.onFormChanges({ ...component.formData, tableName: "after" });
+    tick(FORM_DEBOUNCE_TIME_MS + 10);
+
+    expect(workflowActionService.getTexeraGraph().getOperator(predicate.operatorID).operatorProperties).toEqual({
+      tableName: "after",
+      uiParameters: inferredParameters,
+    });
+    discardPeriodicTasks();
   }));
 
   it.skip(
@@ -1698,6 +1730,14 @@ describe("OperatorPropertyEditFrameComponent", () => {
       expect(getField("datasetVersionPath")?.type).toBe("datasetversionselector");
     });
 
+    it("maps uiParameters to the ui-udf-parameters field type", () => {
+      component.setFormlyFormBinding({
+        type: "object",
+        properties: { uiParameters: { type: "array" } },
+      });
+      expect(getField("uiParameters")?.type).toBe("ui-udf-parameters");
+    });
+
     it("maps a field described as 'Input your code here' to the codearea field type", () => {
       component.setFormlyFormBinding({
         type: "object",
@@ -2085,6 +2125,64 @@ describe("OperatorPropertyEditFrameComponent", () => {
     it("should not render pills when pills array is empty", () => {
       setupPreview({ kind: "text", title: "T", pills: [] });
       expect(realFixture.debugElement.query(By.css(".hf-task-preview-pills"))).toBeNull();
+    });
+  });
+
+  describe("onFormChanges null handling", () => {
+    it("should strip null values for optional fields", () => {
+      component.currentOperatorSchema = {
+        ...mockScanSourceSchema,
+        jsonSchema: { ...mockScanSourceSchema.jsonSchema, required: ["tableName"] },
+      };
+
+      let emittedEvent: Record<string, unknown> | undefined;
+      component.sourceFormChangeEventStream.subscribe(event => (emittedEvent = event));
+
+      component.onFormChanges({ tableName: "table1", optionalField: null });
+
+      expect(emittedEvent).toEqual({ tableName: "table1" });
+    });
+
+    it("should keep null values for required fields", () => {
+      component.currentOperatorSchema = {
+        ...mockScanSourceSchema,
+        jsonSchema: { ...mockScanSourceSchema.jsonSchema, required: ["tableName"] },
+      };
+
+      let emittedEvent: Record<string, unknown> | undefined;
+      component.sourceFormChangeEventStream.subscribe(event => (emittedEvent = event));
+
+      component.onFormChanges({ tableName: null, optionalField: "value" });
+
+      expect(emittedEvent).toEqual({ tableName: null, optionalField: "value" });
+    });
+
+    it("should keep non-null values regardless of required status", () => {
+      component.currentOperatorSchema = {
+        ...mockScanSourceSchema,
+        jsonSchema: { ...mockScanSourceSchema.jsonSchema, required: ["tableName"] },
+      };
+
+      let emittedEvent: Record<string, unknown> | undefined;
+      component.sourceFormChangeEventStream.subscribe(event => (emittedEvent = event));
+
+      component.onFormChanges({ tableName: "table1", optionalField: "set" });
+
+      expect(emittedEvent).toEqual({ tableName: "table1", optionalField: "set" });
+    });
+
+    it("should strip undefined values for optional fields", () => {
+      component.currentOperatorSchema = {
+        ...mockScanSourceSchema,
+        jsonSchema: { ...mockScanSourceSchema.jsonSchema, required: ["tableName"] },
+      };
+
+      let emittedEvent: Record<string, unknown> | undefined;
+      component.sourceFormChangeEventStream.subscribe(event => (emittedEvent = event));
+
+      component.onFormChanges({ tableName: "table1", optionalField: undefined });
+
+      expect(emittedEvent).toEqual({ tableName: "table1" });
     });
   });
 

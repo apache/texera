@@ -41,7 +41,6 @@ class FileResolverSpec
     user.setUid(Integer.valueOf(1))
     user.setName("test_user")
     user.setRole(UserRoleEnum.ADMIN)
-    user.setPassword("123")
     user.setEmail("test_user@test.com")
     user
   }
@@ -79,9 +78,16 @@ class FileResolverSpec
 
   private val localCsvFilePath = "common/workflow-core/src/test/resources/country_sales_small.csv"
 
-  private val datasetACsvFilePath = "/test_user@test.com/test_dataset/v2/directory/a.csv"
+  private val datasetACsvFilePath = "/datasets/test_user@test.com/test_dataset/v2/directory/a.csv"
 
-  private val dataset1TxtFilePath = "/test_user@test.com/test_dataset/v1/1.txt"
+  private val dataset1TxtFilePath = "/datasets/test_user@test.com/test_dataset/v1/1.txt"
+
+  // Unprefixed form (no resource-type segment); no longer resolvable as a dataset.
+  private val unprefixedDataset1TxtFilePath = "/test_user@test.com/test_dataset/v1/1.txt"
+
+  // The leading segment is not a known resource type, so this is not a resolvable path.
+  private val unknownResourceTypeFilePath =
+    "/notAResourceType/test_user@test.com/test_dataset/v1/1.txt"
 
   override protected def beforeAll(): Unit = {
     initializeDBAndReplaceDSLContext()
@@ -118,6 +124,25 @@ class FileResolverSpec
     )
   }
 
+  "FileResolver" should "not resolve a path without a resource-type prefix" in {
+    // Without a leading resource-type segment the path is not resolvable
+    assertThrows[FileNotFoundException] {
+      FileResolver.resolve(unprefixedDataset1TxtFilePath)
+    }
+  }
+
+  "FileResolver" should "not resolve a path whose prefix is not a known resource type" in {
+    assertThrows[FileNotFoundException] {
+      FileResolver.resolve(unknownResourceTypeFilePath)
+    }
+  }
+
+  "FileResolver" should "throw not found exception when a prefixed path has too few segments" in {
+    assertThrows[FileNotFoundException] {
+      FileResolver.resolve("/datasets/test_user@test.com/test_dataset")
+    }
+  }
+
   "FileResolver" should "throw not found exception" in {
     assertThrows[FileNotFoundException] {
       FileResolver.resolve("some/random/path")
@@ -143,18 +168,22 @@ class FileResolverSpec
 
   "parseDatasetOwnerAndName" should "extract owner email and dataset name from a valid path" in {
     assert(
-      FileResolver.parseDatasetOwnerAndName("/test_user@test.com/test_dataset/v1/1.txt")
+      FileResolver.parseDatasetOwnerAndName("/datasets/test_user@test.com/test_dataset/v1/1.txt")
         == Some(("test_user@test.com", "test_dataset"))
     )
     // extra segments beyond the file-relative path are ignored
     assert(
-      FileResolver.parseDatasetOwnerAndName("/owner@x.com/ds/v2/directory/nested/a.csv")
+      FileResolver.parseDatasetOwnerAndName("/datasets/owner@x.com/ds/v2/directory/nested/a.csv")
         == Some(("owner@x.com", "ds"))
     )
   }
 
-  it should "return None when the path has fewer than four segments" in {
-    assert(FileResolver.parseDatasetOwnerAndName("/owner@x.com/ds/v1").isEmpty)
+  it should "return None for an unprefixed path (the datasets prefix is required)" in {
+    assert(FileResolver.parseDatasetOwnerAndName(unprefixedDataset1TxtFilePath).isEmpty)
+  }
+
+  it should "return None when the prefixed path has too few segments" in {
+    assert(FileResolver.parseDatasetOwnerAndName("/datasets/owner@x.com/ds").isEmpty)
     assert(FileResolver.parseDatasetOwnerAndName("owner/dataset").isEmpty)
   }
 

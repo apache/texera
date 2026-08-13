@@ -229,6 +229,19 @@ describe("NotebookMigrationService", () => {
     req.flush({ success: true, message: "stored" });
   });
 
+  // deleteNotebookAndMapping
+  it("should call deleteNotebookAndMapping API with the wid", () => {
+    let result: any;
+    service.deleteNotebookAndMapping(7).subscribe(r => (result = r));
+
+    const req = httpMock.expectOne(req => req.url.includes("/notebook-migration/delete-notebook-and-mapping"));
+
+    expect(req.request.method).toBe("POST");
+    expect(req.request.body).toEqual({ wid: 7 });
+    req.flush({ success: true, deleted: 1 });
+    expect(result).toEqual({ success: true, deleted: 1 });
+  });
+
   // sendToAIGenerateWorkflow (enabled) — drives the NotebookMigrationLLM lifecycle.
   // The service builds the client through its createMigrationLLM() seam, so stub
   // that with a plain fake. This keeps the real NotebookMigrationLLM (and its "ai"
@@ -322,6 +335,12 @@ describe("NotebookMigrationService", () => {
       const result = await firstValueFrom(service.storeNotebookAndMapping(1, 1, {}, {}));
       expect(result.success).toBe(false);
       httpMock.expectNone(req => req.url.includes("/notebook-migration/store-notebook-and-mapping"));
+    });
+
+    it("deleteNotebookAndMapping emits a disabled result without making an HTTP call", async () => {
+      const result = await firstValueFrom(service.deleteNotebookAndMapping(7));
+      expect(result.success).toBe(false);
+      httpMock.expectNone(req => req.url.includes("/notebook-migration/delete-notebook-and-mapping"));
     });
   });
 });

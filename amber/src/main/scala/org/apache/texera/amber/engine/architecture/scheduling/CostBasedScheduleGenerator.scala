@@ -194,7 +194,8 @@ class CostBasedScheduleGenerator(
             val portBaseURI = createPortBaseURI(
               workflowId = workflowContext.workflowId,
               executionId = workflowContext.executionId,
-              globalPortId = gpid
+              globalPortId = gpid,
+              warehouse = workflowContext.warehouse
             )
             gpid -> OutputPortConfig(portBaseURI)
           }.toMap

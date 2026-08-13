@@ -167,9 +167,9 @@ describe("UserDatasetVersionFiletreeComponent", () => {
     const emitted: string[] = [];
     component.setCoverImage.subscribe((path: string) => emitted.push(path));
 
-    // parentDir has exactly the three stripped segments (owner/dataset/version),
+    // parentDir has exactly the four stripped segments (datasets/owner/dataset/version),
     // so the relative path is just the file name.
-    component.onSetCover({ name: "photo.png", type: "file", parentDir: "/owner/dataset/v1" });
+    component.onSetCover({ name: "photo.png", type: "file", parentDir: "/datasets/owner/dataset/v1" });
 
     expect(emitted).toEqual(["photo.png"]);
   });
