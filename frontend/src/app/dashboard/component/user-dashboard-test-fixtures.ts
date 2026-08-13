@@ -215,7 +215,7 @@ export const testUserProjects: DashboardProject[] = [
 ];
 
 export const mockUserInfo = {
-  1: { userName: "Texera", googleAvatar: "avatar_url_1" },
-  2: { userName: "Angular", googleAvatar: "avatar_url_2" },
-  3: { userName: "UCI", googleAvatar: "avatar_url_3" },
+  1: { userName: "Texera", avatar: "avatar_url_1" },
+  2: { userName: "Angular", avatar: "avatar_url_2" },
+  3: { userName: "UCI", avatar: "avatar_url_3" },
 };

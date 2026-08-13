@@ -71,7 +71,7 @@ export class StubUserService implements PublicInterfaceOf<UserService> {
 
   logout(): void {}
 
-  register(username: string, password: string): Observable<void> {
+  register(username: string, email: string, password: string): Observable<void> {
     return of();
   }
 
@@ -83,7 +83,7 @@ export class StubUserService implements PublicInterfaceOf<UserService> {
     return this.user;
   }
 
-  getAvatar(googleAvatar: string): Observable<string | undefined> {
+  getAvatar(avatarUrl: string): Observable<string | undefined> {
     return of(undefined);
   }
 

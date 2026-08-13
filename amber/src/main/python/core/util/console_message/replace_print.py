@@ -64,6 +64,13 @@ class replace_print(ContextManager):
             if "file" in kwargs:
                 self.builtins_print(*args, **kwargs)
                 return
+            # The frame that called print(). Look __name__ up with .get, not
+            # []: code run through eval/exec against a bare dict (a Loop End's
+            # condition/update, a Loop Start's output) has no __name__ in its
+            # frame globals -- eval/exec inject __builtins__ but never
+            # __name__ -- and a print() there must not crash the capture.
+            caller = inspect.currentframe().f_back
+            module_name = caller.f_globals.get("__name__", "<unknown>")
             with StringIO() as tmp_buf, redirect_stdout(tmp_buf):
                 self.builtins_print(*args, **kwargs)
                 complete_str = tmp_buf.getvalue()
@@ -71,11 +78,7 @@ class replace_print(ContextManager):
                     worker_id=self.worker_id,
                     timestamp=current_time_in_local_timezone(),
                     msg_type=ConsoleMessageType.PRINT,
-                    source=(
-                        f"{inspect.currentframe().f_back.f_globals['__name__']}"
-                        f":{inspect.currentframe().f_back.f_code.co_name}"
-                        f":{inspect.currentframe().f_back.f_lineno}"
-                    ),
+                    source=(f"{module_name}:{caller.f_code.co_name}:{caller.f_lineno}"),
                     title=complete_str,
                     message="",
                 )

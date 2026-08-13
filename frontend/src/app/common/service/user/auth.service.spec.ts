@@ -47,7 +47,7 @@ describe("AuthService", () => {
     email: "u@x.com",
     sub: "Ursula",
     googleId: "g",
-    googleAvatar: "a",
+    avatar: "a",
     comment: "c",
     joiningReason: "r",
   };
@@ -104,11 +104,11 @@ describe("AuthService", () => {
   });
 
   describe("HTTP auth endpoints", () => {
-    it("register() POSTs username/password to the register endpoint", () => {
-      service.register("alice", "pw").subscribe();
+    it("register() POSTs username/email/password to the register endpoint", () => {
+      service.register("alice", "alice@example.com", "pw").subscribe();
       const req = httpMock.expectOne(`${api}/${AuthService.REGISTER_ENDPOINT}`);
       expect(req.request.method).toEqual("POST");
-      expect(req.request.body).toEqual({ username: "alice", password: "pw" });
+      expect(req.request.body).toEqual({ username: "alice", email: "alice@example.com", password: "pw" });
       req.flush({ accessToken: "t" });
     });
 
@@ -130,7 +130,11 @@ describe("AuthService", () => {
     });
 
     const errorCases = [
-      { name: "register", call: () => service.register("alice", "pw"), endpoint: AuthService.REGISTER_ENDPOINT },
+      {
+        name: "register",
+        call: () => service.register("alice", "alice@example.com", "pw"),
+        endpoint: AuthService.REGISTER_ENDPOINT,
+      },
       { name: "auth", call: () => service.auth("alice", "pw"), endpoint: AuthService.LOGIN_ENDPOINT },
       { name: "googleAuth", call: () => service.googleAuth("cred"), endpoint: AuthService.GOOGLE_LOGIN_ENDPOINT },
     ];
@@ -183,11 +187,19 @@ describe("AuthService", () => {
         name: "Ursula",
         email: "u@x.com",
         googleId: "g",
-        googleAvatar: "a",
+        avatar: "a",
         role: Role.REGULAR,
         comment: "c",
         joiningReason: "r",
       });
+    });
+
+    it("reads the avatar from a pre-rename googleAvatar claim", () => {
+      AuthService.setAccessToken("tok");
+      const { avatar, ...legacyClaims } = claims;
+      jwt.decodeToken.mockReturnValue({ ...legacyClaims, googleAvatar: "legacy-a" });
+
+      expect(service.loginWithExistingToken()?.avatar).toEqual("legacy-a");
     });
 
     it("in invite-only mode, an inactive user is logged out and registration is checked", () => {

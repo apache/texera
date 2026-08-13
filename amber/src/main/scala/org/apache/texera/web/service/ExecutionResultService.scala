@@ -438,7 +438,7 @@ class ExecutionResultService(
                   )
 
                 if (storageUri.nonEmpty) {
-                  val (_, _, globalPortIdOption, _) = VFSURIFactory.decodeURI(storageUri.get)
+                  val globalPortIdOption = VFSURIFactory.decodeURI(storageUri.get).globalPortId
                   val opStorage = DocumentFactory.openDocument(storageUri.get)._1
 
                   allTableStats(opId.id) = opStorage.getTableStatistics
@@ -480,6 +480,9 @@ class ExecutionResultService(
       OperatorIdentity(request.operatorID),
       PortIdentity()
     )
+
+    // Refuse to read a per-user-warehouse result while the feature is off (#6930).
+    storageUriOption.foreach(WarehouseReadGuard.assertReadable(_))
 
     storageUriOption match {
       case Some(storageUri) =>
@@ -524,7 +527,7 @@ class ExecutionResultService(
           .map(uri => {
             val count = DocumentFactory.openDocument(uri)._1.getCount.toInt
 
-            val (_, _, globalPortIdOption, _) = VFSURIFactory.decodeURI(uri)
+            val globalPortIdOption = VFSURIFactory.decodeURI(uri).globalPortId
 
             // Retrieve the mode of the specified output port
             val mode = physicalPlan

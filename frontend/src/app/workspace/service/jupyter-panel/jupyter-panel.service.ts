@@ -99,11 +99,12 @@ export class JupyterPanelService {
         distinctUntilChanged()
       )
       .subscribe(wid => {
-        // On every workflow change, close the panel (which also drops the
-        // outgoing workflow's stale mapping) and clear the highlight index, so a
-        // switch to a workflow without a stored notebook can't leave the
-        // previous workflow's highlights active.
-        this.closeJupyterNotebookPanel();
+        // On every workflow change, hide the panel and drop the outgoing
+        // workflow's stale in-memory mapping, and clear the highlight index, so a
+        // switch to a workflow without a stored notebook can't leave the previous
+        // workflow's highlights active. This is local cleanup only: it must never
+        // delete from the backend, or switching workflows would erase notebooks.
+        this.hideAndClearLocalState();
         this.cellToHighlightMapping = {};
         this.jupyterNotebookExists.next(false);
         // Skip unsaved workflows (wid undefined) and wid 0; both would POST
@@ -209,17 +210,69 @@ export class JupyterPanelService {
     if (!this.enabled) return;
     if (panelName === "JupyterNotebookPanel") {
       this.jupyterNotebookPanelVisible.next(true);
+      // Opening the panel means the current workflow has an associated notebook, so
+      // surface the toolbar "expand" button (jupyterNotebookExists$) right away. Needed
+      // after an in-place import where the wid does not change and init() does not re-run
+      // to detect the notebook.
+      this.jupyterNotebookExists.next(true);
     }
   }
 
-  // Close the Jupyter Notebook panel
-  public closeJupyterNotebookPanel(): void {
+  // Delete the current workflow's stored notebook from the backend, then hide the
+  // panel and clear all local notebook state. This is the user-initiated action
+  // behind the panel's delete button, and is distinct from the workflow-switch
+  // cleanup (hideAndClearLocalState), which must never touch the backend.
+  public deleteJupyterNotebook(): void {
     if (!this.enabled) return;
+    const wid = this.workflowActionService.getWorkflow().wid;
+    // Unsaved workflow (wid undefined or the default wid 0): nothing is persisted,
+    // and a delete POST with such a wid would 500, so just reset local state.
+    if (!wid) {
+      this.hideAndClearLocalState();
+      this.jupyterNotebookExists.next(false);
+      this.clearHighlights();
+      return;
+    }
+    this.notebookMigrationService.deleteNotebookAndMapping(wid).subscribe({
+      next: () => {
+        this.hideAndClearLocalState();
+        this.jupyterNotebookExists.next(false);
+        this.clearHighlights();
+      },
+      error: (err: unknown) => {
+        // Keep the panel open on failure so the user sees the notebook wasn't removed.
+        console.error("Failed to delete Jupyter notebook:", err);
+        this.notificationService.error("Failed to delete the Jupyter notebook.");
+      },
+    });
+  }
+
+  // Hide the panel and drop the current workflow's in-memory mapping. Local only;
+  // never calls the backend. Used on workflow switch and after a successful delete.
+  private hideAndClearLocalState(): void {
     this.jupyterNotebookPanelVisible.next(false);
     const wid = this.workflowActionService.getWorkflow().wid;
     if (wid != undefined) {
       this.notebookMigrationService.deleteMapping("mapping_wid_" + wid);
     }
+  }
+
+  // Unhighlight all operators and links and drop the highlight index, used once
+  // the notebook is gone so no stale cell-to-operator highlights remain.
+  private clearHighlights(): void {
+    this.workflowActionService.unhighlightOperators(
+      ...this.workflowActionService
+        .getTexeraGraph()
+        .getAllOperators()
+        .map(op => op.operatorID)
+    );
+    this.workflowActionService.unhighlightLinks(
+      ...this.workflowActionService
+        .getTexeraGraph()
+        .getAllLinks()
+        .map(link => link.linkID)
+    );
+    this.cellToHighlightMapping = {};
   }
 
   // Minimize the Jupyter Notebook panel

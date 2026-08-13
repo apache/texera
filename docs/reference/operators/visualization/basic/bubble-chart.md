@@ -35,7 +35,7 @@ tags: [visualization, basic]
 | Y-Column | ✓ | String | - | Data column for the y-axis |
 | Z-Column | ✓ | String | - | Data column to determine bubble size |
 | Enable Color |  | Boolean | false | Colors bubbles using a data column |
-| Color-Column | ✓ | String | - | Picks data column to color bubbles with if color<br>is enabled |
+| Color-Column |  | String | - | Optional data column to color bubbles with; leave<br>empty for uniform bubbles |
 
 ### Output Ports
 

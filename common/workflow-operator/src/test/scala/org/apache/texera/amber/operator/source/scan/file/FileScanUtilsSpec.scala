@@ -29,11 +29,11 @@ import java.util.zip.{ZipEntry, ZipOutputStream}
 
 class FileScanUtilsSpec extends AnyFlatSpec with BeforeAndAfterAll {
 
-  private val zips = scala.collection.mutable.ArrayBuffer.empty[Path]
+  private val tempFiles = scala.collection.mutable.ArrayBuffer.empty[Path]
 
   private def makeZip(entries: (String, String)*): String = {
     val path = Files.createTempFile("filescanutils-", ".zip")
-    zips += path
+    tempFiles += path
     val zipOut = new ZipOutputStream(new BufferedOutputStream(new FileOutputStream(path.toFile)))
     try {
       entries.foreach {
@@ -48,8 +48,15 @@ class FileScanUtilsSpec extends AnyFlatSpec with BeforeAndAfterAll {
     path.toFile.toURI.toString
   }
 
+  private def makeTextFile(content: String): String = {
+    val path = Files.createTempFile("filescanutils-", ".txt")
+    tempFiles += path
+    Files.write(path, content.getBytes("UTF-8"))
+    path.toFile.toURI.toString
+  }
+
   override def afterAll(): Unit = {
-    zips.foreach(Files.deleteIfExists)
+    tempFiles.foreach(Files.deleteIfExists)
     super.afterAll()
   }
 
@@ -105,6 +112,135 @@ class FileScanUtilsSpec extends AnyFlatSpec with BeforeAndAfterAll {
       .toSeq
     assert(contents(tuples) == Seq("l1", "l2", "l3"))
   }
+
+  it should "skip the offset lines and return all remaining lines when no limit is set" in {
+    val tuples = FileScanUtils
+      .createTuplesFromFile(
+        fileName = makeTextFile("l1\nl2\nl3\nl4\nl5"),
+        displayFileName = "d",
+        attributeType = FileAttributeType.STRING,
+        fileEncoding = FileDecodingMethod.UTF_8,
+        extract = false,
+        outputFileName = false,
+        fileScanOffset = Some(1),
+        fileScanLimit = None
+      )
+      .toSeq
+    assert(contents(tuples) == Seq("l2", "l3", "l4", "l5"))
+  }
+
+  it should "return every line for a zero offset with no limit" in {
+    val tuples = FileScanUtils
+      .createTuplesFromFile(
+        fileName = makeTextFile("l1\nl2\nl3\nl4\nl5"),
+        displayFileName = "d",
+        attributeType = FileAttributeType.STRING,
+        fileEncoding = FileDecodingMethod.UTF_8,
+        extract = false,
+        outputFileName = false,
+        fileScanOffset = Some(0),
+        fileScanLimit = None
+      )
+      .toSeq
+    assert(contents(tuples) == Seq("l1", "l2", "l3", "l4", "l5"))
+  }
+
+  it should "return limit lines starting at the offset when both are set" in {
+    val tuples = FileScanUtils
+      .createTuplesFromFile(
+        fileName = makeTextFile("l1\nl2\nl3\nl4\nl5"),
+        displayFileName = "d",
+        attributeType = FileAttributeType.STRING,
+        fileEncoding = FileDecodingMethod.UTF_8,
+        extract = false,
+        outputFileName = false,
+        fileScanOffset = Some(1),
+        fileScanLimit = Some(2)
+      )
+      .toSeq
+    assert(contents(tuples) == Seq("l2", "l3"))
+  }
+
+  it should "return the first limit lines when only a limit is set" in {
+    val tuples = FileScanUtils
+      .createTuplesFromFile(
+        fileName = makeTextFile("l1\nl2\nl3\nl4\nl5"),
+        displayFileName = "d",
+        attributeType = FileAttributeType.STRING,
+        fileEncoding = FileDecodingMethod.UTF_8,
+        extract = false,
+        outputFileName = false,
+        fileScanOffset = None,
+        fileScanLimit = Some(2)
+      )
+      .toSeq
+    assert(contents(tuples) == Seq("l1", "l2"))
+  }
+
+  it should "return no tuples when the offset is past the end of the file" in {
+    val tuples = FileScanUtils
+      .createTuplesFromFile(
+        fileName = makeTextFile("l1\nl2\nl3\nl4\nl5"),
+        displayFileName = "d",
+        attributeType = FileAttributeType.STRING,
+        fileEncoding = FileDecodingMethod.UTF_8,
+        extract = false,
+        outputFileName = false,
+        fileScanOffset = Some(99),
+        fileScanLimit = None
+      )
+      .toSeq
+    assert(contents(tuples) == Seq.empty)
+  }
+
+  it should "return no tuples for an Int.MaxValue offset without overflowing" in {
+    val tuples = FileScanUtils
+      .createTuplesFromFile(
+        fileName = makeTextFile("l1\nl2\nl3\nl4\nl5"),
+        displayFileName = "d",
+        attributeType = FileAttributeType.STRING,
+        fileEncoding = FileDecodingMethod.UTF_8,
+        extract = false,
+        outputFileName = false,
+        fileScanOffset = Some(Int.MaxValue),
+        fileScanLimit = None
+      )
+      .toSeq
+    assert(contents(tuples) == Seq.empty)
+  }
+
+  it should "apply an offset without a limit to each extracted zip entry independently" in {
+    val tuples = FileScanUtils
+      .createTuplesFromFile(
+        fileName = makeZip("a.txt" -> "a1\na2", "b.txt" -> "b1\nb2"),
+        displayFileName = "d",
+        attributeType = FileAttributeType.STRING,
+        fileEncoding = FileDecodingMethod.UTF_8,
+        extract = true,
+        outputFileName = false,
+        fileScanOffset = Some(1),
+        fileScanLimit = None
+      )
+      .toSeq
+    assert(contents(tuples) == Seq("a2", "b2"))
+  }
+
+  it should "ignore the offset for a single-tuple attribute type" in {
+    val tuples = FileScanUtils
+      .createTuplesFromFile(
+        fileName = makeTextFile("l1\nl2\nl3\nl4\nl5"),
+        displayFileName = "d",
+        attributeType = FileAttributeType.SINGLE_STRING,
+        fileEncoding = FileDecodingMethod.UTF_8,
+        extract = false,
+        outputFileName = false,
+        fileScanOffset = Some(1),
+        fileScanLimit = None
+      )
+      .toSeq
+    assert(contents(tuples) == Seq("l1\nl2\nl3\nl4\nl5"))
+  }
+
   it should "throw RuntimeException when binary file exceeds natural memory limit" in {
     val mockLargeInputStream = new java.io.InputStream {
       override def read(): Int = {
