@@ -71,21 +71,41 @@ class FileListerSourceOpExecSpec extends AnyFlatSpec {
     )
   }
 
-  it should "reject a path without a resource-type prefix" in {
-    assertThrows[IllegalArgumentException] {
+  it should "still accept a legacy unprefixed path" in {
+    val (prefix, owner, name, version) =
       FileListerSourceOpExec.parseDatasetVersionPath("/alice/ds/v1")
-    }
+    assert(prefix == "datasets")
+    assert(owner == "alice")
+    assert(name == "ds")
+    assert(version == "v1")
   }
 
-  it should "reject a path whose prefix is not a known resource type" in {
-    assertThrows[IllegalArgumentException] {
-      FileListerSourceOpExec.parseDatasetVersionPath("/notAResourceType/alice/ds/v1")
-    }
+  it should "normalize a legacy unprefixed path to the canonical prefixed form" in {
+    val (prefix, owner, name, version) =
+      FileListerSourceOpExec.parseDatasetVersionPath("/alice/ds/v1")
+    assert(
+      FileListerSourceOpExec.canonicalVersionPath(prefix, owner, name, version)
+        == "/datasets/alice/ds/v1"
+    )
   }
 
-  it should "reject a path with too few segments" in {
+  it should "read an unknown leading segment as a legacy owner" in {
+    val (_, owner, name, version) =
+      FileListerSourceOpExec.parseDatasetVersionPath("/notAResourceType/alice/ds")
+    assert(owner == "notAResourceType")
+    assert(name == "alice")
+    assert(version == "ds")
+  }
+
+  it should "reject a prefixed path with too few segments" in {
     assertThrows[IllegalArgumentException] {
       FileListerSourceOpExec.parseDatasetVersionPath("/datasets/alice/ds")
+    }
+  }
+
+  it should "reject a legacy path with too few segments" in {
+    assertThrows[IllegalArgumentException] {
+      FileListerSourceOpExec.parseDatasetVersionPath("/alice/ds")
     }
   }
 }
