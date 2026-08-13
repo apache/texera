@@ -41,7 +41,6 @@ class ModelResourceSpec
   private val ownerUser: User = {
     val user = new User
     user.setName("model_user")
-    user.setPassword("123")
     user.setEmail("model_user@test.com")
     user.setRole(UserRoleEnum.ADMIN)
     user
@@ -50,7 +49,6 @@ class ModelResourceSpec
   private val otherUser: User = {
     val user = new User
     user.setName("model_user2")
-    user.setPassword("123")
     user.setEmail("model_user2@test.com")
     user.setRole(UserRoleEnum.ADMIN)
     user

@@ -51,6 +51,7 @@ import org.apache.texera.dao.jooq.generated.tables.pojos.{
 }
 import org.apache.texera.service.`type`.DatasetFileNode
 import org.apache.texera.service.resource.DatasetAccessResource._
+import org.apache.texera.service.resource.ManagedResource.{Dataset => DATASET_RESOURCE}
 import org.apache.texera.service.resource.DatasetResource.{context, _}
 import org.apache.texera.service.util.S3StorageClient
 import org.apache.texera.service.util.S3StorageClient.{
@@ -407,17 +408,7 @@ class DatasetResource extends LazyLogging {
       val isDatasetDownloadable = request.isDatasetDownloadable
 
       validateDatasetName(datasetName)
-
-      // Check if a dataset with the same name already exists
-      val duplicateExists = ctx.fetchExists(
-        ctx
-          .selectFrom(DATASET)
-          .where(DATASET.OWNER_UID.eq(uid))
-          .and(DATASET.NAME.eq(datasetName))
-      )
-      if (duplicateExists) {
-        throw new BadRequestException("Dataset with the same name already exists")
-      }
+      ResourceNaming.requireNameAvailable(ctx, DATASET_RESOURCE, uid, datasetName)
 
       // insert the dataset into the database
       val dataset = new Dataset()
@@ -672,18 +663,13 @@ class DatasetResource extends LazyLogging {
       }
 
       validateDatasetName(modificator.name)
-
-      // Check if the owner already has another dataset with the same name
-      val duplicateExists = ctx.fetchExists(
-        ctx
-          .selectFrom(DATASET)
-          .where(DATASET.OWNER_UID.eq(dataset.getOwnerUid))
-          .and(DATASET.NAME.eq(modificator.name))
-          .and(DATASET.DID.notEqual(dataset.getDid))
+      ResourceNaming.requireNameAvailable(
+        ctx,
+        DATASET_RESOURCE,
+        dataset.getOwnerUid,
+        modificator.name,
+        excludingId = Some(dataset.getDid)
       )
-      if (duplicateExists) {
-        throw new BadRequestException("Dataset with the same name already exists")
-      }
 
       dataset.setName(modificator.name)
       failOnDuplicateDatasetName {
@@ -1606,47 +1592,13 @@ class DatasetResource extends LazyLogging {
       .fetchInto(classOf[String])
   }
 
-  private val DATASET_NAME_MAX_LENGTH = 128
-  private val DATASET_NAME_PATTERN = "^[A-Za-z0-9_-]+$".r
+  /** @see [[ResourceNaming.validateName]] */
+  private def validateDatasetName(name: String): Unit =
+    ResourceNaming.validateName(DATASET_RESOURCE.label, name)
 
-  /**
-    * Validates the dataset name.
-    *
-    * Rules:
-    * - Must be 1 to 128 characters long.
-    * - Only letters, numbers, underscores, and hyphens are allowed.
-    *
-    * @param name The dataset name to validate.
-    * @throws jakarta.ws.rs.BadRequestException if the name is invalid.
-    */
-  private def validateDatasetName(name: String): Unit = {
-    if (name == null || !DATASET_NAME_PATTERN.matches(name)) {
-      throw new BadRequestException(
-        "Invalid dataset name: only letters, numbers, underscores, and hyphens are allowed."
-      )
-    }
-    if (name.length > DATASET_NAME_MAX_LENGTH) {
-      throw new BadRequestException(
-        s"Invalid dataset name: name must be at most $DATASET_NAME_MAX_LENGTH characters long."
-      )
-    }
-  }
-
-  /**
-    * Runs a dataset write and translates a (owner_uid, name) unique-constraint
-    * violation into the same BadRequestException the pre-checks throw, so
-    * requests losing a concurrent race get a 400 instead of a 500.
-    */
-  private[resource] def failOnDuplicateDatasetName[T](op: => T): T = {
-    try op
-    catch {
-      case e: DataAccessException =>
-        if (e.sqlState() == "23505") {
-          throw new BadRequestException("Dataset with the same name already exists")
-        }
-        throw e
-    }
-  }
+  /** @see [[ResourceNaming.failOnDuplicateName]] */
+  private[resource] def failOnDuplicateDatasetName[T](op: => T): T =
+    ResourceNaming.failOnDuplicateName(DATASET_RESOURCE.label)(op)
 
   private def fetchDatasetVersions(ctx: DSLContext, did: Integer): List[DatasetVersion] = {
     ctx

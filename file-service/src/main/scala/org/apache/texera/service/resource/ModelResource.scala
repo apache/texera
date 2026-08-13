@@ -35,11 +35,11 @@ import org.apache.texera.dao.jooq.generated.tables.ModelUserAccess.MODEL_USER_AC
 import org.apache.texera.dao.jooq.generated.tables.User.USER
 import org.apache.texera.dao.jooq.generated.tables.daos.{ModelDao, ModelUserAccessDao}
 import org.apache.texera.dao.jooq.generated.tables.pojos.{Model, ModelUserAccess}
+import org.apache.texera.service.resource.ManagedResource.{Model => MODEL_RESOURCE}
 import org.apache.texera.service.resource.ModelAccessResource._
 import org.apache.texera.service.resource.ModelResource.{context, _}
 import org.apache.texera.service.util.S3StorageClient
 import org.apache.texera.service.util.LakeFSExceptionHandler.withLakeFSErrorHandling
-import org.jooq.exception.DataAccessException
 import org.jooq.{DSLContext, EnumType}
 
 import scala.collection.mutable.ListBuffer
@@ -94,48 +94,6 @@ object ModelResource {
 class ModelResource extends LazyLogging {
   private val ERR_USER_HAS_NO_ACCESS_TO_MODEL_MESSAGE = "User has no access to this model"
 
-  private val MODEL_NAME_MAX_LENGTH = 128
-  private val MODEL_NAME_PATTERN = "^[A-Za-z0-9_-]+$".r
-
-  /**
-    * Validates the model name.
-    *
-    * Rules:
-    * - Must be 1 to 128 characters long.
-    * - Only letters, numbers, underscores, and hyphens are allowed.
-    *
-    * @param name The model name to validate.
-    * @throws jakarta.ws.rs.BadRequestException if the name is invalid.
-    */
-  private def validateModelName(name: String): Unit = {
-    if (name == null || !MODEL_NAME_PATTERN.matches(name)) {
-      throw new BadRequestException(
-        "Invalid model name: only letters, numbers, underscores, and hyphens are allowed."
-      )
-    }
-    if (name.length > MODEL_NAME_MAX_LENGTH) {
-      throw new BadRequestException(
-        s"Invalid model name: name must be at most $MODEL_NAME_MAX_LENGTH characters long."
-      )
-    }
-  }
-
-  /**
-    * Runs a model write and translates a (owner_uid, name) unique-constraint
-    * violation into the same BadRequestException the pre-checks throw, so
-    * requests losing a concurrent race get a 400 instead of a 500.
-    */
-  private[resource] def failOnDuplicateModelName[T](op: => T): T = {
-    try op
-    catch {
-      case e: DataAccessException =>
-        if (e.sqlState() == "23505") {
-          throw new BadRequestException("Model with the same name already exists")
-        }
-        throw e
-    }
-  }
-
   /**
     * Helper function to get the model from DB with additional information including
     * user access privilege and owner email
@@ -188,18 +146,8 @@ class ModelResource extends LazyLogging {
       val isModelPublic = request.isModelPublic
       val isModelDownloadable = request.isModelDownloadable
 
-      validateModelName(modelName)
-
-      // Check if a model with the same name already exists
-      val duplicateExists = ctx.fetchExists(
-        ctx
-          .selectFrom(MODEL)
-          .where(MODEL.OWNER_UID.eq(uid))
-          .and(MODEL.NAME.eq(modelName))
-      )
-      if (duplicateExists) {
-        throw new BadRequestException("Model with the same name already exists")
-      }
+      ResourceNaming.validateName(MODEL_RESOURCE.label, modelName)
+      ResourceNaming.requireNameAvailable(ctx, MODEL_RESOURCE, uid, modelName)
 
       // insert the model into the database
       val model = new Model()
@@ -212,7 +160,7 @@ class ModelResource extends LazyLogging {
       model.setFormat(request.format)
 
       // insert record and get created model with mid
-      val createdModel = failOnDuplicateModelName {
+      val createdModel = ResourceNaming.failOnDuplicateName(MODEL_RESOURCE.label) {
         ctx
           .insertInto(MODEL)
           .set(ctx.newRecord(MODEL, model))
@@ -332,22 +280,17 @@ class ModelResource extends LazyLogging {
         throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_MODEL_MESSAGE)
       }
 
-      validateModelName(modificator.name)
-
-      // Check if the owner already has another model with the same name
-      val duplicateExists = ctx.fetchExists(
-        ctx
-          .selectFrom(MODEL)
-          .where(MODEL.OWNER_UID.eq(model.getOwnerUid))
-          .and(MODEL.NAME.eq(modificator.name))
-          .and(MODEL.MID.notEqual(model.getMid))
+      ResourceNaming.validateName(MODEL_RESOURCE.label, modificator.name)
+      ResourceNaming.requireNameAvailable(
+        ctx,
+        MODEL_RESOURCE,
+        model.getOwnerUid,
+        modificator.name,
+        excludingId = Some(model.getMid)
       )
-      if (duplicateExists) {
-        throw new BadRequestException("Model with the same name already exists")
-      }
 
       model.setName(modificator.name)
-      failOnDuplicateModelName {
+      ResourceNaming.failOnDuplicateName(MODEL_RESOURCE.label) {
         modelDao.update(model)
       }
       Response.ok().build()

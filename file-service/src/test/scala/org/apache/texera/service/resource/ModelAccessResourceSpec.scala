@@ -19,7 +19,7 @@
 
 package org.apache.texera.service.resource
 
-import jakarta.ws.rs.ForbiddenException
+import jakarta.ws.rs.{BadRequestException, ForbiddenException}
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.dao.MockTexeraDB
 import org.apache.texera.dao.jooq.generated.enums.{PrivilegeEnum, UserRoleEnum}
@@ -50,7 +50,6 @@ class ModelAccessResourceSpec
   private val ownerUser: User = {
     val user = new User
     user.setName("model_owner")
-    user.setPassword("123")
     user.setEmail("model_owner@test.com")
     user.setRole(UserRoleEnum.REGULAR)
     user
@@ -59,7 +58,6 @@ class ModelAccessResourceSpec
   private val readGranteeUser: User = {
     val user = new User
     user.setName("read_grantee")
-    user.setPassword("123")
     user.setEmail("read_grantee@test.com")
     user.setRole(UserRoleEnum.REGULAR)
     user
@@ -68,7 +66,6 @@ class ModelAccessResourceSpec
   private val writeGranteeUser: User = {
     val user = new User
     user.setName("write_grantee")
-    user.setPassword("123")
     user.setEmail("write_grantee@test.com")
     user.setRole(UserRoleEnum.REGULAR)
     user
@@ -77,7 +74,6 @@ class ModelAccessResourceSpec
   private val strangerUser: User = {
     val user = new User
     user.setName("stranger")
-    user.setPassword("123")
     user.setEmail("stranger@test.com")
     user.setRole(UserRoleEnum.REGULAR)
     user
@@ -270,6 +266,37 @@ class ModelAccessResourceSpec
     entries.head.email shouldEqual readGranteeUser.getEmail
     entries.head.name shouldEqual readGranteeUser.getName
     entries.head.privilege shouldEqual PrivilegeEnum.READ
+  }
+
+  it should "reject granting to a placeholder account" in {
+    val placeholder = new User
+    placeholder.setName("model_placeholder")
+    placeholder.setEmail("model-placeholder@test.com")
+    placeholder.setRole(UserRoleEnum.INACTIVE)
+    placeholder.setIsPlaceholder(true)
+    new UserDao(getDSLContext.configuration()).insert(placeholder)
+
+    assertThrows[BadRequestException] {
+      accessResource.grantAccess(
+        privateModel.getMid,
+        "model-placeholder@test.com",
+        "READ",
+        ownerSession
+      )
+    }
+    accessList(privateModel.getMid) shouldBe empty
+  }
+
+  it should "reject granting to an unknown email" in {
+    assertThrows[BadRequestException] {
+      accessResource.grantAccess(
+        privateModel.getMid,
+        "nobody@test.com",
+        "READ",
+        ownerSession
+      )
+    }
+    accessList(privateModel.getMid) shouldBe empty
   }
 
   it should "update the privilege in place when re-granting with a different privilege" in {

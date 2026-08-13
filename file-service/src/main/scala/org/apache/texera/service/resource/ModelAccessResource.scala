@@ -26,18 +26,11 @@ import jakarta.ws.rs._
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.SqlServer.withTransaction
-import org.apache.texera.dao.jooq.generated.Tables.USER
 import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
-import org.apache.texera.dao.jooq.generated.tables.ModelUserAccess.MODEL_USER_ACCESS
-import org.apache.texera.dao.jooq.generated.tables.daos.{ModelDao, ModelUserAccessDao, UserDao}
-import org.apache.texera.dao.jooq.generated.tables.pojos.{ModelUserAccess, User}
-import org.apache.texera.service.resource.ModelAccessResource.{
-  AccessEntry,
-  context,
-  getOwner,
-  userHasWriteAccess
-}
-import org.jooq.{DSLContext, EnumType}
+import org.apache.texera.dao.jooq.generated.tables.pojos.User
+import org.apache.texera.service.resource.ModelAccessResource.context
+import org.apache.texera.service.resource.ManagedResource.{Model => MODEL_RESOURCE}
+import org.jooq.DSLContext
 
 object ModelAccessResource {
   private def context: DSLContext =
@@ -45,61 +38,29 @@ object ModelAccessResource {
       .getInstance()
       .createDSLContext()
 
-  def isModelPublic(ctx: DSLContext, mid: Integer): Boolean = {
-    val modelDao = new ModelDao(ctx.configuration())
-    Option(modelDao.fetchOneByMid(mid))
-      .flatMap(model => Option(model.getIsPublic))
-      .contains(true)
-  }
+  type AccessEntry = ResourceAccess.AccessEntry
+  val AccessEntry: ResourceAccess.AccessEntry.type = ResourceAccess.AccessEntry
 
-  def userHasReadAccess(ctx: DSLContext, mid: Integer, uid: Integer): Boolean = {
-    isModelPublic(ctx, mid) ||
-    userHasWriteAccess(ctx, mid, uid) ||
-    getModelUserAccessPrivilege(ctx, mid, uid) == PrivilegeEnum.READ
-  }
+  def isModelPublic(ctx: DSLContext, mid: Integer): Boolean =
+    ResourceAccess.isPublic(ctx, MODEL_RESOURCE, mid)
 
-  def userOwnModel(ctx: DSLContext, mid: Integer, uid: Integer): Boolean = {
-    val modelDao = new ModelDao(ctx.configuration())
+  def userHasReadAccess(ctx: DSLContext, mid: Integer, uid: Integer): Boolean =
+    ResourceAccess.userHasReadAccess(ctx, MODEL_RESOURCE, mid, uid)
 
-    Option(modelDao.fetchOneByMid(mid))
-      .exists(_.getOwnerUid == uid)
-  }
+  def userOwnModel(ctx: DSLContext, mid: Integer, uid: Integer): Boolean =
+    ResourceAccess.userOwns(ctx, MODEL_RESOURCE, mid, uid)
 
-  def userHasWriteAccess(ctx: DSLContext, mid: Integer, uid: Integer): Boolean = {
-    userOwnModel(ctx, mid, uid) ||
-    getModelUserAccessPrivilege(ctx, mid, uid) == PrivilegeEnum.WRITE
-  }
+  def userHasWriteAccess(ctx: DSLContext, mid: Integer, uid: Integer): Boolean =
+    ResourceAccess.userHasWriteAccess(ctx, MODEL_RESOURCE, mid, uid)
 
   def getModelUserAccessPrivilege(
       ctx: DSLContext,
       mid: Integer,
       uid: Integer
-  ): PrivilegeEnum = {
-    Option(
-      ctx
-        .select(MODEL_USER_ACCESS.PRIVILEGE)
-        .from(MODEL_USER_ACCESS)
-        .where(
-          MODEL_USER_ACCESS.MID
-            .eq(mid)
-            .and(MODEL_USER_ACCESS.UID.eq(uid))
-        )
-        .fetchOneInto(classOf[PrivilegeEnum])
-    ).getOrElse(PrivilegeEnum.NONE)
-  }
+  ): PrivilegeEnum = ResourceAccess.privilegeOf(ctx, MODEL_RESOURCE, mid, uid)
 
-  def getOwner(ctx: DSLContext, mid: Integer): User = {
-    val modelDao = new ModelDao(ctx.configuration())
-    val userDao = new UserDao(ctx.configuration())
-
-    Option(modelDao.fetchOneByMid(mid))
-      .flatMap(model => Option(model.getOwnerUid))
-      .map(ownerUid => userDao.fetchOneByUid(ownerUid))
-      .orNull
-  }
-
-  case class AccessEntry(email: String, name: String, privilege: EnumType) {}
-
+  def getOwner(ctx: DSLContext, mid: Integer): User =
+    ResourceAccess.owner(ctx, MODEL_RESOURCE, mid)
 }
 
 @Produces(Array(MediaType.APPLICATION_JSON))
@@ -115,16 +76,8 @@ class ModelAccessResource {
     */
   @GET
   @Path("/owner/{mid}")
-  def getOwnerEmailOfModel(@PathParam("mid") mid: Integer): String = {
-    var email = ""
-    withTransaction(context) { ctx =>
-      val owner = getOwner(ctx, mid)
-      if (owner != null) {
-        email = owner.getEmail
-      }
-    }
-    email
-  }
+  def getOwnerEmailOfModel(@PathParam("mid") mid: Integer): String =
+    withTransaction(context)(ctx => ResourceAccess.ownerEmail(ctx, MODEL_RESOURCE, mid))
 
   /**
     * Returns information about all current shared access of the given model
@@ -136,26 +89,8 @@ class ModelAccessResource {
   @Path("/list/{mid}")
   def getAccessList(
       @PathParam("mid") mid: Integer
-  ): java.util.List[AccessEntry] = {
-    withTransaction(context) { ctx =>
-      val modelDao = new ModelDao(ctx.configuration())
-      ctx
-        .select(
-          USER.EMAIL,
-          USER.NAME,
-          MODEL_USER_ACCESS.PRIVILEGE
-        )
-        .from(MODEL_USER_ACCESS)
-        .join(USER)
-        .on(USER.UID.eq(MODEL_USER_ACCESS.UID))
-        .where(
-          MODEL_USER_ACCESS.MID
-            .eq(mid)
-            .and(MODEL_USER_ACCESS.UID.notEqual(modelDao.fetchOneByMid(mid).getOwnerUid))
-        )
-        .fetchInto(classOf[AccessEntry])
-    }
-  }
+  ): java.util.List[ModelAccessResource.AccessEntry] =
+    withTransaction(context)(ctx => ResourceAccess.accessList(ctx, MODEL_RESOURCE, mid))
 
   /**
     * This method shares a model to a user with a specific access type
@@ -172,23 +107,10 @@ class ModelAccessResource {
       @PathParam("email") email: String,
       @PathParam("privilege") privilege: String,
       @Auth user: SessionUser
-  ): Response = {
+  ): Response =
     withTransaction(context) { ctx =>
-      if (!userHasWriteAccess(ctx, mid, user.getUid)) {
-        throw new ForbiddenException(s"You do not have permission to modify model $mid")
-      }
-      val modelUserAccessDao = new ModelUserAccessDao(ctx.configuration())
-      val userDao = new UserDao(ctx.configuration())
-      modelUserAccessDao.merge(
-        new ModelUserAccess(
-          mid,
-          userDao.fetchOneByEmail(email).getUid,
-          PrivilegeEnum.valueOf(privilege)
-        )
-      )
-      Response.ok().build()
+      ResourceAccess.grant(ctx, MODEL_RESOURCE, mid, email, privilege, user.getUid)
     }
-  }
 
   /**
     * This method revoke the user's access of the given model
@@ -203,24 +125,8 @@ class ModelAccessResource {
       @PathParam("mid") mid: Integer,
       @PathParam("email") email: String,
       @Auth user: SessionUser
-  ): Response = {
+  ): Response =
     withTransaction(context) { ctx =>
-      if (!userHasWriteAccess(ctx, mid, user.getUid)) {
-        throw new ForbiddenException(s"You do not have permission to modify model $mid")
-      }
-
-      val userDao = new UserDao(ctx.configuration())
-
-      ctx
-        .delete(MODEL_USER_ACCESS)
-        .where(
-          MODEL_USER_ACCESS.UID
-            .eq(userDao.fetchOneByEmail(email).getUid)
-            .and(MODEL_USER_ACCESS.MID.eq(mid))
-        )
-        .execute()
-
-      Response.ok().build()
+      ResourceAccess.revoke(ctx, MODEL_RESOURCE, mid, email, user.getUid)
     }
-  }
 }
