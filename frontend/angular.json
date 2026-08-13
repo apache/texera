@@ -80,8 +80,7 @@
           "builder": "@angular-builders/custom-webpack:dev-server",
           "options": {
             "buildTarget": "gui:build",
-            "proxyConfig": "proxy.config.json",
-            "host": "127.0.0.1"
+            "proxyConfig": "proxy.config.json"
           },
           "configurations": {
             "production": {
