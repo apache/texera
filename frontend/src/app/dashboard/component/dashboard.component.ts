@@ -24,7 +24,6 @@ import { FlarumService } from "../service/user/flarum/flarum.service";
 import { HttpErrorResponse } from "@angular/common/http";
 import { ActivatedRoute, NavigationEnd, Router, RouterLink, RouterOutlet } from "@angular/router";
 import { HubComponent } from "../../hub/component/hub.component";
-import { SocialAuthService, GoogleSigninButtonModule } from "@abacritt/angularx-social-login";
 import { AdminSettingsService } from "../service/admin/settings/admin-settings.service";
 import { GuiConfigService } from "../../common/service/gui-config.service";
 
@@ -42,6 +41,7 @@ import {
   USER_QUOTA,
   USER_WORKFLOW,
   USER_FEEDBACK,
+  LOGIN,
 } from "../../app-routing.constant";
 import { Version } from "../../../environments/version";
 import { SidebarTabs } from "../../common/type/gui-config";
@@ -53,6 +53,7 @@ import { NgIf } from "@angular/common";
 import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
 import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
 import { NzIconDirective } from "ng-zorro-antd/icon";
+import { NzButtonComponent } from "ng-zorro-antd/button";
 import { SearchBarComponent } from "./user/search-bar/search-bar.component";
 import { UserIconComponent } from "./user/user-icon/user-icon.component";
 
@@ -72,9 +73,9 @@ import { UserIconComponent } from "./user/user-icon/user-icon.component";
     NzTooltipDirective,
     RouterLink,
     NzIconDirective,
+    NzButtonComponent,
     SearchBarComponent,
     UserIconComponent,
-    GoogleSigninButtonModule,
     NzContentComponent,
     RouterOutlet,
   ],
@@ -111,6 +112,7 @@ export class DashboardComponent implements OnInit {
     about_enabled: false,
   };
 
+  protected readonly LOGIN = LOGIN;
   protected readonly USER_PROJECT = USER_PROJECT;
   protected readonly USER_WORKFLOW = USER_WORKFLOW;
   protected readonly USER_DATASET = USER_DATASET;
@@ -131,7 +133,6 @@ export class DashboardComponent implements OnInit {
     private router: Router,
     private flarumService: FlarumService,
     private ngZone: NgZone,
-    private socialAuthService: SocialAuthService,
     private route: ActivatedRoute,
     private adminSettingsService: AdminSettingsService,
     protected config: GuiConfigService
@@ -161,17 +162,6 @@ export class DashboardComponent implements OnInit {
           this.forumLogin();
         });
       });
-
-    this.socialAuthService.authState.pipe(untilDestroyed(this)).subscribe(user => {
-      this.userService
-        .googleLogin(user.idToken)
-        .pipe(untilDestroyed(this))
-        .subscribe(() => {
-          this.ngZone.run(() => {
-            this.router.navigateByUrl(this.route.snapshot.queryParams["returnUrl"] || USER_WORKFLOW);
-          });
-        });
-    });
 
     this.loadLogos();
 

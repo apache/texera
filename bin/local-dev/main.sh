@@ -40,6 +40,7 @@
 #   bin/local-dev.sh up [service]
 #                       [--fresh|--build|--skip-build] [--skip=svc1,svc2] [--json]
 #                       [--worktree=PATH | --branch=NAME]
+#                       [--install-missing | --no-install]
 #                                             Default: skip build if no source/lock
 #                                             changes since last build. --build forces
 #                                             incremental sbt dist + yarn/bun install.
@@ -72,11 +73,22 @@
 #                                             branch and run its own local-dev.sh
 #                                             instead (a warning is printed when such
 #                                             drift is detected).
+#                                             TOOLCHAIN: a missing JDK 17 / Node /
+#                                             Python 3.12 is offered for install
+#                                             (distro package manager for the JDK,
+#                                             nvm for Node, pyenv for Python) after
+#                                             asking. --install-missing answers yes
+#                                             without asking, --no-install only ever
+#                                             prints the hint. Without a TTY the
+#                                             prompt is skipped entirely, so scripted
+#                                             and CI runs behave as before. Same flags
+#                                             on `auto`.
 #   bin/local-dev.sh down [service] [--skip=svc1,svc2] [--json]
 #                                             stop every non-skipped service, or just
 #                                             <service> (--json: summary JSON on
 #                                             stdout).
 #   bin/local-dev.sh auto [--skip=svc1,svc2] [--json]
+#                       [--install-missing | --no-install]
 #                                             rebuild + bounce only the services whose
 #                                             source changed since the last build.
 #   bin/local-dev.sh logs <service>           tail this service's log.
@@ -288,6 +300,115 @@ amap_append() {
     eval "$_var=\"\${$_var:-}\$_suffix\""
 }
 
+# --------- toolchain versions + consented install ---------
+# The versions this repo needs (AGENTS.md's table, and the CI matrices).
+# Overridable so a contributor can try a newer runtime without editing this.
+TEXERA_PYTHON_VERSION="${TEXERA_PYTHON_VERSION:-3.12}"
+TEXERA_NODE_VERSION="${TEXERA_NODE_VERSION:-24}"
+
+# This block sits above the JDK probe on purpose: the probe is the first thing
+# that can fail on a fresh machine, and it should be able to offer a fix. That
+# also means no colour variables here — those are defined further down, with
+# the rest of the TUI helpers.
+
+# The package manager we'd install with, or non-zero if we don't recognise one.
+_pkg_manager() {
+    case "$(uname -s 2>/dev/null)" in
+        Darwin)
+            command -v brew >/dev/null 2>&1 && { printf 'brew\n'; return 0; }
+            ;;
+        Linux)
+            local m=""
+            for m in apt-get dnf yum pacman zypper; do
+                command -v "$m" >/dev/null 2>&1 && { printf '%s\n' "$m"; return 0; }
+            done
+            ;;
+    esac
+    return 1
+}
+
+# What we would run to install $1. Prints the command and never executes it —
+# that split is what lets us show the user the exact command before asking, and
+# lets CI assert on the decision without installing anything.
+#
+# Java prefers the distro package manager: it is system-wide and the distro
+# patches it. SDKMAN is the fallback when there's no package manager (or no
+# root). Node goes through nvm and Python through pyenv, because the versions
+# this repo needs are newer than most distros ship — and both bootstrap
+# themselves first if absent.
+#
+# docker and sbt are deliberately absent. Docker needs a daemon, group
+# membership and a re-login; that is not something to do behind a y/n prompt.
+_install_cmd_for() {
+    local tool="${1:-}" pm=""
+    pm=$(_pkg_manager) || pm=""
+    case "$tool" in
+        java)
+            case "$pm" in
+                apt-get) printf 'sudo apt-get install -y openjdk-17-jdk\n' ;;
+                dnf)     printf 'sudo dnf install -y java-17-openjdk-devel\n' ;;
+                yum)     printf 'sudo yum install -y java-17-openjdk-devel\n' ;;
+                pacman)  printf 'sudo pacman -S --noconfirm jdk17-openjdk\n' ;;
+                zypper)  printf 'sudo zypper install -y java-17-openjdk-devel\n' ;;
+                brew)    printf 'brew install openjdk@17\n' ;;
+                *)       printf 'curl -s https://get.sdkman.io | bash && sdk install java 17.0.13-tem\n' ;;
+            esac
+            ;;
+        node)
+            if command -v nvm >/dev/null 2>&1 || [[ -s "${NVM_DIR:-$HOME/.nvm}/nvm.sh" ]]; then
+                printf 'nvm install %s && nvm alias default %s\n' \
+                    "$TEXERA_NODE_VERSION" "$TEXERA_NODE_VERSION"
+            else
+                printf 'curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash && . "$HOME/.nvm/nvm.sh" && nvm install %s && nvm alias default %s\n' \
+                    "$TEXERA_NODE_VERSION" "$TEXERA_NODE_VERSION"
+            fi
+            ;;
+        python)
+            if command -v pyenv >/dev/null 2>&1; then
+                printf 'pyenv install -s %s\n' "$TEXERA_PYTHON_VERSION"
+            else
+                printf 'curl -fsSL https://pyenv.run | bash && export PYENV_ROOT="$HOME/.pyenv" && export PATH="$PYENV_ROOT/bin:$PATH" && pyenv install -s %s\n' \
+                    "$TEXERA_PYTHON_VERSION"
+            fi
+            ;;
+        *) return 1 ;;
+    esac
+}
+
+# Ask before installing anything. Never prompts without a TTY: `up` has to stay
+# scriptable, and AGENTS.md points agents at the non-interactive subcommands, so
+# a non-interactive run keeps the old behaviour of printing a hint and failing.
+#   --install-missing / TEXERA_INSTALL_MISSING=1  assume yes
+#   --no-install      / TEXERA_INSTALL_MISSING=0  never install
+_consent_to_install() {
+    local tool="${1:-}" cmd="${2:-}" reply=""
+    case "${TEXERA_INSTALL_MISSING:-ask}" in
+        1|y|yes|true) return 0 ;;
+        0|n|no|false) return 1 ;;
+    esac
+    [[ -t 0 && -t 1 ]] || return 1
+    printf "\n  %s is missing. I can run:\n\n" "$tool" >&2
+    printf "      %s\n\n" "$cmd" >&2
+    printf "  Run it now? [y/N] " >&2
+    read -r reply || return 1
+    [[ "$reply" == [Yy]* ]]
+}
+
+# Offer to install $1, then report whether it's actually there afterwards.
+# Runs through `bash -lc` so shell functions like nvm / pyenv / sdk resolve.
+_offer_install() {
+    local tool="${1:-}" cmd=""
+    cmd=$(_install_cmd_for "$tool") || return 1
+    _consent_to_install "$tool" "$cmd" || return 1
+    printf "  installing %s ...\n" "$tool" >&2
+    if ! bash -lc "$cmd" >&2; then
+        printf "  %s: install command failed\n" "$tool" >&2
+        return 1
+    fi
+    printf "  %s: installed\n" "$tool" >&2
+    return 0
+}
+
 # --------- toolchain (JDK 17 + node) ---------
 # Detect a JDK 17 installation rather than pinning one path. We try, in
 # order: (1) caller-set $JAVA_HOME if it really is 17, (2) macOS's official
@@ -423,7 +544,13 @@ _diagnose_jdk17() {
     echo "" >&2
 }
 
-JAVA_HOME_DETECTED="$(_find_jdk17)" || {
+JAVA_HOME_DETECTED="$(_find_jdk17)" || JAVA_HOME_DETECTED=""
+# Offer to install it rather than only describing how. Declines, and every
+# non-interactive run, fall through to the hint-and-exit below unchanged.
+if [[ -z "$JAVA_HOME_DETECTED" ]] && _offer_install java; then
+    JAVA_HOME_DETECTED="$(_find_jdk17)" || JAVA_HOME_DETECTED=""
+fi
+if [[ -z "$JAVA_HOME_DETECTED" ]]; then
     echo "FATAL: could not find a JDK 17 install." >&2
     _diagnose_jdk17
     echo "  fix:" >&2
@@ -433,7 +560,7 @@ JAVA_HOME_DETECTED="$(_find_jdk17)" || {
     echo "    or set JAVA_HOME=/path/to/jdk-17 explicitly" >&2
     echo "" >&2
     exit 1
-}
+fi
 export JAVA_HOME="$JAVA_HOME_DETECTED"
 export PATH="$JAVA_HOME/bin:$PATH"
 
@@ -462,21 +589,67 @@ fi
 # `localhost` only works for the host. `texera-minio` only works inside the
 # docker network. The host's LAN IP works from BOTH (host loopback for the
 # host, docker NAT'd out-and-back for the container).
-_detect_host_lan_ip() {
+#
+# Both platform probes follow the same two steps: the interface backing the
+# default route first (most reliable on a laptop that may have wifi +
+# thunderbolt + tailscale all active), then a scan as a fallback.
+_detect_host_lan_ip_darwin() {
     local iface="" ip=""
-    # 1. The interface backing the default route — most reliable on a
-    #    laptop that may have wifi + thunderbolt + tailscale all active.
     iface=$(route get default 2>/dev/null | awk '/interface:/{print $2; exit}')
     if [[ -n "$iface" ]]; then
         ip=$(ipconfig getifaddr "$iface" 2>/dev/null)
         [[ -n "$ip" && "$ip" != 127.* ]] && { printf '%s\n' "$ip"; return 0; }
     fi
-    # 2. Fallback: linux `hostname -I`-equivalent walk over en*.
     for iface in en0 en1 en2 en3 en4 en5 en6 en7 en8 en9 en10; do
         ip=$(ipconfig getifaddr "$iface" 2>/dev/null)
         [[ -n "$ip" && "$ip" != 127.* ]] && { printf '%s\n' "$ip"; return 0; }
     done
     return 1
+}
+
+_detect_host_lan_ip_linux() {
+    command -v ip >/dev/null 2>&1 || return 1
+    local iface="" addr="" idx="" dev="" fam="" cidr=""
+    # 1. Interface backing the default route — take its first global IPv4,
+    #    stripping the /prefix that `ip -o addr` appends.
+    iface=$(ip -4 route show default 2>/dev/null \
+        | awk '{ for (i = 1; i < NF; i++) if ($i == "dev") { print $(i+1); exit } }')
+    # A default route over a container bridge or an overlay/VPN tunnel points at
+    # an address the containers can't reach back, which is the whole thing this
+    # variable must avoid — drop such an interface so the scan below wins.
+    case "$iface" in
+        docker*|br-*|bridge*|virbr*|veth*|tun*|tap*|cni*|flannel*|cali*|kube*|tailscale*|zt*|wg*)
+            iface="" ;;
+    esac
+    if [[ -n "$iface" ]]; then
+        addr=$(ip -4 -o addr show dev "$iface" scope global 2>/dev/null \
+            | awk '{ split($4, a, "/"); print a[1]; exit }')
+        [[ -n "$addr" && "$addr" != 127.* ]] && { printf '%s\n' "$addr"; return 0; }
+    fi
+    # 2. Scan every global IPv4, skipping the interfaces that would defeat the
+    #    purpose of this address. A container bridge (docker0, br-*, veth*) is
+    #    reachable from the host but not from inside another container's
+    #    network namespace the way MinIO needs; an overlay/VPN address
+    #    (tailscale, zerotier) is not reachable from the docker bridge at all.
+    while read -r idx dev fam cidr _rest; do
+        [[ "$fam" == "inet" ]] || continue
+        case "$dev" in
+            lo|docker*|br-*|bridge*|virbr*|veth*|tun*|tap*|cni*|flannel*|cali*|kube*|tailscale*|zt*|wg*)
+                continue ;;
+        esac
+        addr="${cidr%%/*}"
+        [[ -n "$addr" && "$addr" != 127.* ]] && { printf '%s\n' "$addr"; return 0; }
+    done < <(ip -4 -o addr show scope global 2>/dev/null)
+    return 1
+}
+
+_detect_host_lan_ip() {
+    case "$(uname -s 2>/dev/null)" in
+        Darwin) _detect_host_lan_ip_darwin ;;
+        Linux)  _detect_host_lan_ip_linux ;;
+        # Anything else (BSD, WSL oddities): try both rather than give up.
+        *)      _detect_host_lan_ip_darwin || _detect_host_lan_ip_linux ;;
+    esac
 }
 # Lazy resolver — called from subcommands that actually need to publish a
 # host-reachable S3 endpoint (cmd_up, cmd_auto). Subcommands like
@@ -486,10 +659,18 @@ _require_host_lan_ip() {
     [[ -n "${HOST_LAN_IP:-}" ]] && return 0
     HOST_LAN_IP="$(_detect_host_lan_ip)" || HOST_LAN_IP=""
     if [[ -z "$HOST_LAN_IP" ]]; then
+        local probes="" bridge_note=""
+        case "$(uname -s 2>/dev/null)" in
+            Darwin) probes="\`route get default\` / en0-en10" ;;
+            Linux)  probes="\`ip route show default\` / \`ip -4 addr show scope global\`"
+                    bridge_note=" outside the container bridges" ;;
+            *)      probes="the macOS and Linux probes"
+                    bridge_note=" outside the container bridges" ;;
+        esac
         echo "FATAL: could not detect a host LAN IP." >&2
         echo "       MinIO needs an address reachable from both docker (lakekeeper" >&2
         echo "       does S3 ops) and the host (JVMs read signed URLs back); none" >&2
-        echo "       of \`route get default\` / en0-en10 had a non-loopback IPv4." >&2
+        echo "       of $probes offered a non-loopback IPv4${bridge_note}." >&2
         echo "       Connect to a network or export HOST_LAN_IP=<your-IP> explicitly." >&2
         exit 1
     fi
@@ -519,7 +700,10 @@ export STORAGE_LAKEFS_ENDPOINT="${STORAGE_LAKEFS_ENDPOINT:-http://localhost:8000
 export STORAGE_LAKEFS_AUTH_USERNAME="${STORAGE_LAKEFS_AUTH_USERNAME:-AKIAIOSFOLKFSSAMPLES}"
 export STORAGE_LAKEFS_AUTH_PASSWORD="${STORAGE_LAKEFS_AUTH_PASSWORD:-wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY}"
 export STORAGE_LAKEFS_AUTH_API_SECRET="${STORAGE_LAKEFS_AUTH_API_SECRET:-random_string_for_lakefs}"
-export UDF_PYTHON_PATH="${UDF_PYTHON_PATH:-$(command -v python3 2>/dev/null || command -v python 2>/dev/null)}"
+# UDF_PYTHON_PATH is resolved lazily by _require_udf_python (see below) rather
+# than defaulted to `command -v python3` here: the system interpreter almost
+# never has amber/requirements.txt installed, and picking it silently turned a
+# toolchain problem into import errors inside a Python worker.
 export TEXERA_DASHBOARD_SERVICE_ENDPOINT="${TEXERA_DASHBOARD_SERVICE_ENDPOINT:-http://localhost:8080}"
 export WORKFLOW_COMPILING_SERVICE_ENDPOINT="${WORKFLOW_COMPILING_SERVICE_ENDPOINT:-http://localhost:9090}"
 export WORKFLOW_EXECUTION_SERVICE_ENDPOINT="${WORKFLOW_EXECUTION_SERVICE_ENDPOINT:-http://localhost:8085}"
@@ -1133,20 +1317,23 @@ _install_hint() {
         node)
             printf "  ${BOLD}install Node 20+ (needed for frontend & agent-service):${RESET}\n"
             printf "    macOS:   brew install node\n"
+            printf "    Linux:   use a version manager below — distro packages\n"
+            printf "             (apt/dnf nodejs) are older than the frontend needs\n"
             printf "    nvm:     nvm install --lts && nvm use --lts\n"
             printf "    fnm:     fnm install --lts\n"
             printf "    volta:   volta install node\n"
             ;;
         yarn)
             printf "  ${BOLD}install yarn (needed for the frontend):${RESET}\n"
+            printf "    any OS:  corepack enable    ${DIM}# ships with Node; frontend pins yarn@4${RESET}\n"
             printf "    macOS:   brew install yarn\n"
-            printf "    npm:     npm install -g yarn\n"
-            printf "    corepack: corepack enable\n"
+            printf "    Linux:   npm install -g yarn\n"
             ;;
         bun)
             printf "  ${BOLD}install bun (needed for agent-service):${RESET}\n"
             printf "    macOS:   brew install oven-sh/bun/bun\n"
-            printf "    curl:    curl -fsSL https://bun.sh/install | bash\n"
+            printf "    Linux:   curl -fsSL https://bun.sh/install | bash\n"
+            printf "    npm:     npm install -g bun\n"
             ;;
         sbt)
             printf "  ${BOLD}install sbt (needed to build the JVM services):${RESET}\n"
@@ -1156,7 +1343,8 @@ _install_hint() {
         docker)
             printf "  ${BOLD}install Docker (needed for postgres/minio/lakefs/lakekeeper/litellm):${RESET}\n"
             printf "    macOS:   download Docker Desktop from https://docker.com/products/docker-desktop\n"
-            printf "    Linux:   apt install docker.io docker-compose-plugin\n"
+            printf "    Linux:   apt install docker.io docker-compose-v2    ${DIM}# dnf: moby-engine docker-compose${RESET}\n"
+            printf "             then sudo usermod -aG docker \"\$USER\" and log back in\n"
             ;;
         *)
             printf "  ${DIM}no install hint for: %s${RESET}\n" "$tool"
@@ -1193,10 +1381,188 @@ _diagnose_node() {
     printf "\n"
 }
 
+# --------- python for UDF workers ---------
+# "3.12" for an interpreter, or non-zero if it can't be run at all.
+_python_version_of() {
+    local py="${1:-}"
+    [[ -n "$py" && -x "$py" ]] || return 1
+    "$py" -c 'import sys; print("%d.%d" % sys.version_info[:2])' 2>/dev/null
+}
+
+_python_version_ok() {
+    [[ "$(_python_version_of "${1:-}" 2>/dev/null)" == "$TEXERA_PYTHON_VERSION" ]]
+}
+
+# Can this interpreter actually run a Python UDF worker? pyarrow, pandas and
+# loguru are the heavy three from amber/requirements.txt — if they import, the
+# environment was populated.
+_python_deps_ok() {
+    local py="${1:-}"
+    [[ -n "$py" && -x "$py" ]] || return 1
+    "$py" -c 'import pyarrow, pandas, loguru' >/dev/null 2>&1
+}
+
+# Interpreters that might run UDF workers, best first. Prints paths only;
+# suitability is the caller's business. Deduplicated, because the sibling-venv
+# and pyenv guesses overlap on some layouts.
+_udf_python_candidates() {
+    local seen="" base="" root="" d=""
+    # Collapse `..` segments so the path we print and export is the one a
+    # contributor would recognise. `realpath` isn't portable to a stock macOS,
+    # and only the directory is resolved — the final component stays a symlink,
+    # which is what we want for a venv's bin/python.
+    _abspath() {
+        local dir="" leaf=""
+        dir=$(dirname "$1"); leaf=$(basename "$1")
+        [[ -d "$dir" ]] || { printf '%s\n' "$1"; return 0; }
+        printf '%s/%s\n' "$(cd "$dir" && pwd -P)" "$leaf"
+    }
+    _emit() { [[ -n "${1:-}" ]] || return 0; local p=""; p=$(_abspath "$1"); case "$seen" in *"|$p|"*) return 0 ;; esac; seen="$seen|$p|"; printf '%s\n' "$p"; }
+    # An activated venv is the most explicit statement of intent available.
+    [[ -n "${VIRTUAL_ENV:-}" ]] && _emit "$VIRTUAL_ENV/bin/python"
+    # AGENTS.md's layout: <workspace>/{texera, texera-worktrees/<branch>, venv312}
+    for base in "$REPO_ROOT/.." "$REPO_ROOT/../.." "$SELF_ROOT/.." "$SELF_ROOT/../.."; do
+        _emit "$base/venv312/bin/python"
+    done
+    if command -v pyenv >/dev/null 2>&1; then
+        root=$(pyenv root 2>/dev/null) || root="$HOME/.pyenv"
+        while IFS= read -r d; do
+            [[ -n "$d" ]] && _emit "$d/bin/python"
+        done < <(shopt -s nullglob; printf '%s\n' "$root/versions/$TEXERA_PYTHON_VERSION"*)
+    fi
+    _emit "$(command -v "python$TEXERA_PYTHON_VERSION" 2>/dev/null || true)"
+    _emit "$(command -v python3 2>/dev/null || true)"
+}
+
+# Lazy resolver, mirroring _require_host_lan_ip: only the subcommands that
+# actually launch services pay for it, so `status` / `logs` / `--help` don't
+# spawn an interpreter per candidate.
+#
+# Never fatal. The JVM services run fine without a Python toolchain; only
+# Python UDFs don't. So this warns, offers a fix, and carries on.
+_require_udf_python() {
+    [[ -n "${_UDF_PYTHON_RESOLVED:-}" ]] && return 0
+    _UDF_PYTHON_RESOLVED=1
+    # An explicit UDF_PYTHON_PATH always wins — it's the documented override —
+    # but say so if it can't import what a worker needs.
+    if [[ -n "${UDF_PYTHON_PATH:-}" ]]; then
+        if ! _python_deps_ok "$UDF_PYTHON_PATH"; then
+            tui_warn "python: UDF_PYTHON_PATH=$UDF_PYTHON_PATH can't import amber's deps"
+            tui_warn "python: Python UDFs will fail at worker launch"
+        fi
+        export UDF_PYTHON_PATH
+        return 0
+    fi
+    local c="" no_deps=""
+    while IFS= read -r c; do
+        [[ -n "$c" ]] || continue
+        _python_version_ok "$c" || continue
+        if _python_deps_ok "$c"; then
+            export UDF_PYTHON_PATH="$c"
+            tui_ok "python: $c  ${DIM}(runs Python UDFs)${RESET}"
+            return 0
+        fi
+        [[ -z "$no_deps" ]] && no_deps="$c"
+    done < <(_udf_python_candidates)
+    # Distinguish "no 3.12 anywhere" from "3.12 without amber's deps": they need
+    # different fixes, and the old default silently picked the second one.
+    if [[ -n "$no_deps" ]]; then
+        tui_warn "python: $no_deps is $TEXERA_PYTHON_VERSION but can't import amber's deps"
+        printf "  ${BOLD}populate it:${RESET}\n"
+        printf "    %s -m pip install -r %s/amber/requirements.txt -r %s/amber/operator-requirements.txt\n" \
+            "$no_deps" "$REPO_ROOT" "$REPO_ROOT"
+        export UDF_PYTHON_PATH="$no_deps"
+        return 0
+    fi
+    tui_warn "python: no Python $TEXERA_PYTHON_VERSION found — Python UDFs will not run"
+    # Deliberately not `_install_hint python`: that hint is about the `-i`
+    # dashboard's textual dependency, which is a different interpreter and a
+    # different requirements file.
+    printf "  ${BOLD}looked in:${RESET} \$VIRTUAL_ENV, <workspace>/venv312, pyenv, PATH\n"
+    printf "  ${BOLD}or point at one yourself:${RESET} export UDF_PYTHON_PATH=/path/to/python%s\n" \
+        "$TEXERA_PYTHON_VERSION"
+    if _offer_install python; then
+        while IFS= read -r c; do
+            [[ -n "$c" ]] || continue
+            if _python_version_ok "$c"; then
+                export UDF_PYTHON_PATH="$c"
+                tui_ok "python: $c"
+                tui_warn "python: now install amber's deps into it:"
+                printf "    %s -m pip install -r %s/amber/requirements.txt -r %s/amber/operator-requirements.txt\n" \
+                    "$c" "$REPO_ROOT" "$REPO_ROOT"
+                return 0
+            fi
+        done < <(_udf_python_candidates)
+    fi
+    return 0
+}
+
+# Translate --install-missing / --no-install into TEXERA_INSTALL_MISSING. The
+# flags beat the environment variable; the contradiction is refused rather than
+# silently resolved one way.
+_set_install_flag() {
+    local want=""
+    case "${1:-}" in
+        --install-missing) want=1 ;;
+        --no-install)      want=0 ;;
+        *) return 0 ;;
+    esac
+    if [[ -n "${_INSTALL_FLAG_SEEN:-}" && "${_INSTALL_FLAG_SEEN}" != "$want" ]]; then
+        tui_err "--install-missing and --no-install are mutually exclusive" >&2
+        exit 2
+    fi
+    _INSTALL_FLAG_SEEN="$want"
+    export TEXERA_INSTALL_MISSING="$want"
+}
+
 # --------- helpers ---------
+# PID of whatever is listening on a TCP port, or nothing. Always exits 0 —
+# "empty output" is the contract for "nothing is listening", and callers
+# (svc_running_pid, wait_for_port, the status table) rely on that.
+#
+# lsof first: it ships with macOS and is what this has always used. But it is
+# not a default package on Debian/Ubuntu/Fedora, and when it is missing every
+# native service reads as stopped — `up` then relaunches services that are
+# already running and `down` silently no-ops. So fall back to `ss` from
+# iproute2, which is essential on any modern Linux.
 listen_pid_for_port() {
-    # || true so pipefail doesn't kill us when nothing is listening
-    lsof -nP -iTCP:"$1" -sTCP:LISTEN -t 2>/dev/null | head -1 || true
+    local port="$1" pid=""
+    if command -v lsof >/dev/null 2>&1; then
+        # || true so pipefail doesn't kill us when nothing is listening
+        pid=$(lsof -nP -iTCP:"$port" -sTCP:LISTEN -t 2>/dev/null | head -1 || true)
+        [[ -n "$pid" ]] && { printf '%s\n' "$pid"; return 0; }
+    fi
+    if command -v ss >/dev/null 2>&1; then
+        # `ss -lntp` prints e.g.
+        #   LISTEN 0 511 127.0.0.1:8080 0.0.0.0:* users:(("java",pid=4827,fd=9))
+        # Match on the local-address column ending in :<port> so :18080 doesn't
+        # answer for :8080. No -H: it postdates the iproute2 in older distros.
+        pid=$(ss -lntp 2>/dev/null \
+            | awk -v suffix=":$port" '$4 ~ suffix"$" { print; exit }' \
+            | grep -o 'pid=[0-9]*' | head -1 | cut -d= -f2 || true)
+        [[ -n "$pid" ]] && { printf '%s\n' "$pid"; return 0; }
+    fi
+    return 0
+}
+
+# Modification time of a file as "YYYY-MM-DD HH:MM", in whichever stat dialect
+# is present. Non-zero and silent if the file is missing or unreadable, so
+# callers can substitute their own placeholder.
+#
+# GNU coreutils and BSD disagree completely here: BSD's `stat -f FMT -t TIMEFMT`
+# reads `-f` as "file system info" under GNU, which then treats the format
+# strings as filenames — it writes a diagnostic to stderr, prints filesystem
+# fields on stdout and exits 1. Probe rather than branch on `uname` so a
+# GNU-coreutils macOS also works.
+_file_mtime_str() {
+    local f="${1:-}"
+    [[ -n "$f" && -e "$f" ]] || return 1
+    if stat -c '%y' "$f" >/dev/null 2>&1; then
+        # GNU: "2026-07-29 20:06:12.123456789 +0000" → keep date + HH:MM
+        stat -c '%y' "$f" 2>/dev/null | cut -c1-16
+    else
+        stat -f "%Sm" -t "%Y-%m-%d %H:%M" "$f" 2>/dev/null
+    fi
 }
 
 # Branch + short-sha of the deploy source ($REPO_ROOT), tab-separated, each
@@ -1398,6 +1764,41 @@ parse_changelog_changesets() {
     ' "$changelog"
 }
 
+# True when every error psql reported is a complaint that the object it tried
+# to create is already there — i.e. the changeSet's effect is already in the
+# schema and replaying it was a no-op.
+#
+# Why this is needed: on a fresh volume postgres runs sql/texera_ddl.sql itself
+# (compose mounts ../../sql to /docker-entrypoint-initdb.d), and that DDL is
+# kept in sync with sql/updates/*, so the changeSets we replay right afterwards
+# re-create objects that already exist. The ones incidentally written with
+# IF NOT EXISTS pass; the rest aborted `up` before the build ever started
+# (#7064) — e.g. 28.sql's dataset_owner_uid_name_key, which texera_ddl.sql
+# already creates as the auto-generated name for UNIQUE (owner_uid, name).
+#
+# Deliberately narrow. Only `already exists` counts:
+#   • `duplicate key` is a data conflict, not an applied schema change
+#   • no ERROR line at all means we cannot see why psql failed, and a failure
+#     we can't explain is never assumed harmless
+# Everything else — syntax errors, missing relations, permissions — keeps
+# failing loudly, so a genuinely incomplete schema still stops the build
+# instead of reaching jOOQ codegen.
+#
+# The "already in the schema" equivalence holds only while texera_ddl.sql stays
+# in sync with sql/updates/* (it does, by construction). psql runs with
+# ON_ERROR_STOP=1 and halts at the first error, so "every error is already-exists"
+# proves the whole changeSet is a no-op only when every object it touches is
+# already present. Were the two to drift, a changeSet mixing an existing object
+# (hit first) with a genuinely new one would be recorded as applied without the
+# new object ever being created — surfacing later as a jOOQ codegen failure.
+_sql_errors_all_already_exist() {
+    local f="${1:-}" errs=""
+    [[ -f "$f" ]] || return 1
+    errs=$(grep 'ERROR:' "$f" 2>/dev/null) || return 1
+    [[ -n "$errs" ]] || return 1
+    ! printf '%s\n' "$errs" | grep -qv 'already exists'
+}
+
 # Reconcile sql/updates/* with the live DB so jOOQ codegen (which reads the
 # database at sbt-compile time) sees the schema the checked-out code expects.
 # The repo's official runner is liquibase (sql/docker-compose.yml — manual,
@@ -1465,12 +1866,24 @@ infra_apply_sql_updates() {
                 return 1
             fi
             tui_step "postgres: applying $path (changeSet $id)"
+            # Keep psql's stderr: it holds the one line that explains an abort,
+            # and _sql_errors_all_already_exist needs it to tell "this changeSet
+            # is already in the schema" apart from a real failure.
+            local psql_err="$LOG_DIR/psql-changeset-$id.err"
             if ! sed 's/^\\c.*$//' "$sql_file" \
                     | docker exec -i "$pg" psql -U texera -d texera_db \
-                        -v ON_ERROR_STOP=1 -f - >/dev/null 2>&1; then
-                tui_err "postgres: $path failed -- inspect with: docker exec -i texera-postgres psql -U texera -d texera_db < $path"
-                return 1
+                        -v ON_ERROR_STOP=1 -f - >/dev/null 2>"$psql_err"; then
+                if _sql_errors_all_already_exist "$psql_err"; then
+                    # Fall through to the INSERT below so the changeSet is
+                    # recorded as applied and later runs stop retrying it.
+                    tui_skip "postgres: $path already in schema (recording changeSet $id)"
+                else
+                    tui_err "postgres: $path failed -- inspect with: docker exec -i texera-postgres psql -U texera -d texera_db < $path"
+                    sed 's/^/      /' "$psql_err" >&2
+                    return 1
+                fi
             fi
+            rm -f "$psql_err"
         fi
         docker exec "$pg" psql -U texera -d texera_db -qc "
             INSERT INTO public.databasechangelog
@@ -1671,14 +2084,14 @@ svc_artifact_mtime() {
                     done <<< "$globbed"
                 fi
                 if [[ ${#main_jars[@]} -gt 0 ]]; then
-                    stat -f "%Sm" -t "%Y-%m-%d %H:%M" "${main_jars[0]}"
+                    _file_mtime_str "${main_jars[0]}" || echo "—"
                     return
                 fi
             fi
             echo "—"
             ;;
-        bun)    stat -f "%Sm" -t "%Y-%m-%d %H:%M" "$(amap_get SVC_CWD "$svc")/bun.lock" 2>/dev/null || echo "—" ;;
-        yarn)   stat -f "%Sm" -t "%Y-%m-%d %H:%M" "$(amap_get SVC_CWD "$svc")/yarn.lock" 2>/dev/null || echo "—" ;;
+        bun)    _file_mtime_str "$(amap_get SVC_CWD "$svc")/bun.lock" || echo "—" ;;
+        yarn)   _file_mtime_str "$(amap_get SVC_CWD "$svc")/yarn.lock" || echo "—" ;;
         docker) echo "—" ;;
     esac
 }
@@ -1971,6 +2384,17 @@ svc_source_hash() {
 }
 
 # Per-service dirty check (the SRC * indicator). Two-stage:
+# Set a file's mtime one second into the past, in whichever `touch` dialect is
+# present. Used to build the comparison reference for the fast path below; see
+# there for why the second of slack is needed. A missing path is a quiet no-op.
+_stamp_backdate() {
+    [[ -f "${1:-}" ]] || return 0
+    # GNU coreutils, then BSD/macOS `-A` (adjust the timestamps by -1 second).
+    touch -d '1 second ago' "$1" 2>/dev/null \
+        || touch -A -01 "$1" 2>/dev/null \
+        || true
+}
+
 #   Fast path  (~22 ms): is any tracked source newer than the stamp file's
 #                        mtime? If not, definitely clean.
 #   Slow path (~100 ms): compute current source hash and compare to the hash
@@ -2003,10 +2427,26 @@ svc_src_changed() {
             while IFS= read -r d; do
                 [[ -n "$d" ]] && dirs+=("$d")
             done < <(_svc_src_dirs "$svc")
+            # `find -newer` is *strictly* newer, and the stamp is written at the
+            # end of a build — right before you edit the file you were just
+            # building. An edit inside the filesystem's timestamp granularity
+            # therefore shares the stamp's mtime exactly and used to be
+            # invisible here, so `auto` skipped the rebuild (#7075). Compare
+            # against a throwaway marker one second behind the stamp instead.
+            # The slack only widens the candidate set; the content hash below
+            # still decides. The stamp itself keeps its real mtime, so the
+            # refresh at the end of the slow path converges as before.
+            local cmp_ref="$stamp"
+            local marker="$BUILD_STAMP_DIR/.${svc}.cmp"
+            if touch -r "$stamp" "$marker" 2>/dev/null; then
+                _stamp_backdate "$marker"
+                cmp_ref="$marker"
+            fi
             local newer=""
             newer=$(find "${dirs[@]}" \
                 \( -name "*.scala" -o -name "*.java" -o -name "*.proto" \) \
-                -newer "$stamp" -type f -print 2>/dev/null | head -1)
+                -newer "$cmp_ref" -type f -print 2>/dev/null | head -1)
+            rm -f "$marker"
             if [[ -z "$newer" ]]; then
                 return 1   # nothing changed since last stamp → clean
             fi
@@ -2333,6 +2773,7 @@ cmd_up() {
             --skip-build) BUILD=no ;;
             --no-build) tui_err "--no-build was renamed to --skip-build" >&2; exit 2 ;;
             --json)     JSON_OUT=true ;;
+            --install-missing|--no-install) _set_install_flag "$1" ;;
             # Deploy-target selectors are resolved at startup (they must precede
             # the build.sbt parse); accept and ignore them here.
             --worktree=*|--branch=*) selector_seen=true ;;
@@ -2364,6 +2805,10 @@ cmd_up() {
         $JSON_OUT && { emit_status_json >&3 || true; }
         return $ec
     fi
+
+    # Resolve the interpreter the JVM services hand to Python UDF workers
+    # before anything is launched with that environment.
+    _require_udf_python
 
     local n_skip=0
     [[ -n "$SKIP_LIST" ]] && n_skip=$(echo "$SKIP_LIST" | tr ',' '\n' | wc -l | tr -d ' ')
@@ -2525,6 +2970,7 @@ cmd_auto() {
         case "$1" in
             --skip=*) SKIP_LIST="${1#--skip=}" ;;
             --json)   JSON_OUT=true ;;
+            --install-missing|--no-install) _set_install_flag "$1" ;;
             # Deploy-target selectors are resolved at startup; accept here.
             --worktree=*|--branch=*) ;;
             *) tui_err "unknown flag: $1" >&2; exit 2 ;;
@@ -2533,6 +2979,8 @@ cmd_auto() {
     done
     # See cmd_up: human progress to stderr, JSON summary on real stdout (fd 3).
     if $JSON_OUT; then exec 3>&1 1>&2; fi
+
+    _require_udf_python
 
     tui_banner "Texera Local Dev — auto bounce" \
         "rebuild + bounce only what changed since last build"
@@ -2839,6 +3287,8 @@ cmd_up_one() {
     fi
     local type=""
     type=$(amap_get SVC_TYPE "$svc")
+    # Docker services never launch Python workers; don't pay for the probe.
+    [[ "$type" == "docker" ]] || _require_udf_python
     case "$type" in
         docker)
             # No source to build — --build degrades to a restart, everything

@@ -28,8 +28,10 @@ from threading import Thread
 from core.models import (
     DataFrame,
     InternalQueue,
+    Schema,
     State,
     StateFrame,
+    Table,
     Tuple,
 )
 from core.models.internal_queue import (
@@ -38,6 +40,7 @@ from core.models.internal_queue import (
     ECMElement,
 )
 from core.models.operator import LoopEndOperator, LoopStartOperator
+from core.storage.vfs_uri_factory import VFSURIFactory
 from core.runnables import MainLoop
 from core.util import set_one_of
 from proto.org.apache.texera.amber.core import (
@@ -743,6 +746,8 @@ class TestMainLoop:
         stats_invocation = elem.payload.return_invocation
         worker_metrics_response = stats_invocation.return_value.worker_metrics_response
         stats = worker_metrics_response.metrics.worker_statistics
+        # a missing/dropped version would echo through the read-back below; guard it
+        assert worker_metrics_response.metrics.state_version > 0
 
         metrics = WorkerMetrics(
             worker_state=WorkerState.RUNNING,
@@ -769,6 +774,9 @@ class TestMainLoop:
                 control_processing_time=stats.control_processing_time,
                 idle_time=stats.idle_time,
             ),
+            # version is the worker's logical state clock; read it from the actual
+            # report rather than pinning a brittle count (covered by StateManager tests).
+            state_version=worker_metrics_response.metrics.state_version,
         )
 
         assert elem == DCMElement(
@@ -1176,13 +1184,21 @@ class TestMainLoop:
         output_queue,
     ):
         input_queue.put(mock_pause)
-        assert output_queue.get() == DCMElement(
+        elem = output_queue.get()
+        # version is the worker's logical state clock; read it from the actual
+        # report rather than pinning a brittle count (covered by StateManager tests).
+        state_version = elem.payload.return_invocation.return_value.worker_state_response.state_version
+        # a missing/dropped version would echo through the read-back; guard it
+        assert state_version > 0
+        assert elem == DCMElement(
             tag=mock_control_output_channel,
             payload=DirectControlMessagePayloadV2(
                 return_invocation=ReturnInvocation(
                     command_id=command_sequence,
                     return_value=ControlReturn(
-                        worker_state_response=WorkerStateResponse(WorkerState.PAUSED)
+                        worker_state_response=WorkerStateResponse(
+                            WorkerState.PAUSED, state_version=state_version
+                        )
                     ),
                 )
             ),
@@ -1197,13 +1213,21 @@ class TestMainLoop:
         output_queue,
     ):
         input_queue.put(mock_resume)
-        assert output_queue.get() == DCMElement(
+        elem = output_queue.get()
+        # version is the worker's logical state clock; read it from the actual
+        # report rather than pinning a brittle count (covered by StateManager tests).
+        state_version = elem.payload.return_invocation.return_value.worker_state_response.state_version
+        # a missing/dropped version would echo through the read-back; guard it
+        assert state_version > 0
+        assert elem == DCMElement(
             tag=mock_control_output_channel,
             payload=DirectControlMessagePayloadV2(
                 return_invocation=ReturnInvocation(
                     command_id=command_sequence,
                     return_value=ControlReturn(
-                        worker_state_response=WorkerStateResponse(WorkerState.RUNNING)
+                        worker_state_response=WorkerStateResponse(
+                            WorkerState.RUNNING, state_version=state_version
+                        )
                     ),
                 )
             ),
@@ -2190,7 +2214,7 @@ class TestMainLoop:
         executor.state = State({"i": 1})
         main_loop.context.executor_manager.executor = executor
         main_loop._loop_start_id = "loop-start-1"
-        main_loop.context.loop_start_state_uris = {"loop-start-1": "vfs:///x/state"}
+        main_loop.context.loop_start_port_uris = {"loop-start-1": "vfs:///x"}
 
         console_msgs = []
         pauses = []
@@ -2395,6 +2419,44 @@ class TestMainLoop:
         assert emitted_id == "outer-loop"
         assert reset_calls == [], "a LoopStart never resets output storage"
 
+    def test_loopstart_merges_unstamped_state_instead_of_forwarding_it(
+        self, main_loop, monkeypatch
+    ):
+        # The deliberate asymmetry with the LoopEnd branch: an UNstamped
+        # counter-0 frame at a LoopStart is MERGED into the loop variables,
+        # not forwarded. It has to be -- the back-edge writes the next
+        # iteration's variables to this LoopStart's own input-port state URI
+        # with the identical "no loop" envelope (State.to_tuple(0)), so a
+        # LoopStart cannot tell the loop's own state from an upstream/body
+        # operator's boundary state. A LoopEnd can, because its inbound loop
+        # state is always stamped.
+        class StubLoopStart(LoopStartOperator):
+            def process_table(self, table, port):
+                yield
+
+        executor = StubLoopStart()
+        main_loop.context.executor_manager.executor = executor
+        emitted, switched, reset_calls = self._capture_state_emit(
+            main_loop, monkeypatch
+        )
+        monkeypatch.setattr(
+            main_loop.context.state_processing_manager,
+            "get_output_state",
+            lambda: None,
+        )
+
+        main_loop._process_state_frame(
+            StateFrame(State({"seed": 7}), loop_counter=0, loop_start_id="")
+        )
+
+        assert emitted == [], "an unstamped state at a LoopStart is not forwarded"
+        assert switched == [True], "it reaches the operator, which merges it"
+        assert reset_calls == []
+        # It is handed to the operator as the current input state, so
+        # LoopStartOperator.process_state merges it into self.state.
+        passed = main_loop.context.state_processing_manager.current_input_state
+        assert passed == State({"seed": 7})
+
     def test_loopend_passthrough_decrements_resets_output_and_skips_operator(
         self, main_loop, monkeypatch
     ):
@@ -2427,18 +2489,23 @@ class TestMainLoop:
         # the outer loop's id rides through unchanged
         assert emitted_id == "outer-loop"
 
-    def test_loopend_consume_invokes_operator_at_counter_zero(
+    def test_loopend_consume_defers_operator_to_end_channel(
         self, main_loop, monkeypatch
     ):
-        # loop_counter == 0 is the matching loop: the runtime runs the operator
-        # (consume) via the context switch. The operator returns None, so no
-        # state is emitted; the loop-back is driven by complete() separately.
+        # loop_counter == 0 is the matching loop. The runtime STASHES the state
+        # here and runs the operator at EndChannel instead
+        # (_consume_pending_loop_state): the loop's input table is read from the
+        # Loop Start's input-port materialization, and that read must not
+        # overlap this worker's own materialization reader, which is still
+        # streaming at consume time. Nothing observable moves: the matching
+        # consume emits no state downstream either way.
         # Reviewer feedback (#discussion_r3285892237): the envelope's loop
         # metadata (loop_counter / loop_start_id) is internal runtime data --
         # the runtime captures it onto its own instance state, and the
         # user-facing State handed to the operator carries only the inner
         # State's keys, never the envelope names.
-        main_loop.context.executor_manager.executor = _FalseLoopEnd()
+        executor = _FalseLoopEnd()
+        main_loop.context.executor_manager.executor = executor
         emitted, switched, reset_calls = self._capture_state_emit(
             main_loop, monkeypatch
         )
@@ -2448,17 +2515,29 @@ class TestMainLoop:
             "get_output_state",
             lambda: None,
         )
+        # Stub the runtime's table read (the real one opens the Loop Start's
+        # input-port materialization; pinned by the jump/read URI tests).
+        loop_table = Table([Tuple({"v": 1})])
+        reads = []
 
+        def _read():
+            reads.append(True)
+            return loop_table
+
+        monkeypatch.setattr(main_loop, "_read_loop_input_table", _read)
+
+        incoming = State({"i": 42, "acc": [1, 2, 3]})
         main_loop._process_state_frame(
-            StateFrame(
-                State({"i": 42, "acc": [1, 2, 3]}),
-                loop_counter=0,
-                loop_start_id="outer-loop",
-            )
+            StateFrame(incoming, loop_counter=0, loop_start_id="outer-loop")
         )
 
-        assert switched == [True], "consume branch must invoke the operator"
-        assert emitted == [], "operator returned None -> nothing emitted"
+        # At consume: state stashed, operator NOT invoked, table NOT read yet
+        # (no storage I/O while this worker's reader is still streaming).
+        assert switched == [], "consume must not invoke the operator yet"
+        assert reads == [], "the table must not be read at consume time"
+        assert main_loop._pending_loop_state is incoming
+        assert executor._attached_table is None
+        assert emitted == [], "the matching consume emits no state downstream"
         assert reset_calls == [], "consume / single loop must not reset output"
         # The runtime captured the envelope metadata onto its own instance
         # state...
@@ -2466,13 +2545,221 @@ class TestMainLoop:
         # ...but never wrote it into the user-facing State the operator sees.
         # (The consume branch sets `current_input_state` BEFORE the stubbed
         # context switch, so this is exactly what the operator would receive.)
-        passed_to_operator = (
-            main_loop.context.state_processing_manager.current_input_state
+        # ...and the state it stashed for the operator carries only the inner
+        # State's keys, never the envelope names.
+        assert set(main_loop._pending_loop_state.keys()) == {"i", "acc"}
+        assert "loop_start_id" not in main_loop._pending_loop_state
+        assert "loop_counter" not in main_loop._pending_loop_state
+
+        # Then at EndChannel the deferred consume runs: the table is read once
+        # (the reader has finished by now) and handed to the operator.
+        consumed = []
+        monkeypatch.setattr(
+            executor, "process_state", lambda st, port: consumed.append((st, port))
         )
-        assert isinstance(passed_to_operator, State)
-        assert set(passed_to_operator.keys()) == {"i", "acc"}
-        assert "loop_start_id" not in passed_to_operator
-        assert "loop_counter" not in passed_to_operator
+
+        main_loop._consume_pending_loop_state(executor)
+
+        assert reads == [True], "the table is read exactly once, at EndChannel"
+        assert executor._attached_table is loop_table
+        assert consumed == [(incoming, 0)]
+        assert main_loop._pending_loop_state is None, "stash must be cleared"
+
+    def test_loopend_forwards_unstamped_state_without_consuming(
+        self, main_loop, monkeypatch
+    ):
+        # A loop-body operator that emits its own boundary state
+        # (produce_state_on_start/finish -- a public API on both engine sides)
+        # sends it with the "no loop" envelope (counter 0, id ""). That state
+        # is NOT the loop's own boundary state: taking it would clobber the
+        # captured back-jump id with "" and then fail the deferred consume's
+        # bookkeeping-URI lookup for LoopStart ''. A real loop state is always
+        # stamped --
+        # the matching LoopStart stamps its own id on every iteration's output
+        # -- so an UNstamped counter-0 frame at a LoopEnd must be forwarded
+        # downstream unchanged, skipping the operator, like any default
+        # pass-through.
+        main_loop.context.executor_manager.executor = _FalseLoopEnd()
+        emitted, switched, reset_calls = self._capture_state_emit(
+            main_loop, monkeypatch
+        )
+        # The loop's own state was already consumed and its id captured.
+        main_loop._loop_start_id = "loop-start-1"
+
+        main_loop._process_state_frame(
+            StateFrame(
+                State({"note": "from-body-op"}),
+                loop_counter=0,
+                loop_start_id="",
+            )
+        )
+
+        assert switched == [], "unstamped state must not invoke the operator"
+        assert reset_calls == [], "unstamped state must not reset output"
+        assert emitted == [(State({"note": "from-body-op"}), 0, "")], (
+            "unstamped state must forward downstream with its envelope "
+            f"unchanged; emitted: {emitted}"
+        )
+        assert main_loop._loop_start_id == "loop-start-1", (
+            "an unstamped state must not clobber the captured back-jump id"
+        )
+        # Forwarding an unstamped state must NOT count as taking the loop's
+        # own state -- that is what the completion guard keys on.
+        assert main_loop._loop_state_consumed is False
+
+    @pytest.mark.timeout(2)
+    def test_end_channel_holds_the_region_when_only_unstamped_states_arrived(
+        self, main_loop, monkeypatch
+    ):
+        # Forwarding unstamped states is right for a body operator's own
+        # boundary state, but it must not swallow the symptom of a LOST stamp:
+        # a hop that blanks the envelope (the bug class #6660/#6661 fixed)
+        # makes the loop's OWN state arrive unstamped, and forwarding it leaves
+        # _loop_table None -> condition() False -> one iteration reported as
+        # success. A Loop End that forwarded an unstamped state and never took
+        # a stamped one must fail loudly instead -- and it must do so from
+        # _process_end_channel, BEFORE port_completed goes out, because region
+        # completion is port-based: reported from complete() the error would
+        # arrive after the coordinator already considers the region done.
+        executor = _FalseLoopEnd()
+        main_loop.context.executor_manager.executor = executor
+        self._capture_state_emit(main_loop, monkeypatch)
+
+        completed = []
+        port_completed_calls = []
+        console_msgs = []
+        monkeypatch.setattr(main_loop, "process_input_tuple", lambda: None)
+        monkeypatch.setattr(main_loop, "complete", lambda: completed.append(True))
+        monkeypatch.setattr(
+            main_loop, "_send_console_message", lambda msg: console_msgs.append(msg)
+        )
+        monkeypatch.setattr(
+            main_loop.context.pause_manager,
+            "pause",
+            lambda pause_type, change_state=True: None,
+        )
+
+        class _Coordinator:
+            def port_completed(self, request):
+                port_completed_calls.append(request)
+
+        monkeypatch.setattr(
+            main_loop._async_rpc_client, "coordinator_stub", lambda: _Coordinator()
+        )
+
+        # The loop's own state arrives with its stamp lost upstream.
+        main_loop._process_state_frame(
+            StateFrame(State({"i": 0}), loop_counter=0, loop_start_id="")
+        )
+        assert main_loop._forwarded_unstamped_state is True
+        assert main_loop._loop_state_consumed is False
+
+        monkeypatch.setattr(main_loop, "process_input_state", lambda *a, **k: None)
+        main_loop._process_end_channel()
+
+        assert main_loop.context.exception_manager.has_exception()
+        error_msgs = [m for m in console_msgs if m.msg_type == ConsoleMessageType.ERROR]
+        assert len(error_msgs) == 1
+        assert "loop envelope was lost upstream" in error_msgs[0].title
+        assert port_completed_calls == [], "no port may be reported complete"
+        assert completed == [], "the worker must not complete"
+
+    def test_complete_accepts_unstamped_state_alongside_the_loop_state(
+        self, main_loop, monkeypatch
+    ):
+        # The legitimate shape this PR enables: a body operator's boundary
+        # state is forwarded AND the loop's own stamped state is consumed. The
+        # completion guard must stay silent, in either arrival order.
+        for body_state_first in (True, False):
+            executor = _FalseLoopEnd()
+            main_loop.context.executor_manager.executor = executor
+            main_loop._forwarded_unstamped_state = False
+            main_loop._loop_state_consumed = False
+            main_loop._loop_start_id = ""
+            self._capture_state_emit(main_loop, monkeypatch)
+            monkeypatch.setattr(
+                main_loop.context.state_processing_manager,
+                "get_output_state",
+                lambda: None,
+            )
+
+            body = StateFrame(
+                State({"note": "from-body-op"}), loop_counter=0, loop_start_id=""
+            )
+            loop = StateFrame(
+                State({"i": 0}), loop_counter=0, loop_start_id="outer-loop"
+            )
+            for frame in (body, loop) if body_state_first else (loop, body):
+                main_loop._process_state_frame(frame)
+
+            # Must not raise, in either order.
+            main_loop._check_loop_state_arrived()
+            assert main_loop._forwarded_unstamped_state is True
+            assert main_loop._loop_state_consumed is True
+            assert main_loop._loop_start_id == "outer-loop"
+
+            # The guard must key on the DURABLE evidence that a stamped state
+            # was taken (_loop_start_id), not on the fan-in dedup flag: that
+            # flag belongs to the dedup, and a caller may legitimately clear
+            # it once the iteration's state has been taken. Keyed on the flag,
+            # this legitimate shape would start raising the moment anything
+            # re-armed it -- so simulate that and require silence.
+            main_loop._loop_state_consumed = False
+            main_loop._check_loop_state_arrived()
+
+    def test_loopend_consumes_its_loop_state_once_per_iteration(
+        self, main_loop, monkeypatch
+    ):
+        # A loop body may branch and converge on the Loop End, so its input
+        # port takes fan-in. Every reader on that port replays its own
+        # branch's states, so the SAME iteration's state arrives once per
+        # branch. The stash must take the FIRST and drop the rest -- a later
+        # arrival silently overwriting _pending_loop_state would make the
+        # consumed copy depend on reader scheduling. Assert through the whole
+        # deferred path, not just the stash.
+        executor = _FalseLoopEnd()
+        main_loop.context.executor_manager.executor = executor
+        emitted, switched, reset_calls = self._capture_state_emit(
+            main_loop, monkeypatch
+        )
+        monkeypatch.setattr(
+            main_loop.context.state_processing_manager,
+            "get_output_state",
+            lambda: None,
+        )
+        monkeypatch.setattr(
+            main_loop, "_read_loop_input_table", lambda: Table([Tuple({"v": 1})])
+        )
+        consumed = []
+        monkeypatch.setattr(
+            executor, "process_state", lambda st, port: consumed.append((st, port))
+        )
+
+        first = State({"i": 42})
+        second = State({"i": 42})
+
+        def deliver(state):
+            main_loop._process_state_frame(
+                StateFrame(state, loop_counter=0, loop_start_id="outer-loop")
+            )
+
+        deliver(first)  # branch A
+        deliver(second)  # branch B replays the same iteration's state
+
+        assert main_loop._loop_state_consumed is True
+        assert main_loop._pending_loop_state is first, "the duplicate must not stash"
+        assert emitted == [], "a consume emits nothing downstream, duplicate or not"
+        assert reset_calls == []
+        assert main_loop._loop_start_id == "outer-loop"
+
+        main_loop._consume_pending_loop_state(executor)
+
+        assert switched == [], "the deferred consume does not switch context"
+        assert consumed == [(first, 0)], "the operator must update exactly once"
+        # The consume re-arms the duplicate guard (everything on the port is
+        # already in by EndChannel), making the flag per-execution by
+        # construction rather than by worker recreation.
+        assert main_loop._loop_state_consumed is False
 
     # ------------------------------------------------------------------ #
     # _jump_to_loop_start
@@ -2482,7 +2769,7 @@ class TestMainLoop:
     # stamps is now computed inline in process_input_state via the
     # canonical `get_logical_op_id` (pinned by that helper's own suite),
     # and the loop-back write address is not computed worker-side at all:
-    # it is setup config (InitializeExecutorRequest.loopStartStateUris --
+    # it is setup config (InitializeExecutorRequest.loopStartPortUris --
     # see the proto comment for the full story).
     # ------------------------------------------------------------------ #
 
@@ -2532,16 +2819,220 @@ class TestMainLoop:
             _create,
         )
 
+    @pytest.mark.timeout(2)
+    def test_complete_flushes_prints_from_the_user_condition(
+        self, main_loop, monkeypatch
+    ):
+        # complete() flushes console messages on entry, before condition()
+        # runs, and then shuts the worker down -- so without a second flush a
+        # print() inside the user's condition would be captured and never sent.
+        #
+        # Mirrors LoopEndOpDesc.generatePythonCode: the user's text goes
+        # through eval_condition, i.e. eval() against a bare namespace dict --
+        # NOT a method of a module-level class -- so the print executes in a
+        # frame whose globals have no __name__. The capture must survive that
+        # (replace_print looks the module name up with .get); a plain method
+        # here would pass even with a capture that crashes on the generated
+        # path.
+        class _PrintingLoopEnd(LoopEndOperator):
+            def condition(self):
+                return self.eval_condition("print('hello from condition') or False")
+
+        executor = _PrintingLoopEnd()
+        # eval_condition short-circuits to False before a consume; run a
+        # minimal successful update first so the user expression actually
+        # evaluates (this is the state a real matching consume leaves behind).
+        executor.attach_loop_table(Table([Tuple({"v": 1})]))
+        executor.run_update("pass", State())
+        main_loop.context.executor_manager.executor = executor
+
+        console_msgs = []
+        monkeypatch.setattr(
+            main_loop, "_send_console_message", lambda msg: console_msgs.append(msg)
+        )
+        monkeypatch.setattr(main_loop.data_processor, "stop", lambda: None)
+        monkeypatch.setattr(
+            main_loop.context.state_manager, "transit_to", lambda state: None
+        )
+        monkeypatch.setattr(main_loop.context, "close", lambda: None)
+
+        class _Coordinator:
+            def worker_execution_completed(self, request):
+                pass
+
+        monkeypatch.setattr(
+            main_loop._async_rpc_client, "coordinator_stub", lambda: _Coordinator()
+        )
+
+        main_loop.complete()
+
+        printed = [m for m in console_msgs if "hello from condition" in m.title]
+        assert printed, (
+            "a print() in the user's condition must reach the console before "
+            f"the worker completes; sent: {[m.title for m in console_msgs]}"
+        )
+
+    def test_deferred_consume_captures_user_prints(self, main_loop, monkeypatch):
+        # The `update` runs on the main loop thread, outside
+        # DataProcessor._executor_session, so its print capture has to be
+        # applied explicitly here -- otherwise a print() in the user's update
+        # goes to the worker's stdout and never reaches the console.
+        #
+        # Mirrors LoopEndOpDesc.generatePythonCode: the user's text goes
+        # through run_update, i.e. exec() against a bare namespace dict, so
+        # the print executes in a frame whose globals have no __name__ and the
+        # capture must survive that (replace_print looks the module name up
+        # with .get). A plain print() in an overridden method here would pass
+        # even with a capture that crashes on the generated path.
+        class _PrintingLoopEnd(LoopEndOperator):
+            def condition(self):
+                return self.eval_condition("False")
+
+            def process_state(self, state, port):
+                self.run_update("print('hello from update')\ni += 1", state)
+                return None
+
+        executor = _PrintingLoopEnd()
+        main_loop.context.executor_manager.executor = executor
+        main_loop._pending_loop_state = State({"i": 1})
+        monkeypatch.setattr(
+            main_loop, "_read_loop_input_table", lambda: Table([Tuple({"v": 1})])
+        )
+
+        main_loop._consume_pending_loop_state(executor)
+
+        printed = [
+            msg
+            for msg in main_loop.context.console_message_manager.get_messages(
+                force_flush=True
+            )
+            if "hello from update" in msg.title
+        ]
+        assert printed, "the user's print must be captured as a console message"
+        assert printed[0].msg_type == ConsoleMessageType.PRINT
+
+    def test_read_loop_input_table_opens_the_result_uri_of_the_configured_base(
+        self, main_loop, monkeypatch
+    ):
+        # The other half of the base-URI split (the jump test pins the state
+        # URI): the loop's input table is read from result_uri(base) of the
+        # SAME configured base, through DocumentFactory.open_document.
+        main_loop._loop_start_id = "outer-loop"
+        main_loop.context.loop_start_port_uris = {"outer-loop": "vfs:///wf/port/outer"}
+
+        opened = []
+        rows = [Tuple({"v": 1}), Tuple({"v": 2})]
+        schema = Schema(raw_schema={"v": "LONG"})
+        casts = []
+        for tup in rows:
+            monkeypatch.setattr(
+                tup,
+                "cast_to_schema",
+                lambda s, _t=tup: casts.append((_t, s)),
+                raising=True,
+            )
+
+        class _Doc:
+            def get(self):
+                return iter(rows)
+
+        monkeypatch.setattr(
+            "core.runnables.main_loop.DocumentFactory.open_document",
+            lambda uri: (opened.append(uri) or (_Doc(), schema)),
+        )
+
+        table = main_loop._read_loop_input_table()
+
+        assert opened == [VFSURIFactory.result_uri("vfs:///wf/port/outer")]
+        assert isinstance(table, Table)
+        assert list(table.as_tuples()) == rows
+        # Every tuple is normalized to the doc's schema, exactly like the
+        # input-port reader that streams this same doc.
+        assert casts == [(tup, schema) for tup in rows]
+
+    def test_read_loop_input_table_raises_when_uri_not_configured(
+        self, main_loop, monkeypatch
+    ):
+        # Same fail-loud contract as the back-edge write: a LoopEnd whose
+        # captured id has no setup-config entry must raise rather than read
+        # from a guessed location.
+        main_loop._loop_start_id = "outer-loop"
+        main_loop.context.loop_start_port_uris = {}
+        opened = []
+        monkeypatch.setattr(
+            "core.runnables.main_loop.DocumentFactory.open_document",
+            lambda uri: (opened.append(uri) or (None, None)),
+        )
+
+        with pytest.raises(RuntimeError, match="no loop bookkeeping URI"):
+            main_loop._read_loop_input_table()
+
+        assert opened == [], "must fail before touching storage"
+
+    @pytest.mark.timeout(2)
+    def test_end_channel_holds_the_region_when_the_deferred_consume_fails(
+        self, main_loop, monkeypatch
+    ):
+        # The deferred consume runs the table read and the user's `update`.
+        # Both can fail, and the failure must hold the region: complete() is
+        # the tail of _process_end_channel, so reporting the error there would
+        # arrive after port_completed had already been sent for every port and
+        # would read as a false success (region completion is port-based).
+        class _BoomLoopEnd(LoopEndOperator):
+            def condition(self):
+                return False
+
+            def process_state(self, state, port):
+                raise ValueError("name 'i' is not defined")
+
+        executor = _BoomLoopEnd()
+        main_loop.context.executor_manager.executor = executor
+        main_loop._pending_loop_state = State({"i": 1})
+        monkeypatch.setattr(
+            main_loop, "_read_loop_input_table", lambda: Table([Tuple({"v": 1})])
+        )
+
+        completed = []
+        port_completed_calls = []
+        console_msgs = []
+        monkeypatch.setattr(main_loop, "process_input_state", lambda *a, **k: None)
+        monkeypatch.setattr(main_loop, "process_input_tuple", lambda: None)
+        monkeypatch.setattr(main_loop, "complete", lambda: completed.append(True))
+        monkeypatch.setattr(
+            main_loop, "_send_console_message", lambda msg: console_msgs.append(msg)
+        )
+        monkeypatch.setattr(
+            main_loop.context.pause_manager,
+            "pause",
+            lambda pause_type, change_state=True: None,
+        )
+
+        class _Coordinator:
+            def port_completed(self, request):
+                port_completed_calls.append(request)
+
+        monkeypatch.setattr(
+            main_loop._async_rpc_client, "coordinator_stub", lambda: _Coordinator()
+        )
+
+        main_loop._process_end_channel()
+
+        assert main_loop.context.exception_manager.has_exception()
+        error_msgs = [m for m in console_msgs if m.msg_type == ConsoleMessageType.ERROR]
+        assert len(error_msgs) == 1
+        assert "name 'i' is not defined" in error_msgs[0].title
+        assert port_completed_calls == [], "no port may be reported complete"
+        assert completed == [], "the worker must not complete"
+
     def test_jump_to_loop_start_sends_rpc_then_writes_state_in_order(
         self, main_loop, monkeypatch
     ):
         # One shared event log for the jump RPC and the storage calls, so
         # the cross-channel ordering is pinned along with each contract.
         main_loop._loop_start_id = "outer-loop"
-        # The write address is setup-injected config keyed by the captured id.
-        main_loop.context.loop_start_state_uris = {
-            "outer-loop": "vfs:///wf/state/outer"
-        }
+        # The bookkeeping BASE URI is setup-injected config keyed by the
+        # captured id; the write address is derived from it (state_uri).
+        main_loop.context.loop_start_port_uris = {"outer-loop": "vfs:///wf/port/outer"}
 
         events = []
         self._patch_create_document(monkeypatch, events)
@@ -2563,14 +3054,15 @@ class TestMainLoop:
         assert kind == "jump"
         assert request.target_operator_id.id == "outer-loop"
         # (ii) Then the exact iceberg write contract, in order:
-        # create_document with the configured URI and State.SCHEMA, open
+        # create_document with the state URI DERIVED from the configured base
+        # URI and State.SCHEMA, open
         # writer("0"), a single put_one with the State as a depth-0 tuple
         # (the back-edge fires only after the matching LoopEnd consumed at
         # loop_counter == 0, so the next iteration starts at depth 0),
         # then close. The tuple object's internals are exercised elsewhere.
         assert events[1] == (
             "create_document",
-            "vfs:///wf/state/outer",
+            VFSURIFactory.state_uri("vfs:///wf/port/outer"),
             State.SCHEMA,
         )
         assert events[2] == ("writer", "0")
@@ -2587,7 +3079,7 @@ class TestMainLoop:
         # RPC and before any storage write -- rewinding the schedule
         # without a back-edge write would hang the loop.
         main_loop._loop_start_id = "outer"
-        main_loop.context.loop_start_state_uris = {}
+        main_loop.context.loop_start_port_uris = {}
 
         rpc_calls = []
         write_log = []
@@ -2596,7 +3088,7 @@ class TestMainLoop:
         class _Executor:
             state = State({"i": 7})
 
-        with pytest.raises(RuntimeError, match="no loop-back state URI"):
+        with pytest.raises(RuntimeError, match="no loop bookkeeping URI"):
             main_loop._jump_to_loop_start(
                 _Executor(), self._stub_coordinator(rpc_calls)
             )

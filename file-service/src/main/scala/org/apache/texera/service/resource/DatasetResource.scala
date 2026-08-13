@@ -25,6 +25,7 @@ import jakarta.annotation.security.{PermitAll, RolesAllowed}
 import jakarta.ws.rs._
 import jakarta.ws.rs.core._
 import org.apache.texera.common.config.StorageConfig
+import org.apache.texera.common.util.EmailUtil
 import org.apache.texera.amber.core.storage.model.OnVersionedFileResource
 import org.apache.texera.amber.core.storage.util.LakeFSStorageClient
 import org.apache.texera.amber.core.storage.{DocumentFactory, FileResolver, ResourceType}
@@ -32,8 +33,9 @@ import org.apache.texera.auth.SessionUser
 import org.apache.texera.dao.SiteSettings
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.SqlServer.withTransaction
-import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
+import org.apache.texera.dao.jooq.generated.enums.{PrivilegeEnum, UserRoleEnum}
 import org.apache.texera.dao.jooq.generated.tables.Dataset.DATASET
+import org.apache.texera.dao.jooq.generated.tables.DatasetContributor.DATASET_CONTRIBUTOR
 import org.apache.texera.dao.jooq.generated.tables.DatasetUserAccess.DATASET_USER_ACCESS
 import org.apache.texera.dao.jooq.generated.tables.DatasetVersion.DATASET_VERSION
 import org.apache.texera.dao.jooq.generated.tables.User.USER
@@ -88,6 +90,15 @@ object DatasetResource {
     SqlServer
       .getInstance()
       .createDSLContext()
+
+  // Builds a resource logical path (/<resourceType>/ownerEmail/resourceName/relativePath).
+  private def logicalPath(
+      resourceType: ResourceType.Value,
+      ownerEmail: String,
+      resourceName: String,
+      relativePath: String
+  ): String =
+    s"$resourceType/$ownerEmail/$resourceName/$relativePath"
 
   private def singleFileUploadMaxBytes(defaultMiB: Long = 20L): Long =
     SiteSettings.getLong("single_file_upload_max_size_mib", defaultMiB) * 1024L * 1024L
@@ -175,12 +186,124 @@ object DatasetResource {
     normalized
   }
 
+  /**
+    * Helper function to get the contributors using the did
+    */
+  def getContributorsByDid(ctx: DSLContext, did: Integer): List[Contributor] = {
+    ctx
+      .selectFrom(DATASET_CONTRIBUTOR)
+      .where(DATASET_CONTRIBUTOR.DID.eq(did))
+      .fetch()
+      .asScala
+      .toList
+      .map { record =>
+        Contributor(
+          name = record.getName,
+          creator = record.getCreator,
+          affiliation = record.getAffiliation,
+          email = record.getEmail,
+          comments = record.getComments,
+          uid = Option(record.getUid)
+        )
+      }
+  }
+
+  /**
+    * Resolves a normalized contributor email to a user account, creating a
+    * placeholder account when no user with that email exists.
+    */
+  private def resolveContributorUid(
+      ctx: DSLContext,
+      did: Integer,
+      name: String,
+      normalizedEmail: String
+  ): Integer = {
+    val existing = ctx
+      .select(USER.UID)
+      .from(USER)
+      .where(DSL.lower(USER.EMAIL).eq(normalizedEmail))
+      .fetchOne(USER.UID)
+    if (existing != null) {
+      existing
+    } else {
+      val placeholder = ctx.newRecord(USER)
+      placeholder.setName(name)
+      placeholder.setEmail(normalizedEmail)
+      placeholder.setRole(UserRoleEnum.INACTIVE)
+      placeholder.setIsPlaceholder(true)
+      placeholder.setComment(s"Auto-created as contributor of dataset $did")
+      placeholder.store()
+      placeholder.getUid
+    }
+  }
+
+  /**
+    * Helper function to insert the contributors of a dataset in one batch
+    */
+  private def contributorEmail(contributor: Contributor): Option[String] =
+    Option(contributor.email).map(EmailUtil.normalize).filter(_.nonEmpty)
+
+  def insertContributors(ctx: DSLContext, did: Integer, contributors: List[Contributor]): Unit = {
+    contributors.foreach { contributor =>
+      if (contributor == null || contributor.name == null || contributor.name.trim.isEmpty) {
+        throw new BadRequestException("Each contributor must have a name")
+      }
+      if (
+        contributor.name.length > 256 ||
+        Option(contributor.email).exists(_.length > 256) ||
+        Option(contributor.affiliation).exists(_.length > 256)
+      ) {
+        throw new BadRequestException("Contributor fields must not exceed 256 characters")
+      }
+      contributorEmail(contributor).foreach { email =>
+        if (!EmailUtil.isValid(email)) {
+          throw new BadRequestException(s"Invalid contributor email: ${contributor.email}")
+        }
+      }
+    }
+
+    val emails = contributors.flatMap(contributorEmail)
+    if (emails.distinct.size != emails.size) {
+      throw new BadRequestException("Each contributor of a dataset must have a distinct email")
+    }
+
+    val records = contributors.map { contributor =>
+      val record = ctx.newRecord(DATASET_CONTRIBUTOR)
+      record.setDid(did)
+      record.setName(contributor.name)
+      record.setCreator(contributor.creator)
+      record.setAffiliation(contributor.affiliation)
+      record.setEmail(contributor.email)
+      record.setComments(contributor.comments)
+      contributorEmail(contributor).foreach(email =>
+        record.setUid(resolveContributorUid(ctx, did, contributor.name, email))
+      )
+      record
+    }
+    ctx.batchInsert(records.asJava).execute()
+  }
+
+  case class Contributor(
+      name: String,
+      creator: Boolean = false,
+      affiliation: String = null,
+      email: String = null,
+      comments: String = null,
+      uid: Option[Integer] = None
+  )
+
+  case class DatasetContributorsModification(
+      did: Integer,
+      contributors: Option[List[Contributor]] = None
+  )
+
   case class DashboardDataset(
       dataset: Dataset,
       ownerEmail: String,
       accessPrivilege: EnumType,
       isOwner: Boolean,
-      size: Long
+      size: Long,
+      contributors: List[Contributor] = Nil
   )
 
   case class DashboardDatasetVersion(
@@ -192,7 +315,8 @@ object DatasetResource {
       datasetName: String,
       datasetDescription: String,
       isDatasetPublic: Boolean,
-      isDatasetDownloadable: Boolean
+      isDatasetDownloadable: Boolean,
+      contributors: Option[List[Contributor]] = None
   )
 
   case class Diff(
@@ -228,6 +352,8 @@ class DatasetResource extends LazyLogging {
   private val COVER_IMAGE_SIZE_LIMIT_BYTES: Long = 10 * 1024 * 1024 // 10 MB
   private val ALLOWED_IMAGE_EXTENSIONS: Set[String] = Set(".jpg", ".jpeg", ".png", ".gif", ".webp")
 
+  private val resourceType = ResourceType.Datasets
+
   /**
     * Helper function to get the dataset from DB with additional information including user access privilege and owner email
     */
@@ -257,7 +383,8 @@ class DatasetResource extends LazyLogging {
       isOwner,
       withLakeFSErrorHandling(s"retrieving the size of dataset '${targetDataset.getName}'") {
         LakeFSStorageClient.retrieveRepositorySize(targetDataset.getRepositoryName)
-      }
+      },
+      contributors = DatasetResource.getContributorsByDid(ctx, did)
     )
   }
 
@@ -331,6 +458,10 @@ class DatasetResource extends LazyLogging {
           }
       }
 
+      // After the LakeFS call so placeholder inserts don't hold user-table locks across it.
+      val savedContributors = request.contributors.getOrElse(Nil)
+      DatasetResource.insertContributors(ctx, createdDataset.getDid, savedContributors)
+
       // update repository name of the created dataset
       createdDataset.setRepositoryName(repositoryName)
       createdDataset.update()
@@ -347,7 +478,8 @@ class DatasetResource extends LazyLogging {
         user.getEmail,
         PrivilegeEnum.WRITE,
         isOwner = true,
-        0
+        0,
+        savedContributors
       )
     }
   }
@@ -490,6 +622,34 @@ class DatasetResource extends LazyLogging {
 
       dataset.setDescription(modificator.description)
       datasetDao.update(dataset)
+      Response.ok().build()
+    }
+  }
+
+  @POST
+  @Consumes(Array(MediaType.APPLICATION_JSON))
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @Path("/update/contributors")
+  def updateDatasetContributors(
+      modificator: DatasetContributorsModification,
+      @Auth user: SessionUser
+  ): Response = {
+    withTransaction(context) { ctx =>
+      if (!userHasWriteAccess(ctx, modificator.did, user.getUid)) {
+        throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
+      }
+
+      ctx
+        .delete(DATASET_CONTRIBUTOR)
+        .where(DATASET_CONTRIBUTOR.DID.eq(modificator.did))
+        .execute()
+      DatasetResource.insertContributors(
+        ctx,
+        modificator.did,
+        modificator.contributors.getOrElse(Nil)
+      )
+
       Response.ok().build()
     }
   }
@@ -2244,7 +2404,7 @@ class DatasetResource extends LazyLogging {
       val document = DocumentFactory
         .openReadonlyDocument(
           FileResolver.resolve(
-            s"${ResourceType.Datasets}/${owner.getEmail}/${dataset.getName}/$normalized"
+            logicalPath(resourceType, owner.getEmail, dataset.getName, normalized)
           )
         )
         .asInstanceOf[OnVersionedFileResource]
@@ -2300,7 +2460,7 @@ class DatasetResource extends LazyLogging {
 
       val owner = getOwner(ctx, did)
       val fullPath =
-        s"${ResourceType.Datasets}/${owner.getEmail}/${dataset.getName}/$coverImage"
+        logicalPath(resourceType, owner.getEmail, dataset.getName, coverImage)
 
       val document = DocumentFactory
         .openReadonlyDocument(FileResolver.resolve(fullPath))
@@ -2350,7 +2510,7 @@ class DatasetResource extends LazyLogging {
         case Some(coverImage) =>
           val owner = getOwner(ctx, did)
           val fullPath =
-            s"${ResourceType.Datasets}/${owner.getEmail}/${dataset.getName}/$coverImage"
+            logicalPath(resourceType, owner.getEmail, dataset.getName, coverImage)
 
           val document = DocumentFactory
             .openReadonlyDocument(FileResolver.resolve(fullPath))

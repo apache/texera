@@ -491,11 +491,24 @@ export class JointUIService {
    * @param isOperatorValid
    */
   public changeOperatorColor(jointPaper: joint.dia.Paper, operatorID: string, isOperatorValid: boolean): void {
-    if (isOperatorValid) {
-      jointPaper.getModelById(operatorID).attr("rect.body/stroke", "#CFCFCF");
-    } else {
-      jointPaper.getModelById(operatorID).attr("rect.body/stroke", "red");
+    this.paintOperatorBorder(jointPaper, operatorID, isOperatorValid ? "#CFCFCF" : "red");
+  }
+
+  /**
+   * Sets the operator's border stroke, returning early when it is already that
+   * color. A same-value attr() write would not re-render (Backbone's Model.set
+   * no-ops via _.isEqual), but attr() still deep-clones and deep-compares the
+   * whole attrs tree before reaching that check. On operator add the validation
+   * pass and the operator-add restore both request a border color for the same
+   * operator, so returning early here skips that clone/compare on the second
+   * call.
+   */
+  private paintOperatorBorder(jointPaper: joint.dia.Paper, operatorID: string, color: string): void {
+    const model = jointPaper.getModelById(operatorID);
+    if (model.attr("rect.body/stroke") === color) {
+      return;
     }
+    model.attr("rect.body/stroke", color);
   }
 
   public changeOperatorDisableStatus(jointPaper: joint.dia.Paper, operator: OperatorPredicate): void {

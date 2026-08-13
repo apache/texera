@@ -53,7 +53,6 @@ class FileResolverSpec
     user.setUid(Integer.valueOf(1))
     user.setName("test_user")
     user.setRole(UserRoleEnum.ADMIN)
-    user.setPassword("123")
     user.setEmail("test_user@test.com")
     user
   }
@@ -131,11 +130,12 @@ class FileResolverSpec
 
   private val modelReadmeFilePath = "/models/test_user@test.com/test_model/v1/README.md"
 
-  // Unprefixed form (no resource-type segment); no longer resolvable as a dataset.
+  // Legacy unprefixed form — still resolvable as a dataset (backward compat).
   private val unprefixedDataset1TxtFilePath = "/test_user@test.com/test_dataset/v1/1.txt"
 
-  // An unknown resource-type prefix belongs to neither datasets nor models.
-  private val unknownPrefixFilePath = "/notaprefix/test_user@test.com/test_dataset/v1/1.txt"
+  // Leading segment names no known dataset owner, so this is not resolvable.
+  private val unknownResourceTypeFilePath =
+    "/notAResourceType/test_user@test.com/test_dataset/v1/1.txt"
 
   // A model name presented under the datasets prefix must not resolve as a dataset.
   private val modelNameUnderDatasetPrefix = "/datasets/test_user@test.com/test_model/v1/README.md"
@@ -199,17 +199,17 @@ class FileResolverSpec
     )
   }
 
-  "FileResolver" should "not resolve an unprefixed dataset path (the datasets prefix is required)" in {
-    // Without the datasets prefix the path is not a dataset path; it falls through to the
-    // local-file resolver and fails.
-    assertThrows[FileNotFoundException] {
-      FileResolver.resolve(unprefixedDataset1TxtFilePath)
-    }
+  "FileResolver" should "still resolve a legacy unprefixed dataset path" in {
+    val dataset1TxtUri = FileResolver.resolve(unprefixedDataset1TxtFilePath)
+
+    assert(
+      dataset1TxtUri.toString == f"${FileResolver.DATASET_FILE_URI_SCHEME}:///${testDataset.getRepositoryName}/${testDatasetVersion1.getVersionHash}/1.txt"
+    )
   }
 
-  "FileResolver" should "not resolve a path whose prefix is neither datasets nor models" in {
+  "FileResolver" should "not resolve a path whose leading segment names no dataset" in {
     assertThrows[FileNotFoundException] {
-      FileResolver.resolve(unknownPrefixFilePath)
+      FileResolver.resolve(unknownResourceTypeFilePath)
     }
   }
 
@@ -264,8 +264,11 @@ class FileResolverSpec
     )
   }
 
-  it should "return None for an unprefixed path (the datasets prefix is required)" in {
-    assert(FileResolver.parseDatasetOwnerAndName(unprefixedDataset1TxtFilePath).isEmpty)
+  it should "still extract owner and name from a legacy unprefixed path" in {
+    assert(
+      FileResolver.parseDatasetOwnerAndName(unprefixedDataset1TxtFilePath)
+        == Some(("test_user@test.com", "test_dataset"))
+    )
   }
 
   it should "return None when the prefixed path has too few segments" in {
@@ -278,7 +281,7 @@ class FileResolverSpec
   }
 
   override protected def afterAll(): Unit = {
-    shutdownDB()
+    closeConnectionPool()
   }
 
 }

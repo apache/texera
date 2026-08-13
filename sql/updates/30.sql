@@ -23,35 +23,16 @@ SET search_path TO texera_db;
 
 BEGIN;
 
--- Introduce ML models as a first-class resource (own primary key `mid`, own LakeFS repo namespace)
--- and add model-specific attributes (framework, format).
-
-CREATE TABLE IF NOT EXISTS model
+CREATE TABLE IF NOT EXISTS dataset_contributor
 (
-    mid             SERIAL PRIMARY KEY,
-    owner_uid       INT NOT NULL,
-    name            VARCHAR(128) NOT NULL,
-    repository_name VARCHAR(128),
-    is_public       BOOLEAN NOT NULL DEFAULT TRUE,
-    is_downloadable BOOLEAN NOT NULL DEFAULT TRUE,
-    description     TEXT NOT NULL,
-    creation_time   TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    cover_image     varchar(255),
-    framework       VARCHAR(32),
-    format          VARCHAR(32),
-    FOREIGN KEY (owner_uid) REFERENCES "user"(uid) ON DELETE CASCADE,
-    UNIQUE (owner_uid, name)
-);
-
-CREATE TABLE IF NOT EXISTS model_version
-(
-    mvid          SERIAL PRIMARY KEY,
-    mid           INT NOT NULL,
-    creator_uid   INT NOT NULL,
-    name          VARCHAR(128) NOT NULL,
-    version_hash  VARCHAR(64) NOT NULL,
-    creation_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (mid) REFERENCES model(mid) ON DELETE CASCADE
+    cid           SERIAL PRIMARY KEY,
+    did           INT NOT NULL,
+    name          VARCHAR(256) NOT NULL,
+    creator       BOOLEAN NOT NULL DEFAULT FALSE,
+    email         VARCHAR(256),
+    affiliation   VARCHAR(256),
+    comments      TEXT,
+    FOREIGN KEY (did) REFERENCES dataset(did) ON DELETE CASCADE
 );
 
 COMMIT;

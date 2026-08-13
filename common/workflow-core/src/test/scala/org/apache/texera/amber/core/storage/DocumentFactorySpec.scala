@@ -63,7 +63,11 @@ class DocumentFactorySpec extends AnyFlatSpec with Matchers with BeforeAndAfterA
 
   override def beforeAll(): Unit = {
     super.beforeAll()
-    LocalHadoopIcebergCatalog.ensure()
+    // "wh-test" is registered explicitly so the warehouse-scoped case resolves to
+    // this local catalog instead of reaching for a live REST catalog under the
+    // default (`rest`) config -- otherwise the case would pass or fail according to
+    // the machine's catalog type rather than the code under test.
+    LocalHadoopIcebergCatalog.ensure("wh-test")
   }
 
   // ---------------------------------------------------------------------------
@@ -254,6 +258,27 @@ class DocumentFactorySpec extends AnyFlatSpec with Matchers with BeforeAndAfterA
     val doc = DocumentFactory.createDocument(stateUri, vfsSchema)
     doc shouldBe an[IcebergDocument[_]]
     DocumentFactory.documentExists(stateUri) shouldBe true
+  }
+
+  it should "create + find a document for a warehouse-scoped vfs URI (the /wh/ segment is stripped from the storage key)" in {
+    val base = VFSURIFactory.createPortBaseURI(
+      WorkflowIdentity(0),
+      ExecutionIdentity(0),
+      GlobalPortIdentity(
+        PhysicalOpIdentity(
+          logicalOpId = OperatorIdentity(s"op-${UUID.randomUUID().toString.replace("-", "")}"),
+          layerName = "main"
+        ),
+        PortIdentity()
+      ),
+      warehouse = Some("wh-test")
+    )
+    val vfsUri = VFSURIFactory.resultURI(base)
+    vfsUri.getPath should startWith("/wh/wh-test/")
+
+    val doc = DocumentFactory.createDocument(vfsUri, vfsSchema)
+    doc shouldBe an[IcebergDocument[_]]
+    DocumentFactory.documentExists(vfsUri) shouldBe true
   }
 
   "documentExists" should "report false before creation and true after for a vfs URI" in {

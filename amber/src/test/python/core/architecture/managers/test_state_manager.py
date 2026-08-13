@@ -72,3 +72,43 @@ class TestStateManager:
         state_manager.transit_to(WorkerState.READY)
         state_manager.transit_to(WorkerState.COMPLETED)
         state_manager.assert_state(WorkerState.COMPLETED)
+
+    def test_state_version_starts_at_zero(self, state_manager):
+        assert state_manager.get_state_version() == 0
+
+    def test_state_version_bumps_on_every_successful_transition(self, state_manager):
+        # The controller relies on this monotonic version to order Python-worker
+        # state reports causally; without it, RUNNING -> PAUSED -> RUNNING during
+        # reconfiguration would be dropped as stale. Mirrors the Scala StateManager.
+        assert state_manager.get_state_version() == 0
+        state_manager.transit_to(WorkerState.READY)
+        assert state_manager.get_state_version() == 1
+        state_manager.transit_to(WorkerState.RUNNING)
+        assert state_manager.get_state_version() == 2
+        state_manager.transit_to(WorkerState.COMPLETED)
+        assert state_manager.get_state_version() == 3
+
+    def test_state_version_does_not_bump_on_noop_self_transition(self, state_manager):
+        state_manager.transit_to(WorkerState.READY)
+        before = state_manager.get_state_version()
+        state_manager.transit_to(WorkerState.READY)  # no-op
+        assert state_manager.get_state_version() == before
+
+    def test_state_version_does_not_bump_on_rejected_transition(self, state_manager):
+        # UNINITIALIZED -> RUNNING is illegal (must pass through READY).
+        with pytest.raises(InvalidTransitionException):
+            state_manager.transit_to(WorkerState.RUNNING)
+        assert state_manager.get_state_version() == 0
+
+    def test_get_state_with_version_returns_matching_pair(self, state_manager):
+        # Report sites read state and version through this single accessor so the
+        # pair can never come from two different transitions. Mirrors the Scala
+        # StateManager's getStateWithVersion.
+        assert state_manager.get_state_with_version() == (
+            WorkerState.UNINITIALIZED,
+            0,
+        )
+        state_manager.transit_to(WorkerState.READY)
+        assert state_manager.get_state_with_version() == (WorkerState.READY, 1)
+        state_manager.transit_to(WorkerState.RUNNING)
+        assert state_manager.get_state_with_version() == (WorkerState.RUNNING, 2)

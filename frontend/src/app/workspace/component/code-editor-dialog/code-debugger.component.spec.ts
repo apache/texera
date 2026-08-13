@@ -30,6 +30,7 @@ import { commonTestProviders } from "../../../common/testing/test-utils";
 import type { Mocked } from "vitest";
 import type { MonacoBreakpoint } from "monaco-breakpoints";
 import type * as monaco from "monaco-editor";
+import * as monacoNs from "monaco-editor";
 describe("CodeDebuggerComponent", () => {
   let component: CodeDebuggerComponent;
   let fixture: ComponentFixture<CodeDebuggerComponent>;
@@ -389,6 +390,225 @@ describe("CodeDebuggerComponent", () => {
       component.monacoBreakpoint = undefined;
       // Should simply no-op.
       expect(() => component.removeMonacoBreakpointMethods()).not.toThrow();
+    });
+  });
+});
+/**
+ * setupMonacoBreakpointMethods is the one uncovered block in the component: the suite above stubs it
+ * out because the minimal editor mock cannot back a real MonacoBreakpoint. It decides which gutter
+ * glyph a line gets and what a gutter click does, so it is worth driving directly.
+ */
+describe("CodeDebuggerComponent breakpoint gutter", () => {
+  const GUTTER = monacoNs.editor.MouseTargetType.GUTTER_GLYPH_MARGIN;
+  const CONTENT_TEXT = monacoNs.editor.MouseTargetType.CONTENT_TEXT;
+
+  let component: CodeDebuggerComponent;
+  let fixture: ComponentFixture<CodeDebuggerComponent>;
+  let debugService: {
+    getDebugState: ReturnType<typeof vi.fn>;
+    doModifyBreakpoint: ReturnType<typeof vi.fn>;
+    getCondition: ReturnType<typeof vi.fn>;
+  };
+  let editor: any;
+  let mouseDown: ((evt: any) => void) | undefined;
+  let firstMouseDownDisposable: { dispose: ReturnType<typeof vi.fn> } | undefined;
+
+  const operatorId = "op-under-debug";
+
+  /**
+   * A stand-in editor exposing only what MonacoBreakpoint and the override touch. Every listener
+   * hands back its own spy disposable so the dispose-before-reregister step is observable.
+   */
+  function makeEditor() {
+    const disposable = () => ({ dispose: vi.fn() });
+    const model = {
+      deltaDecorations: vi.fn(() => [] as string[]),
+      getLineCount: vi.fn(() => 100),
+      getValue: vi.fn(() => ""),
+      onDidChangeContent: vi.fn(disposable),
+      uri: { toString: () => "inmemory://model/1" },
+    };
+    let downCount = 0;
+    const base: Record<string, unknown> = {
+      onMouseDown: vi.fn((h: (evt: any) => void) => {
+        downCount += 1;
+        const d = disposable();
+        if (downCount === 1) {
+          // The MonacoBreakpoint constructor registers first; the override replaces it.
+          firstMouseDownDisposable = d;
+        } else {
+          mouseDown = h;
+        }
+        return d;
+      }),
+      getModel: vi.fn(() => model),
+      deltaDecorations: vi.fn(() => [] as string[]),
+      createDecorationsCollection: vi.fn(() => ({ set: vi.fn(), clear: vi.fn() })),
+      dispose: vi.fn(),
+    };
+    // MonacoBreakpoint subscribes to a handful of editor events whose exact set is its own business;
+    // anything named on* that is not explicitly stubbed above yields an inert disposable.
+    const editor = new Proxy(base, {
+      get(target, prop) {
+        if (prop in target) {
+          return target[prop as string];
+        }
+        if (typeof prop === "string" && prop.startsWith("on")) {
+          return () => disposable();
+        }
+        return undefined;
+      },
+      has() {
+        return true;
+      },
+    });
+    return { model, editor };
+  }
+
+  function gutterClick(lineNumber: number, opts: { leftButton?: boolean; isAfterLines?: boolean; type?: number } = {}) {
+    return {
+      target: {
+        type: opts.type ?? GUTTER,
+        detail: { isAfterLines: opts.isAfterLines ?? false },
+        position: { lineNumber },
+      },
+      event: { leftButton: opts.leftButton ?? true },
+    };
+  }
+
+  /** Calls the installed override the way monaco-breakpoints would. exists=true means Exist. */
+  function glyphFor(lineNumber: number, exists: boolean): string {
+    const range = { startLineNumber: lineNumber, endLineNumber: lineNumber + 5 } as any;
+    const decoration = (component.monacoBreakpoint as any)["createBreakpointDecoration"](range, exists ? 0 : 1);
+    return decoration.options.glyphMarginClassName;
+  }
+
+  beforeEach(async () => {
+    mouseDown = undefined;
+    firstMouseDownDisposable = undefined;
+    debugService = {
+      getDebugState: vi.fn(() => new Y.Doc().getMap<BreakpointInfo>("debug")),
+      doModifyBreakpoint: vi.fn(),
+      getCondition: vi.fn(() => undefined),
+    };
+
+    TestBed.resetTestingModule();
+    await TestBed.configureTestingModule({
+      imports: [CodeDebuggerComponent],
+      schemas: [CUSTOM_ELEMENTS_SCHEMA],
+      providers: [
+        {
+          provide: WorkflowStatusService,
+          useValue: { getStatusUpdateStream: vi.fn(() => new Subject().asObservable()) },
+        },
+        { provide: UdfDebugService, useValue: debugService },
+        ...commonTestProviders,
+      ],
+    }).compileComponents();
+
+    fixture = TestBed.createComponent(CodeDebuggerComponent);
+    component = fixture.componentInstance;
+    component.currentOperatorId = operatorId;
+
+    const fake = makeEditor();
+    editor = fake.editor;
+    component.monacoEditor = editor;
+    component.setupMonacoBreakpointMethods(editor);
+  });
+
+  afterEach(() => {
+    // This suite drives a real MonacoBreakpoint, so tear it down the way the component does. Left
+    // alive, its editor listeners would outlive the test that registered them.
+    component.removeMonacoBreakpointMethods();
+    component.monacoEditor?.dispose();
+  });
+
+  describe("gutter glyph", () => {
+    it("marks a plain breakpoint", () => {
+      expect(glyphFor(3, true)).toBe("monaco-breakpoint");
+    });
+
+    it("marks a breakpoint that carries a condition", () => {
+      debugService.getCondition.mockReturnValue("count > 1");
+
+      expect(glyphFor(3, true)).toBe("monaco-conditional-breakpoint");
+    });
+
+    it("does not treat a blank condition as a condition", () => {
+      // A condition input left as whitespace must render as an ordinary breakpoint, otherwise the
+      // gutter claims a condition the debugger will not apply.
+      debugService.getCondition.mockReturnValue("   ");
+
+      expect(glyphFor(3, true)).toBe("monaco-breakpoint");
+    });
+
+    it("marks a line that is only being hovered", () => {
+      expect(glyphFor(3, false)).toBe("monaco-hover-breakpoint");
+    });
+
+    it("looks the condition up on the line the glyph starts at", () => {
+      // The range spans several lines; reading endLineNumber would attribute another line's
+      // condition to this glyph.
+      glyphFor(7, true);
+
+      expect(debugService.getCondition).toHaveBeenCalledWith(operatorId, 7);
+    });
+
+    it("keys the lookup to the operator being debugged", () => {
+      glyphFor(2, true);
+
+      expect(debugService.getCondition).toHaveBeenCalledWith(operatorId, expect.anything());
+    });
+  });
+
+  describe("gutter clicks", () => {
+    it("replaces the library's own mouse-down handler rather than adding to it", () => {
+      // Two live handlers would both toggle, so a single click would add and immediately remove a
+      // breakpoint.
+      expect(firstMouseDownDisposable!.dispose).toHaveBeenCalledTimes(1);
+      expect(editor.onMouseDown).toHaveBeenCalledTimes(2);
+    });
+
+    it("toggles the breakpoint on a left click in the gutter", () => {
+      mouseDown!(gutterClick(12));
+
+      expect(debugService.doModifyBreakpoint).toHaveBeenCalledWith(operatorId, 12);
+    });
+
+    it("ignores a click below the last line", () => {
+      mouseDown!(gutterClick(12, { isAfterLines: true }));
+
+      expect(debugService.doModifyBreakpoint).not.toHaveBeenCalled();
+    });
+
+    it("ignores a click that is not on the gutter", () => {
+      mouseDown!(gutterClick(12, { type: CONTENT_TEXT }));
+
+      expect(debugService.doModifyBreakpoint).not.toHaveBeenCalled();
+    });
+
+    it("does not toggle on a right click", () => {
+      // The right button opens the condition input instead; toggling as well would remove the
+      // breakpoint the user is trying to annotate.
+      mouseDown!(gutterClick(12, { leftButton: false }));
+
+      expect(debugService.doModifyBreakpoint).not.toHaveBeenCalled();
+    });
+
+    it("opens the condition input for a right click on an existing breakpoint", () => {
+      (component.monacoBreakpoint as any)["lineNumberAndDecorationIdMap"] = new Map([[12, "dec-1"]]);
+
+      mouseDown!(gutterClick(12, { leftButton: false }));
+
+      expect(component.breakpointConditionLine).toBe(12);
+    });
+
+    it("opens nothing for a right click on a line with no breakpoint", () => {
+      (component.monacoBreakpoint as any)["lineNumberAndDecorationIdMap"] = new Map();
+
+      mouseDown!(gutterClick(12, { leftButton: false }));
+
+      expect(component.breakpointConditionLine).toBeUndefined();
     });
   });
 });

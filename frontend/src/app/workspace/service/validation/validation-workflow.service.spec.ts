@@ -227,4 +227,41 @@ describe("ValidationWorkflowService", () => {
     workflowActionservice.getTexeraGraph().disableOperator(mockResultPredicate2.operatorID);
     expect(Object.entries(validationWorkflowService.getCurrentWorkflowValidationError().errors).length).toEqual(0);
   });
+
+  it("should report an operator invalid when a disallowMultiInputs port has two enabled links", () => {
+    // The guard behind `disallowMultiLinks` on a loop operator's input port
+    // (LoopOpDesc): a port declared single-input must have exactly one inbound
+    // link, so fanning two producers into it is invalid rather than silently
+    // accepted and failing at StartWorkflow.
+    const singleInputSink = {
+      ...mockResultPredicate,
+      operatorID: "single-input-sink",
+      inputPorts: [{ portID: "input-0", disallowMultiInputs: true }],
+    };
+    const secondSource = { ...mockScanPredicate, operatorID: "scan-2" };
+    const linkFromFirst = {
+      linkID: "link-single-input-1",
+      source: { operatorID: mockScanPredicate.operatorID, portID: "output-0" },
+      target: { operatorID: singleInputSink.operatorID, portID: "input-0" },
+    };
+    const linkFromSecond = {
+      linkID: "link-single-input-2",
+      source: { operatorID: secondSource.operatorID, portID: "output-0" },
+      target: { operatorID: singleInputSink.operatorID, portID: "input-0" },
+    };
+
+    workflowActionservice.addOperator(mockScanPredicate, mockPoint);
+    workflowActionservice.addOperator(secondSource, mockPoint);
+    workflowActionservice.addOperator(singleInputSink, mockPoint);
+
+    workflowActionservice.addLink(linkFromFirst);
+    expect(validationWorkflowService.validateOperator(singleInputSink.operatorID).isValid).toBeTruthy();
+
+    workflowActionservice.addLink(linkFromSecond);
+    const validation = validationWorkflowService.validateOperator(singleInputSink.operatorID);
+    expect(validation.isValid).toBeFalsy();
+    if (!validation.isValid) {
+      expect(validation.messages["inputs"]).toContain("requires 1 input, has 2");
+    }
+  });
 });

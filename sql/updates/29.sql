@@ -23,157 +23,18 @@ SET search_path TO texera_db;
 
 BEGIN;
 
--- The file resolver now requires an explicit resource-type prefix on dataset
--- logical paths (/datasets/ownerEmail/datasetName/versionName/...) so other
--- resource types (e.g. models) can be told apart by the prefix. Existing
--- workflows store unprefixed dataset paths inside workflow.content and
--- workflow_version.content, in two operator properties:
---   * fileName            (scan-source operators): /owner/name/version/file
---   * datasetVersionPath  (file-lister operator):  /owner/name/version
--- This migration prepends the "datasets" segment to both.
---
--- A value is treated as a dataset path only when its first two segments match an
--- existing (user.email, dataset.name) pair -- that pair is unique.
--- Local file paths and URLs match no dataset and are left untouched.
--- Already-prefixed values are skipped (idempotent). jsonb_set
--- uses create_missing = false so absent properties are never added.
+-- Execution size columns hold byte counts that can exceed 2 GiB (see #6978):
+-- they were INT, so Long sizes were narrowed via Scala's silent `.toInt`,
+-- wrapping sizes in [2 GiB, 4 GiB) to negative values and corrupting the
+-- user-quota sums computed over these columns. Widen them to BIGINT to match
+-- the Long byte counts the application writes.
+ALTER TABLE workflow_executions
+    ALTER COLUMN runtime_stats_size TYPE BIGINT;
 
-DO $$
-DECLARE
-    wf_count INT := 0;
-    wv_count INT := 0;
-BEGIN
-    WITH affected AS (
-        SELECT w.wid
-        FROM workflow w,
-             jsonb_array_elements(w.content::jsonb -> 'operators') AS op,
-             LATERAL (
-                 SELECT op #>> '{operatorProperties,fileName}'           AS fn,
-                        op #>> '{operatorProperties,datasetVersionPath}' AS dvp
-             ) f
-        WHERE jsonb_typeof(w.content::jsonb -> 'operators') = 'array'
-          AND (
-              (f.fn IS NOT NULL AND left(f.fn, 10) <> '/datasets/'
-                 AND EXISTS (SELECT 1 FROM dataset d JOIN "user" u ON d.owner_uid = u.uid
-                             WHERE u.email = split_part(ltrim(f.fn, '/'), '/', 1)
-                               AND d.name  = split_part(ltrim(f.fn, '/'), '/', 2)))
-              OR
-              (f.dvp IS NOT NULL AND left(f.dvp, 10) <> '/datasets/'
-                 AND EXISTS (SELECT 1 FROM dataset d JOIN "user" u ON d.owner_uid = u.uid
-                             WHERE u.email = split_part(ltrim(f.dvp, '/'), '/', 1)
-                               AND d.name  = split_part(ltrim(f.dvp, '/'), '/', 2)))
-          )
-        GROUP BY w.wid
-    ),
-    updated AS (
-        UPDATE workflow w
-        SET content = jsonb_set(w.content::jsonb, '{operators}', (
-            SELECT jsonb_agg(
-                jsonb_set(
-                    jsonb_set(
-                        op,
-                        '{operatorProperties,fileName}',
-                        CASE
-                            WHEN f.fn IS NOT NULL AND left(f.fn, 10) <> '/datasets/'
-                             AND EXISTS (SELECT 1 FROM dataset d JOIN "user" u ON d.owner_uid = u.uid
-                                         WHERE u.email = split_part(ltrim(f.fn, '/'), '/', 1)
-                                           AND d.name  = split_part(ltrim(f.fn, '/'), '/', 2))
-                            THEN to_jsonb('/datasets/' || ltrim(f.fn, '/'))
-                            ELSE COALESCE(op #> '{operatorProperties,fileName}', 'null'::jsonb)
-                        END,
-                        false
-                    ),
-                    '{operatorProperties,datasetVersionPath}',
-                    CASE
-                        WHEN f.dvp IS NOT NULL AND left(f.dvp, 10) <> '/datasets/'
-                         AND EXISTS (SELECT 1 FROM dataset d JOIN "user" u ON d.owner_uid = u.uid
-                                     WHERE u.email = split_part(ltrim(f.dvp, '/'), '/', 1)
-                                       AND d.name  = split_part(ltrim(f.dvp, '/'), '/', 2))
-                        THEN to_jsonb('/datasets/' || ltrim(f.dvp, '/'))
-                        ELSE COALESCE(op #> '{operatorProperties,datasetVersionPath}', 'null'::jsonb)
-                    END,
-                    false
-                )
-                ORDER BY ord
-            )
-            FROM jsonb_array_elements(w.content::jsonb -> 'operators') WITH ORDINALITY AS t(op, ord),
-                 LATERAL (
-                     SELECT op #>> '{operatorProperties,fileName}'           AS fn,
-                            op #>> '{operatorProperties,datasetVersionPath}' AS dvp
-                 ) f
-        ))::text
-        FROM affected a
-        WHERE w.wid = a.wid
-        RETURNING 1
-    )
-    SELECT count(*) INTO wf_count FROM updated;
+ALTER TABLE operator_executions
+    ALTER COLUMN console_messages_size TYPE BIGINT;
 
-    WITH affected AS (
-        SELECT wv.vid
-        FROM workflow_version wv,
-             jsonb_array_elements(wv.content::jsonb -> 'operators') AS op,
-             LATERAL (
-                 SELECT op #>> '{operatorProperties,fileName}'           AS fn,
-                        op #>> '{operatorProperties,datasetVersionPath}' AS dvp
-             ) f
-        WHERE jsonb_typeof(wv.content::jsonb -> 'operators') = 'array'
-          AND (
-              (f.fn IS NOT NULL AND left(f.fn, 10) <> '/datasets/'
-                 AND EXISTS (SELECT 1 FROM dataset d JOIN "user" u ON d.owner_uid = u.uid
-                             WHERE u.email = split_part(ltrim(f.fn, '/'), '/', 1)
-                               AND d.name  = split_part(ltrim(f.fn, '/'), '/', 2)))
-              OR
-              (f.dvp IS NOT NULL AND left(f.dvp, 10) <> '/datasets/'
-                 AND EXISTS (SELECT 1 FROM dataset d JOIN "user" u ON d.owner_uid = u.uid
-                             WHERE u.email = split_part(ltrim(f.dvp, '/'), '/', 1)
-                               AND d.name  = split_part(ltrim(f.dvp, '/'), '/', 2)))
-          )
-        GROUP BY wv.vid
-    ),
-    updated AS (
-        UPDATE workflow_version wv
-        SET content = jsonb_set(wv.content::jsonb, '{operators}', (
-            SELECT jsonb_agg(
-                jsonb_set(
-                    jsonb_set(
-                        op,
-                        '{operatorProperties,fileName}',
-                        CASE
-                            WHEN f.fn IS NOT NULL AND left(f.fn, 10) <> '/datasets/'
-                             AND EXISTS (SELECT 1 FROM dataset d JOIN "user" u ON d.owner_uid = u.uid
-                                         WHERE u.email = split_part(ltrim(f.fn, '/'), '/', 1)
-                                           AND d.name  = split_part(ltrim(f.fn, '/'), '/', 2))
-                            THEN to_jsonb('/datasets/' || ltrim(f.fn, '/'))
-                            ELSE COALESCE(op #> '{operatorProperties,fileName}', 'null'::jsonb)
-                        END,
-                        false
-                    ),
-                    '{operatorProperties,datasetVersionPath}',
-                    CASE
-                        WHEN f.dvp IS NOT NULL AND left(f.dvp, 10) <> '/datasets/'
-                         AND EXISTS (SELECT 1 FROM dataset d JOIN "user" u ON d.owner_uid = u.uid
-                                     WHERE u.email = split_part(ltrim(f.dvp, '/'), '/', 1)
-                                       AND d.name  = split_part(ltrim(f.dvp, '/'), '/', 2))
-                        THEN to_jsonb('/datasets/' || ltrim(f.dvp, '/'))
-                        ELSE COALESCE(op #> '{operatorProperties,datasetVersionPath}', 'null'::jsonb)
-                    END,
-                    false
-                )
-                ORDER BY ord
-            )
-            FROM jsonb_array_elements(wv.content::jsonb -> 'operators') WITH ORDINALITY AS t(op, ord),
-                 LATERAL (
-                     SELECT op #>> '{operatorProperties,fileName}'           AS fn,
-                            op #>> '{operatorProperties,datasetVersionPath}' AS dvp
-                 ) f
-        ))::text
-        FROM affected a
-        WHERE wv.vid = a.vid
-        RETURNING 1
-    )
-    SELECT count(*) INTO wv_count FROM updated;
-
-    RAISE NOTICE 'Prefixed legacy dataset paths with "datasets/" in % workflow and % workflow_version row(s).', wf_count, wv_count;
-END $$;
+ALTER TABLE operator_port_executions
+    ALTER COLUMN result_size TYPE BIGINT;
 
 COMMIT;

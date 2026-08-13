@@ -120,6 +120,16 @@ describe("DatasetSelectionModalComponent", () => {
     expect(datasetService.retrieveDatasetVersionFileTree).toHaveBeenCalledWith(10, 100);
   });
 
+  it("ngOnInit also accepts a legacy unprefixed data.selectedPath", () => {
+    modalData.fileMode = true;
+    modalData.selectedPath = `/${OWNER}/myds/v1`;
+
+    build();
+
+    expect(component.selectedDataset).toBe(dataset);
+    expect(component.selectedVersion).toBe(version);
+  });
+
   it("onDatasetChange loads the version list and auto-selects a version in file mode", () => {
     modalData.fileMode = true;
     build();

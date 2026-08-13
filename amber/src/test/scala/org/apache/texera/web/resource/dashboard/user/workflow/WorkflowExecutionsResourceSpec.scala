@@ -28,9 +28,11 @@ import org.apache.texera.amber.core.virtualidentity.{
 }
 import org.apache.texera.amber.core.workflow.{GlobalPortIdentity, PortIdentity}
 import org.apache.texera.amber.util.serde.GlobalPortIdentitySerde.SerdeOps
+import org.apache.texera.auth.SessionUser
 import org.apache.texera.dao.MockTexeraDB
+import org.apache.texera.dao.jooq.generated.enums.UserWarehouseFlavorEnum
 import org.apache.texera.dao.jooq.generated.Tables._
-import org.apache.texera.dao.jooq.generated.enums.WorkflowComputingUnitTypeEnum
+import org.apache.texera.dao.jooq.generated.enums.{PrivilegeEnum, WorkflowComputingUnitTypeEnum}
 import org.apache.texera.dao.jooq.generated.tables.daos.{
   DatasetDao,
   UserDao,
@@ -52,6 +54,7 @@ import org.apache.texera.web.service.ExecutionResultService
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, PrivateMethodTester}
 
+import javax.ws.rs.{BadRequestException, ForbiddenException, WebApplicationException}
 import java.net.URI
 import java.sql.Timestamp
 import java.util.UUID
@@ -87,8 +90,7 @@ class WorkflowExecutionsResourceSpec
     testUser.setUid(testUserId)
     testUser.setName("test_user")
     testUser.setEmail("test@example.com")
-    testUser.setPassword("password")
-    testUser.setGoogleAvatar("avatar_url")
+    testUser.setAvatar("avatar_url")
 
     testWorkflow = new Workflow
     testWorkflow.setWid(testWorkflowWid)
@@ -162,6 +164,12 @@ class WorkflowExecutionsResourceSpec
       .where(WORKFLOW_VERSION.WID.eq(testWorkflowWid))
       .execute()
 
+    // Access grants seeded by the endpoint tests must go before the workflow row.
+    getDSLContext
+      .deleteFrom(WORKFLOW_USER_ACCESS)
+      .where(WORKFLOW_USER_ACCESS.WID.eq(testWorkflowWid))
+      .execute()
+
     getDSLContext
       .deleteFrom(WORKFLOW)
       .where(WORKFLOW.WID.eq(testWorkflowWid))
@@ -185,7 +193,7 @@ class WorkflowExecutionsResourceSpec
   }
 
   override protected def afterAll(): Unit = {
-    shutdownDB()
+    closeConnectionPool()
   }
 
   // ─── helpers ──────────────────────────────────────────────────────────────
@@ -210,7 +218,8 @@ class WorkflowExecutionsResourceSpec
       startOffsetMillis: Long = 0L,
       lastUpdateOffsetMillis: Option[Long] = None,
       cuid: Integer = null,
-      runtimeStatsUri: String = null
+      runtimeStatsUri: String = null,
+      whid: Integer = null
   ): WorkflowExecutions = {
     val execution = new WorkflowExecutions
     execution.setVid(testVersion.getVid)
@@ -225,6 +234,7 @@ class WorkflowExecutionsResourceSpec
     execution.setName(name)
     execution.setEnvironmentVersion("test-env-1.0")
     execution.setCuid(cuid)
+    execution.setWhid(whid)
     execution.setRuntimeStatsUri(runtimeStatsUri)
     workflowExecutionsDao.insert(execution)
     execution
@@ -587,6 +597,132 @@ class WorkflowExecutionsResourceSpec
     assert(row.getResultSize == 4096)
   }
 
+  it should "store a >2GiB size without truncation (#6978)" in {
+    val execution = insertExecution()
+    val eid = ExecutionIdentity(execution.getEid.longValue())
+    val globalPortId = GlobalPortIdentity(
+      PhysicalOpIdentity(OperatorIdentity("op-big-size"), "main"),
+      PortIdentity(),
+      input = false
+    )
+    insertOperatorPortResult(eid, globalPortId, URI.create("vfs:///big"))
+
+    // 3 GiB exceeds Int.MaxValue; a Long->Int narrowing would wrap it negative.
+    val threeGiB = 3L * 1024 * 1024 * 1024
+    WorkflowExecutionsResource.updateResultSize(eid, globalPortId, threeGiB)
+
+    val row = getDSLContext
+      .selectFrom(OPERATOR_PORT_EXECUTIONS)
+      .where(OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(execution.getEid))
+      .and(OPERATOR_PORT_EXECUTIONS.GLOBAL_PORT_ID.eq(globalPortId.serializeAsString))
+      .fetchOne()
+    assert(row.getResultSize.longValue() == threeGiB)
+  }
+
+  // ─── new: updateRuntimeStatsSize / updateConsoleMessageSize ───────────────
+
+  "updateRuntimeStatsSize" should "store a >2GiB size on the matching execution" in {
+    val execution = insertExecution()
+    val eid = ExecutionIdentity(execution.getEid.longValue())
+    val threeGiB = 3L * 1024 * 1024 * 1024
+
+    WorkflowExecutionsResource.updateRuntimeStatsSize(eid, threeGiB)
+
+    val row = getDSLContext
+      .selectFrom(WORKFLOW_EXECUTIONS)
+      .where(WORKFLOW_EXECUTIONS.EID.eq(execution.getEid))
+      .fetchOne()
+    assert(row.getRuntimeStatsSize.longValue() == threeGiB)
+  }
+
+  it should "leave the size untouched when the execution has no runtime stats URI" in {
+    val execution = insertExecution(runtimeStatsUri = null)
+
+    WorkflowExecutionsResource.updateRuntimeStatsSize(
+      ExecutionIdentity(execution.getEid.longValue())
+    )
+
+    val row = getDSLContext
+      .selectFrom(WORKFLOW_EXECUTIONS)
+      .where(WORKFLOW_EXECUTIONS.EID.eq(execution.getEid))
+      .fetchOne()
+    // The fixture never set a size, so a no-op leaves the column as inserted.
+    assert(row.getRuntimeStatsSize == null)
+  }
+
+  it should "open the stored document for measuring when a runtime stats URI is present" in {
+    // A URI is present, so the method must reach the document-open call. No
+    // document backend exists in this unit environment, so the open fails on
+    // the unsupported scheme — proving the branch executed and that the
+    // failure propagates instead of degrading into a silent no-op.
+    val execution = insertExecution(runtimeStatsUri = "mock:///runtime-stats")
+
+    val ex = intercept[UnsupportedOperationException] {
+      WorkflowExecutionsResource.updateRuntimeStatsSize(
+        ExecutionIdentity(execution.getEid.longValue())
+      )
+    }
+    assert(ex.getMessage.contains("mock"))
+  }
+
+  "updateConsoleMessageSize" should "store a >2GiB size on the matching (eid, opId) row" in {
+    val execution = insertExecution()
+    val eid = ExecutionIdentity(execution.getEid.longValue())
+    val opId = OperatorIdentity("op-console-size")
+    WorkflowExecutionsResource.insertOperatorExecutions(
+      execution.getEid.longValue(),
+      opId.id,
+      URI.create("vfs:///console-big")
+    )
+
+    val threeGiB = 3L * 1024 * 1024 * 1024
+    WorkflowExecutionsResource.updateConsoleMessageSize(eid, opId, threeGiB)
+
+    val row = getDSLContext
+      .selectFrom(OPERATOR_EXECUTIONS)
+      .where(OPERATOR_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(execution.getEid))
+      .and(OPERATOR_EXECUTIONS.OPERATOR_ID.eq(opId.id))
+      .fetchOne()
+    assert(row.getConsoleMessagesSize.longValue() == threeGiB)
+  }
+
+  it should "leave the size untouched when the operator has no console messages URI" in {
+    val execution = insertExecution()
+    val opId = OperatorIdentity("op-no-console-uri")
+
+    WorkflowExecutionsResource.updateConsoleMessageSize(
+      ExecutionIdentity(execution.getEid.longValue()),
+      opId
+    )
+
+    val row = getDSLContext
+      .selectFrom(OPERATOR_EXECUTIONS)
+      .where(OPERATOR_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(execution.getEid))
+      .and(OPERATOR_EXECUTIONS.OPERATOR_ID.eq(opId.id))
+      .fetchOne()
+    assert(row == null)
+  }
+
+  it should "open the stored document for measuring when a console messages URI is present" in {
+    // Same shape as the runtime-stats case above: the stored URI forces the
+    // document-open call, whose unsupported-scheme failure propagates.
+    val execution = insertExecution()
+    val opId = OperatorIdentity("op-console-uri")
+    WorkflowExecutionsResource.insertOperatorExecutions(
+      execution.getEid.longValue(),
+      opId.id,
+      URI.create("mock:///console")
+    )
+
+    val ex = intercept[UnsupportedOperationException] {
+      WorkflowExecutionsResource.updateConsoleMessageSize(
+        ExecutionIdentity(execution.getEid.longValue()),
+        opId
+      )
+    }
+    assert(ex.getMessage.contains("mock"))
+  }
+
   // ─── new: getResultUriByLogicalPortId ─────────────────────────────────────
 
   "getResultUriByLogicalPortId" should "match by logical operator id, port id, and resource type" in {
@@ -623,9 +759,12 @@ class WorkflowExecutionsResourceSpec
     assert(found.contains(targetUri))
 
     // Sanity-check: the decoded URI is RESULT-typed and matches the target ids.
-    val (_, _, gpOpt, resType) = VFSURIFactory.decodeURI(found.get)
-    assert(resType == VFSResourceType.RESULT)
-    assert(gpOpt.exists(gp => gp.opId.logicalOpId == targetOpId && gp.portId == targetPortId))
+    val components = VFSURIFactory.decodeURI(found.get)
+    assert(components.resourceType == VFSResourceType.RESULT)
+    assert(
+      components.globalPortId
+        .exists(gp => gp.opId.logicalOpId == targetOpId && gp.portId == targetPortId)
+    )
   }
 
   it should "return None when no URI matches the requested op/port" in {
@@ -649,7 +788,6 @@ class WorkflowExecutionsResourceSpec
     otherUser.setUid(otherUid)
     otherUser.setName("dataset-owner")
     otherUser.setEmail("owner@example.com")
-    otherUser.setPassword("password")
     userDao.insert(otherUser)
 
     val dataset = new Dataset
@@ -736,6 +874,210 @@ class WorkflowExecutionsResourceSpec
       PrivateMethod[Map[String, Set[(String, String)]]](Symbol("getNonDownloadableOperatorMap"))
     val result = WorkflowExecutionsResource invokePrivate privateMethod(testWorkflowWid, testUser)
     assert(result.isEmpty)
+  }
+  // ─── new: endpoint auth-annotation audit (#6977) ──────────────────────────
+
+  "WorkflowExecutionsResource endpoints" should "all declare @RolesAllowed and take an @Auth user" in {
+    val httpAnnotations: Seq[Class[_ <: java.lang.annotation.Annotation]] =
+      Seq(
+        classOf[javax.ws.rs.GET],
+        classOf[javax.ws.rs.PUT],
+        classOf[javax.ws.rs.POST],
+        classOf[javax.ws.rs.DELETE]
+      )
+    val handlers = classOf[WorkflowExecutionsResource].getDeclaredMethods.toSeq
+      .filter(m => httpAnnotations.exists(a => m.getAnnotation(a) != null))
+    assert(handlers.nonEmpty)
+
+    // exportResultToLocal authenticates manually: it serves a browser form-submit
+    // download, which cannot carry an Authorization header, so the JWT arrives as
+    // a form field and is verified in-method via JwtParser.parseToken (including
+    // the role check). Any other handler must use the declarative annotations.
+    val manuallyAuthenticated = Set("exportResultToLocal")
+
+    val offenders = handlers.filterNot(m => manuallyAuthenticated.contains(m.getName)).filter { m =>
+      val hasRoles =
+        m.getAnnotation(classOf[javax.annotation.security.RolesAllowed]) != null
+      val hasAuthParam = m.getParameterAnnotations.exists(
+        _.exists(_.annotationType() == classOf[io.dropwizard.auth.Auth])
+      )
+      !(hasRoles && hasAuthParam)
+    }
+    assert(
+      offenders.isEmpty,
+      s"endpoints missing @RolesAllowed/@Auth: ${offenders.map(_.getName).sorted.mkString(", ")}"
+    )
+  }
+
+  // ─── access-controlled instance endpoints (jOOQ metadata only) ─────────────
+  // The result/log-URI and replay paths (DocumentFactory / ReplayLogRecord) are
+  // out of scope; these cover the DB-metadata portion of each endpoint.
+
+  private val resource = new WorkflowExecutionsResource
+
+  private def session(user: User): SessionUser = new SessionUser(user)
+
+  private def grantReadAccess(uid: Integer = testUserId): Unit =
+    getDSLContext
+      .insertInto(WORKFLOW_USER_ACCESS)
+      .set(WORKFLOW_USER_ACCESS.WID, Integer.valueOf(testWorkflowWid))
+      .set(WORKFLOW_USER_ACCESS.UID, uid)
+      .set(WORKFLOW_USER_ACCESS.PRIVILEGE, PrivilegeEnum.READ)
+      .execute()
+
+  private def userWithoutAccess(): User = {
+    val u = new User
+    u.setUid(testUserId + 5000)
+    u.setName("no_access_user")
+    u.setEmail("noaccess@example.com")
+    u
+  }
+
+  "retrieveExecutionsOfWorkflow" should "return an empty list when the user lacks read access" in {
+    val result =
+      resource.retrieveExecutionsOfWorkflow(testWorkflowWid, session(userWithoutAccess()), null)
+    assert(result.isEmpty)
+  }
+
+  it should "return the workflow's executions for an authorized user" in {
+    grantReadAccess()
+    insertExecution()
+    insertExecution()
+    val result = resource.retrieveExecutionsOfWorkflow(testWorkflowWid, session(testUser), null)
+    assert(result.size == 2)
+  }
+
+  // fetchInto maps onto WorkflowExecutionEntry POSITIONALLY (a case class has no no-arg
+  // constructor, and jOOQ's mapConstructorParameterNames defaults to false), so `USER.AVATAR`
+  // at projection position 5 lands on `avatar` despite the names differing — exactly as
+  // `last_update_time` at position 9 lands on `completionTime`. Neither mapping was asserted
+  // anywhere before, which is what makes an accidental column reorder silent. Pin both here.
+  it should "map the owner's avatar and completion time onto the entry despite the name mismatch" in {
+    grantReadAccess()
+    insertExecution(lastUpdateOffsetMillis = Some(0L))
+    val entry = resource.retrieveExecutionsOfWorkflow(testWorkflowWid, session(testUser), null).head
+    assert(entry.userName == testUser.getName)
+    assert(entry.avatar == "avatar_url")
+    // `last_update_time` is populated, so a null here would mean position 9 never reached
+    // `completionTime` — i.e. the mapping had silently become name-based.
+    assert(entry.completionTime != null)
+  }
+
+  it should "reject an invalid status filter with a BadRequestException" in {
+    grantReadAccess()
+    assertThrows[BadRequestException](
+      resource.retrieveExecutionsOfWorkflow(
+        testWorkflowWid,
+        session(testUser),
+        "definitely-not-a-status"
+      )
+    )
+  }
+
+  "retrieveLatestExecutionEntry" should "throw ForbiddenException when the workflow has no executions" in {
+    grantReadAccess()
+    assertThrows[ForbiddenException](
+      resource.retrieveLatestExecutionEntry(testWorkflowWid, session(testUser))
+    )
+  }
+
+  it should "return the most recently created execution entry" in {
+    grantReadAccess()
+    insertExecution(name = "first")
+    val latest = insertExecution(name = "second")
+    val entry = resource.retrieveLatestExecutionEntry(testWorkflowWid, session(testUser))
+    // same VID, so the highest EID is the latest
+    assert(entry.eId == latest.getEid)
+    assert(entry.name == "second")
+  }
+
+  it should "expose the execution's warehouse (whId) for last-used preselection" in {
+    grantReadAccess()
+    val warehouse = getDSLContext.newRecord(USER_WAREHOUSE)
+    warehouse.setUid(testUser.getUid)
+    warehouse.setName("latest-entry-warehouse")
+    warehouse.setWarehouseName(s"user-${testUser.getUid}-latest-entry-warehouse")
+    warehouse.setLakekeeperWarehouseId(UUID.randomUUID())
+    warehouse.setFlavor(UserWarehouseFlavorEnum.local)
+    warehouse.store()
+
+    insertExecution(name = "warehouse-run", whid = warehouse.getWhid)
+    val entry = resource.retrieveLatestExecutionEntry(testWorkflowWid, session(testUser))
+    assert(entry.whId == warehouse.getWhid)
+
+    insertExecution(name = "default-run")
+    val defaultEntry = resource.retrieveLatestExecutionEntry(testWorkflowWid, session(testUser))
+    assert(defaultEntry.whId == null)
+  }
+
+  "retrieveInteractionHistory" should "return an empty list when the user lacks read access" in {
+    val result =
+      resource.retrieveInteractionHistory(
+        testWorkflowWid,
+        Integer.valueOf(1),
+        session(userWithoutAccess())
+      )
+    assert(result.isEmpty)
+  }
+
+  "setExecutionAreBookmarked" should "reject a user without access" in {
+    val exec = insertExecution()
+    assertThrows[WebApplicationException](
+      resource.setExecutionAreBookmarked(
+        ExecutionGroupBookmarkRequest(testWorkflowWid, Array(exec.getEid), isBookmarked = false),
+        session(userWithoutAccess())
+      )
+    )
+  }
+
+  it should "bookmark executions that are currently un-bookmarked" in {
+    grantReadAccess()
+    val exec = insertExecution() // bookmarked = false
+    resource.setExecutionAreBookmarked(
+      ExecutionGroupBookmarkRequest(testWorkflowWid, Array(exec.getEid), isBookmarked = false),
+      session(testUser)
+    )
+    assert(workflowExecutionsDao.fetchOneByEid(exec.getEid).getBookmarked == true)
+  }
+
+  it should "un-bookmark executions that are currently bookmarked" in {
+    grantReadAccess()
+    val exec = insertExecution()
+    resource.setExecutionAreBookmarked(
+      ExecutionGroupBookmarkRequest(testWorkflowWid, Array(exec.getEid), isBookmarked = true),
+      session(testUser)
+    )
+    assert(workflowExecutionsDao.fetchOneByEid(exec.getEid).getBookmarked == false)
+  }
+
+  "updateWorkflowExecutionsName" should "rename the execution" in {
+    grantReadAccess()
+    val exec = insertExecution(name = "old-name")
+    resource.updateWorkflowExecutionsName(
+      ExecutionRenameRequest(testWorkflowWid, exec.getEid, "new-name"),
+      session(testUser)
+    )
+    assert(workflowExecutionsDao.fetchOneByEid(exec.getEid).getName == "new-name")
+  }
+
+  "groupDeleteExecutionsOfWorkflow" should "delete the execution rows" in {
+    grantReadAccess()
+    val e1 = insertExecution()
+    val e2 = insertExecution()
+    resource.groupDeleteExecutionsOfWorkflow(
+      ExecutionGroupDeleteRequest(testWorkflowWid, Array(e1.getEid, e2.getEid)),
+      session(testUser)
+    )
+    assert(workflowExecutionsDao.fetchOneByEid(e1.getEid) == null)
+    assert(workflowExecutionsDao.fetchOneByEid(e2.getEid) == null)
+  }
+
+  "retrieveWorkflowRuntimeStatistics" should "throw when the execution has no runtime-stats URI" in {
+    grantReadAccess()
+    val exec = insertExecution() // runtimeStatsUri = null
+    assertThrows[java.util.NoSuchElementException](
+      resource.retrieveWorkflowRuntimeStatistics(testWorkflowWid, exec.getEid, session(testUser))
+    )
   }
 
 }

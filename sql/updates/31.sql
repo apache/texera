@@ -23,17 +23,38 @@ SET search_path TO texera_db;
 
 BEGIN;
 
--- Per-user access control for models.
--- Enables the model management API to grant/list/revoke READ/WRITE access.
+ALTER TABLE "user"
+    ADD COLUMN is_placeholder BOOLEAN NOT NULL DEFAULT FALSE,
+    DROP CONSTRAINT ck_nulltest,
+    ADD CONSTRAINT ck_nulltest CHECK ((password IS NOT NULL) OR (google_id IS NOT NULL) OR is_placeholder);
 
-CREATE TABLE IF NOT EXISTS model_user_access
-(
-    mid       INT NOT NULL,
-    uid       INT NOT NULL,
-    privilege privilege_enum NOT NULL DEFAULT 'NONE',
-    PRIMARY KEY (mid, uid),
-    FOREIGN KEY (mid) REFERENCES model(mid) ON DELETE CASCADE,
-    FOREIGN KEY (uid) REFERENCES "user"(uid) ON DELETE CASCADE
-);
+ALTER TABLE dataset_contributor
+    ADD COLUMN uid INT REFERENCES "user" (uid) ON DELETE SET NULL;
+
+-- Contributor emails are resolved with lower(email) lookups.
+CREATE INDEX idx_user_email_lower ON "user" (lower(email));
+
+-- Drop legacy duplicate emails per dataset (keep the oldest row) so the
+-- unique index below can be built.
+DELETE FROM dataset_contributor dc
+USING dataset_contributor keeper
+WHERE keeper.did = dc.did
+  AND keeper.cid < dc.cid
+  AND dc.email IS NOT NULL AND trim(dc.email) <> ''
+  AND keeper.email IS NOT NULL
+  AND lower(trim(keeper.email)) = lower(trim(dc.email));
+
+-- Per-dataset contributor emails are unique (blank emails exempt).
+CREATE UNIQUE INDEX idx_dataset_contributor_did_email
+    ON dataset_contributor (did, lower(trim(email)))
+    WHERE email IS NOT NULL AND trim(email) <> '';
+
+-- Link existing contributors to registered users by normalized email.
+UPDATE dataset_contributor dc
+SET uid = u.uid
+FROM "user" u
+WHERE dc.uid IS NULL
+  AND dc.email IS NOT NULL
+  AND lower(trim(dc.email)) = lower(u.email);
 
 COMMIT;

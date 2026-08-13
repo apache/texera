@@ -90,6 +90,15 @@ describe("UiUdfParametersSyncService", () => {
     expect(parametersChangedObserver).not.toHaveBeenCalled();
   });
 
+  it("should not replay a previous parameter change to a late subscriber", () => {
+    parserServiceMock.parse.mockReturnValue([parameter("count", "integer")]);
+
+    service.syncStructureFromCode(operatorId, code);
+
+    const lateObserver = observeParameterChanges();
+    expect(lateObserver).not.toHaveBeenCalled();
+  });
+
   it("should emit parser errors without replacing the current parameters", () => {
     operator.operatorProperties.uiParameters = [parameter("count", "integer", "42")];
     parserServiceMock.parse.mockImplementation(() => {
@@ -107,6 +116,18 @@ describe("UiUdfParametersSyncService", () => {
       operatorId,
       message: "Only one Python UDF class can declare UiParameter values.",
     });
+  });
+
+  it("should not replay a previous parser error to a late subscriber", () => {
+    parserServiceMock.parse.mockImplementation(() => {
+      throw new UiUdfParametersParseError("invalid parameters");
+    });
+
+    service.syncStructureFromCode(operatorId, code);
+
+    const lateObserver = vitest.fn();
+    service.uiParametersParseError$.subscribe(lateObserver);
+    expect(lateObserver).not.toHaveBeenCalled();
   });
 
   it("should not parse code for non-Python UDF operators", () => {

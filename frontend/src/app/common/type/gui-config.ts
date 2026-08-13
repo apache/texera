@@ -21,7 +21,6 @@ import { ExecutionMode } from "./workflow";
 // Please refer to core/config/src/main/resources/gui.conf for the definition of each config item
 export interface GuiConfig {
   exportExecutionResultEnabled: boolean;
-  autoAttributeCorrectionEnabled: boolean;
   selectingFilesFromDatasetsEnabled: boolean;
   localLogin: boolean;
   googleLogin: boolean;
@@ -39,7 +38,6 @@ export interface GuiConfig {
   sharingComputingUnitEnabled: boolean;
   operatorConsoleMessageBufferSize: number;
   defaultLocalUser?: { username?: string; password?: string };
-  expirationTimeInMinutes: number;
   activeTimeInMinutes: number;
   copilotEnabled: boolean;
   limitColumns: number;

@@ -351,7 +351,7 @@ export class UserWorkflowComponent implements AfterViewInit {
           const userInfo = userIdToInfoMap[duplicatedWorkflowInfo.ownerId];
           if (userInfo) {
             entry.setOwnerName(userInfo.userName);
-            entry.setOwnerGoogleAvatar(userInfo.googleAvatar ?? "");
+            entry.setOwnerAvatar(userInfo.avatar ?? "");
           }
           if (this.currentUid !== undefined) {
             entry.setAccessUsers([this.currentUid]);

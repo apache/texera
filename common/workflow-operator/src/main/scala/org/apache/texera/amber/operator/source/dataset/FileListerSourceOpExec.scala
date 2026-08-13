@@ -33,21 +33,32 @@ object FileListerSourceOpExec {
 
   /**
     * Parses a dataset version path (/datasets/ownerEmail/datasetName/versionName) into its
-    * (ownerEmail, datasetName, versionName) components.
+    * (resourceTypePrefix, ownerEmail, datasetName, versionName) components.
     *
     * @throws IllegalArgumentException if the path is not a well-formed dataset version path
     */
   private[dataset] def parseDatasetVersionPath(
       datasetVersionPath: String
-  ): (String, String, String) = {
+  ): (String, String, String, String) = {
     val segments = datasetVersionPath.split("/").filter(_.nonEmpty)
-    require(
-      segments.length >= 4 && segments.head == ResourceType.Datasets.toString,
-      s"Invalid dataset version path '$datasetVersionPath'; " +
-        "expected /datasets/ownerEmail/datasetName/versionName"
-    )
-    (segments(1), segments(2), segments(3))
+    val invalidPath = s"Invalid dataset version path '$datasetVersionPath'; " +
+      "expected /datasets/ownerEmail/datasetName/versionName"
+
+    if (segments.headOption.exists(ResourceType.isValidPrefix)) {
+      require(segments.length >= 4, invalidPath)
+      (segments(0), segments(1), segments(2), segments(3))
+    } else {
+      require(segments.length >= 3, invalidPath)
+      (ResourceType.Datasets.toString, segments(0), segments(1), segments(2))
+    }
   }
+
+  private[dataset] def canonicalVersionPath(
+      resourceTypePrefix: String,
+      ownerEmail: String,
+      datasetName: String,
+      versionName: String
+  ): String = s"/$resourceTypePrefix/$ownerEmail/$datasetName/$versionName"
 }
 
 class FileListerSourceOpExec private[dataset] (descString: String) extends SourceOperatorExecutor {
@@ -55,8 +66,15 @@ class FileListerSourceOpExec private[dataset] (descString: String) extends Sourc
     objectMapper.readValue(descString, classOf[FileListerSourceOpDesc])
 
   override def produceTuple(): Iterator[TupleLike] = {
-    val (ownerEmail, datasetName, versionName) =
+    val (resourceTypePrefix, ownerEmail, datasetName, versionName) =
       FileListerSourceOpExec.parseDatasetVersionPath(desc.datasetVersionPath)
+
+    val versionPath = FileListerSourceOpExec.canonicalVersionPath(
+      resourceTypePrefix,
+      ownerEmail,
+      datasetName,
+      versionName
+    )
 
     val (repositoryName, versionHash) =
       SqlServer
@@ -75,7 +93,7 @@ class FileListerSourceOpExec private[dataset] (descString: String) extends Sourc
 
     LakeFSStorageClient
       .retrieveObjectsOfVersion(repositoryName, versionHash)
-      .map(obj => TupleLike("filename" -> s"${desc.datasetVersionPath}/${obj.getPath}"))
+      .map(obj => TupleLike("filename" -> s"$versionPath/${obj.getPath}"))
       .iterator
   }
 }
