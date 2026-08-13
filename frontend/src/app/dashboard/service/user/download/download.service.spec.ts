@@ -29,6 +29,7 @@ import { commonTestProviders } from "../../../../common/testing/test-utils";
 import type { Mocked } from "vitest";
 import { WORKFLOW_EXECUTIONS_API_BASE_URL } from "../workflow-executions/workflow-executions.service";
 import { DashboardWorkflowComputingUnit } from "../../../../common/type/workflow-computing-unit";
+import JSZip from "jszip";
 
 function computingUnit(type: string, cuid: number): DashboardWorkflowComputingUnit {
   return { computingUnit: { cuid, type } } as unknown as DashboardWorkflowComputingUnit;
@@ -224,6 +225,151 @@ describe("DownloadService", () => {
     expect(notificationServiceSpy.error).toHaveBeenCalledWith("Error downloading workflows as ZIP");
   });
 
+  // ─── createWorkflowsZip / nameWorkflow (real zip assembly) ────────────────
+  // These drive downloadWorkflowsAsZip through the real (un-mocked) private
+  // createWorkflowsZip → retrieveWorkflowItem → nameWorkflow chain, so the produced
+  // blob is a genuine zip we can load back and inspect.
+
+  it("assembles a real zip with one JSON entry per workflow", async () => {
+    workflowPersistServiceSpy.retrieveWorkflow.mockReturnValue(of({ content: { op: "x" } } as any));
+
+    const result = await firstValueFrom(
+      downloadService.downloadWorkflowsAsZip([
+        { id: 1, name: "Alpha" },
+        { id: 2, name: "Beta" },
+      ])
+    );
+
+    expect(result).toBeInstanceOf(Blob);
+    expect(workflowPersistServiceSpy.retrieveWorkflow).toHaveBeenCalledWith(1);
+    expect(workflowPersistServiceSpy.retrieveWorkflow).toHaveBeenCalledWith(2);
+    expect(fileSaverServiceSpy.saveAs).toHaveBeenCalledWith(result, expect.stringMatching(/^workflowExports-.*\.zip$/));
+    expect(notificationServiceSpy.success).toHaveBeenCalledWith("Workflows have been downloaded as ZIP");
+
+    const loaded = await JSZip.loadAsync(result);
+    expect(Object.keys(loaded.files).sort()).toEqual(["Alpha.json", "Beta.json"]);
+  });
+
+  it("de-duplicates colliding workflow filenames inside the zip", async () => {
+    workflowPersistServiceSpy.retrieveWorkflow.mockReturnValue(of({ content: { op: "x" } } as any));
+
+    const result = await firstValueFrom(
+      downloadService.downloadWorkflowsAsZip([
+        { id: 1, name: "Dup" },
+        { id: 2, name: "Dup" },
+        { id: 3, name: "Dup" },
+      ])
+    );
+
+    // nameWorkflow appends -1, -2, ... on each collision so no entry is lost.
+    const loaded = await JSZip.loadAsync(result);
+    expect(Object.keys(loaded.files).sort()).toEqual(["Dup-1.json", "Dup-2.json", "Dup.json"]);
+  });
+
+  // ─── zip download must not also save each workflow individually ───────────
+  // Regression: createWorkflowsZip used to reuse downloadWorkflow purely to obtain
+  // the blob, and downloadWorkflow also saves to disk, so a zip of N workflows
+  // wrote N+1 files.
+
+  it("saves only the zip, not one JSON per workflow, when several workflows are zipped", async () => {
+    workflowPersistServiceSpy.retrieveWorkflow.mockReturnValue(of({ content: { op: "x" } } as any));
+
+    const result = await firstValueFrom(
+      downloadService.downloadWorkflowsAsZip([
+        { id: 1, name: "Alpha" },
+        { id: 2, name: "Beta" },
+        { id: 3, name: "Gamma" },
+      ])
+    );
+
+    expect(fileSaverServiceSpy.saveAs).toHaveBeenCalledTimes(1);
+    expect(fileSaverServiceSpy.saveAs).toHaveBeenCalledWith(result, expect.stringMatching(/^workflowExports-.*\.zip$/));
+
+    const savedNames = fileSaverServiceSpy.saveAs.mock.calls.map(([, fileName]) => fileName);
+    expect(savedNames).not.toContain("Alpha.json");
+    expect(savedNames).not.toContain("Beta.json");
+    expect(savedNames).not.toContain("Gamma.json");
+  });
+
+  it("saves only the zip for a single-workflow selection", async () => {
+    workflowPersistServiceSpy.retrieveWorkflow.mockReturnValue(of({ content: { op: "x" } } as any));
+
+    await firstValueFrom(downloadService.downloadWorkflowsAsZip([{ id: 1, name: "Solo" }]));
+
+    expect(fileSaverServiceSpy.saveAs).toHaveBeenCalledTimes(1);
+    expect(fileSaverServiceSpy.saveAs.mock.calls[0][1]).toMatch(/^workflowExports-.*\.zip$/);
+  });
+
+  // The other direction: the standalone single-workflow download action must
+  // keep saving, so the fix cannot simply drop the save from downloadWorkflow.
+  it("still saves the file when a single workflow is downloaded on its own", async () => {
+    workflowPersistServiceSpy.retrieveWorkflow.mockReturnValue(of({ content: { op: "x" } } as any));
+
+    const item = await firstValueFrom(downloadService.downloadWorkflow(42, "MyWorkflow"));
+
+    expect(fileSaverServiceSpy.saveAs).toHaveBeenCalledTimes(1);
+    expect(fileSaverServiceSpy.saveAs).toHaveBeenCalledWith(item.blob, "MyWorkflow.json");
+  });
+
+  it("saves nothing when one of the workflows fails to retrieve", async () => {
+    // The zip aborts as a whole, so the workflows that did come back must not be
+    // left behind as loose files.
+    workflowPersistServiceSpy.retrieveWorkflow.mockImplementation((id: number) =>
+      id === 2 ? throwError(() => new Error("retrieve fail")) : (of({ content: { op: "x" } }) as any)
+    );
+
+    await expect(
+      firstValueFrom(
+        downloadService.downloadWorkflowsAsZip([
+          { id: 1, name: "Alpha" },
+          { id: 2, name: "Beta" },
+          { id: 3, name: "Gamma" },
+        ])
+      )
+    ).rejects.toThrow("retrieve fail");
+
+    expect(fileSaverServiceSpy.saveAs).not.toHaveBeenCalled();
+    expect(notificationServiceSpy.error).toHaveBeenCalledWith("Error downloading workflows as ZIP");
+  });
+
+  it("saves nothing for an empty selection", async () => {
+    // The toolbar never calls this with an empty selection, but forkJoin([])
+    // completes without emitting, so the chain must end without writing an
+    // empty zip to disk.
+    let completed = false;
+    await new Promise<void>(resolve =>
+      downloadService.downloadWorkflowsAsZip([]).subscribe({
+        complete: () => {
+          completed = true;
+          resolve();
+        },
+      })
+    );
+
+    expect(completed).toBe(true);
+    expect(fileSaverServiceSpy.saveAs).not.toHaveBeenCalled();
+    expect(workflowPersistServiceSpy.retrieveWorkflow).not.toHaveBeenCalled();
+  });
+
+  it("writes the workflow content into the zip entries", async () => {
+    workflowPersistServiceSpy.retrieveWorkflow.mockReturnValue(of({ content: { op: "x" } } as any));
+
+    const result = await firstValueFrom(downloadService.downloadWorkflowsAsZip([{ id: 1, name: "Alpha" }]));
+
+    // Reading the entry back proves the blob handed to JSZip is the serialized
+    // workflow, not an empty or misrouted payload.
+    const loaded = await JSZip.loadAsync(result);
+    expect(JSON.parse(await loaded.files["Alpha.json"].async("string"))).toEqual({ op: "x" });
+  });
+
+  it("does not save anything when the standalone workflow download fails", async () => {
+    workflowPersistServiceSpy.retrieveWorkflow.mockReturnValue(throwError(() => new Error("nope")));
+
+    await expect(firstValueFrom(downloadService.downloadWorkflow(42, "MyWorkflow"))).rejects.toThrow("nope");
+
+    expect(fileSaverServiceSpy.saveAs).not.toHaveBeenCalled();
+  });
+
   // ─── downloadOperatorsResult ──────────────────────────────────────────────
 
   it("downloads a single operator file directly when there's exactly one file", async () => {
@@ -241,14 +387,10 @@ describe("DownloadService", () => {
     expect(notificationServiceSpy.success).toHaveBeenCalledWith("Operator result has been downloaded");
   });
 
-  // The multi-file zip path goes through `new JSZip()` against the
-  // `import * as JSZip from "jszip"` namespace, which the build flags as
-  // `Constructing "JSZip" will crash at run-time because it's an import
-  // namespace object`. Vitest reproduces the failure (`__vite_ssr_import_*
-  // is not a constructor`). Tracked as a separate cleanup in the codebase;
-  // the test is here as a placeholder so we re-enable it once the import
-  // is normalised to a default import.
-  it.skip("zips multiple operator files into a workflow-named archive", async () => {
+  // The multi-file zip path goes through `new JSZip()`; now that the source
+  // imports JSZip as a default import (rather than an import namespace object),
+  // it constructs correctly under Vitest so this exercises the real archive.
+  it("zips multiple operator files into a workflow-named archive", async () => {
     const a = new Blob(["a"], { type: "text/plain" });
     const b = new Blob(["b"], { type: "text/plain" });
     const result = await firstValueFrom(
@@ -264,8 +406,32 @@ describe("DownloadService", () => {
     );
 
     expect(result).toBeInstanceOf(Blob);
+    expect(notificationServiceSpy.info).toHaveBeenCalledWith("Starting to download operator results as ZIP");
     expect(fileSaverServiceSpy.saveAs).toHaveBeenCalledWith(expect.any(Blob), "results_7_TwoFile.zip");
     expect(notificationServiceSpy.success).toHaveBeenCalledWith("Operator results have been downloaded as ZIP");
+
+    // The produced blob is a real zip carrying both operator files.
+    const loaded = await JSZip.loadAsync(result);
+    expect(Object.keys(loaded.files).sort()).toEqual(["a.csv", "b.csv"]);
+  });
+
+  it("flattens operator result batches before deciding single vs zip", async () => {
+    // Two source observables, each emitting one file: flat() merges them into
+    // two files, which routes through the multi-file zip branch.
+    const result = await firstValueFrom(
+      downloadService.downloadOperatorsResult(
+        [
+          of([{ filename: "first.csv", blob: new Blob(["1"], { type: "text/plain" }) }]),
+          of([{ filename: "second.csv", blob: new Blob(["2"], { type: "text/plain" }) }]),
+        ],
+        { wid: 3, name: "Flat" } as any
+      )
+    );
+
+    expect(result).toBeInstanceOf(Blob);
+    expect(fileSaverServiceSpy.saveAs).toHaveBeenCalledWith(expect.any(Blob), "results_3_Flat.zip");
+    const loaded = await JSZip.loadAsync(result);
+    expect(Object.keys(loaded.files).sort()).toEqual(["first.csv", "second.csv"]);
   });
 
   it("errors out cleanly when no operator result files are provided", async () => {
@@ -407,6 +573,30 @@ describe("DownloadService", () => {
       cleanup?.();
       expect(document.querySelector('form[target="download-iframe"]')).toBeNull();
       expect(document.querySelector('iframe[name="download-iframe"]')).toBeNull();
+    });
+
+    it("falls back to an empty token when none is stored", () => {
+      // Override the beforeEach stub so getItem returns null, exercising the
+      // `?? ""` fallback on the auth token.
+      vi.stubGlobal("localStorage", {
+        getItem: vi.fn().mockReturnValue(null),
+        setItem: vi.fn(),
+        removeItem: vi.fn(),
+      });
+
+      downloadService.exportWorkflowResultToLocal(
+        "csv",
+        1,
+        "WF",
+        EXPORT_OPERATORS,
+        0,
+        0,
+        "out.csv",
+        computingUnit("local", 5)
+      );
+
+      const form = document.querySelector('form[target="download-iframe"]') as HTMLFormElement;
+      expect((form.querySelector('input[name="token"]') as HTMLInputElement).value).toBe("");
     });
 
     it("targets the cuid-scoped endpoint for a kubernetes computing unit", () => {

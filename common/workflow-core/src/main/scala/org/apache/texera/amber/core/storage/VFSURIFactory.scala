@@ -37,8 +37,73 @@ object VFSResourceType extends Enumeration {
   val STATE: Value = Value("state")
 }
 
+/**
+  * The named components encoded in a VFS URI, as returned by
+  * [[VFSURIFactory.decodeURI]].
+  */
+case class VFSUriComponents(
+    workflowId: WorkflowIdentity,
+    executionId: ExecutionIdentity,
+    globalPortId: Option[GlobalPortIdentity],
+    resourceType: VFSResourceType.Value,
+    // The warehouse whose catalog holds this URI's table, from the optional leading
+    // `/wh/<name>` segment; None for non-BYO storage, which uses the configured
+    // default. Last so positional unpacking of the earlier fields still works.
+    warehouse: Option[String] = None
+)
+
 object VFSURIFactory {
   val VFS_FILE_URI_SCHEME = "vfs"
+
+  // A warehouse name becomes a URI path segment, so it is restricted to characters
+  // that carry no meaning there: no '/' to add segments, and no '%' to smuggle one
+  // in percent-encoded form. Registration applies a stricter rule still; this is the
+  // invariant the URI layer itself depends on.
+  private val warehouseNamePattern = "[A-Za-z0-9][A-Za-z0-9_-]*".r
+
+  /**
+    * Whether `name` is safe as a URI path segment. Public so registration-time
+    * validation (WarehouseResource) enforces the exact rule this layer parses by,
+    * instead of keeping a drifting copy.
+    */
+  def isValidWarehouseName(name: String): Boolean =
+    warehouseNamePattern.pattern.matcher(name).matches()
+
+  // Warehouse is carried as a leading `/wh/<name>` path segment so a storage URI
+  // fully identifies which warehouse its table lives in. Absent for non-BYO storage.
+  private def warehousePathSegment(warehouse: Option[String]): String =
+    warehouse
+      .map { name =>
+        require(
+          isValidWarehouseName(name),
+          s"warehouse name must match ${warehouseNamePattern.regex} " +
+            s"(it becomes a URI path segment): $name"
+        )
+        s"/wh/$name"
+      }
+      .getOrElse("")
+
+  /**
+    * The warehouse encoded in a VFS URI, if present. Reported as part of
+    * [[VFSUriComponents]] by [[decodeURI]], which is the only way in.
+    *
+    * Anchored to the leading segment on purpose. The warehouse is written as a
+    * leading `/wh/<name>` prefix and `DocumentFactory` strips only a leading one,
+    * so scanning the whole path would disagree with the stripper: a later segment
+    * that happens to be `wh` -- e.g. inside a user-chosen operator id in a
+    * console-messages URI -- would select a warehouse the URI was never built for.
+    *
+    * The segments come from the RAW path (see `decodeURI`), so a percent-encoded
+    * slash stays inside the segment that contains it instead of becoming a
+    * separator. The name is then required to be a legal warehouse name, so anything
+    * that could not have been written by `warehousePathSegment` resolves to no
+    * warehouse rather than to a wrong one.
+    */
+  private def warehouseFrom(segments: List[String]): Option[String] =
+    segments match {
+      case "wh" :: name :: _ if isValidWarehouseName(name) => Some(name)
+      case _                                               => None
+    }
 
   /**
     * Parses a VFS URI and extracts its components
@@ -47,17 +112,16 @@ object VFSURIFactory {
     * @return A `VFSUriComponents` object with the extracted data.
     * @throws java.lang.IllegalArgumentException if the URI is malformed.
     */
-  def decodeURI(uri: URI): (
-      WorkflowIdentity,
-      ExecutionIdentity,
-      Option[GlobalPortIdentity],
-      VFSResourceType.Value
-  ) = {
+  def decodeURI(uri: URI): VFSUriComponents = {
     if (uri.getScheme != VFS_FILE_URI_SCHEME) {
       throw new IllegalArgumentException(s"Invalid URI scheme: ${uri.getScheme}")
     }
 
-    val segments = uri.getPath.stripPrefix("/").split("/").toList
+    // Raw path, for the same reason as warehouseFromURI: keys are located by
+    // searching the segments, so a percent-encoded slash inside a segment must not
+    // split it and shift which `wid`/`eid` the search finds. Python's decode_uri
+    // splits the raw path too, so both languages read a URI identically.
+    val segments = uri.getRawPath.stripPrefix("/").split("/").toList
 
     def extractValue(key: String): String = {
       val index = segments.indexOf(key)
@@ -80,7 +144,13 @@ object VFSURIFactory {
       .find(_.toString.toLowerCase == resourceTypeStr)
       .getOrElse(throw new IllegalArgumentException(s"Unknown resource type: $resourceTypeStr"))
 
-    (workflowId, executionId, globalPortIdOption, resourceType)
+    VFSUriComponents(
+      workflowId,
+      executionId,
+      globalPortIdOption,
+      resourceType,
+      warehouseFrom(segments)
+    )
   }
 
   /**
@@ -90,10 +160,11 @@ object VFSURIFactory {
   def createPortBaseURI(
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity,
-      globalPortId: GlobalPortIdentity
+      globalPortId: GlobalPortIdentity,
+      warehouse: Option[String] = None
   ): URI =
     new URI(
-      s"$VFS_FILE_URI_SCHEME:///wid/${workflowId.id}/eid/${executionId.id}" +
+      s"$VFS_FILE_URI_SCHEME://${warehousePathSegment(warehouse)}/wid/${workflowId.id}/eid/${executionId.id}" +
         s"/globalportid/${globalPortId.serializeAsString}"
     )
 
@@ -109,12 +180,14 @@ object VFSURIFactory {
     */
   def createRuntimeStatisticsURI(
       workflowId: WorkflowIdentity,
-      executionId: ExecutionIdentity
+      executionId: ExecutionIdentity,
+      warehouse: Option[String] = None
   ): URI = {
     createNonResultVFSURI(
       VFSResourceType.RUNTIME_STATISTICS,
       workflowId,
-      executionId
+      executionId,
+      warehouse = warehouse
     )
   }
 
@@ -124,13 +197,15 @@ object VFSURIFactory {
   def createConsoleMessagesURI(
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity,
-      operatorId: OperatorIdentity
+      operatorId: OperatorIdentity,
+      warehouse: Option[String] = None
   ): URI = {
     createNonResultVFSURI(
       VFSResourceType.CONSOLE_MESSAGES,
       workflowId,
       executionId,
-      Some(operatorId)
+      Some(operatorId),
+      warehouse
     )
   }
 
@@ -150,7 +225,8 @@ object VFSURIFactory {
       resourceType: VFSResourceType.Value,
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity,
-      operatorId: Option[OperatorIdentity] = None
+      operatorId: Option[OperatorIdentity] = None,
+      warehouse: Option[String] = None
   ): URI = {
 
     if (resourceType == VFSResourceType.RESULT) {
@@ -171,10 +247,22 @@ object VFSURIFactory {
       )
     }
 
+    // The operator id is user-supplied (it comes straight off the workflow JSON) and
+    // is interpolated into the URI path below. A '/' in it would add path segments,
+    // letting it forge structure the URI never meant to have -- e.g. a `wh/<name>`
+    // pair that would then be read back as a warehouse.
+    operatorId.foreach { opId =>
+      require(
+        !opId.id.contains('/'),
+        s"operatorId must not contain '/' (VFS URI parsing relies on this): ${opId.id}"
+      )
+    }
+
+    val whSegment = warehousePathSegment(warehouse)
     val baseUri = operatorId match {
       case Some(opId) =>
-        s"$VFS_FILE_URI_SCHEME:///wid/${workflowId.id}/eid/${executionId.id}/opid/${opId.id}"
-      case None => s"$VFS_FILE_URI_SCHEME:///wid/${workflowId.id}/eid/${executionId.id}"
+        s"$VFS_FILE_URI_SCHEME://$whSegment/wid/${workflowId.id}/eid/${executionId.id}/opid/${opId.id}"
+      case None => s"$VFS_FILE_URI_SCHEME://$whSegment/wid/${workflowId.id}/eid/${executionId.id}"
     }
 
     new URI(s"$baseUri/${resourceType.toString.toLowerCase}")

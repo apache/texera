@@ -20,6 +20,7 @@
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
+import { By } from "@angular/platform-browser";
 import { FormsModule, ReactiveFormsModule } from "@angular/forms";
 import { FormlyModule } from "@ngx-formly/core";
 import { TEXERA_FORMLY_CONFIG } from "../../../../common/formly/formly-config";
@@ -40,6 +41,12 @@ import { WorkflowExecutionsEntry } from "../../../../dashboard/type/workflow-exe
 
 function makeExecution(eId: number, logLocation: string | undefined): WorkflowExecutionsEntry {
   return { eId, logLocation } as unknown as WorkflowExecutionsEntry;
+}
+
+// A row the template can render: it also needs a vId (passed to onInteractionClick)
+// and a startingTime (fed to the date pipe).
+function makeRow(eId: number, vId: number): WorkflowExecutionsEntry {
+  return { eId, vId, logLocation: "s3://log", startingTime: 1700000000000 } as unknown as WorkflowExecutionsEntry;
 }
 
 describe("TimeTravelComponent", () => {
@@ -221,6 +228,105 @@ describe("TimeTravelComponent", () => {
         expect(component.expandedRows.has(9)).toBe(false);
         expect(spy).toHaveBeenCalledTimes(1);
       });
+    });
+  });
+
+  describe("template rendering", () => {
+    // Query, assert the element is present, then dispatch — a missing selector fails
+    // with a clear message instead of a null dereference.
+    const fire = (css: string, index: number, event: string, payload: unknown): void => {
+      const els = fixture.debugElement.queryAll(By.css(css));
+      expect(els.length).toBeGreaterThan(index);
+      els[index].triggerEventHandler(event, payload);
+    };
+
+    // Rows are only rendered by the *ngFor; the ngOnInit poller stays inert because
+    // the outer beforeEach stubs the workflow metadata to no wid.
+    const seedRows = (...rows: WorkflowExecutionsEntry[]): void => {
+      component.executionList = rows;
+      fixture.detectChanges();
+    };
+
+    // An execution row is the one with both data cells (eid + starting time). The
+    // nz-table empty placeholder and the expanded detail row each use a single
+    // colspan cell, so this counts execution rows without depending on nz classes.
+    const executionRows = () =>
+      fixture.debugElement.queryAll(By.css("tbody tr")).filter(r => r.queryAll(By.css("td")).length === 2);
+
+    it("renders one row per execution with its eid and a starting-time cell", () => {
+      seedRows(makeRow(1, 10), makeRow(2, 20));
+
+      const rows = executionRows();
+      expect(rows.length).toBe(2);
+
+      const firstCells = rows[0].queryAll(By.css("td"));
+      expect(firstCells.length).toBe(2);
+      expect(firstCells[0].nativeElement.textContent.trim()).toBe("1");
+      // The second cell runs `startingTime | date:'short'`; its exact text is
+      // timezone-dependent, so only assert that the pipe rendered something.
+      expect(firstCells[1].nativeElement.textContent.trim().length).toBeGreaterThan(0);
+    });
+
+    it("renders no body rows when the execution list is empty", () => {
+      seedRows();
+      expect(executionRows().length).toBe(0);
+    });
+
+    it("expands the detail row on a row click and collapses it on a second click", () => {
+      seedRows(makeRow(1, 10));
+
+      fire("tbody tr", 0, "click", new MouseEvent("click"));
+      fixture.detectChanges();
+      expect(component.expandedRows.has(1)).toBe(true);
+      // the detail row is a second <tr> rendered under the same *ngFor
+      expect(fixture.debugElement.query(By.css(".interaction-container"))).toBeTruthy();
+
+      fire("tbody tr", 0, "click", new MouseEvent("click"));
+      fixture.detectChanges();
+      expect(component.expandedRows.has(1)).toBe(false);
+      expect(executionRows().length).toBe(1);
+      expect(fixture.debugElement.query(By.css(".interaction-container"))).toBeNull();
+    });
+
+    it("renders one button per interaction in the expanded row", () => {
+      component.interactionHistories = { 1: ["click-a", "click-b"] };
+      seedRows(makeRow(1, 10));
+
+      fire("tbody tr", 0, "click", new MouseEvent("click"));
+      fixture.detectChanges();
+
+      const buttons = fixture.debugElement.queryAll(By.css(".interaction-item"));
+      expect(buttons.map(b => b.nativeElement.textContent.trim())).toEqual(["click-a", "click-b"]);
+    });
+
+    it("passes the row's vid/eid and the interaction to the click handler", () => {
+      component.interactionHistories = { 1: ["click-a", "click-b"] };
+      seedRows(makeRow(1, 10));
+      fire("tbody tr", 0, "click", new MouseEvent("click"));
+      fixture.detectChanges();
+
+      // Spying the handler is what isolates the template binding itself — the
+      // handler's own behavior is covered by the onInteractionClick tests above.
+      const clickSpy = vi.spyOn(component, "onInteractionClick").mockImplementation(() => {});
+      fire(".interaction-item", 1, "click", new MouseEvent("click"));
+
+      expect(clickSpy).toHaveBeenCalledWith(10, 1, "click-b");
+    });
+
+    it("disables only the interaction the panel has already reverted to", () => {
+      component.interactionHistories = { 1: ["click-a", "click-b"] };
+      component.revertedToInteraction = { eid: 1, interaction: "click-b" };
+      // revertedToInteraction makes ngOnDestroy (run by fixture.destroy in afterEach)
+      // take the replay-cleanup path; keep those service calls inert.
+      vi.spyOn(TestBed.inject(WorkflowVersionService), "closeReadonlyWorkflowDisplay").mockImplementation(() => {});
+      vi.spyOn(TestBed.inject(ExecuteWorkflowService), "killWorkflow").mockImplementation(() => {});
+      seedRows(makeRow(1, 10));
+      fire("tbody tr", 0, "click", new MouseEvent("click"));
+      fixture.detectChanges();
+
+      const buttons = fixture.debugElement.queryAll(By.css(".interaction-item"));
+      expect((buttons[0].nativeElement as HTMLButtonElement).disabled).toBe(false);
+      expect((buttons[1].nativeElement as HTMLButtonElement).disabled).toBe(true);
     });
   });
 });

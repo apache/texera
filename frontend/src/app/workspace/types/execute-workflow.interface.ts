@@ -135,7 +135,7 @@ export function isWebPaginationUpdate(update: WebResultUpdate): update is WebPag
 }
 
 export function isWebDataUpdate(update: WebResultUpdate): update is WebDataUpdate {
-  return (update !== undefined && update.mode.type === "SetSnapshotMode") || update.mode.type === "SetDeltaMode";
+  return update !== undefined && (update.mode.type === "SetSnapshotMode" || update.mode.type === "SetDeltaMode");
 }
 
 export function isNotInExecution(state: ExecutionState) {

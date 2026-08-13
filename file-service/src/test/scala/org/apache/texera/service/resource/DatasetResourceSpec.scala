@@ -27,6 +27,7 @@ import org.apache.texera.amber.core.storage.util.LakeFSStorageClient
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.dao.MockTexeraDB
 import org.apache.texera.dao.jooq.generated.enums.{PrivilegeEnum, UserRoleEnum}
+import org.apache.texera.dao.jooq.generated.tables.AuthProvider.AUTH_PROVIDER
 import org.apache.texera.dao.jooq.generated.tables.DatasetUploadSession.DATASET_UPLOAD_SESSION
 import org.apache.texera.dao.jooq.generated.tables.DatasetUploadSessionPart.DATASET_UPLOAD_SESSION_PART
 import org.apache.texera.dao.jooq.generated.tables.daos.{
@@ -137,7 +138,6 @@ class DatasetResourceSpec
   private val ownerUser: User = {
     val user = new User
     user.setName("test_user")
-    user.setPassword("123")
     user.setEmail("test_user@test.com")
     user.setRole(UserRoleEnum.ADMIN)
     user
@@ -146,7 +146,6 @@ class DatasetResourceSpec
   private val otherAdminUser: User = {
     val user = new User
     user.setName("test_user2")
-    user.setPassword("123")
     user.setEmail("test_user2@test.com")
     user.setRole(UserRoleEnum.ADMIN)
     user
@@ -156,7 +155,6 @@ class DatasetResourceSpec
   private val multipartNoWriteUser: User = {
     val user = new User
     user.setName("multipart_user2")
-    user.setPassword("123")
     user.setEmail("multipart_user2@test.com")
     user.setRole(UserRoleEnum.REGULAR)
     user
@@ -269,7 +267,7 @@ class DatasetResourceSpec
   }
 
   override protected def afterAll(): Unit = {
-    try shutdownDB()
+    try closeConnectionPool()
     finally {
       try savedLevels.foreach { case (name, prev) => setLoggerLevel(name, prev) } finally super
         .afterAll()
@@ -343,6 +341,41 @@ class DatasetResourceSpec
     dashboardDataset.dataset.getIsDownloadable shouldBe false
   }
 
+  it should "persist contributors and return them in the response" in {
+    val contributors = List(
+      DatasetResource.Contributor(
+        name = "test1",
+        creator = true,
+        affiliation = "Test Lab A",
+        email = "contributor-a@test.com",
+        comments = "collected the data"
+      ),
+      DatasetResource.Contributor(
+        name = "test2",
+        creator = false,
+        affiliation = "Test Lab B",
+        email = "contributor-b@test.com",
+        comments = null
+      )
+    )
+    val createDatasetRequest = DatasetResource.CreateDatasetRequest(
+      datasetName = "contributor-ds",
+      datasetDescription = "dataset with contributors",
+      isDatasetPublic = false,
+      isDatasetDownloadable = true,
+      contributors = Some(contributors)
+    )
+
+    val createdDataset = datasetResource.createDataset(createDatasetRequest, sessionUser)
+
+    createdDataset.contributors.map(
+      _.copy(uid = None)
+    ) should contain theSameElementsAs contributors
+    DatasetResource
+      .getContributorsByDid(getDSLContext, createdDataset.dataset.getDid)
+      .map(_.copy(uid = None)) should contain theSameElementsAs contributors
+  }
+
   it should "delete dataset successfully if user owns it" in {
     val dataset = new Dataset
     dataset.setName("delete-ds")
@@ -402,6 +435,328 @@ class DatasetResourceSpec
     val dashboardDataset = datasetResource.getDataset(baseDataset.getDid, sessionUser)
     dashboardDataset.dataset.getDid shouldEqual baseDataset.getDid
     dashboardDataset.size should be >= 0L
+  }
+
+  "updateDatasetContributors" should "replace the contributor list of the dataset" in {
+    val initial = List(
+      DatasetResource.Contributor(
+        "test1",
+        creator = true,
+        "Test Lab A",
+        "contributor-a@test.com",
+        "initial"
+      )
+    )
+    val createdDataset = datasetResource.createDataset(
+      DatasetResource.CreateDatasetRequest(
+        datasetName = "contributor-update-ds",
+        datasetDescription = "dataset for contributor update",
+        isDatasetPublic = false,
+        isDatasetDownloadable = true,
+        contributors = Some(initial)
+      ),
+      sessionUser
+    )
+    val did = createdDataset.dataset.getDid
+
+    val replacement = List(
+      DatasetResource
+        .Contributor("test2", creator = false, "Test Lab C", "contributor-c@test.com", "curation"),
+      DatasetResource.Contributor(
+        "test3",
+        creator = true,
+        "Test Lab D",
+        "contributor-d@test.com",
+        "analysis"
+      )
+    )
+    val response = datasetResource.updateDatasetContributors(
+      DatasetResource.DatasetContributorsModification(did, Some(replacement)),
+      sessionUser
+    )
+
+    response.getStatus shouldEqual 200
+    DatasetResource
+      .getContributorsByDid(getDSLContext, did)
+      .map(_.copy(uid = None)) should contain theSameElementsAs replacement
+  }
+
+  it should "clear all contributors when given an empty list" in {
+    val createdDataset = datasetResource.createDataset(
+      DatasetResource.CreateDatasetRequest(
+        datasetName = "contributor-clear-ds",
+        datasetDescription = "dataset for contributor clear test",
+        isDatasetPublic = false,
+        isDatasetDownloadable = true,
+        contributors = Some(
+          List(
+            DatasetResource
+              .Contributor("test1", creator = true, "Test Lab A", "contributor-a@test.com", null),
+            DatasetResource
+              .Contributor("test2", creator = false, "Test Lab B", "contributor-b@test.com", null)
+          )
+        )
+      ),
+      sessionUser
+    )
+    val did = createdDataset.dataset.getDid
+    DatasetResource.getContributorsByDid(getDSLContext, did) should have size 2
+
+    val response = datasetResource.updateDatasetContributors(
+      DatasetResource.DatasetContributorsModification(did, Some(Nil)),
+      sessionUser
+    )
+
+    response.getStatus shouldEqual 200
+    DatasetResource.getContributorsByDid(getDSLContext, did) shouldBe empty
+  }
+
+  it should "reject a contributor without a name" in {
+    val createdDataset = datasetResource.createDataset(
+      DatasetResource.CreateDatasetRequest(
+        datasetName = "contributor-noname-ds",
+        datasetDescription = "dataset for contributor validation test",
+        isDatasetPublic = false,
+        isDatasetDownloadable = true
+      ),
+      sessionUser
+    )
+    val did = createdDataset.dataset.getDid
+
+    assertThrows[BadRequestException] {
+      datasetResource.updateDatasetContributors(
+        DatasetResource.DatasetContributorsModification(
+          did,
+          Some(
+            List(
+              DatasetResource
+                .Contributor(null, creator = false, "Test Lab A", "contributor-x@test.com", null)
+            )
+          )
+        ),
+        sessionUser
+      )
+    }
+    DatasetResource.getContributorsByDid(getDSLContext, did) shouldBe empty
+  }
+
+  it should "reject contributor fields longer than 256 characters" in {
+    val createdDataset = datasetResource.createDataset(
+      DatasetResource.CreateDatasetRequest(
+        datasetName = "contributor-toolong-ds",
+        datasetDescription = "dataset for contributor length test",
+        isDatasetPublic = false,
+        isDatasetDownloadable = true
+      ),
+      sessionUser
+    )
+
+    assertThrows[BadRequestException] {
+      datasetResource.updateDatasetContributors(
+        DatasetResource.DatasetContributorsModification(
+          createdDataset.dataset.getDid,
+          Some(
+            List(
+              DatasetResource
+                .Contributor(
+                  "A" * 257,
+                  creator = false,
+                  "Test Lab A",
+                  "contributor-x@test.com",
+                  null
+                )
+            )
+          )
+        ),
+        sessionUser
+      )
+    }
+  }
+
+  it should "refuse to update contributors without write access" in {
+    val createdDataset = datasetResource.createDataset(
+      DatasetResource.CreateDatasetRequest(
+        datasetName = "contributor-forbidden-ds",
+        datasetDescription = "dataset for contributor permission test",
+        isDatasetPublic = true,
+        isDatasetDownloadable = true
+      ),
+      sessionUser
+    )
+    val did = createdDataset.dataset.getDid
+
+    assertThrows[ForbiddenException] {
+      datasetResource.updateDatasetContributors(
+        DatasetResource.DatasetContributorsModification(
+          did,
+          Some(
+            List(
+              DatasetResource
+                .Contributor("test1", creator = false, "Test Lab E", "contributor-e@test.com", null)
+            )
+          )
+        ),
+        multipartNoWriteSessionUser
+      )
+    }
+
+    DatasetResource.getContributorsByDid(getDSLContext, did) shouldBe empty
+  }
+
+  it should "remove contributors when their dataset is deleted" in {
+    val createdDataset = datasetResource.createDataset(
+      DatasetResource.CreateDatasetRequest(
+        datasetName = "contributor-cascade-ds",
+        datasetDescription = "dataset for contributor cascade test",
+        isDatasetPublic = false,
+        isDatasetDownloadable = true,
+        contributors = Some(
+          List(
+            DatasetResource
+              .Contributor("test1", creator = true, "Test Lab A", "contributor-f@test.com", null)
+          )
+        )
+      ),
+      sessionUser
+    )
+    val did = createdDataset.dataset.getDid
+    DatasetResource.getContributorsByDid(getDSLContext, did) should have size 1
+
+    datasetResource.deleteDataset(did, sessionUser).getStatus shouldEqual 200
+
+    DatasetResource.getContributorsByDid(getDSLContext, did) shouldBe empty
+  }
+
+  "contributor-user linking" should "link a contributor to an existing user by email, case-insensitively" in {
+    val createdDataset = datasetResource.createDataset(
+      DatasetResource.CreateDatasetRequest(
+        datasetName = "link-existing-ds",
+        datasetDescription = "dataset for linking test",
+        isDatasetPublic = false,
+        isDatasetDownloadable = true,
+        contributors = Some(
+          List(
+            DatasetResource
+              .Contributor("test1", creator = true, "Test Lab A", " TEST_USER@test.com ", null)
+          )
+        )
+      ),
+      sessionUser
+    )
+
+    val contributors =
+      DatasetResource.getContributorsByDid(getDSLContext, createdDataset.dataset.getDid)
+    contributors.head.uid shouldEqual Some(ownerUser.getUid)
+  }
+
+  it should "create a placeholder user for an unknown email and reuse it on re-save" in {
+    val createdDataset = datasetResource.createDataset(
+      DatasetResource.CreateDatasetRequest(
+        datasetName = "link-placeholder-ds",
+        datasetDescription = "dataset for placeholder test",
+        isDatasetPublic = false,
+        isDatasetDownloadable = true,
+        contributors = Some(
+          List(
+            DatasetResource
+              .Contributor("test1", creator = false, "Test Lab B", "Ghost@Nowhere.com", null)
+          )
+        )
+      ),
+      sessionUser
+    )
+    val did = createdDataset.dataset.getDid
+
+    val userDao = new UserDao(getDSLContext.configuration())
+    val placeholder = userDao.fetchOneByEmail("ghost@nowhere.com")
+    placeholder should not be null
+    placeholder.getIsPlaceholder shouldBe true
+    placeholder.getRole shouldEqual UserRoleEnum.INACTIVE
+    // credentials live in auth_provider now, and a placeholder has none at all
+    getDSLContext.fetchCount(
+      AUTH_PROVIDER,
+      AUTH_PROVIDER.UID.eq(placeholder.getUid)
+    ) shouldBe 0
+
+    val firstUid = DatasetResource.getContributorsByDid(getDSLContext, did).head.uid
+
+    datasetResource.updateDatasetContributors(
+      DatasetResource.DatasetContributorsModification(
+        did,
+        Some(
+          List(
+            DatasetResource
+              .Contributor("test1", creator = false, "Test Lab B", "ghost@nowhere.com", "updated")
+          )
+        )
+      ),
+      sessionUser
+    )
+
+    DatasetResource.getContributorsByDid(getDSLContext, did).head.uid shouldEqual firstUid
+    userDao.fetchByEmail("ghost@nowhere.com").size() shouldEqual 1
+  }
+
+  it should "leave the contributor unlinked when no email is given" in {
+    val createdDataset = datasetResource.createDataset(
+      DatasetResource.CreateDatasetRequest(
+        datasetName = "link-noemail-ds",
+        datasetDescription = "dataset for unlinked test",
+        isDatasetPublic = false,
+        isDatasetDownloadable = true,
+        contributors = Some(
+          List(DatasetResource.Contributor("test1", creator = false, "Test Lab C", null, null))
+        )
+      ),
+      sessionUser
+    )
+
+    DatasetResource
+      .getContributorsByDid(getDSLContext, createdDataset.dataset.getDid)
+      .head
+      .uid shouldEqual None
+  }
+
+  it should "reject an invalid contributor email" in {
+    assertThrows[BadRequestException] {
+      datasetResource.createDataset(
+        DatasetResource.CreateDatasetRequest(
+          datasetName = "link-bademail-ds",
+          datasetDescription = "dataset for invalid email test",
+          isDatasetPublic = false,
+          isDatasetDownloadable = true,
+          contributors = Some(
+            List(
+              DatasetResource
+                .Contributor("test1", creator = false, "Test Lab D", "not-an-email", null)
+            )
+          )
+        ),
+        sessionUser
+      )
+    }
+  }
+
+  it should "reject two contributors sharing the same email, case-insensitively" in {
+    assertThrows[BadRequestException] {
+      datasetResource.createDataset(
+        DatasetResource.CreateDatasetRequest(
+          datasetName = "link-dupemail-ds",
+          datasetDescription = "dataset for duplicate email test",
+          isDatasetPublic = false,
+          isDatasetDownloadable = true,
+          contributors = Some(
+            List(
+              DatasetResource
+                .Contributor("test1", creator = false, "Test Lab E", "shared@test.com", null),
+              DatasetResource
+                .Contributor("test2", creator = false, "Test Lab E", " Shared@Test.com ", null)
+            )
+          )
+        ),
+        sessionUser
+      )
+    }
   }
 
   "findExistingUploadFiles" should "match committed and staged files by path and size" in {
@@ -1590,8 +1945,7 @@ class DatasetResourceSpec
     val filePath = uniqueFilePath("init-session-row-locked")
     initUpload(filePath, numParts = 2).getStatus shouldEqual 200
 
-    val connectionProvider = getDSLContext.configuration().connectionProvider()
-    val connection = connectionProvider.acquire()
+    val connection = newRawConnection()
     connection.setAutoCommit(false)
 
     try {
@@ -1613,7 +1967,7 @@ class DatasetResourceSpec
       ex.getResponse.getStatus shouldEqual 409
     } finally {
       connection.rollback()
-      connectionProvider.release(connection)
+      connection.close()
     }
 
     // lock released => init works again
@@ -1979,8 +2333,8 @@ class DatasetResourceSpec
     val filePath = uniqueFilePath("init-lock-409")
     initUpload(filePath, numParts = 2).getStatus shouldEqual 200
 
-    val connectionProvider = getDSLContext.configuration().connectionProvider()
-    val connection = connectionProvider.acquire()
+    // Open a completely independent connection to simulate a second concurrent user
+    val connection = newRawConnection()
     connection.setAutoCommit(false)
 
     try {
@@ -2002,7 +2356,7 @@ class DatasetResourceSpec
       ex.getResponse.getStatus shouldEqual 409
     } finally {
       connection.rollback()
-      connectionProvider.release(connection)
+      connection.close()
     }
   }
 
@@ -2222,8 +2576,7 @@ class DatasetResourceSpec
     initUpload(filePath, numParts = 2)
     val uploadId = fetchUploadIdOrFail(filePath)
 
-    val connectionProvider = getDSLContext.configuration().connectionProvider()
-    val connection = connectionProvider.acquire()
+    val connection = newRawConnection()
     connection.setAutoCommit(false)
 
     try {
@@ -2244,7 +2597,7 @@ class DatasetResourceSpec
       assertStatus(ex, 409)
     } finally {
       connection.rollback()
-      connectionProvider.release(connection)
+      connection.close()
     }
 
     uploadPart(filePath, 1, minPartBytes(3.toByte)).getStatus shouldEqual 200
@@ -2255,8 +2608,7 @@ class DatasetResourceSpec
     initUpload(filePath, numParts = 2)
     val uploadId = fetchUploadIdOrFail(filePath)
 
-    val connectionProvider = getDSLContext.configuration().connectionProvider()
-    val connection = connectionProvider.acquire()
+    val connection = newRawConnection()
     connection.setAutoCommit(false)
 
     try {
@@ -2274,7 +2626,7 @@ class DatasetResourceSpec
       uploadPart(filePath, 2, tinyBytes(9.toByte)).getStatus shouldEqual 200
     } finally {
       connection.rollback()
-      connectionProvider.release(connection)
+      connection.close()
     }
   }
 
@@ -2461,8 +2813,7 @@ class DatasetResourceSpec
     initUpload(filePath, numParts = 1)
     uploadPart(filePath, 1, tinyBytes(1.toByte)).getStatus shouldEqual 200
 
-    val connectionProvider = getDSLContext.configuration().connectionProvider()
-    val connection = connectionProvider.acquire()
+    val connection = newRawConnection()
     connection.setAutoCommit(false)
 
     try {
@@ -2482,7 +2833,7 @@ class DatasetResourceSpec
       assertStatus(ex, 409)
     } finally {
       connection.rollback()
-      connectionProvider.release(connection)
+      connection.close()
     }
   }
 
@@ -2522,8 +2873,7 @@ class DatasetResourceSpec
     val filePath = uniqueFilePath("abort-lock-race")
     initUpload(filePath, numParts = 1)
 
-    val connectionProvider = getDSLContext.configuration().connectionProvider()
-    val connection = connectionProvider.acquire()
+    val connection = newRawConnection()
     connection.setAutoCommit(false)
 
     try {
@@ -2543,7 +2893,7 @@ class DatasetResourceSpec
       assertStatus(ex, 409)
     } finally {
       connection.rollback()
-      connectionProvider.release(connection)
+      connection.close()
     }
   }
 
@@ -3131,7 +3481,7 @@ class DatasetResourceSpec
     LakeFSStorageClient.retrieveUncommittedObjects(repoName).size shouldEqual totalFiles
 
     // after commit: 110 files should appear as committed objects
-    val commit = LakeFSStorageClient.withCreateVersion(repoName, "commit all files") {}
+    val commit = LakeFSStorageClient.createCommit(repoName, "main", "commit all files")
     LakeFSStorageClient.retrieveObjectsOfVersion(repoName, commit.getId).size shouldEqual totalFiles
   }
 }

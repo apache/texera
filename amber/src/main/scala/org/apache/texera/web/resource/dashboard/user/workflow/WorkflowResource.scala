@@ -38,6 +38,7 @@ import org.apache.texera.dao.jooq.generated.tables.daos.{
 import org.apache.texera.dao.jooq.generated.tables.pojos._
 import org.apache.texera.service.util.LargeBinaryManager
 import org.apache.texera.web.resource.dashboard.hub.EntityType
+import org.apache.texera.web.service.WarehouseReadGuard
 import org.apache.texera.web.resource.dashboard.hub.HubResource.recordCloneAction
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource.hasReadAccess
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowResource._
@@ -548,6 +549,9 @@ class WorkflowResource extends LazyLogging {
       @Auth sessionUser: SessionUser,
       @Context request: HttpServletRequest
   ): Integer = {
+    if (!WorkflowAccessResource.hasReadAccess(wid, sessionUser.getUid)) {
+      throw new ForbiddenException("No sufficient access privilege.")
+    }
     val oldWorkflow: Workflow = workflowDao.fetchOneByWid(wid)
     val newWorkflow: DashboardWorkflow = createWorkflow(
       new Workflow(
@@ -654,9 +658,10 @@ class WorkflowResource extends LazyLogging {
       // removed. Done after the transaction (like the document cleanup below).
       eids.foreach(eid => LargeBinaryManager.deleteByExecution(eid.longValue()))
 
-      // Clean up document storage
+      // Clean up document storage. While per-user warehouses are disabled, cleanup must
+      // not reach into them (#6930) — those URIs are skipped.
       try {
-        uris.foreach { uri =>
+        uris.filterNot(WarehouseReadGuard.skipWhileDisabled(_)).foreach { uri =>
           try {
             val (document, _) = DocumentFactory.openDocument(uri)
             document.clear()

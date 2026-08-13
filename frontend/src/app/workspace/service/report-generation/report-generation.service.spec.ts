@@ -17,178 +17,465 @@
  * under the License.
  */
 
-import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { TestBed } from "@angular/core/testing";
-import { firstValueFrom, of, throwError } from "rxjs";
-import html2canvas from "html2canvas";
+import { HttpClient } from "@angular/common/http";
+import { firstValueFrom, of, Subject, throwError } from "rxjs";
 import { ReportGenerationService } from "./report-generation.service";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import { WorkflowResultService } from "../workflow-result/workflow-result.service";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { AiAnalystService } from "../ai-analyst/ai-analyst.service";
+import { commonTestProviders } from "../../../common/testing/test-utils";
 
-// html2canvas is a default-imported module dependency; mock it so the snapshot
-// success path renders deterministically. (vi.mock is hoisted above imports.)
-vi.mock("html2canvas", () => ({ default: vi.fn() }));
+/**
+ * The service reaches for five collaborators but only ever calls a handful of their methods, so the
+ * suite injects narrow stubs rather than the real service graph. `http` is injected by the service
+ * and never used, so an empty object is enough to satisfy the constructor.
+ */
+function stubs() {
+  return {
+    workflowActionService: { getWorkflowContent: vi.fn().mockReturnValue({ operators: [] }) },
+    workflowResultService: {
+      getResultService: vi.fn().mockReturnValue(undefined),
+      getPaginatedResultService: vi.fn().mockReturnValue(undefined),
+    },
+    notificationService: { error: vi.fn() },
+    aiAnalystService: {
+      isOpenAIEnabled: vi.fn().mockReturnValue(of(true)),
+      sendPromptToOpenAI: vi.fn().mockReturnValue(of("GENERATED COMMENT")),
+    },
+  };
+}
+
+/** jsdom's Blob has no `text()`, so the report body is read back through a FileReader. */
+function readBlob(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsText(blob);
+  });
+}
 
 describe("ReportGenerationService", () => {
   let service: ReportGenerationService;
-  let workflowActionService: { getWorkflowContent: ReturnType<typeof vi.fn> };
-  let workflowResultService: {
-    getResultService: ReturnType<typeof vi.fn>;
-    getPaginatedResultService: ReturnType<typeof vi.fn>;
-  };
-  let notificationService: { error: ReturnType<typeof vi.fn> };
-  let aiAnalystService: {
-    isOpenAIEnabled: ReturnType<typeof vi.fn>;
-    sendPromptToOpenAI: ReturnType<typeof vi.fn>;
-  };
+  let deps: ReturnType<typeof stubs>;
 
   beforeEach(() => {
-    vi.clearAllMocks();
-    workflowActionService = {
-      getWorkflowContent: vi.fn().mockReturnValue({ operators: [{ operatorID: "op1", operatorType: "CSVFileScan" }] }),
-    };
-    workflowResultService = {
-      getResultService: vi.fn().mockReturnValue(undefined),
-      getPaginatedResultService: vi.fn().mockReturnValue(undefined),
-    };
-    notificationService = { error: vi.fn() };
-    aiAnalystService = {
-      isOpenAIEnabled: vi.fn().mockReturnValue(of(true)),
-      sendPromptToOpenAI: vi.fn().mockReturnValue(of("AI comment")),
-    };
-
+    deps = stubs();
     TestBed.configureTestingModule({
-      imports: [HttpClientTestingModule],
       providers: [
         ReportGenerationService,
-        { provide: WorkflowActionService, useValue: workflowActionService },
-        { provide: WorkflowResultService, useValue: workflowResultService },
-        { provide: NotificationService, useValue: notificationService },
-        { provide: AiAnalystService, useValue: aiAnalystService },
+        { provide: HttpClient, useValue: {} },
+        { provide: WorkflowActionService, useValue: deps.workflowActionService },
+        { provide: WorkflowResultService, useValue: deps.workflowResultService },
+        { provide: NotificationService, useValue: deps.notificationService },
+        { provide: AiAnalystService, useValue: deps.aiAnalystService },
+        ...commonTestProviders,
       ],
     });
     service = TestBed.inject(ReportGenerationService);
   });
 
-  afterEach(() => {
-    const editor = document.querySelector("#workflow-editor");
-    editor?.remove();
-  });
+  /** Runs the report for one operator and hands back the HTML it pushed into the accumulator. */
+  async function htmlFor(operatorId: string): Promise<string> {
+    const collected: { operatorId: string; html: string }[] = [];
+    await firstValueFrom(service.retrieveOperatorInfoReport(operatorId, collected));
+    return collected[0].html;
+  }
 
   it("should be created", () => {
     expect(service).toBeTruthy();
   });
 
-  describe("generateComment / generateSummaryComment", () => {
-    it("generateComment embeds the operator info and delegates to the AI service", () => {
-      let result: string | undefined;
-      service.generateComment({ foo: "bar" }).subscribe(r => (result = r));
-
-      expect(aiAnalystService.sendPromptToOpenAI).toHaveBeenCalledTimes(1);
-      const prompt = aiAnalystService.sendPromptToOpenAI.mock.calls[0][0] as string;
-      expect(prompt).toContain('"foo": "bar"');
-      expect(prompt).toContain("at least 80 words");
-      expect(result).toEqual("AI comment");
-    });
-
-    it("generateSummaryComment uses the longer (150-word) summary prompt", () => {
-      service.generateSummaryComment({ a: 1 }).subscribe();
-
-      const prompt = aiAnalystService.sendPromptToOpenAI.mock.calls[0][0] as string;
-      expect(prompt).toContain("at least 150 words");
-      expect(prompt).toContain('"a": 1');
-    });
-  });
-
-  describe("generateWorkflowSnapshot", () => {
-    it("errors when the #workflow-editor element is absent", () => {
-      let error: unknown;
-      service.generateWorkflowSnapshot("wf").subscribe({ error: (e: unknown) => (error = e) });
-      expect(error).toEqual("Workflow editor element not found");
-    });
-
-    it("emits a PNG data URL when the editor element is present", async () => {
-      const editor = document.createElement("div");
-      editor.id = "workflow-editor";
-      document.body.appendChild(editor);
-
-      const fakeCanvas = {
-        toDataURL: vi.fn().mockReturnValue("data:image/png;base64,AAA"),
-      } as unknown as HTMLCanvasElement;
-      vi.mocked(html2canvas).mockResolvedValue(fakeCanvas);
-
-      const result = await firstValueFrom(service.generateWorkflowSnapshot("wf"));
-
-      expect(html2canvas).toHaveBeenCalledTimes(1);
-      expect(fakeCanvas.toDataURL).toHaveBeenCalledWith("image/png");
-      expect(result).toEqual("data:image/png;base64,AAA");
-    });
-  });
-
   describe("retrieveOperatorInfoReport", () => {
-    it("reports 'No results found' when the operator has neither a result nor paginated service", () => {
-      const allResults: { operatorId: string; html: string }[] = [];
-      service.retrieveOperatorInfoReport("op1", allResults).subscribe();
+    it("renders a paginated result as a table of its first page", async () => {
+      // A null cell renders as the text "null" rather than an empty cell, so the column stays
+      // aligned with its header; pinned here because "tidying" it to a blank would shift the row.
+      deps.workflowResultService.getPaginatedResultService.mockReturnValue({
+        selectPage: vi.fn().mockReturnValue(of({ table: [{ colA: 1, colB: null }] })),
+      });
+      deps.workflowActionService.getWorkflowContent.mockReturnValue({
+        operators: [{ operatorID: "op-1", operatorType: "CSVFileScan" }],
+      });
 
-      expect(allResults).toHaveLength(1);
-      expect(allResults[0].operatorId).toEqual("op1");
-      expect(allResults[0].html).toContain("No results found for operator");
+      const html = await htmlFor("op-1");
+
+      expect(html).toContain("<h3>Operator ID: op-1</h3>");
+      expect(html).toContain(">colA</th>");
+      expect(html).toContain(">colB</th>");
+      expect(html).toContain(">1</td>");
+      expect(html).toContain(">null</td>");
+      expect(html).toContain("GENERATED COMMENT");
     });
 
-    it("reports 'No results found' when the paginated table is empty", () => {
-      workflowResultService.getPaginatedResultService.mockReturnValue({
+    it("asks for the first page of ten rows", async () => {
+      const selectPage = vi.fn().mockReturnValue(of({ table: [{ a: 1 }] }));
+      deps.workflowResultService.getPaginatedResultService.mockReturnValue({ selectPage });
+
+      await htmlFor("op-1");
+
+      expect(selectPage).toHaveBeenCalledWith(1, 10);
+    });
+
+    it("reports an empty page as no results rather than an empty table", async () => {
+      deps.workflowResultService.getPaginatedResultService.mockReturnValue({
         selectPage: vi.fn().mockReturnValue(of({ table: [] })),
       });
 
-      const allResults: { operatorId: string; html: string }[] = [];
-      service.retrieveOperatorInfoReport("op1", allResults).subscribe();
+      const html = await htmlFor("op-1");
 
-      expect(allResults[0].html).toContain("No results found for operator");
+      expect(html).toContain("No results found for operator");
+      expect(html).not.toContain("<table");
     });
 
-    it("renders an HTML table from a non-empty paginated result", () => {
-      workflowResultService.getPaginatedResultService.mockReturnValue({
-        selectPage: vi.fn().mockReturnValue(of({ table: [{ name: "a", value: 1 }] })),
+    it("notifies and fails when the page cannot be fetched", async () => {
+      const failure = new Error("page 1 unavailable");
+      deps.workflowResultService.getPaginatedResultService.mockReturnValue({
+        selectPage: vi.fn().mockReturnValue(throwError(() => failure)),
       });
 
-      const allResults: { operatorId: string; html: string }[] = [];
-      service.retrieveOperatorInfoReport("op1", allResults).subscribe();
-
-      const html = allResults[0].html;
-      expect(html).toContain("Operator ID: op1");
-      expect(html).toContain("<table");
-      expect(html).toContain(">name<");
-      expect(html).toContain(">value<");
+      await expect(htmlFor("op-1")).rejects.toBe(failure);
+      expect(deps.notificationService.error).toHaveBeenCalledWith(
+        expect.stringContaining("Error processing results for operator op-1")
+      );
+      expect(deps.notificationService.error).toHaveBeenCalledWith(expect.stringContaining("page 1 unavailable"));
     });
 
-    it("surfaces a notification and errors when the paginated result service fails", () => {
-      workflowResultService.getPaginatedResultService.mockReturnValue({
-        selectPage: vi.fn().mockReturnValue(throwError(() => new Error("boom"))),
+    it("renders the most recent snapshot of a visualization operator", async () => {
+      // Visualizations accumulate snapshots; the report must show the latest, not the first.
+      deps.workflowResultService.getResultService.mockReturnValue({
+        getCurrentResultSnapshot: () => [
+          { "html-content": '<div id="v1">FIRST</div>' },
+          { "html-content": '<div id="v2">LAST</div>' },
+        ],
       });
 
-      const allResults: { operatorId: string; html: string }[] = [];
-      let errored = false;
-      service.retrieveOperatorInfoReport("op1", allResults).subscribe({ error: () => (errored = true) });
+      const html = await htmlFor("op-1");
 
-      expect(errored).toBe(true);
-      expect(notificationService.error).toHaveBeenCalledWith(expect.stringContaining("boom"));
+      expect(html).toContain("LAST");
+      expect(html).not.toContain("FIRST");
+      // The embedded document is resized so the chart fits the report rather than overflowing it.
+      expect(html).toContain("height: 100%");
+    });
+
+    it("reports a visualization operator with no snapshot as having no data", async () => {
+      deps.workflowResultService.getResultService.mockReturnValue({
+        getCurrentResultSnapshot: () => undefined,
+      });
+
+      const html = await htmlFor("op-1");
+
+      expect(html).toContain("No data found for operator");
+    });
+
+    it("reports an operator with neither result service as having no results", async () => {
+      const html = await htmlFor("op-1");
+
+      expect(html).toContain("No results found for operator");
+    });
+
+    it("falls back to a generic reason when the page failure carries no message", async () => {
+      deps.workflowResultService.getPaginatedResultService.mockReturnValue({
+        selectPage: vi.fn().mockReturnValue(throwError(() => new Error(""))),
+      });
+
+      await expect(htmlFor("op-1")).rejects.toBeInstanceOf(Error);
+      expect(deps.notificationService.error).toHaveBeenCalledWith(
+        "Error processing results for operator op-1: Unknown error"
+      );
+    });
+
+    it("still renders a visualization snapshot that has no wrapper div to resize", async () => {
+      deps.workflowResultService.getResultService.mockReturnValue({
+        getCurrentResultSnapshot: () => [{ "html-content": "<p>plain</p>" }],
+      });
+
+      const html = await htmlFor("op-1");
+
+      expect(html).toContain("plain");
+    });
+
+    it("notifies and fails when building the report throws outright", async () => {
+      const failure = new Error("result service unavailable");
+      deps.workflowResultService.getResultService.mockImplementation(() => {
+        throw failure;
+      });
+
+      await expect(htmlFor("op-1")).rejects.toBe(failure);
+      expect(deps.notificationService.error).toHaveBeenCalledWith(
+        "Unexpected error in retrieveOperatorInfoReport for operator op-1: result service unavailable"
+      );
+    });
+
+    it("falls back to a generic reason when that failure carries no message", async () => {
+      deps.workflowResultService.getResultService.mockImplementation(() => {
+        throw new Error("");
+      });
+
+      await expect(htmlFor("op-1")).rejects.toBeInstanceOf(Error);
+      expect(deps.notificationService.error).toHaveBeenCalledWith(
+        "Unexpected error in retrieveOperatorInfoReport for operator op-1: Unknown error"
+      );
+    });
+
+    it("embeds the operator's own definition in the collapsible details block", async () => {
+      deps.workflowActionService.getWorkflowContent.mockReturnValue({
+        operators: [
+          { operatorID: "op-1", operatorType: "CSVFileScan" },
+          { operatorID: "op-2", operatorType: "PythonUDFV2" },
+        ],
+      });
+
+      const html = await htmlFor("op-2");
+
+      expect(html).toContain('id="details-op-2"');
+      expect(html).toContain("PythonUDFV2");
+      expect(html).not.toContain("CSVFileScan");
+    });
+
+    it("produces nothing until the AI-enabled check emits", async () => {
+      // The whole body is nested inside isOpenAIEnabled().subscribe, so a check that never settles
+      // leaves the report silently unfinished rather than failing.
+      deps.aiAnalystService.isOpenAIEnabled.mockReturnValue(new Subject<boolean>());
+      const collected: { operatorId: string; html: string }[] = [];
+
+      service.retrieveOperatorInfoReport("op-1", collected).subscribe();
+
+      expect(collected).toEqual([]);
     });
   });
 
   describe("getAllOperatorResults", () => {
-    it("collects one entry per operator id", () => {
-      workflowResultService.getPaginatedResultService.mockReturnValue({
-        selectPage: vi.fn().mockReturnValue(of({ table: [{ name: "a" }] })),
+    it("returns one entry per operator, in the order asked for", async () => {
+      const results = await firstValueFrom(service.getAllOperatorResults(["op-a", "op-b"]));
+
+      expect(results.map(r => r.operatorId)).toEqual(["op-a", "op-b"]);
+    });
+  });
+
+  describe("prompt construction", () => {
+    it("asks for a per-operator comment carrying that operator's JSON", () => {
+      service.generateComment({ operatorID: "op-1", operatorType: "CSVFileScan" }).subscribe();
+
+      const prompt = deps.aiAnalystService.sendPromptToOpenAI.mock.calls[0][0] as string;
+      expect(prompt).toContain('"operatorType": "CSVFileScan"');
+      expect(prompt).toContain("at least 80 words");
+    });
+
+    it("asks the summary for a longer answer than the per-operator comment", () => {
+      // The two methods are near-identical; only the length and the workflow-level framing differ,
+      // so a copy-paste between them would otherwise go unnoticed.
+      service.generateSummaryComment({ operators: [] }).subscribe();
+
+      const prompt = deps.aiAnalystService.sendPromptToOpenAI.mock.calls[0][0] as string;
+      expect(prompt).toContain("at least 150 words");
+      expect(prompt).toContain("UDFs");
+    });
+  });
+
+  describe("generateReportAsHtml", () => {
+    let anchor: HTMLAnchorElement;
+    let clickSpy: ReturnType<typeof vi.spyOn>;
+    let createdBlob: Blob | undefined;
+    let revoked: string[];
+    let originalCreate: unknown;
+    let originalRevoke: unknown;
+
+    beforeEach(() => {
+      // Build the anchor before stubbing createElement, or the stub would intercept its own creation.
+      anchor = document.createElement("a");
+      clickSpy = vi.spyOn(anchor, "click").mockImplementation(() => {});
+      vi.spyOn(document, "createElement").mockReturnValue(anchor as unknown as HTMLElement);
+
+      createdBlob = undefined;
+      revoked = [];
+      originalCreate = (URL as any).createObjectURL;
+      originalRevoke = (URL as any).revokeObjectURL;
+      (URL as any).createObjectURL = (blob: Blob) => {
+        createdBlob = blob;
+        return "blob:report-url";
+      };
+      (URL as any).revokeObjectURL = (url: string) => revoked.push(url);
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+      (URL as any).createObjectURL = originalCreate;
+      (URL as any).revokeObjectURL = originalRevoke;
+    });
+
+    it("downloads a report named after the workflow", () => {
+      service.generateReportAsHtml("data:image/png;base64,SNAP", ["<p>R1</p>"], "myflow");
+
+      expect(anchor.download).toBe("myflow-report.html");
+      expect(anchor.href).toContain("blob:report-url");
+      expect(clickSpy).toHaveBeenCalledTimes(1);
+      expect(revoked).toEqual(["blob:report-url"]);
+    });
+
+    it("writes the snapshot, every operator result, and the summary into the document", async () => {
+      deps.aiAnalystService.sendPromptToOpenAI.mockReturnValue(of("OVERALL SUMMARY"));
+
+      service.generateReportAsHtml("data:image/png;base64,SNAP", ["<p>R1</p>", "<p>R2</p>"], "myflow");
+
+      const text = await readBlob(createdBlob!);
+      expect(text).toContain("data:image/png;base64,SNAP");
+      expect(text).toContain("<p>R1</p>");
+      expect(text).toContain("<p>R2</p>");
+      expect(text).toContain("OVERALL SUMMARY");
+      // The in-report download button names the file after the workflow too.
+      expect(text).toContain("myflow-workflow.json");
+    });
+  });
+
+  describe("generateWorkflowSnapshot", () => {
+    it("fails when the editor is not on the page", async () => {
+      await expect(firstValueFrom(service.generateWorkflowSnapshot("myflow"))).rejects.toBe(
+        "Workflow editor element not found"
+      );
+    });
+
+    /**
+     * Before the editor can be rendered, every <image> in it is refetched and inlined as
+     * base64 so the snapshot does not depend on URLs the renderer cannot resolve. Both async
+     * sources are replaced with fakes that settle synchronously (XHR) or on a microtask
+     * (FileReader), so nothing here depends on the network or on real timing.
+     *
+     * The html2canvas render that follows is left alone — it needs a real canvas — so these
+     * assert on what the inlining step did, not on the observable's outcome.
+     */
+    describe("inlining the editor's images", () => {
+      const XLINK_HREF = "xlink:href";
+      const BASE64 = "data:image/png;base64,AAAA";
+
+      let realXhr: typeof globalThis.XMLHttpRequest;
+      let realFileReader: typeof globalThis.FileReader;
+      let editor: HTMLElement;
+      let xhrOutcome: "load" | "error";
+      let readerOutcome: "loadend" | "error";
+      let sentUrls: string[];
+
+      class FakeXhr {
+        public response: unknown = "blob-stand-in";
+        public responseType = "";
+        public onload: (() => void) | null = null;
+        public onerror: (() => void) | null = null;
+        private url = "";
+        open(_method: string, url: string): void {
+          this.url = url;
+        }
+        send(): void {
+          sentUrls.push(this.url);
+          if (xhrOutcome === "load") {
+            this.onload?.();
+          } else {
+            this.onerror?.();
+          }
+        }
+      }
+
+      class FakeFileReader {
+        public result: string | null = null;
+        public onloadend: (() => void) | null = null;
+        public onerror: (() => void) | null = null;
+        readAsDataURL(): void {
+          queueMicrotask(() => {
+            if (readerOutcome === "loadend") {
+              this.result = BASE64;
+              this.onloadend?.();
+            } else {
+              this.onerror?.();
+            }
+          });
+        }
+      }
+
+      /** Adds an SVG <image> to the editor, optionally with a source attribute. */
+      function addImage(src?: string): SVGElement {
+        const image = document.createElementNS("http://www.w3.org/2000/svg", "image");
+        if (src !== undefined) {
+          image.setAttribute(XLINK_HREF, src);
+        }
+        editor.appendChild(image);
+        return image;
+      }
+
+      /** Runs the snapshot and resolves once it settles, whichever way html2canvas goes. */
+      function runSnapshot(): Promise<void> {
+        return new Promise<void>(resolve => {
+          service.generateWorkflowSnapshot("myflow").subscribe({
+            next: () => resolve(),
+            error: () => resolve(),
+          });
+        });
+      }
+
+      beforeEach(() => {
+        sentUrls = [];
+        xhrOutcome = "load";
+        readerOutcome = "loadend";
+        realXhr = globalThis.XMLHttpRequest;
+        realFileReader = globalThis.FileReader;
+        (globalThis as unknown as { XMLHttpRequest: unknown }).XMLHttpRequest = FakeXhr;
+        (globalThis as unknown as { FileReader: unknown }).FileReader = FakeFileReader;
+        editor = document.createElement("div");
+        editor.id = "workflow-editor";
+        document.body.appendChild(editor);
       });
 
-      let results: { operatorId: string; html: string }[] = [];
-      service.getAllOperatorResults(["op1"]).subscribe(r => (results = r));
+      afterEach(() => {
+        (globalThis as unknown as { XMLHttpRequest: unknown }).XMLHttpRequest = realXhr;
+        (globalThis as unknown as { FileReader: unknown }).FileReader = realFileReader;
+        // Two of these tests spy on console.error; without this the spy would outlive them.
+        vi.restoreAllMocks();
+        editor.remove();
+      });
 
-      expect(results).toHaveLength(1);
-      expect(results[0].operatorId).toEqual("op1");
-      expect(results[0].html).toContain("Operator ID: op1");
+      it("rewrites an image's source to the fetched base64 data", async () => {
+        const image = addImage("/assets/icon.png");
+
+        await runSnapshot();
+
+        expect(sentUrls).toEqual(["/assets/icon.png"]);
+        expect(image.getAttribute("href")).toBe(BASE64);
+      });
+
+      it("leaves an image with no source alone and fetches nothing for it", async () => {
+        const image = addImage();
+
+        await runSnapshot();
+
+        expect(sentUrls).toEqual([]);
+        expect(image.getAttribute("href")).toBeNull();
+      });
+
+      it("reports an image whose bytes cannot be converted, and leaves its source alone", async () => {
+        const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+        readerOutcome = "error";
+        const image = addImage("/assets/icon.png");
+
+        await runSnapshot();
+
+        expect(consoleSpy).toHaveBeenCalledWith(
+          "Failed to load image: /assets/icon.png",
+          "Failed to convert image to Base64"
+        );
+        expect(image.getAttribute("href")).toBeNull();
+      });
+
+      it("reports an image that cannot be fetched at all", async () => {
+        const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+        xhrOutcome = "error";
+        addImage("/assets/missing.png");
+
+        await runSnapshot();
+
+        expect(consoleSpy).toHaveBeenCalledWith(
+          "Failed to load image: /assets/missing.png",
+          "Failed to load image from /assets/missing.png"
+        );
+      });
     });
   });
 });

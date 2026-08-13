@@ -20,19 +20,13 @@
 package org.apache.texera.service.`type`
 
 import io.lakefs.clients.sdk.model.ObjectStats
-import org.apache.texera.amber.core.storage.util.dataset.PhysicalFileNode
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-import java.nio.file.{Files, Path}
-import scala.jdk.CollectionConverters._
-
 // Unit tests for DatasetFileNode: the instance helpers getFilePath, the
 // constructor's nodeType require guard, and the companion helpers
-// calculateTotalSize / fromLakeFSRepositoryCommittedObjects /
-// fromPhysicalFileNodes. The LakeFS factory is fixtured with lightweight
-// ObjectStats POJOs; the physical-node factory is fixtured against a real
-// temporary directory tree because it inspects the filesystem.
+// calculateTotalSize / fromLakeFSRepositoryCommittedObjects. The LakeFS
+// factory is fixtured with lightweight ObjectStats POJOs.
 class DatasetFileNodeSpec extends AnyFlatSpec with Matchers {
 
   // -- constructor require guard ----------------------------------------------
@@ -105,10 +99,13 @@ class DatasetFileNodeSpec extends AnyFlatSpec with Matchers {
       Map(("bob@texera.com", "twitter", "v1") -> objects)
     )
 
-    // One owner root.
+    // The tree is rooted at a single "datasets" prefix node; owners nest under it.
     roots should have size 1
-    val ownerNode = roots.head
-    ownerNode.getName shouldBe "bob@texera.com"
+    val datasetsNode = roots.head
+    datasetsNode.getName shouldBe "datasets"
+    datasetsNode.getNodeType shouldBe "directory"
+
+    val ownerNode = datasetsNode.getChildren.find(_.getName == "bob@texera.com").get
     ownerNode.getNodeType shouldBe "directory"
 
     val datasetNode = ownerNode.getChildren.find(_.getName == "twitter").get
@@ -126,60 +123,9 @@ class DatasetFileNodeSpec extends AnyFlatSpec with Matchers {
     val file1 = bDir.getChildren.find(_.getName == "1.csv").get
     file1.getNodeType shouldBe "file"
     file1.getSize shouldBe Some(2L)
-    file1.getFilePath shouldBe "/bob@texera.com/twitter/v1/b/1.csv"
+    file1.getFilePath shouldBe "/datasets/bob@texera.com/twitter/v1/b/1.csv"
 
     // Total size equals the sum of the three files.
     DatasetFileNode.calculateTotalSize(roots) shouldBe 6L
-  }
-
-  // -- fromPhysicalFileNodes --------------------------------------------------
-
-  "fromPhysicalFileNodes" should "build a tree from a physical filesystem subtree" in {
-    // Create a real temp tree: <repo>/dir1/a.csv , because PhysicalFileNode
-    // uses Files.isDirectory / Files.isRegularFile against the actual path.
-    val repo: Path = Files.createTempDirectory("dataset-file-node-spec")
-    try {
-      val dir1 = Files.createDirectory(repo.resolve("dir1"))
-      val fileA = Files.write(dir1.resolve("a.csv"), "hello".getBytes)
-
-      val dir1Node = new PhysicalFileNode(repo, dir1, 0L)
-      // getSize returns the value passed at construction, not the on-disk size.
-      val fileNode = new PhysicalFileNode(repo, fileA, 5L)
-      dir1Node.addChildNode(fileNode)
-
-      val roots = DatasetFileNode.fromPhysicalFileNodes(
-        Map(("alice@texera.com", "ds", "v1") -> List(dir1Node))
-      )
-
-      roots should have size 1
-      val versionNode = roots.head.getChildren
-        .find(_.getName == "ds")
-        .get
-        .getChildren
-        .find(_.getName == "v1")
-        .get
-
-      val dirNode = versionNode.getChildren.find(_.getName == "dir1").get
-      dirNode.getNodeType shouldBe "directory"
-
-      val leaf = dirNode.getChildren.find(_.getName == "a.csv").get
-      leaf.getNodeType shouldBe "file"
-      leaf.getSize shouldBe Some(5L)
-      leaf.getFilePath shouldBe "/alice@texera.com/ds/v1/dir1/a.csv"
-
-      DatasetFileNode.calculateTotalSize(roots) shouldBe 5L
-    } finally {
-      // Best-effort cleanup of the temp tree.
-      val stream = Files.walk(repo)
-      try {
-        stream
-          .sorted(java.util.Comparator.reverseOrder[Path]())
-          .iterator()
-          .asScala
-          .foreach(p => Files.deleteIfExists(p))
-      } finally {
-        stream.close()
-      }
-    }
   }
 }

@@ -76,8 +76,9 @@ object FileResolver {
   }
 
   /**
-    * Parses a dataset file path and extracts its components.
-    * Expected format: /ownerEmail/datasetName/versionName/fileRelativePath
+    * Parses a dataset logical path into its components, or None if it is not a well-formed dataset path.
+    * Expected format: /datasets/ownerEmail/datasetName/versionName/fileRelativePath
+    * The legacy unprefixed format is also accepted.
     *
     * @param fileName The file path to parse
     * @return Some((ownerEmail, datasetName, versionName, fileRelativePath)) if valid, None otherwise
@@ -88,23 +89,20 @@ object FileResolver {
     val filePath = Paths.get(fileName)
     val pathSegments = (0 until filePath.getNameCount).map(filePath.getName(_).toString).toArray
 
-    if (pathSegments.length < 4) {
-      return None
-    }
-
-    val ownerEmail = pathSegments(0)
-    val datasetName = pathSegments(1)
-    val versionName = pathSegments(2)
-    val fileRelativePathSegments = pathSegments.drop(3)
-
-    Some((ownerEmail, datasetName, versionName, fileRelativePathSegments))
+    // TODO(datasets-prefix): require the prefix once all stored paths are migrated (36.sql).
+    if (pathSegments.headOption.exists(ResourceType.isValidPrefix)) {
+      if (pathSegments.length < 5) None
+      else Some((pathSegments(1), pathSegments(2), pathSegments(3), pathSegments.drop(4)))
+    } else if (pathSegments.length >= 4) {
+      Some((pathSegments(0), pathSegments(1), pathSegments(2), pathSegments.drop(3)))
+    } else None
   }
 
   /**
     * Attempts to resolve a given fileName to a URI.
     *
-    * The fileName format should be: /ownerEmail/datasetName/versionName/fileRelativePath
-    *   e.g. /bob@texera.com/twitterDataset/v1/california/irvine/tw1.csv
+    * The fileName format should be: /datasets/ownerEmail/datasetName/versionName/fileRelativePath
+    *   e.g. /datasets/bob@texera.com/twitterDataset/v1/california/irvine/tw1.csv
     * The output dataset URI format is: {DATASET_FILE_URI_SCHEME}:///{repositoryName}/{versionHash}/fileRelativePath
     *   e.g. {DATASET_FILE_URI_SCHEME}:///dataset-15/adeq233td/some/dir/file.txt
     *
@@ -194,11 +192,8 @@ object FileResolver {
   }
 
   /**
-    * Parses a dataset file path to extract owner email and dataset name.
-    * Expected format: /ownerEmail/datasetName/versionName/fileRelativePath
-    *
-    * @param path The file path from operator properties
-    * @return Some((ownerEmail, datasetName)) if path is valid, None otherwise
+    * Extracts the owner email and dataset name from a dataset logical path,
+    * or None if it is not a well-formed dataset path.
     */
   def parseDatasetOwnerAndName(path: String): Option[(String, String)] = {
     if (path == null) {

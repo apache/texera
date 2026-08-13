@@ -20,6 +20,7 @@
 package org.apache.texera.amber.operator.source.dataset
 
 import org.apache.texera.amber.core.executor.SourceOperatorExecutor
+import org.apache.texera.amber.core.storage.ResourceType
 import org.apache.texera.amber.core.storage.util.LakeFSStorageClient
 import org.apache.texera.amber.core.tuple.TupleLike
 import org.apache.texera.amber.util.JSONUtils.objectMapper
@@ -28,13 +29,52 @@ import org.apache.texera.dao.jooq.generated.tables.Dataset.DATASET
 import org.apache.texera.dao.jooq.generated.tables.DatasetVersion.DATASET_VERSION
 import org.apache.texera.dao.jooq.generated.tables.User.USER
 
+object FileListerSourceOpExec {
+
+  /**
+    * Parses a dataset version path (/datasets/ownerEmail/datasetName/versionName) into its
+    * (resourceTypePrefix, ownerEmail, datasetName, versionName) components.
+    *
+    * @throws IllegalArgumentException if the path is not a well-formed dataset version path
+    */
+  private[dataset] def parseDatasetVersionPath(
+      datasetVersionPath: String
+  ): (String, String, String, String) = {
+    val segments = datasetVersionPath.split("/").filter(_.nonEmpty)
+    val invalidPath = s"Invalid dataset version path '$datasetVersionPath'; " +
+      "expected /datasets/ownerEmail/datasetName/versionName"
+
+    if (segments.headOption.exists(ResourceType.isValidPrefix)) {
+      require(segments.length >= 4, invalidPath)
+      (segments(0), segments(1), segments(2), segments(3))
+    } else {
+      require(segments.length >= 3, invalidPath)
+      (ResourceType.Datasets.toString, segments(0), segments(1), segments(2))
+    }
+  }
+
+  private[dataset] def canonicalVersionPath(
+      resourceTypePrefix: String,
+      ownerEmail: String,
+      datasetName: String,
+      versionName: String
+  ): String = s"/$resourceTypePrefix/$ownerEmail/$datasetName/$versionName"
+}
+
 class FileListerSourceOpExec private[dataset] (descString: String) extends SourceOperatorExecutor {
   private val desc: FileListerSourceOpDesc =
     objectMapper.readValue(descString, classOf[FileListerSourceOpDesc])
 
   override def produceTuple(): Iterator[TupleLike] = {
-    val Seq(_, ownerEmail, datasetName, versionName, _*) =
-      desc.datasetVersionPath.split("/").toSeq
+    val (resourceTypePrefix, ownerEmail, datasetName, versionName) =
+      FileListerSourceOpExec.parseDatasetVersionPath(desc.datasetVersionPath)
+
+    val versionPath = FileListerSourceOpExec.canonicalVersionPath(
+      resourceTypePrefix,
+      ownerEmail,
+      datasetName,
+      versionName
+    )
 
     val (repositoryName, versionHash) =
       SqlServer
@@ -53,7 +93,7 @@ class FileListerSourceOpExec private[dataset] (descString: String) extends Sourc
 
     LakeFSStorageClient
       .retrieveObjectsOfVersion(repositoryName, versionHash)
-      .map(obj => TupleLike("filename" -> s"${desc.datasetVersionPath}/${obj.getPath}"))
+      .map(obj => TupleLike("filename" -> s"$versionPath/${obj.getPath}"))
       .iterator
   }
 }

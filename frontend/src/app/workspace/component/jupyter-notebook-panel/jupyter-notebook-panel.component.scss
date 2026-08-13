@@ -1,0 +1,79 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+.draggable-panel {
+  position: absolute;
+  top: 100px;
+  left: 200px;
+  width: 660px;
+  height: 400px;
+  background-color: #fff;
+  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.3);
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  z-index: 1000;
+  resize: both;
+  // The iframe scrolls its own content; the wrapper must not add a second scrollbar.
+  overflow: hidden;
+}
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #547baa;
+  color: white;
+  padding: 5px 10px 5px 10px;
+  font-weight: bold;
+  text-align: center;
+  cursor: move;
+}
+
+.panel-buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.minimize-button,
+.delete-button {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.minimize-button:hover,
+.delete-button:hover {
+  color: #bfbfbf;
+}
+
+.iframe-container {
+  width: 100%;
+  height: calc(100% - 40px); /* Adjust height for the header */
+}
+
+.iframe-container iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  // Block removes the inline-element baseline gap that would otherwise overflow the wrapper.
+  display: block;
+}
