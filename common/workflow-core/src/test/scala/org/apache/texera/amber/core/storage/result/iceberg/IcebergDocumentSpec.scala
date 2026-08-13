@@ -19,13 +19,12 @@
 
 package org.apache.texera.amber.core.storage.result.iceberg
 
-import org.apache.texera.amber.core.storage.IcebergCatalogInstance
+import org.apache.texera.amber.core.storage.{CountingCatalog, IcebergCatalogInstance}
 import org.apache.texera.amber.core.storage.LocalHadoopIcebergCatalog
 import org.apache.texera.amber.core.storage.model.VirtualDocument
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema, Tuple}
 import org.apache.texera.amber.util.IcebergUtil
-import org.apache.iceberg.Table
-import org.apache.iceberg.catalog.{Catalog, Namespace, TableIdentifier}
+import org.apache.iceberg.catalog.TableIdentifier
 import org.apache.iceberg.data.Record
 import org.apache.iceberg.exceptions.NoSuchTableException
 import org.apache.iceberg.{Schema => IcebergSchema}
@@ -35,7 +34,6 @@ import org.scalatest.matchers.should.Matchers
 
 import java.sql.Timestamp
 import java.util.UUID
-import java.util.concurrent.atomic.AtomicInteger
 import java.util.zip.ZipInputStream
 
 /**
@@ -82,29 +80,6 @@ class IcebergDocumentSpec extends AnyFlatSpec with Matchers with BeforeAndAfterA
       overrideIfExists = true
     )
     new IcebergDocument[Tuple](tableNamespace, tableName, icebergSchema, serde, deserde)
-  }
-
-  /**
-    * Delegates to the shared local catalog while counting `loadTable` calls -- the
-    * discriminator for per-seek table re-resolution (#7290): a reader that only
-    * refreshed a pinned Table would touch the catalog exactly once, at iterator
-    * construction, no matter how long it polls.
-    */
-  private class CountingCatalog(delegate: Catalog) extends Catalog {
-    val loadTableCalls = new AtomicInteger()
-    override def name(): String = "counting"
-    override def loadTable(identifier: TableIdentifier): Table = {
-      loadTableCalls.incrementAndGet()
-      delegate.loadTable(identifier)
-    }
-    override def tableExists(identifier: TableIdentifier): Boolean =
-      delegate.tableExists(identifier)
-    override def listTables(namespace: Namespace): java.util.List[TableIdentifier] =
-      delegate.listTables(namespace)
-    override def dropTable(identifier: TableIdentifier, purge: Boolean): Boolean =
-      delegate.dropTable(identifier, purge)
-    override def renameTable(from: TableIdentifier, to: TableIdentifier): Unit =
-      delegate.renameTable(from, to)
   }
 
   private def tuple(id: Int): Tuple =
@@ -381,8 +356,9 @@ class IcebergDocumentSpec extends AnyFlatSpec with Matchers with BeforeAndAfterA
     val before = counting.loadTableCalls.get()
     doc.get().toList should have size 3
 
-    // Construction resolves once; the construction-time seek and the final
-    // exhausted-files seek each resolve again: strictly more than one touch.
-    (counting.loadTableCalls.get() - before) should be >= 3
+    // Exactly the construction-time seek and the final exhausted-files seek resolve
+    // through the catalog: the pinned-refresh implementation touched it only once,
+    // and an eager constructor-time load would add a wasted third round trip.
+    (counting.loadTableCalls.get() - before) shouldBe 2
   }
 }

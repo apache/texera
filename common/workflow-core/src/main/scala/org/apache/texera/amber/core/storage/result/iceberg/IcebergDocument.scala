@@ -170,8 +170,9 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
     withReadLock(lock) {
       new Iterator[T] {
         private val iteLock = new ReentrantLock()
-        // Load the table instance, initially the table instance may not exist
-        private var table: Option[Table] = loadTableMetadata()
+        // No eager load: the constructor-time seekToUsableFile() below resolves the
+        // table, so loading here would be an immediately-overwritten REST round trip.
+        private var table: Option[Table] = None
 
         // Last seen snapshot id(logically it's like a version number). While reading, new snapshots may be created
         private var lastSnapshotId: Option[Long] = None

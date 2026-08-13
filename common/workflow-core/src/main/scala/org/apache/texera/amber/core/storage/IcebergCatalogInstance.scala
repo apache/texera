@@ -160,9 +160,8 @@ object IcebergCatalogInstance extends LazyLogging {
         }
       )
     } catch {
-      case e: UncheckedExecutionException => throw e.getCause
-      case e: ExecutionException          => throw e.getCause
-      case e: ExecutionError              => throw e.getCause
+      case e @ (_: UncheckedExecutionException | _: ExecutionException | _: ExecutionError) =>
+        throw e.getCause
     }
 
   private def createCatalog(warehouse: String): Catalog =

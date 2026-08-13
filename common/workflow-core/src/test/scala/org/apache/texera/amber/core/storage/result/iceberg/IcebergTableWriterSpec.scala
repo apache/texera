@@ -20,9 +20,9 @@
 package org.apache.texera.amber.core.storage.result.iceberg
 
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema, Tuple}
-import org.apache.texera.amber.core.storage.IcebergCatalogInstance
+import org.apache.texera.amber.core.storage.{CountingCatalog, IcebergCatalogInstance}
 import org.apache.texera.amber.util.IcebergUtil
-import org.apache.iceberg.catalog.{Catalog, Namespace, TableIdentifier}
+import org.apache.iceberg.catalog.Catalog
 import org.apache.iceberg.data.IcebergGenerics
 import org.apache.iceberg.{Schema => IcebergSchema, Table}
 import org.scalatest.BeforeAndAfterAll
@@ -30,7 +30,6 @@ import org.scalatest.flatspec.AnyFlatSpec
 
 import java.nio.file.{Files, Path}
 import java.util.UUID
-import java.util.concurrent.atomic.AtomicInteger
 import scala.jdk.CollectionConverters._
 
 class IcebergTableWriterSpec extends AnyFlatSpec with BeforeAndAfterAll {
@@ -205,21 +204,4 @@ class IcebergTableWriterSpec extends AnyFlatSpec with BeforeAndAfterAll {
     assert(readTuples(tableName) == List(tuple(1)), "the tuple must reach the table")
   }
 
-  /** Delegates to `delegate` while counting `loadTable` calls. */
-  private class CountingCatalog(delegate: Catalog) extends Catalog {
-    val loadTableCalls = new AtomicInteger()
-    override def name(): String = "counting"
-    override def loadTable(identifier: TableIdentifier): Table = {
-      loadTableCalls.incrementAndGet()
-      delegate.loadTable(identifier)
-    }
-    override def tableExists(identifier: TableIdentifier): Boolean =
-      delegate.tableExists(identifier)
-    override def listTables(namespace: Namespace): java.util.List[TableIdentifier] =
-      delegate.listTables(namespace)
-    override def dropTable(identifier: TableIdentifier, purge: Boolean): Boolean =
-      delegate.dropTable(identifier, purge)
-    override def renameTable(from: TableIdentifier, to: TableIdentifier): Unit =
-      delegate.renameTable(from, to)
-  }
 }
