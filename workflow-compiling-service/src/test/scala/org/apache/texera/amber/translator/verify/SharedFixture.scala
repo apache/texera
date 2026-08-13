@@ -29,9 +29,10 @@ import java.nio.file.Path
   * written for a single operator.
   *
   * Which table an operator runs on is its own axis, separate from who writes its
-  * config. [[CanonicalFixture]] is the wide mixed-type table most operators take;
-  * the sklearn families share two narrow ones because `X = table.drop(target)`
-  * feeds every remaining column to `fit`, which a string or timestamp column ends.
+  * config. [[CanonicalFixture]] is the wide mixed-type table every operator takes;
+  * the sklearn families take [[ProjectedFixture]] views of it, since
+  * `X = table.drop(target)` feeds every remaining column to `fit`, which a string
+  * or timestamp column ends.
   */
 trait SharedFixture {
 
@@ -42,6 +43,12 @@ trait SharedFixture {
     * joins) or the same rows twice.
     */
   def rowsFor(port: Int): Seq[Tuple]
+
+  /** Every row of the table, ports aside — what a [[ProjectedFixture]] of it
+    * narrows. A table whose ports read windows says so by overriding; by default
+    * a port already sees the whole of it.
+    */
+  def allRows: Seq[Tuple] = rowsFor(0)
 
   /** Columns [[write]] never empties, because their VALUE is what the table was
     * built to arrange rather than data under test: canonical's `id` is what joins
@@ -91,6 +98,44 @@ trait SharedFixture {
   /** This table's rows with [[SharedFixture.emptyOneCellPerColumn]] applied. */
   private[verify] def emptyOneCellPerColumn(rows: Seq[Tuple]): Seq[Tuple] =
     SharedFixture.emptyOneCellPerColumn(rows, schema, keepFilled)
+}
+
+/**
+  * A column subset of another table: the same rows in the same order, keeping
+  * only the named columns, in the order named.
+  *
+  * The sklearn families need one. Their generated code is
+  * `X = table.drop(target, axis=1)`, so every column that is not the target
+  * reaches `fit`, and a string or a timestamp ends it. A projection hands them a
+  * table an estimator can fit without a second dataset to keep in step: the rows
+  * are still [[CanonicalFixture]]'s, only narrower.
+  */
+final case class ProjectedFixture(
+    source: SharedFixture,
+    columns: Seq[String],
+    keepFilled: Set[String]
+) extends SharedFixture {
+
+  val schema: Schema = new Schema(columns.map(c => source.schema.getAttribute(c)): _*)
+
+  private val rows: Vector[Tuple] = source.allRows.map { t =>
+    val b = Tuple.builder(schema)
+    schema.getAttributes.foreach(a => b.add(a, t.getField[AnyRef](a.getName)))
+    b.build()
+  }.toVector
+
+  /** Every port gets the whole table. An estimator pair trains on port 0 and
+    * tests on port 1, and the point of the pair is the two ports rather than two
+    * datasets: what the comparison sees is the fitted model, which port 1 has no
+    * hand in, so giving the ports different rows buys nothing.
+    *
+    * The whole table rather than the source's ten-row window, because the
+    * estimators that cross-validate pass no fold count and so take sklearn's
+    * default of five: the window would leave the smaller class at four, and one
+    * fold holding none of a class is a fold that asks nothing (sklearn warns and
+    * splits anyway rather than refusing).
+    */
+  override def rowsFor(port: Int): Seq[Tuple] = rows
 }
 
 object SharedFixture {

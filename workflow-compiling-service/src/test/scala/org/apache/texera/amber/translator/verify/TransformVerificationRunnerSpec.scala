@@ -104,10 +104,11 @@ class TransformVerificationRunnerSpec extends AnyFlatSpec with Matchers {
     disposition(classOf[MachineLearningScorerOpDesc]) shouldBe Runnable("curated")
   }
 
-  it should "route a sklearn estimator to the auto tier on the numeric table" in {
+  it should "route a sklearn estimator to the auto tier on the numeric projection" in {
     disposition(classOf[SklearnTrainingLogisticRegressionOpDesc]) shouldBe
       Runnable("auto, countVectorizer=false, tfidfTransformer=false")
-    fixtureFor(classOf[SklearnTrainingLogisticRegressionOpDesc]) shouldBe SklearnFixture
+    fixtureFor(classOf[SklearnTrainingLogisticRegressionOpDesc]) shouldBe
+      CanonicalFixture.sklearnNumeric
   }
 
   it should "keep the advanced trainers curated, their paraList being unresolvable" in {

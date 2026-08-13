@@ -24,10 +24,11 @@
     "simplex_a": 35.0,
     "simplex_b": 30.0,
     "simplex_c": 35.0,
-    "short_text": "URGENT: your account needs verification, click the link immediately.",
+    "short_text": "The meeting is scheduled for three o'clock tomorrow.",
     "long_text": "The city council voted on Tuesday to approve a new public transit plan. The proposal adds three bus routes and extends weekend service hours. Officials estimate the changes will serve ten thousand additional riders each month. The measure passed by a vote of seven to two after a long public comment period.",
     "petal_length": 3.9000000000000004,
     "petal_width": 1.3,
+    "species": 1,
     "csv_list": "a7",
     "mixed_case": "abacus"
   },
@@ -60,6 +61,7 @@
     "long_text": "The city council voted on Tuesday to approve a new public transit plan. The proposal adds three bus routes and extends weekend service hours. Officials estimate the changes will serve ten thousand additional riders each month. The measure passed by a vote of seven to two after a long public comment period.",
     "petal_length": 5.2,
     "petal_width": 1.85,
+    "species": 1,
     "csv_list": "a3,b3",
     "mixed_case": "ABBEY"
   },
@@ -88,10 +90,11 @@
     "simplex_a": 35.0,
     "simplex_b": 35.0,
     "simplex_c": 30.0,
-    "short_text": "The meeting is scheduled for three o'clock tomorrow.",
+    "short_text": "URGENT: your account needs verification, click the link immediately.",
     "long_text": "The city council voted on Tuesday to approve a new public transit plan. The proposal adds three bus routes and extends weekend service hours. Officials estimate the changes will serve ten thousand additional riders each month. The measure passed by a vote of seven to two after a long public comment period.",
     "petal_length": 2.6,
     "petal_width": 0.75,
+    "species": 0,
     "csv_list": "a11,b11,c11",
     "mixed_case": "101"
   },
@@ -120,10 +123,11 @@
     "simplex_a": 25.0,
     "simplex_b": 30.0,
     "simplex_c": 45.0,
-    "short_text": "I absolutely love this, it completely made my day!",
+    "short_text": "I'm really not sure how I feel about it.",
     "long_text": "The city council voted on Tuesday to approve a new public transit plan. The proposal adds three bus routes and extends weekend service hours. Officials estimate the changes will serve ten thousand additional riders each month. The measure passed by a vote of seven to two after a long public comment period.",
     "petal_length": 2.6,
     "petal_width": 0.75,
+    "species": 0,
     "csv_list": "a1,b1,c1,d1",
     "mixed_case": "abdomen"
   },
@@ -152,10 +156,11 @@
     "simplex_a": 30.0,
     "simplex_b": 35.0,
     "simplex_c": 35.0,
-    "short_text": "I'm really not sure how I feel about it.",
+    "short_text": "I absolutely love this, it completely made my day!",
     "long_text": "Researchers published a study this week describing a new way to recycle lithium batteries. The technique recovers most of the metal at a lower cost than existing methods. The team says a pilot plant could open within two years if funding is secured. Analysts called the results promising but cautioned that scaling up remains difficult.",
     "petal_length": 6.5,
     "petal_width": 2.4000000000000004,
+    "species": 1,
     "csv_list": "a14",
     "mixed_case": "ABILITY"
   },
@@ -184,10 +189,11 @@
     "simplex_a": 25.0,
     "simplex_b": 35.0,
     "simplex_c": 40.0,
-    "short_text": "Thank you so much, everything was absolutely perfect.",
+    "short_text": "This is the worst experience I have ever had.",
     "long_text": "The city council voted on Tuesday to approve a new public transit plan. The proposal adds three bus routes and extends weekend service hours. Officials estimate the changes will serve ten thousand additional riders each month. The measure passed by a vote of seven to two after a long public comment period.",
     "petal_length": 1.3,
     "petal_width": 0.2,
+    "species": 0,
     "csv_list": "a5,b5",
     "mixed_case": "202"
   },
@@ -220,6 +226,7 @@
     "long_text": "The city council voted on Tuesday to approve a new public transit plan. The proposal adds three bus routes and extends weekend service hours. Officials estimate the changes will serve ten thousand additional riders each month. The measure passed by a vote of seven to two after a long public comment period.",
     "petal_length": 6.5,
     "petal_width": 2.4000000000000004,
+    "species": 1,
     "csv_list": "a9,b9,c9",
     "mixed_case": "abstract"
   },
@@ -248,10 +255,11 @@
     "simplex_a": 30.0,
     "simplex_b": 35.0,
     "simplex_c": 35.0,
-    "short_text": "This is the worst experience I have ever had.",
+    "short_text": "Thank you so much, everything was absolutely perfect.",
     "long_text": "Researchers published a study this week describing a new way to recycle lithium batteries. The technique recovers most of the metal at a lower cost than existing methods. The team says a pilot plant could open within two years if funding is secured. Analysts called the results promising but cautioned that scaling up remains difficult.",
     "petal_length": 3.9000000000000004,
     "petal_width": 1.3,
+    "species": 1,
     "csv_list": "a2,b2,c2,d2",
     "mixed_case": "ABACUS"
   },
@@ -284,6 +292,7 @@
     "long_text": "The city council voted on Tuesday to approve a new public transit plan. The proposal adds three bus routes and extends weekend service hours. Officials estimate the changes will serve ten thousand additional riders each month. The measure passed by a vote of seven to two after a long public comment period.",
     "petal_length": 5.2,
     "petal_width": 1.85,
+    "species": 1,
     "csv_list": "a13",
     "mixed_case": "303"
   },
@@ -316,6 +325,7 @@
     "long_text": "Researchers published a study this week describing a new way to recycle lithium batteries. The technique recovers most of the metal at a lower cost than existing methods. The team says a pilot plant could open within two years if funding is secured. Analysts called the results promising but cautioned that scaling up remains difficult.",
     "petal_length": 2.6,
     "petal_width": 0.75,
+    "species": 0,
     "csv_list": "a6,b6",
     "mixed_case": "abbey"
   },
@@ -348,6 +358,7 @@
     "long_text": "Researchers published a study this week describing a new way to recycle lithium batteries. The technique recovers most of the metal at a lower cost than existing methods. The team says a pilot plant could open within two years if funding is secured. Analysts called the results promising but cautioned that scaling up remains difficult.",
     "petal_length": 1.3,
     "petal_width": 0.2,
+    "species": 0,
     "csv_list": "a10,b10,c10",
     "mixed_case": "ABDOMEN"
   },
@@ -380,6 +391,7 @@
     "long_text": "Researchers published a study this week describing a new way to recycle lithium batteries. The technique recovers most of the metal at a lower cost than existing methods. The team says a pilot plant could open within two years if funding is secured. Analysts called the results promising but cautioned that scaling up remains difficult.",
     "petal_length": 6.5,
     "petal_width": 2.4000000000000004,
+    "species": 1,
     "csv_list": "a4,b4,c4,d4",
     "mixed_case": "404"
   },
@@ -412,6 +424,7 @@
     "long_text": "The city council voted on Tuesday to approve a new public transit plan. The proposal adds three bus routes and extends weekend service hours. Officials estimate the changes will serve ten thousand additional riders each month. The measure passed by a vote of seven to two after a long public comment period.",
     "petal_length": 1.3,
     "petal_width": 0.2,
+    "species": 0,
     "csv_list": "a15",
     "mixed_case": "ability"
   },
@@ -444,6 +457,7 @@
     "long_text": "Researchers published a study this week describing a new way to recycle lithium batteries. The technique recovers most of the metal at a lower cost than existing methods. The team says a pilot plant could open within two years if funding is secured. Analysts called the results promising but cautioned that scaling up remains difficult.",
     "petal_length": 5.2,
     "petal_width": 1.85,
+    "species": 1,
     "csv_list": "a8,b8",
     "mixed_case": "ABSTRACT"
   },
@@ -476,6 +490,7 @@
     "long_text": "Researchers published a study this week describing a new way to recycle lithium batteries. The technique recovers most of the metal at a lower cost than existing methods. The team says a pilot plant could open within two years if funding is secured. Analysts called the results promising but cautioned that scaling up remains difficult.",
     "petal_length": 3.9000000000000004,
     "petal_width": 1.3,
+    "species": 1,
     "csv_list": "a12,b12,c12",
     "mixed_case": "505"
   }

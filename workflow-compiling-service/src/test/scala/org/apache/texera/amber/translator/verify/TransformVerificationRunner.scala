@@ -224,7 +224,7 @@ object TransformVerificationRunner {
     // not a knob crossed with everything else.
     val countVectorizerText = AltScenario(
       label = RunKind.CountVectorizerText,
-      fixture = SklearnTextFixture,
+      fixture = CanonicalFixture.sklearnText,
       pinned = Map(
         "countVectorizer" -> BooleanNode.TRUE,
         "tfidfTransformer" -> BooleanNode.FALSE
@@ -446,13 +446,14 @@ object TransformVerificationRunner {
 
   /** The shared table an operator runs on in the AUTO tier. Which table an
     * operator takes is its own axis (see [[SharedFixture]]); the auto tier used
-    * to be pinned to [[CanonicalFixture]], which is why an operator needing a
-    * narrower table had to be curated just to name one. sklearn cannot fit
-    * canonical's string columns — `X = table.drop(target)` feeds every
-    * remaining column to `fit` — so its families take the numeric table.
+    * to be pinned to the whole of [[CanonicalFixture]], which is why an operator
+    * needing a narrower table had to be curated just to name one. sklearn cannot
+    * fit canonical's string columns — `X = table.drop(target)` feeds every
+    * remaining column to `fit` — so its families take the petal-and-label view
+    * of that same table.
     */
   private[verify] def fixtureFor(opClass: Class[_ <: LogicalOp]): SharedFixture =
-    if (CuratedHandlers.sklearnNumericClasses.contains(opClass)) SklearnFixture
+    if (CuratedHandlers.sklearnNumericClasses.contains(opClass)) CanonicalFixture.sklearnNumeric
     else CanonicalFixture
 
   /** Static classification — cheap (reflection only, no subprocesses), called

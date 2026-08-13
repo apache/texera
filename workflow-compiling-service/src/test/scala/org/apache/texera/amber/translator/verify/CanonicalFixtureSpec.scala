@@ -153,6 +153,36 @@ class CanonicalFixtureSpec extends AnyFlatSpec with Matchers {
     }
   }
 
+  // The sklearn families fit `species` against the petal columns, so the table
+  // has to hold up as training data. The estimators that cross-validate pass no
+  // fold count and so take sklearn's default of five, and a class of fewer than
+  // five rows leaves a fold holding none of it — no error, just a warning and a
+  // fold that asks nothing. A label the features cannot separate is the other
+  // half: it leaves the fit breaking ties, which is where two paths drift apart.
+  it should "expose species as a petal-separable label with enough members to fold on" in {
+    val rows = CanonicalFixture.allRows
+    val byClass = rows.groupBy(_.getField[java.lang.Integer]("species").intValue)
+    byClass.keySet shouldBe Set(0, 1)
+    byClass.values.foreach(_.size should be >= 5)
+    rows.foreach { t =>
+      val large = t.getField[java.lang.Double]("petal_length").doubleValue >= 3.9
+      t.getField[java.lang.Integer]("species").intValue shouldBe (if (large) 1 else 0)
+    }
+  }
+
+  // The countVectorizer=true path fits the same label on short_text alone, and a
+  // sentence appearing under both labels makes that set unlearnable.
+  it should "keep every short_text sentence inside one species" in {
+    CanonicalFixture.allRows
+      .groupBy(_.getField[String]("short_text"))
+      .foreach {
+        case (sentence, rows) =>
+          withClue(s"$sentence: ") {
+            rows.map(_.getField[java.lang.Integer]("species")).distinct.size shouldBe 1
+          }
+      }
+  }
+
   it should "expose iris petal columns in a realistic centimetre range" in {
     CanonicalFixture.port0Rows.foreach { t =>
       val len = t.getField[java.lang.Double]("petal_length").doubleValue

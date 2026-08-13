@@ -96,6 +96,11 @@ object CanonicalFixture extends SharedFixture {
     new Attribute("petal_length", AttributeType.DOUBLE), // iris petal length in cm (~1.3–6.5)
     new Attribute("petal_width", AttributeType.DOUBLE), // iris petal width in cm (~0.2–2.4)
     new Attribute(
+      "species",
+      AttributeType.INTEGER
+    ), // the 0/1 iris class, exactly `petal_length >= 3.9`: the label the sklearn
+    // families fit against, separable by the two petal columns above
+    new Attribute(
       "csv_list",
       AttributeType.STRING
     ), // comma-delimited, 1–4 tokens per row: split/explode ops need real fan-out
@@ -118,7 +123,7 @@ object CanonicalFixture extends SharedFixture {
   // are stored as JDBC strings ("2024-01-01 00:00:00.0") and coerced back here.
   private val fixtureResource = "/verify/canonical_fixture.json"
 
-  private val allRows: Vector[Tuple] = {
+  override val allRows: Vector[Tuple] = {
     val stream = Option(getClass.getResourceAsStream(fixtureResource))
       .getOrElse(sys.error(s"canonical fixture not found on classpath: $fixtureResource"))
     val root =
@@ -170,4 +175,27 @@ object CanonicalFixture extends SharedFixture {
     */
   def writeInputsWithGaps(testRoot: Path, inputPortCount: Int): Map[PortIdentity, Path] =
     write(testRoot, inputPortCount, withGaps = true)
+
+  /** This table as the sklearn families read it: the two petal columns and the
+    * `species` label, and nothing else, because `X = table.drop(target, axis=1)`
+    * hands `fit` every column that is not the target. The two features separate
+    * the classes exactly, so an estimator fits them without a tie to break.
+    */
+  val sklearnNumeric: SharedFixture = ProjectedFixture(
+    this,
+    Seq("petal_length", "petal_width", "species"),
+    keepFilled = Set("species")
+  )
+
+  /** This table as the `countVectorizer=true` path reads it: one text column and
+    * the same label. `short_text` leads because the model probe feeds a text
+    * pipeline the frame's first column as a Series. Every row carrying a given
+    * sentence carries the same `species` (an invariant of the table), so the
+    * vectorized classes separate exactly, as the numeric pair does.
+    */
+  val sklearnText: SharedFixture = ProjectedFixture(
+    this,
+    Seq("short_text", "species"),
+    keepFilled = Set("species")
+  )
 }

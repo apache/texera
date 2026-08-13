@@ -166,8 +166,8 @@ object CuratedHandlers {
   private def advancedOps = sklearnFamily(classOf[SklearnMLOperatorDescriptor[_]])
 
   /** Every sklearn op, whichever tier serves it. `X = table.drop(target)` feeds
-    * each remaining column to `fit`, so these take the numeric table rather than
-    * canonical, whose string columns end the fit.
+    * each remaining column to `fit`, so these take canonical's petal-and-label
+    * projection rather than the whole table, whose string columns end the fit.
     *
     * Linear Regression is named on its own because it descends from
     * `PythonOperatorDescriptor` directly rather than from one of the three
@@ -180,8 +180,8 @@ object CuratedHandlers {
     * holds a `paraList` of `HyperParameters[T]`, whose `T` is the operator's own
     * parameter enum — erased, and resolvable only from the descriptor's generic
     * superclass, which [[ConfigGenerator]] cannot do. The training and
-    * classifier families need no handler: they take the numeric table through
-    * [[TransformVerificationRunner.fixtureFor]] and the text branch through an
+    * classifier families need no handler: they take the numeric projection
+    * through [[TransformVerificationRunner.fixtureFor]] and the text branch via an
     * [[TransformVerificationRunner.AltScenario]].
     */
   private def sklearnAutoHandlers: Seq[TransformHandler] =
@@ -251,12 +251,12 @@ object CuratedHandlers {
     path
   }
 
-  /** Two-input balanced binary-classification fixture (train on port 0, test on
-    * port 1) from the shared [[SklearnFixture]] resource. Both ports get the
-    * same rows.
+  /** Two-input binary-classification fixture (train on port 0, test on port 1)
+    * from [[CanonicalFixture.sklearnNumeric]]. Both ports get the same rows.
     */
   def writeClassification2Input(testRoot: Path): (Path, Path) = {
-    val inputs = SklearnFixture.write(testRoot, inputPortCount = 2, withGaps = false)
+    val inputs =
+      CanonicalFixture.sklearnNumeric.write(testRoot, inputPortCount = 2, withGaps = false)
     (inputs(PortIdentity(0)), inputs(PortIdentity(1)))
   }
 
@@ -833,13 +833,14 @@ abstract class SklearnAdvancedTrainerTransformHandler extends TransformHandler {
   )
 
   override def fixture(testRoot: Path): (LogicalOp, Map[PortIdentity, Path]) = {
-    val train = SklearnFixture.write(testRoot, inputPortCount = 1, withGaps = false)(
-      PortIdentity(0)
-    )
+    val train =
+      CanonicalFixture.sklearnNumeric.write(testRoot, inputPortCount = 1, withGaps = false)(
+        PortIdentity(0)
+      )
 
     val desc = newDesc()
-    desc.groundTruthAttribute = "y"
-    desc.selectedFeatures = List("x1", "x2")
+    desc.groundTruthAttribute = "species"
+    desc.selectedFeatures = List("petal_length", "petal_width")
     val hp = CuratedHandlers.sampleHyperParameter(opDescClass)
     desc.asInstanceOf[SklearnMLOperatorDescriptor[ParamClass]].paraList = List(hp)
 
@@ -873,11 +874,14 @@ abstract class SklearnAdvancedTrainerTransformHandler extends TransformHandler {
       .map { p =>
         val dir = testRoot.resolve(s"param_${p.getName}")
         Files.createDirectories(dir)
-        val train = SklearnFixture.write(dir, inputPortCount = 1, withGaps = false)(PortIdentity(0))
+        val train =
+          CanonicalFixture.sklearnNumeric.write(dir, inputPortCount = 1, withGaps = false)(
+            PortIdentity(0)
+          )
 
         val desc = newDesc()
-        desc.groundTruthAttribute = "y"
-        desc.selectedFeatures = List("x1", "x2")
+        desc.groundTruthAttribute = "species"
+        desc.selectedFeatures = List("petal_length", "petal_width")
         val hp = new HyperParameters[ParamClass]()
         hp.parameter = p
         hp.parametersSource = false

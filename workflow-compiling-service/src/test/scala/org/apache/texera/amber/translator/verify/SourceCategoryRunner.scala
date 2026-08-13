@@ -343,8 +343,8 @@ trait SourceHandler {
 
 /**
   * The shared row data every structured-file source reads. Mirrors
-  * [[CanonicalFixture]] / [[SklearnFixture]]: the rows live in a checked-in,
-  * human-readable JSON resource (source_fixture.json) and are loaded once here.
+  * [[CanonicalFixture]]: the rows live in a checked-in, human-readable JSON
+  * resource (source_fixture.json) and are loaded once here.
   *
   * A source has no input port, so the fixture is delivered not as an input
   * JSONL but as a file the operator opens itself. Each `writeXxx` encodes the

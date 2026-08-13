@@ -1288,8 +1288,8 @@ object ConfigGenerator {
     * A `hide*` triple says "hide me when THAT field holds THIS value", and the UI
     * honours it, so a config that fills a hidden field is one no user can submit.
     * Filling one was harmless where nothing read it and misleading where something
-    * did: sklearn's `text` was filled off the numeric table with the vectorizer
-    * off, a form the UI never shows.
+    * did: sklearn's `text` was filled off the numeric projection with the
+    * vectorizer off, a form the UI never shows.
     *
     * The sibling's value is read from the node being built, which starts as the
     * operator's own defaults, so the target is present whatever the declaration

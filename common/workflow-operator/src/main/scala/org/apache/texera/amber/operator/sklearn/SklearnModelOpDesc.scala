@@ -45,7 +45,7 @@ abstract class SklearnModelOpDesc extends PythonOperatorDescriptor {
   @AutofillAttributeName
   // The label the estimator fits against. Test-only steering: without it the
   // first column wins, which on a feature/label table is a feature.
-  @SampleColumn("y")
+  @SampleColumn("species")
   var target: EncodableString = _
 
   @JsonSchemaTitle("Count Vectorizer")
