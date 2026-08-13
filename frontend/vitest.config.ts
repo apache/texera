@@ -34,6 +34,16 @@ export default defineConfig({
     // which Angular's `fakeAsync` requires. Karma+Jasmine installed this
     // implicitly; the @angular/build:unit-test path doesn't.
     setupFiles: ["src/test-zone-setup.ts"],
+    // Vitest defaults (5s per test, 10s per hook) are too tight for the
+    // macOS runners, which stall for seconds at a time under load: the same
+    // spec file that takes 240ms on ubuntu-latest has been observed taking
+    // 11.7s on macos-latest in the same commit's matrix. The stall lands on
+    // whichever test happens to be running, so raising the ceiling is the
+    // only fix that isn't whack-a-mole — three different specs have gone
+    // red this way. A test that legitimately needs >30s is broken, and the
+    // job's own timeout still bounds a true hang. See apache/texera#6073.
+    testTimeout: 30_000,
+    hookTimeout: 30_000,
     // Per-spec exclusions live in `angular.json` (the unit-test builder
     // applies them at the discovery stage, before Vitest's own filter,
     // which is what the Vitest team recommends — see the Vite warning

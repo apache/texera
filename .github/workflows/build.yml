@@ -87,6 +87,12 @@ jobs:
     if: ${{ inputs.run_frontend }}
     runs-on: ${{ matrix.os }}
     strategy:
+      # An OS-specific failure should not cancel the other two legs: with the
+      # default fail-fast the surviving jobs report "The operation was
+      # canceled" and the run no longer says whether the failure reproduces
+      # off that OS — exactly the evidence needed to tell a runner flake from
+      # a real break. Every other multi-leg matrix here already opts out.
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
         include:
