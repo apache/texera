@@ -256,7 +256,7 @@ class SyncExecutionResource extends LazyLogging {
               .timeout(timeoutSeconds.toLong, TimeUnit.SECONDS)
               .blockingGet()
           } catch {
-            case _: java.util.concurrent.TimeoutException =>
+            case e: Exception if isCausedByTimeout(e) =>
               killExecution(executionService)
               return SyncExecutionResult(
                 success = false,
@@ -830,6 +830,19 @@ class SyncExecutionResource extends LazyLogging {
       case COMPLETED | FAILED | KILLED | TERMINATED => true
       case _                                        => false
     }
+  }
+
+  private def isCausedByTimeout(error: Throwable): Boolean = {
+    @scala.annotation.tailrec
+    def loop(current: Throwable): Boolean =
+      current match {
+        case null                                         => false
+        case _: java.util.concurrent.TimeoutException     => true
+        case throwable if throwable.getCause eq throwable => false
+        case throwable                                    => loop(throwable.getCause)
+      }
+
+    loop(error)
   }
 
   private def hasConsoleError(consoleState: ExecutionConsoleStore): Boolean = {
