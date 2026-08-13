@@ -244,7 +244,7 @@ final class PythonWorkerPoolSpec extends AnyFunSuite {
     assert(outcomes.forall(_.exit == 0))
   }
 
-  test("a worker that answers without an exit code is reported as the worker") {
+  test("a worker that answers without an exit code is reported as a worker death") {
     // Not as a job that failed: a default would name the caller's own request as
     // what went wrong, with an empty stdout as the evidence.
     val request = objectMapper.createObjectNode().put("drop-exit", true)
