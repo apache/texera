@@ -41,6 +41,34 @@ import org.apache.texera.amber.operator.metadata.annotations.{
   HideAnnotation
 }
 
+// `text` names the columns Count Vectorizer tokenizes, so they are string columns
+// and at least one is required only when that switch is on. Conditional rather than
+// plain required, so a freshly dropped operator is not flagged for a field it has
+// no use for.
+@JsonSchemaInject(json = """
+{
+  "attributeTypeRules": {
+    "text": {
+      "enum": ["string"]
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "countVectorizer": { "const": true }
+        }
+      },
+      "then": {
+        "required": ["text"],
+        "properties": {
+          "text": { "minItems": 1 }
+        }
+      }
+    }
+  ]
+}
+""")
 abstract class SklearnModelOpDesc extends PythonOperatorDescriptor {
 
   @JsonSchemaTitle("Target Attribute")
@@ -110,6 +138,25 @@ abstract class SklearnModelOpDesc extends PythonOperatorDescriptor {
       text.zipWithIndex
         .map { case (column, i) => s"""("text$i", CountVectorizer(), ${renderColumn(column)})""" }
         .mkString("ColumnTransformer([", ", ", "]),")
+
+  /** Python that narrows `frame` to the columns an estimator can fit, written at
+    * `indent`. A column the user did not mean as a feature, a note beside the
+    * numbers, would otherwise end the run from inside scikit-learn. Booleans are
+    * kept: they fit as 0/1. What was dropped is printed, so the choice is visible
+    * rather than silent.
+    *
+    * Empty when Count Vectorizer is on: there the `ColumnTransformer` names the
+    * columns it reads, and they are the ones this would drop.
+    */
+  @JsonIgnore
+  protected def dropNonFeatureColumns(frame: String, indent: String): String =
+    if (countVectorizer) ""
+    else
+      s"""${indent}_fittable = $frame.select_dtypes(include=["number", "bool"])
+         |${indent}_ignored = [c for c in $frame.columns if c not in _fittable.columns]
+         |${indent}if _ignored:
+         |${indent}    print("Ignoring columns an estimator cannot fit:", _ignored)
+         |${indent}$frame = _fittable""".stripMargin
 
   @JsonIgnore
   def getImportStatements: String

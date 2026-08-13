@@ -42,6 +42,7 @@ class SklearnTrainingOpDesc extends SklearnModelOpDesc {
        |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
        |        Y = table[$target]
        |        X = table.drop($target, axis=1)
+       |${dropNonFeatureColumns("X", " " * 8)}
        |        model = make_pipeline(${vectorizerStage(c => pyb"$c".toString)} ${if (
       tfidfTransformer
     ) "TfidfTransformer(),"
