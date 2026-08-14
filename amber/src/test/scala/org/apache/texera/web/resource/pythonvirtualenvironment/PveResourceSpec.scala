@@ -139,6 +139,19 @@ class PveResourceSpec
     queue.iterator().asScala.toList.mkString("\n")
   }
 
+  /**
+    * A computing-unit id whose venv directory does not exist on this machine.
+    * PveManager.getEnvironments lists /tmp/texera-pve/venvs/<cuid> directly, so a fixed id
+    * could pick up environments left behind by an earlier local run.
+    */
+  private def unusedCuid(): Int = {
+    val venvRoot = Paths.get("/tmp/texera-pve/venvs")
+    Iterator
+      .continually(900000 + scala.util.Random.nextInt(90000))
+      .find(cuid => !Files.exists(venvRoot.resolve(cuid.toString)))
+      .get
+  }
+
   "PveManager" should "create a new PVE and list it" in {
     expectProcessCalls()
     PveManager.createNewPve(testCuid, queue, testPveName)
@@ -453,6 +466,29 @@ class PveResourceSpec
     pves.map(_.get("pveName")) should contain(testPveName)
   }
 
+  it should "return an empty list for a computing unit with no environments" in {
+    // getEnvironments reads /tmp/texera-pve/venvs/<cuid> straight off disk, so use a cuid
+    // that cannot collide with leftovers from an earlier local run.
+    val resp = new PveResource().fetchPVEs(Int.box(unusedCuid()))
+
+    resp.getStatus shouldBe Response.Status.OK.getStatusCode
+    resp.getEntity.asInstanceOf[java.util.List[_]].asScala shouldBe empty
+  }
+
+  "PveResource.deleteEnvironments" should "remove every environment of the computing unit" in {
+    expectProcessCalls()
+    PveManager.createNewPve(testCuid, queue, testPveName)
+    PveManager.getEnvironments(testCuid).map(_.pveName) should contain(testPveName)
+
+    new PveResource().deleteEnvironments(testCuid)
+
+    PveManager.getEnvironments(testCuid) shouldBe empty
+  }
+
+  it should "be a no-op for a computing unit that has none" in {
+    noException should be thrownBy new PveResource().deleteEnvironments(unusedCuid())
+  }
+
   "PveResource.deletePackage" should "return 200 when the uninstall succeeds" in {
     expectProcessCalls()
     PveManager.createNewPve(testCuid, queue, testPveName)
@@ -469,4 +505,48 @@ class PveResourceSpec
     val resp = new PveResource().deletePackage(testCuid, testPveName, "pyarrow")
     resp.getStatus shouldBe Response.Status.BAD_REQUEST.getStatusCode
   }
+
+  // ─── duplicate-name conflicts ──────────────────────────────────────────────
+  // The unique index on (uid, name) is what surfaces a duplicate as SQLSTATE 23505,
+  // so these drive real constraint violations rather than mocking the DAO.
+  // The resources' 500 handlers are not covered here: PveManager.getSystemPackages
+  // returns a cached value and never throws, and the generic `case e: Exception` arms
+  // would need the DAO mocked out to reach.
+
+  "PveResource.savePve" should "return 409 when the user already has an environment with that name" in {
+    PveManager.savePve(testUid, "env-dup", "{}")
+
+    val resp = new PveResource().savePve(SavePvePayload("env-dup", Map.empty), sessionUser)
+
+    resp.getStatus shouldBe Response.Status.CONFLICT.getStatusCode
+    resp.getEntity shouldBe """An environment named "env-dup" already exists."""
+  }
+
+  it should "still accept the same name for a different user" in {
+    val otherUid = testUid + 1
+    val otherUser = new User
+    otherUser.setUid(otherUid)
+    otherUser.setName(s"pve_other_$otherUid")
+    otherUser.setEmail(s"other_${UUID.randomUUID()}@example.com")
+    val userDao = new UserDao(getDSLContext.configuration())
+    userDao.insert(otherUser)
+    try {
+      PveManager.savePve(otherUid, "env-shared", "{}")
+
+      val resp = new PveResource().savePve(SavePvePayload("env-shared", Map.empty), sessionUser)
+
+      resp.getStatus shouldBe Response.Status.CREATED.getStatusCode
+    } finally {
+      getDSLContext
+        .deleteFrom(VIRTUAL_ENVIRONMENTS)
+        .where(VIRTUAL_ENVIRONMENTS.UID.eq(otherUid))
+        .execute()
+      userDao.deleteById(otherUid)
+    }
+  }
+
+  "PveResource.listPves" should "return an empty list when the user owns nothing" in {
+    new PveResource().listPves(sessionUser).asScala shouldBe empty
+  }
+
 }
