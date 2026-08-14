@@ -60,19 +60,29 @@ class TestDatasetFileDocumentInit:
         assert doc.owner_email == "bob@x.com"
         assert doc.file_relative_path == "file.csv"
 
-    def test_rejects_unprefixed_path(self, auth_env):
-        # Without the datasets prefix the path is not a dataset path.
-        with pytest.raises(ValueError, match="Invalid file path format"):
-            DatasetFileDocument("/bob@x.com/ds/v1/file.csv")
+    def test_accepts_legacy_unprefixed_path(self, auth_env):
+        doc = DatasetFileDocument("/bob@x.com/ds/v1/file.csv")
+        assert doc.owner_email == "bob@x.com"
+        assert doc.dataset_name == "ds"
+        assert doc.version_name == "v1"
+        assert doc.file_relative_path == "file.csv"
 
-    def test_rejects_unknown_resource_type_prefix(self, auth_env):
-        # A leading segment that is not a known resource type is rejected.
-        with pytest.raises(ValueError, match="Unknown resource type prefix"):
-            DatasetFileDocument("/notAResourceType/bob@x.com/ds/v1/file.csv")
+    def test_legacy_unprefixed_path_keeps_nested_relative_path(self, auth_env):
+        doc = DatasetFileDocument("/bob@x.com/ds/v1/a/b/file.csv")
+        assert doc.file_relative_path == "a/b/file.csv"
 
-    def test_rejects_path_with_too_few_segments(self, auth_env):
+    def test_unknown_leading_segment_is_read_as_a_legacy_owner(self, auth_env):
+        doc = DatasetFileDocument("/notAResourceType/bob@x.com/ds/v1/file.csv")
+        assert doc.owner_email == "notAResourceType"
+        assert doc.file_relative_path == "v1/file.csv"
+
+    def test_rejects_prefixed_path_with_too_few_segments(self, auth_env):
         with pytest.raises(ValueError, match="Invalid file path format"):
             DatasetFileDocument("/datasets/bob@x.com/ds/v1")
+
+    def test_rejects_legacy_path_with_too_few_segments(self, auth_env):
+        with pytest.raises(ValueError, match="Invalid file path format"):
+            DatasetFileDocument("/bob@x.com/ds/v1")
 
     def test_requires_jwt_token_in_environment(self, monkeypatch):
         monkeypatch.delenv("USER_JWT_TOKEN", raising=False)

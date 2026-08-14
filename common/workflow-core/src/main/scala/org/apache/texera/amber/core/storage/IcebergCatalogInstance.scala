@@ -19,11 +19,23 @@
 
 package org.apache.texera.amber.core.storage
 
+import com.google.common.base.Ticker
+import com.google.common.cache.{
+  Cache,
+  CacheBuilder,
+  RemovalCause,
+  RemovalListener,
+  RemovalNotification
+}
+import com.google.common.util.concurrent.{ExecutionError, UncheckedExecutionException}
+import com.typesafe.scalalogging.LazyLogging
 import org.apache.texera.common.config.StorageConfig
 import org.apache.texera.amber.util.IcebergUtil
 import org.apache.iceberg.catalog.Catalog
 
-import scala.collection.mutable
+import java.time.Duration
+import java.util.concurrent.{Callable, ExecutionException}
+import scala.util.Try
 
 /**
   * IcebergCatalogInstance manages the Iceberg catalog clients used across the Texera application.
@@ -36,11 +48,65 @@ import scala.collection.mutable
   * Only the REST catalog varies by warehouse; the hadoop and postgres catalogs are warehouse-agnostic
   * and ignore the warehouse argument.
   *
-  * Access is synchronized because the same JVM serves multiple warehouses concurrently.
+  * The cache is bounded (#7290): per-user warehouses (#6870) make the set of catalogs a
+  * long-lived JVM touches unbounded, and each REST catalog holds an HTTP client. An entry
+  * idle for the expiry window is closed -- nothing can be using it, and idle entries are
+  * exactly what a long-lived JVM accumulates. An entry evicted by *size* is only dropped,
+  * never closed: size pressure means more simultaneously hot warehouses than the bound,
+  * and closing a hot catalog would fail the operations still using it. Load degrades into
+  * rebuild churn (the dropped catalog decays once its in-flight users finish), not errors.
+  *
+  * Callers must therefore resolve their catalog per logical operation instead of holding
+  * one across an execution -- that is also what keeps a dropped catalog's lifetime bounded
+  * by the operation using it (see IcebergDocument / IcebergTableWriter).
+  *
+  * Only *evicted* entries are closed. A catalog displaced by [[replaceInstance]] is the
+  * caller's to manage: whoever replaces an entry may still hold (and restore) the old
+  * reference -- tests wrap-and-restore the shared catalog, and endpoint reconfiguration
+  * (#7358) will swap catalogs the same way.
   */
-object IcebergCatalogInstance {
+object IcebergCatalogInstance extends LazyLogging {
 
-  private val catalogs = mutable.Map.empty[String, Catalog]
+  // Sizing mirrors HuggingFaceModelResource's bounded-cache precedent: generous enough
+  // that eviction never hits a warehouse in active use, small enough to bound the JVM.
+  private val CatalogCacheMaxSize = 64L
+  private val CatalogCacheExpireAfterAccess = Duration.ofMinutes(60)
+
+  /**
+    * Builds a catalog cache with the eviction wiring `getInstance` relies on.
+    * Package-private so the spec can exercise size and idle eviction on isolated
+    * instances with a manual ticker, instead of flooding the JVM-wide cache below.
+    */
+  private[storage] def buildCatalogCache(
+      maximumSize: Long,
+      expireAfterAccess: Duration,
+      ticker: Ticker
+  ): Cache[String, Catalog] =
+    CacheBuilder
+      .newBuilder()
+      .maximumSize(maximumSize)
+      .expireAfterAccess(expireAfterAccess)
+      .ticker(ticker)
+      .removalListener(new RemovalListener[String, Catalog] {
+        override def onRemoval(notification: RemovalNotification[String, Catalog]): Unit =
+          // Close ONLY idle-expired entries. A size-evicted catalog may be mid-operation
+          // (overload = more hot warehouses than the bound) and a replaced one is still
+          // the replacing caller's (wrap-and-restore in tests, reconfiguration later);
+          // both are dropped un-closed and decay once their last user finishes.
+          if (notification.getCause == RemovalCause.EXPIRED) {
+            notification.getValue match {
+              case closeable: AutoCloseable =>
+                Try(closeable.close()).failed.foreach(error =>
+                  logger.warn(s"failed to close expired catalog '${notification.getKey}'", error)
+                )
+              case _ =>
+            }
+          }
+      })
+      .build[String, Catalog]()
+
+  private val catalogs: Cache[String, Catalog] =
+    buildCatalogCache(CatalogCacheMaxSize, CatalogCacheExpireAfterAccess, Ticker.systemTicker())
 
   // Cache key for the warehouse-agnostic catalog types. Not a legal warehouse name,
   // so it cannot collide with a REST warehouse.
@@ -70,10 +136,33 @@ object IcebergCatalogInstance {
     */
   def getInstance(warehouse: Option[String] = None): Catalog = {
     val name = warehouse.getOrElse(defaultWarehouse)
-    synchronized {
-      catalogs.getOrElseUpdate(cacheKey(name), createCatalog(name))
-    }
+    getOrLoad(catalogs, cacheKey(name), () => createCatalog(name))
   }
+
+  /**
+    * `Cache.get` wraps loader failures (`UncheckedExecutionException`, `ExecutionException`,
+    * `ExecutionError`); unwrap them so `createCatalog` failures keep the types they had
+    * before the cache existed. Package-private so the spec can pin the unwrapping against
+    * an isolated cache with a throwing loader.
+    */
+  private[storage] def getOrLoad(
+      cache: Cache[String, Catalog],
+      key: String,
+      loader: () => Catalog
+  ): Catalog =
+    try {
+      // get(key, loader) locks per key, not globally: a cache miss's REST config
+      // round trip no longer blocks lookups of other warehouses.
+      cache.get(
+        key,
+        new Callable[Catalog] {
+          override def call(): Catalog = loader()
+        }
+      )
+    } catch {
+      case e @ (_: UncheckedExecutionException | _: ExecutionException | _: ExecutionError) =>
+        throw e.getCause
+    }
 
   private def createCatalog(warehouse: String): Catalog =
     StorageConfig.icebergCatalogType match {
@@ -103,7 +192,5 @@ object IcebergCatalogInstance {
     * @param warehouse the warehouse to cache it under; `None` uses the configured default.
     */
   def replaceInstance(catalog: Catalog, warehouse: Option[String] = None): Unit =
-    synchronized {
-      catalogs(cacheKey(warehouse.getOrElse(defaultWarehouse))) = catalog
-    }
+    catalogs.put(cacheKey(warehouse.getOrElse(defaultWarehouse)), catalog)
 }

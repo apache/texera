@@ -78,6 +78,7 @@ object FileResolver {
   /**
     * Parses a dataset logical path into its components, or None if it is not a well-formed dataset path.
     * Expected format: /datasets/ownerEmail/datasetName/versionName/fileRelativePath
+    * The legacy unprefixed format is also accepted.
     *
     * @param fileName The file path to parse
     * @return Some((ownerEmail, datasetName, versionName, fileRelativePath)) if valid, None otherwise
@@ -88,16 +89,13 @@ object FileResolver {
     val filePath = Paths.get(fileName)
     val pathSegments = (0 until filePath.getNameCount).map(filePath.getName(_).toString).toArray
 
-    if (pathSegments.length < 5 || !ResourceType.isValidPrefix(pathSegments(0))) {
-      return None
-    }
-
-    val ownerEmail = pathSegments(1)
-    val datasetName = pathSegments(2)
-    val versionName = pathSegments(3)
-    val fileRelativePathSegments = pathSegments.drop(4)
-
-    Some((ownerEmail, datasetName, versionName, fileRelativePathSegments))
+    // TODO(datasets-prefix): require the prefix once all stored paths are migrated (36.sql).
+    if (pathSegments.headOption.exists(ResourceType.isValidPrefix)) {
+      if (pathSegments.length < 5) None
+      else Some((pathSegments(1), pathSegments(2), pathSegments(3), pathSegments.drop(4)))
+    } else if (pathSegments.length >= 4) {
+      Some((pathSegments(0), pathSegments(1), pathSegments(2), pathSegments.drop(3)))
+    } else None
   }
 
   /**

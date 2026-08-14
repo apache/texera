@@ -65,22 +65,28 @@ class DatasetFileDocument:
         """
         parts = file_path.strip("/").split("/")
 
-        if len(parts) < 5:
-            raise ValueError(
-                "Invalid file path format. Expected: "
-                "/datasets/ownerEmail/datasetName/versionName/fileRelativePath"
-            )
+        invalid_format = ValueError(
+            "Invalid file path format. Expected: "
+            "/datasets/ownerEmail/datasetName/versionName/fileRelativePath"
+        )
 
-        # Validate the leading prefix against the known resource types.
-        try:
+        # TODO(datasets-prefix): require the prefix once all stored paths are migrated (36.sql) and ml model support work is completed.
+        if parts and parts[0] in {t.value for t in ResourceType}:
+            if len(parts) < 5:
+                raise invalid_format
             self.resource_type = ResourceType(parts[0])
-        except ValueError:
-            raise ValueError(f"Unknown resource type prefix: {parts[0]!r}")
-
-        self.owner_email = parts[1]
-        self.dataset_name = parts[2]
-        self.version_name = parts[3]
-        self.file_relative_path = "/".join(parts[4:])
+            self.owner_email = parts[1]
+            self.dataset_name = parts[2]
+            self.version_name = parts[3]
+            self.file_relative_path = "/".join(parts[4:])
+        elif len(parts) >= 4:
+            self.resource_type = ResourceType.DATASETS
+            self.owner_email = parts[0]
+            self.dataset_name = parts[1]
+            self.version_name = parts[2]
+            self.file_relative_path = "/".join(parts[3:])
+        else:
+            raise invalid_format
 
         self.jwt_token = os.getenv("USER_JWT_TOKEN")
         self.presign_endpoint = os.getenv("FILE_SERVICE_GET_PRESIGNED_URL_ENDPOINT")
