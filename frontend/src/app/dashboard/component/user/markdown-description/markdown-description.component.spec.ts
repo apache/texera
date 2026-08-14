@@ -19,6 +19,7 @@
 
 import { Provider, SimpleChange } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { By } from "@angular/platform-browser";
 import { NZ_MODAL_DATA } from "ng-zorro-antd/modal";
 import { MarkdownService } from "ngx-markdown";
 import { MarkdownDescriptionComponent } from "./markdown-description.component";
@@ -308,5 +309,183 @@ describe("MarkdownDescriptionComponent", () => {
     component.renderMarkdown("   ");
     expect(parse).not.toHaveBeenCalled();
     expect(component.renderedDescription).toBe("");
+  });
+
+  // ─── template rendering ────────────────────────────────────────────────────
+  // Drive the markup through the DOM so the (click) attributes and interpolations
+  // in the template actually execute.
+  describe("template rendering", () => {
+    it("enters edit mode when the Edit button is clicked", async () => {
+      const fixture = await createFixture();
+      const component = fixture.componentInstance;
+      component.editable = true;
+      fixture.detectChanges();
+
+      const editBtn = fixture.nativeElement.querySelector(".md-actions button") as HTMLButtonElement;
+      expect(editBtn).toBeTruthy();
+      editBtn.click();
+      fixture.detectChanges();
+
+      expect(component.currentMode).toBe("edit");
+      // the edit-mode arm of the template now renders
+      expect(fixture.nativeElement.querySelector(".md-split")).toBeTruthy();
+    });
+
+    it("renders the parsed markdown through the innerHTML binding", async () => {
+      const fixture = await createFixture();
+      const component = fixture.componentInstance;
+      component.description = "hello";
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      const rendered = fixture.nativeElement.querySelector(".md-rendered") as HTMLElement;
+      expect(rendered).toBeTruthy();
+      expect(rendered.innerHTML).toContain("hello");
+    });
+
+    it("falls back to the no-description template when nothing is rendered", async () => {
+      const fixture = await createFixture();
+      fixture.componentInstance.description = "";
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(fixture.nativeElement.querySelector(".md-rendered")).toBeNull();
+      expect(fixture.nativeElement.textContent).toContain("No description provided.");
+    });
+
+    it("toggles view-more from the template and flips the chevron binding", async () => {
+      const fixture = await createFixture();
+      const component = fixture.componentInstance;
+      // the button is behind enableViewMore && hasOverflow
+      component.enableViewMore = true;
+      component.hasOverflow = true;
+      fixture.detectChanges();
+
+      const viewMoreBtn = fixture.nativeElement.querySelector(".view-more-btn") as HTMLButtonElement;
+      expect(viewMoreBtn).toBeTruthy();
+      // nz-icon renders [nzType] as an `anticon-<type>` class, so the chevron binding is
+      // observable alongside the label interpolation
+      const chevronType = (): string | undefined =>
+        Array.from(viewMoreBtn.querySelector("i")?.classList ?? [])
+          .find(cls => cls.startsWith("anticon-"))
+          ?.replace("anticon-", "");
+
+      expect(viewMoreBtn.textContent).toContain("View more");
+      expect(chevronType()).toBe("down");
+
+      viewMoreBtn.click();
+      fixture.detectChanges();
+
+      expect(component.isExpanded).toBe(true);
+      expect(viewMoreBtn.textContent).toContain("View less");
+      expect(chevronType()).toBe("up");
+
+      viewMoreBtn.click();
+      fixture.detectChanges();
+
+      expect(component.isExpanded).toBe(false);
+      expect(viewMoreBtn.textContent).toContain("View more");
+      expect(chevronType()).toBe("down");
+    });
+
+    it("omits the view-more control when the description does not overflow", async () => {
+      const fixture = await createFixture();
+      fixture.componentInstance.enableViewMore = true;
+      fixture.componentInstance.hasOverflow = false;
+      fixture.detectChanges();
+
+      expect(fixture.nativeElement.querySelector(".view-more-btn")).toBeNull();
+    });
+  });
+
+  // The edit-mode markup (toolbar + textarea) only renders once currentMode is "edit".
+  describe("edit-mode template", () => {
+    async function enterEditMode(): Promise<ComponentFixture<MarkdownDescriptionComponent>> {
+      const fixture = await createFixture();
+      fixture.componentInstance.description = "hello";
+      fixture.componentInstance.editable = true;
+      fixture.detectChanges();
+
+      // Go through the Edit button so its (click) binding executes.
+      const editButton = fixture.debugElement.query(By.css(".md-actions button"));
+      expect(editButton).toBeTruthy();
+      editButton.triggerEventHandler("click", new MouseEvent("click"));
+      fixture.detectChanges();
+      return fixture;
+    }
+
+    it("renders one toolbar button per action and a textarea bound to the draft", async () => {
+      const fixture = await enterEditMode();
+
+      const buttons = fixture.debugElement.queryAll(By.css(".md-toolbar button"));
+      expect(buttons.length).toBe(fixture.componentInstance.toolbar.length);
+      const textarea = fixture.debugElement.query(By.css(".md-textarea"));
+      expect(textarea).toBeTruthy();
+      expect((textarea.nativeElement as HTMLTextAreaElement).value).toBe("hello");
+    });
+
+    it("wraps the selected text when a toolbar button is clicked", async () => {
+      const fixture = await enterEditMode();
+
+      // insert() reads the textarea's selection offsets, so set them explicitly
+      // rather than relying on the environment's default caret position.
+      const textarea = fixture.debugElement.query(By.css(".md-textarea")).nativeElement as HTMLTextAreaElement;
+      textarea.setSelectionRange(0, "hello".length);
+
+      // the first action is Bold
+      fixture.debugElement
+        .queryAll(By.css(".md-toolbar button"))[0]
+        .triggerEventHandler("click", new MouseEvent("click"));
+      fixture.detectChanges();
+
+      expect(fixture.componentInstance.editingContent).toBe("**hello**");
+    });
+
+    it("inserts the action's default text when nothing is selected", async () => {
+      const fixture = await enterEditMode();
+
+      // empty selection at the end of the draft -> insert() falls back to action.default
+      const textarea = fixture.debugElement.query(By.css(".md-textarea")).nativeElement as HTMLTextAreaElement;
+      textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+
+      fixture.debugElement
+        .queryAll(By.css(".md-toolbar button"))[0]
+        .triggerEventHandler("click", new MouseEvent("click"));
+      fixture.detectChanges();
+
+      expect(fixture.componentInstance.editingContent).toBe("hello**bold**");
+    });
+
+    it("wires the edit-mode Cancel and Save actions", async () => {
+      const fixture = await enterEditMode();
+      const component = fixture.componentInstance;
+      // In edit mode .md-actions holds [Cancel, Save].
+      const actions = fixture.debugElement.queryAll(By.css(".md-actions button"));
+      expect(actions.length).toBe(2);
+
+      component.editingContent = "draft";
+      actions[0].triggerEventHandler("click", new MouseEvent("click")); // Cancel
+      expect(component.editingContent).toBe("hello"); // reverted to the description
+
+      const saved: string[] = [];
+      component.descriptionChange.subscribe(v => saved.push(v));
+      component.editingContent = "saved text";
+      actions[1].triggerEventHandler("click", new MouseEvent("click")); // Save
+      expect(saved).toEqual(["saved text"]);
+    });
+
+    it("re-renders the preview from the textarea's ngModelChange", async () => {
+      const fixture = await enterEditMode();
+
+      const textarea = fixture.debugElement.query(By.css(".md-textarea"));
+      (textarea.nativeElement as HTMLTextAreaElement).value = "typed";
+      textarea.nativeElement.dispatchEvent(new Event("input"));
+      fixture.detectChanges();
+
+      expect(fixture.componentInstance.editingContent).toBe("typed");
+      expect(fixture.nativeElement.querySelector(".md-right .md-rendered")).toBeTruthy();
+    });
   });
 });

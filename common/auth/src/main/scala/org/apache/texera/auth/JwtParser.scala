@@ -62,8 +62,15 @@ object JwtParser extends LazyLogging {
     // call writes Integer; widen via Number to handle both cases.
     val userId = claims.getClaimValue("userId", classOf[Number]).intValue()
     val role = UserRoleEnum.valueOf(claims.getClaimValue("role").asInstanceOf[String])
-    val googleId = claims.getClaimValue("googleId", classOf[String])
-    val googleAvatar = claims.getClaimValue("googleAvatar", classOf[String])
+    // This claim was named `googleAvatar` until the column and the value stopped being
+    // Google-specific. Tokens live for `auth.jwt.expiration-in-minutes` (a week by default), so
+    // the old name is still read; the fallback can go once every token predating the rename has
+    // expired.
+    val avatar = Option(claims.getClaimValue("avatar", classOf[String]))
+      .getOrElse(claims.getClaimValue("googleAvatar", classOf[String]))
+    // The `googleId` claim is deliberately written but not read back: nothing server-side
+    // needs it (credentials live in auth_provider), and the only consumer is the frontend,
+    // which reads it straight off the raw token.
 
     new SessionUser(
       new User().tap { user =>
@@ -71,8 +78,7 @@ object JwtParser extends LazyLogging {
         user.setName(userName)
         user.setEmail(email)
         user.setRole(role)
-        user.setGoogleId(googleId)
-        user.setGoogleAvatar(googleAvatar)
+        user.setAvatar(avatar)
       }
     )
   }

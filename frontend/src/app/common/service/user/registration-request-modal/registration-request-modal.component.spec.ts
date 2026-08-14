@@ -17,6 +17,7 @@
  * under the License.
  */
 
+import { ViewContainerRef } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { NZ_MODAL_DATA } from "ng-zorro-antd/modal";
 import { RegistrationRequestModalComponent } from "./registration-request-modal.component";
@@ -61,5 +62,24 @@ describe("RegistrationRequestModalComponent", () => {
   it("getValues returns empty strings when affiliation and reason are unset", async () => {
     const component = (await createFixture({ uid: 1, email: "", name: "" })).componentInstance;
     expect(component.getValues()).toEqual({ affiliation: "", reason: "" });
+  });
+
+  // `modalTitle` is an <ng-template> handed to nz-modal as its title, so nothing
+  // renders it during a plain component render — instantiate it explicitly.
+  it("renders the modal-title template with the label and the logo", async () => {
+    const fixture = await createFixture({ uid: 1, email: "a@b.com", name: "Alice" });
+    fixture.detectChanges();
+
+    const view = fixture.debugElement.injector
+      .get(ViewContainerRef)
+      .createEmbeddedView(fixture.componentInstance.modalTitle);
+    view.detectChanges();
+
+    const root = view.rootNodes.find((n: HTMLElement) => n.classList?.contains("registration-modal-title"));
+    expect(root).toBeTruthy();
+    expect(root.querySelector("span")?.textContent?.trim()).toBe("Request access");
+    const logo = root.querySelector("img.registration-modal-logo") as HTMLImageElement;
+    expect(logo.getAttribute("src")).toBe("assets/logos/full_logo_small.png");
+    expect(logo.getAttribute("alt")).toBe("Texera logo");
   });
 });

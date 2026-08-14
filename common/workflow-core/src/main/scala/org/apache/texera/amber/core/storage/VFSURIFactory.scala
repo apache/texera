@@ -61,7 +61,12 @@ object VFSURIFactory {
   // invariant the URI layer itself depends on.
   private val warehouseNamePattern = "[A-Za-z0-9][A-Za-z0-9_-]*".r
 
-  private def isValidWarehouseName(name: String): Boolean =
+  /**
+    * Whether `name` is safe as a URI path segment. Public so registration-time
+    * validation (WarehouseResource) enforces the exact rule this layer parses by,
+    * instead of keeping a drifting copy.
+    */
+  def isValidWarehouseName(name: String): Boolean =
     warehouseNamePattern.pattern.matcher(name).matches()
 
   // Warehouse is carried as a leading `/wh/<name>` path segment so a storage URI

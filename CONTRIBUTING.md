@@ -51,8 +51,43 @@ Thank you for your interest in contributing to Texera! Please follow the steps b
 - All PR titles will be used as the **squashed commit message** when merged into the `main` branch.
 - Example PR titles:
   - `feat: add a new join operator`
-  - `fix(ui): prevent racing of requests`
-  - `chore(deps): bump numpy to version 2.0.0`
+  - `fix(frontend): prevent racing of requests`
+  - `chore(deps, pyamber): bump numpy to version 2.0.0`
+
+A scope names the module the change lands in — `amber`, `pyamber`, `frontend`, `agent-service`, `file-service`, and so on. Use the module's own name rather than an informal synonym, and when a PR spans modules, scope it to the one carrying the substantive change.
+
+##### Choosing between `feat`, `fix`, and `refactor`
+
+The type depends on what happens to the behavior, not on how large the change is.
+
+| Your change | Type |
+| ----------- | ---- |
+| A functionality worked before and no longer does | `fix` |
+| A functionality or a form of support never existed and you are adding it | `feat` |
+| A functionality exists and you are removing support for it | `feat` |
+| A functionality is reworked in a way that intentionally changes user-facing behavior | `feat` |
+| The change leaves the user-facing behavior unchanged | `refactor` |
+
+Behavior is defined by the code, not by what a document or an old PR description says the code does. A functionality that was never implemented does not exist, so implementing it is a `feat` even when the docs already described it as present.
+
+`refactor` is a strong claim: it says the **user-facing** behavior is identical. The test suite is how you check that, but not every test carries the same weight. A test that pins a user-facing API is the contract — if you had to change one of its assertions to make the suite green, the behavior moved, and the PR is a `feat` or a `fix`. A test that pins internals, such as a private helper's signature, the call order between two collaborators, or the shape of an intermediate value, is mirroring the implementation; rewriting it alongside the code it mirrors is expected and still a `refactor`.
+
+##### Tests and dependency bumps
+
+Test and dependency PRs take the titles below. Where the table shows a two-part scope, it is written as `<type>(<area>, <module>): <description>`:
+
+| Your change | Title |
+| ----------- | ----- |
+| A test-only PR — adding or updating tests | `test(<module>): ...`, e.g. `test(amber): add marker replay specs` |
+| Repairing a broken or flaky test | `fix(test, <module>): ...`, e.g. `fix(test, frontend): stabilize the dashboard spec` |
+| A dependency bump that patches a CVE | `fix(deps, <module>): ...`, e.g. `fix(deps, pyamber): bump protobuf for CVE-2025-4565` |
+| Any other dependency bump | `chore(deps, <module>): ...`, e.g. `chore(deps, pyamber): bump numpy to 2.0.0` |
+
+Omit the module for bumps that span modules. GitHub Actions bumps are dependency bumps too and take the `ci` module — `chore(deps, ci): ...`, or `fix(deps, ci): ...` when the bump patches a CVE — which is the form [`.github/renovate.json5`](.github/renovate.json5) opens them with. Reserve a bare `ci: ...` for hand-written CI and workflow changes.
+
+##### Backports
+
+A PR targeting a release branch appends the release version as the **last scope component**, so a backport of `fix(deps, frontend): ...` to `release/v1.2` is titled `fix(deps, frontend, v1.2): ...`. Version tags belong only on release-branch PRs — never put one on a PR targeting `main`.
 
 > 💡 You can use the [Conventional Commits plugin](https://plugins.jetbrains.com/plugin/13389-conventional-commit) in IntelliJ to help format commit messages correctly.
 

@@ -47,7 +47,7 @@ describe("AuthService", () => {
     email: "u@x.com",
     sub: "Ursula",
     googleId: "g",
-    googleAvatar: "a",
+    avatar: "a",
     comment: "c",
     joiningReason: "r",
   };
@@ -187,11 +187,19 @@ describe("AuthService", () => {
         name: "Ursula",
         email: "u@x.com",
         googleId: "g",
-        googleAvatar: "a",
+        avatar: "a",
         role: Role.REGULAR,
         comment: "c",
         joiningReason: "r",
       });
+    });
+
+    it("reads the avatar from a pre-rename googleAvatar claim", () => {
+      AuthService.setAccessToken("tok");
+      const { avatar, ...legacyClaims } = claims;
+      jwt.decodeToken.mockReturnValue({ ...legacyClaims, googleAvatar: "legacy-a" });
+
+      expect(service.loginWithExistingToken()?.avatar).toEqual("legacy-a");
     });
 
     it("in invite-only mode, an inactive user is logged out and registration is checked", () => {

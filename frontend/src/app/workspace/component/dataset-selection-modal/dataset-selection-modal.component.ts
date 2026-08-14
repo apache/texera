@@ -22,6 +22,7 @@ import { NZ_MODAL_DATA, NzModalRef } from "ng-zorro-antd/modal";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { DatasetFileNode, getFullPathFromDatasetFileNode } from "../../../common/type/datasetVersionFileTree";
 import { DatasetVersion } from "../../../common/type/dataset";
+import { ResourceType } from "../../../common/type/resource-type";
 import { DashboardDataset } from "../../../dashboard/type/dashboard-dataset.interface";
 import { DatasetService } from "../../../dashboard/service/user/dataset/dataset.service";
 import { NzRowDirective, NzColDirective } from "ng-zorro-antd/grid";
@@ -83,7 +84,12 @@ export class DatasetSelectionModalComponent implements OnInit {
         this.datasets = datasets;
         const selectedPath = this.data.selectedPath;
         if (selectedPath) {
-          const [ownerEmail, datasetName, versionName] = selectedPath.split("/").filter(part => part.length > 0);
+          const segments = selectedPath.split("/").filter(part => part.length > 0);
+          // TODO(datasets-prefix): require the prefix once all ml model support PRs are done.
+          if ((Object.values(ResourceType) as string[]).includes(segments[0])) {
+            segments.shift();
+          }
+          const [ownerEmail, datasetName, versionName] = segments;
           this.selectedDataset = this.datasets.find(
             dataset => dataset.ownerEmail === ownerEmail && dataset.dataset.name === datasetName
           );
@@ -118,7 +124,7 @@ export class DatasetSelectionModalComponent implements OnInit {
           this.fileTree = data.fileNodes;
         });
       if (!this.data.fileMode) {
-        this.selectedPath = `/${this.selectedDataset.ownerEmail}/${this.selectedDataset.dataset.name}/${this.selectedVersion.name}`;
+        this.selectedPath = `/${ResourceType.Datasets}/${this.selectedDataset.ownerEmail}/${this.selectedDataset.dataset.name}/${this.selectedVersion.name}`;
       }
     }
   }

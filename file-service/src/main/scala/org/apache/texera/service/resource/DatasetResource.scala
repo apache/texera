@@ -28,7 +28,7 @@ import org.apache.texera.common.config.StorageConfig
 import org.apache.texera.common.util.EmailUtil
 import org.apache.texera.amber.core.storage.model.OnDataset
 import org.apache.texera.amber.core.storage.util.LakeFSStorageClient
-import org.apache.texera.amber.core.storage.{DocumentFactory, FileResolver}
+import org.apache.texera.amber.core.storage.{DocumentFactory, FileResolver, ResourceType}
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.dao.SiteSettings
 import org.apache.texera.dao.SqlServer
@@ -90,6 +90,15 @@ object DatasetResource {
     SqlServer
       .getInstance()
       .createDSLContext()
+
+  // Builds a resource logical path (/<resourceType>/ownerEmail/resourceName/relativePath).
+  private def logicalPath(
+      resourceType: ResourceType.Value,
+      ownerEmail: String,
+      resourceName: String,
+      relativePath: String
+  ): String =
+    s"$resourceType/$ownerEmail/$resourceName/$relativePath"
 
   private def singleFileUploadMaxBytes(defaultMiB: Long = 20L): Long =
     SiteSettings.getLong("single_file_upload_max_size_mib", defaultMiB) * 1024L * 1024L
@@ -342,6 +351,8 @@ class DatasetResource extends LazyLogging {
 
   private val COVER_IMAGE_SIZE_LIMIT_BYTES: Long = 10 * 1024 * 1024 // 10 MB
   private val ALLOWED_IMAGE_EXTENSIONS: Set[String] = Set(".jpg", ".jpeg", ".png", ".gif", ".webp")
+
+  private val resourceType = ResourceType.Datasets
 
   /**
     * Helper function to get the dataset from DB with additional information including user access privilege and owner email
@@ -1413,14 +1424,24 @@ class DatasetResource extends LazyLogging {
         throw new NotFoundException(ERR_DATASET_VERSION_NOT_FOUND_MESSAGE)
       )
 
-      val ownerNode = DatasetFileNode
+      val datasetsNode = DatasetFileNode
         .fromLakeFSRepositoryCommittedObjects(
           Map(
-            (user.getEmail, dataset.getName, latestVersion.getName) -> LakeFSStorageClient
+            (
+              getOwner(ctx, did).getEmail,
+              dataset.getName,
+              latestVersion.getName
+            ) -> LakeFSStorageClient
               .retrieveObjectsOfVersion(dataset.getRepositoryName, latestVersion.getVersionHash)
           )
         )
         .head
+
+      val ownerNode = datasetsNode.getChildren.headOption.getOrElse(
+        throw new IllegalStateException(
+          s"Dataset file tree for ${dataset.getName} is missing its owner node"
+        )
+      )
 
       DashboardDatasetVersion(
         latestVersion,
@@ -1648,7 +1669,7 @@ class DatasetResource extends LazyLogging {
     val datasetName = dataset.dataset.getName
     val repositoryName = dataset.dataset.getRepositoryName
 
-    val ownerFileNode = DatasetFileNode
+    val datasetsNode = DatasetFileNode
       .fromLakeFSRepositoryCommittedObjects(
         Map(
           (dataset.ownerEmail, datasetName, datasetVersion.getName) -> LakeFSStorageClient
@@ -1656,6 +1677,12 @@ class DatasetResource extends LazyLogging {
         )
       )
       .head
+
+    val ownerFileNode = datasetsNode.getChildren.headOption.getOrElse(
+      throw new IllegalStateException(
+        s"Dataset file tree for $datasetName is missing its owner node"
+      )
+    )
 
     DatasetVersionRootFileNodesResponse(
       ownerFileNode.children.get
@@ -1667,7 +1694,7 @@ class DatasetResource extends LazyLogging {
         .head
         .children
         .get,
-      DatasetFileNode.calculateTotalSize(List(ownerFileNode))
+      DatasetFileNode.calculateTotalSize(List(datasetsNode))
     )
   }
 
@@ -2375,7 +2402,9 @@ class DatasetResource extends LazyLogging {
       val owner = getOwner(ctx, did)
       val document = DocumentFactory
         .openReadonlyDocument(
-          FileResolver.resolve(s"${owner.getEmail}/${dataset.getName}/$normalized")
+          FileResolver.resolve(
+            logicalPath(resourceType, owner.getEmail, dataset.getName, normalized)
+          )
         )
         .asInstanceOf[OnDataset]
 
@@ -2429,7 +2458,8 @@ class DatasetResource extends LazyLogging {
       )
 
       val owner = getOwner(ctx, did)
-      val fullPath = s"${owner.getEmail}/${dataset.getName}/$coverImage"
+      val fullPath =
+        logicalPath(resourceType, owner.getEmail, dataset.getName, coverImage)
 
       val document = DocumentFactory
         .openReadonlyDocument(FileResolver.resolve(fullPath))
@@ -2478,7 +2508,8 @@ class DatasetResource extends LazyLogging {
           Response.ok(Map("url" -> null)).build()
         case Some(coverImage) =>
           val owner = getOwner(ctx, did)
-          val fullPath = s"${owner.getEmail}/${dataset.getName}/$coverImage"
+          val fullPath =
+            logicalPath(resourceType, owner.getEmail, dataset.getName, coverImage)
 
           val document = DocumentFactory
             .openReadonlyDocument(FileResolver.resolve(fullPath))

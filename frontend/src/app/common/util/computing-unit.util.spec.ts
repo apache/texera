@@ -45,7 +45,7 @@ function makeUnit(overrides: Partial<DashboardWorkflowComputingUnit> = {}): Dash
     metrics: { cpuUsage: "N/A", memoryUsage: "N/A" },
     isOwner: true,
     accessPrivilege: "READ",
-    ownerGoogleAvatar: "",
+    ownerAvatar: "",
     ownerName: "owner",
     ...overrides,
     // Set computingUnit last so a `computingUnit` override merges into (rather than replaces)

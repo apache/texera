@@ -97,7 +97,7 @@ jobs:
           - os: windows-latest
             arch: x64
         node-version:
-          - 24.10.0
+          - 24.19.0
     steps:
       - name: Checkout Texera
         uses: actions/checkout@v7
@@ -1316,7 +1316,7 @@ jobs:
         uses: actions/setup-node@v7
         with:
           # Matches the frontend job's pinned Node.
-          node-version: 24.10.0
+          node-version: 24.19.0
       - name: Prepare Yarn 1.22.22
         # The package ships a classic (v1) lockfile; pin the matching Yarn
         # via corepack rather than relying on the runner image's bundled
