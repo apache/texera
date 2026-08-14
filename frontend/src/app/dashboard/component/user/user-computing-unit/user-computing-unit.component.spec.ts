@@ -121,7 +121,7 @@ describe("UserComputingUnitComponent", () => {
         metrics: { cpuUsage: "N/A", memoryUsage: "N/A" },
         isOwner: true,
         accessPrivilege: "WRITE",
-        ownerGoogleAvatar: "",
+        ownerAvatar: "",
         ownerName: "owner",
       } as DashboardWorkflowComputingUnit;
     }

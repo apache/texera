@@ -54,9 +54,10 @@ object JwtAuth {
   /**
     * Build the claim set for `user`. The claim names are a contract with the hand-written
     * TypeScript reader in `frontend/src/app/common/service/user/auth.service.ts`, which is not
-    * compiled against this file — so renaming one here silently breaks the frontend. `avatar`
-    * now lives on `"user"` rather than a Google-specific column, but the claim keeps its
-    * `googleAvatar` name until the frontend is migrated in lockstep.
+    * compiled against this file — so renaming one here silently breaks the frontend. The `avatar`
+    * claim was `googleAvatar` until the column and the value stopped being Google-specific; the
+    * TypeScript reader was renamed in the same change, and both sides still accept the old name
+    * so tokens issued before it keep working (see [[JwtParser]] for when that can go).
     *
     * `googleId` is passed in rather than read off `user`, because the GOOGLE provider id lives
     * in `auth_provider` and this module must stay DB-free: the specs in
@@ -78,7 +79,7 @@ object JwtAuth {
     claims.setClaim("userId", user.getUid)
     claims.setClaim("email", user.getEmail)
     claims.setClaim("role", user.getRole)
-    claims.setClaim("googleAvatar", user.getAvatar)
+    claims.setClaim("avatar", user.getAvatar)
     googleId.foreach(claims.setClaim("googleId", _))
     claims.setExpirationTimeMinutesInTheFuture(TOKEN_EXPIRE_TIME_IN_MINUTES.toFloat)
     claims

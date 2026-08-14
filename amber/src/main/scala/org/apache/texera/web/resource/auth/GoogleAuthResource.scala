@@ -24,6 +24,7 @@ import com.google.api.client.http.javanet.NetHttpTransport
 import com.google.api.client.json.gson.GsonFactory
 import org.apache.texera.auth.JwtAuth.{jwtClaims, jwtToken}
 import org.apache.texera.common.config.UserSystemConfig
+import org.apache.texera.common.util.AvatarUtil
 import org.apache.texera.dao.jooq.generated.enums.ProviderTypeEnum
 import org.apache.texera.web.model.http.response.TokenIssueResponse
 
@@ -38,8 +39,9 @@ object GoogleAuthResource {
   /**
     * Reduce a verified Google id-token payload to the fields we persist. Google omits `name`
     * for accounts with no profile name, and the provisioner writes `name` straight to a NOT
-    * NULL column, so the address stands in for it. Only the last path segment of `picture` is
-    * kept — the frontend rebuilds the full `lh3.googleusercontent.com` URL around it.
+    * NULL column, so the address stands in for it. `picture` is kept as the complete URL Google
+    * supplied — see [[AvatarUtil]] for why the column no longer holds a Google-only fragment,
+    * and for the host allowlist that bounds what may be stored.
     *
     * A payload with no address, or whose `email_verified` is not true, is refused rather than
     * mapped — see [[ExternalProfile]] for why. Absent is not true: Google may omit the claim, and
@@ -58,9 +60,7 @@ object GoogleAuthResource {
       payload.getSubject,
       Option(payload.get("name").asInstanceOf[String]).filter(_.nonEmpty).getOrElse(googleEmail),
       googleEmail,
-      avatar = Option(payload.get("picture").asInstanceOf[String])
-        .flatMap(_.split("/").lastOption)
-        .getOrElse("")
+      avatar = AvatarUtil.sanitize(Option(payload.get("picture").asInstanceOf[String]))
     )
   }
 
