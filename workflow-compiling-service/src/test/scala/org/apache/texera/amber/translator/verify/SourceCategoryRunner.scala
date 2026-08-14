@@ -19,27 +19,24 @@
 
 package org.apache.texera.amber.translator.verify
 
-import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
+import org.apache.texera.amber.core.tuple.{Schema, Tuple}
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.source.fetcher.URLFetcherOpDesc
 import org.apache.texera.amber.operator.source.scan.ScanSourceOpDesc
 import org.apache.texera.amber.operator.source.scan.file.{FileScanOpDesc, FileScanSourceOpDesc}
 import org.apache.texera.amber.operator.source.scan.text.TextInputSourceOpDesc
-import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.node.ObjectNode
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector.ipc.ArrowFileWriter
-import org.apache.arrow.vector.types.FloatingPointPrecision
-import org.apache.arrow.vector.types.pojo.{ArrowType, Field, FieldType, Schema => ArrowSchema}
-import org.apache.arrow.vector.{Float8Vector, IntVector, VarCharVector, VectorSchemaRoot}
+import org.apache.arrow.vector.VectorSchemaRoot
+import org.apache.texera.amber.util.ArrowUtils
 
 import java.nio.channels.FileChannel
 import java.nio.charset.{Charset, StandardCharsets}
 import java.nio.file.{Files, Path, StandardOpenOption}
 import scala.collection.mutable
-import scala.jdk.CollectionConverters._
 import scala.util.{Try, Using}
 
 /**
@@ -342,58 +339,27 @@ trait SourceHandler {
 }
 
 /**
-  * The shared row data every structured-file source reads. Mirrors
-  * [[CanonicalFixture]]: the rows live in a checked-in, human-readable JSON
-  * resource (source_fixture.json) and are loaded once here.
+  * The rows every structured-file source reads: [[CanonicalFixture]]'s, whole.
   *
-  * A source has no input port, so the fixture is delivered not as an input
-  * JSONL but as a file the operator opens itself. Each `writeXxx` encodes the
-  * same rows into one on-disk format (CSV / JSONL / Arrow); a source handler
-  * picks the encoder its operator understands and points `fileName` at the
-  * result. So CSV, CSVOld, JSONL and Arrow all verify that the operator can
-  * reconstruct one shared 3-column table — instead of each asserting against
-  * its own ad-hoc sample.
+  * A source has no input port, so the fixture is delivered not as an input JSONL
+  * but as a file the operator opens itself. Each `writeXxx` encodes these rows
+  * into one on-disk format (CSV / JSONL / Arrow); a source handler picks the
+  * encoder its operator understands and points `fileName` at the result. So CSV,
+  * CSVOld, JSONL and Arrow all verify that the operator reconstructs one shared
+  * table, instead of each asserting against its own ad-hoc sample.
   *
-  * Types (id INTEGER, name STRING, score DOUBLE) round-trip cleanly across all
-  * three formats and are inferred identically by Texera (Path A) and pandas
-  * (Path B): every `name` is non-numeric and every `score` carries a decimal,
-  * so neither column is mis-inferred as numeric/integer.
+  * It reads the canonical table rather than a narrow one of its own. A source
+  * fixture picked for the types that survive a round trip would be choosing not
+  * to ask the question this suite exists to ask: these files carry no types, both
+  * readers infer, and where they infer differently is exactly what should show. A
+  * date column does part them, and [[StandaloneRunner.sourceCasts]] is where that
+  * is settled — on Path B's reading, not by leaving the column out.
   */
 object CanonicalSourceFixture {
 
-  val schema: Schema = new Schema(
-    new Attribute("id", AttributeType.INTEGER),
-    new Attribute("name", AttributeType.STRING),
-    new Attribute("score", AttributeType.DOUBLE)
-  )
+  val schema: Schema = CanonicalFixture.schema
 
-  private val fixtureResource = "/verify/source_fixture.json"
-
-  val rows: Vector[Tuple] = {
-    val stream = Option(getClass.getResourceAsStream(fixtureResource))
-      .getOrElse(sys.error(s"source fixture not found on classpath: $fixtureResource"))
-    val root =
-      try new ObjectMapper().readTree(stream)
-      finally stream.close()
-    root
-      .elements()
-      .asScala
-      .map { node =>
-        val b = Tuple.builder(schema)
-        schema.getAttributes.foreach { attr =>
-          val cell = node.get(attr.getName)
-          require(cell != null, s"source fixture row missing column '${attr.getName}'")
-          val value: AnyRef = attr.getType match {
-            case AttributeType.INTEGER => Int.box(cell.asInt())
-            case AttributeType.DOUBLE  => Double.box(cell.asDouble())
-            case _                     => cell.asText()
-          }
-          b.add(attr, value)
-        }
-        b.build()
-      }
-      .toVector
-  }
+  val rows: Vector[Tuple] = CanonicalFixture.allRows
 
   /** Write the rows as a header-first, comma-delimited CSV encoded in `charset`.
     *
@@ -403,13 +369,28 @@ object CanonicalSourceFixture {
     */
   def writeCsv(dir: Path, charset: Charset): Path = {
     val path = dir.resolve("sample.csv")
-    val header = schema.getAttributes.map(_.getName).mkString(",")
+    val header = schema.getAttributes.map(a => csvField(a.getName)).mkString(",")
     val body = rows.map { t =>
-      schema.getAttributes.map(a => t.getField(a.getName).toString).mkString(",")
+      schema.getAttributes
+        .map(a => csvField(Option(t.getField[AnyRef](a.getName)).map(_.toString).orNull))
+        .mkString(",")
     }
     Files.write(path, ((header +: body).mkString("\n") + "\n").getBytes(charset))
     path
   }
+
+  /** One CSV field, quoted per RFC 4180.
+    *
+    * The table carries commas inside values — a bracketed edge pair, a
+    * comma-delimited list, an ordinary English sentence — and writing those raw
+    * shifts every column after them. What the two paths then disagree about is a
+    * broken file rather than anything either of them does.
+    */
+  private def csvField(value: String): String =
+    if (value == null) ""
+    else if (value.exists(c => c == ',' || c == '"' || c == '\n' || c == '\r'))
+      "\"" + value.replace("\"", "\"\"") + "\""
+    else value
 
   /** Write the rows as JSON Lines (one object per line, keys in schema order).
     * Reuses [[TupleIO.writeTuples]] — the same writer the transform fixtures
@@ -434,33 +415,17 @@ object CanonicalSourceFixture {
     */
   def writeArrow(dir: Path): Path = {
     val path = dir.resolve("sample.arrow")
-    val arrowSchema = new ArrowSchema(
-      java.util.Arrays.asList(
-        new Field("id", FieldType.nullable(new ArrowType.Int(32, true)), null),
-        new Field("name", FieldType.nullable(ArrowType.Utf8.INSTANCE), null),
-        new Field(
-          "score",
-          FieldType.nullable(new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE)),
-          null
-        )
-      )
-    )
+    // Texera's own Schema-to-Arrow mapping and tuple writer, so the file carries
+    // exactly the types `ArrowUtils.toTexeraSchema` reads back on the other side.
+    // Hand-listing the fields is what let the table outgrow them unnoticed: the
+    // columns past the list were simply not written, and both paths went on
+    // agreeing about the few that were.
+    val arrowSchema = ArrowUtils.fromTexeraSchema(schema)
     Using.Manager { use =>
       val allocator = use(new RootAllocator())
       val root = use(VectorSchemaRoot.create(arrowSchema, allocator))
       root.allocateNew()
-      val ids = root.getVector("id").asInstanceOf[IntVector]
-      val names = root.getVector("name").asInstanceOf[VarCharVector]
-      val scores = root.getVector("score").asInstanceOf[Float8Vector]
-      rows.zipWithIndex.foreach {
-        case (t, i) =>
-          ids.setSafe(i, t.getField("id").asInstanceOf[Int])
-          names.setSafe(
-            i,
-            t.getField("name").asInstanceOf[String].getBytes(StandardCharsets.UTF_8)
-          )
-          scores.setSafe(i, t.getField("score").asInstanceOf[Double])
-      }
+      rows.zipWithIndex.foreach { case (t, i) => ArrowUtils.setTexeraTuple(t, i, root) }
       root.setRowCount(rows.size)
       val channel = use(
         FileChannel.open(path, StandardOpenOption.CREATE, StandardOpenOption.WRITE)
