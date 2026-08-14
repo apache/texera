@@ -48,6 +48,23 @@ class ArrowSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerator {
     val rawPath = fileName.getOrElse("")
     val basename = Paths.get(new URI(rawPath).getPath).getFileName.toString
     val read = s"""out1df = pd.read_feather(${pyStringLiteral(basename)})"""
+    // Texera's TIMESTAMP is a wall clock with no zone attached, and the other
+    // scan sources hand the script exactly the wall clock the executor holds —
+    // CSV and JSONL name their date columns so pandas parses them the same way.
+    // Arrow is the one format that carries a zone, so it is the one place the
+    // script has to do the reducing: a timestamp column reaches the executor as
+    // `new Timestamp(millis)`, the stored instant in the JVM's own zone, while
+    // pd.read_feather keeps the zone the file names. Reduce it the same way, so
+    // a workflow reads alike whichever format it was fed.
+    //
+    // Per timestamp rather than by one offset, because a zone's offset moves
+    // with daylight saving and the rows need not share a season. tzlocal comes
+    // from python-dateutil, which pandas already requires.
+    val localizeTimestamps =
+      """from dateutil.tz import tzlocal
+        |for _c in out1df.columns:
+        |    if isinstance(out1df[_c].dtype, pd.DatetimeTZDtype):
+        |        out1df[_c] = out1df[_c].dt.tz_convert(tzlocal()).dt.tz_localize(None)""".stripMargin
     // The executor drops `offset` rows and then takes `limit` of them. Feather has
     // no row-range read, so the same window is taken once the frame is in memory.
     val window = (offset, limit) match {
@@ -56,7 +73,8 @@ class ArrowSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerator {
       case (None, Some(l))    => Some(s":$l")
       case _                  => None
     }
-    (read +: window.map(w => s"out1df = out1df.iloc[$w].reset_index(drop=True)").toSeq)
+    (Seq(read, localizeTimestamps) ++
+      window.map(w => s"out1df = out1df.iloc[$w].reset_index(drop=True)").toSeq)
       .mkString("\n")
   }
 

@@ -24,7 +24,7 @@ import com.fasterxml.jackson.databind.JsonNode
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.storage.DocumentFactory
 import org.apache.texera.amber.core.tuple.AttributeTypeUtils.inferSchemaFromRows
-import org.apache.texera.amber.core.tuple.{Attribute, Schema}
+import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
 import org.apache.texera.amber.operator.StandaloneCodeGenerator
@@ -36,6 +36,7 @@ import java.io._
 import java.net.URI
 import java.nio.file.Paths
 import scala.collection.mutable.ArrayBuffer
+import scala.util.Try
 import scala.jdk.CollectionConverters.IteratorHasAsScala
 
 class JSONLScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerator {
@@ -55,6 +56,23 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerato
     readArgs += pyStringLiteral(basename)
     readArgs += "lines=True"
     readArgs += s"""encoding=${pyStringLiteral(enc)}"""
+
+    // JSON has no timestamp of its own, so both readers infer from the text and
+    // do not infer alike: the schema below tries TIMESTAMP and parses what it
+    // can, while pd.read_json guesses from the COLUMN NAME (anything ending
+    // "_at" or "_time", anything called "date") and leaves the rest as text.
+    // Naming the columns this operator decided were timestamps settles both
+    // halves — the ones it misses and the ones it would have taken on its own.
+    // An unreadable schema leaves the argument off rather than failing the
+    // export.
+    val dateColumns: Seq[String] =
+      Try(sourceSchema()).toOption.toSeq.flatMap(
+        _.getAttributes
+          .filter(_.getType == AttributeType.TIMESTAMP)
+          .map(a => pyStringLiteral(a.getName))
+      )
+    readArgs += s"convert_dates=[${dateColumns.mkString(", ")}]"
+
     if (offset.isEmpty) limit.foreach(l => readArgs += s"nrows=$l")
 
     val readExpr = s"pd.read_json(${readArgs.mkString(", ")})"

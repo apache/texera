@@ -36,6 +36,7 @@ import org.apache.texera.amber.util.JSONUtils.objectMapper
 import java.io.IOException
 import java.net.URI
 import java.nio.file.Paths
+import scala.util.Try
 
 class CSVOldScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerator {
 
@@ -94,6 +95,16 @@ class CSVOldScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerat
     args += s"sep=${pyStringLiteral(sep)}"
     args += s"""encoding=${pyStringLiteral(encoding)}"""
     args += s"header=$headerArg"
+
+    // Name the columns this operator inferred as timestamps, so pandas parses
+    // the same ones instead of leaving them as text. See CSVScanSourceOpDesc.
+    val dateColumns: Seq[String] =
+      Try(sourceSchema()).toOption.toSeq.flatMap(
+        _.getAttributes.zipWithIndex
+          .filter(_._1.getType == AttributeType.TIMESTAMP)
+          .map { case (a, i) => if (hasHeader) pyStringLiteral(a.getName) else i.toString }
+      )
+    if (dateColumns.nonEmpty) args += s"parse_dates=[${dateColumns.mkString(", ")}]"
 
     offset.foreach { o =>
       if (hasHeader) args += s"skiprows=range(1, ${o + 1})"

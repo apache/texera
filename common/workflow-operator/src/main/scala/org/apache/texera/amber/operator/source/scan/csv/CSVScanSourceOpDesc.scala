@@ -37,6 +37,7 @@ import org.apache.texera.amber.util.JSONUtils.objectMapper
 import java.io.{IOException, InputStreamReader}
 import java.net.URI
 import java.nio.file.Paths
+import scala.util.Try
 
 class CSVScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerator {
 
@@ -169,6 +170,21 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerator 
     args += s"sep=${pyStringLiteral(sep)}"
     args += s"""encoding=${pyStringLiteral(encoding)}"""
     args += s"header=$headerArg"
+
+    // A CSV carries no types, so both readers infer, and they do not infer
+    // alike: the schema above tries TIMESTAMP and parses what it can, while
+    // pd.read_csv leaves a date column as text. Name the columns this operator
+    // decided were timestamps so pandas parses the same ones — by position when
+    // there is no header, the frame's columns having no names until the rename
+    // below. A schema that cannot be read (an unresolved file) leaves the
+    // argument off rather than failing the export.
+    val dateColumns: Seq[String] =
+      Try(sourceSchema()).toOption.toSeq.flatMap(
+        _.getAttributes.zipWithIndex
+          .filter(_._1.getType == AttributeType.TIMESTAMP)
+          .map { case (a, i) => if (hasHeader) pyStringLiteral(a.getName) else i.toString }
+      )
+    if (dateColumns.nonEmpty) args += s"parse_dates=[${dateColumns.mkString(", ")}]"
 
     offset.foreach { o =>
       // With a header, skip offset rows after row 0; without, skip offset rows from the start.
