@@ -17,6 +17,7 @@
  * under the License.
  */
 
+import { HttpErrorResponse } from "@angular/common/http";
 import { Component, NgZone, OnInit } from "@angular/core";
 import {
   AbstractControl,
@@ -126,8 +127,10 @@ export class TexeraLoginComponent implements OnInit {
       this.orcidAuthService
         .getConfig()
         .pipe(
-          catchError(() => {
-            this.notificationService.error("ORCID sign-in is unavailable");
+          catchError((err: unknown) => {
+            if ((err as HttpErrorResponse)?.status !== 503) {
+              this.notificationService.error("ORCID sign-in is unavailable");
+            }
             return EMPTY;
           }),
           untilDestroyed(this)

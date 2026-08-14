@@ -33,11 +33,10 @@ import javax.ws.rs.NotAuthorizedException
 /**
   * Integration spec for [[OrcidAuthResource]] against embedded Postgres.
   *
-  * The two network legs are what cannot run here, so the suite overrides them and drives the
-  * resource with bodies shaped like ORCID's. What that leaves under test is everything the
-  * exchange feeds: that an authenticated iD becomes an emailless INACTIVE account with an ORCID
-  * provider row, that the published address is offered as a suggestion without being written
-  * anywhere, and that a response authenticating nobody is a 401 rather than an account.
+  * The token exchange is what cannot run here, so the suite overrides that one seam and drives the
+  * resource with bodies shaped like ORCID's. What that leaves under test is everything the exchange
+  * feeds: that an authenticated iD becomes an emailless INACTIVE account with an ORCID provider row,
+  * and that a response authenticating nobody is a 401 rather than an account.
   */
 class OrcidAuthResourceSpec
     extends AnyFlatSpec
@@ -84,21 +83,14 @@ class OrcidAuthResourceSpec
        |"expires_in":631138518,"scope":"/authenticate",$nameMember"orcid":"$id"}""".stripMargin
   }
 
-  /**
-    * A resource whose network legs are canned: `body` stands in for the token exchange and
-    * `published` for the public-API email lookup.
-    */
-  private class StubbedOrcidAuthResource(body: String, published: Option[String] = None)
-      extends OrcidAuthResource {
+  /** A resource whose one network leg is canned: `body` stands in for the token exchange. */
+  private class StubbedOrcidAuthResource(body: String) extends OrcidAuthResource {
     var exchangedCode: Option[String] = None
 
     override protected def exchangeCode(code: String): String = {
       exchangedCode = Some(code)
       body
     }
-
-    override protected def publishedEmail(orcidId: String, accessToken: String): Option[String] =
-      published
   }
 
   private def userBehind(orcidId: String): User =
@@ -151,35 +143,16 @@ class OrcidAuthResourceSpec
     resource.exchangedCode shouldBe Some("auth-code")
   }
 
-  // ---- the suggested address -----------------------------------------------
-
-  // The suggestion is for the prompt to prefill and nothing else: writing it would be linking on
-  // an address ORCID merely publishes, which is the takeover ExternalProfile warns about.
-  it should "offer the published address as a suggestion without storing it" in {
-    val response =
-      new StubbedOrcidAuthResource(tokenBody(), published = Some("sofia@example.com")).login("c")
-
-    response.suggestedEmail shouldBe Some("sofia@example.com")
-    userBehind(orcidId).getEmail shouldBe null
-  }
-
-  it should "carry no suggestion when the record publishes no address" in {
-    new StubbedOrcidAuthResource(tokenBody(), published = None)
-      .login("c")
-      .suggestedEmail shouldBe None
-  }
-
-  it should "stop suggesting an address once the account has one" in {
+  // An address the user supplied later has to survive: every subsequent ORCID login still asserts
+  // none, and refreshing must not blank what `AuthResource.setEmail` collected.
+  it should "leave a later-collected address alone when the identity returns" in {
     new StubbedOrcidAuthResource(tokenBody()).login("c")
     val user = userBehind(orcidId)
     user.setEmail("collected@example.com")
     userDao.update(user)
 
-    val response =
-      new StubbedOrcidAuthResource(tokenBody(), published = Some("published@example.com"))
-        .login("c")
+    new StubbedOrcidAuthResource(tokenBody()).login("c")
 
-    response.suggestedEmail shouldBe None
     userBehind(orcidId).getEmail shouldBe "collected@example.com"
   }
 
@@ -200,30 +173,38 @@ class OrcidAuthResourceSpec
     resource.exchangedCode shouldBe None
   }
 
-  // ---- prefill parsing -----------------------------------------------------
+  // ---- configuration gating ------------------------------------------------
 
-  behavior of "prefillFrom"
+  // What `getConfig` refuses on. Driven through the pure helper rather than the endpoint, because
+  // the endpoint reads `UserSystemConfig` object vals: a developer with USER_SYS_ORCID_* exported
+  // would see the opposite outcome from CI.
+  //
+  // Each blank matters at a different moment, and both are worse than failing here: an empty
+  // client id lands the user on an ORCID error page, and an empty redirect uri gets the exchange
+  // rejected after they have already consented.
+  behavior of "missingSettings"
 
-  it should "prefer the address the record marks primary" in {
-    val body =
-      """{"email":[{"email":"secondary@example.com","primary":false},
-        |{"email":"primary@example.com","primary":true}]}""".stripMargin
-
-    OrcidAuthResource.prefillFrom(body) shouldBe Some("primary@example.com")
+  it should "accept a fully configured deployment" in {
+    OrcidAuthResource.missingSettings(
+      "APP-1",
+      "secret",
+      "http://127.0.0.1:4200/callback/orcid",
+      "https://sandbox.orcid.org"
+    ) shouldBe empty
   }
 
-  it should "fall back to the first address when none is marked primary" in {
-    val body = """{"email":[{"email":"only@example.com"}]}"""
-
-    OrcidAuthResource.prefillFrom(body) shouldBe Some("only@example.com")
-  }
-
-  it should "yield nothing for an empty or absent email array" in {
-    OrcidAuthResource.prefillFrom("""{"email":[]}""") shouldBe None
-    OrcidAuthResource.prefillFrom("""{"last-modified-date":null}""") shouldBe None
-  }
-
-  it should "discard an address that is not a valid email" in {
-    OrcidAuthResource.prefillFrom("""{"email":[{"email":"not-an-address"}]}""") shouldBe None
+  it should "name each setting that is empty, blank, or absent" in {
+    OrcidAuthResource.missingSettings("", "secret", "uri", "base") shouldBe Seq("clientId")
+    OrcidAuthResource.missingSettings("APP-1", "   ", "uri", "base") shouldBe Seq("clientSecret")
+    OrcidAuthResource.missingSettings("APP-1", "secret", null, "base") shouldBe Seq("redirectUri")
+    // A blank baseUrl would make authorizeUrl the relative "/oauth/authorize", so the button would
+    // navigate the app to itself rather than to ORCID.
+    OrcidAuthResource.missingSettings("APP-1", "secret", "uri", "") shouldBe Seq("baseUrl")
+    OrcidAuthResource.missingSettings("", "", "", "") shouldBe Seq(
+      "clientId",
+      "clientSecret",
+      "redirectUri",
+      "baseUrl"
+    )
   }
 }

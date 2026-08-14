@@ -23,33 +23,23 @@ import { fakeAsync, TestBed, tick } from "@angular/core/testing";
 import { UserService } from "./user.service";
 import { AuthService } from "./auth.service";
 import { StubAuthService } from "./stub-auth.service";
+import { MOCK_USER } from "./stub-user.service";
 import { skip } from "rxjs/operators";
 import { firstValueFrom, Subject, throwError } from "rxjs";
 import { commonTestProviders } from "../../testing/test-utils";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { GuiConfigService } from "../gui-config.service";
 import { Role, User } from "../../type/user";
-import { NzModalService } from "ng-zorro-antd/modal";
 
 describe("UserService", () => {
   let service: UserService;
   let config: GuiConfigService;
-  let modal: { create: ReturnType<typeof vi.fn> };
 
   beforeEach(() => {
     AuthService.removeAccessToken();
-    modal = { create: vi.fn().mockReturnValue({ getContentComponent: () => ({}), updateConfig: vi.fn() }) };
-
     TestBed.configureTestingModule({
       imports: [HttpClientTestingModule],
-      providers: [
-        UserService,
-        { provide: AuthService, useClass: StubAuthService },
-        // UserService prompts for an email when the signed-in account has none; the mock records
-        // whether it would have opened without pulling NzModalModule into the suite.
-        { provide: NzModalService, useValue: modal },
-        ...commonTestProviders,
-      ],
+      providers: [UserService, { provide: AuthService, useClass: StubAuthService }, ...commonTestProviders],
     });
 
     service = TestBed.inject(UserService);
@@ -206,38 +196,19 @@ describe("UserService", () => {
     expect(await nextEmission).toMatchObject({ uid: 1, name: "alice" });
   });
 
-  // ─── the missing-email prompt ─────────────────────────────────────────────
+  // The email prompt lives in AuthService (it owns the token it replaces); what UserService owes
+  // it is a refreshed currentUser once that token lands. See auth.service.spec.ts for the prompt.
+  it("re-derives the current user when AuthService changes the session", async () => {
+    const auth = TestBed.inject(AuthService) as unknown as StubAuthService;
+    await firstValueFrom(service.login("test", "password"));
+    expect(service.isLogin()).toBe(true);
 
-  // Only an identity-only provider (ORCID) produces an emailless account, and it cannot own a
-  // dataset with a resolvable path or be named in an access grant until one is supplied.
-  it("prompts for an email when the signed-in account has none", () => {
-    (service as any).changeUser({ ...baseUser, email: undefined });
+    const nextEmission = firstValueFrom(service.userChanged().pipe(skip(1)));
+    auth.emitSessionChanged();
 
-    expect(modal.create).toHaveBeenCalledTimes(1);
-    expect(modal.create.mock.calls[0][0].nzData).toMatchObject({ name: "alice" });
-  });
-
-  it("prefills the prompt with the address ORCID published", async () => {
-    await firstValueFrom(service.orcidLogin("auth-code"));
-    (service as any).changeUser({ ...baseUser, email: undefined });
-
-    // StubAuthService returns no suggestion, so the field is left blank rather than invented.
-    expect(modal.create.mock.calls[0][0].nzData.suggestedEmail).toBeUndefined();
-  });
-
-  it("does not prompt when the account already has an address", () => {
-    (service as any).changeUser(baseUser);
-
-    expect(modal.create).not.toHaveBeenCalled();
-  });
-
-  // changeUser runs on every token refresh, and a second dialog stacking on the one still waiting
-  // for an answer would be unanswerable.
-  it("does not stack a second prompt while one is open", () => {
-    (service as any).changeUser({ ...baseUser, email: undefined });
-    (service as any).changeUser({ ...baseUser, email: undefined });
-
-    expect(modal.create).toHaveBeenCalledTimes(1);
+    // Re-derived, not merely re-emitted: the value comes back out of the (stubbed) token rather
+    // than from the copy UserService was holding.
+    expect(await nextEmission).toMatchObject({ uid: MOCK_USER.uid, name: MOCK_USER.name });
   });
 
   it("isAdmin reflects only the ADMIN role of the current user", () => {

@@ -22,9 +22,9 @@
 -- ORCID is authorization-code OAuth rather than Google's id-token flow, but the identity it
 -- yields lands in the same place: one auth_provider row whose provider_id is the ORCID iD.
 --
--- `ADD VALUE IF NOT EXISTS` rather than a recreate: dropping and recreating the type would
--- require dropping the column that uses it. The new label is only added here, never used, so
--- this is safe inside the transaction on PG12+.
+-- The type is schema-qualified because the two runners disagree about the search path: the
+-- liquibase runner in sql/docker-compose.yml strips `SET search_path` out of these files before
+-- applying them, while bin/local-dev.sh keeps it.
 
 \c texera_db
 
@@ -32,6 +32,6 @@ SET search_path TO texera_db;
 
 BEGIN;
 
-ALTER TYPE provider_type_enum ADD VALUE IF NOT EXISTS 'ORCID';
+ALTER TYPE texera_db.provider_type_enum ADD VALUE IF NOT EXISTS 'ORCID';
 
 COMMIT;

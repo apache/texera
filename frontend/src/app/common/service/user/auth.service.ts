@@ -17,9 +17,9 @@
  * under the License.
  */
 
-import { HttpClient } from "@angular/common/http";
+import { HttpClient, HttpErrorResponse } from "@angular/common/http";
 import { Injectable } from "@angular/core";
-import { firstValueFrom, Observable, Subscription, timer } from "rxjs";
+import { firstValueFrom, Observable, Subject, Subscription, timer } from "rxjs";
 import { AppSettings } from "../../app-setting";
 import { Role, User } from "../../type/user";
 import { ignoreElements } from "rxjs/operators";
@@ -29,6 +29,8 @@ import { GmailService } from "../gmail/gmail.service";
 import { GuiConfigService } from "../gui-config.service";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { RegistrationRequestModalComponent } from "./registration-request-modal/registration-request-modal.component";
+import { EmailRequestModalComponent } from "./email-request-modal/email-request-modal.component";
+import { validateEmailFormat } from "../../util/email";
 
 export const TOKEN_KEY = "access_token";
 
@@ -50,6 +52,10 @@ export class AuthService {
   public static readonly SET_EMAIL_ENDPOINT = "auth/email";
 
   private tokenExpirationSubscription?: Subscription;
+  private sessionChangedSubject = new Subject<void>();
+  // `loginWithExistingToken` runs on every token refresh, so this keeps a second dialog from
+  // stacking on the one still waiting for an answer.
+  private emailPromptOpen = false;
 
   constructor(
     private http: HttpClient,
@@ -98,13 +104,12 @@ export class AuthService {
   /**
    * Trades the authorization code from `/callback/orcid` for a Texera token.
    *
-   * `suggestedEmail` comes back when the account has no address yet and the ORCID record publishes
-   * one: ORCID authenticates an iD without asserting an email, so the account is signed in but
-   * still needs one before the email-keyed parts of the product (dataset paths, access grants)
-   * work. It is a prefill for that prompt only — the backend has matched nothing on it.
+   * ORCID authenticates an iD without asserting an email, so the account behind this token may have
+   * none — `loginWithExistingToken` asks for one before the email-keyed parts of the product
+   * (dataset paths, access grants) are reachable.
    */
-  public orcidAuth(code: string): Observable<Readonly<{ accessToken: string; suggestedEmail?: string }>> {
-    return this.http.post<Readonly<{ accessToken: string; suggestedEmail?: string }>>(
+  public orcidAuth(code: string): Observable<Readonly<{ accessToken: string }>> {
+    return this.http.post<Readonly<{ accessToken: string }>>(
       `${AppSettings.getApiEndpoint()}/${AuthService.ORCID_LOGIN_ENDPOINT}`,
       code,
       {
@@ -114,6 +119,11 @@ export class AuthService {
         },
       }
     );
+  }
+
+  /** Emits when this service changed the stored token or cleared it itself (see `promptForEmail`). */
+  public sessionChanged(): Observable<void> {
+    return this.sessionChangedSubject.asObservable();
   }
 
   /** Gives the signed-in account the address it lacks, returning the reissued token. */
@@ -163,6 +173,20 @@ export class AuthService {
     const uid = this.jwtHelperService.decodeToken(token).userId;
     const email = this.jwtHelperService.decodeToken(token).email;
     const name = this.jwtHelperService.decodeToken(token).sub;
+
+    // An identity-only login (ORCID) authenticates an iD and asserts no address, so ask for one
+    // before anything downstream needs it: the invite-only branch below sends the admin that
+    // address, and dataset paths and access grants are built from it elsewhere.
+    if (!email) {
+      this.promptForEmail(name);
+      if (this.config.env.inviteOnly && role === Role.INACTIVE) {
+        // Hold the session rather than logging out: the prompt needs this token to call
+        // PUT /auth/email, and answering it reissues one, which re-enters here with an address
+        // and falls through to the registration request below. Returning undefined still leaves
+        // the app signed out behind the modal, and cancelling it signs out for real.
+        return undefined;
+      }
+    }
 
     if (this.config.env.inviteOnly && role === Role.INACTIVE) {
       this.checkRegistrationRequired(uid).subscribe(required => {
@@ -254,6 +278,97 @@ export class AuthService {
       affiliation,
       joiningReason: reason,
     });
+  }
+
+  /**
+   * Asks a signed-in user for the email address their account does not have, and stores it.
+   *
+   * Only an identity-only provider (ORCID) produces such an account — local registration and
+   * Google both assert an address — and email is what the rest of the product addresses a user
+   * by, so the dialog is not dismissable: cancelling signs out, matching how the invite-only
+   * registration request behaves.
+   *
+   * Either outcome announces itself through `sessionChanged`: a success replaces the token (its
+   * `email` claim was null), a cancel throws it away, and both need the current user re-derived.
+   */
+  private promptForEmail(defaultName: string): void {
+    if (this.emailPromptOpen) {
+      return;
+    }
+    this.emailPromptOpen = true;
+
+    const modalRef = this.modal.create<EmailRequestModalComponent>({
+      nzContent: EmailRequestModalComponent,
+      nzData: { name: defaultName },
+      nzOkText: "Save",
+      nzCancelText: "Sign out",
+      nzMaskClosable: false,
+      nzClosable: false,
+
+      nzOnOk: async () => {
+        const { email } = modalRef.getContentComponent().getValues();
+        const validation = validateEmailFormat(email);
+        if (!validation.result) {
+          this.notificationService.error(validation.message);
+          return false;
+        }
+
+        try {
+          const { accessToken } = await firstValueFrom(this.setEmail(email));
+          AuthService.setAccessToken(accessToken);
+        } catch (e: unknown) {
+          // One of the refusals cannot be retried: the account already has an address. That happens
+          // when a second tab answered this same prompt first — localStorage is shared, so its
+          // reissued token is already here, and the right move is to accept it and close rather
+          // than trap the user in a dialog whose only other exit is signing out.
+          if (this.storedEmailClaim() != null) {
+            this.finishEmailPrompt();
+            return true;
+          }
+          // Otherwise the address itself was rejected — most often because it belongs to an account
+          // that already holds a credential. Keep the dialog open with the reason so the user can
+          // try the address they actually own.
+          this.notificationService.error(
+            (e as HttpErrorResponse)?.error?.message ?? "That email address could not be saved."
+          );
+          return false;
+        }
+        this.finishEmailPrompt();
+        return true;
+      },
+
+      nzOnCancel: () => {
+        this.logout();
+        // Announced for the same reason the success path is: the caller that asked for this login
+        // has already been handed a User (or nothing), so without this the app would keep showing
+        // a signed-in account whose token has just been thrown away.
+        this.finishEmailPrompt();
+      },
+    });
+
+    modalRef.updateConfig({ nzTitle: modalRef.getContentComponent().modalTitle });
+  }
+
+  /**
+   * Close out the email prompt: let another one open later, and tell `sessionChanged` subscribers to
+   * re-derive from whatever token is now stored.
+   */
+  private finishEmailPrompt(): void {
+    this.emailPromptOpen = false;
+    this.sessionChangedSubject.next();
+  }
+
+  /** The `email` claim on the stored token, or null when there is no token or no claim. */
+  private storedEmailClaim(): string | null {
+    const token = AuthService.getAccessToken();
+    if (token == null) {
+      return null;
+    }
+    try {
+      return this.jwtHelperService.decodeToken(token)?.email ?? null;
+    } catch {
+      return null;
+    }
   }
 
   /**

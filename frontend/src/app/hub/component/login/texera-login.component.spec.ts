@@ -19,7 +19,7 @@
 
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { ActivatedRoute, ActivatedRouteSnapshot, Router } from "@angular/router";
-import { HttpClientTestingModule } from "@angular/common/http/testing";
+import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
 import { EMPTY, Subject, of, throwError } from "rxjs";
 import { SocialAuthService, SocialUser } from "@abacritt/angularx-social-login";
 import { vi } from "vitest";
@@ -31,6 +31,7 @@ import { GuiConfigService } from "../../../common/service/gui-config.service";
 import { MockGuiConfigService } from "../../../common/service/gui-config.service.mock";
 import { commonTestProviders } from "../../../common/testing/test-utils";
 import { USER_WORKFLOW } from "../../../app-routing.constant";
+import { ORCID_STATE_KEY } from "../../../common/service/user/orcid-auth.service";
 
 describe("TexeraLoginComponent", () => {
   let component: TexeraLoginComponent;
@@ -304,6 +305,95 @@ describe("TexeraLoginComponent", () => {
       authState$.next(googleUser("google-id-token"));
       expect(notificationServiceMock.error).toHaveBeenCalledWith("google boom");
       expect(routerMock.navigateByUrl).not.toHaveBeenCalled();
+    });
+  });
+
+  // ORCID is authorization-code OAuth, so this page's whole job is the redirect: everything after
+  // it happens on /callback/orcid and in the backend. What matters here is that the redirect is
+  // well formed and that the `state` the callback verifies actually gets stashed first.
+  describe("orcid sign-in", () => {
+    const ORCID_CONFIG = { clientId: "APP-123", authorizeUrl: "https://sandbox.orcid.org/oauth/authorize" };
+
+    /** Swaps window.location for the duration of `run`, per the pattern in app.component.spec.ts. */
+    const withStubbedLocation = (run: (location: { origin: string; href: string }) => void) => {
+      const original = window.location;
+      const stub = { ...original, origin: "http://127.0.0.1:4200", href: "" } as unknown as {
+        origin: string;
+        href: string;
+      };
+      Object.defineProperty(window, "location", { configurable: true, value: stub });
+      try {
+        run(stub);
+      } finally {
+        Object.defineProperty(window, "location", { configurable: true, value: original });
+      }
+    };
+
+    /** Answers the config fetch ngOnInit issues, which is what enables the button. */
+    const flushOrcidConfig = (
+      body: Record<string, string> | string = ORCID_CONFIG,
+      status?: { status: number; statusText: string }
+    ) => {
+      const httpMock = TestBed.inject(HttpTestingController);
+      const req = httpMock.expectOne(r => r.url.endsWith("/auth/orcid/config"));
+      if (status) {
+        req.flush(body, status);
+      } else {
+        req.flush(body);
+      }
+    };
+
+    beforeEach(() => {
+      sessionStorage.clear();
+      fixture.detectChanges();
+    });
+
+    afterEach(() => sessionStorage.clear());
+
+    it("redirects to ORCID with the client id, callback and a fresh state", () => {
+      flushOrcidConfig();
+
+      withStubbedLocation(location => {
+        (component as any).orcidLogin();
+
+        const url = new URL(location.href);
+        expect(`${url.origin}${url.pathname}`).toBe(ORCID_CONFIG.authorizeUrl);
+        expect(url.searchParams.get("client_id")).toBe("APP-123");
+        expect(url.searchParams.get("response_type")).toBe("code");
+        expect(url.searchParams.get("scope")).toBe("/authenticate");
+        expect(url.searchParams.get("redirect_uri")).toBe("http://127.0.0.1:4200/callback/orcid");
+        // The callback compares this against what comes back; it has to be stored before leaving.
+        expect(url.searchParams.get("state")).toBe(sessionStorage.getItem(ORCID_STATE_KEY));
+        expect(sessionStorage.getItem(ORCID_STATE_KEY)).toBeTruthy();
+      });
+    });
+
+    it("uses a different state on each attempt", () => {
+      flushOrcidConfig();
+
+      const states: Array<string | null> = [];
+      withStubbedLocation(() => {
+        (component as any).orcidLogin();
+        states.push(sessionStorage.getItem(ORCID_STATE_KEY));
+        (component as any).orcidLogin();
+        states.push(sessionStorage.getItem(ORCID_STATE_KEY));
+      });
+
+      expect(states[0]).not.toBe(states[1]);
+    });
+
+    // A deployment with no ORCID credentials reports the provider unavailable, which leaves the
+    // button disabled — clicking it anyway must not send the user to a broken authorize URL.
+    it("reports unavailable and does not redirect when the config fetch failed", () => {
+      flushOrcidConfig("nope", { status: 503, statusText: "Service Unavailable" });
+
+      withStubbedLocation(location => {
+        (component as any).orcidLogin();
+
+        expect(notificationServiceMock.error).toHaveBeenCalledWith("ORCID sign-in is unavailable");
+        expect(location.href).toBe("");
+        expect(sessionStorage.getItem(ORCID_STATE_KEY)).toBeNull();
+      });
     });
   });
 });

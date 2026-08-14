@@ -19,7 +19,7 @@
 
 import { Injectable } from "@angular/core";
 
-import { Observable, of } from "rxjs";
+import { Observable, of, Subject } from "rxjs";
 import { User } from "../../type/user";
 import { PublicInterfaceOf } from "../../util/stub";
 import { AuthService } from "./auth.service";
@@ -41,6 +41,8 @@ export const MOCK_INVALID_TOKEN = {
  */
 @Injectable()
 export class StubAuthService implements PublicInterfaceOf<AuthService> {
+  private readonly reissued = new Subject<void>();
+
   auth(username: string, password: string): Observable<Readonly<{ accessToken: string }>> {
     if (password === "password") {
       return of(MOCK_TOKEN);
@@ -53,12 +55,23 @@ export class StubAuthService implements PublicInterfaceOf<AuthService> {
     return of(MOCK_TOKEN);
   }
 
-  orcidAuth(code: string): Observable<Readonly<{ accessToken: string; suggestedEmail?: string }>> {
+  orcidAuth(code: string): Observable<Readonly<{ accessToken: string }>> {
     return of(MOCK_TOKEN);
   }
 
   setEmail(email: string): Observable<Readonly<{ accessToken: string }>> {
     return of(MOCK_TOKEN);
+  }
+
+  // The real service emits here when its email prompt replaces the token or signs out. Nothing in
+  // this stub opens that prompt, so `emitSessionChanged` stands in for it.
+  sessionChanged(): Observable<void> {
+    return this.reissued.asObservable();
+  }
+
+  /** Test hook: pretend the email prompt resolved and the session changed underneath. */
+  emitSessionChanged(): void {
+    this.reissued.next();
   }
 
   loginWithExistingToken(): User | undefined {

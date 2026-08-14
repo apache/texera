@@ -29,9 +29,6 @@ import { FormsModule } from "@angular/forms";
  * `email` unset — and email is what the rest of the product addresses a user by: dataset storage
  * paths are built from it and every access grant names one. So this is not a profile nicety; the
  * account cannot be shared with or own a dataset until it is answered.
- *
- * `suggestedEmail` prefills the field from what the ORCID record publishes, which is a convenience
- * and not a verified fact — the user can replace it.
  */
 @Component({
   selector: "texera-email-request-modal",
@@ -46,9 +43,8 @@ export class EmailRequestModalComponent {
   @ViewChild("modalTitle", { static: true })
   modalTitle!: TemplateRef<any>;
 
-  constructor(@Inject(NZ_MODAL_DATA) public data: { name: string; suggestedEmail?: string }) {
+  constructor(@Inject(NZ_MODAL_DATA) public data: { name: string }) {
     this.name = data?.name ?? "";
-    this.email = data?.suggestedEmail ?? "";
   }
 
   getValues() {

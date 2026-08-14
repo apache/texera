@@ -22,7 +22,7 @@ package org.apache.texera.web.resource.auth
 import org.apache.texera.auth.{JwtAuth, SessionUser}
 import org.apache.texera.common.config.UserSystemConfig
 import org.apache.texera.dao.MockTexeraDB
-import org.apache.texera.dao.jooq.generated.Tables.{AUTH_PROVIDER, USER}
+import org.apache.texera.dao.jooq.generated.Tables.{AUTH_PROVIDER, USER, USER_LAST_ACTIVE_TIME}
 import org.apache.texera.dao.jooq.generated.enums.{ProviderTypeEnum, UserRoleEnum}
 import org.apache.texera.dao.jooq.generated.tables.daos.{AuthProviderDao, UserDao}
 import org.apache.texera.dao.jooq.generated.tables.pojos.{AuthProvider, User}
@@ -36,6 +36,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 
+import java.time.OffsetDateTime
 import java.util.UUID
 import javax.ws.rs.{NotAcceptableException, NotAuthorizedException, WebApplicationException}
 
@@ -475,6 +476,25 @@ class AuthResourceSpec
     userDao.fetchOneByUid(caller.getUid) shouldBe null
     subjectOf(response.accessToken) shouldBe uname("claimer")
     emailClaimOf(response.accessToken) shouldBe uemail("ghost")
+  }
+
+  // `user_last_active_time.uid` references "user"(uid) with no ON DELETE CASCADE — the only FK to
+  // "user" that does not cascade — so discarding the caller's row fails unless that row goes first.
+  // Any authenticated request can have created it, so the adoption must not depend on its absence.
+  it should "adopt a placeholder even when the caller has an activity row" in {
+    val placeholder = seedPlaceholder(uname("tracked"), uemail("tracked"))
+    val caller = seedEmaillessUser("active")
+    getDSLContext
+      .insertInto(USER_LAST_ACTIVE_TIME)
+      .set(USER_LAST_ACTIVE_TIME.UID, caller.getUid)
+      .set(USER_LAST_ACTIVE_TIME.LAST_ACTIVE_TIME, OffsetDateTime.now())
+      .execute()
+
+    resource.setEmail(SetEmailRequest(uemail("tracked")), new SessionUser(caller))
+
+    userDao.fetchOneByUid(caller.getUid) shouldBe null
+    userDao.fetchOneByUid(placeholder.getUid).getIsPlaceholder shouldBe false
+    providerIdOf(placeholder.getUid, ProviderTypeEnum.ORCID) shouldBe "0000-0002-0000-active"
   }
 
   // Past INACTIVE the caller may own content, so its row cannot be discarded and the placeholder

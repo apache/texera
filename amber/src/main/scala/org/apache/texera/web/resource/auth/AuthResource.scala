@@ -26,7 +26,7 @@ import org.apache.texera.auth.SessionUser
 import org.apache.texera.common.config.UserSystemConfig
 import org.apache.texera.common.util.EmailUtil
 import org.apache.texera.dao.SqlServer
-import org.apache.texera.dao.jooq.generated.Tables.{AUTH_PROVIDER, USER}
+import org.apache.texera.dao.jooq.generated.Tables.{AUTH_PROVIDER, USER, USER_LAST_ACTIVE_TIME}
 import org.apache.texera.dao.jooq.generated.enums.{ProviderTypeEnum, UserRoleEnum}
 import org.apache.texera.dao.jooq.generated.tables.daos.UserDao
 import org.apache.texera.dao.jooq.generated.tables.pojos.User
@@ -214,11 +214,7 @@ class AuthResource {
       }
     }
 
-    TokenIssueResponse(
-      jwtToken(
-        jwtClaims(user, ExternalAuthProvisioner.providerIdOf(user.getUid, ProviderTypeEnum.GOOGLE))
-      )
-    )
+    TokenIssueResponse(jwtToken(jwtClaims(user)))
   }
 
   /**
@@ -230,9 +226,10 @@ class AuthResource {
     * mirrors what `register` does when a registration presents a placeholder's address.
     *
     * Discarding the caller's own row is only safe because of what it cannot have accumulated: it
-    * has no email, so nothing email-keyed can name it, and it is INACTIVE, so every
-    * content-creating endpoint (all of which require REGULAR or ADMIN) has refused it. A caller
-    * past that point keeps its account and is refused instead.
+    * has no email, so nothing email-keyed can name it, and it is INACTIVE, which no endpoint in any
+    * service admits — `setEmail` above is the single `@RolesAllowed` that names INACTIVE, and all
+    * of the others require REGULAR or ADMIN. So such an account has been refused everywhere it
+    * could have created something. A caller past INACTIVE keeps its account and is refused instead.
     */
   private def adoptPlaceholder(
       ctx: DSLContext,
@@ -263,7 +260,11 @@ class AuthResource {
     claimPlaceholder(placeholder)
     txUserDao.update(placeholder)
 
-    // Last, so the provider rows have already moved off it: auth_provider cascades on delete.
+    ctx
+      .deleteFrom(USER_LAST_ACTIVE_TIME)
+      .where(USER_LAST_ACTIVE_TIME.UID.eq(current.getUid))
+      .execute()
+
     txUserDao.deleteById(current.getUid)
     placeholder
   }

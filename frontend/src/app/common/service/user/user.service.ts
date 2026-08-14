@@ -18,17 +18,14 @@
  */
 
 import { Injectable } from "@angular/core";
-import { HttpClient, HttpErrorResponse } from "@angular/common/http";
+import { HttpClient } from "@angular/common/http";
 import { AppSettings } from "../../app-setting";
-import { firstValueFrom, Observable, of, ReplaySubject } from "rxjs";
+import { Observable, of, ReplaySubject } from "rxjs";
 import { Role, User } from "../../type/user";
 import { AuthService } from "./auth.service";
 import { GuiConfigService } from "../gui-config.service";
-import { catchError, map, shareReplay, switchMap, tap } from "rxjs/operators";
-import { UnimplementedException } from "@angular-devkit/schematics";
-import { NzModalService } from "ng-zorro-antd/modal";
-import { NotificationService } from "../notification/notification.service";
-import { EmailRequestModalComponent } from "./email-request-modal/email-request-modal.component";
+import { catchError, map, shareReplay, switchMap } from "rxjs/operators";
+import { validateEmailFormat } from "../../util/email";
 
 /**
  * User Service manages User information. It relies on different
@@ -42,18 +39,20 @@ export class UserService {
   private userChangeSubject: ReplaySubject<User | undefined> = new ReplaySubject<User | undefined>(1);
   private cache = new Map<string, { url: string; expiry: number }>();
   private readonly cacheDuration = 3600 * 1000; // cache duration: 1h
-  private suggestedEmail?: string;
-  private emailPromptOpen = false;
 
   constructor(
     private authService: AuthService,
     private config: GuiConfigService,
-    private http: HttpClient,
-    private modal: NzModalService,
-    private notificationService: NotificationService
+    private http: HttpClient
   ) {
     const user = this.authService.loginWithExistingToken();
     this.changeUser(user);
+
+    // AuthService changes the session on its own when its email prompt resolves — an identity-only
+    // login starts with no address, so it either replaces the token with one carrying the new
+    // address or signs out. Re-deriving here is what turns either outcome into the `currentUser`
+    // every subscriber reads.
+    this.authService.sessionChanged().subscribe(() => this.changeUser(this.authService.loginWithExistingToken()));
   }
   public getCurrentUser(): User | undefined {
     return this.currentUser;
@@ -73,18 +72,7 @@ export class UserService {
   }
 
   public orcidLogin(code: string): Observable<void> {
-    return this.authService.orcidAuth(code).pipe(
-      tap(({ suggestedEmail }) => (this.suggestedEmail = suggestedEmail)),
-      switchMap(({ accessToken }) => this.handleAccessToken(accessToken))
-    );
-  }
-
-  /**
-   * Gives the signed-in account the address it lacks. The backend reissues the token so the
-   * `email` claim stops being null, and handling it here refreshes the current user.
-   */
-  public setEmail(email: string): Observable<void> {
-    return this.authService.setEmail(email).pipe(switchMap(({ accessToken }) => this.handleAccessToken(accessToken)));
+    return this.authService.orcidAuth(code).pipe(switchMap(({ accessToken }) => this.handleAccessToken(accessToken)));
   }
 
   public isLogin(): boolean {
@@ -120,69 +108,10 @@ export class UserService {
       const sat = Math.floor(60 + Math.random() * 20); // Saturation (60%-80%)
       const light = 50; // Lightness (50%)
       this.currentUser = { ...user, color: `hsl(${hue}, ${sat}%, ${light}%)` };
-      this.promptForEmailIfMissing();
     } else {
       this.currentUser = user;
     }
     this.userChangeSubject.next(this.currentUser);
-  }
-
-  /**
-   * Asks for an email address when the signed-in account has none, and does nothing otherwise.
-   *
-   * Only an identity-only provider (ORCID) can produce such an account: local registration and
-   * Google both assert an address. Until one is supplied the account cannot own a dataset with a
-   * resolvable path or be named in an access grant, so the prompt is not dismissable — cancelling
-   * signs out, matching how the invite-only registration request behaves.
-   *
-   * Reached from `changeUser`, so it covers both the login that created the account and every
-   * later page load that restores its token.
-   */
-  private promptForEmailIfMissing(): void {
-    const user = this.currentUser;
-    if (!user || (user.email ?? "").length > 0 || this.emailPromptOpen) {
-      return;
-    }
-    this.emailPromptOpen = true;
-
-    const modalRef = this.modal.create<EmailRequestModalComponent>({
-      nzContent: EmailRequestModalComponent,
-      nzData: { name: user.name, suggestedEmail: this.suggestedEmail },
-      nzOkText: "Save",
-      nzCancelText: "Sign out",
-      nzMaskClosable: false,
-      nzClosable: false,
-
-      nzOnOk: async () => {
-        const { email } = modalRef.getContentComponent().getValues();
-        const validation = UserService.validateEmail(email);
-        if (!validation.result) {
-          this.notificationService.error(validation.message);
-          return false;
-        }
-
-        try {
-          await firstValueFrom(this.setEmail(email));
-        } catch (e: unknown) {
-          // A 409 means the address belongs to an account that already has a credential, so it
-          // cannot be attached here. Keep the modal open with the message rather than signing out.
-          this.notificationService.error(
-            (e as HttpErrorResponse)?.error?.message ?? "That email address could not be saved."
-          );
-          return false;
-        }
-        this.emailPromptOpen = false;
-        return true;
-      },
-
-      nzOnCancel: () => {
-        this.emailPromptOpen = false;
-        this.logout();
-      },
-    });
-
-    const comp = modalRef.getContentComponent();
-    modalRef.updateConfig({ nzTitle: comp.modalTitle });
   }
 
   // Returns Observable<void> rather than void so callers (login / googleLogin /
@@ -221,17 +150,7 @@ export class UserService {
    * @param email
    */
   static validateEmail(email: string): { result: boolean; message: string } {
-    const trimmed = (email ?? "").trim();
-    if (trimmed.length === 0) {
-      return { result: false, message: "Email should not be empty." };
-    }
-    // Pragmatic email regex: non-whitespace + @ + non-whitespace + . + non-whitespace.
-    // Matches what most users expect; we leave authoritative validation to the backend.
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(trimmed)) {
-      return { result: false, message: "Email format is invalid." };
-    }
-    return { result: true, message: "Email frontend validation success." };
+    return validateEmailFormat(email);
   }
 
   /**

@@ -25,16 +25,20 @@ import kong.unirest.Unirest
 import org.apache.texera.auth.JwtAuth.{jwtClaims, jwtToken}
 import org.apache.texera.common.config.UserSystemConfig
 import org.apache.texera.common.config.UserSystemConfig.orcidBaseUrl
-import org.apache.texera.common.util.EmailUtil
 import org.apache.texera.dao.jooq.generated.enums.ProviderTypeEnum
-import org.apache.texera.web.model.http.response.OrcidLoginResponse
+import org.apache.texera.web.model.http.response.TokenIssueResponse
 import org.apache.texera.web.resource.auth.OrcidAuthResource._
 
-import java.net.URLEncoder
-import java.nio.charset.StandardCharsets
 import javax.ws.rs.core.MediaType
-import javax.ws.rs.{Consumes, GET, NotAuthorizedException, POST, Path, Produces}
-import scala.jdk.CollectionConverters.IteratorHasAsScala
+import javax.ws.rs.{
+  Consumes,
+  GET,
+  NotAuthorizedException,
+  POST,
+  Path,
+  Produces,
+  ServiceUnavailableException
+}
 
 object OrcidAuthResource {
   private val logger: Logger = Logger(classOf[OrcidAuthResource])
@@ -43,33 +47,35 @@ object OrcidAuthResource {
   final private lazy val clientSecret = UserSystemConfig.orcidClientSecret
   final private lazy val redirectUri = UserSystemConfig.orcidRedirectUri
 
-  // A user is waiting on the callback page while these run, so both sit far below the browser's
-  // patience: ORCID either answers promptly or this login has failed.
   private val CONNECT_TIMEOUT_MS = 5000
   private val SOCKET_TIMEOUT_MS = 10000
 
   private val mapper = new ObjectMapper()
 
-  /**
-    * The identity behind a redeemed authorization code. `orcidId` is the ORCID iD
-    * (`0000-0002-1825-0097`); `name` is absent when the record's owner keeps it private.
-    *
-    * Both arrived over the back channel, on a connection our client secret opened, which is what
-    * separates them from anything in the redirect URL: the browser cannot have chosen them.
-    */
   private[auth] final case class OrcidIdentity(orcidId: String, name: Option[String])
 
   private def textOf(node: JsonNode, field: String): Option[String] =
     Option(node.path(field).asText(null)).map(_.trim).filter(_.nonEmpty)
 
-  /** `a=1&b=2` with both halves percent-encoded — the client secret in particular may need it. */
-  private def formEncode(fields: Seq[(String, String)]): String =
-    fields
-      .map {
-        case (name, value) =>
-          s"${URLEncoder.encode(name, StandardCharsets.UTF_8)}=${URLEncoder.encode(value, StandardCharsets.UTF_8)}"
-      }
-      .mkString("&")
+  /**
+    * The names of the settings the ORCID flow cannot run without, among those given. Taken as
+    * parameters rather than read from [[UserSystemConfig]] because those are object vals resolved
+    * once per JVM, which leaves both the configured and unconfigured cases at the mercy of the
+    * environment a test happens to run in — the same reason `AuthResource.createAdminUser` takes
+    * its credentials as parameters.
+    */
+  private[auth] def missingSettings(
+      clientId: String,
+      clientSecret: String,
+      redirectUri: String,
+      baseUrl: String
+  ): Seq[String] =
+    Seq(
+      "clientId" -> clientId,
+      "clientSecret" -> clientSecret,
+      "redirectUri" -> redirectUri,
+      "baseUrl" -> baseUrl
+    ).collect { case (name, value) if value == null || value.isBlank => name }
 
   /**
     * Read the identity out of a token-endpoint response body.
@@ -87,22 +93,6 @@ object OrcidAuthResource {
     )
   }
 
-  /**
-    * The address to offer as a prefill from ORCID's email response, preferring the one the record
-    * marks primary. Anything unparseable yields None, which costs a filled-in form field.
-    */
-  private[auth] def prefillFrom(body: String): Option[String] = {
-    val entries = mapper.readTree(body).path("email")
-    if (!entries.isArray) None
-    else {
-      val all = entries.elements().asScala.toSeq
-      all
-        .find(_.path("primary").asBoolean(false))
-        .orElse(all.headOption)
-        .flatMap(textOf(_, "email"))
-        .filter(EmailUtil.isValid)
-    }
-  }
 }
 
 /**
@@ -119,14 +109,41 @@ object OrcidAuthResource {
   */
 @Path("/auth/orcid")
 class OrcidAuthResource {
+
+  /**
+    * What the login page needs to build its authorize redirect.
+    *
+    * A deployment missing any of the three settings the flow needs is reported unavailable rather
+    * than answered with blanks. The login page enables its ORCID button the moment this resolves,
+    * and each blank fails later and worse: an empty `client_id` lands the user on an ORCID error
+    * page, and an empty `redirect_uri` gets the exchange rejected after they have already
+    * consented. Failing here instead leaves the button disabled behind "ORCID sign-in is
+    * unavailable", which is what the page already does with a failed fetch
+    * (`texera-login.component.ts`).
+    *
+    * `redirectUri` and `baseUrl` are checked here even though only [[exchangeCode]] sends them,
+    * because both are easily left empty: the deployment templates ship them for an operator to
+    * fill in, and HOCON treats an env var set to "" as set, so it overrides the config default. An
+    * empty `baseUrl` would otherwise answer with the relative `authorizeUrl` "/oauth/authorize",
+    * which navigates the SPA to itself instead of ORCID.
+    */
   @GET
   @Path("/config")
   @Produces(Array(MediaType.APPLICATION_JSON))
-  def getConfig: Map[String, String] =
+  def getConfig: Map[String, String] = {
+    val missing = missingSettings(clientId, clientSecret, redirectUri, orcidBaseUrl)
+    if (missing.nonEmpty) {
+      logger.warn(
+        s"ORCID sign-in is enabled but ${missing.map("user-sys.orcid." + _).mkString(", ")} " +
+          "is not configured; reporting it unavailable."
+      )
+      throw new ServiceUnavailableException("ORCID sign-in is not configured.")
+    }
     Map(
       "clientId" -> clientId,
       "authorizeUrl" -> s"$orcidBaseUrl/oauth/authorize"
     )
+  }
 
   /**
     * Trade `code` for ORCID's token response, returning the raw body.
@@ -135,104 +152,55 @@ class OrcidAuthResource {
     * the authorize call byte-for-byte, and honouring a caller-supplied one would let the browser
     * choose which registered redirect an exchange is attributed to.
     *
-    * One of the two seams that reach the network. Kept as a method rather than a constructor
-    * parameter for the same reason [[GoogleAuthResource.verifiedPayload]] is: Jersey instantiates
-    * this resource from `classOf[OrcidAuthResource]`, so tests override instead of injecting.
+    * The one seam that reaches the network. Kept as a method rather than a constructor parameter
+    * for the same reason [[GoogleAuthResource.verifiedPayload]] is: Jersey instantiates this
+    * resource from `classOf[OrcidAuthResource]`, so tests override instead of injecting.
     */
   protected def exchangeCode(code: String): String = {
-    // Encoded by hand rather than with Unirest's `.field()`, which switches the request to
-    // multipart/form-data under conditions that are not obvious from the call site. ORCID accepts
-    // only application/x-www-form-urlencoded here, so the encoding is stated outright.
-    val form = formEncode(
-      Seq(
-        "client_id" -> clientId,
-        "client_secret" -> clientSecret,
-        "grant_type" -> "authorization_code",
-        "code" -> code,
-        "redirect_uri" -> redirectUri
-      )
-    )
-
     val response = Unirest
       .post(s"$orcidBaseUrl/oauth/token")
-      .header("Content-Type", MediaType.APPLICATION_FORM_URLENCODED)
       .header("Accept", MediaType.APPLICATION_JSON)
-      .body(form)
+      .field("client_id", clientId)
+      .field("client_secret", clientSecret)
+      .field("grant_type", "authorization_code")
+      .field("code", code)
+      .field("redirect_uri", redirectUri)
       .connectTimeout(CONNECT_TIMEOUT_MS)
       .socketTimeout(SOCKET_TIMEOUT_MS)
       .asString()
 
     if (response.getStatus != 200) {
-      // Status only. The body of a failed exchange quotes the request back, and the body of a
-      // successful one carries a bearer token; neither belongs in a log.
       logger.warn(s"ORCID token exchange returned ${response.getStatus}")
       throw new NotAuthorizedException("Login credentials are incorrect.")
     }
     response.getBody
   }
 
-  /**
-    * The email this ORCID record publishes, if any — a prefill for the address prompt, never a key
-    * anything is matched on. ORCID returns only addresses the owner chose to make public, and an
-    * address being public is no evidence the owner controls it, so linking on this would be
-    * exactly the takeover [[ExternalProfile]] warns about.
-    *
-    * Best-effort: a failure here costs a prefilled form field, so it is logged and swallowed
-    * rather than failing a login that has already succeeded.
-    */
-  protected def publishedEmail(orcidId: String, accessToken: String): Option[String] =
-    try {
-      val response = Unirest
-        .get(s"$orcidBaseUrl/v3.0/$orcidId/email")
-        .header("Accept", MediaType.APPLICATION_JSON)
-        .header("Authorization", s"Bearer $accessToken")
-        .connectTimeout(CONNECT_TIMEOUT_MS)
-        .socketTimeout(SOCKET_TIMEOUT_MS)
-        .asString()
-
-      if (response.getStatus != 200) {
-        logger.info(s"ORCID published-email lookup returned ${response.getStatus}")
-        None
-      } else prefillFrom(response.getBody)
-    } catch {
-      case e: Exception =>
-        logger.info(s"ORCID published-email lookup failed: ${e.getClass.getSimpleName}")
-        None
-    }
-
   @POST
   @Consumes(Array(MediaType.TEXT_PLAIN))
   @Produces(Array(MediaType.APPLICATION_JSON))
   @Path("/login")
-  def login(code: String): OrcidLoginResponse = {
+  def login(code: String): TokenIssueResponse = {
     val trimmedCode = Option(code).map(_.trim).filter(_.nonEmpty).getOrElse {
       throw new NotAuthorizedException("Login credentials are incorrect.")
     }
 
-    val body = exchangeCode(trimmedCode)
-    val identity = identityOf(body)
+    val identity = identityOf(exchangeCode(trimmedCode))
 
     val user = ExternalAuthProvisioner.loginOrProvision(
       ExternalProfile(
         ProviderTypeEnum.ORCID,
         identity.orcidId,
-        // The iD stands in for a private name: `"user".name` is NOT NULL, and an ORCID iD is at
-        // least a real handle rather than an invented placeholder.
         identity.name.getOrElse(identity.orcidId),
         email = None,
         avatar = None
       )
     )
 
-    // Only worth a second round trip on a login that will actually prompt for an address — a
-    // returning user who already supplied one is not asked again.
-    val suggestedEmail = Option(user.getEmail) match {
-      case Some(_) => None
-      case None =>
-        textOf(mapper.readTree(body), "access_token")
-          .flatMap(token => publishedEmail(identity.orcidId, token))
-    }
-
-    OrcidLoginResponse(jwtToken(jwtClaims(user, Some(identity.orcidId))), suggestedEmail)
+    // No provider id in the claims. `jwtClaims`' second parameter is specifically the GOOGLE one —
+    // it writes a claim named `googleId` — and the frontend spends that claim as a Flarum account
+    // password (`flarum.service.ts`). An ORCID iD is public, so putting it there would set a
+    // guessable password on that account; the iD is in `auth_provider` for anything that needs it.
+    TokenIssueResponse(jwtToken(jwtClaims(user)))
   }
 }

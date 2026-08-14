@@ -21,6 +21,7 @@ import { HttpClientTestingModule, HttpTestingController } from "@angular/common/
 import { TestBed } from "@angular/core/testing";
 import { JwtHelperService } from "@auth0/angular-jwt";
 import { NzModalService } from "ng-zorro-antd/modal";
+import { firstValueFrom } from "rxjs";
 import { AppSettings } from "../../app-setting";
 import { Role } from "../../type/user";
 import { AuthService, TOKEN_KEY } from "./auth.service";
@@ -219,6 +220,162 @@ describe("AuthService", () => {
     });
   });
 
+  // An identity-only login (ORCID) authenticates an iD and asserts no address, so the token's
+  // `email` claim is null. Everything downstream is keyed on an address — the invite-only branch
+  // emails it to the admin, dataset paths and access grants are built from it — so the prompt has
+  // to come first.
+  describe("the missing-email prompt", () => {
+    const emaillessClaims = (role: Role = Role.REGULAR) => ({ ...claims, email: null, role });
+
+    beforeEach(() => {
+      modal.create.mockReturnValue({
+        getContentComponent: () => ({ modalTitle: "t", getValues: () => ({ email: "typed@x.com" }) }),
+        updateConfig: vi.fn(),
+      });
+    });
+
+    it("opens the prompt when the token carries no email", () => {
+      AuthService.setAccessToken("tok");
+      jwt.decodeToken.mockReturnValue(emaillessClaims());
+
+      service.loginWithExistingToken();
+
+      expect(modal.create).toHaveBeenCalledTimes(1);
+      expect(modal.create.mock.calls[0][0].nzData).toMatchObject({ name: "Ursula" });
+    });
+
+    it("does not open the prompt for an account that has an address", () => {
+      AuthService.setAccessToken("tok");
+
+      service.loginWithExistingToken();
+
+      expect(modal.create).not.toHaveBeenCalled();
+    });
+
+    // loginWithExistingToken runs on every token refresh; a second dialog stacked on the one still
+    // waiting for an answer would be unanswerable.
+    it("does not stack a second prompt while one is open", () => {
+      AuthService.setAccessToken("tok");
+      jwt.decodeToken.mockReturnValue(emaillessClaims());
+
+      service.loginWithExistingToken();
+      service.loginWithExistingToken();
+
+      expect(modal.create).toHaveBeenCalledTimes(1);
+    });
+
+    // The regression this ordering exists for: the invite-only branch used to log out immediately,
+    // which stripped the token the prompt needs and sent the admin a request with a null address
+    // (rejected by /gmail/notify-unauthorized as an invalid email).
+    it("keeps the session and asks for an address before the invite-only request", () => {
+      AuthService.setAccessToken("tok");
+      config.env.inviteOnly = true;
+      jwt.decodeToken.mockReturnValue(emaillessClaims(Role.INACTIVE));
+
+      const result = service.loginWithExistingToken();
+
+      expect(result).toBeUndefined();
+      expect(modal.create).toHaveBeenCalledTimes(1);
+      // Still signed in as far as the token goes, so the prompt can PUT /auth/email...
+      expect(AuthService.getAccessToken()).toEqual("tok");
+      // ...and the registration request has not been made yet — it waits for the next pass.
+      httpMock.expectNone(r => r.url === `${api}/user/joining-reason/required`);
+    });
+
+    it("still runs the invite-only request for an inactive user that has an address", () => {
+      AuthService.setAccessToken("tok");
+      config.env.inviteOnly = true;
+      jwt.decodeToken.mockReturnValue({ ...claims, role: Role.INACTIVE });
+
+      service.loginWithExistingToken();
+
+      expect(modal.create).not.toHaveBeenCalled();
+      httpMock.expectOne(r => r.url === `${api}/user/joining-reason/required`).flush(false);
+    });
+
+    it("stores the reissued token and announces it once the address is saved", async () => {
+      AuthService.setAccessToken("tok");
+      jwt.decodeToken.mockReturnValue(emaillessClaims());
+      const announced = firstValueFrom(service.sessionChanged());
+
+      service.loginWithExistingToken();
+      const accepted = modal.create.mock.calls[0][0].nzOnOk();
+
+      const req = httpMock.expectOne(`${api}/${AuthService.SET_EMAIL_ENDPOINT}`);
+      expect(req.request.method).toEqual("PUT");
+      expect(req.request.body).toEqual({ email: "typed@x.com" });
+      req.flush({ accessToken: "fresh-token" });
+
+      expect(await accepted).toBe(true);
+      expect(AuthService.getAccessToken()).toEqual("fresh-token");
+      await expect(announced).resolves.toBeUndefined();
+    });
+
+    it("keeps the dialog open and reports why when the address is refused", async () => {
+      AuthService.setAccessToken("tok");
+      jwt.decodeToken.mockReturnValue(emaillessClaims());
+
+      service.loginWithExistingToken();
+      const accepted = modal.create.mock.calls[0][0].nzOnOk();
+
+      httpMock
+        .expectOne(`${api}/${AuthService.SET_EMAIL_ENDPOINT}`)
+        .flush(
+          { message: "That email address already belongs to an account." },
+          { status: 409, statusText: "Conflict" }
+        );
+
+      expect(await accepted).toBe(false);
+      expect(notification.error).toHaveBeenCalledWith("That email address already belongs to an account.");
+      // The old token is untouched, so the user can try another address.
+      expect(AuthService.getAccessToken()).toEqual("tok");
+    });
+
+    it("rejects a malformed address without calling the backend", async () => {
+      AuthService.setAccessToken("tok");
+      jwt.decodeToken.mockReturnValue(emaillessClaims());
+      modal.create.mockReturnValue({
+        getContentComponent: () => ({ modalTitle: "t", getValues: () => ({ email: "not-an-address" }) }),
+        updateConfig: vi.fn(),
+      });
+
+      service.loginWithExistingToken();
+
+      expect(await modal.create.mock.calls[0][0].nzOnOk()).toBe(false);
+      expect(notification.error).toHaveBeenCalledWith("Email format is invalid.");
+      httpMock.expectNone(`${api}/${AuthService.SET_EMAIL_ENDPOINT}`);
+    });
+
+    // Cancelling has to announce itself too. The caller was already handed a User (outside
+    // invite-only, the app renders behind the dialog), so without the announcement UserService
+    // would keep showing an account whose token has just been thrown away.
+    it("signs out and announces the change when the prompt is cancelled", async () => {
+      AuthService.setAccessToken("tok");
+      jwt.decodeToken.mockReturnValue(emaillessClaims());
+      const announced = firstValueFrom(service.sessionChanged());
+
+      service.loginWithExistingToken();
+      modal.create.mock.calls[0][0].nzOnCancel();
+
+      expect(AuthService.getAccessToken()).toBeNull();
+      await expect(announced).resolves.toBeUndefined();
+    });
+
+    // A second prompt has to be possible after a cancel, or a user who dismissed it once could
+    // never be asked again for the life of the tab.
+    it("can prompt again after a cancel", () => {
+      AuthService.setAccessToken("tok");
+      jwt.decodeToken.mockReturnValue(emaillessClaims());
+
+      service.loginWithExistingToken();
+      modal.create.mock.calls[0][0].nzOnCancel();
+      AuthService.setAccessToken("tok");
+      service.loginWithExistingToken();
+
+      expect(modal.create).toHaveBeenCalledTimes(2);
+    });
+  });
+
   describe("registerAutoLogout", () => {
     afterEach(() => {
       // Restore real timers before the outer afterEach runs logout()/verify().
@@ -254,9 +411,6 @@ describe("AuthService", () => {
   });
 
   describe("invite-only registration gating", () => {
-    // Drives loginWithExistingToken down the inactive/invite-only branch and
-    // answers the registration-required probe with `true`, which is what makes
-    // openRegistrationModal run.
     const openModalViaInactiveLogin = (): void => {
       AuthService.setAccessToken("tok");
       config.env.inviteOnly = true;

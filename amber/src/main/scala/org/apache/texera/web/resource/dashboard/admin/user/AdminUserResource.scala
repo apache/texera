@@ -115,6 +115,16 @@ class AdminUserResource {
     if (existingUser != null && existingUser.getUid != user.getUid) {
       throw new WebApplicationException("Email already exists", Response.Status.CONFLICT)
     }
+
+    // An identity-only login (e.g. ORCID) provisions an account with no email until its owner supplies
+    // one, and this table renders that as a blank cell. Safeguard as it easy to promote past INACTIVE by accident.
+    if (Option(user.getEmail).forall(_.trim.isEmpty) && user.getRole != UserRoleEnum.INACTIVE) {
+      throw new WebApplicationException(
+        "This account has no email address yet, so it cannot be activated. Its owner is asked for " +
+          "one the next time they sign in.",
+        Response.Status.BAD_REQUEST
+      )
+    }
     val updatedUser = userDao.fetchOneByUid(user.getUid)
     val roleChanged = updatedUser.getRole != user.getRole
     updatedUser.setName(user.getName)
