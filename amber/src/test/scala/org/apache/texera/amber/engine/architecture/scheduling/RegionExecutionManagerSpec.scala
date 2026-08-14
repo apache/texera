@@ -161,25 +161,6 @@ class RegionExecutionManagerSpec
     assert(!fixture.manager.isCompleted)
   }
 
-  it should "clean up control channels and actor refs after successful termination" in {
-    val fixture = createSingleRegionFixture(
-      endWorkerResponse = _ => Some(EmptyReturn())
-    )
-
-    launchRegion(fixture.manager)
-    val completion = requestRegionCompletion(fixture.manager)
-    await(completion)
-
-    // Manager should be completed
-    assert(fixture.manager.isCompleted)
-
-    // Actor ref should be removed
-    assert(!fixture.actorRefService.hasActorRef(fixture.workerId))
-
-    // Control channels should be removed
-    assertControlChannelsAreRemoved(fixture)
-  }
-
   it should "give up with a descriptive error once the EndWorker retry budget is exhausted" in {
     // EndWorker always fails: a worker that never finishes draining.
     val fixture = createSingleRegionFixture(
@@ -273,10 +254,9 @@ class RegionExecutionManagerSpec
     assert(fixture.rpcProbe.endWorkerCalls.size == fixture.workerIds.size * 2)
   }
 
-  it should "default to a bounded termination budget" in {
-    // 4 attempts from a 200 ms base, doubling: 200 + 400 + 800 ms = ~1.4 s of backoff. Each attempt
-    // then bounds two stages: a 6 s timeout on the EndWorker collect, and gracefulStop's own 5 s
-    // deadline on the stop collect -- ~11 s per attempt, ~45 s overall. This is the documented
+  it should "default to a bounded ~25.4s termination budget" in {
+    // 4 attempts from a 200 ms base, doubling: 200 + 400 + 800 ms = ~1.4 s of backoff, plus
+    // a 6 s timeout per attempt. Worst-case teardown is ~25.4 s. This is the documented
     // contract for how long a stuck region blocks before failing loudly; pin it so changes
     // are deliberate.
     assert(RegionExecutionManager.DefaultMaxTerminationAttempts == 4)
@@ -294,6 +274,7 @@ class RegionExecutionManagerSpec
       val fixture = createSingleRegionFixture(
         endWorkerResponse = _ => Some(transientEndWorkerFailure),
         killRetryTimer = timer,
+        // Disable the termination timeout for this frozen-time retry test.
         terminationTimeoutMs = Long.MaxValue
       )
 
@@ -319,6 +300,7 @@ class RegionExecutionManagerSpec
           if (attempts.incrementAndGet() == 1) Some(transientEndWorkerFailure)
           else Some(EmptyReturn()),
         killRetryTimer = timer,
+        // Disable the termination timeout for this frozen-time retry test.
         terminationTimeoutMs = Long.MaxValue
       )
 

@@ -71,14 +71,19 @@ object RegionExecutionManager {
 
   // Terminating a region is deterministic: `EndWorker` plus `gracefulStop` either succeed, or the
   // engine has a bug that retrying cannot fix. Retries therefore only ride out a transient
-  // failure. With `Utils.retry`'s doubling backoff and a 6s timeout per attempt, 4 attempts
-  // take ~25.4s in the worst case (4 × 6s + 1.4s backoff), compared with the former
+  // failure. With `Utils.retry`'s doubling backoff and a 6s timeout per attempt
+  // (5s gracefulStop + 1s drain allowance), 4 attempts take ~25.4s
+  // in the worst case (4 × 6s + 1.4s backoff), compared with the former
   // 150 attempts at a flat 200ms, which held a whole region's teardown for ~30s before failure.
   private[scheduling] val DefaultMaxTerminationAttempts: Int = 4
 
   private[scheduling] val DefaultKillRetryBaseBackoffMs: Long = 200L
 
-  private[scheduling] val DefaultTerminationTimeoutMs: Long = 6000L
+  private[scheduling] val DefaultGracefulStopTimeoutMs: Long = 5000L
+  private[scheduling] val DefaultTerminationDrainAllowanceMs: Long = 1000L
+
+  private[scheduling] val DefaultTerminationTimeoutMs: Long =
+    DefaultGracefulStopTimeoutMs + DefaultTerminationDrainAllowanceMs
 }
 
 /**
@@ -224,7 +229,7 @@ class RegionExecutionManager(
         }
         .within(killTimeout)
 
-    // 3. Cleanup only after graceful termination succeeds.
+    // 3. Clean up only after graceful termination succeeds.
     terminationAttempt.transform {
       case Return(_) =>
         logger.debug(s"Region ${region.id.id} successfully terminated.")
