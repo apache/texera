@@ -251,6 +251,12 @@ export class ComputingUnitSelectionComponent implements OnInit {
           this.applyWarehousePreselect();
         },
         error: (err: unknown) => {
+          // The pick lives in the root-scoped service, so hiding the picker is not
+          // enough: a stale id from a previous workflow would still ride the next
+          // execution request. Clear it whenever the picker cannot be shown.
+          this.warehouseEnabled = false;
+          this.warehouses = [];
+          this.warehouseService.selectWarehouse(undefined);
           console.error("Failed to fetch warehouse status", err);
         },
       });
@@ -344,6 +350,9 @@ export class ComputingUnitSelectionComponent implements OnInit {
    */
   private applyWarehousePreselect(): void {
     if (!this.warehouseEnabled || this.warehouses.length === 0) {
+      // Nothing selectable: drop any pick the root-scoped service still holds, so a
+      // stale id cannot ride the next execution while the picker stays hidden.
+      this.warehouseService.selectWarehouse(undefined);
       return;
     }
     const lastUsed = this.warehouses.find(warehouse => warehouse.whid === this.lastExecutionWhid);

@@ -22,7 +22,8 @@ export interface WorkflowExecutionsEntry {
   eId: number;
   vId: number;
   cuId: number;
-  whId: number;
+  /** null for runs on the shared default storage, and after the warehouse is deleted. */
+  whId: number | null;
   sId: number;
   userName: string;
   avatar: string;

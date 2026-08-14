@@ -1154,7 +1154,7 @@ describe("PowerButtonComponent", () => {
       const { emit } = bootPicker({
         enabled: true,
         warehouses: [makeWarehouse(1, "first"), makeWarehouse(2, "second")],
-        latest: { cuId: 55, whId: null as unknown as number },
+        latest: { cuId: 55, whId: null },
       });
 
       emit(100);
@@ -1187,6 +1187,32 @@ describe("PowerButtonComponent", () => {
 
       expect(TestBed.inject(WarehouseService).getSelectedWarehouseIdValue()).toBeUndefined();
       expect(pickerFixture.nativeElement.querySelector(".warehouse-select")).toBeNull();
+    });
+
+    it("clears any stale pick when the status request fails", () => {
+      // The pick outlives the component (root-scoped service), so a failure that only
+      // hides the picker would still send a previous workflow's warehouse id.
+      TestBed.inject(WarehouseService).selectWarehouse(9);
+      vi.spyOn(TestBed.inject(WarehouseService), "getStatus").mockReturnValue(
+        throwError(() => new Error("status unavailable"))
+      );
+      const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+      const failedFixture = TestBed.createComponent(ComputingUnitSelectionComponent);
+      failedFixture.detectChanges();
+
+      expect(TestBed.inject(WarehouseService).getSelectedWarehouseIdValue()).toBeUndefined();
+      expect(failedFixture.componentInstance.warehouseEnabled).toBe(false);
+      errorSpy.mockRestore();
+    });
+
+    it("clears any stale pick when the feature is disabled or no warehouse exists", () => {
+      TestBed.inject(WarehouseService).selectWarehouse(9);
+
+      const { emit } = bootPicker({ enabled: true, warehouses: [], latest: { cuId: 55, whId: 9 } });
+      emit(100);
+
+      expect(TestBed.inject(WarehouseService).getSelectedWarehouseIdValue()).toBeUndefined();
     });
 
     it("renders the select when enabled, and a manual pick writes through to the service", () => {
