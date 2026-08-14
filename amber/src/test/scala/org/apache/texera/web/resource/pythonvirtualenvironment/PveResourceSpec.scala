@@ -139,6 +139,19 @@ class PveResourceSpec
     queue.iterator().asScala.toList.mkString("\n")
   }
 
+  /**
+    * A computing-unit id whose venv directory does not exist on this machine.
+    * PveManager.getEnvironments lists /tmp/texera-pve/venvs/<cuid> directly, so a fixed id
+    * could pick up environments left behind by an earlier local run.
+    */
+  private def unusedCuid(): Int = {
+    val venvRoot = Paths.get("/tmp/texera-pve/venvs")
+    Iterator
+      .continually(900000 + scala.util.Random.nextInt(90000))
+      .find(cuid => !Files.exists(venvRoot.resolve(cuid.toString)))
+      .get
+  }
+
   "PveManager" should "create a new PVE and list it" in {
     expectProcessCalls()
     PveManager.createNewPve(testCuid, queue, testPveName)
@@ -454,7 +467,9 @@ class PveResourceSpec
   }
 
   it should "return an empty list for a computing unit with no environments" in {
-    val resp = new PveResource().fetchPVEs(Int.box(testCuid + 1))
+    // getEnvironments reads /tmp/texera-pve/venvs/<cuid> straight off disk, so use a cuid
+    // that cannot collide with leftovers from an earlier local run.
+    val resp = new PveResource().fetchPVEs(Int.box(unusedCuid()))
 
     resp.getStatus shouldBe Response.Status.OK.getStatusCode
     resp.getEntity.asInstanceOf[java.util.List[_]].asScala shouldBe empty
@@ -471,7 +486,7 @@ class PveResourceSpec
   }
 
   it should "be a no-op for a computing unit that has none" in {
-    noException should be thrownBy new PveResource().deleteEnvironments(testCuid + 1)
+    noException should be thrownBy new PveResource().deleteEnvironments(unusedCuid())
   }
 
   "PveResource.deletePackage" should "return 200 when the uninstall succeeds" in {
@@ -491,9 +506,12 @@ class PveResourceSpec
     resp.getStatus shouldBe Response.Status.BAD_REQUEST.getStatusCode
   }
 
-  // ─── conflict and error branches ───────────────────────────────────────────
+  // ─── duplicate-name conflicts ──────────────────────────────────────────────
   // The unique index on (uid, name) is what surfaces a duplicate as SQLSTATE 23505,
   // so these drive real constraint violations rather than mocking the DAO.
+  // The resources' 500 handlers are not covered here: PveManager.getSystemPackages
+  // returns a cached value and never throws, and the generic `case e: Exception` arms
+  // would need the DAO mocked out to reach.
 
   "PveResource.savePve" should "return 409 when the user already has an environment with that name" in {
     PveManager.savePve(testUid, "env-dup", "{}")
