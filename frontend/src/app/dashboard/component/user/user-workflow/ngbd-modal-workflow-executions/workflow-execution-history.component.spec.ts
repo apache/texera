@@ -44,7 +44,7 @@ function makeEntry(overrides: Partial<WorkflowExecutionsEntry> = {}): WorkflowEx
     cuId: 1,
     sId: 0,
     userName: "alice",
-    googleAvatar: "",
+    avatar: "",
     name: "untitled",
     startingTime: 0,
     completionTime: 60000,
