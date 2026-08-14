@@ -19,7 +19,7 @@
 
 package org.apache.texera.amber.engine.architecture.scheduling
 
-import com.twitter.util.{Await, Duration, Future, Promise}
+import com.twitter.util.{Await, Duration, Future}
 import org.apache.pekko.actor.{Actor, ActorRef, Props}
 import org.apache.pekko.testkit.{TestActorRef, TestKit}
 import org.apache.texera.amber.core.executor.OpExecWithClassName
