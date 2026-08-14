@@ -220,7 +220,7 @@ class AdminUserResourceSpec
 
     val listed = resource.list().asScala.find(_.uid == primaryUid)
 
-    listed.map(u => (u.name, u.googleId, u.googleAvatar)) shouldBe Some(
+    listed.map(u => (u.name, u.googleId, u.avatar)) shouldBe Some(
       ("dual", "google-sub-dual", "avatar-blob")
     )
   }

@@ -361,6 +361,21 @@ describe("JointUIService", () => {
       service.changeOperatorColor(paper, "op-1", false);
       expect(attrSpy).toHaveBeenCalledWith("rect.body/stroke", "red");
     });
+    it("skips the write when the border is already the requested color", () => {
+      const { paper, attrSpy } = makePaperWithModel();
+      // model reports it is already neutral; the guarded setter must not rewrite it
+      attrSpy.mockImplementation((selector: string) => (selector === "rect.body/stroke" ? "#CFCFCF" : undefined));
+      const service = new JointUIService(emptyMetadataStub as never);
+      service.changeOperatorColor(paper, "op-1", true);
+      expect(attrSpy).not.toHaveBeenCalledWith("rect.body/stroke", "#CFCFCF");
+    });
+    it("writes the border when the current color differs", () => {
+      const { paper, attrSpy } = makePaperWithModel();
+      attrSpy.mockImplementation((selector: string) => (selector === "rect.body/stroke" ? "red" : undefined));
+      const service = new JointUIService(emptyMetadataStub as never);
+      service.changeOperatorColor(paper, "op-1", true);
+      expect(attrSpy).toHaveBeenCalledWith("rect.body/stroke", "#CFCFCF");
+    });
   });
 
   describe("changeOperatorState", () => {
