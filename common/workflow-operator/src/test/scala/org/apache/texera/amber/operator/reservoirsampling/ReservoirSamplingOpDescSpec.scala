@@ -67,15 +67,14 @@ class ReservoirSamplingOpDescSpec extends AnyFlatSpec with Matchers {
     val d = new ReservoirSamplingOpDesc
     d.k = 3
     d.generateStandaloneCode() shouldBe
-      """import random as _texera_rs_rand
-        |_texera_rs_rng = _texera_rs_rand.Random(1)
+      """_texera_rs_rng = _TexeraJavaRandom(1)
         |_texera_rs_k = 3
         |_texera_rs_reservoir = []
         |for _texera_rs_n, _texera_rs_row in enumerate(in1df.itertuples(index=False, name=None)):
         |    if _texera_rs_n < _texera_rs_k:
         |        _texera_rs_reservoir.append(_texera_rs_row)
         |    else:
-        |        _texera_rs_i = _texera_rs_rng.randrange(_texera_rs_n)
+        |        _texera_rs_i = _texera_rs_rng.next_int(_texera_rs_n)
         |        if _texera_rs_i < _texera_rs_k:
         |            _texera_rs_reservoir[_texera_rs_i] = _texera_rs_row
         |out1df = pd.DataFrame(_texera_rs_reservoir, columns=list(in1df.columns)).reset_index(drop=True)""".stripMargin
