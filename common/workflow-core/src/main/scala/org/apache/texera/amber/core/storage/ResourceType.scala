@@ -17,12 +17,16 @@
  * under the License.
  */
 
-package org.apache.texera.web.model.http.response
+package org.apache.texera.amber.core.storage
 
-import org.apache.texera.amber.core.tuple.Attribute
+/**
+  * The leading segment of a logical file path, identifying which resource kind (and thus which
+  * backing table) a path belongs to.
+  *
+  * Path shape: /<prefix>/ownerEmail/resourceName/versionName/fileRelativePath
+  */
+object ResourceType extends Enumeration {
+  val Datasets: Value = Value("datasets")
 
-case class SchemaPropagationResponse(
-    code: Int,
-    result: Map[String, List[Option[List[Attribute]]]],
-    message: String
-)
+  def isValidPrefix(segment: String): Boolean = values.exists(_.toString == segment)
+}
