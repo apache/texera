@@ -40,6 +40,8 @@ import org.apache.arrow.vector.{
 }
 
 import java.nio.charset.StandardCharsets
+import java.sql.Timestamp
+import java.time.{Instant, LocalDateTime, ZoneOffset}
 import java.util
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 import scala.language.implicitConversions
@@ -81,7 +83,8 @@ object ArrowUtils extends LazyLogging {
               // Use the attribute type from the schema (which includes metadata)
               // instead of deriving it from the Arrow type
               val attributeType = schema.getAttributes(index).getType
-              AttributeTypeUtils.parseField(value, attributeType)
+              if (attributeType == AttributeType.TIMESTAMP) wallClockOf(value)
+              else AttributeTypeUtils.parseField(value, attributeType)
             } catch {
               case e: Exception =>
                 logger.warn("Caught error during parsing Arrow value back to Texera value", e)
@@ -92,6 +95,25 @@ object ArrowUtils extends LazyLogging {
       )
       .build()
   }
+
+  /** The wall clock a timestamp column holds, read as UTC.
+    *
+    * A Texera TIMESTAMP has no zone of its own, and the fields this writes are
+    * labelled UTC, so UTC is what the number beside the label means. A zoned
+    * vector hands back epoch milliseconds, and letting `new Timestamp(millis)`
+    * turn those into a wall clock would read them in the JVM's zone: one file
+    * would then say different things on servers in different places, with
+    * nothing in the file to account for the difference. A zoneless vector hands
+    * back a LocalDateTime already, which is the wall clock itself.
+    */
+  private def wallClockOf(value: AnyRef): Timestamp =
+    value match {
+      case null               => null
+      case ldt: LocalDateTime => Timestamp.valueOf(ldt)
+      case millis: java.lang.Long =>
+        Timestamp.valueOf(LocalDateTime.ofInstant(Instant.ofEpochMilli(millis), ZoneOffset.UTC))
+      case other => AttributeTypeUtils.parseTimestamp(other)
+    }
 
   /**
     * Converts an Arrow Schema into Texera Schema.
@@ -213,6 +235,11 @@ object ArrowUtils extends LazyLogging {
             .asInstanceOf[Float8Vector]
             .setSafe(index, !isNull, if (isNull) 0 else value.asInstanceOf[Double])
 
+        // The wall clock written AS UTC, the label the field carries, so the
+        // number and the label agree. Going through the value's own epoch would
+        // have read the wall clock in the JVM's zone instead, putting a machine's
+        // setting into the file: the same table written in two places would hold
+        // two different instants under one UTC label. Mirrors [[wallClockOf]].
         case _: ArrowType.Timestamp =>
           vector
             .asInstanceOf[TimeStampVector]
@@ -222,8 +249,11 @@ object ArrowUtils extends LazyLogging {
               if (isNull) 0L
               else
                 AttributeTypeUtils
-                  .parseField(value, AttributeType.LONG)
-                  .asInstanceOf[Long]
+                  .parseField(value, AttributeType.TIMESTAMP)
+                  .asInstanceOf[Timestamp]
+                  .toLocalDateTime
+                  .toInstant(ZoneOffset.UTC)
+                  .toEpochMilli
             )
 
         case _: ArrowType.Utf8 =>
