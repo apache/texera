@@ -67,6 +67,30 @@ object DocumentFactory {
   }
 
   /**
+    * The iceberg coordinates a VFS URI resolves to: which warehouse's catalog, which
+    * namespace, and which table (storage key). One resolver shared by every VFS entry
+    * point below, so the decode steps cannot drift apart (promised in #6944 review).
+    */
+  private case class IcebergLocation(
+      warehouse: Option[String],
+      namespace: String,
+      storageKey: String
+  )
+
+  private def resolveIcebergLocation(uri: URI): IcebergLocation = {
+    val components = decodeURI(uri)
+    IcebergLocation(
+      components.warehouse,
+      resolveNamespace(components.resourceType),
+      sanitizeURIPath(uri)
+    )
+  }
+
+  private val tupleSerde: (IcebergSchema, Tuple) => Record = IcebergUtil.toGenericRecord
+  private val tupleDeserde: (IcebergSchema, Record) => Tuple = (schema, record) =>
+    IcebergUtil.fromRecord(record, IcebergUtil.fromIcebergSchema(schema))
+
+  /**
     * Create a document for storage specified by the uri.
     * This document is suitable for storing structural data, i.e. the schema is required to create such document.
     * @param uri the location of the document
@@ -76,11 +100,7 @@ object DocumentFactory {
   def createDocument(uri: URI, schema: Schema): VirtualDocument[_] = {
     uri.getScheme match {
       case VFS_FILE_URI_SCHEME =>
-        val components = decodeURI(uri)
-        val warehouse = components.warehouse
-        val resourceType = components.resourceType
-        val storageKey = sanitizeURIPath(uri)
-        val namespace = resolveNamespace(resourceType)
+        val IcebergLocation(warehouse, namespace, storageKey) = resolveIcebergLocation(uri)
 
         val icebergSchema = IcebergUtil.toIcebergSchema(schema)
         IcebergUtil.createTable(
@@ -90,16 +110,12 @@ object DocumentFactory {
           icebergSchema,
           overrideIfExists = true
         )
-        val serde: (IcebergSchema, Tuple) => Record = IcebergUtil.toGenericRecord
-        val deserde: (IcebergSchema, Record) => Tuple = (schema, record) =>
-          IcebergUtil.fromRecord(record, IcebergUtil.fromIcebergSchema(schema))
-
         new IcebergDocument[Tuple](
           namespace,
           storageKey,
           icebergSchema,
-          serde,
-          deserde,
+          tupleSerde,
+          tupleDeserde,
           warehouse
         )
       case unsupportedScheme =>
@@ -122,11 +138,7 @@ object DocumentFactory {
   def documentExists(uri: URI): Boolean = {
     uri.getScheme match {
       case VFS_FILE_URI_SCHEME =>
-        val components = decodeURI(uri)
-        val warehouse = components.warehouse
-        val resourceType = components.resourceType
-        val storageKey = sanitizeURIPath(uri)
-        val namespace = resolveNamespace(resourceType)
+        val IcebergLocation(warehouse, namespace, storageKey) = resolveIcebergLocation(uri)
         IcebergCatalogInstance
           .getInstance(warehouse)
           .tableExists(TableIdentifier.of(namespace, storageKey))
@@ -170,11 +182,7 @@ object DocumentFactory {
     uri.getScheme match {
       case DATASET_FILE_URI_SCHEME => (new DatasetFileDocument(uri), None)
       case VFS_FILE_URI_SCHEME =>
-        val components = decodeURI(uri)
-        val warehouse = components.warehouse
-        val resourceType = components.resourceType
-        val storageKey = sanitizeURIPath(uri)
-        val namespace = resolveNamespace(resourceType)
+        val IcebergLocation(warehouse, namespace, storageKey) = resolveIcebergLocation(uri)
 
         val table = IcebergUtil
           .loadTableMetadata(
@@ -187,17 +195,13 @@ object DocumentFactory {
           )
 
         val amberSchema = IcebergUtil.fromIcebergSchema(table.schema())
-        val serde: (IcebergSchema, Tuple) => Record = IcebergUtil.toGenericRecord
-        val deserde: (IcebergSchema, Record) => Tuple = (schema, record) =>
-          IcebergUtil.fromRecord(record, IcebergUtil.fromIcebergSchema(schema))
-
         (
           new IcebergDocument[Tuple](
             namespace,
             storageKey,
             table.schema(),
-            serde,
-            deserde,
+            tupleSerde,
+            tupleDeserde,
             warehouse
           ),
           Some(amberSchema)

@@ -78,9 +78,16 @@ class FileResolverSpec
 
   private val localCsvFilePath = "common/workflow-core/src/test/resources/country_sales_small.csv"
 
-  private val datasetACsvFilePath = "/test_user@test.com/test_dataset/v2/directory/a.csv"
+  private val datasetACsvFilePath = "/datasets/test_user@test.com/test_dataset/v2/directory/a.csv"
 
-  private val dataset1TxtFilePath = "/test_user@test.com/test_dataset/v1/1.txt"
+  private val dataset1TxtFilePath = "/datasets/test_user@test.com/test_dataset/v1/1.txt"
+
+  // Legacy unprefixed form.
+  private val unprefixedDataset1TxtFilePath = "/test_user@test.com/test_dataset/v1/1.txt"
+
+  // Leading segment names no known dataset owner.
+  private val unknownResourceTypeFilePath =
+    "/notAResourceType/test_user@test.com/test_dataset/v1/1.txt"
 
   override protected def beforeAll(): Unit = {
     initializeDBAndReplaceDSLContext()
@@ -117,6 +124,26 @@ class FileResolverSpec
     )
   }
 
+  "FileResolver" should "still resolve a legacy unprefixed dataset path" in {
+    val dataset1TxtUri = FileResolver.resolve(unprefixedDataset1TxtFilePath)
+
+    assert(
+      dataset1TxtUri.toString == f"${FileResolver.DATASET_FILE_URI_SCHEME}:///${testDataset.getRepositoryName}/${testDatasetVersion1.getVersionHash}/1.txt"
+    )
+  }
+
+  "FileResolver" should "not resolve a path whose leading segment names no dataset" in {
+    assertThrows[FileNotFoundException] {
+      FileResolver.resolve(unknownResourceTypeFilePath)
+    }
+  }
+
+  "FileResolver" should "throw not found exception when a prefixed path has too few segments" in {
+    assertThrows[FileNotFoundException] {
+      FileResolver.resolve("/datasets/test_user@test.com/test_dataset")
+    }
+  }
+
   "FileResolver" should "throw not found exception" in {
     assertThrows[FileNotFoundException] {
       FileResolver.resolve("some/random/path")
@@ -142,18 +169,25 @@ class FileResolverSpec
 
   "parseDatasetOwnerAndName" should "extract owner email and dataset name from a valid path" in {
     assert(
-      FileResolver.parseDatasetOwnerAndName("/test_user@test.com/test_dataset/v1/1.txt")
+      FileResolver.parseDatasetOwnerAndName("/datasets/test_user@test.com/test_dataset/v1/1.txt")
         == Some(("test_user@test.com", "test_dataset"))
     )
     // extra segments beyond the file-relative path are ignored
     assert(
-      FileResolver.parseDatasetOwnerAndName("/owner@x.com/ds/v2/directory/nested/a.csv")
+      FileResolver.parseDatasetOwnerAndName("/datasets/owner@x.com/ds/v2/directory/nested/a.csv")
         == Some(("owner@x.com", "ds"))
     )
   }
 
-  it should "return None when the path has fewer than four segments" in {
-    assert(FileResolver.parseDatasetOwnerAndName("/owner@x.com/ds/v1").isEmpty)
+  it should "still extract owner and name from a legacy unprefixed path" in {
+    assert(
+      FileResolver.parseDatasetOwnerAndName(unprefixedDataset1TxtFilePath)
+        == Some(("test_user@test.com", "test_dataset"))
+    )
+  }
+
+  it should "return None when the prefixed path has too few segments" in {
+    assert(FileResolver.parseDatasetOwnerAndName("/datasets/owner@x.com/ds").isEmpty)
     assert(FileResolver.parseDatasetOwnerAndName("owner/dataset").isEmpty)
   }
 

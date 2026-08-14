@@ -83,7 +83,7 @@
     <div class="button-content">
       <texera-user-avatar
         *ngIf="selectedComputingUnit"
-        [googleAvatar]="selectedComputingUnit ? selectedComputingUnit.ownerGoogleAvatar : ''"
+        [avatar]="selectedComputingUnit ? selectedComputingUnit.ownerAvatar : ''"
         userColor="grey"
         [userName]="selectedComputingUnit ? selectedComputingUnit.ownerName : ''"
         [style.transform]="'scale(0.65)'"
@@ -130,7 +130,7 @@
         (click)="selectedComputingUnit = unit; selectComputingUnit(this.workflowId, unit?.computingUnit?.cuid)">
         <div class="computing-unit-row">
           <texera-user-avatar
-            [googleAvatar]="unit.ownerGoogleAvatar"
+            [avatar]="unit.ownerAvatar"
             userColor="grey"
             [userName]="unit.ownerName || ''"
             [style.transform]="'scale(0.65)'"
