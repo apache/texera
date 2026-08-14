@@ -453,6 +453,27 @@ class PveResourceSpec
     pves.map(_.get("pveName")) should contain(testPveName)
   }
 
+  it should "return an empty list for a computing unit with no environments" in {
+    val resp = new PveResource().fetchPVEs(Int.box(testCuid + 1))
+
+    resp.getStatus shouldBe Response.Status.OK.getStatusCode
+    resp.getEntity.asInstanceOf[java.util.List[_]].asScala shouldBe empty
+  }
+
+  "PveResource.deleteEnvironments" should "remove every environment of the computing unit" in {
+    expectProcessCalls()
+    PveManager.createNewPve(testCuid, queue, testPveName)
+    PveManager.getEnvironments(testCuid).map(_.pveName) should contain(testPveName)
+
+    new PveResource().deleteEnvironments(testCuid)
+
+    PveManager.getEnvironments(testCuid) shouldBe empty
+  }
+
+  it should "be a no-op for a computing unit that has none" in {
+    noException should be thrownBy new PveResource().deleteEnvironments(testCuid + 1)
+  }
+
   "PveResource.deletePackage" should "return 200 when the uninstall succeeds" in {
     expectProcessCalls()
     PveManager.createNewPve(testCuid, queue, testPveName)
@@ -469,4 +490,45 @@ class PveResourceSpec
     val resp = new PveResource().deletePackage(testCuid, testPveName, "pyarrow")
     resp.getStatus shouldBe Response.Status.BAD_REQUEST.getStatusCode
   }
+
+  // ─── conflict and error branches ───────────────────────────────────────────
+  // The unique index on (uid, name) is what surfaces a duplicate as SQLSTATE 23505,
+  // so these drive real constraint violations rather than mocking the DAO.
+
+  "PveResource.savePve" should "return 409 when the user already has an environment with that name" in {
+    PveManager.savePve(testUid, "env-dup", "{}")
+
+    val resp = new PveResource().savePve(SavePvePayload("env-dup", Map.empty), sessionUser)
+
+    resp.getStatus shouldBe Response.Status.CONFLICT.getStatusCode
+    resp.getEntity shouldBe """An environment named "env-dup" already exists."""
+  }
+
+  it should "still accept the same name for a different user" in {
+    val otherUid = testUid + 1
+    val otherUser = new User
+    otherUser.setUid(otherUid)
+    otherUser.setName(s"pve_other_$otherUid")
+    otherUser.setEmail(s"other_${UUID.randomUUID()}@example.com")
+    val userDao = new UserDao(getDSLContext.configuration())
+    userDao.insert(otherUser)
+    try {
+      PveManager.savePve(otherUid, "env-shared", "{}")
+
+      val resp = new PveResource().savePve(SavePvePayload("env-shared", Map.empty), sessionUser)
+
+      resp.getStatus shouldBe Response.Status.CREATED.getStatusCode
+    } finally {
+      getDSLContext
+        .deleteFrom(VIRTUAL_ENVIRONMENTS)
+        .where(VIRTUAL_ENVIRONMENTS.UID.eq(otherUid))
+        .execute()
+      userDao.deleteById(otherUid)
+    }
+  }
+
+  "PveResource.listPves" should "return an empty list when the user owns nothing" in {
+    new PveResource().listPves(sessionUser).asScala shouldBe empty
+  }
+
 }
