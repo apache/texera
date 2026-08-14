@@ -41,12 +41,16 @@ object FileListerSourceOpExec {
       datasetVersionPath: String
   ): (String, String, String, String) = {
     val segments = datasetVersionPath.split("/").filter(_.nonEmpty)
-    require(
-      segments.length >= 4 && ResourceType.isValidPrefix(segments.head),
-      s"Invalid dataset version path '$datasetVersionPath'; " +
-        "expected /datasets/ownerEmail/datasetName/versionName"
-    )
-    (segments(0), segments(1), segments(2), segments(3))
+    val invalidPath = s"Invalid dataset version path '$datasetVersionPath'; " +
+      "expected /datasets/ownerEmail/datasetName/versionName"
+
+    if (segments.headOption.exists(ResourceType.isValidPrefix)) {
+      require(segments.length >= 4, invalidPath)
+      (segments(0), segments(1), segments(2), segments(3))
+    } else {
+      require(segments.length >= 3, invalidPath)
+      (ResourceType.Datasets.toString, segments(0), segments(1), segments(2))
+    }
   }
 
   private[dataset] def canonicalVersionPath(

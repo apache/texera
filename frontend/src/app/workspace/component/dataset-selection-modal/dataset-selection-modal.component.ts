@@ -84,8 +84,12 @@ export class DatasetSelectionModalComponent implements OnInit {
         this.datasets = datasets;
         const selectedPath = this.data.selectedPath;
         if (selectedPath) {
-          // Stored paths always carry the resource-type prefix; skip it so that owner/dataset/version line up.
-          const [, ownerEmail, datasetName, versionName] = selectedPath.split("/").filter(part => part.length > 0);
+          const segments = selectedPath.split("/").filter(part => part.length > 0);
+          // TODO(datasets-prefix): require the prefix once all ml model support PRs are done.
+          if ((Object.values(ResourceType) as string[]).includes(segments[0])) {
+            segments.shift();
+          }
+          const [ownerEmail, datasetName, versionName] = segments;
           this.selectedDataset = this.datasets.find(
             dataset => dataset.ownerEmail === ownerEmail && dataset.dataset.name === datasetName
           );
