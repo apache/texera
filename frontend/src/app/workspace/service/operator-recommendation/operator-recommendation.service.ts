@@ -82,8 +82,8 @@ export class OperatorRecommendationService {
    * Returns an empty list (never errors) when the feature is disabled, the
    * operator has no output port to suggest from, or the backend call fails.
    *
-   * How many suggestions come back is the backend's call: it defaults to three
-   * and clamps anything larger, so there is nothing useful to send from here.
+   * How many suggestions come back is the backend's call: it defaults to three and
+   * clamps any larger requested limit, so there is nothing useful to send from here.
    *
    * @param operator the operator that was just added to the canvas
    */

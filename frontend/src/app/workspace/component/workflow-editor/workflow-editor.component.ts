@@ -24,7 +24,12 @@ import { NzModalRef, NzModalService } from "ng-zorro-antd/modal";
 import { DragDropService } from "../../service/drag-drop/drag-drop.service";
 import { DynamicSchemaService } from "../../service/dynamic-schema/dynamic-schema.service";
 import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
-import { fromJointPaperEvent, JointUIService, linkPathStrokeColor } from "../../service/joint-ui/joint-ui.service";
+import {
+  fromJointGraphCellEvent,
+  fromJointPaperEvent,
+  JointUIService,
+  linkPathStrokeColor,
+} from "../../service/joint-ui/joint-ui.service";
 import { Validation, ValidationWorkflowService } from "../../service/validation/validation-workflow.service";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { WorkflowStatusService } from "../../service/workflow-status/workflow-status.service";
@@ -1811,6 +1816,19 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
       .pipe(untilDestroyed(this))
       .subscribe(() => this.closeNextOperatorSuggestions());
 
+    // Dismiss when the canvas is frozen — during execution, version preview, or a
+    // read-only view. Materializing writes to the shared model, and undo refuses
+    // while the lock is on, so a click here would be unrepealable; the chips must
+    // not stay on screen looking clickable either.
+    this.workflowActionService
+      .getWorkflowModificationEnabledStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(enabled => {
+        if (!enabled) {
+          this.closeNextOperatorSuggestions();
+        }
+      });
+
     // Dismiss if the anchor operator is deleted out from under the suggestions.
     this.workflowActionService
       .getTexeraGraph()
@@ -1823,11 +1841,13 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
       });
 
     // Keep the suggestions anchored to the operator's output port as it moves.
-    this.paper.model.on("change:position", (cell: joint.dia.Cell) => {
-      if (this.nextOperatorSuggestion && cell.id.toString() === this.nextOperatorSuggestion.operatorId) {
-        this.repositionNextOperatorSuggestion$.next();
-      }
-    });
+    fromJointGraphCellEvent(this.paper.model, "change:position")
+      .pipe(untilDestroyed(this))
+      .subscribe(cell => {
+        if (this.nextOperatorSuggestion && cell.id.toString() === this.nextOperatorSuggestion.operatorId) {
+          this.repositionNextOperatorSuggestion$.next();
+        }
+      });
 
     // Keep the suggestions anchored on zoom.
     this.wrapper
@@ -1908,6 +1928,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     // fires element:pointerdown rather than the blank:pointerdown we listen for.
     // Without this the click would add a second successor on top of the first.
     if (
+      this.workflowActionService.checkWorkflowModificationEnabled() &&
       graph.hasOperator(this.nextOperatorSuggestion.operatorId) &&
       !this.isOutputPortLinked(this.nextOperatorSuggestion.operatorId, this.nextOperatorSuggestion.sourceOutputPortID)
     ) {

@@ -2544,6 +2544,33 @@ describe("Ambient Operator Recommender", () => {
     expect(component.nextOperatorSuggestion).toBeNull();
   });
 
+  it("dismisses the suggestions when workflow modification is disabled", () => {
+    workflowActionService.addOperator(mockScanPredicate, mockPoint);
+    emitOperatorDrop(mockScanPredicate);
+    expect(component.nextOperatorSuggestion).not.toBeNull();
+
+    // Running the workflow freezes the canvas; version preview and read-only
+    // hub views take the same lock.
+    workflowActionService.disableWorkflowModification();
+
+    expect(component.nextOperatorSuggestion).toBeNull();
+  });
+
+  it("does not materialize while workflow modification is disabled", () => {
+    const materializeSpy = vi.spyOn(TestBed.inject(OperatorRecommendationService), "materialize");
+    workflowActionService.addOperator(mockScanPredicate, mockPoint);
+    emitOperatorDrop(mockScanPredicate);
+    const suggestion = component.nextOperatorSuggestion;
+    workflowActionService.disableWorkflowModification();
+
+    // The chips are already gone, but a click racing the lock must not write to
+    // the shared model either -- undo refuses while the lock is on.
+    component.nextOperatorSuggestion = suggestion;
+    component.materializeNextOperatorSuggestion(mockRecommendations[0]);
+
+    expect(materializeSpy).not.toHaveBeenCalled();
+  });
+
   it("ignores a response that arrives after the user dismissed the suggestions", () => {
     const inFlight = new Subject<OperatorRecommendation[]>();
     getRecommendationsSpy.mockReturnValue(inFlight);
