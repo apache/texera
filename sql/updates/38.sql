@@ -17,12 +17,21 @@
  * under the License.
  */
 
-package org.apache.texera.amber.core.storage.model
+-- Allow ORCID as an identity provider in auth_provider.provider_type.
+--
+-- ORCID is authorization-code OAuth rather than Google's id-token flow, but the identity it
+-- yields lands in the same place: one auth_provider row whose provider_id is the ORCID iD.
+--
+-- The type is schema-qualified because the two runners disagree about the search path: the
+-- liquibase runner in sql/docker-compose.yml strips `SET search_path` out of these files before
+-- applying them, while bin/local-dev.sh keeps it.
 
-trait OnDataset {
-  def getRepositoryName(): String
+\c texera_db
 
-  def getVersionHash(): String
+SET search_path TO texera_db;
 
-  def getFileRelativePath(): String
-}
+BEGIN;
+
+ALTER TYPE texera_db.provider_type_enum ADD VALUE IF NOT EXISTS 'ORCID';
+
+COMMIT;

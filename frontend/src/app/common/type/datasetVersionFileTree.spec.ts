@@ -9,12 +9,11 @@
  *
  *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing,
- * software distributed under the License is distributed on an
- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied.  See the License for the
- * specific language governing permissions and limitations
- * under the License.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 import {
@@ -38,27 +37,40 @@ describe("getFullPathFromDatasetFileNode", () => {
 });
 
 describe("getRelativePathFromDatasetFileNode", () => {
-  it("strips the first three path segments", () => {
-    const node: DatasetFileNode = { name: "file.csv", type: "file", parentDir: "/owner/dataset/v1" };
-    // full path is /owner/dataset/v1/file.csv -> segments [owner, dataset, v1, file.csv]
-    expect(getRelativePathFromDatasetFileNode(node)).toBe("file.csv");
+  it("strips the datasets/owner/dataset/version prefix (4 segments)", () => {
+    const node: DatasetFileNode = {
+      name: "tw1.csv",
+      type: "file",
+      parentDir: "/datasets/bob@texera.com/twitterDataset/v1/california/irvine",
+    };
+    expect(getRelativePathFromDatasetFileNode(node)).toBe("california/irvine/tw1.csv");
   });
 
-  it("preserves nested relative segments beyond the first three", () => {
-    const node: DatasetFileNode = { name: "f.txt", type: "file", parentDir: "/owner/dataset/v1/sub/dir" };
-    expect(getRelativePathFromDatasetFileNode(node)).toBe("sub/dir/f.txt");
+  it("returns the bare file name for a file at the version root", () => {
+    const node: DatasetFileNode = {
+      name: "readme.txt",
+      type: "file",
+      parentDir: "/datasets/bob@texera.com/twitterDataset/v1",
+    };
+    expect(getRelativePathFromDatasetFileNode(node)).toBe("readme.txt");
   });
 
-  it("returns an empty string when there are three or fewer segments", () => {
-    const node: DatasetFileNode = { name: "v1", type: "directory", parentDir: "/owner/dataset" };
-    // full path /owner/dataset/v1 -> exactly 3 segments -> no relative path
+  it("returns an empty string when there is no path below the version", () => {
+    const node: DatasetFileNode = {
+      name: "v1",
+      type: "directory",
+      parentDir: "/datasets/bob@texera.com/twitterDataset",
+    };
     expect(getRelativePathFromDatasetFileNode(node)).toBe("");
   });
 
   it("ignores empty segments from duplicate slashes when counting", () => {
-    const node: DatasetFileNode = { name: "file.csv", type: "file", parentDir: "/owner//dataset/v1" };
-    // empty segment between the duplicate slashes is filtered out, leaving 4 real segments
-    expect(getRelativePathFromDatasetFileNode(node)).toBe("file.csv");
+    const node: DatasetFileNode = {
+      name: "f.csv",
+      type: "file",
+      parentDir: "/datasets/bob@texera.com/twitterDataset//v1/sub",
+    };
+    expect(getRelativePathFromDatasetFileNode(node)).toBe("sub/f.csv");
   });
 });
 

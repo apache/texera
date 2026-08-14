@@ -17,31 +17,27 @@
  * under the License.
  */
 
-package org.apache.texera.amber.core.storage.model
-
-import java.net.URI
+package org.apache.texera.amber.core.storage
 
 /**
-  * VirtualCollection provides the abstraction of managing a collection of children VirtualDocument
+  * The leading segment of a logical file path, identifying which resource kind (and thus which
+  * backing table) a path belongs to.
+  *
+  * Path shape: /<prefix>/ownerEmail/resourceName/versionName/fileRelativePath
   */
-abstract class VirtualCollection {
-  def getURI: URI
+object ResourceType extends Enumeration {
+  val Datasets: Value = Value("datasets")
+  val Models: Value = Value("models")
 
   /**
-    * get children documents that are directly underneath the current collection
-    * @return the children documents
+    * Returns the resource type named by the given path segment, or None if it is not a known
+    * resource type.
     */
-  def getDocuments: List[VirtualDocument[_]]
+  def fromPrefix(segment: String): Option[Value] = values.find(_.toString == segment)
 
   /**
-    * get a child document with certain name under this collection and return
-    * @param name the child document's name
-    * @return the document
+    * Returns true if the given path segment names a known resource type.
+    * Used to validate the leading prefix of a logical path.
     */
-  def getDocument(name: String): VirtualDocument[_]
-
-  /**
-    * physically remove current collection from the system. All children documents underneath will be removed
-    */
-  def remove(): Unit
+  def isValidPrefix(segment: String): Boolean = fromPrefix(segment).isDefined
 }

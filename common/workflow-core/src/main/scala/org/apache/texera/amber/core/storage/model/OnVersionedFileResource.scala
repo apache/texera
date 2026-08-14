@@ -17,12 +17,15 @@
  * under the License.
  */
 
-package org.apache.texera.web.model.http.response
+package org.apache.texera.amber.core.storage.model
 
-import org.apache.texera.amber.core.tuple.Attribute
+/**
+  * A document backed by a versioned file in a LakeFS repository.
+  */
+trait OnVersionedFileResource {
+  def getRepositoryName(): String
 
-case class SchemaPropagationResponse(
-    code: Int,
-    result: Map[String, List[Option[List[Attribute]]]],
-    message: String
-)
+  def getVersionHash(): String
+
+  def getFileRelativePath(): String
+}

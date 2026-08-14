@@ -97,6 +97,30 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     opDesc.sourceSchema().getAttributes.map(_.getName).toList
   }
 
+  // Writes a numeric column with one blank cell and returns the absolute path.
+  private def writeCsvWithBlankNumericCell(): String = {
+    val tmpFile = Files.createTempFile("blank-cell-", ".csv")
+    tmpFile.toFile.deleteOnExit()
+    Files.write(
+      tmpFile,
+      "id,measure\n1,2.5\n2,\n3,4.5\n".getBytes(StandardCharsets.UTF_8)
+    )
+    tmpFile.toString
+  }
+
+  it should "infer a numeric column as DOUBLE even when one of its cells is blank" in {
+    val path = writeCsvWithBlankNumericCell()
+    csvScanSourceOpDesc.fileName = Some(path)
+    csvScanSourceOpDesc.setResolvedFileName(FileResolver.resolve(path))
+
+    // A blank used to read as "" while inferring and as null while executing. The ""
+    // fell through inferField to STRING, so one empty cell retyped the whole column
+    // and every downstream numeric operator then received strings.
+    assert(
+      csvScanSourceOpDesc.sourceSchema().getAttribute("measure").getType == AttributeType.DOUBLE
+    )
+  }
+
   it should "infer schema from single-line-data csv" in {
 
     parallelCsvScanSourceOpDesc.fileName = Some(TestOperators.CountrySalesSmallCsvPath)

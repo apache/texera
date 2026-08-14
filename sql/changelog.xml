@@ -89,9 +89,19 @@
         <sqlFile path="sql/updates/35.sql"/>
     </changeSet>
 
-    <!-- Allow ORCID as an identity provider in auth_provider.provider_type -->
-    <changeSet id="36" author="Neilk1021">
+    <!-- Prefix dataset paths in stored workflow content with "datasets/" -->
+    <changeSet id="36" author="tanishqgandhi1908">
         <sqlFile path="sql/updates/36.sql"/>
+    </changeSet>
+
+    <!-- Add model metadata tables -->
+    <changeSet id="37" author="tanishqgandhi1908">
+        <sqlFile path="sql/updates/37.sql"/>
+    </changeSet>
+
+    <!-- Allow ORCID as an identity provider in auth_provider.provider_type -->
+    <changeSet id="38" author="Neilk1021">
+        <sqlFile path="sql/updates/38.sql"/>
     </changeSet>
 
     <!-- example changeSet
