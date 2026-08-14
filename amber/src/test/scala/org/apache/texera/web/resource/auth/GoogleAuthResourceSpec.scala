@@ -38,8 +38,8 @@ import javax.ws.rs.NotAuthorizedException
   * Token verification is the one part that cannot run here — it needs a Google-signed JWT and a
   * network round trip — so the suite overrides `verifiedPayload` and drives the resource with
   * payloads built by hand. What it pins down is everything downstream of verification: how a
-  * Google payload becomes an [[ExternalProfile]] (the name fallback and the avatar reduced to
-  * its last path segment) and that a credential Google does not verify is a 401.
+  * Google payload becomes an [[ExternalProfile]] (the name fallback, and the avatar kept as the
+  * complete URL the provider supplied) and that a credential Google does not verify is a 401.
   */
 class GoogleAuthResourceSpec
     extends AnyFlatSpec
@@ -49,6 +49,7 @@ class GoogleAuthResourceSpec
     with MockTexeraDB {
 
   private val emailDomain = "@google-auth-test.com"
+  private val avatarUrl = "https://lh3.googleusercontent.com/a/AVATAR-ID"
 
   private var userDao: UserDao = _
 
@@ -84,7 +85,7 @@ class GoogleAuthResourceSpec
       subject: String,
       email: String,
       name: String = "Given Name",
-      picture: String = "https://lh3.googleusercontent.com/a/AVATAR-ID",
+      picture: String = avatarUrl,
       emailVerified: java.lang.Boolean = true
   ): GoogleIdToken.Payload = {
     val p = new GoogleIdToken.Payload()
@@ -150,16 +151,46 @@ class GoogleAuthResourceSpec
     userByEmail("blank").getName shouldBe "blank" + emailDomain
   }
 
-  it should "store only the last path segment of the picture URL" in {
+  it should "store the picture URL in full rather than its last path segment" in {
     loginWith(payload("google-sub-avatar", "avatar" + emailDomain))
 
-    userByEmail("avatar").getAvatar shouldBe "AVATAR-ID"
+    userByEmail("avatar").getAvatar shouldBe avatarUrl
   }
 
-  it should "store an empty avatar when the payload carries no picture" in {
+  it should "refresh the stored avatar when the provider's URL changes" in {
+    loginWith(payload("google-sub-newpic", "newpic" + emailDomain))
+    val rotated = "https://lh3.googleusercontent.com/a/ROTATED-ID"
+
+    loginWith(payload("google-sub-newpic", "newpic" + emailDomain, picture = rotated))
+
+    userByEmail("newpic").getAvatar shouldBe rotated
+  }
+
+  it should "leave the avatar unset when the payload carries no picture" in {
     loginWith(payload("google-sub-nopic", "nopic" + emailDomain, picture = null))
 
-    userByEmail("nopic").getAvatar shouldBe ""
+    userByEmail("nopic").getAvatar shouldBe null
+  }
+
+  // "No avatar" is one case rather than two: an absent picture leaves what is on file instead of
+  // blanking it, so a payload that omits the claim does not wipe a working avatar.
+  it should "keep an already-stored avatar when a later login carries no picture" in {
+    loginWith(payload("google-sub-keeppic", "keeppic" + emailDomain))
+    userByEmail("keeppic").getAvatar shouldBe avatarUrl
+
+    loginWith(payload("google-sub-keeppic", "keeppic" + emailDomain, picture = null))
+
+    userByEmail("keeppic").getAvatar shouldBe avatarUrl
+  }
+
+  // Storing the provider's URL verbatim means the browser fetches whatever it names, so the host
+  // is allowlisted on write; a rejected avatar is dropped, not a failed login.
+  it should "not store an avatar served from a host outside the allowlist" in {
+    loginWith(
+      payload("google-sub-badhost", "badhost" + emailDomain, picture = "https://evil.test/a/ID")
+    )
+
+    userByEmail("badhost").getAvatar shouldBe null
   }
 
   // ---- verification failure ------------------------------------------------

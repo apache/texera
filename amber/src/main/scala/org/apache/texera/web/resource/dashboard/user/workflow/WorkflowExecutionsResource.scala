@@ -528,7 +528,7 @@ object WorkflowExecutionsResource {
       cuId: Integer,
       whId: Integer,
       userName: String,
-      googleAvatar: String,
+      avatar: String,
       status: Byte,
       result: String,
       startingTime: Timestamp,

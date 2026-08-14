@@ -804,7 +804,7 @@ class WorkflowExecutionsResourceSpec
     val content =
       """{
         |  "operators": [
-        |    {"operatorID": "scanA", "operatorProperties": {"fileName": "/owner@example.com/LockedDS/v1/data.csv"}},
+        |    {"operatorID": "scanA", "operatorProperties": {"fileName": "/datasets/owner@example.com/LockedDS/v1/data.csv"}},
         |    {"operatorID": "downstreamB", "operatorProperties": {}}
         |  ],
         |  "links": [
@@ -863,7 +863,7 @@ class WorkflowExecutionsResourceSpec
     val content =
       """{
         |  "operators": [
-        |    {"operatorID": "scan", "operatorProperties": {"fileName": "/test@example.com/MyDS/v1/data.csv"}}
+        |    {"operatorID": "scan", "operatorProperties": {"fileName": "/datasets/test@example.com/MyDS/v1/data.csv"}}
         |  ],
         |  "links": []
         |}""".stripMargin
@@ -949,7 +949,7 @@ class WorkflowExecutionsResourceSpec
 
   // fetchInto maps onto WorkflowExecutionEntry POSITIONALLY (a case class has no no-arg
   // constructor, and jOOQ's mapConstructorParameterNames defaults to false), so `USER.AVATAR`
-  // at projection position 5 lands on `googleAvatar` despite the names differing — exactly as
+  // at projection position 5 lands on `avatar` despite the names differing — exactly as
   // `last_update_time` at position 9 lands on `completionTime`. Neither mapping was asserted
   // anywhere before, which is what makes an accidental column reorder silent. Pin both here.
   it should "map the owner's avatar and completion time onto the entry despite the name mismatch" in {
@@ -957,7 +957,7 @@ class WorkflowExecutionsResourceSpec
     insertExecution(lastUpdateOffsetMillis = Some(0L))
     val entry = resource.retrieveExecutionsOfWorkflow(testWorkflowWid, session(testUser), null).head
     assert(entry.userName == testUser.getName)
-    assert(entry.googleAvatar == "avatar_url")
+    assert(entry.avatar == "avatar_url")
     // `last_update_time` is populated, so a null here would mean position 9 never reached
     // `completionTime` — i.e. the mapping had silently become name-based.
     assert(entry.completionTime != null)

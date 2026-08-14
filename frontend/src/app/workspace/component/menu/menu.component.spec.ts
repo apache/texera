@@ -912,4 +912,60 @@ describe("MenuComponent", () => {
       expect(openSpy).toHaveBeenCalled();
     });
   });
+  /**
+   * The toolbar's buttons and switches are wired in the template, and the suite above calls the
+   * handlers directly. That is not the same thing: coverage for `(click)="onClickX()"` lands on the
+   * generated listener body, which only runs when the element is really clicked — so a button wired
+   * to the wrong handler, or to none, looks perfectly tested today.
+   */
+  describe("toolbar wiring", () => {
+    function host(): HTMLElement {
+      return fixture.nativeElement as HTMLElement;
+    }
+
+    /** The button carrying the given title attribute. */
+    function button(title: string): HTMLButtonElement {
+      const found = host().querySelector<HTMLButtonElement>(`button[title="${title}"]`);
+      expect(found, `no button titled "${title}"`).not.toBeNull();
+      return found!;
+    }
+
+    /** Clicks the button and reports whether the spied handler ran exactly once. */
+    function clicking(title: string, owner: object, method: string): boolean {
+      const spy = vi.spyOn(owner as any, method).mockImplementation(() => {});
+      button(title).click();
+      const ran = spy.mock.calls.length === 1;
+      spy.mockRestore();
+      return ran;
+    }
+
+    it("routes each toolbar button to its own handler", () => {
+      // Table-driven because these buttons are visually near-identical icon buttons; a copy-paste
+      // that leaves two of them on the same handler is the realistic defect and is invisible on
+      // screen. Each entry is clicked for real, not invoked.
+      const wiring: Array<[string, object, string]> = [
+        ["close panels", component, "onClickClosePanels"],
+        ["reset panels", component, "onClickResetPanels"],
+        ["generate report", component, "onClickGenerateReport"],
+        ["reset zoom", component, "onClickRestoreZoomOffsetDefault"],
+        ["auto layout", component, "onClickAutoLayout"],
+        ["add a comment", component, "onClickAddCommentBox"],
+      ];
+
+      const results = wiring.map(([title, owner, method]) => `${title}:${clicking(title, owner, method)}`);
+
+      expect(results).toEqual(wiring.map(([title]) => `${title}:true`));
+    });
+
+    it("does not fire a neighbour's handler when one button is clicked", () => {
+      // The other half of the same concern: clicking auto-layout must not also reset the panels.
+      const layout = vi.spyOn(component, "onClickAutoLayout").mockImplementation(() => {});
+      const reset = vi.spyOn(component, "onClickResetPanels").mockImplementation(() => {});
+
+      button("auto layout").click();
+
+      expect(layout).toHaveBeenCalledTimes(1);
+      expect(reset).not.toHaveBeenCalled();
+    });
+  });
 });
