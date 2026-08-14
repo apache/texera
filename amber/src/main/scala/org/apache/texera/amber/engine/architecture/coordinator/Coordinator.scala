@@ -19,21 +19,15 @@
 
 package org.apache.texera.amber.engine.architecture.coordinator
 
-import com.twitter.util.Promise
-
 import org.apache.pekko.actor.SupervisorStrategy.Stop
 import org.apache.pekko.actor.{AllForOneStrategy, Props, SupervisorStrategy}
-
-import org.apache.texera.common.config.ApplicationConfig
 import org.apache.texera.web.model.websocket.response.RegionUpdateEvent
-import org.apache.texera.web.SessionState
-
-import org.apache.texera.amber.core.virtualidentity.ActorVirtualIdentity
+import org.apache.texera.common.config.ApplicationConfig
 import org.apache.texera.amber.core.virtualidentity.ChannelIdentity
 import org.apache.texera.amber.core.workflow.{PhysicalPlan, WorkflowContext}
-import org.apache.texera.amber.engine.architecture.common.PekkoActorRefMappingService
 import org.apache.texera.amber.engine.architecture.common.WorkflowActor.NetworkAck
 import org.apache.texera.amber.engine.architecture.common.{ExecutorDeployment, WorkflowActor}
+import org.apache.texera.amber.engine.architecture.common.PekkoActorRefMappingService
 import org.apache.texera.amber.engine.architecture.coordinator.execution.OperatorExecution
 import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{
   ControlInvocation,
@@ -51,6 +45,9 @@ import org.apache.texera.amber.engine.common.ambermessage.{
 import org.apache.texera.amber.engine.common.rpc.AsyncRPCClient
 import org.apache.texera.amber.engine.common.virtualidentity.util.{CLIENT, COORDINATOR, SELF}
 import org.apache.texera.amber.engine.common.{CheckpointState, SerializedState}
+import org.apache.texera.web.SessionState
+import org.apache.texera.amber.core.virtualidentity.ActorVirtualIdentity
+import com.twitter.util.Promise
 
 import scala.concurrent.duration.DurationInt
 

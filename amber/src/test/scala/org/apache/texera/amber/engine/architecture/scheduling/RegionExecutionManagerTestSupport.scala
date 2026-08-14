@@ -19,11 +19,9 @@
 
 package org.apache.texera.amber.engine.architecture.scheduling
 
-import com.twitter.util.{Await, Duration, Future}
-
+import com.twitter.util.{Await, Duration, Future, Promise}
 import org.apache.pekko.actor.{Actor, ActorRef, Props}
 import org.apache.pekko.testkit.{TestActorRef, TestKit}
-
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.virtualidentity.{
   ActorVirtualIdentity,
@@ -41,7 +39,6 @@ import org.apache.texera.amber.engine.architecture.common.{
   PekkoActorService,
   WorkflowActor
 }
-import org.apache.texera.amber.engine.architecture.coordinator.Coordinator
 import org.apache.texera.amber.engine.architecture.coordinator.execution.WorkflowExecution
 import org.apache.texera.amber.engine.architecture.messaginglayer.{
   NetworkInputGateway,
@@ -60,6 +57,7 @@ import org.apache.texera.amber.engine.common.ambermessage.WorkflowFIFOMessage
 import org.apache.texera.amber.engine.common.rpc.AsyncRPCClient
 import org.apache.texera.amber.engine.common.virtualidentity.util.COORDINATOR
 import org.apache.texera.amber.util.VirtualIdentityUtils
+import org.apache.texera.amber.engine.architecture.coordinator.Coordinator
 
 import scala.collection.mutable
 
@@ -82,8 +80,7 @@ object RegionExecutionManagerTestSupport {
 
   case class CoordinatorHarnessFixture(
       actorService: PekkoActorService,
-      actorRefService: PekkoActorRefMappingService,
-      coordinatorRef: ActorRef
+      actorRefService: PekkoActorRefMappingService
   )
 
   /**
@@ -267,8 +264,7 @@ trait RegionExecutionManagerTestSupport { self: TestKit =>
       Array(coordinatorRef.path.address)
     CoordinatorHarnessFixture(
       actorService = coordinatorRef.underlyingActor.actorService,
-      actorRefService = coordinatorRef.underlyingActor.actorRefMappingService,
-      coordinatorRef = coordinatorRef
+      actorRefService = coordinatorRef.underlyingActor.actorRefMappingService
     )
   }
 

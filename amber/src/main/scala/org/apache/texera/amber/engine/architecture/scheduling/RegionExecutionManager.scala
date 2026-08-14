@@ -19,22 +19,16 @@
 
 package org.apache.texera.amber.engine.architecture.scheduling
 
-import com.twitter.util.Promise
-import com.twitter.util.{Future, JavaTimer, Return, Throw, Timer}
-
-import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicReference
-
 import org.apache.pekko.pattern.gracefulStop
-
+import com.twitter.util.{Future, JavaTimer, Promise, Return, Throw, Timer}
 import org.apache.texera.amber.core.state.State
 import org.apache.texera.amber.core.storage.{DocumentFactory, VFSURIFactory}
 import org.apache.texera.amber.core.virtualidentity.ActorVirtualIdentity
 import org.apache.texera.amber.core.workflow.{GlobalPortIdentity, PhysicalLink, PhysicalOp}
 import org.apache.texera.amber.engine.architecture.common.{
-  ExecutorDeployment,
   PekkoActorRefMappingService,
-  PekkoActorService
+  PekkoActorService,
+  ExecutorDeployment
 }
 import org.apache.texera.amber.engine.architecture.coordinator.Coordinator
 import org.apache.texera.amber.engine.architecture.coordinator.execution.{
@@ -58,12 +52,15 @@ import org.apache.texera.amber.engine.architecture.scheduling.config.{
   ResourceConfig
 }
 import org.apache.texera.amber.engine.architecture.sendsemantics.partitionings.Partitioning
+import org.apache.texera.amber.engine.common.{AmberLogging, Utils}
 import org.apache.texera.amber.engine.common.FutureBijection._
 import org.apache.texera.amber.engine.common.rpc.AsyncRPCClient
 import org.apache.texera.amber.engine.common.virtualidentity.util.COORDINATOR
-import org.apache.texera.amber.engine.common.{AmberLogging, Utils}
 import org.apache.texera.web.SessionState
 import org.apache.texera.web.model.websocket.event.RegionStateEvent
+
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicReference
 
 import scala.concurrent.duration.{Duration => ScalaDuration}
 
@@ -200,7 +197,7 @@ class RegionExecutionManager(
   private def terminateWorkers(regionExecution: RegionExecution) = {
     implicit val timer: Timer = killRetryTimer
     val killTimeout = com.twitter.util.Duration.fromMilliseconds(terminationTimeoutMs)
-    // 1. Send EndWorkers with timeout
+    // 1. Send EndWorkers to every worker.
     val endWorkerRequests =
       regionExecution.getAllOperatorExecutions.flatMap {
         case (_, opExec) =>
@@ -221,7 +218,13 @@ class RegionExecutionManager(
               case (_, opExec) =>
                 opExec.getWorkerIds.map { workerId =>
                   val actorRef = actorRefService.getActorRef(workerId)
-                  gracefulStop(actorRef, ScalaDuration(5, TimeUnit.SECONDS)).asTwitter()
+                  gracefulStop(
+                    actorRef,
+                    ScalaDuration(
+                      RegionExecutionManager.DefaultGracefulStopTimeoutMs,
+                      TimeUnit.MILLISECONDS
+                    )
+                  ).asTwitter()
                 }
             }.toSeq
 
