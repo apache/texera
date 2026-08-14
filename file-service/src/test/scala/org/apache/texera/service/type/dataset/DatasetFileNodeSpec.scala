@@ -20,6 +20,7 @@
 package org.apache.texera.service.`type`
 
 import io.lakefs.clients.sdk.model.ObjectStats
+import org.apache.texera.amber.core.storage.ResourceType
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -96,6 +97,7 @@ class DatasetFileNodeSpec extends AnyFlatSpec with Matchers {
       objStats("b/2.csv", 3L)
     )
     val roots = DatasetFileNode.fromLakeFSRepositoryCommittedObjects(
+      ResourceType.Datasets,
       Map(("bob@texera.com", "twitter", "v1") -> objects)
     )
 
@@ -127,5 +129,21 @@ class DatasetFileNodeSpec extends AnyFlatSpec with Matchers {
 
     // Total size equals the sum of the three files.
     DatasetFileNode.calculateTotalSize(roots) shouldBe 6L
+  }
+
+  it should "root a model tree at the models prefix, not datasets" in {
+    // The prefix is not cosmetic: FileResolver keys on the leading path segment to
+    // choose the backing table, so a model file rooted at "datasets" would resolve
+    // against the dataset table.
+    val roots = DatasetFileNode.fromLakeFSRepositoryCommittedObjects(
+      ResourceType.Models,
+      Map(("bob@texera.com", "sentiment", "v1") -> List(objStats("model.pt", 4L)))
+    )
+
+    roots should have size 1
+    roots.head.getName shouldBe "models"
+
+    val file = roots.head.getChildren.head.getChildren.head.getChildren.head.getChildren.head
+    file.getFilePath shouldBe "/models/bob@texera.com/sentiment/v1/model.pt"
   }
 }

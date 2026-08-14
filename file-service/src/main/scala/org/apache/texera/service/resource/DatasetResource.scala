@@ -53,6 +53,7 @@ import org.apache.texera.service.`type`.DatasetFileNode
 import org.apache.texera.service.resource.DatasetAccessResource._
 import org.apache.texera.service.resource.ManagedResource.{Dataset => DATASET_RESOURCE}
 import org.apache.texera.service.resource.DatasetResource.{context, _}
+import org.apache.texera.service.util.ResourceUploadUtils.{put, validateAndNormalizeFilePathOrThrow}
 import org.apache.texera.service.util.S3StorageClient
 import org.apache.texera.service.util.S3StorageClient.{
   MAXIMUM_NUM_OF_MULTIPART_S3_PARTS,
@@ -64,7 +65,7 @@ import org.jooq.impl.DSL.{inline => inl}
 import org.jooq.{DSLContext, EnumType, Record2, Result}
 
 import java.io.{InputStream, OutputStream}
-import java.net.{HttpURLConnection, URI, URL, URLDecoder}
+import java.net.{URI, URLDecoder}
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Paths}
 import java.util
@@ -117,27 +118,6 @@ object DatasetResource {
   }
 
   /**
-    * Helper function to PUT exactly len bytes from buf to presigned URL, return the ETag
-    */
-  private def put(buf: Array[Byte], len: Int, url: String, partNum: Int): String = {
-    val conn = new URL(url).openConnection().asInstanceOf[HttpURLConnection]
-    conn.setDoOutput(true)
-    conn.setRequestMethod("PUT")
-    conn.setFixedLengthStreamingMode(len)
-    val out = conn.getOutputStream
-    out.write(buf, 0, len)
-    out.close()
-
-    val code = conn.getResponseCode
-    if (code != HttpURLConnection.HTTP_OK && code != HttpURLConnection.HTTP_CREATED)
-      throw new RuntimeException(s"Part $partNum upload failed (HTTP $code)")
-
-    val etag = conn.getHeaderField("ETag").replace("\"", "")
-    conn.disconnect()
-    etag
-  }
-
-  /**
     * Helper function to get the dataset version from DB using dvid
     */
   private def getDatasetVersionByID(
@@ -166,25 +146,6 @@ object DatasetResource {
       .limit(1)
       .fetchOptionalInto(classOf[DatasetVersion])
       .toScala
-  }
-
-  /**
-    * Validates a file path using Apache Commons IO.
-    */
-  def validateAndNormalizeFilePathOrThrow(path: String): String = {
-    if (path == null || path.trim.isEmpty) {
-      throw new BadRequestException("Path cannot be empty")
-    }
-
-    val normalized = FilenameUtils.normalize(path, true)
-    if (normalized == null) {
-      throw new BadRequestException("Invalid path")
-    }
-
-    if (FilenameUtils.getPrefixLength(normalized) > 0) {
-      throw new BadRequestException("Absolute paths not allowed")
-    }
-    normalized
   }
 
   /**
@@ -559,6 +520,7 @@ class DatasetResource extends LazyLogging {
         insertedVersion,
         DatasetFileNode
           .fromLakeFSRepositoryCommittedObjects(
+            ResourceType.Datasets,
             Map((user.getEmail, datasetName, newVersionName) -> fileNodes)
           )
       )
@@ -1412,6 +1374,7 @@ class DatasetResource extends LazyLogging {
 
       val datasetsNode = DatasetFileNode
         .fromLakeFSRepositoryCommittedObjects(
+          ResourceType.Datasets,
           Map(
             (
               getOwner(ctx, did).getEmail,
@@ -1623,6 +1586,7 @@ class DatasetResource extends LazyLogging {
 
     val datasetsNode = DatasetFileNode
       .fromLakeFSRepositoryCommittedObjects(
+        ResourceType.Datasets,
         Map(
           (dataset.ownerEmail, datasetName, datasetVersion.getName) -> LakeFSStorageClient
             .retrieveObjectsOfVersion(repositoryName, datasetVersion.getVersionHash)
@@ -2345,7 +2309,7 @@ class DatasetResource extends LazyLogging {
         throw new BadRequestException("Cover image path is required")
       }
 
-      val normalized = DatasetResource.validateAndNormalizeFilePathOrThrow(request.coverImage)
+      val normalized = validateAndNormalizeFilePathOrThrow(request.coverImage)
 
       val extension = FilenameUtils.getExtension(normalized)
       if (extension == null || !ALLOWED_IMAGE_EXTENSIONS.contains(s".$extension".toLowerCase)) {

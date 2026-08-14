@@ -24,9 +24,11 @@ import org.apache.texera.amber.core.storage.ResourceType
 
 import scala.collection.mutable
 
-// DatasetFileNode represents a unique file in dataset, its full path is in the format of:
-// /datasets/ownerEmail/datasetName/versionName/fileRelativePath
+// DatasetFileNode represents a unique file in a versioned resource (dataset or model).
+// Its full path is in the format of:
+// /<resourceType>/ownerEmail/resourceName/versionName/fileRelativePath
 // e.g. /datasets/bob@texera.com/twitterDataset/v1/california/irvine/tw1.csv
+//      /models/bob@texera.com/sentimentModel/v1/model.pt
 class DatasetFileNode(
     val name: String, // direct name of this node
     val nodeType: String, // "file" or "directory"
@@ -69,43 +71,50 @@ class DatasetFileNode(
 object DatasetFileNode {
 
   /**
-    * Converts a map of LakeFS committed objects into a structured dataset file node tree.
+    * Converts a map of LakeFS committed objects into a structured file node tree.
     *
-    * @param map A mapping from `(ownerEmail, datasetName, versionName)` to a list of committed objects.
-    * @return A list of root-level dataset file nodes.
+    * The tree is rooted at the resource-type segment (`datasets` or `models`), which
+    * [[DatasetFileNode.getFilePath]] emits as the first path component. That prefix is
+    * what `FileResolver` keys on to pick the backing table, so it must match the
+    * resource the objects actually came from.
+    *
+    * @param resourceType The resource type the objects belong to (datasets or models).
+    * @param map A mapping from `(ownerEmail, resourceName, versionName)` to a list of committed objects.
+    * @return A list of root-level file nodes.
     */
   def fromLakeFSRepositoryCommittedObjects(
+      resourceType: ResourceType.Value,
       map: Map[(String, String, String), List[ObjectStats]]
   ): List[DatasetFileNode] = {
     val rootNode = new DatasetFileNode("/", "directory", null, "")
 
-    // Root the tree at the datasets prefix node (a directory node named "datasets").
-    val datasetsNode =
-      new DatasetFileNode(ResourceType.Datasets.toString, "directory", rootNode, "")
-    rootNode.children = Some(List(datasetsNode))
+    // Root the tree at the resource-type prefix node (a directory node named e.g. "datasets").
+    val resourceTypeNode =
+      new DatasetFileNode(resourceType.toString, "directory", rootNode, "")
+    rootNode.children = Some(List(resourceTypeNode))
 
     // Owner level nodes map
     val ownerNodes = mutable.Map[String, DatasetFileNode]()
 
     map.foreach {
-      case ((ownerEmail, datasetName, versionName), objects) =>
+      case ((ownerEmail, resourceName, versionName), objects) =>
         val ownerNode = ownerNodes.getOrElseUpdate(
           ownerEmail, {
-            val newNode = new DatasetFileNode(ownerEmail, "directory", datasetsNode, ownerEmail)
-            datasetsNode.children = Some(datasetsNode.getChildren :+ newNode)
+            val newNode = new DatasetFileNode(ownerEmail, "directory", resourceTypeNode, ownerEmail)
+            resourceTypeNode.children = Some(resourceTypeNode.getChildren :+ newNode)
             newNode
           }
         )
 
-        val datasetNode = ownerNode.getChildren.find(_.getName == datasetName).getOrElse {
-          val newNode = new DatasetFileNode(datasetName, "directory", ownerNode, ownerEmail)
+        val resourceNode = ownerNode.getChildren.find(_.getName == resourceName).getOrElse {
+          val newNode = new DatasetFileNode(resourceName, "directory", ownerNode, ownerEmail)
           ownerNode.children = Some(ownerNode.getChildren :+ newNode)
           newNode
         }
 
-        val versionNode = datasetNode.getChildren.find(_.getName == versionName).getOrElse {
-          val newNode = new DatasetFileNode(versionName, "directory", datasetNode, ownerEmail)
-          datasetNode.children = Some(datasetNode.getChildren :+ newNode)
+        val versionNode = resourceNode.getChildren.find(_.getName == versionName).getOrElse {
+          val newNode = new DatasetFileNode(versionName, "directory", resourceNode, ownerEmail)
+          resourceNode.children = Some(resourceNode.getChildren :+ newNode)
           newNode
         }
 
