@@ -18,9 +18,10 @@
  */
 
 import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { By } from "@angular/platform-browser";
 import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
-import { of, throwError } from "rxjs";
+import { NEVER, of, throwError } from "rxjs";
 import { AgentRegistrationComponent } from "./agent-registration.component";
 import { AgentService, ModelType } from "../../../../service/agent/agent.service";
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
@@ -181,6 +182,37 @@ describe("AgentRegistrationComponent", () => {
       component.computingUnitConnected = true;
       component.selectedModelType = null;
       expect(component.canCreate()).toBe(false);
+    });
+  });
+
+  describe("template rendering", () => {
+    it("renders the spinner and its caption while the models are loading", () => {
+      // never-emitting source: ngOnInit leaves isLoadingModels true
+      fetchModelTypes.mockReturnValue(NEVER);
+      fixture.detectChanges();
+
+      expect(component.isLoadingModels).toBe(true);
+      expect(fixture.debugElement.query(By.css("nz-spin"))).toBeTruthy();
+      expect(fixture.nativeElement.textContent).toContain("Loading available models...");
+      // the picker only appears once loading finishes
+      expect(fixture.debugElement.query(By.css(".model-card"))).toBeNull();
+    });
+
+    it("renders a card per model type and selects the clicked one", () => {
+      const second: ModelType = { ...MODEL, id: "other-model", name: "Other Model" };
+      fetchModelTypes.mockReturnValue(of([MODEL, second]));
+      fixture.detectChanges();
+
+      const cards = fixture.debugElement.queryAll(By.css(".model-card"));
+      expect(cards.length).toBe(2);
+      expect(fixture.debugElement.query(By.css("nz-spin"))).toBeNull();
+
+      cards[1].triggerEventHandler("click", new MouseEvent("click"));
+      fixture.detectChanges();
+
+      expect(component.selectedModelType).toBe("other-model");
+      expect((cards[1].nativeElement as HTMLElement).classList).toContain("selected");
+      expect((cards[0].nativeElement as HTMLElement).classList).not.toContain("selected");
     });
   });
 });

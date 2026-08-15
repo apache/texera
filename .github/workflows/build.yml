@@ -284,9 +284,13 @@ jobs:
         # Test config (sbt's `test` task does not transit dependsOn),
         # so common modules' tests are listed explicitly here.
         #
-        # AMBER_TEST_FILTER=skip-integration tells amber/build.sbt to
-        # exclude @org.apache.texera.amber.tags.IntegrationTest specs;
-        # those run in the amber-integration job below.
+        # AMBER_TEST_FILTER=skip-integration excludes the integration-tagged
+        # tests of two modules, each under its own tag: amber/build.sbt drops
+        # @org.apache.texera.amber.tags.IntegrationTest, and
+        # common/workflow-operator/build.sbt drops
+        # @org.apache.texera.amber.operator.tags.IntegrationTest. Both run in the
+        # amber-integration job below. The second exclusion is what keeps the
+        # pandas and plotly probe out of this job, which installs neither.
         env:
           AMBER_TEST_FILTER: skip-integration
           # unit job uses its provisioned postgres catalog; default (rest) needs a Lakekeeper not run here
@@ -631,6 +635,8 @@ jobs:
         # specs. The Java @TagAnnotation makes the marker visible to
         # ScalaTest's reflection, so `-n TAG` correctly narrows the
         # run.
+        # WorkflowOperator/test is here for the same reason, with its own tag:
+        # its Python-dependent tests need packages the `amber` job lacks.
         #
         # scalafmtCheckAll + scalafixAll --check are run here as well
         # because an integration-only PR fires only the
@@ -657,6 +663,7 @@ jobs:
         run: |
           sbt scalafmtCheckAll \
               "scalafixAll --check" \
+              "WorkflowOperator/test" \
               "WorkflowExecutionService/test"
       - name: Build amber dist for the texera-web boot test
         # Boot smoke test for texera-web (mirrors platform-integration for the

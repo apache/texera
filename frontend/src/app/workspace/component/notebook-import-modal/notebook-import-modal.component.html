@@ -17,122 +17,139 @@
  under the License.
 -->
 
-<form
-  class="import-modal-form"
-  [formGroup]="importForm"
-  nz-form>
-  <div class="import-modal-diagram">
-    <img
-      ngSrc="assets/notebook_migration_tool/tool_popup_diagram.png"
-      alt="Notebook to Workflow"
-      width="1132"
-      height="290" />
-  </div>
+<div class="import-modal-diagram">
+  <img
+    ngSrc="assets/notebook_migration_tool/tool_popup_diagram.png"
+    alt="Notebook to Workflow"
+    width="1132"
+    height="290" />
+</div>
 
-  <nz-alert
-    class="import-modal-warning"
-    nzType="warning"
-    nzShowIcon
-    nzMessage="Generating overwrites your current workflow; the previous version is kept in version history."></nz-alert>
+<div class="import-modal-content">
+  <form
+    class="import-modal-form"
+    [formGroup]="importForm"
+    [attr.inert]="isSubmitting ? '' : null"
+    nz-form>
+    <nz-form-item>
+      <p class="import-modal-text">
+        This tool converts a Python Jupyter Notebook into a Texera workflow using LLM capabilities. After you submit a
+        notebook, the LLM service generates a corresponding Texera workflow. The conversion time depends on the
+        notebook's complexity and can take 1-5 minutes. Once generation finishes, you are taken to the new workflow,
+        which opens with:
+      </p>
+      <ol class="import-modal-list">
+        <li>
+          The generated workflow ready to use (Note: you will still need to upload the dataset and connect it to the
+          workflow).
+        </li>
+        <li>A floating Jupyter window containing the uploaded notebook for reference.</li>
+      </ol>
+      <p class="import-modal-text">
+        Generation runs here after you submit. Please keep this window open while you wait.
+      </p>
+    </nz-form-item>
 
-  <nz-form-item>
-    <p class="import-modal-text">
-      This tool converts a Python Jupyter Notebook into a Texera workflow using LLM capabilities. After you submit a
-      notebook, the LLM service will generate a corresponding Texera workflow. The conversion time depends on the
-      notebook’s complexity and can take 1–5 minutes. Once the process is complete, the workflow workspace will reload
-      with:
-    </p>
-    <ol class="import-modal-list">
-      <li>
-        The generated workflow ready to use (Note: you will still need to upload the dataset and connect it to the
-        workflow).
-      </li>
-      <li>A floating Jupyter window containing the uploaded notebook for reference.</li>
-    </ol>
-    <p class="import-modal-text">
-      Feel free to navigate away from this tab while you wait for the workflow to generate. Please do not close the
-      window.
-    </p>
-  </nz-form-item>
+    <nz-form-item>
+      <nz-form-label [nzNoColon]="true">
+        <span class="import-modal-label"> Upload Python Jupyter Notebook </span>
+      </nz-form-label>
+      <nz-form-control>
+        <div class="import-modal-upload-row">
+          <nz-upload
+            nzAccept=".ipynb"
+            [nzBeforeUpload]="beforeUpload"
+            [nzShowUploadList]="false">
+            <button
+              nz-button
+              type="button"
+              title="Upload notebook"
+              aria-label="Upload notebook">
+              <i
+                nz-icon
+                nzType="upload"></i>
+            </button>
+          </nz-upload>
 
-  <nz-form-item>
-    <nz-form-label [nzNoColon]="true">
-      <span class="import-modal-label"> Upload Python Jupyter Notebook </span>
-    </nz-form-label>
-    <nz-form-control>
-      <div class="import-modal-upload-row">
-        <nz-upload
-          nzAccept=".ipynb"
-          [nzBeforeUpload]="beforeUpload"
-          [nzShowUploadList]="false">
-          <button
-            nz-button
-            type="button"
-            title="Upload notebook"
-            aria-label="Upload notebook">
-            <i
-              nz-icon
-              nzType="upload"></i>
-          </button>
-        </nz-upload>
+          <span
+            *ngIf="importForm.get('file')?.value?.name as fileName"
+            class="import-modal-selected-file"
+            [title]="fileName">
+            Selected file: {{ fileName }}
+          </span>
+        </div>
+      </nz-form-control>
+    </nz-form-item>
 
-        <span *ngIf="importForm.get('file')?.value?.name">
-          Selected file: {{ importForm.get('file')?.value?.name }}
-        </span>
-      </div>
-    </nz-form-control>
-  </nz-form-item>
+    <nz-form-item>
+      <nz-form-label [nzNoColon]="true">
+        <span class="import-modal-label"> Select Model Type </span>
+      </nz-form-label>
 
-  <nz-form-item>
-    <nz-form-label [nzNoColon]="true">
-      <span class="import-modal-label"> Select Model Type </span>
-    </nz-form-label>
+      <nz-form-control>
+        <ng-container *ngIf="models$ | async as models; else loadingTpl">
+          <nz-select
+            *ngIf="models.length > 0; else noModelsTpl"
+            class="import-modal-select"
+            formControlName="model"
+            nzPlaceHolder="Select a model">
+            <nz-option
+              *ngFor="let model of models"
+              [nzValue]="model.name"
+              [nzLabel]="model.name"></nz-option>
+          </nz-select>
+          <ng-template #noModelsTpl>
+            <nz-select
+              class="import-modal-select"
+              nzPlaceHolder="No models available"
+              [nzDisabled]="true"></nz-select>
+          </ng-template>
+        </ng-container>
 
-    <nz-form-control>
-      <ng-container *ngIf="models$ | async as models; else loadingTpl">
-        <nz-select
-          *ngIf="models.length > 0; else noModelsTpl"
-          class="import-modal-select"
-          formControlName="model"
-          nzPlaceHolder="Select a model">
-          <nz-option
-            *ngFor="let model of models"
-            [nzValue]="model.name"
-            [nzLabel]="model.name"></nz-option>
-        </nz-select>
-        <ng-template #noModelsTpl>
+        <ng-template #loadingTpl>
           <nz-select
             class="import-modal-select"
-            nzPlaceHolder="No models available"
+            nzPlaceHolder="Loading models..."
+            [nzLoading]="true"
             [nzDisabled]="true"></nz-select>
         </ng-template>
-      </ng-container>
+      </nz-form-control>
+    </nz-form-item>
+  </form>
 
-      <ng-template #loadingTpl>
-        <nz-select
-          class="import-modal-select"
-          nzPlaceHolder="Loading models..."
-          [nzLoading]="true"
-          [nzDisabled]="true"></nz-select>
-      </ng-template>
-    </nz-form-control>
-  </nz-form-item>
-</form>
+  <div
+    class="import-modal-footer"
+    [attr.inert]="isSubmitting ? '' : null">
+    <button
+      nz-button
+      type="button"
+      [disabled]="isSubmitting"
+      (click)="onCancel()">
+      Cancel
+    </button>
+    <button
+      nz-button
+      type="button"
+      nzType="primary"
+      [disabled]="!importForm.valid || isSubmitting"
+      (click)="onSubmit()">
+      Submit
+    </button>
+  </div>
 
-<div class="import-modal-footer">
-  <button
-    nz-button
-    type="button"
-    [disabled]="isSubmitting"
-    (click)="onCancel()">
-    Cancel
-  </button>
-  <button
-    nz-button
-    type="button"
-    nzType="primary"
-    [disabled]="!importForm.valid || isSubmitting"
-    (click)="onSubmit()">
-    Submit
-  </button>
+  <div
+    *ngIf="isSubmitting"
+    class="import-modal-loading"
+    role="status"
+    aria-live="polite">
+    <nz-spin
+      nzSimple
+      [nzSize]="'large'"></nz-spin>
+    <p class="import-modal-loading-title">Generating your workflow</p>
+    <p class="import-modal-loading-elapsed">Elapsed time: {{ formattedElapsedTime }}</p>
+    <p class="import-modal-loading-text">This can take 1-5 minutes depending on the notebook's complexity.</p>
+    <p class="import-modal-loading-text">
+      Please keep this window open. You will be taken to the new workflow when it is ready.
+    </p>
+  </div>
 </div>

@@ -142,26 +142,28 @@ class DatasetFileDocumentSpec extends AnyFlatSpec with Matchers {
     }
   }
 
-  // The companion object resolves the file-service endpoint and the user JWT
-  // token from environment variables, falling back to a trimmed default. These
-  // lazy vals are read whenever asInputStream needs to fetch a file; assert their
-  // fallback behavior without requiring a live FileService or LakeFS. The checks
-  // are guarded so they hold regardless of whether the env overrides are present.
+  // The companion object resolves the file-service endpoint from environment
+  // variables, falling back to a trimmed default. This lazy val is read whenever
+  // asInputStream needs to fetch a file; assert its fallback behavior without
+  // requiring a live FileService or LakeFS. The check is guarded so it holds
+  // regardless of whether the env override is present.
   "DatasetFileDocument companion" should
     "expose the default presigned-URL endpoint when the env override is absent" in {
     val expected =
       sys.env
         .getOrElse(
-          EnvironmentalVariable.ENV_FILE_SERVICE_GET_PRESIGNED_URL_ENDPOINT,
+          EnvironmentalVariable.ENV_FILE_SERVICE_GET_DATASET_PRESIGNED_URL_ENDPOINT,
           "http://localhost:9092/api/dataset/presign-download"
         )
         .trim
     DatasetFileDocument.fileServiceGetPresignURLEndpoint shouldBe expected
   }
 
-  it should "expose a trimmed user JWT token defaulting to empty" in {
+  // The user JWT token is shared by every LakeFS-backed document, so it now lives on
+  // the LakeFSFileDocument base object rather than on DatasetFileDocument.
+  "LakeFSFileDocument companion" should "expose a trimmed user JWT token defaulting to empty" in {
     val expected =
       sys.env.getOrElse(EnvironmentalVariable.ENV_USER_JWT_TOKEN, "").trim
-    DatasetFileDocument.userJwtToken shouldBe expected
+    LakeFSFileDocument.userJwtToken shouldBe expected
   }
 }

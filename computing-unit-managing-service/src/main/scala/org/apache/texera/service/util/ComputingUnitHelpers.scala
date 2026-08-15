@@ -225,7 +225,7 @@ object ComputingUnitHelpers {
       metrics = getComputingUnitMetrics(unit, podMetrics),
       isOwner = isOwner,
       accessPrivilege = accessPrivilege,
-      ownerGoogleAvatar = owner._1,
+      ownerAvatar = owner._1,
       ownerName = owner._2
     )
   }

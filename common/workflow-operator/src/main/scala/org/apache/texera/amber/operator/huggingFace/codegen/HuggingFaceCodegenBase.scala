@@ -518,6 +518,13 @@ object HuggingFaceCodegenBase {
        |                    "Candidate Labels are required for zero-shot-classification. "
        |                    "Provide a comma-separated list of labels."
        |                )
+       |        if task == "zero-shot-image-classification":
+       |            labels = [l.strip() for l in str(self.CANDIDATE_LABELS).split(",") if l.strip()]
+       |            if len(labels) < 2:
+       |                raise ValueError(
+       |                    "zero-shot-image-classification requires at least 2 Candidate Labels. "
+       |                    "Provide a comma-separated list of labels."
+       |                )
        |        if task == "question-answering":
        |            ctx_col = self.CONTEXT_COLUMN
        |            if not (ctx_col and ctx_col in table.columns):
