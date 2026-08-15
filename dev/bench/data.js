@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1786713077434,
+  "lastUpdate": 1786798331720,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -9213,6 +9213,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 483.9526967331646,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Meng Wang",
+            "username": "mengw15",
+            "email": "mengw15@uci.edu"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "1022c7de9dc4cb0d63073b5c2686918597b55398",
+          "message": "test(frontend): cover the missing branches in SharedModel, staged objects, UDF parameters and landing page (#7687)\n\n### What changes were proposed in this PR?\n\nTakes the untaken branch on each conditional in four small files (15 new\ntests):\n\n| File | Before | After |\n| --- | --- | --- |\n| `user-dataset-staged-objects-list.component.ts` | 31/32 lines, 17/22\nbranches | **32/32, 22/22** |\n| `shared-model.ts` | 26/28 lines, 6/10 branches | **28/28, 10/10** |\n| `ui-udf-parameters.component.ts` | 47/49 lines, 29/36 branches |\n**49/49, 36/36** |\n| `landing-page.component.ts` | 45/45 lines, 16/21 branches | **45/45,\n20/21** |\n\n- **UserDatasetStagedObjectsList** — a missing `userMakeChangesEvent`,\nreverting\n  with no dataset id, the delete-failure notification, and the three\n`getFileUploadTime` guards (no map, a path whose last segment is empty\nso the\n  `|| filePath` fallback runs, and a filename absent from the map).\n- **SharedModel** — this file had no spec of its own, so this adds one:\nthe room\nsuffix with and without a workflow id, the local `CoeditorState`\npublished for\na signed-in user versus an anonymous one, `updateAwareness` in both\nmodes,\n`transact`, and each combination of `shouldConnect`/`wsconnected` in\n`destroy`.\nThe spec substitutes a `WebsocketProvider` double — the real one opens a\nsocket\nand schedules reconnects, which would put the network and a leaked timer\ninside\n  the test.\n- **UiUdfParameters** — a parse error alongside the already-covered edit\nerror and\nan unrelated error that must be rethrown, a `fieldArray` supplied as a\nfactory\nfunction, a generated row that declares none of the expected columns\n(both\n`if (!field) return` guards), a repeat populate that re-applies the\ndisabled\nstate instead of re-wrapping the hook, and `trackByParameterName`'s `??\nindex`.\n- **LandingPage** — a hub response without the requested action buckets\nplus an\nenrichment that yields nothing, so all four `|| []` fallbacks run, and a\n  construction with no signed-in user.\n\n`landing-page.component.ts` ends at 20/21: the remaining entry is a\nsynthetic\nbranch the compiler/instrumenter attributes to the class-declaration\nline. The\nbehaviour behind it is covered — the new test drives the no-user path\nand asserts\n`currentUid` stays undefined — but neither stubbing `getCurrentUser` nor\nclearing\nthe stub's user moves that counter.\n\nNo production code was changed.\n\n### Any related issues, documentation, discussions?\n\nCloses #7684.\n\n### How was this PR tested?\n\n`ng test --watch=false` over the four specs — 47 passed; the per-file\nline/branch numbers above come from the local lcov report. `eslint` and\n`prettier --check` clean. Failure path verified by breaking one new\nassertion in each of the four files: 4 failed / 43 passed, non-zero\nexit, then restored to green.\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Claude Code (Opus 5)",
+          "timestamp": "2026-08-15T06:14:49Z",
+          "url": "https://github.com/apache/texera/commit/1022c7de9dc4cb0d63073b5c2686918597b55398"
+        },
+        "date": 1786798331087,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 717.1885657422087,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 1316.5166771350302,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 1435.936716348374,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 962.7493975477709,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 1372.6862082091327,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 1442.2854398334323,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 986.4849689859903,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 1383.3262303612216,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 1446.9894633083638,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 792.961349629352,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 1073.90640832207,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 1100.8681334632088,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 818.3727099029934,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 1065.891431947075,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 1120.6317389451674,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 792.0898846650394,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 1042.987098110879,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 1082.7515587660198,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 490.98832817219045,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 573.4775023682486,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 566.5979229035468,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 483.88782077426885,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 555.0985892377684,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 559.1817904246286,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 457.63820515452846,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 541.4507532071073,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 546.7798287093478,
             "unit": "tuples/sec"
           }
         ]
