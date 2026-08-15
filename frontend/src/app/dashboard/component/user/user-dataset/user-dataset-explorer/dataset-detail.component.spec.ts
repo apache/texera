@@ -41,7 +41,8 @@ import { DatasetStagedObject } from "../../../../../common/type/dataset-staged-o
 import { commonTestImports, commonTestProviders } from "../../../../../common/testing/test-utils";
 import { Contributor, Dataset, DatasetVersion } from "../../../../../common/type/dataset";
 import { DashboardDataset } from "../../../../type/dashboard-dataset.interface";
-import { HttpErrorResponse } from "@angular/common/http";
+import { HttpErrorResponse, HttpStatusCode } from "@angular/common/http";
+import { NzResizeEvent } from "ng-zorro-antd/resizable";
 import { format } from "date-fns";
 import { USER_DATASET } from "../../../../../app-routing.constant";
 
@@ -134,6 +135,64 @@ describe("DatasetDetailComponent upload queue", () => {
     // Log in so ngOnInit reaches loadUploadSettings (maxConcurrentFiles = 3).
     (TestBed.inject(UserService) as unknown as StubUserService).userChangeSubject.next(MOCK_USER);
     fixture.detectChanges();
+  });
+
+  /**
+   * A failed upload has to tell the user why, mark the task failed without leaving its bar at
+   * 100%, and free the concurrency slot — otherwise the queue stalls behind a dead upload.
+   */
+  describe("a failed upload", () => {
+    const notification = () => TestBed.inject(NotificationService) as unknown as { error: ReturnType<typeof vi.fn> };
+
+    /** Fails the in-flight upload of `name` with the given HTTP status. */
+    const failUpload = (index: number, status: number) =>
+      uploadSubjects[index].error(new HttpErrorResponse({ status }));
+
+    it("names the 409 conflict so the user knows to retry", () => {
+      dropFiles("a.csv");
+
+      failUpload(0, HttpStatusCode.Conflict);
+
+      expect(notification().error).toHaveBeenCalledWith(expect.stringContaining("Upload blocked (409)"));
+    });
+
+    it("falls back to a generic message for any other failure", () => {
+      dropFiles("a.csv");
+
+      failUpload(0, HttpStatusCode.InternalServerError);
+
+      expect(notification().error).toHaveBeenCalledWith("Upload failed. Please retry.");
+    });
+
+    it("marks the task failed and keeps its progress rather than showing it complete", () => {
+      dropFiles("a.csv");
+      // a partially-uploaded file: the bar must not jump to 100 when it fails
+      uploadSubjects[0].next({ filePath: "a.csv", percentage: 42, status: "uploading" });
+
+      failUpload(0, HttpStatusCode.InternalServerError);
+
+      const task = component.uploadTasks.find(t => t.filePath === "a.csv");
+      expect(task?.status).toBe("failed");
+      expect(task?.percentage).toBe(42);
+    });
+
+    it("frees the concurrency slot so a queued upload can start", () => {
+      // maxConcurrentFiles is 3, so a fourth file waits for a slot
+      dropFiles("a.csv", "b.csv", "c.csv", "d.csv");
+      expect(uploadedPaths).toEqual(["a.csv", "b.csv", "c.csv"]);
+
+      failUpload(0, HttpStatusCode.InternalServerError);
+
+      expect(uploadedPaths).toContain("d.csv");
+    });
+
+    it("still reports the failure when the task is no longer in the list", () => {
+      dropFiles("a.csv");
+      component.uploadTasks = []; // the taskIndex === -1 arm
+
+      expect(() => failUpload(0, HttpStatusCode.InternalServerError)).not.toThrow();
+      expect(notification().error).toHaveBeenCalled();
+    });
   });
 
   /**
@@ -2049,6 +2108,100 @@ describe("DatasetDetailComponent behavior", () => {
 
       switches[1].triggerEventHandler("ngModelChange", false);
       expect(datasetServiceStub.updateDatasetDownloadable).toHaveBeenCalledWith(5);
+    });
+
+    // ─── contributor management ─────────────────────────────────────────────
+    const contributors = [
+      { name: "Ada", email: "ada@x.io", affiliation: "" } as Contributor,
+      { name: "Grace", email: "grace@x.io", affiliation: "" } as Contributor,
+    ];
+
+    it("renders a row per contributor with the actions trigger", () => {
+      renderWith({ did: 5, datasetContributors: [...contributors], userDatasetAccessLevel: "WRITE" });
+
+      const rendered = fixture.nativeElement.textContent ?? "";
+      expect(rendered).toContain("Ada");
+      expect(rendered).toContain("Grace");
+      // each row carries the dropdown trigger that hosts Edit/Delete
+      const triggers = fixture.debugElement
+        .queryAll(By.css("button[nz-dropdown]"))
+        .filter(btn => btn.nativeElement.querySelector("i.anticon-more"));
+      expect(triggers.length).toBe(contributors.length);
+    });
+
+    // Edit/Delete live inside an nz-dropdown-menu, which only mounts into a CDK overlay on a
+    // real user open — jsdom does not drive that. Assert the handlers those menu items bind to
+    // instead; the rendered trigger is covered above.
+    it("edits the chosen contributor through the menu's binding target", () => {
+      const updated = { ...contributors[0], affiliation: "Lab" };
+      modalServiceStub.create.mockReturnValue({ afterClose: of(updated) });
+      renderWith({ did: 5, datasetContributors: [...contributors], userDatasetAccessLevel: "WRITE" });
+
+      component.onEditContributor(contributors[0]);
+
+      expect(component.datasetContributors[0]).toEqual(updated);
+    });
+
+    it("deletes the chosen contributor through the popconfirm's binding target", () => {
+      renderWith({ did: 5, datasetContributors: [...contributors], userDatasetAccessLevel: "WRITE" });
+
+      component.onDeleteContributor(contributors[0]);
+
+      expect(component.datasetContributors.map(c => c.name)).toEqual(["Grace"]);
+    });
+
+    // ─── view controls ──────────────────────────────────────────────────────
+
+    it("downloads the current file from the toolbar", () => {
+      // the toolbar controls are behind *ngIf="selectedVersion"
+      renderWith({ did: 5, selectedVersion: { dvid: 1, name: "v1" } as DatasetVersion });
+      openTab("Versions & Files");
+      const onDownload = vi.spyOn(component, "onClickDownloadCurrentFile").mockImplementation(() => {});
+
+      const downloadBtn = fixture.debugElement
+        .queryAll(By.css("button"))
+        .find(btn => btn.nativeElement.querySelector("i.anticon-download"));
+      expect(downloadBtn).toBeTruthy();
+      downloadBtn!.triggerEventHandler("click", null);
+
+      expect(onDownload).toHaveBeenCalled();
+    });
+
+    it("toggles the scaled view from the toolbar", () => {
+      renderWith({ did: 5, isMaximized: false, selectedVersion: { dvid: 1, name: "v1" } as DatasetVersion });
+      openTab("Versions & Files");
+
+      const scaleBtn = fixture.debugElement
+        .queryAll(By.css("button"))
+        .find(btn => btn.nativeElement.querySelector("i.anticon-expand, i.anticon-compress"));
+      expect(scaleBtn).toBeTruthy();
+      scaleBtn!.triggerEventHandler("click", null);
+      fixture.detectChanges();
+
+      expect(component.isMaximized).toBe(true);
+    });
+
+    // ─── sider resize ───────────────────────────────────────────────────────
+
+    it("applies the dragged sider width on the next animation frame", async () => {
+      renderWith({ did: 5 });
+
+      component.onSideResize({ width: 321 } as NzResizeEvent);
+      // the handler defers to requestAnimationFrame; let that frame run
+      await new Promise(resolve => requestAnimationFrame(() => resolve(null)));
+
+      expect(component.siderWidth).toBe(321);
+    });
+
+    it("cancels a pending resize frame before scheduling the next one", () => {
+      renderWith({ did: 5 });
+      const cancel = vi.spyOn(globalThis, "cancelAnimationFrame");
+
+      component.onSideResize({ width: 100 } as NzResizeEvent);
+      component.onSideResize({ width: 200 } as NzResizeEvent);
+
+      expect(cancel).toHaveBeenCalled();
+      cancel.mockRestore();
     });
   });
 });
