@@ -65,8 +65,11 @@ class ReservoirSamplingOpDesc extends LogicalOp with StandaloneCodeGenerator {
 
   // The executor runs Algorithm R (Vitter): fill the reservoir with the first k
   // tuples, then for tuple m+1 (m >= k) draw i = rand.nextInt(m), uniform in
-  // [0, m), and replace reservoir[i] iff i < k. Its generator is seeded with the
-  // worker count — 1 in the single-worker setup a translated script reproduces.
+  // [0, m), and replace reservoir[i] iff i < k.
+  //
+  // Its generator is seeded with the worker count, so the rows agree with a
+  // single-worker run and not with a wider one. See RandomKSamplingOpDesc for
+  // why no seed closes that gap.
   override def generateStandaloneCode(): String = {
     s"""_texera_rs_rng = _TexeraJavaRandom(1)
        |_texera_rs_k = $k
