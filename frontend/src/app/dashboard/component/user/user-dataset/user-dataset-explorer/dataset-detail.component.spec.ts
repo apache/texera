@@ -2193,15 +2193,24 @@ describe("DatasetDetailComponent behavior", () => {
       expect(component.siderWidth).toBe(321);
     });
 
-    it("cancels a pending resize frame before scheduling the next one", () => {
+    it("cancels the frame the previous resize scheduled", () => {
       renderWith({ did: 5 });
+      // Hand out a known frame id so the assertion below pins down *which* frame is
+      // cancelled: the component starts with id = -1, so merely asserting that
+      // cancelAnimationFrame was called would pass even if the id were never tracked.
+      const request = vi.spyOn(globalThis, "requestAnimationFrame").mockReturnValue(100);
       const cancel = vi.spyOn(globalThis, "cancelAnimationFrame");
+      try {
+        component.onSideResize({ width: 100 } as NzResizeEvent);
+        cancel.mockClear(); // drop the initial cancel(-1)
 
-      component.onSideResize({ width: 100 } as NzResizeEvent);
-      component.onSideResize({ width: 200 } as NzResizeEvent);
+        component.onSideResize({ width: 200 } as NzResizeEvent);
 
-      expect(cancel).toHaveBeenCalled();
-      cancel.mockRestore();
+        expect(cancel).toHaveBeenCalledWith(100);
+      } finally {
+        cancel.mockRestore();
+        request.mockRestore();
+      }
     });
   });
 });
