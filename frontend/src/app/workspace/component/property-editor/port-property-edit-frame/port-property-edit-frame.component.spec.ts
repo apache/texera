@@ -17,7 +17,9 @@
  * under the License.
  */
 
+import { SimpleChange } from "@angular/core";
 import { ComponentFixture, fakeAsync, TestBed, tick } from "@angular/core/testing";
+import { By } from "@angular/platform-browser";
 
 import { PortPropertyEditFrameComponent } from "./port-property-edit-frame.component";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
@@ -25,6 +27,9 @@ import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
 import { DynamicSchemaService } from "../../../service/dynamic-schema/dynamic-schema.service";
 import { FormGroup } from "@angular/forms";
+import { FormlyModule } from "@ngx-formly/core";
+import { TEXERA_FORMLY_CONFIG } from "../../../../common/formly/formly-config";
+import { FormlyNgZorroAntdModule } from "@ngx-formly/ng-zorro-antd";
 import { LogicalPort, PortDescription } from "../../../types/workflow-common.interface";
 import { mockPortSchema } from "../../../service/operator-metadata/mock-operator-metadata.data";
 import { FORM_DEBOUNCE_TIME_MS } from "../../../service/execute-workflow/execute-workflow.service";
@@ -43,7 +48,12 @@ describe("PortPropertyEditFrameComponent", () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       providers: [WorkflowActionService, ...commonTestProviders],
-      imports: [PortPropertyEditFrameComponent, HttpClientTestingModule],
+      imports: [
+        PortPropertyEditFrameComponent,
+        HttpClientTestingModule,
+        FormlyModule.forRoot(TEXERA_FORMLY_CONFIG),
+        FormlyNgZorroAntdModule,
+      ],
     }).compileComponents();
   });
 
@@ -151,6 +161,38 @@ describe("PortPropertyEditFrameComponent", () => {
 
       expect(component.formTitle).toBe("Output A");
       expect(component.formlyFields).toBeUndefined();
+    });
+
+    // The heading and the [formGroup] block only render once the form has been built.
+    it("should render the title heading and the formly form once the form is built", () => {
+      const descriptor: PortDescription = {
+        portID: "input-0",
+        displayName: "Input A",
+        partitionRequirement: { type: "hash", hashAttributeNames: ["a"] },
+        dependencies: [{ id: 1, internal: false }],
+      };
+      vi.spyOn(texeraGraph, "hasPort").mockReturnValue(true);
+      vi.spyOn(texeraGraph, "getPortDescription").mockReturnValue(descriptor);
+      vi.spyOn(dynamicSchemaService, "getDynamicSchema").mockReturnValue({
+        additionalMetadata: { allowPortCustomization: true },
+      } as any);
+
+      // Drive it through the public input hook rather than the private opener.
+      component.ngOnChanges({ currentPortID: new SimpleChange(undefined, inputPort, true) });
+      fixture.detectChanges();
+
+      const heading = fixture.debugElement.query(By.css("h3.texera-workspace-property-editor-title"));
+      expect(heading.nativeElement.textContent.trim()).toBe("Input A");
+      const form = fixture.debugElement.query(By.css("form.texera-workspace-property-editor-form"));
+      expect(form).toBeTruthy();
+      const formly = form.query(By.css("formly-form"));
+      expect(formly).toBeTruthy();
+
+      // the rendered form's (modelChange) forwards onto the source stream
+      const received: Record<string, unknown>[] = [];
+      (component as any).sourceFormChangeEventStream.subscribe((e: Record<string, unknown>) => received.push(e));
+      formly.triggerEventHandler("modelChange", { type: "none" });
+      expect(received).toEqual([{ type: "none" }]);
     });
 
     it("should build the formly form from the port descriptor when customization is allowed on an input port", () => {

@@ -100,5 +100,8 @@ class GuiConfigSpec extends AnyFlatSpec with Matchers {
     ifUnset("GUI_WORKFLOW_WORKSPACE_LIMIT_COLUMNS")(
       GuiConfig.guiWorkflowWorkspaceLimitColumns shouldBe 15
     )
+    ifUnset("GUI_WORKFLOW_WORKSPACE_PYTHON_NOTEBOOK_MIGRATION_TIMEOUT_MINUTES")(
+      GuiConfig.guiWorkflowWorkspacePythonNotebookMigrationTimeoutMinutes shouldBe 10
+    )
   }
 }

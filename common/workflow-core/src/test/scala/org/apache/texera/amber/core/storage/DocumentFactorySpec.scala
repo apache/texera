@@ -21,6 +21,8 @@ package org.apache.texera.amber.core.storage
 
 import org.apache.texera.amber.core.storage.model.{
   DatasetFileDocument,
+  ModelFileDocument,
+  OnVersionedFileResource,
   ReadonlyLocalFileDocument,
   VirtualDocument
 }
@@ -38,7 +40,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 import java.net.URI
-import java.nio.file.Files
+import java.nio.file.{Files, Paths}
 import java.util.UUID
 
 /**
@@ -139,6 +141,18 @@ class DocumentFactorySpec extends AnyFlatSpec with Matchers with BeforeAndAfterA
     doc.getURI shouldBe datasetUri
   }
 
+  it should "return a ModelFileDocument for the model scheme and parse its URI components" in {
+    val modelUri = new URI(s"model:///model-1/$versionHash/weights/model.pt")
+    val doc = DocumentFactory.openReadonlyDocument(modelUri)
+    doc shouldBe a[ModelFileDocument]
+    doc.getURI shouldBe modelUri
+
+    val resource = doc.asInstanceOf[OnVersionedFileResource]
+    resource.getRepositoryName() shouldBe "model-1"
+    resource.getVersionHash() shouldBe versionHash
+    resource.getFileRelativePath() shouldBe Paths.get("weights", "model.pt").toString
+  }
+
   it should "return a ReadonlyLocalFileDocument for the file scheme" in {
     val tempFile = Files.createTempFile("doc-factory-spec", ".txt")
     try {
@@ -166,6 +180,13 @@ class DocumentFactorySpec extends AnyFlatSpec with Matchers with BeforeAndAfterA
     val datasetUri = new URI(s"dataset:///repo/$versionHash/file.txt")
     val (doc, schemaOpt) = DocumentFactory.openDocument(datasetUri)
     doc shouldBe a[DatasetFileDocument]
+    schemaOpt shouldBe None
+  }
+
+  it should "return a ModelFileDocument and no schema for the model scheme" in {
+    val modelUri = new URI(s"model:///model-1/$versionHash/weights/model.pt")
+    val (doc, schemaOpt) = DocumentFactory.openDocument(modelUri)
+    doc shouldBe a[ModelFileDocument]
     schemaOpt shouldBe None
   }
 

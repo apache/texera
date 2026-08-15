@@ -18,7 +18,7 @@
  */
 
 import { TestBed } from "@angular/core/testing";
-import { NotebookMigrationService } from "./notebook-migration.service";
+import { NotebookMigrationService, notebookMappingKey } from "./notebook-migration.service";
 import { HttpClient } from "@angular/common/http";
 import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
@@ -220,13 +220,19 @@ describe("NotebookMigrationService", () => {
   });
 
   // storeNotebookAndMapping
-  it("should call storeNotebookAndMapping API", () => {
-    service.storeNotebookAndMapping(1, 1, {}, {}).subscribe();
+  it("should call storeNotebookAndMapping API with the default vid", () => {
+    service.storeNotebookAndMapping(1, {}, {}).subscribe();
 
     const req = httpMock.expectOne(req => req.url.includes("/notebook-migration/store-notebook-and-mapping"));
 
     expect(req.request.method).toBe("POST");
+    expect(req.request.body.wid).toBe(1);
+    expect(req.request.body.vid).toBe(1);
     req.flush({ success: true, message: "stored" });
+  });
+
+  it("notebookMappingKey builds the in-memory cache key from the wid", () => {
+    expect(notebookMappingKey(42)).toBe("mapping_wid_42");
   });
 
   // deleteNotebookAndMapping
@@ -332,7 +338,7 @@ describe("NotebookMigrationService", () => {
     });
 
     it("storeNotebookAndMapping emits a disabled result without making an HTTP call", async () => {
-      const result = await firstValueFrom(service.storeNotebookAndMapping(1, 1, {}, {}));
+      const result = await firstValueFrom(service.storeNotebookAndMapping(1, {}, {}));
       expect(result.success).toBe(false);
       httpMock.expectNone(req => req.url.includes("/notebook-migration/store-notebook-and-mapping"));
     });
@@ -341,6 +347,52 @@ describe("NotebookMigrationService", () => {
       const result = await firstValueFrom(service.deleteNotebookAndMapping(7));
       expect(result.success).toBe(false);
       httpMock.expectNone(req => req.url.includes("/notebook-migration/delete-notebook-and-mapping"));
+    });
+  });
+
+  // parseAndTagNotebook (reads + validates + uuid-tags an uploaded .ipynb)
+  describe("parseAndTagNotebook", () => {
+    it("parses a valid notebook and tags every cell with a uuid", async () => {
+      const notebook = {
+        cells: [
+          { cell_type: "code", source: "print(1)", metadata: {} },
+          // No metadata: the parser must create it before setting the uuid.
+          { cell_type: "markdown", source: "# title" },
+        ],
+      };
+      const file = new File([JSON.stringify(notebook)], "analysis.ipynb");
+
+      const parsed = await service.parseAndTagNotebook(file);
+
+      expect(parsed.cells.length).toBe(2);
+      expect(parsed.cells[0].metadata?.uuid).toBeTruthy();
+      expect(parsed.cells[1].metadata?.uuid).toBeTruthy();
+    });
+
+    it("rejects when the notebook is not valid JSON", async () => {
+      const file = new File(["not json"], "x.ipynb");
+      await expect(service.parseAndTagNotebook(file)).rejects.toThrow();
+    });
+
+    it("rejects a notebook without a cells array", async () => {
+      const file = new File([JSON.stringify({ nbformat: 4 })], "x.ipynb");
+      await expect(service.parseAndTagNotebook(file)).rejects.toThrow(/Invalid notebook structure/);
+    });
+
+    it("rejects when the file content is not a string", async () => {
+      vi.spyOn(FileReader.prototype, "readAsText").mockImplementation(function (this: any) {
+        // result is a getter-only property, so shadow it with an own non-string value.
+        Object.defineProperty(this, "result", { value: null, configurable: true });
+        this.onload?.(new ProgressEvent("load"));
+      });
+      await expect(service.parseAndTagNotebook(new File([""], "x.ipynb"))).rejects.toThrow(/not a valid string/);
+    });
+
+    it("rejects when the file cannot be read", async () => {
+      vi.spyOn(FileReader.prototype, "readAsText").mockImplementation(function (this: any) {
+        this.onerror?.(new ProgressEvent("error"));
+      });
+      await expect(service.parseAndTagNotebook(new File([""], "x.ipynb"))).rejects.toThrow(/Failed to read/);
     });
   });
 });
