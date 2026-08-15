@@ -19,6 +19,7 @@
 
 import { TestBed } from "@angular/core/testing";
 import * as joint from "jointjs";
+import * as Y from "yjs";
 import { OperatorMetadataService } from "../../operator-metadata/operator-metadata.service";
 import { StubOperatorMetadataService } from "../../operator-metadata/stub-operator-metadata.service";
 import { JointUIService } from "../../joint-ui/joint-ui.service";
@@ -539,6 +540,69 @@ describe("SharedModelChangeHandler", () => {
 
       expect(addedLink).toEqual(mockScanResultLink);
       expect(jointGraph.getCell(mockScanResultLink.linkID)).toBeTruthy();
+      sub.unsubscribe();
+    });
+  });
+  // Every change so far originated locally. A change that arrives from a peer runs the same
+  // observers with `transaction.local === false` — the arm that decides whether local awareness
+  // and undo state are touched. A second Y.Doc stands in for the peer: mutating it and syncing
+  // the diff back produces a genuinely remote transaction, which `yDoc.transact` cannot fake.
+  describe("remote changes", () => {
+    /** Runs `mutate` on a peer document and syncs the result in as a remote update. */
+    function applyAsRemote(mutate: (peerDoc: Y.Doc) => void): void {
+      const localDoc = texeraGraph.sharedModel.yDoc;
+      const peerDoc = new Y.Doc();
+      try {
+        Y.applyUpdate(peerDoc, Y.encodeStateAsUpdate(localDoc));
+        mutate(peerDoc);
+        // Send back only what the local doc is missing, as a real peer would.
+        Y.applyUpdate(localDoc, Y.encodeStateAsUpdate(peerDoc, Y.encodeStateVector(localDoc)));
+      } finally {
+        peerDoc.destroy();
+      }
+    }
+
+    it("adds an operator that arrives from another client", () => {
+      let added: OperatorPredicate | undefined;
+      const sub = texeraGraph.getOperatorAddStream().subscribe(o => (added = o));
+
+      applyAsRemote(peerDoc =>
+        peerDoc.transact(() => {
+          peerDoc.getMap("operatorIDMap").set(mockScanPredicate.operatorID, createYTypeFromObject(mockScanPredicate));
+          peerDoc.getMap("elementPositionMap").set(mockScanPredicate.operatorID, mockPoint);
+        })
+      );
+
+      expect(added?.operatorID).toBe(mockScanPredicate.operatorID);
+      expect(jointGraph.getCell(mockScanPredicate.operatorID)).toBeTruthy();
+      sub.unsubscribe();
+    });
+
+    it("applies a remote property change without updating local awareness", () => {
+      addOperatorWithPosition(mockScanPredicate);
+      // The awareness update needs both a local transaction and this operator being the one
+      // under edit. Setting the field directly on the awareness the handler reads leaves
+      // `transaction.local` as the only thing that can keep the call away, so the assertion
+      // below cannot pass vacuously. (updateSharedModelAwareness does not populate it here:
+      // with no provider connected its local state stays empty.)
+      texeraGraph.sharedModel.awareness.setLocalStateField("currentlyEditing", mockScanPredicate.operatorID);
+      const awarenessSpy = vi.spyOn(texeraGraph, "updateSharedModelAwareness");
+      let changed = false;
+      const sub = texeraGraph.getOperatorPropertyChangeStream().subscribe(() => (changed = true));
+
+      applyAsRemote(peerDoc =>
+        peerDoc.transact(() => {
+          const operator = peerDoc.getMap("operatorIDMap").get(mockScanPredicate.operatorID) as Y.Map<unknown>;
+          (operator.get("operatorProperties") as Y.Map<unknown>).set("tableName", "from-peer");
+        })
+      );
+
+      expect(changed).toBe(true);
+      expect(texeraGraph.getOperator(mockScanPredicate.operatorID).operatorProperties).toEqual({
+        tableName: "from-peer",
+      });
+      // the awareness update is the local-only arm of onOperatorPropertyChanged
+      expect(awarenessSpy).not.toHaveBeenCalled();
       sub.unsubscribe();
     });
   });
