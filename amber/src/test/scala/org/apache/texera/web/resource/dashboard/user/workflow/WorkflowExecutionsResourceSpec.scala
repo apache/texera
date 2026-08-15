@@ -19,8 +19,12 @@
 
 package org.apache.texera.web.resource.dashboard.user.workflow
 
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.serialization.SerializationExtension
+import org.apache.pekko.testkit.TestKit
 import org.apache.texera.amber.core.storage.{VFSResourceType, VFSURIFactory}
 import org.apache.texera.amber.core.virtualidentity.{
+  EmbeddedControlMessageIdentity,
   ExecutionIdentity,
   OperatorIdentity,
   PhysicalOpIdentity,
@@ -28,11 +32,15 @@ import org.apache.texera.amber.core.virtualidentity.{
 }
 import org.apache.texera.amber.core.workflow.{GlobalPortIdentity, PortIdentity}
 import org.apache.texera.amber.util.serde.GlobalPortIdentitySerde.SerdeOps
-import org.apache.texera.auth.SessionUser
+import org.apache.texera.auth.{JwtAuth, SessionUser}
 import org.apache.texera.dao.MockTexeraDB
 import org.apache.texera.dao.jooq.generated.enums.UserWarehouseFlavorEnum
 import org.apache.texera.dao.jooq.generated.Tables._
-import org.apache.texera.dao.jooq.generated.enums.{PrivilegeEnum, WorkflowComputingUnitTypeEnum}
+import org.apache.texera.dao.jooq.generated.enums.{
+  PrivilegeEnum,
+  UserRoleEnum,
+  WorkflowComputingUnitTypeEnum
+}
 import org.apache.texera.dao.jooq.generated.tables.daos.{
   DatasetDao,
   UserDao,
@@ -50,16 +58,28 @@ import org.apache.texera.dao.jooq.generated.tables.pojos.{
   WorkflowVersion
 }
 import org.apache.texera.amber.engine.architecture.coordinator.OperatorPortResultUriAvailable
-import org.apache.texera.web.service.ExecutionResultService
+import org.apache.texera.amber.engine.architecture.logreplay.{ReplayDestination, ReplayLogRecord}
+import org.apache.texera.amber.engine.common.AmberRuntime
+import org.apache.texera.amber.engine.common.storage.VFSRecordStorage
+import org.apache.texera.web.model.http.request.result.{OperatorExportInfo, ResultExportRequest}
+import org.apache.texera.web.model.http.response.result.ResultExportResponse
+import org.apache.texera.web.service.{ExecutionResultService, WarehouseUnavailableException}
+import org.jose4j.jwt.JwtClaims
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, PrivateMethodTester}
+import play.api.libs.json.Json
 
 import javax.ws.rs.{BadRequestException, ForbiddenException, WebApplicationException}
+import javax.ws.rs.core.Response
+import java.io.File
 import java.net.URI
+import java.nio.file.Files
 import java.sql.Timestamp
 import java.util.UUID
 import java.util.concurrent.TimeUnit
 import scala.collection.mutable.ArrayBuffer
+import scala.concurrent.duration.DurationInt
+import scala.concurrent.{Await, ExecutionContext, Future}
 
 class WorkflowExecutionsResourceSpec
     extends AnyFlatSpec
@@ -70,6 +90,9 @@ class WorkflowExecutionsResourceSpec
 
   private val testWorkflowWid = 3000 + scala.util.Random.nextInt(1000)
   private val testUserId = 1000 + scala.util.Random.nextInt(1000)
+  // A second workflow, so a test can hand an endpoint an execution id that is real
+  // but belongs to a workflow other than the one in the request.
+  private val foreignWid = 20000 + scala.util.Random.nextInt(1000)
 
   private var testWorkflow: Workflow = _
   private var testVersion: WorkflowVersion = _
@@ -123,11 +146,11 @@ class WorkflowExecutionsResourceSpec
     cleanupTestData()
   }
 
-  private def cleanupTestData(): Unit = {
+  private def purgeWorkflow(wid: Int): Unit = {
     val vidSubquery = getDSLContext
       .select(WORKFLOW_VERSION.VID)
       .from(WORKFLOW_VERSION)
-      .where(WORKFLOW_VERSION.WID.eq(testWorkflowWid))
+      .where(WORKFLOW_VERSION.WID.eq(wid))
 
     // Child tables of WORKFLOW_EXECUTIONS must be wiped before the parent row.
     getDSLContext
@@ -161,19 +184,24 @@ class WorkflowExecutionsResourceSpec
 
     getDSLContext
       .deleteFrom(WORKFLOW_VERSION)
-      .where(WORKFLOW_VERSION.WID.eq(testWorkflowWid))
+      .where(WORKFLOW_VERSION.WID.eq(wid))
       .execute()
 
     // Access grants seeded by the endpoint tests must go before the workflow row.
     getDSLContext
       .deleteFrom(WORKFLOW_USER_ACCESS)
-      .where(WORKFLOW_USER_ACCESS.WID.eq(testWorkflowWid))
+      .where(WORKFLOW_USER_ACCESS.WID.eq(wid))
       .execute()
 
     getDSLContext
       .deleteFrom(WORKFLOW)
-      .where(WORKFLOW.WID.eq(testWorkflowWid))
+      .where(WORKFLOW.WID.eq(wid))
       .execute()
+  }
+
+  private def cleanupTestData(): Unit = {
+    purgeWorkflow(testWorkflowWid)
+    purgeWorkflow(foreignWid)
 
     // Datasets / computing units / extra users may be seeded by individual cases.
     getDSLContext
@@ -238,6 +266,81 @@ class WorkflowExecutionsResourceSpec
     execution.setRuntimeStatsUri(runtimeStatsUri)
     workflowExecutionsDao.insert(execution)
     execution
+  }
+
+  // An execution that is real, readable by testUser's session, and belongs to a
+  // *different* workflow than `testWorkflowWid` — the shape an endpoint that
+  // forgets to join execution -> version -> workflow would happily serve.
+  private def insertForeignExecution(runtimeStatsUri: String): WorkflowExecutions = {
+    val workflow = new Workflow
+    workflow.setWid(foreignWid)
+    workflow.setName("foreign_workflow_" + UUID.randomUUID().toString.substring(0, 8))
+    workflow.setContent("{}")
+    workflow.setDescription("")
+    workflow.setCreationTime(new Timestamp(System.currentTimeMillis()))
+    workflow.setLastModifiedTime(new Timestamp(System.currentTimeMillis()))
+    workflowDao.insert(workflow)
+
+    val version = new WorkflowVersion
+    version.setWid(foreignWid)
+    version.setContent("{}")
+    version.setCreationTime(new Timestamp(System.currentTimeMillis()))
+    workflowVersionDao.insert(version)
+
+    val execution = new WorkflowExecutions
+    execution.setVid(version.getVid)
+    execution.setUid(testUser.getUid)
+    execution.setStatus(0.toByte)
+    execution.setResult("")
+    execution.setLogLocation("")
+    execution.setStartingTime(new Timestamp(System.currentTimeMillis()))
+    execution.setBookmarked(false)
+    execution.setName("foreign-execution")
+    execution.setEnvironmentVersion("test-env-1.0")
+    execution.setRuntimeStatsUri(runtimeStatsUri)
+    workflowExecutionsDao.insert(execution)
+    execution
+  }
+
+  // `SequentialRecordWriter`/`Reader` hard-code `AmberRuntime.serde`, so the one case
+  // that round-trips real replay records needs AmberRuntime initialized. Same
+  // reflection-injection pattern as ReplayLogGeneratorSpec / ClientEventSpec, with two
+  // narrowings, because amber runs every suite in one JVM: it is scoped to the single
+  // case rather than beforeAll (the other DB-only cases pay nothing), and an
+  // AmberRuntime another suite already initialized is reused as-is rather than swapped
+  // out underneath it. Reading `AmberRuntime.serde` instead would lazily build an
+  // ActorSystem nothing ever shuts down.
+  private def withAmberSerde[T](body: => T): T = {
+    def field(name: String) = {
+      val f = AmberRuntime.getClass.getDeclaredField(name)
+      f.setAccessible(true)
+      f
+    }
+    val systemField = field("_actorSystem")
+    val serdeField = field("_serde")
+    val previousSystem = systemField.get(AmberRuntime)
+    val previousSerde = serdeField.get(AmberRuntime)
+    if (previousSerde != null) {
+      body
+    } else {
+      val system = ActorSystem("WorkflowExecutionsResourceSpec-replay", AmberRuntime.pekkoConfig)
+      systemField.set(AmberRuntime, system)
+      serdeField.set(AmberRuntime, SerializationExtension(system))
+      try body
+      finally {
+        serdeField.set(AmberRuntime, previousSerde)
+        systemField.set(AmberRuntime, previousSystem)
+        TestKit.shutdownActorSystem(system)
+      }
+    }
+  }
+
+  // Best-effort: on Windows a handle the reader failed to release would block the
+  // delete, and leaving a temp file behind must not fail an otherwise green case.
+  private def deleteRecursively(file: File): Unit = {
+    if (file.isDirectory) Option(file.listFiles()).foreach(_.foreach(deleteRecursively))
+    file.delete()
+    ()
   }
 
   // Local convenience over the production callback: fixture rows the
@@ -875,6 +978,17 @@ class WorkflowExecutionsResourceSpec
     val result = WorkflowExecutionsResource invokePrivate privateMethod(testWorkflowWid, testUser)
     assert(result.isEmpty)
   }
+
+  it should "return an empty map when no workflow row matches the id" in {
+    // The content lookup returns no record, which the method must treat as
+    // "nothing to restrict" rather than dereferencing the missing record.
+    val privateMethod =
+      PrivateMethod[Map[String, Set[(String, String)]]](Symbol("getNonDownloadableOperatorMap"))
+    val result =
+      WorkflowExecutionsResource invokePrivate privateMethod(testWorkflowWid + 999999, testUser)
+    assert(result.isEmpty)
+  }
+
   // ─── new: endpoint auth-annotation audit (#6977) ──────────────────────────
 
   "WorkflowExecutionsResource endpoints" should "all declare @RolesAllowed and take an @Auth user" in {
@@ -907,6 +1021,29 @@ class WorkflowExecutionsResourceSpec
       offenders.isEmpty,
       s"endpoints missing @RolesAllowed/@Auth: ${offenders.map(_.getName).sorted.mkString(", ")}"
     )
+  }
+
+  // The whitelist above exempts exportResultToLocal from the declarative-auth check, so
+  // its transport contract is pinned here instead. The browser posts a hidden form
+  // (frontend download.service.ts) with enctype application/x-www-form-urlencoded and
+  // inputs named exactly "request" and "token"; renaming either parameter or dropping
+  // @Consumes still compiles and still passes every direct-call case in this file, while
+  // in production the handler stops receiving a body at all.
+  it should "read exportResultToLocal's payload from the form fields the frontend posts" in {
+    val exportToLocal = classOf[WorkflowExecutionsResource].getDeclaredMethods.toSeq
+      .find(_.getName == "exportResultToLocal")
+      .getOrElse(fail("exportResultToLocal handler not found"))
+
+    val consumes = exportToLocal.getAnnotation(classOf[javax.ws.rs.Consumes])
+    assert(consumes != null, "exportResultToLocal must declare @Consumes")
+    assert(
+      consumes.value().toSeq == Seq(javax.ws.rs.core.MediaType.APPLICATION_FORM_URLENCODED)
+    )
+
+    val formParamNames = exportToLocal.getParameterAnnotations.toSeq.map(
+      _.collectFirst { case formParam: javax.ws.rs.FormParam => formParam.value() }
+    )
+    assert(formParamNames == Seq(Some("request"), Some("token")))
   }
 
   // ─── access-controlled instance endpoints (jOOQ metadata only) ─────────────
@@ -1010,14 +1147,81 @@ class WorkflowExecutionsResourceSpec
     assert(defaultEntry.whId == null)
   }
 
+  // The execution this case points at DOES have a replay log, and that log's scheme is
+  // one the storage layer rejects. An empty list is therefore only reachable by
+  // refusing before the lookup: drop the access check and the unauthorized caller
+  // reaches SequentialRecordStorage and throws instead of returning nothing.
   "retrieveInteractionHistory" should "return an empty list when the user lacks read access" in {
+    val exec = insertExecution(logLocation = "mock:///replay")
     val result =
       resource.retrieveInteractionHistory(
         testWorkflowWid,
-        Integer.valueOf(1),
+        exec.getEid,
         session(userWithoutAccess())
       )
     assert(result.isEmpty)
+  }
+
+  it should "return an empty list when the requested execution does not exist" in {
+    grantReadAccess()
+    val result = resource.retrieveInteractionHistory(
+      testWorkflowWid,
+      Integer.valueOf(Int.MaxValue),
+      session(testUser)
+    )
+    assert(result.isEmpty)
+  }
+
+  it should "return an empty list when the execution stored no replay log" in {
+    // log_location is empty, so the replay-log storage must not be opened at all:
+    // handing "" to SequentialRecordStorage would fail rather than yield nothing.
+    grantReadAccess()
+    val exec = insertExecution(logLocation = "")
+    val result =
+      resource.retrieveInteractionHistory(testWorkflowWid, exec.getEid, session(testUser))
+    assert(result.isEmpty)
+  }
+
+  it should "return an empty list when log_location is NULL" in {
+    // `log_location` is nullable with no default (sql/texera_ddl.sql), so jOOQ can hand
+    // back null here. The null half of the guard is what keeps `null.nonEmpty` — an NPE
+    // via augmentString — from reaching the caller; the empty-string case above cannot
+    // observe it.
+    grantReadAccess()
+    val exec = insertExecution(logLocation = null)
+    val result =
+      resource.retrieveInteractionHistory(testWorkflowWid, exec.getEid, session(testUser))
+    assert(result.isEmpty)
+  }
+
+  // The endpoint's only real product is the list of ECM ids read out of the replay log,
+  // and nothing in the repo observed it — so a body that always answered `List()` was
+  // indistinguishable from a working one. Write a real two-record log and read it back.
+  it should "return the replay destinations recorded in the execution's log, in order" in {
+    grantReadAccess()
+    val root = Files.createTempDirectory("workflow-executions-resource-spec-replay-")
+    try {
+      val logUri = root.resolve("logs").toUri
+      withAmberSerde {
+        val storage = new VFSRecordStorage[ReplayLogRecord](logUri)
+        // The endpoint reads the reserved "COORDINATOR" file out of the log folder.
+        val writer = storage.getWriter("COORDINATOR")
+        try {
+          writer.writeRecord(ReplayDestination(EmbeddedControlMessageIdentity("ecm-1")))
+          writer.writeRecord(ReplayDestination(EmbeddedControlMessageIdentity("ecm-2")))
+          writer.flush()
+        } finally {
+          writer.close()
+        }
+
+        val exec = insertExecution(logLocation = logUri.toString)
+        val result =
+          resource.retrieveInteractionHistory(testWorkflowWid, exec.getEid, session(testUser))
+        assert(result == List("ecm-1", "ecm-2"))
+      }
+    } finally {
+      deleteRecursively(root.toFile)
+    }
   }
 
   "setExecutionAreBookmarked" should "reject a user without access" in {
@@ -1078,6 +1282,352 @@ class WorkflowExecutionsResourceSpec
     assertThrows[java.util.NoSuchElementException](
       resource.retrieveWorkflowRuntimeStatistics(testWorkflowWid, exec.getEid, session(testUser))
     )
+  }
+
+  it should "throw when the stored runtime-stats URI is the empty string" in {
+    // The column is non-null here but blank, which `new URI("")` would turn into a
+    // scheme-less URI the storage layer cannot resolve. The empty half of the guard is
+    // the only thing that turns that into the same "no statistics" error as a NULL.
+    grantReadAccess()
+    val exec = insertExecution(runtimeStatsUri = "")
+    assertThrows[java.util.NoSuchElementException](
+      resource.retrieveWorkflowRuntimeStatistics(testWorkflowWid, exec.getEid, session(testUser))
+    )
+  }
+
+  it should "reject a user with no read access on the workflow" in {
+    // The URI is load-bearing: without the access check the call runs on to the storage
+    // layer and fails there with an IllegalArgumentException over the scheme, so only a
+    // WebApplicationException proves the request was refused up front.
+    val exec = insertExecution(runtimeStatsUri = "mock:///stats")
+    assertThrows[WebApplicationException](
+      resource.retrieveWorkflowRuntimeStatistics(
+        testWorkflowWid,
+        exec.getEid,
+        session(userWithoutAccess())
+      )
+    )
+  }
+
+  // `updateRuntimeStatsUri` already refuses to write across workflows; the read path
+  // needs the same, or read access on any workflow would expose every other workflow's
+  // operator ids, tuple counts and timings by execution id alone.
+  it should "refuse an execution id that belongs to a different workflow" in {
+    grantReadAccess()
+    val foreign = insertForeignExecution(runtimeStatsUri = "mock:///stats")
+    assertThrows[java.util.NoSuchElementException](
+      resource.retrieveWorkflowRuntimeStatistics(
+        testWorkflowWid,
+        foreign.getEid,
+        session(testUser)
+      )
+    )
+  }
+
+  // Per-user warehouses are off in this deployment (#6930): a read of statistics
+  // that live in one must fail loudly and name the warehouse, because opening it
+  // anyway resolves to the shared default and looks like data loss.
+  it should "refuse to read statistics stored in a per-user warehouse while the feature is off" in {
+    grantReadAccess()
+    val exec = insertExecution()
+    val uri = VFSURIFactory.createRuntimeStatisticsURI(
+      WorkflowIdentity(testWorkflowWid.longValue()),
+      ExecutionIdentity(exec.getEid.longValue()),
+      warehouse = Some("byo")
+    )
+    exec.setRuntimeStatsUri(uri.toString)
+    workflowExecutionsDao.update(exec)
+
+    val ex = intercept[WarehouseUnavailableException](
+      resource.retrieveWorkflowRuntimeStatistics(testWorkflowWid, exec.getEid, session(testUser))
+    )
+    // The whole message, not just "byo": the warehouse name is a substring of the URI
+    // the fixture supplied, so every other refusal — including the guard's
+    // "unresolvable warehouse URI" branch — would also contain it.
+    assert(
+      ex.getMessage ==
+        "this result is stored in warehouse 'byo'; " +
+          "per-user warehouses are disabled in this deployment"
+    )
+  }
+
+  it should "report an unreadable stats URI as a URI error, not as a warehouse refusal" in {
+    // The typed WarehouseUnavailableException is a kill-switch signal that callers
+    // deliberately let through their catch-alls, so it must be reserved for URIs the
+    // guard actually classifies as warehouse-scoped. Refusing every URI at this call
+    // site would report corrupt data as "per-user warehouses are disabled".
+    grantReadAccess()
+    val exec = insertExecution(runtimeStatsUri = "mock:///stats")
+    val ex = intercept[IllegalArgumentException](
+      resource.retrieveWorkflowRuntimeStatistics(testWorkflowWid, exec.getEid, session(testUser))
+    )
+    // WarehouseUnavailableException is an IllegalStateException, so intercepting
+    // IllegalArgumentException already excludes it.
+    assert(ex.getMessage.contains("Invalid URI scheme"))
+  }
+
+  // ─── new: getWorkflowResultDownloadability ────────────────────────────────
+
+  private val foreignOwnerEmail = "owner2@example.com"
+
+  private def seedForeignDatasetOwner(): Integer = {
+    val ownerUid = Integer.valueOf(testUserId + 2)
+    getDSLContext.deleteFrom(USER).where(USER.UID.eq(ownerUid)).execute()
+    val owner = new User
+    owner.setUid(ownerUid)
+    owner.setName("restricted_ds_owner")
+    owner.setEmail(foreignOwnerEmail)
+    userDao.insert(owner)
+    ownerUid
+  }
+
+  private def seedForeignDataset(ownerUid: Integer, name: String, downloadable: Boolean): Unit = {
+    val dataset = new Dataset
+    dataset.setOwnerUid(ownerUid)
+    dataset.setName(name)
+    dataset.setRepositoryName(s"repo-$name")
+    dataset.setIsPublic(false)
+    dataset.setIsDownloadable(downloadable)
+    dataset.setDescription("")
+    dataset.setCreationTime(new Timestamp(System.currentTimeMillis()))
+    datasetDao.insert(dataset)
+  }
+
+  private def scanOperator(operatorId: String, datasetName: String): String =
+    s"""{"operatorID": "$operatorId", "operatorProperties": """ +
+      s"""{"fileName": "/datasets/$foreignOwnerEmail/$datasetName/v1/data.csv"}}"""
+
+  // Seeds three datasets owned by somebody other than testUser and wires the workflow as
+  //
+  //   scanA -> LockedDS  (foreign, NOT downloadable) --\
+  //                                                     >-- downstreamB
+  //   scanC -> LockedDS2 (foreign, NOT downloadable) --/
+  //   scanD -> OpenDS    (foreign, downloadable)         (unrestricted, no links)
+  //
+  // scanD is what makes the is_downloadable predicate observable — every other dataset
+  // fixture in this file is non-downloadable, so without it "restricted" and "foreign"
+  // are the same set. The two restricted scans meeting at downstreamB are what make the
+  // per-operator union observable, since one restricted source cannot tell a merge from
+  // an overwrite.
+  private def seedRestrictedWorkflow(): Unit = {
+    val ownerUid = seedForeignDatasetOwner()
+    seedForeignDataset(ownerUid, "LockedDS", downloadable = false)
+    seedForeignDataset(ownerUid, "LockedDS2", downloadable = false)
+    seedForeignDataset(ownerUid, "OpenDS", downloadable = true)
+
+    testWorkflow.setContent(
+      s"""{
+         |  "operators": [
+         |    ${scanOperator("scanA", "LockedDS")},
+         |    ${scanOperator("scanC", "LockedDS2")},
+         |    ${scanOperator("scanD", "OpenDS")},
+         |    {"operatorID": "downstreamB", "operatorProperties": {}}
+         |  ],
+         |  "links": [
+         |    {"source": {"operatorID": "scanA"}, "target": {"operatorID": "downstreamB"}},
+         |    {"source": {"operatorID": "scanC"}, "target": {"operatorID": "downstreamB"}}
+         |  ]
+         |}""".stripMargin
+    )
+    workflowDao.update(testWorkflow)
+  }
+
+  "getWorkflowResultDownloadability" should "reject a user without read access" in {
+    assertThrows[WebApplicationException](
+      resource.getWorkflowResultDownloadability(testWorkflowWid, session(userWithoutAccess()))
+    )
+  }
+
+  // The label format is a contract with the frontend, which renders the strings
+  // verbatim, so it is pinned here rather than left to the caller to reconstruct.
+  it should "label every restricted operator with 'datasetName (ownerEmail)'" in {
+    grantReadAccess()
+    seedRestrictedWorkflow()
+
+    val response = resource.getWorkflowResultDownloadability(testWorkflowWid, session(testUser))
+    assert(response.getStatus == 200)
+
+    val body = response.getEntity.asInstanceOf[java.util.Map[String, Array[String]]]
+    assert(body.get("scanA").toSeq == Seq(s"LockedDS ($foreignOwnerEmail)"))
+    assert(body.get("scanC").toSeq == Seq(s"LockedDS2 ($foreignOwnerEmail)"))
+    // Two restricted scans feed downstreamB, so its entry is the union of both; an
+    // implementation that overwrote instead of merging would list whichever arrived
+    // last, which is why the value type is a Set.
+    assert(
+      body.get("downstreamB").toSet ==
+        Set(s"LockedDS ($foreignOwnerEmail)", s"LockedDS2 ($foreignOwnerEmail)")
+    )
+    // OpenDS is foreign too, but downloadable — so scanD is not restricted at all.
+    assert(!body.containsKey("scanD"))
+  }
+
+  // Loop workflows put a LoopEnd -> LoopStart back edge into exactly the `links` array
+  // this endpoint walks, so a cycle is not hypothetical. Propagation stops once an
+  // operator's restriction set stops growing; without that check the queue cycles
+  // forever and the request thread wedges, so the call is made off-thread and the case
+  // fails on timeout instead of hanging the suite.
+  it should "terminate on a workflow whose links form a cycle" in {
+    grantReadAccess()
+    val ownerUid = seedForeignDatasetOwner()
+    seedForeignDataset(ownerUid, "CycleDS", downloadable = false)
+    testWorkflow.setContent(
+      s"""{
+         |  "operators": [
+         |    ${scanOperator("scanA", "CycleDS")},
+         |    {"operatorID": "b", "operatorProperties": {}},
+         |    {"operatorID": "c", "operatorProperties": {}}
+         |  ],
+         |  "links": [
+         |    {"source": {"operatorID": "scanA"}, "target": {"operatorID": "b"}},
+         |    {"source": {"operatorID": "b"}, "target": {"operatorID": "c"}},
+         |    {"source": {"operatorID": "c"}, "target": {"operatorID": "scanA"}}
+         |  ]
+         |}""".stripMargin
+    )
+    workflowDao.update(testWorkflow)
+
+    val call = Future(
+      resource.getWorkflowResultDownloadability(testWorkflowWid, session(testUser))
+    )(ExecutionContext.global)
+    val response = Await.result(call, 30.seconds)
+
+    val body = response.getEntity.asInstanceOf[java.util.Map[String, Array[String]]]
+    assert(body.size() == 3)
+    assert(body.containsKey("scanA") && body.containsKey("b") && body.containsKey("c"))
+  }
+
+  // ─── new: result-export endpoints ─────────────────────────────────────────
+
+  private def exportRequest(
+      operators: List[OperatorExportInfo],
+      computingUnitId: Integer
+  ): ResultExportRequest =
+    ResultExportRequest(
+      exportType = "csv",
+      workflowId = testWorkflowWid,
+      workflowName = "export-spec-workflow",
+      operators = operators,
+      datasetIds = List.empty,
+      rowIndex = 0,
+      columnIndex = 0,
+      filename = "",
+      computingUnitId = computingUnitId.intValue()
+    )
+
+  // Mirrors what JwtAuth.jwtClaims writes at issue time, so the token below is
+  // one the production consumer accepts.
+  private def tokenFor(role: UserRoleEnum): String = {
+    val claims = new JwtClaims
+    claims.setSubject(testUser.getName)
+    claims.setClaim("userId", testUser.getUid)
+    claims.setClaim("email", testUser.getEmail)
+    claims.setClaim("role", role.name)
+    claims.setClaim("avatar", testUser.getAvatar)
+    claims.setExpirationTimeMinutesInTheFuture(10f)
+    JwtAuth.jwtToken(claims)
+  }
+
+  private def errorOf(response: Response): String =
+    response.getEntity.asInstanceOf[java.util.Map[String, String]].get("error")
+
+  // This endpoint is reached by a browser form submit, which cannot carry an
+  // Authorization header, so the JWT arrives as a form field and every failure
+  // has to come back as a JSON body rather than as an escaping exception.
+  "exportResultToLocal" should "answer an unverifiable token with a 500 JSON error" in {
+    val response =
+      resource.exportResultToLocal(Json.stringify(Json.toJson(exportRequest(Nil, 0))), "not-a-jwt")
+    assert(response.getStatus == 500)
+    assert(errorOf(response) == "Invalid or expired token")
+  }
+
+  it should "answer a verified token whose role is below REGULAR with a 500 JSON error" in {
+    Seq(UserRoleEnum.RESTRICTED, UserRoleEnum.INACTIVE).foreach { role =>
+      val response = resource.exportResultToLocal(
+        Json.stringify(Json.toJson(exportRequest(Nil, 0))),
+        tokenFor(role)
+      )
+      assert(response.getStatus == 500, s"role $role")
+      assert(
+        errorOf(response) == "User role is not allowed to perform this download",
+        s"role $role"
+      )
+    }
+  }
+
+  // Both allowed roles, not just REGULAR: shrinking the allow-list locks admins out of
+  // every result download, and a one-sided test cannot see a removal.
+  it should "let every allowed role past the role gate" in {
+    grantReadAccess()
+    Seq(UserRoleEnum.REGULAR, UserRoleEnum.ADMIN).foreach { role =>
+      val response = resource.exportResultToLocal(
+        Json.stringify(Json.toJson(exportRequest(List(OperatorExportInfo("op-1", "csv")), 0))),
+        tokenFor(role)
+      )
+      assert(
+        errorOf(response) != "User role is not allowed to perform this download",
+        s"role $role was rejected by the role gate"
+      )
+    }
+  }
+
+  // The read grant is not required by today's code — this endpoint gates on role only —
+  // but the request has to be legitimate on its own terms, or this case would go red the
+  // day the missing workflow-access check is added and would block that fix.
+  it should "parse the form-encoded request and run the export once the token checks out" in {
+    grantReadAccess()
+    val unit = insertComputingUnit()
+    insertExecution(cuid = unit.getCuid)
+
+    // Two operators, so the request takes the zip branch, which only reaches a 200 once
+    // the workflow id and computing unit id off the parsed body find a real execution.
+    // With either id perturbed the lookup comes back empty and the response is a 500.
+    val response = resource.exportResultToLocal(
+      Json.stringify(
+        Json.toJson(
+          exportRequest(
+            List(OperatorExportInfo("op-1", "csv"), OperatorExportInfo("op-2", "csv")),
+            unit.getCuid
+          )
+        )
+      ),
+      tokenFor(UserRoleEnum.REGULAR)
+    )
+    assert(response.getStatus == 200)
+    val disposition = response.getHeaderString("Content-Disposition")
+    // The name is built from the request's own workflowName, so a body the endpoint
+    // ignored in favour of a hard-coded request would not produce it.
+    assert(disposition.startsWith("attachment; filename=\"export-spec-workflow-"))
+    assert(disposition.endsWith(".zip\""))
+  }
+
+  it should "report a missing execution for a single-operator request as a 500 JSON error" in {
+    // One operator takes the streaming branch instead, whose "no execution" outcome is
+    // reported through the JSON error body rather than as an escaping exception.
+    grantReadAccess()
+    val response = resource.exportResultToLocal(
+      Json.stringify(Json.toJson(exportRequest(List(OperatorExportInfo("op-1", "csv")), 0))),
+      tokenFor(UserRoleEnum.REGULAR)
+    )
+    assert(response.getStatus == 500)
+    assert(errorOf(response) == "Failed to export operator")
+  }
+
+  "exportResultToDataset" should "report a per-operator failure inside a 200 response" in {
+    grantReadAccess()
+    val unit = insertComputingUnit()
+    insertExecution(cuid = unit.getCuid)
+
+    val response = resource.exportResultToDataset(
+      exportRequest(List(OperatorExportInfo("op-1", "csv")), unit.getCuid),
+      session(testUser)
+    )
+    assert(response.getStatus == 200)
+
+    val body = response.getEntity.asInstanceOf[ResultExportResponse]
+    assert(body.status == "error")
+    // The execution was found — i.e. the workflow id and computing unit the
+    // request named both reached the lookup — it just holds no result for op-1.
+    assert(body.message.contains("No results to export"))
   }
 
 }
