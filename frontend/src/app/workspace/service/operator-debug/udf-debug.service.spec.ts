@@ -496,7 +496,8 @@ describe("UdfDebugServiceSpec", () => {
 
   it("should clear a breakpoint that lost its id with an empty id", () => {
     // State a hit breakpoint is left in once pdb deleted it: still present, so the
-    // command is `clear`, but with no id to clear by.
+    // command is `clear`, but with no id to clear by. The trailing space is pinned
+    // deliberately — it is the literal payload that goes over the websocket.
     const debugState = service.getDebugState(mockPythonUDFPredicate.operatorID);
     debugState.set("10", { breakpointId: undefined, condition: "", hit: true });
 
