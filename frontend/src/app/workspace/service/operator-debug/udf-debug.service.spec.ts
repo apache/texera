@@ -30,7 +30,7 @@ import { mockPoint, mockPythonUDFPredicate } from "../workflow-graph/model/mock-
 import { OperatorMetadataService } from "../operator-metadata/operator-metadata.service";
 import { StubOperatorMetadataService } from "../operator-metadata/stub-operator-metadata.service";
 import * as Y from "yjs";
-import { ConsoleUpdateEvent } from "../../types/workflow-common.interface";
+import { ConsoleMessage, ConsoleUpdateEvent } from "../../types/workflow-common.interface";
 import { TexeraWebsocketEvent } from "../../types/workflow-websocket.interface";
 import { commonTestProviders } from "../../../common/testing/test-utils";
 import type { Mocked } from "vitest";
@@ -458,6 +458,172 @@ describe("UdfDebugServiceSpec", () => {
     const debugState = service.getDebugState(mockPythonUDFPredicate.operatorID);
     debugState.set("1", { breakpointId: 1, condition: "x > 5", hit: false });
     debugState.set("2", { breakpointId: undefined, condition: "", hit: true }); // Temporary breakpoint
+
+    service["markContinue"](mockPythonUDFPredicate.operatorID);
+
+    expect(debugState.get("1")).toEqual({ breakpointId: 1, condition: "x > 5", hit: false });
+    expect(debugState.has("2")).toBe(false);
+  });
+
+  // Builds the (Pdb) DEBUGGER console event shape that every handler below filters on.
+  function pdbEvent(title: string, overrides: Partial<ConsoleMessage> = {}): ConsoleUpdateEvent {
+    return {
+      operatorId: mockPythonUDFPredicate.operatorID,
+      messages: [
+        {
+          workerId: stubWorker,
+          timestamp: { nanos: 0, seconds: 0 },
+          title,
+          source: "(Pdb)",
+          msgType: { name: "DEBUGGER" },
+          message: "",
+          ...overrides,
+        },
+      ],
+    };
+  }
+
+  it("should not send a condition for a line that has no breakpoint", () => {
+    // The condition differs from the empty default, so the early return is passed and
+    // the `isDefined(breakpointInfo)` guard is the one that stops the update.
+    const debugState = service.getDebugState(mockPythonUDFPredicate.operatorID);
+
+    service.doUpdateBreakpointCondition(mockPythonUDFPredicate.operatorID, 7, "x < 10");
+
+    expect(mockWorkflowWebsocketService.send).not.toHaveBeenCalled();
+    expect(debugState.has("7")).toBe(false);
+  });
+
+  it("should clear a breakpoint that lost its id with an empty id", () => {
+    // State a hit breakpoint is left in once pdb deleted it: still present, so the
+    // command is `clear`, but with no id to clear by.
+    const debugState = service.getDebugState(mockPythonUDFPredicate.operatorID);
+    debugState.set("10", { breakpointId: undefined, condition: "", hit: true });
+
+    service.doModifyBreakpoint(mockPythonUDFPredicate.operatorID, 10);
+
+    expect(mockWorkflowWebsocketService.send).toHaveBeenCalledWith("DebugCommandRequest", {
+      operatorId: mockPythonUDFPredicate.operatorID,
+      workerId: stubWorker,
+      cmd: "clear ",
+    });
+  });
+
+  it("should ignore console events from another operator or with no messages", () => {
+    vi.spyOn(service as any, "markBreakpointAsHit");
+
+    consoleUpdateEventStream.next({
+      ...pdbEvent("> /path/to/file.py(10)<module>()"),
+      operatorId: "some-other-operator",
+    });
+    consoleUpdateEventStream.next({ operatorId: mockPythonUDFPredicate.operatorID, messages: [] });
+
+    expect(service["markBreakpointAsHit"]).not.toHaveBeenCalled();
+  });
+
+  it("should ignore console messages that are not from the debugger", () => {
+    vi.spyOn(service as any, "markBreakpointAsHit");
+
+    consoleUpdateEventStream.next(pdbEvent("> /path/to/file.py(10)<module>()", { source: "stdout" }));
+    consoleUpdateEventStream.next(pdbEvent("> /path/to/file.py(10)<module>()", { msgType: { name: "PRINT" } }));
+
+    expect(service["markBreakpointAsHit"]).not.toHaveBeenCalled();
+  });
+
+  it("should keep the debug state on a status update that is not Uninitialized", () => {
+    const operatorId = mockPythonUDFPredicate.operatorID;
+    const debugState = service.getDebugState(operatorId);
+    debugState.set("10", { breakpointId: 1, condition: "", hit: false });
+
+    const running: OperatorStatistics = {
+      operatorState: OperatorState.Running,
+      aggregatedInputRowCount: 0,
+      aggregatedOutputRowCount: 0,
+      inputPortMetrics: {},
+      outputPortMetrics: {},
+    };
+    statusUpdateStream.next({ [operatorId]: running });
+    statusUpdateStream.next({ "some-other-operator": { ...running, operatorState: OperatorState.Uninitialized } });
+
+    expect(debugState.size).toBe(1);
+  });
+
+  it("should ignore a stepping message that carries no line number", () => {
+    vi.spyOn(service as any, "markBreakpointAsHit");
+    // spied so the assertions below cannot be satisfied by the message never
+    // reaching the handler at all
+    vi.spyOn(service as any, "extractInfo");
+
+    consoleUpdateEventStream.next(pdbEvent("> <stdin> in the interactive shell"));
+
+    expect(service["extractInfo"]).toHaveBeenCalledWith("> <stdin> in the interactive shell");
+    expect(service["markBreakpointAsHit"]).not.toHaveBeenCalled();
+  });
+
+  it("should ignore a deletion message that carries no line number", () => {
+    const debugState = service.getDebugState(mockPythonUDFPredicate.operatorID);
+    debugState.set("10", { breakpointId: 1, condition: "", hit: false });
+    vi.spyOn(service, "doContinue");
+    vi.spyOn(service as any, "extractInfo");
+
+    consoleUpdateEventStream.next(pdbEvent("Deleted all breakpoints"));
+
+    expect(service["extractInfo"]).toHaveBeenCalledWith("Deleted all breakpoints");
+    expect(debugState.has("10")).toBe(true);
+    expect(service.doContinue).not.toHaveBeenCalled();
+  });
+
+  it("should ignore a deletion message for a line with no debug state", () => {
+    const debugState = service.getDebugState(mockPythonUDFPredicate.operatorID);
+    vi.spyOn(service, "doContinue");
+
+    consoleUpdateEventStream.next(pdbEvent("Deleted breakpoint 1 at /path/to/file.py:10"));
+
+    expect(debugState.size).toBe(0);
+    // the handler returns before reaching the continue check
+    expect(service.doContinue).not.toHaveBeenCalled();
+  });
+
+  it("should not record a breakpoint whose creation message has no id", () => {
+    // `Breakpoint <id> at <file>:<line>` is what carries an id; without one only the
+    // line is recovered, so the entry is skipped but the execution still continues.
+    const debugState = service.getDebugState(mockPythonUDFPredicate.operatorID);
+    vi.spyOn(service, "doContinue");
+
+    consoleUpdateEventStream.next(pdbEvent("Breakpoint at /path/to/file.py:10"));
+
+    expect(debugState.has("10")).toBe(false);
+    expect(service.doContinue).toHaveBeenCalledWith(mockPythonUDFPredicate.operatorID, stubWorker);
+  });
+
+  it("should not record a breakpoint whose creation message has neither id nor line", () => {
+    const debugState = service.getDebugState(mockPythonUDFPredicate.operatorID);
+    vi.spyOn(service, "doContinue");
+
+    consoleUpdateEventStream.next(pdbEvent("Breakpoint already exists"));
+
+    expect(debugState.size).toBe(0);
+    expect(service.doContinue).toHaveBeenCalledWith(mockPythonUDFPredicate.operatorID, stubWorker);
+  });
+
+  it("should mark an existing breakpoint as hit without discarding its condition", () => {
+    // The companion of the existing markBreakpointAsHit test, which starts from an
+    // empty state and therefore only creates the placeholder entry.
+    const debugState = service.getDebugState(mockPythonUDFPredicate.operatorID);
+    debugState.set("10", { breakpointId: 3, condition: "x > 5", hit: false });
+
+    consoleUpdateEventStream.next(pdbEvent("> /path/to/file.py(10)<module>()"));
+
+    expect(debugState.get("10")).toEqual({ breakpointId: 3, condition: "x > 5", hit: true });
+  });
+
+  it("should keep a hit breakpoint that still has an id when continuing", () => {
+    // The two combinations the existing markContinue test does not reach: a hit
+    // breakpoint with an id is reset rather than dropped, and an idle temporary one
+    // is dropped even though it was never hit.
+    const debugState = service.getDebugState(mockPythonUDFPredicate.operatorID);
+    debugState.set("1", { breakpointId: 1, condition: "x > 5", hit: true });
+    debugState.set("2", { breakpointId: undefined, condition: "", hit: false });
 
     service["markContinue"](mockPythonUDFPredicate.operatorID);
 
