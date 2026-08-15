@@ -271,7 +271,10 @@ class WorkflowExecutionsResourceSpec
   // An execution that is real, readable by testUser's session, and belongs to a
   // *different* workflow than `testWorkflowWid` — the shape an endpoint that
   // forgets to join execution -> version -> workflow would happily serve.
-  private def insertForeignExecution(runtimeStatsUri: String): WorkflowExecutions = {
+  private def insertForeignExecution(
+      runtimeStatsUri: String = null,
+      logLocation: String = ""
+  ): WorkflowExecutions = {
     val workflow = new Workflow
     workflow.setWid(foreignWid)
     workflow.setName("foreign_workflow_" + UUID.randomUUID().toString.substring(0, 8))
@@ -292,7 +295,7 @@ class WorkflowExecutionsResourceSpec
     execution.setUid(testUser.getUid)
     execution.setStatus(0.toByte)
     execution.setResult("")
-    execution.setLogLocation("")
+    execution.setLogLocation(logLocation)
     execution.setStartingTime(new Timestamp(System.currentTimeMillis()))
     execution.setBookmarked(false)
     execution.setName("foreign-execution")
@@ -1172,6 +1175,16 @@ class WorkflowExecutionsResourceSpec
     assert(result.isEmpty)
   }
 
+  it should "return an empty list when the execution belongs to a different workflow" in {
+    grantReadAccess()
+    // Without the execution-to-workflow check, the endpoint tries to open this invalid
+    // log URI. An empty result therefore proves it refused the foreign execution first.
+    val foreign = insertForeignExecution(logLocation = "mock:///foreign-replay")
+    val result =
+      resource.retrieveInteractionHistory(testWorkflowWid, foreign.getEid, session(testUser))
+    assert(result.isEmpty)
+  }
+
   it should "return an empty list when the execution stored no replay log" in {
     // log_location is empty, so the replay-log storage must not be opened at all:
     // handing "" to SequentialRecordStorage would fail rather than yield nothing.
@@ -1600,6 +1613,24 @@ class WorkflowExecutionsResourceSpec
     assert(disposition.endsWith(".zip\""))
   }
 
+  it should "deny a valid download request from a user without workflow read access" in {
+    val unit = insertComputingUnit()
+    insertExecution(cuid = unit.getCuid)
+
+    val response = resource.exportResultToLocal(
+      Json.stringify(
+        Json.toJson(
+          exportRequest(
+            List(OperatorExportInfo("op-1", "csv"), OperatorExportInfo("op-2", "csv")),
+            unit.getCuid
+          )
+        )
+      ),
+      tokenFor(UserRoleEnum.REGULAR)
+    )
+    assert(response.getStatus == Response.Status.UNAUTHORIZED.getStatusCode)
+  }
+
   it should "report a missing execution for a single-operator request as a 500 JSON error" in {
     // One operator takes the streaming branch instead, whose "no execution" outcome is
     // reported through the JSON error body rather than as an escaping exception.
@@ -1628,6 +1659,13 @@ class WorkflowExecutionsResourceSpec
     // The execution was found — i.e. the workflow id and computing unit the
     // request named both reached the lookup — it just holds no result for op-1.
     assert(body.message.contains("No results to export"))
+  }
+
+  it should "deny an export request from a user without workflow read access" in {
+    // No operators are needed: before the fix this returns a spurious 200 success
+    // without consulting workflow access at all.
+    val response = resource.exportResultToDataset(exportRequest(Nil, 0), session(testUser))
+    assert(response.getStatus == Response.Status.UNAUTHORIZED.getStatusCode)
   }
 
 }
