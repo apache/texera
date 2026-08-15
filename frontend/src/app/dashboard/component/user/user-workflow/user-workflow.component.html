@@ -51,7 +51,6 @@
         </nz-upload>
         <button
           *ngIf="pythonNotebookMigrationEnabled"
-          [disabled]="accessLevel === 'READ'"
           nz-button
           (click)="openAiGenerateModal()"
           title="AI generate a workflow from a Python notebook"
