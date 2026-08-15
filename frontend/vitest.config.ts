@@ -41,7 +41,8 @@ export default defineConfig({
     // whichever test happens to be running, so raising the ceiling is the
     // only fix that isn't whack-a-mole — three different specs have gone
     // red this way. A test that legitimately needs >30s is broken, and the
-    // job's own timeout still bounds a true hang. See apache/texera#6073.
+    // frontend job's `timeout-minutes: 30` (.github/workflows/build.yml)
+    // still bounds a true hang. See apache/texera#6073.
     testTimeout: 30_000,
     hookTimeout: 30_000,
     // Per-spec exclusions live in `angular.json` (the unit-test builder

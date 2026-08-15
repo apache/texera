@@ -86,12 +86,19 @@ jobs:
   frontend:
     if: ${{ inputs.run_frontend }}
     runs-on: ${{ matrix.os }}
+    # Only the "Install dependency" step below is bounded, so a spec that
+    # truly hangs would otherwise run to GitHub's implicit 6h cap — billed at
+    # 10x on the macOS leg. Recent green runs take 4-12 minutes and install
+    # alone may take 20, so 30 bounds a hang while still absorbing a cold
+    # yarn cache on a slow runner.
+    timeout-minutes: 30
     strategy:
       # An OS-specific failure should not cancel the other two legs: with the
       # default fail-fast the surviving jobs report "The operation was
       # canceled" and the run no longer says whether the failure reproduces
       # off that OS — exactly the evidence needed to tell a runner flake from
-      # a real break. Every other multi-leg matrix here already opts out.
+      # a real break. `platform`, `platform-integration`, `agent-service` and
+      # `infra` opt out for the same reason.
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]

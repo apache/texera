@@ -64,11 +64,13 @@ export default defineConfig({
     // browser-mode the runtime has neither, so we install the `buffer` npm
     // package as a shim).
     setupFiles: ["src/browser-buffer-polyfill.ts", "src/test-zone-setup.ts"],
-    // Same runner-stall headroom as the jsdom config (vitest.config.ts):
-    // driving a real Chromium through playwright is strictly slower than
-    // jsdom, so these specs need at least as much slack. See #6073.
+    // Browser mode already resolves larger defaults than jsdom (15s per test,
+    // 30s per hook, keyed off `browser.enabled`), but driving a real Chromium
+    // through playwright is strictly slower than jsdom, so the per-test
+    // ceiling is lifted to the same 30s the jsdom config uses
+    // (vitest.config.ts). `hookTimeout` is left alone — its browser-mode
+    // default is already 30s. See #6073.
     testTimeout: 30_000,
-    hookTimeout: 30_000,
     browser: {
       enabled: true,
       provider: playwright(),
