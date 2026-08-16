@@ -1082,15 +1082,22 @@ export function fromJointPaperEvent<T extends keyof joint.dia.Paper.EventMap = k
 }
 
 /**
- * Observable of a JointJS graph's cell events (`change:position`, `add`, ...),
- * emitting the cell the event fired on.
+ * Observable of a JointJS graph event that reports a cell, emitting that cell.
+ *
+ * The event name is restricted to the cell-reporting events: graph-level ones
+ * (`change`, `reset`, `sort`) hand the handler the Graph itself, which would
+ * make the `Cell` payload a lie. Widen the union only alongside a check that
+ * the new event reports a cell.
  *
  * The graph belongs to `JointGraphWrapper`, which is root-provided, so it
  * outlives the components listening to it. Going through an Observable lets a
  * listener be torn down with `untilDestroyed(this)` like any other subscription,
  * where a raw `graph.on(...)` closure would leak.
  */
-export function fromJointGraphCellEvent(graph: joint.dia.Graph, eventName: string): Observable<joint.dia.Cell> {
+export function fromJointGraphCellEvent(
+  graph: joint.dia.Graph,
+  eventName: "add" | "remove" | "change:position"
+): Observable<joint.dia.Cell> {
   return fromEventPattern<joint.dia.Cell>(
     handler => graph.on(eventName, handler), // addHandler
     handler => graph.off(eventName, handler), // removeHandler

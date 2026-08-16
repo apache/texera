@@ -1818,7 +1818,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
 
     // Dismiss when the canvas is frozen — during execution, version preview, or a
     // read-only view. Materializing writes to the shared model, and undo refuses
-    // while the lock is on, so a click here would be unrepealable; the chips must
+    // while the lock is on, so a click here could not be undone; the chips must
     // not stay on screen looking clickable either.
     this.workflowActionService
       .getWorkflowModificationEnabledStream()
@@ -1923,10 +1923,12 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     }
     const graph = this.workflowActionService.getTexeraGraph();
     let newOperatorID: string | undefined;
-    // Re-check the port: nothing dismisses the chips when the user hand-draws a
-    // link out of the anchor port, because that gesture starts on the port and
-    // fires element:pointerdown rather than the blank:pointerdown we listen for.
-    // Without this the click would add a second successor on top of the first.
+    // Both conditions re-check state the chips cannot see. The lock can engage
+    // between render and click; and nothing dismisses the chips when the user
+    // hand-draws a link out of the anchor port, because that gesture is a magnet
+    // drag that stops propagation before any pointerdown notification, so the
+    // blank:pointerdown we listen for never fires. Without the port check the
+    // click would add a second successor on top of the first.
     if (
       this.workflowActionService.checkWorkflowModificationEnabled() &&
       graph.hasOperator(this.nextOperatorSuggestion.operatorId) &&
