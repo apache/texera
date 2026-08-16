@@ -25,7 +25,7 @@ import { HttpClient, HttpHeaders } from "@angular/common/http";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { distinctUntilChanged, switchMap } from "rxjs/operators";
 import { AppSettings } from "../../../common/app-setting";
-import { NotebookMigrationService } from "../notebook-migration/notebook-migration.service";
+import { NotebookMigrationService, notebookMappingKey } from "../notebook-migration/notebook-migration.service";
 import { GuiConfigService } from "../../../common/service/gui-config.service";
 
 @Injectable({
@@ -137,7 +137,7 @@ export class JupyterPanelService {
       switchMap(async (response: any) => {
         // Only load mapping and workflow if they exist
         if (response.exists) {
-          this.notebookMigrationService.setMapping("mapping_wid_" + workflowID, response.mapping);
+          this.notebookMigrationService.setMapping(notebookMappingKey(workflowID), response.mapping);
 
           if ((await this.notebookMigrationService.sendNotebookToJupyter(response.notebook)) == 1) {
             return 1;
@@ -166,7 +166,7 @@ export class JupyterPanelService {
       console.warn("Workflow ID is undefined. Cannot compute highlight mapping.");
       return;
     }
-    const mappingKey = "mapping_wid_" + wid;
+    const mappingKey = notebookMappingKey(wid);
     const mapping = this.notebookMigrationService.getMapping(mappingKey);
 
     if (mapping == undefined) {
@@ -253,7 +253,7 @@ export class JupyterPanelService {
     this.jupyterNotebookPanelVisible.next(false);
     const wid = this.workflowActionService.getWorkflow().wid;
     if (wid != undefined) {
-      this.notebookMigrationService.deleteMapping("mapping_wid_" + wid);
+      this.notebookMigrationService.deleteMapping(notebookMappingKey(wid));
     }
   }
 
@@ -285,7 +285,7 @@ export class JupyterPanelService {
   public openJupyterNotebookPanel(): void {
     if (!this.enabled) return;
     const wid = this.workflowActionService.getWorkflow().wid;
-    const mappingKey = "mapping_wid_" + wid;
+    const mappingKey = notebookMappingKey(wid);
     // Check if there is corresponding mapping data
     if (wid === undefined || !this.notebookMigrationService.hasMapping(mappingKey)) {
       this.notificationService.warning("No Jupyter notebook associated with this workflow.");
@@ -359,7 +359,7 @@ export class JupyterPanelService {
         return;
       }
 
-      const mappingKey = "mapping_wid_" + wid;
+      const mappingKey = notebookMappingKey(wid);
       const mappingEntry = this.notebookMigrationService.getMapping(mappingKey);
 
       if (!mappingEntry) {

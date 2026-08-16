@@ -120,7 +120,6 @@ class NotebookMigrationResourceSpec
     user.setName(name)
     user.setEmail(email)
     user.setRole(UserRoleEnum.REGULAR)
-    user.setPassword("password")
     userDao.insert(user)
     user.getUid
   }
@@ -450,7 +449,7 @@ class NotebookMigrationResourceSpec
 
     resource.setNotebook(validNotebook, user).getStatus shouldBe 500
     resource.getJupyterURL(user).getStatus shouldBe 500
-    resource.getJupyterIframeURL(user).getStatus shouldBe 500
+    resource.getJupyterIframeURL(null, user).getStatus shouldBe 500
   }
 
   it should "return 500 when the request body is malformed JSON" in {
@@ -482,9 +481,42 @@ class NotebookMigrationResourceSpec
       urlResp.getStatus shouldBe Response.Status.OK.getStatusCode
       urlResp.getEntity.toString should include("localhost:9100")
 
-      val iframeResp = resource.getJupyterIframeURL(sessionUser(writerUid))
+      val iframeResp = resource.getJupyterIframeURL(null, sessionUser(writerUid))
       iframeResp.getStatus shouldBe Response.Status.OK.getStatusCode
-      iframeResp.getEntity.toString should include("/notebooks/work/")
+      iframeResp.getEntity.toString should include("/notebooks/work/notebook.ipynb")
+    }
+  }
+
+  it should "build the iframe URL from an explicit notebook name" in {
+    withFakeJupyter(contentsStatus = 201) {
+      val resp = resource.getJupyterIframeURL("other.ipynb", sessionUser(writerUid))
+      resp.getStatus shouldBe Response.Status.OK.getStatusCode
+      resp.getEntity.toString should include("/notebooks/work/other.ipynb")
+    }
+  }
+
+  it should "reject an invalid notebook name for the iframe URL with 400" in {
+    // notebookName flows into the URL, so it is validated before any Jupyter call and
+    // rejected without a running server.
+    NotebookMigrationResource
+      .getJupyterIframeURL("../../etc/evil.ipynb")
+      .getStatus shouldBe Response.Status.BAD_REQUEST.getStatusCode
+  }
+
+  it should "not be affected by a prior setNotebook call (no shared iframe state)" in {
+    // Pins the stateless refactor: getJupyterIframeURL builds its URL from the request, not
+    // from state left by setNotebook. A param-less iframe request after uploading other.ipynb
+    // must return the default notebook, not the just-uploaded name.
+    withFakeJupyter(contentsStatus = 201) {
+      val user = sessionUser(writerUid)
+      resource
+        .setNotebook("""{"notebookName": "other.ipynb", "notebookData": {"cells": []}}""", user)
+        .getStatus shouldBe Response.Status.OK.getStatusCode
+
+      val iframe = resource.getJupyterIframeURL(null, user)
+      iframe.getStatus shouldBe Response.Status.OK.getStatusCode
+      iframe.getEntity.toString should include("/notebooks/work/notebook.ipynb")
+      iframe.getEntity.toString should not include "other.ipynb"
     }
   }
 

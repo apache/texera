@@ -19,7 +19,11 @@
 
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import { PYTHON_UDF_V2_OP_TYPE } from "../workflow-graph/model/workflow-graph";
-import { UiUdfParametersParseError, UiUdfParametersParserService } from "./ui-udf-parameters-parser.service";
+import {
+  UiUdfParametersEditError,
+  UiUdfParametersParseError,
+  UiUdfParametersParserService,
+} from "./ui-udf-parameters-parser.service";
 import type { UiUdfParameter } from "./ui-udf-parameters-parser.service";
 import { UiUdfParametersSyncService } from "./ui-udf-parameters-sync.service";
 import type { Mock } from "vitest";
@@ -31,7 +35,7 @@ describe("UiUdfParametersSyncService", () => {
   const code = "self.UiParameter(...)";
 
   let service: UiUdfParametersSyncService;
-  let parserServiceMock: { parse: Mock };
+  let parserServiceMock: { parse: Mock; computeParameterInsertion: Mock };
   let graphMock: { getOperator: Mock; getSharedOperatorType: Mock };
   let operator: { operatorType: string; operatorProperties: { uiParameters: UiUdfParameter[] } };
 
@@ -45,7 +49,7 @@ describe("UiUdfParametersSyncService", () => {
         ),
       getSharedOperatorType: vitest.fn(),
     };
-    parserServiceMock = { parse: vitest.fn() };
+    parserServiceMock = { parse: vitest.fn(), computeParameterInsertion: vitest.fn() };
     service = new UiUdfParametersSyncService(
       { getTexeraGraph: vitest.fn().mockReturnValue(graphMock) } as unknown as WorkflowActionService,
       parserServiceMock as unknown as UiUdfParametersParserService
@@ -90,6 +94,15 @@ describe("UiUdfParametersSyncService", () => {
     expect(parametersChangedObserver).not.toHaveBeenCalled();
   });
 
+  it("should not replay a previous parameter change to a late subscriber", () => {
+    parserServiceMock.parse.mockReturnValue([parameter("count", "integer")]);
+
+    service.syncStructureFromCode(operatorId, code);
+
+    const lateObserver = observeParameterChanges();
+    expect(lateObserver).not.toHaveBeenCalled();
+  });
+
   it("should emit parser errors without replacing the current parameters", () => {
     operator.operatorProperties.uiParameters = [parameter("count", "integer", "42")];
     parserServiceMock.parse.mockImplementation(() => {
@@ -107,6 +120,18 @@ describe("UiUdfParametersSyncService", () => {
       operatorId,
       message: "Only one Python UDF class can declare UiParameter values.",
     });
+  });
+
+  it("should not replay a previous parser error to a late subscriber", () => {
+    parserServiceMock.parse.mockImplementation(() => {
+      throw new UiUdfParametersParseError("invalid parameters");
+    });
+
+    service.syncStructureFromCode(operatorId, code);
+
+    const lateObserver = vitest.fn();
+    service.uiParametersParseError$.subscribe(lateObserver);
+    expect(lateObserver).not.toHaveBeenCalled();
   });
 
   it("should not parse code for non-Python UDF operators", () => {
@@ -183,6 +208,41 @@ describe("UiUdfParametersSyncService", () => {
       expect(parametersChangedObserver).toHaveBeenCalledTimes(2);
     } finally {
       vitest.useRealTimers();
+    }
+  });
+
+  it("should insert the computed parameter edit into shared code and re-sync the structure", () => {
+    const sharedCode = "class ProcessTupleOperator(UDFOperatorV2):\n    pass\n";
+    const sharedOperator = sharedOperatorType(sharedCode);
+    graphMock.getSharedOperatorType.mockReturnValue(sharedOperator);
+    parserServiceMock.computeParameterInsertion.mockReturnValue({ offset: 0, text: "# inserted\n" });
+    parserServiceMock.parse.mockReturnValue([parameter("count", "integer")]);
+
+    const parametersChangedObserver = observeParameterChanges();
+
+    service.addParameter(operatorId, "count", "integer");
+
+    expect(parserServiceMock.computeParameterInsertion).toHaveBeenCalledWith(sharedCode, "count", "integer");
+    const yCode = (sharedOperator.get("operatorProperties") as Yjs.Map<unknown>).get("code") as Yjs.Text;
+    expect(yCode.toString()).toBe(`# inserted\n${sharedCode}`);
+    expect(parserServiceMock.parse).toHaveBeenCalledWith(`# inserted\n${sharedCode}`);
+    expect(parametersChangedObserver).toHaveBeenCalledWith({
+      operatorId,
+      parameters: [parameter("count", "integer")],
+    });
+  });
+
+  it("should throw without editing when shared code is unavailable", () => {
+    const consoleWarnSpy = vitest.spyOn(console, "warn").mockImplementation(() => undefined);
+    graphMock.getSharedOperatorType.mockImplementation(() => {
+      throw new Error("missing shared operator");
+    });
+
+    try {
+      expect(() => service.addParameter(operatorId, "count", "integer")).toThrow(UiUdfParametersEditError);
+      expect(parserServiceMock.computeParameterInsertion).not.toHaveBeenCalled();
+    } finally {
+      consoleWarnSpy.mockRestore();
     }
   });
 

@@ -18,14 +18,74 @@
  */
 
 import { FormControl } from "@angular/forms";
+import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { FormlyFieldConfig } from "@ngx-formly/core";
+import type { Mock } from "vitest";
+import { vi as vitest } from "vitest";
+import { NotificationService } from "../../../common/service/notification/notification.service";
+import {
+  UiUdfParametersEditError,
+  UiUdfParametersParseError,
+} from "../../service/code-editor/ui-udf-parameters-parser.service";
+import { UiUdfParametersSyncService } from "../../service/code-editor/ui-udf-parameters-sync.service";
+import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { UiUdfParametersComponent } from "./ui-udf-parameters.component";
 
 describe("UiUdfParametersComponent", () => {
-  let component: UiUdfParametersComponent;
+  const operatorId = "operator-1";
 
-  beforeEach(() => {
-    component = new UiUdfParametersComponent();
+  let fixture: ComponentFixture<UiUdfParametersComponent>;
+  let component: UiUdfParametersComponent;
+  let workflowActionServiceMock: {
+    checkWorkflowModificationEnabled: Mock;
+    getJointGraphWrapper: Mock;
+  };
+  let syncServiceMock: { addParameter: Mock };
+  let notificationServiceMock: { error: Mock };
+
+  beforeEach(async () => {
+    workflowActionServiceMock = {
+      checkWorkflowModificationEnabled: vitest.fn().mockReturnValue(true),
+      getJointGraphWrapper: vitest.fn().mockReturnValue({
+        getCurrentHighlightedOperatorIDs: () => [operatorId],
+      }),
+    };
+    syncServiceMock = { addParameter: vitest.fn() };
+    notificationServiceMock = { error: vitest.fn() };
+
+    await TestBed.configureTestingModule({
+      imports: [UiUdfParametersComponent],
+      providers: [
+        { provide: WorkflowActionService, useValue: workflowActionServiceMock },
+        { provide: UiUdfParametersSyncService, useValue: syncServiceMock },
+        { provide: NotificationService, useValue: notificationServiceMock },
+      ],
+    }).compileComponents();
+
+    fixture = TestBed.createComponent(UiUdfParametersComponent);
+    component = fixture.componentInstance;
+  });
+
+  it("should render the add control and draft row before existing parameters", () => {
+    (component as any).field = {
+      model: [{ value: "42", attribute: { attributeName: "threshold", attributeType: "double" } }],
+      fieldGroup: [{}],
+    } as FormlyFieldConfig;
+
+    fixture.detectChanges();
+
+    const addButton = fixture.nativeElement.querySelector(".add-parameter-button") as HTMLElement;
+    const parameterList = fixture.nativeElement.querySelector(".ui-udf-parameter-list") as HTMLElement;
+    expect(addButton.compareDocumentPosition(parameterList) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    component.draftVisible = true;
+    fixture.detectChanges();
+
+    const draftRow = fixture.nativeElement.querySelector(".ui-udf-parameter-row.draft") as HTMLElement;
+    const existingRow = fixture.nativeElement.querySelector(
+      ".ui-udf-parameter-row:not(.header):not(.draft)"
+    ) as HTMLElement;
+    expect(draftRow.compareDocumentPosition(existingRow) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it("should disable name and type fields while leaving value editable", () => {
@@ -95,6 +155,109 @@ describe("UiUdfParametersComponent", () => {
       expect(columnField.props?.disabled).toBe(column.disabled);
       expect((columnField as any).templateOptions?.disabled).toBe(column.disabled);
       expect(control.disabled).toBe(column.disabled);
+    });
+  });
+
+  it("should add a parameter for the highlighted operator and close the draft row", () => {
+    component.draftVisible = true;
+
+    component.addParameter({ value: "threshold" } as HTMLInputElement, "double");
+
+    expect(syncServiceMock.addParameter).toHaveBeenCalledWith(operatorId, "threshold", "double");
+    expect(component.draftVisible).toBe(false);
+    expect(notificationServiceMock.error).not.toHaveBeenCalled();
+  });
+
+  it("should surface edit errors and keep the draft row open", () => {
+    component.draftVisible = true;
+    syncServiceMock.addParameter.mockImplementation(() => {
+      throw new UiUdfParametersEditError("UiParameter name 'threshold' is declared already.");
+    });
+
+    component.addParameter({ value: "threshold" } as HTMLInputElement, "double");
+
+    expect(notificationServiceMock.error).toHaveBeenCalledWith(
+      "Could not add UDF parameter: UiParameter name 'threshold' is declared already."
+    );
+    expect(component.draftVisible).toBe(true);
+  });
+
+  describe("branch coverage", () => {
+    const columnKeys = [{ key: "value" }, { key: "attributeName" }, { key: "attributeType" }];
+
+    it("surfaces parse errors the same way as edit errors", () => {
+      component.draftVisible = true;
+      syncServiceMock.addParameter.mockImplementation(() => {
+        throw new UiUdfParametersParseError("could not parse the UDF code");
+      });
+
+      component.addParameter({ value: "threshold" } as HTMLInputElement, "double");
+
+      expect(notificationServiceMock.error).toHaveBeenCalledWith(
+        "Could not add UDF parameter: could not parse the UDF code"
+      );
+      expect(component.draftVisible).toBe(true);
+    });
+
+    it("rethrows an error that is neither an edit nor a parse error", () => {
+      syncServiceMock.addParameter.mockImplementation(() => {
+        throw new Error("unexpected");
+      });
+
+      expect(() => component.addParameter({ value: "threshold" } as HTMLInputElement, "double")).toThrowError(
+        "unexpected"
+      );
+      expect(notificationServiceMock.error).not.toHaveBeenCalled();
+    });
+
+    it("skips the row template when fieldArray is a factory function", () => {
+      const field: FormlyFieldConfig = {
+        model: [],
+        fieldArray: () => rowConfig(columnKeys),
+        fieldGroup: [],
+      };
+
+      expect(() => component.onPopulate(field)).not.toThrow();
+    });
+
+    it("ignores columns that the row template does not declare", () => {
+      // getColumnField returns undefined for every column here, which exercises the
+      // `if (!field) return` guards in both the metadata and disabled-state helpers.
+      // The generated row carries none of the expected keys, so every lookup returns
+      // undefined in both the template pass and the per-row pass.
+      const field: FormlyFieldConfig = {
+        model: [{ value: "42" }],
+        fieldArray: { fieldGroup: [] },
+        fieldGroup: [],
+      };
+
+      expect(() => component.onPopulate(field)).not.toThrow();
+    });
+
+    it("tracks parameter rows by attribute name, falling back to the index", () => {
+      expect(component.trackByParameterName(3, { attribute: { attributeName: "threshold" } })).toBe("threshold");
+      expect(component.trackByParameterName(3, undefined)).toBe(3);
+      expect(component.trackByParameterName(4, { attribute: {} })).toBe(4);
+    });
+
+    it("reapplies the disabled state when the same row is populated again", () => {
+      const rowField = rowConfig(columnKeys);
+      const field: FormlyFieldConfig = {
+        model: [{ value: "42", attribute: { attributeName: "threshold", attributeType: "double" } }],
+        fieldArray: rowConfig(columnKeys),
+        fieldGroup: [rowField],
+      };
+
+      component.onPopulate(field);
+      const columnField = component.getColumnField(rowField, component.fieldColumns[0]) as FormlyFieldConfig;
+      const hookAfterFirstPopulate = columnField.hooks?.onInit;
+
+      // The second pass sees the same field object already configured for this
+      // disabled value, so it only re-applies the state instead of re-wrapping the hook.
+      component.onPopulate(field);
+
+      expect(columnField.hooks?.onInit).toBe(hookAfterFirstPopulate);
+      expect(columnField.props?.disabled).toBe(component.fieldColumns[0].disabled);
     });
   });
 });

@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { AfterViewInit, Component, Input, ViewChild } from "@angular/core";
+import { AfterViewInit, Component, Input, OnDestroy, ViewChild } from "@angular/core";
 import { Router } from "@angular/router";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { firstValueFrom, from, lastValueFrom, Observable, of } from "rxjs";
@@ -46,6 +46,15 @@ import { DashboardWorkflow } from "../../../type/dashboard-workflow.interface";
 import { DownloadService } from "../../../service/user/download/download.service";
 import { USER_WORKSPACE } from "../../../../app-routing.constant";
 import { GuiConfigService } from "../../../../common/service/gui-config.service";
+import {
+  MappingContent,
+  NotebookMigrationService,
+} from "../../../../workspace/service/notebook-migration/notebook-migration.service";
+import { LlmRequestTimeoutError, Notebook } from "../../../../workspace/service/notebook-migration/migration-llm";
+import {
+  NotebookImportModalComponent,
+  NotebookImportModalData,
+} from "../../../../workspace/component/notebook-import-modal/notebook-import-modal.component";
 import { NzCardComponent } from "ng-zorro-antd/card";
 import { NzSpaceCompactItemDirective, NzSpaceCompactComponent } from "ng-zorro-antd/space";
 import { NzButtonComponent } from "ng-zorro-antd/button";
@@ -112,8 +121,10 @@ import { FormsModule } from "@angular/forms";
     NzSpaceCompactComponent,
   ],
 })
-export class UserWorkflowComponent implements AfterViewInit {
+export class UserWorkflowComponent implements AfterViewInit, OnDestroy {
   private static readonly VIEW_MODE_STORAGE_KEY = "texera.userWorkflow.viewMode";
+  // Set on teardown so a generation that finishes after the user leaves does not navigate them back.
+  private destroyed = false;
   private _searchResultsComponent?: SearchResultsComponent;
   public isLogin = this.userService.isLogin();
   private includePublic = false;
@@ -157,7 +168,8 @@ export class UserWorkflowComponent implements AfterViewInit {
     private router: Router,
     private downloadService: DownloadService,
     private searchService: SearchService,
-    private config: GuiConfigService
+    private config: GuiConfigService,
+    private notebookMigrationService: NotebookMigrationService
   ) {
     this.userService
       .userChanged()
@@ -197,6 +209,10 @@ export class UserWorkflowComponent implements AfterViewInit {
       .userChanged()
       .pipe(untilDestroyed(this))
       .subscribe(() => this.search());
+  }
+
+  ngOnDestroy(): void {
+    this.destroyed = true;
   }
 
   /**
@@ -312,6 +328,118 @@ export class UserWorkflowComponent implements AfterViewInit {
       });
   }
 
+  public get pythonNotebookMigrationEnabled(): boolean {
+    return this.config.env.pythonNotebookMigrationEnabled;
+  }
+
+  /** Open the AI-generate import modal, wiring its submit to generateWorkflowFromNotebook. */
+  public openAiGenerateModal(): void {
+    this.modalService.create<NotebookImportModalComponent, NotebookImportModalData>({
+      nzTitle: "AI Generate Workflow from Python Notebook",
+      nzContent: NotebookImportModalComponent,
+      nzWidth: 700,
+      nzFooter: null,
+      nzCentered: true,
+      nzData: {
+        requestImport: (file, model) => this.generateWorkflowFromNotebook(file, model),
+      },
+    });
+  }
+
+  /**
+   * Parse the notebook, generate a workflow via the LLM, save it, store the cell mapping, and open it.
+   * Resolves true on success (modal closes), false to keep the modal open on a bad file or a failure.
+   */
+  private async generateWorkflowFromNotebook(file: NzUploadFile, model: string): Promise<boolean> {
+    const fileExtension = file.name.split(".").pop()?.toLowerCase();
+    if (fileExtension !== "ipynb") {
+      this.notificationService.error("Please upload a valid Jupyter Notebook (.ipynb) file.");
+      return false;
+    }
+    let notebook: Notebook;
+    try {
+      notebook = await this.notebookMigrationService.parseAndTagNotebook(file as unknown as File);
+    } catch (error) {
+      this.notificationService.error("Failed to read the notebook file. Please upload a valid .ipynb file.");
+      console.error("Notebook parse failed:", error);
+      return false;
+    }
+
+    let generated: { workflowContent: WorkflowContent; mappingContent: MappingContent };
+    try {
+      generated = await this.notebookMigrationService.sendToAIGenerateWorkflow(notebook, model);
+    } catch (error) {
+      if (error instanceof LlmRequestTimeoutError) {
+        this.notificationService.error(
+          `Generation timed out after ${error.minutes} minutes. Try again, choose a faster model, or simplify the notebook.`
+        );
+      } else {
+        this.notificationService.error("Error while communicating with the LLM, check console for details.");
+      }
+      console.error("LLM generation failed:", error);
+      return false;
+    }
+
+    // Commit point: persisting captures the expensive LLM result. On failure nothing was created,
+    // so returning false to let the user retry is safe.
+    let wid: number;
+    try {
+      // workflow.name is VARCHAR(128); cap the base so base + suffix fits the column.
+      const generatedSuffix = "_GENERATED_BY_LLM";
+      const generatedName = this.deriveWorkflowName(file.name).slice(0, 128 - generatedSuffix.length);
+      const createdWorkflow = await firstValueFrom(
+        this.workflowPersistService.createWorkflow(generated.workflowContent, generatedName + generatedSuffix)
+      );
+      if (!createdWorkflow.workflow.wid) {
+        throw new Error("Created workflow has no wid.");
+      }
+      wid = createdWorkflow.workflow.wid;
+    } catch (error) {
+      this.notificationService.error("Failed to save the generated workflow, check console for details.");
+      console.error("Saving the generated workflow failed:", error);
+      return false;
+    }
+
+    // Best-effort follow-ups: never discard the created workflow, so log/warn and still open it.
+    if (this.pid) {
+      try {
+        await firstValueFrom(this.userProjectService.addWorkflowToProject(this.pid, wid));
+      } catch (error) {
+        console.error("Adding the generated workflow to the project failed:", error);
+      }
+    }
+    try {
+      await firstValueFrom(
+        this.notebookMigrationService.storeNotebookAndMapping(wid, generated.mappingContent, notebook)
+      );
+    } catch (error) {
+      this.notificationService.warning(
+        "Workflow created, but the notebook could not be attached; the Jupyter panel may not open."
+      );
+      console.error("Storing the notebook and mapping failed:", error);
+    }
+
+    if (this.destroyed) {
+      this.notificationService.info("Workflow generated and saved to your dashboard.");
+      return true;
+    }
+
+    const navigated = await this.router
+      .navigate([USER_WORKSPACE, wid], { queryParams: { autolayout: 1 } })
+      .catch(() => false);
+    if (!navigated) {
+      this.notificationService.warning("Workflow created. You can open it from your dashboard.");
+    }
+    return true;
+  }
+
+  // Strips the extension from a file name, falling back to DEFAULT_WORKFLOW_NAME when empty.
+  private deriveWorkflowName(fileName: string): string {
+    const extensionIndex = fileName.lastIndexOf(".");
+    const baseName = extensionIndex === -1 ? fileName : fileName.substring(0, extensionIndex);
+    return baseName.trim() === "" ? DEFAULT_WORKFLOW_NAME : baseName;
+  }
+
   /**
    * duplicate the current workflow. A new record will appear in frontend
    * workflow list and backend database.
@@ -351,7 +479,7 @@ export class UserWorkflowComponent implements AfterViewInit {
           const userInfo = userIdToInfoMap[duplicatedWorkflowInfo.ownerId];
           if (userInfo) {
             entry.setOwnerName(userInfo.userName);
-            entry.setOwnerGoogleAvatar(userInfo.googleAvatar ?? "");
+            entry.setOwnerAvatar(userInfo.avatar ?? "");
           }
           if (this.currentUid !== undefined) {
             entry.setAccessUsers([this.currentUid]);
@@ -444,13 +572,8 @@ export class UserWorkflowComponent implements AfterViewInit {
             throw new Error("Incorrect format: file is not a string");
           }
           const workflowContent = JSON.parse(result) as WorkflowContent;
-          const fileExtensionIndex = name.lastIndexOf(".");
-          let workflowName = fileExtensionIndex === -1 ? name : name.substring(0, fileExtensionIndex);
-          if (workflowName.trim() === "") {
-            workflowName = DEFAULT_WORKFLOW_NAME;
-          }
           this.workflowPersistService
-            .createWorkflow(workflowContent, workflowName)
+            .createWorkflow(workflowContent, this.deriveWorkflowName(name))
             .pipe(untilDestroyed(this))
             .subscribe({
               next: uploadedWorkflow => {

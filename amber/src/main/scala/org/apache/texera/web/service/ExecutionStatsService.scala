@@ -78,7 +78,8 @@ class ExecutionStatsService(
     val thread = Executors.newSingleThreadExecutor()
     val uri = VFSURIFactory.createRuntimeStatisticsURI(
       workflowContext.workflowId,
-      workflowContext.executionId
+      workflowContext.executionId,
+      warehouse = workflowContext.warehouse
     )
     val writer = DocumentFactory
       .createDocument(uri, ResultSchema.runtimeStatisticsSchema)

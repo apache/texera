@@ -43,10 +43,10 @@ def make_request(**kwargs) -> InitializeExecutorRequest:
 
 def make_handler() -> InitializeExecutorHandler:
     """Wire a handler with a SimpleNamespace context exposing the fields the
-    handler writes: executor_manager and loop_start_state_uris."""
+    handler writes: executor_manager and loop_start_port_uris."""
     context = SimpleNamespace(
         executor_manager=MagicMock(),
-        loop_start_state_uris={},
+        loop_start_port_uris={},
     )
     return InitializeExecutorHandler(context)
 
@@ -60,7 +60,7 @@ class TestInitializeExecutorHandler:
             "# code", False, "python"
         )
 
-    def test_stores_loop_start_state_uris_on_context(self):
+    def test_stores_loop_start_port_uris_on_context(self):
         # The loop-back write addresses (LoopStart op id -> its input port's
         # state URI) are per-operator setup config delivered on this RPC; the
         # handler must expose them on the context for a Loop End's
@@ -68,18 +68,16 @@ class TestInitializeExecutorHandler:
         handler = make_handler()
         asyncio.run(
             handler.initialize_executor(
-                make_request(loop_start_state_uris={"loop-start-1": "vfs:///x/state"})
+                make_request(loop_start_port_uris={"loop-start-1": "vfs:///x"})
             )
         )
-        assert handler.context.loop_start_state_uris == {
-            "loop-start-1": "vfs:///x/state"
-        }
+        assert handler.context.loop_start_port_uris == {"loop-start-1": "vfs:///x"}
 
     def test_defaults_to_empty_map_for_plans_without_loops(self):
         # betterproto defaults an absent map field to {}; the handler must
         # store that default rather than leaving stale config behind (a
         # recreated worker re-runs initialize_executor every region run).
         handler = make_handler()
-        handler.context.loop_start_state_uris = {"stale": "vfs:///old"}
+        handler.context.loop_start_port_uris = {"stale": "vfs:///old"}
         asyncio.run(handler.initialize_executor(make_request()))
-        assert handler.context.loop_start_state_uris == {}
+        assert handler.context.loop_start_port_uris == {}

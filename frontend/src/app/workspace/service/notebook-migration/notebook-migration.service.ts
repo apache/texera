@@ -24,7 +24,9 @@ import { HttpClient, HttpHeaders } from "@angular/common/http";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { GuiConfigService } from "../../../common/service/gui-config.service";
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
+import { WorkflowContent } from "../../../common/type/workflow";
 import { catchError, firstValueFrom, map, Observable, of } from "rxjs";
+import { v4 as uuidv4 } from "uuid";
 
 interface LiteLLMModel {
   id: string;
@@ -38,7 +40,7 @@ interface LiteLLMModelsResponse {
   object: string;
 }
 
-interface MappingContent {
+export interface MappingContent {
   cell_to_operator: Record<string, string[]>;
   operator_to_cell: Record<string, string[]>;
 }
@@ -52,6 +54,11 @@ interface DeleteNotebookResponse {
   success: boolean;
   deleted?: number;
   message?: string;
+}
+
+// Single source of truth for the mapping cache key, shared with JupyterPanelService so it can't drift.
+export function notebookMappingKey(wid: number | undefined): string {
+  return "mapping_wid_" + wid;
 }
 
 @Injectable({
@@ -86,7 +93,10 @@ export class NotebookMigrationService {
     );
   }
 
-  public async sendToAIGenerateWorkflow(notebookContent: Notebook, modelType: string) {
+  public async sendToAIGenerateWorkflow(
+    notebookContent: Notebook,
+    modelType: string
+  ): Promise<{ workflowContent: WorkflowContent; mappingContent: MappingContent }> {
     if (!this.enabled) throw new Error("Notebook migration feature is disabled");
     const migrationLLM = this.createMigrationLLM();
     // initialize() defaults to the user's Texera JWT via AuthService.getAccessToken().
@@ -195,9 +205,9 @@ export class NotebookMigrationService {
 
   public storeNotebookAndMapping(
     wid: number | undefined,
-    vid: number = 1,
     mappingContent: any,
-    notebookContent: any
+    notebookContent: any,
+    vid: number = 1
   ): Observable<StoreNotebookResponse> {
     if (!this.enabled) {
       return of({ success: false, message: "Notebook migration feature is disabled" });
@@ -245,5 +255,36 @@ export class NotebookMigrationService {
 
   public deleteMapping(id: string): void {
     delete this.mapping[id];
+  }
+
+  // Reads and parses an .ipynb file, then tags each cell with a uuid (the mapping keys off these).
+  // Rejects on a read error, invalid JSON, or a missing cells array. Uses FileReader rather than
+  // file.text() because jsdom (the test environment) does not implement Blob/File.text().
+  public parseAndTagNotebook(file: File): Promise<Notebook> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error("Failed to read the notebook file."));
+      reader.onload = () => {
+        try {
+          if (typeof reader.result !== "string") {
+            throw new Error("File content is not a valid string.");
+          }
+          const notebook = JSON.parse(reader.result) as Notebook;
+          if (!notebook || !Array.isArray(notebook.cells)) {
+            throw new Error("Invalid notebook structure.");
+          }
+          for (const cell of notebook.cells) {
+            if (!cell.metadata) {
+              cell.metadata = {};
+            }
+            cell.metadata.uuid = uuidv4();
+          }
+          resolve(notebook);
+        } catch (error) {
+          reject(error);
+        }
+      };
+      reader.readAsText(file);
+    });
   }
 }

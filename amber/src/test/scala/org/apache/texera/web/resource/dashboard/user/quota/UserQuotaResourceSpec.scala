@@ -88,7 +88,6 @@ class UserQuotaResourceSpec extends AnyFlatSpec with BeforeAndAfterAll with Mock
     testUser.setUid(testUid)
     testUser.setName("quota_user")
     testUser.setEmail("quota@example.com")
-    testUser.setPassword("password")
     userDao.insert(testUser)
 
     testWorkflow = new Workflow

@@ -163,12 +163,23 @@ describe("DashboardComponent", () => {
     expect(component).toBeTruthy();
   });
 
-  it("should render Google sign-in button when user is NOT logged in", () => {
+  // Sign-in moved to the dedicated /login page, so the shell offers a link to it rather than
+  // rendering a provider button of its own.
+  it("should render a sign-in link, not a provider button, when the user is NOT logged in", () => {
     (userServiceMock.isLogin as Mock).mockReturnValue(false);
+    component.isLogin = false;
     fixture.detectChanges();
 
-    const googleSignInBtn = fixture.debugElement.query(By.css("asl-google-signin-button"));
-    expect(googleSignInBtn).toBeTruthy();
+    expect(fixture.debugElement.query(By.css("asl-google-signin-button"))).toBeNull();
+    expect(fixture.debugElement.query(By.css(".nav-login-link"))).toBeTruthy();
+  });
+
+  it("should not render the sign-in link when the user IS logged in", () => {
+    (userServiceMock.isLogin as Mock).mockReturnValue(true);
+    component.isLogin = true;
+    fixture.detectChanges();
+
+    expect(fixture.debugElement.query(By.css(".nav-login-link"))).toBeNull();
   });
 
   it("should render the powered-by attribution when attributionEnabled is true", () => {

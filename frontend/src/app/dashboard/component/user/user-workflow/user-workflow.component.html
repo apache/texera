@@ -52,6 +52,20 @@
           </button>
         </nz-upload>
         <button
+          *ngIf="pythonNotebookMigrationEnabled"
+          [disabled]="accessLevel === 'READ'"
+          nz-button
+          (click)="openAiGenerateModal()"
+          title="AI generate a workflow from a Python notebook"
+          nz-tooltip="AI generate a workflow from a Python notebook"
+          nzTooltipPlacement="bottom"
+          type="button">
+          <i
+            nz-icon
+            nzType="robot"
+            nzTheme="outline"></i>
+        </button>
+        <button
           *ngIf="multiWorkflowsOperationButtonEnabled()"
           (click)="toggleSelection()"
           nz-button

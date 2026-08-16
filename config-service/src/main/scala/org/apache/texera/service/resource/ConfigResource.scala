@@ -94,7 +94,8 @@ class ConfigResource {
       "activeTimeInMinutes" -> GuiConfig.guiWorkflowWorkspaceActiveTimeInMinutes,
       "copilotEnabled" -> GuiConfig.guiWorkflowWorkspaceCopilotEnabled,
       "limitColumns" -> GuiConfig.guiWorkflowWorkspaceLimitColumns,
-      "pythonNotebookMigrationEnabled" -> GuiConfig.guiWorkflowWorkspacePythonNotebookMigrationEnabled
+      "pythonNotebookMigrationEnabled" -> GuiConfig.guiWorkflowWorkspacePythonNotebookMigrationEnabled,
+      "pythonNotebookMigrationTimeoutMinutes" -> GuiConfig.guiWorkflowWorkspacePythonNotebookMigrationTimeoutMinutes
     )
 
   // Engine configs.

@@ -73,15 +73,16 @@ object NotebookMigrationResource extends LazyLogging {
     }
   }
 
+  // jupyterUrl and jupyterToken are single process-wide values, so this service still
+  // targets one Jupyter per process (the per-user-pod model) and must not be deployed as a
+  // shared global instance yet: every user would get the same Jupyter and the same token.
+  // Resolving these per user is a later stage of the migration (#7665).
   private val jupyterUrl = StorageConfig.jupyterURL
   private val jupyterToken = StorageConfig.jupyterToken
-  // The token is passed as a URL param so the browser iframe can authenticate when loading the notebook.
-  // jupyterIframeURL is process-global state. This is safe ONLY because each user runs their own pod
-  // (own notebook-migration-service JVM + own Jupyter) in the k8s deployment, so this singleton is
-  // effectively per-user. Do NOT deploy this service as a shared multi-user instance without adding
-  // per-user keying here, or one user's upload would overwrite another's iframe URL.
-  @volatile private var jupyterIframeURL =
-    s"$jupyterUrl/notebooks/work/notebook.ipynb?token=$jupyterToken"
+
+  // Default notebook name used when a request does not specify one, so a param-less
+  // getJupyterIframeURL call reproduces the URL from before this service became stateless.
+  private val defaultNotebookName = "notebook.ipynb"
 
   private def isJupyterAvailable(jupyterUrl: String): Boolean = {
     var conn: java.net.HttpURLConnection = null
@@ -104,8 +105,17 @@ object NotebookMigrationResource extends LazyLogging {
     }
   }
 
-  // Returns the Jupyter iframe reference URL
-  def getJupyterIframeURL(): Response = {
+  // Returns the Jupyter iframe reference URL for the given notebook.
+  def getJupyterIframeURL(notebookName: String): Response = {
+    // notebookName flows into the returned URL, so validate it the same way setNotebook does:
+    // block path traversal and keep it to a plain .ipynb filename.
+    if (!notebookName.matches("[A-Za-z0-9._-]+\\.ipynb")) {
+      return Response
+        .status(Response.Status.BAD_REQUEST)
+        .entity(errorJson(s"Invalid notebook name: $notebookName"))
+        .build()
+    }
+
     if (!isJupyterAvailable(jupyterUrl)) {
       return Response
         .status(500)
@@ -120,7 +130,9 @@ object NotebookMigrationResource extends LazyLogging {
         .build()
     }
 
-    Response.ok(successUrlJson(jupyterIframeURL)).build()
+    Response
+      .ok(successUrlJson(s"$jupyterUrl/notebooks/work/$notebookName?token=$jupyterToken"))
+      .build()
   }
 
   // Returns the URL of Jupyter
@@ -153,8 +165,7 @@ object NotebookMigrationResource extends LazyLogging {
 
       // Allow only a plain ".ipynb" filename. Validated before any network call so a
       // bad name is rejected with a 400 up front. This blocks path traversal in the
-      // Jupyter contents URL (e.g. "../../etc/x.ipynb") and keeps notebookName out of
-      // the raw-interpolated jupyterIframeURL JSON (no quotes/control chars).
+      // Jupyter contents URL (e.g. "../../etc/x.ipynb").
       if (!notebookName.matches("[A-Za-z0-9._-]+\\.ipynb")) {
         return Response
           .status(Response.Status.BAD_REQUEST)
@@ -216,8 +227,6 @@ object NotebookMigrationResource extends LazyLogging {
           )
           .build()
       }
-
-      jupyterIframeURL = s"$jupyterUrl/notebooks/work/$notebookName?token=$jupyterToken"
 
       Response
         .ok(
@@ -457,9 +466,15 @@ class NotebookMigrationResource extends LazyLogging {
 
   @GET
   @Path("/get-jupyter-iframe-url")
-  def getJupyterIframeURL(@Auth user: SessionUser): Response = {
+  def getJupyterIframeURL(
+      @QueryParam("notebookName") notebookName: String,
+      @Auth user: SessionUser
+  ): Response = {
     logger.info("Getting Jupyter iframe URL")
-    NotebookMigrationResource.getJupyterIframeURL()
+    val name = Option(notebookName)
+      .filter(_.nonEmpty)
+      .getOrElse(NotebookMigrationResource.defaultNotebookName)
+    NotebookMigrationResource.getJupyterIframeURL(name)
   }
 
   @GET

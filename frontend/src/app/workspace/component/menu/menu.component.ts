@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { DatePipe, Location, NgIf, NgFor, NgTemplateOutlet } from "@angular/common";
+import { DatePipe, Location, NgIf, NgFor, NgTemplateOutlet, AsyncPipe } from "@angular/common";
 import { Component, ElementRef, Input, OnDestroy, OnInit, ViewChild } from "@angular/core";
 import { Router, RouterLink } from "@angular/router";
 import { UserService } from "../../../common/service/user/user.service";
@@ -70,6 +70,7 @@ import { NzPopoverDirective } from "ng-zorro-antd/popover";
 import { NzSwitchComponent } from "ng-zorro-antd/switch";
 import { NzBadgeComponent } from "ng-zorro-antd/badge";
 import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
+import { JupyterPanelService } from "../../service/jupyter-panel/jupyter-panel.service";
 
 /**
  * MenuComponent is the top level menu bar that shows
@@ -117,6 +118,7 @@ import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
     NzTooltipDirective,
     DatePipe,
     NzSpaceCompactComponent,
+    AsyncPipe,
   ],
 })
 export class MenuComponent implements OnInit, OnDestroy {
@@ -182,7 +184,8 @@ export class MenuComponent implements OnInit, OnDestroy {
     private panelService: PanelService,
     private computingUnitStatusService: ComputingUnitStatusService,
     protected config: GuiConfigService,
-    private router: Router
+    private router: Router,
+    private jupyterPanelService: JupyterPanelService
   ) {
     workflowWebsocketService
       .subscribeToEvent("ExecutionDurationUpdateEvent")
@@ -577,6 +580,23 @@ export class MenuComponent implements OnInit, OnDestroy {
       .getAllOperators()
       .map(op => op.operatorID);
     this.workflowActionService.deleteOperatorsAndLinks(allOperatorIDs);
+  }
+
+  public get pythonNotebookMigrationEnabled(): boolean {
+    return this.config.env.pythonNotebookMigrationEnabled;
+  }
+
+  // Emits whether the current workflow has an associated Jupyter notebook, used to
+  // show the expand button only when there is a notebook to expand.
+  public get jupyterNotebookExists$() {
+    return this.jupyterPanelService.jupyterNotebookExists$;
+  }
+
+  /**
+   * Expand and redisplay the Jupyter notebook panel.
+   */
+  public onClickExpandJupyterNotebookPanel(): void {
+    this.jupyterPanelService.openJupyterNotebookPanel();
   }
 
   public onClickExportWorkflow(): void {
