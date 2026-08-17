@@ -25,7 +25,11 @@ import { HttpClient, HttpHeaders } from "@angular/common/http";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { distinctUntilChanged, switchMap } from "rxjs/operators";
 import { AppSettings } from "../../../common/app-setting";
-import { NotebookMigrationService, notebookMappingKey } from "../notebook-migration/notebook-migration.service";
+import {
+  NotebookMigrationService,
+  notebookMappingKey,
+  notebookFileName,
+} from "../notebook-migration/notebook-migration.service";
 import { GuiConfigService } from "../../../common/service/gui-config.service";
 
 @Injectable({
@@ -139,7 +143,11 @@ export class JupyterPanelService {
         if (response.exists) {
           this.notebookMigrationService.setMapping(notebookMappingKey(workflowID), response.mapping);
 
-          if ((await this.notebookMigrationService.sendNotebookToJupyter(response.notebook)) == 1) {
+          const sent = await this.notebookMigrationService.sendNotebookToJupyter(
+            response.notebook,
+            notebookFileName(workflowID)
+          );
+          if (sent == 1) {
             return 1;
           } else {
             return 0;
@@ -203,6 +211,17 @@ export class JupyterPanelService {
   // component that calls this lives in `migration-tool-jupyter-panel`.
   setIframeRef(iframe: HTMLIFrameElement) {
     this.iframeRef = iframe;
+  }
+
+  // Notebook filename for the workflow currently shown, used by the iframe fetch.
+  private currentNotebookFileName(): string {
+    return notebookFileName(this.workflowActionService.getWorkflow().wid);
+  }
+
+  // Iframe URL for the current workflow's notebook
+  public getJupyterIframeURLForWorkflow(): Promise<string | null> {
+    if (!this.enabled) return Promise.resolve(null);
+    return this.notebookMigrationService.getJupyterIframeURL(this.currentNotebookFileName());
   }
 
   // Open the Jupyter Notebook panel
