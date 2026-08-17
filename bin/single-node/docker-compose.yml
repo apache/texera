@@ -233,6 +233,7 @@ services:
           "storage-profile": {
             "type": "s3",
             "bucket": "$$STORAGE_ICEBERG_CATALOG_REST_S3_BUCKET",
+            "key-prefix": "$$STORAGE_ICEBERG_CATALOG_REST_KEY_PREFIX",
             "region": "$$STORAGE_S3_REGION",
             "endpoint": "$$STORAGE_S3_ENDPOINT",
             "flavor": "s3-compat",
@@ -272,6 +273,7 @@ services:
           "storage-profile": {
             "type": "s3",
             "bucket": "$$STORAGE_ICEBERG_CATALOG_REST_S3_BUCKET",
+            "key-prefix": "$$STORAGE_ICEBERG_CATALOG_REST_KEY_PREFIX",
             "region": "$$STORAGE_S3_REGION",
             "endpoint": "$$STORAGE_S3_ENDPOINT",
             "flavor": "s3-compat",
