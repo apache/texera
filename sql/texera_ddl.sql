@@ -62,10 +62,11 @@ DROP TABLE IF EXISTS workflow_of_project CASCADE;
 DROP TABLE IF EXISTS workflow_executions CASCADE;
 DROP TABLE IF EXISTS dataset_upload_session CASCADE;
 DROP TABLE IF EXISTS dataset_upload_session_part CASCADE;
-
 DROP TABLE IF EXISTS dataset CASCADE;
 DROP TABLE IF EXISTS dataset_user_access CASCADE;
 DROP TABLE IF EXISTS dataset_version CASCADE;
+DROP TABLE IF EXISTS model_version CASCADE;
+DROP TABLE IF EXISTS model CASCADE;
 DROP TABLE IF EXISTS dataset_contributor CASCADE;
 DROP TABLE IF EXISTS public_project CASCADE;
 DROP TABLE IF EXISTS project_user_access CASCADE;
@@ -417,6 +418,36 @@ CREATE TABLE IF NOT EXISTS dataset_upload_session_part
         REFERENCES dataset_upload_session(upload_id)
         ON DELETE CASCADE
 );
+
+-- ML models
+CREATE TABLE IF NOT EXISTS model
+(
+    mid             SERIAL PRIMARY KEY,
+    owner_uid       INT NOT NULL,
+    name            VARCHAR(128) NOT NULL,
+    repository_name VARCHAR(128),
+    is_public       BOOLEAN NOT NULL DEFAULT TRUE,
+    is_downloadable BOOLEAN NOT NULL DEFAULT TRUE,
+    description     TEXT NOT NULL,
+    creation_time   TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    cover_image     varchar(255),
+    framework       VARCHAR(32),
+    format          VARCHAR(32),
+    FOREIGN KEY (owner_uid) REFERENCES "user"(uid) ON DELETE CASCADE,
+    UNIQUE (owner_uid, name)
+    );
+
+-- model_version
+CREATE TABLE IF NOT EXISTS model_version
+(
+    mvid          SERIAL PRIMARY KEY,
+    mid           INT NOT NULL,
+    creator_uid   INT NOT NULL,
+    name          VARCHAR(128) NOT NULL,
+    version_hash  VARCHAR(64) NOT NULL,
+    creation_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (mid) REFERENCES model(mid) ON DELETE CASCADE
+    );
 
 -- operator_executions (modified to match MySQL: no separate primary key; added console_messages_uri)
 CREATE TABLE IF NOT EXISTS operator_executions

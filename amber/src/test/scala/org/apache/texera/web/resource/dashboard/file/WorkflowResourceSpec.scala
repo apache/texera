@@ -1197,10 +1197,7 @@ class WorkflowResourceSpec
 
   "WorkflowResource.cloneWorkflow" should "copy the workflow to the caller and record the clone" in {
     // The source is made public because that is the flow this endpoint serves: the hub's clone
-    // button, on someone else's published workflow. Cloning a *private* workflow the caller has
-    // no access to also succeeds today -- cloneWorkflow fetches by wid with no `hasReadAccess`
-    // guard, unlike retrieveWorkflow and duplicateWorkflow -- but that is a gap to fix in the
-    // resource, not a contract to pin here, so this test does not assert it either way.
+    // button, on someone else's published workflow.
     val wid = seedWorkflow(sessionUser1, "clone-src", "d", contentWithOperator).workflow.getWid
     workflowResource.makePublic(wid, sessionUser1)
 
@@ -1221,6 +1218,28 @@ class WorkflowResourceSpec
         WORKFLOW_USER_CLONES.WID.eq(wid).and(WORKFLOW_USER_CLONES.UID.eq(testUser2.getUid))
       ) == 1
     )
+  }
+
+  it should "clone a private workflow the caller has been granted read access to" in {
+    val wid = seedWorkflow(sessionUser1, "clone-shared", "d", contentWithOperator).workflow.getWid
+    grantAccess(wid, testUser2, PrivilegeEnum.READ)
+
+    val newWid = workflowResource.cloneWorkflow(wid, sessionUser2, cloneRequest)
+
+    assert(workflowResource.retrieveWorkflow(newWid, sessionUser2).name == "clone-shared_clone")
+  }
+
+  it should "reject a caller with no access to the source workflow" in {
+    val wid =
+      seedWorkflow(sessionUser1, "clone-forbidden", "d", contentWithOperator).workflow.getWid
+
+    assertThrows[ForbiddenException](
+      workflowResource.cloneWorkflow(wid, sessionUser2, cloneRequest)
+    )
+
+    // no copy reached the caller, and the rejected attempt was not recorded as a clone
+    assert(workflowNamesOf(sessionUser2).isEmpty)
+    assert(getDSLContext.fetchCount(WORKFLOW_USER_CLONES, WORKFLOW_USER_CLONES.WID.eq(wid)) == 0)
   }
 
   "WorkflowResource.duplicateWorkflow" should "add the copy, not the original, to the project" in {

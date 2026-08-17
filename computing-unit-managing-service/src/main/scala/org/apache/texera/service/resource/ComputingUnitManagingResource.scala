@@ -109,8 +109,8 @@ object ComputingUnitManagingResource {
       EnvironmentalVariable.ENV_S3_REGION -> StorageConfig.s3Region,
       EnvironmentalVariable.ENV_S3_AUTH_USERNAME -> StorageConfig.s3Username,
       EnvironmentalVariable.ENV_S3_AUTH_PASSWORD -> StorageConfig.s3Password,
-      EnvironmentalVariable.ENV_FILE_SERVICE_GET_PRESIGNED_URL_ENDPOINT -> EnvironmentalVariable
-        .get(EnvironmentalVariable.ENV_FILE_SERVICE_GET_PRESIGNED_URL_ENDPOINT)
+      EnvironmentalVariable.ENV_FILE_SERVICE_GET_DATASET_PRESIGNED_URL_ENDPOINT -> EnvironmentalVariable
+        .get(EnvironmentalVariable.ENV_FILE_SERVICE_GET_DATASET_PRESIGNED_URL_ENDPOINT)
         .get,
       EnvironmentalVariable.ENV_FILE_SERVICE_UPLOAD_ONE_FILE_TO_DATASET_ENDPOINT -> EnvironmentalVariable
         .get(EnvironmentalVariable.ENV_FILE_SERVICE_UPLOAD_ONE_FILE_TO_DATASET_ENDPOINT)

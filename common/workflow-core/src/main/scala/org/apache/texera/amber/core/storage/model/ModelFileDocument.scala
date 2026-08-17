@@ -19,29 +19,25 @@
 
 package org.apache.texera.amber.core.storage.model
 
+import org.apache.texera.common.config.EnvironmentalVariable
+import org.apache.texera.amber.core.storage.model.ModelFileDocument.fileServiceGetModelPresignURLEndpoint
+
 import java.net.URI
 
-/**
-  * VirtualCollection provides the abstraction of managing a collection of children VirtualDocument
-  */
-abstract class VirtualCollection {
-  def getURI: URI
-
-  /**
-    * get children documents that are directly underneath the current collection
-    * @return the children documents
-    */
-  def getDocuments: List[VirtualDocument[_]]
-
-  /**
-    * get a child document with certain name under this collection and return
-    * @param name the child document's name
-    * @return the document
-    */
-  def getDocument(name: String): VirtualDocument[_]
-
-  /**
-    * physically remove current collection from the system. All children documents underneath will be removed
-    */
-  def remove(): Unit
+object ModelFileDocument {
+  // The endpoint of getting a presigned url for a model file from the file service.
+  lazy val fileServiceGetModelPresignURLEndpoint: String =
+    sys.env
+      .getOrElse(
+        EnvironmentalVariable.ENV_FILE_SERVICE_GET_MODEL_PRESIGNED_URL_ENDPOINT,
+        "http://localhost:9092/api/model/presign-download"
+      )
+      .trim
 }
+
+/**
+  * A read-only document over a single file in a model's LakeFS repository (`model-{mid}`),
+  * addressed by a `model:///{repositoryName}/{versionHash}/{fileRelativePath}` URI.
+  */
+private[storage] class ModelFileDocument(uri: URI)
+    extends LakeFSFileDocument(uri, fileServiceGetModelPresignURLEndpoint)

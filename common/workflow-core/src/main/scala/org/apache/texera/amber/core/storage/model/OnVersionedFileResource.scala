@@ -19,7 +19,10 @@
 
 package org.apache.texera.amber.core.storage.model
 
-trait OnDataset {
+/**
+  * A document backed by a versioned file in a LakeFS repository.
+  */
+trait OnVersionedFileResource {
   def getRepositoryName(): String
 
   def getVersionHash(): String

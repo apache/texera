@@ -23,8 +23,20 @@ import org.apache.texera.amber.core.storage.FileResolver
 import org.apache.commons.vfs2.FileNotFoundException
 import org.apache.texera.dao.MockTexeraDB
 import org.apache.texera.dao.jooq.generated.enums.UserRoleEnum
-import org.apache.texera.dao.jooq.generated.tables.daos.{DatasetDao, DatasetVersionDao, UserDao}
-import org.apache.texera.dao.jooq.generated.tables.pojos.{Dataset, DatasetVersion, User}
+import org.apache.texera.dao.jooq.generated.tables.daos.{
+  DatasetDao,
+  DatasetVersionDao,
+  ModelDao,
+  ModelVersionDao,
+  UserDao
+}
+import org.apache.texera.dao.jooq.generated.tables.pojos.{
+  Dataset,
+  DatasetVersion,
+  Model,
+  ModelVersion,
+  User
+}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 
@@ -76,18 +88,60 @@ class FileResolverSpec
     datasetVersion
   }
 
+  private val testModel: Model = {
+    val model = new Model
+    model.setMid(Integer.valueOf(1))
+    model.setName("test_model")
+    model.setRepositoryName("model-1")
+    model.setDescription("model for test")
+    model.setIsPublic(true)
+    model.setIsDownloadable(true)
+    model.setOwnerUid(Integer.valueOf(1))
+    model
+  }
+
+  private val testModelVersion1: ModelVersion = {
+    val modelVersion = new ModelVersion
+    modelVersion.setMid(Integer.valueOf(1))
+    modelVersion.setName("v1")
+    modelVersion.setMvid(Integer.valueOf(1))
+    modelVersion.setCreatorUid(Integer.valueOf(1))
+    modelVersion.setVersionHash("a1b2c3d4e5f60718293a4b5c6d7e8f9001122334")
+    modelVersion
+  }
+
+  private val testModelVersion2: ModelVersion = {
+    val modelVersion = new ModelVersion
+    modelVersion.setMid(Integer.valueOf(1))
+    modelVersion.setName("v2")
+    modelVersion.setMvid(Integer.valueOf(2))
+    modelVersion.setCreatorUid(Integer.valueOf(1))
+    modelVersion.setVersionHash("998877665544332211ffeeddccbbaa0099887766")
+    modelVersion
+  }
+
   private val localCsvFilePath = "common/workflow-core/src/test/resources/country_sales_small.csv"
 
   private val datasetACsvFilePath = "/datasets/test_user@test.com/test_dataset/v2/directory/a.csv"
 
   private val dataset1TxtFilePath = "/datasets/test_user@test.com/test_dataset/v1/1.txt"
 
-  // Unprefixed form (no resource-type segment); no longer resolvable as a dataset.
+  private val modelWeightsFilePath = "/models/test_user@test.com/test_model/v2/weights/model.pt"
+
+  private val modelReadmeFilePath = "/models/test_user@test.com/test_model/v1/README.md"
+
+  // Legacy unprefixed form — still resolvable as a dataset (backward compat).
   private val unprefixedDataset1TxtFilePath = "/test_user@test.com/test_dataset/v1/1.txt"
 
-  // The leading segment is not a known resource type, so this is not a resolvable path.
+  // Leading segment names no known dataset owner, so this is not resolvable.
   private val unknownResourceTypeFilePath =
     "/notAResourceType/test_user@test.com/test_dataset/v1/1.txt"
+
+  // A model name presented under the datasets prefix must not resolve as a dataset.
+  private val modelNameUnderDatasetPrefix = "/datasets/test_user@test.com/test_model/v1/README.md"
+
+  // A dataset name presented under the models prefix must not resolve as a model.
+  private val datasetNameUnderModelPrefix = "/models/test_user@test.com/test_dataset/v1/1.txt"
 
   override protected def beforeAll(): Unit = {
     initializeDBAndReplaceDSLContext()
@@ -104,6 +158,15 @@ class FileResolverSpec
     val datasetVersionDao = new DatasetVersionDao(getDSLContext.configuration())
     datasetVersionDao.insert(testDatasetVersion1)
     datasetVersionDao.insert(testDatasetVersion2)
+
+    // add test model
+    val modelDao = new ModelDao(getDSLContext.configuration())
+    modelDao.insert(testModel)
+
+    // add test model versions
+    val modelVersionDao = new ModelVersionDao(getDSLContext.configuration())
+    modelVersionDao.insert(testModelVersion1)
+    modelVersionDao.insert(testModelVersion2)
   }
 
   "FileResolver" should "resolve local file correctly" in {
@@ -124,16 +187,39 @@ class FileResolverSpec
     )
   }
 
-  "FileResolver" should "not resolve a path without a resource-type prefix" in {
-    // Without a leading resource-type segment the path is not resolvable
+  "FileResolver" should "resolve model file correctly" in {
+    val modelWeightsUri = FileResolver.resolve(modelWeightsFilePath)
+    val modelReadmeUri = FileResolver.resolve(modelReadmeFilePath)
+
+    assert(
+      modelWeightsUri.toString == f"${FileResolver.MODEL_FILE_URI_SCHEME}:///${testModel.getRepositoryName}/${testModelVersion2.getVersionHash}/weights/model.pt"
+    )
+    assert(
+      modelReadmeUri.toString == f"${FileResolver.MODEL_FILE_URI_SCHEME}:///${testModel.getRepositoryName}/${testModelVersion1.getVersionHash}/README.md"
+    )
+  }
+
+  "FileResolver" should "still resolve a legacy unprefixed dataset path" in {
+    val dataset1TxtUri = FileResolver.resolve(unprefixedDataset1TxtFilePath)
+
+    assert(
+      dataset1TxtUri.toString == f"${FileResolver.DATASET_FILE_URI_SCHEME}:///${testDataset.getRepositoryName}/${testDatasetVersion1.getVersionHash}/1.txt"
+    )
+  }
+
+  "FileResolver" should "not resolve a path whose leading segment names no dataset" in {
     assertThrows[FileNotFoundException] {
-      FileResolver.resolve(unprefixedDataset1TxtFilePath)
+      FileResolver.resolve(unknownResourceTypeFilePath)
     }
   }
 
-  "FileResolver" should "not resolve a path whose prefix is not a known resource type" in {
+  "FileResolver" should "keep datasets and models isolated by prefix" in {
+    // a real dataset name under the models prefix is not a model, and vice-versa
     assertThrows[FileNotFoundException] {
-      FileResolver.resolve(unknownResourceTypeFilePath)
+      FileResolver.resolve(datasetNameUnderModelPrefix)
+    }
+    assertThrows[FileNotFoundException] {
+      FileResolver.resolve(modelNameUnderDatasetPrefix)
     }
   }
 
@@ -178,8 +264,11 @@ class FileResolverSpec
     )
   }
 
-  it should "return None for an unprefixed path (the datasets prefix is required)" in {
-    assert(FileResolver.parseDatasetOwnerAndName(unprefixedDataset1TxtFilePath).isEmpty)
+  it should "still extract owner and name from a legacy unprefixed path" in {
+    assert(
+      FileResolver.parseDatasetOwnerAndName(unprefixedDataset1TxtFilePath)
+        == Some(("test_user@test.com", "test_dataset"))
+    )
   }
 
   it should "return None when the prefixed path has too few segments" in {

@@ -21,9 +21,21 @@ package org.apache.texera.web.resource
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.node.ObjectNode
+import org.apache.texera.amber.core.storage.model.BufferedItemWriter
+import org.apache.texera.amber.core.storage.{DocumentFactory, VFSURIFactory}
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
-import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, OperatorIdentity}
-import org.apache.texera.amber.core.workflow.{PortIdentity, WorkflowContext, WorkflowSettings}
+import org.apache.texera.amber.core.virtualidentity.{
+  ExecutionIdentity,
+  OperatorIdentity,
+  PhysicalOpIdentity,
+  WorkflowIdentity
+}
+import org.apache.texera.amber.core.workflow.{
+  GlobalPortIdentity,
+  PortIdentity,
+  WorkflowContext,
+  WorkflowSettings
+}
 import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{
   ConsoleMessage,
   ConsoleMessageType
@@ -43,10 +55,11 @@ import org.apache.texera.amber.engine.common.executionruntimestate.{
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.keywordSearch.KeywordSearchOpDesc
 import org.apache.texera.amber.operator.source.scan.csv.CSVScanSourceOpDesc
+import org.apache.texera.amber.util.serde.GlobalPortIdentitySerde.SerdeOps
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.common.compiler.model.{LogicalLink, LogicalPlanPojo}
 import org.apache.texera.dao.MockTexeraDB
-import org.apache.texera.dao.jooq.generated.Tables.OPERATOR_EXECUTIONS
+import org.apache.texera.dao.jooq.generated.Tables.{OPERATOR_EXECUTIONS, OPERATOR_PORT_EXECUTIONS}
 import org.apache.texera.dao.jooq.generated.enums.WorkflowComputingUnitTypeEnum
 import org.apache.texera.dao.jooq.generated.tables.daos.{
   UserDao,
@@ -69,6 +82,7 @@ import org.scalatest.{BeforeAndAfterAll, PrivateMethodTester}
 
 import java.net.URI
 import java.sql.Timestamp
+import scala.jdk.CollectionConverters._
 
 /**
   * Unit tests for the synchronous "run this workflow and hand me the results" endpoint used by
@@ -78,9 +92,19 @@ import java.sql.Timestamp
   * sixteen are `private def`. `executeWorkflowSync` is driven for real here — one end-to-end case
   * that gets as far as a running engine can be taken without one — but the result-shaping helpers
   * it calls cannot be reached that way: every one of them only produces an observable difference
-  * when the engine has actually populated the stats/console stores and written Iceberg results,
-  * which no unit test can arrange. They are therefore driven through `PrivateMethodTester`, and
+  * once the engine has populated the stats/console stores or written Iceberg results. They are
+  * therefore driven through `PrivateMethodTester` over fixtures that stand in for that state, and
   * each such test says which engine state it is standing in for.
+  *
+  * `collectOperatorResult` needs the most of those fixtures, and gets a real one: `storeResult`
+  * below writes an actual Iceberg result table through `DocumentFactory` on the ambient catalog
+  * and registers its URI in `operator_port_executions`, which is all the method needs — it takes
+  * the `ExecutionIdentity` as a parameter and resolves storage from the database, so no engine,
+  * coordinator or client is involved. Two things to know before touching those tests: its
+  * outermost `catch` turns any storage failure into a well-formed `("table", None, ...)`, so an
+  * assertion weaker than the row contents passes on a fixture that never opened a document; and
+  * its front/back split is exact arithmetic, so the char budgets are multiples of a measured
+  * per-row size (`rowChars`) rather than round numbers, which land in a neighbouring branch.
   *
   * Deliberately NOT covered, and why:
   *   - `validateWorkflow` (lines 905-924). It has zero call sites: nothing in the repository, in
@@ -93,11 +117,9 @@ import java.sql.Timestamp
   *     `AmberClient`'s constructor needs a started `AmberRuntime`. `shutdownPreviousExecution` is
   *     additionally unpinnable in principle: its whole body sits inside `catch (Exception) => warn`,
   *     so removing either null guard turns a no-op into a *swallowed* NPE — no observable change.
-  *   - the body of `collectOperatorResult` past its `case None` (lines 541-695) and the
-  *     database-authoritative half of `collectConsoleLogs`. Both need a real Iceberg document
-  *     behind a registered result/console URI. The tuple-shaping helpers that body delegates to
-  *     (`truncateSingleTuple`, `estimateTupleSize`, `symmetricTruncateCellValue`,
-  *     `isVisualizationTuple`) are pinned directly instead.
+  *   - the document-reading half of `collectConsoleLogs`. Reachable by the same fixture technique
+  *     (a console-messages document whose single column holds ASCII-serialized `ConsoleMessage`
+  *     protos), just not done here; its database half, `getConsoleMessageUri`, is pinned below.
   *   - the `Observable.amb` wait and its timeout/error handlers (lines 231-277), plus the
   *     `ConsoleErrorDetected` / `TargetResultsReady` termination arms (284-298). Reaching them
   *     needs an execution that is still non-terminal when `executeWorkflowSync` looks at it, i.e.
@@ -147,11 +169,18 @@ class SyncExecutionResourceSpec
   private val getConsoleMessageUri = PrivateMethod[Option[URI]](Symbol("getConsoleMessageUri"))
   private val killExecution = PrivateMethod[Unit](Symbol("killExecution"))
 
+  private type CollectedResult = (String, Option[Any], Option[Int], Option[Int], Option[Boolean])
+  private val collectOperatorResult =
+    PrivateMethod[CollectedResult](Symbol("collectOperatorResult"))
+
   /** eid of the row `getConsoleMessageUri`'s cases hang their operator_executions rows off. */
   private var consoleEid: Int = 0
 
   /** A second eid, so the query's execution-id predicate is not vacuous. */
   private var otherEid: Int = 0
+
+  /** eid the `collectOperatorResult` fixtures register their result URIs under. */
+  private var resultEid: Int = 0
 
   override protected def beforeAll(): Unit = {
     initializeDBAndReplaceDSLContext()
@@ -193,6 +222,7 @@ class SyncExecutionResourceSpec
 
     consoleEid = insertExecution("console-fixture")
     otherEid = insertExecution("console-fixture-other")
+    resultEid = insertExecution("result-fixture")
   }
 
   override protected def afterAll(): Unit = closeConnectionPool()
@@ -224,6 +254,86 @@ class SyncExecutionResourceSpec
       .set(OPERATOR_EXECUTIONS.CONSOLE_MESSAGES_URI, uri)
       .execute()
   }
+
+  private def globalPortIdOf(opId: String): GlobalPortIdentity =
+    GlobalPortIdentity(
+      PhysicalOpIdentity(OperatorIdentity(opId), "main"),
+      PortIdentity(),
+      input = false
+    )
+
+  /** The external-output result URI shape `getResultUriByLogicalPortId` decodes and matches. */
+  private def resultUriOf(opId: String): URI =
+    VFSURIFactory.resultURI(
+      VFSURIFactory.createPortBaseURI(
+        WorkflowIdentity(testWid.toLong),
+        ExecutionIdentity(resultEid.toLong),
+        globalPortIdOf(opId)
+      )
+    )
+
+  private def registerResultUri(uri: URI): Unit =
+    getDSLContext
+      .insertInto(OPERATOR_PORT_EXECUTIONS)
+      .set(OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID, Integer.valueOf(resultEid))
+      .set(
+        OPERATOR_PORT_EXECUTIONS.GLOBAL_PORT_ID,
+        VFSURIFactory.decodeURI(uri).globalPortId.get.serializeAsString
+      )
+      .set(OPERATOR_PORT_EXECUTIONS.RESULT_URI, uri.toString)
+      .execute()
+
+  private val rowSchema = new Schema(List(new Attribute("v", AttributeType.STRING)))
+
+  private def row(index: Int): Tuple =
+    Tuple.builder(rowSchema).add("v", AttributeType.STRING, s"r$index").build()
+
+  /**
+    * The size `collectOperatorResult` charges for one `row(i)` with a single-digit index: the 28
+    * characters of `{"v":"rN","__row_index__":N}` — pinned as a literal by the first test below —
+    * plus the one it reserves for the comma that separates it from the next row of the array.
+    */
+  private val rowChars = 29
+
+  /**
+    * Creates a real Iceberg result table holding `tuples`, and registers its URI so
+    * `getResultUriByLogicalPortId` finds it. Operator ids are prefixed `serc-` and hang off
+    * workflow 9317, because an Iceberg table's identity derives from its URI path and sbt runs
+    * amber's suites in one unforked JVM: an id another suite also uses would truncate its table.
+    */
+  private def storeResult(opId: String, tuples: Seq[Tuple], schema: Schema = rowSchema): Unit = {
+    val uri = resultUriOf(opId)
+    val writer = DocumentFactory
+      .createDocument(uri, schema)
+      .writer(opId)
+      .asInstanceOf[BufferedItemWriter[Tuple]]
+    writer.open()
+    tuples.foreach(writer.putOne)
+    writer.close()
+    registerResultUri(uri)
+  }
+
+  private def collect(opId: String, charLimit: Int, cellCharLimit: Int): CollectedResult =
+    resource invokePrivate collectOperatorResult(
+      ExecutionIdentity(resultEid.toLong),
+      opId,
+      charLimit,
+      cellCharLimit
+    )
+
+  /**
+    * The rows of a collected result. Both shapes are accepted because the method really does
+    * return both: the visualization branch hands back a Scala `List`, every other branch converts
+    * to a `java.util.List` first, and the shared `Option[Any]` return type hides the difference.
+    */
+  private def rowsOf(result: CollectedResult): List[ObjectNode] =
+    result._2.getOrElse(fail("expected a result payload, not an absent one")) match {
+      case rows: java.util.List[_] => rows.asScala.toList.map(_.asInstanceOf[ObjectNode])
+      case rows: List[_]           => rows.map(_.asInstanceOf[ObjectNode])
+      case other                   => fail(s"unexpected result payload: ${other.getClass.getName}")
+    }
+
+  private def rowIndexOf(jsonRow: ObjectNode): Int = jsonRow.get("__row_index__").asInt()
 
   /**
     * An execution with no coordinator, no result service and no client — the pattern
@@ -778,6 +888,193 @@ class SyncExecutionResourceSpec
         None
       )
     }
+  }
+
+  "collectOperatorResult" should "return every row of a result that fits the char budget" in {
+    storeResult("serc-all-fit", (0 until 3).map(row))
+
+    val result = collect("serc-all-fit", 100000, 20000)
+
+    result._1 shouldBe "table"
+    // Asserted as serialized JSON rather than by row count: the outermost catch turns any storage
+    // failure into a well-formed ("table", None, ...), so a fixture that never opened a document
+    // would satisfy anything weaker. It also pins __row_index__, the column order the caller
+    // renders, and — at 28 characters — the `rowChars` the budgets below are multiples of.
+    rowsOf(result).map(_.toString) shouldBe List(
+      """{"v":"r0","__row_index__":0}""",
+      """{"v":"r1","__row_index__":1}""",
+      """{"v":"r2","__row_index__":2}"""
+    )
+    result._3 shouldBe Some(3)
+    result._4 shouldBe Some(3)
+    result._5 shouldBe Some(false)
+  }
+
+  it should "report an empty result as zero rows rather than as an absent one" in {
+    storeResult("serc-empty", Seq.empty)
+
+    val result = collect("serc-empty", 100000, 20000)
+
+    result._1 shouldBe "table"
+    // Some(empty) and not None: the caller renders "0 rows" for an empty payload and "no result"
+    // for an absent one, and this early return is the only thing keeping the two apart — without
+    // it the walk asks the exhausted iterator for a first tuple and degrades into None.
+    rowsOf(result) shouldBe empty
+    result._3 shouldBe Some(0)
+    result._4 shouldBe Some(0)
+    result._5 shouldBe Some(false)
+  }
+
+  it should "hand a lone html-content row back as a visualization payload" in {
+    // 120 characters, so this also pins the `isVisualization = true` argument: ordinary STRING
+    // cells are capped at 100 and suffixed "..." on the way to JSON, and a visualization payload
+    // must arrive whole. The cell budget is 20 for the same reason — per-cell truncation must not
+    // be applied to it either.
+    val html = "<p>" + ("h" * 113) + "</p>"
+    html should have length 120
+    val vizSchema = new Schema(List(new Attribute("html-content", AttributeType.STRING)))
+    storeResult(
+      "serc-viz",
+      Seq(Tuple.builder(vizSchema).add("html-content", AttributeType.STRING, html).build()),
+      vizSchema
+    )
+
+    val result = collect("serc-viz", 100000, 20)
+
+    result._1 shouldBe "visualization"
+    val rows = rowsOf(result)
+    rows should have size 1
+    rows.head.get("html-content").asText() shouldBe html
+    // The flag the frontend switches on to render an iframe instead of a table.
+    rows.head.get("__is_visualization__").asBoolean() shouldBe true
+    result._3 shouldBe Some(1)
+    result._4 shouldBe Some(1)
+    result._5 shouldBe Some(false)
+  }
+
+  it should "keep a single truncated row when the first row alone fills the budget" in {
+    storeResult("serc-first-fills", (0 until 3).map(row))
+
+    // Exactly at the budget, where the guard has to fire: with `>` instead of `>=` the walk falls
+    // through into the sliding window and reports two rows.
+    val result = collect("serc-first-fills", rowChars, 20000)
+
+    result._1 shouldBe "table"
+    rowsOf(result).map(_.toString) shouldBe List("""{"v":"r0","__row_index__":0}""")
+    // Three rows exist but one is shown: the caller needs both numbers to say "1 of 3".
+    result._3 shouldBe Some(3)
+    result._4 shouldBe Some(1)
+    result._5 shouldBe Some(true)
+  }
+
+  it should "drop the middle of an oversized result and keep the newest rows" in {
+    storeResult("serc-mid-walk-window", (0 until 10).map(row))
+
+    // The front half holds three rows and then rejects the fourth; that rejection is what opens
+    // the sliding window mid-walk. The +1 keeps the budget off an exact multiple of rowChars,
+    // where the front loop would end on its own condition and take the other window block instead.
+    val halfLimit = 3 * rowChars + 1
+    val result = collect("serc-mid-walk-window", 2 * halfLimit, 20000)
+
+    result._1 shouldBe "table"
+    // Non-contiguous on purpose. Rows 3-8 are gone, so the window really slid rather than just
+    // stopping; and the survivor is 9 rather than 3, so it evicted the OLDEST of the tail.
+    rowsOf(result).map(rowIndexOf) shouldBe List(0, 1, 2, 9)
+    result._3 shouldBe Some(10)
+    result._4 shouldBe Some(4)
+    result._5 shouldBe Some(true)
+  }
+
+  it should "walk the tail through the back window once the front half is exactly full" in {
+    storeResult("serc-front-exact", (0 until 4).map(row))
+
+    // The front loop only ends on its own condition when frontSize lands exactly on halfLimit,
+    // which needs a budget that is an exact multiple of rowChars; any round char limit rejects a
+    // row first and covers the mid-walk window above instead. Three rows fill the front half, and
+    // the fourth fits the back half's budget (halfLimit less the 50 reserved for the notice).
+    //
+    // This does NOT pin the loop's bound itself: relaxing `frontSize < halfLimit` to `<=` is an
+    // equivalent mutant. Once the front is exactly full no tuple can fit it (sizes are positive),
+    // so the relaxed loop enters, immediately takes its else branch, and runs the same window over
+    // the same remaining iterator. No input can tell the two spellings apart.
+    val result = collect("serc-front-exact", 6 * rowChars, 20000)
+
+    result._1 shouldBe "table"
+    rowsOf(result).map(rowIndexOf) shouldBe List(0, 1, 2, 3)
+    result._3 shouldBe Some(4)
+    result._4 shouldBe Some(4)
+    // Nothing was dropped, so this block must not raise the flag merely because it ran.
+    result._5 shouldBe Some(false)
+  }
+
+  it should "slide the back window on the tail as well, not only mid-walk" in {
+    storeResult("serc-tail-window", (0 until 5).map(row))
+
+    // Two rows fill the front half exactly, so the tail is walked by the same block as above — but
+    // its budget (halfLimit less the 50-char notice) is now under one row, so every append there
+    // has to evict. Without the eviction all five rows come back.
+    val result = collect("serc-tail-window", 4 * rowChars, 20000)
+
+    result._1 shouldBe "table"
+    rowsOf(result).map(rowIndexOf) shouldBe List(0, 1, 4)
+    result._3 shouldBe Some(5)
+    result._4 shouldBe Some(3)
+    result._5 shouldBe Some(true)
+  }
+
+  it should "shorten an oversized cell in every row, not only in the first" in {
+    // 60 characters: under convertTuplesToJson's own 100-char cap, so the only thing that can
+    // shorten it is the cell budget this method passes down.
+    val wide = "0123456789" * 6
+    val wideSchema = new Schema(List(new Attribute("wide", AttributeType.STRING)))
+    storeResult(
+      "serc-wide-cells",
+      Seq.fill(2)(Tuple.builder(wideSchema).add("wide", AttributeType.STRING, wide).build()),
+      wideSchema
+    )
+
+    val result = collect("serc-wide-cells", 100000, 30)
+
+    // 30 less the 17-char notice, floored to 6 per side. Asserted for BOTH rows: the first row and
+    // the loop body pass the cell budget down at separate call sites, so one of them handed the
+    // whole-result budget by mistake would otherwise stay green.
+    rowsOf(result).map(_.get("wide").asText()) shouldBe
+      List.fill(2)("012345...[truncated]...456789")
+    result._3 shouldBe Some(2)
+    result._4 shouldBe Some(2)
+    result._5 shouldBe Some(false)
+  }
+
+  it should "let a disabled-warehouse refusal reach the caller" in {
+    // #6930, on the result path this time: every other storage failure degrades into an absent
+    // result, but a kill-switch refusal must not — "no data" is indistinguishable from data loss.
+    // The URI carries an unresolvable warehouse name, which WarehouseReadGuard refuses in either
+    // flag state, so this does not depend on how the deployment has the switch set. Built by hand
+    // because VFSURIFactory rejects a name it could not parse back.
+    val opId = "serc-guarded"
+    registerResultUri(
+      new URI(
+        s"vfs:///wh/a%2Fb/wid/$testWid/eid/$resultEid" +
+          s"/globalportid/${globalPortIdOf(opId).serializeAsString}/result"
+      )
+    )
+
+    a[WarehouseUnavailableException] should be thrownBy collect(opId, 100000, 20000)
+  }
+
+  it should "degrade to an absent result when the registered URI has no document behind it" in {
+    // The execution row records a result URI before anything is written to it, so a report asked
+    // for in that window must still come back — as an absent result, not as an exception.
+    val opId = "serc-no-document"
+    registerResultUri(resultUriOf(opId))
+
+    val result = collect(opId, 100000, 20000)
+
+    result._1 shouldBe "table"
+    result._2 shouldBe None
+    result._3 shouldBe None
+    result._4 shouldBe None
+    result._5 shouldBe None
   }
 
   "getConsoleMessageUri" should "find the console URI for one operator of one execution" in {

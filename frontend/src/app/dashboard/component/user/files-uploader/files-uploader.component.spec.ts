@@ -19,8 +19,13 @@
 
 import { of, Subject, throwError } from "rxjs";
 import { OnDestroy } from "@angular/core";
-import { NgxFileDropEntry } from "ngx-file-drop";
+import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { By } from "@angular/platform-browser";
+import { NoopAnimationsModule } from "@angular/platform-browser/animations";
+import { NgxFileDropComponent, NgxFileDropEntry } from "ngx-file-drop";
+import { NzAlertComponent } from "ng-zorro-antd/alert";
 import { NzModalService } from "ng-zorro-antd/modal";
+import { commonTestProviders } from "../../../../common/testing/test-utils";
 import { AdminSettingsService } from "../../../service/admin/settings/admin-settings.service";
 import { DatasetService } from "../../../service/user/dataset/dataset.service";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
@@ -500,5 +505,103 @@ describe("FilesUploaderComponent", () => {
 
       expect((await emitted).map(item => item.name)).toEqual(["folder/"]);
     });
+  });
+});
+
+/**
+ * The suite above constructs the component directly, so its template has never been
+ * rendered — the banner's `*ngIf`, the banner bindings and the drop-zone button live
+ * only in the template. These mount it for real.
+ */
+describe("FilesUploaderComponent rendered", () => {
+  let fixture: ComponentFixture<FilesUploaderComponent>;
+  let component: FilesUploaderComponent;
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [FilesUploaderComponent, NoopAnimationsModule],
+      providers: [
+        { provide: NotificationService, useValue: { error: vi.fn() } },
+        { provide: AdminSettingsService, useValue: { getPublicSetting: vi.fn().mockReturnValue(of("20")) } },
+        {
+          provide: DatasetService,
+          useValue: {
+            listMultipartUploads: vi.fn().mockReturnValue(of([])),
+            findExistingUploadFiles: vi.fn().mockReturnValue(of([])),
+          },
+        },
+        { provide: NzModalService, useValue: { create: vi.fn() } },
+        ...commonTestProviders,
+      ],
+    }).compileComponents();
+
+    fixture = TestBed.createComponent(FilesUploaderComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+  });
+
+  const alert = (): HTMLElement | null => (fixture.nativeElement as HTMLElement).querySelector("nz-alert");
+
+  it("hides the banner until the alert is enabled and the upload has finished", () => {
+    expect(alert()).toBeNull();
+
+    component.showUploadAlert = true;
+    fixture.detectChanges();
+    expect(alert()).toBeNull();
+
+    component.showUploadAlert = false;
+    component.fileUploadingFinished = true;
+    fixture.detectChanges();
+    expect(alert()).toBeNull();
+  });
+
+  it("renders the banner message once both flags are set", () => {
+    component.showUploadAlert = true;
+    component.fileUploadingFinished = true;
+    component.fileUploadBannerType = "error";
+    component.fileUploadBannerMessage = "Upload failed. Please retry.";
+    fixture.detectChanges();
+
+    const banner = alert();
+    expect(banner).not.toBeNull();
+    expect(banner!.textContent).toContain("Upload failed. Please retry.");
+  });
+
+  it("clears the banner when its close control fires", () => {
+    component.showUploadAlert = true;
+    component.fileUploadingFinished = true;
+    component.fileUploadBannerMessage = "done";
+    fixture.detectChanges();
+
+    fixture.debugElement.query(By.directive(NzAlertComponent)).componentInstance.nzOnClose.emit();
+    fixture.detectChanges();
+
+    expect(component.fileUploadingFinished).toBe(false);
+    expect(alert()).toBeNull();
+  });
+
+  it("opens the file selector from the drop-zone button", () => {
+    // ngx-file-drop hands its `openFileSelector` to the content template by reference,
+    // so spying on the component's property after render would not be seen. Assert its
+    // effect instead: it clicks the hidden file input.
+    const host = fixture.nativeElement as HTMLElement;
+    const fileInput: HTMLInputElement = host.querySelector("input.ngx-file-drop__file-input")!;
+    expect(fileInput).not.toBeNull();
+    const openDialog = vi.spyOn(fileInput, "click").mockImplementation(() => {});
+
+    const button: HTMLButtonElement = host.querySelector(".upload-file-button")!;
+    expect(button).not.toBeNull();
+    button.click();
+
+    expect(openDialog).toHaveBeenCalled();
+  });
+
+  it("routes a drop on the zone into fileDropped", () => {
+    const dropped = vi.spyOn(component, "fileDropped").mockImplementation(() => {});
+    const entries = [droppedFile("a.csv", new File(["a"], "a.csv"))];
+
+    fixture.debugElement.query(By.directive(NgxFileDropComponent)).componentInstance.onFileDrop.emit(entries);
+
+    expect(dropped).toHaveBeenCalledWith(entries);
   });
 });

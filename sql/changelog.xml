@@ -94,6 +94,11 @@
         <sqlFile path="sql/updates/36.sql"/>
     </changeSet>
 
+    <!-- Add model metadata tables -->
+    <changeSet id="37" author="tanishqgandhi1908">
+        <sqlFile path="sql/updates/37.sql"/>
+    </changeSet>
+
     <!-- example changeSet
     <changeSet id="1" author="author">
         <sqlFile path="sql/updates/1.sql"/>
