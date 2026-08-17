@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1786798334754,
+  "lastUpdate": 1786973448766,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -9370,6 +9370,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 546.7798287093478,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Meng Wang",
+            "username": "mengw15",
+            "email": "mengw15@uci.edu"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "e80add40cc5564af7dd9d989b1dd2b0943633422",
+          "message": "fix(frontend): give unit tests timeout headroom for loaded macOS runners (#7717)\n\n### What changes were proposed in this PR?\n\nThe `build / frontend (macos-latest)` leg failed 6 times between 08-14\nand 08-17, each time on a **pure timeout in a different spec** — never a\nfailed assertion (details and per-failure table in #7713). The leg's own\nwall time swings ~2x run to run (9m17s–16m52s), and the same test that\nruns in ~400ms on ubuntu has been observed at 11s+ inside a `beforeEach`\non a loaded macOS runner — while Vitest's default limits (5s test / 10s\nhook) are fixed absolute values that don't scale with runner load.\nNothing in the frontend test setup changed in that window; the margin is\nsimply thin enough that ordinary macOS runner variance crosses it.\n\n- Set `testTimeout: 20000` and `hookTimeout: 30000` in\n`frontend/vitest.config.ts` (which previously set neither, inheriting\nthe 5s/10s defaults) — roughly 4x/3x the worst observed times. Both are\nneeded: 4 of the 6 failures hit the test timeout, 2 hit the hook\ntimeout.\n- The cost is that a genuinely hung test reports 15–20s later,\nnegligible against a 9–17 minute leg and strictly cheaper than\nre-running CI and eroding the signal a red leg carries.\n- `vitest.browser.config.ts` (the browser-mode leg) deliberately keeps\nthe defaults — no timeout failures have been observed there.\n- Deliberately **not** making the individual specs cheaper: some are\nexpensive on purpose (`hub-search-result` / `search` stand up real child\ncomponents to work around the coverage-attribution loss in #7458;\nundoing that would revert #7627 / #7535).\n\n### Any related issues, documentation, discussions?\n\nCloses #7713.\n\n### How was this PR tested?\n\n- Config-only change with no executable code; the frontend CI legs\nthemselves exercise it by loading `vitest.config.ts` for the full\n202-spec / 4704-test suite.\n- Type-checked the edited config against Vitest's `InlineConfig` typings\n(`tsc --noEmit` passes — the option names and types are validated), and\n`prettier --check` passes, so `format:ci` is unaffected.\n- No spec sets a per-test timeout override (verified by grep), so the\nglobal raise applies uniformly.\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Claude Code (claude-opus-4-8)\n\n---------\n\nSigned-off-by: Meng Wang <mengw15@uci.edu>\nCo-authored-by: Copilot Autofix powered by AI <175728472+Copilot@users.noreply.github.com>",
+          "timestamp": "2026-08-17T08:03:20Z",
+          "url": "https://github.com/apache/texera/commit/e80add40cc5564af7dd9d989b1dd2b0943633422"
+        },
+        "date": 1786973448162,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 653.7624070326812,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 1079.7587782479927,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 1155.3112176606026,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 826.7648105834838,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 1118.8156309563083,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 1138.5342990923057,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 841.1583281959554,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 1090.6197024863973,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 1144.669623662669,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 687.5687691672084,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 901.1279608734139,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 914.0667638184543,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 722.9460353711173,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 902.8076538052671,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 924.3338826881297,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 714.2824571577097,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 894.5257919483245,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 900.5213513643544,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 437.4459900473295,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 509.8818605811901,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 516.2409358753262,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 432.5368578654561,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 511.3449395051405,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 519.6428448483301,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 420.97421143932667,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 492.5981496267092,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 497.0994632033983,
             "unit": "tuples/sec"
           }
         ]
