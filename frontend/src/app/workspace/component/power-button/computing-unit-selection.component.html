@@ -19,7 +19,7 @@
 
 <div
   class="computing-units-selection"
-  [ngClass]="{ 'metrics-visible': isComputingUnitRunning(), 'warehouse-visible': warehouseEnabled && warehouses.length > 0 }">
+  [ngClass]="{ 'metrics-visible': isComputingUnitRunning(), 'warehouse-visible': warehouseEnabled }">
   <div
     *ngIf="isComputingUnitRunning() && selectedComputingUnit && selectedComputingUnit.computingUnit.type !== 'local'"
     nz-button
@@ -59,7 +59,7 @@
   </div>
 
   <button
-    *ngIf="warehouseEnabled && warehouses.length > 0"
+    *ngIf="warehouseEnabled"
     nz-button
     nz-dropdown
     nzTrigger="click"
@@ -70,9 +70,18 @@
     nz-tooltip
     nzTooltipTitle="Warehouse this execution writes to">
     <div class="button-content">
+      <texera-user-avatar
+        *ngIf="selectedWarehouseId !== undefined"
+        [avatar]="currentUserAvatar"
+        userColor="grey"
+        [userName]="currentUserName"
+        [style.transform]="'scale(0.65)'"
+        [style.opacity]="0.7"
+        [style.padding-right.px]="2">
+      </texera-user-avatar>
       <i
         nz-icon
-        nzType="database"></i>
+        nzType="hdd"></i>
       <span class="warehouse-name-text">{{ getWarehouseButtonText() }}</span>
       <i
         nz-icon
@@ -92,6 +101,13 @@
         [ngClass]="{ 'warehouse-selected': warehouse.whid === selectedWarehouseId }"
         (click)="onWarehouseSelected(warehouse.whid)">
         <div class="warehouse-row">
+          <texera-user-avatar
+            [avatar]="currentUserAvatar"
+            userColor="grey"
+            [userName]="currentUserName"
+            [style.transform]="'scale(0.65)'"
+            [style.opacity]="0.7">
+          </texera-user-avatar>
           <div class="warehouse-name">
             <span
               nz-tooltip

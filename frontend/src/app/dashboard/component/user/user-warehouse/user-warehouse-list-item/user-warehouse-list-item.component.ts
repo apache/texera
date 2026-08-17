@@ -18,6 +18,8 @@
  */
 
 import { Component, EventEmitter, Input, Output } from "@angular/core";
+import { NzModalService } from "ng-zorro-antd/modal";
+import { WarehouseMetadataComponent } from "../../../../../common/component/warehouse-metadata/warehouse-metadata.component";
 import { DashboardWarehouse } from "../../../../../common/type/warehouse";
 import { formatRelativeTime } from "../../../../../common/util/format.util";
 import { NzButtonComponent } from "ng-zorro-antd/button";
@@ -62,6 +64,19 @@ export class UserWarehouseListItemComponent {
 
   set warehouse(value: DashboardWarehouse) {
     this._warehouse = value;
+  }
+
+  constructor(private modalService: NzModalService) {}
+
+  openWarehouseMetadataModal(): void {
+    this.modalService.create({
+      nzTitle: "Warehouse Information",
+      nzContent: WarehouseMetadataComponent,
+      nzData: this.warehouse,
+      nzFooter: null,
+      nzMaskClosable: true,
+      nzWidth: "600px",
+    });
   }
 
   formatRelativeTime = formatRelativeTime;

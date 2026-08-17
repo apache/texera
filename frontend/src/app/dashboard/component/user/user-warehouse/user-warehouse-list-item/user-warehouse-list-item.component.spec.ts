@@ -20,8 +20,9 @@
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { By } from "@angular/platform-browser";
 import { NzIconModule } from "ng-zorro-antd/icon";
+import { NzModalRef, NzModalService } from "ng-zorro-antd/modal";
 import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
-import { DatabaseOutline, DeleteOutline } from "@ant-design/icons-angular/icons";
+import { DeleteOutline, HddOutline } from "@ant-design/icons-angular/icons";
 import { UserWarehouseListItemComponent } from "./user-warehouse-list-item.component";
 import { DashboardWarehouse } from "../../../../../common/type/warehouse";
 import { commonTestProviders } from "../../../../../common/testing/test-utils";
@@ -39,13 +40,13 @@ describe("UserWarehouseListItemComponent", () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [UserWarehouseListItemComponent, NzIconModule.forChild([DatabaseOutline, DeleteOutline])],
-      providers: [...commonTestProviders],
+      imports: [UserWarehouseListItemComponent, NzIconModule.forChild([HddOutline, DeleteOutline])],
+      providers: [NzModalService, ...commonTestProviders],
     }).compileComponents();
   });
 
   it("throws when rendered without a warehouse", () => {
-    const item = new UserWarehouseListItemComponent();
+    const item = new UserWarehouseListItemComponent({} as NzModalService);
 
     expect(() => item.warehouse).toThrowError("warehouse property must be provided to UserWarehouseListItemComponent.");
   });
@@ -76,5 +77,20 @@ describe("UserWarehouseListItemComponent", () => {
     fixture.debugElement.query(By.css(".button-group button")).triggerEventHandler("click", null);
 
     expect(deletedSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("opens the metadata modal when the name is clicked", () => {
+    fixture = TestBed.createComponent(UserWarehouseListItemComponent);
+    fixture.componentInstance.warehouse = warehouse;
+    fixture.detectChanges();
+    const createSpy = vi.spyOn(TestBed.inject(NzModalService), "create").mockReturnValue({} as NzModalRef);
+
+    fixture.debugElement.query(By.css(".resource-name")).triggerEventHandler("click", null);
+
+    expect(createSpy).toHaveBeenCalledTimes(1);
+    const config = createSpy.mock.calls[0][0];
+    expect(config.nzTitle).toBe("Warehouse Information");
+    expect(config.nzData).toEqual(warehouse);
+    expect(config.nzFooter).toBeNull();
   });
 });

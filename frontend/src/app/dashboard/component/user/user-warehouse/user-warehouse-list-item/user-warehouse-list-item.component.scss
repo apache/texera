@@ -53,6 +53,12 @@
 .resource-name {
   font-size: 17px;
   font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.resource-name:hover {
+  text-decoration: underline;
 }
 
 .resource-info {

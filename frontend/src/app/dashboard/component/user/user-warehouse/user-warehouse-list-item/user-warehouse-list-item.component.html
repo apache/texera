@@ -33,7 +33,7 @@
       class="type-icon">
       <i
         nz-icon
-        nzType="database"></i>
+        nzType="hdd"></i>
     </div>
 
     <div
@@ -50,7 +50,8 @@
       <div
         class="resource-name truncate-single-line"
         nz-tooltip
-        [nzTooltipTitle]="warehouse.warehouseName">
+        [nzTooltipTitle]="warehouse.warehouseName"
+        (click)="openWarehouseMetadataModal()">
         {{ warehouse.name }}
       </div>
     </div>

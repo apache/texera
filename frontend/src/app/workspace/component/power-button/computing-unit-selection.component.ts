@@ -27,6 +27,7 @@ import { isDefined } from "../../../common/util/predicate";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { extractErrorMessage } from "../../../common/util/error";
 import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
+import { UserService } from "../../../common/service/user/user.service";
 import { WarehouseService } from "../../../common/service/warehouse/warehouse.service";
 import { WarehouseActionsService } from "../../../common/service/warehouse/warehouse-actions.service";
 import { DashboardWarehouse } from "../../../common/type/warehouse";
@@ -200,7 +201,8 @@ export class ComputingUnitSelectionComponent implements OnInit {
     private workflowPveService: WorkflowPveService,
     private ngZone: NgZone,
     private warehouseService: WarehouseService,
-    private warehouseActionsService: WarehouseActionsService
+    private warehouseActionsService: WarehouseActionsService,
+    private userService: UserService
   ) {}
 
   ngOnInit(): void {
@@ -393,6 +395,25 @@ export class ComputingUnitSelectionComponent implements OnInit {
     if (visible) {
       this.refreshWarehouses();
     }
+  }
+
+  // Warehouses are strictly per-user, so the picker's avatar is always the caller's own.
+  get currentUserAvatar(): string {
+    return this.userService.getCurrentUser()?.avatar ?? "";
+  }
+
+  get currentUserName(): string {
+    return this.userService.getCurrentUser()?.name ?? "";
+  }
+
+  /**
+   * True when the deployment enables per-user warehouses but none is selected.
+   * The menu's Run button redirects to the create-warehouse modal in this
+   * state, mirroring the computing-unit Connect flow: with the feature on,
+   * every execution must have a warehouse to write to.
+   */
+  get warehouseRequiredButMissing(): boolean {
+    return this.warehouseEnabled && this.selectedWarehouseId === undefined;
   }
 
   getWarehouseButtonText(): string {

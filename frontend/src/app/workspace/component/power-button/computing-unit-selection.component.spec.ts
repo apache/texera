@@ -1230,6 +1230,22 @@ describe("PowerButtonComponent", () => {
       expect(comp.trackByWhid(0, makeWarehouse(2, "second"))).toBe(2);
     });
 
+    it("shows the trigger with the generic label when enabled with zero warehouses", () => {
+      const { comp, pickerFixture } = bootPicker({ enabled: true, warehouses: [] });
+
+      pickerFixture.detectChanges();
+
+      expect(pickerFixture.nativeElement.querySelector(".warehouse-dropdown-button")).toBeTruthy();
+      expect(comp.getWarehouseButtonText()).toBe("Warehouse");
+      expect(comp.warehouseRequiredButMissing).toBe(true);
+    });
+
+    it("reports no missing warehouse once the preselect has picked one", () => {
+      const { comp } = bootPicker({ enabled: true, warehouses: [makeWarehouse(1, "first")] });
+
+      expect(comp.warehouseRequiredButMissing).toBe(false);
+    });
+
     it("shows the selected warehouse's name on the dropdown trigger", () => {
       const { comp, emit } = bootPicker({
         enabled: true,
