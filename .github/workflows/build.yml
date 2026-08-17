@@ -88,9 +88,10 @@ jobs:
     runs-on: ${{ matrix.os }}
     # Only the "Install dependency" step below is bounded, so a spec that
     # truly hangs would otherwise run to GitHub's implicit 6h cap — billed at
-    # 10x on the macOS leg. Recent green runs take 4-12 minutes and install
-    # alone may take 20, so 30 bounds a hang while still absorbing a cold
-    # yarn cache on a slow runner.
+    # 10x on the macOS leg. Sized off observed green legs, which run 8.6-10.7
+    # minutes end to end (install itself lands under 90s on all three OSes):
+    # 30 is ~3x the slowest, leaving ~19 minutes of slack for a cold yarn
+    # cache without masking a hang.
     timeout-minutes: 30
     strategy:
       # An OS-specific failure should not cancel the other two legs: with the
