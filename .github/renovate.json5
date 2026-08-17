@@ -165,6 +165,23 @@
       enabled: false,
     },
 
+    // actions/setup-python's `python-version:` is downstream of those pins:
+    // a CI interpreter is only usable if numpy and pandas ship a wheel for
+    // it, and both are frozen above at versions that stop at cp313. Bumping
+    // CI to 3.14 therefore made uv build numpy from source, which fails to
+    // compile against the 3.14 headers (#7720). Renovate cannot see that
+    // coupling, so freeze the interpreter and move it by hand along with the
+    // pins above. The pyamber job's ["3.11", "3.12", "3.13"] matrix is a
+    // plain list Renovate never reads, so widen it in that same manual step.
+    // Match on matchDepNames, not matchPackageNames: Renovate calls this dep
+    // `python` but resolves it from the actions/python-versions releases, and
+    // matchPackageNames tests that packageName rather than the `python` name.
+    {
+      matchManagers: ['github-actions'],
+      matchDepNames: ['python'],
+      enabled: false,
+    },
+
     // Angular majors need a guided `ng update` migration and the
     // framework/CLI lines must move together (see #6155). The regex
     // also covers @angular-devkit/@angular-builders/@angular-eslint;
