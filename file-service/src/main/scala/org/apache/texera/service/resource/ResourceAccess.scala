@@ -27,6 +27,8 @@ import org.apache.texera.dao.jooq.generated.tables.daos.UserDao
 import org.apache.texera.dao.jooq.generated.tables.pojos.User
 import org.jooq.{DSLContext, EnumType, Record}
 
+import scala.jdk.CollectionConverters._
+
 /**
   * Ownership and privilege rules shared by every access-controlled resource.
   *
@@ -128,15 +130,21 @@ object ResourceAccess {
   def ownerEmail[R <: Record, A <: Record](
       ctx: DSLContext,
       resource: ManagedResource[R, A],
-      id: Integer
-  ): String = Option(owner(ctx, resource, id)).map(_.getEmail).getOrElse("")
+      id: Integer,
+      requesterUid: Integer
+  ): String = {
+    requireReadAccess(ctx, resource, id, requesterUid)
+    Option(owner(ctx, resource, id)).map(_.getEmail).getOrElse("")
+  }
 
   /** Everyone the resource is shared with, excluding the owner's own row. */
   def accessList[R <: Record, A <: Record](
       ctx: DSLContext,
       resource: ManagedResource[R, A],
-      id: Integer
+      id: Integer,
+      requesterUid: Integer
   ): java.util.List[AccessEntry] = {
+    requireReadAccess(ctx, resource, id, requesterUid)
     val ownerUid = ctx
       .select(resource.ownerUidField)
       .from(resource.table)
@@ -155,6 +163,69 @@ object ResourceAccess {
           .and(resource.accessUidField.notEqual(ownerUid))
       )
       .fetchInto(classOf[AccessEntry])
+  }
+
+  /**
+    * Every resource of this type the user may see: the ones they hold an explicit grant on, plus
+    * every public one, with public entries dropped when they duplicate a granted entry.
+    *
+    * @param pojoClass  the generated POJO the resource table maps into
+    * @param idOf       reads the resource's id, used to de-duplicate the two passes
+    * @param fromGrant  builds an entry the user has an explicit grant on
+    * @param fromPublic builds an entry visible only because the resource is public
+    */
+  def listVisible[R <: Record, A <: Record, P, D](
+      ctx: DSLContext,
+      resource: ManagedResource[R, A],
+      uid: Integer,
+      pojoClass: Class[P],
+      idOf: P => Integer
+  )(
+      fromGrant: (P, String, PrivilegeEnum, Boolean) => Option[D],
+      fromPublic: (P, String) => Option[D]
+  ): List[D] = {
+    // (id, entry) pairs so the public pass can skip ids already granted, without re-querying
+    val granted: List[(Integer, D)] = ctx
+      .select()
+      .from(
+        resource.table
+          .leftJoin(resource.accessTable)
+          .on(resource.accessIdField.eq(resource.idField))
+          .leftJoin(USER)
+          .on(USER.UID.eq(resource.ownerUidField))
+      )
+      .where(resource.accessUidField.eq(uid))
+      .fetch()
+      .asScala
+      .toList
+      .flatMap { record =>
+        val entity = record.into(resource.table).into(pojoClass)
+        val privilege = record.into(resource.accessTable).get(resource.privilegeField)
+        val isOwner = record.into(resource.table).get(resource.ownerUidField) == uid
+        fromGrant(entity, record.into(USER).getEmail, privilege, isOwner)
+          .map(entry => (idOf(entity), entry))
+      }
+
+    val grantedIds = granted.map(_._1).toSet
+
+    val public = ctx
+      .select()
+      .from(
+        resource.table
+          .leftJoin(USER)
+          .on(USER.UID.eq(resource.ownerUidField))
+      )
+      .where(resource.isPublicField.eq(true))
+      .fetch()
+      .asScala
+      .toList
+      .flatMap { record =>
+        val entity = record.into(resource.table).into(pojoClass)
+        if (grantedIds.contains(idOf(entity))) None
+        else fromPublic(entity, record.into(USER).getEmail)
+      }
+
+    granted.map(_._2) ++ public
   }
 
   /**
@@ -224,6 +295,18 @@ object ResourceAccess {
     if (!userHasWriteAccess(ctx, resource, id, uid)) {
       throw new ForbiddenException(
         s"You do not have permission to modify ${resource.label} $id"
+      )
+    }
+
+  private def requireReadAccess[R <: Record, A <: Record](
+      ctx: DSLContext,
+      resource: ManagedResource[R, A],
+      id: Integer,
+      uid: Integer
+  ): Unit =
+    if (!userHasReadAccess(ctx, resource, id, uid)) {
+      throw new ForbiddenException(
+        s"You do not have access to ${resource.label} $id"
       )
     }
 }

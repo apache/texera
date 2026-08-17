@@ -76,8 +76,13 @@ class ModelAccessResource {
     */
   @GET
   @Path("/owner/{mid}")
-  def getOwnerEmailOfModel(@PathParam("mid") mid: Integer): String =
-    withTransaction(context)(ctx => ResourceAccess.ownerEmail(ctx, MODEL_RESOURCE, mid))
+  def getOwnerEmailOfModel(
+      @PathParam("mid") mid: Integer,
+      @Auth user: SessionUser
+  ): String =
+    withTransaction(context)(ctx =>
+      ResourceAccess.ownerEmail(ctx, MODEL_RESOURCE, mid, user.getUid)
+    )
 
   /**
     * Returns information about all current shared access of the given model
@@ -88,9 +93,12 @@ class ModelAccessResource {
   @GET
   @Path("/list/{mid}")
   def getAccessList(
-      @PathParam("mid") mid: Integer
+      @PathParam("mid") mid: Integer,
+      @Auth user: SessionUser
   ): java.util.List[ModelAccessResource.AccessEntry] =
-    withTransaction(context)(ctx => ResourceAccess.accessList(ctx, MODEL_RESOURCE, mid))
+    withTransaction(context)(ctx =>
+      ResourceAccess.accessList(ctx, MODEL_RESOURCE, mid, user.getUid)
+    )
 
   /**
     * This method shares a model to a user with a specific access type

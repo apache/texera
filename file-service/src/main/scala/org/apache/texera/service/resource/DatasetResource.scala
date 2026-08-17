@@ -1291,49 +1291,24 @@ class DatasetResource extends LazyLogging {
   ): List[DashboardDataset] = {
     val uid = user.getUid
     withTransaction(context)(ctx => {
-      var accessibleDatasets: ListBuffer[DashboardDataset] = ListBuffer()
-      // first fetch all datasets user have explicit access to
-      accessibleDatasets = ListBuffer.from(
-        ctx
-          .select()
-          .from(
-            DATASET
-              .leftJoin(DATASET_USER_ACCESS)
-              .on(DATASET_USER_ACCESS.DID.eq(DATASET.DID))
-              .leftJoin(USER)
-              .on(USER.UID.eq(DATASET.OWNER_UID))
-          )
-          .where(DATASET_USER_ACCESS.UID.eq(uid))
-          .fetch()
-          .map(record => {
-            val dataset = record.into(DATASET).into(classOf[Dataset])
-            val datasetAccess = record.into(DATASET_USER_ACCESS).into(classOf[DatasetUserAccess])
-            val ownerEmail = record.into(USER).getEmail
+      ResourceAccess.listVisible(
+        ctx,
+        DATASET_RESOURCE,
+        uid,
+        classOf[Dataset],
+        (dataset: Dataset) => dataset.getDid
+      )(
+        fromGrant = (dataset, ownerEmail, privilege, isOwner) =>
+          Some(
             DashboardDataset(
-              isOwner = dataset.getOwnerUid == uid,
+              isOwner = isOwner,
               dataset = dataset,
-              accessPrivilege = datasetAccess.getPrivilege,
+              accessPrivilege = privilege,
               ownerEmail = ownerEmail,
               size = 0
             )
-          })
-          .asScala
-      )
-
-      // then we fetch the public datasets and merge it as a part of the result if not exist
-      val publicDatasets = ctx
-        .select()
-        .from(
-          DATASET
-            .leftJoin(USER)
-            .on(USER.UID.eq(DATASET.OWNER_UID))
-        )
-        .where(DATASET.IS_PUBLIC.eq(true))
-        .fetch()
-        .asScala
-        .flatMap { record =>
-          val dataset = record.into(DATASET).into(classOf[Dataset])
-          val ownerEmail = record.into(USER).getEmail
+          ),
+        fromPublic = (dataset, ownerEmail) =>
           try {
             Some(
               DashboardDataset(
@@ -1352,13 +1327,7 @@ class DatasetResource extends LazyLogging {
               )
               None
           }
-        }
-      publicDatasets.foreach { publicDataset =>
-        if (!accessibleDatasets.exists(_.dataset.getDid == publicDataset.dataset.getDid)) {
-          accessibleDatasets = accessibleDatasets :+ publicDataset
-        }
-      }
-      accessibleDatasets.toList
+      )
     })
   }
 
