@@ -28,7 +28,6 @@ import org.apache.texera.dao.jooq.generated.tables.daos.UserDao
 import org.apache.texera.dao.jooq.generated.tables.pojos.User
 import org.apache.texera.web.resource.EmailTemplate.createRoleChangeTemplate
 import org.apache.texera.web.resource.GmailResource.sendEmail
-import org.apache.texera.web.resource.auth.LocalAuthProvisioner
 import org.apache.texera.web.resource.dashboard.admin.user.AdminUserResource.userDao
 import org.apache.texera.web.resource.dashboard.user.dataset.utils.DatasetStatisticsUtils.getUserCreatedDatasets
 import org.apache.texera.web.resource.dashboard.user.quota.UserQuotaResource._
@@ -115,7 +114,24 @@ class AdminUserResource {
     if (existingUser != null && existingUser.getUid != user.getUid) {
       throw new WebApplicationException("Email already exists", Response.Status.CONFLICT)
     }
+
     val updatedUser = userDao.fetchOneByUid(user.getUid)
+    val submittedEmailBlank = Option(user.getEmail).forall(_.trim.isEmpty)
+
+    if (submittedEmailBlank && user.getRole != UserRoleEnum.INACTIVE) {
+      throw new WebApplicationException(
+        "This account has no email address yet, so it cannot be activated. Give it one first.",
+        Response.Status.BAD_REQUEST
+      )
+    }
+
+    if (submittedEmailBlank && Option(updatedUser.getEmail).exists(_.trim.nonEmpty)) {
+      throw new WebApplicationException(
+        "An account's email address cannot be removed once it has one.",
+        Response.Status.BAD_REQUEST
+      )
+    }
+
     val roleChanged = updatedUser.getRole != user.getRole
     updatedUser.setName(user.getName)
     updatedUser.setEmail(user.getEmail)
@@ -130,16 +146,22 @@ class AdminUserResource {
       )
   }
 
+  /**
+    * Create an empty row for an admin to fill in.
+   *
+    * The row is deliberately *not* marked `is_placeholder`, though an unclaimed stub is arguably
+    * what it is. That reclassification has its own consequences — `DatasetAccessResource` refuses
+    * to share with a placeholder, so an admin could no longer pre-share with the address before
+    * its owner first signs in.
+    */
   @POST
   @Path("/add")
   def addUser(): Unit = {
-    // Two independent UUIDs: the handle is visible to anyone who can read /list, so deriving the
-    // password from it would let any such caller log in as the new account.
-    val handle = "User" + UUID.randomUUID().toString
     val user = new User
-    user.setName(handle)
+    // Visible to anyone who can read /list, so it carries nothing derivable.
+    user.setName("User" + UUID.randomUUID().toString)
     user.setRole(UserRoleEnum.INACTIVE)
-    LocalAuthProvisioner.createLocalAccount(user, handle, UUID.randomUUID().toString)
+    userDao.insert(user)
   }
 
   @GET
