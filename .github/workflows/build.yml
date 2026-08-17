@@ -124,7 +124,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v7
         with:
-          python-version: "3.14"
+          python-version: "3.12"
       - name: Install dependency
         timeout-minutes: 20
         run: yarn --cwd frontend install --immutable --inline-builds --network-timeout=100000
@@ -398,7 +398,7 @@ jobs:
       - name: Setup Python for Scala-Python integration tests
         uses: actions/setup-python@v7
         with:
-          python-version: "3.14"
+          python-version: "3.11"
       - name: Show Python
         run: python --version || python3 --version
       - name: Install Python dependencies
