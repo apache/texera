@@ -32,7 +32,9 @@ case class OperatorAggregatedMetrics(
     aggregatedControlProcessingTime: Long,
     aggregatedIdleTime: Long,
     // Provenance: the operator completed by reusing cached results (no workers ran).
-    reusedFromCache: Boolean = false
+    // Deliberately no default: a new construction site must decide the flag
+    // explicitly instead of silently sending false.
+    reusedFromCache: Boolean
 )
 
 case class OperatorStatisticsUpdateEvent(operatorStatistics: Map[String, OperatorAggregatedMetrics])
