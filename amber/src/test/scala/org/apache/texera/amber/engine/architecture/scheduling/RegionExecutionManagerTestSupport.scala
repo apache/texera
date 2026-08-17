@@ -39,6 +39,7 @@ import org.apache.texera.amber.engine.architecture.common.{
   PekkoActorService,
   WorkflowActor
 }
+import org.apache.texera.amber.engine.architecture.coordinator.Coordinator
 import org.apache.texera.amber.engine.architecture.coordinator.execution.WorkflowExecution
 import org.apache.texera.amber.engine.architecture.messaginglayer.{
   NetworkInputGateway,
@@ -57,7 +58,6 @@ import org.apache.texera.amber.engine.common.ambermessage.WorkflowFIFOMessage
 import org.apache.texera.amber.engine.common.rpc.AsyncRPCClient
 import org.apache.texera.amber.engine.common.virtualidentity.util.COORDINATOR
 import org.apache.texera.amber.util.VirtualIdentityUtils
-import org.apache.texera.amber.engine.architecture.coordinator.Coordinator
 
 import scala.collection.mutable
 

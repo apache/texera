@@ -19,8 +19,8 @@
 
 package org.apache.texera.amber.engine.architecture.scheduling
 
-import org.apache.pekko.pattern.gracefulStop
 import com.twitter.util.{Future, JavaTimer, Promise, Return, Throw, Timer}
+import org.apache.pekko.pattern.gracefulStop
 import org.apache.texera.amber.core.state.State
 import org.apache.texera.amber.core.storage.{DocumentFactory, VFSURIFactory}
 import org.apache.texera.amber.core.virtualidentity.ActorVirtualIdentity
@@ -61,7 +61,6 @@ import org.apache.texera.web.model.websocket.event.RegionStateEvent
 
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
-
 import scala.concurrent.duration.{Duration => ScalaDuration}
 
 object RegionExecutionManager {
