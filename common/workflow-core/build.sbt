@@ -298,16 +298,16 @@ libraryDependencies ++= Seq(
   "io.lakefs" % "sdk" % "1.51.0",                                     // for lakeFS api calls
   "com.typesafe" % "config" % "1.4.6",                                 // config reader
   "org.apache.commons" % "commons-jcs3-core" % "3.2",                 // Apache Commons JCS
-  "software.amazon.awssdk" % "s3" % "2.29.51" excludeAll(
+  "software.amazon.awssdk" % "s3" % "2.53.1" excludeAll(
     ExclusionRule(organization = "io.netty")
   ),
-  "software.amazon.awssdk" % "auth" % "2.29.51" excludeAll(
+  "software.amazon.awssdk" % "auth" % "2.53.1" excludeAll(
     ExclusionRule(organization = "io.netty")
   ),
-  "software.amazon.awssdk" % "regions" % "2.29.51" excludeAll(
+  "software.amazon.awssdk" % "regions" % "2.53.1" excludeAll(
     ExclusionRule(organization = "io.netty")
   ),
-  "software.amazon.awssdk" % "sts" % "2.29.51" excludeAll(
+  "software.amazon.awssdk" % "sts" % "2.53.1" excludeAll(
     ExclusionRule(organization = "io.netty")
   ),
 )
