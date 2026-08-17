@@ -171,4 +171,48 @@ describe("DatasetSelectionModalComponent", () => {
 
     expect(modalRef.close).toHaveBeenCalledWith("/some/path");
   });
+
+  // Both handlers guard on a dataset (and a version) having been chosen, and behave
+  // differently in the two modes; the cases above only drive the file-mode arms.
+  it("onDatasetChange does nothing while no dataset is selected", () => {
+    build();
+    datasetService.retrieveDatasetVersionList.mockClear();
+    component.selectedDataset = undefined;
+
+    component.onDatasetChange();
+
+    expect(datasetService.retrieveDatasetVersionList).not.toHaveBeenCalled();
+    expect(component.fileTree).toEqual([]);
+  });
+
+  it("onDatasetChange loads the versions but auto-selects none in non-file mode", () => {
+    build(); // modalData.fileMode is false by default
+    component.selectedDataset = dataset;
+
+    component.onDatasetChange();
+
+    expect(datasetService.retrieveDatasetVersionList).toHaveBeenCalledWith(dataset.dataset.did);
+    expect(component.datasetVersions).toEqual([version]);
+    expect(component.selectedVersion).toBeUndefined();
+  });
+
+  it("onVersionChange does nothing while no version is selected", () => {
+    build();
+    component.selectedDataset = dataset;
+    component.selectedVersion = undefined;
+    datasetService.retrieveDatasetVersionFileTree.mockClear();
+
+    component.onVersionChange();
+
+    expect(datasetService.retrieveDatasetVersionFileTree).not.toHaveBeenCalled();
+  });
+
+  it("onFileSelected ignores the node in non-file mode", () => {
+    build(); // fileMode false
+    component.selectedPath = "/kept";
+
+    component.onFileSelected(fileNode);
+
+    expect(component.selectedPath).toBe("/kept");
+  });
 });
