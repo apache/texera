@@ -78,9 +78,12 @@ object ExecutionUtils {
         controlProcessingTimeSum,
         idleTimeSum
       ),
-      // A logical operator is reused from cache only when every one of its
-      // physical operators is. `metrics` is non-empty here, so this cannot
-      // hold vacuously.
+      // Fully-reused semantics: partial reuse is possible (HashJoin's build and
+      // probe sit in different regions), and a partially reused operator reports
+      // false; per-port detail comes from the cache entries. The input holds the
+      // operators that currently have a region execution, so this shares the
+      // state field's transient window until all regions exist. Non-empty here,
+      // so the forall cannot hold vacuously.
       reusedFromCache = metrics.forall(_.reusedFromCache)
     )
   }
