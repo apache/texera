@@ -170,9 +170,8 @@ lakekeeperInit:
     # Lakekeeper S3 storage-profile flavor: "s3-compat" (MinIO/other; adds
     # endpoint + path-style-access) or "aws" (real AWS S3; omits both).
     flavor: s3-compat
-    # Object-key prefix owned by this shared platform warehouse. Keep it non-empty:
-    # a warehouse at the bucket root contains every per-user warehouse's prefix
-    # (#6870), so Lakekeeper rejects creating them as overlapping (#7739).
+    # Object-key prefix for this warehouse. Must stay non-empty: a warehouse at the
+    # bucket root overlaps every per-user warehouse's prefix (#7739).
     keyPrefix: "shared"
 
 # Part2: configurations of Texera-related micro services
