@@ -19,7 +19,7 @@
 
 <div
   class="computing-units-selection"
-  [ngClass]="{ 'metrics-visible': isComputingUnitRunning() }">
+  [ngClass]="{ 'metrics-visible': isComputingUnitRunning(), 'warehouse-visible': warehouseEnabled && warehouses.length > 0 }">
   <div
     *ngIf="isComputingUnitRunning() && selectedComputingUnit && selectedComputingUnit.computingUnit.type !== 'local'"
     nz-button
@@ -58,19 +58,75 @@
     </div>
   </div>
 
-  <nz-select
+  <button
     *ngIf="warehouseEnabled && warehouses.length > 0"
-    class="warehouse-select"
-    nzSize="small"
+    nz-button
+    nz-dropdown
+    nzTrigger="click"
+    [nzDropdownMenu]="warehouseMenu"
+    [nzPlacement]="'bottomRight'"
+    (nzVisibleChange)="onWarehouseDropdownVisibilityChange($event)"
+    class="warehouse-dropdown-button"
     nz-tooltip
-    nzTooltipTitle="Warehouse this execution writes to"
-    [ngModel]="selectedWarehouseId"
-    (ngModelChange)="onWarehouseSelected($event)">
-    <nz-option
-      *ngFor="let warehouse of warehouses; trackBy: trackByWhid"
-      [nzValue]="warehouse.whid"
-      [nzLabel]="warehouse.name"></nz-option>
-  </nz-select>
+    nzTooltipTitle="Warehouse this execution writes to">
+    <div class="button-content">
+      <i
+        nz-icon
+        nzType="database"></i>
+      <span class="warehouse-name-text">{{ getWarehouseButtonText() }}</span>
+      <i
+        nz-icon
+        nzType="down"></i>
+    </div>
+  </button>
+
+  <nz-dropdown-menu #warehouseMenu="nzDropdownMenu">
+    <ul
+      nz-menu
+      class="warehouses-dropdown">
+      <li
+        nz-menu-item
+        *ngFor="let warehouse of warehouses; trackBy: trackByWhid"
+        id="warehouse-option"
+        class="warehouse-option"
+        [ngClass]="{ 'warehouse-selected': warehouse.whid === selectedWarehouseId }"
+        (click)="onWarehouseSelected(warehouse.whid)">
+        <div class="warehouse-row">
+          <div class="warehouse-name">
+            <span
+              nz-tooltip
+              [nzTooltipTitle]="warehouse.warehouseName">
+              {{ warehouse.name }}
+            </span>
+          </div>
+          <i
+            nz-icon
+            nzType="delete"
+            class="warehouse-delete-icon"
+            nz-tooltip
+            [nzTooltipTitle]="'Delete warehouse and all data stored in it'"
+            (click)="confirmDeleteWarehouse(warehouse); $event.stopPropagation()"
+            role="button"
+            aria-label="Delete warehouse">
+          </i>
+        </div>
+      </li>
+
+      <li
+        *ngIf="warehouses.length > 0"
+        nz-menu-divider></li>
+      <li
+        nz-menu-item
+        (click)="showAddWarehouseModalVisible()">
+        <div class="create-warehouse">
+          <i
+            nz-icon
+            nzType="plus"></i>
+          <span> Warehouse</span>
+        </div>
+      </li>
+    </ul>
+  </nz-dropdown-menu>
 
   <button
     nz-button
@@ -236,6 +292,11 @@
 <texera-computing-unit-create-modal
   [(visible)]="addComputeUnitModalVisible"
   (unitCreated)="onComputingUnitCreated($event)"></texera-computing-unit-create-modal>
+
+<!-- Panel for creating the warehouse -->
+<texera-warehouse-create-modal
+  [(visible)]="addWarehouseModalVisible"
+  (warehouseCreated)="onWarehouseCreated($event)"></texera-warehouse-create-modal>
 
 <ng-template #metricsTemplate>
   <div class="resource-metrics">

@@ -18,14 +18,17 @@
  */
 
 import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { By } from "@angular/platform-browser";
 import { NoopAnimationsModule } from "@angular/platform-browser/animations";
-import { DeleteOutline, FileAddOutline } from "@ant-design/icons-angular/icons";
+import { DatabaseOutline, DeleteOutline, FileAddOutline } from "@ant-design/icons-angular/icons";
 import { NzIconModule } from "ng-zorro-antd/icon";
-import { ModalOptions, NzModalRef, NzModalService } from "ng-zorro-antd/modal";
+import { NzModalService } from "ng-zorro-antd/modal";
 import { of, throwError } from "rxjs";
 
 import { UserWarehouseComponent } from "./user-warehouse.component";
+import { WarehouseCreateModalComponent } from "../../../../common/component/warehouse-create-modal/warehouse-create-modal.component";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
+import { WarehouseActionsService } from "../../../../common/service/warehouse/warehouse-actions.service";
 import { WarehouseService } from "../../../../common/service/warehouse/warehouse.service";
 import { DashboardWarehouse } from "../../../../common/type/warehouse";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
@@ -45,8 +48,6 @@ describe("UserWarehouseComponent", () => {
     info: ReturnType<typeof vi.fn>;
     warning: ReturnType<typeof vi.fn>;
   };
-  let confirmSpy: ReturnType<typeof vi.spyOn>;
-  let capturedConfirmConfig: ModalOptions | undefined;
   let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
 
   const warehouse = (whid: number, name: string): DashboardWarehouse => ({
@@ -72,7 +73,11 @@ describe("UserWarehouseComponent", () => {
     consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
 
     await TestBed.configureTestingModule({
-      imports: [UserWarehouseComponent, NoopAnimationsModule, NzIconModule.forChild([FileAddOutline, DeleteOutline])],
+      imports: [
+        UserWarehouseComponent,
+        NoopAnimationsModule,
+        NzIconModule.forChild([FileAddOutline, DatabaseOutline, DeleteOutline]),
+      ],
       providers: [
         NzModalService,
         { provide: WarehouseService, useValue: warehouseServiceSpy as unknown as WarehouseService },
@@ -81,21 +86,12 @@ describe("UserWarehouseComponent", () => {
       ],
     }).compileComponents();
 
-    // Use the real NzModalService (the rendered <nz-modal> relies on it) but capture the
-    // confirm() config so tests can drive its nzOnOk callback without opening an overlay.
-    capturedConfirmConfig = undefined;
-    confirmSpy = vi.spyOn(TestBed.inject(NzModalService), "confirm").mockImplementation((options?: ModalOptions) => {
-      capturedConfirmConfig = options;
-      return {} as NzModalRef;
-    });
-
     fixture = TestBed.createComponent(UserWarehouseComponent);
     component = fixture.componentInstance;
   });
 
   afterEach(() => {
     consoleErrorSpy?.mockRestore();
-    confirmSpy?.mockRestore();
     fixture?.destroy();
   });
 
@@ -107,7 +103,7 @@ describe("UserWarehouseComponent", () => {
     expect(component.warehouseEnabled).toBe(false);
     const notice = fixture.nativeElement.querySelector(".warehouse-page-empty");
     expect(notice?.textContent).toContain("disabled in this deployment");
-    expect(fixture.nativeElement.querySelector(".warehouse-page-list")).toBeNull();
+    expect(fixture.nativeElement.querySelector("cdk-virtual-scroll-viewport")).toBeNull();
   });
 
   it("shows the create hint while the user has no warehouses", () => {
@@ -115,19 +111,21 @@ describe("UserWarehouseComponent", () => {
 
     const notice = fixture.nativeElement.querySelector(".warehouse-page-empty");
     expect(notice?.textContent).toContain("No warehouses yet");
+    expect(fixture.nativeElement.querySelector("cdk-virtual-scroll-viewport")).toBeNull();
   });
 
-  it("lists the user's warehouses with their catalog name as tooltip", () => {
+  it("lists the user's warehouses in the virtual-scroll list", () => {
     warehouseServiceSpy.getStatus.mockReturnValue(
       of({ enabled: true, warehouses: [warehouse(1, "first"), warehouse(2, "second")] })
     );
 
     fixture.detectChanges();
 
-    const items = fixture.nativeElement.querySelectorAll(".warehouse-page-item");
-    expect(items.length).toBe(2);
-    expect(items[0].textContent).toContain("first");
-    expect(items[1].textContent).toContain("second");
+    // The virtual-scroll viewport has no height in jsdom, so assert the mapped
+    // state rather than the virtualized rows (their markup is covered by the
+    // list-item's own spec).
+    expect(component.warehouses.map(w => w.whid)).toEqual([1, 2]);
+    expect(fixture.nativeElement.querySelector("cdk-virtual-scroll-viewport")).toBeTruthy();
     expect(fixture.nativeElement.querySelector(".warehouse-page-empty")).toBeNull();
   });
 
@@ -139,73 +137,40 @@ describe("UserWarehouseComponent", () => {
     expect(notificationSpy.error).toHaveBeenCalledWith("Failed to fetch warehouses.");
   });
 
-  describe("createWarehouse", () => {
-    it("creates with the trimmed name, closes the modal, and refreshes the list", () => {
-      fixture.detectChanges();
-      component.showCreateModal();
-      component.newWarehouseName = "  mybucket  ";
-      warehouseServiceSpy.getStatus.mockClear();
+  it("hands the warehouse to the actions service, and refreshes once it reports the delete", () => {
+    const actionsService = TestBed.inject(WarehouseActionsService);
+    const confirmAndDeleteSpy = vi.spyOn(actionsService, "confirmAndDelete").mockImplementation(() => {});
+    fixture.detectChanges();
+    warehouseServiceSpy.getStatus.mockClear();
+    const doomed = warehouse(3, "doomed");
 
-      component.createWarehouse();
+    component.deleteWarehouse(doomed);
 
-      expect(warehouseServiceSpy.createWarehouse).toHaveBeenCalledWith("mybucket");
-      expect(component.createModalVisible).toBe(false);
-      expect(component.creating).toBe(false);
-      expect(notificationSpy.success).toHaveBeenCalledWith('Warehouse "mybucket" created.');
-      expect(warehouseServiceSpy.getStatus).toHaveBeenCalledTimes(1);
-    });
-
-    it("does nothing for a blank name", () => {
-      fixture.detectChanges();
-      component.newWarehouseName = "   ";
-
-      component.createWarehouse();
-
-      expect(warehouseServiceSpy.createWarehouse).not.toHaveBeenCalled();
-    });
-
-    it("keeps the modal open and surfaces the backend message on failure", () => {
-      fixture.detectChanges();
-      component.showCreateModal();
-      component.newWarehouseName = "dup";
-      warehouseServiceSpy.createWarehouse.mockReturnValue(
-        throwError(() => ({ error: "a warehouse named 'dup' already exists" }))
-      );
-
-      component.createWarehouse();
-
-      expect(component.createModalVisible).toBe(true);
-      expect(component.creating).toBe(false);
-      expect(notificationSpy.error).toHaveBeenCalledWith("a warehouse named 'dup' already exists");
-    });
+    expect(confirmAndDeleteSpy).toHaveBeenCalledTimes(1);
+    expect(confirmAndDeleteSpy.mock.calls[0][0]).toEqual(doomed);
+    const onDeleted = confirmAndDeleteSpy.mock.calls[0][1] as () => void;
+    onDeleted();
+    expect(warehouseServiceSpy.getStatus).toHaveBeenCalledTimes(1);
   });
 
-  describe("confirmDelete", () => {
-    it("builds a danger confirm whose nzOnOk deletes the warehouse and refreshes", () => {
-      warehouseServiceSpy.getStatus.mockReturnValue(of({ enabled: true, warehouses: [warehouse(3, "doomed")] }));
-      fixture.detectChanges();
-      warehouseServiceSpy.getStatus.mockClear();
+  it("refreshes the warehouse list when the modal emits warehouseCreated", () => {
+    fixture.detectChanges();
+    warehouseServiceSpy.getStatus.mockClear();
 
-      component.confirmDelete(warehouse(3, "doomed"));
+    const modal = fixture.debugElement.query(By.directive(WarehouseCreateModalComponent)).componentInstance;
+    modal.warehouseCreated.emit(warehouse(1, "mybucket"));
 
-      expect(confirmSpy).toHaveBeenCalledTimes(1);
-      expect(capturedConfirmConfig?.nzTitle).toBe('Delete warehouse "doomed"?');
-      expect(capturedConfirmConfig?.nzOkDanger).toBe(true);
+    expect(warehouseServiceSpy.getStatus).toHaveBeenCalledTimes(1);
+  });
 
-      (capturedConfirmConfig?.nzOnOk as () => void)();
-      expect(warehouseServiceSpy.deleteWarehouse).toHaveBeenCalledWith(3);
-      expect(notificationSpy.success).toHaveBeenCalledWith("Warehouse deleted.");
-      expect(warehouseServiceSpy.getStatus).toHaveBeenCalledTimes(1);
-    });
+  it("syncs visibility when the embedded modal closes itself", () => {
+    fixture.detectChanges();
+    component.showAddWarehouseModalVisible();
+    expect(component.addWarehouseModalVisible).toBe(true);
 
-    it("surfaces a failed delete as a notification", () => {
-      fixture.detectChanges();
-      warehouseServiceSpy.deleteWarehouse.mockReturnValue(throwError(() => ({ error: "Lakekeeper unreachable" })));
+    const modal = fixture.debugElement.query(By.directive(WarehouseCreateModalComponent)).componentInstance;
+    modal.visibleChange.emit(false);
 
-      component.confirmDelete(warehouse(3, "doomed"));
-      (capturedConfirmConfig?.nzOnOk as () => void)();
-
-      expect(notificationSpy.error).toHaveBeenCalledWith("Lakekeeper unreachable");
-    });
+    expect(component.addWarehouseModalVisible).toBe(false);
   });
 });

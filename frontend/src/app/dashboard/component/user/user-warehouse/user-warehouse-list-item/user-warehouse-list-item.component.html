@@ -1,0 +1,86 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+
+<nz-card
+  [nzBodyStyle]="{padding: '3px'}"
+  class="warehouse-list-item-card">
+  <div
+    nz-row
+    nzAlign="middle">
+    <div
+      nz-col
+      nzFlex="20px"></div>
+
+    <div
+      nz-col
+      nzFlex="0"
+      class="type-icon">
+      <i
+        nz-icon
+        nzType="database"></i>
+    </div>
+
+    <div
+      nz-col
+      nzFlex="0"
+      class="warehouse-id">
+      <i>#{{ warehouse.whid }}</i>
+    </div>
+
+    <div
+      nz-col
+      nzFlex="1"
+      class="resource-name-group">
+      <div
+        class="resource-name truncate-single-line"
+        nz-tooltip
+        [nzTooltipTitle]="warehouse.warehouseName">
+        {{ warehouse.name }}
+      </div>
+    </div>
+
+    <div class="button-group">
+      <button
+        nz-button
+        nzType="text"
+        title="Delete"
+        (click)="deleted.emit()">
+        <i
+          nz-icon
+          nzType="delete"></i>
+      </button>
+    </div>
+
+    <div
+      nz-col
+      nzFlex="100px"
+      class="resource-info">
+      Created:<br />
+      {{ formatRelativeTime(warehouse.createdAtMillis) }}
+    </div>
+
+    <div
+      nz-col
+      nzFlex="90px"
+      class="resource-info">
+      Flavor:<br />
+      {{ warehouse.flavor }}
+    </div>
+  </div>
+</nz-card>

@@ -28,6 +28,7 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { extractErrorMessage } from "../../../common/util/error";
 import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
 import { WarehouseService } from "../../../common/service/warehouse/warehouse.service";
+import { WarehouseActionsService } from "../../../common/service/warehouse/warehouse-actions.service";
 import { DashboardWarehouse } from "../../../common/type/warehouse";
 import { NzModalService, NzModalComponent, NzModalContentDirective } from "ng-zorro-antd/modal";
 import { WorkflowExecutionsService } from "../../../dashboard/service/user/workflow-executions/workflow-executions.service";
@@ -75,6 +76,7 @@ import { NzSelectComponent, NzOptionComponent } from "ng-zorro-antd/select";
 import { FormsModule } from "@angular/forms";
 import { NzCollapseComponent, NzCollapsePanelComponent } from "ng-zorro-antd/collapse";
 import { ComputingUnitCreateModalComponent } from "../../../common/component/computing-unit-create-modal/computing-unit-create-modal.component";
+import { WarehouseCreateModalComponent } from "../../../common/component/warehouse-create-modal/warehouse-create-modal.component";
 
 type PveUserPackageRow = {
   name: string;
@@ -130,6 +132,7 @@ type PveDraft = {
     NzCollapsePanelComponent,
     DecimalPipe,
     ComputingUnitCreateModalComponent,
+    WarehouseCreateModalComponent,
   ],
 })
 export class ComputingUnitSelectionComponent implements OnInit {
@@ -168,6 +171,9 @@ export class ComputingUnitSelectionComponent implements OnInit {
   // visibility of the shared create-computing-unit modal
   addComputeUnitModalVisible = false;
 
+  // visibility of the shared create-warehouse modal
+  addWarehouseModalVisible = false;
+
   @ViewChild(ComputingUnitCreateModalComponent)
   private computingUnitCreateModal?: ComputingUnitCreateModalComponent;
 
@@ -193,7 +199,8 @@ export class ComputingUnitSelectionComponent implements OnInit {
     private computingUnitActionsService: ComputingUnitActionsService,
     private workflowPveService: WorkflowPveService,
     private ngZone: NgZone,
-    private warehouseService: WarehouseService
+    private warehouseService: WarehouseService,
+    private warehouseActionsService: WarehouseActionsService
   ) {}
 
   ngOnInit(): void {
@@ -241,25 +248,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
 
     // Warehouse picker state (#6933). The pick itself lives in WarehouseService,
     // where ExecuteWorkflowService reads it at execution time.
-    this.warehouseService
-      .getStatus()
-      .pipe(untilDestroyed(this))
-      .subscribe({
-        next: status => {
-          this.warehouseEnabled = status.enabled;
-          this.warehouses = [...status.warehouses];
-          this.applyWarehousePreselect();
-        },
-        error: (err: unknown) => {
-          // The pick lives in the root-scoped service, so hiding the picker is not
-          // enough: a stale id from a previous workflow would still ride the next
-          // execution request. Clear it whenever the picker cannot be shown.
-          this.warehouseEnabled = false;
-          this.warehouses = [];
-          this.warehouseService.selectWarehouse(undefined);
-          console.error("Failed to fetch warehouse status", err);
-        },
-      });
+    this.refreshWarehouses();
 
     this.warehouseService
       .getSelectedWarehouseId()
@@ -344,6 +333,39 @@ export class ComputingUnitSelectionComponent implements OnInit {
   }
 
   /**
+   * Fetches the warehouse list, on init and on every dropdown open (mirroring
+   * onDropdownVisibilityChange). Preselection re-runs only when the current
+   * pick is gone (first load, or the picked warehouse was deleted), so a
+   * routine refresh cannot override a manual pick.
+   */
+  private refreshWarehouses(): void {
+    this.warehouseService
+      .getStatus()
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: status => {
+          this.warehouseEnabled = status.enabled;
+          this.warehouses = [...status.warehouses];
+          if (
+            this.selectedWarehouseId === undefined ||
+            !this.warehouses.some(warehouse => warehouse.whid === this.selectedWarehouseId)
+          ) {
+            this.applyWarehousePreselect();
+          }
+        },
+        error: (err: unknown) => {
+          // The pick lives in the root-scoped service, so hiding the picker is not
+          // enough: a stale id from a previous workflow would still ride the next
+          // execution request. Clear it whenever the picker cannot be shown.
+          this.warehouseEnabled = false;
+          this.warehouses = [];
+          this.warehouseService.selectWarehouse(undefined);
+          console.error("Failed to fetch warehouse status", err);
+        },
+      });
+  }
+
+  /**
    * Mirrors the CU preselection for warehouses (#6933): pick the latest
    * execution's warehouse when it still exists, else the user's first
    * warehouse — so a run needs no explicit pick.
@@ -365,6 +387,31 @@ export class ComputingUnitSelectionComponent implements OnInit {
 
   public trackByWhid(_idx: number, warehouse: DashboardWarehouse): number {
     return warehouse.whid;
+  }
+
+  onWarehouseDropdownVisibilityChange(visible: boolean): void {
+    if (visible) {
+      this.refreshWarehouses();
+    }
+  }
+
+  getWarehouseButtonText(): string {
+    return this.warehouses.find(warehouse => warehouse.whid === this.selectedWarehouseId)?.name ?? "Warehouse";
+  }
+
+  showAddWarehouseModalVisible(): void {
+    this.addWarehouseModalVisible = true;
+  }
+
+  onWarehouseCreated(warehouse: DashboardWarehouse): void {
+    // Mirrors onComputingUnitCreated: a warehouse created from the workspace is
+    // what the next execution should write to.
+    this.warehouseService.selectWarehouse(warehouse.whid);
+    this.refreshWarehouses();
+  }
+
+  confirmDeleteWarehouse(warehouse: DashboardWarehouse): void {
+    this.warehouseActionsService.confirmAndDelete(warehouse, () => this.refreshWarehouses());
   }
 
   isComputingUnitRunning(): boolean {

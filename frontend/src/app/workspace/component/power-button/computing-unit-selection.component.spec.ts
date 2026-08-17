@@ -55,6 +55,7 @@ import { ExecutionState } from "../../types/execute-workflow.interface";
 import { ComputingUnitActionsService } from "../../../common/service/computing-unit/computing-unit-actions/computing-unit-actions.service";
 import { ComputingUnitMetadataComponent } from "../../../common/util/computing-unit.util";
 import { WarehouseService } from "../../../common/service/warehouse/warehouse.service";
+import { WarehouseActionsService } from "../../../common/service/warehouse/warehouse-actions.service";
 import { DashboardWarehouse } from "../../../common/type/warehouse";
 
 /**
@@ -1174,7 +1175,7 @@ describe("PowerButtonComponent", () => {
       expect(TestBed.inject(WarehouseService).getSelectedWarehouseIdValue()).toBe(1);
     });
 
-    it("never picks a warehouse while the feature is disabled, and hides the select", () => {
+    it("never picks a warehouse while the feature is disabled, and hides the picker", () => {
       // Warehouses alongside enabled=false cannot come from the real backend; the
       // artificial combination pins that the flag alone suppresses preselection.
       const { pickerFixture, emit } = bootPicker({
@@ -1186,7 +1187,7 @@ describe("PowerButtonComponent", () => {
       emit(100);
 
       expect(TestBed.inject(WarehouseService).getSelectedWarehouseIdValue()).toBeUndefined();
-      expect(pickerFixture.nativeElement.querySelector(".warehouse-select")).toBeNull();
+      expect(pickerFixture.nativeElement.querySelector(".warehouse-dropdown-button")).toBeNull();
     });
 
     it("clears any stale pick when the status request fails", () => {
@@ -1215,18 +1216,109 @@ describe("PowerButtonComponent", () => {
       expect(TestBed.inject(WarehouseService).getSelectedWarehouseIdValue()).toBeUndefined();
     });
 
-    it("renders the select when enabled, and a manual pick writes through to the service", () => {
+    it("renders the dropdown trigger when enabled, and a manual pick writes through to the service", () => {
       const { comp, pickerFixture } = bootPicker({
         enabled: true,
         warehouses: [makeWarehouse(1, "first"), makeWarehouse(2, "second")],
       });
 
       pickerFixture.detectChanges();
-      expect(pickerFixture.nativeElement.querySelector(".warehouse-select")).toBeTruthy();
+      expect(pickerFixture.nativeElement.querySelector(".warehouse-dropdown-button")).toBeTruthy();
 
       comp.onWarehouseSelected(2);
       expect(TestBed.inject(WarehouseService).getSelectedWarehouseIdValue()).toBe(2);
       expect(comp.trackByWhid(0, makeWarehouse(2, "second"))).toBe(2);
+    });
+
+    it("shows the selected warehouse's name on the dropdown trigger", () => {
+      const { comp, emit } = bootPicker({
+        enabled: true,
+        warehouses: [makeWarehouse(1, "first"), makeWarehouse(2, "second")],
+        latest: { cuId: 55, whId: 2 },
+      });
+
+      emit(100);
+      expect(comp.getWarehouseButtonText()).toBe("second");
+
+      // An id that matches no warehouse falls back to the generic label.
+      TestBed.inject(WarehouseService).selectWarehouse(999);
+      expect(comp.getWarehouseButtonText()).toBe("Warehouse");
+    });
+
+    it("refreshes the warehouse list when the dropdown opens, not when it closes", () => {
+      const { comp } = bootPicker({ enabled: true, warehouses: [makeWarehouse(1, "first")] });
+      const statusSpy = vi.spyOn(TestBed.inject(WarehouseService), "getStatus");
+      statusSpy.mockClear();
+
+      comp.onWarehouseDropdownVisibilityChange(true);
+      expect(statusSpy).toHaveBeenCalledTimes(1);
+
+      comp.onWarehouseDropdownVisibilityChange(false);
+      expect(statusSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it("keeps a manual pick across a dropdown-open refresh", () => {
+      const { comp } = bootPicker({
+        enabled: true,
+        warehouses: [makeWarehouse(1, "first"), makeWarehouse(2, "second")],
+      });
+      comp.onWarehouseSelected(2);
+
+      comp.onWarehouseDropdownVisibilityChange(true);
+
+      expect(TestBed.inject(WarehouseService).getSelectedWarehouseIdValue()).toBe(2);
+    });
+
+    it("re-preselects when the picked warehouse no longer exists", () => {
+      const { comp } = bootPicker({
+        enabled: true,
+        warehouses: [makeWarehouse(1, "first"), makeWarehouse(2, "second")],
+      });
+      comp.onWarehouseSelected(2);
+      vi.spyOn(TestBed.inject(WarehouseService), "getStatus").mockReturnValue(
+        of({ enabled: true, warehouses: [makeWarehouse(1, "first")] })
+      );
+
+      comp.onWarehouseDropdownVisibilityChange(true);
+
+      expect(TestBed.inject(WarehouseService).getSelectedWarehouseIdValue()).toBe(1);
+    });
+
+    it("opens the create modal from the menu, and selects a warehouse created there", () => {
+      const { comp } = bootPicker({ enabled: true, warehouses: [makeWarehouse(1, "first")] });
+
+      expect(comp.addWarehouseModalVisible).toBe(false);
+      comp.showAddWarehouseModalVisible();
+      expect(comp.addWarehouseModalVisible).toBe(true);
+
+      vi.spyOn(TestBed.inject(WarehouseService), "getStatus").mockReturnValue(
+        of({ enabled: true, warehouses: [makeWarehouse(1, "first"), makeWarehouse(9, "fresh")] })
+      );
+      comp.onWarehouseCreated(makeWarehouse(9, "fresh"));
+
+      expect(TestBed.inject(WarehouseService).getSelectedWarehouseIdValue()).toBe(9);
+    });
+
+    it("hands the warehouse to the actions service, and re-preselects after the delete", () => {
+      const { comp } = bootPicker({
+        enabled: true,
+        warehouses: [makeWarehouse(1, "first"), makeWarehouse(2, "second")],
+      });
+      const actionsService = TestBed.inject(WarehouseActionsService);
+      const confirmAndDeleteSpy = vi.spyOn(actionsService, "confirmAndDelete").mockImplementation(() => {});
+      const doomed = makeWarehouse(1, "first");
+
+      comp.confirmDeleteWarehouse(doomed);
+
+      expect(confirmAndDeleteSpy).toHaveBeenCalledTimes(1);
+      expect(confirmAndDeleteSpy.mock.calls[0][0]).toEqual(doomed);
+
+      vi.spyOn(TestBed.inject(WarehouseService), "getStatus").mockReturnValue(
+        of({ enabled: true, warehouses: [makeWarehouse(2, "second")] })
+      );
+      (confirmAndDeleteSpy.mock.calls[0][1] as () => void)();
+
+      expect(TestBed.inject(WarehouseService).getSelectedWarehouseIdValue()).toBe(2);
     });
   });
 

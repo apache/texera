@@ -29,10 +29,8 @@
   min-width: 220px;
   max-width: 280px;
 
-  .warehouse-select {
-    min-width: 110px;
-    max-width: 160px;
-    margin-right: 4px;
+  &.warehouse-visible {
+    max-width: none;
   }
 
   &.metrics-visible {
@@ -143,6 +141,86 @@
 .create-computing-unit {
   gap: 10px;
   justify-content: flex-start;
+}
+
+.warehouses-dropdown {
+  width: 250px;
+  max-height: 50vh;
+  overflow-y: auto;
+}
+
+.warehouse-option {
+  display: block;
+  width: 100%;
+  padding: 0 !important;
+}
+
+.warehouse-row,
+.warehouse-name,
+.create-warehouse {
+  display: flex;
+  align-items: center;
+}
+
+.warehouse-row {
+  justify-content: space-between;
+  width: 100%;
+  gap: 10px;
+  padding: 5px 12px;
+  box-sizing: border-box;
+}
+
+.warehouse-name {
+  flex-grow: 1;
+  gap: 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.warehouse-name span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.warehouse-delete-icon {
+  margin-left: auto;
+  flex-shrink: 0;
+  opacity: 0.85;
+  color: #ff4d4f;
+  cursor: pointer;
+
+  &:hover {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+}
+
+.create-warehouse {
+  gap: 10px;
+  justify-content: flex-start;
+}
+
+.warehouse-dropdown-button {
+  display: inline-flex;
+  align-items: center;
+  min-width: 110px;
+  max-width: 180px;
+  margin-right: 4px;
+  padding: 0 8px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.warehouse-name-text {
+  display: inline-block;
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .resource-metrics {

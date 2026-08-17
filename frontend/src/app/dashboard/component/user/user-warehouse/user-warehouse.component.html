@@ -24,7 +24,7 @@
       <button
         nz-button
         class="create-btn"
-        (click)="showCreateModal()"
+        (click)="showAddWarehouseModalVisible()"
         [disabled]="!warehouseEnabled"
         title="Create Warehouse">
         <i
@@ -38,79 +38,35 @@
 
   <nz-card
     class="section-list-container"
-    [nzBodyStyle]="{ height: '100%' }">
-    <div class="warehouse-page">
-      <div
-        *ngIf="!warehouseEnabled"
-        class="warehouse-page-empty">
-        Per-user warehouses are disabled in this deployment.
-      </div>
-
-      <div
-        *ngIf="warehouseEnabled && warehouses.length === 0"
-        class="warehouse-page-empty">
-        No warehouses yet. Click <strong>Create Warehouse</strong> to create one.
-      </div>
-
-      <ul
-        *ngIf="warehouseEnabled && warehouses.length > 0"
-        class="warehouse-page-list">
-        <li
-          *ngFor="let warehouse of warehouses; trackBy: trackByWhid"
-          class="warehouse-page-item">
-          <span
-            class="warehouse-name"
-            nz-tooltip
-            [nzTooltipTitle]="warehouse.warehouseName">
-            {{ warehouse.name }}
-          </span>
-          <span class="warehouse-meta"> {{ warehouse.flavor }} · created {{ warehouse.createdAtMillis | date }} </span>
-          <i
-            nz-icon
-            nzType="delete"
-            class="warehouse-delete-icon"
-            nz-tooltip
-            nzTooltipTitle="Delete warehouse and all data stored in it"
-            (click)="confirmDelete(warehouse)"
-            role="button"
-            aria-label="Delete warehouse">
-          </i>
-        </li>
-      </ul>
+    [nzBodyStyle]="{ height: '100%'}">
+    <div
+      *ngIf="!warehouseEnabled"
+      class="warehouse-page-empty">
+      Per-user warehouses are disabled in this deployment.
     </div>
+
+    <div
+      *ngIf="warehouseEnabled && warehouses.length === 0"
+      class="warehouse-page-empty">
+      No warehouses yet. Click <strong>Create Warehouse</strong> to create one.
+    </div>
+
+    <cdk-virtual-scroll-viewport
+      *ngIf="warehouseEnabled && warehouses.length > 0"
+      itemSize="70"
+      class="virtual-scroll-container">
+      <nz-list>
+        <ng-container *cdkVirtualFor="let warehouse of warehouses">
+          <texera-user-warehouse-list-item
+            (deleted)="deleteWarehouse(warehouse)"
+            [warehouse]="warehouse"></texera-user-warehouse-list-item>
+        </ng-container>
+      </nz-list>
+    </cdk-virtual-scroll-viewport>
   </nz-card>
 </div>
 
-<nz-modal
-  [nzVisible]="createModalVisible"
-  nzTitle="Create Warehouse"
-  (nzOnCancel)="closeCreateModal()"
-  [nzFooter]="createFooter">
-  <ng-template #createFooter>
-    <button
-      nz-button
-      nzType="default"
-      (click)="closeCreateModal()">
-      Cancel
-    </button>
-    <button
-      nz-button
-      nzType="primary"
-      id="confirm-create-warehouse-btn"
-      [disabled]="!newWarehouseName.trim()"
-      [nzLoading]="creating"
-      (click)="createWarehouse()">
-      Create
-    </button>
-  </ng-template>
-
-  <ng-container *nzModalContent>
-    <input
-      nz-input
-      placeholder="Warehouse name"
-      maxlength="64"
-      [(ngModel)]="newWarehouseName"
-      (keyup.enter)="createWarehouse()" />
-    <p class="warehouse-name-hint">Letters, digits, '-' and '_' only; must start with a letter or digit.</p>
-  </ng-container>
-</nz-modal>
+<!-- Panel for creating the warehouse -->
+<texera-warehouse-create-modal
+  [(visible)]="addWarehouseModalVisible"
+  (warehouseCreated)="onWarehouseCreated()"></texera-warehouse-create-modal>

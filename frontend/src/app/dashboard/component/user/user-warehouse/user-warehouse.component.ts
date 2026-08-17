@@ -18,26 +18,30 @@
  */
 
 import { Component, OnInit } from "@angular/core";
-import { FormsModule } from "@angular/forms";
-import { DatePipe, NgFor, NgIf } from "@angular/common";
+import { NgIf } from "@angular/common";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 
+import { ɵɵCdkVirtualScrollViewport, ɵɵCdkFixedSizeVirtualScroll, ɵɵCdkVirtualForOf } from "@angular/cdk/overlay";
 import { NzButtonComponent } from "ng-zorro-antd/button";
 import { NzCardComponent } from "ng-zorro-antd/card";
+import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
+import { NzWaveDirective } from "ng-zorro-antd/core/wave";
 import { NzIconDirective } from "ng-zorro-antd/icon";
-import { NzInputDirective } from "ng-zorro-antd/input";
-import { NzModalComponent, NzModalContentDirective, NzModalService } from "ng-zorro-antd/modal";
-import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
+import { NzListComponent } from "ng-zorro-antd/list";
+import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
 
+import { WarehouseCreateModalComponent } from "../../../../common/component/warehouse-create-modal/warehouse-create-modal.component";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
+import { WarehouseActionsService } from "../../../../common/service/warehouse/warehouse-actions.service";
 import { WarehouseService } from "../../../../common/service/warehouse/warehouse.service";
 import { DashboardWarehouse } from "../../../../common/type/warehouse";
-import { extractErrorMessage } from "../../../../common/util/error";
+import { UserWarehouseListItemComponent } from "./user-warehouse-list-item/user-warehouse-list-item.component";
 
 /**
- * Dashboard page for per-user warehouses (#6933): list the caller's warehouses,
- * create one (Local flavor), delete one. Reachable only while the deployment
- * reports the feature enabled; the page re-checks and says so otherwise.
+ * Dashboard page for per-user warehouses (#6933), mirroring
+ * UserComputingUnitComponent: list the caller's warehouses, create one (Local
+ * flavor), delete one. Reachable only while the deployment reports the feature
+ * enabled; the page re-checks and says so otherwise.
  */
 @UntilDestroy()
 @Component({
@@ -46,30 +50,31 @@ import { extractErrorMessage } from "../../../../common/util/error";
   styleUrls: ["./user-warehouse.component.scss"],
   imports: [
     NgIf,
-    NgFor,
-    DatePipe,
-    FormsModule,
-    NzButtonComponent,
     NzCardComponent,
+    NzSpaceCompactItemDirective,
+    NzButtonComponent,
+    NzWaveDirective,
+    ɵNzTransitionPatchDirective,
     NzIconDirective,
-    NzInputDirective,
-    NzModalComponent,
-    NzModalContentDirective,
-    NzTooltipDirective,
+    ɵɵCdkVirtualScrollViewport,
+    ɵɵCdkFixedSizeVirtualScroll,
+    NzListComponent,
+    ɵɵCdkVirtualForOf,
+    UserWarehouseListItemComponent,
+    WarehouseCreateModalComponent,
   ],
 })
 export class UserWarehouseComponent implements OnInit {
   warehouseEnabled = false;
   warehouses: DashboardWarehouse[] = [];
 
-  createModalVisible = false;
-  newWarehouseName = "";
-  creating = false;
+  // visibility of the shared create-warehouse modal
+  addWarehouseModalVisible = false;
 
   constructor(
     private warehouseService: WarehouseService,
     private notificationService: NotificationService,
-    private modalService: NzModalService
+    private warehouseActionsService: WarehouseActionsService
   ) {}
 
   ngOnInit(): void {
@@ -92,64 +97,15 @@ export class UserWarehouseComponent implements OnInit {
       });
   }
 
-  showCreateModal(): void {
-    this.newWarehouseName = "";
-    this.createModalVisible = true;
+  deleteWarehouse(warehouse: DashboardWarehouse): void {
+    this.warehouseActionsService.confirmAndDelete(warehouse, () => this.refresh());
   }
 
-  closeCreateModal(): void {
-    this.createModalVisible = false;
+  showAddWarehouseModalVisible(): void {
+    this.addWarehouseModalVisible = true;
   }
 
-  createWarehouse(): void {
-    const name = this.newWarehouseName.trim();
-    if (!name || this.creating) {
-      return;
-    }
-    this.creating = true;
-    this.warehouseService
-      .createWarehouse(name)
-      .pipe(untilDestroyed(this))
-      .subscribe({
-        next: created => {
-          this.creating = false;
-          this.createModalVisible = false;
-          this.notificationService.success(`Warehouse "${created.name}" created.`);
-          this.refresh();
-        },
-        error: (err: unknown) => {
-          this.creating = false;
-          this.notificationService.error(extractErrorMessage(err));
-        },
-      });
-  }
-
-  confirmDelete(warehouse: DashboardWarehouse): void {
-    this.modalService.confirm({
-      nzTitle: `Delete warehouse "${warehouse.name}"?`,
-      nzContent: "This permanently deletes the warehouse and all data stored in it.",
-      nzOkText: "Delete",
-      nzOkDanger: true,
-      nzOnOk: () => this.deleteWarehouse(warehouse.whid),
-    });
-  }
-
-  private deleteWarehouse(whid: number): void {
-    this.warehouseService
-      .deleteWarehouse(whid)
-      .pipe(untilDestroyed(this))
-      .subscribe({
-        next: () => {
-          this.notificationService.success("Warehouse deleted.");
-          this.refresh();
-        },
-        error: (err: unknown) => {
-          this.notificationService.error(extractErrorMessage(err));
-        },
-      });
-  }
-
-  public trackByWhid(_idx: number, warehouse: DashboardWarehouse): number {
-    return warehouse.whid;
+  onWarehouseCreated(): void {
+    this.refresh();
   }
 }

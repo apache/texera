@@ -17,21 +17,8 @@
  * under the License.
  */
 
-@use "../../dashboard.component.scss" as *;
-@use "../../section-style" as *;
-@use "../../button-style" as *;
-
-.subsection-grid-container {
-  min-width: 100%;
-  width: 100%;
-  min-height: 100%;
-  height: 100%;
-}
-
-.warehouse-page-empty {
-  padding: 24px;
-  color: rgba(0, 0, 0, 0.55);
-  text-align: center;
-  border: 1px dashed #d9d9d9;
-  border-radius: 4px;
+.warehouse-name-hint {
+  margin: 8px 0 0;
+  color: rgba(0, 0, 0, 0.45);
+  font-size: 12px;
 }
