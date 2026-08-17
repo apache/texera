@@ -34,6 +34,7 @@ export default defineConfig({
     // which Angular's `fakeAsync` requires. Karma+Jasmine installed this
     // implicitly; the @angular/build:unit-test path doesn't.
     setupFiles: ["src/test-zone-setup.ts"],
+<<<<<<< HEAD
     // monaco-breakpoints' entry does `import './style.css'`. By default
     // Vitest leaves third-party deps externalized, so Node's ESM loader
     // tries to import the .css and crashes with
@@ -45,6 +46,17 @@ export default defineConfig({
         inline: [/monaco-breakpoints/],
       },
     },
+=======
+    // Headroom over Vitest's defaults (5s test / 10s hook) for the shared
+    // macos-latest runners, whose wall time swings ~2x run to run: the same
+    // test that takes ~400ms on ubuntu has been observed at 11s+ in a
+    // beforeEach on a loaded macOS runner, and the leg was failing on pure
+    // timeouts in a different spec nearly every time (#7713). These limits are
+    // 4x/3x the defaults; a genuinely hung test still fails, 15–20 seconds
+    // later on a 9–17 minute leg.
+    testTimeout: 20000,
+    hookTimeout: 30000,
+>>>>>>> e80add40c (fix(frontend): give unit tests timeout headroom for loaded macOS runners (#7717))
     // Per-spec exclusions live in `angular.json` (the unit-test builder
     // applies them at the discovery stage, before Vitest's own filter,
     // which is what the Vitest team recommends — see the Vite warning
