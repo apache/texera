@@ -142,7 +142,7 @@ Compile / managedSourceDirectories += (Compile / sourceManaged).value
 // ScalaPB library dependencies
 libraryDependencies ++= Seq(
   "com.thesamet.scalapb" %% "scalapb-runtime" % scalapb.compiler.Version.scalapbVersion % "protobuf",
-  "com.thesamet.scalapb" %% "scalapb-json4s" % "0.12.0"  // For ScalaPB 0.11.x
+  "com.thesamet.scalapb" %% "scalapb-json4s" % "0.12.2"  // For ScalaPB 0.11.x
 )
 
 // Enable protobuf compilation in Test
@@ -155,7 +155,7 @@ Test / PB.protoSources += PB.externalSourcePath.value
 
 libraryDependencies ++= Seq(
   "org.scalamock" %% "scalamock" % "5.2.0" % Test,                  // ScalaMock
-  "org.scalatest" %% "scalatest" % "3.2.15" % Test,                 // ScalaTest
+  "org.scalatest" %% "scalatest" % "3.2.20" % Test,                 // ScalaTest
   "junit" % "junit" % "4.13.2" % Test,                              // JUnit
   "com.novocode" % "junit-interface" % "0.11" % Test,               // SBT interface for JUnit
   "io.zonky.test" % "embedded-postgres" % "2.1.0" % Test            // For mock postgres DB
@@ -174,6 +174,6 @@ libraryDependencies ++= Seq(
 /////////////////////////////////////////////////////////////////////////////
 
 libraryDependencies ++= Seq(
-  "org.postgresql" % "postgresql" % "42.7.10",
+  "org.postgresql" % "postgresql" % "42.7.13",
   "com.zaxxer"     % "HikariCP"  % "5.1.0"
 )

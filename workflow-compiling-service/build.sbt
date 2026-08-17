@@ -60,7 +60,7 @@ Compile / scalacOptions ++= Seq(
 // Version Variables
 /////////////////////////////////////////////////////////////////////////////
 
-val dropwizardVersion = "4.0.7"
+val dropwizardVersion = "4.0.17"
 val mockitoVersion = "5.4.0"
 val assertjVersion = "3.27.7"
 

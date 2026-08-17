@@ -87,7 +87,7 @@ val jacksonVersion = "2.18.8"
 // 4.1/4.2 line breaks it (NoClassDefFoundError: ThreadAwareExecutor). Arrow
 // 19.0.0 targets the Netty 4.2 line, so the whole family is held at 4.2.x here
 // and in common/workflow-core/build.sbt.
-val nettyVersion = "4.2.15.Final"
+val nettyVersion = "4.2.17.Final"
 
 // The full Netty family pinned to nettyVersion. Applied to every module whose
 // dist bundles Arrow Flight (amber + the Arrow-carrying platform services), so
@@ -257,10 +257,10 @@ lazy val WorkflowExecutionService = (project in file("amber"))
       "com.fasterxml.jackson.core" % "jackson-core" % jacksonVersion,
       "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion,
       "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonVersion,
-      "org.slf4j" % "slf4j-api" % "1.7.26",
-      "org.eclipse.jetty" % "jetty-server" % "9.4.20.v20190813",
-      "org.eclipse.jetty" % "jetty-servlet" % "9.4.20.v20190813",
-      "org.eclipse.jetty" % "jetty-http" % "9.4.20.v20190813"
+      "org.slf4j" % "slf4j-api" % "1.7.36",
+      "org.eclipse.jetty" % "jetty-server" % "9.4.58.v20250814",
+      "org.eclipse.jetty" % "jetty-servlet" % "9.4.58.v20250814",
+      "org.eclipse.jetty" % "jetty-http" % "9.4.58.v20250814"
     ) ++ nettyDependencyOverrides,
     libraryDependencies ++= Seq(
       "com.squareup.okhttp3" % "okhttp" % "4.10.0" force () // Force usage of OkHttp 4.10.0
