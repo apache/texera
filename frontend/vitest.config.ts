@@ -38,9 +38,9 @@ export default defineConfig({
     // macos-latest runners, whose wall time swings ~2x run to run: the same
     // test that takes ~400ms on ubuntu has been observed at 11s+ in a
     // beforeEach on a loaded macOS runner, and the leg was failing on pure
-    // timeouts in a different spec nearly every time (#7713). Roughly 4x/3x
-    // the worst observed times; a genuinely hung test still fails, just a
-    // few seconds later on a 9-17 minute leg.
+    // timeouts in a different spec nearly every time (#7713). These limits are
+    // 4x/3x the defaults; a genuinely hung test still fails, 15–20 seconds
+    // later on a 9–17 minute leg.
     testTimeout: 20000,
     hookTimeout: 30000,
     // Per-spec exclusions live in `angular.json` (the unit-test builder
