@@ -124,7 +124,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v7
         with:
-          python-version: "3.12"
+          python-version: "3.14"
       - name: Install dependency
         timeout-minutes: 20
         run: yarn --cwd frontend install --immutable --inline-builds --network-timeout=100000
@@ -228,7 +228,7 @@ jobs:
         env:
           PGPASSWORD: postgres
       - name: Setup sbt launcher
-        uses: sbt/setup-sbt@6444f4c8111de4b9059c3975def104b03cfaa5f0 # v1.5.2
+        uses: sbt/setup-sbt@8feba82adc7f01ddcf8165b86f778bdb5b82cebc # v1.5.7
       - uses: coursier/cache-action@95e5b1029b6b86e7bac033ee44a0697d8a527d2d # v8.1.1
         with:
           extraSbtFiles: '["*.sbt", "project/**.{scala,sbt}", "project/build.properties" ]'
@@ -398,7 +398,7 @@ jobs:
       - name: Setup Python for Scala-Python integration tests
         uses: actions/setup-python@v7
         with:
-          python-version: "3.11"
+          python-version: "3.14"
       - name: Show Python
         run: python --version || python3 --version
       - name: Install Python dependencies
@@ -482,7 +482,7 @@ jobs:
         env:
           PGPASSWORD: postgres
       - name: Setup sbt launcher
-        uses: sbt/setup-sbt@6444f4c8111de4b9059c3975def104b03cfaa5f0 # v1.5.2
+        uses: sbt/setup-sbt@8feba82adc7f01ddcf8165b86f778bdb5b82cebc # v1.5.7
       - uses: coursier/cache-action@95e5b1029b6b86e7bac033ee44a0697d8a527d2d # v8.1.1
         with:
           extraSbtFiles: '["*.sbt", "project/**.{scala,sbt}", "project/build.properties" ]'
@@ -792,7 +792,7 @@ jobs:
           distribution: "temurin"
           java-version: 17
       - name: Setup sbt launcher
-        uses: sbt/setup-sbt@6444f4c8111de4b9059c3975def104b03cfaa5f0 # v1.5.2
+        uses: sbt/setup-sbt@8feba82adc7f01ddcf8165b86f778bdb5b82cebc # v1.5.7
       - uses: coursier/cache-action@95e5b1029b6b86e7bac033ee44a0697d8a527d2d # v8.1.1
         with:
           extraSbtFiles: '["*.sbt", "project/**.{scala,sbt}", "project/build.properties" ]'
@@ -947,7 +947,7 @@ jobs:
           distribution: "temurin"
           java-version: 17
       - name: Setup sbt launcher
-        uses: sbt/setup-sbt@6444f4c8111de4b9059c3975def104b03cfaa5f0 # v1.5.2
+        uses: sbt/setup-sbt@8feba82adc7f01ddcf8165b86f778bdb5b82cebc # v1.5.7
       - uses: coursier/cache-action@95e5b1029b6b86e7bac033ee44a0697d8a527d2d # v8.1.1
         with:
           extraSbtFiles: '["*.sbt", "project/**.{scala,sbt}", "project/build.properties" ]'
