@@ -375,6 +375,89 @@ describe("UiUdfParametersParserService.computeParameterInsertion", () => {
   });
 });
 
+// The parser's conditionals are mostly guards for degenerate sources: empty input, a
+// method with no body, a single-statement open(), a name that sanitizes away, and a
+// declaration on the last line. These drive the arm each guard exists for.
+describe("UiUdfParametersParserService degenerate sources", () => {
+  let service: UiUdfParametersParserService;
+
+  beforeEach(() => {
+    service = new UiUdfParametersParserService();
+  });
+
+  it("should return no parameters for empty or whitespace-only source", () => {
+    expect(service.parse("")).toEqual([]);
+    expect(service.parse("   \n\t\n")).toEqual([]);
+  });
+
+  it("should return no parameters when the class has no body", () => {
+    expect(service.parse("class ProcessTupleOperator(UDFOperatorV2):")).toEqual([]);
+  });
+
+  it("should return no parameters when open() has no body", () => {
+    expect(service.parse(pythonLines("class ProcessTupleOperator(UDFOperatorV2):", "    def open(self):"))).toEqual([]);
+  });
+
+  it("should insert into an open() that holds a single statement", () => {
+    // statements.length === 1, so the trailing-separator ternary takes its empty arm
+    const code = pythonLines("class ProcessTupleOperator(UDFOperatorV2):", "    def open(self):", "        pass");
+
+    const updated = insertParameter(service, code, "threshold");
+
+    expect(service.parse(updated).map(p => p.attribute.attributeName)).toEqual(["threshold"]);
+  });
+
+  it("should sanitize a punctuation-only name into a usable identifier", () => {
+    // \W characters each become "_", so the name still yields a valid identifier;
+    // the `|| "parameter"` fallback is unreachable because an empty name is rejected earlier
+    const updated = insertParameter(service, PASS_ONLY_OPEN, "!!!");
+
+    expect(updated).toContain("self.___ = ");
+    expect(updated).toContain('name="!!!"');
+  });
+
+  it("should prefix a name that starts with a digit", () => {
+    const updated = insertParameter(service, PASS_ONLY_OPEN, "1st");
+
+    expect(updated).toContain("self._1st = ");
+  });
+
+  it("should suffix a name that collides with a Python keyword", () => {
+    const updated = insertParameter(service, PASS_ONLY_OPEN, "class");
+
+    expect(updated).toContain("self.class_ = ");
+  });
+
+  it("should handle a declaration on a final line with no trailing newline", () => {
+    // lineEnd() takes its `newline === -1` arm when the statement ends the file
+    const code = "class ProcessTupleOperator(UDFOperatorV2):\n    def open(self):\n        pass";
+
+    const updated = insertParameter(service, code, "threshold");
+
+    expect(service.parse(updated).map(p => p.attribute.attributeName)).toEqual(["threshold"]);
+  });
+
+  it("should ignore a UiParameter call that is not reached through self", () => {
+    const code = pythonLines(
+      "class ProcessTupleOperator(UDFOperatorV2):",
+      "    def open(self):",
+      '        other.UiParameter(name="x", type=AttributeType.DOUBLE)'
+    );
+
+    expect(service.parse(code)).toEqual([]);
+  });
+
+  it("should ignore a UiParameter call with a positional argument after a named one", () => {
+    const code = pythonLines(
+      "class ProcessTupleOperator(UDFOperatorV2):",
+      "    def open(self):",
+      '        self.x = self.UiParameter(name="x", AttributeType.DOUBLE).value'
+    );
+
+    expect(service.parse(code)).toEqual([]);
+  });
+});
+
 function insertParameter(
   service: UiUdfParametersParserService,
   code: string,

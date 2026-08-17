@@ -147,6 +147,26 @@ describe("UserVenvComponent", () => {
       expect(notificationSpy.error).toHaveBeenCalledWith("Failed to fetch Python environments.");
       expect(component.pves).toEqual([]);
     });
+
+    it("treats a record with no packages as an empty package list", () => {
+      pveServiceSpy.listUserPves.mockReturnValue(of([{ veid: 1, name: "envA" } as UserPveRecord]));
+
+      fixture.detectChanges();
+
+      expect(component.pves[0].newPackages).toEqual([]);
+    });
+
+    it("falls back to an empty version when the stored value is nullish", () => {
+      // distinct from the `empty: ""` case above: "" is not nullish, so only a null
+      // value reaches the `?? ""` arm
+      pveServiceSpy.listUserPves.mockReturnValue(
+        of([{ veid: 1, name: "envA", packages: { ghost: null } } as unknown as UserPveRecord])
+      );
+
+      fixture.detectChanges();
+
+      expect(component.pves[0].newPackages).toEqual([{ name: "ghost", versionOp: "==", version: "" }]);
+    });
   });
 
   describe("modal open/close and package editing", () => {
@@ -284,6 +304,19 @@ describe("UserVenvComponent", () => {
       expect(pveServiceSpy.listUserPves).toHaveBeenCalledTimes(1); // refresh after save
     });
 
+    it("treats a row whose version is nullish as an empty version", () => {
+      component.currentDraft = {
+        name: "envNull",
+        newPackages: [{ name: "a", versionOp: ">=", version: null as unknown as string }],
+      };
+      pveServiceSpy.savePve.mockReturnValue(of({ veid: 6 }));
+      pveServiceSpy.listUserPves.mockReturnValue(of([]));
+
+      component.saveEnvironment();
+
+      expect(pveServiceSpy.savePve).toHaveBeenCalledWith("envNull", { a: "" });
+    });
+
     it("updates an existing environment when the draft carries a veid", () => {
       component.pves = [{ veid: 7, name: "envU", newPackages: [] }];
       component.currentDraft = {
@@ -351,6 +384,14 @@ describe("UserVenvComponent", () => {
       component.confirmDeletePve(5);
       expect(confirmSpy).not.toHaveBeenCalled();
     });
+
+    it("names an environment with a blank name as (unnamed) in the confirm title", () => {
+      component.pves = [{ veid: 3, name: "", newPackages: [] }];
+
+      component.confirmDeletePve(0);
+
+      expect(capturedConfirmConfig?.nzTitle).toBe('Delete environment "(unnamed)"?');
+    });
   });
 
   describe("deletePve", () => {
@@ -386,6 +427,16 @@ describe("UserVenvComponent", () => {
 
       expect(consoleErrorSpy).toHaveBeenCalled();
       expect(notificationSpy.error).toHaveBeenCalledWith("Failed to delete Python environment.");
+    });
+
+    it("reports a blank-named environment as (unnamed) on success", () => {
+      component.pves = [{ veid: 9, name: "", newPackages: [] }];
+      pveServiceSpy.deleteUserPve.mockReturnValue(of(undefined));
+      pveServiceSpy.listUserPves.mockReturnValue(of([]));
+
+      component.deletePve(0);
+
+      expect(notificationSpy.success).toHaveBeenCalledWith('Deleted environment "(unnamed)".');
     });
   });
 
