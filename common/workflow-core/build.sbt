@@ -298,16 +298,30 @@ libraryDependencies ++= Seq(
   "io.lakefs" % "sdk" % "1.51.0",                                     // for lakeFS api calls
   "com.typesafe" % "config" % "1.4.6",                                 // config reader
   "org.apache.commons" % "commons-jcs3-core" % "3.2",                 // Apache Commons JCS
+  // AWS SDK 2.53 swapped the default sync transport from `apache-client`
+  // (Apache HttpClient 4) to `apache5-client`, but iceberg-aws 1.9.2 only
+  // knows the `apache` and `urlconnection` client types and reflectively
+  // resolves `ApacheHttpClient$Builder` for the former (its default). With
+  // only apache5-client on the classpath that lookup throws
+  // NoClassDefFoundError from IcebergTableWriter.close(), so keep the 4.x
+  // transport pinned and drop apache5-client until Iceberg supports it —
+  // otherwise two SdkHttpService impls compete and the SDK picks one by
+  // priority with a warning.
+  "software.amazon.awssdk" % "apache-client" % "2.53.1",
   "software.amazon.awssdk" % "s3" % "2.53.1" excludeAll(
-    ExclusionRule(organization = "io.netty")
+    ExclusionRule(organization = "io.netty"),
+    ExclusionRule(organization = "software.amazon.awssdk", name = "apache5-client")
   ),
   "software.amazon.awssdk" % "auth" % "2.53.1" excludeAll(
-    ExclusionRule(organization = "io.netty")
+    ExclusionRule(organization = "io.netty"),
+    ExclusionRule(organization = "software.amazon.awssdk", name = "apache5-client")
   ),
   "software.amazon.awssdk" % "regions" % "2.53.1" excludeAll(
-    ExclusionRule(organization = "io.netty")
+    ExclusionRule(organization = "io.netty"),
+    ExclusionRule(organization = "software.amazon.awssdk", name = "apache5-client")
   ),
   "software.amazon.awssdk" % "sts" % "2.53.1" excludeAll(
-    ExclusionRule(organization = "io.netty")
+    ExclusionRule(organization = "io.netty"),
+    ExclusionRule(organization = "software.amazon.awssdk", name = "apache5-client")
   ),
 )

@@ -369,11 +369,11 @@ Scala/Java jars:
   - org.apache.hadoop.hadoop-yarn-common-3.5.0.jar
   - org.apache.hadoop.thirdparty.hadoop-shaded-guava-1.5.0.jar
   - org.apache.hadoop.thirdparty.hadoop-shaded-protobuf_3_25-1.5.0.jar
-  - org.apache.httpcomponents.client5.httpclient5-5.6.4.jar
-  - org.apache.httpcomponents.core5.httpcore5-5.4.3.jar
-  - org.apache.httpcomponents.core5.httpcore5-h2-5.4.3.jar
+  - org.apache.httpcomponents.client5.httpclient5-5.4.3.jar
+  - org.apache.httpcomponents.core5.httpcore5-5.3.4.jar
+  - org.apache.httpcomponents.core5.httpcore5-h2-5.3.4.jar
   - org.apache.httpcomponents.httpclient-4.5.13.jar
-  - org.apache.httpcomponents.httpcore-4.4.13.jar
+  - org.apache.httpcomponents.httpcore-4.4.16.jar
   - org.apache.iceberg.iceberg-api-1.9.2.jar
   - org.apache.iceberg.iceberg-aws-1.9.2.jar
   - org.apache.iceberg.iceberg-bundled-guava-1.9.2.jar
@@ -442,7 +442,7 @@ Scala/Java jars:
   - org.xerial.snappy.snappy-java-1.1.10.7.jar
   - org.yaml.snakeyaml-2.2.jar
   - software.amazon.awssdk.annotations-2.53.1.jar
-  - software.amazon.awssdk.apache5-client-2.53.1.jar
+  - software.amazon.awssdk.apache-client-2.53.1.jar
   - software.amazon.awssdk.arns-2.53.1.jar
   - software.amazon.awssdk.auth-2.53.1.jar
   - software.amazon.awssdk.aws-core-2.53.1.jar

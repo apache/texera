@@ -1327,16 +1327,6 @@ This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
-org.apache.httpcomponents.httpcore
---------------------------------------------------------------------------------
-
-Apache HttpCore
-Copyright 2005-2020 The Apache Software Foundation
-
-This product includes software developed at
-The Apache Software Foundation (http://www.apache.org/).
-
---------------------------------------------------------------------------------
 commons-cli.commons-cli
 --------------------------------------------------------------------------------
 
@@ -2059,6 +2049,16 @@ org.apache.kerby.kerby-config
 
 Kerby Config
 Copyright 2014-2022 The Apache Software Foundation
+
+This product includes software developed at
+The Apache Software Foundation (http://www.apache.org/).
+
+--------------------------------------------------------------------------------
+org.apache.httpcomponents.httpcore
+--------------------------------------------------------------------------------
+
+Apache HttpCore
+Copyright 2005-2022 The Apache Software Foundation
 
 This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
