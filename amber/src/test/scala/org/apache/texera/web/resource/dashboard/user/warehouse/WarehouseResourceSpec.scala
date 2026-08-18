@@ -130,8 +130,6 @@ class WarehouseResourceSpec
     val created = resource.create(CreateWarehouseRequest("mybucket"), sessionUser)
 
     created.name shouldBe "mybucket"
-    // The catalog name is derived from the row id, never from the display name, so the
-    // display name stays free to change later (#7753).
     created.lakekeeperWarehouseName shouldBe s"user-${sessionUser.getUid}-${created.whid}"
     created.lakekeeperWarehouseName should not include "mybucket"
     created.flavor shouldBe "local"
@@ -143,9 +141,8 @@ class WarehouseResourceSpec
   }
 
   it should "mint a fresh catalog name when the same display name is reused" in {
-    // Deleting a warehouse and creating another with the same display name must not
-    // reuse the catalog name: stored result URIs embed it, so a reused name would let
-    // a new warehouse inherit an old one's storage path (#7753).
+    // A reused catalog name would let the new warehouse inherit the old one's storage
+    // path, since stored result URIs embed it.
     val first = resource.create(CreateWarehouseRequest("recycled"), sessionUser)
     resource.delete(first.whid, sessionUser)
     val second = resource.create(CreateWarehouseRequest("recycled"), sessionUser)
@@ -180,9 +177,8 @@ class WarehouseResourceSpec
     val squatter = getDSLContext.newRecord(USER_WAREHOUSE)
     squatter.setUid(otherUser.getUid)
     squatter.setName("unrelated")
-    // The catalog name now comes from the sequence, so claim the id the next create
-    // will draw: take one number for the squatter itself (set explicitly, so storing it
-    // consumes nothing further) and squat on the one after it.
+    // Claim the id the next create will draw: take one number for the squatter itself
+    // (set explicitly, so storing it consumes nothing further), squat on the next.
     val takenWhid = getDSLContext.fetchValue(
       DSL.field(
         "nextval(pg_get_serial_sequence('texera_db.user_warehouse','whid'))",
@@ -229,9 +225,8 @@ class WarehouseResourceSpec
     val squatter = getDSLContext.newRecord(USER_WAREHOUSE)
     squatter.setUid(otherUser.getUid)
     squatter.setName("unrelated-2")
-    // The catalog name now comes from the sequence, so claim the id the next create
-    // will draw: take one number for the squatter itself (set explicitly, so storing it
-    // consumes nothing further) and squat on the one after it.
+    // Claim the id the next create will draw: take one number for the squatter itself
+    // (set explicitly, so storing it consumes nothing further), squat on the next.
     val takenWhid = getDSLContext.fetchValue(
       DSL.field(
         "nextval(pg_get_serial_sequence('texera_db.user_warehouse','whid'))",

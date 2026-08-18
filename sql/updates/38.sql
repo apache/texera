@@ -29,7 +29,24 @@ BEGIN;
 -- `warehouse_name` was ambiguous. Rename it to sit beside its sibling
 -- `lakekeeper_warehouse_id`. The table is empty in every deployment (the
 -- warehouse feature flag is off everywhere), so this carries no data.
-ALTER TABLE user_warehouse
-    RENAME COLUMN warehouse_name TO lakekeeper_warehouse_name;
+-- Guarded so it is a no-op on a fresh DB, where texera_ddl.sql already created the
+-- column under its new name: local-dev replays unrecorded change sets and only
+-- tolerates "already exists" errors, so an unguarded rename would abort `up` with
+-- "column warehouse_name does not exist" (same shape as 33.sql's rename).
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'texera_db' AND table_name = 'user_warehouse'
+          AND column_name = 'warehouse_name'
+    ) AND NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'texera_db' AND table_name = 'user_warehouse'
+          AND column_name = 'lakekeeper_warehouse_name'
+    ) THEN
+        ALTER TABLE user_warehouse RENAME COLUMN warehouse_name TO lakekeeper_warehouse_name;
+    END IF;
+END
+$$;
 
 COMMIT;

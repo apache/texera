@@ -54,7 +54,13 @@ class UserWarehouseSpec extends AnyFlatSpec with Matchers with BeforeAndAfterAll
       .fetchOne()
       .getUid
 
-  private def insertWarehouse(uid: Integer, name: String, warehouseName: String): Integer =
+  // Any globally-unique catalog name will do: this spec covers storage and constraints,
+  // not how WarehouseResource mints the name.
+  private def insertWarehouse(
+      uid: Integer,
+      name: String,
+      lakekeeperWarehouseName: String
+  ): Integer =
     getDSLContext
       .insertInto(
         USER_WAREHOUSE,
@@ -64,7 +70,13 @@ class UserWarehouseSpec extends AnyFlatSpec with Matchers with BeforeAndAfterAll
         USER_WAREHOUSE.LAKEKEEPER_WAREHOUSE_ID,
         USER_WAREHOUSE.FLAVOR
       )
-      .values(uid, name, warehouseName, UUID.randomUUID(), UserWarehouseFlavorEnum.local)
+      .values(
+        uid,
+        name,
+        lakekeeperWarehouseName,
+        UUID.randomUUID(),
+        UserWarehouseFlavorEnum.local
+      )
       .returning(USER_WAREHOUSE.WHID)
       .fetchOne()
       .getWhid

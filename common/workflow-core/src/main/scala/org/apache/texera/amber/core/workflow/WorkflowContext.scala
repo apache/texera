@@ -37,8 +37,6 @@ class WorkflowContext(
     var workflowSettings: WorkflowSettings = DEFAULT_WORKFLOW_SETTINGS,
     var cuid: Option[Int] = None,
     // The Lakekeeper catalog name this execution writes into; becomes the `/wh/<name>`
-    // URI segment. None routes to the shared default warehouse. Kept as `warehouse` to
-    // match the parameter it feeds all along the URI chain (VFSURIFactory here and in
-    // Python), where there is no display name to confuse it with.
+    // URI segment. None routes to the shared default warehouse.
     var warehouse: Option[String] = None
 )

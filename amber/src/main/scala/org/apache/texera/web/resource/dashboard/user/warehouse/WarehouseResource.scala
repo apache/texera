@@ -51,12 +51,9 @@ object WarehouseResource {
 
   case class DashboardWarehouse(
       whid: Integer,
-      // The per-user-unique display name, free to change.
+      // The display name, unique per user and free to change.
       name: String,
-      // The Lakekeeper catalog name (`user-<uid>-<whid>`): also the REST catalog
-      // prefix, the S3 key prefix, and a component of every result URI written into
-      // this warehouse. Named after its owner so it cannot be read as the display
-      // name above (#7753).
+      // The Lakekeeper catalog name, `user-<uid>-<whid>`.
       lakekeeperWarehouseName: String,
       flavor: String,
       createdAtMillis: Long
@@ -137,17 +134,17 @@ class WarehouseResource(client: LakekeeperClient, enabled: Boolean) extends Lazy
       throw new WebApplicationException(s"a warehouse named '$name' already exists", 409)
     }
 
-    // The catalog name is derived from the row's own id, never from `name`: that one
-    // string is also the REST catalog prefix, the S3 key prefix and a component of every
-    // result URI an execution wrote, so deriving it from a user-facing name would freeze
-    // that name forever (#7753). Take the id from the sequence up front so the creation
-    // order below is unchanged -- Lakekeeper first, row after, with the compensating
-    // delete. The sequence is resolved from the catalog rather than named literally,
-    // because its generated name is not a stable contract.
+    // Never derive the catalog name from `name`: it is also the S3 key prefix and a
+    // component of every result URI an execution wrote, so a name-derived one could
+    // never change again. Drawing the id up front keeps the creation order below
+    // intact. The sequence is looked up rather than named literally -- its generated
+    // name is not a stable contract.
     val whid: Integer = context.fetchValue(
       DSL.field(
-        "nextval(pg_get_serial_sequence('texera_db.user_warehouse','whid'))",
-        classOf[Integer]
+        "nextval(pg_get_serial_sequence({0}, {1}))",
+        classOf[Integer],
+        DSL.inline(s"${USER_WAREHOUSE.getSchema.getName}.${USER_WAREHOUSE.getName}"),
+        DSL.inline(USER_WAREHOUSE.WHID.getName)
       )
     )
     val lakekeeperWarehouseName = s"user-$uid-$whid"
