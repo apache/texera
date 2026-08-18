@@ -115,8 +115,11 @@ class ModelAccessResourceSpec
       .insert(new ModelUserAccess(mid, uid, privilege))
   }
 
-  private def accessList(mid: Integer): List[ModelAccessResource.AccessEntry] =
-    accessResource.getAccessList(mid).asScala.toList
+  private def accessList(
+      mid: Integer,
+      user: SessionUser = ownerSession
+  ): List[ModelAccessResource.AccessEntry] =
+    accessResource.getAccessList(mid, user).asScala.toList
 
   override protected def beforeAll(): Unit = {
     super.beforeAll()
@@ -450,10 +453,57 @@ class ModelAccessResourceSpec
   // ===========================================================================
 
   "getOwnerEmailOfModel" should "return the owner's email" in {
-    accessResource.getOwnerEmailOfModel(privateModel.getMid) shouldEqual ownerUser.getEmail
+    accessResource.getOwnerEmailOfModel(
+      privateModel.getMid,
+      ownerSession
+    ) shouldEqual ownerUser.getEmail
   }
 
-  it should "return an empty string for a nonexistent model" in {
-    accessResource.getOwnerEmailOfModel(nonExistentMid) shouldEqual ""
+  it should "be readable by a READ grantee" in {
+    grantDirectly(privateModel.getMid, readGranteeUser.getUid, PrivilegeEnum.READ)
+
+    accessResource.getOwnerEmailOfModel(
+      privateModel.getMid,
+      readGranteeSession
+    ) shouldEqual ownerUser.getEmail
+  }
+
+  it should "be forbidden for a user with no access to a private model" in {
+    assertThrows[ForbiddenException] {
+      accessResource.getOwnerEmailOfModel(privateModel.getMid, strangerSession)
+    }
+  }
+
+  it should "be readable by anyone for a public model" in {
+    accessResource.getOwnerEmailOfModel(
+      publicModel.getMid,
+      strangerSession
+    ) shouldEqual ownerUser.getEmail
+  }
+
+  it should "be forbidden for a nonexistent model" in {
+    assertThrows[ForbiddenException] {
+      accessResource.getOwnerEmailOfModel(nonExistentMid, ownerSession)
+    }
+  }
+
+  // ===========================================================================
+  // getAccessList -- read guard
+  // ===========================================================================
+
+  "getAccessList" should "be forbidden for a user with no access to a private model" in {
+    grantDirectly(privateModel.getMid, readGranteeUser.getUid, PrivilegeEnum.READ)
+
+    assertThrows[ForbiddenException] {
+      accessList(privateModel.getMid, strangerSession)
+    }
+  }
+
+  it should "be readable by a READ grantee" in {
+    grantDirectly(privateModel.getMid, readGranteeUser.getUid, PrivilegeEnum.READ)
+
+    accessList(privateModel.getMid, readGranteeSession).map(_.email) should contain(
+      readGranteeUser.getEmail
+    )
   }
 }

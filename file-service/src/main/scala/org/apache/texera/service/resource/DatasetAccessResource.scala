@@ -76,8 +76,13 @@ class DatasetAccessResource {
     */
   @GET
   @Path("/owner/{did}")
-  def getOwnerEmailOfDataset(@PathParam("did") did: Integer): String =
-    withTransaction(context)(ctx => ResourceAccess.ownerEmail(ctx, DATASET_RESOURCE, did))
+  def getOwnerEmailOfDataset(
+      @PathParam("did") did: Integer,
+      @Auth user: SessionUser
+  ): String =
+    withTransaction(context)(ctx =>
+      ResourceAccess.ownerEmail(ctx, DATASET_RESOURCE, did, user.getUid)
+    )
 
   /**
     * Returns information about all current shared access of the given dataset
@@ -88,9 +93,12 @@ class DatasetAccessResource {
   @GET
   @Path("/list/{did}")
   def getAccessList(
-      @PathParam("did") did: Integer
+      @PathParam("did") did: Integer,
+      @Auth user: SessionUser
   ): java.util.List[DatasetAccessResource.AccessEntry] =
-    withTransaction(context)(ctx => ResourceAccess.accessList(ctx, DATASET_RESOURCE, did))
+    withTransaction(context)(ctx =>
+      ResourceAccess.accessList(ctx, DATASET_RESOURCE, did, user.getUid)
+    )
 
   /**
     * This method shares a dataset to a user with a specific access type
