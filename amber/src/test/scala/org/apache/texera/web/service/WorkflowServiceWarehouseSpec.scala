@@ -72,8 +72,17 @@ class WorkflowServiceWarehouseSpec
 
   override protected def afterAll(): Unit = closeConnectionPool()
 
-  "resolveWarehouseName" should "keep the shared default warehouse when nothing is picked" in {
-    WorkflowService.resolveWarehouseName(None, ownerUid, enabled = true) shouldBe None
+  "resolveWarehouseName" should "require a pick while warehouses are enabled" in {
+    // A run must name the warehouse it writes into, the same way it names a computing
+    // unit; falling back to the shared default would route a caller that forgot to pick
+    // into shared storage (#7751).
+    val error = intercept[IllegalArgumentException] {
+      WorkflowService.resolveWarehouseName(None, ownerUid, enabled = true)
+    }
+    error.getMessage should include("warehouse")
+  }
+
+  it should "keep the shared default warehouse when nothing is picked and the feature is off" in {
     WorkflowService.resolveWarehouseName(None, ownerUid, enabled = false) shouldBe None
   }
 

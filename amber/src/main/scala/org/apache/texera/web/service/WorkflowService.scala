@@ -72,9 +72,15 @@ object WorkflowService {
 
   /**
     * Maps an execution's chosen warehouse (`whid`) to its Lakekeeper warehouse name,
-    * checking that the requesting user owns it. `None` (no explicit pick) keeps the
-    * shared default warehouse. With warehouses disabled, an explicit pick is refused
-    * loudly rather than silently routed into the shared warehouse (#6930).
+    * checking that the requesting user owns it.
+    *
+    * With warehouses enabled a pick is **required**, the same way a computing unit is:
+    * falling back to the shared default would make "a run writes into the user's own
+    * warehouse" a UI convention rather than a system property, and would silently route
+    * any caller that forgot to pick into shared storage (#7751).
+    *
+    * With warehouses disabled, an explicit pick is refused loudly rather than silently
+    * routed into the shared warehouse, and no pick keeps the shared default (#6930).
     */
   def resolveWarehouseName(
       warehouseId: Option[Int],
@@ -88,6 +94,11 @@ object WorkflowService {
         )
       )
       return None
+    }
+    if (warehouseId.isEmpty) {
+      throw new IllegalArgumentException(
+        "a warehouse must be selected for this execution"
+      )
     }
     warehouseId.map(whid => {
       val row = SqlServer

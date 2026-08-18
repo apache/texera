@@ -40,6 +40,7 @@ import { AppSettings } from "../../../common/app-setting";
 import { AgentState, ReActStep, ModelMessage } from "./agent-types";
 import { Workflow, WorkflowContent } from "../../../common/type/workflow";
 import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
+import { WarehouseService } from "../../../common/service/warehouse/warehouse.service";
 
 /**
  * Agent settings for API (serializable format).
@@ -226,7 +227,8 @@ export class AgentService {
     private notificationService: NotificationService,
     private workflowPersistService: WorkflowPersistService,
     private ngZone: NgZone,
-    private computingUnitStatusService: ComputingUnitStatusService
+    private computingUnitStatusService: ComputingUnitStatusService,
+    private warehouseService: WarehouseService
   ) {
     // Sync local cache with backend on service initialization
     // This handles cases where the backend was restarted
@@ -665,6 +667,12 @@ export class AgentService {
       const selectedUnit = this.computingUnitStatusService.getSelectedComputingUnitValue();
       if (selectedUnit) {
         body.computingUnitId = selectedUnit.computingUnit.cuid;
+      }
+      // Same for the warehouse the user picked: agent runs write into it rather than
+      // shared storage, which the backend requires while the feature is on (#7751).
+      const selectedWarehouseId = this.warehouseService.getSelectedWarehouseIdValue();
+      if (selectedWarehouseId !== undefined) {
+        body.warehouseId = selectedWarehouseId;
       }
 
       return this.http.post<ApiAgentInfo>(`${this.AGENT_API_BASE}/agents`, body).pipe(

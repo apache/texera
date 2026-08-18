@@ -25,6 +25,7 @@ import { AgentState, ReActStep } from "./agent-types";
 import { NotificationService } from "../../../common/service/notification/notification.service";
 import { WorkflowPersistService } from "../../../common/service/workflow-persist/workflow-persist.service";
 import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
+import { WarehouseService } from "../../../common/service/warehouse/warehouse.service";
 import { DashboardWorkflowComputingUnit } from "../../../common/type/workflow-computing-unit";
 import { Workflow } from "../../../common/type/workflow";
 import { commonTestProviders } from "../../../common/testing/test-utils";
@@ -63,6 +64,7 @@ describe("AgentService", () => {
   let service: AgentService;
   let httpMock: HttpTestingController;
   let selectedUnit: DashboardWorkflowComputingUnit | null;
+  let selectedWarehouseId: number | undefined;
   let notification: Record<"error" | "success" | "info" | "warning", ReturnType<typeof vi.fn>>;
   let workflowPersist: { retrieveWorkflow: ReturnType<typeof vi.fn> };
 
@@ -102,6 +104,7 @@ describe("AgentService", () => {
 
   beforeEach(() => {
     selectedUnit = null;
+    selectedWarehouseId = undefined;
     notification = { error: vi.fn(), success: vi.fn(), info: vi.fn(), warning: vi.fn() };
     workflowPersist = { retrieveWorkflow: vi.fn().mockReturnValue(of(stubWorkflow)) };
     TestBed.configureTestingModule({
@@ -113,6 +116,10 @@ describe("AgentService", () => {
         {
           provide: ComputingUnitStatusService,
           useValue: { getSelectedComputingUnitValue: () => selectedUnit },
+        },
+        {
+          provide: WarehouseService,
+          useValue: { getSelectedWarehouseIdValue: () => selectedWarehouseId },
         },
         ...commonTestProviders,
       ],
@@ -138,6 +145,7 @@ describe("AgentService", () => {
       expect(req.request.body.name).toEqual("Bob");
       expect(req.request.body.workflowId).toBeUndefined();
       expect(req.request.body.computingUnitId).toBeUndefined();
+      expect(req.request.body.warehouseId).toBeUndefined();
       req.flush(apiAgent);
 
       expect(created?.id).toEqual("agent-1");
@@ -152,6 +160,17 @@ describe("AgentService", () => {
       expect(req.request.body.workflowId).toEqual(42);
       expect(req.request.body.computingUnitId).toEqual(7);
       expect(req.request.body.userToken).toBeUndefined();
+      req.flush(apiAgent);
+    });
+
+    it("includes the selected warehouse id in the payload", () => {
+      // Agent runs must write into the warehouse the user picked, the same way they
+      // run on the computing unit the user picked (#7751).
+      selectedWarehouseId = 5;
+      service.createAgent("gpt-5-mini", "Bob", 42).subscribe();
+
+      const req = httpMock.expectOne(r => r.method === "POST" && r.url === "/api/agents");
+      expect(req.request.body.warehouseId).toEqual(5);
       req.flush(apiAgent);
     });
   });
