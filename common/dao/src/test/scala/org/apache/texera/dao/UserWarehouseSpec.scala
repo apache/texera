@@ -60,7 +60,7 @@ class UserWarehouseSpec extends AnyFlatSpec with Matchers with BeforeAndAfterAll
         USER_WAREHOUSE,
         USER_WAREHOUSE.UID,
         USER_WAREHOUSE.NAME,
-        USER_WAREHOUSE.WAREHOUSE_NAME,
+        USER_WAREHOUSE.LAKEKEEPER_WAREHOUSE_NAME,
         USER_WAREHOUSE.LAKEKEEPER_WAREHOUSE_ID,
         USER_WAREHOUSE.FLAVOR
       )
@@ -78,7 +78,7 @@ class UserWarehouseSpec extends AnyFlatSpec with Matchers with BeforeAndAfterAll
       .where(USER_WAREHOUSE.UID.eq(uid))
       .fetchOne()
     row.getName shouldBe "mybucket"
-    row.getWarehouseName shouldBe s"user-$uid-mybucket"
+    row.getLakekeeperWarehouseName shouldBe s"user-$uid-mybucket"
     row.getFlavor shouldBe UserWarehouseFlavorEnum.local
     row.getLakekeeperWarehouseId should not be null
     row.getCreatedAt should not be null

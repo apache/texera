@@ -63,7 +63,7 @@ class WorkflowServiceWarehouseSpec
     val row = getDSLContext.newRecord(USER_WAREHOUSE)
     row.setUid(ownerUid)
     row.setName("mybucket")
-    row.setWarehouseName(s"user-$ownerUid-mybucket")
+    row.setLakekeeperWarehouseName(s"user-$ownerUid-mybucket")
     row.setLakekeeperWarehouseId(UUID.randomUUID())
     row.setFlavor(UserWarehouseFlavorEnum.local)
     row.store()

@@ -99,7 +99,7 @@ object WorkflowService {
       if (row == null) {
         throw new IllegalArgumentException(s"no warehouse with id $whid owned by this user")
       }
-      row.getWarehouseName
+      row.getLakekeeperWarehouseName
     })
   }
   val cleanUpDeadlineInSeconds: Int = ApplicationConfig.executionStateCleanUpInSecs

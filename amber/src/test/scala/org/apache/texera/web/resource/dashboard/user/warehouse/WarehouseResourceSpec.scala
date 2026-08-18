@@ -22,6 +22,7 @@ package org.apache.texera.web.resource.dashboard.user.warehouse
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.common.config.StorageConfig
 import org.apache.texera.dao.MockTexeraDB
+import org.jooq.impl.DSL
 import org.apache.texera.dao.jooq.generated.Tables.USER_WAREHOUSE
 import org.apache.texera.dao.jooq.generated.tables.daos.UserDao
 import org.apache.texera.dao.jooq.generated.tables.pojos.User
@@ -125,17 +126,32 @@ class WarehouseResourceSpec
   // Create / list / delete
   // ---------------------------------------------------------------------------
 
-  "create" should "create in Lakekeeper, record the row, and mint user-<uid>-<name>" in {
+  "create" should "create in Lakekeeper, record the row, and mint user-<uid>-<whid>" in {
     val created = resource.create(CreateWarehouseRequest("mybucket"), sessionUser)
 
     created.name shouldBe "mybucket"
-    created.warehouseName shouldBe s"user-${sessionUser.getUid}-mybucket"
+    // The catalog name is derived from the row id, never from the display name, so the
+    // display name stays free to change later (#7753).
+    created.warehouseName shouldBe s"user-${sessionUser.getUid}-${created.whid}"
+    created.warehouseName should not include "mybucket"
     created.flavor shouldBe "local"
-    createdNames.toList shouldBe List(s"user-${sessionUser.getUid}-mybucket")
+    createdNames.toList shouldBe List(s"user-${sessionUser.getUid}-${created.whid}")
 
     val status = resource.status(sessionUser)
     status.enabled shouldBe true
     status.warehouses.map(_.whid) shouldBe List(created.whid)
+  }
+
+  it should "mint a fresh catalog name when the same display name is reused" in {
+    // Deleting a warehouse and creating another with the same display name must not
+    // reuse the catalog name: stored result URIs embed it, so a reused name would let
+    // a new warehouse inherit an old one's storage path (#7753).
+    val first = resource.create(CreateWarehouseRequest("recycled"), sessionUser)
+    resource.delete(first.whid, sessionUser)
+    val second = resource.create(CreateWarehouseRequest("recycled"), sessionUser)
+
+    second.name shouldBe first.name
+    second.warehouseName should not be first.warehouseName
   }
 
   it should "reject an unsafe or duplicate name" in {
@@ -164,7 +180,17 @@ class WarehouseResourceSpec
     val squatter = getDSLContext.newRecord(USER_WAREHOUSE)
     squatter.setUid(otherUser.getUid)
     squatter.setName("unrelated")
-    squatter.setWarehouseName(s"user-${sessionUser.getUid}-boom")
+    // The catalog name now comes from the sequence, so claim the id the next create
+    // will draw: take one number for the squatter itself (set explicitly, so storing it
+    // consumes nothing further) and squat on the one after it.
+    val takenWhid = getDSLContext.fetchValue(
+      DSL.field(
+        "nextval(pg_get_serial_sequence('texera_db.user_warehouse','whid'))",
+        classOf[Integer]
+      )
+    )
+    squatter.setWhid(takenWhid)
+    squatter.setLakekeeperWarehouseName(s"user-${sessionUser.getUid}-${takenWhid + 1}")
     squatter.setLakekeeperWarehouseId(UUID.randomUUID())
     squatter.setFlavor(
       org.apache.texera.dao.jooq.generated.enums.UserWarehouseFlavorEnum.local
@@ -203,7 +229,17 @@ class WarehouseResourceSpec
     val squatter = getDSLContext.newRecord(USER_WAREHOUSE)
     squatter.setUid(otherUser.getUid)
     squatter.setName("unrelated-2")
-    squatter.setWarehouseName(s"user-${sessionUser.getUid}-doublefault")
+    // The catalog name now comes from the sequence, so claim the id the next create
+    // will draw: take one number for the squatter itself (set explicitly, so storing it
+    // consumes nothing further) and squat on the one after it.
+    val takenWhid = getDSLContext.fetchValue(
+      DSL.field(
+        "nextval(pg_get_serial_sequence('texera_db.user_warehouse','whid'))",
+        classOf[Integer]
+      )
+    )
+    squatter.setWhid(takenWhid)
+    squatter.setLakekeeperWarehouseName(s"user-${sessionUser.getUid}-${takenWhid + 1}")
     squatter.setLakekeeperWarehouseId(UUID.randomUUID())
     squatter.setFlavor(
       org.apache.texera.dao.jooq.generated.enums.UserWarehouseFlavorEnum.local

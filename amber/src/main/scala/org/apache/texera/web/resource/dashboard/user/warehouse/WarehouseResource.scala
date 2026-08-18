@@ -30,6 +30,7 @@ import org.apache.texera.dao.jooq.generated.enums.UserWarehouseFlavorEnum
 import org.apache.texera.dao.jooq.generated.tables.records.UserWarehouseRecord
 import org.apache.texera.web.resource.dashboard.user.warehouse.WarehouseResource._
 import org.apache.texera.web.service.LakekeeperClient
+import org.jooq.impl.DSL
 
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
@@ -60,7 +61,7 @@ object WarehouseResource {
     DashboardWarehouse(
       row.getWhid,
       row.getName,
-      row.getWarehouseName,
+      row.getLakekeeperWarehouseName,
       row.getFlavor.getLiteral,
       row.getCreatedAt.toInstant.toEpochMilli
     )
@@ -131,20 +132,34 @@ class WarehouseResource(client: LakekeeperClient, enabled: Boolean) extends Lazy
       throw new WebApplicationException(s"a warehouse named '$name' already exists", 409)
     }
 
-    val warehouseName = s"user-$uid-$name"
+    // The catalog name is derived from the row's own id, never from `name`: that one
+    // string is also the REST catalog prefix, the S3 key prefix and a component of every
+    // result URI an execution wrote, so deriving it from a user-facing name would freeze
+    // that name forever (#7753). Take the id from the sequence up front so the creation
+    // order below is unchanged -- Lakekeeper first, row after, with the compensating
+    // delete. The sequence is resolved from the catalog rather than named literally,
+    // because its generated name is not a stable contract.
+    val whid: Integer = context.fetchValue(
+      DSL.field(
+        "nextval(pg_get_serial_sequence('texera_db.user_warehouse','whid'))",
+        classOf[Integer]
+      )
+    )
+    val lakekeeperWarehouseName = s"user-$uid-$whid"
     // Create in Lakekeeper first, record after: a failed creation leaves no orphaned row.
     val warehouseId =
       try {
-        client.createWarehouse(warehouseName)
+        client.createWarehouse(lakekeeperWarehouseName)
       } catch {
         case e: Exception =>
           throw new WebApplicationException(e.getMessage, 502)
       }
 
     val row = context.newRecord(USER_WAREHOUSE)
+    row.setWhid(whid)
     row.setUid(uid)
     row.setName(name)
-    row.setWarehouseName(warehouseName)
+    row.setLakekeeperWarehouseName(lakekeeperWarehouseName)
     row.setLakekeeperWarehouseId(warehouseId)
     row.setFlavor(UserWarehouseFlavorEnum.local)
     row.setS3Bucket(StorageConfig.icebergRESTCatalogS3Bucket)
