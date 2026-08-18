@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1786973451984,
+  "lastUpdate": 1787063584849,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -9527,6 +9527,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 497.0994632033983,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Eugene Gu",
+            "username": "eugenegujing",
+            "email": "eugenegujing@outlook.com"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "fb9f4e26d8680ebeb3da28881b27707645d59acd",
+          "message": "test(pyamber): add unit test coverage for AddInputChannelHandler (#7750)\n\n### What changes were proposed in this PR?\n\nAdds `test_add_input_channel_handler.py` (12 tests) for\n`core/architecture/handlers/control/add_input_channel_handler.py`. The\nhandler's three-line `is_control` block looks like a no-op but is\nload-bearing: `Message.__hash__` is patched to hash-of-repr,\nbetterproto's repr omits fields left at their default, and proto3 never\nputs `false` on the wire — so a data channel's `ChannelIdentity` arrives\n`==`-equal to its canonical form yet hashing differently, and\n`InputManager` keys its channel registry by that hash.\n`test_main_loop.py` drives AddInputChannel end to end on the happy path\nbut never pins the materialization, so the workaround could regress\nsilently.\n\nEvery request in the spec is built through a bytes round trip so the\nhandler receives the real wire shape — an in-process request would\narrive already canonical and prove nothing. The spec pins:\n\n- the delegation: `register_input` is the input manager's only call,\nwith the request's channel and port, and the handler returns\n`EmptyReturn`;\n- the channel id is canonical by the time `register_input` receives it,\nasserted by snapshotting the hash inside a side effect — a key inserted\nat the pre-materialization hash and then mutated in place strands the\ndict entry;\n- the consequences on a real `InputManager`: the registered channel\nresolves through `get_port_id`, survives the `is_control` read that\n`get_all_data_channel_ids()` performs on every key, and is\ninterchangeable as a dict key with an independently built canonical id\nin both directions;\n- control channels arrive already canonical (proto3 does serialize\n`true`) and keep their marker, guarding the `if not` condition against\ninversion;\n- port 0, the default port, registers correctly even though its identity\narrives as a bare `PortIdentity()` (proto3 omits both `id=0` and\n`internal=False`). This is complementary to\n`test_input_manager.py::TestPortIdentityDefaults`, which feeds a\nhand-built `PortIdentity(id=None, internal=None)` — a shape no\nproduction caller of `register_input` produces; the wire shape exercised\nhere is what the two wire-fed callers actually deliver, and it is\ncanonicalized by attribute reads alone, not by the `is None` branches;\n- a canary pins the wire premise itself, so a betterproto upgrade that\nstarts materializing defaults on parse reports itself instead of quietly\nmaking the rest of the file meaningless.\n\n### Any related issues, documentation, discussions?\n\nCloses #7748.\n\n### How was this PR tested?\n\n12 new tests, all green locally:\n\n```\ncd amber\npytest src/test/python/core/architecture/handlers/control/test_add_input_channel_handler.py -q   # 12 passed\npytest src/test/python/core/architecture/ -q                                                     # 303 passed\npytest src/test/python/core/runnables/test_main_loop.py -q                                       # 34 passed\npytest -m \"not integration\" -q                                                                   # 1068 passed\nruff check src/main/python src/test/python && ruff format --check src/main/python src/test/python\n```\n\nThe only full-suite failures are the pre-existing\n`core/storage/iceberg/test_iceberg_document.py` items that need a local\ncatalog stack; they fail identically without this PR.\n\nThe tests were also mutation-checked: deleting the handler's\n`is_control` block, always assigning `False` (guard inversion),\ncanonicalizing after `register_input` instead of before, swapping the\ndelegation arguments, dropping the call entirely, and deleting\n`register_input`'s `id is None` guard each turn the expected tests red.\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Claude Code (Claude Opus 5)",
+          "timestamp": "2026-08-18T07:46:35Z",
+          "url": "https://github.com/apache/texera/commit/fb9f4e26d8680ebeb3da28881b27707645d59acd"
+        },
+        "date": 1787063584205,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 715.4801237723805,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 1329.9709344208627,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 1408.7968400432112,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 908.6494021287291,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 1337.4275785348516,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 1441.8421347327776,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 967.3628322309702,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 1355.3329444445794,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 1443.4747453729292,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 787.6454174205181,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 1082.899440163622,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 1127.3458738190416,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 835.5861934783053,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 1090.9806616604892,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 1123.3324596647706,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 826.3488421704509,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 1053.7340005610463,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 1079.3796995353541,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 491.1285482138476,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 573.5382857198589,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 581.1394725412418,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 489.12923721347084,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 568.9028630931526,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 575.9561642459789,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 443.9827084460928,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 532.5044849762247,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 546.8157205585026,
             "unit": "tuples/sec"
           }
         ]
