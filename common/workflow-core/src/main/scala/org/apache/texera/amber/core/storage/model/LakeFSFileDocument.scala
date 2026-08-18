@@ -21,6 +21,7 @@ package org.apache.texera.amber.core.storage.model
 
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.texera.common.config.EnvironmentalVariable
+import org.apache.texera.amber.core.storage.ResourceType
 import org.apache.texera.amber.core.storage.model.LakeFSFileDocument.userJwtToken
 import org.apache.texera.amber.core.storage.util.LakeFSStorageClient
 
@@ -36,21 +37,51 @@ object LakeFSFileDocument {
   // In the local development or other architectures, this token can be empty.
   lazy val userJwtToken: String =
     sys.env.getOrElse(EnvironmentalVariable.ENV_USER_JWT_TOKEN, "").trim
+
+  private lazy val datasetPresignEndpoint: String =
+    sys.env
+      .getOrElse(
+        EnvironmentalVariable.ENV_FILE_SERVICE_GET_DATASET_PRESIGNED_URL_ENDPOINT,
+        "http://localhost:9092/api/dataset/presign-download"
+      )
+      .trim
+
+  private lazy val modelPresignEndpoint: String =
+    sys.env
+      .getOrElse(
+        EnvironmentalVariable.ENV_FILE_SERVICE_GET_MODEL_PRESIGNED_URL_ENDPOINT,
+        "http://localhost:9092/api/model/presign-download"
+      )
+      .trim
+
+  /**
+    * The file-service presign-download endpoint serving this resource type. Each resource type
+    * owns an endpoint because they enforce different access control (a dataset grant does not
+    * grant a model).
+    */
+  def presignEndpointOf(resourceType: ResourceType.Value): String =
+    resourceType match {
+      case ResourceType.Datasets => datasetPresignEndpoint
+      case ResourceType.Models   => modelPresignEndpoint
+    }
 }
 
 /**
   * A read-only document over a single file stored in a LakeFS repository, addressed by the URI
-  * {scheme}:///{repositoryName}/{versionHash}/{fileRelativePath}. This is the shared behavior
-  * for every versioned-file resource (datasets, models, …): the file bytes are fetched via a
-  * presigned URL, falling back to a direct LakeFS fetch.
+  * {scheme}:///{repositoryName}/{versionHash}/{fileRelativePath}.
   *
-  * @param uri             the resolved {scheme}:///{repositoryName}/{versionHash}/{file} URI
-  * @param presignEndpoint the file-service presign-download endpoint for this resource kind
+  * Every versioned-file resource (datasets, models, …) reads its files the same way — fetch the
+  * bytes through a presigned URL, falling back to a direct LakeFS fetch
+  *
+  * @param uri          the resolved {scheme}:///{repositoryName}/{versionHash}/{file} URI
+  * @param resourceType which resource this file belongs to, selecting the presign endpoint
   */
-private[storage] abstract class LakeFSFileDocument(uri: URI, presignEndpoint: String)
+private[storage] class LakeFSFileDocument(uri: URI, val resourceType: ResourceType.Value)
     extends VirtualDocument[Nothing]
     with OnVersionedFileResource
     with LazyLogging {
+
+  private val presignEndpoint: String = LakeFSFileDocument.presignEndpointOf(resourceType)
   // Utility function to parse and decode URI segments into individual components
   private def parseUri(uri: URI): (String, String, Path) = {
     val segments = Paths.get(uri.getPath).iterator().asScala.map(_.toString).toArray
