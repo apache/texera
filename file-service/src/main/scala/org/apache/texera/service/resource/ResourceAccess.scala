@@ -33,9 +33,7 @@ import scala.jdk.CollectionConverters._
   * Ownership and privilege rules shared by every access-controlled resource.
   *
   * A resource is readable when it is public, or the caller owns it, or the caller holds an
-  * explicit grant; it is writable when the caller owns it or holds a WRITE grant. A missing
-  * resource resolves to "not public, unowned, ungranted" rather than an error, so callers
-  * decide whether absence is a 403 or a 404.
+  * explicit grant; it is writable when the caller owns it or holds a WRITE grant.
   */
 object ResourceAccess {
 
@@ -240,9 +238,6 @@ object ResourceAccess {
 
   /**
     * Grants `privilege` to the user with `email`, replacing any privilege they already hold.
-    *
-    * Placeholder accounts stand in for people who were referenced by email but never signed up,
-    * so they cannot be shared with.
     */
   def grant[R <: Record, A <: Record](
       ctx: DSLContext,

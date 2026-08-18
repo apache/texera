@@ -29,13 +29,6 @@ import org.jooq.{Record, Table, TableField}
   * Describes one user-owned, name-scoped, shareable resource by the columns that carry its
   * identity, ownership, and per-user grants.
   *
-  * Each Resource owns a table with `owner_uid`, a `name` unique per
-  * owner, an `is_public` flag, and a companion `*_user_access` table keyed on (resource id, uid).
-  * jOOQ generates a distinct, unrelated class per table, so those shared rules cannot be
-  * expressed through a common supertype. Naming the columns instead lets one implementation in
-  * [[ResourceAccess]] and [[ResourceNaming]] serve every resource type, so the next one costs a
-  * descriptor rather than another copy of the rules.
-  *
   * @param label how the resource is named in user-facing messages ("dataset", "model")
   * @tparam R record type of the resource table
   * @tparam A record type of the companion user-access table
