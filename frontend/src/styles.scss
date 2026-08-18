@@ -459,3 +459,26 @@ hr {
     }
   }
 }
+
+.email-modal {
+  .ant-modal-content {
+    border-radius: 4px;
+  }
+
+  .ant-modal-header {
+    border-radius: 4px 4px 0 0;
+    padding: 16px;
+  }
+
+  .ant-modal-body {
+    padding: 16px;
+  }
+
+  .ant-modal-footer {
+    padding: 16px;
+  }
+
+  .ant-modal-footer .ant-btn {
+    border-radius: 4px;
+  }
+}

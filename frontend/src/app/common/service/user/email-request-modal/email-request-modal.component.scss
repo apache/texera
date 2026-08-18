@@ -16,15 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
 .email-modal-title {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding-right: 12px;
 }
 
 .email-modal-logo {
   height: 28px;
   margin-left: 12px;
   opacity: 0.9;
+}
+
+.email-modal-input {
+  margin-top: 5px;
+  height: 33px;
+  border-radius: 2px;
 }

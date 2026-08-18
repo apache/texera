@@ -271,6 +271,9 @@ export class AuthService {
       nzCancelText: "Sign out",
       nzMaskClosable: false,
       nzClosable: false,
+      // Reaches the modal chrome, which ng-zorro renders outside the content component's view —
+      // see `.email-modal` in styles.scss.
+      nzClassName: "email-modal",
 
       nzOnOk: async () => {
         const { email } = modalRef.getContentComponent().getValues();
