@@ -73,6 +73,8 @@ class LakekeeperClientSpec
   private val racingWarehouseId = UUID.randomUUID()
   private val alwaysBusyWarehouseId = UUID.randomUUID()
   private val otherConflictWarehouseId = UUID.randomUUID()
+  private val malformedConflictWarehouseId = UUID.randomUUID()
+  @volatile private var malformedDeleteAttempts = 0
   @volatile private var racingDeleteAttempts = 0
   @volatile private var busyDeleteAttempts = 0
   private val unfinishedTasksBody =
@@ -94,6 +96,10 @@ class LakekeeperClientSpec
       } else if (isDelete && path.endsWith(alwaysBusyWarehouseId.toString)) {
         busyDeleteAttempts += 1
         respond(exchange, 409, unfinishedTasksBody)
+      } else if (isDelete && path.endsWith(malformedConflictWarehouseId.toString)) {
+        // A 409 whose body isn't the JSON envelope the type check reads.
+        malformedDeleteAttempts += 1
+        respond(exchange, 409, "<html>gateway conflict</html>")
       } else if (isDelete && path.endsWith(otherConflictWarehouseId.toString)) {
         respond(
           exchange,
@@ -162,6 +168,7 @@ class LakekeeperClientSpec
     lastCreateBody = ""
     racingDeleteAttempts = 0
     busyDeleteAttempts = 0
+    malformedDeleteAttempts = 0
   }
 
   override protected def afterAll(): Unit = server.stop(0)
@@ -223,6 +230,16 @@ class LakekeeperClientSpec
     error.getMessage should include("WarehouseHasUnfinishedTasks")
     // 1 initial attempt + 3 retries, then fail -- the wait is bounded.
     busyDeleteAttempts shouldBe 4
+  }
+
+  it should "fail immediately on a 409 whose body is not the expected JSON envelope" in {
+    // The type check parses the body; a malformed one must read as "not the
+    // purge conflict" and fail rather than be retried as if it were transient.
+    val error = intercept[RuntimeException] {
+      retryClient.deleteWarehouseEmptyFirst(malformedConflictWarehouseId)
+    }
+    error.getMessage should include("409")
+    malformedDeleteAttempts shouldBe 1
   }
 
   it should "fail immediately on a 409 that is not WarehouseHasUnfinishedTasks" in {
