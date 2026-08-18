@@ -65,7 +65,6 @@ import java.nio.file.{Files, Paths}
 import java.util
 import java.util.Optional
 import java.util.zip.{ZipEntry, ZipOutputStream}
-import scala.collection.mutable.ListBuffer
 import scala.jdk.CollectionConverters._
 import scala.jdk.OptionConverters._
 import org.apache.commons.io.FilenameUtils

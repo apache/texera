@@ -32,7 +32,6 @@ import org.apache.texera.dao.{SiteSettings, SqlServer}
 import org.apache.texera.dao.SqlServer.withTransaction
 import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
 import org.apache.texera.dao.jooq.generated.tables.Model.MODEL
-import org.apache.texera.dao.jooq.generated.tables.ModelUserAccess.MODEL_USER_ACCESS
 import org.apache.texera.dao.jooq.generated.tables.ModelVersion.MODEL_VERSION
 import org.apache.texera.dao.jooq.generated.tables.User.USER
 import org.apache.texera.dao.jooq.generated.tables.daos.{
@@ -51,7 +50,6 @@ import org.jooq.{DSLContext, EnumType}
 
 import java.io.InputStream
 import java.util.Optional
-import scala.collection.mutable.ListBuffer
 import scala.jdk.CollectionConverters._
 import scala.jdk.OptionConverters._
 
@@ -403,49 +401,24 @@ class ModelResource extends LazyLogging {
   ): List[DashboardModel] = {
     val uid = user.getUid
     withTransaction(context)(ctx => {
-      var accessibleModels: ListBuffer[DashboardModel] = ListBuffer()
-      // first fetch all models user have explicit access to
-      accessibleModels = ListBuffer.from(
-        ctx
-          .select()
-          .from(
-            MODEL
-              .leftJoin(MODEL_USER_ACCESS)
-              .on(MODEL_USER_ACCESS.MID.eq(MODEL.MID))
-              .leftJoin(USER)
-              .on(USER.UID.eq(MODEL.OWNER_UID))
-          )
-          .where(MODEL_USER_ACCESS.UID.eq(uid))
-          .fetch()
-          .map(record => {
-            val model = record.into(MODEL).into(classOf[Model])
-            val modelAccess = record.into(MODEL_USER_ACCESS).into(classOf[ModelUserAccess])
-            val ownerEmail = record.into(USER).getEmail
+      ResourceAccess.listVisible(
+        ctx,
+        MODEL_RESOURCE,
+        uid,
+        classOf[Model],
+        (model: Model) => model.getMid
+      )(
+        fromGrant = (model, ownerEmail, privilege, isOwner) =>
+          Some(
             DashboardModel(
-              isOwner = model.getOwnerUid == uid,
+              isOwner = isOwner,
               model = model,
-              accessPrivilege = modelAccess.getPrivilege,
+              accessPrivilege = privilege,
               ownerEmail = ownerEmail,
               size = 0
             )
-          })
-          .asScala
-      )
-
-      // then we fetch the public models and merge it as a part of the result if not exist
-      val publicModels = ctx
-        .select()
-        .from(
-          MODEL
-            .leftJoin(USER)
-            .on(USER.UID.eq(MODEL.OWNER_UID))
-        )
-        .where(MODEL.IS_PUBLIC.eq(true))
-        .fetch()
-        .asScala
-        .flatMap { record =>
-          val model = record.into(MODEL).into(classOf[Model])
-          val ownerEmail = record.into(USER).getEmail
+          ),
+        fromPublic = (model, ownerEmail) =>
           try {
             Some(
               DashboardModel(
@@ -464,13 +437,7 @@ class ModelResource extends LazyLogging {
               )
               None
           }
-        }
-      publicModels.foreach { publicModel =>
-        if (!accessibleModels.exists(_.model.getMid == publicModel.model.getMid)) {
-          accessibleModels = accessibleModels :+ publicModel
-        }
-      }
-      accessibleModels.toList
+      )
     })
   }
 
