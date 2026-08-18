@@ -132,8 +132,8 @@ class WarehouseResourceSpec
     created.name shouldBe "mybucket"
     // The catalog name is derived from the row id, never from the display name, so the
     // display name stays free to change later (#7753).
-    created.warehouseName shouldBe s"user-${sessionUser.getUid}-${created.whid}"
-    created.warehouseName should not include "mybucket"
+    created.lakekeeperWarehouseName shouldBe s"user-${sessionUser.getUid}-${created.whid}"
+    created.lakekeeperWarehouseName should not include "mybucket"
     created.flavor shouldBe "local"
     createdNames.toList shouldBe List(s"user-${sessionUser.getUid}-${created.whid}")
 
@@ -151,7 +151,7 @@ class WarehouseResourceSpec
     val second = resource.create(CreateWarehouseRequest("recycled"), sessionUser)
 
     second.name shouldBe first.name
-    second.warehouseName should not be first.warehouseName
+    second.lakekeeperWarehouseName should not be first.lakekeeperWarehouseName
   }
 
   it should "reject an unsafe or duplicate name" in {

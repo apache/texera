@@ -81,7 +81,7 @@ import scala.collection.mutable.ArrayBuffer
   *     knowing if it ever acquires a reader: the completion diff handler runs only while something
   *     consumes the metadata store's websocket-event stream, so the snapshot silently does not
   *     happen when no client is connected.
-  *   - `resolveWarehouseName`, owned by `WorkflowServiceWarehouseSpec`.
+  *   - `resolveLakekeeperWarehouseName`, owned by `WorkflowServiceWarehouseSpec`.
   */
 class WorkflowServiceSpec extends AnyFlatSpec with Matchers {
 

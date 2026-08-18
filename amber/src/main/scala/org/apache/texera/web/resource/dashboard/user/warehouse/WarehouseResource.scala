@@ -51,8 +51,13 @@ object WarehouseResource {
 
   case class DashboardWarehouse(
       whid: Integer,
+      // The per-user-unique display name, free to change.
       name: String,
-      warehouseName: String,
+      // The Lakekeeper catalog name (`user-<uid>-<whid>`): also the REST catalog
+      // prefix, the S3 key prefix, and a component of every result URI written into
+      // this warehouse. Named after its owner so it cannot be read as the display
+      // name above (#7753).
+      lakekeeperWarehouseName: String,
       flavor: String,
       createdAtMillis: Long
   )

@@ -76,7 +76,7 @@ object WorkflowService {
     * shared default warehouse. With warehouses disabled, an explicit pick is refused
     * loudly rather than silently routed into the shared warehouse (#6930).
     */
-  def resolveWarehouseName(
+  def resolveLakekeeperWarehouseName(
       warehouseId: Option[Int],
       uid: Integer,
       enabled: Boolean = StorageConfig.warehouseEnabled
@@ -233,7 +233,7 @@ class WorkflowService(
     )
 
     val workflowContext: WorkflowContext = createWorkflowContext()
-    workflowContext.warehouse = WorkflowService.resolveWarehouseName(req.warehouseId, uid)
+    workflowContext.warehouse = WorkflowService.resolveLakekeeperWarehouseName(req.warehouseId, uid)
     var coordinatorConf = CoordinatorConfig.default
 
     // clean up results from previous run

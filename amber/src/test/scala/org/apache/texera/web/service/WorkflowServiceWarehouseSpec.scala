@@ -31,7 +31,7 @@ import org.scalatest.matchers.should.Matchers
 import java.util.UUID
 
 /**
-  * Spec for [[WorkflowService.resolveWarehouseName]] (#6932): the ownership check and the
+  * Spec for [[WorkflowService.resolveLakekeeperWarehouseName]] (#6932): the ownership check and the
   * never-silently-fall-back rule for an execution's chosen warehouse.
   */
 class WorkflowServiceWarehouseSpec
@@ -72,19 +72,19 @@ class WorkflowServiceWarehouseSpec
 
   override protected def afterAll(): Unit = closeConnectionPool()
 
-  "resolveWarehouseName" should "keep the shared default warehouse when nothing is picked" in {
-    WorkflowService.resolveWarehouseName(None, ownerUid, enabled = true) shouldBe None
-    WorkflowService.resolveWarehouseName(None, ownerUid, enabled = false) shouldBe None
+  "resolveLakekeeperWarehouseName" should "keep the shared default warehouse when nothing is picked" in {
+    WorkflowService.resolveLakekeeperWarehouseName(None, ownerUid, enabled = true) shouldBe None
+    WorkflowService.resolveLakekeeperWarehouseName(None, ownerUid, enabled = false) shouldBe None
   }
 
   it should "resolve an owned warehouse to its Lakekeeper name" in {
-    WorkflowService.resolveWarehouseName(Some(whid), ownerUid, enabled = true) shouldBe
+    WorkflowService.resolveLakekeeperWarehouseName(Some(whid), ownerUid, enabled = true) shouldBe
       Some(s"user-$ownerUid-mybucket")
   }
 
   it should "refuse another user's warehouse" in {
     val error = intercept[IllegalArgumentException] {
-      WorkflowService.resolveWarehouseName(Some(whid), intruderUid, enabled = true)
+      WorkflowService.resolveLakekeeperWarehouseName(Some(whid), intruderUid, enabled = true)
     }
     error.getMessage should include(whid.toString)
   }
@@ -92,7 +92,7 @@ class WorkflowServiceWarehouseSpec
   it should "refuse an explicit pick while warehouses are disabled" in {
     // Never route the run into the shared warehouse silently (#6930).
     val error = intercept[IllegalArgumentException] {
-      WorkflowService.resolveWarehouseName(Some(whid), ownerUid, enabled = false)
+      WorkflowService.resolveLakekeeperWarehouseName(Some(whid), ownerUid, enabled = false)
     }
     error.getMessage should include("disabled")
   }
