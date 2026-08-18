@@ -160,7 +160,7 @@ class LakekeeperClientSpec
   private val retryClient = new LakekeeperClient(
     s"http://localhost:${server.getAddress.getPort}/catalog",
     unfinishedTasksRetries = 3,
-    unfinishedTasksRetryDelayMillis = 0
+    unfinishedTasksInitialDelayMillis = 0
   )
 
   override protected def beforeEach(): Unit = {

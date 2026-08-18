@@ -42,15 +42,22 @@ import scala.jdk.CollectionConverters.IteratorHasAsScala
   * @param unfinishedTasksRetries how many times the final warehouse delete is retried while
   *                               Lakekeeper reports 409 WarehouseHasUnfinishedTasks — its
   *                               asynchronous purge of the dropped tables' data files is
-  *                               still draining (#7742). With the default delay this bounds
-  *                               the wait at ~20s; the queue normally drains within seconds.
-  * @param unfinishedTasksRetryDelayMillis pause between those retries. Overridable for tests
-  *                                        (0 keeps the spec free of real sleeps).
+  *                               still draining (#7742).
+  * @param unfinishedTasksInitialDelayMillis first pause between those retries; it doubles up
+  *                                          to the cap. Starting small keeps a fast purge
+  *                                          (the common case) from costing the caller a full
+  *                                          fixed interval, while the growth keeps a slow one
+  *                                          from hammering Lakekeeper. Overridable for tests
+  *                                          (0 keeps the spec free of real sleeps — doubling
+  *                                          0 stays 0).
+  * @param unfinishedTasksMaxDelayMillis cap for that doubling. With the defaults the retries
+  *                                      wait 0.2+0.4+0.8+1.6+3.2+5+5s ≈ 16s in total.
   */
 class LakekeeperClient(
     catalogUri: String = StorageConfig.icebergRESTCatalogUri,
-    unfinishedTasksRetries: Int = 10,
-    unfinishedTasksRetryDelayMillis: Long = 2000
+    unfinishedTasksRetries: Int = 7,
+    unfinishedTasksInitialDelayMillis: Long = 200,
+    unfinishedTasksMaxDelayMillis: Long = 5000
 ) {
 
   // Lakekeeper's default project; single-project deployments (ours) use the nil UUID.
@@ -145,6 +152,7 @@ class LakekeeperClient(
     // so ride that out with a bounded retry; every other error, including any other
     // 409, still fails immediately. (#7742)
     var attempt = 0
+    var delay = unfinishedTasksInitialDelayMillis
     var deleted = false
     while (!deleted) {
       val response = Unirest.delete(s"$managementBase/warehouse/$warehouseId").asString()
@@ -155,7 +163,8 @@ class LakekeeperClient(
         isUnfinishedTasksConflict(response.getStatus, response.getBody) &&
         attempt <= unfinishedTasksRetries
       ) {
-        Thread.sleep(unfinishedTasksRetryDelayMillis)
+        Thread.sleep(delay)
+        delay = math.min(delay * 2, unfinishedTasksMaxDelayMillis)
       } else {
         failOn(response.getStatus, response.getBody, "delete warehouse")
       }
