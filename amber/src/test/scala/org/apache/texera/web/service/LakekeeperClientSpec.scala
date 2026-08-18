@@ -65,13 +65,41 @@ class LakekeeperClientSpec
     exchange.close()
   }
 
+  // Lakekeeper purges dropped tables asynchronously (queue `tabular_purge`), and
+  // answers a warehouse delete with 409 WarehouseHasUnfinishedTasks while any
+  // purge task is pending (#7742). These stub warehouses model that queue:
+  // `racing` drains after two attempts, `alwaysBusy` never drains, and
+  // `otherConflict` 409s for an unrelated reason (which must NOT be retried).
+  private val racingWarehouseId = UUID.randomUUID()
+  private val alwaysBusyWarehouseId = UUID.randomUUID()
+  private val otherConflictWarehouseId = UUID.randomUUID()
+  @volatile private var racingDeleteAttempts = 0
+  @volatile private var busyDeleteAttempts = 0
+  private val unfinishedTasksBody =
+    """{"error":{"message":"Warehouse has unfinished tasks. Cannot delete warehouse until all tasks are finished.","type":"WarehouseHasUnfinishedTasks","code":409}}"""
+
   server.createContext(
     "/management/v1/warehouse",
     (exchange: HttpExchange) => {
       record(exchange)
+      val path = exchange.getRequestURI.getPath
+      val isDelete = exchange.getRequestMethod == "DELETE"
       if (exchange.getRequestMethod == "POST") {
         lastCreateBody = new String(exchange.getRequestBody.readAllBytes(), StandardCharsets.UTF_8)
         respond(exchange, 201, s"""{"warehouse-id": "$warehouseId"}""")
+      } else if (isDelete && path.endsWith(racingWarehouseId.toString)) {
+        racingDeleteAttempts += 1
+        if (racingDeleteAttempts <= 2) respond(exchange, 409, unfinishedTasksBody)
+        else respond(exchange, 204, "")
+      } else if (isDelete && path.endsWith(alwaysBusyWarehouseId.toString)) {
+        busyDeleteAttempts += 1
+        respond(exchange, 409, unfinishedTasksBody)
+      } else if (isDelete && path.endsWith(otherConflictWarehouseId.toString)) {
+        respond(
+          exchange,
+          409,
+          """{"error":{"message":"warehouse is in use","type":"Conflict","code":409}}"""
+        )
       } else {
         respond(exchange, 200, "{}")
       }
@@ -121,9 +149,19 @@ class LakekeeperClientSpec
     s"http://localhost:${server.getAddress.getPort}/catalog"
   )
 
+  // Zero retry delay keeps the spec free of real sleeps (deterministic); 3
+  // retries keeps the exhaustion case cheap to assert.
+  private val retryClient = new LakekeeperClient(
+    s"http://localhost:${server.getAddress.getPort}/catalog",
+    unfinishedTasksRetries = 3,
+    unfinishedTasksRetryDelayMillis = 0
+  )
+
   override protected def beforeEach(): Unit = {
     requests.synchronized { requests.clear() }
     lastCreateBody = ""
+    racingDeleteAttempts = 0
+    busyDeleteAttempts = 0
   }
 
   override protected def afterAll(): Unit = server.stop(0)
@@ -167,5 +205,34 @@ class LakekeeperClientSpec
     }
     error.getMessage should include("Lakekeeper")
     error.getMessage should include("500")
+  }
+
+  it should "wait out 409 WarehouseHasUnfinishedTasks from the asynchronous purge (#7742)" in {
+    // Lakekeeper purges dropped tables asynchronously; the stub answers the
+    // warehouse delete with 409 WarehouseHasUnfinishedTasks twice before the
+    // queue "drains" and it returns 204. The delete must ride that out.
+    noException should be thrownBy retryClient.deleteWarehouseEmptyFirst(racingWarehouseId)
+    racingDeleteAttempts shouldBe 3
+  }
+
+  it should "give up once the purge-wait retries are exhausted" in {
+    val error = intercept[RuntimeException] {
+      retryClient.deleteWarehouseEmptyFirst(alwaysBusyWarehouseId)
+    }
+    error.getMessage should include("409")
+    error.getMessage should include("WarehouseHasUnfinishedTasks")
+    // 1 initial attempt + 3 retries, then fail -- the wait is bounded.
+    busyDeleteAttempts shouldBe 4
+  }
+
+  it should "fail immediately on a 409 that is not WarehouseHasUnfinishedTasks" in {
+    val error = intercept[RuntimeException] {
+      retryClient.deleteWarehouseEmptyFirst(otherConflictWarehouseId)
+    }
+    error.getMessage should include("409")
+    val deletes = requests.synchronized {
+      requests.count(_ == s"DELETE /management/v1/warehouse/$otherConflictWarehouseId")
+    }
+    deletes shouldBe 1
   }
 }

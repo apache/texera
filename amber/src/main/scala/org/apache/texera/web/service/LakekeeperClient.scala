@@ -39,8 +39,19 @@ import scala.jdk.CollectionConverters.IteratorHasAsScala
   *
   * @param catalogUri the Iceberg REST catalog uri (ends with `/catalog`), from which the
   *                   management base is derived. Overridable for tests.
+  * @param unfinishedTasksRetries how many times the final warehouse delete is retried while
+  *                               Lakekeeper reports 409 WarehouseHasUnfinishedTasks — its
+  *                               asynchronous purge of the dropped tables' data files is
+  *                               still draining (#7742). With the default delay this bounds
+  *                               the wait at ~20s; the queue normally drains within seconds.
+  * @param unfinishedTasksRetryDelayMillis pause between those retries. Overridable for tests
+  *                                        (0 keeps the spec free of real sleeps).
   */
-class LakekeeperClient(catalogUri: String = StorageConfig.icebergRESTCatalogUri) {
+class LakekeeperClient(
+    catalogUri: String = StorageConfig.icebergRESTCatalogUri,
+    unfinishedTasksRetries: Int = 10,
+    unfinishedTasksRetryDelayMillis: Long = 2000
+) {
 
   // Lakekeeper's default project; single-project deployments (ours) use the nil UUID.
   private val DefaultProjectId = "00000000-0000-0000-0000-000000000000"
@@ -126,11 +137,38 @@ class LakekeeperClient(catalogUri: String = StorageConfig.icebergRESTCatalogUri)
         failOn(response.getStatus, response.getBody, s"drop namespace '$namespace'")
       }
     }
-    val response = Unirest.delete(s"$managementBase/warehouse/$warehouseId").asString()
-    if (response.getStatus != 404) {
-      failOn(response.getStatus, response.getBody, "delete warehouse")
+    // The drops above purge each table's data files asynchronously (Lakekeeper task
+    // queue `tabular_purge`), and Lakekeeper refuses to delete the warehouse while
+    // any purge is pending — the tasks need the warehouse's storage profile to reach
+    // S3, so deleting it first would orphan them and leak the files. It answers 409
+    // WarehouseHasUnfinishedTasks until the queue drains (normally within seconds),
+    // so ride that out with a bounded retry; every other error, including any other
+    // 409, still fails immediately. (#7742)
+    var attempt = 0
+    var deleted = false
+    while (!deleted) {
+      val response = Unirest.delete(s"$managementBase/warehouse/$warehouseId").asString()
+      attempt += 1
+      if (response.getStatus == 404 || (response.getStatus >= 200 && response.getStatus < 300)) {
+        deleted = true
+      } else if (
+        isUnfinishedTasksConflict(response.getStatus, response.getBody) &&
+        attempt <= unfinishedTasksRetries
+      ) {
+        Thread.sleep(unfinishedTasksRetryDelayMillis)
+      } else {
+        failOn(response.getStatus, response.getBody, "delete warehouse")
+      }
     }
   }
+
+  /** Lakekeeper's "purge queue still draining" conflict — the only retried error. */
+  private def isUnfinishedTasksConflict(status: Int, body: String): Boolean =
+    status == 409 && (try {
+      mapper.readTree(body).path("error").path("type").asText() == "WarehouseHasUnfinishedTasks"
+    } catch {
+      case _: Exception => false
+    })
 
   /** Top-level namespaces in the warehouse. Texera's execution namespaces are single-level. */
   private def listNamespaces(warehouseId: UUID): List[String] =
