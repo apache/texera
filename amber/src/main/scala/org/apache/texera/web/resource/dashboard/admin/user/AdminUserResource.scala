@@ -148,7 +148,7 @@ class AdminUserResource {
 
   /**
     * Create an empty row for an admin to fill in.
-   *
+    *
     * The row is deliberately *not* marked `is_placeholder`, though an unclaimed stub is arguably
     * what it is. That reclassification has its own consequences — `DatasetAccessResource` refuses
     * to share with a placeholder, so an admin could no longer pre-share with the address before
