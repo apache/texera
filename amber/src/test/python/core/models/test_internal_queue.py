@@ -89,24 +89,6 @@ class TestInternalQueue:
     def ecm_element(channel):
         return ECMElement(tag=channel, payload=EmbeddedControlMessage())
 
-    @staticmethod
-    def start_consumer(queue):
-        """Start a helper thread doing one blocking queue.get().
-
-        Returns the thread and the list it appends the taken element to, so a
-        test can assert that nothing is handed out (thread still alive, list
-        empty) without depending on which sub-queue the selection strategy
-        happens to visit first.
-
-        The thread is a daemon: a failing assertion can leave it blocked in
-        get() forever, and a non-daemon thread would then hang interpreter
-        shutdown instead of letting the run report the failure.
-        """
-        taken = []
-        thread = threading.Thread(target=lambda: taken.append(queue.get()), daemon=True)
-        thread.start()
-        return thread, taken
-
     def test_it_can_init(self, queue):
         assert queue.is_empty()
         assert queue.is_control_empty()
@@ -384,223 +366,22 @@ class TestInternalQueue:
         assert queue.get() is blocked
         assert queue.is_empty()
 
-    # Regression tests below: a data channel whose sub-queue is created lazily
-    # (on the channel's first put) while disable_data is in effect comes up
-    # ENABLED, because ECMs ride data channels and an ECM landing first on
-    # such a channel must still be delivered. DataElements are instead
-    # withheld on the way out of get(): the channel is closed and the element
-    # is pushed back to the head of its own sub-queue, so a paused or
-    # backpressured worker never consumes data, nothing is lost or reordered,
-    # and is_data_enabled() stays False for the whole disabled period.
+    # Regression tests below: data channels whose sub-queue is created lazily
+    # (on the channel's first put) AFTER disable_data has been called must
+    # come up disabled — a paused or backpressured worker must not be able to
+    # dequeue data from them, and is_data_enabled() must not flip back to
+    # True just because a new channel delivered its first message.
 
-    @pytest.mark.timeout(2)
-    @pytest.mark.parametrize(
-        "disable_type",
-        [
-            InternalQueue.DisableType.DISABLE_BY_PAUSE,
-            InternalQueue.DisableType.DISABLE_BY_BACKPRESSURE,
-        ],
-    )
-    def test_ecm_first_on_a_channel_registered_mid_disable_is_delivered(
-        self, queue, data_channel, disable_type
-    ):
-        # The must-fix: ECMs travel on data channels, so a reconfiguration ECM
-        # that is the FIRST-EVER message of a channel registered mid-pause has
-        # to come out; otherwise it is never acked and the coordinator's await
-        # expires. The timeout turns a regression into a failure, not a hang.
-        queue.disable_data(disable_type)
-        ecm = self.ecm_element(data_channel)
-        queue.put(ecm)
-        assert queue.get() is ecm
-
-    @pytest.mark.timeout(10)
-    @pytest.mark.parametrize(
-        "first_element_kind, expected_delivered",
-        [
-            ("data", False),
-            ("ecm", True),
-            ("dcm", True),
-        ],
-    )
-    def test_first_element_kind_decides_delivery_mid_disable(
-        self,
-        queue,
-        data_channel,
-        first_element_kind,
-        expected_delivered,
-    ):
-        # The matrix dimension that matters is the ELEMENT kind, not just the
-        # channel kind: on a data channel registered mid-disable, only a
-        # DataElement is withheld; control-carrying elements flow. The dcm case
-        # is a type gate rather than a real message shape, since a DCMElement
-        # is never tagged with a data channel in production.
-        first = {
-            "data": self.data_element,
-            "ecm": self.ecm_element,
-            "dcm": self.dcm_element,
-        }[first_element_kind](data_channel)
-        queue.disable_data(InternalQueue.DisableType.DISABLE_BY_PAUSE)
-        queue.put(first)  # the channel's first-ever message, mid-disable
-
-        consumer, taken = self.start_consumer(queue)
-        consumer.join(1)
-        if expected_delivered:
-            assert not consumer.is_alive()
-            assert taken[0] is first
-        else:
-            # withheld: nothing is handed out, and the channel is closed
-            assert consumer.is_alive()
-            assert taken == []
-            assert not queue._queue.is_enabled(data_channel)
-            assert queue.size_data() == 1
-            # released only on resume
-            assert queue.enable_data(InternalQueue.DisableType.DISABLE_BY_PAUSE)
-            consumer.join(5)
-            assert not consumer.is_alive()
-            assert taken[0] is first
-
-    @pytest.mark.timeout(10)
-    def test_data_first_on_a_channel_registered_mid_disable_is_withheld(
-        self, queue, control_channel, data_channel
-    ):
-        # A DataElement handed to get() while data is disabled must be put
-        # back, not consumed: the channel closes, the element stays queued and
-        # keeps its place, and everything queued behind it follows in FIFO
-        # order once data is re-enabled.
-        queue.disable_data(InternalQueue.DisableType.DISABLE_BY_PAUSE)
-        data_elements = [self.data_element(data_channel) for _ in range(3)]
-        dcm = self.dcm_element(control_channel)
-        queue.put(data_elements[0])
-        queue.put(dcm)
-        in_mem_size_before = queue.in_mem_size()
-
-        # only the control traffic is handed out; this get() is already where
-        # the data element is withheld, closing its channel and leaving it
-        # queued in place before the DCM is returned
-        assert queue.get() is dcm
-        # so a consumer coming back for more now gets nothing
-        consumer, taken = self.start_consumer(queue)
-        consumer.join(1)
-        assert consumer.is_alive()
-        assert taken == []
-        assert not queue._queue.is_enabled(data_channel)
-        assert not queue.is_data_enabled()
-        assert queue.size_data() == 1
-        assert queue.in_mem_size() == in_mem_size_before
-
-        # more data arrives on the now-closed channel and queues up behind it
-        queue.put(data_elements[1])
-        queue.put(data_elements[2])
-        assert queue.size_data() == 3
-        assert consumer.is_alive()
-
-        assert queue.enable_data(InternalQueue.DisableType.DISABLE_BY_PAUSE)
-        assert queue.is_data_enabled()
-        consumer.join(5)
-        assert not consumer.is_alive()
-        # FIFO is preserved across the withhold: the released element is the
-        # one that was put back, and the later ones follow it
-        results = taken + [queue.get() for _ in range(2)]
-        assert all(got is put for got, put in zip(results, data_elements))
-        assert queue.is_empty()
-        assert queue.in_mem_size() == 0
-
-    @pytest.mark.timeout(2)
-    def test_an_ecm_queued_behind_withheld_data_is_delayed_until_resume(
-        self, queue, control_channel, data_channel
-    ):
-        # KNOWN, PRE-EXISTING LIMITATION, asserted so nobody "fixes" it
-        # silently: withholding a DataElement closes its channel, which also
-        # holds back an ECM queued behind it on that SAME channel. Per-channel
-        # FIFO, "no data while paused" and "deliver ECMs immediately" cannot
-        # all hold once data comes first, short of unbounded buffering that
-        # would defeat backpressure. main behaves the same way for a channel
-        # already disabled by disable_data.
-        queue.disable_data(InternalQueue.DisableType.DISABLE_BY_PAUSE)
-        data = self.data_element(data_channel)
-        ecm = self.ecm_element(data_channel)
-        dcm = self.dcm_element(control_channel)
-        queue.put(data)
-        queue.put(ecm)
-        queue.put(dcm)
-        assert queue.get() is dcm
-        # the ECM does not overtake the withheld data element in front of it
-        consumer, taken = self.start_consumer(queue)
-        consumer.join(1)
-        assert consumer.is_alive()
-        assert taken == []
-        assert not queue._queue.is_enabled(data_channel)
-        assert queue.size_data() == 2
-        # both are released, in order, on resume
-        assert queue.enable_data(InternalQueue.DisableType.DISABLE_BY_PAUSE)
-        consumer.join(5)
-        assert not consumer.is_alive()
-        assert taken[0] is data
-        assert queue.get() is ecm
-
-    @pytest.mark.timeout(2)
-    def test_is_data_enabled_stays_false_while_a_disable_reason_is_active(
-        self, queue, data_channel, second_data_channel
-    ):
-        # main_loop's pause wait-loop spins while `not is_control_empty() or
-        # not is_data_enabled()`, so a channel registering mid-pause must not
-        # make is_data_enabled() flip back to True and let the loop exit.
-        queue.put(self.data_element(data_channel))
-        queue.disable_data(InternalQueue.DisableType.DISABLE_BY_PAUSE)
-        assert not queue.is_data_enabled()
-        # a brand-new channel's first-ever message arrives mid-pause
-        queue.put(self.data_element(second_data_channel))
-        assert not queue.is_data_enabled()
-        queue.disable_data(InternalQueue.DisableType.DISABLE_BY_BACKPRESSURE)
-        # one reason cleared, one still active
-        assert not queue.enable_data(InternalQueue.DisableType.DISABLE_BY_PAUSE)
-        assert not queue.is_data_enabled()
-        assert queue.enable_data(InternalQueue.DisableType.DISABLE_BY_BACKPRESSURE)
-        assert queue.is_data_enabled()
-
-    @pytest.mark.timeout(5)
-    def test_a_resume_racing_a_withhold_does_not_strand_the_channel(
+    def test_channel_registered_after_disable_comes_up_disabled(
         self, queue, data_channel
     ):
-        # An element taken while data is disabled, with the last disable
-        # reason cleared before the withhold takes effect, must still be
-        # handed out. Closing the channel at that point would leave it closed
-        # with no reason left for enable_data to clear, stranding that channel
-        # for good. The patched get() places the resume exactly in the window
-        # between the element leaving the multi-queue and the withhold
-        # acquiring the lock, which is too narrow to hit reliably by racing
-        # real threads.
-        data = self.data_element(data_channel)
+        # the main regression: disable first, then the channel's FIRST put
         queue.disable_data(InternalQueue.DisableType.DISABLE_BY_PAUSE)
-        queue.put(data)  # registers the channel, so put() needs no lock later
-
-        class ResumingLock:
-            """Resumes once, when get() takes the lock to withhold."""
-
-            def __init__(self, inner):
-                self.inner = inner
-                self.fired = False
-
-            def __enter__(self):
-                if not self.fired:
-                    self.fired = True
-                    queue.enable_data(InternalQueue.DisableType.DISABLE_BY_PAUSE)
-                return self.inner.__enter__()
-
-            def __exit__(self, *exc_info):
-                return self.inner.__exit__(*exc_info)
-
-        real_lock = queue._lock
-        queue._lock = ResumingLock(real_lock)
-        try:
-            assert queue.get() is data
-        finally:
-            queue._lock = real_lock
-        # the channel is still open afterwards
-        later = self.data_element(data_channel)
-        queue.put(later)
-        assert queue.get() is later
-        assert queue.is_empty()
+        queue.put(self.data_element(data_channel))
+        assert not queue.is_data_enabled()
+        # the element stays queued but must not be dequeuable
+        assert queue.size_data() == 1
+        assert queue._queue.peek() is None
 
     @pytest.mark.timeout(2)
     def test_enable_data_releases_a_channel_registered_mid_disable(
@@ -615,36 +396,22 @@ class TestInternalQueue:
         assert queue.get() is data
         assert queue.is_empty()
 
-    @pytest.mark.timeout(10)
-    def test_channel_registered_under_stacked_disables_stays_withheld(
-        self, queue, control_channel, data_channel
+    @pytest.mark.timeout(2)
+    def test_channel_registered_under_stacked_disables_stays_disabled(
+        self, queue, data_channel
     ):
         queue.disable_data(InternalQueue.DisableType.DISABLE_BY_PAUSE)
         queue.disable_data(InternalQueue.DisableType.DISABLE_BY_BACKPRESSURE)
         data = self.data_element(data_channel)
-        dcm = self.dcm_element(control_channel)
         queue.put(data)
-        queue.put(dcm)
-        # this get() withholds the data element and closes its channel before
-        # returning the control element
-        assert queue.get() is dcm
-        # so nothing further is handed out while both reasons are active
-        consumer, taken = self.start_consumer(queue)
-        consumer.join(1)
-        assert consumer.is_alive()
-        assert queue._queue.peek() is None
         # releasing only one of the two reasons must not open the channel
         assert not queue.enable_data(InternalQueue.DisableType.DISABLE_BY_PAUSE)
         assert not queue.is_data_enabled()
         assert queue._queue.peek() is None
-        assert consumer.is_alive()
-        assert taken == []
         # releasing the remaining reason makes the element dequeuable
         assert queue.enable_data(InternalQueue.DisableType.DISABLE_BY_BACKPRESSURE)
         assert queue.is_data_enabled()
-        consumer.join(5)
-        assert not consumer.is_alive()
-        assert taken[0] is data
+        assert queue.get() is data
 
     @pytest.mark.timeout(2)
     def test_control_channel_registered_mid_disable_is_never_blocked(
@@ -687,20 +454,15 @@ class TestInternalQueue:
         assert queue.get() is data
         assert queue.is_empty()
 
-    @pytest.mark.timeout(30)
-    def test_concurrent_consumption_while_toggling_disable_loses_nothing(self, queue):
-        # Receiver threads register brand-new data channels and keep putting
-        # while a consumer thread drains through get() and the DP-thread side
-        # toggles disable_data/enable_data. Every element must come out
-        # exactly once: the withhold path must neither drop an element nor
-        # hand the same one out twice, and an element withheld just as the
-        # last disable reason clears must not be stranded in a closed channel.
+    @pytest.mark.timeout(10)
+    def test_concurrent_first_time_puts_while_toggling_disable(self, queue):
+        # concurrency smoke test: receiver threads register brand-new data
+        # channels while the DP thread toggles disable_data/enable_data;
+        # only the final state is asserted, deterministically.
         n_threads = 8
         elements_per_thread = 25
-        total = n_threads * elements_per_thread
         start_barrier = threading.Barrier(n_threads + 1)
         errors = []
-        consumed = []
 
         def producer(thread_index):
             channel = ChannelIdentity(
@@ -715,53 +477,49 @@ class TestInternalQueue:
             except Exception as exc:  # pragma: no cover - failure path
                 errors.append(exc)
 
-        def consumer():
-            try:
-                while len(consumed) < total:
-                    consumed.append(queue.get())
-            except Exception as exc:  # pragma: no cover - failure path
-                errors.append(exc)
-
         threads = [
             threading.Thread(target=producer, args=(i,)) for i in range(n_threads)
         ]
-        consumer_thread = threading.Thread(target=consumer, daemon=True)
         for thread in threads:
             thread.start()
-        consumer_thread.start()
         start_barrier.wait()
         for _ in range(5):
             queue.disable_data(InternalQueue.DisableType.DISABLE_BY_PAUSE)
             queue.enable_data(InternalQueue.DisableType.DISABLE_BY_PAUSE)
         for thread in threads:
             thread.join()
-        # release whatever the last toggle left withheld
-        queue.enable_data(InternalQueue.DisableType.DISABLE_BY_PAUSE)
-        consumer_thread.join(20)
+        # one last full cycle after all puts settled: every channel must be
+        # disabled, then re-enabled with its count added back exactly once
+        queue.disable_data(InternalQueue.DisableType.DISABLE_BY_PAUSE)
+        assert not queue.is_data_enabled()
+        assert queue._queue.peek() is None
+        assert queue.enable_data(InternalQueue.DisableType.DISABLE_BY_PAUSE)
 
         assert not errors
-        assert not consumer_thread.is_alive()
-        assert len(consumed) == total
-        # identity, not equality: the elements are equal by value, so only
-        # identity can prove none was handed out twice
-        assert len({id(element) for element in consumed}) == total
+        total = n_threads * elements_per_thread
+        assert queue.is_data_enabled()
+        assert queue.size_data() == total
+        # size() is the getable total_count: a mismatch with size_data()
+        # means an element was double-counted or lost by a toggle race
+        assert queue.size() == total
+        drained = 0
+        while queue._queue.peek() is not None:
+            queue.get()
+            drained += 1
+        assert drained == total
         assert queue.is_empty()
-        assert queue.size_data() == 0
-        assert queue.in_mem_size() == 0
 
     @pytest.mark.timeout(30)
     def test_concurrent_first_time_puts_racing_disable_enable_toggles(self):
         # Receiver threads deliver first-ever messages on distinct new data
-        # channels while the DP-thread side toggles pause on and off. Only the
-        # final state is asserted (deterministic): with a disable reason still
-        # active a consumer must not obtain anything, and after the final
-        # enable_data every element comes out exactly once, so the withhold
-        # path kept total_count and the per-channel accounting exact.
+        # channels while the DP-thread side toggles pause on and off. Only
+        # the final state is asserted (deterministic): with the queue left
+        # disabled, nothing is dequeuable; after the final enable_data every
+        # element is dequeuable exactly once, so total_count stayed exact.
         threads, channels_per_thread, toggles = 4, 10, 10
         for _ in range(5):
             queue = InternalQueue()
             errors = []
-            consumed = []
             start = threading.Barrier(threads + 1)
 
             def producer(thread_id):
@@ -793,29 +551,44 @@ class TestInternalQueue:
             assert errors == []
             total = threads * channels_per_thread
             assert queue.size_data() == total
+            assert queue._queue.peek() is None
             assert not queue.is_data_enabled()
-
-            # a consumer started while the queue is disabled withholds every
-            # data element it is offered and then blocks
-            consumer_thread = threading.Thread(
-                target=lambda: consumed.append(queue.get()), daemon=True
-            )
-            consumer_thread.start()
-            consumer_thread.join(0.5)
-            assert consumer_thread.is_alive()
-            assert consumed == []
-            # nothing was lost by the withholding
-            assert queue.size_data() == total
-
             assert queue.enable_data(InternalQueue.DisableType.DISABLE_BY_PAUSE)
-            consumer_thread.join(5)
-            assert not consumer_thread.is_alive()
-            dequeued = len(consumed)
+            dequeued = 0
             while queue._queue.peek() is not None:
                 queue.get()
                 dequeued += 1
             assert dequeued == total
-            assert errors == []
+
+    @pytest.mark.timeout(2)
+    @pytest.mark.parametrize(
+        "disable_type",
+        [
+            InternalQueue.DisableType.DISABLE_BY_PAUSE,
+            InternalQueue.DisableType.DISABLE_BY_BACKPRESSURE,
+        ],
+    )
+    def test_ecm_first_on_a_channel_registered_mid_disable_is_delayed_until_resume(
+        self, queue, data_channel, disable_type
+    ):
+        # ECMs ride data channels, so an ECM arriving as the first-ever
+        # message of a channel registered mid-disable is held back with the
+        # channel. This is the engine's intended semantics: reconfigurations
+        # submitted while paused take effect on resume
+        # (ExecutionReconfigurationService), matching the JVM DPThread, which
+        # refuses ALL data-channel traffic — ECMs included — while paused.
+        # The ECM is delayed, not dropped. Misreading exactly this behavior
+        # as an engine deadlock once cost a full redesign of this queue,
+        # hence this pin.
+        queue.disable_data(disable_type)
+        ecm = self.ecm_element(data_channel)
+        queue.put(ecm)  # the channel's first-ever message
+        assert not queue.is_data_enabled()
+        assert queue._queue.peek() is None
+        # the ECM sits in a data sub-queue, so it counts towards size_data
+        assert queue.size_data() == 1
+        assert queue.enable_data(disable_type)
+        assert queue.get() is ecm
 
     # Regression tests below: the per-category query methods iterate
     # _queue_ids, which put() grows on a channel's first message. Iterating

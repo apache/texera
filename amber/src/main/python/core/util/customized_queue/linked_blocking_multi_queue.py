@@ -106,14 +106,6 @@ class LinkedBlockingMultiQueue(IKeyedQueue):
             self.last = node
             self.in_mem_size.inc(node.in_mem_size)
 
-        def enqueue_first(self, node: LinkedBlockingMultiQueue.Node[T]) -> None:
-            # head is a sentinel, so the first real element is head.next
-            node.next = self.head.next
-            self.head.next = node
-            if self.last is self.head:
-                self.last = node
-            self.in_mem_size.inc(node.in_mem_size)
-
         def dequeue(self) -> T:
             assert self.size() > 0
             h = self.head
@@ -153,26 +145,6 @@ class LinkedBlockingMultiQueue(IKeyedQueue):
                     old_size = self.owner.total_count.get_and_inc()
             finally:
                 self.put_lock.release()
-
-            if old_size == 0:
-                self.owner._signal_not_empty()
-
-        def put_first(self, obj: T) -> None:
-            # Same accounting as put(), but the element goes to the head of
-            # the SubQueue. It takes both locks because it mutates head.next,
-            # which dequeue() also mutates (same reasoning as remove()).
-            if obj is None:
-                raise ValueError("Does not support NoneType.")
-            old_size = -1
-            node = LinkedBlockingMultiQueue.Node(obj)
-            self.fully_lock()
-            try:
-                self.enqueue_first(node)
-                self.count.inc()
-                if self.enabled:
-                    old_size = self.owner.total_count.get_and_inc()
-            finally:
-                self.fully_unlock()
 
             if old_size == 0:
                 self.owner._signal_not_empty()
@@ -326,19 +298,6 @@ class LinkedBlockingMultiQueue(IKeyedQueue):
         :return: None
         """
         self.get_sub_queue(key).put(item)
-
-    def put_first(self, key: K, item: T) -> None:
-        """
-        Put one item at the head of the SubQueue specified by the key, so that
-        it is the next item that SubQueue hands out. Used to return an item
-        that was taken but must not be consumed yet.
-
-        :param key: the identifier of a SubQueue.
-        :param item: Any instance.
-        :raises KeyError for non-existing keys.
-        :return: None
-        """
-        self.get_sub_queue(key).put_first(item)
 
     def get(self) -> T:
         """
