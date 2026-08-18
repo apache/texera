@@ -33,7 +33,7 @@ import scala.jdk.CollectionConverters.IteratorHasAsScala
   * Client for the Lakekeeper APIs used to manage per-user warehouses (#6870).
   *
   * Two API families are involved: the **management** API (`/management/v1/...`) creates and
-  * deletes warehouse entities, and the **catalog** API (`/catalog/v1/{warehouseId}/...`) lists
+  * deletes warehouse entities, and the **catalog** API (`/catalog/v1/{lakekeeperWarehouseId}/...`) lists
   * and drops the namespaces/tables inside one. The channel is unauthenticated today;
   * catalog-side authentication is Phase 2 (#6040).
   *
@@ -103,15 +103,15 @@ class LakekeeperClient(catalogUri: String = StorageConfig.icebergRESTCatalogUri)
     * purged along with it, matching how execution results are deleted today — then the
     * namespaces, then the warehouse entity itself.
     */
-  def deleteWarehouseEmptyFirst(warehouseId: UUID): Unit = {
+  def deleteWarehouseEmptyFirst(lakekeeperWarehouseId: UUID): Unit = {
     // 404 anywhere below means the entity is already gone — the goal state. Tolerating
     // it makes this method idempotent, so a retry after a partial failure (e.g. the DB
     // delete failing after the Lakekeeper delete succeeded) heals instead of wedging.
-    listNamespaces(warehouseId).foreach { namespace =>
-      listTables(warehouseId, namespace).foreach { table =>
+    listNamespaces(lakekeeperWarehouseId).foreach { namespace =>
+      listTables(lakekeeperWarehouseId, namespace).foreach { table =>
         val response = Unirest
           .delete(
-            s"$catalogBase/$warehouseId/namespaces/${urlEncode(namespace)}/tables/${urlEncode(table)}"
+            s"$catalogBase/$lakekeeperWarehouseId/namespaces/${urlEncode(namespace)}/tables/${urlEncode(table)}"
           )
           .queryString("purgeRequested", "true")
           .asString()
@@ -120,27 +120,29 @@ class LakekeeperClient(catalogUri: String = StorageConfig.icebergRESTCatalogUri)
         }
       }
       val response = Unirest
-        .delete(s"$catalogBase/$warehouseId/namespaces/${urlEncode(namespace)}")
+        .delete(s"$catalogBase/$lakekeeperWarehouseId/namespaces/${urlEncode(namespace)}")
         .asString()
       if (response.getStatus != 404) {
         failOn(response.getStatus, response.getBody, s"drop namespace '$namespace'")
       }
     }
-    val response = Unirest.delete(s"$managementBase/warehouse/$warehouseId").asString()
+    val response = Unirest.delete(s"$managementBase/warehouse/$lakekeeperWarehouseId").asString()
     if (response.getStatus != 404) {
       failOn(response.getStatus, response.getBody, "delete warehouse")
     }
   }
 
   /** Top-level namespaces in the warehouse. Texera's execution namespaces are single-level. */
-  private def listNamespaces(warehouseId: UUID): List[String] =
-    fetchAllPages(s"$catalogBase/$warehouseId/namespaces", "namespaces", "list namespaces")(parts =>
-      parts.get(0).asText()
-    )
-
-  private def listTables(warehouseId: UUID, namespace: String): List[String] =
+  private def listNamespaces(lakekeeperWarehouseId: UUID): List[String] =
     fetchAllPages(
-      s"$catalogBase/$warehouseId/namespaces/${urlEncode(namespace)}/tables",
+      s"$catalogBase/$lakekeeperWarehouseId/namespaces",
+      "namespaces",
+      "list namespaces"
+    )(parts => parts.get(0).asText())
+
+  private def listTables(lakekeeperWarehouseId: UUID, namespace: String): List[String] =
+    fetchAllPages(
+      s"$catalogBase/$lakekeeperWarehouseId/namespaces/${urlEncode(namespace)}/tables",
       "identifiers",
       s"list tables of '$namespace'"
     )(identifier => identifier.get("name").asText())

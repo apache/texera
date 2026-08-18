@@ -353,7 +353,7 @@ class SyncExecutionResourceSpec
         workflowSettings = WorkflowSettings(),
         emailNotificationEnabled = false,
         computingUnitId = testCuid,
-        warehouseId = None
+        whid = None
       ),
       stateStore,
       (_: Throwable) => (),

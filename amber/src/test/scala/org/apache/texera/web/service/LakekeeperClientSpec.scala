@@ -42,7 +42,7 @@ class LakekeeperClientSpec
     with BeforeAndAfterEach {
 
   private val mapper = new ObjectMapper()
-  private val warehouseId = UUID.randomUUID()
+  private val lakekeeperWarehouseId = UUID.randomUUID()
 
   // Every request in arrival order, as "METHOD path?query" plus the body for POSTs.
   private val requests = mutable.Buffer[String]()
@@ -71,14 +71,14 @@ class LakekeeperClientSpec
       record(exchange)
       if (exchange.getRequestMethod == "POST") {
         lastCreateBody = new String(exchange.getRequestBody.readAllBytes(), StandardCharsets.UTF_8)
-        respond(exchange, 201, s"""{"warehouse-id": "$warehouseId"}""")
+        respond(exchange, 201, s"""{"warehouse-id": "$lakekeeperWarehouseId"}""")
       } else {
         respond(exchange, 200, "{}")
       }
     }
   )
   server.createContext(
-    s"/catalog/v1/$warehouseId/namespaces",
+    s"/catalog/v1/$lakekeeperWarehouseId/namespaces",
     (exchange: HttpExchange) => {
       val line = record(exchange)
       val query = Option(exchange.getRequestURI.getQuery).getOrElse("")
@@ -129,7 +129,7 @@ class LakekeeperClientSpec
   override protected def afterAll(): Unit = server.stop(0)
 
   "createWarehouse" should "post the Local storage profile and return the assigned id" in {
-    client.createWarehouse("user-7-mybucket") shouldBe warehouseId
+    client.createWarehouse("user-7-mybucket") shouldBe lakekeeperWarehouseId
 
     val payload = mapper.readTree(lastCreateBody)
     payload.get("warehouse-name").asText() shouldBe "user-7-mybucket"
@@ -143,14 +143,14 @@ class LakekeeperClientSpec
   }
 
   "deleteWarehouseEmptyFirst" should "purge every page of tables, then namespaces, then the warehouse" in {
-    client.deleteWarehouseEmptyFirst(warehouseId)
+    client.deleteWarehouseEmptyFirst(lakekeeperWarehouseId)
 
     val deletes = requests.synchronized { requests.filter(_.startsWith("DELETE")).toList }
     deletes shouldBe List(
-      s"DELETE /catalog/v1/$warehouseId/namespaces/operator-port-result/tables/wid_1_eid_2_result?purgeRequested=true",
-      s"DELETE /catalog/v1/$warehouseId/namespaces/operator-port-result/tables/wid_1_eid_3_result?purgeRequested=true",
-      s"DELETE /catalog/v1/$warehouseId/namespaces/operator-port-result",
-      s"DELETE /management/v1/warehouse/$warehouseId"
+      s"DELETE /catalog/v1/$lakekeeperWarehouseId/namespaces/operator-port-result/tables/wid_1_eid_2_result?purgeRequested=true",
+      s"DELETE /catalog/v1/$lakekeeperWarehouseId/namespaces/operator-port-result/tables/wid_1_eid_3_result?purgeRequested=true",
+      s"DELETE /catalog/v1/$lakekeeperWarehouseId/namespaces/operator-port-result",
+      s"DELETE /management/v1/warehouse/$lakekeeperWarehouseId"
     )
   }
 

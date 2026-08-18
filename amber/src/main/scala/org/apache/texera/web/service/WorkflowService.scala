@@ -77,27 +77,27 @@ object WorkflowService {
     * loudly rather than silently routed into the shared warehouse (#6930).
     */
   def resolveLakekeeperWarehouseName(
-      warehouseId: Option[Int],
+      whid: Option[Int],
       uid: Integer,
       enabled: Boolean = StorageConfig.warehouseEnabled
   ): Option[String] = {
     if (!enabled) {
-      warehouseId.foreach(_ =>
+      whid.foreach(_ =>
         throw new IllegalArgumentException(
           "per-user warehouses are disabled in this deployment"
         )
       )
       return None
     }
-    warehouseId.map(whid => {
+    whid.map(id => {
       val row = SqlServer
         .getInstance()
         .createDSLContext()
         .selectFrom(USER_WAREHOUSE)
-        .where(USER_WAREHOUSE.WHID.eq(whid).and(USER_WAREHOUSE.UID.eq(uid)))
+        .where(USER_WAREHOUSE.WHID.eq(id).and(USER_WAREHOUSE.UID.eq(uid)))
         .fetchOne()
       if (row == null) {
-        throw new IllegalArgumentException(s"no warehouse with id $whid owned by this user")
+        throw new IllegalArgumentException(s"no warehouse with id $id owned by this user")
       }
       row.getLakekeeperWarehouseName
     })
@@ -233,7 +233,7 @@ class WorkflowService(
     )
 
     val workflowContext: WorkflowContext = createWorkflowContext()
-    workflowContext.warehouse = WorkflowService.resolveLakekeeperWarehouseName(req.warehouseId, uid)
+    workflowContext.warehouse = WorkflowService.resolveLakekeeperWarehouseName(req.whid, uid)
     var coordinatorConf = CoordinatorConfig.default
 
     // clean up results from previous run
@@ -249,7 +249,7 @@ class WorkflowService(
       req.executionName,
       convertToJson(req.engineVersion),
       req.computingUnitId,
-      req.warehouseId
+      req.whid
     )
 
     if (ApplicationConfig.faultToleranceLogRootFolder.isDefined) {

@@ -68,9 +68,9 @@ class WarehouseResourceSpec
       createdNames += warehouseName
       stubWarehouseId
     }
-    override def deleteWarehouseEmptyFirst(warehouseId: UUID): Unit = {
+    override def deleteWarehouseEmptyFirst(lakekeeperWarehouseId: UUID): Unit = {
       deleteFailure.foreach(throw _)
-      deletedIds += warehouseId
+      deletedIds += lakekeeperWarehouseId
     }
   }
 

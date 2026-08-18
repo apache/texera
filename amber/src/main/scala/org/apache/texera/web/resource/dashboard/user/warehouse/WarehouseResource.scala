@@ -149,7 +149,7 @@ class WarehouseResource(client: LakekeeperClient, enabled: Boolean) extends Lazy
     )
     val lakekeeperWarehouseName = s"user-$uid-$whid"
     // Create in Lakekeeper first, record after: a failed creation leaves no orphaned row.
-    val warehouseId =
+    val lakekeeperWarehouseId =
       try {
         client.createWarehouse(lakekeeperWarehouseName)
       } catch {
@@ -162,7 +162,7 @@ class WarehouseResource(client: LakekeeperClient, enabled: Boolean) extends Lazy
     row.setUid(uid)
     row.setName(name)
     row.setLakekeeperWarehouseName(lakekeeperWarehouseName)
-    row.setLakekeeperWarehouseId(warehouseId)
+    row.setLakekeeperWarehouseId(lakekeeperWarehouseId)
     row.setFlavor(UserWarehouseFlavorEnum.local)
     row.setS3Bucket(StorageConfig.icebergRESTCatalogS3Bucket)
     row.setS3Endpoint(StorageConfig.s3Endpoint)
@@ -176,11 +176,11 @@ class WarehouseResource(client: LakekeeperClient, enabled: Boolean) extends Lazy
         // Compensate: without the row the user could neither list nor delete the
         // just-created warehouse, so remove it (it is empty at this point).
         try {
-          client.deleteWarehouseEmptyFirst(warehouseId)
+          client.deleteWarehouseEmptyFirst(lakekeeperWarehouseId)
         } catch {
           case cleanup: Exception =>
             logger.error(
-              s"failed to clean up Lakekeeper warehouse $warehouseId after a failed create",
+              s"failed to clean up Lakekeeper warehouse $lakekeeperWarehouseId after a failed create",
               cleanup
             )
         }
