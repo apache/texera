@@ -25,7 +25,7 @@ import org.apache.texera.amber.core.storage.VFSURIFactory
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.common.config.StorageConfig
 import org.apache.texera.dao.SqlServer
-import org.apache.texera.dao.jooq.generated.Tables.USER_WAREHOUSE
+import org.apache.texera.dao.jooq.generated.Tables.{USER, USER_WAREHOUSE}
 import org.apache.texera.dao.jooq.generated.enums.UserWarehouseFlavorEnum
 import org.apache.texera.dao.jooq.generated.tables.records.UserWarehouseRecord
 import org.apache.texera.web.resource.dashboard.user.warehouse.WarehouseResource._
@@ -34,6 +34,7 @@ import org.apache.texera.web.service.LakekeeperClient
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
+import scala.jdk.CollectionConverters.ListHasAsScala
 
 object WarehouseResource {
   private def context =
@@ -53,16 +54,47 @@ object WarehouseResource {
       name: String,
       warehouseName: String,
       flavor: String,
-      createdAtMillis: Long
+      createdAtMillis: Long,
+      // Owner display info, mirroring DashboardWorkflowComputingUnit: today every
+      // warehouse belongs to the caller, but the UI binds to the entry rather than
+      // the session user so shared warehouses render the right person (#7743).
+      ownerName: String,
+      ownerAvatar: String
   )
 
-  private def toDashboardWarehouse(row: UserWarehouseRecord): DashboardWarehouse =
+  // (name, avatar) per uid; null when the user has no name / avatar set, matching
+  // how computing units resolve their owner info.
+  private def resolveOwners(uids: Seq[Integer]): Map[Integer, (String, String)] =
+    if (uids.isEmpty) Map.empty
+    else
+      context
+        .select(USER.UID, USER.NAME, USER.AVATAR)
+        .from(USER)
+        .where(USER.UID.in(uids: _*))
+        .fetch()
+        .asScala
+        .map(r =>
+          r.get(USER.UID) -> (
+            (
+              Option(r.get(USER.NAME)).filter(_.nonEmpty).orNull,
+              Option(r.get(USER.AVATAR)).filter(_.nonEmpty).orNull
+            )
+          )
+        )
+        .toMap
+
+  private def toDashboardWarehouse(
+      row: UserWarehouseRecord,
+      owner: (String, String)
+  ): DashboardWarehouse =
     DashboardWarehouse(
       row.getWhid,
       row.getName,
       row.getWarehouseName,
       row.getFlavor.getLiteral,
-      row.getCreatedAt.toInstant.toEpochMilli
+      row.getCreatedAt.toInstant.toEpochMilli,
+      ownerName = owner._1,
+      ownerAvatar = owner._2
     )
 
   case class WarehouseStatus(enabled: Boolean, warehouses: List[DashboardWarehouse])
@@ -94,15 +126,18 @@ class WarehouseResource(client: LakekeeperClient, enabled: Boolean) extends Lazy
     if (!enabled) {
       return WarehouseStatus(enabled = false, warehouses = List())
     }
-    val warehouses = context
+    val rows = context
       .selectFrom(USER_WAREHOUSE)
       .where(USER_WAREHOUSE.UID.eq(current_user.getUid))
       .orderBy(USER_WAREHOUSE.CREATED_AT.asc())
       .fetch()
-      .map(row => toDashboardWarehouse(row))
+      .asScala
+      .toList
+    val owners = resolveOwners(rows.map(_.getUid).distinct)
     WarehouseStatus(
       enabled = true,
-      warehouses = warehouses.toArray(Array[DashboardWarehouse]()).toList
+      warehouses =
+        rows.map(row => toDashboardWarehouse(row, owners.getOrElse(row.getUid, (null, null))))
     )
   }
 
@@ -169,7 +204,7 @@ class WarehouseResource(client: LakekeeperClient, enabled: Boolean) extends Lazy
         }
         throw new WebApplicationException(e.getMessage, 500)
     }
-    toDashboardWarehouse(row)
+    toDashboardWarehouse(row, resolveOwners(Seq(uid)).getOrElse(uid, (null, null)))
   }
 
   @DELETE
