@@ -126,7 +126,11 @@ object ResourceAccess {
       .orNull
   }
 
-  /** The owner's email, or an empty string when the resource does not exist. */
+  /**
+    * The owner's email.
+    *
+    * @throws jakarta.ws.rs.ForbiddenException if the caller cannot read the resource.
+    */
   def ownerEmail[R <: Record, A <: Record](
       ctx: DSLContext,
       resource: ManagedResource[R, A],
@@ -137,7 +141,13 @@ object ResourceAccess {
     Option(owner(ctx, resource, id)).map(_.getEmail).getOrElse("")
   }
 
-  /** Everyone the resource is shared with, excluding the owner's own row. */
+  /**
+    * Everyone the resource is shared with, excluding the owner's own row.
+    *
+    * Read access is required rather than write,
+    *
+    * @throws jakarta.ws.rs.ForbiddenException if the caller cannot read the resource.
+    */
   def accessList[R <: Record, A <: Record](
       ctx: DSLContext,
       resource: ManagedResource[R, A],
@@ -263,7 +273,11 @@ object ResourceAccess {
     Response.ok().build()
   }
 
-  /** Removes the user's explicit grant; a no-op when they hold none. */
+  /**
+    * Removes the user's explicit grant; a no-op when they hold none.
+    *
+    * @throws jakarta.ws.rs.ForbiddenException if the caller cannot modify the resource.
+    */
   def revoke[R <: Record, A <: Record](
       ctx: DSLContext,
       resource: ManagedResource[R, A],
