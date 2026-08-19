@@ -21,6 +21,7 @@ package org.apache.texera.web.service
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.sun.net.httpserver.{HttpExchange, HttpServer}
+import org.apache.texera.web.service.LakekeeperClient.PurgeWaitPolicy
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
@@ -57,6 +58,11 @@ class LakekeeperClientSpec
     line
   }
 
+  // How many warehouse deletes have reached the stub for this id, including the one
+  // being served: `record` logs every request before the handler dispatches on it.
+  private def deleteAttempts(id: UUID): Int =
+    requests.synchronized { requests.count(_ == s"DELETE /management/v1/warehouse/$id") }
+
   private def respond(exchange: HttpExchange, status: Int, body: String): Unit = {
     val bytes = body.getBytes(StandardCharsets.UTF_8)
     exchange.getResponseHeaders.add("Content-Type", "application/json")
@@ -74,9 +80,6 @@ class LakekeeperClientSpec
   private val alwaysBusyWarehouseId = UUID.randomUUID()
   private val otherConflictWarehouseId = UUID.randomUUID()
   private val malformedConflictWarehouseId = UUID.randomUUID()
-  @volatile private var malformedDeleteAttempts = 0
-  @volatile private var racingDeleteAttempts = 0
-  @volatile private var busyDeleteAttempts = 0
   private val unfinishedTasksBody =
     """{"error":{"message":"Warehouse has unfinished tasks. Cannot delete warehouse until all tasks are finished.","type":"WarehouseHasUnfinishedTasks","code":409}}"""
 
@@ -84,28 +87,28 @@ class LakekeeperClientSpec
     "/management/v1/warehouse",
     (exchange: HttpExchange) => {
       record(exchange)
-      val path = exchange.getRequestURI.getPath
-      val isDelete = exchange.getRequestMethod == "DELETE"
       if (exchange.getRequestMethod == "POST") {
         lastCreateBody = new String(exchange.getRequestBody.readAllBytes(), StandardCharsets.UTF_8)
         respond(exchange, 201, s"""{"warehouse-id": "$warehouseId"}""")
-      } else if (isDelete && path.endsWith(racingWarehouseId.toString)) {
-        racingDeleteAttempts += 1
-        if (racingDeleteAttempts <= 2) respond(exchange, 409, unfinishedTasksBody)
-        else respond(exchange, 204, "")
-      } else if (isDelete && path.endsWith(alwaysBusyWarehouseId.toString)) {
-        busyDeleteAttempts += 1
-        respond(exchange, 409, unfinishedTasksBody)
-      } else if (isDelete && path.endsWith(malformedConflictWarehouseId.toString)) {
-        // A 409 whose body isn't the JSON envelope the type check reads.
-        malformedDeleteAttempts += 1
-        respond(exchange, 409, "<html>gateway conflict</html>")
-      } else if (isDelete && path.endsWith(otherConflictWarehouseId.toString)) {
-        respond(
-          exchange,
-          409,
-          """{"error":{"message":"warehouse is in use","type":"Conflict","code":409}}"""
-        )
+      } else if (exchange.getRequestMethod == "DELETE") {
+        val path = exchange.getRequestURI.getPath
+        if (path.endsWith(racingWarehouseId.toString)) {
+          if (deleteAttempts(racingWarehouseId) <= 2) respond(exchange, 409, unfinishedTasksBody)
+          else respond(exchange, 204, "")
+        } else if (path.endsWith(alwaysBusyWarehouseId.toString)) {
+          respond(exchange, 409, unfinishedTasksBody)
+        } else if (path.endsWith(malformedConflictWarehouseId.toString)) {
+          // A 409 whose body isn't the JSON envelope the type check reads.
+          respond(exchange, 409, "<html>gateway conflict</html>")
+        } else if (path.endsWith(otherConflictWarehouseId.toString)) {
+          respond(
+            exchange,
+            409,
+            """{"error":{"message":"warehouse is in use","type":"Conflict","code":409}}"""
+          )
+        } else {
+          respond(exchange, 200, "{}")
+        }
       } else {
         respond(exchange, 200, "{}")
       }
@@ -159,16 +162,12 @@ class LakekeeperClientSpec
   // retries keeps the exhaustion case cheap to assert.
   private val retryClient = new LakekeeperClient(
     s"http://localhost:${server.getAddress.getPort}/catalog",
-    unfinishedTasksRetries = 3,
-    unfinishedTasksInitialDelayMillis = 0
+    PurgeWaitPolicy(retries = 3, initialDelayMillis = 0)
   )
 
   override protected def beforeEach(): Unit = {
     requests.synchronized { requests.clear() }
     lastCreateBody = ""
-    racingDeleteAttempts = 0
-    busyDeleteAttempts = 0
-    malformedDeleteAttempts = 0
   }
 
   override protected def afterAll(): Unit = server.stop(0)
@@ -219,7 +218,7 @@ class LakekeeperClientSpec
     // warehouse delete with 409 WarehouseHasUnfinishedTasks twice before the
     // queue "drains" and it returns 204. The delete must ride that out.
     noException should be thrownBy retryClient.deleteWarehouseEmptyFirst(racingWarehouseId)
-    racingDeleteAttempts shouldBe 3
+    deleteAttempts(racingWarehouseId) shouldBe 3
   }
 
   it should "give up once the purge-wait retries are exhausted" in {
@@ -229,7 +228,7 @@ class LakekeeperClientSpec
     error.getMessage should include("409")
     error.getMessage should include("WarehouseHasUnfinishedTasks")
     // 1 initial attempt + 3 retries, then fail -- the wait is bounded.
-    busyDeleteAttempts shouldBe 4
+    deleteAttempts(alwaysBusyWarehouseId) shouldBe 4
   }
 
   it should "fail immediately on a 409 whose body is not the expected JSON envelope" in {
@@ -239,7 +238,7 @@ class LakekeeperClientSpec
       retryClient.deleteWarehouseEmptyFirst(malformedConflictWarehouseId)
     }
     error.getMessage should include("409")
-    malformedDeleteAttempts shouldBe 1
+    deleteAttempts(malformedConflictWarehouseId) shouldBe 1
   }
 
   it should "fail immediately on a 409 that is not WarehouseHasUnfinishedTasks" in {
@@ -247,9 +246,6 @@ class LakekeeperClientSpec
       retryClient.deleteWarehouseEmptyFirst(otherConflictWarehouseId)
     }
     error.getMessage should include("409")
-    val deletes = requests.synchronized {
-      requests.count(_ == s"DELETE /management/v1/warehouse/$otherConflictWarehouseId")
-    }
-    deletes shouldBe 1
+    deleteAttempts(otherConflictWarehouseId) shouldBe 1
   }
 }

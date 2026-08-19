@@ -22,12 +22,32 @@ package org.apache.texera.web.service
 import com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
 import kong.unirest.Unirest
 import org.apache.texera.common.config.StorageConfig
+import org.apache.texera.web.service.LakekeeperClient.PurgeWaitPolicy
 
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 import java.util.UUID
 import scala.collection.mutable.ListBuffer
 import scala.jdk.CollectionConverters.IteratorHasAsScala
+
+object LakekeeperClient {
+
+  /**
+    * How long the final warehouse delete waits out Lakekeeper's asynchronous purge of the
+    * dropped tables' data files, which it reports as 409 WarehouseHasUnfinishedTasks while
+    * still draining (#7742). The pause starts at `initialDelayMillis` and doubles up to
+    * `maxDelayMillis`: starting small keeps a fast purge (the common case) from costing the
+    * caller a full fixed interval, while the growth keeps a slow one from hammering
+    * Lakekeeper. With the defaults the `retries` retries wait 0.2+0.4+0.8+1.6+3.2+5+5s
+    * ≈ 16s in total. Overridable for tests (a 0 initial delay keeps the spec free of
+    * real sleeps — doubling 0 stays 0).
+    */
+  final case class PurgeWaitPolicy(
+      retries: Int = 7,
+      initialDelayMillis: Long = 200,
+      maxDelayMillis: Long = 5000
+  )
+}
 
 /**
   * Client for the Lakekeeper APIs used to manage per-user warehouses (#6870).
@@ -39,25 +59,12 @@ import scala.jdk.CollectionConverters.IteratorHasAsScala
   *
   * @param catalogUri the Iceberg REST catalog uri (ends with `/catalog`), from which the
   *                   management base is derived. Overridable for tests.
-  * @param unfinishedTasksRetries how many times the final warehouse delete is retried while
-  *                               Lakekeeper reports 409 WarehouseHasUnfinishedTasks — its
-  *                               asynchronous purge of the dropped tables' data files is
-  *                               still draining (#7742).
-  * @param unfinishedTasksInitialDelayMillis first pause between those retries; it doubles up
-  *                                          to the cap. Starting small keeps a fast purge
-  *                                          (the common case) from costing the caller a full
-  *                                          fixed interval, while the growth keeps a slow one
-  *                                          from hammering Lakekeeper. Overridable for tests
-  *                                          (0 keeps the spec free of real sleeps — doubling
-  *                                          0 stays 0).
-  * @param unfinishedTasksMaxDelayMillis cap for that doubling. With the defaults the retries
-  *                                      wait 0.2+0.4+0.8+1.6+3.2+5+5s ≈ 16s in total.
+  * @param purgeWait how long the final warehouse delete waits out Lakekeeper's asynchronous
+  *                  purge of the dropped tables' data files (#7742).
   */
 class LakekeeperClient(
     catalogUri: String = StorageConfig.icebergRESTCatalogUri,
-    unfinishedTasksRetries: Int = 7,
-    unfinishedTasksInitialDelayMillis: Long = 200,
-    unfinishedTasksMaxDelayMillis: Long = 5000
+    purgeWait: PurgeWaitPolicy = PurgeWaitPolicy()
 ) {
 
   // Lakekeeper's default project; single-project deployments (ours) use the nil UUID.
@@ -152,7 +159,7 @@ class LakekeeperClient(
     // so ride that out with a bounded retry; every other error, including any other
     // 409, still fails immediately. (#7742)
     var attempt = 0
-    var delay = unfinishedTasksInitialDelayMillis
+    var delay = purgeWait.initialDelayMillis
     var deleted = false
     while (!deleted) {
       val response = Unirest.delete(s"$managementBase/warehouse/$warehouseId").asString()
@@ -160,11 +167,11 @@ class LakekeeperClient(
       if (response.getStatus == 404 || (response.getStatus >= 200 && response.getStatus < 300)) {
         deleted = true
       } else if (
-        isUnfinishedTasksConflict(response.getStatus, response.getBody) &&
-        attempt <= unfinishedTasksRetries
+        attempt <= purgeWait.retries &&
+        isUnfinishedTasksConflict(response.getStatus, response.getBody)
       ) {
         Thread.sleep(delay)
-        delay = math.min(delay * 2, unfinishedTasksMaxDelayMillis)
+        delay = math.min(delay * 2, purgeWait.maxDelayMillis)
       } else {
         failOn(response.getStatus, response.getBody, "delete warehouse")
       }
