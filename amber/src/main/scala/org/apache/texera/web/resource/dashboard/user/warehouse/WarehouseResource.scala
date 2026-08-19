@@ -21,6 +21,7 @@ package org.apache.texera.web.resource.dashboard.user.warehouse
 
 import com.typesafe.scalalogging.LazyLogging
 import io.dropwizard.auth.Auth
+import org.apache.commons.lang3.StringUtils
 import org.apache.texera.amber.core.storage.VFSURIFactory
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.common.config.StorageConfig
@@ -67,7 +68,7 @@ object WarehouseResource {
   private type Owner = (String, String)
 
   private def ownerOf(name: String, avatar: String): Owner =
-    (Option(name).filter(_.nonEmpty).orNull, Option(avatar).filter(_.nonEmpty).orNull)
+    (StringUtils.trimToNull(name), StringUtils.trimToNull(avatar))
 
   private def ownerOf(user: User): Owner = ownerOf(user.getName, user.getAvatar)
 
