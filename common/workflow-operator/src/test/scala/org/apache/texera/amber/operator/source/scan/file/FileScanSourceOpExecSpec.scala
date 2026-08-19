@@ -129,7 +129,20 @@ class FileScanSourceOpExecSpec extends AnyFlatSpec with BeforeAndAfterAll {
 
     try {
       executor.open()
-      val tuples = executor.produceTuple().toSeq
+      val rows = executor.produceTuple()
+      val tuples =
+        try {
+          rows.toSeq
+        } finally {
+          // `produceTuple` hands back an AutoClosingIterator, which releases the
+          // underlying file handle only once `hasNext` turns false. Materialising a
+          // LARGE_BINARY throws when no large-binary destination is bound to this
+          // thread, and that abandons the iterator mid-stream with the handle still
+          // open. Windows then refuses to delete `testFile` in `afterAll`, which
+          // aborts the whole suite; POSIX `unlink` hides the same leak on Linux CI.
+          // Draining the iterator fires the close hook on both paths.
+          while (rows.hasNext) rows.next()
+        }
       executor.close()
 
       assert(tuples.size == 1)

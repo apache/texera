@@ -332,10 +332,24 @@ class PveResourceSpec
     PveManager.getPythonBin(testCuid, "no-such-env") shouldBe None
   }
 
-  it should "reject pveNames containing path-traversal segments" in {
-    PveManager.getPythonBin(testCuid, "..") shouldBe None
+  it should "reject pveNames containing a path separator" in {
+    // Both names carry a '/', so SafePveName rejects them before any path is built.
     PveManager.getPythonBin(testCuid, "../../../etc") shouldBe None
     PveManager.getPythonBin(testCuid, "foo/bar") shouldBe None
+  }
+
+  it should "return None for a dot-only pveName, which has no venv" in {
+    // This does NOT exercise the `!resolved.startsWith(root)` guard in
+    // getPythonBin. SafePveName's character class admits '.', so ".." is accepted,
+    // and <VenvRoot>/<cuid>/../pve normalises to <VenvRoot>/pve — still under the
+    // root. The None below therefore comes from the Files.exists check, exactly as
+    // it does for any other name with no venv on disk.
+    //
+    // That guard is unreachable by construction rather than untested: SafePveName
+    // forbids '/', so no accepted name can leave the root, and cuid is an Int.
+    // Deleting the guard leaves this spec entirely green, so no assertion here can
+    // pin it; making it reachable (or dropping it) is a production decision.
+    PveManager.getPythonBin(testCuid, "..") shouldBe None
   }
 
   it should "reject pveNames with disallowed characters" in {
