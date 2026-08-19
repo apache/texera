@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1787156477817,
+  "lastUpdate": 1787156480571,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -35038,6 +35038,433 @@ window.BENCHMARK_DATA = {
           {
             "name": "latency p99 / bs=1000 sw=50 sl=512",
             "value": 1924906.335,
+            "unit": "us"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Xinyuan Lin",
+            "username": "aglinxinyuan",
+            "email": "xinyual3@uci.edu"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "bf0e7779ecbe64a918beadf20181306105449677",
+          "message": "test(amber): pin the previous run's storage-registry clean-up (#7712)\n\n### What changes were proposed in this PR?\n\n`clearExecutionResources` -- the method that wipes the previous run's\nstorage registry before a new execution starts -- was entered by no\ntest. It was unreachable only by accident:\n`SyncExecutionResourceSpec:145-151` documents parking its fixtures under\na *second* computing unit precisely to avoid this path, so the recipe\nexisted and merely needed inverting.\n\nTests **8 -> 10**. Lines **76/96 (79.2%) -> 84/96 (87.5%)**, branches\n9/14, measured with only this spec running.\n\nThe new test drives the real `initExecutionService` path under\n`MockTexeraDB` (zonky EmbeddedPostgres, no Docker), steering\n`executeWorkflow()` into a compile failure so it returns before any\nruntime is created, and asserts the registry rows for the previous\nexecution are deleted -- scoped to that workflow *and* that computing\nunit, for the latest execution only.\n\n**This PR is small on coverage and I would rather say so than dress it\nup: 8 lines.** What makes it worth landing is the contract, which is\ncurrently untested and easy to break silently, and the two defects the\nverification turned up.\n\n### Verification\n\nReview proposed 20 mutations. **Every one survived the baseline suite**\n(one exception noted below). 19 are now killed, each verified red on the\nnamed test; one is recorded as unpinnable.\n\nThe recurring cause was a **degenerate fixture** -- every id was the\nsame number:\n\n| Surviving mutation | Why nothing noticed |\n|---|---|\n| `WID.eq(cuid).and(CUID.eq(wid))` transposed | `wid == uid == cuid ==\n9411` made the mutated SQL byte-identical |\n| drop the `WID` leg | only one workflow ran on the unit |\n| `Some(executions.max)` -> `.min` | the unit owned exactly one\nexecution |\n| delete `.eq` -> `.le` on execution id | no execution existed below the\none under test |\n| `req.computingUnitId` -> the service's own field | request and service\ncarried the same id |\n| `executionName` / `engineVersion` at the insert site | the inserted\nrow was never read back |\n| drop `registerCleanUpOnStateChange` | the stubbed lifecycle manager\nmade it unobservable |\n\nFixed by giving every domain its own literal (wid 9411, otherWid 9412,\nuid 9413, cuid 9414, otherCuid 9415), seeding a second workflow on the\nsame unit, an older execution below the one under test, and reading the\nnewly inserted row back.\n\n### Two defects the verification exposed\n\n**The test was cementing a bug.** Guarding the clean-up on the previous\nexecution being terminal -- a defensible production fix -- **killed**\nthe pre-repair test, because the fixture persisted a non-terminal\nprevious execution and asserted it was wiped. That test would have\nblocked the fix. The fixture now uses a terminal previous execution, so\nthe guard can be added without this spec fighting it.\n\n**The suite was doing a real S3 delete.** `clearExecutionResources`\ncalls `LargeBinaryManager.deleteByExecution`, which reaches\n`S3StorageClient` against `http://localhost:9000`. With `SERIAL` ids the\nfixture's execution got **eid 1 -- `LargeBinaryManager`'s\n`DEFAULT_EXECUTION_ID` sentinel** -- so on a dev box running\n`bin/local-dev.sh up` the test recursively deleted `objects/1/` in\nMinIO. The baseline log shows it. Explicit non-1 eids fix the blast\nradius; the call itself still attempts a connection (now to a\nnonexistent prefix), which cannot be avoided without a production seam.\n\n### One mutation is left alive\n\nDeleting line 406 (`LargeBinaryManager.deleteByExecution`) survives, and\nis recorded in the spec header rather than counted as covered. The\ninjectable overload is `private[util]`, so the call site cannot use it,\nand asserting the S3 effect would mean asserting the ambient\nenvironment.\n\n### Deliberately not included\n\nThe fault-tolerance block: gated on\n`ApplicationConfig.faultToleranceLogRootFolder`, a `val` in a Scala\n`object` read at object-init with no seam, which\n`ApplicationConfigSpec:90` asserts is `None`. The replay block: its\nvalues are consumed only past `createAmberRuntime`, which the compile\nfailure guarantees is never reached, so it is pinnable only by\nreflecting into a private field.\n\nAlso reported, not tested: **`lastCompletedLogicalPlan` (line 163) is a\nwrite-only var** -- a repo-wide grep finds only its declaration and its\nsingle write, no readers.\n\nWorth recording for future coverage work on this file: JaCoCo's\n`SyntheticFilter` drops Scala's `$anonfun$` methods, so every lambda\nbody here -- the lifecycle cleanup callback, the completion\ndiff-handler, the errorHandler, both cleanup loops, the replay `foreach`\n-- is invisible to the coverage number. Roughly 30 lines where a test\nmoves it by exactly zero.\n\nNo production file is touched.\n\n### Any related issues, documentation, discussions?\n\nCloses #7711\n\n### How was this PR tested?\n\n```\nSTORAGE_ICEBERG_CATALOG_TYPE=postgres sbt \"WorkflowExecutionService/testOnly org.apache.texera.web.service.WorkflowServiceSpec\"\n```\n\n```\n[info] Total number of tests run: 10\n[info] Tests: succeeded 10, failed 0, canceled 0, ignored 0, pending 0\n```\n\n`Test/scalafmtCheck` and `Test/scalafix --check` both pass.\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Claude Code (Opus 5)\n\n---------\n\nSigned-off-by: Xinyuan Lin <xinyual3@uci.edu>\nCo-authored-by: Copilot Autofix powered by AI <175728472+Copilot@users.noreply.github.com>",
+          "timestamp": "2026-08-19T07:23:33Z",
+          "url": "https://github.com/apache/texera/commit/bf0e7779ecbe64a918beadf20181306105449677"
+        },
+        "date": 1787156479993,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "latency p50 / bs=10 sw=1 sl=8",
+            "value": 13234.697,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=1 sl=8",
+            "value": 17190.247,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=1 sl=8",
+            "value": 20174.07,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=1 sl=8",
+            "value": 74174.122,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=1 sl=8",
+            "value": 83015.369,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=1 sl=8",
+            "value": 104087.935,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=1 sl=8",
+            "value": 685029.814,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=1 sl=8",
+            "value": 702998.002,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=1 sl=8",
+            "value": 719406.906,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=1 sl=64",
+            "value": 10516.157,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=1 sl=64",
+            "value": 12260.652,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=1 sl=64",
+            "value": 15462.122,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=1 sl=64",
+            "value": 71864.988,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=1 sl=64",
+            "value": 77681.026,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=1 sl=64",
+            "value": 123343.218,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=1 sl=64",
+            "value": 682082.219,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=1 sl=64",
+            "value": 694972.075,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=1 sl=64",
+            "value": 717119.396,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=1 sl=512",
+            "value": 10020.907,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=1 sl=512",
+            "value": 13711.02,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=1 sl=512",
+            "value": 17839.294,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=1 sl=512",
+            "value": 71374.263,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=1 sl=512",
+            "value": 75421.282,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=1 sl=512",
+            "value": 83291.45,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=1 sl=512",
+            "value": 674680.11,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=1 sl=512",
+            "value": 693233.985,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=1 sl=512",
+            "value": 721807.568,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=10 sl=8",
+            "value": 11861.87,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=10 sl=8",
+            "value": 13702.712,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=10 sl=8",
+            "value": 17529.882,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=10 sl=8",
+            "value": 89433.355,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=10 sl=8",
+            "value": 97874.804,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=10 sl=8",
+            "value": 108392.439,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=10 sl=8",
+            "value": 860945.642,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=10 sl=8",
+            "value": 884324.429,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=10 sl=8",
+            "value": 908387.37,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=10 sl=64",
+            "value": 11562.584,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=10 sl=64",
+            "value": 14353.037,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=10 sl=64",
+            "value": 17168.015,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=10 sl=64",
+            "value": 89123.215,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=10 sl=64",
+            "value": 92048.822,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=10 sl=64",
+            "value": 99086.508,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=10 sl=64",
+            "value": 848964.055,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=10 sl=64",
+            "value": 874945.489,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=10 sl=64",
+            "value": 913161.358,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=10 sl=512",
+            "value": 11481.454,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=10 sl=512",
+            "value": 14401.17,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=10 sl=512",
+            "value": 17281.16,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=10 sl=512",
+            "value": 90185.426,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=10 sl=512",
+            "value": 94364.912,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=10 sl=512",
+            "value": 99202.406,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=10 sl=512",
+            "value": 874228.823,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=10 sl=512",
+            "value": 901447.008,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=10 sl=512",
+            "value": 949211.067,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=50 sl=8",
+            "value": 18945.344,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=50 sl=8",
+            "value": 20003.062,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=50 sl=8",
+            "value": 24745.954,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=50 sl=8",
+            "value": 157759.083,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=50 sl=8",
+            "value": 163061.907,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=50 sl=8",
+            "value": 174167.604,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=50 sl=8",
+            "value": 1549699.663,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=50 sl=8",
+            "value": 1592779.569,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=50 sl=8",
+            "value": 1645121.003,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=50 sl=64",
+            "value": 19357.986,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=50 sl=64",
+            "value": 20561.558,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=50 sl=64",
+            "value": 24598.189,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=50 sl=64",
+            "value": 158905.257,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=50 sl=64",
+            "value": 165743.074,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=50 sl=64",
+            "value": 172568.512,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=50 sl=64",
+            "value": 1569319.235,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=50 sl=64",
+            "value": 1601001.394,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=50 sl=64",
+            "value": 1621957.961,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=50 sl=512",
+            "value": 20001.029,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=50 sl=512",
+            "value": 22879.743,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=50 sl=512",
+            "value": 25606.903,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=50 sl=512",
+            "value": 169249.312,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=50 sl=512",
+            "value": 177465.994,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=50 sl=512",
+            "value": 185555.523,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=50 sl=512",
+            "value": 1651304.603,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=50 sl=512",
+            "value": 1678836.397,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=50 sl=512",
+            "value": 1693759.249,
             "unit": "us"
           }
         ]
