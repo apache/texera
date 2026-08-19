@@ -20,8 +20,10 @@
 package org.apache.texera.web.service
 
 import com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
+import com.typesafe.scalalogging.LazyLogging
 import kong.unirest.Unirest
 import org.apache.texera.common.config.StorageConfig
+import org.apache.texera.common.util.RetryUtil
 import org.apache.texera.web.service.LakekeeperClient.PurgeWaitPolicy
 
 import java.net.URLEncoder
@@ -65,7 +67,7 @@ object LakekeeperClient {
 class LakekeeperClient(
     catalogUri: String = StorageConfig.icebergRESTCatalogUri,
     purgeWait: PurgeWaitPolicy = PurgeWaitPolicy()
-) {
+) extends LazyLogging {
 
   // Lakekeeper's default project; single-project deployments (ours) use the nil UUID.
   private val DefaultProjectId = "00000000-0000-0000-0000-000000000000"
@@ -158,25 +160,27 @@ class LakekeeperClient(
     // WarehouseHasUnfinishedTasks until the queue drains (normally within seconds),
     // so ride that out with a bounded retry; every other error, including any other
     // 409, still fails immediately. (#7742)
-    var attempt = 0
-    var delay = purgeWait.initialDelayMillis
-    var deleted = false
-    while (!deleted) {
+    RetryUtil.withBackoff(
+      description = "delete warehouse",
+      maxAttempts = purgeWait.retries + 1,
+      initialDelayMillis = purgeWait.initialDelayMillis,
+      onRetry = attempt => logger.info(attempt.message),
+      maxDelayMillis = purgeWait.maxDelayMillis,
+      shouldRetry = _.isInstanceOf[UnfinishedTasksConflictException]
+    ) {
       val response = Unirest.delete(s"$managementBase/warehouse/$warehouseId").asString()
-      attempt += 1
-      if (response.getStatus == 404 || (response.getStatus >= 200 && response.getStatus < 300)) {
-        deleted = true
-      } else if (
-        attempt <= purgeWait.retries &&
-        isUnfinishedTasksConflict(response.getStatus, response.getBody)
-      ) {
-        Thread.sleep(delay)
-        delay = math.min(delay * 2, purgeWait.maxDelayMillis)
-      } else {
+      if (response.getStatus != 404) {
+        if (isUnfinishedTasksConflict(response.getStatus, response.getBody)) {
+          throw new UnfinishedTasksConflictException(response.getStatus, response.getBody)
+        }
         failOn(response.getStatus, response.getBody, "delete warehouse")
       }
     }
   }
+
+  /** Tags the one retryable delete failure so the backoff predicate can single it out. */
+  private class UnfinishedTasksConflictException(status: Int, body: String)
+      extends RuntimeException(s"Lakekeeper delete warehouse failed (HTTP $status): $body")
 
   /** Lakekeeper's "purge queue still draining" conflict — the only retried error. */
   private def isUnfinishedTasksConflict(status: Int, body: String): Boolean =
