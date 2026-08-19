@@ -1,0 +1,21 @@
+dependencies:
+- name: postgresql
+  repository: https://charts.bitnami.com/bitnami
+  version: 16.5.6
+- name: minio
+  repository: https://charts.bitnami.com/bitnami
+  version: 15.0.7
+- name: lakefs
+  repository: https://charts.lakefs.io
+  version: 1.8.1
+- name: gateway-helm
+  repository: oci://docker.io/envoyproxy
+  version: 1.6.3
+- name: lakekeeper
+  repository: https://lakekeeper.github.io/lakekeeper-charts/
+  version: 0.9.0
+- name: metrics-server
+  repository: https://kubernetes-sigs.github.io/metrics-server/
+  version: 3.12.2
+digest: sha256:6e6c03812902f93980b70506fad66e9b3182d2adeaafaa4eace46f3170bdbe00
+generated: "2026-08-19T12:19:20.413392713-07:00"

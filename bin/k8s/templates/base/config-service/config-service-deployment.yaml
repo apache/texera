@@ -41,11 +41,11 @@ spec:
           env:
             # TexeraDB Access
             - name: STORAGE_JDBC_URL
-              value: jdbc:postgresql://{{ .Release.Name }}-postgresql:5432/texera_db?currentSchema=texera_db,public
+              value: jdbc:postgresql://{{ include "texera.postgresql.fullname" . }}:5432/texera_db?currentSchema=texera_db,public
             - name: STORAGE_JDBC_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Release.Name }}-postgresql
+                  name: {{ include "texera.postgresql.fullname" . }}
                   key: postgres-password
             {{- range .Values.texeraEnvVars }}
             - name: {{ .name }}

@@ -40,7 +40,7 @@ storage:
     # Recommended: reference a pre-created Secret with keys access-key-id /
     # secret-access-key (e.g. one synced from AWS Secrets Manager), and leave
     # accessKeyId / secretAccessKey empty. Otherwise the chart creates a Secret
-    # named "<release>-s3-credentials" from the inline values below.
+    # named "texera-s3-credentials" from the inline values below.
     existingSecret: ""
     accessKeyId: "REPLACE_WITH_ACCESS_KEY_ID"
     secretAccessKey: "REPLACE_WITH_SECRET_ACCESS_KEY"
@@ -49,11 +49,10 @@ storage:
 # the endpoint from the region) with credentials injected via the same Secret
 # the chart/app uses.
 #
-# NOTE: the secretKeyRef "name" below is "texera-s3-credentials", which assumes
-# the Helm release is named "texera" (the chart generates the credentials Secret
-# as "<release>-s3-credentials"). If you install with a different release name,
-# or set storage.s3.existingSecret above, update both "name:" fields below to
-# match that Secret.
+# NOTE: the secretKeyRef "name" below is the chart-generated Secret
+# "texera-s3-credentials" (a fixed name, independent of the Helm release name).
+# If you set storage.s3.existingSecret above, update both "name:" fields below
+# to match that Secret instead.
 lakefs:
   lakefsConfig: |
     database:

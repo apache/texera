@@ -18,13 +18,32 @@ under the License.
 */}}
 
 {{/*
+Sub-chart resource names.
+
+The postgresql and minio sub-charts are pinned to fixed names via
+fullnameOverride in values.yaml, because sibling sub-charts (lakefs,
+lakekeeper) must address them from *their own* values -- and Helm does not
+template values files, so those references cannot be release-derived. These
+helpers resolve the same name the sub-chart itself computes, falling back to
+the default "<release>-<chart>" when the override is cleared.
+*/}}
+
+{{- define "texera.postgresql.fullname" -}}
+{{- .Values.postgresql.fullnameOverride | default (printf "%s-postgresql" .Release.Name) -}}
+{{- end -}}
+
+{{- define "texera.minio.fullname" -}}
+{{- .Values.minio.fullnameOverride | default (printf "%s-minio" .Release.Name) -}}
+{{- end -}}
+
+{{/*
 Object-storage (S3) resolution helpers.
 
 When storage.s3.endpoint is set the services talk to that external
-S3-compatible store (credentials come from storage.s3.existingSecret, or a
-chart-generated "<release>-s3-credentials" Secret). When it is empty the
-services fall back to the in-cluster MinIO Service and its auto-generated
-"<release>-minio" Secret, so the default install is unchanged.
+S3-compatible store (credentials come from storage.s3.existingSecret, or the
+chart-generated "texera-s3-credentials" Secret). When it is empty the services
+fall back to the in-cluster MinIO Service and its auto-generated Secret, so the
+default install is unchanged.
 */}}
 
 {{/* S3 endpoint URL. */}}
@@ -32,16 +51,16 @@ services fall back to the in-cluster MinIO Service and its auto-generated
 {{- if .Values.storage.s3.endpoint -}}
 {{- .Values.storage.s3.endpoint -}}
 {{- else -}}
-{{- printf "http://%s-minio:9000" .Release.Name -}}
+{{- printf "http://%s:9000" (include "texera.minio.fullname" .) -}}
 {{- end -}}
 {{- end -}}
 
 {{/* Name of the Secret holding the S3 credentials. */}}
 {{- define "texera.s3.secretName" -}}
 {{- if .Values.storage.s3.endpoint -}}
-{{- .Values.storage.s3.existingSecret | default (printf "%s-s3-credentials" .Release.Name) -}}
+{{- .Values.storage.s3.existingSecret | default "texera-s3-credentials" -}}
 {{- else -}}
-{{- printf "%s-minio" .Release.Name -}}
+{{- include "texera.minio.fullname" . -}}
 {{- end -}}
 {{- end -}}
 
