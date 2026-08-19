@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1787063587658,
+  "lastUpdate": 1787156477817,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -9684,6 +9684,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 546.8157205585026,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Xinyuan Lin",
+            "username": "aglinxinyuan",
+            "email": "xinyual3@uci.edu"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "bf0e7779ecbe64a918beadf20181306105449677",
+          "message": "test(amber): pin the previous run's storage-registry clean-up (#7712)\n\n### What changes were proposed in this PR?\n\n`clearExecutionResources` -- the method that wipes the previous run's\nstorage registry before a new execution starts -- was entered by no\ntest. It was unreachable only by accident:\n`SyncExecutionResourceSpec:145-151` documents parking its fixtures under\na *second* computing unit precisely to avoid this path, so the recipe\nexisted and merely needed inverting.\n\nTests **8 -> 10**. Lines **76/96 (79.2%) -> 84/96 (87.5%)**, branches\n9/14, measured with only this spec running.\n\nThe new test drives the real `initExecutionService` path under\n`MockTexeraDB` (zonky EmbeddedPostgres, no Docker), steering\n`executeWorkflow()` into a compile failure so it returns before any\nruntime is created, and asserts the registry rows for the previous\nexecution are deleted -- scoped to that workflow *and* that computing\nunit, for the latest execution only.\n\n**This PR is small on coverage and I would rather say so than dress it\nup: 8 lines.** What makes it worth landing is the contract, which is\ncurrently untested and easy to break silently, and the two defects the\nverification turned up.\n\n### Verification\n\nReview proposed 20 mutations. **Every one survived the baseline suite**\n(one exception noted below). 19 are now killed, each verified red on the\nnamed test; one is recorded as unpinnable.\n\nThe recurring cause was a **degenerate fixture** -- every id was the\nsame number:\n\n| Surviving mutation | Why nothing noticed |\n|---|---|\n| `WID.eq(cuid).and(CUID.eq(wid))` transposed | `wid == uid == cuid ==\n9411` made the mutated SQL byte-identical |\n| drop the `WID` leg | only one workflow ran on the unit |\n| `Some(executions.max)` -> `.min` | the unit owned exactly one\nexecution |\n| delete `.eq` -> `.le` on execution id | no execution existed below the\none under test |\n| `req.computingUnitId` -> the service's own field | request and service\ncarried the same id |\n| `executionName` / `engineVersion` at the insert site | the inserted\nrow was never read back |\n| drop `registerCleanUpOnStateChange` | the stubbed lifecycle manager\nmade it unobservable |\n\nFixed by giving every domain its own literal (wid 9411, otherWid 9412,\nuid 9413, cuid 9414, otherCuid 9415), seeding a second workflow on the\nsame unit, an older execution below the one under test, and reading the\nnewly inserted row back.\n\n### Two defects the verification exposed\n\n**The test was cementing a bug.** Guarding the clean-up on the previous\nexecution being terminal -- a defensible production fix -- **killed**\nthe pre-repair test, because the fixture persisted a non-terminal\nprevious execution and asserted it was wiped. That test would have\nblocked the fix. The fixture now uses a terminal previous execution, so\nthe guard can be added without this spec fighting it.\n\n**The suite was doing a real S3 delete.** `clearExecutionResources`\ncalls `LargeBinaryManager.deleteByExecution`, which reaches\n`S3StorageClient` against `http://localhost:9000`. With `SERIAL` ids the\nfixture's execution got **eid 1 -- `LargeBinaryManager`'s\n`DEFAULT_EXECUTION_ID` sentinel** -- so on a dev box running\n`bin/local-dev.sh up` the test recursively deleted `objects/1/` in\nMinIO. The baseline log shows it. Explicit non-1 eids fix the blast\nradius; the call itself still attempts a connection (now to a\nnonexistent prefix), which cannot be avoided without a production seam.\n\n### One mutation is left alive\n\nDeleting line 406 (`LargeBinaryManager.deleteByExecution`) survives, and\nis recorded in the spec header rather than counted as covered. The\ninjectable overload is `private[util]`, so the call site cannot use it,\nand asserting the S3 effect would mean asserting the ambient\nenvironment.\n\n### Deliberately not included\n\nThe fault-tolerance block: gated on\n`ApplicationConfig.faultToleranceLogRootFolder`, a `val` in a Scala\n`object` read at object-init with no seam, which\n`ApplicationConfigSpec:90` asserts is `None`. The replay block: its\nvalues are consumed only past `createAmberRuntime`, which the compile\nfailure guarantees is never reached, so it is pinnable only by\nreflecting into a private field.\n\nAlso reported, not tested: **`lastCompletedLogicalPlan` (line 163) is a\nwrite-only var** -- a repo-wide grep finds only its declaration and its\nsingle write, no readers.\n\nWorth recording for future coverage work on this file: JaCoCo's\n`SyntheticFilter` drops Scala's `$anonfun$` methods, so every lambda\nbody here -- the lifecycle cleanup callback, the completion\ndiff-handler, the errorHandler, both cleanup loops, the replay `foreach`\n-- is invisible to the coverage number. Roughly 30 lines where a test\nmoves it by exactly zero.\n\nNo production file is touched.\n\n### Any related issues, documentation, discussions?\n\nCloses #7711\n\n### How was this PR tested?\n\n```\nSTORAGE_ICEBERG_CATALOG_TYPE=postgres sbt \"WorkflowExecutionService/testOnly org.apache.texera.web.service.WorkflowServiceSpec\"\n```\n\n```\n[info] Total number of tests run: 10\n[info] Tests: succeeded 10, failed 0, canceled 0, ignored 0, pending 0\n```\n\n`Test/scalafmtCheck` and `Test/scalafix --check` both pass.\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Claude Code (Opus 5)\n\n---------\n\nSigned-off-by: Xinyuan Lin <xinyual3@uci.edu>\nCo-authored-by: Copilot Autofix powered by AI <175728472+Copilot@users.noreply.github.com>",
+          "timestamp": "2026-08-19T07:23:33Z",
+          "url": "https://github.com/apache/texera/commit/bf0e7779ecbe64a918beadf20181306105449677"
+        },
+        "date": 1787156477223,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 732.1912850654794,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 1324.037600498286,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 1457.0418617906048,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 928.3109829019162,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 1359.714469414158,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 1463.706711083522,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 955.8361009810579,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 1391.298565637641,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 1478.8071527103068,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 823.8055678186909,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 1107.0137031489214,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 1159.0720807016273,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 842.8064742409384,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 1118.3980972898955,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 1173.9870282071342,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 844.7752230914299,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 1104.635759120287,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 1138.9256227354583,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 521.988767159815,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 631.4978604639673,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 643.8435459430576,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 512.7060808986123,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 626.6098054319187,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 636.0240069611154,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 493.3825841676454,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 588.0969382762754,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 605.1145680104456,
             "unit": "tuples/sec"
           }
         ]
