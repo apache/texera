@@ -104,7 +104,7 @@ class UserWarehouseSpec extends AnyFlatSpec with Matchers with BeforeAndAfterAll
       insertWarehouse(uid, "dup", s"user-$uid-dup-2")
   }
 
-  it should "reject a duplicate warehouse_name across users" in {
+  it should "reject a duplicate lakekeeper_warehouse_name across users" in {
     val first = insertUser("catalog-name-owner")
     val second = insertUser("catalog-name-intruder")
     insertWarehouse(first, "shared", "user-shared-catalog-name")

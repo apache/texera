@@ -42,12 +42,17 @@ object WarehouseResource {
       .getInstance()
       .createDSLContext()
 
-  // A warehouse's user-facing name becomes part of the Lakekeeper catalog name
-  // `user-<uid>-<name>`, which in turn becomes a VFS URI path segment — so the
-  // character rule is delegated to VFSURIFactory (the layer that parses it); the
-  // length cap is this registration layer's own constraint.
+  // The display name no longer reaches Lakekeeper or any URI — the catalog name is
+  // minted from uid and whid — but it stays under VFSURIFactory's character rule
+  // rather than growing a second charset; the length cap is this registration
+  // layer's own constraint.
   private[warehouse] def isValidWarehouseName(name: String): Boolean =
     name.length <= 64 && VFSURIFactory.isValidWarehouseName(name)
+
+  // The Lakekeeper catalog name minted for a warehouse row: stable, short, and
+  // mapping straight back to the row.
+  private[warehouse] def lakekeeperWarehouseName(uid: Integer, whid: Integer): String =
+    s"user-$uid-$whid"
 
   case class DashboardWarehouse(
       whid: Integer,
@@ -147,11 +152,11 @@ class WarehouseResource(client: LakekeeperClient, enabled: Boolean) extends Lazy
         DSL.inline(USER_WAREHOUSE.WHID.getName)
       )
     )
-    val lakekeeperWarehouseName = s"user-$uid-$whid"
+    val mintedName = lakekeeperWarehouseName(uid, whid)
     // Create in Lakekeeper first, record after: a failed creation leaves no orphaned row.
     val lakekeeperWarehouseId =
       try {
-        client.createWarehouse(lakekeeperWarehouseName)
+        client.createWarehouse(mintedName)
       } catch {
         case e: Exception =>
           throw new WebApplicationException(e.getMessage, 502)
@@ -161,7 +166,7 @@ class WarehouseResource(client: LakekeeperClient, enabled: Boolean) extends Lazy
     row.setWhid(whid)
     row.setUid(uid)
     row.setName(name)
-    row.setLakekeeperWarehouseName(lakekeeperWarehouseName)
+    row.setLakekeeperWarehouseName(mintedName)
     row.setLakekeeperWarehouseId(lakekeeperWarehouseId)
     row.setFlavor(UserWarehouseFlavorEnum.local)
     row.setS3Bucket(StorageConfig.icebergRESTCatalogS3Bucket)
