@@ -88,11 +88,14 @@ jobs:
     runs-on: ${{ matrix.os }}
     # Only the "Install dependency" step below is bounded, so a spec that
     # truly hangs would otherwise run to GitHub's implicit 6h cap — billed at
-    # 10x on the macOS leg. Sized off observed green legs, which run 8.6-10.7
-    # minutes end to end (install itself lands under 90s on all three OSes):
-    # 30 is ~3x the slowest, leaving ~19 minutes of slack for a cold yarn
-    # cache without masking a hang.
-    timeout-minutes: 30
+    # 10x on the macOS leg. Sized off observed *green* legs rather than a
+    # typical one, because the macOS leg swings hard: 21.1 minutes at its
+    # slowest while still passing, and the variance sits in "Prod build"
+    # (4.5-11.1 min there) more than in the tests (4.4-5.3 min). 45 is ~2x
+    # that worst green leg, so it bounds a runaway without turning a merely
+    # slow macOS runner into a false red — which is the same failure this
+    # job's `fail-fast: false` is here to stop manufacturing.
+    timeout-minutes: 45
     strategy:
       # An OS-specific failure should not cancel the other two legs: with the
       # default fail-fast the surviving jobs report "The operation was
