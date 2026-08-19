@@ -60,7 +60,7 @@ object ResourceNaming {
     */
   def requireNameAvailable[R <: Record, A <: Record](
       ctx: DSLContext,
-      resource: ManagedResource[R, A],
+      resource: ResourceTables[R, A],
       ownerUid: Integer,
       name: String,
       excludingId: Option[Integer] = None
