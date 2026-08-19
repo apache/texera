@@ -266,7 +266,8 @@ describe("JupyterPanelService", () => {
     // The mapping is stored before the notebook is handed to Jupyter, ...
     expect(mockNotebook.setMapping).toHaveBeenCalledWith("mapping_wid_1", mapping);
     // ... and the 0 came from Jupyter's own answer, not from a thrown error.
-    expect(mockNotebook.sendNotebookToJupyter).toHaveBeenCalledWith(notebook);
+    // Upload uses the wid-derived filename.
+    expect(mockNotebook.sendNotebookToJupyter).toHaveBeenCalledWith(notebook, "notebook_1.ipynb");
     expect(consoleError).not.toHaveBeenCalled();
   });
 
@@ -282,6 +283,33 @@ describe("JupyterPanelService", () => {
     expect(await resultPromise).toBe(0);
     expect(consoleError).toHaveBeenCalled();
     expect(mockNotebook.sendNotebookToJupyter).not.toHaveBeenCalled();
+  });
+
+  it("uploads under the fetched workflow's filename even if the current workflow changed", async () => {
+    // Stale-fetch guard: a fetch for wid 2 that resolves after the user switched to wid 1
+    // must still upload as notebook_2.ipynb, not overwrite wid 1's file.
+    mockNotebook.sendNotebookToJupyter = vi.fn().mockResolvedValue(1);
+    mockWorkflow.getWorkflow.mockReturnValue({ wid: 1 });
+    const mapping = { cell_to_operator: {}, operator_to_cell: {} };
+    const notebook = { cells: [] };
+
+    const resultPromise = firstValueFrom((service as any).fetchNotebookAndMapping(2, 1));
+    httpMock
+      .expectOne(r => r.url.includes("/notebook-migration/fetch-notebook-and-mapping"))
+      .flush({ exists: true, mapping, notebook });
+
+    expect(await resultPromise).toBe(1);
+    expect(mockNotebook.sendNotebookToJupyter).toHaveBeenCalledWith(notebook, "notebook_2.ipynb");
+  });
+
+  // Iframe URL must use the same wid-derived filename as the upload.
+  it("getJupyterIframeURLForWorkflow requests the current workflow's per-workflow filename", async () => {
+    mockNotebook.getJupyterIframeURL = vi.fn().mockResolvedValue("http://iframe");
+
+    const url = await service.getJupyterIframeURLForWorkflow();
+
+    expect(url).toBe("http://iframe");
+    expect(mockNotebook.getJupyterIframeURL).toHaveBeenCalledWith("notebook_1.ipynb");
   });
 
   // jupyterNotebookExists$ starts false and flips true once init()'s fetch finds
@@ -703,6 +731,13 @@ describe("JupyterPanelService", () => {
       service.openJupyterNotebookPanel();
       expect(state).toBe(false);
       expect(mockNotification.warning).not.toHaveBeenCalled();
+    });
+
+    it("getJupyterIframeURLForWorkflow resolves null without calling the migration service", async () => {
+      mockNotebook.getJupyterIframeURL = vi.fn();
+      const url = await service.getJupyterIframeURLForWorkflow();
+      expect(url).toBeNull();
+      expect(mockNotebook.getJupyterIframeURL).not.toHaveBeenCalled();
     });
 
     it("onWorkflowComponentClick does not postMessage to the iframe", async () => {
