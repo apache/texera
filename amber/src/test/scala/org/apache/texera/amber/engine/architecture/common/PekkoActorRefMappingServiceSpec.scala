@@ -19,7 +19,7 @@
 
 package org.apache.texera.amber.engine.architecture.common
 
-import org.apache.pekko.actor.{Actor, ActorSystem, Props}
+import org.apache.pekko.actor.{Actor, ActorContext, ActorRef, ActorSystem, Props}
 import org.apache.pekko.testkit.{TestActorRef, TestKit, TestProbe}
 import org.apache.texera.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import org.apache.texera.amber.engine.architecture.common.WorkflowActor.{
@@ -73,18 +73,17 @@ class PekkoActorRefMappingServiceSpec
       WorkflowFIFOMessage(channelTo(destination), sequenceNumber, DataFrame(Array.empty))
     )
 
+  private def newContext(parent: TestProbe): ActorContext =
+    TestActorRef[ActorRefMappingServiceContextHolder](
+      Props(new ActorRefMappingServiceContextHolder),
+      parent.ref,
+      s"actor-ref-mapping-context-${contextCounter.incrementAndGet()}"
+    ).underlyingActor.context
+
   private def newActorService(
       id: ActorVirtualIdentity,
       parent: TestProbe
-  ): PekkoActorService = {
-    val contextHolder =
-      TestActorRef[ActorRefMappingServiceContextHolder](
-        Props(new ActorRefMappingServiceContextHolder),
-        parent.ref,
-        s"actor-ref-mapping-context-${contextCounter.incrementAndGet()}"
-      )
-    new PekkoActorService(id, contextHolder.underlyingActor.context)
-  }
+  ): PekkoActorService = new PekkoActorService(id, newContext(parent))
 
   "askForCredit" should "forward a request only when the destination ref is known" in {
     val parent = TestProbe()
@@ -165,9 +164,50 @@ class PekkoActorRefMappingServiceSpec
     assert(!service.hasActorRef(destination))
     assert(service.findActorVirtualIdentity(registered.ref).isEmpty)
   }
+
+  "retrieveActorRef" should "swallow a failed parent lookup and still ask again for the same id" in {
+    val parent = TestProbe()
+    val destination = ActorVirtualIdentity("unreachable-parent-destination")
+    val waiter = TestProbe()
+    // Pekko itself does not fail here -- `context.parent` reads a field and `!` never throws -- so
+    // the failure is injected, and only for the first read: the catch block's own log line reads
+    // `actorService.parent` a second time, which means a parent that kept failing would throw out
+    // of the handler that exists to contain it.
+    val actorService = new FailingParentActorService(workerId, newContext(parent))
+    val service = new PekkoActorRefMappingService(actorService)
+    actorService.failuresLeft = 1
+
+    service.retrieveActorRef(destination, Set(waiter.ref))
+
+    // Nothing was asked and nobody was told: the lookup simply did not happen.
+    parent.expectNoMessage(100.millis)
+    waiter.expectNoMessage(100.millis)
+
+    // ...and the id was not recorded as queried, so the next message bound for it re-asks. Marking
+    // it would strand every message for that destination: the reply that clears the stash only ever
+    // arrives in response to a `GetActorRef` that was actually sent.
+    service.retrieveActorRef(destination, Set(waiter.ref))
+
+    assert(parent.expectMsgType[GetActorRef].id == destination)
+  }
 }
 
 /** Minimal actor used only to obtain a live [[ActorContext]] from Pekko TestKit. */
 class ActorRefMappingServiceContextHolder extends Actor {
   override def receive: Receive = { case _ => () }
+}
+
+/** A [[PekkoActorService]] whose first `failuresLeft` parent lookups throw. */
+class FailingParentActorService(id: ActorVirtualIdentity, actorContext: ActorContext)
+    extends PekkoActorService(id, actorContext) {
+
+  var failuresLeft: Int = 0
+
+  override def parent: ActorRef = {
+    if (failuresLeft > 0) {
+      failuresLeft -= 1
+      throw new IllegalStateException("parent is unreachable")
+    }
+    super.parent
+  }
 }
