@@ -87,30 +87,27 @@ class LakekeeperClientSpec
     "/management/v1/warehouse",
     (exchange: HttpExchange) => {
       record(exchange)
-      if (exchange.getRequestMethod == "POST") {
-        lastCreateBody = new String(exchange.getRequestBody.readAllBytes(), StandardCharsets.UTF_8)
-        respond(exchange, 201, s"""{"warehouse-id": "$warehouseId"}""")
-      } else if (exchange.getRequestMethod == "DELETE") {
-        val path = exchange.getRequestURI.getPath
-        if (path.endsWith(racingWarehouseId.toString)) {
+      (exchange.getRequestMethod, exchange.getRequestURI.getPath) match {
+        case ("POST", _) =>
+          lastCreateBody =
+            new String(exchange.getRequestBody.readAllBytes(), StandardCharsets.UTF_8)
+          respond(exchange, 201, s"""{"warehouse-id": "$warehouseId"}""")
+        case ("DELETE", path) if path.endsWith(racingWarehouseId.toString) =>
           if (deleteAttempts(racingWarehouseId) <= 2) respond(exchange, 409, unfinishedTasksBody)
           else respond(exchange, 204, "")
-        } else if (path.endsWith(alwaysBusyWarehouseId.toString)) {
+        case ("DELETE", path) if path.endsWith(alwaysBusyWarehouseId.toString) =>
           respond(exchange, 409, unfinishedTasksBody)
-        } else if (path.endsWith(malformedConflictWarehouseId.toString)) {
+        case ("DELETE", path) if path.endsWith(malformedConflictWarehouseId.toString) =>
           // A 409 whose body isn't the JSON envelope the type check reads.
           respond(exchange, 409, "<html>gateway conflict</html>")
-        } else if (path.endsWith(otherConflictWarehouseId.toString)) {
+        case ("DELETE", path) if path.endsWith(otherConflictWarehouseId.toString) =>
           respond(
             exchange,
             409,
             """{"error":{"message":"warehouse is in use","type":"Conflict","code":409}}"""
           )
-        } else {
+        case _ =>
           respond(exchange, 200, "{}")
-        }
-      } else {
-        respond(exchange, 200, "{}")
       }
     }
   )
@@ -154,15 +151,15 @@ class LakekeeperClientSpec
   )
   server.start()
 
-  private val client = new LakekeeperClient(
-    s"http://localhost:${server.getAddress.getPort}/catalog"
-  )
+  private val stubCatalogUri = s"http://localhost:${server.getAddress.getPort}/catalog"
 
-  // Zero retry delay keeps the spec free of real sleeps (deterministic); 3
-  // retries keeps the exhaustion case cheap to assert.
+  private val client = new LakekeeperClient(stubCatalogUri)
+
+  // Zero retry delay keeps the spec free of real sleeps (deterministic); 4
+  // attempts keeps the exhaustion case cheap to assert.
   private val retryClient = new LakekeeperClient(
-    s"http://localhost:${server.getAddress.getPort}/catalog",
-    PurgeWaitPolicy(retries = 3, initialDelayMillis = 0)
+    stubCatalogUri,
+    PurgeWaitPolicy(maxAttempts = 4, initialDelayMillis = 0)
   )
 
   override protected def beforeEach(): Unit = {
@@ -227,25 +224,26 @@ class LakekeeperClientSpec
     }
     error.getMessage should include("409")
     error.getMessage should include("WarehouseHasUnfinishedTasks")
-    // 1 initial attempt + 3 retries, then fail -- the wait is bounded.
     deleteAttempts(alwaysBusyWarehouseId) shouldBe 4
+  }
+
+  // Shared by the non-retryable-409 cases: the delete must fail on the first
+  // attempt, with the status surfaced, rather than be waited out as transient.
+  private def assertFailsWithoutRetry(id: UUID): Unit = {
+    val error = intercept[RuntimeException] {
+      retryClient.deleteWarehouseEmptyFirst(id)
+    }
+    error.getMessage should include("409")
+    deleteAttempts(id) shouldBe 1
   }
 
   it should "fail immediately on a 409 whose body is not the expected JSON envelope" in {
     // The type check parses the body; a malformed one must read as "not the
     // purge conflict" and fail rather than be retried as if it were transient.
-    val error = intercept[RuntimeException] {
-      retryClient.deleteWarehouseEmptyFirst(malformedConflictWarehouseId)
-    }
-    error.getMessage should include("409")
-    deleteAttempts(malformedConflictWarehouseId) shouldBe 1
+    assertFailsWithoutRetry(malformedConflictWarehouseId)
   }
 
   it should "fail immediately on a 409 that is not WarehouseHasUnfinishedTasks" in {
-    val error = intercept[RuntimeException] {
-      retryClient.deleteWarehouseEmptyFirst(otherConflictWarehouseId)
-    }
-    error.getMessage should include("409")
-    deleteAttempts(otherConflictWarehouseId) shouldBe 1
+    assertFailsWithoutRetry(otherConflictWarehouseId)
   }
 }

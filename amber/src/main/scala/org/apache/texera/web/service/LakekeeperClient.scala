@@ -40,12 +40,12 @@ object LakekeeperClient {
     * still draining (#7742). The pause starts at `initialDelayMillis` and doubles up to
     * `maxDelayMillis`: starting small keeps a fast purge (the common case) from costing the
     * caller a full fixed interval, while the growth keeps a slow one from hammering
-    * Lakekeeper. With the defaults the `retries` retries wait 0.2+0.4+0.8+1.6+3.2+5+5s
-    * ≈ 16s in total. Overridable for tests (a 0 initial delay keeps the spec free of
-    * real sleeps — doubling 0 stays 0).
+    * Lakekeeper. With the defaults the waits between the `maxAttempts` attempts sum to
+    * 0.2+0.4+0.8+1.6+3.2+5+5s ≈ 16s. Overridable for tests (a 0 initial delay keeps the
+    * spec free of real sleeps — doubling 0 stays 0).
     */
   final case class PurgeWaitPolicy(
-      retries: Int = 7,
+      maxAttempts: Int = 8,
       initialDelayMillis: Long = 200,
       maxDelayMillis: Long = 5000
   )
@@ -161,34 +161,36 @@ class LakekeeperClient(
     // so ride that out with a bounded retry; every other error, including any other
     // 409, still fails immediately. (#7742)
     RetryUtil.withBackoff(
-      description = "delete warehouse",
-      maxAttempts = purgeWait.retries + 1,
+      description = DeleteWarehouseAction,
+      maxAttempts = purgeWait.maxAttempts,
       initialDelayMillis = purgeWait.initialDelayMillis,
-      onRetry = attempt => logger.info(attempt.message),
+      onRetry = attempt => logger.warn(attempt.message),
       maxDelayMillis = purgeWait.maxDelayMillis,
       shouldRetry = _.isInstanceOf[UnfinishedTasksConflictException]
     ) {
       val response = Unirest.delete(s"$managementBase/warehouse/$warehouseId").asString()
-      if (response.getStatus != 404) {
-        if (isUnfinishedTasksConflict(response.getStatus, response.getBody)) {
-          throw new UnfinishedTasksConflictException(response.getStatus, response.getBody)
-        }
-        failOn(response.getStatus, response.getBody, "delete warehouse")
+      response.getStatus match {
+        case 404 => // already gone — the idempotent goal state
+        case 409 if isUnfinishedTasksBody(response.getBody) =>
+          throw new UnfinishedTasksConflictException(response.getBody)
+        case status => failOn(status, response.getBody, DeleteWarehouseAction)
       }
     }
   }
 
-  /** Tags the one retryable delete failure so the backoff predicate can single it out. */
-  private class UnfinishedTasksConflictException(status: Int, body: String)
-      extends RuntimeException(s"Lakekeeper delete warehouse failed (HTTP $status): $body")
+  private val DeleteWarehouseAction = "delete warehouse"
 
-  /** Lakekeeper's "purge queue still draining" conflict — the only retried error. */
-  private def isUnfinishedTasksConflict(status: Int, body: String): Boolean =
-    status == 409 && (try {
+  /** Tags the one retryable delete failure so the backoff predicate can single it out. */
+  private class UnfinishedTasksConflictException(body: String)
+      extends RuntimeException(s"Lakekeeper $DeleteWarehouseAction failed (HTTP 409): $body")
+
+  /** Lakekeeper's "purge queue still draining" 409 body — the only retried error. */
+  private def isUnfinishedTasksBody(body: String): Boolean =
+    try {
       mapper.readTree(body).path("error").path("type").asText() == "WarehouseHasUnfinishedTasks"
     } catch {
       case _: Exception => false
-    })
+    }
 
   /** Top-level namespaces in the warehouse. Texera's execution namespaces are single-level. */
   private def listNamespaces(warehouseId: UUID): List[String] =
