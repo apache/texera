@@ -61,6 +61,12 @@ export function notebookMappingKey(wid: number | undefined): string {
   return "mapping_wid_" + wid;
 }
 
+// Per-workflow notebook filename so workflows don't overwrite each other's notebook.
+// Falls back to the default when there's no wid.
+export function notebookFileName(wid: number | undefined): string {
+  return wid ? `notebook_${wid}.ipynb` : "notebook.ipynb";
+}
+
 @Injectable({
   providedIn: "root",
 })
@@ -132,16 +138,12 @@ export class NotebookMigrationService {
     return new NotebookMigrationLLM(this.config, this.workflowUtilService);
   }
 
-  public async sendNotebookToJupyter(notebookData: Notebook) {
+  public async sendNotebookToJupyter(notebookData: Notebook, notebookName: string) {
     if (!this.enabled) return 0;
     const jupyterAPIUrl = `${AppSettings.getApiEndpoint()}/notebook-migration/set-notebook`;
 
     const requestBody = {
-      // Fixed filename is intentional for the v1 per-user-pod design: each user runs
-      // their own notebook-migration-service and Jupyter, so a single notebook.ipynb
-      // never collides. A shared multi-user (global) service would need per-user or
-      // per-workflow keying here and for the backend's process-global jupyterIframeURL.
-      notebookName: "notebook.ipynb",
+      notebookName: notebookName,
       notebookData: notebookData,
     };
 
@@ -182,14 +184,16 @@ export class NotebookMigrationService {
     }
   }
 
-  public async getJupyterIframeURL(): Promise<string | null> {
+  public async getJupyterIframeURL(notebookName?: string): Promise<string | null> {
     if (!this.enabled) return null;
     try {
-      const data = await firstValueFrom(
-        this.http.get<{ success: boolean; url?: string }>(
-          `${AppSettings.getApiEndpoint()}/notebook-migration/get-jupyter-iframe-url`
-        )
-      );
+      const url = `${AppSettings.getApiEndpoint()}/notebook-migration/get-jupyter-iframe-url`;
+      // Send notebookName when given; otherwise the backend uses its default.
+      const params: Record<string, string> = {};
+      if (notebookName) {
+        params["notebookName"] = notebookName;
+      }
+      const data = await firstValueFrom(this.http.get<{ success: boolean; url?: string }>(url, { params }));
 
       if (!data.success || !data.url) {
         console.error("Jupyter server unavailable");
