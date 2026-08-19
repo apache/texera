@@ -910,7 +910,7 @@ class WorkflowExecutionsResourceSpec
     val content =
       """{
         |  "operators": [
-        |    {"operatorID": "scanA", "operatorProperties": {"fileName": "/datasets/owner@example.com/LockedDS/v1/data.csv"}},
+        |    {"operatorID": "scanA", "operatorProperties": {"fileName": "/dataset/owner@example.com/LockedDS/v1/data.csv"}},
         |    {"operatorID": "downstreamB", "operatorProperties": {}}
         |  ],
         |  "links": [
@@ -969,7 +969,7 @@ class WorkflowExecutionsResourceSpec
     val content =
       """{
         |  "operators": [
-        |    {"operatorID": "scan", "operatorProperties": {"fileName": "/datasets/test@example.com/MyDS/v1/data.csv"}}
+        |    {"operatorID": "scan", "operatorProperties": {"fileName": "/dataset/test@example.com/MyDS/v1/data.csv"}}
         |  ],
         |  "links": []
         |}""".stripMargin
@@ -1408,7 +1408,7 @@ class WorkflowExecutionsResourceSpec
 
   private def scanOperator(operatorId: String, datasetName: String): String =
     s"""{"operatorID": "$operatorId", "operatorProperties": """ +
-      s"""{"fileName": "/datasets/$foreignOwnerEmail/$datasetName/v1/data.csv"}}"""
+      s"""{"fileName": "/dataset/$foreignOwnerEmail/$datasetName/v1/data.csv"}}"""
 
   // Seeds three datasets owned by somebody other than testUser and wires the workflow as
   //

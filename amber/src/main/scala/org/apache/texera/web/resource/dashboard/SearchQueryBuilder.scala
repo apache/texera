@@ -19,6 +19,7 @@
 
 package org.apache.texera.web.resource.dashboard
 
+import org.apache.texera.amber.core.storage.ResourceType
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.web.resource.dashboard.DashboardResource.{
   DashboardClickableFileEntry,
@@ -36,7 +37,7 @@ object SearchQueryBuilder {
   val FILE_RESOURCE_TYPE = "file"
   val WORKFLOW_RESOURCE_TYPE = "workflow"
   val PROJECT_RESOURCE_TYPE = "project"
-  val DATASET_RESOURCE_TYPE = "dataset"
+  val DATASET_RESOURCE_TYPE = ResourceType.Dataset.toString
   val ALL_RESOURCE_TYPE = ""
 }
 

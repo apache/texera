@@ -24,19 +24,27 @@ SET search_path TO texera_db;
 BEGIN;
 
 -- The file resolver now requires an explicit resource-type prefix on dataset
--- logical paths (/datasets/ownerEmail/datasetName/versionName/...) so other
--- resource types (e.g. models) can be told apart by the prefix. Existing
--- workflows store unprefixed dataset paths inside workflow.content and
--- workflow_version.content, in two operator properties:
+-- logical paths (/dataset/ownerEmail/datasetName/versionName/...) so other
+-- resource types (e.g. models) can be told apart by the prefix. Stored
+-- workflows carry such paths inside workflow.content and workflow_version.content,
+-- in two operator properties:
 --   * fileName            (scan-source operators): /owner/name/version/file
 --   * datasetVersionPath  (file-lister operator):  /owner/name/version
--- This migration prepends the "datasets" segment to both.
 --
--- A value is treated as a dataset path only when its first two segments match an
--- existing (user.email, dataset.name) pair -- that pair is unique.
--- Local file paths and URLs match no dataset and are left untouched.
--- Already-prefixed values are skipped (idempotent). jsonb_set
--- uses create_missing = false so absent properties are never added.
+-- This migration brings both to the current form, in two cases:
+--   1. No prefix at all (the original legacy shape) -> prepend "dataset".
+--      A value is treated as a dataset path only when its first two segments match
+--      an existing (user.email, dataset.name) pair -- that pair is unique. Local
+--      file paths and URLs match no dataset and are left untouched.
+--   2. A plural prefix, written by an earlier revision of this migration or by a
+--      build from before the prefix was singularized -> rewrite the leading segment
+--      ("datasets" -> "dataset", "models" -> "model"). Case 2 is tested first, since
+--      such a path has no prefix by case 1's reckoning yet must not be prefixed again.
+--
+-- Only the leading segment is ever rewritten, so a local path that merely contains
+-- "/datasets/" further along keeps it. Values already in the current form match
+-- neither case, which makes the migration idempotent. jsonb_set uses
+-- create_missing = false so absent properties are never added.
 
 DO $$
 DECLARE
@@ -59,12 +67,16 @@ BEGIN
              ) f
         WHERE jsonb_typeof(w.content::jsonb -> 'operators') = 'array'
           AND (
-              (f.fn IS NOT NULL AND left(f.fn, 10) <> '/datasets/'
+              f.fn ~ '^/(dataset|model)s/'
+              OR
+              f.dvp ~ '^/(dataset|model)s/'
+              OR
+              (f.fn IS NOT NULL AND left(f.fn, 9) <> '/dataset/'
                  AND EXISTS (SELECT 1 FROM dataset d JOIN "user" u ON d.owner_uid = u.uid
                              WHERE u.email = split_part(ltrim(f.fn, '/'), '/', 1)
                                AND d.name  = split_part(ltrim(f.fn, '/'), '/', 2)))
               OR
-              (f.dvp IS NOT NULL AND left(f.dvp, 10) <> '/datasets/'
+              (f.dvp IS NOT NULL AND left(f.dvp, 9) <> '/dataset/'
                  AND EXISTS (SELECT 1 FROM dataset d JOIN "user" u ON d.owner_uid = u.uid
                              WHERE u.email = split_part(ltrim(f.dvp, '/'), '/', 1)
                                AND d.name  = split_part(ltrim(f.dvp, '/'), '/', 2)))
@@ -80,22 +92,26 @@ BEGIN
                         op,
                         '{operatorProperties,fileName}',
                         CASE
-                            WHEN f.fn IS NOT NULL AND left(f.fn, 10) <> '/datasets/'
+                            WHEN f.fn ~ '^/(dataset|model)s/'
+                            THEN to_jsonb(regexp_replace(f.fn, '^/(dataset|model)s/', '/\1/'))
+                            WHEN f.fn IS NOT NULL AND left(f.fn, 9) <> '/dataset/'
                              AND EXISTS (SELECT 1 FROM dataset d JOIN "user" u ON d.owner_uid = u.uid
                                          WHERE u.email = split_part(ltrim(f.fn, '/'), '/', 1)
                                            AND d.name  = split_part(ltrim(f.fn, '/'), '/', 2))
-                            THEN to_jsonb('/datasets/' || ltrim(f.fn, '/'))
+                            THEN to_jsonb('/dataset/' || ltrim(f.fn, '/'))
                             ELSE COALESCE(op #> '{operatorProperties,fileName}', 'null'::jsonb)
                         END,
                         false
                     ),
                     '{operatorProperties,datasetVersionPath}',
                     CASE
-                        WHEN f.dvp IS NOT NULL AND left(f.dvp, 10) <> '/datasets/'
+                        WHEN f.dvp ~ '^/(dataset|model)s/'
+                        THEN to_jsonb(regexp_replace(f.dvp, '^/(dataset|model)s/', '/\1/'))
+                        WHEN f.dvp IS NOT NULL AND left(f.dvp, 9) <> '/dataset/'
                          AND EXISTS (SELECT 1 FROM dataset d JOIN "user" u ON d.owner_uid = u.uid
                                      WHERE u.email = split_part(ltrim(f.dvp, '/'), '/', 1)
                                        AND d.name  = split_part(ltrim(f.dvp, '/'), '/', 2))
-                        THEN to_jsonb('/datasets/' || ltrim(f.dvp, '/'))
+                        THEN to_jsonb('/dataset/' || ltrim(f.dvp, '/'))
                         ELSE COALESCE(op #> '{operatorProperties,datasetVersionPath}', 'null'::jsonb)
                     END,
                     false
@@ -136,12 +152,16 @@ BEGIN
              ) f
         WHERE jsonb_typeof(wv.content::jsonb -> 'operators') = 'array'
           AND (
-              (f.fn IS NOT NULL AND left(f.fn, 10) <> '/datasets/'
+              f.fn ~ '^/(dataset|model)s/'
+              OR
+              f.dvp ~ '^/(dataset|model)s/'
+              OR
+              (f.fn IS NOT NULL AND left(f.fn, 9) <> '/dataset/'
                  AND EXISTS (SELECT 1 FROM dataset d JOIN "user" u ON d.owner_uid = u.uid
                              WHERE u.email = split_part(ltrim(f.fn, '/'), '/', 1)
                                AND d.name  = split_part(ltrim(f.fn, '/'), '/', 2)))
               OR
-              (f.dvp IS NOT NULL AND left(f.dvp, 10) <> '/datasets/'
+              (f.dvp IS NOT NULL AND left(f.dvp, 9) <> '/dataset/'
                  AND EXISTS (SELECT 1 FROM dataset d JOIN "user" u ON d.owner_uid = u.uid
                              WHERE u.email = split_part(ltrim(f.dvp, '/'), '/', 1)
                                AND d.name  = split_part(ltrim(f.dvp, '/'), '/', 2)))
@@ -157,22 +177,26 @@ BEGIN
                         op,
                         '{operatorProperties,fileName}',
                         CASE
-                            WHEN f.fn IS NOT NULL AND left(f.fn, 10) <> '/datasets/'
+                            WHEN f.fn ~ '^/(dataset|model)s/'
+                            THEN to_jsonb(regexp_replace(f.fn, '^/(dataset|model)s/', '/\1/'))
+                            WHEN f.fn IS NOT NULL AND left(f.fn, 9) <> '/dataset/'
                              AND EXISTS (SELECT 1 FROM dataset d JOIN "user" u ON d.owner_uid = u.uid
                                          WHERE u.email = split_part(ltrim(f.fn, '/'), '/', 1)
                                            AND d.name  = split_part(ltrim(f.fn, '/'), '/', 2))
-                            THEN to_jsonb('/datasets/' || ltrim(f.fn, '/'))
+                            THEN to_jsonb('/dataset/' || ltrim(f.fn, '/'))
                             ELSE COALESCE(op #> '{operatorProperties,fileName}', 'null'::jsonb)
                         END,
                         false
                     ),
                     '{operatorProperties,datasetVersionPath}',
                     CASE
-                        WHEN f.dvp IS NOT NULL AND left(f.dvp, 10) <> '/datasets/'
+                        WHEN f.dvp ~ '^/(dataset|model)s/'
+                        THEN to_jsonb(regexp_replace(f.dvp, '^/(dataset|model)s/', '/\1/'))
+                        WHEN f.dvp IS NOT NULL AND left(f.dvp, 9) <> '/dataset/'
                          AND EXISTS (SELECT 1 FROM dataset d JOIN "user" u ON d.owner_uid = u.uid
                                      WHERE u.email = split_part(ltrim(f.dvp, '/'), '/', 1)
                                        AND d.name  = split_part(ltrim(f.dvp, '/'), '/', 2))
-                        THEN to_jsonb('/datasets/' || ltrim(f.dvp, '/'))
+                        THEN to_jsonb('/dataset/' || ltrim(f.dvp, '/'))
                         ELSE COALESCE(op #> '{operatorProperties,datasetVersionPath}', 'null'::jsonb)
                     END,
                     false
@@ -197,7 +221,7 @@ BEGIN
     )
     SELECT count(*) INTO wv_count FROM updated;
 
-    RAISE NOTICE 'Prefixed legacy dataset paths with "datasets/" in % workflow and % workflow_version row(s).', wf_count, wv_count;
+    RAISE NOTICE 'Normalized the resource-type path prefix in % workflow and % workflow_version row(s).', wf_count, wv_count;
 END $$;
 
 COMMIT;

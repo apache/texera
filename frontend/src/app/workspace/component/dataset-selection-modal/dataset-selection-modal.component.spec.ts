@@ -108,7 +108,7 @@ describe("DatasetSelectionModalComponent", () => {
 
   it("ngOnInit initializes selectedDataset and selectedVersion from data.selectedPath", () => {
     modalData.fileMode = true;
-    modalData.selectedPath = `/datasets/${OWNER}/myds/v1`;
+    modalData.selectedPath = `/dataset/${OWNER}/myds/v1`;
 
     build();
 
@@ -151,7 +151,7 @@ describe("DatasetSelectionModalComponent", () => {
 
     expect(datasetService.retrieveDatasetVersionFileTree).toHaveBeenCalledWith(10, 100);
     expect(component.fileTree).toEqual([fileNode]);
-    expect(component.selectedPath).toBe(`/datasets/${OWNER}/myds/v1`);
+    expect(component.selectedPath).toBe(`/dataset/${OWNER}/myds/v1`);
   });
 
   it("onFileSelected sets selectedPath to the node's full path in file mode", () => {

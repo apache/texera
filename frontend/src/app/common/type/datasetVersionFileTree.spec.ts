@@ -41,7 +41,7 @@ describe("getRelativePathFromDatasetFileNode", () => {
     const node: DatasetFileNode = {
       name: "tw1.csv",
       type: "file",
-      parentDir: "/datasets/bob@texera.com/twitterDataset/v1/california/irvine",
+      parentDir: "/dataset/bob@texera.com/twitterDataset/v1/california/irvine",
     };
     expect(getRelativePathFromDatasetFileNode(node)).toBe("california/irvine/tw1.csv");
   });
@@ -50,7 +50,7 @@ describe("getRelativePathFromDatasetFileNode", () => {
     const node: DatasetFileNode = {
       name: "readme.txt",
       type: "file",
-      parentDir: "/datasets/bob@texera.com/twitterDataset/v1",
+      parentDir: "/dataset/bob@texera.com/twitterDataset/v1",
     };
     expect(getRelativePathFromDatasetFileNode(node)).toBe("readme.txt");
   });
@@ -59,7 +59,7 @@ describe("getRelativePathFromDatasetFileNode", () => {
     const node: DatasetFileNode = {
       name: "v1",
       type: "directory",
-      parentDir: "/datasets/bob@texera.com/twitterDataset",
+      parentDir: "/dataset/bob@texera.com/twitterDataset",
     };
     expect(getRelativePathFromDatasetFileNode(node)).toBe("");
   });
@@ -68,7 +68,7 @@ describe("getRelativePathFromDatasetFileNode", () => {
     const node: DatasetFileNode = {
       name: "f.csv",
       type: "file",
-      parentDir: "/datasets/bob@texera.com/twitterDataset//v1/sub",
+      parentDir: "/dataset/bob@texera.com/twitterDataset//v1/sub",
     };
     expect(getRelativePathFromDatasetFileNode(node)).toBe("sub/f.csv");
   });
