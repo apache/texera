@@ -24,6 +24,7 @@ import { NoopAnimationsModule } from "@angular/platform-browser/animations";
 import { By } from "@angular/platform-browser";
 import { CdkDrag, CdkDragHandle, CdkDragStart } from "@angular/cdk/drag-drop";
 import { NzResizableDirective } from "ng-zorro-antd/resizable";
+import { NzTabsComponent } from "ng-zorro-antd/tabs";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { MarkdownModule } from "ngx-markdown";
 import { Observable, Subject, of, throwError } from "rxjs";
@@ -838,13 +839,26 @@ describe("AgentPanelComponent", () => {
       expect(fixture.nativeElement.querySelectorAll("texera-agent-registration .model-card").length).toBe(1);
     });
 
-    it("clicking an agent's tab header activates that agent and marks only its chat active", () => {
+    it("selecting an agent's tab activates that agent and marks only its chat active", () => {
       service.agentList = [makeAgent("a"), makeAgent("b")];
       createComponent();
       expect(chats().map(c => c.isActive)).toEqual([false, false]);
 
-      // Header 0 is the registration tab, so agent "b" sits behind header 2.
-      (tabHeaders()[2].querySelector(".ant-tabs-tab-btn") as HTMLElement).click();
+      // The tab has to be selectable for the rest of this to mean anything: were [nzDisabled]
+      // true, nz-tabs would swallow the selection and the assertions below would pass for the
+      // wrong reason. Header 0 is the registration tab, so agent "b" sits behind header 2.
+      expect(tabHeaders()[2].classList.contains("ant-tabs-tab-disabled")).toBe(false);
+
+      // Drive the output the template binds rather than clicking the header. nz-tabs emits
+      // nzSelectedIndexChange from its own change-detection pass, not from the click handler, so
+      // a header click is not guaranteed to have reached onTabSelectChange by the time
+      // detectChanges() returns -- it held locally but failed on CI with "Number of calls: 0",
+      // and fixture.whenStable() cannot be used to wait for it because the panel keeps a
+      // long-lived subscription open. Emitting the output still pins the
+      // (nzSelectedIndexChange)="onTabSelectChange($event)" binding: point it elsewhere or drop
+      // it and activateAgent is never called. Same idiom as the nzResize test above.
+      const tabSet = fixture.debugElement.query(By.directive(NzTabsComponent)).componentInstance as NzTabsComponent;
+      tabSet.nzSelectedIndexChange.emit(2);
       fixture.detectChanges();
 
       expect(service.activateAgent).toHaveBeenCalledWith("b");
