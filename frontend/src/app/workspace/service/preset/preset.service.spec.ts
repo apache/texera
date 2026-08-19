@@ -268,6 +268,42 @@ describe("PresetService", () => {
       expect((errors[0] as Error).message).toMatch(/doesn't exist/);
     });
 
+    it("updatePreset reports the original as missing when nothing is stored yet", async () => {
+      // the absent-entry default: without it the null would be parsed instead of
+      // reading as an empty list
+      userConfigStub.fetchKey.mockReturnValue(of(null));
+
+      const errors = await captureRxjsUnhandled(() =>
+        presetService.updatePreset(presetType, presetTarget, { presetProperty: "v1" }, { presetProperty: "v2" })
+      );
+
+      expect(userConfigStub.set).not.toHaveBeenCalled();
+      expect((errors[0] as Error).message).toMatch(/doesn't exist/);
+    });
+
+    it("updatePreset replaces the original in place, keeping the surrounding order", () => {
+      userConfigStub.fetchKey.mockReturnValue(
+        of(JSON.stringify([{ presetProperty: "v1" }, { presetProperty: "v2" }, { presetProperty: "v3" }]))
+      );
+
+      presetService.updatePreset(presetType, presetTarget, { presetProperty: "v2" }, { presetProperty: "v2-edited" });
+
+      expect(userConfigStub.set).toHaveBeenCalledWith(
+        presetDictKey,
+        JSON.stringify([{ presetProperty: "v1" }, { presetProperty: "v2-edited" }, { presetProperty: "v3" }])
+      );
+    });
+
+    it("updatePreset drops the original when the replacement already exists", () => {
+      // editing a preset into one that is already stored merges the two rather than
+      // leaving a duplicate behind
+      userConfigStub.fetchKey.mockReturnValue(of(JSON.stringify([{ presetProperty: "v1" }, { presetProperty: "v2" }])));
+
+      presetService.updatePreset(presetType, presetTarget, { presetProperty: "v1" }, { presetProperty: "v2" });
+
+      expect(userConfigStub.set).toHaveBeenCalledWith(presetDictKey, JSON.stringify([{ presetProperty: "v2" }]));
+    });
+
     it("deletePreset removes the matching preset via savePresets", () => {
       const a: Preset = { presetProperty: "v1" };
       const b: Preset = { presetProperty: "v2" };
