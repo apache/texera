@@ -18,7 +18,7 @@
  */
 
 import { TestBed } from "@angular/core/testing";
-import { NotebookMigrationService, notebookMappingKey } from "./notebook-migration.service";
+import { NotebookMigrationService, notebookMappingKey, notebookFileName } from "./notebook-migration.service";
 import { HttpClient } from "@angular/common/http";
 import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
@@ -100,11 +100,12 @@ describe("NotebookMigrationService", () => {
   it("should send notebook successfully and return 1", async () => {
     const mockNotebook: any = { cells: [] };
 
-    const promise = service.sendNotebookToJupyter(mockNotebook);
+    const promise = service.sendNotebookToJupyter(mockNotebook, "notebook_1.ipynb");
 
     const req = httpMock.expectOne(req => req.url.includes("/notebook-migration/set-notebook"));
 
     expect(req.request.method).toBe("POST");
+    expect(req.request.body.notebookName).toBe("notebook_1.ipynb");
 
     req.flush({ success: true });
 
@@ -117,7 +118,7 @@ describe("NotebookMigrationService", () => {
   it("should handle error when sending notebook and return 0", async () => {
     const mockNotebook: any = { cells: [] };
 
-    const promise = service.sendNotebookToJupyter(mockNotebook);
+    const promise = service.sendNotebookToJupyter(mockNotebook, "notebook_1.ipynb");
 
     const req = httpMock.expectOne(req => req.url.includes("/notebook-migration/set-notebook"));
 
@@ -135,7 +136,7 @@ describe("NotebookMigrationService", () => {
     // Error` branch. No request reaches the testing backend, so verify() stays happy.
     vi.spyOn(TestBed.inject(HttpClient), "post").mockReturnValue(throwError(() => new Error("network down")));
 
-    const result = await service.sendNotebookToJupyter({ cells: [] } as any);
+    const result = await service.sendNotebookToJupyter({ cells: [] } as any, "notebook_1.ipynb");
 
     expect(result).toBe(0);
     expect(mockNotificationService.error).toHaveBeenCalledWith(expect.stringContaining("network down"));
@@ -175,6 +176,18 @@ describe("NotebookMigrationService", () => {
 
     const req = httpMock.expectOne(req => req.url.includes("/notebook-migration/get-jupyter-iframe-url"));
     expect(req.request.method).toBe("GET");
+    // No name given, so no notebookName query param is sent.
+    expect(req.request.params.has("notebookName")).toBe(false);
+    req.flush({ success: true, url: "http://iframe" });
+
+    expect(await promise).toBe("http://iframe");
+  });
+
+  it("sends the notebookName as a query param when one is given", async () => {
+    const promise = service.getJupyterIframeURL("notebook_1.ipynb");
+
+    const req = httpMock.expectOne(req => req.url.includes("/notebook-migration/get-jupyter-iframe-url"));
+    expect(req.request.params.get("notebookName")).toBe("notebook_1.ipynb");
     req.flush({ success: true, url: "http://iframe" });
 
     expect(await promise).toBe("http://iframe");
@@ -233,6 +246,11 @@ describe("NotebookMigrationService", () => {
 
   it("notebookMappingKey builds the in-memory cache key from the wid", () => {
     expect(notebookMappingKey(42)).toBe("mapping_wid_42");
+  });
+
+  it("notebookFileName builds a per-workflow filename from the wid, defaulting when absent", () => {
+    expect(notebookFileName(42)).toBe("notebook_42.ipynb");
+    expect(notebookFileName(undefined)).toBe("notebook.ipynb");
   });
 
   // deleteNotebookAndMapping
@@ -318,7 +336,7 @@ describe("NotebookMigrationService", () => {
     });
 
     it("sendNotebookToJupyter returns 0 with no HTTP call or notification", async () => {
-      const result = await service.sendNotebookToJupyter({ cells: [] } as any);
+      const result = await service.sendNotebookToJupyter({ cells: [] } as any, "notebook_1.ipynb");
       expect(result).toBe(0);
       expect(mockNotificationService.success).not.toHaveBeenCalled();
       expect(mockNotificationService.error).not.toHaveBeenCalled();

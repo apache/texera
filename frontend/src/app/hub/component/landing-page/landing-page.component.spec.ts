@@ -206,4 +206,37 @@ describe("LandingPageComponent", () => {
     component.navigateToSearch("something-else");
     expect(routerNavigateSpy).toHaveBeenCalledWith([HOME]);
   });
+
+  it("leaves currentUid undefined when there is no signed-in user", () => {
+    // The stub seeds a user in its constructor; clear it before the component reads it.
+    userService.user = undefined;
+    build();
+    expect(component.isLogin).toBe(false);
+    expect(component.currentUid).toBeUndefined();
+  });
+
+  it("getTopLovedEntries falls back to empty buckets when the hub returns no action keys", async () => {
+    hubServiceStub.getTops.mockReturnValue(of({}));
+    build();
+
+    const result = await component.getTopLovedEntries(EntityType.Workflow, [ActionType.Like, ActionType.Clone]);
+
+    expect(searchServiceStub.extendSearchResultsWithHubActivityInfo).toHaveBeenCalledTimes(2);
+    expect(searchServiceStub.extendSearchResultsWithHubActivityInfo).toHaveBeenCalledWith([], true, ["access"]);
+    expect(result[ActionType.Like]).toEqual([]);
+    expect(result[ActionType.Clone]).toEqual([]);
+  });
+
+  it("loadTops falls back to empty lists when the returned maps are missing keys", async () => {
+    build();
+    vi.spyOn(component, "getTopLovedEntries")
+      .mockResolvedValueOnce({} as any)
+      .mockResolvedValueOnce({} as any);
+
+    await component.loadTops();
+
+    expect(component.topLovedWorkflows).toEqual([]);
+    expect(component.topClonedWorkflows).toEqual([]);
+    expect(component.topLovedDatasets).toEqual([]);
+  });
 });

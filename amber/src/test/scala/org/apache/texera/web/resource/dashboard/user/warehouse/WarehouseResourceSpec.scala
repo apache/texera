@@ -91,6 +91,7 @@ class WarehouseResourceSpec
     val other = new User
     other.setName("warehouse_spec_other")
     other.setEmail(s"user_${UUID.randomUUID()}@example.com")
+    other.setAvatar("other-avatar.png")
     userDao.insert(other)
     otherUser = new SessionUser(other)
   }
@@ -132,10 +133,24 @@ class WarehouseResourceSpec
     created.warehouseName shouldBe s"user-${sessionUser.getUid}-mybucket"
     created.flavor shouldBe "local"
     createdNames.toList shouldBe List(s"user-${sessionUser.getUid}-mybucket")
+    created.ownerName shouldBe "warehouse_spec_user"
+    // The fixture user has no avatar set; the DTO carries null, not "" (#7743).
+    created.ownerAvatar shouldBe null
 
     val status = resource.status(sessionUser)
     status.enabled shouldBe true
     status.warehouses.map(_.whid) shouldBe List(created.whid)
+  }
+
+  it should "resolve each entry's owner name and avatar for the dashboard" in {
+    // Mirrors DashboardWorkflowComputingUnit: the UI binds to the entry's owner,
+    // not the session user, so shared warehouses will render the right person.
+    resource.create(CreateWarehouseRequest("theirs"), otherUser)
+
+    val entries = resource.status(otherUser).warehouses
+    entries should have size 1
+    entries.head.ownerName shouldBe "warehouse_spec_other"
+    entries.head.ownerAvatar shouldBe "other-avatar.png"
   }
 
   it should "reject an unsafe or duplicate name" in {

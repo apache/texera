@@ -33,6 +33,7 @@ import { FormlyNgZorroAntdModule } from "@ngx-formly/ng-zorro-antd";
 import { LogicalPort, PortDescription } from "../../../types/workflow-common.interface";
 import { mockPortSchema } from "../../../service/operator-metadata/mock-operator-metadata.data";
 import { FORM_DEBOUNCE_TIME_MS } from "../../../service/execute-workflow/execute-workflow.service";
+import * as Y from "yjs";
 
 describe("PortPropertyEditFrameComponent", () => {
   let component: PortPropertyEditFrameComponent;
@@ -386,6 +387,21 @@ describe("PortPropertyEditFrameComponent", () => {
 
       expect(component.formTitle).toBe("old");
     });
+
+    // The operator matches here, so the port half of the condition is the one doing the work —
+    // the test above short-circuits on the operator and never evaluates it.
+    it("should leave the form title unchanged for a sibling port of the same operator", () => {
+      component.currentPortID = inputPort;
+      component.formTitle = "old";
+
+      texeraGraph.portDisplayNameChangedSubject.next({
+        operatorID: inputPort.operatorID,
+        portID: outputPort.portID,
+        newDisplayName: "renamed",
+      });
+
+      expect(component.formTitle).toBe("old");
+    });
   });
 
   describe("quill title editing", () => {
@@ -420,6 +436,112 @@ describe("PortPropertyEditFrameComponent", () => {
       expect(blur).toHaveBeenCalledTimes(1);
       expect(component.quillBinding).toBeUndefined();
       expect(component.editingTitle).toBe(false);
+    });
+  });
+
+  /**
+   * The two tests above stub `registerQuillBinding` away, so the collaborative half of the title
+   * editor — the Quill instance mounted on `#customName` and the y-quill binding that carries
+   * shared edits into it — was never run. These drive the real Quill and QuillBinding against a
+   * local Y.Doc. They come last in the file deliberately: Quill 2 has no `destroy()`, so the
+   * instance leaves a MutationObserver and document listeners behind for `fixture.destroy()` to
+   * detach, and they must not be combined with `fakeAsync` (zone.js patches MutationObserver).
+   */
+  describe("quill collaborative binding", () => {
+    /** The `#customName` div the component mounts the editor into, via the global lookup it uses. */
+    const editorHost = () => document.getElementById("customName") as HTMLElement;
+
+    it("should create the shared display-name text and bind the editor to it", () => {
+      const sharedPortDescription = new Y.Doc().getMap("portDescription");
+      component.currentPortID = inputPort;
+      const sharedSpy = vi.spyOn(texeraGraph, "getSharedPortDescriptionType").mockReturnValue(sharedPortDescription);
+
+      component.connectQuillToText();
+
+      // The descriptor has to be looked up for the port being edited: inputPort and outputPort differ
+      // only in portID, so this also catches a sibling-port slot swap.
+      expect(sharedSpy).toHaveBeenCalledWith(inputPort);
+
+      // The map genuinely lacked the key, so this Y.Text can only have come from the connect call.
+      const sharedTitle = sharedPortDescription.get("displayName");
+      expect(sharedTitle).toBeInstanceOf(Y.Text);
+      // The published text has to start EMPTY — seeding it would give every freshly customised port
+      // a bogus initial display name that the DOM `toContain` below would happily tolerate.
+      expect((sharedTitle as Y.Text).toString()).toBe("");
+      expect(component.quillBinding).toBeDefined();
+
+      // A remote edit to the shared text reaches the mounted editor through the binding.
+      (sharedTitle as Y.Text).insert(0, "renamed remotely");
+      expect(editorHost().textContent).toContain("renamed remotely");
+    });
+
+    // Text sync is only half of what `connectQuillToText` sets up; y-quill routes remote *cursors*
+    // through the awareness it is handed and the `cursors` Quill module, and both are guarded
+    // (`if (quillCursors !== null && awareness)`) so losing either fails silently while edits
+    // keep flowing. QuillBinding keeps both on the instance, so they can be read back directly.
+    it("should hand the binding the shared awareness and the cursors module", () => {
+      const sharedPortDescription = new Y.Doc().getMap("portDescription");
+      component.currentPortID = inputPort;
+      vi.spyOn(texeraGraph, "getSharedPortDescriptionType").mockReturnValue(sharedPortDescription);
+
+      component.connectQuillToText();
+
+      expect((component.quillBinding as any).awareness).toBe(texeraGraph.getSharedModelAwareness());
+      // `quill.getModule("cursors") || null`, so this is null when the module is switched off.
+      expect((component.quillBinding as any).quillCursors).toBeTruthy();
+    });
+
+    it("should open on the existing shared text rather than replacing it", () => {
+      const sharedPortDescription = new Y.Doc().getMap("portDescription");
+      const existingTitle = new Y.Text();
+      sharedPortDescription.set("displayName", existingTitle);
+      existingTitle.insert(0, "already named");
+      component.currentPortID = inputPort;
+      vi.spyOn(texeraGraph, "getSharedPortDescriptionType").mockReturnValue(sharedPortDescription);
+
+      component.connectQuillToText();
+
+      expect(sharedPortDescription.get("displayName")).toBe(existingTitle);
+      // The content that was already shared is what the editor shows.
+      expect(editorHost().textContent).toContain("already named");
+    });
+
+    /**
+     * The tests above call `connectQuillToText`/`disconnectQuillFromText` directly, which leaves the
+     * only way a user actually reaches them — the template's `(click)`, `(keyup.enter)` and
+     * `(focusout)` bindings — unexercised. Without these the whole feature can be unwired from the
+     * UI without a single test noticing.
+     */
+    function openEditorFromButton(): void {
+      const sharedPortDescription = new Y.Doc().getMap("portDescription");
+      component.currentPortID = inputPort;
+      vi.spyOn(texeraGraph, "getSharedPortDescriptionType").mockReturnValue(sharedPortDescription);
+
+      fixture.debugElement.query(By.css("#formly-title button")).nativeElement.click();
+      fixture.detectChanges();
+
+      expect(component.editingTitle).toBe(true);
+      expect(component.quillBinding).toBeDefined();
+    }
+
+    it("should open the collaborative editor from the edit button and close it on Enter", () => {
+      openEditorFromButton();
+
+      editorHost().dispatchEvent(new KeyboardEvent("keyup", { key: "Enter", bubbles: true }));
+      fixture.detectChanges();
+
+      expect(component.editingTitle).toBe(false);
+      expect(component.quillBinding).toBeUndefined();
+    });
+
+    it("should close the collaborative editor when the name field loses focus", () => {
+      openEditorFromButton();
+
+      editorHost().dispatchEvent(new FocusEvent("focusout", { bubbles: true }));
+      fixture.detectChanges();
+
+      expect(component.editingTitle).toBe(false);
+      expect(component.quillBinding).toBeUndefined();
     });
   });
 });
