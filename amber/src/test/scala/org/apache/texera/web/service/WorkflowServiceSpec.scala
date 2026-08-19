@@ -327,9 +327,19 @@ class WorkflowServiceSpec
     insertExecution(otherWorkflowEid, otherWid, testCuid, "other-workflow-run")
     insertExecution(probeEid, testWid, probeCuid, "probe-run")
 
-    // Keep the SERIAL sequence ahead of our explicit fixture ids so production inserts don't reuse eid=1.
+    // Keep the SERIAL sequence ahead of our explicit fixture ids, so the execution that
+    // production inserts below cannot land on eid 1 -- LargeBinaryManager's DEFAULT_EXECUTION_ID
+    // sentinel, whose `objects/1/` prefix is shared rather than owned (see the header).
+    //
+    // The table name is qualified from the generated metadata rather than written bare:
+    // `pg_get_serial_sequence` resolves its argument through the connection's search_path, and
+    // only the throwaway connection that ran the DDL had `texera_db` on it. Every other statement
+    // in this fixture goes through jOOQ, which qualifies for us -- a bare name here raises
+    // `relation "workflow_executions" does not exist` and aborts the suite.
     getDSLContext.execute(
-      "select setval(pg_get_serial_sequence('workflow_executions','eid'), ?, true)",
+      "select setval(pg_get_serial_sequence(?, ?), ?, true)",
+      s"${WORKFLOW_EXECUTIONS.getSchema.getName}.${WORKFLOW_EXECUTIONS.getName}",
+      WORKFLOW_EXECUTIONS.EID.getName,
       Integer.valueOf(probeEid)
     )
 
@@ -694,6 +704,10 @@ class WorkflowServiceSpec
     newRow.getUid.intValue() shouldBe testUid
     newRow.getVid shouldBe versionIdOf(testWid)
     newRow.getEnvironmentVersion shouldBe """{"engine_version":"test"}"""
+    // Past every fixture id, i.e. the sequence bump in `beforeAll` reached the sequence. A
+    // `setval` that quietly resolved to NULL would leave the SERIAL at 1 -- the id whose S3
+    // prefix `LargeBinaryManager` treats as a shared sentinel (see the header).
+    newRow.getEid.intValue() should be > fixtureEids.map(_.intValue()).max
   }
 
   it should "read the previous run's registered URIs before it deletes the rows that hold them" in {
