@@ -327,6 +327,12 @@ class WorkflowServiceSpec
     insertExecution(otherWorkflowEid, otherWid, testCuid, "other-workflow-run")
     insertExecution(probeEid, testWid, probeCuid, "probe-run")
 
+    // Keep the SERIAL sequence ahead of our explicit fixture ids so production inserts don't reuse eid=1.
+    getDSLContext.execute(
+      "select setval(pg_get_serial_sequence('workflow_executions','eid'), ?, true)",
+      Integer.valueOf(probeEid)
+    )
+
     // A different row count per execution, so a clean-up that took the wrong one cannot be
     // mistaken for one that took the right one.
     (0 until 3).foreach { i =>
