@@ -27,6 +27,7 @@ import org.apache.texera.common.config.StorageConfig
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.jooq.generated.Tables.{USER, USER_WAREHOUSE}
 import org.apache.texera.dao.jooq.generated.enums.UserWarehouseFlavorEnum
+import org.apache.texera.dao.jooq.generated.tables.pojos.User
 import org.apache.texera.dao.jooq.generated.tables.records.UserWarehouseRecord
 import org.apache.texera.web.resource.dashboard.user.warehouse.WarehouseResource._
 import org.apache.texera.web.service.LakekeeperClient
@@ -62,30 +63,17 @@ object WarehouseResource {
       ownerAvatar: String
   )
 
-  // (name, avatar) per uid; null when the user has no name / avatar set, matching
-  // how computing units resolve their owner info.
-  private def resolveOwners(uids: Seq[Integer]): Map[Integer, (String, String)] =
-    if (uids.isEmpty) Map.empty
-    else
-      context
-        .select(USER.UID, USER.NAME, USER.AVATAR)
-        .from(USER)
-        .where(USER.UID.in(uids: _*))
-        .fetch()
-        .asScala
-        .map(r =>
-          r.get(USER.UID) -> (
-            (
-              Option(r.get(USER.NAME)).filter(_.nonEmpty).orNull,
-              Option(r.get(USER.AVATAR)).filter(_.nonEmpty).orNull
-            )
-          )
-        )
-        .toMap
+  // (name, avatar), null for either when the user has not set it.
+  private type Owner = (String, String)
+
+  private def ownerOf(name: String, avatar: String): Owner =
+    (Option(name).filter(_.nonEmpty).orNull, Option(avatar).filter(_.nonEmpty).orNull)
+
+  private def ownerOf(user: User): Owner = ownerOf(user.getName, user.getAvatar)
 
   private def toDashboardWarehouse(
       row: UserWarehouseRecord,
-      owner: (String, String)
+      owner: Owner
   ): DashboardWarehouse =
     DashboardWarehouse(
       row.getWhid,
@@ -126,18 +114,26 @@ class WarehouseResource(client: LakekeeperClient, enabled: Boolean) extends Lazy
     if (!enabled) {
       return WarehouseStatus(enabled = false, warehouses = List())
     }
+    // Joined rather than resolved in a second query: one round trip, and every row
+    // carries its own owner once warehouses can be shared.
     val rows = context
-      .selectFrom(USER_WAREHOUSE)
+      .select(USER_WAREHOUSE.fields() ++ Seq(USER.NAME, USER.AVATAR): _*)
+      .from(USER_WAREHOUSE)
+      .leftJoin(USER)
+      .on(USER.UID.eq(USER_WAREHOUSE.UID))
       .where(USER_WAREHOUSE.UID.eq(current_user.getUid))
       .orderBy(USER_WAREHOUSE.CREATED_AT.asc())
       .fetch()
       .asScala
       .toList
-    val owners = resolveOwners(rows.map(_.getUid).distinct)
     WarehouseStatus(
       enabled = true,
-      warehouses =
-        rows.map(row => toDashboardWarehouse(row, owners.getOrElse(row.getUid, (null, null))))
+      warehouses = rows.map(r =>
+        toDashboardWarehouse(
+          r.into(USER_WAREHOUSE),
+          ownerOf(r.get(USER.NAME), r.get(USER.AVATAR))
+        )
+      )
     )
   }
 
@@ -204,7 +200,9 @@ class WarehouseResource(client: LakekeeperClient, enabled: Boolean) extends Lazy
         }
         throw new WebApplicationException(e.getMessage, 500)
     }
-    toDashboardWarehouse(row, resolveOwners(Seq(uid)).getOrElse(uid, (null, null)))
+    // The caller owns what they just created, and SessionUser already carries their
+    // display info -- no lookup needed.
+    toDashboardWarehouse(row, ownerOf(current_user.getUser))
   }
 
   @DELETE
