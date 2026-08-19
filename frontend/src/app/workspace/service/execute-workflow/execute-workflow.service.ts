@@ -48,6 +48,7 @@ import { intersection } from "../../../common/util/set";
 import { WorkflowSettings } from "../../../common/type/workflow";
 
 import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
+import { WarehouseService } from "../../../common/service/warehouse/warehouse.service";
 
 // TODO: change this declaration
 export const FORM_DEBOUNCE_TIME_MS = 150;
@@ -100,7 +101,8 @@ export class ExecuteWorkflowService {
     private workflowStatusService: WorkflowStatusService,
     private notificationService: NotificationService,
     @Inject(DOCUMENT) private document: Document,
-    private computingUnitStatusService: ComputingUnitStatusService
+    private computingUnitStatusService: ComputingUnitStatusService,
+    private warehouseService: WarehouseService
   ) {
     workflowWebsocketService.websocketEvent().subscribe(event => {
       switch (event.type) {
@@ -241,6 +243,10 @@ export class ExecuteWorkflowService {
     const selectedUnit = this.computingUnitStatusService.getSelectedComputingUnitValue();
     const computingUnitId = selectedUnit?.computingUnit.cuid;
 
+    // The warehouse this execution writes to (#6933); undefined serializes away,
+    // which the backend reads as the shared default storage.
+    const warehouseId = this.warehouseService.getSelectedWarehouseIdValue();
+
     // Log a warning if no computing unit is selected
     if (computingUnitId === undefined) {
       console.warn("No computing unit selected for workflow execution");
@@ -254,6 +260,7 @@ export class ExecuteWorkflowService {
       workflowSettings: workflowSettings,
       emailNotificationEnabled: emailNotificationEnabled,
       computingUnitId: computingUnitId, // Include the computing unit ID
+      warehouseId: warehouseId,
     };
     // wait for the form debounce to complete, then send
     window.setTimeout(() => {

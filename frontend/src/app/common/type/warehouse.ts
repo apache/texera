@@ -16,31 +16,26 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { ExecutionState } from "../../workspace/types/execute-workflow.interface";
 
-export interface WorkflowExecutionsEntry {
-  eId: number;
-  vId: number;
-  cuId: number;
-  /** null for runs on the shared default storage, and after the warehouse is deleted. */
-  whId: number | null;
-  sId: number;
-  userName: string;
-  avatar: string;
+/**
+ * A per-user warehouse registration (#6870), as served by `GET /warehouse/status`.
+ * Mirrors the backend's `WarehouseResource.DashboardWarehouse`.
+ */
+export interface DashboardWarehouse {
+  whid: number;
+  /** The user-facing name, unique per user. */
   name: string;
-  startingTime: number;
-  completionTime: number;
-  status: number;
-  result: string;
-  bookmarked: boolean;
-  logLocation: string;
+  /** The Lakekeeper catalog name (`user-<uid>-<name>`), globally unique. */
+  warehouseName: string;
+  flavor: string;
+  createdAtMillis: number;
 }
 
-export const EXECUTION_STATUS_CODE: Record<number, string> = {
-  0: ExecutionState.Initializing,
-  1: ExecutionState.Running,
-  2: ExecutionState.Paused,
-  3: ExecutionState.Completed,
-  4: ExecutionState.Failed,
-  5: ExecutionState.Killed,
-};
+/**
+ * Response of `GET /warehouse/status`. `enabled` reflects the deployment-wide
+ * feature flag; with it off the warehouse UI stays hidden entirely.
+ */
+export interface WarehouseStatus {
+  enabled: boolean;
+  warehouses: ReadonlyArray<DashboardWarehouse>;
+}

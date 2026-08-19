@@ -42,6 +42,7 @@ import type { Mock } from "vitest";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { commonTestProviders } from "../../common/testing/test-utils";
 import { GuiConfigService } from "../../common/service/gui-config.service";
+import { WarehouseService } from "../../common/service/warehouse/warehouse.service";
 import {
   ABOUT,
   ADMIN_EXECUTION,
@@ -53,6 +54,7 @@ import {
   USER_DISCUSSION,
   USER_PROJECT,
   USER_QUOTA,
+  USER_WAREHOUSE,
   USER_WORKFLOW,
 } from "../../app-routing.constant";
 
@@ -265,6 +267,7 @@ describe("DashboardComponent", () => {
     expect(USER_WORKFLOW).toBe("/user/workflow");
     expect(USER_DATASET).toBe("/user/dataset");
     expect(USER_COMPUTING_UNIT).toBe("/user/compute");
+    expect(USER_WAREHOUSE).toBe("/user/warehouse");
     expect(USER_QUOTA).toBe("/user/quota");
     expect(USER_DISCUSSION).toBe("/user/discussion");
     expect(ADMIN_USER).toBe("/admin/user");
@@ -296,6 +299,48 @@ describe("DashboardComponent", () => {
 
     // 7 "Your Work" links (incl. Python Venvs) + 4 admin links + 1 about link + 1 feedback link = 13
     expect(fixture.debugElement.queryAll(By.directive(RouterLink)).length).toBe(13);
+  });
+
+  describe("warehouse tab gating (#6933)", () => {
+    const warehouseMenuItem = () =>
+      fixture.debugElement
+        .queryAll(By.css("li[nz-menu-item]"))
+        .find(de => (de.nativeElement.textContent || "").trim() === "Warehouses");
+
+    beforeEach(() => {
+      (userServiceMock.isLogin as Mock).mockReturnValue(true);
+      component.isLogin = true;
+      component.sidebarTabs = { ...component.sidebarTabs, your_work_enabled: true };
+    });
+
+    it("shows the Warehouses item only while the backend reports the feature enabled", () => {
+      component.warehouseEnabled = false;
+      fixture.detectChanges();
+      expect(warehouseMenuItem()).toBeUndefined();
+
+      component.warehouseEnabled = true;
+      fixture.detectChanges();
+      expect(warehouseMenuItem()).toBeTruthy();
+    });
+
+    it("loadWarehouseEnabled follows the status endpoint, and stays hidden when logged out or failing", () => {
+      const statusSpy = vi
+        .spyOn(TestBed.inject(WarehouseService), "getStatus")
+        .mockReturnValue(of({ enabled: true, warehouses: [] }));
+
+      component.isLogin = false;
+      component.loadWarehouseEnabled();
+      expect(statusSpy).not.toHaveBeenCalled();
+      expect(component.warehouseEnabled).toBe(false);
+
+      component.isLogin = true;
+      component.loadWarehouseEnabled();
+      expect(component.warehouseEnabled).toBe(true);
+
+      statusSpy.mockReturnValue(throwError(() => new Error("401")));
+      component.loadWarehouseEnabled();
+      expect(component.warehouseEnabled).toBe(false);
+    });
   });
 
   describe("sidebar active-route highlighting (#3490)", () => {

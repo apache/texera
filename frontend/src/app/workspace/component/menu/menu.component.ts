@@ -800,6 +800,14 @@ export class MenuComponent implements OnInit, OnDestroy {
       return;
     }
 
+    // Per-user warehouses enabled but none to write to (#6933): an execution
+    // must have a warehouse, so lead to the create-warehouse modal instead of
+    // running — the same shape as the Connect flow above.
+    if (this.computingUnitSelectionComponent.warehouseRequiredButMissing) {
+      this.computingUnitSelectionComponent.showAddWarehouseModalVisible();
+      return;
+    }
+
     // Regular workflow execution - already connected
     this.executeWorkflowService.executeWorkflowWithEmailNotification(
       this.currentExecutionName || "Untitled Execution",

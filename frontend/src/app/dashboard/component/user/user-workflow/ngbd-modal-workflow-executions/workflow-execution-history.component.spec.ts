@@ -42,6 +42,7 @@ function makeEntry(overrides: Partial<WorkflowExecutionsEntry> = {}): WorkflowEx
     eId: 1,
     vId: 1,
     cuId: 1,
+    whId: 1,
     sId: 0,
     userName: "alice",
     avatar: "",

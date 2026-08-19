@@ -37,6 +37,9 @@ export interface ExecutionConfig {
   userToken: string;
   workflowId: number;
   computingUnitId?: number;
+  // The warehouse the user picked in the UI; forwarded alongside computingUnitId so
+  // the run writes into their own warehouse rather than shared storage (#7751).
+  warehouseId?: number;
   maxOperatorResultCharLimit?: number;
   maxOperatorResultCellCharLimit?: number;
   executionTimeoutMs?: number;
@@ -285,6 +288,7 @@ async function executeWorkflowHttp(
     maxOperatorResultCharLimit: config.maxOperatorResultCharLimit ?? DEFAULT_AGENT_SETTINGS.maxOperatorResultCharLimit,
     maxOperatorResultCellCharLimit:
       config.maxOperatorResultCellCharLimit ?? DEFAULT_AGENT_SETTINGS.maxOperatorResultCellCharLimit,
+    ...(config.warehouseId !== undefined ? { warehouseId: config.warehouseId } : {}),
   };
 
   log.debug(

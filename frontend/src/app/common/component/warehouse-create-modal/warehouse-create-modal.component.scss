@@ -16,31 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { ExecutionState } from "../../workspace/types/execute-workflow.interface";
 
-export interface WorkflowExecutionsEntry {
-  eId: number;
-  vId: number;
-  cuId: number;
-  /** null for runs on the shared default storage, and after the warehouse is deleted. */
-  whId: number | null;
-  sId: number;
-  userName: string;
-  avatar: string;
-  name: string;
-  startingTime: number;
-  completionTime: number;
-  status: number;
-  result: string;
-  bookmarked: boolean;
-  logLocation: string;
+.warehouse-name-hint {
+  margin: 8px 0 0;
+  color: rgba(0, 0, 0, 0.45);
+  font-size: 12px;
 }
-
-export const EXECUTION_STATUS_CODE: Record<number, string> = {
-  0: ExecutionState.Initializing,
-  1: ExecutionState.Running,
-  2: ExecutionState.Paused,
-  3: ExecutionState.Completed,
-  4: ExecutionState.Failed,
-  5: ExecutionState.Killed,
-};

@@ -111,6 +111,7 @@ export class TexeraAgent {
     workflowId: number;
     workflowName?: string;
     computingUnitId?: number;
+    warehouseId?: number;
   };
 
   private stepCallback: ReActStepCallback | null = null;
@@ -185,6 +186,7 @@ export class TexeraAgent {
       userToken: this.delegateConfig.userToken,
       workflowId: this.delegateConfig.workflowId,
       computingUnitId: this.delegateConfig.computingUnitId,
+      warehouseId: this.delegateConfig.warehouseId,
       maxOperatorResultCharLimit: this.settings.maxOperatorResultCharLimit,
       maxOperatorResultCellCharLimit: this.settings.maxOperatorResultCellCharLimit,
       executionTimeoutMs: this.settings.executionTimeoutMs,
@@ -425,6 +427,7 @@ export class TexeraAgent {
     workflowId: number;
     workflowName?: string;
     computingUnitId?: number;
+    warehouseId?: number;
   }): void {
     this.delegateConfig = config;
 
@@ -434,7 +437,7 @@ export class TexeraAgent {
   }
 
   getDelegateConfig():
-    | { userToken: string; userInfo?: UserInfo; workflowId: number; workflowName?: string; computingUnitId?: number }
+    | { userToken: string; userInfo?: UserInfo; workflowId: number; workflowName?: string; computingUnitId?: number; warehouseId?: number }
     | undefined {
     return this.delegateConfig;
   }
