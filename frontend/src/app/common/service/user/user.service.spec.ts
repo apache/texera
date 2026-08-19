@@ -25,7 +25,7 @@ import { AuthService } from "./auth.service";
 import { StubAuthService } from "./stub-auth.service";
 import { MOCK_USER } from "./stub-user.service";
 import { skip } from "rxjs/operators";
-import { firstValueFrom, Subject, throwError } from "rxjs";
+import { firstValueFrom, of, Subject, throwError } from "rxjs";
 import { commonTestProviders } from "../../testing/test-utils";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { GuiConfigService } from "../gui-config.service";
@@ -85,6 +85,25 @@ describe("UserService", () => {
     service.register("existing_user", "existing_user@example.com", "password").subscribe(() => {
       expect((service as any).currentUser).toBeFalsy();
     });
+  });
+
+  // Where verification is on the first call creates nothing, so nobody may be signed in off the
+  // back of it — the account does not exist until the code comes back.
+  it("reports a pending verification and signs nobody in", async () => {
+    const auth = TestBed.inject(AuthService) as unknown as StubAuthService;
+    vi.spyOn(auth, "register").mockReturnValue(of({ accessToken: null, verificationRequired: true }));
+
+    const outcome = await firstValueFrom(service.register("pending", "pending@example.com", "password"));
+
+    expect(outcome).toEqual({ verificationRequired: true });
+    expect(service.isLogin()).toBe(false);
+    expect(AuthService.getAccessToken()).toBeNull();
+  });
+
+  it("signs the user in once registerVerify accepts the code", async () => {
+    await firstValueFrom(service.registerVerify("test", "test@example.com", "password", "123456"));
+
+    expect(service.isLogin()).toBe(true);
   });
 
   it("should not login after login failed", () => {

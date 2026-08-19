@@ -17,19 +17,14 @@
  * under the License.
  */
 
-package org.apache.texera.web.model.http.request.auth
+package org.apache.texera.web.model.http.response
 
 /**
-  * A registration, optionally carrying the code that proves the address.
+  * What a registration attempt produced: either an account and its token, or a request for the code
+  * that was just mailed.
   *
-  * The same shape serves both steps of a verified signup: `AuthResource.register` mails a code and
-  * writes nothing, then the client re-submits these very fields plus `code` to
-  * `AuthResource.registerVerify`. Re-submitting is what lets the server hold no pending state — and
-  * it keeps the password out of anything that gets stored or emailed.
+  * `accessToken` is null exactly when `verificationRequired` is true, and it stays a nullable String
+  * rather than an Option so the JSON keeps the `{ "accessToken": ... }` shape the frontend already
+  * reads from [[TokenIssueResponse]].
   */
-case class UserRegistrationRequest(
-    username: String,
-    email: String,
-    password: String,
-    code: String = null
-)
+case class RegistrationResponse(accessToken: String, verificationRequired: Boolean)

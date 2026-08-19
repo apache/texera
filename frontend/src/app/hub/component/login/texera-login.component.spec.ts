@@ -51,7 +51,8 @@ describe("TexeraLoginComponent", () => {
     userServiceMock = {
       isLogin: vi.fn().mockReturnValue(false),
       login: vi.fn().mockReturnValue(of(undefined)),
-      register: vi.fn().mockReturnValue(of(undefined)),
+      register: vi.fn().mockReturnValue(of({ verificationRequired: false })),
+      registerVerify: vi.fn().mockReturnValue(of(undefined)),
       googleLogin: vi.fn().mockReturnValue(of(undefined)),
     };
     notificationServiceMock = { error: vi.fn(), success: vi.fn() };
@@ -266,6 +267,97 @@ describe("TexeraLoginComponent", () => {
       component.submit();
       expect(userServiceMock.register).toHaveBeenCalledWith("alice", "alice@example.com", "secret1");
       expect(notificationServiceMock.success).toHaveBeenCalled();
+    });
+
+    // Where verification is on, the first submit only asks for a code: the account does not exist
+    // yet, so nothing should claim it was created.
+    it("switches to the code step when the backend asks for verification", () => {
+      (userServiceMock.register as any).mockReturnValue(of({ verificationRequired: true }));
+      component.form.patchValue({
+        username: "alice",
+        email: "alice@example.com",
+        password: "secret1",
+        confirm: "secret1",
+      });
+
+      component.submit();
+
+      expect(component.awaitingCode).toBe(true);
+      expect(userServiceMock.registerVerify).not.toHaveBeenCalled();
+      expect(notificationServiceMock.success).toHaveBeenCalledWith(
+        "A verification code has been sent to alice@example.com."
+      );
+    });
+
+    it("re-submits the same fields with the code once it has one", () => {
+      (userServiceMock.register as any).mockReturnValue(of({ verificationRequired: true }));
+      component.form.patchValue({
+        username: "  alice  ",
+        email: "  alice@example.com  ",
+        password: "secret1",
+        confirm: "secret1",
+      });
+      component.submit();
+
+      component.form.patchValue({ code: " 123456 " });
+      component.submit();
+
+      // Registering again would be wrong: the pending signup lives only in this form.
+      expect(userServiceMock.register).toHaveBeenCalledTimes(1);
+      expect(userServiceMock.registerVerify).toHaveBeenCalledWith("alice", "alice@example.com", "secret1", "123456");
+      expect(component.awaitingCode).toBe(false);
+    });
+
+    it("asks for the code rather than submitting an empty one", () => {
+      (userServiceMock.register as any).mockReturnValue(of({ verificationRequired: true }));
+      component.form.patchValue({
+        username: "alice",
+        email: "alice@example.com",
+        password: "secret1",
+        confirm: "secret1",
+      });
+      component.submit();
+
+      component.submit();
+
+      expect(userServiceMock.registerVerify).not.toHaveBeenCalled();
+      expect(component.errorMessage).toBe("Enter the code that was emailed to you.");
+    });
+
+    it("reports a refused code and stays on the code step", () => {
+      (userServiceMock.register as any).mockReturnValue(of({ verificationRequired: true }));
+      (userServiceMock.registerVerify as any).mockReturnValue(
+        throwError(() => new Error("That code is not valid or has expired."))
+      );
+      component.form.patchValue({
+        username: "alice",
+        email: "alice@example.com",
+        password: "secret1",
+        confirm: "secret1",
+      });
+      component.submit();
+
+      component.form.patchValue({ code: "000000" });
+      component.submit();
+
+      expect(component.errorMessage).toBe("That code is not valid or has expired.");
+      expect(component.awaitingCode).toBe(true);
+    });
+
+    it("abandons a pending signup when the tab changes", () => {
+      (userServiceMock.register as any).mockReturnValue(of({ verificationRequired: true }));
+      component.form.patchValue({
+        username: "alice",
+        email: "alice@example.com",
+        password: "secret1",
+        confirm: "secret1",
+      });
+      component.submit();
+
+      component.setMode("signin");
+
+      expect(component.awaitingCode).toBe(false);
+      expect(component.form.get("code")?.value).toBe("");
     });
 
     it("surfaces the error message on registration failure", () => {

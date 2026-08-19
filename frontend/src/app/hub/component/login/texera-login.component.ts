@@ -77,6 +77,12 @@ export class TexeraLoginComponent implements OnInit {
   public passwordVisible = false;
   public errorMessage: string | undefined;
 
+  /**
+   * True once a sign-up has been accepted but the account does not exist yet: the backend mailed a
+   * code and is waiting for it. Only reachable where `user-sys.email-verification` is on.
+   */
+  public awaitingCode = false;
+
   public form: FormGroup;
 
   constructor(
@@ -96,6 +102,8 @@ export class TexeraLoginComponent implements OnInit {
       email: new FormControl("", [Validators.email]),
       password: new FormControl("", [Validators.required, Validators.minLength(6)]),
       confirm: new FormControl("", [this.confirmationValidator]),
+      // Only submitted once the backend has asked for it; see `awaitingCode`.
+      code: new FormControl(""),
     });
   }
 
@@ -139,6 +147,9 @@ export class TexeraLoginComponent implements OnInit {
   public setMode(mode: LoginMode): void {
     this.mode = mode;
     this.errorMessage = undefined;
+    // Switching tabs abandons a pending signup; the code that was mailed expires on its own.
+    this.awaitingCode = false;
+    this.form.controls.code.setValue("");
     // The confirm-password rule only applies in sign-up mode, so re-evaluate it on every switch.
     this.form.controls.confirm.updateValueAndValidity();
   }
@@ -208,6 +219,32 @@ export class TexeraLoginComponent implements OnInit {
       return;
     }
 
+    // Second half of a verified signup: the account does not exist yet, so send the same fields
+    // back with the code rather than registering again.
+    if (this.awaitingCode) {
+      const code = (this.form.get("code")?.value ?? "").trim();
+      if (!code) {
+        this.errorMessage = "Enter the code that was emailed to you.";
+        return;
+      }
+      this.userService
+        .registerVerify(username, email, password, code)
+        .pipe(
+          catchError((e: unknown) => {
+            this.errorMessage = (e as Error)?.message || "That code is not valid or has expired.";
+            return throwError(() => e);
+          }),
+          untilDestroyed(this)
+        )
+        .subscribe(() => {
+          this.awaitingCode = false;
+          this.notificationService.success(
+            "Your account has been created. Please contact the Texera administrator to activate your account."
+          );
+        });
+      return;
+    }
+
     this.userService
       .register(username, email, password)
       .pipe(
@@ -217,11 +254,16 @@ export class TexeraLoginComponent implements OnInit {
         }),
         untilDestroyed(this)
       )
-      .subscribe(() =>
+      .subscribe(({ verificationRequired }) => {
+        if (verificationRequired) {
+          this.awaitingCode = true;
+          this.notificationService.success(`A verification code has been sent to ${email}.`);
+          return;
+        }
         this.notificationService.success(
           "Your account has been created. Please contact the Texera administrator to activate your account."
-        )
-      );
+        );
+      });
   }
 
   private navigateAfterLogin(): void {

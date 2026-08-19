@@ -114,7 +114,27 @@
       Password must be at least 6 characters. After registering, contact the Texera administrator to activate your
       account.
     </p>
-    }
+
+    <!-- Only where verification is on: the account is not created until this code comes back. -->
+    @if (awaitingCode) {
+    <nz-input-group
+      nzSize="large"
+      nzPrefixIcon="mail">
+      <input
+        nz-input
+        formControlName="code"
+        inputmode="numeric"
+        maxlength="6"
+        autocomplete="one-time-code"
+        placeholder="Verification code" />
+    </nz-input-group>
+    <p
+      nz-typography
+      nzType="secondary"
+      class="hint">
+      Enter the code emailed to you to finish creating your account.
+    </p>
+    } }
 
     <p class="error">{{ errorMessage }}</p>
 

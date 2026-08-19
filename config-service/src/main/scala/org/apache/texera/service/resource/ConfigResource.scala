@@ -69,7 +69,10 @@ class ConfigResource {
       ),
       "attributionEnabled" -> GuiConfig.guiAttributionEnabled,
       "deploymentVersionCheckEnabled" -> GuiConfig.guiDeploymentVersionCheckEnabled,
-      "inviteOnly" -> UserSystemConfig.inviteOnly
+      "inviteOnly" -> UserSystemConfig.inviteOnly,
+      // The sign-up form decides whether to expect a code step before anyone has a token, so this
+      // has to be readable anonymously.
+      "emailVerification" -> UserSystemConfig.emailVerification
     )
 
   @GET
