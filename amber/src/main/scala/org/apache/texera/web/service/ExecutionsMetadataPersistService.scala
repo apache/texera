@@ -57,7 +57,7 @@ object ExecutionsMetadataPersistService extends LazyLogging {
       executionName: String,
       environmentVersion: String,
       computingUnitId: Integer,
-      whid: Option[Int] = None
+      warehouseId: Option[Int] = None
   ): ExecutionIdentity = {
     // first retrieve the latest version of this workflow
     val vid = getLatestVersion(workflowId.id.toInt)
@@ -73,7 +73,7 @@ object ExecutionsMetadataPersistService extends LazyLogging {
     // Set computing unit ID if provided
     newExecution.setCuid(computingUnitId)
     // The warehouse this run writes into (#6870); null = the shared default warehouse.
-    whid.foreach(id => newExecution.setWhid(id))
+    warehouseId.foreach(id => newExecution.setWhid(id))
 
     try {
       workflowExecutionsDao.insert(newExecution)

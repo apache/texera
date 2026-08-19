@@ -71,25 +71,25 @@ object WorkflowService {
   private val workflowServiceMapping = new ConcurrentHashMap[String, WorkflowService]()
 
   /**
-    * Maps an execution's chosen warehouse (`whid`) to its Lakekeeper warehouse name,
-    * checking that the requesting user owns it. `None` (no explicit pick) keeps the
+    * Maps an execution's chosen warehouse (its user_warehouse row id) to its Lakekeeper
+    * warehouse name, checking that the requesting user owns it. `None` (no explicit pick) keeps the
     * shared default warehouse. With warehouses disabled, an explicit pick is refused
     * loudly rather than silently routed into the shared warehouse (#6930).
     */
   def resolveLakekeeperWarehouseName(
-      whid: Option[Int],
+      warehouseId: Option[Int],
       uid: Integer,
       enabled: Boolean = StorageConfig.warehouseEnabled
   ): Option[String] = {
     if (!enabled) {
-      whid.foreach(_ =>
+      warehouseId.foreach(_ =>
         throw new IllegalArgumentException(
           "per-user warehouses are disabled in this deployment"
         )
       )
       return None
     }
-    whid.map(id => {
+    warehouseId.map(id => {
       val row = SqlServer
         .getInstance()
         .createDSLContext()
@@ -233,7 +233,7 @@ class WorkflowService(
     )
 
     val workflowContext: WorkflowContext = createWorkflowContext()
-    workflowContext.warehouse = WorkflowService.resolveLakekeeperWarehouseName(req.whid, uid)
+    workflowContext.warehouse = WorkflowService.resolveLakekeeperWarehouseName(req.warehouseId, uid)
     var coordinatorConf = CoordinatorConfig.default
 
     // clean up results from previous run
@@ -249,7 +249,7 @@ class WorkflowService(
       req.executionName,
       convertToJson(req.engineVersion),
       req.computingUnitId,
-      req.whid
+      req.warehouseId
     )
 
     if (ApplicationConfig.faultToleranceLogRootFolder.isDefined) {

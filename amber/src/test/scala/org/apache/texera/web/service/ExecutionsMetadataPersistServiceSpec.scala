@@ -238,7 +238,7 @@ class ExecutionsMetadataPersistServiceSpec
       executionName = "warehouse-run",
       environmentVersion = "env-4",
       computingUnitId = seededCuid,
-      whid = Some(row.getWhid)
+      warehouseId = Some(row.getWhid)
     )
     workflowExecutionsDao.fetchOneByEid(withWarehouse.id.toInt).getWhid shouldBe row.getWhid
 
@@ -267,7 +267,7 @@ class ExecutionsMetadataPersistServiceSpec
       executionName = "history-run",
       environmentVersion = "env-5",
       computingUnitId = seededCuid,
-      whid = Some(row.getWhid)
+      warehouseId = Some(row.getWhid)
     )
 
     getDSLContext.deleteFrom(USER_WAREHOUSE).where(USER_WAREHOUSE.WHID.eq(row.getWhid)).execute()

@@ -69,7 +69,7 @@ class WorkflowExecutionServiceSpec extends AnyFlatSpec with Matchers {
       workflowSettings = WorkflowSettings(),
       emailNotificationEnabled = false,
       computingUnitId = 0,
-      whid = None
+      warehouseId = None
     )
     new WorkflowExecutionService(
       null,

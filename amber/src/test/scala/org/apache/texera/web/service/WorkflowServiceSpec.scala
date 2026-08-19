@@ -138,7 +138,7 @@ class WorkflowServiceSpec extends AnyFlatSpec with Matchers {
       workflowSettings = WorkflowSettings(),
       emailNotificationEnabled = false,
       computingUnitId = 1,
-      whid = None
+      warehouseId = None
     )
     new WorkflowExecutionService(
       null,
@@ -297,7 +297,7 @@ class WorkflowServiceSpec extends AnyFlatSpec with Matchers {
       workflowSettings = WorkflowSettings(),
       emailNotificationEnabled = false,
       computingUnitId = 1,
-      whid = None
+      warehouseId = None
     )
 
     // uid is NOT NULL in the DB, so this has to fail before the execution row is inserted.

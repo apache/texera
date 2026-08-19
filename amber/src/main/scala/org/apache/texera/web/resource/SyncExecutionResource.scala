@@ -169,7 +169,7 @@ class SyncExecutionResource extends LazyLogging {
           ),
         emailNotificationEnabled = false,
         computingUnitId = computingUnitId,
-        whid = None
+        warehouseId = None
       )
 
       workflowService.initExecutionService(
