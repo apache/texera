@@ -25,10 +25,9 @@ import io.dropwizard.core.Application
 import io.dropwizard.core.setup.{Bootstrap, Environment}
 import org.apache.texera.common.config.StorageConfig
 import org.apache.texera.amber.util.ObjectMapperUtils
-import org.apache.texera.auth.{AuthFeatures, RoleAnnotationEnforcer}
+import org.apache.texera.auth.{AuthFeatures, RequestLoggingFilter, RoleAnnotationEnforcer}
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.service.resource.{HealthCheckResource, WorkflowCompilationResource}
-import org.eclipse.jetty.servlet.FilterHolder
 
 import java.nio.file.Path
 
@@ -73,27 +72,7 @@ class WorkflowCompilingService extends Application[WorkflowCompilingServiceConfi
     )
 
     // Route request logs through SLF4J, controlled by TEXERA_SERVICE_LOG_LEVEL
-    val requestLogger = org.slf4j.LoggerFactory.getLogger("org.eclipse.jetty.server.RequestLog")
-    environment.getApplicationContext.addFilter(
-      new FilterHolder(new jakarta.servlet.Filter {
-        override def doFilter(
-            request: jakarta.servlet.ServletRequest,
-            response: jakarta.servlet.ServletResponse,
-            chain: jakarta.servlet.FilterChain
-        ): Unit = {
-          chain.doFilter(request, response)
-          if (requestLogger.isInfoEnabled) {
-            val req = request.asInstanceOf[jakarta.servlet.http.HttpServletRequest]
-            val resp = response.asInstanceOf[jakarta.servlet.http.HttpServletResponse]
-            requestLogger.info(
-              s"""${req.getRemoteAddr} - "${req.getMethod} ${req.getRequestURI} ${req.getProtocol}" ${resp.getStatus}"""
-            )
-          }
-        }
-      }),
-      "/*",
-      java.util.EnumSet.allOf(classOf[jakarta.servlet.DispatcherType])
-    )
+    RequestLoggingFilter.register(environment.getApplicationContext)
   }
 }
 

@@ -33,6 +33,7 @@ import org.apache.texera.auth.SessionUser
 import org.apache.texera.dao.SiteSettings
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.SqlServer.withTransaction
+import org.apache.texera.dao.SqlStates
 import org.apache.texera.dao.jooq.generated.enums.{PrivilegeEnum, UserRoleEnum}
 import org.apache.texera.dao.jooq.generated.tables.Dataset.DATASET
 import org.apache.texera.dao.jooq.generated.tables.DatasetContributor.DATASET_CONTRIBUTOR
@@ -1641,7 +1642,7 @@ class DatasetResource extends LazyLogging {
     try op
     catch {
       case e: DataAccessException =>
-        if (e.sqlState() == "23505") {
+        if (e.sqlState() == SqlStates.UNIQUE_VIOLATION) {
           throw new BadRequestException("Dataset with the same name already exists")
         }
         throw e

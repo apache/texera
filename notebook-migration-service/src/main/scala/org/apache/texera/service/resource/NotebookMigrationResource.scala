@@ -26,6 +26,7 @@ import jakarta.ws.rs._
 import jakarta.ws.rs.core._
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.dao.SqlServer
+import org.apache.texera.dao.SqlStates
 import org.jooq.JSONB
 import org.jooq.exception.DataAccessException
 import org.apache.texera.dao.jooq.generated.tables.Notebook
@@ -394,7 +395,7 @@ object NotebookMigrationResource extends LazyLogging {
       // Backstop for the pre-check TOCTOU race: two writers on a shared workflow can both
       // pass the existence check, then one INSERT trips the UNIQUE(wid) constraint. Translate
       // that (Postgres SQLState 23505) to a 409 rather than a generic 500.
-      case e: DataAccessException if e.sqlState == "23505" =>
+      case e: DataAccessException if e.sqlState == SqlStates.UNIQUE_VIOLATION =>
         Response
           .status(Response.Status.CONFLICT)
           .entity(errorJson("A notebook is already stored for this workflow"))

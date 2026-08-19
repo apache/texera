@@ -25,6 +25,7 @@ import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.typesafe.scalalogging.LazyLogging
 import io.dropwizard.auth.Auth
 import org.apache.texera.auth.SessionUser
+import org.apache.texera.dao.SqlStates
 import org.jooq.exception.DataAccessException
 
 import javax.ws.rs._
@@ -107,7 +108,7 @@ class PveResource extends LazyLogging {
       if (updated) Response.ok(Map("veid" -> veid).asJava).build()
       else Response.status(Response.Status.NOT_FOUND).build()
     } catch {
-      case e: DataAccessException if e.sqlState() == "23505" =>
+      case e: DataAccessException if e.sqlState() == SqlStates.UNIQUE_VIOLATION =>
         Response
           .status(Response.Status.CONFLICT)
           .entity(s"""An environment named "$name" already exists.""")
@@ -145,7 +146,7 @@ class PveResource extends LazyLogging {
       val veid = PveManager.savePve(sessionUser.getUid.intValue(), name, packagesJson)
       Response.status(Response.Status.CREATED).entity(Map("veid" -> veid).asJava).build()
     } catch {
-      case e: DataAccessException if e.sqlState() == "23505" =>
+      case e: DataAccessException if e.sqlState() == SqlStates.UNIQUE_VIOLATION =>
         Response
           .status(Response.Status.CONFLICT)
           .entity(s"""An environment named "$name" already exists.""")
