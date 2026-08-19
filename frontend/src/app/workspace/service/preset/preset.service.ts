@@ -19,7 +19,7 @@
 
 import { Injectable } from "@angular/core";
 import Ajv from "ajv";
-import { cloneDeep, has, indexOf, isEqual, merge, pickBy } from "lodash";
+import { cloneDeep, has, isEqual, merge, pickBy } from "lodash";
 import { NzMessageService } from "ng-zorro-antd/message";
 import { Observable, of, Subject } from "rxjs";
 import { UserConfigService } from "src/app/common/service/user/config/user-config.service";
@@ -183,9 +183,13 @@ export class PresetService {
           throw new Error("attempting to update preset that doesn't exist");
         } else if (contains(presets, replacementPreset)) {
           // implicit deletion by replacing original with existing preset
-          presets.splice(indexOf(presets, originalPreset), 1);
+          // deep-equality index: presets are freshly JSON-parsed, so reference-based indexOf would miss
+          presets.splice(
+            presets.findIndex(preset => isEqual(preset, originalPreset)),
+            1
+          );
         } else {
-          presets[indexOf(presets, originalPreset)] = replacementPreset;
+          presets[presets.findIndex(preset => isEqual(preset, originalPreset))] = replacementPreset;
         }
         this.savePresets(type, target, presets, displayMessage, messageType);
       });
