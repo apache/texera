@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1787230548956,
+  "lastUpdate": 1787230551743,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -35622,6 +35622,433 @@ window.BENCHMARK_DATA = {
           {
             "name": "latency p99 / bs=1000 sw=50 sl=512",
             "value": 1693759.249,
+            "unit": "us"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Xinyuan Lin",
+            "username": "aglinxinyuan",
+            "email": "xinyual3@uci.edu"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "875aa72add3b7cb7ce23f024ce09ae1e983d39b7",
+          "message": "test(frontend): cover the code editor's genuinely untested half (#7735)\n\n### What changes were proposed in this PR?\n\n`code-editor.component.ts` is the largest uncovered file in the repo.\nIts reported 47.4% is misleading: the component's tests are split across\ntwo targets, and only one of them reaches Codecov.\n\n`angular.json` has `gui:test` (jsdom, which `exclude`s\n`**/*.browser.spec.ts`) and `gui:test-browser` (Playwright/Chromium,\nwhich includes only those). `build.yml:164` runs the browser target with\n**no `--coverage`**, and the upload takes only the jsdom lcov. Measuring\nboth and taking the per-line union over the 247 instrumented lines:\n\n| suite | covered | missed | % |\n|---|---|---|---|\n| jsdom only (what Codecov sees) | 114 | 133 | 46.2% |\n| browser only | 156 | 91 | 63.2% |\n| **true union** | **197** | **50** | **79.8%** |\n\nSo **83 lines were already exercised and merely unreported; 50 were\ngenuinely untested.** Only the latter is worth writing, and that is what\nthis PR does — plus the 6 genuinely untested lines in the template.\n\n| file | Codecov-visible (jsdom) | true union |\n|---|---|---|\n| `code-editor.component.ts` | 46.2% -> **77.7%** | 79.8% -> **96.0%** |\n| `code-editor.component.html` | 70.0% -> **100%** | 70.0% -> **100%** |\n\nTests: jsdom **25 -> 65**; the browser target **18 -> 22**. 46 of the 50\ngenuinely-untested lines are now covered. The bulk deliberately went\ninto the **jsdom** spec, since that is the only suite Codecov currently\nreads — browser-spec work scores zero today.\n\nCovered: the coeditor cursor-style generator and both of its\ninput-sanitising guards, the bulk type-annotation walk and its\nsame-line/new-line offset handling, the suggestion panel's staging and\nrouting, container clamping against the viewport, and the template's\n`*ngFor` and accept/decline wiring.\n\n### A blocker that PR #7586 needs\n\n`ng run gui:test-browser --coverage` **fails out of the box**:\n`TypeError: Failed to fetch dynamically imported module:\n/@id/@vitest/coverage-v8/browser`, because Vite does not pre-bundle the\ncoverage provider's browser entry. The one-line fix is\n`optimizeDeps.include: [\"buffer\", \"@vitest/coverage-v8/browser\"]` in\n`vitest.browser.config.ts`. It was applied here only to take the\nmeasurement above and then reverted — this PR touches no config.\nFlagging it because enabling the browser-coverage upload without it\nwould produce an empty report.\n\n### Verification\n\n12 mutations, **12 killed, no survivors**. Each anchor was pre-verified\nto occur exactly once in a dry run; one mutation at a time; `git diff`\non production confirmed empty after every revert.\n\n| Mutation | Killed by |\n|---|---|\n| **exchange** the two operands of `replace(\"0.8\", \"0.5\")` | scopes\nevery rule to the coeditor id and dims only the selection background |\n| `SAFE_CLIENT_ID` `\\d{1,10}` -> `\\d{1,12}` | emits no CSS for a\nclientId longer than ten digits |\n| `SAFE_CSS_COLOR` drop trailing `$` | emits no CSS for a colour\ncarrying a style-tag escape |\n| **exchange** the same-line / new-line offset branch bodies | offsets a\nsame-line argument and resets on a new line |\n| **exchange** `position.top` / `position.left` | stages the trimmed\nsuggestion into the rendered panel |\n| **exchange** code / suggestion pushed to the panel | same test,\ndistinct assertion |\n| **exchange** `rect.left` / `rect.top` in the clamp | clamps a\ncontainer overflowing on both axes |\n| `*ngFor` renders only the first coeditor | renders one scoped\ncursor-style block per coeditor |\n| **exchange** the `(accept)` / `(decline)` handlers | routes accept and\ndecline to the matching handlers |\n| tokenize sweep `1..<=n` -> `0..<n` | (browser) force-tokenizes every\nline |\n| diff operator predicate `===` -> `!==` | (browser) diffs this\noperator's latest version against the shared text |\n| **exchange** the diff / plain bring-up branches | 10 tests |\n\nNo `vi.mock` was added — the private editor-consuming methods are driven\nwith a plain recording stand-in, given the `isolate:false` hazard where\nthe first importer of a module pins it for the whole run.\n\n### Deliberately not included\n\n10 lines remain uncovered: the `monacoWorkerFactory` label switch, the\ndynamic codingame extension imports, the retry-clearing catch, and the\nLSP timeout reject. All sit behind `ensureVscodeApiStarted()`, a\nprocess-wide singleton both suites stub; reaching them means booting the\nreal codingame stack, which the browser spec's own header explicitly\ndeclines to do.\n\nA production observation, reported and not pinned:\n`acceptCurrentAnnotation()` emits on `userResponseSubject` **before**\nclearing `showAnnotationSuggestion`. The bulk \"Add All Type Annotations\"\nwalk works only because `getTypeAnnotations` answers asynchronously over\nHTTP — the next suggestion lands after the clear. A first draft of the\nfixture used a synchronous `of(...)` and reproduced the failure exactly:\nthe walk stalls after the first argument with the panel hidden. Not a\nlive bug, but if that call ever gains a cache or a local model it breaks\nsilently. `rejectCurrentAnnotation()` clears first, then emits, so it is\nnot exposed. The fixture models the real async service and carries a\ncomment explaining the dependency.\n\nNo production file is touched.\n\n### Two unrelated specs had to stop relying on automatic change\ndetection\n\nTwo spec files in the diff are not the code editor. Neither is a new\ndefect: both carried a latent dependency that this PR is what finally\ntripped.\n\n**Once any test in `code-editor.component.spec.ts` has run in a Vitest\nworker, Angular's automatic tick stops firing for the rest of that\nprocess.** The suite runs with `isolate: false`, so every spec scheduled\nbehind it in the same worker loses auto-CD. Confirmed by bisection:\nskipping the whole root `describe` — the file is still imported, zero\ntests run — leaves the downstream spec green; letting any single one of\nits tests run turns it red. So it is running a test, not importing the\nmodule graph. Growing this spec from 25 to 65 tests moved it earlier in\nVitest's size-ordered queue, which changed which specs sit behind it.\n\n| spec | symptom behind the code editor | fix |\n|---|---|---|\n| `agent-panel` | `NzTabSetComponent` queues its `nzSelectedIndexChange`\nemit as a microtask from its own `ngAfterContentChecked`. Solo, zone.js\ndrains it inside the click's own task. Behind Monaco: **0 calls** after\n`click()`, 0 after `detectChanges()`, 1 after one macrotask turn. |\nyield a macrotask turn before asserting |\n| `console-frame` | The dropdown renders into a CDK overlay — a view\nhanging off `ApplicationRef`, not off the fixture — so `detectChanges()`\nalone never renders it. `nzOpen` is `true` and `nz-option-container`\nexists, but there are **0 `nz-option-item`**. | `detectChanges()` →\n`flush()` → `detectChanges()`; the `detectChanges()` *before* the flush\nis the load-bearing part |\n\nTwo dead ends, recorded so nobody retries them: **`fixture.whenStable()`\nnever resolves** in such a worker — a permanently pending task is what\nkills auto-CD — so awaiting it fails on the 20s `testTimeout` instead,\nand it times out even running the spec alone.\n`TestBed.inject(ApplicationRef).tick()` does not render the overlay\neither.\n\n### Verification\n\nBoth reproduced deterministically before fixing, by running the pair in\none process (`fileParallelism: false`; Vitest orders files\nlargest-first, so the code-editor spec leads) and confirming the run\norder off the output. Red without each change, green with it, and green\nstandalone.\n\nWhole suite in a single process — all 201 files sharing one registry,\nstricter than CI's workers — is green at **4779 passed, 1 skipped**.\nPlain `main` under the identical condition is green too, so this PR adds\nno new failure. That configuration is local only; no config file is\ntouched.\n\nOne thing it did surface, unrelated and **not** fixed here:\n`menu.component.spec.ts` failed once and then passed on a repeat. It\ndoes `vi.mock(\"file-saver\")` while two other specs import `file-saver`\nfor real, which is the known shared-registry pinning hazard — the mock\nsilently does not apply and `saveAs` reads 0 calls. Flaky under one\nshared registry, and not something this PR changes.\n\n### Any related issues, documentation, discussions?\n\nCloses #7734\n\n### How was this PR tested?\n\n```\nnpx ng test --watch=false --include=\"**/code-editor.component.spec.ts\"\nnpx ng run gui:test-browser\n```\n\n```\n Test Files  1 passed (1)\n      Tests  65 passed (65)\n\n Test Files  3 passed (3)\n      Tests  22 passed (22)\n```\n\nBoth suites run twice with identical results. The whole\n`code-editor-dialog` directory is green at 113 tests across 4 spec\nfiles. `yarn format:ci` passes.\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Claude Code (Opus 5)",
+          "timestamp": "2026-08-20T05:22:45Z",
+          "url": "https://github.com/apache/texera/commit/875aa72add3b7cb7ce23f024ce09ae1e983d39b7"
+        },
+        "date": 1787230551124,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "latency p50 / bs=10 sw=1 sl=8",
+            "value": 14252.4,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=1 sl=8",
+            "value": 18652.329,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=1 sl=8",
+            "value": 24074.753,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=1 sl=8",
+            "value": 75882.369,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=1 sl=8",
+            "value": 82396.803,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=1 sl=8",
+            "value": 98044.075,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=1 sl=8",
+            "value": 704489.98,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=1 sl=8",
+            "value": 740685.006,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=1 sl=8",
+            "value": 764751.316,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=1 sl=64",
+            "value": 10612.172,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=1 sl=64",
+            "value": 14793.763,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=1 sl=64",
+            "value": 17359.512,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=1 sl=64",
+            "value": 75161.467,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=1 sl=64",
+            "value": 82177.541,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=1 sl=64",
+            "value": 89955.427,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=1 sl=64",
+            "value": 701448.181,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=1 sl=64",
+            "value": 750049.713,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=1 sl=64",
+            "value": 783072.129,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=1 sl=512",
+            "value": 10384.673,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=1 sl=512",
+            "value": 12534.276,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=1 sl=512",
+            "value": 16055.652,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=1 sl=512",
+            "value": 73243.84,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=1 sl=512",
+            "value": 81688.466,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=1 sl=512",
+            "value": 93811.068,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=1 sl=512",
+            "value": 736194.249,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=1 sl=512",
+            "value": 774034.597,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=1 sl=512",
+            "value": 792990.69,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=10 sl=8",
+            "value": 12433.548,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=10 sl=8",
+            "value": 16272.656,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=10 sl=8",
+            "value": 18923.977,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=10 sl=8",
+            "value": 93038.016,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=10 sl=8",
+            "value": 105203.415,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=10 sl=8",
+            "value": 112314.801,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=10 sl=8",
+            "value": 904741.899,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=10 sl=8",
+            "value": 958655.397,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=10 sl=8",
+            "value": 984721.091,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=10 sl=64",
+            "value": 12086.074,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=10 sl=64",
+            "value": 14021.765,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=10 sl=64",
+            "value": 17695.327,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=10 sl=64",
+            "value": 91342.911,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=10 sl=64",
+            "value": 100032.286,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=10 sl=64",
+            "value": 111942.115,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=10 sl=64",
+            "value": 908045.356,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=10 sl=64",
+            "value": 963131.621,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=10 sl=64",
+            "value": 1000430.369,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=10 sl=512",
+            "value": 11610.588,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=10 sl=512",
+            "value": 14732.25,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=10 sl=512",
+            "value": 17494.871,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=10 sl=512",
+            "value": 92785.178,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=10 sl=512",
+            "value": 101203.928,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=10 sl=512",
+            "value": 107673.296,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=10 sl=512",
+            "value": 941368.375,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=10 sl=512",
+            "value": 991629.292,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=10 sl=512",
+            "value": 1013095.608,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=50 sl=8",
+            "value": 20328.057,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=50 sl=8",
+            "value": 21868.783,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=50 sl=8",
+            "value": 29291.899,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=50 sl=8",
+            "value": 173533.704,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=50 sl=8",
+            "value": 181599.893,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=50 sl=8",
+            "value": 191087.831,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=50 sl=8",
+            "value": 1726678.157,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=50 sl=8",
+            "value": 1789522.784,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=50 sl=8",
+            "value": 1881781.944,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=50 sl=64",
+            "value": 20115.072,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=50 sl=64",
+            "value": 21260.569,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=50 sl=64",
+            "value": 26560.988,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=50 sl=64",
+            "value": 171427.39,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=50 sl=64",
+            "value": 182190.11,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=50 sl=64",
+            "value": 188005.617,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=50 sl=64",
+            "value": 1726022.473,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=50 sl=64",
+            "value": 1778364.496,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=50 sl=64",
+            "value": 1814582.583,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=50 sl=512",
+            "value": 20905.305,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=50 sl=512",
+            "value": 24831.254,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=50 sl=512",
+            "value": 30029.089,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=50 sl=512",
+            "value": 178629.991,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=50 sl=512",
+            "value": 188981.683,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=50 sl=512",
+            "value": 204639.787,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=50 sl=512",
+            "value": 1800500.805,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=50 sl=512",
+            "value": 1849926.76,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=50 sl=512",
+            "value": 1882239.819,
             "unit": "us"
           }
         ]
