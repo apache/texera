@@ -445,7 +445,13 @@ describe("ConsoleFrameComponent", () => {
       // ignored the selection would still be sitting on W7 / All Workers.
       const select = fixture.debugElement.query(By.css("nz-select")).nativeElement as HTMLElement;
       select.click();
-      tick(500);
+      // The option list renders into a CDK overlay, i.e. a view that hangs off
+      // ApplicationRef rather than off this fixture. Render the open state first, then
+      // flush, so the options are there whether or not Angular's automatic tick has
+      // run — it stops firing for the rest of a Vitest worker once a spec that mounts
+      // Monaco has gone before this one, and the suite runs with isolate: false.
+      fixture.detectChanges();
+      flush();
       fixture.detectChanges();
 
       const options = Array.from(document.querySelectorAll("nz-option-item"));

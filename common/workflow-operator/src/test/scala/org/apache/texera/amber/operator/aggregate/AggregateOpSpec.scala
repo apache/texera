@@ -592,4 +592,59 @@ class AggregateOpSpec extends AnyFunSuite {
     assert(results.size == 1)
     assert(results.head.getFields(0).asInstanceOf[Number].intValue() == 3)
   }
+
+  // `close()` also resets `distributedAggregations`, which is deliberately not
+  // asserted: `onFinish` reads that list once per accumulated group and `close()`
+  // leaves none, while a reopened executor resets it again — so the reset is only
+  // observable by calling `processTuple` after `close()` without an intervening
+  // `open()`, which the executor lifecycle never does. Pinning it would cement an
+  // illegal call order.
+  test("AggregateOpExec close() discards the accumulated groups") {
+    val schema = makeSchema(
+      "city" -> AttributeType.STRING,
+      "sales" -> AttributeType.INTEGER
+    )
+
+    val desc = new AggregateOpDesc()
+    desc.aggregations = List(makeAggregationOp(AggregationFunction.SUM, "sales", "total_sales"))
+    desc.groupByKeys = List("city")
+
+    val exec = new AggregateOpExec(objectMapper.writeValueAsString(desc))
+    exec.open()
+    exec.processTuple(makeTuple(schema, "NY", 10), 0)
+    exec.processTuple(makeTuple(schema, "SF", 20), 0)
+
+    // Guard the fixture: the two groups really are accumulated, so the empty
+    // result asserted after close() cannot pass vacuously.
+    assert(exec.onFinish(0).toList.size == 2)
+
+    exec.close()
+    assert(exec.onFinish(0).toList.isEmpty)
+  }
+
+  test("AggregateOpExec open() after close() accumulates from an empty state") {
+    // The executor object outlives a single run, so a reopened executor must not
+    // fold the previous run's partial aggregates into the new result.
+    val schema = makeSchema(
+      "city" -> AttributeType.STRING,
+      "sales" -> AttributeType.INTEGER
+    )
+
+    val desc = new AggregateOpDesc()
+    desc.aggregations = List(makeAggregationOp(AggregationFunction.SUM, "sales", "total_sales"))
+    desc.groupByKeys = List("city")
+
+    val exec = new AggregateOpExec(objectMapper.writeValueAsString(desc))
+    exec.open()
+    exec.processTuple(makeTuple(schema, "NY", 10), 0)
+    exec.close()
+
+    exec.open()
+    exec.processTuple(makeTuple(schema, "NY", 3), 0)
+
+    val results = exec.onFinish(0).toList
+    assert(results.size == 1)
+    // 3, not 13: the first run's partial sum for "NY" must have been dropped.
+    assert(results.head.getFields(1).asInstanceOf[Number].intValue() == 3)
+  }
 }

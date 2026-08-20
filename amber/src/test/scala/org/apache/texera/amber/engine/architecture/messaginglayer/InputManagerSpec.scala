@@ -22,12 +22,17 @@ package org.apache.texera.amber.engine.architecture.messaginglayer
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
 import org.apache.texera.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.engine.architecture.sendsemantics.partitionings.Partitioning
+import org.apache.texera.amber.engine.architecture.sendsemantics.partitionings.{
+  BroadcastPartitioning,
+  Partitioning
+}
 import org.apache.texera.amber.engine.architecture.worker.WorkflowWorker.DPInputQueueElement
+import org.apache.texera.amber.engine.architecture.worker.managers.InputPortMaterializationReaderThread
 import org.scalatest.flatspec.AnyFlatSpec
 
 import java.net.URI
 import java.util.concurrent.LinkedBlockingQueue
+import scala.collection.mutable
 
 class InputManagerSpec extends AnyFlatSpec {
 
@@ -220,5 +225,75 @@ class InputManagerSpec extends AnyFlatSpec {
     mgr.addPort(PortIdentity(0), schema, urisToRead = List.empty, partitionings = List.empty)
     mgr.startInputPortReaderThreads() // must not throw
     succeed
+  }
+
+  // ---------------------------------------------------------------------------
+  // startInputPortReaderThreads — a start() that fails
+  // ---------------------------------------------------------------------------
+  //
+  // A reader thread whose body does nothing, so it can be driven to a terminated
+  // state without opening any materialization storage. `InputManager` only ever
+  // calls `start()` on it, and `Thread.start()` on a thread that is no longer NEW
+  // raises `IllegalThreadStateException` — a real, deterministic start failure with
+  // no timing window.
+  private class NoOpReaderThread
+      extends InputPortMaterializationReaderThread(
+        uri = new URI("file:///nowhere"),
+        inputMessageQueue = emptyQueue(),
+        workerActorId = actorId,
+        partitioning = BroadcastPartitioning(
+          batchSize = 1,
+          channels = Seq(channelId("upstream", "worker-1"))
+        )
+      ) {
+    override def run(): Unit = ()
+  }
+
+  /**
+    * Reaches into InputManager's private inputPortMaterializationReaderThreads map, the
+    * way OutputPortStorageWriterThreadSpec does for OutputManager: the map is only
+    * populated by `addPort`, which builds real reader threads from real URIs, and the
+    * failure under test is in how `startInputPortReaderThreads` reports a failed start,
+    * not in what the thread reads.
+    */
+  private def installReaderThreads(
+      manager: InputManager,
+      portId: PortIdentity,
+      threads: List[InputPortMaterializationReaderThread]
+  ): Unit = {
+    val field = classOf[InputManager]
+      .getDeclaredField("inputPortMaterializationReaderThreads")
+    field.setAccessible(true)
+    field
+      .get(manager)
+      .asInstanceOf[mutable.HashMap[PortIdentity, List[InputPortMaterializationReaderThread]]]
+      .put(portId, threads)
+  }
+
+  "InputManager.startInputPortReaderThreads (failing start)" should
+    "wrap the failure with the original exception attached as its cause" in {
+    val mgr = freshManager
+    val alreadyStarted = new NoOpReaderThread
+    alreadyStarted.start()
+    alreadyStarted.join() // now TERMINATED, so a second start() is guaranteed to fail
+    installReaderThreads(mgr, PortIdentity(0), List(alreadyStarted))
+
+    val thrown = intercept[RuntimeException] {
+      mgr.startInputPortReaderThreads()
+    }
+
+    // The wrapper, not the raw IllegalThreadStateException (which is itself a
+    // RuntimeException and would otherwise satisfy the intercept above).
+    assert(
+      thrown.getMessage.contains("Error starting input port materialization reader thread"),
+      s"expected the wrapping message, got: ${thrown.getMessage}"
+    )
+    // Dropping the cause discards the only stack trace that says where the start
+    // failed; the message alone names neither the port nor the failing frame.
+    assert(thrown.getCause != null, "the original failure must be attached as the cause")
+    assert(
+      thrown.getCause.isInstanceOf[IllegalThreadStateException],
+      s"expected the start failure itself as the cause, got: ${thrown.getCause}"
+    )
   }
 }
