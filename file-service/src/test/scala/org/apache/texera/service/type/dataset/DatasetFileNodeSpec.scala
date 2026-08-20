@@ -99,13 +99,13 @@ class DatasetFileNodeSpec extends AnyFlatSpec with Matchers {
       Map(("bob@texera.com", "twitter", "v1") -> objects)
     )
 
-    // The tree is rooted at a single "datasets" prefix node; owners nest under it.
+    // The tree is rooted at a single "dataset" prefix node; owners nest under it.
     roots should have size 1
-    val datasetsNode = roots.head
-    datasetsNode.getName shouldBe "datasets"
-    datasetsNode.getNodeType shouldBe "directory"
+    val prefixNode = roots.head
+    prefixNode.getName shouldBe "dataset"
+    prefixNode.getNodeType shouldBe "directory"
 
-    val ownerNode = datasetsNode.getChildren.find(_.getName == "bob@texera.com").get
+    val ownerNode = prefixNode.getChildren.find(_.getName == "bob@texera.com").get
     ownerNode.getNodeType shouldBe "directory"
 
     val datasetNode = ownerNode.getChildren.find(_.getName == "twitter").get
@@ -123,7 +123,7 @@ class DatasetFileNodeSpec extends AnyFlatSpec with Matchers {
     val file1 = bDir.getChildren.find(_.getName == "1.csv").get
     file1.getNodeType shouldBe "file"
     file1.getSize shouldBe Some(2L)
-    file1.getFilePath shouldBe "/datasets/bob@texera.com/twitter/v1/b/1.csv"
+    file1.getFilePath shouldBe "/dataset/bob@texera.com/twitter/v1/b/1.csv"
 
     // Total size equals the sum of the three files.
     DatasetFileNode.calculateTotalSize(roots) shouldBe 6L
