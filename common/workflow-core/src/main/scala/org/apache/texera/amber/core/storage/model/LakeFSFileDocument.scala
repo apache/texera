@@ -60,8 +60,8 @@ object LakeFSFileDocument {
     */
   def presignEndpointOf(resourceType: ResourceType.Value): String =
     resourceType match {
-      case ResourceType.Datasets => datasetPresignEndpoint
-      case ResourceType.Models   => modelPresignEndpoint
+      case ResourceType.Dataset => datasetPresignEndpoint
+      case ResourceType.Model   => modelPresignEndpoint
     }
 }
 

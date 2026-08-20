@@ -97,17 +97,17 @@ class DatasetFileNodeSpec extends AnyFlatSpec with Matchers {
       objStats("b/2.csv", 3L)
     )
     val roots = DatasetFileNode.fromLakeFSRepositoryCommittedObjects(
-      ResourceType.Datasets,
+      ResourceType.Dataset,
       Map(("bob@texera.com", "twitter", "v1") -> objects)
     )
 
-    // The tree is rooted at a single "datasets" prefix node; owners nest under it.
+    // The tree is rooted at a single "dataset" prefix node; owners nest under it.
     roots should have size 1
-    val datasetsNode = roots.head
-    datasetsNode.getName shouldBe "datasets"
-    datasetsNode.getNodeType shouldBe "directory"
+    val prefixNode = roots.head
+    prefixNode.getName shouldBe "dataset"
+    prefixNode.getNodeType shouldBe "directory"
 
-    val ownerNode = datasetsNode.getChildren.find(_.getName == "bob@texera.com").get
+    val ownerNode = prefixNode.getChildren.find(_.getName == "bob@texera.com").get
     ownerNode.getNodeType shouldBe "directory"
 
     val datasetNode = ownerNode.getChildren.find(_.getName == "twitter").get
@@ -125,25 +125,25 @@ class DatasetFileNodeSpec extends AnyFlatSpec with Matchers {
     val file1 = bDir.getChildren.find(_.getName == "1.csv").get
     file1.getNodeType shouldBe "file"
     file1.getSize shouldBe Some(2L)
-    file1.getFilePath shouldBe "/datasets/bob@texera.com/twitter/v1/b/1.csv"
+    file1.getFilePath shouldBe "/dataset/bob@texera.com/twitter/v1/b/1.csv"
 
     // Total size equals the sum of the three files.
     DatasetFileNode.calculateTotalSize(roots) shouldBe 6L
   }
 
-  it should "root a model tree at the models prefix, not datasets" in {
+  it should "root a model tree at the model prefix, not dataset" in {
     // The prefix is not cosmetic: FileResolver keys on the leading path segment to
     // choose the backing table, so a model file rooted at "datasets" would resolve
     // against the dataset table.
     val roots = DatasetFileNode.fromLakeFSRepositoryCommittedObjects(
-      ResourceType.Models,
+      ResourceType.Model,
       Map(("bob@texera.com", "sentiment", "v1") -> List(objStats("model.pt", 4L)))
     )
 
     roots should have size 1
-    roots.head.getName shouldBe "models"
+    roots.head.getName shouldBe "model"
 
     val file = roots.head.getChildren.head.getChildren.head.getChildren.head.getChildren.head
-    file.getFilePath shouldBe "/models/bob@texera.com/sentiment/v1/model.pt"
+    file.getFilePath shouldBe "/model/bob@texera.com/sentiment/v1/model.pt"
   }
 }

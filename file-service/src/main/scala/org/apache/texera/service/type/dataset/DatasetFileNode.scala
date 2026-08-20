@@ -27,8 +27,8 @@ import scala.collection.mutable
 // DatasetFileNode represents a unique file in a versioned resource (dataset or model).
 // Its full path is in the format of:
 // /<resourceType>/ownerEmail/resourceName/versionName/fileRelativePath
-// e.g. /datasets/bob@texera.com/twitterDataset/v1/california/irvine/tw1.csv
-//      /models/bob@texera.com/sentimentModel/v1/model.pt
+// e.g. /dataset/bob@texera.com/twitterDataset/v1/california/irvine/tw1.csv
+//      /model/bob@texera.com/sentimentModel/v1/model.pt
 class DatasetFileNode(
     val name: String, // direct name of this node
     val nodeType: String, // "file" or "directory"
@@ -88,7 +88,7 @@ object DatasetFileNode {
   ): List[DatasetFileNode] = {
     val rootNode = new DatasetFileNode("/", "directory", null, "")
 
-    // Root the tree at the resource-type prefix node (a directory node named e.g. "datasets").
+    // Root the tree at the resource-type prefix node (a directory node named e.g. "dataset").
     val resourceTypeNode =
       new DatasetFileNode(resourceType.toString, "directory", rootNode, "")
     rootNode.children = Some(List(resourceTypeNode))

@@ -353,7 +353,7 @@ class DatasetResource extends LazyLogging {
   private val COVER_IMAGE_SIZE_LIMIT_BYTES: Long = 10 * 1024 * 1024 // 10 MB
   private val ALLOWED_IMAGE_EXTENSIONS: Set[String] = Set(".jpg", ".jpeg", ".png", ".gif", ".webp")
 
-  private val resourceType = ResourceType.Datasets
+  private val resourceType = ResourceType.Dataset
 
   /**
     * Helper function to get the dataset from DB with additional information including user access privilege and owner email
@@ -559,7 +559,7 @@ class DatasetResource extends LazyLogging {
         insertedVersion,
         DatasetFileNode
           .fromLakeFSRepositoryCommittedObjects(
-            ResourceType.Datasets,
+            ResourceType.Dataset,
             Map((user.getEmail, datasetName, newVersionName) -> fileNodes)
           )
       )
@@ -1382,7 +1382,7 @@ class DatasetResource extends LazyLogging {
 
       val datasetsNode = DatasetFileNode
         .fromLakeFSRepositoryCommittedObjects(
-          ResourceType.Datasets,
+          ResourceType.Dataset,
           Map(
             (
               getOwner(ctx, did).getEmail,
@@ -1594,7 +1594,7 @@ class DatasetResource extends LazyLogging {
 
     val datasetsNode = DatasetFileNode
       .fromLakeFSRepositoryCommittedObjects(
-        ResourceType.Datasets,
+        ResourceType.Dataset,
         Map(
           (dataset.ownerEmail, datasetName, datasetVersion.getName) -> LakeFSStorageClient
             .retrieveObjectsOfVersion(repositoryName, datasetVersion.getVersionHash)

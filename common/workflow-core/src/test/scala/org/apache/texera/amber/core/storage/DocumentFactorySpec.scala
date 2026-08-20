@@ -137,7 +137,7 @@ class DocumentFactorySpec extends AnyFlatSpec with Matchers with BeforeAndAfterA
     val datasetUri = new URI(s"dataset:///repo/$versionHash/file.txt")
     val doc = DocumentFactory.openReadonlyDocument(datasetUri)
     doc shouldBe a[LakeFSFileDocument]
-    doc.asInstanceOf[LakeFSFileDocument].resourceType shouldBe ResourceType.Datasets
+    doc.asInstanceOf[LakeFSFileDocument].resourceType shouldBe ResourceType.Dataset
     doc.getURI shouldBe datasetUri
   }
 
@@ -145,7 +145,7 @@ class DocumentFactorySpec extends AnyFlatSpec with Matchers with BeforeAndAfterA
     val modelUri = new URI(s"model:///model-1/$versionHash/weights/model.pt")
     val doc = DocumentFactory.openReadonlyDocument(modelUri)
     doc shouldBe a[LakeFSFileDocument]
-    doc.asInstanceOf[LakeFSFileDocument].resourceType shouldBe ResourceType.Models
+    doc.asInstanceOf[LakeFSFileDocument].resourceType shouldBe ResourceType.Model
     doc.getURI shouldBe modelUri
 
     val resource = doc.asInstanceOf[OnVersionedFileResource]
@@ -181,7 +181,7 @@ class DocumentFactorySpec extends AnyFlatSpec with Matchers with BeforeAndAfterA
     val datasetUri = new URI(s"dataset:///repo/$versionHash/file.txt")
     val (doc, schemaOpt) = DocumentFactory.openDocument(datasetUri)
     doc shouldBe a[LakeFSFileDocument]
-    doc.asInstanceOf[LakeFSFileDocument].resourceType shouldBe ResourceType.Datasets
+    doc.asInstanceOf[LakeFSFileDocument].resourceType shouldBe ResourceType.Dataset
     schemaOpt shouldBe None
   }
 
@@ -189,7 +189,7 @@ class DocumentFactorySpec extends AnyFlatSpec with Matchers with BeforeAndAfterA
     val modelUri = new URI(s"model:///model-1/$versionHash/weights/model.pt")
     val (doc, schemaOpt) = DocumentFactory.openDocument(modelUri)
     doc shouldBe a[LakeFSFileDocument]
-    doc.asInstanceOf[LakeFSFileDocument].resourceType shouldBe ResourceType.Models
+    doc.asInstanceOf[LakeFSFileDocument].resourceType shouldBe ResourceType.Model
     schemaOpt shouldBe None
   }
 
