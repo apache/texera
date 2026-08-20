@@ -102,9 +102,6 @@ class TestInternalQueue:
         data = self.data_element(data_channel)
         dcm = self.dcm_element(control_channel)
         ecm = self.ecm_element(data_channel)
-        # NOTE: LinkedBlockingMultiQueue priority-group ordering is currently
-        # dependent on sub-queue registration order; register control before data
-        # to preserve control-priority semantics.
         queue.put(dcm)
         queue.put(data)
         queue.put(ecm)
