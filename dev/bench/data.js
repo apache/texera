@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1787156480571,
+  "lastUpdate": 1787230548956,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -9841,6 +9841,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 605.1145680104456,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Xinyuan Lin",
+            "username": "aglinxinyuan",
+            "email": "xinyual3@uci.edu"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "875aa72add3b7cb7ce23f024ce09ae1e983d39b7",
+          "message": "test(frontend): cover the code editor's genuinely untested half (#7735)\n\n### What changes were proposed in this PR?\n\n`code-editor.component.ts` is the largest uncovered file in the repo.\nIts reported 47.4% is misleading: the component's tests are split across\ntwo targets, and only one of them reaches Codecov.\n\n`angular.json` has `gui:test` (jsdom, which `exclude`s\n`**/*.browser.spec.ts`) and `gui:test-browser` (Playwright/Chromium,\nwhich includes only those). `build.yml:164` runs the browser target with\n**no `--coverage`**, and the upload takes only the jsdom lcov. Measuring\nboth and taking the per-line union over the 247 instrumented lines:\n\n| suite | covered | missed | % |\n|---|---|---|---|\n| jsdom only (what Codecov sees) | 114 | 133 | 46.2% |\n| browser only | 156 | 91 | 63.2% |\n| **true union** | **197** | **50** | **79.8%** |\n\nSo **83 lines were already exercised and merely unreported; 50 were\ngenuinely untested.** Only the latter is worth writing, and that is what\nthis PR does — plus the 6 genuinely untested lines in the template.\n\n| file | Codecov-visible (jsdom) | true union |\n|---|---|---|\n| `code-editor.component.ts` | 46.2% -> **77.7%** | 79.8% -> **96.0%** |\n| `code-editor.component.html` | 70.0% -> **100%** | 70.0% -> **100%** |\n\nTests: jsdom **25 -> 65**; the browser target **18 -> 22**. 46 of the 50\ngenuinely-untested lines are now covered. The bulk deliberately went\ninto the **jsdom** spec, since that is the only suite Codecov currently\nreads — browser-spec work scores zero today.\n\nCovered: the coeditor cursor-style generator and both of its\ninput-sanitising guards, the bulk type-annotation walk and its\nsame-line/new-line offset handling, the suggestion panel's staging and\nrouting, container clamping against the viewport, and the template's\n`*ngFor` and accept/decline wiring.\n\n### A blocker that PR #7586 needs\n\n`ng run gui:test-browser --coverage` **fails out of the box**:\n`TypeError: Failed to fetch dynamically imported module:\n/@id/@vitest/coverage-v8/browser`, because Vite does not pre-bundle the\ncoverage provider's browser entry. The one-line fix is\n`optimizeDeps.include: [\"buffer\", \"@vitest/coverage-v8/browser\"]` in\n`vitest.browser.config.ts`. It was applied here only to take the\nmeasurement above and then reverted — this PR touches no config.\nFlagging it because enabling the browser-coverage upload without it\nwould produce an empty report.\n\n### Verification\n\n12 mutations, **12 killed, no survivors**. Each anchor was pre-verified\nto occur exactly once in a dry run; one mutation at a time; `git diff`\non production confirmed empty after every revert.\n\n| Mutation | Killed by |\n|---|---|\n| **exchange** the two operands of `replace(\"0.8\", \"0.5\")` | scopes\nevery rule to the coeditor id and dims only the selection background |\n| `SAFE_CLIENT_ID` `\\d{1,10}` -> `\\d{1,12}` | emits no CSS for a\nclientId longer than ten digits |\n| `SAFE_CSS_COLOR` drop trailing `$` | emits no CSS for a colour\ncarrying a style-tag escape |\n| **exchange** the same-line / new-line offset branch bodies | offsets a\nsame-line argument and resets on a new line |\n| **exchange** `position.top` / `position.left` | stages the trimmed\nsuggestion into the rendered panel |\n| **exchange** code / suggestion pushed to the panel | same test,\ndistinct assertion |\n| **exchange** `rect.left` / `rect.top` in the clamp | clamps a\ncontainer overflowing on both axes |\n| `*ngFor` renders only the first coeditor | renders one scoped\ncursor-style block per coeditor |\n| **exchange** the `(accept)` / `(decline)` handlers | routes accept and\ndecline to the matching handlers |\n| tokenize sweep `1..<=n` -> `0..<n` | (browser) force-tokenizes every\nline |\n| diff operator predicate `===` -> `!==` | (browser) diffs this\noperator's latest version against the shared text |\n| **exchange** the diff / plain bring-up branches | 10 tests |\n\nNo `vi.mock` was added — the private editor-consuming methods are driven\nwith a plain recording stand-in, given the `isolate:false` hazard where\nthe first importer of a module pins it for the whole run.\n\n### Deliberately not included\n\n10 lines remain uncovered: the `monacoWorkerFactory` label switch, the\ndynamic codingame extension imports, the retry-clearing catch, and the\nLSP timeout reject. All sit behind `ensureVscodeApiStarted()`, a\nprocess-wide singleton both suites stub; reaching them means booting the\nreal codingame stack, which the browser spec's own header explicitly\ndeclines to do.\n\nA production observation, reported and not pinned:\n`acceptCurrentAnnotation()` emits on `userResponseSubject` **before**\nclearing `showAnnotationSuggestion`. The bulk \"Add All Type Annotations\"\nwalk works only because `getTypeAnnotations` answers asynchronously over\nHTTP — the next suggestion lands after the clear. A first draft of the\nfixture used a synchronous `of(...)` and reproduced the failure exactly:\nthe walk stalls after the first argument with the panel hidden. Not a\nlive bug, but if that call ever gains a cache or a local model it breaks\nsilently. `rejectCurrentAnnotation()` clears first, then emits, so it is\nnot exposed. The fixture models the real async service and carries a\ncomment explaining the dependency.\n\nNo production file is touched.\n\n### Two unrelated specs had to stop relying on automatic change\ndetection\n\nTwo spec files in the diff are not the code editor. Neither is a new\ndefect: both carried a latent dependency that this PR is what finally\ntripped.\n\n**Once any test in `code-editor.component.spec.ts` has run in a Vitest\nworker, Angular's automatic tick stops firing for the rest of that\nprocess.** The suite runs with `isolate: false`, so every spec scheduled\nbehind it in the same worker loses auto-CD. Confirmed by bisection:\nskipping the whole root `describe` — the file is still imported, zero\ntests run — leaves the downstream spec green; letting any single one of\nits tests run turns it red. So it is running a test, not importing the\nmodule graph. Growing this spec from 25 to 65 tests moved it earlier in\nVitest's size-ordered queue, which changed which specs sit behind it.\n\n| spec | symptom behind the code editor | fix |\n|---|---|---|\n| `agent-panel` | `NzTabSetComponent` queues its `nzSelectedIndexChange`\nemit as a microtask from its own `ngAfterContentChecked`. Solo, zone.js\ndrains it inside the click's own task. Behind Monaco: **0 calls** after\n`click()`, 0 after `detectChanges()`, 1 after one macrotask turn. |\nyield a macrotask turn before asserting |\n| `console-frame` | The dropdown renders into a CDK overlay — a view\nhanging off `ApplicationRef`, not off the fixture — so `detectChanges()`\nalone never renders it. `nzOpen` is `true` and `nz-option-container`\nexists, but there are **0 `nz-option-item`**. | `detectChanges()` →\n`flush()` → `detectChanges()`; the `detectChanges()` *before* the flush\nis the load-bearing part |\n\nTwo dead ends, recorded so nobody retries them: **`fixture.whenStable()`\nnever resolves** in such a worker — a permanently pending task is what\nkills auto-CD — so awaiting it fails on the 20s `testTimeout` instead,\nand it times out even running the spec alone.\n`TestBed.inject(ApplicationRef).tick()` does not render the overlay\neither.\n\n### Verification\n\nBoth reproduced deterministically before fixing, by running the pair in\none process (`fileParallelism: false`; Vitest orders files\nlargest-first, so the code-editor spec leads) and confirming the run\norder off the output. Red without each change, green with it, and green\nstandalone.\n\nWhole suite in a single process — all 201 files sharing one registry,\nstricter than CI's workers — is green at **4779 passed, 1 skipped**.\nPlain `main` under the identical condition is green too, so this PR adds\nno new failure. That configuration is local only; no config file is\ntouched.\n\nOne thing it did surface, unrelated and **not** fixed here:\n`menu.component.spec.ts` failed once and then passed on a repeat. It\ndoes `vi.mock(\"file-saver\")` while two other specs import `file-saver`\nfor real, which is the known shared-registry pinning hazard — the mock\nsilently does not apply and `saveAs` reads 0 calls. Flaky under one\nshared registry, and not something this PR changes.\n\n### Any related issues, documentation, discussions?\n\nCloses #7734\n\n### How was this PR tested?\n\n```\nnpx ng test --watch=false --include=\"**/code-editor.component.spec.ts\"\nnpx ng run gui:test-browser\n```\n\n```\n Test Files  1 passed (1)\n      Tests  65 passed (65)\n\n Test Files  3 passed (3)\n      Tests  22 passed (22)\n```\n\nBoth suites run twice with identical results. The whole\n`code-editor-dialog` directory is green at 113 tests across 4 spec\nfiles. `yarn format:ci` passes.\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Claude Code (Opus 5)",
+          "timestamp": "2026-08-20T05:22:45Z",
+          "url": "https://github.com/apache/texera/commit/875aa72add3b7cb7ce23f024ce09ae1e983d39b7"
+        },
+        "date": 1787230548316,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 685.6414526477982,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 1311.8920194272973,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 1421.7053419125048,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 897.7123427151812,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 1333.421187121668,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 1422.5275505717618,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 937.8303571909042,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 1341.9752682879507,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 1359.7059142131643,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 783.8611889003959,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 1064.7474246236402,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 1102.292696263038,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 815.6543941044448,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 1072.8325564746629,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 1098.135073728808,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 828.7164308256347,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 1060.5635918796618,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 1060.98319177482,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 484.3197214837301,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 573.2298531331362,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 578.2088479291745,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 489.621121628472,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 575.5007983553248,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 580.0494746385551,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 466.0832458295636,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 554.2618023984148,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 555.8135259342527,
             "unit": "tuples/sec"
           }
         ]
