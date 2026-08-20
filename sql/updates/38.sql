@@ -17,34 +17,36 @@
  * under the License.
  */
 
+
 \c texera_db
 
 SET search_path TO texera_db;
 
 BEGIN;
 
--- Remove the deprecated "project" feature (user projects: colour-tagged
--- collections of workflows, with sharing and public projects). See issue #5172.
---
--- IRREVERSIBLE, USER-VISIBLE DATA LOSS: every project (name, description,
--- colour), every workflow-to-project assignment, every project access grant and
--- every public-project listing is deleted. Workflows, datasets and their own
--- access grants are untouched -- but a workflow that a user could previously
--- reach ONLY through a project share becomes inaccessible to that user, because
--- workflow access is now decided solely by workflow_user_access. Operators who
--- want to preserve those grants must copy them into workflow_user_access BEFORE
--- applying this migration.
---
--- Dropped in FK-dependency order (children first). The pgroonga index
--- idx_project_pgroonga is dropped implicitly with its table.
-DROP TABLE IF EXISTS public_project;
-DROP TABLE IF EXISTS project_user_access;
-DROP TABLE IF EXISTS workflow_of_project;
-DROP TABLE IF EXISTS project;
-
--- The gui.tabs.projects_enabled key is gone from default.conf, so this seeded
--- row would be orphaned: it is no longer served by /config/settings/public and
--- the admin update endpoint rejects keys with no default.conf entry.
-DELETE FROM site_settings WHERE key = 'projects_enabled';
+-- The Lakekeeper catalog name is no longer derived from the user-facing name
+-- (#7753), and the table already has its own `name` column -- so the old
+-- `warehouse_name` was ambiguous. Rename it to sit beside its sibling
+-- `lakekeeper_warehouse_id`. The table is empty in every deployment (the
+-- warehouse feature flag is off everywhere), so this carries no data.
+-- Guarded so it is a no-op on a fresh DB, where texera_ddl.sql already created the
+-- column under its new name: local-dev replays unrecorded change sets and only
+-- tolerates "already exists" errors, so an unguarded rename would abort `up` with
+-- "column warehouse_name does not exist" (same shape as 33.sql's rename).
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'texera_db' AND table_name = 'user_warehouse'
+          AND column_name = 'warehouse_name'
+    ) AND NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'texera_db' AND table_name = 'user_warehouse'
+          AND column_name = 'lakekeeper_warehouse_name'
+    ) THEN
+        ALTER TABLE user_warehouse RENAME COLUMN warehouse_name TO lakekeeper_warehouse_name;
+    END IF;
+END
+$$;
 
 COMMIT;

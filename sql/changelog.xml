@@ -99,9 +99,14 @@
         <sqlFile path="sql/updates/37.sql"/>
     </changeSet>
 
-    <!-- Remove the deprecated project feature (#5172) -->
-    <changeSet id="38" author="aglinxinyuan">
+    <!-- Rename user_warehouse.warehouse_name to lakekeeper_warehouse_name (#7753) -->
+    <changeSet id="38" author="mengw15">
         <sqlFile path="sql/updates/38.sql"/>
+    </changeSet>
+
+    <!-- Remove the deprecated project feature (#5172) -->
+    <changeSet id="39" author="aglinxinyuan">
+        <sqlFile path="sql/updates/39.sql"/>
     </changeSet>
 
     <!-- example changeSet

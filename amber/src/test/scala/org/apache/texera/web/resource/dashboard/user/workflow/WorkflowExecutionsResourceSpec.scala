@@ -1136,7 +1136,7 @@ class WorkflowExecutionsResourceSpec
     val warehouse = getDSLContext.newRecord(USER_WAREHOUSE)
     warehouse.setUid(testUser.getUid)
     warehouse.setName("latest-entry-warehouse")
-    warehouse.setWarehouseName(s"user-${testUser.getUid}-latest-entry-warehouse")
+    warehouse.setLakekeeperWarehouseName(s"user-${testUser.getUid}-latest-entry-warehouse")
     warehouse.setLakekeeperWarehouseId(UUID.randomUUID())
     warehouse.setFlavor(UserWarehouseFlavorEnum.local)
     warehouse.store()

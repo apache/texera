@@ -745,6 +745,13 @@ describe("AgentPanelComponent", () => {
       return fixture.nativeElement.querySelector("#agent-container") as HTMLElement;
     }
 
+    // A header click does not reach the panel in the same turn: NzTabSetComponent
+    // queues the nzSelectedIndexChange emit as a microtask from its own
+    // ngAfterContentChecked, so onTabSelectChange can run a turn after
+    // detectChanges(). Yielding a macrotask turn drains it — Angular's whenStable()
+    // is not an option here, since this fixture never reaches stability.
+    const settle = (): Promise<void> => new Promise(resolve => setTimeout(resolve, 0));
+
     function tabHeaders(): HTMLElement[] {
       return Array.from(fixture.nativeElement.querySelectorAll(".ant-tabs-tab"));
     }
@@ -838,13 +845,15 @@ describe("AgentPanelComponent", () => {
       expect(fixture.nativeElement.querySelectorAll("texera-agent-registration .model-card").length).toBe(1);
     });
 
-    it("clicking an agent's tab header activates that agent and marks only its chat active", () => {
+    it("clicking an agent's tab header activates that agent and marks only its chat active", async () => {
       service.agentList = [makeAgent("a"), makeAgent("b")];
       createComponent();
       expect(chats().map(c => c.isActive)).toEqual([false, false]);
 
       // Header 0 is the registration tab, so agent "b" sits behind header 2.
       (tabHeaders()[2].querySelector(".ant-tabs-tab-btn") as HTMLElement).click();
+      fixture.detectChanges();
+      await settle();
       fixture.detectChanges();
 
       expect(service.activateAgent).toHaveBeenCalledWith("b");
