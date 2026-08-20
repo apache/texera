@@ -146,4 +146,29 @@ class DatasetFileNodeSpec extends AnyFlatSpec with Matchers {
     val file = roots.head.getChildren.head.getChildren.head.getChildren.head.getChildren.head
     file.getFilePath shouldBe "/model/bob@texera.com/sentiment/v1/model.pt"
   }
+
+  it should "treat a repeated final path segment as one directory and one file" in {
+    // "model/model" repeats its last segment. Deciding file-vs-directory by value rather than
+    // position made the intermediate directory the leaf: it took the object's size and the real
+    // file hung underneath it, so calculateTotalSize double-counted and the frontend saw a
+    // "file" node with children.
+    val roots = DatasetFileNode.fromLakeFSRepositoryCommittedObjects(
+      ResourceType.Model,
+      Map(("bob@texera.com", "sentiment", "v1") -> List(objStats("model/model", 7L)))
+    )
+
+    val versionNode =
+      roots.head.getChildren.head.getChildren.head.getChildren.head
+    val dir = versionNode.getChildren.find(_.getName == "model").get
+    dir.getNodeType shouldBe "directory"
+    dir.getSize shouldBe None
+
+    val leaf = dir.getChildren.find(_.getName == "model").get
+    leaf.getNodeType shouldBe "file"
+    leaf.getSize shouldBe Some(7L)
+    leaf.getFilePath shouldBe "/model/bob@texera.com/sentiment/v1/model/model"
+
+    // counted once, not twice
+    DatasetFileNode.calculateTotalSize(roots) shouldBe 7L
+  }
 }

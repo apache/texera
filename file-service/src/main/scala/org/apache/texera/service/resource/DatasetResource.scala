@@ -559,7 +559,7 @@ class DatasetResource extends LazyLogging {
         insertedVersion,
         DatasetFileNode
           .fromLakeFSRepositoryCommittedObjects(
-            ResourceType.Dataset,
+            resourceType,
             Map((user.getEmail, datasetName, newVersionName) -> fileNodes)
           )
       )
@@ -1382,7 +1382,7 @@ class DatasetResource extends LazyLogging {
 
       val datasetsNode = DatasetFileNode
         .fromLakeFSRepositoryCommittedObjects(
-          ResourceType.Dataset,
+          resourceType,
           Map(
             (
               getOwner(ctx, did).getEmail,
@@ -1594,7 +1594,7 @@ class DatasetResource extends LazyLogging {
 
     val datasetsNode = DatasetFileNode
       .fromLakeFSRepositoryCommittedObjects(
-        ResourceType.Dataset,
+        resourceType,
         Map(
           (dataset.ownerEmail, datasetName, datasetVersion.getName) -> LakeFSStorageClient
             .retrieveObjectsOfVersion(repositoryName, datasetVersion.getVersionHash)
