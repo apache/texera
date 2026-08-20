@@ -78,7 +78,6 @@ class WorkflowWebsocketResource extends LazyLogging {
 
   @OnMessage
   def myOnMsg(session: Session, message: String): Unit = {
-    val request = objectMapper.readValue(message, classOf[TexeraWebSocketRequest])
     val userOpt = session.getUserProperties.asScala
       .get(classOf[User].getName)
       .map(_.asInstanceOf[User])
@@ -88,6 +87,9 @@ class WorkflowWebsocketResource extends LazyLogging {
     val workflowStateOpt = sessionState.getCurrentWorkflowState
     val executionStateOpt = workflowStateOpt.flatMap(x => Option(x.executionService.getValue))
     try {
+      // Inside the try on purpose: a frame the mapper cannot bind is an error like any other, and
+      // has to travel back to the client through the same reporting path as a handler failure.
+      val request = objectMapper.readValue(message, classOf[TexeraWebSocketRequest])
       request match {
         case heartbeat: HeartBeatRequest =>
           sessionState.send(HeartBeatResponse())
@@ -97,7 +99,12 @@ class WorkflowWebsocketResource extends LazyLogging {
           )
         case modifyLogicRequest: ModifyLogicRequest =>
           if (workflowStateOpt.isDefined) {
-            val executionService = workflowStateOpt.get.executionService.getValue
+            // Reconfiguration needs the execution, not merely the workflow. `executionService` is a
+            // BehaviorSubject with no initial value, so reading it through a workflow-shaped guard
+            // yields null and NPEs one dereference later.
+            val executionService = executionStateOpt.getOrElse(
+              throw new IllegalStateException("workflow execution is not initialized")
+            )
             val modifyLogicResponse =
               executionService.executionReconfigurationService.modifyOperatorLogic(
                 modifyLogicRequest
@@ -121,7 +128,9 @@ class WorkflowWebsocketResource extends LazyLogging {
             case None => throw new IllegalStateException("workflow is not initialized")
           }
         case other =>
-          workflowStateOpt.map(_.executionService.getValue) match {
+          // `executionStateOpt`, not `workflowStateOpt.map(_.executionService.getValue)`: the latter
+          // wraps a null execution into Some(null), which walks past the None arm below and NPEs.
+          executionStateOpt match {
             case Some(value) => value.wsInput.onNext(other, uidOpt)
             case None        => throw new IllegalStateException("workflow execution is not initialized")
           }
