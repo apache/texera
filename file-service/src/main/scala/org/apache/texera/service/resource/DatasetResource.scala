@@ -51,6 +51,7 @@ import org.apache.texera.dao.jooq.generated.tables.pojos.{
 }
 import org.apache.texera.service.`type`.DatasetFileNode
 import org.apache.texera.service.resource.DatasetAccessResource._
+import org.apache.texera.service.resource.ResourceTables.{Dataset => DATASET_RESOURCE}
 import org.apache.texera.service.resource.DatasetResource.{context, _}
 import org.apache.texera.service.util.S3StorageClient
 import org.apache.texera.service.util.S3StorageClient.{
@@ -407,17 +408,7 @@ class DatasetResource extends LazyLogging {
       val isDatasetDownloadable = request.isDatasetDownloadable
 
       validateDatasetName(datasetName)
-
-      // Check if a dataset with the same name already exists
-      val duplicateExists = ctx.fetchExists(
-        ctx
-          .selectFrom(DATASET)
-          .where(DATASET.OWNER_UID.eq(uid))
-          .and(DATASET.NAME.eq(datasetName))
-      )
-      if (duplicateExists) {
-        throw new BadRequestException("Dataset with the same name already exists")
-      }
+      ResourceNaming.requireNameAvailable(ctx, DATASET_RESOURCE, uid, datasetName)
 
       // insert the dataset into the database
       val dataset = new Dataset()
@@ -672,18 +663,13 @@ class DatasetResource extends LazyLogging {
       }
 
       validateDatasetName(modificator.name)
-
-      // Check if the owner already has another dataset with the same name
-      val duplicateExists = ctx.fetchExists(
-        ctx
-          .selectFrom(DATASET)
-          .where(DATASET.OWNER_UID.eq(dataset.getOwnerUid))
-          .and(DATASET.NAME.eq(modificator.name))
-          .and(DATASET.DID.notEqual(dataset.getDid))
+      ResourceNaming.requireNameAvailable(
+        ctx,
+        DATASET_RESOURCE,
+        dataset.getOwnerUid,
+        modificator.name,
+        excludingId = Some(dataset.getDid)
       )
-      if (duplicateExists) {
-        throw new BadRequestException("Dataset with the same name already exists")
-      }
 
       dataset.setName(modificator.name)
       failOnDuplicateDatasetName {
@@ -1305,49 +1291,24 @@ class DatasetResource extends LazyLogging {
   ): List[DashboardDataset] = {
     val uid = user.getUid
     withTransaction(context)(ctx => {
-      var accessibleDatasets: ListBuffer[DashboardDataset] = ListBuffer()
-      // first fetch all datasets user have explicit access to
-      accessibleDatasets = ListBuffer.from(
-        ctx
-          .select()
-          .from(
-            DATASET
-              .leftJoin(DATASET_USER_ACCESS)
-              .on(DATASET_USER_ACCESS.DID.eq(DATASET.DID))
-              .leftJoin(USER)
-              .on(USER.UID.eq(DATASET.OWNER_UID))
-          )
-          .where(DATASET_USER_ACCESS.UID.eq(uid))
-          .fetch()
-          .map(record => {
-            val dataset = record.into(DATASET).into(classOf[Dataset])
-            val datasetAccess = record.into(DATASET_USER_ACCESS).into(classOf[DatasetUserAccess])
-            val ownerEmail = record.into(USER).getEmail
+      ResourceAccess.listVisible(
+        ctx,
+        DATASET_RESOURCE,
+        uid,
+        classOf[Dataset],
+        (dataset: Dataset) => dataset.getDid
+      )(
+        fromGrant = (dataset, ownerEmail, privilege, isOwner) =>
+          Some(
             DashboardDataset(
-              isOwner = dataset.getOwnerUid == uid,
+              isOwner = isOwner,
               dataset = dataset,
-              accessPrivilege = datasetAccess.getPrivilege,
+              accessPrivilege = privilege,
               ownerEmail = ownerEmail,
               size = 0
             )
-          })
-          .asScala
-      )
-
-      // then we fetch the public datasets and merge it as a part of the result if not exist
-      val publicDatasets = ctx
-        .select()
-        .from(
-          DATASET
-            .leftJoin(USER)
-            .on(USER.UID.eq(DATASET.OWNER_UID))
-        )
-        .where(DATASET.IS_PUBLIC.eq(true))
-        .fetch()
-        .asScala
-        .flatMap { record =>
-          val dataset = record.into(DATASET).into(classOf[Dataset])
-          val ownerEmail = record.into(USER).getEmail
+          ),
+        fromPublic = (dataset, ownerEmail) =>
           try {
             Some(
               DashboardDataset(
@@ -1366,13 +1327,7 @@ class DatasetResource extends LazyLogging {
               )
               None
           }
-        }
-      publicDatasets.foreach { publicDataset =>
-        if (!accessibleDatasets.exists(_.dataset.getDid == publicDataset.dataset.getDid)) {
-          accessibleDatasets = accessibleDatasets :+ publicDataset
-        }
-      }
-      accessibleDatasets.toList
+      )
     })
   }
 
@@ -1606,47 +1561,13 @@ class DatasetResource extends LazyLogging {
       .fetchInto(classOf[String])
   }
 
-  private val DATASET_NAME_MAX_LENGTH = 128
-  private val DATASET_NAME_PATTERN = "^[A-Za-z0-9_-]+$".r
+  /** @see [[ResourceNaming.validateName]] */
+  private def validateDatasetName(name: String): Unit =
+    ResourceNaming.validateName(DATASET_RESOURCE.label, name)
 
-  /**
-    * Validates the dataset name.
-    *
-    * Rules:
-    * - Must be 1 to 128 characters long.
-    * - Only letters, numbers, underscores, and hyphens are allowed.
-    *
-    * @param name The dataset name to validate.
-    * @throws jakarta.ws.rs.BadRequestException if the name is invalid.
-    */
-  private def validateDatasetName(name: String): Unit = {
-    if (name == null || !DATASET_NAME_PATTERN.matches(name)) {
-      throw new BadRequestException(
-        "Invalid dataset name: only letters, numbers, underscores, and hyphens are allowed."
-      )
-    }
-    if (name.length > DATASET_NAME_MAX_LENGTH) {
-      throw new BadRequestException(
-        s"Invalid dataset name: name must be at most $DATASET_NAME_MAX_LENGTH characters long."
-      )
-    }
-  }
-
-  /**
-    * Runs a dataset write and translates a (owner_uid, name) unique-constraint
-    * violation into the same BadRequestException the pre-checks throw, so
-    * requests losing a concurrent race get a 400 instead of a 500.
-    */
-  private[resource] def failOnDuplicateDatasetName[T](op: => T): T = {
-    try op
-    catch {
-      case e: DataAccessException =>
-        if (e.sqlState() == "23505") {
-          throw new BadRequestException("Dataset with the same name already exists")
-        }
-        throw e
-    }
-  }
+  /** @see [[ResourceNaming.failOnDuplicateName]] */
+  private[resource] def failOnDuplicateDatasetName[T](op: => T): T =
+    ResourceNaming.failOnDuplicateName(DATASET_RESOURCE.label)(op)
 
   private def fetchDatasetVersions(ctx: DSLContext, did: Integer): List[DatasetVersion] = {
     ctx
