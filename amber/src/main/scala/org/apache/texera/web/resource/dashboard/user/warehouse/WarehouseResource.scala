@@ -30,6 +30,7 @@ import org.apache.texera.dao.jooq.generated.enums.UserWarehouseFlavorEnum
 import org.apache.texera.dao.jooq.generated.tables.records.UserWarehouseRecord
 import org.apache.texera.web.resource.dashboard.user.warehouse.WarehouseResource._
 import org.apache.texera.web.service.LakekeeperClient
+import org.jooq.DSLContext
 import org.jooq.impl.DSL
 
 import javax.annotation.security.RolesAllowed
@@ -53,6 +54,19 @@ object WarehouseResource {
   // mapping straight back to the row.
   private[warehouse] def lakekeeperWarehouseName(uid: Integer, whid: Integer): String =
     s"user-$uid-$whid"
+
+  // Draws the id the next insert will use from the table's sequence, without consuming
+  // an insert. The sequence is looked up rather than named literally -- its generated
+  // name is not a stable contract.
+  private[warehouse] def drawNextWhid(context: DSLContext): Integer =
+    context.fetchValue(
+      DSL.field(
+        "nextval(pg_get_serial_sequence({0}, {1}))",
+        classOf[Integer],
+        DSL.inline(s"${USER_WAREHOUSE.getSchema.getName}.${USER_WAREHOUSE.getName}"),
+        DSL.inline(USER_WAREHOUSE.WHID.getName)
+      )
+    )
 
   case class DashboardWarehouse(
       whid: Integer,
@@ -141,17 +155,8 @@ class WarehouseResource(client: LakekeeperClient, enabled: Boolean) extends Lazy
 
     // Never derive the catalog name from `name`: it is also the S3 key prefix and a
     // component of every result URI an execution wrote, so a name-derived one could
-    // never change again. Drawing the id up front keeps the creation order below
-    // intact. The sequence is looked up rather than named literally -- its generated
-    // name is not a stable contract.
-    val whid: Integer = context.fetchValue(
-      DSL.field(
-        "nextval(pg_get_serial_sequence({0}, {1}))",
-        classOf[Integer],
-        DSL.inline(s"${USER_WAREHOUSE.getSchema.getName}.${USER_WAREHOUSE.getName}"),
-        DSL.inline(USER_WAREHOUSE.WHID.getName)
-      )
-    )
+    // never change again. Drawing the id up front keeps the creation order below intact.
+    val whid: Integer = drawNextWhid(context)
     val mintedName = lakekeeperWarehouseName(uid, whid)
     // Create in Lakekeeper first, record after: a failed creation leaves no orphaned row.
     val lakekeeperWarehouseId =

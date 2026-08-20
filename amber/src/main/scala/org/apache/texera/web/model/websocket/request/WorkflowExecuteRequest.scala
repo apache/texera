@@ -37,8 +37,6 @@ case class WorkflowExecuteRequest(
     workflowSettings: WorkflowSettings,
     emailNotificationEnabled: Boolean,
     computingUnitId: Int,
-    // The user_warehouse row this run writes into; absent = the shared default
-    // warehouse. (Lakekeeper's own warehouse id is a different, UUID-typed
-    // identifier, always named `lakekeeperWarehouseId`.)
+    // The user_warehouse this run writes into; absent = the shared default warehouse.
     warehouseId: Option[Int]
 ) extends TexeraWebSocketRequest

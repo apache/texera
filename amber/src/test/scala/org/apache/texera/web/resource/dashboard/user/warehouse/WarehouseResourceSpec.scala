@@ -22,7 +22,6 @@ package org.apache.texera.web.resource.dashboard.user.warehouse
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.common.config.StorageConfig
 import org.apache.texera.dao.MockTexeraDB
-import org.jooq.impl.DSL
 import org.apache.texera.dao.jooq.generated.Tables.USER_WAREHOUSE
 import org.apache.texera.dao.jooq.generated.tables.daos.UserDao
 import org.apache.texera.dao.jooq.generated.tables.pojos.User
@@ -186,14 +185,7 @@ class WarehouseResourceSpec
     val squatter = getDSLContext.newRecord(USER_WAREHOUSE)
     squatter.setUid(otherUser.getUid)
     squatter.setName(squatterDisplayName)
-    val takenWhid = getDSLContext.fetchValue(
-      DSL.field(
-        "nextval(pg_get_serial_sequence({0}, {1}))",
-        classOf[Integer],
-        DSL.inline(s"${USER_WAREHOUSE.getSchema.getName}.${USER_WAREHOUSE.getName}"),
-        DSL.inline(USER_WAREHOUSE.WHID.getName)
-      )
-    )
+    val takenWhid = WarehouseResource.drawNextWhid(getDSLContext)
     squatter.setWhid(takenWhid)
     squatter.setLakekeeperWarehouseName(lakekeeperWarehouseName(sessionUser.getUid, takenWhid + 1))
     squatter.setLakekeeperWarehouseId(UUID.randomUUID())
