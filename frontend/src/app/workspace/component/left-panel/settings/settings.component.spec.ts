@@ -187,4 +187,52 @@ describe("SettingsComponent", () => {
 
     expect(setBatchSizeSpy).not.toHaveBeenCalled();
   });
+
+  /**
+   * The validation feedback lives entirely in the template — an is-invalid class
+   * and an explanatory message, both gated on the control being invalid *and*
+   * touched. The specs above only inspect the control, so nothing pinned the
+   * rendered feedback or the "only after the user has been there" guard.
+   */
+  describe("rendered validation feedback", () => {
+    const batchSizeInput = (): HTMLInputElement => fixture.nativeElement.querySelector("#dataTransferBatchSize");
+    const errorMessage = (): HTMLElement | null => fixture.nativeElement.querySelector(".error-message");
+
+    it("stays quiet while the batch size is valid", () => {
+      expect(errorMessage()).toBeNull();
+      expect(batchSizeInput().classList).not.toContain("is-invalid");
+    });
+
+    it("stays quiet about an invalid batch size the user has not touched yet", () => {
+      component.settingsForm.get("dataTransferBatchSize")!.setValue(0);
+      fixture.detectChanges();
+
+      expect(errorMessage()).toBeNull();
+      expect(batchSizeInput().classList).not.toContain("is-invalid");
+    });
+
+    it("explains the minimum once the user has touched an invalid batch size", () => {
+      const control = component.settingsForm.get("dataTransferBatchSize")!;
+      control.setValue(0);
+      control.markAsTouched();
+      fixture.detectChanges();
+
+      expect(errorMessage()!.textContent!.trim()).toBe("Data Transfer Batch Size size must be at least 1.");
+      expect(batchSizeInput().classList).toContain("is-invalid");
+    });
+
+    it("withdraws the message once a valid batch size is typed back in", () => {
+      const control = component.settingsForm.get("dataTransferBatchSize")!;
+      control.setValue(0);
+      control.markAsTouched();
+      fixture.detectChanges();
+      expect(errorMessage()).not.toBeNull();
+
+      control.setValue(50);
+      fixture.detectChanges();
+
+      expect(errorMessage()).toBeNull();
+      expect(batchSizeInput().classList).not.toContain("is-invalid");
+    });
+  });
 });

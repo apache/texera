@@ -19,6 +19,7 @@
 
 import { Component } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { By } from "@angular/platform-browser";
 import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
 import { FormsModule, ReactiveFormsModule } from "@angular/forms";
 import { FieldType, FieldTypeConfig, FormlyModule } from "@ngx-formly/core";
@@ -190,5 +191,76 @@ describe("UserDatasetVersionCreatorComponent", () => {
 
     expect(component.isDatasetPublic).toBe(true);
     expect(component.isDatasetDownloadable).toBe(true);
+  });
+
+  /**
+   * Every test above calls the component's methods directly, so the template's
+   * own wiring never ran: which button submits and which cancels, and which
+   * nz-switch feeds which flag. These go through the rendered controls, so
+   * swapping the two switches or the two buttons fails here.
+   */
+  describe("rendered controls", () => {
+    /** Renders in dataset-creation mode (the only mode that shows the switches). */
+    async function renderCreator(): Promise<ComponentFixture<UserDatasetVersionCreatorComponent>> {
+      const fixture = await createFixture({ isCreatingVersion: false });
+      fixture.detectChanges();
+      fixture.componentInstance.form.get("name")?.setValue("My Dataset");
+      fixture.detectChanges();
+      return fixture;
+    }
+
+    const switches = (fixture: ComponentFixture<UserDatasetVersionCreatorComponent>) =>
+      fixture.debugElement.queryAll(By.css("nz-switch"));
+
+    const click = (fixture: ComponentFixture<UserDatasetVersionCreatorComponent>, selector: string) =>
+      (fixture.nativeElement.querySelector(selector) as HTMLButtonElement).click();
+
+    it("submits the dataset from the create button", async () => {
+      const fixture = await renderCreator();
+      createDataset.mockReturnValue(of({ did: 7 }));
+
+      click(fixture, "button.create-btn");
+
+      expect(createDataset).toHaveBeenCalledTimes(1);
+      expect(modalClose).toHaveBeenCalledWith({ did: 7 });
+    });
+
+    it("dismisses the modal from the cancel button without creating anything", async () => {
+      const fixture = await renderCreator();
+
+      click(fixture, "button.cancel-btn");
+
+      expect(createDataset).not.toHaveBeenCalled();
+      expect(modalClose).toHaveBeenCalledWith(null);
+    });
+
+    it("routes the first switch to the dataset's visibility only", async () => {
+      const fixture = await renderCreator();
+      createDataset.mockReturnValue(of({ did: 7 }));
+
+      switches(fixture)[0].triggerEventHandler("ngModelChange", true);
+      click(fixture, "button.create-btn");
+
+      expect(createDataset.mock.calls[0][0]).toMatchObject({ isPublic: true, isDownloadable: false });
+    });
+
+    it("routes the second switch to the dataset's downloadability only", async () => {
+      const fixture = await renderCreator();
+      createDataset.mockReturnValue(of({ did: 7 }));
+
+      switches(fixture)[1].triggerEventHandler("ngModelChange", true);
+      click(fixture, "button.create-btn");
+
+      expect(createDataset.mock.calls[0][0]).toMatchObject({ isPublic: false, isDownloadable: true });
+    });
+
+    it("offers no visibility or downloadability switch when adding a version", async () => {
+      const fixture = await createFixture({ isCreatingVersion: true, did: 5 });
+      fixture.detectChanges();
+
+      // A version inherits both flags from its dataset, so the toggles are hidden.
+      expect(switches(fixture)).toHaveLength(0);
+      expect(fixture.nativeElement.querySelector("button.create-btn")).not.toBeNull();
+    });
   });
 });

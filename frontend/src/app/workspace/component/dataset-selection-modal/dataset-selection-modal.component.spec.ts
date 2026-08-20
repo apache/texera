@@ -18,8 +18,11 @@
  */
 
 import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { By } from "@angular/platform-browser";
 import { of } from "rxjs";
+import { NzOptionComponent, NzSelectComponent } from "ng-zorro-antd/select";
 import { NZ_MODAL_DATA, NzModalRef } from "ng-zorro-antd/modal";
+import { UserDatasetVersionFiletreeComponent } from "../../../dashboard/component/user/user-dataset/user-dataset-explorer/user-dataset-version-filetree/user-dataset-version-filetree.component";
 import { DatasetSelectionModalComponent } from "./dataset-selection-modal.component";
 import { DatasetService } from "../../../dashboard/service/user/dataset/dataset.service";
 import { DashboardDataset } from "../../../dashboard/type/dashboard-dataset.interface";
@@ -214,5 +217,108 @@ describe("DatasetSelectionModalComponent", () => {
     component.onFileSelected(fileNode);
 
     expect(component.selectedPath).toBe("/kept");
+  });
+
+  /**
+   * The tests above call the handlers directly, so the template's wiring never
+   * ran: which dropdown writes which model, that picking a dataset re-runs the
+   * version lookup, that the file tree's selection reaches the modal, and that
+   * the Select button is what closes it. These drive the rendered controls.
+   */
+  describe("rendered modal", () => {
+    /** A dataset shared with the user rather than owned by them. */
+    const sharedDataset: DashboardDataset = {
+      ...dataset,
+      isOwner: false,
+      accessPrivilege: "READ",
+      ownerEmail: "someone@else.com",
+      dataset: { ...dataset.dataset, did: 20, name: "sharedds" },
+    };
+
+    const sharedVersion: DatasetVersion = { ...version, dvid: 200, did: 20, name: "v9" };
+
+    const selects = () => fixture.debugElement.queryAll(By.directive(NzSelectComponent));
+    const confirmButton = () => fixture.nativeElement.querySelector("button[nz-button]") as HTMLButtonElement;
+
+    /** The <nz-option>s the template's *ngFor produced for the given dropdown. */
+    const optionsOf = (index: number): NzOptionComponent[] =>
+      (selects()[index].componentInstance as NzSelectComponent).listOfNzOptionComponent.toArray();
+
+    /**
+     * The custom option content only mounts once the dropdown is open, and the
+     * dropdown is a CDK overlay that lands in the document body rather than in
+     * the fixture. Two change-detection passes: the first attaches the overlay
+     * portal, the second renders the options into it.
+     */
+    function renderOptionRows(): HTMLElement[] {
+      (selects()[0].componentInstance as NzSelectComponent).setOpenState(true);
+      fixture.detectChanges();
+      fixture.detectChanges();
+      return Array.from(document.querySelectorAll(".cdk-overlay-container .dataset-row"));
+    }
+
+    it("labels an owned dataset OWNER and a shared one by its access privilege", () => {
+      datasetService.retrieveAccessibleDatasets.mockReturnValue(of([dataset, sharedDataset]));
+      build();
+
+      const rows = renderOptionRows();
+
+      expect(rows.map(row => row.querySelector(".dataset-name")!.textContent!.replace(/\s+/g, " ").trim())).toEqual([
+        "#10 myds",
+        "#20 sharedds",
+      ]);
+      expect(rows.map(row => row.querySelector(".access-level")!.textContent!.trim())).toEqual(["OWNER", "READ"]);
+    });
+
+    it("looks up the versions of whichever dataset the first dropdown reports", () => {
+      datasetService.retrieveAccessibleDatasets.mockReturnValue(of([dataset, sharedDataset]));
+      datasetService.retrieveDatasetVersionList.mockReturnValue(of([sharedVersion]));
+      build();
+
+      selects()[0].triggerEventHandler("ngModelChange", sharedDataset);
+      fixture.detectChanges();
+
+      expect(datasetService.retrieveDatasetVersionList).toHaveBeenCalledWith(20);
+      // the version dropdown is repopulated from the newly chosen dataset
+      expect(optionsOf(1).map(option => option.nzLabel)).toEqual(["v9"]);
+    });
+
+    it("enables the Select button once the second dropdown reports a version", () => {
+      build(); // non-file mode: the path is composed from the dataset and version
+      selects()[0].triggerEventHandler("ngModelChange", dataset);
+      fixture.detectChanges();
+      expect(confirmButton().disabled).toBe(true);
+
+      selects()[1].triggerEventHandler("ngModelChange", version);
+      fixture.detectChanges();
+
+      expect(confirmButton().disabled).toBe(false);
+    });
+
+    it("closes the modal with the composed path when Select is clicked", () => {
+      build();
+      selects()[0].triggerEventHandler("ngModelChange", dataset);
+      selects()[1].triggerEventHandler("ngModelChange", version);
+      fixture.detectChanges();
+
+      confirmButton().click();
+
+      expect(modalRef.close).toHaveBeenCalledWith(`/datasets/${OWNER}/myds/v1`);
+    });
+
+    it("takes the path from the file tree's selection in file mode", () => {
+      modalData.fileMode = true;
+      modalData.selectedPath = `/datasets/${OWNER}/myds/v1`;
+      build();
+
+      fixture.debugElement
+        .query(By.directive(UserDatasetVersionFiletreeComponent))
+        .triggerEventHandler("selectedTreeNode", fileNode);
+      fixture.detectChanges();
+
+      expect(confirmButton().disabled).toBe(false);
+      confirmButton().click();
+      expect(modalRef.close).toHaveBeenCalledWith(`/${OWNER}/myds/v1/a.csv`);
+    });
   });
 });
