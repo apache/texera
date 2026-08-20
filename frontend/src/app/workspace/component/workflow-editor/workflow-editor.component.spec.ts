@@ -21,13 +21,17 @@ import { WorkflowActionService } from "../../service/workflow-graph/model/workfl
 import { UndoRedoService } from "../../service/undo-redo/undo-redo.service";
 import { DragDropService } from "../../service/drag-drop/drag-drop.service";
 import { WorkflowUtilService } from "../../service/workflow-graph/util/workflow-util.service";
-import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { ComponentFixture, fakeAsync, TestBed, tick } from "@angular/core/testing";
 import { ValidationWorkflowService } from "../../service/validation/validation-workflow.service";
 import { WorkflowEditorComponent } from "./workflow-editor.component";
 import { workflowEditorTestImports, workflowEditorTestProviders } from "./workflow-editor.test-utils";
 import { OperatorMetadataService } from "../../service/operator-metadata/operator-metadata.service";
 import { StubOperatorMetadataService } from "../../service/operator-metadata/stub-operator-metadata.service";
-import { JointUIService, operatorAgentActionProgressClass } from "../../service/joint-ui/joint-ui.service";
+import {
+  JointUIService,
+  operatorAgentActionProgressClass,
+  operatorNameClass,
+} from "../../service/joint-ui/joint-ui.service";
 import { AgentService, OperatorResultSummary } from "../../service/agent/agent.service";
 import { NzModalModule, NzModalService } from "ng-zorro-antd/modal";
 import { Overlay } from "@angular/cdk/overlay";
@@ -44,13 +48,13 @@ import {
   mockSentimentPredicate,
 } from "../../service/workflow-graph/model/mock-workflow-data";
 import { WorkflowStatusService } from "../../service/workflow-status/workflow-status.service";
-import { OperatorState } from "../../types/execute-workflow.interface";
+import { ExecutionState, OperatorState } from "../../types/execute-workflow.interface";
 import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { OperatorLink, OperatorPredicate } from "../../types/workflow-common.interface";
 import { tap } from "rxjs/operators";
 import { WorkflowVersionService } from "../../../dashboard/service/user/workflow-version/workflow-version.service";
-import { of } from "rxjs";
+import { config as rxjsConfig, of, Subject } from "rxjs";
 import { NzContextMenuService, NzDropDownModule } from "ng-zorro-antd/dropdown";
 import { ActivatedRoute, Router } from "@angular/router";
 import { RouterTestingModule } from "@angular/router/testing";
@@ -59,6 +63,8 @@ import { ComputingUnitStatusService } from "../../../common/service/computing-un
 import { MockComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/mock-computing-unit-status.service";
 import { commonTestProviders } from "../../../common/testing/test-utils";
 import { OperatorMenuService } from "../../service/operator-menu/operator-menu.service";
+import { GuiConfigService } from "src/app/common/service/gui-config.service";
+import { MockGuiConfigService } from "src/app/common/service/gui-config.service.mock";
 
 describe("WorkflowEditorComponent", () => {
   /**
@@ -885,15 +891,16 @@ describe("WorkflowEditorComponent", () => {
      */
     describe("operator border restoration after navigation", () => {
       let workflowStatusService: WorkflowStatusService;
-      const cachedCompleted = {
+      const cachedStatus = (operatorState: OperatorState) => ({
         [mockScanPredicate.operatorID]: {
-          operatorState: OperatorState.Completed,
+          operatorState,
           aggregatedInputRowCount: 0,
           inputPortMetrics: {},
           aggregatedOutputRowCount: 0,
           outputPortMetrics: {},
         },
-      };
+      });
+      const cachedCompleted = cachedStatus(OperatorState.Completed);
       const getStroke = (operatorID: string): string =>
         component.paper.getModelById(operatorID).attr("rect.body/stroke") as string;
 
@@ -909,6 +916,18 @@ describe("WorkflowEditorComponent", () => {
         fixture.detectChanges();
 
         expect(getStroke(mockScanPredicate.operatorID)).toBe("green");
+      });
+
+      it("paints the execution-state stroke (orange) for a valid operator with a cached Running status", () => {
+        // Navigation-return with a mid-run operator: the border must be restored
+        // to the running color, not the default (see #3614).
+        vi.spyOn(workflowStatusService, "getCurrentStatus").mockReturnValue(cachedStatus(OperatorState.Running));
+        vi.spyOn(validationWorkflowService, "validateOperator").mockReturnValue({ isValid: true });
+
+        workflowActionService.addOperator(mockScanPredicate, mockPoint);
+        fixture.detectChanges();
+
+        expect(getStroke(mockScanPredicate.operatorID)).toBe("orange");
       });
 
       it("falls back to the default valid stroke (#CFCFCF) when no cached status exists", () => {
@@ -1512,6 +1531,916 @@ describe("WorkflowEditorComponent", () => {
           }
         });
       });
+    });
+  });
+});
+/**
+ * Link breakpoints are a shipped feature — `gui.conf` sets `link-breakpoint-enabled = true` — but
+ * `MockGuiConfigService` defaults it to false, so `handleLinkBreakpoint` and the four handlers it
+ * installs have never run in any test. Turning the flag on before the first change-detection cycle
+ * (which is when ngAfterViewInit wires them) reaches the whole block.
+ */
+describe("WorkflowEditorComponent link breakpoints", () => {
+  let fixture: ComponentFixture<WorkflowEditorComponent>;
+  let component: WorkflowEditorComponent;
+  let workflowActionService: WorkflowActionService;
+
+  beforeEach(async () => {
+    TestBed.resetTestingModule();
+    await TestBed.configureTestingModule({
+      imports: [
+        RouterTestingModule,
+        HttpClientTestingModule,
+        NzModalModule,
+        NzDropDownModule,
+        WorkflowEditorComponent,
+        ContextMenuComponent,
+      ],
+      providers: [
+        JointUIService,
+        WorkflowUtilService,
+        UndoRedoService,
+        DragDropService,
+        ValidationWorkflowService,
+        WorkflowActionService,
+        NzContextMenuService,
+        Overlay,
+        { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
+        { provide: ComputingUnitStatusService, useClass: MockComputingUnitStatusService },
+        WorkflowStatusService,
+        ExecuteWorkflowService,
+        ...commonTestProviders,
+      ],
+    }).compileComponents();
+
+    // Both halves of the guard at workflow-editor.component.ts:202 must be satisfied, and both must
+    // be set before the first detectChanges: ngAfterViewInit reads them once, when it decides
+    // whether to install the breakpoint handlers at all.
+    (TestBed.inject(GuiConfigService) as unknown as MockGuiConfigService).setConfig({
+      linkBreakpointEnabled: true,
+    });
+    workflowActionService = TestBed.inject(WorkflowActionService);
+    workflowActionService.setHighlightingEnabled(true);
+
+    fixture = TestBed.createComponent(WorkflowEditorComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+  });
+
+  /** Adds scan -> result and returns the link plus its rendered view. */
+  function withLink() {
+    workflowActionService.addOperator(mockScanPredicate, mockPoint);
+    workflowActionService.addOperator(mockResultPredicate, mockPoint);
+    workflowActionService.addLink(mockScanResultLink);
+    const model = component.paper.getModelById(mockScanResultLink.linkID);
+    return { linkID: mockScanResultLink.linkID, model, view: model.findView(component.paper) as any };
+  }
+
+  it("attaches a breakpoint tool to every link, hidden until it is wanted", () => {
+    // The tool is what the user clicks to set a breakpoint; without it the feature has no entry
+    // point, and leaving it visible would put a button on every link on the canvas.
+    const { view } = withLink();
+
+    expect(view.hasTools()).toBe(true);
+    // The tool exists but stays out of sight until the cursor hovers the link or a breakpoint is
+    // set; a visible one would put a button on every link on the canvas.
+    expect(view._toolsView.tools[0].isVisible()).toBe(false);
+  });
+
+  it("highlights the link whose breakpoint button was clicked", () => {
+    const { linkID, view } = withLink();
+
+    (component.paper as any).trigger("tool:breakpoint", view, { shiftKey: false });
+
+    expect(workflowActionService.getJointGraphWrapper().getCurrentHighlightedLinkIDs()).toEqual([linkID]);
+  });
+
+  it("unhighlights an already-highlighted link on a shift-click", () => {
+    // Shift is the multi-select modifier, so a second shift-click on the same link is how the user
+    // removes it from the selection rather than re-adding it.
+    const { linkID, view } = withLink();
+    (component.paper as any).trigger("tool:breakpoint", view, { shiftKey: true });
+    expect(workflowActionService.getJointGraphWrapper().getCurrentHighlightedLinkIDs()).toEqual([linkID]);
+
+    (component.paper as any).trigger("tool:breakpoint", view, { shiftKey: true });
+
+    expect(workflowActionService.getJointGraphWrapper().getCurrentHighlightedLinkIDs()).toEqual([]);
+  });
+
+  it("carries the shift modifier into multi-select mode", () => {
+    // Routed through the unhighlight branch deliberately. On the highlight branch
+    // `WorkflowActionService.highlightLinks` sets multi-select itself, so the handler's own
+    // `setMultiSelectMode` could be deleted and the assertion would still pass; `unhighlightLinks`
+    // does not touch it, leaving this handler as the only writer.
+    const { view } = withLink();
+    // multiSelect is private and has no getter; read it directly rather than adding an accessor.
+    const wrapper = workflowActionService.getJointGraphWrapper() as any;
+
+    (component.paper as any).trigger("tool:breakpoint", view, { shiftKey: false });
+    expect(wrapper.multiSelect).toBe(false);
+    (component.paper as any).trigger("tool:breakpoint", view, { shiftKey: true });
+
+    expect(wrapper.multiSelect).toBe(true);
+  });
+
+  it("shows and hides the tool as the breakpoint streams ask", () => {
+    // These two streams are how a link that already has a breakpoint keeps its marker visible after
+    // the cursor leaves it.
+    const { linkID, view } = withLink();
+    const wrapper = workflowActionService.getJointGraphWrapper();
+    const show = vi.spyOn(view, "showTools");
+    const hide = vi.spyOn(view, "hideTools");
+
+    (wrapper as any).jointLinkBreakpointShowStream.next({ linkID });
+    (wrapper as any).jointLinkBreakpointHideStream.next({ linkID });
+
+    expect(show).toHaveBeenCalledTimes(1);
+    expect(hide).toHaveBeenCalledTimes(1);
+    // Order matters, otherwise a handler pair wired to each other's stream passes: both would
+    // still be called once, just for the opposite reason.
+    expect(show.mock.invocationCallOrder[0]).toBeLessThan(hide.mock.invocationCallOrder[0]);
+  });
+});
+
+/**
+ * The rest of the wiring installed by `ngAfterViewInit`: the JointJS paper option
+ * callbacks, the status / execution / region streams, the pointer, selection and
+ * port handlers, the agent hover labels, and the operator chat popover.
+ *
+ * Link breakpoints are switched on for the whole block because `handleLinkCursorHover`
+ * only pushes the breakpoint tool onto a hovered link when the flag is set, and the
+ * two link-tool buttons are only reachable through that tool set.
+ */
+describe("WorkflowEditorComponent editor wiring", () => {
+  let fixture: ComponentFixture<WorkflowEditorComponent>;
+  let component: WorkflowEditorComponent;
+  let workflowActionService: WorkflowActionService;
+  let jointUIService: JointUIService;
+  let dragDropService: DragDropService;
+  let executeWorkflowService: ExecuteWorkflowService;
+  let workflowStatusService: WorkflowStatusService;
+  let agentService: AgentService;
+
+  beforeEach(async () => {
+    TestBed.resetTestingModule();
+    await TestBed.configureTestingModule({
+      imports: workflowEditorTestImports,
+      providers: workflowEditorTestProviders,
+    }).compileComponents();
+
+    // ngAfterViewInit reads both of these once, so they have to be set before the first
+    // detectChanges: the flag decides whether the breakpoint tool is ever attached, and
+    // highlighting decides whether the cell-highlight handlers are installed at all.
+    (TestBed.inject(GuiConfigService) as unknown as MockGuiConfigService).setConfig({
+      linkBreakpointEnabled: true,
+    });
+    workflowActionService = TestBed.inject(WorkflowActionService);
+    workflowActionService.setHighlightingEnabled(true);
+    jointUIService = TestBed.inject(JointUIService);
+    dragDropService = TestBed.inject(DragDropService);
+    executeWorkflowService = TestBed.inject(ExecuteWorkflowService);
+    workflowStatusService = TestBed.inject(WorkflowStatusService);
+    agentService = TestBed.inject(AgentService);
+
+    fixture = TestBed.createComponent(WorkflowEditorComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+  });
+
+  // mockCommentBox's id is "1", the same as mockScanPredicate's, and a joint graph cannot hold
+  // two cells under one id — these tests put both on the canvas, so they need a distinct box.
+  const commentBox = { ...mockCommentBox, commentBoxID: "comment-box-1" };
+
+  /** A port magnet as JointJS hands it to the paper's validate callbacks. */
+  function magnet(attributes: Record<string, string>): SVGElement {
+    const element = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+    Object.entries(attributes).forEach(([name, value]) => element.setAttribute(name, value));
+    return element as unknown as SVGElement;
+  }
+
+  /** Adds scan -> result and returns the link's id, model and rendered view. */
+  function addLinkedPair() {
+    workflowActionService.addOperatorsAndLinks(
+      [
+        { op: mockScanPredicate, pos: mockPoint },
+        { op: mockResultPredicate, pos: mockPoint },
+      ],
+      [mockScanResultLink]
+    );
+    const model = component.paper.getModelById(mockScanResultLink.linkID);
+    return { linkID: mockScanResultLink.linkID, model, view: model.findView(component.paper) as any };
+  }
+
+  /** Adds a placeholder cell per region member, then drives the region-update stream. */
+  function addRegions(regions: readonly [number, string[]][]): void {
+    regions
+      .flatMap(([, operators]) => operators)
+      .forEach(operatorID => {
+        const cell = new joint.shapes.basic.Rect({ position: { x: 0, y: 0 }, size: { width: 80, height: 40 } });
+        cell.set("id", operatorID);
+        component.paper.model.addCell(cell);
+      });
+    (executeWorkflowService as any).regionUpdateStream.next({ regions });
+  }
+
+  /** An OperatorStatistics payload in the given state. */
+  function statisticsIn(state: OperatorState) {
+    return {
+      operatorState: state,
+      aggregatedInputRowCount: 0,
+      inputPortMetrics: {},
+      aggregatedOutputRowCount: 0,
+      outputPortMetrics: {},
+    };
+  }
+
+  /** Clicks the chat button of a cell, the way `.chat-button` does. */
+  function clickChatButton(cellID: string): void {
+    const view = component.paper.findViewByModel(cellID);
+    (component.paper as any).trigger("element:chat", view, new Event("click"), 0, 0);
+  }
+
+  /**
+   * A blank:pointerdown starts the paper-pan gesture, which listens on document mousemove
+   * until a mouseup; fire the mouseup so the listener does not leak into later tests.
+   */
+  function clickBlankCanvas(): void {
+    (component.paper as any).trigger("blank:pointerdown");
+    document.dispatchEvent(new MouseEvent("mouseup"));
+  }
+
+  describe("paper options", () => {
+    it("only lets a link start from an output-port magnet", () => {
+      // validateMagnet is what stops the user dragging a new link out of an input port.
+      const validateMagnet = (component.paper.options as any).validateMagnet;
+      const cellView = {} as joint.dia.CellView;
+
+      expect(
+        validateMagnet.call(component.paper, cellView, magnet({ "port-group": "out" }), new Event("mousedown"))
+      ).toBe(true);
+      expect(
+        validateMagnet.call(component.paper, cellView, magnet({ "port-group": "in" }), new Event("mousedown"))
+      ).toBe(false);
+    });
+
+    it("routes the validateConnection option through the operator-level validation", () => {
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      workflowActionService.addOperator(mockSentimentPredicate, mockPoint);
+      const cellView = (id: string) => ({ model: { id } }) as unknown as joint.dia.CellView;
+      const validateConnection = (component.paper.options as any).validateConnection;
+      const args = () => [
+        cellView(mockScanPredicate.operatorID),
+        magnet({ "port-group": "out", port: "output-0" }),
+        cellView(mockSentimentPredicate.operatorID),
+        magnet({ "port-group": "in", port: "input-0" }),
+        "target",
+        {} as joint.dia.LinkView,
+      ];
+
+      expect(validateConnection.apply(component.paper, args())).toBe(true);
+
+      // Once the link exists the same pair is rejected, which only the delegated
+      // duplicate-link check knows about.
+      workflowActionService.addLink(mockScanSentimentLink);
+      expect(validateConnection.apply(component.paper, args())).toBe(false);
+    });
+
+    it("locks the paper and ignores element buttons while workflow modification is disabled", () => {
+      const texeraGraph = workflowActionService.getTexeraGraph();
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      const view = component.paper.findViewByModel(mockScanPredicate.operatorID);
+
+      workflowActionService.disableWorkflowModification();
+      expect((component.paper.options.interactive as any).elementMove).toBe(false);
+      (component.paper as any).trigger("element:delete", view, new Event("click"), 0, 0);
+      expect(texeraGraph.hasOperator(mockScanPredicate.operatorID)).toBe(true);
+
+      workflowActionService.enableWorkflowModification();
+      // the default option leaves element dragging alone, so the key is simply absent
+      expect((component.paper.options.interactive as any).elementMove).toBeUndefined();
+      (component.paper as any).trigger("element:delete", view, new Event("click"), 0, 0);
+      expect(texeraGraph.hasOperator(mockScanPredicate.operatorID)).toBe(false);
+    });
+  });
+
+  describe("execution status streams", () => {
+    it("forwards each operator's statistics, tagging which end of the graph it sits on", () => {
+      workflowActionService.addOperator(mockScanPredicate, mockPoint); // no input ports  -> source
+      workflowActionService.addOperator(mockResultPredicate, mockPoint); // no output ports -> sink
+      const changeStatistics = vi.spyOn(jointUIService, "changeOperatorStatistics");
+
+      (workflowStatusService as any).statusSubject.next({
+        [mockScanPredicate.operatorID]: statisticsIn(OperatorState.Running),
+        [mockResultPredicate.operatorID]: statisticsIn(OperatorState.Completed),
+      });
+
+      expect(changeStatistics).toHaveBeenCalledWith(
+        component.paper,
+        mockScanPredicate.operatorID,
+        statisticsIn(OperatorState.Running),
+        true,
+        false
+      );
+      expect(changeStatistics).toHaveBeenCalledWith(
+        component.paper,
+        mockResultPredicate.operatorID,
+        statisticsIn(OperatorState.Completed),
+        false,
+        true
+      );
+    });
+
+    it("overrides the reported state with Recovering while the execution is recovering", () => {
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      vi.spyOn(executeWorkflowService, "getExecutionState").mockReturnValue({
+        state: ExecutionState.Recovering,
+      } as any);
+      const changeStatistics = vi.spyOn(jointUIService, "changeOperatorStatistics");
+
+      (workflowStatusService as any).statusSubject.next({
+        [mockScanPredicate.operatorID]: statisticsIn(OperatorState.Running),
+      });
+
+      expect(changeStatistics).toHaveBeenCalledWith(
+        component.paper,
+        mockScanPredicate.operatorID,
+        expect.objectContaining({ operatorState: OperatorState.Recovering }),
+        true,
+        false
+      );
+    });
+
+    it("does not invent statistics for an operator missing from the status payload", () => {
+      // The isDefined guard matters most while recovering: without it the operator would be
+      // handed a synthesized `{ operatorState: Recovering }` instead of nothing at all.
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      workflowActionService.addOperator(mockResultPredicate, mockPoint);
+      vi.spyOn(executeWorkflowService, "getExecutionState").mockReturnValue({
+        state: ExecutionState.Recovering,
+      } as any);
+      const changeStatistics = vi.spyOn(jointUIService, "changeOperatorStatistics");
+
+      (workflowStatusService as any).statusSubject.next({
+        [mockScanPredicate.operatorID]: statisticsIn(OperatorState.Running),
+      });
+
+      expect(changeStatistics).toHaveBeenCalledWith(
+        component.paper,
+        mockResultPredicate.operatorID,
+        undefined,
+        false,
+        true
+      );
+    });
+
+    it("repaints every operator with the state the execution recovered into", () => {
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      workflowActionService.addOperator(mockResultPredicate, mockPoint);
+      const changeState = vi.spyOn(jointUIService, "changeOperatorState");
+      const recoverInto = (current: ExecutionState) =>
+        (executeWorkflowService as any).executionStateStream.next({
+          previous: { state: ExecutionState.Recovering },
+          current: { state: current },
+        });
+
+      recoverInto(ExecutionState.Paused);
+      expect(changeState).toHaveBeenCalledWith(component.paper, mockScanPredicate.operatorID, OperatorState.Paused);
+      expect(changeState).toHaveBeenCalledWith(component.paper, mockResultPredicate.operatorID, OperatorState.Paused);
+
+      recoverInto(ExecutionState.Completed);
+      expect(changeState).toHaveBeenCalledWith(component.paper, mockScanPredicate.operatorID, OperatorState.Completed);
+
+      recoverInto(ExecutionState.Running);
+      expect(changeState).toHaveBeenCalledWith(component.paper, mockScanPredicate.operatorID, OperatorState.Running);
+    });
+
+    it("refuses to guess a color for an unrecognized transition out of recovering", () => {
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      // By default rxjs reports an error thrown inside a subscriber asynchronously, which would
+      // slip past the assertion and surface as an unhandled error; this flag makes it rethrow
+      // out of the next() call instead. Restored in the finally so later specs are unaffected.
+      rxjsConfig.useDeprecatedSynchronousErrorHandling = true;
+      try {
+        expect(() =>
+          (executeWorkflowService as any).executionStateStream.next({
+            previous: { state: ExecutionState.Recovering },
+            current: { state: ExecutionState.Terminated },
+          })
+        ).toThrowError("unknown state transition from recovering state: Terminated");
+      } finally {
+        rxjsConfig.useDeprecatedSynchronousErrorHandling = false;
+      }
+    });
+
+    it("leaves operator colors alone for a transition that did not come out of recovering", () => {
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      const changeState = vi.spyOn(jointUIService, "changeOperatorState");
+
+      (executeWorkflowService as any).executionStateStream.next({
+        previous: { state: ExecutionState.Running },
+        current: { state: ExecutionState.Completed },
+      });
+
+      expect(changeState).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("region overlays", () => {
+    it("reshapes the region drawn around an operator that moved", () => {
+      // Two regions so the handler's filter is exercised on both sides. Nothing can be asserted
+      // about the untouched one: its outline is recomputed from its own, unmoved operator, so a
+      // filter that matched every region would produce the identical path anyway.
+      addRegions([
+        [1, ["region-op-a"]],
+        [2, ["region-op-b"]],
+      ]);
+      const movedRegion = component.paper.getModelById("region-1");
+      const before = movedRegion.attr("body/d");
+      expect(before).toBeTruthy();
+
+      (<joint.dia.Element>component.paper.getModelById("region-op-a")).translate(150, 0);
+
+      expect(movedRegion.attr("body/d")).not.toEqual(before);
+    });
+
+    it("tints a region with the color of the phase it reports", () => {
+      addRegions([[1, ["region-op-a"]]]);
+      const region = component.paper.getModelById("region-1");
+
+      (executeWorkflowService as any).regionStateStream.next({ id: 1, state: "ExecutingDependeePortsPhase" });
+      expect(region.attr("body/fill")).toEqual("rgba(33,150,243,0.2)");
+
+      (executeWorkflowService as any).regionStateStream.next({ id: 1, state: "Completed" });
+      expect(region.attr("body/fill")).toEqual("rgba(76,175,80,0.2)");
+    });
+  });
+
+  describe("paper viewport", () => {
+    it("pans the paper by the pointer delta scaled back into paper coordinates", () => {
+      // At 50% zoom a 10px screen drag has to move the paper 20 paper-units, otherwise the
+      // canvas drifts away from the cursor.
+      workflowActionService.getJointGraphWrapper().setZoomProperty(0.5);
+      const before = component.paper.translate();
+      (component.paper as any).trigger("blank:pointerdown");
+
+      const drag = new MouseEvent("mousemove");
+      Object.defineProperty(drag, "movementX", { value: 10 });
+      Object.defineProperty(drag, "movementY", { value: -6 });
+      document.dispatchEvent(drag);
+      document.dispatchEvent(new MouseEvent("mouseup"));
+
+      expect(component.paper.translate().tx).toEqual(before.tx + 20);
+      expect(component.paper.translate().ty).toEqual(before.ty - 12);
+    });
+
+    it("resizes the paper to the wrapper's dimensions on a window resize", fakeAsync(() => {
+      // The paper follows the wrapper, not the editor: the wrapper is what shrinks when the
+      // result panel opens.
+      Object.defineProperty(component.editorWrapper, "offsetWidth", { value: 321, configurable: true });
+      Object.defineProperty(component.editorWrapper, "offsetHeight", { value: 123, configurable: true });
+      const setDimensions = vi.spyOn(component.paper, "setDimensions");
+
+      window.dispatchEvent(new Event("resize"));
+      tick(30); // the handler audits the resize stream down to one event every 30ms
+
+      expect(setDimensions).toHaveBeenCalledWith(321, 123);
+    }));
+  });
+
+  describe("operator badge streams", () => {
+    it("repaints the result icon when an operator is marked and unmarked for viewing", () => {
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      const changeViewResult = vi.spyOn(jointUIService, "changeOperatorViewResultStatus");
+
+      workflowActionService.setViewOperatorResults([mockScanPredicate.operatorID]);
+      expect(changeViewResult).toHaveBeenLastCalledWith(
+        component.paper,
+        expect.objectContaining({ operatorID: mockScanPredicate.operatorID, viewResult: true }),
+        true
+      );
+
+      workflowActionService.unsetViewOperatorResults([mockScanPredicate.operatorID]);
+      expect(changeViewResult).toHaveBeenLastCalledWith(
+        component.paper,
+        expect.objectContaining({ operatorID: mockScanPredicate.operatorID, viewResult: false }),
+        false
+      );
+    });
+
+    it("repaints the cache icon when an operator is marked and unmarked for reuse", () => {
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      const changeReuseCache = vi.spyOn(jointUIService, "changeOperatorReuseCacheStatus");
+
+      workflowActionService.markReuseResults([mockScanPredicate.operatorID]);
+      expect(changeReuseCache).toHaveBeenLastCalledWith(
+        component.paper,
+        expect.objectContaining({ operatorID: mockScanPredicate.operatorID, markedForReuse: true })
+      );
+
+      workflowActionService.removeMarkReuseResults([mockScanPredicate.operatorID]);
+      expect(changeReuseCache).toHaveBeenLastCalledWith(
+        component.paper,
+        expect.objectContaining({ operatorID: mockScanPredicate.operatorID, markedForReuse: false })
+      );
+    });
+
+    it("renders a renamed operator's display name on its joint element", () => {
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      const texeraGraph = workflowActionService.getTexeraGraph();
+
+      (texeraGraph as any).operatorDisplayNameChangedSubject.next({
+        operatorID: mockScanPredicate.operatorID,
+        newDisplayName: "Renamed Scan",
+      });
+
+      expect(component.paper.getModelById(mockScanPredicate.operatorID).attr(`.${operatorNameClass}/text`)).toEqual(
+        "Renamed Scan"
+      );
+    });
+
+    it("renders a renamed port's display name on the port label", () => {
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      const texeraGraph = workflowActionService.getTexeraGraph();
+      const element = <joint.dia.Element>workflowActionService.getJointGraph().getCell(mockScanPredicate.operatorID);
+
+      texeraGraph.portDisplayNameChangedSubject.next({
+        operatorID: mockScanPredicate.operatorID,
+        portID: "output-0",
+        newDisplayName: "results",
+      });
+
+      expect(element.portProp("output-0", "attrs/.port-label/text")).toEqual("results");
+    });
+  });
+
+  describe("selection and highlight handlers", () => {
+    it("opens the result panel when an operator is double-clicked, but not for a link", () => {
+      const { view: linkView } = addLinkedPair();
+      const opened: boolean[] = [];
+      workflowActionService.resultPanelOpen$.subscribe(value => opened.push(value));
+      const operatorView = component.paper.findViewByModel(mockScanPredicate.operatorID);
+
+      (component.paper as any).trigger("cell:pointerdblclick", operatorView, { shiftKey: false });
+      expect(opened).toEqual([true]);
+
+      // a link is not an element, so the handler skips it entirely
+      (component.paper as any).trigger("cell:pointerdblclick", linkView, { shiftKey: false });
+      expect(opened).toEqual([true]);
+    });
+
+    it("highlights the link running between two shift-selected operators", () => {
+      const { linkID } = addLinkedPair();
+      const wrapper = workflowActionService.getJointGraphWrapper();
+      wrapper.unhighlightOperators(...wrapper.getCurrentHighlightedOperatorIDs());
+      const scanView = component.paper.findViewByModel(mockScanPredicate.operatorID);
+      const resultView = component.paper.findViewByModel(mockResultPredicate.operatorID);
+
+      (component.paper as any).trigger("cell:pointerdown", scanView, { shiftKey: true });
+      (component.paper as any).trigger("cell:pointerdown", resultView, { shiftKey: true });
+
+      expect(wrapper.getCurrentHighlightedLinkIDs()).toEqual([linkID]);
+    });
+
+    it("toggles a comment box in and out of a shift-selection", () => {
+      const wrapper = workflowActionService.getJointGraphWrapper();
+      workflowActionService.addCommentBox(commentBox);
+      wrapper.unhighlightCommentBoxes(...wrapper.getCurrentHighlightedCommentBoxIDs());
+      const view = component.paper.findViewByModel(commentBox.commentBoxID);
+
+      (component.paper as any).trigger("cell:pointerdown", view, { shiftKey: true });
+      expect(wrapper.getCurrentHighlightedCommentBoxIDs()).toEqual([commentBox.commentBoxID]);
+
+      (component.paper as any).trigger("cell:pointerdown", view, { shiftKey: true });
+      expect(wrapper.getCurrentHighlightedCommentBoxIDs()).toEqual([]);
+    });
+
+    it("replaces the whole selection when a comment box is clicked without shift", () => {
+      const wrapper = workflowActionService.getJointGraphWrapper();
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      workflowActionService.addCommentBox(commentBox);
+      wrapper.unhighlightCommentBoxes(...wrapper.getCurrentHighlightedCommentBoxIDs());
+      wrapper.highlightOperators(mockScanPredicate.operatorID);
+      const view = component.paper.findViewByModel(commentBox.commentBoxID);
+
+      (component.paper as any).trigger("cell:pointerdown", view, { shiftKey: false });
+
+      expect(wrapper.getCurrentHighlightedCommentBoxIDs()).toEqual([commentBox.commentBoxID]);
+      expect(wrapper.getCurrentHighlightedOperatorIDs()).toEqual([]);
+    });
+
+    it("grows a port when it is highlighted and shrinks it back when it is not", () => {
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      const element = <joint.dia.Element>workflowActionService.getJointGraph().getCell(mockScanPredicate.operatorID);
+      const port = { operatorID: mockScanPredicate.operatorID, portID: "output-0" };
+
+      workflowActionService.highlightPorts(false, port);
+      expect(element.portProp("output-0", "attrs/.port-body/r")).toEqual(8);
+
+      workflowActionService.unhighlightPorts(port);
+      expect(element.portProp("output-0", "attrs/.port-body/r")).toEqual(5);
+      expect(element.portProp("output-0", "attrs/.port-body/stroke")).toEqual("none");
+    });
+
+    it("toggles a port in and out of a shift-selection when its magnet is clicked", () => {
+      const wrapper = workflowActionService.getJointGraphWrapper();
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      const view = component.paper.findViewByModel(mockScanPredicate.operatorID);
+      const portMagnet = { getAttribute: (name: string) => (name === "port" ? "output-0" : null) };
+      const shiftClickPort = () =>
+        (component.paper as any).trigger("element:magnet:pointerclick", view, { shiftKey: true }, portMagnet);
+
+      shiftClickPort();
+      expect(wrapper.getCurrentHighlightedPortIDs()).toContainEqual({
+        operatorID: mockScanPredicate.operatorID,
+        portID: "output-0",
+      });
+
+      shiftClickPort();
+      expect(wrapper.getCurrentHighlightedPortIDs()).toEqual([]);
+    });
+
+    it("outlines an operator suggested as a drop target and clears the outline afterwards", () => {
+      const wrapper = workflowActionService.getJointGraphWrapper();
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      wrapper.unhighlightOperators(...wrapper.getCurrentHighlightedOperatorIDs());
+      const view = component.paper.findViewByModel(mockScanPredicate.operatorID);
+      const outlines = () => view.$el.children(".joint-highlight-stroke").length;
+      expect(outlines()).toEqual(0);
+
+      (dragDropService as any).operatorSuggestionHighlightStream.next(mockScanPredicate.operatorID);
+      expect(outlines()).toEqual(1);
+
+      (dragDropService as any).operatorSuggestionUnhighlightStream.next(mockScanPredicate.operatorID);
+      expect(outlines()).toEqual(0);
+    });
+
+    it("deletes a comment box when its delete button fires", () => {
+      const texeraGraph = workflowActionService.getTexeraGraph();
+      workflowActionService.addCommentBox(commentBox);
+      const view = component.paper.findViewByModel(commentBox.commentBoxID);
+
+      (component.paper as any).trigger("element:delete", view, new Event("click"), 0, 0);
+
+      expect(texeraGraph.hasCommentBox(commentBox.commentBoxID)).toBe(false);
+    });
+
+    it("unfolds the clicked operator's details and folds the one opened before it", () => {
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      workflowActionService.addOperator(mockSentimentPredicate, mockPoint);
+      const deleteButton = (operatorID: string) =>
+        component.paper.getModelById(operatorID).attr(".delete-button/visibility");
+
+      (component.paper as any).trigger(
+        "element:pointerdown",
+        component.paper.findViewByModel(mockScanPredicate.operatorID),
+        {}
+      );
+      expect(deleteButton(mockScanPredicate.operatorID)).toEqual("visible");
+
+      (component.paper as any).trigger(
+        "element:pointerdown",
+        component.paper.findViewByModel(mockSentimentPredicate.operatorID),
+        {}
+      );
+      expect(deleteButton(mockScanPredicate.operatorID)).toEqual("hidden");
+      expect(deleteButton(mockSentimentPredicate.operatorID)).toEqual("visible");
+    });
+
+    it("unfolds operator details on a right-click too", () => {
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      workflowActionService.addOperator(mockSentimentPredicate, mockPoint);
+      const deleteButton = (operatorID: string) =>
+        component.paper.getModelById(operatorID).attr(".delete-button/visibility");
+
+      (component.paper as any).trigger(
+        "element:contextmenu",
+        component.paper.findViewByModel(mockScanPredicate.operatorID),
+        {}
+      );
+      expect(deleteButton(mockScanPredicate.operatorID)).toEqual("visible");
+
+      (component.paper as any).trigger(
+        "element:contextmenu",
+        component.paper.findViewByModel(mockSentimentPredicate.operatorID),
+        {}
+      );
+      expect(deleteButton(mockScanPredicate.operatorID)).toEqual("hidden");
+      expect(deleteButton(mockSentimentPredicate.operatorID)).toEqual("visible");
+    });
+
+    it("highlights a right-clicked link so the context menu acts on it", () => {
+      const { linkID, view } = addLinkedPair();
+      const wrapper = workflowActionService.getJointGraphWrapper();
+
+      (component.paper as any).trigger("link:contextmenu", view, {});
+
+      expect(wrapper.getCurrentHighlightedLinkIDs()).toEqual([linkID]);
+    });
+
+    it("folds the open operator's details when the blank canvas is clicked", () => {
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      const deleteButton = () =>
+        component.paper.getModelById(mockScanPredicate.operatorID).attr(".delete-button/visibility");
+      (component.paper as any).trigger(
+        "element:pointerdown",
+        component.paper.findViewByModel(mockScanPredicate.operatorID),
+        {}
+      );
+      expect(deleteButton()).toEqual("visible");
+
+      clickBlankCanvas();
+
+      expect(deleteButton()).toEqual("hidden");
+    });
+  });
+
+  describe("link tools", () => {
+    /** Hovers the link so handleLinkCursorHover attaches the tool set, and returns the tools. */
+    function hoverLink(view: any): any[] {
+      (component.paper as any).trigger("link:mouseenter", view, new Event("mouseenter"), 0, 0);
+      return view._toolsView.tools;
+    }
+
+    it("offers both the remove and the breakpoint tool when the cursor enters a link", () => {
+      const { view } = addLinkedPair();
+
+      expect(hoverLink(view).map(tool => tool.name)).toEqual(["remove-button", "info-button"]);
+    });
+
+    it("deletes the link when the remove tool is activated", () => {
+      const texeraGraph = workflowActionService.getTexeraGraph();
+      const { linkID, view } = addLinkedPair();
+      const removeTool = hoverLink(view).find(tool => tool.name === "remove-button");
+
+      removeTool.options.action.call(removeTool, new Event("click"), view);
+
+      expect(texeraGraph.hasLinkWithID(linkID)).toBe(false);
+    });
+
+    it("highlights the link when the breakpoint tool is activated", () => {
+      const { linkID, view } = addLinkedPair();
+      const wrapper = workflowActionService.getJointGraphWrapper();
+      wrapper.unhighlightElements(wrapper.getCurrentHighlights());
+      const breakpointTool = hoverLink(view).find(tool => tool.name === "info-button");
+
+      breakpointTool.options.action.call(breakpointTool, new Event("click"), view);
+
+      expect(wrapper.getCurrentHighlightedLinkIDs()).toEqual([linkID]);
+    });
+  });
+
+  describe("shared-editing presence", () => {
+    it("publishes the cursor position and the enter/leave presence flag", () => {
+      const texeraGraph = workflowActionService.getTexeraGraph();
+      const updateAwareness = vi.spyOn(texeraGraph, "updateSharedModelAwareness");
+      // the real clientToLocalPoint needs SVGGraphicsElement.getScreenCTM, which jsdom lacks;
+      // stubbing it still pins that the client coordinates go through the paper's conversion
+      const toLocalPoint = vi.spyOn(component.paper, "clientToLocalPoint").mockReturnValue({ x: 7, y: 9 } as any);
+
+      component.editor.dispatchEvent(new MouseEvent("mousemove", { clientX: 40, clientY: 60 }));
+      expect(toLocalPoint).toHaveBeenCalledWith({ x: 40, y: 60 });
+      expect(updateAwareness).toHaveBeenLastCalledWith("userCursor", { x: 7, y: 9 });
+
+      component.editor.dispatchEvent(new MouseEvent("mouseenter"));
+      expect(updateAwareness).toHaveBeenLastCalledWith("isActive", true);
+
+      component.editor.dispatchEvent(new MouseEvent("mouseleave"));
+      expect(updateAwareness).toHaveBeenLastCalledWith("isActive", false);
+    });
+  });
+
+  describe("agent hover labels", () => {
+    const agentName = "Agent One";
+    let hovered: Subject<{ viewedOperatorIds: string[]; addedOperatorIds: string[]; modifiedOperatorIds: string[] }>;
+
+    beforeEach(() => {
+      hovered = new Subject();
+      // getAllAgents is an HTTP call that never resolves under HttpClientTestingModule, so the
+      // per-agent hover subscriptions are only reachable by standing in for it.
+      vi.spyOn(agentService, "getAllAgents").mockReturnValue(of([{ id: "agent-1", name: agentName } as any]));
+      vi.spyOn(agentService, "getHoveredMessageOperatorsObservable").mockReturnValue(hovered.asObservable());
+      // an agent change re-runs the setup, which is what picks up the stubs above
+      (agentService as any).agentChangeSubject.next();
+    });
+
+    it("labels the viewed, added and modified operators of the hovered message", () => {
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      workflowActionService.addOperator(mockSentimentPredicate, mockPoint);
+      workflowActionService.addOperator(mockResultPredicate, mockPoint);
+      const showLabel = vi.spyOn(jointUIService, "showAgentActionLabel");
+
+      hovered.next({
+        viewedOperatorIds: [mockScanPredicate.operatorID],
+        addedOperatorIds: [mockSentimentPredicate.operatorID],
+        modifiedOperatorIds: [mockResultPredicate.operatorID],
+      });
+
+      expect(showLabel).toHaveBeenCalledWith(component.paper, mockScanPredicate.operatorID, "viewed", agentName);
+      expect(showLabel).toHaveBeenCalledWith(component.paper, mockSentimentPredicate.operatorID, "added", agentName);
+      expect(showLabel).toHaveBeenCalledWith(component.paper, mockResultPredicate.operatorID, "modified", agentName);
+      expect(showLabel).toHaveBeenCalledTimes(3);
+    });
+
+    it("clears the labels of the previous hover and skips ids that left the canvas", () => {
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      const labelVisibility = () =>
+        component.paper
+          .getModelById(mockScanPredicate.operatorID)
+          .attr(`.${operatorAgentActionProgressClass}/visibility`);
+      hovered.next({
+        viewedOperatorIds: [mockScanPredicate.operatorID],
+        addedOperatorIds: [],
+        modifiedOperatorIds: [],
+      });
+      expect(labelVisibility()).toEqual("visible");
+      const showLabel = vi.spyOn(jointUIService, "showAgentActionLabel");
+
+      hovered.next({
+        viewedOperatorIds: ["deleted-operator"],
+        addedOperatorIds: ["deleted-operator"],
+        modifiedOperatorIds: ["deleted-operator"],
+      });
+
+      expect(labelVisibility()).toEqual("hidden");
+      expect(showLabel).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("operator chat popover", () => {
+    beforeEach(() => {
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+    });
+
+    it("toggles the popover shut when the same operator's chat button is clicked again", () => {
+      clickChatButton(mockScanPredicate.operatorID);
+      expect(component.chatPopoverOperator?.operatorId).toEqual(mockScanPredicate.operatorID);
+
+      clickChatButton(mockScanPredicate.operatorID);
+
+      expect(component.chatPopoverOperator).toBeNull();
+    });
+
+    it("leaves the popover alone when the chat event arrives from a cell that is not an operator", () => {
+      workflowActionService.addCommentBox(commentBox);
+      clickChatButton(mockScanPredicate.operatorID);
+      const getOperator = vi.spyOn(workflowActionService.getTexeraGraph(), "getOperator");
+
+      clickChatButton(commentBox.commentBoxID);
+
+      // The popover surviving is not enough on its own: without the guard the handler reads the
+      // cell as an operator and throws, which rxjs reports asynchronously and the popover keeps
+      // its old value anyway. Pin the bail-out itself.
+      expect(getOperator).not.toHaveBeenCalled();
+      expect(component.chatPopoverOperator?.operatorId).toEqual(mockScanPredicate.operatorID);
+    });
+
+    it("closes the popover when the blank canvas is clicked", () => {
+      clickChatButton(mockScanPredicate.operatorID);
+      expect(component.chatPopoverOperator).not.toBeNull();
+
+      clickBlankCanvas();
+
+      expect(component.chatPopoverOperator).toBeNull();
+    });
+
+    it("keeps the popover anchored to its operator when the operator is dragged", () => {
+      clickChatButton(mockScanPredicate.operatorID);
+      const before = { ...component.chatPopoverOperator!.position };
+
+      (<joint.dia.Element>component.paper.getModelById(mockScanPredicate.operatorID)).translate(60, 30);
+
+      expect(component.chatPopoverOperator!.position).toEqual({ x: before.x + 60, y: before.y + 30 });
+    });
+
+    it("rescales the popover anchor when the canvas is zoomed", () => {
+      clickChatButton(mockScanPredicate.operatorID);
+      const before = { ...component.chatPopoverOperator!.position };
+
+      workflowActionService.getJointGraphWrapper().setZoomProperty(0.5);
+
+      // the anchor is a screen position, so it follows the zoom; the trailing 40px that clears
+      // the operator's display name is added afterwards and is not scaled
+      expect(component.chatPopoverOperator!.position).toEqual({
+        x: before.x * 0.5,
+        y: (before.y - 40) * 0.5 + 40,
+      });
+    });
+
+    it("reports no anchor for an operator that is not on the paper", () => {
+      expect((component as any).getOperatorChatPopoverPosition("not-on-the-paper")).toBeNull();
+    });
+
+    it("re-renders only while the popover is open when new agent summaries arrive", () => {
+      const detectChanges = vi.spyOn((component as any).changeDetectorRef, "detectChanges");
+
+      (agentService as any).operatorResultSummariesSubject.next(new Map());
+      expect(detectChanges).not.toHaveBeenCalled();
+
+      clickChatButton(mockScanPredicate.operatorID);
+      detectChanges.mockClear();
+      (agentService as any).operatorResultSummariesSubject.next(new Map());
+
+      expect(detectChanges).toHaveBeenCalledTimes(1);
     });
   });
 });

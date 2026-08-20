@@ -30,6 +30,20 @@ import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, Operat
 
 import javax.validation.constraints.{NotBlank, NotNull}
 
+// type constraint: the time axis is an instant and the plotted value is a measurement.
+// Neither is enforced today: a text value column silently degenerates the y axis into
+// a categorical one. The time axis also accepts a string, because pd.to_datetime
+// parses date text and a CSV source hands its dates over as one; a type rule cannot
+// tell such text from an unparseable value, so that half is left to the coercion,
+// which drops what it cannot read.
+@JsonSchemaInject(json = """
+{
+  "attributeTypeRules": {
+    "timeColumn": { "enum": ["timestamp", "string"] },
+    "valueColumn": { "enum": ["integer", "long", "double"] }
+  }
+}
+""")
 class TimeSeriesOpDesc extends PythonOperatorDescriptor {
 
   @JsonProperty(value = "timeColumn", required = true)

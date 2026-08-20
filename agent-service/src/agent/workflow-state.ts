@@ -189,6 +189,15 @@ export class WorkflowState {
       inputPorts: newInputPorts,
     };
     this.operators.set(operatorId, updatedOperator);
+
+    const validInputPorts = new Set(newInputPorts.map(port => port.portID));
+
+    for (const link of this.getAllLinks()) {
+      if (link.target.operatorID === operatorId && !validInputPorts.has(link.target.portID)) {
+        this.deleteLink(link.linkID);
+      }
+    }
+
     this.operatorPropertyChangeSubject.next({ operator: updatedOperator });
     return true;
   }
@@ -415,7 +424,7 @@ export class WorkflowState {
     this.settings = content.settings ? { ...content.settings } : { ...DEFAULT_WORKFLOW_SETTINGS };
   }
 
-  toLogicalPlan(targetOperatorId?: string): LogicalPlan {
+  toLogicalPlan(): LogicalPlan {
     const enabledOperators = this.getAllEnabledOperators();
 
     const operators: LogicalOperator[] = enabledOperators.map(op => ({

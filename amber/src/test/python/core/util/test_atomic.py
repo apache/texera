@@ -85,8 +85,11 @@ class TestAtomicIntegerSingleThreaded:
         # scheduling delay alone could let the assertions below pass even on
         # a fixed implementation.
         assert started.wait(timeout=2.0), "worker thread never started"
-        # Give get_and_set a moment to either deadlock or return.
-        completed.wait(timeout=0.5)
+        # Join instead of waiting on `completed`: the worker sets that event
+        # before it exits, so `is_alive()` is only reliable after a join. A
+        # fixed implementation joins in microseconds; a deadlocked get_and_set
+        # stays alive past the timeout and still trips the assertion below.
+        worker.join(timeout=5)
         assert not errors, (
             f"get_and_set raised before reaching the deadlock spin: {errors[0]!r}"
         )

@@ -22,7 +22,7 @@ import { EventEmitter } from "@angular/core";
 import { By } from "@angular/platform-browser";
 import { CdkVirtualScrollViewport } from "@angular/cdk/scrolling";
 import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
-import { of } from "rxjs";
+import { of, throwError } from "rxjs";
 import { UserDatasetStagedObjectsListComponent } from "./user-dataset-staged-objects-list.component";
 import { DatasetService } from "../../../../../service/user/dataset/dataset.service";
 import { NotificationService } from "../../../../../../common/service/notification/notification.service";
@@ -155,5 +155,45 @@ describe("UserDatasetStagedObjectsListComponent", () => {
     await new Promise(resolve => setTimeout(resolve));
 
     expect(checkViewportSizeSpy).toHaveBeenCalled();
+  });
+  describe("branch coverage", () => {
+    it("ignores a userMakeChangesEvent that is not provided", () => {
+      // The setter guards on the event; assigning nothing must not subscribe or refetch.
+      component.did = 1;
+      component.userMakeChangesEvent = undefined as unknown as EventEmitter<void>;
+      expect(getDatasetDiffSpy).not.toHaveBeenCalled();
+    });
+
+    it("does not revert an object when no dataset id is set", () => {
+      component.did = undefined;
+      component.onObjectReverted(stagedObjects[0]);
+      expect(resetDatasetFileDiffSpy).not.toHaveBeenCalled();
+    });
+
+    it("notifies when reverting a staged object fails", () => {
+      resetDatasetFileDiffSpy.mockReturnValue(throwError(() => new Error("boom")));
+      const notificationService = TestBed.inject(NotificationService);
+      component.did = 1;
+
+      component.onObjectReverted(stagedObjects[0]);
+
+      expect(notificationService.error).toHaveBeenCalledWith("Failed to delete the file");
+    });
+
+    it("returns no upload time when there is no upload-time map", () => {
+      component.uploadTimeMap = undefined;
+      expect(component.getFileUploadTime("dir/a.txt")).toBeNull();
+    });
+
+    it("falls back to the whole path when the last segment is empty", () => {
+      component.uploadTimeMap = new Map([["dir/", 111]]);
+      // "dir/".split("/").pop() is "", so the lookup key falls back to the full path.
+      expect(component.getFileUploadTime("dir/")).toBe(111);
+    });
+
+    it("returns null for a filename that is absent from the upload-time map", () => {
+      component.uploadTimeMap = new Map([["a.txt", 222]]);
+      expect(component.getFileUploadTime("dir/missing.txt")).toBeNull();
+    });
   });
 });

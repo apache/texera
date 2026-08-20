@@ -17,12 +17,21 @@
  * under the License.
  */
 
+import { ApplicationRef, DebugElement } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { By } from "@angular/platform-browser";
+import { NoopAnimationsModule } from "@angular/platform-browser/animations";
 import { ActivatedRoute, Router } from "@angular/router";
 import { of, Subject, throwError } from "rxjs";
 import { NzModalService } from "ng-zorro-antd/modal";
+import { NzResizableDirective } from "ng-zorro-antd/resizable";
+import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
 import { MarkdownService } from "ngx-markdown";
-import { DatasetDetailComponent } from "./dataset-detail.component";
+import {
+  DatasetDetailComponent,
+  ABORT_RETRY_BACKOFF_BASE_MS,
+  ABORT_RETRY_MAX_ATTEMPTS,
+} from "./dataset-detail.component";
 import { DatasetService, MultipartUploadProgress } from "../../../../service/user/dataset/dataset.service";
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
 import { DownloadService } from "../../../../service/user/download/download.service";
@@ -36,7 +45,8 @@ import { DatasetStagedObject } from "../../../../../common/type/dataset-staged-o
 import { commonTestImports, commonTestProviders } from "../../../../../common/testing/test-utils";
 import { Contributor, Dataset, DatasetVersion } from "../../../../../common/type/dataset";
 import { DashboardDataset } from "../../../../type/dashboard-dataset.interface";
-import { HttpErrorResponse } from "@angular/common/http";
+import { HttpErrorResponse, HttpStatusCode } from "@angular/common/http";
+import { NzResizeEvent } from "ng-zorro-antd/resizable";
 import { format } from "date-fns";
 import { USER_DATASET } from "../../../../../app-routing.constant";
 
@@ -129,6 +139,427 @@ describe("DatasetDetailComponent upload queue", () => {
     // Log in so ngOnInit reaches loadUploadSettings (maxConcurrentFiles = 3).
     (TestBed.inject(UserService) as unknown as StubUserService).userChangeSubject.next(MOCK_USER);
     fixture.detectChanges();
+  });
+
+  /**
+   * A failed upload has to tell the user why, mark the task failed without leaving its bar at
+   * 100%, and free the concurrency slot — otherwise the queue stalls behind a dead upload.
+   */
+  describe("a failed upload", () => {
+    const notification = () => TestBed.inject(NotificationService) as unknown as { error: ReturnType<typeof vi.fn> };
+
+    /** Fails the in-flight upload of `name` with the given HTTP status. */
+    const failUpload = (index: number, status: number) =>
+      uploadSubjects[index].error(new HttpErrorResponse({ status }));
+
+    it("names the 409 conflict so the user knows to retry", () => {
+      dropFiles("a.csv");
+
+      failUpload(0, HttpStatusCode.Conflict);
+
+      expect(notification().error).toHaveBeenCalledWith(expect.stringContaining("Upload blocked (409)"));
+    });
+
+    it("falls back to a generic message for any other failure", () => {
+      dropFiles("a.csv");
+
+      failUpload(0, HttpStatusCode.InternalServerError);
+
+      expect(notification().error).toHaveBeenCalledWith("Upload failed. Please retry.");
+    });
+
+    it("marks the task failed and keeps its progress rather than showing it complete", () => {
+      dropFiles("a.csv");
+      // a partially-uploaded file: the bar must not jump to 100 when it fails
+      uploadSubjects[0].next({ filePath: "a.csv", percentage: 42, status: "uploading" });
+
+      failUpload(0, HttpStatusCode.InternalServerError);
+
+      const task = component.uploadTasks.find(t => t.filePath === "a.csv");
+      expect(task?.status).toBe("failed");
+      expect(task?.percentage).toBe(42);
+    });
+
+    it("frees the concurrency slot so a queued upload can start", () => {
+      // maxConcurrentFiles is 3, so a fourth file waits for a slot
+      dropFiles("a.csv", "b.csv", "c.csv", "d.csv");
+      expect(uploadedPaths).toEqual(["a.csv", "b.csv", "c.csv"]);
+
+      failUpload(0, HttpStatusCode.InternalServerError);
+
+      expect(uploadedPaths).toContain("d.csv");
+    });
+
+    it("still reports the failure when the task is no longer in the list", () => {
+      dropFiles("a.csv");
+      component.uploadTasks = []; // the taskIndex === -1 arm
+
+      expect(() => failUpload(0, HttpStatusCode.InternalServerError)).not.toThrow();
+      expect(notification().error).toHaveBeenCalled();
+    });
+  });
+
+  /**
+   * Aborting an in-flight upload has to survive the backend still finalizing the previous attempt:
+   * the abort call is retried on 409 up to ABORT_RETRY_MAX_ATTEMPTS, a 404 means it is already gone,
+   * and the caller's callback must fire exactly once down every one of those paths.
+   */
+  describe("aborting an upload", () => {
+    let finalize: ReturnType<typeof vi.fn>;
+
+    beforeEach(() => {
+      vi.useFakeTimers();
+      finalize = TestBed.inject(DatasetService).finalizeMultipartUpload as unknown as ReturnType<typeof vi.fn>;
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    /** Starts an upload and reports progress, leaving one task in flight. */
+    function inFlight(name = "a.txt") {
+      dropFiles(name);
+      uploadSubjects[0].next({ filePath: name, percentage: 10, status: "uploading", totalTime: 0 });
+      return component.uploadTasks.find(t => t.filePath === name)!;
+    }
+
+    const conflict = () => throwError(() => ({ status: 409 }) as any);
+    const gone = () => throwError(() => ({ status: 404 }) as any);
+
+    it("marks the task aborted and tells the caller once", () => {
+      const task = inFlight();
+      const onAborted = vi.fn();
+
+      component.onClickAbortUploadProgress(task as any, onAborted);
+
+      expect(finalize).toHaveBeenCalledWith("owner@texera.com", "test-dataset", "a.txt", true);
+      expect(component.uploadTasks.find(t => t.filePath === "a.txt")!.status).toBe("aborted");
+      expect(onAborted).toHaveBeenCalledTimes(1);
+    });
+
+    it("stops listening to the upload it aborted", () => {
+      const task = inFlight();
+
+      component.onClickAbortUploadProgress(task as any);
+
+      // The progress stream is unsubscribed, so a late event cannot resurrect the task.
+      uploadSubjects[0].next({ filePath: "a.txt", percentage: 100, status: "finished", totalTime: 1 });
+      expect(component.uploadTasks.find(t => t.filePath === "a.txt")!.status).toBe("aborted");
+    });
+
+    it("treats a 404 as already aborted rather than an error", () => {
+      finalize.mockReturnValueOnce(gone());
+      const task = inFlight();
+      const onAborted = vi.fn();
+
+      component.onClickAbortUploadProgress(task as any, onAborted);
+
+      expect(onAborted).toHaveBeenCalledTimes(1);
+      expect(finalize).toHaveBeenCalledTimes(1);
+    });
+
+    it("retries a 409 after a backoff and finishes once the server catches up", () => {
+      // The server is still finalizing the previous attempt; the abort has to wait it out.
+      finalize.mockReturnValueOnce(conflict());
+      const task = inFlight();
+      const onAborted = vi.fn();
+
+      component.onClickAbortUploadProgress(task as any, onAborted);
+      expect(onAborted).not.toHaveBeenCalled();
+
+      vi.advanceTimersByTime(ABORT_RETRY_BACKOFF_BASE_MS);
+
+      expect(finalize).toHaveBeenCalledTimes(2);
+      expect(onAborted).toHaveBeenCalledTimes(1);
+    });
+
+    it("backs off further on each successive conflict", () => {
+      finalize.mockReturnValue(conflict());
+      const task = inFlight();
+
+      component.onClickAbortUploadProgress(task as any);
+      expect(finalize).toHaveBeenCalledTimes(1);
+
+      // First wait is BASE * 1, the second BASE * 2, so BASE alone is not enough for the third call.
+      vi.advanceTimersByTime(ABORT_RETRY_BACKOFF_BASE_MS);
+      expect(finalize).toHaveBeenCalledTimes(2);
+
+      vi.advanceTimersByTime(ABORT_RETRY_BACKOFF_BASE_MS);
+      expect(finalize).toHaveBeenCalledTimes(2);
+
+      vi.advanceTimersByTime(ABORT_RETRY_BACKOFF_BASE_MS);
+      expect(finalize).toHaveBeenCalledTimes(3);
+    });
+
+    it("gives up after the attempt limit but still reports the abort", () => {
+      // Without the bound this would retry forever against a permanently conflicted server.
+      finalize.mockReturnValue(conflict());
+      const task = inFlight();
+      const onAborted = vi.fn();
+
+      component.onClickAbortUploadProgress(task as any, onAborted);
+      vi.advanceTimersByTime(ABORT_RETRY_BACKOFF_BASE_MS * ABORT_RETRY_MAX_ATTEMPTS * (ABORT_RETRY_MAX_ATTEMPTS + 1));
+
+      expect(finalize).toHaveBeenCalledTimes(ABORT_RETRY_MAX_ATTEMPTS + 1);
+      expect(onAborted).toHaveBeenCalledTimes(1);
+    });
+
+    it("reports the abort once even on an error the retry does not cover", () => {
+      finalize.mockReturnValueOnce(throwError(() => ({ status: 500 }) as any));
+      const task = inFlight();
+      const onAborted = vi.fn();
+
+      component.onClickAbortUploadProgress(task as any, onAborted);
+
+      expect(onAborted).toHaveBeenCalledTimes(1);
+      expect(finalize).toHaveBeenCalledTimes(1);
+    });
+
+    it("frees the concurrency slot so a queued upload can start", () => {
+      // Aborting has to release the slot as an ordinary completion would; otherwise the queue
+      // stalls behind an upload that is no longer running.
+      dropFiles("a.txt", "b.txt", "c.txt", "d.txt");
+      expect(uploadedPaths).toEqual(["a.txt", "b.txt", "c.txt"]);
+      uploadSubjects[0].next({ filePath: "a.txt", percentage: 10, status: "uploading", totalTime: 0 });
+      const task = component.uploadTasks.find(t => t.filePath === "a.txt")!;
+
+      component.onClickAbortUploadProgress(task as any);
+
+      expect(uploadedPaths).toContain("d.txt");
+    });
+
+    it("cancelExistingUpload aborts an upload that is still running", () => {
+      inFlight("b.txt");
+      const onCanceled = vi.fn();
+
+      component.cancelExistingUpload("b.txt", onCanceled);
+
+      expect(finalize).toHaveBeenCalledWith("owner@texera.com", "test-dataset", "b.txt", true);
+      expect(onCanceled).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  /**
+   * The explorer's toolbar and upload panel are template-only: whether a download is offered at all,
+   * which of the maximize/minimize pair is showing, and what an in-flight upload reports. The suite
+   * around this one drives component state and never asserts on what is rendered.
+   */
+  describe("rendered explorer", () => {
+    /**
+     * Applies some state and renders the "Versions & Files" tab. nz-tabs only instantiates the
+     * active tab, and the toolbar under test lives in the second one, so it has to be selected
+     * before anything in it exists to assert on.
+     */
+    function render(setup: (c: DatasetDetailComponent) => void = () => {}): HTMLElement {
+      setup(component);
+      fixture.detectChanges();
+      const host = fixture.nativeElement as HTMLElement;
+      const tabButtons = host.querySelectorAll<HTMLElement>(".ant-tabs-tab-btn");
+      const versionsTab = Array.from(tabButtons).find(tab => tab.textContent?.includes("Versions & Files"));
+      if (versionsTab && !versionsTab.closest(".ant-tabs-tab")?.classList.contains("ant-tabs-tab-active")) {
+        versionsTab.click();
+        fixture.detectChanges();
+      }
+      return host;
+    }
+
+    /** The button carrying the given tooltip, or undefined. */
+    function byTooltip(title: string): HTMLButtonElement | undefined {
+      return Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>("button")).find(
+        b => b.getAttribute("nz-tooltip") === title
+      );
+    }
+
+    const aVersion = { dvid: 1, did: 1, creatorUid: 1, name: "v1" } as any;
+
+    describe("download gating", () => {
+      it("offers the file download to a logged-in user who is allowed to download", () => {
+        render(c => {
+          c.selectedVersion = aVersion;
+          c.isLogin = true;
+          vi.spyOn(c, "isDownloadAllowed").mockReturnValue(true);
+        });
+
+        expect(byTooltip("Download the file")!.disabled).toBe(false);
+      });
+
+      it("withholds it from a signed-out visitor", () => {
+        render(c => {
+          c.selectedVersion = aVersion;
+          c.isLogin = false;
+          vi.spyOn(c, "isDownloadAllowed").mockReturnValue(true);
+        });
+
+        expect(byTooltip("Download the file")!.disabled).toBe(true);
+      });
+
+      it("withholds it when the dataset is not downloadable", () => {
+        // Both halves of the guard matter: being signed in is not on its own permission to take
+        // a copy of someone else's non-downloadable dataset.
+        render(c => {
+          c.selectedVersion = aVersion;
+          c.isLogin = true;
+          vi.spyOn(c, "isDownloadAllowed").mockReturnValue(false);
+        });
+
+        expect(byTooltip("Download the file")!.disabled).toBe(true);
+      });
+
+      it("applies the same rule to the whole-version download", () => {
+        render(c => {
+          c.selectedVersion = aVersion;
+          c.isLogin = true;
+          vi.spyOn(c, "isDownloadAllowed").mockReturnValue(false);
+        });
+
+        expect(byTooltip("Download Dataset")!.disabled).toBe(true);
+      });
+
+      it("offers no download at all until a version is selected", () => {
+        render(c => {
+          c.selectedVersion = undefined;
+          c.isLogin = true;
+        });
+
+        expect(byTooltip("Download the file")).toBeUndefined();
+        expect(byTooltip("Download Dataset")).toBeUndefined();
+      });
+    });
+
+    describe("view size toggle", () => {
+      it("offers only Maximize while the view is normal", () => {
+        render(c => {
+          c.selectedVersion = aVersion;
+          c.isMaximized = false;
+        });
+
+        expect(byTooltip("Maximize View")).toBeDefined();
+        expect(byTooltip("Minimize View")).toBeUndefined();
+      });
+
+      it("offers only Minimize once the view is maximized", () => {
+        // Showing both, or the wrong one, leaves the user with no way back.
+        render(c => {
+          c.selectedVersion = aVersion;
+          c.isMaximized = true;
+        });
+
+        expect(byTooltip("Minimize View")).toBeDefined();
+        expect(byTooltip("Maximize View")).toBeUndefined();
+      });
+    });
+
+    describe("file heading", () => {
+      it("offers the copy-path control only once a file is on screen", () => {
+        const el = render(c => (c.currentDisplayedFileName = ""));
+        expect(el.querySelector(".copy-path-btn")).toBeNull();
+
+        render(c => (c.currentDisplayedFileName = "a/b.csv"));
+        expect((fixture.nativeElement as HTMLElement).querySelector(".copy-path-btn")).not.toBeNull();
+      });
+
+      it("copies the path of the file being shown", () => {
+        const spy = vi.spyOn(component, "copyCurrentFilePath").mockResolvedValue(undefined);
+        const el = render(c => (c.currentDisplayedFileName = "a/b.csv"));
+
+        el.querySelector<HTMLElement>(".copy-path-btn")!.click();
+
+        expect(spy).toHaveBeenCalledTimes(1);
+      });
+
+      it("shows the file size in human units, and nothing when it is unknown", () => {
+        const el = render(c => {
+          c.currentDisplayedFileName = "a/b.csv";
+          c.currentFileSize = 2048;
+        });
+        expect(el.querySelector(".file-size")?.textContent).toContain("2");
+
+        render(c => (c.currentFileSize = undefined));
+        expect((fixture.nativeElement as HTMLElement).querySelector(".file-size")).toBeNull();
+      });
+    });
+
+    describe("version details", () => {
+      it("reports the version size and creation time once a version is chosen", () => {
+        const el = render(c => {
+          c.selectedVersion = aVersion;
+          c.currentDatasetVersionSize = 1024;
+          c.selectedVersionCreationTime = "2026-01-02 03:04";
+        });
+
+        expect(el.querySelector(".version-size")?.textContent).toContain("Version Size:");
+        expect(el.querySelector(".version-date")?.textContent).toContain("2026-01-02 03:04");
+      });
+
+      it("hides the creation time when the version has none", () => {
+        const el = render(c => {
+          c.selectedVersion = aVersion;
+          c.selectedVersionCreationTime = "";
+        });
+
+        expect(el.querySelector(".version-date")).toBeNull();
+      });
+    });
+
+    describe("upload progress", () => {
+      /**
+       * Puts one task on the panel in the given state and opens it. The panel is gated on the
+       * separate activeUploads counter rather than on uploadTasks, and ng-zorro collapses it by
+       * default, so both have to be arranged before its body exists.
+       */
+      function withTask(over: Record<string, unknown>): HTMLElement {
+        const el = render(c => {
+          (c as any).activeUploads = 1;
+          (c as any).uploadTasks = [
+            {
+              filePath: "big.csv",
+              percentage: 40,
+              status: "uploading",
+              uploadSpeed: 1024,
+              totalTime: 12,
+              estimatedTimeRemaining: 30,
+              ...over,
+            },
+          ];
+        });
+        const header = Array.from(el.querySelectorAll<HTMLElement>(".ant-collapse-header")).find(h =>
+          (h.textContent || "").includes("Uploading:")
+        );
+        header!.click();
+        fixture.detectChanges();
+        return el;
+      }
+
+      it("shows no statistics while an upload is still initializing", () => {
+        // There is nothing to report yet; showing a 0 B/s row reads as a stalled upload.
+        const el = withTask({ status: "initializing" });
+
+        expect(el.querySelector(".upload-stats")).toBeNull();
+      });
+
+      it("reports speed and both timings while an upload runs", () => {
+        const el = withTask({ status: "uploading" });
+
+        const stats = el.querySelector(".upload-stats")!;
+        expect(stats.textContent).toContain("elapsed");
+        expect(stats.textContent).toContain("left");
+        expect(stats.querySelector(".fixed-width-speed")).not.toBeNull();
+      });
+
+      it("replaces the live figures with a total once the upload finishes", () => {
+        const el = withTask({ status: "finished" });
+
+        const stats = el.querySelector(".upload-stats")!;
+        expect(stats.textContent).toContain("Upload time:");
+        expect(stats.textContent).not.toContain("left");
+      });
+
+      it("reports a total for an aborted upload too", () => {
+        const el = withTask({ status: "aborted" });
+
+        expect(el.querySelector(".upload-stats")!.textContent).toContain("Upload time:");
+      });
+    });
   });
 
   describe("contributor cards", () => {
@@ -1527,6 +1958,988 @@ describe("DatasetDetailComponent behavior", () => {
       component.onDeleteContributor(contributorA);
 
       expect(datasetServiceStub.updateDatasetContributors).not.toHaveBeenCalled();
+    });
+  });
+
+  // ─── template rendering ────────────────────────────────────────────────────
+  // These drive the markup through the DOM (rather than calling handlers directly)
+  // so the template's bindings and conditional blocks actually execute.
+  describe("template rendering", () => {
+    // Renders the component and applies the given state, so each *ngIf arm is exercised.
+    // The first detectChanges() lets ngOnInit's subscriptions settle — they reset fields
+    // such as coverImageUrl — so the state is applied afterwards and rendered by a
+    // second change-detection pass.
+    const renderWith = (state: Partial<DatasetDetailComponent> = {}): void => {
+      createComponent();
+      fixture.detectChanges();
+      Object.assign(component, state);
+      fixture.detectChanges();
+    };
+
+    const clickByCss = (selector: string): void => {
+      const el = fixture.debugElement.query(By.css(selector));
+      expect(el).toBeTruthy();
+      el.triggerEventHandler("click", null);
+      fixture.detectChanges();
+    };
+
+    // nz-tabs renders only the active tab's content, so a tab must be opened by its
+    // title before the markup inside it can be queried.
+    const openTab = (title: string): void => {
+      const tab = fixture.debugElement
+        .queryAll(By.css(".ant-tabs-tab"))
+        .find(el => (el.nativeElement.textContent ?? "").includes(title));
+      expect(tab).toBeTruthy();
+      tab!.nativeElement.click();
+      fixture.detectChanges();
+    };
+
+    it("toggles the like through the like tag when logged in", () => {
+      // toggleLike() early-returns unless currentUid is set, which login() supplies
+      createComponent();
+      fixture.detectChanges();
+      login();
+      Object.assign(component, { isLogin: true, did: 5, isLiked: false, likeCount: 1 });
+      fixture.detectChanges();
+
+      clickByCss(".like-tag");
+
+      expect(hubServiceStub.postLike).toHaveBeenCalled();
+    });
+
+    it("unlikes through the same tag when the dataset is already liked", () => {
+      createComponent();
+      fixture.detectChanges();
+      login();
+      Object.assign(component, { isLogin: true, did: 5, isLiked: true, likeCount: 2 });
+      fixture.detectChanges();
+
+      clickByCss(".like-tag");
+
+      expect(hubServiceStub.postUnlike).toHaveBeenCalled();
+    });
+
+    it("does not toggle the like when logged out", () => {
+      renderWith({ isLogin: false, did: 5, isLiked: false, likeCount: 1 });
+
+      const likeTag = fixture.debugElement.query(By.css(".like-tag"));
+      expect(likeTag).toBeTruthy();
+      // the template guards the handler with `isLogin &&`
+      expect(likeTag.nativeElement.classList).toContain("disabled");
+
+      likeTag.triggerEventHandler("click", null);
+
+      expect(hubServiceStub.postLike).not.toHaveBeenCalled();
+    });
+
+    it("omits the cover image when there is no cover URL", () => {
+      renderWith({ coverImageUrl: null });
+      expect(fixture.debugElement.query(By.css(".dataset-cover-image"))).toBeNull();
+    });
+
+    it("renders the cover image bound to the cover URL", () => {
+      renderWith({ coverImageUrl: "blob:cover" });
+      const img = fixture.debugElement.query(By.css(".dataset-cover-image"));
+      expect(img).toBeTruthy();
+      expect(img.nativeElement.getAttribute("src")).toBe("blob:cover");
+    });
+
+    it("collapses the right bar from the template, then renders the restore control", () => {
+      renderWith({ isRightBarCollapsed: false });
+      openTab("Versions & Files");
+
+      // both arms of the *ngIf pair are exercised: hide first, then the show button
+      clickByCss("button[nz-tooltip='Hide the right bar']");
+      expect(component.isRightBarCollapsed).toBe(true);
+
+      clickByCss("button[nz-tooltip='Show Tree']");
+      expect(component.isRightBarCollapsed).toBe(false);
+    });
+
+    it("binds the dataset name input and saves it from the template", () => {
+      // the Settings tab is behind *ngIf="userHasWriteAccess()"
+      renderWith({ did: 5, editedDatasetName: "renamed", userDatasetAccessLevel: "WRITE" });
+      openTab("Settings");
+
+      const input = fixture.debugElement.query(By.css(".settings-name-controls input[nz-input]"));
+      expect(input).toBeTruthy();
+
+      // drive the [(ngModel)] update path through the DOM
+      input.nativeElement.value = "typed-name";
+      input.nativeElement.dispatchEvent(new Event("input"));
+      fixture.detectChanges();
+      expect(component.editedDatasetName).toBe("typed-name");
+
+      const saveBtn = fixture.debugElement
+        .queryAll(By.css("button"))
+        .find(btn => (btn.nativeElement.textContent ?? "").trim() === "Save");
+      expect(saveBtn).toBeTruthy();
+      saveBtn!.triggerEventHandler("click", null);
+
+      expect(datasetServiceStub.updateDatasetName).toHaveBeenCalledWith(5, "typed-name");
+    });
+
+    it("renders every contributor row from the list", () => {
+      renderWith({
+        did: 5,
+        datasetContributors: [
+          { name: "Ada", email: "ada@x.io", affiliation: "" } as Contributor,
+          { name: "Grace", email: "grace@x.io", affiliation: "" } as Contributor,
+        ],
+      });
+
+      const rendered = fixture.debugElement.nativeElement.textContent ?? "";
+      expect(rendered).toContain("Ada");
+      expect(rendered).toContain("Grace");
+    });
+
+    it("routes the settings switches' ngModelChange bindings to the service", () => {
+      renderWith({
+        did: 5,
+        datasetIsPublic: false,
+        datasetIsDownloadable: true,
+        userDatasetAccessLevel: "WRITE",
+        isOwner: true, // the downloadable switch is [nzDisabled]="!isOwner"
+      });
+      openTab("Settings");
+
+      const switches = fixture.debugElement.queryAll(By.css("nz-switch"));
+      expect(switches.length).toBeGreaterThanOrEqual(2);
+
+      // fire the template's (ngModelChange) handlers rather than calling the methods
+      switches[0].triggerEventHandler("ngModelChange", true);
+      expect(datasetServiceStub.updateDatasetPublicity).toHaveBeenCalledWith(5);
+
+      switches[1].triggerEventHandler("ngModelChange", false);
+      expect(datasetServiceStub.updateDatasetDownloadable).toHaveBeenCalledWith(5);
+    });
+
+    // ─── contributor management ─────────────────────────────────────────────
+    const contributors = [
+      { name: "Ada", email: "ada@x.io", affiliation: "" } as Contributor,
+      { name: "Grace", email: "grace@x.io", affiliation: "" } as Contributor,
+    ];
+
+    it("renders a row per contributor with the actions trigger", () => {
+      renderWith({ did: 5, datasetContributors: [...contributors], userDatasetAccessLevel: "WRITE" });
+
+      const rendered = fixture.nativeElement.textContent ?? "";
+      expect(rendered).toContain("Ada");
+      expect(rendered).toContain("Grace");
+      // each row carries the dropdown trigger that hosts Edit/Delete
+      const triggers = fixture.debugElement
+        .queryAll(By.css("button[nz-dropdown]"))
+        .filter(btn => btn.nativeElement.querySelector("i.anticon-more"));
+      expect(triggers.length).toBe(contributors.length);
+    });
+
+    // Edit/Delete live inside an nz-dropdown-menu, which only mounts into a CDK overlay on a
+    // real user open — jsdom does not drive that. Assert the handlers those menu items bind to
+    // instead; the rendered trigger is covered above.
+    it("edits the chosen contributor through the menu's binding target", () => {
+      const updated = { ...contributors[0], affiliation: "Lab" };
+      modalServiceStub.create.mockReturnValue({ afterClose: of(updated) });
+      renderWith({ did: 5, datasetContributors: [...contributors], userDatasetAccessLevel: "WRITE" });
+
+      component.onEditContributor(contributors[0]);
+
+      expect(component.datasetContributors[0]).toEqual(updated);
+    });
+
+    it("deletes the chosen contributor through the popconfirm's binding target", () => {
+      renderWith({ did: 5, datasetContributors: [...contributors], userDatasetAccessLevel: "WRITE" });
+
+      component.onDeleteContributor(contributors[0]);
+
+      expect(component.datasetContributors.map(c => c.name)).toEqual(["Grace"]);
+    });
+
+    // ─── view controls ──────────────────────────────────────────────────────
+
+    it("downloads the current file from the toolbar", () => {
+      // the toolbar controls are behind *ngIf="selectedVersion"
+      renderWith({ did: 5, selectedVersion: { dvid: 1, name: "v1" } as DatasetVersion });
+      openTab("Versions & Files");
+      const onDownload = vi.spyOn(component, "onClickDownloadCurrentFile").mockImplementation(() => {});
+
+      const downloadBtn = fixture.debugElement
+        .queryAll(By.css("button"))
+        .find(btn => btn.nativeElement.querySelector("i.anticon-download"));
+      expect(downloadBtn).toBeTruthy();
+      downloadBtn!.triggerEventHandler("click", null);
+
+      expect(onDownload).toHaveBeenCalled();
+    });
+
+    it("toggles the scaled view from the toolbar", () => {
+      renderWith({ did: 5, isMaximized: false, selectedVersion: { dvid: 1, name: "v1" } as DatasetVersion });
+      openTab("Versions & Files");
+
+      const scaleBtn = fixture.debugElement
+        .queryAll(By.css("button"))
+        .find(btn => btn.nativeElement.querySelector("i.anticon-expand, i.anticon-compress"));
+      expect(scaleBtn).toBeTruthy();
+      scaleBtn!.triggerEventHandler("click", null);
+      fixture.detectChanges();
+
+      expect(component.isMaximized).toBe(true);
+    });
+
+    // ─── sider resize ───────────────────────────────────────────────────────
+
+    it("applies the dragged sider width on the next animation frame", async () => {
+      renderWith({ did: 5 });
+
+      component.onSideResize({ width: 321 } as NzResizeEvent);
+      // the handler defers to requestAnimationFrame; let that frame run
+      await new Promise(resolve => requestAnimationFrame(() => resolve(null)));
+
+      expect(component.siderWidth).toBe(321);
+    });
+
+    it("cancels the frame the previous resize scheduled", () => {
+      renderWith({ did: 5 });
+      // Hand out a known frame id so the assertion below pins down *which* frame is
+      // cancelled: the component starts with id = -1, so merely asserting that
+      // cancelAnimationFrame was called would pass even if the id were never tracked.
+      const request = vi.spyOn(globalThis, "requestAnimationFrame").mockReturnValue(100);
+      const cancel = vi.spyOn(globalThis, "cancelAnimationFrame");
+      try {
+        component.onSideResize({ width: 100 } as NzResizeEvent);
+        cancel.mockClear(); // drop the initial cancel(-1)
+
+        component.onSideResize({ width: 200 } as NzResizeEvent);
+
+        expect(cancel).toHaveBeenCalledWith(100);
+      } finally {
+        cancel.mockRestore();
+        request.mockRestore();
+      }
+    });
+  });
+});
+
+/**
+ * The explorer's markup carries a lot of behaviour that never shows up in the
+ * component's own API: which icon labels a status tag, which contributor a row
+ * menu acts on, whether a toolbar button reaches the download service at all.
+ * Everything below drives the real template — real children, real overlays — and
+ * asserts on what is rendered, so a binding that quietly changes meaning fails.
+ */
+describe("DatasetDetailComponent rendered template", () => {
+  let fixture: ComponentFixture<DatasetDetailComponent>;
+  let component: DatasetDetailComponent;
+
+  type Stub = Record<string, ReturnType<typeof vi.fn>>;
+  let datasetService: Stub;
+  let downloadService: Stub;
+  let notificationService: Stub;
+  let modalService: Stub;
+  let hubService: Stub;
+
+  const OWNER = "owner@texera.com";
+
+  const aVersion = (over: Partial<DatasetVersion> = {}): DatasetVersion =>
+    ({ dvid: 11, did: 5, creatorUid: 9, name: "v1", ...over }) as DatasetVersion;
+
+  const makeFileItem = (name: string): FileUploadItem => ({
+    file: new File(["x"], name),
+    name,
+    description: "",
+    uploadProgress: 0,
+    isUploadingFlag: false,
+    restart: false,
+  });
+
+  beforeEach(() => {
+    TestBed.resetTestingModule();
+
+    datasetService = {
+      getDataset: vi.fn(() =>
+        of({
+          isOwner: true,
+          ownerEmail: OWNER,
+          accessPrivilege: "WRITE",
+          size: 0,
+          dataset: {
+            did: 5,
+            ownerUid: 9,
+            name: "ds",
+            isPublic: false,
+            isDownloadable: true,
+            description: "desc",
+          },
+        })
+      ),
+      retrieveDatasetVersionList: vi.fn(() => of([])),
+      retrieveDatasetLatestVersion: vi.fn(() => of(aVersion())),
+      retrieveDatasetVersionFileTree: vi.fn(() => of({ fileNodes: [], size: 1024 })),
+      // The real file renderer is rendered here, and it fetches whatever file is on screen.
+      retrieveDatasetVersionSingleFile: vi.fn(() => of(new Blob(["a,b"], { type: "text/csv" }))),
+      getDatasetCoverUrl: vi.fn(() => of({ url: "http://cover" })),
+      getDatasetDiff: vi.fn(() => of([])),
+      createDatasetVersion: vi.fn(() => of(aVersion())),
+      updateDatasetPublicity: vi.fn(() => of({})),
+      updateDatasetDownloadable: vi.fn(() => of({})),
+      updateDatasetCoverImage: vi.fn(() => of({})),
+      updateDatasetDescription: vi.fn(() => of({})),
+      updateDatasetContributors: vi.fn(() => of(undefined)),
+      updateDatasetName: vi.fn(() => of({})),
+      deleteDatasets: vi.fn(() => of({})),
+      deleteDatasetFile: vi.fn(() => of({})),
+      // Never completes, so an upload started from the template stays in flight
+      // and its row keeps rendering the "uploading" arm.
+      multipartUpload: vi.fn(() => new Subject<MultipartUploadProgress>().asObservable()),
+      finalizeMultipartUpload: vi.fn(() => of({})),
+    };
+    downloadService = {
+      downloadDatasetVersion: vi.fn(() => of(new Blob())),
+      downloadSingleFile: vi.fn(() => of(new Blob())),
+    };
+    notificationService = { success: vi.fn(), error: vi.fn(), info: vi.fn() };
+    modalService = { create: vi.fn(() => ({ afterClose: of(undefined) })) };
+    hubService = {
+      getCounts: vi.fn(() => of([{ counts: { like: 0 } }])),
+      postView: vi.fn(() => of(0)),
+      isLiked: vi.fn(() => of([{ isLiked: false }])),
+      postLike: vi.fn(() => of(true)),
+      postUnlike: vi.fn(() => of(true)),
+    };
+
+    TestBed.configureTestingModule({
+      imports: [DatasetDetailComponent, NoopAnimationsModule, ...commonTestImports],
+      providers: [
+        { provide: ActivatedRoute, useValue: { params: of({ did: 5 }), data: of({}) } },
+        { provide: NzModalService, useValue: modalService },
+        { provide: DatasetService, useValue: datasetService },
+        { provide: NotificationService, useValue: notificationService },
+        { provide: DownloadService, useValue: downloadService },
+        { provide: UserService, useClass: StubUserService },
+        { provide: HubService, useValue: hubService },
+        { provide: AdminSettingsService, useValue: { getPublicSetting: vi.fn(() => of("3")) } },
+        { provide: MarkdownService, useValue: { parse: vi.fn(() => "") } },
+        ...commonTestProviders,
+      ],
+    });
+
+    fixture = TestBed.createComponent(DatasetDetailComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+  });
+
+  afterEach(() => {
+    fixture?.destroy();
+    document.querySelectorAll(".cdk-overlay-container").forEach(container => (container.innerHTML = ""));
+  });
+
+  /** Applies state on top of what ngOnInit produced and renders it. */
+  const render = (state: Partial<DatasetDetailComponent> = {}): HTMLElement => {
+    Object.assign(component, state);
+    fixture.detectChanges();
+    return fixture.nativeElement as HTMLElement;
+  };
+
+  /** Asserts the element exists, so a stale selector fails as "not found". */
+  const q = <E extends Element>(root: ParentNode, selector: string): E => {
+    const el = root.querySelector(selector);
+    expect(el, `expected to find "${selector}"`).not.toBeNull();
+    return el as unknown as E;
+  };
+
+  /** Renders the fixture and the CDK overlays hanging off it. */
+  const flush = (): void => {
+    fixture.detectChanges();
+    TestBed.inject(ApplicationRef).tick();
+  };
+
+  const overlay = (): HTMLElement => q<HTMLElement>(document, ".cdk-overlay-container");
+
+  // nz-dropdown audits its own visibility stream for 150ms before it opens an overlay.
+  const settleOverlay = async (): Promise<void> => {
+    await new Promise(resolve => setTimeout(resolve, 200));
+    flush();
+  };
+
+  const text = (el: Element | null | undefined): string => (el?.textContent ?? "").replace(/\s+/g, " ").trim();
+
+  // nz-tabs only instantiates the active tab, so a tab has to be opened before
+  // anything inside it exists to assert on.
+  const openTab = (title: string): HTMLElement => {
+    const tab = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>(".ant-tabs-tab")).find(
+      el => (el.textContent ?? "").includes(title)
+    );
+    expect(tab, `expected a tab titled "${title}"`).toBeDefined();
+    tab!.click();
+    fixture.detectChanges();
+    return fixture.nativeElement as HTMLElement;
+  };
+
+  /** Expands the collapse panel whose header contains the given text. */
+  const openPanel = (header: string): void => {
+    const found = Array.from(
+      (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>(".ant-collapse-header")
+    ).find(h => (h.textContent ?? "").includes(header));
+    expect(found, `expected a collapse panel headed "${header}"`).toBeDefined();
+    found!.click();
+    fixture.detectChanges();
+  };
+
+  /** The toolbar button carrying the given nz-tooltip title. */
+  const byTooltip = (title: string): HTMLButtonElement | undefined =>
+    Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>("button")).find(
+      b => b.getAttribute("nz-tooltip") === title
+    );
+
+  /** The nz-icon names rendered inside an element, read from their aria-labels. */
+  const iconNames = (root: ParentNode): string[] =>
+    Array.from(root.querySelectorAll<HTMLElement>(".anticon")).map(i => i.getAttribute("aria-label") ?? "");
+
+  describe("status tags", () => {
+    const tags = (): HTMLElement[] =>
+      Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>(".status-tag"));
+
+    it("labels a public, downloadable dataset with the globe and download icons", () => {
+      render({ datasetIsPublic: true, datasetIsDownloadable: true });
+
+      const [visibility, downloadable] = tags();
+      expect(text(visibility)).toBe("Public");
+      expect(iconNames(visibility)).toEqual(["global"]);
+      expect(visibility.classList).toContain("tag-public");
+
+      expect(text(downloadable)).toBe("Downloadable");
+      expect(iconNames(downloadable)).toEqual(["download"]);
+      expect(downloadable.classList).toContain("tag-downloadable");
+    });
+
+    it("labels a private, download-restricted dataset with the lock and stop icons", () => {
+      // The other leg of each tag: a visitor must be able to tell at a glance
+      // that the dataset is neither public nor downloadable.
+      render({ datasetIsPublic: false, datasetIsDownloadable: false });
+
+      const [visibility, downloadable] = tags();
+      expect(text(visibility)).toBe("Private");
+      expect(iconNames(visibility)).toEqual(["lock"]);
+      expect(visibility.classList).not.toContain("tag-public");
+
+      expect(text(downloadable)).toBe("Download restricted");
+      expect(iconNames(downloadable)).toEqual(["stop"]);
+      expect(downloadable.classList).not.toContain("tag-downloadable");
+    });
+
+    it("tells the view counter and the like counter apart", () => {
+      // The two counters are adjacent tags that differ only in which field they
+      // read, so each needs a count the other cannot produce.
+      render({ viewCount: 1500, likeCount: 3 });
+
+      const [, , views, likes] = tags();
+      expect(iconNames(views)).toEqual(["eye"]);
+      // Counts are abbreviated once they reach a thousand, not printed raw.
+      expect(text(views)).toBe("1.5k");
+
+      expect(iconNames(likes)).toEqual(["like"]);
+      expect(likes.classList).toContain("like-tag");
+      expect(text(likes)).toBe("3");
+    });
+  });
+
+  describe("settings hints", () => {
+    // Visibility and Downloadable are near-identical rows, so a hint or a switch
+    // is only meaningful next to the label it belongs to: reading them as one
+    // unordered pile would pass just as happily with the two rows exchanged.
+    const settingsRow = (el: HTMLElement, label: string): HTMLElement => {
+      const row = Array.from(el.querySelectorAll<HTMLElement>(".settings-name-row")).find(
+        r => text(r.querySelector("label")) === label
+      );
+      expect(row, `expected a settings row labelled "${label}"`).toBeDefined();
+      return row!;
+    };
+
+    const hintOf = (el: HTMLElement, label: string): string =>
+      text(q<HTMLElement>(settingsRow(el, label), ".settings-hint"));
+
+    const switchIsOn = (el: HTMLElement, label: string): boolean =>
+      q<HTMLElement>(settingsRow(el, label), "nz-switch button").classList.contains("ant-switch-checked");
+
+    it("spells out what public visibility and blocked downloads mean", () => {
+      render({ userDatasetAccessLevel: "WRITE", datasetIsPublic: true, datasetIsDownloadable: false });
+      const el = openTab("Settings");
+
+      expect(hintOf(el, "Visibility")).toBe("Public — anyone can view this dataset.");
+      expect(hintOf(el, "Downloadable")).toBe("Viewers can browse files but cannot download them.");
+      // The switch beside each hint has to report the same state the prose does.
+      expect(switchIsOn(el, "Visibility")).toBe(true);
+      expect(switchIsOn(el, "Downloadable")).toBe(false);
+    });
+
+    it("spells out what private visibility and permitted downloads mean", () => {
+      render({ userDatasetAccessLevel: "WRITE", datasetIsPublic: false, datasetIsDownloadable: true });
+      const el = openTab("Settings");
+
+      expect(hintOf(el, "Visibility")).toBe("Private — only you and invited collaborators can see this dataset.");
+      expect(hintOf(el, "Downloadable")).toBe("Viewers can download this dataset.");
+      expect(switchIsOn(el, "Visibility")).toBe(false);
+      expect(switchIsOn(el, "Downloadable")).toBe(true);
+    });
+  });
+
+  describe("contributor row menu", () => {
+    const ada: Contributor = { name: "Ada", email: "ada@x.io", affiliation: "Lab A", comments: "", creator: true };
+    const grace: Contributor = {
+      name: "Grace",
+      email: "grace@x.io",
+      affiliation: "Lab B",
+      comments: "",
+      creator: false,
+    };
+
+    beforeEach(() => render({ did: 5, datasetContributors: [ada, grace], userDatasetAccessLevel: "WRITE" }));
+
+    /** Opens the actions dropdown on the card at `index` and returns its menu. */
+    const openRowMenu = async (index: number): Promise<HTMLElement> => {
+      const cards = (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>(".contributor-card");
+      expect(cards.length).toBeGreaterThan(index);
+      q<HTMLButtonElement>(cards[index], ".contributor-actions").click();
+      await settleOverlay();
+      // Each card declares its own menu template, so exactly one may be open.
+      const menus = overlay().querySelectorAll<HTMLElement>(".contributor-actions-menu");
+      expect(menus.length).toBe(1);
+      return menus[0];
+    };
+
+    const menuItem = (menu: HTMLElement, label: string): HTMLElement => {
+      const item = Array.from(menu.querySelectorAll<HTMLElement>("li")).find(li => text(li) === label);
+      expect(item, `expected a menu item labelled "${label}"`).toBeDefined();
+      return item!;
+    };
+
+    it("edits the contributor whose own row menu was used", async () => {
+      // The menu is declared inside the *ngFor, so its handlers have to close over
+      // that row's contributor rather than the first one in the list.
+      menuItem(await openRowMenu(1), "Edit").click();
+      flush();
+
+      expect(modalService.create).toHaveBeenCalledWith(
+        expect.objectContaining({ nzTitle: "Edit Contributor", nzData: grace })
+      );
+    });
+
+    it("deletes the contributor whose own row menu was used, once the deletion is confirmed", async () => {
+      menuItem(await openRowMenu(1), "Delete").click();
+      flush();
+
+      // The first click only asks; the row survives until the confirmation is accepted.
+      expect(text(q<HTMLElement>(overlay(), ".ant-popover-inner"))).toContain('Delete contributor "Grace"?');
+      expect(datasetService.updateDatasetContributors).not.toHaveBeenCalled();
+
+      const confirm = Array.from(overlay().querySelectorAll<HTMLButtonElement>(".ant-popover-buttons button")).find(
+        b => text(b) === "Delete"
+      );
+      expect(confirm, "expected a Delete button in the confirmation").toBeDefined();
+      confirm!.click();
+      flush();
+
+      expect(datasetService.updateDatasetContributors).toHaveBeenCalledWith(5, [ada]);
+    });
+
+    it("adds a contributor from the keyboard on the add tile", () => {
+      const tile = q<HTMLElement>(fixture.nativeElement, ".contributor-card-add");
+
+      tile.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+      flush();
+      expect(modalService.create).toHaveBeenCalledTimes(1);
+      expect(modalService.create).toHaveBeenLastCalledWith(expect.objectContaining({ nzTitle: "Add Contributor" }));
+
+      const space = new KeyboardEvent("keydown", { key: " ", bubbles: true, cancelable: true });
+      tile.dispatchEvent(space);
+      flush();
+      // Space activates the tile instead of scrolling the panel.
+      expect(space.defaultPrevented).toBe(true);
+      expect(modalService.create).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe("file toolbar", () => {
+    beforeEach(() => {
+      render({ did: 5, selectedVersion: aVersion(), currentDisplayedFileName: "v1/a.csv", isLogin: true });
+      openTab("Versions & Files");
+    });
+
+    it("downloads the file that is on screen", () => {
+      // "On screen" has to mean the file the renderer beside the button fetched,
+      // not merely the field the test happened to set.
+      expect(datasetService.retrieveDatasetVersionSingleFile).toHaveBeenCalledWith("v1/a.csv", true);
+      expect(fixture.debugElement.query(By.css("texera-user-dataset-file-renderer")).componentInstance.filePath).toBe(
+        "v1/a.csv"
+      );
+
+      byTooltip("Download the file")!.click();
+
+      expect(downloadService.downloadSingleFile).toHaveBeenCalledWith("v1/a.csv", true);
+    });
+
+    it("downloads the file that is on screen over the public endpoint for a non-owner", () => {
+      // The authenticated endpoint is the wrong one here: a visitor to somebody
+      // else's public dataset has no private access to fall back on.
+      render({ datasetIsPublic: true, datasetIsDownloadable: true, isOwner: false, userDatasetAccessLevel: "READ" });
+
+      const button = byTooltip("Download the file")!;
+      expect(button.disabled).toBe(false);
+      button.click();
+
+      expect(downloadService.downloadSingleFile).toHaveBeenCalledWith("v1/a.csv", false);
+    });
+
+    it("keeps the owner of a public dataset on the authenticated endpoint", () => {
+      // Publicity alone does not decide the endpoint: the owner still has private
+      // access, and the public route would hide their own unpublished changes.
+      render({ datasetIsPublic: true, isOwner: true });
+
+      byTooltip("Download the file")!.click();
+
+      expect(downloadService.downloadSingleFile).toHaveBeenCalledWith("v1/a.csv", true);
+    });
+
+    it("maximizes the view from the toolbar and offers the way back", () => {
+      const el = fixture.nativeElement as HTMLElement;
+      expect(el.querySelector(".dataset-header")).not.toBeNull();
+
+      byTooltip("Maximize View")!.click();
+      fixture.detectChanges();
+
+      // Maximizing drops the dataset header so the file fills the pane.
+      expect(el.querySelector(".dataset-header")).toBeNull();
+      expect(byTooltip("Maximize View")).toBeUndefined();
+
+      byTooltip("Minimize View")!.click();
+      fixture.detectChanges();
+
+      expect(el.querySelector(".dataset-header")).not.toBeNull();
+      expect(byTooltip("Minimize View")).toBeUndefined();
+    });
+
+    it("applies a width the resize handle reports, between the bounds it declares", async () => {
+      const sider = fixture.debugElement.query(By.css("nz-sider"));
+      expect(sider.nativeElement.style.width).toBe("400px");
+
+      // The drag itself belongs to NzResizableDirective; what this component owns
+      // is the bounds it hands the directive and what it does with the reported
+      // width. Both have to be pinned, and in the right order — swapped bounds
+      // would let the handle collapse the sider past its minimum.
+      const resizable = sider.injector.get(NzResizableDirective);
+      expect(resizable.nzMinWidth).toBe(component.MIN_SIDER_WIDTH);
+      expect(resizable.nzMaxWidth).toBe(component.MAX_SIDER_WIDTH);
+      expect(resizable.nzMinWidth).toBeLessThan(resizable.nzMaxWidth as number);
+
+      sider.triggerEventHandler("nzResize", { width: 520 });
+      // The new width is applied on the next animation frame.
+      await new Promise(resolve => requestAnimationFrame(() => resolve(null)));
+      fixture.detectChanges();
+
+      expect(sider.nativeElement.style.width).toBe("520px");
+    });
+  });
+
+  describe("version picker", () => {
+    const v1 = aVersion({ dvid: 11, name: "v1" });
+    const v2 = aVersion({ dvid: 12, name: "v2" });
+    const v3 = aVersion({ dvid: 13, name: "v3" });
+
+    beforeEach(() => {
+      render({ did: 5, datasetName: "ds", versions: [v1, v2, v3], selectedVersion: v1, isLogin: true });
+      openTab("Versions & Files");
+    });
+
+    it("offers every known version and loads the one that is picked", async () => {
+      const select = fixture.debugElement.query(By.css("nz-select"));
+      /** Picks a version through the control and reports the name it then shows. */
+      const pick = async (version: DatasetVersion): Promise<string> => {
+        select.triggerEventHandler("ngModelChange", version);
+        fixture.detectChanges();
+        // ngModel pushes the new value into the control in a microtask.
+        await Promise.resolve();
+        fixture.detectChanges();
+        return text(q<HTMLElement>(fixture.nativeElement, ".ant-select-selection-item"));
+      };
+      expect(text(q<HTMLElement>(fixture.nativeElement, ".ant-select-selection-item"))).toBe("v1");
+
+      // The picker fans out over the whole list: every version has to be offered under
+      // its own name, not only the first one, which the control already shows.
+      expect([await pick(v2), await pick(v3), await pick(v1)]).toEqual(["v2", "v3", "v1"]);
+
+      // The third argument decides whether the tree is fetched over the
+      // authenticated or the anonymous endpoint, so it has to be the real flag.
+      expect(datasetService.retrieveDatasetVersionFileTree).toHaveBeenCalledWith(5, 12, true);
+      expect(datasetService.retrieveDatasetVersionFileTree).toHaveBeenCalledWith(5, 13, true);
+    });
+
+    it("loads a picked version over the anonymous endpoint when nobody is signed in", () => {
+      render({ isLogin: false });
+
+      fixture.debugElement.query(By.css("nz-select")).triggerEventHandler("ngModelChange", v2);
+
+      expect(datasetService.retrieveDatasetVersionFileTree).toHaveBeenCalledWith(5, 12, false);
+    });
+
+    it("downloads the whole selected version as a zip", () => {
+      byTooltip("Download Dataset")!.click();
+
+      expect(downloadService.downloadDatasetVersion).toHaveBeenCalledWith(5, 11, "ds", "v1");
+    });
+  });
+
+  describe("version file tree", () => {
+    const tree = (): DebugElement => fixture.debugElement.query(By.css("texera-user-dataset-version-filetree"));
+    // The first four segments (datasets/owner/dataset/version) are the prefix the
+    // relative path strips, so "nested" is the first segment the backend sees.
+    const leaf = (name: string): DatasetFileNode => ({
+      name,
+      type: "file",
+      parentDir: `/datasets/${OWNER}/ds/v1/nested`,
+      size: 2048,
+    });
+
+    beforeEach(() => {
+      render({ did: 5, selectedVersion: aVersion({ name: "v1" }) });
+      openTab("Versions & Files");
+    });
+
+    it("hands the tree the nodes of the version on screen", () => {
+      const nodes = [leaf("b.csv"), leaf("c.csv")];
+      render({ fileTreeNodeList: nodes });
+
+      expect(tree().componentInstance.fileTreeNodes).toEqual(nodes);
+    });
+
+    it("shows the file the tree selected", () => {
+      expect(text(q<HTMLElement>(fixture.nativeElement, ".file-title-main"))).not.toContain("b.csv");
+
+      tree().triggerEventHandler("selectedTreeNode", leaf("b.csv"));
+      fixture.detectChanges();
+
+      // The heading is the full path — the copy-path button beside it copies
+      // exactly this string — not the bare file name or the relative path.
+      expect(text(q<HTMLElement>(fixture.nativeElement, ".file-title-main"))).toBe(
+        `/datasets/${OWNER}/ds/v1/nested/b.csv`
+      );
+      // 2048 bytes reaches the reader as a human-readable size, not as a raw count.
+      expect(text(q<HTMLElement>(fixture.nativeElement, ".file-size"))).toBe("2.00 KB");
+    });
+
+    it("deletes the file the tree asked to remove", () => {
+      tree().triggerEventHandler("deletedTreeNode", leaf("b.csv"));
+
+      expect(datasetService.deleteDatasetFile).toHaveBeenCalledWith(5, "nested/b.csv");
+    });
+
+    it("adopts the cover image the tree offered, qualified by the selected version", () => {
+      tree().triggerEventHandler("setCoverImage", "nested/b.png");
+
+      expect(datasetService.updateDatasetCoverImage).toHaveBeenCalledWith(5, "v1/nested/b.png");
+    });
+  });
+
+  describe("upload panel", () => {
+    beforeEach(() => render({ did: 5, userDatasetAccessLevel: "WRITE" }));
+
+    it("starts an upload for a file the uploader hands over", () => {
+      const el = openTab("Versions & Files");
+      const uploader = fixture.debugElement.query(By.css("texera-user-files-uploader"));
+
+      uploader.triggerEventHandler("uploadedFiles", [makeFileItem("new.csv")]);
+      fixture.detectChanges();
+
+      // The chunk size and the chunk concurrency are both plain numbers, so
+      // asserting their exact values is the only way to notice them exchanged:
+      // 10-byte chunks, or 52 million parallel requests, would look identical to
+      // expect.any(Number). Nobody is signed in here, so the component keeps its
+      // built-in defaults rather than the admin settings.
+      expect(component.chunkSizeMiB).toBe(50);
+      expect(component.maxConcurrentChunks).toBe(10);
+      expect(datasetService.multipartUpload).toHaveBeenCalledWith(
+        OWNER,
+        "ds",
+        "new.csv",
+        expect.anything(),
+        50 * 1024 * 1024,
+        10,
+        false
+      );
+      expect(text(el)).toContain("Uploading: 1 file(s)");
+    });
+
+    /** Renders the given in-flight tasks and expands the "Uploading" panel. */
+    const withTasks = (...tasks: Array<Record<string, unknown>>): HTMLElement => {
+      const el = render({
+        uploadTasks: tasks.map(t => ({
+          percentage: 40,
+          status: "uploading",
+          uploadSpeed: 1024,
+          totalTime: 12,
+          estimatedTimeRemaining: 30,
+          ...t,
+        })) as never,
+      });
+      (component as unknown as { activeUploads: number }).activeUploads = tasks.length;
+      openTab("Versions & Files");
+      openPanel("Uploading:");
+      return el;
+    };
+
+    it("aborts the upload whose own row button was clicked", () => {
+      withTasks({ filePath: "first.csv" }, { filePath: "second.csv" });
+
+      const rows = fixture.debugElement.queryAll(By.css(".upload-progress-wrapper > div"));
+      expect(rows.length).toBe(2);
+      // Each row has to name its own task: identifying the row by position alone
+      // would not notice every row rendering the first task's name and status.
+      expect(rows.map(row => text(row.query(By.css(".progress-header")).nativeElement))).toEqual([
+        "uploading: first.csv",
+        "uploading: second.csv",
+      ]);
+
+      const abort = rows[1].query(By.css(".progress-header button"));
+      // A live upload is cancelled, not dismissed; the finished row below says "Close".
+      expect(abort.injector.get(NzTooltipDirective).directiveTitle).toBe("Cancel the upload");
+
+      abort.nativeElement.click();
+      fixture.detectChanges();
+
+      expect(datasetService.finalizeMultipartUpload).toHaveBeenCalledTimes(1);
+      expect(datasetService.finalizeMultipartUpload).toHaveBeenCalledWith(OWNER, "ds", "second.csv", true);
+    });
+
+    it("reports the elapsed time, the time remaining and the speed in their own slots", () => {
+      // Distinguishable timings, so the two spans cannot stand in for each other:
+      // showing 90s elapsed on a 12s-old upload is the defect this guards.
+      const el = withTasks({
+        filePath: "big.csv",
+        totalTime: 12,
+        estimatedTimeRemaining: 90,
+        uploadSpeed: 5 * 1024 * 1024,
+      });
+      const stats = q<HTMLElement>(el, ".upload-stats");
+
+      expect(Array.from(stats.querySelectorAll(".fixed-width-time")).map(text)).toEqual(["12s", "1m30s left"]);
+      expect(text(q<HTMLElement>(stats, ".fixed-width-speed"))).toBe("5.0 MB/s");
+    });
+
+    it("floors both live timings at one second while an upload reports none", () => {
+      const el = withTasks({ filePath: "big.csv", totalTime: undefined, estimatedTimeRemaining: undefined });
+
+      const times = Array.from(q<HTMLElement>(el, ".upload-stats").querySelectorAll(".fixed-width-time")).map(text);
+      expect(times).toEqual(["1s", "1s left"]);
+    });
+
+    it("reports the total time of a finished upload", () => {
+      const el = withTasks({ filePath: "big.csv", status: "finished", totalTime: 75 });
+
+      expect(text(q<HTMLElement>(el, ".upload-stats"))).toContain("Upload time: 1m15s");
+      // A finished row is dismissed rather than cancelled.
+      const button = fixture.debugElement.query(By.css(".upload-progress-wrapper > div .progress-header button"));
+      expect(button.injector.get(NzTooltipDirective).directiveTitle).toBe("Close");
+    });
+
+    it("floors the total of a finished upload that timed nothing", () => {
+      const el = withTasks({ filePath: "big.csv", status: "finished", totalTime: undefined });
+
+      expect(text(q<HTMLElement>(el, ".upload-stats"))).toContain("Upload time: 1s");
+    });
+  });
+
+  describe("version creator", () => {
+    /** Renders the creator, which only appears with staged changes to commit. */
+    const withPendingChanges = (state: Partial<DatasetDetailComponent> = {}): HTMLElement => {
+      const el = render({ did: 5, userDatasetAccessLevel: "WRITE", userHasPendingChanges: true, ...state });
+      openTab("Versions & Files");
+      return el;
+    };
+
+    const typeName = (el: HTMLElement, value: string): HTMLInputElement => {
+      const input = q<HTMLInputElement>(el, ".version-input");
+      input.value = value;
+      input.dispatchEvent(new Event("input"));
+      fixture.detectChanges();
+      return input;
+    };
+
+    it("offers the creator only once there is something to commit", () => {
+      const el = render({ did: 5, userDatasetAccessLevel: "WRITE", userHasPendingChanges: false });
+      openTab("Versions & Files");
+      expect(el.querySelector(".version-creator")).toBeNull();
+
+      render({ userHasPendingChanges: true });
+
+      expect(el.querySelector(".version-creator")).not.toBeNull();
+      expect(text(q<HTMLElement>(el, ".create-dataset-version-button"))).toBe("Submit");
+    });
+
+    it("creates a version named by the creator's own input", () => {
+      const el = withPendingChanges();
+
+      typeName(el, "second cut");
+      q<HTMLButtonElement>(el, ".create-dataset-version-button").click();
+
+      expect(datasetService.createDatasetVersion).toHaveBeenCalledWith(5, "second cut");
+    });
+
+    it("submits the version straight from the name field with Enter", () => {
+      const el = withPendingChanges();
+
+      typeName(el, "from the keyboard").dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+
+      expect(datasetService.createDatasetVersion).toHaveBeenCalledWith(5, "from the keyboard");
+    });
+
+    it("spins the submit button and locks the name field while a version is being created", async () => {
+      const el = withPendingChanges();
+      expect(q<HTMLButtonElement>(el, ".create-dataset-version-button").classList).not.toContain("ant-btn-loading");
+      expect(q<HTMLInputElement>(el, ".version-input").disabled).toBe(false);
+
+      render({ isCreatingVersion: true });
+      // NgModel routes the input's `disabled` binding through control.disable(),
+      // which it defers to a microtask, so the DOM lags the render by one turn.
+      await Promise.resolve();
+      fixture.detectChanges();
+
+      expect(q<HTMLButtonElement>(el, ".create-dataset-version-button").classList).toContain("ant-btn-loading");
+      // Renaming a version mid-creation would be applied to nothing, so the
+      // field is locked for as long as the request is in flight.
+      expect(q<HTMLInputElement>(el, ".version-input").disabled).toBe(true);
+    });
+  });
+
+  describe("settings tab", () => {
+    it("persists a description edited on the Settings tab", () => {
+      render({ did: 5, userDatasetAccessLevel: "WRITE", datasetDescription: "old" });
+      openTab("Settings");
+
+      const editor = fixture.debugElement.query(By.css(".settings-field texera-markdown-description"));
+      // The editor is what the writer types into, so it has to arrive holding the
+      // description that is live and unlocked for editing. (The tab itself is
+      // behind *ngIf="userHasWriteAccess()", so a reader never gets this far and
+      // the read-only leg of [editable] is unreachable from here.)
+      expect(editor.componentInstance.description).toBe("old");
+      expect(editor.componentInstance.editable).toBe(true);
+
+      editor.triggerEventHandler("descriptionChange", "brand new");
+
+      expect(datasetService.updateDatasetDescription).toHaveBeenCalledWith(5, "brand new");
+    });
+
+    it("deletes the dataset only once the confirmation is accepted", () => {
+      const el = render({ did: 5, datasetName: "ds", userDatasetAccessLevel: "WRITE", isOwner: true });
+      openTab("Settings");
+      const navigate = vi.spyOn(TestBed.inject(Router), "navigate").mockResolvedValue(true);
+
+      q<HTMLButtonElement>(el, 'button[title="Delete"]').click();
+      flush();
+      expect(datasetService.deleteDatasets).not.toHaveBeenCalled();
+
+      q<HTMLButtonElement>(overlay(), ".ant-popover-buttons button.ant-btn-primary").click();
+      flush();
+
+      expect(datasetService.deleteDatasets).toHaveBeenCalledWith(5);
+      expect(navigate).toHaveBeenCalledWith([USER_DATASET]);
     });
   });
 });

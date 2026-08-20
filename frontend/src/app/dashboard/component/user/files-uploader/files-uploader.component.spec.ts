@@ -17,9 +17,15 @@
  * under the License.
  */
 
-import { of } from "rxjs";
-import { NgxFileDropEntry } from "ngx-file-drop";
+import { of, Subject, throwError } from "rxjs";
+import { OnDestroy } from "@angular/core";
+import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { By } from "@angular/platform-browser";
+import { NoopAnimationsModule } from "@angular/platform-browser/animations";
+import { NgxFileDropComponent, NgxFileDropEntry } from "ngx-file-drop";
+import { NzAlertComponent } from "ng-zorro-antd/alert";
 import { NzModalService } from "ng-zorro-antd/modal";
+import { commonTestProviders } from "../../../../common/testing/test-utils";
 import { AdminSettingsService } from "../../../service/admin/settings/admin-settings.service";
 import { DatasetService } from "../../../service/user/dataset/dataset.service";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
@@ -104,6 +110,20 @@ describe("FilesUploaderComponent", () => {
     // an unparsable value keeps the default, but a stored 0 is honoured
     expect(build("nope").singleFileUploadMaxSizeMiB).toBe(20);
     expect(build("0").singleFileUploadMaxSizeMiB).toBe(0);
+  });
+
+  it("keeps the default upload size limit when the setting request fails", () => {
+    // The component swallows the error on purpose so a settings outage cannot stop uploads.
+    const uploader = new FilesUploaderComponent(
+      { error: vi.fn() } as unknown as NotificationService,
+      {
+        getPublicSetting: vi.fn().mockReturnValue(throwError(() => new Error("settings unavailable"))),
+      } as unknown as AdminSettingsService,
+      datasetService as unknown as DatasetService,
+      { create: vi.fn() } as unknown as NzModalService
+    );
+
+    expect(uploader.singleFileUploadMaxSizeMiB).toBe(20);
   });
 
   it("asks to resume failed multipart files and skip completed matching files in one retry batch", async () => {
@@ -309,5 +329,279 @@ describe("FilesUploaderComponent", () => {
     // hideBanner resets visibility only; it does not touch type or message
     expect(component.fileUploadBannerType).toBe("warning");
     expect(component.fileUploadBannerMessage).toBe("heads up");
+  });
+
+  /**
+   * Everything above drops well-formed files into a fully configured uploader. These cover what
+   * happens when the drop itself, or the lookups the drop depends on, do not go to plan — the
+   * paths that decide whether a file even reaches the upload queue.
+   */
+  describe("drops that do not yield an uploadable file", () => {
+    /** Resolves with whatever the component finally emits for a drop. */
+    const emissionOf = (): Promise<FileUploadItem[]> =>
+      new Promise<FileUploadItem[]>(resolve => component.uploadedFiles.subscribe(resolve));
+
+    it("rejects a single oversized file and reports it in the banner", async () => {
+      const notify = { error: vi.fn() };
+      component = new FilesUploaderComponent(
+        notify as unknown as NotificationService,
+        { getPublicSetting: vi.fn().mockReturnValue(of("0")) } as unknown as AdminSettingsService,
+        datasetService as unknown as DatasetService,
+        { create: vi.fn() } as unknown as NzModalService
+      );
+      const emitted = emissionOf();
+
+      component.fileDropped([droppedFile("big.csv", new File(["x"], "big.csv"))]);
+
+      expect(await emitted).toEqual([]);
+      expect(notify.error).toHaveBeenCalledWith("File big.csv's size exceeds the maximum limit of 0MiB.");
+      expect(component.fileUploadBannerType).toBe("error");
+      expect(component.fileUploadBannerMessage).toBe("1 file failed to be selected.");
+    });
+
+    it("pluralises the failure banner for more than one rejected file", async () => {
+      component = new FilesUploaderComponent(
+        { error: vi.fn() } as unknown as NotificationService,
+        { getPublicSetting: vi.fn().mockReturnValue(of("0")) } as unknown as AdminSettingsService,
+        datasetService as unknown as DatasetService,
+        { create: vi.fn() } as unknown as NzModalService
+      );
+      const emitted = emissionOf();
+
+      component.fileDropped([
+        droppedFile("a.csv", new File(["x"], "a.csv")),
+        droppedFile("b.csv", new File(["y"], "b.csv")),
+      ]);
+
+      expect(await emitted).toEqual([]);
+      expect(component.fileUploadBannerMessage).toBe("2 files failed to be selected.");
+    });
+
+    it("ignores a dropped directory", async () => {
+      const emitted = emissionOf();
+
+      component.fileDropped([{ relativePath: "folder", fileEntry: { isFile: false } } as unknown as NgxFileDropEntry]);
+
+      expect(await emitted).toEqual([]);
+    });
+
+    it("drops a file whose entry cannot be read", async () => {
+      const failingEntry = {
+        relativePath: "unreadable.csv",
+        fileEntry: {
+          isFile: true,
+          file: (_success: (file: File) => void, failure: (error: unknown) => void): void =>
+            failure(new Error("cannot read")),
+        },
+      } as unknown as NgxFileDropEntry;
+      const emitted = emissionOf();
+
+      component.fileDropped([failingEntry]);
+
+      expect(await emitted).toEqual([]);
+    });
+  });
+
+  describe("lookups the drop depends on", () => {
+    const emissionOf = (): Promise<FileUploadItem[]> =>
+      new Promise<FileUploadItem[]>(resolve => component.uploadedFiles.subscribe(resolve));
+
+    it("skips both lookups when the uploader has no dataset context", async () => {
+      // The standalone (dataset-creation) usage: no owner/name and no did yet.
+      component.ownerEmail = "";
+      component.datasetName = "";
+      component.did = undefined;
+      const emitted = emissionOf();
+
+      component.fileDropped([droppedFile("fresh.csv", new File(["new"], "fresh.csv"))]);
+
+      expect((await emitted).map(item => item.name)).toEqual(["fresh.csv"]);
+      expect(datasetService.listMultipartUploads).not.toHaveBeenCalled();
+      expect(datasetService.findExistingUploadFiles).not.toHaveBeenCalled();
+    });
+
+    it("treats a failed lookup as nothing to reconcile", async () => {
+      datasetService.listMultipartUploads.mockReturnValue(throwError(() => new Error("offline")));
+      datasetService.findExistingUploadFiles.mockReturnValue(throwError(() => new Error("offline")));
+      const emitted = emissionOf();
+
+      component.fileDropped([droppedFile("failed.csv", new File(["half"], "failed.csv"))]);
+
+      // No dialog can be raised without paths, so the file goes straight through.
+      expect((await emitted).map(item => item.name)).toEqual(["failed.csv"]);
+      expect(modals).toEqual([]);
+    });
+
+    it("treats a null lookup result as nothing to reconcile", async () => {
+      datasetService.listMultipartUploads.mockReturnValue(of(null));
+      datasetService.findExistingUploadFiles.mockReturnValue(of(null));
+      const emitted = emissionOf();
+
+      component.fileDropped([droppedFile("failed.csv", new File(["half"], "failed.csv"))]);
+
+      expect((await emitted).map(item => item.name)).toEqual(["failed.csv"]);
+      expect(modals).toEqual([]);
+    });
+
+    it("reports an unexpected failure of the whole drop", async () => {
+      datasetService.listMultipartUploads.mockImplementation(() => {
+        throw new Error("lookup exploded");
+      });
+
+      component.fileDropped([droppedFile("any.csv", new File(["x"], "any.csv"))]);
+
+      await waitUntil(() => component.fileUploadingFinished);
+      expect(component.fileUploadBannerType).toBe("error");
+      expect(component.fileUploadBannerMessage).toBe("Unexpected error: lookup exploded");
+    });
+
+    it("reports an unexpected failure that carries no message", async () => {
+      datasetService.listMultipartUploads.mockImplementation(() => {
+        throw "lookup exploded";
+      });
+
+      component.fileDropped([droppedFile("any.csv", new File(["x"], "any.csv"))]);
+
+      await waitUntil(() => component.fileUploadingFinished);
+      expect(component.fileUploadBannerMessage).toBe("Unexpected error: lookup exploded");
+    });
+  });
+
+  it("stops tracking the size setting once destroyed", () => {
+    // @UntilDestroy() supplies the ngOnDestroy that ends the `untilDestroyed(this)`
+    // subscription; without it a late setting would still be applied to a dead component.
+    const setting = new Subject<string>();
+    const uploader = new FilesUploaderComponent(
+      { error: vi.fn() } as unknown as NotificationService,
+      { getPublicSetting: vi.fn().mockReturnValue(setting) } as unknown as AdminSettingsService,
+      datasetService as unknown as DatasetService,
+      { create: vi.fn() } as unknown as NzModalService
+    );
+
+    setting.next("50");
+    expect(uploader.singleFileUploadMaxSizeMiB).toBe(50);
+
+    (uploader as unknown as OnDestroy).ngOnDestroy();
+    setting.next("99");
+
+    expect(uploader.singleFileUploadMaxSizeMiB).toBe(50);
+  });
+
+  describe("dialog titles for paths without a file name", () => {
+    it("falls back to the whole path when the conflicting path ends in a separator", async () => {
+      datasetService.listMultipartUploads.mockReturnValue(of(["folder/"]));
+      datasetService.findExistingUploadFiles.mockReturnValue(of(["folder/"]));
+      const emitted = new Promise<FileUploadItem[]>(resolve => component.uploadedFiles.subscribe(resolve));
+
+      component.fileDropped([droppedFile("folder/", new File(["x"], "x"))]);
+
+      await waitUntil(() => modals.length === 1);
+      expect(modals[0].nzData.path).toBe("folder/");
+      modals[0].nzFooter.find(button => button.label === "Resume")?.onClick();
+
+      await waitUntil(() => modals.length === 2);
+      expect(modals[1].nzData.path).toBe("folder/");
+      modals[1].nzFooter.find(button => button.label === "Upload")?.onClick();
+
+      expect((await emitted).map(item => item.name)).toEqual(["folder/"]);
+    });
+  });
+});
+
+/**
+ * The suite above constructs the component directly, so its template has never been
+ * rendered — the banner's `*ngIf`, the banner bindings and the drop-zone button live
+ * only in the template. These mount it for real.
+ */
+describe("FilesUploaderComponent rendered", () => {
+  let fixture: ComponentFixture<FilesUploaderComponent>;
+  let component: FilesUploaderComponent;
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [FilesUploaderComponent, NoopAnimationsModule],
+      providers: [
+        { provide: NotificationService, useValue: { error: vi.fn() } },
+        { provide: AdminSettingsService, useValue: { getPublicSetting: vi.fn().mockReturnValue(of("20")) } },
+        {
+          provide: DatasetService,
+          useValue: {
+            listMultipartUploads: vi.fn().mockReturnValue(of([])),
+            findExistingUploadFiles: vi.fn().mockReturnValue(of([])),
+          },
+        },
+        { provide: NzModalService, useValue: { create: vi.fn() } },
+        ...commonTestProviders,
+      ],
+    }).compileComponents();
+
+    fixture = TestBed.createComponent(FilesUploaderComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+  });
+
+  const alert = (): HTMLElement | null => (fixture.nativeElement as HTMLElement).querySelector("nz-alert");
+
+  it("hides the banner until the alert is enabled and the upload has finished", () => {
+    expect(alert()).toBeNull();
+
+    component.showUploadAlert = true;
+    fixture.detectChanges();
+    expect(alert()).toBeNull();
+
+    component.showUploadAlert = false;
+    component.fileUploadingFinished = true;
+    fixture.detectChanges();
+    expect(alert()).toBeNull();
+  });
+
+  it("renders the banner message once both flags are set", () => {
+    component.showUploadAlert = true;
+    component.fileUploadingFinished = true;
+    component.fileUploadBannerType = "error";
+    component.fileUploadBannerMessage = "Upload failed. Please retry.";
+    fixture.detectChanges();
+
+    const banner = alert();
+    expect(banner).not.toBeNull();
+    expect(banner!.textContent).toContain("Upload failed. Please retry.");
+  });
+
+  it("clears the banner when its close control fires", () => {
+    component.showUploadAlert = true;
+    component.fileUploadingFinished = true;
+    component.fileUploadBannerMessage = "done";
+    fixture.detectChanges();
+
+    fixture.debugElement.query(By.directive(NzAlertComponent)).componentInstance.nzOnClose.emit();
+    fixture.detectChanges();
+
+    expect(component.fileUploadingFinished).toBe(false);
+    expect(alert()).toBeNull();
+  });
+
+  it("opens the file selector from the drop-zone button", () => {
+    // ngx-file-drop hands its `openFileSelector` to the content template by reference,
+    // so spying on the component's property after render would not be seen. Assert its
+    // effect instead: it clicks the hidden file input.
+    const host = fixture.nativeElement as HTMLElement;
+    const fileInput: HTMLInputElement = host.querySelector("input.ngx-file-drop__file-input")!;
+    expect(fileInput).not.toBeNull();
+    const openDialog = vi.spyOn(fileInput, "click").mockImplementation(() => {});
+
+    const button: HTMLButtonElement = host.querySelector(".upload-file-button")!;
+    expect(button).not.toBeNull();
+    button.click();
+
+    expect(openDialog).toHaveBeenCalled();
+  });
+
+  it("routes a drop on the zone into fileDropped", () => {
+    const dropped = vi.spyOn(component, "fileDropped").mockImplementation(() => {});
+    const entries = [droppedFile("a.csv", new File(["a"], "a.csv"))];
+
+    fixture.debugElement.query(By.directive(NgxFileDropComponent)).componentInstance.onFileDrop.emit(entries);
+
+    expect(dropped).toHaveBeenCalledWith(entries);
   });
 });

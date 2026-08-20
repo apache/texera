@@ -141,6 +141,10 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
     code should include("if not _HF_MODEL_ID_PATTERN.match(")
     code should include("raise ValueError(")
     code should include("Invalid Hugging Face model ID")
+    // #7196: reject `..` path traversal (leading negative lookahead) and accept
+    // single-segment legacy IDs like `gpt2` (trailing /segment group optional).
+    code should include("(?!.*\\.\\.)")
+    code should include("(/[A-Za-z0-9._-]+)*$")
   }
 
   it should "not leak raw user-input strings into the generated Python source" in {
@@ -407,24 +411,19 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
   }
 
   it should
-    "fail fast at runtime when zero-shot-image-classification has fewer than 2 candidate labels" in {
-    // Without a dedicated candidateLabels field (lands in PR 5), zero-shot
-    // reuses prompt_value as a comma-
-    // separated list. Two failure modes the bare list comprehension hides
-    // are both caught by the >= 2 check:
-    //  1. Empty prompt column → labels = [] → HF API rejects
-    //     candidate_labels: [] with an opaque 400.
-    //  2. Missing prompt column → upstream falls back to "What is shown in
-    //     this image?" (no comma) → labels = ["What is shown in this image?"],
-    //     a single nonsense label that returns a useless 1.0 score.
-    // Zero-shot classification needs >= 2 candidate labels to be meaningful,
-    // so the fix raises ValueError before the request goes out and the user
-    // sees a clear configuration error instead of a generic HTTP failure or
-    // misleading 100%-confidence garbage.
+    "validate zero-shot-image-classification candidate labels before the row loop" in {
+    // #7199 Part B: the >= 2 candidate-labels check is a config validation, so it
+    // runs in the pre-loop validation block (fail-fast with a clear ValueError),
+    // consistent with the other config checks — instead of being raised inside the
+    // per-row payload build, where an uncaught ValueError crashed the operator.
+    // Labels come from the Candidate Labels property; the old prompt-column
+    // fallback is dropped.
     val code = makeDesc(task = "zero-shot-image-classification").generatePythonCode()
     code should include("if len(labels) < 2:")
     code should include("raise ValueError(")
-    code should include("at least 2 candidate")
+    code should include("requires at least 2 Candidate Labels")
+    // The per-row prompt-column fallback is gone.
+    code should not include ("label_source")
   }
 
   it should
@@ -686,6 +685,13 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
       .path("templateOptions")
       .path("type")
       .asText() shouldBe "password"
+  }
+
+  it should "report a clear error when a configured image/audio column is missing from the input table" in {
+    val code = makeDesc().generatePythonCode()
+    code should include("Input Image Column '")
+    code should include("Input Audio Column '")
+    code should include("not found in the input table")
   }
 
   it should "give a clear error when the result column collides with an input column" in {
