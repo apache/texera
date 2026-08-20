@@ -53,7 +53,6 @@ import org.apache.texera.service.`type`.DatasetFileNode
 import org.apache.texera.service.resource.DatasetAccessResource._
 import org.apache.texera.service.resource.ResourceTables.{Dataset => DATASET_RESOURCE}
 import org.apache.texera.service.resource.DatasetResource.{context, _}
-import org.apache.texera.service.util.ResourceUploadUtils.{put, validateAndNormalizeFilePathOrThrow}
 import org.apache.texera.service.util.S3StorageClient
 import org.apache.texera.service.util.S3StorageClient.{
   MAXIMUM_NUM_OF_MULTIPART_S3_PARTS,
@@ -711,7 +710,7 @@ class DatasetResource extends LazyLogging {
           if (!presignedUrls.hasNext)
             throw new WebApplicationException("Ran out of presigned part URLs – ask for more parts")
 
-          val etag = put(buf, buffered, presignedUrls.next(), partNumber)
+          val etag = LakeFSStorageClient.put(buf, buffered, presignedUrls.next(), partNumber)
           completedParts += ((partNumber, etag))
           partNumber += 1
           buffered = 0
@@ -888,7 +887,7 @@ class DatasetResource extends LazyLogging {
     if (partNumber < 1)
       throw new BadRequestException("partNumber must be >= 1")
 
-    val filePath = validateAndNormalizeFilePathOrThrow(
+    val filePath = ResourceNaming.validateAndNormalizeFilePathOrThrow(
       URLDecoder.decode(encodedFilePath, StandardCharsets.UTF_8.name())
     )
 
@@ -1174,7 +1173,7 @@ class DatasetResource extends LazyLogging {
         .getOrElse(List.empty)
         .map { file =>
           val originalPath = file.path
-          val path = validateAndNormalizeFilePathOrThrow(originalPath)
+          val path = ResourceNaming.validateAndNormalizeFilePathOrThrow(originalPath)
           if (file.sizeBytes < 0L) throw new BadRequestException("sizeBytes must be >= 0")
           (path, originalPath, file.sizeBytes)
         }
@@ -1730,7 +1729,7 @@ class DatasetResource extends LazyLogging {
       val repositoryName = dataset.getRepositoryName
 
       val filePath =
-        validateAndNormalizeFilePathOrThrow(
+        ResourceNaming.validateAndNormalizeFilePathOrThrow(
           URLDecoder.decode(encodedFilePath, StandardCharsets.UTF_8.name())
         )
 
@@ -2004,7 +2003,7 @@ class DatasetResource extends LazyLogging {
       uid: Int
   ): Response = {
 
-    val filePath = validateAndNormalizeFilePathOrThrow(
+    val filePath = ResourceNaming.validateAndNormalizeFilePathOrThrow(
       URLDecoder.decode(encodedFilePath, StandardCharsets.UTF_8.name())
     )
 
@@ -2183,7 +2182,7 @@ class DatasetResource extends LazyLogging {
       uid: Int
   ): Response = {
 
-    val filePath = validateAndNormalizeFilePathOrThrow(
+    val filePath = ResourceNaming.validateAndNormalizeFilePathOrThrow(
       URLDecoder.decode(encodedFilePath, StandardCharsets.UTF_8.name())
     )
 
@@ -2275,7 +2274,7 @@ class DatasetResource extends LazyLogging {
         throw new BadRequestException("Cover image path is required")
       }
 
-      val normalized = validateAndNormalizeFilePathOrThrow(request.coverImage)
+      val normalized = ResourceNaming.validateAndNormalizeFilePathOrThrow(request.coverImage)
 
       val extension = FilenameUtils.getExtension(normalized)
       if (extension == null || !ALLOWED_IMAGE_EXTENSIONS.contains(s".$extension".toLowerCase)) {
