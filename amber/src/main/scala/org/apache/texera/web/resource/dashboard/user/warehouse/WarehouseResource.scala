@@ -21,12 +21,14 @@ package org.apache.texera.web.resource.dashboard.user.warehouse
 
 import com.typesafe.scalalogging.LazyLogging
 import io.dropwizard.auth.Auth
+import org.apache.commons.lang3.StringUtils
 import org.apache.texera.amber.core.storage.VFSURIFactory
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.common.config.StorageConfig
 import org.apache.texera.dao.SqlServer
-import org.apache.texera.dao.jooq.generated.Tables.USER_WAREHOUSE
+import org.apache.texera.dao.jooq.generated.Tables.{USER, USER_WAREHOUSE}
 import org.apache.texera.dao.jooq.generated.enums.UserWarehouseFlavorEnum
+import org.apache.texera.dao.jooq.generated.tables.pojos.User
 import org.apache.texera.dao.jooq.generated.tables.records.UserWarehouseRecord
 import org.apache.texera.web.resource.dashboard.user.warehouse.WarehouseResource._
 import org.apache.texera.web.service.LakekeeperClient
@@ -36,6 +38,7 @@ import org.jooq.impl.DSL
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
+import scala.jdk.CollectionConverters.ListHasAsScala
 
 object WarehouseResource {
   private def context =
@@ -75,16 +78,34 @@ object WarehouseResource {
       // The Lakekeeper catalog name, `user-<uid>-<whid>`.
       lakekeeperWarehouseName: String,
       flavor: String,
-      createdAtMillis: Long
+      createdAtMillis: Long,
+      // Owner display info, mirroring DashboardWorkflowComputingUnit: today every
+      // warehouse belongs to the caller, but the UI binds to the entry rather than
+      // the session user so shared warehouses render the right person (#7743).
+      ownerName: String,
+      ownerAvatar: String
   )
 
-  private def toDashboardWarehouse(row: UserWarehouseRecord): DashboardWarehouse =
+  // (name, avatar), null for either when the user has not set it.
+  private type Owner = (String, String)
+
+  private def ownerOf(name: String, avatar: String): Owner =
+    (StringUtils.trimToNull(name), StringUtils.trimToNull(avatar))
+
+  private def ownerOf(user: User): Owner = ownerOf(user.getName, user.getAvatar)
+
+  private def toDashboardWarehouse(
+      row: UserWarehouseRecord,
+      owner: Owner
+  ): DashboardWarehouse =
     DashboardWarehouse(
       row.getWhid,
       row.getName,
       row.getLakekeeperWarehouseName,
       row.getFlavor.getLiteral,
-      row.getCreatedAt.toInstant.toEpochMilli
+      row.getCreatedAt.toInstant.toEpochMilli,
+      ownerName = owner._1,
+      ownerAvatar = owner._2
     )
 
   case class WarehouseStatus(enabled: Boolean, warehouses: List[DashboardWarehouse])
@@ -116,15 +137,26 @@ class WarehouseResource(client: LakekeeperClient, enabled: Boolean) extends Lazy
     if (!enabled) {
       return WarehouseStatus(enabled = false, warehouses = List())
     }
-    val warehouses = context
-      .selectFrom(USER_WAREHOUSE)
+    // Joined rather than resolved in a second query: one round trip, and every row
+    // carries its own owner once warehouses can be shared.
+    val rows = context
+      .select(USER_WAREHOUSE.fields() ++ Seq(USER.NAME, USER.AVATAR): _*)
+      .from(USER_WAREHOUSE)
+      .leftJoin(USER)
+      .on(USER.UID.eq(USER_WAREHOUSE.UID))
       .where(USER_WAREHOUSE.UID.eq(current_user.getUid))
       .orderBy(USER_WAREHOUSE.CREATED_AT.asc())
       .fetch()
-      .map(row => toDashboardWarehouse(row))
+      .asScala
+      .toList
     WarehouseStatus(
       enabled = true,
-      warehouses = warehouses.toArray(Array[DashboardWarehouse]()).toList
+      warehouses = rows.map(r =>
+        toDashboardWarehouse(
+          r.into(USER_WAREHOUSE),
+          ownerOf(r.get(USER.NAME), r.get(USER.AVATAR))
+        )
+      )
     )
   }
 
@@ -196,7 +228,9 @@ class WarehouseResource(client: LakekeeperClient, enabled: Boolean) extends Lazy
         }
         throw new WebApplicationException(e.getMessage, 500)
     }
-    toDashboardWarehouse(row)
+    // The caller owns what they just created, and SessionUser already carries their
+    // display info -- no lookup needed.
+    toDashboardWarehouse(row, ownerOf(current_user.getUser))
   }
 
   @DELETE

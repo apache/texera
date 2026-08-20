@@ -21,6 +21,7 @@ package org.apache.texera.web.service
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.sun.net.httpserver.{HttpExchange, HttpServer}
+import org.apache.texera.web.service.LakekeeperClient.PurgeWaitPolicy
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
@@ -57,6 +58,11 @@ class LakekeeperClientSpec
     line
   }
 
+  // How many warehouse deletes have reached the stub for this id, including the one
+  // being served: `record` logs every request before the handler dispatches on it.
+  private def deleteAttempts(id: UUID): Int =
+    requests.synchronized { requests.count(_ == s"DELETE /management/v1/warehouse/$id") }
+
   private def respond(exchange: HttpExchange, status: Int, body: String): Unit = {
     val bytes = body.getBytes(StandardCharsets.UTF_8)
     exchange.getResponseHeaders.add("Content-Type", "application/json")
@@ -65,15 +71,43 @@ class LakekeeperClientSpec
     exchange.close()
   }
 
+  // Lakekeeper purges dropped tables asynchronously (queue `tabular_purge`), and
+  // answers a warehouse delete with 409 WarehouseHasUnfinishedTasks while any
+  // purge task is pending (#7742). These stub warehouses model that queue:
+  // `racing` drains after two attempts, `alwaysBusy` never drains, and
+  // `otherConflict` 409s for an unrelated reason (which must NOT be retried).
+  private val racingWarehouseId = UUID.randomUUID()
+  private val alwaysBusyWarehouseId = UUID.randomUUID()
+  private val otherConflictWarehouseId = UUID.randomUUID()
+  private val malformedConflictWarehouseId = UUID.randomUUID()
+  private val unfinishedTasksBody =
+    """{"error":{"message":"Warehouse has unfinished tasks. Cannot delete warehouse until all tasks are finished.","type":"WarehouseHasUnfinishedTasks","code":409}}"""
+
   server.createContext(
     "/management/v1/warehouse",
     (exchange: HttpExchange) => {
       record(exchange)
-      if (exchange.getRequestMethod == "POST") {
-        lastCreateBody = new String(exchange.getRequestBody.readAllBytes(), StandardCharsets.UTF_8)
-        respond(exchange, 201, s"""{"warehouse-id": "$lakekeeperWarehouseId"}""")
-      } else {
-        respond(exchange, 200, "{}")
+      (exchange.getRequestMethod, exchange.getRequestURI.getPath) match {
+        case ("POST", _) =>
+          lastCreateBody =
+            new String(exchange.getRequestBody.readAllBytes(), StandardCharsets.UTF_8)
+          respond(exchange, 201, s"""{"warehouse-id": "$lakekeeperWarehouseId"}""")
+        case ("DELETE", path) if path.endsWith(racingWarehouseId.toString) =>
+          if (deleteAttempts(racingWarehouseId) <= 2) respond(exchange, 409, unfinishedTasksBody)
+          else respond(exchange, 204, "")
+        case ("DELETE", path) if path.endsWith(alwaysBusyWarehouseId.toString) =>
+          respond(exchange, 409, unfinishedTasksBody)
+        case ("DELETE", path) if path.endsWith(malformedConflictWarehouseId.toString) =>
+          // A 409 whose body isn't the JSON envelope the type check reads.
+          respond(exchange, 409, "<html>gateway conflict</html>")
+        case ("DELETE", path) if path.endsWith(otherConflictWarehouseId.toString) =>
+          respond(
+            exchange,
+            409,
+            """{"error":{"message":"warehouse is in use","type":"Conflict","code":409}}"""
+          )
+        case _ =>
+          respond(exchange, 200, "{}")
       }
     }
   )
@@ -117,8 +151,15 @@ class LakekeeperClientSpec
   )
   server.start()
 
-  private val client = new LakekeeperClient(
-    s"http://localhost:${server.getAddress.getPort}/catalog"
+  private val stubCatalogUri = s"http://localhost:${server.getAddress.getPort}/catalog"
+
+  private val client = new LakekeeperClient(stubCatalogUri)
+
+  // Zero retry delay keeps the spec free of real sleeps (deterministic); 4
+  // attempts keeps the exhaustion case cheap to assert.
+  private val retryClient = new LakekeeperClient(
+    stubCatalogUri,
+    PurgeWaitPolicy(maxAttempts = 4, initialDelayMillis = 0)
   )
 
   override protected def beforeEach(): Unit = {
@@ -167,5 +208,42 @@ class LakekeeperClientSpec
     }
     error.getMessage should include("Lakekeeper")
     error.getMessage should include("500")
+  }
+
+  it should "wait out 409 WarehouseHasUnfinishedTasks from the asynchronous purge (#7742)" in {
+    // Lakekeeper purges dropped tables asynchronously; the stub answers the
+    // warehouse delete with 409 WarehouseHasUnfinishedTasks twice before the
+    // queue "drains" and it returns 204. The delete must ride that out.
+    noException should be thrownBy retryClient.deleteWarehouseEmptyFirst(racingWarehouseId)
+    deleteAttempts(racingWarehouseId) shouldBe 3
+  }
+
+  it should "give up once the purge-wait retries are exhausted" in {
+    val error = intercept[RuntimeException] {
+      retryClient.deleteWarehouseEmptyFirst(alwaysBusyWarehouseId)
+    }
+    error.getMessage should include("409")
+    error.getMessage should include("WarehouseHasUnfinishedTasks")
+    deleteAttempts(alwaysBusyWarehouseId) shouldBe 4
+  }
+
+  // Shared by the non-retryable-409 cases: the delete must fail on the first
+  // attempt, with the status surfaced, rather than be waited out as transient.
+  private def assertFailsWithoutRetry(id: UUID): Unit = {
+    val error = intercept[RuntimeException] {
+      retryClient.deleteWarehouseEmptyFirst(id)
+    }
+    error.getMessage should include("409")
+    deleteAttempts(id) shouldBe 1
+  }
+
+  it should "fail immediately on a 409 whose body is not the expected JSON envelope" in {
+    // The type check parses the body; a malformed one must read as "not the
+    // purge conflict" and fail rather than be retried as if it were transient.
+    assertFailsWithoutRetry(malformedConflictWarehouseId)
+  }
+
+  it should "fail immediately on a 409 that is not WarehouseHasUnfinishedTasks" in {
+    assertFailsWithoutRetry(otherConflictWarehouseId)
   }
 }

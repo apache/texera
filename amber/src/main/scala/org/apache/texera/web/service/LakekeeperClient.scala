@@ -20,14 +20,36 @@
 package org.apache.texera.web.service
 
 import com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
+import com.typesafe.scalalogging.LazyLogging
 import kong.unirest.Unirest
 import org.apache.texera.common.config.StorageConfig
+import org.apache.texera.common.util.RetryUtil
+import org.apache.texera.web.service.LakekeeperClient.PurgeWaitPolicy
 
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 import java.util.UUID
 import scala.collection.mutable.ListBuffer
 import scala.jdk.CollectionConverters.IteratorHasAsScala
+
+object LakekeeperClient {
+
+  /**
+    * How long the final warehouse delete waits out Lakekeeper's asynchronous purge of the
+    * dropped tables' data files, which it reports as 409 WarehouseHasUnfinishedTasks while
+    * still draining (#7742). The pause starts at `initialDelayMillis` and doubles up to
+    * `maxDelayMillis`: starting small keeps a fast purge (the common case) from costing the
+    * caller a full fixed interval, while the growth keeps a slow one from hammering
+    * Lakekeeper. With the defaults the waits between the `maxAttempts` attempts sum to
+    * 0.2+0.4+0.8+1.6+3.2+5+5s ≈ 16s. Overridable for tests (a 0 initial delay keeps the
+    * spec free of real sleeps — doubling 0 stays 0).
+    */
+  final case class PurgeWaitPolicy(
+      maxAttempts: Int = 8,
+      initialDelayMillis: Long = 200,
+      maxDelayMillis: Long = 5000
+  )
+}
 
 /**
   * Client for the Lakekeeper APIs used to manage per-user warehouses (#6870).
@@ -39,8 +61,13 @@ import scala.jdk.CollectionConverters.IteratorHasAsScala
   *
   * @param catalogUri the Iceberg REST catalog uri (ends with `/catalog`), from which the
   *                   management base is derived. Overridable for tests.
+  * @param purgeWait how long the final warehouse delete waits out Lakekeeper's asynchronous
+  *                  purge of the dropped tables' data files (#7742).
   */
-class LakekeeperClient(catalogUri: String = StorageConfig.icebergRESTCatalogUri) {
+class LakekeeperClient(
+    catalogUri: String = StorageConfig.icebergRESTCatalogUri,
+    purgeWait: PurgeWaitPolicy = PurgeWaitPolicy()
+) extends LazyLogging {
 
   // Lakekeeper's default project; single-project deployments (ours) use the nil UUID.
   private val DefaultProjectId = "00000000-0000-0000-0000-000000000000"
@@ -126,11 +153,44 @@ class LakekeeperClient(catalogUri: String = StorageConfig.icebergRESTCatalogUri)
         failOn(response.getStatus, response.getBody, s"drop namespace '$namespace'")
       }
     }
-    val response = Unirest.delete(s"$managementBase/warehouse/$lakekeeperWarehouseId").asString()
-    if (response.getStatus != 404) {
-      failOn(response.getStatus, response.getBody, "delete warehouse")
+    // The drops above purge each table's data files asynchronously (Lakekeeper task
+    // queue `tabular_purge`), and Lakekeeper refuses to delete the warehouse while
+    // any purge is pending — the tasks need the warehouse's storage profile to reach
+    // S3, so deleting it first would orphan them and leak the files. It answers 409
+    // WarehouseHasUnfinishedTasks until the queue drains (normally within seconds),
+    // so ride that out with a bounded retry; every other error, including any other
+    // 409, still fails immediately. (#7742)
+    RetryUtil.withBackoff(
+      description = DeleteWarehouseAction,
+      maxAttempts = purgeWait.maxAttempts,
+      initialDelayMillis = purgeWait.initialDelayMillis,
+      onRetry = attempt => logger.warn(attempt.message),
+      maxDelayMillis = purgeWait.maxDelayMillis,
+      shouldRetry = _.isInstanceOf[UnfinishedTasksConflictException]
+    ) {
+      val response = Unirest.delete(s"$managementBase/warehouse/$lakekeeperWarehouseId").asString()
+      response.getStatus match {
+        case 404 => // already gone — the idempotent goal state
+        case 409 if isUnfinishedTasksBody(response.getBody) =>
+          throw new UnfinishedTasksConflictException(response.getBody)
+        case status => failOn(status, response.getBody, DeleteWarehouseAction)
+      }
     }
   }
+
+  private val DeleteWarehouseAction = "delete warehouse"
+
+  /** Tags the one retryable delete failure so the backoff predicate can single it out. */
+  private class UnfinishedTasksConflictException(body: String)
+      extends RuntimeException(s"Lakekeeper $DeleteWarehouseAction failed (HTTP 409): $body")
+
+  /** Lakekeeper's "purge queue still draining" 409 body — the only retried error. */
+  private def isUnfinishedTasksBody(body: String): Boolean =
+    try {
+      mapper.readTree(body).path("error").path("type").asText() == "WarehouseHasUnfinishedTasks"
+    } catch {
+      case _: Exception => false
+    }
 
   /** Top-level namespaces in the warehouse. Texera's execution namespaces are single-level. */
   private def listNamespaces(lakekeeperWarehouseId: UUID): List[String] =
