@@ -303,12 +303,12 @@ describe("DatasetSelectionModalComponent", () => {
 
       confirmButton().click();
 
-      expect(modalRef.close).toHaveBeenCalledWith(`/datasets/${OWNER}/myds/v1`);
+      expect(modalRef.close).toHaveBeenCalledWith(`/dataset/${OWNER}/myds/v1`);
     });
 
     it("takes the path from the file tree's selection in file mode", () => {
       modalData.fileMode = true;
-      modalData.selectedPath = `/datasets/${OWNER}/myds/v1`;
+      modalData.selectedPath = `/dataset/${OWNER}/myds/v1`;
       build();
 
       fixture.debugElement
