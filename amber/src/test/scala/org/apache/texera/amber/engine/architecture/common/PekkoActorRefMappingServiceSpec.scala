@@ -29,7 +29,7 @@ import org.apache.texera.amber.engine.architecture.common.WorkflowActor.{
   RegisterActorRef
 }
 import org.apache.texera.amber.engine.common.ambermessage.{DataFrame, WorkflowFIFOMessage}
-import org.apache.texera.amber.engine.common.virtualidentity.util.COORDINATOR
+import org.apache.texera.amber.engine.common.virtualidentity.util.CONTROLLER
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpecLike
 
@@ -38,10 +38,10 @@ import scala.concurrent.duration.DurationInt
 /**
   * Unit tests for [[PekkoActorRefMappingService]].
   *
-  * Like [[PekkoMessageTransferServiceSpec]], these tests use a minimal actor
-  * spawned by Pekko TestKit to supply the live [[ActorContext]] that
-  * [[PekkoActorService]] eagerly dereferences. Spawning it as a child of a
-  * [[TestProbe]] also makes the service's parent lookup observable.
+  * These tests use a minimal actor spawned by Pekko TestKit to supply the
+  * live [[ActorContext]] that [[PekkoActorService]] eagerly dereferences.
+  * Spawning it as a child of a [[TestProbe]] also makes the service's parent
+  * lookup observable.
   */
 class PekkoActorRefMappingServiceSpec
     extends TestKit(ActorSystem("PekkoActorRefMappingServiceSpec"))
@@ -122,13 +122,13 @@ class PekkoActorRefMappingServiceSpec
     assert(parent.expectMsgType[GetActorRef].id == destination)
   }
 
-  "registerActorRef" should "drain stashed messages in FIFO order and notify coordinator waiters" in {
+  "registerActorRef" should "drain stashed messages in FIFO order and notify controller waiters" in {
     val parent = TestProbe()
-    val destination = ActorVirtualIdentity("coordinator-wait-destination")
+    val destination = ActorVirtualIdentity("controller-wait-destination")
     val waiterOne = TestProbe()
     val waiterTwo = TestProbe()
     val registered = TestProbe()
-    val service = new PekkoActorRefMappingService(newActorService(COORDINATOR, parent))
+    val service = new PekkoActorRefMappingService(newActorService(CONTROLLER, parent))
     val first = networkMessageTo(destination, messageId = 10L, sequenceNumber = 0L)
     val second = networkMessageTo(destination, messageId = 11L, sequenceNumber = 1L)
 
