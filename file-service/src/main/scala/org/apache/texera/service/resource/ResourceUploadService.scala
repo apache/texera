@@ -36,7 +36,6 @@ import org.apache.texera.dao.jooq.generated.tables.records.{
   DatasetUserAccessRecord
 }
 import org.apache.texera.service.util.LakeFSExceptionHandler.withLakeFSErrorHandling
-import org.apache.texera.service.util.ResourceUploadUtils.{put, validateAndNormalizeFilePathOrThrow}
 import org.apache.texera.service.util.S3StorageClient
 import org.apache.texera.service.util.S3StorageClient.{
   MAXIMUM_NUM_OF_MULTIPART_S3_PARTS,
@@ -62,7 +61,7 @@ import scala.util.Try
 /**
   * Describes where a resource's files live and how its in-progress uploads are tracked.
   *
-  * [[ManagedResource]] names the columns that carry identity, ownership and grants; this adds
+  * [[ResourceTables]] names the columns that carry identity, ownership and grants; this adds
   * the storage side — the LakeFS repository column plus the `*_upload_session` and
   * `*_upload_session_part` tables that back resumable multipart uploads. Naming the columns
   * keeps one implementation of the upload engine serving every resource type, so adding the
@@ -75,7 +74,7 @@ import scala.util.Try
   * @tparam P record type of the upload-session-part table
   */
 case class ResourceStorage[R <: Record, A <: Record, S <: Record, P <: Record](
-    resource: ManagedResource[R, A],
+    resource: ResourceTables[R, A],
     resourceType: ResourceType.Value,
     repositoryNameField: TableField[R, String],
     sessionResourceId: TableField[S, Integer],
@@ -104,8 +103,8 @@ object ResourceStorage {
     DatasetUploadSessionPartRecord
   ] =
     ResourceStorage(
-      resource = ManagedResource.Dataset,
-      resourceType = ResourceType.Datasets,
+      resource = ResourceTables.Dataset,
+      resourceType = ResourceType.Dataset,
       repositoryNameField = DATASET.REPOSITORY_NAME,
       sessionResourceId = DATASET_UPLOAD_SESSION.DID,
       sessionUid = DATASET_UPLOAD_SESSION.UID,
@@ -249,7 +248,7 @@ object ResourceUploadService {
           if (!presignedUrls.hasNext)
             throw new WebApplicationException("Ran out of presigned part URLs – ask for more parts")
 
-          val etag = put(buf, buffered, presignedUrls.next(), partNumber)
+          val etag = LakeFSStorageClient.put(buf, buffered, presignedUrls.next(), partNumber)
           completedParts += ((partNumber, etag))
           partNumber += 1
           buffered = 0
@@ -349,7 +348,7 @@ object ResourceUploadService {
       val repositoryName = repositoryNameOf(ctx, s, did)
 
       val filePath =
-        validateAndNormalizeFilePathOrThrow(
+        ResourceNaming.validateAndNormalizeFilePathOrThrow(
           URLDecoder.decode(encodedFilePath, StandardCharsets.UTF_8.name())
         )
 
@@ -622,7 +621,7 @@ object ResourceUploadService {
       uid: Int
   ): Response = {
 
-    val filePath = validateAndNormalizeFilePathOrThrow(
+    val filePath = ResourceNaming.validateAndNormalizeFilePathOrThrow(
       URLDecoder.decode(encodedFilePath, StandardCharsets.UTF_8.name())
     )
 
@@ -802,7 +801,7 @@ object ResourceUploadService {
       uid: Int
   ): Response = {
 
-    val filePath = validateAndNormalizeFilePathOrThrow(
+    val filePath = ResourceNaming.validateAndNormalizeFilePathOrThrow(
       URLDecoder.decode(encodedFilePath, StandardCharsets.UTF_8.name())
     )
 
@@ -878,7 +877,7 @@ object ResourceUploadService {
     if (partNumber < 1)
       throw new BadRequestException("partNumber must be >= 1")
 
-    val filePath = validateAndNormalizeFilePathOrThrow(
+    val filePath = ResourceNaming.validateAndNormalizeFilePathOrThrow(
       URLDecoder.decode(encodedFilePath, StandardCharsets.UTF_8.name())
     )
 

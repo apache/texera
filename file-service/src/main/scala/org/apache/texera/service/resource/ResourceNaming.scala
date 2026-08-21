@@ -20,13 +20,14 @@
 package org.apache.texera.service.resource
 
 import jakarta.ws.rs.BadRequestException
+import org.apache.commons.io.FilenameUtils
 import org.apache.texera.dao.SqlStates
 import org.jooq.{DSLContext, Record}
 import org.jooq.exception.DataAccessException
 
 /**
-  * Naming rules shared by every user-owned resource: what a name may contain, and that a name
-  * is unique among one owner's resources of that type.
+  * Naming rules shared by every user-owned resource: what a name may contain, that a name is
+  * unique among one owner's resources of that type, and what a file path inside one may look like.
   */
 object ResourceNaming {
 
@@ -51,6 +52,31 @@ object ResourceNaming {
         s"Invalid $label name: name must be at most $NAME_MAX_LENGTH characters long."
       )
     }
+  }
+
+  /**
+    * Validates a file path supplied for a resource's contents.
+    *
+    * The counterpart to [[validateName]]: the same "reject bad user input with a 400" contract,
+    * applied to a path rather than a name. Rejects empty paths, paths that traverse above the
+    * root, and absolute paths, and returns the normalized form.
+    *
+    * @throws jakarta.ws.rs.BadRequestException if the path is invalid.
+    */
+  def validateAndNormalizeFilePathOrThrow(path: String): String = {
+    if (path == null || path.trim.isEmpty) {
+      throw new BadRequestException("Path cannot be empty")
+    }
+
+    val normalized = FilenameUtils.normalize(path, true)
+    if (normalized == null) {
+      throw new BadRequestException("Invalid path")
+    }
+
+    if (FilenameUtils.getPrefixLength(normalized) > 0) {
+      throw new BadRequestException("Absolute paths not allowed")
+    }
+    normalized
   }
 
   /**

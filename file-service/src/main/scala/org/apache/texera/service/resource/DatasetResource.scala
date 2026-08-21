@@ -53,7 +53,6 @@ import org.apache.texera.service.`type`.DatasetFileNode
 import org.apache.texera.service.resource.DatasetAccessResource._
 import org.apache.texera.service.resource.ResourceTables.{Dataset => DATASET_RESOURCE}
 import org.apache.texera.service.resource.DatasetResource.{context, _}
-import org.apache.texera.service.util.ResourceUploadUtils.validateAndNormalizeFilePathOrThrow
 import org.apache.texera.service.util.S3StorageClient
 import org.jooq.impl.DSL
 import org.jooq.{DSLContext, EnumType}
@@ -864,7 +863,7 @@ class DatasetResource extends LazyLogging {
         .getOrElse(List.empty)
         .map { file =>
           val originalPath = file.path
-          val path = validateAndNormalizeFilePathOrThrow(originalPath)
+          val path = ResourceNaming.validateAndNormalizeFilePathOrThrow(originalPath)
           if (file.sizeBytes < 0L) throw new BadRequestException("sizeBytes must be >= 0")
           (path, originalPath, file.sizeBytes)
         }
@@ -1433,7 +1432,7 @@ class DatasetResource extends LazyLogging {
         throw new BadRequestException("Cover image path is required")
       }
 
-      val normalized = validateAndNormalizeFilePathOrThrow(request.coverImage)
+      val normalized = ResourceNaming.validateAndNormalizeFilePathOrThrow(request.coverImage)
 
       val extension = FilenameUtils.getExtension(normalized)
       if (extension == null || !ALLOWED_IMAGE_EXTENSIONS.contains(s".$extension".toLowerCase)) {
