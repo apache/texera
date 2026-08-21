@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { Component, Inject, TemplateRef, ViewChild } from "@angular/core";
+import { Component, Inject, TemplateRef, ViewChild, ViewEncapsulation } from "@angular/core";
 import { NZ_MODAL_DATA } from "ng-zorro-antd/modal";
 import { NzInputDirective } from "ng-zorro-antd/input";
 import { FormsModule } from "@angular/forms";
@@ -25,16 +25,24 @@ import { FormsModule } from "@angular/forms";
 /**
  * Asks a signed-in user for the email address their account does not have.
  *
- * ORCID authenticates an iD and asserts no address, so an ORCID-only account arrives here with
- * `email` unset — and email is what the rest of the product addresses a user by: dataset storage
- * paths are built from it and every access grant names one. So this is not a profile nicety; the
- * account cannot be shared with or own a dataset until it is answered.
+ * No account should reach this: every path that writes a credential supplies an address, and the
+ * one that used not to (`AdminUserResource.addUser`) no longer writes a credential at all. This
+ * covers the rows older deployments still carry from it, and is the remedy a sign-in method that
+ * authenticates someone without asserting an address would reuse.
+ *
+ * Email is what the rest of the product addresses a user by — dataset storage paths are built
+ * from it and every access grant names one — so this is not a profile nicety. `AuthService`
+ * hands out no `User` at all until it is answered.
  */
 @Component({
   selector: "texera-email-request-modal",
   templateUrl: "./email-request-modal.component.html",
   styleUrls: ["./email-request-modal.component.scss"],
   imports: [NzInputDirective, FormsModule],
+  // The stylesheet dresses the surrounding nz-modal chrome, which is not part of this view;
+  // scoped styles would never reach it. Every rule is nested under `.email-modal`, the
+  // `nzClassName` this dialog is opened with, so nothing else is affected.
+  encapsulation: ViewEncapsulation.None,
 })
 export class EmailRequestModalComponent {
   name = "";

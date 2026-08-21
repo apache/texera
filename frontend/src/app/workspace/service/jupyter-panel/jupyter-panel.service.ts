@@ -25,7 +25,11 @@ import { HttpClient, HttpHeaders } from "@angular/common/http";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { distinctUntilChanged, switchMap } from "rxjs/operators";
 import { AppSettings } from "../../../common/app-setting";
-import { NotebookMigrationService } from "../notebook-migration/notebook-migration.service";
+import {
+  NotebookMigrationService,
+  notebookMappingKey,
+  notebookFileName,
+} from "../notebook-migration/notebook-migration.service";
 import { GuiConfigService } from "../../../common/service/gui-config.service";
 
 @Injectable({
@@ -121,25 +125,25 @@ export class JupyterPanelService {
       });
   }
 
-  private fetchNotebookAndMapping(
-    workflowID: number | undefined = this.workflowActionService.getWorkflow().wid,
-    vId: number = 1
-  ) {
-    // Fetch mapping and notebook from migration database if exists for wid
+  private fetchNotebookAndMapping(workflowID: number | undefined = this.workflowActionService.getWorkflow().wid) {
+    // Fetch mapping and notebook from migration database if exists for wid.
     const dbAPIUrl = `${AppSettings.getApiEndpoint()}/notebook-migration/fetch-notebook-and-mapping`;
     const headers = new HttpHeaders({ "Content-Type": "application/json" });
     const payload = {
       wid: workflowID,
-      vid: vId, // Future work: add dynamic fetching of current workflow vId
     };
 
     return this.http.post(dbAPIUrl, payload, { headers }).pipe(
       switchMap(async (response: any) => {
         // Only load mapping and workflow if they exist
         if (response.exists) {
-          this.notebookMigrationService.setMapping("mapping_wid_" + workflowID, response.mapping);
+          this.notebookMigrationService.setMapping(notebookMappingKey(workflowID), response.mapping);
 
-          if ((await this.notebookMigrationService.sendNotebookToJupyter(response.notebook)) == 1) {
+          const sent = await this.notebookMigrationService.sendNotebookToJupyter(
+            response.notebook,
+            notebookFileName(workflowID)
+          );
+          if (sent == 1) {
             return 1;
           } else {
             return 0;
@@ -166,7 +170,7 @@ export class JupyterPanelService {
       console.warn("Workflow ID is undefined. Cannot compute highlight mapping.");
       return;
     }
-    const mappingKey = "mapping_wid_" + wid;
+    const mappingKey = notebookMappingKey(wid);
     const mapping = this.notebookMigrationService.getMapping(mappingKey);
 
     if (mapping == undefined) {
@@ -205,28 +209,24 @@ export class JupyterPanelService {
     this.iframeRef = iframe;
   }
 
-  // Open the Jupyter Notebook panel
-  public openPanel(panelName: string): void {
-    if (!this.enabled) return;
-    if (panelName === "JupyterNotebookPanel") {
-      this.jupyterNotebookPanelVisible.next(true);
-      // Opening the panel means the current workflow has an associated notebook, so
-      // surface the toolbar "expand" button (jupyterNotebookExists$) right away. Needed
-      // after an in-place import where the wid does not change and init() does not re-run
-      // to detect the notebook.
-      this.jupyterNotebookExists.next(true);
-    }
+  // Notebook filename for the workflow currently shown, used by the iframe fetch.
+  private currentNotebookFileName(): string {
+    return notebookFileName(this.workflowActionService.getWorkflow().wid);
   }
 
-  // Delete the current workflow's stored notebook from the backend, then hide the
-  // panel and clear all local notebook state. This is the user-initiated action
-  // behind the panel's delete button, and is distinct from the workflow-switch
-  // cleanup (hideAndClearLocalState), which must never touch the backend.
+  // Iframe URL for the current workflow's notebook
+  public getJupyterIframeURLForWorkflow(): Promise<string | null> {
+    if (!this.enabled) return Promise.resolve(null);
+    return this.notebookMigrationService.getJupyterIframeURL(this.currentNotebookFileName());
+  }
+
+  // Delete the current workflow's stored notebook from the migration database and its file
+  // from the Jupyter pod, then hide the panel and clear all local notebook state.
   public deleteJupyterNotebook(): void {
     if (!this.enabled) return;
     const wid = this.workflowActionService.getWorkflow().wid;
-    // Unsaved workflow (wid undefined or the default wid 0): nothing is persisted,
-    // and a delete POST with such a wid would 500, so just reset local state.
+    // Unsaved workflow (wid undefined or the default wid 0): nothing is persisted and no
+    // notebook file was uploaded for it (the upload path needs a wid)
     if (!wid) {
       this.hideAndClearLocalState();
       this.jupyterNotebookExists.next(false);
@@ -238,6 +238,8 @@ export class JupyterPanelService {
         this.hideAndClearLocalState();
         this.jupyterNotebookExists.next(false);
         this.clearHighlights();
+        // wid is captured above, so a mid-flight workflow switch can't retarget this.
+        void this.notebookMigrationService.deleteNotebookForWorkflow(wid);
       },
       error: (err: unknown) => {
         // Keep the panel open on failure so the user sees the notebook wasn't removed.
@@ -253,7 +255,7 @@ export class JupyterPanelService {
     this.jupyterNotebookPanelVisible.next(false);
     const wid = this.workflowActionService.getWorkflow().wid;
     if (wid != undefined) {
-      this.notebookMigrationService.deleteMapping("mapping_wid_" + wid);
+      this.notebookMigrationService.deleteMapping(notebookMappingKey(wid));
     }
   }
 
@@ -285,7 +287,7 @@ export class JupyterPanelService {
   public openJupyterNotebookPanel(): void {
     if (!this.enabled) return;
     const wid = this.workflowActionService.getWorkflow().wid;
-    const mappingKey = "mapping_wid_" + wid;
+    const mappingKey = notebookMappingKey(wid);
     // Check if there is corresponding mapping data
     if (wid === undefined || !this.notebookMigrationService.hasMapping(mappingKey)) {
       this.notificationService.warning("No Jupyter notebook associated with this workflow.");
@@ -359,7 +361,7 @@ export class JupyterPanelService {
         return;
       }
 
-      const mappingKey = "mapping_wid_" + wid;
+      const mappingKey = notebookMappingKey(wid);
       const mappingEntry = this.notebookMigrationService.getMapping(mappingKey);
 
       if (!mappingEntry) {

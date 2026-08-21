@@ -17,25 +17,23 @@
  * under the License.
  */
 
-package org.apache.texera.amber.engine.architecture.deploysemantics.deploystrategy
+\c texera_db
 
-import org.apache.pekko.actor.Address
+SET search_path TO texera_db;
 
-object RandomDeployment {
-  def apply() = new RandomDeployment()
-}
+BEGIN;
 
-class RandomDeployment extends DeployStrategy {
-  var available: Array[Address] = _
+-- Per-user access control for models.
+-- Enables the model management API to grant/list/revoke READ/WRITE access.
 
-  override def initialize(available: Array[Address]): Unit = {
-    this.available = available
-  }
+CREATE TABLE IF NOT EXISTS model_user_access
+(
+    mid       INT NOT NULL,
+    uid       INT NOT NULL,
+    privilege privilege_enum NOT NULL DEFAULT 'NONE',
+    PRIMARY KEY (mid, uid),
+    FOREIGN KEY (mid) REFERENCES model(mid) ON DELETE CASCADE,
+    FOREIGN KEY (uid) REFERENCES "user"(uid) ON DELETE CASCADE
+);
 
-  override def next(): Address = {
-    if (available.isEmpty) {
-      throw new NoSuchElementException("no available addresses")
-    }
-    available(util.Random.nextInt(available.length))
-  }
-}
+COMMIT;

@@ -20,6 +20,7 @@
 package org.apache.texera.amber.core.storage.model
 
 import org.apache.texera.common.config.EnvironmentalVariable
+import org.apache.texera.amber.core.storage.ResourceType
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -27,15 +28,18 @@ import java.net.{URI, URLEncoder}
 import java.nio.charset.StandardCharsets
 import java.nio.file.Paths
 
-class DatasetFileDocumentSpec extends AnyFlatSpec with Matchers {
+class LakeFSFileDocumentSpec extends AnyFlatSpec with Matchers {
 
   // Realistic 40-char git commit hash, mirroring the URIs produced by FileResolver
   // (format: dataset:///{repositoryName}/{versionHash}/{fileRelativePath}).
   private val versionHash = "97fd4c2a755b69b7c66d322eab40b7e5c2ad5d10"
 
-  "DatasetFileDocument" should "parse a valid 3-segment dataset URI into its components" in {
+  // URI parsing is shared by every resource type; exercise it through the dataset type.
+  private def datasetDoc(uri: URI) = new LakeFSFileDocument(uri, ResourceType.Dataset)
+
+  "LakeFSFileDocument" should "parse a valid 3-segment dataset URI into its components" in {
     val uri = new URI(s"dataset:///test_dataset/$versionHash/1.txt")
-    val doc = new DatasetFileDocument(uri)
+    val doc = datasetDoc(uri)
 
     doc.getRepositoryName() shouldBe "test_dataset"
     doc.getVersionHash() shouldBe versionHash
@@ -44,7 +48,7 @@ class DatasetFileDocumentSpec extends AnyFlatSpec with Matchers {
 
   it should "join multi-segment relative paths correctly" in {
     val uri = new URI(s"dataset:///my_repo/$versionHash/some/nested/dir/data.csv")
-    val doc = new DatasetFileDocument(uri)
+    val doc = datasetDoc(uri)
 
     doc.getRepositoryName() shouldBe "my_repo"
     doc.getVersionHash() shouldBe versionHash
@@ -55,7 +59,7 @@ class DatasetFileDocumentSpec extends AnyFlatSpec with Matchers {
     // FileResolver URL-encodes segments and then builds the URI with the multi-arg
     // constructor, so uri.getPath still contains URLEncoder-encoded segments.
     val uri = new URI("dataset", "", "/repo/hash%20with%2Bspecials/file.txt", null)
-    val doc = new DatasetFileDocument(uri)
+    val doc = datasetDoc(uri)
 
     doc.getVersionHash() shouldBe "hash with+specials"
     doc.getFileRelativePath() shouldBe "file.txt"
@@ -63,7 +67,7 @@ class DatasetFileDocumentSpec extends AnyFlatSpec with Matchers {
 
   it should "URL-decode each relative path segment" in {
     val uri = new URI("dataset", "", "/repo/hash/dir+one/file%23two%20a.csv", null)
-    val doc = new DatasetFileDocument(uri)
+    val doc = datasetDoc(uri)
 
     doc.getRepositoryName() shouldBe "repo"
     doc.getVersionHash() shouldBe "hash"
@@ -72,7 +76,7 @@ class DatasetFileDocumentSpec extends AnyFlatSpec with Matchers {
 
   it should "return the parsed components and the original URI through its getters" in {
     val uri = new URI("dataset", "", s"/repo/$versionHash/a%20b/c.csv", null)
-    val doc = new DatasetFileDocument(uri)
+    val doc = datasetDoc(uri)
 
     doc.getRepositoryName() shouldBe "repo"
     doc.getVersionHash() shouldBe versionHash
@@ -89,7 +93,7 @@ class DatasetFileDocumentSpec extends AnyFlatSpec with Matchers {
     // URI constructor is required here: a single-arg URI already percent-decodes
     // getPath, so "%20" in a raw URI string would reach parseUri as a space.
     val uri = new URI("dataset", "", "/repo%20name/hash%20value/file.txt", null)
-    val doc = new DatasetFileDocument(uri)
+    val doc = datasetDoc(uri)
 
     doc.getRepositoryName() shouldBe "repo%20name"
     // Same encoded token in the version-hash position IS decoded (asymmetry pin).
@@ -102,7 +106,7 @@ class DatasetFileDocumentSpec extends AnyFlatSpec with Matchers {
     val encodedPath =
       rawSegments.map(URLEncoder.encode(_, StandardCharsets.UTF_8)).mkString("/")
     val uri = new URI("dataset", "", s"/repo/$versionHash/$encodedPath", null)
-    val doc = new DatasetFileDocument(uri)
+    val doc = datasetDoc(uri)
 
     doc.getFileRelativePath() shouldBe Paths.get(rawSegments.head, rawSegments.tail: _*).toString
   }
@@ -110,7 +114,7 @@ class DatasetFileDocumentSpec extends AnyFlatSpec with Matchers {
   it should "collapse redundant and trailing slashes in the URI path" in {
     // Paths.get collapses duplicate separators and ignores a trailing slash,
     // so this still yields exactly the three segments [repo, hash, file.txt].
-    val doc = new DatasetFileDocument(new URI("dataset:///repo//hash///file.txt/"))
+    val doc = datasetDoc(new URI("dataset:///repo//hash///file.txt/"))
 
     doc.getRepositoryName() shouldBe "repo"
     doc.getVersionHash() shouldBe "hash"
@@ -120,10 +124,10 @@ class DatasetFileDocumentSpec extends AnyFlatSpec with Matchers {
   it should "preserve dot segments in the relative path without normalization (current behavior)" in {
     // "." and ".." segments are kept verbatim (current behavior): the relative
     // path is passed downstream un-normalized, with no sanitization applied.
-    val parentDoc = new DatasetFileDocument(new URI("dataset:///repo/hash/../x.csv"))
+    val parentDoc = datasetDoc(new URI("dataset:///repo/hash/../x.csv"))
     parentDoc.getFileRelativePath() shouldBe Paths.get("..", "x.csv").toString
 
-    val dotDoc = new DatasetFileDocument(new URI("dataset:///repo/hash/./sub/../x.csv"))
+    val dotDoc = datasetDoc(new URI("dataset:///repo/hash/./sub/../x.csv"))
     dotDoc.getFileRelativePath() shouldBe Paths.get(".", "sub", "..", "x.csv").toString
   }
 
@@ -136,7 +140,7 @@ class DatasetFileDocumentSpec extends AnyFlatSpec with Matchers {
     )
     invalidUris.foreach { uri =>
       val thrown = intercept[IllegalArgumentException] {
-        new DatasetFileDocument(uri)
+        datasetDoc(uri)
       }
       thrown.getMessage shouldBe "URI format is incorrect"
     }
@@ -147,8 +151,8 @@ class DatasetFileDocumentSpec extends AnyFlatSpec with Matchers {
   // asInputStream needs to fetch a file; assert its fallback behavior without
   // requiring a live FileService or LakeFS. The check is guarded so it holds
   // regardless of whether the env override is present.
-  "DatasetFileDocument companion" should
-    "expose the default presigned-URL endpoint when the env override is absent" in {
+  "the companion" should
+    "resolve the dataset presigned-URL endpoint, defaulting when the env override is absent" in {
     val expected =
       sys.env
         .getOrElse(
@@ -156,12 +160,26 @@ class DatasetFileDocumentSpec extends AnyFlatSpec with Matchers {
           "http://localhost:9092/api/dataset/presign-download"
         )
         .trim
-    DatasetFileDocument.fileServiceGetPresignURLEndpoint shouldBe expected
+    LakeFSFileDocument.presignEndpointOf(ResourceType.Dataset) shouldBe expected
   }
 
-  // The user JWT token is shared by every LakeFS-backed document, so it now lives on
-  // the LakeFSFileDocument base object rather than on DatasetFileDocument.
-  "LakeFSFileDocument companion" should "expose a trimmed user JWT token defaulting to empty" in {
+  // Each resource type resolves its own endpoint: a dataset grant must not authorize a model
+  // file, so the two presign endpoints stay distinct.
+  it should "resolve the model presigned-URL endpoint, defaulting when the env override is absent" in {
+    val expected =
+      sys.env
+        .getOrElse(
+          EnvironmentalVariable.ENV_FILE_SERVICE_GET_MODEL_PRESIGNED_URL_ENDPOINT,
+          "http://localhost:9092/api/model/presign-download"
+        )
+        .trim
+    LakeFSFileDocument.presignEndpointOf(ResourceType.Model) shouldBe expected
+    LakeFSFileDocument.presignEndpointOf(ResourceType.Model) should not be
+      LakeFSFileDocument.presignEndpointOf(ResourceType.Dataset)
+  }
+
+  // The user JWT token is shared by every LakeFS-backed document, whatever its resource type.
+  it should "expose a trimmed user JWT token defaulting to empty" in {
     val expected =
       sys.env.getOrElse(EnvironmentalVariable.ENV_USER_JWT_TOKEN, "").trim
     LakeFSFileDocument.userJwtToken shouldBe expected

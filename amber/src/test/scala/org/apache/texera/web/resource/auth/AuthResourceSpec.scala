@@ -19,6 +19,8 @@
 
 package org.apache.texera.web.resource.auth
 
+import com.fasterxml.jackson.databind.ObjectMapper
+import io.dropwizard.jersey.errors.LoggingExceptionMapper
 import org.apache.texera.auth.{JwtAuth, SessionUser}
 import org.apache.texera.common.config.UserSystemConfig
 import org.apache.texera.dao.MockTexeraDB
@@ -26,11 +28,7 @@ import org.apache.texera.dao.jooq.generated.Tables.{AUTH_PROVIDER, USER, USER_LA
 import org.apache.texera.dao.jooq.generated.enums.{ProviderTypeEnum, UserRoleEnum}
 import org.apache.texera.dao.jooq.generated.tables.daos.{AuthProviderDao, UserDao}
 import org.apache.texera.dao.jooq.generated.tables.pojos.{AuthProvider, User}
-import org.apache.texera.web.model.http.request.auth.{
-  SetEmailRequest,
-  UserLoginRequest,
-  UserRegistrationRequest
-}
+import org.apache.texera.web.model.http.request.auth.{UserLoginRequest, UserRegistrationRequest}
 import org.jasypt.util.password.StrongPasswordEncryptor
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -386,13 +384,24 @@ class AuthResourceSpec
 
   // ─── setEmail ───────────────────────────────────────────────────────────────
 
-  /** An account as an identity-only login leaves it: authenticated, INACTIVE, no address. */
+  /**
+    * An account holding a credential but no address. Nothing creates one any more —
+    * `AdminUserResource.addUser` was the last path that did, and it no longer writes a credential —
+    * so this stands in for the rows older deployments still carry from it, and for a sign-in
+    * method that authenticates someone without asserting an address.
+    */
   private def seedEmaillessUser(tag: String, role: UserRoleEnum = UserRoleEnum.INACTIVE): User = {
     val user = new User
     user.setName(uname(tag))
     user.setRole(role)
     userDao.insert(user)
-    seedExternalProvider(user.getUid, ProviderTypeEnum.ORCID, s"0000-0002-0000-$tag")
+
+    val auth = new AuthProvider
+    auth.setUid(user.getUid)
+    auth.setProviderType(ProviderTypeEnum.LOCAL)
+    auth.setProviderId(uname(tag))
+    auth.setPassword(encryptor.encryptPassword("pw"))
+    authDao.insert(auth)
     user
   }
 
@@ -452,13 +461,33 @@ class AuthResourceSpec
 
     statusOf(thrown) shouldBe 409
     userDao.fetchOneByUid(caller.getUid).getEmail shouldBe null
-    hasProvider(owner.getUid, ProviderTypeEnum.ORCID) shouldBe false
-    hasProvider(owner.getUid, ProviderTypeEnum.LOCAL) shouldBe true
+    // Neither account's credential moved.
+    providerIdOf(owner.getUid, ProviderTypeEnum.LOCAL) shouldBe uname("owner")
+    providerIdOf(caller.getUid, ProviderTypeEnum.LOCAL) shouldBe uname("intruder")
+  }
+
+  // What the browser shows comes out of Dropwizard's default exception mapper rather than the throw
+  // site: `AuthService.promptForEmail` reads `error.message` off the body and falls back to a
+  // generic line when it is absent. A refusal carrying only a status would leave the user with no
+  // idea which address to try instead, so the text has to survive as far as the wire.
+  it should "hand that refusal to the client as a JSON message, not a bare 409" in {
+    seedUser(uname("owner"), "pw")
+    val caller = seedEmaillessUser("reader")
+
+    val thrown = intercept[WebApplicationException] {
+      resource.setEmail(SetEmailRequest(s"${uname("owner")}@example.com"), new SessionUser(caller))
+    }
+
+    // The same mapper Dropwizard registers for every throwable a resource lets out.
+    val mapped = new LoggingExceptionMapper[Throwable]() {}.toResponse(thrown)
+    mapped.getStatus shouldBe 409
+    val body = new ObjectMapper().writeValueAsString(mapped.getEntity)
+    body should include(""""message":"That email address already belongs to an account.""")
   }
 
   // The placeholder keeps its uid because dataset contributor rows already reference it; the
   // caller's own row is discarded, which is only safe while it is INACTIVE and emailless.
-  it should "move the identity onto a contributor placeholder owning the address" in {
+  it should "move the credential onto a contributor placeholder owning the address" in {
     val placeholder = seedPlaceholder(uname("ghost"), uemail("ghost"))
     val caller = seedEmaillessUser("claimer")
 
@@ -468,11 +497,10 @@ class AuthResourceSpec
     claimed.getIsPlaceholder shouldBe false
     claimed.getComment should include("Claimed contributor placeholder at ")
     claimed.getName shouldBe uname("claimer")
-    hasProvider(placeholder.getUid, ProviderTypeEnum.ORCID) shouldBe true
-    providerIdOf(placeholder.getUid, ProviderTypeEnum.ORCID) shouldBe "0000-0002-0000-claimer"
+    hasProvider(placeholder.getUid, ProviderTypeEnum.LOCAL) shouldBe true
+    providerIdOf(placeholder.getUid, ProviderTypeEnum.LOCAL) shouldBe uname("claimer")
 
-    // The account the provider created moments ago is gone, and the session continues as the
-    // claimed one.
+    // The account the caller was signed in as is gone, and the session continues as the claimed one.
     userDao.fetchOneByUid(caller.getUid) shouldBe null
     subjectOf(response.accessToken) shouldBe uname("claimer")
     emailClaimOf(response.accessToken) shouldBe uemail("ghost")
@@ -494,7 +522,7 @@ class AuthResourceSpec
 
     userDao.fetchOneByUid(caller.getUid) shouldBe null
     userDao.fetchOneByUid(placeholder.getUid).getIsPlaceholder shouldBe false
-    providerIdOf(placeholder.getUid, ProviderTypeEnum.ORCID) shouldBe "0000-0002-0000-active"
+    providerIdOf(placeholder.getUid, ProviderTypeEnum.LOCAL) shouldBe uname("active")
   }
 
   // Past INACTIVE the caller may own content, so its row cannot be discarded and the placeholder

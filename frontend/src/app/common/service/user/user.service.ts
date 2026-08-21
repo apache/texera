@@ -48,10 +48,6 @@ export class UserService {
     const user = this.authService.loginWithExistingToken();
     this.changeUser(user);
 
-    // AuthService changes the session on its own when its email prompt resolves — an identity-only
-    // login starts with no address, so it either replaces the token with one carrying the new
-    // address or signs out. Re-deriving here is what turns either outcome into the `currentUser`
-    // every subscriber reads.
     this.authService.sessionChanged().subscribe(() => this.changeUser(this.authService.loginWithExistingToken()));
   }
   public getCurrentUser(): User | undefined {

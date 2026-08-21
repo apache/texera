@@ -19,9 +19,9 @@
 
 /**
  * Syntactic check for an address the user typed, shared by every form that collects one:
- * registration (`UserService.validateEmail`) and the prompt an identity-only login triggers
- * (`AuthService`). It lives here rather than on either service because those two import each
- * other's module, and one rule in one place is the point.
+ * registration (`UserService.validateEmail`) and the prompt an account with no address on file
+ * gets at sign-in (`AuthService`). It lives here rather than on either service because those two
+ * import each other's module, and one rule in one place is the point.
  *
  * Authoritative validation stays on the backend (`EmailUtil.isValid`); this only catches the
  * typo before a round trip.

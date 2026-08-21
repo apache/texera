@@ -53,6 +53,7 @@ export class MockGuiConfigService {
     limitColumns: 15,
     attributionEnabled: false,
     pythonNotebookMigrationEnabled: false,
+    pythonNotebookMigrationTimeoutMinutes: 10,
     deploymentVersionCheckEnabled: false,
   };
 

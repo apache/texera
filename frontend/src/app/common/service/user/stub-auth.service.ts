@@ -43,18 +43,6 @@ export const MOCK_INVALID_TOKEN = {
 export class StubAuthService implements PublicInterfaceOf<AuthService> {
   private readonly reissued = new Subject<void>();
 
-  auth(username: string, password: string): Observable<Readonly<{ accessToken: string }>> {
-    if (password === "password") {
-      return of(MOCK_TOKEN);
-    } else {
-      return of(MOCK_INVALID_TOKEN);
-    }
-  }
-
-  googleAuth(): Observable<Readonly<{ accessToken: string }>> {
-    return of(MOCK_TOKEN);
-  }
-
   orcidAuth(code: string): Observable<Readonly<{ accessToken: string }>> {
     return of(MOCK_TOKEN);
   }
@@ -72,6 +60,18 @@ export class StubAuthService implements PublicInterfaceOf<AuthService> {
   /** Test hook: pretend the email prompt resolved and the session changed underneath. */
   emitSessionChanged(): void {
     this.reissued.next();
+  }
+
+  auth(username: string, password: string): Observable<Readonly<{ accessToken: string }>> {
+    if (password === "password") {
+      return of(MOCK_TOKEN);
+    } else {
+      return of(MOCK_INVALID_TOKEN);
+    }
+  }
+
+  googleAuth(): Observable<Readonly<{ accessToken: string }>> {
+    return of(MOCK_TOKEN);
   }
 
   loginWithExistingToken(): User | undefined {

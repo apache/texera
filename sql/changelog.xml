@@ -99,9 +99,24 @@
         <sqlFile path="sql/updates/37.sql"/>
     </changeSet>
 
-    <!-- Allow ORCID as an identity provider in auth_provider.provider_type -->
-    <changeSet id="38" author="Neilk1021">
+    <!-- Rename user_warehouse.warehouse_name to lakekeeper_warehouse_name (#7753) -->
+    <changeSet id="38" author="mengw15">
         <sqlFile path="sql/updates/38.sql"/>
+    </changeSet>
+
+    <!-- Singularize the resource-type prefix on stored dataset paths -->
+    <changeSet id="39" author="tanishqgandhi1908">
+        <sqlFile path="sql/updates/39.sql"/>
+    </changeSet>
+
+    <!-- Add per-user access control for models -->
+    <changeSet id="40" author="tanishqgandhi1908">
+        <sqlFile path="sql/updates/40.sql"/>
+    </changeSet>
+
+    <!-- Allow ORCID as an identity provider in auth_provider.provider_type -->
+    <changeSet id="41" author="Neilk1021">
+        <sqlFile path="sql/updates/41.sql"/>
     </changeSet>
 
     <!-- example changeSet

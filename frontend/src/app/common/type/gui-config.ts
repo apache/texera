@@ -44,6 +44,7 @@ export interface GuiConfig {
   limitColumns: number;
   attributionEnabled: boolean;
   pythonNotebookMigrationEnabled: boolean;
+  pythonNotebookMigrationTimeoutMinutes: number;
   deploymentVersionCheckEnabled: boolean;
 }
 

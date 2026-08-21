@@ -27,12 +27,13 @@
 </ng-template>
 
 <p>
-  You are signed in as <strong>{{ name }}</strong>. ORCID does not share an email address, and Texera uses yours to
+  You are signed in as <strong>{{ name }}</strong>. This account has no email address on file, and Texera uses yours to
   identify you when datasets are shared with you.
 </p>
 
 <label style="display: block">Email</label>
 <input
+  class="email-modal-input"
   nz-input
   [(ngModel)]="email"
   type="email"

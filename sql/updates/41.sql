@@ -17,14 +17,21 @@
  * under the License.
  */
 
-package org.apache.texera.amber.engine.architecture.deploysemantics.deploystrategy
+-- Allow ORCID as an identity provider in auth_provider.provider_type.
+--
+-- ORCID is authorization-code OAuth rather than Google's id-token flow, but the identity it
+-- yields lands in the same place: one auth_provider row whose provider_id is the ORCID iD.
+--
+-- The type is schema-qualified because the two runners disagree about the search path: the
+-- liquibase runner in sql/docker-compose.yml strips `SET search_path` out of these files before
+-- applying them, while bin/local-dev.sh keeps it.
 
-import org.apache.pekko.actor.Address
+\c texera_db
 
-trait DeployStrategy extends Serializable {
+SET search_path TO texera_db;
 
-  def initialize(available: Array[Address]): Unit
+BEGIN;
 
-  def next(): Address
+ALTER TYPE texera_db.provider_type_enum ADD VALUE IF NOT EXISTS 'ORCID';
 
-}
+COMMIT;

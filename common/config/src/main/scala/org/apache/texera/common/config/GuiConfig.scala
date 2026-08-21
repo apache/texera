@@ -77,4 +77,6 @@ object GuiConfig {
     conf.getBoolean("gui.deployment-version-check-enabled")
   val guiWorkflowWorkspacePythonNotebookMigrationEnabled: Boolean =
     conf.getBoolean("gui.workflow-workspace.python-notebook-migration-enabled")
+  val guiWorkflowWorkspacePythonNotebookMigrationTimeoutMinutes: Int =
+    conf.getInt("gui.workflow-workspace.python-notebook-migration-timeout-minutes")
 }

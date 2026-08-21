@@ -53,8 +53,6 @@ export class AuthService {
 
   private tokenExpirationSubscription?: Subscription;
   private sessionChangedSubject = new Subject<void>();
-  // `loginWithExistingToken` runs on every token refresh, so this keeps a second dialog from
-  // stacking on the one still waiting for an answer.
   private emailPromptOpen = false;
 
   constructor(
@@ -87,6 +85,7 @@ export class AuthService {
   /**
    * This method will handle the request for Google login.
    * It will automatically login, save the user account inside and trigger userChangeEvent when success
+
    */
   public googleAuth(credential: string): Observable<Readonly<{ accessToken: string }>> {
     return this.http.post<Readonly<{ accessToken: string }>>(
@@ -174,18 +173,9 @@ export class AuthService {
     const email = this.jwtHelperService.decodeToken(token).email;
     const name = this.jwtHelperService.decodeToken(token).sub;
 
-    // An identity-only login (ORCID) authenticates an iD and asserts no address, so ask for one
-    // before anything downstream needs it: the invite-only branch below sends the admin that
-    // address, and dataset paths and access grants are built from it elsewhere.
     if (!email) {
       this.promptForEmail(name);
-      if (this.config.env.inviteOnly && role === Role.INACTIVE) {
-        // Hold the session rather than logging out: the prompt needs this token to call
-        // PUT /auth/email, and answering it reissues one, which re-enters here with an address
-        // and falls through to the registration request below. Returning undefined still leaves
-        // the app signed out behind the modal, and cancelling it signs out for real.
-        return undefined;
-      }
+      return undefined;
     }
 
     if (this.config.env.inviteOnly && role === Role.INACTIVE) {
@@ -283,10 +273,8 @@ export class AuthService {
   /**
    * Asks a signed-in user for the email address their account does not have, and stores it.
    *
-   * Only an identity-only provider (ORCID) produces such an account — local registration and
-   * Google both assert an address — and email is what the rest of the product addresses a user
-   * by, so the dialog is not dismissable: cancelling signs out, matching how the invite-only
-   * registration request behaves.
+   * Not dismissable: cancelling signs out, matching how the invite-only registration request
+   * behaves. Until it is answered `loginWithExistingToken` hands out no user at all.
    *
    * Either outcome announces itself through `sessionChanged`: a success replaces the token (its
    * `email` claim was null), a cancel throws it away, and both need the current user re-derived.
@@ -304,6 +292,9 @@ export class AuthService {
       nzCancelText: "Sign out",
       nzMaskClosable: false,
       nzClosable: false,
+      // Reaches the modal chrome, which ng-zorro renders outside the content component's view —
+      // see `.email-modal` in email-request-modal.component.scss.
+      nzClassName: "email-modal",
 
       nzOnOk: async () => {
         const { email } = modalRef.getContentComponent().getValues();
@@ -317,17 +308,11 @@ export class AuthService {
           const { accessToken } = await firstValueFrom(this.setEmail(email));
           AuthService.setAccessToken(accessToken);
         } catch (e: unknown) {
-          // One of the refusals cannot be retried: the account already has an address. That happens
-          // when a second tab answered this same prompt first — localStorage is shared, so its
-          // reissued token is already here, and the right move is to accept it and close rather
-          // than trap the user in a dialog whose only other exit is signing out.
           if (this.storedEmailClaim() != null) {
             this.finishEmailPrompt();
             return true;
           }
-          // Otherwise the address itself was rejected — most often because it belongs to an account
-          // that already holds a credential. Keep the dialog open with the reason so the user can
-          // try the address they actually own.
+
           this.notificationService.error(
             (e as HttpErrorResponse)?.error?.message ?? "That email address could not be saved."
           );
@@ -339,9 +324,6 @@ export class AuthService {
 
       nzOnCancel: () => {
         this.logout();
-        // Announced for the same reason the success path is: the caller that asked for this login
-        // has already been handed a User (or nothing), so without this the app would keep showing
-        // a signed-in account whose token has just been thrown away.
         this.finishEmailPrompt();
       },
     });
