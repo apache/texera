@@ -102,6 +102,18 @@ describe("WarehouseActionsService", () => {
     expect(onDeleted).toHaveBeenCalledTimes(1);
   });
 
+  it("does not report a failure when the refresh callback throws after a successful delete", async () => {
+    const onDeleted = vi.fn(() => {
+      throw new Error("refresh blew up");
+    });
+    service.confirmAndDelete(warehouse, onDeleted);
+
+    await expect(modalService.confirm.mock.calls[0][0].nzOnOk()).rejects.toThrow("refresh blew up");
+
+    expect(notificationService.success).toHaveBeenCalledWith("Warehouse deleted.");
+    expect(notificationService.error).not.toHaveBeenCalled();
+  });
+
   it("surfaces the backend message and skips onDeleted when the delete fails", async () => {
     warehouseService.deleteWarehouse.mockReturnValue(throwError(() => ({ error: "Lakekeeper unreachable" })));
     const onDeleted = vi.fn();

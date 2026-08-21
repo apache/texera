@@ -65,15 +65,19 @@ export class WarehouseActionsService {
       nzOkDanger: true,
       // Resolves on failure too: the error is reported as a toast, and leaving the
       // confirm dialog open on top of it would just have to be dismissed twice.
+      // Two callbacks rather than .then().catch(): chaining would route a throw
+      // from onDeleted into the delete-failed branch, reporting a failure over a
+      // delete that succeeded.
       nzOnOk: () =>
-        firstValueFrom(this.warehouseService.deleteWarehouse(warehouse.whid))
-          .then(() => {
+        firstValueFrom(this.warehouseService.deleteWarehouse(warehouse.whid)).then(
+          () => {
             this.notificationService.success("Warehouse deleted.");
             onDeleted();
-          })
-          .catch((err: unknown) => {
+          },
+          (err: unknown) => {
             this.notificationService.error(`Failed to delete warehouse: ${extractErrorMessage(err)}`);
-          }),
+          }
+        ),
     });
   }
 }
