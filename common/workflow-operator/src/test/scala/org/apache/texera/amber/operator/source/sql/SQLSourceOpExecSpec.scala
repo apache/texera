@@ -454,4 +454,95 @@ class SQLSourceOpExecSpec extends AnyFlatSpec with Matchers with MockFactory {
   it should "tolerate being closed without a connection" in {
     noException should be thrownBy new TestSQLSourceOpExec(descJson()).close()
   }
+
+  /*
+   * The result iterator and the keyword binding. Everything above builds SQL strings; these
+   * drive the executor's Iterator against a mocked JDBC chain, which is what the untaken
+   * arms on hasNext/next and the three-way keyword guard need.
+   */
+
+  /** A connection answering one query with the given (id, name) rows, then exhausting. */
+  private def rowsConn(rows: Seq[(Any, Any)]): Connection = {
+    val conn = mock[Connection]
+    val statement = mock[PreparedStatement]
+    val resultSet = mock[ResultSet]
+    (conn.prepareStatement(_: String)).expects(*).returning(statement)
+    (statement.executeQuery: () => ResultSet).expects().returning(resultSet)
+    inSequence {
+      rows.foreach {
+        case (id, name) =>
+          (resultSet.next _).expects().returning(true)
+          (resultSet.getObject(_: String)).expects("id").returning(id)
+          (resultSet.getObject(_: String)).expects("name").returning(name)
+      }
+      (resultSet.next _).expects().returning(false)
+    }
+    (resultSet.close _).expects()
+    (statement.close _).expects()
+    conn
+  }
+
+  private def openedPlain(
+      conn: Connection,
+      descriptor: String = descJson()
+  ): TestSQLSourceOpExec = {
+    val exec = new TestSQLSourceOpExec(descriptor, conn, execSchema = rowSchema)
+    exec.open()
+    exec
+  }
+
+  it should "yield one tuple per row and then report exhaustion" in {
+    val exec = openedPlain(rowsConn(Seq((1, "a"), (2, "b"))))
+    val it = exec.produceTuple()
+
+    it.hasNext shouldBe true
+    // A second hasNext must not consume the cached tuple.
+    it.hasNext shouldBe true
+    it.next().asInstanceOf[Tuple].getField[Integer]("id") shouldBe 1
+    it.hasNext shouldBe true
+    it.next().asInstanceOf[Tuple].getField[Integer]("id") shouldBe 2
+
+    // The result set is drained and no further query is available.
+    it.hasNext shouldBe false
+  }
+
+  it should "report exhaustion immediately for a query that returns no rows" in {
+    val exec = openedPlain(rowsConn(Seq.empty))
+
+    exec.produceTuple().hasNext shouldBe false
+  }
+
+  it should "bind the keyword only when the search is enabled and both column and keywords are set" in {
+    def bindsKeyword(
+        enabled: Boolean,
+        column: Option[String],
+        keywords: Option[String],
+        expectBinding: Boolean
+    ): Unit = {
+      val conn = mock[Connection]
+      val statement = mock[PreparedStatement]
+      val resultSet = mock[ResultSet]
+      (conn.prepareStatement(_: String)).expects(*).returning(statement)
+      if (expectBinding) (statement.setString _).expects(1, keywords.get)
+      else (statement.setString _).expects(*, *).never()
+      (statement.executeQuery: () => ResultSet).expects().returning(resultSet)
+      (resultSet.next _).expects().returning(false)
+      (resultSet.close _).expects()
+      (statement.close _).expects()
+
+      val descriptor = descJson { desc =>
+        desc.keywordSearch = Option(enabled)
+        desc.keywordSearchByColumn = column
+        desc.keywords = keywords
+      }
+      openedPlain(conn, descriptor).produceTuple().hasNext shouldBe false
+    }
+
+    // each conjunct decides the outcome once
+    bindsKeyword(enabled = false, Option("name"), Option("term"), expectBinding = false)
+    bindsKeyword(enabled = true, None, Option("term"), expectBinding = false)
+    bindsKeyword(enabled = true, Option("name"), None, expectBinding = false)
+    bindsKeyword(enabled = true, Option("name"), Option("term"), expectBinding = true)
+  }
+
 }

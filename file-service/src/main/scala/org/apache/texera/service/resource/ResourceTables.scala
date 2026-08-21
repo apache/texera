@@ -33,21 +33,19 @@ import org.apache.texera.dao.jooq.generated.tables.records.{
 import org.jooq.{Record, Table, TableField}
 
 /**
-  * Describes one user-owned, name-scoped, shareable resource by the columns that carry its
-  * identity, ownership, and per-user grants.
+  * The tables and columns that define one resource type, so the rules in [[ResourceAccess]] and
+  * [[ResourceNaming]] can be written once and told which columns to read.
   *
-  * Each Resource owns a table with `owner_uid`, a `name` unique per
-  * owner, an `is_public` flag, and a companion `*_user_access` table keyed on (resource id, uid).
-  * jOOQ generates a distinct, unrelated class per table, so those shared rules cannot be
-  * expressed through a common supertype. Naming the columns instead lets one implementation in
-  * [[ResourceAccess]] and [[ResourceNaming]] serve every resource type, so the next one costs a
-  * descriptor rather than another copy of the rules.
+  * A resource fits only if its own table carries the owner, the name and the `is_public` flag, and
+  * it has a companion `*_user_access` table — today that is `dataset` and `model`. This is not a
+  * model of every shareable resource: `workflow` keeps ownership in `workflow_of_user`, and
+  * neither `project` nor `workflow_computing_unit` has `is_public`.
   *
   * @param label how the resource is named in user-facing messages ("dataset", "model")
   * @tparam R record type of the resource table
   * @tparam A record type of the companion user-access table
   */
-case class ManagedResource[R <: Record, A <: Record](
+case class ResourceTables[R <: Record, A <: Record](
     label: String,
     idField: TableField[R, Integer],
     ownerUidField: TableField[R, Integer],
@@ -61,10 +59,10 @@ case class ManagedResource[R <: Record, A <: Record](
   def accessTable: Table[A] = accessIdField.getTable
 }
 
-object ManagedResource {
+object ResourceTables {
 
-  val Dataset: ManagedResource[DatasetRecord, DatasetUserAccessRecord] =
-    ManagedResource(
+  val Dataset: ResourceTables[DatasetRecord, DatasetUserAccessRecord] =
+    ResourceTables(
       label = "dataset",
       idField = DATASET.DID,
       ownerUidField = DATASET.OWNER_UID,
@@ -75,8 +73,8 @@ object ManagedResource {
       privilegeField = DATASET_USER_ACCESS.PRIVILEGE
     )
 
-  val Model: ManagedResource[ModelRecord, ModelUserAccessRecord] =
-    ManagedResource(
+  val Model: ResourceTables[ModelRecord, ModelUserAccessRecord] =
+    ResourceTables(
       label = "model",
       idField = MODEL.MID,
       ownerUidField = MODEL.OWNER_UID,
@@ -86,4 +84,5 @@ object ManagedResource {
       accessUidField = MODEL_USER_ACCESS.UID,
       privilegeField = MODEL_USER_ACCESS.PRIVILEGE
     )
+
 }

@@ -381,6 +381,100 @@ describe("UserDatasetComponent", () => {
       expect(makeFreshComponent().viewType).toBe("card");
     });
   });
+
+  describe("view child accessors", () => {
+    // The outer beforeEach assigns both view children, so these build a component that
+    // has never had a view attached.
+    const componentWithNoView = () =>
+      new UserDatasetComponent(
+        modalServiceMock as any,
+        {
+          userChanged: () => new Subject<User | undefined>().asObservable(),
+          isLogin: () => true,
+          getCurrentUser: () => ({ uid: 42 }) as User,
+        } as any,
+        routerMock as any,
+        searchServiceMock as any,
+        datasetServiceMock as any,
+        messageMock as any
+      );
+
+    it("rejects reading searchResultsComponent before the view is initialized", () => {
+      expect(() => componentWithNoView().searchResultsComponent).toThrowError(
+        "Property cannot be accessed before it is initialized."
+      );
+    });
+
+    it("rejects reading filters before the view is initialized", () => {
+      expect(() => componentWithNoView().filters).toThrowError("Property cannot be accessed before it is initialized.");
+    });
+
+    it("returns the view children once they are assigned", () => {
+      expect(component.searchResultsComponent).toBe(searchResultsStub);
+      expect(component.filters).toBe(filtersStub);
+    });
+
+    it("re-runs the search when the filter component reports a change", () => {
+      const search = vi.spyOn(component, "search").mockResolvedValue(undefined);
+
+      // the setter is what wires this subscription up
+      filtersStub.masterFilterListChange.next();
+
+      expect(search).toHaveBeenCalled();
+    });
+  });
+
+  describe("search de-duplication", () => {
+    it("skips a repeat search when the filters and sort are unchanged", async () => {
+      filtersStub.masterFilterList = ["a"];
+      await component.search();
+      expect(searchResultsStub.loadMore).toHaveBeenCalledTimes(1);
+
+      await component.search();
+
+      expect(searchResultsStub.loadMore).toHaveBeenCalledTimes(1);
+    });
+
+    it("runs the search again when it is forced", async () => {
+      filtersStub.masterFilterList = ["a"];
+      await component.search();
+
+      await component.search(true);
+
+      expect(searchResultsStub.loadMore).toHaveBeenCalledTimes(2);
+    });
+
+    it("runs the search again when the sort method changed", async () => {
+      filtersStub.masterFilterList = ["a"];
+      await component.search();
+
+      component.sortMethod = SortMethod.NameAsc;
+      await component.search();
+
+      expect(searchResultsStub.loadMore).toHaveBeenCalledTimes(2);
+    });
+
+    it("runs the search again when a filter was added", async () => {
+      await component.search();
+
+      filtersStub.masterFilterList = ["a"];
+      await component.search();
+
+      expect(searchResultsStub.loadMore).toHaveBeenCalledTimes(2);
+    });
+
+    it("runs the search again when a filter was replaced by another", async () => {
+      filtersStub.masterFilterList = ["a"];
+      await component.search();
+
+      // same length, different contents: only the element-wise comparison can tell
+      // these two lists apart
+      filtersStub.masterFilterList = ["b"];
+      await component.search();
+
+      expect(searchResultsStub.loadMore).toHaveBeenCalledTimes(2);
+    });
+  });
 });
 /**
  * The existing suite constructs the component directly, so its template has never been rendered.

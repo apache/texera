@@ -33,7 +33,7 @@ import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
 import org.apache.texera.dao.jooq.generated.tables.Model.MODEL
 import org.apache.texera.dao.jooq.generated.tables.daos.{ModelDao, ModelUserAccessDao}
 import org.apache.texera.dao.jooq.generated.tables.pojos.{Model, ModelUserAccess}
-import org.apache.texera.service.resource.ManagedResource.{Model => MODEL_RESOURCE}
+import org.apache.texera.service.resource.ResourceTables.{Model => MODEL_RESOURCE}
 import org.apache.texera.service.resource.ModelAccessResource._
 import org.apache.texera.service.resource.ModelResource.{context, _}
 import org.apache.texera.service.util.S3StorageClient

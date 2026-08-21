@@ -25,6 +25,7 @@ import org.apache.texera.dao.jooq.generated.Tables.VIRTUAL_ENVIRONMENTS
 import org.apache.texera.dao.jooq.generated.tables.daos.UserDao
 import org.apache.texera.dao.jooq.generated.tables.pojos.User
 import org.apache.texera.web.resource.pythonvirtualenvironment.PveResource.SavePvePayload
+import org.apache.commons.lang3.SystemUtils
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatest.flatspec.AnyFlatSpec
@@ -133,6 +134,13 @@ class PveResourceSpec
 
   override protected def afterEach(): Unit = {
     PveManager.deleteEnvironments(testCuid)
+  }
+
+  /** Where PveManager looks for a venv's interpreter on this platform. */
+  private def pythonBinFor(pveName: String): Path = {
+    val venv = testRoot.resolve(pveName).resolve("pve")
+    if (SystemUtils.IS_OS_WINDOWS) venv.resolve("Scripts").resolve("python.exe")
+    else venv.resolve("bin").resolve("python")
   }
 
   private def queueText(): String = {
@@ -547,6 +555,63 @@ class PveResourceSpec
 
   "PveResource.listPves" should "return an empty list when the user owns nothing" in {
     new PveResource().listPves(sessionUser).asScala shouldBe empty
+  }
+
+  /*
+   * PveManager's two pure guards. Everything above reaches them incidentally through the
+   * create/install flows; these take each conjunct's untaken side directly, which is what the
+   * partially-covered branch arms on this file are.
+   */
+  "PveManager.isValidPveName" should "reject a null name" in {
+    PveManager.isValidPveName(null) shouldBe false
+  }
+
+  it should "reject a name longer than 128 characters" in {
+    PveManager.isValidPveName("a" * 129) shouldBe false
+    // The boundary itself is allowed.
+    PveManager.isValidPveName("a" * 128) shouldBe true
+  }
+
+  it should "reject a name with characters outside the safe set" in {
+    PveManager.isValidPveName("has space") shouldBe false
+    PveManager.isValidPveName("has/slash") shouldBe false
+    PveManager.isValidPveName("") shouldBe false
+  }
+
+  it should "accept a name of safe characters" in {
+    PveManager.isValidPveName("env-1.2_3") shouldBe true
+  }
+
+  "PveManager.getPythonBin" should "refuse a name outside the safe set without touching the disk" in {
+    PveManager.getPythonBin(testCuid, "../escape") shouldBe None
+  }
+
+  it should "return nothing when the interpreter has not been created" in {
+    PveManager.getPythonBin(testCuid, testPveName) shouldBe None
+  }
+
+  it should "return nothing when the interpreter exists but is not executable" in {
+    val python = pythonBinFor(testPveName)
+    Files.createDirectories(python.getParent)
+    Files.write(python, Array.emptyByteArray)
+    python.toFile.setExecutable(false)
+    // Clearing the bit is not something every filesystem can represent (Windows ACLs, a
+    // root user, some mount options). Assert the state this test needs and cancel rather
+    // than fail where the platform cannot produce it.
+    assume(!Files.isExecutable(python), "filesystem cannot represent a non-executable file")
+
+    PveManager.getPythonBin(testCuid, testPveName) shouldBe None
+  }
+
+  it should "return the interpreter once it exists and is executable" in {
+    val python = pythonBinFor(testPveName)
+    Files.createDirectories(python.getParent)
+    Files.write(python, Array.emptyByteArray)
+    python.toFile.setExecutable(true)
+    // Likewise for the other direction: a noexec mount would keep the bit off.
+    assume(Files.isExecutable(python), "filesystem cannot represent an executable file")
+
+    PveManager.getPythonBin(testCuid, testPveName) shouldBe Some(python.toAbsolutePath.normalize())
   }
 
 }

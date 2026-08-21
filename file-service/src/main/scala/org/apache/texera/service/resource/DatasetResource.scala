@@ -51,7 +51,7 @@ import org.apache.texera.dao.jooq.generated.tables.pojos.{
 }
 import org.apache.texera.service.`type`.DatasetFileNode
 import org.apache.texera.service.resource.DatasetAccessResource._
-import org.apache.texera.service.resource.ManagedResource.{Dataset => DATASET_RESOURCE}
+import org.apache.texera.service.resource.ResourceTables.{Dataset => DATASET_RESOURCE}
 import org.apache.texera.service.resource.DatasetResource.{context, _}
 import org.apache.texera.service.util.S3StorageClient
 import org.apache.texera.service.util.S3StorageClient.{

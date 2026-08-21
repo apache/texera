@@ -33,9 +33,7 @@ import scala.jdk.CollectionConverters._
   * Ownership and privilege rules shared by every access-controlled resource.
   *
   * A resource is readable when it is public, or the caller owns it, or the caller holds an
-  * explicit grant; it is writable when the caller owns it or holds a WRITE grant. A missing
-  * resource resolves to "not public, unowned, ungranted" rather than an error, so callers
-  * decide whether absence is a 403 or a 404.
+  * explicit grant; it is writable when the caller owns it or holds a WRITE grant.
   */
 object ResourceAccess {
 
@@ -44,7 +42,7 @@ object ResourceAccess {
 
   def isPublic[R <: Record, A <: Record](
       ctx: DSLContext,
-      resource: ManagedResource[R, A],
+      resource: ResourceTables[R, A],
       id: Integer
   ): Boolean =
     Option(
@@ -58,7 +56,7 @@ object ResourceAccess {
 
   def userOwns[R <: Record, A <: Record](
       ctx: DSLContext,
-      resource: ManagedResource[R, A],
+      resource: ResourceTables[R, A],
       id: Integer,
       uid: Integer
   ): Boolean =
@@ -73,7 +71,7 @@ object ResourceAccess {
 
   def privilegeOf[R <: Record, A <: Record](
       ctx: DSLContext,
-      resource: ManagedResource[R, A],
+      resource: ResourceTables[R, A],
       id: Integer,
       uid: Integer
   ): PrivilegeEnum =
@@ -91,7 +89,7 @@ object ResourceAccess {
 
   def userHasWriteAccess[R <: Record, A <: Record](
       ctx: DSLContext,
-      resource: ManagedResource[R, A],
+      resource: ResourceTables[R, A],
       id: Integer,
       uid: Integer
   ): Boolean =
@@ -100,7 +98,7 @@ object ResourceAccess {
 
   def userHasReadAccess[R <: Record, A <: Record](
       ctx: DSLContext,
-      resource: ManagedResource[R, A],
+      resource: ResourceTables[R, A],
       id: Integer,
       uid: Integer
   ): Boolean =
@@ -111,7 +109,7 @@ object ResourceAccess {
   /** The owning user, or null when the resource does not exist. */
   def owner[R <: Record, A <: Record](
       ctx: DSLContext,
-      resource: ManagedResource[R, A],
+      resource: ResourceTables[R, A],
       id: Integer
   ): User = {
     val userDao = new UserDao(ctx.configuration())
@@ -133,7 +131,7 @@ object ResourceAccess {
     */
   def ownerEmail[R <: Record, A <: Record](
       ctx: DSLContext,
-      resource: ManagedResource[R, A],
+      resource: ResourceTables[R, A],
       id: Integer,
       requesterUid: Integer
   ): String = {
@@ -150,7 +148,7 @@ object ResourceAccess {
     */
   def accessList[R <: Record, A <: Record](
       ctx: DSLContext,
-      resource: ManagedResource[R, A],
+      resource: ResourceTables[R, A],
       id: Integer,
       requesterUid: Integer
   ): java.util.List[AccessEntry] = {
@@ -186,7 +184,7 @@ object ResourceAccess {
     */
   def listVisible[R <: Record, A <: Record, P, D](
       ctx: DSLContext,
-      resource: ManagedResource[R, A],
+      resource: ResourceTables[R, A],
       uid: Integer,
       pojoClass: Class[P],
       idOf: P => Integer
@@ -240,13 +238,10 @@ object ResourceAccess {
 
   /**
     * Grants `privilege` to the user with `email`, replacing any privilege they already hold.
-    *
-    * Placeholder accounts stand in for people who were referenced by email but never signed up,
-    * so they cannot be shared with.
     */
   def grant[R <: Record, A <: Record](
       ctx: DSLContext,
-      resource: ManagedResource[R, A],
+      resource: ResourceTables[R, A],
       id: Integer,
       email: String,
       privilege: String,
@@ -280,7 +275,7 @@ object ResourceAccess {
     */
   def revoke[R <: Record, A <: Record](
       ctx: DSLContext,
-      resource: ManagedResource[R, A],
+      resource: ResourceTables[R, A],
       id: Integer,
       email: String,
       requesterUid: Integer
@@ -302,7 +297,7 @@ object ResourceAccess {
 
   private def requireWriteAccess[R <: Record, A <: Record](
       ctx: DSLContext,
-      resource: ManagedResource[R, A],
+      resource: ResourceTables[R, A],
       id: Integer,
       uid: Integer
   ): Unit =
@@ -314,7 +309,7 @@ object ResourceAccess {
 
   private def requireReadAccess[R <: Record, A <: Record](
       ctx: DSLContext,
-      resource: ManagedResource[R, A],
+      resource: ResourceTables[R, A],
       id: Integer,
       uid: Integer
   ): Unit =

@@ -27,11 +27,6 @@ import org.jooq.exception.DataAccessException
 /**
   * Naming rules shared by every user-owned resource: what a name may contain, and that a name
   * is unique among one owner's resources of that type.
-  *
-  * Uniqueness is enforced twice on purpose. The pre-check turns the common case into a clear
-  * 400 naming the conflict, while [[failOnDuplicateName]] catches the request that loses a
-  * concurrent race against the database's unique constraint and reports it the same way
-  * instead of surfacing a 500.
   */
 object ResourceNaming {
 
@@ -65,7 +60,7 @@ object ResourceNaming {
     */
   def requireNameAvailable[R <: Record, A <: Record](
       ctx: DSLContext,
-      resource: ManagedResource[R, A],
+      resource: ResourceTables[R, A],
       ownerUid: Integer,
       name: String,
       excludingId: Option[Integer] = None

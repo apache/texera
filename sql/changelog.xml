@@ -99,9 +99,14 @@
         <sqlFile path="sql/updates/37.sql"/>
     </changeSet>
 
-    <!-- Add per-user access control for models -->
-    <changeSet id="38" author="tanishqgandhi1908">
+    <!-- Rename user_warehouse.warehouse_name to lakekeeper_warehouse_name (#7753) -->
+    <changeSet id="38" author="mengw15">
         <sqlFile path="sql/updates/38.sql"/>
+    </changeSet>
+
+    <!-- Add per-user access control for models -->
+    <changeSet id="40" author="tanishqgandhi1908">
+        <sqlFile path="sql/updates/40.sql"/>
     </changeSet>
 
     <!-- example changeSet
