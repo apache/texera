@@ -70,6 +70,9 @@ export class UserWarehouseComponent implements OnInit {
   // the wrong cause.
   warehouseEnabled?: boolean;
   warehouses: DashboardWarehouse[] = [];
+  // The status request failed: without this the page renders neither the
+  // disabled notice nor the list, leaving a blank card and no way back.
+  loadFailed = false;
 
   // visibility of the shared create-warehouse modal
   addWarehouseModalVisible = false;
@@ -84,16 +87,22 @@ export class UserWarehouseComponent implements OnInit {
     this.refresh();
   }
 
+  retry(): void {
+    this.refresh();
+  }
+
   private refresh(): void {
     this.warehouseService
       .getStatus()
       .pipe(untilDestroyed(this))
       .subscribe({
         next: status => {
+          this.loadFailed = false;
           this.warehouseEnabled = status.enabled;
           this.warehouses = [...status.warehouses];
         },
         error: (err: unknown) => {
+          this.loadFailed = true;
           console.error("Failed to fetch warehouses", err);
           this.notificationService.error("Failed to fetch warehouses.");
         },

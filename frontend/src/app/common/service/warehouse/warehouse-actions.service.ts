@@ -26,9 +26,10 @@ import { extractErrorMessage } from "../../util/error";
 import { WarehouseService } from "./warehouse.service";
 
 /**
- * Shared warehouse actions (#6933), mirroring ComputingUnitActionsService: the
- * dashboard tab and the workspace picker both delete warehouses, so the confirm
- * dialog and its wording live in one place.
+ * Shared warehouse actions (#6933), mirroring ComputingUnitActionsService:
+ * create and delete sit behind one service so the confirm dialog and its
+ * wording live in one place, shared with the workspace picker once it lands
+ * (#7817).
  */
 @Injectable({
   providedIn: "root",
@@ -71,7 +72,7 @@ export class WarehouseActionsService {
             onDeleted();
           })
           .catch((err: unknown) => {
-            this.notificationService.error(extractErrorMessage(err));
+            this.notificationService.error(`Failed to delete warehouse: ${extractErrorMessage(err)}`);
           }),
     });
   }

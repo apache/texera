@@ -23,6 +23,7 @@ import { NzIconModule } from "ng-zorro-antd/icon";
 import { NzModalRef, NzModalService } from "ng-zorro-antd/modal";
 import { CloudServerOutline, DeleteOutline } from "@ant-design/icons-angular/icons";
 import { UserWarehouseListItemComponent } from "./user-warehouse-list-item.component";
+import { WarehouseMetadataComponent } from "../../../../../common/component/warehouse-metadata/warehouse-metadata.component";
 import { DashboardWarehouse } from "../../../../../common/type/warehouse";
 import { commonTestProviders } from "../../../../../common/testing/test-utils";
 
@@ -89,6 +90,8 @@ describe("UserWarehouseListItemComponent", () => {
     expect(createSpy).toHaveBeenCalledTimes(1);
     const config = createSpy.mock.calls[0][0];
     expect(config.nzTitle).toBe("Warehouse Information");
+    // The content component is what the dialog actually shows.
+    expect(config.nzContent).toBe(WarehouseMetadataComponent);
     expect(config.nzData).toEqual(warehouse);
     expect(config.nzFooter).toBeNull();
   });

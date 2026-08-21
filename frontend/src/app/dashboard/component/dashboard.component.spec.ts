@@ -323,6 +323,24 @@ describe("DashboardComponent", () => {
       expect(warehouseMenuItem()).toBeTruthy();
     });
 
+    it("asks the status endpoint exactly once per dashboard load", () => {
+      // userChanged() replays the current user synchronously (a ReplaySubject(1)
+      // primed in UserService's constructor), so that subscription already covers
+      // the initial load: a second explicit call in ngOnInit would double every
+      // dashboard load, and dropping both would leave the tab permanently hidden.
+      (userServiceMock.isLogin as Mock).mockReturnValue(true);
+      const statusSpy = vi
+        .spyOn(TestBed.inject(WarehouseService), "getStatus")
+        .mockReturnValue(of({ enabled: true, warehouses: [] }));
+
+      const freshFixture = TestBed.createComponent(DashboardComponent);
+      freshFixture.detectChanges();
+
+      expect(statusSpy).toHaveBeenCalledTimes(1);
+      expect(freshFixture.componentInstance.warehouseEnabled).toBe(true);
+      freshFixture.destroy();
+    });
+
     it("loadWarehouseEnabled follows the status endpoint, and stays hidden when logged out or failing", () => {
       const statusSpy = vi
         .spyOn(TestBed.inject(WarehouseService), "getStatus")

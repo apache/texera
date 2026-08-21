@@ -20,6 +20,7 @@
 import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges } from "@angular/core";
 import { FormsModule } from "@angular/forms";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+import { Subject, takeUntil } from "rxjs";
 import { NzButtonComponent } from "ng-zorro-antd/button";
 import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
 import { NzWaveDirective } from "ng-zorro-antd/core/wave";
@@ -59,6 +60,12 @@ export class WarehouseCreateModalComponent implements OnChanges {
   newWarehouseName = "";
   creating = false;
 
+  // Closing the dialog ends the attempt it was showing. Without this the request
+  // outlives the dialog (the component itself is never torn down), so Cancel
+  // would still create the warehouse and a late response would close — and
+  // discard — whatever the user had typed after reopening.
+  private readonly closed$ = new Subject<void>();
+
   constructor(
     private warehouseActionsService: WarehouseActionsService,
     private notificationService: NotificationService
@@ -81,7 +88,7 @@ export class WarehouseCreateModalComponent implements OnChanges {
     this.creating = true;
     this.warehouseActionsService
       .create(name)
-      .pipe(untilDestroyed(this))
+      .pipe(takeUntil(this.closed$), untilDestroyed(this))
       .subscribe({
         next: created => {
           this.creating = false;
@@ -102,6 +109,8 @@ export class WarehouseCreateModalComponent implements OnChanges {
   }
 
   private closeModal(): void {
+    this.closed$.next();
+    this.creating = false;
     this.visible = false;
     this.visibleChange.emit(false);
   }

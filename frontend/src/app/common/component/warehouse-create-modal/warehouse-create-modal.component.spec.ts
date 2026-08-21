@@ -22,7 +22,7 @@ import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { NoopAnimationsModule } from "@angular/platform-browser/animations";
 import { NzModalService } from "ng-zorro-antd/modal";
-import { of, throwError } from "rxjs";
+import { Subject, of, throwError } from "rxjs";
 import { WarehouseCreateModalComponent } from "./warehouse-create-modal.component";
 import { NotificationService } from "../../service/notification/notification.service";
 import { WarehouseActionsService } from "../../service/warehouse/warehouse-actions.service";
@@ -67,6 +67,11 @@ describe("WarehouseCreateModalComponent", () => {
 
   afterEach(() => {
     fixture?.destroy();
+  });
+
+  it("renders nothing while closed", () => {
+    // detectChanges already ran in beforeEach with visible=false.
+    expect(document.querySelector("#confirm-create-warehouse-btn")).toBeNull();
   });
 
   it("renders the name input and a disabled Create button once opened", () => {
@@ -147,6 +152,27 @@ describe("WarehouseCreateModalComponent", () => {
     component.ngOnChanges({ visible: new SimpleChange(false, true, false) });
 
     expect(component.newWarehouseName).toBe("");
+    expect(component.creating).toBe(false);
+  });
+
+  it("cancel abandons an in-flight create instead of letting it land later", () => {
+    // The component outlives the dialog, so without an explicit teardown the
+    // request would still succeed: creating the warehouse the user cancelled and
+    // closing the dialog they had already reopened.
+    const inFlight = new Subject<DashboardWarehouse>();
+    warehouseActions.create.mockReturnValue(inFlight.asObservable());
+    const createdSpy = vi.fn();
+    component.warehouseCreated.subscribe(createdSpy);
+    component.visible = true;
+    component.newWarehouseName = "first";
+    component.createWarehouse();
+
+    component.handleCreateWarehouseModalCancel();
+    inFlight.next(created);
+    inFlight.complete();
+
+    expect(createdSpy).not.toHaveBeenCalled();
+    expect(notificationService.success).not.toHaveBeenCalled();
     expect(component.creating).toBe(false);
   });
 

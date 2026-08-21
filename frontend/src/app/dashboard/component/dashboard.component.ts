@@ -175,8 +175,6 @@ export class DashboardComponent implements OnInit {
     this.loadLogos();
 
     this.loadTabs();
-
-    this.loadWarehouseEnabled();
   }
 
   // The status endpoint needs an authenticated user; logged out (or on any

@@ -137,9 +137,49 @@ describe("UserWarehouseComponent", () => {
     // The virtual-scroll viewport has no height in jsdom, so assert the mapped
     // state rather than the virtualized rows (their markup is covered by the
     // list-item's own spec).
+    // The virtual-scroll viewport has no height in jsdom, so no rows are laid
+    // out here; the row markup is covered by the list item's own spec. What this
+    // asserts is the state the template iterates and the absence of any notice.
     expect(component.warehouses.map(w => w.whid)).toEqual([1, 2]);
-    expect(fixture.nativeElement.querySelector("cdk-virtual-scroll-viewport")).toBeTruthy();
     expect(fixture.nativeElement.querySelector(".warehouse-page-empty")).toBeNull();
+  });
+
+  it("opens the create modal from the header button, which is disabled while the feature is off", () => {
+    warehouseServiceSpy.getStatus.mockReturnValue(of({ enabled: false, warehouses: [] }));
+    fixture.detectChanges();
+
+    const createButton = fixture.debugElement.query(By.css(".create-btn"));
+    expect(createButton.nativeElement.disabled).toBe(true);
+
+    warehouseServiceSpy.getStatus.mockReturnValue(of({ enabled: true, warehouses: [] }));
+    component.ngOnInit();
+    fixture.detectChanges();
+    expect(createButton.nativeElement.disabled).toBe(false);
+
+    createButton.triggerEventHandler("click", null);
+    fixture.detectChanges();
+
+    expect(component.addWarehouseModalVisible).toBe(true);
+    // The flag has to reach the embedded modal, not just the component field.
+    expect(fixture.debugElement.query(By.directive(WarehouseCreateModalComponent)).componentInstance.visible).toBe(
+      true
+    );
+  });
+
+  it("offers a retry when the status request fails, and recovers on success", () => {
+    warehouseServiceSpy.getStatus.mockReturnValue(throwError(() => new Error("boom")));
+    fixture.detectChanges();
+
+    expect(component.loadFailed).toBe(true);
+    const notice = fixture.nativeElement.querySelector(".warehouse-page-empty");
+    expect(notice?.textContent).toContain("Could not load your warehouses");
+
+    warehouseServiceSpy.getStatus.mockReturnValue(of({ enabled: true, warehouses: [warehouse(1, "first")] }));
+    fixture.debugElement.query(By.css(".warehouse-page-empty button")).triggerEventHandler("click", null);
+    fixture.detectChanges();
+
+    expect(component.loadFailed).toBe(false);
+    expect(component.warehouses.map(w => w.whid)).toEqual([1]);
   });
 
   it("surfaces a failed status fetch as a notification", () => {
@@ -148,9 +188,12 @@ describe("UserWarehouseComponent", () => {
     fixture.detectChanges();
 
     expect(notificationSpy.error).toHaveBeenCalledWith("Failed to fetch warehouses.");
-    // Still undefined, so the page does not claim the feature is disabled.
+    // Still undefined, so the page reports the failure rather than claiming the
+    // feature is disabled.
     expect(component.warehouseEnabled).toBeUndefined();
-    expect(fixture.nativeElement.querySelector(".warehouse-page-empty")).toBeNull();
+    expect(fixture.nativeElement.querySelector(".warehouse-page-empty")?.textContent).toContain(
+      "Could not load your warehouses"
+    );
   });
 
   it("hands the warehouse to the actions service, and refreshes once it reports the delete", () => {

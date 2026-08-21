@@ -40,6 +40,18 @@
     class="section-list-container"
     [nzBodyStyle]="{ height: '100%'}">
     <div
+      *ngIf="loadFailed"
+      class="warehouse-page-empty">
+      Could not load your warehouses.
+      <button
+        nz-button
+        nzType="link"
+        (click)="retry()">
+        Retry
+      </button>
+    </div>
+
+    <div
       *ngIf="warehouseEnabled === false"
       class="warehouse-page-empty">
       Per-user warehouses are disabled in this deployment.

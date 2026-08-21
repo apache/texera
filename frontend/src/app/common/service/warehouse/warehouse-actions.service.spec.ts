@@ -110,7 +110,7 @@ describe("WarehouseActionsService", () => {
     // Resolves rather than rejects: the dialog closes and the error rides a toast.
     await modalService.confirm.mock.calls[0][0].nzOnOk();
 
-    expect(notificationService.error).toHaveBeenCalledWith("Lakekeeper unreachable");
+    expect(notificationService.error).toHaveBeenCalledWith("Failed to delete warehouse: Lakekeeper unreachable");
     expect(notificationService.success).not.toHaveBeenCalled();
     expect(onDeleted).not.toHaveBeenCalled();
   });

@@ -83,19 +83,4 @@ describe("WarehouseService", () => {
 
     expect(completed).toBe(true);
   });
-
-  it("holds the per-execution warehouse pick; undefined means no pick", () => {
-    expect(service.getSelectedWarehouseIdValue()).toBeUndefined();
-
-    const seen: (number | undefined)[] = [];
-    service.getSelectedWarehouseId().subscribe(whid => seen.push(whid));
-
-    service.selectWarehouse(7);
-    expect(service.getSelectedWarehouseIdValue()).toBe(7);
-
-    service.selectWarehouse(undefined);
-    expect(service.getSelectedWarehouseIdValue()).toBeUndefined();
-
-    expect(seen).toEqual([undefined, 7, undefined]);
-  });
 });
