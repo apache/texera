@@ -89,7 +89,7 @@
         <sqlFile path="sql/updates/35.sql"/>
     </changeSet>
 
-    <!-- Prefix dataset paths in stored workflow content with "dataset/" -->
+    <!-- Prefix dataset paths in stored workflow content with "datasets/" -->
     <changeSet id="36" author="tanishqgandhi1908">
         <sqlFile path="sql/updates/36.sql"/>
     </changeSet>
