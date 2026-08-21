@@ -19,6 +19,7 @@
 
 package org.apache.texera.web.resource.dashboard
 
+import org.apache.texera.amber.core.storage.ResourceType
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.web.resource.dashboard.DashboardResource.{
   DashboardClickableFileEntry,
@@ -33,9 +34,17 @@ object SearchQueryBuilder {
     SqlServer
       .getInstance()
       .createDSLContext()
+  // Resource-type discriminators for dashboard search. They are inlined into the search SQL,
+  // pattern-matched in DashboardResource, and duplicated as bare literals in the frontend.
+  // DATASET_RESOURCE_TYPE aliases ResourceType.Dataset, whose value doubles as the leading
+  // segment of a storage logical path, so renaming that prefix silently changes search results
+  // with no compile error here.
+  // TODO: give every resource type (file, workflow, dataset, model) a single shared
+  //       constant/enum instead of these raw strings, so the search contract has one source of
+  //       truth and no longer borrows an unrelated storage constant.
   val FILE_RESOURCE_TYPE = "file"
   val WORKFLOW_RESOURCE_TYPE = "workflow"
-  val DATASET_RESOURCE_TYPE = "dataset"
+  val DATASET_RESOURCE_TYPE = ResourceType.Dataset.toString
   val ALL_RESOURCE_TYPE = ""
 }
 

@@ -104,9 +104,14 @@
         <sqlFile path="sql/updates/38.sql"/>
     </changeSet>
 
-    <!-- Remove the deprecated project feature (#5172) -->
-    <changeSet id="39" author="aglinxinyuan">
+    <!-- Singularize the resource-type prefix on stored dataset paths -->
+    <changeSet id="39" author="tanishqgandhi1908">
         <sqlFile path="sql/updates/39.sql"/>
+    </changeSet>
+
+    <!-- Remove the deprecated project feature (#5172) -->
+    <changeSet id="40" author="aglinxinyuan">
+        <sqlFile path="sql/updates/40.sql"/>
     </changeSet>
 
     <!-- example changeSet

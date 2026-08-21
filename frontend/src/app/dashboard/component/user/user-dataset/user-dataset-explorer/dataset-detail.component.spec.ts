@@ -2694,7 +2694,7 @@ describe("DatasetDetailComponent rendered template", () => {
     const leaf = (name: string): DatasetFileNode => ({
       name,
       type: "file",
-      parentDir: `/datasets/${OWNER}/ds/v1/nested`,
+      parentDir: `/dataset/${OWNER}/ds/v1/nested`,
       size: 2048,
     });
 
@@ -2719,7 +2719,7 @@ describe("DatasetDetailComponent rendered template", () => {
       // The heading is the full path — the copy-path button beside it copies
       // exactly this string — not the bare file name or the relative path.
       expect(text(q<HTMLElement>(fixture.nativeElement, ".file-title-main"))).toBe(
-        `/datasets/${OWNER}/ds/v1/nested/b.csv`
+        `/dataset/${OWNER}/ds/v1/nested/b.csv`
       );
       // 2048 bytes reaches the reader as a human-readable size, not as a raw count.
       expect(text(q<HTMLElement>(fixture.nativeElement, ".file-size"))).toBe("2.00 KB");
