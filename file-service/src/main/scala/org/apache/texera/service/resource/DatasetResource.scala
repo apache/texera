@@ -264,16 +264,15 @@ object DatasetResource {
       contributors: Option[List[Contributor]] = None
   )
 
-  case class Diff(
-      path: String,
-      pathType: String,
-      diffType: String, // "added", "removed", "changed", etc.
-      sizeBytes: Option[Long] // Size of the changed file (None for directories)
-  )
-
-  case class ExistingUploadFile(path: String, sizeBytes: Long)
-
-  case class ExistingUploadFilesRequest(files: List[ExistingUploadFile])
+  // Shared with the other versioned resources; aliased so callers keep using
+  // DatasetResource.Diff / .ExistingUploadFile.
+  type Diff = org.apache.texera.service.`type`.Diff
+  val Diff: org.apache.texera.service.`type`.Diff.type = org.apache.texera.service.`type`.Diff
+  type ExistingUploadFile = org.apache.texera.service.`type`.ExistingUploadFile
+  val ExistingUploadFile: org.apache.texera.service.`type`.ExistingUploadFile.type = org.apache.texera.service.`type`.ExistingUploadFile
+  type ExistingUploadFilesRequest = org.apache.texera.service.`type`.ExistingUploadFilesRequest
+  val ExistingUploadFilesRequest: org.apache.texera.service.`type`.ExistingUploadFilesRequest.type =
+    org.apache.texera.service.`type`.ExistingUploadFilesRequest
 
   case class DatasetDescriptionModification(did: Integer, description: String)
 
