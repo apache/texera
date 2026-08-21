@@ -23,28 +23,17 @@ SET search_path TO texera_db;
 
 BEGIN;
 
--- Remove the deprecated "project" feature (user projects: colour-tagged
--- collections of workflows, with sharing and public projects). See issue #5172.
---
--- IRREVERSIBLE, USER-VISIBLE DATA LOSS: every project (name, description,
--- colour), every workflow-to-project assignment, every project access grant and
--- every public-project listing is deleted. Workflows, datasets and their own
--- access grants are untouched -- but a workflow that a user could previously
--- reach ONLY through a project share becomes inaccessible to that user, because
--- workflow access is now decided solely by workflow_user_access. Operators who
--- want to preserve those grants must copy them into workflow_user_access BEFORE
--- applying this migration.
---
--- Dropped in FK-dependency order (children first). The pgroonga index
--- idx_project_pgroonga is dropped implicitly with its table.
-DROP TABLE IF EXISTS public_project;
-DROP TABLE IF EXISTS project_user_access;
-DROP TABLE IF EXISTS workflow_of_project;
-DROP TABLE IF EXISTS project;
+-- Per-user access control for models.
+-- Enables the model management API to grant/list/revoke READ/WRITE access.
 
--- The gui.tabs.projects_enabled key is gone from default.conf, so this seeded
--- row would be orphaned: it is no longer served by /config/settings/public and
--- the admin update endpoint rejects keys with no default.conf entry.
-DELETE FROM site_settings WHERE key = 'projects_enabled';
+CREATE TABLE IF NOT EXISTS model_user_access
+(
+    mid       INT NOT NULL,
+    uid       INT NOT NULL,
+    privilege privilege_enum NOT NULL DEFAULT 'NONE',
+    PRIMARY KEY (mid, uid),
+    FOREIGN KEY (mid) REFERENCES model(mid) ON DELETE CASCADE,
+    FOREIGN KEY (uid) REFERENCES "user"(uid) ON DELETE CASCADE
+);
 
 COMMIT;

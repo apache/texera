@@ -35,7 +35,9 @@ import org.apache.texera.service.`type`.serde.DatasetFileNodeSerializer
 import org.apache.texera.service.resource.{
   DatasetAccessResource,
   DatasetResource,
-  HealthCheckResource
+  HealthCheckResource,
+  ModelAccessResource,
+  ModelResource
 }
 import org.apache.texera.service.util.S3StorageClient
 import org.apache.texera.service.util.LargeBinaryManager
@@ -90,6 +92,8 @@ class FileService extends Application[FileServiceConfiguration] with LazyLogging
 
     environment.jersey.register(classOf[DatasetResource])
     environment.jersey.register(classOf[DatasetAccessResource])
+    environment.jersey.register(classOf[ModelResource])
+    environment.jersey.register(classOf[ModelAccessResource])
 
     RoleAnnotationEnforcer.enforce(environment.jersey.getResourceConfig, "FileService")
 
