@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1787230551743,
+  "lastUpdate": 1787317313087,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -9998,6 +9998,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 555.8135259342527,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Tanishq Gandhi",
+            "username": "tanishqgandhi1908",
+            "email": "56472134+tanishqgandhi1908@users.noreply.github.com"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "bd54a85844c4dc920478bbbb80a8d133785d7293",
+          "message": "refactor(file-service): extract the shared upload helpers (#7763)\n\n### What changes were proposed in this PR?\n\nRefactoring groundwork so model upload can reuse the dataset upload\nhelpers. No new features and no behavior change.\n\n`put` and `validateAndNormalizeFilePathOrThrow` sit on the\n`DatasetResource` companion but hold no dataset state — one PUTs bytes\nto a presigned URL, the other normalizes a relative path. Model upload\n(#6498) needs both, so they move to a new `ResourceUploadUtils` instead\nof being copied.\n\nPure move: the bodies are unchanged, `DatasetResource` imports them\ninstead of defining them, and `DatasetResourcePathSpec` exercises them\nat their new home.\n\n\n### Any related issues, documentation, discussions?\n\nPart of #6494, groundwork for #6498. Based directly on `main` and\nindependent of the other\nopen PRs in the model stack.\n\n### How was this PR tested?\n\n`sbt \"FileService/test\"` against `main` — 231 tests, 10 suites, 0\nfailures, which is\n`main`'s exact baseline: no tests added, none broken. scalafmt and\nscalafix clean.\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Claude Code (Claude Opus 5)\n\n---------\n\nCo-authored-by: Claude Opus 5 <noreply@anthropic.com>\nCo-authored-by: ali <ali.risheh876@gmail.com>",
+          "timestamp": "2026-08-21T05:55:20Z",
+          "url": "https://github.com/apache/texera/commit/bd54a85844c4dc920478bbbb80a8d133785d7293"
+        },
+        "date": 1787317312501,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 642.178633655337,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 1094.4414125672092,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 1172.245172959021,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 844.1874684325329,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 1121.0335032701128,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 1180.5257029901163,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 877.5472648371887,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 1137.196932082876,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 1168.8167407979363,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 709.1066120698871,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 915.7076284400296,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 931.1217975285991,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 731.5372823833637,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 913.2457174104414,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 935.984419484296,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 732.5656644408707,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 900.8957461134166,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 915.2345967512734,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 435.73210390335026,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 520.8708618076397,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 527.5009502944984,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 446.7222566115468,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 509.8639758270389,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 531.1559764576256,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 443.10701670223307,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 499.4822357778635,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 501.2343661764751,
             "unit": "tuples/sec"
           }
         ]
