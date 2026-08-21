@@ -64,7 +64,7 @@ import org.jooq.impl.DSL.{inline => inl}
 import org.jooq.{DSLContext, EnumType, Record2, Result}
 
 import java.io.{InputStream, OutputStream}
-import java.net.{HttpURLConnection, URI, URL, URLDecoder}
+import java.net.{URI, URLDecoder}
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Paths}
 import java.util
@@ -117,27 +117,6 @@ object DatasetResource {
   }
 
   /**
-    * Helper function to PUT exactly len bytes from buf to presigned URL, return the ETag
-    */
-  private def put(buf: Array[Byte], len: Int, url: String, partNum: Int): String = {
-    val conn = new URL(url).openConnection().asInstanceOf[HttpURLConnection]
-    conn.setDoOutput(true)
-    conn.setRequestMethod("PUT")
-    conn.setFixedLengthStreamingMode(len)
-    val out = conn.getOutputStream
-    out.write(buf, 0, len)
-    out.close()
-
-    val code = conn.getResponseCode
-    if (code != HttpURLConnection.HTTP_OK && code != HttpURLConnection.HTTP_CREATED)
-      throw new RuntimeException(s"Part $partNum upload failed (HTTP $code)")
-
-    val etag = conn.getHeaderField("ETag").replace("\"", "")
-    conn.disconnect()
-    etag
-  }
-
-  /**
     * Helper function to get the dataset version from DB using dvid
     */
   private def getDatasetVersionByID(
@@ -166,25 +145,6 @@ object DatasetResource {
       .limit(1)
       .fetchOptionalInto(classOf[DatasetVersion])
       .toScala
-  }
-
-  /**
-    * Validates a file path using Apache Commons IO.
-    */
-  def validateAndNormalizeFilePathOrThrow(path: String): String = {
-    if (path == null || path.trim.isEmpty) {
-      throw new BadRequestException("Path cannot be empty")
-    }
-
-    val normalized = FilenameUtils.normalize(path, true)
-    if (normalized == null) {
-      throw new BadRequestException("Invalid path")
-    }
-
-    if (FilenameUtils.getPrefixLength(normalized) > 0) {
-      throw new BadRequestException("Absolute paths not allowed")
-    }
-    normalized
   }
 
   /**
@@ -751,7 +711,7 @@ class DatasetResource extends LazyLogging {
           if (!presignedUrls.hasNext)
             throw new WebApplicationException("Ran out of presigned part URLs – ask for more parts")
 
-          val etag = put(buf, buffered, presignedUrls.next(), partNumber)
+          val etag = LakeFSStorageClient.put(buf, buffered, presignedUrls.next(), partNumber)
           completedParts += ((partNumber, etag))
           partNumber += 1
           buffered = 0
@@ -928,7 +888,7 @@ class DatasetResource extends LazyLogging {
     if (partNumber < 1)
       throw new BadRequestException("partNumber must be >= 1")
 
-    val filePath = validateAndNormalizeFilePathOrThrow(
+    val filePath = ResourceNaming.validateAndNormalizeFilePathOrThrow(
       URLDecoder.decode(encodedFilePath, StandardCharsets.UTF_8.name())
     )
 
@@ -1214,7 +1174,7 @@ class DatasetResource extends LazyLogging {
         .getOrElse(List.empty)
         .map { file =>
           val originalPath = file.path
-          val path = validateAndNormalizeFilePathOrThrow(originalPath)
+          val path = ResourceNaming.validateAndNormalizeFilePathOrThrow(originalPath)
           if (file.sizeBytes < 0L) throw new BadRequestException("sizeBytes must be >= 0")
           (path, originalPath, file.sizeBytes)
         }
@@ -1772,7 +1732,7 @@ class DatasetResource extends LazyLogging {
       val repositoryName = dataset.getRepositoryName
 
       val filePath =
-        validateAndNormalizeFilePathOrThrow(
+        ResourceNaming.validateAndNormalizeFilePathOrThrow(
           URLDecoder.decode(encodedFilePath, StandardCharsets.UTF_8.name())
         )
 
@@ -2046,7 +2006,7 @@ class DatasetResource extends LazyLogging {
       uid: Int
   ): Response = {
 
-    val filePath = validateAndNormalizeFilePathOrThrow(
+    val filePath = ResourceNaming.validateAndNormalizeFilePathOrThrow(
       URLDecoder.decode(encodedFilePath, StandardCharsets.UTF_8.name())
     )
 
@@ -2225,7 +2185,7 @@ class DatasetResource extends LazyLogging {
       uid: Int
   ): Response = {
 
-    val filePath = validateAndNormalizeFilePathOrThrow(
+    val filePath = ResourceNaming.validateAndNormalizeFilePathOrThrow(
       URLDecoder.decode(encodedFilePath, StandardCharsets.UTF_8.name())
     )
 
@@ -2317,7 +2277,7 @@ class DatasetResource extends LazyLogging {
         throw new BadRequestException("Cover image path is required")
       }
 
-      val normalized = DatasetResource.validateAndNormalizeFilePathOrThrow(request.coverImage)
+      val normalized = ResourceNaming.validateAndNormalizeFilePathOrThrow(request.coverImage)
 
       val extension = FilenameUtils.getExtension(normalized)
       if (extension == null || !ALLOWED_IMAGE_EXTENSIONS.contains(s".$extension".toLowerCase)) {

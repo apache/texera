@@ -22,7 +22,14 @@ package org.apache.texera.service.resource
 import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
 import org.apache.texera.dao.jooq.generated.tables.Dataset.DATASET
 import org.apache.texera.dao.jooq.generated.tables.DatasetUserAccess.DATASET_USER_ACCESS
-import org.apache.texera.dao.jooq.generated.tables.records.{DatasetRecord, DatasetUserAccessRecord}
+import org.apache.texera.dao.jooq.generated.tables.Model.MODEL
+import org.apache.texera.dao.jooq.generated.tables.ModelUserAccess.MODEL_USER_ACCESS
+import org.apache.texera.dao.jooq.generated.tables.records.{
+  DatasetRecord,
+  DatasetUserAccessRecord,
+  ModelRecord,
+  ModelUserAccessRecord
+}
 import org.jooq.{Record, Table, TableField}
 
 /**
@@ -64,6 +71,18 @@ object ResourceTables {
       accessIdField = DATASET_USER_ACCESS.DID,
       accessUidField = DATASET_USER_ACCESS.UID,
       privilegeField = DATASET_USER_ACCESS.PRIVILEGE
+    )
+
+  val Model: ResourceTables[ModelRecord, ModelUserAccessRecord] =
+    ResourceTables(
+      label = "model",
+      idField = MODEL.MID,
+      ownerUidField = MODEL.OWNER_UID,
+      nameField = MODEL.NAME,
+      isPublicField = MODEL.IS_PUBLIC,
+      accessIdField = MODEL_USER_ACCESS.MID,
+      accessUidField = MODEL_USER_ACCESS.UID,
+      privilegeField = MODEL_USER_ACCESS.PRIVILEGE
     )
 
 }
