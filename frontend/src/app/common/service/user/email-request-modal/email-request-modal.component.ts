@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { Component, Inject, TemplateRef, ViewChild } from "@angular/core";
+import { Component, Inject, TemplateRef, ViewChild, ViewEncapsulation } from "@angular/core";
 import { NZ_MODAL_DATA } from "ng-zorro-antd/modal";
 import { NzInputDirective } from "ng-zorro-antd/input";
 import { FormsModule } from "@angular/forms";
@@ -39,6 +39,10 @@ import { FormsModule } from "@angular/forms";
   templateUrl: "./email-request-modal.component.html",
   styleUrls: ["./email-request-modal.component.scss"],
   imports: [NzInputDirective, FormsModule],
+  // The stylesheet dresses the surrounding nz-modal chrome, which is not part of this view;
+  // scoped styles would never reach it. Every rule is nested under `.email-modal`, the
+  // `nzClassName` this dialog is opened with, so nothing else is affected.
+  encapsulation: ViewEncapsulation.None,
 })
 export class EmailRequestModalComponent {
   name = "";
