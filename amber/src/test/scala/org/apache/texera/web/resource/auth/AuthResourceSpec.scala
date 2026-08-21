@@ -19,6 +19,8 @@
 
 package org.apache.texera.web.resource.auth
 
+import com.fasterxml.jackson.databind.ObjectMapper
+import io.dropwizard.jersey.errors.LoggingExceptionMapper
 import org.apache.texera.auth.{JwtAuth, SessionUser}
 import org.apache.texera.common.config.UserSystemConfig
 import org.apache.texera.dao.MockTexeraDB
@@ -462,6 +464,25 @@ class AuthResourceSpec
     // Neither account's credential moved.
     providerIdOf(owner.getUid, ProviderTypeEnum.LOCAL) shouldBe uname("owner")
     providerIdOf(caller.getUid, ProviderTypeEnum.LOCAL) shouldBe uname("intruder")
+  }
+
+  // What the browser shows comes out of Dropwizard's default exception mapper rather than the throw
+  // site: `AuthService.promptForEmail` reads `error.message` off the body and falls back to a
+  // generic line when it is absent. A refusal carrying only a status would leave the user with no
+  // idea which address to try instead, so the text has to survive as far as the wire.
+  it should "hand that refusal to the client as a JSON message, not a bare 409" in {
+    seedUser(uname("owner"), "pw")
+    val caller = seedEmaillessUser("reader")
+
+    val thrown = intercept[WebApplicationException] {
+      resource.setEmail(SetEmailRequest(s"${uname("owner")}@example.com"), new SessionUser(caller))
+    }
+
+    // The same mapper Dropwizard registers for every throwable a resource lets out.
+    val mapped = new LoggingExceptionMapper[Throwable]() {}.toResponse(thrown)
+    mapped.getStatus shouldBe 409
+    val body = new ObjectMapper().writeValueAsString(mapped.getEntity)
+    body should include(""""message":"That email address already belongs to an account.""")
   }
 
   // The placeholder keeps its uid because dataset contributor rows already reference it; the
