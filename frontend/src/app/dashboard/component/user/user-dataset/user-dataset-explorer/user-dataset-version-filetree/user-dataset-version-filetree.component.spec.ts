@@ -183,7 +183,7 @@ describe("UserDatasetVersionFiletreeComponent", () => {
     const file = (name: string): DatasetFileNode => ({
       name,
       type: "file",
-      parentDir: "/datasets/owner/dataset/v1",
+      parentDir: "/dataset/owner/dataset/v1",
     });
 
     // Deliberately synchronous: the tree keeps a pending timer, so awaiting whenStable()
@@ -262,9 +262,9 @@ describe("UserDatasetVersionFiletreeComponent", () => {
     const emitted: string[] = [];
     component.setCoverImage.subscribe((path: string) => emitted.push(path));
 
-    // parentDir has exactly the four stripped segments (datasets/owner/dataset/version),
+    // parentDir has exactly the four stripped segments (dataset/owner/dataset/version),
     // so the relative path is just the file name.
-    component.onSetCover({ name: "photo.png", type: "file", parentDir: "/datasets/owner/dataset/v1" });
+    component.onSetCover({ name: "photo.png", type: "file", parentDir: "/dataset/owner/dataset/v1" });
 
     expect(emitted).toEqual(["photo.png"]);
   });

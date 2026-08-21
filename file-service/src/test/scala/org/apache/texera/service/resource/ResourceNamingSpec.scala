@@ -20,33 +20,31 @@
 package org.apache.texera.service.resource
 
 import jakarta.ws.rs.BadRequestException
-import org.apache.texera.service.util.ResourceUploadUtils
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-// Focused unit tests for the shared ResourceUploadUtils helper
-// validateAndNormalizeFilePathOrThrow, which guards every upload/lookup path.
-// These call the pure helper directly and avoid the heavy
+// Focused unit tests for ResourceNaming.validateAndNormalizeFilePathOrThrow, which guards
+// every upload/lookup path. These call the pure helper directly and avoid the heavy
 // DatasetResourceSpec integration harness (DB + LakeFS).
-class DatasetResourcePathSpec extends AnyFlatSpec with Matchers {
+class ResourceNamingSpec extends AnyFlatSpec with Matchers {
 
   "validateAndNormalizeFilePathOrThrow" should "reject a null path" in {
     val ex = intercept[BadRequestException] {
-      ResourceUploadUtils.validateAndNormalizeFilePathOrThrow(null)
+      ResourceNaming.validateAndNormalizeFilePathOrThrow(null)
     }
     ex.getMessage shouldBe "Path cannot be empty"
   }
 
   it should "reject an empty path" in {
     val ex = intercept[BadRequestException] {
-      ResourceUploadUtils.validateAndNormalizeFilePathOrThrow("")
+      ResourceNaming.validateAndNormalizeFilePathOrThrow("")
     }
     ex.getMessage shouldBe "Path cannot be empty"
   }
 
   it should "reject a whitespace-only path" in {
     val ex = intercept[BadRequestException] {
-      ResourceUploadUtils.validateAndNormalizeFilePathOrThrow("   ")
+      ResourceNaming.validateAndNormalizeFilePathOrThrow("   ")
     }
     ex.getMessage shouldBe "Path cannot be empty"
   }
@@ -55,26 +53,26 @@ class DatasetResourcePathSpec extends AnyFlatSpec with Matchers {
     // FilenameUtils.normalize returns null when the path traverses above the
     // root, e.g. a leading "../".
     val ex = intercept[BadRequestException] {
-      ResourceUploadUtils.validateAndNormalizeFilePathOrThrow("../secret.txt")
+      ResourceNaming.validateAndNormalizeFilePathOrThrow("../secret.txt")
     }
     ex.getMessage shouldBe "Invalid path"
   }
 
   it should "reject an absolute path" in {
     val ex = intercept[BadRequestException] {
-      ResourceUploadUtils.validateAndNormalizeFilePathOrThrow("/etc/passwd")
+      ResourceNaming.validateAndNormalizeFilePathOrThrow("/etc/passwd")
     }
     ex.getMessage shouldBe "Absolute paths not allowed"
   }
 
   it should "return a normalized relative path unchanged when already clean" in {
-    ResourceUploadUtils.validateAndNormalizeFilePathOrThrow(
+    ResourceNaming.validateAndNormalizeFilePathOrThrow(
       "california/irvine/tw1.csv"
     ) shouldBe "california/irvine/tw1.csv"
   }
 
   it should "collapse interior '.' and '..' segments in a relative path" in {
-    ResourceUploadUtils.validateAndNormalizeFilePathOrThrow(
+    ResourceNaming.validateAndNormalizeFilePathOrThrow(
       "a/./b/../c.csv"
     ) shouldBe "a/c.csv"
   }

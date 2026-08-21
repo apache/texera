@@ -23,52 +23,232 @@ SET search_path TO texera_db;
 
 BEGIN;
 
--- Session-based multipart upload for model files. Tracks in-progress multipart
--- uploads so a model version can be assembled from parts and resumed across requests.
+-- The resource-type prefix on dataset logical paths is singular, matching the table
+-- it names: /dataset/ownerEmail/datasetName/versionName/... This supersedes 36.sql,
+-- which introduced the prefix in its plural form; that changeSet is left as it
+-- shipped, so databases that already recorded it are brought forward here instead.
+--
+-- Stored workflows carry such paths inside workflow.content and
+-- workflow_version.content, in two operator properties:
+--   * fileName            (scan-source operators): /owner/name/version/file
+--   * datasetVersionPath  (file-lister operator):  /owner/name/version
+--
+-- Both are normalized to that form: a "/datasets/" prefix has its leading segment
+-- rewritten, and a path with no prefix gets "dataset" prepended. The prefixed case
+-- is tested first, since such a path looks unprefixed to the other branch and must
+-- not be prefixed twice.
+--
+-- Either case applies only when the path's owner and name segments match an
+-- existing (user.email, dataset.name) pair -- unique, and read at parts 1 and 2
+-- unprefixed, 2 and 3 prefixed. That guard is what keeps the migration off the
+-- plain filesystem paths and URLs this column also holds: "/datasets" is an
+-- ordinary directory name, and FileResolver tries localResolveFunc first, so a
+-- fileName of /datasets/imdb/movies.csv can be a working local mount. It matches
+-- no dataset, so it is left alone.
+--
+-- Values already in the target form match neither case, making this idempotent.
+-- jsonb_set uses create_missing = false so absent properties are never added.
 
-CREATE TABLE IF NOT EXISTS model_upload_session
-(
-    mid                 INT          NOT NULL,
-    uid                 INT          NOT NULL,
-    file_path           TEXT         NOT NULL,
-    upload_id           VARCHAR(256) NOT NULL UNIQUE,
-    physical_address    TEXT,
-    num_parts_requested INT          NOT NULL,
-    file_size_bytes     BIGINT       NOT NULL,
-    part_size_bytes     BIGINT       NOT NULL,
-    created_at          TIMESTAMPTZ  NOT NULL DEFAULT now(),
+DO $$
+DECLARE
+    wf_count INT := 0;
+    wv_count INT := 0;
+BEGIN
+    WITH affected AS (
+        SELECT w.wid
+        FROM workflow w,
+             jsonb_array_elements(
+                 CASE
+                     WHEN jsonb_typeof(w.content::jsonb -> 'operators') = 'array'
+                         THEN w.content::jsonb -> 'operators'
+                     ELSE '[]'::jsonb
+                 END
+             ) AS op,
+             LATERAL (
+                 SELECT op #>> '{operatorProperties,fileName}'           AS fn,
+                        op #>> '{operatorProperties,datasetVersionPath}' AS dvp
+             ) f
+        WHERE jsonb_typeof(w.content::jsonb -> 'operators') = 'array'
+          AND (
+              (f.fn ~ '^/datasets/'
+                 AND EXISTS (SELECT 1 FROM dataset d JOIN "user" u ON d.owner_uid = u.uid
+                             WHERE u.email = split_part(ltrim(f.fn, '/'), '/', 2)
+                               AND d.name  = split_part(ltrim(f.fn, '/'), '/', 3)))
+              OR
+              (f.dvp ~ '^/datasets/'
+                 AND EXISTS (SELECT 1 FROM dataset d JOIN "user" u ON d.owner_uid = u.uid
+                             WHERE u.email = split_part(ltrim(f.dvp, '/'), '/', 2)
+                               AND d.name  = split_part(ltrim(f.dvp, '/'), '/', 3)))
+              OR
+              (f.fn IS NOT NULL AND left(f.fn, 9) <> '/dataset/'
+                 AND EXISTS (SELECT 1 FROM dataset d JOIN "user" u ON d.owner_uid = u.uid
+                             WHERE u.email = split_part(ltrim(f.fn, '/'), '/', 1)
+                               AND d.name  = split_part(ltrim(f.fn, '/'), '/', 2)))
+              OR
+              (f.dvp IS NOT NULL AND left(f.dvp, 9) <> '/dataset/'
+                 AND EXISTS (SELECT 1 FROM dataset d JOIN "user" u ON d.owner_uid = u.uid
+                             WHERE u.email = split_part(ltrim(f.dvp, '/'), '/', 1)
+                               AND d.name  = split_part(ltrim(f.dvp, '/'), '/', 2)))
+          )
+        GROUP BY w.wid
+    ),
+    updated AS (
+        UPDATE workflow w
+        SET content = jsonb_set(w.content::jsonb, '{operators}', (
+            SELECT jsonb_agg(
+                jsonb_set(
+                    jsonb_set(
+                        op,
+                        '{operatorProperties,fileName}',
+                        CASE
+                            WHEN f.fn ~ '^/datasets/'
+                             AND EXISTS (SELECT 1 FROM dataset d JOIN "user" u ON d.owner_uid = u.uid
+                                         WHERE u.email = split_part(ltrim(f.fn, '/'), '/', 2)
+                                           AND d.name  = split_part(ltrim(f.fn, '/'), '/', 3))
+                            THEN to_jsonb(regexp_replace(f.fn, '^/datasets/', '/dataset/'))
+                            WHEN f.fn IS NOT NULL AND left(f.fn, 9) <> '/dataset/'
+                             AND EXISTS (SELECT 1 FROM dataset d JOIN "user" u ON d.owner_uid = u.uid
+                                         WHERE u.email = split_part(ltrim(f.fn, '/'), '/', 1)
+                                           AND d.name  = split_part(ltrim(f.fn, '/'), '/', 2))
+                            THEN to_jsonb('/dataset/' || ltrim(f.fn, '/'))
+                            ELSE COALESCE(op #> '{operatorProperties,fileName}', 'null'::jsonb)
+                        END,
+                        false
+                    ),
+                    '{operatorProperties,datasetVersionPath}',
+                    CASE
+                        WHEN f.dvp ~ '^/datasets/'
+                         AND EXISTS (SELECT 1 FROM dataset d JOIN "user" u ON d.owner_uid = u.uid
+                                     WHERE u.email = split_part(ltrim(f.dvp, '/'), '/', 2)
+                                       AND d.name  = split_part(ltrim(f.dvp, '/'), '/', 3))
+                        THEN to_jsonb(regexp_replace(f.dvp, '^/datasets/', '/dataset/'))
+                        WHEN f.dvp IS NOT NULL AND left(f.dvp, 9) <> '/dataset/'
+                         AND EXISTS (SELECT 1 FROM dataset d JOIN "user" u ON d.owner_uid = u.uid
+                                     WHERE u.email = split_part(ltrim(f.dvp, '/'), '/', 1)
+                                       AND d.name  = split_part(ltrim(f.dvp, '/'), '/', 2))
+                        THEN to_jsonb('/dataset/' || ltrim(f.dvp, '/'))
+                        ELSE COALESCE(op #> '{operatorProperties,datasetVersionPath}', 'null'::jsonb)
+                    END,
+                    false
+                )
+                ORDER BY ord
+            )
+            FROM jsonb_array_elements(
+                     CASE
+                         WHEN jsonb_typeof(w.content::jsonb -> 'operators') = 'array'
+                             THEN w.content::jsonb -> 'operators'
+                         ELSE '[]'::jsonb
+                     END
+                 ) WITH ORDINALITY AS t(op, ord),
+                 LATERAL (
+                     SELECT op #>> '{operatorProperties,fileName}'           AS fn,
+                            op #>> '{operatorProperties,datasetVersionPath}' AS dvp
+                 ) f
+        ))::text
+        FROM affected a
+        WHERE w.wid = a.wid
+        RETURNING 1
+    )
+    SELECT count(*) INTO wf_count FROM updated;
 
-    PRIMARY KEY (uid, mid, file_path),
+    WITH affected AS (
+        SELECT wv.vid
+        FROM workflow_version wv,
+             jsonb_array_elements(
+                 CASE
+                     WHEN jsonb_typeof(wv.content::jsonb -> 'operators') = 'array'
+                         THEN wv.content::jsonb -> 'operators'
+                     ELSE '[]'::jsonb
+                 END
+             ) AS op,
+             LATERAL (
+                 SELECT op #>> '{operatorProperties,fileName}'           AS fn,
+                        op #>> '{operatorProperties,datasetVersionPath}' AS dvp
+             ) f
+        WHERE jsonb_typeof(wv.content::jsonb -> 'operators') = 'array'
+          AND (
+              (f.fn ~ '^/datasets/'
+                 AND EXISTS (SELECT 1 FROM dataset d JOIN "user" u ON d.owner_uid = u.uid
+                             WHERE u.email = split_part(ltrim(f.fn, '/'), '/', 2)
+                               AND d.name  = split_part(ltrim(f.fn, '/'), '/', 3)))
+              OR
+              (f.dvp ~ '^/datasets/'
+                 AND EXISTS (SELECT 1 FROM dataset d JOIN "user" u ON d.owner_uid = u.uid
+                             WHERE u.email = split_part(ltrim(f.dvp, '/'), '/', 2)
+                               AND d.name  = split_part(ltrim(f.dvp, '/'), '/', 3)))
+              OR
+              (f.fn IS NOT NULL AND left(f.fn, 9) <> '/dataset/'
+                 AND EXISTS (SELECT 1 FROM dataset d JOIN "user" u ON d.owner_uid = u.uid
+                             WHERE u.email = split_part(ltrim(f.fn, '/'), '/', 1)
+                               AND d.name  = split_part(ltrim(f.fn, '/'), '/', 2)))
+              OR
+              (f.dvp IS NOT NULL AND left(f.dvp, 9) <> '/dataset/'
+                 AND EXISTS (SELECT 1 FROM dataset d JOIN "user" u ON d.owner_uid = u.uid
+                             WHERE u.email = split_part(ltrim(f.dvp, '/'), '/', 1)
+                               AND d.name  = split_part(ltrim(f.dvp, '/'), '/', 2)))
+          )
+        GROUP BY wv.vid
+    ),
+    updated AS (
+        UPDATE workflow_version wv
+        SET content = jsonb_set(wv.content::jsonb, '{operators}', (
+            SELECT jsonb_agg(
+                jsonb_set(
+                    jsonb_set(
+                        op,
+                        '{operatorProperties,fileName}',
+                        CASE
+                            WHEN f.fn ~ '^/datasets/'
+                             AND EXISTS (SELECT 1 FROM dataset d JOIN "user" u ON d.owner_uid = u.uid
+                                         WHERE u.email = split_part(ltrim(f.fn, '/'), '/', 2)
+                                           AND d.name  = split_part(ltrim(f.fn, '/'), '/', 3))
+                            THEN to_jsonb(regexp_replace(f.fn, '^/datasets/', '/dataset/'))
+                            WHEN f.fn IS NOT NULL AND left(f.fn, 9) <> '/dataset/'
+                             AND EXISTS (SELECT 1 FROM dataset d JOIN "user" u ON d.owner_uid = u.uid
+                                         WHERE u.email = split_part(ltrim(f.fn, '/'), '/', 1)
+                                           AND d.name  = split_part(ltrim(f.fn, '/'), '/', 2))
+                            THEN to_jsonb('/dataset/' || ltrim(f.fn, '/'))
+                            ELSE COALESCE(op #> '{operatorProperties,fileName}', 'null'::jsonb)
+                        END,
+                        false
+                    ),
+                    '{operatorProperties,datasetVersionPath}',
+                    CASE
+                        WHEN f.dvp ~ '^/datasets/'
+                         AND EXISTS (SELECT 1 FROM dataset d JOIN "user" u ON d.owner_uid = u.uid
+                                     WHERE u.email = split_part(ltrim(f.dvp, '/'), '/', 2)
+                                       AND d.name  = split_part(ltrim(f.dvp, '/'), '/', 3))
+                        THEN to_jsonb(regexp_replace(f.dvp, '^/datasets/', '/dataset/'))
+                        WHEN f.dvp IS NOT NULL AND left(f.dvp, 9) <> '/dataset/'
+                         AND EXISTS (SELECT 1 FROM dataset d JOIN "user" u ON d.owner_uid = u.uid
+                                     WHERE u.email = split_part(ltrim(f.dvp, '/'), '/', 1)
+                                       AND d.name  = split_part(ltrim(f.dvp, '/'), '/', 2))
+                        THEN to_jsonb('/dataset/' || ltrim(f.dvp, '/'))
+                        ELSE COALESCE(op #> '{operatorProperties,datasetVersionPath}', 'null'::jsonb)
+                    END,
+                    false
+                )
+                ORDER BY ord
+            )
+            FROM jsonb_array_elements(
+                     CASE
+                         WHEN jsonb_typeof(wv.content::jsonb -> 'operators') = 'array'
+                             THEN wv.content::jsonb -> 'operators'
+                         ELSE '[]'::jsonb
+                     END
+                 ) WITH ORDINALITY AS t(op, ord),
+                 LATERAL (
+                     SELECT op #>> '{operatorProperties,fileName}'           AS fn,
+                            op #>> '{operatorProperties,datasetVersionPath}' AS dvp
+                 ) f
+        ))::text
+        FROM affected a
+        WHERE wv.vid = a.vid
+        RETURNING 1
+    )
+    SELECT count(*) INTO wv_count FROM updated;
 
-    FOREIGN KEY (mid) REFERENCES model(mid) ON DELETE CASCADE,
-    FOREIGN KEY (uid) REFERENCES "user"(uid) ON DELETE CASCADE,
-
-    CONSTRAINT chk_model_upload_session_num_parts_requested_positive
-        CHECK (num_parts_requested >= 1),
-
-    CONSTRAINT chk_model_upload_session_file_size_bytes_positive
-        CHECK (file_size_bytes > 0),
-
-    CONSTRAINT chk_model_upload_session_part_size_bytes_positive
-        CHECK (part_size_bytes > 0),
-
-    CONSTRAINT chk_model_upload_session_part_size_bytes_s3_upper_bound
-        CHECK (part_size_bytes <= 5368709120)
-);
-
-CREATE TABLE IF NOT EXISTS model_upload_session_part
-(
-    upload_id   VARCHAR(256) NOT NULL,
-    part_number INT          NOT NULL,
-    etag        TEXT         NOT NULL DEFAULT '',
-
-    PRIMARY KEY (upload_id, part_number),
-
-    CONSTRAINT chk_model_part_number_positive CHECK (part_number > 0),
-
-    FOREIGN KEY (upload_id)
-        REFERENCES model_upload_session(upload_id)
-        ON DELETE CASCADE
-);
+    RAISE NOTICE 'Normalized the resource-type path prefix in % workflow and % workflow_version row(s).', wf_count, wv_count;
+END $$;
 
 COMMIT;

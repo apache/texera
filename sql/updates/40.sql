@@ -17,14 +17,23 @@
  * under the License.
  */
 
-package org.apache.texera.amber.engine.architecture.deploysemantics.deploystrategy
+\c texera_db
 
-import org.apache.pekko.actor.Address
+SET search_path TO texera_db;
 
-trait DeployStrategy extends Serializable {
+BEGIN;
 
-  def initialize(available: Array[Address]): Unit
+-- Per-user access control for models.
+-- Enables the model management API to grant/list/revoke READ/WRITE access.
 
-  def next(): Address
+CREATE TABLE IF NOT EXISTS model_user_access
+(
+    mid       INT NOT NULL,
+    uid       INT NOT NULL,
+    privilege privilege_enum NOT NULL DEFAULT 'NONE',
+    PRIMARY KEY (mid, uid),
+    FOREIGN KEY (mid) REFERENCES model(mid) ON DELETE CASCADE,
+    FOREIGN KEY (uid) REFERENCES "user"(uid) ON DELETE CASCADE
+);
 
-}
+COMMIT;

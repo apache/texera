@@ -29,7 +29,7 @@ import org.apache.texera.dao.SqlServer.withTransaction
 import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
 import org.apache.texera.dao.jooq.generated.tables.pojos.User
 import org.apache.texera.service.resource.ModelAccessResource.context
-import org.apache.texera.service.resource.ManagedResource.{Model => MODEL_RESOURCE}
+import org.apache.texera.service.resource.ResourceTables.{Model => MODEL_RESOURCE}
 import org.jooq.DSLContext
 
 object ModelAccessResource {

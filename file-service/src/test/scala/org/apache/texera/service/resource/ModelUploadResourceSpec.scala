@@ -142,13 +142,13 @@ class ModelUploadResourceSpec
     roots.fileNodes.map(_.getName) should contain("model.pt")
     roots.size should be > 0L
 
-    // The serialized path must carry the "models" resource-type prefix: FileResolver
-    // keys on that first segment to pick the backing table, so a "/datasets/..." path
+    // The serialized path must carry the "model" resource-type prefix: FileResolver
+    // keys on that first segment to pick the backing table, so a "/dataset/..." path
     // here would resolve a model against the dataset table.
     roots.fileNodes
       .find(_.getName == "model.pt")
       .get
-      .getFilePath shouldBe s"/models/${ownerUser.getEmail}/${model.model.getName}/${version.modelVersion.getName}/model.pt"
+      .getFilePath shouldBe s"/model/${ownerUser.getEmail}/${model.model.getName}/${version.modelVersion.getName}/model.pt"
   }
 
   it should "accept a .pth extension as well" in {

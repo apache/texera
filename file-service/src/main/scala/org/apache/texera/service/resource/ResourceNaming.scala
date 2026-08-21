@@ -20,18 +20,14 @@
 package org.apache.texera.service.resource
 
 import jakarta.ws.rs.BadRequestException
+import org.apache.commons.io.FilenameUtils
 import org.apache.texera.dao.SqlStates
 import org.jooq.{DSLContext, Record}
 import org.jooq.exception.DataAccessException
 
 /**
-  * Naming rules shared by every user-owned resource: what a name may contain, and that a name
-  * is unique among one owner's resources of that type.
-  *
-  * Uniqueness is enforced twice on purpose. The pre-check turns the common case into a clear
-  * 400 naming the conflict, while [[failOnDuplicateName]] catches the request that loses a
-  * concurrent race against the database's unique constraint and reports it the same way
-  * instead of surfacing a 500.
+  * Naming rules shared by every user-owned resource: what a name may contain, that a name is
+  * unique among one owner's resources of that type, and what a file path inside one may look like.
   */
 object ResourceNaming {
 
@@ -59,13 +55,38 @@ object ResourceNaming {
   }
 
   /**
+    * Validates a file path supplied for a resource's contents.
+    *
+    * The counterpart to [[validateName]]: the same "reject bad user input with a 400" contract,
+    * applied to a path rather than a name. Rejects empty paths, paths that traverse above the
+    * root, and absolute paths, and returns the normalized form.
+    *
+    * @throws jakarta.ws.rs.BadRequestException if the path is invalid.
+    */
+  def validateAndNormalizeFilePathOrThrow(path: String): String = {
+    if (path == null || path.trim.isEmpty) {
+      throw new BadRequestException("Path cannot be empty")
+    }
+
+    val normalized = FilenameUtils.normalize(path, true)
+    if (normalized == null) {
+      throw new BadRequestException("Invalid path")
+    }
+
+    if (FilenameUtils.getPrefixLength(normalized) > 0) {
+      throw new BadRequestException("Absolute paths not allowed")
+    }
+    normalized
+  }
+
+  /**
     * Rejects a name the owner already uses for another resource of the same type.
     *
     * @param excludingId the resource being renamed, so it does not conflict with itself
     */
   def requireNameAvailable[R <: Record, A <: Record](
       ctx: DSLContext,
-      resource: ManagedResource[R, A],
+      resource: ResourceTables[R, A],
       ownerUid: Integer,
       name: String,
       excludingId: Option[Integer] = None

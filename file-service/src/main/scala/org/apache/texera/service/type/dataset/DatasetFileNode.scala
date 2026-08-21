@@ -27,8 +27,8 @@ import scala.collection.mutable
 // DatasetFileNode represents a unique file in a versioned resource (dataset or model).
 // Its full path is in the format of:
 // /<resourceType>/ownerEmail/resourceName/versionName/fileRelativePath
-// e.g. /datasets/bob@texera.com/twitterDataset/v1/california/irvine/tw1.csv
-//      /models/bob@texera.com/sentimentModel/v1/model.pt
+// e.g. /dataset/bob@texera.com/twitterDataset/v1/california/irvine/tw1.csv
+//      /model/bob@texera.com/sentimentModel/v1/model.pt
 class DatasetFileNode(
     val name: String, // direct name of this node
     val nodeType: String, // "file" or "directory"
@@ -73,12 +73,12 @@ object DatasetFileNode {
   /**
     * Converts a map of LakeFS committed objects into a structured file node tree.
     *
-    * The tree is rooted at the resource-type segment (`datasets` or `models`), which
+    * The tree is rooted at the resource-type segment (`dataset` or `model`), which
     * [[DatasetFileNode.getFilePath]] emits as the first path component. That prefix is
     * what `FileResolver` keys on to pick the backing table, so it must match the
     * resource the objects actually came from.
     *
-    * @param resourceType The resource type the objects belong to (datasets or models).
+    * @param resourceType The resource type the objects belong to (dataset or model).
     * @param map A mapping from `(ownerEmail, resourceName, versionName)` to a list of committed objects.
     * @return A list of root-level file nodes.
     */
@@ -88,7 +88,7 @@ object DatasetFileNode {
   ): List[DatasetFileNode] = {
     val rootNode = new DatasetFileNode("/", "directory", null, "")
 
-    // Root the tree at the resource-type prefix node (a directory node named e.g. "datasets").
+    // Root the tree at the resource-type prefix node (a directory node named e.g. "dataset").
     val resourceTypeNode =
       new DatasetFileNode(resourceType.toString, "directory", rootNode, "")
     rootNode.children = Some(List(resourceTypeNode))
@@ -128,23 +128,27 @@ object DatasetFileNode {
           var currentPath = ""
           var parentNode: DatasetFileNode = versionNode
 
-          pathParts.foreach { part =>
-            currentPath = if (currentPath.isEmpty) part else s"$currentPath/$part"
+          pathParts.zipWithIndex.foreach {
+            case (part, idx) =>
+              currentPath = if (currentPath.isEmpty) part else s"$currentPath/$part"
 
-            val isFile = pathParts.last == part
-            val nodeType = if (isFile) "file" else "directory"
-            val fileSize = if (isFile) Some(obj.getSizeBytes.longValue()) else None
+              // Positional, not by value: a path that repeats its final segment (e.g.
+              // "model/model") would otherwise treat the intermediate directory as the leaf,
+              // giving it the object's size and nesting the real file underneath it.
+              val isFile = idx == pathParts.length - 1
+              val nodeType = if (isFile) "file" else "directory"
+              val fileSize = if (isFile) Some(obj.getSizeBytes.longValue()) else None
 
-            val existingNode = directoryMap.get(currentPath)
+              val existingNode = directoryMap.get(currentPath)
 
-            val node = existingNode.getOrElse {
-              val newNode = new DatasetFileNode(part, nodeType, parentNode, ownerEmail, fileSize)
-              parentNode.children = Some(parentNode.getChildren :+ newNode)
-              if (!isFile) directoryMap(currentPath) = newNode
-              newNode
-            }
+              val node = existingNode.getOrElse {
+                val newNode = new DatasetFileNode(part, nodeType, parentNode, ownerEmail, fileSize)
+                parentNode.children = Some(parentNode.getChildren :+ newNode)
+                if (!isFile) directoryMap(currentPath) = newNode
+                newNode
+              }
 
-            parentNode = node // Move parent reference deeper for next iteration
+              parentNode = node // Move parent reference deeper for next iteration
           }
         }
     }

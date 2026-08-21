@@ -35,7 +35,7 @@ class LakeFSFileDocumentSpec extends AnyFlatSpec with Matchers {
   private val versionHash = "97fd4c2a755b69b7c66d322eab40b7e5c2ad5d10"
 
   // URI parsing is shared by every resource type; exercise it through the dataset type.
-  private def datasetDoc(uri: URI) = new LakeFSFileDocument(uri, ResourceType.Datasets)
+  private def datasetDoc(uri: URI) = new LakeFSFileDocument(uri, ResourceType.Dataset)
 
   "LakeFSFileDocument" should "parse a valid 3-segment dataset URI into its components" in {
     val uri = new URI(s"dataset:///test_dataset/$versionHash/1.txt")
@@ -160,7 +160,7 @@ class LakeFSFileDocumentSpec extends AnyFlatSpec with Matchers {
           "http://localhost:9092/api/dataset/presign-download"
         )
         .trim
-    LakeFSFileDocument.presignEndpointOf(ResourceType.Datasets) shouldBe expected
+    LakeFSFileDocument.presignEndpointOf(ResourceType.Dataset) shouldBe expected
   }
 
   // Each resource type resolves its own endpoint: a dataset grant must not authorize a model
@@ -173,9 +173,9 @@ class LakeFSFileDocumentSpec extends AnyFlatSpec with Matchers {
           "http://localhost:9092/api/model/presign-download"
         )
         .trim
-    LakeFSFileDocument.presignEndpointOf(ResourceType.Models) shouldBe expected
-    LakeFSFileDocument.presignEndpointOf(ResourceType.Models) should not be
-      LakeFSFileDocument.presignEndpointOf(ResourceType.Datasets)
+    LakeFSFileDocument.presignEndpointOf(ResourceType.Model) shouldBe expected
+    LakeFSFileDocument.presignEndpointOf(ResourceType.Model) should not be
+      LakeFSFileDocument.presignEndpointOf(ResourceType.Dataset)
   }
 
   // The user JWT token is shared by every LakeFS-backed document, whatever its resource type.

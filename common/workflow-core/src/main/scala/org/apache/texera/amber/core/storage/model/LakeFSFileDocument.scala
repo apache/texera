@@ -56,13 +56,12 @@ object LakeFSFileDocument {
 
   /**
     * The file-service presign-download endpoint serving this resource type. Each resource type
-    * owns an endpoint because they enforce different access control (a dataset grant does not
-    * grant a model).
+    * owns an endpoint because they enforce different access control
     */
   def presignEndpointOf(resourceType: ResourceType.Value): String =
     resourceType match {
-      case ResourceType.Datasets => datasetPresignEndpoint
-      case ResourceType.Models   => modelPresignEndpoint
+      case ResourceType.Dataset => datasetPresignEndpoint
+      case ResourceType.Model   => modelPresignEndpoint
     }
 }
 

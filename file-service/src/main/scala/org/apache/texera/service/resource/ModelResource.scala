@@ -41,7 +41,7 @@ import org.apache.texera.dao.jooq.generated.tables.daos.{
 }
 import org.apache.texera.dao.jooq.generated.tables.pojos.{Model, ModelUserAccess, ModelVersion}
 import org.apache.texera.service.`type`.DatasetFileNode
-import org.apache.texera.service.resource.ManagedResource.{Model => MODEL_RESOURCE}
+import org.apache.texera.service.resource.ResourceTables.{Model => MODEL_RESOURCE}
 import org.apache.texera.service.resource.ModelAccessResource._
 import org.apache.texera.service.resource.ModelResource.{context, _}
 import org.apache.texera.service.util.S3StorageClient
@@ -549,7 +549,7 @@ class ModelResource extends LazyLogging {
         insertedVersion,
         DatasetFileNode
           .fromLakeFSRepositoryCommittedObjects(
-            ResourceType.Models,
+            ResourceType.Model,
             Map((user.getEmail, modelName, newVersionName) -> fileNodes)
           )
       )
@@ -622,7 +622,7 @@ class ModelResource extends LazyLogging {
       @Auth user: SessionUser
   ): Response = {
     ResourceUploadService.uploadOneFile(
-      ResourceStorage.Models,
+      ResourceStorage.Model,
       mid,
       encodedFilePath,
       fileStream,
@@ -641,7 +641,7 @@ class ModelResource extends LazyLogging {
       @Auth user: SessionUser
   ): Response = {
     ResourceUploadService.deleteStagedFile(
-      ResourceStorage.Models,
+      ResourceStorage.Model,
       mid,
       encodedFilePath,
       user.getUid
@@ -691,7 +691,7 @@ class ModelResource extends LazyLogging {
   ): Response = {
     val model = getModelBy(modelOwnerEmail, modelName)
     ResourceUploadService.uploadPart(
-      ResourceStorage.Models,
+      ResourceStorage.Model,
       model.getMid,
       user.getUid,
       encodedFilePath,
@@ -727,7 +727,7 @@ class ModelResource extends LazyLogging {
     val model = getModelByID(ctx, mid)
     ResourceUploadService
       .versionRootFileNodes(
-        ResourceType.Models,
+        ResourceType.Model,
         getOwner(ctx, mid).getEmail,
         model.getName,
         modelVersion.getName,
@@ -746,7 +746,7 @@ class ModelResource extends LazyLogging {
     val model = getDashboardModel(ctx, mid, uid)
     val modelVersion = getModelVersionByID(ctx, mvid)
     val (nodes, size) = ResourceUploadService.versionRootFileNodes(
-      ResourceType.Models,
+      ResourceType.Model,
       model.ownerEmail,
       model.model.getName,
       modelVersion.getName,
@@ -772,7 +772,7 @@ class ModelResource extends LazyLogging {
   }
 
   private def listMultipartUploads(mid: Integer, requesterUid: Int): Response =
-    ResourceUploadService.listUploads(ResourceStorage.Models, mid, requesterUid)
+    ResourceUploadService.listUploads(ResourceStorage.Model, mid, requesterUid)
 
   private def initMultipartUpload(
       mid: Integer,
@@ -783,7 +783,7 @@ class ModelResource extends LazyLogging {
       uid: Integer
   ): Response =
     ResourceUploadService.initUpload(
-      ResourceStorage.Models,
+      ResourceStorage.Model,
       mid,
       encodedFilePath,
       fileSizeBytes,
@@ -793,8 +793,8 @@ class ModelResource extends LazyLogging {
     )
 
   private def finishMultipartUpload(mid: Integer, encodedFilePath: String, uid: Int): Response =
-    ResourceUploadService.finishUpload(ResourceStorage.Models, mid, encodedFilePath, uid)
+    ResourceUploadService.finishUpload(ResourceStorage.Model, mid, encodedFilePath, uid)
 
   private def abortMultipartUpload(mid: Integer, encodedFilePath: String, uid: Int): Response =
-    ResourceUploadService.abortUpload(ResourceStorage.Models, mid, encodedFilePath, uid)
+    ResourceUploadService.abortUpload(ResourceStorage.Model, mid, encodedFilePath, uid)
 }

@@ -260,16 +260,16 @@ CREATE TABLE IF NOT EXISTS workflow_computing_unit
 -- Base columns only; the assume-role (BYO-S3) columns come in a later change.
 CREATE TABLE IF NOT EXISTS user_warehouse
 (
-    whid                    SERIAL PRIMARY KEY,
-    uid                     INT          NOT NULL,
-    name                    VARCHAR(128) NOT NULL,
-    warehouse_name          VARCHAR(255) NOT NULL UNIQUE,
-    lakekeeper_warehouse_id UUID         NOT NULL,
-    flavor                  user_warehouse_flavor_enum NOT NULL,
-    s3_bucket               VARCHAR(255),
-    s3_endpoint             VARCHAR(255),
-    s3_region               VARCHAR(64),
-    created_at              TIMESTAMPTZ  NOT NULL DEFAULT now(),
+    whid                      SERIAL PRIMARY KEY,
+    uid                       INT          NOT NULL,
+    name                      VARCHAR(128) NOT NULL,
+    lakekeeper_warehouse_name VARCHAR(255) NOT NULL UNIQUE,
+    lakekeeper_warehouse_id   UUID         NOT NULL,
+    flavor                    user_warehouse_flavor_enum NOT NULL,
+    s3_bucket                 VARCHAR(255),
+    s3_endpoint               VARCHAR(255),
+    s3_region                 VARCHAR(64),
+    created_at                TIMESTAMPTZ  NOT NULL DEFAULT now(),
     UNIQUE (uid, name),
     FOREIGN KEY (uid) REFERENCES "user" (uid) ON DELETE CASCADE
 );

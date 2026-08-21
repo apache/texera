@@ -51,9 +51,8 @@ import org.apache.texera.dao.jooq.generated.tables.pojos.{
 }
 import org.apache.texera.service.`type`.DatasetFileNode
 import org.apache.texera.service.resource.DatasetAccessResource._
-import org.apache.texera.service.resource.ManagedResource.{Dataset => DATASET_RESOURCE}
+import org.apache.texera.service.resource.ResourceTables.{Dataset => DATASET_RESOURCE}
 import org.apache.texera.service.resource.DatasetResource.{context, _}
-import org.apache.texera.service.util.ResourceUploadUtils.validateAndNormalizeFilePathOrThrow
 import org.apache.texera.service.util.S3StorageClient
 import org.jooq.impl.DSL
 import org.jooq.{DSLContext, EnumType}
@@ -298,7 +297,7 @@ class DatasetResource extends LazyLogging {
   private val COVER_IMAGE_SIZE_LIMIT_BYTES: Long = 10 * 1024 * 1024 // 10 MB
   private val ALLOWED_IMAGE_EXTENSIONS: Set[String] = Set(".jpg", ".jpeg", ".png", ".gif", ".webp")
 
-  private val resourceType = ResourceType.Datasets
+  private val resourceType = ResourceType.Dataset
 
   /**
     * Helper function to get the dataset from DB with additional information including user access privilege and owner email
@@ -504,7 +503,7 @@ class DatasetResource extends LazyLogging {
         insertedVersion,
         DatasetFileNode
           .fromLakeFSRepositoryCommittedObjects(
-            ResourceType.Datasets,
+            resourceType,
             Map((user.getEmail, datasetName, newVersionName) -> fileNodes)
           )
       )
@@ -638,7 +637,7 @@ class DatasetResource extends LazyLogging {
       @Auth user: SessionUser
   ): Response = {
     ResourceUploadService.uploadOneFile(
-      ResourceStorage.Datasets,
+      ResourceStorage.Dataset,
       did,
       encodedFilePath,
       fileStream,
@@ -705,7 +704,7 @@ class DatasetResource extends LazyLogging {
       @Auth user: SessionUser
   ): Response = {
     ResourceUploadService.deleteStagedFile(
-      ResourceStorage.Datasets,
+      ResourceStorage.Dataset,
       did,
       encodedFilePath,
       user.getUid
@@ -755,7 +754,7 @@ class DatasetResource extends LazyLogging {
   ): Response = {
     val dataset = getDatasetBy(datasetOwnerEmail, datasetName)
     ResourceUploadService.uploadPart(
-      ResourceStorage.Datasets,
+      ResourceStorage.Dataset,
       dataset.getDid,
       user.getUid,
       encodedFilePath,
@@ -865,7 +864,7 @@ class DatasetResource extends LazyLogging {
         .getOrElse(List.empty)
         .map { file =>
           val originalPath = file.path
-          val path = validateAndNormalizeFilePathOrThrow(originalPath)
+          val path = ResourceNaming.validateAndNormalizeFilePathOrThrow(originalPath)
           if (file.sizeBytes < 0L) throw new BadRequestException("sizeBytes must be >= 0")
           (path, originalPath, file.sizeBytes)
         }
@@ -1033,7 +1032,7 @@ class DatasetResource extends LazyLogging {
 
       val datasetsNode = DatasetFileNode
         .fromLakeFSRepositoryCommittedObjects(
-          ResourceType.Datasets,
+          resourceType,
           Map(
             (
               getOwner(ctx, did).getEmail,
@@ -1240,15 +1239,37 @@ class DatasetResource extends LazyLogging {
   ): DatasetVersionRootFileNodesResponse = {
     val dataset = getDashboardDataset(ctx, did, uid)
     val datasetVersion = getDatasetVersionByID(ctx, dvid)
-    val (nodes, size) = ResourceUploadService.versionRootFileNodes(
-      ResourceType.Datasets,
-      dataset.ownerEmail,
-      dataset.dataset.getName,
-      datasetVersion.getName,
-      dataset.dataset.getRepositoryName,
-      datasetVersion.getVersionHash
+    val datasetName = dataset.dataset.getName
+    val repositoryName = dataset.dataset.getRepositoryName
+
+    val datasetsNode = DatasetFileNode
+      .fromLakeFSRepositoryCommittedObjects(
+        resourceType,
+        Map(
+          (dataset.ownerEmail, datasetName, datasetVersion.getName) -> LakeFSStorageClient
+            .retrieveObjectsOfVersion(repositoryName, datasetVersion.getVersionHash)
+        )
+      )
+      .head
+
+    val ownerFileNode = datasetsNode.getChildren.headOption.getOrElse(
+      throw new IllegalStateException(
+        s"Dataset file tree for $datasetName is missing its owner node"
+      )
     )
-    DatasetVersionRootFileNodesResponse(nodes, size)
+
+    DatasetVersionRootFileNodesResponse(
+      ownerFileNode.children.get
+        .find(_.getName == datasetName)
+        .head
+        .children
+        .get
+        .find(_.getName == datasetVersion.getName)
+        .head
+        .children
+        .get,
+      DatasetFileNode.calculateTotalSize(List(datasetsNode))
+    )
   }
 
   private def generatePresignedResponse(
@@ -1358,7 +1379,7 @@ class DatasetResource extends LazyLogging {
   }
 
   private def listMultipartUploads(did: Integer, requesterUid: Int): Response =
-    ResourceUploadService.listUploads(ResourceStorage.Datasets, did, requesterUid)
+    ResourceUploadService.listUploads(ResourceStorage.Dataset, did, requesterUid)
 
   private def initMultipartUpload(
       did: Integer,
@@ -1369,7 +1390,7 @@ class DatasetResource extends LazyLogging {
       uid: Integer
   ): Response =
     ResourceUploadService.initUpload(
-      ResourceStorage.Datasets,
+      ResourceStorage.Dataset,
       did,
       encodedFilePath,
       fileSizeBytes,
@@ -1379,10 +1400,10 @@ class DatasetResource extends LazyLogging {
     )
 
   private def finishMultipartUpload(did: Integer, encodedFilePath: String, uid: Int): Response =
-    ResourceUploadService.finishUpload(ResourceStorage.Datasets, did, encodedFilePath, uid)
+    ResourceUploadService.finishUpload(ResourceStorage.Dataset, did, encodedFilePath, uid)
 
   private def abortMultipartUpload(did: Integer, encodedFilePath: String, uid: Int): Response =
-    ResourceUploadService.abortUpload(ResourceStorage.Datasets, did, encodedFilePath, uid)
+    ResourceUploadService.abortUpload(ResourceStorage.Dataset, did, encodedFilePath, uid)
 
   /**
     * Updates the cover image for a dataset.
@@ -1414,7 +1435,7 @@ class DatasetResource extends LazyLogging {
         throw new BadRequestException("Cover image path is required")
       }
 
-      val normalized = validateAndNormalizeFilePathOrThrow(request.coverImage)
+      val normalized = ResourceNaming.validateAndNormalizeFilePathOrThrow(request.coverImage)
 
       val extension = FilenameUtils.getExtension(normalized)
       if (extension == null || !ALLOWED_IMAGE_EXTENSIONS.contains(s".$extension".toLowerCase)) {
