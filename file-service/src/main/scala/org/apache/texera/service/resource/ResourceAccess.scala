@@ -42,7 +42,7 @@ object ResourceAccess {
 
   def isPublic[R <: Record, A <: Record](
       ctx: DSLContext,
-      resource: ManagedResource[R, A],
+      resource: ResourceTables[R, A],
       id: Integer
   ): Boolean =
     Option(
@@ -56,7 +56,7 @@ object ResourceAccess {
 
   def userOwns[R <: Record, A <: Record](
       ctx: DSLContext,
-      resource: ManagedResource[R, A],
+      resource: ResourceTables[R, A],
       id: Integer,
       uid: Integer
   ): Boolean =
@@ -71,7 +71,7 @@ object ResourceAccess {
 
   def privilegeOf[R <: Record, A <: Record](
       ctx: DSLContext,
-      resource: ManagedResource[R, A],
+      resource: ResourceTables[R, A],
       id: Integer,
       uid: Integer
   ): PrivilegeEnum =
@@ -89,7 +89,7 @@ object ResourceAccess {
 
   def userHasWriteAccess[R <: Record, A <: Record](
       ctx: DSLContext,
-      resource: ManagedResource[R, A],
+      resource: ResourceTables[R, A],
       id: Integer,
       uid: Integer
   ): Boolean =
@@ -98,7 +98,7 @@ object ResourceAccess {
 
   def userHasReadAccess[R <: Record, A <: Record](
       ctx: DSLContext,
-      resource: ManagedResource[R, A],
+      resource: ResourceTables[R, A],
       id: Integer,
       uid: Integer
   ): Boolean =
@@ -109,7 +109,7 @@ object ResourceAccess {
   /** The owning user, or null when the resource does not exist. */
   def owner[R <: Record, A <: Record](
       ctx: DSLContext,
-      resource: ManagedResource[R, A],
+      resource: ResourceTables[R, A],
       id: Integer
   ): User = {
     val userDao = new UserDao(ctx.configuration())
@@ -131,7 +131,7 @@ object ResourceAccess {
     */
   def ownerEmail[R <: Record, A <: Record](
       ctx: DSLContext,
-      resource: ManagedResource[R, A],
+      resource: ResourceTables[R, A],
       id: Integer,
       requesterUid: Integer
   ): String = {
@@ -148,7 +148,7 @@ object ResourceAccess {
     */
   def accessList[R <: Record, A <: Record](
       ctx: DSLContext,
-      resource: ManagedResource[R, A],
+      resource: ResourceTables[R, A],
       id: Integer,
       requesterUid: Integer
   ): java.util.List[AccessEntry] = {
@@ -184,7 +184,7 @@ object ResourceAccess {
     */
   def listVisible[R <: Record, A <: Record, P, D](
       ctx: DSLContext,
-      resource: ManagedResource[R, A],
+      resource: ResourceTables[R, A],
       uid: Integer,
       pojoClass: Class[P],
       idOf: P => Integer
@@ -241,7 +241,7 @@ object ResourceAccess {
     */
   def grant[R <: Record, A <: Record](
       ctx: DSLContext,
-      resource: ManagedResource[R, A],
+      resource: ResourceTables[R, A],
       id: Integer,
       email: String,
       privilege: String,
@@ -275,7 +275,7 @@ object ResourceAccess {
     */
   def revoke[R <: Record, A <: Record](
       ctx: DSLContext,
-      resource: ManagedResource[R, A],
+      resource: ResourceTables[R, A],
       id: Integer,
       email: String,
       requesterUid: Integer
@@ -297,7 +297,7 @@ object ResourceAccess {
 
   private def requireWriteAccess[R <: Record, A <: Record](
       ctx: DSLContext,
-      resource: ManagedResource[R, A],
+      resource: ResourceTables[R, A],
       id: Integer,
       uid: Integer
   ): Unit =
@@ -309,7 +309,7 @@ object ResourceAccess {
 
   private def requireReadAccess[R <: Record, A <: Record](
       ctx: DSLContext,
-      resource: ManagedResource[R, A],
+      resource: ResourceTables[R, A],
       id: Integer,
       uid: Integer
   ): Unit =

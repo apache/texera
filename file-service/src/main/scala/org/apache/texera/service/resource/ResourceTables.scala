@@ -26,14 +26,19 @@ import org.apache.texera.dao.jooq.generated.tables.records.{DatasetRecord, Datas
 import org.jooq.{Record, Table, TableField}
 
 /**
-  * Describes one user-owned, name-scoped, shareable resource by the columns that carry its
-  * identity, ownership, and per-user grants.
+  * The tables and columns that define one resource type, so the rules in [[ResourceAccess]] and
+  * [[ResourceNaming]] can be written once and told which columns to read.
+  *
+  * A resource fits only if its own table carries the owner, the name and the `is_public` flag, and
+  * it has a companion `*_user_access` table — today that is `dataset` and `model`. This is not a
+  * model of every shareable resource: `workflow` keeps ownership in `workflow_of_user`, and
+  * neither `project` nor `workflow_computing_unit` has `is_public`.
   *
   * @param label how the resource is named in user-facing messages ("dataset", "model")
   * @tparam R record type of the resource table
   * @tparam A record type of the companion user-access table
   */
-case class ManagedResource[R <: Record, A <: Record](
+case class ResourceTables[R <: Record, A <: Record](
     label: String,
     idField: TableField[R, Integer],
     ownerUidField: TableField[R, Integer],
@@ -47,10 +52,10 @@ case class ManagedResource[R <: Record, A <: Record](
   def accessTable: Table[A] = accessIdField.getTable
 }
 
-object ManagedResource {
+object ResourceTables {
 
-  val Dataset: ManagedResource[DatasetRecord, DatasetUserAccessRecord] =
-    ManagedResource(
+  val Dataset: ResourceTables[DatasetRecord, DatasetUserAccessRecord] =
+    ResourceTables(
       label = "dataset",
       idField = DATASET.DID,
       ownerUidField = DATASET.OWNER_UID,

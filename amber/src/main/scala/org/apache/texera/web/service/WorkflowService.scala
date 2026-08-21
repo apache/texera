@@ -71,12 +71,12 @@ object WorkflowService {
   private val workflowServiceMapping = new ConcurrentHashMap[String, WorkflowService]()
 
   /**
-    * Maps an execution's chosen warehouse (`whid`) to its Lakekeeper warehouse name,
-    * checking that the requesting user owns it. `None` (no explicit pick) keeps the
+    * Maps an execution's chosen warehouse (its user_warehouse row id) to its Lakekeeper
+    * warehouse name, checking that the requesting user owns it. `None` (no explicit pick) keeps the
     * shared default warehouse. With warehouses disabled, an explicit pick is refused
     * loudly rather than silently routed into the shared warehouse (#6930).
     */
-  def resolveWarehouseName(
+  def resolveLakekeeperWarehouseName(
       warehouseId: Option[Int],
       uid: Integer,
       enabled: Boolean = StorageConfig.warehouseEnabled
@@ -89,17 +89,17 @@ object WorkflowService {
       )
       return None
     }
-    warehouseId.map(whid => {
+    warehouseId.map(id => {
       val row = SqlServer
         .getInstance()
         .createDSLContext()
         .selectFrom(USER_WAREHOUSE)
-        .where(USER_WAREHOUSE.WHID.eq(whid).and(USER_WAREHOUSE.UID.eq(uid)))
+        .where(USER_WAREHOUSE.WHID.eq(id).and(USER_WAREHOUSE.UID.eq(uid)))
         .fetchOne()
       if (row == null) {
-        throw new IllegalArgumentException(s"no warehouse with id $whid owned by this user")
+        throw new IllegalArgumentException(s"no warehouse with id $id owned by this user")
       }
-      row.getWarehouseName
+      row.getLakekeeperWarehouseName
     })
   }
   val cleanUpDeadlineInSeconds: Int = ApplicationConfig.executionStateCleanUpInSecs
@@ -233,7 +233,7 @@ class WorkflowService(
     )
 
     val workflowContext: WorkflowContext = createWorkflowContext()
-    workflowContext.warehouse = WorkflowService.resolveWarehouseName(req.warehouseId, uid)
+    workflowContext.warehouse = WorkflowService.resolveLakekeeperWarehouseName(req.warehouseId, uid)
     var coordinatorConf = CoordinatorConfig.default
 
     // clean up results from previous run

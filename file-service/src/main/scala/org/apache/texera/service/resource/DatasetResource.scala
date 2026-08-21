@@ -51,7 +51,7 @@ import org.apache.texera.dao.jooq.generated.tables.pojos.{
 }
 import org.apache.texera.service.`type`.DatasetFileNode
 import org.apache.texera.service.resource.DatasetAccessResource._
-import org.apache.texera.service.resource.ManagedResource.{Dataset => DATASET_RESOURCE}
+import org.apache.texera.service.resource.ResourceTables.{Dataset => DATASET_RESOURCE}
 import org.apache.texera.service.resource.DatasetResource.{context, _}
 import org.apache.texera.service.util.ResourceUploadUtils.validateAndNormalizeFilePathOrThrow
 import org.apache.texera.service.util.S3StorageClient
@@ -298,7 +298,7 @@ class DatasetResource extends LazyLogging {
   private val COVER_IMAGE_SIZE_LIMIT_BYTES: Long = 10 * 1024 * 1024 // 10 MB
   private val ALLOWED_IMAGE_EXTENSIONS: Set[String] = Set(".jpg", ".jpeg", ".png", ".gif", ".webp")
 
-  private val resourceType = ResourceType.Datasets
+  private val resourceType = ResourceType.Dataset
 
   /**
     * Helper function to get the dataset from DB with additional information including user access privilege and owner email
