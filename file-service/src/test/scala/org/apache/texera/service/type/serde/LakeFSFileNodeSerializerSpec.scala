@@ -22,35 +22,35 @@ package org.apache.texera.service.`type`.serde
 import com.fasterxml.jackson.databind.module.SimpleModule
 import com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
-import org.apache.texera.service.`type`.DatasetFileNode
+import org.apache.texera.service.`type`.LakeFSFileNode
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-class DatasetFileNodeSerializerSpec extends AnyFlatSpec with Matchers {
+class LakeFSFileNodeSerializerSpec extends AnyFlatSpec with Matchers {
 
   private val mapper: ObjectMapper = {
     val m = new ObjectMapper()
     // DefaultScalaModule lets Jackson unwrap scala.Option for the "size" field.
     m.registerModule(DefaultScalaModule)
     val module = new SimpleModule()
-    module.addSerializer(classOf[DatasetFileNode], new DatasetFileNodeSerializer())
+    module.addSerializer(classOf[LakeFSFileNode], new LakeFSFileNodeSerializer())
     m.registerModule(module)
     m
   }
 
-  private def asJson(node: DatasetFileNode): JsonNode =
+  private def asJson(node: LakeFSFileNode): JsonNode =
     mapper.readTree(mapper.writeValueAsString(node))
 
   // The serializer dereferences value.getParent().getFilePath(), so every node it
   // sees needs a non-null parent. Tests build a tree rooted at "/" and serialize
   // its descendants.
-  private def rootDir: DatasetFileNode =
-    new DatasetFileNode("/", "directory", null, "")
+  private def rootDir: LakeFSFileNode =
+    new LakeFSFileNode("/", "directory", null, "")
 
-  "DatasetFileNodeSerializer" should "serialize a file node with size and no children field" in {
+  "LakeFSFileNodeSerializer" should "serialize a file node with size and no children field" in {
     val root = rootDir
-    val owner = new DatasetFileNode("alice@example.com", "directory", root, "alice@example.com")
-    val file = new DatasetFileNode("data.csv", "file", owner, "alice@example.com", Some(100L))
+    val owner = new LakeFSFileNode("alice@example.com", "directory", root, "alice@example.com")
+    val file = new LakeFSFileNode("data.csv", "file", owner, "alice@example.com", Some(100L))
 
     val json = asJson(file)
 
@@ -64,10 +64,10 @@ class DatasetFileNodeSerializerSpec extends AnyFlatSpec with Matchers {
 
   it should "recursively serialize a directory and its children" in {
     val root = rootDir
-    val owner = new DatasetFileNode("alice@example.com", "directory", root, "alice@example.com")
-    val file = new DatasetFileNode("data.csv", "file", owner, "alice@example.com", Some(100L))
-    val subdir = new DatasetFileNode("subdir", "directory", owner, "alice@example.com")
-    val nested = new DatasetFileNode("nested.txt", "file", subdir, "alice@example.com", Some(200L))
+    val owner = new LakeFSFileNode("alice@example.com", "directory", root, "alice@example.com")
+    val file = new LakeFSFileNode("data.csv", "file", owner, "alice@example.com", Some(100L))
+    val subdir = new LakeFSFileNode("subdir", "directory", owner, "alice@example.com")
+    val nested = new LakeFSFileNode("nested.txt", "file", subdir, "alice@example.com", Some(200L))
     subdir.children = Some(List(nested))
     owner.children = Some(List(file, subdir))
 
@@ -88,7 +88,7 @@ class DatasetFileNodeSerializerSpec extends AnyFlatSpec with Matchers {
 
   it should "emit an empty children array for a directory with no children" in {
     val root = rootDir
-    val empty = new DatasetFileNode("empty", "directory", root, "alice@example.com")
+    val empty = new LakeFSFileNode("empty", "directory", root, "alice@example.com")
 
     val json = asJson(empty)
 
