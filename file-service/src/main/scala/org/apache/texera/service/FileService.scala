@@ -30,8 +30,8 @@ import org.apache.texera.common.util.RetryUtil
 import org.apache.texera.amber.core.storage.util.LakeFSStorageClient
 import org.apache.texera.auth.{AuthFeatures, RequestLoggingFilter, RoleAnnotationEnforcer}
 import org.apache.texera.dao.SqlServer
-import org.apache.texera.service.`type`.DatasetFileNode
-import org.apache.texera.service.`type`.serde.DatasetFileNodeSerializer
+import org.apache.texera.service.`type`.LakeFSFileNode
+import org.apache.texera.service.`type`.serde.LakeFSFileNodeSerializer
 import org.apache.texera.service.resource.{
   DatasetAccessResource,
   DatasetResource,
@@ -55,9 +55,9 @@ class FileService extends Application[FileServiceConfiguration] with LazyLogging
     // Register Scala module to Dropwizard default object mapper
     bootstrap.getObjectMapper.registerModule(DefaultScalaModule)
 
-    // register a new custom module just for DatasetFileNode serde/deserde
+    // register a new custom module just for LakeFSFileNode serde/deserde
     val customSerializerModule = new SimpleModule("CustomSerializers")
-    customSerializerModule.addSerializer(classOf[DatasetFileNode], new DatasetFileNodeSerializer())
+    customSerializerModule.addSerializer(classOf[LakeFSFileNode], new LakeFSFileNodeSerializer())
     bootstrap.getObjectMapper.registerModule(customSerializerModule)
   }
 
