@@ -96,7 +96,7 @@ case class ResourceStorage[R <: Record, A <: Record, S <: Record, P <: Record](
 
 object ResourceStorage {
 
-  val Datasets: ResourceStorage[
+  val Dataset: ResourceStorage[
     DatasetRecord,
     DatasetUserAccessRecord,
     DatasetUploadSessionRecord,

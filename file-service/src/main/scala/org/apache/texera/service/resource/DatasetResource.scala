@@ -637,7 +637,7 @@ class DatasetResource extends LazyLogging {
       @Auth user: SessionUser
   ): Response = {
     ResourceUploadService.uploadOneFile(
-      ResourceStorage.Datasets,
+      ResourceStorage.Dataset,
       did,
       encodedFilePath,
       fileStream,
@@ -704,7 +704,7 @@ class DatasetResource extends LazyLogging {
       @Auth user: SessionUser
   ): Response = {
     ResourceUploadService.deleteStagedFile(
-      ResourceStorage.Datasets,
+      ResourceStorage.Dataset,
       did,
       encodedFilePath,
       user.getUid
@@ -754,7 +754,7 @@ class DatasetResource extends LazyLogging {
   ): Response = {
     val dataset = getDatasetBy(datasetOwnerEmail, datasetName)
     ResourceUploadService.uploadPart(
-      ResourceStorage.Datasets,
+      ResourceStorage.Dataset,
       dataset.getDid,
       user.getUid,
       encodedFilePath,
@@ -1379,7 +1379,7 @@ class DatasetResource extends LazyLogging {
   }
 
   private def listMultipartUploads(did: Integer, requesterUid: Int): Response =
-    ResourceUploadService.listUploads(ResourceStorage.Datasets, did, requesterUid)
+    ResourceUploadService.listUploads(ResourceStorage.Dataset, did, requesterUid)
 
   private def initMultipartUpload(
       did: Integer,
@@ -1390,7 +1390,7 @@ class DatasetResource extends LazyLogging {
       uid: Integer
   ): Response =
     ResourceUploadService.initUpload(
-      ResourceStorage.Datasets,
+      ResourceStorage.Dataset,
       did,
       encodedFilePath,
       fileSizeBytes,
@@ -1400,10 +1400,10 @@ class DatasetResource extends LazyLogging {
     )
 
   private def finishMultipartUpload(did: Integer, encodedFilePath: String, uid: Int): Response =
-    ResourceUploadService.finishUpload(ResourceStorage.Datasets, did, encodedFilePath, uid)
+    ResourceUploadService.finishUpload(ResourceStorage.Dataset, did, encodedFilePath, uid)
 
   private def abortMultipartUpload(did: Integer, encodedFilePath: String, uid: Int): Response =
-    ResourceUploadService.abortUpload(ResourceStorage.Datasets, did, encodedFilePath, uid)
+    ResourceUploadService.abortUpload(ResourceStorage.Dataset, did, encodedFilePath, uid)
 
   /**
     * Updates the cover image for a dataset.
