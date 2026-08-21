@@ -32,10 +32,8 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 
 import java.io.ByteArrayInputStream
-import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
-import java.util.{Collections, Date, Locale, Optional}
-import scala.util.Random
+import java.util.Optional
 
 class ModelUploadResourceSpec
     extends AnyFlatSpec
@@ -43,7 +41,8 @@ class ModelUploadResourceSpec
     with MockTexeraDB
     with MockLakeFS
     with BeforeAndAfterAll
-    with BeforeAndAfterEach {
+    with BeforeAndAfterEach
+    with ResourceTestHelpers {
 
   private val ownerUser: User = {
     val user = new User
@@ -68,30 +67,6 @@ class ModelUploadResourceSpec
   }
 
   // ---------- helpers ----------
-  private def urlEnc(raw: String): String =
-    URLEncoder.encode(raw, StandardCharsets.UTF_8.name())
-
-  private def uniqueName(prefix: String): String =
-    s"$prefix-${System.nanoTime()}-${Random.alphanumeric.take(6).mkString.toLowerCase}"
-
-  /** Minimal HttpHeaders exposing only Content-Length, which the upload paths read. */
-  private def mkHeaders(contentLength: Long): HttpHeaders =
-    new HttpHeaders {
-      private val headers = new MultivaluedHashMap[String, String]()
-      headers.putSingle(HttpHeaders.CONTENT_LENGTH, contentLength.toString)
-      override def getHeaderString(name: String): String = headers.getFirst(name)
-      override def getRequestHeaders: MultivaluedMap[String, String] = headers
-      override def getRequestHeader(name: String): java.util.List[String] =
-        Option(headers.get(name)).getOrElse(Collections.emptyList[String]())
-      override def getAcceptableMediaTypes: java.util.List[MediaType] = Collections.emptyList()
-      override def getAcceptableLanguages: java.util.List[Locale] = Collections.emptyList()
-      override def getMediaType: MediaType = null
-      override def getLanguage: Locale = null
-      override def getCookies: java.util.Map[String, Cookie] = Collections.emptyMap()
-      override def getDate: Date = null
-      override def getLength: Int = contentLength.toInt
-    }
-
   /** Creates a fresh model (provisions its LakeFS repo) and returns it. */
   private def newModel(): ModelResource.DashboardModel =
     modelResource.createModel(

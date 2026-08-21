@@ -44,6 +44,7 @@ import org.apache.texera.service.`type`.DatasetFileNode
 import org.apache.texera.service.resource.ResourceTables.{Model => MODEL_RESOURCE}
 import org.apache.texera.service.resource.ModelAccessResource._
 import org.apache.texera.service.resource.ModelResource.{context, _}
+import org.apache.texera.service.util.PresignedDownloadUtils
 import org.apache.texera.service.util.S3StorageClient
 import org.apache.texera.service.util.LakeFSExceptionHandler.withLakeFSErrorHandling
 import org.jooq.{DSLContext, EnumType}
@@ -56,7 +57,24 @@ import scala.jdk.OptionConverters._
 object ModelResource {
 
   // MVP supports a single framework; stored on the model so later frameworks can be added.
-  private val DEFAULT_FRAMEWORK = "pytorch"
+  // Callers may omit the framework; it is a display label, not a validation gate for files.
+  val DEFAULT_FRAMEWORK = "pytorch"
+
+  // Recognised values for the `framework` and `format` labels. They are metadata, not file
+  // checks -- a loader dispatches on them, so an unknown value is rejected at creation
+  // rather than surfacing later as an unloadable model.
+  val SUPPORTED_FRAMEWORKS: Set[String] = Set("pytorch", "tensorflow", "onnx", "sklearn")
+
+  val SUPPORTED_FORMATS: Set[String] =
+    Set("torchscript", "state-dict", "safetensors", "onnx", "savedmodel", "joblib", "pickle")
+
+  private def validateLabel(field: String, value: String, allowed: Set[String]): Unit = {
+    if (!allowed.contains(value)) {
+      throw new BadRequestException(
+        s"Unsupported $field '$value'. Supported values: ${allowed.toList.sorted.mkString(", ")}."
+      )
+    }
+  }
 
   private def context =
     SqlServer
@@ -203,8 +221,14 @@ class ModelResource extends LazyLogging {
       model.setIsPublic(isModelPublic)
       model.setIsDownloadable(isModelDownloadable)
       model.setOwnerUid(uid)
-      model.setFramework(Option(request.framework).filter(_.nonEmpty).getOrElse(DEFAULT_FRAMEWORK))
-      model.setFormat(request.format)
+      val framework =
+        Option(request.framework).map(_.trim).filter(_.nonEmpty).getOrElse(DEFAULT_FRAMEWORK)
+      validateLabel("framework", framework, SUPPORTED_FRAMEWORKS)
+      val format = Option(request.format).map(_.trim).filter(_.nonEmpty)
+      format.foreach(validateLabel("format", _, SUPPORTED_FORMATS))
+
+      model.setFramework(framework)
+      model.setFormat(format.orNull)
 
       // insert record and get created model with mid
       val createdModel = ResourceNaming.failOnDuplicateName(MODEL_RESOURCE.label) {
@@ -460,6 +484,168 @@ class ModelResource extends LazyLogging {
   ): DashboardModel = {
     withTransaction(context)(ctx => getDashboardModel(ctx, mid, None))
   }
+
+  @GET
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @Path("/{mid}/versionZip")
+  def getModelVersionZip(
+      @PathParam("mid") mid: Integer,
+      @QueryParam("mvid") mvid: Integer,
+      @QueryParam("latest") latest: java.lang.Boolean,
+      @Auth user: SessionUser
+  ): Response =
+    withTransaction(context) { ctx =>
+      if ((mvid != null && latest != null) || (mvid == null && latest == null)) {
+        throw new BadRequestException("Specify exactly one: mvid=<ID> OR latest=true")
+      }
+
+      val uid = user.getUid
+      if (!userHasReadAccess(ctx, mid, uid)) {
+        throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_MODEL_MESSAGE)
+      }
+
+      val model = getModelByID(ctx, mid)
+      // Non-owners may download only while the owner leaves the model downloadable.
+      if (!userOwnModel(ctx, mid, uid) && !model.getIsDownloadable) {
+        throw new ForbiddenException("Model download is not allowed")
+      }
+
+      val modelVersion =
+        if (mvid != null) getModelVersionByID(ctx, mvid)
+        else
+          getLatestModelVersion(ctx, mid).getOrElse(
+            throw new NotFoundException(ERR_MODEL_VERSION_NOT_FOUND_MESSAGE)
+          )
+
+      ResourceUploadService.versionZipResponse(
+        model.getRepositoryName,
+        modelVersion.getVersionHash,
+        model.getName,
+        modelVersion.getName
+      )
+    }
+
+  /** Owner facet for the model list page. */
+  @GET
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @Path("/user-model-owners")
+  def retrieveOwners(@Auth user: SessionUser): java.util.List[String] =
+    withTransaction(context)(ctx =>
+      ResourceAccess.ownerEmailsVisibleTo(ctx, MODEL_RESOURCE, user.getUid)
+    )
+
+  // ===========================================================================
+  // Staged changes
+  // ===========================================================================
+
+  @GET
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @Path("/{mid}/diff")
+  def getModelDiff(
+      @PathParam("mid") mid: Integer,
+      @Auth user: SessionUser
+  ): List[org.apache.texera.service.`type`.Diff] =
+    ResourceUploadService.stagedChanges(ResourceStorage.Model, mid, user.getUid)
+
+  @PUT
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @Path("/{mid}/diff")
+  def resetModelFileDiff(
+      @PathParam("mid") mid: Integer,
+      @QueryParam("filePath") encodedFilePath: String,
+      @Auth user: SessionUser
+  ): Response =
+    ResourceUploadService.resetStagedChange(
+      ResourceStorage.Model,
+      mid,
+      encodedFilePath,
+      user.getUid
+    )
+
+  @POST
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @Path("/{mid}/existing-upload-files")
+  @Consumes(Array(MediaType.APPLICATION_JSON))
+  def findExistingUploadFiles(
+      @PathParam("mid") mid: Integer,
+      request: org.apache.texera.service.`type`.ExistingUploadFilesRequest,
+      @Auth user: SessionUser
+  ): Response =
+    ResourceUploadService.matchExistingUploads(
+      ResourceStorage.Model,
+      mid,
+      user.getUid,
+      request,
+      ctx => getLatestModelVersion(ctx, mid).map(_.getVersionHash)
+    )
+
+  // ===========================================================================
+  // Presigned downloads
+  // ===========================================================================
+
+  /**
+    * Resolves a presign request against the model tables and wraps the signed URL.
+    * The resolution itself is shared with datasets; only the descriptor differs.
+    */
+  private def generatePresignedResponse(
+      encodedUrl: String,
+      repositoryName: String,
+      commitHash: String,
+      uid: Integer
+  ): Response =
+    ResourceUploadService.resolveVersionedFile(
+      ResourceStorage.Model,
+      encodedUrl,
+      repositoryName,
+      commitHash,
+      uid
+    ) match {
+      case Left(errorResponse) => errorResponse
+      case Right((repo, commit, path)) =>
+        PresignedDownloadUtils.presignedResponse(repo, commit, path)
+    }
+
+  @GET
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @Path("/presign-download")
+  def getPresignedUrl(
+      @QueryParam("filePath") encodedUrl: String,
+      @QueryParam("repositoryName") repositoryName: String,
+      @QueryParam("commitHash") commitHash: String,
+      @Auth user: SessionUser
+  ): Response =
+    generatePresignedResponse(encodedUrl, repositoryName, commitHash, user.getUid)
+
+  @GET
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @Path("/presign-download-s3")
+  def getPresignedUrlWithS3(
+      @QueryParam("filePath") encodedUrl: String,
+      @QueryParam("repositoryName") repositoryName: String,
+      @QueryParam("commitHash") commitHash: String,
+      @Auth user: SessionUser
+  ): Response =
+    generatePresignedResponse(encodedUrl, repositoryName, commitHash, user.getUid)
+
+  @GET
+  @PermitAll
+  @Path("/public-presign-download")
+  def getPublicPresignedUrl(
+      @QueryParam("filePath") encodedUrl: String,
+      @QueryParam("repositoryName") repositoryName: String,
+      @QueryParam("commitHash") commitHash: String
+  ): Response =
+    generatePresignedResponse(encodedUrl, repositoryName, commitHash, null)
+
+  @GET
+  @PermitAll
+  @Path("/public-presign-download-s3")
+  def getPublicPresignedUrlWithS3(
+      @QueryParam("filePath") encodedUrl: String,
+      @QueryParam("repositoryName") repositoryName: String,
+      @QueryParam("commitHash") commitHash: String
+  ): Response =
+    generatePresignedResponse(encodedUrl, repositoryName, commitHash, null)
 
   // ===========================================================================
   // Versioning
