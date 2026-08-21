@@ -104,6 +104,11 @@
         <sqlFile path="sql/updates/38.sql"/>
     </changeSet>
 
+    <!-- Singularize the resource-type prefix on stored dataset paths -->
+    <changeSet id="39" author="tanishqgandhi1908">
+        <sqlFile path="sql/updates/39.sql"/>
+    </changeSet>
+
     <!-- Add per-user access control for models -->
     <changeSet id="40" author="tanishqgandhi1908">
         <sqlFile path="sql/updates/40.sql"/>
