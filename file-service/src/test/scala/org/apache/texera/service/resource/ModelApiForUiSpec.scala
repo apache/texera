@@ -20,6 +20,7 @@
 package org.apache.texera.service.resource
 
 import jakarta.ws.rs._
+import org.apache.texera.amber.core.storage.util.LakeFSStorageClient
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.dao.MockTexeraDB
 import org.apache.texera.dao.jooq.generated.enums.UserRoleEnum
@@ -347,5 +348,33 @@ class ModelApiForUiSpec
 
   it should "leave the format unset when none is given" in {
     newModel(format = null).model.getFormat shouldBe null
+  }
+
+  // ===========================================================================
+  // listing sizes
+  // ===========================================================================
+  "listModels" should "report the repository size of an owned model" in {
+    val model = newModel()
+    upload(model.model.getMid, "sized.pt", Array.fill[Byte](4096)(0x6))
+    modelResource.createModelVersion("v1", model.model.getMid, sessionUser)
+
+    val listed = modelResource
+      .listModels(sessionUser)
+      .find(_.model.getMid == model.model.getMid)
+      .getOrElse(fail("the owned model should be listed"))
+
+    listed.isOwner shouldBe true
+    listed.size should be >= 4096L
+  }
+
+  it should "still list a model whose repository size cannot be read" in {
+    // An unreadable size degrades to 0 rather than dropping the row.
+    val model = newModel()
+    LakeFSStorageClient.deleteRepo(model.model.getRepositoryName)
+
+    val listed = modelResource.listModels(sessionUser).find(_.model.getMid == model.model.getMid)
+
+    listed should not be empty
+    listed.get.size shouldEqual 0L
   }
 }

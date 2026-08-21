@@ -439,28 +439,19 @@ class ModelResource extends LazyLogging {
               model = model,
               accessPrivilege = privilege,
               ownerEmail = ownerEmail,
-              size = 0
+              size = repositorySizeOrZero(model)
             )
           ),
         fromPublic = (model, ownerEmail) =>
-          try {
-            Some(
-              DashboardModel(
-                isOwner = false,
-                model = model,
-                accessPrivilege = PrivilegeEnum.READ,
-                ownerEmail = ownerEmail,
-                size = LakeFSStorageClient.retrieveRepositorySize(model.getRepositoryName)
-              )
+          Some(
+            DashboardModel(
+              isOwner = false,
+              model = model,
+              accessPrivilege = PrivilegeEnum.READ,
+              ownerEmail = ownerEmail,
+              size = repositorySizeOrZero(model)
             )
-          } catch {
-            case e: io.lakefs.clients.sdk.ApiException =>
-              logger.error(
-                s"LakeFS ApiException for model repository '${model.getRepositoryName}': ${e.getMessage}",
-                e
-              )
-              None
-          }
+          )
       )
     })
   }
@@ -587,6 +578,20 @@ class ModelResource extends LazyLogging {
     * Resolves a presign request against the model tables and wraps the signed URL.
     * The resolution itself is shared with datasets; only the descriptor differs.
     */
+  /** Size of a model's LakeFS repository, or 0 if LakeFS cannot answer. */
+  private def repositorySizeOrZero(model: Model): Long = {
+    try {
+      LakeFSStorageClient.retrieveRepositorySize(model.getRepositoryName)
+    } catch {
+      case e: io.lakefs.clients.sdk.ApiException =>
+        logger.error(
+          s"LakeFS ApiException for model repository '${model.getRepositoryName}': ${e.getMessage}",
+          e
+        )
+        0L
+    }
+  }
+
   private def generatePresignedResponse(
       encodedUrl: String,
       repositoryName: String,
