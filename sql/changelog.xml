@@ -109,6 +109,11 @@
         <sqlFile path="sql/updates/39.sql"/>
     </changeSet>
 
+    <!-- Add per-user access control for models -->
+    <changeSet id="40" author="tanishqgandhi1908">
+        <sqlFile path="sql/updates/40.sql"/>
+    </changeSet>
+
     <!-- example changeSet
     <changeSet id="1" author="author">
         <sqlFile path="sql/updates/1.sql"/>
