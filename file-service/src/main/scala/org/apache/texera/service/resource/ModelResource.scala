@@ -40,7 +40,7 @@ import org.apache.texera.dao.jooq.generated.tables.daos.{
   ModelVersionDao
 }
 import org.apache.texera.dao.jooq.generated.tables.pojos.{Model, ModelUserAccess, ModelVersion}
-import org.apache.texera.service.`type`.DatasetFileNode
+import org.apache.texera.service.`type`.LakeFSFileNode
 import org.apache.texera.service.resource.ResourceTables.{Model => MODEL_RESOURCE}
 import org.apache.texera.service.resource.ModelAccessResource._
 import org.apache.texera.service.resource.ModelResource.{context, _}
@@ -126,11 +126,11 @@ object ModelResource {
 
   case class DashboardModelVersion(
       modelVersion: ModelVersion,
-      fileNodes: List[DatasetFileNode]
+      fileNodes: List[LakeFSFileNode]
   )
 
   case class ModelVersionRootFileNodesResponse(
-      fileNodes: List[DatasetFileNode],
+      fileNodes: List[LakeFSFileNode],
       size: Long
   )
 }
@@ -547,7 +547,7 @@ class ModelResource extends LazyLogging {
 
       DashboardModelVersion(
         insertedVersion,
-        DatasetFileNode
+        LakeFSFileNode
           .fromLakeFSRepositoryCommittedObjects(
             ResourceType.Model,
             Map((user.getEmail, modelName, newVersionName) -> fileNodes)
@@ -717,13 +717,13 @@ class ModelResource extends LazyLogging {
 
   /**
     * Builds the file-tree children of a single model version, drilling into the
-    * owner/model/version nesting produced by DatasetFileNode.
+    * owner/model/version nesting produced by LakeFSFileNode.
     */
   private def versionRootFileNodes(
       ctx: DSLContext,
       mid: Integer,
       modelVersion: ModelVersion
-  ): List[DatasetFileNode] = {
+  ): List[LakeFSFileNode] = {
     val model = getModelByID(ctx, mid)
     ResourceUploadService
       .versionRootFileNodes(

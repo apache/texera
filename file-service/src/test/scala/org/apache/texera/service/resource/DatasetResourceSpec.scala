@@ -3487,7 +3487,7 @@ class DatasetResourceSpec
 
   // Guards the resource-type prefix the file tree is rooted at. `FileResolver` dispatches on
   // that leading segment to choose the backing table, so a dataset tree must stay under
-  // `/datasets/...` now that the builder takes the resource type as a parameter.
+  // `/dataset/...` now that the builder takes the resource type as a parameter.
   "retrieveDatasetVersionRootFileNodes" should "root a dataset version's tree at the dataset prefix" in {
     val version = testDatasetVersion
 
