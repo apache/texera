@@ -25,8 +25,8 @@ import org.apache.texera.amber.core.storage.ResourceType
 import scala.collection.mutable
 
 // DatasetFileNode represents a unique file in dataset, its full path is in the format of:
-// /datasets/ownerEmail/datasetName/versionName/fileRelativePath
-// e.g. /datasets/bob@texera.com/twitterDataset/v1/california/irvine/tw1.csv
+// /dataset/ownerEmail/datasetName/versionName/fileRelativePath
+// e.g. /dataset/bob@texera.com/twitterDataset/v1/california/irvine/tw1.csv
 class DatasetFileNode(
     val name: String, // direct name of this node
     val nodeType: String, // "file" or "directory"
@@ -79,10 +79,10 @@ object DatasetFileNode {
   ): List[DatasetFileNode] = {
     val rootNode = new DatasetFileNode("/", "directory", null, "")
 
-    // Root the tree at the datasets prefix node (a directory node named "datasets").
-    val datasetsNode =
-      new DatasetFileNode(ResourceType.Datasets.toString, "directory", rootNode, "")
-    rootNode.children = Some(List(datasetsNode))
+    // Root the tree at the dataset prefix node (a directory node named "dataset").
+    val prefixNode =
+      new DatasetFileNode(ResourceType.Dataset.toString, "directory", rootNode, "")
+    rootNode.children = Some(List(prefixNode))
 
     // Owner level nodes map
     val ownerNodes = mutable.Map[String, DatasetFileNode]()
@@ -91,8 +91,8 @@ object DatasetFileNode {
       case ((ownerEmail, datasetName, versionName), objects) =>
         val ownerNode = ownerNodes.getOrElseUpdate(
           ownerEmail, {
-            val newNode = new DatasetFileNode(ownerEmail, "directory", datasetsNode, ownerEmail)
-            datasetsNode.children = Some(datasetsNode.getChildren :+ newNode)
+            val newNode = new DatasetFileNode(ownerEmail, "directory", prefixNode, ownerEmail)
+            prefixNode.children = Some(prefixNode.getChildren :+ newNode)
             newNode
           }
         )
