@@ -26,11 +26,7 @@ import org.apache.texera.dao.jooq.generated.Tables.{AUTH_PROVIDER, USER, USER_LA
 import org.apache.texera.dao.jooq.generated.enums.{ProviderTypeEnum, UserRoleEnum}
 import org.apache.texera.dao.jooq.generated.tables.daos.{AuthProviderDao, UserDao}
 import org.apache.texera.dao.jooq.generated.tables.pojos.{AuthProvider, User}
-import org.apache.texera.web.model.http.request.auth.{
-  SetEmailRequest,
-  UserLoginRequest,
-  UserRegistrationRequest
-}
+import org.apache.texera.web.model.http.request.auth.{UserLoginRequest, UserRegistrationRequest}
 import org.jasypt.util.password.StrongPasswordEncryptor
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers

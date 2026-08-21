@@ -30,11 +30,7 @@ import org.apache.texera.dao.jooq.generated.Tables.{AUTH_PROVIDER, USER, USER_LA
 import org.apache.texera.dao.jooq.generated.enums.{ProviderTypeEnum, UserRoleEnum}
 import org.apache.texera.dao.jooq.generated.tables.daos.UserDao
 import org.apache.texera.dao.jooq.generated.tables.pojos.User
-import org.apache.texera.web.model.http.request.auth.{
-  SetEmailRequest,
-  UserLoginRequest,
-  UserRegistrationRequest
-}
+import org.apache.texera.web.model.http.request.auth.{UserLoginRequest, UserRegistrationRequest}
 import org.apache.texera.web.model.http.response.TokenIssueResponse
 import org.apache.texera.web.resource.auth.AuthResource._
 import org.jooq.DSLContext
@@ -45,6 +41,12 @@ import java.time.temporal.ChronoUnit
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
 import javax.ws.rs.core.{MediaType, Response}
+
+/**
+  * The address supplied by a signed-in user whose account has none — see [[AuthResource.setEmail]].
+  * There is no uid: the account is the one the request is authenticated as.
+  */
+case class SetEmailRequest(email: String)
 
 object AuthResource {
   private val logger: Logger = Logger(classOf[AuthResource])
