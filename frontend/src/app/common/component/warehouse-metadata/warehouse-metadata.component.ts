@@ -41,7 +41,7 @@ import { DashboardWarehouse } from "../../type/warehouse";
         </tr>
         <tr>
           <th>Owner</th>
-          <td>{{ warehouse.ownerName || "—" }}</td>
+          <td>{{ warehouse.ownerName || "None" }}</td>
         </tr>
         <tr>
           <th>Flavor</th>

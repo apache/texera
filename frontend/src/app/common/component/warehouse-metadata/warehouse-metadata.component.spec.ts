@@ -53,12 +53,12 @@ describe("WarehouseMetadataComponent", () => {
     expect(text).toContain(new Date(1723300000000).toLocaleString());
   });
 
-  it("shows a dash for an owner with no display name", () => {
+  it("shows None for an owner with no display name", () => {
     TestBed.overrideProvider(NZ_MODAL_DATA, { useValue: { ...warehouse, ownerName: null } });
     const fixture = TestBed.createComponent(WarehouseMetadataComponent);
     fixture.detectChanges();
 
-    expect(fixture.nativeElement.textContent).toContain("\u2014");
+    expect(fixture.nativeElement.textContent).toContain("None");
   });
 
   it("leaves out the catalog name, which locates data the user cannot reach yet", () => {

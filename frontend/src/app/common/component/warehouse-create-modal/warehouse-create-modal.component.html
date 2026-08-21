@@ -24,13 +24,20 @@
   [nzFooter]="createWarehouseModalFooter"
   (nzOnCancel)="handleCreateWarehouseModalCancel()">
   <ng-template #createWarehouseModalContent>
-    <input
-      nz-input
-      placeholder="Warehouse name"
-      maxlength="64"
-      [(ngModel)]="newWarehouseName"
-      (keyup.enter)="createWarehouse()" />
-    <p class="warehouse-name-hint">Letters, digits, '-' and '_' only; must start with a letter or digit.</p>
+    <div class="create-warehouse-container">
+      <div class="select-unit name-field">
+        <span>Warehouse Name</span>
+        <input
+          [required]="true"
+          nz-input
+          placeholder="Enter the name of your warehouse (required)"
+          maxlength="64"
+          class="warehouse-name-input"
+          [(ngModel)]="newWarehouseName"
+          (keyup.enter)="createWarehouse()" />
+        <p class="warehouse-name-hint">Letters, digits, '-' and '_' only; must start with a letter or digit.</p>
+      </div>
+    </div>
   </ng-template>
   <ng-template #createWarehouseModalFooter>
     <button

@@ -26,15 +26,15 @@ import { NzWaveDirective } from "ng-zorro-antd/core/wave";
 import { NzInputDirective } from "ng-zorro-antd/input";
 import { NzModalComponent } from "ng-zorro-antd/modal";
 import { NotificationService } from "../../service/notification/notification.service";
-import { WarehouseService } from "../../service/warehouse/warehouse.service";
+import { WarehouseActionsService } from "../../service/warehouse/warehouse-actions.service";
 import { DashboardWarehouse } from "../../type/warehouse";
 import { extractErrorMessage } from "../../util/error";
 
 /**
- * Shared create-warehouse modal (#6933), embedded by the dashboard tab and the
- * workspace picker the same way ComputingUnitCreateModalComponent is: two-way
- * `[(visible)]` controls the dialog and `(warehouseCreated)` returns the
- * created warehouse.
+ * Shared create-warehouse modal (#6933), embedded the same way
+ * ComputingUnitCreateModalComponent is — two-way `[(visible)]` controls the
+ * dialog and `(warehouseCreated)` returns the created warehouse — by the
+ * dashboard tab today and by the workspace picker once it lands (#7817).
  */
 @UntilDestroy()
 @Component({
@@ -60,13 +60,16 @@ export class WarehouseCreateModalComponent implements OnChanges {
   creating = false;
 
   constructor(
-    private warehouseService: WarehouseService,
+    private warehouseActionsService: WarehouseActionsService,
     private notificationService: NotificationService
   ) {}
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes["visible"] && this.visible) {
+    if (changes["visible"]?.currentValue === true) {
       this.newWarehouseName = "";
+      // Cancelling mid-flight leaves creating set; without this the Create button
+      // reopens stuck in its loading state.
+      this.creating = false;
     }
   }
 
@@ -76,8 +79,8 @@ export class WarehouseCreateModalComponent implements OnChanges {
       return;
     }
     this.creating = true;
-    this.warehouseService
-      .createWarehouse(name)
+    this.warehouseActionsService
+      .create(name)
       .pipe(untilDestroyed(this))
       .subscribe({
         next: created => {
@@ -89,7 +92,7 @@ export class WarehouseCreateModalComponent implements OnChanges {
         error: (err: unknown) => {
           // Keep the modal open so the name can be corrected.
           this.creating = false;
-          this.notificationService.error(extractErrorMessage(err));
+          this.notificationService.error(`Failed to create warehouse: ${extractErrorMessage(err)}`);
         },
       });
   }

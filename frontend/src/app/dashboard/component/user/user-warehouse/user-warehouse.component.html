@@ -40,7 +40,7 @@
     class="section-list-container"
     [nzBodyStyle]="{ height: '100%'}">
     <div
-      *ngIf="!warehouseEnabled"
+      *ngIf="warehouseEnabled === false"
       class="warehouse-page-empty">
       Per-user warehouses are disabled in this deployment.
     </div>
@@ -52,7 +52,6 @@
     </div>
 
     <cdk-virtual-scroll-viewport
-      *ngIf="warehouseEnabled && warehouses.length > 0"
       itemSize="70"
       class="virtual-scroll-container">
       <nz-list>

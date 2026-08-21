@@ -23,7 +23,7 @@ import { NoopAnimationsModule } from "@angular/platform-browser/animations";
 import { CloudServerOutline, DeleteOutline, FileAddOutline } from "@ant-design/icons-angular/icons";
 import { NzIconModule } from "ng-zorro-antd/icon";
 import { NzModalService } from "ng-zorro-antd/modal";
-import { of, throwError } from "rxjs";
+import { NEVER, of, throwError } from "rxjs";
 
 import { UserWarehouseComponent } from "./user-warehouse.component";
 import { WarehouseCreateModalComponent } from "../../../../common/component/warehouse-create-modal/warehouse-create-modal.component";
@@ -105,7 +105,18 @@ describe("UserWarehouseComponent", () => {
     expect(component.warehouseEnabled).toBe(false);
     const notice = fixture.nativeElement.querySelector(".warehouse-page-empty");
     expect(notice?.textContent).toContain("disabled in this deployment");
-    expect(fixture.nativeElement.querySelector("cdk-virtual-scroll-viewport")).toBeNull();
+    expect(fixture.nativeElement.querySelectorAll("texera-user-warehouse-list-item").length).toBe(0);
+  });
+
+  it("says nothing about the feature while the status request is still in flight", () => {
+    // A plain false would render the "disabled in this deployment" notice, naming
+    // the wrong cause while the request is pending or after it failed.
+    warehouseServiceSpy.getStatus.mockReturnValue(NEVER);
+
+    fixture.detectChanges();
+
+    expect(component.warehouseEnabled).toBeUndefined();
+    expect(fixture.nativeElement.querySelector(".warehouse-page-empty")).toBeNull();
   });
 
   it("shows the create hint while the user has no warehouses", () => {
@@ -113,7 +124,7 @@ describe("UserWarehouseComponent", () => {
 
     const notice = fixture.nativeElement.querySelector(".warehouse-page-empty");
     expect(notice?.textContent).toContain("No warehouses yet");
-    expect(fixture.nativeElement.querySelector("cdk-virtual-scroll-viewport")).toBeNull();
+    expect(fixture.nativeElement.querySelectorAll("texera-user-warehouse-list-item").length).toBe(0);
   });
 
   it("lists the user's warehouses in the virtual-scroll list", () => {
@@ -137,6 +148,9 @@ describe("UserWarehouseComponent", () => {
     fixture.detectChanges();
 
     expect(notificationSpy.error).toHaveBeenCalledWith("Failed to fetch warehouses.");
+    // Still undefined, so the page does not claim the feature is disabled.
+    expect(component.warehouseEnabled).toBeUndefined();
+    expect(fixture.nativeElement.querySelector(".warehouse-page-empty")).toBeNull();
   });
 
   it("hands the warehouse to the actions service, and refreshes once it reports the delete", () => {

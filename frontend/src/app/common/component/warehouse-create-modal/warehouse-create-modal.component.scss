@@ -17,6 +17,28 @@
  * under the License.
  */
 
+.create-warehouse-container {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  align-items: center;
+}
+
+.select-unit {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: flex-start;
+
+  &.name-field {
+    grid-column: span 2;
+  }
+}
+
+.warehouse-name-input {
+  width: 100%;
+}
+
 .warehouse-name-hint {
   margin: 8px 0 0;
   color: rgba(0, 0, 0, 0.45);

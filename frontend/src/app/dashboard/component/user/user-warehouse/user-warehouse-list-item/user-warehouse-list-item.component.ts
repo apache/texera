@@ -28,7 +28,6 @@ import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patc
 import { NzRowDirective, NzColDirective } from "ng-zorro-antd/grid";
 import { NzIconDirective } from "ng-zorro-antd/icon";
 import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
-import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
 
 /**
  * One warehouse row of the dashboard tab (#6933), mirroring
@@ -47,7 +46,6 @@ import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
     NzIconDirective,
     NzSpaceCompactItemDirective,
     NzButtonComponent,
-    NzTooltipDirective,
   ],
 })
 export class UserWarehouseListItemComponent {

@@ -21,7 +21,6 @@ import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { By } from "@angular/platform-browser";
 import { NzIconModule } from "ng-zorro-antd/icon";
 import { NzModalRef, NzModalService } from "ng-zorro-antd/modal";
-import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
 import { CloudServerOutline, DeleteOutline } from "@ant-design/icons-angular/icons";
 import { UserWarehouseListItemComponent } from "./user-warehouse-list-item.component";
 import { DashboardWarehouse } from "../../../../../common/type/warehouse";
@@ -53,7 +52,7 @@ describe("UserWarehouseListItemComponent", () => {
     expect(() => item.warehouse).toThrowError("warehouse property must be provided to UserWarehouseListItemComponent.");
   });
 
-  it("renders the id, the name with its full-name tooltip, and the metadata columns", () => {
+  it("renders the id, the name, and the metadata columns", () => {
     fixture = TestBed.createComponent(UserWarehouseListItemComponent);
     fixture.componentInstance.warehouse = warehouse;
     fixture.detectChanges();
@@ -61,8 +60,6 @@ describe("UserWarehouseListItemComponent", () => {
     const element: HTMLElement = fixture.nativeElement;
     expect(element.querySelector(".warehouse-id")?.textContent).toContain("#3");
     expect(element.querySelector(".resource-name")?.textContent).toContain("sales");
-    const nameTooltip = fixture.debugElement.query(By.css(".resource-name")).injector.get(NzTooltipDirective);
-    expect(nameTooltip.title).toBe("sales");
     // The relative "Created" value depends on the clock; assert the labels only.
     expect(element.textContent).toContain("Created:");
     expect(element.textContent).toContain("Flavor:");

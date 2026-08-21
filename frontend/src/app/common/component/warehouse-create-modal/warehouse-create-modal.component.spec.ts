@@ -25,14 +25,14 @@ import { NzModalService } from "ng-zorro-antd/modal";
 import { of, throwError } from "rxjs";
 import { WarehouseCreateModalComponent } from "./warehouse-create-modal.component";
 import { NotificationService } from "../../service/notification/notification.service";
-import { WarehouseService } from "../../service/warehouse/warehouse.service";
+import { WarehouseActionsService } from "../../service/warehouse/warehouse-actions.service";
 import { DashboardWarehouse } from "../../type/warehouse";
 import { commonTestProviders } from "../../testing/test-utils";
 
 describe("WarehouseCreateModalComponent", () => {
   let fixture: ComponentFixture<WarehouseCreateModalComponent>;
   let component: WarehouseCreateModalComponent;
-  let warehouseService: { createWarehouse: ReturnType<typeof vi.fn> };
+  let warehouseActions: { create: ReturnType<typeof vi.fn> };
   let notificationService: { error: ReturnType<typeof vi.fn>; success: ReturnType<typeof vi.fn> };
 
   const created: DashboardWarehouse = {
@@ -46,7 +46,7 @@ describe("WarehouseCreateModalComponent", () => {
   };
 
   beforeEach(async () => {
-    warehouseService = { createWarehouse: vi.fn().mockReturnValue(of(created)) };
+    warehouseActions = { create: vi.fn().mockReturnValue(of(created)) };
     notificationService = { error: vi.fn(), success: vi.fn() };
 
     await TestBed.configureTestingModule({
@@ -54,7 +54,7 @@ describe("WarehouseCreateModalComponent", () => {
       providers: [
         // The rendered <nz-modal> injects NzModalService itself.
         NzModalService,
-        { provide: WarehouseService, useValue: warehouseService },
+        { provide: WarehouseActionsService, useValue: warehouseActions },
         { provide: NotificationService, useValue: notificationService },
         ...commonTestProviders,
       ],
@@ -93,7 +93,7 @@ describe("WarehouseCreateModalComponent", () => {
 
     component.createWarehouse();
 
-    expect(warehouseService.createWarehouse).toHaveBeenCalledWith("mybucket");
+    expect(warehouseActions.create).toHaveBeenCalledWith("mybucket");
     expect(notificationService.success).toHaveBeenCalledWith('Warehouse "mybucket" created.');
     expect(createdSpy).toHaveBeenCalledWith(created);
     expect(component.visible).toBe(false);
@@ -106,7 +106,7 @@ describe("WarehouseCreateModalComponent", () => {
 
     component.createWarehouse();
 
-    expect(warehouseService.createWarehouse).not.toHaveBeenCalled();
+    expect(warehouseActions.create).not.toHaveBeenCalled();
   });
 
   it("does not double-submit while a create is in flight", () => {
@@ -115,11 +115,11 @@ describe("WarehouseCreateModalComponent", () => {
 
     component.createWarehouse();
 
-    expect(warehouseService.createWarehouse).not.toHaveBeenCalled();
+    expect(warehouseActions.create).not.toHaveBeenCalled();
   });
 
   it("keeps the modal open and surfaces the backend message when the create fails", () => {
-    warehouseService.createWarehouse.mockReturnValue(
+    warehouseActions.create.mockReturnValue(
       throwError(() => ({ error: "a warehouse named 'mybucket' already exists" }))
     );
     const visibleSpy = vi.fn();
@@ -132,16 +132,22 @@ describe("WarehouseCreateModalComponent", () => {
     expect(component.visible).toBe(true);
     expect(visibleSpy).not.toHaveBeenCalled();
     expect(component.creating).toBe(false);
-    expect(notificationService.error).toHaveBeenCalledWith("a warehouse named 'mybucket' already exists");
+    expect(notificationService.error).toHaveBeenCalledWith(
+      "Failed to create warehouse: a warehouse named 'mybucket' already exists"
+    );
   });
 
-  it("clears the previous name when the modal opens", () => {
+  it("clears the previous name and any stuck loading state when the modal opens", () => {
     component.newWarehouseName = "leftover";
+    // Cancelling mid-flight leaves creating set; reopening must not show a Create
+    // button stuck in its loading state.
+    component.creating = true;
     component.visible = true;
 
     component.ngOnChanges({ visible: new SimpleChange(false, true, false) });
 
     expect(component.newWarehouseName).toBe("");
+    expect(component.creating).toBe(false);
   });
 
   it("cancel closes without creating", () => {
@@ -153,6 +159,6 @@ describe("WarehouseCreateModalComponent", () => {
 
     expect(component.visible).toBe(false);
     expect(visibleSpy).toHaveBeenCalledWith(false);
-    expect(warehouseService.createWarehouse).not.toHaveBeenCalled();
+    expect(warehouseActions.create).not.toHaveBeenCalled();
   });
 });

@@ -65,7 +65,10 @@ import { UserWarehouseListItemComponent } from "./user-warehouse-list-item/user-
   ],
 })
 export class UserWarehouseComponent implements OnInit {
-  warehouseEnabled = false;
+  // Undefined until the status request settles: with a plain false, a pending or
+  // failed request renders the "disabled in this deployment" notice, which names
+  // the wrong cause.
+  warehouseEnabled?: boolean;
   warehouses: DashboardWarehouse[] = [];
 
   // visibility of the shared create-warehouse modal

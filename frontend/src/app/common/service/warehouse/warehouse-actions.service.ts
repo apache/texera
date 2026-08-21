@@ -19,7 +19,7 @@
 
 import { Injectable } from "@angular/core";
 import { NzModalService } from "ng-zorro-antd/modal";
-import { firstValueFrom } from "rxjs";
+import { Observable, firstValueFrom } from "rxjs";
 import { NotificationService } from "../notification/notification.service";
 import { DashboardWarehouse } from "../../type/warehouse";
 import { extractErrorMessage } from "../../util/error";
@@ -39,6 +39,11 @@ export class WarehouseActionsService {
     private warehouseService: WarehouseService,
     private notificationService: NotificationService
   ) {}
+
+  /** Creates a warehouse, so create and delete both sit behind this service. */
+  create(name: string): Observable<DashboardWarehouse> {
+    return this.warehouseService.createWarehouse(name);
+  }
 
   /**
    * Asks for confirmation, then deletes the warehouse and all data stored in it.
