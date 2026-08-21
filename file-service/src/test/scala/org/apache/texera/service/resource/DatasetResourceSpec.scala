@@ -3484,4 +3484,37 @@ class DatasetResourceSpec
     val commit = LakeFSStorageClient.createCommit(repoName, "main", "commit all files")
     LakeFSStorageClient.retrieveObjectsOfVersion(repoName, commit.getId).size shouldEqual totalFiles
   }
+
+  // Guards the resource-type prefix the file tree is rooted at. `FileResolver` dispatches on
+  // that leading segment to choose the backing table, so a dataset tree must stay under
+  // `/datasets/...` now that the builder takes the resource type as a parameter.
+  "retrieveDatasetVersionRootFileNodes" should "root a dataset version's tree at the dataset prefix" in {
+    val version = testDatasetVersion
+
+    val response = datasetResource.retrieveDatasetVersionRootFileNodes(
+      baseDataset.getDid,
+      version.getDvid,
+      sessionUser
+    )
+
+    response.fileNodes should not be empty
+    response.size should be > 0L
+
+    val file = response.fileNodes.find(_.getName == "test-cover.jpg").get
+    file.getFilePath shouldBe
+      s"/dataset/${ownerUser.getEmail}/${baseDataset.getName}/${version.getName}/test-cover.jpg"
+  }
+
+  "retrieveLatestDatasetVersion" should "return the latest version rooted at the dataset prefix" in {
+    testDatasetVersion
+
+    val latest = datasetResource.retrieveLatestDatasetVersion(baseDataset.getDid, sessionUser)
+
+    latest.datasetVersion.getName shouldBe "v1"
+    latest.fileNodes.map(_.getName) should contain("test-cover.jpg")
+    latest.fileNodes
+      .find(_.getName == "test-cover.jpg")
+      .get
+      .getFilePath should startWith("/dataset/")
+  }
 }

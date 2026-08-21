@@ -20,6 +20,7 @@
 package org.apache.texera.service.`type`
 
 import io.lakefs.clients.sdk.model.ObjectStats
+import org.apache.texera.amber.core.storage.ResourceType
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -96,6 +97,7 @@ class DatasetFileNodeSpec extends AnyFlatSpec with Matchers {
       objStats("b/2.csv", 3L)
     )
     val roots = DatasetFileNode.fromLakeFSRepositoryCommittedObjects(
+      ResourceType.Dataset,
       Map(("bob@texera.com", "twitter", "v1") -> objects)
     )
 
@@ -127,5 +129,46 @@ class DatasetFileNodeSpec extends AnyFlatSpec with Matchers {
 
     // Total size equals the sum of the three files.
     DatasetFileNode.calculateTotalSize(roots) shouldBe 6L
+  }
+
+  it should "root a model tree at the model prefix, not dataset" in {
+    // The prefix is not cosmetic: FileResolver keys on the leading path segment to
+    // choose the backing table, so a model file rooted at "datasets" would resolve
+    // against the dataset table.
+    val roots = DatasetFileNode.fromLakeFSRepositoryCommittedObjects(
+      ResourceType.Model,
+      Map(("bob@texera.com", "sentiment", "v1") -> List(objStats("model.pt", 4L)))
+    )
+
+    roots should have size 1
+    roots.head.getName shouldBe "model"
+
+    val file = roots.head.getChildren.head.getChildren.head.getChildren.head.getChildren.head
+    file.getFilePath shouldBe "/model/bob@texera.com/sentiment/v1/model.pt"
+  }
+
+  it should "treat a repeated final path segment as one directory and one file" in {
+    // "model/model" repeats its last segment. Deciding file-vs-directory by value rather than
+    // position made the intermediate directory the leaf: it took the object's size and the real
+    // file hung underneath it, so calculateTotalSize double-counted and the frontend saw a
+    // "file" node with children.
+    val roots = DatasetFileNode.fromLakeFSRepositoryCommittedObjects(
+      ResourceType.Model,
+      Map(("bob@texera.com", "sentiment", "v1") -> List(objStats("model/model", 7L)))
+    )
+
+    val versionNode =
+      roots.head.getChildren.head.getChildren.head.getChildren.head
+    val dir = versionNode.getChildren.find(_.getName == "model").get
+    dir.getNodeType shouldBe "directory"
+    dir.getSize shouldBe None
+
+    val leaf = dir.getChildren.find(_.getName == "model").get
+    leaf.getNodeType shouldBe "file"
+    leaf.getSize shouldBe Some(7L)
+    leaf.getFilePath shouldBe "/model/bob@texera.com/sentiment/v1/model/model"
+
+    // counted once, not twice
+    DatasetFileNode.calculateTotalSize(roots) shouldBe 7L
   }
 }
