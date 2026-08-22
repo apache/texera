@@ -977,10 +977,13 @@ describe("CodeEditorComponent", () => {
   // tests wait on the observable effect instead of on a fixed number of ticks.
   const settle = () => new Promise(resolve => setTimeout(resolve, 0));
 
+  const WAIT_FOR_INTERVAL_MS = 10;
+  const WAIT_FOR_MAX_ATTEMPTS = 400;
+
   async function waitFor(condition: () => boolean, what: string): Promise<void> {
-    for (let attempt = 0; attempt < 400; attempt++) {
+    for (let attempt = 0; attempt < WAIT_FOR_MAX_ATTEMPTS; attempt++) {
       if (condition()) return;
-      await new Promise(resolve => setTimeout(resolve, 10));
+      await new Promise(resolve => setTimeout(resolve, WAIT_FOR_INTERVAL_MS));
     }
     throw new Error(`timed out waiting for ${what}`);
   }
