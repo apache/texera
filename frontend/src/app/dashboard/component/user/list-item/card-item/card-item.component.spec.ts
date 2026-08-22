@@ -212,6 +212,21 @@ describe("CardItemComponent", () => {
     expect(component.entryLink).toEqual([HUB_WORKFLOW_RESULT_DETAIL, "7"]);
   });
 
+  it("should route an owner to the hub detail view when the public copy is behind", () => {
+    // The hub entry advertises the pinned version, so it must open the preview of that version --
+    // where the author can clone it -- rather than the editor holding something else.
+    component.currentUid = 42;
+    component.entry = makeWorkflowEntry({ id: 7, accessibleUserIds: [42] });
+    (component.entry.workflow as any).hasUnpublishedChanges = true;
+    component.ngOnChanges({ entry: { currentValue: component.entry } as any });
+    expect(component.entryLink).toEqual([HUB_WORKFLOW_RESULT_DETAIL, "7"]);
+
+    // ...but their own listings still open the editor.
+    component.isPrivateSearch = true;
+    component.ngOnChanges({ entry: { currentValue: component.entry } as any });
+    expect(component.entryLink).toEqual([USER_WORKSPACE, "7"]);
+  });
+
   it("should format counts as kilo for values >= 1000", () => {
     expect(component.formatCount(999)).toBe("999");
     expect(component.formatCount(1500)).toBe("1.5k");

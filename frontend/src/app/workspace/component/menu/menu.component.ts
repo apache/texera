@@ -317,13 +317,20 @@ export class MenuComponent implements OnInit, OnDestroy {
   }
 
   public async onClickOpenShareAccess(): Promise<void> {
+    // The dialog reads the publish state from the server, so it describes the last saved workflow
+    // rather than the canvas. Forcing a save first would make it a little fresher, and was tried:
+    // the canvas is not always the workflow -- it is empty while one loads, and stays empty if the
+    // collaborative model never arrives -- so that save could write the emptiness over every
+    // operator the workflow had. The autosave is the only thing that should decide when the canvas
+    // is worth storing.
+    const allOwners = await firstValueFrom(this.workflowPersistService.retrieveOwners());
     const modalRef = this.modalService.create({
       nzContent: ShareAccessComponent,
       nzData: {
         writeAccess: this.writeAccess,
         type: "workflow",
         id: this.workflowId,
-        allOwners: await firstValueFrom(this.workflowPersistService.retrieveOwners()),
+        allOwners,
         inWorkspace: true,
       },
       nzFooter: null,
@@ -335,7 +342,11 @@ export class MenuComponent implements OnInit, OnDestroy {
     modalRef.afterClose.pipe(untilDestroyed(this)).subscribe(result => {
       if (result?.userRevokedOwnAccess) {
         this.router.navigate([USER_WORKFLOW]);
+        return;
       }
+      // The dialog is where a version gets pinned, and the versions panel behind it marks the pinned
+      // one. Announcing on close rather than on each pin because the panel is covered until then.
+      this.workflowVersionService.notifyPublicVersionChanged();
     });
   }
 

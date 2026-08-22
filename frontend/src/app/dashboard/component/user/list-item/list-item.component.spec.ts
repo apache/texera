@@ -168,6 +168,35 @@ describe("ListItemComponent", () => {
       expect(component.entryLink).toEqual([HUB_WORKFLOW_RESULT_DETAIL, "101"]);
     });
 
+    it("routes an owned workflow whose public copy is behind to the hub detail page", () => {
+      // The hub entry advertises the pinned version, so it must open the preview of that version --
+      // where the author can clone it -- rather than the editor holding something else.
+      component.currentUid = 1;
+      component.entry = {
+        id: 102,
+        type: "workflow",
+        workflow: { isOwner: true, hasUnpublishedChanges: true },
+        accessibleUserIds: [1],
+        ...baseStats,
+      } as unknown as DashboardEntry;
+      component.initializeEntry();
+      expect(component.entryLink).toEqual([HUB_WORKFLOW_RESULT_DETAIL, "102"]);
+    });
+
+    it("keeps the author's own listings pointing at the editor", () => {
+      component.currentUid = 1;
+      component.isPrivateSearch = true;
+      component.entry = {
+        id: 103,
+        type: "workflow",
+        workflow: { isOwner: true, hasUnpublishedChanges: true },
+        accessibleUserIds: [1],
+        ...baseStats,
+      } as unknown as DashboardEntry;
+      component.initializeEntry();
+      expect(component.entryLink).toEqual([USER_WORKSPACE, "103"]);
+    });
+
     it("routes projects to the user project page", () => {
       component.entry = { id: 200, type: "project", ...baseStats } as unknown as DashboardEntry;
       component.initializeEntry();

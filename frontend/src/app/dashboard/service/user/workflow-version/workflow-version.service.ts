@@ -18,7 +18,7 @@
  */
 
 import { Injectable } from "@angular/core";
-import { BehaviorSubject, Observable } from "rxjs";
+import { BehaviorSubject, Observable, Subject } from "rxjs";
 import { WorkflowActionService } from "../../../../workspace/service/workflow-graph/model/workflow-action.service";
 import { Workflow, WorkflowContent } from "../../../../common/type/workflow";
 import { WorkflowPersistService } from "../../../../common/service/workflow-persist/workflow-persist.service";
@@ -58,6 +58,7 @@ export class WorkflowVersionService {
   private differentOpIDsList: DifferentOpIDsList = { modified: [], added: [], deleted: [] };
   public selectedVersionId = new BehaviorSubject<number | null>(null);
   public selectedDisplayedVersionId = new BehaviorSubject<number | null>(null);
+  private publicVersionChanged = new Subject<void>();
 
   constructor(
     private workflowActionService: WorkflowActionService,
@@ -89,6 +90,20 @@ export class WorkflowVersionService {
 
   public getDisplayParticularVersionStream(): Observable<boolean> {
     return this.displayParticularWorkflowVersion.asObservable();
+  }
+
+  /**
+   * Announces that the version the Hub serves may have moved, so anything marking it re-reads.
+   *
+   * Pinning happens in the share dialog, which is a modal over the workspace and knows nothing about
+   * the panels underneath it. Announcing the change rather than reaching for them keeps that one-way.
+   */
+  public notifyPublicVersionChanged(): void {
+    this.publicVersionChanged.next();
+  }
+
+  public getPublicVersionChangedStream(): Observable<void> {
+    return this.publicVersionChanged.asObservable();
   }
 
   public get canRestoreVersion(): boolean {

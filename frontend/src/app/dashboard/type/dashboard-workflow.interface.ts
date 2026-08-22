@@ -27,4 +27,6 @@ export interface DashboardWorkflow {
   accessLevel: string;
   ownerId: number;
   coverImage: string | null;
+  /** Whether the copy on public show is behind the author's working copy. */
+  hasUnpublishedChanges?: boolean;
 }

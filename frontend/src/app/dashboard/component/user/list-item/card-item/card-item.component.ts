@@ -198,6 +198,18 @@ export class CardItemComponent implements OnChanges {
       });
   }
 
+  /**
+   * Whether clicking a workflow entry opens the editor rather than the published preview.
+   *
+   * Access alone is not enough outside the user's own listings: a hub entry shows the public copy,
+   * so an author whose working copy has moved on behind a pin is sent to that preview -- where what
+   * they see is what the entry advertised, and where they can clone it -- not into their editor.
+   */
+  private opensInEditor(): boolean {
+    const hasAccess = this.currentUid !== undefined && this.owners.includes(this.currentUid);
+    return hasAccess && (this.isPrivateSearch || !this.entry.workflow.hasUnpublishedChanges);
+  }
+
   initializeEntry() {
     this.coverImageSrc = CardItemComponent.DEFAULT_PREVIEW_IMAGE;
     this.customImage = undefined;
@@ -205,11 +217,9 @@ export class CardItemComponent implements OnChanges {
       if (typeof this.entry.id === "number") {
         this.disableDelete = !this.entry.workflow.isOwner;
         this.owners = this.entry.accessibleUserIds;
-        if (this.currentUid !== undefined && this.owners.includes(this.currentUid)) {
-          this.entryLink = [USER_WORKSPACE, String(this.entry.id)];
-        } else {
-          this.entryLink = [HUB_WORKFLOW_RESULT_DETAIL, String(this.entry.id)];
-        }
+        this.entryLink = this.opensInEditor()
+          ? [USER_WORKSPACE, String(this.entry.id)]
+          : [HUB_WORKFLOW_RESULT_DETAIL, String(this.entry.id)];
         this.size = this.entry.size;
         this.coverImageSrc = this.entry.coverImageUrl ?? CardItemComponent.DEFAULT_PREVIEW_IMAGE;
         this.customImage = this.entry.coverImageUrl ?? undefined;
