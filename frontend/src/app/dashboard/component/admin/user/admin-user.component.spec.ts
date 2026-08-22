@@ -519,9 +519,9 @@ describe("AdminUserComponent", () => {
    * rendered-header tests further down pin the caret and the row order together per column.
    */
   describe("column sort comparators", () => {
-    it("sortByID orders by descending uid", () => {
-      expect(component.sortByID(mk({ uid: 1 }), mk({ uid: 2 }))).toBe(1);
-      expect(component.sortByID(mk({ uid: 5 }), mk({ uid: 2 }))).toBe(-3);
+    it("sortByID orders by ascending uid", () => {
+      expect(component.sortByID(mk({ uid: 1 }), mk({ uid: 2 }))).toBe(-1);
+      expect(component.sortByID(mk({ uid: 5 }), mk({ uid: 2 }))).toBe(3);
     });
 
     it("sortByName compares names and falls back to uid on a tie", () => {
@@ -782,16 +782,20 @@ describe("AdminUserComponent", () => {
    * sort, or by the table not sorting at all.
    */
   describe("sorted columns (rendered header)", () => {
+    // The supplied order is deliberately none of the sequences asserted below - not uid order (which
+    // would make the ID column's ascending leg pass without sorting anything) and not any other
+    // column's ascending or descending order either. Reshuffling this needs the same check.
     const SORT_USERS: ReadonlyArray<User> = [
-      mk({ uid: 1, name: "Bea", email: "a@x.com", affiliation: "Aff-B", joiningReason: "reason-a", comment: "note-d", role: Role.INACTIVE }), // prettier-ignore
-      mk({ uid: 2, name: "Dov", email: "c@x.com", affiliation: "Aff-A", joiningReason: "reason-c", comment: "note-a", role: Role.REGULAR }), // prettier-ignore
-      mk({ uid: 3, name: "Ada", email: "b@x.com", affiliation: "Aff-D", joiningReason: "reason-d", comment: "note-b", role: Role.RESTRICTED }), // prettier-ignore
       mk({ uid: 4, name: "Cyd", email: "d@x.com", affiliation: "Aff-C", joiningReason: "reason-b", comment: "note-c", role: Role.ADMIN }), // prettier-ignore
+      mk({ uid: 2, name: "Dov", email: "c@x.com", affiliation: "Aff-A", joiningReason: "reason-c", comment: "note-a", role: Role.REGULAR }), // prettier-ignore
+      mk({ uid: 1, name: "Bea", email: "a@x.com", affiliation: "Aff-B", joiningReason: "reason-a", comment: "note-d", role: Role.INACTIVE }), // prettier-ignore
+      mk({ uid: 3, name: "Ada", email: "b@x.com", affiliation: "Aff-D", joiningReason: "reason-d", comment: "note-b", role: Role.RESTRICTED }), // prettier-ignore
     ];
-    const SUPPLIED_ORDER = [1, 2, 3, 4];
+    const SUPPLIED_ORDER = [4, 2, 1, 3];
 
     /** Column header label -> the uids it must render top-to-bottom under the up (ascend) caret. */
     const ASCENDING_BY_COLUMN: ReadonlyArray<[label: string, ascendingUids: number[]]> = [
+      ["ID", [1, 2, 3, 4]], // lowest uid (oldest account) first, like every other ascending column
       ["Name", [3, 1, 4, 2]], // Ada, Bea, Cyd, Dov
       ["Email", [1, 3, 2, 4]], // a@, b@, c@, d@
       ["Affiliation", [2, 1, 4, 3]], // Aff-A, Aff-B, Aff-C, Aff-D
