@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1787402475983,
+  "lastUpdate": 1787402478698,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -36790,6 +36790,433 @@ window.BENCHMARK_DATA = {
           {
             "name": "latency p99 / bs=1000 sw=50 sl=512",
             "value": 2063306.327,
+            "unit": "us"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Xinyuan Lin",
+            "username": "aglinxinyuan",
+            "email": "xinyual3@uci.edu"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "b7c33b0892db49a94a3b15c81eed4ebcbc12882d",
+          "message": "test(workflow-core): cover the lakeFS file document against the loopback stub (#7831)\n\n### What changes were proposed in this PR?\n\nTest-only. **No production file changes** — `git diff -- '*/src/main/*'`\nis empty.\n\n`LakeFSFileDocument` looked Docker-gated and is not:\n`LakeFSStorageClientSpec` (merged in #7273) already drives\n`LakeFSStorageClient` against an in-process `com.sun.net.httpserver`\nloopback stub, and already covers the exact two calls the document\nmakes. This PR reuses that harness.\n\nMeasured with `WorkflowCore/jacoco` under an identical filter for the\nbefore and after runs (the Docker-backed `LakeFSStorageClientMtimeSpec`\nis excluded from **both**, so these differ from the Codecov figures,\nwhich include it):\n\n| File | Lines | Branches |\n|---|---|---|\n| `LakeFSFileDocument.scala` | 32/80 (40.0%) → **65/80 (81.2%)** | 16/46\n→ **27/46** |\n| `LakeFSStorageClient.scala` | 120/146 (82.2%) → **133/146 (91.1%)** |\n41/60 → **45/60** |\n\n**+33 lines and +11 branch arms** on the document, **+13 lines** on the\nclient. Tests **38 → 49**.\n\nCovered: `asInputStream`'s presign happy path and its fallback (the\nlocal `def fallbackToLakeFS` lifts to `fallbackToLakeFS$1`, a counted\nmethod rather than an `$anonfun$`, which is why these lines move the\nnumber at all), `asFile` both arms including the `tempFile` memoization,\n`clear` both arms, and `LakeFSStorageClient.put`.\n\nThe 15 lines still missed on the document are exactly the out-of-scope\nregion — lines 133-161, the `userJwtToken`-non-empty file-service\npresign branch. Reaching it needs a forked JVM with `USER_JWT_TOKEN` set\n**and** a presign endpoint on a *fixed* port known before JVM start,\ni.e. a `build.sbt` `testGrouping` change plus a hardcodable port that\ncan collide in CI. Deliberately excluded.\n\n### Verification\n\nReview proposed 8 findings. **Six were real survivors and are now\nkilled**, each proved red on a named test after the repair; two are\ngenuinely unpinnable here and are recorded in the spec rather than\npapered over. Suite 47 → 49 after repair.\n\n| Survivor found by review | How it is now killed |\n|---|---|\n| both `asInputStream` call sites reduced to\n`fileRelativePath.getFileName.toString` | a nested-fixture read test\nthat kills the pair *and* each site alone |\n| widening the `put` success guard to `code >= 400` | rejection test\nextended to 403/204/307; the 204 and 307 single-leg widenings each die\nseparately |\n| deleting `inputStream.close()` | a recording-subclass test,\ndeterministic on any platform |\n| re-downloading into the memoized `File` | `requests.clear()` plus\n`hits shouldBe empty` |\n| dropping `setChunkedStreamingMode` | the stub now records request\nheaders; the put test pins `content-length: 5` and the absence of\n`transfer-encoding` |\n| `Files.exists shouldBe true` was JDK-guaranteed | now `Files.size ==\n2502` — and the mutant fails *at that line* rather than 12 lines later |\n\n**Two limits, argued rather than cargo-culted.** The fallback\n`logger.warn` at :110 cannot be pinned: `workflow-core`'s test classpath\nhas no SLF4J provider at all (\"No SLF4J providers were found\", NOP\nloggers), and scala-logging's `isWarnEnabled` guard means the call is\nnot even evaluated — a capturing appender has nothing to attach to. And\n`deleteRepo` (1 line) was left alone: it is\n`repoApi.deleteRepository(name).execute()` with no branch, so the only\nassertable fact is the generated SDK's own URL template. The existing\nspec already documents that rationale and I did not contradict it for\none line.\n\n### Two production bugs found while doing this, reported not fixed\n\nBoth are out of scope for a test-only PR and neither is cemented by any\nnew test.\n\n1. **`LakeFSFileDocument.scala:204` renders the relative path with the\nplatform separator.** On a Windows worker, every nested dataset/model\nfile is requested as `dir\\file.csv` in the lakeFS `path` query parameter\n— 404, silent fallback, 404 again. A reviewer's suggested assertion of\n`Some(\"nested/dir/records.csv\")` would be red against today's\nproduction, which is how this surfaced. Fix is a one-line `'/'`-join and\nwants its own PR.\n2. **`tempFileStream.close()` is load-bearing on Windows only.**\nDeleting it fails 4 tests here with \"file is being used by another\nprocess\" (the cleanup hits an open write handle) while shipping green\nthrough Linux CI. `FileOutputStream` is unbuffered, so no portable\nin-process assertion can observe it; wrapping the copy in\n`try`/`finally` is production work.\n\n### Any related issues, documentation, discussions?\n\nCloses #7830\n\n### How was this PR tested?\n\n```\nsbt \"WorkflowCore/testOnly org.apache.texera.amber.core.storage.model.LakeFSFileDocumentSpec org.apache.texera.amber.core.storage.util.LakeFSStorageClientSpec\"\n```\n\n```\n[info] Suites: completed 2, aborted 0\n[info] Tests: succeeded 49, failed 0, canceled 0, ignored 0, pending 0\n```\n\n`scalafmtCheckAll` and `scalafixAll --check` both pass.\n`LakeFSFileDocumentSpec` gains `@NonParallelTest` so it gets its own\nforked JVM, matching the sibling spec.\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Claude Code (Opus 5)\n\n---------\n\nSigned-off-by: Xinyuan Lin <xinyual3@uci.edu>\nCo-authored-by: Copilot Autofix powered by AI <175728472+Copilot@users.noreply.github.com>",
+          "timestamp": "2026-08-22T10:53:06Z",
+          "url": "https://github.com/apache/texera/commit/b7c33b0892db49a94a3b15c81eed4ebcbc12882d"
+        },
+        "date": 1787402478215,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "latency p50 / bs=10 sw=1 sl=8",
+            "value": 10253.831,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=1 sl=8",
+            "value": 13069.231,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=1 sl=8",
+            "value": 15497.915,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=1 sl=8",
+            "value": 57299.305,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=1 sl=8",
+            "value": 63186.589,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=1 sl=8",
+            "value": 71310.527,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=1 sl=8",
+            "value": 525214.728,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=1 sl=8",
+            "value": 560318.198,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=1 sl=8",
+            "value": 608830.342,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=1 sl=64",
+            "value": 7911.489,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=1 sl=64",
+            "value": 9525.814,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=1 sl=64",
+            "value": 11544.356,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=1 sl=64",
+            "value": 54401.897,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=1 sl=64",
+            "value": 61334.19,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=1 sl=64",
+            "value": 84930.472,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=1 sl=64",
+            "value": 533149.909,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=1 sl=64",
+            "value": 565137.37,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=1 sl=64",
+            "value": 594143.551,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=1 sl=512",
+            "value": 7511.156,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=1 sl=512",
+            "value": 10135.066,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=1 sl=512",
+            "value": 11017.877,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=1 sl=512",
+            "value": 54552.889,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=1 sl=512",
+            "value": 61085.802,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=1 sl=512",
+            "value": 71160.168,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=1 sl=512",
+            "value": 528560.979,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=1 sl=512",
+            "value": 560858.458,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=1 sl=512",
+            "value": 579942.203,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=10 sl=8",
+            "value": 8999.382,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=10 sl=8",
+            "value": 11777.227,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=10 sl=8",
+            "value": 13380.622,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=10 sl=8",
+            "value": 68429.269,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=10 sl=8",
+            "value": 76126.406,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=10 sl=8",
+            "value": 82088.657,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=10 sl=8",
+            "value": 678374.785,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=10 sl=8",
+            "value": 721194.587,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=10 sl=8",
+            "value": 753467.625,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=10 sl=64",
+            "value": 8989.638,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=10 sl=64",
+            "value": 12632.815,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=10 sl=64",
+            "value": 13860.854,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=10 sl=64",
+            "value": 69686.114,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=10 sl=64",
+            "value": 75136.775,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=10 sl=64",
+            "value": 89601.123,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=10 sl=64",
+            "value": 685976.107,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=10 sl=64",
+            "value": 727444.146,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=10 sl=64",
+            "value": 767737.959,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=10 sl=512",
+            "value": 9204.337,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=10 sl=512",
+            "value": 12057.291,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=10 sl=512",
+            "value": 15205.243,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=10 sl=512",
+            "value": 70574.668,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=10 sl=512",
+            "value": 76618.36,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=10 sl=512",
+            "value": 86811.839,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=10 sl=512",
+            "value": 695626.411,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=10 sl=512",
+            "value": 743339.436,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=10 sl=512",
+            "value": 770404.339,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=50 sl=8",
+            "value": 15037.756,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=50 sl=8",
+            "value": 16222.577,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=50 sl=8",
+            "value": 19078.681,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=50 sl=8",
+            "value": 128713.921,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=50 sl=8",
+            "value": 137880.408,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=50 sl=8",
+            "value": 147243.902,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=50 sl=8",
+            "value": 1311524.333,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=50 sl=8",
+            "value": 1401916.342,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=50 sl=8",
+            "value": 1430995.146,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=50 sl=64",
+            "value": 15240.589,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=50 sl=64",
+            "value": 18066.059,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=50 sl=64",
+            "value": 22300.203,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=50 sl=64",
+            "value": 133556.059,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=50 sl=64",
+            "value": 139581.142,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=50 sl=64",
+            "value": 173100.079,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=50 sl=64",
+            "value": 1300124.975,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=50 sl=64",
+            "value": 1393083.089,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=50 sl=64",
+            "value": 1440930.003,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=50 sl=512",
+            "value": 15877.309,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=50 sl=512",
+            "value": 19246.552,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=50 sl=512",
+            "value": 22493.962,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=50 sl=512",
+            "value": 135778.021,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=50 sl=512",
+            "value": 146961.468,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=50 sl=512",
+            "value": 169706.72,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=50 sl=512",
+            "value": 1366840.984,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=50 sl=512",
+            "value": 1407957.81,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=50 sl=512",
+            "value": 1427232.545,
             "unit": "us"
           }
         ]
