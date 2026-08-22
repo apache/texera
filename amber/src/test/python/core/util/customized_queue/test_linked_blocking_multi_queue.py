@@ -456,7 +456,61 @@ class TestRemoveSubQueue:
         assert queue.priority_groups[0].priority == 1
 
 
+class TestAddSubQueue:
+    """Verify that add_sub_queue uses putIfAbsent semantics (issue #7810).
+
+    On a repeated key the existing sub-queue must be kept in the map;
+    a fresh SubQueue must NOT replace it.
+    """
+
+    def test_new_key_returns_none(self):
+        """First registration of a key returns None (no previous mapping)."""
+        lbmq = LinkedBlockingMultiQueue()
+        result = lbmq.add_sub_queue("k", 0)
+        assert result is None
+
+    def test_repeated_key_returns_existing_sub_queue(self):
+        """Second call with the same key returns the original SubQueue object."""
+        lbmq = LinkedBlockingMultiQueue()
+        lbmq.add_sub_queue("k", 0)
+        original = lbmq.get_sub_queue("k")
+
+        returned = lbmq.add_sub_queue("k", 0)
+
+        assert returned is original
+
+    def test_repeated_key_keeps_existing_queue_in_map(self):
+        """After a duplicate add the map still holds the original SubQueue."""
+        lbmq = LinkedBlockingMultiQueue()
+        lbmq.add_sub_queue("k", 0)
+        original = lbmq.get_sub_queue("k")
+
+        lbmq.add_sub_queue("k", 0)
+
+        assert lbmq.get_sub_queue("k") is original
+
+    def test_repeated_key_priority_group_is_not_none(self):
+        """The sub-queue kept in the map must still be attached to a priority group."""
+        lbmq = LinkedBlockingMultiQueue()
+        lbmq.add_sub_queue("k", 0)
+
+        lbmq.add_sub_queue("k", 0)
+
+        assert lbmq.get_sub_queue("k").priority_group is not None
+
+    def test_repeated_key_put_then_get_does_not_crash(self):
+        """Exact reproduction from issue #7810: put then get must not raise."""
+        lbmq = LinkedBlockingMultiQueue()
+        lbmq.add_sub_queue("k", 0)
+        lbmq.add_sub_queue("k", 0)  # repeated key — must not install an orphan
+
+        lbmq.put("k", "x")
+
+        assert lbmq.get() == "x"
+
+
 class TestSmallGuards:
+
     def test_is_empty_tracks_size(self, queue):
         sub = queue.get_sub_queue("data")
         assert sub.is_empty()
