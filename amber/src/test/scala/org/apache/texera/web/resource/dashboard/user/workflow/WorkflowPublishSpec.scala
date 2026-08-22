@@ -48,7 +48,8 @@ import javax.ws.rs.{BadRequestException, ForbiddenException, NotFoundException}
 /**
   * Covers the publish state a workflow can be in -- following the author's latest content, as
   * publishing has always done, or holding a pinned copy of the version the author froze -- and the
-  * read paths that decide which of the two a caller is served, listings and search among them.
+  * read paths that decide which of the two a caller is served, listings and search among them, and
+  * the anchor a pin leaves in the revision history.
   */
 class WorkflowPublishSpec
     extends AnyFlatSpec
@@ -144,14 +145,17 @@ class WorkflowPublishSpec
   private val aWorkflowUpdate =
     """(?is)\s*update\s+(?:\S*\.)?["`\[]?workflow["`\]]?\s+set\b.*""".r
 
-  private def interleaving(interleaved: () => Unit)(act: => Unit): Unit = {
+  private def interleaving(
+      interleaved: () => Unit,
+      at: String => Boolean = aWorkflowUpdate.matches
+  )(act: => Unit): Unit = {
     var pending = true
     val configuration = getDSLContext.configuration().asInstanceOf[DefaultConfiguration]
     val previousListeners = configuration.executeListenerProviders()
     configuration.set(new DefaultExecuteListenerProvider(new ExecuteListener {
       override def executeStart(ctx: ExecuteContext): Unit = {
-        val sql = Option(ctx.sql()).getOrElse("")
-        if (pending && aWorkflowUpdate.matches(sql)) {
+        val sql = Option(ctx.sql()).getOrElse("").toLowerCase
+        if (pending && at(sql)) {
           pending = false
           interleaved()
         }
@@ -160,8 +164,9 @@ class WorkflowPublishSpec
     try act
     finally configuration.set(previousListeners: _*)
     withClue("nothing was interleaved, so this proves nothing: ") { pending shouldBe false }
-  } /** Clone records the caller's IP, and that is the only thing it wants from the request.
-    */
+  }
+
+  /** Clone records the caller's IP, and that is the only thing it wants from the request. */
   private def fakeRequest(): HttpServletRequest =
     Proxy
       .newProxyInstance(
@@ -330,10 +335,14 @@ class WorkflowPublishSpec
     // A pin that read the row and wrote what it had read would freeze the version before a save
     // landing in that window -- and the author, who had just pinned, would be told they have
     // unpublished changes. Each column is copied from its own row instead, so there is no window.
+    //
+    // Interleaved on the way in rather than mid-transaction: pinning now locks the row first, so a
+    // save arriving after that waits for the pin to finish -- which is the point of the lock. This
+    // is the last moment a save can still get in front of it.
     val wid = createWorkflow("pin_takes_the_row_as_it_stands")
     workflowResource.makePublic(wid, ownerSession)
 
-    interleaving(() => edit(wid, editedContent)) {
+    interleaving(() => edit(wid, editedContent), at = _.contains("for update")) {
       workflowResource.pinLatest(wid, ownerSession)
     }
 
@@ -1202,5 +1211,104 @@ class WorkflowPublishSpec
     workflowResource.makePublic(following, ownerSession)
     edit(following, editedContent)
     driftOf(following) shouldBe false
+  }
+
+  behavior of "the revision history"
+
+  it should "leave an anchor in the revision history the author can identify" in {
+    val wid = createWorkflow("publish_leaves_anchor")
+    publishPinned(wid)
+
+    val marked = versionResource
+      .retrieveVersionsOfWorkflow(wid, ownerSession)
+      .filter(_.isCurrentlyPublic)
+    marked should have size 1
+    marked.head.vId shouldBe workflowDao.fetchOneByWid(wid).getPublishedVersionId
+    // Both collapsing rules would otherwise hide it, and a hidden anchor is useless to the author.
+    marked.head.importance shouldBe true
+    // The revision panel prints this row's creation time and the share dialog prints the pinned
+    // version's date. They are one row, so they have to be one value: the same version dated a
+    // second apart in two panels reads as two versions.
+    marked.head.creationTime shouldBe statusOf(wid).pinnedVersionTime.get
+  }
+
+  it should "keep the save a pin was taken from visible in the revision panel" in {
+    // The anchor lands seconds after the save it freezes, and the panel folds versions that land
+    // close together into the newest of them. Letting the anchor be that newest one would hide the
+    // author's own save behind a row they never made.
+    val wid = createWorkflow("pin_does_not_swallow_the_save")
+    edit(wid, editedContent)
+    publishPinned(wid)
+
+    val shown = versionResource
+      .retrieveVersionsOfWorkflow(wid, ownerSession)
+      .filter(_.importance)
+    // The anchor, and the save it was taken from.
+    shown.count(_.isCurrentlyPublic) shouldBe 1
+    shown.size should be >= 2
+  }
+
+  it should "move the mark when the pin moves, leaving the old anchor unmarked" in {
+    val wid = createWorkflow("only_the_live_one_is_marked")
+    publishPinned(wid)
+    val first = workflowDao.fetchOneByWid(wid).getPublishedVersionId
+    edit(wid, editedContent)
+    workflowResource.pinLatest(wid, ownerSession)
+    val second = workflowDao.fetchOneByWid(wid).getPublishedVersionId
+
+    second should not be first
+    versionResource
+      .retrieveVersionsOfWorkflow(wid, ownerSession)
+      .filter(_.isCurrentlyPublic)
+      .map(_.vId) shouldBe List(second)
+  }
+
+  it should "replay the anchor to exactly what was published, however much is edited after" in {
+    val wid = createWorkflow("anchor_replays_to_published")
+    publishPinned(wid)
+    val anchor = workflowDao.fetchOneByWid(wid).getPublishedVersionId
+
+    edit(wid, editedContent)
+    edit(wid, """{"operators":[],"note":"later_still"}""")
+
+    versionResource
+      .retrieveWorkflowVersion(wid, anchor, ownerSession)
+      .getContent shouldBe publishedContent
+  }
+
+  it should "not record a second anchor when pinning again without having edited" in {
+    // Otherwise a repeated click would litter the author's revision panel with rows that all replay
+    // to the same graph.
+    val wid = createWorkflow("republish_without_edits")
+    val before = versionResource.retrieveVersionsOfWorkflow(wid, ownerSession).size
+    publishPinned(wid)
+    val anchor = workflowDao.fetchOneByWid(wid).getPublishedVersionId
+    workflowResource.pinLatest(wid, ownerSession)
+    workflowResource.pinLatest(wid, ownerSession)
+
+    workflowDao.fetchOneByWid(wid).getPublishedVersionId shouldBe anchor
+    versionResource.retrieveVersionsOfWorkflow(wid, ownerSession) should have size (before + 1)
+  }
+
+  it should "keep the version the pin was taken from after the pin is dropped" in {
+    val wid = createWorkflow("unpin_keeps_history")
+    publishPinned(wid)
+
+    workflowResource.unpin(wid, ownerSession)
+
+    versionResource.retrieveVersionsOfWorkflow(wid, ownerSession) should not be empty
+    workflowDao.fetchOneByWid(wid).getPublishedVersionId shouldBe null
+  }
+
+  it should "date the public view by the version on show" in {
+    // A public viewer is told when what they are looking at was published, not when the author last
+    // touched a copy they cannot see.
+    val wid = createWorkflow("public_view_is_dated_by_the_pin")
+    publishPinned(wid)
+    val pinnedAt = statusOf(wid).pinnedVersionTime.get
+
+    edit(wid, editedContent)
+
+    workflowResource.retrievePublicWorkflow(wid).lastModifiedTime shouldBe pinnedAt
   }
 }

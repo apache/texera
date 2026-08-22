@@ -141,11 +141,15 @@ object WorkflowVersionResource {
     *
     * @param wid
     */
-  def insertNewVersion(wid: Integer, content: String = "[]"): WorkflowVersion = {
+  def insertNewVersion(
+      wid: Integer,
+      content: String = "[]",
+      ctx: DSLContext = context
+  ): WorkflowVersion = {
     val workflowVersion = new WorkflowVersion()
     workflowVersion.setContent(content)
     workflowVersion.setWid(wid)
-    workflowVersionDao.insert(workflowVersion)
+    new WorkflowVersionDao(ctx.configuration).insert(workflowVersion)
     workflowVersion
   }
 
@@ -209,39 +213,45 @@ object WorkflowVersionResource {
     * @return
     */
   private def encodeVersionImportance(
-      currentVersions: List[WorkflowVersion]
+      currentVersions: List[WorkflowVersion],
+      publicVersionId: Option[Integer]
   ): List[VersionEntry] = {
     var impEncodedVersions: List[VersionEntry] = List()
 
+    // A pin's anchor is not a version the author made: it carries the identity patch and appears the
+    // moment they pin. It is always shown, so they can find and restore what the public has, but it
+    // must not start the aggregation window -- the save it was pinned from is seconds older, and
+    // would otherwise be folded into it and disappear from the panel.
+    def isAnchor(version: WorkflowVersion): Boolean = publicVersionId.contains(version.getVid)
+
     val lastVersion = currentVersions.head
-    var lastVersionTime = lastVersion.getCreationTime
+    var lastVersionTime: Option[Timestamp] =
+      if (isAnchor(lastVersion)) None else Some(lastVersion.getCreationTime)
     impEncodedVersions = impEncodedVersions :+ VersionEntry(
       lastVersion.getVid,
       lastVersion.getCreationTime,
       lastVersion.getContent,
-      true
-    ) // the first (latest)
-    // version is important even if it is positional
+      true,
+      isAnchor(lastVersion)
+    ) // the first (latest) version is important even if it is positional
     var versionImportance: Boolean = true
     for (version <- currentVersions.tail) {
-      if (
-        isWithinTimeLimit(
-          lastVersionTime,
-          version.getCreationTime
-        )
-      ) {
+      if (isAnchor(version)) {
+        versionImportance = true
+      } else if (lastVersionTime.exists(isWithinTimeLimit(_, version.getCreationTime))) {
         versionImportance = false
       } // try reducing unnecessary check of positional versions
       // because parsing the Json string is expensive
       else {
-        lastVersionTime = version.getCreationTime
+        lastVersionTime = Some(version.getCreationTime)
         versionImportance = isVersionImportant(version.getContent)
       }
       impEncodedVersions = impEncodedVersions :+ VersionEntry(
         version.getVid,
         version.getCreationTime,
         version.getContent,
-        versionImportance
+        versionImportance,
+        isAnchor(version)
       )
     }
     impEncodedVersions
@@ -340,7 +350,10 @@ object WorkflowVersionResource {
       vId: Integer,
       creationTime: Timestamp,
       content: String,
-      importance: Boolean
+      importance: Boolean,
+      // True for the one version the Hub is serving right now, so the author can tell at a glance
+      // where the public copy sits relative to what they are editing.
+      isCurrentlyPublic: Boolean
   )
 
 }
@@ -374,7 +387,8 @@ class WorkflowVersionResource {
           .orderBy(WORKFLOW_VERSION.CREATION_TIME.desc())
           .fetchInto(classOf[WorkflowVersion])
           .asScala
-          .toList
+          .toList,
+        Option(workflowDao.fetchOneByWid(wid)).flatMap(w => Option(w.getPublishedVersionId))
       )
     }
   }
