@@ -122,7 +122,10 @@ object WorkflowResource {
       ownerName: String,
       workflow: Workflow,
       ownerId: Integer,
-      coverImage: Option[String]
+      coverImage: Option[String],
+      // Behind the author's working copy? Listings use it to open the published preview instead of
+      // the editor -- for the author too, since that is what the entry is showing.
+      hasUnpublishedChanges: Boolean = false
   )
 
   case class WorkflowWithPrivilege(
