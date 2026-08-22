@@ -29,22 +29,23 @@ import org.apache.texera.dao.jooq.generated.tables.daos.{
   WorkflowUserAccessDao
 }
 import org.apache.texera.dao.jooq.generated.tables.pojos.{User, Workflow, WorkflowUserAccess}
+import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowResource.WorkflowIDs
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 import org.jooq.{ExecuteContext, ExecuteListener}
 import org.jooq.impl.{DefaultConfiguration, DefaultExecuteListenerProvider}
-
+import java.lang.reflect.Proxy
 import java.time.OffsetDateTime
+import java.util
+import javax.servlet.http.HttpServletRequest
 import javax.ws.rs.{BadRequestException, ForbiddenException, NotFoundException}
 
 /**
-  * Covers the publish state a workflow can be in: following the author's latest content, as
-  * publishing has always done, or holding a pinned copy of the version the author froze.
-  *
-  * Only the state itself is covered here: nothing serves the pinned copy to a reader yet, so the
-  * assertions are about which copy each operation leaves stored.
+  * Covers the publish state a workflow can be in -- following the author's latest content, as
+  * publishing has always done, or holding a pinned copy of the version the author froze -- and the
+  * read paths that decide which of the two a caller is served.
   */
 class WorkflowPublishSpec
     extends AnyFlatSpec
@@ -75,6 +76,7 @@ class WorkflowPublishSpec
   private val strangerSession = new SessionUser(stranger)
 
   private val workflowResource = new WorkflowResource()
+  private val versionResource = new WorkflowVersionResource()
 
   private val publishedContent = """{"operators":[],"note":"content_as_published"}"""
   private val editedContent = """{"operators":[],"note":"content_only_a_draft"}"""
@@ -154,7 +156,17 @@ class WorkflowPublishSpec
     try act
     finally configuration.set(previousListeners: _*)
     withClue("nothing was interleaved, so this proves nothing: ") { pending shouldBe false }
-  }
+  } /** Clone records the caller's IP, and that is the only thing it wants from the request.
+    */
+  private def fakeRequest(): HttpServletRequest =
+    Proxy
+      .newProxyInstance(
+        classOf[HttpServletRequest].getClassLoader,
+        Array[Class[_]](classOf[HttpServletRequest]),
+        (_: Any, method: java.lang.reflect.Method, _: Array[AnyRef]) =>
+          if (method.getName == "getRemoteAddr") "127.0.0.1" else null
+      )
+      .asInstanceOf[HttpServletRequest]
 
   private def statusOf(wid: Integer): WorkflowPublishService.PublishStatus =
     workflowResource.getPublishStatus(wid, ownerSession)
@@ -583,5 +595,322 @@ class WorkflowPublishSpec
     stored.getName shouldBe "renamed"
     stored.getIsPublic shouldBe true
     stored.getPublishedContent shouldBe publishedContent
+  }
+
+  behavior of "name and description"
+
+  it should "freeze the name and description alongside the content" in {
+    // Malicious text in a description is just as public as the graph, so editing it must not reach
+    // the public view either -- otherwise a report can be answered by rewording rather than fixing.
+    val wid = createWorkflow("freeze_metadata")
+    publishPinned(wid)
+
+    relabel(wid, "renamed_after_publishing", "rewritten after publishing")
+
+    val publicView = workflowResource.retrievePublicWorkflow(wid)
+    publicView.name shouldBe "freeze_metadata"
+    publicView.description shouldBe "a workflow"
+    workflowResource.getWorkflowName(wid) shouldBe "freeze_metadata"
+    workflowResource.getWorkflowDescription(wid) shouldBe "a workflow"
+  }
+
+  it should "publish an edited description by moving the pin forward" in {
+    val wid = createWorkflow("description_publishes_on_repin")
+    publishPinned(wid)
+    relabel(wid, "description_publishes_on_repin", "rewritten after publishing")
+
+    workflowResource.pinLatest(wid, ownerSession)
+
+    workflowResource.retrievePublicWorkflow(wid).description shouldBe "rewritten after publishing"
+    statusOf(wid).hasUnpublishedChanges shouldBe false
+  }
+
+  behavior of "public read paths"
+
+  it should "show a public viewer the author's latest while nothing is pinned" in {
+    // Following follows everything a pin would freeze, not just the graph: name and description are
+    // on public show too, so a viewer must see the live ones or the two halves would disagree.
+    val wid = createWorkflow("following_serves_latest_to_strangers")
+    workflowResource.makePublic(wid, ownerSession)
+    edit(wid, editedContent)
+    relabel(wid, "renamed_while_following", "described_while_following")
+
+    workflowResource.retrieveWorkflow(wid, strangerSession).content shouldBe editedContent
+    workflowResource.getWorkflowName(wid) shouldBe "renamed_while_following"
+    workflowResource.getWorkflowDescription(wid) shouldBe "described_while_following"
+
+    val publicView = workflowResource.retrievePublicWorkflow(wid)
+    publicView.content shouldBe editedContent
+    publicView.name shouldBe "renamed_while_following"
+    publicView.description shouldBe "described_while_following"
+  }
+
+  it should "open the public view in the pinned copy's own view" in {
+    // A form's definition lives inside the content, so serving the author's live preference over a
+    // frozen graph would put a form on a copy that has none.
+    val wid = createWorkflow("public_view_uses_the_frozen_view")
+    publishPinned(wid)
+
+    getDSLContext
+      .update(WORKFLOW)
+      .set(WORKFLOW.DEFAULT_VIEW, DefaultViewEnum.FORM)
+      .where(WORKFLOW.WID.eq(wid))
+      .execute()
+
+    workflowResource.retrievePublicWorkflow(wid).defaultView shouldBe DefaultViewEnum.CANVAS
+    // The author keeps their own preference.
+    workflowDao.fetchOneByWid(wid).getDefaultView shouldBe DefaultViewEnum.FORM
+  }
+
+  it should "follow the author's view while nothing is pinned" in {
+    val wid = createWorkflow("public_view_follows_latest")
+    workflowResource.makePublic(wid, ownerSession)
+
+    getDSLContext
+      .update(WORKFLOW)
+      .set(WORKFLOW.DEFAULT_VIEW, DefaultViewEnum.FORM)
+      .where(WORKFLOW.WID.eq(wid))
+      .execute()
+
+    workflowResource.retrievePublicWorkflow(wid).defaultView shouldBe DefaultViewEnum.FORM
+  }
+
+  it should "serve the published version to a user without granted access" in {
+    val wid = createWorkflow("read_serves_published")
+    publishPinned(wid)
+    edit(wid, editedContent)
+
+    // A stranger reaches this workflow only because it is public.
+    workflowResource.retrieveWorkflow(wid, strangerSession).content shouldBe publishedContent
+    // The author keeps seeing their own working copy.
+    workflowResource.retrieveWorkflow(wid, ownerSession).content shouldBe editedContent
+  }
+
+  it should "open a pinned workflow under the copy's own title and view, not the author's" in {
+    // The graph and the label travel together: a public viewer opening this workflow must not get
+    // the frozen graph under a title the author has not published, and must not be told to open a
+    // form view over a copy whose content carries no form.
+    val wid = createWorkflow("open_serves_the_whole_copy")
+    publishPinned(wid)
+    edit(wid, editedContent)
+    relabel(wid, "renamed_after_pinning", "described_after_pinning")
+    getDSLContext
+      .update(WORKFLOW)
+      .set(WORKFLOW.DEFAULT_VIEW, DefaultViewEnum.FORM)
+      .where(WORKFLOW.WID.eq(wid))
+      .execute()
+
+    val asStranger = workflowResource.retrieveWorkflow(wid, strangerSession)
+    asStranger.content shouldBe publishedContent
+    asStranger.name shouldBe "open_serves_the_whole_copy"
+    asStranger.description shouldBe "a workflow"
+    asStranger.defaultView shouldBe DefaultViewEnum.CANVAS
+
+    // The author opens their own workflow and sees everything they have.
+    val asOwner = workflowResource.retrieveWorkflow(wid, ownerSession)
+    asOwner.content shouldBe editedContent
+    asOwner.name shouldBe "renamed_after_pinning"
+    asOwner.defaultView shouldBe DefaultViewEnum.FORM
+  }
+
+  it should "serve the working copy to a collaborator with granted read access" in {
+    val wid = createWorkflow("collaborator_sees_working_copy")
+    publishPinned(wid)
+    edit(wid, editedContent)
+    grantAccess(wid, PrivilegeEnum.READ)
+
+    try {
+      // Sharing is not publishing: a collaborator tracks the author's latest content, live.
+      workflowResource.retrieveWorkflow(wid, strangerSession).content shouldBe editedContent
+    } finally revokeAccess(wid)
+  }
+
+  it should "keep serving a collaborator the latest content as the author keeps editing" in {
+    val wid = createWorkflow("collaborator_tracks_latest")
+    publishPinned(wid)
+    grantAccess(wid, PrivilegeEnum.READ)
+
+    try {
+      val later = """{"operators":[],"note":"later_still"}"""
+      edit(wid, editedContent)
+      workflowResource.retrieveWorkflow(wid, strangerSession).content shouldBe editedContent
+      edit(wid, later)
+      workflowResource.retrieveWorkflow(wid, strangerSession).content shouldBe later
+      // ...while the public copy stayed put throughout.
+      workflowResource.retrievePublicWorkflow(wid).content shouldBe publishedContent
+    } finally revokeAccess(wid)
+  }
+
+  it should "not tell a public viewer that the author has unpublished edits" in {
+    val wid = createWorkflow("draft_state_is_private")
+    publishPinned(wid)
+    edit(wid, editedContent)
+
+    a[ForbiddenException] should be thrownBy workflowResource.getPublishStatus(wid, strangerSession)
+    statusOf(wid).hasUnpublishedChanges shouldBe true
+  }
+
+  it should "not expose the author's edit history to a public viewer" in {
+    // The other way into the working copy. Replaying a version folds deltas back from the author's
+    // *current* content, so a public viewer listing versions and checking one out is handed a draft
+    // the pin is holding back -- the one thing the frozen copy exists to prevent.
+    val wid = createWorkflow("history_is_not_public")
+    publishPinned(wid)
+    edit(wid, editedContent)
+    edit(wid, """{"operators":[],"note":"newer_still"}""")
+
+    val ownerVersions = versionResource.retrieveVersionsOfWorkflow(wid, ownerSession)
+    ownerVersions should not be empty
+    versionResource.retrieveVersionsOfWorkflow(wid, strangerSession) shouldBe empty
+    a[ForbiddenException] should be thrownBy
+      versionResource.retrieveWorkflowVersion(wid, ownerVersions.head.vId, strangerSession)
+  }
+
+  it should "still expose the history of a public workflow that is not pinned" in {
+    // Nothing is frozen, so the public copy is the author's latest and its history is the history of
+    // what everyone can already see. Taking that away would be a change this feature does not need.
+    val wid = createWorkflow("history_stays_public_while_following")
+    workflowResource.makePublic(wid, ownerSession)
+    edit(wid, editedContent)
+
+    val versions = versionResource.retrieveVersionsOfWorkflow(wid, strangerSession)
+    versions should not be empty
+    versionResource
+      .retrieveWorkflowVersion(wid, versions.head.vId, strangerSession)
+      .getContent should not be empty
+  }
+
+  it should "still expose the edit history to a collaborator" in {
+    // Sharing is not publishing: someone granted access tracks the author's latest, history included.
+    val wid = createWorkflow("history_visible_to_collaborator")
+    publishPinned(wid)
+    grantAccess(wid, PrivilegeEnum.READ)
+    try {
+      versionResource.retrieveVersionsOfWorkflow(wid, strangerSession) should not be empty
+    } finally revokeAccess(wid)
+  }
+
+  it should "refuse to hand out a public copy of a workflow that is not public" in {
+    // The guard viewers without granted access rely on: no route to a private workflow's content
+    // may fall through to the public copy just because the caller asked for it by wid.
+    val wid = createWorkflow("public_copy_requires_public")
+    a[NotFoundException] should be thrownBy WorkflowPublishService.publicCopyOf(wid)
+  }
+
+  it should "clone the published version, not the author's latest" in {
+    val wid = createWorkflow("clone_takes_published")
+    publishPinned(wid)
+    edit(wid, editedContent)
+
+    val clonedWid = workflowResource.cloneWorkflow(wid, strangerSession, fakeRequest())
+    val cloned = workflowDao.fetchOneByWid(clonedWid)
+
+    cloned.getContent shouldBe publishedContent
+    // A copy has never been reviewed, so it starts private.
+    cloned.getIsPublic shouldBe false
+  }
+
+  it should "clone the published version for the author too" in {
+    // The hub shows the pinned version, so its Clone button copies that even for the author, whose
+    // working copy has moved on -- cloning something other than what is on the screen would be the
+    // surprise, and their latest is already open in the editor.
+    val wid = createWorkflow("clone_takes_published_for_author")
+    publishPinned(wid)
+    edit(wid, editedContent)
+
+    val clonedWid = workflowResource.cloneWorkflow(wid, ownerSession, fakeRequest())
+
+    workflowDao.fetchOneByWid(clonedWid).getContent shouldBe publishedContent
+  }
+
+  it should "clone the published name and description, not the edited ones" in {
+    val wid = createWorkflow("clone_takes_published_metadata")
+    publishPinned(wid)
+    relabel(wid, "renamed_after_publishing", "described_after_publishing")
+
+    val cloned =
+      workflowDao.fetchOneByWid(workflowResource.cloneWorkflow(wid, ownerSession, fakeRequest()))
+
+    cloned.getName shouldBe "clone_takes_published_metadata_clone"
+    cloned.getDescription shouldBe "a workflow"
+  }
+
+  it should "still clone the working copy of a workflow that is not public" in {
+    val wid = createWorkflow("clone_private_takes_working_copy")
+    edit(wid, editedContent)
+
+    val clonedWid = workflowResource.cloneWorkflow(wid, ownerSession, fakeRequest())
+
+    workflowDao.fetchOneByWid(clonedWid).getContent shouldBe editedContent
+  }
+
+  it should "duplicate the published version for a user without granted access" in {
+    // Title and description too, not just the graph: a copy carrying the published canvas under the
+    // author's unpublished title would publish the very rename the pin is holding back.
+    val wid = createWorkflow("duplicate_takes_published")
+    publishPinned(wid)
+    edit(wid, editedContent)
+    relabel(wid, "duplicate_unpublished_name", "unpublished description")
+
+    val duplicated =
+      workflowResource.duplicateWorkflow(WorkflowIDs(List(wid)), strangerSession)
+
+    duplicated should have size 1
+    val copy = workflowDao.fetchOneByWid(duplicated.head.workflow.getWid)
+    copy.getContent shouldBe publishedContent
+    copy.getName shouldBe "duplicate_takes_published_copy"
+    copy.getDescription should not be "unpublished description"
+  }
+
+  it should "duplicate the owner's own working copy for the owner" in {
+    val wid = createWorkflow("owner_duplicates_working_copy")
+    publishPinned(wid)
+    edit(wid, editedContent)
+
+    val duplicated = workflowResource.duplicateWorkflow(WorkflowIDs(List(wid)), ownerSession)
+    workflowDao.fetchOneByWid(duplicated.head.workflow.getWid).getContent shouldBe editedContent
+  }
+
+  it should "start a copy of a published workflow with no publish state of its own" in {
+    val wid = createWorkflow("copy_starts_clean")
+    publishPinned(wid)
+
+    val copy = workflowDao.fetchOneByWid(
+      workflowResource
+        .duplicateWorkflow(WorkflowIDs(List(wid)), ownerSession)
+        .head
+        .workflow
+        .getWid
+    )
+
+    copy.getIsPublic shouldBe false
+    copy.getPublishedContent shouldBe null
+    copy.getPublishedName shouldBe null
+    copy.getPublishedDescription shouldBe null
+    copy.getPublishedDefaultView shouldBe null
+    copy.getPublishedVersionId shouldBe null
+  }
+
+  it should "size a workflow by the copy the caller can see" in {
+    // Listings show a size next to every card, so it has to describe the copy that card opens: the
+    // pinned one while a pin is in place, the author's latest otherwise, and a private workflow's
+    // own content.
+    val priv = createWorkflow("private_size_uses_content")
+    edit(priv, editedContent)
+    workflowResource.getSize(util.Arrays.asList(priv)).get(priv) shouldBe editedContent.length
+
+    val following = createWorkflow("size_follows_latest")
+    workflowResource.makePublic(following, ownerSession)
+    edit(following, editedContent + "     ")
+    workflowResource
+      .getSize(util.Arrays.asList(following))
+      .get(following) shouldBe editedContent.length + 5
+
+    val pinned = createWorkflow("size_uses_published")
+    publishPinned(pinned)
+    edit(pinned, editedContent + "                    ")
+    workflowResource
+      .getSize(util.Arrays.asList(pinned))
+      .get(pinned) shouldBe publishedContent.length
   }
 }

@@ -181,15 +181,61 @@ object WorkflowPublishService extends LazyLogging {
     PublishStatus(
       isPublished = workflow.getIsPublic,
       isPinned = pinned,
-      // Literally "what the public sees is not what you have". Every field the pin freezes counts:
-      // a rename the public cannot see is held back exactly as an edit to the graph is. Compared on
-      // values rather than on a version id, so that an edit and its undo report nothing held back.
-      hasUnpublishedChanges = pinned && (
-        !sameContent(workflow.getPublishedContent, workflow.getContent) ||
-          workflow.getPublishedName != workflow.getName ||
-          workflow.getPublishedDescription != workflow.getDescription ||
-          workflow.getPublishedDefaultView != workflow.getDefaultView
-      )
+      // Literally "what the public sees is not what you have": whatever [[publicCopyOf]] freezes is
+      // what this compares, on values rather than version ids, so an edit and its undo cancel out.
+      hasUnpublishedChanges = differs(publicCopyOf(workflow), workingCopyOf(workflow))
     )
+  }
+
+  /**
+    * Every field of the copy, so that a rename the public cannot see is held back exactly as an edit
+    * to the graph is. Content is compared as a tree: a restore can rearrange whitespace, and calling
+    * that drift alarms nobody.
+    */
+  private def differs(public: PublicCopy, working: PublicCopy): Boolean =
+    public.name != working.name ||
+      public.description != working.description ||
+      public.defaultView != working.defaultView ||
+      !sameContent(public.content, working.content)
+
+  /**
+    * Everything about a workflow that is on public show, carried together so that a caller cannot
+    * serve the frozen graph under the author's live title, or open the author's chosen view on a
+    * copy that does not contain it.
+    */
+  case class PublicCopy(
+      name: String,
+      description: String,
+      content: String,
+      defaultView: DefaultViewEnum
+  )
+
+  /** What every public surface must serve, as a group so no field is the one that gets forgotten. */
+  def publicCopyOf(workflow: Workflow): PublicCopy =
+    if (workflow.getPublishedContent == null) workingCopyOf(workflow)
+    else
+      PublicCopy(
+        workflow.getPublishedName,
+        workflow.getPublishedDescription,
+        workflow.getPublishedContent,
+        workflow.getPublishedDefaultView
+      )
+
+  /** The author's own copy, in the same shape. */
+  private def workingCopyOf(workflow: Workflow): PublicCopy =
+    PublicCopy(
+      workflow.getName,
+      workflow.getDescription,
+      workflow.getContent,
+      workflow.getDefaultView
+    )
+
+  /** As [[publicCopyOf]], for callers holding only a wid. 404s unless the workflow is public. */
+  def publicCopyOf(wid: Integer): PublicCopy = {
+    val workflow = requireWorkflow(wid)
+    if (!workflow.getIsPublic) {
+      throw new NotFoundException(s"Workflow $wid is not public")
+    }
+    publicCopyOf(workflow)
   }
 }
