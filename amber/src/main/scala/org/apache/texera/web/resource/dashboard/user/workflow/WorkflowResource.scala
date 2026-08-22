@@ -93,6 +93,12 @@ object WorkflowResource {
   }
 
   private def insertWorkflow(workflow: Workflow, user: User): Unit = {
+    // A workflow is born with nothing pinned, whether or not the caller asked for a public one:
+    // clearing the columns here is what stops a request body from seeding a public copy of its own.
+    workflow.setPublishedVersionId(null)
+    workflow.setPublishedContent(null)
+    workflow.setPublishedName(null)
+    workflow.setPublishedDescription(null)
     workflowDao.insert(workflow)
     workflowOfUserDao.insert(new WorkflowOfUser(user.getUid, workflow.getWid))
     workflowUserAccessDao.insert(
@@ -102,6 +108,22 @@ object WorkflowResource {
         PrivilegeEnum.WRITE
       )
     )
+  }
+
+  /**
+    * Writes only the columns a save is allowed to change. Going through the DAO would write the
+    * publish columns from the request body, or restore them from a stale read -- rolling back a pin
+    * that landed in between, or leaving a private workflow carrying one, which the constraint
+    * refuses outright.
+    */
+  private def updateEditableFields(workflow: Workflow): Unit = {
+    context
+      .update(WORKFLOW)
+      .set(WORKFLOW.NAME, workflow.getName)
+      .set(WORKFLOW.DESCRIPTION, workflow.getDescription)
+      .set(WORKFLOW.CONTENT, workflow.getContent)
+      .where(WORKFLOW.WID.eq(workflow.getWid))
+      .execute()
   }
 
   private def workflowOfUserExists(wid: Integer, uid: Integer): Boolean = {
@@ -172,9 +194,11 @@ object WorkflowResource {
         user.getUid
       )
     ) {
+      // Same reason as updateEditableFields: a read-modify-write through the DAO would rewrite the
+      // publish columns from a stale read.
       val userWorkflow = workflowDao.fetchOneByWid(wid)
       updateFunction(userWorkflow)
-      workflowDao.update(userWorkflow)
+      updateEditableFields(userWorkflow)
     } else {
       throw new ForbiddenException("No sufficient access privilege.")
     }
@@ -460,7 +484,7 @@ class WorkflowResource extends LazyLogging {
 
     if (workflowOfUserExists(workflow.getWid, user.getUid)) {
       WorkflowVersionResource.insertVersion(workflow, insertingNewWorkflow = false)
-      workflowDao.update(workflow)
+      updateEditableFields(workflow)
     } else {
       if (!WorkflowAccessResource.hasReadAccess(workflow.getWid, user.getUid)) {
         // Check if this workflow exists in the database
@@ -477,7 +501,7 @@ class WorkflowResource extends LazyLogging {
       } else if (WorkflowAccessResource.hasWriteAccess(workflow.getWid, user.getUid)) {
         WorkflowVersionResource.insertVersion(workflow, insertingNewWorkflow = false)
         // not owner but has write access
-        workflowDao.update(workflow)
+        updateEditableFields(workflow)
       } else {
         // not owner and no write access -> rejected
         throw new ForbiddenException("No sufficient access privilege.")
@@ -720,9 +744,7 @@ class WorkflowResource extends LazyLogging {
     if (!WorkflowAccessResource.hasWriteAccess(wid, user.getUid)) {
       throw new ForbiddenException(s"You do not have permission to modify workflow $wid")
     }
-    val workflow: Workflow = workflowDao.fetchOneByWid(wid)
-    workflow.setIsPublic(true)
-    workflowDao.update(workflow)
+    WorkflowPublishService.publish(wid)
   }
 
   @PUT
@@ -732,9 +754,65 @@ class WorkflowResource extends LazyLogging {
     if (!WorkflowAccessResource.hasWriteAccess(wid, user.getUid)) {
       throw new ForbiddenException(s"You do not have permission to modify workflow $wid")
     }
-    val workflow: Workflow = workflowDao.fetchOneByWid(wid)
-    workflow.setIsPublic(false)
-    workflowDao.update(workflow)
+    WorkflowPublishService.unpublish(wid)
+  }
+
+  /**
+    * Pins the author's current version as the public copy, so later edits stop reaching the public.
+    * Also how a pin moves forward, which is the only way edits become public while one is in place.
+    */
+  @POST
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @Path("/pin/{wid}")
+  def pinLatest(
+      @PathParam("wid") wid: Integer,
+      @Auth user: SessionUser
+  ): WorkflowPublishService.PublishStatus = {
+    requirePublishable(wid, user)
+    WorkflowPublishService.pinLatest(wid)
+  }
+
+  /**
+    * Drops the pin, so the public follows the author's latest again. Guarded on write access, the
+    * same as pinning: whoever may pin may undo it.
+    */
+  @DELETE
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @Path("/pin/{wid}")
+  def unpin(
+      @PathParam("wid") wid: Integer,
+      @Auth user: SessionUser
+  ): WorkflowPublishService.PublishStatus = {
+    requirePublishable(wid, user)
+    WorkflowPublishService.unpin(wid)
+  }
+
+  /** What the share dialog's publish panel reads: published, pinned, and holding edits back. */
+  @GET
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @Path("/publish-status/{wid}")
+  def getPublishStatus(
+      @PathParam("wid") wid: Integer,
+      @Auth user: SessionUser
+  ): WorkflowPublishService.PublishStatus = {
+    // Write access rather than read: whether edits are being held back is nobody else's business.
+    if (!WorkflowAccessResource.hasWriteAccess(wid, user.getUid)) {
+      throw new ForbiddenException(s"You do not have permission to modify workflow $wid")
+    }
+    WorkflowPublishService.statusOf(wid)
+  }
+
+  /** The pin endpoints share one guard: writable by this user, and public in the first place. */
+  private def requirePublishable(wid: Integer, user: SessionUser): Unit = {
+    if (!WorkflowAccessResource.hasWriteAccess(wid, user.getUid)) {
+      throw new ForbiddenException(s"You do not have permission to modify workflow $wid")
+    }
+    if (!WorkflowAccessResource.isPublic(wid)) {
+      throw new BadRequestException(s"Workflow $wid is not published")
+    }
   }
 
   /** Returns the workflow's cover image; 404 if none set. */
