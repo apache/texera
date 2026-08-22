@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1787317316354,
+  "lastUpdate": 1787402475983,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -10155,6 +10155,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 501.2343661764751,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Xinyuan Lin",
+            "username": "aglinxinyuan",
+            "email": "xinyual3@uci.edu"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "b7c33b0892db49a94a3b15c81eed4ebcbc12882d",
+          "message": "test(workflow-core): cover the lakeFS file document against the loopback stub (#7831)\n\n### What changes were proposed in this PR?\n\nTest-only. **No production file changes** — `git diff -- '*/src/main/*'`\nis empty.\n\n`LakeFSFileDocument` looked Docker-gated and is not:\n`LakeFSStorageClientSpec` (merged in #7273) already drives\n`LakeFSStorageClient` against an in-process `com.sun.net.httpserver`\nloopback stub, and already covers the exact two calls the document\nmakes. This PR reuses that harness.\n\nMeasured with `WorkflowCore/jacoco` under an identical filter for the\nbefore and after runs (the Docker-backed `LakeFSStorageClientMtimeSpec`\nis excluded from **both**, so these differ from the Codecov figures,\nwhich include it):\n\n| File | Lines | Branches |\n|---|---|---|\n| `LakeFSFileDocument.scala` | 32/80 (40.0%) → **65/80 (81.2%)** | 16/46\n→ **27/46** |\n| `LakeFSStorageClient.scala` | 120/146 (82.2%) → **133/146 (91.1%)** |\n41/60 → **45/60** |\n\n**+33 lines and +11 branch arms** on the document, **+13 lines** on the\nclient. Tests **38 → 49**.\n\nCovered: `asInputStream`'s presign happy path and its fallback (the\nlocal `def fallbackToLakeFS` lifts to `fallbackToLakeFS$1`, a counted\nmethod rather than an `$anonfun$`, which is why these lines move the\nnumber at all), `asFile` both arms including the `tempFile` memoization,\n`clear` both arms, and `LakeFSStorageClient.put`.\n\nThe 15 lines still missed on the document are exactly the out-of-scope\nregion — lines 133-161, the `userJwtToken`-non-empty file-service\npresign branch. Reaching it needs a forked JVM with `USER_JWT_TOKEN` set\n**and** a presign endpoint on a *fixed* port known before JVM start,\ni.e. a `build.sbt` `testGrouping` change plus a hardcodable port that\ncan collide in CI. Deliberately excluded.\n\n### Verification\n\nReview proposed 8 findings. **Six were real survivors and are now\nkilled**, each proved red on a named test after the repair; two are\ngenuinely unpinnable here and are recorded in the spec rather than\npapered over. Suite 47 → 49 after repair.\n\n| Survivor found by review | How it is now killed |\n|---|---|\n| both `asInputStream` call sites reduced to\n`fileRelativePath.getFileName.toString` | a nested-fixture read test\nthat kills the pair *and* each site alone |\n| widening the `put` success guard to `code >= 400` | rejection test\nextended to 403/204/307; the 204 and 307 single-leg widenings each die\nseparately |\n| deleting `inputStream.close()` | a recording-subclass test,\ndeterministic on any platform |\n| re-downloading into the memoized `File` | `requests.clear()` plus\n`hits shouldBe empty` |\n| dropping `setChunkedStreamingMode` | the stub now records request\nheaders; the put test pins `content-length: 5` and the absence of\n`transfer-encoding` |\n| `Files.exists shouldBe true` was JDK-guaranteed | now `Files.size ==\n2502` — and the mutant fails *at that line* rather than 12 lines later |\n\n**Two limits, argued rather than cargo-culted.** The fallback\n`logger.warn` at :110 cannot be pinned: `workflow-core`'s test classpath\nhas no SLF4J provider at all (\"No SLF4J providers were found\", NOP\nloggers), and scala-logging's `isWarnEnabled` guard means the call is\nnot even evaluated — a capturing appender has nothing to attach to. And\n`deleteRepo` (1 line) was left alone: it is\n`repoApi.deleteRepository(name).execute()` with no branch, so the only\nassertable fact is the generated SDK's own URL template. The existing\nspec already documents that rationale and I did not contradict it for\none line.\n\n### Two production bugs found while doing this, reported not fixed\n\nBoth are out of scope for a test-only PR and neither is cemented by any\nnew test.\n\n1. **`LakeFSFileDocument.scala:204` renders the relative path with the\nplatform separator.** On a Windows worker, every nested dataset/model\nfile is requested as `dir\\file.csv` in the lakeFS `path` query parameter\n— 404, silent fallback, 404 again. A reviewer's suggested assertion of\n`Some(\"nested/dir/records.csv\")` would be red against today's\nproduction, which is how this surfaced. Fix is a one-line `'/'`-join and\nwants its own PR.\n2. **`tempFileStream.close()` is load-bearing on Windows only.**\nDeleting it fails 4 tests here with \"file is being used by another\nprocess\" (the cleanup hits an open write handle) while shipping green\nthrough Linux CI. `FileOutputStream` is unbuffered, so no portable\nin-process assertion can observe it; wrapping the copy in\n`try`/`finally` is production work.\n\n### Any related issues, documentation, discussions?\n\nCloses #7830\n\n### How was this PR tested?\n\n```\nsbt \"WorkflowCore/testOnly org.apache.texera.amber.core.storage.model.LakeFSFileDocumentSpec org.apache.texera.amber.core.storage.util.LakeFSStorageClientSpec\"\n```\n\n```\n[info] Suites: completed 2, aborted 0\n[info] Tests: succeeded 49, failed 0, canceled 0, ignored 0, pending 0\n```\n\n`scalafmtCheckAll` and `scalafixAll --check` both pass.\n`LakeFSFileDocumentSpec` gains `@NonParallelTest` so it gets its own\nforked JVM, matching the sibling spec.\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Claude Code (Opus 5)\n\n---------\n\nSigned-off-by: Xinyuan Lin <xinyual3@uci.edu>\nCo-authored-by: Copilot Autofix powered by AI <175728472+Copilot@users.noreply.github.com>",
+          "timestamp": "2026-08-22T10:53:06Z",
+          "url": "https://github.com/apache/texera/commit/b7c33b0892db49a94a3b15c81eed4ebcbc12882d"
+        },
+        "date": 1787402475490,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 948.7718252612508,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 1724.9331382969374,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 1899.7754681249164,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 1243.2973768478655,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 1777.0064018864448,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 1871.6790850167602,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 1297.9233950569305,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 1782.0070750444183,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 1893.6391779083644,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 1062.4326035917607,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 1421.9411811217828,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 1468.9995562252307,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 1069.641348384129,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 1420.0339185993118,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 1454.8234609399167,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 1063.857513171657,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 1394.9469448843245,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 1437.1961969448673,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 653.8408993920784,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 767.3830829265254,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 757.4527361277579,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 640.704749596366,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 743.6648773661118,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 764.6773469533825,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 623.7076646599454,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 725.6521284534143,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 730.6219898257485,
             "unit": "tuples/sec"
           }
         ]
