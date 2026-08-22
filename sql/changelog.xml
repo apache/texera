@@ -114,6 +114,11 @@
         <sqlFile path="sql/updates/40.sql"/>
     </changeSet>
 
+    <!-- Add version-pinning columns to workflow -->
+    <changeSet id="41" author="yangz75">
+        <sqlFile path="sql/updates/41.sql"/>
+    </changeSet>
+
     <!-- example changeSet
     <changeSet id="1" author="author">
         <sqlFile path="sql/updates/1.sql"/>

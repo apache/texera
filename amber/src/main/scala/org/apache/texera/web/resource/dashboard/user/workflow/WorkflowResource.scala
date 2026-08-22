@@ -143,6 +143,21 @@ object WorkflowResource {
 
   case class WorkflowIDs(wids: List[Integer], pid: Option[Integer])
 
+  /**
+    * A workflow POJO for the copy-producing paths (clone, duplicate, restore-a-version).
+    *
+    * Built with setters rather than the positional constructor, so that adding a column cannot
+    * silently shift a null into the wrong field -- as adding the published-copy columns would.
+    */
+  def newUnpublishedWorkflow(name: String, description: String, content: String): Workflow = {
+    val workflow = new Workflow()
+    workflow.setName(name)
+    workflow.setDescription(description)
+    workflow.setContent(content)
+    workflow.setIsPublic(false)
+    workflow
+  }
+
   private def updateWorkflowField(
       workflow: Workflow,
       sessionUser: SessionUser,
@@ -504,14 +519,10 @@ class WorkflowResource extends LazyLogging {
         for (wid <- workflowIDs.wids) {
           val oldWorkflow: Workflow = workflowDao.fetchOneByWid(wid)
           val newWorkflow = createWorkflow(
-            new Workflow(
-              null,
+            newUnpublishedWorkflow(
               oldWorkflow.getName + "_copy",
               oldWorkflow.getDescription,
-              assignNewOperatorIds(oldWorkflow.getContent),
-              null,
-              null,
-              false
+              assignNewOperatorIds(oldWorkflow.getContent)
             ),
             sessionUser
           )
@@ -554,14 +565,10 @@ class WorkflowResource extends LazyLogging {
     }
     val oldWorkflow: Workflow = workflowDao.fetchOneByWid(wid)
     val newWorkflow: DashboardWorkflow = createWorkflow(
-      new Workflow(
-        null,
+      newUnpublishedWorkflow(
         oldWorkflow.getName + "_clone",
         oldWorkflow.getDescription,
-        assignNewOperatorIds(oldWorkflow.getContent),
-        null,
-        null,
-        false
+        assignNewOperatorIds(oldWorkflow.getContent)
       ),
       sessionUser
     )

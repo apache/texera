@@ -30,7 +30,8 @@ import org.apache.texera.dao.jooq.generated.tables.daos.{WorkflowDao, WorkflowVe
 import org.apache.texera.dao.jooq.generated.tables.pojos.{Workflow, WorkflowVersion}
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowResource.{
   DashboardWorkflow,
-  assignNewOperatorIds
+  assignNewOperatorIds,
+  newUnpublishedWorkflow
 }
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowVersionResource._
 import org.jooq.DSLContext
@@ -428,14 +429,10 @@ class WorkflowVersionResource {
     val newWorkflow: DashboardWorkflow =
       try {
         workflowResource.createWorkflow(
-          new Workflow(
-            null,
+          newUnpublishedWorkflow(
             newWorkflowName,
             workflowVersion.getDescription,
-            assignNewOperatorIds(workflowVersion.getContent),
-            null,
-            null,
-            false
+            assignNewOperatorIds(workflowVersion.getContent)
           ),
           sessionUser
         )

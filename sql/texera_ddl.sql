@@ -164,8 +164,27 @@ CREATE TABLE IF NOT EXISTS workflow
     content            TEXT NOT NULL,
     creation_time      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     last_modified_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    is_public          BOOLEAN NOT NULL DEFAULT false
+    is_public          BOOLEAN NOT NULL DEFAULT false,
+    -- is_public is the on/off switch; published_content is the pin. NULL means the public follows the
+    -- author's latest content, non-NULL is the frozen copy the public sees instead. Materialized
+    -- rather than reconstructed from workflow_version, whose rows are reverse deltas.
+    -- published_version_id names the version row holding that copy, which is what the revision panel
+    -- marks so the author can restore it.
+    published_version_id  INT,
+    published_content     TEXT,
+    published_name        VARCHAR(128),
+    published_description TEXT
     );
+
+-- A pin only means something while the workflow is public; these columns are only ever written by
+-- WorkflowPublishService, which clears them on unpublish.
+ALTER TABLE workflow
+    DROP CONSTRAINT IF EXISTS workflow_published_consistent;
+ALTER TABLE workflow
+    DROP CONSTRAINT IF EXISTS workflow_pin_requires_public;
+ALTER TABLE workflow
+    ADD CONSTRAINT workflow_pin_requires_public
+        CHECK (published_content IS NULL OR is_public);
 
 -- workflow_of_user
 CREATE TABLE IF NOT EXISTS workflow_of_user
@@ -675,6 +694,16 @@ BEGIN
       r.tablename, r.tablename, r.index_column, stem_filter
     );
   END LOOP;
+
+  -- Public search matches the pinned copy -- name, description and content together -- rather than
+  -- the author's live values, so it needs its own index alongside idx_workflow_pgroonga. The
+  -- expression must match the one the query builds; see WorkflowSearchQueryBuilder.onVisibleCopy.
+  EXECUTE format(
+    'CREATE INDEX idx_workflow_published_pgroonga ON workflow USING pgroonga ' ||
+    '((COALESCE(published_name, '''') || '' '' || COALESCE(published_description, '''') || '' '' || COALESCE(published_content, ''''))) ' ||
+    'WITH (tokenizer = ''TokenMecab''%s);',
+    stem_filter
+  );
 END $$;
 
 -- END Fulltext search index creation (DO NOT EDIT THIS LINE)
