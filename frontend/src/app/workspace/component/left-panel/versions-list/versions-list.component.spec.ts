@@ -157,6 +157,46 @@ describe("VersionsListComponent", () => {
       expect(unhighlightSpy).toHaveBeenCalledWith(highlights);
     });
 
+    it("marks the version the Hub is serving, and only that one", () => {
+      const entries: WorkflowVersionEntry[] = [
+        { vId: 9, creationTime: 300, content: "c", importance: true },
+        { vId: 8, creationTime: 200, content: "b", importance: true, isCurrentlyPublic: true },
+        { vId: 7, creationTime: 100, content: "a", importance: true },
+      ];
+      (component.route.snapshot.params as any).id = 42;
+      vi.spyOn(workflowVersionService, "retrieveVersionsOfWorkflow").mockReturnValue(of(entries));
+
+      component.ngOnInit();
+
+      expect(component.versionsList?.map(v => v.isCurrentlyPublic)).toEqual([undefined, true, undefined]);
+    });
+
+    it("moves the mark when the pinned version changes while the panel is open", () => {
+      // Pinning happens in the share dialog, over this panel: a mark read once would still be on
+      // whichever version was public when the panel was opened.
+      const before: WorkflowVersionEntry[] = [
+        { vId: 9, creationTime: 300, content: "c", importance: true },
+        { vId: 8, creationTime: 200, content: "b", importance: true, isCurrentlyPublic: true },
+      ];
+      const after: WorkflowVersionEntry[] = [
+        { vId: 9, creationTime: 300, content: "c", importance: true, isCurrentlyPublic: true },
+        { vId: 8, creationTime: 200, content: "b", importance: true },
+      ];
+      (component.route.snapshot.params as any).id = 42;
+      const retrieve = vi
+        .spyOn(workflowVersionService, "retrieveVersionsOfWorkflow")
+        .mockReturnValueOnce(of(before))
+        .mockReturnValueOnce(of(after));
+
+      component.ngOnInit();
+      expect(component.versionsList?.map(v => v.isCurrentlyPublic)).toEqual([undefined, true]);
+
+      workflowVersionService.notifyPublicVersionChanged();
+
+      expect(retrieve).toHaveBeenCalledTimes(2);
+      expect(component.versionsList?.map(v => v.isCurrentlyPublic)).toEqual([true, undefined]);
+    });
+
     it("should not retrieve versions when the route has no workflow id", () => {
       (component.route.snapshot.params as any).id = undefined;
       const retrieveSpy = vi.spyOn(workflowVersionService, "retrieveVersionsOfWorkflow");
