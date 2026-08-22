@@ -518,10 +518,40 @@ class WorkflowVersionResourceSpec
         version(3, 0L, positional), // latest — important regardless of content
         version(2, TimeUnit.SECONDS.toMillis(1), meaningful), // within the aggregate window
         version(1, TimeUnit.DAYS.toMillis(30), meaningful) // outside it, judged on content
-      )
+      ),
+      Option.empty[Integer]
     )
 
     encoded.map(_.vId) shouldBe List(3, 2, 1)
     encoded.map(_.importance) shouldBe List(true, false, true)
+    encoded.map(_.isCurrentlyPublic) shouldBe List(false, false, false)
+  }
+
+  it should "keep the version on public show visible even when the rules would collapse it" in {
+    val base = 1_700_000_000_000L
+    def version(vid: Int, offsetMillis: Long, content: String): WorkflowVersion = {
+      val v = new WorkflowVersion
+      v.setVid(vid)
+      v.setWid(testWorkflowWid)
+      v.setContent(content)
+      v.setCreationTime(new Timestamp(base - offsetMillis))
+      v
+    }
+
+    val positional = """[{"op":"replace","path":"/operatorPositions/op-1/x","value":5}]"""
+
+    // Version 2 lands inside the aggregation window and carries a positional-only
+    // patch, so both collapsing rules would hide it. Being the published one wins.
+    val encoded = WorkflowVersionResource invokePrivate encodeVersionImportance(
+      List(
+        version(3, 0L, positional),
+        version(2, TimeUnit.SECONDS.toMillis(1), positional),
+        version(1, TimeUnit.SECONDS.toMillis(2), positional)
+      ),
+      Option(Integer.valueOf(2))
+    )
+
+    encoded.map(_.importance) shouldBe List(true, true, false)
+    encoded.map(_.isCurrentlyPublic) shouldBe List(false, true, false)
   }
 }

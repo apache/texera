@@ -22,12 +22,14 @@ package org.apache.texera.web.resource.dashboard.user.workflow
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.apache.texera.dao.SqlServer
-import org.apache.texera.dao.jooq.generated.Tables.WORKFLOW
+import org.apache.texera.dao.jooq.generated.Tables.{WORKFLOW, WORKFLOW_VERSION}
 import org.apache.texera.dao.jooq.generated.tables.daos.WorkflowDao
 import org.apache.texera.dao.jooq.generated.tables.pojos.Workflow
 import org.jooq.DSLContext
 
 import scala.jdk.CollectionConverters.CollectionHasAsScala
+
+import java.sql.Timestamp
 import scala.util.Try
 import javax.ws.rs.NotFoundException
 
@@ -49,12 +51,15 @@ object WorkflowPublishService extends LazyLogging {
   private def context: DSLContext = SqlServer.getInstance().createDSLContext()
 
   /**
-    * @param hasUnpublishedChanges true when a pin is holding edits back, i.e. pinning again would
-    *                              publish them. Always false while following.
+    * @param pinnedVersionTime      the date naming the version in both the dialog and the revision
+    *                               panel.
+    * @param hasUnpublishedChanges  true when a pin is holding edits back, i.e. pinning again would
+    *                               publish them. Always false while following.
     */
   case class PublishStatus(
       isPublished: Boolean,
       isPinned: Boolean,
+      pinnedVersionTime: Option[Timestamp],
       hasUnpublishedChanges: Boolean
   )
 
@@ -90,10 +95,16 @@ object WorkflowPublishService extends LazyLogging {
   }
 
   /** Writes the pin. Name and description freeze with the graph, or a pin would leak the working title. */
-  private def writePin(workflow: Workflow, content: String): Unit =
-    context
+  private def writePin(
+      ctx: DSLContext,
+      workflow: Workflow,
+      versionId: Integer,
+      content: String
+  ): Unit =
+    ctx
       .update(WORKFLOW)
       .set(WORKFLOW.IS_PUBLIC, java.lang.Boolean.TRUE)
+      .set(WORKFLOW.PUBLISHED_VERSION_ID, versionId)
       .set(WORKFLOW.PUBLISHED_CONTENT, content)
       .set(WORKFLOW.PUBLISHED_NAME, workflow.getName)
       .set(WORKFLOW.PUBLISHED_DESCRIPTION, workflow.getDescription)
@@ -109,6 +120,7 @@ object WorkflowPublishService extends LazyLogging {
   private def clearPin(wid: Integer, alsoUnpublish: Boolean = false): Int = {
     val cleared = context
       .update(WORKFLOW)
+      .set(WORKFLOW.PUBLISHED_VERSION_ID, null.asInstanceOf[Integer])
       .set(WORKFLOW.PUBLISHED_CONTENT, null.asInstanceOf[String])
       .set(WORKFLOW.PUBLISHED_NAME, null.asInstanceOf[String])
       .set(WORKFLOW.PUBLISHED_DESCRIPTION, null.asInstanceOf[String])
@@ -119,8 +131,31 @@ object WorkflowPublishService extends LazyLogging {
 
   /** Pins the current content as the public copy. Moving a pin forward is the same operation. */
   def pinLatest(wid: Integer): PublishStatus = {
-    val workflow = requireWorkflow(wid)
-    writePin(workflow, workflow.getContent)
+    context.transaction { txConfig =>
+      val ctx = org.jooq.impl.DSL.using(txConfig)
+      // Locked, not merely read: two pins racing would both read before either wrote, and both
+      // insert an anchor.
+      val workflow = ctx
+        .selectFrom(WORKFLOW)
+        .where(WORKFLOW.WID.eq(wid))
+        .forUpdate()
+        .fetchOneInto(classOf[Workflow])
+      if (workflow == null) {
+        throw new NotFoundException(s"Workflow $wid not found")
+      }
+
+      // An anchor in the revision history for the copy being pinned: its delta is the identity patch,
+      // so replaying this row returns what was published however many edits pile up later. An
+      // existing version row cannot stand in, since one replays to the content as it was *before*
+      // the change it records. Pinning again unchanged reuses the anchor rather than adding a twin.
+      val anchorVid = Option(workflow.getPublishedVersionId)
+        .filter(_ =>
+          Option(workflow.getPublishedContent).exists(sameContent(_, workflow.getContent))
+        )
+        .getOrElse(WorkflowVersionResource.insertNewVersion(wid, ctx = ctx).getVid)
+
+      writePin(ctx, workflow, anchorVid, workflow.getContent)
+    }
     logger.info(s"Workflow $wid pinned to its latest content")
     statusOf(wid)
   }
@@ -146,6 +181,23 @@ object WorkflowPublishService extends LazyLogging {
     logger.info(s"Workflow $wid unpublished")
   }
 
+  /** Read from the version row, so the dialog and the revision panel print one date, not two clocks'. */
+  private def pinnedVersionTimeOf(versionId: Integer): Option[Timestamp] =
+    Option(
+      context
+        .select(WORKFLOW_VERSION.CREATION_TIME)
+        .from(WORKFLOW_VERSION)
+        .where(WORKFLOW_VERSION.VID.eq(versionId))
+        .fetchOneInto(classOf[Timestamp])
+    )
+
+  /** The date a public viewer should see: that of the version on show, not of an edit they cannot. */
+  def publicModifiedTime(workflow: Workflow): Timestamp =
+    Option(workflow.getPublishedVersionId)
+      .filter(_ => workflow.getPublishedContent != null)
+      .flatMap(pinnedVersionTimeOf)
+      .getOrElse(workflow.getLastModifiedTime)
+
   /** Whether a version is pinned, and whether it is holding edits back. */
   def statusOf(wid: Integer): PublishStatus = statusOf(requireWorkflow(wid))
 
@@ -153,6 +205,7 @@ object WorkflowPublishService extends LazyLogging {
     PublishStatus(
       isPublished = workflow.getIsPublic,
       isPinned = workflow.getPublishedContent != null,
+      pinnedVersionTime = Option(workflow.getPublishedVersionId).flatMap(pinnedVersionTimeOf),
       // Literally "what the public sees is not what you have": whatever [[publicCopyOf]] freezes is
       // what this compares, on values rather than version ids, so an edit and its undo cancel out.
       hasUnpublishedChanges = differs(publicCopyOf(workflow), workingCopyOf(workflow))
