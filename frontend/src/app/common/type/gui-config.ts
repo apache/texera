@@ -34,6 +34,7 @@ export interface GuiConfig {
   asyncRenderingEnabled: boolean;
   timetravelEnabled: boolean;
   formViewEnabled: boolean;
+  versionPinningEnabled: boolean;
   productionSharedEditingServer: boolean;
   pythonLanguageServerPort: string;
   defaultDataTransferBatchSize: number;
