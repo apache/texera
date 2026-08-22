@@ -235,7 +235,7 @@ export class CardItemComponent implements OnChanges {
     this.disableDelete = !descriptor.isOwner(this.entry);
     this.canDownload = descriptor.download !== undefined;
     this.canShare = descriptor.retrieveOwners !== undefined;
-    this.entryLink = this.resourceRegistry.entryLink(this.entry, this.currentUid);
+    this.entryLink = this.resourceRegistry.entryLink(this.entry, this.currentUid, this.isPrivateSearch);
     // Same landing rule as the list row (default-view-landing.ts): a form-default workflow shows
     // the Form View icon and opens in its form, so the card and the row never disagree.
     this.defaultsToForm = defaultsToFormView(this.entry, this.config.env.formViewEnabled);
