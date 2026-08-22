@@ -54,6 +54,19 @@ object WorkflowVersionResource {
       .createDSLContext()
   private def workflowVersionDao = new WorkflowVersionDao(context.configuration)
   private def workflowDao = new WorkflowDao(context.configuration)
+
+  /**
+    * Whether this user may read the workflow's revision history.
+    *
+    * Read access is enough while nothing is pinned: the public copy is then the author's latest, and
+    * its history is the history of what everyone can already see. A pin changes that -- replaying a
+    * version folds deltas back from the author's *current* content, so handing the history to a
+    * public viewer would hand them the edits the pin is holding back.
+    */
+  private def canReadHistory(wid: Integer, uid: Integer): Boolean =
+    WorkflowAccessResource.hasGrantedAccess(wid, uid) ||
+      (WorkflowAccessResource.hasReadAccess(wid, uid) &&
+        Option(workflowDao.fetchOneByWid(wid)).forall(_.getPublishedContent == null))
   // constant to indicate versions should be aggregated if they are within the specified time limit
   private final val AGGREGATE_TIME_LIMIT_MILLSEC =
     UserSystemConfig.workflowVersionCollapseIntervalInMinutes * 60000
@@ -350,7 +363,7 @@ class WorkflowVersionResource {
       @Auth sessionUser: SessionUser
   ): List[VersionEntry] = {
     val user = sessionUser.getUser
-    if (!WorkflowAccessResource.hasReadAccess(wid, user.getUid)) {
+    if (!canReadHistory(wid, user.getUid)) {
       List()
     } else {
       encodeVersionImportance(
@@ -385,7 +398,7 @@ class WorkflowVersionResource {
       @Auth sessionUser: SessionUser
   ): Workflow = {
     val user = sessionUser.getUser
-    if (!WorkflowAccessResource.hasReadAccess(wid, user.getUid)) {
+    if (!canReadHistory(wid, user.getUid)) {
       throw new ForbiddenException("No sufficient access privilege.")
     } else {
       // fetch all versions equal to and subsequent to the specified version
