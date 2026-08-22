@@ -88,12 +88,14 @@ object WorkflowPublishService extends LazyLogging {
     statusOf(wid)
   }
 
-  /** Freezes the author's current content as the public copy, and turns publishing on. */
+  /** Writes the pin. Name and description freeze with the graph, or a pin would leak the working title. */
   private def writePin(workflow: Workflow, content: String): Unit =
     context
       .update(WORKFLOW)
       .set(WORKFLOW.IS_PUBLIC, java.lang.Boolean.TRUE)
       .set(WORKFLOW.PUBLISHED_CONTENT, content)
+      .set(WORKFLOW.PUBLISHED_NAME, workflow.getName)
+      .set(WORKFLOW.PUBLISHED_DESCRIPTION, workflow.getDescription)
       .where(WORKFLOW.WID.eq(workflow.getWid))
       .execute()
 
@@ -107,6 +109,8 @@ object WorkflowPublishService extends LazyLogging {
     val cleared = context
       .update(WORKFLOW)
       .set(WORKFLOW.PUBLISHED_CONTENT, null.asInstanceOf[String])
+      .set(WORKFLOW.PUBLISHED_NAME, null.asInstanceOf[String])
+      .set(WORKFLOW.PUBLISHED_DESCRIPTION, null.asInstanceOf[String])
     val statement =
       if (alsoUnpublish) cleared.set(WORKFLOW.IS_PUBLIC, java.lang.Boolean.FALSE) else cleared
     statement.where(WORKFLOW.WID.eq(wid)).execute()
@@ -148,9 +152,40 @@ object WorkflowPublishService extends LazyLogging {
     PublishStatus(
       isPublished = workflow.getIsPublic,
       isPinned = workflow.getPublishedContent != null,
-      // Literally "what the public sees is not what you have". Compared on values rather than on a
-      // version id, so that an edit and its undo report nothing held back.
-      hasUnpublishedChanges = workflow.getPublishedContent != null &&
-        !sameContent(workflow.getPublishedContent, workflow.getContent)
+      // Literally "what the public sees is not what you have": whatever [[publicCopyOf]] freezes is
+      // what this compares, on values rather than version ids, so an edit and its undo cancel out.
+      hasUnpublishedChanges = differs(publicCopyOf(workflow), workingCopyOf(workflow))
     )
+
+  /** Compared as a tree: a restore can rearrange whitespace, and calling that drift alarms nobody. */
+  private def differs(public: PublicCopy, working: PublicCopy): Boolean =
+    public.name != working.name ||
+      public.description != working.description ||
+      !sameContent(public.content, working.content)
+
+  /** Everything about a workflow that is on public show. */
+  case class PublicCopy(name: String, description: String, content: String)
+
+  /** What every public surface must serve, as a group so no field is the one that gets forgotten. */
+  def publicCopyOf(workflow: Workflow): PublicCopy =
+    if (workflow.getPublishedContent == null) workingCopyOf(workflow)
+    else
+      PublicCopy(
+        workflow.getPublishedName,
+        workflow.getPublishedDescription,
+        workflow.getPublishedContent
+      )
+
+  /** The author's own copy, in the same shape. */
+  private def workingCopyOf(workflow: Workflow): PublicCopy =
+    PublicCopy(workflow.getName, workflow.getDescription, workflow.getContent)
+
+  /** As [[publicCopyOf]], for callers holding only a wid. 404s unless the workflow is public. */
+  def publicCopyOf(wid: Integer): PublicCopy = {
+    val workflow = requireWorkflow(wid)
+    if (!workflow.getIsPublic) {
+      throw new NotFoundException(s"Workflow $wid is not public")
+    }
+    publicCopyOf(workflow)
+  }
 }

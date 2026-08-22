@@ -103,6 +103,15 @@ object WorkflowAccessResource {
     }
   }
 
+  /**
+    * Whether the user was granted access to the workflow itself, rather than merely being able to
+    * read it because it is public. Granted access sees the author's working copy; public access is
+    * held at the pinned copy while one is pinned.
+    */
+  def hasGrantedAccess(wid: Integer, uid: Integer): Boolean = {
+    !getPrivilege(wid, uid).eq(PrivilegeEnum.NONE)
+  }
+
   def isPublic(wid: Integer): Boolean = {
     context
       .select(WORKFLOW.IS_PUBLIC)

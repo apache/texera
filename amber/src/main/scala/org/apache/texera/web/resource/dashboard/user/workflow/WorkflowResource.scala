@@ -43,7 +43,7 @@ import org.apache.texera.web.resource.dashboard.hub.HubResource.recordCloneActio
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource.hasReadAccess
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowResource._
 import org.jooq.impl.DSL.{groupConcatDistinct, noCondition, max}
-import org.jooq.{Condition, DSLContext, Record10, Result, SelectOnConditionStep}
+import org.jooq.{Condition, DSLContext, Record10, Result, SelectOnConditionStep, TableField}
 
 import java.sql.Timestamp
 import java.util
@@ -95,10 +95,7 @@ object WorkflowResource {
   private def insertWorkflow(workflow: Workflow, user: User): Unit = {
     // A workflow is born with nothing pinned, whether or not the caller asked for a public one:
     // clearing the columns here is what stops a request body from seeding a public copy of its own.
-    workflow.setPublishedVersionId(null)
-    workflow.setPublishedContent(null)
-    workflow.setPublishedName(null)
-    workflow.setPublishedDescription(null)
+    clearPublishState(workflow)
     workflowDao.insert(workflow)
     workflowOfUserDao.insert(new WorkflowOfUser(user.getUid, workflow.getWid))
     workflowUserAccessDao.insert(
@@ -165,11 +162,18 @@ object WorkflowResource {
 
   case class WorkflowIDs(wids: List[Integer], pid: Option[Integer])
 
+  /** Clears every column that describes a pinned public copy. */
+  private def clearPublishState(workflow: Workflow): Unit = {
+    workflow.setPublishedVersionId(null)
+    workflow.setPublishedContent(null)
+    workflow.setPublishedName(null)
+    workflow.setPublishedDescription(null)
+  }
+
   /**
-    * A workflow POJO for the copy-producing paths (clone, duplicate, restore-a-version).
-    *
-    * Built with setters rather than the positional constructor, so that adding a column cannot
-    * silently shift a null into the wrong field -- as adding the published-copy columns would.
+    * A workflow POJO for the copy-producing paths (clone, duplicate, restore-a-version). Copies start
+    * unpublished, and setters rather than the positional constructor keep a new column from silently
+    * shifting a null into the wrong field.
     */
   def newUnpublishedWorkflow(name: String, description: String, content: String): Workflow = {
     val workflow = new Workflow()
@@ -177,8 +181,48 @@ object WorkflowResource {
     workflow.setDescription(description)
     workflow.setContent(content)
     workflow.setIsPublic(false)
+    clearPublishState(workflow)
     workflow
   }
+
+  /**
+    * The copy a viewer may see, all three fields at once: granted access (owner, shared, project
+    * member) sees the author's working copy; everyone else is here because the workflow is public,
+    * and gets the public copy. Taken as a group so a copy cannot end up carrying the published graph
+    * under a title the author has not published.
+    */
+  private def copyVisibleTo(workflow: Workflow, uid: Integer): WorkflowPublishService.PublicCopy =
+    if (uid != null && WorkflowAccessResource.hasGrantedAccess(workflow.getWid, uid)) {
+      WorkflowPublishService.PublicCopy(
+        workflow.getName,
+        workflow.getDescription,
+        workflow.getContent
+      )
+    } else {
+      WorkflowPublishService.publicCopyOf(workflow)
+    }
+
+  /** The content half of [[copyVisibleTo]], for the paths that carry their own name and description. */
+  def contentVisibleTo(workflow: Workflow, uid: Integer): String =
+    copyVisibleTo(workflow, uid).content
+
+  /**
+    * One column as the public sees it: the frozen value while a pin is in place, the live one
+    * otherwise. Keyed on the pin rather than on the frozen value being non-null, so a pinned
+    * workflow can never fall through to what the author is editing.
+    */
+  private def publicField(
+      wid: Integer,
+      frozen: TableField[_, String],
+      live: TableField[_, String]
+  ) =
+    Option(
+      context
+        .select(WORKFLOW.PUBLISHED_CONTENT, frozen, live)
+        .from(WORKFLOW)
+        .where(WORKFLOW.WID.eq(wid))
+        .fetchOne()
+    ).map(row => if (row.value1() != null) row.value2() else row.value3()).orNull
 
   private def updateWorkflowField(
       workflow: Workflow,
@@ -452,7 +496,9 @@ class WorkflowResource extends LazyLogging {
         workflow.getName,
         workflow.getDescription,
         workflow.getWid,
-        workflow.getContent,
+        // A user who only reaches this workflow because it is public gets the pinned version, not
+        // the author's in-progress edits.
+        contentVisibleTo(workflow, user.getUid),
         workflow.getCreationTime,
         workflow.getLastModifiedTime,
         workflow.getIsPublic,
@@ -542,11 +588,14 @@ class WorkflowResource extends LazyLogging {
       context.transaction { txConfig =>
         for (wid <- workflowIDs.wids) {
           val oldWorkflow: Workflow = workflowDao.fetchOneByWid(wid)
+          // Reached only because it is public? Then the copy is of the published version, title and
+          // description included.
+          val source = copyVisibleTo(oldWorkflow, user.getUid)
           val newWorkflow = createWorkflow(
             newUnpublishedWorkflow(
-              oldWorkflow.getName + "_copy",
-              oldWorkflow.getDescription,
-              assignNewOperatorIds(oldWorkflow.getContent)
+              source.name + "_copy",
+              source.description,
+              assignNewOperatorIds(source.content)
             ),
             sessionUser
           )
@@ -588,11 +637,14 @@ class WorkflowResource extends LazyLogging {
       throw new ForbiddenException("No sufficient access privilege.")
     }
     val oldWorkflow: Workflow = workflowDao.fetchOneByWid(wid)
+    // The hub shows the public copy, so Clone copies that -- for the author too, who already has
+    // their latest in the editor. For a private workflow this is the author's own copy.
+    val source = WorkflowPublishService.publicCopyOf(oldWorkflow)
     val newWorkflow: DashboardWorkflow = createWorkflow(
       newUnpublishedWorkflow(
-        oldWorkflow.getName + "_clone",
-        oldWorkflow.getDescription,
-        assignNewOperatorIds(oldWorkflow.getContent)
+        source.name + "_clone",
+        source.description,
+        assignNewOperatorIds(source.content)
       ),
       sessionUser
     )
@@ -910,15 +962,10 @@ class WorkflowResource extends LazyLogging {
   @GET
   @Path("/workflow_name")
   def getWorkflowName(@QueryParam("wid") wid: Integer): String = {
-    context
-      .select(
-        WORKFLOW.NAME
-      )
-      .from(WORKFLOW)
-      .where(WORKFLOW.WID.eq(wid))
-      .fetchOneInto(classOf[String])
+    publicField(wid, WORKFLOW.PUBLISHED_NAME, WORKFLOW.NAME)
   }
 
+  /** The hub's public view of a workflow: the pinned version if one is pinned, the latest if not. */
   @GET
   @Path("/publicised/{wid}")
   def retrievePublicWorkflow(
@@ -929,11 +976,14 @@ class WorkflowResource extends LazyLogging {
       .where(WORKFLOW.WID.eq(wid))
       .and(WORKFLOW.IS_PUBLIC.isTrue)
       .fetchOne()
+    // Name and description come from the public copy for the same reason as the content: a pin has
+    // to hold everything on show.
+    val publicCopy = WorkflowPublishService.publicCopyOf(workflow.into(classOf[Workflow]))
     WorkflowWithPrivilege(
-      workflow.getName,
-      workflow.getDescription,
+      publicCopy.name,
+      publicCopy.description,
       workflow.getWid,
-      workflow.getContent,
+      publicCopy.content,
       workflow.getCreationTime,
       workflow.getLastModifiedTime,
       workflow.getIsPublic,
@@ -944,13 +994,7 @@ class WorkflowResource extends LazyLogging {
   @GET
   @Path("/workflow_description")
   def getWorkflowDescription(@QueryParam("wid") wid: Integer): String = {
-    context
-      .select(
-        WORKFLOW.DESCRIPTION
-      )
-      .from(WORKFLOW)
-      .where(WORKFLOW.WID.eq(wid))
-      .fetchOneInto(classOf[String])
+    publicField(wid, WORKFLOW.PUBLISHED_DESCRIPTION, WORKFLOW.DESCRIPTION)
   }
 
   //TODO Get size from database
@@ -966,7 +1010,11 @@ class WorkflowResource extends LazyLogging {
         .fetch()
         .asScala
         .foreach { wf =>
-          result.put(wf.getWid, wf.getContent.length)
+          // Sized by the copy on show, so the number does not move when the author edits privately.
+          val content =
+            if (wf.getIsPublic && wf.getPublishedContent != null) wf.getPublishedContent
+            else wf.getContent
+          result.put(wf.getWid, content.length)
         }
     }
     result
