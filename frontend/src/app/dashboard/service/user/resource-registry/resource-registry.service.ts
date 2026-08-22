@@ -100,8 +100,12 @@ export class ResourceRegistryService {
   /**
    * Where an entry's card links to: the owner-facing page when the viewer can reach it, the hub page
    * otherwise. An entry with no route, or one not yet persisted, links nowhere.
+   *
+   * Access alone is not enough outside the viewer's own listings: a hub entry shows the public copy,
+   * so an author whose working copy has moved on behind a pin is sent to that copy -- what the entry
+   * advertised, and where they can clone it -- rather than into their editor showing something else.
    */
-  public entryLink(entry: DashboardEntry, currentUid: number | undefined): string[] {
+  public entryLink(entry: DashboardEntry, currentUid: number | undefined, isPrivateSearch = false): string[] {
     const descriptor = this.get(entry.type);
     if (descriptor.privateRoute === undefined || typeof entry.id !== "number") {
       return [];
@@ -110,6 +114,11 @@ export class ResourceRegistryService {
       return [descriptor.privateRoute, String(entry.id)];
     }
     const reachableByViewer = currentUid !== undefined && entry.accessibleUserIds.includes(currentUid);
-    return [reachableByViewer ? descriptor.privateRoute : descriptor.hubRoute, String(entry.id)];
+    const advertisesAnOlderCopy =
+      !isPrivateSearch && entry.type === "workflow" && entry.workflow?.hasUnpublishedChanges === true;
+    return [
+      reachableByViewer && !advertisesAnOlderCopy ? descriptor.privateRoute : descriptor.hubRoute,
+      String(entry.id),
+    ];
   }
 }

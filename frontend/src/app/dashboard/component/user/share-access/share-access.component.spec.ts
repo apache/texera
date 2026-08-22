@@ -1384,7 +1384,7 @@ describe("ShareAccessComponent", () => {
       );
       setupComponent({ type: "workflow", id: 3, ...asOwner });
 
-      expect(publishLineText()).toContain("Restore it any time from the version panel");
+      expect(publishLineText()).toContain("Currently public");
     });
 
     it("shows nothing and asks nothing while the feature is off", () => {
