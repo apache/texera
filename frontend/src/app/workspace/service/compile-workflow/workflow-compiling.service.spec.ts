@@ -471,6 +471,100 @@ describe("WorkflowCompilingService.setOperatorInputAttrs / restoreOperatorInputA
       ).toEqual(["col_a", "col_b"]);
     });
 
+    /**
+     * Required-ness has to be read off the schema level the property actually belongs to.
+     * `mutateProperty` recurses into nested `properties` / `items` / `definitions`, so a property nested
+     * inside a list element carries its own `required` array, unrelated to the root's.
+     *
+     * The shape below mirrors SortOpDesc: root requires `attributes`, and each element of that list
+     * strictly requires its autofilled `attribute`. An empty option there would let the user pick a
+     * blank sort key, which the operator rejects at code-generation time instead of at form validation.
+     */
+    it("does not append an empty option for a property required inside a nested list element", () => {
+      const schema = makeOperatorSchema({
+        type: "object",
+        required: ["attributes"],
+        properties: {
+          attributes: {
+            type: "array",
+            items: {
+              type: "object",
+              required: ["attribute", "sortPreference"],
+              properties: {
+                attribute: { type: "string", autofill: "attributeName", autofillAttributeOnPort: 0 },
+                sortPreference: { type: "string", enum: ["ASC", "DESC"] },
+              },
+            },
+          },
+        },
+      });
+
+      const items = (
+        WorkflowCompilingService.setOperatorInputAttrs(schema, inputPortSchemaMap).jsonSchema.properties as any
+      ).attributes.items;
+      expect(items.properties.attribute.enum).toEqual(["col_a", "col_b"]);
+    });
+
+    /**
+     * The same lookup, in the opposite direction: a nested *optional* property whose name happens to
+     * collide with a root-level required name must keep its empty escape hatch.
+     */
+    it("appends the empty option for a nested optional property that shares a root-level required name", () => {
+      const schema = makeOperatorSchema({
+        type: "object",
+        // a root-level property that happens to share the nested property's name, and is required here
+        required: ["attribute", "aggregations"],
+        properties: {
+          attribute: { type: "string" },
+          aggregations: {
+            type: "array",
+            items: {
+              type: "object",
+              // `attribute` is optional at this level (COUNT(*) needs no column)
+              required: ["aggFunction"],
+              properties: {
+                attribute: { type: "string", autofill: "attributeName", autofillAttributeOnPort: 0 },
+                aggFunction: { type: "string", enum: ["sum", "count"] },
+              },
+            },
+          },
+        },
+      });
+
+      const items = (
+        WorkflowCompilingService.setOperatorInputAttrs(schema, inputPortSchemaMap).jsonSchema.properties as any
+      ).aggregations.items;
+      expect(items.properties.attribute.enum).toEqual(["col_a", "col_b", ""]);
+    });
+
+    /**
+     * The metadata generator emits nested object types as `$ref` + a root-level `definitions` entry, so the
+     * owning schema is reached through `definitions` rather than through `items`. Same rule applies.
+     */
+    it("reads required-ness from the owning definition when the nested type lives in definitions", () => {
+      const schema = makeOperatorSchema({
+        type: "object",
+        required: ["attributes"],
+        properties: {
+          attributes: { type: "array", items: { $ref: "#/definitions/SortCriteriaUnit" } },
+        },
+        definitions: {
+          SortCriteriaUnit: {
+            type: "object",
+            required: ["attribute"],
+            properties: {
+              attribute: { type: "string", autofill: "attributeName", autofillAttributeOnPort: 0 },
+            },
+          },
+        },
+      });
+
+      const definition = (
+        WorkflowCompilingService.setOperatorInputAttrs(schema, inputPortSchemaMap).jsonSchema.definitions as any
+      ).SortCriteriaUnit;
+      expect(definition.properties.attribute.enum).toEqual(["col_a", "col_b"]);
+    });
+
     it("includes additionalEnumValue before the optional empty option", () => {
       const schema = makeOperatorSchema({
         type: "object",

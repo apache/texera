@@ -155,13 +155,19 @@ export class DynamicSchemaService {
    * It recursively walks through the property field of a JSON schema, and tries to find the property name.
    * Once it finds the property name, it invokes the mutationFunction to get the new property and replaces the old property.
    * The mutationFunction optionally takes a input with current property of the propertyName and outputs the new mutated property.
+   * It also receives the schema that owns the property (the one holding the `properties`/`definitions` map it was
+   * found in), because keywords such as `required` live on that owning level rather than on the property itself.
    *
    * Returns a new object containing the new json schema property.
    */
   public static mutateProperty(
     jsonSchemaToChange: CustomJSONSchema7,
     matchFunc: (propertyName: string, propertyValue: CustomJSONSchema7) => boolean,
-    mutationFunc: (propertyName: string, propertyValue: CustomJSONSchema7) => CustomJSONSchema7
+    mutationFunc: (
+      propertyName: string,
+      propertyValue: CustomJSONSchema7,
+      owningSchema: CustomJSONSchema7
+    ) => CustomJSONSchema7
   ): CustomJSONSchema7 {
     // recursively walks the JSON schema property tree to find the property name
     const mutatePropertyRecurse = (jsonSchema: JSONSchema7) => {
@@ -176,7 +182,11 @@ export class DynamicSchemaService {
             return;
           }
           if (matchFunc(propertyName, propertyValue as CustomJSONSchema7)) {
-            objectProperty[propertyName] = mutationFunc(propertyName, propertyValue as CustomJSONSchema7);
+            objectProperty[propertyName] = mutationFunc(
+              propertyName,
+              propertyValue as CustomJSONSchema7,
+              jsonSchema as CustomJSONSchema7
+            );
           } else {
             mutatePropertyRecurse(propertyValue);
           }
