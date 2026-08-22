@@ -143,7 +143,10 @@ class LakeFSFileDocumentSpec
           }
 
       val bytes = body.getBytes(StandardCharsets.UTF_8)
-      exchange.getResponseHeaders.set("Content-Type", "application/json")
+      val contentType =
+        if (uri.getPath == statPath || failing.contains(uri.getPath)) "application/json"
+        else "application/octet-stream"
+      exchange.getResponseHeaders.set("Content-Type", contentType)
       exchange.sendResponseHeaders(status, bytes.length.toLong)
       exchange.getResponseBody.write(bytes)
     } finally exchange.close()
