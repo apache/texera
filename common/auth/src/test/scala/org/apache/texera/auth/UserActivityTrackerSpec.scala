@@ -615,8 +615,6 @@ class UserActivityTrackerSpec
         finally stmt.close()
 
         UserActivityTracker.markActive(blockerUid)
-        // give the writer thread time to start the insert and block on the lock
-        Thread.sleep(500)
         UserActivityTracker.markActive(delayedUid)
         val callReturned = Instant.now()
         // keep the writer parked well past the tolerance asserted below
