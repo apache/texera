@@ -170,9 +170,7 @@ class PekkoActorRefMappingServiceSpec
     val destination = ActorVirtualIdentity("unreachable-parent-destination")
     val waiter = TestProbe()
     // Pekko itself does not fail here -- `context.parent` reads a field and `!` never throws -- so
-    // the failure is injected, and only for the first read: the catch block's own log line reads
-    // `actorService.parent` a second time, which means a parent that kept failing would throw out
-    // of the handler that exists to contain it.
+    // the failure is injected, for the first read only.
     val actorService = new FailingParentActorService(workerId, newContext(parent))
     val service = new PekkoActorRefMappingService(actorService)
     actorService.failuresLeft = 1
@@ -186,6 +184,31 @@ class PekkoActorRefMappingServiceSpec
     // ...and the id was not recorded as queried, so the next message bound for it re-asks. Marking
     // it would strand every message for that destination: the reply that clears the stash only ever
     // arrives in response to a `GetActorRef` that was actually sent.
+    service.retrieveActorRef(destination, Set(waiter.ref))
+
+    assert(parent.expectMsgType[GetActorRef].id == destination)
+  }
+
+  it should "contain a parent lookup that keeps failing, not just its first failure" in {
+    val parent = TestProbe()
+    val destination = ActorVirtualIdentity("persistently-unreachable-parent-destination")
+    val waiter = TestProbe()
+    val actorService = new FailingParentActorService(workerId, newContext(parent))
+    val service = new PekkoActorRefMappingService(actorService)
+    // Every read of `parent` throws, which is the realistic shape of an unreachable parent: the
+    // condition is a property of the actor, not of one attempt. A handler that reads the failing
+    // value a second time (e.g. to name the parent ref in its own log line) therefore throws out
+    // of the very try/catch that exists to contain the failure.
+    actorService.failuresLeft = Int.MaxValue
+
+    service.retrieveActorRef(destination, Set(waiter.ref))
+
+    parent.expectNoMessage(100.millis)
+    waiter.expectNoMessage(100.millis)
+
+    // Once the parent recovers, the id must still be askable -- the contained failure may not have
+    // marked it queried.
+    actorService.failuresLeft = 0
     service.retrieveActorRef(destination, Set(waiter.ref))
 
     assert(parent.expectMsgType[GetActorRef].id == destination)

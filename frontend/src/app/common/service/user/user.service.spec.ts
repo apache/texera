@@ -23,6 +23,7 @@ import { fakeAsync, TestBed, tick } from "@angular/core/testing";
 import { UserService } from "./user.service";
 import { AuthService } from "./auth.service";
 import { StubAuthService } from "./stub-auth.service";
+import { MOCK_USER } from "./stub-user.service";
 import { skip } from "rxjs/operators";
 import { firstValueFrom, Subject, throwError } from "rxjs";
 import { commonTestProviders } from "../../testing/test-utils";
@@ -193,6 +194,21 @@ describe("UserService", () => {
     expect(service.getCurrentUser()).toMatchObject({ uid: 1, name: "alice" });
     expect(service.getCurrentUser()?.color).toMatch(/^hsl\(/);
     expect(await nextEmission).toMatchObject({ uid: 1, name: "alice" });
+  });
+
+  // The email prompt lives in AuthService (it owns the token it replaces); what UserService owes
+  // it is a refreshed currentUser once that token lands. See auth.service.spec.ts for the prompt.
+  it("re-derives the current user when AuthService changes the session", async () => {
+    const auth = TestBed.inject(AuthService) as unknown as StubAuthService;
+    await firstValueFrom(service.login("test", "password"));
+    expect(service.isLogin()).toBe(true);
+
+    const nextEmission = firstValueFrom(service.userChanged().pipe(skip(1)));
+    auth.emitSessionChanged();
+
+    // Re-derived, not merely re-emitted: the value comes back out of the (stubbed) token rather
+    // than from the copy UserService was holding.
+    expect(await nextEmission).toMatchObject({ uid: MOCK_USER.uid, name: MOCK_USER.name });
   });
 
   it("isAdmin reflects only the ADMIN role of the current user", () => {
