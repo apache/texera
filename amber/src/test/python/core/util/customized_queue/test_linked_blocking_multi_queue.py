@@ -510,7 +510,6 @@ class TestAddSubQueue:
 
 
 class TestSmallGuards:
-
     def test_is_empty_tracks_size(self, queue):
         sub = queue.get_sub_queue("data")
         assert sub.is_empty()
