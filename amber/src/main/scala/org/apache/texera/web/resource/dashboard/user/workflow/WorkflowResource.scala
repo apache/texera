@@ -792,10 +792,19 @@ class WorkflowResource extends LazyLogging {
     updateWorkflowField(workflow, sessionUser, _.setDescription(workflow.getDescription))
   }
 
+  /**
+    * Publishes the workflow. The public follows the author's latest content until a version is
+    * pinned; see [[pinLatest]]. The state it lands in is returned, so the dialog that asked can show
+    * it without a second round trip.
+    */
   @PUT
+  @Produces(Array(MediaType.APPLICATION_JSON))
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/public/{wid}")
-  def makePublic(@PathParam("wid") wid: Integer, @Auth user: SessionUser): Unit = {
+  def makePublic(
+      @PathParam("wid") wid: Integer,
+      @Auth user: SessionUser
+  ): WorkflowPublishService.PublishStatus = {
     if (!WorkflowAccessResource.hasWriteAccess(wid, user.getUid)) {
       throw new ForbiddenException(s"You do not have permission to modify workflow $wid")
     }

@@ -55,6 +55,72 @@
   </button>
 </div>
 
+<!--
+  A public workflow either follows the author's latest content or shows the version the author
+  pinned. Two states, so the control is a two-way switch and everything under it describes the side
+  it is on -- a fact, not a warning: keeping an older version public is a legitimate choice. Only
+  shown while Public is selected, and only to someone who can act on it.
+-->
+<div
+  class="publish-anchor"
+  [attr.data-state]="publishState"
+  *ngIf="publishStatus && isPublic && type === 'workflow'">
+  <!--
+    A switch rather than a button labelled with the other state: both choices stay on screen, so the
+    author reads what the options are instead of inferring one from the label of the other.
+  -->
+  <nz-segmented
+    class="publish-seg"
+    nzBlock
+    [nzOptions]="publicCopyOptions"
+    [nzDisabled]="!hasWriteAccess || isPinning"
+    [ngModel]="publishStatus.isPinned ? 1 : 0"
+    (nzValueChange)="choosePublicCopy($event === 1)"></nz-segmented>
+
+  <!-- One sentence for the side the switch is on, with the part that answers "what do they see" in bold. -->
+  <div class="publish-status">
+    <!-- Green while the public has everything, amber once a pin is holding a version back. -->
+    <nz-badge [nzStatus]="publishState === 'follow' ? 'success' : 'warning'"></nz-badge>
+    <span
+      class="publish-say"
+      [ngSwitch]="publishState">
+      <ng-container *ngSwitchCase="'behind'">The public is on an <b>older version</b>.</ng-container>
+      <ng-container *ngSwitchCase="'pinned'">The public sees <b>your current version</b>, pinned.</ng-container>
+      <ng-container *ngSwitchDefault>The public sees <b>your latest</b>, updated on every save.</ng-container>
+    </span>
+  </div>
+
+  <!--
+    Only the pinned side has more to say. Behind, that is the one decision the state leaves open, so
+    it gets a card: which version is out there, what it costs, and the act that ends it.
+  -->
+  <ng-container *ngIf="publishStatus.isPinned">
+    <div
+      class="publish-card"
+      *ngIf="publishStatus.hasUnpublishedChanges; else pinnedInSync">
+      <div class="publish-card-text">
+        <div class="publish-card-title">
+          Pinned to {{ publishStatus.pinnedVersionTime | date: publicationTimeFormat }}
+        </div>
+        <div class="publish-card-meta">Your later edits stay private</div>
+      </div>
+      <button
+        type="button"
+        class="publish-card-action"
+        [disabled]="!hasWriteAccess || isPinning"
+        (click)="choosePublicCopy(true, true)">
+        Update to current
+      </button>
+    </div>
+    <ng-template #pinnedInSync>
+      <div class="publish-hint">
+        Frozen as you keep editing. Restore it any time from the version panel, where it is marked
+        <b>Currently public</b>.
+      </div>
+    </ng-template>
+  </ng-container>
+</div>
+
 <form
   [formGroup]="validateForm"
   (ngSubmit)="grantAccess()">

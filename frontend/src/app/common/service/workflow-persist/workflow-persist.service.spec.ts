@@ -21,6 +21,7 @@ import { TestBed } from "@angular/core/testing";
 import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
 import {
   WorkflowPersistService,
+  WorkflowPublishStatus,
   WORKFLOW_BASE_URL,
   WORKFLOW_ID_URL,
   WORKFLOW_OWNER_URL,
@@ -88,6 +89,68 @@ describe("WorkflowPersistService", () => {
         expect(value).toBeTruthy();
       });
     httpTestingController.expectOne(request => request.method === "POST");
+  });
+
+  it("should publish without pinning anything", () => {
+    service.updateWorkflowIsPublished(7, true).subscribe();
+    const request = httpTestingController.expectOne(req => req.url.endsWith("workflow/public/7"));
+    expect(request.request.method).toEqual("PUT");
+  });
+
+  it("should pin the latest version through the pin endpoint", () => {
+    let received: WorkflowPublishStatus | undefined;
+    service.pinLatestVersion(7).subscribe(status => (received = status));
+
+    const request = httpTestingController.expectOne(req => req.url.endsWith("workflow/pin/7"));
+    expect(request.request.method).toEqual("POST");
+    request.flush({
+      isPublished: true,
+      isPinned: true,
+      pinnedVersionTime: 1700000000000,
+      hasUnpublishedChanges: false,
+    });
+
+    expect(received?.pinnedVersionTime).toEqual(1700000000000);
+    expect(received?.hasUnpublishedChanges).toBe(false);
+  });
+
+  it("should drop the pin through the same path with DELETE", () => {
+    let received: WorkflowPublishStatus | undefined;
+    service.unpinVersion(7).subscribe(status => (received = status));
+
+    const request = httpTestingController.expectOne(req => req.url.endsWith("workflow/pin/7"));
+    expect(request.request.method).toEqual("DELETE");
+    request.flush({ isPublished: true, isPinned: false, hasUnpublishedChanges: false });
+
+    expect(received?.isPinned).toBe(false);
+  });
+
+  it("should announce a save once it lands, not when it is sent", () => {
+    // Panels that describe the saved copy re-read on this. Announcing on the request rather than the
+    // response would have them re-read the state the save was about to replace.
+    const announced: any[] = [];
+    service.getWorkflowPersistedStream().subscribe(w => announced.push(w));
+
+    const workflow = { wid: 7, name: "n", content: { operators: [], links: [] } } as unknown as Workflow;
+    service.persistWorkflow(workflow).subscribe();
+    const request = httpTestingController.expectOne(req => req.url.endsWith("workflow/persist"));
+    expect(announced).toEqual([]);
+
+    request.flush({ wid: 7, name: "n", content: '{"operators":[]}' });
+
+    expect(announced.map(w => w.wid)).toEqual([7]);
+  });
+
+  it("should report unpublished changes from the publish status endpoint", () => {
+    let received: WorkflowPublishStatus | undefined;
+    service.getPublishStatus(7).subscribe(status => (received = status));
+
+    const request = httpTestingController.expectOne(req => req.url.endsWith("workflow/publish-status/7"));
+    expect(request.request.method).toEqual("GET");
+    request.flush({ isPublished: true, isPinned: true, hasUnpublishedChanges: true });
+
+    expect(received?.isPinned).toBe(true);
+    expect(received?.hasUnpublishedChanges).toBe(true);
   });
 
   it("should check if workflow content and name returned correctly", () => {

@@ -27,12 +27,16 @@ import { GmailService } from "../../../../common/service/gmail/gmail.service";
 import { NZ_MODAL_DATA, NzModalRef, NzModalService } from "ng-zorro-antd/modal";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { HttpErrorResponse } from "@angular/common/http";
+import { forkJoin } from "rxjs";
 import { USER_DATASET, USER_PROJECT, USER_WORKFLOW } from "../../../../app-routing.constant";
 import { NzMessageService } from "ng-zorro-antd/message";
 import { DatasetService } from "../../../service/user/dataset/dataset.service";
-import { WorkflowPersistService } from "src/app/common/service/workflow-persist/workflow-persist.service";
+import {
+  WorkflowPersistService,
+  WorkflowPublishStatus,
+} from "src/app/common/service/workflow-persist/workflow-persist.service";
 import { WorkflowActionService } from "src/app/workspace/service/workflow-graph/model/workflow-action.service";
-import { NgIf, NgFor } from "@angular/common";
+import { NgIf, NgFor, NgSwitch, NgSwitchCase, NgSwitchDefault, DatePipe } from "@angular/common";
 import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
 import { NzButtonComponent } from "ng-zorro-antd/button";
 import { NzWaveDirective } from "ng-zorro-antd/core/wave";
@@ -45,6 +49,8 @@ import { NzInputDirective } from "ng-zorro-antd/input";
 import { NzAutocompleteTriggerDirective, NzAutocompleteComponent } from "ng-zorro-antd/auto-complete";
 import { NzTagComponent } from "ng-zorro-antd/tag";
 import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
+import { NzSegmentedComponent } from "ng-zorro-antd/segmented";
+import { NzBadgeComponent } from "ng-zorro-antd/badge";
 
 @UntilDestroy()
 @Component({
@@ -70,8 +76,14 @@ import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
     NzAutocompleteTriggerDirective,
     NzAutocompleteComponent,
     NgFor,
+    NgSwitch,
+    NgSwitchCase,
+    NgSwitchDefault,
+    DatePipe,
     NzTagComponent,
     NzTooltipDirective,
+    NzSegmentedComponent,
+    NzBadgeComponent,
   ],
 })
 export class ShareAccessComponent implements OnInit, OnDestroy {
@@ -88,6 +100,16 @@ export class ShareAccessComponent implements OnInit, OnDestroy {
   public emailTags: string[] = [];
   currentEmail: string | undefined = "";
   isPublic: boolean | null = null;
+  /** Undefined until fetched, and for anyone who cannot publish (the endpoint needs write access). */
+  publishStatus?: WorkflowPublishStatus;
+  isPinning = false;
+  /** The two sides of the switch; the control only takes strings or numbers, so 1 means pinned. */
+  readonly publicCopyOptions = [
+    { label: "Follow latest", value: 0 },
+    { label: "Pinned", value: 1 },
+  ];
+  /** To the second, always: the revision panel names the same version that way. */
+  readonly publicationTimeFormat = "MMM d, HH:mm:ss";
   private shouldRefresh = false;
   @Output() refresh = new EventEmitter<void>();
 
@@ -123,24 +145,41 @@ export class ShareAccessComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
-    this.accessService
-      .getAccessList(this.type, this.id)
-      .pipe(untilDestroyed(this))
-      .subscribe(access => (this.accessList = access));
-    this.accessService
-      .getOwner(this.type, this.id)
-      .pipe(untilDestroyed(this))
-      .subscribe(name => {
-        this.owner = name;
-      });
+    const accessList$ = this.accessService.getAccessList(this.type, this.id);
+    const owner$ = this.accessService.getOwner(this.type, this.id);
+
     if (this.type === "workflow") {
-      this.workflowPersistService
-        .getWorkflowIsPublished(this.id)
+      // Joined rather than subscribed separately because the publish state depends on all three:
+      // hasWriteAccess is only answerable once the owner and the access list have landed, and the
+      // strip only applies to a published workflow.
+      forkJoin([accessList$, owner$, this.workflowPersistService.getWorkflowIsPublished(this.id)])
         .pipe(untilDestroyed(this))
-        .subscribe(dashboardWorkflow => {
-          this.isPublic = dashboardWorkflow === "Public";
+        .subscribe(([accessList, owner, workflowType]) => {
+          this.accessList = accessList;
+          this.owner = owner;
+          this.isPublic = workflowType === "Public";
+          // Asked of the saved copy, so make sure it is the copy the author is looking at. The
+          // editor saves a few seconds after the last edit, and this dialog is modal -- so the only
+          // way to reach it with unsaved edits is to open it inside that window, which is exactly
+          // when an author comes to check what the public can see. Flushing here answers about the
+          // canvas in front of them instead of about the canvas as of a few seconds ago.
+          this.flushPendingEdits();
+          this.refreshPublishStatus();
         });
-    } else if (this.type === "dataset") {
+      // The panel describes the saved copy and the editor saves on a debounce, so re-read when a
+      // save lands -- until then the server would still answer with the copy before it.
+      this.workflowPersistService
+        .getWorkflowPersistedStream()
+        .pipe(untilDestroyed(this))
+        .subscribe(() => this.refreshPublishStatus());
+      return;
+    }
+
+    accessList$.pipe(untilDestroyed(this)).subscribe(access => (this.accessList = access));
+    owner$.pipe(untilDestroyed(this)).subscribe(name => {
+      this.owner = name;
+    });
+    if (this.type === "dataset") {
       this.datasetService
         .getDataset(this.id)
         .pipe(untilDestroyed(this))
@@ -154,6 +193,76 @@ export class ShareAccessComponent implements OnInit, OnDestroy {
     if (this.shouldRefresh) {
       this.refresh.emit();
     }
+  }
+
+  /**
+   * Saves whatever the editor is holding, so the panel describes the canvas in front of the author.
+   * Only inside the workspace, and only while saving is on: previewing an old version turns
+   * persistence off, and writing the preview back would be a save nobody asked for.
+   */
+  private flushPendingEdits(): void {
+    if (!this.inWorkspace || !this.isPublic || !this.hasWriteAccess) {
+      return;
+    }
+    if (!this.workflowPersistService.isWorkflowPersistEnabled()) {
+      return;
+    }
+    this.workflowPersistService
+      .persistWorkflow(this.workflowActionService.getWorkflow())
+      .pipe(untilDestroyed(this))
+      .subscribe({ error: () => {} });
+  }
+
+  /** Only for a published workflow the user can publish -- the endpoint requires write access. */
+  private refreshPublishStatus(): void {
+    if (this.type !== "workflow" || !this.isPublic || !this.hasWriteAccess) {
+      this.publishStatus = undefined;
+      return;
+    }
+    this.workflowPersistService
+      .getPublishStatus(this.id)
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: status => (this.publishStatus = status),
+        error: () => (this.publishStatus = undefined),
+      });
+  }
+
+  /** Named as a state, so the switch, the sentence and the dot cannot disagree about which is in force. */
+  get publishState(): "follow" | "pinned" | "behind" {
+    if (!this.publishStatus?.isPinned) {
+      return "follow";
+    }
+    return this.publishStatus.hasUnpublishedChanges ? "behind" : "pinned";
+  }
+
+  /**
+   * Changes what the public sees, leaving the author's working copy alone. Picking the side already
+   * in force does nothing, so a stray click cannot silently publish edits made since the pin;
+   * `republish` is how the card asks for exactly that.
+   */
+  public choosePublicCopy(pinned: boolean, republish = false): void {
+    if (!this.publishStatus || (pinned === this.publishStatus.isPinned && !republish)) {
+      return;
+    }
+    this.isPinning = true;
+    const change = pinned
+      ? { request: this.workflowPersistService.pinLatestVersion(this.id), done: "The public now sees this version" }
+      : { request: this.workflowPersistService.unpinVersion(this.id), done: "The public now follows your latest" };
+    change.request
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: status => {
+          this.publishStatus = status;
+          this.notificationService.success(change.done);
+        },
+        error: (error: unknown) => {
+          if (error instanceof HttpErrorResponse) {
+            this.notificationService.error(error.error.message);
+          }
+        },
+      })
+      .add(() => (this.isPinning = false));
   }
 
   public handleInputConfirm(event?: Event): void {
@@ -344,7 +453,11 @@ export class ShareAccessComponent implements OnInit, OnDestroy {
     if (!this.isPublic) {
       const modal: NzModalRef = this.modalService.create({
         nzTitle: "Notice",
-        nzContent: `Publishing your ${this.type} would grant all Texera users read access to your  ${this.type} along with the right to clone your work.`,
+        nzContent:
+          `Publishing your ${this.type} would grant all Texera users read access to your ${this.type} along with the right to clone your work.` +
+          (this.type === "workflow"
+            ? " The public will follow your latest version as you save it, unless you pin one."
+            : ""),
         nzFooter: [
           {
             label: "Cancel",
@@ -409,6 +522,7 @@ export class ShareAccessComponent implements OnInit, OnDestroy {
         .subscribe({
           next: () => {
             this.isPublic = true;
+            this.refreshPublishStatus();
             this.notificationService.success("Workflow published successfully");
           },
           error: (error: unknown) => {
@@ -428,6 +542,7 @@ export class ShareAccessComponent implements OnInit, OnDestroy {
         .subscribe({
           next: () => {
             this.isPublic = false;
+            this.publishStatus = undefined;
             this.notificationService.success("Workflow unpublished successfully");
           },
           error: (error: unknown) => {
