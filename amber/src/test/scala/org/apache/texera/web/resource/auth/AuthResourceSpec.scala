@@ -213,7 +213,7 @@ class AuthResourceSpec
 
     val response = resource.login(UserLoginRequest(uname("localonly"), "pw"))
 
-    googleIdClaimOf(response.accessToken) shouldBe null
+    JwtAuth.jwtConsumer.processToClaims(response.accessToken).hasClaim("googleId") shouldBe false
   }
 
   // ─── register ─────────────────────────────────────────────────────────────
