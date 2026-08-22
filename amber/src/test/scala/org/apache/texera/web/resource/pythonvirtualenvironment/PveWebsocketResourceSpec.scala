@@ -45,7 +45,12 @@ import scala.jdk.CollectionConverters._
   *     it closes the socket and then leaves the loop rather than parking in `queue.take()`
   *     on a queue nothing will ever fill again,
   *   - the failure path is symmetric with the happy one — the catch arm reports the action's
-  *     own exception message and the `finally` still emits the sentinel, and
+  *     own exception message and the `finally` still emits the sentinel,
+  *   - a malformed handshake is a failure of that same shape and not a special case: an
+  *     absent, empty or blank `cuid` or `pveName`, or a `cuid` that is not an Int, produces
+  *     an `[ERR]` line and then the sentinel. The reads have to stay inside the Future for
+  *     that — hoisted back out of it they throw from `onOpen` itself, ahead of both the catch
+  *     arm and the pump, and the client sees a socket that closes with nothing on it, and
   *   - `action` selects the branch, with the cuid and pveName parsed off the handshake
   *     handed to `PveManager` unswapped.
   *
@@ -238,6 +243,81 @@ class PveWebsocketResourceSpec extends AnyFlatSpec with Matchers with MockFactor
     // And the `finally` has to emit the sentinel on the failure path too, or the client waits
     // for an end-of-stream that never arrives.
     f.sentLines.last shouldBe "__DONE__"
+    f.assertPumpStopped()
+  }
+
+  it should "report a handshake with no cuid rather than dying on the socket" in {
+    // The frontend always sends `cuid`, so this is a hand-rolled or stale handshake. With the
+    // read hoisted out of the Future the absent key threw a NullPointerException from `onOpen`
+    // -- ahead of both the catch arm and the pump -- so the client got no error line, no
+    // sentinel, and nothing to tell this apart from a socket that simply went away.
+    val f = fixture(
+      "pveName" -> "ws-no-cuid",
+      "action" -> "install"
+    )
+
+    new PveWebsocketResource().onOpen(f.session)
+    f.awaitClose()
+
+    f.sentLines shouldBe List("[ERR] Missing required parameter: cuid", "__DONE__")
+    f.assertPumpStopped()
+  }
+
+  it should "report a cuid whose value list is empty" in {
+    // A present-but-empty value list is the other half of the presence guard: `.get(0)` on it
+    // raises IndexOutOfBoundsException rather than the NullPointerException the absent key
+    // above raises, so dropping either half of `values == null || values.isEmpty` has to fail
+    // one of these two tests.
+    val f = fixtureOf(
+      java.util.Map.of(
+        "cuid",
+        java.util.List.of[String](),
+        "pveName",
+        java.util.List.of("ws-empty-cuid"),
+        "action",
+        java.util.List.of("install")
+      )
+    )
+
+    new PveWebsocketResource().onOpen(f.session)
+    f.awaitClose()
+
+    f.sentLines shouldBe List("[ERR] Missing required parameter: cuid", "__DONE__")
+    f.assertPumpStopped()
+  }
+
+  it should "report a non-numeric cuid" in {
+    // Present and non-blank but not an Int, so it fails past the presence guard, in the parse.
+    // The message has to name the offending value: `NumberFormatException`'s own wording says
+    // "For input string" and never mentions which parameter it came from.
+    val f = fixture(
+      "cuid" -> "not-a-number",
+      "pveName" -> "ws-bad-cuid",
+      "action" -> "install"
+    )
+
+    new PveWebsocketResource().onOpen(f.session)
+    f.awaitClose()
+
+    f.sentLines shouldBe List("[ERR] Invalid cuid: not-a-number", "__DONE__")
+    f.assertPumpStopped()
+  }
+
+  it should "report a blank pveName, naming the parameter that is missing" in {
+    // Blank is what a servlet container hands back for `?pveName=`, and it is as malformed as
+    // an absent key: there is no PVE whose name is whitespace, and `PveManager` would resolve
+    // it to a venv directory named "" under the user's. Asserting on pveName rather than cuid
+    // also pins that the message interpolates the parameter's name instead of hardcoding one.
+    val f = fixture(
+      "cuid" -> "424244",
+      "pveName" -> "   ",
+      "action" -> "install"
+    )
+
+    new PveWebsocketResource().onOpen(f.session)
+    f.awaitClose()
+
+    f.sentLines shouldBe List("[ERR] Missing required parameter: pveName", "__DONE__")
     f.assertPumpStopped()
   }
 }
