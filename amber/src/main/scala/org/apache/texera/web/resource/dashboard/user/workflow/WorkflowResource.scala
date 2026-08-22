@@ -788,6 +788,10 @@ class WorkflowResource extends LazyLogging {
     )
   }
 
+  /**
+    * Publishes the workflow. The public follows the author's latest content until a version is
+    * pinned; see [[pinLatest]].
+    */
   @PUT
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/public/{wid}")
