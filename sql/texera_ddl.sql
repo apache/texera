@@ -169,8 +169,34 @@ CREATE TABLE IF NOT EXISTS workflow
     is_public          BOOLEAN NOT NULL DEFAULT false,
     -- Which view the workflow opens in by default (CANVAS or FORM); the form's definition
     -- lives in workflow.content (`formBinding`).
-    default_view   default_view_enum NOT NULL DEFAULT 'CANVAS'
+    default_view   default_view_enum NOT NULL DEFAULT 'CANVAS',
+    -- is_public is the on/off switch; published_content is the pin. NULL means the public follows the
+    -- author's latest content, non-NULL is the frozen copy the public sees instead. Materialized
+    -- rather than reconstructed from workflow_version, whose rows are reverse deltas.
+    -- published_version_id names the version row holding that copy, which is what the revision panel
+    -- marks so the author can restore it.
+    published_version_id  INT,
+    published_content     TEXT,
+    published_name        VARCHAR(128),
+    published_description TEXT,
+    -- Which view the pinned copy opens in: the form's definition rides inside published_content, so
+    -- the switch has to freeze with it or the public gets a form view over a copy with no form.
+    published_default_view default_view_enum
     );
+
+-- A pin only means something while the workflow is public. The four columns describe one copy, so
+-- the database keeps them together: either all absent, or a pinned copy on a public workflow.
+ALTER TABLE workflow
+    DROP CONSTRAINT IF EXISTS workflow_pin_requires_public;
+ALTER TABLE workflow
+    ADD CONSTRAINT workflow_pin_requires_public
+        CHECK (
+            (published_content IS NULL AND published_name IS NULL
+                AND published_description IS NULL AND published_version_id IS NULL
+                AND published_default_view IS NULL)
+                OR (is_public AND published_content IS NOT NULL AND published_name IS NOT NULL
+                AND published_default_view IS NOT NULL)
+            );
 
 -- workflow_of_user
 CREATE TABLE IF NOT EXISTS workflow_of_user
@@ -705,6 +731,16 @@ BEGIN
       r.tablename, r.tablename, r.index_column, stem_filter
     );
   END LOOP;
+
+  -- Public search matches the pinned copy -- name, description and content together -- rather than
+  -- the author's live values, so it needs its own index alongside idx_workflow_pgroonga. The
+  -- expression must match the one the query builds against these columns.
+  EXECUTE format(
+    'CREATE INDEX idx_workflow_published_pgroonga ON workflow USING pgroonga ' ||
+    '((COALESCE(published_name, '''') || '' '' || COALESCE(published_description, '''') || '' '' || COALESCE(published_content, ''''))) ' ||
+    'WITH (tokenizer = ''TokenMecab''%s);',
+    stem_filter
+  );
 END $$;
 
 -- END Fulltext search index creation (DO NOT EDIT THIS LINE)
