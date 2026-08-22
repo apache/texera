@@ -94,10 +94,10 @@ import scala.jdk.CollectionConverters.{IteratorHasAsScala, MapHasAsJava, SeqHasA
   *     IndexOutOfBounds / IllegalArgumentException. A harmless improvement (a default, or a clear
   *     message) would break such a test.
   *   - `ModifyLogicRequest` with a workflow but no execution: `executionService.getValue` is null,
-  *     so the handler NPEs instead of reporting "workflow execution is not initialized". Same guard
-  *     gap as `case other` below — reported, not pinned. It is also the only input that would tell
-  *     `if (workflowStateOpt.isDefined)` apart from `if (executionStateOpt.isDefined)`, so that
-  *     guard's exact condition is left unpinned on purpose; see the no-workflow case below.
+  *     so the handler NPEs instead of reporting "workflow execution is not initialized" — the same
+  *     guard gap `case other` used to have, reported rather than pinned. It is also the only input
+  *     that would tell `if (workflowStateOpt.isDefined)` apart from `if (executionStateOpt.isDefined)`,
+  *     so that guard's exact condition is left unpinned on purpose; see the no-workflow case below.
   *   - `ResultPaginationRequest`'s real payload, which needs a DB; only the request/response
   *     pass-through is asserted here, against a stubbed result service.
   *   - the deserialization line, already owned by `TexeraWebSocketRequestSpec`.
@@ -453,13 +453,8 @@ class WorkflowWebsocketResourceSpec
 
   it should "report a runtime command that arrives before any workflow is attached" in {
     // Anything that is not one of the four named requests falls through to `wsInput`, which only
-    // exists once an execution has been created.
-    //
-    // Note this drives the case with NO workflow attached. With a workflow attached but no
-    // execution, `executionService.getValue` returns null and `workflowStateOpt.map(...)` yields
-    // Some(null), which slips past the `case None` guard and NPEs on `value.wsInput`. That is a
-    // real gap in the guard, but it is an accidental failure mode rather than a contract, so it is
-    // reported rather than pinned here.
+    // exists once an execution has been created. This drives the case with NO workflow attached;
+    // the next test drives the workflow-attached-but-not-yet-executing half of the same guard.
     val (session, sent) = mockSession(uid = Some(42))
     registerState(session, PrivilegeEnum.WRITE)
 
@@ -468,6 +463,28 @@ class WorkflowWebsocketResourceSpec
     }
     ex.getMessage should include("workflow execution is not initialized")
 
+    sentTypes(sent) shouldBe Seq("WorkflowErrorEvent")
+    fatalErrorMessages(sent).head should include("workflow execution is not initialized")
+  }
+
+  it should "report a runtime command that arrives before the execution is created" in {
+    // The workflow is attached, so `workflowStateOpt` is defined, but nothing has published an
+    // execution yet: `executionService` is a BehaviorSubject seeded with null, so its current value
+    // is null rather than absent. Reading it with `map` would wrap that null into a Some and slip
+    // past the `case None` guard, so the command would NPE on `value.wsInput` instead of reporting
+    // the uninitialized execution. The message, not just the throw, is what this pins.
+    val (session, sent) = mockSession(uid = Some(42))
+    val workflow = new TestWorkflowService(9103L)
+    attach(session, PrivilegeEnum.WRITE, workflow)
+    workflow.executionService.getValue shouldBe null
+
+    val ex = intercept[IllegalStateException] {
+      resource.myOnMsg(session, """{"type":"WorkflowPauseRequest"}""")
+    }
+    ex.getMessage should include("workflow execution is not initialized")
+
+    // With no execution there is no metadata store to record into, so the error mapper falls back
+    // to the socket -- the same route the no-workflow case takes.
     sentTypes(sent) shouldBe Seq("WorkflowErrorEvent")
     fatalErrorMessages(sent).head should include("workflow execution is not initialized")
   }
