@@ -17,9 +17,9 @@
  * under the License.
  */
 
-import { HttpClient } from "@angular/common/http";
+import { HttpClient, HttpErrorResponse } from "@angular/common/http";
 import { Injectable } from "@angular/core";
-import { firstValueFrom, Observable, Subscription, timer } from "rxjs";
+import { firstValueFrom, Observable, Subject, Subscription, timer } from "rxjs";
 import { AppSettings } from "../../app-setting";
 import { Role, User } from "../../type/user";
 import { ignoreElements } from "rxjs/operators";
@@ -29,6 +29,8 @@ import { GmailService } from "../gmail/gmail.service";
 import { GuiConfigService } from "../gui-config.service";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { RegistrationRequestModalComponent } from "./registration-request-modal/registration-request-modal.component";
+import { EmailRequestModalComponent } from "./email-request-modal/email-request-modal.component";
+import { validateEmailFormat } from "../../util/email";
 
 export const TOKEN_KEY = "access_token";
 
@@ -46,8 +48,11 @@ export class AuthService {
   public static readonly REFRESH_TOKEN = "auth/refresh";
   public static readonly REGISTER_ENDPOINT = "auth/register";
   public static readonly GOOGLE_LOGIN_ENDPOINT = "auth/google/login";
+  public static readonly SET_EMAIL_ENDPOINT = "auth/email";
 
   private tokenExpirationSubscription?: Subscription;
+  private sessionChangedSubject = new Subject<void>();
+  private emailPromptOpen = false;
 
   constructor(
     private http: HttpClient,
@@ -94,6 +99,19 @@ export class AuthService {
     );
   }
 
+  /** Emits when this service changed the stored token or cleared it itself (see `promptForEmail`). */
+  public sessionChanged(): Observable<void> {
+    return this.sessionChangedSubject.asObservable();
+  }
+
+  /** Gives the signed-in account the address it lacks, returning the reissued token. */
+  public setEmail(email: string): Observable<Readonly<{ accessToken: string }>> {
+    return this.http.put<Readonly<{ accessToken: string }>>(
+      `${AppSettings.getApiEndpoint()}/${AuthService.SET_EMAIL_ENDPOINT}`,
+      { email }
+    );
+  }
+
   /**
    * This method will handle the request for user login.
    * It will automatically login, save the user account inside and trigger userChangeEvent when success
@@ -133,6 +151,11 @@ export class AuthService {
     const uid = this.jwtHelperService.decodeToken(token).userId;
     const email = this.jwtHelperService.decodeToken(token).email;
     const name = this.jwtHelperService.decodeToken(token).sub;
+
+    if (!email) {
+      this.promptForEmail(name);
+      return undefined;
+    }
 
     if (this.config.env.inviteOnly && role === Role.INACTIVE) {
       this.checkRegistrationRequired(uid).subscribe(required => {
@@ -224,6 +247,89 @@ export class AuthService {
       affiliation,
       joiningReason: reason,
     });
+  }
+
+  /**
+   * Asks a signed-in user for the email address their account does not have, and stores it.
+   *
+   * Not dismissable: cancelling signs out, matching how the invite-only registration request
+   * behaves. Until it is answered `loginWithExistingToken` hands out no user at all.
+   *
+   * Either outcome announces itself through `sessionChanged`: a success replaces the token (its
+   * `email` claim was null), a cancel throws it away, and both need the current user re-derived.
+   */
+  private promptForEmail(defaultName: string): void {
+    if (this.emailPromptOpen) {
+      return;
+    }
+    this.emailPromptOpen = true;
+
+    const modalRef = this.modal.create<EmailRequestModalComponent>({
+      nzContent: EmailRequestModalComponent,
+      nzData: { name: defaultName },
+      nzOkText: "Save",
+      nzCancelText: "Sign out",
+      nzMaskClosable: false,
+      nzClosable: false,
+      // Reaches the modal chrome, which ng-zorro renders outside the content component's view —
+      // see `.email-modal` in email-request-modal.component.scss.
+      nzClassName: "email-modal",
+
+      nzOnOk: async () => {
+        const { email } = modalRef.getContentComponent().getValues();
+        const validation = validateEmailFormat(email);
+        if (!validation.result) {
+          this.notificationService.error(validation.message);
+          return false;
+        }
+
+        try {
+          const { accessToken } = await firstValueFrom(this.setEmail(email));
+          AuthService.setAccessToken(accessToken);
+        } catch (e: unknown) {
+          if (this.storedEmailClaim() != null) {
+            this.finishEmailPrompt();
+            return true;
+          }
+
+          this.notificationService.error(
+            (e as HttpErrorResponse)?.error?.message ?? "That email address could not be saved."
+          );
+          return false;
+        }
+        this.finishEmailPrompt();
+        return true;
+      },
+
+      nzOnCancel: () => {
+        this.logout();
+        this.finishEmailPrompt();
+      },
+    });
+
+    modalRef.updateConfig({ nzTitle: modalRef.getContentComponent().modalTitle });
+  }
+
+  /**
+   * Close out the email prompt: let another one open later, and tell `sessionChanged` subscribers to
+   * re-derive from whatever token is now stored.
+   */
+  private finishEmailPrompt(): void {
+    this.emailPromptOpen = false;
+    this.sessionChangedSubject.next();
+  }
+
+  /** The `email` claim on the stored token, or null when there is no token or no claim. */
+  private storedEmailClaim(): string | null {
+    const token = AuthService.getAccessToken();
+    if (token == null) {
+      return null;
+    }
+    try {
+      return this.jwtHelperService.decodeToken(token)?.email ?? null;
+    } catch {
+      return null;
+    }
   }
 
   /**
