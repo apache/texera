@@ -1137,6 +1137,19 @@ describe("MenuComponent", () => {
 
       expect(createSpy).not.toHaveBeenCalled();
     });
+
+    it("tells the versions panel to re-read once the dialog closes", async () => {
+      // The dialog is where a version gets pinned, and the panel behind it marks the pinned one.
+      // A real id, because the dialog does not open without one.
+      component.workflowId = 7;
+      vi.spyOn(workflowPersistService, "retrieveOwners").mockReturnValue(of([]));
+      vi.spyOn(modalService, "create").mockReturnValue({ afterClose: of(undefined) } as unknown as NzModalRef);
+      const announce = vi.spyOn(component.workflowVersionService, "notifyPublicVersionChanged");
+
+      await component.onClickOpenShareAccess();
+
+      expect(announce).toHaveBeenCalled();
+    });
   });
 
   it("onClickCreateNewWorkflow resets the graph and navigates back to root", () => {
