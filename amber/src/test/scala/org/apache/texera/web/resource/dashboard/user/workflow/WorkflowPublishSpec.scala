@@ -29,7 +29,10 @@ import org.apache.texera.dao.jooq.generated.tables.daos.{
   WorkflowUserAccessDao
 }
 import org.apache.texera.dao.jooq.generated.tables.pojos.{User, Workflow, WorkflowUserAccess}
+import org.apache.texera.web.resource.dashboard.DashboardResource.SearchQueryParams
+import org.apache.texera.web.resource.dashboard.hub.HubResource
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowResource.WorkflowIDs
+import org.apache.texera.web.resource.dashboard.{DashboardResource, FulltextSearchQueryUtils}
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -43,7 +46,7 @@ import javax.ws.rs.{BadRequestException, ForbiddenException, NotFoundException}
 /**
   * Covers the publish state a workflow can be in -- following the author's latest content, as
   * publishing has always done, or holding a pinned copy of the version the author froze -- and the
-  * read paths that decide which of the two a caller is served.
+  * read paths that decide which of the two a caller is served, listings and search among them.
   */
 class WorkflowPublishSpec
     extends AnyFlatSpec
@@ -82,6 +85,7 @@ class WorkflowPublishSpec
 
   override protected def beforeAll(): Unit = {
     initializeDBAndReplaceDSLContext()
+    FulltextSearchQueryUtils.usePgroonga = false
     val userDao = new UserDao(getDSLContext.configuration())
     userDao.insert(owner)
     userDao.insert(stranger)
@@ -132,6 +136,40 @@ class WorkflowPublishSpec
           if (method.getName == "getRemoteAddr") "127.0.0.1" else null
       )
       .asInstanceOf[HttpServletRequest]
+
+  private def keywords(values: String*): util.ArrayList[String] = {
+    val list = new util.ArrayList[String]()
+    values.foreach(list.add)
+    list
+  }
+
+  private def keywordIds(values: Integer*): util.ArrayList[Integer] = {
+    val list = new util.ArrayList[Integer]()
+    values.foreach(list.add)
+    list
+  }
+
+  /** The wids a search returns, which is all any of these tests asks of one. */
+  private def searchWids(user: SessionUser, params: SearchQueryParams): List[Integer] =
+    DashboardResource
+      .searchAllResources(user, params, includePublic = true)
+      .results
+      .flatMap(_.workflow.map(_.workflow.getWid))
+
+  /** One workflow's listing row, as the given user would see it in a dashboard or on the Hub. */
+  private def listingOf(user: SessionUser, wid: Integer) =
+    DashboardResource
+      .searchAllResources(
+        user,
+        SearchQueryParams(workflowIDs = keywordIds(wid)),
+        includePublic = true
+      )
+      .results
+      .flatMap(_.workflow)
+      .head
+
+  /** Nobody: the hub as an unauthenticated visitor reads it. */
+  private def anonymous: SessionUser = new SessionUser(new User())
 
   private def statusOf(wid: Integer): WorkflowPublishService.PublishStatus =
     workflowResource.getPublishStatus(wid, ownerSession)
@@ -614,5 +652,235 @@ class WorkflowPublishSpec
     workflowResource
       .getSize(util.Arrays.asList(pinned))
       .get(pinned) shouldBe publishedContent.length
+  }
+
+  behavior of "hub listings"
+
+  it should "list a pinned workflow on the hub under the name and description it froze" in {
+    // The hub is the public shelf: everything on it is listed as the public sees it, the author
+    // included. A pin that this listing did not honour would put the author's live title on that
+    // shelf, and would leave it disagreeing with the hub's own search about what a workflow is
+    // called.
+    val wid = createWorkflow("hub_listing_shows_public_copy")
+    publishPinned(wid)
+    relabel(wid, "renamed_after_pinning", "described_after_pinning")
+
+    for (viewer <- Seq(stranger.getUid, owner.getUid)) {
+      val listed = HubResource.fetchDashboardWorkflowsByWids(Seq(wid), viewer).head.workflow
+      listed.getName shouldBe "hub_listing_shows_public_copy"
+      listed.getDescription shouldBe "a workflow"
+    }
+  }
+
+  it should "list a following workflow on the hub under the author's latest name and description" in {
+    val wid = createWorkflow("hub_listing_follows_latest")
+    workflowResource.makePublic(wid, ownerSession)
+    relabel(wid, "renamed_while_following", "described_while_following")
+
+    val listed = HubResource.fetchDashboardWorkflowsByWids(Seq(wid), owner.getUid).head.workflow
+    listed.getName shouldBe "renamed_while_following"
+    listed.getDescription shouldBe "described_while_following"
+  }
+
+  it should "tell the hub listing when the copy on show is behind the author's working copy" in {
+    // The card advertises the pinned copy, so clicking it has to open that copy. Without this flag
+    // the author's own card would take them to their editor and show them something else -- the
+    // same signal the search listing carries, on the query the hub builds for itself.
+    val wid = createWorkflow("hub_listing_reports_drift")
+    publishPinned(wid)
+
+    def listedDrift(): Boolean =
+      HubResource.fetchDashboardWorkflowsByWids(Seq(wid), owner.getUid).head.hasUnpublishedChanges
+
+    listedDrift() shouldBe false
+    edit(wid, editedContent)
+    listedDrift() shouldBe true
+    workflowResource.pinLatest(wid, ownerSession)
+    listedDrift() shouldBe false
+  }
+
+  it should "clone the author's latest name and description while nothing is pinned" in {
+    val wid = createWorkflow("clone_follows_latest_metadata")
+    workflowResource.makePublic(wid, ownerSession)
+    relabel(wid, "renamed_before_clone", "described_before_clone")
+
+    val cloned =
+      workflowDao.fetchOneByWid(workflowResource.cloneWorkflow(wid, strangerSession, fakeRequest()))
+
+    cloned.getName shouldBe "renamed_before_clone_clone"
+    cloned.getDescription shouldBe "described_before_clone"
+  }
+
+  behavior of "search"
+
+  it should "not match a public workflow on anything that exists only in unpublished edits" in {
+    // Both halves of what public search indexes -- the words in the graph, and the operators in it --
+    // have to stop at the pinned copy, or searching would surface drafts nobody can open.
+    val wid = createWorkflow("search_ignores_drafts")
+    publishPinned(wid)
+    edit(
+      wid,
+      """{"operators":[{"operatorType":"SecretDraftOperator"}],"note":"supersecretdraftword"}"""
+    )
+
+    val byKeyword =
+      searchWids(anonymous, SearchQueryParams(keywords = keywords("supersecretdraftword")))
+    val byOperator =
+      searchWids(anonymous, SearchQueryParams(operators = keywords("SecretDraftOperator")))
+
+    byKeyword should not contain wid
+    byOperator should not contain wid
+  }
+
+  it should "match a public workflow on keywords in its published copy" in {
+    val wid = createWorkflow("search_finds_published")
+    publishPinned(wid)
+    edit(wid, editedContent)
+
+    searchWids(
+      anonymous,
+      SearchQueryParams(keywords = keywords("content_as_published"))
+    ) should contain(wid)
+  }
+
+  it should "match an unpinned public workflow on the author's latest" in {
+    // Following means the public copy is the working copy, so search must reach it through the same
+    // public path that a pinned workflow reaches its frozen copy through.
+    val wid = createWorkflow("search_finds_unpinned_latest")
+    workflowResource.makePublic(wid, ownerSession)
+    edit(wid, """{"operators":[],"note":"unpinnedsearchword"}""")
+
+    searchWids(
+      anonymous,
+      SearchQueryParams(keywords = keywords("unpinnedsearchword"))
+    ) should contain(wid)
+  }
+
+  it should "still match the author's own workflow on their unpublished edits" in {
+    val wid = createWorkflow("search_finds_own_draft")
+    publishPinned(wid)
+    edit(wid, """{"operators":[],"note":"myowndraftword"}""")
+
+    searchWids(
+      ownerSession,
+      SearchQueryParams(keywords = keywords("myowndraftword"))
+    ) should contain(wid)
+  }
+
+  it should "match a pinned workflow on the name and description the public can see" in {
+    // The graph was already matched against the pinned copy; the title and description are on public
+    // show just as much, so matching them against the author's live values gets it wrong in both
+    // directions at once -- findable by a title nobody has seen, unfindable by the one on screen.
+    val wid = createWorkflow("aapublicnamesearch")
+    relabel(wid, "aapublicnamesearch", "aapublicdescriptionsearch")
+    publishPinned(wid)
+    relabel(wid, "zzsecretnamesearch", "zzsecretdescriptionsearch")
+
+    def anonymousHits(word: String): List[Integer] =
+      searchWids(anonymous, SearchQueryParams(keywords = keywords(word)))
+
+    anonymousHits("aapublicnamesearch") should contain(wid)
+    anonymousHits("aapublicdescriptionsearch") should contain(wid)
+    anonymousHits("zzsecretnamesearch") should not contain wid
+    anonymousHits("zzsecretdescriptionsearch") should not contain wid
+  }
+
+  it should "match an unpinned public workflow on its live name and description" in {
+    val wid = createWorkflow("bbfollowingnamesearch")
+    workflowResource.makePublic(wid, ownerSession)
+    relabel(wid, "bbrenamedwhilefollowing", "a workflow")
+
+    searchWids(
+      anonymous,
+      SearchQueryParams(keywords = keywords("bbrenamedwhilefollowing"))
+    ) should contain(wid)
+  }
+
+  it should "still match the author's own workflow on a name only they can see" in {
+    val wid = createWorkflow("ccownnamesearch")
+    publishPinned(wid)
+    relabel(wid, "ccprivaterenamesearch", "a workflow")
+
+    searchWids(
+      ownerSession,
+      SearchQueryParams(keywords = keywords("ccprivaterenamesearch"))
+    ) should contain(wid)
+  }
+
+  it should "show a public viewer the published name and description in a listing" in {
+    // The listing is where people find and click a workflow, so a title that keeps following the
+    // author defeats the freeze exactly as an unfrozen graph would: a report about a title could be
+    // answered by quietly editing the title.
+    val wid = createWorkflow("listing_name_before")
+    publishPinned(wid)
+    relabel(wid, "listing_name_after", "described after publishing")
+
+    def listedAs(session: SessionUser): (String, String) = {
+      val entry = listingOf(session, wid).workflow
+      (entry.getName, entry.getDescription)
+    }
+
+    // The author is not a public viewer of their own workflow.
+    listedAs(ownerSession) shouldBe ("listing_name_after", "described after publishing")
+    // A stranger reaches it only because it is public.
+    listedAs(strangerSession) shouldBe ("listing_name_before", "a workflow")
+    // ...and the listing now agrees with what opening it shows.
+    workflowResource.retrievePublicWorkflow(wid).name shouldBe "listing_name_before"
+  }
+
+  it should "show a public viewer the author's live name while nothing is pinned" in {
+    val wid = createWorkflow("listing_unpinned_before")
+    workflowResource.makePublic(wid, ownerSession)
+    relabel(wid, "listing_unpinned_after", "a workflow")
+
+    listingOf(strangerSession, wid).workflow.getName shouldBe "listing_unpinned_after"
+  }
+
+  it should "show a collaborator the author's live name in a listing" in {
+    val wid = createWorkflow("listing_for_collaborator")
+    publishPinned(wid)
+    grantAccess(wid, PrivilegeEnum.READ)
+
+    try {
+      relabel(wid, "renamed_after_sharing", "a workflow")
+      listingOf(strangerSession, wid).workflow.getName shouldBe "renamed_after_sharing"
+    } finally revokeAccess(wid)
+  }
+
+  it should "leave a private workflow's own listing untouched" in {
+    val wid = createWorkflow("listing_private")
+    relabel(wid, "private_renamed", "a workflow")
+
+    listingOf(ownerSession, wid).workflow.getName shouldBe "private_renamed"
+  }
+
+  it should "tell listings when the copy on show is behind the author's working copy" in {
+    // What sends the author to the published preview instead of their editor when they click their
+    // own workflow in the hub: the entry is advertising the pinned version, not what they are editing.
+    val wid = createWorkflow("listing_reports_drift")
+    publishPinned(wid)
+
+    def drifted(): Boolean = listingOf(ownerSession, wid).hasUnpublishedChanges
+
+    drifted() shouldBe false
+    edit(wid, editedContent)
+    drifted() shouldBe true
+    workflowResource.pinLatest(wid, ownerSession)
+    drifted() shouldBe false
+  }
+
+  it should "never report drift for a workflow with nothing frozen" in {
+    // Drift is "what the public sees is not what you have", so it can only be true of a workflow that
+    // has a frozen copy at all. Private and public-but-following both have none.
+    def driftOf(wid: Integer): Boolean = listingOf(ownerSession, wid).hasUnpublishedChanges
+
+    val priv = createWorkflow("listing_ignores_private")
+    edit(priv, editedContent)
+    driftOf(priv) shouldBe false
+
+    val following = createWorkflow("listing_ignores_unpinned")
+    workflowResource.makePublic(following, ownerSession)
+    edit(following, editedContent)
+    driftOf(following) shouldBe false
   }
 }

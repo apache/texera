@@ -27,6 +27,7 @@ import org.apache.texera.dao.jooq.generated.tables.daos.WorkflowDao
 import org.apache.texera.dao.jooq.generated.tables.pojos.Workflow
 import org.jooq.DSLContext
 
+import scala.jdk.CollectionConverters.CollectionHasAsScala
 import scala.util.Try
 import javax.ws.rs.NotFoundException
 
@@ -179,6 +180,42 @@ object WorkflowPublishService extends LazyLogging {
   /** The author's own copy, in the same shape. */
   private def workingCopyOf(workflow: Workflow): PublicCopy =
     PublicCopy(workflow.getName, workflow.getDescription, workflow.getContent)
+
+  /**
+    * What a listing needs about one pinned workflow: the frozen name and description it must show
+    * instead of the author's live ones, and whether those live ones have moved on.
+    */
+  case class PinnedListing(name: String, description: String, hasUnpublishedChanges: Boolean)
+
+  /**
+    * The pinned listings among `wids`, keyed by wid. A workflow that follows the author's latest is
+    * simply absent, which leaves its live values in place and its drift flag false.
+    *
+    * Drift is decided in SQL here rather than by [[differs]], because a listing asks about many
+    * workflows at once and none of their contents are worth shipping back to compare in memory.
+    */
+  def pinnedListingsOf(wids: Seq[Integer]): Map[Integer, PinnedListing] =
+    if (wids.isEmpty) Map()
+    else {
+      val drifted = WORKFLOW.PUBLISHED_CONTENT
+        .isDistinctFrom(WORKFLOW.CONTENT)
+        .or(WORKFLOW.PUBLISHED_NAME.isDistinctFrom(WORKFLOW.NAME))
+        .or(WORKFLOW.PUBLISHED_DESCRIPTION.isDistinctFrom(WORKFLOW.DESCRIPTION))
+      context
+        .select(WORKFLOW.WID, WORKFLOW.PUBLISHED_NAME, WORKFLOW.PUBLISHED_DESCRIPTION, drifted)
+        .from(WORKFLOW)
+        .where(WORKFLOW.WID.in(wids: _*).and(WORKFLOW.PUBLISHED_CONTENT.isNotNull))
+        .fetch()
+        .asScala
+        .map(row =>
+          row.get(WORKFLOW.WID) -> PinnedListing(
+            row.get(WORKFLOW.PUBLISHED_NAME),
+            row.get(WORKFLOW.PUBLISHED_DESCRIPTION),
+            row.get(drifted)
+          )
+        )
+        .toMap
+    }
 
   /** As [[publicCopyOf]], for callers holding only a wid. 404s unless the workflow is public. */
   def publicCopyOf(wid: Integer): PublicCopy = {

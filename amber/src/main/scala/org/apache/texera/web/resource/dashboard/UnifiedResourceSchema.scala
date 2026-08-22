@@ -77,7 +77,12 @@ object UnifiedResourceSchema {
       isDatasetDownloadable: Field[java.lang.Boolean] = DSL.cast(null, classOf[java.lang.Boolean]),
       datasetUserAccess: Field[PrivilegeEnum] = DSL.castNull(classOf[PrivilegeEnum]),
       datasetCoverImage: Field[String] = DSL.cast(null, classOf[String]),
-      workflowCoverImage: Field[String] = DSL.cast(null, classOf[String])
+      workflowCoverImage: Field[String] = DSL.cast(null, classOf[String]),
+      workflowHasUnpublishedChanges: Field[java.lang.Boolean] =
+        DSL.cast(null, classOf[java.lang.Boolean]),
+      workflowPublishedName: Field[String] = DSL.cast(null, classOf[String]),
+      workflowPublishedDescription: Field[String] = DSL.cast(null, classOf[String]),
+      viewerHasGrantedAccess: Field[java.lang.Boolean] = DSL.cast(null, classOf[java.lang.Boolean])
   ): UnifiedResourceSchema = {
     new UnifiedResourceSchema(
       Seq(
@@ -104,7 +109,13 @@ object UnifiedResourceSchema {
         isDatasetDownloadable -> isDatasetDownloadable.as("is_dataset_downloadable"),
         datasetUserAccess -> datasetUserAccess.as("user_dataset_access"),
         datasetCoverImage -> datasetCoverImage.as("cover_image"),
-        workflowCoverImage -> workflowCoverImage.as("workflow_cover_image")
+        workflowCoverImage -> workflowCoverImage.as("workflow_cover_image"),
+        workflowHasUnpublishedChanges -> workflowHasUnpublishedChanges
+          .as("workflow_has_unpublished_changes"),
+        workflowPublishedName -> workflowPublishedName.as("workflow_published_name"),
+        workflowPublishedDescription -> workflowPublishedDescription
+          .as("workflow_published_description"),
+        viewerHasGrantedAccess -> viewerHasGrantedAccess.as("viewer_has_granted_access")
       )
     )
   }

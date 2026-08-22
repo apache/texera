@@ -59,7 +59,17 @@ trait SearchQueryBuilder {
       includePublic: Boolean = false
   ): TableLike[_]
 
-  protected def constructWhereClause(uid: Integer, params: SearchQueryParams): Condition
+  /**
+    * @param includePublic whether public resources the user has not been granted access to are in
+    *                      scope. Builders whose content differs between the public and the private
+    *                      view (workflows, whose public copy is a pinned version) need this to know
+    *                      which copy a filter may match against.
+    */
+  protected def constructWhereClause(
+      uid: Integer,
+      params: SearchQueryParams,
+      includePublic: Boolean = false
+  ): Condition
 
   protected def getGroupByFields: Seq[GroupField] = Seq.empty
 
@@ -79,7 +89,7 @@ trait SearchQueryBuilder {
     val query: SelectGroupByStep[Record] = context
       .selectDistinct(mappedResourceSchema.allFields: _*)
       .from(constructFromClause(uid, params, includePublic))
-      .where(constructWhereClause(uid, params))
+      .where(constructWhereClause(uid, params, includePublic))
     val groupByFields = getGroupByFields
     if (groupByFields.nonEmpty) {
       query.groupBy(groupByFields: _*)

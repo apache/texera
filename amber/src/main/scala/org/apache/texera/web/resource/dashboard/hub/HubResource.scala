@@ -35,6 +35,7 @@ import org.apache.texera.web.resource.dashboard.hub.ActionType.{Clone, Like, Unl
 import org.apache.texera.web.resource.dashboard.hub.EntityTables._
 import org.apache.texera.web.resource.dashboard.hub.HubResource._
 import org.apache.texera.web.resource.dashboard.user.dataset.DatasetResource.DashboardDataset
+import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowPublishService
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowResource.{
   DashboardWorkflow,
   baseWorkflowSelect,
@@ -279,7 +280,23 @@ object HubResource {
       )
       .fetch()
 
-    mapWorkflowEntries(records, uid)
+    // The hub is the public shelf, so everything on it is listed as the public sees it: while a pin
+    // is in place, under the name and description frozen with it rather than the author's live ones
+    // -- for the author too, who is looking at the shelf and not at their own dashboard.
+    val entries = mapWorkflowEntries(records, uid)
+    val pinned = WorkflowPublishService.pinnedListingsOf(entries.map(_.workflow.getWid))
+    entries.map { entry =>
+      pinned.get(entry.workflow.getWid) match {
+        case None => entry
+        case Some(listing) =>
+          entry.workflow.setName(listing.name)
+          entry.workflow.setDescription(listing.description)
+          // Carried like the search listing carries it: a card advertising the pinned copy has to
+          // open that copy, and without this flag the author's own card would open their editor and
+          // show them something else.
+          entry.copy(hasUnpublishedChanges = listing.hasUnpublishedChanges)
+      }
+    }
   }
 
   def fetchDashboardDatasetsByDids(dids: Seq[Integer], uid: Integer): List[DashboardDataset] = {
