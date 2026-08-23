@@ -170,7 +170,13 @@ class DatasetSearchQueryBuilderSpec
   // ---------------------------------------------------------------------------------------------
 
   private val lakefsUri = new URI(StorageConfig.lakefsEndpoint)
-  private val apiPrefix = lakefsUri.getPath
+
+  // Normalised, because the handler paths below are matched by exact equality and
+  // StorageConfig.lakefsEndpoint is a `var` that tests are expected to override. A configured
+  // ".../api/v1/" would otherwise yield "/api/v1//repositories/..." here, match nothing, and make
+  // the requireStub()-guarded tests FAIL on a 404 rather than cancel -- the one failure mode the
+  // class comment promises they will not have.
+  private val apiPrefix = lakefsUri.getPath.stripSuffix("/")
 
   private val commitId = "c0ffee"
 
