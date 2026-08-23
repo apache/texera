@@ -327,15 +327,15 @@ class EncodableInspectorSpec extends AnyFunSuite {
   }
 
   test("a never-typechecked argument tree is classified non-Encodable by every predicate") {
-    // Pins the fail-safe default of the `tpe != null` / `argType != null` guards on lines 131,
-    // 136, 147 and 164: swapping either `&&` so the guard runs second turns this test into an NPE.
+    // Pins the fail-safe default of the `tpe != null` / `argType != null` guards used by
+    // `isPythonTemplateBuilderArg`, `isStringRendererArg`, `isDirectEncodableStringArg`, and `wrapArg`:
+    // swapping either `&&` so the null check runs second turns this test into an NPE.
     //
     // Honest scope note: `pyb` cannot deliver such a tree - a blackbox macro's argument trees are
     // typechecked by construction - so these guards are defensive-only, reachable in practice only
-    // through a probe like this one. And the *fifth* null guard, `tree.tpe != null` on line 126, is
-    // provably redundant rather than merely untested: `typeHasEncodableString`'s `loop` already
-    // answers false for null on line 79, so deleting it is an equivalent mutation. No test can (or
-    // should) pretend to pin it.
+    // through a probe like this one. And the extra `tree.tpe != null` check in `treeHasEncodableString`
+    // is provably redundant rather than merely untested: `typeHasEncodableString` already answers false
+    // for `null`, so deleting the guard is an equivalent mutation. No test can (or should) pretend to pin it.
     assert(evalProbe("classifyUntyped") == "ptb=false sr=false enc=false treeEnc=false")
   }
 
