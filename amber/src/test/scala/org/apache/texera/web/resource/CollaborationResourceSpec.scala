@@ -46,7 +46,19 @@ import scala.collection.mutable.ArrayBuffer
 // with no external collaborators; the TryLockRequest cases that reach
 // WorkflowAccessResource.hasWriteAccess additionally mix in MockTexeraDB and
 // seed a workflow_user_access row so the privilege check reads a real value.
-// The lock hand-off inside myOnClose still needs SqlServer and is left uncovered.
+// The lock hand-off inside myOnClose consults the same privilege check, so the
+// cases at the bottom of this file drive it through MockTexeraDB too, with two
+// seeded users (one WRITE, one READ) on the same workflow so the per-candidate
+// privilege test is observable.
+//
+// Two defects in this class are deliberately NOT pinned here, because pinning
+// them would cement them: (1) a session that sends WIdRequest twice is added to
+// the new wid's bucket but never removed from the old one, leaving a stale
+// hand-off candidate that outlives the session; (2) AcquireLockRequest
+// dereferences the `null` holder sentinel that TryLockRequest writes, so it
+// throws where TryLockRequest copes. Case (2) predates this spec and is pinned
+// by "AcquireLockRequest should rethrow when the holder slot holds the null
+// sentinel" as current behaviour, not as desired behaviour.
 class CollaborationResourceSpec
     extends AnyFlatSpec
     with Matchers
@@ -62,6 +74,10 @@ class CollaborationResourceSpec
   // WorkflowAccessResource.hasWriteAccess reads a real privilege.
   private val accessUid = 8201
   private val accessWid = 8301
+  // A second user on the SAME workflow, seeded with READ only. Needed because
+  // the hand-off loop in myOnClose consults checkIsReadOnly per candidate
+  // session: with one uid the privilege predicate cannot be observed at all.
+  private val readOnlyUid = 8202
 
   override protected def beforeAll(): Unit = {
     initializeDBAndReplaceDSLContext()
@@ -92,12 +108,6 @@ class CollaborationResourceSpec
   // the given privilege, so WorkflowAccessResource.getPrivilege(accessWid,
   // accessUid) returns it.
   private def seedAccess(privilege: PrivilegeEnum): Unit = {
-    val user = new User
-    user.setUid(Integer.valueOf(accessUid))
-    user.setName("collab_lock_user")
-    user.setRole(UserRoleEnum.REGULAR)
-    new UserDao(getDSLContext.configuration()).insert(user)
-
     val workflow = new Workflow
     workflow.setWid(Integer.valueOf(accessWid))
     workflow.setName("collab-lock-wf")
@@ -107,9 +117,21 @@ class CollaborationResourceSpec
     workflow.setLastModifiedTime(new Timestamp(System.currentTimeMillis()))
     new WorkflowDao(getDSLContext.configuration()).insert(workflow)
 
+    seedUserAccess(accessUid, "collab_lock_user", privilege)
+  }
+
+  // Adds one more (uid, accessWid) row. WORKFLOW_USER_ACCESS is keyed on the
+  // pair, so several users can hold different privileges on one workflow.
+  private def seedUserAccess(uid: Int, name: String, privilege: PrivilegeEnum): Unit = {
+    val user = new User
+    user.setUid(Integer.valueOf(uid))
+    user.setName(name)
+    user.setRole(UserRoleEnum.REGULAR)
+    new UserDao(getDSLContext.configuration()).insert(user)
+
     new WorkflowUserAccessDao(getDSLContext.configuration())
       .insert(
-        new WorkflowUserAccess(Integer.valueOf(accessUid), Integer.valueOf(accessWid), privilege)
+        new WorkflowUserAccess(Integer.valueOf(uid), Integer.valueOf(accessWid), privilege)
       )
   }
 
@@ -120,11 +142,16 @@ class CollaborationResourceSpec
       .execute()
     getDSLContext.deleteFrom(WORKFLOW).where(WORKFLOW.WID.eq(accessWid)).execute()
     getDSLContext.deleteFrom(USER).where(USER.UID.eq(accessUid)).execute()
+    getDSLContext.deleteFrom(USER).where(USER.UID.eq(readOnlyUid)).execute()
   }
 
-  // A session already registered on accessWid as accessUid, ready to TryLock.
-  private def lockingSession(id: String): (Session, ArrayBuffer[String]) = {
-    val (session, sent) = mockSession(id, uId = Some(accessUid))
+  // A session already registered on accessWid, ready to TryLock. Defaults to
+  // accessUid; pass readOnlyUid for a session that cannot write the workflow.
+  private def lockingSession(
+      id: String,
+      uId: Int = accessUid
+  ): (Session, ArrayBuffer[String]) = {
+    val (session, sent) = mockSession(id, uId = Some(uId))
     resource.myOnOpen(session)
     resource.myOnMsg(session, send(WIdRequest(accessWid)))
     sent.clear()
@@ -240,6 +267,23 @@ class CollaborationResourceSpec
     wIdSessionIdsMap(7) should contain theSameElementsAs Set("s1", "s2")
   }
 
+  it should "move a session that re-registers on a different wid" in {
+    val (session, _) = mockSession("s1", uId = Some(42))
+    resource.myOnOpen(session)
+
+    resource.myOnMsg(session, send(WIdRequest(7)))
+    resource.myOnMsg(session, send(WIdRequest(8)))
+
+    // The second request replaces the recorded wid rather than being ignored.
+    sessionIdWIdMap("s1") shouldBe 8
+    wIdSessionIdsMap(8) should contain only "s1"
+    // Deliberately NOT asserted: what wIdSessionIdsMap(7) holds afterwards.
+    // The handler never removes the session from the bucket it left, so the
+    // stale entry survives and stays a hand-off candidate for wid 7 -- a real
+    // defect (see the class comment). Pinning today's value here would make
+    // that leak harder to fix, so this test stays silent about it.
+  }
+
   // -- fan-out ----------------------------------------------------------------
 
   /**
@@ -320,6 +364,10 @@ class CollaborationResourceSpec
     sent.head should include("WorkflowAccessEvent")
     sent.head should include("\"workflowReadonly\":false")
     sent(1) should include("LockGrantedEvent")
+    // The DUMMY_WID fast path answers the sender WITHOUT taking ownership of
+    // the holder slot. Every anonymous/reconnecting session shares wid -1, so
+    // recording a holder there would make unrelated clients contend for it.
+    wIdLockHolderSessionIdMap should not contain key(DUMMY_WID)
   }
 
   "AcquireLockRequest" should "hand the lock over from the previous holder" in {
@@ -410,5 +458,193 @@ class CollaborationResourceSpec
     sent.head should include("\"workflowReadonly\":false")
     sent(1) should include("LockRejectedEvent")
     wIdLockHolderSessionIdMap(accessWid) shouldBe "other-session" // unchanged
+  }
+
+  "TryLockRequest from a read-only user" should "leave an existing holder entry alone" in {
+    seedAccess(PrivilegeEnum.READ)
+    val (session, sent) = lockingSession("s1")
+    // Somebody already holds the lock; a read-only viewer arriving afterwards
+    // must not overwrite the holder slot with the "nobody holds it" sentinel.
+    wIdLockHolderSessionIdMap(accessWid) = "someone-else"
+
+    resource.myOnMsg(session, send(TryLockRequest()))
+
+    sent should have size 2
+    sent.head should include("LockRejectedEvent")
+    sent(1) should include("WorkflowAccessEvent")
+    sent(1) should include("\"workflowReadonly\":true")
+    wIdLockHolderSessionIdMap(accessWid) shouldBe "someone-else"
+  }
+
+  "TryLockRequest from a writable user" should "grant the lock over the null sentinel" in {
+    seedAccess(PrivilegeEnum.WRITE)
+    val (session, sent) = lockingSession("s1")
+    // The key exists but holds `null`, i.e. a read-only viewer has been here
+    // and nobody holds the lock. A writable user must still get it.
+    wIdLockHolderSessionIdMap(accessWid) = null
+
+    resource.myOnMsg(session, send(TryLockRequest()))
+
+    sent should have size 2
+    sent.head should include("WorkflowAccessEvent")
+    sent.head should include("\"workflowReadonly\":false")
+    sent(1) should include("LockGrantedEvent")
+    wIdLockHolderSessionIdMap(accessWid) shouldBe "s1"
+  }
+
+  it should "re-grant the lock to the session that already holds it" in {
+    seedAccess(PrivilegeEnum.WRITE)
+    val (session, sent) = lockingSession("s1")
+    wIdLockHolderSessionIdMap(accessWid) = "s1"
+
+    resource.myOnMsg(session, send(TryLockRequest()))
+
+    sent should have size 2
+    sent.head should include("WorkflowAccessEvent")
+    sent.head should include("\"workflowReadonly\":false")
+    sent(1) should include("LockGrantedEvent")
+    wIdLockHolderSessionIdMap(accessWid) shouldBe "s1"
+  }
+
+  // -- myOnClose releasing the lock -------------------------------------------
+
+  "myOnClose" should "tolerate a workflow whose session bucket has gone" in {
+    val (session, _) = mockSession("s1", uId = Some(1))
+    resource.myOnOpen(session)
+    resource.myOnMsg(session, send(WIdRequest(7)))
+    // The guard on wIdSessionIdsMap is what keeps the two maps from having to
+    // agree; without it this close would blow up on a missing key.
+    wIdSessionIdsMap.remove(7)
+
+    noException should be thrownBy resource.myOnClose(session)
+
+    sessionIdWIdMap should not contain key("s1")
+    sessionIdSessionMap should not contain key("s1")
+  }
+
+  it should "leave a null holder sentinel alone" in {
+    seedAccess(PrivilegeEnum.WRITE)
+    // `null` is the "nobody holds it" sentinel; comparing it against the
+    // departing session id must not dereference it, and must not be mistaken
+    // for a match. A WRITABLE PEER is deliberately left in the bucket: without
+    // one, "branch skipped" and "branch entered" are indistinguishable,
+    // because entering it would only rewrite null over null and find nobody to
+    // grant to. With s2 present, entering it hands s2 the lock.
+    val (session, _) = lockingSession("s1")
+    val (_, peerSent) = lockingSession("s2")
+    wIdLockHolderSessionIdMap(accessWid) = null
+    peerSent.clear()
+
+    noException should be thrownBy resource.myOnClose(session)
+
+    wIdLockHolderSessionIdMap should contain key accessWid
+    wIdLockHolderSessionIdMap(accessWid) shouldBe null
+    peerSent shouldBe empty
+  }
+
+  "myOnClose by the lock holder" should "hand the lock to a remaining writable peer" in {
+    seedAccess(PrivilegeEnum.WRITE)
+    // Two sessions of the same user, e.g. two browser tabs, both writable.
+    val (holder, _) = lockingSession("s1")
+    val (_, peerSent) = lockingSession("s2")
+    wIdLockHolderSessionIdMap(accessWid) = "s1"
+    peerSent.clear()
+
+    resource.myOnClose(holder)
+
+    wIdLockHolderSessionIdMap(accessWid) shouldBe "s2"
+    peerSent should have size 1
+    peerSent.head should include("LockGrantedEvent")
+    wIdSessionIdsMap(accessWid) should contain only "s2"
+  }
+
+  it should "not hand the lock to a read-only peer" in {
+    seedAccess(PrivilegeEnum.WRITE)
+    seedUserAccess(readOnlyUid, "collab_lock_reader", PrivilegeEnum.READ)
+    val (holder, _) = lockingSession("s1")
+    // The only session left behind belongs to a user with READ only.
+    val (_, readerSent) = lockingSession("s2", uId = readOnlyUid)
+    wIdLockHolderSessionIdMap(accessWid) = "s1"
+    readerSent.clear()
+
+    resource.myOnClose(holder)
+
+    // Nobody eligible remains, so the lock stays unheld. This is what makes
+    // the privilege check in the hand-off loop observable: it is checked for
+    // the CANDIDATE, not for the departing holder.
+    wIdLockHolderSessionIdMap(accessWid) shouldBe null
+    readerSent shouldBe empty
+  }
+
+  it should "grant the lock to exactly one of several writable peers" in {
+    seedAccess(PrivilegeEnum.WRITE)
+    val (holder, _) = lockingSession("s1")
+    val (_, peer2Sent) = lockingSession("s2")
+    val (_, peer3Sent) = lockingSession("s3")
+    wIdLockHolderSessionIdMap(accessWid) = "s1"
+    peer2Sent.clear()
+    peer3Sent.clear()
+
+    resource.myOnClose(holder)
+
+    // The once-only latch must stop the loop after the first eligible peer;
+    // two grants would leave two clients each believing they hold the lock.
+    // Asserted order-agnostically because the bucket is an unordered Set.
+    (peer2Sent.size + peer3Sent.size) shouldBe 1
+    val winner = wIdLockHolderSessionIdMap(accessWid)
+    Set("s2", "s3") should contain(winner)
+    val winnerSent = if (winner == "s2") peer2Sent else peer3Sent
+    winnerSent should have size 1
+    winnerSent.head should include("LockGrantedEvent")
+  }
+
+  it should "ignore sessions sitting on a different workflow" in {
+    seedAccess(PrivilegeEnum.WRITE)
+    val (holder, _) = lockingSession("s1")
+    // Same writable user, but registered on another workflow, so it is not a
+    // candidate for accessWid's lock even though its session is still open.
+    val (other, otherSent) = mockSession("s3", uId = Some(accessUid))
+    resource.myOnOpen(other)
+    resource.myOnMsg(other, send(WIdRequest(9999)))
+    wIdLockHolderSessionIdMap(accessWid) = "s1"
+    otherSent.clear()
+
+    resource.myOnClose(holder)
+
+    // The hand-off must read the departing workflow's own bucket, which is now
+    // empty -- not the set of every open session on the server.
+    wIdLockHolderSessionIdMap(accessWid) shouldBe null
+    otherSent shouldBe empty
+  }
+
+  it should "clear the holder to the null sentinel when no session is left" in {
+    val (session, sent) = mockSession("s1", uId = Some(1))
+    resource.myOnOpen(session)
+    resource.myOnMsg(session, send(WIdRequest(7)))
+    wIdLockHolderSessionIdMap(7) = "s1"
+    sent.clear()
+
+    resource.myOnClose(session)
+
+    wIdLockHolderSessionIdMap(7) shouldBe null
+    wIdSessionIdsMap(7) shouldBe empty
+    sent shouldBe empty
+  }
+
+  "myOnClose by a non-holder" should "leave the lock with its holder" in {
+    val (first, _) = mockSession("s1", uId = Some(1))
+    val (second, secondSent) = mockSession("s2", uId = Some(2))
+    resource.myOnOpen(first)
+    resource.myOnOpen(second)
+    resource.myOnMsg(first, send(WIdRequest(7)))
+    resource.myOnMsg(second, send(WIdRequest(7)))
+    wIdLockHolderSessionIdMap(7) = "s2"
+    secondSent.clear()
+
+    resource.myOnClose(first)
+
+    wIdLockHolderSessionIdMap(7) shouldBe "s2"
+    secondSent shouldBe empty
+    wIdSessionIdsMap(7) should contain only "s2"
   }
 }
