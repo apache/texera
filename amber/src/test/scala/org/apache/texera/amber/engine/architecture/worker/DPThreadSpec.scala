@@ -435,10 +435,11 @@ class DPThreadSpec extends AnyFlatSpec with Matchers with MockFactory {
     val release = new AtomicBoolean(false)
     val inSpin = new CountDownLatch(1)
     dp.executor = new OperatorExecutor {
-      override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = {
-        inSpin.countDown()
-        while (!release.get()) {}
-        Iterator.empty
+override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = {
+  inSpin.countDown()
+  while (!release.get()) { Thread.onSpinWait() }
+  Iterator.empty
+}
       }
     }
     val dpThread = new DPThread(workerId, dp, logManager, inputQueue)
@@ -547,9 +548,11 @@ class DPThreadSpec extends AnyFlatSpec with Matchers with MockFactory {
       assert(awaitCond(inputQueue.isEmpty), "the queued commands must be consumed")
       assert(dpThread.backpressureStatus, "backpressure must be picked up")
 
-      inputQueue.put(dataFrameOf(200))
-      Thread.sleep(500)
-      assert(processed.get() == 0, "no data may be taken while backpressured")
+inputQueue.put(dataFrameOf(200))
+assert(
+  !awaitCond(processed.get() != 0, budgetMs = 1000),
+  "no data may be taken while backpressured"
+)
       // Deliberately no assertion about control messages in this state: the
       // input-selection expression reads
       //   if (backpressureStatus) { tryPickControlChannel } else { tryPickChannel } match {...}
