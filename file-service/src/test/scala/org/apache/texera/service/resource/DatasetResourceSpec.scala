@@ -3484,4 +3484,173 @@ class DatasetResourceSpec
     val commit = LakeFSStorageClient.createCommit(repoName, "main", "commit all files")
     LakeFSStorageClient.retrieveObjectsOfVersion(repoName, commit.getId).size shouldEqual totalFiles
   }
+
+  // ===========================================================================
+  // Public (anonymous) read path: presigned download, dataset read, file nodes
+  // ===========================================================================
+
+  /** Seeds a dataset owned by `ownerUser` plus a committed version holding `files`.
+    * Each call gets its own repository and rows, so these tests never depend on
+    * another test's uploads nor on a shared fixture's publicity being left in a
+    * particular state.
+    */
+  private def seedDatasetWithVersion(
+      prefix: String,
+      files: Seq[(String, String)],
+      isPublic: Boolean = true
+  ): (Dataset, DatasetVersion) = {
+    val repositoryName =
+      s"$prefix-${System.nanoTime()}-${Random.alphanumeric.take(6).mkString.toLowerCase}"
+
+    val dataset = new Dataset
+    dataset.setName(repositoryName)
+    dataset.setRepositoryName(repositoryName)
+    dataset.setIsPublic(isPublic)
+    dataset.setIsDownloadable(true)
+    dataset.setDescription("dataset for public-read tests")
+    dataset.setOwnerUid(ownerUser.getUid)
+    datasetDao.insert(dataset)
+
+    LakeFSStorageClient.initRepo(repositoryName)
+    files.foreach {
+      case (path, content) =>
+        LakeFSStorageClient.writeFileToRepo(
+          repositoryName,
+          path,
+          new ByteArrayInputStream(content.getBytes(StandardCharsets.UTF_8))
+        )
+    }
+    // The file-node reads list COMMITTED objects, so commit before pinning the hash.
+    val commit = LakeFSStorageClient.createCommit(repositoryName, "main", s"seed $prefix")
+
+    val version = new DatasetVersion
+    version.setDid(dataset.getDid)
+    version.setCreatorUid(ownerUser.getUid)
+    version.setName("v1")
+    version.setVersionHash(commit.getId)
+    new DatasetVersionDao(getDSLContext.configuration()).insert(version)
+
+    (dataset, version)
+  }
+
+  "getPublicPresignedUrl" should "hand an anonymous caller a presigned URL for a public dataset's file" in {
+    val (dataset, version) =
+      seedDatasetWithVersion("public-presign", Seq("data/report.csv" -> "a,b"))
+
+    val response = datasetResource.getPublicPresignedUrl(
+      urlEnc("data/report.csv"),
+      dataset.getRepositoryName,
+      version.getVersionHash
+    )
+
+    response.getStatus shouldEqual 200
+    // The address is a physical object URL, so assert it belongs to this dataset and
+    // is actually signed — never on the mock's port or on the logical file name.
+    val presigned = entityAsScalaMap(response)("presignedUrl").toString
+    presigned should include(dataset.getRepositoryName)
+    presigned should include("X-Amz-Signature")
+  }
+
+  it should "reject a request that supplies a repository name without a commit hash" in {
+    val (dataset, _) = seedDatasetWithVersion("public-presign-half", Seq("f.txt" -> "x"))
+
+    val response =
+      datasetResource.getPublicPresignedUrl(urlEnc("f.txt"), dataset.getRepositoryName, null)
+
+    response.getStatus shouldEqual 400
+  }
+
+  "getPublicPresignedUrlWithS3" should "hand an anonymous caller a presigned URL for a public dataset's file" in {
+    val (dataset, version) =
+      seedDatasetWithVersion("public-presign-s3", Seq("model.bin" -> "weights"))
+
+    val response = datasetResource.getPublicPresignedUrlWithS3(
+      urlEnc("model.bin"),
+      dataset.getRepositoryName,
+      version.getVersionHash
+    )
+
+    response.getStatus shouldEqual 200
+    val presigned = entityAsScalaMap(response)("presignedUrl").toString
+    presigned should include(dataset.getRepositoryName)
+    presigned should include("X-Amz-Signature")
+  }
+
+  it should "decode a percent-encoded file path before resolving it" in {
+    val filePath = "nested dir/a b.txt"
+    val (dataset, version) =
+      seedDatasetWithVersion("public-presign-enc", Seq(filePath -> "encoded"))
+
+    // The encoded form differs from the raw path, so this only resolves if the
+    // endpoint decodes the query parameter first.
+    val encoded = urlEnc(filePath)
+    encoded should not equal filePath
+
+    val response = datasetResource.getPublicPresignedUrlWithS3(
+      encoded,
+      dataset.getRepositoryName,
+      version.getVersionHash
+    )
+
+    response.getStatus shouldEqual 200
+  }
+
+  "getPublicDataset" should "return the dashboard dataset for a public dataset" in {
+    val (dataset, _) = seedDatasetWithVersion("public-dataset", Seq("f.txt" -> "x"))
+
+    val dashboard = datasetResource.getPublicDataset(dataset.getDid)
+
+    dashboard.dataset.getDid shouldEqual dataset.getDid
+    dashboard.dataset.getName shouldEqual dataset.getName
+    dashboard.ownerEmail shouldEqual ownerUser.getEmail
+    dashboard.isOwner shouldBe false
+  }
+
+  it should "refuse an anonymous read of a private dataset" in {
+    val (dataset, _) =
+      seedDatasetWithVersion("private-dataset", Seq("f.txt" -> "x"), isPublic = false)
+
+    assertThrows[ForbiddenException] {
+      datasetResource.getPublicDataset(dataset.getDid)
+    }
+  }
+
+  "retrievePublicDatasetVersionRootFileNodes" should "return the version's nested file tree to an anonymous caller" in {
+    val (dataset, version) = seedDatasetWithVersion(
+      "public-nodes",
+      Seq(
+        "top.txt" -> "root file",
+        "docs/readme.md" -> "docs",
+        "docs/img/logo.png" -> "deeper",
+        "data/train.csv" -> "data"
+      )
+    )
+
+    val response =
+      datasetResource.retrievePublicDatasetVersionRootFileNodes(dataset.getDid, version.getDvid)
+
+    response.fileNodes.map(_.getName).toSet shouldEqual Set("top.txt", "docs", "data")
+
+    // The tree is assembled rather than flattened: docs/ keeps its own children.
+    val docs = response.fileNodes.find(_.getName == "docs").get
+    docs.getChildren.map(_.getName).toSet shouldEqual Set("readme.md", "img")
+    docs.getChildren
+      .find(_.getName == "img")
+      .get
+      .getChildren
+      .map(_.getName) shouldEqual List("logo.png")
+  }
+
+  "retrieveDatasetVersionRootFileNodes" should "return the same tree to the dataset's owner" in {
+    val (dataset, version) =
+      seedDatasetWithVersion("owner-nodes", Seq("a.txt" -> "1", "sub/b.txt" -> "2"))
+
+    val response = datasetResource.retrieveDatasetVersionRootFileNodes(
+      dataset.getDid,
+      version.getDvid,
+      sessionUser
+    )
+
+    response.fileNodes.map(_.getName).toSet shouldEqual Set("a.txt", "sub")
+  }
 }
