@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1787402478698,
+  "lastUpdate": 1787489585237,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -10312,6 +10312,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 730.6219898257485,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Xinyuan Lin",
+            "username": "aglinxinyuan",
+            "email": "xinyual3@uci.edu"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "fcfd112fbc8fd8c3aa59d77003debc881da0392f",
+          "message": "test(workflow-operator): pin the filter predicate's comparison arms (#7883)\n\n### What changes were proposed in this PR?\n\nTwo operator-evaluation files whose gaps were entirely branch-arm\npartials on already-executed lines. 33 tests → 44.\n\nMeasured with a full-module `WorkflowOperator/jacoco`, one fresh sbt JVM\nper run, `rm -rf` on the jacoco dir between them, and the same\nsuite-name exclusion on both sides — `FileScanSourceOpExecSpec` aborts\nin this worktree on a pre-existing Windows file lock, and since\nsbt-jacoco runs unforked a failing test task yields *no report directory\nat all*, not an all-zero one.\n\n| File | Codecov | Branch arms |\n|---|---|---|\n| `DictionaryMatcherOpExec.scala` | 44/50 = 88.0% → **49/50 = 98.0%** |\n8 missed → **1** |\n| `FilterPredicate.java` | 54/60 = 90.0% → **56/60 = 93.3%** | 6 missed\n→ **3** |\n| **bundle** | 98/110 = 89.1% → **105/110 = 95.5%** | +10 arms |\n\nJaCoCo line-hit was already 100% on the Scala file and 59/60 on the Java\none — every gap was a partial arm on a line that already executed, which\nis exactly the case Codecov penalises and line-hit hides.\n\n**This is +7 lines, and I would rather say so than dress it up.** What\nearns the PR is the behaviour underneath.\n\n### The behaviour was much less pinned than the percentages suggested\n\nTwo findings that are corrections to my own first draft, both material:\n\n- **`FilterPredicate`'s comparison switch was barely constrained.** The\nfirst draft called the file \"essentially exhausted\" — true of coverage,\nfalse of behaviour. Four of its six comparison arms could be swapped for\na neighbouring arm and stay green against all 2314 module tests. Those\nare now pinned.\n- **`URL_STOP_WORDS_SET` had no proof it did anything.** The first draft\nclaimed its new test was \"the first proof anywhere in the repo that that\nlist does anything at all\". That was true of the single entry `\"www\"`\nand nothing else — truncating the whole list to `List(\"www\")` survived.\nThe test is now a loop that pins every entry.\n\n### Verification\n\n26 mutations re-derived from scratch, **25 killed by a named test with\nits exact failure message, 1 equivalent mutant.**\n\nThe first draft reported no survivors. **Eleven semantic mutants were\nalive on it** — five on `FilterPredicate`'s comparison switch, five on\n`DictionaryMatcherOpExec` (comma delimiter, field case-folding, null\nhandling), and one that had slipped past both stop-word tests. All\neleven now die, each re-credited to the test that kills it.\n\nThe one mutant left alive drops a field from `hashCode`; killing it\nwould require asserting a specific hash value, so it is recorded as\nequivalent rather than counted as a survivor.\n\n### Corrections, including to a reviewer\n\n- A reviewer suggested an operand-swap variant\n(`Objects.equals(attribute, that.value)`) as a survivor for these\nfixtures. **Wrong** — I ran it, and it is killed at HEAD by two\npre-existing tests, because the attribute name and the compared value\nare distinguishable in those fixtures.\n- The first draft's fallback estimate (\"drop that one test and the\nbundle falls to +6 lines / +8 arms\") was off by one arm; the real\ncontribution of that test is 1 line and 3 arms.\n- Its module-wide branch figure was off by one: the baseline is 1214 →\n1203, of which −10 comes from these two files and −1 from an unrelated\nfile drifting.\n- Its claim that two lines \"report as fully covered despite\nnever-executed instructions\" was true of one line, at baseline only.\n- A judgement call flagged in the first draft no longer applies: the\ntest no longer pins `intercept[MatchError]`, so it does not cement\nscalac's exception choice as the misconfiguration contract.\n\n### A landmine first recorded, then removed after review\n\nThe first draft *documented* an order-dependence in a NOTE instead of\nfixing it, and a review comment was right that removing it was the\nbetter call. `5974ffa` removes it.\n\n`DictionaryMatcherOpExecSpec`'s `opExec` is a shared `var`, and the\npre-existing \"close properly\" test asserted `tokenizedDictionaryEntries\n== null` on whatever the *previous* test left behind. That held only\nbecause the preceding test used `SUBSTRING`: `close()` clears\n`tokenizedDictionaryEntries` but never nulls it — only\n`dictionaryEntries` and `luceneAnalyzer` are nulled. So inserting any\n`CONJUNCTION_INDEXBASED` test above it broke it, and three of the new\ntests are `CONJUNCTION`.\n\n`close properly` now builds its own `SCANBASED` executor. One deviation\nfrom the review suggestion: it does not assert \"null **or** empty\",\nbecause a disjunction over the two outcomes pins neither. Each arm of\n`close()`'s guard is instead pinned exactly, by a test owning its own\nexecutor:\n\n| Arm | `tokenizedDictionaryEntries` after `close()` | Pinned by |\n|---|---|---|\n| `SCANBASED` — buffer never allocated | `null`, this path's own\ncontract | `close properly` |\n| `CONJUNCTION_INDEXBASED` — buffer allocated | cleared, **not** nulled\n| \"empty the tokenized dictionary on close\" (added here) |\n\n`close properly` also closes twice, keeping the idempotence the old\nordering exercised by accident. The suite is now order-independent and\nthe NOTE is gone.\n\nVerified in both directions rather than asserted: inserting a\n`CONJUNCTION_INDEXBASED` test directly above `close properly` — the edit\nthe NOTE forbade — fails at `abd61dc` with `ListBuffer() did not equal\nnull`, and passes at `5974ffa`.\n\nCoverage is unchanged by that commit: `DictionaryMatcherOpExec` stays at\n49/50 lines and 1 missed arm of 26, measured with the same scoped\n`WorkflowOperator/jacoco` on both commits, so the table above still\nholds. Test counts are unchanged too — it modifies a test rather than\nadding one.\n\n### Deliberately not included\n\n`DictionaryMatcherOpExec` line 62 keeps one structurally unreachable\narm, so 49/50 is its ceiling.\n\n`FilterPredicate` lines 66, 80, 130 and 144 stay open and all four are\ndead: 66 and 80 would need reflection into the private static\n`evaluateFilter` or a production seam, and 130/144 are null ternaries\nthe caller already guards. Widening any of them would be a production\nedit — refused.\n\nNo production file is touched. Both files are md5-identical to the\npre-mutation snapshots, and no stray `test_large_binary.txt` was left\nbehind.\n\n### Any related issues, documentation, discussions?\n\nCloses #7882\n\n### How was this PR tested?\n\n```\nsbt \"WorkflowOperator/testOnly org.apache.texera.amber.operator.dictionary.DictionaryMatcherOpExecSpec org.apache.texera.amber.operator.filter.FilterPredicateSpec\"\n```\n\n```\n[info] Total number of tests run: 44\n[info] Tests: succeeded 44, failed 0, canceled 0, ignored 0, pending 0\n```\n\nTest counts read from the JUnit XML `tests=` attribute rather than\ncounted by eye: `DictionaryMatcherOpExecSpec` 11 → 20,\n`FilterPredicateSpec` 22 → 24. `Test/scalafmtCheck` passes.\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Claude Code (Opus 5)",
+          "timestamp": "2026-08-23T08:07:40Z",
+          "url": "https://github.com/apache/texera/commit/fcfd112fbc8fd8c3aa59d77003debc881da0392f"
+        },
+        "date": 1787489584863,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 708.6450663423076,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 1326.5247474150383,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 1419.1565121868073,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 856.0281449966958,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 1336.3910559396425,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 1421.1955560099516,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 979.9672766779057,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 1367.2743134402003,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 1421.4047779896962,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 759.5399774426045,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 1059.4356952436353,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 1116.924049903368,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 813.5568636029475,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 1077.4543175479996,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 1068.5208946250386,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 829.3395523084689,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 1061.9918721837962,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 1085.0653909081136,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 489.18142623031457,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 579.3588564952819,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 587.2829035286458,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 488.74322116573444,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 575.3567240845526,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 576.4114799970309,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 455.5428865054856,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 550.4462737329559,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 561.6381462817964,
             "unit": "tuples/sec"
           }
         ]
