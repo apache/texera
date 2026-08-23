@@ -46,10 +46,10 @@ import scala.collection.mutable.ArrayBuffer
 // with no external collaborators; the TryLockRequest cases that reach
 // WorkflowAccessResource.hasWriteAccess additionally mix in MockTexeraDB and
 // seed a workflow_user_access row so the privilege check reads a real value.
-// The lock hand-off inside myOnClose consults the same privilege check, so the
-// cases at the bottom of this file drive it through MockTexeraDB too, with two
-// seeded users (one WRITE, one READ) on the same workflow so the per-candidate
-// privilege test is observable.
+// The lock hand-off inside myOnClose consults the same privilege check, so some
+// of the myOnClose cases at the bottom of this file also mix in MockTexeraDB.
+// When the candidate privilege needs to be observable, they seed two users (one
+// WRITE, one READ) on the same workflow.
 //
 // Two defects in this class are deliberately NOT pinned here, because pinning
 // them would cement them: (1) a session that sends WIdRequest twice is added to
@@ -267,7 +267,7 @@ class CollaborationResourceSpec
     wIdSessionIdsMap(7) should contain theSameElementsAs Set("s1", "s2")
   }
 
-  it should "move a session that re-registers on a different wid" in {
+  it should "update the recorded wid when a session re-registers" in {
     val (session, _) = mockSession("s1", uId = Some(42))
     resource.myOnOpen(session)
 
