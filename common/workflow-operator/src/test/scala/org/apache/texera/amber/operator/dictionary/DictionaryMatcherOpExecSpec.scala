@@ -195,17 +195,22 @@ class DictionaryMatcherOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "close properly" in {
+    opDesc.matchingType = MatchingType.SCANBASED
+    opExec = new DictionaryMatcherOpExec(objectMapper.writeValueAsString(opDesc))
+    opExec.open()
     opExec.close()
     assert(opExec.dictionaryEntries == null)
+    // SCANBASED never allocates the tokenized buffer, so null here is this path's own
+    // contract rather than a leftover from whichever test ran last. close()'s other
+    // arm -- the buffer exists and is cleared, not nulled -- is pinned by "empty the
+    // tokenized dictionary on close" below.
     assert(opExec.tokenizedDictionaryEntries == null)
     assert(opExec.luceneAnalyzer == null)
+    // Idempotent: a second close() re-enters with all three fields already at their
+    // post-close values and must not throw.
+    opExec.close()
+    assert(opExec.dictionaryEntries == null)
   }
-
-  // NOTE: every test below must stay BELOW "close properly". That test asserts
-  // `tokenizedDictionaryEntries == null` on whatever executor the preceding test
-  // left in the shared `opExec` var, and close() only *clears* that buffer -- it
-  // never nulls it. Inserting a CONJUNCTION_INDEXBASED test above it would make
-  // it fail.
 
   private def tupleWith(field1: String): Tuple =
     Tuple
