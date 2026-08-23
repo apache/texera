@@ -1392,7 +1392,7 @@ class DatasetResourceSpec
   private def seedVersion(did: Integer, name: String, creationTime: Timestamp): DatasetVersion = {
     val version = new DatasetVersion
     version.setDid(did)
-    version.setCreatorUid(ownerUser.getUid)
+    version.setCreatorUid(datasetDao.fetchOneByDid(did).getOwnerUid)
     version.setName(name)
     version.setVersionHash(s"hash-$did-$name")
     version.setCreationTime(creationTime)
