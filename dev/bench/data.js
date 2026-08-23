@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1787489585237,
+  "lastUpdate": 1787489587986,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -37374,6 +37374,433 @@ window.BENCHMARK_DATA = {
           {
             "name": "latency p99 / bs=1000 sw=50 sl=512",
             "value": 1427232.545,
+            "unit": "us"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Xinyuan Lin",
+            "username": "aglinxinyuan",
+            "email": "xinyual3@uci.edu"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "fcfd112fbc8fd8c3aa59d77003debc881da0392f",
+          "message": "test(workflow-operator): pin the filter predicate's comparison arms (#7883)\n\n### What changes were proposed in this PR?\n\nTwo operator-evaluation files whose gaps were entirely branch-arm\npartials on already-executed lines. 33 tests → 44.\n\nMeasured with a full-module `WorkflowOperator/jacoco`, one fresh sbt JVM\nper run, `rm -rf` on the jacoco dir between them, and the same\nsuite-name exclusion on both sides — `FileScanSourceOpExecSpec` aborts\nin this worktree on a pre-existing Windows file lock, and since\nsbt-jacoco runs unforked a failing test task yields *no report directory\nat all*, not an all-zero one.\n\n| File | Codecov | Branch arms |\n|---|---|---|\n| `DictionaryMatcherOpExec.scala` | 44/50 = 88.0% → **49/50 = 98.0%** |\n8 missed → **1** |\n| `FilterPredicate.java` | 54/60 = 90.0% → **56/60 = 93.3%** | 6 missed\n→ **3** |\n| **bundle** | 98/110 = 89.1% → **105/110 = 95.5%** | +10 arms |\n\nJaCoCo line-hit was already 100% on the Scala file and 59/60 on the Java\none — every gap was a partial arm on a line that already executed, which\nis exactly the case Codecov penalises and line-hit hides.\n\n**This is +7 lines, and I would rather say so than dress it up.** What\nearns the PR is the behaviour underneath.\n\n### The behaviour was much less pinned than the percentages suggested\n\nTwo findings that are corrections to my own first draft, both material:\n\n- **`FilterPredicate`'s comparison switch was barely constrained.** The\nfirst draft called the file \"essentially exhausted\" — true of coverage,\nfalse of behaviour. Four of its six comparison arms could be swapped for\na neighbouring arm and stay green against all 2314 module tests. Those\nare now pinned.\n- **`URL_STOP_WORDS_SET` had no proof it did anything.** The first draft\nclaimed its new test was \"the first proof anywhere in the repo that that\nlist does anything at all\". That was true of the single entry `\"www\"`\nand nothing else — truncating the whole list to `List(\"www\")` survived.\nThe test is now a loop that pins every entry.\n\n### Verification\n\n26 mutations re-derived from scratch, **25 killed by a named test with\nits exact failure message, 1 equivalent mutant.**\n\nThe first draft reported no survivors. **Eleven semantic mutants were\nalive on it** — five on `FilterPredicate`'s comparison switch, five on\n`DictionaryMatcherOpExec` (comma delimiter, field case-folding, null\nhandling), and one that had slipped past both stop-word tests. All\neleven now die, each re-credited to the test that kills it.\n\nThe one mutant left alive drops a field from `hashCode`; killing it\nwould require asserting a specific hash value, so it is recorded as\nequivalent rather than counted as a survivor.\n\n### Corrections, including to a reviewer\n\n- A reviewer suggested an operand-swap variant\n(`Objects.equals(attribute, that.value)`) as a survivor for these\nfixtures. **Wrong** — I ran it, and it is killed at HEAD by two\npre-existing tests, because the attribute name and the compared value\nare distinguishable in those fixtures.\n- The first draft's fallback estimate (\"drop that one test and the\nbundle falls to +6 lines / +8 arms\") was off by one arm; the real\ncontribution of that test is 1 line and 3 arms.\n- Its module-wide branch figure was off by one: the baseline is 1214 →\n1203, of which −10 comes from these two files and −1 from an unrelated\nfile drifting.\n- Its claim that two lines \"report as fully covered despite\nnever-executed instructions\" was true of one line, at baseline only.\n- A judgement call flagged in the first draft no longer applies: the\ntest no longer pins `intercept[MatchError]`, so it does not cement\nscalac's exception choice as the misconfiguration contract.\n\n### A landmine first recorded, then removed after review\n\nThe first draft *documented* an order-dependence in a NOTE instead of\nfixing it, and a review comment was right that removing it was the\nbetter call. `5974ffa` removes it.\n\n`DictionaryMatcherOpExecSpec`'s `opExec` is a shared `var`, and the\npre-existing \"close properly\" test asserted `tokenizedDictionaryEntries\n== null` on whatever the *previous* test left behind. That held only\nbecause the preceding test used `SUBSTRING`: `close()` clears\n`tokenizedDictionaryEntries` but never nulls it — only\n`dictionaryEntries` and `luceneAnalyzer` are nulled. So inserting any\n`CONJUNCTION_INDEXBASED` test above it broke it, and three of the new\ntests are `CONJUNCTION`.\n\n`close properly` now builds its own `SCANBASED` executor. One deviation\nfrom the review suggestion: it does not assert \"null **or** empty\",\nbecause a disjunction over the two outcomes pins neither. Each arm of\n`close()`'s guard is instead pinned exactly, by a test owning its own\nexecutor:\n\n| Arm | `tokenizedDictionaryEntries` after `close()` | Pinned by |\n|---|---|---|\n| `SCANBASED` — buffer never allocated | `null`, this path's own\ncontract | `close properly` |\n| `CONJUNCTION_INDEXBASED` — buffer allocated | cleared, **not** nulled\n| \"empty the tokenized dictionary on close\" (added here) |\n\n`close properly` also closes twice, keeping the idempotence the old\nordering exercised by accident. The suite is now order-independent and\nthe NOTE is gone.\n\nVerified in both directions rather than asserted: inserting a\n`CONJUNCTION_INDEXBASED` test directly above `close properly` — the edit\nthe NOTE forbade — fails at `abd61dc` with `ListBuffer() did not equal\nnull`, and passes at `5974ffa`.\n\nCoverage is unchanged by that commit: `DictionaryMatcherOpExec` stays at\n49/50 lines and 1 missed arm of 26, measured with the same scoped\n`WorkflowOperator/jacoco` on both commits, so the table above still\nholds. Test counts are unchanged too — it modifies a test rather than\nadding one.\n\n### Deliberately not included\n\n`DictionaryMatcherOpExec` line 62 keeps one structurally unreachable\narm, so 49/50 is its ceiling.\n\n`FilterPredicate` lines 66, 80, 130 and 144 stay open and all four are\ndead: 66 and 80 would need reflection into the private static\n`evaluateFilter` or a production seam, and 130/144 are null ternaries\nthe caller already guards. Widening any of them would be a production\nedit — refused.\n\nNo production file is touched. Both files are md5-identical to the\npre-mutation snapshots, and no stray `test_large_binary.txt` was left\nbehind.\n\n### Any related issues, documentation, discussions?\n\nCloses #7882\n\n### How was this PR tested?\n\n```\nsbt \"WorkflowOperator/testOnly org.apache.texera.amber.operator.dictionary.DictionaryMatcherOpExecSpec org.apache.texera.amber.operator.filter.FilterPredicateSpec\"\n```\n\n```\n[info] Total number of tests run: 44\n[info] Tests: succeeded 44, failed 0, canceled 0, ignored 0, pending 0\n```\n\nTest counts read from the JUnit XML `tests=` attribute rather than\ncounted by eye: `DictionaryMatcherOpExecSpec` 11 → 20,\n`FilterPredicateSpec` 22 → 24. `Test/scalafmtCheck` passes.\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Claude Code (Opus 5)",
+          "timestamp": "2026-08-23T08:07:40Z",
+          "url": "https://github.com/apache/texera/commit/fcfd112fbc8fd8c3aa59d77003debc881da0392f"
+        },
+        "date": 1787489587359,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "latency p50 / bs=10 sw=1 sl=8",
+            "value": 13734.909,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=1 sl=8",
+            "value": 18170.771,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=1 sl=8",
+            "value": 22482.165,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=1 sl=8",
+            "value": 74663.581,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=1 sl=8",
+            "value": 83754.105,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=1 sl=8",
+            "value": 110966.3,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=1 sl=8",
+            "value": 704421.09,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=1 sl=8",
+            "value": 737191.973,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=1 sl=8",
+            "value": 765724.122,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=1 sl=64",
+            "value": 11344.347,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=1 sl=64",
+            "value": 15380.226,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=1 sl=64",
+            "value": 17364.044,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=1 sl=64",
+            "value": 73787.802,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=1 sl=64",
+            "value": 81140.248,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=1 sl=64",
+            "value": 87757.035,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=1 sl=64",
+            "value": 703229.93,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=1 sl=64",
+            "value": 746576.381,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=1 sl=64",
+            "value": 780569.539,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=1 sl=512",
+            "value": 9959.632,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=1 sl=512",
+            "value": 13104.749,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=1 sl=512",
+            "value": 13969.116,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=1 sl=512",
+            "value": 72527.937,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=1 sl=512",
+            "value": 79160.217,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=1 sl=512",
+            "value": 82123.971,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=1 sl=512",
+            "value": 703506.582,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=1 sl=512",
+            "value": 742058.748,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=1 sl=512",
+            "value": 753307.539,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=10 sl=8",
+            "value": 12605.785,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=10 sl=8",
+            "value": 17637.634,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=10 sl=8",
+            "value": 22923.235,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=10 sl=8",
+            "value": 92818.792,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=10 sl=8",
+            "value": 101906.806,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=10 sl=8",
+            "value": 115886.416,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=10 sl=8",
+            "value": 894593.396,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=10 sl=8",
+            "value": 941327.964,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=10 sl=8",
+            "value": 958604.834,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=10 sl=64",
+            "value": 11993.879,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=10 sl=64",
+            "value": 14607.192,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=10 sl=64",
+            "value": 19651.302,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=10 sl=64",
+            "value": 92422.696,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=10 sl=64",
+            "value": 98940.334,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=10 sl=64",
+            "value": 100209.636,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=10 sl=64",
+            "value": 935017.574,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=10 sl=64",
+            "value": 988028.665,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=10 sl=64",
+            "value": 1021269.063,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=10 sl=512",
+            "value": 11636.428,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=10 sl=512",
+            "value": 14113.489,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=10 sl=512",
+            "value": 17510.927,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=10 sl=512",
+            "value": 93509.789,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=10 sl=512",
+            "value": 100531.974,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=10 sl=512",
+            "value": 107841.481,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=10 sl=512",
+            "value": 919745.46,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=10 sl=512",
+            "value": 978208.996,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=10 sl=512",
+            "value": 996923.929,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=50 sl=8",
+            "value": 20348.082,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=50 sl=8",
+            "value": 21748.147,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=50 sl=8",
+            "value": 23983.523,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=50 sl=8",
+            "value": 171803.931,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=50 sl=8",
+            "value": 179999.418,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=50 sl=8",
+            "value": 192052.903,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=50 sl=8",
+            "value": 1700350.879,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=50 sl=8",
+            "value": 1760409.142,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=50 sl=8",
+            "value": 1789305.405,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=50 sl=64",
+            "value": 20347.855,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=50 sl=64",
+            "value": 21201.39,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=50 sl=64",
+            "value": 21998.851,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=50 sl=64",
+            "value": 171739.754,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=50 sl=64",
+            "value": 182298.328,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=50 sl=64",
+            "value": 187359.456,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=50 sl=64",
+            "value": 1734765.257,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=50 sl=64",
+            "value": 1795846.509,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=50 sl=64",
+            "value": 1806757.761,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=50 sl=512",
+            "value": 21649.046,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=50 sl=512",
+            "value": 23984.148,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=50 sl=512",
+            "value": 29487.288,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=50 sl=512",
+            "value": 180966.024,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=50 sl=512",
+            "value": 191972.157,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=50 sl=512",
+            "value": 208849.679,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=50 sl=512",
+            "value": 1778574.94,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=50 sl=512",
+            "value": 1829736.254,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=50 sl=512",
+            "value": 1875057.639,
             "unit": "us"
           }
         ]
