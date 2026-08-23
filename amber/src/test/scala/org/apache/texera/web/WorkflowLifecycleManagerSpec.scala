@@ -135,22 +135,26 @@ class WorkflowLifecycleManagerSpec extends AnyFlatSpec with BeforeAndAfterAll {
     */
   private def withInfoLogs[T](id: String)(body: (() => Seq[String]) => T): T = {
     val logger = LoggerFactory.getLogger(managerLoggerName).asInstanceOf[LogbackLogger]
-    val appender = new CollectingAppender
-    val previousLevel = logger.getLevel
-    val previousAdditive = logger.isAdditive
-    appender.setContext(logger.getLoggerContext)
-    appender.setName("workflow-lifecycle-manager-spec-appender")
-    appender.start()
-    logger.addAppender(appender)
-    logger.setLevel(Level.INFO)
-    logger.setAdditive(false)
-    try {
-      body(() => appender.messages.filter(_.startsWith(s"[$id] ")))
-    } finally {
-      logger.setAdditive(previousAdditive)
-      logger.setLevel(previousLevel)
-      logger.detachAppender(appender)
-      appender.stop()
+    logger.synchronized {
+      val appender = new CollectingAppender
+      val previousLevel = logger.getLevel
+      val previousAdditive = logger.isAdditive
+      appender.setContext(logger.getLoggerContext)
+      appender.setName(
+        s"workflow-lifecycle-manager-spec-appender-$id-${Thread.currentThread().getId}"
+      )
+      appender.start()
+      logger.addAppender(appender)
+      logger.setLevel(Level.INFO)
+      logger.setAdditive(false)
+      try {
+        body(() => appender.messages.filter(_.startsWith(s"[$id] ")))
+      } finally {
+        logger.detachAppender(appender)
+        logger.setAdditive(previousAdditive)
+        logger.setLevel(previousLevel)
+        appender.stop()
+      }
     }
   }
 
@@ -160,8 +164,8 @@ class WorkflowLifecycleManagerSpec extends AnyFlatSpec with BeforeAndAfterAll {
       fragment: String,
       seconds: Long
   ): Seq[String] = {
-    val deadline = System.currentTimeMillis() + seconds * 1000
-    while (System.currentTimeMillis() < deadline && !messages().exists(_.contains(fragment))) {
+    val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(seconds)
+    while (System.nanoTime() < deadline && !messages().exists(_.contains(fragment))) {
       Thread.sleep(50)
     }
     val captured = messages()
