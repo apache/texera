@@ -57,6 +57,7 @@ import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Paths}
 import java.security.MessageDigest
+import java.sql.Timestamp
 import java.util.concurrent.CyclicBarrier
 import java.util.{Collections, Date, Locale, Optional}
 import scala.concurrent.duration._
@@ -1342,6 +1343,198 @@ class DatasetResourceSpec
 
   it should "return the result of the operation when no exception is thrown" in {
     datasetResource.failOnDuplicateDatasetName(42) shouldEqual 42
+  }
+
+  // ===========================================================================
+  // Publicity / downloadable toggles, description, and the public version list
+  // ===========================================================================
+
+  /** Inserts a dataset owned by `ownerUid`; the DAO fills in the generated did. */
+  private def seedDataset(
+      name: String,
+      ownerUid: Integer,
+      isPublic: Boolean = false,
+      isDownloadable: Boolean = false,
+      description: String = "seeded for the toggle tests"
+  ): Dataset = {
+    val dataset = new Dataset
+    dataset.setName(name)
+    dataset.setRepositoryName(s"$name-repo")
+    dataset.setDescription(description)
+    dataset.setOwnerUid(ownerUid)
+    dataset.setIsPublic(isPublic)
+    dataset.setIsDownloadable(isDownloadable)
+    datasetDao.insert(dataset)
+    dataset
+  }
+
+  private def grantAccess(did: Integer, uid: Integer, privilege: PrivilegeEnum): Unit = {
+    val access = new DatasetUserAccess
+    access.setDid(did)
+    access.setUid(uid)
+    access.setPrivilege(privilege)
+    new DatasetUserAccessDao(getDSLContext.configuration()).insert(access)
+  }
+
+  private def seedUser(name: String): User = {
+    val user = new User
+    user.setName(name)
+    user.setEmail(s"$name@test.com")
+    user.setRole(UserRoleEnum.REGULAR)
+    new UserDao(getDSLContext.configuration()).insert(user)
+    user
+  }
+
+  /**
+    * Creation times are set explicitly because the version list is ordered by them and
+    * the column default would stamp every row inserted in one test with the same value.
+    */
+  private def seedVersion(did: Integer, name: String, creationTime: Timestamp): DatasetVersion = {
+    val version = new DatasetVersion
+    version.setDid(did)
+    version.setCreatorUid(ownerUser.getUid)
+    version.setName(name)
+    version.setVersionHash(s"hash-$did-$name")
+    version.setCreationTime(creationTime)
+    new DatasetVersionDao(getDSLContext.configuration()).insert(version)
+    version
+  }
+
+  "toggleDatasetPublicity" should "flip the flag on each call for the owner" in {
+    val dataset = seedDataset("toggle-publicity", ownerUser.getUid, isPublic = false)
+
+    datasetResource.toggleDatasetPublicity(dataset.getDid, sessionUser).getStatus shouldEqual 200
+    datasetDao.fetchOneByDid(dataset.getDid).getIsPublic shouldBe true
+
+    // It is a toggle rather than a setter, so the second call flips it back.
+    datasetResource.toggleDatasetPublicity(dataset.getDid, sessionUser).getStatus shouldEqual 200
+    datasetDao.fetchOneByDid(dataset.getDid).getIsPublic shouldBe false
+  }
+
+  it should "accept a non-owner holding WRITE access" in {
+    val dataset = seedDataset("toggle-publicity-shared", ownerUser.getUid, isPublic = false)
+    grantAccess(dataset.getDid, otherAdminUser.getUid, PrivilegeEnum.WRITE)
+
+    datasetResource.toggleDatasetPublicity(dataset.getDid, sessionUser2).getStatus shouldEqual 200
+    datasetDao.fetchOneByDid(dataset.getDid).getIsPublic shouldBe true
+  }
+
+  it should "refuse a user holding only READ access" in {
+    val dataset = seedDataset("toggle-publicity-forbidden", ownerUser.getUid, isPublic = false)
+    val reader = seedUser("publicity_reader")
+    grantAccess(dataset.getDid, reader.getUid, PrivilegeEnum.READ)
+
+    assertThrows[ForbiddenException] {
+      datasetResource.toggleDatasetPublicity(dataset.getDid, new SessionUser(reader))
+    }
+    datasetDao.fetchOneByDid(dataset.getDid).getIsPublic shouldBe false
+  }
+
+  "toggleDatasetDownloadable" should "flip the flag on each call for the owner" in {
+    val dataset = seedDataset("toggle-downloadable", ownerUser.getUid, isDownloadable = false)
+
+    datasetResource.toggleDatasetDownloadable(dataset.getDid, sessionUser).getStatus shouldEqual 200
+    datasetDao.fetchOneByDid(dataset.getDid).getIsDownloadable shouldBe true
+
+    datasetResource.toggleDatasetDownloadable(dataset.getDid, sessionUser).getStatus shouldEqual 200
+    datasetDao.fetchOneByDid(dataset.getDid).getIsDownloadable shouldBe false
+  }
+
+  // This endpoint is guarded by userOwnDataset, not by userHasWriteAccess: WRITE access is
+  // enough to flip publicity but not to hand out download permission.
+  it should "refuse a non-owner even when they hold WRITE access" in {
+    val dataset =
+      seedDataset("toggle-downloadable-shared", ownerUser.getUid, isDownloadable = false)
+    grantAccess(dataset.getDid, otherAdminUser.getUid, PrivilegeEnum.WRITE)
+
+    val thrown = intercept[ForbiddenException] {
+      datasetResource.toggleDatasetDownloadable(dataset.getDid, sessionUser2)
+    }
+    thrown.getMessage should include("Only dataset owners can modify download permissions")
+    datasetDao.fetchOneByDid(dataset.getDid).getIsDownloadable shouldBe false
+  }
+
+  "updateDatasetDescription" should "persist the new description for a user with write access" in {
+    val dataset = seedDataset("describe-ds", ownerUser.getUid, description = "before")
+
+    val response = datasetResource.updateDatasetDescription(
+      DatasetResource.DatasetDescriptionModification(dataset.getDid, "after"),
+      sessionUser
+    )
+
+    response.getStatus shouldEqual 200
+    datasetDao.fetchOneByDid(dataset.getDid).getDescription shouldEqual "after"
+  }
+
+  it should "refuse to update the description without write access" in {
+    val dataset = seedDataset("describe-forbidden", ownerUser.getUid, description = "untouched")
+
+    assertThrows[ForbiddenException] {
+      datasetResource.updateDatasetDescription(
+        DatasetResource.DatasetDescriptionModification(dataset.getDid, "hijacked"),
+        sessionUser2
+      )
+    }
+    datasetDao.fetchOneByDid(dataset.getDid).getDescription shouldEqual "untouched"
+  }
+
+  "getPublicDatasetVersionList" should "return that dataset's versions, newest first" in {
+    val dataset = seedDataset("public-versions", ownerUser.getUid, isPublic = true)
+    seedVersion(dataset.getDid, "v1", Timestamp.valueOf("2026-01-01 00:00:00"))
+    seedVersion(dataset.getDid, "v3", Timestamp.valueOf("2026-01-03 00:00:00"))
+    seedVersion(dataset.getDid, "v2", Timestamp.valueOf("2026-01-02 00:00:00"))
+
+    // A second public dataset with its own versions: the query must stay scoped to `did`.
+    val sibling = seedDataset("public-versions-sibling", otherAdminUser.getUid, isPublic = true)
+    seedVersion(sibling.getDid, "sibling-v1", Timestamp.valueOf("2026-02-01 00:00:00"))
+
+    val versions = datasetResource.getPublicDatasetVersionList(dataset.getDid)
+
+    versions.map(_.getName) shouldEqual List("v3", "v2", "v1")
+    versions.map(_.getDid).distinct shouldEqual List(dataset.getDid)
+  }
+
+  it should "return an empty list for a public dataset that has no versions" in {
+    val dataset = seedDataset("public-versions-empty", ownerUser.getUid, isPublic = true)
+
+    datasetResource.getPublicDatasetVersionList(dataset.getDid) shouldBe empty
+  }
+
+  it should "refuse to list the versions of a private dataset" in {
+    val dataset = seedDataset("private-versions", ownerUser.getUid, isPublic = false)
+    seedVersion(dataset.getDid, "v1", Timestamp.valueOf("2026-01-01 00:00:00"))
+
+    assertThrows[ForbiddenException] {
+      datasetResource.getPublicDatasetVersionList(dataset.getDid)
+    }
+  }
+
+  "retrieveOwners" should "return one email per distinct owner the caller has access to" in {
+    // The caller is created here rather than reused: the shared session users accumulate
+    // access rows from other tests, which would make this result depend on test order.
+    val viewer = seedUser("owners_viewer")
+    val hiddenOwner = seedUser("owners_hidden")
+
+    val ownedA = seedDataset("owners-a-1", ownerUser.getUid)
+    val ownedB = seedDataset("owners-a-2", ownerUser.getUid)
+    val ownedC = seedDataset("owners-b-1", otherAdminUser.getUid)
+    // Not granted to the viewer, so its owner must not show up.
+    seedDataset("owners-c-1", hiddenOwner.getUid)
+
+    List(ownedA, ownedB, ownedC).foreach(dataset =>
+      grantAccess(dataset.getDid, viewer.getUid, PrivilegeEnum.READ)
+    )
+
+    val owners = datasetResource.retrieveOwners(new SessionUser(viewer)).asScala.toList
+
+    // ownedA and ownedB share an owner; the query selects distinct emails.
+    owners should contain theSameElementsAs List(ownerUser.getEmail, otherAdminUser.getEmail)
+  }
+
+  it should "return nothing for a user with no dataset access" in {
+    val stranger = seedUser("owners_stranger")
+
+    datasetResource.retrieveOwners(new SessionUser(stranger)).asScala shouldBe empty
   }
 
   // ===========================================================================
