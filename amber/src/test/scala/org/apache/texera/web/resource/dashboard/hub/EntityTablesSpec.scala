@@ -19,6 +19,7 @@
 
 package org.apache.texera.web.resource.dashboard.hub
 
+import org.apache.texera.web.resource.dashboard.VersionedResourceTables
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -31,9 +32,10 @@ class EntityTablesSpec extends AnyFlatSpec with Matchers {
       EntityTables.BaseEntityTable.WorkflowTable
   }
 
-  it should "dispatch Dataset → DatasetTable" in {
+  it should "dispatch Dataset → the dataset's search descriptor" in {
+    // Datasets have no BaseEntityTable object: VersionedResourceTables implements it.
     EntityTables.BaseEntityTable(EntityType.Dataset) shouldBe
-      EntityTables.BaseEntityTable.DatasetTable
+      VersionedResourceTables.DatasetTables
   }
 
   "BaseEntityTable.WorkflowTable" should "wire up id and isPublic columns from WORKFLOW" in {
@@ -42,8 +44,8 @@ class EntityTablesSpec extends AnyFlatSpec with Matchers {
     t.isPublicColumn.getName shouldBe "is_public"
   }
 
-  "BaseEntityTable.DatasetTable" should "wire up id and isPublic columns from DATASET" in {
-    val t = EntityTables.BaseEntityTable.DatasetTable
+  "VersionedResourceTables.DatasetTables" should "wire up id and isPublic columns from DATASET" in {
+    val t = VersionedResourceTables.DatasetTables
     t.idColumn.getName shouldBe "did"
     t.isPublicColumn.getName shouldBe "is_public"
   }
@@ -79,13 +81,46 @@ class EntityTablesSpec extends AnyFlatSpec with Matchers {
 
   it should "throw IllegalArgumentException for Dataset because there is no DatasetClone table" in {
     // The asymmetry is intentional today: dataset clones aren't a modelled
-    // entity. Pinning the exception so a future addition of DatasetCloneTable
-    // forces this spec to be updated alongside the new dispatch branch.
+    // entity. CloneTable.apply stays for recordCloneAction.
     val ex = intercept[IllegalArgumentException] {
       EntityTables.CloneTable(EntityType.Dataset)
     }
     ex.getMessage should include("Unsupported entity type")
     ex.getMessage should include("clone")
+  }
+
+  // -- the registry -----------------------------------------------------------
+
+  "EntityTables.apply" should "expose every table an entity type owns" in {
+    val workflow = EntityTables(EntityType.Workflow)
+    workflow.base shouldBe EntityTables.BaseEntityTable.WorkflowTable
+    workflow.like shouldBe EntityTables.LikeTable.WorkflowLikeTable
+    workflow.viewCount shouldBe EntityTables.ViewCountTable.WorkflowViewCountTable
+    workflow.access shouldBe EntityTables.AccessTable.WorkflowAccessTable
+    workflow.cloneTable shouldBe Some(EntityTables.CloneTable.WorkflowCloneTable)
+    workflow.versionedResource shouldBe None
+
+    val dataset = EntityTables(EntityType.Dataset)
+    dataset.base shouldBe VersionedResourceTables.DatasetTables
+    dataset.like shouldBe EntityTables.LikeTable.DatasetLikeTable
+    dataset.viewCount shouldBe EntityTables.ViewCountTable.DatasetViewCountTable
+    dataset.access shouldBe EntityTables.AccessTable.DatasetAccessTable
+    dataset.cloneTable shouldBe None
+    dataset.versionedResource shouldBe Some(VersionedResourceTables.DatasetTables)
+  }
+
+  // -- AccessTable ------------------------------------------------------------
+
+  "EntityTables.AccessTable" should "expose id, uid and privilege per entity" in {
+    val w = EntityTables.AccessTable(EntityType.Workflow)
+    w.idColumn.getName shouldBe "wid"
+    w.uidColumn.getName shouldBe "uid"
+    w.privilegeColumn.getName shouldBe "privilege"
+
+    val d = EntityTables.AccessTable(EntityType.Dataset)
+    d.idColumn.getName shouldBe "did"
+    d.uidColumn.getName shouldBe "uid"
+    d.privilegeColumn.getName shouldBe "privilege"
   }
 
   // -- ViewCountTable ---------------------------------------------------------
