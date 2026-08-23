@@ -223,8 +223,8 @@ class SQLSourceOpExecSpec extends AnyFlatSpec with Matchers with MockFactory {
     // A progressive descriptor with no batchByColumn is degenerate but generateSqlQuery is
     // defensive about it. open() is deliberately not called here: it would blow up on
     // `desc.batchByColumn.get`, which is the current (unhelpful) behaviour, so this test
-    // pins only the query builder. That also means this exact arm of the line-419 guard
-    // (progressive with no batch column) is defensive: no production caller reaches
+    // pins only the query builder. That also means this arm of the progressive guard
+    // (progressive with no batch column) is defensive: no production caller reaches it,
     // generateSqlQuery in this state, since open() throws first.
     // min and max are populated on purpose: with all three of batchByColumn/min/max empty,
     // re-pointing the guard at `desc.min` instead would be indistinguishable here.
@@ -359,11 +359,9 @@ class SQLSourceOpExecSpec extends AnyFlatSpec with Matchers with MockFactory {
 
   it should "refuse to decide the next query for an unsupported batch column type" in {
     val exec = new TestSQLSourceOpExec(progressiveJson("name", Option("a"), Option("z"), 4L))
-    // DEFENSIVE-ONLY arm: intercepting open() is the only way to be holding a STRING batch
-    // column here, so no workflow can reach this throw. A successful open() admits only
-    // INTEGER/LONG/TIMESTAMP/DOUBLE -- non-auto boundaries reject all but LONG/TIMESTAMP,
-    // and auto probes reject BOOLEAN/STRING/ANY -- and all four are handled above.
-    intercept[IllegalArgumentException](exec.open())
+    // DEFENSIVE-ONLY arm: no workflow can reach hasNextQuery with a STRING batch column, but
+    // this pins the type-dispatch error message without depending on open()'s failure path.
+    exec.batchByAttribute = Some(new Attribute("name", AttributeType.STRING))
     intercept[IllegalArgumentException](exec.nextQueryAvailable).getMessage shouldBe
       "Unexpected type: string"
   }
