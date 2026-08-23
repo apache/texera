@@ -89,14 +89,15 @@ import scala.jdk.CollectionConverters._
   *     later suite. Binding at the address the config already names is order-independent and
   *     memoizes nothing wrongly. The price is that the port is machine-global: if something else
   *     holds it (a local `bin/local-dev.sh up` lakeFS, or a sibling worktree running these tests),
-  *     the four tests that need a *successful* size `cancel` rather than fail. CI has no lakeFS in
+  *     the six tests that need a *successful* size `cancel` rather than fail. CI has no lakeFS in
   *     this job, so it is deterministic there.
   *
-  *     A cancel is louder than it looks, and the sbt log shows it only as `canceled 4` while the
+  *     A cancel is louder than it looks, and the sbt log shows it only as `canceled 6` while the
   *     build stays green. It disarms the whole `toEntry` half of this suite: not just its coverage
   *     (which falls back toward the ~59% this file had before), but every assertion protecting
-  *     `toEntryImpl`. Measured: with the port held, mutating `size` to `0L` in the entry leaves
-  *     `succeeded 14, failed 0, canceled 4` and sbt printing "All tests passed" at exit 0. The
+  *     `toEntryImpl` — the owner-email pair included, so the `new User` mutant this suite otherwise
+  *     kills goes unnoticed too. Measured: with the port held, mutating `size` to `0L` in the entry
+  *     leaves `succeeded 15, failed 0, canceled 6` and sbt printing "All tests passed" at exit 0. The
   *     assertions in the SQL-shape tests are unaffected, because they render rather than fetch and
   *     never call lakeFS — that is the half that stays armed everywhere (verified: with the port
   *     held, breaking a projection or a where-clause connective still fails the build).
@@ -120,13 +121,13 @@ import scala.jdk.CollectionConverters._
   * Anything added here must keep that property — an assertion on `pgroonga_condition` would pass
   * solo and fail in a full-module run.
   *
-  * Two lines are executed but unobservable, on purpose. `val owner = record.into(USER)...` and
-  * `owner.getEmail` run on every entry, yet replacing them with a bare `new User` changes nothing:
-  * the dataset schema leaves `UnifiedResourceSchema`'s `userEmail` at its `DSL.inline("")` default,
-  * so the translated record carries no `USER` column and `DashboardDataset.ownerEmail` is ALWAYS
-  * null for dataset search results — which also makes the `leftJoin(USER)` a join that is selected
-  * from and never read. That is a production defect, reported separately; asserting the null here
-  * would cement it, so these tests pin the join's shape and leave the value alone.
+  * `val owner = record.into(USER)...` and `owner.getEmail` used to be executed but unobservable:
+  * the dataset schema left `UnifiedResourceSchema`'s `userEmail` at its `DSL.inline("")` default, so
+  * the translated record carried no `USER` column, `DashboardDataset.ownerEmail` was ALWAYS null for
+  * dataset search results, and `leftJoin(USER)` was a join that was selected from and never read.
+  * Replacing those two lines with a bare `new User` therefore changed nothing. The schema now names
+  * `userEmail = USER.EMAIL` and the value is asserted below, which kills that mutant; the owner-email
+  * tests are the ones that hold it dead, so a schema slot silently dropped again fails them.
   *
   * Not covered, and not coverable from a test:
   *   - `constructFromClause`'s `includePublic: Boolean = false` default. `scalac` emits
@@ -491,14 +492,37 @@ class DatasetSearchQueryBuilderSpec
     sql should include("dataset.is_downloadable as is_dataset_downloadable")
     sql should include("dataset_user_access.privilege as user_dataset_access")
     sql should include("dataset.cover_image as cover_image")
+    // The one projected column that is not a DATASET column. It is also the slot this schema used to
+    // leave at its `DSL.inline("")` default, which is why it gets an assertion of its own rather
+    // than trusting the entry-level test: a slot dropped back to a literal renders `'' as email`
+    // here, and the failure names the projection instead of a null three layers downstream.
+    sql should include("user.email as email")
+  }
+
+  it should "stay union-compatible with the workflow and project branches" in {
+    // `DashboardResource.searchAllResources` stacks the three builders with `unionAll` for a
+    // resourceType of "" — the dashboard's default view — so every branch must project the same
+    // aliases in the same order with types Postgres will unify. Each slot one builder fills is a
+    // literal placeholder in the other two (`'' as email` here until `userEmail` was named), which
+    // makes the contract easy to break from inside a single builder and impossible to break loudly:
+    // nothing fails to compile, and the mismatch surfaces only as a failed query at runtime. This is
+    // the only test that executes the union; the rest of the suite renders or fetches one branch.
+    val union = WorkflowSearchQueryBuilder
+      .constructQuery(uid, params(), includePublic = true)
+      .unionAll(ProjectSearchQueryBuilder.constructQuery(uid, params(), includePublic = true))
+      .unionAll(DatasetSearchQueryBuilder.constructQuery(uid, params(), includePublic = true))
+
+    // Both seeded datasets are public, so both reach `uid`; no workflow or project rows are seeded.
+    // The row count is incidental — that Postgres accepts the union at all is the assertion.
+    getDSLContext.fetch(union).size() shouldBe 2
   }
 
   it should "join the owner row on the dataset's owner" in {
-    // `toEntryImpl` reads `owner.getEmail` out of this join, so the predicate is load-bearing on
-    // paper; in practice the value is always null (see the class comment) and asserting it would
-    // cement that bug. The join's shape is safe to pin and is otherwise unconstrained: nothing else
-    // in the suite can tell `USER.UID.eq(DATASET.OWNER_UID)` from any other predicate, or from the
-    // join being absent altogether.
+    // `toEntryImpl` reads `owner.getEmail` out of this join. The owner-email tests below now see the
+    // value, so they would fail on a join dropped altogether — but not on a join RE-AIMED at a
+    // same-typed column, because every seeded dataset shares one owner. Pinning the predicate is
+    // what separates `USER.UID.eq(DATASET.OWNER_UID)` from `eq(DATASET_USER_ACCESS.UID)`, which
+    // would report the *caller's* email as the owner's on every shared dataset.
     val sql = sqlFor(uid, includePublic = true)
 
     sql should include("left outer join texera_db.user on texera_db.user.uid = ")
@@ -532,6 +556,29 @@ class DatasetSearchQueryBuilderSpec
     dd.dataset.getCreationTime should not be null
     // 10 + 32 across the newest commit's two objects. This is the number the dashboard shows.
     dd.size shouldBe 42L
+  }
+
+  it should "carry the owner's email address" in {
+    requireStub()
+
+    // Was null for every dataset in the dashboard until the schema named `userEmail = USER.EMAIL`:
+    // the USER join was selected from and never read. This is also the assertion that kills
+    // `record.into(USER).into(classOf[User])` -> `new User`, which survived the whole suite while
+    // the value was null.
+    entryFor(ownerUid, sizedDid).dataset.value.ownerEmail shouldBe "dataset_search_owner@mail.com"
+  }
+
+  it should "take the email from the dataset's owner, not from the caller" in {
+    requireStub()
+
+    // `otherUid` reaches this dataset only because it is public, and has its own address seeded. The
+    // entry must still name the owner — this is what the dashboard labels the dataset with, and it
+    // is the only assertion here that separates a real owner lookup from one that echoes the
+    // signed-in caller back.
+    val dd = entryFor(otherUid, sizedDid).dataset.value
+
+    dd.ownerEmail shouldBe "dataset_search_owner@mail.com"
+    dd.ownerEmail should not be "dataset_search_other@mail.com"
   }
 
   it should "set isOwner only for the dataset's own owner" in {
