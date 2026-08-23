@@ -373,6 +373,20 @@ export class MenuComponent implements OnInit, OnDestroy {
       };
     }
 
+    // A Failed/Unknown unit can never become connected, so surface that before the
+    // websocket-disconnected branch below would show an endless "Connecting" spinner.
+    if (
+      this.computingUnitStatus === ComputingUnitState.Failed ||
+      this.computingUnitStatus === ComputingUnitState.Unknown
+    ) {
+      return {
+        text: "Unit Unavailable",
+        icon: "warning",
+        disable: true,
+        onClick: () => {},
+      };
+    }
+
     // This handles the case where a unit exists but we're not connected to it
     if (this.computingUnitStatus !== ComputingUnitState.NoComputingUnit && !this.workflowWebsocketService.isConnected) {
       return {

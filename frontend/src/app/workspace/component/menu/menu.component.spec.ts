@@ -211,6 +211,27 @@ describe("MenuComponent", () => {
       expect(behavior.text).toBe("Connecting");
       expect(behavior.disable).toBe(true);
     });
+
+    it("returns 'Unit Unavailable' instead of an endless 'Connecting' spinner for a dead unit", () => {
+      // A Failed/Unknown unit can never become connected, so the dead-unit check must come
+      // before the websocket-disconnected branch that would otherwise spin forever.
+      component.isWorkflowValid = true;
+      component.isWorkflowEmpty = false;
+      Object.defineProperty(component.workflowWebsocketService, "isConnected", {
+        get: () => false,
+        configurable: true,
+      });
+
+      for (const status of [ComputingUnitState.Failed, ComputingUnitState.Unknown]) {
+        component.computingUnitStatus = status;
+
+        const behavior = component.getRunButtonBehavior();
+
+        expect(behavior.text).toBe("Unit Unavailable");
+        expect(behavior.icon).toBe("warning");
+        expect(behavior.disable).toBe(true);
+      }
+    });
   });
 
   it("applyRunButtonBehavior copies the behavior onto the bound fields", () => {

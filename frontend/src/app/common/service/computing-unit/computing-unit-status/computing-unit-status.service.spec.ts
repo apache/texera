@@ -199,7 +199,31 @@ describe("ComputingUnitStatusService", () => {
     expect(status).toBe(ComputingUnitState.Pending);
   });
 
-  it("getStatus() maps an unrecognized status to Pending (default branch)", () => {
+  it("getStatus() maps a Failed unit to ComputingUnitState.Failed", () => {
+    (service as any).selectedUnitSubject.next({
+      computingUnit: { cuid: 1 },
+      status: "Failed",
+    } as unknown as DashboardWorkflowComputingUnit);
+
+    let status: ComputingUnitState | undefined;
+    service.getStatus().subscribe(s => (status = s));
+    expect(status).toBe(ComputingUnitState.Failed);
+  });
+
+  it("getStatus() maps an Unknown unit to ComputingUnitState.Unknown", () => {
+    (service as any).selectedUnitSubject.next({
+      computingUnit: { cuid: 1 },
+      status: "Unknown",
+    } as unknown as DashboardWorkflowComputingUnit);
+
+    let status: ComputingUnitState | undefined;
+    service.getStatus().subscribe(s => (status = s));
+    expect(status).toBe(ComputingUnitState.Unknown);
+  });
+
+  it("getStatus() maps Terminating (and any unrecognized status) to Pending via the default branch", () => {
+    // Deliberate: ComputingUnitState has no Terminating member, so a terminating unit is
+    // treated as a transient, not-usable state — the same way an unknown status string is.
     (service as any).selectedUnitSubject.next({
       computingUnit: { cuid: 1 },
       status: "Terminating",

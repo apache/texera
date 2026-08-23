@@ -24,5 +24,7 @@
 export enum ComputingUnitState {
   Running = "Running",
   Pending = "Pending",
+  Failed = "Failed",
+  Unknown = "Unknown",
   NoComputingUnit = "No Computing Unit",
 }

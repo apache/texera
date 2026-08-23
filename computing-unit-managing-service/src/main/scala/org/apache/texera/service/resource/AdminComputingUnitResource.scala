@@ -73,7 +73,7 @@ class AdminComputingUnitResource {
         .asScala
         .toList
 
-    val podPhases = ComputingUnitHelpers.podPhasesFor(activeUnits)
+    val podSnapshots = ComputingUnitHelpers.podSnapshotsFor(activeUnits)
 
     // Wrap only the reconcile write, not the Kubernetes round trips above: keeps a pooled
     // connection from being held open across them, while the transaction makes the batchUpdate
@@ -83,7 +83,7 @@ class AdminComputingUnitResource {
       ComputingUnitHelpers.reconcileVanishedKubernetesUnits(
         new WorkflowComputingUnitDao(txCtx.configuration()),
         activeUnits,
-        podPhases
+        podSnapshots
       )
     }
 
@@ -99,7 +99,7 @@ class AdminComputingUnitResource {
         isOwner = unit.getUid.equals(user.getUid),
         accessPrivilege = PrivilegeEnum.WRITE,
         ownerInfo = ownerInfo,
-        podPhases = podPhases,
+        podSnapshots = podSnapshots,
         podMetrics = podMetrics
       )
     }

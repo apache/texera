@@ -197,19 +197,33 @@ export function getComputingUnitBadgeColor(status: string): string {
   switch (status) {
     case "Running":
       return "green";
+    // Pending and Terminating are transient, not broken, so both stay gold.
     case "Pending":
+    case "Terminating":
       return "gold";
+    // Failed / Unknown and anything unrecognized.
     default:
       return "red";
   }
 }
 
 export function getComputingUnitStatusTooltip(entry: DashboardWorkflowComputingUnit): string {
+  // The owner-only statusReason is already user-friendly and more specific than any canned
+  // text (failure cause, unschedulable wait, or a recovered-OOM warning on a Running unit).
+  if (entry.statusReason) {
+    return entry.statusReason;
+  }
   switch (entry.status) {
     case "Running":
       return "Ready to use";
     case "Pending":
       return "Computing unit is starting up";
+    // Non-owners get no reason from the backend, only the generic text.
+    case "Failed":
+    case "Unknown":
+      return "This computing unit is unavailable.";
+    case "Terminating":
+      return "Computing unit is shutting down";
     default:
       return entry.status;
   }

@@ -52,17 +52,17 @@ class KubernetesClient(client: io.fabric8.kubernetes.client.KubernetesClient) {
   }
 
   /**
-    * Phase of every pod in the namespace, keyed by pod name, in one call — so a bulk listing
-    * avoids a per-unit lookup. Unfiltered so callers can test a unit's presence by its pod-name
-    * key; a pod with no status yet maps to a `null` phase but still appears.
+    * Status snapshot of every pod in the namespace, keyed by pod name, in one call — so a bulk
+    * listing avoids a per-unit lookup. Unfiltered so callers can test a unit's presence by its
+    * pod-name key; a pod with no status yet maps to an empty snapshot but still appears.
     */
-  def getAllPodPhases: Map[String, String] =
-    phasesByPodName(client.pods().inNamespace(namespace).list().getItems.asScala)
+  def getAllPodStatusSnapshots: Map[String, PodStatusSnapshot] =
+    snapshotsByPodName(client.pods().inNamespace(namespace).list().getItems.asScala)
 
-  /** Pure fabric8 -> map transform: a pod with no status yet maps to a `null` phase. */
-  private[util] def phasesByPodName(pods: Iterable[Pod]): Map[String, String] =
+  /** Pure fabric8 -> map transform; the per-pod extraction is [[PodStatusSnapshot.fromPod]]. */
+  private[util] def snapshotsByPodName(pods: Iterable[Pod]): Map[String, PodStatusSnapshot] =
     pods
-      .map(pod => pod.getMetadata.getName -> Option(pod.getStatus).map(_.getPhase).orNull)
+      .map(pod => pod.getMetadata.getName -> PodStatusSnapshot.fromPod(pod))
       .toMap
 
   // Flatten a pod's per-container resource usage into a single metric -> value map.

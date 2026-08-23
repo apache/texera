@@ -55,13 +55,13 @@ import org.scalatest.matchers.should.Matchers
 import scala.jdk.CollectionConverters._
 
 // Two layers are exercised here:
-//   * the pure fabric8 -> map transforms (phasesByPodName / metricsByPodName) with
+//   * the pure fabric8 -> map transforms (snapshotsByPodName / metricsByPodName) with
 //     builder-constructed model objects, so the transform logic needs no client, and
-//   * the thin namespace-wide wrappers (getAllPodPhases / getAllPodMetrics / getPodMetrics),
-//     which are driven through a freshly constructed KubernetesClient whose fabric8 client is a
-//     Mockito stub — no live cluster and no mutable global.
-// The status/metrics *decision* logic that consumes these maps (Running vs Pending, cpu/memory
-// resolution) is covered by ComputingUnitHelpersSpec.
+//   * the thin namespace-wide wrappers (getAllPodStatusSnapshots / getAllPodMetrics /
+//     getPodMetrics), which are driven through a freshly constructed KubernetesClient whose
+//     fabric8 client is a Mockito stub — no live cluster and no mutable global.
+// The status/metrics *decision* logic that consumes these maps (Running vs Failed vs Pending,
+// cpu/memory resolution) is covered by ComputingUnitHelpersSpec.
 class KubernetesClientSpec extends AnyFlatSpec with Matchers {
 
   private val namespace: String = KubernetesConfig.computeUnitPoolNamespace
@@ -130,16 +130,123 @@ class KubernetesClientSpec extends AnyFlatSpec with Matchers {
     KubernetesClient.generatePodName(0) shouldBe "computing-unit-0"
   }
 
-  "phasesByPodName" should "map every pod name to its phase" in {
-    val phases = KubernetesClient.phasesByPodName(Seq(pod(1, "Running"), pod(2, "Pending")))
-    phases(KubernetesClient.generatePodName(1)) shouldBe "Running"
-    phases(KubernetesClient.generatePodName(2)) shouldBe "Pending"
+  "snapshotsByPodName" should "map every pod name to a snapshot of its phase" in {
+    val snapshots = KubernetesClient.snapshotsByPodName(Seq(pod(1, "Running"), pod(2, "Pending")))
+    snapshots(KubernetesClient.generatePodName(1)).phase shouldBe Some("Running")
+    snapshots(KubernetesClient.generatePodName(2)).phase shouldBe Some("Pending")
   }
 
-  it should "map a pod with no status to a null phase but still include it" in {
-    val phases = KubernetesClient.phasesByPodName(Seq(statuslessPod(3)))
-    phases should contain key KubernetesClient.generatePodName(3)
-    phases(KubernetesClient.generatePodName(3)) shouldBe null
+  it should "map a pod with no status to an empty snapshot but still include it" in {
+    val snapshots = KubernetesClient.snapshotsByPodName(Seq(statuslessPod(3)))
+    snapshots should contain key KubernetesClient.generatePodName(3)
+    snapshots(KubernetesClient.generatePodName(3)) shouldBe PodStatusSnapshot.empty
+  }
+
+  // ── PodStatusSnapshot.fromPod: the pure fabric8 -> snapshot extraction ──
+  // The decision table consuming these fields lives in ComputingUnitHelpersSpec; here each
+  // fabric8 field is pinned to its snapshot slot, including the null-guard paths.
+
+  "PodStatusSnapshot.fromPod" should "capture the phase, pod-level reason and message" in {
+    val evicted = new PodBuilder()
+      .withNewStatus()
+      .withPhase("Failed")
+      .withReason("Evicted")
+      .withMessage("The node was low on resource: ephemeral-storage.")
+      .endStatus()
+      .build()
+
+    val snapshot = PodStatusSnapshot.fromPod(evicted)
+    snapshot.phase shouldBe Some("Failed")
+    snapshot.podReason shouldBe Some("Evicted")
+    snapshot.podMessage shouldBe Some("The node was low on resource: ephemeral-storage.")
+    snapshot.terminating shouldBe false
+    snapshot.unschedulable shouldBe false
+    snapshot.containers shouldBe empty
+  }
+
+  it should "flag a pod carrying a deletion timestamp as terminating" in {
+    val deleted = new PodBuilder()
+      .withNewMetadata()
+      .withName(KubernetesClient.generatePodName(9))
+      .withDeletionTimestamp("2026-08-20T00:00:00Z")
+      .endMetadata()
+      .withNewStatus()
+      .withPhase("Running")
+      .endStatus()
+      .build()
+
+    PodStatusSnapshot.fromPod(deleted).terminating shouldBe true
+  }
+
+  it should "flag an Unschedulable PodScheduled=False condition and only that condition" in {
+    def podWithCondition(condType: String, status: String, reason: String) =
+      new PodBuilder()
+        .withNewStatus()
+        .withPhase("Pending")
+        .addNewCondition()
+        .withType(condType)
+        .withStatus(status)
+        .withReason(reason)
+        .endCondition()
+        .endStatus()
+        .build()
+
+    PodStatusSnapshot
+      .fromPod(podWithCondition("PodScheduled", "False", "Unschedulable"))
+      .unschedulable shouldBe true
+    // A scheduled pod, or a False condition of another type/reason, must not count.
+    PodStatusSnapshot
+      .fromPod(podWithCondition("PodScheduled", "True", ""))
+      .unschedulable shouldBe false
+    PodStatusSnapshot
+      .fromPod(podWithCondition("Ready", "False", "Unschedulable"))
+      .unschedulable shouldBe false
+    // A malformed condition carrying the Unschedulable reason with status True must not
+    // count either: all three fields have to line up.
+    PodStatusSnapshot
+      .fromPod(podWithCondition("PodScheduled", "True", "Unschedulable"))
+      .unschedulable shouldBe false
+  }
+
+  it should "capture each container's waiting reason, last termination reason and restart count" in {
+    val crashLooping = new PodBuilder()
+      .withNewStatus()
+      .withPhase("Running")
+      .addNewContainerStatus()
+      .withRestartCount(5)
+      .withNewState()
+      .withNewWaiting()
+      .withReason("CrashLoopBackOff")
+      .endWaiting()
+      .endState()
+      .withNewLastState()
+      .withNewTerminated()
+      .withReason("OOMKilled")
+      .endTerminated()
+      .endLastState()
+      .endContainerStatus()
+      .endStatus()
+      .build()
+
+    val container = PodStatusSnapshot.fromPod(crashLooping).containers.head
+    container.waitingReason shouldBe Some("CrashLoopBackOff")
+    container.lastTerminatedReason shouldBe Some("OOMKilled")
+    container.restartCount shouldBe 5
+  }
+
+  it should "map a container status with no state details to an empty container snapshot" in {
+    val bare = new PodBuilder()
+      .withNewStatus()
+      .withPhase("Running")
+      .addNewContainerStatus()
+      .endContainerStatus()
+      .endStatus()
+      .build()
+
+    val container = PodStatusSnapshot.fromPod(bare).containers.head
+    container.waitingReason shouldBe None
+    container.lastTerminatedReason shouldBe None
+    container.restartCount shouldBe 0
   }
 
   "metricsByPodName" should "flatten each pod's container usage into a cpu/memory map" in {
@@ -150,13 +257,13 @@ class KubernetesClientSpec extends AnyFlatSpec with Matchers {
 
   // ── namespace-wide wrappers, driven through a stubbed fabric8 client ──
   // These pin the fabric8 fluent-chain plumbing (list() / top().pods().metrics()); the value
-  // transform they delegate to is already pinned by the phasesByPodName / metricsByPodName tests,
-  // so they only assert that the namespace items flow through keyed by pod name.
+  // transform they delegate to is already pinned by the snapshotsByPodName / metricsByPodName
+  // tests, so they only assert that the namespace items flow through keyed by pod name.
 
-  "getAllPodPhases" should "list the namespace pods and key them by pod name" in {
+  "getAllPodStatusSnapshots" should "list the namespace pods and key them by pod name" in {
     val k8s =
       new KubernetesClient(stubbedClient(Seq(pod(1, "Running"), pod(2, "Pending")), Seq.empty))
-    k8s.getAllPodPhases.keySet shouldBe
+    k8s.getAllPodStatusSnapshots.keySet shouldBe
       Set(KubernetesClient.generatePodName(1), KubernetesClient.generatePodName(2))
   }
 

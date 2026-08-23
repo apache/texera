@@ -112,7 +112,7 @@
           'unit-selected': isSelectedUnit(unit),
           'unit-connecting': unit.status === 'Pending',
         }"
-        [nz-tooltip]="cannotSelectUnit(unit) ? getUnitStatusTooltip(unit) + '. Cannot select.' : ''"
+        [nz-tooltip]="getRowTooltip(unit)"
         (click)="selectedComputingUnit = unit; selectComputingUnit(this.workflowId, unit?.computingUnit?.cuid)">
         <div class="computing-unit-row">
           <texera-user-avatar
@@ -123,13 +123,8 @@
             [style.opacity]="0.7">
           </texera-user-avatar>
           <div class="computing-unit-name">
-            <nz-badge
-              [nzColor]="getBadgeColor(unit.status)"
-              [nz-tooltip]="getUnitStatusTooltip(unit)"></nz-badge>
-            <span
-              *ngIf="editingNameOfUnit !== unit.computingUnit.cuid; else editableUnitName"
-              nz-tooltip
-              [nzTooltipTitle]="unit.computingUnit.uri">
+            <nz-badge [nzColor]="getBadgeColor(unit.status)"></nz-badge>
+            <span *ngIf="editingNameOfUnit !== unit.computingUnit.cuid; else editableUnitName">
               {{ unit.computingUnit.name }}
               <span
                 *ngIf="unit.status === 'Pending'"
