@@ -216,8 +216,8 @@ jobs:
         env:
           PGPASSWORD: postgres
       - name: Setup sbt launcher
-        uses: sbt/setup-sbt@6444f4c8111de4b9059c3975def104b03cfaa5f0 # v1.5.2
-      - uses: coursier/cache-action@90c37294538be80a558fd665531fcdc2b467b475 # v8.1.0
+        uses: sbt/setup-sbt@8feba82adc7f01ddcf8165b86f778bdb5b82cebc # v1.5.7
+      - uses: coursier/cache-action@95e5b1029b6b86e7bac033ee44a0697d8a527d2d # v8.1.1
         with:
           extraSbtFiles: '["*.sbt", "project/**.{scala,sbt}", "project/build.properties" ]'
       - name: Lint and build amber distributable bundle
@@ -391,8 +391,8 @@ jobs:
         env:
           PGPASSWORD: postgres
       - name: Setup sbt launcher
-        uses: sbt/setup-sbt@6444f4c8111de4b9059c3975def104b03cfaa5f0 # v1.5.2
-      - uses: coursier/cache-action@90c37294538be80a558fd665531fcdc2b467b475 # v8.1.0
+        uses: sbt/setup-sbt@8feba82adc7f01ddcf8165b86f778bdb5b82cebc # v1.5.7
+      - uses: coursier/cache-action@95e5b1029b6b86e7bac033ee44a0697d8a527d2d # v8.1.1
         with:
           extraSbtFiles: '["*.sbt", "project/**.{scala,sbt}", "project/build.properties" ]'
       - name: Create texera_db_for_test_cases
@@ -585,8 +585,8 @@ jobs:
           distribution: "temurin"
           java-version: 17
       - name: Setup sbt launcher
-        uses: sbt/setup-sbt@6444f4c8111de4b9059c3975def104b03cfaa5f0 # v1.5.2
-      - uses: coursier/cache-action@90c37294538be80a558fd665531fcdc2b467b475 # v8.1.0
+        uses: sbt/setup-sbt@8feba82adc7f01ddcf8165b86f778bdb5b82cebc # v1.5.7
+      - uses: coursier/cache-action@95e5b1029b6b86e7bac033ee44a0697d8a527d2d # v8.1.1
         with:
           extraSbtFiles: '["*.sbt", "project/**.{scala,sbt}", "project/build.properties" ]'
       - name: Create Databases
