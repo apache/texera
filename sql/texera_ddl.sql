@@ -79,6 +79,8 @@ DROP TABLE IF EXISTS workflow_view_count CASCADE;
 DROP TABLE IF EXISTS user_action CASCADE;
 DROP TABLE IF EXISTS dataset_user_likes CASCADE;
 DROP TABLE IF EXISTS dataset_view_count CASCADE;
+DROP TABLE IF EXISTS model_user_likes CASCADE;
+DROP TABLE IF EXISTS model_view_count CASCADE;
 DROP TABLE IF EXISTS site_settings CASCADE;
 DROP TABLE IF EXISTS computing_unit_user_access CASCADE;
 DROP TABLE IF EXISTS notebook CASCADE;
@@ -619,6 +621,25 @@ CREATE TABLE IF NOT EXISTS dataset_view_count
     FOREIGN KEY (did) REFERENCES dataset(did) ON DELETE CASCADE
     );
 
+-- model_user_likes table
+CREATE TABLE IF NOT EXISTS model_user_likes
+(
+    uid INTEGER NOT NULL,
+    mid INTEGER NOT NULL,
+    PRIMARY KEY (uid, mid),
+    FOREIGN KEY (uid) REFERENCES "user"(uid) ON DELETE CASCADE,
+    FOREIGN KEY (mid) REFERENCES model(mid) ON DELETE CASCADE
+    );
+
+-- model_view_count table
+CREATE TABLE IF NOT EXISTS model_view_count
+(
+    mid        INTEGER NOT NULL,
+    view_count INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (mid),
+    FOREIGN KEY (mid) REFERENCES model(mid) ON DELETE CASCADE
+    );
+
 -- site_settings table
 CREATE TABLE IF NOT EXISTS site_settings
 (
@@ -683,7 +704,7 @@ BEGIN
   FOR r IN
     SELECT indexname FROM pg_indexes
     WHERE (indexdef ILIKE '%USING gin%' OR indexdef ILIKE '%USING pgroonga%')
-    AND tablename IN ('workflow', 'user', 'project', 'dataset', 'dataset_version')
+    AND tablename IN ('workflow', 'user', 'project', 'dataset', 'dataset_version', 'model')
   LOOP
     EXECUTE format('DROP INDEX IF EXISTS %I;', r.indexname);
   END LOOP;
@@ -713,12 +734,12 @@ BEGIN
            CASE
              WHEN tablename = 'workflow' THEN
                '(COALESCE(name, '''') || '' '' || COALESCE(description, '''') || '' '' || COALESCE(content, ''''))'
-             WHEN tablename IN ('project', 'dataset') THEN
+             WHEN tablename IN ('project', 'dataset', 'model') THEN
                '(COALESCE(name, '''') || '' '' || COALESCE(description, ''''))'
              ELSE
                'COALESCE(name, '''')'
            END AS index_column
-    FROM (VALUES ('workflow'), ('user'), ('project'), ('dataset'), ('dataset_version')) AS t(tablename)
+    FROM (VALUES ('workflow'), ('user'), ('project'), ('dataset'), ('dataset_version'), ('model')) AS t(tablename)
   LOOP
     -- Create PGroonga index with proper TokenFilterStem usage
     EXECUTE format(

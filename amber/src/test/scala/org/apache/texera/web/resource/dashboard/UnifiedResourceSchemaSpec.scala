@@ -79,7 +79,7 @@ class UnifiedResourceSchemaSpec extends AnyFlatSpec with Matchers {
 
   // Sentinels for the three slots that have no convenient distinct table
   // column of the right type; every other slot uses a real generated column so
-  // that all 24 originals render differently from one another.
+  // that all 26 originals render differently from one another.
   private val sentinelResourceType: Field[String] = JDSL.inline("s-resource-type")
   private val sentinelProjects: Field[String] = JDSL.inline("s-projects")
   private val sentinelStoragePath: Field[String] = JDSL.inline("s-storage-path")
@@ -108,7 +108,9 @@ class UnifiedResourceSchemaSpec extends AnyFlatSpec with Matchers {
     isVersionedResourceDownloadable = DATASET.IS_DOWNLOADABLE,
     versionedResourceUserAccess = DATASET_USER_ACCESS.PRIVILEGE,
     versionedResourceCoverImage = DATASET.COVER_IMAGE,
-    workflowCoverImage = WORKFLOW_COVER_IMAGE.IMAGE
+    workflowCoverImage = WORKFLOW_COVER_IMAGE.IMAGE,
+    modelFramework = MODEL.FRAMEWORK,
+    modelFormat = MODEL.FORMAT
   )
 
   // Expected projection, in order: alias -> the original it must be built from.
@@ -136,13 +138,15 @@ class UnifiedResourceSchemaSpec extends AnyFlatSpec with Matchers {
     "is_versioned_resource_downloadable" -> DATASET.IS_DOWNLOADABLE,
     "user_versioned_resource_access" -> DATASET_USER_ACCESS.PRIVILEGE,
     "versioned_resource_cover_image" -> DATASET.COVER_IMAGE,
-    "workflow_cover_image" -> WORKFLOW_COVER_IMAGE.IMAGE
+    "workflow_cover_image" -> WORKFLOW_COVER_IMAGE.IMAGE,
+    "model_framework" -> MODEL.FRAMEWORK,
+    "model_format" -> MODEL.FORMAT
   )
 
   // -- apply(): the projection ------------------------------------------------
 
-  "apply" should "expose all 24 slots as aliases, in the order the UNION ALL depends on" in {
-    sentinelSchema.allFields should have size 24
+  "apply" should "expose all 26 slots as aliases, in the order the UNION ALL depends on" in {
+    sentinelSchema.allFields should have size 26
     sentinelSchema.allFields.map(_.getName) shouldBe expectedProjection.map(_._1)
   }
 
@@ -162,7 +166,7 @@ class UnifiedResourceSchemaSpec extends AnyFlatSpec with Matchers {
     // about datasets still union with one that does: the column count and
     // types have to line up.
     val defaults = UnifiedResourceSchema()
-    defaults.allFields should have size 24
+    defaults.allFields should have size 26
     val rendered = ctx.renderInlined(JDSL.select(defaults.allFields: _*))
     rendered should include("'' as \"resourceType\"")
     rendered should include("cast(null as timestamp) as \"resourceCreationTime\"")
@@ -197,12 +201,12 @@ class UnifiedResourceSchemaSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "collapse the all-defaults projection down to one alias per distinct default" in {
-    // 24 slots, but only six structurally distinct default expressions, so the
+    // 26 slots, but only six structurally distinct default expressions, so the
     // de-dup collapses the map to six entries. Worth pinning because it is
     // surprising, and because it is what makes the keep-first rule observable at
-    // all: allFields stays at 24 while the translation map does not.
+    // all: allFields stays at 26 while the translation map does not.
     val defaults = UnifiedResourceSchema()
-    defaults.allFields should have size 24
+    defaults.allFields should have size 26
     translatedAliases(defaults) shouldBe Seq(
       "resourceType", // DSL.inline("")
       "resourceCreationTime", // cast(null as timestamp)
@@ -213,7 +217,7 @@ class UnifiedResourceSchemaSpec extends AnyFlatSpec with Matchers {
     )
   }
 
-  it should "keep every distinct original when the caller supplies 24 distinct Fields" in {
+  it should "keep every distinct original when the caller supplies 26 distinct Fields" in {
     // Nothing to collapse here, which is the control case for the two tests
     // above: the shrinkage they observe comes from duplicate originals only.
     translatedAliases(sentinelSchema) shouldBe expectedProjection.map(_._1)
@@ -221,7 +225,7 @@ class UnifiedResourceSchemaSpec extends AnyFlatSpec with Matchers {
 
   it should "drop exactly the duplicated slots of the production workflow projection" in {
     val workflowSchema = WorkflowSearchQueryBuilder.mappedResourceSchema
-    workflowSchema.allFields should have size 24
+    workflowSchema.allFields should have size 26
     val aliases = translatedAliases(workflowSchema)
     // `uid` duplicates ownerId (WORKFLOW_OF_USER.UID); the rest are slots the
     // builder left at their default, and the defaults collide by type.
@@ -232,7 +236,9 @@ class UnifiedResourceSchemaSpec extends AnyFlatSpec with Matchers {
       "versioned_resource_id",
       "repository_name",
       "is_versioned_resource_downloadable",
-      "versioned_resource_cover_image"
+      "versioned_resource_cover_image",
+      "model_framework",
+      "model_format"
     )
     aliases should contain("resourceOwnerId")
   }
@@ -241,7 +247,7 @@ class UnifiedResourceSchemaSpec extends AnyFlatSpec with Matchers {
 
   "jOOQ Field equality" should "be structural, which is what makes the de-dup collapse anything" in {
     // If jOOQ ever switched to identity equality, translatedFieldSet would keep
-    // all 24 slots and translateRecord would start reading duplicated columns —
+    // all 26 slots and translateRecord would start reading duplicated columns —
     // the tests above would flip, and this one says why.
     JDSL.cast(null, classOf[Integer]) shouldBe JDSL.cast(null, classOf[Integer])
     JDSL.inline("") shouldBe JDSL.inline("")
