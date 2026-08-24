@@ -126,11 +126,6 @@
             <nz-badge [nzColor]="getBadgeColor(unit.status)"></nz-badge>
             <span *ngIf="editingNameOfUnit !== unit.computingUnit.cuid; else editableUnitName">
               {{ unit.computingUnit.name }}
-              <span
-                *ngIf="unit.status === 'Pending'"
-                class="unit-status-indicator"
-                >(Connecting)</span
-              >
             </span>
             <ng-template #editableUnitName>
               <input

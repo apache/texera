@@ -67,11 +67,6 @@
     opacity: 0.6;
     cursor: not-allowed !important;
 
-    .unit-status-indicator {
-      opacity: 1;
-      font-weight: 500;
-    }
-
     .computing-unit-terminate-icon {
       opacity: 1;
       cursor: pointer !important;
@@ -107,18 +102,10 @@
   white-space: nowrap;
 }
 
-.computing-unit-name span,
-.unit-status-indicator {
+.computing-unit-name span {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.unit-status-indicator {
-  margin-left: 4px;
-  font-size: 0.85em;
-  font-style: italic;
-  opacity: 0.8;
 }
 
 .computing-unit-terminate-icon {
