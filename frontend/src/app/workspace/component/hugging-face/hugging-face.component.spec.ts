@@ -1618,4 +1618,52 @@ describe("HuggingFaceComponent (TestBed)", () => {
       expect(fixture.debugElement.query(By.css("div.alert-danger"))).toBeNull();
     });
   });
+
+  /*
+   * The half-taken arms left on this component: a teardown with nothing pending, the fallback
+   * used when the form has no task selected, and a snapshot that does not carry every key.
+   */
+  describe("remaining guards", () => {
+    // This suite's shared afterEach does not restore mocks, and one test below spies on a
+    // global, so the block cleans up after itself rather than leaving it installed for the
+    // rest of the file.
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it("clears no timeout when initialization already finished", () => {
+      const clearSpy = vi.spyOn(globalThis, "clearTimeout");
+      (component as any).initTimeout = null;
+
+      component.ngOnDestroy();
+
+      // The interval teardown may still call clearInterval; only the timeout arm is asserted.
+      expect(clearSpy).not.toHaveBeenCalled();
+    });
+
+    it("falls back to the last selected task when the form carries none", () => {
+      const snapshot = vi.spyOn(component as any, "snapshotTaskState").mockImplementation(() => {});
+      vi.spyOn(component as any, "getCurrentTaskTag").mockReturnValue(null);
+      // Only the fallback is under test; what the selection then does is covered elsewhere.
+      vi.spyOn(component as any, "syncTaskSelection").mockImplementation(() => {});
+      vi.spyOn(component as any, "restoreTaskState").mockImplementation(() => {});
+      vi.spyOn(component as any, "loadAllModels").mockImplementation(() => {});
+      (component as any).selectedTaskTag = "text-generation";
+
+      component.onTaskSelected("image-classification");
+
+      // The task being snapshotted is the fallback, not the (absent) form value.
+      expect(snapshot).toHaveBeenCalledWith("text-generation");
+    });
+
+    it("restores only the keys a snapshot actually carries", () => {
+      const write = vi.spyOn(component as any, "writeFieldValue").mockImplementation(() => {});
+      (component as any).taskStateByTag.set("image-classification", { modelId: "m1" });
+
+      (component as any).restoreTaskState("image-classification");
+
+      const writtenKeys = write.mock.calls.map(call => call[0]);
+      expect(writtenKeys).toEqual(["modelId"]);
+    });
+  });
 });

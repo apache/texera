@@ -148,10 +148,8 @@ class LakeFSFileNodeSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "treat a repeated final path segment as one directory and one file" in {
-    // "model/model" repeats its last segment. Deciding file-vs-directory by value rather than
-    // position made the intermediate directory the leaf: it took the object's size and the real
-    // file hung underneath it, so calculateTotalSize double-counted and the frontend saw a
-    // "file" node with children.
+    // Deciding file-vs-directory by value made the intermediate "model" the leaf, so the
+    // size was double-counted and a "file" node carried children.
     val roots = LakeFSFileNode.fromLakeFSRepositoryCommittedObjects(
       ResourceType.Model,
       Map(("bob@texera.com", "sentiment", "v1") -> List(objStats("model/model", 7L)))
@@ -172,10 +170,9 @@ class LakeFSFileNodeSpec extends AnyFlatSpec with Matchers {
     LakeFSFileNode.calculateTotalSize(roots) shouldBe 7L
   }
 
-  it should "not duplicate a name when an object and a directory collide" in {
-    // LakeFS is a key-value store: "model" and "model/weights.bin" can both exist in one
-    // version. Mapping that onto a tree cannot keep both, but it must not emit two children
-    // with the same name.
+  it should "keep every object when a name is both an object and a directory prefix" in {
+    // Both keys can exist in one version and a tree cannot name both, so they surface as
+    // two siblings called "model". Untidy, but nothing is dropped.
     val roots = LakeFSFileNode.fromLakeFSRepositoryCommittedObjects(
       ResourceType.Model,
       Map(
@@ -188,15 +185,20 @@ class LakeFSFileNodeSpec extends AnyFlatSpec with Matchers {
 
     val versionNode = roots.head.getChildren.head.getChildren.head.getChildren.head
     val named = versionNode.getChildren.filter(_.getName == "model")
-    named should have size 1
 
-    // The directory wins, since it has to hold the deeper object.
-    val dir = named.head
-    dir.getNodeType shouldBe "directory"
-    dir.getSize shouldBe None
-    dir.getChildren.map(_.getName) shouldBe List("weights.bin")
+    // One stands for the object, the other holds the deeper object.
+    named.map(_.getNodeType) should contain allOf ("file", "directory")
 
-    // Only the object that is actually representable is counted.
-    LakeFSFileNode.calculateTotalSize(roots) shouldBe 5L
+    val asFile = named.find(_.getNodeType == "file").get
+    asFile.getSize shouldBe Some(3L)
+    asFile.getFilePath shouldBe "/model/bob@texera.com/sentiment/v1/model"
+
+    val asDir = named.find(_.getNodeType == "directory").get
+    asDir.getChildren.map(_.getName) shouldBe List("weights.bin")
+    asDir.getChildren.head.getFilePath shouldBe
+      "/model/bob@texera.com/sentiment/v1/model/weights.bin"
+
+    // Both objects are counted: 3 + 5.
+    LakeFSFileNode.calculateTotalSize(roots) shouldBe 8L
   }
 }

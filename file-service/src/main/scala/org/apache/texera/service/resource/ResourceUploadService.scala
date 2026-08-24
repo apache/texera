@@ -332,7 +332,7 @@ object ResourceUploadService {
         var read = fileStream.read(buf, buffered, buf.length - buffered)
         while (read != -1) {
           buffered += read
-          if (buffered == buf.length) flush() // buffer full
+          if (buffered >= buf.length) flush() // buffer full
           read = fileStream.read(buf, buffered, buf.length - buffered)
         }
         fileStream.close()

@@ -19,7 +19,12 @@
 
 package org.apache.texera.amber.operator.sklearn
 
-import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyDescription}
+import com.fasterxml.jackson.annotation.{
+  JsonFormat,
+  JsonIgnore,
+  JsonProperty,
+  JsonPropertyDescription
+}
 import com.kjetland.jackson.jsonSchema.annotations.{
   JsonSchemaInject,
   JsonSchemaInt,
@@ -50,12 +55,15 @@ abstract class SklearnModelOpDesc extends PythonOperatorDescriptor {
   var countVectorizer: Boolean = false
 
   @JsonSchemaTitle("Text Attribute")
-  @JsonPropertyDescription("Attribute in your dataset with text to vectorize.")
+  @JsonPropertyDescription("Attributes in your dataset with text to vectorize.")
+  // A workflow written before this field took several columns holds a bare string
+  // here, which reads as a list of one.
+  @JsonFormat(`with` = Array(JsonFormat.Feature.ACCEPT_SINGLE_VALUE_AS_ARRAY))
   @JsonSchemaInject(
     strings = Array(
       new JsonSchemaString(
         path = CommonOpDescAnnotation.autofill,
-        value = CommonOpDescAnnotation.attributeName
+        value = CommonOpDescAnnotation.attributeNameList
       ),
       new JsonSchemaString(path = HideAnnotation.hideTarget, value = "countVectorizer"),
       new JsonSchemaString(path = HideAnnotation.hideType, value = HideAnnotation.Type.equals),
@@ -65,7 +73,7 @@ abstract class SklearnModelOpDesc extends PythonOperatorDescriptor {
       new JsonSchemaInt(path = CommonOpDescAnnotation.autofillAttributeOnPort, value = 0)
     )
   )
-  var text: EncodableString = _
+  var text: List[EncodableString] = List()
 
   @JsonSchemaTitle("Tfidf Transformer")
   @JsonPropertyDescription("Transform a count matrix to a normalized tf or tf-idf representation.")
@@ -78,6 +86,30 @@ abstract class SklearnModelOpDesc extends PythonOperatorDescriptor {
     )
   )
   var tfidfTransformer: Boolean = false
+
+  /** The pipeline step that turns the named text columns into features, empty when
+    * Count Vectorizer is off.
+    *
+    * One `CountVectorizer` per column rather than one over all of them:
+    * `CountVectorizer` takes a flat sequence of documents, so handing it several
+    * columns reads them as one document each rather than as the rows. A
+    * `ColumnTransformer` gives each its own and concatenates the results, keeping
+    * the column a word came from distinguishable through the feature's prefix.
+    *
+    * The steps are named by position, not after the column, so that a column whose
+    * name carries a double underscore cannot collide with the separator
+    * `get_feature_names_out` puts between step and feature.
+    *
+    * `renderColumn` writes one column name in the caller's dialect: an encoded
+    * expression for the operator, a literal for the standalone script.
+    */
+  @JsonIgnore
+  protected def vectorizerStage(renderColumn: EncodableString => String): String =
+    if (!countVectorizer) ""
+    else
+      text.zipWithIndex
+        .map { case (column, i) => s"""("text$i", CountVectorizer(), ${renderColumn(column)})""" }
+        .mkString("ColumnTransformer([", ", ", "]),")
 
   @JsonIgnore
   def getImportStatements: String

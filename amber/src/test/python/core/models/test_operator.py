@@ -208,6 +208,28 @@ class TestBatchOperatorValidation:
         with pytest.raises(ValueError):
             BatchOperator._validate_batch_size("10")
 
+    def test_validate_batch_size_non_int_message_names_the_float_type(self):
+        # The message must name the offending type, not a template literal.
+        with pytest.raises(ValueError) as excinfo:
+            BatchOperator._validate_batch_size(10.0)
+        assert str(excinfo.value) == "BATCH_SIZE cannot be <class 'float'>."
+
+    def test_validate_batch_size_non_int_message_names_the_str_type(self):
+        with pytest.raises(ValueError) as excinfo:
+            BatchOperator._validate_batch_size("10")
+        assert str(excinfo.value) == "BATCH_SIZE cannot be <class 'str'>."
+
+    def test_concrete_batch_operator_with_float_size_reports_type_in_message(self):
+        class _FloatBatch(BatchOperator):
+            BATCH_SIZE = 10.0
+
+            def process_batch(self, batch, port):
+                yield batch
+
+        with pytest.raises(ValueError) as excinfo:
+            _FloatBatch()
+        assert str(excinfo.value) == "BATCH_SIZE cannot be <class 'float'>."
+
     def test_validate_batch_size_rejects_zero(self):
         with pytest.raises(ValueError, match="positive"):
             BatchOperator._validate_batch_size(0)
