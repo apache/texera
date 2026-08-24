@@ -42,7 +42,6 @@ import org.apache.texera.web.model.websocket.request.python.DebugCommandRequest
 import org.apache.texera.web.storage.ExecutionStateStore
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterAll
-
 import org.scalatest.concurrent.Eventually.eventually
 import org.scalatest.concurrent.PatienceConfiguration.{Interval, Timeout}
 import org.scalatest.flatspec.AnyFlatSpecLike
