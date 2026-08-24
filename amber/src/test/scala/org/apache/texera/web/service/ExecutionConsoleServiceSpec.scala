@@ -43,12 +43,10 @@ import org.apache.texera.web.storage.ExecutionStateStore
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterAll
 
-import org.scalatest.flatspec.AnyFlatSpecLike
-import org.scalatest.matchers.should.Matchers
-
-
 import org.scalatest.concurrent.Eventually.eventually
 import org.scalatest.concurrent.PatienceConfiguration.{Interval, Timeout}
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.time.{Millis, Span}
 
 import java.time.Instant
