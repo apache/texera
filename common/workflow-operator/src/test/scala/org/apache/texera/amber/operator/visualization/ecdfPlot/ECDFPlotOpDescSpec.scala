@@ -278,6 +278,8 @@ class ECDFPlotOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matchers {
     // step has to be spliced BEFORE the figure so the plot is built on cleaned rows,
     // with the "no valid rows left" guard sitting between the two; swapping the two
     // splices would plot uncleaned data and leave that second guard dead.
+    code should include("pd.to_numeric(")
+    code should include("px.ecdf(")
     code.indexOf("pd.to_numeric(") should be < code.indexOf("px.ecdf(")
     code.indexOf("px.ecdf(") should be < code.indexOf("plotly.io.to_html(")
     code.indexOf("input table is empty.") should be <
