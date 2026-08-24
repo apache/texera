@@ -128,7 +128,7 @@ object LakeFSFileNode {
           val pathParts = obj.getPath.split("/").toList
           var currentPath = ""
           var parentNode: LakeFSFileNode = versionNode
-
+          //TODO: To check the logic of promoting the leaf vs duplicating the leaf
           pathParts.zipWithIndex.foreach {
             case (part, idx) =>
               currentPath = if (currentPath.isEmpty) part else s"$currentPath/$part"
