@@ -24,18 +24,18 @@ import org.apache.texera.amber.core.storage.ResourceType
 
 import scala.collection.mutable
 
-// DatasetFileNode represents a unique file in a versioned resource (dataset or model).
+// LakeFSFileNode represents a unique file in a versioned resource (dataset or model).
 // Its full path is in the format of:
 // /<resourceType>/ownerEmail/resourceName/versionName/fileRelativePath
 // e.g. /dataset/bob@texera.com/twitterDataset/v1/california/irvine/tw1.csv
 //      /model/bob@texera.com/sentimentModel/v1/model.pt
-class DatasetFileNode(
+class LakeFSFileNode(
     val name: String, // direct name of this node
     val nodeType: String, // "file" or "directory"
-    val parent: DatasetFileNode, // the parent node
+    val parent: LakeFSFileNode, // the parent node
     val ownerEmail: String,
     val size: Option[Long] = None, // size of the file in bytes, None if directory
-    var children: Option[List[DatasetFileNode]] = None // Only populated if 'type' is 'directory'
+    var children: Option[List[LakeFSFileNode]] = None // Only populated if 'type' is 'directory'
 ) {
 
   // Ensure the type is either "file" or "directory"
@@ -46,18 +46,18 @@ class DatasetFileNode(
 
   def getNodeType: String = nodeType
 
-  def getParent: DatasetFileNode = parent
+  def getParent: LakeFSFileNode = parent
 
   def getOwnerEmail: String = ownerEmail
 
   def getSize: Option[Long] = size
 
-  def getChildren: List[DatasetFileNode] = children.getOrElse(List())
+  def getChildren: List[LakeFSFileNode] = children.getOrElse(List())
 
   // Method to get the full file path
   def getFilePath: String = {
     val pathComponents = new mutable.ArrayBuffer[String]()
-    var currentNode: DatasetFileNode = this
+    var currentNode: LakeFSFileNode = this
     while (currentNode != null) {
       if (currentNode.parent != null) { // Skip the root node to avoid double slashes
         pathComponents.prepend(currentNode.name)
@@ -68,13 +68,13 @@ class DatasetFileNode(
   }
 }
 
-object DatasetFileNode {
+object LakeFSFileNode {
 
   /**
     * Converts a map of LakeFS committed objects into a structured file node tree.
     *
     * The tree is rooted at the resource-type segment (`dataset` or `model`), which
-    * [[DatasetFileNode.getFilePath]] emits as the first path component. That prefix is
+    * [[LakeFSFileNode.getFilePath]] emits as the first path component. That prefix is
     * what `FileResolver` keys on to pick the backing table, so it must match the
     * resource the objects actually came from.
     *
@@ -85,68 +85,68 @@ object DatasetFileNode {
   def fromLakeFSRepositoryCommittedObjects(
       resourceType: ResourceType.Value,
       map: Map[(String, String, String), List[ObjectStats]]
-  ): List[DatasetFileNode] = {
-    val rootNode = new DatasetFileNode("/", "directory", null, "")
+  ): List[LakeFSFileNode] = {
+    val rootNode = new LakeFSFileNode("/", "directory", null, "")
 
     // Root the tree at the resource-type prefix node (a directory node named e.g. "dataset").
     val resourceTypeNode =
-      new DatasetFileNode(resourceType.toString, "directory", rootNode, "")
+      new LakeFSFileNode(resourceType.toString, "directory", rootNode, "")
     rootNode.children = Some(List(resourceTypeNode))
 
     // Owner level nodes map
-    val ownerNodes = mutable.Map[String, DatasetFileNode]()
+    val ownerNodes = mutable.Map[String, LakeFSFileNode]()
 
     map.foreach {
       case ((ownerEmail, resourceName, versionName), objects) =>
         val ownerNode = ownerNodes.getOrElseUpdate(
           ownerEmail, {
-            val newNode = new DatasetFileNode(ownerEmail, "directory", resourceTypeNode, ownerEmail)
+            val newNode = new LakeFSFileNode(ownerEmail, "directory", resourceTypeNode, ownerEmail)
             resourceTypeNode.children = Some(resourceTypeNode.getChildren :+ newNode)
             newNode
           }
         )
 
         val resourceNode = ownerNode.getChildren.find(_.getName == resourceName).getOrElse {
-          val newNode = new DatasetFileNode(resourceName, "directory", ownerNode, ownerEmail)
+          val newNode = new LakeFSFileNode(resourceName, "directory", ownerNode, ownerEmail)
           ownerNode.children = Some(ownerNode.getChildren :+ newNode)
           newNode
         }
 
         val versionNode = resourceNode.getChildren.find(_.getName == versionName).getOrElse {
-          val newNode = new DatasetFileNode(versionName, "directory", resourceNode, ownerEmail)
+          val newNode = new LakeFSFileNode(versionName, "directory", resourceNode, ownerEmail)
           resourceNode.children = Some(resourceNode.getChildren :+ newNode)
           newNode
         }
 
-        // Directory map for efficient lookups
-        val directoryMap = mutable.Map[String, DatasetFileNode]()
-        directoryMap("") = versionNode // Root of the dataset version
+        // Directories only. Registering leaves would let "model" be reused as the parent of
+        // "model/weights.bin", dropping the object it stands for from the tree and the size.
+        val directoryMap = mutable.Map[String, LakeFSFileNode]()
+        directoryMap("") = versionNode // Root of the resource version
 
         // Process each object (file or directory) from LakeFS
         objects.foreach { obj =>
           val pathParts = obj.getPath.split("/").toList
           var currentPath = ""
-          var parentNode: DatasetFileNode = versionNode
-
+          var parentNode: LakeFSFileNode = versionNode
+          //TODO: To check the logic of promoting the leaf vs duplicating the leaf
           pathParts.zipWithIndex.foreach {
             case (part, idx) =>
               currentPath = if (currentPath.isEmpty) part else s"$currentPath/$part"
 
-              // Positional, not by value: a path that repeats its final segment (e.g.
-              // "model/model") would otherwise treat the intermediate directory as the leaf,
-              // giving it the object's size and nesting the real file underneath it.
+              // Positional, not by value: "model/model" would otherwise make the directory
+              // the leaf.
               val isFile = idx == pathParts.length - 1
               val nodeType = if (isFile) "file" else "directory"
               val fileSize = if (isFile) Some(obj.getSizeBytes.longValue()) else None
 
-              val existingNode = directoryMap.get(currentPath)
-
-              val node = existingNode.getOrElse {
-                val newNode = new DatasetFileNode(part, nodeType, parentNode, ownerEmail, fileSize)
-                parentNode.children = Some(parentNode.getChildren :+ newNode)
-                if (!isFile) directoryMap(currentPath) = newNode
-                newNode
-              }
+              val node = directoryMap.getOrElse(
+                currentPath, {
+                  val newNode = new LakeFSFileNode(part, nodeType, parentNode, ownerEmail, fileSize)
+                  parentNode.children = Some(parentNode.getChildren :+ newNode)
+                  if (!isFile) directoryMap(currentPath) = newNode
+                  newNode
+                }
+              )
 
               parentNode = node // Move parent reference deeper for next iteration
           }
@@ -154,7 +154,7 @@ object DatasetFileNode {
     }
 
     // Sorting function to sort children of a node alphabetically in descending order
-    def sortChildren(node: DatasetFileNode): Unit = {
+    def sortChildren(node: LakeFSFileNode): Unit = {
       node.children = Some(node.getChildren.sortBy(_.getName)(Ordering.String.reverse))
       node.getChildren.foreach(sortChildren)
     }
@@ -166,13 +166,13 @@ object DatasetFileNode {
   }
 
   /**
-    * Traverses a given list of DatasetFileNode and returns the total size of all files.
+    * Traverses a given list of LakeFSFileNode and returns the total size of all files.
     *
-    * @param nodes List of root-level DatasetFileNode.
+    * @param nodes List of root-level LakeFSFileNode.
     * @return Total size in bytes.
     */
-  def calculateTotalSize(nodes: List[DatasetFileNode]): Long = {
-    def traverse(node: DatasetFileNode): Long = {
+  def calculateTotalSize(nodes: List[LakeFSFileNode]): Long = {
+    def traverse(node: LakeFSFileNode): Long = {
       val fileSize = node.getSize.getOrElse(0L)
       val childrenSize = node.getChildren.map(traverse).sum
       fileSize + childrenSize

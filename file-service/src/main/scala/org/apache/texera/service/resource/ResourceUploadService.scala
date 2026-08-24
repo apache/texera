@@ -44,7 +44,7 @@ import org.apache.texera.dao.jooq.generated.tables.records.{
   ModelUploadSessionRecord,
   ModelUserAccessRecord
 }
-import org.apache.texera.service.`type`.DatasetFileNode
+import org.apache.texera.service.`type`.LakeFSFileNode
 import org.apache.texera.service.util.LakeFSExceptionHandler.withLakeFSErrorHandling
 import org.apache.texera.service.util.PresignedDownloadUtils
 import org.apache.texera.service.util.S3StorageClient
@@ -189,8 +189,8 @@ object ResourceUploadService {
       versionName: String,
       repositoryName: String,
       versionHash: String
-  ): (List[DatasetFileNode], Long) = {
-    val rootNode = DatasetFileNode
+  ): (List[LakeFSFileNode], Long) = {
+    val rootNode = LakeFSFileNode
       .fromLakeFSRepositoryCommittedObjects(
         resourceType,
         Map(
@@ -216,7 +216,7 @@ object ResourceUploadService {
       .children
       .get
 
-    (nodes, DatasetFileNode.calculateTotalSize(List(rootNode)))
+    (nodes, LakeFSFileNode.calculateTotalSize(List(rootNode)))
   }
 
   private def noAccessMessage[R <: Record, A <: Record, S <: Record, P <: Record](
@@ -554,7 +554,7 @@ object ResourceUploadService {
         var read = fileStream.read(buf, buffered, buf.length - buffered)
         while (read != -1) {
           buffered += read
-          if (buffered == buf.length) flush() // buffer full
+          if (buffered >= buf.length) flush() // buffer full
           read = fileStream.read(buf, buffered, buf.length - buffered)
         }
         fileStream.close()

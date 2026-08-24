@@ -96,6 +96,19 @@ class HuggingFaceSpamSMSDetectionOpDescSpec extends AnyFlatSpec with Matchers {
     carries(code, "score") shouldBe true
   }
 
+  it should "guard an empty text cell before it reaches the pipeline" in {
+    val d = configured()
+    val code = d.generatePythonCode()
+
+    // An empty cell arrives as None, and the pipeline answers it with
+    // `ValueError: You need to specify either text or text_target`, ending the run.
+    val guard = code.linesIterator
+      .find(_.contains("text is None"))
+      .getOrElse(fail("generated code no longer guards an empty text cell"))
+    guard should include("strip()")
+    code.indexOf("text is None") should be < code.indexOf("self.pipeline(")
+  }
+
   "HuggingFaceSpamSMSDetectionOpDesc.getPhysicalOp" should
     "wire an OpExecWithCode python executor carrying the operator's ports" in {
     val d = configured()

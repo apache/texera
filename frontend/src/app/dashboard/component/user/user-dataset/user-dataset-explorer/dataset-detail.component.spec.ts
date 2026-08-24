@@ -37,7 +37,7 @@ import { NotificationService } from "../../../../../common/service/notification/
 import { DownloadService } from "../../../../service/user/download/download.service";
 import { UserService } from "../../../../../common/service/user/user.service";
 import { MOCK_USER, StubUserService } from "../../../../../common/service/user/stub-user.service";
-import { HubService } from "../../../../../hub/service/hub.service";
+import { ActionType, EntityType, HubService } from "../../../../../hub/service/hub.service";
 import { AdminSettingsService } from "../../../../service/admin/settings/admin-settings.service";
 import { FileUploadItem } from "../../../../type/dashboard-file.interface";
 import { DatasetFileNode, getFullPathFromDatasetFileNode } from "../../../../../common/type/datasetVersionFileTree";
@@ -337,6 +337,79 @@ describe("DatasetDetailComponent upload queue", () => {
       expect(finalize).toHaveBeenCalledWith("owner@texera.com", "test-dataset", "b.txt", true);
       expect(onCanceled).toHaveBeenCalledTimes(1);
     });
+
+    it("frees the slot of an upload aborted before its first part went out", () => {
+      // A task sits at "initializing" until the service reports its first progress.
+      // Cancelling in that window still has to hand the slot to whatever is queued
+      // behind it, or the queue stalls on an upload that never started.
+      dropFiles("a.txt", "b.txt", "c.txt", "d.txt");
+      expect(uploadedPaths).toEqual(["a.txt", "b.txt", "c.txt"]);
+      const initializing = component.uploadTasks.find(t => t.filePath === "a.txt")!;
+      expect(initializing.status).toBe("initializing");
+
+      component.onClickAbortUploadProgress(initializing as any);
+
+      expect(uploadedPaths).toContain("d.txt");
+      expect(component.activeCount).toBe(3);
+    });
+
+    it("does not free a second slot when a finished upload's row is dismissed", () => {
+      // The row's button becomes "Close" once the upload is done, and the slot was
+      // already released by the completion; releasing it a second time would let a
+      // fourth upload run past the concurrency cap.
+      dropFiles("a.txt", "b.txt", "c.txt", "d.txt");
+      finishUpload(0, "a.txt");
+      expect(uploadedPaths).toContain("d.txt");
+      const finished = component.uploadTasks.find(t => t.filePath === "a.txt")!;
+      expect(finished.status).toBe("finished");
+
+      component.onClickAbortUploadProgress(finished as any);
+
+      expect(component.activeCount).toBe(3);
+      const dismissed = component.uploadTasks.find(t => t.filePath === "a.txt")!;
+      expect(dismissed.status).toBe("aborted");
+
+      // The row lingers for five seconds after being dismissed, so the same X is
+      // still there to be clicked again — and that click must not release either.
+      component.onClickAbortUploadProgress(dismissed as any);
+
+      expect(component.activeCount).toBe(3);
+    });
+
+    it("does not free a second slot when a failed upload's row is dismissed", () => {
+      // The failure handler already released this upload's slot and let the queued
+      // fourth file start; dismissing the row it left behind must not release a
+      // second slot, or a fifth upload would run past the cap of three.
+      dropFiles("a.txt", "b.txt", "c.txt", "d.txt");
+      uploadSubjects[0].error(new HttpErrorResponse({ status: 500 }));
+      expect(uploadedPaths).toContain("d.txt");
+      const failed = component.uploadTasks.find(t => t.filePath === "a.txt")!;
+      expect(failed.status).toBe("failed");
+
+      component.onClickAbortUploadProgress(failed as any);
+
+      expect(component.activeCount).toBe(3);
+      expect(multipartUploadSpy).toHaveBeenCalledTimes(4);
+    });
+
+    it("cancelExistingUpload aborts an upload whose first part has not gone out", () => {
+      // Until the service reports a first chunk the task sits at "initializing".
+      // A re-drop in that window has to abort that attempt rather than fall
+      // through and race a second multipart upload against it for the same path,
+      // which is exactly the 409 the upload error handler warns about.
+      dropFiles("b.txt");
+      expect(component.uploadTasks.find(t => t.filePath === "b.txt")!.status).toBe("initializing");
+      const onCanceled = vi.fn();
+
+      component.cancelExistingUpload("b.txt", onCanceled);
+
+      expect(finalize).toHaveBeenCalledWith("owner@texera.com", "test-dataset", "b.txt", true);
+      expect(component.uploadTasks.find(t => t.filePath === "b.txt")!.status).toBe("aborted");
+      // The slot goes back to the queue instead of being held by an attempt that
+      // is no longer running.
+      expect(component.activeCount).toBe(0);
+      expect(onCanceled).toHaveBeenCalledTimes(1);
+    });
   });
 
   /**
@@ -629,6 +702,19 @@ describe("DatasetDetailComponent upload queue", () => {
     expect(component.activeCount).toBe(0);
     expect(component.queuedCount).toBe(0);
     expect(component.queuedFileNames).toEqual([]);
+  });
+
+  it("starts no upload at all when the route carried no dataset id", () => {
+    // Every multipart call is addressed to a dataset, so without one there is
+    // nowhere to upload into: the drop is refused outright rather than leaving
+    // rows on the panel for uploads that were never started.
+    component.did = undefined;
+
+    dropFiles("f1.txt", "f2.txt");
+
+    expect(multipartUploadSpy).not.toHaveBeenCalled();
+    expect(component.uploadTasks).toEqual([]);
+    expect(component.activeCount).toBe(0);
   });
 
   it("starts the next queued upload when an active upload finishes", () => {
@@ -1009,6 +1095,69 @@ describe("DatasetDetailComponent behavior", () => {
       expect(hubServiceStub.getCounts).not.toHaveBeenCalled();
       expect(hubServiceStub.postView).not.toHaveBeenCalled();
     });
+
+    it("reads a counts response with no like tally as no likes, and no liked record as not liked", () => {
+      // Both are legitimate wire shapes: `counts` is a partial map keyed by action
+      // type, and `isLiked` simply omits entities the user has no record against.
+      hubServiceStub.getCounts.mockReturnValue(of([{ counts: {} }]));
+      hubServiceStub.isLiked.mockReturnValue(of([]));
+
+      createComponent({ did: 5 });
+      // Seed both fields with values the response cannot produce, so falling back
+      // is distinguishable from leaving whatever happened to be there.
+      component.likeCount = 9;
+      component.isLiked = true;
+      login();
+      fixture.detectChanges();
+
+      const likeTag: HTMLElement = fixture.nativeElement.querySelector(".like-tag");
+      expect(likeTag).not.toBeNull();
+      expect((likeTag.textContent ?? "").trim()).toBe("0");
+      expect(likeTag.classList).not.toContain("liked");
+      // The tally shown is the dataset's own like count, not some other entity's
+      // or some other action's: nothing else in the suite pins these arguments.
+      expect(hubServiceStub.getCounts).toHaveBeenCalledWith([EntityType.Dataset], [5], [ActionType.Like]);
+    });
+
+    it("leaves the chunk size untouched when only that setting fails to load", () => {
+      // A distinct value per key, so a setting that lands in the wrong field is
+      // visible: 7 chunks and 2 files cannot stand in for one another.
+      adminSettingsServiceStub.getPublicSetting.mockImplementation((key: string) =>
+        key === "multipart_upload_chunk_size_mib"
+          ? throwError(() => new Error("boom"))
+          : of(key === "max_number_of_concurrent_uploading_file_chunks" ? "7" : "2")
+      );
+
+      createComponent({ did: 5 });
+      // A sentinel the class default cannot supply, so "the failed fetch wrote
+      // nothing" is distinguishable from "it wrote the default back".
+      component.chunkSizeMiB = 42;
+      login();
+      fixture.detectChanges();
+
+      expect(component.chunkSizeMiB).toBe(42);
+      expect(component.maxConcurrentChunks).toBe(7);
+      expect(component.maxConcurrentFiles).toBe(2);
+    });
+
+    it("leaves both concurrency limits untouched when their settings fail to load", () => {
+      adminSettingsServiceStub.getPublicSetting.mockImplementation((key: string) =>
+        key === "multipart_upload_chunk_size_mib" ? of("128") : throwError(() => new Error("boom"))
+      );
+
+      createComponent({ did: 5 });
+      // Sentinels again. A failed fetch that wrote anything here — a reset or a
+      // NaN — would stall the queue outright, since `activeUploads < NaN` is
+      // never true, and a plain default-valued assertion could not see it.
+      component.maxConcurrentChunks = 41;
+      component.maxConcurrentFiles = 40;
+      login();
+      fixture.detectChanges();
+
+      expect(component.chunkSizeMiB).toBe(128);
+      expect(component.maxConcurrentChunks).toBe(41);
+      expect(component.maxConcurrentFiles).toBe(40);
+    });
   });
 
   describe("retrieveDatasetInfo", () => {
@@ -1386,6 +1535,50 @@ describe("DatasetDetailComponent behavior", () => {
       expect(component.datasetIsDownloadable).toBe(true);
       expect(notificationServiceStub.error).toHaveBeenCalledWith("Failed to change the dataset download permission");
     });
+
+    it("marks the dataset private and names that state, not the one it left", () => {
+      createComponent();
+      component.did = 5;
+      component.datasetName = "MyDS";
+      component.datasetIsPublic = true;
+
+      component.onPublicStatusChange(false);
+
+      expect(component.datasetIsPublic).toBe(false);
+      expect(notificationServiceStub.success).toHaveBeenCalledWith("Dataset MyDS is now private");
+    });
+
+    it("marks downloads allowed and names that state, not the one it left", () => {
+      createComponent();
+      component.did = 5;
+      component.datasetIsDownloadable = false;
+
+      component.onDownloadableStatusChange(true);
+
+      expect(component.datasetIsDownloadable).toBe(true);
+      expect(notificationServiceStub.success).toHaveBeenCalledWith("Dataset downloads are now allowed");
+    });
+
+    it("does not attempt a publicity change without a dataset id", () => {
+      createComponent();
+      component.did = undefined;
+
+      component.onPublicStatusChange(true);
+
+      expect(datasetServiceStub.updateDatasetPublicity).not.toHaveBeenCalled();
+      expect(component.datasetIsPublic).toBe(false);
+    });
+
+    it("does not attempt a download-permission change without a dataset id", () => {
+      createComponent();
+      component.did = undefined;
+      component.datasetIsDownloadable = true;
+
+      component.onDownloadableStatusChange(false);
+
+      expect(datasetServiceStub.updateDatasetDownloadable).not.toHaveBeenCalled();
+      expect(component.datasetIsDownloadable).toBe(true);
+    });
   });
 
   describe("onClickOpenVersionCreator", () => {
@@ -1568,6 +1761,77 @@ describe("DatasetDetailComponent behavior", () => {
       expect(hubServiceStub.postLike).not.toHaveBeenCalled();
       expect(hubServiceStub.postUnlike).not.toHaveBeenCalled();
     });
+
+    it("leaves the dataset liked when the server refuses the unlike", () => {
+      hubServiceStub.postUnlike.mockReturnValue(of(false));
+      // A tally only a refresh could produce, so a refresh that must not happen shows.
+      hubServiceStub.getCounts.mockReturnValue(of([{ counts: { like: 99 } }]));
+      createComponent();
+      component.did = 5;
+      component.currentUid = MOCK_USER.uid;
+      component.isLiked = true;
+      component.likeCount = 5;
+
+      component.toggleLike();
+
+      // The unlike is addressed to this dataset, not to some other entity type
+      // that happens to share the id.
+      expect(hubServiceStub.postUnlike).toHaveBeenCalledWith(5, EntityType.Dataset);
+      // Showing the heart as unfilled after a refused unlike would misreport the
+      // stored state, and the next click would then try to like it again.
+      expect(component.isLiked).toBe(true);
+      expect(component.likeCount).toBe(5);
+      expect(hubServiceStub.getCounts).not.toHaveBeenCalled();
+    });
+
+    it("leaves the dataset unliked when the server refuses the like", () => {
+      hubServiceStub.postLike.mockReturnValue(of(false));
+      hubServiceStub.getCounts.mockReturnValue(of([{ counts: { like: 99 } }]));
+      createComponent();
+      component.did = 5;
+      component.currentUid = MOCK_USER.uid;
+      component.isLiked = false;
+      component.likeCount = 5;
+
+      component.toggleLike();
+
+      expect(hubServiceStub.postLike).toHaveBeenCalledWith(5, EntityType.Dataset);
+      expect(component.isLiked).toBe(false);
+      expect(component.likeCount).toBe(5);
+      expect(hubServiceStub.getCounts).not.toHaveBeenCalled();
+    });
+
+    it("reads a refreshed count with no like tally as no likes after unliking", () => {
+      hubServiceStub.postUnlike.mockReturnValue(of(true));
+      hubServiceStub.getCounts.mockReturnValue(of([{ counts: {} }]));
+      createComponent();
+      component.did = 5;
+      component.currentUid = MOCK_USER.uid;
+      component.isLiked = true;
+      component.likeCount = 5;
+
+      component.toggleLike();
+
+      // The refresh re-reads this dataset's like tally: a request for another
+      // entity, another action or another id would return a stranger's count.
+      expect(hubServiceStub.getCounts).toHaveBeenCalledWith([EntityType.Dataset], [5], [ActionType.Like]);
+      expect(component.likeCount).toBe(0);
+    });
+
+    it("reads a refreshed count with no like tally as no likes after liking", () => {
+      hubServiceStub.postLike.mockReturnValue(of(true));
+      hubServiceStub.getCounts.mockReturnValue(of([{ counts: {} }]));
+      createComponent();
+      component.did = 5;
+      component.currentUid = MOCK_USER.uid;
+      component.isLiked = false;
+      component.likeCount = 5;
+
+      component.toggleLike();
+
+      expect(hubServiceStub.getCounts).toHaveBeenCalledWith([EntityType.Dataset], [5], [ActionType.Like]);
+      expect(component.likeCount).toBe(0);
+    });
   });
 
   describe("cover image and description persistence", () => {
@@ -1596,6 +1860,52 @@ describe("DatasetDetailComponent behavior", () => {
       component.onSetCoverImage("img.png");
 
       expect(notificationServiceStub.error).toHaveBeenCalledWith("nope");
+    });
+
+    it("drops the previous cover url when the refreshed one cannot be fetched", () => {
+      datasetServiceStub.updateDatasetCoverImage.mockReturnValue(of({}));
+      datasetServiceStub.getDatasetCoverUrl.mockReturnValue(throwError(() => new Error("boom")));
+      createComponent();
+      component.did = 5;
+      component.selectedVersion = makeVersion({ name: "v1" });
+      component.coverImageUrl = "http://stale";
+
+      component.onSetCoverImage("img.png");
+
+      // The stale url still points at the cover that was just replaced, so keeping
+      // it would show the old image as though the change had not been made.
+      expect(component.coverImageUrl).toBeNull();
+      expect(notificationServiceStub.success).toHaveBeenCalledWith("Cover image updated.");
+    });
+
+    it("does not surface a non-HTTP failure's own message when setting the cover image", () => {
+      // A rejection from below the HTTP layer, shaped like a response but not one:
+      // only a real HttpErrorResponse carries a body the backend meant for a user,
+      // so this text must stay out of the toast. Reading `.error.message` off
+      // anything that has it would leak the transport detail instead.
+      datasetServiceStub.updateDatasetCoverImage.mockReturnValue(
+        throwError(() => ({ status: 0, error: { message: "connect ECONNREFUSED 127.0.0.1:8080" } }))
+      );
+      createComponent();
+      component.did = 5;
+      component.selectedVersion = makeVersion({ name: "v1" });
+
+      component.onSetCoverImage("img.png");
+
+      expect(notificationServiceStub.error).toHaveBeenCalledWith("Failed to set cover image");
+    });
+
+    it("falls back to a generic message when the error body carries none", () => {
+      datasetServiceStub.updateDatasetCoverImage.mockReturnValue(
+        throwError(() => new HttpErrorResponse({ error: {}, status: 500 }))
+      );
+      createComponent();
+      component.did = 5;
+      component.selectedVersion = makeVersion({ name: "v1" });
+
+      component.onSetCoverImage("img.png");
+
+      expect(notificationServiceStub.error).toHaveBeenCalledWith("Failed to set cover image");
     });
 
     it("does nothing when there is no selected version to attach the cover to", () => {
@@ -1716,6 +2026,58 @@ describe("DatasetDetailComponent behavior", () => {
     it("trackByTask returns the task's file path", () => {
       const task = { filePath: "owner/data/file.csv" } as unknown as Parameters<typeof component.trackByTask>[1];
       expect(component.trackByTask(0, task)).toBe("owner/data/file.csv");
+    });
+  });
+
+  describe("onPreviouslyUploadedFileDeleted", () => {
+    const node: DatasetFileNode = {
+      name: "a.txt",
+      type: "file",
+      parentDir: "/dataset/owner@texera.com/ds/v1/nested",
+    };
+
+    it("does not delete a file without a dataset id", () => {
+      createComponent();
+      component.did = undefined;
+
+      component.onPreviouslyUploadedFileDeleted(node);
+
+      expect(datasetServiceStub.deleteDatasetFile).not.toHaveBeenCalled();
+    });
+
+    it("toasts an error and stages nothing when the deletion fails", () => {
+      datasetServiceStub.deleteDatasetFile.mockReturnValue(throwError(() => new Error("boom")));
+      createComponent();
+      component.did = 5;
+      const emit = vi.fn();
+      component.userMakeChanges.subscribe(emit);
+
+      component.onPreviouslyUploadedFileDeleted(node);
+
+      expect(notificationServiceStub.error).toHaveBeenCalledWith("Failed to delete the file");
+      // A file the backend still holds is not a staged change, so counting it would
+      // offer a version to create out of a deletion that never happened.
+      expect(component.pendingChangesCount).toBe(0);
+      expect(component.userHasPendingChanges).toBe(false);
+      expect(emit).not.toHaveBeenCalled();
+    });
+
+    it("stages the deletion under the same path the next diff response confirms", () => {
+      createComponent();
+      component.did = 5;
+
+      component.onPreviouslyUploadedFileDeleted(node);
+
+      expect(datasetServiceStub.deleteDatasetFile).toHaveBeenCalledWith(5, "nested/a.txt");
+      expect(component.pendingChangesCount).toBe(1);
+
+      // The diff response reports staged paths relative to the version root, and
+      // only an exact match retires the locally staged entry. A key in any other
+      // form never reconciles, so the Finished header counts this one deletion
+      // twice until the next version is created.
+      component.onStagedObjectsUpdated([{ path: "nested/a.txt", pathType: "file", diffType: "removed", sizeBytes: 0 }]);
+
+      expect(component.pendingChangesCount).toBe(1);
     });
   });
 

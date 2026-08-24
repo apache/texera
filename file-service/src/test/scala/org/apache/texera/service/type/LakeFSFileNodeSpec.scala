@@ -24,28 +24,28 @@ import org.apache.texera.amber.core.storage.ResourceType
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-// Unit tests for DatasetFileNode: the instance helpers getFilePath, the
+// Unit tests for LakeFSFileNode: the instance helpers getFilePath, the
 // constructor's nodeType require guard, and the companion helpers
 // calculateTotalSize / fromLakeFSRepositoryCommittedObjects. The LakeFS
 // factory is fixtured with lightweight ObjectStats POJOs.
-class DatasetFileNodeSpec extends AnyFlatSpec with Matchers {
+class LakeFSFileNodeSpec extends AnyFlatSpec with Matchers {
 
   // -- constructor require guard ----------------------------------------------
 
-  "DatasetFileNode constructor" should "accept nodeType 'file'" in {
-    val root = new DatasetFileNode("/", "directory", null, "")
-    val node = new DatasetFileNode("a.csv", "file", root, "alice", Some(1L))
+  "LakeFSFileNode constructor" should "accept nodeType 'file'" in {
+    val root = new LakeFSFileNode("/", "directory", null, "")
+    val node = new LakeFSFileNode("a.csv", "file", root, "alice", Some(1L))
     node.getNodeType shouldBe "file"
   }
 
   it should "accept nodeType 'directory'" in {
-    val node = new DatasetFileNode("/", "directory", null, "")
+    val node = new LakeFSFileNode("/", "directory", null, "")
     node.getNodeType shouldBe "directory"
   }
 
   it should "reject any other nodeType" in {
     val ex = intercept[IllegalArgumentException] {
-      new DatasetFileNode("weird", "symlink", null, "")
+      new LakeFSFileNode("weird", "symlink", null, "")
     }
     ex.getMessage should include("type must be 'file' or 'directory'")
   }
@@ -53,15 +53,15 @@ class DatasetFileNodeSpec extends AnyFlatSpec with Matchers {
   // -- getFilePath ------------------------------------------------------------
 
   "getFilePath" should "return just '/' for the root node" in {
-    val root = new DatasetFileNode("/", "directory", null, "")
+    val root = new LakeFSFileNode("/", "directory", null, "")
     root.getFilePath shouldBe "/"
   }
 
   it should "walk parents to build an absolute path and skip the root" in {
-    val root = new DatasetFileNode("/", "directory", null, "")
-    val a = new DatasetFileNode("a", "directory", root, "owner")
-    val b = new DatasetFileNode("b", "directory", a, "owner")
-    val c = new DatasetFileNode("c.csv", "file", b, "owner", Some(10L))
+    val root = new LakeFSFileNode("/", "directory", null, "")
+    val a = new LakeFSFileNode("a", "directory", root, "owner")
+    val b = new LakeFSFileNode("b", "directory", a, "owner")
+    val c = new LakeFSFileNode("c.csv", "file", b, "owner", Some(10L))
 
     a.getFilePath shouldBe "/a"
     b.getFilePath shouldBe "/a/b"
@@ -71,18 +71,18 @@ class DatasetFileNodeSpec extends AnyFlatSpec with Matchers {
   // -- calculateTotalSize -----------------------------------------------------
 
   "calculateTotalSize" should "return 0 for an empty list" in {
-    DatasetFileNode.calculateTotalSize(List.empty) shouldBe 0L
+    LakeFSFileNode.calculateTotalSize(List.empty) shouldBe 0L
   }
 
   it should "sum file sizes recursively across the tree, ignoring directories" in {
-    val root = new DatasetFileNode("/", "directory", null, "")
-    val f1 = new DatasetFileNode("f1", "file", root, "owner", Some(100L))
-    val dir = new DatasetFileNode("dir", "directory", root, "owner")
-    val f2 = new DatasetFileNode("f2", "file", dir, "owner", Some(50L))
-    val f3 = new DatasetFileNode("f3", "file", dir, "owner", Some(25L))
+    val root = new LakeFSFileNode("/", "directory", null, "")
+    val f1 = new LakeFSFileNode("f1", "file", root, "owner", Some(100L))
+    val dir = new LakeFSFileNode("dir", "directory", root, "owner")
+    val f2 = new LakeFSFileNode("f2", "file", dir, "owner", Some(50L))
+    val f3 = new LakeFSFileNode("f3", "file", dir, "owner", Some(25L))
     dir.children = Some(List(f2, f3))
 
-    DatasetFileNode.calculateTotalSize(List(f1, dir)) shouldBe 175L
+    LakeFSFileNode.calculateTotalSize(List(f1, dir)) shouldBe 175L
   }
 
   // -- fromLakeFSRepositoryCommittedObjects -----------------------------------
@@ -96,7 +96,7 @@ class DatasetFileNodeSpec extends AnyFlatSpec with Matchers {
       objStats("b/1.csv", 2L),
       objStats("b/2.csv", 3L)
     )
-    val roots = DatasetFileNode.fromLakeFSRepositoryCommittedObjects(
+    val roots = LakeFSFileNode.fromLakeFSRepositoryCommittedObjects(
       ResourceType.Dataset,
       Map(("bob@texera.com", "twitter", "v1") -> objects)
     )
@@ -128,14 +128,14 @@ class DatasetFileNodeSpec extends AnyFlatSpec with Matchers {
     file1.getFilePath shouldBe "/dataset/bob@texera.com/twitter/v1/b/1.csv"
 
     // Total size equals the sum of the three files.
-    DatasetFileNode.calculateTotalSize(roots) shouldBe 6L
+    LakeFSFileNode.calculateTotalSize(roots) shouldBe 6L
   }
 
   it should "root a model tree at the model prefix, not dataset" in {
     // The prefix is not cosmetic: FileResolver keys on the leading path segment to
-    // choose the backing table, so a model file rooted at "datasets" would resolve
+    // choose the backing table, so a model file rooted at "dataset" would resolve
     // against the dataset table.
-    val roots = DatasetFileNode.fromLakeFSRepositoryCommittedObjects(
+    val roots = LakeFSFileNode.fromLakeFSRepositoryCommittedObjects(
       ResourceType.Model,
       Map(("bob@texera.com", "sentiment", "v1") -> List(objStats("model.pt", 4L)))
     )
@@ -148,11 +148,9 @@ class DatasetFileNodeSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "treat a repeated final path segment as one directory and one file" in {
-    // "model/model" repeats its last segment. Deciding file-vs-directory by value rather than
-    // position made the intermediate directory the leaf: it took the object's size and the real
-    // file hung underneath it, so calculateTotalSize double-counted and the frontend saw a
-    // "file" node with children.
-    val roots = DatasetFileNode.fromLakeFSRepositoryCommittedObjects(
+    // Deciding file-vs-directory by value made the intermediate "model" the leaf, so the
+    // size was double-counted and a "file" node carried children.
+    val roots = LakeFSFileNode.fromLakeFSRepositoryCommittedObjects(
       ResourceType.Model,
       Map(("bob@texera.com", "sentiment", "v1") -> List(objStats("model/model", 7L)))
     )
@@ -169,6 +167,38 @@ class DatasetFileNodeSpec extends AnyFlatSpec with Matchers {
     leaf.getFilePath shouldBe "/model/bob@texera.com/sentiment/v1/model/model"
 
     // counted once, not twice
-    DatasetFileNode.calculateTotalSize(roots) shouldBe 7L
+    LakeFSFileNode.calculateTotalSize(roots) shouldBe 7L
+  }
+
+  it should "keep every object when a name is both an object and a directory prefix" in {
+    // Both keys can exist in one version and a tree cannot name both, so they surface as
+    // two siblings called "model". Untidy, but nothing is dropped.
+    val roots = LakeFSFileNode.fromLakeFSRepositoryCommittedObjects(
+      ResourceType.Model,
+      Map(
+        ("bob@texera.com", "sentiment", "v1") -> List(
+          objStats("model", 3L),
+          objStats("model/weights.bin", 5L)
+        )
+      )
+    )
+
+    val versionNode = roots.head.getChildren.head.getChildren.head.getChildren.head
+    val named = versionNode.getChildren.filter(_.getName == "model")
+
+    // One stands for the object, the other holds the deeper object.
+    named.map(_.getNodeType) should contain allOf ("file", "directory")
+
+    val asFile = named.find(_.getNodeType == "file").get
+    asFile.getSize shouldBe Some(3L)
+    asFile.getFilePath shouldBe "/model/bob@texera.com/sentiment/v1/model"
+
+    val asDir = named.find(_.getNodeType == "directory").get
+    asDir.getChildren.map(_.getName) shouldBe List("weights.bin")
+    asDir.getChildren.head.getFilePath shouldBe
+      "/model/bob@texera.com/sentiment/v1/model/weights.bin"
+
+    // Both objects are counted: 3 + 5.
+    LakeFSFileNode.calculateTotalSize(roots) shouldBe 8L
   }
 }
