@@ -71,13 +71,17 @@ class ECDFPlotOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matchers {
 
     assert(plain.contains("fig = px.ecdf(table"))
     assert(plain.contains("ecdfnorm=None"))
-    assert(plain.contains("ecdfmode=self.decode_python_template"))
     assert(plain.contains("orientation='h'"))
     assert(plain.contains("markers=True"))
-    assert(plain.contains("marginal=self.decode_python_template"))
-    assert(plain.contains("x=self.decode_python_template"))
-    assert(plain.contains("color=self.decode_python_template"))
-    assert(plain.contains("facet_col=self.decode_python_template"))
+    // Assert WHICH value reaches each keyword, not merely that a decode site is
+    // present there. Every one of these arguments renders to the same marker, so a
+    // presence-only check cannot tell x from color, or ecdfmode from marginal, and
+    // the payloads stay freely substitutable underneath it.
+    assert(plain.contains(s"x=$decodeSite('${b64("score")}')"))
+    assert(plain.contains(s"color=$decodeSite('${b64("group")}')"))
+    assert(plain.contains(s"facet_col=$decodeSite('${b64("category")}')"))
+    assert(plain.contains(s"ecdfmode=$decodeSite('${b64("reversed")}')"))
+    assert(plain.contains(s"marginal=$decodeSite('${b64("histogram")}')"))
   }
 
   it should "throw AssertionError naming the Value Column when valueColumn is left empty (manipulateTable)" in {
@@ -161,7 +165,9 @@ class ECDFPlotOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matchers {
     val call = lineContaining(opDesc.createPlotlyFigure().plain, "px.ecdf(")
 
     decodeSiteCount(call) shouldBe 1
-    call should include(s"px.ecdf(table, x=$decodeSite")
+    // The payload, not just the marker: a decode site carrying colorColumn (empty by
+    // default) would satisfy a marker-only check while plotting nothing.
+    call should include(s"px.ecdf(table, x=$decodeSite('${b64("score")}')")
     call should not include "ecdfnorm"
     call should not include ", y="
     call should not include "color="
@@ -178,7 +184,7 @@ class ECDFPlotOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matchers {
     val call = lineContaining(opDesc.createPlotlyFigure().plain, "px.ecdf(")
 
     call should include("ecdfnorm=None")
-    call should include(s", y=$decodeSite")
+    call should include(s", y=$decodeSite('${b64("score")}')")
     // the value column is spliced twice: once as x, once as y
     decodeSiteCount(call) shouldBe 2
   }
@@ -205,6 +211,21 @@ class ECDFPlotOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matchers {
     call should not include "orientation="
     call should not include "marginal="
     call should not include "markers="
+  }
+
+  it should "fall back to probability normalization when yAxisMode arrives null" in {
+    // A saved workflow can carry "yAxisMode": null. The match must fall through to
+    // its default arm and emit the probability form -- neither throwing nor turning
+    // normalization off the way the explicit "count"/"sum" modes do.
+    val json =
+      """{"operatorType":"ECDFPlot","operatorID":"ECDFPlot-1","valueColumn":"score","yAxisMode":null}"""
+    val d = objectMapper.readValue(json, classOf[LogicalOp]).asInstanceOf[ECDFPlotOpDesc]
+    d.yAxisMode shouldBe null
+
+    val call = lineContaining(d.createPlotlyFigure().plain, "px.ecdf(")
+    call should not include "ecdfnorm"
+    call should not include ", y="
+    decodeSiteCount(call) shouldBe 1
   }
 
   // --- manipulateTable: the dropna column list -------------------------------
@@ -252,6 +273,15 @@ class ECDFPlotOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matchers {
     code should include("no valid rows left after removing missing or non-numeric values.")
     code should include("plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False)")
     code should include("yield {'html-content': html}")
+
+    // Order matters, and a bag of unordered `include`s cannot see it. The cleaning
+    // step has to be spliced BEFORE the figure so the plot is built on cleaned rows,
+    // with the "no valid rows left" guard sitting between the two; swapping the two
+    // splices would plot uncleaned data and leave that second guard dead.
+    code.indexOf("pd.to_numeric(") should be < code.indexOf("px.ecdf(")
+    code.indexOf("px.ecdf(") should be < code.indexOf("plotly.io.to_html(")
+    code.indexOf("input table is empty.") should be <
+      code.indexOf("no valid rows left after removing missing or non-numeric values.")
   }
 
   // --- JSON round-trip --------------------------------------------------------
