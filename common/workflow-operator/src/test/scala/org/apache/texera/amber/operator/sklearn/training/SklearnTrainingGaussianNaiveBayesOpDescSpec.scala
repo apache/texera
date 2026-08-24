@@ -44,7 +44,7 @@ class SklearnTrainingGaussianNaiveBayesOpDescSpec extends AnyFlatSpec with Match
     d.countVectorizer shouldBe false
     d.tfidfTransformer shouldBe false
     d.target shouldBe null
-    d.text shouldBe null
+    d.text shouldBe empty
   }
 
   "SklearnTrainingGaussianNaiveBayesOpDesc.getOutputSchemas" should
