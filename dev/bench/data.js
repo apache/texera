@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1787489587986,
+  "lastUpdate": 1787575531415,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -10469,6 +10469,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 561.6381462817964,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Kary Zheng",
+            "username": "kz930",
+            "email": "150742834+kz930@users.noreply.github.com"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "84e2d7d6498cfccdc1dcef33e1a31dbfaf976f2c",
+          "message": "feat(workflow-operator): keep the row when a Hugging Face text cell is empty (#7569)\n\n### What changes were proposed in this PR?\n\nSentiment Analysis, Spam SMS Detection and Text Summarization each\npassed their text column straight to a tokenizer or pipeline. An empty\ncell arrives as `None`, which transformers rejects with `ValueError: You\nneed to specify either text or text_target` for the first two and\n`ValueError: text input must be of type str ...` for the third, ending\nthe run.\n\nAn empty value is ordinary input here. A blank CSV cell arrives as null,\nsince univocity returns null for an empty field and\n`AttributeTypeUtils.parseField` passes it through by design.\n\nAll three now yield the row with their result attributes left empty.\nThat follows what the Hugging Face inference operator does with a row it\ncannot process: `HuggingFaceCodegenBase` appends the error to that row's\nresults and continues rather than dropping it.\n\nThe visualization operators drop such rows instead, with\n`dropna(subset=[...])`, but their output is a chart, where a missing row\ncosts nothing. These three add columns to each input row, so dropping\nwould take the user's row out of the output along with the value the\nmodel had nothing to say about. Whitespace-only text takes the same\npath, for the same reason.\n\n### Any related issues, documentation, discussions?\n\nCloses #7549\n\n### How was this PR tested?\n\nEach of the three specs gains a case asserting the generated Python\nguards the empty cell before the value reaches the tokenizer or\npipeline. All three fail on the previous behavior, 79 passed / 3 failed\nbefore the change and 82 / 0 after.\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Claude Code (Claude Opus 5)\n\nCo-authored-by: Claude Opus 5 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-08-24T07:57:21Z",
+          "url": "https://github.com/apache/texera/commit/84e2d7d6498cfccdc1dcef33e1a31dbfaf976f2c"
+        },
+        "date": 1787575530994,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 938.7073966949846,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 1696.8405719476477,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 1894.5652975297278,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 1124.024573582591,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 1754.002326138591,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 1856.0030403574822,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 1301.5067920918264,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 1807.859392685729,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 1858.8829560812271,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 1049.5118491858232,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 1411.7645099294389,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 1467.3602147724987,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 1078.7194987915389,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 1421.055114229545,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 1465.6877669160529,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 1097.4320865607679,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 1399.0703775583618,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 1399.805045588797,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 650.8908112797126,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 758.8209281354589,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 771.9185760496152,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 651.0628255726942,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 727.0313007461259,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 762.0476622900586,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 623.6073617935384,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 718.6182546318367,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 724.1566125896754,
             "unit": "tuples/sec"
           }
         ]
