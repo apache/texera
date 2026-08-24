@@ -19,18 +19,26 @@
 
 package org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.base
 
+import com.fasterxml.jackson.databind.JsonNode
 import org.apache.texera.amber.core.tuple.AttributeType
-import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
+import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.KNNTrainer.SklearnAdvancedKNNClassifierTrainerOpDesc
+import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.SVCTrainer.SklearnAdvancedSVCTrainerOpDesc
+import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorMetadataGenerator}
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
+import scala.jdk.CollectionConverters.IteratorHasAsScala
+
 class SklearnAdvancedBaseDescSpec extends AnyFlatSpec with Matchers {
 
-  // A minimal ParamClass: the generated code only ever consults getName/getType.
+  // A minimal ParamClass: the generated code only ever consults getName/getType, the other
+  // two being read by the schema rather than by code generation.
   private class TestParam(name: String, typ: String) extends ParamClass {
     override def getName: String = name
     override def getType: String = typ
+    override def getSampleValue: String = ""
+    override def getAllowedValues: Array[String] = Array.empty
   }
 
   // A concrete descriptor supplying just the two abstract hooks; everything
@@ -134,5 +142,111 @@ class SklearnAdvancedBaseDescSpec extends AnyFlatSpec with Matchers {
     val paramString = d.getParameter(paraList)(1).encode
     paramString should include("n_neighbors = int(table[")
     paramString should include(".values[i]")
+  }
+
+  // The rules are built from the enum bound to the descriptor's type argument, so they need a
+  // real operator rather than the stub above, whose TestParam is a class and has no constants.
+  private def valueRulesOf(opClass: Class[_ <: org.apache.texera.amber.operator.LogicalOp]) = {
+    val schema = OperatorMetadataGenerator.generateOperatorJsonSchema(opClass)
+    val row = schema
+      .path("definitions")
+      .path(
+        schema
+          .path("properties")
+          .path("paraList")
+          .path("items")
+          .path("$ref")
+          .asText()
+          .stripPrefix("#/definitions/")
+      )
+    row.path("properties").path("value").path("valueRules").path("allOf")
+  }
+
+  private def ruleFor(rules: JsonNode, parameter: String): JsonNode =
+    rules
+      .elements()
+      .asScala
+      .find(
+        _.path("if")
+          .path("parameter")
+          .path("valEnum")
+          .elements()
+          .asScala
+          .exists(_.asText() == parameter)
+      )
+      .map(_.path("then"))
+      .getOrElse(fail(s"no rule for $parameter"))
+
+  "SklearnMLOperatorDescriptor.customizeJsonSchema" should
+    "offer a chosen-from-a-set parameter exactly the values scikit-learn accepts" in {
+    val kernel = ruleFor(valueRulesOf(classOf[SklearnAdvancedSVCTrainerOpDesc]), "kernel")
+    // scikit-learn's own default leads, so a reader taking the first takes that one
+    kernel.path("enum").elements().asScala.map(_.asText()).toSeq shouldBe
+      Seq("rbf", "linear", "poly", "sigmoid", "precomputed")
+    // an accepted set replaces a type rather than joining it: the values are the constraint
+    kernel.has("type") shouldBe false
+    // and it replaces an example too, having already named every value worth offering
+    kernel.has("examples") shouldBe false
+  }
+
+  it should "read a parameter with no set of its own from the converter it names" in {
+    val rules = valueRulesOf(classOf[SklearnAdvancedSVCTrainerOpDesc])
+    ruleFor(rules, "C").path("type").asText() shouldBe "number"
+    ruleFor(rules, "degree").path("type").asText() shouldBe "integer"
+  }
+
+  it should "constrain a parameter it has no example for" in {
+    // SVC's own default for gamma is a word float() cannot convert, so the rule carries the
+    // constraint without an example. The two are separate statements and one can stand alone.
+    val gamma = ruleFor(valueRulesOf(classOf[SklearnAdvancedSVCTrainerOpDesc]), "gamma")
+    gamma.path("type").asText() shouldBe "number"
+    gamma.has("examples") shouldBe false
+  }
+
+  it should "state a rule for every parameter whose converter says anything about it" in {
+    val rules = valueRulesOf(classOf[SklearnAdvancedKNNClassifierTrainerOpDesc])
+    val covered = rules
+      .elements()
+      .asScala
+      .flatMap(_.path("if").path("parameter").path("valEnum").elements().asScala)
+      .map(_.asText())
+      .toSet
+    // The rules follow the converter each parameter names, not what scikit-learn goes on to
+    // accept: metric is declared int and so is constrained to whole numbers, even though the
+    // metrics themselves are words. metric_params names str, which says nothing, so it is the
+    // one parameter left free.
+    covered shouldBe Set("n_neighbors", "p", "weights", "algorithm", "leaf_size", "metric")
+  }
+
+  "HyperParameters" should "require whichever of the two inputs the row actually uses" in {
+    val schema =
+      OperatorMetadataGenerator.generateOperatorJsonSchema(classOf[SklearnAdvancedSVCTrainerOpDesc])
+    val row = schema
+      .path("definitions")
+      .path(
+        schema
+          .path("properties")
+          .path("paraList")
+          .path("items")
+          .path("$ref")
+          .asText()
+          .stripPrefix("#/definitions/")
+      )
+    val branch = row.path("allOf").path(0)
+    branch
+      .path("if")
+      .path("properties")
+      .path("parametersSource")
+      .path("const")
+      .asBoolean() shouldBe true
+    branch.path("then").path("required").path(0).asText() shouldBe "attribute"
+    branch.path("else").path("required").path(0).asText() shouldBe "value"
+    // neither may be required outright: the hide rules show only one of them at a time
+    row
+      .path("required")
+      .elements()
+      .asScala
+      .map(_.asText())
+      .toSeq should contain noneOf ("value", "attribute")
   }
 }

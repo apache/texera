@@ -42,8 +42,10 @@ import { WorkflowCompilingService } from "../../../service/compile-workflow/work
 import {
   createOutputFormChangeEventStream,
   createShouldHideFieldFunc,
+  createValueRulesValidator,
   setChildTypeDependency,
   setHideExpression,
+  valueRulesValidationMessage,
 } from "src/app/common/formly/formly-utils";
 import {
   TYPE_CASTING_OPERATOR_TYPE,
@@ -896,6 +898,24 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
             mapSource.hideExpectedValue,
             mapSource.hideOnNull
           ),
+        };
+      }
+
+      // a field whose accepted values follow a sibling's: give it the control those values
+      // call for, and hold it to them before the workflow can be run
+      if (isDefined(mapSource.valueRules)) {
+        const valueRules = mapSource.valueRules;
+        mappedField.type = "constrainedvalue";
+        // written into the existing object rather than over it: `props` and `templateOptions`
+        // are two names for one object, and replacing it leaves them pointing at different ones
+        mappedField.props = mappedField.props ?? {};
+        (mappedField.props as Record<string, unknown>).valueRules = valueRules;
+        mappedField.validators = {
+          ...mappedField.validators,
+          valueRules: {
+            expression: createValueRulesValidator(valueRules),
+            message: valueRulesValidationMessage,
+          },
         };
       }
 

@@ -46,6 +46,31 @@ export type AttributeTypeRuleSchema = Readonly<{
   [key: string]: AttributeTypeRuleSet;
 }>;
 
+/**
+ * What one field may hold, given what a sibling holds. Borrows `attributeTypeRules`' grammar
+ * and, like it, sits under a key of Texera's own rather than as a JSON-Schema `allOf`: the
+ * form builder merges the members of an `allOf` into a single field, which would leave one
+ * control carrying every branch's constraints at once.
+ */
+export type ValueRuleSet = Readonly<{
+  allOf: ReadonlyArray<{
+    if: {
+      [siblingField: string]: {
+        valEnum?: string[];
+      };
+    };
+    then: {
+      // the accepted set, where the value is chosen from one
+      enum?: ReadonlyArray<string>;
+      // otherwise how the value is read, in JSON Schema's names
+      type?: "number" | "integer";
+      // a value that is accepted, for a reader that has to supply one; the form does not
+      // render it, the same as everywhere else `examples` is declared
+      examples?: ReadonlyArray<string>;
+    };
+  }>;
+}>;
+
 export interface CustomJSONSchema7 extends JSONSchema7 {
   propertyOrder?: number;
   properties?: {
@@ -57,6 +82,7 @@ export interface CustomJSONSchema7 extends JSONSchema7 {
   autofill?: "attributeName" | "attributeNameList";
   autofillAttributeOnPort?: number;
   attributeTypeRules?: AttributeTypeRuleSchema;
+  valueRules?: ValueRuleSet;
 
   "enable-presets"?: boolean; // include property in schema of preset
 

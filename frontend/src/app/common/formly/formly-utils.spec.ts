@@ -21,10 +21,14 @@ import { FormlyFieldConfig } from "@ngx-formly/core";
 import {
   createOutputFormChangeEventStream,
   createShouldHideFieldFunc,
+  createValueRulesValidator,
   getFieldByName,
+  matchingValueRule,
   setChildTypeDependency,
   setHideExpression,
+  valueRulesValidationMessage,
 } from "./formly-utils";
+import { ValueRuleSet } from "../../workspace/types/custom-json-schema.interface";
 import { Subject } from "rxjs";
 import { FORM_DEBOUNCE_TIME_MS } from "../../workspace/service/execute-workflow/execute-workflow.service";
 import { PortSchema } from "../../workspace/types/workflow-compiling.interface";
@@ -204,5 +208,106 @@ describe("createOutputFormChangeEventStream", () => {
 
     expect(emissions).toEqual([{ keep: true }]);
     expect(modelCheck).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("valueRules", () => {
+  // the shape the sklearn trainers emit: one branch per hyperparameter, keyed on the
+  // `parameter` chosen beside the value in the same row
+  const rules: ValueRuleSet = {
+    allOf: [
+      { if: { parameter: { valEnum: ["C"] } }, then: { type: "number", examples: ["1.0"] } },
+      { if: { parameter: { valEnum: ["degree"] } }, then: { type: "integer", examples: ["3"] } },
+      // an accepted set carries no example: it already names every value worth offering, and
+      // the estimator's own default leads
+      {
+        if: { parameter: { valEnum: ["kernel"] } },
+        then: { enum: ["rbf", "linear", "poly", "sigmoid", "precomputed"] },
+      },
+    ],
+  };
+
+  const rowField = (row: unknown): FormlyFieldConfig => ({ parent: { model: row } }) as FormlyFieldConfig;
+  const control = (value: unknown) => ({ value }) as any;
+  const check = (parameter: string, value: unknown) =>
+    createValueRulesValidator(rules)(control(value), rowField({ parameter }));
+
+  describe("matchingValueRule", () => {
+    it("selects the branch the sibling's value names", () => {
+      expect(matchingValueRule(rules, { parameter: "kernel" })?.enum).toEqual([
+        "rbf",
+        "linear",
+        "poly",
+        "sigmoid",
+        "precomputed",
+      ]);
+      expect(matchingValueRule(rules, { parameter: "degree" })?.type).toBe("integer");
+    });
+
+    it("selects nothing when the sibling holds a value no branch names", () => {
+      expect(matchingValueRule(rules, { parameter: "metric_params" })).toBeUndefined();
+    });
+
+    it("selects nothing before the row has a sibling value at all", () => {
+      expect(matchingValueRule(rules, {})).toBeUndefined();
+      expect(matchingValueRule(rules, undefined)).toBeUndefined();
+      expect(matchingValueRule(undefined, { parameter: "C" })).toBeUndefined();
+    });
+  });
+
+  describe("createValueRulesValidator", () => {
+    it("accepts a value the chosen parameter's set contains", () => {
+      expect(check("kernel", "rbf")).toBe(true);
+    });
+
+    it("rejects a value outside that set, including one of another parameter's", () => {
+      expect(check("kernel", "1")).toBe(false);
+      expect(check("kernel", "uniform")).toBe(false);
+    });
+
+    it("holds a numeric parameter to a number", () => {
+      expect(check("C", "1.0")).toBe(true);
+      expect(check("C", "-2.5e3")).toBe(true);
+      expect(check("C", "abc")).toBe(false);
+    });
+
+    it("holds a whole-number parameter to a whole number", () => {
+      expect(check("degree", "3")).toBe(true);
+      expect(check("degree", "-1")).toBe(true);
+      // int() raises on this, so the form should not let it reach the operator
+      expect(check("degree", "1.5")).toBe(false);
+    });
+
+    it("leaves emptiness to the required rule rather than answering twice", () => {
+      expect(check("C", "")).toBe(true);
+      expect(check("C", null)).toBe(true);
+      expect(check("kernel", undefined)).toBe(true);
+    });
+
+    it("accepts anything for a parameter no branch constrains", () => {
+      expect(check("metric_params", "whatever")).toBe(true);
+    });
+
+    it("re-judges the same value when the row switches parameter", () => {
+      // a value typed for one parameter is usually wrong for the next, and stays visible
+      expect(check("C", "1.0")).toBe(true);
+      expect(check("kernel", "1.0")).toBe(false);
+    });
+  });
+
+  describe("valueRulesValidationMessage", () => {
+    const field = (parameter: string): FormlyFieldConfig =>
+      ({ props: { valueRules: rules }, parent: { model: { parameter } } }) as FormlyFieldConfig;
+
+    it("names the accepted values when there is a set", () => {
+      expect(valueRulesValidationMessage(null, field("kernel"))).toBe(
+        "must be one of rbf, linear, poly, sigmoid, precomputed"
+      );
+    });
+
+    it("distinguishes a whole number from a number", () => {
+      expect(valueRulesValidationMessage(null, field("degree"))).toBe("must be a whole number");
+      expect(valueRulesValidationMessage(null, field("C"))).toBe("must be a number");
+    });
   });
 });
