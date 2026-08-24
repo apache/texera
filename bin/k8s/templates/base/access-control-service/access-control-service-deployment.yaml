@@ -32,6 +32,7 @@ spec:
       labels:
         app: {{ .Release.Name }}-{{ .Values.accessControlService.name }}
     spec:
+      serviceAccountName: {{ .Values.accessControlService.serviceAccountName }}
       containers:
         - name: {{ .Values.accessControlService.name }}
           image: {{ .Values.texera.imageRegistry }}/{{ .Values.accessControlService.imageName }}:{{ .Values.texera.imageTag }}

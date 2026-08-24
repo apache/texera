@@ -29,9 +29,13 @@ helpers are attached to the module object so tests can stay terse: `mounter.logs
 from __future__ import annotations
 
 import importlib.util
+import json
 import os
 import subprocess
 import sys
+import threading
+import urllib.error
+import urllib.request
 from pathlib import Path
 
 import pytest
@@ -96,7 +100,74 @@ def mounter(tmp_path, monkeypatch):
         return subprocess.CompletedProcess(cmd, returncode, stdout="", stderr="umount: target is busy")
 
     monkeypatch.setattr(module.subprocess, "run", fake_run)
+
+    # Caller authentication is stubbed at the TokenReview boundary: `review_token` is the
+    # only thing that talks to the API server, so replacing it exercises the whole of
+    # `authenticate_caller` -- the audience check, the allow-list and the failure modes --
+    # without a cluster. `token_reviews` is what the API server would answer for a token.
+    module.ALLOWED_CALLER = "system:serviceaccount:texera:texera-access-control-service-account"
+    module.ALLOWED_CALLERS = frozenset({module.ALLOWED_CALLER})
+    module.VALID_TOKEN = "a-token-for-access-control-service"
+    module.token_reviews = {
+        module.VALID_TOKEN: {
+            "authenticated": True,
+            "audiences": [module.MOUNTER_AUDIENCE],
+            "user": {"username": module.ALLOWED_CALLER},
+        }
+    }
+    module.review_token_error = None
+
+    def fake_review_token(token):
+        if module.review_token_error is not None:
+            raise module.review_token_error
+        # An unknown token is what the API server returns for one it cannot verify.
+        return module.token_reviews.get(token, {"authenticated": False})
+
+    module.review_token = fake_review_token
     return module
+
+
+@pytest.fixture
+def http_client(mounter):
+    """A client for the mounter's real HTTP surface, served on an ephemeral port.
+
+    The handler is exercised end to end -- routing, caller authentication, JSON parsing,
+    and the ValueError -> 400 mapping -- rather than by calling do_mount/list_mounts
+    directly, so the tests prove what a caller on the wire actually gets back from a
+    manipulated request. Requests carry the allowed caller's token by default; pass
+    `token=` to send a different one or `token=None` to send none."""
+    server = mounter.ThreadingHTTPServer(("127.0.0.1", 0), mounter.Handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    base = f"http://127.0.0.1:{server.server_address[1]}"
+
+    _UNSET = object()
+
+    def request(method, path, payload=None, token=_UNSET):
+        """Send a request, authenticated as the allowed caller unless `token` says otherwise.
+
+        Pass `token=None` to send no Authorization header at all, or any other string to
+        present a different token."""
+        body = None if payload is None else json.dumps(payload).encode()
+        headers = {"Content-Type": "application/json"} if body else {}
+        token = mounter.VALID_TOKEN if token is _UNSET else token
+        if token is not None:
+            headers["Authorization"] = f"Bearer {token}"
+        req = urllib.request.Request(base + path, data=body, method=method, headers=headers)
+        try:
+            with urllib.request.urlopen(req, timeout=10) as response:
+                return response.status, json.loads(response.read())
+        except urllib.error.HTTPError as e:
+            # 4xx/5xx: the body carries the mounter's {"error": ...} payload.
+            return e.code, json.loads(e.read())
+
+    class _Client:
+        get = staticmethod(lambda path, **kw: request("GET", path, **kw))
+        post = staticmethod(lambda path, payload, **kw: request("POST", path, payload, **kw))
+
+    yield _Client()
+    server.shutdown()
+    server.server_close()
 
 
 @pytest.fixture

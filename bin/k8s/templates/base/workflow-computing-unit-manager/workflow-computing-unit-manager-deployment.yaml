@@ -72,6 +72,8 @@ spec:
               value: "{{ .Values.mounter.port }}"
             - name: KUBERNETES_MOUNTER_HOST_ROOT
               value: "{{ .Values.mounter.hostMountRoot }}"
+            - name: KUBERNETES_MOUNTER_TOKEN_PATH
+              value: /var/run/secrets/texera/mounter/token
             # TexeraDB Access
             - name: STORAGE_JDBC_URL
               value: jdbc:postgresql://{{ .Release.Name }}-postgresql:5432/texera_db?currentSchema=texera_db,public
@@ -130,3 +132,20 @@ spec:
             - name: {{ .name }}
               value: "{{ .value }}"
             {{- end }}
+          volumeMounts:
+            - name: mounter-token
+              mountPath: /var/run/secrets/texera/mounter
+              readOnly: true
+      volumes:
+        # The token this service presents to the per-node mounter, which verifies it with
+        # TokenReview. It is bound to the mounter's audience, so it authenticates nothing
+        # else -- not even the Kubernetes API server -- and the kubelet rotates it in place
+        # before it expires. This is the only credential the mount path needs; the mounter
+        # itself holds none.
+        - name: mounter-token
+          projected:
+            sources:
+              - serviceAccountToken:
+                  path: token
+                  audience: {{ .Values.mounter.audience }}
+                  expirationSeconds: 3600

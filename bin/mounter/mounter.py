@@ -20,9 +20,15 @@
 texera-mounter: a per-node privileged service that performs GeeseFS FUSE mounts on behalf
 of (unprivileged) computing-unit pods.
 
-A CU pod POSTs /mount with {cuid, repositoryName, commitHash, jwt, fileServiceBase}. The
-mounter runs GeeseFS against file-service's JWT-authenticated S3 proxy (passing the pod's
-JWT as the S3 access key) and mounts read-only under MOUNT_ROOT/<cuid>/<repo>/<commit>.
+A permitted caller POSTs /mount with {cuid, repositoryName, commitHash, jwt,
+fileServiceBase} once it has validated the JWT and the user's access to that computing
+unit. "Permitted" is decided by the API server: the caller presents a service-account token
+bound to MOUNTER_AUDIENCE and the mounter verifies it with TokenReview (see
+authenticate_caller). Every path component of the request is validated here as well (see
+CUID_PATTERN / PATH_SEGMENT_PATTERN), because authenticating the caller says who is asking,
+not that what they asked for is a safe path. The mounter then runs GeeseFS
+against file-service's JWT-authenticated S3 proxy (passing the user's JWT as the S3 access
+key) and mounts read-only under MOUNT_ROOT/<cuid>/<repo>/<commit>.
 That host directory is bind-mounted (mountPropagation: Bidirectional) into the mounter and
 propagates back into the CU pod (mountPropagation: HostToContainer), so the CU pod sees
 the mount without any privilege of its own.
@@ -33,6 +39,7 @@ A background watcher unmounts a CU's directories as soon as its pod is deleted.
 
 import json
 import os
+import re
 import shutil
 import ssl
 import subprocess
@@ -56,7 +63,48 @@ SA_DIR = "/var/run/secrets/kubernetes.io/serviceaccount"
 # Computing-unit pods are named "<prefix>-<cuid>"; the helm chart gives this and the
 # computing-unit manager's kubernetes.compute-unit-pod-name-prefix the same value.
 CU_POD_NAME_PREFIX = os.environ.get("CU_POD_NAME_PREFIX", "computing-unit")
+# Every component of the mount path is caller-supplied, so each is validated rather than
+# trusted. os.path.join discards everything before an absolute component and happily walks
+# through "..", so an unchecked component relocates the mount anywhere on the node -- and
+# the directory is created before geesefs (and therefore LakeFS) ever sees the request, so
+# "LakeFS will reject it" is not a defence for the path.
+#
+# A cuid is the computing unit's numeric primary key. Repositories are named
+# "dataset-<did>" and commits are hex digests, so both fit a conservative single-segment
+# rule: no separator, no "..", and a leading alphanumeric so a value can never be mistaken
+# for a geesefs flag.
+CUID_PATTERN = re.compile(r"^[0-9]+$")
+PATH_SEGMENT_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 PROC_MOUNTS = "/proc/mounts"
+
+# ---- caller authentication ----
+# The mounter is the only privileged component in the mount path -- root on every node, with
+# a hostPath and Bidirectional mount propagation -- and it listens on a hostPort, so anything
+# routable to a node IP can reach it, including computing-unit pods running untrusted user
+# code. Callers therefore present a Kubernetes service-account token bound to
+# MOUNTER_AUDIENCE, which is verified here with the TokenReview API and matched against
+# MOUNTER_ALLOWED_CALLERS. That check is enforced by the API server, unlike a NetworkPolicy,
+# which is silently unenforced on CNIs that do not implement it and is routinely bypassed by
+# hostPort traffic (DNAT'd at the node, so pod selectors never see it).
+#
+# An empty allow-list denies every request: the chart always sets this, and a mounter that
+# cannot tell who is calling must not mount anything.
+#
+# The chart admits one caller, access-control-service, because that service is where the
+# deployment already decides whether a user may act on a computing unit. The mounter itself
+# cannot make that decision -- every request reaches it under one service identity, so it
+# has no way to tell whose workflow is asking -- which is exactly why the component that
+# does know must be the only one able to ask.
+MOUNTER_AUDIENCE = os.environ.get("MOUNTER_AUDIENCE", "texera-mounter")
+ALLOWED_CALLERS = frozenset(
+    caller.strip()
+    for caller in os.environ.get("MOUNTER_ALLOWED_CALLERS", "").split(",")
+    if caller.strip()
+)
+
+
+class Unauthorized(Exception):
+    """The caller did not present a token this mounter accepts."""
 
 
 def log(msg):
@@ -111,11 +159,42 @@ def _responds(path):
         return False
 
 
+def validated_cuid(cuid):
+    """Return `cuid` if it is a single numeric path segment, else raise ValueError."""
+    cuid = str(cuid or "")
+    if not CUID_PATTERN.match(cuid):
+        raise ValueError(f"cuid must be a non-negative integer, got {cuid!r}")
+    return cuid
+
+
+def validated_segment(value, field):
+    """Return `value` if it is a single safe path segment, else raise ValueError."""
+    value = str(value or "")
+    if not PATH_SEGMENT_PATTERN.match(value):
+        raise ValueError(f"{field} must be a single path segment, got {value!r}")
+    return value
+
+
+def _is_within(path, ancestor):
+    """True if `path` is `ancestor` or lies beneath it, compared segment-wise.
+
+    A plain prefix test would accept a sibling whose name merely starts the same way
+    ("/var/lib/texera-mounts-evil" under "/var/lib/texera-mounts").
+    """
+    return os.path.commonpath([path, ancestor]) == ancestor
+
+
 def _remove_empty_dirs(path, cuid):
-    """Remove `path` and any parents left empty, stopping at the CU's own directory."""
-    stop_at = os.path.normpath(os.path.join(MOUNT_ROOT, cuid))
+    """Remove `path` and any parents left empty, up to and including the CU's directory.
+
+    Stops as soon as a directory is non-empty (another commit is still mounted under it)
+    and never walks above MOUNT_ROOT/<cuid>. Removing an empty MOUNT_ROOT/<cuid> is safe
+    for a running pod: its hostPath volume is DirectoryOrCreate, so the next mount
+    recreates it.
+    """
+    cu_dir = os.path.normpath(os.path.join(MOUNT_ROOT, validated_cuid(cuid)))
     path = os.path.normpath(path)
-    while path.startswith(stop_at):
+    while _is_within(path, cu_dir):
         try:
             os.rmdir(path)
         except OSError:
@@ -136,6 +215,9 @@ def do_mount(cuid, repo, commit, jwt, file_service_base):
     if not cuid or not repo or not commit or not jwt or not file_service_base:
         raise ValueError("cuid, repositoryName, commitHash, jwt and fileServiceBase are required")
 
+    cuid = validated_cuid(cuid)
+    repo = validated_segment(repo, "repositoryName")
+    commit = validated_segment(commit, "commitHash")
     target = os.path.join(MOUNT_ROOT, cuid, repo, commit)
     if is_mounted(target):
         if _responds(target):
@@ -190,7 +272,7 @@ def list_mounts(cuid):
     """
     if not cuid:
         raise ValueError("cuid is required")
-    cu_dir = os.path.normpath(os.path.join(MOUNT_ROOT, cuid))
+    cu_dir = os.path.normpath(os.path.join(MOUNT_ROOT, validated_cuid(cuid)))
     mounts = []
     for target in mount_targets_under(cu_dir):
         if os.path.normpath(target) == cu_dir:
@@ -203,6 +285,61 @@ def list_mounts(cuid):
     return mounts
 
 
+def review_token(token):
+    """Ask the API server to validate `token` for this mounter's audience.
+
+    Returns the TokenReview status. Submitting the audience is what makes the check
+    meaningful: without it any token the cluster issues -- including the one every pod gets
+    for the API server itself -- would come back authenticated.
+    """
+    with _k8s_open(
+        "/apis/authentication.k8s.io/v1/tokenreviews",
+        timeout=10,
+        body={
+            "apiVersion": "authentication.k8s.io/v1",
+            "kind": "TokenReview",
+            "spec": {"token": token, "audiences": [MOUNTER_AUDIENCE]},
+        },
+    ) as response:
+        return json.loads(response.read()).get("status", {})
+
+
+def authenticate_caller(auth_header):
+    """Return the caller's username, or raise Unauthorized.
+
+    Three things have to hold, and all three are decided by the API server rather than here:
+    the token verifies, it was actually issued for this mounter's audience, and the identity
+    it belongs to is one this mounter serves.
+    """
+    if not ALLOWED_CALLERS:
+        raise Unauthorized("mounter has no allowed callers configured")
+
+    header = auth_header or ""
+    if not header.startswith("Bearer "):
+        raise Unauthorized("a bearer token is required")
+    token = header[len("Bearer "):].strip()
+    if not token:
+        raise Unauthorized("a bearer token is required")
+
+    try:
+        status = review_token(token)
+    except Exception as e:  # noqa: BLE001
+        # Treated as a denial, not an outage: a mounter that cannot check who is calling
+        # must not fall back to serving the request.
+        raise Unauthorized(f"token review failed: {e}")
+
+    if not status.get("authenticated"):
+        raise Unauthorized("token is not valid")
+    # The API server echoes back only the requested audiences the token actually carries, so
+    # an empty list here means the token was minted for something else.
+    if MOUNTER_AUDIENCE not in status.get("audiences", []):
+        raise Unauthorized(f"token is not scoped to audience {MOUNTER_AUDIENCE}")
+    username = status.get("user", {}).get("username", "")
+    if username not in ALLOWED_CALLERS:
+        raise Unauthorized(f"{username or 'caller'} is not permitted to request mounts")
+    return username
+
+
 class Handler(BaseHTTPRequestHandler):
     def _send(self, code, obj):
         body = json.dumps(obj).encode()
@@ -212,11 +349,25 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def _authenticate(self):
+        """True if the caller may use the mounter; otherwise answers 401 and returns False."""
+        try:
+            authenticate_caller(self.headers.get("Authorization"))
+            return True
+        except Unauthorized as e:
+            log(f"rejected {self.command} {self.path}: {e}")
+            self._send(401, {"error": str(e)})
+            return False
+
     def do_GET(self):
         parsed = urlparse(self.path)
+        # The kubelet probes /healthz and holds no token for this audience, so readiness
+        # stays outside the authenticated surface. It reveals nothing about any mount.
         if parsed.path == "/healthz":
             self._send(200, {"status": "ok"})
         elif parsed.path == "/mounts":
+            if not self._authenticate():
+                return
             try:
                 cuid = parse_qs(parsed.query).get("cuid", [""])[0]
                 self._send(200, {"mounts": list_mounts(cuid)})
@@ -231,6 +382,8 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         if self.path != "/mount":
             self._send(404, {"error": "not found"})
+            return
+        if not self._authenticate():
             return
         try:
             length = int(self.headers.get("Content-Length", "0"))
@@ -255,16 +408,22 @@ class Handler(BaseHTTPRequestHandler):
 
 # ---- watcher: unmount a CU's directories once its pod is deleted ----
 
-def _k8s_open(path, timeout):
-    """GET against the in-cluster API server. Returns the response; the caller must close it."""
+def _k8s_open(path, timeout, body=None):
+    """Call the in-cluster API server. Returns the response; the caller must close it.
+
+    A `body` makes it a POST of that JSON object, which is how TokenReview is submitted.
+    """
     with open(os.path.join(SA_DIR, "token")) as f:
         token = f.read().strip()
     host = os.environ.get("KUBERNETES_SERVICE_HOST", "kubernetes.default.svc")
     port = os.environ.get("KUBERNETES_SERVICE_PORT", "443")
     ctx = ssl.create_default_context(cafile=os.path.join(SA_DIR, "ca.crt"))
-    req = urllib.request.Request(
-        f"https://{host}:{port}{path}", headers={"Authorization": f"Bearer {token}"}
-    )
+    headers = {"Authorization": f"Bearer {token}"}
+    data = None
+    if body is not None:
+        data = json.dumps(body).encode()
+        headers["Content-Type"] = "application/json"
+    req = urllib.request.Request(f"https://{host}:{port}{path}", data=data, headers=headers)
     return urllib.request.urlopen(req, timeout=timeout, context=ctx)
 
 
@@ -394,7 +553,12 @@ def watch_loop():
 def main():
     ensure_shared_root()
     threading.Thread(target=watch_loop, daemon=True).start()
-    log(f"listening on :{MOUNTER_PORT}, mount root {MOUNT_ROOT}, pool ns {POOL_NAMESPACE}")
+    if not ALLOWED_CALLERS:
+        log("WARNING: MOUNTER_ALLOWED_CALLERS is empty; every mount request will be denied")
+    log(
+        f"listening on :{MOUNTER_PORT}, mount root {MOUNT_ROOT}, pool ns {POOL_NAMESPACE}, "
+        f"audience {MOUNTER_AUDIENCE}, callers {sorted(ALLOWED_CALLERS) or 'none'}"
+    )
     ThreadingHTTPServer(("0.0.0.0", MOUNTER_PORT), Handler).serve_forever()
 
 

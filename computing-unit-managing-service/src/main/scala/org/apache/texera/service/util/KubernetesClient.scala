@@ -97,25 +97,15 @@ object KubernetesClient {
         new EnvVarBuilder().withName(key).withValue(value.toString).build()
     }.toList
 
-    // Env for the out-of-pod mounter: the node IP (downward API) plus this CU's id,
-    // the mounter port, and the in-pod root that the propagated mount appears under.
+    // Which CU this is, and where its propagated mounts show up. The pod is deliberately
+    // not given the mounter's address: only an authenticated platform caller may request a
+    // mount, so the address would be of no use to code running here except to probe the
+    // node's privileged mounter.
     val inPodMountRoot = "/mnt/texera-mounts"
     val mounterEnv = List(
       new EnvVarBuilder()
-        .withName(EnvironmentalVariable.ENV_NODE_IP)
-        .withNewValueFrom()
-        .withNewFieldRef()
-        .withFieldPath("status.hostIP")
-        .endFieldRef()
-        .endValueFrom()
-        .build(),
-      new EnvVarBuilder()
         .withName(EnvironmentalVariable.ENV_CU_ID)
         .withValue(cuid.toString)
-        .build(),
-      new EnvVarBuilder()
-        .withName(EnvironmentalVariable.ENV_MOUNTER_PORT)
-        .withValue(KubernetesConfig.mounterPort.toString)
         .build(),
       new EnvVarBuilder()
         .withName(EnvironmentalVariable.ENV_MOUNT_IN_POD_ROOT)

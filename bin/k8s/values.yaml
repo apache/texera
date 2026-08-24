@@ -232,6 +232,10 @@ accessControlService:
   name: access-control-service
   numOfPods: 1
   imageName: texera-access-control-service
+  # Dedicated identity, so the mounter can authenticate the access-control-service as the
+  # only component permitted to request a dataset mount. See
+  # templates/base/access-control-service/access-control-service-service-account.yaml.
+  serviceAccountName: texera-access-control-service-account
   service:
     type: ClusterIP
     port: 9096
@@ -310,6 +314,12 @@ mounter:
   port: 8100
   hostMountRoot: /var/lib/texera-mounts
   serviceAccountName: texera-mounter-service-account
+  # The mounter runs privileged on every node and is reachable on a hostPort, so it
+  # authenticates its callers rather than assuming only the platform can reach it. A caller
+  # presents a service-account token projected for this audience, which the mounter verifies
+  # with TokenReview. The permitted identity is access-control-service and is not settable
+  # here -- see texera.mounter.allowedCallers in templates/base/_helpers.tpl.
+  audience: texera-mounter
 
 texeraEnvVars:
   - name: USER_SYS_ADMIN_USERNAME

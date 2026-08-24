@@ -46,12 +46,17 @@ object EnvironmentalVariable {
   val ENV_AUTH_JWT_SECRET = "AUTH_JWT_SECRET"
 
   /**
-    * Node mounter (out-of-pod FUSE mounting) related vars, injected into the CU pod.
-    * The CU pod asks the per-node mounter (at NODE_IP:port) to mount, then reads the result
-    * under the in-pod mount root exposed via mount propagation.
+    * Dataset-mount vars injected into the CU pod. The mount is performed by the per-node
+    * mounter and reaches the pod through mount propagation, so the pod only needs to know
+    * which computing unit it is and where the propagated mount appears.
+    *
+    * The mounter's own address is deliberately NOT among these. Only an authenticated
+    * platform caller may request a mount (see authenticate_caller in bin/mounter/mounter.py)
+    * and a pod running untrusted user code holds no token for that audience, so the address
+    * would serve no purpose here other than to probe the node's privileged mounter. A pod
+    * that wants a mount asks the platform, which authorizes the (user, cuid) pair before
+    * forwarding -- the cuid below is a claim to be checked, not a credential.
     */
-  val ENV_NODE_IP = "NODE_IP"
-  val ENV_MOUNTER_PORT = "TEXERA_MOUNTER_PORT"
   val ENV_CU_ID = "TEXERA_CU_ID"
   val ENV_MOUNT_IN_POD_ROOT = "TEXERA_MOUNT_IN_POD_ROOT"
 

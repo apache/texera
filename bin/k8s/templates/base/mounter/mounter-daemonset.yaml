@@ -58,6 +58,13 @@ spec:
               value: "{{ .Values.workflowComputingUnitPool.namespace }}"
             - name: CU_POD_NAME_PREFIX
               value: "{{ .Values.workflowComputingUnitPool.podNamePrefix }}"
+            # Only a caller holding a service-account token minted for this audience, and
+            # belonging to one of these identities, may request a mount. See
+            # authenticate_caller in bin/mounter/mounter.py.
+            - name: MOUNTER_AUDIENCE
+              value: "{{ .Values.mounter.audience }}"
+            - name: MOUNTER_ALLOWED_CALLERS
+              value: "{{ include "texera.mounter.allowedCallers" . }}"
           readinessProbe:
             httpGet:
               path: /healthz

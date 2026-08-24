@@ -17,6 +17,10 @@
 
 # The mounter watches computing-unit pods (in the pool namespace) so it can unmount a CU's
 # mounts as soon as its pod is deleted. It needs only read access to pods.
+#
+# It also verifies its callers with the TokenReview API, which is what the cluster-wide
+# system:auth-delegator binding below grants. That role is the standard way to let a service
+# authenticate tokens presented to it; it confers no other access.
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -45,4 +49,20 @@ subjects:
 roleRef:
   kind: Role
   name: {{ .Release.Name }}-mounter
+  apiGroup: rbac.authorization.k8s.io
+---
+# Lets the mounter submit TokenReviews, so it can establish who is calling /mount before
+# performing a privileged mount on their behalf. system:auth-delegator is a built-in
+# ClusterRole covering exactly authentication.k8s.io/tokenreviews (and subjectaccessreviews).
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ .Release.Name }}-mounter-auth-delegator
+subjects:
+  - kind: ServiceAccount
+    name: {{ .Values.mounter.serviceAccountName }}
+    namespace: {{ .Release.Namespace }}
+roleRef:
+  kind: ClusterRole
+  name: system:auth-delegator
   apiGroup: rbac.authorization.k8s.io

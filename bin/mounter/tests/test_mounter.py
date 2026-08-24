@@ -383,6 +383,270 @@ def test_listing_failure_reports_no_answer_rather_than_an_empty_cluster(mounter,
     assert any("listing CU pods failed" in line for line in mounter.logs)
 
 
+# ─────────────────── request validation (path components) ───────────────────
+#
+# Every component of MOUNT_ROOT/<cuid>/<repo>/<commit> arrives from the request. LakeFS
+# only sees a request after geesefs runs, which is after the directory has been created,
+# so the mounter cannot delegate path safety to it. These cases pin the escapes down.
+
+@pytest.mark.parametrize(
+    "cuid, escapes_to",
+    [
+        ("5/../8", "8"),        # traverses sideways into another CU's directory
+        ("../..", "outside"),   # walks above the mount root entirely
+        ("/etc", "absolute"),   # os.path.join drops MOUNT_ROOT for an absolute component
+        ("/", "absolute"),
+        ("8 ", "whitespace"),
+        ("-8", "negative"),
+        ("abc", "non-numeric"),
+        ("", "empty"),
+    ],
+)
+def test_do_mount_rejects_a_cuid_that_is_not_a_single_numeric_segment(mounter, cuid, escapes_to):
+    with pytest.raises(ValueError, match="cuid"):
+        mounter.do_mount(cuid, "dataset-1", "abc123", "jwt", "http://fs")
+
+    assert mounter.runs == []  # geesefs never ran
+    # Nothing was created anywhere: not under another CU, not outside the mount root.
+    assert os.listdir(mounter.MOUNT_ROOT) == [], escapes_to
+
+
+def test_a_manipulated_cuid_cannot_plant_a_mount_in_another_computing_units_directory(mounter):
+    """kunwp1's report: CU 5 asking for cuid='5/../8' must not land in CU 8's tree."""
+    victim = os.path.join(mounter.MOUNT_ROOT, "8")
+    os.makedirs(victim)
+
+    with pytest.raises(ValueError, match="cuid"):
+        mounter.do_mount("5/../8", "dataset-1", "abc123", "jwt", "http://fs")
+
+    assert os.listdir(victim) == []
+
+
+@pytest.mark.parametrize("cuid", ["5/../8", "../..", "/etc", "abc"])
+def test_list_mounts_rejects_a_cuid_that_is_not_a_single_numeric_segment(mounter, cuid, cu_dir):
+    _, target = cu_dir("8")
+    mounter.set_mounts(target)
+
+    # Enumerating another CU's mounts by traversal is refused rather than answered.
+    with pytest.raises(ValueError, match="cuid"):
+        mounter.list_mounts(cuid)
+
+
+@pytest.mark.parametrize(
+    "repo",
+    ["../../8/dataset-1", "..", "a/b", "/etc", "-o", ".", ""],
+)
+def test_do_mount_rejects_a_repository_name_that_is_not_a_single_segment(mounter, repo):
+    with pytest.raises(ValueError, match="repositoryName|required"):
+        mounter.do_mount("7", repo, "abc123", "jwt", "http://fs")
+
+    assert mounter.runs == []
+    assert os.listdir(mounter.MOUNT_ROOT) == []
+
+
+@pytest.mark.parametrize("commit", ["../../..", "..", "a/b", "/etc", "-o", ".", ""])
+def test_do_mount_rejects_a_commit_hash_that_is_not_a_single_segment(mounter, commit):
+    with pytest.raises(ValueError, match="commitHash|required"):
+        mounter.do_mount("7", "dataset-1", commit, "jwt", "http://fs")
+
+    assert mounter.runs == []
+    assert os.listdir(mounter.MOUNT_ROOT) == []
+
+
+def test_legitimate_values_still_mount(mounter):
+    """The guard must not reject what the platform actually sends: dataset-<did> + a hex digest."""
+    target = mounter.do_mount("42", "dataset-17", "0a1b2c3d4e5f", "jwt", "http://fs")
+
+    assert target == os.path.join(mounter.MOUNT_ROOT, "42", "dataset-17", "0a1b2c3d4e5f")
+    assert [cmd[0] for cmd, _ in mounter.runs] == ["geesefs"]
+
+
+_MOUNT_REQUEST = {
+    "cuid": "7",
+    "repositoryName": "dataset-1",
+    "commitHash": "abc123",
+    "jwt": "the-users-jwt",
+    "fileServiceBase": "http://file-service:9092",
+}
+
+
+# ─────────────────── caller authentication ───────────────────
+# The mounter runs privileged on every node and listens on a hostPort, so anything routable
+# to a node IP -- including computing-unit pods running untrusted user code -- can open a
+# connection to it. What separates the platform from user code is not reachability but a
+# service-account token bound to the mounter's audience, verified by the API server. These
+# tests stub only `review_token`, so everything `authenticate_caller` decides is real.
+
+def test_a_request_without_a_token_is_refused(mounter, http_client):
+    status, body = http_client.post("/mount", _MOUNT_REQUEST, token=None)
+
+    assert status == 401
+    assert "bearer token" in body["error"]
+    assert mounter.runs == []
+
+
+@pytest.mark.parametrize("header", ["", "Bearer ", "Bearer    ", "the-token", "Basic dXNlcg=="])
+def test_a_malformed_authorization_header_is_refused(mounter, header):
+    with pytest.raises(mounter.Unauthorized):
+        mounter.authenticate_caller(header)
+
+
+def test_a_token_the_api_server_cannot_verify_is_refused(mounter, http_client):
+    status, body = http_client.post("/mount", _MOUNT_REQUEST, token="forged")
+
+    assert status == 401
+    assert "not valid" in body["error"]
+    assert mounter.runs == []
+
+
+def test_a_token_minted_for_another_audience_is_refused(mounter):
+    """The pod's ordinary kube-apiserver token authenticates -- just not to the mounter."""
+    mounter.token_reviews["kube-token"] = {
+        "authenticated": True,
+        "audiences": [],  # the API server echoes back only the audiences the token carries
+        "user": {"username": mounter.ALLOWED_CALLER},
+    }
+
+    with pytest.raises(mounter.Unauthorized, match="audience"):
+        mounter.authenticate_caller("Bearer kube-token")
+
+
+def test_a_valid_token_belonging_to_another_identity_is_refused(mounter):
+    """A CU pod can mint a token for this audience; it still is not an allowed caller."""
+    mounter.token_reviews["cu-pod-token"] = {
+        "authenticated": True,
+        "audiences": [mounter.MOUNTER_AUDIENCE],
+        "user": {"username": "system:serviceaccount:texera-workflow-computing-unit-pool:default"},
+    }
+
+    with pytest.raises(mounter.Unauthorized, match="not permitted"):
+        mounter.authenticate_caller("Bearer cu-pod-token")
+
+
+def test_an_unreachable_api_server_denies_rather_than_admits(mounter):
+    """Failing closed: a mounter that cannot tell who is calling must not mount."""
+    mounter.review_token_error = RuntimeError("connection refused")
+
+    with pytest.raises(mounter.Unauthorized, match="token review failed"):
+        mounter.authenticate_caller(f"Bearer {mounter.VALID_TOKEN}")
+
+
+def test_no_configured_callers_denies_everything(mounter):
+    """An unset MOUNTER_ALLOWED_CALLERS is not an invitation to serve everyone."""
+    mounter.ALLOWED_CALLERS = frozenset()
+
+    with pytest.raises(mounter.Unauthorized, match="no allowed callers"):
+        mounter.authenticate_caller(f"Bearer {mounter.VALID_TOKEN}")
+
+
+def test_the_allowed_caller_is_admitted(mounter):
+    assert mounter.authenticate_caller(f"Bearer {mounter.VALID_TOKEN}") == mounter.ALLOWED_CALLER
+
+
+def test_authentication_does_not_replace_path_validation(mounter, http_client):
+    """A properly authenticated caller still cannot name a path outside the CU's directory."""
+    status, body = http_client.post("/mount", {**_MOUNT_REQUEST, "cuid": "../.."})
+
+    assert status == 400
+    assert "cuid" in body["error"]
+    assert mounter.runs == []
+
+
+def test_the_readiness_probe_stays_unauthenticated(mounter, http_client):
+    """The kubelet holds no token for this audience, and /healthz exposes no mount state."""
+    assert http_client.get("/healthz", token=None) == (200, {"status": "ok"})
+
+
+# ─────────────────── HTTP surface ───────────────────
+
+def test_a_manipulated_cuid_is_answered_with_400_over_http(mounter, http_client):
+    status, body = http_client.post(
+        "/mount",
+        {
+            "cuid": "../..",
+            "repositoryName": "dataset-1",
+            "commitHash": "abc123",
+            "jwt": "jwt",
+            "fileServiceBase": "http://fs",
+        },
+    )
+
+    assert status == 400
+    assert "cuid" in body["error"]
+    assert mounter.runs == []
+
+
+def test_a_manipulated_repository_name_is_answered_with_400_over_http(mounter, http_client):
+    status, body = http_client.post(
+        "/mount",
+        {
+            "cuid": "7",
+            "repositoryName": "../../8/dataset-1",
+            "commitHash": "abc123",
+            "jwt": "jwt",
+            "fileServiceBase": "http://fs",
+        },
+    )
+
+    assert status == 400
+    assert "repositoryName" in body["error"]
+    assert mounter.runs == []
+
+
+def test_listing_another_computing_unit_by_traversal_is_answered_with_400_over_http(
+    mounter, http_client, cu_dir
+):
+    _, target = cu_dir("8")
+    mounter.set_mounts(target)
+
+    assert http_client.get("/mounts?cuid=8")[1] == {
+        "mounts": [{"repositoryName": "dataset-1", "commitHash": "abc123", "mountPath": target}]
+    }
+
+    status, body = http_client.get("/mounts?cuid=5/../8")
+
+    assert status == 400
+    assert "cuid" in body["error"]
+
+
+def test_a_valid_mount_request_is_answered_with_the_mount_path_over_http(mounter, http_client):
+    status, body = http_client.post(
+        "/mount",
+        {
+            "cuid": "7",
+            "repositoryName": "dataset-1",
+            "commitHash": "abc123",
+            "jwt": "the-user-jwt",
+            "fileServiceBase": "http://fs",
+        },
+    )
+
+    assert status == 200
+    assert body == {"mountPath": os.path.join(mounter.MOUNT_ROOT, "7", "dataset-1", "abc123")}
+
+
+# ─────────────────── _remove_empty_dirs() ───────────────────
+
+def test_removing_empty_dirs_never_walks_above_the_computing_units_directory(mounter, cu_dir):
+    cu, target = cu_dir("7")
+
+    mounter._remove_empty_dirs(target, "7")
+
+    # The CU directory itself goes (DirectoryOrCreate recreates it), MOUNT_ROOT stays.
+    assert not os.path.exists(cu)
+    assert os.path.isdir(mounter.MOUNT_ROOT)
+
+
+def test_removing_empty_dirs_does_not_treat_a_sibling_as_a_child(mounter):
+    """"/mounts/7x" merely starts with "/mounts/7"; a prefix test would delete it."""
+    sibling = os.path.join(mounter.MOUNT_ROOT, "7x")
+    os.makedirs(sibling)
+
+    mounter._remove_empty_dirs(sibling, "7")
+
+    assert os.path.isdir(sibling)
+
+
 class _FakeResponse:
     def __init__(self, payload):
         self._payload = json.dumps(payload).encode()
