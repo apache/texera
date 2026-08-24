@@ -115,4 +115,12 @@ describe("FlarumService", () => {
     expect(() => service.register()).toThrow();
     expect(() => service.auth()).toThrow();
   });
+
+  // Both calls identify the account to Flarum by email, so an account that has not supplied one
+  // yet has nothing to send. An ORCID login produces exactly that account.
+  it("throws when the logged-in account has no email address", () => {
+    getCurrentUser.mockReturnValue({ uid: 7, email: undefined, googleId: "g" });
+    expect(() => service.register()).toThrow("A Texera account needs an email address to use the forum.");
+    expect(() => service.auth()).toThrow("A Texera account needs an email address to use the forum.");
+  });
 });

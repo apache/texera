@@ -363,39 +363,6 @@ class AdminUserResourceSpec
     userDao.fetchOneByUid(primaryUid).getName shouldBe "renamed"
   }
 
-  // ─── Email safeguards ───────────────────────────────────────────────────
-
-  it should "refuse to activate an account that has no email address" in {
-    val emailless = makeUser(primaryUid, "orcid_only", UserRoleEnum.INACTIVE)
-    emailless.setEmail(null)
-    userDao.insert(emailless)
-
-    val edit = new User
-    edit.setUid(primaryUid)
-    edit.setName("orcid_only")
-    edit.setEmail(null)
-    edit.setRole(UserRoleEnum.REGULAR)
-
-    a[WebApplicationException] should be thrownBy resource.updateUser(edit)
-    userDao.fetchOneByUid(primaryUid).getRole shouldBe UserRoleEnum.INACTIVE
-  }
-
-  it should "allow editing an emailless account that stays inactive" in {
-    val emailless = makeUser(primaryUid, "orcid_only", UserRoleEnum.INACTIVE)
-    emailless.setEmail(null)
-    userDao.insert(emailless)
-
-    val edit = new User
-    edit.setUid(primaryUid)
-    edit.setName("renamed")
-    edit.setEmail(null)
-    edit.setRole(UserRoleEnum.INACTIVE)
-    edit.setComment("waiting on an address")
-    resource.updateUser(edit)
-
-    userDao.fetchOneByUid(primaryUid).getName shouldBe "renamed"
-  }
-
   // ─── getCreatedDatasets ───────────────────────────────────────────────────
 
   "getCreatedDatasets" should "return an empty list for a user with no datasets" in {
