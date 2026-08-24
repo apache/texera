@@ -20,7 +20,7 @@ import { HttpErrorResponse } from "@angular/common/http";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { Component, OnInit } from "@angular/core";
 import { ActivatedRoute, Router } from "@angular/router";
-import { catchError } from "rxjs/operators";
+import { catchError, skip, take } from "rxjs/operators";
 import { EMPTY } from "rxjs";
 import { NzSpinComponent } from "ng-zorro-antd/spin";
 import { UserService } from "../../../common/service/user/user.service";
@@ -100,7 +100,39 @@ export class OrcidCallbackComponent implements OnInit {
         }),
         untilDestroyed(this)
       )
-      .subscribe(() => this.router.navigateByUrl(USER_WORKFLOW));
+      .subscribe(() => this.navigateOnceSignedIn());
+  }
+
+  /**
+   * Leave this page only once the session has actually resolved.
+   *
+   * An ORCID token carries no email, so `loginWithExistingToken` opens the address prompt and hands
+   * back no user. Navigating on the strength of `orcidLogin` merely completing would meet
+   * `AuthGuardService`, which redirects an unauthenticated caller to `/login` — leaving the user
+   * stranded there behind the dialog even after answering it, since nothing navigates again.
+   *
+   * Answering the prompt reissues a token and produces a user; cancelling it signs out. Either way
+   * the next `userChanged` emission is the outcome worth routing on. The replayed current value is
+   * skipped because `UserService.handleAccessToken` has already published it by the time we get
+   * here — it is the unresolved state, not an outcome.
+   *
+   * Google never needed this: its token always carries an address, so the first
+   * `loginWithExistingToken` returns a user.
+   */
+  private navigateOnceSignedIn(): void {
+    if (this.userService.isLogin()) {
+      this.router.navigateByUrl(USER_WORKFLOW);
+      return;
+    }
+
+    this.userService
+      .userChanged()
+      .pipe(skip(1), take(1), untilDestroyed(this))
+      .subscribe(user =>
+        user === undefined
+          ? this.router.navigateByUrl(LOGIN, { replaceUrl: true })
+          : this.router.navigateByUrl(USER_WORKFLOW)
+      );
   }
 
   private failBackToLogin(message: string): void {

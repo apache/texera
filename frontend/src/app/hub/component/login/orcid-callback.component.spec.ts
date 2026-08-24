@@ -21,11 +21,12 @@ import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { ActivatedRoute, convertToParamMap, Router } from "@angular/router";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { HttpErrorResponse } from "@angular/common/http";
-import { of, throwError } from "rxjs";
+import { of, ReplaySubject, throwError } from "rxjs";
 import { vi } from "vitest";
 
 import { OrcidCallbackComponent } from "./orcid-callback.component";
 import { UserService } from "../../../common/service/user/user.service";
+import { User } from "../../../common/type/user";
 import { NotificationService } from "../../../common/service/notification/notification.service";
 import { ORCID_STATE_KEY } from "../../../common/service/user/orcid-auth.service";
 import { commonTestProviders } from "../../../common/testing/test-utils";
@@ -39,7 +40,13 @@ import { LOGIN, USER_WORKFLOW } from "../../../app-routing.constant";
  */
 describe("OrcidCallbackComponent", () => {
   let fixture: ComponentFixture<OrcidCallbackComponent>;
-  let userServiceMock: { orcidLogin: ReturnType<typeof vi.fn> };
+  let userServiceMock: {
+    orcidLogin: ReturnType<typeof vi.fn>;
+    isLogin: ReturnType<typeof vi.fn>;
+    userChanged: () => ReplaySubject<User | undefined>;
+  };
+  /** Stands in for `UserService`'s own subject, replaying the current user the way it does. */
+  let userChangedSubject: ReplaySubject<User | undefined>;
   let notificationServiceMock: { error: ReturnType<typeof vi.fn> };
   let routerMock: { navigateByUrl: ReturnType<typeof vi.fn> };
 
@@ -49,7 +56,8 @@ describe("OrcidCallbackComponent", () => {
   const createComponent = async (
     queryParams: Record<string, string>,
     storedState: string | null = STATE,
-    orcidLogin = vi.fn().mockReturnValue(of(undefined))
+    orcidLogin = vi.fn().mockReturnValue(of(undefined)),
+    signedIn = true
   ) => {
     TestBed.resetTestingModule();
     sessionStorage.clear();
@@ -57,7 +65,16 @@ describe("OrcidCallbackComponent", () => {
       sessionStorage.setItem(ORCID_STATE_KEY, storedState);
     }
 
-    userServiceMock = { orcidLogin };
+    userChangedSubject = new ReplaySubject<User | undefined>(1);
+    // `handleAccessToken` publishes the session state before `orcidLogin` completes, so there is
+    // always a current value to replay: the user for an address-carrying token, nothing while the
+    // address prompt is open.
+    userChangedSubject.next(signedIn ? ({ uid: 1 } as User) : undefined);
+    userServiceMock = {
+      orcidLogin,
+      isLogin: vi.fn().mockReturnValue(signedIn),
+      userChanged: () => userChangedSubject,
+    };
     notificationServiceMock = { error: vi.fn() };
     routerMock = { navigateByUrl: vi.fn() };
 
@@ -178,6 +195,49 @@ describe("OrcidCallbackComponent", () => {
     expect(notificationServiceMock.error).toHaveBeenCalledWith("Login credentials are incorrect.");
     expect(routerMock.navigateByUrl).toHaveBeenCalledWith(LOGIN, { replaceUrl: true });
     expect(routerMock.navigateByUrl).not.toHaveBeenCalledWith(USER_WORKFLOW);
+  });
+
+  // An ORCID token carries no email, so the session is not resolved when `orcidLogin` completes:
+  // `loginWithExistingToken` has opened the address prompt and handed back no user. Navigating then
+  // would hit AuthGuardService and land the user on /login behind the still-open dialog.
+  describe("when the address prompt is still open", () => {
+    const openPrompt = (queryParams = { code: "auth-code", state: STATE }) =>
+      createComponent(queryParams, STATE, vi.fn().mockReturnValue(of(undefined)), false);
+
+    it("stays put rather than navigating into the auth guard", async () => {
+      await openPrompt();
+
+      expect(userServiceMock.orcidLogin).toHaveBeenCalledWith("auth-code");
+      expect(routerMock.navigateByUrl).not.toHaveBeenCalled();
+    });
+
+    it("goes to the dashboard once the answered prompt produces a user", async () => {
+      await openPrompt();
+
+      userChangedSubject.next({ uid: 7 } as User);
+
+      expect(routerMock.navigateByUrl).toHaveBeenCalledWith(USER_WORKFLOW);
+    });
+
+    // Cancelling the dialog signs out, which republishes an undefined user.
+    it("returns to the login page if the prompt is cancelled", async () => {
+      await openPrompt();
+
+      userChangedSubject.next(undefined);
+
+      expect(routerMock.navigateByUrl).toHaveBeenCalledWith(LOGIN, { replaceUrl: true });
+      expect(routerMock.navigateByUrl).not.toHaveBeenCalledWith(USER_WORKFLOW);
+    });
+
+    it("routes on the outcome only once", async () => {
+      await openPrompt();
+
+      userChangedSubject.next({ uid: 7 } as User);
+      userChangedSubject.next(undefined);
+
+      expect(routerMock.navigateByUrl).toHaveBeenCalledTimes(1);
+      expect(routerMock.navigateByUrl).toHaveBeenCalledWith(USER_WORKFLOW);
+    });
   });
 
   it("falls back to a generic message when the failure carries none", async () => {
