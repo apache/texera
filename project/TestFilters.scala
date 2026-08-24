@@ -19,23 +19,22 @@
 import sbt._
 
 /**
- * Shared wiring for the "fast unit job / integration job" test split.
- *
- * A module that owns specs too expensive or too dependency-hungry for the fast
- * unit job tags them, then asks for this split so the two CI jobs can select
- * disjoint subsets by tag. Each module supplies its own env var and tag name,
- * because the tag annotation has to live in a module its own Test config can
- * see; the selection logic itself is identical everywhere and lives here.
- *
- *   skip-integration : exclude tagged specs (the fast unit job)
- *   integration-only : run only tagged specs (the job with the extra provisioning)
- *   unset            : run everything, which is the normal local behavior
+ * Selects a module's tagged tests for the fast-unit job or the integration job:
+ * skip-integration excludes them, integration-only runs only them, unset runs
+ * everything, and any other value fails the build rather than quietly running
+ * everything in a job that selected a subset. Shared because the mapping is
+ * identical in every module, while the env var and the tag are not — the tag
+ * annotation has to live somewhere the module's own Test config can see.
  */
 object TestFilters {
 
-  /**
-   * @param envVar name of the env var the CI jobs set
-   * @param tag    fully-qualified tag name, as ScalaTest's -n/-l expect
+  /** @param envVar the variable the two CI jobs set to opposite values; it has to
+   *                be the one the workflow already sets on the step that invokes
+   *                this module's tests, or neither subset is selected.
+   * @param tag     fully-qualified name of the tag annotation, as
+   *                `classOf[...].getName` gives it at the test site — ScalaTest
+   *                matches these by string, so a rename that misses one side
+   *                silently stops filtering.
    */
   def integrationSplit(envVar: String, tag: String): Seq[TestOption] =
     sys.env.get(envVar) match {
@@ -43,6 +42,7 @@ object TestFilters {
         Seq(Tests.Argument(TestFrameworks.ScalaTest, "-l", tag))
       case Some("integration-only") =>
         Seq(Tests.Argument(TestFrameworks.ScalaTest, "-n", tag))
-      case _ => Nil
+      case Some(other) => sys.error(s"$envVar=$other: use skip-integration or integration-only")
+      case None        => Nil
     }
 }

@@ -23,6 +23,7 @@ import { fakeAsync, TestBed, tick } from "@angular/core/testing";
 import { UserService } from "./user.service";
 import { AuthService } from "./auth.service";
 import { StubAuthService } from "./stub-auth.service";
+import { MOCK_USER } from "./stub-user.service";
 import { skip } from "rxjs/operators";
 import { firstValueFrom, Subject, throwError } from "rxjs";
 import { commonTestProviders } from "../../testing/test-utils";
@@ -195,6 +196,21 @@ describe("UserService", () => {
     expect(await nextEmission).toMatchObject({ uid: 1, name: "alice" });
   });
 
+  // The email prompt lives in AuthService (it owns the token it replaces); what UserService owes
+  // it is a refreshed currentUser once that token lands. See auth.service.spec.ts for the prompt.
+  it("re-derives the current user when AuthService changes the session", async () => {
+    const auth = TestBed.inject(AuthService) as unknown as StubAuthService;
+    await firstValueFrom(service.login("test", "password"));
+    expect(service.isLogin()).toBe(true);
+
+    const nextEmission = firstValueFrom(service.userChanged().pipe(skip(1)));
+    auth.emitSessionChanged();
+
+    // Re-derived, not merely re-emitted: the value comes back out of the (stubbed) token rather
+    // than from the copy UserService was holding.
+    expect(await nextEmission).toMatchObject({ uid: MOCK_USER.uid, name: MOCK_USER.name });
+  });
+
   it("isAdmin reflects only the ADMIN role of the current user", () => {
     expect(service.isAdmin()).toBe(false); // no user
 
@@ -207,13 +223,17 @@ describe("UserService", () => {
 
   // ─── avatar fetching ──────────────────────────────────────────────────────
 
-  it("getAvatar returns undefined for an empty avatar id", async () => {
+  // The stored value is the provider's complete URL, not a Google-specific fragment, so it is
+  // fetched as-is and is also the cache key.
+  const AVATAR_URL = "https://lh3.googleusercontent.com/a/AVATAR-ID";
+
+  it("getAvatar returns undefined for an empty avatar url", async () => {
     expect(await firstValueFrom(service.getAvatar(""))).toBeUndefined();
   });
 
   it("getAvatar returns the cached object URL while the entry is still fresh", async () => {
-    (service as any).cache.set("cached-id", { url: "blob:cached", expiry: Date.now() + 60_000 });
-    expect(await firstValueFrom(service.getAvatar("cached-id"))).toBe("blob:cached");
+    (service as any).cache.set(AVATAR_URL, { url: "blob:cached", expiry: Date.now() + 60_000 });
+    expect(await firstValueFrom(service.getAvatar(AVATAR_URL))).toBe("blob:cached");
   });
 
   describe("getAvatar network path", () => {
@@ -237,18 +257,29 @@ describe("UserService", () => {
       globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, blob: () => Promise.resolve(blob) }) as any;
       URL.createObjectURL = vi.fn().mockReturnValue("blob:fetched");
 
-      const result = await firstValueFrom(service.getAvatar("remote-id"));
+      const result = await firstValueFrom(service.getAvatar(AVATAR_URL));
 
       expect(result).toBe("blob:fetched");
-      expect(globalThis.fetch).toHaveBeenCalledWith("https://lh3.googleusercontent.com/a/remote-id", {
+      // fetched verbatim — no CDN prefix is reconstructed here any more
+      expect(globalThis.fetch).toHaveBeenCalledWith(AVATAR_URL, {
         referrerPolicy: "no-referrer",
       });
       expect(URL.createObjectURL).toHaveBeenCalledWith(blob);
     });
 
+    it("fetches an avatar hosted anywhere the backend allowed, not just Google's CDN", async () => {
+      const blob = new Blob(["img"]);
+      globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, blob: () => Promise.resolve(blob) }) as any;
+      URL.createObjectURL = vi.fn().mockReturnValue("blob:other");
+
+      const otherHost = "https://avatars.example-provider.com/u/12345";
+      expect(await firstValueFrom(service.getAvatar(otherHost))).toBe("blob:other");
+      expect(globalThis.fetch).toHaveBeenCalledWith(otherHost, { referrerPolicy: "no-referrer" });
+    });
+
     it("returns undefined when the avatar fetch fails", async () => {
       globalThis.fetch = vi.fn().mockResolvedValue({ ok: false, status: 500 }) as any;
-      expect(await firstValueFrom(service.getAvatar("bad-id"))).toBeUndefined();
+      expect(await firstValueFrom(service.getAvatar("https://lh3.googleusercontent.com/a/BAD"))).toBeUndefined();
     });
   });
 });

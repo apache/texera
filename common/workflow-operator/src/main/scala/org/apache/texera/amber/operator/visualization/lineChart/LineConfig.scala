@@ -26,10 +26,9 @@ import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeNa
 
 import javax.validation.constraints.NotNull
 
-// Type constraint: both axes can only be numeric. The keys are the PROPERTY names —
-// the `@JsonProperty` values, which is what the property editor looks up
-// (`control.value[prop]`) — not the Scala field names; keyed by the latter the rule
-// matched nothing and neither the UI nor the config generator enforced it.
+// Type constraint: both axes can only be numeric. The keys are the PROPERTY names --
+// the `@JsonProperty` values, which is what the property editor looks up -- not the
+// Scala field names; keyed by the latter the rule matched nothing.
 @JsonSchemaInject(json = """
 {
   "attributeTypeRules": {
@@ -76,15 +75,12 @@ class LineConfig {
   // `new RegExp`. `\s*` between every element, because plotly strips spaces first and
   // so really does accept `#ff ffff`. The name branch stays lexical: matching exactly
   // would mean copying plotly's 148 CSS names in here.
-  //
-  // `examples` gives the verification config generator a legal sample to use.
   @JsonProperty(value = "color", required = false)
   @JsonSchemaTitle("Line Color")
   @JsonPropertyDescription("must be a valid CSS color or hex color string")
   @JsonSchemaInject(json = """
 {
-  "pattern": "^\\s*$|^\\s*#(?:\\s*[0-9a-fA-F]){3}(?:(?:\\s*[0-9a-fA-F]){3})?\\s*$|^\\s*(?:[rR]\\s*[gG]\\s*[bB]|[hH]\\s*[sS]\\s*[lL]|[hH]\\s*[sS]\\s*[vV])(?:\\s*[aA])?\\s*\\(\\s*(?:\\s*[0-9.])+(?:\\s*%)?(?:\\s*,(?:\\s*[0-9.])+(?:\\s*%)?){2,3}\\s*\\)\\s*$|^\\s*[vV]\\s*[aA]\\s*[rR]\\s*\\(\\s*-\\s*-[^)]*\\)\\s*$|^\\s*[a-zA-Z][a-zA-Z\\s]*$",
-  "examples": ["red"]
+  "pattern": "^\\s*$|^\\s*#(?:\\s*[0-9a-fA-F]){3}(?:(?:\\s*[0-9a-fA-F]){3})?\\s*$|^\\s*(?:[rR]\\s*[gG]\\s*[bB]|[hH]\\s*[sS]\\s*[lL]|[hH]\\s*[sS]\\s*[vV])(?:\\s*[aA])?\\s*\\(\\s*(?:\\s*[0-9.])+(?:\\s*%)?(?:\\s*,(?:\\s*[0-9.])+(?:\\s*%)?){2,3}\\s*\\)\\s*$|^\\s*[vV]\\s*[aA]\\s*[rR]\\s*\\(\\s*-\\s*-[^)]*\\)\\s*$|^\\s*[a-zA-Z][a-zA-Z\\s]*$"
 }
 """)
   var color: EncodableString = ""

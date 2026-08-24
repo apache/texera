@@ -20,16 +20,19 @@
 import { of, Subject } from "rxjs";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { By } from "@angular/platform-browser";
+import { NgModel } from "@angular/forms";
 import { provideRouter } from "@angular/router";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { NzMessageService } from "ng-zorro-antd/message";
 import { en_US, NZ_I18N } from "ng-zorro-antd/i18n";
 import { UserService } from "../../../../common/service/user/user.service";
-import { StubUserService } from "../../../../common/service/user/stub-user.service";
+import { MOCK_USER_ID, StubUserService } from "../../../../common/service/user/stub-user.service";
 import { SearchService } from "../../../service/user/search.service";
 import { DatasetService } from "../../../service/user/dataset/dataset.service";
 import { SearchResultsComponent } from "../search-results/search-results.component";
 import { SortButtonComponent } from "../sort-button/sort-button.component";
+import { CardItemComponent } from "../list-item/card-item/card-item.component";
+import { DashboardEntry } from "../../../type/dashboard-entry";
 import { commonTestImports, commonTestProviders } from "../../../../common/testing/test-utils";
 
 import { UserDatasetComponent } from "./user-dataset.component";
@@ -381,6 +384,100 @@ describe("UserDatasetComponent", () => {
       expect(makeFreshComponent().viewType).toBe("card");
     });
   });
+
+  describe("view child accessors", () => {
+    // The outer beforeEach assigns both view children, so these build a component that
+    // has never had a view attached.
+    const componentWithNoView = () =>
+      new UserDatasetComponent(
+        modalServiceMock as any,
+        {
+          userChanged: () => new Subject<User | undefined>().asObservable(),
+          isLogin: () => true,
+          getCurrentUser: () => ({ uid: 42 }) as User,
+        } as any,
+        routerMock as any,
+        searchServiceMock as any,
+        datasetServiceMock as any,
+        messageMock as any
+      );
+
+    it("rejects reading searchResultsComponent before the view is initialized", () => {
+      expect(() => componentWithNoView().searchResultsComponent).toThrowError(
+        "Property cannot be accessed before it is initialized."
+      );
+    });
+
+    it("rejects reading filters before the view is initialized", () => {
+      expect(() => componentWithNoView().filters).toThrowError("Property cannot be accessed before it is initialized.");
+    });
+
+    it("returns the view children once they are assigned", () => {
+      expect(component.searchResultsComponent).toBe(searchResultsStub);
+      expect(component.filters).toBe(filtersStub);
+    });
+
+    it("re-runs the search when the filter component reports a change", () => {
+      const search = vi.spyOn(component, "search").mockResolvedValue(undefined);
+
+      // the setter is what wires this subscription up
+      filtersStub.masterFilterListChange.next();
+
+      expect(search).toHaveBeenCalled();
+    });
+  });
+
+  describe("search de-duplication", () => {
+    it("skips a repeat search when the filters and sort are unchanged", async () => {
+      filtersStub.masterFilterList = ["a"];
+      await component.search();
+      expect(searchResultsStub.loadMore).toHaveBeenCalledTimes(1);
+
+      await component.search();
+
+      expect(searchResultsStub.loadMore).toHaveBeenCalledTimes(1);
+    });
+
+    it("runs the search again when it is forced", async () => {
+      filtersStub.masterFilterList = ["a"];
+      await component.search();
+
+      await component.search(true);
+
+      expect(searchResultsStub.loadMore).toHaveBeenCalledTimes(2);
+    });
+
+    it("runs the search again when the sort method changed", async () => {
+      filtersStub.masterFilterList = ["a"];
+      await component.search();
+
+      component.sortMethod = SortMethod.NameAsc;
+      await component.search();
+
+      expect(searchResultsStub.loadMore).toHaveBeenCalledTimes(2);
+    });
+
+    it("runs the search again when a filter was added", async () => {
+      await component.search();
+
+      filtersStub.masterFilterList = ["a"];
+      await component.search();
+
+      expect(searchResultsStub.loadMore).toHaveBeenCalledTimes(2);
+    });
+
+    it("runs the search again when a filter was replaced by another", async () => {
+      filtersStub.masterFilterList = ["a"];
+      await component.search();
+
+      // same length, different contents: only the element-wise comparison can tell
+      // these two lists apart
+      filtersStub.masterFilterList = ["b"];
+      await component.search();
+
+      expect(searchResultsStub.loadMore).toHaveBeenCalledTimes(2);
+    });
+  });
 });
 /**
  * The existing suite constructs the component directly, so its template has never been rendered.
@@ -481,17 +578,22 @@ describe("UserDatasetComponent rendering", () => {
     expect(fixture.debugElement.query(By.directive(SearchResultsComponent)).componentInstance.viewMode).toBe("list");
   });
 
-  it("marks the results list as editable and private", () => {
-    // This is the user's own dataset page, so entries are editable and the search is scoped to them.
+  it("marks the results list as editable and private and hands it the viewer's own id", () => {
+    // This is the user's own dataset page, so entries are editable and the search is scoped to
+    // them. The viewer's id is what lets the list tell the user's own datasets from ones merely
+    // shared with them, so it belongs in the same enumeration.
     const results = fixture.debugElement.query(By.directive(SearchResultsComponent)).componentInstance;
 
     expect(results.editable).toBe(true);
     expect(results.isPrivateSearch).toBe(true);
+    expect(results.currentUid).toBe(MOCK_USER_ID);
   });
 
   it("re-runs the search when the sort method changes", () => {
-    // The template statement does two things — assign then search — and dropping either leaves the
-    // list showing results in the previous order.
+    // The template statement does two things — assign then search — and running them the other
+    // way round issues the request with the *previous* sort key, leaving the list in the old
+    // order until some unrelated search comes along. So assert the order too, by reading the
+    // sort key the request actually carried.
     const sortButton = fixture.debugElement.query(By.directive(SortButtonComponent));
     searchSpy.mockClear();
 
@@ -500,6 +602,8 @@ describe("UserDatasetComponent rendering", () => {
 
     expect(component.sortMethod).toBe(SortMethod.NameAsc);
     expect(searchSpy).toHaveBeenCalled();
+    // executeSearch(keywords, params, start, count, resourceType, sortMethod, ...)
+    expect(searchSpy.mock.calls[0][5]).toBe(SortMethod.NameAsc);
   });
 
   it("opens the create-dataset flow from the toolbar button", () => {
@@ -519,5 +623,162 @@ describe("UserDatasetComponent rendering", () => {
 
     expect(sortButton.showEditTime).toBe(false);
     expect(sortButton.showExecutionTime).toBe(false);
+  });
+
+  it("writes the tags typed into the search box back to the filter list", () => {
+    // The search box is bound two-way; with a one-way binding the tags the user types would
+    // render but never reach the filter list, and the search would silently stay unfiltered.
+    // nz-select's rendered value comes through its ControlValueAccessor, so the edit has to be
+    // driven at the NgModel rather than by mutating the bound property.
+    const select = fixture.debugElement.query(By.css("nz-select"));
+    expect(select, "no nz-select in the search bar").not.toBeNull();
+    // Free-text keywords only exist in tag mode; "multiple" would restrict the box to preset
+    // options while leaving the two-way binding below working perfectly.
+    expect(select.componentInstance.nzMode).toBe("tags");
+
+    select.injector.get(NgModel).viewToModelUpdate(["alpha", "beta"]);
+
+    expect(component.filters.masterFilterList).toEqual(["alpha", "beta"]);
+  });
+});
+
+/**
+ * The rendering suite above keeps the result list empty, so the card template the page hands to
+ * texera-search-results is never instantiated. This suite returns real datasets so the cards
+ * themselves render, which is the only way the bindings and outputs on them are exercised. It
+ * gets its own TestBed rather than seeding the suite above: several tests there assert on what
+ * renders under an empty result list.
+ */
+describe("UserDatasetComponent card view", () => {
+  let fixture: ComponentFixture<UserDatasetComponent>;
+  let component: UserDatasetComponent;
+  let deleteDatasetsSpy: ReturnType<typeof vi.fn>;
+
+  /** Someone else's uid, so an owner id can never stand in for the signed-in viewer's. */
+  const OTHER_USER_ID = MOCK_USER_ID + 98;
+
+  /**
+   * A dataset entry shaped the way SearchService returns one. A private dataset search returns
+   * both the viewer's own datasets and ones shared with them, so `ownerUid` varies.
+   */
+  const datasetEntry = (did: number, ownerUid: number) =>
+    new DashboardEntry({
+      isOwner: ownerUid === MOCK_USER_ID,
+      ownerEmail: "owner@texera.test",
+      accessPrivilege: "WRITE",
+      size: 1024,
+      dataset: {
+        did,
+        ownerUid,
+        name: `ds-${did}`,
+        isPublic: false,
+        isDownloadable: false,
+        storagePath: undefined,
+        description: "a dataset",
+        creationTime: 0,
+        // Left unset so the card keeps its placeholder preview and never asks
+        // DatasetService for a cover URL.
+        coverImage: undefined,
+      },
+    });
+
+  beforeEach(async () => {
+    // viewType is seeded from localStorage at construction and the card template only renders
+    // in card view, so a "list" left behind by another suite would empty this one out.
+    localStorage.removeItem(VIEW_MODE_STORAGE_KEY);
+    deleteDatasetsSpy = vi.fn(() => of({} as Response));
+    await TestBed.configureTestingModule({
+      imports: [UserDatasetComponent, ...commonTestImports],
+      providers: [
+        { provide: NzModalService, useValue: { create: vi.fn() } },
+        { provide: UserService, useClass: StubUserService },
+        {
+          provide: SearchService,
+          useValue: {
+            executeSearch: vi.fn(() =>
+              of({
+                // One of the viewer's own datasets and one shared with them.
+                entries: [datasetEntry(7, MOCK_USER_ID), datasetEntry(8, OTHER_USER_ID)],
+                more: false,
+                hasMismatch: false,
+              })
+            ),
+          },
+        },
+        { provide: DatasetService, useValue: { deleteDatasets: deleteDatasetsSpy } },
+        { provide: NzMessageService, useValue: { warning: vi.fn() } },
+        { provide: NZ_I18N, useValue: en_US },
+        provideRouter([]),
+        ...commonTestProviders,
+      ],
+    }).compileComponents();
+
+    fixture = TestBed.createComponent(UserDatasetComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+    await component.search(true);
+    fixture.detectChanges();
+  });
+
+  afterEach(() => {
+    localStorage.removeItem(VIEW_MODE_STORAGE_KEY);
+    vi.restoreAllMocks();
+  });
+
+  const cards = () => fixture.debugElement.queryAll(By.directive(CardItemComponent));
+
+  it("renders one card per dataset, each holding its own entry", () => {
+    // One card per result, and each card gets the entry from its own iteration of the template
+    // rather than a single shared one.
+    expect(cards().map(card => (card.componentInstance as CardItemComponent).entry.name)).toEqual(["ds-7", "ds-8"]);
+  });
+
+  it("hands every card the page's own view settings", () => {
+    // This is the signed-in user's own dataset page: the cards are editable and the search is
+    // private. Every card gets the *viewer's* id — including the dataset owned by someone else,
+    // which is the only card that can tell the viewer's id apart from the entry's owner.
+    expect(component.currentUid).toBe(MOCK_USER_ID);
+
+    for (const card of cards().map(c => c.componentInstance as CardItemComponent)) {
+      expect(card.currentUid).toBe(MOCK_USER_ID);
+      expect(card.editable).toBe(true);
+      expect(card.isPrivateSearch).toBe(true);
+    }
+  });
+
+  it("deletes the card's own dataset when the card reports a delete", () => {
+    // The second card, so a handler wired to a fixed entry rather than the row's own would
+    // delete the wrong dataset.
+    const secondCard = cards()[1].componentInstance as CardItemComponent;
+
+    secondCard.deleted.emit();
+
+    expect(deleteDatasetsSpy).toHaveBeenCalledWith(8);
+    expect(deleteDatasetsSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("deletes the dataset the results list itself reports as deleted", () => {
+    // The list view's own delete path: texera-search-results raises (deleted) with the entry,
+    // and only this suite has a non-empty result list to raise it from. Distinct from the card
+    // output above, which goes through the page's card template instead.
+    const results = fixture.debugElement.query(By.directive(SearchResultsComponent))
+      .componentInstance as SearchResultsComponent;
+    const secondEntry = (cards()[1].componentInstance as CardItemComponent).entry;
+
+    results.deleted.emit(secondEntry);
+
+    expect(deleteDatasetsSpy).toHaveBeenCalledWith(8);
+    expect(deleteDatasetsSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("forces a fresh search when a card asks for a refresh", () => {
+    const card = cards()[0].componentInstance as CardItemComponent;
+    const searchSpy = vi.spyOn(component, "search").mockResolvedValue(undefined);
+
+    card.refresh.emit();
+
+    // Forced: an unforced search would be dropped by the de-duplication check, since neither
+    // the filters nor the sort changed.
+    expect(searchSpy).toHaveBeenCalledWith(true);
   });
 });

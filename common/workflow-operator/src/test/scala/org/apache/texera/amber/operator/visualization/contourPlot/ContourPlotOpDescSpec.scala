@@ -74,11 +74,9 @@ class ContourPlotOpDescSpec extends AnyFlatSpec with Matchers {
     c.connectGaps shouldBe true
   }
 
-  /** `Option[Int]` erases its element type, so Jackson needs
-    * `@JsonDeserialize(contentAs = ...)` to know what to build. Without it a JSON
-    * string is left inside the Option unconverted and the first use throws
-    * ClassCastException, which no round-trip test catches — a round trip writes a
-    * number back. These read the shapes a stored workflow can actually hold.
+  /** Reads the shapes a stored workflow can hold; a round trip cannot cover them,
+    * since it writes a number back. See GaugeChartStepsSpec for why `contentAs` is
+    * what these pin.
     */
   private def readGridSize(json: String): Option[Int] =
     objectMapper
@@ -101,8 +99,7 @@ class ContourPlotOpDescSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "hold an Int, not the raw JSON value" in {
-    // The ClassCastException the missing annotation caused surfaces here, at the
-    // first use of the value, not at deserialization.
+    // The ClassCastException surfaces here, at the first use, not at read time.
     readGridSize(""","gridSize":"20"""").map(_ + 1) shouldBe Some(21)
   }
 

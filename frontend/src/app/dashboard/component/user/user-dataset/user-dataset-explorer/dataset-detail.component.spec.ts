@@ -17,11 +17,15 @@
  * under the License.
  */
 
+import { ApplicationRef, DebugElement } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { By } from "@angular/platform-browser";
+import { NoopAnimationsModule } from "@angular/platform-browser/animations";
 import { ActivatedRoute, Router } from "@angular/router";
 import { of, Subject, throwError } from "rxjs";
 import { NzModalService } from "ng-zorro-antd/modal";
+import { NzResizableDirective } from "ng-zorro-antd/resizable";
+import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
 import { MarkdownService } from "ngx-markdown";
 import {
   DatasetDetailComponent,
@@ -33,7 +37,7 @@ import { NotificationService } from "../../../../../common/service/notification/
 import { DownloadService } from "../../../../service/user/download/download.service";
 import { UserService } from "../../../../../common/service/user/user.service";
 import { MOCK_USER, StubUserService } from "../../../../../common/service/user/stub-user.service";
-import { HubService } from "../../../../../hub/service/hub.service";
+import { ActionType, EntityType, HubService } from "../../../../../hub/service/hub.service";
 import { AdminSettingsService } from "../../../../service/admin/settings/admin-settings.service";
 import { FileUploadItem } from "../../../../type/dashboard-file.interface";
 import { DatasetFileNode, getFullPathFromDatasetFileNode } from "../../../../../common/type/datasetVersionFileTree";
@@ -41,7 +45,8 @@ import { DatasetStagedObject } from "../../../../../common/type/dataset-staged-o
 import { commonTestImports, commonTestProviders } from "../../../../../common/testing/test-utils";
 import { Contributor, Dataset, DatasetVersion } from "../../../../../common/type/dataset";
 import { DashboardDataset } from "../../../../type/dashboard-dataset.interface";
-import { HttpErrorResponse } from "@angular/common/http";
+import { HttpErrorResponse, HttpStatusCode } from "@angular/common/http";
+import { NzResizeEvent } from "ng-zorro-antd/resizable";
 import { format } from "date-fns";
 import { USER_DATASET } from "../../../../../app-routing.constant";
 
@@ -134,6 +139,64 @@ describe("DatasetDetailComponent upload queue", () => {
     // Log in so ngOnInit reaches loadUploadSettings (maxConcurrentFiles = 3).
     (TestBed.inject(UserService) as unknown as StubUserService).userChangeSubject.next(MOCK_USER);
     fixture.detectChanges();
+  });
+
+  /**
+   * A failed upload has to tell the user why, mark the task failed without leaving its bar at
+   * 100%, and free the concurrency slot — otherwise the queue stalls behind a dead upload.
+   */
+  describe("a failed upload", () => {
+    const notification = () => TestBed.inject(NotificationService) as unknown as { error: ReturnType<typeof vi.fn> };
+
+    /** Fails the in-flight upload of `name` with the given HTTP status. */
+    const failUpload = (index: number, status: number) =>
+      uploadSubjects[index].error(new HttpErrorResponse({ status }));
+
+    it("names the 409 conflict so the user knows to retry", () => {
+      dropFiles("a.csv");
+
+      failUpload(0, HttpStatusCode.Conflict);
+
+      expect(notification().error).toHaveBeenCalledWith(expect.stringContaining("Upload blocked (409)"));
+    });
+
+    it("falls back to a generic message for any other failure", () => {
+      dropFiles("a.csv");
+
+      failUpload(0, HttpStatusCode.InternalServerError);
+
+      expect(notification().error).toHaveBeenCalledWith("Upload failed. Please retry.");
+    });
+
+    it("marks the task failed and keeps its progress rather than showing it complete", () => {
+      dropFiles("a.csv");
+      // a partially-uploaded file: the bar must not jump to 100 when it fails
+      uploadSubjects[0].next({ filePath: "a.csv", percentage: 42, status: "uploading" });
+
+      failUpload(0, HttpStatusCode.InternalServerError);
+
+      const task = component.uploadTasks.find(t => t.filePath === "a.csv");
+      expect(task?.status).toBe("failed");
+      expect(task?.percentage).toBe(42);
+    });
+
+    it("frees the concurrency slot so a queued upload can start", () => {
+      // maxConcurrentFiles is 3, so a fourth file waits for a slot
+      dropFiles("a.csv", "b.csv", "c.csv", "d.csv");
+      expect(uploadedPaths).toEqual(["a.csv", "b.csv", "c.csv"]);
+
+      failUpload(0, HttpStatusCode.InternalServerError);
+
+      expect(uploadedPaths).toContain("d.csv");
+    });
+
+    it("still reports the failure when the task is no longer in the list", () => {
+      dropFiles("a.csv");
+      component.uploadTasks = []; // the taskIndex === -1 arm
+
+      expect(() => failUpload(0, HttpStatusCode.InternalServerError)).not.toThrow();
+      expect(notification().error).toHaveBeenCalled();
+    });
   });
 
   /**
@@ -272,6 +335,79 @@ describe("DatasetDetailComponent upload queue", () => {
       component.cancelExistingUpload("b.txt", onCanceled);
 
       expect(finalize).toHaveBeenCalledWith("owner@texera.com", "test-dataset", "b.txt", true);
+      expect(onCanceled).toHaveBeenCalledTimes(1);
+    });
+
+    it("frees the slot of an upload aborted before its first part went out", () => {
+      // A task sits at "initializing" until the service reports its first progress.
+      // Cancelling in that window still has to hand the slot to whatever is queued
+      // behind it, or the queue stalls on an upload that never started.
+      dropFiles("a.txt", "b.txt", "c.txt", "d.txt");
+      expect(uploadedPaths).toEqual(["a.txt", "b.txt", "c.txt"]);
+      const initializing = component.uploadTasks.find(t => t.filePath === "a.txt")!;
+      expect(initializing.status).toBe("initializing");
+
+      component.onClickAbortUploadProgress(initializing as any);
+
+      expect(uploadedPaths).toContain("d.txt");
+      expect(component.activeCount).toBe(3);
+    });
+
+    it("does not free a second slot when a finished upload's row is dismissed", () => {
+      // The row's button becomes "Close" once the upload is done, and the slot was
+      // already released by the completion; releasing it a second time would let a
+      // fourth upload run past the concurrency cap.
+      dropFiles("a.txt", "b.txt", "c.txt", "d.txt");
+      finishUpload(0, "a.txt");
+      expect(uploadedPaths).toContain("d.txt");
+      const finished = component.uploadTasks.find(t => t.filePath === "a.txt")!;
+      expect(finished.status).toBe("finished");
+
+      component.onClickAbortUploadProgress(finished as any);
+
+      expect(component.activeCount).toBe(3);
+      const dismissed = component.uploadTasks.find(t => t.filePath === "a.txt")!;
+      expect(dismissed.status).toBe("aborted");
+
+      // The row lingers for five seconds after being dismissed, so the same X is
+      // still there to be clicked again — and that click must not release either.
+      component.onClickAbortUploadProgress(dismissed as any);
+
+      expect(component.activeCount).toBe(3);
+    });
+
+    it("does not free a second slot when a failed upload's row is dismissed", () => {
+      // The failure handler already released this upload's slot and let the queued
+      // fourth file start; dismissing the row it left behind must not release a
+      // second slot, or a fifth upload would run past the cap of three.
+      dropFiles("a.txt", "b.txt", "c.txt", "d.txt");
+      uploadSubjects[0].error(new HttpErrorResponse({ status: 500 }));
+      expect(uploadedPaths).toContain("d.txt");
+      const failed = component.uploadTasks.find(t => t.filePath === "a.txt")!;
+      expect(failed.status).toBe("failed");
+
+      component.onClickAbortUploadProgress(failed as any);
+
+      expect(component.activeCount).toBe(3);
+      expect(multipartUploadSpy).toHaveBeenCalledTimes(4);
+    });
+
+    it("cancelExistingUpload aborts an upload whose first part has not gone out", () => {
+      // Until the service reports a first chunk the task sits at "initializing".
+      // A re-drop in that window has to abort that attempt rather than fall
+      // through and race a second multipart upload against it for the same path,
+      // which is exactly the 409 the upload error handler warns about.
+      dropFiles("b.txt");
+      expect(component.uploadTasks.find(t => t.filePath === "b.txt")!.status).toBe("initializing");
+      const onCanceled = vi.fn();
+
+      component.cancelExistingUpload("b.txt", onCanceled);
+
+      expect(finalize).toHaveBeenCalledWith("owner@texera.com", "test-dataset", "b.txt", true);
+      expect(component.uploadTasks.find(t => t.filePath === "b.txt")!.status).toBe("aborted");
+      // The slot goes back to the queue instead of being held by an attempt that
+      // is no longer running.
+      expect(component.activeCount).toBe(0);
       expect(onCanceled).toHaveBeenCalledTimes(1);
     });
   });
@@ -566,6 +702,19 @@ describe("DatasetDetailComponent upload queue", () => {
     expect(component.activeCount).toBe(0);
     expect(component.queuedCount).toBe(0);
     expect(component.queuedFileNames).toEqual([]);
+  });
+
+  it("starts no upload at all when the route carried no dataset id", () => {
+    // Every multipart call is addressed to a dataset, so without one there is
+    // nowhere to upload into: the drop is refused outright rather than leaving
+    // rows on the panel for uploads that were never started.
+    component.did = undefined;
+
+    dropFiles("f1.txt", "f2.txt");
+
+    expect(multipartUploadSpy).not.toHaveBeenCalled();
+    expect(component.uploadTasks).toEqual([]);
+    expect(component.activeCount).toBe(0);
   });
 
   it("starts the next queued upload when an active upload finishes", () => {
@@ -946,6 +1095,69 @@ describe("DatasetDetailComponent behavior", () => {
       expect(hubServiceStub.getCounts).not.toHaveBeenCalled();
       expect(hubServiceStub.postView).not.toHaveBeenCalled();
     });
+
+    it("reads a counts response with no like tally as no likes, and no liked record as not liked", () => {
+      // Both are legitimate wire shapes: `counts` is a partial map keyed by action
+      // type, and `isLiked` simply omits entities the user has no record against.
+      hubServiceStub.getCounts.mockReturnValue(of([{ counts: {} }]));
+      hubServiceStub.isLiked.mockReturnValue(of([]));
+
+      createComponent({ did: 5 });
+      // Seed both fields with values the response cannot produce, so falling back
+      // is distinguishable from leaving whatever happened to be there.
+      component.likeCount = 9;
+      component.isLiked = true;
+      login();
+      fixture.detectChanges();
+
+      const likeTag: HTMLElement = fixture.nativeElement.querySelector(".like-tag");
+      expect(likeTag).not.toBeNull();
+      expect((likeTag.textContent ?? "").trim()).toBe("0");
+      expect(likeTag.classList).not.toContain("liked");
+      // The tally shown is the dataset's own like count, not some other entity's
+      // or some other action's: nothing else in the suite pins these arguments.
+      expect(hubServiceStub.getCounts).toHaveBeenCalledWith([EntityType.Dataset], [5], [ActionType.Like]);
+    });
+
+    it("leaves the chunk size untouched when only that setting fails to load", () => {
+      // A distinct value per key, so a setting that lands in the wrong field is
+      // visible: 7 chunks and 2 files cannot stand in for one another.
+      adminSettingsServiceStub.getPublicSetting.mockImplementation((key: string) =>
+        key === "multipart_upload_chunk_size_mib"
+          ? throwError(() => new Error("boom"))
+          : of(key === "max_number_of_concurrent_uploading_file_chunks" ? "7" : "2")
+      );
+
+      createComponent({ did: 5 });
+      // A sentinel the class default cannot supply, so "the failed fetch wrote
+      // nothing" is distinguishable from "it wrote the default back".
+      component.chunkSizeMiB = 42;
+      login();
+      fixture.detectChanges();
+
+      expect(component.chunkSizeMiB).toBe(42);
+      expect(component.maxConcurrentChunks).toBe(7);
+      expect(component.maxConcurrentFiles).toBe(2);
+    });
+
+    it("leaves both concurrency limits untouched when their settings fail to load", () => {
+      adminSettingsServiceStub.getPublicSetting.mockImplementation((key: string) =>
+        key === "multipart_upload_chunk_size_mib" ? of("128") : throwError(() => new Error("boom"))
+      );
+
+      createComponent({ did: 5 });
+      // Sentinels again. A failed fetch that wrote anything here — a reset or a
+      // NaN — would stall the queue outright, since `activeUploads < NaN` is
+      // never true, and a plain default-valued assertion could not see it.
+      component.maxConcurrentChunks = 41;
+      component.maxConcurrentFiles = 40;
+      login();
+      fixture.detectChanges();
+
+      expect(component.chunkSizeMiB).toBe(128);
+      expect(component.maxConcurrentChunks).toBe(41);
+      expect(component.maxConcurrentFiles).toBe(40);
+    });
   });
 
   describe("retrieveDatasetInfo", () => {
@@ -1323,6 +1535,50 @@ describe("DatasetDetailComponent behavior", () => {
       expect(component.datasetIsDownloadable).toBe(true);
       expect(notificationServiceStub.error).toHaveBeenCalledWith("Failed to change the dataset download permission");
     });
+
+    it("marks the dataset private and names that state, not the one it left", () => {
+      createComponent();
+      component.did = 5;
+      component.datasetName = "MyDS";
+      component.datasetIsPublic = true;
+
+      component.onPublicStatusChange(false);
+
+      expect(component.datasetIsPublic).toBe(false);
+      expect(notificationServiceStub.success).toHaveBeenCalledWith("Dataset MyDS is now private");
+    });
+
+    it("marks downloads allowed and names that state, not the one it left", () => {
+      createComponent();
+      component.did = 5;
+      component.datasetIsDownloadable = false;
+
+      component.onDownloadableStatusChange(true);
+
+      expect(component.datasetIsDownloadable).toBe(true);
+      expect(notificationServiceStub.success).toHaveBeenCalledWith("Dataset downloads are now allowed");
+    });
+
+    it("does not attempt a publicity change without a dataset id", () => {
+      createComponent();
+      component.did = undefined;
+
+      component.onPublicStatusChange(true);
+
+      expect(datasetServiceStub.updateDatasetPublicity).not.toHaveBeenCalled();
+      expect(component.datasetIsPublic).toBe(false);
+    });
+
+    it("does not attempt a download-permission change without a dataset id", () => {
+      createComponent();
+      component.did = undefined;
+      component.datasetIsDownloadable = true;
+
+      component.onDownloadableStatusChange(false);
+
+      expect(datasetServiceStub.updateDatasetDownloadable).not.toHaveBeenCalled();
+      expect(component.datasetIsDownloadable).toBe(true);
+    });
   });
 
   describe("onClickOpenVersionCreator", () => {
@@ -1505,6 +1761,77 @@ describe("DatasetDetailComponent behavior", () => {
       expect(hubServiceStub.postLike).not.toHaveBeenCalled();
       expect(hubServiceStub.postUnlike).not.toHaveBeenCalled();
     });
+
+    it("leaves the dataset liked when the server refuses the unlike", () => {
+      hubServiceStub.postUnlike.mockReturnValue(of(false));
+      // A tally only a refresh could produce, so a refresh that must not happen shows.
+      hubServiceStub.getCounts.mockReturnValue(of([{ counts: { like: 99 } }]));
+      createComponent();
+      component.did = 5;
+      component.currentUid = MOCK_USER.uid;
+      component.isLiked = true;
+      component.likeCount = 5;
+
+      component.toggleLike();
+
+      // The unlike is addressed to this dataset, not to some other entity type
+      // that happens to share the id.
+      expect(hubServiceStub.postUnlike).toHaveBeenCalledWith(5, EntityType.Dataset);
+      // Showing the heart as unfilled after a refused unlike would misreport the
+      // stored state, and the next click would then try to like it again.
+      expect(component.isLiked).toBe(true);
+      expect(component.likeCount).toBe(5);
+      expect(hubServiceStub.getCounts).not.toHaveBeenCalled();
+    });
+
+    it("leaves the dataset unliked when the server refuses the like", () => {
+      hubServiceStub.postLike.mockReturnValue(of(false));
+      hubServiceStub.getCounts.mockReturnValue(of([{ counts: { like: 99 } }]));
+      createComponent();
+      component.did = 5;
+      component.currentUid = MOCK_USER.uid;
+      component.isLiked = false;
+      component.likeCount = 5;
+
+      component.toggleLike();
+
+      expect(hubServiceStub.postLike).toHaveBeenCalledWith(5, EntityType.Dataset);
+      expect(component.isLiked).toBe(false);
+      expect(component.likeCount).toBe(5);
+      expect(hubServiceStub.getCounts).not.toHaveBeenCalled();
+    });
+
+    it("reads a refreshed count with no like tally as no likes after unliking", () => {
+      hubServiceStub.postUnlike.mockReturnValue(of(true));
+      hubServiceStub.getCounts.mockReturnValue(of([{ counts: {} }]));
+      createComponent();
+      component.did = 5;
+      component.currentUid = MOCK_USER.uid;
+      component.isLiked = true;
+      component.likeCount = 5;
+
+      component.toggleLike();
+
+      // The refresh re-reads this dataset's like tally: a request for another
+      // entity, another action or another id would return a stranger's count.
+      expect(hubServiceStub.getCounts).toHaveBeenCalledWith([EntityType.Dataset], [5], [ActionType.Like]);
+      expect(component.likeCount).toBe(0);
+    });
+
+    it("reads a refreshed count with no like tally as no likes after liking", () => {
+      hubServiceStub.postLike.mockReturnValue(of(true));
+      hubServiceStub.getCounts.mockReturnValue(of([{ counts: {} }]));
+      createComponent();
+      component.did = 5;
+      component.currentUid = MOCK_USER.uid;
+      component.isLiked = false;
+      component.likeCount = 5;
+
+      component.toggleLike();
+
+      expect(hubServiceStub.getCounts).toHaveBeenCalledWith([EntityType.Dataset], [5], [ActionType.Like]);
+      expect(component.likeCount).toBe(0);
+    });
   });
 
   describe("cover image and description persistence", () => {
@@ -1533,6 +1860,52 @@ describe("DatasetDetailComponent behavior", () => {
       component.onSetCoverImage("img.png");
 
       expect(notificationServiceStub.error).toHaveBeenCalledWith("nope");
+    });
+
+    it("drops the previous cover url when the refreshed one cannot be fetched", () => {
+      datasetServiceStub.updateDatasetCoverImage.mockReturnValue(of({}));
+      datasetServiceStub.getDatasetCoverUrl.mockReturnValue(throwError(() => new Error("boom")));
+      createComponent();
+      component.did = 5;
+      component.selectedVersion = makeVersion({ name: "v1" });
+      component.coverImageUrl = "http://stale";
+
+      component.onSetCoverImage("img.png");
+
+      // The stale url still points at the cover that was just replaced, so keeping
+      // it would show the old image as though the change had not been made.
+      expect(component.coverImageUrl).toBeNull();
+      expect(notificationServiceStub.success).toHaveBeenCalledWith("Cover image updated.");
+    });
+
+    it("does not surface a non-HTTP failure's own message when setting the cover image", () => {
+      // A rejection from below the HTTP layer, shaped like a response but not one:
+      // only a real HttpErrorResponse carries a body the backend meant for a user,
+      // so this text must stay out of the toast. Reading `.error.message` off
+      // anything that has it would leak the transport detail instead.
+      datasetServiceStub.updateDatasetCoverImage.mockReturnValue(
+        throwError(() => ({ status: 0, error: { message: "connect ECONNREFUSED 127.0.0.1:8080" } }))
+      );
+      createComponent();
+      component.did = 5;
+      component.selectedVersion = makeVersion({ name: "v1" });
+
+      component.onSetCoverImage("img.png");
+
+      expect(notificationServiceStub.error).toHaveBeenCalledWith("Failed to set cover image");
+    });
+
+    it("falls back to a generic message when the error body carries none", () => {
+      datasetServiceStub.updateDatasetCoverImage.mockReturnValue(
+        throwError(() => new HttpErrorResponse({ error: {}, status: 500 }))
+      );
+      createComponent();
+      component.did = 5;
+      component.selectedVersion = makeVersion({ name: "v1" });
+
+      component.onSetCoverImage("img.png");
+
+      expect(notificationServiceStub.error).toHaveBeenCalledWith("Failed to set cover image");
     });
 
     it("does nothing when there is no selected version to attach the cover to", () => {
@@ -1653,6 +2026,58 @@ describe("DatasetDetailComponent behavior", () => {
     it("trackByTask returns the task's file path", () => {
       const task = { filePath: "owner/data/file.csv" } as unknown as Parameters<typeof component.trackByTask>[1];
       expect(component.trackByTask(0, task)).toBe("owner/data/file.csv");
+    });
+  });
+
+  describe("onPreviouslyUploadedFileDeleted", () => {
+    const node: DatasetFileNode = {
+      name: "a.txt",
+      type: "file",
+      parentDir: "/dataset/owner@texera.com/ds/v1/nested",
+    };
+
+    it("does not delete a file without a dataset id", () => {
+      createComponent();
+      component.did = undefined;
+
+      component.onPreviouslyUploadedFileDeleted(node);
+
+      expect(datasetServiceStub.deleteDatasetFile).not.toHaveBeenCalled();
+    });
+
+    it("toasts an error and stages nothing when the deletion fails", () => {
+      datasetServiceStub.deleteDatasetFile.mockReturnValue(throwError(() => new Error("boom")));
+      createComponent();
+      component.did = 5;
+      const emit = vi.fn();
+      component.userMakeChanges.subscribe(emit);
+
+      component.onPreviouslyUploadedFileDeleted(node);
+
+      expect(notificationServiceStub.error).toHaveBeenCalledWith("Failed to delete the file");
+      // A file the backend still holds is not a staged change, so counting it would
+      // offer a version to create out of a deletion that never happened.
+      expect(component.pendingChangesCount).toBe(0);
+      expect(component.userHasPendingChanges).toBe(false);
+      expect(emit).not.toHaveBeenCalled();
+    });
+
+    it("stages the deletion under the same path the next diff response confirms", () => {
+      createComponent();
+      component.did = 5;
+
+      component.onPreviouslyUploadedFileDeleted(node);
+
+      expect(datasetServiceStub.deleteDatasetFile).toHaveBeenCalledWith(5, "nested/a.txt");
+      expect(component.pendingChangesCount).toBe(1);
+
+      // The diff response reports staged paths relative to the version root, and
+      // only an exact match retires the locally staged entry. A key in any other
+      // form never reconciles, so the Finished header counts this one deletion
+      // twice until the next version is created.
+      component.onStagedObjectsUpdated([{ path: "nested/a.txt", pathType: "file", diffType: "removed", sizeBytes: 0 }]);
+
+      expect(component.pendingChangesCount).toBe(1);
     });
   });
 
@@ -2049,6 +2474,834 @@ describe("DatasetDetailComponent behavior", () => {
 
       switches[1].triggerEventHandler("ngModelChange", false);
       expect(datasetServiceStub.updateDatasetDownloadable).toHaveBeenCalledWith(5);
+    });
+
+    // ─── contributor management ─────────────────────────────────────────────
+    const contributors = [
+      { name: "Ada", email: "ada@x.io", affiliation: "" } as Contributor,
+      { name: "Grace", email: "grace@x.io", affiliation: "" } as Contributor,
+    ];
+
+    it("renders a row per contributor with the actions trigger", () => {
+      renderWith({ did: 5, datasetContributors: [...contributors], userDatasetAccessLevel: "WRITE" });
+
+      const rendered = fixture.nativeElement.textContent ?? "";
+      expect(rendered).toContain("Ada");
+      expect(rendered).toContain("Grace");
+      // each row carries the dropdown trigger that hosts Edit/Delete
+      const triggers = fixture.debugElement
+        .queryAll(By.css("button[nz-dropdown]"))
+        .filter(btn => btn.nativeElement.querySelector("i.anticon-more"));
+      expect(triggers.length).toBe(contributors.length);
+    });
+
+    // Edit/Delete live inside an nz-dropdown-menu, which only mounts into a CDK overlay on a
+    // real user open — jsdom does not drive that. Assert the handlers those menu items bind to
+    // instead; the rendered trigger is covered above.
+    it("edits the chosen contributor through the menu's binding target", () => {
+      const updated = { ...contributors[0], affiliation: "Lab" };
+      modalServiceStub.create.mockReturnValue({ afterClose: of(updated) });
+      renderWith({ did: 5, datasetContributors: [...contributors], userDatasetAccessLevel: "WRITE" });
+
+      component.onEditContributor(contributors[0]);
+
+      expect(component.datasetContributors[0]).toEqual(updated);
+    });
+
+    it("deletes the chosen contributor through the popconfirm's binding target", () => {
+      renderWith({ did: 5, datasetContributors: [...contributors], userDatasetAccessLevel: "WRITE" });
+
+      component.onDeleteContributor(contributors[0]);
+
+      expect(component.datasetContributors.map(c => c.name)).toEqual(["Grace"]);
+    });
+
+    // ─── view controls ──────────────────────────────────────────────────────
+
+    it("downloads the current file from the toolbar", () => {
+      // the toolbar controls are behind *ngIf="selectedVersion"
+      renderWith({ did: 5, selectedVersion: { dvid: 1, name: "v1" } as DatasetVersion });
+      openTab("Versions & Files");
+      const onDownload = vi.spyOn(component, "onClickDownloadCurrentFile").mockImplementation(() => {});
+
+      const downloadBtn = fixture.debugElement
+        .queryAll(By.css("button"))
+        .find(btn => btn.nativeElement.querySelector("i.anticon-download"));
+      expect(downloadBtn).toBeTruthy();
+      downloadBtn!.triggerEventHandler("click", null);
+
+      expect(onDownload).toHaveBeenCalled();
+    });
+
+    it("toggles the scaled view from the toolbar", () => {
+      renderWith({ did: 5, isMaximized: false, selectedVersion: { dvid: 1, name: "v1" } as DatasetVersion });
+      openTab("Versions & Files");
+
+      const scaleBtn = fixture.debugElement
+        .queryAll(By.css("button"))
+        .find(btn => btn.nativeElement.querySelector("i.anticon-expand, i.anticon-compress"));
+      expect(scaleBtn).toBeTruthy();
+      scaleBtn!.triggerEventHandler("click", null);
+      fixture.detectChanges();
+
+      expect(component.isMaximized).toBe(true);
+    });
+
+    // ─── sider resize ───────────────────────────────────────────────────────
+
+    it("applies the dragged sider width on the next animation frame", async () => {
+      renderWith({ did: 5 });
+
+      component.onSideResize({ width: 321 } as NzResizeEvent);
+      // the handler defers to requestAnimationFrame; let that frame run
+      await new Promise(resolve => requestAnimationFrame(() => resolve(null)));
+
+      expect(component.siderWidth).toBe(321);
+    });
+
+    it("cancels the frame the previous resize scheduled", () => {
+      renderWith({ did: 5 });
+      // Hand out a known frame id so the assertion below pins down *which* frame is
+      // cancelled: the component starts with id = -1, so merely asserting that
+      // cancelAnimationFrame was called would pass even if the id were never tracked.
+      const request = vi.spyOn(globalThis, "requestAnimationFrame").mockReturnValue(100);
+      const cancel = vi.spyOn(globalThis, "cancelAnimationFrame");
+      try {
+        component.onSideResize({ width: 100 } as NzResizeEvent);
+        cancel.mockClear(); // drop the initial cancel(-1)
+
+        component.onSideResize({ width: 200 } as NzResizeEvent);
+
+        expect(cancel).toHaveBeenCalledWith(100);
+      } finally {
+        cancel.mockRestore();
+        request.mockRestore();
+      }
+    });
+  });
+});
+
+/**
+ * The explorer's markup carries a lot of behaviour that never shows up in the
+ * component's own API: which icon labels a status tag, which contributor a row
+ * menu acts on, whether a toolbar button reaches the download service at all.
+ * Everything below drives the real template — real children, real overlays — and
+ * asserts on what is rendered, so a binding that quietly changes meaning fails.
+ */
+describe("DatasetDetailComponent rendered template", () => {
+  let fixture: ComponentFixture<DatasetDetailComponent>;
+  let component: DatasetDetailComponent;
+
+  type Stub = Record<string, ReturnType<typeof vi.fn>>;
+  let datasetService: Stub;
+  let downloadService: Stub;
+  let notificationService: Stub;
+  let modalService: Stub;
+  let hubService: Stub;
+
+  const OWNER = "owner@texera.com";
+
+  const aVersion = (over: Partial<DatasetVersion> = {}): DatasetVersion =>
+    ({ dvid: 11, did: 5, creatorUid: 9, name: "v1", ...over }) as DatasetVersion;
+
+  const makeFileItem = (name: string): FileUploadItem => ({
+    file: new File(["x"], name),
+    name,
+    description: "",
+    uploadProgress: 0,
+    isUploadingFlag: false,
+    restart: false,
+  });
+
+  beforeEach(() => {
+    TestBed.resetTestingModule();
+
+    datasetService = {
+      getDataset: vi.fn(() =>
+        of({
+          isOwner: true,
+          ownerEmail: OWNER,
+          accessPrivilege: "WRITE",
+          size: 0,
+          dataset: {
+            did: 5,
+            ownerUid: 9,
+            name: "ds",
+            isPublic: false,
+            isDownloadable: true,
+            description: "desc",
+          },
+        })
+      ),
+      retrieveDatasetVersionList: vi.fn(() => of([])),
+      retrieveDatasetLatestVersion: vi.fn(() => of(aVersion())),
+      retrieveDatasetVersionFileTree: vi.fn(() => of({ fileNodes: [], size: 1024 })),
+      // The real file renderer is rendered here, and it fetches whatever file is on screen.
+      retrieveDatasetVersionSingleFile: vi.fn(() => of(new Blob(["a,b"], { type: "text/csv" }))),
+      getDatasetCoverUrl: vi.fn(() => of({ url: "http://cover" })),
+      getDatasetDiff: vi.fn(() => of([])),
+      createDatasetVersion: vi.fn(() => of(aVersion())),
+      updateDatasetPublicity: vi.fn(() => of({})),
+      updateDatasetDownloadable: vi.fn(() => of({})),
+      updateDatasetCoverImage: vi.fn(() => of({})),
+      updateDatasetDescription: vi.fn(() => of({})),
+      updateDatasetContributors: vi.fn(() => of(undefined)),
+      updateDatasetName: vi.fn(() => of({})),
+      deleteDatasets: vi.fn(() => of({})),
+      deleteDatasetFile: vi.fn(() => of({})),
+      // Never completes, so an upload started from the template stays in flight
+      // and its row keeps rendering the "uploading" arm.
+      multipartUpload: vi.fn(() => new Subject<MultipartUploadProgress>().asObservable()),
+      finalizeMultipartUpload: vi.fn(() => of({})),
+    };
+    downloadService = {
+      downloadDatasetVersion: vi.fn(() => of(new Blob())),
+      downloadSingleFile: vi.fn(() => of(new Blob())),
+    };
+    notificationService = { success: vi.fn(), error: vi.fn(), info: vi.fn() };
+    modalService = { create: vi.fn(() => ({ afterClose: of(undefined) })) };
+    hubService = {
+      getCounts: vi.fn(() => of([{ counts: { like: 0 } }])),
+      postView: vi.fn(() => of(0)),
+      isLiked: vi.fn(() => of([{ isLiked: false }])),
+      postLike: vi.fn(() => of(true)),
+      postUnlike: vi.fn(() => of(true)),
+    };
+
+    TestBed.configureTestingModule({
+      imports: [DatasetDetailComponent, NoopAnimationsModule, ...commonTestImports],
+      providers: [
+        { provide: ActivatedRoute, useValue: { params: of({ did: 5 }), data: of({}) } },
+        { provide: NzModalService, useValue: modalService },
+        { provide: DatasetService, useValue: datasetService },
+        { provide: NotificationService, useValue: notificationService },
+        { provide: DownloadService, useValue: downloadService },
+        { provide: UserService, useClass: StubUserService },
+        { provide: HubService, useValue: hubService },
+        { provide: AdminSettingsService, useValue: { getPublicSetting: vi.fn(() => of("3")) } },
+        { provide: MarkdownService, useValue: { parse: vi.fn(() => "") } },
+        ...commonTestProviders,
+      ],
+    });
+
+    fixture = TestBed.createComponent(DatasetDetailComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+  });
+
+  afterEach(() => {
+    fixture?.destroy();
+    document.querySelectorAll(".cdk-overlay-container").forEach(container => (container.innerHTML = ""));
+  });
+
+  /** Applies state on top of what ngOnInit produced and renders it. */
+  const render = (state: Partial<DatasetDetailComponent> = {}): HTMLElement => {
+    Object.assign(component, state);
+    fixture.detectChanges();
+    return fixture.nativeElement as HTMLElement;
+  };
+
+  /** Asserts the element exists, so a stale selector fails as "not found". */
+  const q = <E extends Element>(root: ParentNode, selector: string): E => {
+    const el = root.querySelector(selector);
+    expect(el, `expected to find "${selector}"`).not.toBeNull();
+    return el as unknown as E;
+  };
+
+  /** Renders the fixture and the CDK overlays hanging off it. */
+  const flush = (): void => {
+    fixture.detectChanges();
+    TestBed.inject(ApplicationRef).tick();
+  };
+
+  const overlay = (): HTMLElement => q<HTMLElement>(document, ".cdk-overlay-container");
+
+  // nz-dropdown audits its own visibility stream for 150ms before it opens an overlay.
+  const settleOverlay = async (): Promise<void> => {
+    await new Promise(resolve => setTimeout(resolve, 200));
+    flush();
+  };
+
+  const text = (el: Element | null | undefined): string => (el?.textContent ?? "").replace(/\s+/g, " ").trim();
+
+  // nz-tabs only instantiates the active tab, so a tab has to be opened before
+  // anything inside it exists to assert on.
+  const openTab = (title: string): HTMLElement => {
+    const tab = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>(".ant-tabs-tab")).find(
+      el => (el.textContent ?? "").includes(title)
+    );
+    expect(tab, `expected a tab titled "${title}"`).toBeDefined();
+    tab!.click();
+    fixture.detectChanges();
+    return fixture.nativeElement as HTMLElement;
+  };
+
+  /** Expands the collapse panel whose header contains the given text. */
+  const openPanel = (header: string): void => {
+    const found = Array.from(
+      (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>(".ant-collapse-header")
+    ).find(h => (h.textContent ?? "").includes(header));
+    expect(found, `expected a collapse panel headed "${header}"`).toBeDefined();
+    found!.click();
+    fixture.detectChanges();
+  };
+
+  /** The toolbar button carrying the given nz-tooltip title. */
+  const byTooltip = (title: string): HTMLButtonElement | undefined =>
+    Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>("button")).find(
+      b => b.getAttribute("nz-tooltip") === title
+    );
+
+  /** The nz-icon names rendered inside an element, read from their aria-labels. */
+  const iconNames = (root: ParentNode): string[] =>
+    Array.from(root.querySelectorAll<HTMLElement>(".anticon")).map(i => i.getAttribute("aria-label") ?? "");
+
+  describe("status tags", () => {
+    const tags = (): HTMLElement[] =>
+      Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>(".status-tag"));
+
+    it("labels a public, downloadable dataset with the globe and download icons", () => {
+      render({ datasetIsPublic: true, datasetIsDownloadable: true });
+
+      const [visibility, downloadable] = tags();
+      expect(text(visibility)).toBe("Public");
+      expect(iconNames(visibility)).toEqual(["global"]);
+      expect(visibility.classList).toContain("tag-public");
+
+      expect(text(downloadable)).toBe("Downloadable");
+      expect(iconNames(downloadable)).toEqual(["download"]);
+      expect(downloadable.classList).toContain("tag-downloadable");
+    });
+
+    it("labels a private, download-restricted dataset with the lock and stop icons", () => {
+      // The other leg of each tag: a visitor must be able to tell at a glance
+      // that the dataset is neither public nor downloadable.
+      render({ datasetIsPublic: false, datasetIsDownloadable: false });
+
+      const [visibility, downloadable] = tags();
+      expect(text(visibility)).toBe("Private");
+      expect(iconNames(visibility)).toEqual(["lock"]);
+      expect(visibility.classList).not.toContain("tag-public");
+
+      expect(text(downloadable)).toBe("Download restricted");
+      expect(iconNames(downloadable)).toEqual(["stop"]);
+      expect(downloadable.classList).not.toContain("tag-downloadable");
+    });
+
+    it("tells the view counter and the like counter apart", () => {
+      // The two counters are adjacent tags that differ only in which field they
+      // read, so each needs a count the other cannot produce.
+      render({ viewCount: 1500, likeCount: 3 });
+
+      const [, , views, likes] = tags();
+      expect(iconNames(views)).toEqual(["eye"]);
+      // Counts are abbreviated once they reach a thousand, not printed raw.
+      expect(text(views)).toBe("1.5k");
+
+      expect(iconNames(likes)).toEqual(["like"]);
+      expect(likes.classList).toContain("like-tag");
+      expect(text(likes)).toBe("3");
+    });
+  });
+
+  describe("settings hints", () => {
+    // Visibility and Downloadable are near-identical rows, so a hint or a switch
+    // is only meaningful next to the label it belongs to: reading them as one
+    // unordered pile would pass just as happily with the two rows exchanged.
+    const settingsRow = (el: HTMLElement, label: string): HTMLElement => {
+      const row = Array.from(el.querySelectorAll<HTMLElement>(".settings-name-row")).find(
+        r => text(r.querySelector("label")) === label
+      );
+      expect(row, `expected a settings row labelled "${label}"`).toBeDefined();
+      return row!;
+    };
+
+    const hintOf = (el: HTMLElement, label: string): string =>
+      text(q<HTMLElement>(settingsRow(el, label), ".settings-hint"));
+
+    const switchIsOn = (el: HTMLElement, label: string): boolean =>
+      q<HTMLElement>(settingsRow(el, label), "nz-switch button").classList.contains("ant-switch-checked");
+
+    it("spells out what public visibility and blocked downloads mean", () => {
+      render({ userDatasetAccessLevel: "WRITE", datasetIsPublic: true, datasetIsDownloadable: false });
+      const el = openTab("Settings");
+
+      expect(hintOf(el, "Visibility")).toBe("Public — anyone can view this dataset.");
+      expect(hintOf(el, "Downloadable")).toBe("Viewers can browse files but cannot download them.");
+      // The switch beside each hint has to report the same state the prose does.
+      expect(switchIsOn(el, "Visibility")).toBe(true);
+      expect(switchIsOn(el, "Downloadable")).toBe(false);
+    });
+
+    it("spells out what private visibility and permitted downloads mean", () => {
+      render({ userDatasetAccessLevel: "WRITE", datasetIsPublic: false, datasetIsDownloadable: true });
+      const el = openTab("Settings");
+
+      expect(hintOf(el, "Visibility")).toBe("Private — only you and invited collaborators can see this dataset.");
+      expect(hintOf(el, "Downloadable")).toBe("Viewers can download this dataset.");
+      expect(switchIsOn(el, "Visibility")).toBe(false);
+      expect(switchIsOn(el, "Downloadable")).toBe(true);
+    });
+  });
+
+  describe("contributor row menu", () => {
+    const ada: Contributor = { name: "Ada", email: "ada@x.io", affiliation: "Lab A", comments: "", creator: true };
+    const grace: Contributor = {
+      name: "Grace",
+      email: "grace@x.io",
+      affiliation: "Lab B",
+      comments: "",
+      creator: false,
+    };
+
+    beforeEach(() => render({ did: 5, datasetContributors: [ada, grace], userDatasetAccessLevel: "WRITE" }));
+
+    /** Opens the actions dropdown on the card at `index` and returns its menu. */
+    const openRowMenu = async (index: number): Promise<HTMLElement> => {
+      const cards = (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>(".contributor-card");
+      expect(cards.length).toBeGreaterThan(index);
+      q<HTMLButtonElement>(cards[index], ".contributor-actions").click();
+      await settleOverlay();
+      // Each card declares its own menu template, so exactly one may be open.
+      const menus = overlay().querySelectorAll<HTMLElement>(".contributor-actions-menu");
+      expect(menus.length).toBe(1);
+      return menus[0];
+    };
+
+    const menuItem = (menu: HTMLElement, label: string): HTMLElement => {
+      const item = Array.from(menu.querySelectorAll<HTMLElement>("li")).find(li => text(li) === label);
+      expect(item, `expected a menu item labelled "${label}"`).toBeDefined();
+      return item!;
+    };
+
+    it("edits the contributor whose own row menu was used", async () => {
+      // The menu is declared inside the *ngFor, so its handlers have to close over
+      // that row's contributor rather than the first one in the list.
+      menuItem(await openRowMenu(1), "Edit").click();
+      flush();
+
+      expect(modalService.create).toHaveBeenCalledWith(
+        expect.objectContaining({ nzTitle: "Edit Contributor", nzData: grace })
+      );
+    });
+
+    it("deletes the contributor whose own row menu was used, once the deletion is confirmed", async () => {
+      menuItem(await openRowMenu(1), "Delete").click();
+      flush();
+
+      // The first click only asks; the row survives until the confirmation is accepted.
+      expect(text(q<HTMLElement>(overlay(), ".ant-popover-inner"))).toContain('Delete contributor "Grace"?');
+      expect(datasetService.updateDatasetContributors).not.toHaveBeenCalled();
+
+      const confirm = Array.from(overlay().querySelectorAll<HTMLButtonElement>(".ant-popover-buttons button")).find(
+        b => text(b) === "Delete"
+      );
+      expect(confirm, "expected a Delete button in the confirmation").toBeDefined();
+      confirm!.click();
+      flush();
+
+      expect(datasetService.updateDatasetContributors).toHaveBeenCalledWith(5, [ada]);
+    });
+
+    it("adds a contributor from the keyboard on the add tile", () => {
+      const tile = q<HTMLElement>(fixture.nativeElement, ".contributor-card-add");
+
+      tile.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+      flush();
+      expect(modalService.create).toHaveBeenCalledTimes(1);
+      expect(modalService.create).toHaveBeenLastCalledWith(expect.objectContaining({ nzTitle: "Add Contributor" }));
+
+      const space = new KeyboardEvent("keydown", { key: " ", bubbles: true, cancelable: true });
+      tile.dispatchEvent(space);
+      flush();
+      // Space activates the tile instead of scrolling the panel.
+      expect(space.defaultPrevented).toBe(true);
+      expect(modalService.create).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe("file toolbar", () => {
+    beforeEach(() => {
+      render({ did: 5, selectedVersion: aVersion(), currentDisplayedFileName: "v1/a.csv", isLogin: true });
+      openTab("Versions & Files");
+    });
+
+    it("downloads the file that is on screen", () => {
+      // "On screen" has to mean the file the renderer beside the button fetched,
+      // not merely the field the test happened to set.
+      expect(datasetService.retrieveDatasetVersionSingleFile).toHaveBeenCalledWith("v1/a.csv", true);
+      expect(fixture.debugElement.query(By.css("texera-user-dataset-file-renderer")).componentInstance.filePath).toBe(
+        "v1/a.csv"
+      );
+
+      byTooltip("Download the file")!.click();
+
+      expect(downloadService.downloadSingleFile).toHaveBeenCalledWith("v1/a.csv", true);
+    });
+
+    it("downloads the file that is on screen over the public endpoint for a non-owner", () => {
+      // The authenticated endpoint is the wrong one here: a visitor to somebody
+      // else's public dataset has no private access to fall back on.
+      render({ datasetIsPublic: true, datasetIsDownloadable: true, isOwner: false, userDatasetAccessLevel: "READ" });
+
+      const button = byTooltip("Download the file")!;
+      expect(button.disabled).toBe(false);
+      button.click();
+
+      expect(downloadService.downloadSingleFile).toHaveBeenCalledWith("v1/a.csv", false);
+    });
+
+    it("keeps the owner of a public dataset on the authenticated endpoint", () => {
+      // Publicity alone does not decide the endpoint: the owner still has private
+      // access, and the public route would hide their own unpublished changes.
+      render({ datasetIsPublic: true, isOwner: true });
+
+      byTooltip("Download the file")!.click();
+
+      expect(downloadService.downloadSingleFile).toHaveBeenCalledWith("v1/a.csv", true);
+    });
+
+    it("maximizes the view from the toolbar and offers the way back", () => {
+      const el = fixture.nativeElement as HTMLElement;
+      expect(el.querySelector(".dataset-header")).not.toBeNull();
+
+      byTooltip("Maximize View")!.click();
+      fixture.detectChanges();
+
+      // Maximizing drops the dataset header so the file fills the pane.
+      expect(el.querySelector(".dataset-header")).toBeNull();
+      expect(byTooltip("Maximize View")).toBeUndefined();
+
+      byTooltip("Minimize View")!.click();
+      fixture.detectChanges();
+
+      expect(el.querySelector(".dataset-header")).not.toBeNull();
+      expect(byTooltip("Minimize View")).toBeUndefined();
+    });
+
+    it("applies a width the resize handle reports, between the bounds it declares", async () => {
+      const sider = fixture.debugElement.query(By.css("nz-sider"));
+      expect(sider.nativeElement.style.width).toBe("400px");
+
+      // The drag itself belongs to NzResizableDirective; what this component owns
+      // is the bounds it hands the directive and what it does with the reported
+      // width. Both have to be pinned, and in the right order — swapped bounds
+      // would let the handle collapse the sider past its minimum.
+      const resizable = sider.injector.get(NzResizableDirective);
+      expect(resizable.nzMinWidth).toBe(component.MIN_SIDER_WIDTH);
+      expect(resizable.nzMaxWidth).toBe(component.MAX_SIDER_WIDTH);
+      expect(resizable.nzMinWidth).toBeLessThan(resizable.nzMaxWidth as number);
+
+      sider.triggerEventHandler("nzResize", { width: 520 });
+      // The new width is applied on the next animation frame.
+      await new Promise(resolve => requestAnimationFrame(() => resolve(null)));
+      fixture.detectChanges();
+
+      expect(sider.nativeElement.style.width).toBe("520px");
+    });
+  });
+
+  describe("version picker", () => {
+    const v1 = aVersion({ dvid: 11, name: "v1" });
+    const v2 = aVersion({ dvid: 12, name: "v2" });
+    const v3 = aVersion({ dvid: 13, name: "v3" });
+
+    beforeEach(() => {
+      render({ did: 5, datasetName: "ds", versions: [v1, v2, v3], selectedVersion: v1, isLogin: true });
+      openTab("Versions & Files");
+    });
+
+    it("offers every known version and loads the one that is picked", async () => {
+      const select = fixture.debugElement.query(By.css("nz-select"));
+      /** Picks a version through the control and reports the name it then shows. */
+      const pick = async (version: DatasetVersion): Promise<string> => {
+        select.triggerEventHandler("ngModelChange", version);
+        fixture.detectChanges();
+        // ngModel pushes the new value into the control in a microtask.
+        await Promise.resolve();
+        fixture.detectChanges();
+        return text(q<HTMLElement>(fixture.nativeElement, ".ant-select-selection-item"));
+      };
+      expect(text(q<HTMLElement>(fixture.nativeElement, ".ant-select-selection-item"))).toBe("v1");
+
+      // The picker fans out over the whole list: every version has to be offered under
+      // its own name, not only the first one, which the control already shows.
+      expect([await pick(v2), await pick(v3), await pick(v1)]).toEqual(["v2", "v3", "v1"]);
+
+      // The third argument decides whether the tree is fetched over the
+      // authenticated or the anonymous endpoint, so it has to be the real flag.
+      expect(datasetService.retrieveDatasetVersionFileTree).toHaveBeenCalledWith(5, 12, true);
+      expect(datasetService.retrieveDatasetVersionFileTree).toHaveBeenCalledWith(5, 13, true);
+    });
+
+    it("loads a picked version over the anonymous endpoint when nobody is signed in", () => {
+      render({ isLogin: false });
+
+      fixture.debugElement.query(By.css("nz-select")).triggerEventHandler("ngModelChange", v2);
+
+      expect(datasetService.retrieveDatasetVersionFileTree).toHaveBeenCalledWith(5, 12, false);
+    });
+
+    it("downloads the whole selected version as a zip", () => {
+      byTooltip("Download Dataset")!.click();
+
+      expect(downloadService.downloadDatasetVersion).toHaveBeenCalledWith(5, 11, "ds", "v1");
+    });
+  });
+
+  describe("version file tree", () => {
+    const tree = (): DebugElement => fixture.debugElement.query(By.css("texera-user-dataset-version-filetree"));
+    // The first four segments (datasets/owner/dataset/version) are the prefix the
+    // relative path strips, so "nested" is the first segment the backend sees.
+    const leaf = (name: string): DatasetFileNode => ({
+      name,
+      type: "file",
+      parentDir: `/dataset/${OWNER}/ds/v1/nested`,
+      size: 2048,
+    });
+
+    beforeEach(() => {
+      render({ did: 5, selectedVersion: aVersion({ name: "v1" }) });
+      openTab("Versions & Files");
+    });
+
+    it("hands the tree the nodes of the version on screen", () => {
+      const nodes = [leaf("b.csv"), leaf("c.csv")];
+      render({ fileTreeNodeList: nodes });
+
+      expect(tree().componentInstance.fileTreeNodes).toEqual(nodes);
+    });
+
+    it("shows the file the tree selected", () => {
+      expect(text(q<HTMLElement>(fixture.nativeElement, ".file-title-main"))).not.toContain("b.csv");
+
+      tree().triggerEventHandler("selectedTreeNode", leaf("b.csv"));
+      fixture.detectChanges();
+
+      // The heading is the full path — the copy-path button beside it copies
+      // exactly this string — not the bare file name or the relative path.
+      expect(text(q<HTMLElement>(fixture.nativeElement, ".file-title-main"))).toBe(
+        `/dataset/${OWNER}/ds/v1/nested/b.csv`
+      );
+      // 2048 bytes reaches the reader as a human-readable size, not as a raw count.
+      expect(text(q<HTMLElement>(fixture.nativeElement, ".file-size"))).toBe("2.00 KB");
+    });
+
+    it("deletes the file the tree asked to remove", () => {
+      tree().triggerEventHandler("deletedTreeNode", leaf("b.csv"));
+
+      expect(datasetService.deleteDatasetFile).toHaveBeenCalledWith(5, "nested/b.csv");
+    });
+
+    it("adopts the cover image the tree offered, qualified by the selected version", () => {
+      tree().triggerEventHandler("setCoverImage", "nested/b.png");
+
+      expect(datasetService.updateDatasetCoverImage).toHaveBeenCalledWith(5, "v1/nested/b.png");
+    });
+  });
+
+  describe("upload panel", () => {
+    beforeEach(() => render({ did: 5, userDatasetAccessLevel: "WRITE" }));
+
+    it("starts an upload for a file the uploader hands over", () => {
+      const el = openTab("Versions & Files");
+      const uploader = fixture.debugElement.query(By.css("texera-user-files-uploader"));
+
+      uploader.triggerEventHandler("uploadedFiles", [makeFileItem("new.csv")]);
+      fixture.detectChanges();
+
+      // The chunk size and the chunk concurrency are both plain numbers, so
+      // asserting their exact values is the only way to notice them exchanged:
+      // 10-byte chunks, or 52 million parallel requests, would look identical to
+      // expect.any(Number). Nobody is signed in here, so the component keeps its
+      // built-in defaults rather than the admin settings.
+      expect(component.chunkSizeMiB).toBe(50);
+      expect(component.maxConcurrentChunks).toBe(10);
+      expect(datasetService.multipartUpload).toHaveBeenCalledWith(
+        OWNER,
+        "ds",
+        "new.csv",
+        expect.anything(),
+        50 * 1024 * 1024,
+        10,
+        false
+      );
+      expect(text(el)).toContain("Uploading: 1 file(s)");
+    });
+
+    /** Renders the given in-flight tasks and expands the "Uploading" panel. */
+    const withTasks = (...tasks: Array<Record<string, unknown>>): HTMLElement => {
+      const el = render({
+        uploadTasks: tasks.map(t => ({
+          percentage: 40,
+          status: "uploading",
+          uploadSpeed: 1024,
+          totalTime: 12,
+          estimatedTimeRemaining: 30,
+          ...t,
+        })) as never,
+      });
+      (component as unknown as { activeUploads: number }).activeUploads = tasks.length;
+      openTab("Versions & Files");
+      openPanel("Uploading:");
+      return el;
+    };
+
+    it("aborts the upload whose own row button was clicked", () => {
+      withTasks({ filePath: "first.csv" }, { filePath: "second.csv" });
+
+      const rows = fixture.debugElement.queryAll(By.css(".upload-progress-wrapper > div"));
+      expect(rows.length).toBe(2);
+      // Each row has to name its own task: identifying the row by position alone
+      // would not notice every row rendering the first task's name and status.
+      expect(rows.map(row => text(row.query(By.css(".progress-header")).nativeElement))).toEqual([
+        "uploading: first.csv",
+        "uploading: second.csv",
+      ]);
+
+      const abort = rows[1].query(By.css(".progress-header button"));
+      // A live upload is cancelled, not dismissed; the finished row below says "Close".
+      expect(abort.injector.get(NzTooltipDirective).directiveTitle).toBe("Cancel the upload");
+
+      abort.nativeElement.click();
+      fixture.detectChanges();
+
+      expect(datasetService.finalizeMultipartUpload).toHaveBeenCalledTimes(1);
+      expect(datasetService.finalizeMultipartUpload).toHaveBeenCalledWith(OWNER, "ds", "second.csv", true);
+    });
+
+    it("reports the elapsed time, the time remaining and the speed in their own slots", () => {
+      // Distinguishable timings, so the two spans cannot stand in for each other:
+      // showing 90s elapsed on a 12s-old upload is the defect this guards.
+      const el = withTasks({
+        filePath: "big.csv",
+        totalTime: 12,
+        estimatedTimeRemaining: 90,
+        uploadSpeed: 5 * 1024 * 1024,
+      });
+      const stats = q<HTMLElement>(el, ".upload-stats");
+
+      expect(Array.from(stats.querySelectorAll(".fixed-width-time")).map(text)).toEqual(["12s", "1m30s left"]);
+      expect(text(q<HTMLElement>(stats, ".fixed-width-speed"))).toBe("5.0 MB/s");
+    });
+
+    it("floors both live timings at one second while an upload reports none", () => {
+      const el = withTasks({ filePath: "big.csv", totalTime: undefined, estimatedTimeRemaining: undefined });
+
+      const times = Array.from(q<HTMLElement>(el, ".upload-stats").querySelectorAll(".fixed-width-time")).map(text);
+      expect(times).toEqual(["1s", "1s left"]);
+    });
+
+    it("reports the total time of a finished upload", () => {
+      const el = withTasks({ filePath: "big.csv", status: "finished", totalTime: 75 });
+
+      expect(text(q<HTMLElement>(el, ".upload-stats"))).toContain("Upload time: 1m15s");
+      // A finished row is dismissed rather than cancelled.
+      const button = fixture.debugElement.query(By.css(".upload-progress-wrapper > div .progress-header button"));
+      expect(button.injector.get(NzTooltipDirective).directiveTitle).toBe("Close");
+    });
+
+    it("floors the total of a finished upload that timed nothing", () => {
+      const el = withTasks({ filePath: "big.csv", status: "finished", totalTime: undefined });
+
+      expect(text(q<HTMLElement>(el, ".upload-stats"))).toContain("Upload time: 1s");
+    });
+  });
+
+  describe("version creator", () => {
+    /** Renders the creator, which only appears with staged changes to commit. */
+    const withPendingChanges = (state: Partial<DatasetDetailComponent> = {}): HTMLElement => {
+      const el = render({ did: 5, userDatasetAccessLevel: "WRITE", userHasPendingChanges: true, ...state });
+      openTab("Versions & Files");
+      return el;
+    };
+
+    const typeName = (el: HTMLElement, value: string): HTMLInputElement => {
+      const input = q<HTMLInputElement>(el, ".version-input");
+      input.value = value;
+      input.dispatchEvent(new Event("input"));
+      fixture.detectChanges();
+      return input;
+    };
+
+    it("offers the creator only once there is something to commit", () => {
+      const el = render({ did: 5, userDatasetAccessLevel: "WRITE", userHasPendingChanges: false });
+      openTab("Versions & Files");
+      expect(el.querySelector(".version-creator")).toBeNull();
+
+      render({ userHasPendingChanges: true });
+
+      expect(el.querySelector(".version-creator")).not.toBeNull();
+      expect(text(q<HTMLElement>(el, ".create-dataset-version-button"))).toBe("Submit");
+    });
+
+    it("creates a version named by the creator's own input", () => {
+      const el = withPendingChanges();
+
+      typeName(el, "second cut");
+      q<HTMLButtonElement>(el, ".create-dataset-version-button").click();
+
+      expect(datasetService.createDatasetVersion).toHaveBeenCalledWith(5, "second cut");
+    });
+
+    it("submits the version straight from the name field with Enter", () => {
+      const el = withPendingChanges();
+
+      typeName(el, "from the keyboard").dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+
+      expect(datasetService.createDatasetVersion).toHaveBeenCalledWith(5, "from the keyboard");
+    });
+
+    it("spins the submit button and locks the name field while a version is being created", async () => {
+      const el = withPendingChanges();
+      expect(q<HTMLButtonElement>(el, ".create-dataset-version-button").classList).not.toContain("ant-btn-loading");
+      expect(q<HTMLInputElement>(el, ".version-input").disabled).toBe(false);
+
+      render({ isCreatingVersion: true });
+      // NgModel routes the input's `disabled` binding through control.disable(),
+      // which it defers to a microtask, so the DOM lags the render by one turn.
+      await Promise.resolve();
+      fixture.detectChanges();
+
+      expect(q<HTMLButtonElement>(el, ".create-dataset-version-button").classList).toContain("ant-btn-loading");
+      // Renaming a version mid-creation would be applied to nothing, so the
+      // field is locked for as long as the request is in flight.
+      expect(q<HTMLInputElement>(el, ".version-input").disabled).toBe(true);
+    });
+  });
+
+  describe("settings tab", () => {
+    it("persists a description edited on the Settings tab", () => {
+      render({ did: 5, userDatasetAccessLevel: "WRITE", datasetDescription: "old" });
+      openTab("Settings");
+
+      const editor = fixture.debugElement.query(By.css(".settings-field texera-markdown-description"));
+      // The editor is what the writer types into, so it has to arrive holding the
+      // description that is live and unlocked for editing. (The tab itself is
+      // behind *ngIf="userHasWriteAccess()", so a reader never gets this far and
+      // the read-only leg of [editable] is unreachable from here.)
+      expect(editor.componentInstance.description).toBe("old");
+      expect(editor.componentInstance.editable).toBe(true);
+
+      editor.triggerEventHandler("descriptionChange", "brand new");
+
+      expect(datasetService.updateDatasetDescription).toHaveBeenCalledWith(5, "brand new");
+    });
+
+    it("deletes the dataset only once the confirmation is accepted", () => {
+      const el = render({ did: 5, datasetName: "ds", userDatasetAccessLevel: "WRITE", isOwner: true });
+      openTab("Settings");
+      const navigate = vi.spyOn(TestBed.inject(Router), "navigate").mockResolvedValue(true);
+
+      q<HTMLButtonElement>(el, 'button[title="Delete"]').click();
+      flush();
+      expect(datasetService.deleteDatasets).not.toHaveBeenCalled();
+
+      q<HTMLButtonElement>(overlay(), ".ant-popover-buttons button.ant-btn-primary").click();
+      flush();
+
+      expect(datasetService.deleteDatasets).toHaveBeenCalledWith(5);
+      expect(navigate).toHaveBeenCalledWith([USER_DATASET]);
     });
   });
 });

@@ -25,6 +25,7 @@ import org.apache.texera.dao.jooq.generated.Tables.VIRTUAL_ENVIRONMENTS
 import org.apache.texera.dao.jooq.generated.tables.daos.UserDao
 import org.apache.texera.dao.jooq.generated.tables.pojos.User
 import org.apache.texera.web.resource.pythonvirtualenvironment.PveResource.SavePvePayload
+import org.apache.commons.lang3.SystemUtils
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatest.flatspec.AnyFlatSpec
@@ -135,8 +136,28 @@ class PveResourceSpec
     PveManager.deleteEnvironments(testCuid)
   }
 
+  /** Where PveManager looks for a venv's interpreter on this platform. */
+  private def pythonBinFor(pveName: String): Path = {
+    val venv = testRoot.resolve(pveName).resolve("pve")
+    if (SystemUtils.IS_OS_WINDOWS) venv.resolve("Scripts").resolve("python.exe")
+    else venv.resolve("bin").resolve("python")
+  }
+
   private def queueText(): String = {
     queue.iterator().asScala.toList.mkString("\n")
+  }
+
+  /**
+    * A computing-unit id whose venv directory does not exist on this machine.
+    * PveManager.getEnvironments lists /tmp/texera-pve/venvs/<cuid> directly, so a fixed id
+    * could pick up environments left behind by an earlier local run.
+    */
+  private def unusedCuid(): Int = {
+    val venvRoot = Paths.get("/tmp/texera-pve/venvs")
+    Iterator
+      .continually(900000 + scala.util.Random.nextInt(90000))
+      .find(cuid => !Files.exists(venvRoot.resolve(cuid.toString)))
+      .get
   }
 
   "PveManager" should "create a new PVE and list it" in {
@@ -453,6 +474,29 @@ class PveResourceSpec
     pves.map(_.get("pveName")) should contain(testPveName)
   }
 
+  it should "return an empty list for a computing unit with no environments" in {
+    // getEnvironments reads /tmp/texera-pve/venvs/<cuid> straight off disk, so use a cuid
+    // that cannot collide with leftovers from an earlier local run.
+    val resp = new PveResource().fetchPVEs(Int.box(unusedCuid()))
+
+    resp.getStatus shouldBe Response.Status.OK.getStatusCode
+    resp.getEntity.asInstanceOf[java.util.List[_]].asScala shouldBe empty
+  }
+
+  "PveResource.deleteEnvironments" should "remove every environment of the computing unit" in {
+    expectProcessCalls()
+    PveManager.createNewPve(testCuid, queue, testPveName)
+    PveManager.getEnvironments(testCuid).map(_.pveName) should contain(testPveName)
+
+    new PveResource().deleteEnvironments(testCuid)
+
+    PveManager.getEnvironments(testCuid) shouldBe empty
+  }
+
+  it should "be a no-op for a computing unit that has none" in {
+    noException should be thrownBy new PveResource().deleteEnvironments(unusedCuid())
+  }
+
   "PveResource.deletePackage" should "return 200 when the uninstall succeeds" in {
     expectProcessCalls()
     PveManager.createNewPve(testCuid, queue, testPveName)
@@ -469,4 +513,130 @@ class PveResourceSpec
     val resp = new PveResource().deletePackage(testCuid, testPveName, "pyarrow")
     resp.getStatus shouldBe Response.Status.BAD_REQUEST.getStatusCode
   }
+
+  // ─── duplicate-name conflicts ──────────────────────────────────────────────
+  // The unique index on (uid, name) is what surfaces a duplicate as SQLSTATE 23505,
+  // so these drive real constraint violations rather than mocking the DAO.
+  // The resources' 500 handlers are not covered here: PveManager.getSystemPackages
+  // returns a cached value and never throws, and the generic `case e: Exception` arms
+  // would need the DAO mocked out to reach.
+
+  "PveResource.savePve" should "return 409 when the user already has an environment with that name" in {
+    PveManager.savePve(testUid, "env-dup", "{}")
+
+    val resp = new PveResource().savePve(SavePvePayload("env-dup", Map.empty), sessionUser)
+
+    resp.getStatus shouldBe Response.Status.CONFLICT.getStatusCode
+    resp.getEntity shouldBe """An environment named "env-dup" already exists."""
+  }
+
+  it should "still accept the same name for a different user" in {
+    val otherUid = testUid + 1
+    val otherUser = new User
+    otherUser.setUid(otherUid)
+    otherUser.setName(s"pve_other_$otherUid")
+    otherUser.setEmail(s"other_${UUID.randomUUID()}@example.com")
+    val userDao = new UserDao(getDSLContext.configuration())
+    userDao.insert(otherUser)
+    try {
+      PveManager.savePve(otherUid, "env-shared", "{}")
+
+      val resp = new PveResource().savePve(SavePvePayload("env-shared", Map.empty), sessionUser)
+
+      resp.getStatus shouldBe Response.Status.CREATED.getStatusCode
+    } finally {
+      getDSLContext
+        .deleteFrom(VIRTUAL_ENVIRONMENTS)
+        .where(VIRTUAL_ENVIRONMENTS.UID.eq(otherUid))
+        .execute()
+      userDao.deleteById(otherUid)
+    }
+  }
+
+  "PveResource.listPves" should "return an empty list when the user owns nothing" in {
+    new PveResource().listPves(sessionUser).asScala shouldBe empty
+  }
+
+  /*
+   * PveManager's two pure guards. Everything above reaches them incidentally through the
+   * create/install flows; these take each conjunct's untaken side directly, which is what the
+   * partially-covered branch arms on this file are.
+   */
+  "PveManager.isValidPveName" should "reject a null name" in {
+    PveManager.isValidPveName(null) shouldBe false
+  }
+
+  it should "reject a name longer than 128 characters" in {
+    PveManager.isValidPveName("a" * 129) shouldBe false
+    // The boundary itself is allowed.
+    PveManager.isValidPveName("a" * 128) shouldBe true
+  }
+
+  it should "reject a name with characters outside the safe set" in {
+    PveManager.isValidPveName("has space") shouldBe false
+    PveManager.isValidPveName("has/slash") shouldBe false
+    PveManager.isValidPveName("") shouldBe false
+  }
+
+  it should "accept a name of safe characters" in {
+    PveManager.isValidPveName("env-1.2_3") shouldBe true
+  }
+
+  "PveManager.getPythonBin" should "refuse a name outside the safe set without touching the disk" in {
+    PveManager.getPythonBin(testCuid, "../escape") shouldBe None
+  }
+
+  it should "return nothing when the interpreter has not been created" in {
+    PveManager.getPythonBin(testCuid, testPveName) shouldBe None
+  }
+
+  it should "return nothing when the interpreter exists but is not executable" in {
+    val python = pythonBinFor(testPveName)
+    Files.createDirectories(python.getParent)
+    Files.write(python, Array.emptyByteArray)
+    python.toFile.setExecutable(false)
+    // Clearing the bit is not something every filesystem can represent (Windows ACLs, a
+    // root user, some mount options). Assert the state this test needs and cancel rather
+    // than fail where the platform cannot produce it.
+    assume(!Files.isExecutable(python), "filesystem cannot represent a non-executable file")
+
+    PveManager.getPythonBin(testCuid, testPveName) shouldBe None
+  }
+
+  it should "return the interpreter once it exists and is executable" in {
+    val python = pythonBinFor(testPveName)
+    Files.createDirectories(python.getParent)
+    Files.write(python, Array.emptyByteArray)
+    python.toFile.setExecutable(true)
+    // Likewise for the other direction: a noexec mount would keep the bit off.
+    assume(Files.isExecutable(python), "filesystem cannot represent an executable file")
+
+    PveManager.getPythonBin(testCuid, testPveName) shouldBe Some(python.toAbsolutePath.normalize())
+  }
+
+  /*
+   * `deletePackages`' missing-interpreter guard. Everything above reaches it only from the
+   * other side, with a venv already fabricated.
+   *
+   * The guard answers before the method reads `systemPackageNames`, which is what makes it
+   * safe to drive here: `systemPackages` is a lazy val resolved once per JVM through a
+   * `pip freeze`, so a test that forced it with the wrong runner installed would fix the
+   * system set for every suite that follows. This test sets no `runProcessMock`
+   * expectation, so an unexpected process spawn fails it rather than escaping to real pip —
+   * which is also what keeps "stop before the system-package check" honest.
+   *
+   * `installUserPackages`' matching guard is NOT tested here: PveWebsocketResourceSpec's
+   * install test already drives it end to end (its cuid has no venv on any platform), so a
+   * copy here would only re-cover lines that spec already owns.
+   */
+  "PveManager.deletePackages" should "report a missing interpreter and stop before the system-package check" in {
+    val absent = s"$testPveName-absent"
+
+    val output = PveManager.deletePackages(testCuid, "colorama", absent)
+
+    output should have size 1
+    output.head shouldBe
+      s"[PVE][ERR] Python executable not found for PVE: ${pythonBinFor(absent).toAbsolutePath}"
+  }
+
 }

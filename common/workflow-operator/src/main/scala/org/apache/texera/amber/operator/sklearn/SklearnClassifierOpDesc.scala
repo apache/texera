@@ -19,11 +19,11 @@
 
 package org.apache.texera.amber.operator.sklearn
 
-import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
-import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 import org.apache.texera.amber.operator.StandaloneCodeGenerator
-import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
+import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
+import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 
 abstract class SklearnClassifierOpDesc extends SklearnModelOpDesc with StandaloneCodeGenerator {
 
@@ -35,6 +35,7 @@ abstract class SklearnClassifierOpDesc extends SklearnModelOpDesc with Standalon
     pyb"""$getImportStatements
        |from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
        |from sklearn.pipeline import make_pipeline
+       |from sklearn.compose import ColumnTransformer
        |from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
        |import numpy as np
        |from pytexera import *
@@ -43,11 +44,12 @@ abstract class SklearnClassifierOpDesc extends SklearnModelOpDesc with Standalon
        |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
        |        Y = table[$target]
        |        X = table.drop($target, axis=1)
-       |        ${if (countVectorizer) pyb"X = X[$text]"
-    else dropNonFeatureColumns("X", " " * 8)}
+       |${dropNonFeatureColumns("X", " " * 8)}
        |        if port == 0:
-       |            self.model = make_pipeline(${if (countVectorizer) "CountVectorizer(),"
-    else ""} ${if (tfidfTransformer) "TfidfTransformer()," else ""} ${getImportStatements
+       |            self.model = make_pipeline(${vectorizerStage(c => pyb"$c".toString)} ${if (
+      tfidfTransformer
+    ) "TfidfTransformer(),"
+    else ""} ${getImportStatements
       .split(" ")
       .last}()).fit(X, Y)
        |        else:
@@ -74,27 +76,21 @@ abstract class SklearnClassifierOpDesc extends SklearnModelOpDesc with Standalon
 
   override def generateStandaloneCode(): String = {
     val estimator = getImportStatements.split(" ").last
-    val cvPart = if (countVectorizer) "CountVectorizer()," else ""
     val tfidfPart = if (tfidfTransformer) "TfidfTransformer()," else ""
-    val textLit = pyStringLiteral(text)
     val targetLit = pyStringLiteral(target)
     val modelNameLit = pyStringLiteral(getUserFriendlyModelName)
-    // Drop the target before selecting the text column, exactly as the operator
-    // does: picking the same column for both is reachable from the UI, and it has
-    // to fail here too rather than quietly train on the label.
-    val trainX =
-      if (countVectorizer) s"""in1df.drop($targetLit, axis=1)[$textLit]"""
-      else s"""in1df.drop($targetLit, axis=1)"""
-    val testX =
-      if (countVectorizer) s"""in2df.drop($targetLit, axis=1)[$textLit]"""
-      else s"""in2df.drop($targetLit, axis=1)"""
-    // Blank under the text pipeline: there X is one string column by construction.
-    val narrowTrain = if (countVectorizer) "" else dropNonFeatureColumns("X_train", "")
-    val narrowTest = if (countVectorizer) "" else dropNonFeatureColumns("X_test", "")
+    // Drop the target before the pipeline reads its columns, exactly as the
+    // operator does: naming the target as a text column is reachable from the UI,
+    // and it has to fail here too rather than quietly train on the label.
+    val trainX = s"""in1df.drop($targetLit, axis=1)"""
+    val testX = s"""in2df.drop($targetLit, axis=1)"""
+    val narrowTrain = dropNonFeatureColumns("X_train", "")
+    val narrowTest = dropNonFeatureColumns("X_test", "")
 
     s"""${getImportStatements}
        |from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
        |from sklearn.pipeline import make_pipeline
+       |from sklearn.compose import ColumnTransformer
        |from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
        |import numpy as np
        |import pandas as pd
@@ -102,7 +98,7 @@ abstract class SklearnClassifierOpDesc extends SklearnModelOpDesc with Standalon
        |Y_train = in1df[$targetLit]
        |X_train = $trainX
        |$narrowTrain
-       |model = make_pipeline($cvPart$tfidfPart$estimator()).fit(X_train, Y_train)
+       |model = make_pipeline(${vectorizerStage(c => pyStringLiteral(c))}$tfidfPart$estimator()).fit(X_train, Y_train)
        |
        |Y_test = in2df[$targetLit]
        |X_test = $testX

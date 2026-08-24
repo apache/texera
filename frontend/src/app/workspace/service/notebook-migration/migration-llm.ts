@@ -79,6 +79,19 @@ interface CombinedMapping {
  * Terminal UDFs (no outgoing edge) declare their outputs as `string` so the result panel
  * renders viewable values rather than opaque binary blobs.
  */
+export const DEFAULT_LLM_REQUEST_TIMEOUT_MINUTES = 10;
+
+// Thrown when a model request exceeds the configured timeout, so callers can tell a slow-but-timed-out
+// request apart from a genuine transport error and message the user accordingly.
+export class LlmRequestTimeoutError extends Error {
+  constructor(public readonly minutes: number) {
+    super(`LLM request timed out after ${minutes} minutes`);
+    this.name = "LlmRequestTimeoutError";
+    // Keep instanceof correct regardless of the compile target.
+    Object.setPrototypeOf(this, LlmRequestTimeoutError.prototype);
+  }
+}
+
 @Injectable()
 export class NotebookMigrationLLM {
   private model: any;
@@ -175,7 +188,7 @@ export class NotebookMigrationLLM {
     }
 
     try {
-      await this.callModel([{ role: "user", content: "ping" }], 10);
+      await this.callModelWithTimeout([{ role: "user", content: "ping" }], 10);
 
       return true;
     } catch (err) {
@@ -184,13 +197,41 @@ export class NotebookMigrationLLM {
     }
   }
 
-  // Seam over the `ai` transport. Specs stub this by spying the method, instead of
-  // mocking the "ai" module — module mocks are unreliable in the Angular unit-test
-  // builder when "ai" is also loaded by a sibling spec (e.g. via
-  // NotebookMigrationService), which silently breaks the mock and hangs these
-  // tests on a real network call.
-  protected callModel(messages: ModelMessage[], maxOutputTokens?: number): Promise<{ text: string }> {
-    return generateText({ model: this.model, messages, maxOutputTokens });
+  // Seam over the `ai` transport. Specs spy this method rather than mocking the "ai" module:
+  // a module mock leaks across specs that share the "ai" import and hangs on a real network call.
+  protected callModel(
+    messages: ModelMessage[],
+    maxOutputTokens?: number,
+    abortSignal?: AbortSignal
+  ): Promise<{ text: string }> {
+    return generateText({ model: this.model, messages, maxOutputTokens, abortSignal });
+  }
+
+  // Deployment-configurable bound (in minutes), falling back to the default when unset or non-positive.
+  private get timeoutMinutes(): number {
+    const configured = this.config.env.pythonNotebookMigrationTimeoutMinutes;
+    return configured > 0 ? configured : DEFAULT_LLM_REQUEST_TIMEOUT_MINUTES;
+  }
+
+  // Wraps callModel with a hard timeout so a stalled request cannot hang forever. The abort
+  // cancels the underlying request when the transport honors it; the race guarantees rejection
+  // even if it does not, so the caller's error path always runs.
+  private callModelWithTimeout(messages: ModelMessage[], maxOutputTokens?: number): Promise<{ text: string }> {
+    const minutes = this.timeoutMinutes;
+    const controller = new AbortController();
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const timeout = new Promise<never>((_resolve, reject) => {
+      timer = setTimeout(
+        () => {
+          controller.abort();
+          reject(new LlmRequestTimeoutError(minutes));
+        },
+        minutes * 60 * 1000
+      );
+    });
+    return Promise.race([this.callModel(messages, maxOutputTokens, controller.signal), timeout]).finally(() =>
+      clearTimeout(timer)
+    );
   }
 
   /**
@@ -207,7 +248,7 @@ export class NotebookMigrationLLM {
       content: prompt,
     });
 
-    const result = await this.callModel(this.messages);
+    const result = await this.callModelWithTimeout(this.messages);
 
     this.messages.push({
       role: "assistant",

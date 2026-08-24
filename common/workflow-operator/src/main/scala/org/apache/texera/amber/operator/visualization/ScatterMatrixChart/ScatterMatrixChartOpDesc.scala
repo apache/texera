@@ -22,13 +22,10 @@ package org.apache.texera.amber.operator.visualization.ScatterMatrixChart
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
-import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
-  PythonTemplateBuilderStringContext,
-  pyStringLiteral
-}
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
+import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.metadata.annotations.{
   AutofillAttributeName,
   AutofillAttributeNameList
@@ -38,9 +35,8 @@ import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
 
 import javax.validation.constraints.{NotEmpty, NotNull}
 // Type constraint: every axis of the matrix is plotted numerically. The key is the
-// PROPERTY name — the `@JsonProperty` value, which is what the property editor looks
-// up — and this operator's is "Selected Attributes"; keyed "value" the rule matched
-// nothing, so neither the UI nor the config generator enforced it.
+// PROPERTY name -- the `@JsonProperty` value, which is what the property editor looks
+// up -- and this operator's is "Selected Attributes"; keyed "value" it matched nothing.
 @JsonSchemaInject(json = """
 {
   "attributeTypeRules": {
@@ -50,7 +46,7 @@ import javax.validation.constraints.{NotEmpty, NotNull}
   }
 }
 """)
-class ScatterMatrixChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
+class ScatterMatrixChartOpDesc extends PythonOperatorDescriptor {
 
   @JsonProperty(value = "Selected Attributes", required = true)
   @JsonSchemaTitle("Selected Attributes")
@@ -116,23 +112,6 @@ class ScatterMatrixChartOpDesc extends PythonOperatorDescriptor with StandaloneC
          |
          |"""
     finalcode.encode
-  }
-
-  // Output is an HTML visualization, not a tabular DataFrame.
-  // The translator skips it in the leaf-DataFrame print block.
-  override def producesDataFrame(): Boolean = false
-
-  override def generateStandaloneCode(): String = {
-    val dimensions = selectedAttributes.map(pyStringLiteral).mkString(", ")
-    // No empty-input guard, matching generatePythonCode: it goes straight to
-    // the figure, so an empty table raises out of px.scatter_matrix on both
-    // paths. A guard here would only be a divergence — and the one removed
-    // here printed to stdout without writing any output at all.
-    s"""fig = px.scatter_matrix(in1df, dimensions=[$dimensions], color=${pyStringLiteral(color)})
-       |fig.update_layout(margin=dict(t=0, b=0, l=0, r=0))
-       |fig.write_json("output.json")
-       |fig.write_html("output.html")
-       |print("Scatter matrix saved to output.html")""".stripMargin
   }
 
 }

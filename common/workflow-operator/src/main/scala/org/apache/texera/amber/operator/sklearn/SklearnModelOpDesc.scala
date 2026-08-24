@@ -19,7 +19,12 @@
 
 package org.apache.texera.amber.operator.sklearn
 
-import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyDescription}
+import com.fasterxml.jackson.annotation.{
+  JsonFormat,
+  JsonIgnore,
+  JsonProperty,
+  JsonPropertyDescription
+}
 import com.kjetland.jackson.jsonSchema.annotations.{
   JsonSchemaInject,
   JsonSchemaInt,
@@ -37,9 +42,10 @@ import org.apache.texera.amber.operator.metadata.annotations.{
   SampleColumn
 }
 
-// `text` is the column Count Vectorizer tokenizes, so it takes a string and is
-// required only when that switch is on. Conditional rather than plain required,
-// so a freshly dropped operator is not flagged for a field it has no use for.
+// `text` names the columns Count Vectorizer tokenizes, so they are string columns
+// and at least one is required only when that switch is on. Conditional rather than
+// plain required, so a freshly dropped operator is not flagged for a field it has
+// no use for.
 @JsonSchemaInject(json = """
 {
   "attributeTypeRules": {
@@ -57,7 +63,7 @@ import org.apache.texera.amber.operator.metadata.annotations.{
       "then": {
         "required": ["text"],
         "properties": {
-          "text": { "pattern": "\\S" }
+          "text": { "minItems": 1 }
         }
       }
     }
@@ -66,13 +72,13 @@ import org.apache.texera.amber.operator.metadata.annotations.{
 """)
 abstract class SklearnModelOpDesc extends PythonOperatorDescriptor {
 
+  // The label the estimator fits against. Test-only steering: without it the
+  // first column wins, which on a feature/label table is a feature.
+  @SampleColumn("species")
   @JsonSchemaTitle("Target Attribute")
   @JsonPropertyDescription("Attribute in your dataset corresponding to target.")
   @JsonProperty(required = true)
   @AutofillAttributeName
-  // The label the estimator fits against. Test-only steering: without it the
-  // first column wins, which on a feature/label table is a feature.
-  @SampleColumn("species")
   var target: EncodableString = _
 
   @JsonSchemaTitle("Count Vectorizer")
@@ -81,12 +87,15 @@ abstract class SklearnModelOpDesc extends PythonOperatorDescriptor {
   var countVectorizer: Boolean = false
 
   @JsonSchemaTitle("Text Attribute")
-  @JsonPropertyDescription("Attribute in your dataset with text to vectorize.")
+  @JsonPropertyDescription("Attributes in your dataset with text to vectorize.")
+  // A workflow written before this field took several columns holds a bare string
+  // here, which reads as a list of one.
+  @JsonFormat(`with` = Array(JsonFormat.Feature.ACCEPT_SINGLE_VALUE_AS_ARRAY))
   @JsonSchemaInject(
     strings = Array(
       new JsonSchemaString(
         path = CommonOpDescAnnotation.autofill,
-        value = CommonOpDescAnnotation.attributeName
+        value = CommonOpDescAnnotation.attributeNameList
       ),
       new JsonSchemaString(path = HideAnnotation.hideTarget, value = "countVectorizer"),
       new JsonSchemaString(path = HideAnnotation.hideType, value = HideAnnotation.Type.equals),
@@ -96,7 +105,7 @@ abstract class SklearnModelOpDesc extends PythonOperatorDescriptor {
       new JsonSchemaInt(path = CommonOpDescAnnotation.autofillAttributeOnPort, value = 0)
     )
   )
-  var text: EncodableString = _
+  var text: List[EncodableString] = List()
 
   @JsonSchemaTitle("Tfidf Transformer")
   @JsonPropertyDescription("Transform a count matrix to a normalized tf or tf-idf representation.")
@@ -110,20 +119,48 @@ abstract class SklearnModelOpDesc extends PythonOperatorDescriptor {
   )
   var tfidfTransformer: Boolean = false
 
-  /** Python that narrows `frame` to the columns an estimator can fit. A column the
-    * user did not mean as a feature, a note beside the numbers, would otherwise end
-    * the run from inside scikit-learn. Booleans are kept: they fit as 0/1. What was
-    * dropped is printed, so the choice is visible rather than silent.
+  /** The pipeline step that turns the named text columns into features, empty when
+    * Count Vectorizer is off.
     *
-    * `indent` is the leading whitespace of the statement this replaces.
+    * One `CountVectorizer` per column rather than one over all of them:
+    * `CountVectorizer` takes a flat sequence of documents, so handing it several
+    * columns reads them as one document each rather than as the rows. A
+    * `ColumnTransformer` gives each its own and concatenates the results, keeping
+    * the column a word came from distinguishable through the feature's prefix.
+    *
+    * The steps are named by position, not after the column, so that a column whose
+    * name carries a double underscore cannot collide with the separator
+    * `get_feature_names_out` puts between step and feature.
+    *
+    * `renderColumn` writes one column name in the caller's dialect: an encoded
+    * expression for the operator, a literal for the standalone script.
+    */
+  @JsonIgnore
+  protected def vectorizerStage(renderColumn: EncodableString => String): String =
+    if (!countVectorizer) ""
+    else
+      text.zipWithIndex
+        .map { case (column, i) => s"""("text$i", CountVectorizer(), ${renderColumn(column)})""" }
+        .mkString("ColumnTransformer([", ", ", "]),")
+
+  /** Python that narrows `frame` to the columns an estimator can fit, written at
+    * `indent`. A column the user did not mean as a feature, a note beside the
+    * numbers, would otherwise end the run from inside scikit-learn. Booleans are
+    * kept: they fit as 0/1. What was dropped is printed, so the choice is visible
+    * rather than silent.
+    *
+    * Empty when Count Vectorizer is on: there the `ColumnTransformer` names the
+    * columns it reads, and they are the ones this would drop.
     */
   @JsonIgnore
   protected def dropNonFeatureColumns(frame: String, indent: String): String =
-    s"""_fittable = $frame.select_dtypes(include=["number", "bool"])
-       |${indent}_ignored = [c for c in $frame.columns if c not in _fittable.columns]
-       |${indent}if _ignored:
-       |${indent}    print("Ignoring columns an estimator cannot fit:", _ignored)
-       |${indent}$frame = _fittable""".stripMargin
+    if (countVectorizer) ""
+    else
+      s"""${indent}_fittable = $frame.select_dtypes(include=["number", "bool"])
+         |${indent}_ignored = [c for c in $frame.columns if c not in _fittable.columns]
+         |${indent}if _ignored:
+         |${indent}    print("Ignoring columns an estimator cannot fit:", _ignored)
+         |${indent}$frame = _fittable""".stripMargin
 
   @JsonIgnore
   def getImportStatements: String

@@ -18,12 +18,15 @@
  */
 
 import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { By } from "@angular/platform-browser";
 import { Router } from "@angular/router";
 import { RouterTestingModule } from "@angular/router/testing";
 import { of, throwError } from "rxjs";
 import { vi } from "vitest";
 
 import { LandingPageComponent } from "./landing-page.component";
+import { BrowseSectionComponent } from "../browse-section/browse-section.component";
+import { DashboardEntry } from "../../../dashboard/type/dashboard-entry";
 import { ActionType, EntityType, HubService } from "../../service/hub.service";
 import { SearchService } from "../../../dashboard/service/user/search.service";
 import { UserService } from "../../../common/service/user/user.service";
@@ -205,5 +208,105 @@ describe("LandingPageComponent", () => {
     build();
     component.navigateToSearch("something-else");
     expect(routerNavigateSpy).toHaveBeenCalledWith([HOME]);
+  });
+
+  it("leaves currentUid undefined when there is no signed-in user", () => {
+    // The stub seeds a user in its constructor; clear it before the component reads it.
+    userService.user = undefined;
+    build();
+    expect(component.isLogin).toBe(false);
+    expect(component.currentUid).toBeUndefined();
+  });
+
+  it("getTopLovedEntries falls back to empty buckets when the hub returns no action keys", async () => {
+    hubServiceStub.getTops.mockReturnValue(of({}));
+    build();
+
+    const result = await component.getTopLovedEntries(EntityType.Workflow, [ActionType.Like, ActionType.Clone]);
+
+    expect(searchServiceStub.extendSearchResultsWithHubActivityInfo).toHaveBeenCalledTimes(2);
+    expect(searchServiceStub.extendSearchResultsWithHubActivityInfo).toHaveBeenCalledWith([], true, ["access"]);
+    expect(result[ActionType.Like]).toEqual([]);
+    expect(result[ActionType.Clone]).toEqual([]);
+  });
+
+  it("loadTops falls back to empty lists when the returned maps are missing keys", async () => {
+    build();
+    vi.spyOn(component, "getTopLovedEntries")
+      .mockResolvedValueOnce({} as any)
+      .mockResolvedValueOnce({} as any);
+
+    await component.loadTops();
+
+    expect(component.topLovedWorkflows).toEqual([]);
+    expect(component.topClonedWorkflows).toEqual([]);
+    expect(component.topLovedDatasets).toEqual([]);
+  });
+
+  /**
+   * Everything above drives the class directly, and no test in this spec ever called
+   * fixture.detectChanges(), so the template only ever ran its create block: the two
+   * counts, the two link handlers and the three browse-section inputs were all
+   * unexercised. A swapped or deleted binding here is invisible to the tests above.
+   */
+  describe("rendered template", () => {
+    /** The two intro anchors, in template order: workflows then datasets. */
+    function links() {
+      const found = fixture.debugElement.queryAll(By.css("a"));
+      expect(found.length).toBe(2);
+      return found;
+    }
+
+    it("shows the workflow and dataset counts, each in its own link", () => {
+      build();
+      fixture.detectChanges(); // ngOnInit -> getWorkflowCount
+
+      // The two counts differ (42 vs 7), so a swapped interpolation cannot pass.
+      expect(links()[0].nativeElement.textContent.trim()).toBe("42 workflows");
+      expect(links()[1].nativeElement.textContent.trim()).toBe("7 datasets");
+    });
+
+    it("routes to the workflow hub from the first link and the dataset hub from the second", () => {
+      build();
+      fixture.detectChanges();
+
+      links()[0].triggerEventHandler("click", {});
+      expect(routerNavigateSpy).toHaveBeenLastCalledWith([HUB_WORKFLOW_RESULT]);
+
+      links()[1].triggerEventHandler("click", {});
+      expect(routerNavigateSpy).toHaveBeenLastCalledWith([HUB_DATASET_RESULT]);
+    });
+
+    it("hands each browse section its own entity list, title and viewer id", () => {
+      build();
+      // Three separate array instances, asserted by identity below, so a swapped
+      // [entities] binding cannot pass a deep-equality check on empty lists.
+      const loved: DashboardEntry[] = [];
+      const cloned: DashboardEntry[] = [];
+      const lovedDatasets: DashboardEntry[] = [];
+      component.topLovedWorkflows = loved;
+      component.topClonedWorkflows = cloned;
+      component.topLovedDatasets = lovedDatasets;
+
+      fixture.detectChanges();
+
+      const sections = fixture.debugElement
+        .queryAll(By.directive(BrowseSectionComponent))
+        .map(d => d.componentInstance as BrowseSectionComponent);
+      expect(sections.length).toBe(3);
+      expect(sections.map(s => s.sectionTitle)).toEqual([
+        "Top Loved Workflows",
+        "Top Cloned Workflows",
+        "Top Loved Datasets",
+      ]);
+      expect(sections[0].entities).toBe(loved);
+      expect(sections[1].entities).toBe(cloned);
+      expect(sections[2].entities).toBe(lovedDatasets);
+      expect(sections.map(s => s.currentUid)).toEqual([
+        component.currentUid,
+        component.currentUid,
+        component.currentUid,
+      ]);
+    });
   });
 });

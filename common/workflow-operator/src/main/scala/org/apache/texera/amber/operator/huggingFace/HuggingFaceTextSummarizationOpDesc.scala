@@ -64,6 +64,13 @@ class HuggingFaceTextSummarizationOpDesc
        |    @overrides
        |    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
        |        text = tuple_[$attribute]
+       |        # An empty cell arrives as None, which the tokenizer rejects. Keep the row
+       |        # and leave the summary empty rather than ending the run over a value the
+       |        # model has nothing to say about.
+       |        if text is None or (isinstance(text, str) and not text.strip()):
+       |            tuple_[$resultAttribute] = None
+       |            yield tuple_
+       |            return
        |
        |        inputs = self.tokenizer([text], padding="max_length", truncation=True, max_length=512, return_tensors="pt")
        |        input_ids = inputs.input_ids.to(self.device)

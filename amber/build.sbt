@@ -69,9 +69,8 @@ Test / unmanagedSourceDirectories += baseDirectory.value / "src" / "test" / "int
 // scalafix still cover it and `sbt Test/runMain` can invoke benches.
 Test / unmanagedSourceDirectories += baseDirectory.value / "src" / "bench" / "scala"
 
-// The fast-unit / integration test split, so the amber and amber-integration CI
-// jobs select disjoint subsets without each invocation having to embed a
-// `set Tests.Argument(...)` prefix. Selection logic lives in
+// Lets the amber and amber-integration CI jobs select disjoint subsets without
+// each invocation having to embed a `set Tests.Argument(...)` prefix. See
 // project/TestFilters.scala.
 Test / testOptions ++= TestFilters.integrationSplit(
   envVar = "AMBER_TEST_FILTER",

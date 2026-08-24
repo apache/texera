@@ -19,11 +19,11 @@
 
 package org.apache.texera.amber.operator.sklearn.training
 
-import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
-import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 import org.apache.texera.amber.operator.StandaloneCodeGenerator
-import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
+import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
+import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.operator.sklearn.SklearnModelOpDesc
 
 class SklearnTrainingOpDesc extends SklearnModelOpDesc with StandaloneCodeGenerator {
@@ -35,6 +35,7 @@ class SklearnTrainingOpDesc extends SklearnModelOpDesc with StandaloneCodeGenera
   override def generatePythonCode(): String =
     pyb"""$getImportStatements
        |from sklearn.pipeline import make_pipeline
+       |from sklearn.compose import ColumnTransformer
        |from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
        |import numpy as np
        |from pytexera import *
@@ -43,9 +44,8 @@ class SklearnTrainingOpDesc extends SklearnModelOpDesc with StandaloneCodeGenera
        |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
        |        Y = table[$target]
        |        X = table.drop($target, axis=1)
-       |        ${if (countVectorizer) pyb"X = X[$text]"
-    else dropNonFeatureColumns("X", " " * 8)}
-       |        model = make_pipeline(${if (countVectorizer) "CountVectorizer()," else ""} ${if (
+       |${dropNonFeatureColumns("X", " " * 8)}
+       |        model = make_pipeline(${vectorizerStage(c => pyb"$c".toString)} ${if (
       tfidfTransformer
     ) "TfidfTransformer(),"
     else ""} ${getImportStatements.split(" ").last}()).fit(X, Y)
@@ -64,28 +64,25 @@ class SklearnTrainingOpDesc extends SklearnModelOpDesc with StandaloneCodeGenera
 
   override def generateStandaloneCode(): String = {
     val estimator = getImportStatements.split(" ").last
-    val cvPart = if (countVectorizer) "CountVectorizer()," else ""
     val tfidfPart = if (tfidfTransformer) "TfidfTransformer()," else ""
     val targetLit = pyStringLiteral(target)
     val modelNameLit = pyStringLiteral(getUserFriendlyModelName)
-    // Drop the target before selecting the text column, exactly as the operator
-    // does: picking the same column for both is reachable from the UI, and it has
-    // to fail here too rather than quietly train on the label.
-    val trainX =
-      if (countVectorizer) s"""in1df.drop($targetLit, axis=1)[${pyStringLiteral(text)}]"""
-      else s"""in1df.drop($targetLit, axis=1)"""
-    // Blank under the text pipeline: there X is one string column by construction.
-    val narrowX = if (countVectorizer) "" else dropNonFeatureColumns("X", "")
+    // Drop the target before the pipeline reads its columns, exactly as the
+    // operator does: naming the target as a text column is reachable from the UI,
+    // and it has to fail here too rather than quietly train on the label.
+    val trainX = s"""in1df.drop($targetLit, axis=1)"""
+    val narrowX = dropNonFeatureColumns("X", "")
 
     s"""${getImportStatements}
        |from sklearn.pipeline import make_pipeline
+       |from sklearn.compose import ColumnTransformer
        |from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
        |import pandas as pd
        |
        |Y = in1df[$targetLit]
        |X = $trainX
        |$narrowX
-       |model = make_pipeline($cvPart$tfidfPart$estimator()).fit(X, Y)
+       |model = make_pipeline(${vectorizerStage(c => pyStringLiteral(c))}$tfidfPart$estimator()).fit(X, Y)
        |out1df = pd.DataFrame([{"model_name": $modelNameLit, "model": model}])""".stripMargin
   }
 }

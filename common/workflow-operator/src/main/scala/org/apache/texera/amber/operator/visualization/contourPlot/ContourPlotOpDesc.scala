@@ -69,9 +69,8 @@ class ContourPlotOpDesc extends PythonOperatorDescriptor with StandaloneCodeGene
   @NotNull(message = "z cannot be empty")
   var z: EncodableString = ""
 
-  // Numeric, not text: the value is only ever used as `int(...)`. `contentAs` is
-  // required and must name the boxed class — Scala erases the element type, and the
-  // primitive would read a blank as 0.
+  // Numeric: only used as int(). contentAs names the boxed class — Option erases
+  // its element type, and a blank must not read as 0.
   @JsonProperty(required = false, defaultValue = "10")
   @JsonSchemaTitle("Grid Size")
   @JsonPropertyDescription("Grid resolution of the final image")

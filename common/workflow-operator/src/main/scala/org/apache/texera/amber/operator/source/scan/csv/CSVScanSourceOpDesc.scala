@@ -114,7 +114,10 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerator 
     csvSetting.setMaxColumns(maxColumns)
     csvSetting.setFormat(csvFormat)
     csvSetting.setHeaderExtractionEnabled(hasHeader)
-    csvSetting.setNullValue("")
+    // No setNullValue here, so a blank cell reads as null exactly as it does at
+    // execution time (CSVScanSourceOpExec builds its parser without one). Reading it
+    // as "" instead made inferField fall through to STRING, which typed a numeric
+    // column by its one empty cell rather than by its values.
     val parser = new CsvParser(csvSetting)
     parser.beginParsing(inputReader)
 
