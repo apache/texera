@@ -289,7 +289,7 @@ object HubResource {
 
     val records = context
       .select()
-       .from(tables.joinWithAccessAndOwner(None))
+      .from(tables.joinWithAccessAndOwner(None))
       .where(tables.idColumn.in(ids: _*))
       .groupBy(
         tables.idColumn,
