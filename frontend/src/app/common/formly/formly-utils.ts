@@ -23,8 +23,9 @@ import { isDefined } from "../util/predicate";
 import { Observable } from "rxjs";
 import { FORM_DEBOUNCE_TIME_MS } from "../../workspace/service/execute-workflow/execute-workflow.service";
 import { debounceTime, distinctUntilChanged, filter, share } from "rxjs/operators";
-import { HideType } from "../../workspace/types/custom-json-schema.interface";
+import { HideType, ValueRuleSet } from "../../workspace/types/custom-json-schema.interface";
 import { PortSchema } from "../../workspace/types/workflow-compiling.interface";
+import { AbstractControl } from "@angular/forms";
 
 export function getFieldByName(fieldName: string, fields: FormlyFieldConfig[]): FormlyFieldConfig | undefined {
   return fields.filter((field, _, __) => field.key === fieldName)[0];
@@ -37,6 +38,69 @@ export function setHideExpression(toggleHidden: string[], fields: FormlyFieldCon
       fieldToBeHidden.expressions = { hide: "!field.parent.model." + hiddenBy };
     }
   });
+}
+
+type ValueRule = ValueRuleSet["allOf"][number]["then"];
+
+/**
+ * The one branch of `valueRules` that the row's current contents select, or undefined where
+ * none does. A branch names its sibling fields and the values of theirs it applies to, so the
+ * row model is what decides; `field.parent.model` is that row for an array item and the
+ * operator itself for a top-level field.
+ */
+export function matchingValueRule(rules: ValueRuleSet | undefined, rowModel: any): ValueRule | undefined {
+  if (!isDefined(rules) || !isDefined(rowModel)) {
+    return undefined;
+  }
+  return rules.allOf.find(branch =>
+    Object.entries(branch.if).every(([sibling, condition]) => (condition.valEnum ?? []).includes(rowModel[sibling]))
+  )?.then;
+}
+
+/**
+ * Validator holding a field to whichever branch of `valueRules` currently applies.
+ *
+ * An empty value passes: whether emptiness is allowed is `required`'s business, and a field
+ * that answers twice would report the wrong thing once. The numeric branches accept what
+ * JavaScript reads as a number, which is slightly narrower than the Python converters on the
+ * other end (they take `1_000` and `inf`); erring narrow here would be wrong for a field whose
+ * accepted set is open, but these two are bounded and the values it turns away are ones no one
+ * types into a hyperparameter.
+ */
+export function createValueRulesValidator(rules: ValueRuleSet) {
+  return (control: AbstractControl, field: FormlyFieldConfig): boolean => {
+    const rule = matchingValueRule(rules, field?.parent?.model);
+    if (!isDefined(rule)) {
+      return true;
+    }
+    const value = control.value;
+    if (value === null || value === undefined || value === "") {
+      return true;
+    }
+    const text = String(value).trim();
+    if (isDefined(rule.enum)) {
+      return rule.enum.includes(text);
+    }
+    if (rule.type === "integer") {
+      return /^[-+]?\d+$/.test(text);
+    }
+    if (rule.type === "number") {
+      return text.length > 0 && Number.isFinite(Number(text));
+    }
+    return true;
+  };
+}
+
+/** Says what the field will take, naming the branch rather than the rule that rejected it. */
+export function valueRulesValidationMessage(_err: unknown, field: FormlyFieldConfig): string {
+  const rule = matchingValueRule(field?.props?.valueRules, field?.parent?.model);
+  if (isDefined(rule?.enum)) {
+    return `must be one of ${rule.enum.join(", ")}`;
+  }
+  if (rule?.type === "integer") {
+    return "must be a whole number";
+  }
+  return "must be a number";
 }
 
 /* Factory function to make functions that hide expressions for a particular field */

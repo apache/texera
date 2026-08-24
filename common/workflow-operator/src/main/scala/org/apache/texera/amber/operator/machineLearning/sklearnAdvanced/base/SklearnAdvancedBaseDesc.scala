@@ -30,15 +30,46 @@ import org.apache.texera.amber.operator.metadata.annotations.{
   AutofillAttributeName,
   AutofillAttributeNameList
 }
-import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.texera.amber.operator.metadata.{
+  JsonSchemaCustomizer,
+  OperatorGroupConstants,
+  OperatorInfo
+}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
+import org.apache.texera.amber.util.JSONUtils.objectMapper
+import com.fasterxml.jackson.databind.node.ObjectNode
+import java.lang.reflect.{ParameterizedType, Type}
+
+/**
+  * One hyperparameter a trainer offers. `getName` is the keyword argument passed to the
+  * estimator and `getType` the callable converting the user's text, so together they already
+  * decide which values the estimator can be given. The two below state that so the form can
+  * hold the user to it, rather than leaving it to be discovered when `fit` raises.
+  */
 trait ParamClass {
   def getName: String
 
   def getType: String
+
+  /** One value this parameter accepts, offered as an example rather than imposed as a
+    * default: what the estimator itself documents as its default is the obvious choice, but
+    * nothing here decides a hyperparameter on the user's behalf. Empty for a parameter with an
+    * accepted set, which already names every value worth offering, and empty where even the
+    * estimator's own default is a value `getType` cannot convert, since an example the
+    * operator would then reject is worse than none.
+    */
+  def getSampleValue: String
+
+  /** The values the estimator accepts, where it accepts a fixed set rather than a range, the
+    * estimator's own default first. Empty for a parameter taking any number, which its
+    * converter already constrains.
+    */
+  def getAllowedValues: Array[String]
 }
 
-abstract class SklearnMLOperatorDescriptor[T <: ParamClass] extends PythonOperatorDescriptor {
+abstract class SklearnMLOperatorDescriptor[T <: ParamClass]
+    extends PythonOperatorDescriptor
+    with JsonSchemaCustomizer {
   @JsonIgnore
   def getImportStatements: String
 
@@ -60,6 +91,102 @@ abstract class SklearnMLOperatorDescriptor[T <: ParamClass] extends PythonOperat
   @JsonPropertyDescription("Features used to train the model")
   @AutofillAttributeNameList
   var selectedFeatures: List[EncodableString] = _
+
+  /**
+    * State what a `paraList` row's `value` may hold, which depends on the `parameter` chosen
+    * beside it and so cannot be annotated on a field shared by every parameter.
+    *
+    * The rules go under a key of Texera's own rather than as a JSON-Schema `allOf`, for the
+    * same reason `attributeTypeRules` does, and whose grammar they borrow: the form builder
+    * merges the members of an `allOf` into a single field, which would leave one control
+    * carrying every parameter's constraints at once.
+    */
+  override def customizeJsonSchema(schema: ObjectNode): Unit = {
+    val rowSchema = hyperParameterRowSchema(schema)
+    if (rowSchema == null) return
+    val value = rowSchema.path("properties").path("value")
+    if (!value.isObject) return
+
+    val branches = objectMapper.createArrayNode()
+    paramConstants.foreach { param =>
+      val condition = objectMapper.createObjectNode()
+      condition
+        .putObject("parameter")
+        .putArray("valEnum")
+        .add(param.getName)
+
+      val outcome = objectMapper.createObjectNode()
+      if (param.getAllowedValues.nonEmpty) {
+        // The accepted set says everything: it names each value a reader could pick and each
+        // value a sweep should try, so an example alongside it would only repeat one of them.
+        param.getAllowedValues.foreach(outcome.withArray("enum").add)
+      } else {
+        valueTypeOf(param).foreach(outcome.put("type", _))
+        if (param.getSampleValue.nonEmpty) outcome.withArray("examples").add(param.getSampleValue)
+      }
+
+      if (!outcome.isEmpty) {
+        val branch = objectMapper.createObjectNode()
+        branch.set[ObjectNode]("if", condition)
+        branch.set[ObjectNode]("then", outcome)
+        branches.add(branch)
+      }
+    }
+    if (!branches.isEmpty)
+      value
+        .asInstanceOf[ObjectNode]
+        .putObject("valueRules")
+        .set[ObjectNode]("allOf", branches)
+  }
+
+  /** How the form should read a value with no fixed set of its own: from the callable the
+    * parameter names, since that is what the emitted code puts the text through. A parameter
+    * converted by anything else is left unconstrained rather than guessed at.
+    */
+  private def valueTypeOf(param: ParamClass): Option[String] =
+    param.getType match {
+      case "int"              => Some("integer")
+      case "float" | "double" => Some("number")
+      case _                  => None
+    }
+
+  /** The `HyperParameters` definition this operator's `paraList` points at. Followed by its
+    * `$ref` rather than by name, which carries the parameter enum and so differs per operator.
+    */
+  private def hyperParameterRowSchema(schema: ObjectNode): ObjectNode = {
+    val ref = schema.path("properties").path("paraList").path("items").path("$ref").asText("")
+    val name = ref.stripPrefix("#/definitions/")
+    if (name.isEmpty) return null
+    schema.path("definitions").path(name) match {
+      case row: ObjectNode => row
+      case _               => null
+    }
+  }
+
+  /** The hyperparameters this operator offers, from the enum bound to `T`. The field itself
+    * cannot say: erasure leaves `paraList` holding a plain `HyperParameters`, so the binding
+    * survives only on the generic supertype. Empty where `T` is not an enum, which is only
+    * ever a test stub standing in for one.
+    */
+  private def paramConstants: Seq[ParamClass] = {
+    var t: Type = getClass.getGenericSuperclass
+    while (t != null) t match {
+      case p: ParameterizedType =>
+        val raw = p.getRawType.asInstanceOf[Class[_]]
+        if (raw == classOf[SklearnMLOperatorDescriptor[_]])
+          return p.getActualTypeArguments()(0) match {
+            case bound: Class[_] =>
+              val constants = bound.getEnumConstants.asInstanceOf[Array[AnyRef]]
+              if (constants == null) Seq.empty
+              else constants.toSeq.map(_.asInstanceOf[ParamClass])
+            case _ => Seq.empty
+          }
+        t = raw.getGenericSuperclass
+      case c: Class[_] => t = c.getGenericSuperclass
+      case _           => t = null
+    }
+    Seq.empty
+  }
 
   private def getLoopTimes(paraList: List[HyperParameters[T]]): PythonTemplateBuilder = {
     for (ele <- paraList) {

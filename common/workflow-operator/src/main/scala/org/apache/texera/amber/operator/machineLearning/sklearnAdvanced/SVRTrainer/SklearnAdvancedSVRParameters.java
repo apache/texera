@@ -22,24 +22,32 @@ package org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.SVRTrai
 import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.base.ParamClass;
 
 public enum SklearnAdvancedSVRParameters implements ParamClass {
-    C("C", "float"),
-    kernel("kernel", "str"),
-    gamma("gamma", "float"),
-    degree("degree", "int"),
-    coef0("coef0", "float"),
-    tol("tol", "float"),
-    probability("shrinking", "(lambda value: value.lower() == \"true\")"),
-    verbose("verbose", "(lambda value: value.lower() == \"true\")"),
-    epsilon("epsilon", "float"),
-    cache_size("cache_size", "int"),
-    max_iter("max_iter", "int");
+    C("C", "float", "1.0"),
+    kernel("kernel", "str", "", "rbf", "linear", "poly", "sigmoid", "precomputed"),
+    // SVR's own default for gamma is "scale", which float() cannot convert, so there is no
+    // example to offer until the declared converter can carry one.
+    gamma("gamma", "float", ""),
+    degree("degree", "int", "3"),
+    coef0("coef0", "float", "0.0"),
+    tol("tol", "float", "0.001"),
+    probability("shrinking", "(lambda value: value.lower() == \"true\")", "", "true", "false"),
+    verbose("verbose", "(lambda value: value.lower() == \"true\")", "", "false", "true"),
+    epsilon("epsilon", "float", "0.1"),
+    cache_size("cache_size", "int", "200"),
+    // -1 is SVR's own value for no iteration limit.
+    max_iter("max_iter", "int", "-1");
 
     private final String name;
     private final String type;
+    private final String sampleValue;
+    private final String[] allowedValues;
 
-    SklearnAdvancedSVRParameters(String name, String type) {
+    SklearnAdvancedSVRParameters(
+            String name, String type, String sampleValue, String... allowedValues) {
         this.name = name;
         this.type = type;
+        this.sampleValue = sampleValue;
+        this.allowedValues = allowedValues;
     }
 
     public String getType() {
@@ -48,5 +56,13 @@ public enum SklearnAdvancedSVRParameters implements ParamClass {
 
     public String getName() {
         return this.name;
+    }
+
+    public String getSampleValue() {
+        return this.sampleValue;
+    }
+
+    public String[] getAllowedValues() {
+        return this.allowedValues.clone();
     }
 }

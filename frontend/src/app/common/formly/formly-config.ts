@@ -28,6 +28,7 @@ import { DatasetFileSelectorComponent } from "../../workspace/component/dataset-
 import { CollabWrapperComponent } from "./collab-wrapper/collab-wrapper/collab-wrapper.component";
 import { FormlyRepeatDndComponent } from "./repeat-dnd/repeat-dnd.component";
 import { UiUdfParametersComponent } from "../../workspace/component/ui-udf-parameters/ui-udf-parameters.component";
+import { ConstrainedValueComponent } from "../../workspace/component/constrained-value/constrained-value.component";
 import { DatasetVersionSelectorComponent } from "../../workspace/component/dataset-version-selector/dataset-version-selector.component";
 import { HuggingFaceImageUploadComponent } from "../../workspace/component/hugging-face-image-upload/hugging-face-image-upload.component";
 import { HuggingFaceComponent } from "../../workspace/component/hugging-face/hugging-face.component";
@@ -88,6 +89,7 @@ export const TEXERA_FORMLY_CONFIG = {
     { name: "huggingface-image-upload", component: HuggingFaceImageUploadComponent, wrappers: ["form-field"] },
     { name: "repeat-section-dnd", component: FormlyRepeatDndComponent },
     { name: "ui-udf-parameters", component: UiUdfParametersComponent, wrappers: ["form-field"] },
+    { name: "constrainedvalue", component: ConstrainedValueComponent, wrappers: ["form-field"] },
   ],
   wrappers: [
     { name: "preset-wrapper", component: PresetWrapperComponent },
