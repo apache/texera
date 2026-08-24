@@ -614,4 +614,29 @@ class PveResourceSpec
     PveManager.getPythonBin(testCuid, testPveName) shouldBe Some(python.toAbsolutePath.normalize())
   }
 
+  /*
+   * `deletePackages`' missing-interpreter guard. Everything above reaches it only from the
+   * other side, with a venv already fabricated.
+   *
+   * The guard answers before the method reads `systemPackageNames`, which is what makes it
+   * safe to drive here: `systemPackages` is a lazy val resolved once per JVM through a
+   * `pip freeze`, so a test that forced it with the wrong runner installed would fix the
+   * system set for every suite that follows. This test sets no `runProcessMock`
+   * expectation, so an unexpected process spawn fails it rather than escaping to real pip —
+   * which is also what keeps "stop before the system-package check" honest.
+   *
+   * `installUserPackages`' matching guard is NOT tested here: PveWebsocketResourceSpec's
+   * install test already drives it end to end (its cuid has no venv on any platform), so a
+   * copy here would only re-cover lines that spec already owns.
+   */
+  "PveManager.deletePackages" should "report a missing interpreter and stop before the system-package check" in {
+    val absent = s"$testPveName-absent"
+
+    val output = PveManager.deletePackages(testCuid, "colorama", absent)
+
+    output should have size 1
+    output.head shouldBe
+      s"[PVE][ERR] Python executable not found for PVE: ${pythonBinFor(absent).toAbsolutePath}"
+  }
+
 }

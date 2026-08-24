@@ -44,7 +44,6 @@ import org.apache.texera.amber.engine.common.ambermessage.{
   WorkflowFIFOMessage,
   WorkflowRecoveryMessage
 }
-import org.apache.texera.amber.engine.common.client.ClientActor.ClosureRequest
 import org.apache.texera.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import org.apache.texera.amber.engine.common.virtualidentity.util.{CLIENT, COORDINATOR}
 import org.scalatest.BeforeAndAfterAll
@@ -53,7 +52,7 @@ import org.scalatest.matchers.should.Matchers
 
 // This spec lives in `...engine.common.client` on purpose: `ClientActor`, its
 // companion, and their members are `private[client]`, so a spec in any other
-// package could not construct the actor or reference `ClosureRequest`.
+// package could not construct the actor or reference its members.
 class ClientActorSpec
     extends TestKit(ActorSystem("ClientActorSpec"))
     with ImplicitSender
@@ -81,21 +80,6 @@ class ClientActorSpec
     // The client never queues credits, so getQueuedCredit is hard-coded to 0.
     ref ! CreditRequest(channelId)
     expectMsg(CreditResponse(channelId, 0L))
-  }
-
-  it should "reply with the closure's result on a successful ClosureRequest" in {
-    val ref = newClientActor()
-
-    ref ! ClosureRequest(() => 42)
-    expectMsg(42)
-  }
-
-  it should "reply with the thrown exception on a failing ClosureRequest" in {
-    val ref = newClientActor()
-
-    ref ! ClosureRequest(() => throw new RuntimeException("boom"))
-    val e = expectMsgType[RuntimeException]
-    e.getMessage shouldBe "boom"
   }
 
   it should "ack the sender and forward to coordinator on WorkflowRecoveryMessage" in {

@@ -19,6 +19,7 @@
 
 import { DatePipe, Location } from "@angular/common";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { By } from "@angular/platform-browser";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { RouterTestingModule } from "@angular/router/testing";
 import { NzModalService, NzModalModule, NzModalRef } from "ng-zorro-antd/modal";
@@ -966,6 +967,253 @@ describe("MenuComponent", () => {
 
       expect(layout).toHaveBeenCalledTimes(1);
       expect(reset).not.toHaveBeenCalled();
+    });
+  });
+
+  /**
+   * The suite above calls the handlers directly; these fire them from the rendered markup, so a
+   * control that loses its binding fails here. The utilities block is reached through
+   * `#expanded-utilities`, the outlet that renders it inline — the dropdown outlet next to it
+   * needs a CDK overlay, which jsdom never attaches.
+   */
+  describe("rendered menu", () => {
+    const q = (selector: string) => fixture.debugElement.query(By.css(selector));
+    const utility = (title: string) => q(`#expanded-utilities button[title="${title}"]`);
+    const toolbar = (title: string) => q(`button[title="${title}"]`);
+    /** Undo/redo and export carry no title; they are identified by the icon they render. */
+    const buttonWithIcon = (icon: string) => q(`#expanded-utilities i[nztype="${icon}"]`).parent!;
+
+    afterEach(() => {
+      fixture.destroy();
+      vi.restoreAllMocks();
+    });
+
+    describe("version display bar", () => {
+      /** Puts the menu into the "viewing an older version" state and renders it. */
+      function showVersion(versionId: number | null = 7): void {
+        component.displayParticularWorkflowVersion = true;
+        workflowVersionService.selectedDisplayedVersionId.next(versionId);
+        fixture.detectChanges();
+      }
+
+      it("swaps the name input for the version label and a way back", () => {
+        const closeSpy = vi.spyOn(component, "closeParticularVersionDisplay").mockImplementation(() => {});
+        showVersion();
+
+        expect(q("input.workflow-name")).toBeNull();
+        toolbar("back").triggerEventHandler("click", null);
+
+        expect(closeSpy).toHaveBeenCalled();
+      });
+
+      it("offers restore only while the version service allows it", () => {
+        const revertSpy = vi.spyOn(component, "revertToVersion").mockImplementation(() => {});
+        vi.spyOn(workflowVersionService, "canRestoreVersion", "get").mockReturnValue(false);
+        showVersion();
+
+        const restore = fixture.debugElement
+          .queryAll(By.css("button"))
+          .find(b => (b.nativeElement.textContent ?? "").trim() === "Restore this version")!;
+        expect(restore.nativeElement.disabled).toBe(true);
+
+        vi.spyOn(workflowVersionService, "canRestoreVersion", "get").mockReturnValue(true);
+        fixture.detectChanges();
+        expect(restore.nativeElement.disabled).toBe(false);
+
+        restore.triggerEventHandler("click", null);
+        expect(revertSpy).toHaveBeenCalled();
+      });
+
+      it("offers cloning the displayed version", () => {
+        const cloneSpy = vi.spyOn(component, "cloneVersion").mockImplementation(() => {});
+        showVersion();
+
+        fixture.debugElement
+          .queryAll(By.css("button"))
+          .find(b => (b.nativeElement.textContent ?? "").trim() === "Clone this version")!
+          .triggerEventHandler("click", null);
+
+        expect(cloneSpy).toHaveBeenCalled();
+      });
+
+      it("names the displayed version, and says nothing when there is none", () => {
+        showVersion(7);
+        expect(q('[title="Current Version"]').nativeElement.textContent).toContain("7");
+
+        showVersion(null);
+        expect(q('[title="Current Version"]')).toBeNull();
+      });
+
+      it("renders an icon per co-editor", () => {
+        component.coeditorPresenceService.coeditors = [
+          { clientId: "a", user: { name: "ann" } },
+          { clientId: "b", user: { name: "bo" } },
+        ] as never;
+        fixture.detectChanges();
+
+        expect(fixture.debugElement.queryAll(By.css("texera-coeditor-user-icon")).length).toBe(2);
+      });
+    });
+
+    describe("workflow name field", () => {
+      it("shows the id badge and reports typing and committing the name", () => {
+        const widthSpy = vi.spyOn(component, "adjustWorkflowNameWidth").mockImplementation(() => {});
+        const changeSpy = vi.spyOn(component, "onWorkflowNameChange").mockImplementation(() => {});
+        component.workflowId = 42;
+        fixture.detectChanges();
+
+        expect(q("#metadata nz-avatar")).not.toBeNull();
+        const nameInput = q("input.workflow-name");
+        nameInput.triggerEventHandler("input", { target: nameInput.nativeElement });
+        nameInput.triggerEventHandler("change", { target: nameInput.nativeElement });
+
+        expect(widthSpy).toHaveBeenCalled();
+        expect(changeSpy).toHaveBeenCalled();
+      });
+
+      it("drops the id badge when there is no workflow yet", () => {
+        component.workflowId = undefined;
+        fixture.detectChanges();
+
+        expect(q("#metadata nz-avatar")).toBeNull();
+      });
+    });
+
+    describe("execution buttons", () => {
+      it("wires share, kill and run", () => {
+        const share = vi.spyOn(component, "onClickOpenShareAccess").mockResolvedValue(undefined);
+        const kill = vi.spyOn(component, "handleKill").mockImplementation(() => {});
+        const run = vi.spyOn(component, "onClickRunHandler").mockImplementation(() => {});
+        fixture.detectChanges();
+
+        q("#share-button").triggerEventHandler("click", null);
+        q("button[nzdanger]").triggerEventHandler("click", null);
+        q("#run-button").triggerEventHandler("click", null);
+
+        expect(share).toHaveBeenCalled();
+        expect(run).toHaveBeenCalled();
+        expect(kill).toHaveBeenCalled();
+      });
+    });
+
+    describe("toolbar", () => {
+      it("wires each toolbar button to its handler", () => {
+        const spies = {
+          create: vi.spyOn(component, "onClickCreateNewWorkflow").mockImplementation(() => {}),
+          save: vi.spyOn(component, "persistWorkflow").mockImplementation(() => {}),
+          deleteAll: vi.spyOn(component, "onClickDeleteAllOperators").mockImplementation(() => {}),
+          exportWorkflow: vi.spyOn(component, "onClickExportWorkflow").mockImplementation(() => {}),
+          description: vi.spyOn(component, "onClickEditDescription").mockImplementation(() => {}),
+        };
+        fixture.detectChanges();
+
+        toolbar("create new").triggerEventHandler("click", null);
+        toolbar("save").triggerEventHandler("click", null);
+        toolbar("delete all").triggerEventHandler("click", null);
+        toolbar("export workflow").triggerEventHandler("click", null);
+        toolbar("change description").triggerEventHandler("click", null);
+
+        Object.values(spies).forEach(spy => expect(spy).toHaveBeenCalled());
+      });
+    });
+
+    describe("operator actions", () => {
+      it("keeps the operator actions disabled while nothing is selected", () => {
+        component.operatorMenu.isDisableOperatorClickable = false;
+        component.operatorMenu.isToViewResultClickable = false;
+        component.operatorMenu.isReuseResultClickable = false;
+        fixture.detectChanges();
+
+        expect(utility("disable operators").nativeElement.disabled).toBe(true);
+        expect(utility("view result").nativeElement.disabled).toBe(true);
+        expect(utility("reuse result if possible").nativeElement.disabled).toBe(true);
+      });
+
+      it("wires each operator action in both of its rendered states", () => {
+        const disable = vi.spyOn(component.operatorMenu, "disableHighlightedOperators").mockImplementation(() => {});
+        const view = vi.spyOn(component.operatorMenu, "viewResultHighlightedOperators").mockImplementation(() => {});
+        const reuse = vi.spyOn(component.operatorMenu, "reuseResultHighlightedOperator").mockImplementation(() => {});
+        const menu = component.operatorMenu;
+        menu.isDisableOperatorClickable = true;
+        menu.isToViewResultClickable = true;
+        menu.isReuseResultClickable = true;
+
+        // Each action renders as one of two buttons depending on the state it would move to.
+        menu.isDisableOperator = true;
+        menu.isToViewResult = true;
+        menu.isMarkForReuse = true;
+        fixture.detectChanges();
+        expect(utility("disable operators").nativeElement.disabled).toBe(false);
+        utility("disable operators").triggerEventHandler("click", null);
+        utility("view result").triggerEventHandler("click", null);
+        // The "reuse result if possible" button is hard-disabled in the template
+        // (`[disabled]="true || …"`), so it is asserted, not clicked — firing its handler
+        // would claim an interaction the UI cannot perform.
+        expect(utility("reuse result if possible").nativeElement.disabled).toBe(true);
+
+        menu.isDisableOperator = false;
+        menu.isToViewResult = false;
+        menu.isMarkForReuse = false;
+        fixture.detectChanges();
+        utility("operators disabled, click to re-enable").triggerEventHandler("click", null);
+        utility("click to remove view result").triggerEventHandler("click", null);
+        utility("remove reusing previous result").triggerEventHandler("click", null);
+
+        expect(disable).toHaveBeenCalledTimes(2);
+        expect(view).toHaveBeenCalledTimes(2);
+        expect(reuse).toHaveBeenCalledTimes(1);
+      });
+
+      it("wires the export-result button", () => {
+        const exportSpy = vi.spyOn(component, "onClickExportExecutionResult").mockImplementation(() => {});
+        component.isExportDeactivate = false;
+        fixture.detectChanges();
+
+        buttonWithIcon("cloud-download").triggerEventHandler("click", null);
+
+        expect(exportSpy).toHaveBeenCalled();
+      });
+
+      it("wires undo and redo, and disables them while an older version is displayed", () => {
+        const undo = vi.spyOn(component.undoRedoService, "undoAction").mockImplementation(() => {});
+        const redo = vi.spyOn(component.undoRedoService, "redoAction").mockImplementation(() => {});
+        vi.spyOn(component.undoRedoService, "canUndo").mockReturnValue(true);
+        vi.spyOn(component.undoRedoService, "canRedo").mockReturnValue(true);
+        fixture.detectChanges();
+
+        buttonWithIcon("undo").triggerEventHandler("click", null);
+        buttonWithIcon("redo").triggerEventHandler("click", null);
+        expect(undo).toHaveBeenCalled();
+        expect(redo).toHaveBeenCalled();
+
+        // Viewing an older version makes the graph read-only, so history is off limits.
+        component.displayParticularWorkflowVersion = true;
+        fixture.detectChanges();
+        expect(buttonWithIcon("undo").nativeElement.disabled).toBe(true);
+        expect(buttonWithIcon("redo").nativeElement.disabled).toBe(true);
+      });
+    });
+
+    describe("checkpoint button", () => {
+      it("appears only with time travel on, and is enabled only while paused", () => {
+        const checkpoint = vi.spyOn(component, "handleCheckpoint").mockImplementation(() => {});
+        const guiConfig = TestBed.inject(GuiConfigService);
+        guiConfig.env.timetravelEnabled = false;
+        fixture.detectChanges();
+        expect(q("#checkpoint-button")).toBeNull();
+
+        guiConfig.env.timetravelEnabled = true;
+        component.executionState = ExecutionState.Running;
+        fixture.detectChanges();
+        expect(q("#checkpoint-button").nativeElement.disabled).toBe(true);
+
+        component.executionState = ExecutionState.Paused;
+        fixture.detectChanges();
+        expect(q("#checkpoint-button").nativeElement.disabled).toBe(false);
+
+        q("#checkpoint-button").triggerEventHandler("click", null);
+        expect(checkpoint).toHaveBeenCalled();
+      });
     });
   });
 });

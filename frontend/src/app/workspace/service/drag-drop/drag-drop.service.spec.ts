@@ -467,6 +467,30 @@ describe("DragDropService", () => {
       expect(() => (dragDropService as any).clearEdgeIntersectionHighlight(link)).not.toThrow();
       expect((dragDropService as any).findIntersectedLink({ x: 0, y: 0 })).toBeNull();
     });
+
+    it("skips links that are in the Texera graph but have no model in the JointJS paper", () => {
+      const workflowActionService: WorkflowActionService = TestBed.inject(WorkflowActionService);
+      const paperHost = document.createElement("div");
+      document.body.appendChild(paperHost);
+      try {
+        workflowActionService.getJointGraphWrapper().attachMainJointPaper({ el: paperHost });
+        // findIntersectedLink walks the Texera graph but resolves each link against the
+        // JointJS paper, and the two can diverge. A link known only to Texera resolves to
+        // no joint model, so it must be skipped rather than dereferenced.
+        vi.spyOn(workflowActionService.getTexeraGraph(), "getAllLinks").mockReturnValue([
+          {
+            linkID: "ghost",
+            source: { operatorID: "op-a", portID: "op-a-output-0" },
+            target: { operatorID: "op-b", portID: "op-b-input-0" },
+          },
+        ] as OperatorLink[]);
+
+        expect(() => (dragDropService as any).findIntersectedLink({ x: 0, y: 0 })).not.toThrow();
+        expect((dragDropService as any).findIntersectedLink({ x: 0, y: 0 })).toBeNull();
+      } finally {
+        document.body.removeChild(paperHost);
+      }
+    });
   });
 
   describe("handleOperatorRecommendationOnDrag (drag lifecycle)", () => {
