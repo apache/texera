@@ -54,8 +54,9 @@ export class WarehouseActionsService {
    *
    * `nzOnOk` returns a promise so the dialog keeps its OK button spinning until
    * the request settles: deleting a warehouse that still holds data waits out
-   * Lakekeeper's asynchronous purge (#7742), which can take tens of seconds,
-   * and closing the dialog immediately would read as a frozen row.
+   * Lakekeeper's asynchronous purge (#7742) — bounded at roughly 16 seconds by
+   * the backend's backoff — and closing the dialog immediately would read as a
+   * frozen row.
    */
   confirmAndDelete(warehouse: DashboardWarehouse, onDeleted: () => void): void {
     this.modalService.confirm({
@@ -67,12 +68,17 @@ export class WarehouseActionsService {
       // confirm dialog open on top of it would just have to be dismissed twice.
       // Two callbacks rather than .then().catch(): chaining would route a throw
       // from onDeleted into the delete-failed branch, reporting a failure over a
-      // delete that succeeded.
+      // delete that succeeded. The callback is guarded for the same reason — a
+      // refresh that fails must not reject the dialog either.
       nzOnOk: () =>
         firstValueFrom(this.warehouseService.deleteWarehouse(warehouse.whid)).then(
           () => {
             this.notificationService.success("Warehouse deleted.");
-            onDeleted();
+            try {
+              onDeleted();
+            } catch (err: unknown) {
+              console.error("Failed to refresh after deleting a warehouse", err);
+            }
           },
           (err: unknown) => {
             this.notificationService.error(`Failed to delete warehouse: ${extractErrorMessage(err)}`);

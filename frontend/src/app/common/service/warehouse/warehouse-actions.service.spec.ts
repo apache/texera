@@ -18,7 +18,7 @@
  */
 
 import { TestBed } from "@angular/core/testing";
-import { Subject, of, throwError } from "rxjs";
+import { Subject, firstValueFrom, of, throwError } from "rxjs";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { WarehouseActionsService } from "./warehouse-actions.service";
 import { WarehouseService } from "./warehouse.service";
@@ -28,22 +28,25 @@ import { DashboardWarehouse } from "../../type/warehouse";
 describe("WarehouseActionsService", () => {
   let service: WarehouseActionsService;
   let modalService: { confirm: ReturnType<typeof vi.fn> };
-  let warehouseService: { deleteWarehouse: ReturnType<typeof vi.fn> };
+  let warehouseService: { createWarehouse: ReturnType<typeof vi.fn>; deleteWarehouse: ReturnType<typeof vi.fn> };
   let notificationService: { error: ReturnType<typeof vi.fn>; success: ReturnType<typeof vi.fn> };
 
   const warehouse: DashboardWarehouse = {
     whid: 3,
     name: "sales",
-    lakekeeperWarehouseName: "user-1-sales",
+    lakekeeperWarehouseName: "user-1-3",
     flavor: "local",
     createdAtMillis: 0,
     ownerName: "Alice",
-    ownerAvatar: "",
+    ownerAvatar: null,
   };
 
   beforeEach(() => {
     modalService = { confirm: vi.fn() };
-    warehouseService = { deleteWarehouse: vi.fn().mockReturnValue(of(void 0)) };
+    warehouseService = {
+      createWarehouse: vi.fn().mockReturnValue(of(warehouse)),
+      deleteWarehouse: vi.fn().mockReturnValue(of(void 0)),
+    };
     notificationService = { error: vi.fn(), success: vi.fn() };
 
     TestBed.configureTestingModule({
@@ -55,6 +58,13 @@ describe("WarehouseActionsService", () => {
       ],
     });
     service = TestBed.inject(WarehouseActionsService);
+  });
+
+  it("creates through the warehouse service, so create and delete share one entry point", async () => {
+    const created = await firstValueFrom(service.create("mybucket"));
+
+    expect(warehouseService.createWarehouse).toHaveBeenCalledWith("mybucket");
+    expect(created).toEqual(warehouse);
   });
 
   it("asks for confirmation with the danger wording, without deleting yet", () => {
@@ -103,15 +113,20 @@ describe("WarehouseActionsService", () => {
   });
 
   it("does not report a failure when the refresh callback throws after a successful delete", async () => {
+    // The delete succeeded; a refresh that blows up is logged, not turned into a
+    // failure toast, and it must not reject the dialog either.
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
     const onDeleted = vi.fn(() => {
       throw new Error("refresh blew up");
     });
     service.confirmAndDelete(warehouse, onDeleted);
 
-    await expect(modalService.confirm.mock.calls[0][0].nzOnOk()).rejects.toThrow("refresh blew up");
+    await modalService.confirm.mock.calls[0][0].nzOnOk();
 
     expect(notificationService.success).toHaveBeenCalledWith("Warehouse deleted.");
     expect(notificationService.error).not.toHaveBeenCalled();
+    expect(consoleErrorSpy).toHaveBeenCalled();
+    consoleErrorSpy.mockRestore();
   });
 
   it("surfaces the backend message and skips onDeleted when the delete fails", async () => {

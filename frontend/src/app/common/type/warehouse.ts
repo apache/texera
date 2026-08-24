@@ -27,7 +27,8 @@ export interface DashboardWarehouse {
   name: string;
   /** The Lakekeeper catalog name (`user-<uid>-<whid>`), stable for life (#7753). */
   lakekeeperWarehouseName: string;
-  flavor: string;
+  /** The storage backing the warehouse; matches the backend's user_warehouse_flavor enum. */
+  flavor: "local" | "aws";
   createdAtMillis: number;
   /**
    * Owner display info, mirroring DashboardWorkflowComputingUnit: every

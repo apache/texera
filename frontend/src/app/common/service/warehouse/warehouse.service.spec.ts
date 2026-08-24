@@ -20,7 +20,7 @@
 import { TestBed } from "@angular/core/testing";
 import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
 import { AppSettings } from "../../app-setting";
-import { WarehouseService } from "./warehouse.service";
+import { WAREHOUSE_BASE_URL, WAREHOUSE_STATUS_URL, WarehouseService } from "./warehouse.service";
 import { DashboardWarehouse, WarehouseStatus } from "../../type/warehouse";
 
 describe("WarehouseService", () => {
@@ -30,11 +30,11 @@ describe("WarehouseService", () => {
   const warehouse: DashboardWarehouse = {
     whid: 7,
     name: "mybucket",
-    lakekeeperWarehouseName: "user-3-mybucket",
+    lakekeeperWarehouseName: "user-3-7",
     flavor: "local",
     createdAtMillis: 1723300000000,
     ownerName: "Alice",
-    ownerAvatar: "",
+    ownerAvatar: null,
   };
 
   beforeEach(() => {
@@ -54,7 +54,7 @@ describe("WarehouseService", () => {
     let received: WarehouseStatus | undefined;
     service.getStatus().subscribe(status => (received = status));
 
-    const req = httpMock.expectOne(`${AppSettings.getApiEndpoint()}/warehouse/status`);
+    const req = httpMock.expectOne(`${AppSettings.getApiEndpoint()}/${WAREHOUSE_STATUS_URL}`);
     expect(req.request.method).toBe("GET");
     req.flush({ enabled: true, warehouses: [warehouse] });
 
@@ -65,7 +65,7 @@ describe("WarehouseService", () => {
     let received: DashboardWarehouse | undefined;
     service.createWarehouse("mybucket").subscribe(created => (received = created));
 
-    const req = httpMock.expectOne(`${AppSettings.getApiEndpoint()}/warehouse`);
+    const req = httpMock.expectOne(`${AppSettings.getApiEndpoint()}/${WAREHOUSE_BASE_URL}`);
     expect(req.request.method).toBe("POST");
     expect(req.request.body).toEqual({ name: "mybucket" });
     req.flush(warehouse);
@@ -77,7 +77,7 @@ describe("WarehouseService", () => {
     let completed = false;
     service.deleteWarehouse(7).subscribe({ complete: () => (completed = true) });
 
-    const req = httpMock.expectOne(`${AppSettings.getApiEndpoint()}/warehouse/7`);
+    const req = httpMock.expectOne(`${AppSettings.getApiEndpoint()}/${WAREHOUSE_BASE_URL}/7`);
     expect(req.request.method).toBe("DELETE");
     req.flush(null);
 
