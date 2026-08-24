@@ -48,11 +48,10 @@ import org.apache.texera.dao.jooq.generated.tables.pojos.{
   DatasetUserAccess,
   DatasetVersion
 }
-import org.apache.texera.service.`type`.LakeFSFileNode
+import org.apache.texera.service.`type`.{Diff, ExistingUploadFilesRequest, LakeFSFileNode}
 import org.apache.texera.service.resource.DatasetAccessResource._
 import org.apache.texera.service.resource.ResourceTables.{Dataset => DATASET_RESOURCE}
 import org.apache.texera.service.resource.DatasetResource.{context, _}
-import org.apache.texera.service.util.PresignedDownloadUtils
 import org.apache.texera.service.util.S3StorageClient
 import org.jooq.impl.DSL
 import org.jooq.{DSLContext, EnumType}
@@ -261,14 +260,6 @@ object DatasetResource {
       contributors: Option[List[Contributor]] = None
   )
 
-  // Shared with the other versioned resources; aliased so callers keep using
-  // DatasetResource.Diff / .ExistingUploadFile.
-  type Diff = org.apache.texera.service.`type`.Diff
-  val Diff: org.apache.texera.service.`type`.Diff.type = org.apache.texera.service.`type`.Diff
-  type ExistingUploadFile = org.apache.texera.service.`type`.ExistingUploadFile
-  val ExistingUploadFile: org.apache.texera.service.`type`.ExistingUploadFile.type =
-    org.apache.texera.service.`type`.ExistingUploadFile
-  type ExistingUploadFilesRequest = org.apache.texera.service.`type`.ExistingUploadFilesRequest
   val ExistingUploadFilesRequest: org.apache.texera.service.`type`.ExistingUploadFilesRequest.type =
     org.apache.texera.service.`type`.ExistingUploadFilesRequest
 
@@ -1160,17 +1151,13 @@ class DatasetResource extends LazyLogging {
       commitHash: String,
       uid: Integer
   ): Response =
-    ResourceUploadService.resolveVersionedFile(
+    ResourceUploadService.presignedUrlResponse(
       ResourceStorage.Dataset,
       encodedUrl,
       repositoryName,
       commitHash,
       uid
-    ) match {
-      case Left(errorResponse) => errorResponse
-      case Right((repo, commit, path)) =>
-        PresignedDownloadUtils.presignedResponse(repo, commit, path)
-    }
+    )
 
   // === Multipart helpers ===
 

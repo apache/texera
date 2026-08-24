@@ -40,11 +40,10 @@ import org.apache.texera.dao.jooq.generated.tables.daos.{
   ModelVersionDao
 }
 import org.apache.texera.dao.jooq.generated.tables.pojos.{Model, ModelUserAccess, ModelVersion}
-import org.apache.texera.service.`type`.LakeFSFileNode
+import org.apache.texera.service.`type`.{Diff, ExistingUploadFilesRequest, LakeFSFileNode}
 import org.apache.texera.service.resource.ResourceTables.{Model => MODEL_RESOURCE}
 import org.apache.texera.service.resource.ModelAccessResource._
 import org.apache.texera.service.resource.ModelResource.{context, _}
-import org.apache.texera.service.util.PresignedDownloadUtils
 import org.apache.texera.service.util.S3StorageClient
 import org.apache.texera.service.util.LakeFSExceptionHandler.withLakeFSErrorHandling
 import org.jooq.{DSLContext, EnumType}
@@ -535,7 +534,7 @@ class ModelResource extends LazyLogging {
   def getModelDiff(
       @PathParam("mid") mid: Integer,
       @Auth user: SessionUser
-  ): List[org.apache.texera.service.`type`.Diff] =
+  ): List[Diff] =
     ResourceUploadService.stagedChanges(ResourceStorage.Model, mid, user.getUid)
 
   @PUT
@@ -559,7 +558,7 @@ class ModelResource extends LazyLogging {
   @Consumes(Array(MediaType.APPLICATION_JSON))
   def findExistingUploadFiles(
       @PathParam("mid") mid: Integer,
-      request: org.apache.texera.service.`type`.ExistingUploadFilesRequest,
+      request: ExistingUploadFilesRequest,
       @Auth user: SessionUser
   ): Response =
     ResourceUploadService.matchExistingUploads(
@@ -598,17 +597,13 @@ class ModelResource extends LazyLogging {
       commitHash: String,
       uid: Integer
   ): Response =
-    ResourceUploadService.resolveVersionedFile(
+    ResourceUploadService.presignedUrlResponse(
       ResourceStorage.Model,
       encodedUrl,
       repositoryName,
       commitHash,
       uid
-    ) match {
-      case Left(errorResponse) => errorResponse
-      case Right((repo, commit, path)) =>
-        PresignedDownloadUtils.presignedResponse(repo, commit, path)
-    }
+    )
 
   @GET
   @RolesAllowed(Array("REGULAR", "ADMIN"))
