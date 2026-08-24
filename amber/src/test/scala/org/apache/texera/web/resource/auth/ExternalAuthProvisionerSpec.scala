@@ -89,11 +89,11 @@ class ExternalAuthProvisionerSpec
       email: String,
       avatar: Option[String] = Some(avatarUrl("pic"))
   ): ExternalProfile =
-    ExternalProfile(ProviderTypeEnum.GOOGLE, providerId, name, Some(email), avatar)
+    ExternalProfile(ProviderTypeEnum.GOOGLE, providerId, name, email, avatar)
 
-  /** An identity-only profile: ORCID's `/authenticate` scope asserts an iD and a name, no address. */
-  private def orcidProfile(providerId: String, name: String): ExternalProfile =
-    ExternalProfile(ProviderTypeEnum.ORCID, providerId, name, None, None)
+  /** An identity-only login: ORCID's `/authenticate` scope asserts an iD and a name, no address. */
+  private def orcidIdentity(providerId: String, name: String): ExternalIdentity =
+    ExternalIdentity(ProviderTypeEnum.ORCID, providerId, name)
 
   /** Seed a user row directly; uid is DB-assigned and read back into the pojo. */
   private def seedUser(name: String, localPart: String, avatar: String = null): User =
@@ -281,7 +281,9 @@ class ExternalAuthProvisionerSpec
 
   it should "provision an emailless INACTIVE account for an identity-only provider" in {
     val user =
-      ExternalAuthProvisioner.loginOrProvision(orcidProfile("0000-0001-0000-0001", "Researcher"))
+      ExternalAuthProvisioner.loginOrProvisionIdentityOnly(
+        orcidIdentity("0000-0001-0000-0001", "Researcher")
+      )
 
     user.getUid should not be null
     user.getName shouldBe "Researcher"
@@ -295,9 +297,13 @@ class ExternalAuthProvisionerSpec
   // rather than silently merging, but this pins the behavior either way.
   it should "keep two identity-only accounts separate rather than merging them on a null email" in {
     val first =
-      ExternalAuthProvisioner.loginOrProvision(orcidProfile("0000-0001-0000-0002", "First"))
+      ExternalAuthProvisioner.loginOrProvisionIdentityOnly(
+        orcidIdentity("0000-0001-0000-0002", "First")
+      )
     val second =
-      ExternalAuthProvisioner.loginOrProvision(orcidProfile("0000-0001-0000-0003", "Second"))
+      ExternalAuthProvisioner.loginOrProvisionIdentityOnly(
+        orcidIdentity("0000-0001-0000-0003", "Second")
+      )
 
     second.getUid should not be first.getUid
     providerRowCount(first.getUid) shouldBe 1
@@ -308,12 +314,16 @@ class ExternalAuthProvisionerSpec
   // login arrives with a profile that still asserts no email. Refreshing must not blank it.
   it should "preserve a later-collected email when an identity-only login returns" in {
     val created =
-      ExternalAuthProvisioner.loginOrProvision(orcidProfile("0000-0001-0000-0004", "Returner"))
+      ExternalAuthProvisioner.loginOrProvisionIdentityOnly(
+        orcidIdentity("0000-0001-0000-0004", "Returner")
+      )
     created.setEmail("collected" + emailDomain)
     userDao.update(created)
 
     val returning =
-      ExternalAuthProvisioner.loginOrProvision(orcidProfile("0000-0001-0000-0004", "Returner"))
+      ExternalAuthProvisioner.loginOrProvisionIdentityOnly(
+        orcidIdentity("0000-0001-0000-0004", "Returner")
+      )
 
     returning.getUid shouldBe created.getUid
     userDao.fetchOneByUid(created.getUid).getEmail shouldBe "collected" + emailDomain

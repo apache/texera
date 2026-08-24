@@ -32,20 +32,11 @@ import java.time.OffsetDateTime
 import scala.util.chaining.scalaUtilChainingOps
 
 /**
-  * A verified external identity (Google, ORCID, ...) reduced to the fields we persist.
+  * A verified external identity (Google, Facebook, ...) reduced to the fields we persist.
   *
-  * `email`, when present, must be non-blank and provider-verified: `loginOrProvision` links the
-  * identity to the account owning that address and claims its placeholder, so an unverified
-  * address is a takeover. Each provider checks this in its own mapping function (Google:
-  * `email_verified`).
-  *
-  * `None` means the provider authenticates an identity without asserting an address — ORCID,
-  * whose `/authenticate` scope yields an iD and a name and nothing else. Such a login provisions
-  * an account with a NULL email and is deliberately never matched to an existing one, because
-  * the only address available for matching would be one the user typed. The account is
-  * functional for signing in but not for the email-keyed parts of the product (dataset paths,
-  * access grants), so the frontend collects an address before it is useful — see
-  * `AuthResource.setEmail`.
+  * `email` must be non-blank and provider-verified: `loginOrProvision` links the identity to the
+  * account owning that address and claims its placeholder, so an unverified address is a
+  * takeover. Each provider checks this in its own mapping function (Google: `email_verified`).
   *
   * `avatar` is the complete URL the provider supplied, already sanitized by `AvatarUtil`.
   * `None` means the provider offered no avatar we would store, in which case the account keeps
@@ -55,11 +46,39 @@ final case class ExternalProfile(
     providerType: ProviderTypeEnum,
     providerId: String,
     name: String,
-    email: Option[String],
+    email: String,
     avatar: Option[String]
 )
 
+/**
+  * An identity a provider authenticates without asserting any address — ORCID, whose
+  * `/authenticate` scope yields an iD and a name and nothing else.
+  *
+  * A separate type rather than an optional `email` on [[ExternalProfile]]: the difference is what
+  * the provider vouches for, not how much of it is filled in, and an email-asserting provider's
+  * contract should stay a plain `String`. Provisioned through
+  * [[ExternalAuthProvisioner.loginOrProvisionIdentityOnly]].
+  */
+final case class ExternalIdentity(
+    providerType: ProviderTypeEnum,
+    providerId: String,
+    name: String
+)
+
 object ExternalAuthProvisioner extends LazyLogging {
+
+  /**
+    * What provisioning actually works with: the fields a provider may or may not have asserted.
+    * Private, so the optionality never reaches a caller — each public entry point below states
+    * plainly which kind of provider it serves.
+    */
+  private final case class Asserted(
+      providerType: ProviderTypeEnum,
+      providerId: String,
+      name: String,
+      email: Option[String],
+      avatar: Option[String]
+  )
 
   /**
     * The account owning `email`, matched case-insensitively and within the caller's transaction
@@ -75,7 +94,32 @@ object ExternalAuthProvisioner extends LazyLogging {
     * transaction. A unique violation is taken to mean a concurrent login won the race, so the
     * attempt is re-run once; if the retry violates a constraint too, that exception propagates.
     */
-  def loginOrProvision(profile: ExternalProfile): User = {
+  def loginOrProvision(profile: ExternalProfile): User =
+    attempt(
+      Asserted(
+        profile.providerType,
+        profile.providerId,
+        profile.name,
+        Some(profile.email),
+        profile.avatar
+      )
+    )
+
+  /**
+    * As [[loginOrProvision]], for a provider that asserts no address.
+    *
+    * The account is created with a NULL email and is deliberately never matched to an existing
+    * one: the only address available for matching would be one the user typed, and linking on
+    * that is the takeover [[ExternalProfile]] describes. Such an account signs in but is inert
+    * for the email-keyed parts of the product (dataset paths, access grants) until the address is
+    * collected — see `AuthResource.setEmail`.
+    */
+  def loginOrProvisionIdentityOnly(identity: ExternalIdentity): User =
+    attempt(
+      Asserted(identity.providerType, identity.providerId, identity.name, None, None)
+    )
+
+  private def attempt(profile: Asserted): User = {
     try {
       provision(profile)
     } catch {
@@ -84,7 +128,7 @@ object ExternalAuthProvisioner extends LazyLogging {
     }
   }
 
-  private def provision(profile: ExternalProfile): User = {
+  private def provision(profile: Asserted): User = {
     SqlServer.withTransaction(SqlServer.getInstance().createDSLContext()) { ctx =>
       val txUserDao = new UserDao(ctx.configuration())
       val txAuthDao = new AuthProviderDao(ctx.configuration())
@@ -107,8 +151,8 @@ object ExternalAuthProvisioner extends LazyLogging {
           }
 
         case None =>
-          // An identity-only provider (`email` is None) skips the lookup entirely rather than
-          // matching on nothing, so it always lands in the insert branch below.
+          // An identity-only provider skips the lookup entirely rather than matching on nothing,
+          // so it always lands in the insert branch below.
           val user = profile.email.flatMap(userByEmailIgnoreCase(ctx, _)) match {
             case Some(existing) =>
               existing.tap { user =>
@@ -155,7 +199,7 @@ object ExternalAuthProvisioner extends LazyLogging {
     * provider carries no address, and on a returning login the account may well have one by then
     * — collected through `AuthResource.setEmail` — which this must not undo.
     */
-  private def refresh(user: User, profile: ExternalProfile): Boolean = {
+  private def refresh(user: User, profile: Asserted): Boolean = {
     var changed = false
     if (user.getName != profile.name) {
       user.setName(profile.name)
@@ -176,7 +220,7 @@ object ExternalAuthProvisioner extends LazyLogging {
       ctx: DSLContext,
       authDao: AuthProviderDao,
       user: User,
-      profile: ExternalProfile
+      profile: Asserted
   ): Unit = {
     val hasProvider = ctx.fetchExists(
       ctx

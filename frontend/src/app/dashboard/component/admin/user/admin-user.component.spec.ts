@@ -239,7 +239,7 @@ describe("AdminUserComponent", () => {
     expect(component.editUid).toBe(userB.uid);
     expect(component.editAttribute).toBe("email");
     expect(component.editName).toBe(userB.name);
-    expect(component.editEmail).toBe(userB.email!);
+    expect(component.editEmail).toBe(userB.email);
     expect(component.editRole).toBe(userB.role);
     expect(component.editComment).toBe(userB.comment);
   });
@@ -249,7 +249,7 @@ describe("AdminUserComponent", () => {
     component.listOfDisplayUser = [userA];
     component.editUid = userA.uid;
     component.editName = "Alice Updated";
-    component.editEmail = userA.email!;
+    component.editEmail = userA.email;
     component.editRole = userA.role;
     component.editComment = userA.comment;
 
@@ -271,7 +271,7 @@ describe("AdminUserComponent", () => {
     component.userList = [userA];
     component.editUid = userA.uid;
     component.editName = userA.name;
-    component.editEmail = userA.email!;
+    component.editEmail = userA.email;
     component.editRole = userA.role;
     component.editComment = userA.comment;
 
@@ -288,7 +288,7 @@ describe("AdminUserComponent", () => {
     component.userList = [userA];
     component.editUid = userA.uid;
     component.editName = "Changed";
-    component.editEmail = userA.email!;
+    component.editEmail = userA.email;
     component.editRole = userA.role;
     component.editComment = userA.comment;
 
@@ -461,7 +461,7 @@ describe("AdminUserComponent", () => {
       component.userList = [userA];
       component.editUid = userA.uid;
       component.editName = "Changed";
-      component.editEmail = userA.email!;
+      component.editEmail = userA.email;
       component.editRole = userA.role;
       component.editComment = userA.comment;
 

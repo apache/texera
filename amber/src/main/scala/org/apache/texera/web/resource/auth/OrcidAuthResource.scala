@@ -104,7 +104,7 @@ object OrcidAuthResource {
   *
   * ORCID asserts no email under the `/authenticate` scope the login page requests, so the account
   * provisioned here has a NULL email and is deliberately not matched against any existing account.
-  * See [[ExternalProfile]] for why that is the safe reading, and `AuthResource.setEmail` for how an
+  * See [[ExternalIdentity]] for why that is the safe reading, and `AuthResource.setEmail` for how an
   * address is collected once the user is in.
   */
 @Path("/auth/orcid")
@@ -187,13 +187,11 @@ class OrcidAuthResource {
 
     val identity = identityOf(exchangeCode(trimmedCode))
 
-    val user = ExternalAuthProvisioner.loginOrProvision(
-      ExternalProfile(
+    val user = ExternalAuthProvisioner.loginOrProvisionIdentityOnly(
+      ExternalIdentity(
         ProviderTypeEnum.ORCID,
         identity.orcidId,
-        identity.name.getOrElse(identity.orcidId),
-        email = None,
-        avatar = None
+        identity.name.getOrElse(identity.orcidId)
       )
     )
 

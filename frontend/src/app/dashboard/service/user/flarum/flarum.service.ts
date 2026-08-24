@@ -32,12 +32,11 @@ export class FlarumService {
 
   register() {
     const user = this.userService.getCurrentUser();
-    const email = this.requireEmail();
     return this.http.post(
       "forum/api/users",
       {
         data: {
-          attributes: { username: email.split("@")[0] + user!.uid, email: email, password: user!.googleId },
+          attributes: { username: user!.email.split("@")[0] + user!.uid, email: user!.email, password: user!.googleId },
         },
       },
       { headers: { Authorization: "Token hdebsyxiigyklxgsqivyswwiisohzlnezzzzzzzz;userId=1" } }
@@ -46,23 +45,6 @@ export class FlarumService {
 
   auth() {
     const user = this.userService.getCurrentUser();
-    const email = this.requireEmail();
-    return this.http.post("forum/api/token", { identification: email, password: user!.googleId, remember: "1" });
-  }
-
-  /**
-   * The current user's email, or a throw.
-   *
-   * Flarum identifies an account by email on both calls above, so neither has anything to send
-   * without one — and an account can genuinely lack one, between an identity-only login (ORCID)
-   * and the prompt that collects an address. Thrown synchronously because that is what these two
-   * already did for a caller with no user at all, via their non-null assertions.
-   */
-  private requireEmail(): string {
-    const email = this.userService.getCurrentUser()?.email;
-    if (!email) {
-      throw new Error("A Texera account needs an email address to use the forum.");
-    }
-    return email;
+    return this.http.post("forum/api/token", { identification: user!.email, password: user!.googleId, remember: "1" });
   }
 }
