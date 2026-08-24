@@ -113,6 +113,10 @@ object ImageTaskCodegen extends TaskCodegen {
       |                return json.dumps(body)
       |            elif task in ("visual-question-answering", "document-question-answering"):
       |                if isinstance(body, dict):
+      |                    # Third-party chat providers answer via choices[0].message;
+      |                    # hf-inference returns the native {"answer": ...} shape.
+      |                    if "choices" in body:
+      |                        return body["choices"][0]["message"]["content"]
       |                    return body.get("answer", json.dumps(body))
       |                return json.dumps(body)
       |            elif task == "image-text-to-text":
@@ -144,6 +148,10 @@ object ImageTaskCodegen extends TaskCodegen {
       |                            if "url" in data[0]:
       |                                return self._url_to_data_url(data[0]["url"])
       |                return json.dumps(body)
-      |            elif task in ("image-classification", "object-detection", "image-segmentation", "zero-shot-image-classification"):
+      |            elif task == "zero-shot-image-classification":
+      |                if isinstance(body, dict) and "choices" in body:
+      |                    return body["choices"][0]["message"]["content"]
+      |                return json.dumps(body)
+      |            elif task in ("image-classification", "object-detection", "image-segmentation"):
       |                return json.dumps(body)""".stripMargin
 }

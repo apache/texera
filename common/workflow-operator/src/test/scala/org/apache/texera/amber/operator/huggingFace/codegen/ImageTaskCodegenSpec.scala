@@ -116,6 +116,34 @@ class ImageTaskCodegenSpec extends AnyFlatSpec with Matchers {
     out should include("json.dumps(body)")
   }
 
+  it should "read chat-provider responses for visual and document question-answering" in {
+    // #7906 Part A: these tasks only understood hf-inference's native
+    // {"answer": ...} shape, so a chat-completions reply was written to the
+    // result column as a raw JSON envelope. The native shape stays primary.
+    val out = ImageTaskCodegen.parsePython(makeCtx())
+    val branch = out
+      .split("""elif task """)
+      .find(_.startsWith("""in ("visual-question-answering"""))
+      .getOrElse(fail("visual/document question-answering branch is missing"))
+    branch should include("""body["choices"][0]["message"]["content"]""")
+    branch should include("""body.get("answer"""")
+    branch.indexOf("choices") should be < branch.indexOf("""body.get("answer"""")
+  }
+
+  it should "read chat-provider responses for zero-shot-image-classification" in {
+    // #7906 Part A: the task used to share the image-only branch, which always
+    // dumps the body, so a chat reply was never extracted. It now has its own
+    // branch, which must precede the image-only one because the generated
+    // if/elif chain is first-match-wins.
+    val out = ImageTaskCodegen.parsePython(makeCtx())
+    out should include("""elif task == "zero-shot-image-classification":""")
+    out should include(
+      """elif task in ("image-classification", "object-detection", "image-segmentation"):"""
+    )
+    out.indexOf("""elif task == "zero-shot-image-classification":""") should be <
+      out.indexOf("""elif task in ("image-classification",""")
+  }
+
   "ImageTaskCodegen snippets" should "never inline raw CodegenContext string values" in {
     // The snippets are static and reference only self.* attributes; the base
     // class decodes user-supplied strings safely at runtime. Sentinel values
