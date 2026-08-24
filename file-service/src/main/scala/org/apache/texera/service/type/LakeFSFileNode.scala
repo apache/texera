@@ -118,45 +118,35 @@ object LakeFSFileNode {
           newNode
         }
 
-        // Every node for this version, keyed by its path relative to the version root.
-        // Leaves are registered too, so a name used as both object and directory is caught.
-        val nodeMap = mutable.Map[String, LakeFSFileNode]()
-        nodeMap("") = versionNode // Root of the resource version
+        // Directories only. Registering leaves would let "model" be reused as the parent of
+        // "model/weights.bin", dropping the object it stands for from the tree and the size.
+        val directoryMap = mutable.Map[String, LakeFSFileNode]()
+        directoryMap("") = versionNode // Root of the resource version
 
         // Process each object (file or directory) from LakeFS
         objects.foreach { obj =>
           val pathParts = obj.getPath.split("/").toList
           var currentPath = ""
           var parentNode: LakeFSFileNode = versionNode
-
+          //TODO: To check the logic of promoting the leaf vs duplicating the leaf
           pathParts.zipWithIndex.foreach {
             case (part, idx) =>
               currentPath = if (currentPath.isEmpty) part else s"$currentPath/$part"
 
-              // Positional, not by value: a path that repeats its final segment (e.g.
-              // "model/model") would otherwise treat the intermediate directory as the leaf,
-              // giving it the object's size and nesting the real file underneath it.
+              // Positional, not by value: "model/model" would otherwise make the directory
+              // the leaf.
               val isFile = idx == pathParts.length - 1
               val nodeType = if (isFile) "file" else "directory"
               val fileSize = if (isFile) Some(obj.getSizeBytes.longValue()) else None
 
-              val node = nodeMap.get(currentPath) match {
-                // LakeFS allows both "model" and "model/weights.bin"; a tree keeps one, and the directory has to win to hold the deeper object.
-                case Some(existing) if !isFile && existing.getNodeType == "file" =>
-                  val promoted = new LakeFSFileNode(part, "directory", parentNode, ownerEmail)
-                  parentNode.children = Some(
-                    parentNode.getChildren.map(child => if (child eq existing) promoted else child)
-                  )
-                  nodeMap(currentPath) = promoted
-                  promoted
-                case Some(existing) => existing
-                case None =>
-                  val newNode =
-                    new LakeFSFileNode(part, nodeType, parentNode, ownerEmail, fileSize)
+              val node = directoryMap.getOrElse(
+                currentPath, {
+                  val newNode = new LakeFSFileNode(part, nodeType, parentNode, ownerEmail, fileSize)
                   parentNode.children = Some(parentNode.getChildren :+ newNode)
-                  nodeMap(currentPath) = newNode
+                  if (!isFile) directoryMap(currentPath) = newNode
                   newNode
-              }
+                }
+              )
 
               parentNode = node // Move parent reference deeper for next iteration
           }

@@ -19,7 +19,10 @@
 
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { ListItemComponent } from "./list-item.component";
-import { WorkflowPersistService } from "src/app/common/service/workflow-persist/workflow-persist.service";
+import {
+  DEFAULT_WORKFLOW_NAME,
+  WorkflowPersistService,
+} from "src/app/common/service/workflow-persist/workflow-persist.service";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { of, Subject, throwError } from "rxjs";
@@ -31,7 +34,7 @@ import { UserService } from "../../../../common/service/user/user.service";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
 import type { Mocked } from "vitest";
 import { DashboardEntry } from "src/app/dashboard/type/dashboard-entry";
-import { DatasetService } from "../../../service/user/dataset/dataset.service";
+import { DatasetService, DEFAULT_DATASET_NAME } from "../../../service/user/dataset/dataset.service";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import {
   HUB_DATASET_RESULT_DETAIL,
@@ -348,6 +351,246 @@ describe("ListItemComponent", () => {
       expect(modalService.create).toHaveBeenCalled();
       expect(hubService.getCounts).toHaveBeenCalledWith(["workflow"], [9], [ActionType.View]);
       expect(component.viewCount).toBe(5); // 4 + 1
+    });
+  });
+
+  /**
+   * The suite above feeds one workflow entry; the component dispatches on `entry.type` in
+   * several places, so these hand it the other kinds. Each test builds its own entry — the
+   * rename and description handlers mutate it in place.
+   */
+  describe("per-entry-type dispatch", () => {
+    function entryOf(overrides: Partial<Record<string, unknown>>): DashboardEntry {
+      return {
+        id: 7,
+        name: "item",
+        description: "",
+        accessibleUserIds: [],
+        likeCount: 0,
+        viewCount: 0,
+        isLiked: false,
+        size: 0,
+        ...overrides,
+      } as unknown as DashboardEntry;
+    }
+
+    /** Re-runs the input pipeline the way an @Input change would. */
+    function feed(entry: DashboardEntry): void {
+      component.entry = entry;
+      component.ngOnChanges({ entry: {} as any });
+    }
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it("refuses to be read before an entry is supplied", () => {
+      const bare = TestBed.createComponent(ListItemComponent).componentInstance;
+
+      expect(() => bare.entry).toThrowError("entry property must be provided.");
+    });
+
+    it("picks an icon per entry kind", () => {
+      feed(entryOf({ type: "workflow", workflow: { isOwner: true } }));
+      expect(component.iconType).toBe("project");
+
+      feed(entryOf({ type: "dataset", dataset: { isOwner: true } }));
+      expect(component.iconType).toBe("database");
+
+      feed(entryOf({ type: "file" }));
+      expect(component.iconType).toBe("folder-open");
+    });
+
+    it("refuses an entry kind it does not know", () => {
+      expect(() => feed(entryOf({ type: "quantum" }))).toThrowError("Unexpected type in DashboardEntry.");
+    });
+
+    it("leaves a dataset without a numeric id unrouted", () => {
+      // The dataset arm reads isOwner and the link only for a persisted entry.
+      feed(entryOf({ type: "dataset", id: undefined, dataset: { isOwner: false } }));
+
+      expect(component.entryLink).toEqual([]);
+      expect(component.iconType).not.toBe("database");
+    });
+
+    it("reduces a description to a plain preview, and blanks an empty one", () => {
+      feed(entryOf({ type: "file", description: undefined }));
+      expect(component.renderedDescription).toBe("");
+
+      feed(entryOf({ type: "file", description: "   " }));
+      expect(component.renderedDescription).toBe("");
+
+      feed(entryOf({ type: "file", description: "# Title with [a link](http://x)  and\n*emphasis*" }));
+      expect(component.renderedDescription).toBe("Title with a link and emphasis");
+    });
+
+    describe("share access", () => {
+      /** A modal handle whose componentInstance re-emits on demand. */
+      function modalReturning(refresh: Subject<void> | undefined) {
+        return {
+          componentInstance: refresh === undefined ? undefined : { refresh },
+        } as any;
+      }
+
+      it("opens the workflow share dialog and re-emits its refresh", async () => {
+        const refresh = new Subject<void>();
+        const create = vi.spyOn(modalService, "create").mockReturnValue(modalReturning(refresh));
+        // The shared stub carries only the update methods; the share dialog also asks for
+        // the owner list.
+        (workflowPersistService as any).retrieveOwners = vi.fn().mockReturnValue(of([]));
+        let refreshed = false;
+        component.refresh.subscribe(() => (refreshed = true));
+        feed(entryOf({ type: "workflow", workflow: { isOwner: true, accessLevel: "WRITE" } }));
+
+        await component.onClickOpenShareAccess();
+
+        expect(create).toHaveBeenCalledWith(
+          expect.objectContaining({
+            nzTitle: "Share this workflow with others",
+            nzData: expect.objectContaining({ type: "workflow", writeAccess: true, id: 7 }),
+          })
+        );
+
+        refresh.next();
+        expect(refreshed).toBe(true);
+      });
+
+      it("opens the dataset share dialog with the dataset's owners", async () => {
+        const create = vi.spyOn(modalService, "create").mockReturnValue(modalReturning(new Subject<void>()));
+        (datasetService as any).retrieveOwners = vi.fn().mockReturnValue(of([]));
+        feed(entryOf({ type: "dataset", dataset: { isOwner: true }, accessLevel: "READ" }));
+
+        await component.onClickOpenShareAccess();
+
+        expect(create).toHaveBeenCalledWith(
+          expect.objectContaining({
+            nzTitle: "Share this dataset with others",
+            nzData: expect.objectContaining({ type: "dataset", writeAccess: false }),
+          })
+        );
+      });
+
+      it("opens nothing for an entry kind that cannot be shared", async () => {
+        const create = vi.spyOn(modalService, "create");
+        feed(entryOf({ type: "file" }));
+
+        await component.onClickOpenShareAccess();
+
+        expect(create).not.toHaveBeenCalled();
+      });
+    });
+
+    describe("editing", () => {
+      it("focuses the name box once it exists, and copes when it does not", () => {
+        vi.useRealTimers();
+        feed(entryOf({ type: "workflow", workflow: { isOwner: true }, name: "before" }));
+
+        // No view child yet: entering edit mode must not throw.
+        (component as any).nameInput = undefined;
+        expect(() => component.onEditName()).not.toThrow();
+        expect(component.originalName).toBe("before");
+        expect(component.editingName).toBe(true);
+
+        const input = { value: "before", focus: vi.fn(), setSelectionRange: vi.fn() };
+        (component as any).nameInput = { nativeElement: input };
+        component.onEditName();
+
+        // The focus is scheduled on a task the component owns; run it directly rather than
+        // waiting on a timer.
+        const scheduled = vi.spyOn(globalThis, "setTimeout");
+        component.onEditName();
+        const callback = scheduled.mock.calls.at(-1)?.[0] as () => void;
+        callback();
+
+        expect(input.focus).toHaveBeenCalled();
+        expect(input.setSelectionRange).toHaveBeenCalledWith("before".length, "before".length);
+      });
+
+      it("reports a missing id instead of updating", () => {
+        const notify = vi.spyOn((component as any).notificationService, "error").mockImplementation(() => {});
+        feed(entryOf({ type: "workflow", id: 0, workflow: { isOwner: true } }));
+
+        component.confirmUpdateCustomName("renamed");
+
+        expect(notify).toHaveBeenCalledWith("Id is missing");
+        expect(workflowPersistService.updateWorkflowName).not.toHaveBeenCalled();
+      });
+
+      it("falls back to the default name per entry kind when the new name is empty", () => {
+        workflowPersistService.updateWorkflowName.mockReturnValue(of({} as Response));
+        feed(entryOf({ type: "workflow", workflow: { isOwner: true } }));
+
+        component.confirmUpdateCustomName("");
+
+        expect(workflowPersistService.updateWorkflowName).toHaveBeenCalledWith(7, DEFAULT_WORKFLOW_NAME);
+      });
+
+      it("treats an absent description as an empty one", () => {
+        workflowPersistService.updateWorkflowDescription.mockReturnValue(of({} as Response));
+        feed(entryOf({ type: "workflow", workflow: { isOwner: true } }));
+
+        component.confirmUpdateCustomDescription(undefined);
+
+        expect(workflowPersistService.updateWorkflowDescription).toHaveBeenCalledWith(7, "");
+      });
+
+      it("sends a dataset description to the dataset service", () => {
+        (datasetService as any).updateDatasetDescription = vi.fn().mockReturnValue(of(undefined));
+        feed(entryOf({ type: "dataset", dataset: { isOwner: true } }));
+
+        component.confirmUpdateCustomDescription("about this set");
+
+        expect((datasetService as any).updateDatasetDescription).toHaveBeenCalledWith(7, "about this set");
+      });
+    });
+
+    it("ignores a change that is not the entry", () => {
+      feed(entryOf({ type: "file", description: "kept" }));
+      const before = component.renderedDescription;
+
+      component.ngOnChanges({ editable: {} as any });
+
+      expect(component.renderedDescription).toBe(before);
+    });
+
+    it("falls back to the dataset default name when a dataset rename is blank", () => {
+      (datasetService as any).updateDatasetName = vi.fn().mockReturnValue(of({} as Response));
+      feed(entryOf({ type: "dataset", dataset: { isOwner: true } }));
+
+      component.confirmUpdateCustomName("");
+
+      expect((datasetService as any).updateDatasetName).toHaveBeenCalledWith(7, DEFAULT_DATASET_NAME);
+    });
+
+    describe("download", () => {
+      it("downloads a workflow by id and name", () => {
+        const download = vi
+          .spyOn((component as any).downloadService, "downloadWorkflow")
+          .mockReturnValue(of(undefined));
+        feed(entryOf({ type: "workflow", workflow: { isOwner: true, workflow: { name: "flow" } } }));
+
+        component.onClickDownload();
+
+        expect(download).toHaveBeenCalledWith(7, "flow");
+      });
+
+      it("downloads a dataset by id and name", () => {
+        const download = vi.spyOn((component as any).downloadService, "downloadDataset").mockReturnValue(of(undefined));
+        feed(entryOf({ type: "dataset", dataset: { isOwner: true }, name: "set" }));
+
+        component.onClickDownload();
+
+        expect(download).toHaveBeenCalledWith(7, "set");
+      });
+
+      it("downloads nothing for an entry that was never persisted", () => {
+        const workflow = vi.spyOn((component as any).downloadService, "downloadWorkflow");
+        feed(entryOf({ type: "file", id: 0 }));
+
+        component.onClickDownload();
+
+        expect(workflow).not.toHaveBeenCalled();
+      });
     });
   });
 });
