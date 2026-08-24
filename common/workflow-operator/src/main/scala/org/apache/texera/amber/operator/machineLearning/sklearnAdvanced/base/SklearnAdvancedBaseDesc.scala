@@ -65,6 +65,12 @@ trait ParamClass {
     * converter already constrains.
     */
   def getAllowedValues: Array[String]
+
+  /** The shape the value takes, for a parameter that accepts neither a fixed set nor a plain
+    * number but a choice between them. Empty for every parameter one of the other two
+    * describes, which is most of them.
+    */
+  def getPattern: String = ""
 }
 
 abstract class SklearnMLOperatorDescriptor[T <: ParamClass]
@@ -121,7 +127,10 @@ abstract class SklearnMLOperatorDescriptor[T <: ParamClass]
         // value a sweep should try, so an example alongside it would only repeat one of them.
         param.getAllowedValues.foreach(outcome.withArray("enum").add)
       } else {
-        valueTypeOf(param).foreach(outcome.put("type", _))
+        // A pattern is what a parameter offering a choice between a set and a number has
+        // instead, so it stands in for the type rather than joining it.
+        if (param.getPattern.nonEmpty) outcome.put("pattern", param.getPattern)
+        else valueTypeOf(param).foreach(outcome.put("type", _))
         if (param.getSampleValue.nonEmpty) outcome.withArray("examples").add(param.getSampleValue)
       }
 

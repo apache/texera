@@ -81,6 +81,11 @@ export function createValueRulesValidator(rules: ValueRuleSet) {
     if (isDefined(rule.enum)) {
       return rule.enum.includes(text);
     }
+    if (isDefined(rule.pattern)) {
+      // anchored the way the declaration writes it, so the same expression judges the value
+      // here, in the operator's own tests and in the generated Python
+      return new RegExp(rule.pattern).test(String(value));
+    }
     if (rule.type === "integer") {
       return /^[-+]?\d+$/.test(text);
     }
@@ -96,6 +101,13 @@ export function valueRulesValidationMessage(_err: unknown, field: FormlyFieldCon
   const rule = matchingValueRule(field?.props?.valueRules, field?.parent?.model);
   if (isDefined(rule?.enum)) {
     return `must be one of ${rule.enum.join(", ")}`;
+  }
+  if (isDefined(rule?.pattern)) {
+    // a pattern covers shapes no short phrase names, so point at a value that works instead
+    const example = rule.examples?.[0];
+    return isDefined(example)
+      ? `is not a value this parameter takes, such as ${example}`
+      : "is not a value this parameter takes";
   }
   if (rule?.type === "integer") {
     return "must be a whole number";

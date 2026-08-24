@@ -195,12 +195,15 @@ class SklearnAdvancedBaseDescSpec extends AnyFlatSpec with Matchers {
     ruleFor(rules, "degree").path("type").asText() shouldBe "integer"
   }
 
-  it should "constrain a parameter it has no example for" in {
-    // SVC's own default for gamma is a word float() cannot convert, so the rule carries the
-    // constraint without an example. The two are separate statements and one can stand alone.
+  it should "describe a parameter choosing between a set and a number with a pattern" in {
+    // gamma takes either of two words or a number, which no type names, so the rule carries a
+    // pattern in place of one. Its example is the estimator's own default, a word.
     val gamma = ruleFor(valueRulesOf(classOf[SklearnAdvancedSVCTrainerOpDesc]), "gamma")
-    gamma.path("type").asText() shouldBe "number"
-    gamma.has("examples") shouldBe false
+    gamma.has("type") shouldBe false
+    gamma.path("examples").path(0).asText() shouldBe "scale"
+    val pattern = gamma.path("pattern").asText()
+    Seq("scale", "auto", "0.1", "1e-3", " 1 ").foreach(v => v.matches(pattern) shouldBe true)
+    Seq("abc", "", "scaleauto", "1.2.3").foreach(v => v.matches(pattern) shouldBe false)
   }
 
   it should "state a rule for every parameter whose converter says anything about it" in {

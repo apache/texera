@@ -24,9 +24,26 @@ import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.base.Par
 public enum SklearnAdvancedSVCParameters implements ParamClass {
     C("C", "float", "1.0"),
     kernel("kernel", "str", "", "rbf", "linear", "poly", "sigmoid", "precomputed"),
-    // SVC's own default for gamma is "scale", which float() cannot convert, so there is no
-    // example to offer until the declared converter can carry one.
-    gamma("gamma", "float", ""),
+    // gamma takes either of two words or a number, so no converter of a name covers it. This
+    // one hands the words through and puts everything else past float(), which is also what
+    // decides that a value is not a number at all.
+    //
+    // The pattern below is what that converter takes. Digits are [0-9] rather than \d so the
+    // three engines it runs through read it alike: Python's float() also takes non-ASCII
+    // decimal digits, but JavaScript's \d does not match them either, so the browser turns
+    // them away whichever spelling is used. It is loose in one direction, letting a negative
+    // through for the estimator to refuse, because excluding the sign would also exclude -0.0,
+    // which the estimator takes, and turning away a value that works is the worse mistake.
+    gamma(
+            "gamma",
+            "(lambda value: value.strip() if value.strip() in (\"scale\", \"auto\") else float(value))",
+            "scale") {
+        @Override
+        public String getPattern() {
+            return "^\\s*(?:scale|auto|[-+]?(?:(?:[0-9]+(?:_[0-9]+)*)?\\.(?:[0-9]+(?:_[0-9]+)*)"
+                    + "|(?:[0-9]+(?:_[0-9]+)*)\\.?)(?:[eE][-+]?[0-9]+(?:_[0-9]+)*)?)\\s*$";
+        }
+    },
     degree("degree", "int", "3"),
     coef0("coef0", "float", "0.0"),
     tol("tol", "float", "0.001"),

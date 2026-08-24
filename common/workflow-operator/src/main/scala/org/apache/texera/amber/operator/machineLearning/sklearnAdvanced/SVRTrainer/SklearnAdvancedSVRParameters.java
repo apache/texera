@@ -24,9 +24,17 @@ import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.base.Par
 public enum SklearnAdvancedSVRParameters implements ParamClass {
     C("C", "float", "1.0"),
     kernel("kernel", "str", "", "rbf", "linear", "poly", "sigmoid", "precomputed"),
-    // SVR's own default for gamma is "scale", which float() cannot convert, so there is no
-    // example to offer until the declared converter can carry one.
-    gamma("gamma", "float", ""),
+    // Same converter and shape as SVC's gamma -- see there for why each is spelled this way.
+    gamma(
+            "gamma",
+            "(lambda value: value.strip() if value.strip() in (\"scale\", \"auto\") else float(value))",
+            "scale") {
+        @Override
+        public String getPattern() {
+            return "^\\s*(?:scale|auto|[-+]?(?:(?:[0-9]+(?:_[0-9]+)*)?\\.(?:[0-9]+(?:_[0-9]+)*)"
+                    + "|(?:[0-9]+(?:_[0-9]+)*)\\.?)(?:[eE][-+]?[0-9]+(?:_[0-9]+)*)?)\\s*$";
+        }
+    },
     degree("degree", "int", "3"),
     coef0("coef0", "float", "0.0"),
     tol("tol", "float", "0.001"),

@@ -218,6 +218,11 @@ describe("valueRules", () => {
     allOf: [
       { if: { parameter: { valEnum: ["C"] } }, then: { type: "number", examples: ["1.0"] } },
       { if: { parameter: { valEnum: ["degree"] } }, then: { type: "integer", examples: ["3"] } },
+      // gamma takes either of two words or a number, which no type names
+      {
+        if: { parameter: { valEnum: ["gamma"] } },
+        then: { pattern: "^\\s*(?:scale|auto|[-+]?[0-9]*\\.?[0-9]+)\\s*$", examples: ["scale"] },
+      },
       // an accepted set carries no example: it already names every value worth offering, and
       // the estimator's own default leads
       {
@@ -288,6 +293,16 @@ describe("valueRules", () => {
       expect(check("metric_params", "whatever")).toBe(true);
     });
 
+    it("holds a parameter with a pattern to the shape it declares", () => {
+      // both halves of the union it describes
+      expect(check("gamma", "scale")).toBe(true);
+      expect(check("gamma", "auto")).toBe(true);
+      expect(check("gamma", "0.1")).toBe(true);
+      expect(check("gamma", " 1 ")).toBe(true);
+      expect(check("gamma", "abc")).toBe(false);
+      expect(check("gamma", "scaleauto")).toBe(false);
+    });
+
     it("re-judges the same value when the row switches parameter", () => {
       // a value typed for one parameter is usually wrong for the next, and stays visible
       expect(check("C", "1.0")).toBe(true);
@@ -308,6 +323,12 @@ describe("valueRules", () => {
     it("distinguishes a whole number from a number", () => {
       expect(valueRulesValidationMessage(null, field("degree"))).toBe("must be a whole number");
       expect(valueRulesValidationMessage(null, field("C"))).toBe("must be a number");
+    });
+
+    it("points at a working value where a pattern is what the branch declares", () => {
+      expect(valueRulesValidationMessage(null, field("gamma"))).toBe(
+        "is not a value this parameter takes, such as scale"
+      );
     });
   });
 });
