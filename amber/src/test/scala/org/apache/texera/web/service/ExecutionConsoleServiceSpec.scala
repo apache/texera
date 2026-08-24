@@ -42,10 +42,17 @@ import org.apache.texera.web.model.websocket.request.python.DebugCommandRequest
 import org.apache.texera.web.storage.ExecutionStateStore
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterAll
+
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 
+
+import org.scalatest.concurrent.Eventually.eventually
+import org.scalatest.concurrent.PatienceConfiguration.{Interval, Timeout}
+import org.scalatest.time.{Millis, Span}
+
 import java.time.Instant
+import java.util.concurrent.ExecutorService
 import scala.collection.mutable.ListBuffer
 import scala.reflect.ClassTag
 
@@ -439,6 +446,28 @@ class ExecutionConsoleServiceSpec
       val keys = f.stateStore.consoleStore.getState.operatorConsole.keys
       keys should contain("udf1")
       keys should not contain "Worker:WF1-udf1-main-0"
+    }
+  }
+
+  "unsubscribeAll" should "shutdown consoleWriterThread" in {
+    withFixture { f =>
+      f.client.consoleCallback(message(title = "test"))
+
+      val threadField = classOf[ExecutionConsoleService].getDeclaredField("consoleWriterThread")
+      threadField.setAccessible(true)
+      val executor = threadField.get(f.service).asInstanceOf[ExecutorService]
+
+      // Verify it is initially active
+      executor.isShutdown shouldBe false
+
+      // Trigger the teardown
+      f.service.unsubscribeAll()
+
+      // Use Eventually to wait for async termination without blocking arbitrarily
+      eventually(Timeout(Span(2000, Millis)), Interval(Span(50, Millis))) {
+        executor.isShutdown shouldBe true
+        executor.isTerminated shouldBe true
+      }
     }
   }
 }
