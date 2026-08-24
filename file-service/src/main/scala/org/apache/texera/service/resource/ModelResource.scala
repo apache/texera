@@ -44,12 +44,13 @@ import org.apache.texera.service.`type`.LakeFSFileNode
 import org.apache.texera.service.resource.ResourceTables.{Model => MODEL_RESOURCE}
 import org.apache.texera.service.resource.ModelAccessResource._
 import org.apache.texera.service.resource.ModelResource.{context, _}
-import org.apache.texera.service.util.PresignedDownloadUtils
+import org.apache.texera.service.util.{CoverImageUtils, PresignedDownloadUtils}
 import org.apache.texera.service.util.S3StorageClient
 import org.apache.texera.service.util.LakeFSExceptionHandler.withLakeFSErrorHandling
 import org.jooq.{DSLContext, EnumType}
 
 import java.io.InputStream
+import java.net.URI
 import java.util.Optional
 import scala.jdk.CollectionConverters._
 import scala.jdk.OptionConverters._
@@ -62,11 +63,22 @@ object ModelResource {
 
   // Recognised values for the `framework` and `format` labels. They are metadata, not file
   // checks -- a loader dispatches on them, so an unknown value is rejected at creation
-  // rather than surfacing later as an unloadable model.
-  val SUPPORTED_FRAMEWORKS: Set[String] = Set("pytorch", "tensorflow", "onnx", "sklearn")
+  // rather than surfacing later as an unloadable model. "other" is in both sets so a
+  // framework or format we have no name for yet never blocks an upload.
+  val SUPPORTED_FRAMEWORKS: Set[String] =
+    Set("pytorch", "tensorflow", "onnx", "sklearn", "other")
 
   val SUPPORTED_FORMATS: Set[String] =
-    Set("torchscript", "state-dict", "safetensors", "onnx", "savedmodel", "joblib", "pickle")
+    Set(
+      "torchscript",
+      "state-dict",
+      "safetensors",
+      "onnx",
+      "savedmodel",
+      "joblib",
+      "pickle",
+      "other"
+    )
 
   private def validateLabel(field: String, value: String, allowed: Set[String]): Unit = {
     if (!allowed.contains(value)) {
@@ -141,6 +153,13 @@ object ModelResource {
   case class ModelDescriptionModification(mid: Integer, description: String)
 
   case class ModelNameModification(mid: Integer, name: String)
+
+  case class ModelFrameworkModification(mid: Integer, framework: String)
+
+  case class ModelFormatModification(mid: Integer, format: String)
+
+  /** Path of an already-committed image, relative to the model root, e.g. "v1 - init/cover.jpg". */
+  case class CoverImageRequest(coverImage: String)
 
   case class DashboardModelVersion(
       modelVersion: ModelVersion,
@@ -329,6 +348,54 @@ class ModelResource extends LazyLogging {
       }
 
       model.setDescription(modificator.description)
+      modelDao.update(model)
+      Response.ok().build()
+    }
+  }
+
+  @POST
+  @Consumes(Array(MediaType.APPLICATION_JSON))
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @Path("/update/framework")
+  def updateModelFramework(
+      modificator: ModelFrameworkModification,
+      @Auth sessionUser: SessionUser
+  ): Response = {
+    withTransaction(context) { ctx =>
+      val modelDao = new ModelDao(ctx.configuration())
+      val model = getModelByID(ctx, modificator.mid)
+      if (!userHasWriteAccess(ctx, modificator.mid, sessionUser.getUid)) {
+        throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_MODEL_MESSAGE)
+      }
+
+      validateLabel("framework", modificator.framework, SUPPORTED_FRAMEWORKS)
+
+      model.setFramework(modificator.framework)
+      modelDao.update(model)
+      Response.ok().build()
+    }
+  }
+
+  @POST
+  @Consumes(Array(MediaType.APPLICATION_JSON))
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @Path("/update/format")
+  def updateModelFormat(
+      modificator: ModelFormatModification,
+      @Auth sessionUser: SessionUser
+  ): Response = {
+    withTransaction(context) { ctx =>
+      val modelDao = new ModelDao(ctx.configuration())
+      val model = getModelByID(ctx, modificator.mid)
+      if (!userHasWriteAccess(ctx, modificator.mid, sessionUser.getUid)) {
+        throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_MODEL_MESSAGE)
+      }
+
+      validateLabel("format", modificator.format, SUPPORTED_FORMATS)
+
+      model.setFormat(modificator.format)
       modelDao.update(model)
       Response.ok().build()
     }
@@ -764,6 +831,25 @@ class ModelResource extends LazyLogging {
     })
   }
 
+  /**
+    * Version list of a public model, for a logged-out visitor on a hub model page.
+    * Without it the page renders metadata and then fails on the version dropdown.
+    */
+  @GET
+  @PermitAll
+  @Path("/{mid}/publicVersion/list")
+  def getPublicModelVersionList(
+      @PathParam("mid") mid: Integer
+  ): List[ModelVersion] = {
+    withTransaction(context)(ctx => {
+      val model = getModelByID(ctx, mid)
+      if (!isModelPublic(ctx, model.getMid)) {
+        throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_MODEL_MESSAGE)
+      }
+      fetchModelVersions(ctx, model.getMid)
+    })
+  }
+
   @GET
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/{mid}/version/latest")
@@ -794,6 +880,17 @@ class ModelResource extends LazyLogging {
   ): ModelVersionRootFileNodesResponse = {
     val uid = user.getUid
     withTransaction(context)(ctx => fetchModelVersionRootFileNodes(ctx, mid, mvid, Some(uid)))
+  }
+
+  /** File tree of one version of a public model; the anonymous half of the endpoint above. */
+  @GET
+  @PermitAll
+  @Path("/{mid}/publicVersion/{mvid}/rootFileNodes")
+  def retrievePublicModelVersionRootFileNodes(
+      @PathParam("mid") mid: Integer,
+      @PathParam("mvid") mvid: Integer
+  ): ModelVersionRootFileNodesResponse = {
+    withTransaction(context)(ctx => fetchModelVersionRootFileNodes(ctx, mid, mvid, None))
   }
 
   // ===========================================================================
@@ -893,8 +990,125 @@ class ModelResource extends LazyLogging {
   }
 
   // ===========================================================================
+  // Cover image
+  // ===========================================================================
+
+  /**
+    * Points the model card at an already-committed image inside the model itself.
+    *
+    * Expected coverImage format: "<version>/<path>/image.jpg", relative to the model root.
+    */
+  @POST
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @Path("/{mid}/update/cover")
+  @Consumes(Array(MediaType.APPLICATION_JSON))
+  def updateModelCoverImage(
+      @PathParam("mid") mid: Integer,
+      request: CoverImageRequest,
+      @Auth sessionUser: SessionUser
+  ): Response = {
+    withTransaction(context) { ctx =>
+      val model = getModelByID(ctx, mid)
+      if (!userHasWriteAccess(ctx, mid, sessionUser.getUid)) {
+        throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_MODEL_MESSAGE)
+      }
+
+      val normalized =
+        CoverImageUtils.validatePathOrThrow(request.coverImage, CoverImageUtils.MAX_PATH_LENGTH)
+
+      val document = CoverImageUtils.openCover(
+        ResourceType.Model,
+        getOwner(ctx, mid).getEmail,
+        model.getName,
+        normalized
+      )
+      CoverImageUtils.requireWithinSizeLimit(CoverImageUtils.fileSizeOf(document, normalized))
+
+      model.setCoverImage(normalized)
+      new ModelDao(ctx.configuration()).update(model)
+      Response.ok(Map("coverImage" -> normalized)).build()
+    }
+  }
+
+  /**
+    * Get the cover image for a model.
+    * Returns a 307 redirect to the presigned S3 URL.
+    */
+  @GET
+  @PermitAll
+  @Path("/{mid}/cover")
+  def getModelCover(
+      @PathParam("mid") mid: Integer,
+      @Auth sessionUser: Optional[SessionUser]
+  ): Response = {
+    withTransaction(context) { ctx =>
+      val model = requireCoverReadAccess(ctx, mid, sessionUser)
+      val coverImage = Option(model.getCoverImage).getOrElse(
+        throw new NotFoundException("No cover image")
+      )
+
+      val document = CoverImageUtils.openCover(
+        ResourceType.Model,
+        getOwner(ctx, mid).getEmail,
+        model.getName,
+        coverImage
+      )
+      Response
+        .temporaryRedirect(new URI(CoverImageUtils.presignedUrl(document, coverImage)))
+        .build()
+    }
+  }
+
+  /**
+    * Get a presigned S3 URL for the model cover image as JSON.
+    * JWT-aware variant of GET /{mid}/cover; required for private models
+    * since `<img src>` cannot attach the Authorization header.
+    */
+  @GET
+  @PermitAll
+  @Path("/{mid}/cover-url")
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  def getModelCoverUrl(
+      @PathParam("mid") mid: Integer,
+      @Auth sessionUser: Optional[SessionUser]
+  ): Response = {
+    withTransaction(context) { ctx =>
+      val model = requireCoverReadAccess(ctx, mid, sessionUser)
+
+      Option(model.getCoverImage) match {
+        case None => Response.ok(Map("url" -> null)).build()
+        case Some(coverImage) =>
+          val document = CoverImageUtils.openCover(
+            ResourceType.Model,
+            getOwner(ctx, mid).getEmail,
+            model.getName,
+            coverImage
+          )
+          Response.ok(Map("url" -> CoverImageUtils.presignedUrl(document, coverImage))).build()
+      }
+    }
+  }
+
+  // ===========================================================================
   // Private helpers
   // ===========================================================================
+
+  /** A cover is readable by anyone for a public model, and by read-grantees otherwise. */
+  private def requireCoverReadAccess(
+      ctx: DSLContext,
+      mid: Integer,
+      sessionUser: Optional[SessionUser]
+  ): Model = {
+    val model = getModelByID(ctx, mid)
+    val requesterUid = if (sessionUser.isPresent) Some(sessionUser.get().getUid) else None
+
+    if (requesterUid.isEmpty && !model.getIsPublic) {
+      throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_MODEL_MESSAGE)
+    } else if (requesterUid.exists(uid => !userHasReadAccess(ctx, mid, uid))) {
+      throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_MODEL_MESSAGE)
+    }
+    model
+  }
 
   private def fetchModelVersions(ctx: DSLContext, mid: Integer): List[ModelVersion] = {
     ctx

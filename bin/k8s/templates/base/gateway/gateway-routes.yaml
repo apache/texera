@@ -49,6 +49,14 @@ spec:
         - path:
             type: PathPrefix
             value: /api/access/dataset
+        # PathPrefix matches whole path segments, so /api/model does not swallow
+        # the /api/models LLM route below.
+        - path:
+            type: PathPrefix
+            value: /api/model
+        - path:
+            type: PathPrefix
+            value: /api/access/model
       backendRefs:
         - name: file-service-svc
           port: 9092
