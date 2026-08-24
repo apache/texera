@@ -330,5 +330,19 @@ describe("valueRules", () => {
         "is not a value this parameter takes, such as scale"
       );
     });
+
+    it("says only what it knows when a pattern branch offers no example", () => {
+      const noExample: ValueRuleSet = {
+        allOf: [{ if: { parameter: { valEnum: ["gamma"] } }, then: { pattern: "^scale$" } }],
+      };
+      const bare = { props: { valueRules: noExample }, parent: { model: { parameter: "gamma" } } };
+      expect(valueRulesValidationMessage(null, bare as FormlyFieldConfig)).toBe("is not a value this parameter takes");
+    });
+
+    it("falls back to the numeric wording when no branch applies at all", () => {
+      // reached when the row's parameter changes between the check failing and the message
+      // being read, so the message must still say something rather than throw
+      expect(valueRulesValidationMessage(null, field("metric_params"))).toBe("must be a number");
+    });
   });
 });

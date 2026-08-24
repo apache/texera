@@ -20,7 +20,9 @@
 package org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.base
 
 import com.fasterxml.jackson.databind.JsonNode
+import com.fasterxml.jackson.databind.node.ObjectNode
 import org.apache.texera.amber.core.tuple.AttributeType
+import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.KNNTrainer.SklearnAdvancedKNNClassifierTrainerOpDesc
 import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.SVCTrainer.SklearnAdvancedSVCTrainerOpDesc
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorMetadataGenerator}
@@ -219,6 +221,37 @@ class SklearnAdvancedBaseDescSpec extends AnyFlatSpec with Matchers {
     // metrics themselves are words. metric_params names str, which says nothing, so it is the
     // one parameter left free.
     covered shouldBe Set("n_neighbors", "p", "weights", "algorithm", "leaf_size", "metric")
+  }
+
+  it should "leave a schema it cannot find the row in alone" in {
+    // The three shapes that make the rules unwritable. None arises from a schema the generator
+    // produced, so the point is that each is passed over rather than thrown on.
+    val svc = new SklearnAdvancedSVCTrainerOpDesc
+    Seq(
+      objectMapper.createObjectNode(),
+      objectMapper.readTree("""{"properties": {"paraList": {"items": {}}}}"""),
+      objectMapper.readTree(
+        """{"properties": {"paraList": {"items": {"$ref": "#/definitions/Row"}}},
+           "definitions": {"Row": {"properties": {"value": "not an object"}}}}"""
+      )
+    ).foreach { schema =>
+      val node = schema.asInstanceOf[ObjectNode]
+      noException should be thrownBy svc.customizeJsonSchema(node)
+      node.findValue("valueRules") shouldBe null
+    }
+  }
+
+  it should "write no rules for a descriptor whose type argument is not an enum" in {
+    // TestParam is a class standing in for one, so there are no constants to read. A real
+    // operator always binds an enum; this is the path a test stub takes.
+    val schema = objectMapper
+      .readTree(
+        """{"properties": {"paraList": {"items": {"$ref": "#/definitions/Row"}}},
+           "definitions": {"Row": {"properties": {"value": {"type": "string"}}}}}"""
+      )
+      .asInstanceOf[ObjectNode]
+    new TestSklearnMLOp().customizeJsonSchema(schema)
+    schema.findValue("valueRules") shouldBe null
   }
 
   "HyperParameters" should "require whichever of the two inputs the row actually uses" in {
