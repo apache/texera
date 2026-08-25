@@ -88,9 +88,9 @@ export class StubAuthService implements PublicInterfaceOf<AuthService> {
 
   register(username: string, email: string, password: string): Observable<Readonly<RegistrationResult>> {
     if (username !== "existing_user") {
-      return of({ ...MOCK_TOKEN, verificationRequired: false });
+      return of(MOCK_TOKEN);
     } else {
-      return of({ ...MOCK_INVALID_TOKEN, verificationRequired: false });
+      return of(MOCK_INVALID_TOKEN);
     }
   }
 
@@ -100,7 +100,7 @@ export class StubAuthService implements PublicInterfaceOf<AuthService> {
     password: string,
     code: string
   ): Observable<Readonly<RegistrationResult>> {
-    return of({ ...MOCK_TOKEN, verificationRequired: false });
+    return of(MOCK_TOKEN);
   }
 
   validateUsername(username: string): { result: boolean; message: string } {

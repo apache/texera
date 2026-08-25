@@ -91,7 +91,7 @@ describe("UserService", () => {
   // back of it — the account does not exist until the code comes back.
   it("reports a pending verification and signs nobody in", async () => {
     const auth = TestBed.inject(AuthService) as unknown as StubAuthService;
-    vi.spyOn(auth, "register").mockReturnValue(of({ accessToken: null, verificationRequired: true }));
+    vi.spyOn(auth, "register").mockReturnValue(of({ accessToken: null }));
 
     const outcome = await firstValueFrom(service.register("pending", "pending@example.com", "password"));
 

@@ -20,12 +20,9 @@
 package org.apache.texera.web.model.http.request.auth
 
 /**
-  * A registration, optionally carrying the code that proves the address.
-  *
-  * The same shape serves both steps of a verified signup: `AuthResource.register` mails a code and
-  * writes nothing, then the client re-submits these very fields plus `code` to
-  * `AuthResource.registerVerify`. Re-submitting is what lets the server hold no pending state — and
-  * it keeps the password out of anything that gets stored or emailed.
+  * A registration, optionally carrying the code that proves the address. The same shape serves both
+  * steps of a verified signup — see `AuthResource.registerVerify` for why the second step repeats
+  * the first one's fields.
   */
 case class UserRegistrationRequest(
     username: String,

@@ -20,11 +20,8 @@
 package org.apache.texera.web.model.http.response
 
 /**
-  * What a registration attempt produced: either an account and its token, or a request for the code
-  * that was just mailed.
-  *
-  * `accessToken` is null exactly when `verificationRequired` is true, and it stays a nullable String
-  * rather than an Option so the JSON keeps the `{ "accessToken": ... }` shape the frontend already
-  * reads from [[TokenIssueResponse]].
+  * What a registration attempt produced. A null `accessToken` *is* the "a code was mailed, nothing
+  * created" signal, reported no other way so the two cannot drift apart. Distinct from
+  * [[TokenIssueResponse]] only because that one promises a token.
   */
-case class RegistrationResponse(accessToken: String, verificationRequired: Boolean)
+case class RegistrationResponse(accessToken: String)

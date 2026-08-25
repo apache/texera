@@ -136,7 +136,6 @@ describe("EmailRequestModalComponent", () => {
 
     const [address, code] = inputs(fixture);
     expect(code).toBeDefined();
-    // The code is bound to the address it was mailed to, so that address must not still be editable.
     expect(address.hasAttribute("readonly")).toBe(true);
     expect(code.getAttribute("autocomplete")).toBe("one-time-code");
   });

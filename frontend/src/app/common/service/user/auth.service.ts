@@ -35,13 +35,14 @@ import { validateEmailFormat } from "../../util/email";
 export const TOKEN_KEY = "access_token";
 
 /**
- * What a registration attempt produced. `accessToken` is null exactly when `verificationRequired`
- * is true: where `user-sys.email-verification` is on, the first call mails a code and creates
- * nothing, and the account only exists once `registerVerify` is given that code back.
+ * What a registration attempt produced.
+ *
+ * A null `accessToken` is the "a code was mailed, nothing was created" signal: where
+ * `user-sys.email-verification` is on, the account only exists once `registerVerify` is given that
+ * code back. The backend reports the two as one field so they cannot disagree.
  */
 export interface RegistrationResult {
   accessToken: string | null;
-  verificationRequired: boolean;
 }
 
 /**
@@ -93,13 +94,7 @@ export class AuthService {
     );
   }
 
-  /**
-   * Completes a registration that `register` left pending by presenting the code mailed to the
-   * address, alongside the same fields it was given.
-   *
-   * The password goes up again rather than having been held server-side: that is what lets the
-   * backend keep no record of a pending signup.
-   */
+  /** Completes a registration `register` left pending, resending its fields alongside the code. */
   public registerVerify(
     username: string,
     email: string,
@@ -146,7 +141,6 @@ export class AuthService {
     );
   }
 
-  /** Asks the backend to mail a one-time code to the address the account wants to claim. */
   public requestEmailCode(email: string): Observable<void> {
     return this.http.post<void>(`${AppSettings.getApiEndpoint()}/${AuthService.SET_EMAIL_CODE_ENDPOINT}`, {
       email,

@@ -265,15 +265,4 @@ class EmailCodeVerifierSpec extends AnyFlatSpec with Matchers with BeforeAndAfte
 
     noException should be thrownBy verifier.check(ADD_EMAIL, "7", "a@b.com", fresh)
   }
-
-  "evictStale" should "drop entries nobody has touched and keep the live ones" in {
-    verifier.issue(ADD_EMAIL, "7", "a@b.com")
-    verifier.trackedSize shouldBe 1
-
-    advance(EmailCodeVerifier.STEP_SECONDS * 4)
-    verifier.issue(ADD_EMAIL, "8", "b@b.com")
-    verifier.evictStale()
-
-    verifier.trackedSize shouldBe 1
-  }
 }

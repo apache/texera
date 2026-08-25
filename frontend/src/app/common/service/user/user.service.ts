@@ -90,15 +90,15 @@ export class UserService {
    * {@link registerVerify}. Signs the user in directly when verification is off.
    */
   public register(username: string, email: string, password: string): Observable<{ verificationRequired: boolean }> {
-    return this.authService
-      .register(username, email, password)
-      .pipe(
-        switchMap(response =>
-          response.verificationRequired || !response.accessToken
-            ? of({ verificationRequired: true })
-            : this.handleAccessToken(response.accessToken).pipe(map(() => ({ verificationRequired: false })))
-        )
-      );
+    return this.authService.register(username, email, password).pipe(
+      switchMap(response =>
+        // No token means the backend mailed a code instead of creating the account. This is the
+        // one place that reading is made, so the rest of the app is told rather than deducing.
+        response.accessToken
+          ? this.handleAccessToken(response.accessToken).pipe(map(() => ({ verificationRequired: false })))
+          : of({ verificationRequired: true })
+      )
+    );
   }
 
   /** Completes a pending registration with the code that was mailed, then signs the user in. */

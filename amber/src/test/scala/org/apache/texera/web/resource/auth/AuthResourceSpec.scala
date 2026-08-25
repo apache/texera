@@ -837,34 +837,12 @@ class AuthResourceSpec
     val response =
       verifying.register(UserRegistrationRequest(uname("pend"), uemail("pend"), "secret"))
 
-    response.verificationRequired shouldBe true
+    // A null token is the whole signal: there is no separate flag that could disagree with it.
     response.accessToken shouldBe null
     mailed.map(_._2) shouldBe Seq(uemail("pend"))
     // The whole point of the stateless design: nothing exists yet, anywhere.
     LocalAuthProvisioner.handleExists(uname("pend")) shouldBe false
     AuthResource.fetchUserByEmailIgnoreCase(uemail("pend")) shouldBe null
-  }
-
-  it should "reject a taken handle before mailing anything" in {
-    seedUser(uname("taken"), "secret")
-
-    intercept[NotAcceptableException] {
-      verifying.register(UserRegistrationRequest(uname("taken"), uemail("fresh"), "secret"))
-    }
-
-    mailed shouldBe empty
-  }
-
-  it should "reject an address a credentialed account already owns before mailing anything" in {
-    seedUser(uname("owner"), "secret")
-
-    intercept[NotAcceptableException] {
-      verifying.register(
-        UserRegistrationRequest(uname("other"), s"${uname("owner")}@example.com", "secret")
-      )
-    }
-
-    mailed shouldBe empty
   }
 
   "register/verify" should "create the account when the mailed code comes back" in {
@@ -874,7 +852,6 @@ class AuthResourceSpec
       UserRegistrationRequest(uname("done"), uemail("done"), "secret", mailedCode)
     )
 
-    response.verificationRequired shouldBe false
     subjectOf(response.accessToken) shouldBe uname("done")
     val created = AuthResource.fetchUserByEmailIgnoreCase(uemail("done"))
     created should not be null

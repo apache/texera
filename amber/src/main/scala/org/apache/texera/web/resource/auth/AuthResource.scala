@@ -317,22 +317,12 @@ class AuthResource {
     val (username, useremail, userpassword) = validatedRegistration(request)
 
     if (!emailVerificationRequired) {
-      return RegistrationResponse(createRegisteredAccount(username, useremail, userpassword), false)
+      return RegistrationResponse(createRegisteredAccount(username, useremail, userpassword))
     }
 
-    // Refuse now what [[registerVerify]] would refuse anyway, so nobody is asked to fetch a code
-    // only to be told afterwards that the handle was taken. The authoritative check still runs in
-    // the transaction that creates the account.
-    val takenHandle = LocalAuthProvisioner.handleExists(username)
-    if (takenHandle) throw new NotAcceptableException("Username exists already.")
-    val owner = fetchUserByEmailIgnoreCase(useremail)
-    // A placeholder's address is claimable by the first registration that proves it, so it does not
-    // count as taken here.
-    if (owner != null && !owner.getIsPlaceholder)
-      throw new NotAcceptableException("Email exists already.")
-
     verifier.issue(EmailCodeVerifier.REGISTER, username, useremail)
-    RegistrationResponse(null, verificationRequired = true)
+    // No token: the account does not exist yet, and will not until the code comes back.
+    RegistrationResponse(null)
   }
 
   /**
@@ -352,7 +342,7 @@ class AuthResource {
       verifier.check(EmailCodeVerifier.REGISTER, username, useremail, request.code)
     }
 
-    RegistrationResponse(createRegisteredAccount(username, useremail, userpassword), false)
+    RegistrationResponse(createRegisteredAccount(username, useremail, userpassword))
   }
 
   /** Trim, then apply the checks that do not depend on what is already in the database. */
@@ -368,7 +358,7 @@ class AuthResource {
     (username, useremail, userpassword)
   }
 
-  /** Create the account and return its token. The authoritative uniqueness checks live here. */
+  /** The authoritative uniqueness checks live here, inside the create. */
   private def createRegisteredAccount(
       username: String,
       useremail: String,

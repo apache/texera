@@ -51,7 +51,6 @@ object EmailCodeVerifier {
 
   private val HMAC = "HmacSHA256"
 
-  /** The production instance: wall clock, real mail, real config. */
   lazy val instance: EmailCodeVerifier = new EmailCodeVerifier()
 
   private def hmac(key: Array[Byte], message: String): Array[Byte] = {
@@ -85,7 +84,6 @@ class EmailCodeVerifier(
 
   private val key: Array[Byte] = hmac(secret.getBytes(StandardCharsets.UTF_8), KEY_LABEL)
 
-  /** Derive a code and mail it, or log it when there is no configured sender. */
   def issue(purpose: String, scope: String, email: String): Unit = {
     evictStale()
 
@@ -156,16 +154,16 @@ class EmailCodeVerifier(
   }
 
   /**
-    * Drop trackers nothing has touched for two steps. Bounds the map in a long-lived process; safe
-    * to call concurrently with [[issue]] and [[check]].
+    * Drop trackers nothing has touched for two steps.
+    *
+    * Load-bearing rather than tidiness: `/auth/register` is unauthenticated and trackers are keyed
+    * by the submitted handle, so without this an anonymous caller could grow the map without bound.
+    * Safe to call concurrently with [[issue]] and [[check]].
     */
   private[auth] def evictStale(): Unit = {
     val cutoff = clock().minusSeconds(STEP_SECONDS * 2)
     trackers.entrySet().removeIf(entry => entry.getValue.touchedAt.isBefore(cutoff))
   }
-
-  /** Visible for tests. */
-  private[auth] def trackedSize: Int = trackers.size()
 
   private def deliver(address: String, code: String): Unit = {
     val message = EmailTemplate.emailVerificationCode(address, code)

@@ -42,7 +42,7 @@
 
 <!-- The code is bound to the address it was mailed to, so the address is frozen once it is sent. -->
 @if (step === "code") {
-<label style="display: block; margin-top: 12px"> Enter the code sent to <strong>{{ email }}</strong> </label>
+<label class="email-modal-code-label"> Enter the code sent to <strong>{{ email }}</strong> </label>
 <input
   class="email-modal-input"
   nz-input

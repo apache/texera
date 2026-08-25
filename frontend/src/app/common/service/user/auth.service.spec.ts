@@ -431,8 +431,7 @@ describe("AuthService", () => {
       expect(content.step).toBe("code");
       expect(updateConfig).toHaveBeenCalledWith({ nzOkText: "Verify" });
 
-      // Second confirm: nothing was stored server-side in between, so the address travels with
-      // the code rather than being looked up from a pending row.
+      // Second confirm: the address travels with the code, not a server-side pending row.
       const second = modal.create.mock.calls[0][0].nzOnOk();
       const setReq = httpMock.expectOne(`${api}/${AuthService.SET_EMAIL_ENDPOINT}`);
       expect(setReq.request.method).toEqual("PUT");
@@ -489,14 +488,13 @@ describe("AuthService", () => {
 
       const req = httpMock.expectOne(`${api}/${AuthService.REGISTER_VERIFY_ENDPOINT}`);
       expect(req.request.method).toEqual("POST");
-      // The password goes up again rather than having been stashed server-side.
       expect(req.request.body).toEqual({
         username: "alice",
         email: "alice@example.com",
         password: "pw",
         code: "123456",
       });
-      req.flush({ accessToken: "tok", verificationRequired: false });
+      req.flush({ accessToken: "tok" });
     });
 
     it("requestEmailCode() POSTs the address to the code endpoint", () => {
