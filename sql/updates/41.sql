@@ -71,4 +71,12 @@ CREATE TABLE IF NOT EXISTS model_upload_session_part
         ON DELETE CASCADE
 );
 
+-- Version names are generated from an unlocked count(*), and FileResolver looks a version
+-- up by (mid, name) with fetchOneInto. Enforce the uniqueness the generator assumes.
+ALTER TABLE model_version
+    DROP CONSTRAINT IF EXISTS uq_model_version_mid_name;
+
+ALTER TABLE model_version
+    ADD CONSTRAINT uq_model_version_mid_name UNIQUE (mid, name);
+
 COMMIT;
