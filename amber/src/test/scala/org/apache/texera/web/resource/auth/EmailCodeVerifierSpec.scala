@@ -81,14 +81,22 @@ class EmailCodeVerifierSpec extends AnyFlatSpec with Matchers with BeforeAndAfte
     message.content should include regex "\\d{6}"
   }
 
-  it should "log the code instead of mailing it when SMTP is unconfigured" in {
+  // Verification is on by default, so "on with no sender behind it" is a misconfiguration a
+  // deployment can reach by omission. It fails closed rather than logging the code: a logged code
+  // is a live credential sitting where anyone with log access can spend it, which would leave the
+  // deployment serving registrations it only appears to be verifying.
+  it should "refuse and name the fix when SMTP is unconfigured" in {
     smtpConfigured = false
 
-    verifier.issue(ADD_EMAIL, "7", "someone@example.com")
+    val thrown =
+      intercept[WebApplicationException](verifier.issue(ADD_EMAIL, "7", "someone@example.com"))
 
-    // Nothing handed to the sender: with no sender configured the send would fail, and failing the
-    // request would make the feature impossible to run locally.
+    thrown.getResponse.getStatus shouldBe 503
     sent shouldBe empty
+    // The message is read by whoever hit the wall, not by the operator who caused it, so it has to
+    // name both settings — either one resolves the inconsistency.
+    thrown.getMessage should include("USER_SYS_GOOGLE_SMTP_GMAIL")
+    thrown.getMessage should include("USER_SYS_EMAIL_VERIFICATION")
   }
 
   it should "refuse when the address is configured but the send fails" in {

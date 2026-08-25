@@ -171,14 +171,22 @@ class EmailCodeVerifier(
     val message = EmailTemplate.emailVerificationCode(address, code)
 
     if (!smtpConfigured()) {
-      // Deployments set user-sys.google.smtp.gmail; a developer who turns verification on locally
-      // has not, and failing the request would make the flow impossible to exercise. This cannot
-      // fire where mail is configured.
-      logger.warn(
-        s"SMTP is unconfigured (user-sys.google.smtp.gmail is empty), so the verification code for " +
-          s"$address was not mailed. Code: $code"
+      // Fail closed, and say which of the two settings is inconsistent. Logging the code instead
+      // would let the deployment keep serving registrations while its only proof of address
+      // ownership sat in the log, readable by anyone who can read logs — verification in name
+      // only. Better to refuse and name the fix.
+      logger.error(
+        "user-sys.email-verification is on but user-sys.google.smtp.gmail is empty, so no " +
+          s"verification code can be sent to $address. Configure the SMTP sender or turn " +
+          "verification off."
       )
-      return
+      throw new WebApplicationException(
+        "Email verification is enabled, but this deployment has no email sender configured, so " +
+          "the code cannot be sent. An administrator needs to configure SMTP " +
+          "(USER_SYS_GOOGLE_SMTP_GMAIL) or disable email verification " +
+          "(USER_SYS_EMAIL_VERIFICATION=false).",
+        Response.Status.SERVICE_UNAVAILABLE
+      )
     }
 
     send(message, address) match {

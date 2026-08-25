@@ -30,6 +30,7 @@ import {
 import { ActivatedRoute, Router } from "@angular/router";
 import { catchError, filter } from "rxjs/operators";
 import { throwError } from "rxjs";
+import { HttpErrorResponse } from "@angular/common/http";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { SocialAuthService, GoogleSigninButtonModule, SocialUser } from "@abacritt/angularx-social-login";
 import { UserService } from "../../../common/service/user/user.service";
@@ -42,6 +43,18 @@ import { NzInputDirective, NzInputGroupComponent, NzInputGroupWhitSuffixOrPrefix
 import { NzButtonComponent } from "ng-zorro-antd/button";
 import { NzDividerComponent } from "ng-zorro-antd/divider";
 import { NzTypographyComponent } from "ng-zorro-antd/typography";
+
+/**
+ * The reason a failed call carries, preferring the server's own words.
+ *
+ * An `HttpErrorResponse` puts the backend's JSON body on `.error`, while its `.message` is
+ * Angular's generic "Http failure response for <url>: 503 ...". Operator-facing refusals — an
+ * enabled verification flow with no SMTP sender behind it, say — are only useful if the body's
+ * message is what reaches the screen.
+ */
+function reasonFor(e: unknown): string | undefined {
+  return (e as HttpErrorResponse)?.error?.message ?? (e as Error)?.message;
+}
 
 type LoginMode = "signin" | "signup";
 
@@ -231,7 +244,7 @@ export class TexeraLoginComponent implements OnInit {
         .registerVerify(username, email, password, code)
         .pipe(
           catchError((e: unknown) => {
-            this.errorMessage = (e as Error)?.message || "That code is not valid or has expired.";
+            this.errorMessage = reasonFor(e) || "That code is not valid or has expired.";
             return throwError(() => e);
           }),
           untilDestroyed(this)
@@ -249,7 +262,7 @@ export class TexeraLoginComponent implements OnInit {
       .register(username, email, password)
       .pipe(
         catchError((e: unknown) => {
-          this.errorMessage = (e as Error)?.message || "Registration failed";
+          this.errorMessage = reasonFor(e) || "Registration failed";
           return throwError(() => e);
         }),
         untilDestroyed(this)

@@ -55,7 +55,8 @@ class UserSystemConfigSpec extends AnyFlatSpec with Matchers {
     ifUnset("USER_SYS_GOOGLE_SMTP_PASSWORD")(UserSystemConfig.smtpPassword shouldBe "")
     ifUnset("USER_SYS_PROJECT_NAME")(UserSystemConfig.projectName shouldBe "Texera")
     ifUnset("USER_SYS_INVITE_ONLY")(UserSystemConfig.inviteOnly shouldBe false)
-    ifUnset("USER_SYS_EMAIL_VERIFICATION")(UserSystemConfig.emailVerification shouldBe false)
+    // On by default — a deployment opts out of proving addresses rather than into it.
+    ifUnset("USER_SYS_EMAIL_VERIFICATION")(UserSystemConfig.emailVerification shouldBe true)
     ifUnset("USER_SYS_VERSION_TIME_LIMIT_IN_MINUTES")(
       UserSystemConfig.workflowVersionCollapseIntervalInMinutes shouldBe 60
     )

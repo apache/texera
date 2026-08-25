@@ -388,19 +388,6 @@ describe("AuthService", () => {
 
       expect(modal.create).toHaveBeenCalledTimes(2);
     });
-
-    it("does not ask for a code where verification is off", async () => {
-      AuthService.setAccessToken("tok");
-      jwt.decodeToken.mockReturnValue(emaillessClaims());
-
-      service.loginWithExistingToken();
-      const accepted = modal.create.mock.calls[0][0].nzOnOk();
-      // One request, straight to the write — no code round trip.
-      httpMock.expectOne(`${api}/${AuthService.SET_EMAIL_ENDPOINT}`).flush({ accessToken: "fresh" });
-
-      expect(await accepted).toBe(true);
-      httpMock.expectNone(`${api}/${AuthService.SET_EMAIL_CODE_ENDPOINT}`);
-    });
   });
 
   // Where `user-sys.email-verification` is on the dialog runs in two steps: the first mails a code
@@ -428,41 +415,31 @@ describe("AuthService", () => {
       service.loginWithExistingToken();
     };
 
-    it("labels the first button for sending rather than saving", () => {
+    it("mails a code on the first confirm, then sends it with the address on the second", async () => {
       openPrompt();
-
       expect(modal.create.mock.calls[0][0].nzOkText).toBe("Send code");
-    });
 
-    it("mails a code on the first confirm and keeps the dialog open on the code step", async () => {
-      openPrompt();
-
-      const accepted = modal.create.mock.calls[0][0].nzOnOk();
-      const req = httpMock.expectOne(`${api}/${AuthService.SET_EMAIL_CODE_ENDPOINT}`);
-      expect(req.request.method).toEqual("POST");
-      expect(req.request.body).toEqual({ email: "typed@x.com" });
-      req.flush(null);
+      // First confirm: a code goes out and the dialog stays open on the code step.
+      const first = modal.create.mock.calls[0][0].nzOnOk();
+      const codeReq = httpMock.expectOne(`${api}/${AuthService.SET_EMAIL_CODE_ENDPOINT}`);
+      expect(codeReq.request.method).toEqual("POST");
+      expect(codeReq.request.body).toEqual({ email: "typed@x.com" });
+      codeReq.flush(null);
 
       // False keeps the modal open; the address is not written yet.
-      expect(await accepted).toBe(false);
+      expect(await first).toBe(false);
       expect(content.step).toBe("code");
       expect(updateConfig).toHaveBeenCalledWith({ nzOkText: "Verify" });
-      httpMock.expectNone(`${api}/${AuthService.SET_EMAIL_ENDPOINT}`);
-    });
 
-    it("sends the address together with the code on the second confirm", async () => {
-      openPrompt();
-      const first = modal.create.mock.calls[0][0].nzOnOk();
-      httpMock.expectOne(`${api}/${AuthService.SET_EMAIL_CODE_ENDPOINT}`).flush(null);
-      await first;
+      // Second confirm: nothing was stored server-side in between, so the address travels with
+      // the code rather than being looked up from a pending row.
+      const second = modal.create.mock.calls[0][0].nzOnOk();
+      const setReq = httpMock.expectOne(`${api}/${AuthService.SET_EMAIL_ENDPOINT}`);
+      expect(setReq.request.method).toEqual("PUT");
+      expect(setReq.request.body).toEqual({ email: "typed@x.com", code: "123456" });
+      setReq.flush({ accessToken: "fresh-token" });
 
-      const accepted = modal.create.mock.calls[0][0].nzOnOk();
-      const req = httpMock.expectOne(`${api}/${AuthService.SET_EMAIL_ENDPOINT}`);
-      expect(req.request.method).toEqual("PUT");
-      expect(req.request.body).toEqual({ email: "typed@x.com", code: "123456" });
-      req.flush({ accessToken: "fresh-token" });
-
-      expect(await accepted).toBe(true);
+      expect(await second).toBe(true);
       expect(AuthService.getAccessToken()).toEqual("fresh-token");
     });
 

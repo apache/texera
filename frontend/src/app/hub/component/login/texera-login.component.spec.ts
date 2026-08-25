@@ -271,6 +271,34 @@ describe("TexeraLoginComponent", () => {
 
     // Where verification is on, the first submit only asks for a code: the account does not exist
     // yet, so nothing should claim it was created.
+    // Verification is on by default, so a deployment with no SMTP sender behind it refuses here.
+    // That refusal is aimed at whoever can fix it, so its text has to survive to the screen rather
+    // than being replaced by Angular's generic "Http failure response for ...".
+    it("shows the server's reason when a code cannot be sent, not the generic HTTP text", () => {
+      const refusal = {
+        error: {
+          message:
+            "Email verification is enabled, but this deployment has no email sender configured, " +
+            "so the code cannot be sent. An administrator needs to configure SMTP " +
+            "(USER_SYS_GOOGLE_SMTP_GMAIL) or disable email verification " +
+            "(USER_SYS_EMAIL_VERIFICATION=false).",
+        },
+        message: "Http failure response for http://localhost/api/auth/register: 503 Service Unavailable",
+      };
+      (userServiceMock.register as any).mockReturnValue(throwError(() => refusal));
+      component.form.patchValue({
+        username: "alice",
+        email: "alice@example.com",
+        password: "secret1",
+        confirm: "secret1",
+      });
+
+      component.submit();
+
+      expect(component.errorMessage).toBe(refusal.error.message);
+      expect(component.awaitingCode).toBe(false);
+    });
+
     it("switches to the code step when the backend asks for verification", () => {
       (userServiceMock.register as any).mockReturnValue(of({ verificationRequired: true }));
       component.form.patchValue({

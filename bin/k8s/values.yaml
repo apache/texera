@@ -347,8 +347,9 @@ texeraEnvVars:
     value: "true"
   - name: USER_SYS_INVITE_ONLY
     value: "true"
-  # Requires the USER_SYS_GOOGLE_SMTP_* credentials below to be filled in: with this on and no
-  # working sender, every verification code fails to send and nobody can register.
+  # On by default; set to "false" to accept addresses unproven. This must agree with the
+  # USER_SYS_GOOGLE_SMTP_* credentials below: left on with no working sender, registration and the
+  # add-address prompt both refuse with a 503 rather than letting an unproven address through.
   - name: USER_SYS_EMAIL_VERIFICATION
     value: "true"
   - name: USER_SYS_GOOGLE_CLIENT_ID
