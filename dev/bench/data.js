@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1787575534289,
+  "lastUpdate": 1787661933804,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -10626,6 +10626,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 724.1566125896754,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Xinyuan Lin",
+            "username": "aglinxinyuan",
+            "email": "xinyual3@uci.edu"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "2c2c0e5034e1e45fadfcdea5fa2affd122642db9",
+          "message": "test(workflow-operator): close the AsterixDB source descriptor's branch arms (#7958)\n\n### What changes were proposed in this PR?\n\nTwo files in the AsterixDB source family. 52 tests → 68\n(`AsterixDBSourceOpDescSpec` 5 → 18, `AsterixDBSourceOpExecSpec` 47 →\n50), counts read from the JUnit XML rather than estimated.\n\n| File | Codecov | JaCoCo line-hit | Branch arms |\n|---|---|---|---|\n| `AsterixDBSourceOpDesc.scala` | 42/50 = 84.0% → **49/50 = 98.0%** |\n100% → 100% | 12 missed → **1** |\n| `AsterixDBSourceOpExec.scala` | 91/104 = 87.5% → **92/104 = 88.5%** |\n99% → 99% | 19 missed → **15** |\n\n**+8 fully-covered lines and 15 branch arms closed.** Note the line-hit\nmetric does not move at all: every gain is a branch arm flipping a\nCodecov \"partial\" into a \"hit\". That is the case Codecov penalises and\nline-hit hides, and it is the whole content of this PR.\n\nThe `OpExec` half was assessed earlier at about 1 line, and that held —\nit contributes +1. The `OpDesc` half carries the bundle.\n\n### Verification\n\n30 mutations, **29 killed, 1 survivor.**\n\nThe first draft claimed no survivors; **five real, semantic,\nnon-equivalent mutants survived it**, all five re-run and confirmed\nbefore anything was changed. Its counts were also stale (`testsAfter:\n64` against an actual 68) and two mutation rows undercounted their\nfailures.\n\nThree repairs are worth naming:\n\n- **The stub answered every statement identically**, which made the\nquery assertions vacuous — an exchanged query passed. It now records the\ndecoded statements and asserts on them.\n- **A mapping assertion was deleted rather than kept**:\n`asterixDBVersionMapping.get(host) shouldBe Some(\"0.9.9\")` asserted the\ntest's own fixture, not production.\n- Two new `OpDesc` tests pin ordering that nothing constrained: that\n`updatePort` is applied by `sourceSchema` *before* it issues any query,\nand that the unset-field error names host, port, database in that order.\n\n**The survivor, and it is a real gap rather than an equivalent mutant:**\nadding `cachedTuple = None` to `AsterixDBSourceOpExec.close()` survives\nall 100 tests. Today, after `hasNext` then `close()`, a fresh\n`produceTuple()` still hands out the previously peeked row; under the\nmutant it does not. `close()` clears the iterator and the query string\nbut not the cached tuple. **Neither side is pinned deliberately** — the\nbehaviour looks unintended, and asserting either way would cement a\ndecision nobody has made.\n\n### Deliberately not included, with bytecode evidence\n\n- **`AsterixDBSourceOpExec:331` can never be fully covered.** `javap`\nshows offset 225 pushing `iconst_1` unconditionally for the `| _`\nalternate, so the `ifeq` has a permanently dead side. It went from 4\nmissed arms to 1 and still reads as partial, moving Codecov by exactly\nzero.\n- **Lines 227 and 239** are the null-comparison arms of scalac's `==`\nexpansion on `attr.getType`; reaching them needs an `Attribute` carrying\na null `AttributeType`.\n- **Line 152's `if (values == null) return null` is dead**: `javap`\nconfirms `CSVParser.parse` returns a `scala.Option`, so `values` is\nnever a Java null.\n- **Line 268** re-checks a condition its only caller already guards, so\nthe false arm cannot occur.\n- `AsterixDBSourceOpDesc` line 177 keeps one arm (mb=1/cb=3) for the\nsame structural reason.\n\nNo production file is touched, and no stray `test_large_binary.txt` was\nleft behind.\n\n### Any related issues, documentation, discussions?\n\nCloses #7956\n\n### How was this PR tested?\n\n```\nsbt \"WorkflowOperator/testOnly org.apache.texera.amber.operator.source.sql.asterixdb.AsterixDBSourceOpDescSpec org.apache.texera.amber.operator.source.sql.asterixdb.AsterixDBSourceOpExecSpec\"\n```\n\n```\n[info] Total number of tests run: 68\n[info] Tests: succeeded 68, failed 0, canceled 0, ignored 0, pending 0\n```\n\nThe whole `asterixdb` package is green at 100 tests.\n`Test/scalafmtCheck` passes.\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Claude Code (Opus 5)\n\n---------\n\nSigned-off-by: Xinyuan Lin <xinyual3@uci.edu>\nCo-authored-by: Copilot Autofix powered by AI <175728472+Copilot@users.noreply.github.com>",
+          "timestamp": "2026-08-25T06:57:24Z",
+          "url": "https://github.com/apache/texera/commit/2c2c0e5034e1e45fadfcdea5fa2affd122642db9"
+        },
+        "date": 1787661933324,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 924.303880024018,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 1704.8162854382772,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 1865.6613553314144,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 1206.7262404161968,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 1794.7522677761883,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 1861.4793487914583,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 1327.0678091586303,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 1769.920505645276,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 1882.0932492236761,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 1056.6216609535777,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 1396.559875050084,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 1462.8445013341316,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 1076.636492852318,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 1386.7083575985976,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 1450.4770270602692,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 1071.3249515401023,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 1376.5188682289286,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 1436.882173306502,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 643.394074008201,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 756.4049396006611,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 765.2925486707704,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 646.6480280072313,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 759.3602518088895,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 758.4166046598289,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 618.8071901624486,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 718.8742377620192,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 722.7950521096843,
             "unit": "tuples/sec"
           }
         ]
