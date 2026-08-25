@@ -130,15 +130,13 @@ export function valueRulesValidationMessage(_err: unknown, field: FormlyFieldCon
 }
 
 /**
- * Gives a field whose accepted values follow a sibling's the control those values call for and
- * the validator holding it to them.
+ * Gives a field whose accepted values follow a sibling's both the control they call for and the
+ * validator holding it to them.
  *
- * The two have to be kept in step. Which branch is in force moves with the sibling, but Angular
- * re-runs a validator only when the control carrying it changes, so a value typed for the
- * parameter before would otherwise keep the verdict it earned there. The hook re-judges the
- * field whenever a sibling named by a condition changes, reading formly's own event rather than
- * the sibling control's so that the row model the branch is chosen from is already the new one.
- * Returning the subscription as an observable leaves formly to end it with the field.
+ * Angular re-runs a validator only when the control carrying it changes, so the field has to be
+ * re-judged when the sibling deciding its rule changes. The hook reads formly's own event rather
+ * than the sibling control's because formly writes the row model before emitting, and the row
+ * model is what picks the branch.
  */
 export function setValueRules(field: FormlyFieldConfig, rules: ValueRuleSet): void {
   const siblings = new Set(rules.allOf.flatMap(branch => Object.keys(branch.if)));
@@ -156,6 +154,7 @@ export function setValueRules(field: FormlyFieldConfig, rules: ValueRuleSet): vo
   };
   field.hooks = {
     ...field.hooks,
+    // returned rather than subscribed, so that formly ends it with the field
     onInit: valueField =>
       valueField.options?.fieldChanges?.pipe(
         filter(
