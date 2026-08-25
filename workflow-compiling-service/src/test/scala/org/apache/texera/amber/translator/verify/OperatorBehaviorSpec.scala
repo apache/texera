@@ -89,6 +89,13 @@ class OperatorBehaviorSpec extends AnyFlatSpec with Matchers with ParallelTestEx
       }
     }
   }
+
+  // Not one test per operator like the rest of this spec: it is one assertion
+  // over all of them, and it deliberately ignores the selection knobs above so a
+  // VERIFY_ONLY run still cannot hide a broken splice site.
+  "Generated standalone code" should "stay parseable when the column names are hostile" in {
+    StandaloneEscapingCheck.run() shouldBe empty
+  }
 }
 
 object OperatorBehaviorSpec {
