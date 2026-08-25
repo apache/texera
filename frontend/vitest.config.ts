@@ -43,6 +43,16 @@ export default defineConfig({
     // later on a 9–17 minute leg.
     testTimeout: 20000,
     hookTimeout: 30000,
+    // Each spec file runs in a forked worker, and Vitest rebuilds that worker's
+    // execArgv from scratch, keeping only the profiling flags -- so the
+    // --max-old-space-size in `test:ci`, which predates the Karma -> Vitest
+    // migration and sizes the parent process, has never applied to a worker.
+    // Left unset, a worker takes V8's default, which tracks the machine's RAM:
+    // about 2 GB on the macos-arm64 runners, which this suite now exhausts
+    // outright, killing the worker mid-run (#7975). 3 GB leaves ~4x headroom
+    // over the heaviest spec measured (712 MB) while keeping the leg's two
+    // concurrent forks inside the image's memory.
+    execArgv: ["--max-old-space-size=3072"],
     // Per-spec exclusions live in `angular.json` (the unit-test builder
     // applies them at the discovery stage, before Vitest's own filter,
     // which is what the Vitest team recommends — see the Vite warning
