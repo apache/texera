@@ -40,8 +40,6 @@ import org.apache.texera.amber.operator.source.scan.{
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
-import java.net.URI
-import java.nio.file.Paths
 
 @JsonIgnoreProperties(value = Array("limit", "offset", "fileEncoding"))
 class FileScanSourceOpDesc
@@ -77,8 +75,7 @@ class FileScanSourceOpDesc
   fileTypeName = Option("")
 
   override def generateStandaloneCode(): String = {
-    val rawPath = fileName.getOrElse("")
-    val basename = Paths.get(new URI(rawPath).getPath).getFileName.toString
+    val basename = sourceBasename(fileName.getOrElse(""))
     val col = attributeName
     val enc = encoding.toString.replace("_", "-").toLowerCase
     val basenameLit = pyStringLiteral(basename)

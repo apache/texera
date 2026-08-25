@@ -36,7 +36,6 @@ import org.apache.texera.amber.util.JSONUtils.objectMapper
 
 import java.io.IOException
 import java.net.URI
-import java.nio.file.Paths
 
 class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerator {
 
@@ -84,8 +83,7 @@ class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGe
   }
 
   override def generateStandaloneCode(): String = {
-    val rawPath = fileName.getOrElse("")
-    val basename = Paths.get(new URI(rawPath).getPath).getFileName.toString
+    val basename = sourceBasename(fileName.getOrElse(""))
     // First character, empty means comma — the same resolution the reader below does —
     // and escaped, so every value the field accepts survives being spliced into Python.
     // See CSVScanSourceOpDesc for what handing pandas the raw value did.

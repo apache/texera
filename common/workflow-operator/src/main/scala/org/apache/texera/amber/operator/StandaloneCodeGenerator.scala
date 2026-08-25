@@ -19,9 +19,29 @@
 
 package org.apache.texera.amber.operator
 
+import java.net.URLDecoder
+import java.nio.charset.StandardCharsets
+
 trait StandaloneCodeGenerator {
 
   def generateStandaloneCode(): String
+
+  /**
+    * The file's own name, for a script that reads it from its own directory
+    * rather than through Texera's resolved URI.
+    *
+    * Taken from the last path segment instead of by parsing the whole string as a
+    * URI: the resolver percent-encodes the file-relative segments but leaves the
+    * repository and version names as the user typed them, so a dataset version
+    * called `v3 - with long text` makes `new URI` throw on the space and no code
+    * is generated at all.
+    */
+  protected def sourceBasename(rawPath: String): String = {
+    val segment = rawPath.split("/").lastOption.getOrElse("")
+    // Percent-decoding only, matching what `URI.getPath` used to return here: form
+    // decoding would also turn a literal `+` in a file name into a space.
+    URLDecoder.decode(segment.replace("+", "%2B"), StandardCharsets.UTF_8)
+  }
 
   def producesDataFrame(): Boolean = true
 

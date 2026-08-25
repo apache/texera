@@ -34,7 +34,6 @@ import org.apache.texera.amber.util.JSONUtils.{JSONToMap, objectMapper}
 
 import java.io._
 import java.net.URI
-import java.nio.file.Paths
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Try
 import scala.jdk.CollectionConverters.IteratorHasAsScala
@@ -48,8 +47,7 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerato
   fileTypeName = Option("JSONL")
 
   override def generateStandaloneCode(): String = {
-    val rawPath = fileName.getOrElse("")
-    val basename = Paths.get(new URI(rawPath).getPath).getFileName.toString
+    val basename = sourceBasename(fileName.getOrElse(""))
     val enc = fileEncoding.toString.replace("_", "-").toLowerCase
 
     val readArgs = scala.collection.mutable.ArrayBuffer[String]()

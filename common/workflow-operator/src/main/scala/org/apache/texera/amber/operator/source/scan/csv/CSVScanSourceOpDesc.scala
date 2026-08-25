@@ -36,7 +36,6 @@ import org.apache.texera.amber.util.JSONUtils.objectMapper
 
 import java.io.{IOException, InputStreamReader}
 import java.net.URI
-import java.nio.file.Paths
 import scala.util.Try
 
 class CSVScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerator {
@@ -156,8 +155,7 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerator 
     // Strip to just the basename. The standalone script assumes the CSV
     // lives in the same directory as the script (Texera's resolved URIs
     // can't be used directly outside the system).
-    val rawPath = fileName.getOrElse("")
-    val basename = Paths.get(new URI(rawPath).getPath).getFileName.toString
+    val basename = sourceBasename(fileName.getOrElse(""))
 
     // Resolve the delimiter the same way the parser above does — first character, empty
     // means comma — and escape it. Every value the field accepts has to survive this:

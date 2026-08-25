@@ -36,7 +36,7 @@ import org.apache.arrow.vector.types.pojo.{Schema => ArrowSchema}
 
 import java.io.IOException
 import java.net.URI
-import java.nio.file.{Files, Paths, StandardOpenOption}
+import java.nio.file.{Files, StandardOpenOption}
 import scala.util.Using
 
 @JsonIgnoreProperties(value = Array("fileEncoding"))
@@ -45,8 +45,7 @@ class ArrowSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerator {
   fileTypeName = Option("Arrow")
 
   override def generateStandaloneCode(): String = {
-    val rawPath = fileName.getOrElse("")
-    val basename = Paths.get(new URI(rawPath).getPath).getFileName.toString
+    val basename = sourceBasename(fileName.getOrElse(""))
     val read = s"""out1df = pd.read_feather(${pyStringLiteral(basename)})"""
     // A timestamp column needs nothing here. The file names UTC and holds the
     // wall clock as UTC, so pd.read_feather and the executor read the same
