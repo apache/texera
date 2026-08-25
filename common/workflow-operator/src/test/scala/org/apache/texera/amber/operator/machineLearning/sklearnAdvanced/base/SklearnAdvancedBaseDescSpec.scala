@@ -23,6 +23,7 @@ import com.fasterxml.jackson.databind.JsonNode
 import org.apache.texera.amber.core.tuple.AttributeType
 import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.KNNTrainer.SklearnAdvancedKNNClassifierTrainerOpDesc
 import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.SVCTrainer.SklearnAdvancedSVCTrainerOpDesc
+import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.SVRTrainer.SklearnAdvancedSVRTrainerOpDesc
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorMetadataGenerator}
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.scalatest.flatspec.AnyFlatSpec
@@ -201,6 +202,14 @@ class SklearnAdvancedBaseDescSpec extends AnyFlatSpec with Matchers {
     val gamma = ruleFor(valueRulesOf(classOf[SklearnAdvancedSVCTrainerOpDesc]), "gamma")
     gamma.path("type").asText() shouldBe "number"
     gamma.has("examples") shouldBe false
+  }
+
+  it should "name the parameter as the config spells it, not as the estimator does" in {
+    // SVR's `shrinking` is offered by a constant named `probability`, and a chosen parameter
+    // reaches the config as the constant. A condition naming the keyword instead would hold
+    // for nothing, leaving the value it constrains free.
+    val shrinking = ruleFor(valueRulesOf(classOf[SklearnAdvancedSVRTrainerOpDesc]), "probability")
+    shrinking.path("enum").elements().asScala.map(_.asText()).toSeq shouldBe Seq("true", "false")
   }
 
   it should "state a rule for every parameter whose converter says anything about it" in {

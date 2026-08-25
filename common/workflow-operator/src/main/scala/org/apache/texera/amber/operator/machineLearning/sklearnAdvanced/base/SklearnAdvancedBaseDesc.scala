@@ -28,7 +28,8 @@ import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentit
 import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.annotations.{
   AutofillAttributeName,
-  AutofillAttributeNameList
+  AutofillAttributeNameList,
+  SampleColumn
 }
 import org.apache.texera.amber.operator.metadata.{
   JsonSchemaCustomizer,
@@ -82,6 +83,9 @@ abstract class SklearnMLOperatorDescriptor[T <: ParamClass]
   @JsonSchemaTitle("Parameter Setting")
   var paraList: List[HyperParameters[T]] = List()
 
+  // The label the estimator fits against. Test-only steering: without it the first
+  // column wins, which on a feature/label table is a feature.
+  @SampleColumn("species")
   @JsonProperty(required = true)
   @JsonSchemaTitle("Ground Truth Attribute Column")
   @JsonPropertyDescription("Ground truth attribute column")
@@ -115,7 +119,7 @@ abstract class SklearnMLOperatorDescriptor[T <: ParamClass]
       condition
         .putObject("parameter")
         .putArray("valEnum")
-        .add(param.getName)
+        .add(chosenValueOf(param))
 
       val outcome = objectMapper.createObjectNode()
       if (param.getAllowedValues.nonEmpty) {
@@ -140,6 +144,17 @@ abstract class SklearnMLOperatorDescriptor[T <: ParamClass]
         .putObject("valueRules")
         .set[ObjectNode]("allOf", branches)
   }
+
+  /** What a chosen `parameter` holds in the config, which a rule's condition has to name to
+    * hold: the enum constant, since that is what Jackson writes and what the form compares
+    * against. Not `getName`, the keyword the emitted Python passes on, which SVR's `shrinking`
+    * spells differently from the constant offering it.
+    */
+  private def chosenValueOf(param: ParamClass): String =
+    param match {
+      case constant: Enum[_] => constant.name
+      case _                 => param.getName
+    }
 
   /** How the form should read a value with no fixed set of its own: from the callable the
     * parameter names, since that is what the emitted code puts the text through. A parameter

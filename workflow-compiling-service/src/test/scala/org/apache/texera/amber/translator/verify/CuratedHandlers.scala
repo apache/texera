@@ -53,10 +53,6 @@ import org.apache.texera.amber.operator.sklearn.training.SklearnTrainingOpDesc
 import org.apache.texera.amber.operator.sklearn.SklearnClassifierOpDesc
 import org.apache.texera.amber.operator.sklearn.SklearnLinearRegressionOpDesc
 import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.base.SklearnMLOperatorDescriptor
-import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.base.{
-  HyperParameters,
-  ParamClass
-}
 import org.apache.texera.amber.operator.ifStatement.IfOpDesc
 import org.apache.texera.amber.operator.huggingFace.HuggingFaceSpamSMSDetectionOpDesc
 import java.nio.file.{Files, Path}
@@ -85,22 +81,6 @@ trait TransformHandler {
     */
   def extraScenarios(testRoot: Path): Seq[(String, LogicalOp, Map[PortIdentity, Path])] =
     Seq.empty
-
-  /** Variant kinds this fixture cannot take — `"optionals"`, `"hostileText"` — each
-    * with why, which the coverage report prints. Default: none, and that is the
-    * answer for almost every fixture.
-    *
-    * The one case it exists for: a knob whose legal values are decided by a SIBLING
-    * field, which the knob itself has no way to declare. A filter predicate's `value`
-    * is parsed as the type of the column its `attribute` names, so what may be typed
-    * there is a property of the pair, not of `value`.
-    *
-    * It lives on the handler rather than in [[TransformVerificationRunner.variantsNotRun]]
-    * because it describes THIS fixture, not the operator: a predicate over a string
-    * column takes the hostile value fine. Whoever rewrites the fixture sees it and
-    * can drop it.
-    */
-  def unfillableVariants: Map[String, String] = Map.empty
 
   /** Opts this fixture into the `nulls` case, naming the columns it must never
     * empty because their VALUE is what the fixture was built to arrange rather
@@ -138,18 +118,6 @@ object CuratedHandlers {
   private def isConcrete(cls: Class[_]): Boolean =
     !java.lang.reflect.Modifier.isAbstract(cls.getModifiers)
 
-  /** Auto-discovery factory for the [[SklearnAdvancedTrainerTransformHandler]]
-    * family: every concrete `SklearnMLOperatorDescriptor` subclass.
-    */
-  private def advancedTrainerHandler(
-      cls: Class[_ <: LogicalOp]
-  ): SklearnAdvancedTrainerTransformHandler =
-    new SklearnAdvancedTrainerTransformHandler {
-      override val opDescClass: Class[_ <: LogicalOp] = cls
-      override protected def newDesc(): SklearnMLOperatorDescriptor[_] =
-        cls.getDeclaredConstructor().newInstance().asInstanceOf[SklearnMLOperatorDescriptor[_]]
-    }
-
   /** The concrete leaf ops under one sklearn base, excluding the base itself.
     *
     * No hard-coded baseline: a new sklearn operator is picked up automatically
@@ -176,24 +144,7 @@ object CuratedHandlers {
   val sklearnNumericClasses: Set[Class[_ <: LogicalOp]] =
     (trainingOps ++ classifierOps ++ advancedOps).toSet + classOf[SklearnLinearRegressionOpDesc]
 
-  /** The sklearn family still served by a curated handler: an advanced trainer
-    * holds a `paraList` of `HyperParameters[T]`, whose `T` is the operator's own
-    * parameter enum — erased, and resolvable only from the descriptor's generic
-    * superclass, which [[ConfigGenerator]] cannot do. The training and
-    * classifier families need no handler: they take the numeric projection
-    * through [[TransformVerificationRunner.fixtureFor]] and the text branch via an
-    * [[TransformVerificationRunner.AltScenario]].
-    */
-  private def sklearnAutoHandlers: Seq[TransformHandler] =
-    advancedOps.map(advancedTrainerHandler)
-
-  /** The sklearn families first, the hand-written handlers after, because
-    * [[byClass]] keeps the LAST entry for a class: a handler written by hand wins
-    * over the one its family derives, the same way a hand-written handler is simply
-    * the only one anywhere else. Registering one is then a single edit, with no
-    * second step to remember and nothing that fails silently when it is forgotten.
-    */
-  val all: Seq[TransformHandler] = sklearnAutoHandlers ++ Seq(
+  val all: Seq[TransformHandler] = Seq(
     AggregateTransformHandler,
     SpecializedFilterTransformHandler,
     DistinctTransformHandler,
@@ -260,79 +211,6 @@ object CuratedHandlers {
     (inputs(PortIdentity(0)), inputs(PortIdentity(1)))
   }
 
-  /** The hyperparameter the advanced trainer's primary fixture carries: the first
-    * numeric one the operator offers, resolved from its
-    * `SklearnMLOperatorDescriptor[T]` type argument. The rest get a scenario each
-    * through [[SklearnAdvancedTrainerTransformHandler.extraScenarios]].
-    */
-  def sampleHyperParameter(opClass: Class[_ <: LogicalOp]): HyperParameters[ParamClass] = {
-    val consts = allHyperParameters(opClass)
-    val chosen =
-      consts.find(c => Set("int", "float", "double").contains(c.getType)).getOrElse(consts.head)
-    val hp = new HyperParameters[ParamClass]()
-    hp.parameter = chosen
-    hp.parametersSource = false
-    hp.value = sampleValueFor(chosen)
-    hp.attribute = "param_val" // column read when the sweep flips parametersSource=true
-    hp
-  }
-
-  /** Every hyperparameter this operator offers, in declaration order. */
-  def allHyperParameters(opClass: Class[_ <: LogicalOp]): Seq[ParamClass] =
-    resolveParamEnum(opClass).getEnumConstants.map(_.asInstanceOf[ParamClass]).toSeq
-
-  /** A value the emitted Python can convert for this hyperparameter's type. The
-    * type strings come from the enum itself, and the fourth kind is a lambda
-    * comparing against "true", which is how the family spells a boolean.
-    */
-  def sampleValueFor(p: ParamClass): String =
-    p.getType match {
-      // 3 rather than 1: several of these are degenerate at 1 — `max_iter` barely
-      // trains, `degree` collapses to linear — and two paths can agree on an
-      // equally untrained model without that meaning anything.
-      case "int"              => "3"
-      case "float" | "double" => "1.0"
-      case "str"              => sampleStringValueFor(p.getName)
-      case _                  => "true" // the lambda form, e.g. probability
-    }
-
-  /** A legal value for a string-valued hyperparameter. sklearn takes these from
-    * a fixed set per parameter, so a made-up string would be rejected by `fit`
-    * rather than exercising the conversion.
-    */
-  private def sampleStringValueFor(name: String): String =
-    name match {
-      case "kernel"    => "rbf"
-      case "weights"   => "uniform"
-      case "algorithm" => "auto"
-      case "metric"    => "minkowski"
-      case "gamma"     => "scale"
-      // sklearn takes a dict here, and the emitted code wraps the value in
-      // `str(...)`, so there is no text that reaches it as one. Passing None is
-      // what leaving it unset means.
-      case "metric_params" => "None"
-      case other =>
-        throw new IllegalStateException(
-          s"no sample value known for string hyperparameter '$other' — add one here"
-        )
-    }
-
-  /** The concrete enum bound to `T` in an operator's
-    * `SklearnMLOperatorDescriptor[T]` supertype (e.g. `SklearnAdvancedKNNParameters`).
-    */
-  private def resolveParamEnum(opClass: Class[_]): Class[_] = {
-    var t: java.lang.reflect.Type = opClass.getGenericSuperclass
-    while (t != null) t match {
-      case pt: java.lang.reflect.ParameterizedType =>
-        val raw = pt.getRawType.asInstanceOf[Class[_]]
-        if (raw == classOf[SklearnMLOperatorDescriptor[_]])
-          return pt.getActualTypeArguments()(0).asInstanceOf[Class[_]]
-        t = raw.getGenericSuperclass
-      case c: Class[_] => t = c.getGenericSuperclass
-      case _           => t = null
-    }
-    throw new IllegalStateException(s"cannot resolve param enum for ${opClass.getName}")
-  }
 }
 
 /**
@@ -349,14 +227,6 @@ object CuratedHandlers {
 object SpecializedFilterTransformHandler extends TransformHandler {
 
   override val opDescClass: Class[_ <: LogicalOp] = classOf[SpecializedFilterOpDesc]
-
-  /** Drop this the day the fixture filters on string columns only. */
-  override val unfillableVariants: Map[String, String] = Map(
-    "hostileText" ->
-      ("`id > 8` compares against an INTEGER column, and the platform parses the " +
-        "predicate value as that column's type, so the number parser refuses the " +
-        "hostile string before any escaping could matter")
-  )
 
   override def fixture(testRoot: Path): (LogicalOp, Map[PortIdentity, Path]) = {
     val desc = new SpecializedFilterOpDesc()
@@ -801,102 +671,6 @@ object FilledAreaPlotVisualizationHandler extends TransformHandler {
     desc.facetColumn = false
 
     (desc, CanonicalFixture.writeInputs(testRoot, 1))
-  }
-}
-
-/** Advanced (hyperparameter-sweep) trainers: train on port 0, parameter table
-  * on port 1. The primary fixture carries the family's first numeric
-  * hyperparameter so the parameter-handling logic (`getParameter` and the param
-  * string both code paths build) is exercised rather than skipped with an empty
-  * paraList; [[SklearnAdvancedTrainerTransformHandler.extraScenarios]] covers the
-  * rest. The model lands in a BINARY column compared by prediction behavior.
-  */
-abstract class SklearnAdvancedTrainerTransformHandler extends TransformHandler {
-  protected def newDesc(): SklearnMLOperatorDescriptor[_]
-
-  /** KNN hyperparameters whose declared type cannot produce what sklearn accepts,
-    * so no value runs: `metric` is declared `int` against a string from a fixed
-    * set, and `metric_params` wants a dict no converter returns. Excluded so the
-    * operator's other hyperparameters stay covered rather than the whole operator
-    * going dark. An operator bug, not a translation one, and on main too.
-    */
-  private val miswiredHyperParameters: Set[String] = Set("metric", "metric_params")
-
-  /** [[extraScenarios]] is what exercises `paraList/0/value` instead, with a value
-    * each hyperparameter's own type accepts.
-    */
-  override val unfillableVariants: Map[String, String] = Map(
-    "hostileText" ->
-      ("what paraList/0/value may hold is decided by the `parameter` beside it, and " +
-        "every one of those is a number or a word from a fixed set, so a spliced " +
-        "a\"b fails at the conversion rather than at any escaping")
-  )
-
-  override def fixture(testRoot: Path): (LogicalOp, Map[PortIdentity, Path]) = {
-    val train =
-      CanonicalFixture.sklearnNumeric.write(testRoot, inputPortCount = 1, withGaps = false)(
-        PortIdentity(0)
-      )
-
-    val desc = newDesc()
-    desc.groundTruthAttribute = "species"
-    desc.selectedFeatures = List("petal_length", "petal_width")
-    val hp = CuratedHandlers.sampleHyperParameter(opDescClass)
-    desc.asInstanceOf[SklearnMLOperatorDescriptor[ParamClass]].paraList = List(hp)
-
-    // Port 1 is the "parameter" table. It holds one valid value for the chosen
-    // hyperparameter so BOTH branches run: parametersSource=false uses hp.value,
-    // and the swept parametersSource=true reads this `param_val` column.
-    val isInt = hp.parameter.getType == "int"
-    val param = CuratedHandlers.writeFixture(
-      testRoot.resolve("input_port_1.jsonl"),
-      Seq(("param_val", if (isInt) AttributeType.INTEGER else AttributeType.DOUBLE)),
-      Seq(Seq(if (isInt) 3 else 1.0))
-    )
-    (desc, Map(PortIdentity(0) -> train, PortIdentity(1) -> param))
-  }
-
-  /** One scenario per hyperparameter, because each is converted differently in
-    * the emitted Python — `kernel` stays a string, `degree` goes through `int`,
-    * `probability` through a lambda — and those are the lines this family exists
-    * to translate. [[fixture]] carries one and the sweep cannot reach the rest,
-    * the `parameter` field being typed `T` and so an erased Object to the
-    * generator. The enum is resolvable here, as [[fixture]] shows, so walk it.
-    */
-  override def extraScenarios(
-      testRoot: Path
-  ): Seq[(String, LogicalOp, Map[PortIdentity, Path])] = {
-    val chosen = CuratedHandlers.sampleHyperParameter(opDescClass).parameter
-    CuratedHandlers
-      .allHyperParameters(opDescClass)
-      .filterNot(_.getName == chosen.getName)
-      .filterNot(p => miswiredHyperParameters.contains(p.getName))
-      .map { p =>
-        val dir = testRoot.resolve(s"param_${p.getName}")
-        Files.createDirectories(dir)
-        val train =
-          CanonicalFixture.sklearnNumeric.write(dir, inputPortCount = 1, withGaps = false)(
-            PortIdentity(0)
-          )
-
-        val desc = newDesc()
-        desc.groundTruthAttribute = "species"
-        desc.selectedFeatures = List("petal_length", "petal_width")
-        val hp = new HyperParameters[ParamClass]()
-        hp.parameter = p
-        hp.parametersSource = false
-        hp.value = CuratedHandlers.sampleValueFor(p)
-        hp.attribute = "param_val"
-        desc.asInstanceOf[SklearnMLOperatorDescriptor[ParamClass]].paraList = List(hp)
-
-        val isInt = p.getType == "int"
-        val param = CuratedHandlers.writeFixture(
-          dir.resolve("input_port_1.jsonl"),
-          Seq(("param_val", if (isInt) AttributeType.INTEGER else AttributeType.DOUBLE)),
-          Seq(Seq(if (isInt) 3 else 1.0))
-        )
-        (s"param_${p.getName}", desc, Map(PortIdentity(0) -> train, PortIdentity(1) -> param))
-      }
   }
 }
 

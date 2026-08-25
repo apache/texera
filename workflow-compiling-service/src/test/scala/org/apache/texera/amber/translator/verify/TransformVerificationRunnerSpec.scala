@@ -111,8 +111,12 @@ class TransformVerificationRunnerSpec extends AnyFlatSpec with Matchers {
       CanonicalFixture.sklearnNumeric
   }
 
-  it should "keep the advanced trainers curated, their paraList being unresolvable" in {
-    disposition(classOf[SklearnAdvancedSVCTrainerOpDesc]) shouldBe Runnable("curated")
+  it should "route an advanced trainer to the auto tier on the same projection" in {
+    // Its `paraList` holds a row whose `parameter` is the operator's own enum, named
+    // only on the generic supertype. The generator resolves it, so the hand-written
+    // handler these four used to need is gone.
+    disposition(classOf[SklearnAdvancedSVCTrainerOpDesc]) shouldBe Runnable("auto")
+    fixtureFor(classOf[SklearnAdvancedSVCTrainerOpDesc]) shouldBe CanonicalFixture.sklearnNumeric
   }
 
   it should "route auto-configurable operators to the auto tier" in {

@@ -31,11 +31,16 @@ import org.apache.texera.amber.operator.{
 }
 import org.apache.texera.amber.operator.aggregate.AggregateOpDesc
 import org.apache.texera.amber.operator.dummy.DummyOpDesc
+import org.apache.texera.amber.operator.filter.SpecializedFilterOpDesc
 import org.apache.texera.amber.operator.split.SplitOpDesc
 import org.apache.texera.amber.operator.sklearn.SklearnPredictionOpDesc
 import org.apache.texera.amber.operator.sklearn.SklearnClassifierOpDesc
 import org.apache.texera.amber.operator.sklearn.SklearnGaussianNaiveBayesOpDesc
 import org.apache.texera.amber.operator.sklearn.SklearnLinearRegressionOpDesc
+import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.KNNTrainer.{
+  SklearnAdvancedKNNClassifierTrainerOpDesc,
+  SklearnAdvancedKNNRegressorTrainerOpDesc
+}
 import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.base.SklearnMLOperatorDescriptor
 import org.apache.texera.amber.operator.sklearn.training.SklearnTrainingOpDesc
 import org.apache.texera.amber.operator.sklearn.training.SklearnTrainingGaussianNaiveBayesOpDesc
@@ -210,9 +215,22 @@ object TransformVerificationRunner {
   object RunKind {
     val Nulls = "nulls"
     val EnumSweep = "enumSweep"
+    val HostileText = "hostileText"
     val CountVectorizerText = "countVectorizer_text"
     val TfidfText = "tfidf_text"
+
+    /** One swept hyperparameter of an advanced trainer, which the sweep labels by the
+      * pointer it flips. Built here rather than spelled out at each row, since a row
+      * that misspelled the pointer would suppress nothing and say nothing.
+      */
+    def hyperParameter(name: String): String = s"paraList/0/parameter=$name"
   }
+
+  /** The [[RunKind]] a generated variant's label names. A `merged` variant labels
+    * itself `kind(fields…)`, and the fields it happened to move are not part of
+    * what is being withheld.
+    */
+  private def kindOf(label: String): String = label.takeWhile(_ != '(')
 
   /** Keyed by BASE class, not by concrete operator: a newly registered sklearn
     * estimator is covered with no entry of its own, matching how the families
@@ -331,9 +349,46 @@ object TransformVerificationRunner {
             "COUNT(*)'s empty attribute; the fixture pairs each function with a " +
             "compatible column already"
         )
+      ),
+      // Stated about the operator's own fixture rather than about the operator: a
+      // predicate over a string column takes the hostile value fine, so this row goes
+      // the day that fixture filters on one.
+      NotRun(
+        classOf[SpecializedFilterOpDesc],
+        RunKind.HostileText,
+        ByDesign(
+          "`id > 8` compares against an INTEGER column, and the platform parses the " +
+            "predicate value as that column's type, so the number parser refuses the " +
+            "hostile string before any escaping could matter"
+        )
+      ),
+      NotRun(
+        classOf[SklearnMLOperatorDescriptor[_]],
+        RunKind.HostileText,
+        ByDesign(
+          "what a hyperparameter's value may hold is decided by the parameter beside " +
+            "it, and every one of those is a number or a word from a fixed set, so a " +
+            "spliced a\"b fails at the conversion rather than at any escaping"
+        )
       )
-    ) ++ denseOnly
+    ) ++ denseOnly ++ knnMiswired
   }
+
+  /** The two KNN hyperparameters no value runs: each names a converter that cannot
+    * produce what scikit-learn accepts, `metric` taking `int` against a word from a
+    * fixed set and `metric_params` `str` against a mapping. The sweep still builds
+    * both, and each is named here rather than dropped where it is built: an operator
+    * offering a choice nothing works behind is a fact about the operator, and one that
+    * disappears silently is one nobody closes. These two rows go the day #7593 does.
+    */
+  private def knnMiswired: Seq[NotRun] =
+    for {
+      op <- Seq(
+        classOf[SklearnAdvancedKNNClassifierTrainerOpDesc],
+        classOf[SklearnAdvancedKNNRegressorTrainerOpDesc]
+      )
+      param <- Seq("metric", "metric_params")
+    } yield NotRun(op, RunKind.hyperParameter(param), PendingFix("apache/texera#7593"))
 
   /** Every kind of run withheld from this operator, with why. This is the whole of
     * what the coverage report needs, so it never walks the table itself. One entry
@@ -551,13 +606,8 @@ object TransformVerificationRunner {
                 sweepEnums = !notRun(opClass, RunKind.EnumSweep)
               )
               .fold(_ => Seq("default" -> op), identity)
-              // A variant kind the fixture states it cannot take (see
-              // [[TransformHandler.unfillableVariants]]); `merged` labels each one
-              // `kind(fields…)`.
-              .filterNot {
-                case (label, _) =>
-                  handler.unfillableVariants.keys.exists(kind => label.startsWith(s"$kind("))
-              }
+              // A variant this operator does not get, named in [[variantsNotRun]].
+              .filterNot { case (label, _) => notRun(opClass, kindOf(label)) }
           primary.map { case (label, o) => (label, o, in) } ++
             handler.extraScenarios(testRoot) ++
             handler.nullsKeepFilled.toSeq.flatMap(curatedNullsCase(opClass, op, in, testRoot, _))
@@ -577,7 +627,11 @@ object TransformVerificationRunner {
             )
           val inputPortCount = vs.head._2.operatorInfo.inputPorts.size
           val in = fixture.writeInputs(testRoot, inputPortCount)
-          vs.map { case (label, o) => (label, o, in) } ++
+          // A variant the operator itself cannot take, named in [[variantsNotRun]]:
+          // for a swept hyperparameter that is one row per parameter, so the sweep
+          // keeps covering the rest.
+          vs.filterNot { case (label, _) => notRun(opClass, kindOf(label)) }
+            .map { case (label, o) => (label, o, in) } ++
             nullsCase(opClass, vs.head._2, testRoot, fixture) ++
             altScenariosFor(opClass).flatMap { alt =>
               // Each scenario writes under its own directory: two tables in one

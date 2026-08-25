@@ -106,21 +106,16 @@ class ConfigCoverageSpec extends AnyFlatSpec with Matchers {
       (kind, reason) <- withheldRunsFor(opClass)
     } yield (opClass.getSimpleName, kind, reason)
 
-    val unfillable = for {
-      (opClass, handler) <- CuratedHandlers.byClass.toSeq
-      (kind, why) <- handler.unfillableVariants
-    } yield (opClass.getSimpleName, kind, why)
-
     val pending = withheld.collect { case (n, k, PendingFix(issue)) => (n, k, issue) }
     val byDesign = withheld.collect { case (n, k, ByDesign(why)) => (n, k, why) }
     info(
       s"Runs withheld: ${pending.size} pending a fix, " +
-        s"${byDesign.size + unfillable.size} not applicable by design"
+        s"${byDesign.size} not applicable by design"
     )
     pending.sorted.foreach {
       case (name, kind, issue) => info(f"  PENDING  $kind%-20s $name%-45s $issue")
     }
-    (byDesign ++ unfillable).sorted.foreach {
+    byDesign.sorted.foreach {
       case (name, kind, why) => info(f"  BY-DESIGN $kind%-20s $name%-45s $why")
     }
   }
