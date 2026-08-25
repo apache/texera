@@ -202,7 +202,7 @@ object CanonicalFixture extends SharedFixture {
     */
   val sklearnText: SharedFixture = ProjectedFixture(
     this,
-    Seq("short_text", "species"),
+    Seq("short_text", "long_text", "species"),
     keepFilled = Set("species")
   )
 }

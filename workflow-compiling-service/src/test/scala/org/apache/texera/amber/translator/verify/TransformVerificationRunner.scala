@@ -651,12 +651,9 @@ object TransformVerificationRunner {
                     ),
                   identity
                 )
-                // The branch's own column knob is OPTIONAL (`text` carries no
-                // `required`), so the base config leaves it unset and code
-                // generation dereferences a null. `optionals` is the variant
-                // that fills it — and it inherits the pins, so it is the one
-                // that actually exercises the branch.
-                .filter { case (label, _) => label.startsWith("optionals") }
+                // The base variant carries the branch's own column knob: the pins
+                // are visible while the config is built, so the knob the schema
+                // requires under them is filled like any other required field.
                 .map {
                   case (label, o) =>
                     (s"${alt.label}/$label", o, alt.fixture.writeInputs(dir, inputPortCount))

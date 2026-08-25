@@ -128,7 +128,7 @@ object ConfigGenerator {
       case None => Left(s"${opClass.getSimpleName} not registered in LogicalOp @JsonSubTypes")
       case Some(typeName) =>
         val used = mutable.Set.empty[(Int, String)]
-        buildObject(opClass, inputSchemas, used, rowCount).flatMap { baseNode =>
+        buildObject(opClass, inputSchemas, used, rowCount, pinned = pinned).flatMap { baseNode =>
           baseNode.put("operatorType", typeName)
           pinned.foreach { case (field, value) => baseNode.set[JsonNode](field, value) }
           applyAll(
@@ -736,14 +736,43 @@ object ConfigGenerator {
     if (required || baseNode.at(childPath) != untouched) None
     else {
       val spec = autofillSpec(f).getOrElse(AutofillSpec(port = 0, holdsList = false))
-      resolveColumn(f, schemas, spec.port, used, siblings).toOption.map { col =>
-        val value: JsonNode =
-          if (spec.holdsList) objectMapper.createArrayNode().add(col)
-          else objectMapper.getNodeFactory.textNode(col)
-        (childPath, value)
-      }
+      // A list knob takes every matching column here exactly as it does in the
+      // base config: `required` decides WHETHER a field is filled, not how many
+      // values go in once it is. Filled with one, a list knob runs the same code
+      // as a scalar — the per-element numbering and the joining between elements,
+      // which is the whole of what a list does differently, is never reached.
+      if (spec.holdsList)
+        listColumnFill(f, schemas, spec.port, siblings).toOption.map(childPath -> _)
+      else
+        resolveColumn(f, schemas, spec.port, used, siblings).toOption
+          .map(col => (childPath, objectMapper.getNodeFactory.textNode(col): JsonNode))
     }
   }
+
+  /** Every column at `port` a list knob may hold: the ones its `attributeTypeRules`
+    * admits, or all of them when the rule matches nothing (or there is no rule).
+    * The same fill for a required and an optional field, so the two cannot drift.
+    */
+  private def listColumnFill(
+      f: Field,
+      schemas: Map[Int, Schema],
+      port: Int,
+      siblings: JsonNode
+  ): Either[String, JsonNode] =
+    columnNames(schemas, port).map { names =>
+      val filtered = allowedTypes(f, siblings) match {
+        case Some(types) =>
+          val matching = schemas
+            .get(port)
+            .map(_.getAttributes.filter(a => types.contains(a.getType)).map(_.getName))
+            .getOrElse(Seq.empty)
+          if (matching.nonEmpty) matching else names
+        case None => names
+      }
+      val arr = objectMapper.createArrayNode()
+      filtered.foreach(arr.add)
+      arr
+    }
 
   /** A field's JSON Pointer, under the pointer of the object that holds it. */
   private def pointerOf(f: Field, path: String): String = s"$path/${jsonNameOf(f)}"
@@ -1134,7 +1163,8 @@ object ConfigGenerator {
       used: mutable.Set[(Int, String)],
       rowCount: Int,
       bindings: TypeBindings = Map.empty,
-      scope: SchemaScope = SchemaScope.empty
+      scope: SchemaScope = SchemaScope.empty,
+      pinned: Map[String, JsonNode] = Map.empty
   ): Either[String, ObjectNode] = {
     // What `clazz` itself supplies is added to what its caller passed in: an operator
     // names the arguments for its own supertypes, a row class receives them from the
@@ -1146,14 +1176,23 @@ object ConfigGenerator {
     // and uses the scope the field holding it handed down.
     val doc = if (classOf[LogicalOp].isAssignableFrom(clazz)) SchemaScope.of(clazz) else scope
     val node = defaultsOf(clazz)
+    // Pins go in BEFORE the fields are decided, not after: `node` is the sibling
+    // context below, so a knob pinned on decides what its dependents do. Set
+    // afterwards, a pin cannot reach the field it was pinned to steer.
+    pinned.foreach { case (name, value) => node.set[JsonNode](name, value) }
     configFields(clazz).foreach { f =>
-      // `node` doubles as the sibling context: a field whose rule depends on another
-      // field of the same object reads it here, so declaration order decides what is
-      // visible — the knob a rule branches on is declared before the column it binds.
-      decide(f, schemas, used, rowCount, node, bound, doc) match {
-        case Fill(name, value) => node.set[JsonNode](name, value)
-        case Skip              => ()
-        case Fail(reason)      => return Left(s"${clazz.getSimpleName}.${f.getName}: $reason")
+      // A pinned knob keeps the value it was pinned to. Deciding it again would
+      // refill it from its default and undo the pin before the fields that read it
+      // are reached.
+      if (!pinned.contains(jsonNameOf(f))) {
+        // `node` doubles as the sibling context: a field whose rule depends on another
+        // field of the same object reads it here, so declaration order decides what is
+        // visible — the knob a rule branches on is declared before the column it binds.
+        decide(f, schemas, used, rowCount, node, bound, doc) match {
+          case Fill(name, value) => node.set[JsonNode](name, value)
+          case Skip              => ()
+          case Fail(reason)      => return Left(s"${clazz.getSimpleName}.${f.getName}: $reason")
+        }
       }
     }
     Right(node)
@@ -1199,7 +1238,10 @@ object ConfigGenerator {
   ): Decision = {
     val jp = Option(f.getAnnotation(classOf[JsonProperty]))
     val jsonName = jp.map(_.value).filter(_.nonEmpty).getOrElse(f.getName)
-    val required = jp.exists(_.required)
+    // A field the schema requires only under a branch carries no annotation saying
+    // so, and reading the annotation alone leaves it unfilled in exactly the
+    // configuration that needs it.
+    val required = jp.exists(_.required) || requiredUnder(scope, siblings).contains(jsonName)
     val autofill = hasAutofill(f)
     // An optional knob is judged by what it WRAPS: `Option[Double]` is a number the
     // user may leave blank, not a thing the base config has to carry.
@@ -1253,21 +1295,7 @@ object ConfigGenerator {
     val nested = scope.descend(jsonNameOf(f))
     autofillSpec(f) match {
       case Some(spec) if spec.holdsList =>
-        columnNames(schemas, spec.port).map { names =>
-          // Honor the field's attributeTypeRules (same production metadata scalar
-          // autofill fields use) so a numeric-only list doesn't pick up string
-          // columns; fall back to all columns if no column matches the rule.
-          val filtered = allowedTypes(f, siblings) match {
-            case Some(types) =>
-              val matching = schemas
-                .get(spec.port)
-                .map(_.getAttributes.filter(a => types.contains(a.getType)).map(_.getName))
-                .getOrElse(Seq.empty)
-              if (matching.nonEmpty) matching else names
-            case None => names
-          }
-          val arr = objectMapper.createArrayNode(); filtered.foreach(arr.add); arr
-        }
+        listColumnFill(f, schemas, spec.port, siblings)
       case Some(spec) =>
         resolveColumn(f, schemas, spec.port, used, siblings)
           .map(objectMapper.getNodeFactory.textNode)
