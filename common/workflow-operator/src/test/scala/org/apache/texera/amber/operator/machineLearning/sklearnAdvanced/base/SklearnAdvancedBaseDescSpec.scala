@@ -20,10 +20,13 @@
 package org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.base
 
 import org.apache.texera.amber.core.tuple.AttributeType
-import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
+import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.KNNTrainer.SklearnAdvancedKNNClassifierTrainerOpDesc
+import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorMetadataGenerator}
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+
+import scala.jdk.CollectionConverters.IteratorHasAsScala
 
 class SklearnAdvancedBaseDescSpec extends AnyFlatSpec with Matchers {
 
@@ -134,5 +137,29 @@ class SklearnAdvancedBaseDescSpec extends AnyFlatSpec with Matchers {
     val paramString = d.getParameter(paraList)(1).encode
     paramString should include("n_neighbors = int(table[")
     paramString should include(".values[i]")
+  }
+
+  "SklearnMLOperatorDescriptor" should
+    "constrain the selected features to what the estimator can be fitted on" in {
+    // The columns reach `fit` untouched, so the accepted set is whatever scikit-learn reads
+    // as a number. A timestamp is one of those: it arrives as datetime64 and is fitted as
+    // epoch microseconds. Only text and binary are left out.
+    val schema = OperatorMetadataGenerator.generateOperatorJsonSchema(
+      classOf[SklearnAdvancedKNNClassifierTrainerOpDesc]
+    )
+    schema
+      .path("attributeTypeRules")
+      .path("Selected Features")
+      .path("enum")
+      .elements()
+      .asScala
+      .map(_.asText())
+      .toSeq should contain theSameElementsAs Seq(
+      "integer",
+      "long",
+      "double",
+      "boolean",
+      "timestamp"
+    )
   }
 }

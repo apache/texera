@@ -20,7 +20,7 @@
 package org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.base
 
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyDescription}
-import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
+import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
@@ -38,6 +38,18 @@ trait ParamClass {
   def getType: String
 }
 
+// Every selected column goes into `fit` untouched, so each has to be one that
+// scikit-learn reads as a number. A timestamp counts: it arrives as datetime64
+// and is fitted as epoch microseconds.
+@JsonSchemaInject(json = """
+{
+  "attributeTypeRules": {
+    "Selected Features": {
+      "enum": ["integer", "long", "double", "boolean", "timestamp"]
+    }
+  }
+}
+""")
 abstract class SklearnMLOperatorDescriptor[T <: ParamClass] extends PythonOperatorDescriptor {
   @JsonIgnore
   def getImportStatements: String

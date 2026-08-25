@@ -1767,6 +1767,44 @@ describe("OperatorPropertyEditFrameComponent", () => {
       vi.spyOn(compiling, "getOperatorInputAttributeType").mockReturnValue("string");
       expect(validator.expression({ value: { attr: "colA", mode: "loose" } } as any, rootField())).toBe(true);
     });
+
+    // A property that takes several columns holds a list of names, and the rule
+    // has to reach each of them rather than the list as a whole.
+    const multiColumnSchema: CustomJSONSchema7 = {
+      type: "object",
+      properties: { attrs: { type: "array", items: { type: "string" }, autofillAttributeOnPort: 0 } },
+      attributeTypeRules: { attrs: { enum: ["integer"] } },
+    };
+
+    it("enum rule passes when every column a multi-column property names matches", () => {
+      const validator = bindSchema(multiColumnSchema);
+      const spy = vi.spyOn(compiling, "getOperatorInputAttributeType").mockReturnValue("integer");
+
+      expect(validator.expression({ value: { attrs: ["colA", "colB"] } } as any, rootField())).toBe(true);
+      expect(spy).toHaveBeenCalledWith("attr-rules-op", 0, "colA");
+      expect(spy).toHaveBeenCalledWith("attr-rules-op", 0, "colB");
+    });
+
+    it("enum rule names the one column of a multi-column property that violates it", () => {
+      const validator = bindSchema(multiColumnSchema);
+      vi.spyOn(compiling, "getOperatorInputAttributeType").mockImplementation((_id, _port, name) =>
+        name === "colA" ? "integer" : "string"
+      );
+      const field = rootField();
+
+      expect(validator.expression({ value: { attrs: ["colA", "colB"] } } as any, field)).toBe(false);
+      expect((field as any).validators.checkAttributeType.message).toContain(
+        "The type of 'colB' is string, but it's expected to be integer"
+      );
+    });
+
+    it("enum rule is skipped when a multi-column property names nothing", () => {
+      const validator = bindSchema(multiColumnSchema);
+      const spy = vi.spyOn(compiling, "getOperatorInputAttributeType");
+
+      expect(validator.expression({ value: { attrs: [] } } as any, rootField())).toBe(true);
+      expect(spy).not.toHaveBeenCalled();
+    });
   });
 
   // ──────────────────────────────────────────────────────────────────────────

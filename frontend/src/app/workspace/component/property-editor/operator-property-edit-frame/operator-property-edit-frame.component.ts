@@ -1167,7 +1167,18 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
               return true;
             }
 
-            const findAttributeType = (propertyName: string): AttributeType | undefined => {
+            // A property that takes several columns holds a list of names rather
+            // than one, so both shapes are read as a list here and each name is
+            // then checked on its own.
+            const selectedAttributeNames = (propertyName: string): string[] => {
+              const value = control.value[propertyName];
+              if (Array.isArray(value)) {
+                return value.filter(name => typeof name === "string");
+              }
+              return typeof value === "string" ? [value] : [];
+            };
+
+            const findAttributeType = (propertyName: string, attributeName: string): AttributeType | undefined => {
               if (
                 !isDefined(this.currentOperatorId) ||
                 !isDefined(mapSource.properties) ||
@@ -1179,7 +1190,6 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
               if (!isDefined(portIndex)) {
                 return undefined;
               }
-              const attributeName: string = control.value[propertyName];
               return this.workflowCompilingService.getOperatorInputAttributeType(
                 this.currentOperatorId,
                 portIndex,
@@ -1201,14 +1211,17 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
               if (!isDefined(data)) {
                 return;
               }
-              const dataAttributeType = findAttributeType(data);
+              // Every rule written so far compares against a single-column
+              // property, so the first name is that property's whole value.
+              const dataAttributeName = selectedAttributeNames(data)[0];
+              const dataAttributeType = isDefined(dataAttributeName)
+                ? findAttributeType(data, dataAttributeName)
+                : undefined;
               if (!isDefined(dataAttributeType)) {
                 // if data attribute type is not defined, then data attribute is not yet selected. skip validation
                 return;
               }
               if (inputAttributeType !== dataAttributeType) {
-                // get data attribute name for error message
-                const dataAttributeName = control.value[data];
                 throw TypeError(`it's expected to be the same type as '${dataAttributeName}' (${dataAttributeType}).`);
               }
             };
@@ -1249,21 +1262,30 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
             // Get the type of constrains for each property in AttributeTypeRuleSchema
 
             const checkConstraint = (propertyName: string, constraint: AttributeTypeRuleSet) => {
-              const inputAttributeType = findAttributeType(propertyName);
+              for (const attributeName of selectedAttributeNames(propertyName)) {
+                const inputAttributeType = findAttributeType(propertyName, attributeName);
 
-              if (!isDefined(inputAttributeType)) {
-                // when inputAttributeType is undefined, it means the property is not set
-                return;
-              }
-              if (isDefined(constraint.enum)) {
-                checkEnumConstraint(inputAttributeType, constraint.enum);
-              }
+                if (!isDefined(inputAttributeType)) {
+                  // when inputAttributeType is undefined, it means the property is not set
+                  continue;
+                }
+                try {
+                  if (isDefined(constraint.enum)) {
+                    checkEnumConstraint(inputAttributeType, constraint.enum);
+                  }
 
-              if (isDefined(constraint.const)) {
-                checkConstConstraint(inputAttributeType, constraint.const);
-              }
-              if (isDefined(constraint.allOf)) {
-                checkAllOfConstraint(inputAttributeType, constraint.allOf);
+                  if (isDefined(constraint.const)) {
+                    checkConstConstraint(inputAttributeType, constraint.const);
+                  }
+                  if (isDefined(constraint.allOf)) {
+                    checkAllOfConstraint(inputAttributeType, constraint.allOf);
+                  }
+                } catch (err) {
+                  // The checks above describe the expectation, and only this loop
+                  // knows which of several columns broke it.
+                  // @ts-ignore
+                  throw TypeError(`The type of '${attributeName}' is ${inputAttributeType}, but ${err.message}`);
+                }
               }
             };
 
@@ -1272,22 +1294,11 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
               try {
                 checkConstraint(prop, constraint);
               } catch (err) {
-                // have to get the type, attribute name and property name again
-                // should consider reusing the part in findAttributeType()
-                const attributeName = control.value[prop];
-                const port = (mapSource.properties[prop] as CustomJSONSchema7).autofillAttributeOnPort as number;
-                const inputAttributeType = this.workflowCompilingService.getOperatorInputAttributeType(
-                  this.currentOperatorId,
-                  port,
-                  attributeName
-                );
-                // @ts-ignore
-                const message = err.message;
                 if (field.validators === undefined) {
                   field.validators = {};
                 }
-                field.validators.checkAttributeType.message =
-                  `Warning: The type of '${attributeName}' is ${inputAttributeType}, but ` + message;
+                // @ts-ignore
+                field.validators.checkAttributeType.message = `Warning: ${err.message}`;
                 return false;
               }
             }
