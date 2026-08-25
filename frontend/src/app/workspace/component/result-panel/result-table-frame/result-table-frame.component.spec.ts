@@ -155,8 +155,7 @@ describe("ResultTableFrameComponent", () => {
   // "keeps the existing table when the fetched page comes back empty" below.
   it("currentResult should not be modified if setupResultTable is called without a selected operator", () => {
     component.currentResult = [{ test: "property" }];
-    (component as any).setupResultTable([], 0);
-
+    component.setupResultTable([], 0);
     expect(component.currentResult).toEqual([{ test: "property" }]);
   });
 
@@ -483,14 +482,15 @@ describe("ResultTableFrameComponent", () => {
     // first assertion keeps it from going vacuous on a runtime without number grouping.
     it("formats large numeric stats with locale group separators", () => {
       const bypassSpy = vi.spyOn(TestBed.inject(DomSanitizer), "bypassSecurityTrustHtml");
+      const toLocaleSpy = vi.spyOn(Number.prototype, "toLocaleString");
       component.isOperatorFinished = false;
       component.tableStats = { col: { count: 1234567 } };
       component.prevTableStats = { col: {} };
 
       component.compare("col", "count");
 
-      const grouped = (1234567).toLocaleString();
-      expect(grouped).not.toBe("1234567");
+      expect(toLocaleSpy).toHaveBeenCalled();
+      const grouped = String(toLocaleSpy.mock.results[0]?.value);
       expect(bypassSpy).toHaveBeenLastCalledWith(
         grouped
           .split("")
