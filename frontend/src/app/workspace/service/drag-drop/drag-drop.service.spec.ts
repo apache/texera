@@ -606,10 +606,9 @@ describe("DragDropService", () => {
     });
   });
   /**
-   * findIntersectedLink's loop body has never executed: every existing call site either has no
-   * links, no attached paper, or mocks the method out. It is what decides whether dropping an
-   * operator onto an edge splices it into that edge, so it is worth running for real — jointjs
-   * renders link views synchronously, so a real paper works in jsdom.
+   * Previously, our tests never drove `findIntersectedLink` far enough to evaluate a rendered
+   * link’s `.connection` path geometry (they ran with no links/paper or hit early `continue`s).
+   * This suite attaches a real JointJS paper and link so the intersection logic runs end-to-end.
    */
   describe("findIntersectedLink (against a real paper)", () => {
     /**
