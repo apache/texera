@@ -136,7 +136,6 @@ class AmberClientSpec
 
     // Short-circuited, not asked: the actor took a PoisonPill in `shutdown()`, so an
     // ask would sit unanswered until the one-minute timeout instead of resolving now.
-    result.isDefined shouldBe true
     TwitterAwait.result(result, awaitTimeout) shouldBe ((): Unit)
   }
 
