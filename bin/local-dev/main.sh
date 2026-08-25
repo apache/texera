@@ -714,6 +714,13 @@ export LITELLM_MASTER_KEY="${LITELLM_MASTER_KEY:-sk-texera-internal-do-not-share
 export LLM_ENDPOINT="${LLM_ENDPOINT:-http://localhost:8080}"
 export LLM_API_KEY="${LLM_API_KEY:-dummy}"
 
+# Email verification ships on, and refuses to issue a code when no SMTP sender is configured
+# rather than logging the code where anyone reading logs could spend it. A local stack has no
+# sender, so leaving the product default in place would mean nobody can register here. Off by
+# default for local dev only; `export USER_SYS_EMAIL_VERIFICATION=true` (with the
+# USER_SYS_GOOGLE_SMTP_* credentials filled in) to exercise the real flow.
+export USER_SYS_EMAIL_VERIFICATION="${USER_SYS_EMAIL_VERIFICATION:-false}"
+
 # --------- texera version (dynamic) ---------
 # The sbt-native-packager dist directory and jar names embed the project
 # version (e.g. target/config-service-<VERSION>/...). That version moves
