@@ -35,6 +35,8 @@ class SklearnModelOpDescSpec extends AnyFlatSpec with Matchers {
       "from sklearn.linear_model import LogisticRegression"
     override def getUserFriendlyModelName: String = "Test Model"
     override def generatePythonCode(): String = ""
+    // dropMissingRows is protected for the codegen bases; reach it from inside.
+    def generateDropForTest: String = dropMissingRows
     override def operatorInfo: OperatorInfo =
       OperatorInfo(
         getUserFriendlyModelName,
@@ -49,6 +51,42 @@ class SklearnModelOpDescSpec extends AnyFlatSpec with Matchers {
     val d = new TestSklearnModelOpDesc
     d.countVectorizer shouldBe false
     d.tfidfTransformer shouldBe false
+  }
+
+  // The safe default is the estimator that cannot take a NaN, so an operator only
+  // keeps incomplete rows when its own class says the estimator places them.
+  it should "assume an estimator cannot fit a missing value" in {
+    (new TestSklearnModelOpDesc).handlesMissingValues shouldBe false
+  }
+
+  "SklearnModelOpDesc.dropMissingRows" should
+    "drop on every column when the estimator cannot fit a missing value" in {
+    val d = new TestSklearnModelOpDesc
+    d.target = "y"
+    d.generateDropForTest shouldBe "table.dropna()"
+  }
+
+  // The target is refused by every estimator, so it is dropped even here, but a blank
+  // feature is left in place for the estimator to make its own use of.
+  it should "drop on the target alone when the estimator places a missing value" in {
+    val d = new TestSklearnModelOpDesc {
+      override def handlesMissingValues = true
+    }
+    d.target = "y"
+    d.generateDropForTest should include("dropna(subset=[")
+    d.generateDropForTest should not be "table.dropna()"
+  }
+
+  // CountVectorizer calls .lower() on each document, which a None does not answer, so
+  // the text column goes even for an estimator that would otherwise keep the row.
+  it should "drop on the text column too when the vectorizer is on" in {
+    val d = new TestSklearnModelOpDesc {
+      override def handlesMissingValues = true
+    }
+    d.target = "y"
+    d.text = "note"
+    d.countVectorizer = true
+    d.generateDropForTest should include(",")
   }
 
   "SklearnModelOpDesc.getOutputSchemas" should

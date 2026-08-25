@@ -73,6 +73,16 @@ class SklearnBernoulliNaiveBayesOpDescSpec extends AnyFlatSpec with Matchers {
     d.generatePythonCode() should include("table.dropna()")
   }
 
+  // Dropping a row changes the data the model was asked to learn from, so the count
+  // is reported next to the metrics rather than left for the user to notice.
+  it should "say how many rows it dropped" in {
+    val d = new SklearnBernoulliNaiveBayesOpDesc
+    d.target = "y"
+    val code = d.generatePythonCode()
+    code should include("rows_read = len(table)")
+    code should include("\"Skipped\"")
+  }
+
   "SklearnBernoulliNaiveBayesOpDesc" should
     "round-trip its config fields through the polymorphic base" in {
     val d = new SklearnBernoulliNaiveBayesOpDesc

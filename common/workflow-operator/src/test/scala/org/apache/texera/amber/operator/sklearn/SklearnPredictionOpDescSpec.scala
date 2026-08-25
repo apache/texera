@@ -103,6 +103,30 @@ class SklearnPredictionOpDescSpec extends AnyFlatSpec with Matchers {
     code should include("] = None")
   }
 
+  // The ignored column is not read by the model, so a blank there must not cost the
+  // row its prediction: the emptiness test reads the features it actually predicts on.
+  it should "test the features for emptiness rather than the whole row" in {
+    val d = new SklearnPredictionOpDesc
+    d.model = "model"
+    d.resultAttribute = "prediction"
+    d.groundTruthAttribute = "y"
+    val code = d.generatePythonCode()
+    code should include("Table.from_tuple_likes([input_features]).isna()")
+    code should not include "Table.from_tuple_likes([tuple_]).isna()"
+  }
+
+  // The ignored column is what the result is cast to, so when it is the blank one
+  // there is no type to read off it and the prediction is written as text.
+  it should "write the prediction as text when the ignored column is itself empty" in {
+    val d = new SklearnPredictionOpDesc
+    d.model = "model"
+    d.resultAttribute = "prediction"
+    d.groundTruthAttribute = "y"
+    val code = d.generatePythonCode()
+    code should include("truth is None")
+    code should include("str(prediction)")
+  }
+
   "SklearnPredictionOpDesc" should
     "round-trip its config fields through the polymorphic base" in {
     val d = new SklearnPredictionOpDesc
