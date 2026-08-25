@@ -44,7 +44,7 @@ class SklearnTrainingPassiveAggressiveOpDescSpec extends AnyFlatSpec with Matche
     d.countVectorizer shouldBe false
     d.tfidfTransformer shouldBe false
     d.target shouldBe null
-    d.text shouldBe null
+    d.text shouldBe empty
   }
 
   "SklearnTrainingPassiveAggressiveOpDesc.getOutputSchemas" should

@@ -228,17 +228,16 @@ services:
           # RESTException. Refresh the stored endpoint on every run (#6195).
           echo "Lakekeeper Warehouse '$$STORAGE_ICEBERG_CATALOG_REST_WAREHOUSE_NAME' already exists. Refreshing its storage endpoint to '$$STORAGE_S3_ENDPOINT'..."
           WAREHOUSE_ID=$$(jq -r --arg name "$$STORAGE_ICEBERG_CATALOG_REST_WAREHOUSE_NAME" '.warehouses[]? | select(.name == $$name) | .id' /tmp/warehouses.txt)
+
+          # The key prefix and the region are both immutable: Lakekeeper rejects
+          # the whole payload when either would change, taking the endpoint with
+          # it. Reuse the profile the warehouse already holds and override only
+          # the endpoint, so no other field can drift out of the stored record.
+          REFRESHED_PROFILE=$$(jq -c --arg name "$$STORAGE_ICEBERG_CATALOG_REST_WAREHOUSE_NAME" --arg endpoint "$$STORAGE_S3_ENDPOINT" '.warehouses[]? | select(.name == $$name) | ."storage-profile" | .endpoint = $$endpoint' /tmp/warehouses.txt)
+
           UPDATE_PAYLOAD=$$(cat <<EOF
         {
-          "storage-profile": {
-            "type": "s3",
-            "bucket": "$$STORAGE_ICEBERG_CATALOG_REST_S3_BUCKET",
-            "region": "$$STORAGE_S3_REGION",
-            "endpoint": "$$STORAGE_S3_ENDPOINT",
-            "flavor": "s3-compat",
-            "path-style-access": true,
-            "sts-enabled": false
-          },
+          "storage-profile": $$REFRESHED_PROFILE,
           "storage-credential": {
             "type": "s3",
             "credential-type": "access-key",
@@ -272,6 +271,7 @@ services:
           "storage-profile": {
             "type": "s3",
             "bucket": "$$STORAGE_ICEBERG_CATALOG_REST_S3_BUCKET",
+            "key-prefix": "$$STORAGE_ICEBERG_CATALOG_REST_KEY_PREFIX",
             "region": "$$STORAGE_S3_REGION",
             "endpoint": "$$STORAGE_S3_ENDPOINT",
             "flavor": "s3-compat",

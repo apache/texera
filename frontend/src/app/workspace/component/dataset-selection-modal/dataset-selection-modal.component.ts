@@ -85,7 +85,7 @@ export class DatasetSelectionModalComponent implements OnInit {
         const selectedPath = this.data.selectedPath;
         if (selectedPath) {
           const segments = selectedPath.split("/").filter(part => part.length > 0);
-          // TODO(datasets-prefix): require the prefix once all ml model support PRs are done.
+          // TODO(dataset-prefix): require the prefix once all ml model support PRs are done.
           if ((Object.values(ResourceType) as string[]).includes(segments[0])) {
             segments.shift();
           }
@@ -124,7 +124,7 @@ export class DatasetSelectionModalComponent implements OnInit {
           this.fileTree = data.fileNodes;
         });
       if (!this.data.fileMode) {
-        this.selectedPath = `/${ResourceType.Datasets}/${this.selectedDataset.ownerEmail}/${this.selectedDataset.dataset.name}/${this.selectedVersion.name}`;
+        this.selectedPath = `/${ResourceType.Dataset}/${this.selectedDataset.ownerEmail}/${this.selectedDataset.dataset.name}/${this.selectedVersion.name}`;
       }
     }
   }
