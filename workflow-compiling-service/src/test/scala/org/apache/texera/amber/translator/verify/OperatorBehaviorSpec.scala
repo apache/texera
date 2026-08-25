@@ -170,9 +170,7 @@ object OperatorBehaviorSpec {
     "SklearnTrainingSDGOpDesc",
     "SklearnTrainingSVMOpDesc",
     "HuggingFace",
-    "MachineLearningScorer",
-    "NetworkGraphOpDesc",
-    "WordCloudOpDesc"
+    "MachineLearningScorer"
   )
 
   private lazy val onlyPatterns: Seq[String] = patterns("VERIFY_ONLY")
