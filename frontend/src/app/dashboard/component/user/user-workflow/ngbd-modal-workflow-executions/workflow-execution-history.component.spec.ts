@@ -875,11 +875,21 @@ describe("WorkflowExecutionHistoryComponent", () => {
     });
 
     it("sorts ascending from a header whose arrow points up", async () => {
-      await setup();
+      // startingTime deliberately runs against eId order, so the assertion below
+      // fails if the click leaves the rows where they were.
+      await setup({
+        entries: [
+          makeEntry({ eId: 1, startingTime: 3000 }),
+          makeEntry({ eId: 2, startingTime: 1000 }),
+          makeEntry({ eId: 3, startingTime: 2000 }),
+        ],
+      });
+      expect(component.workflowExecutionsDisplayedList!.map(e => e.eId)).toEqual([1, 2, 3]);
+
       // showORhide[4] starts true, so "Execution Start Time" renders the ascending button.
       sortButtonFor("Execution Start Time").triggerEventHandler("click", new MouseEvent("click"));
 
-      expect(component.workflowExecutionsDisplayedList!.map(e => e.eId)).toEqual([1, 2, 3]);
+      expect(component.workflowExecutionsDisplayedList!.map(e => e.eId)).toEqual([2, 3, 1]);
       expect(component.showORhide[4]).toBe(false);
     });
 
