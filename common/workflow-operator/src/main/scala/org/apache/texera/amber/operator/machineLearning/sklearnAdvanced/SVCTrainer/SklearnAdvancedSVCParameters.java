@@ -22,7 +22,9 @@ package org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.SVCTrai
 import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.base.ParamClass;
 
 public enum SklearnAdvancedSVCParameters implements ParamClass {
-    C("C", "float", "1.0"),
+    // Bounds are scikit-learn's own, whose ranges are open at zero for the two below and
+    // closed for degree.
+    C("C", "float", "1.0") { @Override public String getMinimum() { return ">0"; } },
     kernel("kernel", "str", "", "rbf", "linear", "poly", "sigmoid", "precomputed"),
     // gamma takes either of two words or a number, so no converter of a name covers it. This
     // one hands the words through and puts everything else past float(), which is also what
@@ -44,9 +46,10 @@ public enum SklearnAdvancedSVCParameters implements ParamClass {
                     + "|(?:[0-9]+(?:_[0-9]+)*)\\.?)(?:[eE][-+]?[0-9]+(?:_[0-9]+)*)?)\\s*$";
         }
     },
-    degree("degree", "int", "3"),
+    degree("degree", "int", "3") { @Override public String getMinimum() { return ">=0"; } },
+    // coef0 is the one parameter here with no bound at either end.
     coef0("coef0", "float", "0.0"),
-    tol("tol", "float", "0.001"),
+    tol("tol", "float", "0.001") { @Override public String getMinimum() { return ">0"; } },
     probability("probability", "(lambda value: value.lower() == \"true\")", "", "false", "true");
 
     private final String name;

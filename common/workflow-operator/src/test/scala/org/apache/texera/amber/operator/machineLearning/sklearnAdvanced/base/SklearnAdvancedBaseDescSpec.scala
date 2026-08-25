@@ -25,6 +25,7 @@ import org.apache.texera.amber.core.tuple.AttributeType
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.KNNTrainer.SklearnAdvancedKNNClassifierTrainerOpDesc
 import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.SVCTrainer.SklearnAdvancedSVCTrainerOpDesc
+import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.SVRTrainer.SklearnAdvancedSVRTrainerOpDesc
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorMetadataGenerator}
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.scalatest.flatspec.AnyFlatSpec
@@ -195,6 +196,24 @@ class SklearnAdvancedBaseDescSpec extends AnyFlatSpec with Matchers {
     val rules = valueRulesOf(classOf[SklearnAdvancedSVCTrainerOpDesc])
     ruleFor(rules, "C").path("type").asText() shouldBe "number"
     ruleFor(rules, "degree").path("type").asText() shouldBe "integer"
+  }
+
+  it should "carry the estimator's bound under whichever name matches its range" in {
+    val rules = valueRulesOf(classOf[SklearnAdvancedSVCTrainerOpDesc])
+    // C's range is open at zero and degree's is closed, so the two take different names
+    ruleFor(rules, "C").path("exclusiveMinimum").asDouble() shouldBe 0.0
+    ruleFor(rules, "C").has("minimum") shouldBe false
+    ruleFor(rules, "degree").path("minimum").asDouble() shouldBe 0.0
+    ruleFor(rules, "degree").has("exclusiveMinimum") shouldBe false
+    // coef0 is bounded by nothing, so it gets neither rather than a made-up zero
+    ruleFor(rules, "coef0").has("minimum") shouldBe false
+    ruleFor(rules, "coef0").has("exclusiveMinimum") shouldBe false
+  }
+
+  it should "keep a sentinel value reachable when it lies below the useful range" in {
+    // SVR's max_iter uses -1 for no limit, so the bound has to admit it
+    val rules = valueRulesOf(classOf[SklearnAdvancedSVRTrainerOpDesc])
+    ruleFor(rules, "max_iter").path("minimum").asDouble() shouldBe -1.0
   }
 
   it should "describe a parameter choosing between a set and a number with a pattern" in {

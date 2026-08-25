@@ -86,11 +86,21 @@ export function createValueRulesValidator(rules: ValueRuleSet) {
       // here, in the operator's own tests and in the generated Python
       return new RegExp(rule.pattern).test(String(value));
     }
-    if (rule.type === "integer") {
-      return /^[-+]?\d+$/.test(text);
+    if (rule.type === "integer" && !/^[-+]?\d+$/.test(text)) {
+      return false;
     }
-    if (rule.type === "number") {
-      return text.length > 0 && Number.isFinite(Number(text));
+    if (rule.type === "number" && !(text.length > 0 && Number.isFinite(Number(text)))) {
+      return false;
+    }
+    if (isDefined(rule.type)) {
+      // the estimator's own bound, which it would otherwise raise on after the run started
+      const value = Number(text);
+      if (isDefined(rule.minimum) && value < rule.minimum) {
+        return false;
+      }
+      if (isDefined(rule.exclusiveMinimum) && value <= rule.exclusiveMinimum) {
+        return false;
+      }
     }
     return true;
   };
@@ -109,10 +119,14 @@ export function valueRulesValidationMessage(_err: unknown, field: FormlyFieldCon
       ? `is not a value this parameter takes, such as ${example}`
       : "is not a value this parameter takes";
   }
-  if (rule?.type === "integer") {
-    return "must be a whole number";
+  const kind = rule?.type === "integer" ? "a whole number" : "a number";
+  if (isDefined(rule?.minimum)) {
+    return `must be ${kind} of at least ${rule.minimum}`;
   }
-  return "must be a number";
+  if (isDefined(rule?.exclusiveMinimum)) {
+    return `must be ${kind} greater than ${rule.exclusiveMinimum}`;
+  }
+  return `must be ${kind}`;
 }
 
 /* Factory function to make functions that hide expressions for a particular field */

@@ -216,8 +216,15 @@ describe("valueRules", () => {
   // `parameter` chosen beside the value in the same row
   const rules: ValueRuleSet = {
     allOf: [
-      { if: { parameter: { valEnum: ["C"] } }, then: { type: "number", examples: ["1.0"] } },
-      { if: { parameter: { valEnum: ["degree"] } }, then: { type: "integer", examples: ["3"] } },
+      {
+        if: { parameter: { valEnum: ["C"] } },
+        then: { type: "number", exclusiveMinimum: 0, examples: ["1.0"] },
+      },
+      {
+        if: { parameter: { valEnum: ["degree"] } },
+        then: { type: "integer", minimum: 0, examples: ["3"] },
+      },
+      { if: { parameter: { valEnum: ["coef0"] } }, then: { type: "number", examples: ["0.0"] } },
       // gamma takes either of two words or a number, which no type names
       {
         if: { parameter: { valEnum: ["gamma"] } },
@@ -272,15 +279,16 @@ describe("valueRules", () => {
 
     it("holds a numeric parameter to a number", () => {
       expect(check("C", "1.0")).toBe(true);
-      expect(check("C", "-2.5e3")).toBe(true);
+      // coef0 carries no bound, so it is where number-ness alone can be checked
+      expect(check("coef0", "-2.5e3")).toBe(true);
       expect(check("C", "abc")).toBe(false);
     });
 
     it("holds a whole-number parameter to a whole number", () => {
       expect(check("degree", "3")).toBe(true);
-      expect(check("degree", "-1")).toBe(true);
       // int() raises on this, so the form should not let it reach the operator
       expect(check("degree", "1.5")).toBe(false);
+      expect(check("coef0", "-1")).toBe(true);
     });
 
     it("leaves emptiness to the required rule rather than answering twice", () => {
@@ -291,6 +299,16 @@ describe("valueRules", () => {
 
     it("accepts anything for a parameter no branch constrains", () => {
       expect(check("metric_params", "whatever")).toBe(true);
+    });
+
+    it("holds a value to the bound the estimator puts on it", () => {
+      // C is open at zero, degree is closed at it, and coef0 has no bound at all
+      expect(check("C", "0")).toBe(false);
+      expect(check("C", "-1")).toBe(false);
+      expect(check("C", "0.0001")).toBe(true);
+      expect(check("degree", "0")).toBe(true);
+      expect(check("degree", "-1")).toBe(false);
+      expect(check("coef0", "-100")).toBe(true);
     });
 
     it("holds a parameter with a pattern to the shape it declares", () => {
@@ -320,9 +338,10 @@ describe("valueRules", () => {
       );
     });
 
-    it("distinguishes a whole number from a number", () => {
-      expect(valueRulesValidationMessage(null, field("degree"))).toBe("must be a whole number");
-      expect(valueRulesValidationMessage(null, field("C"))).toBe("must be a number");
+    it("distinguishes a whole number from a number, and names the bound where there is one", () => {
+      expect(valueRulesValidationMessage(null, field("degree"))).toBe("must be a whole number of at least 0");
+      expect(valueRulesValidationMessage(null, field("C"))).toBe("must be a number greater than 0");
+      expect(valueRulesValidationMessage(null, field("coef0"))).toBe("must be a number");
     });
 
     it("points at a working value where a pattern is what the branch declares", () => {

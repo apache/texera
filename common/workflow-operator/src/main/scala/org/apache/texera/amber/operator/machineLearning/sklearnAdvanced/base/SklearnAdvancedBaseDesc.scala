@@ -39,6 +39,7 @@ import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import com.fasterxml.jackson.databind.node.ObjectNode
 import java.lang.reflect.{ParameterizedType, Type}
+import scala.util.Try
 
 /**
   * One hyperparameter a trainer offers. `getName` is the keyword argument passed to the
@@ -71,6 +72,13 @@ trait ParamClass {
     * describes, which is most of them.
     */
   def getPattern: String = ""
+
+  /** How low the value may go, written the way the estimator's own range reads: `">0"` where
+    * zero itself is refused and `">=1"` where the bound is included. Empty for a parameter
+    * bounded by nothing, which a number alone cannot be told from one whose bound nobody
+    * looked up.
+    */
+  def getMinimum: String = ""
 }
 
 abstract class SklearnMLOperatorDescriptor[T <: ParamClass]
@@ -130,7 +138,13 @@ abstract class SklearnMLOperatorDescriptor[T <: ParamClass]
         // A pattern is what a parameter offering a choice between a set and a number has
         // instead, so it stands in for the type rather than joining it.
         if (param.getPattern.nonEmpty) outcome.put("pattern", param.getPattern)
-        else valueTypeOf(param).foreach(outcome.put("type", _))
+        else
+          valueTypeOf(param).foreach { valueType =>
+            outcome.put("type", valueType)
+            // A bound belongs to a value read as a number, so it rides with the type rather
+            // than standing on its own.
+            addMinimum(param.getMinimum, outcome)
+          }
         if (param.getSampleValue.nonEmpty) outcome.withArray("examples").add(param.getSampleValue)
       }
 
@@ -147,6 +161,17 @@ abstract class SklearnMLOperatorDescriptor[T <: ParamClass]
         .putObject("valueRules")
         .set[ObjectNode]("allOf", branches)
   }
+
+  /** Puts a declared bound under the JSON Schema name for it, `>` and `>=` being the two forms
+    * an estimator's range takes at the low end. A bound spelled any other way is skipped
+    * rather than guessed at, since a wrong one turns away values that work.
+    */
+  private def addMinimum(bound: String, outcome: ObjectNode): Unit =
+    if (bound.startsWith(">=")) numberOf(bound.drop(2)).foreach(outcome.put("minimum", _))
+    else if (bound.startsWith(">"))
+      numberOf(bound.drop(1)).foreach(outcome.put("exclusiveMinimum", _))
+
+  private def numberOf(text: String): Option[Double] = Try(text.trim.toDouble).toOption
 
   /** How the form should read a value with no fixed set of its own: from the callable the
     * parameter names, since that is what the emitted code puts the text through. A parameter
