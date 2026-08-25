@@ -517,6 +517,21 @@ class AsterixDBSourceOpExecSpec
     }.getMessage should startWith("Unexpected type:")
   }
 
+  it should "reject a batch column whose type is untyped or opaque" in {
+    // ANY and BINARY cannot come out of an AsterixDB datatype today, but the
+    // catch-all has to keep rejecting them rather than rendering them into the
+    // sliding-window predicate as a bare literal.
+    val exec = newExec()
+    exec.batchByAttribute = Some(new Attribute("anything", AttributeType.ANY))
+    intercept[IllegalArgumentException] {
+      exec.batchAttributeToString(java.lang.Long.valueOf(1L))
+    }.getMessage should startWith("Unexpected type:")
+    exec.batchByAttribute = Some(new Attribute("blob", AttributeType.BINARY))
+    intercept[IllegalArgumentException] {
+      exec.batchAttributeToString(java.lang.Long.valueOf(1L))
+    }.getMessage shouldBe "Unexpected type: binary"
+  }
+
   it should "reject the call when no batch column is resolved" in {
     val exec = newExec(_.batchByColumn = Some("created_at"))
     exec.batchByAttribute shouldBe None
@@ -573,6 +588,20 @@ class AsterixDBSourceOpExecSpec
     tableNameRows = Seq("\"other\"\n", "\"twitter\"\n")
     exec.open()
     exec.tableNames.toList shouldBe List("other", "twitter")
+  }
+
+  it should "refresh a stale cached API version when it opens" in {
+    val exec = newExec()
+    // Asserting the mapping straight after open() would be vacuous: the
+    // constructor's own `schema = desc.sourceSchema()` already went through
+    // queryAsterixDB, which fills a MISSING host entry, so `0.9.9` is cached
+    // before open() is ever entered. Overwriting the entry first makes open()'s
+    // explicit refresh the only thing that can restore it - queryAsterixDB
+    // never rewrites an entry that is already present, so a stale version (which
+    // selects a different `format` field) would otherwise survive forever in
+    // this singleton.
+    AsterixDBConnUtil.asterixDBVersionMapping += (host -> "0.0.0")
+    exec.open()
     AsterixDBConnUtil.asterixDBVersionMapping.get(host) shouldBe Some("0.9.9")
   }
 
@@ -613,6 +642,24 @@ class AsterixDBSourceOpExecSpec
     dataStatements should have length 1
     dataStatements.head should include("SELECT if_missing(count,null) field_0")
     dataStatements.head should endWith(";")
+  }
+
+  it should "answer a repeated hasNext from the cached row instead of consuming another" in {
+    val exec = newExec()
+    dataRows = Seq(
+      "1,2023-11-13T10:15:30,1,1.0,first,true",
+      "2,2023-11-13T10:15:30,2,2.0,second,true"
+    )
+    val iterator = exec.produceTuple()
+    // The first peek pulls a row into the cache; every further peek has to read
+    // that cache, or the peeked row is dropped on the floor.
+    iterator.hasNext shouldBe true
+    iterator.hasNext shouldBe true
+    iterator.hasNext shouldBe true
+    iterator.next().asInstanceOf[Tuple].getField[Any]("text") shouldBe "first"
+    iterator.next().asInstanceOf[Tuple].getField[Any]("text") shouldBe "second"
+    iterator.hasNext shouldBe false
+    dataStatements should have length 1
   }
 
   it should "map the literal token null, in any column, to a null field" in {
@@ -718,6 +765,15 @@ class AsterixDBSourceOpExecSpec
     // so the second row is never delivered.
     exec.produceTuple().hasNext shouldBe false
     dataStatements should have length 1
+    // NOT covered here, on purpose: this drives next() directly, so `cachedTuple`
+    // is empty by the time close() runs. The engine's own loop is
+    // `while (it.hasNext) it.next()`, i.e. hasNext always peeks first, and
+    // close() clears curResultIterator/curQueryString but not the inherited
+    // cachedTuple (neither does SQLSourceOpExec.close()) - so a peeked but
+    // unconsumed row is still handed out after close(). That is left unpinned on
+    // purpose: asserting it would cement what looks like a leak, and asserting
+    // the opposite would fail, so the contract has to be decided before it is
+    // tested.
   }
 
   it should "leave a partially consumed scan resumable when it is not closed" in {
