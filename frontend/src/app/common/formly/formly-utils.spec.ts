@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { FormlyFieldConfig } from "@ngx-formly/core";
+import { FormlyFieldConfig, FormlyModule } from "@ngx-formly/core";
 import {
   createOutputFormChangeEventStream,
   createShouldHideFieldFunc,
@@ -26,9 +26,17 @@ import {
   matchingValueRule,
   setChildTypeDependency,
   setHideExpression,
+  setValueRules,
   valueRulesValidationMessage,
 } from "./formly-utils";
 import { ValueRuleSet } from "../../workspace/types/custom-json-schema.interface";
+import { Component } from "@angular/core";
+import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { By } from "@angular/platform-browser";
+import { NoopAnimationsModule } from "@angular/platform-browser/animations";
+import { AbstractControl, FormGroup, ReactiveFormsModule } from "@angular/forms";
+import { FormlyNgZorroAntdModule } from "@ngx-formly/ng-zorro-antd";
+import { TEXERA_FORMLY_CONFIG } from "./formly-config";
 import { Subject } from "rxjs";
 import { FORM_DEBOUNCE_TIME_MS } from "../../workspace/service/execute-workflow/execute-workflow.service";
 import { PortSchema } from "../../workspace/types/workflow-compiling.interface";
@@ -321,8 +329,9 @@ describe("valueRules", () => {
       expect(check("gamma", "scaleauto")).toBe(false);
     });
 
-    it("re-judges the same value when the row switches parameter", () => {
-      // a value typed for one parameter is usually wrong for the next, and stays visible
+    it("judges the same value against whichever parameter the row now holds", () => {
+      // a value typed for one parameter is usually wrong for the next, and stays visible. That
+      // the form asks again when the parameter changes is the rendered form's test below
       expect(check("C", "1.0")).toBe(true);
       expect(check("kernel", "1.0")).toBe(false);
     });
@@ -362,6 +371,159 @@ describe("valueRules", () => {
       // reached when the row's parameter changes between the check failing and the message
       // being read, so the message must still say something rather than throw
       expect(valueRulesValidationMessage(null, field("metric_params"))).toBe("must be a number");
+    });
+  });
+
+  /**
+   * Through a rendered form rather than a hand-made field, because what the field carries is
+   * only half of it: the other half is when Angular runs a validator, which is when the control
+   * carrying it changes and not when the parameter beside it does.
+   */
+  describe("setValueRules in a rendered form", () => {
+    /** One `paraList` row: the parameter dropdown and the value field that follows it. */
+    @Component({
+      standalone: true,
+      imports: [ReactiveFormsModule, FormlyModule],
+      template: `<form [formGroup]="form">
+        <formly-form
+          [form]="form"
+          [fields]="fields"
+          [model]="model"></formly-form>
+      </form>`,
+    })
+    class RowHost {
+      readonly form = new FormGroup({});
+      readonly model: Record<string, unknown> = {
+        paraList: [
+          { parameter: "C", value: "1.0" },
+          { parameter: "kernel", value: "rbf" },
+        ],
+      };
+      readonly fields: FormlyFieldConfig[] = [
+        {
+          key: "paraList",
+          type: "array",
+          fieldArray: {
+            fieldGroup: [
+              {
+                key: "parameter",
+                type: "enum",
+                props: {
+                  options: ["C", "degree", "gamma", "kernel", "metric_params"].map(p => ({ label: p, value: p })),
+                },
+              },
+              valueField,
+            ],
+          },
+        },
+      ];
+    }
+
+    let valueField: FormlyFieldConfig;
+    let fixture: ComponentFixture<RowHost>;
+    let parameter: AbstractControl;
+    let value: AbstractControl;
+
+    beforeEach(async () => {
+      valueField = { key: "value" };
+      setValueRules(valueField, rules);
+
+      await TestBed.configureTestingModule({
+        imports: [RowHost, NoopAnimationsModule, FormlyModule.forRoot(TEXERA_FORMLY_CONFIG), FormlyNgZorroAntdModule],
+      }).compileComponents();
+
+      fixture = TestBed.createComponent(RowHost);
+      fixture.detectChanges();
+      parameter = rowControl(0, "parameter");
+      value = rowControl(0, "value");
+    });
+
+    const rowControl = (row: number, key: string): AbstractControl =>
+      fixture.componentInstance.form.get(`paraList.${row}.${key}`)!;
+
+    /** What the user does: picks a parameter, leaving whatever value the row already held. */
+    const choose = (parameterName: string) => {
+      parameter.setValue(parameterName);
+      fixture.detectChanges();
+    };
+
+    it("gives the value field the control and the validator the rules call for", () => {
+      expect(valueField.type).toBe("constrainedvalue");
+      expect(value.valid).toBe(true);
+      expect(fixture.debugElement.query(By.css("texera-constrained-value"))).not.toBeNull();
+    });
+
+    it("re-judges a value the row already holds when the parameter changes under it", () => {
+      // 1.0 is a C, and no kernel at all
+      expect(value.valid).toBe(true);
+
+      choose("kernel");
+
+      expect(value.valid).toBe(false);
+      expect(value.hasError("valueRules")).toBe(true);
+    });
+
+    it("clears the error once the parameter changes to one the value suits", () => {
+      choose("kernel");
+      expect(value.valid).toBe(false);
+
+      choose("gamma");
+
+      expect(value.valid).toBe(true);
+    });
+
+    it("re-judges when the new parameter constrains the value no rule did before", () => {
+      choose("metric_params");
+      value.setValue("1.5");
+      expect(value.valid).toBe(true);
+
+      choose("degree");
+
+      expect(value.valid).toBe(false);
+    });
+
+    it("leaves an empty value to the required rule whichever parameter it sits under", () => {
+      value.setValue("");
+      choose("kernel");
+      expect(value.valid).toBe(true);
+    });
+
+    it("gives the message of the parameter now chosen, not the one judged against", () => {
+      choose("kernel");
+      value.markAsTouched();
+      fixture.detectChanges();
+
+      expect(fixture.nativeElement.textContent).toContain("must be one of rbf, linear, poly, sigmoid, precomputed");
+    });
+
+    it("follows the parameter with the control the branch calls for", () => {
+      // scoped to the row's value field, so that neither the parameter's own dropdown nor the
+      // second row is what is seen
+      const valueControl = (selector: string) =>
+        fixture.debugElement.queryAll(By.css("texera-constrained-value"))[0].query(By.css(selector));
+      expect(valueControl("input[nz-input]").nativeElement.type).toBe("number");
+      expect(valueControl("nz-select")).toBeNull();
+
+      choose("kernel");
+
+      expect(valueControl("nz-select")).not.toBeNull();
+      expect(valueControl("input[nz-input]")).toBeNull();
+    });
+
+    it("re-judges only the row whose parameter changed", () => {
+      const otherValue = rowControl(1, "value");
+      expect(otherValue.valid).toBe(true);
+
+      choose("kernel");
+
+      // rbf is still a kernel, whatever the row above holds
+      expect(value.valid).toBe(false);
+      expect(otherValue.valid).toBe(true);
+
+      rowControl(1, "parameter").setValue("degree");
+      fixture.detectChanges();
+
+      expect(otherValue.valid).toBe(false);
     });
   });
 });
