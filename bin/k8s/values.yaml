@@ -358,6 +358,21 @@ texeraEnvVars:
   - name: AUTH_JWT_SECRET
     # Development-only default (256-bit HS256 secret). Production environments MUST override this with a different, securely generated secret.
     value: "a7f3c8e9b14d2e6f5a0b9c3d8e1f4a6b2c5d7e9f0a3b6c8d1e4f7a9b2c5d8e1f"
+  # OpenTelemetry (observability). Disabled by default; set OTEL_SDK_DISABLED to
+  # "false" and point the endpoint at a reachable OTLP collector (http/https only) to enable.
+  - name: OTEL_SDK_DISABLED
+    value: "true"
+  - name: OTEL_EXPORTER_OTLP_ENDPOINT
+    value: "http://127.0.0.1:4317"
+  # Comma-separated resource attributes (k1=v1,k2=v2); service.name is set per service.
+  - name: OTEL_RESOURCE_ATTRIBUTES
+    value: ""
+  # Comma-separated extra hosts allowed for the OTLP endpoint (loopback allowed by default).
+  - name: TEXERA_OTEL_ALLOWED_HOSTS
+    value: ""
+  # Metric export interval in ms.
+  - name: OTEL_METRIC_EXPORT_INTERVAL
+    value: "30000"
 
 yWebsocketServer:
   name: y-websocket-server

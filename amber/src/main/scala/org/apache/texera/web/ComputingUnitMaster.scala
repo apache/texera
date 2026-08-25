@@ -139,6 +139,7 @@ class ComputingUnitMaster extends io.dropwizard.Application[Configuration] with 
   }
 
   override def run(configuration: Configuration, environment: Environment): Unit = {
+    org.apache.texera.observability.OtelInit.init("computing-unit-master")
     ObjectMapperUtils.warmupObjectMapperForOperatorsSerde()
 
     SqlServer.initConnection(

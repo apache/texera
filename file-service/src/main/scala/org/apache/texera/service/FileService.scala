@@ -64,6 +64,8 @@ class FileService extends Application[FileServiceConfiguration] with LazyLogging
   }
 
   override def run(configuration: FileServiceConfiguration, environment: Environment): Unit = {
+    // Bridge this service's logs to the OTel collector under its own service.name.
+    org.apache.texera.observability.OtelInit.init("file-service")
     // Serve backend at /api
     environment.jersey.setUrlPattern("/api/*")
     SqlServer.initConnection(

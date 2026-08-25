@@ -122,6 +122,11 @@ ThisBuild / excludeDependencies += ExclusionRule("log4j", "log4j")
 lazy val Util = (project in file("common/util")).settings(commonModuleSettings)
 lazy val DAO = (project in file("common/dao")).settings(commonModuleSettings)
 lazy val Config = (project in file("common/config")).settings(commonModuleSettings)
+// OpenTelemetry bootstrap (OtelInit, log appender, sanitizer) shared by every
+// service entry point; pins the OTel dependency versions in one place. Depends
+// on Config to read OTEL_* settings from observability.conf.
+lazy val Observability =
+  (project in file("common/observability")).settings(commonModuleSettings).dependsOn(Config)
 lazy val Resource = (project in file("common/resource")).settings(commonModuleSettings)
 lazy val Auth = (project in file("common/auth"))
   .settings(commonModuleSettings)
@@ -129,7 +134,7 @@ lazy val Auth = (project in file("common/auth"))
   .dependsOn(DAO, Config)
   .dependsOn(DAO % "test->test") // reuse MockTexeraDB embedded Postgres in tests
 lazy val ConfigService = (project in file("config-service"))
-  .dependsOn(Auth, Config, DAO, Resource)
+  .dependsOn(Auth, Config, DAO, Resource, Observability)
   .dependsOn(DAO % "test->test") // reuse MockTexeraDB embedded Postgres in tests
   .settings(commonModuleSettings)
   .settings(
@@ -139,7 +144,7 @@ lazy val ConfigService = (project in file("config-service"))
     )
   )
 lazy val AccessControlService = (project in file("access-control-service"))
-  .dependsOn(Auth, Config, DAO, Resource)
+  .dependsOn(Auth, Config, DAO, Resource, Observability)
   .settings(commonModuleSettings)
   .settings(
     dependencyOverrides ++= Seq(
@@ -163,7 +168,7 @@ lazy val WorkflowCore = (project in file("common/workflow-core"))
   .configs(Test)
   .dependsOn(DAO % "test->test") // test scope dependency
 lazy val ComputingUnitManagingService = (project in file("computing-unit-managing-service"))
-  .dependsOn(WorkflowCore, Auth, Config, Resource)
+  .dependsOn(WorkflowCore, Auth, Config, Resource, Observability)
   .configs(Test)
   .dependsOn(DAO % "test->test") // reuse MockTexeraDB embedded Postgres in tests
   .settings(commonModuleSettings)
@@ -210,7 +215,7 @@ lazy val ComputingUnitManagingService = (project in file("computing-unit-managin
   )
 lazy val FileService = (project in file("file-service"))
   .settings(commonModuleSettings)
-  .dependsOn(WorkflowCore, Auth, Config, Resource, Util)
+  .dependsOn(WorkflowCore, Auth, Config, Resource, Util, Observability)
   .configs(Test)
   .dependsOn(DAO % "test->test") // test scope dependency
   .settings(
@@ -238,7 +243,7 @@ lazy val WorkflowCompiler = (project in file("common/workflow-compiler"))
   .configs(Test)
   .dependsOn(WorkflowOperator)
 lazy val WorkflowCompilingService = (project in file("workflow-compiling-service"))
-  .dependsOn(WorkflowCompiler, Auth, Config, Resource)
+  .dependsOn(WorkflowCompiler, Auth, Config, Resource, Observability)
   .settings(commonModuleSettings)
   .settings(
     dependencyOverrides ++= Seq(
@@ -250,7 +255,7 @@ lazy val WorkflowCompilingService = (project in file("workflow-compiling-service
   )
 
 lazy val WorkflowExecutionService = (project in file("amber"))
-  .dependsOn(WorkflowCompiler, Auth, Config)
+  .dependsOn(WorkflowCompiler, Auth, Config, Observability)
   .settings(commonModuleSettings)
   .settings(
     dependencyOverrides ++= Seq(
@@ -285,6 +290,7 @@ lazy val TexeraProject = (project in file("."))
     // common libraries
     Auth,
     Config,
+    Observability,
     Resource,
     Util,
     DAO,
