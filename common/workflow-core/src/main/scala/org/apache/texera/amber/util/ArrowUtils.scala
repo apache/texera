@@ -84,9 +84,11 @@ object ArrowUtils extends LazyLogging {
               // Use the attribute type from the schema (which includes metadata)
               // instead of deriving it from the Arrow type
               val attributeType = schema.getAttributes(index).getType
-              fieldVector.getField.getType match {
-                case timestamp: ArrowType.Timestamp => wallClockOf(value, timestamp)
-                case _                              => AttributeTypeUtils.parseField(value, attributeType)
+              // A timestamp is the one type whose field says more than the
+              // schema does, so it is the only one that reads the field.
+              attributeType match {
+                case AttributeType.TIMESTAMP => wallClockOf(value, fieldVector.getField.getType)
+                case _                       => AttributeTypeUtils.parseField(value, attributeType)
               }
             } catch {
               case e: Exception =>
@@ -110,15 +112,15 @@ object ArrowUtils extends LazyLogging {
     * account for the difference. A zoneless vector hands back a LocalDateTime
     * already, which is the wall clock itself.
     */
-  private def wallClockOf(value: AnyRef, field: ArrowType.Timestamp): Timestamp =
-    value match {
-      case null               => null
-      case ldt: LocalDateTime => Timestamp.valueOf(ldt)
-      case number: java.lang.Long =>
+  private def wallClockOf(value: AnyRef, arrowType: ArrowType): Timestamp =
+    (value, arrowType) match {
+      case (null, _)               => null
+      case (ldt: LocalDateTime, _) => Timestamp.valueOf(ldt)
+      case (number: java.lang.Long, field: ArrowType.Timestamp) =>
         Timestamp.valueOf(
           LocalDateTime.ofInstant(instantOf(number, field.getUnit), zoneOf(field))
         )
-      case other => AttributeTypeUtils.parseTimestamp(other)
+      case (other, _) => AttributeTypeUtils.parseTimestamp(other)
     }
 
   /** The zone a timestamp field counts its numbers in. An unlabelled field counts
