@@ -481,10 +481,8 @@ object TransformVerificationRunner {
         "never match byte-for-byte"),
     classOf[NetworkGraphOpDesc] ->
       ("non-deterministic layout: the native path calls nx.spring_layout with no " +
-        "seed, so node coordinates are random per run (and differ from the " +
-        "seeded standalone path); it also builds its node set via a hash-ordered " +
-        "set() over element-wise-concatenated columns, so the two paths' Plotly " +
-        "figures never match numerically")
+        "seed, so node coordinates are random per run and differ from the seeded " +
+        "standalone path, and the two paths' Plotly figures never match numerically")
   )
 
   sealed trait Disposition
