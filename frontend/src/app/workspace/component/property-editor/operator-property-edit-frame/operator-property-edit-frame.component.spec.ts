@@ -57,6 +57,10 @@ import { DynamicSchemaService } from "../../../service/dynamic-schema/dynamic-sc
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { WorkflowGraph } from "../../../service/workflow-graph/model/workflow-graph";
 import { UiUdfParametersSyncService } from "../../../service/code-editor/ui-udf-parameters-sync.service";
+import { WorkflowPveService } from "../../../service/virtual-environment/virtual-environment.service";
+import { WorkflowWebsocketService } from "../../../service/workflow-websocket/workflow-websocket.service";
+import { TexeraWebsocketEvent } from "../../../types/workflow-websocket.interface";
+import { of, Subject, throwError } from "rxjs";
 
 const { marbles } = configure({ run: false });
 
@@ -1651,6 +1655,71 @@ describe("OperatorPropertyEditFrameComponent", () => {
       expect(validator.expression({ value: { attr: "colA" } } as any, rootField())).toBe(true);
     });
 
+    it("passes without checking anything when no operator is selected", () => {
+      const validator = bindSchema({
+        type: "object",
+        properties: { attr: { type: "string", autofillAttributeOnPort: 0 } },
+        attributeTypeRules: { attr: { enum: ["integer"] } },
+      });
+      const spy = vi.spyOn(compiling, "getOperatorInputAttributeType");
+      component.currentOperatorId = undefined;
+
+      expect(validator.expression({ value: { attr: "colA" } } as any, rootField())).toBe(true);
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it("skips a rule that names a property the schema does not declare", () => {
+      const validator = bindSchema({
+        type: "object",
+        properties: { attr: { type: "string", autofillAttributeOnPort: 0 } },
+        // "missing" has a rule but no matching entry under `properties`.
+        attributeTypeRules: { missing: { enum: ["integer"] } },
+      });
+      const spy = vi.spyOn(compiling, "getOperatorInputAttributeType");
+
+      expect(validator.expression({ value: { attr: "colA" } } as any, rootField())).toBe(true);
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it("skips a property whose schema declares no autofill port", () => {
+      // findAttributeType bails at `isDefined(portIndex)`, so the rule never runs and
+      // the compiling service is never asked for a type.
+      const validator = bindSchema({
+        type: "object",
+        properties: { attr: { type: "string" } },
+        attributeTypeRules: { attr: { enum: ["integer"] } },
+      });
+      const spy = vi.spyOn(compiling, "getOperatorInputAttributeType");
+
+      expect(validator.expression({ value: { attr: "colA" } } as any, rootField())).toBe(true);
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it("skips a const rule that carries no $data reference", () => {
+      const validator = bindSchema({
+        type: "object",
+        properties: { attr: { type: "string", autofillAttributeOnPort: 0 } },
+        attributeTypeRules: { attr: { const: {} } },
+      });
+      vi.spyOn(compiling, "getOperatorInputAttributeType").mockReturnValue("string");
+
+      expect(validator.expression({ value: { attr: "colA" } } as any, rootField())).toBe(true);
+    });
+
+    it("const $data rule passes when both attributes resolve to the same type", () => {
+      const validator = bindSchema({
+        type: "object",
+        properties: {
+          attr: { type: "string", autofillAttributeOnPort: 0 },
+          other: { type: "string", autofillAttributeOnPort: 0 },
+        },
+        attributeTypeRules: { attr: { const: { $data: "other" } } },
+      });
+      vi.spyOn(compiling, "getOperatorInputAttributeType").mockReturnValue("string");
+
+      expect(validator.expression({ value: { attr: "colA", other: "colB" } } as any, rootField())).toBe(true);
+    });
+
     it("enum rule is skipped when the attribute type is undefined (attribute not selected)", () => {
       const validator = bindSchema({
         type: "object",
@@ -2333,5 +2402,261 @@ describe("OperatorPropertyEditFrameComponent", () => {
 
       expect(component.formTitle).toBe("untouched");
     });
+  });
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // Python UDF virtual-environment loading (rerenderEditorForm)
+  //
+  // The branch only runs for a Python UDF operator and the mock metadata has
+  // none, so the dynamic schema is stubbed rather than adding a fixture operator
+  // type. Both collaborators emit synchronously, so nothing here waits on a
+  // timer or reaches a backend.
+  // ──────────────────────────────────────────────────────────────────────────
+  describe("Python UDF environment loading", () => {
+    const udfSchema = () =>
+      ({
+        operatorType: "PythonUDFV2",
+        additionalMetadata: {
+          userFriendlyName: "Python UDF",
+          operatorDescription: "runs python",
+          operatorGroupName: "Python",
+          inputPorts: [],
+          outputPorts: [{}],
+        },
+        jsonSchema: {
+          type: "object",
+          properties: {
+            code: { type: "string" },
+            envName: { type: "string" },
+            defaultEnv: { type: "boolean" },
+          },
+        },
+        operatorVersion: "udf-1",
+      }) as any;
+
+    /** Points the frame at a Python UDF operator and returns the stubbed collaborators. */
+    function selectUdfOperator(opts: { unit?: unknown; pves?: unknown; predicate?: typeof mockScanPredicate } = {}): {
+      fetchPVEs: ReturnType<typeof vi.fn>;
+      notificationError: ReturnType<typeof vi.fn>;
+    } {
+      const predicate = opts.predicate ?? mockScanPredicate;
+      vi.spyOn(TestBed.inject(DynamicSchemaService), "getDynamicSchema").mockReturnValue(udfSchema());
+      // `undefined` means "not specified", so an explicit `null` still reaches the component.
+      const unit = opts.unit === undefined ? { computingUnit: { cuid: 7 } } : opts.unit;
+      vi.spyOn(TestBed.inject(ComputingUnitStatusService), "getSelectedComputingUnit").mockReturnValue(of(unit) as any);
+      const fetchPVEs = vi
+        .spyOn(TestBed.inject(WorkflowPveService), "fetchPVEs")
+        .mockReturnValue((opts.pves ?? of([{ pveName: "env-a" }, { pveName: "env-b" }])) as any);
+      const notificationError = vi
+        .spyOn(TestBed.inject(NotificationService), "error")
+        .mockImplementation(() => undefined as any);
+
+      workflowActionService.addOperator(predicate, mockPoint);
+      component.ngOnChanges({
+        currentOperatorId: new SimpleChange(undefined, predicate.operatorID, true),
+      });
+      fixture.detectChanges();
+      return { fetchPVEs: fetchPVEs as any, notificationError: notificationError as any };
+    }
+
+    const envField = () => component.formlyFields?.[0]?.fieldGroup?.find(f => f.key === "envName");
+
+    it("seeds defaultEnv when the operator's properties do not carry it", () => {
+      selectUdfOperator();
+      expect(component.formData.defaultEnv).toBe(true);
+    });
+
+    it("leaves an explicit defaultEnv alone", () => {
+      selectUdfOperator({
+        predicate: {
+          ...mockScanPredicate,
+          operatorID: "udf-explicit-default",
+          operatorProperties: { defaultEnv: false },
+        },
+      });
+      expect(component.formData.defaultEnv).toBe(false);
+    });
+
+    it("fetches the selected unit's environments and binds them as envName options", () => {
+      const { fetchPVEs } = selectUdfOperator();
+
+      expect(fetchPVEs).toHaveBeenCalledWith(7);
+      expect((envField()?.props as any).options).toEqual([
+        { value: "env-a", label: "env-a" },
+        { value: "env-b", label: "env-b" },
+      ]);
+      // hideEnvNameWhenDefaultEnvChecked also ran on the success path.
+      expect((envField()?.expressions as any).hide).toBe("!!field.parent.model.defaultEnv");
+    });
+
+    it("skips the fetch when the emitted unit carries no cuid", () => {
+      const { fetchPVEs } = selectUdfOperator({ unit: { computingUnit: {} } });
+
+      expect(fetchPVEs).not.toHaveBeenCalled();
+      // The other arm supplies an empty list, so the field binds with no options.
+      expect((envField()?.props as any).options).toEqual([]);
+    });
+
+    it("skips the fetch when no computing unit is selected", () => {
+      const { fetchPVEs } = selectUdfOperator({ unit: null });
+
+      expect(fetchPVEs).not.toHaveBeenCalled();
+      expect((envField()?.props as any).options).toEqual([]);
+    });
+
+    it("reports an Error failure and still binds the form with no environments", () => {
+      const { notificationError } = selectUdfOperator({ pves: throwError(() => new Error("pve down")) });
+
+      expect(notificationError).toHaveBeenCalledWith("Could not load Python virtual environments: pve down");
+      expect((envField()?.props as any).options).toEqual([]);
+      // The fallback binding runs hideEnvNameWhenDefaultEnvChecked too.
+      expect((envField()?.expressions as any).hide).toBe("!!field.parent.model.defaultEnv");
+    });
+
+    it("stringifies a non-Error failure", () => {
+      const { notificationError } = selectUdfOperator({ pves: throwError(() => "plain string failure") });
+
+      expect(notificationError).toHaveBeenCalledWith(
+        "Could not load Python virtual environments: plain string failure"
+      );
+      expect((envField()?.props as any).options).toEqual([]);
+    });
+
+    it("patches nothing when the schema's properties are absent or not an object", () => {
+      // Both take the guard's false side, so the clone comes back unchanged
+      // instead of dereferencing a missing envName property.
+      const noProps = (component as any).patchPythonUdfEnvironmentSchema({ type: "object" }, ["env-a"]);
+      expect(noProps).toEqual({ type: "object" });
+
+      const booleanProps = (component as any).patchPythonUdfEnvironmentSchema({ type: "object", properties: true }, [
+        "env-a",
+      ]);
+      expect(booleanProps).toEqual({ type: "object", properties: true });
+    });
+
+    it("hideEnvNameWhenDefaultEnvChecked is a no-op when the form has no envName field", () => {
+      component.setFormlyFormBinding({ type: "object", properties: { code: { type: "string" } } });
+
+      expect(() => (component as any).hideEnvNameWhenDefaultEnvChecked()).not.toThrow();
+
+      expect(component.formlyFields?.[0]?.fieldGroup?.find(f => f.key === "envName")).toBeUndefined();
+      // No other field picked up the defaultEnv hide rule either.
+      const codeExpressions = component.formlyFields?.[0]?.fieldGroup?.find(f => f.key === "code")?.expressions as any;
+      expect(codeExpressions?.hide).toBeUndefined();
+    });
+  });
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // Early-return guards
+  // ──────────────────────────────────────────────────────────────────────────
+  describe("early-return guards", () => {
+    /**
+     * Feeds a statistics update in through the route production uses: the websocket
+     * event stream, which WorkflowStatusService relays on to its subscribers.
+     * websocketEvent() hands back the subject itself, so no private field is touched.
+     */
+    function emitOperatorStatistics(statistics: Record<string, unknown>): void {
+      (TestBed.inject(WorkflowWebsocketService).websocketEvent() as Subject<TexeraWebsocketEvent>).next({
+        type: "OperatorStatisticsUpdateEvent",
+        operatorStatistics: statistics,
+      } as unknown as TexeraWebsocketEvent);
+    }
+
+    it("ngOnChanges stops before re-rendering when the new operator id is unset", () => {
+      const rerenderSpy = vi.spyOn(component, "rerenderEditorForm");
+
+      component.ngOnChanges({ currentOperatorId: new SimpleChange("op-1", undefined, false) });
+
+      expect(component.currentOperatorId).toBeUndefined();
+      expect(rerenderSpy).not.toHaveBeenCalled();
+    });
+
+    it("the status-update subscription records the update for the selected operator", () => {
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      component.currentOperatorId = mockScanPredicate.operatorID;
+      fixture.detectChanges(); // ngOnInit registers the subscription
+
+      emitOperatorStatistics({ [mockScanPredicate.operatorID]: { some: "status" } });
+
+      expect(component.currentOperatorStatus).toEqual({ some: "status" });
+    });
+
+    it("the status-update subscription ignores updates while no operator is selected", () => {
+      fixture.detectChanges(); // ngOnInit registers the subscription
+      component.currentOperatorId = undefined;
+
+      emitOperatorStatistics({ "op-1": { some: "status" } });
+
+      expect(component.currentOperatorStatus).toBeUndefined();
+    });
+
+    it("the ui-parameter subscription ignores events addressed to a different operator", () => {
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      component.ngOnChanges({
+        currentOperatorId: new SimpleChange(undefined, mockScanPredicate.operatorID, true),
+      });
+      fixture.detectChanges();
+      const before = cloneDeep(component.formData);
+
+      (TestBed.inject(UiUdfParametersSyncService) as any).uiParametersChangedSubject.next({
+        operatorId: "some-other-operator",
+        parameters: [{ attribute: { attributeName: "a", attributeType: "string" }, value: "1" }],
+      });
+
+      expect(component.formData).toEqual(before);
+    });
+
+    it("isHuggingFaceOperator is false when nothing is selected", () => {
+      component.currentOperatorId = undefined;
+      expect((component as any).isHuggingFaceOperator()).toBe(false);
+    });
+
+    it("checkOperatorProperty is false when the operator is no longer in the graph", () => {
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      component.currentOperatorId = mockScanPredicate.operatorID;
+      // Simulate the operator being deleted during the form's debounce window.
+      vi.spyOn(workflowActionService.getTexeraGraph(), "getOperator").mockReturnValue(undefined as any);
+
+      expect(component.checkOperatorProperty({ tableName: "x" })).toBe(false);
+    });
+
+    it("typeInferenceOnLambdaFunction returns early without an input schema map", () => {
+      component.currentOperatorId = "PythonLambdaFunction-op-1";
+      vi.spyOn(TestBed.inject(WorkflowCompilingService), "getOperatorInputSchemaMap").mockReturnValue(undefined);
+      const formData = { lambdaAttributeUnits: [{ attributeName: "a", attributeType: "string" }] };
+
+      component.typeInferenceOnLambdaFunction(formData);
+
+      // Untouched: the method bailed before reaching the mapping loop.
+      expect(formData.lambdaAttributeUnits[0].attributeType).toBe("string");
+    });
+
+    it("typeInferenceOnLambdaFunction returns early when the first port has no schema", () => {
+      component.currentOperatorId = "PythonLambdaFunction-op-1";
+      vi.spyOn(TestBed.inject(WorkflowCompilingService), "getOperatorInputSchemaMap").mockReturnValue({
+        0: undefined,
+      } as any);
+      const formData = { lambdaAttributeUnits: [{ attributeName: "a", attributeType: "string" }] };
+
+      component.typeInferenceOnLambdaFunction(formData);
+
+      expect(formData.lambdaAttributeUnits[0].attributeType).toBe("string");
+    });
+
+    it("no property is written when the operator is deselected mid-debounce", fakeAsync(() => {
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      component.currentOperatorId = mockScanPredicate.operatorID;
+      fixture.detectChanges(); // ngOnInit registers the handler
+      const setProperty = vi.spyOn(workflowActionService, "setOperatorProperty");
+
+      // checkOperatorProperty gates the stream after the debounce, so clearing the
+      // selection in the debounce window drops the event before any write happens.
+      component.sourceFormChangeEventStream.next({ tableName: "x" });
+      component.currentOperatorId = undefined;
+      tick(FORM_DEBOUNCE_TIME_MS);
+
+      expect(setProperty).not.toHaveBeenCalled();
+      discardPeriodicTasks();
+    }));
   });
 });

@@ -168,9 +168,27 @@ abstract class SklearnModelOpDesc extends PythonOperatorDescriptor {
   @JsonIgnore
   def getUserFriendlyModelName: String
 
+  /** An estimator that cannot be fitted on the sparse matrix `CountVectorizer`
+    * produces names here what to reach for instead, and turning the switch on
+    * stops the workflow at compile time rather than inside scikit-learn.
+    *
+    * The switch is declared on this base, so every estimator in both families
+    * inherits it whether or not its own can use it.
+    */
+  @JsonIgnore
+  protected def countVectorizerAlternatives: Option[String] = None
+
   override def getOutputSchemas(
       inputSchemas: Map[PortIdentity, Schema]
   ): Map[PortIdentity, Schema] = {
+    if (countVectorizer) {
+      countVectorizerAlternatives.foreach { alternatives =>
+        throw new RuntimeException(
+          s"$getUserFriendlyModelName cannot be trained on the sparse matrix Count Vectorizer" +
+            s" produces. Turn Count Vectorizer off, or use $alternatives."
+        )
+      }
+    }
     Map(
       operatorInfo.outputPorts.head.id -> Schema()
         .add("model_name", AttributeType.STRING)
