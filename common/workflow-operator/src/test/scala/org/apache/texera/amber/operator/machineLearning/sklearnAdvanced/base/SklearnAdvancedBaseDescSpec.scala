@@ -227,6 +227,14 @@ class SklearnAdvancedBaseDescSpec extends AnyFlatSpec with Matchers {
     Seq("abc", "", "scaleauto", "1.2.3").foreach(v => v.matches(pattern) shouldBe false)
   }
 
+  it should "name the parameter as the config spells it, not as the estimator does" in {
+    // SVR's `shrinking` is offered by a constant named `probability`, and a chosen parameter
+    // reaches the config as the constant. A condition naming the keyword instead would hold
+    // for nothing, leaving the value it constrains free.
+    val shrinking = ruleFor(valueRulesOf(classOf[SklearnAdvancedSVRTrainerOpDesc]), "probability")
+    shrinking.path("enum").elements().asScala.map(_.asText()).toSeq shouldBe Seq("true", "false")
+  }
+
   it should "state a rule for every parameter whose converter says anything about it" in {
     val rules = valueRulesOf(classOf[SklearnAdvancedKNNClassifierTrainerOpDesc])
     val covered = rules

@@ -127,7 +127,7 @@ abstract class SklearnMLOperatorDescriptor[T <: ParamClass]
       condition
         .putObject("parameter")
         .putArray("valEnum")
-        .add(param.getName)
+        .add(chosenValueOf(param))
 
       val outcome = objectMapper.createObjectNode()
       if (param.getAllowedValues.nonEmpty) {
@@ -161,6 +161,17 @@ abstract class SklearnMLOperatorDescriptor[T <: ParamClass]
         .putObject("valueRules")
         .set[ObjectNode]("allOf", branches)
   }
+
+  /** What a chosen `parameter` holds in the config, which a rule's condition has to name to
+    * hold: the enum constant, since that is what Jackson writes and what the form compares
+    * against. Not `getName`, the keyword the emitted Python passes on, which SVR's `shrinking`
+    * spells differently from the constant offering it.
+    */
+  private def chosenValueOf(param: ParamClass): String =
+    param match {
+      case constant: Enum[_] => constant.name
+      case _                 => param.getName
+    }
 
   /** Puts a declared bound under the JSON Schema name for it, `>` and `>=` being the two forms
     * an estimator's range takes at the low end. A bound spelled any other way is skipped
