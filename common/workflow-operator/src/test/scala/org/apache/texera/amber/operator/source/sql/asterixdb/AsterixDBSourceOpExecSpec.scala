@@ -600,9 +600,16 @@ class AsterixDBSourceOpExecSpec
     // never rewrites an entry that is already present, so a stale version (which
     // selects a different `format` field) would otherwise survive forever in
     // this singleton.
-    AsterixDBConnUtil.asterixDBVersionMapping += (host -> "0.0.0")
-    exec.open()
-    AsterixDBConnUtil.asterixDBVersionMapping.get(host) shouldBe Some("0.9.9")
+    val prev = AsterixDBConnUtil.asterixDBVersionMapping.get(host)
+    try {
+      AsterixDBConnUtil.asterixDBVersionMapping += (host -> "0.0.0")
+      exec.open()
+      AsterixDBConnUtil.asterixDBVersionMapping.get(host) shouldBe Some("0.9.9")
+    } finally {
+      prev.fold(AsterixDBConnUtil.asterixDBVersionMapping -= host)(v =>
+        AsterixDBConnUtil.asterixDBVersionMapping += (host -> v)
+      )
+    }
   }
 
   it should "reject a table that the AsterixDB instance does not expose" in {

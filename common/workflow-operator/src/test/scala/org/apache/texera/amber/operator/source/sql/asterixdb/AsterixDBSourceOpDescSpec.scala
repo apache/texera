@@ -121,8 +121,8 @@ class AsterixDBSourceOpDescSpec extends AnyFlatSpec with Matchers with BeforeAnd
   override protected def afterAll(): Unit = {
     try {
       server.stop(0)
-      // Drop only this suite's key from AsterixDBConnUtil's host-keyed version
-      // cache singleton, so a sibling asterixdb suite keeps its own entry.
+      // Clean up AsterixDBConnUtil's host-keyed version cache to avoid leaking
+      // state into other tests that may reuse the same host key.
       AsterixDBConnUtil.asterixDBVersionMapping -= host
     } finally super.afterAll()
   }
@@ -241,17 +241,34 @@ class AsterixDBSourceOpDescSpec extends AnyFlatSpec with Matchers with BeforeAnd
   }
 
   it should "be applied by sourceSchema before it issues any query" in {
-    // `default` is the port the shipped descriptor actually carries (see
-    // TestOperatorsSpec), and sourceSchema's call to updatePort is the only
-    // place in production that ever resolves it. Driving updatePort directly,
-    // as the test above does, cannot tell whether that call site still exists.
-    val d = configured()
-    d.port = "default"
-    // updatePort runs after the four requires and before the first HTTP call,
-    // so what the (unserved) real AsterixDB port answers is irrelevant: the
-    // resolution has already happened by the time the connection is refused.
-    Try(d.sourceSchema())
-    d.port shouldBe "19002"
+    // sourceSchema resolves `default` to 19002; stand up a minimal stub there so
+    // the test doesn't depend on an external AsterixDB process.
+    val defaultPortServer = Try(HttpServer.create(new InetSocketAddress(19002), 0)).getOrElse {
+      cancel("port 19002 is unavailable; cannot verify updatePort integration without a local stub")
+    }
+    try {
+      defaultPortServer.createContext(
+        "/admin/version",
+        (exchange: HttpExchange) => respond(exchange, """{"git.build.version":"0.9.9"}""")
+      )
+      defaultPortServer.createContext(
+        "/query/service",
+        (exchange: HttpExchange) => {
+          val is = exchange.getRequestBody
+          val body =
+            try new String(is.readAllBytes(), StandardCharsets.UTF_8)
+            finally is.close()
+          val statement = formField(body, "statement")
+          respond(exchange, responseFor(statement))
+        }
+      )
+      defaultPortServer.start()
+
+      val d = configured()
+      d.port = "default"
+      d.sourceSchema()
+      d.port shouldBe "19002"
+    } finally defaultPortServer.stop(0)
   }
 
   // ---------------------------------------------------------------------------
