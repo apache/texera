@@ -18,6 +18,7 @@
  */
 
 import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { By } from "@angular/platform-browser";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { DEFAULT_WORKFLOW } from "../../../service/workflow-graph/model/workflow-action.service";
 import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
@@ -297,6 +298,26 @@ describe("VersionsListComponent", () => {
       expect(rows[0].querySelector("button.version-link")!.textContent?.trim()).toMatch(
         /^\d{2}\/\d{2}\/\d{2} \d{2}:\d{2}:\d{2}$/
       );
+    });
+
+    it("reveals and re-hides the minor versions behind the expand control", () => {
+      // collapse() is driven directly in its own describe above; this goes through
+      // the table's expand control, which is the binding that would break if
+      // (nzExpandChange) or the [(nzExpand)] write-back were dropped.
+      renderRows([makeEntry(3, true), makeEntry(2, false, false), makeEntry(1, false, false)]);
+      const expandCell = fixture.debugElement.query(By.css("td.version-link"));
+
+      expandCell.triggerEventHandler("nzExpandChange", true);
+      fixture.detectChanges();
+
+      expect(fixture.nativeElement.querySelectorAll("tbody tr")).toHaveLength(3);
+      expect(component.versionsList![0].expand).toBe(true);
+
+      expandCell.triggerEventHandler("nzExpandChange", false);
+      fixture.detectChanges();
+
+      expect(fixture.nativeElement.querySelectorAll("tbody tr")).toHaveLength(1);
+      expect(component.versionsList![0].expand).toBe(false);
     });
   });
 });

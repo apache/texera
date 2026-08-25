@@ -588,6 +588,8 @@ jobs:
         # storage.conf is followed by a `${?VAR}` env-override line whose
         # name is globally unique, so anchoring grep on that override line
         # selects the value unambiguously across nested scopes.
+        # The key-prefix below is a literal instead: no runtime code reads it,
+        # so it is not in storage.conf. It must stay non-empty (#7739).
         run: |
           CONF=common/config/src/main/resources/storage.conf
           extract() {
@@ -629,6 +631,7 @@ jobs:
             "storage-profile": {
               "type": "s3",
               "bucket": "$S3_BUCKET",
+              "key-prefix": "shared",
               "region": "$S3_REGION",
               "endpoint": "$S3_ENDPOINT",
               "flavor": "s3-compat",

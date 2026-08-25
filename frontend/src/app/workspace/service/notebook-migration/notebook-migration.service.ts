@@ -163,6 +163,24 @@ export class NotebookMigrationService {
     }
   }
 
+  // Remove a workflow's notebook file from the Jupyter pod. Takes a concrete wid so it can
+  // never fall back to the shared default filename and delete the wrong file; callers guard
+  // out unsaved workflows before calling. Best effort by design: the database rows are the
+  // source of truth for whether a workflow has a notebook, so a failure here is logged, not
+  // surfaced, and nothing acts on the outcome.
+  public async deleteNotebookForWorkflow(wid: number): Promise<void> {
+    if (!this.enabled) return;
+    if (!Number.isInteger(wid) || wid <= 0) return;
+    const jupyterAPIUrl = `${AppSettings.getApiEndpoint()}/notebook-migration/delete-notebook`;
+    const headers = new HttpHeaders({ "Content-Type": "application/json" });
+
+    try {
+      await firstValueFrom(this.http.post(jupyterAPIUrl, { notebookName: notebookFileName(wid) }, { headers }));
+    } catch (error) {
+      console.error("Error deleting notebook from pod: ", error);
+    }
+  }
+
   public async getJupyterURL(): Promise<string | null> {
     if (!this.enabled) return null;
     try {
@@ -210,8 +228,7 @@ export class NotebookMigrationService {
   public storeNotebookAndMapping(
     wid: number | undefined,
     mappingContent: any,
-    notebookContent: any,
-    vid: number = 1
+    notebookContent: any
   ): Observable<StoreNotebookResponse> {
     if (!this.enabled) {
       return of({ success: false, message: "Notebook migration feature is disabled" });
@@ -219,9 +236,10 @@ export class NotebookMigrationService {
     const dbAPIUrl = `${AppSettings.getApiEndpoint()}/notebook-migration/store-notebook-and-mapping`;
     const headers = new HttpHeaders({ "Content-Type": "application/json" });
 
+    // The mapping's version id (vid) is resolved server-side from the workflow's
+    // latest version to anchor its FK, so no vid is sent from here.
     const payload = {
       wid,
-      vid,
       mapping: mappingContent,
       notebook: notebookContent,
     };
