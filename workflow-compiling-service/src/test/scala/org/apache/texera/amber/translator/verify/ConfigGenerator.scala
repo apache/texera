@@ -398,7 +398,7 @@ object ConfigGenerator {
       baseNode: JsonNode
   ): Seq[Variant] =
     configFields(clazz).filter(hasAutofill).filterNot(hiddenBySibling(_, baseNode)).flatMap { f =>
-      columnFill(f, baseNode, pointerOf(f, ""), schemas, used, baseNode).map {
+      columnFill(clazz, f, baseNode, pointerOf(f, ""), schemas, used, baseNode).map {
         case (pointer, value) =>
           // A list knob holds its one column in an array; name the column either way.
           val col = if (value.isArray) value.path(0).asText else value.asText
@@ -562,7 +562,7 @@ object ConfigGenerator {
             else Some(Variant(s"${rowPath.stripPrefix("/")}=filled", fills))
           }
         case None =>
-          leafFill(f, baseNode, childPath, schemas, rowCount)
+          leafFill(clazz, f, baseNode, childPath, schemas, rowCount)
             .map(fill => Variant(s"${fill._1.stripPrefix("/")}=${fill._2.asText}", Seq(fill)))
             .toSeq
       }
@@ -703,9 +703,9 @@ object ConfigGenerator {
           rowPaths(f, baseNode.at(childPath), childPath)
             .flatMap(rowPath => rowFills(row, baseNode, rowPath, schemas, used, rowCount, ordinal))
         case None if hasAutofill(f) =>
-          columnFill(f, baseNode, childPath, schemas, used, baseNode.at(path)).toSeq
+          columnFill(clazz, f, baseNode, childPath, schemas, used, baseNode.at(path)).toSeq
         case None =>
-          val fill = leafFill(f, baseNode, childPath, schemas, rowCount, ordinal.peek)
+          val fill = leafFill(clazz, f, baseNode, childPath, schemas, rowCount, ordinal.peek)
           if (fill.nonEmpty) ordinal.taken()
           fill.toSeq
       }
@@ -716,8 +716,14 @@ object ConfigGenerator {
     *
     * Shared by the top-level pass and the row pass so both obey the same rule: an
     * optional picker takes the first unused column that fits its declared type.
+    *
+    * `owner` is the object the field belongs to, NOT the class that declares it: a
+    * knob a family shares is declared on the abstract base, which has no instance to
+    * read a default off, and every such knob then read as one the config had already
+    * set and was skipped.
     */
   private def columnFill(
+      owner: Class[_],
       f: Field,
       baseNode: JsonNode,
       childPath: String,
@@ -726,7 +732,7 @@ object ConfigGenerator {
       siblings: JsonNode
   ): Option[(String, JsonNode)] = {
     val required = Option(f.getAnnotation(classOf[JsonProperty])).exists(_.required)
-    val untouched = defaultsOf(f.getDeclaringClass).path(jsonNameOf(f))
+    val untouched = defaultsOf(owner).path(jsonNameOf(f))
     if (required || baseNode.at(childPath) != untouched) None
     else {
       val spec = autofillSpec(f).getOrElse(AutofillSpec(port = 0, holdsList = false))
@@ -779,6 +785,7 @@ object ConfigGenerator {
     * the knobs of one row do not collide — see [[rowFills]].
     */
   private def leafFill(
+      owner: Class[_],
       f: Field,
       baseNode: JsonNode,
       childPath: String,
@@ -792,7 +799,7 @@ object ConfigGenerator {
     // them, so absence alone no longer tells us anything).
     val current = baseNode.at(childPath)
     val unset = current.isMissingNode ||
-      current == defaultsOf(f.getDeclaringClass).path(jsonNameOf(f))
+      current == defaultsOf(owner).path(jsonNameOf(f))
     // A knob whose values the field DECLARES is left to its declaration: the enum
     // sweep covers a declared value list, and a knob offering an `examples` value
     // takes that one. Reading `examples` on its own, rather than only alongside a
