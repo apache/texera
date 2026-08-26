@@ -330,6 +330,28 @@ describe("ReportGenerationService", () => {
   });
 
   describe("generateWorkflowSnapshot", () => {
+    /**
+     * html2canvas clones the whole document, not just the element it is pointed at, and the
+     * unit-test builder runs spec files with `isolate: false` — so one jsdom document is shared
+     * by every spec file in a worker, and the renders below drag in whatever DOM the files
+     * before this one left behind. That is what failed the macOS leg: a clone that costs ~60ms
+     * against this file's own DOM was measured at 12–37s there, past the 20s test timeout,
+     * while ubuntu and windows passed. Park the foreign nodes for the duration of the file and
+     * put them back after, so the render's cost depends only on what these tests build. The
+     * renders started here outlive the tests that start them, so this has to span the file
+     * rather than each test.
+     */
+    let parkedNodes: ChildNode[];
+
+    beforeAll(() => {
+      parkedNodes = Array.from(document.body.childNodes);
+      parkedNodes.forEach(node => node.remove());
+    });
+
+    afterAll(() => {
+      parkedNodes.forEach(node => document.body.appendChild(node));
+    });
+
     it("fails when the editor is not on the page", async () => {
       await expect(firstValueFrom(service.generateWorkflowSnapshot("myflow"))).rejects.toBe(
         "Workflow editor element not found"
@@ -431,6 +453,10 @@ describe("ReportGenerationService", () => {
         editor = document.createElement("div");
         editor.id = "workflow-editor";
         document.body.appendChild(editor);
+        // The render these tests start is left to fail on its own, but jsdom announces its
+        // missing 2D context on the virtual console, so an otherwise clean run carries a stack
+        // trace per test. Hand back what jsdom hands back after complaining, minus the complaint.
+        vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null as never);
       });
 
       afterEach(() => {

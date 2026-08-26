@@ -192,6 +192,45 @@ G.ResizeObserver ??= class {
   disconnect(): void {}
 };
 
+// `window.getComputedStyle(elt, pseudoElt)` and `window.scrollTo` — jsdom
+// implements neither. Both route through its `notImplemented` helper, which
+// emits a `jsdomError` on the virtual console; vitest's jsdom environment
+// forwards that to `console.error`, one full stack trace per call. html2canvas
+// calls both on every render — a `:before` and an `:after` lookup for each
+// cloned node, plus one `scrollTo` per document clone — so the
+// report-generation spec, which drives the real renderer on purpose (`vi.mock`
+// can't reach it under the builder's `isolate: false`), buries the run in
+// traces while all of its tests pass.
+// Dropping `pseudoElt` changes no behaviour: jsdom complains and then ignores
+// the argument, returning the element's own declaration either way. `scrollTo`
+// has nothing to move — jsdom has no layout.
+const jsdomGetComputedStyle = G.getComputedStyle as ((elt: Element, pseudoElt?: string | null) => unknown) | undefined;
+if (typeof jsdomGetComputedStyle === "function") {
+  const withoutPseudoElement = ((elt: Element) => jsdomGetComputedStyle(elt)) as AnyFn;
+  G.getComputedStyle = withoutPseudoElement;
+  if (G.window) G.window.getComputedStyle = withoutPseudoElement;
+}
+const inertScrollTo: AnyFn = () => undefined;
+G.scrollTo = inertScrollTo;
+if (G.window) G.window.scrollTo = inertScrollTo;
+// The `scrollTo` html2canvas actually reaches for belongs to the throwaway
+// iframe it clones the page into, not to this window, and jsdom installs the
+// method on each window instance rather than on a shared prototype — so it has
+// to be neutered as each `contentWindow` is handed out.
+const iframeProto = G.HTMLIFrameElement?.prototype;
+const contentWindow = iframeProto && Object.getOwnPropertyDescriptor(iframeProto, "contentWindow");
+if (contentWindow?.get) {
+  const getContentWindow = contentWindow.get;
+  Object.defineProperty(iframeProto, "contentWindow", {
+    ...contentWindow,
+    get(): unknown {
+      const frameWindow = getContentWindow.call(this) as Record<string, unknown> | null;
+      if (frameWindow) frameWindow.scrollTo = inertScrollTo;
+      return frameWindow;
+    },
+  });
+}
+
 // `WebSocket` — y-websocket schedules a reconnect timer the moment a
 // collaborative-editing service is constructed. When that timer fires AFTER
 // vitest has begun tearing down the jsdom window, jsdom's WebSocket
