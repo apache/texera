@@ -135,4 +135,25 @@ class SklearnAdvancedBaseDescSpec extends AnyFlatSpec with Matchers {
     paramString should include("n_neighbors = int(table[")
     paramString should include(".values[i]")
   }
+
+  it should "refuse two rows setting one parameter, whichever source they read" in {
+    val d = new TestSklearnMLOp
+    val paraList = List(
+      hyperParam("n_neighbors", "int", fromWorkflow = false, value = "5"),
+      hyperParam("n_neighbors", "int", fromWorkflow = true, attribute = "k_col")
+    )
+    val thrown = the[IllegalArgumentException] thrownBy d.getParameter(paraList)
+    thrown.getMessage should include("n_neighbors")
+  }
+
+  it should "accept rows setting different parameters" in {
+    val d = new TestSklearnMLOp
+    val paraList = List(
+      hyperParam("n_neighbors", "int", fromWorkflow = false, value = "5"),
+      hyperParam("leaf_size", "int", fromWorkflow = false, value = "30")
+    )
+    val paramString = d.getParameter(paraList)(1).encode
+    paramString.filterNot(_.isWhitespace) should include("n_neighbors=int(")
+    paramString.filterNot(_.isWhitespace) should include("leaf_size=int(")
+  }
 }

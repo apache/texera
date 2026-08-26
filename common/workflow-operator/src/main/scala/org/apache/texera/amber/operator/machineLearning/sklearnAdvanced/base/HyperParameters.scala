@@ -29,6 +29,9 @@ import org.apache.texera.amber.operator.metadata.annotations.{
 
 class HyperParameters[T] {
 
+  // Two rows naming one parameter emit its keyword argument twice, which the generated
+  // Python will not compile, so the form warns on the row rather than letting it be added.
+  @JsonSchemaInject(json = """{ "uniqueAmongRows": true }""")
   @JsonProperty(required = true)
   @JsonSchemaTitle("Parameter")
   @JsonPropertyDescription("Choose the name of the parameter")

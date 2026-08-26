@@ -1794,6 +1794,36 @@ describe("OperatorPropertyEditFrameComponent", () => {
       );
     });
 
+    it("adds a uniqueAmongRows validator that rejects a value another row already holds", () => {
+      component.setFormlyFormBinding({
+        type: "object",
+        properties: {
+          paraList: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: { parameter: { type: "string", uniqueAmongRows: true } },
+            },
+          },
+        },
+      } as CustomJSONSchema7);
+      // A row's own fields exist only once formly is asked to build a row.
+      const arrayField = getField("paraList")!;
+      const rowField = (arrayField.fieldArray as (root: FormlyFieldConfig) => FormlyFieldConfig)(arrayField);
+      const validator = rowField.fieldGroup?.find(f => f.key === "parameter")?.validators?.["uniqueAmongRows"];
+      expect(validator).toBeDefined();
+
+      const twoRowsSettingC = {
+        key: "parameter",
+        parent: { parent: { model: [{ parameter: "C" }, { parameter: "C" }] } },
+      } as any;
+      expect(validator!.expression({ value: "C" } as any, twoRowsSettingC)).toBe(false);
+      expect(validator!.expression({ value: "kernel" } as any, twoRowsSettingC)).toBe(true);
+      expect(validator!.message(null, { formControl: { value: "C" } } as any)).toBe(
+        '"C" is already set by another row'
+      );
+    });
+
     it("maps datasetVersionPath to the datasetversionselector field type", () => {
       component.setFormlyFormBinding({
         type: "object",

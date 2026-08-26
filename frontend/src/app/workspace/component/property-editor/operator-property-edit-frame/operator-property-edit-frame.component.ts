@@ -1153,6 +1153,24 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
         };
       }
 
+      // A field the schema marks unique holds a meaning the enclosing list cannot repeat.
+      // uniqueItems cannot say this: two hyperparameter rows naming one parameter differ in
+      // their other fields, so they are distinct items while still emitting one keyword twice.
+      if (mapSource.uniqueAmongRows === true) {
+        mappedField.validators.uniqueAmongRows = {
+          expression: (control: AbstractControl, field: FormlyFieldConfig) => {
+            const rows = field.parent?.parent?.model;
+            const key = field.key;
+            if (!isDefined(control?.value) || !Array.isArray(rows) || typeof key !== "string") {
+              return true;
+            }
+            return rows.filter(row => isDefined(row) && row[key] === control.value).length <= 1;
+          },
+          message: (error: any, field: FormlyFieldConfig) =>
+            `"${field.formControl?.value}" is already set by another row`,
+        };
+      }
+
       // Add custom validators for attribute type
       if (isDefined(mapSource.attributeTypeRules)) {
         mappedField.validators.checkAttributeType = {

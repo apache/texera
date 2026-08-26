@@ -69,4 +69,7 @@ export interface CustomJSONSchema7 extends JSONSchema7 {
   hideOnNull?: boolean;
 
   additionalEnumValue?: string;
+
+  // no two rows of the enclosing list may hold the same value for this field
+  uniqueAmongRows?: boolean;
 }
