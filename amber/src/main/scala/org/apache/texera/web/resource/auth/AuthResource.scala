@@ -368,10 +368,6 @@ class AuthResource {
     val existingByEmail = fetchUserByEmailIgnoreCase(useremail)
     val emailExists = existingByEmail != null
 
-    // A placeholder account (created for a dataset contributor, never had any
-    // credential) is claimed by the first registration with its email. The
-    // account keeps its uid, so existing contributor links stay valid, and it
-    // stays INACTIVE until an admin approves it.
     if (!usernameExists && emailExists && existingByEmail.getIsPlaceholder) {
       existingByEmail.setName(username)
       claimPlaceholder(existingByEmail)
