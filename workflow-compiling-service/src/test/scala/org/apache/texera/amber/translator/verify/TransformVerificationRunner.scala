@@ -267,12 +267,16 @@ object TransformVerificationRunner {
         "tfidfTransformer" -> BooleanNode.FALSE
       )
     )
-    // Only these two families narrow `X`; the advanced trainers and Linear
-    // Regression read the same fixture and would take the text column straight
-    // into `fit`.
+    // The advanced trainers are the ones left out: they name the feature columns
+    // themselves rather than taking every column but the target, so a column an
+    // estimator cannot fit is not reachable for them.
     Map(
       classOf[SklearnClassifierOpDesc] -> Seq(countVectorizerText, tfidfText, nonFeatureColumn),
-      classOf[SklearnTrainingOpDesc] -> Seq(countVectorizerText, tfidfText, nonFeatureColumn)
+      classOf[SklearnTrainingOpDesc] -> Seq(countVectorizerText, tfidfText, nonFeatureColumn),
+      // No text scenarios, and nothing pinned: this operator declares neither
+      // switch, and a pin is set on the config whether or not the field exists,
+      // so pinning one here would hand it a property it cannot read back.
+      classOf[SklearnLinearRegressionOpDesc] -> Seq(nonFeatureColumn.copy(pinned = Map.empty))
     )
   }
 
