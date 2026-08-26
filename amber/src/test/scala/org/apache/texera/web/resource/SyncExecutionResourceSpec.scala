@@ -82,6 +82,7 @@ import org.scalatest.{BeforeAndAfterAll, PrivateMethodTester}
 
 import java.net.URI
 import java.sql.Timestamp
+import java.util.concurrent.{FutureTask, TimeUnit}
 import scala.jdk.CollectionConverters._
 
 /**
@@ -420,6 +421,21 @@ class SyncExecutionResourceSpec
   it should "reject unrelated and empty cause chains" in {
     resource invokePrivate isCausedByTimeout(new RuntimeException("other")) shouldBe false
     resource invokePrivate isCausedByTimeout(null.asInstanceOf[Throwable]) shouldBe false
+  }
+
+  it should "reject a cyclic cause chain without hanging" in {
+    val first = new RuntimeException("first")
+    val second = new RuntimeException("second")
+    first.initCause(second)
+    second.initCause(first)
+
+    val classification =
+      new FutureTask[Boolean](() => resource invokePrivate isCausedByTimeout(first))
+    val classificationThread = new Thread(classification)
+    classificationThread.setDaemon(true)
+    classificationThread.start()
+
+    classification.get(1, TimeUnit.SECONDS) shouldBe false
   }
 
   "stateToString" should "name every aggregated state and fall back to Unknown" in {

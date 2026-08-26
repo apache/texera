@@ -833,13 +833,15 @@ class SyncExecutionResource extends LazyLogging {
   }
 
   private def isCausedByTimeout(error: Throwable): Boolean = {
+    val visited = new java.util.IdentityHashMap[Throwable, java.lang.Boolean]()
+
     @scala.annotation.tailrec
     def loop(current: Throwable): Boolean =
       current match {
-        case null                                         => false
-        case _: java.util.concurrent.TimeoutException     => true
-        case throwable if throwable.getCause eq throwable => false
-        case throwable                                    => loop(throwable.getCause)
+        case null                                                                => false
+        case _: java.util.concurrent.TimeoutException                            => true
+        case throwable if visited.put(throwable, java.lang.Boolean.TRUE) != null => false
+        case throwable                                                           => loop(throwable.getCause)
       }
 
     loop(error)
