@@ -196,8 +196,10 @@ object CanonicalFixture extends SharedFixture {
 
   /** [[sklearnNumeric]] plus a column an estimator cannot fit. The families that
     * narrow `X` to the fittable columns drop nothing on the numeric table, so the
-    * narrowing runs there without being tested; here it has a column to drop and
-    * a name to print, and both paths have to agree on which.
+    * narrowing runs there with nothing to do. Here it has a column to drop, and
+    * the two paths narrow in different places: the operator once, ahead of the
+    * port branch; the standalone script once per port. Each has to drop it on its
+    * own.
     *
     * The text column carries no signal about the label, so the fit is the one the
     * two petal columns give on their own.
