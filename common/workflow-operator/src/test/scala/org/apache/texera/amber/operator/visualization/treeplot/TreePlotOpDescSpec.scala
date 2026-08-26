@@ -56,6 +56,14 @@ class TreePlotOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matchers {
     val code = opDesc.generatePythonCode()
     assert(carries(code, "edge_pairs"))
     code should include("class ProcessTableOperator(UDFTableOperator)")
-    code should include("Graph.TupleList")
+    code should include("self.build_tree_layout(edges)")
+  }
+
+  // igraph is GPL v2, Category X under the ASF 3rd party license policy, so the
+  // layout has to stay something the repository can actually ship.
+  it should "not reach for igraph in either generated path" in {
+    opDesc.edgeListColumn = "edge_pairs"
+    opDesc.generatePythonCode().toLowerCase should not include "igraph"
+    opDesc.generateStandaloneCode().toLowerCase should not include "igraph"
   }
 }
