@@ -75,6 +75,16 @@ class SklearnLinearRegressionOpDescSpec extends AnyFlatSpec with Matchers {
     code should include("X = _fittable")
   }
 
+  // Narrowing a table whose every column but the target is text leaves a frame of
+  // no columns, which numpy answers with `at least one array or dtype is required`.
+  it should "say so when the narrowing leaves no column at all" in {
+    val d = new SklearnLinearRegressionOpDesc
+    d.target = "y"
+    val code = d.generatePythonCode()
+    code should include("if _fittable.columns.empty:")
+    code should include("No column left to fit on")
+  }
+
   "SklearnLinearRegressionOpDesc" should
     "round-trip its target through the polymorphic base" in {
     val d = new SklearnLinearRegressionOpDesc
