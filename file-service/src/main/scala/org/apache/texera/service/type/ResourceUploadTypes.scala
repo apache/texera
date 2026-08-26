@@ -17,10 +17,20 @@
  * under the License.
  */
 
-package org.apache.texera.web.resource
+package org.apache.texera.service.`type`
 
-case class SuccessExecutionResult(
-    resultID: String,
-    code: Integer = 0,
-    result: List[String] = List()
+/**
+  * A staged (uncommitted) change in a versioned resource repository.
+  *
+  * @param sizeBytes size of the changed file, None for directories
+  */
+case class Diff(
+    path: String,
+    pathType: String,
+    diffType: String, // "added", "removed", "changed", etc.
+    sizeBytes: Option[Long]
 )
+
+case class ExistingUploadFile(path: String, sizeBytes: Long)
+
+case class ExistingUploadFilesRequest(files: List[ExistingUploadFile])

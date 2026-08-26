@@ -75,4 +75,32 @@ class SklearnModelOpDescSpec extends AnyFlatSpec with Matchers {
     )
     d.getOutputSchemas(arbitraryInput) shouldBe fromEmpty
   }
+
+  it should "let Count Vectorizer through for an estimator that named no alternative" in {
+    // The default, and what every estimator but GaussianNB relies on: the sparse
+    // matrix is what the others accept.
+    val d = new TestSklearnModelOpDesc
+    d.countVectorizer = true
+    d.getOutputSchemas(Map.empty).keySet shouldBe Set(d.operatorInfo.outputPorts.head.id)
+  }
+
+  it should "reject Count Vectorizer for an estimator that named one" in {
+    val d = new TestSklearnModelOpDesc {
+      override protected def countVectorizerAlternatives: Option[String] = Some("Some Other Model")
+    }
+    d.countVectorizer = true
+    val thrown = intercept[RuntimeException](d.getOutputSchemas(Map.empty))
+    thrown.getMessage should include("Test Model")
+    thrown.getMessage should include("Count Vectorizer")
+    thrown.getMessage should include("Some Other Model")
+  }
+
+  it should "stay silent while Count Vectorizer is off, whatever the estimator" in {
+    // The switch defaults to off, so a freshly dropped operator must not be
+    // reported invalid before anyone has configured it.
+    val d = new TestSklearnModelOpDesc {
+      override protected def countVectorizerAlternatives: Option[String] = Some("Some Other Model")
+    }
+    d.getOutputSchemas(Map.empty).keySet shouldBe Set(d.operatorInfo.outputPorts.head.id)
+  }
 }
