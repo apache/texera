@@ -125,6 +125,10 @@ describe("AgentService", () => {
 
   afterEach(() => {
     httpMock.verify();
+    // Belt and braces: TestBed rebuilds the injector per test, so the spies installed
+    // on the service's own collaborators are already discarded with it. This keeps the
+    // spec safe if any of them ever moves to a shared provider.
+    vi.restoreAllMocks();
   });
 
   describe("createAgent", () => {
@@ -444,6 +448,7 @@ describe("AgentService", () => {
     afterEach(() => {
       vi.unstubAllGlobals();
       vi.useRealTimers();
+      vi.restoreAllMocks();
     });
 
     describe("activateAgent / deactivateAgent", () => {
@@ -492,6 +497,135 @@ describe("AgentService", () => {
         FakeWebSocket.latest().readyState = FakeWebSocket.OPEN;
         expect(service.isAgentActivelyConnected("agent-1")).toBe(true);
         expect(service.getActivelyConnectedAgentIds()).toEqual(["agent-1"]);
+      });
+
+      it("keeps an already-open socket on re-activation and replaces a non-open one", () => {
+        seedAgent("agent-1");
+        service.activateAgent("agent-1");
+        const tracking = (service as any).agentStateTracking.get("agent-1");
+        const ws = FakeWebSocket.latest();
+
+        // deactivateAgent always drops the socket, so the "inactive but still
+        // holding a socket" shape that activateAgent's readyState guard defends
+        // against is set up directly.
+        ws.readyState = FakeWebSocket.OPEN;
+        tracking.isActive = false;
+        expect(service.activateAgent("agent-1")).toBe(true);
+        expect(FakeWebSocket.instances.length).toBe(1);
+        expect(tracking.websocket).toBe(ws);
+
+        // The same shape with a socket that is no longer OPEN reconnects instead.
+        ws.readyState = FakeWebSocket.CLOSED;
+        tracking.isActive = false;
+        expect(service.activateAgent("agent-1")).toBe(true);
+        expect(FakeWebSocket.instances.length).toBe(2);
+        expect(tracking.websocket).toBe(FakeWebSocket.latest());
+      });
+
+      it("ignores deactivation of an unknown agent and of an already-inactive one", () => {
+        service.deactivateAgent("nope");
+        expect((service as any).agentStateTracking.has("nope")).toBe(false);
+
+        seedAgent("agent-1");
+        service.activateAgent("agent-1");
+        const ws = FakeWebSocket.latest();
+        service.deactivateAgent("agent-1");
+        expect(ws.close).toHaveBeenCalledTimes(1);
+
+        const tracking = (service as any).agentStateTracking.get("agent-1");
+        const stopPolling = tracking.stopPolling$;
+        service.deactivateAgent("agent-1");
+
+        // The second call returns at the isActive guard: nothing is torn down twice.
+        expect(ws.close).toHaveBeenCalledTimes(1);
+        expect(tracking.stopPolling$).toBe(stopPolling);
+      });
+
+      it("deactivates cleanly when the socket was already dropped by a close event", () => {
+        seedAgent("agent-1");
+        service.activateAgent("agent-1");
+        const ws = FakeWebSocket.latest();
+        const tracking = (service as any).agentStateTracking.get("agent-1");
+
+        // A normal close clears tracking.websocket but leaves the agent active.
+        ws.onclose!({ code: 1000 });
+        expect(tracking.websocket).toBeUndefined();
+        expect(tracking.isActive).toBe(true);
+
+        const stopPolling = tracking.stopPolling$;
+        service.deactivateAgent("agent-1");
+
+        expect(ws.close).not.toHaveBeenCalled();
+        expect(tracking.isActive).toBe(false);
+        expect(tracking.stopPolling$).not.toBe(stopPolling);
+      });
+    });
+
+    describe("connection setup", () => {
+      /** Swap window.location for the duration of fn; jsdom's own is not writable. */
+      const withLocation = <T>(overrides: Partial<Location>, fn: () => T): T => {
+        const original = window.location;
+        Object.defineProperty(window, "location", {
+          configurable: true,
+          value: { ...original, ...overrides },
+        });
+        try {
+          return fn();
+        } finally {
+          Object.defineProperty(window, "location", { configurable: true, value: original });
+        }
+      };
+
+      it("switches to the wss scheme when the page is served over https", () => {
+        seedAgent("agent-1");
+
+        withLocation({ protocol: "https:", host: "texera.example.org" }, () => service.activateAgent("agent-1"));
+
+        expect(FakeWebSocket.latest().url).toBe("wss://texera.example.org/api/agents/agent-1/react");
+      });
+
+      it("logs a payload that is not valid JSON instead of throwing out of the handler", () => {
+        const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+        seedAgent("agent-1");
+        service.activateAgent("agent-1");
+        const ws = FakeWebSocket.latest();
+
+        expect(() => ws.onmessage!({ data: "<html>not json</html>" })).not.toThrow();
+
+        expect(errSpy).toHaveBeenCalledWith("Failed to parse agent WebSocket message:", expect.any(SyntaxError));
+        // The connection is left intact.
+        expect((service as any).agentStateTracking.get("agent-1").websocket).toBe(ws);
+      });
+
+      it("logs socket transport errors", () => {
+        const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+        seedAgent("agent-1");
+        service.activateAgent("agent-1");
+        const event = { type: "error" };
+
+        FakeWebSocket.latest().onerror!(event);
+
+        expect(errSpy).toHaveBeenCalledWith("Agent agent-1 WebSocket error:", event);
+      });
+
+      it("ignores a close event from a socket that has already been replaced", () => {
+        seedAgent("agent-1");
+        service.activateAgent("agent-1");
+        const stale = FakeWebSocket.latest();
+        const states: AgentState[] = [];
+        service.getAgentStateObservable("agent-1").subscribe(s => states.push(s));
+
+        service.deactivateAgent("agent-1");
+        service.activateAgent("agent-1");
+        const current = FakeWebSocket.latest();
+        expect(current).not.toBe(stale);
+
+        // The stale socket reports an abnormal close after being swapped out:
+        // the live connection survives and the state does not flip.
+        stale.onclose!({ code: 1006 });
+
+        expect((service as any).agentStateTracking.get("agent-1").websocket).toBe(current);
+        expect(states).toEqual([AgentState.AVAILABLE]);
       });
     });
 
@@ -688,6 +822,119 @@ describe("AgentService", () => {
         service.activateAgent("agent-1");
         FakeWebSocket.latest().onclose!({ code: 1006 });
         expect(states[states.length - 1]).toBe(AgentState.UNAVAILABLE);
+      });
+
+      it("leaves the workflow stream alone when a snapshot carries no workflow content", () => {
+        seedAgent("agent-1");
+        service.activateAgent("agent-1");
+        const states: AgentState[] = [];
+        service.getAgentStateObservable("agent-1").subscribe(s => states.push(s));
+        const workflows: (Workflow | null)[] = [];
+        service.getWorkflowObservable("agent-1").subscribe(w => workflows.push(w));
+
+        emit(FakeWebSocket.latest(), { type: "WsServerSnapshotEvent", state: "GENERATING" });
+
+        expect(states[states.length - 1]).toBe(AgentState.GENERATING);
+        expect(workflows).toEqual([null]);
+        // Workflow polling stays in charge while the socket sends no content.
+        expect((service as any).agentStateTracking.get("agent-1").wsWorkflowActive).toBe(false);
+      });
+
+      it("ignores a step event that carries no step", () => {
+        seedAgent("agent-1");
+        service.activateAgent("agent-1");
+        let steps: ReActStep[] = [];
+        service.getReActStepsObservable("agent-1").subscribe(s => (steps = s));
+
+        emit(FakeWebSocket.latest(), { type: "WsServerStepEvent" });
+
+        expect(steps).toEqual([]);
+        expect(service.getHeadId("agent-1")).toBeNull();
+      });
+
+      it("advances HEAD to the synthesised id when the step carries none", () => {
+        seedAgent("agent-1");
+        service.activateAgent("agent-1");
+
+        emit(FakeWebSocket.latest(), {
+          type: "WsServerStepEvent",
+          step: { messageId: "m9", timestamp: "2026-06-11T00:00:00.000Z" },
+        });
+
+        // convertApiReActStep falls back to `${messageId}-${stepId || 0}`, which is
+        // always a non-empty string, so a step never fails the HEAD guard.
+        expect(service.getHeadId("agent-1")).toBe("m9-0");
+      });
+
+      it("ignores a status event that carries no state", () => {
+        seedAgent("agent-1");
+        service.activateAgent("agent-1");
+        const states: AgentState[] = [];
+        service.getAgentStateObservable("agent-1").subscribe(s => states.push(s));
+
+        emit(FakeWebSocket.latest(), { type: "WsServerStatusEvent" });
+
+        expect(states).toEqual([AgentState.AVAILABLE]);
+      });
+
+      it("falls back to a generic notification when the error event carries no message", () => {
+        vi.spyOn(console, "error").mockImplementation(() => {});
+        seedAgent("agent-1");
+        service.activateAgent("agent-1");
+
+        emit(FakeWebSocket.latest(), { type: "WsServerErrorEvent" });
+
+        expect(notification.error).toHaveBeenCalledWith("Agent error occurred");
+        expect((service as any).agents.has("agent-1")).toBe(true);
+      });
+
+      it("warns about an unrecognised message type and changes nothing", () => {
+        const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+        seedAgent("agent-1");
+        service.activateAgent("agent-1");
+        const states: AgentState[] = [];
+        service.getAgentStateObservable("agent-1").subscribe(s => states.push(s));
+        let steps: ReActStep[] = [];
+        service.getReActStepsObservable("agent-1").subscribe(s => (steps = s));
+
+        emit(FakeWebSocket.latest(), { type: "WsServerSomethingElseEvent", state: "GENERATING" });
+
+        expect(warnSpy).toHaveBeenCalledWith("Unknown agent WebSocket message type:", "WsServerSomethingElseEvent");
+        expect(states).toEqual([AgentState.AVAILABLE]);
+        expect(steps).toEqual([]);
+        expect(notification.error).not.toHaveBeenCalled();
+      });
+    });
+
+    describe("stopStatePolling", () => {
+      // stopStatePolling is internal; deleteAgent is the public entry point that
+      // reaches it for both a tracked and an untracked agent.
+      it("closes the socket and drops the tracking entry for a tracked agent", () => {
+        seedAgent("agent-1");
+        service.activateAgent("agent-1");
+        const ws = FakeWebSocket.latest();
+        const tracking = (service as any).agentStateTracking.get("agent-1");
+        let stopped = false;
+        tracking.stopPolling$.subscribe({ complete: () => (stopped = true) });
+
+        let deleted: boolean | undefined;
+        service.deleteAgent("agent-1").subscribe(d => (deleted = d));
+        httpMock.expectOne(r => r.method === "DELETE" && r.url === "/api/agents/agent-1").flush({ deleted: true });
+
+        expect(deleted).toBe(true);
+        expect(ws.close).toHaveBeenCalledTimes(1);
+        expect(tracking.websocket).toBeUndefined();
+        expect(stopped).toBe(true);
+        expect((service as any).agentStateTracking.has("agent-1")).toBe(false);
+      });
+
+      it("is a no-op for an agent that was never tracked", () => {
+        let deleted: boolean | undefined;
+        service.deleteAgent("ghost").subscribe(d => (deleted = d));
+        httpMock.expectOne(r => r.method === "DELETE" && r.url === "/api/agents/ghost").flush({ deleted: true });
+
+        expect(deleted).toBe(true);
+        expect((service as any).agentStateTracking.has("ghost")).toBe(false);
       });
     });
 
@@ -963,6 +1210,341 @@ describe("AgentService", () => {
       service.requestScrollToStep("agent-1", "m1", 4);
 
       expect(target).toEqual({ agentId: "agent-1", messageId: "m1", stepId: 4 });
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // State accessors: the untracked side of each (an id with no tracking entry)
+  // ---------------------------------------------------------------------------
+  describe("state accessors without tracking", () => {
+    it("getAgentState returns the tracked value, or UNAVAILABLE for an unknown id", () => {
+      // Subscribing to the observable getter is what creates the tracking entry.
+      service.getAgentStateObservable("agent-1").subscribe();
+      (service as any).agentStateTracking.get("agent-1").stateSubject.next(AgentState.GENERATING);
+
+      let tracked: AgentState | undefined;
+      service.getAgentState("agent-1").subscribe(s => (tracked = s));
+      expect(tracked).toBe(AgentState.GENERATING);
+
+      let unknown: AgentState | undefined;
+      service.getAgentState("ghost").subscribe(s => (unknown = s));
+      expect(unknown).toBe(AgentState.UNAVAILABLE);
+    });
+
+    it("isAgentConnected is false for an unavailable/unknown agent and true otherwise", () => {
+      let unknown: boolean | undefined;
+      service.isAgentConnected("ghost").subscribe(v => (unknown = v));
+      expect(unknown).toBe(false);
+
+      service.getAgentStateObservable("agent-1").subscribe();
+      (service as any).agentStateTracking.get("agent-1").stateSubject.next(AgentState.AVAILABLE);
+      let connected: boolean | undefined;
+      service.isAgentConnected("agent-1").subscribe(v => (connected = v));
+      expect(connected).toBe(true);
+    });
+
+    it("getHeadId / getHeadIdObservable return the tracked HEAD, or null when untracked", () => {
+      const emitted: (string | null)[] = [];
+      service.getHeadIdObservable("agent-1").subscribe(v => emitted.push(v));
+      (service as any).agentStateTracking.get("agent-1").headIdSubject.next("m1-2");
+
+      expect(emitted).toEqual([null, "m1-2"]);
+      expect(service.getHeadId("agent-1")).toBe("m1-2");
+      expect(service.getHeadId("ghost")).toBeNull();
+    });
+
+    it("getVisibleSteps returns the tracked snapshot, or [] when untracked", () => {
+      service.getReActStepsObservable("agent-1").subscribe();
+      const step = { messageId: "m1", stepId: 0 } as unknown as ReActStep;
+      (service as any).agentStateTracking.get("agent-1").reActStepsSubject.next([step]);
+
+      expect(service.getVisibleSteps("agent-1")).toEqual([step]);
+      expect(service.getVisibleSteps("ghost")).toEqual([]);
+    });
+
+    it("getWorkflowObservable emits the tracked workflow, or null when untracked", () => {
+      service.getAgentStateObservable("agent-1").subscribe();
+      (service as any).agentStateTracking.get("agent-1").workflowSubject.next(stubWorkflow);
+      let tracked: Workflow | null | undefined;
+      service.getWorkflowObservable("agent-1").subscribe(w => (tracked = w));
+      expect(tracked).toBe(stubWorkflow);
+
+      let untracked: Workflow | null | undefined = stubWorkflow;
+      service.getWorkflowObservable("ghost").subscribe(w => (untracked = w));
+      expect(untracked).toBeNull();
+    });
+
+    it("getAgentWorkflowId walks the delegate chain: missing agent, no delegate, full", () => {
+      expect(service.getAgentWorkflowId("ghost")).toBeUndefined();
+
+      (service as any).agents.set("no-delegate", { id: "no-delegate", name: "x" });
+      expect(service.getAgentWorkflowId("no-delegate")).toBeUndefined();
+
+      seedAgent("with-wf", 42);
+      expect(service.getAgentWorkflowId("with-wf")).toBe(42);
+    });
+
+    it("getAgentCount reports the number of registered agents", () => {
+      let empty: number | undefined;
+      service.getAgentCount().subscribe(c => (empty = c));
+      expect(empty).toBe(0);
+
+      seedAgent("agent-1");
+      seedAgent("agent-2");
+      let count: number | undefined;
+      service.getAgentCount().subscribe(c => (count = c));
+      expect(count).toBe(2);
+    });
+  });
+
+  describe("setHoveredMessage guards", () => {
+    it("emits empty arrays for a non-null step that carries no operator access", () => {
+      let latest:
+        | { viewedOperatorIds: string[]; addedOperatorIds: string[]; modifiedOperatorIds: string[] }
+        | undefined;
+      service.getHoveredMessageOperatorsObservable("agent-1").subscribe(v => (latest = v));
+
+      // A real step with no operatorAccess map takes the else-branch, distinct from
+      // the null-step case already covered above.
+      service.setHoveredMessage("agent-1", { messageId: "m1" } as unknown as ReActStep);
+
+      expect(latest).toEqual({ viewedOperatorIds: [], addedOperatorIds: [], modifiedOperatorIds: [] });
+    });
+
+    it("is a no-op when the agent has no tracking", () => {
+      // No tracking entry exists for this id, so the method must return without throwing.
+      expect(() => service.setHoveredMessage("ghost", { messageId: "m1" } as unknown as ReActStep)).not.toThrow();
+    });
+  });
+
+  describe("getReActStepsByOperatorAccess without operator access", () => {
+    it("skips steps whose operatorAccess is absent", () => {
+      let result: { viewedBy: ReActStep[]; modifiedBy: ReActStep[] } | undefined;
+      service.getReActStepsByOperatorAccess("agent-1", "op-7").subscribe(r => (result = r));
+
+      httpMock
+        .expectOne(r => r.method === "GET" && r.url === "/api/agents/agent-1/react-steps")
+        .flush({
+          state: "AVAILABLE",
+          steps: [{ messageId: "no-access", timestamp: "2026-06-11T00:00:00.000Z" }],
+        });
+
+      expect(result).toEqual({ viewedBy: [], modifiedBy: [] });
+    });
+  });
+
+  describe("mapStateToAgentState", () => {
+    it("maps STOPPING, UNAVAILABLE and unrecognised backend states", () => {
+      let mapped: AgentInfo[] | undefined;
+      service.getAllAgents().subscribe(a => (mapped = a));
+
+      httpMock
+        .expectOne(r => r.method === "GET" && r.url === "/api/agents")
+        .flush({
+          agents: [
+            { ...apiAgent, id: "s", state: "STOPPING" },
+            { ...apiAgent, id: "u", state: "UNAVAILABLE" },
+            { ...apiAgent, id: "z", state: "NOT_A_REAL_STATE" },
+          ],
+        });
+
+      const byId = new Map(mapped!.map(a => [a.id, a.state]));
+      expect(byId.get("s")).toBe(AgentState.STOPPING);
+      expect(byId.get("u")).toBe(AgentState.UNAVAILABLE);
+      // Anything unrecognised falls through the default arm to UNAVAILABLE.
+      expect(byId.get("z")).toBe(AgentState.UNAVAILABLE);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // HTTP failure paths and their fallback chains
+  // ---------------------------------------------------------------------------
+  describe("createAgent failure fallback chain", () => {
+    it("prefers the nested error.error message", () => {
+      let message: string | undefined;
+      service.createAgent("gpt-5-mini").subscribe({ error: (e: unknown) => (message = (e as Error).message) });
+      httpMock
+        .expectOne(r => r.method === "POST" && r.url === "/api/agents")
+        .flush({ error: "nested boom" }, { status: 400, statusText: "Bad Request" });
+
+      expect(message).toBe("nested boom");
+      expect(notification.error).toHaveBeenCalledWith("nested boom");
+    });
+
+    it("falls back to err.message when there is no nested error", () => {
+      let message: string | undefined;
+      service.createAgent("gpt-5-mini").subscribe({ error: (e: unknown) => (message = (e as Error).message) });
+      // A body with no `.error` field leaves err.error?.error undefined, so the
+      // HttpErrorResponse's own message is used.
+      httpMock
+        .expectOne(r => r.method === "POST" && r.url === "/api/agents")
+        .flush({}, { status: 500, statusText: "Server Error" });
+
+      expect(message).toContain("Http failure response");
+      expect(notification.error).toHaveBeenCalledWith(message);
+    });
+
+    it("falls back to the default label when the error carries neither field", () => {
+      // An HttpErrorResponse always has a message, so the default literal is only
+      // reachable for a non-HTTP error; a bare object exercises that last arm.
+      vi.spyOn((service as any).http, "post").mockReturnValue(throwError(() => ({})));
+
+      let message: string | undefined;
+      service.createAgent("gpt-5-mini").subscribe({ error: (e: unknown) => (message = (e as Error).message) });
+
+      expect(message).toBe("Failed to create agent");
+      expect(notification.error).toHaveBeenCalledWith("Failed to create agent");
+    });
+  });
+
+  describe("updateAgentSettings edge cases", () => {
+    it("returns the response without touching the cache when the agent is unknown", () => {
+      let updated: AgentSettingsApi | undefined;
+      service.updateAgentSettings("uncached", { maxSteps: 9 }).subscribe(s => (updated = s));
+
+      httpMock.expectOne(r => r.method === "PATCH" && r.url === "/api/agents/uncached/settings").flush({ maxSteps: 9 });
+
+      expect(updated).toEqual({ maxSteps: 9 });
+      expect((service as any).agents.has("uncached")).toBe(false);
+    });
+
+    it("falls back to the default label when the failure carries neither field", () => {
+      vi.spyOn((service as any).http, "patch").mockReturnValue(throwError(() => ({})));
+
+      let message: string | undefined;
+      service
+        .updateAgentSettings("agent-1", { maxSteps: 3 })
+        .subscribe({ error: (e: unknown) => (message = (e as Error).message) });
+
+      expect(message).toBe("Failed to update agent settings");
+      expect(notification.error).toHaveBeenCalledWith("Failed to update agent settings");
+    });
+  });
+
+  describe("getReActSteps failure", () => {
+    it("emits an empty array instead of propagating the error", () => {
+      let steps: ReActStep[] | undefined;
+      service.getReActSteps("agent-1").subscribe(s => (steps = s));
+
+      httpMock
+        .expectOne(r => r.method === "GET" && r.url === "/api/agents/agent-1/react-steps")
+        .flush("boom", { status: 500, statusText: "Server Error" });
+
+      expect(steps).toEqual([]);
+    });
+  });
+
+  describe("syncAgentsWithBackend branches", () => {
+    it("swallows a failed sync and treats the backend as empty", () => {
+      seedAgent("agent-1");
+
+      (service as any).syncAgentsWithBackend();
+      httpMock
+        .expectOne(r => r.method === "GET" && r.url === "/api/agents")
+        .flush("boom", { status: 500, statusText: "Server Error" });
+
+      // catchError substitutes { agents: [] }, so the local agent is evicted.
+      expect((service as any).agents.size).toBe(0);
+    });
+
+    it("does not add a backend agent that is not already cached locally", () => {
+      seedAgent("agent-1");
+
+      (service as any).syncAgentsWithBackend();
+      httpMock
+        .expectOne(r => r.method === "GET" && r.url === "/api/agents")
+        .flush({ agents: [{ ...apiAgent, id: "agent-2", state: "GENERATING" }] });
+
+      // agent-1 is gone (not on the backend) and agent-2 is not merged in: sync only
+      // updates agents it already knows about.
+      expect((service as any).agents.has("agent-1")).toBe(false);
+      expect((service as any).agents.has("agent-2")).toBe(false);
+    });
+
+    it("updates an existing agent's state even when it has no tracking entry", () => {
+      // An agent in the cache with no tracking entry exercises the `if (tracking)` guard's
+      // false side while still taking the `if (existingAgent)` true side.
+      (service as any).agents.set("agent-1", { id: "agent-1", name: "Bob", state: AgentState.AVAILABLE });
+
+      (service as any).syncAgentsWithBackend();
+      httpMock
+        .expectOne(r => r.method === "GET" && r.url === "/api/agents")
+        .flush({ agents: [{ ...apiAgent, id: "agent-1", state: "GENERATING" }] });
+
+      expect((service as any).agents.get("agent-1").state).toBe(AgentState.GENERATING);
+    });
+  });
+
+  describe("getAllAgents keeps agents still present on the backend", () => {
+    it("does not prune a local agent that the backend still reports", () => {
+      seedAgent("agent-1");
+      let result: AgentInfo[] | undefined;
+      service.getAllAgents().subscribe(r => (result = r));
+
+      httpMock
+        .expectOne(r => r.method === "GET" && r.url === "/api/agents")
+        .flush({
+          agents: [
+            { ...apiAgent, id: "agent-1", state: "AVAILABLE" },
+            { ...apiAgent, id: "agent-2", state: "GENERATING" },
+          ],
+        });
+
+      expect(result?.map(a => a.id).sort()).toEqual(["agent-1", "agent-2"]);
+      expect((service as any).agents.has("agent-1")).toBe(true);
+    });
+  });
+
+  describe("stopGeneration error handlers", () => {
+    it("logs when the websocket send throws", () => {
+      const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      (service as any).agentStateTracking.set("agent-1", {
+        websocket: {
+          readyState: WebSocket.OPEN,
+          send: vi.fn(() => {
+            throw new Error("send failed");
+          }),
+        },
+      });
+
+      service.stopGeneration("agent-1");
+
+      expect(errSpy).toHaveBeenCalledWith("Failed to send stop command:", expect.any(Error));
+      errSpy.mockRestore();
+    });
+
+    it("logs when the REST fallback fails", () => {
+      const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      (service as any).agentStateTracking.set("agent-1", {
+        websocket: { readyState: WebSocket.CLOSED, send: vi.fn() },
+      });
+
+      service.stopGeneration("agent-1");
+      httpMock
+        .expectOne(r => r.method === "POST" && r.url === "/api/agents/agent-1/stop")
+        .flush("boom", { status: 500, statusText: "Server Error" });
+
+      expect(errSpy).toHaveBeenCalledWith("Error stopping agent agent-1:", expect.anything());
+      errSpy.mockRestore();
+    });
+  });
+
+  describe("getOrCreateStateTracking back-fills a workflow id", () => {
+    it("adds a workflow id onto tracking that was created without one", () => {
+      // First create tracking with no workflow id.
+      service.getAgentStateObservable("agent-1").subscribe();
+      expect((service as any).agentStateTracking.get("agent-1").workflowId).toBeUndefined();
+
+      // ensureWorkflowPolling re-enters getOrCreateStateTracking with an id, hitting the
+      // else-if that back-fills it.
+      service.ensureWorkflowPolling("agent-1", 55);
+      expect((service as any).agentStateTracking.get("agent-1").workflowId).toBe(55);
+
+      // The back-filled id now rides on outgoing requests.
+      service.getAgentSettings("agent-1").subscribe();
+      const req = httpMock.expectOne(r => r.url === "/api/agents/agent-1/settings");
+      expect(req.request.headers.get("X-Agent-Workflow-Id")).toBe("55");
+      req.flush({});
     });
   });
 });

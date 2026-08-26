@@ -449,7 +449,9 @@ CREATE TABLE IF NOT EXISTS model_version
     name          VARCHAR(128) NOT NULL,
     version_hash  VARCHAR(64) NOT NULL,
     creation_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (mid) REFERENCES model(mid) ON DELETE CASCADE
+    FOREIGN KEY (mid) REFERENCES model(mid) ON DELETE CASCADE,
+    -- FileResolver resolves a version by (mid, name) with fetchOneInto.
+    CONSTRAINT uq_model_version_mid_name UNIQUE (mid, name)
     );
 
 -- model_user_access

@@ -47,11 +47,11 @@ import org.apache.texera.dao.jooq.generated.tables.pojos.{
   DatasetUserAccess,
   DatasetVersion
 }
-import org.apache.texera.service.`type`.LakeFSFileNode
+import org.apache.texera.service.`type`.{Diff, ExistingUploadFilesRequest, LakeFSFileNode}
 import org.apache.texera.service.resource.DatasetAccessResource._
 import org.apache.texera.service.resource.ResourceTables.{Dataset => DATASET_RESOURCE}
 import org.apache.texera.service.resource.DatasetResource.{context, _}
-import org.apache.texera.service.util.{CoverImageUtils, PresignedDownloadUtils}
+import org.apache.texera.service.util.CoverImageUtils
 import org.apache.texera.service.util.S3StorageClient
 import org.jooq.impl.DSL
 import org.jooq.{DSLContext, EnumType}
@@ -250,14 +250,6 @@ object DatasetResource {
       contributors: Option[List[Contributor]] = None
   )
 
-  // Shared with the other versioned resources; aliased so callers keep using
-  // DatasetResource.Diff / .ExistingUploadFile.
-  type Diff = org.apache.texera.service.`type`.Diff
-  val Diff: org.apache.texera.service.`type`.Diff.type = org.apache.texera.service.`type`.Diff
-  type ExistingUploadFile = org.apache.texera.service.`type`.ExistingUploadFile
-  val ExistingUploadFile: org.apache.texera.service.`type`.ExistingUploadFile.type =
-    org.apache.texera.service.`type`.ExistingUploadFile
-  type ExistingUploadFilesRequest = org.apache.texera.service.`type`.ExistingUploadFilesRequest
   val ExistingUploadFilesRequest: org.apache.texera.service.`type`.ExistingUploadFilesRequest.type =
     org.apache.texera.service.`type`.ExistingUploadFilesRequest
 
@@ -491,7 +483,7 @@ class DatasetResource extends LazyLogging {
         LakeFSFileNode
           .fromLakeFSRepositoryCommittedObjects(
             resourceType,
-            Map((user.getEmail, datasetName, newVersionName) -> fileNodes)
+            Map((getOwner(ctx, did).getEmail, datasetName, newVersionName) -> fileNodes)
           )
       )
     }
@@ -947,37 +939,18 @@ class DatasetResource extends LazyLogging {
         throw new NotFoundException(ERR_DATASET_VERSION_NOT_FOUND_MESSAGE)
       )
 
-      val datasetsNode = LakeFSFileNode
-        .fromLakeFSRepositoryCommittedObjects(
-          resourceType,
-          Map(
-            (
-              getOwner(ctx, did).getEmail,
-              dataset.getName,
-              latestVersion.getName
-            ) -> LakeFSStorageClient
-              .retrieveObjectsOfVersion(dataset.getRepositoryName, latestVersion.getVersionHash)
-          )
-        )
-        .head
-
-      val ownerNode = datasetsNode.getChildren.headOption.getOrElse(
-        throw new IllegalStateException(
-          s"Dataset file tree for ${dataset.getName} is missing its owner node"
-        )
-      )
-
       DashboardDatasetVersion(
         latestVersion,
-        ownerNode.children.get
-          .find(_.getName == dataset.getName)
-          .head
-          .children
-          .get
-          .find(_.getName == latestVersion.getName)
-          .head
-          .children
-          .get
+        ResourceUploadService
+          .versionRootFileNodes(
+            resourceType,
+            getOwner(ctx, did).getEmail,
+            dataset.getName,
+            latestVersion.getName,
+            dataset.getRepositoryName,
+            latestVersion.getVersionHash
+          )
+          ._1
       )
     })
   }
@@ -1111,37 +1084,15 @@ class DatasetResource extends LazyLogging {
   ): DatasetVersionRootFileNodesResponse = {
     val dataset = getDashboardDataset(ctx, did, uid)
     val datasetVersion = getDatasetVersionByID(ctx, dvid)
-    val datasetName = dataset.dataset.getName
-    val repositoryName = dataset.dataset.getRepositoryName
-
-    val datasetsNode = LakeFSFileNode
-      .fromLakeFSRepositoryCommittedObjects(
-        resourceType,
-        Map(
-          (dataset.ownerEmail, datasetName, datasetVersion.getName) -> LakeFSStorageClient
-            .retrieveObjectsOfVersion(repositoryName, datasetVersion.getVersionHash)
-        )
-      )
-      .head
-
-    val ownerFileNode = datasetsNode.getChildren.headOption.getOrElse(
-      throw new IllegalStateException(
-        s"Dataset file tree for $datasetName is missing its owner node"
-      )
+    val (nodes, size) = ResourceUploadService.versionRootFileNodes(
+      resourceType,
+      dataset.ownerEmail,
+      dataset.dataset.getName,
+      datasetVersion.getName,
+      dataset.dataset.getRepositoryName,
+      datasetVersion.getVersionHash
     )
-
-    DatasetVersionRootFileNodesResponse(
-      ownerFileNode.children.get
-        .find(_.getName == datasetName)
-        .head
-        .children
-        .get
-        .find(_.getName == datasetVersion.getName)
-        .head
-        .children
-        .get,
-      LakeFSFileNode.calculateTotalSize(List(datasetsNode))
-    )
+    DatasetVersionRootFileNodesResponse(nodes, size)
   }
 
   private def generatePresignedResponse(
@@ -1150,17 +1101,13 @@ class DatasetResource extends LazyLogging {
       commitHash: String,
       uid: Integer
   ): Response =
-    ResourceUploadService.resolveVersionedFile(
+    ResourceUploadService.presignedUrlResponse(
       ResourceStorage.Dataset,
       encodedUrl,
       repositoryName,
       commitHash,
       uid
-    ) match {
-      case Left(errorResponse) => errorResponse
-      case Right((repo, commit, path)) =>
-        PresignedDownloadUtils.presignedResponse(repo, commit, path)
-    }
+    )
 
   // === Multipart helpers ===
 

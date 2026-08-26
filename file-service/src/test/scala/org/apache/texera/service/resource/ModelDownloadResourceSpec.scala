@@ -329,6 +329,19 @@ class ModelDownloadResourceSpec
     }
   }
 
+  it should "reject latest=false instead of treating it as latest" in {
+    val (model, _) = modelWithCommittedFile()
+
+    assertThrows[BadRequestException] {
+      modelResource.getModelVersionZip(
+        model.model.getMid,
+        null,
+        java.lang.Boolean.FALSE,
+        sessionUser
+      )
+    }
+  }
+
   it should "still let the owner download a model that is not downloadable" in {
     val (model, _) = modelWithCommittedFile(isPublic = false, isDownloadable = false)
 

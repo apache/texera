@@ -46,7 +46,6 @@ import org.apache.texera.dao.jooq.generated.tables.records.{
 }
 import org.apache.texera.service.`type`.LakeFSFileNode
 import org.apache.texera.service.util.LakeFSExceptionHandler.withLakeFSErrorHandling
-import org.apache.texera.service.util.PresignedDownloadUtils
 import org.apache.texera.service.util.S3StorageClient
 import org.apache.texera.service.util.S3StorageClient.{
   MAXIMUM_NUM_OF_MULTIPART_S3_PARTS,
@@ -258,7 +257,7 @@ object ResourceUploadService {
   ): Either[Response, (String, String, String)] = {
     val decodedPath = URLDecoder.decode(encodedUrl, StandardCharsets.UTF_8.name())
 
-    PresignedDownloadUtils.requireBothOrNeither(repositoryName, commitHash) match {
+    requireBothOrNeither(repositoryName, commitHash) match {
       case Some(badRequest) => Left(badRequest)
       case None =>
         Right(withTransaction(context) { ctx =>
@@ -278,6 +277,61 @@ object ResourceUploadService {
           }
         })
     }
+  }
+
+  /**
+    * The whole presign-download endpoint: resolve the addressed file, check read
+    * access, and hand back the signed URL. Both resources' endpoints are this call.
+    */
+  def presignedUrlResponse[R <: Record, A <: Record, S <: Record, P <: Record](
+      s: ResourceStorage[R, A, S, P],
+      encodedUrl: String,
+      repositoryName: String,
+      commitHash: String,
+      uid: Integer
+  ): Response =
+    resolveVersionedFile(s, encodedUrl, repositoryName, commitHash, uid) match {
+      case Left(errorResponse)         => errorResponse
+      case Right((repo, commit, path)) => presignedResponse(repo, commit, path)
+    }
+
+  /**
+    * A caller either addresses a file directly (repositoryName + commitHash) or lets
+    * the server resolve it from a logical path (neither). Exactly one is a client error.
+    *
+    * @return Some(400 response) when only one of the two was provided, None otherwise
+    */
+  private def requireBothOrNeither(
+      repositoryName: String,
+      commitHash: String
+  ): Option[Response] =
+    (Option(repositoryName), Option(commitHash)) match {
+      case (Some(_), None) | (None, Some(_)) =>
+        Some(
+          Response
+            .status(Response.Status.BAD_REQUEST)
+            .entity(
+              "Both repositoryName and commitHash must be provided together, " +
+                "or neither should be provided."
+            )
+            .build()
+        )
+      case _ => None
+    }
+
+  /** Wrap a LakeFS presigned URL in the response shape the frontend expects. */
+  private def presignedResponse(
+      repositoryName: String,
+      commitHash: String,
+      filePath: String
+  ): Response = {
+    val url = withLakeFSErrorHandling(
+      s"generating a presigned URL for file '$filePath'"
+    ) {
+      LakeFSStorageClient.getFilePresignedUrl(repositoryName, commitHash, filePath)
+    }
+
+    Response.ok(Map("presignedUrl" -> url)).build()
   }
 
   /** Read access is checked on the resource that owns the repository, not on the file. */
