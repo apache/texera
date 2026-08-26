@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1787661936534,
+  "lastUpdate": 1787749369440,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -10783,6 +10783,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 722.7950521096843,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Tanishq Gandhi",
+            "username": "tanishqgandhi1908",
+            "email": "56472134+tanishqgandhi1908@users.noreply.github.com"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "5de9bf94766d441e7d1655bf326a9208dc6769a5",
+          "message": "feat(file-service): complete the model file API for the management UI (#7922)\n\n### What changes were proposed in this PR?\n\n#6869 and #6872 gave models create/list/access/version-upload. This PR\nadds the remaining read and staged-change endpoints, so the model\nmanagement UI can be built as frontend-only work.\n\nNine endpoints on `ModelResource`:\n\n| Endpoint | Purpose |\n| --- | --- |\n| `GET /model/presign-download` (+ `-s3`, and `public-` variants of\nboth) | signed URL for one file — preview, and how a worker reads a\nmodel |\n| `GET /model/{mid}/diff` | list staged (uncommitted) changes |\n| `PUT /model/{mid}/diff?filePath=` | discard one staged change |\n| `POST /model/{mid}/existing-upload-files` | which files the repo\nalready holds at the same size, so the client can skip re-uploading\nlarge weights |\n| `GET /model/{mid}/versionZip?mvid=\\|latest=true` | download a whole\nversion |\n| `GET /model/user-model-owners` | owner facet for the list page |\n\nNone of it is a second copy of `DatasetResource`. Each piece moved into\n`ResourceUploadService`/`ResourceAccess` parameterised by\n`ResourceStorage`, and the dataset endpoints now call the same code:\n`DatasetResource` **−285 lines**, shared layer +226, `ModelResource`\n+233. Nine new endpoints for a net reduction in production code.\n\nAlso fixes `listModels` reporting `size = 0` for models reached by grant\nwhile computing it for public ones.\n\n`framework` and `format` are now validated against a known set (400\notherwise) so a loader can dispatch on the value. They stay metadata\nonly — a model is a folder, and no per-file extension check is applied.\n\n### Any related issues, documentation, discussions?\n\n- Closes #6498\n- Part of #6494\n- Replaces #6974, which could not be reopened after the branch was\nrebuilt on the current stack\n- Stacked on #6872, which is stacked on #6869; base is `main`, so the\ndiff carries those two PRs' commits until they merge. The other two\nparents, #7762 and #7764, have already landed.\n\n### How was this PR tested?\n\nNew `ModelApiForUiSpec` and `ModelDownloadResourceSpec` cover every\nendpoint, including negative cases (no access, private model anonymous,\n`mvid` and `latest` both/neither). The presign tests fetch the URL and\ncompare bytes end to end through MinIO.\n\n```\nsbt \"FileService/test\"     # 376/376\nsbt \"WorkflowCore/test\"    # 787/787\nsbt scalafmtCheckAll \"scalafixAll --check\"\n```\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Claude Code (Claude Opus 5)\n\n---------\n\nCo-authored-by: ali <ali.risheh876@gmail.com>\nCo-authored-by: Claude Opus 4.8 <noreply@anthropic.com>",
+          "timestamp": "2026-08-26T04:16:48Z",
+          "url": "https://github.com/apache/texera/commit/5de9bf94766d441e7d1655bf326a9208dc6769a5"
+        },
+        "date": 1787749369067,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 570.7312593139151,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 1088.8402831264002,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 1176.8269308553886,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 810.6044276373002,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 1136.3979189061272,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 1184.1911356167711,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 826.9344248249195,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 1122.0403852537736,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 1169.5130777205534,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 684.2112645977495,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 908.9816402839785,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 940.0754408231495,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 730.2918747129006,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 914.7624792063443,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 937.4774548932545,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 734.1904817051907,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 902.904227912869,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 928.0748549290445,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 450.51403685393586,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 515.7885071682156,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 532.5060675435237,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 449.91102810333626,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 524.7622365343327,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 521.0755217630287,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 424.5476034429372,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 500.07056078124265,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 507.6450030527687,
             "unit": "tuples/sec"
           }
         ]
