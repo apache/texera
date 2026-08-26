@@ -506,12 +506,14 @@ class ModelResource extends LazyLogging {
         throw new ForbiddenException("Model download is not allowed")
       }
 
+      // latest=false is not "give me the latest": only TRUE selects it, anything else is a 400.
       val modelVersion =
         if (mvid != null) getModelVersionByID(ctx, mid, mvid)
-        else
+        else if (java.lang.Boolean.TRUE.equals(latest))
           getLatestModelVersion(ctx, mid).getOrElse(
             throw new NotFoundException(ERR_MODEL_VERSION_NOT_FOUND_MESSAGE)
           )
+        else throw new BadRequestException("Invalid parameters")
 
       ResourceUploadService.versionZipResponse(
         model.getRepositoryName,
@@ -608,7 +610,8 @@ class ModelResource extends LazyLogging {
       encodedUrl,
       repositoryName,
       commitHash,
-      uid
+      uid,
+      enforceDownloadable = true
     )
 
   @GET

@@ -329,6 +329,59 @@ class ModelDownloadResourceSpec
     }
   }
 
+  // Ali's review: the zip gate is worthless if the same bytes can be presigned one file
+  // at a time, so the presign routes carry it too.
+  it should "refuse a non-owner a presigned URL when the model is not downloadable" in {
+    val (model, commitHash) = modelWithCommittedFile(isPublic = true, isDownloadable = false)
+
+    assertThrows[ForbiddenException] {
+      modelResource.getPresignedUrl(
+        urlEnc("model.pt"),
+        model.model.getRepositoryName,
+        commitHash,
+        strangerSession
+      )
+    }
+  }
+
+  it should "refuse an anonymous caller a presigned URL when the model is not downloadable" in {
+    val (model, commitHash) = modelWithCommittedFile(isPublic = true, isDownloadable = false)
+
+    assertThrows[ForbiddenException] {
+      modelResource.getPublicPresignedUrl(
+        urlEnc("model.pt"),
+        model.model.getRepositoryName,
+        commitHash
+      )
+    }
+  }
+
+  it should "still presign for the owner when the model is not downloadable" in {
+    val (model, commitHash) = modelWithCommittedFile(isDownloadable = false)
+
+    modelResource
+      .getPresignedUrl(
+        urlEnc("model.pt"),
+        model.model.getRepositoryName,
+        commitHash,
+        sessionUser
+      )
+      .getStatus shouldEqual 200
+  }
+
+  it should "reject latest=false instead of treating it as latest" in {
+    val (model, _) = modelWithCommittedFile()
+
+    assertThrows[BadRequestException] {
+      modelResource.getModelVersionZip(
+        model.model.getMid,
+        null,
+        java.lang.Boolean.FALSE,
+        sessionUser
+      )
+    }
+  }
+
   it should "still let the owner download a model that is not downloadable" in {
     val (model, _) = modelWithCommittedFile(isPublic = false, isDownloadable = false)
 
