@@ -28,7 +28,7 @@ import org.apache.texera.amber.core.storage.ResourceType
 import org.apache.texera.amber.core.storage.util.LakeFSStorageClient
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.common.config.StorageConfig
-import org.apache.texera.dao.{SiteSettings, SqlServer}
+import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.SqlServer.withTransaction
 import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
 import org.apache.texera.dao.jooq.generated.tables.Model.MODEL
@@ -106,9 +106,6 @@ object ModelResource {
     SqlServer
       .getInstance()
       .createDSLContext()
-
-  private def singleFileUploadMaxBytes(defaultMiB: Long = 20L): Long =
-    SiteSettings.getLong("single_file_upload_max_size_mib", defaultMiB) * 1024L * 1024L
 
   /**
     * Helper function to get the model from DB using mid
