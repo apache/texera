@@ -63,6 +63,10 @@ class SklearnPredictionOpDesc extends PythonOperatorDescriptor with StandaloneCo
        |            input_features = tuple_
        |            if $groundTruthAttribute != "":
        |                input_features = input_features.get_partial_tuple([col for col in tuple_.get_field_names() if col != $groundTruthAttribute])
+       |            _fitted = getattr(self.model, "feature_names_in_", None)
+       |            if _fitted is not None:
+       |                input_features = input_features.get_partial_tuple(list(_fitted))
+       |            if $groundTruthAttribute != "":
        |                tuple_[$resultAttribute] = type(tuple_[$groundTruthAttribute])(self.model.predict(Table.from_tuple_likes([input_features]))[0])
        |            else:
        |                tuple_[$resultAttribute] = str(self.model.predict(Table.from_tuple_likes([input_features]))[0])
@@ -95,6 +99,19 @@ class SklearnPredictionOpDesc extends PythonOperatorDescriptor with StandaloneCo
     )
   }
 
+  /** Python that narrows `X` to the columns the model was fitted on.
+    *
+    * The fitting side leaves out the columns an estimator cannot fit, so this
+    * side has to leave out the same ones or scikit-learn refuses the frame for
+    * naming features it never saw. Read off the model rather than re-derived:
+    * what it was fitted on is a fact it carries, and asking it cannot drift from
+    * whatever rule the fitting operator applied.
+    */
+  private val narrowToFittedFeatures: String =
+    """_fitted = getattr(model, "feature_names_in_", None)
+      |if _fitted is not None:
+      |    X = X[list(_fitted)]""".stripMargin
+
   override def generateStandaloneCode(): String = {
     val modelLit = pyStringLiteral(model)
     val resultLit = pyStringLiteral(resultAttribute)
@@ -104,13 +121,16 @@ class SklearnPredictionOpDesc extends PythonOperatorDescriptor with StandaloneCo
          |model = in1df[$modelLit].iloc[0]
          |out1df = in2df.copy()
          |X = in2df.drop(${pyStringLiteral(groundTruthAttribute)}, axis=1)
+         |$narrowToFittedFeatures
          |out1df[$resultLit] = model.predict(X)""".stripMargin
     } else {
       s"""from sklearn.pipeline import Pipeline
          |
          |model = in1df[$modelLit].iloc[0]
          |out1df = in2df.copy()
-         |out1df[$resultLit] = [str(p) for p in model.predict(in2df)]""".stripMargin
+         |X = in2df
+         |$narrowToFittedFeatures
+         |out1df[$resultLit] = [str(p) for p in model.predict(X)]""".stripMargin
     }
   }
 }

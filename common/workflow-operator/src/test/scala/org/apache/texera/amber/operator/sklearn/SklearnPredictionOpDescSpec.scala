@@ -92,6 +92,34 @@ class SklearnPredictionOpDescSpec extends AnyFlatSpec with Matchers {
     code should include("yield tuple_")
   }
 
+  // The fitting operators leave out the columns an estimator cannot fit, so this
+  // side has to leave out the same ones or scikit-learn refuses the frame for
+  // naming features it never saw. Read off the model, which carries what it was
+  // fitted on, rather than re-deriving a rule that could drift from theirs.
+  it should "narrow the input features to the ones the model was fitted on" in {
+    val d = new SklearnPredictionOpDesc
+    d.model = "model"
+    d.resultAttribute = "prediction"
+    d.groundTruthAttribute = "y"
+    Seq(d.generatePythonCode(), d.generateStandaloneCode()).foreach { code =>
+      code should include("""getattr(""")
+      code should include(""""feature_names_in_", None)""")
+      code should include("if _fitted is not None:")
+    }
+  }
+
+  // The branch that names no ground truth predicts on the whole frame, so it needs
+  // the same narrowing as the one that drops a column first.
+  it should "narrow the features with no ground-truth column configured too" in {
+    val d = new SklearnPredictionOpDesc
+    d.model = "model"
+    d.resultAttribute = "prediction"
+    d.groundTruthAttribute = ""
+    val code = d.generateStandaloneCode()
+    code should include(""""feature_names_in_", None)""")
+    code should include("X = X[list(_fitted)]")
+  }
+
   "SklearnPredictionOpDesc" should
     "round-trip its config fields through the polymorphic base" in {
     val d = new SklearnPredictionOpDesc

@@ -24,6 +24,7 @@ import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
+import org.apache.texera.amber.operator.sklearn.SklearnFittableColumns
 import org.apache.texera.amber.operator.metadata.annotations.{
   AutofillAttributeName,
   AutofillAttributeNameOnPort1
@@ -35,7 +36,10 @@ import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
   pyStringLiteral
 }
 
-class SklearnTestingOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
+class SklearnTestingOpDesc
+    extends PythonOperatorDescriptor
+    with StandaloneCodeGenerator
+    with SklearnFittableColumns {
   @JsonProperty(required = true, defaultValue = "false")
   @JsonSchemaTitle("Regression")
   @JsonPropertyDescription(
@@ -72,6 +76,7 @@ class SklearnTestingOpDesc extends PythonOperatorDescriptor with StandaloneCodeG
          |            table = Table(self.data)
          |            Y = table[$target]
          |            X = table.drop($target, axis=1)
+         |${narrowToFittableColumns("X", " " * 12)}
          |            predictions = model.predict(X.squeeze())
          |            if $isRegressionStr:
          |                tuple_["R2"] = r2_score(Y, predictions)
@@ -125,6 +130,7 @@ class SklearnTestingOpDesc extends PythonOperatorDescriptor with StandaloneCodeG
        |out1df = in1df.copy()
        |Y = in2df[$targetLit]
        |X = in2df.drop($targetLit, axis=1)
+       |${narrowToFittableColumns("X", "")}
        |predictions = model.predict(X.squeeze())
        |if $isRegressionStr:
        |    out1df["R2"] = r2_score(Y, predictions)

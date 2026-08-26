@@ -70,6 +70,20 @@ class SklearnTestingOpDescSpec extends AnyFlatSpec with Matchers {
     schema.getAttribute("MAE").getType shouldBe AttributeType.DOUBLE
   }
 
+  // The scorer reads every column but the target, so it has to leave out what an
+  // estimator cannot fit for the same reason the fitting operators do, and leave
+  // out the same columns: a model fitted without them refuses a frame naming them.
+  "SklearnTestingOpDesc" should "narrow the features to the columns an estimator can fit" in {
+    val d = new SklearnTestingOpDesc
+    d.model = "model"
+    d.target = "y"
+    Seq(d.generatePythonCode(), d.generateStandaloneCode()).foreach { code =>
+      code should include("""_fittable = X.select_dtypes(include=["number", "bool"])""")
+      code should include("""print("Ignoring columns an estimator cannot fit:", _ignored)""")
+      code should include("X = _fittable")
+    }
+  }
+
   "SklearnTestingOpDesc.generatePythonCode" should "emit the scorer tuple operator" in {
     val d = new SklearnTestingOpDesc
     d.model = "model"

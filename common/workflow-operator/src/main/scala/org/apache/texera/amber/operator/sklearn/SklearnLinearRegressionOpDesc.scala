@@ -30,7 +30,10 @@ import org.apache.texera.amber.operator.metadata.annotations.{AutofillAttributeN
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 
-class SklearnLinearRegressionOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
+class SklearnLinearRegressionOpDesc
+    extends PythonOperatorDescriptor
+    with StandaloneCodeGenerator
+    with SklearnFittableColumns {
 
   @JsonSchemaTitle("Target Attribute")
   @JsonPropertyDescription("Attribute in your dataset corresponding to target.")
@@ -59,6 +62,7 @@ class SklearnLinearRegressionOpDesc extends PythonOperatorDescriptor with Standa
        |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
        |        Y = table[$target]
        |        X = table.drop($target, axis=1)
+       |${narrowToFittableColumns("X", " " * 8)}
        |        if port == 0:
        |            pipeline = make_pipeline(
        |                PolynomialFeatures(degree=$degree),
@@ -104,6 +108,7 @@ class SklearnLinearRegressionOpDesc extends PythonOperatorDescriptor with Standa
        |
        |Y_train = in1df[$targetLit]
        |X_train = in1df.drop($targetLit, axis=1)
+       |${narrowToFittableColumns("X_train", "")}
        |pipeline = make_pipeline(
        |    PolynomialFeatures(degree=$degree),
        |    LinearRegression()
@@ -112,6 +117,7 @@ class SklearnLinearRegressionOpDesc extends PythonOperatorDescriptor with Standa
        |
        |Y_test = in2df[$targetLit]
        |X_test = in2df.drop($targetLit, axis=1)
+       |${narrowToFittableColumns("X_test", "")}
        |predictions = model.predict(X_test)
        |mae = round(mean_absolute_error(Y_test, predictions), 4)
        |r2 = round(r2_score(Y_test, predictions), 4)

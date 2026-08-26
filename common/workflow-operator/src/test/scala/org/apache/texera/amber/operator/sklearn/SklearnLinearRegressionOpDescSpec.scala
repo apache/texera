@@ -64,6 +64,30 @@ class SklearnLinearRegressionOpDescSpec extends AnyFlatSpec with Matchers {
     code should include("class ProcessTableOperator(UDFTableOperator)")
   }
 
+  // The operator fits every column but the target, so a text column beside the
+  // numbers would end the run from inside scikit-learn.
+  it should "narrow the features to the columns an estimator can fit" in {
+    val d = new SklearnLinearRegressionOpDesc
+    d.target = "y"
+    val code = d.generatePythonCode()
+    code should include("""_fittable = X.select_dtypes(include=["number", "bool"])""")
+    code should include("""print("Ignoring columns an estimator cannot fit:", _ignored)""")
+    code should include("X = _fittable")
+  }
+
+  // Both frames, since the model is fitted on one and scored on the other: a
+  // narrowing on only one side hands `predict` a different feature set.
+  "SklearnLinearRegressionOpDesc.generateStandaloneCode" should
+    "narrow both the training and the testing features" in {
+    val d = new SklearnLinearRegressionOpDesc
+    d.target = "y"
+    val code = d.generateStandaloneCode()
+    code should include("""_fittable = X_train.select_dtypes(include=["number", "bool"])""")
+    code should include("X_train = _fittable")
+    code should include("""_fittable = X_test.select_dtypes(include=["number", "bool"])""")
+    code should include("X_test = _fittable")
+  }
+
   "SklearnLinearRegressionOpDesc" should
     "round-trip its target through the polymorphic base" in {
     val d = new SklearnLinearRegressionOpDesc

@@ -70,7 +70,7 @@ import org.apache.texera.amber.operator.metadata.annotations.{
   ]
 }
 """)
-abstract class SklearnModelOpDesc extends PythonOperatorDescriptor {
+abstract class SklearnModelOpDesc extends PythonOperatorDescriptor with SklearnFittableColumns {
 
   // The label the estimator fits against. Test-only steering: without it the
   // first column wins, which on a feature/label table is a feature.
@@ -143,24 +143,13 @@ abstract class SklearnModelOpDesc extends PythonOperatorDescriptor {
         .map { case (column, i) => s"""("text$i", CountVectorizer(), ${renderColumn(column)})""" }
         .mkString("ColumnTransformer([", ", ", "]),")
 
-  /** Python that narrows `frame` to the columns an estimator can fit, written at
-    * `indent`. A column the user did not mean as a feature, a note beside the
-    * numbers, would otherwise end the run from inside scikit-learn. Booleans are
-    * kept: they fit as 0/1. What was dropped is printed, so the choice is visible
-    * rather than silent.
-    *
-    * Empty when Count Vectorizer is on: there the `ColumnTransformer` names the
-    * columns it reads, and they are the ones this would drop.
+  /** [[SklearnFittableColumns.narrowToFittableColumns]], except under the text
+    * pipeline: there the `ColumnTransformer` names the columns it reads, and they
+    * are the ones the narrowing would drop.
     */
   @JsonIgnore
   protected def dropNonFeatureColumns(frame: String, indent: String): String =
-    if (countVectorizer) ""
-    else
-      s"""${indent}_fittable = $frame.select_dtypes(include=["number", "bool"])
-         |${indent}_ignored = [c for c in $frame.columns if c not in _fittable.columns]
-         |${indent}if _ignored:
-         |${indent}    print("Ignoring columns an estimator cannot fit:", _ignored)
-         |${indent}$frame = _fittable""".stripMargin
+    if (countVectorizer) "" else narrowToFittableColumns(frame, indent)
 
   @JsonIgnore
   def getImportStatements: String
