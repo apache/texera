@@ -80,7 +80,7 @@ class RandomUserAgentSpec extends AnyFlatSpec with Matchers {
     // `Math.random() * 100` lands in [0, 100) and the only bucket contributes -1.0, so
     // `rand <= count` is false for every draw: the loop runs to exhaustion, `browser`
     // stays null, and the fallback has to supply a browser that actually has agents.
-    // This is the real ~1.4% tail, not a synthetic state.
+    // This forces the fallback code path deterministically (the production fallback occurs ~1.4% of the time because weights sum to 98.6 < 100).
     val chromeAgents = uaMap.get("Chrome").toSet
     chromeAgents should not be empty
 
