@@ -149,15 +149,19 @@ export class DynamicSchemaService {
   /**
    * Helper function to change a property in a json schema of an operator schema.
    * It recursively walks through the property field of a JSON schema, and tries to find the property name.
-   * Once it finds the property name, it invokes the mutationFunction to get the new property and replaces the old property.
-   * The mutationFunction optionally takes a input with current property of the propertyName and outputs the new mutated property.
+   * Once it finds the property name, it invokes the mutation function to get the new property and replaces the old property.
+   * Both callbacks receive the property's name and value plus the schema object that owns the property.
    *
    * Returns a new object containing the new json schema property.
    */
   public static mutateProperty(
     jsonSchemaToChange: CustomJSONSchema7,
-    matchFunc: (propertyName: string, propertyValue: CustomJSONSchema7) => boolean,
-    mutationFunc: (propertyName: string, propertyValue: CustomJSONSchema7) => CustomJSONSchema7
+    matchFunc: (propertyName: string, propertyValue: CustomJSONSchema7, ownerSchema: CustomJSONSchema7) => boolean,
+    mutationFunc: (
+      propertyName: string,
+      propertyValue: CustomJSONSchema7,
+      ownerSchema: CustomJSONSchema7
+    ) => CustomJSONSchema7
   ): CustomJSONSchema7 {
     // recursively walks the JSON schema property tree to find the property name
     const mutatePropertyRecurse = (jsonSchema: JSONSchema7) => {
@@ -171,8 +175,9 @@ export class DynamicSchemaService {
           if (typeof propertyValue === "boolean") {
             return;
           }
-          if (matchFunc(propertyName, propertyValue as CustomJSONSchema7)) {
-            objectProperty[propertyName] = mutationFunc(propertyName, propertyValue as CustomJSONSchema7);
+          const ownerSchema = jsonSchema as CustomJSONSchema7;
+          if (matchFunc(propertyName, propertyValue as CustomJSONSchema7, ownerSchema)) {
+            objectProperty[propertyName] = mutationFunc(propertyName, propertyValue as CustomJSONSchema7, ownerSchema);
           } else {
             mutatePropertyRecurse(propertyValue);
           }
