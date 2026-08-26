@@ -26,10 +26,10 @@ import { extractErrorMessage } from "../../util/error";
 import { WarehouseService } from "./warehouse.service";
 
 /**
- * Shared warehouse actions (#6933), mirroring ComputingUnitActionsService:
- * create and delete sit behind one service so the confirm dialog and its
- * wording live in one place, shared with the workspace picker once it lands
- * (#7817).
+ * Shared warehouse actions (#6933), mirroring ComputingUnitActionsService: one
+ * entry point for creating and deleting a warehouse, so callers reach the API
+ * the same way and the delete confirmation's wording lives in one place. Shared
+ * with the workspace picker once it lands (#7817).
  */
 @Injectable({
   providedIn: "root",
@@ -41,7 +41,7 @@ export class WarehouseActionsService {
     private notificationService: NotificationService
   ) {}
 
-  /** Creates a warehouse, so create and delete both sit behind this service. */
+  /** Creates a warehouse. Needs no confirmation, unlike the delete below. */
   create(name: string): Observable<DashboardWarehouse> {
     return this.warehouseService.createWarehouse(name);
   }
@@ -64,26 +64,23 @@ export class WarehouseActionsService {
       nzContent: "This permanently deletes the warehouse and all data stored in it.",
       nzOkText: "Delete",
       nzOkDanger: true,
-      // Resolves on failure too: the error is reported as a toast, and leaving the
-      // confirm dialog open on top of it would just have to be dismissed twice.
-      // Two callbacks rather than .then().catch(): chaining would route a throw
-      // from onDeleted into the delete-failed branch, reporting a failure over a
-      // delete that succeeded. The callback is guarded for the same reason — a
-      // refresh that fails must not reject the dialog either.
-      nzOnOk: () =>
-        firstValueFrom(this.warehouseService.deleteWarehouse(warehouse.whid)).then(
-          () => {
-            this.notificationService.success("Warehouse deleted.");
-            try {
-              onDeleted();
-            } catch (err: unknown) {
-              console.error("Failed to refresh after deleting a warehouse", err);
-            }
-          },
-          (err: unknown) => {
-            this.notificationService.error(`Failed to delete warehouse: ${extractErrorMessage(err)}`);
-          }
-        ),
+      // Returning a promise is what keeps the dialog busy until the request
+      // settles; each failure is reported where it belongs, so a refresh that
+      // throws is never mistaken for a delete that failed.
+      nzOnOk: async () => {
+        try {
+          await firstValueFrom(this.warehouseService.deleteWarehouse(warehouse.whid));
+        } catch (err: unknown) {
+          this.notificationService.error(`Failed to delete warehouse: ${extractErrorMessage(err)}`);
+          return;
+        }
+        this.notificationService.success("Warehouse deleted.");
+        try {
+          onDeleted();
+        } catch (err: unknown) {
+          console.error("Failed to refresh after deleting a warehouse", err);
+        }
+      },
     });
   }
 }

@@ -41,6 +41,11 @@ describe("WarehouseActionsService", () => {
     ownerAvatar: null,
   };
 
+  // The dialog is the only way in: every case goes through the confirm config
+  // nz-modal was handed, so name that once instead of reaching into the mock.
+  const confirmConfig = () => modalService.confirm.mock.calls[0][0];
+  const clickDelete = () => confirmConfig().nzOnOk();
+
   beforeEach(() => {
     modalService = { confirm: vi.fn() };
     warehouseService = {
@@ -73,7 +78,7 @@ describe("WarehouseActionsService", () => {
     service.confirmAndDelete(warehouse, onDeleted);
 
     expect(modalService.confirm).toHaveBeenCalledTimes(1);
-    const config = modalService.confirm.mock.calls[0][0];
+    const config = confirmConfig();
     expect(config.nzTitle).toBe('Delete warehouse "sales"?');
     expect(config.nzOkText).toBe("Delete");
     expect(config.nzOkDanger).toBe(true);
@@ -85,7 +90,7 @@ describe("WarehouseActionsService", () => {
     const onDeleted = vi.fn();
     service.confirmAndDelete(warehouse, onDeleted);
 
-    await modalService.confirm.mock.calls[0][0].nzOnOk();
+    await clickDelete();
 
     expect(warehouseService.deleteWarehouse).toHaveBeenCalledWith(3);
     expect(notificationService.success).toHaveBeenCalledWith("Warehouse deleted.");
@@ -101,7 +106,7 @@ describe("WarehouseActionsService", () => {
     const onDeleted = vi.fn();
     service.confirmAndDelete(warehouse, onDeleted);
 
-    const pending = modalService.confirm.mock.calls[0][0].nzOnOk();
+    const pending = clickDelete();
     expect(pending).toBeInstanceOf(Promise);
     expect(onDeleted).not.toHaveBeenCalled();
 
@@ -121,7 +126,7 @@ describe("WarehouseActionsService", () => {
     });
     service.confirmAndDelete(warehouse, onDeleted);
 
-    await modalService.confirm.mock.calls[0][0].nzOnOk();
+    await clickDelete();
 
     expect(notificationService.success).toHaveBeenCalledWith("Warehouse deleted.");
     expect(notificationService.error).not.toHaveBeenCalled();
@@ -135,7 +140,7 @@ describe("WarehouseActionsService", () => {
     service.confirmAndDelete(warehouse, onDeleted);
 
     // Resolves rather than rejects: the dialog closes and the error rides a toast.
-    await modalService.confirm.mock.calls[0][0].nzOnOk();
+    await clickDelete();
 
     expect(notificationService.error).toHaveBeenCalledWith("Failed to delete warehouse: Lakekeeper unreachable");
     expect(notificationService.success).not.toHaveBeenCalled();

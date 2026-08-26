@@ -17,9 +17,13 @@
  * under the License.
  */
 
+/** The storage backing a warehouse; the backend's `user_warehouse_flavor_enum`. */
+export type WarehouseFlavor = "local" | "aws";
+
 /**
- * A per-user warehouse registration (#6870), as served by `GET /warehouse/status`.
- * Mirrors the backend's `WarehouseResource.DashboardWarehouse`.
+ * A per-user warehouse registration (#6870), as served by `GET /warehouse/status`
+ * and returned by `POST /warehouse`. Mirrors the backend's
+ * `WarehouseResource.DashboardWarehouse`.
  */
 export interface DashboardWarehouse {
   whid: number;
@@ -27,8 +31,7 @@ export interface DashboardWarehouse {
   name: string;
   /** The Lakekeeper catalog name (`user-<uid>-<whid>`), stable for life (#7753). */
   lakekeeperWarehouseName: string;
-  /** The storage backing the warehouse; matches the backend's user_warehouse_flavor enum. */
-  flavor: "local" | "aws";
+  flavor: WarehouseFlavor;
   createdAtMillis: number;
   /**
    * Owner display info, mirroring DashboardWorkflowComputingUnit: every
