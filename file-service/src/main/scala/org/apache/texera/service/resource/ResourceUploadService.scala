@@ -27,14 +27,22 @@ import org.apache.texera.common.config.StorageConfig
 import org.apache.texera.dao.{SiteSettings, SqlServer}
 import org.apache.texera.dao.SqlServer.withTransaction
 import org.apache.texera.dao.jooq.generated.tables.Dataset.DATASET
+import org.apache.texera.dao.jooq.generated.tables.Model.MODEL
+import org.apache.texera.dao.jooq.generated.tables.ModelUploadSession.MODEL_UPLOAD_SESSION
+import org.apache.texera.dao.jooq.generated.tables.ModelUploadSessionPart.MODEL_UPLOAD_SESSION_PART
 import org.apache.texera.dao.jooq.generated.tables.DatasetUploadSession.DATASET_UPLOAD_SESSION
 import org.apache.texera.dao.jooq.generated.tables.DatasetUploadSessionPart.DATASET_UPLOAD_SESSION_PART
 import org.apache.texera.dao.jooq.generated.tables.records.{
   DatasetRecord,
   DatasetUploadSessionPartRecord,
   DatasetUploadSessionRecord,
-  DatasetUserAccessRecord
+  DatasetUserAccessRecord,
+  ModelRecord,
+  ModelUploadSessionPartRecord,
+  ModelUploadSessionRecord,
+  ModelUserAccessRecord
 }
+import org.apache.texera.service.`type`.LakeFSFileNode
 import org.apache.texera.service.util.LakeFSExceptionHandler.withLakeFSErrorHandling
 import org.apache.texera.service.util.S3StorageClient
 import org.apache.texera.service.util.S3StorageClient.{
@@ -119,6 +127,30 @@ object ResourceStorage {
       partNumber = DATASET_UPLOAD_SESSION_PART.PART_NUMBER,
       partEtag = DATASET_UPLOAD_SESSION_PART.ETAG
     )
+
+  val Model: ResourceStorage[
+    ModelRecord,
+    ModelUserAccessRecord,
+    ModelUploadSessionRecord,
+    ModelUploadSessionPartRecord
+  ] =
+    ResourceStorage(
+      resource = ResourceTables.Model,
+      resourceType = ResourceType.Model,
+      repositoryNameField = MODEL.REPOSITORY_NAME,
+      sessionResourceId = MODEL_UPLOAD_SESSION.MID,
+      sessionUid = MODEL_UPLOAD_SESSION.UID,
+      sessionFilePath = MODEL_UPLOAD_SESSION.FILE_PATH,
+      sessionUploadId = MODEL_UPLOAD_SESSION.UPLOAD_ID,
+      sessionPhysicalAddress = MODEL_UPLOAD_SESSION.PHYSICAL_ADDRESS,
+      sessionNumParts = MODEL_UPLOAD_SESSION.NUM_PARTS_REQUESTED,
+      sessionFileSize = MODEL_UPLOAD_SESSION.FILE_SIZE_BYTES,
+      sessionPartSize = MODEL_UPLOAD_SESSION.PART_SIZE_BYTES,
+      sessionCreatedAt = MODEL_UPLOAD_SESSION.CREATED_AT,
+      partUploadId = MODEL_UPLOAD_SESSION_PART.UPLOAD_ID,
+      partNumber = MODEL_UPLOAD_SESSION_PART.PART_NUMBER,
+      partEtag = MODEL_UPLOAD_SESSION_PART.ETAG
+    )
 }
 
 /**
@@ -138,6 +170,49 @@ object ResourceUploadService {
 
   private def singleFileUploadMaxBytes(defaultMiB: Long = 20L): Long =
     SiteSettings.getLong("single_file_upload_max_size_mib", defaultMiB) * 1024L * 1024L
+
+  /**
+    * Builds the file nodes of one committed version, plus the version's total size.
+    *
+    * The tree is rooted at the resource-type prefix, so the paths it yields resolve against
+    * the right table when they are handed back to `FileResolver`.
+    */
+  def versionRootFileNodes(
+      resourceType: ResourceType.Value,
+      ownerEmail: String,
+      resourceName: String,
+      versionName: String,
+      repositoryName: String,
+      versionHash: String
+  ): (List[LakeFSFileNode], Long) = {
+    val rootNode = LakeFSFileNode
+      .fromLakeFSRepositoryCommittedObjects(
+        resourceType,
+        Map(
+          (ownerEmail, resourceName, versionName) -> LakeFSStorageClient
+            .retrieveObjectsOfVersion(repositoryName, versionHash)
+        )
+      )
+      .head
+
+    val ownerFileNode = rootNode.getChildren.headOption.getOrElse(
+      throw new IllegalStateException(
+        s"File tree for $resourceName is missing its owner node"
+      )
+    )
+
+    val nodes = ownerFileNode.children.get
+      .find(_.getName == resourceName)
+      .head
+      .children
+      .get
+      .find(_.getName == versionName)
+      .head
+      .children
+      .get
+
+    (nodes, LakeFSFileNode.calculateTotalSize(List(rootNode)))
+  }
 
   private def noAccessMessage[R <: Record, A <: Record, S <: Record, P <: Record](
       s: ResourceStorage[R, A, S, P]
