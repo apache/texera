@@ -78,4 +78,19 @@ class SklearnGaussianNaiveBayesOpDescSpec extends AnyFlatSpec with Matchers {
     r.target shouldBe "label"
     r.countVectorizer shouldBe true
   }
+
+  "SklearnGaussianNaiveBayesOpDesc.getOutputSchemas" should
+    "reject Count Vectorizer, naming the estimator and what accepts it instead" in {
+    // GaussianNB is fitted on a mean and a variance per feature, which a sparse
+    // matrix cannot supply without being densified, so this used to end the run
+    // from inside scikit-learn. It stops at compile time now.
+    val d = new SklearnGaussianNaiveBayesOpDesc
+    d.target = "y"
+    d.text = List("note")
+    d.countVectorizer = true
+    val thrown = intercept[RuntimeException](d.getOutputSchemas(Map.empty))
+    thrown.getMessage should include("Gaussian Naive Bayes")
+    thrown.getMessage should include("Count Vectorizer")
+    thrown.getMessage should include("Multinomial, Bernoulli or Complement Naive Bayes")
+  }
 }

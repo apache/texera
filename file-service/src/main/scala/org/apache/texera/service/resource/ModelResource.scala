@@ -34,11 +34,7 @@ import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
 import org.apache.texera.dao.jooq.generated.tables.Model.MODEL
 import org.apache.texera.dao.jooq.generated.tables.ModelVersion.MODEL_VERSION
 import org.apache.texera.dao.jooq.generated.tables.User.USER
-import org.apache.texera.dao.jooq.generated.tables.daos.{
-  ModelDao,
-  ModelUserAccessDao,
-  ModelVersionDao
-}
+import org.apache.texera.dao.jooq.generated.tables.daos.{ModelDao, ModelUserAccessDao}
 import org.apache.texera.dao.jooq.generated.tables.pojos.{Model, ModelUserAccess, ModelVersion}
 import org.apache.texera.service.`type`.{Diff, ExistingUploadFilesRequest, LakeFSFileNode}
 import org.apache.texera.service.resource.ResourceTables.{Model => MODEL_RESOURCE}
@@ -75,6 +71,11 @@ object ModelResource {
     }
   }
 
+  // Matches model_version.name VARCHAR(128).
+  private val MAX_VERSION_NAME_LENGTH = 128
+
+  private val MULTIPART_OPERATIONS = Seq("list", "init", "finish", "abort")
+
   private def context =
     SqlServer
       .getInstance()
@@ -98,9 +99,14 @@ object ModelResource {
   /**
     * Helper function to get the model version from DB using mvid
     */
-  private def getModelVersionByID(ctx: DSLContext, mvid: Integer): ModelVersion = {
-    val modelVersionDao = new ModelVersionDao(ctx.configuration())
-    val version = modelVersionDao.fetchOneByMvid(mvid)
+  /** Scoped to `mid`: the access check runs against `mid`, so an unscoped lookup would
+    * resolve another model's version through this repository.
+    */
+  private def getModelVersionByID(ctx: DSLContext, mid: Integer, mvid: Integer): ModelVersion = {
+    val version = ctx
+      .selectFrom(MODEL_VERSION)
+      .where(MODEL_VERSION.MVID.eq(mvid).and(MODEL_VERSION.MID.eq(mid)))
+      .fetchOneInto(classOf[ModelVersion])
     if (version == null) {
       throw new NotFoundException("Model Version not found")
     }
@@ -501,7 +507,7 @@ class ModelResource extends LazyLogging {
       }
 
       val modelVersion =
-        if (mvid != null) getModelVersionByID(ctx, mvid)
+        if (mvid != null) getModelVersionByID(ctx, mid, mvid)
         else
           getLatestModelVersion(ctx, mid).getOrElse(
             throw new NotFoundException(ERR_MODEL_VERSION_NOT_FOUND_MESSAGE)
@@ -696,6 +702,15 @@ class ModelResource extends LazyLogging {
         s"v${versionCount + 1} - $sanitizedVersionName"
       }
 
+      // Before the commit: the commit is outside this transaction, so a name the insert
+      // rejects would leave a commit no version points at and strand the staged file.
+      if (newVersionName.length > MAX_VERSION_NAME_LENGTH) {
+        throw new BadRequestException(
+          s"Version name is too long: ${newVersionName.length} characters, " +
+            s"maximum is $MAX_VERSION_NAME_LENGTH."
+        )
+      }
+
       // Create a commit in LakeFS
       val commit = withLakeFSErrorHandling {
         LakeFSStorageClient.createCommit(
@@ -736,7 +751,7 @@ class ModelResource extends LazyLogging {
         LakeFSFileNode
           .fromLakeFSRepositoryCommittedObjects(
             ResourceType.Model,
-            Map((user.getEmail, modelName, newVersionName) -> fileNodes)
+            Map((getOwner(ctx, mid).getEmail, modelName, newVersionName) -> fileNodes)
           )
       )
     }
@@ -771,7 +786,6 @@ class ModelResource extends LazyLogging {
       if (!userHasReadAccess(ctx, mid, uid)) {
         throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_MODEL_MESSAGE)
       }
-      val model = getModelByID(ctx, mid)
       val latestVersion = getLatestModelVersion(ctx, mid).getOrElse(
         throw new NotFoundException(ERR_MODEL_VERSION_NOT_FOUND_MESSAGE)
       )
@@ -849,16 +863,24 @@ class ModelResource extends LazyLogging {
       @Auth user: SessionUser
   ): Response = {
     val uid = user.getUid
+
+    // Optional query param: null when omitted, so validate before dereferencing and before
+    // the getModelBy round-trip.
+    val operation = Option(operationType).map(_.trim.toLowerCase).getOrElse("")
+    if (!MULTIPART_OPERATIONS.contains(operation)) {
+      throw new BadRequestException(
+        s"Invalid type parameter. Use ${MULTIPART_OPERATIONS.map(o => s"'$o'").mkString(", ")}."
+      )
+    }
+
     val model: Model = getModelBy(ownerEmail, modelName)
 
-    operationType.toLowerCase match {
+    operation match {
       case "list" => listMultipartUploads(model.getMid, uid)
       case "init" =>
         initMultipartUpload(model.getMid, filePath, fileSizeBytes, partSizeBytes, restart, uid)
       case "finish" => finishMultipartUpload(model.getMid, filePath, uid)
-      case "abort"  => abortMultipartUpload(model.getMid, filePath, uid)
-      case _ =>
-        throw new BadRequestException("Invalid type parameter. Use 'init', 'finish', or 'abort'.")
+      case _        => abortMultipartUpload(model.getMid, filePath, uid)
     }
   }
 
@@ -930,7 +952,7 @@ class ModelResource extends LazyLogging {
       uid: Option[Integer]
   ): ModelVersionRootFileNodesResponse = {
     val model = getDashboardModel(ctx, mid, uid)
-    val modelVersion = getModelVersionByID(ctx, mvid)
+    val modelVersion = getModelVersionByID(ctx, mid, mvid)
     val (nodes, size) = ResourceUploadService.versionRootFileNodes(
       ResourceType.Model,
       model.ownerEmail,

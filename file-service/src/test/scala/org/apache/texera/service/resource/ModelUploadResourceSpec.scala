@@ -23,10 +23,11 @@ import jakarta.ws.rs._
 import jakarta.ws.rs.core._
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.dao.MockTexeraDB
-import org.apache.texera.dao.jooq.generated.enums.UserRoleEnum
-import org.apache.texera.dao.jooq.generated.tables.daos.UserDao
-import org.apache.texera.dao.jooq.generated.tables.pojos.User
+import org.apache.texera.dao.jooq.generated.enums.{PrivilegeEnum, UserRoleEnum}
+import org.apache.texera.dao.jooq.generated.tables.daos.{ModelUserAccessDao, UserDao}
+import org.apache.texera.dao.jooq.generated.tables.pojos.{ModelUserAccess, User}
 import org.apache.texera.service.MockLakeFS
+import org.apache.texera.service.`type`.LakeFSFileNode
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
@@ -52,13 +53,25 @@ class ModelUploadResourceSpec
     user
   }
 
+  /** A second account that is granted WRITE on a model but never owns one. */
+  private val collaboratorUser: User = {
+    val user = new User
+    user.setName("model_upload_collaborator")
+    user.setEmail("model_upload_collaborator@test.com")
+    user.setRole(UserRoleEnum.REGULAR)
+    user
+  }
+
   lazy val modelResource = new ModelResource()
   lazy val sessionUser = new SessionUser(ownerUser)
+  lazy val collaboratorSession = new SessionUser(collaboratorUser)
 
   override protected def beforeAll(): Unit = {
     super.beforeAll()
     initializeDBAndReplaceDSLContext()
-    new UserDao(getDSLContext.configuration()).insert(ownerUser)
+    val userDao = new UserDao(getDSLContext.configuration())
+    userDao.insert(ownerUser)
+    userDao.insert(collaboratorUser)
   }
 
   override protected def afterAll(): Unit = {
@@ -243,6 +256,115 @@ class ModelUploadResourceSpec
 
     // both versions are listed, newest first
     modelResource.getModelVersionList(mid, sessionUser).map(_.getName) should have size 2
+  }
+
+  // ===========================================================================
+  // Path ownership
+  // ===========================================================================
+  "a version created by a WRITE collaborator" should "carry the owner's email in its file paths" in {
+    val model = newModel()
+    val mid = model.model.getMid
+
+    // The collaborator can write, but the model still belongs to ownerUser.
+    new ModelUserAccessDao(getDSLContext.configuration())
+      .insert(new ModelUserAccess(mid, collaboratorUser.getUid, PrivilegeEnum.WRITE))
+
+    modelResource
+      .uploadOneFileToModel(
+        mid,
+        urlEnc("weights.bin"),
+        "upload",
+        new ByteArrayInputStream(Array.fill[Byte](64)(0x3)),
+        mkHeaders(64L),
+        collaboratorSession
+      )
+      .getStatus shouldEqual 200
+
+    val created = modelResource.createModelVersion("from-collab", mid, collaboratorSession)
+    val versionName = created.modelVersion.getName
+
+    // FileResolver resolves /model/<ownerEmail>/... via MODEL.OWNER_UID, so a path naming
+    // the collaborator resolves to nothing.
+    val expected =
+      s"/model/${ownerUser.getEmail}/${model.model.getName}/$versionName/weights.bin"
+
+    def pathsOf(nodes: List[LakeFSFileNode]): List[String] =
+      nodes.flatMap(n => n.getFilePath :: pathsOf(n.getChildren))
+
+    pathsOf(created.fileNodes) should contain(expected)
+    pathsOf(created.fileNodes).foreach(_ should not include collaboratorUser.getEmail)
+
+    // The response must agree with a subsequent read.
+    pathsOf(
+      modelResource.retrieveLatestModelVersion(mid, collaboratorSession).fileNodes
+    ) should contain(expected)
+  }
+
+  // ===========================================================================
+  // Input validation and version scoping
+  // ===========================================================================
+  "createModelVersion" should "reject an over-long name without committing to LakeFS" in {
+    val model = newModel()
+    val mid = model.model.getMid
+
+    uploadOneShot(mid, "weights.pt", Array.fill[Byte](32)(0x1)).getStatus shouldEqual 200
+
+    // The insert happens after the LakeFS commit, so an unchecked name would strand the
+    // staged file behind a commit no version points at.
+    val tooLong = "x" * 200
+    val thrown = intercept[BadRequestException] {
+      modelResource.createModelVersion(tooLong, mid, sessionUser)
+    }
+    thrown.getMessage should include("too long")
+
+    // The staged change survived, so a retry works -- previously it hit "No changes detected".
+    val recovered = modelResource.createModelVersion("sane-name", mid, sessionUser)
+    recovered.modelVersion.getName should endWith("sane-name")
+    modelResource
+      .retrieveLatestModelVersion(mid, sessionUser)
+      .fileNodes
+      .map(_.getName) should contain("weights.pt")
+  }
+
+  "retrieveModelVersionRootFileNodes" should "404 for a version belonging to another model" in {
+    val modelA = newModel()
+    val modelB = newModel()
+
+    uploadOneShot(modelA.model.getMid, "a.pt", Array.fill[Byte](16)(0x1)).getStatus shouldEqual 200
+    uploadOneShot(modelB.model.getMid, "b.pt", Array.fill[Byte](16)(0x2)).getStatus shouldEqual 200
+    modelResource.createModelVersion("va", modelA.model.getMid, sessionUser)
+    val versionOfB = modelResource.createModelVersion("vb", modelB.model.getMid, sessionUser)
+
+    // An unscoped lookup would resolve B's version through A's repository and 500 in LakeFS.
+    intercept[NotFoundException] {
+      modelResource.retrieveModelVersionRootFileNodes(
+        modelA.model.getMid,
+        versionOfB.modelVersion.getMvid,
+        sessionUser
+      )
+    }
+  }
+
+  "multipartUpload" should "400 when the operation type is missing or unknown" in {
+    val model = newModel()
+    val ownerEmail = ownerUser.getEmail
+    val modelName = model.model.getName
+
+    // Absent means null, which used to NPE into a 500.
+    for (op <- Seq(null, "", "bogus")) {
+      intercept[BadRequestException] {
+        modelResource.multipartUpload(
+          op,
+          ownerEmail,
+          modelName,
+          urlEnc("f.pt"),
+          Optional.empty(),
+          Optional.empty(),
+          Optional.empty(),
+          sessionUser
+        )
+      }
+    }
   }
 
   // ===========================================================================
