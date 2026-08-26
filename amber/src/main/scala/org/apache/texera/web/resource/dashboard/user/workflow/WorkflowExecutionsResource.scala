@@ -35,10 +35,11 @@ import org.apache.texera.amber.engine.common.storage.SequentialRecordStorage
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.apache.texera.amber.util.serde.GlobalPortIdentitySerde.SerdeOps
 import org.apache.texera.auth.{JwtParser, SessionUser}
+import org.apache.texera.auth.util.ComputingUnitAccess
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.SqlServer.withTransaction
 import org.apache.texera.dao.jooq.generated.Tables._
-import org.apache.texera.dao.jooq.generated.enums.UserRoleEnum
+import org.apache.texera.dao.jooq.generated.enums.{PrivilegeEnum, UserRoleEnum}
 import org.apache.texera.dao.jooq.generated.tables.daos.WorkflowExecutionsDao
 import org.apache.texera.dao.jooq.generated.tables.pojos.{WorkflowExecutions, User => UserPojo}
 import org.apache.texera.web.model.http.request.result.ResultExportRequest
@@ -794,6 +795,65 @@ class WorkflowExecutionsResource {
       .entity(Map("error" -> "No sufficient access privilege.").asJava)
       .build()
 
+  /** 403 rather than the 401 above, for a caller who *can* read the workflow but may not take
+    * this particular data out of it. The distinction is also operational: the frontend's
+    * UnauthorizedHttpInterceptor reads any 401 on an authenticated request as an expired
+    * session and logs the user out, which is the wrong outcome for a live session that simply
+    * asked for something it is not entitled to.
+    */
+  private def exportDeniedResponse(message: String): Response =
+    Response
+      .status(Response.Status.FORBIDDEN)
+      .`type`(MediaType.APPLICATION_JSON)
+      .entity(Map("error" -> message).asJava)
+      .build()
+
+  /** Authorizes one result-export request, for both the local and the dataset endpoint.
+    *
+    * Three things have to hold before results leave the system:
+    *
+    *   1. the caller can read the workflow the results belong to;
+    *   2. the caller can reach the computing unit that produced them — `getLatestExecutionID`
+    *      selects on `(wid, cuid)` alone, so the unit is as much a caller-chosen key as the
+    *      workflow id is;
+    *   3. no requested operator carries data from a dataset whose owner marked it
+    *      non-downloadable. `getWorkflowResultDownloadability` hands the same map to the UI,
+    *      which greys those operators out — but that is advice to a cooperating client, and
+    *      both export endpoints are reachable directly.
+    *
+    * @return the response to send back, or None when the export may proceed
+    */
+  private def validateUserCanExportResult(
+      user: UserPojo,
+      request: ResultExportRequest
+  ): Option[Response] = {
+    if (!WorkflowAccessResource.hasReadAccess(request.workflowId, user.getUid)) {
+      Some(workflowAccessDeniedResponse)
+    } else if (
+      ComputingUnitAccess
+        .getComputingUnitAccess(request.computingUnitId, user.getUid)
+        .eq(PrivilegeEnum.NONE)
+    ) {
+      Some(exportDeniedResponse("No sufficient access privilege to the computing unit."))
+    } else {
+      val restrictions = getNonDownloadableOperatorMap(request.workflowId, user)
+      val blockingDatasets =
+        request.operators.flatMap(op => restrictions.getOrElse(op.id, Set.empty)).distinct
+      if (blockingDatasets.isEmpty) {
+        None
+      } else {
+        val labels = blockingDatasets.map {
+          case (ownerEmail, datasetName) => s"$datasetName ($ownerEmail)"
+        }
+        Some(
+          exportDeniedResponse(
+            s"Export is blocked by non-downloadable dataset(s): ${labels.mkString(", ")}"
+          )
+        )
+      }
+    }
+  }
+
   /** Delete a group of executions */
   @PUT
   @Consumes(Array(MediaType.APPLICATION_JSON))
@@ -857,22 +917,22 @@ class WorkflowExecutionsResource {
   @Path("/result/export/dataset")
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   def exportResultToDataset(request: ResultExportRequest, @Auth user: SessionUser): Response = {
-    if (!WorkflowAccessResource.hasReadAccess(request.workflowId, user.getUser.getUid)) {
-      workflowAccessDeniedResponse
-    } else {
-      try {
-        val resultExportService =
-          new ResultExportService(WorkflowIdentity(request.workflowId), request.computingUnitId)
-        resultExportService.exportToDataset(user.user, request)
+    validateUserCanExportResult(user.getUser, request) match {
+      case Some(denial) => denial
+      case None =>
+        try {
+          val resultExportService =
+            new ResultExportService(WorkflowIdentity(request.workflowId), request.computingUnitId)
+          resultExportService.exportToDataset(user.user, request)
 
-      } catch {
-        case ex: Exception =>
-          Response
-            .status(Response.Status.INTERNAL_SERVER_ERROR)
-            .`type`(MediaType.APPLICATION_JSON)
-            .entity(Map("error" -> ex.getMessage).asJava)
-            .build()
-      }
+        } catch {
+          case ex: Exception =>
+            Response
+              .status(Response.Status.INTERNAL_SERVER_ERROR)
+              .`type`(MediaType.APPLICATION_JSON)
+              .entity(Map("error" -> ex.getMessage).asJava)
+              .build()
+        }
     }
   }
 
@@ -897,12 +957,12 @@ class WorkflowExecutionsResource {
       }
 
       val request = Json.parse(requestJson).as[ResultExportRequest]
-      if (!WorkflowAccessResource.hasReadAccess(request.workflowId, user.getUser.getUid)) {
-        workflowAccessDeniedResponse
-      } else {
-        val resultExportService =
-          new ResultExportService(WorkflowIdentity(request.workflowId), request.computingUnitId)
-        resultExportService.exportToLocal(request)
+      validateUserCanExportResult(user.getUser, request) match {
+        case Some(denial) => denial
+        case None =>
+          val resultExportService =
+            new ResultExportService(WorkflowIdentity(request.workflowId), request.computingUnitId)
+          resultExportService.exportToLocal(request)
       }
 
     } catch {
