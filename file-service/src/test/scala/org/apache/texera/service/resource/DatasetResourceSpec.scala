@@ -43,6 +43,7 @@ import org.apache.texera.dao.jooq.generated.tables.pojos.{
   User
 }
 import org.apache.texera.service.MockLakeFS
+import org.apache.texera.service.`type`.{ExistingUploadFile, ExistingUploadFilesRequest}
 import org.apache.texera.service.util.S3StorageClient
 import org.jooq.SQLDialect
 import org.jooq.impl.DSL
@@ -791,12 +792,12 @@ class DatasetResourceSpec
 
     val resp = datasetResource.findExistingUploadFiles(
       dataset.getDid,
-      DatasetResource.ExistingUploadFilesRequest(
+      ExistingUploadFilesRequest(
         List(
-          DatasetResource.ExistingUploadFile("committed.csv", committed.length),
-          DatasetResource.ExistingUploadFile("staged.csv", staged.length),
-          DatasetResource.ExistingUploadFile("wrong-size.csv", staged.length + 1),
-          DatasetResource.ExistingUploadFile("missing.csv", 1L)
+          ExistingUploadFile("committed.csv", committed.length),
+          ExistingUploadFile("staged.csv", staged.length),
+          ExistingUploadFile("wrong-size.csv", staged.length + 1),
+          ExistingUploadFile("missing.csv", 1L)
         )
       ),
       sessionUser
@@ -838,8 +839,8 @@ class DatasetResourceSpec
     val requestPath = "folder/../committed.csv"
     val resp = datasetResource.findExistingUploadFiles(
       dataset.getDid,
-      DatasetResource.ExistingUploadFilesRequest(
-        List(DatasetResource.ExistingUploadFile(requestPath, committed.length))
+      ExistingUploadFilesRequest(
+        List(ExistingUploadFile(requestPath, committed.length))
       ),
       sessionUser
     )
@@ -862,7 +863,7 @@ class DatasetResourceSpec
 
     val resp = datasetResource.findExistingUploadFiles(
       dataset.getDid,
-      DatasetResource.ExistingUploadFilesRequest(null),
+      ExistingUploadFilesRequest(null),
       sessionUser
     )
 
@@ -874,8 +875,8 @@ class DatasetResourceSpec
     val ex = intercept[BadRequestException] {
       datasetResource.findExistingUploadFiles(
         baseDataset.getDid,
-        DatasetResource.ExistingUploadFilesRequest(
-          List(DatasetResource.ExistingUploadFile("bad-size.csv", -1L))
+        ExistingUploadFilesRequest(
+          List(ExistingUploadFile("bad-size.csv", -1L))
         ),
         sessionUser
       )
@@ -888,8 +889,8 @@ class DatasetResourceSpec
     val ex = intercept[ForbiddenException] {
       datasetResource.findExistingUploadFiles(
         multipartDataset.getDid,
-        DatasetResource.ExistingUploadFilesRequest(
-          List(DatasetResource.ExistingUploadFile("private.csv", 1L))
+        ExistingUploadFilesRequest(
+          List(ExistingUploadFile("private.csv", 1L))
         ),
         multipartNoWriteSessionUser
       )
@@ -919,8 +920,8 @@ class DatasetResourceSpec
     val ex = intercept[NotFoundException] {
       datasetResource.findExistingUploadFiles(
         dataset.getDid,
-        DatasetResource.ExistingUploadFilesRequest(
-          List(DatasetResource.ExistingUploadFile("missing.csv", 1L))
+        ExistingUploadFilesRequest(
+          List(ExistingUploadFile("missing.csv", 1L))
         ),
         sessionUser
       )

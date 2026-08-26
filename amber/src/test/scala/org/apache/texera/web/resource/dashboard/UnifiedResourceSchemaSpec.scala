@@ -96,13 +96,13 @@ class UnifiedResourceSchemaSpec extends AnyFlatSpec with Matchers {
     uid = USER.UID,
     userName = USER.NAME,
     userEmail = USER.EMAIL,
-    did = DATASET.DID,
+    versionedResourceId = DATASET.DID,
     datasetStoragePath = sentinelStoragePath,
     repositoryName = DATASET.REPOSITORY_NAME,
-    isDatasetPublic = DATASET.IS_PUBLIC,
-    isDatasetDownloadable = DATASET.IS_DOWNLOADABLE,
-    datasetUserAccess = DATASET_USER_ACCESS.PRIVILEGE,
-    datasetCoverImage = DATASET.COVER_IMAGE,
+    isVersionedResourcePublic = DATASET.IS_PUBLIC,
+    isVersionedResourceDownloadable = DATASET.IS_DOWNLOADABLE,
+    versionedResourceUserAccess = DATASET_USER_ACCESS.PRIVILEGE,
+    versionedResourceCoverImage = DATASET.COVER_IMAGE,
     workflowCoverImage = WORKFLOW_COVER_IMAGE.IMAGE
   )
 
@@ -120,13 +120,13 @@ class UnifiedResourceSchemaSpec extends AnyFlatSpec with Matchers {
     "uid" -> USER.UID,
     "userName" -> USER.NAME,
     "email" -> USER.EMAIL,
-    "did" -> DATASET.DID,
+    "versioned_resource_id" -> DATASET.DID,
     "dataset_storage_path" -> sentinelStoragePath,
     "repository_name" -> DATASET.REPOSITORY_NAME,
-    "is_dataset_public" -> DATASET.IS_PUBLIC,
-    "is_dataset_downloadable" -> DATASET.IS_DOWNLOADABLE,
-    "user_dataset_access" -> DATASET_USER_ACCESS.PRIVILEGE,
-    "cover_image" -> DATASET.COVER_IMAGE,
+    "is_versioned_resource_public" -> DATASET.IS_PUBLIC,
+    "is_versioned_resource_downloadable" -> DATASET.IS_DOWNLOADABLE,
+    "user_versioned_resource_access" -> DATASET_USER_ACCESS.PRIVILEGE,
+    "versioned_resource_cover_image" -> DATASET.COVER_IMAGE,
     "workflow_cover_image" -> WORKFLOW_COVER_IMAGE.IMAGE
   )
 
@@ -158,7 +158,7 @@ class UnifiedResourceSchemaSpec extends AnyFlatSpec with Matchers {
     rendered should include("'' as \"resourceType\"")
     rendered should include("cast(null as timestamp) as \"resourceCreationTime\"")
     rendered should include("cast(null as int) as \"resourceOwnerId\"")
-    rendered should include("cast(null as boolean) as \"is_dataset_public\"")
+    rendered should include("cast(null as boolean) as \"is_versioned_resource_public\"")
   }
 
   // -- the de-dup behind translatedFieldSet -----------------------------------
@@ -200,7 +200,7 @@ class UnifiedResourceSchemaSpec extends AnyFlatSpec with Matchers {
       "resourceOwnerId", // cast(null as int)
       "workflow_privilege", // cast(null as privilege_enum)
       "dataset_storage_path", // cast(null as varchar)
-      "is_dataset_public" // cast(null as boolean)
+      "is_versioned_resource_public" // cast(null as boolean)
     )
   }
 
@@ -219,8 +219,8 @@ class UnifiedResourceSchemaSpec extends AnyFlatSpec with Matchers {
     workflowSchema.allFields.map(_.getName).diff(aliases) shouldBe Seq(
       "uid",
       "repository_name",
-      "is_dataset_downloadable",
-      "cover_image"
+      "is_versioned_resource_downloadable",
+      "versioned_resource_cover_image"
     )
     aliases should contain("resourceOwnerId")
   }
