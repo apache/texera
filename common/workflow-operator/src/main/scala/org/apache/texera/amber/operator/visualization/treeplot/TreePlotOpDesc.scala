@@ -72,8 +72,6 @@ class TreePlotOpDesc extends PythonOperatorDescriptor {
        |
        |import plotly.graph_objects as go
        |import plotly.io
-       |import igraph
-       |from igraph import Graph, EdgeSeq
        |import pandas as pd
        |import ast
        |
@@ -108,6 +106,66 @@ class TreePlotOpDesc extends PythonOperatorDescriptor {
        |            )
        |        return annotations
        |
+       |    def build_tree_layout(self, edges):
+       |        # Tidy top-down tree: depth picks the row, a leaf takes the next
+       |        # free column and a parent sits centred over its own children.
+       |        labels = []
+       |        known = set()
+       |        for parent, child in edges:
+       |            for node in (parent, child):
+       |                if node not in known:
+       |                    known.add(node)
+       |                    labels.append(node)
+       |
+       |        children = {label: [] for label in labels}
+       |        has_parent = set()
+       |        seen = set()
+       |        for parent, child in edges:
+       |            if (parent, child) not in seen:
+       |                seen.add((parent, child))
+       |                children[parent].append(child)
+       |            has_parent.add(child)
+       |
+       |        depth = {}
+       |        column = {}
+       |        claimed = {}
+       |        placed = set()
+       |        next_column = 0
+       |
+       |        def grow(root):
+       |            nonlocal next_column
+       |            placed.add(root)
+       |            stack = [(root, 0, False)]
+       |            while stack:
+       |                node, level, folded = stack.pop()
+       |                if folded:
+       |                    kids = claimed[node]
+       |                    if kids:
+       |                        column[node] = sum(column[kid] for kid in kids) / len(kids)
+       |                    else:
+       |                        column[node] = next_column
+       |                        next_column += 1
+       |                    continue
+       |                depth[node] = level
+       |                # A node belongs to whichever parent reaches it first, so a
+       |                # cycle or a shared child is never laid out twice.
+       |                kids = [kid for kid in children[node] if kid not in placed]
+       |                placed.update(kids)
+       |                claimed[node] = kids
+       |                stack.append((node, level, True))
+       |                for kid in reversed(kids):
+       |                    stack.append((kid, level + 1, False))
+       |
+       |        for label in labels:
+       |            if label not in placed and label not in has_parent:
+       |                grow(label)
+       |        # Whatever is left sits in a cycle that no root can reach.
+       |        for label in labels:
+       |            if label not in placed:
+       |                grow(label)
+       |        # The y-axis is inverted here so the tree grows top-down.
+       |        return labels, [(column[label], -depth[label]) for label in labels]
+       |
        |    @overrides
        |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
        |        if table.empty:
@@ -127,14 +185,10 @@ class TreePlotOpDesc extends PythonOperatorDescriptor {
        |            yield {'html-content': self.render_error("No valid [parent, child] pairs found in column " + $edgeListColumn + ".")}
        |            return
        |
-       |        G = Graph.TupleList(edges, directed=True)
-       |        labels = G.vs['name']
-       |
-       |        layout_algorithm = 'rt'
        |        try:
-       |            lay = G.layout(layout_algorithm)
+       |            labels, coords = self.build_tree_layout(edges)
        |        except Exception as e:
-       |             yield {'html-content': self.render_error(f"Layout algorithm '{layout_algorithm}' failed: {e}")}
+       |             yield {'html-content': self.render_error(f"Tree layout failed: {e}")}
        |             return
        |
        |        HORIZONTAL_DENSITY = 120
@@ -143,8 +197,8 @@ class TreePlotOpDesc extends PythonOperatorDescriptor {
        |        MIN_WIDTH = 800
        |        MIN_HEIGHT = 600
        |
-       |        if len(lay.coords) > 1:
-       |            x_coords, y_coords = zip(*lay.coords)
+       |        if len(coords) > 1:
+       |            x_coords, y_coords = zip(*coords)
        |            x_range = max(x_coords) - min(x_coords)
        |            y_range = max(y_coords) - min(y_coords)
        |            plot_width = max(MIN_WIDTH, x_range * HORIZONTAL_DENSITY + PADDING)
@@ -153,12 +207,13 @@ class TreePlotOpDesc extends PythonOperatorDescriptor {
        |            plot_width = MIN_WIDTH
        |            plot_height = MIN_HEIGHT
        |
-       |        # Invert the y-axis to make the tree grow top-down.
-       |        position = {k: (lay[k][0], -lay[k][1]) for k in range(len(labels))}
+       |        position = {k: coords[k] for k in range(len(labels))}
+       |        index_of = {label: k for k, label in enumerate(labels)}
        |
        |        Xe = []
        |        Ye = []
-       |        for edge in G.get_edgelist():
+       |        for parent, child in edges:
+       |            edge = (index_of[parent], index_of[child])
        |            Xe += [position[edge[0]][0], position[edge[1]][0], None]
        |            Ye += [position[edge[0]][1], position[edge[1]][1], None]
        |
