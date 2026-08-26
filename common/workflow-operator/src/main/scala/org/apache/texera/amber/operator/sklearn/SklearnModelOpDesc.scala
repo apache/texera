@@ -137,6 +137,16 @@ abstract class SklearnModelOpDesc extends PythonOperatorDescriptor {
             s" produces. Turn Count Vectorizer off, or use $alternatives."
         )
       }
+      // The generated code drops the target before the text pipeline reads its
+      // columns, so naming it here asks the pipeline for a column that is no
+      // longer there. Refused rather than vectorized: the label is the answer,
+      // and a model given it as a feature reads that answer off its own input.
+      if (text.contains(target)) {
+        throw new RuntimeException(
+          s""""$target" is the Target Attribute, so it cannot also be a Text Attribute.""" +
+            " Remove it from Text Attribute, or fit against a different column."
+        )
+      }
     }
     Map(
       operatorInfo.outputPorts.head.id -> Schema()

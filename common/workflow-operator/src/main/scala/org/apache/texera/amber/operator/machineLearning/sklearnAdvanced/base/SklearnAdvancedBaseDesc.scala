@@ -163,6 +163,17 @@ abstract class SklearnMLOperatorDescriptor[T <: ParamClass] extends PythonOperat
   override def getOutputSchemas(
       inputSchemas: Map[PortIdentity, Schema]
   ): Map[PortIdentity, Schema] = {
+    // The features go to `fit` as they are named, so the ground truth among them
+    // is the answer handed to the estimator as an input. Nothing fails when that
+    // happens, which is why it is refused here: the run finishes and the model
+    // scores far better than what it learned deserves.
+    if (Option(selectedFeatures).exists(_.contains(groundTruthAttribute))) {
+      throw new RuntimeException(
+        s""""$groundTruthAttribute" is the Ground Truth Attribute Column, so it cannot""" +
+          " also be a Selected Feature. Remove it from Selected Features, or fit against" +
+          " a different column."
+      )
+    }
     val outputSchema = Schema(
       List(
         new Attribute("Model", AttributeType.BINARY),
