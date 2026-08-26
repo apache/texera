@@ -43,6 +43,11 @@ trait SklearnFittableColumns {
     * would otherwise end the run from inside scikit-learn. Booleans are kept:
     * they fit as 0/1. What was dropped is printed, so the choice is visible
     * rather than silent.
+    *
+    * A table whose every column but the target is text leaves nothing behind,
+    * and a frame of no columns has no dtype for scikit-learn to read, so it
+    * raises `at least one array or dtype is required` from inside numpy. The
+    * narrowing says so itself instead, naming the columns it left out.
     */
   @JsonIgnore
   protected def narrowToFittableColumns(frame: String, indent: String): String =
@@ -50,5 +55,7 @@ trait SklearnFittableColumns {
        |${indent}_ignored = [c for c in $frame.columns if c not in _fittable.columns]
        |${indent}if _ignored:
        |${indent}    print("Ignoring columns an estimator cannot fit:", _ignored)
+       |${indent}if _fittable.columns.empty:
+       |${indent}    raise ValueError(f"No column left to fit on: an estimator cannot fit {_ignored}. Give it a numeric or boolean column.")
        |${indent}$frame = _fittable""".stripMargin
 }
