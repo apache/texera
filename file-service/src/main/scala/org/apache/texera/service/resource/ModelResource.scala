@@ -610,8 +610,7 @@ class ModelResource extends LazyLogging {
       encodedUrl,
       repositoryName,
       commitHash,
-      uid,
-      enforceDownloadable = true
+      uid
     )
 
   @GET

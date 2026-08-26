@@ -51,7 +51,6 @@ case class ResourceTables[R <: Record, A <: Record](
     ownerUidField: TableField[R, Integer],
     nameField: TableField[R, String],
     isPublicField: TableField[R, java.lang.Boolean],
-    isDownloadableField: TableField[R, java.lang.Boolean],
     accessIdField: TableField[A, Integer],
     accessUidField: TableField[A, Integer],
     privilegeField: TableField[A, PrivilegeEnum]
@@ -69,7 +68,6 @@ object ResourceTables {
       ownerUidField = DATASET.OWNER_UID,
       nameField = DATASET.NAME,
       isPublicField = DATASET.IS_PUBLIC,
-      isDownloadableField = DATASET.IS_DOWNLOADABLE,
       accessIdField = DATASET_USER_ACCESS.DID,
       accessUidField = DATASET_USER_ACCESS.UID,
       privilegeField = DATASET_USER_ACCESS.PRIVILEGE
@@ -82,7 +80,6 @@ object ResourceTables {
       ownerUidField = MODEL.OWNER_UID,
       nameField = MODEL.NAME,
       isPublicField = MODEL.IS_PUBLIC,
-      isDownloadableField = MODEL.IS_DOWNLOADABLE,
       accessIdField = MODEL_USER_ACCESS.MID,
       accessUidField = MODEL_USER_ACCESS.UID,
       privilegeField = MODEL_USER_ACCESS.PRIVILEGE

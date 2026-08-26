@@ -253,8 +253,7 @@ object ResourceUploadService {
       encodedUrl: String,
       repositoryName: String,
       commitHash: String,
-      uid: Integer,
-      enforceDownloadable: Boolean = false
+      uid: Integer
   ): Either[Response, (String, String, String)] = {
     val decodedPath = URLDecoder.decode(encodedUrl, StandardCharsets.UTF_8.name())
 
@@ -263,19 +262,13 @@ object ResourceUploadService {
       case None =>
         Right(withTransaction(context) { ctx =>
           if (repositoryName != null) {
-            requireReadAccessToRepository(ctx, s, repositoryName, uid, enforceDownloadable)
+            requireReadAccessToRepository(ctx, s, repositoryName, uid)
             (repositoryName, commitHash, decodedPath)
           } else {
             val document = DocumentFactory
               .openReadonlyDocument(FileResolver.resolve(decodedPath))
               .asInstanceOf[OnVersionedFileResource]
-            requireReadAccessToRepository(
-              ctx,
-              s,
-              document.getRepositoryName(),
-              uid,
-              enforceDownloadable
-            )
+            requireReadAccessToRepository(ctx, s, document.getRepositoryName(), uid)
             (
               document.getRepositoryName(),
               document.getVersionHash(),
@@ -295,17 +288,9 @@ object ResourceUploadService {
       encodedUrl: String,
       repositoryName: String,
       commitHash: String,
-      uid: Integer,
-      enforceDownloadable: Boolean = false
+      uid: Integer
   ): Response =
-    resolveVersionedFile(
-      s,
-      encodedUrl,
-      repositoryName,
-      commitHash,
-      uid,
-      enforceDownloadable
-    ) match {
+    resolveVersionedFile(s, encodedUrl, repositoryName, commitHash, uid) match {
       case Left(errorResponse)         => errorResponse
       case Right((repo, commit, path)) => presignedResponse(repo, commit, path)
     }
@@ -354,27 +339,16 @@ object ResourceUploadService {
       ctx: DSLContext,
       s: ResourceStorage[R, A, S, P],
       repositoryName: String,
-      uid: Integer,
-      enforceDownloadable: Boolean = false
+      uid: Integer
   ): Unit = {
-    val row = ctx
-      .select(s.resource.idField, s.resource.ownerUidField, s.resource.isDownloadableField)
+    val id = ctx
+      .select(s.resource.idField)
       .from(s.resource.table)
       .where(s.repositoryNameField.eq(repositoryName))
-      .fetchOne()
+      .fetchOne(s.resource.idField)
 
-    val id = if (row == null) null else row.get(s.resource.idField)
     if (id == null || !ResourceAccess.userHasReadAccess(ctx, s.resource, id, uid)) {
       throw new ForbiddenException(noAccessMessage(s))
-    }
-
-    // Readable is not the same as downloadable: without this, a caller who may only
-    // read could presign the raw files and bypass the owner's download switch.
-    if (enforceDownloadable) {
-      val isOwner = uid != null && uid == row.get(s.resource.ownerUidField)
-      if (!isOwner && !row.get(s.resource.isDownloadableField)) {
-        throw new ForbiddenException(s"${s.resource.label.capitalize} download is not allowed")
-      }
     }
   }
 
