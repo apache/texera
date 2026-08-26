@@ -268,7 +268,10 @@ class TreePlotOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerat
        |    for node_name, coords in pos.items():
        |        annotations.append(
        |            dict(
-       |                text=str(node_name),
+       |                # The label goes in as it came out of the cell, the way the
+       |                # operator passes it: plotly stringifies it, and a str() here
+       |                # would turn a None node into the text "None".
+       |                text=node_name,
        |                x=coords[0],
        |                y=coords[1],
        |                xref='x1', yref='y1',
