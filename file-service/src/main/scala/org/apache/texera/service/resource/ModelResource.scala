@@ -57,10 +57,8 @@ object ModelResource {
   // Callers may omit the framework; it is a display label, not a validation gate for files.
   val DEFAULT_FRAMEWORK = "pytorch"
 
-  // Recognised values for the `framework` and `format` labels. They are metadata, not file
-  // checks -- a loader dispatches on them, so an unknown value is rejected at creation
-  // rather than surfacing later as an unloadable model. "other" is in both sets so a
-  // framework or format we have no name for yet never blocks an upload.
+  // Metadata, not file checks: a loader dispatches on these, so an unknown value is
+  // rejected up front. "other" is in both sets so an unnamed one never blocks an upload.
   val SUPPORTED_FRAMEWORKS: Set[String] =
     Set("pytorch", "tensorflow", "onnx", "sklearn", "other")
 
@@ -82,6 +80,20 @@ object ModelResource {
         s"Unsupported $field '$value'. Supported values: ${allowed.toList.sorted.mkString(", ")}."
       )
     }
+  }
+
+  /**
+    * Trims a framework/format label, treats blank as absent, validates the rest.
+    * Shared by create and update so the edit form cannot reject what create accepted.
+    */
+  private def normalizeLabel(
+      field: String,
+      value: String,
+      allowed: Set[String]
+  ): Option[String] = {
+    val normalized = Option(value).map(_.trim).filter(_.nonEmpty)
+    normalized.foreach(validateLabel(field, _, allowed))
+    normalized
   }
 
   // Matches model_version.name VARCHAR(128).
@@ -164,7 +176,7 @@ object ModelResource {
 
   case class ModelFormatModification(mid: Integer, format: String)
 
-  /** Path of an already-committed image, relative to the model root, e.g. "v1 - init/cover.jpg". */
+  /** Committed image, relative to the model root, e.g. "v1 - init/cover.jpg". */
   case class CoverImageRequest(coverImage: String)
 
   case class DashboardModelVersion(
@@ -246,11 +258,9 @@ class ModelResource extends LazyLogging {
       model.setIsPublic(isModelPublic)
       model.setIsDownloadable(isModelDownloadable)
       model.setOwnerUid(uid)
-      val framework =
-        Option(request.framework).map(_.trim).filter(_.nonEmpty).getOrElse(DEFAULT_FRAMEWORK)
-      validateLabel("framework", framework, SUPPORTED_FRAMEWORKS)
-      val format = Option(request.format).map(_.trim).filter(_.nonEmpty)
-      format.foreach(validateLabel("format", _, SUPPORTED_FORMATS))
+      val framework = normalizeLabel("framework", request.framework, SUPPORTED_FRAMEWORKS)
+        .getOrElse(DEFAULT_FRAMEWORK)
+      val format = normalizeLabel("format", request.format, SUPPORTED_FORMATS)
 
       model.setFramework(framework)
       model.setFormat(format.orNull)
@@ -375,9 +385,10 @@ class ModelResource extends LazyLogging {
         throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_MODEL_MESSAGE)
       }
 
-      validateLabel("framework", modificator.framework, SUPPORTED_FRAMEWORKS)
-
-      model.setFramework(modificator.framework)
+      model.setFramework(
+        normalizeLabel("framework", modificator.framework, SUPPORTED_FRAMEWORKS)
+          .getOrElse(DEFAULT_FRAMEWORK)
+      )
       modelDao.update(model)
       Response.ok().build()
     }
@@ -399,9 +410,7 @@ class ModelResource extends LazyLogging {
         throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_MODEL_MESSAGE)
       }
 
-      validateLabel("format", modificator.format, SUPPORTED_FORMATS)
-
-      model.setFormat(modificator.format)
+      model.setFormat(normalizeLabel("format", modificator.format, SUPPORTED_FORMATS).orNull)
       modelDao.update(model)
       Response.ok().build()
     }
@@ -844,10 +853,7 @@ class ModelResource extends LazyLogging {
     })
   }
 
-  /**
-    * Version list of a public model, for a logged-out visitor on a hub model page.
-    * Without it the page renders metadata and then fails on the version dropdown.
-    */
+  /** Version list of a public model, for a logged-out visitor on a hub model page. */
   @GET
   @PermitAll
   @Path("/{mid}/publicVersion/list")
@@ -894,7 +900,7 @@ class ModelResource extends LazyLogging {
     withTransaction(context)(ctx => fetchModelVersionRootFileNodes(ctx, mid, mvid, Some(uid)))
   }
 
-  /** File tree of one version of a public model; the anonymous half of the endpoint above. */
+  /** Anonymous half of the endpoint above. */
   @GET
   @PermitAll
   @Path("/{mid}/publicVersion/{mvid}/rootFileNodes")
@@ -1013,11 +1019,7 @@ class ModelResource extends LazyLogging {
   // Cover image
   // ===========================================================================
 
-  /**
-    * Points the model card at an already-committed image inside the model itself.
-    *
-    * Expected coverImage format: "<version>/<path>/image.jpg", relative to the model root.
-    */
+  /** Points the model card at a committed image inside the model, "<version>/<file>". */
   @POST
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/{mid}/update/cover")
@@ -1036,7 +1038,7 @@ class ModelResource extends LazyLogging {
       val normalized =
         CoverImageUtils.validatePathOrThrow(request.coverImage, CoverImageUtils.MAX_PATH_LENGTH)
 
-      val document = CoverImageUtils.openCover(
+      val document = CoverImageUtils.openCoverOrBadRequest(
         ResourceType.Model,
         getOwner(ctx, mid).getEmail,
         model.getName,
@@ -1050,10 +1052,7 @@ class ModelResource extends LazyLogging {
     }
   }
 
-  /**
-    * Get the cover image for a model.
-    * Returns a 307 redirect to the presigned S3 URL.
-    */
+  /** 307 redirect to the cover's presigned S3 URL. */
   @GET
   @PermitAll
   @Path("/{mid}/cover")
@@ -1067,12 +1066,10 @@ class ModelResource extends LazyLogging {
         throw new NotFoundException("No cover image")
       )
 
-      val document = CoverImageUtils.openCover(
-        ResourceType.Model,
-        getOwner(ctx, mid).getEmail,
-        model.getName,
-        coverImage
-      )
+      val document = CoverImageUtils
+        .openCover(ResourceType.Model, getOwner(ctx, mid).getEmail, model.getName, coverImage)
+        .getOrElse(throw new NotFoundException("No cover image"))
+
       Response
         .temporaryRedirect(new URI(CoverImageUtils.presignedUrl(document, coverImage)))
         .build()
@@ -1080,9 +1077,8 @@ class ModelResource extends LazyLogging {
   }
 
   /**
-    * Get a presigned S3 URL for the model cover image as JSON.
-    * JWT-aware variant of GET /{mid}/cover; required for private models
-    * since `<img src>` cannot attach the Authorization header.
+    * Presigned cover URL as JSON. Needed for private models because `<img src>`
+    * cannot attach the Authorization header that GET /{mid}/cover requires.
     */
   @GET
   @PermitAll
@@ -1098,13 +1094,10 @@ class ModelResource extends LazyLogging {
       Option(model.getCoverImage) match {
         case None => Response.ok(Map("url" -> null)).build()
         case Some(coverImage) =>
-          val document = CoverImageUtils.openCover(
-            ResourceType.Model,
-            getOwner(ctx, mid).getEmail,
-            model.getName,
-            coverImage
-          )
-          Response.ok(Map("url" -> CoverImageUtils.presignedUrl(document, coverImage))).build()
+          val url = CoverImageUtils
+            .openCover(ResourceType.Model, getOwner(ctx, mid).getEmail, model.getName, coverImage)
+            .map(CoverImageUtils.presignedUrl(_, coverImage))
+          Response.ok(Map("url" -> url.orNull)).build()
       }
     }
   }

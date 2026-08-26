@@ -24,10 +24,8 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 /**
-  * The extension allowlist here is a security control, not a convention: a cover
-  * path is handed back to the browser as a presigned URL, so an active document
-  * (.svg, .html) would be a stored-XSS vector. These cases pin that, and pin the
-  * column-width guard that keeps an over-long path a 400 rather than a 500.
+  * The extension allowlist is a security control: a cover path is served to the browser
+  * as a presigned URL, so an active document (.svg, .html) is a stored-XSS vector.
   */
 class CoverImageUtilsSpec extends AnyFlatSpec with Matchers {
 
@@ -107,6 +105,19 @@ class CoverImageUtilsSpec extends AnyFlatSpec with Matchers {
       CoverImageUtils.validatePathOrThrow("v1/cover.jpg.js", maxLen)
   }
 
+  it should "reject a bare file name with no version segment" in {
+    Seq("cover.jpg", "./cover.png", "sub/../cover.gif").foreach { p =>
+      withClue(s"$p: ") {
+        a[BadRequestException] should be thrownBy CoverImageUtils.validatePathOrThrow(p, maxLen)
+      }
+    }
+  }
+
+  it should "accept a path nested deeper than <version>/<file>" in {
+    CoverImageUtils.validatePathOrThrow("v1/img/sub/cover.jpg", maxLen) shouldBe
+      "v1/img/sub/cover.jpg"
+  }
+
   // -- length boundary --------------------------------------------------------
 
   it should "accept a path exactly at the column length and reject one over it" in {
@@ -120,8 +131,7 @@ class CoverImageUtilsSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "honour the narrower limit datasets pass" in {
-    // dataset.cover_image is varchar(246) on DBs upgraded through sql/updates/18.sql,
-    // so the caller's limit has to win over MAX_PATH_LENGTH.
+    // dataset.cover_image is varchar(246), so the caller's limit must win.
     val suffix = "/c.jpg"
     val at246 = "v" + "a" * (246 - suffix.length - 1) + suffix
     CoverImageUtils.validatePathOrThrow(at246, 246) shouldBe at246

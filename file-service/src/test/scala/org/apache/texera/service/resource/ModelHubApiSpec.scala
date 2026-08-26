@@ -34,9 +34,8 @@ import org.scalatest.{BeforeAndAfterAll, OptionValues}
 import java.io.ByteArrayInputStream
 import java.util.Optional
 
-// Covers what a model page needs beyond the owner's own dashboard: the cover image
-// a card renders, and the anonymous halves of version browsing. Without the latter a
-// logged-out visitor on a public model page gets metadata and then an error.
+// What a model page needs beyond the owner's dashboard: the cover image a card
+// renders, and the anonymous halves of version browsing.
 class ModelHubApiSpec
     extends AnyFlatSpec
     with Matchers
@@ -102,7 +101,7 @@ class ModelHubApiSpec
       )
       .getStatus shouldEqual 200
 
-  /** Commits `cover.jpg` plus a weights file, and returns the generated version. */
+  /** Commits `cover.jpg` plus a weights file, returning the generated version. */
   private def commitVersionWithCover(mid: Integer): ModelVersion = {
     upload(mid, "cover.jpg", Array.fill[Byte](512)(0xff.toByte))
     upload(mid, "model.pt", Array.fill[Byte](64)(0x1))
@@ -162,6 +161,32 @@ class ModelHubApiSpec
 
     assertThrows[BadRequestException] {
       modelResource.updateModelCoverImage(mid, ModelResource.CoverImageRequest(""), ownerSession)
+    }
+  }
+
+  it should "reject a bare file name, which builds a path FileResolver cannot parse" in {
+    val mid = newModel(isPublic = false).model.getMid
+    commitVersionWithCover(mid)
+
+    assertThrows[BadRequestException] {
+      modelResource.updateModelCoverImage(
+        mid,
+        ModelResource.CoverImageRequest("cover.jpg"),
+        ownerSession
+      )
+    }
+  }
+
+  it should "reject a well-formed path pointing at a version that does not exist" in {
+    val mid = newModel(isPublic = false).model.getMid
+    commitVersionWithCover(mid)
+
+    assertThrows[BadRequestException] {
+      modelResource.updateModelCoverImage(
+        mid,
+        ModelResource.CoverImageRequest("v9 - nope/cover.jpg"),
+        ownerSession
+      )
     }
   }
 
@@ -247,6 +272,30 @@ class ModelHubApiSpec
     grantRead(mid, readerUser.getUid)
 
     urlOf(modelResource.getModelCoverUrl(mid, Optional.of(readerSession))) shouldBe defined
+  }
+
+  // Used to be an unmapped IOException: a 500 on every card render, not one bad request.
+  it should "report no cover, not fail, when the stored path no longer resolves" in {
+    val mid = newModel(isPublic = true).model.getMid
+    val version = commitVersionWithCover(mid)
+    modelResource.updateModelCoverImage(
+      mid,
+      ModelResource.CoverImageRequest(s"${version.getName}/cover.jpg"),
+      ownerSession
+    )
+
+    // Point the stored cover at a version that never existed.
+    val model = modelDao.fetchOneByMid(mid)
+    model.setCoverImage("v9 - deleted/cover.jpg")
+    modelDao.update(model)
+
+    val response = modelResource.getModelCoverUrl(mid, Optional.of(ownerSession))
+    response.getStatus shouldEqual 200
+    urlOf(response) shouldBe empty
+
+    assertThrows[NotFoundException] {
+      modelResource.getModelCover(mid, Optional.of(ownerSession))
+    }
   }
 
   it should "return a null url rather than 404 when no cover image is set" in {

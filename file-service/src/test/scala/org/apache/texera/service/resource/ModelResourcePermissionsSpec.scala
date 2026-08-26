@@ -43,10 +43,8 @@ class ModelResourcePermissionsSpec extends AnyFlatSpec with Matchers {
   private def rolesOf(m: Method): Option[RolesAllowed] =
     Option(m.getAnnotation(classOf[RolesAllowed]))
 
-  // Anonymous-readable, mirroring the dataset side: the public model read, the two
-  // presign routes a public model's files are fetched through, the version-browsing
-  // pair a logged-out visitor needs, and the two cover reads (which do their own
-  // public/grant check, so a private model's cover is still refused).
+  // Anonymous-readable, mirroring the dataset side. The cover reads do their own
+  // public/grant check, so a private model's cover is still refused.
   private val publicEndpointMethods: Set[String] = Set(
     "getPublicModel",
     "getPublicPresignedUrl",

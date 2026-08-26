@@ -354,7 +354,6 @@ class ModelApiForUiSpec
     newModel(framework = "other", format = "other").model.getFramework shouldEqual "other"
   }
 
-  // Labels were create-only, so a mislabelled model had to be recreated.
   "updateModelFramework" should "relabel an existing model" in {
     val mid = newModel(framework = "pytorch").model.getMid
 
@@ -429,6 +428,50 @@ class ModelApiForUiSpec
         strangerSession
       )
     }
+  }
+
+  "the label endpoints" should "trim a framework the way createModel does" in {
+    val mid = newModel(framework = "pytorch").model.getMid
+
+    modelResource
+      .updateModelFramework(ModelResource.ModelFrameworkModification(mid, "onnx "), sessionUser)
+      .getStatus shouldEqual 200
+
+    modelResource.getModel(mid, sessionUser).model.getFramework shouldEqual "onnx"
+  }
+
+  it should "treat a blank framework as a reset to the default, not as invalid" in {
+    val mid = newModel(framework = "onnx").model.getMid
+
+    Seq(null, "", "   ").foreach { blank =>
+      modelResource
+        .updateModelFramework(ModelResource.ModelFrameworkModification(mid, blank), sessionUser)
+        .getStatus shouldEqual 200
+      modelResource.getModel(mid, sessionUser).model.getFramework shouldEqual
+        ModelResource.DEFAULT_FRAMEWORK
+    }
+  }
+
+  // A mislabelled model shouldn't need recreating, so a format must be clearable.
+  it should "clear the format when given a blank value" in {
+    val mid = newModel(format = "pickle").model.getMid
+
+    Seq(null, "", "   ").foreach { blank =>
+      modelResource
+        .updateModelFormat(ModelResource.ModelFormatModification(mid, blank), sessionUser)
+        .getStatus shouldEqual 200
+      modelResource.getModel(mid, sessionUser).model.getFormat shouldBe null
+    }
+  }
+
+  it should "trim a format the way createModel does" in {
+    val mid = newModel(format = null).model.getMid
+
+    modelResource
+      .updateModelFormat(ModelResource.ModelFormatModification(mid, " safetensors "), sessionUser)
+      .getStatus shouldEqual 200
+
+    modelResource.getModel(mid, sessionUser).model.getFormat shouldEqual "safetensors"
   }
 
   // ===========================================================================

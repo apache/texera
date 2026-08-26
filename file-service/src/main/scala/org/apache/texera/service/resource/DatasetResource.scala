@@ -272,8 +272,7 @@ class DatasetResource extends LazyLogging {
   private val ERR_DATASET_VERSION_NOT_FOUND_MESSAGE = "The version of the dataset not found"
   private val EXPIRATION_MINUTES = 5
 
-  // dataset.cover_image is varchar(246) on DBs upgraded through sql/updates/18.sql,
-  // narrower than the model column, so datasets pass their own limit.
+  // varchar(246) on DBs upgraded through sql/updates/18.sql, narrower than model's.
   private val COVER_IMAGE_MAX_PATH_LENGTH = 246
 
   private val resourceType = ResourceType.Dataset
@@ -1182,7 +1181,7 @@ class DatasetResource extends LazyLogging {
       val normalized =
         CoverImageUtils.validatePathOrThrow(request.coverImage, COVER_IMAGE_MAX_PATH_LENGTH)
 
-      val document = CoverImageUtils.openCover(
+      val document = CoverImageUtils.openCoverOrBadRequest(
         resourceType,
         getOwner(ctx, did).getEmail,
         dataset.getName,
@@ -1225,12 +1224,10 @@ class DatasetResource extends LazyLogging {
         throw new NotFoundException("No cover image")
       )
 
-      val document = CoverImageUtils.openCover(
-        resourceType,
-        getOwner(ctx, did).getEmail,
-        dataset.getName,
-        coverImage
-      )
+      val document = CoverImageUtils
+        .openCover(resourceType, getOwner(ctx, did).getEmail, dataset.getName, coverImage)
+        .getOrElse(throw new NotFoundException("No cover image"))
+
       Response
         .temporaryRedirect(new URI(CoverImageUtils.presignedUrl(document, coverImage)))
         .build()
@@ -1265,13 +1262,10 @@ class DatasetResource extends LazyLogging {
         case None =>
           Response.ok(Map("url" -> null)).build()
         case Some(coverImage) =>
-          val document = CoverImageUtils.openCover(
-            resourceType,
-            getOwner(ctx, did).getEmail,
-            dataset.getName,
-            coverImage
-          )
-          Response.ok(Map("url" -> CoverImageUtils.presignedUrl(document, coverImage))).build()
+          val url = CoverImageUtils
+            .openCover(resourceType, getOwner(ctx, did).getEmail, dataset.getName, coverImage)
+            .map(CoverImageUtils.presignedUrl(_, coverImage))
+          Response.ok(Map("url" -> url.orNull)).build()
       }
     }
   }
