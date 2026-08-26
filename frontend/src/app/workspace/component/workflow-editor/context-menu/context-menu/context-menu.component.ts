@@ -26,6 +26,7 @@ import { WorkflowResultExportService } from "src/app/workspace/service/workflow-
 import { NzModalService } from "ng-zorro-antd/modal";
 import { ResultExportationComponent } from "../../../result-exportation/result-exportation.component";
 import { ValidationWorkflowService } from "src/app/workspace/service/validation/validation-workflow.service";
+import { WorkflowCompilingService } from "src/app/workspace/service/compile-workflow/workflow-compiling.service";
 import { GuiConfigService } from "../../../../../common/service/gui-config.service";
 import { NzMenuDirective, NzMenuItemComponent } from "ng-zorro-antd/menu";
 import { NgIf } from "@angular/common";
@@ -51,7 +52,8 @@ export class ContextMenuComponent {
     protected config: GuiConfigService,
     private workflowResultService: WorkflowResultService,
     private modalService: NzModalService,
-    private validationWorkflowService: ValidationWorkflowService
+    private validationWorkflowService: ValidationWorkflowService,
+    private workflowCompilingService: WorkflowCompilingService
   ) {
     this.registerWorkflowModifiableChangedHandler();
     this.operatorMenuService.highlightedOperators$
@@ -82,8 +84,21 @@ export class ContextMenuComponent {
   private isOperatorExecutable(operatorID: string): boolean {
     return (
       this.validationWorkflowService.validateOperator(operatorID).isValid &&
-      !this.workflowActionService.getTexeraGraph().isOperatorDisabled(operatorID)
+      !this.workflowActionService.getTexeraGraph().isOperatorDisabled(operatorID) &&
+      this.isSubDAGCompilable(operatorID)
     );
+  }
+
+  /**
+   * Executing to an operator runs the operator together with everything upstream of it, so the entry has to be
+   * disabled when any operator in that sub-DAG failed to compile, not only when the target operator itself did.
+   */
+  private isSubDAGCompilable(operatorID: string): boolean {
+    const compilationErrors = this.workflowCompilingService.getWorkflowCompilationErrors();
+    return this.workflowActionService
+      .getTexeraGraph()
+      .getSubDAG(operatorID)
+      .operators.every(operator => !(operator.operatorID in compilationErrors));
   }
 
   public hasHighlightedLinks(): boolean {

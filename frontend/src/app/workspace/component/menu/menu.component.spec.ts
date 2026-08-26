@@ -55,6 +55,8 @@ import { GuiConfigService } from "../../../common/service/gui-config.service";
 import { MockGuiConfigService } from "../../../common/service/gui-config.service.mock";
 import { JupyterPanelService } from "../../service/jupyter-panel/jupyter-panel.service";
 import { UserProjectService } from "../../../dashboard/service/user/project/user-project.service";
+import { WorkflowCompilingService } from "../../service/compile-workflow/workflow-compiling.service";
+import { CompilationState } from "../../types/workflow-compiling.interface";
 import type { Mocked } from "vitest";
 
 vi.mock("file-saver", () => ({ saveAs: vi.fn() }));
@@ -72,8 +74,10 @@ describe("MenuComponent", () => {
   let notificationService: NotificationService;
   let location: Location;
   let validationStream$: BehaviorSubject<ValidationOutput>;
+  let compilationStream$: Subject<CompilationState>;
 
   beforeEach(async () => {
+    compilationStream$ = new Subject<CompilationState>();
     await TestBed.configureTestingModule({
       imports: [MenuComponent, HttpClientTestingModule, RouterTestingModule.withRoutes([]), NzModalModule],
       providers: [
@@ -90,6 +94,11 @@ describe("MenuComponent", () => {
           },
         },
         { provide: UserService, useClass: StubUserService },
+        {
+          // stubbed so the debounced compile request of the real service does not outlive the test injector
+          provide: WorkflowCompilingService,
+          useValue: { getCompilationStateInfoChangedStream: () => compilationStream$.asObservable() },
+        },
         ...commonTestProviders,
       ],
     }).compileComponents();
@@ -123,6 +132,18 @@ describe("MenuComponent", () => {
     it("returns 'Invalid Workflow' when the workflow is invalid", () => {
       component.isWorkflowValid = false;
       component.isWorkflowEmpty = false;
+
+      const behavior = component.getRunButtonBehavior();
+
+      expect(behavior.text).toBe("Invalid Workflow");
+      expect(behavior.icon).toBe("warning");
+      expect(behavior.disable).toBe(true);
+    });
+
+    it("returns 'Invalid Workflow' when the workflow does not compile", () => {
+      component.isWorkflowValid = true;
+      component.isWorkflowEmpty = false;
+      component.isWorkflowCompilable = false;
 
       const behavior = component.getRunButtonBehavior();
 
@@ -408,6 +429,19 @@ describe("MenuComponent", () => {
     it("does nothing when the workflow is invalid", () => {
       component.isWorkflowValid = false;
       component.isWorkflowEmpty = false;
+      const executeSpy = vi.spyOn(executeWorkflowService, "executeWorkflowWithEmailNotification");
+
+      component.runWorkflow();
+
+      expect(executeSpy).not.toHaveBeenCalled();
+      expect(component.computingUnitSelectionComponent.showAddComputeUnitModalVisible).not.toHaveBeenCalled();
+    });
+
+    it("does nothing when the workflow does not compile", () => {
+      component.isWorkflowValid = true;
+      component.isWorkflowEmpty = false;
+      component.isWorkflowCompilable = false;
+      component.computingUnitStatus = ComputingUnitState.Running;
       const executeSpy = vi.spyOn(executeWorkflowService, "executeWorkflowWithEmailNotification");
 
       component.runWorkflow();
@@ -1391,6 +1425,27 @@ describe("MenuComponent", () => {
       } finally {
         stateFixture.destroy();
       }
+    });
+
+    it("re-applies the run button behavior on every compilation state event", () => {
+      component.isWorkflowValid = true;
+      component.isWorkflowEmpty = false;
+      component.computingUnitStatus = ComputingUnitState.Running;
+      component.executionState = ExecutionState.Uninitialized;
+      Object.defineProperty(component.workflowWebsocketService, "isConnected", {
+        get: () => true,
+        configurable: true,
+      });
+
+      compilationStream$.next(CompilationState.Failed);
+      expect(component.isWorkflowCompilable).toBe(false);
+      expect(component.runButtonText).toBe("Invalid Workflow");
+      expect(component.runDisable).toBe(true);
+
+      compilationStream$.next(CompilationState.Succeeded);
+      expect(component.isWorkflowCompilable).toBe(true);
+      expect(component.runButtonText).toBe("Run");
+      expect(component.runDisable).toBe(false);
     });
 
     it("deactivates the export button unless the feature is on and results exist", () => {
