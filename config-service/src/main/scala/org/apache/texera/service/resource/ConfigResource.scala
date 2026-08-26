@@ -85,6 +85,7 @@ class ConfigResource {
       "linkBreakpointEnabled" -> GuiConfig.guiWorkflowWorkspaceLinkBreakpointEnabled,
       "asyncRenderingEnabled" -> GuiConfig.guiWorkflowWorkspaceAsyncRenderingEnabled,
       "timetravelEnabled" -> GuiConfig.guiWorkflowWorkspaceTimetravelEnabled,
+      "formViewEnabled" -> GuiConfig.guiWorkflowWorkspaceFormViewEnabled,
       "productionSharedEditingServer" -> GuiConfig.guiWorkflowWorkspaceProductionSharedEditingServer,
       "defaultExecutionMode" -> GuiConfig.guiWorkflowWorkspaceDefaultExecutionMode,
       "workflowEmailNotificationEnabled" -> GuiConfig.guiWorkflowWorkspaceWorkflowEmailNotificationEnabled,
