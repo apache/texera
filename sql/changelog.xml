@@ -114,9 +114,14 @@
         <sqlFile path="sql/updates/40.sql"/>
     </changeSet>
 
-    <!-- Remove the deprecated project feature (#5172) -->
-    <changeSet id="41" author="aglinxinyuan">
+    <!-- Add multipart upload session tables for models -->
+    <changeSet id="41" author="tanishqgandhi1908">
         <sqlFile path="sql/updates/41.sql"/>
+    </changeSet>
+
+    <!-- Remove the deprecated project feature (#5172) -->
+    <changeSet id="42" author="aglinxinyuan">
+        <sqlFile path="sql/updates/42.sql"/>
     </changeSet>
 
     <!-- example changeSet

@@ -148,57 +148,6 @@ describe("WorkflowResultService", () => {
     expect(service.hasPaginatedResult("op")).toBe(false);
   });
 
-  it("handleCleanResultCache drops operators no longer available and resets invalidated caches", () => {
-    const ws = TestBed.inject(WorkflowWebsocketService);
-    pushWsEvent(ws, {
-      type: "WebResultUpdateEvent",
-      updates: {
-        goneData: snapshotUpdate([{ a: 1 }]),
-        gonePag: paginationUpdate(3),
-        resetData: snapshotUpdate([{ keep: 1 }]),
-      },
-      tableStats: {},
-    });
-    expect(service.getResultService("resetData")!.getCurrentResultSnapshot()).toEqual([{ keep: 1 }]);
-
-    pushWsEvent(ws, {
-      type: "WorkflowAvailableResultEvent",
-      availableOperators: {
-        keepPag: { cacheValid: true, outputMode: { type: "PaginationMode" } },
-        resetData: { cacheValid: false, outputMode: { type: "SetSnapshotMode" } },
-      },
-    });
-
-    // operators absent from the available set are dropped from both caches
-    expect(service.hasResult("goneData")).toBe(false);
-    expect(service.hasPaginatedResult("gonePag")).toBe(false);
-    // a freshly-available operator gets a new (paginated) service
-    expect(service.hasPaginatedResult("keepPag")).toBe(true);
-    // an available-but-invalidated operator keeps its service but has its cache reset
-    expect(service.hasResult("resetData")).toBe(true);
-    expect(service.getResultService("resetData")!.getCurrentResultSnapshot()).toBeUndefined();
-  });
-
-  it("handleCleanResultCache reports removed and invalidated operators on the result-update stream", () => {
-    const ws = TestBed.inject(WorkflowWebsocketService);
-    pushWsEvent(ws, {
-      type: "WebResultUpdateEvent",
-      updates: { goneData: snapshotUpdate([{ a: 1 }]) },
-      tableStats: {},
-    });
-
-    const updateEvents: Record<string, unknown>[] = [];
-    service.getResultUpdateStream().subscribe(u => updateEvents.push(u));
-
-    pushWsEvent(ws, {
-      type: "WorkflowAvailableResultEvent",
-      availableOperators: { resetPag: { cacheValid: false, outputMode: { type: "PaginationMode" } } },
-    });
-
-    expect(updateEvents.length).toBe(1);
-    expect(updateEvents[0]).toEqual({ goneData: undefined, resetPag: undefined });
-  });
-
   it("determineOutputTypes distinguishes binary from non-binary paginated output", () => {
     const ws = TestBed.inject(WorkflowWebsocketService);
     pushWsEvent(ws, {

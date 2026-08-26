@@ -56,7 +56,7 @@ class SklearnTrainingOpDescCodegenSpec extends AnyFlatSpec with Matchers {
   ): SklearnTrainingKNNOpDesc = {
     val d = new SklearnTrainingKNNOpDesc
     d.target = "label"
-    d.text = "docs"
+    d.text = List("docs")
     d.countVectorizer = countVectorizer
     d.tfidfTransformer = tfidfTransformer
     d
@@ -69,7 +69,7 @@ class SklearnTrainingOpDescCodegenSpec extends AnyFlatSpec with Matchers {
     code should include(s"Y = table[${decodeExpr("label")}]")
     code should include(s"X = table.drop(${decodeExpr("label")}, axis=1)")
     // Feature-column path: X is kept whole, the text attribute is never read.
-    code should include("X = X\n")
+    code should not include "ColumnTransformer("
     code should not include decodeExpr("docs")
     normalized(code) should include("make_pipeline( KNeighborsClassifier()).fit(X, Y)")
     code should not include "CountVectorizer()"
@@ -78,27 +78,45 @@ class SklearnTrainingOpDescCodegenSpec extends AnyFlatSpec with Matchers {
 
   it should "select the text column and prepend CountVectorizer when countVectorizer is on" in {
     val code = descriptor(countVectorizer = true).generatePythonCode()
-    code should include(s"X = X[${decodeExpr("docs")}]")
-    code should not include "X = X\n"
+    // ColumnTransformer selects the columns itself, so X stays the whole frame.
     normalized(code) should include(
-      "make_pipeline(CountVectorizer(), KNeighborsClassifier()).fit(X, Y)"
+      s"""make_pipeline(ColumnTransformer([("text0", CountVectorizer(), ${decodeExpr(
+        "docs"
+      )})]), KNeighborsClassifier()).fit(X, Y)"""
     )
     code should not include "TfidfTransformer()"
+  }
+
+  // One CountVectorizer per column: it reads a flat sequence of documents, so
+  // several columns handed to one would be read as a document each. The steps are
+  // named by position, keeping a column named with a double underscore away from
+  // the separator get_feature_names_out uses.
+  it should "give each named column its own CountVectorizer" in {
+    val d = descriptor(countVectorizer = true)
+    d.text = List("title", "body")
+    normalized(d.generatePythonCode()) should include(
+      s"""make_pipeline(ColumnTransformer([("text0", CountVectorizer(), ${decodeExpr(
+        "title"
+      )}), ("text1", CountVectorizer(), ${decodeExpr(
+        "body"
+      )})]), KNeighborsClassifier()).fit(X, Y)"""
+    )
   }
 
   it should "chain CountVectorizer before TfidfTransformer when both flags are on" in {
     val code =
       descriptor(countVectorizer = true, tfidfTransformer = true).generatePythonCode()
-    code should include(s"X = X[${decodeExpr("docs")}]")
     normalized(code) should include(
-      "make_pipeline(CountVectorizer(), TfidfTransformer(), KNeighborsClassifier()).fit(X, Y)"
+      s"""make_pipeline(ColumnTransformer([("text0", CountVectorizer(), ${decodeExpr(
+        "docs"
+      )})]), TfidfTransformer(), KNeighborsClassifier()).fit(X, Y)"""
     )
   }
 
   it should "prepend only TfidfTransformer and keep all features when tfidfTransformer is on alone" in {
     val code = descriptor(tfidfTransformer = true).generatePythonCode()
     // Without countVectorizer there is no text-column selection.
-    code should include("X = X\n")
+    code should not include "ColumnTransformer("
     code should not include decodeExpr("docs")
     normalized(code) should include(
       "make_pipeline( TfidfTransformer(), KNeighborsClassifier()).fit(X, Y)"

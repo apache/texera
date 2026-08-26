@@ -20,12 +20,15 @@
 package org.apache.texera.web.resource.auth
 
 import com.typesafe.scalalogging.Logger
+import io.dropwizard.auth.Auth
 import org.apache.texera.auth.JwtAuth.{jwtClaims, jwtToken}
+import org.apache.texera.auth.SessionUser
 import org.apache.texera.common.config.UserSystemConfig
 import org.apache.texera.common.util.EmailUtil
 import org.apache.texera.dao.SqlServer
-import org.apache.texera.dao.jooq.generated.Tables.{AUTH_PROVIDER, USER}
+import org.apache.texera.dao.jooq.generated.Tables.{AUTH_PROVIDER, USER, USER_LAST_ACTIVE_TIME}
 import org.apache.texera.dao.jooq.generated.enums.{ProviderTypeEnum, UserRoleEnum}
+import org.apache.texera.dao.jooq.generated.tables.daos.UserDao
 import org.apache.texera.dao.jooq.generated.tables.pojos.User
 import org.apache.texera.web.model.http.request.auth.{UserLoginRequest, UserRegistrationRequest}
 import org.apache.texera.web.model.http.response.TokenIssueResponse
@@ -35,8 +38,15 @@ import org.jooq.impl.DSL
 
 import java.time.Instant
 import java.time.temporal.ChronoUnit
+import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
-import javax.ws.rs.core.MediaType
+import javax.ws.rs.core.{MediaType, Response}
+
+/**
+  * The address supplied by a signed-in user whose account has none — see [[AuthResource.setEmail]].
+  * There is no uid: the account is the one the request is authenticated as.
+  */
+case class SetEmailRequest(email: String)
 
 object AuthResource {
   private val logger: Logger = Logger(classOf[AuthResource])
@@ -145,6 +155,99 @@ object AuthResource {
 @Produces(Array(MediaType.APPLICATION_JSON))
 class AuthResource {
 
+  @PUT
+  @Path("/email")
+  @RolesAllowed(Array("INACTIVE", "RESTRICTED", "REGULAR", "ADMIN"))
+  def setEmail(request: SetEmailRequest, @Auth sessionUser: SessionUser): TokenIssueResponse = {
+    val email = Option(request.email).getOrElse("").trim
+    ValidateEmail(email)
+
+    val user = SqlServer.withTransaction(SqlServer.getInstance().createDSLContext()) { ctx =>
+      val txUserDao = new UserDao(ctx.configuration())
+
+      // Re-read inside the transaction: the pojo on the session was built from the token and may
+      // be minutes old, so it is not evidence about the row as it stands now.
+      val current = txUserDao.fetchOneByUid(sessionUser.getUid)
+      if (current == null) throw new NotAuthorizedException("Login credentials are incorrect.")
+      if (current.getEmail != null) {
+        throw new WebApplicationException(
+          "This account already has an email address.",
+          Response.Status.CONFLICT
+        )
+      }
+
+      Option(fetchUserByEmailIgnoreCase(ctx, email)) match {
+        case None =>
+          current.setEmail(email)
+          txUserDao.update(current)
+          current
+
+        case Some(existing) if existing.getIsPlaceholder =>
+          adoptPlaceholder(ctx, txUserDao, current, existing)
+
+        case Some(_) =>
+          throw new WebApplicationException(
+            "That email address already belongs to an account. Sign in to that account instead.",
+            Response.Status.CONFLICT
+          )
+      }
+    }
+
+    TokenIssueResponse(jwtToken(jwtClaims(user)))
+  }
+
+  private def ValidateEmail(email: String): Unit = {
+    if (email.isEmpty) throw new NotAcceptableException("Email cannot be empty")
+    if (!EmailUtil.isValid(email)) throw new NotAcceptableException("Email format is invalid.")
+  }
+
+  /**
+    * Move the caller's credential onto the contributor placeholder that owns `email`, and drop the
+    * account the caller was signed in as.
+    *
+    * Keeping the placeholder's uid is the whole point: dataset contributor rows already reference
+    * it, and re-pointing those instead would mean touching every table that FKs to `"user"`. It
+    * mirrors what `register` does when a registration presents a placeholder's address.
+    */
+  private def adoptPlaceholder(
+      ctx: DSLContext,
+      txUserDao: UserDao,
+      current: User,
+      placeholder: User
+  ): User = {
+    val callerIsEmpty = current.getRole == UserRoleEnum.INACTIVE
+    val placeholderHasCredential = ctx.fetchExists(
+      ctx.selectFrom(AUTH_PROVIDER).where(AUTH_PROVIDER.UID.eq(placeholder.getUid))
+    )
+    if (!callerIsEmpty || placeholderHasCredential) {
+      throw new WebApplicationException(
+        "That email address already belongs to an account. Sign in to that account instead.",
+        Response.Status.CONFLICT
+      )
+    }
+
+    ctx
+      .update(AUTH_PROVIDER)
+      .set(AUTH_PROVIDER.UID, placeholder.getUid)
+      .where(AUTH_PROVIDER.UID.eq(current.getUid))
+      .execute()
+
+    // The caller's display name is their own, so it wins over the one whoever listed them as a
+    // contributor typed.
+    placeholder.setName(current.getName)
+    claimPlaceholder(placeholder)
+    txUserDao.update(placeholder)
+
+    // This FK has no ON DELETE CASCADE, so the row has to go before the account it points at.
+    ctx
+      .deleteFrom(USER_LAST_ACTIVE_TIME)
+      .where(USER_LAST_ACTIVE_TIME.UID.eq(current.getUid))
+      .execute()
+
+    txUserDao.deleteById(current.getUid)
+    placeholder
+  }
+
   @POST
   @Path("/login")
   def login(request: UserLoginRequest): TokenIssueResponse = {
@@ -167,17 +270,10 @@ class AuthResource {
     val userpassword = request.password
     if (username.isEmpty)
       throw new NotAcceptableException("Username cannot be empty")
-    if (useremail.isEmpty)
-      throw new NotAcceptableException("Email cannot be empty")
-    if (!EmailUtil.isValid(useremail))
-      throw new NotAcceptableException("Email format is invalid.")
+    ValidateEmail(useremail)
     if (userpassword == null || userpassword.isEmpty)
       throw new NotAcceptableException("Password cannot be empty")
 
-    // The username being registered becomes a LOCAL login handle, so the handle is what has to
-    // be free, not the display name. Asking `"user".name` instead both missed genuinely taken
-    // handles (letting the insert die on uq_provider_identity as a 500) and rejected free ones,
-    // because an external login rewrites the display name but never the handle.
     val usernameExists = LocalAuthProvisioner.handleExists(username)
     val existingByEmail = fetchUserByEmailIgnoreCase(useremail)
     val emailExists = existingByEmail != null
@@ -186,10 +282,6 @@ class AuthResource {
     // credential) is claimed by the first registration with its email. The
     // account keeps its uid, so existing contributor links stay valid, and it
     // stays INACTIVE until an admin approves it.
-    //
-    // The credential is written to auth_provider rather than onto the user row, in the same
-    // transaction as the claim, so the account cannot end up marked claimed with nothing to
-    // log in with.
     if (!usernameExists && emailExists && existingByEmail.getIsPlaceholder) {
       existingByEmail.setName(username)
       claimPlaceholder(existingByEmail)
