@@ -194,6 +194,20 @@ object CanonicalFixture extends SharedFixture {
     keepFilled = Set("species")
   )
 
+  /** [[sklearnNumeric]] plus a column an estimator cannot fit. The families that
+    * narrow `X` to the fittable columns drop nothing on the numeric table, so the
+    * narrowing runs there without being tested; here it has a column to drop and
+    * a name to print, and both paths have to agree on which.
+    *
+    * The text column carries no signal about the label, so the fit is the one the
+    * two petal columns give on their own.
+    */
+  val sklearnNumericWithText: SharedFixture = ProjectedFixture(
+    this,
+    Seq("petal_length", "petal_width", "short_text", "species"),
+    keepFilled = Set("species")
+  )
+
   /** This table as the `countVectorizer=true` path reads it: one text column and
     * the same label. `short_text` leads because the model probe feeds a text
     * pipeline the frame's first column as a Series. Every row carrying a given

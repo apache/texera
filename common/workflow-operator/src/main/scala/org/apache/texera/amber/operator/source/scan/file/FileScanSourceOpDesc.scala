@@ -40,7 +40,6 @@ import org.apache.texera.amber.operator.source.scan.{
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
-
 @JsonIgnoreProperties(value = Array("limit", "offset", "fileEncoding"))
 class FileScanSourceOpDesc
     extends ScanSourceOpDesc

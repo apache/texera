@@ -218,6 +218,7 @@ object TransformVerificationRunner {
     val HostileText = "hostileText"
     val CountVectorizerText = "countVectorizer_text"
     val TfidfText = "tfidf_text"
+    val NonFeatureColumn = "nonFeatureColumn"
 
     /** One swept hyperparameter of an advanced trainer, which the sweep labels by the
       * pointer it flips. Built here rather than spelled out at each row, since a row
@@ -255,9 +256,23 @@ object TransformVerificationRunner {
         "tfidfTransformer" -> BooleanNode.TRUE
       )
     )
+    // The vectorizer stays off: what this scenario covers is the branch that
+    // narrows `X` for an estimator, and Count Vectorizer replaces it rather than
+    // feeding it, naming the text columns the narrowing would otherwise drop.
+    val nonFeatureColumn = AltScenario(
+      label = RunKind.NonFeatureColumn,
+      fixture = CanonicalFixture.sklearnNumericWithText,
+      pinned = Map(
+        "countVectorizer" -> BooleanNode.FALSE,
+        "tfidfTransformer" -> BooleanNode.FALSE
+      )
+    )
+    // Only these two families narrow `X`; the advanced trainers and Linear
+    // Regression read the same fixture and would take the text column straight
+    // into `fit`.
     Map(
-      classOf[SklearnClassifierOpDesc] -> Seq(countVectorizerText, tfidfText),
-      classOf[SklearnTrainingOpDesc] -> Seq(countVectorizerText, tfidfText)
+      classOf[SklearnClassifierOpDesc] -> Seq(countVectorizerText, tfidfText, nonFeatureColumn),
+      classOf[SklearnTrainingOpDesc] -> Seq(countVectorizerText, tfidfText, nonFeatureColumn)
     )
   }
 
