@@ -29,7 +29,7 @@ import java.lang.reflect.Method
 // FileService registers RolesAllowedDynamicFeature, so each endpoint is enforced by its own method-level
 // annotation, and one carrying neither @PermitAll nor @RolesAllowed defaults to
 // OPEN. These tests pin that contract: every endpoint carries exactly one of the
-// two, the non-public ones require REGULAR/ADMIN, and only the public read stays
+// two, the non-public ones require REGULAR/ADMIN, and only the public reads stay
 // anonymous-accessible.
 class ModelResourcePermissionsSpec extends AnyFlatSpec with Matchers {
 
@@ -43,7 +43,13 @@ class ModelResourcePermissionsSpec extends AnyFlatSpec with Matchers {
   private def rolesOf(m: Method): Option[RolesAllowed] =
     Option(m.getAnnotation(classOf[RolesAllowed]))
 
-  private val publicEndpointMethods: Set[String] = Set("getPublicModel")
+  // Anonymous-readable, mirroring the dataset side: the public model read plus the two
+  // presign routes a public model's files are fetched through.
+  private val publicEndpointMethods: Set[String] = Set(
+    "getPublicModel",
+    "getPublicPresignedUrl",
+    "getPublicPresignedUrlWithS3"
+  )
 
   "ModelResource" should "expose HTTP endpoints (sanity check for the reflection scan)" in {
     endpointMethods should not be empty
@@ -75,7 +81,7 @@ class ModelResourcePermissionsSpec extends AnyFlatSpec with Matchers {
     }
   }
 
-  it should "keep getPublicModel @PermitAll, and it alone" in {
+  it should "keep the public model endpoints @PermitAll, and them alone" in {
     val present = endpointMethods.map(_.getName).toSet.intersect(publicEndpointMethods)
     withClue("public endpoints missing from ModelResource (renamed?): ") {
       present shouldBe publicEndpointMethods

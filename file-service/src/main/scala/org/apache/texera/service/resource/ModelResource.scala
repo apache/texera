@@ -28,7 +28,7 @@ import org.apache.texera.amber.core.storage.ResourceType
 import org.apache.texera.amber.core.storage.util.LakeFSStorageClient
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.common.config.StorageConfig
-import org.apache.texera.dao.SqlServer
+import org.apache.texera.dao.{SiteSettings, SqlServer}
 import org.apache.texera.dao.SqlServer.withTransaction
 import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
 import org.apache.texera.dao.jooq.generated.tables.Model.MODEL
@@ -36,7 +36,7 @@ import org.apache.texera.dao.jooq.generated.tables.ModelVersion.MODEL_VERSION
 import org.apache.texera.dao.jooq.generated.tables.User.USER
 import org.apache.texera.dao.jooq.generated.tables.daos.{ModelDao, ModelUserAccessDao}
 import org.apache.texera.dao.jooq.generated.tables.pojos.{Model, ModelUserAccess, ModelVersion}
-import org.apache.texera.service.`type`.LakeFSFileNode
+import org.apache.texera.service.`type`.{Diff, ExistingUploadFilesRequest, LakeFSFileNode}
 import org.apache.texera.service.resource.ResourceTables.{Model => MODEL_RESOURCE}
 import org.apache.texera.service.resource.ModelAccessResource._
 import org.apache.texera.service.resource.ModelResource.{context, _}
@@ -52,7 +52,24 @@ import scala.jdk.OptionConverters._
 object ModelResource {
 
   // MVP supports a single framework; stored on the model so later frameworks can be added.
-  private val DEFAULT_FRAMEWORK = "pytorch"
+  // Callers may omit the framework; it is a display label, not a validation gate for files.
+  val DEFAULT_FRAMEWORK = "pytorch"
+
+  // Recognised values for the `framework` and `format` labels. They are metadata, not file
+  // checks -- a loader dispatches on them, so an unknown value is rejected at creation
+  // rather than surfacing later as an unloadable model.
+  val SUPPORTED_FRAMEWORKS: Set[String] = Set("pytorch", "tensorflow", "onnx", "sklearn")
+
+  val SUPPORTED_FORMATS: Set[String] =
+    Set("torchscript", "state-dict", "safetensors", "onnx", "savedmodel", "joblib", "pickle")
+
+  private def validateLabel(field: String, value: String, allowed: Set[String]): Unit = {
+    if (!allowed.contains(value)) {
+      throw new BadRequestException(
+        s"Unsupported $field '$value'. Supported values: ${allowed.toList.sorted.mkString(", ")}."
+      )
+    }
+  }
 
   // Matches model_version.name VARCHAR(128).
   private val MAX_VERSION_NAME_LENGTH = 128
@@ -63,6 +80,9 @@ object ModelResource {
     SqlServer
       .getInstance()
       .createDSLContext()
+
+  private def singleFileUploadMaxBytes(defaultMiB: Long = 20L): Long =
+    SiteSettings.getLong("single_file_upload_max_size_mib", defaultMiB) * 1024L * 1024L
 
   /**
     * Helper function to get the model from DB using mid
@@ -206,8 +226,14 @@ class ModelResource extends LazyLogging {
       model.setIsPublic(isModelPublic)
       model.setIsDownloadable(isModelDownloadable)
       model.setOwnerUid(uid)
-      model.setFramework(Option(request.framework).filter(_.nonEmpty).getOrElse(DEFAULT_FRAMEWORK))
-      model.setFormat(request.format)
+      val framework =
+        Option(request.framework).map(_.trim).filter(_.nonEmpty).getOrElse(DEFAULT_FRAMEWORK)
+      validateLabel("framework", framework, SUPPORTED_FRAMEWORKS)
+      val format = Option(request.format).map(_.trim).filter(_.nonEmpty)
+      format.foreach(validateLabel("format", _, SUPPORTED_FORMATS))
+
+      model.setFramework(framework)
+      model.setFormat(format.orNull)
 
       // insert record and get created model with mid
       val createdModel = ResourceNaming.failOnDuplicateName(MODEL_RESOURCE.label) {
@@ -418,28 +444,19 @@ class ModelResource extends LazyLogging {
               model = model,
               accessPrivilege = privilege,
               ownerEmail = ownerEmail,
-              size = 0
+              size = repositorySizeOrZero(model)
             )
           ),
         fromPublic = (model, ownerEmail) =>
-          try {
-            Some(
-              DashboardModel(
-                isOwner = false,
-                model = model,
-                accessPrivilege = PrivilegeEnum.READ,
-                ownerEmail = ownerEmail,
-                size = LakeFSStorageClient.retrieveRepositorySize(model.getRepositoryName)
-              )
+          Some(
+            DashboardModel(
+              isOwner = false,
+              model = model,
+              accessPrivilege = PrivilegeEnum.READ,
+              ownerEmail = ownerEmail,
+              size = repositorySizeOrZero(model)
             )
-          } catch {
-            case e: io.lakefs.clients.sdk.ApiException =>
-              logger.error(
-                s"LakeFS ApiException for model repository '${model.getRepositoryName}': ${e.getMessage}",
-                e
-              )
-              None
-          }
+          )
       )
     })
   }
@@ -463,6 +480,180 @@ class ModelResource extends LazyLogging {
   ): DashboardModel = {
     withTransaction(context)(ctx => getDashboardModel(ctx, mid, None))
   }
+
+  @GET
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @Path("/{mid}/versionZip")
+  def getModelVersionZip(
+      @PathParam("mid") mid: Integer,
+      @QueryParam("mvid") mvid: Integer,
+      @QueryParam("latest") latest: java.lang.Boolean,
+      @Auth user: SessionUser
+  ): Response =
+    withTransaction(context) { ctx =>
+      if ((mvid != null && latest != null) || (mvid == null && latest == null)) {
+        throw new BadRequestException("Specify exactly one: mvid=<ID> OR latest=true")
+      }
+
+      val uid = user.getUid
+      if (!userHasReadAccess(ctx, mid, uid)) {
+        throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_MODEL_MESSAGE)
+      }
+
+      val model = getModelByID(ctx, mid)
+      // Non-owners may download only while the owner leaves the model downloadable.
+      if (!userOwnModel(ctx, mid, uid) && !model.getIsDownloadable) {
+        throw new ForbiddenException("Model download is not allowed")
+      }
+
+      // latest=false is not "give me the latest": only TRUE selects it, anything else is a 400.
+      val modelVersion =
+        if (mvid != null) getModelVersionByID(ctx, mid, mvid)
+        else if (java.lang.Boolean.TRUE.equals(latest))
+          getLatestModelVersion(ctx, mid).getOrElse(
+            throw new NotFoundException(ERR_MODEL_VERSION_NOT_FOUND_MESSAGE)
+          )
+        else throw new BadRequestException("Invalid parameters")
+
+      ResourceUploadService.versionZipResponse(
+        model.getRepositoryName,
+        modelVersion.getVersionHash,
+        model.getName,
+        modelVersion.getName
+      )
+    }
+
+  /** Owner facet for the model list page. */
+  @GET
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @Path("/user-model-owners")
+  def retrieveOwners(@Auth user: SessionUser): java.util.List[String] =
+    withTransaction(context)(ctx =>
+      ResourceAccess.ownerEmailsVisibleTo(ctx, MODEL_RESOURCE, user.getUid)
+    )
+
+  // ===========================================================================
+  // Staged changes
+  // ===========================================================================
+
+  @GET
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @Path("/{mid}/diff")
+  def getModelDiff(
+      @PathParam("mid") mid: Integer,
+      @Auth user: SessionUser
+  ): List[Diff] =
+    ResourceUploadService.stagedChanges(ResourceStorage.Model, mid, user.getUid)
+
+  @PUT
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @Path("/{mid}/diff")
+  def resetModelFileDiff(
+      @PathParam("mid") mid: Integer,
+      @QueryParam("filePath") encodedFilePath: String,
+      @Auth user: SessionUser
+  ): Response =
+    ResourceUploadService.resetStagedChange(
+      ResourceStorage.Model,
+      mid,
+      encodedFilePath,
+      user.getUid
+    )
+
+  @POST
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @Path("/{mid}/existing-upload-files")
+  @Consumes(Array(MediaType.APPLICATION_JSON))
+  def findExistingUploadFiles(
+      @PathParam("mid") mid: Integer,
+      request: ExistingUploadFilesRequest,
+      @Auth user: SessionUser
+  ): Response =
+    ResourceUploadService.matchExistingUploads(
+      ResourceStorage.Model,
+      mid,
+      user.getUid,
+      request,
+      ctx => getLatestModelVersion(ctx, mid).map(_.getVersionHash)
+    )
+
+  // ===========================================================================
+  // Presigned downloads
+  // ===========================================================================
+
+  /**
+    * Resolves a presign request against the model tables and wraps the signed URL.
+    * The resolution itself is shared with datasets; only the descriptor differs.
+    */
+  /** Size of a model's LakeFS repository, or 0 if LakeFS cannot answer. */
+  private def repositorySizeOrZero(model: Model): Long = {
+    try {
+      LakeFSStorageClient.retrieveRepositorySize(model.getRepositoryName)
+    } catch {
+      case e: io.lakefs.clients.sdk.ApiException =>
+        logger.error(
+          s"LakeFS ApiException for model repository '${model.getRepositoryName}': ${e.getMessage}",
+          e
+        )
+        0L
+    }
+  }
+
+  private def generatePresignedResponse(
+      encodedUrl: String,
+      repositoryName: String,
+      commitHash: String,
+      uid: Integer
+  ): Response =
+    ResourceUploadService.presignedUrlResponse(
+      ResourceStorage.Model,
+      encodedUrl,
+      repositoryName,
+      commitHash,
+      uid
+    )
+
+  @GET
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @Path("/presign-download")
+  def getPresignedUrl(
+      @QueryParam("filePath") encodedUrl: String,
+      @QueryParam("repositoryName") repositoryName: String,
+      @QueryParam("commitHash") commitHash: String,
+      @Auth user: SessionUser
+  ): Response =
+    generatePresignedResponse(encodedUrl, repositoryName, commitHash, user.getUid)
+
+  @GET
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @Path("/presign-download-s3")
+  def getPresignedUrlWithS3(
+      @QueryParam("filePath") encodedUrl: String,
+      @QueryParam("repositoryName") repositoryName: String,
+      @QueryParam("commitHash") commitHash: String,
+      @Auth user: SessionUser
+  ): Response =
+    generatePresignedResponse(encodedUrl, repositoryName, commitHash, user.getUid)
+
+  @GET
+  @PermitAll
+  @Path("/public-presign-download")
+  def getPublicPresignedUrl(
+      @QueryParam("filePath") encodedUrl: String,
+      @QueryParam("repositoryName") repositoryName: String,
+      @QueryParam("commitHash") commitHash: String
+  ): Response =
+    generatePresignedResponse(encodedUrl, repositoryName, commitHash, null)
+
+  @GET
+  @PermitAll
+  @Path("/public-presign-download-s3")
+  def getPublicPresignedUrlWithS3(
+      @QueryParam("filePath") encodedUrl: String,
+      @QueryParam("repositoryName") repositoryName: String,
+      @QueryParam("commitHash") commitHash: String
+  ): Response =
+    generatePresignedResponse(encodedUrl, repositoryName, commitHash, null)
 
   // ===========================================================================
   // Versioning
