@@ -129,9 +129,6 @@ object OperatorBehaviorSpec {
   // as though they were pending.
   private val DefaultLocalSkip: Seq[String] = Seq(
     "SklearnLinearRegressionOpDesc",
-    "SklearnPassiveAggressiveOpDesc",
-    "SklearnPerceptronOpDesc",
-    "SklearnProbabilityCalibrationOpDesc",
     "SklearnRandomForestOpDesc",
     "SklearnRidgeCVOpDesc",
     "SklearnRidgeOpDesc",
