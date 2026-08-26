@@ -23,6 +23,8 @@ import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tup
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.funsuite.AnyFunSuite
 
+import java.sql.Timestamp
+
 class AggregateOpSpec extends AnyFunSuite {
 
   /** Helpers */
@@ -406,6 +408,67 @@ class AggregateOpSpec extends AnyFunSuite {
 
     val result = agg.finalAgg(partial).asInstanceOf[java.lang.Double].doubleValue()
     assert(result == maxValue)
+  }
+
+  test("MAX aggregation finds largest INTEGER and returns null when given no values") {
+    val schema = makeSchema("temperature" -> AttributeType.INTEGER)
+    val tuple1 = makeTuple(schema, 10)
+    val tuple2 = makeTuple(schema, -2)
+    val tuple3 = makeTuple(schema, 5)
+
+    val operation = makeAggregationOp(AggregationFunction.MAX, "temperature", "max_temp")
+    val agg = operation.getAggFunc(AttributeType.INTEGER)
+
+    // Empty case: never iterate, just finalize init
+    val emptyPartial = agg.init()
+    val emptyResult = agg.finalAgg(emptyPartial)
+    assert(emptyResult == null)
+
+    // Non-empty case
+    var partial = agg.init()
+    partial = agg.iterate(partial, tuple1)
+    partial = agg.iterate(partial, tuple2)
+    partial = agg.iterate(partial, tuple3)
+
+    val result = agg.finalAgg(partial).asInstanceOf[Number].intValue()
+    assert(result == 10)
+  }
+
+  test("MAX aggregation returns null when all values are null") {
+    val schema = makeSchema("temperature" -> AttributeType.INTEGER)
+
+    val operation = makeAggregationOp(AggregationFunction.MAX, "temperature", "max_temp")
+    val agg = operation.getAggFunc(AttributeType.INTEGER)
+
+    var partial = agg.init()
+    Seq.fill(3)(makeTuple(schema, null)).foreach(tp => partial = agg.iterate(partial, tp))
+    assert(agg.finalAgg(partial) == null)
+  }
+
+  test("MAX aggregation keeps the type's maximum value when it is the true maximum") {
+    // Regression: the finalizer used to mistake a partial equal to
+    // maxValue(attributeType) for the "no value seen" sentinel and emit null.
+    val cases: Seq[(AttributeType, Seq[Any], Any)] = Seq(
+      (AttributeType.INTEGER, Seq(1, 5, Int.MaxValue), Int.MaxValue),
+      (AttributeType.LONG, Seq(1L, 5L, Long.MaxValue), Long.MaxValue),
+      (AttributeType.DOUBLE, Seq(1.0, 5.0, Double.MaxValue), Double.MaxValue),
+      (
+        AttributeType.TIMESTAMP,
+        Seq(new Timestamp(1L), new Timestamp(Long.MaxValue)),
+        new Timestamp(Long.MaxValue)
+      )
+    )
+
+    for ((attrType, values, expected) <- cases) {
+      val schema = makeSchema("v" -> attrType)
+      val operation = makeAggregationOp(AggregationFunction.MAX, "v", "max_v")
+      val agg = operation.getAggFunc(attrType)
+
+      var partial = agg.init()
+      values.foreach(v => partial = agg.iterate(partial, makeTuple(schema, v)))
+
+      assert(agg.finalAgg(partial) == expected, s"MAX over $attrType must keep $expected")
+    }
   }
 
   test("AVERAGE aggregation ignores nulls and returns null when all values are null") {
