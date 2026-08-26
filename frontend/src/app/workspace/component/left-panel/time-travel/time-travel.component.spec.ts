@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { ComponentFixture, TestBed, fakeAsync, tick } from "@angular/core/testing";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
 import { By } from "@angular/platform-browser";
@@ -229,6 +229,69 @@ describe("TimeTravelComponent", () => {
         expect(spy).toHaveBeenCalledTimes(1);
       });
     });
+  });
+
+  /**
+   * The panel keeps itself up to date from a `timer(0, 5000)` poller started in ngOnInit.
+   * The fixture built by the outer beforeEach cannot be used to drive it: `src/test-zone-setup.ts`
+   * installs the ProxyZone that fakeAsync patches around the `it` body only, so anything
+   * scheduled from a beforeEach — including the poller that beforeEach's detectChanges starts
+   * (inert there, since the metadata stub reports no wid) — lives in the real zone, out of
+   * tick()'s reach. These tests therefore re-run ngOnInit from inside the fakeAsync body,
+   * which is where timer(0, 5000) has to be created for tick() to drive it, and destroy the
+   * fixture at the end so @UntilDestroy unsubscribes the periodic timer.
+   */
+  describe("ngOnInit polling", () => {
+    it("skips the refresh while the workflow has no id", fakeAsync(() => {
+      metadataSpy.mockReturnValue(undefined as any);
+      const widSpy = vi.spyOn(component, "getWid");
+      const displaySpy = vi.spyOn(component, "displayExecutionWithLogs").mockImplementation(() => {});
+
+      component.ngOnInit();
+      tick(0); // the first emission of timer(0, 5000) is asynchronous
+
+      // getWid pins that the poller actually ran: without it the negative assertion
+      // below would also pass with the poller never firing at all.
+      expect(widSpy).toHaveBeenCalledTimes(1);
+      expect(displaySpy).not.toHaveBeenCalled();
+
+      fixture.destroy();
+    }));
+
+    it("refreshes the execution list immediately and then every five seconds", fakeAsync(() => {
+      metadataSpy.mockReturnValue({ wid: 7 } as any);
+      const displaySpy = vi.spyOn(component, "displayExecutionWithLogs").mockImplementation(() => {});
+
+      component.ngOnInit();
+
+      tick(0);
+      expect(displaySpy).toHaveBeenCalledTimes(1);
+      expect(displaySpy).toHaveBeenCalledWith(7);
+
+      // The second advance brackets the period instead of merely clearing it: asserting only
+      // "two calls by t=5000" holds for every period <= 5000, so a shortened interval — which
+      // multiplies the panel's load on /api/executions — would pass unnoticed.
+      tick(4999);
+      expect(displaySpy).toHaveBeenCalledTimes(1);
+      tick(1);
+      expect(displaySpy).toHaveBeenCalledTimes(2);
+
+      fixture.destroy();
+    }));
+
+    it("stops polling once the panel is destroyed", fakeAsync(() => {
+      metadataSpy.mockReturnValue({ wid: 7 } as any);
+      const displaySpy = vi.spyOn(component, "displayExecutionWithLogs").mockImplementation(() => {});
+
+      component.ngOnInit();
+      tick(0);
+      expect(displaySpy).toHaveBeenCalledTimes(1);
+
+      fixture.destroy();
+      tick(5000);
+
+      expect(displaySpy).toHaveBeenCalledTimes(1);
+    }));
   });
 
   describe("template rendering", () => {
