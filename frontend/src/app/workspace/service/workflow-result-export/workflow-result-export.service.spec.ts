@@ -338,7 +338,7 @@ describe("WorkflowResultExportService", () => {
 
     it("warns without a dataset list when only some operators are blocked and no dataset was named", () => {
       enableExport();
-      (notificationServiceSpy as any).warning = vi.fn();
+      notificationServiceSpy.warning = vi.fn();
       const download = stubDownloadService({ downloadability: { op2: [] } });
       texeraGraphSpy.getAllOperators.mockReturnValue([{ operatorID: "op1" }, { operatorID: "op2" }] as any);
 

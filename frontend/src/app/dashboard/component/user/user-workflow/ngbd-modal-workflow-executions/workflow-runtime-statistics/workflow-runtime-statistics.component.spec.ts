@@ -312,8 +312,8 @@ describe("WorkflowRuntimeStatisticsComponent", () => {
     const grouped = group();
 
     // NOTE: the template renders exactly one nz-tab per metric key, so the real UI never produces
-    // an out-of-range index. This pins a defensive default on the public onTabChanged/createDataset
-    // contract, not a UI path.
+    // an out-of-range index. This pins a defensive default in createDataset for programmatic callers,
+    // not a UI path.
     // There are 8 metric keys (indices 0..7), so index 8 selects none of them.
     const outOfRange = seriesNamed(dataset(8, grouped), "scan-111111");
 
