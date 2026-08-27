@@ -111,6 +111,18 @@ installIfMissing(G.SVGGraphicsElement?.prototype, {
   getBBox: fakeRect as AnyFn,
 });
 
+// `Range.prototype.getBoundingClientRect` — jsdom has no layout engine and
+// doesn't implement it. Quill's `Selection#getBounds` calls it on a live
+// Range to place the caret, and quill-cursors calls it again for every
+// remote cursor an awareness update carries, so any spec that mounts a
+// collaborative editor throws `range.getBoundingClientRect is not a
+// function`. A zeroed rect is enough — jsdom never paints, and specs that
+// need real caret geometry belong in browser mode. `top` / `left` / `right`
+// / `height` are the four fields `getBounds` reads back off it.
+installIfMissing(G.Range?.prototype, {
+  getBoundingClientRect: (() => ({ ...fakeRect(), top: 0, right: 0, bottom: 0, left: 0 })) as AnyFn,
+});
+
 // Constructable Stylesheets API (`new CSSStyleSheet().replaceSync(...)`) —
 // jsdom doesn't ship it, but @codingame/monaco-vscode-api v25 calls it at
 // module load. Stub with an inert constructor; specs don't visually render
