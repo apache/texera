@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1787749371711,
+  "lastUpdate": 1787853376420,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -10940,6 +10940,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 507.6450030527687,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Xinyuan Lin",
+            "username": "aglinxinyuan",
+            "email": "xinyual3@uci.edu"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "b01b11f8182313b9f3bff877c661f7ae0f0b5a1c",
+          "message": "test(amber): cover PveManager system-package resolution and package deletion (#8036)\n\n### What changes were proposed in this PR?\n\nSix tests added to `PveResourceSpec`, covering `PveManager`'s error\npaths. That file already owns this class's tests — 15 `\"PveManager\"\nshould` blocks — so this extends it rather than adding a second spec.\n\n| Metric | Before | After |\n|---|---|---|\n| **Codecov (fully-covered lines)** | 198/228 = 86.8% | **205/228 =\n89.9%** |\n| Branch arms | 53/140 | 60/140 |\n\n**+7 fully-covered lines and +7 branch arms.** The newly covered lines\nare the three give-up arms of `resolveSystemPackages` (149/151, 170/172,\n181/183) and the uninstall-failure arm of `deletePackages` (565) — all\nplain control flow, no `logger.info`/`debug` bodies, so none is a line\nthat looks green locally and dies in CI.\n\nThese figures are the **CI-equivalent projection**, not the raw local\nnumbers. `PveResourceSpec` has 6 pre-existing Windows-only failures —\nits fake runner fabricates a POSIX `<venv>/bin/python` while\n`PveManager` resolves `<venv>/Scripts/python.exe` — so the raw local\ndelta is inflated and is deliberately not quoted. The projection was\nbuilt by applying a throwaway test-file scaffold that makes the runner\nplatform-aware, measuring both sides with it applied byte-identically,\nthen reverting it.\n\n**On the absolute endpoints:** two independent measurements agree on +7\nbut differ by 3 on the endpoints (198 → 205 vs 195 → 202). The delta is\nsolid and reproduced three times; the endpoint is the softer number. I\nwould rather say that than publish a figure with more confidence than it\nhas.\n\n### What the reviewers found\n\nThis bundle went through a mutation audit and then a separate vacuity\nreview, and **each found real defects the other could not**.\n\nThe mutation audit's most serious catch: the resolver tests recorded\nwhat the runner was handed but asserted only its *length*, never *what\nran*. Retargeting the install from the throwaway venv to\n`PythonUtils.getPythonExecutable` was **byte-identical to baseline** —\nmeaning `resolveSystemPackages` would pip-install `requirements.txt`\ninto the machine's system Python and report that interpreter's package\nset as \"the system set\", with the test named *\"give up without\nattempting the install\"* unable to tell the difference.\n\nThe vacuity review then found three things a mutation audit structurally\ncannot:\n\n- **The throwaway-venv cleanup was executed four times per run and\nconstrained by nothing.** Swapping `Comparator.reverseOrder()` for\n`naturalOrder()` makes the delete hit the non-empty parent first, throw,\nand get swallowed by the block's own `catch` — the entire temp tree\nleaks, and the suite stayed green.\n- **The sanitiser's composition order was unpinned.** Each rule (trim,\ndrop-blank, drop-comment) was pinned individually, but exchanging\n`.map(_.trim).filter(…)` for `.filter(…).map(_.trim)` survived, because\nevery fixture line landed the same way either way. Fixed by indenting\nthe `## FIXME` fixture line two spaces — it is a comment only *after*\ntrimming, so it is the one line that separates the two orders.\n- **Three comments staked the fixture's whole rationale on the\n`--constraint` file, and the word appeared in the spec only inside\ncomments.** No assertion referenced the flag, the file, or its contents.\nTwo mutants were therefore unkillable — including one that keeps package\n*names* but drops every *version pin*, leaving pip free to resolve any\n`pyarrow`.\n\nAll are now killed by a named test. The new `--constraint` test adds\n**zero** coverage — its path was already covered — and is included\npurely as a mutation-strength test; it is the sole killer of the\nconstraint-file mutant.\n\n### Verification\n\nFour load-bearing mutants were re-run against the final content, one at\na time, each with a uniqueness-asserted anchor, reverted from a scratch\nsnapshot, with the production diff verified empty and an md5 match\nbefore every subsequent compile. **All four killed**, each by a named\ntest.\n\nOne published mutation row was discarded rather than reported: applied\nexactly as written it failed to *compile* (`forward reference to value\ncollected`), and a compile-only mutant proves nothing. It was replaced\nwith a semantically equivalent hoisted variant that does compile and\ndoes die.\n\n**No regression.** The 6 pre-existing failures are identical in *name*\non `main` and on this branch, not merely equal in count. All six new\ntests pass on Windows unscaffolded.\n\n### Deliberately not included\n\n`resolveSystemPackages` **fails open** and this PR does not pin that as\ncorrect. All three give-up arms return `Seq.empty`, and callers degrade\nsilently: `systemPackageNames` becomes empty, so a user may install or\ndelete any package including one the Python workers depend on, and the\n`--constraint` file becomes empty, so user installs are no longer\npinned. The tests assert the *giving up* — that the next command never\nruns, that a partial freeze is discarded — which is unambiguously right.\nNo assertion blesses \"empty set\" as the correct answer for the\napplication, and the spec says so. Fixing it is a production change.\n\nTwo survivor probes are recorded rather than pinned: the three\n`logger.error` calls can all be deleted with the suite outcome-identical\n(asserting on log lines means attaching an appender inside a shared,\nstrictly-serial JVM, and those lines stay Codecov-missed regardless\nbecause of the scalalogging guard arm), and the cleanup `finally` block\ncan be replaced with `()` — those lines already count as hits through\ntry/finally bytecode duplication, so pinning them is worth zero.\n\n`systemPackages` / `systemPackageNames` / `systemConstraintFile` are\nJVM-lifetime lazy vals, so resolution can be driven exactly once per JVM\nand the public `getSystemPackages` can never be exercised against a\nfailing runner. The tests reach the private method reflectively; a\nrename yields `NoSuchMethodException`, i.e. a test error rather than a\nfalse pass, which was verified.\n\nNo production file is touched.\n\n### Any related issues, documentation, discussions?\n\nCloses #8034\n\n### How was this PR tested?\n\n```\nsbt \"WorkflowExecutionService/testOnly org.apache.texera.web.resource.pythonvirtualenvironment.*\"\n```\n\n```\n[info] Total number of tests run: 57\n[info] Tests: succeeded 51, failed 6, canceled 1, ignored 0, pending 0\n```\n\nThe 6 failures are the pre-existing Windows-only ones described above\nand are present on `main` unchanged; under the CI-equivalence scaffold\nthe same scope reports `succeeded 57, failed 0`.\n\n`WorkflowExecutionService/Test/scalafmtCheck` and\n`WorkflowExecutionService/Test/scalafix --check` both pass.\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Claude Code (Opus 5)",
+          "timestamp": "2026-08-27T08:21:43Z",
+          "url": "https://github.com/apache/texera/commit/b01b11f8182313b9f3bff877c661f7ae0f0b5a1c"
+        },
+        "date": 1787853376112,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 688.9159050705642,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 1169.4419554322856,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 1208.4750395442202,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 870.921165155854,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 1204.1001775294537,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 1243.6123887466379,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 919.0145252667322,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 1181.9613663319433,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 1235.468455797444,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 757.5286866369917,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 948.0102667485043,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 983.0169519393096,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 757.574322201985,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 969.1877303628668,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 993.5838418555373,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 768.022634474935,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 949.2641130974862,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 950.555105873188,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 460.84291019971454,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 536.1424196154144,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 544.2622862013554,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 471.40078583387805,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 543.5378718791184,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 545.8820307614478,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 450.7805432345688,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 520.0591223066095,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 521.440824968464,
             "unit": "tuples/sec"
           }
         ]
