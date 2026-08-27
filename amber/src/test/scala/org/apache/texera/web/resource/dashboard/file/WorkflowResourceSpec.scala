@@ -706,6 +706,18 @@ class WorkflowResourceSpec
       SearchQueryParams(resourceType = "dataset", keywords = getKeywordsArray("test"))
     )
     assert(DashboardClickableFileEntryList.results.isEmpty)
+
+    // The counts above cannot distinguish a working filter from an ignored one, because every
+    // seeded row is a workflow and the only other searchable types are LakeFS-backed (a seeded
+    // dataset is dropped during hydration when LakeFS is unreachable, so it cannot be counted
+    // here -- DatasetSearchQueryBuilderSpec covers that path against a stub). Asserting that an
+    // unrecognised value is rejected pins that resourceType is dispatched on, not ignored.
+    assertThrows[IllegalArgumentException] {
+      dashboardResource.searchAllResourcesCall(
+        sessionUser1,
+        SearchQueryParams(resourceType = "project", keywords = getKeywordsArray("test"))
+      )
+    }
   }
 
   it should "return resources that match any of all provided keywords" in {

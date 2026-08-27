@@ -31,9 +31,9 @@ BEGIN;
 -- every public-project listing is deleted. Workflows, datasets and their own
 -- access grants are untouched -- but a workflow that a user could previously
 -- reach ONLY through a project share becomes inaccessible to that user, because
--- workflow access is now decided solely by workflow_user_access. Operators who
--- want to preserve those grants must copy them into workflow_user_access BEFORE
--- applying this migration.
+-- workflow access is now decided solely by workflow_user_access. Deployment
+-- administrators who want to preserve those grants must copy them into
+-- workflow_user_access BEFORE applying this migration.
 --
 -- Dropped in FK-dependency order (children first). The pgroonga index
 -- idx_project_pgroonga is dropped implicitly with its table.

@@ -126,13 +126,6 @@ object UnifiedResourceSchema {
   * - `userName`: Name of the user associated with the workflow, as a `String`.
   * - `userEmail`: Email of the user associated with the workflow, as a `String`.
   *
-  * Attributes specific to files:
-  * - `fid`: File ID, as an `Integer`.
-  * - `fileUploadTime`: Timestamp when the file was uploaded, as a `Timestamp`.
-  * - `filePath`: Path of the file, as a `String`.
-  * - `fileSize`: Size of the file, as an `Integer`.
-  * - `fileUserAccess`: Access privileges for the file, as a `UserFileAccessPrivilege`.
-  *
   * Attributes shared by the LakeFS-backed resources (datasets, models). One row is one
   * resource type, so each builder feeds these slots its own columns instead of duplicating
   * them per resource; the aliases only line up positionally across the UNION ALL.
