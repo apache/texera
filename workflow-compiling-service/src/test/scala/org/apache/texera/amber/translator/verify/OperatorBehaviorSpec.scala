@@ -116,20 +116,22 @@ object OperatorBehaviorSpec {
   private def patterns(envVar: String): Seq[String] =
     sys.env.getOrElse(envVar, "").split(",").iterator.map(_.trim).filter(_.nonEmpty).toSeq
 
-  // Operators not yet ready for verification — skipped by default everywhere
-  // (local + CI) until they're worked on. Listed one per name so each leaves the
-  // list on its own, the way every other operator has: a family substring hides
-  // how many are behind it, and "Sklearn" was holding back a whole tier that had
-  // been runnable for a while. HuggingFace is still a substring only because its
-  // four operators are one family with one blocker.
+  // Operators withheld from the default run, local and CI alike, while a family
+  // is worked through. Empty: every operator carrying standalone code is now
+  // verified by default, so a name here would be a step backwards rather than a
+  // queue to work off.
   //
-  // Every entry names an operator that WOULD run: [[discoverStandaloneOperators]]
-  // already drops anything without a `StandaloneCodeGenerator` mixin, so listing
-  // the source and UDF operators here changed nothing and only made the list read
-  // as though they were pending.
-  private val DefaultLocalSkip: Seq[String] = Seq(
-    "MachineLearningScorer"
-  )
+  // What remains withheld is narrower than an operator, and lives where it can
+  // say why: a single variant in [[TransformVerificationRunner.variantsNotRun]],
+  // or an operator that cannot be run at all in `knownIssues`, each against an
+  // issue or a reason. Prefer either of those to a name here, which withdraws an
+  // operator's every variant and records nothing about what is wrong.
+  //
+  // Add a name only while actively working a family in, and take it out in the
+  // same session. One per name rather than a family substring: a substring hides
+  // how many operators are behind it, and "Sklearn" once held back a whole tier
+  // that had been runnable for a while.
+  private val DefaultLocalSkip: Seq[String] = Seq()
 
   private lazy val onlyPatterns: Seq[String] = patterns("VERIFY_ONLY")
 
