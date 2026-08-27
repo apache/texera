@@ -482,8 +482,7 @@ class ComputingUnitMasterSpec
       CoordinatorConfig(None, None, None, Some(FaultToleranceConfig(writeTo = logFolder.toUri)))
     // s"${toShorterString(COORDINATOR)}] [<simple name>" is AmberLogging's naming scheme.
     val scheduleGeneratorLogger =
-      s"${VirtualIdentityUtils.toShorterString(COORDINATOR)}] [CostBasedScheduleGenerator"
-
+      s"${VirtualIdentityUtils.toShorterString(COORDINATOR)}] [${classOf[org.apache.texera.amber.engine.architecture.scheduling.CostBasedScheduleGenerator].getSimpleName}"
     try {
       withRegisteredSession { pushedToSession =>
         whileCapturing(scheduleGeneratorLogger, Level.INFO) { generatorEvents =>
