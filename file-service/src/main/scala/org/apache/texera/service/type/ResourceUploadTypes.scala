@@ -17,18 +17,20 @@
  * under the License.
  */
 
-package org.apache.texera.web.model.websocket.event
+package org.apache.texera.service.`type`
 
-import org.apache.texera.web.model.websocket.event.WorkflowAvailableResultEvent.OperatorAvailableResult
-import org.apache.texera.web.service.ExecutionResultService.WebOutputMode
+/**
+  * A staged (uncommitted) change in a versioned resource repository.
+  *
+  * @param sizeBytes size of the changed file, None for directories
+  */
+case class Diff(
+    path: String,
+    pathType: String,
+    diffType: String, // "added", "removed", "changed", etc.
+    sizeBytes: Option[Long]
+)
 
-object WorkflowAvailableResultEvent {
-  case class OperatorAvailableResult(
-      cacheValid: Boolean,
-      outputMode: WebOutputMode
-  )
-}
+case class ExistingUploadFile(path: String, sizeBytes: Long)
 
-case class WorkflowAvailableResultEvent(
-    availableOperators: Map[String, OperatorAvailableResult]
-) extends TexeraWebSocketEvent
+case class ExistingUploadFilesRequest(files: List[ExistingUploadFile])

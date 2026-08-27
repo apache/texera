@@ -114,9 +114,14 @@
         <sqlFile path="sql/updates/40.sql"/>
     </changeSet>
 
-    <!-- Allow ORCID as an identity provider in auth_provider.provider_type -->
-    <changeSet id="41" author="Neilk1021">
+    <!-- Add multipart upload session tables for models -->
+    <changeSet id="41" author="tanishqgandhi1908">
         <sqlFile path="sql/updates/41.sql"/>
+    </changeSet>
+
+    <!-- Allow ORCID as an identity provider in auth_provider.provider_type -->
+    <changeSet id="42" author="Neilk1021">
+        <sqlFile path="sql/updates/42.sql"/>
     </changeSet>
 
     <!-- example changeSet

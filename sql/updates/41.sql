@@ -17,21 +17,66 @@
  * under the License.
  */
 
--- Allow ORCID as an identity provider in auth_provider.provider_type.
---
--- ORCID is authorization-code OAuth rather than Google's id-token flow, but the identity it
--- yields lands in the same place: one auth_provider row whose provider_id is the ORCID iD.
---
--- The type is schema-qualified because the two runners disagree about the search path: the
--- liquibase runner in sql/docker-compose.yml strips `SET search_path` out of these files before
--- applying them, while bin/local-dev.sh keeps it.
-
 \c texera_db
 
 SET search_path TO texera_db;
 
 BEGIN;
 
-ALTER TYPE texera_db.provider_type_enum ADD VALUE IF NOT EXISTS 'ORCID';
+-- Session-based multipart upload for model files. Tracks in-progress multipart
+-- uploads so a model version can be assembled from parts and resumed across requests.
+
+CREATE TABLE IF NOT EXISTS model_upload_session
+(
+    mid                 INT          NOT NULL,
+    uid                 INT          NOT NULL,
+    file_path           TEXT         NOT NULL,
+    upload_id           VARCHAR(256) NOT NULL UNIQUE,
+    physical_address    TEXT,
+    num_parts_requested INT          NOT NULL,
+    file_size_bytes     BIGINT       NOT NULL,
+    part_size_bytes     BIGINT       NOT NULL,
+    created_at          TIMESTAMPTZ  NOT NULL DEFAULT now(),
+
+    PRIMARY KEY (uid, mid, file_path),
+
+    FOREIGN KEY (mid) REFERENCES model(mid) ON DELETE CASCADE,
+    FOREIGN KEY (uid) REFERENCES "user"(uid) ON DELETE CASCADE,
+
+    CONSTRAINT chk_model_upload_session_num_parts_requested_positive
+        CHECK (num_parts_requested >= 1),
+
+    CONSTRAINT chk_model_upload_session_file_size_bytes_positive
+        CHECK (file_size_bytes > 0),
+
+    CONSTRAINT chk_model_upload_session_part_size_bytes_positive
+        CHECK (part_size_bytes > 0),
+
+    CONSTRAINT chk_model_upload_session_part_size_bytes_s3_upper_bound
+        CHECK (part_size_bytes <= 5368709120)
+);
+
+CREATE TABLE IF NOT EXISTS model_upload_session_part
+(
+    upload_id   VARCHAR(256) NOT NULL,
+    part_number INT          NOT NULL,
+    etag        TEXT         NOT NULL DEFAULT '',
+
+    PRIMARY KEY (upload_id, part_number),
+
+    CONSTRAINT chk_model_part_number_positive CHECK (part_number > 0),
+
+    FOREIGN KEY (upload_id)
+        REFERENCES model_upload_session(upload_id)
+        ON DELETE CASCADE
+);
+
+-- Version names are generated from an unlocked count(*), and FileResolver looks a version
+-- up by (mid, name) with fetchOneInto. Enforce the uniqueness the generator assumes.
+ALTER TABLE model_version
+    DROP CONSTRAINT IF EXISTS uq_model_version_mid_name;
+
+ALTER TABLE model_version
+    ADD CONSTRAINT uq_model_version_mid_name UNIQUE (mid, name);
 
 COMMIT;
