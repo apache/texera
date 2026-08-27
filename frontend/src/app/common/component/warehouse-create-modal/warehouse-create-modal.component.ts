@@ -77,6 +77,11 @@ export class WarehouseCreateModalComponent implements OnChanges {
       // Cancelling mid-flight leaves creating set; without this the Create button
       // reopens stuck in its loading state.
       this.creating = false;
+    } else if (changes["visible"]?.currentValue === false) {
+      // The host can also close the dialog by flipping [(visible)] itself; that
+      // close must abandon the in-flight attempt exactly like Cancel does, or a
+      // late response would close — and discard — a reopened dialog.
+      this.closed$.next();
     }
   }
 

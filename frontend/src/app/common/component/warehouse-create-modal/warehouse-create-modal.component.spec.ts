@@ -232,6 +232,26 @@ describe("WarehouseCreateModalComponent", () => {
     expect(component.creating).toBe(false);
   });
 
+  it("a host-driven close abandons the in-flight create like Cancel does", () => {
+    // The workspace picker (#7817) will close this dialog by flipping
+    // [(visible)] itself, without going through the Cancel handler.
+    const inFlight = new Subject<DashboardWarehouse>();
+    warehouseActions.create.mockReturnValue(inFlight.asObservable());
+    const createdSpy = vi.fn();
+    component.warehouseCreated.subscribe(createdSpy);
+    component.visible = true;
+    component.newWarehouseName = "first";
+    component.createWarehouse();
+
+    component.visible = false;
+    component.ngOnChanges({ visible: new SimpleChange(true, false, false) });
+    inFlight.next(created);
+    inFlight.complete();
+
+    expect(createdSpy).not.toHaveBeenCalled();
+    expect(notificationService.success).not.toHaveBeenCalled();
+  });
+
   it("cancel closes without creating", () => {
     const visibleSpy = vi.fn();
     component.visibleChange.subscribe(visibleSpy);
