@@ -58,15 +58,16 @@ Test / testOptions ++= TestFilters.integrationSplit(
 // core-count concurrency (e.g. 12) resource contention caused rare flakes. A
 // fixed 4 stays deterministic across machines (incl. CI runners) while still
 // running ~3x faster than serial, and it matches PythonWorkerPool's own default
-// worker cap so the two bounds agree rather than multiply. It lives here rather
-// than in the shared helper so that helper stays identical for every module.
-// sbt concatenates the ScalaTest arguments of every testOptions entry, so this
+// worker cap so the two bounds agree rather than multiply. Unconditional, so a
+// local run reproduces the concurrency CI runs at instead of a faster one that
+// flakes differently; WCS_TEST_FILTER selects which tests run, which is a
+// separate question from how many run at once. The fast-unit job is unaffected
+// either way, since OperatorBehaviorSpec is the only spec here that
+// parallelizes and that job excludes it. It lives here rather than in the
+// shared helper so that helper stays identical for every module. sbt
+// concatenates the ScalaTest arguments of every testOptions entry, so this
 // lands in the same argument list as the -n above.
-Test / testOptions ++= {
-  if (sys.env.get("WCS_TEST_FILTER").contains("integration-only"))
-    Seq(Tests.Argument(TestFrameworks.ScalaTest, "-P4"))
-  else Nil
-}
+Test / testOptions += Tests.Argument(TestFrameworks.ScalaTest, "-P4")
 
 /////////////////////////////////////////////////////////////////////////////
 // Compiler Options
