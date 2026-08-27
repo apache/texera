@@ -326,7 +326,6 @@ object TransformVerificationRunner {
       classOf[SubstringSearchOpDesc] -> "apache/texera#7548",
       classOf[UnnestStringOpDesc] -> "apache/texera#7548",
       classOf[RegexOpDesc] -> "apache/texera#7548",
-      classOf[DumbbellPlotOpDesc] -> "apache/texera#7562",
       classOf[SklearnTrainingOpDesc] -> "apache/texera#7582",
       classOf[SklearnClassifierOpDesc] -> "apache/texera#7582",
       // These two descend from PythonOperatorDescriptor rather than a sklearn

@@ -220,11 +220,20 @@ class DumbbellPlotOpDesc extends PythonOperatorDescriptor with StandaloneCodeGen
        |                  <p>Reason is: {} </p>
        |               '''.format(error_msg)
        |
-       |if in1df.empty:
-       |    with open("output.html", "w", encoding="utf-8") as output:
-       |        output.write(render_error("input table is empty."))
+       |table = in1df
+       |_error = None
+       |if table.empty:
+       |    _error = "input table is empty."
        |else:
-       |    table = in1df
+       |    table = table.dropna(subset=[$comparedLit, ${pyStringLiteral(
+      categoryColumnName
+    )}, $measurementLit])
+       |    if table.empty:
+       |        _error = "input table has no rows with all of the configured columns filled in."
+       |if _error is not None:
+       |    with open("output.html", "w", encoding="utf-8") as output:
+       |        output.write(render_error(_error))
+       |else:
        |    entityNames = list(table[$comparedLit].unique())
        |    entityNames = sorted(entityNames, reverse=True)
        |    categoryValues = [${pyStringLiteral(dumbbellStartValue)}, ${pyStringLiteral(
