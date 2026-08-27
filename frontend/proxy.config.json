@@ -40,6 +40,16 @@
     "secure": false,
     "changeOrigin": true
   },
+  "/api/model/**": {
+    "target": "http://localhost:9092",
+    "secure": false,
+    "changeOrigin": true
+  },
+  "/api/access/model/**": {
+    "target": "http://localhost:9092",
+    "secure": false,
+    "changeOrigin": true
+  },
   "/api/access/computing-unit/**": {
     "target": "http://localhost:8888",
     "secure": false,

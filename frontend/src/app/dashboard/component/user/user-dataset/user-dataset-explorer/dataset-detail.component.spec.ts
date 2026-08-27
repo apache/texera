@@ -22,7 +22,7 @@ import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { By } from "@angular/platform-browser";
 import { NoopAnimationsModule } from "@angular/platform-browser/animations";
 import { ActivatedRoute, Router } from "@angular/router";
-import { of, Subject, throwError } from "rxjs";
+import { concat, of, Subject, throwError } from "rxjs";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { NzResizableDirective } from "ng-zorro-antd/resizable";
 import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
@@ -200,6 +200,72 @@ describe("DatasetDetailComponent upload queue", () => {
   });
 
   /**
+   * A progress event and the five-second hide timer both address a row by its index in
+   * `uploadTasks`, and that row can already be gone — dismissed by the user — by the time
+   * either arrives, so both lookups have to survive the miss. The completion path also has
+   * to pick a key for `uploadTimeMap` out of a name that may carry directories.
+   */
+  describe("progress bookkeeping", () => {
+    beforeEach(() => {
+      // The completion path arms a 5s row-hide timer; keep it off the real clock.
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("ignores progress for a row that is no longer listed", () => {
+      dropFiles("a.csv");
+      component.uploadTasks = []; // dismissed while a chunk was still in flight
+
+      expect(() => uploadSubjects[0].next({ filePath: "a.csv", percentage: 50, status: "uploading" })).not.toThrow();
+      // The late event must not resurrect the row or write a phantom index into the list.
+      expect(component.uploadTasks).toEqual([]);
+      expect(Object.keys(component.uploadTasks)).toHaveLength(0);
+    });
+
+    it("keys the upload time by the last path segment, falling back to the whole name", () => {
+      // Taking the segment after the last "/" yields "" for a name that ends in one, and
+      // keying the map under "" would collide every such upload onto one entry; the
+      // fallback keeps the name the caller gave instead.
+      dropFiles("nested/dir/");
+
+      finishUpload(0, "nested/dir/", 7);
+
+      expect(component.uploadTimeMap.get("nested/dir/")).toBe(7);
+      expect(component.uploadTimeMap.has("")).toBe(false);
+
+      // The reader of this map (user-dataset-staged-objects-list) looks a row up by
+      // `filePath.split("/").pop() || filePath`, so an ordinary nested name has to be
+      // keyed by its last segment here or the per-file time silently stops rendering.
+      dropFiles("dir/sub/a.csv");
+
+      finishUpload(1, "dir/sub/a.csv", 9);
+
+      expect(component.uploadTimeMap.get("a.csv")).toBe(9);
+      expect(component.uploadTimeMap.has("dir/sub/a.csv")).toBe(false);
+    });
+
+    it("ignores a hide request for a row that is gone", () => {
+      // Every one of scheduleHide's call sites already checks the index, so the -1 arm
+      // pins a defensive no-op rather than a reachable scenario: without the guard the
+      // lookup would read `filePath` off undefined and throw. The valid-index call that
+      // follows keeps a scheduleHide which does nothing at all from passing this test.
+      dropFiles("a.csv");
+      const before = [...component.uploadTasks];
+
+      expect(() => (component as any).scheduleHide(-1)).not.toThrow();
+      expect(component.uploadTasks).toEqual(before);
+
+      (component as any).scheduleHide(0);
+      vi.advanceTimersByTime(5000);
+
+      expect(component.uploadTasks).toEqual([]);
+    });
+  });
+
+  /**
    * Aborting an in-flight upload has to survive the backend still finalizing the previous attempt:
    * the abort call is retried on 409 up to ABORT_RETRY_MAX_ATTEMPTS, a 404 means it is already gone,
    * and the caller's callback must fire exactly once down every one of those paths.
@@ -235,6 +301,12 @@ describe("DatasetDetailComponent upload queue", () => {
       expect(finalize).toHaveBeenCalledWith("owner@texera.com", "test-dataset", "a.txt", true);
       expect(component.uploadTasks.find(t => t.filePath === "a.txt")!.status).toBe("aborted");
       expect(onAborted).toHaveBeenCalledTimes(1);
+
+      // The aborted row goes on the same five-second hide timer a finished one does, so
+      // it clears itself out of the list instead of sitting there for the rest of the session.
+      vi.advanceTimersByTime(5000);
+
+      expect(component.uploadTasks.find(t => t.filePath === "a.txt")).toBeUndefined();
     });
 
     it("stops listening to the upload it aborted", () => {
@@ -409,6 +481,38 @@ describe("DatasetDetailComponent upload queue", () => {
       // is no longer running.
       expect(component.activeCount).toBe(0);
       expect(onCanceled).toHaveBeenCalledTimes(1);
+    });
+
+    it("tells the caller once even when the abort call reports more than once", () => {
+      // The callback is latched so that it fires exactly once no matter how many of the
+      // subscription's handlers reach it. HttpClient itself delivers a single response,
+      // so this drives the latch directly: a response followed by a stream failure runs
+      // the next handler and then the error handler, and both of them report done.
+      finalize.mockReturnValueOnce(
+        concat(
+          of({}),
+          throwError(() => ({ status: 500 }) as any)
+        )
+      );
+      const task = inFlight();
+      const onAborted = vi.fn();
+
+      component.onClickAbortUploadProgress(task as any, onAborted);
+
+      expect(onAborted).toHaveBeenCalledTimes(1);
+    });
+
+    it("aborts a task whose row was already dropped without resurrecting it", () => {
+      const task = inFlight();
+      component.uploadTasks = []; // the row was dismissed before the abort was clicked
+
+      component.onClickAbortUploadProgress(task as any);
+
+      expect(finalize).toHaveBeenCalledWith("owner@texera.com", "test-dataset", "a.txt", true);
+      // Writing "aborted" back at a missing index would leave a phantom "-1" property on
+      // the array, which neither a throw nor `.length` would reveal.
+      expect(component.uploadTasks).toEqual([]);
+      expect(Object.keys(component.uploadTasks)).toHaveLength(0);
     });
   });
 
@@ -1221,6 +1325,68 @@ describe("DatasetDetailComponent behavior", () => {
       expect(component.coverImageUrl).toBeNull();
       expect(datasetServiceStub.getDatasetCoverUrl).not.toHaveBeenCalled();
     });
+
+    /**
+     * Stands in for the platform time-zone formatter so the assertions do not depend on
+     * whichever zone the machine running the suite sits in. `formatted` maps the requested
+     * `timeZoneName` option to the whole string the formatter would return, so the stub
+     * answers "long" and "short" differently the way a real formatter does — asking for the
+     * wrong one stays observable. Any call that does not ask for a zone name is delegated to
+     * the real constructor, since other code formats the same date through Intl.
+     */
+    const stubZoneFormatter = (formatted: Record<string, string>) => {
+      const realDateTimeFormat = Intl.DateTimeFormat;
+      return vi.spyOn(Intl, "DateTimeFormat").mockImplementation(function (locale?: any, options?: any) {
+        const requested = options?.timeZoneName as string | undefined;
+        return requested === undefined
+          ? new (realDateTimeFormat as any)(locale, options)
+          : ({ format: () => formatted[requested] ?? `<unstubbed:${requested}>` } as any);
+      } as any);
+    };
+
+    const renderTooltipWithCreationTime = () => {
+      datasetServiceStub.getDataset.mockReturnValue(
+        of(makeDashboardDataset({ dataset: makeDataset({ creationTime: CREATION_TS }) }))
+      );
+
+      createComponent();
+      component.did = 5;
+      component.retrieveDatasetInfo();
+    };
+
+    it("takes the tooltip's time zone from the spelled-out name the formatter appends", () => {
+      // The parenthetical is the segment after the last ", " of a long-form formatted
+      // date. Reading any other segment, or asking the formatter for the abbreviated
+      // zone, would put "11/14/2023" or "PST" in front of the user instead.
+      const zoned = stubZoneFormatter({
+        long: "11/14/2023, Pacific Standard Time",
+        short: "11/14/2023, PST",
+      });
+
+      try {
+        renderTooltipWithCreationTime();
+
+        expect(component.datasetCreationTimeTooltip).toMatch(/ \(Pacific Standard Time\)$/);
+      } finally {
+        // Vitest runs these specs without isolation, so a leaked global spy would
+        // follow the worker into the next spec file.
+        zoned.mockRestore();
+      }
+    });
+
+    it("leaves the tooltip's time zone empty when the runtime supplies no zone name", () => {
+      // A formatter that yields no zone name at all must render an empty parenthetical
+      // rather than leaking "undefined" into a user-visible tooltip.
+      const zoneless = stubZoneFormatter({ long: "", short: "" });
+
+      try {
+        renderTooltipWithCreationTime();
+
+        expect(component.datasetCreationTimeTooltip).toMatch(/ \(\)$/);
+      } finally {
+        zoneless.mockRestore();
+      }
+    });
   });
 
   describe("retrieveDatasetVersionList", () => {
@@ -1950,6 +2116,21 @@ describe("DatasetDetailComponent behavior", () => {
 
       expect(component.datasetDescription).toBe("old");
       expect(notificationServiceStub.error).toHaveBeenCalledWith("Failed to update dataset description");
+    });
+
+    it("stores an empty description when the editor hands back nothing", () => {
+      // The editor round-trips whatever it was bound to, and a dataset whose stored
+      // description is null binds a nullish value straight back out. Persisting that
+      // verbatim would write `undefined` over a description instead of clearing it.
+      datasetServiceStub.updateDatasetDescription.mockReturnValue(of({}));
+      createComponent();
+      component.did = 5;
+      component.datasetDescription = "old";
+
+      component.onDatasetDescriptionChange(undefined as unknown as string);
+
+      expect(datasetServiceStub.updateDatasetDescription).toHaveBeenCalledWith(5, "");
+      expect(component.datasetDescription).toBe("");
     });
   });
 
