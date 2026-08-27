@@ -255,7 +255,7 @@ describe("TimeTravelComponent", () => {
       expect(widSpy).toHaveBeenCalledTimes(1);
       expect(displaySpy).not.toHaveBeenCalled();
 
-      fixture.destroy();
+      component.ngOnDestroy();
     }));
 
     it("refreshes the execution list immediately and then every five seconds", fakeAsync(() => {
