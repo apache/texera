@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1787853376420,
+  "lastUpdate": 1787853380710,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -39710,6 +39710,433 @@ window.BENCHMARK_DATA = {
           {
             "name": "latency p99 / bs=1000 sw=50 sl=512",
             "value": 2024713.848,
+            "unit": "us"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Xinyuan Lin",
+            "username": "aglinxinyuan",
+            "email": "xinyual3@uci.edu"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "b01b11f8182313b9f3bff877c661f7ae0f0b5a1c",
+          "message": "test(amber): cover PveManager system-package resolution and package deletion (#8036)\n\n### What changes were proposed in this PR?\n\nSix tests added to `PveResourceSpec`, covering `PveManager`'s error\npaths. That file already owns this class's tests — 15 `\"PveManager\"\nshould` blocks — so this extends it rather than adding a second spec.\n\n| Metric | Before | After |\n|---|---|---|\n| **Codecov (fully-covered lines)** | 198/228 = 86.8% | **205/228 =\n89.9%** |\n| Branch arms | 53/140 | 60/140 |\n\n**+7 fully-covered lines and +7 branch arms.** The newly covered lines\nare the three give-up arms of `resolveSystemPackages` (149/151, 170/172,\n181/183) and the uninstall-failure arm of `deletePackages` (565) — all\nplain control flow, no `logger.info`/`debug` bodies, so none is a line\nthat looks green locally and dies in CI.\n\nThese figures are the **CI-equivalent projection**, not the raw local\nnumbers. `PveResourceSpec` has 6 pre-existing Windows-only failures —\nits fake runner fabricates a POSIX `<venv>/bin/python` while\n`PveManager` resolves `<venv>/Scripts/python.exe` — so the raw local\ndelta is inflated and is deliberately not quoted. The projection was\nbuilt by applying a throwaway test-file scaffold that makes the runner\nplatform-aware, measuring both sides with it applied byte-identically,\nthen reverting it.\n\n**On the absolute endpoints:** two independent measurements agree on +7\nbut differ by 3 on the endpoints (198 → 205 vs 195 → 202). The delta is\nsolid and reproduced three times; the endpoint is the softer number. I\nwould rather say that than publish a figure with more confidence than it\nhas.\n\n### What the reviewers found\n\nThis bundle went through a mutation audit and then a separate vacuity\nreview, and **each found real defects the other could not**.\n\nThe mutation audit's most serious catch: the resolver tests recorded\nwhat the runner was handed but asserted only its *length*, never *what\nran*. Retargeting the install from the throwaway venv to\n`PythonUtils.getPythonExecutable` was **byte-identical to baseline** —\nmeaning `resolveSystemPackages` would pip-install `requirements.txt`\ninto the machine's system Python and report that interpreter's package\nset as \"the system set\", with the test named *\"give up without\nattempting the install\"* unable to tell the difference.\n\nThe vacuity review then found three things a mutation audit structurally\ncannot:\n\n- **The throwaway-venv cleanup was executed four times per run and\nconstrained by nothing.** Swapping `Comparator.reverseOrder()` for\n`naturalOrder()` makes the delete hit the non-empty parent first, throw,\nand get swallowed by the block's own `catch` — the entire temp tree\nleaks, and the suite stayed green.\n- **The sanitiser's composition order was unpinned.** Each rule (trim,\ndrop-blank, drop-comment) was pinned individually, but exchanging\n`.map(_.trim).filter(…)` for `.filter(…).map(_.trim)` survived, because\nevery fixture line landed the same way either way. Fixed by indenting\nthe `## FIXME` fixture line two spaces — it is a comment only *after*\ntrimming, so it is the one line that separates the two orders.\n- **Three comments staked the fixture's whole rationale on the\n`--constraint` file, and the word appeared in the spec only inside\ncomments.** No assertion referenced the flag, the file, or its contents.\nTwo mutants were therefore unkillable — including one that keeps package\n*names* but drops every *version pin*, leaving pip free to resolve any\n`pyarrow`.\n\nAll are now killed by a named test. The new `--constraint` test adds\n**zero** coverage — its path was already covered — and is included\npurely as a mutation-strength test; it is the sole killer of the\nconstraint-file mutant.\n\n### Verification\n\nFour load-bearing mutants were re-run against the final content, one at\na time, each with a uniqueness-asserted anchor, reverted from a scratch\nsnapshot, with the production diff verified empty and an md5 match\nbefore every subsequent compile. **All four killed**, each by a named\ntest.\n\nOne published mutation row was discarded rather than reported: applied\nexactly as written it failed to *compile* (`forward reference to value\ncollected`), and a compile-only mutant proves nothing. It was replaced\nwith a semantically equivalent hoisted variant that does compile and\ndoes die.\n\n**No regression.** The 6 pre-existing failures are identical in *name*\non `main` and on this branch, not merely equal in count. All six new\ntests pass on Windows unscaffolded.\n\n### Deliberately not included\n\n`resolveSystemPackages` **fails open** and this PR does not pin that as\ncorrect. All three give-up arms return `Seq.empty`, and callers degrade\nsilently: `systemPackageNames` becomes empty, so a user may install or\ndelete any package including one the Python workers depend on, and the\n`--constraint` file becomes empty, so user installs are no longer\npinned. The tests assert the *giving up* — that the next command never\nruns, that a partial freeze is discarded — which is unambiguously right.\nNo assertion blesses \"empty set\" as the correct answer for the\napplication, and the spec says so. Fixing it is a production change.\n\nTwo survivor probes are recorded rather than pinned: the three\n`logger.error` calls can all be deleted with the suite outcome-identical\n(asserting on log lines means attaching an appender inside a shared,\nstrictly-serial JVM, and those lines stay Codecov-missed regardless\nbecause of the scalalogging guard arm), and the cleanup `finally` block\ncan be replaced with `()` — those lines already count as hits through\ntry/finally bytecode duplication, so pinning them is worth zero.\n\n`systemPackages` / `systemPackageNames` / `systemConstraintFile` are\nJVM-lifetime lazy vals, so resolution can be driven exactly once per JVM\nand the public `getSystemPackages` can never be exercised against a\nfailing runner. The tests reach the private method reflectively; a\nrename yields `NoSuchMethodException`, i.e. a test error rather than a\nfalse pass, which was verified.\n\nNo production file is touched.\n\n### Any related issues, documentation, discussions?\n\nCloses #8034\n\n### How was this PR tested?\n\n```\nsbt \"WorkflowExecutionService/testOnly org.apache.texera.web.resource.pythonvirtualenvironment.*\"\n```\n\n```\n[info] Total number of tests run: 57\n[info] Tests: succeeded 51, failed 6, canceled 1, ignored 0, pending 0\n```\n\nThe 6 failures are the pre-existing Windows-only ones described above\nand are present on `main` unchanged; under the CI-equivalence scaffold\nthe same scope reports `succeeded 57, failed 0`.\n\n`WorkflowExecutionService/Test/scalafmtCheck` and\n`WorkflowExecutionService/Test/scalafix --check` both pass.\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Claude Code (Opus 5)",
+          "timestamp": "2026-08-27T08:21:43Z",
+          "url": "https://github.com/apache/texera/commit/b01b11f8182313b9f3bff877c661f7ae0f0b5a1c"
+        },
+        "date": 1787853380134,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "latency p50 / bs=10 sw=1 sl=8",
+            "value": 14199.442,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=1 sl=8",
+            "value": 18005.124,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=1 sl=8",
+            "value": 19557.026,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=1 sl=8",
+            "value": 84880.164,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=1 sl=8",
+            "value": 95209.245,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=1 sl=8",
+            "value": 103682.434,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=1 sl=8",
+            "value": 826435.391,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=1 sl=8",
+            "value": 860481.451,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=1 sl=8",
+            "value": 890769.648,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=1 sl=64",
+            "value": 11267.076,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=1 sl=64",
+            "value": 13493.754,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=1 sl=64",
+            "value": 15563.569,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=1 sl=64",
+            "value": 82217.198,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=1 sl=64",
+            "value": 88198.067,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=1 sl=64",
+            "value": 102580.932,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=1 sl=64",
+            "value": 804325.234,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=1 sl=64",
+            "value": 835362.232,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=1 sl=64",
+            "value": 850796.685,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=1 sl=512",
+            "value": 10474.566,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=1 sl=512",
+            "value": 13185.509,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=1 sl=512",
+            "value": 16018.441,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=1 sl=512",
+            "value": 84617.151,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=1 sl=512",
+            "value": 88756.483,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=1 sl=512",
+            "value": 97206.957,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=1 sl=512",
+            "value": 808247.59,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=1 sl=512",
+            "value": 840983.712,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=1 sl=512",
+            "value": 854815.165,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=10 sl=8",
+            "value": 12903.551,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=10 sl=8",
+            "value": 15606.059,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=10 sl=8",
+            "value": 18824.137,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=10 sl=8",
+            "value": 105002.401,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=10 sl=8",
+            "value": 110952.11,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=10 sl=8",
+            "value": 115503.985,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=10 sl=8",
+            "value": 1015962.343,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=10 sl=8",
+            "value": 1053482.691,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=10 sl=8",
+            "value": 1077840.372,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=10 sl=64",
+            "value": 12772.001,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=10 sl=64",
+            "value": 15692.134,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=10 sl=64",
+            "value": 18436.525,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=10 sl=64",
+            "value": 101738.807,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=10 sl=64",
+            "value": 108357.398,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=10 sl=64",
+            "value": 113783.275,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=10 sl=64",
+            "value": 1003653.997,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=10 sl=64",
+            "value": 1039607.665,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=10 sl=64",
+            "value": 1059005.943,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=10 sl=512",
+            "value": 12786.007,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=10 sl=512",
+            "value": 14065.443,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=10 sl=512",
+            "value": 19632.204,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=10 sl=512",
+            "value": 104246.885,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=10 sl=512",
+            "value": 110948.041,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=10 sl=512",
+            "value": 113761.565,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=10 sl=512",
+            "value": 1050007.831,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=10 sl=512",
+            "value": 1084385.162,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=10 sl=512",
+            "value": 1136787.856,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=50 sl=8",
+            "value": 21555.832,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=50 sl=8",
+            "value": 22466.11,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=50 sl=8",
+            "value": 27832.441,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=50 sl=8",
+            "value": 185429.07,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=50 sl=8",
+            "value": 192309.397,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=50 sl=8",
+            "value": 202958.897,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=50 sl=8",
+            "value": 1837662.27,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=50 sl=8",
+            "value": 1877436.601,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=50 sl=8",
+            "value": 1909879.686,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=50 sl=64",
+            "value": 21076.138,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=50 sl=64",
+            "value": 21941.654,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=50 sl=64",
+            "value": 23858.93,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=50 sl=64",
+            "value": 182637.416,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=50 sl=64",
+            "value": 189931.548,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=50 sl=64",
+            "value": 205284.895,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=50 sl=64",
+            "value": 1831219.58,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=50 sl=64",
+            "value": 1873100.808,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=50 sl=64",
+            "value": 1887069.723,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=50 sl=512",
+            "value": 21818.496,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=50 sl=512",
+            "value": 25043.64,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=50 sl=512",
+            "value": 32697.72,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=50 sl=512",
+            "value": 191173.773,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=50 sl=512",
+            "value": 199303.492,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=50 sl=512",
+            "value": 207943.296,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=50 sl=512",
+            "value": 1915787.521,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=50 sl=512",
+            "value": 1955061.511,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=50 sl=512",
+            "value": 1980053.868,
             "unit": "us"
           }
         ]
