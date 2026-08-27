@@ -25,6 +25,8 @@ import { DashboardProject } from "../../../type/dashboard-project.interface";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { UserProjectService } from "../../../service/user/project/user-project.service";
 import { WorkflowPersistService } from "src/app/common/service/workflow-persist/workflow-persist.service";
+import { DatasetService } from "../../../service/user/dataset/dataset.service";
+import { EntityType } from "../../../../hub/service/hub.service";
 import { SearchFilterParameters } from "../../../type/search-filter-parameters";
 import { UserService } from "../../../../common/service/user/user.service";
 import { switchMap } from "rxjs/operators";
@@ -71,6 +73,8 @@ export class FiltersComponent implements OnInit {
   private _masterFilterList: ReadonlyArray<string> = [];
   // receive input from parent components (UserProjectSection), if any
   @Input() public pid?: number = undefined;
+  /** Which resource kind this page lists; decides whose owners and ids are offered. */
+  @Input() public entityType: EntityType = EntityType.Workflow;
   @Output()
   public masterFilterListChange = new EventEmitter<typeof this._masterFilterList>();
   public get masterFilterList(): ReadonlyArray<string> {
@@ -121,8 +125,20 @@ export class FiltersComponent implements OnInit {
     private notificationService: NotificationService,
     private userProjectService: UserProjectService,
     private workflowPersistService: WorkflowPersistService,
+    private datasetService: DatasetService,
     private cdr: ChangeDetectorRef
   ) {}
+
+  /** Only workflows expose an id-listing endpoint. */
+  public get hasIdFilter(): boolean {
+    return this.entityType === EntityType.Workflow;
+  }
+
+  private retrieveOwners(): Observable<string[]> {
+    return this.entityType === EntityType.Dataset
+      ? this.datasetService.retrieveOwners()
+      : this.workflowPersistService.retrieveOwners();
+  }
 
   ngOnInit(): void {
     this.setupUserProject();
@@ -157,9 +173,7 @@ export class FiltersComponent implements OnInit {
       });
   }
 
-  /**
-   * Backend calls for Workflow IDs, Owners, and Operators in saved workflow component
-   */
+  /** Backend calls for the filtered kind's owners and ids, plus the operator metadata. */
   private searchParameterBackendSetup() {
     this.operatorMetadataService
       .getOperatorMetadata()
@@ -183,23 +197,24 @@ export class FiltersComponent implements OnInit {
         this.operatorGroups = opdata.groups.map(group => group.groupName);
       });
     if (this.isLogin) {
-      this.workflowPersistService
-        .retrieveOwners()
+      this.retrieveOwners()
         .pipe(untilDestroyed(this))
         .subscribe(list_of_owners => {
           this.owners = list_of_owners.map(i => ({ userName: i, checked: false }));
         });
-      this.workflowPersistService
-        .retrieveWorkflowIDs()
-        .pipe(untilDestroyed(this))
-        .subscribe(wids => {
-          this.wids = wids.map(wid => {
-            return {
-              id: wid.toString(),
-              checked: false,
-            };
+      if (this.hasIdFilter) {
+        this.workflowPersistService
+          .retrieveWorkflowIDs()
+          .pipe(untilDestroyed(this))
+          .subscribe(wids => {
+            this.wids = wids.map(wid => {
+              return {
+                id: wid.toString(),
+                checked: false,
+              };
+            });
           });
-        });
+      }
     }
   }
 
