@@ -335,11 +335,11 @@ describe("ReportGenerationService", () => {
      * pointed at — and the unit-test builder runs spec files with `isolate: false`, so one jsdom
      * document is shared by every spec file in a worker and the renders below drag in whatever DOM
      * the files before this one left behind, in `<head>` as much as in the body. That is what
-     * failed the macOS leg: a clone that costs ~60ms against this file's own DOM was measured at
+     * failed the macOS leg: a clone that costs ~60ms against this suite's own DOM was measured at
      * 12–37s there, past the 20s test timeout, while ubuntu and windows passed. Park the foreign
-     * nodes of both for the duration of the file and put them back after, so the render's cost
+     * nodes of both for the duration of the suite and put them back after, so the render's cost
      * depends only on what these tests build. The renders started here outlive the tests that
-     * start them, so this has to span the file rather than each test.
+     * start them, so this has to span the suite rather than each test.
      */
     let parkedNodes: [ParentNode, ChildNode][];
 
