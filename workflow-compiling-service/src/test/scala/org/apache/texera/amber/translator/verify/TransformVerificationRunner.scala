@@ -334,9 +334,16 @@ object TransformVerificationRunner {
       classOf[SklearnMLOperatorDescriptor[_]] -> "apache/texera#7582"
     )
 
-    // GaussianNB validates X without accept_sparse, so a text pipeline is an
-    // invalid configuration for it rather than a translation gap.
-    val dense = ByDesign("GaussianNB rejects the sparse matrix CountVectorizer emits")
+    // The operator refuses the text pipeline in `getOutputSchemas`, so there is no
+    // configuration to compare: neither path is generated. An invalid configuration
+    // rather than a translation gap.
+    //
+    // Not sklearn raising, which is what the estimator's own limitation would look
+    // like. This fixture's word counts repeat enough that `ColumnTransformer` stays
+    // above its 0.3 sparse threshold and hands over a dense array, which GaussianNB
+    // fits without complaint. Only a wider vocabulary would reach the limitation
+    // the operator is guarding against.
+    val dense = ByDesign("the operator refuses Count Vectorizer at compile time")
     val denseOnly = for {
       op <- Seq(
         classOf[SklearnGaussianNaiveBayesOpDesc],
