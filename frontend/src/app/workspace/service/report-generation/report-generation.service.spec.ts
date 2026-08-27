@@ -351,6 +351,10 @@ describe("ReportGenerationService", () => {
     });
 
     afterAll(() => {
+      // html2canvas only detaches the iframe it clones into on the render's success path, so each
+      // render these tests leave failing strands one in the body. Drop them before the parked
+      // nodes go back, otherwise the next spec file's renders clone them.
+      document.body.querySelectorAll("iframe.html2canvas-container").forEach(node => node.remove());
       parkedNodes.forEach(([parent, node]) => parent.appendChild(node));
     });
 
