@@ -38,6 +38,12 @@ object KubernetesConfig {
   val maxNumOfRunningComputingUnitsPerUser: Int =
     conf.getInt("kubernetes.max-num-of-running-computing-units-per-user")
 
+  val computingUnitIdleTimeoutMinutes: Long =
+    conf.getLong("kubernetes.computing-unit-idle-timeout-minutes")
+
+  val computingUnitIdleCheckIntervalMinutes: Long =
+    conf.getLong("kubernetes.computing-unit-idle-check-interval-minutes")
+
   val cpuLimitOptions: List[String] =
     conf
       .getString("kubernetes.computing-unit-cpu-limit-options")
