@@ -99,6 +99,12 @@ class HuggingFaceTextSummarizationOpDesc
        |out1df = in1df.copy()
        |_summaries = []
        |for _text in out1df[${pyStringLiteral(attribute)}]:
+       |    # An empty cell arrives as None, which the tokenizer rejects. Keep the row
+       |    # and leave the summary empty rather than ending the run over a value the
+       |    # model has nothing to say about.
+       |    if _text is None or (isinstance(_text, str) and not _text.strip()):
+       |        _summaries.append(None)
+       |        continue
        |    inputs = tokenizer([_text], padding="max_length", truncation=True, max_length=512, return_tensors="pt")
        |    input_ids = inputs.input_ids.to(device)
        |    attention_mask = inputs.attention_mask.to(device)

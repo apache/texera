@@ -94,9 +94,18 @@ class HuggingFaceSpamSMSDetectionOpDesc
        |
        |_pipeline = pipeline("text-classification", model="mrm8488/bert-tiny-finetuned-sms-spam-detection")
        |out1df = in1df.copy()
-       |_results = [_pipeline(_t)[0] for _t in out1df[$attributeLit]]
-       |out1df[$spamLit] = [_r["label"] == "LABEL_1" for _r in _results]
-       |out1df[$probabilityLit] = [_r["score"] for _r in _results]""".stripMargin
+       |
+       |def _classify(_t):
+       |    # An empty cell arrives as None, which the pipeline rejects. Keep the row
+       |    # and leave the results empty rather than ending the run over a value the
+       |    # model has nothing to say about.
+       |    if _t is None or (isinstance(_t, str) and not _t.strip()):
+       |        return None
+       |    return _pipeline(_t)[0]
+       |
+       |_results = [_classify(_t) for _t in out1df[$attributeLit]]
+       |out1df[$spamLit] = [None if _r is None else _r["label"] == "LABEL_1" for _r in _results]
+       |out1df[$probabilityLit] = [None if _r is None else _r["score"] for _r in _results]""".stripMargin
   }
 
   override def operatorInfo: OperatorInfo =

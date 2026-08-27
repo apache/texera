@@ -126,6 +126,13 @@ class HuggingFaceSentimentAnalysisOpDesc
        |for _col in ($positiveLit, $neutralLit, $negativeLit):
        |    out1df[_col] = 0.0
        |for _idx, _text in out1df[${pyStringLiteral(attribute)}].items():
+       |    # An empty cell arrives as None, which the tokenizer rejects. Keep the row
+       |    # and leave the scores empty rather than ending the run over a value the
+       |    # model has nothing to say about.
+       |    if _text is None or (isinstance(_text, str) and not _text.strip()):
+       |        for _col in ($positiveLit, $neutralLit, $negativeLit):
+       |            out1df.at[_idx, _col] = None
+       |        continue
        |    encoded_input = tokenizer(_text, return_tensors='pt')
        |    output = model(**encoded_input)
        |    scores = softmax(output[0][0].detach().numpy())
