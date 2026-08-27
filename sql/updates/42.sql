@@ -27,11 +27,40 @@ BEGIN;
 -- alongside them can be named symmetrically. site_settings rows are keyed by a
 -- default.conf leaf's last path segment, so the renamed leaves are new row keys.
 --
--- Without this rename the config-service seeder (insert-if-absent) would create the
--- prefixed rows at their defaults and orphan the old ones, silently reverting any value
--- an admin had changed. Skip a row whose new key somehow already exists, so the
--- migration stays idempotent and never clobbers a value that is already correct.
+-- Nothing orders this migration before the config-service seeder, so the prefixed row may
+-- already exist at its default by the time this runs. The old row is then the only place
+-- an admin's edit survives, and it is unreachable through the API (updateSetting and
+-- resetSetting both reject a key with no default.conf entry). So carry the old value over
+-- rather than skipping, then drop the old row. Renaming what is left is a no-op on a
+-- second run, which keeps this idempotent.
 
+-- 1. The prefixed row already exists: the old row holds the value worth keeping.
+UPDATE site_settings AS t
+SET value = s.value,
+    updated_by = s.updated_by,
+    updated_at = s.updated_at
+FROM site_settings AS s
+WHERE s.key IN (
+        'single_file_upload_max_size_mib',
+        'multipart_upload_chunk_size_mib',
+        'max_number_of_concurrent_uploading_file',
+        'max_number_of_concurrent_uploading_file_chunks'
+    )
+  AND t.key = 'dataset_' || s.key;
+
+-- 2. Drop the old rows whose value has just been carried over.
+DELETE FROM site_settings AS s
+WHERE s.key IN (
+        'single_file_upload_max_size_mib',
+        'multipart_upload_chunk_size_mib',
+        'max_number_of_concurrent_uploading_file',
+        'max_number_of_concurrent_uploading_file_chunks'
+    )
+  AND EXISTS (
+        SELECT 1 FROM site_settings AS t WHERE t.key = 'dataset_' || s.key
+    );
+
+-- 3. No prefixed row was seeded: a plain rename preserves the value and its audit stamp.
 UPDATE site_settings AS s
 SET key = 'dataset_' || s.key
 WHERE s.key IN (
@@ -39,9 +68,6 @@ WHERE s.key IN (
         'multipart_upload_chunk_size_mib',
         'max_number_of_concurrent_uploading_file',
         'max_number_of_concurrent_uploading_file_chunks'
-    )
-  AND NOT EXISTS (
-        SELECT 1 FROM site_settings AS t WHERE t.key = 'dataset_' || s.key
     );
 
 COMMIT;

@@ -37,27 +37,27 @@ class UploadLimitsSpec extends AnyFlatSpec with Matchers {
 
   private def defaultOf(key: String): Option[String] = DefaultsConfig.allDefaults.get(key)
 
-  "UploadLimits.Dataset" should "name keys that default.conf declares, with matching defaults" in {
-    UploadLimits.Dataset.all.foreach { limit =>
+  /** Every limit must name a default.conf leaf AND carry that leaf's value: a descriptor
+    * default that has drifted from the file is what the fallback silently serves whenever
+    * the site_settings row is missing. Each leaf's env override is its key uppercased.
+    */
+  private def assertDeclaredDefaults(limits: UploadLimits): Unit =
+    limits.all.foreach { limit =>
       withClue(s"${limit.key}: ") {
         defaultOf(limit.key) shouldBe defined
+        ifUnset(limit.key.toUpperCase)(
+          defaultOf(limit.key) shouldBe Some(limit.defaultValue.toString)
+        )
       }
     }
-    ifUnset("DATASET_SINGLE_FILE_UPLOAD_MAX_SIZE_MIB")(
-      defaultOf("dataset_single_file_upload_max_size_mib") shouldBe Some("20")
-    )
+
+  "UploadLimits.Dataset" should "name keys that default.conf declares, with matching defaults" in {
+    assertDeclaredDefaults(UploadLimits.Dataset)
     UploadLimits.Dataset.singleFileMaxSizeMiB.defaultValue shouldBe 20L
   }
 
   "UploadLimits.Model" should "name keys that default.conf declares, with matching defaults" in {
-    UploadLimits.Model.all.foreach { limit =>
-      withClue(s"${limit.key}: ") {
-        defaultOf(limit.key) shouldBe defined
-      }
-    }
-    ifUnset("MODEL_SINGLE_FILE_UPLOAD_MAX_SIZE_MIB")(
-      defaultOf("model_single_file_upload_max_size_mib") shouldBe Some("2048")
-    )
+    assertDeclaredDefaults(UploadLimits.Model)
     UploadLimits.Model.singleFileMaxSizeMiB.defaultValue shouldBe 2048L
   }
 
