@@ -1122,6 +1122,12 @@ jobs:
         # --junit-xml emits a JUnit-XML report alongside the coverage XML
         # so the Test Analytics upload below can feed Codecov's failing-
         # test PR comments and flaky-test detection on main.
+        #
+        # Branch coverage is ON, but via `[tool.coverage.run] branch = true`
+        # in amber/pyproject.toml rather than a `--cov-branch` flag here, so
+        # that a local `pytest --cov` reports the same metric as CI. Don't
+        # add the flag back: it would be redundant, and two switches for one
+        # boolean invites someone to remove one and think it is off.
         env:
           # Pytest runs with -s, so loguru's default stderr sink prints
           # straight into the CI log; pin it to WARNING (loguru has no WARN)
