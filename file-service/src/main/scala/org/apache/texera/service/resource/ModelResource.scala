@@ -28,7 +28,7 @@ import org.apache.texera.amber.core.storage.ResourceType
 import org.apache.texera.amber.core.storage.util.LakeFSStorageClient
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.common.config.StorageConfig
-import org.apache.texera.dao.{SiteSettings, SqlServer}
+import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.SqlServer.withTransaction
 import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
 import org.apache.texera.dao.jooq.generated.tables.Model.MODEL
@@ -40,11 +40,14 @@ import org.apache.texera.service.`type`.{Diff, ExistingUploadFilesRequest, LakeF
 import org.apache.texera.service.resource.ResourceTables.{Model => MODEL_RESOURCE}
 import org.apache.texera.service.resource.ModelAccessResource._
 import org.apache.texera.service.resource.ModelResource.{context, _}
+import org.apache.texera.service.util.CoverImageUtils
+import org.apache.texera.service.util.CoverImageUtils.CoverImageRequest
 import org.apache.texera.service.util.S3StorageClient
 import org.apache.texera.service.util.LakeFSExceptionHandler.withLakeFSErrorHandling
 import org.jooq.{DSLContext, EnumType}
 
 import java.io.InputStream
+import java.net.URI
 import java.util.Optional
 import scala.jdk.CollectionConverters._
 import scala.jdk.OptionConverters._
@@ -55,13 +58,22 @@ object ModelResource {
   // Callers may omit the framework; it is a display label, not a validation gate for files.
   val DEFAULT_FRAMEWORK = "pytorch"
 
-  // Recognised values for the `framework` and `format` labels. They are metadata, not file
-  // checks -- a loader dispatches on them, so an unknown value is rejected at creation
-  // rather than surfacing later as an unloadable model.
-  val SUPPORTED_FRAMEWORKS: Set[String] = Set("pytorch", "tensorflow", "onnx", "sklearn")
+  // Metadata, not file checks: a loader dispatches on these, so an unknown value is
+  // rejected up front. "other" is in both sets so an unnamed one never blocks an upload.
+  val SUPPORTED_FRAMEWORKS: Set[String] =
+    Set("pytorch", "tensorflow", "onnx", "sklearn", "other")
 
   val SUPPORTED_FORMATS: Set[String] =
-    Set("torchscript", "state-dict", "safetensors", "onnx", "savedmodel", "joblib", "pickle")
+    Set(
+      "torchscript",
+      "state-dict",
+      "safetensors",
+      "onnx",
+      "savedmodel",
+      "joblib",
+      "pickle",
+      "other"
+    )
 
   private def validateLabel(field: String, value: String, allowed: Set[String]): Unit = {
     if (!allowed.contains(value)) {
@@ -69,6 +81,20 @@ object ModelResource {
         s"Unsupported $field '$value'. Supported values: ${allowed.toList.sorted.mkString(", ")}."
       )
     }
+  }
+
+  /**
+    * Trims a framework/format label, treats blank as absent, validates the rest.
+    * Shared by create and update so the edit form cannot reject what create accepted.
+    */
+  private def normalizeLabel(
+      field: String,
+      value: String,
+      allowed: Set[String]
+  ): Option[String] = {
+    val normalized = Option(value).map(_.trim).filter(_.nonEmpty)
+    normalized.foreach(validateLabel(field, _, allowed))
+    normalized
   }
 
   // Matches model_version.name VARCHAR(128).
@@ -80,9 +106,6 @@ object ModelResource {
     SqlServer
       .getInstance()
       .createDSLContext()
-
-  private def singleFileUploadMaxBytes(defaultMiB: Long = 20L): Long =
-    SiteSettings.getLong("single_file_upload_max_size_mib", defaultMiB) * 1024L * 1024L
 
   /**
     * Helper function to get the model from DB using mid
@@ -147,6 +170,10 @@ object ModelResource {
 
   case class ModelNameModification(mid: Integer, name: String)
 
+  case class ModelFrameworkModification(mid: Integer, framework: String)
+
+  case class ModelFormatModification(mid: Integer, format: String)
+
   case class DashboardModelVersion(
       modelVersion: ModelVersion,
       fileNodes: List[LakeFSFileNode]
@@ -173,13 +200,7 @@ class ModelResource extends LazyLogging {
       mid: Integer,
       requesterUid: Option[Integer]
   ): DashboardModel = {
-    val targetModel = getModelByID(ctx, mid)
-
-    if (requesterUid.isEmpty && !targetModel.getIsPublic) {
-      throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_MODEL_MESSAGE)
-    } else if (requesterUid.exists(uid => !userHasReadAccess(ctx, mid, uid))) {
-      throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_MODEL_MESSAGE)
-    }
+    val targetModel = requireReadAccess(ctx, mid, requesterUid)
 
     val userAccessPrivilege = requesterUid
       .map(uid => getModelUserAccessPrivilege(ctx, mid, uid))
@@ -226,11 +247,9 @@ class ModelResource extends LazyLogging {
       model.setIsPublic(isModelPublic)
       model.setIsDownloadable(isModelDownloadable)
       model.setOwnerUid(uid)
-      val framework =
-        Option(request.framework).map(_.trim).filter(_.nonEmpty).getOrElse(DEFAULT_FRAMEWORK)
-      validateLabel("framework", framework, SUPPORTED_FRAMEWORKS)
-      val format = Option(request.format).map(_.trim).filter(_.nonEmpty)
-      format.foreach(validateLabel("format", _, SUPPORTED_FORMATS))
+      val framework = normalizeLabel("framework", request.framework, SUPPORTED_FRAMEWORKS)
+        .getOrElse(DEFAULT_FRAMEWORK)
+      val format = normalizeLabel("format", request.format, SUPPORTED_FORMATS)
 
       model.setFramework(framework)
       model.setFormat(format.orNull)
@@ -334,6 +353,53 @@ class ModelResource extends LazyLogging {
       }
 
       model.setDescription(modificator.description)
+      modelDao.update(model)
+      Response.ok().build()
+    }
+  }
+
+  @POST
+  @Consumes(Array(MediaType.APPLICATION_JSON))
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @Path("/update/framework")
+  def updateModelFramework(
+      modificator: ModelFrameworkModification,
+      @Auth sessionUser: SessionUser
+  ): Response = {
+    withTransaction(context) { ctx =>
+      val modelDao = new ModelDao(ctx.configuration())
+      val model = getModelByID(ctx, modificator.mid)
+      if (!userHasWriteAccess(ctx, modificator.mid, sessionUser.getUid)) {
+        throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_MODEL_MESSAGE)
+      }
+
+      model.setFramework(
+        normalizeLabel("framework", modificator.framework, SUPPORTED_FRAMEWORKS)
+          .getOrElse(DEFAULT_FRAMEWORK)
+      )
+      modelDao.update(model)
+      Response.ok().build()
+    }
+  }
+
+  @POST
+  @Consumes(Array(MediaType.APPLICATION_JSON))
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @Path("/update/format")
+  def updateModelFormat(
+      modificator: ModelFormatModification,
+      @Auth sessionUser: SessionUser
+  ): Response = {
+    withTransaction(context) { ctx =>
+      val modelDao = new ModelDao(ctx.configuration())
+      val model = getModelByID(ctx, modificator.mid)
+      if (!userHasWriteAccess(ctx, modificator.mid, sessionUser.getUid)) {
+        throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_MODEL_MESSAGE)
+      }
+
+      model.setFormat(normalizeLabel("format", modificator.format, SUPPORTED_FORMATS).orNull)
       modelDao.update(model)
       Response.ok().build()
     }
@@ -776,6 +842,22 @@ class ModelResource extends LazyLogging {
     })
   }
 
+  /** Version list of a public model, for a logged-out visitor on a hub model page. */
+  @GET
+  @PermitAll
+  @Path("/{mid}/publicVersion/list")
+  def getPublicModelVersionList(
+      @PathParam("mid") mid: Integer
+  ): List[ModelVersion] = {
+    withTransaction(context)(ctx => {
+      val model = getModelByID(ctx, mid)
+      if (!isModelPublic(ctx, model.getMid)) {
+        throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_MODEL_MESSAGE)
+      }
+      fetchModelVersions(ctx, model.getMid)
+    })
+  }
+
   @GET
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/{mid}/version/latest")
@@ -805,6 +887,17 @@ class ModelResource extends LazyLogging {
   ): ModelVersionRootFileNodesResponse = {
     val uid = user.getUid
     withTransaction(context)(ctx => fetchModelVersionRootFileNodes(ctx, mid, mvid, Some(uid)))
+  }
+
+  /** Anonymous half of the endpoint above. */
+  @GET
+  @PermitAll
+  @Path("/{mid}/publicVersion/{mvid}/rootFileNodes")
+  def retrievePublicModelVersionRootFileNodes(
+      @PathParam("mid") mid: Integer,
+      @PathParam("mvid") mvid: Integer
+  ): ModelVersionRootFileNodesResponse = {
+    withTransaction(context)(ctx => fetchModelVersionRootFileNodes(ctx, mid, mvid, None))
   }
 
   // ===========================================================================
@@ -912,8 +1005,122 @@ class ModelResource extends LazyLogging {
   }
 
   // ===========================================================================
+  // Cover image
+  // ===========================================================================
+
+  /** Points the model card at a committed image inside the model, "<version>/<file>". */
+  @POST
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @Path("/{mid}/update/cover")
+  @Consumes(Array(MediaType.APPLICATION_JSON))
+  def updateModelCoverImage(
+      @PathParam("mid") mid: Integer,
+      request: CoverImageRequest,
+      @Auth sessionUser: SessionUser
+  ): Response = {
+    withTransaction(context) { ctx =>
+      val model = getModelByID(ctx, mid)
+      if (!userHasWriteAccess(ctx, mid, sessionUser.getUid)) {
+        throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_MODEL_MESSAGE)
+      }
+
+      val normalized =
+        CoverImageUtils.validatePathOrThrow(request.coverImage, CoverImageUtils.MAX_PATH_LENGTH)
+
+      val document = CoverImageUtils.openCoverOrBadRequest(
+        ResourceType.Model,
+        getOwner(ctx, mid).getEmail,
+        model.getName,
+        normalized
+      )
+      CoverImageUtils.requireWithinSizeLimit(CoverImageUtils.fileSizeOf(document, normalized))
+
+      model.setCoverImage(normalized)
+      new ModelDao(ctx.configuration()).update(model)
+      Response.ok(Map("coverImage" -> normalized)).build()
+    }
+  }
+
+  /** 307 redirect to the cover's presigned S3 URL. */
+  @GET
+  @PermitAll
+  @Path("/{mid}/cover")
+  def getModelCover(
+      @PathParam("mid") mid: Integer,
+      @Auth sessionUser: Optional[SessionUser]
+  ): Response = {
+    withTransaction(context) { ctx =>
+      val model = requireCoverReadAccess(ctx, mid, sessionUser)
+      val coverImage = Option(model.getCoverImage).getOrElse(
+        throw new NotFoundException("No cover image")
+      )
+
+      val document = CoverImageUtils
+        .openCover(ResourceType.Model, getOwner(ctx, mid).getEmail, model.getName, coverImage)
+        .getOrElse(throw new NotFoundException("No cover image"))
+
+      Response
+        .temporaryRedirect(new URI(CoverImageUtils.presignedUrl(document, coverImage)))
+        .build()
+    }
+  }
+
+  /**
+    * Presigned cover URL as JSON. Needed for private models because `<img src>`
+    * cannot attach the Authorization header that GET /{mid}/cover requires.
+    */
+  @GET
+  @PermitAll
+  @Path("/{mid}/cover-url")
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  def getModelCoverUrl(
+      @PathParam("mid") mid: Integer,
+      @Auth sessionUser: Optional[SessionUser]
+  ): Response = {
+    withTransaction(context) { ctx =>
+      val model = requireCoverReadAccess(ctx, mid, sessionUser)
+
+      Option(model.getCoverImage) match {
+        case None => Response.ok(Map("url" -> null)).build()
+        case Some(coverImage) =>
+          val url = CoverImageUtils
+            .openCover(ResourceType.Model, getOwner(ctx, mid).getEmail, model.getName, coverImage)
+            .map(CoverImageUtils.presignedUrl(_, coverImage))
+          Response.ok(Map("url" -> url.orNull)).build()
+      }
+    }
+  }
+
+  // ===========================================================================
   // Private helpers
   // ===========================================================================
+
+  /** A cover is readable by anyone for a public model, and by read-grantees otherwise. */
+  private def requireCoverReadAccess(
+      ctx: DSLContext,
+      mid: Integer,
+      sessionUser: Optional[SessionUser]
+  ): Model =
+    requireReadAccess(ctx, mid, sessionUser.toScala.map(_.getUid))
+
+  /**
+    * The single read rule for a model: anonymous callers get public models only, a
+    * signed-in caller goes through userHasReadAccess. Shared with getDashboardModel
+    * so the cover endpoints cannot drift from it.
+    */
+  private def requireReadAccess(
+      ctx: DSLContext,
+      mid: Integer,
+      requesterUid: Option[Integer]
+  ): Model = {
+    val model = getModelByID(ctx, mid)
+    if (requesterUid.isEmpty && !model.getIsPublic) {
+      throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_MODEL_MESSAGE)
+    } else if (requesterUid.exists(uid => !userHasReadAccess(ctx, mid, uid))) {
+      throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_MODEL_MESSAGE)
+    }
+    model
+  }
 
   private def fetchModelVersions(ctx: DSLContext, mid: Integer): List[ModelVersion] = {
     ctx

@@ -23,28 +23,51 @@ SET search_path TO texera_db;
 
 BEGIN;
 
--- Remove the deprecated "project" feature (user projects: colour-tagged
--- collections of workflows, with sharing and public projects). See issue #5172.
+-- The dataset upload limits gained a `dataset_` prefix so that the model limits added
+-- alongside them can be named symmetrically. site_settings rows are keyed by a
+-- default.conf leaf's last path segment, so the renamed leaves are new row keys.
 --
--- IRREVERSIBLE, USER-VISIBLE DATA LOSS: every project (name, description,
--- colour), every workflow-to-project assignment, every project access grant and
--- every public-project listing is deleted. Workflows, datasets and their own
--- access grants are untouched -- but a workflow that a user could previously
--- reach ONLY through a project share becomes inaccessible to that user, because
--- workflow access is now decided solely by workflow_user_access. Deployment
--- administrators who want to preserve those grants must copy them into
--- workflow_user_access BEFORE applying this migration.
---
--- Dropped in FK-dependency order (children first). The pgroonga index
--- idx_project_pgroonga is dropped implicitly with its table.
-DROP TABLE IF EXISTS public_project;
-DROP TABLE IF EXISTS project_user_access;
-DROP TABLE IF EXISTS workflow_of_project;
-DROP TABLE IF EXISTS project;
+-- Nothing orders this migration before the config-service seeder, so the prefixed row may
+-- already exist at its default by the time this runs. The old row is then the only place
+-- an admin's edit survives, and it is unreachable through the API (updateSetting and
+-- resetSetting both reject a key with no default.conf entry). So carry the old value over
+-- rather than skipping, then drop the old row. Renaming what is left is a no-op on a
+-- second run, which keeps this idempotent.
 
--- The gui.tabs.projects_enabled key is gone from default.conf, so this seeded
--- row would be orphaned: it is no longer served by /config/settings/public and
--- the admin update endpoint rejects keys with no default.conf entry.
-DELETE FROM site_settings WHERE key = 'projects_enabled';
+-- 1. The prefixed row already exists: the old row holds the value worth keeping.
+UPDATE site_settings AS t
+SET value = s.value,
+    updated_by = s.updated_by,
+    updated_at = s.updated_at
+FROM site_settings AS s
+WHERE s.key IN (
+        'single_file_upload_max_size_mib',
+        'multipart_upload_chunk_size_mib',
+        'max_number_of_concurrent_uploading_file',
+        'max_number_of_concurrent_uploading_file_chunks'
+    )
+  AND t.key = 'dataset_' || s.key;
+
+-- 2. Drop the old rows whose value has just been carried over.
+DELETE FROM site_settings AS s
+WHERE s.key IN (
+        'single_file_upload_max_size_mib',
+        'multipart_upload_chunk_size_mib',
+        'max_number_of_concurrent_uploading_file',
+        'max_number_of_concurrent_uploading_file_chunks'
+    )
+  AND EXISTS (
+        SELECT 1 FROM site_settings AS t WHERE t.key = 'dataset_' || s.key
+    );
+
+-- 3. No prefixed row was seeded: a plain rename preserves the value and its audit stamp.
+UPDATE site_settings AS s
+SET key = 'dataset_' || s.key
+WHERE s.key IN (
+        'single_file_upload_max_size_mib',
+        'multipart_upload_chunk_size_mib',
+        'max_number_of_concurrent_uploading_file',
+        'max_number_of_concurrent_uploading_file_chunks'
+    );
 
 COMMIT;

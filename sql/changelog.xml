@@ -119,9 +119,14 @@
         <sqlFile path="sql/updates/41.sql"/>
     </changeSet>
 
-    <!-- Remove the deprecated project feature (#5172) -->
-    <changeSet id="42" author="aglinxinyuan">
+    <!-- Prefix the dataset upload-limit site settings with `dataset_` -->
+    <changeSet id="42" author="tanishqgandhi1908">
         <sqlFile path="sql/updates/42.sql"/>
+    </changeSet>
+
+    <!-- Remove the deprecated project feature (#5172) -->
+    <changeSet id="43" author="aglinxinyuan">
+        <sqlFile path="sql/updates/43.sql"/>
     </changeSet>
 
     <!-- example changeSet
