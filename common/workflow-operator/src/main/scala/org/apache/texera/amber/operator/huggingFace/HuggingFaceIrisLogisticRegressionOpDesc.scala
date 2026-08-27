@@ -91,6 +91,15 @@ class HuggingFaceIrisLogisticRegressionOpDesc extends PythonOperatorDescriptor {
        |        training_features_stds = [1.72528903, 0.73788937]
        |        length = tuple_[$petalLengthCmAttribute]
        |        width = tuple_[$petalWidthCmAttribute]
+       |        # An empty cell arrives as None, which numpy carries as an object the
+       |        # standardization cannot subtract from. Keep the row and leave the
+       |        # prediction empty rather than ending the run over a measurement the
+       |        # model was never given.
+       |        if length is None or width is None:
+       |            tuple_[$predictionClassName] = None
+       |            tuple_[$predictionProbabilityName] = None
+       |            yield tuple_
+       |            return
        |        features = np.array([[length, width]])
        |        features = ((features - training_features_means) / training_features_stds)
        |        features = torch.from_numpy(features).float()

@@ -105,6 +105,16 @@ class HuggingFaceIrisLogisticRegressionOpDescSpec extends AnyFlatSpec with Match
     carries(code, "species") shouldBe true
   }
 
+  // An empty cell reaches the standardization as a None, which numpy cannot
+  // subtract from, so the row is answered rather than ending the run.
+  it should "leave the prediction empty when a measurement is missing" in {
+    val d = configured()
+    val code = d.generatePythonCode()
+    code should include("if length is None or width is None:")
+    code should include("yield tuple_")
+    code should include("return")
+  }
+
   "HuggingFaceIrisLogisticRegressionOpDesc.getPhysicalOp" should
     "wire an OpExecWithCode python executor carrying the operator's ports" in {
     val d = configured()
