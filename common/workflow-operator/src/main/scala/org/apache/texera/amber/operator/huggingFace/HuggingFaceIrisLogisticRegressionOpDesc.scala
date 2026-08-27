@@ -96,6 +96,15 @@ class HuggingFaceIrisLogisticRegressionOpDesc
        |        training_features_stds = [1.72528903, 0.73788937]
        |        length = tuple_[$petalLengthCmAttribute]
        |        width = tuple_[$petalWidthCmAttribute]
+       |        # An empty cell arrives as None, which numpy carries as an object the
+       |        # standardization cannot subtract from. Keep the row and leave the
+       |        # prediction empty rather than ending the run over a measurement the
+       |        # model was never given.
+       |        if length is None or width is None:
+       |            tuple_[$predictionClassName] = None
+       |            tuple_[$predictionProbabilityName] = None
+       |            yield tuple_
+       |            return
        |        features = np.array([[length, width]])
        |        features = ((features - training_features_means) / training_features_stds)
        |        features = torch.from_numpy(features).float()
@@ -139,6 +148,13 @@ class HuggingFaceIrisLogisticRegressionOpDesc
        |_classes = []
        |_probs = []
        |for _length, _width in zip(out1df[$lengthLit], out1df[$widthLit]):
+       |    # The operator's guard, except that an empty cell reaches a frame read
+       |    # from JSON as a NaN rather than as the None a Tuple hands over, so this
+       |    # side asks pandas, which answers for both.
+       |    if pd.isna(_length) or pd.isna(_width):
+       |        _classes.append(None)
+       |        _probs.append(None)
+       |        continue
        |    features = np.array([[_length, _width]])
        |    features = ((features - training_features_means) / training_features_stds)
        |    features = torch.from_numpy(features).float()
