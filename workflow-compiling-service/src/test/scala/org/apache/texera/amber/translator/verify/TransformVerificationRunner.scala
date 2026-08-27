@@ -20,7 +20,7 @@
 package org.apache.texera.amber.translator.verify
 
 import com.fasterxml.jackson.databind.JsonNode
-import com.fasterxml.jackson.databind.node.BooleanNode
+import com.fasterxml.jackson.databind.node.{BooleanNode, IntNode}
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.util.JSONUtils.objectMapper
@@ -32,6 +32,7 @@ import org.apache.texera.amber.operator.{
 import org.apache.texera.amber.operator.aggregate.AggregateOpDesc
 import org.apache.texera.amber.operator.dummy.DummyOpDesc
 import org.apache.texera.amber.operator.filter.SpecializedFilterOpDesc
+import org.apache.texera.amber.operator.sleep.SleepOpDesc
 import org.apache.texera.amber.operator.split.SplitOpDesc
 import org.apache.texera.amber.operator.sklearn.SklearnPredictionOpDesc
 import org.apache.texera.amber.operator.sklearn.SklearnClassifierOpDesc
@@ -163,6 +164,11 @@ object TransformVerificationRunner {
 
   val knobOverrides: Map[Class[_], Seq[Knob]] = Map(
     classOf[SplitOpDesc] -> Seq(Knob("random", BooleanNode.FALSE, KnobScope.Pinned)),
+    // `SleepOpExec` sleeps this many seconds per tuple, and the generator fills a
+    // required Int with half the row count, so the fixture would spend tens of
+    // seconds asleep for nothing: the delay never reaches the output being
+    // compared, and the standalone translation is a passthrough by design.
+    classOf[SleepOpDesc] -> Seq(Knob("sleepTime", IntNode.valueOf(0), KnobScope.Pinned)),
     classOf[TernaryPlotOpDesc] -> Seq(
       Knob("colorEnabled", BooleanNode.TRUE, KnobScope.WithOptionals)
     ),

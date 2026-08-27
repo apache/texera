@@ -37,7 +37,6 @@ import org.apache.texera.amber.operator.hashJoin.{HashJoinOpDesc, JoinType}
 import org.apache.texera.amber.operator.keywordSearch.KeywordSearchOpDesc
 import org.apache.texera.amber.operator.projection.{AttributeUnit, ProjectionOpDesc}
 import org.apache.texera.amber.operator.regex.RegexOpDesc
-import org.apache.texera.amber.operator.sleep.SleepOpDesc
 import org.apache.texera.amber.operator.typecasting.{TypeCastingOpDesc, TypeCastingUnit}
 import org.apache.texera.amber.operator.visualization.ImageViz.ImageVisualizerOpDesc
 
@@ -151,7 +150,6 @@ object CuratedHandlers {
     ProjectionTransformHandler,
     HashJoinTransformHandler,
     TypeCastingTransformHandler,
-    SleepTransformHandler,
     KeywordSearchTransformHandler,
     DumbbellPlotVisualizationHandler,
     ImageVisualizerVisualizationHandler,
@@ -523,24 +521,6 @@ object TypeCastingTransformHandler extends TransformHandler {
     )
 
     (desc, Map(PortIdentity(0) -> inputPath))
-  }
-}
-
-/**
-  * Handler for `SleepOpDesc`. Sleep is a pure passthrough (it delays each tuple
-  * but never changes the data), so the auto tier's `sleepTime` — filled to
-  * rowCount/2 and multiplied by 1000ms per tuple in `SleepOpExec` — makes Path A
-  * sleep for ~tens of seconds with no effect on the compared output. Pin
-  * `sleepTime = 0` so the passthrough is verified instantly; the delay is
-  * irrelevant to the data-equivalence check.
-  */
-object SleepTransformHandler extends TransformHandler {
-  override val opDescClass: Class[_ <: LogicalOp] = classOf[SleepOpDesc]
-
-  override def fixture(testRoot: Path): (LogicalOp, Map[PortIdentity, Path]) = {
-    val desc = new SleepOpDesc()
-    desc.sleepTime = 0
-    (desc, CanonicalFixture.writeInputs(testRoot, 1))
   }
 }
 
