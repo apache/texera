@@ -742,7 +742,7 @@ object ConfigGenerator {
       // as a scalar — the per-element numbering and the joining between elements,
       // which is the whole of what a list does differently, is never reached.
       if (spec.holdsList)
-        listColumnFill(f, schemas, spec.port, siblings).toOption.map(childPath -> _)
+        listColumnFill(f, schemas, spec.port, used, siblings).toOption.map(childPath -> _)
       else
         resolveColumn(f, schemas, spec.port, used, siblings).toOption
           .map(col => (childPath, objectMapper.getNodeFactory.textNode(col): JsonNode))
@@ -750,13 +750,23 @@ object ConfigGenerator {
   }
 
   /** Every column at `port` a list knob may hold: the ones its `attributeTypeRules`
-    * admits, or all of them when the rule matches nothing (or there is no rule).
+    * admits, or all of them when the rule matches nothing (or there is no rule),
+    * minus the ones a single-column knob beside it already took.
     * The same fill for a required and an optional field, so the two cannot drift.
+    *
+    * Subtracting `used` is what [[resolveColumn]] already does for a single-column
+    * knob, and the two knobs answer to the same rule: a column means something
+    * different to each field that names it, so handing one column to two of them
+    * writes a config nobody would. Radar Chart's name column arrived inside its own
+    * value columns that way, and sklearn's label inside the features it is fitted
+    * against. Not marked used in turn, since a list knob wants every column its rule
+    * admits and marking them would leave a later single-column knob nothing to take.
     */
   private def listColumnFill(
       f: Field,
       schemas: Map[Int, Schema],
       port: Int,
+      used: collection.Set[(Int, String)],
       siblings: JsonNode
   ): Either[String, JsonNode] =
     columnNames(schemas, port).map { names =>
@@ -769,8 +779,9 @@ object ConfigGenerator {
           if (matching.nonEmpty) matching else names
         case None => names
       }
+      val free = filtered.filterNot(name => used.contains((port, name)))
       val arr = objectMapper.createArrayNode()
-      filtered.foreach(arr.add)
+      (if (free.nonEmpty) free else filtered).foreach(arr.add)
       arr
     }
 
@@ -1295,7 +1306,7 @@ object ConfigGenerator {
     val nested = scope.descend(jsonNameOf(f))
     autofillSpec(f) match {
       case Some(spec) if spec.holdsList =>
-        listColumnFill(f, schemas, spec.port, siblings)
+        listColumnFill(f, schemas, spec.port, used, siblings)
       case Some(spec) =>
         resolveColumn(f, schemas, spec.port, used, siblings)
           .map(objectMapper.getNodeFactory.textNode)

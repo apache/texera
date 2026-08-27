@@ -26,6 +26,7 @@ import org.apache.texera.amber.operator.intersect.IntersectOpDesc
 import org.apache.texera.amber.operator.visualization.candlestickChart.CandlestickChartOpDesc
 import org.apache.texera.amber.operator.visualization.choroplethMap.ChoroplethMapOpDesc
 import org.apache.texera.amber.operator.visualization.histogram2d.Histogram2DOpDesc
+import org.apache.texera.amber.operator.visualization.radarChart.RadarChartOpDesc
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -94,6 +95,19 @@ class ConfigGeneratorSpec extends AnyFlatSpec with Matchers {
     val op = result.toOption.get.asInstanceOf[Histogram2DOpDesc]
     op.xColumn.toString should not be empty
     op.xColumn.toString should not be op.yColumn.toString
+  }
+
+  it should "keep a list knob off the column a single-column sibling took" in {
+    // Radar Chart picks its name column first and its value columns took the whole
+    // table, so the name arrived inside them and the generated `required_cols`,
+    // which is the name followed by the values, named it twice. More than one value
+    // column left, or the list runs the same code a single column would.
+    val result =
+      ConfigGenerator.generate(classOf[RadarChartOpDesc], CanonicalFixture.schemasByPort)
+    withClue(result) { result.isRight shouldBe true }
+    val op = result.toOption.get.asInstanceOf[RadarChartOpDesc]
+    op.valueColumns.map(_.toString) should not contain op.nameColumn.toString
+    op.valueColumns.size should be > 1
   }
 
   it should "pick a type-matching column from attributeTypeRules, and a @SampleColumn for ISO codes" in {
