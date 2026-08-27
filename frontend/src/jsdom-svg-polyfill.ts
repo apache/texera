@@ -204,9 +204,18 @@ G.ResizeObserver ??= class {
 // Dropping `pseudoElt` changes no behaviour: jsdom complains and then ignores
 // the argument, returning the element's own declaration either way. `scrollTo`
 // has nothing to move — jsdom has no layout.
+// Both patches wrap a global that this setup file is re-evaluated against once
+// per spec file, so each marks what it installed and does nothing when it finds
+// its own mark — otherwise the wrappers nest one layer deeper per spec file.
+// The mark rides on the installed function rather than on a `globalThis` flag
+// so that a jsdom window replaced mid-run still gets patched.
+const NOISE_PATCH_MARK = Symbol.for("texera.jsdomNotImplementedNoisePatched");
+const alreadyPatched = (fn: unknown): boolean => typeof fn === "function" && NOISE_PATCH_MARK in (fn as object);
+const markPatched = (fn: AnyFn): AnyFn => Object.assign(fn, { [NOISE_PATCH_MARK]: true });
+
 const jsdomGetComputedStyle = G.getComputedStyle as ((elt: Element, pseudoElt?: string | null) => unknown) | undefined;
-if (typeof jsdomGetComputedStyle === "function") {
-  const withoutPseudoElement = ((elt: Element) => jsdomGetComputedStyle(elt)) as AnyFn;
+if (typeof jsdomGetComputedStyle === "function" && !alreadyPatched(jsdomGetComputedStyle)) {
+  const withoutPseudoElement = markPatched(((elt: Element) => jsdomGetComputedStyle(elt)) as AnyFn);
   G.getComputedStyle = withoutPseudoElement;
   if (G.window) G.window.getComputedStyle = withoutPseudoElement;
 }
@@ -219,15 +228,15 @@ if (G.window) G.window.scrollTo = inertScrollTo;
 // to be neutered as each `contentWindow` is handed out.
 const iframeProto = G.HTMLIFrameElement?.prototype;
 const contentWindow = iframeProto && Object.getOwnPropertyDescriptor(iframeProto, "contentWindow");
-if (contentWindow?.get) {
+if (contentWindow?.get && !alreadyPatched(contentWindow.get)) {
   const getContentWindow = contentWindow.get;
   Object.defineProperty(iframeProto, "contentWindow", {
     ...contentWindow,
-    get(): unknown {
+    get: markPatched(function (this: unknown): unknown {
       const frameWindow = getContentWindow.call(this) as Record<string, unknown> | null;
       if (frameWindow) frameWindow.scrollTo = inertScrollTo;
       return frameWindow;
-    },
+    } as AnyFn),
   });
 }
 
