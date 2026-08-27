@@ -119,6 +119,11 @@
         <sqlFile path="sql/updates/41.sql"/>
     </changeSet>
 
+    <!-- Record why a computing unit was terminated and index workflow_executions.cuid -->
+    <changeSet id="42" author="yrenat">
+        <sqlFile path="sql/updates/42.sql"/>
+    </changeSet>
+
     <!-- example changeSet
     <changeSet id="1" author="author">
         <sqlFile path="sql/updates/1.sql"/>

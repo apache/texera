@@ -42,9 +42,15 @@ import org.apache.texera.common.config.{
 }
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.SqlServer.withTransaction
+import org.apache.texera.dao.jooq.generated.Tables.{
+  USER,
+  WORKFLOW_COMPUTING_UNIT,
+  WORKFLOW_EXECUTIONS
+}
 import org.apache.texera.dao.jooq.generated.enums.{
   PrivilegeEnum,
   UserRoleEnum,
+  WorkflowComputingUnitTerminationReasonEnum,
   WorkflowComputingUnitTypeEnum
 }
 import org.apache.texera.dao.jooq.generated.tables.daos.{
@@ -61,17 +67,210 @@ import org.apache.texera.service.util.{
   KubernetesClient
 }
 import org.jooq.{DSLContext, EnumType}
+import org.jooq.impl.DSL.{boolOr, max}
+import org.slf4j.LoggerFactory
 import play.api.libs.json._
 
 import java.sql.Timestamp
 import scala.annotation.unused
 import scala.jdk.CollectionConverters.CollectionHasAsScala
+import scala.util.control.NonFatal
 
 object ComputingUnitManagingResource {
+  private[resource] val logger = LoggerFactory.getLogger(classOf[ComputingUnitManagingResource])
+
   private def context: DSLContext =
     SqlServer
       .getInstance()
       .createDSLContext()
+
+  private[resource] case class IdleComputingUnitCleanupConfig(
+      enabled: Boolean,
+      idleTimeoutMinutes: Long
+  )
+
+  private[resource] case class IdleComputingUnitCandidate(
+      unit: WorkflowComputingUnit,
+      username: Option[String]
+  )
+
+  /**
+    * The codes persisted in `workflow_executions.status`. These are the collapsed codes produced by
+    * amber's `Utils.maptoStatusCode`, NOT the ordinals of `WorkflowAggregatedState`, and this
+    * service cannot depend on the amber module to reuse either. Keep this in sync with
+    * `Utils.maptoStatusCode`: 0=UNINITIALIZED/READY, 1=RUNNING, 2=PAUSED, 3=COMPLETED, 4=FAILED,
+    * 5=KILLED. Only the non-terminal codes are listed here, since that is all the sweep needs.
+    */
+  private[resource] object WorkflowExecutionStatus extends Enumeration {
+    val UninitializedOrReady: Value = Value(0)
+    val Running: Value = Value(1)
+    val Paused: Value = Value(2)
+
+    def toDbStatus(status: Value): java.lang.Short = Short.box(status.id.toShort)
+  }
+
+  private[resource] trait KubernetesPodOperations {
+    val podExists: Int => Boolean
+    val deletePod: Int => Unit
+  }
+
+  private[resource] object DefaultKubernetesPodOperations extends KubernetesPodOperations {
+    override val podExists: Int => Boolean = KubernetesClient.podExists
+    override val deletePod: Int => Unit = KubernetesClient.deletePod
+  }
+
+  private[resource] def lastComputingUnitActivityTime(
+      unit: WorkflowComputingUnit,
+      latestUpdateTime: Option[Timestamp],
+      latestStartTime: Option[Timestamp]
+  ): Timestamp =
+    Seq(
+      latestUpdateTime,
+      latestStartTime,
+      Option(unit.getCreationTime)
+    ).flatten.maxBy(_.getTime)
+
+  private[resource] def shouldTerminateIdleComputingUnit(
+      hasActiveExecution: Boolean,
+      lastExecutionTime: Timestamp,
+      cutoff: Timestamp
+  ): Boolean =
+    !hasActiveExecution && lastExecutionTime.before(cutoff)
+
+  def terminateIdleKubernetesComputingUnits(): List[TerminatedComputingUnitInfo] =
+    runIdleKubernetesComputingUnitCleanup(
+      IdleComputingUnitCleanupConfig(
+        KubernetesConfig.kubernetesComputingUnitEnabled,
+        KubernetesConfig.computingUnitIdleTimeoutMinutes
+      ),
+      () => new Timestamp(System.currentTimeMillis()),
+      DefaultKubernetesPodOperations
+    )
+
+  private[resource] def runIdleKubernetesComputingUnitCleanup(
+      cleanupConfig: IdleComputingUnitCleanupConfig,
+      currentTime: () => Timestamp,
+      podOperations: KubernetesPodOperations
+  ): List[TerminatedComputingUnitInfo] = {
+    if (!cleanupConfig.enabled || cleanupConfig.idleTimeoutMinutes <= 0) {
+      return List.empty
+    }
+
+    val now = currentTime()
+    val cutoff = new Timestamp(now.getTime - cleanupConfig.idleTimeoutMinutes * 60 * 1000)
+
+    idleKubernetesComputingUnitCandidates(cutoff).flatMap(candidate =>
+      terminateIdleKubernetesComputingUnitCandidate(candidate, now, podOperations)
+    )
+  }
+
+  private[resource] def idleKubernetesComputingUnitCandidates(
+      cutoff: Timestamp
+  ): List[IdleComputingUnitCandidate] = {
+    val activeStatuses = Seq(
+      WorkflowExecutionStatus.UninitializedOrReady,
+      WorkflowExecutionStatus.Running,
+      WorkflowExecutionStatus.Paused
+    ).map(WorkflowExecutionStatus.toDbStatus)
+
+    // All three questions asked per computing unit -- is any execution still active, when did an
+    // execution last report progress, when did one last start -- are aggregates over the same rows
+    // grouped by the same key, so one grouped query answers them for every unit at once. The left
+    // joins keep units that have no executions (both max() are NULL) and units whose owner row is
+    // gone (name is NULL), matching what a per-unit scan would produce.
+    val latestUpdateTime = max(WORKFLOW_EXECUTIONS.LAST_UPDATE_TIME)
+    val latestStartTime = max(WORKFLOW_EXECUTIONS.STARTING_TIME)
+    val hasActiveExecution = boolOr(WORKFLOW_EXECUTIONS.STATUS.in(activeStatuses: _*))
+
+    withTransaction(context) { ctx =>
+      ctx
+        .select(
+          WORKFLOW_COMPUTING_UNIT.asterisk(),
+          USER.NAME,
+          latestUpdateTime,
+          latestStartTime,
+          hasActiveExecution
+        )
+        .from(WORKFLOW_COMPUTING_UNIT)
+        .leftJoin(WORKFLOW_EXECUTIONS)
+        .on(WORKFLOW_EXECUTIONS.CUID.eq(WORKFLOW_COMPUTING_UNIT.CUID))
+        .leftJoin(USER)
+        .on(USER.UID.eq(WORKFLOW_COMPUTING_UNIT.UID))
+        .where(
+          WORKFLOW_COMPUTING_UNIT.TYPE
+            .eq(WorkflowComputingUnitTypeEnum.kubernetes)
+            .and(WORKFLOW_COMPUTING_UNIT.TERMINATE_TIME.isNull)
+        )
+        .groupBy(WORKFLOW_COMPUTING_UNIT.CUID, USER.NAME)
+        .fetch()
+        .asScala
+        .flatMap { record =>
+          val unit = record.into(WORKFLOW_COMPUTING_UNIT).into(classOf[WorkflowComputingUnit])
+          val lastExecutionTime = lastComputingUnitActivityTime(
+            unit,
+            Option(record.get(latestUpdateTime)),
+            Option(record.get(latestStartTime))
+          )
+
+          // bool_or over zero matching executions yields NULL, which means "no active execution"
+          val active = Option(record.get(hasActiveExecution)).exists(_.booleanValue())
+          if (shouldTerminateIdleComputingUnit(active, lastExecutionTime, cutoff)) {
+            Some(
+              IdleComputingUnitCandidate(
+                unit,
+                Option(record.get(USER.NAME)).filter(_.nonEmpty)
+              )
+            )
+          } else {
+            None
+          }
+        }
+        .toList
+    }
+  }
+
+  private[resource] def terminateIdleKubernetesComputingUnitCandidate(
+      candidate: IdleComputingUnitCandidate,
+      terminationTime: Timestamp,
+      podOperations: KubernetesPodOperations
+  ): Option[TerminatedComputingUnitInfo] = {
+    val cuid = candidate.unit.getCuid
+    try {
+      if (podOperations.podExists(cuid)) {
+        podOperations.deletePod(cuid)
+      }
+
+      withTransaction(context) { ctx =>
+        val cuDao = new WorkflowComputingUnitDao(ctx.configuration())
+        val unit = cuDao.fetchOneByCuid(cuid)
+        if (
+          unit == null ||
+          unit.getTerminateTime != null ||
+          unit.getType != WorkflowComputingUnitTypeEnum.kubernetes
+        ) {
+          None
+        } else {
+          val reason = WorkflowComputingUnitTerminationReasonEnum.GARBAGE_COLLECTED
+          unit.setTerminateTime(terminationTime)
+          unit.setTerminationReason(reason)
+          cuDao.update(unit)
+          Some(
+            TerminatedComputingUnitInfo(
+              cuid = unit.getCuid,
+              name = unit.getName,
+              uid = unit.getUid,
+              username = candidate.username,
+              reason = reason
+            )
+          )
+        }
+      }
+    } catch {
+      case NonFatal(t) =>
+        logger.warn(s"Failed to terminate idle Kubernetes computing unit cuid=$cuid", t)
+        None
+    }
+  }
 
   private def icebergEnvironmentVariables: Map[String, Any] = {
     val base = Map[String, Any](
@@ -131,6 +330,14 @@ object ComputingUnitManagingResource {
         .get
     )
 
+  case class TerminatedComputingUnitInfo(
+      cuid: Integer,
+      name: String,
+      uid: Integer,
+      username: Option[String],
+      reason: WorkflowComputingUnitTerminationReasonEnum
+  )
+
   case class WorkflowComputingUnitCreationParams(
       name: String,
       unitType: String,
@@ -177,7 +384,6 @@ object ComputingUnitManagingResource {
 @Produces(Array(MediaType.APPLICATION_JSON))
 @Path("/computing-unit")
 class ComputingUnitManagingResource {
-
   private def getComputingUnitByCuid(ctx: DSLContext, cuid: Int): WorkflowComputingUnit = {
     val wcDao = new WorkflowComputingUnitDao(ctx.configuration())
     val unit = wcDao.fetchOneByCuid(cuid)
@@ -621,8 +827,13 @@ class ComputingUnitManagingResource {
         KubernetesClient.deletePod(cuid)
       }
 
+      val terminationReason = WorkflowComputingUnitTerminationReasonEnum.USER_REQUESTED
       unit.setTerminateTime(new Timestamp(System.currentTimeMillis()))
+      unit.setTerminationReason(terminationReason)
       cuDao.update(unit)
+      logger.info(
+        s"Terminated computing unit: cuid=${unit.getCuid}, name=${unit.getName}, uid=${unit.getUid}, username=${user.getName}, reason=${terminationReason.getLiteral}"
+      )
     }
     Response.ok().build()
   }

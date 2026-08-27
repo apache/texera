@@ -23,7 +23,7 @@ import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import io.dropwizard.configuration.{EnvironmentVariableSubstitutor, SubstitutingSourceProvider}
 import io.dropwizard.core.Application
 import io.dropwizard.core.setup.{Bootstrap, Environment}
-import org.apache.texera.common.config.StorageConfig
+import org.apache.texera.common.config.{KubernetesConfig, StorageConfig}
 import org.apache.texera.auth.{AuthFeatures, RequestLoggingFilter, RoleAnnotationEnforcer}
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.service.resource.{
@@ -32,9 +32,65 @@ import org.apache.texera.service.resource.{
   ComputingUnitManagingResource,
   HealthCheckResource
 }
+import org.apache.texera.service.resource.ComputingUnitManagingResource.TerminatedComputingUnitInfo
+import org.slf4j.LoggerFactory
 import java.nio.file.Path
+import java.util.concurrent.TimeUnit
 
 class ComputingUnitManagingService extends Application[ComputingUnitManagingServiceConfiguration] {
+  private val logger = LoggerFactory.getLogger(classOf[ComputingUnitManagingService])
+
+  private def initSqlServer(): Unit =
+    SqlServer.initConnection(
+      StorageConfig.jdbcUrl,
+      StorageConfig.jdbcUsername,
+      StorageConfig.jdbcPassword
+    )
+
+  private[service] def registerIdleComputingUnitCleanup(
+      environment: Environment,
+      kubernetesComputingUnitEnabled: Boolean = KubernetesConfig.kubernetesComputingUnitEnabled,
+      idleTimeoutMinutes: Long = KubernetesConfig.computingUnitIdleTimeoutMinutes,
+      idleCheckIntervalMinutes: Long = KubernetesConfig.computingUnitIdleCheckIntervalMinutes,
+      terminateIdleComputingUnits: () => List[TerminatedComputingUnitInfo] = () =>
+        ComputingUnitManagingResource.terminateIdleKubernetesComputingUnits(),
+      logTerminatedUnits: String => Unit = message => logger.info(message),
+      logCleanupFailure: Throwable => Unit = throwable =>
+        logger.warn("Failed to terminate idle Kubernetes computing units", throwable),
+      scheduleWithFixedDelay: Option[(Runnable, Long, Long, TimeUnit) => Unit] = None
+  ): Unit = {
+    if (!kubernetesComputingUnitEnabled || idleTimeoutMinutes <= 0) {
+      return
+    }
+    // scheduleWithFixedDelay rejects a non-positive delay, which would abort service startup.
+    // A misconfigured interval leaves the rest of the service usable, so log it and skip the sweep.
+    if (idleCheckIntervalMinutes <= 0) {
+      logger.warn(
+        s"Idle Kubernetes computing unit cleanup is disabled: check interval must be positive " +
+          s"but is $idleCheckIntervalMinutes minute(s)"
+      )
+      return
+    }
+
+    val scheduler = scheduleWithFixedDelay.getOrElse((command, initialDelay, delay, unit) =>
+      environment.lifecycle
+        .scheduledExecutorService("idle-computing-unit-terminator")
+        .threads(1)
+        .build()
+        .scheduleWithFixedDelay(command, initialDelay, delay, unit)
+    )
+    scheduler(
+      () =>
+        ComputingUnitManagingService.runIdleComputingUnitCleanup(
+          terminateIdleComputingUnits,
+          logTerminatedUnits,
+          logCleanupFailure
+        ),
+      idleCheckIntervalMinutes,
+      idleCheckIntervalMinutes,
+      TimeUnit.MINUTES
+    )
+  }
 
   override def initialize(
       bootstrap: Bootstrap[ComputingUnitManagingServiceConfiguration]
@@ -59,11 +115,7 @@ class ComputingUnitManagingService extends Application[ComputingUnitManagingServ
 
     AuthFeatures.register(environment)
 
-    SqlServer.initConnection(
-      StorageConfig.jdbcUrl,
-      StorageConfig.jdbcUsername,
-      StorageConfig.jdbcPassword
-    )
+    initSqlServer()
 
     environment.jersey().register(new ComputingUnitManagingResource)
     environment.jersey().register(new ComputingUnitAccessResource)
@@ -74,12 +126,37 @@ class ComputingUnitManagingService extends Application[ComputingUnitManagingServ
       "ComputingUnitManagingService"
     )
 
+    registerIdleComputingUnitCleanup(environment)
+
     // Route request logs through SLF4J, controlled by TEXERA_SERVICE_LOG_LEVEL
     RequestLoggingFilter.register(environment.getApplicationContext)
   }
 }
 
 object ComputingUnitManagingService {
+  private[service] def runIdleComputingUnitCleanup(
+      terminateIdleComputingUnits: () => List[TerminatedComputingUnitInfo],
+      logTerminatedUnits: String => Unit,
+      logCleanupFailure: Throwable => Unit
+  ): Unit =
+    try {
+      val terminated = terminateIdleComputingUnits()
+      if (terminated.nonEmpty) {
+        val terminatedDetails = terminated
+          .map(unit =>
+            s"cuid=${unit.cuid}, name=${unit.name}, uid=${unit.uid}, username=${unit.username
+              .getOrElse("unknown")}, reason=${unit.reason.getLiteral}"
+          )
+          .mkString("; ")
+        logTerminatedUnits(
+          s"Terminated ${terminated.size} idle Kubernetes computing unit(s): $terminatedDetails"
+        )
+      }
+    } catch {
+      case t: Throwable =>
+        logCleanupFailure(t)
+    }
+
   def main(args: Array[String]): Unit = {
     val configFilePath = Path
       .of(sys.env.getOrElse("TEXERA_HOME", "."))

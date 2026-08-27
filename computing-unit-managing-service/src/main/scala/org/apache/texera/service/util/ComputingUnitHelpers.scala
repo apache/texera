@@ -18,7 +18,10 @@
 
 package org.apache.texera.service.util
 
-import org.apache.texera.dao.jooq.generated.enums.WorkflowComputingUnitTypeEnum
+import org.apache.texera.dao.jooq.generated.enums.{
+  WorkflowComputingUnitTerminationReasonEnum,
+  WorkflowComputingUnitTypeEnum
+}
 import org.apache.texera.dao.jooq.generated.tables.daos.{UserDao, WorkflowComputingUnitDao}
 import org.apache.texera.dao.jooq.generated.tables.pojos.WorkflowComputingUnit
 import org.apache.texera.service.resource.ComputingUnitManagingResource.{
@@ -200,7 +203,10 @@ object ComputingUnitHelpers {
     val vanished = partitioned._2
     if (vanished.nonEmpty) {
       val now = new Timestamp(System.currentTimeMillis())
-      vanished.foreach(_.setTerminateTime(now))
+      vanished.foreach { unit =>
+        unit.setTerminateTime(now)
+        unit.setTerminationReason(WorkflowComputingUnitTerminationReasonEnum.GARBAGE_COLLECTED)
+      }
       dao.update(vanished.asJava)
     }
     partitioned._1
