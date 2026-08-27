@@ -52,6 +52,7 @@ import org.apache.texera.service.resource.DatasetAccessResource._
 import org.apache.texera.service.resource.ResourceTables.{Dataset => DATASET_RESOURCE}
 import org.apache.texera.service.resource.DatasetResource.{context, _}
 import org.apache.texera.service.util.CoverImageUtils
+import org.apache.texera.service.util.CoverImageUtils.CoverImageRequest
 import org.apache.texera.service.util.S3StorageClient
 import org.jooq.impl.DSL
 import org.jooq.{DSLContext, EnumType}
@@ -261,8 +262,6 @@ object DatasetResource {
       fileNodes: List[LakeFSFileNode],
       size: Long
   )
-
-  case class CoverImageRequest(coverImage: String)
 }
 
 @Produces(Array(MediaType.APPLICATION_JSON, "image/jpeg", "application/pdf"))
@@ -278,6 +277,25 @@ class DatasetResource extends LazyLogging {
   private val resourceType = ResourceType.Dataset
 
   /**
+    * The single read rule for a dataset: anonymous callers get public datasets only, a
+    * signed-in caller goes through userHasReadAccess. Shared with getDashboardDataset
+    * so the cover endpoints cannot drift from it.
+    */
+  private def requireReadAccess(
+      ctx: DSLContext,
+      did: Integer,
+      requesterUid: Option[Integer]
+  ): Dataset = {
+    val dataset = getDatasetByID(ctx, did)
+    if (requesterUid.isEmpty && !dataset.getIsPublic) {
+      throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
+    } else if (requesterUid.exists(uid => !userHasReadAccess(ctx, did, uid))) {
+      throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
+    }
+    dataset
+  }
+
+  /**
     * Helper function to get the dataset from DB with additional information including user access privilege and owner email
     */
   private def getDashboardDataset(
@@ -285,13 +303,7 @@ class DatasetResource extends LazyLogging {
       did: Integer,
       requesterUid: Option[Integer]
   ): DashboardDataset = {
-    val targetDataset = getDatasetByID(ctx, did)
-
-    if (requesterUid.isEmpty && !targetDataset.getIsPublic) {
-      throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
-    } else if (requesterUid.exists(uid => !userHasReadAccess(ctx, did, uid))) {
-      throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
-    }
+    val targetDataset = requireReadAccess(ctx, did, requesterUid)
 
     val userAccessPrivilege = requesterUid
       .map(uid => getDatasetUserAccessPrivilege(ctx, did, uid))
@@ -1210,15 +1222,7 @@ class DatasetResource extends LazyLogging {
       @Auth sessionUser: Optional[SessionUser]
   ): Response = {
     withTransaction(context) { ctx =>
-      val dataset = getDatasetByID(ctx, did)
-
-      val requesterUid = if (sessionUser.isPresent) Some(sessionUser.get().getUid) else None
-
-      if (requesterUid.isEmpty && !dataset.getIsPublic) {
-        throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
-      } else if (requesterUid.exists(uid => !userHasReadAccess(ctx, did, uid))) {
-        throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
-      }
+      val dataset = requireReadAccess(ctx, did, sessionUser.toScala.map(_.getUid))
 
       val coverImage = Option(dataset.getCoverImage).getOrElse(
         throw new NotFoundException("No cover image")
@@ -1248,15 +1252,7 @@ class DatasetResource extends LazyLogging {
       @Auth sessionUser: Optional[SessionUser]
   ): Response = {
     withTransaction(context) { ctx =>
-      val dataset = getDatasetByID(ctx, did)
-
-      val requesterUid = if (sessionUser.isPresent) Some(sessionUser.get().getUid) else None
-
-      if (requesterUid.isEmpty && !dataset.getIsPublic) {
-        throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
-      } else if (requesterUid.exists(uid => !userHasReadAccess(ctx, did, uid))) {
-        throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
-      }
+      val dataset = requireReadAccess(ctx, did, sessionUser.toScala.map(_.getUid))
 
       Option(dataset.getCoverImage) match {
         case None =>

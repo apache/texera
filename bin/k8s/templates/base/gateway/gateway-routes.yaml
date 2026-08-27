@@ -49,8 +49,8 @@ spec:
         - path:
             type: PathPrefix
             value: /api/access/dataset
-        # PathPrefix matches whole path segments, so /api/model does not swallow
-        # the /api/models LLM route below.
+        # PathPrefix matches whole path segments, so /api/model and the /api/models
+        # LLM route below stay distinct.
         - path:
             type: PathPrefix
             value: /api/model

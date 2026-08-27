@@ -27,6 +27,7 @@ import org.apache.texera.dao.jooq.generated.enums.{PrivilegeEnum, UserRoleEnum}
 import org.apache.texera.dao.jooq.generated.tables.daos.{ModelDao, ModelUserAccessDao, UserDao}
 import org.apache.texera.dao.jooq.generated.tables.pojos.{ModelUserAccess, ModelVersion, User}
 import org.apache.texera.service.MockLakeFS
+import org.apache.texera.service.util.CoverImageUtils
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.{BeforeAndAfterAll, OptionValues}
@@ -134,7 +135,7 @@ class ModelHubApiSpec
     val response =
       modelResource.updateModelCoverImage(
         mid,
-        ModelResource.CoverImageRequest(coverPath),
+        CoverImageUtils.CoverImageRequest(coverPath),
         ownerSession
       )
 
@@ -150,7 +151,7 @@ class ModelHubApiSpec
     assertThrows[BadRequestException] {
       modelResource.updateModelCoverImage(
         mid,
-        ModelResource.CoverImageRequest(s"${version.getName}/model.pt"),
+        CoverImageUtils.CoverImageRequest(s"${version.getName}/model.pt"),
         ownerSession
       )
     }
@@ -160,7 +161,7 @@ class ModelHubApiSpec
     val mid = newModel(isPublic = false).model.getMid
 
     assertThrows[BadRequestException] {
-      modelResource.updateModelCoverImage(mid, ModelResource.CoverImageRequest(""), ownerSession)
+      modelResource.updateModelCoverImage(mid, CoverImageUtils.CoverImageRequest(""), ownerSession)
     }
   }
 
@@ -171,7 +172,7 @@ class ModelHubApiSpec
     assertThrows[BadRequestException] {
       modelResource.updateModelCoverImage(
         mid,
-        ModelResource.CoverImageRequest("cover.jpg"),
+        CoverImageUtils.CoverImageRequest("cover.jpg"),
         ownerSession
       )
     }
@@ -184,7 +185,7 @@ class ModelHubApiSpec
     assertThrows[BadRequestException] {
       modelResource.updateModelCoverImage(
         mid,
-        ModelResource.CoverImageRequest("v9 - nope/cover.jpg"),
+        CoverImageUtils.CoverImageRequest("v9 - nope/cover.jpg"),
         ownerSession
       )
     }
@@ -198,7 +199,7 @@ class ModelHubApiSpec
     assertThrows[ForbiddenException] {
       modelResource.updateModelCoverImage(
         mid,
-        ModelResource.CoverImageRequest(s"${version.getName}/cover.jpg"),
+        CoverImageUtils.CoverImageRequest(s"${version.getName}/cover.jpg"),
         readerSession
       )
     }
@@ -212,7 +213,7 @@ class ModelHubApiSpec
     val version = commitVersionWithCover(mid)
     modelResource.updateModelCoverImage(
       mid,
-      ModelResource.CoverImageRequest(s"${version.getName}/cover.jpg"),
+      CoverImageUtils.CoverImageRequest(s"${version.getName}/cover.jpg"),
       ownerSession
     )
 
@@ -251,7 +252,7 @@ class ModelHubApiSpec
     val version = commitVersionWithCover(mid)
     modelResource.updateModelCoverImage(
       mid,
-      ModelResource.CoverImageRequest(s"${version.getName}/cover.jpg"),
+      CoverImageUtils.CoverImageRequest(s"${version.getName}/cover.jpg"),
       ownerSession
     )
 
@@ -266,7 +267,7 @@ class ModelHubApiSpec
     val version = commitVersionWithCover(mid)
     modelResource.updateModelCoverImage(
       mid,
-      ModelResource.CoverImageRequest(s"${version.getName}/cover.jpg"),
+      CoverImageUtils.CoverImageRequest(s"${version.getName}/cover.jpg"),
       ownerSession
     )
     grantRead(mid, readerUser.getUid)
@@ -280,7 +281,7 @@ class ModelHubApiSpec
     val version = commitVersionWithCover(mid)
     modelResource.updateModelCoverImage(
       mid,
-      ModelResource.CoverImageRequest(s"${version.getName}/cover.jpg"),
+      CoverImageUtils.CoverImageRequest(s"${version.getName}/cover.jpg"),
       ownerSession
     )
 

@@ -35,6 +35,9 @@ import org.apache.texera.service.util.LakeFSExceptionHandler.withLakeFSErrorHand
   */
 object CoverImageUtils {
 
+  /** Committed image, relative to the resource root, e.g. "v1 - init/cover.jpg". */
+  case class CoverImageRequest(coverImage: String)
+
   val SIZE_LIMIT_BYTES: Long = 10 * 1024 * 1024 // 10 MB
 
   /** varchar(255) on `model`; `dataset` passes its own narrower limit. */

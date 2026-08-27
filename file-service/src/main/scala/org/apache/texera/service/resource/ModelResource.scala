@@ -41,6 +41,7 @@ import org.apache.texera.service.resource.ResourceTables.{Model => MODEL_RESOURC
 import org.apache.texera.service.resource.ModelAccessResource._
 import org.apache.texera.service.resource.ModelResource.{context, _}
 import org.apache.texera.service.util.CoverImageUtils
+import org.apache.texera.service.util.CoverImageUtils.CoverImageRequest
 import org.apache.texera.service.util.S3StorageClient
 import org.apache.texera.service.util.LakeFSExceptionHandler.withLakeFSErrorHandling
 import org.jooq.{DSLContext, EnumType}
@@ -176,9 +177,6 @@ object ModelResource {
 
   case class ModelFormatModification(mid: Integer, format: String)
 
-  /** Committed image, relative to the model root, e.g. "v1 - init/cover.jpg". */
-  case class CoverImageRequest(coverImage: String)
-
   case class DashboardModelVersion(
       modelVersion: ModelVersion,
       fileNodes: List[LakeFSFileNode]
@@ -205,13 +203,7 @@ class ModelResource extends LazyLogging {
       mid: Integer,
       requesterUid: Option[Integer]
   ): DashboardModel = {
-    val targetModel = getModelByID(ctx, mid)
-
-    if (requesterUid.isEmpty && !targetModel.getIsPublic) {
-      throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_MODEL_MESSAGE)
-    } else if (requesterUid.exists(uid => !userHasReadAccess(ctx, mid, uid))) {
-      throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_MODEL_MESSAGE)
-    }
+    val targetModel = requireReadAccess(ctx, mid, requesterUid)
 
     val userAccessPrivilege = requesterUid
       .map(uid => getModelUserAccessPrivilege(ctx, mid, uid))
@@ -1111,10 +1103,20 @@ class ModelResource extends LazyLogging {
       ctx: DSLContext,
       mid: Integer,
       sessionUser: Optional[SessionUser]
+  ): Model =
+    requireReadAccess(ctx, mid, sessionUser.toScala.map(_.getUid))
+
+  /**
+    * The single read rule for a model: anonymous callers get public models only, a
+    * signed-in caller goes through userHasReadAccess. Shared with getDashboardModel
+    * so the cover endpoints cannot drift from it.
+    */
+  private def requireReadAccess(
+      ctx: DSLContext,
+      mid: Integer,
+      requesterUid: Option[Integer]
   ): Model = {
     val model = getModelByID(ctx, mid)
-    val requesterUid = if (sessionUser.isPresent) Some(sessionUser.get().getUid) else None
-
     if (requesterUid.isEmpty && !model.getIsPublic) {
       throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_MODEL_MESSAGE)
     } else if (requesterUid.exists(uid => !userHasReadAccess(ctx, mid, uid))) {
