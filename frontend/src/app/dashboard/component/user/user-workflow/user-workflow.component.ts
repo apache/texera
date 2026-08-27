@@ -434,17 +434,30 @@ export class UserWorkflowComponent implements AfterViewInit, OnDestroy {
    */
 
   public deleteWorkflow(entry: DashboardEntry): void {
-    if (entry.workflow.workflow.wid == undefined) {
+    const wid = entry.workflow.workflow.wid;
+    if (wid == undefined) {
       return;
     }
     this.workflowPersistService
-      .deleteWorkflow([entry.workflow.workflow.wid])
+      .deleteWorkflow([wid])
       .pipe(untilDestroyed(this))
       .subscribe(_ => {
         this.searchResultsComponent.entries = this.searchResultsComponent.entries.filter(
-          workflowEntry => workflowEntry.workflow.workflow.wid !== entry.workflow.workflow.wid
+          workflowEntry => workflowEntry.workflow.workflow.wid !== wid
         );
+        this.cleanupNotebookFiles([wid]);
       });
+  }
+
+  // Best-effort removal of the deleted workflows' notebook files from the Jupyter pod.
+  // The workflow delete already cascades the notebook DB rows, but the pod's per-workflow
+  // notebook_<wid>.ipynb only the frontend can reach, so clean it up here. Not awaited and
+  // never surfaced: a workflow with no notebook is a harmless 404, and an unreachable pod
+  // must not affect a delete that already succeeded.
+  private cleanupNotebookFiles(wids: number[]): void {
+    for (const wid of wids) {
+      void this.notebookMigrationService.deleteNotebookForWorkflow(wid);
+    }
   }
 
   /**
@@ -608,6 +621,7 @@ export class UserWorkflowComponent implements AfterViewInit, OnDestroy {
               // Check if wid is defined and if it's not included in targetWids
               return entryWid === undefined || !targetWids.includes(entryWid);
             });
+            this.cleanupNotebookFiles(targetWids);
           },
           // TODO: fix this with notification component
           error: (err: unknown) => alert(err),

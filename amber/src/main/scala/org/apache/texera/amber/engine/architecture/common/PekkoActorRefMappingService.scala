@@ -112,8 +112,13 @@ class PekkoActorRefMappingService(actorService: PekkoActorService) extends Amber
           queriedActorVirtualIdentities.add(id)
         } catch {
           case e: Throwable =>
+            // Deliberately does not read `actorService.parent` again: that is the value whose
+            // failure this handler exists to contain, so re-reading it to name the parent ref
+            // makes a persistently unreachable parent throw straight out of the catch block.
+            // The exception carries the detail (including which lookup failed and why).
             logger.warn(
-              s"Failed to fetch actorRef for ${VirtualIdentityUtils.toShorterString(id)} parentRef = " + actorService.parent
+              s"Failed to fetch actorRef for ${VirtualIdentityUtils.toShorterString(id)} from parent",
+              e
             )
         }
       }

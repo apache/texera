@@ -429,7 +429,7 @@ describe("UiUdfParametersParserService degenerate sources", () => {
   });
 
   it("should handle a declaration on a final line with no trailing newline", () => {
-    // lineEnd() takes its `newline === -1` arm when the statement ends the file
+    // the declaration goes in above `pass`, which is the last line of the file
     const code = "class ProcessTupleOperator(UDFOperatorV2):\n    def open(self):\n        pass";
 
     const updated = insertParameter(service, code, "threshold");
@@ -455,6 +455,92 @@ describe("UiUdfParametersParserService degenerate sources", () => {
     );
 
     expect(service.parse(code)).toEqual([]);
+  });
+
+  it("should ignore a UiParameter call that supplies the same argument twice", () => {
+    // attr_type is an alias of type, so this call carries two types; the positional
+    // "x" is the name, so the second one carries two names. Both are ambiguous, and
+    // guessing which one wins would silently declare the wrong parameter.
+    const twoTypes = pythonLines(
+      "class ProcessTupleOperator(UDFOperatorV2):",
+      "    def open(self):",
+      '        self.UiParameter(name="x", type=AttributeType.DOUBLE, attr_type=AttributeType.INT)'
+    );
+    const twoNames = pythonLines(
+      "class ProcessTupleOperator(UDFOperatorV2):",
+      "    def open(self):",
+      '        self.UiParameter("x", name="y", type=AttributeType.DOUBLE)'
+    );
+
+    expect(service.parse(twoTypes)).toEqual([]);
+    expect(service.parse(twoNames)).toEqual([]);
+  });
+
+  it("should ignore a type given as a plain string instead of an AttributeType member", () => {
+    // "double" is not a member path, so there is nothing to resolve against the
+    // AttributeType receiver — the call is skipped rather than guessed at.
+    const code = pythonLines(
+      "class ProcessTupleOperator(UDFOperatorV2):",
+      "    def open(self):",
+      '        self.UiParameter(name="x", type="double")'
+    );
+
+    expect(service.parse(code)).toEqual([]);
+  });
+
+  it("should refuse to insert into a class that has no block body at all", () => {
+    // A class header without its colon parses to a ClassDefinition with no Body,
+    // so there is no indented block to put the declaration in.
+    const code = "class ProcessTupleOperator(UDFOperatorV2)\n";
+
+    expect(() => service.computeParameterInsertion(code, "threshold", "double")).toThrow(UiUdfParametersEditError);
+    expect(() => service.computeParameterInsertion(code, "threshold", "double")).toThrow(
+      "The Python UDF class and open() need an indented block body to declare UiParameter values."
+    );
+  });
+
+  it("should synthesize open() below a class docstring, kept apart from the code after it", () => {
+    const code = pythonLines(
+      "class ProcessTupleOperator(UDFOperatorV2):",
+      '    """Doc."""',
+      "    def process(self, tuple_, port):",
+      "        yield tuple_"
+    );
+
+    const updated = insertParameter(service, code, "threshold");
+
+    // The docstring stays first, and the synthesized open() is fenced by a blank
+    // line on both sides: above it because it follows the docstring, below it
+    // because another statement follows.
+    expect(updated.split("\n")).toEqual([
+      "class ProcessTupleOperator(UDFOperatorV2):",
+      '    """Doc."""',
+      "",
+      "    def open(self) -> None:",
+      '        self.threshold = self.UiParameter(name="threshold", type=AttributeType.DOUBLE).value',
+      "",
+      "    def process(self, tuple_, port):",
+      "        yield tuple_",
+      "",
+    ]);
+    expect(service.parse(updated).map(p => p.attribute.attributeName)).toEqual(["threshold"]);
+  });
+
+  it("should append open() after a docstring that ends the file without a newline", () => {
+    // lineEnd() takes its `newline === -1` arm: there is no line break left to
+    // insert in front of, so the declaration goes at the very end of the file.
+    const code = 'class ProcessTupleOperator(UDFOperatorV2):\n    """Doc."""';
+
+    const updated = insertParameter(service, code, "threshold");
+
+    expect(updated.split("\n")).toEqual([
+      "class ProcessTupleOperator(UDFOperatorV2):",
+      '    """Doc."""',
+      "",
+      "    def open(self) -> None:",
+      '        self.threshold = self.UiParameter(name="threshold", type=AttributeType.DOUBLE).value',
+    ]);
+    expect(service.parse(updated).map(p => p.attribute.attributeName)).toEqual(["threshold"]);
   });
 });
 

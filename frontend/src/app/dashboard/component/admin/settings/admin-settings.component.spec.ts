@@ -188,6 +188,25 @@ describe("AdminSettingsComponent", () => {
         expect(msgSuccess).toHaveBeenCalledWith("Branding saved successfully.");
       });
 
+      it("saveLogos PUTs the favicon too when one is set", () => {
+        completeLoad();
+        component.logoData = "logo.png";
+        component.miniLogoData = "mini.png";
+        component.faviconData = "fav.ico";
+
+        component.saveLogos();
+
+        const requests = ["logo", "mini_logo", "favicon"].map(key => {
+          const req = httpTestingController.expectOne(updateUrl(key));
+          expect(req.request.method).toBe("PUT");
+          return req;
+        });
+        expect(requests[2].request.body).toEqual({ value: "fav.ico" });
+        requests.forEach(req => req.flush(null));
+
+        expect(msgSuccess).toHaveBeenCalledWith("Branding saved successfully.");
+      });
+
       it("saveLogos does nothing when no branding asset is set", () => {
         completeLoad();
         component.logoData = null;
@@ -288,6 +307,17 @@ describe("AdminSettingsComponent", () => {
         expect(msgSuccess).toHaveBeenCalledWith("Dataset upload settings saved successfully.");
       });
 
+      it("saveDatasetSettings refuses to save before the bulk load completes", () => {
+        // The ngOnInit GET is left outstanding on purpose: settingsLoaded is still false.
+        const pending = httpTestingController.expectOne(SETTINGS_URL);
+
+        component.saveDatasetSettings();
+
+        httpTestingController.expectNone((req: { method: string }) => req.method === "PUT");
+        expect(msgError).toHaveBeenCalledWith("Settings have not loaded; refresh before saving.");
+        pending.flush({});
+      });
+
       it("saveDatasetSettings rejects non-positive values without saving", () => {
         completeLoad();
         component.maxFileSizeMiB = 0;
@@ -344,6 +374,37 @@ describe("AdminSettingsComponent", () => {
       });
     });
 
+    // The issue labels these lines as `resetTabs`; they are actually the two computed
+    // getters that sit just below it, so the tests target the getters.
+    describe("computed part-size properties", () => {
+      it("partsAtMax is 0 unless both the total size and the chunk size are set", () => {
+        completeLoad();
+
+        component.maxFileSizeMiB = 0;
+        component.chunkSizeMiB = 8;
+        expect(component.partsAtMax).toBe(0);
+
+        component.maxFileSizeMiB = 100;
+        component.chunkSizeMiB = 0;
+        expect(component.partsAtMax).toBe(0);
+
+        component.maxFileSizeMiB = 100;
+        component.chunkSizeMiB = 8;
+        expect(component.partsAtMax).toBe(13);
+      });
+
+      it("requiredMinPartSizeMiB falls back to the floor when no total size is set", () => {
+        completeLoad();
+
+        component.maxFileSizeMiB = 0;
+        expect(component.requiredMinPartSizeMiB).toBe(component.MIN_PART_SIZE_MiB);
+
+        // Above the floor the parts limit takes over: 10,000 parts must cover the total.
+        component.maxFileSizeMiB = component.MIN_PART_SIZE_MiB * component.MAX_TOTAL_PARTS * 2;
+        expect(component.requiredMinPartSizeMiB).toBe(component.MIN_PART_SIZE_MiB * 2);
+      });
+    });
+
     describe("csv (result panel) settings", () => {
       it("saveCsvSettings PUTs the max-columns value and notifies success", () => {
         completeLoad();
@@ -359,6 +420,16 @@ describe("AdminSettingsComponent", () => {
         expect(notifySuccess).toHaveBeenCalledWith("Result panel settings saved.");
       });
 
+      it("saveCsvSettings refuses to save before the bulk load completes", () => {
+        const pending = httpTestingController.expectOne(SETTINGS_URL);
+
+        component.saveCsvSettings();
+
+        httpTestingController.expectNone((req: { method: string }) => req.method === "PUT");
+        expect(msgError).toHaveBeenCalledWith("Settings have not loaded; refresh before saving.");
+        pending.flush({});
+      });
+
       it("saveCsvSettings notifies an error when the request fails", () => {
         completeLoad();
 
@@ -366,6 +437,15 @@ describe("AdminSettingsComponent", () => {
 
         httpTestingController.expectOne(updateUrl("csv_parser_max_columns")).flush("boom", HTTP_ERROR);
         expect(notifyError).toHaveBeenCalledWith("Could not save result panel settings.");
+      });
+
+      it("resetCsvSettings notifies an error when the reset fails", () => {
+        completeLoad();
+
+        component.resetCsvSettings();
+
+        httpTestingController.expectOne(resetUrl("csv_parser_max_columns")).flush("boom", HTTP_ERROR);
+        expect(notifyError).toHaveBeenCalledWith("Could not reset result panel settings.");
       });
 
       it("resetCsvSettings POSTs a reset and notifies info", () => {
@@ -392,30 +472,70 @@ describe("AdminSettingsComponent", () => {
         expect(component.logoData).toBe("data:image/png;base64,EXISTING");
       });
 
-      it("reads a valid image file into the matching branding field", async () => {
-        completeLoad();
-        const dataUrl = "data:image/png;base64,AAA";
+      const dataUrl = "data:image/png;base64,AAA";
+
+      /**
+       * Uploads a valid image through a FileReader double that resolves to `result`.
+       * The double keeps the read off jsdom's real async, so the assertion only has to
+       * wait for the microtask the fake itself queues.
+       */
+      async function uploadImageResolvingTo(type: "logo" | "mini_logo" | "favicon", result: unknown): Promise<void> {
         class FakeFileReader {
-          onload: ((e: { target: { result: string } }) => void) | null = null;
+          onload: ((e: { target: { result: unknown } }) => void) | null = null;
           readAsDataURL(): void {
-            queueMicrotask(() => this.onload?.({ target: { result: dataUrl } }));
+            queueMicrotask(() => this.onload?.({ target: { result } }));
           }
         }
         const realFileReader = globalThis.FileReader;
         (globalThis as any).FileReader = FakeFileReader;
-
         try {
           const event = {
             target: { files: [new File(["x"], "logo.png", { type: "image/png" })] },
           } as unknown as Event;
-
-          component.onFileChange("mini_logo", event);
+          component.onFileChange(type, event);
           await Promise.resolve();
-
-          expect(component.miniLogoData).toBe(dataUrl);
         } finally {
           (globalThis as any).FileReader = realFileReader;
         }
+      }
+
+      it("reads a valid image file into the matching branding field", async () => {
+        completeLoad();
+
+        await uploadImageResolvingTo("mini_logo", dataUrl);
+
+        expect(component.miniLogoData).toBe(dataUrl);
+      });
+
+      it("routes a logo upload to logoData", async () => {
+        completeLoad();
+
+        await uploadImageResolvingTo("logo", dataUrl);
+
+        expect(component.logoData).toBe(dataUrl);
+        expect(component.miniLogoData).toBeNull();
+        expect(component.faviconData).toBeNull();
+      });
+
+      it("routes a favicon upload to faviconData", async () => {
+        completeLoad();
+
+        await uploadImageResolvingTo("favicon", dataUrl);
+
+        expect(component.faviconData).toBe(dataUrl);
+        expect(component.logoData).toBeNull();
+        expect(component.miniLogoData).toBeNull();
+      });
+
+      it("stores null when the reader yields something other than a string", async () => {
+        completeLoad();
+        component.logoData = "data:image/png;base64,EXISTING";
+
+        // readAsDataURL always yields a string, but the handler guards the type anyway;
+        // an ArrayBuffer result takes the other arm of that ternary.
+        await uploadImageResolvingTo("logo", new ArrayBuffer(8));
+
+        expect(component.logoData).toBeNull();
       });
     });
   });

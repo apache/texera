@@ -25,6 +25,7 @@ import { Role, User } from "../../type/user";
 import { AuthService } from "./auth.service";
 import { GuiConfigService } from "../gui-config.service";
 import { catchError, map, shareReplay, switchMap } from "rxjs/operators";
+import { validateEmailFormat } from "../../util/email";
 
 /**
  * User Service manages User information. It relies on different
@@ -46,6 +47,8 @@ export class UserService {
   ) {
     const user = this.authService.loginWithExistingToken();
     this.changeUser(user);
+
+    this.authService.sessionChanged().subscribe(() => this.changeUser(this.authService.loginWithExistingToken()));
   }
   public getCurrentUser(): User | undefined {
     return this.currentUser;
@@ -139,17 +142,7 @@ export class UserService {
    * @param email
    */
   static validateEmail(email: string): { result: boolean; message: string } {
-    const trimmed = (email ?? "").trim();
-    if (trimmed.length === 0) {
-      return { result: false, message: "Email should not be empty." };
-    }
-    // Pragmatic email regex: non-whitespace + @ + non-whitespace + . + non-whitespace.
-    // Matches what most users expect; we leave authoritative validation to the backend.
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(trimmed)) {
-      return { result: false, message: "Email format is invalid." };
-    }
-    return { result: true, message: "Email frontend validation success." };
+    return validateEmailFormat(email);
   }
 
   /**

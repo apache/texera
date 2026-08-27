@@ -593,9 +593,12 @@ describe("SavedWorkflowSectionComponent", () => {
     });
 
     describe("deleteWorkflow", () => {
-      it("deletes an entry with a wid and removes it from the results", () => {
+      it("deletes an entry with a wid, removes it from the results, and cleans up its pod notebook", () => {
         const persist = TestBed.inject(WorkflowPersistService) as any;
         persist.deleteWorkflow = vi.fn().mockReturnValue(of(null));
+        const cleanup = vi
+          .spyOn(TestBed.inject(NotebookMigrationService), "deleteNotebookForWorkflow")
+          .mockResolvedValue(undefined);
         const target = makeEntry(5, "to delete");
         setEntries([target, makeEntry(6, "keep")]);
 
@@ -603,15 +606,18 @@ describe("SavedWorkflowSectionComponent", () => {
 
         expect(persist.deleteWorkflow).toHaveBeenCalledWith([5]);
         expect(component.searchResultsComponent.entries.map(e => e.name)).toEqual(["keep"]);
+        expect(cleanup).toHaveBeenCalledWith(5);
       });
 
       it("does nothing when the entry has no wid", () => {
         const persist = TestBed.inject(WorkflowPersistService) as any;
         persist.deleteWorkflow = vi.fn();
+        const cleanup = vi.spyOn(TestBed.inject(NotebookMigrationService), "deleteNotebookForWorkflow");
 
         component.deleteWorkflow(makeEntry(undefined, "no wid"));
 
         expect(persist.deleteWorkflow).not.toHaveBeenCalled();
+        expect(cleanup).not.toHaveBeenCalled();
       });
     });
 
@@ -658,9 +664,12 @@ describe("SavedWorkflowSectionComponent", () => {
     });
 
     describe("handleConfirmDeleteSelectedWorkflows", () => {
-      it("deletes checked wids and keeps undefined-wid entries", () => {
+      it("deletes checked wids, keeps undefined-wid entries, and cleans up each pod notebook", () => {
         const persist = TestBed.inject(WorkflowPersistService) as any;
         persist.deleteWorkflow = vi.fn().mockReturnValue(of(null));
+        const cleanup = vi
+          .spyOn(TestBed.inject(NotebookMigrationService), "deleteNotebookForWorkflow")
+          .mockResolvedValue(undefined);
         setEntries([
           makeEntry(1, "a", true),
           makeEntry(2, "b", true),
@@ -672,6 +681,7 @@ describe("SavedWorkflowSectionComponent", () => {
 
         expect(persist.deleteWorkflow).toHaveBeenCalledWith([1, 2]);
         expect(component.searchResultsComponent.entries.map(e => e.name)).toEqual(["c", "d"]);
+        expect(cleanup.mock.calls.map(c => c[0])).toEqual([1, 2]);
       });
 
       it("early-returns when a checked entry has no wid", () => {
@@ -684,15 +694,18 @@ describe("SavedWorkflowSectionComponent", () => {
         expect(persist.deleteWorkflow).not.toHaveBeenCalled();
       });
 
-      it("alerts on a deletion error", () => {
+      it("alerts on a deletion error and does not touch the pod", () => {
         const persist = TestBed.inject(WorkflowPersistService) as any;
         persist.deleteWorkflow = vi.fn().mockReturnValue(throwError(() => "delfail"));
         const alertSpy = vi.spyOn(window, "alert").mockImplementation(() => {});
+        const cleanup = vi.spyOn(TestBed.inject(NotebookMigrationService), "deleteNotebookForWorkflow");
         setEntries([makeEntry(1, "a", true)]);
 
         component.handleConfirmDeleteSelectedWorkflows();
 
         expect(alertSpy).toHaveBeenCalledWith("delfail");
+        // The backend delete failed, so the pod file must be left in place.
+        expect(cleanup).not.toHaveBeenCalled();
       });
     });
 
