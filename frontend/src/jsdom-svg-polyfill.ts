@@ -219,13 +219,13 @@ if (typeof jsdomGetComputedStyle === "function" && !alreadyPatched(jsdomGetCompu
   G.getComputedStyle = withoutPseudoElement;
   if (G.window) G.window.getComputedStyle = withoutPseudoElement;
 }
+// The only `scrollTo` html2canvas aims at this window is guarded by a
+// scroll-offset check that cannot fire under jsdom — there is no layout, so
+// both offsets are 0 and the call is skipped. The one it does make belongs to
+// the throwaway iframe it clones the page into, and jsdom installs the method
+// on each window instance rather than on a shared prototype, so it has to be
+// neutered as each `contentWindow` is handed out.
 const inertScrollTo: AnyFn = () => undefined;
-G.scrollTo = inertScrollTo;
-if (G.window) G.window.scrollTo = inertScrollTo;
-// The `scrollTo` html2canvas actually reaches for belongs to the throwaway
-// iframe it clones the page into, not to this window, and jsdom installs the
-// method on each window instance rather than on a shared prototype — so it has
-// to be neutered as each `contentWindow` is handed out.
 const iframeProto = G.HTMLIFrameElement?.prototype;
 const contentWindow = iframeProto && Object.getOwnPropertyDescriptor(iframeProto, "contentWindow");
 if (contentWindow?.get && !alreadyPatched(contentWindow.get)) {
