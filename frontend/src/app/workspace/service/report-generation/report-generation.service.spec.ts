@@ -331,25 +331,27 @@ describe("ReportGenerationService", () => {
 
   describe("generateWorkflowSnapshot", () => {
     /**
-     * html2canvas clones the whole document, not just the element it is pointed at, and the
-     * unit-test builder runs spec files with `isolate: false` — so one jsdom document is shared
-     * by every spec file in a worker, and the renders below drag in whatever DOM the files
-     * before this one left behind. That is what failed the macOS leg: a clone that costs ~60ms
-     * against this file's own DOM was measured at 12–37s there, past the 20s test timeout,
-     * while ubuntu and windows passed. Park the foreign nodes for the duration of the file and
-     * put them back after, so the render's cost depends only on what these tests build. The
-     * renders started here outlive the tests that start them, so this has to span the file
-     * rather than each test.
+     * html2canvas clones the whole document — from `documentElement`, not from the element it is
+     * pointed at — and the unit-test builder runs spec files with `isolate: false`, so one jsdom
+     * document is shared by every spec file in a worker and the renders below drag in whatever DOM
+     * the files before this one left behind, in `<head>` as much as in the body. That is what
+     * failed the macOS leg: a clone that costs ~60ms against this file's own DOM was measured at
+     * 12–37s there, past the 20s test timeout, while ubuntu and windows passed. Park the foreign
+     * nodes of both for the duration of the file and put them back after, so the render's cost
+     * depends only on what these tests build. The renders started here outlive the tests that
+     * start them, so this has to span the file rather than each test.
      */
-    let parkedNodes: ChildNode[];
+    let parkedNodes: [ParentNode, ChildNode][];
 
     beforeAll(() => {
-      parkedNodes = Array.from(document.body.childNodes);
-      parkedNodes.forEach(node => node.remove());
+      parkedNodes = [document.head, document.body].flatMap(parent =>
+        Array.from(parent.childNodes).map((node): [ParentNode, ChildNode] => [parent, node])
+      );
+      parkedNodes.forEach(([, node]) => node.remove());
     });
 
     afterAll(() => {
-      parkedNodes.forEach(node => document.body.appendChild(node));
+      parkedNodes.forEach(([parent, node]) => parent.appendChild(node));
     });
 
     it("fails when the editor is not on the page", async () => {
