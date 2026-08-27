@@ -60,11 +60,10 @@ class OperatorBehaviorSpec extends AnyFlatSpec with Matchers with ParallelTestEx
     val name = opClass.getSimpleName
 
     if (!OperatorBehaviorSpec.isSelected(name)) {
-      // Local-dev filter via VERIFY_SKIP / VERIFY_ONLY env vars (see the
-      // object below). Empty (the CI default) selects everything; when set,
-      // deselected operators are marked `ignore` so they don't run but still
-      // show up in the report.
-      name should "SKIPPED — family not yet in the verified set (override via VERIFY_ONLY/VERIFY_SKIP)" ignore {}
+      // Narrowed out by VERIFY_ONLY / VERIFY_SKIP, which only a local run sets.
+      // Still registered, as an `ignore`, so the report lists every operator
+      // rather than reading as though the narrowed-out ones do not exist.
+      name should "NARROWED OUT — outside this run's VERIFY_ONLY / VERIFY_SKIP" ignore {}
     } else if (classOf[SourceOperatorDescriptor].isAssignableFrom(opClass)) {
       // Sources keep their handler-per-source design: each needs a real file
       // in its specific format, which a generic fixture can't supply.
@@ -100,49 +99,26 @@ class OperatorBehaviorSpec extends AnyFlatSpec with Matchers with ParallelTestEx
 
 object OperatorBehaviorSpec {
 
-  // Selection knobs. Case-sensitive substrings matched against the operator's
-  // simple name decide which operators run.
+  // Narrowing knobs for a local run, both unset by default, so the default run
+  // is every operator: VERIFY_ONLY names the only ones to run, VERIFY_SKIP the
+  // ones to leave out. Case-sensitive substrings against the operator's simple
+  // name, comma-separated. Neither is set in CI, which therefore runs the lot.
   //
-  // Precedence (first match wins):
-  //   1. VERIFY_ONLY env set  -> run ONLY operators matching it.
-  //   2. VERIFY_SKIP env set   -> run everything EXCEPT operators matching it.
-  //   3. Default (local AND CI) -> skip DefaultLocalSkip: the operator families
-  //                                not yet ready for verification (ML / viz /
-  //                                external-source / UDF). Same everywhere, so
-  //                                CI only exercises the vetted core operators.
-  //
-  // As a family becomes ready, delete it from DefaultLocalSkip to start
-  // verifying it (local + CI). Override ad hoc with VERIFY_ONLY / VERIFY_SKIP.
+  // There is deliberately no third list withholding operators by default. What
+  // stays withheld is narrower than an operator and lives where it can say why:
+  // a single variant in [[TransformVerificationRunner.variantsNotRun]], or an
+  // operator that cannot be run at all in its `knownIssues`, each against an
+  // issue or a reason. A name here would withdraw an operator's every variant
+  // and record nothing about what is wrong with it.
   private def patterns(envVar: String): Seq[String] =
     sys.env.getOrElse(envVar, "").split(",").iterator.map(_.trim).filter(_.nonEmpty).toSeq
 
-  // Operators withheld from the default run, local and CI alike, while a family
-  // is worked through. Empty: every operator carrying standalone code is now
-  // verified by default, so a name here would be a step backwards rather than a
-  // queue to work off.
-  //
-  // What remains withheld is narrower than an operator, and lives where it can
-  // say why: a single variant in [[TransformVerificationRunner.variantsNotRun]],
-  // or an operator that cannot be run at all in `knownIssues`, each against an
-  // issue or a reason. Prefer either of those to a name here, which withdraws an
-  // operator's every variant and records nothing about what is wrong.
-  //
-  // Add a name only while actively working a family in, and take it out in the
-  // same session. One per name rather than a family substring: a substring hides
-  // how many operators are behind it, and "Sklearn" once held back a whole tier
-  // that had been runnable for a while.
-  private val DefaultLocalSkip: Seq[String] = Seq()
-
   private lazy val onlyPatterns: Seq[String] = patterns("VERIFY_ONLY")
+  private lazy val skipPatterns: Seq[String] = patterns("VERIFY_SKIP")
 
-  // Effective skip list per the precedence above. Empty means "skip nothing".
-  private lazy val skipPatterns: Seq[String] = {
-    val explicitSkip = patterns("VERIFY_SKIP")
-    if (onlyPatterns.nonEmpty || explicitSkip.nonEmpty) explicitSkip
-    else DefaultLocalSkip
-  }
-
-  /** True if `name` should run under the current selection (see precedence above). */
+  /** True if `name` should run: in VERIFY_ONLY when that is set, and not in
+    * VERIFY_SKIP. True for everything when neither is set.
+    */
   def isSelected(name: String): Boolean = {
     val included = onlyPatterns.isEmpty || onlyPatterns.exists(name.contains)
     val excluded = skipPatterns.exists(name.contains)

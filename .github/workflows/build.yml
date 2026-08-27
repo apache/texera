@@ -1088,13 +1088,13 @@ jobs:
         # by operator. Reuses this job's compiled WCS (the dist step above) and
         # postgres instead of a separate integration job.
         # WCS_TEST_FILTER=integration-only keeps only @IntegrationTest specs and
-        # bounds ScalaTest's parallel pool to 4 threads (build.sbt). The spec's
-        # DefaultLocalSkip list applies identically here and locally (there is no
-        # CI-detection override), so this exercises the same vetted core operators
-        # a local run does; not-yet-ready families stay ignored until removed from
-        # that list. UDF_PYTHON_PATH points the harness at the provisioned
-        # interpreter (bare name resolves via PATH); it auto-locates
-        # amber/src/main/python.
+        # bounds ScalaTest's parallel pool to 4 threads (build.sbt). Every operator
+        # carrying standalone code runs: the spec's narrowing knobs
+        # (VERIFY_ONLY / VERIFY_SKIP) are unset here, as they are in any run that
+        # does not ask for less, and what stays withheld is a single variant or an
+        # operator that cannot run, recorded against an issue in the runner itself.
+        # UDF_PYTHON_PATH points the harness at the provisioned interpreter (bare
+        # name resolves via PATH); it auto-locates amber/src/main/python.
         if: ${{ matrix.service == 'workflow-compiling-service' }}
         env:
           WCS_TEST_FILTER: integration-only
