@@ -44,6 +44,7 @@ import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.KNNTrain
 import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.base.SklearnMLOperatorDescriptor
 import org.apache.texera.amber.operator.sklearn.training.SklearnTrainingOpDesc
 import org.apache.texera.amber.operator.sklearn.training.SklearnTrainingGaussianNaiveBayesOpDesc
+import org.apache.texera.amber.operator.huggingFace.HuggingFaceIrisLogisticRegressionOpDesc
 import org.apache.texera.amber.operator.regex.RegexOpDesc
 import org.apache.texera.amber.operator.sklearn.testing.SklearnTestingOpDesc
 import org.apache.texera.amber.operator.substringSearch.SubstringSearchOpDesc
@@ -331,7 +332,10 @@ object TransformVerificationRunner {
       // These two descend from PythonOperatorDescriptor rather than a sklearn
       // base, so the family rows above do not reach them.
       classOf[SklearnLinearRegressionOpDesc] -> "apache/texera#7582",
-      classOf[SklearnMLOperatorDescriptor[_]] -> "apache/texera#7582"
+      classOf[SklearnMLOperatorDescriptor[_]] -> "apache/texera#7582",
+      // The one Hugging Face operator reading numeric columns rather than text, so
+      // the change that taught the other three to keep the row did not reach it.
+      classOf[HuggingFaceIrisLogisticRegressionOpDesc] -> "apache/texera#8056"
     )
 
     // The operator refuses the text pipeline in `getOutputSchemas`, so there is no
