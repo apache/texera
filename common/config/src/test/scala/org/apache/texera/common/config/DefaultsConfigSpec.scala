@@ -43,7 +43,7 @@ class DefaultsConfigSpec extends AnyFlatSpec with Matchers {
     defaults should not be empty
     // scalar leaves are flattened to their last path segment
     ifUnset("DATASET_SINGLE_FILE_UPLOAD_MAX_SIZE_MIB")(
-      defaults.get("single_file_upload_max_size_mib") shouldBe Some("20")
+      defaults.get("dataset_single_file_upload_max_size_mib") shouldBe Some("20")
     )
     ifUnset("GUI_TABS_HUB_ENABLED")(defaults.get("hub_enabled") shouldBe Some("true"))
     // the model block's leaves are `model_`-prefixed to keep short keys unique
@@ -73,24 +73,24 @@ class DefaultsConfigSpec extends AnyFlatSpec with Matchers {
     val guiKeys = DefaultsConfig.keysUnderSections(Set("gui"))
     guiKeys should contain allOf ("logo", "mini_logo", "favicon", "hub_enabled")
     // keys from other sections are excluded
-    guiKeys should not contain "single_file_upload_max_size_mib"
+    guiKeys should not contain "dataset_single_file_upload_max_size_mib"
     guiKeys should not contain "always-reset-configurations-to-default-values"
 
     val datasetKeys = DefaultsConfig.keysUnderSections(Set("dataset"))
-    datasetKeys should contain("single_file_upload_max_size_mib")
+    datasetKeys should contain("dataset_single_file_upload_max_size_mib")
     datasetKeys should not contain "logo"
 
     // `model` is a sibling section, not a sub-section of `dataset`: disjoint sets
     // are what let a model carry a different ceiling.
     val modelKeys = DefaultsConfig.keysUnderSections(Set("model"))
     modelKeys should contain("model_single_file_upload_max_size_mib")
-    modelKeys should not contain "single_file_upload_max_size_mib"
+    modelKeys should not contain "dataset_single_file_upload_max_size_mib"
     datasetKeys should not contain "model_single_file_upload_max_size_mib"
   }
 
   it should "union multiple sections and be empty for an unknown section" in {
     val union = DefaultsConfig.keysUnderSections(Set("gui", "dataset", "model"))
-    union should contain allOf ("logo", "single_file_upload_max_size_mib", "model_single_file_upload_max_size_mib")
+    union should contain allOf ("logo", "dataset_single_file_upload_max_size_mib", "model_single_file_upload_max_size_mib")
     // every returned key exists in allDefaults under the same short name
     union.subsetOf(DefaultsConfig.allDefaults.keySet) shouldBe true
 

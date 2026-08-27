@@ -44,7 +44,7 @@ class UploadLimitsSpec extends AnyFlatSpec with Matchers {
       }
     }
     ifUnset("DATASET_SINGLE_FILE_UPLOAD_MAX_SIZE_MIB")(
-      defaultOf("single_file_upload_max_size_mib") shouldBe Some("20")
+      defaultOf("dataset_single_file_upload_max_size_mib") shouldBe Some("20")
     )
     UploadLimits.Dataset.singleFileMaxSizeMiB.defaultValue shouldBe 20L
   }

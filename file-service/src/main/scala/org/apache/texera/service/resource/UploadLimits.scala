@@ -55,10 +55,11 @@ object UploadLimits {
 
   val Dataset: UploadLimits =
     UploadLimits(
-      singleFileMaxSizeMiB = UploadLimit("single_file_upload_max_size_mib", 20L),
-      multipartChunkSizeMiB = UploadLimit("multipart_upload_chunk_size_mib", 50L),
-      maxConcurrentFiles = UploadLimit("max_number_of_concurrent_uploading_file", 3L),
-      maxConcurrentFileChunks = UploadLimit("max_number_of_concurrent_uploading_file_chunks", 10L)
+      singleFileMaxSizeMiB = UploadLimit("dataset_single_file_upload_max_size_mib", 20L),
+      multipartChunkSizeMiB = UploadLimit("dataset_multipart_upload_chunk_size_mib", 50L),
+      maxConcurrentFiles = UploadLimit("dataset_max_number_of_concurrent_uploading_file", 3L),
+      maxConcurrentFileChunks =
+        UploadLimit("dataset_max_number_of_concurrent_uploading_file_chunks", 10L)
     )
 
   // Model weights are far larger than the files datasets are sized for: 2 GiB, not 20 MiB.

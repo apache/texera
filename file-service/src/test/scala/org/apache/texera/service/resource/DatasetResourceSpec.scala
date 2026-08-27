@@ -1654,7 +1654,7 @@ class DatasetResourceSpec
     s"$prefix/${System.nanoTime()}-${Random.alphanumeric.take(8).mkString}.bin"
 
   // ---------- site_settings helpers (max upload size) ----------
-  private val MaxUploadKey = "single_file_upload_max_size_mib"
+  private val MaxUploadKey = "dataset_single_file_upload_max_size_mib"
 
   private def upsertSiteSetting(key: String, value: String): Unit = {
     val table = DSL.table(DSL.name("texera_db", "site_settings"))
