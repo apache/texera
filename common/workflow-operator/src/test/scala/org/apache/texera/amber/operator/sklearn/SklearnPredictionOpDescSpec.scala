@@ -115,15 +115,26 @@ class SklearnPredictionOpDescSpec extends AnyFlatSpec with Matchers {
     code should not include "Table.from_tuple_likes([tuple_]).isna()"
   }
 
-  // The ignored column is what the result is cast to, so when it is the blank one
-  // there is no type to read off it and the prediction is written as text.
-  it should "write the prediction as text when the ignored column is itself empty" in {
+  // The output schema names the result column's type and the framework casts to it,
+  // so a per-row cast could only disagree with it on the row where the ignored column
+  // is itself blank and has no type to read off.
+  it should "not read the result's type off the ignored column" in {
     val d = new SklearnPredictionOpDesc
     d.model = "model"
     d.resultAttribute = "prediction"
     d.groundTruthAttribute = "y"
     val code = d.generatePythonCode()
-    code should include("truth is None")
+    code should include("] = prediction if")
+    code should not include "type(tuple_"
+  }
+
+  // Without an ignored column the schema declares the result a string, so this is the
+  // one case where the generated code converts.
+  it should "write the prediction as text when no ignored column is configured" in {
+    val d = new SklearnPredictionOpDesc
+    d.model = "model"
+    d.resultAttribute = "prediction"
+    val code = d.generatePythonCode()
     code should include("str(prediction)")
   }
 

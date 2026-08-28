@@ -66,9 +66,8 @@ class SklearnPredictionOpDesc extends PythonOperatorDescriptor {
        |                tuple_[$resultAttribute] = None #keep the row, leave the result empty
        |            else:
        |                prediction = self.model.predict(Table.from_tuple_likes([input_features]))[0]
-       |                truth = tuple_[$groundTruthAttribute] if $groundTruthAttribute != "" else None
-       |                #the ignored column names the result's type, and a blank one names nothing
-       |                tuple_[$resultAttribute] = str(prediction) if truth is None else type(truth)(prediction)
+       |                #the output schema names this column's type, so reading one off a row could only disagree with it
+       |                tuple_[$resultAttribute] = prediction if $groundTruthAttribute != "" else str(prediction)
        |            yield tuple_""".encode
 
   override def operatorInfo: OperatorInfo =
