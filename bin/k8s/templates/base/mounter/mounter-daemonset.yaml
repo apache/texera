@@ -62,7 +62,7 @@ spec:
             # belonging to one of these identities, may request a mount. See
             # authenticate_caller in bin/mounter/mounter.py.
             - name: MOUNTER_AUDIENCE
-              value: "{{ .Values.mounter.audience }}"
+              value: "{{ include "texera.mounter.audience" . }}"
             - name: MOUNTER_ALLOWED_CALLERS
               value: "{{ include "texera.mounter.allowedCallers" . }}"
           readinessProbe:

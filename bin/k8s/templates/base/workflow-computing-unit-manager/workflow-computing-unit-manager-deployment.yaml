@@ -147,5 +147,5 @@ spec:
             sources:
               - serviceAccountToken:
                   path: token
-                  audience: {{ .Values.mounter.audience }}
+                  audience: {{ include "texera.mounter.audience" . }}
                   expirationSeconds: 3600

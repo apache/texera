@@ -56,6 +56,16 @@ services fall back to the in-cluster MinIO Service and its auto-generated
 {{- end -}}
 
 {{/*
+The audience the mounter's service-account tokens are bound to. Fixed rather than
+configurable: it is one half of a credential contract between access-control-service and the
+mounter -- the projected token declares it and the mounter's TokenReview requires it -- so
+the two must always agree, and there is no deployment in which a different value is useful.
+*/}}
+{{- define "texera.mounter.audience" -}}
+texera-mounter
+{{- end -}}
+
+{{/*
 The service-account username allowed to request a mount from the per-node mounter, in the
 form MOUNTER_ALLOWED_CALLERS expects. This is access-control-service and nothing else: it
 is the deployment's authorization authority for computing units, so it is the one component
