@@ -1169,6 +1169,24 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
           message: (error: any, field: FormlyFieldConfig) =>
             `"${field.formControl?.value}" is already set by another row`,
         };
+        // Whether a row repeats another is a property of the whole column, but Angular reruns a
+        // validator only on the control that changed. A change is answered by rechecking every
+        // row, so the row that resolves a duplicate clears the one it left behind, and a row
+        // changed onto a parameter another row holds marks that row too.
+        mappedField.hooks = {
+          ...mappedField.hooks,
+          onInit: (field: FormlyFieldConfig) => {
+            field.formControl?.valueChanges
+              .pipe(untilDestroyed(this))
+              .subscribe(() =>
+                field.parent?.parent?.fieldGroup?.forEach(row =>
+                  row.fieldGroup
+                    ?.find(sibling => sibling.key === field.key)
+                    ?.formControl?.updateValueAndValidity({ emitEvent: false })
+                )
+              );
+          },
+        };
       }
 
       // Add custom validators for attribute type
