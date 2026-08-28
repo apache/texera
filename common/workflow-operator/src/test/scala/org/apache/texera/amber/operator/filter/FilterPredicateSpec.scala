@@ -210,4 +210,48 @@ class FilterPredicateSpec extends AnyFlatSpec with Matchers {
         singleFieldTuple(AttributeType.TIMESTAMP, Timestamp.valueOf("2020-01-01 00:00:00"))
       ) shouldBe true
   }
+
+  "FilterPredicate.evaluate" should "pin every ordering operator on both sides of its boundary" in {
+    // Every other assertion in this spec places its operands on only one side of
+    // the operator's boundary: the two `_OR_EQUAL_TO` arms are only ever asked
+    // about EQUAL operands (where `== 0` answers the same) and the two strict arms
+    // only about strictly-ordered ones (where the non-strict twin answers the
+    // same). Each operator below is therefore asked all three questions -- field
+    // less than, equal to, and greater than the value -- so that no arm of the
+    // comparison switch can be swapped for another and stay green.
+    def evaluates(condition: ComparisonType, age: Int): Boolean =
+      new FilterPredicate("age", condition, "18").evaluate(ageTuple(age))
+
+    evaluates(ComparisonType.EQUAL_TO, 10) shouldBe false
+    evaluates(ComparisonType.EQUAL_TO, 18) shouldBe true
+    evaluates(ComparisonType.EQUAL_TO, 30) shouldBe false
+
+    evaluates(ComparisonType.NOT_EQUAL_TO, 10) shouldBe true
+    evaluates(ComparisonType.NOT_EQUAL_TO, 18) shouldBe false
+    evaluates(ComparisonType.NOT_EQUAL_TO, 30) shouldBe true
+
+    evaluates(ComparisonType.GREATER_THAN, 10) shouldBe false
+    evaluates(ComparisonType.GREATER_THAN, 18) shouldBe false
+    evaluates(ComparisonType.GREATER_THAN, 30) shouldBe true
+
+    evaluates(ComparisonType.GREATER_THAN_OR_EQUAL_TO, 10) shouldBe false
+    evaluates(ComparisonType.GREATER_THAN_OR_EQUAL_TO, 18) shouldBe true
+    evaluates(ComparisonType.GREATER_THAN_OR_EQUAL_TO, 30) shouldBe true
+
+    evaluates(ComparisonType.LESS_THAN, 10) shouldBe true
+    evaluates(ComparisonType.LESS_THAN, 18) shouldBe false
+    evaluates(ComparisonType.LESS_THAN, 30) shouldBe false
+
+    evaluates(ComparisonType.LESS_THAN_OR_EQUAL_TO, 10) shouldBe true
+    evaluates(ComparisonType.LESS_THAN_OR_EQUAL_TO, 18) shouldBe true
+    evaluates(ComparisonType.LESS_THAN_OR_EQUAL_TO, 30) shouldBe false
+  }
+
+  "FilterPredicate.equals" should "distinguish predicates that differ only in attribute, or only in condition" in {
+    val base = new FilterPredicate("age", ComparisonType.EQUAL_TO, "1")
+    val otherAttribute = new FilterPredicate("name", ComparisonType.EQUAL_TO, "1")
+    val otherCondition = new FilterPredicate("age", ComparisonType.GREATER_THAN, "1")
+    base should not be otherAttribute
+    base should not be otherCondition
+  }
 }

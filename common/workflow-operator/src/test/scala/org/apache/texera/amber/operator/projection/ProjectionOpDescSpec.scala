@@ -141,7 +141,7 @@ class ProjectionOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "raise IllegalArgumentException when dropping a non-existent attribute" in {
-    // Unlike the exec, whose diff-based rewrite silently ignores unknown names,
+    // Unlike the exec, which silently ignores unknown names,
     // Schema.remove rejects them at schema-derivation time.
     projectionOpDesc.isDrop = true
     projectionOpDesc.attributes ++= List(
@@ -165,8 +165,7 @@ class ProjectionOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "match drop names case-insensitively when deriving the schema" in {
-    // Unlike the exec, whose diff-based rewrite matches names exactly and
-    // would keep field2, Schema.remove lowercases both sides.
+    // Schema.remove lowercases both sides, matching the exec's behavior.
     projectionOpDesc.isDrop = true
     projectionOpDesc.attributes ++= List(
       new AttributeUnit("FIELD2", "")
@@ -177,7 +176,7 @@ class ProjectionOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "raise IllegalArgumentException on duplicate entries in the drop list" in {
-    // The exec's multiset diff tolerates duplicates; the schema derivation folds
+    // The exec tolerates duplicates; the schema derivation folds
     // Schema.remove one entry at a time, so the second removal of the same name
     // rejects a now non-existent attribute.
     projectionOpDesc.isDrop = true

@@ -25,7 +25,10 @@ import org.apache.texera.dao.MockTexeraDB
 import org.apache.texera.dao.jooq.generated.Tables.USER_WAREHOUSE
 import org.apache.texera.dao.jooq.generated.tables.daos.UserDao
 import org.apache.texera.dao.jooq.generated.tables.pojos.User
-import org.apache.texera.web.resource.dashboard.user.warehouse.WarehouseResource.CreateWarehouseRequest
+import org.apache.texera.web.resource.dashboard.user.warehouse.WarehouseResource.{
+  lakekeeperWarehouseName,
+  CreateWarehouseRequest
+}
 import org.apache.texera.web.service.LakekeeperClient
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -67,9 +70,9 @@ class WarehouseResourceSpec
       createdNames += warehouseName
       stubWarehouseId
     }
-    override def deleteWarehouseEmptyFirst(warehouseId: UUID): Unit = {
+    override def deleteWarehouseEmptyFirst(lakekeeperWarehouseId: UUID): Unit = {
       deleteFailure.foreach(throw _)
-      deletedIds += warehouseId
+      deletedIds += lakekeeperWarehouseId
     }
   }
 
@@ -126,13 +129,17 @@ class WarehouseResourceSpec
   // Create / list / delete
   // ---------------------------------------------------------------------------
 
-  "create" should "create in Lakekeeper, record the row, and mint user-<uid>-<name>" in {
+  "create" should "create in Lakekeeper, record the row, and mint user-<uid>-<whid>" in {
     val created = resource.create(CreateWarehouseRequest("mybucket"), sessionUser)
 
     created.name shouldBe "mybucket"
-    created.warehouseName shouldBe s"user-${sessionUser.getUid}-mybucket"
+    created.lakekeeperWarehouseName shouldBe lakekeeperWarehouseName(
+      sessionUser.getUid,
+      created.whid
+    )
+    created.lakekeeperWarehouseName should not include "mybucket"
     created.flavor shouldBe "local"
-    createdNames.toList shouldBe List(s"user-${sessionUser.getUid}-mybucket")
+    createdNames.toList shouldBe List(lakekeeperWarehouseName(sessionUser.getUid, created.whid))
     created.ownerName shouldBe "warehouse_spec_user"
     // The fixture user has no avatar set; the DTO carries null, not "" (#7743).
     created.ownerAvatar shouldBe null
@@ -140,6 +147,17 @@ class WarehouseResourceSpec
     val status = resource.status(sessionUser)
     status.enabled shouldBe true
     status.warehouses.map(_.whid) shouldBe List(created.whid)
+  }
+
+  it should "mint a fresh catalog name when the same display name is reused" in {
+    // A reused catalog name would let the new warehouse inherit the old one's storage
+    // path, since stored result URIs embed it.
+    val first = resource.create(CreateWarehouseRequest("recycled"), sessionUser)
+    resource.delete(first.whid, sessionUser)
+    val second = resource.create(CreateWarehouseRequest("recycled"), sessionUser)
+
+    second.name shouldBe first.name
+    second.lakekeeperWarehouseName should not be first.lakekeeperWarehouseName
   }
 
   it should "resolve each entry's owner name and avatar for the dashboard" in {
@@ -173,18 +191,27 @@ class WarehouseResourceSpec
     resource.status(sessionUser).warehouses shouldBe empty
   }
 
-  "a failed record write after Lakekeeper creation" should "compensate by deleting the warehouse" in {
-    // Pre-claim the catalog name under the other user so our store() trips the global
-    // UNIQUE(warehouse_name) after the (stubbed) Lakekeeper creation succeeded.
+  // Pre-claims the catalog name create() will mint next, under the other user, so the
+  // caller's store() trips the global UNIQUE(lakekeeper_warehouse_name) after the
+  // (stubbed) Lakekeeper creation succeeded: one sequence number is taken for the
+  // squatter itself (set explicitly, so storing it consumes nothing further), and the
+  // squatter registers the name belonging to the next.
+  private def squatOnNextMintedName(squatterDisplayName: String): Unit = {
     val squatter = getDSLContext.newRecord(USER_WAREHOUSE)
     squatter.setUid(otherUser.getUid)
-    squatter.setName("unrelated")
-    squatter.setWarehouseName(s"user-${sessionUser.getUid}-boom")
+    squatter.setName(squatterDisplayName)
+    val takenWhid = WarehouseResource.drawNextWhid(getDSLContext)
+    squatter.setWhid(takenWhid)
+    squatter.setLakekeeperWarehouseName(lakekeeperWarehouseName(sessionUser.getUid, takenWhid + 1))
     squatter.setLakekeeperWarehouseId(UUID.randomUUID())
     squatter.setFlavor(
       org.apache.texera.dao.jooq.generated.enums.UserWarehouseFlavorEnum.local
     )
     squatter.store()
+  }
+
+  "a failed record write after Lakekeeper creation" should "compensate by deleting the warehouse" in {
+    squatOnNextMintedName("unrelated")
 
     val error = intercept[WebApplicationException] {
       resource.create(CreateWarehouseRequest("boom"), sessionUser)
@@ -215,15 +242,7 @@ class WarehouseResourceSpec
   }
 
   "a failed compensation" should "be logged and still surface the original failure" in {
-    val squatter = getDSLContext.newRecord(USER_WAREHOUSE)
-    squatter.setUid(otherUser.getUid)
-    squatter.setName("unrelated-2")
-    squatter.setWarehouseName(s"user-${sessionUser.getUid}-doublefault")
-    squatter.setLakekeeperWarehouseId(UUID.randomUUID())
-    squatter.setFlavor(
-      org.apache.texera.dao.jooq.generated.enums.UserWarehouseFlavorEnum.local
-    )
-    squatter.store()
+    squatOnNextMintedName("unrelated-2")
 
     deleteFailure = Some(new RuntimeException("cleanup also failed"))
     val error = intercept[WebApplicationException] {

@@ -53,9 +53,15 @@ import scala.util.Using
   *   - a repository with history: the newest commit touching the operator's path,
   *     memoized under the operator name;
   *   - a repository with an unborn HEAD: `LogCommand.call()` raises `NoHeadException`
-  *     (a `GitAPIException`) and resolution must not propagate it;
+  *     (a `GitAPIException`), which resolution must not propagate and must answer with
+  *     the `"N/A"` fallback;
   *   - no handle at all: `git.log()` raises `NullPointerException` and resolution
-  *     takes the `"N/A"` fallback.
+  *     takes the same `"N/A"` fallback.
+  *
+  * Both failure paths are pinned to `"N/A"` rather than to null, and both are pinned as
+  * memoized: the version string is embedded in operator metadata, and a caller that is
+  * handed null has no way to tell "resolution failed" from "the field was never set",
+  * while an unmemoized failure makes every later call retry the same failing `git log`.
   *
   * On top of that this spec pins the memoization contract: the answer is cached per
   * operator name and the path is ignored on a cache hit.
@@ -63,11 +69,6 @@ import scala.util.Using
   * Deliberately NOT covered: the static initializer itself. It runs once, before any
   * test can observe it, and which of its two branches executes is fixed by how the
   * tree was checked out — no test can flip it without mutating the JVM's environment.
-  *
-  * Deliberately NOT asserted: the value the `GitAPIException` path returns. That catch
-  * leaves `opMap` unpopulated, so the trailing `opMap.get(operatorName)` hands the caller
-  * a null version — a latent defect (the `NullPointerException` sibling stores `"N/A"`).
-  * Pinning the null would cement it, so only the swallow itself is asserted.
   */
 class OPVersionSpec extends AnyFlatSpec with Matchers {
 
@@ -195,6 +196,37 @@ class OPVersionSpec extends AnyFlatSpec with Matchers {
 
         withGit(handle) {
           noException should be thrownBy OPVersion.getVersion(name, "alpha.txt")
+        }
+      }
+    }
+  }
+
+  it should "fall back to \"N/A\" when the git log call fails" in {
+    val name = uniqueName()
+    withCleanCache(name) {
+      withTempRepo("opversion-unborn-fallback") { (handle, _) =>
+        withGit(handle) {
+          // Same unborn-HEAD repository as above, so the GitAPIException catch runs. The
+          // answer must be the same non-null sentinel the NullPointerException sibling
+          // produces: this value is handed straight into operator metadata, and null
+          // there is indistinguishable from an unset field.
+          OPVersion.getVersion(name, "alpha.txt") shouldBe "N/A"
+        }
+      }
+    }
+  }
+
+  it should "memoize the \"N/A\" fallback so a failing git log is not retried" in {
+    val name = uniqueName()
+    withCleanCache(name) {
+      withTempRepo("opversion-unborn-memo") { (handle, _) =>
+        withGit(handle) {
+          opMap.containsKey(name) shouldBe false
+          OPVersion.getVersion(name, "alpha.txt") shouldBe "N/A"
+          // Without the memo every later call for this operator re-runs the same failing
+          // `git log`; the cache lookup is what makes the failure a one-off.
+          opMap.containsKey(name) shouldBe true
+          opMap.get(name) shouldBe "N/A"
         }
       }
     }

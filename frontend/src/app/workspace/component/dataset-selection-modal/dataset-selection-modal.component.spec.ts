@@ -111,7 +111,7 @@ describe("DatasetSelectionModalComponent", () => {
 
   it("ngOnInit initializes selectedDataset and selectedVersion from data.selectedPath", () => {
     modalData.fileMode = true;
-    modalData.selectedPath = `/datasets/${OWNER}/myds/v1`;
+    modalData.selectedPath = `/dataset/${OWNER}/myds/v1`;
 
     build();
 
@@ -154,7 +154,7 @@ describe("DatasetSelectionModalComponent", () => {
 
     expect(datasetService.retrieveDatasetVersionFileTree).toHaveBeenCalledWith(10, 100);
     expect(component.fileTree).toEqual([fileNode]);
-    expect(component.selectedPath).toBe(`/datasets/${OWNER}/myds/v1`);
+    expect(component.selectedPath).toBe(`/dataset/${OWNER}/myds/v1`);
   });
 
   it("onFileSelected sets selectedPath to the node's full path in file mode", () => {
@@ -303,12 +303,12 @@ describe("DatasetSelectionModalComponent", () => {
 
       confirmButton().click();
 
-      expect(modalRef.close).toHaveBeenCalledWith(`/datasets/${OWNER}/myds/v1`);
+      expect(modalRef.close).toHaveBeenCalledWith(`/dataset/${OWNER}/myds/v1`);
     });
 
     it("takes the path from the file tree's selection in file mode", () => {
       modalData.fileMode = true;
-      modalData.selectedPath = `/datasets/${OWNER}/myds/v1`;
+      modalData.selectedPath = `/dataset/${OWNER}/myds/v1`;
       build();
 
       fixture.debugElement

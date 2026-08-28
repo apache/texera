@@ -41,6 +41,7 @@ import { UserService } from "../../../common/service/user/user.service";
 import { MOCK_USER_ID, StubUserService } from "../../../common/service/user/stub-user.service";
 import { SearchService } from "../../../dashboard/service/user/search.service";
 import { commonTestProviders } from "../../../common/testing/test-utils";
+import { EntityType } from "../../service/hub.service";
 import { OperatorMetadataService } from "../../../workspace/service/operator-metadata/operator-metadata.service";
 import { StubOperatorMetadataService } from "../../../workspace/service/operator-metadata/stub-operator-metadata.service";
 import { UserProjectService } from "../../../dashboard/service/user/project/user-project.service";
@@ -77,6 +78,7 @@ class StubSortButtonComponent {
   providers: [{ provide: FiltersComponent, useExisting: forwardRef(() => StubFiltersComponent) }],
 })
 class StubFiltersComponent {
+  @Input() entityType?: EntityType;
   masterFilterList: ReadonlyArray<string> = [];
   masterFilterListChange = new Subject<ReadonlyArray<string>>();
   getSearchKeywords = vi.fn(() => [] as string[]);
@@ -482,7 +484,10 @@ describe("HubSearchResultComponent rendered template", () => {
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
         { provide: UserProjectService, useClass: StubUserProjectService },
         { provide: WorkflowPersistService, useValue: new StubWorkflowPersistService([]) },
-        { provide: DatasetService, useValue: { getDatasetCoverUrl: vi.fn(() => of({ url: undefined })) } },
+        {
+          provide: DatasetService,
+          useValue: { getDatasetCoverUrl: vi.fn(() => of({ url: undefined })), retrieveOwners: vi.fn(() => of([])) },
+        },
         { provide: WorkflowCoverService, useValue: { getCover: vi.fn(() => of(undefined)) } },
         NzModalService,
         provideNzI18n(en_US),
