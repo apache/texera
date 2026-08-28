@@ -39,16 +39,20 @@ class KeywordSearchOpDesc extends FilterOpDesc with StandaloneCodeGenerator {
   @AutofillAttributeName
   var attribute: String = _
 
-  // The value is a Lucene query, so the parser below decides what can be typed here.
-  // Its lexer needs double quotes in pairs — one on its own ends the query mid-token
-  // and `parse` throws, failing the operator rather than matching nothing. That is the
-  // one rule statable exactly: ^ ( ) [ ] { } and / also carry query syntax, but which
-  // uses of them parse depends on what follows, and a pattern strict enough to cover
-  // them would reject phrase and range queries that work.
+  // The value is a Lucene query, so the parser the executor builds decides what can be
+  // typed here. Its lexer needs double quotes in pairs: one on its own opens a phrase
+  // that never closes, and `parse` throws before a row is read. That is the one rule
+  // statable exactly. ( ) [ ] { } ^ and / also carry query syntax, but which uses of
+  // them parse depends on what follows, and a pattern strict enough to cover them would
+  // reject the phrase and range queries that work today.
+  //
+  // Anchored, because the form validates with `new RegExp().test`, which searches: an
+  // unanchored alternative would match the leading run of quoteless characters in any
+  // value at all and reject nothing.
   @JsonProperty(required = true)
   @JsonSchemaTitle("keywords")
   @JsonPropertyDescription("keywords")
-  @JsonSchemaInject(json = """{"minLength": 1, "pattern": "[^\"]*(?:\"[^\"]*\"[^\"]*)*"}""")
+  @JsonSchemaInject(json = """{"minLength": 1, "pattern": "^[^\"]*(?:\"[^\"]*\"[^\"]*)*$"}""")
   var keyword: String = _
 
   @JsonProperty(required = true, defaultValue = "false")
