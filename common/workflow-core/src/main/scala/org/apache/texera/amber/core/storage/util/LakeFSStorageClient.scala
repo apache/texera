@@ -27,7 +27,7 @@ import org.apache.texera.common.config.StorageConfig
 import org.apache.texera.common.util.RetryUtil
 
 import java.io.{File, FileOutputStream, InputStream}
-import java.net.URI
+import java.net.{HttpURLConnection, URI, URL}
 import java.nio.file.Files
 import scala.jdk.CollectionConverters._
 
@@ -188,6 +188,38 @@ object LakeFSStorageClient extends LazyLogging {
       .parts(numberOfParts)
       .execute()
 
+  }
+
+  /**
+    * Uploads one part of a presigned multipart upload: PUTs exactly `len` bytes from `buf` to
+    * the presigned URL and returns the part's ETag.
+    *
+    * This is the middle step of the presigned lifecycle — [[initiatePresignedMultipartUploads]]
+    * hands out the URLs, this uploads each part, and the returned ETag is the second half of the
+    * `(partNumber, eTag)` pairs [[completePresignedMultipartUploads]] consumes.
+    *
+    * @param buf     Buffer holding the part's bytes.
+    * @param len     Number of bytes from `buf` to send.
+    * @param url     Presigned URL for this part.
+    * @param partNum Part number, used only for the error message.
+    * @return        The ETag returned by the object store, quotes stripped.
+    */
+  def put(buf: Array[Byte], len: Int, url: String, partNum: Int): String = {
+    val conn = new URL(url).openConnection().asInstanceOf[HttpURLConnection]
+    conn.setDoOutput(true)
+    conn.setRequestMethod("PUT")
+    conn.setFixedLengthStreamingMode(len)
+    val out = conn.getOutputStream
+    out.write(buf, 0, len)
+    out.close()
+
+    val code = conn.getResponseCode
+    if (code != HttpURLConnection.HTTP_OK && code != HttpURLConnection.HTTP_CREATED)
+      throw new RuntimeException(s"Part $partNum upload failed (HTTP $code)")
+
+    val etag = conn.getHeaderField("ETag").replace("\"", "")
+    conn.disconnect()
+    etag
   }
 
   /**

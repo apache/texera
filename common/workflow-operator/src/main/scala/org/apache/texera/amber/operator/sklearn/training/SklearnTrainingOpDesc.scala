@@ -33,6 +33,7 @@ class SklearnTrainingOpDesc extends SklearnModelOpDesc {
   override def generatePythonCode(): String =
     pyb"""$getImportStatements
        |from sklearn.pipeline import make_pipeline
+       |from sklearn.compose import ColumnTransformer
        |from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
        |import numpy as np
        |from pytexera import *
@@ -45,9 +46,8 @@ class SklearnTrainingOpDesc extends SklearnModelOpDesc {
        |            print("Skipped", rows_read - len(table), "of", rows_read, "rows with missing values")
        |        Y = table[$target]
        |        X = table.drop($target, axis=1)
-       |        X = ${if (countVectorizer) pyb"X[$text]" else "X"}
 $reportMissingKept
-       |        model = make_pipeline(${if (countVectorizer) "CountVectorizer()," else ""} ${if (
+       |        model = make_pipeline(${vectorizerStage(c => pyb"$c".toString)} ${if (
       tfidfTransformer
     ) "TfidfTransformer(),"
     else ""} ${getImportStatements.split(" ").last}()).fit(X, Y)

@@ -44,7 +44,7 @@ class SklearnTrainingBernoulliNaiveBayesOpDescSpec extends AnyFlatSpec with Matc
     d.countVectorizer shouldBe false
     d.tfidfTransformer shouldBe false
     d.target shouldBe null
-    d.text shouldBe null
+    d.text shouldBe empty
   }
 
   "SklearnTrainingBernoulliNaiveBayesOpDesc.getOutputSchemas" should
@@ -78,7 +78,7 @@ class SklearnTrainingBernoulliNaiveBayesOpDescSpec extends AnyFlatSpec with Matc
     val d = new SklearnTrainingBernoulliNaiveBayesOpDesc
     d.target = "y"
     d.countVectorizer = true
-    d.text = "note"
+    d.text = List("note")
     d.generatePythonCode() should include("table.dropna(subset=[")
   }
 

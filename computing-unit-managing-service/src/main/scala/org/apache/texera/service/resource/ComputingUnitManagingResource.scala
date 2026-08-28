@@ -109,8 +109,8 @@ object ComputingUnitManagingResource {
       EnvironmentalVariable.ENV_S3_REGION -> StorageConfig.s3Region,
       EnvironmentalVariable.ENV_S3_AUTH_USERNAME -> StorageConfig.s3Username,
       EnvironmentalVariable.ENV_S3_AUTH_PASSWORD -> StorageConfig.s3Password,
-      EnvironmentalVariable.ENV_FILE_SERVICE_GET_PRESIGNED_URL_ENDPOINT -> EnvironmentalVariable
-        .get(EnvironmentalVariable.ENV_FILE_SERVICE_GET_PRESIGNED_URL_ENDPOINT)
+      EnvironmentalVariable.ENV_FILE_SERVICE_GET_DATASET_PRESIGNED_URL_ENDPOINT -> EnvironmentalVariable
+        .get(EnvironmentalVariable.ENV_FILE_SERVICE_GET_DATASET_PRESIGNED_URL_ENDPOINT)
         .get,
       EnvironmentalVariable.ENV_FILE_SERVICE_UPLOAD_ONE_FILE_TO_DATASET_ENDPOINT -> EnvironmentalVariable
         .get(EnvironmentalVariable.ENV_FILE_SERVICE_UPLOAD_ONE_FILE_TO_DATASET_ENDPOINT)
@@ -159,7 +159,7 @@ object ComputingUnitManagingResource {
       metrics: WorkflowComputingUnitMetrics,
       isOwner: Boolean,
       accessPrivilege: EnumType,
-      ownerGoogleAvatar: String,
+      ownerAvatar: String,
       ownerName: String
   )
 
@@ -398,7 +398,7 @@ class ComputingUnitManagingResource {
 
       val userDao = new UserDao(ctx.configuration())
       val ownerUser = Option(userDao.fetchOneByUid(user.getUid))
-      val ownerGoogleAvatar: String =
+      val ownerAvatar: String =
         ownerUser.flatMap(u => Option(u.getAvatar).filter(_.nonEmpty)).orNull
       val ownerUsername: String =
         ownerUser.flatMap(u => Option(u.getName).filter(_.nonEmpty)).orNull
@@ -449,7 +449,7 @@ class ComputingUnitManagingResource {
         ComputingUnitHelpers.getComputingUnitMetrics(insertedUnit),
         isOwner = true,
         accessPrivilege = PrivilegeEnum.WRITE,
-        ownerGoogleAvatar,
+        ownerAvatar,
         ownerUsername
       )
     }
@@ -558,7 +558,7 @@ class ComputingUnitManagingResource {
     val unit = getComputingUnitByCuid(context, cuid)
     val userDao = new UserDao(context.configuration())
     val ownerUser = Option(userDao.fetchOneByUid(unit.getUid))
-    val ownerGoogleAvatar: String =
+    val ownerAvatar: String =
       ownerUser.flatMap(u => Option(u.getAvatar).filter(_.nonEmpty)).orNull
     val ownerUsername: String =
       ownerUser.flatMap(u => Option(u.getName).filter(_.nonEmpty)).orNull
@@ -584,7 +584,7 @@ class ComputingUnitManagingResource {
           PrivilegeEnum.NONE
         }
       },
-      ownerGoogleAvatar,
+      ownerAvatar,
       ownerUsername
     )
   }

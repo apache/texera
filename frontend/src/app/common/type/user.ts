@@ -42,7 +42,7 @@ export interface User
     googleId?: string;
     role: Role;
     color?: string;
-    googleAvatar?: string;
+    avatar?: string;
     comment: string;
     lastLogin?: number;
     accountCreation?: Second;

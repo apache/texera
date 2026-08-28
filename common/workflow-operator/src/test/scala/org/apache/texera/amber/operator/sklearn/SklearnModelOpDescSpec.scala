@@ -78,15 +78,16 @@ class SklearnModelOpDescSpec extends AnyFlatSpec with Matchers {
   }
 
   // CountVectorizer calls .lower() on each document, which a None does not answer, so
-  // the text column goes even for an estimator that would otherwise keep the row.
-  it should "drop on the text column too when the vectorizer is on" in {
+  // every column it reads goes even for an estimator that would otherwise keep the row.
+  it should "drop on the text columns too when the vectorizer is on" in {
     val d = new TestSklearnModelOpDesc {
       override def handlesMissingValues = true
     }
     d.target = "y"
-    d.text = "note"
+    d.text = List("note", "body")
     d.countVectorizer = true
-    d.generateDropForTest should include(",")
+    // the two text columns and the target, each named through the decoder
+    d.generateDropForTest.split("decode_python_template").length - 1 shouldBe 3
   }
 
   "SklearnModelOpDesc.getOutputSchemas" should
@@ -112,5 +113,33 @@ class SklearnModelOpDescSpec extends AnyFlatSpec with Matchers {
       PortIdentity(1) -> Schema().add("other", AttributeType.INTEGER)
     )
     d.getOutputSchemas(arbitraryInput) shouldBe fromEmpty
+  }
+
+  it should "let Count Vectorizer through for an estimator that named no alternative" in {
+    // The default, and what every estimator but GaussianNB relies on: the sparse
+    // matrix is what the others accept.
+    val d = new TestSklearnModelOpDesc
+    d.countVectorizer = true
+    d.getOutputSchemas(Map.empty).keySet shouldBe Set(d.operatorInfo.outputPorts.head.id)
+  }
+
+  it should "reject Count Vectorizer for an estimator that named one" in {
+    val d = new TestSklearnModelOpDesc {
+      override protected def countVectorizerAlternatives: Option[String] = Some("Some Other Model")
+    }
+    d.countVectorizer = true
+    val thrown = intercept[RuntimeException](d.getOutputSchemas(Map.empty))
+    thrown.getMessage should include("Test Model")
+    thrown.getMessage should include("Count Vectorizer")
+    thrown.getMessage should include("Some Other Model")
+  }
+
+  it should "stay silent while Count Vectorizer is off, whatever the estimator" in {
+    // The switch defaults to off, so a freshly dropped operator must not be
+    // reported invalid before anyone has configured it.
+    val d = new TestSklearnModelOpDesc {
+      override protected def countVectorizerAlternatives: Option[String] = Some("Some Other Model")
+    }
+    d.getOutputSchemas(Map.empty).keySet shouldBe Set(d.operatorInfo.outputPorts.head.id)
   }
 }

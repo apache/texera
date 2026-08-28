@@ -32,7 +32,7 @@ describe("NotebookImportModalComponent", () => {
   let fixture: ComponentFixture<NotebookImportModalComponent>;
   let component: NotebookImportModalComponent;
   let notebookMigrationService: NotebookMigrationService;
-  let modalRef: { close: ReturnType<typeof vi.fn> };
+  let modalRef: { close: ReturnType<typeof vi.fn>; updateConfig: ReturnType<typeof vi.fn> };
   // The opener-supplied gate; tests set its resolved value to drive close vs stay-open.
   let requestImport: ReturnType<typeof vi.fn>;
 
@@ -56,17 +56,45 @@ describe("NotebookImportModalComponent", () => {
   }
 
   beforeEach(() => {
-    modalRef = { close: vi.fn() };
+    modalRef = { close: vi.fn(), updateConfig: vi.fn() };
     requestImport = vi.fn().mockResolvedValue(true);
   });
 
-  it("renders the warning, diagram, and a usable model select once models load", async () => {
+  it("renders the diagram and a usable model select once models load", async () => {
     await createWith(of([{ name: "gpt-4" }]));
     const root = fixture.nativeElement as HTMLElement;
-    expect(root.querySelector(".import-modal-warning")).not.toBeNull();
     expect(root.querySelector("img[alt='Notebook to Workflow']")).not.toBeNull();
     expect(root.querySelector("nz-select")).not.toBeNull();
     expect(root.textContent).toContain("Select a model");
+  });
+
+  it("shows the loading spinner only while a submission is in flight", async () => {
+    await createWith(of([{ name: "gpt-4" }]));
+    const spinning = () => (fixture.nativeElement as HTMLElement).querySelector(".ant-spin-spinning") !== null;
+    expect(spinning()).toBe(false);
+
+    component.isSubmitting = true;
+    fixture.detectChanges();
+    expect(spinning()).toBe(true);
+  });
+
+  it("makes the form and footer inert and announces the overlay while submitting", async () => {
+    await createWith(of([{ name: "gpt-4" }]));
+    const root = fixture.nativeElement as HTMLElement;
+    const form = () => root.querySelector(".import-modal-form");
+    const footer = () => root.querySelector(".import-modal-footer");
+
+    expect(form()?.hasAttribute("inert")).toBe(false);
+    expect(footer()?.hasAttribute("inert")).toBe(false);
+
+    component.isSubmitting = true;
+    fixture.detectChanges();
+
+    // While generating, the covered form and footer are pulled out of the focus/a11y tree,
+    // and the overlay is a live region so its status is announced.
+    expect(form()?.hasAttribute("inert")).toBe(true);
+    expect(footer()?.hasAttribute("inert")).toBe(true);
+    expect(root.querySelector(".import-modal-loading")?.getAttribute("role")).toBe("status");
   });
 
   it("shows the disabled 'no models available' select when the list is empty", async () => {
@@ -125,7 +153,7 @@ describe("NotebookImportModalComponent", () => {
   });
 
   it("onSubmit keeps the modal open when the opener declines", async () => {
-    // e.g. the user backed out of the overwrite confirmation.
+    // e.g. generation failed and the user can retry.
     requestImport.mockResolvedValue(false);
     await createWith(of([{ name: "gpt-4" }]));
     component.importForm.setValue({ file: { name: "x.ipynb" } as NzUploadFile, model: "gpt-4" });
@@ -134,6 +162,80 @@ describe("NotebookImportModalComponent", () => {
 
     expect(requestImport).toHaveBeenCalled();
     expect(modalRef.close).not.toHaveBeenCalled();
+  });
+
+  it("locks the modal shut while generating and restores the close controls on failure", async () => {
+    let resolveRequest!: (proceed: boolean) => void;
+    requestImport.mockReturnValue(new Promise<boolean>(resolve => (resolveRequest = resolve)));
+    await createWith(of([{ name: "gpt-4" }]));
+    component.importForm.setValue({ file: { name: "x.ipynb" } as NzUploadFile, model: "gpt-4" });
+
+    const submitting = component.onSubmit();
+    // While generation is pending, the X, mask click, and ESC are disabled.
+    expect(modalRef.updateConfig).toHaveBeenCalledWith({
+      nzClosable: false,
+      nzMaskClosable: false,
+      nzKeyboard: false,
+    });
+
+    resolveRequest(false); // generation failed
+    await submitting;
+    // The modal stayed open, so the close controls are restored.
+    expect(modalRef.updateConfig).toHaveBeenLastCalledWith({
+      nzClosable: true,
+      nzMaskClosable: true,
+      nzKeyboard: true,
+    });
+    expect(modalRef.close).not.toHaveBeenCalled();
+  });
+
+  it("computes the elapsed time from the start timestamp as mm:ss", async () => {
+    await createWith(of([{ name: "gpt-4" }]));
+    // No generation started yet -> no start timestamp -> zero.
+    expect(component.formattedElapsedTime).toBe("0:00");
+    (component as any).startTime = 1000;
+    vi.spyOn(Date, "now").mockReturnValue(1000 + 62_000);
+    expect(component.formattedElapsedTime).toBe("1:02");
+  });
+
+  it("runs the stopwatch off wall-clock time while generating and stops the interval when done", async () => {
+    let resolveRequest!: (proceed: boolean) => void;
+    requestImport.mockReturnValue(new Promise<boolean>(resolve => (resolveRequest = resolve)));
+    await createWith(of([{ name: "gpt-4" }]));
+    component.importForm.setValue({ file: { name: "x.ipynb" } as NzUploadFile, model: "gpt-4" });
+
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date(0));
+      const submitting = component.onSubmit();
+      expect(component.formattedElapsedTime).toBe("0:00");
+
+      // Advancing the clock (even if the interval were throttled) yields the correct elapsed time.
+      vi.advanceTimersByTime(75_000);
+      expect(component.formattedElapsedTime).toBe("1:15");
+
+      resolveRequest(false);
+      await submitting;
+      expect((component as any).timerHandle).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("has a visibilitychange handler that is safe to call (repaint is driven by the zone event)", async () => {
+    await createWith(of([{ name: "gpt-4" }]));
+    expect(() => component.onVisibilityChange()).not.toThrow();
+  });
+
+  it("clears the stopwatch interval on destroy", async () => {
+    await createWith(of([{ name: "gpt-4" }]));
+    const clearSpy = vi.spyOn(globalThis, "clearInterval");
+    (component as any).timerHandle = setInterval(() => {}, 1000);
+
+    component.ngOnDestroy();
+
+    expect(clearSpy).toHaveBeenCalled();
+    expect((component as any).timerHandle).toBeNull();
   });
 
   it("ignores a second submit while the first is still pending", async () => {

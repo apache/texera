@@ -44,7 +44,7 @@ class SklearnDecisionTreeOpDescSpec extends AnyFlatSpec with Matchers {
     d.countVectorizer shouldBe false
     d.tfidfTransformer shouldBe false
     d.target shouldBe null
-    d.text shouldBe null
+    d.text shouldBe empty
   }
 
   // A split compares, and a comparison can ask whether the value is there before it

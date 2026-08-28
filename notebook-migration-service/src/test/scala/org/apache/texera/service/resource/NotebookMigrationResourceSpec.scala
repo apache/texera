@@ -73,6 +73,10 @@ class NotebookMigrationResourceSpec
   private var writerUid: Integer = _ // holds WRITE access to testWid
   private var readerUid: Integer = _ // holds READ access to testWid
 
+  // Method and path of the last /api/contents request the fake Jupyter saw, so a test can pin
+  // the verb and URL a Jupyter call uses. A var is safe here because the spec runs sequentially.
+  private var lastContentsRequest: Option[(String, String)] = None
+
   private val sampleNotebook =
     """{"cells":[{"cell_type":"code","metadata":{},"source":"print(1)"}]}"""
   private val sampleMapping =
@@ -87,6 +91,7 @@ class NotebookMigrationResourceSpec
     workflowVersionDao = new WorkflowVersionDao(cfg)
     userDao = new UserDao(cfg)
     workflowUserAccessDao = new WorkflowUserAccessDao(cfg)
+    lastContentsRequest = None
     cleanup()
 
     val workflow = new Workflow
@@ -150,18 +155,22 @@ class NotebookMigrationResourceSpec
     getDSLContext.deleteFrom(USER).where(USER.EMAIL.in(writerEmail, readerEmail)).execute()
   }
 
+  // The endpoints resolve the vid server-side (store) or ignore it (fetch), so the
+  // client sends only the wid — no vid field, matching the real frontend requests.
   private def storePayload(
       notebook: String = sampleNotebook,
-      mapping: String = sampleMapping,
-      vid: Integer = seededVid
+      mapping: String = sampleMapping
   ): String =
-    s"""{"wid": $testWid, "vid": $vid, "notebook": $notebook, "mapping": $mapping}"""
+    s"""{"wid": $testWid, "notebook": $notebook, "mapping": $mapping}"""
 
-  private def fetchPayload(vid: Integer = seededVid): String =
-    s"""{"wid": $testWid, "vid": $vid}"""
+  private def fetchPayload(): String =
+    s"""{"wid": $testWid}"""
 
   private def deletePayload(): String =
     s"""{"wid": $testWid}"""
+
+  private def deleteNotebookPayload(name: String = "notebook.ipynb"): String =
+    s"""{"notebookName": "$name"}"""
 
   private val resource = new NotebookMigrationResource()
 
@@ -194,11 +203,17 @@ class NotebookMigrationResourceSpec
       "/api/contents",
       (exchange: com.sun.net.httpserver.HttpExchange) => {
         exchange.getRequestBody.readAllBytes()
-        val body = "{}".getBytes("UTF-8")
-        exchange.sendResponseHeaders(contentsStatus, body.length)
-        val os = exchange.getResponseBody
-        os.write(body)
-        os.close()
+        lastContentsRequest = Some((exchange.getRequestMethod, exchange.getRequestURI.getPath))
+        if (contentsStatus == 204) {
+          // 204 carries no body, so send the headers with a -1 length.
+          exchange.sendResponseHeaders(contentsStatus, -1)
+        } else {
+          val body = "{}".getBytes("UTF-8")
+          exchange.sendResponseHeaders(contentsStatus, body.length)
+          val os = exchange.getResponseBody
+          os.write(body)
+          os.close()
+        }
       }
     )
     server.start()
@@ -220,6 +235,7 @@ class NotebookMigrationResourceSpec
 
     val mappingRow = getDSLContext.selectFrom(WORKFLOW_NOTEBOOK_MAPPING).fetchOne()
     mappingRow.get(WORKFLOW_NOTEBOOK_MAPPING.WID) shouldBe testWid
+    // vid is resolved server-side to the workflow's latest version (the only seeded one here).
     mappingRow.get(WORKFLOW_NOTEBOOK_MAPPING.VID) shouldBe seededVid
     // The mapping row must reference the just-inserted notebook by its returned nid.
     mappingRow.get(WORKFLOW_NOTEBOOK_MAPPING.NID) shouldBe notebookRow.get(NOTEBOOK.NID)
@@ -257,18 +273,26 @@ class NotebookMigrationResourceSpec
     storedMappingJson should include("\"cell1\"")
   }
 
-  it should "roll back the notebook insert when the mapping insert fails its FK constraint" in {
-    // workflow_notebook_mapping.vid has FK -> workflow_version(vid). Passing an
-    // unknown vid trips the mapping insert; because both inserts share a single
-    // SqlServer.withTransaction block, the notebook insert must roll back too.
-    // Without this guarantee, orphaned notebook rows would accumulate on every
-    // failed store.
-    val unknownVid: Integer = -1
-    val response = NotebookMigrationResource.storeNotebookAndMapping(
-      storePayload(vid = unknownVid),
-      writerUid
-    )
-    response.getStatus shouldBe Response.Status.INTERNAL_SERVER_ERROR.getStatusCode
+  it should "ignore a client-supplied vid and anchor the mapping to the workflow's latest version" in {
+    // The vid FK is resolved server-side to MAX(workflow_version.vid) for the wid, so a
+    // stale or bogus vid in the request body must never reach the mapping row. This pins
+    // the fix for the old hardcoded vid=1 behaviour.
+    val payload =
+      s"""{"wid": $testWid, "vid": 999999, "notebook": $sampleNotebook, "mapping": $sampleMapping}"""
+    val response = NotebookMigrationResource.storeNotebookAndMapping(payload, writerUid)
+    response.getStatus shouldBe Response.Status.OK.getStatusCode
+
+    val mappingRow = getDSLContext.selectFrom(WORKFLOW_NOTEBOOK_MAPPING).fetchOne()
+    mappingRow.get(WORKFLOW_NOTEBOOK_MAPPING.VID) shouldBe seededVid
+  }
+
+  it should "return 400 and store nothing when the workflow has no version to anchor the mapping" in {
+    // The mapping's vid FK needs a real workflow_version row. With none, the store must
+    // fail cleanly with a 400 before any insert, not a 500 from the FK constraint.
+    getDSLContext.deleteFrom(WORKFLOW_VERSION).where(WORKFLOW_VERSION.WID.eq(testWid)).execute()
+
+    val response = NotebookMigrationResource.storeNotebookAndMapping(storePayload(), writerUid)
+    response.getStatus shouldBe Response.Status.BAD_REQUEST.getStatusCode
     getDSLContext.fetchCount(NOTEBOOK) shouldBe 0
     getDSLContext.fetchCount(WORKFLOW_NOTEBOOK_MAPPING) shouldBe 0
   }
@@ -289,7 +313,7 @@ class NotebookMigrationResourceSpec
 
   // -- fetchNotebookAndMapping ------------------------------------------------
 
-  "fetchNotebookAndMapping" should "return exists=false when no notebook is stored for the (wid, vid)" in {
+  "fetchNotebookAndMapping" should "return exists=false when no notebook is stored for the workflow" in {
     val response = NotebookMigrationResource.fetchNotebookAndMapping(fetchPayload(), writerUid)
     response.getStatus shouldBe Response.Status.OK.getStatusCode
     response.getEntity.toString should include("\"exists\": false")
@@ -308,7 +332,7 @@ class NotebookMigrationResourceSpec
     entity should include("\"mapping\":")
   }
 
-  it should "return the stored notebook content for a (wid, vid) on fetch" in {
+  it should "return the stored notebook content for the workflow on fetch" in {
     // notebook.wid is UNIQUE — one notebook per workflow — so the endpoint's
     // orderBy(NID.desc).limit(1) resolves to that single row. This pins the
     // workflow-reopen path: after a store, fetch must return that notebook's content.
@@ -326,6 +350,27 @@ class NotebookMigrationResourceSpec
         .getEntity
         .toString
     entity should include("\"v1\"")
+  }
+
+  it should "return the notebook regardless of the workflow's current version" in {
+    // The mapping is stored under the version present at store time; the workflow may then
+    // advance to a newer version. Fetch keys on wid alone, so the notebook still reattaches.
+    // This mirrors the reopen-after-edit path.
+    NotebookMigrationResource.storeNotebookAndMapping(storePayload(), writerUid)
+
+    val newerVersion = new WorkflowVersion
+    newerVersion.setWid(testWid)
+    newerVersion.setContent("{}")
+    newerVersion.setCreationTime(new Timestamp(System.currentTimeMillis()))
+    workflowVersionDao.insert(newerVersion)
+    newerVersion.getVid.intValue() should be > seededVid.intValue()
+
+    val entity =
+      NotebookMigrationResource
+        .fetchNotebookAndMapping(fetchPayload(), writerUid)
+        .getEntity
+        .toString
+    entity should include("\"exists\": true")
   }
 
   // -- deleteNotebookAndMapping -----------------------------------------------
@@ -362,18 +407,18 @@ class NotebookMigrationResourceSpec
     getDSLContext.fetchCount(WORKFLOW_NOTEBOOK_MAPPING) shouldBe 1
   }
 
-  it should "return 500 when the request body is malformed JSON" in {
-    // Exercises the NonFatal catch path in deleteNotebookAndMapping.
+  it should "return 400 when the request body is malformed JSON" in {
+    // Malformed input is a client error, caught by parseBody before the generic 500 handler.
     resource
       .deleteNotebookAndMapping("not json", sessionUser(writerUid))
-      .getStatus shouldBe 500
+      .getStatus shouldBe Response.Status.BAD_REQUEST.getStatusCode
   }
 
   // -- wid validation ---------------------------------------------------------
 
   "store/fetch/delete" should "return 400 Bad Request when 'wid' is missing from the body" in {
     // A missing wid must be a client error, not a 500 from the null.asInt() NPE.
-    val noWid = s"""{"vid": $seededVid}"""
+    val noWid = """{"notebook": {}, "mapping": {}}"""
     NotebookMigrationResource
       .storeNotebookAndMapping(noWid, writerUid)
       .getStatus shouldBe Response.Status.BAD_REQUEST.getStatusCode
@@ -389,7 +434,7 @@ class NotebookMigrationResourceSpec
 
   it should "return 400 Bad Request when 'wid' is not an integer" in {
     // A non-integer wid must be rejected rather than silently coerced to 0 by asInt().
-    val badWid = s"""{"wid": "not-an-int", "vid": $seededVid}"""
+    val badWid = """{"wid": "not-an-int"}"""
     NotebookMigrationResource
       .storeNotebookAndMapping(badWid, writerUid)
       .getStatus shouldBe Response.Status.BAD_REQUEST.getStatusCode
@@ -449,14 +494,17 @@ class NotebookMigrationResourceSpec
 
     resource.setNotebook(validNotebook, user).getStatus shouldBe 500
     resource.getJupyterURL(user).getStatus shouldBe 500
-    resource.getJupyterIframeURL(user).getStatus shouldBe 500
+    resource.getJupyterIframeURL(null, user).getStatus shouldBe 500
+    resource.deleteNotebook(deleteNotebookPayload(), user).getStatus shouldBe 500
   }
 
-  it should "return 500 when the request body is malformed JSON" in {
-    // Exercises the NonFatal catch paths in setNotebook and fetchNotebookAndMapping.
+  it should "return 400 when the request body is malformed JSON" in {
+    // Malformed input is a client error: parseBody rejects it before any downstream work.
     val user = sessionUser(writerUid)
-    resource.setNotebook("not json", user).getStatus shouldBe 500
-    resource.fetchNotebookAndMapping("not json", user).getStatus shouldBe 500
+    val badRequest = Response.Status.BAD_REQUEST.getStatusCode
+    resource.setNotebook("not json", user).getStatus shouldBe badRequest
+    resource.storeNotebookAndMapping("not json", user).getStatus shouldBe badRequest
+    resource.fetchNotebookAndMapping("not json", user).getStatus shouldBe badRequest
   }
 
   it should "upload the notebook and return success when Jupyter accepts it" in {
@@ -481,9 +529,112 @@ class NotebookMigrationResourceSpec
       urlResp.getStatus shouldBe Response.Status.OK.getStatusCode
       urlResp.getEntity.toString should include("localhost:9100")
 
-      val iframeResp = resource.getJupyterIframeURL(sessionUser(writerUid))
+      val iframeResp = resource.getJupyterIframeURL(null, sessionUser(writerUid))
       iframeResp.getStatus shouldBe Response.Status.OK.getStatusCode
-      iframeResp.getEntity.toString should include("/notebooks/work/")
+      iframeResp.getEntity.toString should include("/notebooks/work/notebook.ipynb")
+    }
+  }
+
+  // -- internal vs public Jupyter URL ----------------------------------------
+  // The rest of the suite runs with the configured default, where both URLs are
+  // localhost:9100, so it cannot tell the two apart. These pin the split itself.
+
+  // Reachable stub for what the service dials; an unroutable address for what the browser
+  // gets. 192.0.2.0/24 is TEST-NET-1 (RFC 5737) and routes nowhere, so a call that wrongly
+  // dials the public URL fails rather than silently passing. Numeric on purpose: a hostname
+  // would go through the resolver, which setConnectTimeout does not bound.
+  private val splitEndpoints = NotebookMigrationResource.JupyterEndpoints(
+    internalUrl = "http://localhost:9100",
+    publicUrl = "http://192.0.2.1:1234",
+    token = "texera"
+  )
+
+  "the internal/public URL split" should "dial the internal URL and return only the public one" in {
+    withFakeJupyter(contentsStatus = 201) {
+      val urlResp = NotebookMigrationResource.getJupyterURL(splitEndpoints)
+      urlResp.getStatus shouldBe Response.Status.OK.getStatusCode
+      urlResp.getEntity.toString should include("192.0.2.1:1234")
+      urlResp.getEntity.toString should not include "localhost:9100"
+
+      val iframe = NotebookMigrationResource.getJupyterIframeURL("notebook.ipynb", splitEndpoints)
+      iframe.getStatus shouldBe Response.Status.OK.getStatusCode
+      iframe.getEntity.toString should include("192.0.2.1:1234")
+      iframe.getEntity.toString should not include "localhost:9100"
+    }
+  }
+
+  it should "send the notebook to the internal URL, not the public one" in {
+    withFakeJupyter(contentsStatus = 201) {
+      val resp = NotebookMigrationResource.setNotebook(
+        """{"notebookName": "notebook.ipynb", "notebookData": {"cells": []}}""",
+        splitEndpoints
+      )
+      // Reaching the stub at all proves the upload used internalUrl: the public one is
+      // unroutable, so a swap would surface here as a 500.
+      resp.getStatus shouldBe Response.Status.OK.getStatusCode
+      lastContentsRequest shouldBe Some(("PUT", "/api/contents/work/notebook.ipynb"))
+    }
+  }
+
+  it should "delete against the internal URL, not the public one" in {
+    withFakeJupyter(contentsStatus = 204) {
+      val resp = NotebookMigrationResource.deleteNotebook(
+        """{"notebookName": "notebook.ipynb"}""",
+        splitEndpoints
+      )
+      resp.getStatus shouldBe Response.Status.OK.getStatusCode
+      lastContentsRequest shouldBe Some(("DELETE", "/api/contents/work/notebook.ipynb"))
+    }
+  }
+
+  it should "report Jupyter unavailable when only the public URL is reachable" in {
+    // The inverse of the tests above, and the one that catches the fields being swapped:
+    // the reachability probe must follow internalUrl, so a reachable public URL must not
+    // rescue an unreachable internal one.
+    withFakeJupyter(contentsStatus = 201) {
+      // Port 9 on loopback: refused immediately, so this fails fast and without DNS.
+      val swapped = NotebookMigrationResource.JupyterEndpoints(
+        internalUrl = "http://127.0.0.1:9",
+        publicUrl = "http://localhost:9100",
+        token = "texera"
+      )
+      NotebookMigrationResource.getJupyterURL(swapped).getStatus shouldBe 500
+      NotebookMigrationResource
+        .getJupyterIframeURL("notebook.ipynb", swapped)
+        .getStatus shouldBe 500
+    }
+  }
+
+  it should "build the iframe URL from an explicit notebook name" in {
+    withFakeJupyter(contentsStatus = 201) {
+      val resp = resource.getJupyterIframeURL("other.ipynb", sessionUser(writerUid))
+      resp.getStatus shouldBe Response.Status.OK.getStatusCode
+      resp.getEntity.toString should include("/notebooks/work/other.ipynb")
+    }
+  }
+
+  it should "reject an invalid notebook name for the iframe URL with 400" in {
+    // notebookName flows into the URL, so it is validated before any Jupyter call and
+    // rejected without a running server.
+    NotebookMigrationResource
+      .getJupyterIframeURL("../../etc/evil.ipynb")
+      .getStatus shouldBe Response.Status.BAD_REQUEST.getStatusCode
+  }
+
+  it should "not be affected by a prior setNotebook call (no shared iframe state)" in {
+    // Pins the stateless refactor: getJupyterIframeURL builds its URL from the request, not
+    // from state left by setNotebook. A param-less iframe request after uploading other.ipynb
+    // must return the default notebook, not the just-uploaded name.
+    withFakeJupyter(contentsStatus = 201) {
+      val user = sessionUser(writerUid)
+      resource
+        .setNotebook("""{"notebookName": "other.ipynb", "notebookData": {"cells": []}}""", user)
+        .getStatus shouldBe Response.Status.OK.getStatusCode
+
+      val iframe = resource.getJupyterIframeURL(null, user)
+      iframe.getStatus shouldBe Response.Status.OK.getStatusCode
+      iframe.getEntity.toString should include("/notebooks/work/notebook.ipynb")
+      iframe.getEntity.toString should not include "other.ipynb"
     }
   }
 
@@ -510,6 +661,76 @@ class NotebookMigrationResourceSpec
         .setNotebook(body, sessionUser(writerUid))
         .getStatus shouldBe Response.Status.OK.getStatusCode
     }
+  }
+
+  // -- deleteNotebook (Jupyter file) ------------------------------------------
+
+  "deleteNotebook" should "DELETE the notebook's contents path and report deleted=1" in {
+    withFakeJupyter(contentsStatus = 204) {
+      val name = s"notebook_$testWid.ipynb"
+      val resp = resource.deleteNotebook(deleteNotebookPayload(name), sessionUser(writerUid))
+      resp.getStatus shouldBe Response.Status.OK.getStatusCode
+      resp.getEntity.toString should include("\"deleted\":1")
+      // Pins the verb and the work/ path, the two things that make this the counterpart
+      // of setNotebook's PUT rather than a delete of some other file.
+      lastContentsRequest shouldBe Some(("DELETE", s"/api/contents/work/$name"))
+    }
+  }
+
+  it should "treat a 200 from Jupyter as a successful delete, reporting deleted=1" in {
+    // Some Jupyter versions answer 200 instead of 204 on a delete; both mean success.
+    withFakeJupyter(contentsStatus = 200) {
+      val resp = resource.deleteNotebook(deleteNotebookPayload(), sessionUser(writerUid))
+      resp.getStatus shouldBe Response.Status.OK.getStatusCode
+      resp.getEntity.toString should include("\"deleted\":1")
+    }
+  }
+
+  it should "treat a 404 from Jupyter as a no-op, reporting deleted=0" in {
+    // A workflow whose notebook was never uploaded must still delete cleanly.
+    withFakeJupyter(contentsStatus = 404) {
+      val resp = resource.deleteNotebook(deleteNotebookPayload(), sessionUser(writerUid))
+      resp.getStatus shouldBe Response.Status.OK.getStatusCode
+      resp.getEntity.toString should include("\"deleted\":0")
+    }
+  }
+
+  it should "return 500 when Jupyter rejects the delete" in {
+    withFakeJupyter(contentsStatus = 500) {
+      resource
+        .deleteNotebook(deleteNotebookPayload(), sessionUser(writerUid))
+        .getStatus shouldBe 500
+    }
+  }
+
+  it should "reject a notebook name that is not a plain .ipynb filename with 400" in {
+    // Validated before any Jupyter call, so no server is needed. Covers path traversal,
+    // a wrong extension, and an embedded subpath.
+    Seq("../../etc/evil.ipynb", "notebook.txt", "work/notebook.ipynb").foreach { name =>
+      withClue(s"name=$name: ") {
+        NotebookMigrationResource
+          .deleteNotebook(deleteNotebookPayload(name))
+          .getStatus shouldBe Response.Status.BAD_REQUEST.getStatusCode
+      }
+      lastContentsRequest shouldBe None
+    }
+  }
+
+  it should "return 400 when 'notebookName' is missing or not a string" in {
+    // A missing name must be a client error, not a 500 from null.asText().
+    Seq("""{}""", """{"notebookName": 7}""").foreach { body =>
+      withClue(s"body=$body: ") {
+        NotebookMigrationResource
+          .deleteNotebook(body)
+          .getStatus shouldBe Response.Status.BAD_REQUEST.getStatusCode
+      }
+    }
+  }
+
+  it should "return 400 when the request body is malformed JSON" in {
+    resource
+      .deleteNotebook("not json", sessionUser(writerUid))
+      .getStatus shouldBe Response.Status.BAD_REQUEST.getStatusCode
   }
 
   // -- setNotebook ------------------------------------------------------------

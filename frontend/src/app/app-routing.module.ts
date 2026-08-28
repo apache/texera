@@ -39,6 +39,7 @@ import { FeedbackComponent } from "./dashboard/component/user/feedback/feedback.
 import { AdminGmailComponent } from "./dashboard/component/admin/gmail/admin-gmail.component";
 import { DatasetDetailComponent } from "./dashboard/component/user/user-dataset/user-dataset-explorer/dataset-detail.component";
 import { UserDatasetComponent } from "./dashboard/component/user/user-dataset/user-dataset.component";
+import { UserModelComponent } from "./dashboard/component/user/user-model/user-model.component";
 import { HubWorkflowDetailComponent } from "./hub/component/workflow/detail/hub-workflow-detail.component";
 import { LandingPageComponent } from "./hub/component/landing-page/landing-page.component";
 import { USER_WORKFLOW } from "./app-routing.constant";
@@ -134,6 +135,10 @@ routes.push({
         {
           path: "dataset/create",
           component: DatasetDetailComponent,
+        },
+        {
+          path: "model",
+          component: UserModelComponent,
         },
         {
           path: "compute",

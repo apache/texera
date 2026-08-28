@@ -22,7 +22,6 @@ import { JupyterPanelService } from "../../service/jupyter-panel/jupyter-panel.s
 import { from, of, Subject } from "rxjs";
 import { catchError, switchMap, takeUntil } from "rxjs/operators";
 import { DomSanitizer, SafeResourceUrl } from "@angular/platform-browser";
-import { NotebookMigrationService } from "../../service/notebook-migration/notebook-migration.service";
 import { CommonModule } from "@angular/common";
 import { DragDropModule } from "@angular/cdk/drag-drop";
 import { NzButtonModule } from "ng-zorro-antd/button";
@@ -45,8 +44,7 @@ export class JupyterNotebookPanelComponent implements OnInit, AfterViewInit, OnD
 
   constructor(
     private jupyterPanelService: JupyterPanelService,
-    private sanitizer: DomSanitizer,
-    private notebookMigrationService: NotebookMigrationService
+    private sanitizer: DomSanitizer
   ) {}
 
   ngOnInit(): void {
@@ -59,7 +57,7 @@ export class JupyterNotebookPanelComponent implements OnInit, AfterViewInit, OnD
             return of(null);
           }
 
-          return from(this.notebookMigrationService.getJupyterIframeURL()).pipe(
+          return from(this.jupyterPanelService.getJupyterIframeURLForWorkflow()).pipe(
             catchError(() => {
               console.error("Failed to fetch Jupyter iframe URL.");
               return of(null);
