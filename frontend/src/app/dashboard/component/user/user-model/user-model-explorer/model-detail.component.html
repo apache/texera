@@ -131,7 +131,7 @@
             </div>
             <div class="stat-row">
               <span class="stat-label">Last updated</span>
-              <span class="stat-value">{{ latestVersionCreationTime }}</span>
+              <span class="stat-value">{{ latestVersionCreationTime || "—" }}</span>
             </div>
             <div class="stat-row">
               <span class="stat-label">Versions</span>
@@ -147,11 +147,13 @@
             </div>
             <div class="stat-row">
               <span class="stat-label">Latest version file</span>
-              <span class="stat-value">{{ latestVersionFileName }}</span>
+              <span class="stat-value">{{ latestVersionFileName || "—" }}</span>
             </div>
             <div class="stat-row">
               <span class="stat-label">Latest version size</span>
-              <span class="stat-value">{{ formatSize(latestVersionSize) }}</span>
+              <span class="stat-value"
+                >{{ latestVersionSize === undefined ? "—" : formatSize(latestVersionSize) }}</span
+              >
             </div>
           </div>
         </nz-card>

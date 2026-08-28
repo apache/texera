@@ -420,6 +420,16 @@ describe("ModelDetailComponent", () => {
     expect(root.textContent).toContain("torchscript");
   });
 
+  it("dashes out the latest-version facts for a model with no versions", () => {
+    create();
+    const stats = q(render(), ".data-card-stats").textContent ?? "";
+
+    // "0 B" would assert a zero-byte version that does not exist; the card already
+    // uses an em dash for an absent framework or format.
+    expect(stats).not.toContain("0 B");
+    expect(stats.match(/—/g)?.length).toBe(3);
+  });
+
   it("shows the empty-version notice until a version exists", () => {
     create();
     const root = openTab("Versions & Files");
