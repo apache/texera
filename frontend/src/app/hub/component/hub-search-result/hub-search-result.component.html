@@ -20,8 +20,18 @@
 <div class="search-container">
   <div class="search-section">
     <div class="filter">
+<<<<<<< HEAD
       <texera-sort-button (sortMethodChange)="sortMethod = $event; search()"></texera-sort-button>
       <texera-filters #filters></texera-filters>
+=======
+      <texera-sort-button
+        [showEditTime]="searchType !== 'dataset'"
+        [showExecutionTime]="searchType !== 'dataset'"
+        (sortMethodChange)="sortMethod = $event; search()"></texera-sort-button>
+      <texera-filters
+        [entityType]="filterEntityType"
+        #filters></texera-filters>
+>>>>>>> eddec267a (fix(frontend, amber): source filter owners per resource kind and apply them to datasets (#8060))
       <div
         *ngIf="searchType === 'dataset'"
         class="view-toggle">

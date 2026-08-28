@@ -32,7 +32,39 @@
           nzTheme="outline"></i>
         <span>Create Dataset</span>
       </button>
+<<<<<<< HEAD
       <texera-filters #filters></texera-filters>
+=======
+      <nz-space-compact class="utility-button-group">
+        <texera-sort-button
+          [showEditTime]="false"
+          [showExecutionTime]="false"
+          (sortMethodChange)="sortMethod = $event; search()"></texera-sort-button>
+        <button
+          nz-button
+          title="List View"
+          (click)="setViewType('list')"
+          [nzType]="viewType === 'list' ? 'primary' : 'default'">
+          <i
+            nz-icon
+            nzType="bars"
+            nzTheme="outline"></i>
+        </button>
+        <button
+          nz-button
+          title="Card View"
+          (click)="setViewType('card')"
+          [nzType]="viewType === 'card' ? 'primary' : 'default'">
+          <i
+            nz-icon
+            nzType="appstore"
+            nzTheme="outline"></i>
+        </button>
+      </nz-space-compact>
+      <texera-filters
+        [entityType]="entityType"
+        #filters></texera-filters>
+>>>>>>> eddec267a (fix(frontend, amber): source filter owners per resource kind and apply them to datasets (#8060))
     </div>
   </nz-card>
 

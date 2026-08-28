@@ -43,6 +43,7 @@ import { NzIconDirective } from "ng-zorro-antd/icon";
 import { FiltersInstructionsComponent } from "../filters-instructions/filters-instructions.component";
 import { NzSelectComponent } from "ng-zorro-antd/select";
 import { FormsModule } from "@angular/forms";
+import { EntityType } from "../../../../hub/service/hub.service";
 
 @UntilDestroy()
 @Component({
@@ -64,7 +65,15 @@ import { FormsModule } from "@angular/forms";
   ],
 })
 export class UserDatasetComponent implements AfterViewInit {
+<<<<<<< HEAD
   public sortMethod = SortMethod.EditTimeDesc;
+=======
+  public readonly entityType = EntityType.Dataset;
+  private static readonly VIEW_MODE_STORAGE_KEY = "texera.userDataset.viewMode";
+  // Datasets have no "last modified" timestamp, so EditTimeDesc leaves the sort key NULL for every
+  // row and produces an undefined order. Default to CreateTimeDesc so newly created datasets appear first.
+  public sortMethod = SortMethod.CreateTimeDesc;
+>>>>>>> eddec267a (fix(frontend, amber): source filter owners per resource kind and apply them to datasets (#8060))
   lastSortMethod: SortMethod | null = null;
   public isLogin = this.userService.isLogin();
   public currentUid = this.userService.getCurrentUser()?.uid;
