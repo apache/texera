@@ -55,14 +55,6 @@
     color: #1890ff;
   }
 
-  &.unit-disconnected {
-    color: #ff4d4f;
-  }
-
-  &.unit-terminating {
-    color: #faad14;
-  }
-
   &[disabled] {
     opacity: 0.6;
     cursor: not-allowed !important;

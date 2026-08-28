@@ -45,7 +45,7 @@ import {
   memoryPercentage,
   validateName,
   getComputingUnitBadgeColor,
-  getComputingUnitStatusTooltip,
+  getComputingUnitRowTooltip,
   getComputingUnitCpuStatus,
   getComputingUnitMemoryStatus,
   getComputingUnitCpuLimitUnit,
@@ -131,6 +131,8 @@ type PveDraft = {
   ],
 })
 export class ComputingUnitSelectionComponent implements OnInit {
+  readonly getRowTooltip = getComputingUnitRowTooltip;
+
   // variables for creating a virtual environment
   pves: PveDraft[] = [];
   systemPackages: { name: string; version: string }[] = [];
@@ -571,33 +573,6 @@ export class ComputingUnitSelectionComponent implements OnInit {
 
   getMemoryUnit(): string {
     return this.getMemoryLimitUnit() === "" ? "B" : this.getMemoryLimitUnit();
-  }
-
-  /**
-   * Returns a descriptive tooltip for a specific unit's status
-   */
-  getUnitStatusTooltip(unit: DashboardWorkflowComputingUnit): string {
-    return getComputingUnitStatusTooltip(unit);
-  }
-
-  /**
-   * Row tooltip for a unit that cannot be selected. The status tooltip may already
-   * end with a period (e.g. an owner-facing statusReason), so trim it before
-   * appending the sentence to avoid a doubled dot.
-   */
-  getCannotSelectTooltip(unit: DashboardWorkflowComputingUnit): string {
-    return `${this.getUnitStatusTooltip(unit).replace(/\.$/, "")}. Cannot select.`;
-  }
-
-  /**
-   * The tooltip for a dropdown row: the status/reason, plus the cannot-select
-   * sentence when the unit is not selectable. The badge and name inside the row
-   * deliberately carry no tooltip of their own, so hovering the row body shows a
-   * single bubble. (The action icons keep their own tooltips, which stack on top
-   * of the row's while hovered — same as main's behavior on non-selectable rows.)
-   */
-  getRowTooltip(unit: DashboardWorkflowComputingUnit): string {
-    return this.cannotSelectUnit(unit) ? this.getCannotSelectTooltip(unit) : this.getUnitStatusTooltip(unit);
   }
 
   public async onClickOpenShareAccess(cuid: number): Promise<void> {

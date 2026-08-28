@@ -156,8 +156,8 @@ object ComputingUnitManagingResource {
   case class DashboardWorkflowComputingUnit(
       computingUnit: WorkflowComputingUnit,
       status: String,
-      // Owner-only, user-friendly explanation of a failing/degraded status; serialized as null
-      // for non-owners (and whenever there is nothing to explain).
+      // User-friendly explanation of a failing/degraded status; serialized as null when there is
+      // nothing to explain or the endpoint does not authorize the caller to view it.
       statusReason: Option[String],
       metrics: WorkflowComputingUnitMetrics,
       isOwner: Boolean,
@@ -535,9 +535,11 @@ class ComputingUnitManagingResource {
         ComputingUnitHelpers.resolveOwnerInfo(userDao, liveUnits.map(_.getUid).distinct)
 
       liveUnits.map { unit =>
+        val isOwner = unit.getUid.equals(uid)
         ComputingUnitHelpers.buildDashboardUnit(
           unit,
-          isOwner = unit.getUid.equals(uid),
+          isOwner = isOwner,
+          canViewStatusReason = isOwner,
           accessPrivilege = privilegeByCuid(unit.getCuid),
           ownerInfo = ownerInfoMap,
           podSnapshots = podSnapshots,
@@ -576,7 +578,8 @@ class ComputingUnitManagingResource {
     DashboardWorkflowComputingUnit(
       computingUnit = unit,
       status = status.toString,
-      // Same owner-only gating as the listing rows built by buildDashboardUnit.
+      // The direct and regular-user listing endpoints remain owner-gated; the separate admin
+      // listing authorizes administrators to view reasons without marking them as owners.
       statusReason = if (isOwner) statusReason else None,
       metrics = ComputingUnitHelpers.getComputingUnitMetrics(unit),
       isOwner = isOwner,

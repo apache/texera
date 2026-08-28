@@ -30,6 +30,7 @@ import {
   memoryPercentage,
   validateName,
   getComputingUnitBadgeColor,
+  getComputingUnitRowTooltip,
   getComputingUnitStatusTooltip,
   getComputingUnitCpuStatus,
   getComputingUnitMemoryStatus,
@@ -213,7 +214,7 @@ describe("getComputingUnitStatusTooltip", () => {
   });
 
   it("should show the backend's status reason whenever one is present", () => {
-    // The reason is owner-only and already user-friendly, so it wins over every canned text:
+    // An authorized viewer's reason is already user-friendly, so it wins over every canned text:
     // a failure explanation, a Pending unschedulable note, or a Running recovered-OOM warning.
     expect(
       getComputingUnitStatusTooltip({
@@ -235,7 +236,7 @@ describe("getComputingUnitStatusTooltip", () => {
     ).toBe("The computing unit is waiting for cluster resources to become available.");
   });
 
-  it("should show a generic unavailable message for reason-less failure states (non-owners)", () => {
+  it("should show a generic unavailable message for reason-less failure states", () => {
     expect(getComputingUnitStatusTooltip({ status: "Failed" } as unknown as DashboardWorkflowComputingUnit)).toBe(
       "This computing unit is unavailable."
     );
@@ -245,8 +246,8 @@ describe("getComputingUnitStatusTooltip", () => {
   });
 
   it("should not let an empty-string statusReason shadow the canned fallback", () => {
-    // The backend omits the reason (undefined) for non-owners, but an empty string must
-    // behave the same way: it is falsy, so the status switch still decides the text.
+    // The backend omits the reason (undefined) for ordinary shared users, but an empty string
+    // must behave the same way: it is falsy, so the status switch still decides the text.
     expect(
       getComputingUnitStatusTooltip({
         status: "Failed",
@@ -263,6 +264,27 @@ describe("getComputingUnitStatusTooltip", () => {
     // enum word never reaches the user.
     expect(getComputingUnitStatusTooltip({ status: "Terminating" } as unknown as DashboardWorkflowComputingUnit)).toBe(
       "Computing unit is shutting down"
+    );
+  });
+});
+
+describe("getComputingUnitRowTooltip", () => {
+  it("should show only the status tooltip for a selectable running unit", () => {
+    expect(getComputingUnitRowTooltip(makeUnit({ status: "Running" }))).toBe("Ready to use");
+    expect(getComputingUnitRowTooltip(makeUnit({ status: "Running", statusReason: "OOM warning." }))).toBe(
+      "OOM warning."
+    );
+  });
+
+  it("should explain why a non-running unit cannot be selected without doubling punctuation", () => {
+    expect(getComputingUnitRowTooltip(makeUnit({ status: "Pending" }))).toBe(
+      "Computing unit is starting up. Cannot select."
+    );
+    expect(getComputingUnitRowTooltip(makeUnit({ status: "Failed" }))).toBe(
+      "This computing unit is unavailable. Cannot select."
+    );
+    expect(getComputingUnitRowTooltip(makeUnit({ status: "Failed", statusReason: "Crash loop detected." }))).toBe(
+      "Crash loop detected. Cannot select."
     );
   });
 });

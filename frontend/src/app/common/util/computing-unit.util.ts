@@ -208,7 +208,7 @@ export function getComputingUnitBadgeColor(status: string): string {
 }
 
 export function getComputingUnitStatusTooltip(entry: DashboardWorkflowComputingUnit): string {
-  // The owner-only statusReason is already user-friendly and more specific than any canned
+  // A provided statusReason is already user-friendly and more specific than any canned
   // text (failure cause, unschedulable wait, or a recovered-OOM warning on a Running unit).
   if (entry.statusReason) {
     return entry.statusReason;
@@ -218,7 +218,7 @@ export function getComputingUnitStatusTooltip(entry: DashboardWorkflowComputingU
       return "Ready to use";
     case "Pending":
       return "Computing unit is starting up";
-    // Non-owners get no reason from the backend, only the generic text.
+    // Ordinary shared users get no reason from the backend, only the generic text.
     case "Failed":
     case "Unknown":
       return "This computing unit is unavailable.";
@@ -227,6 +227,14 @@ export function getComputingUnitStatusTooltip(entry: DashboardWorkflowComputingU
     default:
       return entry.status;
   }
+}
+
+export function getComputingUnitRowTooltip(entry: DashboardWorkflowComputingUnit): string {
+  const statusTooltip = getComputingUnitStatusTooltip(entry);
+  if (entry.status === "Running") {
+    return statusTooltip;
+  }
+  return `${statusTooltip.replace(/\.$/, "")}. Cannot select.`;
 }
 
 export function getComputingUnitCpuStatus(percentage: number): "success" | "exception" | "active" | "normal" {

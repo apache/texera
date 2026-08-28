@@ -221,12 +221,21 @@ describe("ComputingUnitStatusService", () => {
     expect(status).toBe(ComputingUnitState.Unknown);
   });
 
-  it("getStatus() maps Terminating (and any unrecognized status) to Pending via the default branch", () => {
-    // Deliberate: ComputingUnitState has no Terminating member, so a terminating unit is
-    // treated as a transient, not-usable state — the same way an unknown status string is.
+  it("getStatus() maps a Terminating unit to ComputingUnitState.Terminating", () => {
     (service as any).selectedUnitSubject.next({
       computingUnit: { cuid: 1 },
       status: "Terminating",
+    } as unknown as DashboardWorkflowComputingUnit);
+
+    let status: ComputingUnitState | undefined;
+    service.getStatus().subscribe(s => (status = s));
+    expect(status).toBe(ComputingUnitState.Terminating);
+  });
+
+  it("getStatus() keeps an unrecognized future status on the Pending fallback", () => {
+    (service as any).selectedUnitSubject.next({
+      computingUnit: { cuid: 1 },
+      status: "FutureStatus",
     } as unknown as DashboardWorkflowComputingUnit);
 
     let status: ComputingUnitState | undefined;

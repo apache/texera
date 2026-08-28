@@ -97,6 +97,7 @@ class AdminComputingUnitResource {
       ComputingUnitHelpers.buildDashboardUnit(
         unit,
         isOwner = unit.getUid.equals(user.getUid),
+        canViewStatusReason = true,
         accessPrivilege = PrivilegeEnum.WRITE,
         ownerInfo = ownerInfo,
         podSnapshots = podSnapshots,

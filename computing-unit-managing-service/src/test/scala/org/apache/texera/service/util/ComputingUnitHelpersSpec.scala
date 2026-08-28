@@ -187,14 +187,6 @@ class ComputingUnitHelpersSpec
   ): (org.apache.texera.service.resource.ComputingUnitState.ComputingUnitState, Option[String]) =
     ComputingUnitHelpers.kubernetesStatusAndReason(Some(snapshotOf(pod)))
 
-  "getComputingUnitStatus" should "return Running for a local unit" in {
-    ComputingUnitHelpers.getComputingUnitStatus(localUnit()) shouldBe Running
-  }
-
-  it should "return Pending for an unknown (untyped) unit" in {
-    ComputingUnitHelpers.getComputingUnitStatus(untypedUnit()) shouldBe Pending
-  }
-
   // The kubernetes branch does a per-unit pod lookup, so singleUnitStatusAndReason is driven
   // through a stubbed client (the public overloads bind the production singleton).
   "singleUnitStatusAndReason" should "return Running for a kubernetes unit whose pod phase is Running" in {
@@ -717,6 +709,7 @@ class ComputingUnitHelpersSpec
     val row = ComputingUnitHelpers.buildDashboardUnit(
       unit,
       isOwner = true,
+      canViewStatusReason = true,
       accessPrivilege = PrivilegeEnum.READ,
       ownerInfo = Map((100: Integer) -> ("avatar", "owner")),
       podSnapshots = Map(podName -> snapshotOf(podWithPhase("Running"))),
@@ -737,6 +730,7 @@ class ComputingUnitHelpersSpec
     val row = ComputingUnitHelpers.buildDashboardUnit(
       localUnit(cuid = 31, uid = 200),
       isOwner = false,
+      canViewStatusReason = false,
       accessPrivilege = PrivilegeEnum.WRITE,
       ownerInfo = Map.empty,
       podSnapshots = Map.empty,
@@ -749,31 +743,36 @@ class ComputingUnitHelpersSpec
     row.metrics shouldBe WorkflowComputingUnitMetrics("NaN", "NaN")
   }
 
-  it should "include the status reason only for the owner" in {
+  it should "include the status reason only when the caller permits it" in {
     val unit = kubernetesUnit(cuid = 32, uid = 100)
     val podName = KubernetesClient.generatePodName(32)
     val podSnapshots = Map(podName -> snapshotOf(podWithPhase("Failed")))
 
-    def build(isOwner: Boolean) =
+    def build(isOwner: Boolean, canViewStatusReason: Boolean) =
       ComputingUnitHelpers.buildDashboardUnit(
         unit,
         isOwner = isOwner,
+        canViewStatusReason = canViewStatusReason,
         accessPrivilege = PrivilegeEnum.READ,
         ownerInfo = Map.empty,
         podSnapshots = podSnapshots,
         podMetrics = Map.empty
       )
 
-    val ownerRow = build(isOwner = true)
+    val ownerRow = build(isOwner = true, canViewStatusReason = true)
     ownerRow.status shouldBe "Failed"
     ownerRow.statusReason shouldBe Some(
       "The computing unit stopped unexpectedly. Please terminate and recreate it, or contact " +
         "an administrator."
     )
 
-    val sharedRow = build(isOwner = false)
+    val sharedRow = build(isOwner = false, canViewStatusReason = false)
     sharedRow.status shouldBe "Failed"
     sharedRow.statusReason shouldBe None
+
+    val adminRow = build(isOwner = false, canViewStatusReason = true)
+    adminRow.isOwner shouldBe false
+    adminRow.statusReason shouldBe ownerRow.statusReason
   }
 
   // ── podSnapshotsFor / podMetricsFor guards ───────────────────────────

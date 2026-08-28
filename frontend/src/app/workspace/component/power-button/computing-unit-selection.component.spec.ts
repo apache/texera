@@ -1506,37 +1506,6 @@ describe("PowerButtonComponent", () => {
       expect(component.getBadgeColor("Failed")).toBe("red");
       expect(component.getBadgeColor("Unknown")).toBe("red");
     });
-
-    it("describes a unit's status as a tooltip", () => {
-      expect(component.getUnitStatusTooltip(makeComputingUnit({ status: "Running" }))).toBe("Ready to use");
-      expect(component.getUnitStatusTooltip(makeComputingUnit({ status: "Pending" }))).toBe(
-        "Computing unit is starting up"
-      );
-      // Without an owner-only statusReason, failure states get the generic text.
-      expect(component.getUnitStatusTooltip(makeComputingUnit({ status: "Failed" }))).toBe(
-        "This computing unit is unavailable."
-      );
-    });
-
-    it("builds the single row tooltip: status/reason alone when selectable, cannot-select otherwise", () => {
-      expect(component.getRowTooltip(makeComputingUnit({ status: "Running" }))).toBe("Ready to use");
-      expect(component.getRowTooltip(makeComputingUnit({ status: "Running", statusReason: "OOM warning." }))).toBe(
-        "OOM warning."
-      );
-      expect(component.getRowTooltip(makeComputingUnit({ status: "Failed" }))).toBe(
-        "This computing unit is unavailable. Cannot select."
-      );
-    });
-
-    it("appends 'Cannot select.' without doubling a trailing period", () => {
-      // Pending tooltips carry no period; statusReason/Failed tooltips end with one.
-      expect(component.getCannotSelectTooltip(makeComputingUnit({ status: "Pending" }))).toBe(
-        "Computing unit is starting up. Cannot select."
-      );
-      expect(component.getCannotSelectTooltip(makeComputingUnit({ status: "Failed" }))).toBe(
-        "This computing unit is unavailable. Cannot select."
-      );
-    });
   });
 
   describe("trackBy helpers", () => {

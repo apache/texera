@@ -61,10 +61,7 @@ object ComputingUnitHelpers {
         .toMap
   }
 
-  def getComputingUnitStatus(unit: WorkflowComputingUnit): ComputingUnitState =
-    getComputingUnitStatusWithReason(unit)._1
-
-  /** Single-unit status plus the owner-facing reason (see [[kubernetesStatusAndReason]]). */
+  /** Single-unit status plus its user-facing reason (see [[kubernetesStatusAndReason]]). */
   def getComputingUnitStatusWithReason(
       unit: WorkflowComputingUnit
   ): (ComputingUnitState, Option[String]) =
@@ -102,8 +99,8 @@ object ComputingUnitHelpers {
     }
   }
 
-  // Owner-facing wording for each failure mode. Deliberately actionable prose, never a raw
-  // Kubernetes dump; buildDashboardUnit withholds these from non-owners entirely.
+  // User-facing wording for each failure mode. Deliberately actionable prose, never a raw
+  // Kubernetes dump; buildDashboardUnit withholds these unless the caller permits access.
   private val ImagePullWaitingReasons = Set("ImagePullBackOff", "ErrImagePull", "InvalidImageName")
   private val EvictedDiskReason =
     "The computing unit was evicted because it ran out of local disk storage. Consider " +
@@ -188,10 +185,8 @@ object ComputingUnitHelpers {
           (Unknown, Some(UnknownStateReason))
         else if (phase == "Pending" && snapshot.unschedulable)
           (Pending, Some(UnschedulableReason))
-        else if (phase == "Running" && oomKilled.isDefined)
-          (Running, Some(recoveredOomWarning(oomKilled.get.restartCount)))
         else if (phase == "Running")
-          (Running, None)
+          (Running, oomKilled.map(container => recoveredOomWarning(container.restartCount)))
         else
           (Pending, None)
     }
@@ -212,7 +207,7 @@ object ComputingUnitHelpers {
   }
 
   /**
-    * Resolves status (and the owner-facing reason) from a pre-fetched pod-snapshot map instead
+    * Resolves status (and its user-facing reason) from a pre-fetched pod-snapshot map instead
     * of a per-unit cluster call, so a listing costs O(1) round trips rather than one per unit.
     */
   def getComputingUnitStatusAndReason(
@@ -314,12 +309,14 @@ object ComputingUnitHelpers {
   /**
     * Build one dashboard row; status/metrics come from the pre-fetched maps (no per-unit K8s
     * call). Shared by both listing endpoints so row shape and owner-info fallback stay identical.
-    * The status reason is owner-only: shared users get a bare status and the frontend shows a
-    * generic "unavailable" instead.
+    * Status-reason visibility is separate from ownership: regular-user callers permit owners,
+    * while the admin listing permits every row. Shared non-admin users get a bare status and the
+    * frontend shows a generic "unavailable" instead.
     */
   def buildDashboardUnit(
       unit: WorkflowComputingUnit,
       isOwner: Boolean,
+      canViewStatusReason: Boolean,
       accessPrivilege: EnumType,
       ownerInfo: Map[Integer, (String, String)],
       podSnapshots: Map[String, PodStatusSnapshot],
@@ -330,7 +327,7 @@ object ComputingUnitHelpers {
     DashboardWorkflowComputingUnit(
       computingUnit = unit,
       status = status.toString,
-      statusReason = if (isOwner) statusReason else None,
+      statusReason = if (canViewStatusReason) statusReason else None,
       metrics = getComputingUnitMetrics(unit, podMetrics),
       isOwner = isOwner,
       accessPrivilege = accessPrivilege,

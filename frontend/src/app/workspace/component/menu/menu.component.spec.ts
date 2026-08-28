@@ -197,10 +197,10 @@ describe("MenuComponent", () => {
       expect(resumeSpy).toHaveBeenCalled();
     });
 
-    it("returns 'Connecting' when a unit exists but the websocket is not connected", () => {
+    it("returns 'Connecting' for a Pending unit when the websocket is not connected", () => {
       component.isWorkflowValid = true;
       component.isWorkflowEmpty = false;
-      component.computingUnitStatus = ComputingUnitState.Running;
+      component.computingUnitStatus = ComputingUnitState.Pending;
       Object.defineProperty(component.workflowWebsocketService, "isConnected", {
         get: () => false,
         configurable: true,
@@ -209,6 +209,44 @@ describe("MenuComponent", () => {
       const behavior = component.getRunButtonBehavior();
 
       expect(behavior.text).toBe("Connecting");
+      expect(behavior.disable).toBe(true);
+    });
+
+    it.each([false, true])(
+      "returns 'Shutting Down' for a Terminating unit when websocket connected is %s",
+      isConnected => {
+        component.isWorkflowValid = true;
+        component.isWorkflowEmpty = false;
+        component.computingUnitStatus = ComputingUnitState.Terminating;
+        component.executionState = ExecutionState.Uninitialized;
+        Object.defineProperty(component.workflowWebsocketService, "isConnected", {
+          get: () => isConnected,
+          configurable: true,
+        });
+        const runSpy = vi.spyOn(component, "runWorkflow");
+
+        const behavior = component.getRunButtonBehavior();
+        behavior.onClick();
+
+        expect(behavior.text).toBe("Shutting Down");
+        expect(behavior.icon).toBe("loading");
+        expect(behavior.disable).toBe(true);
+        expect(runSpy).not.toHaveBeenCalled();
+      }
+    );
+
+    it.each([
+      { valid: false, empty: false, text: "Invalid Workflow", icon: "warning" },
+      { valid: true, empty: true, text: "Empty Workflow", icon: "info-circle" },
+    ])("keeps '$text' precedence while the computing unit is Terminating", ({ valid, empty, text, icon }) => {
+      component.isWorkflowValid = valid;
+      component.isWorkflowEmpty = empty;
+      component.computingUnitStatus = ComputingUnitState.Terminating;
+
+      const behavior = component.getRunButtonBehavior();
+
+      expect(behavior.text).toBe(text);
+      expect(behavior.icon).toBe(icon);
       expect(behavior.disable).toBe(true);
     });
 

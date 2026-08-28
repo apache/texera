@@ -373,6 +373,17 @@ export class MenuComponent implements OnInit, OnDestroy {
       };
     }
 
+    // A terminating unit is deliberately disconnecting, so distinguish it from a unit
+    // that is still starting up before checking websocket connectivity.
+    if (this.computingUnitStatus === ComputingUnitState.Terminating) {
+      return {
+        text: "Shutting Down",
+        icon: "loading",
+        disable: true,
+        onClick: () => {},
+      };
+    }
+
     // A Failed/Unknown unit can never become connected, so surface that before the
     // websocket-disconnected branch below would show an endless "Connecting" spinner.
     if (
