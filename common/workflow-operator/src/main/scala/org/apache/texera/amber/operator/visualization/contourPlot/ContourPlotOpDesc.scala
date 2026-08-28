@@ -113,11 +113,32 @@ class ContourPlotOpDesc extends PythonOperatorDescriptor {
        |
        |class ProcessTableOperator(UDFTableOperator):
        |
+       |    def render_error(self, error_msg) -> str:
+       |        return '''<h1>Contour plot is not available.</h1>
+       |                  <p>Reason is: {} </p>
+       |               '''.format(error_msg)
+       |
        |    @overrides
        |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
+       |        # A row missing any of the three has no point to contribute, and
+       |        # griddata refuses a NaN coordinate outright.
+       |        table = table.dropna(subset=[$x, $y, $z])
+       |        if table.empty:
+       |            yield {'html-content': self.render_error("Table should not have any empty/null values or fields.")}
+       |            return
+       |
        |        x = table[$x].values
        |        y = table[$y].values
        |        z = table[$z].values
+       |
+       |        # Cubic interpolation triangulates the points before it interpolates,
+       |        # which needs them to span a plane. Points that all fall on one line
+       |        # leave Qhull without a simplex to start from and it raises instead.
+       |        points = np.unique(np.column_stack((x, y)), axis=0)
+       |        if np.linalg.matrix_rank(points - points.mean(axis=0)) < 2:
+       |            yield {'html-content': self.render_error("The x and y values all fall on one line, so there is no area to contour.")}
+       |            return
+       |
        |        grid_size = $gridSizeLiteral
        |        connGaps = True if '$connectGaps' == 'true' else False
        |
