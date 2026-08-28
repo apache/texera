@@ -267,9 +267,8 @@ export class ModelDetailComponent implements OnInit {
           if (versions.length === 0) {
             return;
           }
-          const latest = versions[0];
-          this.latestVersionCreationTime = this.formatCreationTime(latest);
-          this.onVersionSelected(latest);
+          this.retrieveLatestVersionFacts();
+          this.onVersionSelected(versions[0]);
         },
         error: (err: unknown) => this.notificationService.error(extractErrorMessage(err)),
       });
@@ -290,16 +289,38 @@ export class ModelDetailComponent implements OnInit {
           this.selectedVersionCreationTime = this.formatCreationTime(version);
 
           const firstFile = this.getFirstFileNode(this.fileTreeNodeList);
-          if (version === this.versions[0]) {
-            this.latestVersionFileName = firstFile ? getFullPathFromDatasetFileNode(firstFile) : "";
-            this.latestVersionSize = data.size;
-          }
           if (!firstFile) {
             this.currentDisplayedFileName = "";
             this.currentFileSize = undefined;
             return;
           }
           this.loadFileContent(firstFile);
+        },
+        error: (err: unknown) => this.notificationService.error(extractErrorMessage(err)),
+      });
+  }
+
+  /**
+   * The Model Card describes the newest version whatever the picker is showing, so its facts are
+   * fetched in their own right rather than derived from the current selection.
+   */
+  private retrieveLatestVersionFacts(): void {
+    const latest = this.versions[0];
+    if (!this.mid || !latest?.mvid) {
+      this.latestVersionCreationTime = "";
+      this.latestVersionFileName = "";
+      this.latestVersionSize = undefined;
+      return;
+    }
+    this.latestVersionCreationTime = this.formatCreationTime(latest);
+    this.modelService
+      .retrieveModelVersionFileTree(this.mid, latest.mvid, this.isLogin)
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: data => {
+          const firstFile = this.getFirstFileNode(data.fileNodes);
+          this.latestVersionFileName = firstFile ? getFullPathFromDatasetFileNode(firstFile) : "";
+          this.latestVersionSize = data.size;
         },
         error: (err: unknown) => this.notificationService.error(extractErrorMessage(err)),
       });
@@ -432,9 +453,10 @@ export class ModelDetailComponent implements OnInit {
         next: () => {
           this.modelName = name;
           this.editedModelName = name;
-          // File nodes carry the model name inside their paths, and preview and single-file
-          // download resolve a model by (owner, name) — a stale tree 404s until reload.
+          // Every file path embeds the model name, and preview and single-file download resolve
+          // a model by (owner, name) — a stale tree 404s until reload.
           this.onVersionSelected(this.selectedVersion);
+          this.retrieveLatestVersionFacts();
           this.notificationService.success(`Model name updated to '${name}'`);
         },
         error: (err: unknown) => this.notificationService.error(extractErrorMessage(err)),

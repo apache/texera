@@ -622,6 +622,30 @@ describe("ModelDetailComponent", () => {
     expect(component.currentDisplayedFileName).toBe(`/model/${OWNER}/resnet-101/v1/model.pt`);
   });
 
+  it("refreshes the Model Card too when an older version is on screen, without moving the picker", () => {
+    const versions = [aVersion(2, "v2"), aVersion(1, "v1")];
+    modelService["updateModelName"] = vi.fn(() => of({}));
+    modelService["retrieveModelVersionList"] = vi.fn(() => of(versions));
+    let name = "resnet-50";
+    modelService["retrieveModelVersionFileTree"] = vi.fn((_mid: number, mvid: number) =>
+      of({ fileNodes: [aFile(`v${mvid}.pt`, `/model/${OWNER}/${name}/v${mvid}`)], size: mvid * 100 })
+    );
+    create();
+    component.onVersionSelected(versions[1]);
+    expect(component.latestVersionFileName).toBe(`/model/${OWNER}/resnet-50/v2/v2.pt`);
+
+    name = "resnet-101";
+    component.editedModelName = name;
+    component.onSaveModelName();
+
+    // The Model Card describes the newest version, which is not the one being browsed — deriving
+    // its facts from the selection would have left this path on the old name.
+    expect(component.latestVersionFileName).toBe(`/model/${OWNER}/resnet-101/v2/v2.pt`);
+    expect(component.currentDisplayedFileName).toBe(`/model/${OWNER}/resnet-101/v1/v1.pt`);
+    // Renaming is not a reason to move the user off the version they opened.
+    expect(component.selectedVersion).toBe(versions[1]);
+  });
+
   it("skips the tree refresh for a model with no versions", () => {
     modelService["updateModelName"] = vi.fn(() => of({}));
     create();
