@@ -20,7 +20,7 @@
 import { Injectable } from "@angular/core";
 import { HttpClient, HttpParams } from "@angular/common/http";
 import { Observable } from "rxjs";
-import { switchMap } from "rxjs/operators";
+import { map, switchMap } from "rxjs/operators";
 import { AppSettings } from "../../../../common/app-setting";
 import { Model, ModelVersion } from "../../../../common/type/model";
 import { DashboardModel } from "../../../type/dashboard-model.interface";
@@ -31,6 +31,8 @@ export const MODEL_CREATE_URL = MODEL_BASE_URL + "/create";
 export const MODEL_UPDATE_BASE_URL = MODEL_BASE_URL + "/update";
 export const MODEL_UPDATE_NAME_URL = MODEL_UPDATE_BASE_URL + "/name";
 export const MODEL_UPDATE_DESCRIPTION_URL = MODEL_UPDATE_BASE_URL + "/description";
+export const MODEL_UPDATE_FRAMEWORK_URL = MODEL_UPDATE_BASE_URL + "/framework";
+export const MODEL_UPDATE_FORMAT_URL = MODEL_UPDATE_BASE_URL + "/format";
 export const MODEL_LIST_URL = MODEL_BASE_URL + "/list";
 
 export const MODEL_VERSION_BASE_URL = "version";
@@ -107,6 +109,40 @@ export class ModelService {
       mid: mid,
       description: description,
     });
+  }
+
+  public updateModelFramework(mid: number, framework: string): Observable<Response> {
+    return this.http.post<Response>(`${AppSettings.getApiEndpoint()}/${MODEL_UPDATE_FRAMEWORK_URL}`, {
+      mid: mid,
+      framework: framework,
+    });
+  }
+
+  public updateModelFormat(mid: number, format: string): Observable<Response> {
+    return this.http.post<Response>(`${AppSettings.getApiEndpoint()}/${MODEL_UPDATE_FORMAT_URL}`, {
+      mid: mid,
+      format: format,
+    });
+  }
+
+  /**
+   * Commits the model's staged changes as a new version. The backend rejects this with a 400 when
+   * nothing is staged, and names the version itself when `newVersion` is blank.
+   */
+  public createModelVersion(mid: number, newVersion: string): Observable<ModelVersion> {
+    return this.http
+      .post<{
+        modelVersion: ModelVersion;
+        fileNodes: DatasetFileNode[];
+      }>(`${AppSettings.getApiEndpoint()}/${MODEL_BASE_URL}/${mid}/${MODEL_VERSION_BASE_URL}/create`, newVersion, {
+        headers: { "Content-Type": "text/plain" },
+      })
+      .pipe(
+        map(response => {
+          response.modelVersion.fileNodes = response.fileNodes;
+          return response.modelVersion;
+        })
+      );
   }
 
   /** A model's versions, newest first; an anonymous caller gets the public-only endpoint. */

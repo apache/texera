@@ -19,9 +19,13 @@
 
 import { Component, EventEmitter, Input, OnInit, Output, ViewChild } from "@angular/core";
 import { auditTime } from "rxjs/operators";
-import { DatasetStagedObject } from "../../../../../../common/type/dataset-staged-object";
-import { DatasetService } from "../../../../../service/user/dataset/dataset.service";
-import { NotificationService } from "../../../../../../common/service/notification/notification.service";
+import { DatasetStagedObject } from "../../../../common/type/dataset-staged-object";
+import { StagedFileService } from "../../../service/user/file-resource/staged-file.service";
+import {
+  DATASET_FILE_RESOURCE_ENDPOINT,
+  FileResourceEndpoint,
+} from "../../../service/user/file-resource/file-resource-endpoint";
+import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { formatTime } from "src/app/common/util/format.util";
 import { NgIf } from "@angular/common";
@@ -37,9 +41,9 @@ import { CdkFixedSizeVirtualScroll, CdkVirtualForOf, CdkVirtualScrollViewport } 
 
 @UntilDestroy()
 @Component({
-  selector: "texera-dataset-staged-objects-list",
-  templateUrl: "./user-dataset-staged-objects-list.component.html",
-  styleUrls: ["./user-dataset-staged-objects-list.component.scss"],
+  selector: "texera-staged-objects-list",
+  templateUrl: "./staged-objects-list.component.html",
+  styleUrls: ["./staged-objects-list.component.scss"],
   imports: [
     NgIf,
     NzListComponent,
@@ -56,26 +60,26 @@ import { CdkFixedSizeVirtualScroll, CdkVirtualForOf, CdkVirtualScrollViewport } 
     NzEmptyComponent,
   ],
 })
-export class UserDatasetStagedObjectsListComponent implements OnInit {
+export class StagedObjectsListComponent implements OnInit {
   // Coalesces change events so a bulk upload refetches the diff at most once
   // per window, not once per finished file.
   static readonly REFRESH_AUDIT_TIME_MS = 1000;
 
-  @Input() did?: number; // Dataset ID
+  @Input() resourceId?: number;
+  /** Which resource family `resourceId` belongs to. */
+  @Input() endpoint: FileResourceEndpoint = DATASET_FILE_RESOURCE_ENDPOINT;
   @Input() set userMakeChangesEvent(event: EventEmitter<void>) {
     if (event) {
-      event
-        .pipe(auditTime(UserDatasetStagedObjectsListComponent.REFRESH_AUDIT_TIME_MS), untilDestroyed(this))
-        .subscribe(() => {
-          this.fetchDatasetStagedObjects();
-        });
+      event.pipe(auditTime(StagedObjectsListComponent.REFRESH_AUDIT_TIME_MS), untilDestroyed(this)).subscribe(() => {
+        this.fetchStagedObjects();
+      });
     }
   }
   @Input() uploadTimeMap?: Map<string, number>;
 
   @Output() stagedObjectsChanged = new EventEmitter<DatasetStagedObject[]>(); // Emits staged objects list
 
-  datasetStagedObjects: DatasetStagedObject[] = [];
+  stagedObjects: DatasetStagedObject[] = [];
   formatTime = formatTime;
 
   // Row height must match .staged-object-row in the SCSS.
@@ -85,7 +89,7 @@ export class UserDatasetStagedObjectsListComponent implements OnInit {
   @ViewChild(CdkVirtualScrollViewport) private viewport?: CdkVirtualScrollViewport;
 
   get stagedListHeightPx(): number {
-    return Math.min(this.datasetStagedObjects.length * this.STAGED_ROW_HEIGHT_PX, this.STAGED_LIST_MAX_HEIGHT_PX);
+    return Math.min(this.stagedObjects.length * this.STAGED_ROW_HEIGHT_PX, this.STAGED_LIST_MAX_HEIGHT_PX);
   }
 
   // The viewport measures height 0 when created inside a hidden ancestor
@@ -95,36 +99,36 @@ export class UserDatasetStagedObjectsListComponent implements OnInit {
   }
 
   constructor(
-    private datasetService: DatasetService,
+    private stagedFileService: StagedFileService,
     private notificationService: NotificationService
   ) {}
 
   ngOnInit(): void {
-    this.fetchDatasetStagedObjects();
+    this.fetchStagedObjects();
   }
 
-  private fetchDatasetStagedObjects(): void {
-    if (this.did != undefined) {
-      this.datasetService
-        .getDatasetDiff(this.did)
+  private fetchStagedObjects(): void {
+    if (this.resourceId != undefined) {
+      this.stagedFileService
+        .getDiff(this.endpoint, this.resourceId)
         .pipe(untilDestroyed(this))
         .subscribe(diffs => {
-          this.datasetStagedObjects = diffs;
+          this.stagedObjects = diffs;
           // Emit the updated staged objects list
-          this.stagedObjectsChanged.emit(this.datasetStagedObjects);
+          this.stagedObjectsChanged.emit(this.stagedObjects);
         });
     }
   }
 
   onObjectReverted(objDiff: DatasetStagedObject) {
-    if (this.did) {
-      this.datasetService
-        .resetDatasetFileDiff(this.did, objDiff.path)
+    if (this.resourceId) {
+      this.stagedFileService
+        .resetFileDiff(this.endpoint, this.resourceId, objDiff.path)
         .pipe(untilDestroyed(this))
         .subscribe({
           next: (res: Response) => {
             this.notificationService.success(`"${objDiff.diffType} ${objDiff.path}" is successfully reverted`);
-            this.fetchDatasetStagedObjects();
+            this.fetchStagedObjects();
           },
           error: (err: unknown) => {
             this.notificationService.error("Failed to delete the file");

@@ -22,12 +22,19 @@ import { NoopAnimationsModule } from "@angular/platform-browser/animations";
 import { ActivatedRoute } from "@angular/router";
 import { of, throwError } from "rxjs";
 import { MarkdownService } from "ngx-markdown";
+import { NzModalService } from "ng-zorro-antd/modal";
+import { By } from "@angular/platform-browser";
 import { commonTestImports, commonTestProviders } from "../../../../../common/testing/test-utils";
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
 import { UserService } from "../../../../../common/service/user/user.service";
 import { StubUserService } from "../../../../../common/service/user/stub-user.service";
-import { ModelService } from "../../../../service/user/model/model.service";
+import { MODEL_FORMATS, MODEL_FRAMEWORKS, ModelService } from "../../../../service/user/model/model.service";
 import { DownloadService } from "../../../../service/user/download/download.service";
+import { AdminSettingsService } from "../../../../service/admin/settings/admin-settings.service";
+import { MultipartUploadService } from "../../../../service/user/file-resource/multipart-upload.service";
+import { StagedFileService } from "../../../../service/user/file-resource/staged-file.service";
+import { MODEL_FILE_RESOURCE_ENDPOINT } from "../../../../service/user/file-resource/file-resource-endpoint";
+import { VersionUploaderComponent } from "../../version-uploader/version-uploader.component";
 import { DatasetFileNode } from "../../../../../common/type/datasetVersionFileTree";
 import { ModelVersion } from "../../../../../common/type/model";
 import { ModelDetailComponent } from "./model-detail.component";
@@ -58,6 +65,9 @@ describe("ModelDetailComponent", () => {
   let modelService: Record<string, ReturnType<typeof vi.fn>>;
   let downloadService: Record<string, ReturnType<typeof vi.fn>>;
   let notificationService: Record<string, ReturnType<typeof vi.fn>>;
+  let multipartUploadService: Record<string, ReturnType<typeof vi.fn>>;
+  let stagedFileService: Record<string, ReturnType<typeof vi.fn>>;
+  let adminSettingsService: Record<string, ReturnType<typeof vi.fn>>;
 
   const dashboardModel = (overrides: Partial<Record<string, unknown>> = {}) => ({
     isOwner: true,
@@ -104,6 +114,19 @@ describe("ModelDetailComponent", () => {
       downloadModelVersion: vi.fn(() => of(new Blob())),
     };
     notificationService = { success: vi.fn(), error: vi.fn(), info: vi.fn() };
+    multipartUploadService = {
+      multipartUpload: vi.fn(() => of({ filePath: "f", percentage: 100, status: "finished", totalTime: 1 })),
+      listMultipartUploads: vi.fn(() => of([])),
+      findExistingUploadFiles: vi.fn(() => of([])),
+      finalizeMultipartUpload: vi.fn(() => of({})),
+    };
+    stagedFileService = {
+      getDiff: vi.fn(() => of([])),
+      resetFileDiff: vi.fn(() => of({})),
+      deleteFile: vi.fn(() => of({})),
+    };
+    // Every model upload key is absent in this stub, so the component keeps its own defaults.
+    adminSettingsService = { getPublicSetting: vi.fn(() => of("")) };
 
     TestBed.configureTestingModule({
       imports: [ModelDetailComponent, NoopAnimationsModule, ...commonTestImports],
@@ -114,6 +137,10 @@ describe("ModelDetailComponent", () => {
         { provide: NotificationService, useValue: notificationService },
         { provide: UserService, useClass: StubUserService },
         { provide: MarkdownService, useValue: { parse: vi.fn(() => "") } },
+        { provide: NzModalService, useValue: {} },
+        { provide: MultipartUploadService, useValue: multipartUploadService },
+        { provide: StagedFileService, useValue: stagedFileService },
+        { provide: AdminSettingsService, useValue: adminSettingsService },
         ...commonTestProviders,
       ],
     });
@@ -454,6 +481,176 @@ describe("ModelDetailComponent", () => {
 
     const root = render({ coverImageUrl: "http://cover" });
     expect(q<HTMLImageElement>(root, ".model-cover-image").src).toContain("http://cover");
+  });
+
+  // ─── uploading files and cutting a version ──────────────────────────────────
+  //
+  // The panel itself is covered by version-uploader.component.spec.ts; what matters here is that
+  // the page hands it the model's own addressing, and what the page still owns around it.
+
+  it("hands the version uploader the model endpoint and the model's identity", () => {
+    create();
+    const root = openTab("Versions & Files");
+
+    const panel = q(root, "texera-version-uploader");
+    const uploader = fixture.debugElement.query(By.directive(VersionUploaderComponent))
+      .componentInstance as VersionUploaderComponent;
+
+    expect(panel).toBeTruthy();
+    expect(uploader.endpoint).toBe(MODEL_FILE_RESOURCE_ENDPOINT);
+    expect(uploader.resourceId).toBe(MID);
+    expect(uploader.resourceName).toBe("resnet-50");
+    expect(uploader.ownerEmail).toBe(OWNER);
+  });
+
+  it("reads its upload settings from the model keys, not the dataset ones", () => {
+    create();
+    openTab("Versions & Files");
+    const keys = new Set(adminSettingsService["getPublicSetting"].mock.calls.map(call => call[0]));
+
+    // Three from the panel's tuning, plus the file-picker's per-file ceiling — the 2 GiB model
+    // limit added by #8000, which models used to inherit from the dataset's 20 MiB.
+    expect(keys).toEqual(
+      new Set([
+        MODEL_FILE_RESOURCE_ENDPOINT.chunkSizeSettingKey,
+        MODEL_FILE_RESOURCE_ENDPOINT.maxConcurrentChunksSettingKey,
+        MODEL_FILE_RESOURCE_ENDPOINT.maxConcurrentFilesSettingKey,
+        MODEL_FILE_RESOURCE_ENDPOINT.maxFileSizeSettingKey,
+      ])
+    );
+    expect([...keys].every(key => key.startsWith("model_"))).toBe(true);
+  });
+
+  it("shows the upload panel only to a user who can write", () => {
+    create();
+    expect(openTab("Versions & Files").querySelector("texera-version-uploader")).toBeTruthy();
+
+    modelService["getModel"] = vi.fn(() => of(dashboardModel({ accessPrivilege: "READ", isOwner: false })));
+    create();
+    expect(openTab("Versions & Files").querySelector("texera-version-uploader")).toBeNull();
+  });
+
+  it("commits a version through ModelService", () => {
+    modelService["createModelVersion"] = vi.fn(() => of(aVersion(1, "v1")));
+    create();
+
+    component.createModelVersion("v1").subscribe();
+
+    expect(modelService["createModelVersion"]).toHaveBeenCalledWith(MID, "v1");
+  });
+
+  it("reloads the version list once the panel reports a new version", () => {
+    create();
+    expect(modelService["retrieveModelVersionList"]).toHaveBeenCalledTimes(1);
+
+    component.onVersionCreated();
+
+    expect(modelService["retrieveModelVersionList"]).toHaveBeenCalledTimes(2);
+  });
+
+  it("stages a deletion of an already-committed file", () => {
+    create();
+    openTab("Versions & Files");
+
+    component.onPreviouslyUploadedFileDeleted(aFile("model.pt", `/model/${OWNER}/resnet-50/v1`));
+
+    expect(stagedFileService["deleteFile"]).toHaveBeenCalledWith(MODEL_FILE_RESOURCE_ENDPOINT, MID, "model.pt");
+    expect(notificationService["success"]).toHaveBeenCalled();
+  });
+
+  it("stages nothing and reports the failure when the deletion is rejected", () => {
+    stagedFileService["deleteFile"] = vi.fn(() => throwError(() => new Error("boom")));
+    create();
+    openTab("Versions & Files");
+
+    component.onPreviouslyUploadedFileDeleted(aFile("model.pt", `/model/${OWNER}/resnet-50/v1`));
+
+    expect(notificationService["error"]).toHaveBeenCalledWith("Failed to delete the file");
+  });
+
+  it("deletes nothing without a model id", () => {
+    create();
+    component.mid = undefined;
+
+    component.onPreviouslyUploadedFileDeleted(aFile("model.pt", `/model/${OWNER}/resnet-50/v1`));
+
+    expect(stagedFileService["deleteFile"]).not.toHaveBeenCalled();
+  });
+
+  // ─── the Settings tab ───────────────────────────────────────────────────────
+
+  it("hides the Settings tab from a reader", () => {
+    modelService["getModel"] = vi.fn(() => of(dashboardModel({ accessPrivilege: "READ", isOwner: false })));
+    create();
+
+    const titles = Array.from(
+      (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>(".ant-tabs-tab")
+    ).map(el => el.textContent ?? "");
+    expect(titles.some(title => title.includes("Settings"))).toBe(false);
+  });
+
+  it("renames the model from the Settings tab", () => {
+    modelService["updateModelName"] = vi.fn(() => of({}));
+    create();
+    component.editedModelName = "resnet-101";
+
+    component.onSaveModelName();
+
+    expect(modelService["updateModelName"]).toHaveBeenCalledWith(MID, "resnet-101");
+    expect(component.modelName).toBe("resnet-101");
+  });
+
+  it("rejects an invalid name without calling the server", () => {
+    modelService["updateModelName"] = vi.fn(() => of({}));
+    create();
+    component.editedModelName = "not a valid name";
+
+    component.onSaveModelName();
+
+    expect(modelService["updateModelName"]).not.toHaveBeenCalled();
+    expect(notificationService["error"]).toHaveBeenCalled();
+    expect(component.modelName).toBe("resnet-50");
+  });
+
+  it("restores the previous description when the update fails", () => {
+    modelService["updateModelDescription"] = vi.fn(() => throwError(() => new Error("boom")));
+    create();
+
+    component.onModelDescriptionChange("a new description");
+
+    expect(component.modelDescription).toBe("a description");
+    expect(notificationService["error"]).toHaveBeenCalled();
+  });
+
+  it("skips the description update when nothing changed", () => {
+    modelService["updateModelDescription"] = vi.fn(() => of({}));
+    create();
+
+    component.onModelDescriptionChange("a description");
+
+    expect(modelService["updateModelDescription"]).not.toHaveBeenCalled();
+  });
+
+  it("saves the framework and format, and rolls back a rejected one", () => {
+    modelService["updateModelFramework"] = vi.fn(() => of({}));
+    modelService["updateModelFormat"] = vi.fn(() => throwError(() => new Error("boom")));
+    create();
+
+    component.onFrameworkChange("onnx");
+    component.onFormatChange("safetensors");
+
+    expect(modelService["updateModelFramework"]).toHaveBeenCalledWith(MID, "onnx");
+    expect(component.modelFramework).toBe("onnx");
+    expect(component.modelFormat).toBe("torchscript");
+  });
+
+  it("offers exactly the frameworks and formats the backend accepts", () => {
+    create();
+    const root = openTab("Settings");
+
+    expect(root.querySelectorAll("nz-select").length).toBe(2);
+    expect(component.frameworks).toEqual(MODEL_FRAMEWORKS);
+    expect(component.formats).toEqual(MODEL_FORMATS);
   });
 
   it("collapses and restores the right sider, and maximizes the preview", () => {

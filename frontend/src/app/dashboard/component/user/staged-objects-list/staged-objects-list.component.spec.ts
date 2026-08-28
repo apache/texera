@@ -23,20 +23,21 @@ import { By } from "@angular/platform-browser";
 import { CdkVirtualScrollViewport } from "@angular/cdk/scrolling";
 import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
 import { of, throwError } from "rxjs";
-import { UserDatasetStagedObjectsListComponent } from "./user-dataset-staged-objects-list.component";
-import { DatasetService } from "../../../../../service/user/dataset/dataset.service";
-import { NotificationService } from "../../../../../../common/service/notification/notification.service";
-import { DatasetStagedObject } from "../../../../../../common/type/dataset-staged-object";
-import { commonTestImports, commonTestProviders } from "../../../../../../common/testing/test-utils";
+import { StagedObjectsListComponent } from "./staged-objects-list.component";
+import { StagedFileService } from "../../../service/user/file-resource/staged-file.service";
+import { DATASET_FILE_RESOURCE_ENDPOINT } from "../../../service/user/file-resource/file-resource-endpoint";
+import { NotificationService } from "../../../../common/service/notification/notification.service";
+import { DatasetStagedObject } from "../../../../common/type/dataset-staged-object";
+import { commonTestImports, commonTestProviders } from "../../../../common/testing/test-utils";
 
-describe("UserDatasetStagedObjectsListComponent", () => {
-  let fixture: ComponentFixture<UserDatasetStagedObjectsListComponent>;
-  let component: UserDatasetStagedObjectsListComponent;
-  let getDatasetDiffSpy: ReturnType<typeof vi.fn>;
-  let resetDatasetFileDiffSpy: ReturnType<typeof vi.fn>;
+describe("StagedObjectsListComponent", () => {
+  let fixture: ComponentFixture<StagedObjectsListComponent>;
+  let component: StagedObjectsListComponent;
+  let getDiffSpy: ReturnType<typeof vi.fn>;
+  let resetFileDiffSpy: ReturnType<typeof vi.fn>;
 
   const renderList = async () => {
-    component.did = 1;
+    component.resourceId = 1;
     fixture.detectChanges();
     await fixture.whenStable();
     fixture.detectChanges();
@@ -48,44 +49,44 @@ describe("UserDatasetStagedObjectsListComponent", () => {
   ];
 
   beforeEach(() => {
-    getDatasetDiffSpy = vi.fn(() => of(stagedObjects));
-    resetDatasetFileDiffSpy = vi.fn(() => of({}));
+    getDiffSpy = vi.fn(() => of(stagedObjects));
+    resetFileDiffSpy = vi.fn(() => of({}));
 
     TestBed.configureTestingModule({
-      imports: [UserDatasetStagedObjectsListComponent, ...commonTestImports],
+      imports: [StagedObjectsListComponent, ...commonTestImports],
       providers: [
         {
-          provide: DatasetService,
-          useValue: { getDatasetDiff: getDatasetDiffSpy, resetDatasetFileDiff: resetDatasetFileDiffSpy },
+          provide: StagedFileService,
+          useValue: { getDiff: getDiffSpy, resetFileDiff: resetFileDiffSpy },
         },
         { provide: NotificationService, useValue: { success: vi.fn(), error: vi.fn() } },
         ...commonTestProviders,
       ],
     });
 
-    fixture = TestBed.createComponent(UserDatasetStagedObjectsListComponent);
+    fixture = TestBed.createComponent(StagedObjectsListComponent);
     component = fixture.componentInstance;
   });
 
   it("fetches staged objects on init and emits them", () => {
-    component.did = 1;
+    component.resourceId = 1;
     const emitted: DatasetStagedObject[][] = [];
     component.stagedObjectsChanged.subscribe((objects: DatasetStagedObject[]) => emitted.push(objects));
 
     component.ngOnInit();
 
-    expect(getDatasetDiffSpy).toHaveBeenCalledWith(1);
-    expect(component.datasetStagedObjects).toEqual(stagedObjects);
+    expect(getDiffSpy).toHaveBeenCalledWith(DATASET_FILE_RESOURCE_ENDPOINT, 1);
+    expect(component.stagedObjects).toEqual(stagedObjects);
     expect(emitted).toEqual([stagedObjects]);
   });
 
-  it("does not fetch staged objects when did is undefined", () => {
-    component.did = undefined;
+  it("does not fetch staged objects when resourceId is undefined", () => {
+    component.resourceId = undefined;
 
     component.ngOnInit();
 
-    expect(getDatasetDiffSpy).not.toHaveBeenCalled();
-    expect(component.datasetStagedObjects).toEqual([]);
+    expect(getDiffSpy).not.toHaveBeenCalled();
+    expect(component.stagedObjects).toEqual([]);
   });
 
   // #5586: one change event per finished file must not mean one dataset-diff
@@ -93,17 +94,17 @@ describe("UserDatasetStagedObjectsListComponent", () => {
   it("coalesces bursts of change events into one refetch per audit window", () => {
     vi.useFakeTimers();
     try {
-      component.did = 1;
+      component.resourceId = 1;
       const changes = new EventEmitter<void>();
       component.userMakeChangesEvent = changes;
 
       for (let i = 0; i < 50; i++) {
         changes.emit();
       }
-      expect(getDatasetDiffSpy).not.toHaveBeenCalled();
+      expect(getDiffSpy).not.toHaveBeenCalled();
 
-      vi.advanceTimersByTime(UserDatasetStagedObjectsListComponent.REFRESH_AUDIT_TIME_MS);
-      expect(getDatasetDiffSpy).toHaveBeenCalledTimes(1);
+      vi.advanceTimersByTime(StagedObjectsListComponent.REFRESH_AUDIT_TIME_MS);
+      expect(getDiffSpy).toHaveBeenCalledTimes(1);
     } finally {
       vi.useRealTimers();
     }
@@ -130,8 +131,8 @@ describe("UserDatasetStagedObjectsListComponent", () => {
 
     (fixture.nativeElement.querySelector(".delete-button") as HTMLButtonElement).click();
 
-    expect(resetDatasetFileDiffSpy).toHaveBeenCalledWith(1, "dir/a.txt");
-    expect(getDatasetDiffSpy).toHaveBeenCalledTimes(2);
+    expect(resetFileDiffSpy).toHaveBeenCalledWith(DATASET_FILE_RESOURCE_ENDPOINT, 1, "dir/a.txt");
+    expect(getDiffSpy).toHaveBeenCalledTimes(2);
   });
 
   it("shows the full path and upload time in the row tooltip", async () => {
@@ -159,21 +160,21 @@ describe("UserDatasetStagedObjectsListComponent", () => {
   describe("branch coverage", () => {
     it("ignores a userMakeChangesEvent that is not provided", () => {
       // The setter guards on the event; assigning nothing must not subscribe or refetch.
-      component.did = 1;
+      component.resourceId = 1;
       component.userMakeChangesEvent = undefined as unknown as EventEmitter<void>;
-      expect(getDatasetDiffSpy).not.toHaveBeenCalled();
+      expect(getDiffSpy).not.toHaveBeenCalled();
     });
 
     it("does not revert an object when no dataset id is set", () => {
-      component.did = undefined;
+      component.resourceId = undefined;
       component.onObjectReverted(stagedObjects[0]);
-      expect(resetDatasetFileDiffSpy).not.toHaveBeenCalled();
+      expect(resetFileDiffSpy).not.toHaveBeenCalled();
     });
 
     it("notifies when reverting a staged object fails", () => {
-      resetDatasetFileDiffSpy.mockReturnValue(throwError(() => new Error("boom")));
+      resetFileDiffSpy.mockReturnValue(throwError(() => new Error("boom")));
       const notificationService = TestBed.inject(NotificationService);
-      component.did = 1;
+      component.resourceId = 1;
 
       component.onObjectReverted(stagedObjects[0]);
 

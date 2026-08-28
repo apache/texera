@@ -17,22 +17,6 @@
  * under the License.
  */
 
-.create-dataset-version-button {
-  display: flex; /* Use flexbox for centering */
-  align-items: center; /* Center vertically */
-  justify-content: center; /* Center horizontally */
-  color: white;
-  border: none;
-  padding: 12px 40px; /* Increase padding for a wider button */
-  border-radius: 25px;
-  cursor: pointer;
-  transition: background-color 0.3s;
-  margin: 18px auto 0 auto; /* Auto margins for horizontal centering */
-  width: 200px; /* Adjust width as needed */
-  font-size: 18px; /* Make text slightly bigger */
-  font-weight: bold; /* Optional: Make text bold */
-}
-
 .version-storage {
   padding: 0 15px;
   margin-bottom: 25px;
@@ -143,78 +127,9 @@ nz-select {
   margin-top: 15%;
 }
 
-.upload-progress-wrapper {
-  max-height: 25vh;
-  overflow-y: auto;
-  padding-right: 4px;
-}
-
 // Rows must stay exactly PENDING_ROW_HEIGHT_PX tall for the fixed-size scroll
 // strategy. The gutter lives on the rows: padding on the viewport never
 // reaches its absolutely positioned content wrapper.
-.upload-progress-wrapper-pending {
-  .pending-file-row {
-    height: 32px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding-right: 4px;
-
-    .pending-file-name {
-      overflow: hidden;
-      white-space: nowrap;
-      text-overflow: ellipsis;
-    }
-  }
-}
-
-.version-creator {
-  margin-top: 20px;
-  padding: 20px;
-}
-
-.version-input-container label {
-  font-size: 15px;
-}
-
-.version-input-container {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.version-input {
-  padding: 6px;
-}
-
-.upload-stats {
-  font-size: 13px;
-  margin-bottom: 20px;
-  nz-progress {
-    width: 97%;
-    display: inline-block;
-  }
-}
-
-:host ::ng-deep .upload-stats .ant-tag {
-  border: none;
-}
-
-.fixed-width-speed {
-  display: inline-block;
-  min-width: 5ch;
-  text-align: right;
-}
-
-.fixed-width-time {
-  display: inline-block;
-  min-width: 2ch;
-  text-align: right;
-}
-
-.section-divider {
-  margin: 8px 0;
-}
 
 .status-tag-row {
   margin-top: 16px;

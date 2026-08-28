@@ -17,10 +17,11 @@
  * under the License.
  */
 
-import { Component, OnInit } from "@angular/core";
+import { Component, OnInit, ViewChild } from "@angular/core";
 import { ActivatedRoute } from "@angular/router";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { switchMap } from "rxjs/operators";
+import { Observable } from "rxjs";
 import { format } from "date-fns";
 import { NgIf, NgClass, NgFor } from "@angular/common";
 import { FormsModule } from "@angular/forms";
@@ -37,9 +38,18 @@ import { NzEmptyComponent } from "ng-zorro-antd/empty";
 import { NzCollapseComponent, NzCollapsePanelComponent } from "ng-zorro-antd/collapse";
 import { NzSelectComponent, NzOptionComponent } from "ng-zorro-antd/select";
 import { NzTabsComponent, NzTabComponent } from "ng-zorro-antd/tabs";
+import { NzDividerComponent } from "ng-zorro-antd/divider";
+import { NzInputDirective } from "ng-zorro-antd/input";
 
-import { ModelService } from "../../../../service/user/model/model.service";
+import {
+  MODEL_FORMATS,
+  MODEL_FRAMEWORKS,
+  ModelService,
+  validateModelName,
+} from "../../../../service/user/model/model.service";
 import { DownloadService } from "../../../../service/user/download/download.service";
+import { StagedFileService } from "../../../../service/user/file-resource/staged-file.service";
+import { MODEL_FILE_RESOURCE_ENDPOINT } from "../../../../service/user/file-resource/file-resource-endpoint";
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
 import { UserService } from "../../../../../common/service/user/user.service";
 import { EntityType } from "../../../../../hub/service/hub.service";
@@ -47,8 +57,13 @@ import { extractErrorMessage } from "../../../../../common/util/error";
 import { formatCount } from "src/app/common/util/format.util";
 import { formatSize } from "src/app/common/util/size-formatter.util";
 import { ModelVersion } from "../../../../../common/type/model";
-import { DatasetFileNode, getFullPathFromDatasetFileNode } from "../../../../../common/type/datasetVersionFileTree";
+import {
+  DatasetFileNode,
+  getFullPathFromDatasetFileNode,
+  getRelativePathFromDatasetFileNode,
+} from "../../../../../common/type/datasetVersionFileTree";
 import { MarkdownDescriptionComponent } from "../../markdown-description/markdown-description.component";
+import { VersionUploaderComponent } from "../../version-uploader/version-uploader.component";
 import { UserDatasetFileRendererComponent } from "../../user-dataset/user-dataset-explorer/user-dataset-file-renderer/user-dataset-file-renderer.component";
 import { UserDatasetVersionFiletreeComponent } from "../../user-dataset/user-dataset-explorer/user-dataset-version-filetree/user-dataset-version-filetree.component";
 
@@ -81,7 +96,10 @@ import { UserDatasetVersionFiletreeComponent } from "../../user-dataset/user-dat
     NzOptionComponent,
     NzTabsComponent,
     NzTabComponent,
+    NzDividerComponent,
+    NzInputDirective,
     MarkdownDescriptionComponent,
+    VersionUploaderComponent,
     UserDatasetFileRendererComponent,
     UserDatasetVersionFiletreeComponent,
   ],
@@ -89,6 +107,7 @@ import { UserDatasetVersionFiletreeComponent } from "../../user-dataset/user-dat
 export class ModelDetailComponent implements OnInit {
   public mid: number | undefined;
   public modelName: string = "";
+  public editedModelName: string = "";
   public modelDescription: string = "";
   public modelCreationTime: string = "";
   public modelCreationTimeTooltip: string = "";
@@ -127,6 +146,11 @@ export class ModelDetailComponent implements OnInit {
   public currentUid: number | undefined = this.userService.getCurrentUser()?.uid;
 
   public readonly modelEntityType = EntityType.Model;
+  public readonly modelEndpoint = MODEL_FILE_RESOURCE_ENDPOINT;
+  public readonly frameworks = MODEL_FRAMEWORKS;
+  public readonly formats = MODEL_FORMATS;
+
+  @ViewChild(VersionUploaderComponent) private versionUploader?: VersionUploaderComponent;
 
   formatSize = formatSize;
   formatCount = formatCount;
@@ -135,6 +159,7 @@ export class ModelDetailComponent implements OnInit {
     private route: ActivatedRoute,
     private modelService: ModelService,
     private downloadService: DownloadService,
+    private stagedFileService: StagedFileService,
     private notificationService: NotificationService,
     private userService: UserService
   ) {
@@ -193,6 +218,7 @@ export class ModelDetailComponent implements OnInit {
         next: dashboardModel => {
           const model = dashboardModel.model;
           this.modelName = model.name;
+          this.editedModelName = model.name;
           this.modelDescription = model.description;
           this.modelIsPublic = model.isPublic;
           this.modelIsDownloadable = model.isDownloadable;
@@ -349,5 +375,122 @@ export class ModelDetailComponent implements OnInit {
       return true;
     }
     return this.modelIsDownloadable && (this.modelIsPublic || this.userModelAccessLevel !== "NONE");
+  }
+
+  userHasWriteAccess(): boolean {
+    return this.userModelAccessLevel === "WRITE";
+  }
+
+  onPreviouslyUploadedFileDeleted(node: DatasetFileNode): void {
+    if (!this.mid) {
+      return;
+    }
+    const relativePath = getRelativePathFromDatasetFileNode(node);
+    this.stagedFileService
+      .deleteFile(this.modelEndpoint, this.mid, relativePath)
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: () => {
+          this.notificationService.success(
+            `File ${node.name} is successfully deleted. You may finalize it or revert it at the "Create Version" panel`
+          );
+          this.versionUploader?.notePathStaged(relativePath);
+        },
+        error: () => this.notificationService.error("Failed to delete the file"),
+      });
+  }
+
+  /** Commits the staged files; the panel owns the rest of the version flow. */
+  createModelVersion = (versionName: string): Observable<unknown> =>
+    this.modelService.createModelVersion(this.mid!, versionName);
+
+  onVersionCreated(): void {
+    this.retrieveModelVersionList();
+  }
+
+  // ===========================================================================
+  // Settings
+  // ===========================================================================
+
+  onSaveModelName(): void {
+    if (!this.mid) {
+      return;
+    }
+    const name = this.editedModelName;
+    const nameError = validateModelName(name);
+    if (nameError) {
+      this.notificationService.error(nameError);
+      return;
+    }
+
+    this.modelService
+      .updateModelName(this.mid, name)
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: () => {
+          this.modelName = name;
+          this.editedModelName = name;
+          this.notificationService.success(`Model name updated to '${name}'`);
+        },
+        error: (err: unknown) => this.notificationService.error(extractErrorMessage(err)),
+      });
+  }
+
+  onModelDescriptionChange(description: string): void {
+    const updatedDescription = description ?? "";
+    const previousDescription = this.modelDescription;
+
+    if (!this.mid || previousDescription === updatedDescription) {
+      return;
+    }
+    this.modelDescription = updatedDescription;
+
+    this.modelService
+      .updateModelDescription(this.mid, updatedDescription)
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        error: () => {
+          this.modelDescription = previousDescription;
+          this.notificationService.error("Failed to update model description");
+        },
+      });
+  }
+
+  onFrameworkChange(framework: string): void {
+    const previous = this.modelFramework;
+    if (!this.mid || previous === framework) {
+      return;
+    }
+    this.modelFramework = framework;
+
+    this.modelService
+      .updateModelFramework(this.mid, framework)
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: () => this.notificationService.success(`Framework set to '${framework}'`),
+        error: (err: unknown) => {
+          this.modelFramework = previous;
+          this.notificationService.error(extractErrorMessage(err));
+        },
+      });
+  }
+
+  onFormatChange(modelFormat: string): void {
+    const previous = this.modelFormat;
+    if (!this.mid || previous === modelFormat) {
+      return;
+    }
+    this.modelFormat = modelFormat;
+
+    this.modelService
+      .updateModelFormat(this.mid, modelFormat)
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: () => this.notificationService.success(`Format set to '${modelFormat}'`),
+        error: (err: unknown) => {
+          this.modelFormat = previous;
+          this.notificationService.error(extractErrorMessage(err));
+        },
+      });
   }
 }
