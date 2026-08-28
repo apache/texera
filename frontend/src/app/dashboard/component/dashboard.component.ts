@@ -57,6 +57,7 @@ import { NzIconDirective } from "ng-zorro-antd/icon";
 import { NzButtonComponent } from "ng-zorro-antd/button";
 import { SearchBarComponent } from "./user/search-bar/search-bar.component";
 import { UserIconComponent } from "./user/user-icon/user-icon.component";
+import { MODEL_ICON } from "../../common/icon/model-icon";
 
 @Component({
   selector: "texera-dashboard",
@@ -119,6 +120,7 @@ export class DashboardComponent implements OnInit {
   protected readonly USER_WORKFLOW = USER_WORKFLOW;
   protected readonly USER_DATASET = USER_DATASET;
   protected readonly USER_MODEL = USER_MODEL;
+  protected readonly MODEL_ICON = MODEL_ICON;
   protected readonly USER_COMPUTING_UNIT = USER_COMPUTING_UNIT;
   protected readonly USER_PYTHON_VENV = USER_PYTHON_VENV;
   protected readonly USER_QUOTA = USER_QUOTA;

@@ -33,7 +33,6 @@ import { ModelService } from "../../../service/user/model/model.service";
 import { DashboardEntry } from "../../../type/dashboard-entry";
 import { SortMethod } from "../../../type/sort-method";
 import { EntityType } from "../../../../hub/service/hub.service";
-import { USER_MODEL } from "../../../../app-routing.constant";
 import { User } from "../../../../common/type/user";
 import { UserModelComponent } from "./user-model.component";
 import { UserModelCreatorComponent } from "./user-model-creator/user-model-creator.component";
@@ -48,7 +47,6 @@ describe("UserModelComponent", () => {
   let getCurrentUserSpy: ReturnType<typeof vi.fn>;
 
   let modalServiceMock: { create: ReturnType<typeof vi.fn> };
-  let routerMock: { navigate: ReturnType<typeof vi.fn> };
   let searchServiceMock: { getUserInfo: ReturnType<typeof vi.fn> };
   let modelServiceMock: {
     deleteModel: ReturnType<typeof vi.fn>;
@@ -101,7 +99,6 @@ describe("UserModelComponent", () => {
 
     modalAfterClose = new Subject<unknown>();
     modalServiceMock = { create: vi.fn(() => ({ afterClose: modalAfterClose.asObservable() })) };
-    routerMock = { navigate: vi.fn() };
     searchServiceMock = { getUserInfo: vi.fn(() => of({})) };
     modelServiceMock = {
       deleteModel: vi.fn(() => of({} as Response)),
@@ -111,7 +108,6 @@ describe("UserModelComponent", () => {
     component = new UserModelComponent(
       modalServiceMock as any,
       userServiceMock as any,
-      routerMock as any,
       searchServiceMock as any,
       modelServiceMock as any
     );
@@ -296,7 +292,9 @@ describe("UserModelComponent", () => {
 
   // ─── create ───────────────────────────────────────────────────────────────
 
-  it("opens the creator and navigates to whatever it created", () => {
+  it("opens the creator and refreshes the list with whatever it created", () => {
+    // There is no model detail page yet, so the new model has to appear in this list instead.
+    const searchSpy = vi.spyOn(component, "search").mockResolvedValue();
     component.onClickOpenModelAddComponent();
 
     expect(modalServiceMock.create).toHaveBeenCalledWith(
@@ -305,15 +303,16 @@ describe("UserModelComponent", () => {
 
     modalAfterClose.next({ model: { mid: 9 } });
 
-    expect(routerMock.navigate).toHaveBeenCalledWith([`${USER_MODEL}/9`]);
+    expect(searchSpy).toHaveBeenCalledWith(true);
   });
 
-  it("stays put when the creator was cancelled", () => {
+  it("does not refresh when the creator was cancelled", () => {
+    const searchSpy = vi.spyOn(component, "search").mockResolvedValue();
     component.onClickOpenModelAddComponent();
 
     modalAfterClose.next(null);
 
-    expect(routerMock.navigate).not.toHaveBeenCalled();
+    expect(searchSpy).not.toHaveBeenCalled();
   });
 
   // ─── delete ───────────────────────────────────────────────────────────────

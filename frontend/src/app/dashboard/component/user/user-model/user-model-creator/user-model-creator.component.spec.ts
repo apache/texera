@@ -162,7 +162,37 @@ describe("UserModelCreatorComponent", () => {
     );
   });
 
-  it("surfaces the server message and closes with null when creation fails", async () => {
+  it("refuses a name that sanitizes to nothing, without calling the backend", async () => {
+    // Whitespace survives `required` but sanitizes to "", which the backend answers with a 400.
+    // Punctuation does not belong here: "!!" sanitizes to "-", which is a legal name.
+    const fixture = await createFixture();
+    fixture.detectChanges();
+    const component = fixture.componentInstance;
+
+    for (const typed of ["   ", "\t\n "]) {
+      notifyError.mockClear();
+      component.form.get("name")?.setValue(typed);
+      component.onClickCreate();
+
+      expect(notifyError).toHaveBeenCalledWith("Model name cannot be empty.");
+    }
+    expect(createModel).not.toHaveBeenCalled();
+    expect(modalClose).not.toHaveBeenCalled();
+  });
+
+  it("refuses a name past the length limit, without calling the backend", async () => {
+    const fixture = await createFixture();
+    fixture.detectChanges();
+    const component = fixture.componentInstance;
+
+    component.form.get("name")?.setValue("a".repeat(129));
+    component.onClickCreate();
+
+    expect(createModel).not.toHaveBeenCalled();
+    expect(notifyError).toHaveBeenCalledWith(expect.stringContaining("Invalid model name"));
+  });
+
+  it("surfaces the server message and keeps the modal open when creation fails", async () => {
     const fixture = await createFixture();
     fixture.detectChanges();
     const component = fixture.componentInstance;
@@ -172,7 +202,8 @@ describe("UserModelCreatorComponent", () => {
     component.onClickCreate();
 
     expect(notifyError).toHaveBeenCalledWith("Model dupe creation failed: name already taken");
-    expect(modalClose).toHaveBeenCalledWith(null);
+    // The modal stays open so the rejected name can be corrected rather than retyped.
+    expect(modalClose).not.toHaveBeenCalled();
     expect(component.isCreating).toBe(false);
   });
 

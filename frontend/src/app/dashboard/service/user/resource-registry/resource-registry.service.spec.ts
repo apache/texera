@@ -30,11 +30,11 @@ import {
   HUB_DATASET_RESULT_DETAIL,
   HUB_WORKFLOW_RESULT_DETAIL,
   USER_DATASET,
-  USER_MODEL,
   USER_PROJECT,
   USER_WORKSPACE,
 } from "../../../../app-routing.constant";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
+import { MODEL_ICON } from "../../../../common/icon/model-icon";
 
 const entry = (overrides: Partial<Record<string, unknown>>): DashboardEntry =>
   ({ id: 7, accessibleUserIds: [], ...overrides }) as unknown as DashboardEntry;
@@ -83,7 +83,7 @@ describe("ResourceRegistryService", () => {
     expect(registry.get(EntityType.Dataset).iconType).toBe("database");
     expect(registry.get(EntityType.Project).iconType).toBe("container");
     expect(registry.get(EntityType.File).iconType).toBe("folder-open");
-    expect(registry.get(EntityType.Model).iconType).toBe("experiment");
+    expect(registry.get(EntityType.Model).iconType).toBe(MODEL_ICON);
   });
 
   it("refuses a kind it does not carry", () => {
@@ -163,9 +163,14 @@ describe("ResourceRegistryService", () => {
   });
 
   it("routes a kind with no hub page straight to its private page", () => {
-    // Projects have no hub presence, and models do not get one until the hub UI lands.
+    // Projects have no hub presence, so access lists never come into it.
     expect(registry.entryLink(entry({ type: EntityType.Project, id: 3 }), undefined)).toEqual([USER_PROJECT, "3"]);
-    expect(registry.entryLink(entry({ type: EntityType.Model, id: 9 }), 42)).toEqual([USER_MODEL, "9"]);
+  });
+
+  it("leaves models unrouted until they have a page to open", () => {
+    // /user/model/:mid has no component yet; a link would hit the ** wildcard and land on Workflows.
+    expect(registry.get(EntityType.Model).privateRoute).toBeUndefined();
+    expect(registry.entryLink(entry({ type: EntityType.Model, id: 9 }), 42)).toEqual([]);
   });
 
   it("leaves an unroutable or unsaved entry unlinked", () => {

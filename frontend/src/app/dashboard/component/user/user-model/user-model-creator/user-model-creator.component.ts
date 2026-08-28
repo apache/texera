@@ -30,7 +30,12 @@ import { NzButtonComponent } from "ng-zorro-antd/button";
 import { NzWaveDirective } from "ng-zorro-antd/core/wave";
 import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
 
-import { MODEL_FORMATS, MODEL_FRAMEWORKS, ModelService } from "../../../../service/user/model/model.service";
+import {
+  MODEL_FORMATS,
+  MODEL_FRAMEWORKS,
+  ModelService,
+  validateModelName,
+} from "../../../../service/user/model/model.service";
 import { Model } from "../../../../../common/type/model";
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
 
@@ -141,6 +146,14 @@ export class UserModelCreatorComponent implements OnInit {
     const sanitizedName = sanitizeModelName(originalName);
     this.isModelNameSanitized = sanitizedName !== originalName;
 
+    // A name of only punctuation or whitespace sanitizes to "", which passes `required` but the
+    // backend rejects. Check the sanitized name against the same rule the rename path uses.
+    const nameError = sanitizedName === "" ? "Model name cannot be empty." : validateModelName(sanitizedName);
+    if (nameError) {
+      this.notificationService.error(nameError);
+      return;
+    }
+
     const model: Model = {
       name: sanitizedName,
       description: this.form.get("description")?.value ?? "",
@@ -171,8 +184,8 @@ export class UserModelCreatorComponent implements OnInit {
         error: (res: unknown) => {
           const err = res as HttpErrorResponse;
           this.notificationService.error(`Model ${sanitizedName} creation failed: ${err.error?.message}`);
+          // Left open on purpose, so a rejected name can be corrected rather than retyped.
           this.isCreating = false;
-          this.modalRef.close(null);
         },
       });
   }

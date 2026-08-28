@@ -22,15 +22,16 @@ import { DashboardEntry } from "../../../type/dashboard-entry";
 import { ResourceDescriptor } from "../../../type/resource-descriptor";
 import { EntityType } from "../../../../hub/service/hub.service";
 import { DEFAULT_MODEL_NAME, ModelService, validateModelName } from "../model/model.service";
-import { USER_MODEL } from "../../../../app-routing.constant";
+import { MODEL_ICON } from "../../../../common/icon/model-icon";
 
 @Injectable({
   providedIn: "root",
 })
 export class ModelResourceDescriptor implements ResourceDescriptor {
   readonly type = EntityType.Model;
-  readonly iconType = "experiment";
-  readonly privateRoute = USER_MODEL;
+  readonly iconType = MODEL_ICON;
+  // `privateRoute` is deliberately absent: /user/model/:mid has no component yet, so
+  // entryLink returns [] and a model card does not navigate.
   readonly hasSize = true;
   readonly defaultName = DEFAULT_MODEL_NAME;
 

@@ -19,7 +19,6 @@
 
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { AfterViewInit, Component, ViewChild } from "@angular/core";
-import { Router } from "@angular/router";
 import { firstValueFrom } from "rxjs";
 import { isDefined } from "../../../../common/util/predicate";
 import { NzModalService } from "ng-zorro-antd/modal";
@@ -37,7 +36,6 @@ import { ModelService } from "../../../service/user/model/model.service";
 import { SortMethod } from "../../../type/sort-method";
 import { DashboardEntry } from "../../../type/dashboard-entry";
 import { DashboardModel } from "../../../type/dashboard-model.interface";
-import { USER_MODEL } from "../../../../app-routing.constant";
 import { SearchResultsComponent } from "../search-results/search-results.component";
 import { CardItemComponent } from "../list-item/card-item/card-item.component";
 import { SortButtonComponent } from "../sort-button/sort-button.component";
@@ -93,7 +91,6 @@ export class UserModelComponent implements AfterViewInit {
   constructor(
     private modalService: NzModalService,
     private userService: UserService,
-    private router: Router,
     private searchService: SearchService,
     private modelService: ModelService
   ) {
@@ -221,10 +218,10 @@ export class UserModelComponent implements AfterViewInit {
       nzWidth: "fit-content",
     });
 
+    // Refreshes rather than opening the new model: it has no detail page yet.
     modal.afterClose.pipe(untilDestroyed(this)).subscribe(result => {
       if (result != null) {
-        const created = result as DashboardModel;
-        this.router.navigate([`${USER_MODEL}/${created.model.mid}`]);
+        void this.search(true);
       }
     });
   }
