@@ -177,6 +177,9 @@ class MachineLearningScorerOpDesc extends PythonOperatorDescriptor with Standalo
          |
          |    @overrides
          |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
+         |      # A row missing either value has nothing to score, and the metrics
+         |      # refuse the empty cell rather than passing over it.
+         |      table = table.dropna(subset=[$actualValueColumn, $predictValueColumn])
          |      y_true = table[$actualValueColumn]
          |      y_pred = table[$predictValueColumn]
          |
@@ -225,6 +228,9 @@ class MachineLearningScorerOpDesc extends PythonOperatorDescriptor with Standalo
        |    result[metric] = metrics_func[metric](y_true, y_pred)
        |  return pd.DataFrame(result, index=[0])
        |
+       |in1df = in1df.dropna(subset=[${pyStringLiteral(actualValueColumn)}, ${pyStringLiteral(
+      predictValueColumn
+    )}])
        |y_true = in1df[${pyStringLiteral(actualValueColumn)}]
        |y_pred = in1df[${pyStringLiteral(predictValueColumn)}]
        |metric_list = [${getSelectedMetrics()}]

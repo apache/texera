@@ -42,7 +42,6 @@ import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.KNNTrain
   SklearnAdvancedKNNClassifierTrainerOpDesc,
   SklearnAdvancedKNNRegressorTrainerOpDesc
 }
-import org.apache.texera.amber.operator.machineLearning.Scorer.MachineLearningScorerOpDesc
 import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.base.SklearnMLOperatorDescriptor
 import org.apache.texera.amber.operator.sklearn.training.SklearnTrainingOpDesc
 import org.apache.texera.amber.operator.sklearn.training.SklearnTrainingGaussianNaiveBayesOpDesc
@@ -338,10 +337,7 @@ object TransformVerificationRunner {
       // These two descend from PythonOperatorDescriptor rather than a sklearn
       // base, so the family rows above do not reach them.
       classOf[SklearnLinearRegressionOpDesc] -> "apache/texera#7582",
-      classOf[SklearnMLOperatorDescriptor[_]] -> "apache/texera#7582",
-      // Hands both scored columns to scikit-learn's metrics, which refuse a None
-      // beside the labels rather than scoring the rows they can.
-      classOf[MachineLearningScorerOpDesc] -> "apache/texera#8058"
+      classOf[SklearnMLOperatorDescriptor[_]] -> "apache/texera#7582"
     )
 
     // The operator refuses the text pipeline in `getOutputSchemas`, so there is no
