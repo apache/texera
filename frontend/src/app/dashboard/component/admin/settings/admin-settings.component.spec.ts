@@ -561,6 +561,7 @@ describe("AdminSettingsComponent wiring", () => {
     "projects_enabled",
     "workflows_enabled",
     "datasets_enabled",
+    "models_enabled",
     "compute_enabled",
     "quota_enabled",
     "forum_enabled",
@@ -664,7 +665,10 @@ describe("AdminSettingsComponent wiring", () => {
       component.sidebarTabs.your_work_enabled = false;
       fixture.detectChanges();
 
-      [0, 4, 11].forEach(i => expect(switches()[i].componentInstance.nzDisabled).toBeFalsy());
+      // Indexed by key, not position, so adding a tab does not silently retarget this.
+      (["hub_enabled", "your_work_enabled", "about_enabled"] as const).forEach(key =>
+        expect(switches()[SWITCH_KEYS.indexOf(key)].componentInstance.nzDisabled).toBeFalsy()
+      );
     });
   });
 

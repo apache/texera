@@ -406,12 +406,13 @@ describe("ListItemComponent", () => {
       expect(() => feed(entryOf({ type: "quantum" }))).toThrowError("Unexpected type in DashboardEntry.");
     });
 
-    it("leaves a dataset without a numeric id unrouted", () => {
-      // The dataset arm reads isOwner and the link only for a persisted entry.
-      feed(entryOf({ type: "dataset", id: undefined, dataset: { isOwner: false } }));
+    it("leaves a dataset without a numeric id unrouted but still badged", () => {
+      // Routing and size need a persisted entry; the icon is a property of the kind, not the row.
+      feed(entryOf({ type: "dataset", id: undefined, size: 99, dataset: { isOwner: false } }));
 
       expect(component.entryLink).toEqual([]);
-      expect(component.iconType).not.toBe("database");
+      expect(component.size).toBe(0);
+      expect(component.iconType).toBe("database");
     });
 
     it("reduces a description to a plain preview, and blanks an empty one", () => {
