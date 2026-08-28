@@ -17,11 +17,14 @@
  * under the License.
  */
 
-import { ChangeDetectorRef, Component, EventEmitter, OnInit, Output } from "@angular/core";
+import { ChangeDetectorRef, Component, EventEmitter, Input, OnInit, Output } from "@angular/core";
 import { OperatorMetadataService } from "src/app/workspace/service/operator-metadata/operator-metadata.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+import { Observable } from "rxjs";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { WorkflowPersistService } from "src/app/common/service/workflow-persist/workflow-persist.service";
+import { DatasetService } from "../../../service/user/dataset/dataset.service";
+import { EntityType } from "../../../../hub/service/hub.service";
 import { SearchFilterParameters } from "../../../type/search-filter-parameters";
 import { UserService } from "../../../../common/service/user/user.service";
 import { NzDropdownADirective, NzDropdownDirective, NzDropdownMenuComponent } from "ng-zorro-antd/dropdown";
@@ -65,6 +68,8 @@ import { NzCheckboxComponent } from "ng-zorro-antd/checkbox";
 export class FiltersComponent implements OnInit {
   public isLogin = this.userService.isLogin();
   private _masterFilterList: ReadonlyArray<string> = [];
+  /** Which resource kind this page lists; decides whose owners and ids are offered. */
+  @Input() public entityType: EntityType = EntityType.Workflow;
   @Output()
   public masterFilterListChange = new EventEmitter<typeof this._masterFilterList>();
   public get masterFilterList(): ReadonlyArray<string> {
@@ -107,8 +112,20 @@ export class FiltersComponent implements OnInit {
     private operatorMetadataService: OperatorMetadataService,
     private notificationService: NotificationService,
     private workflowPersistService: WorkflowPersistService,
+    private datasetService: DatasetService,
     private cdr: ChangeDetectorRef
   ) {}
+
+  /** Only workflows expose an id-listing endpoint. */
+  public get hasIdFilter(): boolean {
+    return this.entityType === EntityType.Workflow;
+  }
+
+  private retrieveOwners(): Observable<string[]> {
+    return this.entityType === EntityType.Dataset
+      ? this.datasetService.retrieveOwners()
+      : this.workflowPersistService.retrieveOwners();
+  }
 
   ngOnInit(): void {
     this.trackLoginState();
@@ -125,9 +142,7 @@ export class FiltersComponent implements OnInit {
       });
   }
 
-  /**
-   * Backend calls for Workflow IDs, Owners, and Operators in saved workflow component
-   */
+  /** Backend calls for the filtered kind's owners and ids, plus the operator metadata. */
   private searchParameterBackendSetup() {
     this.operatorMetadataService
       .getOperatorMetadata()
@@ -151,23 +166,24 @@ export class FiltersComponent implements OnInit {
         this.operatorGroups = opdata.groups.map(group => group.groupName);
       });
     if (this.isLogin) {
-      this.workflowPersistService
-        .retrieveOwners()
+      this.retrieveOwners()
         .pipe(untilDestroyed(this))
         .subscribe(list_of_owners => {
           this.owners = list_of_owners.map(i => ({ userName: i, checked: false }));
         });
-      this.workflowPersistService
-        .retrieveWorkflowIDs()
-        .pipe(untilDestroyed(this))
-        .subscribe(wids => {
-          this.wids = wids.map(wid => {
-            return {
-              id: wid.toString(),
-              checked: false,
-            };
+      if (this.hasIdFilter) {
+        this.workflowPersistService
+          .retrieveWorkflowIDs()
+          .pipe(untilDestroyed(this))
+          .subscribe(wids => {
+            this.wids = wids.map(wid => {
+              return {
+                id: wid.toString(),
+                checked: false,
+              };
+            });
           });
-        });
+      }
     }
   }
 

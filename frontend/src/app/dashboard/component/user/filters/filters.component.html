@@ -106,7 +106,7 @@
   </nz-dropdown-menu>
 
   <a
-    *ngIf="this.isLogin"
+    *ngIf="this.isLogin && hasIdFilter"
     [nzDropdownMenu]="IDSearchOptions"
     nz-dropdown
     nzTrigger="click"
