@@ -394,6 +394,8 @@ export class ModelDetailComponent implements OnInit {
           this.notificationService.success(
             `File ${node.name} is successfully deleted. You may finalize it or revert it at the "Create Version" panel`
           );
+          // Undefined only when the panel is not rendered, which is the same write-access
+          // condition that gates the tree's delete control.
           this.versionUploader?.notePathStaged(relativePath);
         },
         error: () => this.notificationService.error("Failed to delete the file"),
@@ -430,6 +432,9 @@ export class ModelDetailComponent implements OnInit {
         next: () => {
           this.modelName = name;
           this.editedModelName = name;
+          // File nodes carry the model name inside their paths, and preview and single-file
+          // download resolve a model by (owner, name) — a stale tree 404s until reload.
+          this.onVersionSelected(this.selectedVersion);
           this.notificationService.success(`Model name updated to '${name}'`);
         },
         error: (err: unknown) => this.notificationService.error(extractErrorMessage(err)),

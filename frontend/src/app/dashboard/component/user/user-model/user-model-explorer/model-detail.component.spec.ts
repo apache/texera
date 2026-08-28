@@ -600,6 +600,40 @@ describe("ModelDetailComponent", () => {
     expect(component.modelName).toBe("resnet-101");
   });
 
+  it("refreshes the file tree after a rename, so paths carry the new name", () => {
+    modelService["updateModelName"] = vi.fn(() => of({}));
+    modelService["retrieveModelVersionList"] = vi.fn(() => of([aVersion(1, "v1")]));
+    modelService["retrieveModelVersionFileTree"] = vi.fn(() =>
+      of({ fileNodes: [aFile("model.pt", `/model/${OWNER}/resnet-50/v1`)], size: 4 })
+    );
+    create();
+    modelService["retrieveModelVersionFileTree"].mockClear();
+    // The renamed model's tree comes back under the new path.
+    modelService["retrieveModelVersionFileTree"] = vi.fn(() =>
+      of({ fileNodes: [aFile("model.pt", `/model/${OWNER}/resnet-101/v1`)], size: 4 })
+    );
+    component.editedModelName = "resnet-101";
+
+    component.onSaveModelName();
+
+    // Preview and single-file download resolve a model by (owner, name), so a tree still
+    // holding the old name would 404 on every file until the page was reloaded.
+    expect(modelService["retrieveModelVersionFileTree"]).toHaveBeenCalledWith(MID, 1, true);
+    expect(component.currentDisplayedFileName).toBe(`/model/${OWNER}/resnet-101/v1/model.pt`);
+  });
+
+  it("skips the tree refresh for a model with no versions", () => {
+    modelService["updateModelName"] = vi.fn(() => of({}));
+    create();
+    modelService["retrieveModelVersionFileTree"].mockClear();
+    component.editedModelName = "resnet-101";
+
+    component.onSaveModelName();
+
+    expect(modelService["retrieveModelVersionFileTree"]).not.toHaveBeenCalled();
+    expect(component.modelName).toBe("resnet-101");
+  });
+
   it("rejects an invalid name without calling the server", () => {
     modelService["updateModelName"] = vi.fn(() => of({}));
     create();
