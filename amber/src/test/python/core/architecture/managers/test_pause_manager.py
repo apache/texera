@@ -173,9 +173,12 @@ class TestPauseManager:
         # ECM_PAUSE is the type main_loop actually uses for channel pauses.
         pause_manager.pause_input_channel(PauseType.ECM_PAUSE, second)
         assert not input_queue.is_data_enabled()
+        assert not input_queue._queue.is_enabled(first)
+        assert not input_queue._queue.is_enabled(second)
 
         pause_manager.resume(PauseType.DEBUG_PAUSE)
-        assert input_queue.is_data_enabled()
+        assert input_queue._queue.is_enabled(first)
+        assert not input_queue._queue.is_enabled(second)
 
     def test_pause_with_change_state_false_leaves_the_state_alone(
         self, pause_manager, state_manager
