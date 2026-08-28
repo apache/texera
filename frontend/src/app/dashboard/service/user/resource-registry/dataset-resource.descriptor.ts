@@ -23,6 +23,7 @@ import { ResourceDescriptor } from "../../../type/resource-descriptor";
 import { EntityType } from "../../../../hub/service/hub.service";
 import { DatasetService, DEFAULT_DATASET_NAME, validateDatasetName } from "../dataset/dataset.service";
 import { HUB_DATASET_RESULT_DETAIL, USER_DATASET } from "../../../../app-routing.constant";
+import { DownloadService } from "../download/download.service";
 
 @Injectable({
   providedIn: "root",
@@ -35,7 +36,10 @@ export class DatasetResourceDescriptor implements ResourceDescriptor {
   readonly hasSize = true;
   readonly defaultName = DEFAULT_DATASET_NAME;
 
-  constructor(private datasetService: DatasetService) {}
+  constructor(
+    private datasetService: DatasetService,
+    private downloadService: DownloadService
+  ) {}
 
   isOwner = (entry: DashboardEntry): boolean => entry.dataset.isOwner;
   validateName = validateDatasetName;
@@ -43,5 +47,8 @@ export class DatasetResourceDescriptor implements ResourceDescriptor {
   updateDescription = (id: number, description: string) =>
     this.datasetService.updateDatasetDescription(id, description);
   retrieveOwners = () => this.datasetService.retrieveOwners();
+  download = (id: number, name: string) => this.downloadService.downloadDataset(id, name);
+  retrieveSingleFile = (filePath: string, isLogin: boolean) =>
+    this.datasetService.retrieveDatasetVersionSingleFile(filePath, isLogin);
   // No dataset-id endpoint exists, so `retrieveIds` stays absent and the id filter hides itself.
 }

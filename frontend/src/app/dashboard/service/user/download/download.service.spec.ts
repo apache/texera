@@ -21,6 +21,7 @@ import { TestBed } from "@angular/core/testing";
 import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
 import { DownloadService, EXPORT_BASE_URL } from "./download.service";
 import { DatasetService } from "../dataset/dataset.service";
+import { ModelService } from "../model/model.service";
 import { FileSaverService } from "../file/file-saver.service";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { WorkflowPersistService } from "../../../../common/service/workflow-persist/workflow-persist.service";
@@ -39,6 +40,7 @@ const EXPORT_OPERATORS = [{ id: "op1", outputType: "csv" }];
 describe("DownloadService", () => {
   let downloadService: DownloadService;
   let datasetServiceSpy: Mocked<DatasetService>;
+  let modelServiceSpy: Mocked<ModelService>;
   let fileSaverServiceSpy: Mocked<FileSaverService>;
   let notificationServiceSpy: Mocked<NotificationService>;
   let workflowPersistServiceSpy: Mocked<WorkflowPersistService>;
@@ -46,6 +48,7 @@ describe("DownloadService", () => {
 
   beforeEach(() => {
     const datasetSpy = { retrieveDatasetVersionSingleFile: vi.fn(), retrieveDatasetVersionZip: vi.fn() };
+    const modelSpy = { retrieveModelVersionSingleFile: vi.fn(), retrieveModelVersionZip: vi.fn() };
     const fileSaverSpy = { saveAs: vi.fn() };
     const notificationSpy = { info: vi.fn(), success: vi.fn(), error: vi.fn() };
     const workflowPersistSpy = { retrieveWorkflow: vi.fn() };
@@ -55,6 +58,7 @@ describe("DownloadService", () => {
       providers: [
         DownloadService,
         { provide: DatasetService, useValue: datasetSpy },
+        { provide: ModelService, useValue: modelSpy },
         { provide: FileSaverService, useValue: fileSaverSpy },
         { provide: NotificationService, useValue: notificationSpy },
         { provide: WorkflowPersistService, useValue: workflowPersistSpy },
@@ -64,6 +68,7 @@ describe("DownloadService", () => {
 
     downloadService = TestBed.inject(DownloadService);
     datasetServiceSpy = TestBed.inject(DatasetService) as unknown as Mocked<DatasetService>;
+    modelServiceSpy = TestBed.inject(ModelService) as unknown as Mocked<ModelService>;
     fileSaverServiceSpy = TestBed.inject(FileSaverService) as unknown as Mocked<FileSaverService>;
     notificationServiceSpy = TestBed.inject(NotificationService) as unknown as Mocked<NotificationService>;
     workflowPersistServiceSpy = TestBed.inject(WorkflowPersistService) as unknown as Mocked<WorkflowPersistService>;
@@ -173,6 +178,46 @@ describe("DownloadService", () => {
     );
 
     expect(notificationServiceSpy.error).toHaveBeenCalledWith("Error downloading version 'v1.0' as ZIP");
+  });
+
+  // ─── model downloads ──────────────────────────────────────────────────────
+
+  it("downloads a model's latest version, a chosen version, and a single file", async () => {
+    const zip = new Blob(["model"], { type: "application/zip" });
+    const file = new Blob(["weights"]);
+    modelServiceSpy.retrieveModelVersionZip.mockReturnValue(of(zip));
+    modelServiceSpy.retrieveModelVersionSingleFile.mockReturnValue(of(file));
+
+    expect(await firstValueFrom(downloadService.downloadModel(4, "resnet-50"))).toBe(zip);
+    expect(modelServiceSpy.retrieveModelVersionZip).toHaveBeenCalledWith(4);
+    expect(fileSaverServiceSpy.saveAs).toHaveBeenCalledWith(zip, "resnet-50.zip");
+
+    expect(await firstValueFrom(downloadService.downloadModelVersion(4, 2, "resnet-50", "v2"))).toBe(zip);
+    expect(modelServiceSpy.retrieveModelVersionZip).toHaveBeenCalledWith(4, 2);
+    expect(fileSaverServiceSpy.saveAs).toHaveBeenCalledWith(zip, "resnet-50-v2.zip");
+
+    expect(await firstValueFrom(downloadService.downloadModelSingleFile("/models/a/m/v2/model.pt"))).toBe(file);
+    expect(modelServiceSpy.retrieveModelVersionSingleFile).toHaveBeenCalledWith("/models/a/m/v2/model.pt", true);
+    expect(fileSaverServiceSpy.saveAs).toHaveBeenCalledWith(file, "model.pt");
+  });
+
+  it("passes the logged-out flag through to the model file endpoint", async () => {
+    modelServiceSpy.retrieveModelVersionSingleFile.mockReturnValue(of(new Blob()));
+
+    await firstValueFrom(downloadService.downloadModelSingleFile("/models/a/m/v2/model.pt", false));
+
+    expect(modelServiceSpy.retrieveModelVersionSingleFile).toHaveBeenCalledWith("/models/a/m/v2/model.pt", false);
+  });
+
+  it("emits the model error notification and rethrows on retrieve failure", async () => {
+    modelServiceSpy.retrieveModelVersionZip.mockReturnValue(throwError(() => new Error("fail")));
+
+    await expect(firstValueFrom(downloadService.downloadModel(4, "resnet-50"))).rejects.toThrow("fail");
+
+    expect(fileSaverServiceSpy.saveAs).not.toHaveBeenCalled();
+    expect(notificationServiceSpy.error).toHaveBeenCalledWith(
+      "Error downloading the latest version of the model as ZIP"
+    );
   });
 
   // ─── downloadWorkflow ─────────────────────────────────────────────────────

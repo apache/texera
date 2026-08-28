@@ -43,6 +43,10 @@ export interface ResourceDescriptor {
   validateName?(name: string): string | null;
   rename?(id: number, name: string): Observable<unknown>;
   updateDescription?(id: number, description: string): Observable<unknown>;
+  /** Downloads the whole resource; absent when the kind has nothing to download. */
+  download?(id: number, name: string): Observable<unknown>;
+  /** Fetches one file of a version for preview, by its logical path. */
+  retrieveSingleFile?(filePath: string, isLogin: boolean): Observable<Blob>;
   /** Owners of this kind, for the filter dropdown. */
   retrieveOwners?(): Observable<string[]>;
   /** Entry ids of this kind; absent when the backend exposes no such endpoint. */

@@ -23,6 +23,8 @@ import { ResourceDescriptor } from "../../../type/resource-descriptor";
 import { EntityType } from "../../../../hub/service/hub.service";
 import { DEFAULT_MODEL_NAME, ModelService, validateModelName } from "../model/model.service";
 import { MODEL_ICON } from "../../../../common/icon/model-icon";
+import { USER_MODEL } from "../../../../app-routing.constant";
+import { DownloadService } from "../download/download.service";
 
 @Injectable({
   providedIn: "root",
@@ -30,16 +32,22 @@ import { MODEL_ICON } from "../../../../common/icon/model-icon";
 export class ModelResourceDescriptor implements ResourceDescriptor {
   readonly type = EntityType.Model;
   readonly iconType = MODEL_ICON;
-  // `privateRoute` is deliberately absent: /user/model/:mid has no component yet, so
-  // entryLink returns [] and a model card does not navigate.
+  readonly privateRoute = USER_MODEL;
+  // `hubRoute` is deliberately absent: models reach the hub with the rest of the hub UI.
   readonly hasSize = true;
   readonly defaultName = DEFAULT_MODEL_NAME;
 
-  constructor(private modelService: ModelService) {}
+  constructor(
+    private modelService: ModelService,
+    private downloadService: DownloadService
+  ) {}
 
   isOwner = (entry: DashboardEntry): boolean => entry.model.isOwner;
   validateName = validateModelName;
   rename = (id: number, name: string) => this.modelService.updateModelName(id, name);
   updateDescription = (id: number, description: string) => this.modelService.updateModelDescription(id, description);
+  download = (id: number, name: string) => this.downloadService.downloadModel(id, name);
+  retrieveSingleFile = (filePath: string, isLogin: boolean) =>
+    this.modelService.retrieveModelVersionSingleFile(filePath, isLogin);
   // `retrieveOwners` arrives with the share modal and the filters, which need it.
 }

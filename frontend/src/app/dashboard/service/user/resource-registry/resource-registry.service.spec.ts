@@ -26,10 +26,12 @@ import { EntityType } from "../../../../hub/service/hub.service";
 import { DatasetService } from "../dataset/dataset.service";
 import { ModelService } from "../model/model.service";
 import { WorkflowPersistService } from "../../../../common/service/workflow-persist/workflow-persist.service";
+import { DownloadService } from "../download/download.service";
 import {
   HUB_DATASET_RESULT_DETAIL,
   HUB_WORKFLOW_RESULT_DETAIL,
   USER_DATASET,
+  USER_MODEL,
   USER_PROJECT,
   USER_WORKSPACE,
 } from "../../../../app-routing.constant";
@@ -44,6 +46,7 @@ describe("ResourceRegistryService", () => {
   let workflowPersistService: { [k: string]: ReturnType<typeof vi.fn> };
   let datasetService: { [k: string]: ReturnType<typeof vi.fn> };
   let modelService: { [k: string]: ReturnType<typeof vi.fn> };
+  let downloadService: { [k: string]: ReturnType<typeof vi.fn> };
 
   beforeEach(() => {
     // Partial spies on purpose: the descriptors must not touch these until a caller asks.
@@ -57,16 +60,25 @@ describe("ResourceRegistryService", () => {
       updateDatasetName: vi.fn().mockReturnValue(of({})),
       updateDatasetDescription: vi.fn().mockReturnValue(of({})),
       retrieveOwners: vi.fn().mockReturnValue(of(["ds-owner"])),
+      retrieveDatasetVersionSingleFile: vi.fn().mockReturnValue(of(new Blob())),
     };
 
     modelService = {
       updateModelName: vi.fn().mockReturnValue(of({})),
       updateModelDescription: vi.fn().mockReturnValue(of({})),
+      retrieveModelVersionSingleFile: vi.fn().mockReturnValue(of(new Blob())),
+    };
+
+    downloadService = {
+      downloadWorkflow: vi.fn().mockReturnValue(of({})),
+      downloadDataset: vi.fn().mockReturnValue(of(new Blob())),
+      downloadModel: vi.fn().mockReturnValue(of(new Blob())),
     };
 
     TestBed.configureTestingModule({
       imports: [HttpClientTestingModule],
       providers: [
+        { provide: DownloadService, useValue: downloadService },
         { provide: WorkflowPersistService, useValue: workflowPersistService },
         { provide: DatasetService, useValue: datasetService },
         { provide: ModelService, useValue: modelService },
@@ -107,6 +119,19 @@ describe("ResourceRegistryService", () => {
     }
   });
 
+  it("offers a download and a file preview only for the kinds that hold files", () => {
+    for (const type of [EntityType.Workflow, EntityType.Dataset, EntityType.Model]) {
+      expect(registry.get(type).download).toBeDefined();
+    }
+    for (const type of [EntityType.Project, EntityType.File]) {
+      expect(registry.get(type).download).toBeUndefined();
+    }
+    // Workflows are one file, not a version tree, so nothing previews them.
+    expect(registry.get(EntityType.Workflow).retrieveSingleFile).toBeUndefined();
+    expect(registry.get(EntityType.Dataset).retrieveSingleFile).toBeDefined();
+    expect(registry.get(EntityType.Model).retrieveSingleFile).toBeDefined();
+  });
+
   it("offers an id filter only where the backend has an id endpoint", () => {
     expect(registry.get(EntityType.Workflow).retrieveIds).toBeDefined();
     expect(registry.get(EntityType.Dataset).retrieveIds).toBeUndefined();
@@ -130,6 +155,11 @@ describe("ResourceRegistryService", () => {
     registry.get(EntityType.Dataset).updateDescription!(2, "d");
     registry.get(EntityType.Model).rename!(3, "m");
     registry.get(EntityType.Model).updateDescription!(3, "d");
+    registry.get(EntityType.Workflow).download!(1, "wf");
+    registry.get(EntityType.Dataset).download!(2, "ds");
+    registry.get(EntityType.Model).download!(3, "m");
+    registry.get(EntityType.Dataset).retrieveSingleFile!("/datasets/a/ds/v1/f.csv", true);
+    registry.get(EntityType.Model).retrieveSingleFile!("/models/a/m/v1/f.pt", false);
 
     expect(workflowPersistService["updateWorkflowName"]).toHaveBeenCalledWith(1, "wf");
     expect(workflowPersistService["updateWorkflowDescription"]).toHaveBeenCalledWith(1, "d");
@@ -137,6 +167,11 @@ describe("ResourceRegistryService", () => {
     expect(datasetService["updateDatasetDescription"]).toHaveBeenCalledWith(2, "d");
     expect(modelService["updateModelName"]).toHaveBeenCalledWith(3, "m");
     expect(modelService["updateModelDescription"]).toHaveBeenCalledWith(3, "d");
+    expect(downloadService["downloadWorkflow"]).toHaveBeenCalledWith(1, "wf");
+    expect(downloadService["downloadDataset"]).toHaveBeenCalledWith(2, "ds");
+    expect(downloadService["downloadModel"]).toHaveBeenCalledWith(3, "m");
+    expect(datasetService["retrieveDatasetVersionSingleFile"]).toHaveBeenCalledWith("/datasets/a/ds/v1/f.csv", true);
+    expect(modelService["retrieveModelVersionSingleFile"]).toHaveBeenCalledWith("/models/a/m/v1/f.pt", false);
   });
 
   it("reads ownership off the kind's own payload", () => {
@@ -167,10 +202,9 @@ describe("ResourceRegistryService", () => {
     expect(registry.entryLink(entry({ type: EntityType.Project, id: 3 }), undefined)).toEqual([USER_PROJECT, "3"]);
   });
 
-  it("leaves models unrouted until they have a page to open", () => {
-    // /user/model/:mid has no component yet; a link would hit the ** wildcard and land on Workflows.
-    expect(registry.get(EntityType.Model).privateRoute).toBeUndefined();
-    expect(registry.entryLink(entry({ type: EntityType.Model, id: 9 }), 42)).toEqual([]);
+  it("routes a model to its detail page, which has no hub twin yet", () => {
+    expect(registry.get(EntityType.Model).hubRoute).toBeUndefined();
+    expect(registry.entryLink(entry({ type: EntityType.Model, id: 9 }), 42)).toEqual([USER_MODEL, "9"]);
   });
 
   it("leaves an unroutable or unsaved entry unlinked", () => {

@@ -21,6 +21,8 @@ import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { getMimeType, MIME_TYPES, UserDatasetFileRendererComponent } from "./user-dataset-file-renderer.component";
 import { DatasetService } from "../../../../../service/user/dataset/dataset.service";
+import { ModelService } from "../../../../../service/user/model/model.service";
+import { EntityType } from "../../../../../../hub/service/hub.service";
 import { NotificationService } from "../../../../../../common/service/notification/notification.service";
 import { DomSanitizer } from "@angular/platform-browser";
 import { commonTestProviders } from "../../../../../../common/testing/test-utils";
@@ -39,6 +41,7 @@ describe("UserDatasetFileRendererComponent", () => {
       imports: [UserDatasetFileRendererComponent, HttpClientTestingModule],
       providers: [
         DatasetService,
+        ModelService,
         NotificationService,
         { provide: DomSanitizer, useValue: { bypassSecurityTrustUrl: vi.fn() } },
         ...commonTestProviders,
@@ -64,9 +67,9 @@ describe("UserDatasetFileRendererComponent", () => {
   describe("reloadFileContent", () => {
     it("flags an unsupported file type and does not hit the backend", () => {
       const spy = vi.spyOn(TestBed.inject(DatasetService), "retrieveDatasetVersionSingleFile");
-      // did/dvid are set so the early-return is what stops the request, not the missing ids.
-      component.did = 1;
-      component.dvid = 2;
+      // The ids are set so the early-return is what stops the request, not the missing ids.
+      component.resourceId = 1;
+      component.versionId = 2;
       component.filePath = "archive.bin"; // -> OCTET_STREAM -> unsupported
 
       component.reloadFileContent();
@@ -77,8 +80,8 @@ describe("UserDatasetFileRendererComponent", () => {
 
     it("flags an oversized file and does not hit the backend", () => {
       const spy = vi.spyOn(TestBed.inject(DatasetService), "retrieveDatasetVersionSingleFile");
-      component.did = 1;
-      component.dvid = 2;
+      component.resourceId = 1;
+      component.versionId = 2;
       component.filePath = "notes.txt"; // TXT limit is 1 MB
       component.fileSize = 5 * 1024 * 1024;
 
@@ -92,8 +95,8 @@ describe("UserDatasetFileRendererComponent", () => {
       const datasetService = TestBed.inject(DatasetService);
       const blob = new Blob(["hello"], { type: "text/plain" });
       const spy = vi.spyOn(datasetService, "retrieveDatasetVersionSingleFile").mockReturnValue(of(blob));
-      component.did = 1;
-      component.dvid = 2;
+      component.resourceId = 1;
+      component.versionId = 2;
       component.filePath = "notes.txt";
       component.isLogin = true;
       component.fileSize = 100;
@@ -103,6 +106,35 @@ describe("UserDatasetFileRendererComponent", () => {
       expect(spy).toHaveBeenCalledWith("notes.txt", true);
       expect(component.displayPlainText).toBe(true);
       expect(component.isLoading).toBe(false);
+    });
+
+    it("fetches from the model endpoint when the file belongs to a model", () => {
+      const datasetSpy = vi.spyOn(TestBed.inject(DatasetService), "retrieveDatasetVersionSingleFile");
+      const modelSpy = vi
+        .spyOn(TestBed.inject(ModelService), "retrieveModelVersionSingleFile")
+        .mockReturnValue(of(new Blob(["weights"], { type: "text/plain" })));
+      component.resourceType = EntityType.Model;
+      component.resourceId = 1;
+      component.versionId = 2;
+      component.filePath = "/models/a/m/v1/notes.txt";
+      component.isLogin = true;
+
+      component.reloadFileContent();
+
+      expect(modelSpy).toHaveBeenCalledWith("/models/a/m/v1/notes.txt", true);
+      expect(datasetSpy).not.toHaveBeenCalled();
+    });
+
+    it("hits nothing for a kind that has no file preview", () => {
+      const datasetSpy = vi.spyOn(TestBed.inject(DatasetService), "retrieveDatasetVersionSingleFile");
+      component.resourceType = EntityType.Workflow;
+      component.resourceId = 1;
+      component.versionId = 2;
+      component.filePath = "notes.txt";
+
+      component.reloadFileContent();
+
+      expect(datasetSpy).not.toHaveBeenCalled();
     });
   });
 
@@ -255,15 +287,15 @@ describe("UserDatasetFileRendererComponent", () => {
       expect(reloadSpy).toHaveBeenCalledTimes(1);
     });
 
-    it("reloads when both did and dvid change together", () => {
+    it("reloads when both resourceId and versionId change together", () => {
       const reloadSpy = vi.spyOn(component, "reloadFileContent").mockImplementation(() => {});
-      component.ngOnChanges({ did: chg(1, 2), dvid: chg(3, 4) } as SimpleChanges);
+      component.ngOnChanges({ resourceId: chg(1, 2), versionId: chg(3, 4) } as SimpleChanges);
       expect(reloadSpy).toHaveBeenCalledTimes(1);
     });
 
-    it("does not reload when only did changes without dvid", () => {
+    it("does not reload when only resourceId changes without versionId", () => {
       const reloadSpy = vi.spyOn(component, "reloadFileContent").mockImplementation(() => {});
-      component.ngOnChanges({ did: chg(1, 2) } as SimpleChanges);
+      component.ngOnChanges({ resourceId: chg(1, 2) } as SimpleChanges);
       expect(reloadSpy).not.toHaveBeenCalled();
     });
 
@@ -328,8 +360,8 @@ describe("UserDatasetFileRendererComponent", () => {
     function loadWith(filePath: string, blob: Blob) {
       const datasetService = TestBed.inject(DatasetService);
       vi.spyOn(datasetService, "retrieveDatasetVersionSingleFile").mockReturnValue(of(blob));
-      component.did = 1;
-      component.dvid = 2;
+      component.resourceId = 1;
+      component.versionId = 2;
       component.filePath = filePath;
       component.isLogin = false;
       component.fileSize = undefined;
@@ -422,8 +454,8 @@ describe("UserDatasetFileRendererComponent", () => {
       const spy = vi.spyOn(datasetService, "retrieveDatasetVersionSingleFile");
       // A supported, in-limit file, so the two pre-checks pass and the id guard is the
       // only thing left to stop the request.
-      component.did = undefined;
-      component.dvid = 2;
+      component.resourceId = undefined;
+      component.versionId = 2;
       component.filePath = "notes.txt";
       component.fileSize = 100;
 
@@ -568,8 +600,8 @@ describe("UserDatasetFileRendererComponent", () => {
       vi.spyOn(datasetService, "retrieveDatasetVersionSingleFile").mockReturnValue(
         of(new Blob(["ignored"], { type: MIME_TYPES.CSV }))
       );
-      component.did = 1;
-      component.dvid = 2;
+      component.resourceId = 1;
+      component.versionId = 2;
       component.filePath = "data.csv";
       component.fileSize = undefined;
       component.reloadFileContent();
@@ -616,6 +648,7 @@ describe("UserDatasetFileRendererComponent rendering", () => {
       imports: [UserDatasetFileRendererComponent, HttpClientTestingModule, MarkdownModule.forRoot()],
       providers: [
         DatasetService,
+        ModelService,
         NotificationService,
         {
           provide: DomSanitizer,

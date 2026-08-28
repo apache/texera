@@ -26,6 +26,7 @@ import {
   WorkflowPersistService,
 } from "../../../../common/service/workflow-persist/workflow-persist.service";
 import { HUB_WORKFLOW_RESULT_DETAIL, USER_WORKSPACE } from "../../../../app-routing.constant";
+import { DownloadService } from "../download/download.service";
 
 @Injectable({
   providedIn: "root",
@@ -38,7 +39,10 @@ export class WorkflowResourceDescriptor implements ResourceDescriptor {
   readonly hasSize = true;
   readonly defaultName = DEFAULT_WORKFLOW_NAME;
 
-  constructor(private workflowPersistService: WorkflowPersistService) {}
+  constructor(
+    private workflowPersistService: WorkflowPersistService,
+    private downloadService: DownloadService
+  ) {}
 
   // Bound lazily, never in the constructor: specs hand these descriptors partial service spies,
   // and reading an absent method up front would fail the whole TestBed.
@@ -48,4 +52,5 @@ export class WorkflowResourceDescriptor implements ResourceDescriptor {
     this.workflowPersistService.updateWorkflowDescription(id, description);
   retrieveOwners = () => this.workflowPersistService.retrieveOwners();
   retrieveIds = () => this.workflowPersistService.retrieveWorkflowIDs();
+  download = (id: number, name: string) => this.downloadService.downloadWorkflow(id, name);
 }

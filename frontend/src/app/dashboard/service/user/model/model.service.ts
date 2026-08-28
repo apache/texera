@@ -18,11 +18,13 @@
  */
 
 import { Injectable } from "@angular/core";
-import { HttpClient } from "@angular/common/http";
+import { HttpClient, HttpParams } from "@angular/common/http";
 import { Observable } from "rxjs";
+import { switchMap } from "rxjs/operators";
 import { AppSettings } from "../../../../common/app-setting";
-import { Model } from "../../../../common/type/model";
+import { Model, ModelVersion } from "../../../../common/type/model";
 import { DashboardModel } from "../../../type/dashboard-model.interface";
+import { DatasetFileNode } from "../../../../common/type/datasetVersionFileTree";
 
 export const MODEL_BASE_URL = "model";
 export const MODEL_CREATE_URL = MODEL_BASE_URL + "/create";
@@ -30,6 +32,11 @@ export const MODEL_UPDATE_BASE_URL = MODEL_BASE_URL + "/update";
 export const MODEL_UPDATE_NAME_URL = MODEL_UPDATE_BASE_URL + "/name";
 export const MODEL_UPDATE_DESCRIPTION_URL = MODEL_UPDATE_BASE_URL + "/description";
 export const MODEL_LIST_URL = MODEL_BASE_URL + "/list";
+
+export const MODEL_VERSION_BASE_URL = "version";
+export const MODEL_VERSION_RETRIEVE_LIST_URL = MODEL_VERSION_BASE_URL + "/list";
+export const MODEL_PUBLIC_VERSION_BASE_URL = "publicVersion";
+export const MODEL_PUBLIC_VERSION_RETRIEVE_LIST_URL = MODEL_PUBLIC_VERSION_BASE_URL + "/list";
 
 export const DEFAULT_MODEL_NAME = "Untitled-model";
 
@@ -73,6 +80,13 @@ export class ModelService {
     });
   }
 
+  public getModel(mid: number, isLogin: boolean = true): Observable<DashboardModel> {
+    const apiUrl = isLogin
+      ? `${AppSettings.getApiEndpoint()}/${MODEL_BASE_URL}/${mid}`
+      : `${AppSettings.getApiEndpoint()}/${MODEL_BASE_URL}/public/${mid}`;
+    return this.http.get<DashboardModel>(apiUrl);
+  }
+
   public retrieveAccessibleModels(): Observable<DashboardModel[]> {
     return this.http.get<DashboardModel[]>(`${AppSettings.getApiEndpoint()}/${MODEL_LIST_URL}`);
   }
@@ -93,5 +107,53 @@ export class ModelService {
       mid: mid,
       description: description,
     });
+  }
+
+  /** A model's versions, newest first; an anonymous caller gets the public-only endpoint. */
+  public retrieveModelVersionList(mid: number, isLogin: boolean = true): Observable<ModelVersion[]> {
+    const listUrl = isLogin ? MODEL_VERSION_RETRIEVE_LIST_URL : MODEL_PUBLIC_VERSION_RETRIEVE_LIST_URL;
+    return this.http.get<ModelVersion[]>(`${AppSettings.getApiEndpoint()}/${MODEL_BASE_URL}/${mid}/${listUrl}`);
+  }
+
+  public retrieveModelVersionFileTree(
+    mid: number,
+    mvid: number,
+    isLogin: boolean = true
+  ): Observable<{ fileNodes: DatasetFileNode[]; size: number }> {
+    const versionSegment = isLogin ? MODEL_VERSION_BASE_URL : MODEL_PUBLIC_VERSION_BASE_URL;
+    return this.http.get<{ fileNodes: DatasetFileNode[]; size: number }>(
+      `${AppSettings.getApiEndpoint()}/${MODEL_BASE_URL}/${mid}/${versionSegment}/${mvid}/rootFileNodes`
+    );
+  }
+
+  /** A model version as a zip. The backend requires exactly one of mvid or latest. */
+  public retrieveModelVersionZip(mid: number, mvid?: number): Observable<Blob> {
+    const params =
+      mvid !== undefined && mvid !== null
+        ? new HttpParams().set("mvid", mvid.toString())
+        : new HttpParams().set("latest", "true");
+
+    return this.http.get(`${AppSettings.getApiEndpoint()}/${MODEL_BASE_URL}/${mid}/versionZip`, {
+      params,
+      responseType: "blob",
+    });
+  }
+
+  /**
+   * A single file of a model version, fetched through a presigned URL.
+   *
+   * @param filePath Logical path of the file, e.g. "/models/bob@texera.com/resnet/v1/model.pt".
+   */
+  public retrieveModelVersionSingleFile(filePath: string, isLogin: boolean = true): Observable<Blob> {
+    const endpointSegment = isLogin ? "presign-download" : "public-presign-download";
+    const endpoint = `${AppSettings.getApiEndpoint()}/${MODEL_BASE_URL}/${endpointSegment}?filePath=${encodeURIComponent(filePath)}`;
+
+    return this.http
+      .get<{ presignedUrl: string }>(endpoint)
+      .pipe(switchMap(({ presignedUrl }) => this.http.get(presignedUrl, { responseType: "blob" })));
+  }
+
+  public getModelCoverUrl(mid: number): Observable<{ url: string | null }> {
+    return this.http.get<{ url: string | null }>(`${AppSettings.getApiEndpoint()}/${MODEL_BASE_URL}/${mid}/cover-url`);
   }
 }

@@ -18,6 +18,7 @@
  */
 
 import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { DownloadService } from "src/app/dashboard/service/user/download/download.service";
 import { By } from "@angular/platform-browser";
 import { ListItemComponent } from "./list-item.component";
 import {
@@ -566,10 +567,8 @@ describe("ListItemComponent", () => {
 
     describe("download", () => {
       it("downloads a workflow by id and name", () => {
-        const download = vi
-          .spyOn((component as any).downloadService, "downloadWorkflow")
-          .mockReturnValue(of(undefined));
-        feed(entryOf({ type: "workflow", workflow: { isOwner: true, workflow: { name: "flow" } } }));
+        const download = vi.spyOn(TestBed.inject(DownloadService), "downloadWorkflow").mockReturnValue(of({} as any));
+        feed(entryOf({ type: "workflow", name: "flow", workflow: { isOwner: true } }));
 
         component.onClickDownload();
 
@@ -577,7 +576,7 @@ describe("ListItemComponent", () => {
       });
 
       it("downloads a dataset by id and name", () => {
-        const download = vi.spyOn((component as any).downloadService, "downloadDataset").mockReturnValue(of(undefined));
+        const download = vi.spyOn(TestBed.inject(DownloadService), "downloadDataset").mockReturnValue(of(new Blob()));
         feed(entryOf({ type: "dataset", dataset: { isOwner: true }, name: "set" }));
 
         component.onClickDownload();
@@ -585,8 +584,23 @@ describe("ListItemComponent", () => {
         expect(download).toHaveBeenCalledWith(7, "set");
       });
 
+      it("downloads a renamed workflow under its new name", () => {
+        // The rename writes entry.name and leaves entry.workflow.workflow.name stale, so
+        // reading the payload here used to name the zip after the pre-rename workflow.
+        (workflowPersistService as any).updateWorkflowName.mockReturnValue(of({} as Response));
+        const download = vi.spyOn(TestBed.inject(DownloadService), "downloadWorkflow").mockReturnValue(of({} as any));
+        feed(
+          entryOf({ type: "workflow", name: "old-name", workflow: { isOwner: true, workflow: { name: "old-name" } } })
+        );
+
+        component.confirmUpdateCustomName("new-name");
+        component.onClickDownload();
+
+        expect(download).toHaveBeenCalledWith(7, "new-name");
+      });
+
       it("downloads nothing for an entry that was never persisted", () => {
-        const workflow = vi.spyOn((component as any).downloadService, "downloadWorkflow");
+        const workflow = vi.spyOn(TestBed.inject(DownloadService), "downloadWorkflow");
         feed(entryOf({ type: "file", id: 0 }));
 
         component.onClickDownload();

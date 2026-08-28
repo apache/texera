@@ -46,7 +46,6 @@ import { WorkflowPersistService } from "src/app/common/service/workflow-persist/
 import { firstValueFrom } from "rxjs";
 import { HubWorkflowDetailComponent } from "../../../../../hub/component/workflow/detail/hub-workflow-detail.component";
 import { ActionType, HubService } from "../../../../../hub/service/hub.service";
-import { DownloadService } from "src/app/dashboard/service/user/download/download.service";
 import { formatSize } from "src/app/common/util/size-formatter.util";
 import { formatRelativeTime, formatCount } from "src/app/common/util/format.util";
 import { DatasetService } from "../../../../service/user/dataset/dataset.service";
@@ -78,6 +77,7 @@ export class CardItemComponent implements OnChanges {
   public originalName: string = "";
   public originalDescription: string | undefined = undefined;
   public disableDelete: boolean = false;
+  public canDownload: boolean = false;
   @Input() currentUid: number | undefined;
   @ViewChild("nameInput") nameInput!: ElementRef;
   @ViewChild("descriptionInput") descriptionInput!: ElementRef;
@@ -125,7 +125,6 @@ export class CardItemComponent implements OnChanges {
     private datasetService: DatasetService,
     private modal: NzModalService,
     private hubService: HubService,
-    private downloadService: DownloadService,
     private cdr: ChangeDetectorRef,
     private notificationService: NotificationService,
     private workflowCoverService: WorkflowCoverService,
@@ -191,6 +190,7 @@ export class CardItemComponent implements OnChanges {
     const descriptor = this.resourceRegistry.get(this.entry.type);
     this.iconType = descriptor.iconType;
     this.disableDelete = !descriptor.isOwner(this.entry);
+    this.canDownload = descriptor.download !== undefined;
     this.entryLink = this.resourceRegistry.entryLink(this.entry, this.currentUid);
     if (descriptor.hasSize && typeof this.entry.id === "number") {
       this.size = this.entry.size;
@@ -285,16 +285,9 @@ export class CardItemComponent implements OnChanges {
   }
 
   public onClickDownload = (): void => {
-    if (!this.entry.id) return;
-
-    if (this.entry.type === "workflow") {
-      this.downloadService
-        .downloadWorkflow(this.entry.id, this.entry.workflow.workflow.name)
-        .pipe(untilDestroyed(this))
-        .subscribe();
-    } else if (this.entry.type === "dataset") {
-      this.downloadService.downloadDataset(this.entry.id, this.entry.name).pipe(untilDestroyed(this)).subscribe();
-    }
+    const download = this.resourceRegistry.get(this.entry.type).download;
+    if (!this.entry.id || !download) return;
+    download(this.entry.id, this.entry.name).pipe(untilDestroyed(this)).subscribe();
   };
 
   onEditName(): void {

@@ -156,6 +156,76 @@ describe("ModelService", () => {
     describe.flush({});
   });
 
+  it("reads a model from the authenticated or the public endpoint", () => {
+    service.getModel(7).subscribe();
+    const authenticated = http.expectOne(`${API}/model/7`);
+    expect(authenticated.request.method).toBe("GET");
+    authenticated.flush({});
+
+    service.getModel(7, false).subscribe();
+    http.expectOne(`${API}/model/public/7`).flush({});
+  });
+
+  it("lists versions from the endpoint matching the caller's login state", () => {
+    service.retrieveModelVersionList(7).subscribe();
+    http.expectOne(`${API}/model/7/version/list`).flush([]);
+
+    service.retrieveModelVersionList(7, false).subscribe();
+    http.expectOne(`${API}/model/7/publicVersion/list`).flush([]);
+  });
+
+  it("reads a version's root file nodes with its size", async () => {
+    const tree = { fileNodes: [], size: 42 };
+    const pending = firstValueFrom(service.retrieveModelVersionFileTree(7, 3));
+    http.expectOne(`${API}/model/7/version/3/rootFileNodes`).flush(tree);
+    expect(await pending).toEqual(tree);
+
+    service.retrieveModelVersionFileTree(7, 3, false).subscribe();
+    http.expectOne(`${API}/model/7/publicVersion/3/rootFileNodes`).flush(tree);
+  });
+
+  it("asks for exactly one of mvid or latest on a version zip", () => {
+    // The backend answers a request carrying both, or neither, with a 400.
+    service.retrieveModelVersionZip(7, 3).subscribe();
+    const byId = http.expectOne(req => req.url === `${API}/model/7/versionZip`);
+    expect(byId.request.params.get("mvid")).toBe("3");
+    expect(byId.request.params.has("latest")).toBe(false);
+    byId.flush(new Blob());
+
+    service.retrieveModelVersionZip(7).subscribe();
+    const latest = http.expectOne(req => req.url === `${API}/model/7/versionZip`);
+    expect(latest.request.params.get("latest")).toBe("true");
+    expect(latest.request.params.has("mvid")).toBe(false);
+    latest.flush(new Blob());
+  });
+
+  it("fetches a single file by following the presigned url it is handed", async () => {
+    const blob = new Blob(["weights"]);
+    const pending = firstValueFrom(service.retrieveModelVersionSingleFile("/models/a/m/v1/model.pt"));
+
+    const presign = http.expectOne(
+      `${API}/model/presign-download?filePath=${encodeURIComponent("/models/a/m/v1/model.pt")}`
+    );
+    presign.flush({ presignedUrl: "http://minio/model.pt" });
+    http.expectOne("http://minio/model.pt").flush(blob);
+
+    expect(await pending).toEqual(blob);
+  });
+
+  it("uses the anonymous presign endpoint for a logged-out viewer", () => {
+    service.retrieveModelVersionSingleFile("/models/a/m/v1/model.pt", false).subscribe();
+    http
+      .expectOne(`${API}/model/public-presign-download?filePath=${encodeURIComponent("/models/a/m/v1/model.pt")}`)
+      .flush({ presignedUrl: "http://minio/model.pt" });
+    http.expectOne("http://minio/model.pt").flush(new Blob());
+  });
+
+  it("reads the presigned cover url, which is null for a model without one", async () => {
+    const pending = firstValueFrom(service.getModelCoverUrl(7));
+    http.expectOne(`${API}/model/7/cover-url`).flush({ url: null });
+    expect(await pending).toEqual({ url: null });
+  });
+
   it("surfaces a server error rather than swallowing it", async () => {
     const outcome = firstValueFrom(service.retrieveAccessibleModels()).catch((err: unknown) => err);
     http.expectOne(`${API}/model/list`).flush({ message: "nope" }, { status: 500, statusText: "Server Error" });
