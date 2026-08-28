@@ -3398,9 +3398,10 @@ class TestMainLoop:
         "nothing was sent here" without depending on whether the sub-queue was
         ever created.
         """
-        if channel not in output_queue._queue.sub_queues:
+        try:
+            return output_queue._queue.size(channel)
+        except KeyError:
             return 0
-        return output_queue._queue.size(channel)
 
     @pytest.mark.timeout(5)
     def test_end_channel_holds_the_worker_open_when_it_has_no_output_ports(
