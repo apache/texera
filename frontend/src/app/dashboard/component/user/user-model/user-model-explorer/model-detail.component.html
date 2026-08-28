@@ -84,10 +84,7 @@
             {{ formatCount(viewCount) }}
           </nz-tag>
 
-          <nz-tag
-            class="status-tag like-tag"
-            [ngClass]="{ liked: isLiked, disabled: !isLogin }"
-            (click)="isLogin && toggleLike()">
+          <nz-tag class="status-tag">
             <i
               nz-icon
               nzType="like"
@@ -304,7 +301,6 @@
                   <div class="select-and-button-container">
                     <nz-select
                       nzShowSearch
-                      nzAllowClear
                       nzPlaceHolder="Select a version"
                       (ngModelChange)="onVersionSelected($event)"
                       [(ngModel)]="selectedVersion">

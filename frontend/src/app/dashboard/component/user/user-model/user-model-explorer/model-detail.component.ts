@@ -42,8 +42,8 @@ import { ModelService } from "../../../../service/user/model/model.service";
 import { DownloadService } from "../../../../service/user/download/download.service";
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
 import { UserService } from "../../../../../common/service/user/user.service";
-import { ActionType, EntityType, HubService } from "../../../../../hub/service/hub.service";
-import { isDefined } from "../../../../../common/util/predicate";
+import { EntityType } from "../../../../../hub/service/hub.service";
+import { extractErrorMessage } from "../../../../../common/util/error";
 import { formatCount } from "src/app/common/util/format.util";
 import { formatSize } from "src/app/common/util/size-formatter.util";
 import { ModelVersion } from "../../../../../common/type/model";
@@ -115,12 +115,13 @@ export class ModelDetailComponent implements OnInit {
   public currentDisplayedFileName: string = "";
   public currentFileSize: number | undefined;
 
+  // Placeholders until models reach the hub. The hub backend has no model entity type
+  // (`hub/EntityType.scala` is Workflow and Dataset only), so nothing can populate these yet.
+  public readonly viewCount: number = 0;
+  public readonly likeCount: number = 0;
+
   public isRightBarCollapsed = false;
   public isMaximized = false;
-
-  public likeCount: number = 0;
-  public viewCount: number = 0;
-  public isLiked: boolean = false;
 
   public isLogin: boolean = this.userService.isLogin();
   public currentUid: number | undefined = this.userService.getCurrentUser()?.uid;
@@ -135,8 +136,7 @@ export class ModelDetailComponent implements OnInit {
     private modelService: ModelService,
     private downloadService: DownloadService,
     private notificationService: NotificationService,
-    private userService: UserService,
-    private hubService: HubService
+    private userService: UserService
   ) {
     this.userService
       .userChanged()
@@ -164,11 +164,16 @@ export class ModelDetailComponent implements OnInit {
     this.route.params
       .pipe(
         switchMap(params => {
-          // Route params are strings; mid is interpolated into URLs and compared numerically.
-          this.mid = Number(params["mid"]);
+          // Route params are strings, and the segment is whatever the URL carried: reject
+          // anything that is not a positive integer once, here, rather than at each use.
+          const mid = Number(params["mid"]);
+          this.mid = Number.isInteger(mid) && mid > 0 ? mid : undefined;
+          if (this.mid === undefined) {
+            this.notificationService.error("This is not a valid model id");
+            return this.route.data;
+          }
           this.retrieveModelInfo();
           this.retrieveModelVersionList();
-          this.loadHubStats();
           return this.route.data;
         }),
         untilDestroyed(this)
@@ -184,29 +189,32 @@ export class ModelDetailComponent implements OnInit {
     this.modelService
       .getModel(mid, this.isLogin)
       .pipe(untilDestroyed(this))
-      .subscribe(dashboardModel => {
-        const model = dashboardModel.model;
-        this.modelName = model.name;
-        this.modelDescription = model.description;
-        this.modelIsPublic = model.isPublic;
-        this.modelIsDownloadable = model.isDownloadable;
-        this.modelFramework = model.framework;
-        this.modelFormat = model.format;
-        this.userModelAccessLevel = dashboardModel.accessPrivilege;
-        this.ownerEmail = dashboardModel.ownerEmail;
-        this.isOwner = dashboardModel.isOwner;
-        if (model.coverImage) {
-          this.loadCoverImageUrl(mid);
-        } else {
-          this.coverImageUrl = null;
-        }
-        if (typeof model.creationTime === "number") {
-          const date = new Date(model.creationTime);
-          this.modelCreationTime = format(date, "MM/dd/yyyy HH:mm:ss");
-          const timeZoneName =
-            new Intl.DateTimeFormat("en-US", { timeZoneName: "long" }).format(date).split(", ").pop() || "";
-          this.modelCreationTimeTooltip = `${format(date, "zzzz")} (${timeZoneName})`;
-        }
+      .subscribe({
+        next: dashboardModel => {
+          const model = dashboardModel.model;
+          this.modelName = model.name;
+          this.modelDescription = model.description;
+          this.modelIsPublic = model.isPublic;
+          this.modelIsDownloadable = model.isDownloadable;
+          this.modelFramework = model.framework;
+          this.modelFormat = model.format;
+          this.userModelAccessLevel = dashboardModel.accessPrivilege;
+          this.ownerEmail = dashboardModel.ownerEmail;
+          this.isOwner = dashboardModel.isOwner;
+          if (model.coverImage) {
+            this.loadCoverImageUrl(mid);
+          } else {
+            this.coverImageUrl = null;
+          }
+          if (typeof model.creationTime === "number") {
+            const date = new Date(model.creationTime);
+            this.modelCreationTime = format(date, "MM/dd/yyyy HH:mm:ss");
+            const timeZoneName =
+              new Intl.DateTimeFormat("en-US", { timeZoneName: "long" }).format(date).split(", ").pop() || "";
+            this.modelCreationTimeTooltip = `${format(date, "zzzz")} (${timeZoneName})`;
+          }
+        },
+        error: (err: unknown) => this.notificationService.error(extractErrorMessage(err)),
       });
   }
 
@@ -227,41 +235,47 @@ export class ModelDetailComponent implements OnInit {
     this.modelService
       .retrieveModelVersionList(this.mid, this.isLogin)
       .pipe(untilDestroyed(this))
-      .subscribe(versions => {
-        this.versions = versions;
-        if (versions.length === 0) {
-          return;
-        }
-        const latest = versions[0];
-        this.latestVersionCreationTime = this.formatCreationTime(latest);
-        this.onVersionSelected(latest);
+      .subscribe({
+        next: versions => {
+          this.versions = versions;
+          if (versions.length === 0) {
+            return;
+          }
+          const latest = versions[0];
+          this.latestVersionCreationTime = this.formatCreationTime(latest);
+          this.onVersionSelected(latest);
+        },
+        error: (err: unknown) => this.notificationService.error(extractErrorMessage(err)),
       });
   }
 
-  onVersionSelected(version: ModelVersion): void {
+  onVersionSelected(version: ModelVersion | undefined): void {
     this.selectedVersion = version;
-    if (!this.mid || !version.mvid) {
+    if (!this.mid || !version?.mvid) {
       return;
     }
     this.modelService
       .retrieveModelVersionFileTree(this.mid, version.mvid, this.isLogin)
       .pipe(untilDestroyed(this))
-      .subscribe(data => {
-        this.fileTreeNodeList = data.fileNodes;
-        this.currentModelVersionSize = data.size;
-        this.selectedVersionCreationTime = this.formatCreationTime(version);
+      .subscribe({
+        next: data => {
+          this.fileTreeNodeList = data.fileNodes;
+          this.currentModelVersionSize = data.size;
+          this.selectedVersionCreationTime = this.formatCreationTime(version);
 
-        const firstFile = this.getFirstFileNode(this.fileTreeNodeList);
-        if (version === this.versions[0]) {
-          this.latestVersionFileName = firstFile ? getFullPathFromDatasetFileNode(firstFile) : "";
-          this.latestVersionSize = data.size;
-        }
-        if (!firstFile) {
-          this.currentDisplayedFileName = "";
-          this.currentFileSize = undefined;
-          return;
-        }
-        this.loadFileContent(firstFile);
+          const firstFile = this.getFirstFileNode(this.fileTreeNodeList);
+          if (version === this.versions[0]) {
+            this.latestVersionFileName = firstFile ? getFullPathFromDatasetFileNode(firstFile) : "";
+            this.latestVersionSize = data.size;
+          }
+          if (!firstFile) {
+            this.currentDisplayedFileName = "";
+            this.currentFileSize = undefined;
+            return;
+          }
+          this.loadFileContent(firstFile);
+        },
+        error: (err: unknown) => this.notificationService.error(extractErrorMessage(err)),
       });
   }
 
@@ -308,54 +322,6 @@ export class ModelDetailComponent implements OnInit {
       .downloadModelVersion(this.mid, this.selectedVersion.mvid, this.modelName, this.selectedVersion.name)
       .pipe(untilDestroyed(this))
       .subscribe();
-  }
-
-  /** Records a view and loads the like count / liked state, mirroring the dataset page. */
-  private loadHubStats(): void {
-    if (!isDefined(this.mid)) {
-      return;
-    }
-    const mid = this.mid;
-
-    this.refreshLikeCount(mid);
-
-    this.hubService
-      .postView(mid, this.currentUid ?? 0, EntityType.Model)
-      .pipe(untilDestroyed(this))
-      .subscribe(count => (this.viewCount = count));
-
-    if (!isDefined(this.currentUid)) {
-      return;
-    }
-
-    this.hubService
-      .isLiked([mid], [EntityType.Model])
-      .pipe(untilDestroyed(this))
-      .subscribe(liked => (this.isLiked = liked.length > 0 && liked[0].isLiked));
-  }
-
-  private refreshLikeCount(mid: number): void {
-    this.hubService
-      .getCounts([EntityType.Model], [mid], [ActionType.Like])
-      .pipe(untilDestroyed(this))
-      .subscribe(counts => (this.likeCount = counts[0]?.counts.like ?? 0));
-  }
-
-  toggleLike(): void {
-    if (!isDefined(this.currentUid) || !isDefined(this.mid)) {
-      return;
-    }
-    const mid = this.mid;
-    const action$ = this.isLiked
-      ? this.hubService.postUnlike(mid, EntityType.Model)
-      : this.hubService.postLike(mid, EntityType.Model);
-
-    action$.pipe(untilDestroyed(this)).subscribe((success: boolean) => {
-      if (success) {
-        this.isLiked = !this.isLiked;
-        this.refreshLikeCount(mid);
-      }
-    });
   }
 
   async copyCurrentFilePath(): Promise<void> {

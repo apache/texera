@@ -201,10 +201,10 @@ describe("ModelService", () => {
 
   it("fetches a single file by following the presigned url it is handed", async () => {
     const blob = new Blob(["weights"]);
-    const pending = firstValueFrom(service.retrieveModelVersionSingleFile("/models/a/m/v1/model.pt"));
+    const pending = firstValueFrom(service.retrieveModelVersionSingleFile("/model/a/m/v1/model.pt"));
 
     const presign = http.expectOne(
-      `${API}/model/presign-download?filePath=${encodeURIComponent("/models/a/m/v1/model.pt")}`
+      `${API}/model/presign-download?filePath=${encodeURIComponent("/model/a/m/v1/model.pt")}`
     );
     presign.flush({ presignedUrl: "http://minio/model.pt" });
     http.expectOne("http://minio/model.pt").flush(blob);
@@ -213,9 +213,9 @@ describe("ModelService", () => {
   });
 
   it("uses the anonymous presign endpoint for a logged-out viewer", () => {
-    service.retrieveModelVersionSingleFile("/models/a/m/v1/model.pt", false).subscribe();
+    service.retrieveModelVersionSingleFile("/model/a/m/v1/model.pt", false).subscribe();
     http
-      .expectOne(`${API}/model/public-presign-download?filePath=${encodeURIComponent("/models/a/m/v1/model.pt")}`)
+      .expectOne(`${API}/model/public-presign-download?filePath=${encodeURIComponent("/model/a/m/v1/model.pt")}`)
       .flush({ presignedUrl: "http://minio/model.pt" });
     http.expectOne("http://minio/model.pt").flush(new Blob());
   });

@@ -142,7 +142,7 @@ export class ModelService {
   /**
    * A single file of a model version, fetched through a presigned URL.
    *
-   * @param filePath Logical path of the file, e.g. "/models/bob@texera.com/resnet/v1/model.pt".
+   * @param filePath Logical path of the file, e.g. "/model/bob@texera.com/resnet/v1/model.pt".
    */
   public retrieveModelVersionSingleFile(filePath: string, isLogin: boolean = true): Observable<Blob> {
     const endpointSegment = isLogin ? "presign-download" : "public-presign-download";

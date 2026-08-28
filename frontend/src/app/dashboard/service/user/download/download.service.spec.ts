@@ -196,17 +196,17 @@ describe("DownloadService", () => {
     expect(modelServiceSpy.retrieveModelVersionZip).toHaveBeenCalledWith(4, 2);
     expect(fileSaverServiceSpy.saveAs).toHaveBeenCalledWith(zip, "resnet-50-v2.zip");
 
-    expect(await firstValueFrom(downloadService.downloadModelSingleFile("/models/a/m/v2/model.pt"))).toBe(file);
-    expect(modelServiceSpy.retrieveModelVersionSingleFile).toHaveBeenCalledWith("/models/a/m/v2/model.pt", true);
+    expect(await firstValueFrom(downloadService.downloadModelSingleFile("/model/a/m/v2/model.pt"))).toBe(file);
+    expect(modelServiceSpy.retrieveModelVersionSingleFile).toHaveBeenCalledWith("/model/a/m/v2/model.pt", true);
     expect(fileSaverServiceSpy.saveAs).toHaveBeenCalledWith(file, "model.pt");
   });
 
   it("passes the logged-out flag through to the model file endpoint", async () => {
     modelServiceSpy.retrieveModelVersionSingleFile.mockReturnValue(of(new Blob()));
 
-    await firstValueFrom(downloadService.downloadModelSingleFile("/models/a/m/v2/model.pt", false));
+    await firstValueFrom(downloadService.downloadModelSingleFile("/model/a/m/v2/model.pt", false));
 
-    expect(modelServiceSpy.retrieveModelVersionSingleFile).toHaveBeenCalledWith("/models/a/m/v2/model.pt", false);
+    expect(modelServiceSpy.retrieveModelVersionSingleFile).toHaveBeenCalledWith("/model/a/m/v2/model.pt", false);
   });
 
   it("emits the model error notification and rethrows on retrieve failure", async () => {

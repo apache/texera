@@ -195,22 +195,6 @@ nz-select {
   margin-right: 80px;
 }
 
-.like-tag {
-  cursor: pointer;
-}
-
-.like-tag.liked {
-  i {
-    color: #ef4444;
-    background: #fef2f2;
-  }
-}
-
-.like-tag.disabled {
-  cursor: not-allowed;
-  opacity: 0.55;
-}
-
 nz-tabs {
   margin-top: 6px;
 }

@@ -26,7 +26,6 @@ import { commonTestImports, commonTestProviders } from "../../../../../common/te
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
 import { UserService } from "../../../../../common/service/user/user.service";
 import { StubUserService } from "../../../../../common/service/user/stub-user.service";
-import { HubService } from "../../../../../hub/service/hub.service";
 import { ModelService } from "../../../../service/user/model/model.service";
 import { DownloadService } from "../../../../service/user/download/download.service";
 import { DatasetFileNode } from "../../../../../common/type/datasetVersionFileTree";
@@ -58,7 +57,6 @@ describe("ModelDetailComponent", () => {
   let component: ModelDetailComponent;
   let modelService: Record<string, ReturnType<typeof vi.fn>>;
   let downloadService: Record<string, ReturnType<typeof vi.fn>>;
-  let hubService: Record<string, ReturnType<typeof vi.fn>>;
   let notificationService: Record<string, ReturnType<typeof vi.fn>>;
 
   const dashboardModel = (overrides: Partial<Record<string, unknown>> = {}) => ({
@@ -105,13 +103,6 @@ describe("ModelDetailComponent", () => {
       downloadModelSingleFile: vi.fn(() => of(new Blob())),
       downloadModelVersion: vi.fn(() => of(new Blob())),
     };
-    hubService = {
-      getCounts: vi.fn(() => of([{ counts: { like: 3 } }])),
-      postView: vi.fn(() => of(7)),
-      isLiked: vi.fn(() => of([{ isLiked: false }])),
-      postLike: vi.fn(() => of(true)),
-      postUnlike: vi.fn(() => of(true)),
-    };
     notificationService = { success: vi.fn(), error: vi.fn(), info: vi.fn() };
 
     TestBed.configureTestingModule({
@@ -120,7 +111,6 @@ describe("ModelDetailComponent", () => {
         { provide: ActivatedRoute, useValue: { params: of({ mid: String(MID) }), data: of({}) } },
         { provide: ModelService, useValue: modelService },
         { provide: DownloadService, useValue: downloadService },
-        { provide: HubService, useValue: hubService },
         { provide: NotificationService, useValue: notificationService },
         { provide: UserService, useClass: StubUserService },
         { provide: MarkdownService, useValue: { parse: vi.fn(() => "") } },
@@ -203,16 +193,16 @@ describe("ModelDetailComponent", () => {
     const versions = [aVersion(2, "v2", 1700000000000), aVersion(1, "v1", 1600000000000)];
     modelService["retrieveModelVersionList"] = vi.fn(() => of(versions));
     modelService["retrieveModelVersionFileTree"] = vi.fn(() =>
-      of({ fileNodes: [aFile("model.pt", `/models/${OWNER}/resnet-50/v2`, 512)], size: 512 })
+      of({ fileNodes: [aFile("model.pt", `/model/${OWNER}/resnet-50/v2`, 512)], size: 512 })
     );
     create();
 
     expect(component.selectedVersion).toBe(versions[0]);
     expect(modelService["retrieveModelVersionFileTree"]).toHaveBeenCalledWith(MID, 2, true);
-    expect(component.currentDisplayedFileName).toBe(`/models/${OWNER}/resnet-50/v2/model.pt`);
+    expect(component.currentDisplayedFileName).toBe(`/model/${OWNER}/resnet-50/v2/model.pt`);
     expect(component.currentFileSize).toBe(512);
     expect(component.currentModelVersionSize).toBe(512);
-    expect(component.latestVersionFileName).toBe(`/models/${OWNER}/resnet-50/v2/model.pt`);
+    expect(component.latestVersionFileName).toBe(`/model/${OWNER}/resnet-50/v2/model.pt`);
     expect(component.latestVersionSize).toBe(512);
     expect(component.latestVersionCreationTime).not.toBe("");
   });
@@ -225,8 +215,8 @@ describe("ModelDetailComponent", () => {
           {
             name: "weights",
             type: "directory",
-            parentDir: `/models/${OWNER}/resnet-50/v1`,
-            children: [aFile("model.pt", `/models/${OWNER}/resnet-50/v1/weights`)],
+            parentDir: `/model/${OWNER}/resnet-50/v1`,
+            children: [aFile("model.pt", `/model/${OWNER}/resnet-50/v1/weights`)],
           } as DatasetFileNode,
         ],
         size: 128,
@@ -234,7 +224,7 @@ describe("ModelDetailComponent", () => {
     );
     create();
 
-    expect(component.currentDisplayedFileName).toBe(`/models/${OWNER}/resnet-50/v1/weights/model.pt`);
+    expect(component.currentDisplayedFileName).toBe(`/model/${OWNER}/resnet-50/v1/weights/model.pt`);
   });
 
   it("clears the open file when the selected version holds none", () => {
@@ -259,7 +249,7 @@ describe("ModelDetailComponent", () => {
     modelService["retrieveModelVersionList"] = vi.fn(() => of(versions));
     modelService["retrieveModelVersionFileTree"] = vi.fn((_mid: number, mvid: number) =>
       of({
-        fileNodes: [aFile(`v${mvid}.pt`, `/models/${OWNER}/resnet-50/v${mvid}`)],
+        fileNodes: [aFile(`v${mvid}.pt`, `/model/${OWNER}/resnet-50/v${mvid}`)],
         size: mvid * 100,
       })
     );
@@ -268,19 +258,46 @@ describe("ModelDetailComponent", () => {
 
     component.onVersionSelected(versions[1]);
 
-    expect(component.currentDisplayedFileName).toBe(`/models/${OWNER}/resnet-50/v1/v1.pt`);
+    expect(component.currentDisplayedFileName).toBe(`/model/${OWNER}/resnet-50/v1/v1.pt`);
     expect(component.currentModelVersionSize).toBe(100);
     // The Model Card still describes the newest version, not the one being browsed.
     expect(component.latestVersionFileName).toBe(latestFileName);
     expect(component.latestVersionSize).toBe(200);
   });
 
+  it("survives the version select being cleared", () => {
+    modelService["retrieveModelVersionList"] = vi.fn(() => of([aVersion(1, "v1")]));
+    create();
+
+    expect(() => component.onVersionSelected(undefined)).not.toThrow();
+    expect(component.selectedVersion).toBeUndefined();
+  });
+
+  it("reports a failure instead of rendering a blank page", () => {
+    // /model/list degrades an unreadable repository size to 0, while /model/{mid} throws,
+    // so a model that lists fine can still 500 here.
+    modelService["getModel"] = vi.fn(() => throwError(() => new Error("lakefs is down")));
+    modelService["retrieveModelVersionList"] = vi.fn(() => throwError(() => new Error("lakefs is down")));
+    create();
+
+    expect(notificationService["error"]).toHaveBeenCalledTimes(2);
+  });
+
+  it("refuses a route segment that is not a model id", () => {
+    TestBed.overrideProvider(ActivatedRoute, { useValue: { params: of({ mid: "abc" }), data: of({}) } });
+    create();
+
+    expect(component.mid).toBeUndefined();
+    expect(modelService["getModel"]).not.toHaveBeenCalled();
+    expect(notificationService["error"]).toHaveBeenCalled();
+  });
+
   it("opens the file a tree node points at", () => {
     create();
 
-    component.onVersionFileTreeNodeSelected(aFile("notes.txt", "/models/a/b/v1", 64));
+    component.onVersionFileTreeNodeSelected(aFile("notes.txt", "/model/a/b/v1", 64));
 
-    expect(component.currentDisplayedFileName).toBe("/models/a/b/v1/notes.txt");
+    expect(component.currentDisplayedFileName).toBe("/model/a/b/v1/notes.txt");
     expect(component.currentFileSize).toBe(64);
   });
 
@@ -289,14 +306,14 @@ describe("ModelDetailComponent", () => {
   it("downloads the open file through the authenticated endpoint for an owner", () => {
     modelService["retrieveModelVersionList"] = vi.fn(() => of([aVersion(1, "v1")]));
     modelService["retrieveModelVersionFileTree"] = vi.fn(() =>
-      of({ fileNodes: [aFile("model.pt", `/models/${OWNER}/resnet-50/v1`)], size: 128 })
+      of({ fileNodes: [aFile("model.pt", `/model/${OWNER}/resnet-50/v1`)], size: 128 })
     );
     create();
 
     component.onClickDownloadCurrentFile();
 
     expect(downloadService["downloadModelSingleFile"]).toHaveBeenCalledWith(
-      `/models/${OWNER}/resnet-50/v1/model.pt`,
+      `/model/${OWNER}/resnet-50/v1/model.pt`,
       true
     );
   });
@@ -305,14 +322,14 @@ describe("ModelDetailComponent", () => {
     modelService["getModel"] = vi.fn(() => of(dashboardModel({ isOwner: false, model: { isPublic: true } })));
     modelService["retrieveModelVersionList"] = vi.fn(() => of([aVersion(1, "v1")]));
     modelService["retrieveModelVersionFileTree"] = vi.fn(() =>
-      of({ fileNodes: [aFile("model.pt", `/models/${OWNER}/resnet-50/v1`)], size: 128 })
+      of({ fileNodes: [aFile("model.pt", `/model/${OWNER}/resnet-50/v1`)], size: 128 })
     );
     create();
 
     component.onClickDownloadCurrentFile();
 
     expect(downloadService["downloadModelSingleFile"]).toHaveBeenCalledWith(
-      `/models/${OWNER}/resnet-50/v1/model.pt`,
+      `/model/${OWNER}/resnet-50/v1/model.pt`,
       false
     );
   });
@@ -350,40 +367,6 @@ describe("ModelDetailComponent", () => {
     expect(component.isDownloadAllowed()).toBe(true);
   });
 
-  // ─── hub stats ──────────────────────────────────────────────────────────────
-
-  it("records a view and loads the like state on open", () => {
-    create();
-
-    expect(hubService["postView"]).toHaveBeenCalledWith(MID, expect.any(Number), "model");
-    expect(component.viewCount).toBe(7);
-    expect(component.likeCount).toBe(3);
-    expect(component.isLiked).toBe(false);
-  });
-
-  it("toggles a like and refreshes the count", () => {
-    create();
-
-    component.toggleLike();
-
-    expect(hubService["postLike"]).toHaveBeenCalledWith(MID, "model");
-    expect(component.isLiked).toBe(true);
-
-    component.toggleLike();
-
-    expect(hubService["postUnlike"]).toHaveBeenCalledWith(MID, "model");
-    expect(component.isLiked).toBe(false);
-  });
-
-  it("leaves the like state alone when the hub rejects the action", () => {
-    hubService["postLike"] = vi.fn(() => of(false));
-    create();
-
-    component.toggleLike();
-
-    expect(component.isLiked).toBe(false);
-  });
-
   // ─── the file path clipboard ────────────────────────────────────────────────
 
   it("copies the open file's path and reports failure", async () => {
@@ -391,9 +374,9 @@ describe("ModelDetailComponent", () => {
     const writeText = vi.fn(() => Promise.resolve());
     Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
 
-    render({ currentDisplayedFileName: "/models/a/b/v1/model.pt" });
+    render({ currentDisplayedFileName: "/model/a/b/v1/model.pt" });
     await component.copyCurrentFilePath();
-    expect(writeText).toHaveBeenCalledWith("/models/a/b/v1/model.pt");
+    expect(writeText).toHaveBeenCalledWith("/model/a/b/v1/model.pt");
     expect(notificationService["success"]).toHaveBeenCalled();
 
     writeText.mockImplementationOnce(() => Promise.reject(new Error("denied")));
@@ -420,6 +403,17 @@ describe("ModelDetailComponent", () => {
     expect(root.textContent).toContain("torchscript");
   });
 
+  it("shows view and like counters as placeholder zeros", () => {
+    // The hub backend has no model entity type yet, so nothing populates these and
+    // nothing may call the hub from this page.
+    create();
+    const tags = q(render(), ".status-tag-row").textContent ?? "";
+
+    expect(tags.match(/\b0\b/g)?.length).toBe(2);
+    expect(component.viewCount).toBe(0);
+    expect(component.likeCount).toBe(0);
+  });
+
   it("dashes out the latest-version facts for a model with no versions", () => {
     create();
     const stats = q(render(), ".data-card-stats").textContent ?? "";
@@ -441,7 +435,7 @@ describe("ModelDetailComponent", () => {
   it("hands the file renderer the model kind and the selected version", () => {
     modelService["retrieveModelVersionList"] = vi.fn(() => of([aVersion(1, "v1")]));
     modelService["retrieveModelVersionFileTree"] = vi.fn(() =>
-      of({ fileNodes: [aFile("notes.txt", `/models/${OWNER}/resnet-50/v1`)], size: 128 })
+      of({ fileNodes: [aFile("notes.txt", `/model/${OWNER}/resnet-50/v1`)], size: 128 })
     );
     create();
     const root = openTab("Versions & Files");
@@ -449,7 +443,7 @@ describe("ModelDetailComponent", () => {
     const renderer = q(root, "texera-user-dataset-file-renderer");
     expect(renderer).toBeTruthy();
     expect(modelService["retrieveModelVersionSingleFile"]).toHaveBeenCalledWith(
-      `/models/${OWNER}/resnet-50/v1/notes.txt`,
+      `/model/${OWNER}/resnet-50/v1/notes.txt`,
       true
     );
   });

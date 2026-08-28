@@ -116,12 +116,12 @@ describe("UserDatasetFileRendererComponent", () => {
       component.resourceType = EntityType.Model;
       component.resourceId = 1;
       component.versionId = 2;
-      component.filePath = "/models/a/m/v1/notes.txt";
+      component.filePath = "/model/a/m/v1/notes.txt";
       component.isLogin = true;
 
       component.reloadFileContent();
 
-      expect(modelSpy).toHaveBeenCalledWith("/models/a/m/v1/notes.txt", true);
+      expect(modelSpy).toHaveBeenCalledWith("/model/a/m/v1/notes.txt", true);
       expect(datasetSpy).not.toHaveBeenCalled();
     });
 

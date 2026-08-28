@@ -158,8 +158,8 @@ describe("ResourceRegistryService", () => {
     registry.get(EntityType.Workflow).download!(1, "wf");
     registry.get(EntityType.Dataset).download!(2, "ds");
     registry.get(EntityType.Model).download!(3, "m");
-    registry.get(EntityType.Dataset).retrieveSingleFile!("/datasets/a/ds/v1/f.csv", true);
-    registry.get(EntityType.Model).retrieveSingleFile!("/models/a/m/v1/f.pt", false);
+    registry.get(EntityType.Dataset).retrieveSingleFile!("/dataset/a/ds/v1/f.csv", true);
+    registry.get(EntityType.Model).retrieveSingleFile!("/model/a/m/v1/f.pt", false);
 
     expect(workflowPersistService["updateWorkflowName"]).toHaveBeenCalledWith(1, "wf");
     expect(workflowPersistService["updateWorkflowDescription"]).toHaveBeenCalledWith(1, "d");
@@ -170,8 +170,8 @@ describe("ResourceRegistryService", () => {
     expect(downloadService["downloadWorkflow"]).toHaveBeenCalledWith(1, "wf");
     expect(downloadService["downloadDataset"]).toHaveBeenCalledWith(2, "ds");
     expect(downloadService["downloadModel"]).toHaveBeenCalledWith(3, "m");
-    expect(datasetService["retrieveDatasetVersionSingleFile"]).toHaveBeenCalledWith("/datasets/a/ds/v1/f.csv", true);
-    expect(modelService["retrieveModelVersionSingleFile"]).toHaveBeenCalledWith("/models/a/m/v1/f.pt", false);
+    expect(datasetService["retrieveDatasetVersionSingleFile"]).toHaveBeenCalledWith("/dataset/a/ds/v1/f.csv", true);
+    expect(modelService["retrieveModelVersionSingleFile"]).toHaveBeenCalledWith("/model/a/m/v1/f.pt", false);
   });
 
   it("reads ownership off the kind's own payload", () => {
