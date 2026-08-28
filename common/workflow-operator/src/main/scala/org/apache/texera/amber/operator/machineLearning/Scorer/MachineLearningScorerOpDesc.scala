@@ -176,6 +176,9 @@ class MachineLearningScorerOpDesc extends PythonOperatorDescriptor {
          |
          |    @overrides
          |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
+         |      # A row missing either value has nothing to score, and the metrics
+         |      # refuse the empty cell rather than passing over it.
+         |      table = table.dropna(subset=[$actualValueColumn, $predictValueColumn])
          |      y_true = table[$actualValueColumn]
          |      y_pred = table[$predictValueColumn]
          |

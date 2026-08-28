@@ -127,6 +127,18 @@ class MachineLearningScorerOpDescSpec extends AnyFlatSpec with Matchers {
     code should include("if False:")
   }
 
+  it should "drop the rows missing either scored column" in {
+    // The metrics refuse an empty cell instead of passing over it, so the row has
+    // to go before it reaches them. The subset names both columns: dropping on
+    // either one alone would leave the two series misaligned.
+    val d = new MachineLearningScorerOpDesc
+    d.actualValueColumn = "y"
+    d.predictValueColumn = "yhat"
+    d.generatePythonCode() should include(
+      s"table = table.dropna(subset=[$decodeSite('${b64("y")}'), $decodeSite('${b64("yhat")}')])"
+    )
+  }
+
   it should "splice the selected metrics verbatim into a proper metric_list" in {
     // The metric fragment must be spliced verbatim, not re-encoded as one quoted
     // value (which would collapse the whole list into a single malformed element).
