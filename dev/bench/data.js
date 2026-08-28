@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1787853380710,
+  "lastUpdate": 1787938927636,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -11097,6 +11097,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 521.440824968464,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Martin Vu",
+            "username": "VuMartin",
+            "email": "127065329+VuMartin@users.noreply.github.com"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "bdc6d2a90eb1415014a4f705b7bb7cca31bb9688",
+          "message": "fix(WorkflowExecutionService): shutdown console writer thread on unsubscribe (#7914)\n\n### What changes were proposed in this PR?\n\nFixes a console writer thread leak in `ExecutionConsoleService`.\n\nThe console writer executor was not being shut down when an execution\nservice was unsubscribed. This could leave `texera-console-writer`\nthreads alive after workflow execution finished.\n\nBefore:\n<img width=\"1240\" height=\"60\" alt=\"Screenshot 2026-08-23 at 11 40 04 PM\"\nsrc=\"https://github.com/user-attachments/assets/d199f3c0-a463-4645-addf-a5dc2ee456d8\"\n/>\n\nAfter:\n<img width=\"1348\" height=\"48\" alt=\"Screenshot 2026-08-23 at 6 40 25 PM\"\nsrc=\"https://github.com/user-attachments/assets/a2e0c9bc-607f-451f-bccb-ec4ea4315a96\"\n/>\n\n<img width=\"1348\" height=\"60\" alt=\"Screenshot 2026-08-23 at 6 41 53 PM\"\nsrc=\"https://github.com/user-attachments/assets/3d7742ef-db7a-4790-a43d-d8b5bfa69d58\"\n/>\n<img width=\"1348\" height=\"60\" alt=\"Screenshot 2026-08-23 at 6 42 18 PM\"\nsrc=\"https://github.com/user-attachments/assets/c2e7a6d6-e516-4dd1-8ed9-7d6cccf22f1f\"\n/>\n\n<img width=\"1348\" height=\"60\" alt=\"Screenshot 2026-08-23 at 6 42 42 PM\"\nsrc=\"https://github.com/user-attachments/assets/084bed9e-1338-4e27-9563-ad22708d75aa\"\n/>\n<img width=\"1348\" height=\"60\" alt=\"Screenshot 2026-08-23 at 6 42 55 PM\"\nsrc=\"https://github.com/user-attachments/assets/ee11bcca-35fa-453e-91e2-8f3e06065c1d\"\n/>\n\nThis PR:\n- Shuts down the console writer executor during `unsubscribeAll()`.\n- Waits for termination and falls back to `shutdownNow()` if necessary.\n- Closes active console message writers and clears the writer map.\n- Adds a test verifying the console writer executor is shut down and\nterminated.\n\n### Any related issues, documentation, discussions?\n\nFixes #7455\n\n### How was this PR tested?\n\nRan:\n```bash\nsbt \"project WorkflowExecutionService\" \"testOnly *ExecutionConsoleServiceSpec -- -z unsubscribeAll\"\n```\nManual testing:\n\nRan workflows multiple times and checked the console writer threads\nwith:\n```bash\njcmd 57436 Thread.print | grep \"texera-console-writer\"\n```\n```bash\njcmd 67548 Thread.print | grep \"texera-console-writer\"\n```\nVerified that the console writer threads are terminated after workflow\nexecution completes and unsubscribeAll() is called.\n\n### Was this PR authored or co-authored using generative AI tooling?\nGenerated-by: ChatGPT (5.5 mini)",
+          "timestamp": "2026-08-28T03:38:22Z",
+          "url": "https://github.com/apache/texera/commit/bdc6d2a90eb1415014a4f705b7bb7cca31bb9688"
+        },
+        "date": 1787938927304,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 639.8773931438899,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 1107.8218463711303,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 1183.937042601822,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 833.7614180588185,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 1150.650926732985,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 1174.8725176179557,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 853.775122025073,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 1137.890576059393,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 1186.717776720837,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 681.5892903477906,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 916.8220734020782,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 941.8685986679587,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 733.4708003818429,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 917.0103324090144,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 943.8510536794051,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 744.3239842169463,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 926.3286772954053,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 927.5510427696112,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 453.69494006922815,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 527.3741210703166,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 529.4515835515531,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 447.99320439466646,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 520.7162322939594,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 529.8469151242787,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 440.42063623658385,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 500.19533828428814,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 508.97095117993604,
             "unit": "tuples/sec"
           }
         ]
