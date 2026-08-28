@@ -1798,6 +1798,24 @@ describe("OperatorPropertyEditFrameComponent", () => {
       );
     });
 
+    it("enum rule names the timestamp among columns a trainer cannot fit together", () => {
+      // The shape the sklearn advanced trainers are in: a timestamp fits on its own but
+      // raises DTypePromotionError beside any other column, so the accepted set leaves it
+      // out and the warning has to name the timestamp rather than the numeric column.
+      const validator = bindSchema({
+        type: "object",
+        properties: { attrs: { type: "array", items: { type: "string" }, autofillAttributeOnPort: 0 } },
+        attributeTypeRules: { attrs: { enum: ["integer", "long", "double", "boolean"] } },
+      });
+      vi.spyOn(compiling, "getOperatorInputAttributeType").mockImplementation((_id, _port, name) =>
+        name === "when" ? "timestamp" : "double"
+      );
+      const field = rootField();
+
+      expect(validator.expression({ value: { attrs: ["amount", "when"] } } as any, field)).toBe(false);
+      expect((field as any).validators.checkAttributeType.message).toContain("The type of 'when' is timestamp");
+    });
+
     it("enum rule is skipped when a multi-column property names nothing", () => {
       const validator = bindSchema(multiColumnSchema);
       const spy = vi.spyOn(compiling, "getOperatorInputAttributeType");

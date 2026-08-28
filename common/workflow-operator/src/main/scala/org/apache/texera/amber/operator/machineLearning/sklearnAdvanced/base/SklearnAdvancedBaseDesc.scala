@@ -39,13 +39,19 @@ trait ParamClass {
 }
 
 // Every selected column goes into `fit` untouched, so each has to be one that
-// scikit-learn reads as a number. A timestamp counts: it arrives as datetime64
-// and is fitted as epoch microseconds.
+// scikit-learn reads as a number. A boolean counts, fitted as 0/1.
+//
+// A timestamp does not, even though one on its own fits: it stays datetime64,
+// and numpy has no type that holds a date beside a number, so the moment a
+// timestamp is selected alongside any other column the fit raises
+// DTypePromotionError. This rule is read one column at a time and cannot say
+// "all of them or none of them", so admitting a timestamp here would admit the
+// combination that breaks.
 @JsonSchemaInject(json = """
 {
   "attributeTypeRules": {
     "Selected Features": {
-      "enum": ["integer", "long", "double", "boolean", "timestamp"]
+      "enum": ["integer", "long", "double", "boolean"]
     }
   }
 }

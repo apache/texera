@@ -142,8 +142,10 @@ class SklearnAdvancedBaseDescSpec extends AnyFlatSpec with Matchers {
   "SklearnMLOperatorDescriptor" should
     "constrain the selected features to what the estimator can be fitted on" in {
     // The columns reach `fit` untouched, so the accepted set is whatever scikit-learn reads
-    // as a number. A timestamp is one of those: it arrives as datetime64 and is fitted as
-    // epoch microseconds. Only text and binary are left out.
+    // as a number, a boolean included. Text and binary are left out, and so is timestamp:
+    // one on its own fits, but selected beside any other column it raises
+    // DTypePromotionError, and a rule read one column at a time cannot admit the first
+    // case without admitting the second.
     val schema = OperatorMetadataGenerator.generateOperatorJsonSchema(
       classOf[SklearnAdvancedKNNClassifierTrainerOpDesc]
     )
@@ -158,8 +160,7 @@ class SklearnAdvancedBaseDescSpec extends AnyFlatSpec with Matchers {
       "integer",
       "long",
       "double",
-      "boolean",
-      "timestamp"
+      "boolean"
     )
   }
 }
