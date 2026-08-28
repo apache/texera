@@ -318,4 +318,24 @@ object ResourceAccess {
         s"You do not have access to ${resource.label} $id"
       )
     }
+
+  /**
+    * Emails of the owners of every resource the caller has an explicit grant on, for the
+    * owner facet on list pages.
+    */
+  def ownerEmailsVisibleTo[R <: Record, A <: Record](
+      ctx: DSLContext,
+      resource: ResourceTables[R, A],
+      uid: Integer
+  ): java.util.List[String] =
+    ctx
+      .selectDistinct(USER.EMAIL)
+      .from(USER)
+      .join(resource.table)
+      .on(resource.ownerUidField.eq(USER.UID))
+      .join(resource.accessTable)
+      .on(resource.accessIdField.eq(resource.idField))
+      .where(resource.accessUidField.eq(uid))
+      .fetchInto(classOf[String])
+
 }
