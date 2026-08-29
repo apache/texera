@@ -860,4 +860,61 @@ describe("WorkflowActionService", () => {
       y: sentimentBefore.y + offset.y,
     });
   });
+
+  /*
+   * The remaining half-taken arms on this service: an optional argument left out, a guard whose
+   * "already in that state" side never ran, and the comparisons in the top-left calculation.
+   */
+  it("adds operators without links or comment boxes when neither is supplied", () => {
+    service.addOperatorsAndLinks([
+      { op: mockScanPredicate, pos: { x: 10, y: 20 } },
+      { op: mockResultPredicate, pos: { x: 30, y: 40 } },
+    ]);
+
+    expect(
+      texeraGraph
+        .getAllOperators()
+        .map(o => o.operatorID)
+        .sort()
+    ).toEqual([mockScanPredicate.operatorID, mockResultPredicate.operatorID].sort());
+    expect(texeraGraph.getAllLinks()).toEqual([]);
+    expect(texeraGraph.getAllCommentBoxes()).toEqual([]);
+  });
+
+  it("does nothing when modification is enabled again while already enabled", () => {
+    const emitted: boolean[] = [];
+    service.getWorkflowModificationEnabledStream().subscribe(v => emitted.push(v));
+    // Starts enabled, so this call has nothing to do and must not re-announce it.
+    service.enableWorkflowModification();
+
+    expect(service.checkWorkflowModificationEnabled()).toBeTruthy();
+    expect(emitted).toEqual([true]);
+  });
+
+  it("takes the smaller of each coordinate independently when computing the top-left", () => {
+    // The x guard is false for the second operator and the y guard is true, so each
+    // comparison decides the result once in both directions.
+    service.addOperator(mockScanPredicate, { x: 100, y: 400 });
+    service.addOperator(mockResultPredicate, { x: 300, y: 250 });
+    service.addOperator(mockSentimentPredicate, { x: 50, y: 500 });
+
+    service.calculateTopLeftOperatorPosition();
+
+    // x comes from the third operator and y from the second, so neither comparison
+    // decides both coordinates.
+    expect(service.getCenterPoint()).toEqual({ x: 50, y: 250 });
+  });
+
+  it("disconnects the shared-editing provider only when it is meant to be connected", () => {
+    const disconnect = vi.spyOn(texeraGraph.sharedModel.wsProvider, "disconnect").mockImplementation(() => {});
+    const workflow = service.getWorkflow();
+
+    (texeraGraph.sharedModel.wsProvider as any).shouldConnect = false;
+    service.setTempWorkflow(workflow);
+    expect(disconnect).not.toHaveBeenCalled();
+
+    (texeraGraph.sharedModel.wsProvider as any).shouldConnect = true;
+    service.setTempWorkflow(workflow);
+    expect(disconnect).toHaveBeenCalledTimes(1);
+  });
 });

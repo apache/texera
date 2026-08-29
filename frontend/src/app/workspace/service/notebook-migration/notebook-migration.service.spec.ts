@@ -24,6 +24,7 @@ import { HttpClientTestingModule, HttpTestingController } from "@angular/common/
 import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { GuiConfigService } from "src/app/common/service/gui-config.service";
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
+import { NotebookMigrationLLM } from "./migration-llm";
 import { firstValueFrom, throwError } from "rxjs";
 
 describe("NotebookMigrationService", () => {
@@ -142,6 +143,37 @@ describe("NotebookMigrationService", () => {
     expect(mockNotificationService.error).toHaveBeenCalledWith(expect.stringContaining("network down"));
   });
 
+  // deleteNotebookForWorkflow
+  it("posts the wid-derived notebook name to delete-notebook", async () => {
+    const promise = service.deleteNotebookForWorkflow(1);
+
+    const req = httpMock.expectOne(req => req.url.endsWith("/notebook-migration/delete-notebook"));
+
+    expect(req.request.method).toBe("POST");
+    expect(req.request.body).toEqual({ notebookName: "notebook_1.ipynb" });
+
+    req.flush({ success: true, deleted: 1 });
+
+    await promise;
+  });
+
+  it("makes no HTTP call for wid 0, which would map to the shared default filename", async () => {
+    await service.deleteNotebookForWorkflow(0);
+    httpMock.expectNone(req => req.url.endsWith("/notebook-migration/delete-notebook"));
+  });
+
+  it("swallows the failure and shows no notification when the notebook file delete fails", async () => {
+    // Pod cleanup is best effort, so a failure is logged rather than surfaced: the
+    // database delete it follows has already succeeded.
+    const promise = service.deleteNotebookForWorkflow(1);
+
+    const req = httpMock.expectOne(req => req.url.endsWith("/notebook-migration/delete-notebook"));
+    req.error(new ErrorEvent("Server error"));
+
+    await promise;
+    expect(mockNotificationService.error).not.toHaveBeenCalled();
+  });
+
   // jupyter URL methods (HttpClient so the JwtModule interceptor attaches the auth token)
   it("should return Jupyter URL when the request succeeds", async () => {
     const promise = service.getJupyterURL();
@@ -233,14 +265,14 @@ describe("NotebookMigrationService", () => {
   });
 
   // storeNotebookAndMapping
-  it("should call storeNotebookAndMapping API with the default vid", () => {
+  it("should call storeNotebookAndMapping API without a vid (resolved server-side)", () => {
     service.storeNotebookAndMapping(1, {}, {}).subscribe();
 
     const req = httpMock.expectOne(req => req.url.includes("/notebook-migration/store-notebook-and-mapping"));
 
     expect(req.request.method).toBe("POST");
     expect(req.request.body.wid).toBe(1);
-    expect(req.request.body.vid).toBe(1);
+    expect(req.request.body.vid).toBeUndefined();
     req.flush({ success: true, message: "stored" });
   });
 
@@ -264,6 +296,28 @@ describe("NotebookMigrationService", () => {
     expect(req.request.body).toEqual({ wid: 7 });
     req.flush({ success: true, deleted: 1 });
     expect(result).toEqual({ success: true, deleted: 1 });
+  });
+
+  // Every other test that touches the LLM replaces createMigrationLLM() with a
+  // fake, so the seam's own body -- the one place that decides which collaborators
+  // the real client is wired to, and in which order -- is never run. This calls it
+  // directly. It stays safe for the module graph: the service already imports
+  // NotebookMigrationLLM at its own top, so "ai" is loaded here either way, and
+  // the constructor only assigns its two arguments. Deliberately no vi.mock("ai")
+  // in this file -- migration-llm.spec.ts owns that, and module mocks leak between
+  // files under `isolate: false`.
+  it("wires a real client to the injected config and workflow-util service", () => {
+    const llm = (service as any).createMigrationLLM();
+
+    expect(llm).toBeInstanceOf(NotebookMigrationLLM);
+    // Identity, not shape: the two constructor parameters are both plain objects
+    // here, so only `toBe` notices if they are ever passed in the wrong order.
+    expect((llm as any).config).toBe(mockGuiConfigService);
+    expect((llm as any).workflowUtilService).toBe(TestBed.inject(WorkflowUtilService));
+  });
+
+  it("hands out a fresh client per call so one conversion cannot see another's state", () => {
+    expect((service as any).createMigrationLLM()).not.toBe((service as any).createMigrationLLM());
   });
 
   // sendToAIGenerateWorkflow (enabled) — drives the NotebookMigrationLLM lifecycle.
@@ -341,6 +395,11 @@ describe("NotebookMigrationService", () => {
       expect(mockNotificationService.success).not.toHaveBeenCalled();
       expect(mockNotificationService.error).not.toHaveBeenCalled();
       httpMock.expectNone(req => req.url.includes("/notebook-migration/set-notebook"));
+    });
+
+    it("deleteNotebookForWorkflow makes no HTTP call", async () => {
+      await service.deleteNotebookForWorkflow(1);
+      httpMock.expectNone(req => req.url.endsWith("/notebook-migration/delete-notebook"));
     });
 
     it("getJupyterURL returns null without making an HTTP call", async () => {
