@@ -163,13 +163,108 @@ describe("UserDatasetVersionFiletreeComponent", () => {
     expect(component.isImageFile("data.csv")).toBe(false);
   });
 
+  /**
+   * The node template decides what a row looks like: which icon marks a folder against a
+   * file, and which of the two row actions a node is entitled to. Rendering it needs rows,
+   * and with `useVirtualScroll` on there are none under jsdom — the viewport measures 0
+   * high, as the browser-mode companion spec records. Browser mode is not an option here
+   * either: CI uploads coverage from the jsdom run only (`test:ci` -> lcov) and takes just
+   * the JUnit file from `gui:test-browser`. So these switch virtualization off, which
+   * changes how many rows the tree draws but not what a row contains.
+   */
+  describe("node template", () => {
+    const folderWith = (children: DatasetFileNode[]): DatasetFileNode => ({
+      name: "dir",
+      type: "directory",
+      parentDir: "/owner/dataset/v1",
+      children,
+    });
+
+    const file = (name: string): DatasetFileNode => ({
+      name,
+      type: "file",
+      parentDir: "/dataset/owner/dataset/v1",
+    });
+
+    // Deliberately synchronous: the tree keeps a pending timer, so awaiting whenStable()
+    // never settles here. Two change-detection passes are what the rows need — the first
+    // builds the tree model, the second draws the expanded nodes.
+    function renderRows(nodes: DatasetFileNode[]): void {
+      component.fileTreeDisplayOptions = { ...component.fileTreeDisplayOptions, useVirtualScroll: false };
+      // Folders start collapsed, so their children would not be drawn otherwise.
+      component.isExpandAllAfterViewInit = true;
+      component.fileTreeNodes = nodes;
+      fixture.detectChanges();
+      fixture.detectChanges();
+    }
+
+    const rowTitles = (): string[] =>
+      Array.from(fixture.nativeElement.querySelectorAll("span[title]")).map(span =>
+        (span as HTMLElement).getAttribute("title")
+      ) as string[];
+
+    const rowFor = (title: string): HTMLElement =>
+      fixture.nativeElement.querySelector(`span[title="${title}"]`) as HTMLElement;
+
+    it("marks folders and files with their own icon, and labels every row", () => {
+      renderRows([folderWith([file("a.csv")])]);
+
+      expect(rowTitles()).toEqual(["dir", "a.csv"]);
+      expect(rowFor("dir").textContent?.trim()).toBe("dir");
+      expect(rowFor("dir").querySelector("i[nztype='folder']")).not.toBeNull();
+      expect(rowFor("dir").querySelector("i[nztype='file']")).toBeNull();
+      expect(rowFor("a.csv").querySelector("i[nztype='file']")).not.toBeNull();
+      expect(rowFor("a.csv").querySelector("i[nztype='folder']")).toBeNull();
+    });
+
+    it("offers deletion on files only, and never on the folders holding them", () => {
+      const deleted: DatasetFileNode[] = [];
+      component.deletedTreeNode.subscribe((n: DatasetFileNode) => deleted.push(n));
+      component.isTreeNodeDeletable = true;
+
+      renderRows([folderWith([file("a.csv")])]);
+
+      expect(rowFor("dir").querySelector("i[nztype='delete']")).toBeNull();
+      const deleteButton = rowFor("a.csv").querySelector("i[nztype='delete']")?.closest("button");
+      expect(deleteButton).not.toBeNull();
+
+      deleteButton!.click();
+
+      expect(deleted.map(node => node.name)).toEqual(["a.csv"]);
+    });
+
+    it("withholds deletion entirely when the tree is not deletable", () => {
+      component.isTreeNodeDeletable = false;
+
+      renderRows([folderWith([file("a.csv")])]);
+
+      expect(fixture.nativeElement.querySelector("i[nztype='delete']")).toBeNull();
+    });
+
+    it("offers Set-as-cover on image files only", () => {
+      const covers: string[] = [];
+      component.setCoverImage.subscribe((path: string) => covers.push(path));
+
+      renderRows([file("photo.png"), file("data.csv")]);
+
+      expect(rowFor("data.csv").querySelector("i[nztype='picture']")).toBeNull();
+      const coverButton = rowFor("photo.png").querySelector("i[nztype='picture']")?.closest("button");
+      expect(coverButton).not.toBeNull();
+
+      coverButton!.click();
+
+      // parentDir strips to the dataset-relative path, which for a root file is its name.
+      expect(covers).toEqual(["photo.png"]);
+    });
+  });
+
   it("emits the file's dataset-relative path when set as cover", () => {
     const emitted: string[] = [];
     component.setCoverImage.subscribe((path: string) => emitted.push(path));
 
-    // parentDir has exactly the four stripped segments (datasets/owner/dataset/version),
+    // parentDir has exactly the four stripped segments (dataset/owner/dataset/version),
     // so the relative path is just the file name.
-    component.onSetCover({ name: "photo.png", type: "file", parentDir: "/datasets/owner/dataset/v1" });
+    component.onSetCover({ name: "photo.png", type: "file", parentDir: "/dataset/owner/dataset/v1" });
 
     expect(emitted).toEqual(["photo.png"]);
   });

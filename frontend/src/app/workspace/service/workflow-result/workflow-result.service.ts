@@ -28,7 +28,7 @@ import {
   WorkflowResultUpdate,
 } from "../../types/execute-workflow.interface";
 import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websocket.service";
-import { PaginatedResultEvent, WorkflowAvailableResultEvent } from "../../types/workflow-websocket.interface";
+import { PaginatedResultEvent } from "../../types/workflow-websocket.interface";
 import { map, Observable, of, pairwise, ReplaySubject, Subject } from "rxjs";
 import { v4 as uuid } from "uuid";
 import { IndexableObject } from "../../types/result-table.interface";
@@ -57,9 +57,6 @@ export class WorkflowResultService {
       this.handleResultUpdate(event.updates);
       this.handleTableStatsUpdate(event.tableStats);
     });
-    this.wsService
-      .subscribeToEvent("WorkflowAvailableResultEvent")
-      .subscribe(event => this.handleCleanResultCache(event));
     this.resultTableStats.next({});
   }
 
@@ -115,48 +112,6 @@ export class WorkflowResultService {
     this.paginatedResultServices.clear();
     this.resultTableStats.next({});
     this.resultClearedStream.next();
-  }
-
-  private handleCleanResultCache(event: WorkflowAvailableResultEvent): void {
-    const removedOrInvalidatedOperators = new Set<string>();
-    // remove operators that no longer have results
-    this.operatorResultServices.forEach((_, op) => {
-      if (!(op in event.availableOperators)) {
-        this.operatorResultServices.delete(op);
-        removedOrInvalidatedOperators.add(op);
-      }
-    });
-    this.paginatedResultServices.forEach((_, op) => {
-      if (!(op in event.availableOperators)) {
-        this.paginatedResultServices.delete(op);
-        removedOrInvalidatedOperators.add(op);
-      }
-    });
-    // for each operator that has results:
-    Object.entries(event.availableOperators).forEach(availableOp => {
-      const op = availableOp[0];
-      const cacheValid = availableOp[1].cacheValid;
-      const outputMode = availableOp[1].outputMode;
-
-      // make sure to init or reuse result service for each operator
-      const resultService = (() => {
-        if (outputMode.type === "PaginationMode") {
-          return this.getOrInitPaginatedResultService(op);
-        } else {
-          return this.getOrInitResultService(op);
-        }
-      })();
-
-      // invalidate frontend cache if needed
-      if (!cacheValid) {
-        resultService.reset();
-        removedOrInvalidatedOperators.add(op);
-      }
-    });
-
-    const invalidatedOperatorsUpdate: Record<string, undefined> = {};
-    removedOrInvalidatedOperators.forEach(op => (invalidatedOperatorsUpdate[op] = undefined));
-    this.resultUpdateStream.next(invalidatedOperatorsUpdate);
   }
 
   private handleResultUpdate(event: WorkflowResultUpdate): void {

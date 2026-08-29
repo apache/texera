@@ -101,6 +101,19 @@ class HuggingFaceTextSummarizationOpDescSpec extends AnyFlatSpec with Matchers {
     carries(code, "summary") shouldBe true
   }
 
+  it should "guard an empty text cell before it reaches the tokenizer" in {
+    val d = configured()
+    val code = d.generatePythonCode()
+
+    // An empty cell arrives as None, and the tokenizer answers it with
+    // `ValueError: text input must be of type str ...`, ending the run.
+    val guard = code.linesIterator
+      .find(_.contains("text is None"))
+      .getOrElse(fail("generated code no longer guards an empty text cell"))
+    guard should include("strip()")
+    code.indexOf("text is None") should be < code.indexOf("self.tokenizer([text]")
+  }
+
   "HuggingFaceTextSummarizationOpDesc.getPhysicalOp" should
     "wire an OpExecWithCode python executor carrying the operator's ports" in {
     val d = configured()

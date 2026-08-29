@@ -26,17 +26,14 @@ import jakarta.ws.rs._
 import jakarta.ws.rs.core._
 import org.apache.texera.common.config.StorageConfig
 import org.apache.texera.common.util.EmailUtil
-import org.apache.texera.amber.core.storage.model.OnDataset
 import org.apache.texera.amber.core.storage.util.LakeFSStorageClient
-import org.apache.texera.amber.core.storage.{DocumentFactory, FileResolver, ResourceType}
+import org.apache.texera.amber.core.storage.ResourceType
 import org.apache.texera.auth.SessionUser
-import org.apache.texera.dao.SiteSettings
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.SqlServer.withTransaction
 import org.apache.texera.dao.jooq.generated.enums.{PrivilegeEnum, UserRoleEnum}
 import org.apache.texera.dao.jooq.generated.tables.Dataset.DATASET
 import org.apache.texera.dao.jooq.generated.tables.DatasetContributor.DATASET_CONTRIBUTOR
-import org.apache.texera.dao.jooq.generated.tables.DatasetUserAccess.DATASET_USER_ACCESS
 import org.apache.texera.dao.jooq.generated.tables.DatasetVersion.DATASET_VERSION
 import org.apache.texera.dao.jooq.generated.tables.User.USER
 import org.apache.texera.dao.jooq.generated.tables.daos.{
@@ -49,40 +46,23 @@ import org.apache.texera.dao.jooq.generated.tables.pojos.{
   DatasetUserAccess,
   DatasetVersion
 }
-import org.apache.texera.service.`type`.DatasetFileNode
+import org.apache.texera.service.`type`.{Diff, ExistingUploadFilesRequest, LakeFSFileNode}
 import org.apache.texera.service.resource.DatasetAccessResource._
+import org.apache.texera.service.resource.ResourceTables.{Dataset => DATASET_RESOURCE}
 import org.apache.texera.service.resource.DatasetResource.{context, _}
+import org.apache.texera.service.util.CoverImageUtils
+import org.apache.texera.service.util.CoverImageUtils.CoverImageRequest
 import org.apache.texera.service.util.S3StorageClient
-import org.apache.texera.service.util.S3StorageClient.{
-  MAXIMUM_NUM_OF_MULTIPART_S3_PARTS,
-  MINIMUM_NUM_OF_MULTIPART_S3_PART,
-  PHYSICAL_ADDRESS_EXPIRATION_TIME_HRS
-}
 import org.jooq.impl.DSL
-import org.jooq.impl.DSL.{inline => inl}
-import org.jooq.{DSLContext, EnumType, Record2, Result}
+import org.jooq.{DSLContext, EnumType}
 
-import java.io.{InputStream, OutputStream}
-import java.net.{HttpURLConnection, URI, URL, URLDecoder}
-import java.nio.charset.StandardCharsets
-import java.nio.file.{Files, Paths}
+import java.io.InputStream
+import java.net.URI
 import java.util
 import java.util.Optional
-import java.util.zip.{ZipEntry, ZipOutputStream}
-import scala.collection.mutable.ListBuffer
 import scala.jdk.CollectionConverters._
 import scala.jdk.OptionConverters._
-import org.apache.texera.dao.jooq.generated.tables.DatasetUploadSession.DATASET_UPLOAD_SESSION
-import org.apache.texera.dao.jooq.generated.tables.DatasetUploadSessionPart.DATASET_UPLOAD_SESSION_PART
-import org.jooq.exception.DataAccessException
-import software.amazon.awssdk.services.s3.model.UploadPartResponse
-import org.apache.commons.io.FilenameUtils
 import org.apache.texera.service.util.LakeFSExceptionHandler.withLakeFSErrorHandling
-import org.apache.texera.dao.jooq.generated.tables.records.DatasetUploadSessionRecord
-
-import java.sql.SQLException
-import java.time.OffsetDateTime
-import scala.util.Try
 
 object DatasetResource {
 
@@ -90,18 +70,6 @@ object DatasetResource {
     SqlServer
       .getInstance()
       .createDSLContext()
-
-  // Builds a resource logical path (/<resourceType>/ownerEmail/resourceName/relativePath).
-  private def logicalPath(
-      resourceType: ResourceType.Value,
-      ownerEmail: String,
-      resourceName: String,
-      relativePath: String
-  ): String =
-    s"$resourceType/$ownerEmail/$resourceName/$relativePath"
-
-  private def singleFileUploadMaxBytes(defaultMiB: Long = 20L): Long =
-    SiteSettings.getLong("single_file_upload_max_size_mib", defaultMiB) * 1024L * 1024L
 
   /**
     * Helper function to get the dataset from DB using did
@@ -113,27 +81,6 @@ object DatasetResource {
       throw new NotFoundException(f"Dataset $did not found")
     }
     dataset
-  }
-
-  /**
-    * Helper function to PUT exactly len bytes from buf to presigned URL, return the ETag
-    */
-  private def put(buf: Array[Byte], len: Int, url: String, partNum: Int): String = {
-    val conn = new URL(url).openConnection().asInstanceOf[HttpURLConnection]
-    conn.setDoOutput(true)
-    conn.setRequestMethod("PUT")
-    conn.setFixedLengthStreamingMode(len)
-    val out = conn.getOutputStream
-    out.write(buf, 0, len)
-    out.close()
-
-    val code = conn.getResponseCode
-    if (code != HttpURLConnection.HTTP_OK && code != HttpURLConnection.HTTP_CREATED)
-      throw new RuntimeException(s"Part $partNum upload failed (HTTP $code)")
-
-    val etag = conn.getHeaderField("ETag").replace("\"", "")
-    conn.disconnect()
-    etag
   }
 
   /**
@@ -165,25 +112,6 @@ object DatasetResource {
       .limit(1)
       .fetchOptionalInto(classOf[DatasetVersion])
       .toScala
-  }
-
-  /**
-    * Validates a file path using Apache Commons IO.
-    */
-  def validateAndNormalizeFilePathOrThrow(path: String): String = {
-    if (path == null || path.trim.isEmpty) {
-      throw new BadRequestException("Path cannot be empty")
-    }
-
-    val normalized = FilenameUtils.normalize(path, true)
-    if (normalized == null) {
-      throw new BadRequestException("Invalid path")
-    }
-
-    if (FilenameUtils.getPrefixLength(normalized) > 0) {
-      throw new BadRequestException("Absolute paths not allowed")
-    }
-    normalized
   }
 
   /**
@@ -308,7 +236,7 @@ object DatasetResource {
 
   case class DashboardDatasetVersion(
       datasetVersion: DatasetVersion,
-      fileNodes: List[DatasetFileNode]
+      fileNodes: List[LakeFSFileNode]
   )
 
   case class CreateDatasetRequest(
@@ -319,27 +247,17 @@ object DatasetResource {
       contributors: Option[List[Contributor]] = None
   )
 
-  case class Diff(
-      path: String,
-      pathType: String,
-      diffType: String, // "added", "removed", "changed", etc.
-      sizeBytes: Option[Long] // Size of the changed file (None for directories)
-  )
-
-  case class ExistingUploadFile(path: String, sizeBytes: Long)
-
-  case class ExistingUploadFilesRequest(files: List[ExistingUploadFile])
+  val ExistingUploadFilesRequest: org.apache.texera.service.`type`.ExistingUploadFilesRequest.type =
+    org.apache.texera.service.`type`.ExistingUploadFilesRequest
 
   case class DatasetDescriptionModification(did: Integer, description: String)
 
   case class DatasetNameModification(did: Integer, name: String)
 
   case class DatasetVersionRootFileNodesResponse(
-      fileNodes: List[DatasetFileNode],
+      fileNodes: List[LakeFSFileNode],
       size: Long
   )
-
-  case class CoverImageRequest(coverImage: String)
 }
 
 @Produces(Array(MediaType.APPLICATION_JSON, "image/jpeg", "application/pdf"))
@@ -349,10 +267,29 @@ class DatasetResource extends LazyLogging {
   private val ERR_DATASET_VERSION_NOT_FOUND_MESSAGE = "The version of the dataset not found"
   private val EXPIRATION_MINUTES = 5
 
-  private val COVER_IMAGE_SIZE_LIMIT_BYTES: Long = 10 * 1024 * 1024 // 10 MB
-  private val ALLOWED_IMAGE_EXTENSIONS: Set[String] = Set(".jpg", ".jpeg", ".png", ".gif", ".webp")
+  // varchar(246) on DBs upgraded through sql/updates/18.sql, narrower than model's.
+  private val COVER_IMAGE_MAX_PATH_LENGTH = 246
 
-  private val resourceType = ResourceType.Datasets
+  private val resourceType = ResourceType.Dataset
+
+  /**
+    * The single read rule for a dataset: anonymous callers get public datasets only, a
+    * signed-in caller goes through userHasReadAccess. Shared with getDashboardDataset
+    * so the cover endpoints cannot drift from it.
+    */
+  private def requireReadAccess(
+      ctx: DSLContext,
+      did: Integer,
+      requesterUid: Option[Integer]
+  ): Dataset = {
+    val dataset = getDatasetByID(ctx, did)
+    if (requesterUid.isEmpty && !dataset.getIsPublic) {
+      throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
+    } else if (requesterUid.exists(uid => !userHasReadAccess(ctx, did, uid))) {
+      throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
+    }
+    dataset
+  }
 
   /**
     * Helper function to get the dataset from DB with additional information including user access privilege and owner email
@@ -362,13 +299,7 @@ class DatasetResource extends LazyLogging {
       did: Integer,
       requesterUid: Option[Integer]
   ): DashboardDataset = {
-    val targetDataset = getDatasetByID(ctx, did)
-
-    if (requesterUid.isEmpty && !targetDataset.getIsPublic) {
-      throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
-    } else if (requesterUid.exists(uid => !userHasReadAccess(ctx, did, uid))) {
-      throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
-    }
+    val targetDataset = requireReadAccess(ctx, did, requesterUid)
 
     val userAccessPrivilege = requesterUid
       .map(uid => getDatasetUserAccessPrivilege(ctx, did, uid))
@@ -407,17 +338,7 @@ class DatasetResource extends LazyLogging {
       val isDatasetDownloadable = request.isDatasetDownloadable
 
       validateDatasetName(datasetName)
-
-      // Check if a dataset with the same name already exists
-      val duplicateExists = ctx.fetchExists(
-        ctx
-          .selectFrom(DATASET)
-          .where(DATASET.OWNER_UID.eq(uid))
-          .and(DATASET.NAME.eq(datasetName))
-      )
-      if (duplicateExists) {
-        throw new BadRequestException("Dataset with the same name already exists")
-      }
+      ResourceNaming.requireNameAvailable(ctx, DATASET_RESOURCE, uid, datasetName)
 
       // insert the dataset into the database
       val dataset = new Dataset()
@@ -566,9 +487,10 @@ class DatasetResource extends LazyLogging {
 
       DashboardDatasetVersion(
         insertedVersion,
-        DatasetFileNode
+        LakeFSFileNode
           .fromLakeFSRepositoryCommittedObjects(
-            Map((user.getEmail, datasetName, newVersionName) -> fileNodes)
+            resourceType,
+            Map((getOwner(ctx, did).getEmail, datasetName, newVersionName) -> fileNodes)
           )
       )
     }
@@ -672,18 +594,13 @@ class DatasetResource extends LazyLogging {
       }
 
       validateDatasetName(modificator.name)
-
-      // Check if the owner already has another dataset with the same name
-      val duplicateExists = ctx.fetchExists(
-        ctx
-          .selectFrom(DATASET)
-          .where(DATASET.OWNER_UID.eq(dataset.getOwnerUid))
-          .and(DATASET.NAME.eq(modificator.name))
-          .and(DATASET.DID.notEqual(dataset.getDid))
+      ResourceNaming.requireNameAvailable(
+        ctx,
+        DATASET_RESOURCE,
+        dataset.getOwnerUid,
+        modificator.name,
+        excludingId = Some(dataset.getDid)
       )
-      if (duplicateExists) {
-        throw new BadRequestException("Dataset with the same name already exists")
-      }
 
       dataset.setName(modificator.name)
       failOnDuplicateDatasetName {
@@ -705,115 +622,14 @@ class DatasetResource extends LazyLogging {
       @Context headers: HttpHeaders,
       @Auth user: SessionUser
   ): Response = {
-    // These variables are defined at the top so catch block can access them
-    val uid = user.getUid
-    var repoName: String = null
-    var filePath: String = null
-    var uploadId: String = null
-    var physicalAddress: String = null
-
-    try {
-      withTransaction(context) { ctx =>
-        if (!userHasWriteAccess(ctx, did, uid))
-          throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
-
-        val dataset = getDatasetByID(ctx, did)
-        repoName = dataset.getRepositoryName
-        filePath = URLDecoder.decode(encodedFilePath, StandardCharsets.UTF_8.name)
-
-        // ---------- decide part-size & number-of-parts ----------
-        val declaredLen = Option(headers.getHeaderString(HttpHeaders.CONTENT_LENGTH)).map(_.toLong)
-        var partSize = StorageConfig.s3MultipartUploadPartSize
-
-        declaredLen.foreach { ln =>
-          val needed = ((ln + partSize - 1) / partSize).toInt
-          if (needed > MAXIMUM_NUM_OF_MULTIPART_S3_PARTS)
-            partSize = math.max(
-              MINIMUM_NUM_OF_MULTIPART_S3_PART,
-              ln / (MAXIMUM_NUM_OF_MULTIPART_S3_PARTS - 1)
-            )
-        }
-
-        val expectedParts = declaredLen
-          .map(ln =>
-            ((ln + partSize - 1) / partSize).toInt + 1
-          ) // “+1” for the last (possibly small) part
-          .getOrElse(MAXIMUM_NUM_OF_MULTIPART_S3_PARTS)
-
-        // ---------- ask LakeFS for presigned URLs ----------
-        val presign = LakeFSStorageClient
-          .initiatePresignedMultipartUploads(repoName, filePath, expectedParts)
-        uploadId = presign.getUploadId
-        val presignedUrls = presign.getPresignedUrls.asScala.iterator
-        physicalAddress = presign.getPhysicalAddress
-
-        // ---------- stream & upload parts ----------
-        /*
-        1. Reads the input stream in chunks of 'partSize' bytes by stacking them in a buffer
-        2. Uploads each chunk (part) using a presigned URL
-        3. Tracks each part number and ETag returned from S3
-        4. After all parts are uploaded, completes the multipart upload
-         */
-        val buf = new Array[Byte](partSize.toInt)
-        var buffered = 0
-        var partNumber = 1
-        val completedParts = ListBuffer[(Int, String)]()
-
-        @inline def flush(): Unit = {
-          if (buffered == 0) return
-          if (!presignedUrls.hasNext)
-            throw new WebApplicationException("Ran out of presigned part URLs – ask for more parts")
-
-          val etag = put(buf, buffered, presignedUrls.next(), partNumber)
-          completedParts += ((partNumber, etag))
-          partNumber += 1
-          buffered = 0
-        }
-
-        var read = fileStream.read(buf, buffered, buf.length - buffered)
-        while (read != -1) {
-          buffered += read
-          if (buffered == buf.length) flush() // buffer full
-          read = fileStream.read(buf, buffered, buf.length - buffered)
-        }
-        fileStream.close()
-        flush()
-
-        // ---------- complete upload ----------
-        withLakeFSErrorHandling(s"completing the multipart upload of file '$filePath'") {
-          LakeFSStorageClient.completePresignedMultipartUploads(
-            repoName,
-            filePath,
-            uploadId,
-            completedParts.toList,
-            physicalAddress
-          )
-        }
-
-        Response.ok(Map("message" -> s"Uploaded $filePath in ${completedParts.size} parts")).build()
-      }
-    } catch {
-      case e: Exception =>
-        if (repoName != null && filePath != null && uploadId != null && physicalAddress != null) {
-          // best-effort cleanup; never let an abort failure mask the original error
-          try {
-            LakeFSStorageClient.abortPresignedMultipartUploads(
-              repoName,
-              filePath,
-              uploadId,
-              physicalAddress
-            )
-          } catch { case _: Throwable => () }
-        }
-        e match {
-          case web: WebApplicationException => throw web
-          case other =>
-            throw new WebApplicationException(
-              s"Failed to upload file to dataset: ${other.getMessage}",
-              other
-            )
-        }
-    }
+    ResourceUploadService.uploadOneFile(
+      ResourceStorage.Dataset,
+      did,
+      encodedFilePath,
+      fileStream,
+      headers,
+      user.getUid
+    )
   }
 
   @GET
@@ -873,21 +689,12 @@ class DatasetResource extends LazyLogging {
       @QueryParam("filePath") encodedFilePath: String,
       @Auth user: SessionUser
   ): Response = {
-    val uid = user.getUid
-    withTransaction(context) { ctx =>
-      if (!userHasWriteAccess(ctx, did, uid)) {
-        throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
-      }
-      val repositoryName = getDatasetByID(ctx, did).getRepositoryName
-
-      // Decode the file path
-      val filePath = URLDecoder.decode(encodedFilePath, StandardCharsets.UTF_8.name())
-      withLakeFSErrorHandling(s"deleting file '$filePath' from the dataset repository") {
-        LakeFSStorageClient.deleteObject(repositoryName, filePath)
-      }
-
-      Response.ok().build()
-    }
+    ResourceUploadService.deleteStagedFile(
+      ResourceStorage.Dataset,
+      did,
+      encodedFilePath,
+      user.getUid
+    )
   }
 
   @POST
@@ -931,200 +738,16 @@ class DatasetResource extends LazyLogging {
       @Context headers: HttpHeaders,
       @Auth user: SessionUser
   ): Response = {
-
-    val uid = user.getUid
-    val dataset: Dataset = getDatasetBy(datasetOwnerEmail, datasetName)
-    val did = dataset.getDid
-
-    if (encodedFilePath == null || encodedFilePath.isEmpty)
-      throw new BadRequestException("filePath is required")
-    if (partNumber < 1)
-      throw new BadRequestException("partNumber must be >= 1")
-
-    val filePath = validateAndNormalizeFilePathOrThrow(
-      URLDecoder.decode(encodedFilePath, StandardCharsets.UTF_8.name())
+    val dataset = getDatasetBy(datasetOwnerEmail, datasetName)
+    ResourceUploadService.uploadPart(
+      ResourceStorage.Dataset,
+      dataset.getDid,
+      user.getUid,
+      encodedFilePath,
+      partNumber,
+      partStream,
+      headers
     )
-
-    val contentLength =
-      Option(headers.getHeaderString(HttpHeaders.CONTENT_LENGTH))
-        .map(_.trim)
-        .flatMap(s => Try(s.toLong).toOption)
-        .filter(_ > 0)
-        .getOrElse {
-          throw new BadRequestException("Invalid/Missing Content-Length")
-        }
-
-    withTransaction(context) { ctx =>
-      if (!userHasWriteAccess(ctx, did, uid))
-        throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
-
-      val session = ctx
-        .selectFrom(DATASET_UPLOAD_SESSION)
-        .where(
-          DATASET_UPLOAD_SESSION.UID
-            .eq(uid)
-            .and(DATASET_UPLOAD_SESSION.DID.eq(did))
-            .and(DATASET_UPLOAD_SESSION.FILE_PATH.eq(filePath))
-        )
-        .fetchOne()
-
-      if (session == null)
-        throw new NotFoundException("Upload session not found. Call type=init first.")
-
-      val expectedParts: Int = session.getNumPartsRequested
-      val fileSizeBytesValue: Long = session.getFileSizeBytes
-      val partSizeBytesValue: Long = session.getPartSizeBytes
-
-      if (fileSizeBytesValue <= 0L) {
-        throw new WebApplicationException(
-          s"Upload session has an invalid file size of $fileSizeBytesValue. Restart the upload.",
-          Response.Status.INTERNAL_SERVER_ERROR
-        )
-      }
-      if (partSizeBytesValue <= 0L) {
-        throw new WebApplicationException(
-          s"Upload session has an invalid part size of $partSizeBytesValue. Restart the upload.",
-          Response.Status.INTERNAL_SERVER_ERROR
-        )
-      }
-
-      // lastPartSize = fileSize - partSize*(expectedParts-1)
-      val nMinus1: Long = expectedParts.toLong - 1L
-      if (nMinus1 < 0L) {
-        throw new WebApplicationException(
-          s"Upload session has an invalid number of requested parts of $expectedParts. Restart the upload.",
-          Response.Status.INTERNAL_SERVER_ERROR
-        )
-      }
-      if (nMinus1 > 0L && partSizeBytesValue > Long.MaxValue / nMinus1) {
-        throw new WebApplicationException(
-          "Overflow while computing last part size",
-          Response.Status.INTERNAL_SERVER_ERROR
-        )
-      }
-      val prefixBytes: Long = partSizeBytesValue * nMinus1
-      if (prefixBytes > fileSizeBytesValue) {
-        throw new WebApplicationException(
-          s"Upload session is invalid: computed bytes before last part ($prefixBytes) exceed declared file size ($fileSizeBytesValue). Restart the upload.",
-          Response.Status.INTERNAL_SERVER_ERROR
-        )
-      }
-      val lastPartSize: Long = fileSizeBytesValue - prefixBytes
-      if (lastPartSize <= 0L || lastPartSize > partSizeBytesValue) {
-        throw new WebApplicationException(
-          s"Upload session is invalid: computed last part size ($lastPartSize bytes) must be within 1..$partSizeBytesValue bytes. Restart the upload.",
-          Response.Status.INTERNAL_SERVER_ERROR
-        )
-      }
-
-      val allowedSize: Long =
-        if (partNumber < expectedParts) partSizeBytesValue else lastPartSize
-
-      if (partNumber > expectedParts) {
-        throw new BadRequestException(
-          s"$partNumber exceeds the requested parts on init: $expectedParts"
-        )
-      }
-
-      if (partNumber < expectedParts && contentLength < MINIMUM_NUM_OF_MULTIPART_S3_PART) {
-        throw new BadRequestException(
-          s"Part $partNumber is too small ($contentLength bytes). " +
-            s"All non-final parts must be >= $MINIMUM_NUM_OF_MULTIPART_S3_PART bytes."
-        )
-      }
-
-      if (contentLength != allowedSize) {
-        throw new BadRequestException(
-          s"Invalid part size for partNumber=$partNumber. " +
-            s"Expected Content-Length=$allowedSize, got $contentLength."
-        )
-      }
-
-      val physicalAddr = Option(session.getPhysicalAddress).map(_.trim).getOrElse("")
-      if (physicalAddr.isEmpty) {
-        throw new WebApplicationException(
-          "Upload session is missing physicalAddress. Restart the upload.",
-          Response.Status.INTERNAL_SERVER_ERROR
-        )
-      }
-
-      val uploadId = session.getUploadId
-      val (bucket, key) =
-        try LakeFSStorageClient.parsePhysicalAddress(physicalAddr)
-        catch {
-          case e: IllegalArgumentException =>
-            throw new WebApplicationException(
-              s"Upload session has invalid physicalAddress. Restart the upload. (${e.getMessage})",
-              Response.Status.INTERNAL_SERVER_ERROR
-            )
-        }
-
-      // Per-part lock: if another request is streaming the same part, fail fast.
-      val partRow =
-        try {
-          ctx
-            .selectFrom(DATASET_UPLOAD_SESSION_PART)
-            .where(
-              DATASET_UPLOAD_SESSION_PART.UPLOAD_ID
-                .eq(uploadId)
-                .and(DATASET_UPLOAD_SESSION_PART.PART_NUMBER.eq(partNumber))
-            )
-            .forUpdate()
-            .noWait()
-            .fetchOne()
-        } catch {
-          case e: DataAccessException
-              if Option(e.getCause)
-                .collect { case s: SQLException => s.getSQLState }
-                .contains("55P03") =>
-            throw new WebApplicationException(
-              s"Part $partNumber is already being uploaded",
-              Response.Status.CONFLICT
-            )
-        }
-
-      if (partRow == null) {
-        // Should not happen if init pre-created rows
-        throw new WebApplicationException(
-          s"Part row not initialized for part $partNumber. Restart the upload.",
-          Response.Status.INTERNAL_SERVER_ERROR
-        )
-      }
-
-      // Idempotency: if ETag already set, accept the retry quickly.
-      val existing = Option(partRow.getEtag).map(_.trim).getOrElse("")
-      if (existing.isEmpty) {
-        // Stream to S3 while holding the part lock (prevents concurrent streams for same part)
-        val response: UploadPartResponse =
-          S3StorageClient.uploadPartWithRequest(
-            bucket = bucket,
-            key = key,
-            uploadId = uploadId,
-            partNumber = partNumber,
-            inputStream = partStream,
-            contentLength = Some(contentLength)
-          )
-
-        val etagClean = Option(response.eTag()).map(_.replace("\"", "")).map(_.trim).getOrElse("")
-        if (etagClean.isEmpty) {
-          throw new WebApplicationException(
-            s"Missing ETag returned from S3 for part $partNumber",
-            Response.Status.INTERNAL_SERVER_ERROR
-          )
-        }
-
-        ctx
-          .update(DATASET_UPLOAD_SESSION_PART)
-          .set(DATASET_UPLOAD_SESSION_PART.ETAG, etagClean)
-          .where(
-            DATASET_UPLOAD_SESSION_PART.UPLOAD_ID
-              .eq(uploadId)
-              .and(DATASET_UPLOAD_SESSION_PART.PART_NUMBER.eq(partNumber))
-          )
-          .execute()
-      }
-      Response.ok().build()
-    }
   }
 
   @POST
@@ -1183,28 +806,7 @@ class DatasetResource extends LazyLogging {
       @PathParam("did") did: Integer,
       @Auth user: SessionUser
   ): List[Diff] = {
-    val uid = user.getUid
-    withTransaction(context) { ctx =>
-      if (!userHasReadAccess(ctx, did, uid)) {
-        throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
-      }
-
-      // Retrieve staged (uncommitted) changes from LakeFS
-      val dataset = getDatasetByID(ctx, did)
-      val lakefsDiffs = withLakeFSErrorHandling {
-        LakeFSStorageClient.retrieveUncommittedObjects(dataset.getRepositoryName)
-      }
-
-      // Convert LakeFS Diff objects to our custom Diff case class
-      lakefsDiffs.map(d =>
-        new Diff(
-          d.getPath,
-          d.getPathType.getValue,
-          d.getType.getValue,
-          Option(d.getSizeBytes).map(_.longValue())
-        )
-      )
-    }
+    ResourceUploadService.stagedChanges(ResourceStorage.Dataset, did, user.getUid)
   }
 
   @POST
@@ -1216,54 +818,13 @@ class DatasetResource extends LazyLogging {
       request: ExistingUploadFilesRequest,
       @Auth user: SessionUser
   ): Response = {
-    val uid = user.getUid
-    withTransaction(context) { ctx =>
-      if (!userHasWriteAccess(ctx, did, uid)) {
-        throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
-      }
-
-      val requested = Option(request)
-        .flatMap(request => Option(request.files))
-        .getOrElse(List.empty)
-        .map { file =>
-          val originalPath = file.path
-          val path = validateAndNormalizeFilePathOrThrow(originalPath)
-          if (file.sizeBytes < 0L) throw new BadRequestException("sizeBytes must be >= 0")
-          (path, originalPath, file.sizeBytes)
-        }
-
-      val dataset = getDatasetByID(ctx, did)
-      val committed = getLatestDatasetVersion(ctx, did)
-        .map { v =>
-          withLakeFSErrorHandling(
-            s"retrieving committed files of dataset '${dataset.getName}'"
-          ) {
-            LakeFSStorageClient
-              .retrieveObjectsOfVersion(dataset.getRepositoryName, v.getVersionHash)
-              .map(obj => obj.getPath -> obj.getSizeBytes.longValue())
-          }
-        }
-        .getOrElse(List.empty)
-
-      val staged = withLakeFSErrorHandling(
-        s"retrieving staged files of dataset '${dataset.getName}'"
-      ) {
-        LakeFSStorageClient.retrieveUncommittedObjects(dataset.getRepositoryName)
-      }
-        .filterNot(diff => Option(diff.getType).exists(_.getValue.equalsIgnoreCase("removed")))
-        .flatMap(diff => Option(diff.getSizeBytes).map(size => diff.getPath -> size.longValue()))
-
-      val existing = (committed ++ staged).toMap
-      val matches = requested
-        .collect {
-          case (path, originalPath, size) if existing.get(path).contains(size) => originalPath
-        }
-        .toList
-        .distinct
-        .sorted
-
-      Response.ok(Map("filePaths" -> matches.asJava)).build()
-    }
+    ResourceUploadService.matchExistingUploads(
+      ResourceStorage.Dataset,
+      did,
+      user.getUid,
+      request,
+      ctx => getLatestDatasetVersion(ctx, did).map(_.getVersionHash)
+    )
   }
 
   @PUT
@@ -1275,20 +836,12 @@ class DatasetResource extends LazyLogging {
       @QueryParam("filePath") encodedFilePath: String,
       @Auth user: SessionUser
   ): Response = {
-    val uid = user.getUid
-    withTransaction(context) { ctx =>
-      if (!userHasWriteAccess(ctx, did, uid)) {
-        throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
-      }
-      val repositoryName = getDatasetByID(ctx, did).getRepositoryName
-
-      // Decode the file path
-      val filePath = URLDecoder.decode(encodedFilePath, StandardCharsets.UTF_8.name())
-      withLakeFSErrorHandling(s"resetting uncommitted changes of file '$filePath'") {
-        LakeFSStorageClient.resetObjectUploadOrDeletion(repositoryName, filePath)
-      }
-      Response.ok().build()
-    }
+    ResourceUploadService.resetStagedChange(
+      ResourceStorage.Dataset,
+      did,
+      encodedFilePath,
+      user.getUid
+    )
   }
 
   /**
@@ -1305,49 +858,24 @@ class DatasetResource extends LazyLogging {
   ): List[DashboardDataset] = {
     val uid = user.getUid
     withTransaction(context)(ctx => {
-      var accessibleDatasets: ListBuffer[DashboardDataset] = ListBuffer()
-      // first fetch all datasets user have explicit access to
-      accessibleDatasets = ListBuffer.from(
-        ctx
-          .select()
-          .from(
-            DATASET
-              .leftJoin(DATASET_USER_ACCESS)
-              .on(DATASET_USER_ACCESS.DID.eq(DATASET.DID))
-              .leftJoin(USER)
-              .on(USER.UID.eq(DATASET.OWNER_UID))
-          )
-          .where(DATASET_USER_ACCESS.UID.eq(uid))
-          .fetch()
-          .map(record => {
-            val dataset = record.into(DATASET).into(classOf[Dataset])
-            val datasetAccess = record.into(DATASET_USER_ACCESS).into(classOf[DatasetUserAccess])
-            val ownerEmail = record.into(USER).getEmail
+      ResourceAccess.listVisible(
+        ctx,
+        DATASET_RESOURCE,
+        uid,
+        classOf[Dataset],
+        (dataset: Dataset) => dataset.getDid
+      )(
+        fromGrant = (dataset, ownerEmail, privilege, isOwner) =>
+          Some(
             DashboardDataset(
-              isOwner = dataset.getOwnerUid == uid,
+              isOwner = isOwner,
               dataset = dataset,
-              accessPrivilege = datasetAccess.getPrivilege,
+              accessPrivilege = privilege,
               ownerEmail = ownerEmail,
               size = 0
             )
-          })
-          .asScala
-      )
-
-      // then we fetch the public datasets and merge it as a part of the result if not exist
-      val publicDatasets = ctx
-        .select()
-        .from(
-          DATASET
-            .leftJoin(USER)
-            .on(USER.UID.eq(DATASET.OWNER_UID))
-        )
-        .where(DATASET.IS_PUBLIC.eq(true))
-        .fetch()
-        .asScala
-        .flatMap { record =>
-          val dataset = record.into(DATASET).into(classOf[Dataset])
-          val ownerEmail = record.into(USER).getEmail
+          ),
+        fromPublic = (dataset, ownerEmail) =>
           try {
             Some(
               DashboardDataset(
@@ -1366,13 +894,7 @@ class DatasetResource extends LazyLogging {
               )
               None
           }
-        }
-      publicDatasets.foreach { publicDataset =>
-        if (!accessibleDatasets.exists(_.dataset.getDid == publicDataset.dataset.getDid)) {
-          accessibleDatasets = accessibleDatasets :+ publicDataset
-        }
-      }
-      accessibleDatasets.toList
+      )
     })
   }
 
@@ -1424,36 +946,18 @@ class DatasetResource extends LazyLogging {
         throw new NotFoundException(ERR_DATASET_VERSION_NOT_FOUND_MESSAGE)
       )
 
-      val datasetsNode = DatasetFileNode
-        .fromLakeFSRepositoryCommittedObjects(
-          Map(
-            (
-              getOwner(ctx, did).getEmail,
-              dataset.getName,
-              latestVersion.getName
-            ) -> LakeFSStorageClient
-              .retrieveObjectsOfVersion(dataset.getRepositoryName, latestVersion.getVersionHash)
-          )
-        )
-        .head
-
-      val ownerNode = datasetsNode.getChildren.headOption.getOrElse(
-        throw new IllegalStateException(
-          s"Dataset file tree for ${dataset.getName} is missing its owner node"
-        )
-      )
-
       DashboardDatasetVersion(
         latestVersion,
-        ownerNode.children.get
-          .find(_.getName == dataset.getName)
-          .head
-          .children
-          .get
-          .find(_.getName == latestVersion.getName)
-          .head
-          .children
-          .get
+        ResourceUploadService
+          .versionRootFileNodes(
+            resourceType,
+            getOwner(ctx, did).getEmail,
+            dataset.getName,
+            latestVersion.getName,
+            dataset.getRepositoryName,
+            latestVersion.getVersionHash
+          )
+          ._1
       )
     })
   }
@@ -1497,50 +1001,12 @@ class DatasetResource extends LazyLogging {
         throw new BadRequestException("Invalid parameters")
       }
 
-      // Retrieve dataset and version details
-      val datasetName = dataset.getName
-      val repositoryName = dataset.getRepositoryName
-      val versionHash = datasetVersion.getVersionHash
-      val objects = withLakeFSErrorHandling(
-        s"listing files of version '$versionHash' of dataset '$datasetName'"
-      ) {
-        LakeFSStorageClient.retrieveObjectsOfVersion(repositoryName, versionHash)
-      }
-
-      if (objects.isEmpty) {
-        return Response
-          .status(Response.Status.NOT_FOUND)
-          .entity(s"No objects found in version $versionHash of repository $repositoryName")
-          .build()
-      }
-
-      // StreamingOutput for ZIP download
-      val streamingOutput = new StreamingOutput {
-        override def write(outputStream: OutputStream): Unit = {
-          val zipOut = new ZipOutputStream(outputStream)
-          try {
-            objects.foreach { obj =>
-              val filePath = obj.getPath
-              val file = withLakeFSErrorHandling(s"downloading file '$filePath' for the zip") {
-                LakeFSStorageClient.getFileFromRepo(repositoryName, versionHash, filePath)
-              }
-
-              zipOut.putNextEntry(new ZipEntry(filePath))
-              Files.copy(Paths.get(file.toURI), zipOut)
-              zipOut.closeEntry()
-            }
-          } finally {
-            zipOut.close()
-          }
-        }
-      }
-
-      val zipFilename = s"""attachment; filename="$datasetName-${datasetVersion.getName}.zip""""
-
-      Response
-        .ok(streamingOutput, "application/zip")
-        .header("Content-Disposition", zipFilename)
-        .build()
+      ResourceUploadService.versionZipResponse(
+        dataset.getRepositoryName,
+        datasetVersion.getVersionHash,
+        dataset.getName,
+        datasetVersion.getName
+      )
     }
   }
 
@@ -1594,59 +1060,18 @@ class DatasetResource extends LazyLogging {
   @GET
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/user-dataset-owners")
-  def retrieveOwners(@Auth user: SessionUser): util.List[String] = {
-    context
-      .selectDistinct(USER.EMAIL)
-      .from(USER)
-      .join(DATASET)
-      .on(DATASET.OWNER_UID.eq(USER.UID))
-      .join(DATASET_USER_ACCESS)
-      .on(DATASET_USER_ACCESS.DID.eq(DATASET.DID))
-      .where(DATASET_USER_ACCESS.UID.eq(user.getUid))
-      .fetchInto(classOf[String])
-  }
+  def retrieveOwners(@Auth user: SessionUser): util.List[String] =
+    withTransaction(context)(ctx =>
+      ResourceAccess.ownerEmailsVisibleTo(ctx, DATASET_RESOURCE, user.getUid)
+    )
 
-  private val DATASET_NAME_MAX_LENGTH = 128
-  private val DATASET_NAME_PATTERN = "^[A-Za-z0-9_-]+$".r
+  /** @see [[ResourceNaming.validateName]] */
+  private def validateDatasetName(name: String): Unit =
+    ResourceNaming.validateName(DATASET_RESOURCE.label, name)
 
-  /**
-    * Validates the dataset name.
-    *
-    * Rules:
-    * - Must be 1 to 128 characters long.
-    * - Only letters, numbers, underscores, and hyphens are allowed.
-    *
-    * @param name The dataset name to validate.
-    * @throws jakarta.ws.rs.BadRequestException if the name is invalid.
-    */
-  private def validateDatasetName(name: String): Unit = {
-    if (name == null || !DATASET_NAME_PATTERN.matches(name)) {
-      throw new BadRequestException(
-        "Invalid dataset name: only letters, numbers, underscores, and hyphens are allowed."
-      )
-    }
-    if (name.length > DATASET_NAME_MAX_LENGTH) {
-      throw new BadRequestException(
-        s"Invalid dataset name: name must be at most $DATASET_NAME_MAX_LENGTH characters long."
-      )
-    }
-  }
-
-  /**
-    * Runs a dataset write and translates a (owner_uid, name) unique-constraint
-    * violation into the same BadRequestException the pre-checks throw, so
-    * requests losing a concurrent race get a 400 instead of a 500.
-    */
-  private[resource] def failOnDuplicateDatasetName[T](op: => T): T = {
-    try op
-    catch {
-      case e: DataAccessException =>
-        if (e.sqlState() == "23505") {
-          throw new BadRequestException("Dataset with the same name already exists")
-        }
-        throw e
-    }
-  }
+  /** @see [[ResourceNaming.failOnDuplicateName]] */
+  private[resource] def failOnDuplicateDatasetName[T](op: => T): T =
+    ResourceNaming.failOnDuplicateName(DATASET_RESOURCE.label)(op)
 
   private def fetchDatasetVersions(ctx: DSLContext, did: Integer): List[DatasetVersion] = {
     ctx
@@ -1666,36 +1091,15 @@ class DatasetResource extends LazyLogging {
   ): DatasetVersionRootFileNodesResponse = {
     val dataset = getDashboardDataset(ctx, did, uid)
     val datasetVersion = getDatasetVersionByID(ctx, dvid)
-    val datasetName = dataset.dataset.getName
-    val repositoryName = dataset.dataset.getRepositoryName
-
-    val datasetsNode = DatasetFileNode
-      .fromLakeFSRepositoryCommittedObjects(
-        Map(
-          (dataset.ownerEmail, datasetName, datasetVersion.getName) -> LakeFSStorageClient
-            .retrieveObjectsOfVersion(repositoryName, datasetVersion.getVersionHash)
-        )
-      )
-      .head
-
-    val ownerFileNode = datasetsNode.getChildren.headOption.getOrElse(
-      throw new IllegalStateException(
-        s"Dataset file tree for $datasetName is missing its owner node"
-      )
+    val (nodes, size) = ResourceUploadService.versionRootFileNodes(
+      resourceType,
+      dataset.ownerEmail,
+      dataset.dataset.getName,
+      datasetVersion.getName,
+      dataset.dataset.getRepositoryName,
+      datasetVersion.getVersionHash
     )
-
-    DatasetVersionRootFileNodesResponse(
-      ownerFileNode.children.get
-        .find(_.getName == datasetName)
-        .head
-        .children
-        .get
-        .find(_.getName == datasetVersion.getName)
-        .head
-        .children
-        .get,
-      DatasetFileNode.calculateTotalSize(List(datasetsNode))
-    )
+    DatasetVersionRootFileNodesResponse(nodes, size)
   }
 
   private def generatePresignedResponse(
@@ -1703,88 +1107,14 @@ class DatasetResource extends LazyLogging {
       repositoryName: String,
       commitHash: String,
       uid: Integer
-  ): Response = {
-    resolveDatasetAndPath(encodedUrl, repositoryName, commitHash, uid) match {
-      case Left(errorResponse) =>
-        errorResponse
-
-      case Right((resolvedRepositoryName, resolvedCommitHash, resolvedFilePath)) =>
-        val url = withLakeFSErrorHandling(
-          s"generating a presigned URL for file '$resolvedFilePath'"
-        ) {
-          LakeFSStorageClient.getFilePresignedUrl(
-            resolvedRepositoryName,
-            resolvedCommitHash,
-            resolvedFilePath
-          )
-        }
-
-        Response.ok(Map("presignedUrl" -> url)).build()
-    }
-  }
-
-  private def resolveDatasetAndPath(
-      encodedUrl: String,
-      repositoryName: String,
-      commitHash: String,
-      uid: Integer
-  ): Either[Response, (String, String, String)] = {
-    val decodedPathStr = URLDecoder.decode(encodedUrl, StandardCharsets.UTF_8.name())
-
-    (Option(repositoryName), Option(commitHash)) match {
-      case (Some(_), None) | (None, Some(_)) =>
-        // Case 1: Only one parameter is provided (error case)
-        Left(
-          Response
-            .status(Response.Status.BAD_REQUEST)
-            .entity(
-              "Both repositoryName and commitHash must be provided together, or neither should be provided."
-            )
-            .build()
-        )
-
-      case (Some(repositoryName), Some(commit)) =>
-        // Case 2: repositoryName and commitHash are provided, validate access
-        val response = withTransaction(context) { ctx =>
-          val datasetDao = new DatasetDao(ctx.configuration())
-          val datasets = datasetDao.fetchByRepositoryName(repositoryName).asScala.toList
-
-          if (datasets.isEmpty || !userHasReadAccess(ctx, datasets.head.getDid, uid))
-            throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
-
-          val dataset = datasets.head
-          // Standard read access check only - download restrictions handled per endpoint
-          // Non-download operations (viewing) should work for all public datasets
-
-          (repositoryName, commit, decodedPathStr)
-        }
-        Right(response)
-
-      case (None, None) =>
-        // Case 3: Neither repositoryName nor commitHash are provided, resolve normally
-        val response = withTransaction(context) { ctx =>
-          val fileUri = FileResolver.resolve(decodedPathStr)
-          val document = DocumentFactory.openReadonlyDocument(fileUri).asInstanceOf[OnDataset]
-          val datasetDao = new DatasetDao(ctx.configuration())
-          val datasets =
-            datasetDao.fetchByRepositoryName(document.getRepositoryName()).asScala.toList
-
-          if (datasets.isEmpty || !userHasReadAccess(ctx, datasets.head.getDid, uid))
-            throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
-
-          val dataset = datasets.head
-          // Standard read access check only - download restrictions handled per endpoint
-          // Non-download operations (viewing) should work for all public datasets
-
-          (
-            document.getRepositoryName(),
-            document.getVersionHash(),
-            document.getFileRelativePath()
-          )
-        }
-        Right(response)
-    }
-  }
+  ): Response =
+    ResourceUploadService.presignedUrlResponse(
+      ResourceStorage.Dataset,
+      encodedUrl,
+      repositoryName,
+      commitHash,
+      uid
+    )
 
   // === Multipart helpers ===
 
@@ -1803,31 +1133,8 @@ class DatasetResource extends LazyLogging {
     dataset
   }
 
-  private def listMultipartUploads(did: Integer, requesterUid: Int): Response = {
-    withTransaction(context) { ctx =>
-      if (!userHasWriteAccess(ctx, did, requesterUid)) {
-        throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
-      }
-
-      val filePaths =
-        ctx
-          .selectDistinct(DATASET_UPLOAD_SESSION.FILE_PATH)
-          .from(DATASET_UPLOAD_SESSION)
-          .where(DATASET_UPLOAD_SESSION.DID.eq(did))
-          .and(
-            DSL.condition(
-              "created_at > current_timestamp - (? * interval '1 hour')",
-              PHYSICAL_ADDRESS_EXPIRATION_TIME_HRS
-            )
-          )
-          .orderBy(DATASET_UPLOAD_SESSION.FILE_PATH.asc())
-          .fetch(DATASET_UPLOAD_SESSION.FILE_PATH)
-          .asScala
-          .toList
-
-      Response.ok(Map("filePaths" -> filePaths.asJava)).build()
-    }
-  }
+  private def listMultipartUploads(did: Integer, requesterUid: Int): Response =
+    ResourceUploadService.listUploads(ResourceStorage.Dataset, did, requesterUid)
 
   private def initMultipartUpload(
       did: Integer,
@@ -1836,531 +1143,22 @@ class DatasetResource extends LazyLogging {
       partSizeBytes: Optional[java.lang.Long],
       restart: Optional[java.lang.Boolean],
       uid: Integer
-  ): Response = {
-
-    withTransaction(context) { ctx =>
-      if (!userHasWriteAccess(ctx, did, uid)) {
-        throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
-      }
-
-      val dataset = getDatasetByID(ctx, did)
-      val repositoryName = dataset.getRepositoryName
-
-      val filePath =
-        validateAndNormalizeFilePathOrThrow(
-          URLDecoder.decode(encodedFilePath, StandardCharsets.UTF_8.name())
-        )
-
-      if (fileSizeBytes == null || !fileSizeBytes.isPresent)
-        throw new BadRequestException("fileSizeBytes is required for initialization")
-      if (partSizeBytes == null || !partSizeBytes.isPresent)
-        throw new BadRequestException("partSizeBytes is required for initialization")
-
-      val fileSizeBytesValue: Long = fileSizeBytes.get.longValue()
-      val partSizeBytesValue: Long = partSizeBytes.get.longValue()
-
-      if (fileSizeBytesValue <= 0L) throw new BadRequestException("fileSizeBytes must be > 0")
-      if (partSizeBytesValue <= 0L) throw new BadRequestException("partSizeBytes must be > 0")
-
-      val totalMaxBytes: Long = singleFileUploadMaxBytes()
-      if (totalMaxBytes <= 0L) {
-        throw new WebApplicationException(
-          "singleFileUploadMaxBytes must be > 0",
-          Response.Status.INTERNAL_SERVER_ERROR
-        )
-      }
-      if (fileSizeBytesValue > totalMaxBytes) {
-        throw new BadRequestException(
-          s"fileSizeBytes=$fileSizeBytesValue exceeds singleFileUploadMaxBytes=$totalMaxBytes"
-        )
-      }
-
-      val addend: Long = partSizeBytesValue - 1L
-      if (addend < 0L || fileSizeBytesValue > Long.MaxValue - addend) {
-        throw new WebApplicationException(
-          "Overflow while computing numParts",
-          Response.Status.INTERNAL_SERVER_ERROR
-        )
-      }
-
-      val numPartsLong: Long = (fileSizeBytesValue + addend) / partSizeBytesValue
-      if (numPartsLong < 1L || numPartsLong > MAXIMUM_NUM_OF_MULTIPART_S3_PARTS.toLong) {
-        throw new BadRequestException(
-          s"Computed numParts=$numPartsLong is out of range 1..$MAXIMUM_NUM_OF_MULTIPART_S3_PARTS"
-        )
-      }
-      val computedNumParts: Int = numPartsLong.toInt
-
-      if (computedNumParts > 1 && partSizeBytesValue < MINIMUM_NUM_OF_MULTIPART_S3_PART) {
-        throw new BadRequestException(
-          s"partSizeBytes=$partSizeBytesValue is too small. " +
-            s"All non-final parts must be >= $MINIMUM_NUM_OF_MULTIPART_S3_PART bytes."
-        )
-      }
-      var session: DatasetUploadSessionRecord = null
-      var rows: Result[Record2[Integer, String]] = null
-      try {
-        session = ctx
-          .selectFrom(DATASET_UPLOAD_SESSION)
-          .where(
-            DATASET_UPLOAD_SESSION.UID
-              .eq(uid)
-              .and(DATASET_UPLOAD_SESSION.DID.eq(did))
-              .and(DATASET_UPLOAD_SESSION.FILE_PATH.eq(filePath))
-          )
-          .forUpdate()
-          .noWait()
-          .fetchOne()
-        if (session != null) {
-          //Gain parts lock
-          rows = ctx
-            .select(DATASET_UPLOAD_SESSION_PART.PART_NUMBER, DATASET_UPLOAD_SESSION_PART.ETAG)
-            .from(DATASET_UPLOAD_SESSION_PART)
-            .where(DATASET_UPLOAD_SESSION_PART.UPLOAD_ID.eq(session.getUploadId))
-            .forUpdate()
-            .noWait()
-            .fetch()
-          val dbFileSize = session.getFileSizeBytes
-          val dbPartSize = session.getPartSizeBytes
-          val dbNumParts = session.getNumPartsRequested
-          val createdAt: OffsetDateTime = session.getCreatedAt
-
-          val isExpired =
-            createdAt
-              .plusHours(PHYSICAL_ADDRESS_EXPIRATION_TIME_HRS.toLong)
-              .isBefore(OffsetDateTime.now(createdAt.getOffset)) // or OffsetDateTime.now()
-
-          val conflictConfig =
-            dbFileSize != fileSizeBytesValue ||
-              dbPartSize != partSizeBytesValue ||
-              dbNumParts != computedNumParts ||
-              isExpired ||
-              Option(restart).exists(_.orElse(false))
-
-          if (conflictConfig) {
-            // Parts will be deleted automatically (ON DELETE CASCADE)
-            ctx
-              .deleteFrom(DATASET_UPLOAD_SESSION)
-              .where(DATASET_UPLOAD_SESSION.UPLOAD_ID.eq(session.getUploadId))
-              .execute()
-
-            try {
-              LakeFSStorageClient.abortPresignedMultipartUploads(
-                repositoryName,
-                filePath,
-                session.getUploadId,
-                session.getPhysicalAddress
-              )
-            } catch { case _: Throwable => () }
-            session = null
-            rows = null
-          }
-        }
-      } catch {
-        case e: DataAccessException
-            if Option(e.getCause)
-              .collect { case s: SQLException => s.getSQLState }
-              .contains("55P03") =>
-          throw new WebApplicationException(
-            "Another client is uploading this file",
-            Response.Status.CONFLICT
-          )
-      }
-
-      if (session == null) {
-        val presign = withLakeFSErrorHandling {
-          LakeFSStorageClient.initiatePresignedMultipartUploads(
-            repositoryName,
-            filePath,
-            computedNumParts
-          )
-        }
-
-        val uploadIdStr = presign.getUploadId
-        val physicalAddr = presign.getPhysicalAddress
-
-        try {
-          val rowsInserted = ctx
-            .insertInto(DATASET_UPLOAD_SESSION)
-            .set(DATASET_UPLOAD_SESSION.FILE_PATH, filePath)
-            .set(DATASET_UPLOAD_SESSION.DID, did)
-            .set(DATASET_UPLOAD_SESSION.UID, uid)
-            .set(DATASET_UPLOAD_SESSION.UPLOAD_ID, uploadIdStr)
-            .set(DATASET_UPLOAD_SESSION.PHYSICAL_ADDRESS, physicalAddr)
-            .set(DATASET_UPLOAD_SESSION.NUM_PARTS_REQUESTED, Integer.valueOf(computedNumParts))
-            .set(DATASET_UPLOAD_SESSION.FILE_SIZE_BYTES, java.lang.Long.valueOf(fileSizeBytesValue))
-            .set(DATASET_UPLOAD_SESSION.PART_SIZE_BYTES, java.lang.Long.valueOf(partSizeBytesValue))
-            .onDuplicateKeyIgnore()
-            .execute()
-
-          if (rowsInserted == 1) {
-            val partNumberSeries =
-              DSL.generateSeries(1, computedNumParts).asTable("gs", "partNumberField")
-            val partNumberField = partNumberSeries.field("partNumberField", classOf[Integer])
-
-            ctx
-              .insertInto(
-                DATASET_UPLOAD_SESSION_PART,
-                DATASET_UPLOAD_SESSION_PART.UPLOAD_ID,
-                DATASET_UPLOAD_SESSION_PART.PART_NUMBER,
-                DATASET_UPLOAD_SESSION_PART.ETAG
-              )
-              .select(
-                ctx
-                  .select(
-                    inl(uploadIdStr),
-                    partNumberField,
-                    inl("")
-                  )
-                  .from(partNumberSeries)
-              )
-              .execute()
-
-            session = ctx
-              .selectFrom(DATASET_UPLOAD_SESSION)
-              .where(
-                DATASET_UPLOAD_SESSION.UID
-                  .eq(uid)
-                  .and(DATASET_UPLOAD_SESSION.DID.eq(did))
-                  .and(DATASET_UPLOAD_SESSION.FILE_PATH.eq(filePath))
-              )
-              .fetchOne()
-          } else {
-            try {
-              LakeFSStorageClient.abortPresignedMultipartUploads(
-                repositoryName,
-                filePath,
-                uploadIdStr,
-                physicalAddr
-              )
-            } catch { case _: Throwable => () }
-
-            session = ctx
-              .selectFrom(DATASET_UPLOAD_SESSION)
-              .where(
-                DATASET_UPLOAD_SESSION.UID
-                  .eq(uid)
-                  .and(DATASET_UPLOAD_SESSION.DID.eq(did))
-                  .and(DATASET_UPLOAD_SESSION.FILE_PATH.eq(filePath))
-              )
-              .fetchOne()
-          }
-        } catch {
-          case e: Exception =>
-            try {
-              LakeFSStorageClient.abortPresignedMultipartUploads(
-                repositoryName,
-                filePath,
-                uploadIdStr,
-                physicalAddr
-              )
-            } catch { case _: Throwable => () }
-            throw e
-        }
-      }
-
-      if (session == null) {
-        throw new WebApplicationException(
-          "Failed to create or locate upload session",
-          Response.Status.INTERNAL_SERVER_ERROR
-        )
-      }
-
-      val dbNumParts = session.getNumPartsRequested
-
-      val uploadId = session.getUploadId
-      val nParts = dbNumParts
-
-      // CHANGED: lock rows with NOWAIT; if any row is locked by another uploader -> 409
-      if (rows == null) {
-        rows =
-          try {
-            ctx
-              .select(DATASET_UPLOAD_SESSION_PART.PART_NUMBER, DATASET_UPLOAD_SESSION_PART.ETAG)
-              .from(DATASET_UPLOAD_SESSION_PART)
-              .where(DATASET_UPLOAD_SESSION_PART.UPLOAD_ID.eq(uploadId))
-              .forUpdate()
-              .noWait()
-              .fetch()
-          } catch {
-            case e: DataAccessException
-                if Option(e.getCause)
-                  .collect { case s: SQLException => s.getSQLState }
-                  .contains("55P03") =>
-              throw new WebApplicationException(
-                "Another client is uploading parts for this file",
-                Response.Status.CONFLICT
-              )
-          }
-      }
-
-      // CHANGED: compute missingParts + completedPartsCount from the SAME query result
-      val missingParts = rows.asScala
-        .filter(r =>
-          Option(r.get(DATASET_UPLOAD_SESSION_PART.ETAG)).map(_.trim).getOrElse("").isEmpty
-        )
-        .map(r => r.get(DATASET_UPLOAD_SESSION_PART.PART_NUMBER).intValue())
-        .toList
-
-      val completedPartsCount = nParts - missingParts.size
-
-      Response
-        .ok(
-          Map(
-            "missingParts" -> missingParts.asJava,
-            "completedPartsCount" -> Integer.valueOf(completedPartsCount)
-          )
-        )
-        .build()
-    }
-  }
-
-  private def finishMultipartUpload(
-      did: Integer,
-      encodedFilePath: String,
-      uid: Int
-  ): Response = {
-
-    val filePath = validateAndNormalizeFilePathOrThrow(
-      URLDecoder.decode(encodedFilePath, StandardCharsets.UTF_8.name())
+  ): Response =
+    ResourceUploadService.initUpload(
+      ResourceStorage.Dataset,
+      did,
+      encodedFilePath,
+      fileSizeBytes,
+      partSizeBytes,
+      restart,
+      uid
     )
 
-    withTransaction(context) { ctx =>
-      if (!userHasWriteAccess(ctx, did, uid)) {
-        throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
-      }
+  private def finishMultipartUpload(did: Integer, encodedFilePath: String, uid: Int): Response =
+    ResourceUploadService.finishUpload(ResourceStorage.Dataset, did, encodedFilePath, uid)
 
-      val dataset = getDatasetByID(ctx, did)
-
-      // Lock the session so abort/finish don't race each other
-      val session =
-        try {
-          ctx
-            .selectFrom(DATASET_UPLOAD_SESSION)
-            .where(
-              DATASET_UPLOAD_SESSION.UID
-                .eq(uid)
-                .and(DATASET_UPLOAD_SESSION.DID.eq(did))
-                .and(DATASET_UPLOAD_SESSION.FILE_PATH.eq(filePath))
-            )
-            .forUpdate()
-            .noWait()
-            .fetchOne()
-        } catch {
-          case e: DataAccessException
-              if Option(e.getCause)
-                .collect { case s: SQLException => s.getSQLState }
-                .contains("55P03") =>
-            throw new WebApplicationException(
-              "Upload is already being finalized/aborted",
-              Response.Status.CONFLICT
-            )
-        }
-
-      if (session == null) {
-        throw new NotFoundException("Upload session not found or already finalized")
-      }
-
-      val uploadId = session.getUploadId
-      val expectedParts = session.getNumPartsRequested
-
-      val physicalAddr = Option(session.getPhysicalAddress).map(_.trim).getOrElse("")
-      if (physicalAddr.isEmpty) {
-        throw new WebApplicationException(
-          "Upload session is missing physicalAddress. Restart the upload.",
-          Response.Status.INTERNAL_SERVER_ERROR
-        )
-      }
-
-      val total = DSL.count()
-      val done =
-        DSL
-          .count()
-          .filterWhere(DATASET_UPLOAD_SESSION_PART.ETAG.ne(""))
-          .as("done")
-
-      val agg = ctx
-        .select(total.as("total"), done)
-        .from(DATASET_UPLOAD_SESSION_PART)
-        .where(DATASET_UPLOAD_SESSION_PART.UPLOAD_ID.eq(uploadId))
-        .fetchOne()
-
-      val totalCnt = agg.get("total", classOf[java.lang.Integer]).intValue()
-      val doneCnt = agg.get("done", classOf[java.lang.Integer]).intValue()
-
-      if (totalCnt != expectedParts) {
-        throw new WebApplicationException(
-          s"Part table mismatch: expected $expectedParts rows but found $totalCnt. Restart the upload.",
-          Response.Status.INTERNAL_SERVER_ERROR
-        )
-      }
-
-      if (doneCnt != expectedParts) {
-        val missing = ctx
-          .select(DATASET_UPLOAD_SESSION_PART.PART_NUMBER)
-          .from(DATASET_UPLOAD_SESSION_PART)
-          .where(
-            DATASET_UPLOAD_SESSION_PART.UPLOAD_ID
-              .eq(uploadId)
-              .and(DATASET_UPLOAD_SESSION_PART.ETAG.eq(""))
-          )
-          .orderBy(DATASET_UPLOAD_SESSION_PART.PART_NUMBER.asc())
-          .limit(50)
-          .fetch(DATASET_UPLOAD_SESSION_PART.PART_NUMBER)
-          .asScala
-          .toList
-
-        throw new WebApplicationException(
-          s"Upload incomplete. Some missing ETags for parts are: ${missing.mkString(",")}",
-          Response.Status.CONFLICT
-        )
-      }
-
-      // Build partsList in order
-      val partsList: List[(Int, String)] =
-        ctx
-          .select(DATASET_UPLOAD_SESSION_PART.PART_NUMBER, DATASET_UPLOAD_SESSION_PART.ETAG)
-          .from(DATASET_UPLOAD_SESSION_PART)
-          .where(DATASET_UPLOAD_SESSION_PART.UPLOAD_ID.eq(uploadId))
-          .orderBy(DATASET_UPLOAD_SESSION_PART.PART_NUMBER.asc())
-          .fetch()
-          .asScala
-          .map(r =>
-            (
-              r.get(DATASET_UPLOAD_SESSION_PART.PART_NUMBER).intValue(),
-              r.get(DATASET_UPLOAD_SESSION_PART.ETAG)
-            )
-          )
-          .toList
-
-      val objectStats = withLakeFSErrorHandling {
-        LakeFSStorageClient.completePresignedMultipartUploads(
-          dataset.getRepositoryName,
-          filePath,
-          uploadId,
-          partsList,
-          physicalAddr
-        )
-      }
-
-      // FINAL SERVER-SIDE SIZE CHECK (do not rely on init)
-      val actualSizeBytes =
-        Option(objectStats.getSizeBytes).map(_.longValue()).getOrElse(-1L)
-
-      if (actualSizeBytes <= 0L) {
-        throw new WebApplicationException(
-          "lakeFS did not return sizeBytes for completed multipart upload",
-          Response.Status.INTERNAL_SERVER_ERROR
-        )
-      }
-
-      val maxBytes = singleFileUploadMaxBytes()
-      val tooLarge = actualSizeBytes > maxBytes
-
-      if (tooLarge) {
-        try {
-          LakeFSStorageClient.resetObjectUploadOrDeletion(dataset.getRepositoryName, filePath)
-        } catch {
-          case _: Throwable => ()
-        }
-      }
-
-      // always cleanup session
-      ctx
-        .deleteFrom(DATASET_UPLOAD_SESSION)
-        .where(
-          DATASET_UPLOAD_SESSION.UID
-            .eq(uid)
-            .and(DATASET_UPLOAD_SESSION.DID.eq(did))
-            .and(DATASET_UPLOAD_SESSION.FILE_PATH.eq(filePath))
-        )
-        .execute()
-
-      if (tooLarge) {
-        throw new WebApplicationException(
-          s"Upload exceeded max size: actualSizeBytes=$actualSizeBytes maxBytes=$maxBytes",
-          Response.Status.REQUEST_ENTITY_TOO_LARGE
-        )
-      }
-
-      Response
-        .ok(
-          Map(
-            "message" -> "Multipart upload completed successfully",
-            "filePath" -> objectStats.getPath
-          )
-        )
-        .build()
-    }
-  }
-
-  private def abortMultipartUpload(
-      did: Integer,
-      encodedFilePath: String,
-      uid: Int
-  ): Response = {
-
-    val filePath = validateAndNormalizeFilePathOrThrow(
-      URLDecoder.decode(encodedFilePath, StandardCharsets.UTF_8.name())
-    )
-
-    val (repoName, uploadId, physicalAddr) = withTransaction(context) { ctx =>
-      if (!userHasWriteAccess(ctx, did, uid)) {
-        throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
-      }
-
-      val dataset = getDatasetByID(ctx, did)
-
-      val session =
-        try {
-          ctx
-            .selectFrom(DATASET_UPLOAD_SESSION)
-            .where(
-              DATASET_UPLOAD_SESSION.UID
-                .eq(uid)
-                .and(DATASET_UPLOAD_SESSION.DID.eq(did))
-                .and(DATASET_UPLOAD_SESSION.FILE_PATH.eq(filePath))
-            )
-            .forUpdate()
-            .noWait()
-            .fetchOne()
-        } catch {
-          case e: DataAccessException
-              if Option(e.getCause)
-                .collect { case s: SQLException => s.getSQLState }
-                .contains("55P03") =>
-            throw new WebApplicationException(
-              "Upload is already being finalized/aborted",
-              Response.Status.CONFLICT
-            )
-        }
-
-      if (session == null) {
-        throw new NotFoundException("Upload session not found or already finalized")
-      }
-
-      val physicalAddr = Option(session.getPhysicalAddress).map(_.trim).getOrElse("")
-
-      // Delete session; parts removed via ON DELETE CASCADE
-      ctx
-        .deleteFrom(DATASET_UPLOAD_SESSION)
-        .where(
-          DATASET_UPLOAD_SESSION.UID
-            .eq(uid)
-            .and(DATASET_UPLOAD_SESSION.DID.eq(did))
-            .and(DATASET_UPLOAD_SESSION.FILE_PATH.eq(filePath))
-        )
-        .execute()
-
-      (dataset.getRepositoryName, session.getUploadId, physicalAddr)
-    }
-
-    withLakeFSErrorHandling {
-      LakeFSStorageClient.abortPresignedMultipartUploads(repoName, filePath, uploadId, physicalAddr)
-    }
-
-    Response.ok(Map("message" -> "Multipart upload aborted successfully")).build()
-  }
+  private def abortMultipartUpload(did: Integer, encodedFilePath: String, uid: Int): Response =
+    ResourceUploadService.abortUpload(ResourceStorage.Dataset, did, encodedFilePath, uid)
 
   /**
     * Updates the cover image for a dataset.
@@ -2388,39 +1186,16 @@ class DatasetResource extends LazyLogging {
         throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
       }
 
-      if (request.coverImage == null || request.coverImage.trim.isEmpty) {
-        throw new BadRequestException("Cover image path is required")
-      }
+      val normalized =
+        CoverImageUtils.validatePathOrThrow(request.coverImage, COVER_IMAGE_MAX_PATH_LENGTH)
 
-      val normalized = DatasetResource.validateAndNormalizeFilePathOrThrow(request.coverImage)
-
-      val extension = FilenameUtils.getExtension(normalized)
-      if (extension == null || !ALLOWED_IMAGE_EXTENSIONS.contains(s".$extension".toLowerCase)) {
-        throw new BadRequestException("Invalid file type")
-      }
-
-      val owner = getOwner(ctx, did)
-      val document = DocumentFactory
-        .openReadonlyDocument(
-          FileResolver.resolve(
-            logicalPath(resourceType, owner.getEmail, dataset.getName, normalized)
-          )
-        )
-        .asInstanceOf[OnDataset]
-
-      val fileSize = withLakeFSErrorHandling(s"reading the size of cover image '$normalized'") {
-        LakeFSStorageClient.getFileSize(
-          document.getRepositoryName(),
-          document.getVersionHash(),
-          document.getFileRelativePath()
-        )
-      }
-
-      if (fileSize > COVER_IMAGE_SIZE_LIMIT_BYTES) {
-        throw new BadRequestException(
-          s"Cover image must be less than ${COVER_IMAGE_SIZE_LIMIT_BYTES / (1024 * 1024)} MB"
-        )
-      }
+      val document = CoverImageUtils.openCoverOrBadRequest(
+        resourceType,
+        getOwner(ctx, did).getEmail,
+        dataset.getName,
+        normalized
+      )
+      CoverImageUtils.requireWithinSizeLimit(CoverImageUtils.fileSizeOf(document, normalized))
 
       dataset.setCoverImage(normalized)
       new DatasetDao(ctx.configuration()).update(dataset)
@@ -2443,39 +1218,19 @@ class DatasetResource extends LazyLogging {
       @Auth sessionUser: Optional[SessionUser]
   ): Response = {
     withTransaction(context) { ctx =>
-      val dataset = getDatasetByID(ctx, did)
-
-      val requesterUid = if (sessionUser.isPresent) Some(sessionUser.get().getUid) else None
-
-      if (requesterUid.isEmpty && !dataset.getIsPublic) {
-        throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
-      } else if (requesterUid.exists(uid => !userHasReadAccess(ctx, did, uid))) {
-        throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
-      }
+      val dataset = requireReadAccess(ctx, did, sessionUser.toScala.map(_.getUid))
 
       val coverImage = Option(dataset.getCoverImage).getOrElse(
         throw new NotFoundException("No cover image")
       )
 
-      val owner = getOwner(ctx, did)
-      val fullPath =
-        logicalPath(resourceType, owner.getEmail, dataset.getName, coverImage)
+      val document = CoverImageUtils
+        .openCover(resourceType, getOwner(ctx, did).getEmail, dataset.getName, coverImage)
+        .getOrElse(throw new NotFoundException("No cover image"))
 
-      val document = DocumentFactory
-        .openReadonlyDocument(FileResolver.resolve(fullPath))
-        .asInstanceOf[OnDataset]
-
-      val presignedUrl = withLakeFSErrorHandling(
-        s"generating a presigned URL for cover image '$coverImage'"
-      ) {
-        LakeFSStorageClient.getFilePresignedUrl(
-          document.getRepositoryName(),
-          document.getVersionHash(),
-          document.getFileRelativePath()
-        )
-      }
-
-      Response.temporaryRedirect(new URI(presignedUrl)).build()
+      Response
+        .temporaryRedirect(new URI(CoverImageUtils.presignedUrl(document, coverImage)))
+        .build()
     }
   }
 
@@ -2493,39 +1248,16 @@ class DatasetResource extends LazyLogging {
       @Auth sessionUser: Optional[SessionUser]
   ): Response = {
     withTransaction(context) { ctx =>
-      val dataset = getDatasetByID(ctx, did)
-
-      val requesterUid = if (sessionUser.isPresent) Some(sessionUser.get().getUid) else None
-
-      if (requesterUid.isEmpty && !dataset.getIsPublic) {
-        throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
-      } else if (requesterUid.exists(uid => !userHasReadAccess(ctx, did, uid))) {
-        throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
-      }
+      val dataset = requireReadAccess(ctx, did, sessionUser.toScala.map(_.getUid))
 
       Option(dataset.getCoverImage) match {
         case None =>
           Response.ok(Map("url" -> null)).build()
         case Some(coverImage) =>
-          val owner = getOwner(ctx, did)
-          val fullPath =
-            logicalPath(resourceType, owner.getEmail, dataset.getName, coverImage)
-
-          val document = DocumentFactory
-            .openReadonlyDocument(FileResolver.resolve(fullPath))
-            .asInstanceOf[OnDataset]
-
-          val presignedUrl = withLakeFSErrorHandling(
-            s"generating a presigned URL for cover image '$coverImage'"
-          ) {
-            LakeFSStorageClient.getFilePresignedUrl(
-              document.getRepositoryName(),
-              document.getVersionHash(),
-              document.getFileRelativePath()
-            )
-          }
-
-          Response.ok(Map("url" -> presignedUrl)).build()
+          val url = CoverImageUtils
+            .openCover(resourceType, getOwner(ctx, did).getEmail, dataset.getName, coverImage)
+            .map(CoverImageUtils.presignedUrl(_, coverImage))
+          Response.ok(Map("url" -> url.orNull)).build()
       }
     }
   }
