@@ -43,6 +43,7 @@ function makeSidebarTabs(overrides: Partial<SidebarTabs> = {}): SidebarTabs {
     workflows_enabled: false,
     compute_enabled: false,
     datasets_enabled: false,
+    models_enabled: false,
     quota_enabled: false,
     forum_enabled: false,
     about_enabled: false,

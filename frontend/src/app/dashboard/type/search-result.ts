@@ -23,7 +23,9 @@ import { DashboardDataset } from "./dashboard-dataset.interface";
 import { DashboardEntry } from "./dashboard-entry";
 
 export interface SearchResultItem {
-  resourceType: "workflow" | "file" | "dataset" | "computing-unit";
+  // "model" is listed because EntityType carries it; nothing populates a model result until the hub
+  // and unified-search backend lands.
+  resourceType: "workflow" | "file" | "dataset" | "model" | "computing-unit";
   workflow?: DashboardWorkflow;
   file?: DashboardFile;
   dataset?: DashboardDataset;

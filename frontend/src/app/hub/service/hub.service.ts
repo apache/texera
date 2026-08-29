@@ -29,6 +29,7 @@ export const WORKFLOW_BASE_URL = `${AppSettings.getApiEndpoint()}/workflow`;
 export enum EntityType {
   Workflow = "workflow",
   Dataset = "dataset",
+  Model = "model",
   File = "file",
   ComputingUnit = "computing-unit",
 }

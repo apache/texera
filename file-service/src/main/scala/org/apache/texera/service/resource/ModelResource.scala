@@ -501,7 +501,8 @@ class ModelResource extends LazyLogging {
         MODEL_RESOURCE,
         uid,
         classOf[Model],
-        (model: Model) => model.getMid
+        (model: Model) => model.getMid,
+        includePublic = false
       )(
         fromGrant = (model, ownerEmail, privilege, isOwner) =>
           Some(
