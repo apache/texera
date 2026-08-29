@@ -40,9 +40,13 @@ jobs:
           FILE=$(git diff --name-only --diff-filter=A \
             ${{ github.event.pull_request.base.sha }} \
             ${{ github.event.pull_request.merge_commit_sha }} \
-            -- 'sql/updates/')
+            -- 'sql/updates/*.sql')
           echo "sql_file=$FILE" >> $GITHUB_OUTPUT
+      # A ddl-change PR that adds no migration -- it only edits or deletes
+      # files under sql/updates/ -- leaves operators nothing to apply, so it
+      # must not mail out an instruction naming an empty file.
       - name: Send email
+        if: steps.get_sql_file.outputs.sql_file != ''
         run: |
           curl --ssl-reqd \
             --url "smtps://smtp.gmail.com:465" \
