@@ -76,20 +76,24 @@ class WaterfallChartOpDesc extends PythonOperatorDescriptor {
     assert(xColumn.nonEmpty, "X Axis Values cannot be empty")
     assert(yColumn.nonEmpty, "Y Axis Values cannot be empty")
     pyb"""
-       |        x_values = table[$xColumn]
-       |        y_values = table[$yColumn]
+       |        x_values = list(table[$xColumn])
+       |        y_values = list(table[$yColumn])
+       |        total = sum(y_values)
        |
+       |        # every input row is a step; the total is an extra bar plotly accumulates,
+       |        # so no row is consumed as the summary. A categorical axis keeps the bars in
+       |        # input order, which is the order the running total is computed in.
        |        fig = go.Figure(go.Waterfall(
        |            name="Waterfall", orientation="v",
-       |            measure=["relative"] * (len(y_values) - 1) + ["total"],
-       |            x=x_values,
-       |            y=y_values,
+       |            measure=["relative"] * len(y_values) + ["total"],
+       |            x=x_values + ["Total"],
+       |            y=y_values + [0],
        |            textposition="outside",
-       |            text=[f"{v:+}" for v in y_values],
+       |            text=[f"{v:+}" for v in y_values] + [f"{total}"],
        |            connector={"line": {"color": "rgb(63, 63, 63)"}}
        |        ))
        |
-       |        fig.update_layout(showlegend=True, waterfallgap=0.3)
+       |        fig.update_layout(showlegend=True, waterfallgap=0.3, xaxis_type="category")
        |"""
   }
 
