@@ -22,10 +22,16 @@ import { OperatorMetadataService } from "./../../operator-metadata/operator-meta
 import { inject, TestBed } from "@angular/core/testing";
 
 import { WorkflowUtilService } from "./workflow-util.service";
-import { mockMultiInputOutputSchema, mockScanSourceSchema } from "../../operator-metadata/mock-operator-metadata.data";
+import {
+  mockMultiInputOutputSchema,
+  mockOperatorSchemaList,
+  mockScanSourceSchema,
+} from "../../operator-metadata/mock-operator-metadata.data";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
 import { OperatorPredicate } from "../../../types/workflow-common.interface";
 import { ExecutionMode, Workflow, WorkflowContent } from "../../../../common/type/workflow";
+import { OperatorMetadata } from "../../../types/operator-schema.interface";
+import { Subject } from "rxjs";
 
 describe("WorkflowUtilService", () => {
   let workflowUtilService: WorkflowUtilService;
@@ -226,5 +232,54 @@ describe("WorkflowUtilService", () => {
     const second = workflowUtilService.getNewCommentBox();
 
     expect(first.commentBoxID).not.toEqual(second.commentBoxID);
+  });
+
+  it("should list every operator type carried by the loaded metadata", () => {
+    const types = workflowUtilService.getOperatorTypeList();
+
+    // The list is the operator *types*, not any other schema field: naming a few
+    // concrete ones pins the projection rather than just its length.
+    expect(types).toContain(mockScanSourceSchema.operatorType);
+    expect(types).toContain(mockMultiInputOutputSchema.operatorType);
+    expect(types.length).toEqual(mockOperatorSchemaList.length);
+  });
+
+  it("should prefix group and breakpoint uuids distinctly", () => {
+    const groupID = workflowUtilService.getGroupRandomUUID();
+    const breakpointID = workflowUtilService.getBreakpointRandomUUID();
+
+    // The prefix is what callers key on, so assert it rather than "is a string".
+    expect(groupID).toMatch(/^group-/);
+    expect(breakpointID).toMatch(/^breakpoint-/);
+    expect(workflowUtilService.getGroupRandomUUID()).not.toEqual(groupID);
+  });
+
+  it("should announce on the schema-list-created stream once the metadata arrives", () => {
+    // The service subscribes to the metadata in its constructor, and the stub
+    // metadata service emits synchronously, so a TestBed-injected instance has
+    // already fired by the time a test could subscribe. Drive the emission by
+    // hand instead so the subscription is in place first.
+    const metadata = new Subject<OperatorMetadata>();
+    const service = new WorkflowUtilService({
+      getOperatorMetadata: () => metadata.asObservable(),
+    } as unknown as OperatorMetadataService);
+
+    const seen: boolean[] = [];
+    let typesAtNotification: string[] | undefined;
+    service.getOperatorSchemaListCreatedStream().subscribe(value => {
+      seen.push(value);
+      // Read the list from INSIDE the notification. Asserting it afterwards
+      // would pass even if the subject fired before the list was assigned,
+      // which is precisely the ordering the notification exists to guarantee.
+      typesAtNotification = service.getOperatorTypeList();
+    });
+
+    // Nothing is published before the metadata resolves.
+    expect(seen).toEqual([]);
+
+    metadata.next({ operators: [mockScanSourceSchema], groups: [] } as unknown as OperatorMetadata);
+
+    expect(seen).toEqual([true]);
+    expect(typesAtNotification).toEqual([mockScanSourceSchema.operatorType]);
   });
 });

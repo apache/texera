@@ -62,4 +62,15 @@ class StorageConfigSpec extends AnyFlatSpec with Matchers {
   it should "expose the warehouse environment-variable override name" in {
     StorageConfig.ENV_WAREHOUSE_ENABLED shouldBe "STORAGE_WAREHOUSE_ENABLED"
   }
+
+  "StorageConfig jupyter settings" should "default the public URL to the internal one" in {
+    // Keeps the split a no-op outside containerized deployments.
+    // Only assert when neither env override is set, since either would win otherwise.
+    if (
+      sys.env.get("STORAGE_JUPYTER_INTERNAL_URL").isEmpty &&
+      sys.env.get("STORAGE_JUPYTER_PUBLIC_URL").isEmpty
+    ) {
+      StorageConfig.jupyterPublicURL shouldBe StorageConfig.jupyterInternalURL
+    }
+  }
 }
