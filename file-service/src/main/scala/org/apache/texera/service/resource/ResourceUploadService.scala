@@ -20,11 +20,13 @@
 package org.apache.texera.service.resource
 
 import jakarta.ws.rs._
-import jakarta.ws.rs.core.{HttpHeaders, Response}
+import jakarta.ws.rs.core.{HttpHeaders, Response, StreamingOutput}
 import org.apache.texera.amber.core.storage.ResourceType
+import org.apache.texera.amber.core.storage.model.OnVersionedFileResource
 import org.apache.texera.amber.core.storage.util.LakeFSStorageClient
+import org.apache.texera.amber.core.storage.{DocumentFactory, FileResolver}
 import org.apache.texera.common.config.StorageConfig
-import org.apache.texera.dao.{SiteSettings, SqlServer}
+import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.SqlServer.withTransaction
 import org.apache.texera.dao.jooq.generated.tables.Dataset.DATASET
 import org.apache.texera.dao.jooq.generated.tables.Model.MODEL
@@ -56,9 +58,11 @@ import org.jooq.impl.DSL.{inline => inl}
 import org.jooq.{DSLContext, Record, Record2, Result, Table, TableField}
 import software.amazon.awssdk.services.s3.model.UploadPartResponse
 
-import java.io.InputStream
+import java.io.{InputStream, OutputStream}
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
+import java.nio.file.{Files, Paths}
+import java.util.zip.{ZipEntry, ZipOutputStream}
 import java.sql.SQLException
 import java.time.OffsetDateTime
 import java.util.Optional
@@ -70,11 +74,11 @@ import scala.util.Try
   * Describes where a resource's files live and how its in-progress uploads are tracked.
   *
   * [[ResourceTables]] names the columns that carry identity, ownership and grants; this adds
-  * the storage side — the LakeFS repository column plus the `*_upload_session` and
-  * `*_upload_session_part` tables that back resumable multipart uploads. Naming the columns
-  * keeps one implementation of the upload engine serving every resource type, so adding the
-  * next one costs a descriptor rather than another copy of the locking, part-size and
-  * resume rules.
+  * the storage side — the LakeFS repository column, the [[UploadLimits]] this type is held to,
+  * and the `*_upload_session` and `*_upload_session_part` tables that back resumable multipart
+  * uploads. Naming them keeps one implementation of the upload engine serving every resource
+  * type, so adding the next one costs a descriptor rather than another copy of the locking,
+  * part-size and resume rules.
   *
   * @tparam R record type of the resource table
   * @tparam A record type of the companion user-access table
@@ -84,6 +88,7 @@ import scala.util.Try
 case class ResourceStorage[R <: Record, A <: Record, S <: Record, P <: Record](
     resource: ResourceTables[R, A],
     resourceType: ResourceType.Value,
+    uploadLimits: UploadLimits,
     repositoryNameField: TableField[R, String],
     sessionResourceId: TableField[S, Integer],
     sessionUid: TableField[S, Integer],
@@ -113,6 +118,7 @@ object ResourceStorage {
     ResourceStorage(
       resource = ResourceTables.Dataset,
       resourceType = ResourceType.Dataset,
+      uploadLimits = UploadLimits.Dataset,
       repositoryNameField = DATASET.REPOSITORY_NAME,
       sessionResourceId = DATASET_UPLOAD_SESSION.DID,
       sessionUid = DATASET_UPLOAD_SESSION.UID,
@@ -137,6 +143,7 @@ object ResourceStorage {
     ResourceStorage(
       resource = ResourceTables.Model,
       resourceType = ResourceType.Model,
+      uploadLimits = UploadLimits.Model,
       repositoryNameField = MODEL.REPOSITORY_NAME,
       sessionResourceId = MODEL_UPLOAD_SESSION.MID,
       sessionUid = MODEL_UPLOAD_SESSION.UID,
@@ -167,9 +174,6 @@ object ResourceUploadService {
     SqlServer
       .getInstance()
       .createDSLContext()
-
-  private def singleFileUploadMaxBytes(defaultMiB: Long = 20L): Long =
-    SiteSettings.getLong("single_file_upload_max_size_mib", defaultMiB) * 1024L * 1024L
 
   /**
     * Builds the file nodes of one committed version, plus the version's total size.
@@ -233,6 +237,278 @@ object ResourceUploadService {
     ).getOrElse(
       throw new NotFoundException(s"${s.resource.label.capitalize} $resourceId not found")
     )
+
+  /**
+    * Resolves a presign-download request to (repositoryName, commitHash, relativePath),
+    * after confirming the caller may read the owning resource.
+    *
+    * A caller either addresses the file directly (repositoryName + commitHash) or hands over a
+    * logical path and lets the server resolve it; supplying exactly one of the pair is a client
+    * error. Both routes then converge: find the resource that owns the repository, check read
+    * access, and hand back the triple. `FileResolver` already dispatches on the path's
+    * resource-type prefix, so the logical-path route needs nothing resource-specific here.
+    */
+  def resolveVersionedFile[R <: Record, A <: Record, S <: Record, P <: Record](
+      s: ResourceStorage[R, A, S, P],
+      encodedUrl: String,
+      repositoryName: String,
+      commitHash: String,
+      uid: Integer
+  ): Either[Response, (String, String, String)] = {
+    val decodedPath = URLDecoder.decode(encodedUrl, StandardCharsets.UTF_8.name())
+
+    requireBothOrNeither(repositoryName, commitHash) match {
+      case Some(badRequest) => Left(badRequest)
+      case None =>
+        Right(withTransaction(context) { ctx =>
+          if (repositoryName != null) {
+            requireReadAccessToRepository(ctx, s, repositoryName, uid)
+            (repositoryName, commitHash, decodedPath)
+          } else {
+            val document = DocumentFactory
+              .openReadonlyDocument(FileResolver.resolve(decodedPath))
+              .asInstanceOf[OnVersionedFileResource]
+            requireReadAccessToRepository(ctx, s, document.getRepositoryName(), uid)
+            (
+              document.getRepositoryName(),
+              document.getVersionHash(),
+              document.getFileRelativePath()
+            )
+          }
+        })
+    }
+  }
+
+  /**
+    * The whole presign-download endpoint: resolve the addressed file, check read
+    * access, and hand back the signed URL. Both resources' endpoints are this call.
+    */
+  def presignedUrlResponse[R <: Record, A <: Record, S <: Record, P <: Record](
+      s: ResourceStorage[R, A, S, P],
+      encodedUrl: String,
+      repositoryName: String,
+      commitHash: String,
+      uid: Integer
+  ): Response =
+    resolveVersionedFile(s, encodedUrl, repositoryName, commitHash, uid) match {
+      case Left(errorResponse)         => errorResponse
+      case Right((repo, commit, path)) => presignedResponse(repo, commit, path)
+    }
+
+  /**
+    * A caller either addresses a file directly (repositoryName + commitHash) or lets
+    * the server resolve it from a logical path (neither). Exactly one is a client error.
+    *
+    * @return Some(400 response) when only one of the two was provided, None otherwise
+    */
+  private def requireBothOrNeither(
+      repositoryName: String,
+      commitHash: String
+  ): Option[Response] =
+    (Option(repositoryName), Option(commitHash)) match {
+      case (Some(_), None) | (None, Some(_)) =>
+        Some(
+          Response
+            .status(Response.Status.BAD_REQUEST)
+            .entity(
+              "Both repositoryName and commitHash must be provided together, " +
+                "or neither should be provided."
+            )
+            .build()
+        )
+      case _ => None
+    }
+
+  /** Wrap a LakeFS presigned URL in the response shape the frontend expects. */
+  private def presignedResponse(
+      repositoryName: String,
+      commitHash: String,
+      filePath: String
+  ): Response = {
+    val url = withLakeFSErrorHandling(
+      s"generating a presigned URL for file '$filePath'"
+    ) {
+      LakeFSStorageClient.getFilePresignedUrl(repositoryName, commitHash, filePath)
+    }
+
+    Response.ok(Map("presignedUrl" -> url)).build()
+  }
+
+  /** Read access is checked on the resource that owns the repository, not on the file. */
+  private def requireReadAccessToRepository[R <: Record, A <: Record, S <: Record, P <: Record](
+      ctx: DSLContext,
+      s: ResourceStorage[R, A, S, P],
+      repositoryName: String,
+      uid: Integer
+  ): Unit = {
+    val id = ctx
+      .select(s.resource.idField)
+      .from(s.resource.table)
+      .where(s.repositoryNameField.eq(repositoryName))
+      .fetchOne(s.resource.idField)
+
+    if (id == null || !ResourceAccess.userHasReadAccess(ctx, s.resource, id, uid)) {
+      throw new ForbiddenException(noAccessMessage(s))
+    }
+  }
+
+  /**
+    * Streams every file of one committed version as a ZIP.
+    *
+    * Resolving which version, and whether the caller may download it, stays with the
+    * resource: the download flag is not part of [[ResourceTables]]. This is the part that
+    * is identical either way -- listing the version's objects and piping them into a zip.
+    */
+  def versionZipResponse(
+      repositoryName: String,
+      versionHash: String,
+      displayName: String,
+      versionName: String
+  ): Response = {
+    val objects = withLakeFSErrorHandling(
+      s"listing files of version '$versionHash' of '$displayName'"
+    ) {
+      LakeFSStorageClient.retrieveObjectsOfVersion(repositoryName, versionHash)
+    }
+
+    if (objects.isEmpty) {
+      Response
+        .status(Response.Status.NOT_FOUND)
+        .entity(s"No objects found in version $versionHash of repository $repositoryName")
+        .build()
+    } else {
+      val streamingOutput = new StreamingOutput {
+        override def write(outputStream: OutputStream): Unit = {
+          val zipOut = new ZipOutputStream(outputStream)
+          try {
+            objects.foreach { obj =>
+              val filePath = obj.getPath
+              val file = withLakeFSErrorHandling(s"downloading file '$filePath' for the zip") {
+                LakeFSStorageClient.getFileFromRepo(repositoryName, versionHash, filePath)
+              }
+              zipOut.putNextEntry(new ZipEntry(filePath))
+              Files.copy(Paths.get(file.toURI), zipOut)
+              zipOut.closeEntry()
+            }
+          } finally {
+            zipOut.close()
+          }
+        }
+      }
+
+      Response
+        .ok(streamingOutput, "application/zip")
+        .header("Content-Disposition", s"""attachment; filename="$displayName-$versionName.zip"""")
+        .build()
+    }
+  }
+
+  /** Staged (uncommitted) changes in a resource's repository. Requires read access. */
+  def stagedChanges[R <: Record, A <: Record, S <: Record, P <: Record](
+      s: ResourceStorage[R, A, S, P],
+      resourceId: Integer,
+      uid: Integer
+  ): List[org.apache.texera.service.`type`.Diff] =
+    withTransaction(context) { ctx =>
+      if (!ResourceAccess.userHasReadAccess(ctx, s.resource, resourceId, uid)) {
+        throw new ForbiddenException(noAccessMessage(s))
+      }
+      val repositoryName = repositoryNameOf(ctx, s, resourceId)
+      withLakeFSErrorHandling {
+        LakeFSStorageClient.retrieveUncommittedObjects(repositoryName)
+      }.map(d =>
+        org.apache.texera.service.`type`.Diff(
+          d.getPath,
+          d.getPathType.getValue,
+          d.getType.getValue,
+          Option(d.getSizeBytes).map(_.longValue())
+        )
+      )
+    }
+
+  /** Discards one staged change, restoring the file to its last committed state. */
+  def resetStagedChange[R <: Record, A <: Record, S <: Record, P <: Record](
+      s: ResourceStorage[R, A, S, P],
+      resourceId: Integer,
+      encodedFilePath: String,
+      uid: Integer
+  ): Response =
+    withTransaction(context) { ctx =>
+      if (!ResourceAccess.userHasWriteAccess(ctx, s.resource, resourceId, uid)) {
+        throw new ForbiddenException(noAccessMessage(s))
+      }
+      val repositoryName = repositoryNameOf(ctx, s, resourceId)
+      val filePath = URLDecoder.decode(encodedFilePath, StandardCharsets.UTF_8.name())
+      withLakeFSErrorHandling(s"resetting uncommitted changes of file '$filePath'") {
+        LakeFSStorageClient.resetObjectUploadOrDeletion(repositoryName, filePath)
+      }
+      Response.ok().build()
+    }
+
+  /**
+    * Reports which of the requested files the repository already holds at the same size,
+    * so a client can skip re-uploading them. Committed and staged files both count. A
+    * staged deletion contributes no match of its own, but it does not withdraw the
+    * committed file either -- behaviour carried over verbatim from the dataset endpoint
+    * this was extracted from.
+    *
+    * The latest committed version is read through `latestVersionHash` because the version
+    * table is the one part of this that is resource-specific.
+    */
+  def matchExistingUploads[R <: Record, A <: Record, S <: Record, P <: Record](
+      s: ResourceStorage[R, A, S, P],
+      resourceId: Integer,
+      uid: Integer,
+      request: org.apache.texera.service.`type`.ExistingUploadFilesRequest,
+      latestVersionHash: DSLContext => Option[String]
+  ): Response =
+    withTransaction(context) { ctx =>
+      if (!ResourceAccess.userHasWriteAccess(ctx, s.resource, resourceId, uid)) {
+        throw new ForbiddenException(noAccessMessage(s))
+      }
+
+      val requested = Option(request)
+        .flatMap(r => Option(r.files))
+        .getOrElse(List.empty)
+        .map { file =>
+          val originalPath = file.path
+          val path = ResourceNaming.validateAndNormalizeFilePathOrThrow(originalPath)
+          if (file.sizeBytes < 0L) throw new BadRequestException("sizeBytes must be >= 0")
+          (path, originalPath, file.sizeBytes)
+        }
+
+      val repositoryName = repositoryNameOf(ctx, s, resourceId)
+      val committed = latestVersionHash(ctx)
+        .map { hash =>
+          withLakeFSErrorHandling(
+            s"retrieving committed files of ${s.resource.label} $resourceId"
+          ) {
+            LakeFSStorageClient
+              .retrieveObjectsOfVersion(repositoryName, hash)
+              .map(obj => obj.getPath -> obj.getSizeBytes.longValue())
+          }
+        }
+        .getOrElse(List.empty)
+
+      val staged = withLakeFSErrorHandling(
+        s"retrieving staged files of ${s.resource.label} $resourceId"
+      ) {
+        LakeFSStorageClient.retrieveUncommittedObjects(repositoryName)
+      }
+        .filterNot(diff => Option(diff.getType).exists(_.getValue.equalsIgnoreCase("removed")))
+        .flatMap(diff => Option(diff.getSizeBytes).map(size => diff.getPath -> size.longValue()))
+
+      val existing = (committed ++ staged).toMap
+      val matches = requested
+        .collect {
+          case (path, originalPath, size) if existing.get(path).contains(size) => originalPath
+        }
+        .toList
+        .distinct
+        .sorted
+
+      Response.ok(Map("filePaths" -> matches.asJava)).build()
+    }
 
   /** Removes one staged (uncommitted) file from a resource's repository. */
   def deleteStagedFile[R <: Record, A <: Record, S <: Record, P <: Record](
@@ -438,7 +714,7 @@ object ResourceUploadService {
       if (fileSizeBytesValue <= 0L) throw new BadRequestException("fileSizeBytes must be > 0")
       if (partSizeBytesValue <= 0L) throw new BadRequestException("partSizeBytes must be > 0")
 
-      val totalMaxBytes: Long = singleFileUploadMaxBytes()
+      val totalMaxBytes: Long = s.uploadLimits.singleFileUploadMaxBytes
       if (totalMaxBytes <= 0L) {
         throw new WebApplicationException(
           "singleFileUploadMaxBytes must be > 0",
@@ -829,7 +1105,7 @@ object ResourceUploadService {
         )
       }
 
-      val maxBytes = singleFileUploadMaxBytes()
+      val maxBytes = s.uploadLimits.singleFileUploadMaxBytes
       val tooLarge = actualSizeBytes > maxBytes
 
       if (tooLarge) {

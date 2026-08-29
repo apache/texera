@@ -448,6 +448,33 @@ class DatasetSearchQueryBuilderSpec
     sql should include(s"texera_db.dataset.did = $sizedDid and (")
   }
 
+  it should "filter on the owner's email, the way the workflow builder does" in {
+    val p = SearchQueryParams(owners = List("dataset_search_owner@texera.com").asJava)
+
+    sqlFor(uid, includePublic = true, p) should include(
+      "texera_db.user.email = 'dataset_search_owner@texera.com'"
+    )
+  }
+
+  it should "OR several owners together, and AND them with the other filters" in {
+    val p = SearchQueryParams(
+      owners = List("a@texera.com", "b@texera.com").asJava,
+      datasetIds = List(sizedDid).asJava
+    )
+    val sql = sqlFor(uid, includePublic = true, p)
+
+    // ORed with each other: ANDing two owners would always return nothing.
+    sql should include("texera_db.user.email = 'a@texera.com'")
+    sql should include("texera_db.user.email = 'b@texera.com'")
+    sql should include("or texera_db.user.email")
+    // ... but ANDed with the id filter.
+    sql should include(s"texera_db.dataset.did = $sizedDid and (")
+  }
+
+  it should "add no owner predicate when the caller selected none" in {
+    sqlFor(uid, includePublic = true) should not include "texera_db.user.email ="
+  }
+
   "the query" should "dedupe with selectDistinct rather than a group by" in {
     // getGroupByFields is empty here, unlike the workflow and project builders, so the DISTINCT is
     // the only thing collapsing the rows the access join multiplies out.
@@ -485,12 +512,14 @@ class DatasetSearchQueryBuilderSpec
     sql should include("dataset.description as resourcedescription")
     sql should include("dataset.creation_time as resourcecreationtime")
     sql should include("dataset.owner_uid as resourceownerid")
-    sql should include("dataset.did as did")
     sql should include("dataset.repository_name as repository_name")
-    sql should include("dataset.is_public as is_dataset_public")
-    sql should include("dataset.is_downloadable as is_dataset_downloadable")
-    sql should include("dataset_user_access.privilege as user_dataset_access")
-    sql should include("dataset.cover_image as cover_image")
+    // The id/publicity/privilege/cover slots are shared with the other versioned resources,
+    // so their aliases are resource-neutral while the columns feeding them are the dataset's.
+    sql should include("dataset.did as versioned_resource_id")
+    sql should include("dataset.is_public as is_versioned_resource_public")
+    sql should include("dataset.is_downloadable as is_versioned_resource_downloadable")
+    sql should include("dataset_user_access.privilege as user_versioned_resource_access")
+    sql should include("dataset.cover_image as versioned_resource_cover_image")
   }
 
   it should "join the owner row on the dataset's owner" in {

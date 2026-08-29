@@ -24,7 +24,8 @@ import { Observable, of } from "rxjs";
 import { DashboardProject } from "../../../type/dashboard-project.interface";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { UserProjectService } from "../../../service/user/project/user-project.service";
-import { WorkflowPersistService } from "src/app/common/service/workflow-persist/workflow-persist.service";
+import { ResourceRegistryService } from "../../../service/user/resource-registry/resource-registry.service";
+import { EntityType } from "../../../../hub/service/hub.service";
 import { SearchFilterParameters } from "../../../type/search-filter-parameters";
 import { UserService } from "../../../../common/service/user/user.service";
 import { switchMap } from "rxjs/operators";
@@ -71,6 +72,8 @@ export class FiltersComponent implements OnInit {
   private _masterFilterList: ReadonlyArray<string> = [];
   // receive input from parent components (UserProjectSection), if any
   @Input() public pid?: number = undefined;
+  /** Which resource kind this page lists; decides whose owners and ids are offered. */
+  @Input() public entityType: EntityType = EntityType.Workflow;
   @Output()
   public masterFilterListChange = new EventEmitter<typeof this._masterFilterList>();
   public get masterFilterList(): ReadonlyArray<string> {
@@ -120,9 +123,14 @@ export class FiltersComponent implements OnInit {
     private operatorMetadataService: OperatorMetadataService,
     private notificationService: NotificationService,
     private userProjectService: UserProjectService,
-    private workflowPersistService: WorkflowPersistService,
+    private resourceRegistry: ResourceRegistryService,
     private cdr: ChangeDetectorRef
   ) {}
+
+  /** The id dropdown is hidden for kinds with no id-listing endpoint. */
+  public get hasIdFilter(): boolean {
+    return this.resourceRegistry.get(this.entityType).retrieveIds !== undefined;
+  }
 
   ngOnInit(): void {
     this.setupUserProject();
@@ -157,9 +165,7 @@ export class FiltersComponent implements OnInit {
       });
   }
 
-  /**
-   * Backend calls for Workflow IDs, Owners, and Operators in saved workflow component
-   */
+  /** Backend calls for the filtered kind's owners and ids, plus the operator metadata. */
   private searchParameterBackendSetup() {
     this.operatorMetadataService
       .getOperatorMetadata()
@@ -183,19 +189,20 @@ export class FiltersComponent implements OnInit {
         this.operatorGroups = opdata.groups.map(group => group.groupName);
       });
     if (this.isLogin) {
-      this.workflowPersistService
-        .retrieveOwners()
+      const descriptor = this.resourceRegistry.get(this.entityType);
+      descriptor
+        .retrieveOwners?.()
         .pipe(untilDestroyed(this))
         .subscribe(list_of_owners => {
           this.owners = list_of_owners.map(i => ({ userName: i, checked: false }));
         });
-      this.workflowPersistService
-        .retrieveWorkflowIDs()
+      descriptor
+        .retrieveIds?.()
         .pipe(untilDestroyed(this))
-        .subscribe(wids => {
-          this.wids = wids.map(wid => {
+        .subscribe(ids => {
+          this.wids = ids.map(id => {
             return {
-              id: wid.toString(),
+              id: id.toString(),
               checked: false,
             };
           });

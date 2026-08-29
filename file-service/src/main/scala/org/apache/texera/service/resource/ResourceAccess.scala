@@ -187,7 +187,8 @@ object ResourceAccess {
       resource: ResourceTables[R, A],
       uid: Integer,
       pojoClass: Class[P],
-      idOf: P => Integer
+      idOf: P => Integer,
+      includePublic: Boolean = true
   )(
       fromGrant: (P, String, PrivilegeEnum, Boolean) => Option[D],
       fromPublic: (P, String) => Option[D]
@@ -216,22 +217,25 @@ object ResourceAccess {
 
     val grantedIds = granted.map(_._1).toSet
 
-    val public = ctx
-      .select()
-      .from(
-        resource.table
-          .leftJoin(USER)
-          .on(USER.UID.eq(resource.ownerUidField))
-      )
-      .where(resource.isPublicField.eq(true))
-      .fetch()
-      .asScala
-      .toList
-      .flatMap { record =>
-        val entity = record.into(resource.table).into(pojoClass)
-        if (grantedIds.contains(idOf(entity))) None
-        else fromPublic(entity, record.into(USER).getEmail)
-      }
+    val public =
+      if (!includePublic) Nil
+      else
+        ctx
+          .select()
+          .from(
+            resource.table
+              .leftJoin(USER)
+              .on(USER.UID.eq(resource.ownerUidField))
+          )
+          .where(resource.isPublicField.eq(true))
+          .fetch()
+          .asScala
+          .toList
+          .flatMap { record =>
+            val entity = record.into(resource.table).into(pojoClass)
+            if (grantedIds.contains(idOf(entity))) None
+            else fromPublic(entity, record.into(USER).getEmail)
+          }
 
     granted.map(_._2) ++ public
   }
@@ -318,4 +322,24 @@ object ResourceAccess {
         s"You do not have access to ${resource.label} $id"
       )
     }
+
+  /**
+    * Emails of the owners of every resource the caller has an explicit grant on, for the
+    * owner facet on list pages.
+    */
+  def ownerEmailsVisibleTo[R <: Record, A <: Record](
+      ctx: DSLContext,
+      resource: ResourceTables[R, A],
+      uid: Integer
+  ): java.util.List[String] =
+    ctx
+      .selectDistinct(USER.EMAIL)
+      .from(USER)
+      .join(resource.table)
+      .on(resource.ownerUidField.eq(USER.UID))
+      .join(resource.accessTable)
+      .on(resource.accessIdField.eq(resource.idField))
+      .where(resource.accessUidField.eq(uid))
+      .fetchInto(classOf[String])
+
 }
