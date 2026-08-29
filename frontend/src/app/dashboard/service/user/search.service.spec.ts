@@ -158,6 +158,25 @@ describe("SearchService", () => {
       expect(req.request.url).toContain("includePublic=true");
       req.flush({ results: [], more: false });
     });
+
+    it("drops rows whose resource type this client does not model, keeping the modelled ones", async () => {
+      // The unified-search response can still carry types the client has no payload for -- a
+      // project row while the backend half of the removal is unmerged, or a type the server
+      // gains first. Downstream `convertToName`/`DashboardEntry` throw on those, and the search
+      // bar subscribes with no error handler, so one such row would kill the autocomplete for
+      // the session. It has to be dropped here rather than reach a consumer.
+      const wf = makeWorkflowItem(11, 7);
+      const unmodelled = { resourceType: "project", project: { pid: 3, name: "p" } } as unknown as SearchResultItem;
+      const pending = firstValueFrom(
+        service.search(["k"], makeEmptyFilter(), 0, 10, null, SortMethod.NameAsc, true, false)
+      );
+      http.expectOne(r => r.url.startsWith(`${API}/dashboard/search`)).flush({ results: [unmodelled, wf], more: true });
+
+      const got = await pending;
+      expect(got.results).toEqual([wf]);
+      // `more` and the rest of the envelope must survive the filter untouched.
+      expect(got.more).toBe(true);
+    });
   });
 
   // ─── getUserInfo ──────────────────────────────────────────────────────────

@@ -542,7 +542,7 @@ describe("AdminSettingsComponent", () => {
 });
 /**
  * The settings form is four near-identical Save/Reset cards, three near-identical upload blocks and
- * eleven switches whose keys include two confusable singular/plural pairs (workflow_enabled vs
+ * twelve switches whose keys include two confusable singular/plural pairs (workflow_enabled vs
  * workflows_enabled, dataset_enabled vs datasets_enabled). Cross-wiring from copy-paste is the
  * realistic defect here, and the suite above never renders an interaction, so none of it was pinned.
  */

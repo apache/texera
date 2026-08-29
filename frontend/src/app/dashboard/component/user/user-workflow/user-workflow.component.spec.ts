@@ -261,7 +261,7 @@ describe("SavedWorkflowSectionComponent", () => {
   });
 
   it("searchByManyParameters", async () => {
-    // Apply the ID, owner, and operator filter all at once.
+    // Apply the ID, owner, and operator filters all at once.
     component.filters.masterFilterList = ["1"];
     const operatorGroup = component.filters.operators.get("Analysis");
     if (operatorGroup) {

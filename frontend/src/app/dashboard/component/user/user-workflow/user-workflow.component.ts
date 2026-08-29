@@ -67,7 +67,7 @@ import { FormsModule } from "@angular/forms";
 
 /**
  * Saved-workflow-section component contains information and functionality
- * of the saved workflows section
+ * of the saved workflows section: the list of workflows the user owns or has access to
  *
  * This component:
  *  - displays the workflows the user has access to
@@ -156,12 +156,12 @@ export class UserWorkflowComponent implements AfterViewInit, OnDestroy {
     private userService: UserService,
     private workflowPersistService: WorkflowPersistService,
     private notificationService: NotificationService,
+    private modalService: NzModalService,
     private router: Router,
     private downloadService: DownloadService,
     private searchService: SearchService,
     private config: GuiConfigService,
-    private notebookMigrationService: NotebookMigrationService,
-    private modalService: NzModalService
+    private notebookMigrationService: NotebookMigrationService
   ) {
     this.userService
       .userChanged()

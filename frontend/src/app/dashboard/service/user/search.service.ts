@@ -84,9 +84,22 @@ export class SearchService {
 
     const finalIncludePublic = isLogin ? includePublic : true;
 
-    return this.http.get<SearchResult>(
-      `${url}?${toQueryStrings(keywords, params, start, count, type, orderBy)}&includePublic=${finalIncludePublic}`
-    );
+    return this.http
+      .get<SearchResult>(
+        `${url}?${toQueryStrings(keywords, params, start, count, type, orderBy)}&includePublic=${finalIncludePublic}`
+      )
+      .pipe(
+        map(result => ({
+          ...result,
+          // The unified-search response can carry resource types this client does not model:
+          // rows from a feature being removed server-side later than here, or a type the backend
+          // gains first. Both `convertToName` and `DashboardEntry` throw on an unrecognised
+          // payload, and the autocomplete subscribes without an error handler, so a single such
+          // row would otherwise kill the subscription for the rest of the session. Dropping them
+          // at the funnel every consumer calls keeps a stale row merely invisible.
+          results: result.results.filter(item => item.workflow != null || item.file != null || item.dataset != null),
+        }))
+      );
   }
 
   public getUserInfo(userIds: number[]): Observable<{ [key: number]: UserInfo }> {
