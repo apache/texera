@@ -65,6 +65,9 @@ import { WorkflowPveService } from "../../../service/virtual-environment/virtual
 import { WorkflowWebsocketService } from "../../../service/workflow-websocket/workflow-websocket.service";
 import { TexeraWebsocketEvent } from "../../../types/workflow-websocket.interface";
 import { of, Subject, throwError } from "rxjs";
+import { WorkflowVersionService } from "../../../../dashboard/service/user/workflow-version/workflow-version.service";
+import { GuiConfigService } from "../../../../common/service/gui-config.service";
+import { PresetWrapperComponent } from "src/app/common/formly/preset-wrapper/preset-wrapper.component";
 
 const { marbles } = configure({ run: false });
 
@@ -2688,5 +2691,268 @@ describe("OperatorPropertyEditFrameComponent", () => {
       expect(setProperty).not.toHaveBeenCalled();
       discardPeriodicTasks();
     }));
+  });
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // Field-mapping rules applied inside setFormlyFormBinding
+  // ──────────────────────────────────────────────────────────────────────────
+  describe("Formly field-mapping rules", () => {
+    function getField(key: string): FormlyFieldConfig | undefined {
+      return component.formlyFields?.[0]?.fieldGroup?.find(f => f.key === key);
+    }
+
+    function expressionsOf(key: string): Record<string, Function> {
+      return getField(key)?.expressions as Record<string, Function>;
+    }
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it("locks the dummyOperator field down", () => {
+      component.setFormlyFormBinding({
+        type: "object",
+        properties: { dummyOperator: { type: "string" } },
+      });
+
+      const expressions = expressionsOf("dummyOperator");
+      expect(expressions["templateOptions.disabled"]()).toBe(true);
+      expect(expressions["templateOptions.readonly"]()).toBe(true);
+    });
+
+    it("locks the dummyProperty and dummyValue fields down", () => {
+      component.setFormlyFormBinding({
+        type: "object",
+        properties: { dummyProperty: { type: "string" }, dummyValue: { type: "string" } },
+      });
+
+      ["dummyProperty", "dummyValue"].forEach(key => {
+        const expressions = expressionsOf(key);
+        expect(expressions["templateOptions.readonly"]()).toBe(true);
+        expect(expressions["templateOptions.disabled"]()).toBe(true);
+      });
+    });
+
+    it("hides dummyPropertyList for a non-Dummy operator and pins add/remove off", () => {
+      component.currentOperatorSchema = { operatorType: "Projection" } as any;
+
+      component.setFormlyFormBinding({
+        type: "object",
+        properties: { dummyPropertyList: { type: "array" } },
+      });
+
+      const field = getField("dummyPropertyList");
+      expect(field?.hide).toBe(true);
+      const expressions = field?.expressions as Record<string, Function>;
+      expect(expressions["templateOptions.disabled"]()).toBe(true);
+      expect(expressions["templateOptions.readonly"]()).toBe(true);
+      expect(expressions["templateOptions.canRemove"]()).toBe(false);
+      expect(expressions["templateOptions.canAdd"]()).toBe(false);
+    });
+
+    it("keeps dummyPropertyList visible for the Dummy operator itself", () => {
+      component.currentOperatorSchema = { operatorType: "Dummy" } as any;
+
+      component.setFormlyFormBinding({
+        type: "object",
+        properties: { dummyPropertyList: { type: "array" } },
+      });
+
+      expect(getField("dummyPropertyList")?.hide).toBe(false);
+    });
+
+    it("hides a field through the schema's hideTarget/hideType pair", () => {
+      component.setFormlyFormBinding({
+        type: "object",
+        properties: {
+          trigger: { type: "string" },
+          target: {
+            type: "string",
+            hideTarget: "trigger",
+            hideType: "equals",
+            hideExpectedValue: "off",
+          } as CustomJSONSchema7,
+        },
+      });
+
+      const hide = expressionsOf("target")["hide"];
+      expect(hide({ parent: { model: { trigger: "off" } } } as any)).toBe(true);
+      expect(hide({ parent: { model: { trigger: "on" } } } as any)).toBe(false);
+    });
+
+    it("substitutes the field type for fileName and huggingFaceModel", () => {
+      component.setFormlyFormBinding({
+        type: "object",
+        properties: { fileName: { type: "string" }, huggingFaceModel: { type: "string" } },
+      });
+
+      expect(getField("fileName")?.type).toBe("inputautocomplete");
+      expect(getField("huggingFaceModel")?.type).toBe("huggingface");
+    });
+
+    it("attaches the diff style to an overridden field and nothing to the others", () => {
+      const versionService = TestBed.inject(WorkflowVersionService);
+      component.currentOperatorId = "operator-diff";
+      versionService.operatorPropertyDiff = {
+        "operator-diff": new Map<String, String>([["colour", "border: 1px solid red"]]),
+      };
+
+      component.setFormlyFormBinding({
+        type: "object",
+        properties: { colour: { type: "string" }, other: { type: "string" } },
+      });
+
+      expect(expressionsOf("colour")["templateOptions.attributes"]()).toEqual({
+        style: "border: 1px solid red",
+      });
+      expect(expressionsOf("other")["templateOptions.attributes"]()).toEqual({});
+    });
+
+    it("writes the operatorVersion boundary style onto the rendered marker", () => {
+      const versionService = TestBed.inject(WorkflowVersionService);
+      component.currentOperatorId = "operator-version-diff";
+      versionService.operatorPropertyDiff = {
+        "operator-version-diff": new Map<String, String>([["operatorVersion", "border: 2px dashed blue"]]),
+      };
+
+      // The binding indexes getElementsByClassName("operator-version")[0] directly,
+      // so the element has to be in the document before it runs.
+      const marker = document.createElement("div");
+      marker.className = "operator-version";
+      document.body.appendChild(marker);
+      try {
+        component.setFormlyFormBinding({ type: "object", properties: { a: { type: "string" } } });
+
+        expect(marker.getAttribute("style")).toBe("border: 2px dashed blue");
+      } finally {
+        marker.remove();
+      }
+    });
+
+    it("marks the Aggregate attribute required only for functions that need one", () => {
+      component.currentOperatorSchema = { operatorType: "Aggregate" } as any;
+
+      component.setFormlyFormBinding({
+        type: "object",
+        properties: { attribute: { type: "string" } },
+      });
+
+      const required = expressionsOf("attribute")["props.required"];
+      expect(required({ parent: { model: { aggFunction: "sum" } } } as any)).toBe(true);
+      expect(required({ parent: { model: { aggFunction: AGGREGATE_COUNT } } } as any)).toBe(false);
+    });
+
+    it("leaves the attribute rule off for a non-Aggregate operator", () => {
+      component.currentOperatorSchema = { operatorType: "Projection" } as any;
+
+      component.setFormlyFormBinding({
+        type: "object",
+        properties: { attribute: { type: "string" } },
+      });
+
+      expect(expressionsOf("attribute")?.["props.required"]).toBeUndefined();
+    });
+
+    it("wires the preset wrapper only while user presets are enabled", () => {
+      const setupFieldConfig = vi.spyOn(PresetWrapperComponent, "setupFieldConfig").mockImplementation(() => {});
+      const guiConfig = TestBed.inject(GuiConfigService);
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      component.currentOperatorId = mockScanPredicate.operatorID;
+      const schema = {
+        type: "object" as const,
+        properties: { a: { type: "string", "enable-presets": true } as CustomJSONSchema7 },
+      };
+
+      guiConfig.env.userPresetEnabled = false;
+      component.setFormlyFormBinding(schema);
+      expect(setupFieldConfig).not.toHaveBeenCalled();
+
+      guiConfig.env.userPresetEnabled = true;
+      component.setFormlyFormBinding(schema);
+      expect(setupFieldConfig).toHaveBeenCalledWith(
+        expect.objectContaining({ key: "a" }),
+        "operator",
+        mockScanPredicate.operatorType,
+        mockScanPredicate.operatorID
+      );
+    });
+
+    it("keeps the validator the schema contributes", () => {
+      component.setFormlyFormBinding({
+        type: "object",
+        properties: { colour: { type: "string", enum: ["red"] } },
+      });
+
+      expect(Object.keys(getField("colour")?.validators ?? {})).toContain("inEnum");
+    });
+
+    it("disables the form on init when the frame is not interactive", () => {
+      component.interactive = false;
+      component.setFormlyFormBinding({ type: "object", properties: { a: { type: "string" } } });
+      const form = new FormGroup({ a: new FormControl("x") });
+
+      component.formlyFields![0].hooks!.onInit!({ form } as any);
+
+      expect(form.disabled).toBe(true);
+    });
+
+    it("leaves the form enabled when the frame is interactive", () => {
+      component.interactive = true;
+      component.setFormlyFormBinding({ type: "object", properties: { a: { type: "string" } } });
+      const form = new FormGroup({ a: new FormControl("x") });
+
+      component.formlyFields![0].hooks!.onInit!({ form } as any);
+
+      expect(form.disabled).toBe(false);
+    });
+
+    it("skips a boolean schema property when wiring dependencies", () => {
+      // `properties: { flag: true }` is legal JSON schema; the binding must skip it
+      // rather than read toggleHidden off a boolean.
+      expect(() =>
+        component.setFormlyFormBinding({
+          type: "object",
+          properties: { flag: true, a: { type: "string" } },
+        } as CustomJSONSchema7)
+      ).not.toThrow();
+    });
+
+    it("installs the hide expression a toggleHidden property declares", () => {
+      component.setFormlyFormBinding({
+        type: "object",
+        properties: {
+          trigger: { type: "boolean", toggleHidden: ["target"] } as CustomJSONSchema7,
+          target: { type: "string" },
+        },
+      });
+
+      expect(getField("target")?.expressions?.["hide"]).toBe("!field.parent.model.trigger");
+    });
+
+    it("resolves a dependOn property against the operator's input schema", () => {
+      const compilingService = TestBed.inject(WorkflowCompilingService);
+      // The timestamp attribute is what distinguishes a forwarded schema map from an
+      // empty one: only its name reaches the generated description expression.
+      const getOperatorInputSchemaMap = vi.spyOn(compilingService, "getOperatorInputSchemaMap").mockReturnValue({
+        "0_false": [
+          { attributeName: "colA", attributeType: "string" },
+          { attributeName: "eventTime", attributeType: "timestamp" },
+        ],
+      } as any);
+      component.currentOperatorId = "operator-dependency";
+
+      component.setFormlyFormBinding({
+        type: "object",
+        properties: {
+          parent: { type: "string" },
+          child: { type: "string", dependOn: "parent" } as CustomJSONSchema7,
+        },
+      });
+
+      expect(getOperatorInputSchemaMap).toHaveBeenCalledWith("operator-dependency");
+      expect(getField("child")?.expressions?.["templateOptions.description"]).toBe(
+        "[\"eventTime\"].includes(model.parent)? 'Input a datetime string' : 'Input a positive number'"
+      );
+    });
   });
 });

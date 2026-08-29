@@ -37,6 +37,7 @@ import { isDefined } from "../../../common/util/predicate";
 import { firstValueFrom } from "rxjs";
 import { map } from "rxjs/operators";
 import { SortButtonComponent } from "../../../dashboard/component/user/sort-button/sort-button.component";
+import { EntityType } from "../../service/hub.service";
 
 const HUB_DATASET_VIEW_MODE_STORAGE_KEY = "texera.hub.dataset.viewMode";
 
@@ -58,6 +59,12 @@ const HUB_DATASET_VIEW_MODE_STORAGE_KEY = "texera.hub.dataset.viewMode";
 })
 export class HubSearchResultComponent implements OnInit, AfterViewInit {
   public searchType: "dataset" | "workflow" = "workflow";
+
+  /** `searchType` as an EntityType, for the filters bar. */
+  public get filterEntityType(): EntityType {
+    return this.searchType === "dataset" ? EntityType.Dataset : EntityType.Workflow;
+  }
+
   public searchKeywords: string[] = [];
   currentUid = this.userService.getCurrentUser()?.uid;
   public viewMode: SearchResultsViewMode =

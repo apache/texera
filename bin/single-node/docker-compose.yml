@@ -470,6 +470,53 @@ services:
       timeout: 3s
       retries: 10
 
+  # NotebookMigrationService provides endpoints for the Jupyter notebook migration tool
+  notebook-migration-service:
+    image: ${IMAGE_REGISTRY:-ghcr.io/apache}/texera-notebook-migration-service:${IMAGE_TAG:-latest}
+    container_name: notebook-migration-service
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      # Interpolation only works in the compose file, not inside .env, so the
+      # browser-facing URL is composed here (same as lakefs's pre-signed endpoint).
+      - STORAGE_JUPYTER_PUBLIC_URL=${TEXERA_HOST}:${JUPYTER_PORT:-9100}
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:9098/api/healthcheck"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # JupyterLab instance that the notebook migration tool embeds in an iframe.
+  # Its port is published because the browser loads it directly, not through nginx
+  # (STORAGE_JUPYTER_PUBLIC_URL); notebook-migration-service reaches it in-network
+  # via STORAGE_JUPYTER_INTERNAL_URL.
+  jupyter:
+    image: ${IMAGE_REGISTRY:-ghcr.io/apache}/texera-jupyter:${IMAGE_TAG:-latest}
+    container_name: texera-jupyter
+    restart: unless-stopped
+    ports:
+      - "${JUPYTER_PORT:-9100}:8888"
+    # No env_file here on purpose. Users run arbitrary code in Jupyter, so this
+    # container gets only the two values it needs, not the whole .env (which holds
+    # the DB, S3, LakeFS, and LiteLLM credentials). It also keeps JUPYTER_PORT out:
+    # the base image reads it and would move the server off 8888.
+    environment:
+      # Texera app origin for the iframe CSP frame-ancestors and custom.js postMessage checks.
+      - TEXERA_ORIGIN=${TEXERA_HOST}:${TEXERA_PORT:-8080}
+      - JUPYTER_TOKEN=${JUPYTER_TOKEN:-texera}
+    healthcheck:
+      # /api returns the server version without requiring the token, so it is a
+      # reliable liveness probe even with auth enabled.
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8888/api')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
   # Part 3: reverse proxy service for Texera's micro services
   nginx:
     image: nginx:alpine
@@ -483,6 +530,7 @@ services:
       - access-control-service
       - workflow-computing-unit-managing-service
       - agent-service
+      - notebook-migration-service
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
     ports:

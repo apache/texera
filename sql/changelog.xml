@@ -114,6 +114,16 @@
         <sqlFile path="sql/updates/40.sql"/>
     </changeSet>
 
+    <!-- Add multipart upload session tables for models -->
+    <changeSet id="41" author="tanishqgandhi1908">
+        <sqlFile path="sql/updates/41.sql"/>
+    </changeSet>
+
+    <!-- Prefix the dataset upload-limit site settings with `dataset_` -->
+    <changeSet id="42" author="tanishqgandhi1908">
+        <sqlFile path="sql/updates/42.sql"/>
+    </changeSet>
+
     <!-- example changeSet
     <changeSet id="1" author="author">
         <sqlFile path="sql/updates/1.sql"/>

@@ -22,4 +22,5 @@ package org.apache.texera.amber.operator.sklearn.training
 class SklearnTrainingRandomForestOpDesc extends SklearnTrainingOpDesc {
   override def getImportStatements = "from sklearn.ensemble import RandomForestClassifier"
   override def getUserFriendlyModelName = "Training: Random Forest"
+  override def handlesMissingValues = true
 }

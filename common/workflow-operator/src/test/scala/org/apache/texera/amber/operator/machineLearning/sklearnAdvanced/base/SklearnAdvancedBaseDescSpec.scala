@@ -106,6 +106,13 @@ class SklearnAdvancedBaseDescSpec extends AnyFlatSpec with Matchers {
     code should include("yield df")
   }
 
+  // This family reads a named list of features rather than every column, so the
+  // drop names those columns: a blank anywhere else must not cost the row.
+  it should "drop rows missing a selected feature or the ground truth" in {
+    val d = newOp(List(hyperParam("n_neighbors", "int", fromWorkflow = false, value = "5")))
+    d.generatePythonCode() should include("self.dataset.dropna(subset=features + [")
+  }
+
   it should "loop once when no parameter is sourced from the workflow" in {
     val d = newOp(List(hyperParam("n_neighbors", "int", fromWorkflow = false, value = "5")))
     val code = d.generatePythonCode()
