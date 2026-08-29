@@ -92,6 +92,68 @@ class SklearnPredictionOpDescSpec extends AnyFlatSpec with Matchers {
     code should include("yield tuple_")
   }
 
+  // This operator adds a column to the user's rows, so a row it cannot predict
+  // on keeps its place with an empty result rather than disappearing.
+  it should "keep a row with a missing value and leave its result empty" in {
+    val d = new SklearnPredictionOpDesc
+    d.model = "model"
+    d.resultAttribute = "prediction"
+    val code = d.generatePythonCode()
+    code should include("isna().any(axis=None)")
+    code should include("] = None")
+  }
+
+  // The ignored column is not read by the model, so a blank there must not cost the
+  // row its prediction: the emptiness test reads the features it actually predicts on.
+  it should "test the features for emptiness rather than the whole row" in {
+    val d = new SklearnPredictionOpDesc
+    d.model = "model"
+    d.resultAttribute = "prediction"
+    d.groundTruthAttribute = "y"
+    val code = d.generatePythonCode()
+    code should include("Table.from_tuple_likes([input_features]).isna()")
+    code should not include "Table.from_tuple_likes([tuple_]).isna()"
+  }
+
+  // The output schema names the result column's type and the framework casts to it,
+  // so a per-row cast could only disagree with it on the row where the ignored column
+  // is itself blank and has no type to read off.
+  it should "not read the result's type off the ignored column" in {
+    val d = new SklearnPredictionOpDesc
+    d.model = "model"
+    d.resultAttribute = "prediction"
+    d.groundTruthAttribute = "y"
+    val code = d.generatePythonCode()
+    code should include("] = prediction if")
+    code should not include "type(tuple_"
+  }
+
+  // Without an ignored column the schema declares the result a string, so this is the
+  // one case where the generated code converts.
+  it should "write the prediction as text when no ignored column is configured" in {
+    val d = new SklearnPredictionOpDesc
+    d.model = "model"
+    d.resultAttribute = "prediction"
+    val code = d.generatePythonCode()
+    code should include("str(prediction)")
+  }
+
+  // The fitting operators leave out the columns an estimator cannot fit, so this
+  // side has to leave out the same ones or scikit-learn refuses the frame for
+  // naming features it never saw. Read off the model, which carries what it was
+  // fitted on, rather than re-deriving a rule that could drift from theirs: this
+  // path holds one Tuple rather than a frame, where select_dtypes does not apply.
+  it should "narrow the input features to the ones the model was fitted on" in {
+    val d = new SklearnPredictionOpDesc
+    d.model = "model"
+    d.resultAttribute = "prediction"
+    d.groundTruthAttribute = "y"
+    val code = d.generatePythonCode()
+    code should include(""""feature_names_in_", None)""")
+    code should include("if _fitted is not None:")
+    code should include("input_features.get_partial_tuple(list(_fitted))")
+  }
+
   "SklearnPredictionOpDesc" should
     "round-trip its config fields through the polymorphic base" in {
     val d = new SklearnPredictionOpDesc

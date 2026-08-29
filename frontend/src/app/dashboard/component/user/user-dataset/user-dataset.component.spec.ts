@@ -504,7 +504,10 @@ describe("UserDatasetComponent rendering", () => {
         { provide: NzModalService, useValue: { create: vi.fn() } },
         { provide: UserService, useClass: StubUserService },
         { provide: SearchService, useValue: { executeSearch: searchSpy } },
-        { provide: DatasetService, useValue: { deleteDatasets: vi.fn(() => of({} as Response)) } },
+        {
+          provide: DatasetService,
+          useValue: { deleteDatasets: vi.fn(() => of({} as Response)), retrieveOwners: vi.fn(() => of([])) },
+        },
         { provide: NzMessageService, useValue: { warning: vi.fn() } },
         // ng-zorro defaults to zh-cn and throws NG0701 without locale data; the app registers en_US.
         { provide: NZ_I18N, useValue: en_US },
@@ -705,7 +708,10 @@ describe("UserDatasetComponent card view", () => {
             ),
           },
         },
-        { provide: DatasetService, useValue: { deleteDatasets: deleteDatasetsSpy } },
+        {
+          provide: DatasetService,
+          useValue: { deleteDatasets: deleteDatasetsSpy, retrieveOwners: vi.fn(() => of([])) },
+        },
         { provide: NzMessageService, useValue: { warning: vi.fn() } },
         { provide: NZ_I18N, useValue: en_US },
         provideRouter([]),

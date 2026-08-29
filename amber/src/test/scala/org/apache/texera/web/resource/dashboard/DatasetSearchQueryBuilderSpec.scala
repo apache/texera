@@ -448,6 +448,33 @@ class DatasetSearchQueryBuilderSpec
     sql should include(s"texera_db.dataset.did = $sizedDid and (")
   }
 
+  it should "filter on the owner's email, the way the workflow builder does" in {
+    val p = SearchQueryParams(owners = List("dataset_search_owner@texera.com").asJava)
+
+    sqlFor(uid, includePublic = true, p) should include(
+      "texera_db.user.email = 'dataset_search_owner@texera.com'"
+    )
+  }
+
+  it should "OR several owners together, and AND them with the other filters" in {
+    val p = SearchQueryParams(
+      owners = List("a@texera.com", "b@texera.com").asJava,
+      datasetIds = List(sizedDid).asJava
+    )
+    val sql = sqlFor(uid, includePublic = true, p)
+
+    // ORed with each other: ANDing two owners would always return nothing.
+    sql should include("texera_db.user.email = 'a@texera.com'")
+    sql should include("texera_db.user.email = 'b@texera.com'")
+    sql should include("or texera_db.user.email")
+    // ... but ANDed with the id filter.
+    sql should include(s"texera_db.dataset.did = $sizedDid and (")
+  }
+
+  it should "add no owner predicate when the caller selected none" in {
+    sqlFor(uid, includePublic = true) should not include "texera_db.user.email ="
+  }
+
   "the query" should "dedupe with selectDistinct rather than a group by" in {
     // getGroupByFields is empty here, unlike the workflow and project builders, so the DISTINCT is
     // the only thing collapsing the rows the access join multiplies out.

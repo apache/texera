@@ -64,6 +64,24 @@ class SklearnTrainingBernoulliNaiveBayesOpDescSpec extends AnyFlatSpec with Matc
     code should include("Training: Bernoulli Naive Bayes")
   }
 
+  // Every column but the target is a feature here, so a row missing any value is
+  // one the estimator cannot be fitted on.
+  it should "drop rows with missing values before fitting" in {
+    val d = new SklearnTrainingBernoulliNaiveBayesOpDesc
+    d.target = "y"
+    d.generatePythonCode() should include("table.dropna()")
+  }
+
+  // With Count Vectorizer on, only the text and target columns are read, so a
+  // blank in any other column must not cost the row.
+  it should "drop on the text and target columns only when vectorizing text" in {
+    val d = new SklearnTrainingBernoulliNaiveBayesOpDesc
+    d.target = "y"
+    d.countVectorizer = true
+    d.text = List("note")
+    d.generatePythonCode() should include("table.dropna(subset=[")
+  }
+
   "SklearnTrainingBernoulliNaiveBayesOpDesc" should "round-trip its config fields through the polymorphic base" in {
     val d = new SklearnTrainingBernoulliNaiveBayesOpDesc
     d.target = "label"

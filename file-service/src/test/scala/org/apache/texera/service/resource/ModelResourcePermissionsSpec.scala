@@ -43,12 +43,16 @@ class ModelResourcePermissionsSpec extends AnyFlatSpec with Matchers {
   private def rolesOf(m: Method): Option[RolesAllowed] =
     Option(m.getAnnotation(classOf[RolesAllowed]))
 
-  // Anonymous-readable, mirroring the dataset side: the public model read plus the two
-  // presign routes a public model's files are fetched through.
+  // Anonymous-readable, mirroring the dataset side. The cover reads do their own
+  // public/grant check, so a private model's cover is still refused.
   private val publicEndpointMethods: Set[String] = Set(
     "getPublicModel",
     "getPublicPresignedUrl",
-    "getPublicPresignedUrlWithS3"
+    "getPublicPresignedUrlWithS3",
+    "getPublicModelVersionList",
+    "retrievePublicModelVersionRootFileNodes",
+    "getModelCover",
+    "getModelCoverUrl"
   )
 
   "ModelResource" should "expose HTTP endpoints (sanity check for the reflection scan)" in {

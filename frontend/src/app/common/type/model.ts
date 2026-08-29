@@ -1,4 +1,4 @@
-/*
+/**
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,18 +17,28 @@
  * under the License.
  */
 
-package org.apache.texera.amber.engine.common
+import { DatasetFileNode } from "./datasetVersionFileTree";
 
-import scala.annotation.elidable
-import scala.annotation.elidable._
+export interface Model {
+  mid: number | undefined;
+  ownerUid: number | undefined;
+  name: string;
+  repositoryName: string | undefined;
+  isPublic: boolean;
+  isDownloadable: boolean;
+  description: string;
+  creationTime: number | undefined;
+  coverImage: string | undefined;
+  framework: string | undefined;
+  format: string | undefined;
+}
 
-object ElidableStatement {
-
-  @elidable(FINEST) def finest(operations: => Unit): Unit = operations
-
-  @elidable(FINER) def finer(operations: => Unit): Unit = operations
-
-  @elidable(FINE) def fine(operations: => Unit): Unit = operations
-
-  @elidable(INFO) def info(operations: => Unit): Unit = operations
+export interface ModelVersion {
+  mvid: number | undefined;
+  mid: number;
+  creatorUid: number;
+  name: string;
+  versionHash: string | undefined;
+  creationTime: number | undefined;
+  fileNodes: DatasetFileNode[] | undefined;
 }
