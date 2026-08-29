@@ -558,7 +558,6 @@ describe("AdminSettingsComponent wiring", () => {
     "workflow_enabled",
     "dataset_enabled",
     "your_work_enabled",
-    "projects_enabled",
     "workflows_enabled",
     "datasets_enabled",
     "models_enabled",
@@ -651,7 +650,6 @@ describe("AdminSettingsComponent wiring", () => {
       // Indexed by key, not position: adding a tab shifts these and would silently drop one.
       const yourWorkChildren = (
         [
-          "projects_enabled",
           "workflows_enabled",
           "datasets_enabled",
           "models_enabled",

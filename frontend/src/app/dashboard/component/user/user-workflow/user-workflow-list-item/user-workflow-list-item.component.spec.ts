@@ -28,8 +28,6 @@ import {
   DEFAULT_WORKFLOW_NAME,
   WorkflowPersistService,
 } from "../../../../../common/service/workflow-persist/workflow-persist.service";
-import { UserProjectService } from "../../../../service/user/project/user-project.service";
-import { StubUserProjectService } from "../../../../service/user/project/stub-user-project.service";
 import { DownloadService } from "../../../../service/user/download/download.service";
 import { WorkflowExecutionHistoryComponent } from "../ngbd-modal-workflow-executions/workflow-execution-history.component";
 import { Workflow } from "../../../../../common/type/workflow";
@@ -64,15 +62,14 @@ class TestHostComponent {
   @ViewChild(UserWorkflowListItemComponent, { static: true }) inner!: UserWorkflowListItemComponent;
 }
 
-// A fresh DashboardEntry per call so methods that mutate the workflow (rename,
-// remove-from-project) cannot leak into the shared testWorkflowEntries fixture.
-function makeWorkflowEntry(workflowOverrides: Partial<Workflow> = {}, projectIDs: number[] = [1]): DashboardEntry {
+// A fresh DashboardEntry per call so methods that mutate the workflow (rename)
+// cannot leak into the shared testWorkflowEntries fixture.
+function makeWorkflowEntry(workflowOverrides: Partial<Workflow> = {}): DashboardEntry {
   return new DashboardEntry({
     workflow: { ...testWorkflow1, ...workflowOverrides },
     isOwner: true,
     ownerName: "Texera",
     accessLevel: "Write",
-    projectIDs: [...projectIDs],
     ownerId: 1,
     coverImage: null,
   });
@@ -87,7 +84,6 @@ describe("UserWorkflowListItemComponent", () => {
       imports: [TestHostComponent, NzModalModule, HttpClientTestingModule, NzTooltipModule],
       providers: [
         { provide: WorkflowPersistService, useValue: new StubWorkflowPersistService(testWorkflowEntries) },
-        { provide: UserProjectService, useValue: new StubUserProjectService() },
         { provide: FileSaverService, useValue: fileSaverServiceSpy },
         provideRouter([]),
         ...commonTestProviders,
@@ -161,16 +157,6 @@ describe("UserWorkflowListItemComponent", () => {
       vi.restoreAllMocks();
     });
 
-    it("getProjectIds returns the set of the entry's project ids", () => {
-      component.entry = makeWorkflowEntry({}, [1, 2, 3]);
-      expect(component.getProjectIds()).toEqual(new Set([1, 2, 3]));
-    });
-
-    it("isLightColor reports light vs dark hex colors", () => {
-      expect(component.isLightColor("ffffff")).toBe(true);
-      expect(component.isLightColor("000000")).toBe(false);
-    });
-
     describe("confirmUpdateWorkflowCustomName", () => {
       it("persists the new name, updates the workflow, and stops editing", () => {
         const persist = TestBed.inject(WorkflowPersistService);
@@ -233,17 +219,6 @@ describe("UserWorkflowListItemComponent", () => {
       });
     });
 
-    it("removeWorkflowFromProject calls the service and prunes the entry's project ids", () => {
-      const userProject = TestBed.inject(UserProjectService);
-      const spy = vi.spyOn(userProject, "removeWorkflowFromProject").mockReturnValue(of({} as Response));
-      component.entry = makeWorkflowEntry({ wid: 9 }, [1, 2]);
-
-      component.removeWorkflowFromProject(1);
-
-      expect(spy).toHaveBeenCalledWith(1, 9);
-      expect([...component.entry.workflow.projectIDs]).toEqual([2]);
-    });
-
     it("onClickGetWorkflowExecutions opens the execution-history modal for the workflow", () => {
       const modal = TestBed.inject(NzModalService);
       const spy = vi.spyOn(modal, "create").mockReturnValue({} as any);
@@ -299,36 +274,16 @@ describe("UserWorkflowListItemComponent", () => {
 describe("UserWorkflowListItemComponent rendering", () => {
   let fixture: ComponentFixture<TestHostComponent>;
   let component: UserWorkflowListItemComponent;
-  let projectService: {
-    getProjectList: ReturnType<typeof vi.fn>;
-    removeWorkflowFromProject: ReturnType<typeof vi.fn>;
-  };
-
-  /**
-   * Projects are stored with a bare hex colour and the template prepends the '#'. The shared
-   * testUserProjects fixture already includes one, which makes every tag fail the format check and
-   * take the dark arm, so this suite supplies its own colours to reach both.
-   */
-  const PROJECTS = [
-    { pid: 1, name: "Light", description: "", ownerId: 1, color: "ffffff", creationTime: 0, accessLevel: "WRITE" },
-    { pid: 2, name: "Dark", description: "", ownerId: 1, color: "101010", creationTime: 0, accessLevel: "WRITE" },
-  ];
-
   let persistService: { updateWorkflowName: ReturnType<typeof vi.fn> };
 
   async function setup(opts: { executionsTracking?: boolean } = {}) {
     // StubWorkflowPersistService does not declare updateWorkflowName, so it cannot be spied on.
     persistService = { updateWorkflowName: vi.fn(() => of({} as Response)) };
-    projectService = {
-      getProjectList: vi.fn(() => of(PROJECTS as any)),
-      removeWorkflowFromProject: vi.fn(() => of({} as Response)),
-    };
     TestBed.resetTestingModule();
     await TestBed.configureTestingModule({
       imports: [TestHostComponent, NzModalModule, HttpClientTestingModule, NzTooltipModule],
       providers: [
         { provide: WorkflowPersistService, useValue: persistService },
-        { provide: UserProjectService, useValue: projectService },
         { provide: FileSaverService, useValue: { saveAs: vi.fn() } },
         provideRouter([]),
         ...commonTestProviders,
@@ -442,37 +397,6 @@ describe("UserWorkflowListItemComponent rendering", () => {
       const el = render(entry);
 
       expect(el.querySelector<HTMLButtonElement>("button[nz-popconfirm]")?.disabled).toBe(true);
-    });
-  });
-
-  describe("project tags", () => {
-    it("removes the project whose tag was clicked, not the first one", () => {
-      const el = render(makeWorkflowEntry({ wid: 7 }, [1, 2]));
-
-      void el;
-      const removers = byTooltip(t => t === "Remove from project");
-      expect(removers.length).toBe(2);
-      // Second tag is pid 2; passing the loop variable is what makes this land on 2 and not 1.
-      removers[1].click();
-
-      expect(projectService.removeWorkflowFromProject).toHaveBeenCalledWith(2, 7);
-    });
-
-    it("darkens the text on a light tag and lightens it on a dark one", () => {
-      // Asserted per tag rather than "both classes appear somewhere": inverting both arms merely
-      // swaps which tag gets which class, and a set-level check cannot see that.
-      render(makeWorkflowEntry({ wid: 7 }, [1, 2]));
-
-      const [lightTag] = byTooltip(t => t === "Light");
-      const [darkTag] = byTooltip(t => t === "Dark");
-
-      expect(lightTag.classList).toContain("light-color");
-      expect(lightTag.classList).not.toContain("dark-color");
-      expect(lightTag.style.color).toBe("black");
-
-      expect(darkTag.classList).toContain("dark-color");
-      expect(darkTag.classList).not.toContain("light-color");
-      expect(darkTag.style.color).toBe("white");
     });
   });
 

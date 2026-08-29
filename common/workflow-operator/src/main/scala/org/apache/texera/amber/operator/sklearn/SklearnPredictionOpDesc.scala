@@ -62,6 +62,9 @@ class SklearnPredictionOpDesc extends PythonOperatorDescriptor {
        |            input_features = tuple_
        |            if $groundTruthAttribute != "":
        |                input_features = input_features.get_partial_tuple([col for col in tuple_.get_field_names() if col != $groundTruthAttribute])
+       |            _fitted = getattr(self.model, "feature_names_in_", None)
+       |            if _fitted is not None:
+       |                input_features = input_features.get_partial_tuple(list(_fitted))
        |            if Table.from_tuple_likes([input_features]).isna().any(axis=None):
        |                tuple_[$resultAttribute] = None #keep the row, leave the result empty
        |            else:

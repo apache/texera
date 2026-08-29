@@ -32,7 +32,6 @@ import {
   HUB_WORKFLOW_RESULT_DETAIL,
   USER_DATASET,
   USER_MODEL,
-  USER_PROJECT,
   USER_WORKSPACE,
 } from "../../../../app-routing.constant";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
@@ -93,7 +92,6 @@ describe("ResourceRegistryService", () => {
   it("resolves every kind the dashboard renders", () => {
     expect(registry.get(EntityType.Workflow).iconType).toBe("project");
     expect(registry.get(EntityType.Dataset).iconType).toBe("database");
-    expect(registry.get(EntityType.Project).iconType).toBe("container");
     expect(registry.get(EntityType.File).iconType).toBe("folder-open");
     expect(registry.get(EntityType.Model).iconType).toBe(MODEL_ICON);
   });
@@ -113,7 +111,7 @@ describe("ResourceRegistryService", () => {
     }
     // Models gain `retrieveOwners` with the share modal and the filters, which are the only callers.
     expect(registry.get(EntityType.Model).retrieveOwners).toBeUndefined();
-    for (const type of [EntityType.Project, EntityType.File]) {
+    for (const type of [EntityType.File]) {
       expect(registry.get(type).rename).toBeUndefined();
       expect(registry.get(type).updateDescription).toBeUndefined();
     }
@@ -123,7 +121,7 @@ describe("ResourceRegistryService", () => {
     for (const type of [EntityType.Workflow, EntityType.Dataset, EntityType.Model]) {
       expect(registry.get(type).download).toBeDefined();
     }
-    for (const type of [EntityType.Project, EntityType.File]) {
+    for (const type of [EntityType.File]) {
       expect(registry.get(type).download).toBeUndefined();
     }
     // Workflows are one file, not a version tree, so nothing previews them.
@@ -178,8 +176,7 @@ describe("ResourceRegistryService", () => {
     expect(registry.get(EntityType.Workflow).isOwner(entry({ workflow: { isOwner: false } }))).toBe(false);
     expect(registry.get(EntityType.Dataset).isOwner(entry({ dataset: { isOwner: true } }))).toBe(true);
     expect(registry.get(EntityType.Model).isOwner(entry({ model: { isOwner: false } }))).toBe(false);
-    // Project and file entries carry no ownership payload at all, so theirs must not read one.
-    expect(registry.get(EntityType.Project).isOwner(entry({}))).toBe(true);
+    // File entries carry no ownership payload at all, so theirs must not read one.
     expect(registry.get(EntityType.File).isOwner(entry({}))).toBe(true);
   });
 
@@ -195,11 +192,6 @@ describe("ResourceRegistryService", () => {
     const dataset = entry({ type: EntityType.Dataset, id: 5, accessibleUserIds: [42] });
     expect(registry.entryLink(dataset, 42)).toEqual([USER_DATASET, "5"]);
     expect(registry.entryLink(dataset, 99)).toEqual([HUB_DATASET_RESULT_DETAIL, "5"]);
-  });
-
-  it("routes a kind with no hub page straight to its private page", () => {
-    // Projects have no hub presence, so access lists never come into it.
-    expect(registry.entryLink(entry({ type: EntityType.Project, id: 3 }), undefined)).toEqual([USER_PROJECT, "3"]);
   });
 
   it("routes a model to its detail page, which has no hub twin yet", () => {

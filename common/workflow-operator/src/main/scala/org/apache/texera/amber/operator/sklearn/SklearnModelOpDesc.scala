@@ -42,7 +42,35 @@ import org.apache.texera.amber.operator.metadata.annotations.{
   HideAnnotation
 }
 
-abstract class SklearnModelOpDesc extends PythonOperatorDescriptor {
+// `text` names the columns Count Vectorizer tokenizes, so they are string columns
+// and at least one is required only when that switch is on. Conditional rather than
+// plain required, so a freshly dropped operator is not flagged for a field it has
+// no use for.
+@JsonSchemaInject(json = """
+{
+  "attributeTypeRules": {
+    "text": {
+      "enum": ["string"]
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "countVectorizer": { "const": true }
+        }
+      },
+      "then": {
+        "required": ["text"],
+        "properties": {
+          "text": { "minItems": 1 }
+        }
+      }
+    }
+  ]
+}
+""")
+abstract class SklearnModelOpDesc extends PythonOperatorDescriptor with SklearnFittableColumns {
 
   @JsonSchemaTitle("Target Attribute")
   @JsonPropertyDescription("Attribute in your dataset corresponding to target.")
@@ -111,6 +139,14 @@ abstract class SklearnModelOpDesc extends PythonOperatorDescriptor {
       text.zipWithIndex
         .map { case (column, i) => s"""("text$i", CountVectorizer(), ${renderColumn(column)})""" }
         .mkString("ColumnTransformer([", ", ", "]),")
+
+  /** [[SklearnFittableColumns.narrowToFittableColumns]], except under the text
+    * pipeline: there the `ColumnTransformer` names the columns it reads, and they
+    * are the ones the narrowing would drop.
+    */
+  @JsonIgnore
+  protected def dropNonFeatureColumns(frame: String, indent: String): String =
+    if (countVectorizer) "" else narrowToFittableColumns(frame, indent)
 
   @JsonIgnore
   def getImportStatements: String

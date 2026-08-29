@@ -29,7 +29,7 @@ import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 
-class SklearnLinearRegressionOpDesc extends PythonOperatorDescriptor {
+class SklearnLinearRegressionOpDesc extends PythonOperatorDescriptor with SklearnFittableColumns {
 
   @JsonSchemaTitle("Target Attribute")
   @JsonPropertyDescription("Attribute in your dataset corresponding to target.")
@@ -59,6 +59,7 @@ class SklearnLinearRegressionOpDesc extends PythonOperatorDescriptor {
        |            print("Skipped", rows_read - len(table), "of", rows_read, "rows with missing values")
        |        Y = table[$target]
        |        X = table.drop($target, axis=1)
+       |${narrowToFittableColumns("X", " " * 8)}
        |        if port == 0:
        |            pipeline = make_pipeline(
        |                PolynomialFeatures(degree=$degree),

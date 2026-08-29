@@ -46,6 +46,7 @@ abstract class SklearnClassifierOpDesc extends SklearnModelOpDesc {
        |            print("Skipped", rows_read - len(table), "of", rows_read, "rows with missing values")
        |        Y = table[$target]
        |        X = table.drop($target, axis=1)
+       |${dropNonFeatureColumns("X", " " * 8)}
 $reportMissingKept
        |        if port == 0:
        |            self.model = make_pipeline(${vectorizerStage(c => pyb"$c".toString)} ${if (

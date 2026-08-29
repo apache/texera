@@ -23,7 +23,6 @@ import { ResourceDescriptor } from "../../../type/resource-descriptor";
 import { EntityType } from "../../../../hub/service/hub.service";
 import { WorkflowResourceDescriptor } from "./workflow-resource.descriptor";
 import { DatasetResourceDescriptor } from "./dataset-resource.descriptor";
-import { ProjectResourceDescriptor } from "./project-resource.descriptor";
 import { FileResourceDescriptor } from "./file-resource.descriptor";
 import { ModelResourceDescriptor } from "./model-resource.descriptor";
 
@@ -41,13 +40,12 @@ export class ResourceRegistryService {
   constructor(
     workflow: WorkflowResourceDescriptor,
     dataset: DatasetResourceDescriptor,
-    project: ProjectResourceDescriptor,
     file: FileResourceDescriptor,
     model: ModelResourceDescriptor
   ) {
     // Computing units are deliberately absent: nothing in the dashboard renders them as entries.
     this.descriptors = new Map<EntityType, ResourceDescriptor>(
-      [workflow, dataset, project, file, model].map(descriptor => [descriptor.type, descriptor])
+      [workflow, dataset, file, model].map(descriptor => [descriptor.type, descriptor])
     );
   }
 
