@@ -158,10 +158,10 @@ class WorkflowExecutionServiceSpec
   private val otherCuid: Integer = 9210
 
   override protected def beforeAll(): Unit = {
+    super.beforeAll()
     initializeDBAndReplaceDSLContext()
 
     val user = new User
-    user.setUid(testUid)
     user.setName("workflow-execution-test-user")
     user.setEmail(s"u$testUid@example.com")
     new UserDao(getDSLContext.configuration()).insert(user)
@@ -215,8 +215,10 @@ class WorkflowExecutionServiceSpec
   override protected def afterAll(): Unit = {
     try {
       TestKit.shutdownActorSystem(system)
+    } finally {
       closeConnectionPool()
-    } finally super.afterAll()
+      super.afterAll()
+    }
   }
 
   private def buildService(
