@@ -64,6 +64,16 @@ class SklearnLinearRegressionOpDescSpec extends AnyFlatSpec with Matchers {
     code should include("class ProcessTableOperator(UDFTableOperator)")
   }
 
+  // This operator builds its own pipeline rather than inheriting the classifier
+  // base's, so the drop the rest of the family gained has to be stated here too.
+  it should "drop rows with missing values and say how many" in {
+    val d = new SklearnLinearRegressionOpDesc
+    d.target = "y"
+    val code = d.generatePythonCode()
+    code should include("table.dropna()")
+    code should include("\"Skipped\"")
+  }
+
   // The operator fits every column but the target, so a text column beside the
   // numbers would end the run from inside scikit-learn.
   it should "narrow the features to the columns an estimator can fit" in {

@@ -56,6 +56,10 @@ class GuiConfigSpec extends AnyFlatSpec with Matchers {
     ifUnset("GUI_WORKFLOW_WORKSPACE_TIMETRAVEL_ENABLED")(
       GuiConfig.guiWorkflowWorkspaceTimetravelEnabled shouldBe false
     )
+    // Form View ships disabled so merging the feature never turns it on; the final PR flips it.
+    ifUnset("GUI_WORKFLOW_WORKSPACE_FORM_VIEW_ENABLED")(
+      GuiConfig.guiWorkflowWorkspaceFormViewEnabled shouldBe false
+    )
     ifUnset("GUI_WORKFLOW_WORKSPACE_PRODUCTION_SHARED_EDITING_SERVER")(
       GuiConfig.guiWorkflowWorkspaceProductionSharedEditingServer shouldBe false
     )

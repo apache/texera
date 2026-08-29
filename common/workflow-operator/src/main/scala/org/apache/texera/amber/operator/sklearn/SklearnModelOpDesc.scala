@@ -33,6 +33,7 @@ import com.kjetland.jackson.jsonSchema.annotations.{
 }
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.metadata.annotations.{
@@ -153,9 +154,55 @@ abstract class SklearnModelOpDesc extends PythonOperatorDescriptor with SklearnF
   @JsonIgnore
   def getUserFriendlyModelName: String
 
+  /** An estimator that cannot be fitted on the sparse matrix `CountVectorizer`
+    * produces names here what to reach for instead, and turning the switch on
+    * stops the workflow at compile time rather than inside scikit-learn.
+    *
+    * The switch is declared on this base, so every estimator in both families
+    * inherits it whether or not its own can use it.
+    */
+  @JsonIgnore
+  protected def countVectorizerAlternatives: Option[String] = None
+
+  // Tree-based estimators send the missing values of a split down one branch, so a
+  // blank feature is a signal they can fit on, and the dummy estimator never reads a
+  // feature at all. Every other estimator here computes over the feature matrix, where
+  // one NaN spreads through the arithmetic, and scikit-learn refuses the fit rather
+  // than return a meaningless model.
+  @JsonIgnore
+  def handlesMissingValues: Boolean = false
+
+  // A blank target is refused by every estimator, and CountVectorizer calls .lower()
+  // on each document, so the target and every vectorized column are dropped whatever
+  // the estimator does.
+  @JsonIgnore
+  protected def dropMissingRows: String =
+    if (countVectorizer)
+      (text :+ target).map(c => pyb"$c".toString).mkString("table.dropna(subset=[", ", ", "])")
+    else if (handlesMissingValues) pyb"table.dropna(subset=[$target])".toString
+    else "table.dropna()"
+
+  // Rows the estimator keeps are still rows the user did not know were incomplete,
+  // so say how many reached the fit. Empty for the estimators that dropped them all.
+  @JsonIgnore
+  protected def reportMissingKept: String =
+    if (handlesMissingValues && !countVectorizer)
+      """       |        rows_with_gaps = int(X.isna().any(axis=1).sum())
+        |       |        if rows_with_gaps:
+        |       |            print("Kept", rows_with_gaps, "rows with missing values, which this model fits without dropping")""".stripMargin
+    else ""
+
   override def getOutputSchemas(
       inputSchemas: Map[PortIdentity, Schema]
   ): Map[PortIdentity, Schema] = {
+    if (countVectorizer) {
+      countVectorizerAlternatives.foreach { alternatives =>
+        throw new RuntimeException(
+          s"$getUserFriendlyModelName cannot be trained on the sparse matrix Count Vectorizer" +
+            s" produces. Turn Count Vectorizer off, or use $alternatives."
+        )
+      }
+    }
     Map(
       operatorInfo.outputPorts.head.id -> Schema()
         .add("model_name", AttributeType.STRING)
