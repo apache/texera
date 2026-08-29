@@ -20,6 +20,9 @@
 #     (.github/workflows/backport-auto-label.yml), so backports are opt-out
 #     rather than easy-to-forget opt-in;
 #   - requests review from the branch's release manager on those PRs;
+#   - blocks the merge until that manager has approved the PR, or removed the
+#     label to decline (.github/workflows/backport-approval-check.yml, the
+#     required `Backport Approvals` check — see `manager` below);
 #   - drives the post-merge backport (.github/workflows/direct-backport-push.yml):
 #     a green pre-merge backport check cherry-picks straight to the branch, a
 #     red one opens a draft backport PR assigned to the author with the manager
@@ -35,8 +38,28 @@
 # the field defaults to true. When a branch reaches end-of-life, drop its entry
 # entirely.
 #
-# `manager` is a GitHub username. It may be omitted (leave the branch as a
-# backport target without an auto-requested reviewer), but is recommended.
+# `manager` is a GitHub username, and it is that branch's approval gate: the
+# `release/*` label only *nominates* a target, and the fix is backported there
+# only once the manager has approved the PR. A manager who wrote the fix counts
+# as having approved it, since GitHub does not let anyone approve their own PR.
+#
+# Because that approval is required to merge, declining a backport is an action
+# rather than silence: the manager removes their branch's label. So the labels
+# left on a merged PR are exactly the branches it was backported to, and reading
+# them later tells the truth. The author's part is to ask the manager for that
+# call, not to make it for them — though editing labels needs triage access, so
+# any committer can remove a label on a manager's behalf.
+#
+# Managers gate their own branch and nothing else, so the approvals compose:
+# with both `release/v1.2` and `release/v1.3` labeled, an approval from the v1.2
+# manager alone lands the fix on v1.2 and leaves v1.3 behind; an approval from
+# both lands it on both; neither approving blocks the merge until one of them
+# is approved or its label is removed.
+#
+# `manager` may be omitted, which leaves the branch ungated — no auto-requested
+# reviewer and no approval required — but setting one is strongly recommended.
+# A `release/*` label naming a branch that is not listed here at all is not
+# ungated: it is held back, since nobody is designated to approve it.
 targets:
   - branch: release/v1.2
     manager: xuang7

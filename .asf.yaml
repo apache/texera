@@ -111,6 +111,11 @@ github:
               - context: Required Checks
               - context: Check License Headers
               - context: Validate PR title
+              # Every release/* label must be approved by that branch's release
+              # manager before the merge, so a merged PR's labels are exactly
+              # the branches it was backported to
+              # (.github/workflows/backport-approval-check.yml).
+              - context: Backport Approvals
 
     - name: "Default Branch Protection"
       type: branch
