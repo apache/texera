@@ -127,10 +127,6 @@ nz-select {
   margin-top: 15%;
 }
 
-// Rows must stay exactly PENDING_ROW_HEIGHT_PX tall for the fixed-size scroll
-// strategy. The gutter lives on the rows: padding on the viewport never
-// reaches its absolutely positioned content wrapper.
-
 .status-tag-row {
   margin-top: 16px;
   display: flex;

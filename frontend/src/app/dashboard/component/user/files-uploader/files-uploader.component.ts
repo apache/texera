@@ -187,7 +187,7 @@ export class FilesUploaderComponent implements OnInit {
           fileName,
           path: item.name,
           size: formatSize(item.file.size),
-          hint: "A file with the same path and size exists in this dataset. Skip only if you expect it is the same file.",
+          hint: `A file with the same path and size exists in this ${this.endpoint.label}. Skip only if you expect it is the same file.`,
         },
         nzFooter: [
           ...(showForAll ? [button("Upload For All", "uploadAll"), button("Skip For All", "skipAll")] : []),

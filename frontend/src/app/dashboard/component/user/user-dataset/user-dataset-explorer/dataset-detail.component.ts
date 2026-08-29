@@ -111,7 +111,6 @@ export const THROTTLE_TIME_MS = 1000;
     NzDividerComponent,
     VersionUploaderComponent,
     NzInputDirective,
-    VersionUploaderComponent,
     NzDropdownDirective,
     NzDropdownMenuComponent,
     NzMenuDirective,

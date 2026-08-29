@@ -68,6 +68,7 @@ const droppedFile = (relativePath: string, file: File): NgxFileDropEntry =>
 /** A resource family that is neither dataset nor model, to prove the uploader is parameterized. */
 const WIDGET_ENDPOINT: FileResourceEndpoint = {
   baseUrl: "widget",
+  label: "widget",
   nameParamKey: "widgetName",
   maxFileSizeSettingKey: "widget_single_file_upload_max_size_mib",
   defaultMaxFileSizeMiB: 64,

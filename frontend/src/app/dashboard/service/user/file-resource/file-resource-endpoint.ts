@@ -25,6 +25,8 @@
 export interface FileResourceEndpoint {
   /** Path segment under the API root, e.g. "dataset". */
   readonly baseUrl: string;
+  /** How to name this resource kind in user-facing copy, e.g. "dataset". */
+  readonly label: string;
   /** Query-param name carrying the resource name, e.g. "datasetName". */
   readonly nameParamKey: string;
   /** site_settings key holding this resource's per-file upload ceiling, in MiB. */
@@ -39,6 +41,7 @@ export interface FileResourceEndpoint {
 
 export const DATASET_FILE_RESOURCE_ENDPOINT: FileResourceEndpoint = {
   baseUrl: "dataset",
+  label: "dataset",
   nameParamKey: "datasetName",
   maxFileSizeSettingKey: "dataset_single_file_upload_max_size_mib",
   defaultMaxFileSizeMiB: 20,
@@ -49,6 +52,7 @@ export const DATASET_FILE_RESOURCE_ENDPOINT: FileResourceEndpoint = {
 
 export const MODEL_FILE_RESOURCE_ENDPOINT: FileResourceEndpoint = {
   baseUrl: "model",
+  label: "model",
   nameParamKey: "modelName",
   maxFileSizeSettingKey: "model_single_file_upload_max_size_mib",
   defaultMaxFileSizeMiB: 2048,

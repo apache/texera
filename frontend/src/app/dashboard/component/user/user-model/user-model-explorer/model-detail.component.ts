@@ -267,7 +267,7 @@ export class ModelDetailComponent implements OnInit {
           if (versions.length === 0) {
             return;
           }
-          this.retrieveLatestVersionFacts();
+          this.latestVersionCreationTime = this.formatCreationTime(versions[0]);
           this.onVersionSelected(versions[0]);
         },
         error: (err: unknown) => this.notificationService.error(extractErrorMessage(err)),
@@ -288,6 +288,12 @@ export class ModelDetailComponent implements OnInit {
           this.currentModelVersionSize = data.size;
           this.selectedVersionCreationTime = this.formatCreationTime(version);
 
+          // The Model Card describes the newest version, so when that is the one just fetched its
+          // facts come from this response rather than a second identical request.
+          if (version === this.versions[0]) {
+            this.applyLatestVersionFacts(data);
+          }
+
           const firstFile = this.getFirstFileNode(this.fileTreeNodeList);
           if (!firstFile) {
             this.currentDisplayedFileName = "";
@@ -300,9 +306,15 @@ export class ModelDetailComponent implements OnInit {
       });
   }
 
+  private applyLatestVersionFacts(data: { fileNodes: DatasetFileNode[]; size: number }): void {
+    const firstFile = this.getFirstFileNode(data.fileNodes);
+    this.latestVersionFileName = firstFile ? getFullPathFromDatasetFileNode(firstFile) : "";
+    this.latestVersionSize = data.size;
+  }
+
   /**
-   * The Model Card describes the newest version whatever the picker is showing, so its facts are
-   * fetched in their own right rather than derived from the current selection.
+   * Refreshes the Model Card when the newest version is *not* the one on screen. Whenever they
+   * coincide, onVersionSelected fills it in from the tree it already fetched.
    */
   private retrieveLatestVersionFacts(): void {
     const latest = this.versions[0];
@@ -317,11 +329,7 @@ export class ModelDetailComponent implements OnInit {
       .retrieveModelVersionFileTree(this.mid, latest.mvid, this.isLogin)
       .pipe(untilDestroyed(this))
       .subscribe({
-        next: data => {
-          const firstFile = this.getFirstFileNode(data.fileNodes);
-          this.latestVersionFileName = firstFile ? getFullPathFromDatasetFileNode(firstFile) : "";
-          this.latestVersionSize = data.size;
-        },
+        next: data => this.applyLatestVersionFacts(data),
         error: (err: unknown) => this.notificationService.error(extractErrorMessage(err)),
       });
   }
@@ -456,7 +464,10 @@ export class ModelDetailComponent implements OnInit {
           // Every file path embeds the model name, and preview and single-file download resolve
           // a model by (owner, name) — a stale tree 404s until reload.
           this.onVersionSelected(this.selectedVersion);
-          this.retrieveLatestVersionFacts();
+          // That call covers the card only when the newest version is the one on screen.
+          if (this.selectedVersion !== this.versions[0]) {
+            this.retrieveLatestVersionFacts();
+          }
           this.notificationService.success(`Model name updated to '${name}'`);
         },
         error: (err: unknown) => this.notificationService.error(extractErrorMessage(err)),

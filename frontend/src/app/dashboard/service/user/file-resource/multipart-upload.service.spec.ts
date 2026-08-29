@@ -34,6 +34,7 @@ const API = "api";
  */
 const WIDGET_ENDPOINT: FileResourceEndpoint = {
   baseUrl: "widget",
+  label: "widget",
   nameParamKey: "widgetName",
   maxFileSizeSettingKey: "widget_single_file_upload_max_size_mib",
   defaultMaxFileSizeMiB: 64,

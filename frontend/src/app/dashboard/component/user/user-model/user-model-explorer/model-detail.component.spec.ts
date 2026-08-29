@@ -622,6 +622,19 @@ describe("ModelDetailComponent", () => {
     expect(component.currentDisplayedFileName).toBe(`/model/${OWNER}/resnet-101/v1/model.pt`);
   });
 
+  it("lists the newest version's objects once on load, not once per consumer", () => {
+    modelService["retrieveModelVersionList"] = vi.fn(() => of([aVersion(2, "v2"), aVersion(1, "v1")]));
+    modelService["retrieveModelVersionFileTree"] = vi.fn(() =>
+      of({ fileNodes: [aFile("model.pt", `/model/${OWNER}/resnet-50/v2`)], size: 4 })
+    );
+    create();
+
+    // The file tree and the Model Card both describe v2 here, so one response serves both.
+    expect(modelService["retrieveModelVersionFileTree"]).toHaveBeenCalledTimes(1);
+    expect(component.latestVersionFileName).toBe(`/model/${OWNER}/resnet-50/v2/model.pt`);
+    expect(component.latestVersionSize).toBe(4);
+  });
+
   it("refreshes the Model Card too when an older version is on screen, without moving the picker", () => {
     const versions = [aVersion(2, "v2"), aVersion(1, "v1")];
     modelService["updateModelName"] = vi.fn(() => of({}));
