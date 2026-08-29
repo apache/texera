@@ -26,17 +26,14 @@ import jakarta.ws.rs._
 import jakarta.ws.rs.core._
 import org.apache.texera.common.config.StorageConfig
 import org.apache.texera.common.util.EmailUtil
-import org.apache.texera.amber.core.storage.model.OnVersionedFileResource
 import org.apache.texera.amber.core.storage.util.LakeFSStorageClient
-import org.apache.texera.amber.core.storage.{DocumentFactory, FileResolver, ResourceType}
+import org.apache.texera.amber.core.storage.ResourceType
 import org.apache.texera.auth.SessionUser
-import org.apache.texera.dao.SiteSettings
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.SqlServer.withTransaction
 import org.apache.texera.dao.jooq.generated.enums.{PrivilegeEnum, UserRoleEnum}
 import org.apache.texera.dao.jooq.generated.tables.Dataset.DATASET
 import org.apache.texera.dao.jooq.generated.tables.DatasetContributor.DATASET_CONTRIBUTOR
-import org.apache.texera.dao.jooq.generated.tables.DatasetUserAccess.DATASET_USER_ACCESS
 import org.apache.texera.dao.jooq.generated.tables.DatasetVersion.DATASET_VERSION
 import org.apache.texera.dao.jooq.generated.tables.User.USER
 import org.apache.texera.dao.jooq.generated.tables.daos.{
@@ -49,24 +46,22 @@ import org.apache.texera.dao.jooq.generated.tables.pojos.{
   DatasetUserAccess,
   DatasetVersion
 }
-import org.apache.texera.service.`type`.LakeFSFileNode
+import org.apache.texera.service.`type`.{Diff, ExistingUploadFilesRequest, LakeFSFileNode}
 import org.apache.texera.service.resource.DatasetAccessResource._
 import org.apache.texera.service.resource.ResourceTables.{Dataset => DATASET_RESOURCE}
 import org.apache.texera.service.resource.DatasetResource.{context, _}
+import org.apache.texera.service.util.CoverImageUtils
+import org.apache.texera.service.util.CoverImageUtils.CoverImageRequest
 import org.apache.texera.service.util.S3StorageClient
 import org.jooq.impl.DSL
 import org.jooq.{DSLContext, EnumType}
 
-import java.io.{InputStream, OutputStream}
-import java.net.{URI, URLDecoder}
-import java.nio.charset.StandardCharsets
-import java.nio.file.{Files, Paths}
+import java.io.InputStream
+import java.net.URI
 import java.util
 import java.util.Optional
-import java.util.zip.{ZipEntry, ZipOutputStream}
 import scala.jdk.CollectionConverters._
 import scala.jdk.OptionConverters._
-import org.apache.commons.io.FilenameUtils
 import org.apache.texera.service.util.LakeFSExceptionHandler.withLakeFSErrorHandling
 
 object DatasetResource {
@@ -75,18 +70,6 @@ object DatasetResource {
     SqlServer
       .getInstance()
       .createDSLContext()
-
-  // Builds a resource logical path (/<resourceType>/ownerEmail/resourceName/relativePath).
-  private def logicalPath(
-      resourceType: ResourceType.Value,
-      ownerEmail: String,
-      resourceName: String,
-      relativePath: String
-  ): String =
-    s"$resourceType/$ownerEmail/$resourceName/$relativePath"
-
-  private def singleFileUploadMaxBytes(defaultMiB: Long = 20L): Long =
-    SiteSettings.getLong("single_file_upload_max_size_mib", defaultMiB) * 1024L * 1024L
 
   /**
     * Helper function to get the dataset from DB using did
@@ -264,16 +247,8 @@ object DatasetResource {
       contributors: Option[List[Contributor]] = None
   )
 
-  case class Diff(
-      path: String,
-      pathType: String,
-      diffType: String, // "added", "removed", "changed", etc.
-      sizeBytes: Option[Long] // Size of the changed file (None for directories)
-  )
-
-  case class ExistingUploadFile(path: String, sizeBytes: Long)
-
-  case class ExistingUploadFilesRequest(files: List[ExistingUploadFile])
+  val ExistingUploadFilesRequest: org.apache.texera.service.`type`.ExistingUploadFilesRequest.type =
+    org.apache.texera.service.`type`.ExistingUploadFilesRequest
 
   case class DatasetDescriptionModification(did: Integer, description: String)
 
@@ -283,8 +258,6 @@ object DatasetResource {
       fileNodes: List[LakeFSFileNode],
       size: Long
   )
-
-  case class CoverImageRequest(coverImage: String)
 }
 
 @Produces(Array(MediaType.APPLICATION_JSON, "image/jpeg", "application/pdf"))
@@ -294,10 +267,29 @@ class DatasetResource extends LazyLogging {
   private val ERR_DATASET_VERSION_NOT_FOUND_MESSAGE = "The version of the dataset not found"
   private val EXPIRATION_MINUTES = 5
 
-  private val COVER_IMAGE_SIZE_LIMIT_BYTES: Long = 10 * 1024 * 1024 // 10 MB
-  private val ALLOWED_IMAGE_EXTENSIONS: Set[String] = Set(".jpg", ".jpeg", ".png", ".gif", ".webp")
+  // varchar(246) on DBs upgraded through sql/updates/18.sql, narrower than model's.
+  private val COVER_IMAGE_MAX_PATH_LENGTH = 246
 
   private val resourceType = ResourceType.Dataset
+
+  /**
+    * The single read rule for a dataset: anonymous callers get public datasets only, a
+    * signed-in caller goes through userHasReadAccess. Shared with getDashboardDataset
+    * so the cover endpoints cannot drift from it.
+    */
+  private def requireReadAccess(
+      ctx: DSLContext,
+      did: Integer,
+      requesterUid: Option[Integer]
+  ): Dataset = {
+    val dataset = getDatasetByID(ctx, did)
+    if (requesterUid.isEmpty && !dataset.getIsPublic) {
+      throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
+    } else if (requesterUid.exists(uid => !userHasReadAccess(ctx, did, uid))) {
+      throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
+    }
+    dataset
+  }
 
   /**
     * Helper function to get the dataset from DB with additional information including user access privilege and owner email
@@ -307,13 +299,7 @@ class DatasetResource extends LazyLogging {
       did: Integer,
       requesterUid: Option[Integer]
   ): DashboardDataset = {
-    val targetDataset = getDatasetByID(ctx, did)
-
-    if (requesterUid.isEmpty && !targetDataset.getIsPublic) {
-      throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
-    } else if (requesterUid.exists(uid => !userHasReadAccess(ctx, did, uid))) {
-      throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
-    }
+    val targetDataset = requireReadAccess(ctx, did, requesterUid)
 
     val userAccessPrivilege = requesterUid
       .map(uid => getDatasetUserAccessPrivilege(ctx, did, uid))
@@ -820,28 +806,7 @@ class DatasetResource extends LazyLogging {
       @PathParam("did") did: Integer,
       @Auth user: SessionUser
   ): List[Diff] = {
-    val uid = user.getUid
-    withTransaction(context) { ctx =>
-      if (!userHasReadAccess(ctx, did, uid)) {
-        throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
-      }
-
-      // Retrieve staged (uncommitted) changes from LakeFS
-      val dataset = getDatasetByID(ctx, did)
-      val lakefsDiffs = withLakeFSErrorHandling {
-        LakeFSStorageClient.retrieveUncommittedObjects(dataset.getRepositoryName)
-      }
-
-      // Convert LakeFS Diff objects to our custom Diff case class
-      lakefsDiffs.map(d =>
-        new Diff(
-          d.getPath,
-          d.getPathType.getValue,
-          d.getType.getValue,
-          Option(d.getSizeBytes).map(_.longValue())
-        )
-      )
-    }
+    ResourceUploadService.stagedChanges(ResourceStorage.Dataset, did, user.getUid)
   }
 
   @POST
@@ -853,54 +818,13 @@ class DatasetResource extends LazyLogging {
       request: ExistingUploadFilesRequest,
       @Auth user: SessionUser
   ): Response = {
-    val uid = user.getUid
-    withTransaction(context) { ctx =>
-      if (!userHasWriteAccess(ctx, did, uid)) {
-        throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
-      }
-
-      val requested = Option(request)
-        .flatMap(request => Option(request.files))
-        .getOrElse(List.empty)
-        .map { file =>
-          val originalPath = file.path
-          val path = ResourceNaming.validateAndNormalizeFilePathOrThrow(originalPath)
-          if (file.sizeBytes < 0L) throw new BadRequestException("sizeBytes must be >= 0")
-          (path, originalPath, file.sizeBytes)
-        }
-
-      val dataset = getDatasetByID(ctx, did)
-      val committed = getLatestDatasetVersion(ctx, did)
-        .map { v =>
-          withLakeFSErrorHandling(
-            s"retrieving committed files of dataset '${dataset.getName}'"
-          ) {
-            LakeFSStorageClient
-              .retrieveObjectsOfVersion(dataset.getRepositoryName, v.getVersionHash)
-              .map(obj => obj.getPath -> obj.getSizeBytes.longValue())
-          }
-        }
-        .getOrElse(List.empty)
-
-      val staged = withLakeFSErrorHandling(
-        s"retrieving staged files of dataset '${dataset.getName}'"
-      ) {
-        LakeFSStorageClient.retrieveUncommittedObjects(dataset.getRepositoryName)
-      }
-        .filterNot(diff => Option(diff.getType).exists(_.getValue.equalsIgnoreCase("removed")))
-        .flatMap(diff => Option(diff.getSizeBytes).map(size => diff.getPath -> size.longValue()))
-
-      val existing = (committed ++ staged).toMap
-      val matches = requested
-        .collect {
-          case (path, originalPath, size) if existing.get(path).contains(size) => originalPath
-        }
-        .toList
-        .distinct
-        .sorted
-
-      Response.ok(Map("filePaths" -> matches.asJava)).build()
-    }
+    ResourceUploadService.matchExistingUploads(
+      ResourceStorage.Dataset,
+      did,
+      user.getUid,
+      request,
+      ctx => getLatestDatasetVersion(ctx, did).map(_.getVersionHash)
+    )
   }
 
   @PUT
@@ -912,20 +836,12 @@ class DatasetResource extends LazyLogging {
       @QueryParam("filePath") encodedFilePath: String,
       @Auth user: SessionUser
   ): Response = {
-    val uid = user.getUid
-    withTransaction(context) { ctx =>
-      if (!userHasWriteAccess(ctx, did, uid)) {
-        throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
-      }
-      val repositoryName = getDatasetByID(ctx, did).getRepositoryName
-
-      // Decode the file path
-      val filePath = URLDecoder.decode(encodedFilePath, StandardCharsets.UTF_8.name())
-      withLakeFSErrorHandling(s"resetting uncommitted changes of file '$filePath'") {
-        LakeFSStorageClient.resetObjectUploadOrDeletion(repositoryName, filePath)
-      }
-      Response.ok().build()
-    }
+    ResourceUploadService.resetStagedChange(
+      ResourceStorage.Dataset,
+      did,
+      encodedFilePath,
+      user.getUid
+    )
   }
 
   /**
@@ -1085,50 +1001,12 @@ class DatasetResource extends LazyLogging {
         throw new BadRequestException("Invalid parameters")
       }
 
-      // Retrieve dataset and version details
-      val datasetName = dataset.getName
-      val repositoryName = dataset.getRepositoryName
-      val versionHash = datasetVersion.getVersionHash
-      val objects = withLakeFSErrorHandling(
-        s"listing files of version '$versionHash' of dataset '$datasetName'"
-      ) {
-        LakeFSStorageClient.retrieveObjectsOfVersion(repositoryName, versionHash)
-      }
-
-      if (objects.isEmpty) {
-        return Response
-          .status(Response.Status.NOT_FOUND)
-          .entity(s"No objects found in version $versionHash of repository $repositoryName")
-          .build()
-      }
-
-      // StreamingOutput for ZIP download
-      val streamingOutput = new StreamingOutput {
-        override def write(outputStream: OutputStream): Unit = {
-          val zipOut = new ZipOutputStream(outputStream)
-          try {
-            objects.foreach { obj =>
-              val filePath = obj.getPath
-              val file = withLakeFSErrorHandling(s"downloading file '$filePath' for the zip") {
-                LakeFSStorageClient.getFileFromRepo(repositoryName, versionHash, filePath)
-              }
-
-              zipOut.putNextEntry(new ZipEntry(filePath))
-              Files.copy(Paths.get(file.toURI), zipOut)
-              zipOut.closeEntry()
-            }
-          } finally {
-            zipOut.close()
-          }
-        }
-      }
-
-      val zipFilename = s"""attachment; filename="$datasetName-${datasetVersion.getName}.zip""""
-
-      Response
-        .ok(streamingOutput, "application/zip")
-        .header("Content-Disposition", zipFilename)
-        .build()
+      ResourceUploadService.versionZipResponse(
+        dataset.getRepositoryName,
+        datasetVersion.getVersionHash,
+        dataset.getName,
+        datasetVersion.getName
+      )
     }
   }
 
@@ -1182,17 +1060,10 @@ class DatasetResource extends LazyLogging {
   @GET
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/user-dataset-owners")
-  def retrieveOwners(@Auth user: SessionUser): util.List[String] = {
-    context
-      .selectDistinct(USER.EMAIL)
-      .from(USER)
-      .join(DATASET)
-      .on(DATASET.OWNER_UID.eq(USER.UID))
-      .join(DATASET_USER_ACCESS)
-      .on(DATASET_USER_ACCESS.DID.eq(DATASET.DID))
-      .where(DATASET_USER_ACCESS.UID.eq(user.getUid))
-      .fetchInto(classOf[String])
-  }
+  def retrieveOwners(@Auth user: SessionUser): util.List[String] =
+    withTransaction(context)(ctx =>
+      ResourceAccess.ownerEmailsVisibleTo(ctx, DATASET_RESOURCE, user.getUid)
+    )
 
   /** @see [[ResourceNaming.validateName]] */
   private def validateDatasetName(name: String): Unit =
@@ -1236,89 +1107,14 @@ class DatasetResource extends LazyLogging {
       repositoryName: String,
       commitHash: String,
       uid: Integer
-  ): Response = {
-    resolveDatasetAndPath(encodedUrl, repositoryName, commitHash, uid) match {
-      case Left(errorResponse) =>
-        errorResponse
-
-      case Right((resolvedRepositoryName, resolvedCommitHash, resolvedFilePath)) =>
-        val url = withLakeFSErrorHandling(
-          s"generating a presigned URL for file '$resolvedFilePath'"
-        ) {
-          LakeFSStorageClient.getFilePresignedUrl(
-            resolvedRepositoryName,
-            resolvedCommitHash,
-            resolvedFilePath
-          )
-        }
-
-        Response.ok(Map("presignedUrl" -> url)).build()
-    }
-  }
-
-  private def resolveDatasetAndPath(
-      encodedUrl: String,
-      repositoryName: String,
-      commitHash: String,
-      uid: Integer
-  ): Either[Response, (String, String, String)] = {
-    val decodedPathStr = URLDecoder.decode(encodedUrl, StandardCharsets.UTF_8.name())
-
-    (Option(repositoryName), Option(commitHash)) match {
-      case (Some(_), None) | (None, Some(_)) =>
-        // Case 1: Only one parameter is provided (error case)
-        Left(
-          Response
-            .status(Response.Status.BAD_REQUEST)
-            .entity(
-              "Both repositoryName and commitHash must be provided together, or neither should be provided."
-            )
-            .build()
-        )
-
-      case (Some(repositoryName), Some(commit)) =>
-        // Case 2: repositoryName and commitHash are provided, validate access
-        val response = withTransaction(context) { ctx =>
-          val datasetDao = new DatasetDao(ctx.configuration())
-          val datasets = datasetDao.fetchByRepositoryName(repositoryName).asScala.toList
-
-          if (datasets.isEmpty || !userHasReadAccess(ctx, datasets.head.getDid, uid))
-            throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
-
-          val dataset = datasets.head
-          // Standard read access check only - download restrictions handled per endpoint
-          // Non-download operations (viewing) should work for all public datasets
-
-          (repositoryName, commit, decodedPathStr)
-        }
-        Right(response)
-
-      case (None, None) =>
-        // Case 3: Neither repositoryName nor commitHash are provided, resolve normally
-        val response = withTransaction(context) { ctx =>
-          val fileUri = FileResolver.resolve(decodedPathStr)
-          val document =
-            DocumentFactory.openReadonlyDocument(fileUri).asInstanceOf[OnVersionedFileResource]
-          val datasetDao = new DatasetDao(ctx.configuration())
-          val datasets =
-            datasetDao.fetchByRepositoryName(document.getRepositoryName()).asScala.toList
-
-          if (datasets.isEmpty || !userHasReadAccess(ctx, datasets.head.getDid, uid))
-            throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
-
-          val dataset = datasets.head
-          // Standard read access check only - download restrictions handled per endpoint
-          // Non-download operations (viewing) should work for all public datasets
-
-          (
-            document.getRepositoryName(),
-            document.getVersionHash(),
-            document.getFileRelativePath()
-          )
-        }
-        Right(response)
-    }
-  }
+  ): Response =
+    ResourceUploadService.presignedUrlResponse(
+      ResourceStorage.Dataset,
+      encodedUrl,
+      repositoryName,
+      commitHash,
+      uid
+    )
 
   // === Multipart helpers ===
 
@@ -1390,39 +1186,16 @@ class DatasetResource extends LazyLogging {
         throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
       }
 
-      if (request.coverImage == null || request.coverImage.trim.isEmpty) {
-        throw new BadRequestException("Cover image path is required")
-      }
+      val normalized =
+        CoverImageUtils.validatePathOrThrow(request.coverImage, COVER_IMAGE_MAX_PATH_LENGTH)
 
-      val normalized = ResourceNaming.validateAndNormalizeFilePathOrThrow(request.coverImage)
-
-      val extension = FilenameUtils.getExtension(normalized)
-      if (extension == null || !ALLOWED_IMAGE_EXTENSIONS.contains(s".$extension".toLowerCase)) {
-        throw new BadRequestException("Invalid file type")
-      }
-
-      val owner = getOwner(ctx, did)
-      val document = DocumentFactory
-        .openReadonlyDocument(
-          FileResolver.resolve(
-            logicalPath(resourceType, owner.getEmail, dataset.getName, normalized)
-          )
-        )
-        .asInstanceOf[OnVersionedFileResource]
-
-      val fileSize = withLakeFSErrorHandling(s"reading the size of cover image '$normalized'") {
-        LakeFSStorageClient.getFileSize(
-          document.getRepositoryName(),
-          document.getVersionHash(),
-          document.getFileRelativePath()
-        )
-      }
-
-      if (fileSize > COVER_IMAGE_SIZE_LIMIT_BYTES) {
-        throw new BadRequestException(
-          s"Cover image must be less than ${COVER_IMAGE_SIZE_LIMIT_BYTES / (1024 * 1024)} MB"
-        )
-      }
+      val document = CoverImageUtils.openCoverOrBadRequest(
+        resourceType,
+        getOwner(ctx, did).getEmail,
+        dataset.getName,
+        normalized
+      )
+      CoverImageUtils.requireWithinSizeLimit(CoverImageUtils.fileSizeOf(document, normalized))
 
       dataset.setCoverImage(normalized)
       new DatasetDao(ctx.configuration()).update(dataset)
@@ -1445,39 +1218,19 @@ class DatasetResource extends LazyLogging {
       @Auth sessionUser: Optional[SessionUser]
   ): Response = {
     withTransaction(context) { ctx =>
-      val dataset = getDatasetByID(ctx, did)
-
-      val requesterUid = if (sessionUser.isPresent) Some(sessionUser.get().getUid) else None
-
-      if (requesterUid.isEmpty && !dataset.getIsPublic) {
-        throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
-      } else if (requesterUid.exists(uid => !userHasReadAccess(ctx, did, uid))) {
-        throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
-      }
+      val dataset = requireReadAccess(ctx, did, sessionUser.toScala.map(_.getUid))
 
       val coverImage = Option(dataset.getCoverImage).getOrElse(
         throw new NotFoundException("No cover image")
       )
 
-      val owner = getOwner(ctx, did)
-      val fullPath =
-        logicalPath(resourceType, owner.getEmail, dataset.getName, coverImage)
+      val document = CoverImageUtils
+        .openCover(resourceType, getOwner(ctx, did).getEmail, dataset.getName, coverImage)
+        .getOrElse(throw new NotFoundException("No cover image"))
 
-      val document = DocumentFactory
-        .openReadonlyDocument(FileResolver.resolve(fullPath))
-        .asInstanceOf[OnVersionedFileResource]
-
-      val presignedUrl = withLakeFSErrorHandling(
-        s"generating a presigned URL for cover image '$coverImage'"
-      ) {
-        LakeFSStorageClient.getFilePresignedUrl(
-          document.getRepositoryName(),
-          document.getVersionHash(),
-          document.getFileRelativePath()
-        )
-      }
-
-      Response.temporaryRedirect(new URI(presignedUrl)).build()
+      Response
+        .temporaryRedirect(new URI(CoverImageUtils.presignedUrl(document, coverImage)))
+        .build()
     }
   }
 
@@ -1495,39 +1248,16 @@ class DatasetResource extends LazyLogging {
       @Auth sessionUser: Optional[SessionUser]
   ): Response = {
     withTransaction(context) { ctx =>
-      val dataset = getDatasetByID(ctx, did)
-
-      val requesterUid = if (sessionUser.isPresent) Some(sessionUser.get().getUid) else None
-
-      if (requesterUid.isEmpty && !dataset.getIsPublic) {
-        throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
-      } else if (requesterUid.exists(uid => !userHasReadAccess(ctx, did, uid))) {
-        throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
-      }
+      val dataset = requireReadAccess(ctx, did, sessionUser.toScala.map(_.getUid))
 
       Option(dataset.getCoverImage) match {
         case None =>
           Response.ok(Map("url" -> null)).build()
         case Some(coverImage) =>
-          val owner = getOwner(ctx, did)
-          val fullPath =
-            logicalPath(resourceType, owner.getEmail, dataset.getName, coverImage)
-
-          val document = DocumentFactory
-            .openReadonlyDocument(FileResolver.resolve(fullPath))
-            .asInstanceOf[OnVersionedFileResource]
-
-          val presignedUrl = withLakeFSErrorHandling(
-            s"generating a presigned URL for cover image '$coverImage'"
-          ) {
-            LakeFSStorageClient.getFilePresignedUrl(
-              document.getRepositoryName(),
-              document.getVersionHash(),
-              document.getFileRelativePath()
-            )
-          }
-
-          Response.ok(Map("url" -> presignedUrl)).build()
+          val url = CoverImageUtils
+            .openCover(resourceType, getOwner(ctx, did).getEmail, dataset.getName, coverImage)
+            .map(CoverImageUtils.presignedUrl(_, coverImage))
+          Response.ok(Map("url" -> url.orNull)).build()
       }
     }
   }

@@ -40,8 +40,13 @@ class SklearnTrainingOpDesc extends SklearnModelOpDesc {
        |class ProcessTableOperator(UDFTableOperator):
        |    @overrides
        |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
+       |        rows_read = len(table)
+       |        table = $dropMissingRows #remove missing values
+       |        if len(table) < rows_read:
+       |            print("Skipped", rows_read - len(table), "of", rows_read, "rows with missing values")
        |        Y = table[$target]
        |        X = table.drop($target, axis=1)
+$reportMissingKept
        |        model = make_pipeline(${vectorizerStage(c => pyb"$c".toString)} ${if (
       tfidfTransformer
     ) "TfidfTransformer(),"

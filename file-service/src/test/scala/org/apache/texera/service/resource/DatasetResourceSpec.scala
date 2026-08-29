@@ -43,6 +43,8 @@ import org.apache.texera.dao.jooq.generated.tables.pojos.{
   User
 }
 import org.apache.texera.service.MockLakeFS
+import org.apache.texera.service.`type`.{ExistingUploadFile, ExistingUploadFilesRequest}
+import org.apache.texera.service.util.CoverImageUtils
 import org.apache.texera.service.util.S3StorageClient
 import org.jooq.SQLDialect
 import org.jooq.impl.DSL
@@ -791,12 +793,12 @@ class DatasetResourceSpec
 
     val resp = datasetResource.findExistingUploadFiles(
       dataset.getDid,
-      DatasetResource.ExistingUploadFilesRequest(
+      ExistingUploadFilesRequest(
         List(
-          DatasetResource.ExistingUploadFile("committed.csv", committed.length),
-          DatasetResource.ExistingUploadFile("staged.csv", staged.length),
-          DatasetResource.ExistingUploadFile("wrong-size.csv", staged.length + 1),
-          DatasetResource.ExistingUploadFile("missing.csv", 1L)
+          ExistingUploadFile("committed.csv", committed.length),
+          ExistingUploadFile("staged.csv", staged.length),
+          ExistingUploadFile("wrong-size.csv", staged.length + 1),
+          ExistingUploadFile("missing.csv", 1L)
         )
       ),
       sessionUser
@@ -838,8 +840,8 @@ class DatasetResourceSpec
     val requestPath = "folder/../committed.csv"
     val resp = datasetResource.findExistingUploadFiles(
       dataset.getDid,
-      DatasetResource.ExistingUploadFilesRequest(
-        List(DatasetResource.ExistingUploadFile(requestPath, committed.length))
+      ExistingUploadFilesRequest(
+        List(ExistingUploadFile(requestPath, committed.length))
       ),
       sessionUser
     )
@@ -862,7 +864,7 @@ class DatasetResourceSpec
 
     val resp = datasetResource.findExistingUploadFiles(
       dataset.getDid,
-      DatasetResource.ExistingUploadFilesRequest(null),
+      ExistingUploadFilesRequest(null),
       sessionUser
     )
 
@@ -874,8 +876,8 @@ class DatasetResourceSpec
     val ex = intercept[BadRequestException] {
       datasetResource.findExistingUploadFiles(
         baseDataset.getDid,
-        DatasetResource.ExistingUploadFilesRequest(
-          List(DatasetResource.ExistingUploadFile("bad-size.csv", -1L))
+        ExistingUploadFilesRequest(
+          List(ExistingUploadFile("bad-size.csv", -1L))
         ),
         sessionUser
       )
@@ -888,8 +890,8 @@ class DatasetResourceSpec
     val ex = intercept[ForbiddenException] {
       datasetResource.findExistingUploadFiles(
         multipartDataset.getDid,
-        DatasetResource.ExistingUploadFilesRequest(
-          List(DatasetResource.ExistingUploadFile("private.csv", 1L))
+        ExistingUploadFilesRequest(
+          List(ExistingUploadFile("private.csv", 1L))
         ),
         multipartNoWriteSessionUser
       )
@@ -919,8 +921,8 @@ class DatasetResourceSpec
     val ex = intercept[NotFoundException] {
       datasetResource.findExistingUploadFiles(
         dataset.getDid,
-        DatasetResource.ExistingUploadFilesRequest(
-          List(DatasetResource.ExistingUploadFile("missing.csv", 1L))
+        ExistingUploadFilesRequest(
+          List(ExistingUploadFile("missing.csv", 1L))
         ),
         sessionUser
       )
@@ -1652,7 +1654,7 @@ class DatasetResourceSpec
     s"$prefix/${System.nanoTime()}-${Random.alphanumeric.take(8).mkString}.bin"
 
   // ---------- site_settings helpers (max upload size) ----------
-  private val MaxUploadKey = "single_file_upload_max_size_mib"
+  private val MaxUploadKey = "dataset_single_file_upload_max_size_mib"
 
   private def upsertSiteSetting(key: String, value: String): Unit = {
     val table = DSL.table(DSL.name("texera_db", "site_settings"))
@@ -3404,7 +3406,7 @@ class DatasetResourceSpec
     )
 
     maliciousPaths.foreach { path =>
-      val request = DatasetResource.CoverImageRequest(path)
+      val request = CoverImageUtils.CoverImageRequest(path)
 
       assertThrows[BadRequestException] {
         datasetResource.updateDatasetCoverImage(
@@ -3423,7 +3425,7 @@ class DatasetResourceSpec
     )
 
     absolutePaths.foreach { path =>
-      val request = DatasetResource.CoverImageRequest(path)
+      val request = CoverImageUtils.CoverImageRequest(path)
 
       assertThrows[BadRequestException] {
         datasetResource.updateDatasetCoverImage(
@@ -3443,7 +3445,7 @@ class DatasetResourceSpec
     )
 
     invalidPaths.foreach { path =>
-      val request = DatasetResource.CoverImageRequest(path)
+      val request = CoverImageUtils.CoverImageRequest(path)
 
       assertThrows[BadRequestException] {
         datasetResource.updateDatasetCoverImage(
@@ -3459,7 +3461,7 @@ class DatasetResourceSpec
     assertThrows[BadRequestException] {
       datasetResource.updateDatasetCoverImage(
         baseDataset.getDid,
-        DatasetResource.CoverImageRequest(""),
+        CoverImageUtils.CoverImageRequest(""),
         sessionUser
       )
     }
@@ -3467,14 +3469,14 @@ class DatasetResourceSpec
     assertThrows[BadRequestException] {
       datasetResource.updateDatasetCoverImage(
         baseDataset.getDid,
-        DatasetResource.CoverImageRequest(null),
+        CoverImageUtils.CoverImageRequest(null),
         sessionUser
       )
     }
   }
 
   it should "reject when user lacks WRITE access" in {
-    val request = DatasetResource.CoverImageRequest("v1/cover.jpg")
+    val request = CoverImageUtils.CoverImageRequest("v1/cover.jpg")
 
     assertThrows[ForbiddenException] {
       datasetResource.updateDatasetCoverImage(
@@ -3488,7 +3490,7 @@ class DatasetResourceSpec
   it should "set cover image successfully" in {
     testDatasetVersion
 
-    val request = DatasetResource.CoverImageRequest(testCoverImagePath)
+    val request = CoverImageUtils.CoverImageRequest(testCoverImagePath)
     val response = datasetResource.updateDatasetCoverImage(
       baseDataset.getDid,
       request,
