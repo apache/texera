@@ -2799,8 +2799,19 @@ describe("OperatorPropertyEditFrameComponent", () => {
       }
     });
 
-    it("marks the Aggregate attribute required only for functions that need one", () => {
-      component.currentOperatorSchema = { operatorType: "Aggregate" } as any;
+    it("marks a field the schema requires conditionally, as Aggregate does its attribute", () => {
+      component.currentOperatorSchema = {
+        operatorType: "Aggregate",
+        jsonSchema: {
+          allOf: [
+            {
+              if: { properties: { aggFunction: { const: "count" } } },
+              then: {},
+              else: { required: ["attribute"] },
+            },
+          ],
+        },
+      } as any;
 
       component.setFormlyFormBinding({
         type: "object",
@@ -2809,11 +2820,11 @@ describe("OperatorPropertyEditFrameComponent", () => {
 
       const required = expressionsOf("attribute")["props.required"];
       expect(required({ parent: { model: { aggFunction: "sum" } } } as any)).toBe(true);
-      expect(required({ parent: { model: { aggFunction: AGGREGATE_COUNT } } } as any)).toBe(false);
+      expect(required({ parent: { model: { aggFunction: "count" } } } as any)).toBe(false);
     });
 
-    it("leaves the attribute rule off for a non-Aggregate operator", () => {
-      component.currentOperatorSchema = { operatorType: "Projection" } as any;
+    it("leaves the rule off for a schema that states no condition", () => {
+      component.currentOperatorSchema = { operatorType: "Projection", jsonSchema: {} } as any;
 
       component.setFormlyFormBinding({
         type: "object",
