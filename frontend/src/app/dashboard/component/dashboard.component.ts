@@ -37,7 +37,6 @@ import {
   USER_COMPUTING_UNIT,
   USER_DATASET,
   USER_DISCUSSION,
-  USER_PROJECT,
   USER_QUOTA,
   USER_WORKFLOW,
 } from "../../app-routing.constant";
@@ -96,7 +95,6 @@ export class DashboardComponent implements OnInit {
     workflow_enabled: false,
     dataset_enabled: false,
     your_work_enabled: false,
-    projects_enabled: false,
     workflows_enabled: false,
     datasets_enabled: false,
     compute_enabled: false,
@@ -105,7 +103,6 @@ export class DashboardComponent implements OnInit {
     about_enabled: false,
   };
 
-  protected readonly USER_PROJECT = USER_PROJECT;
   protected readonly USER_WORKFLOW = USER_WORKFLOW;
   protected readonly USER_DATASET = USER_DATASET;
   protected readonly USER_COMPUTING_UNIT = USER_COMPUTING_UNIT;

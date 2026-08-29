@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { AfterViewInit, Component, Input, ViewChild } from "@angular/core";
+import { AfterViewInit, Component, ViewChild } from "@angular/core";
 import { Router } from "@angular/router";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { firstValueFrom, from, lastValueFrom, Observable, of } from "rxjs";
@@ -25,8 +25,6 @@ import {
   DEFAULT_WORKFLOW_NAME,
   WorkflowPersistService,
 } from "../../../../common/service/workflow-persist/workflow-persist.service";
-import { NgbdModalAddProjectWorkflowComponent } from "../user-project/user-project-section/ngbd-modal-add-project-workflow/ngbd-modal-add-project-workflow.component";
-import { NgbdModalRemoveProjectWorkflowComponent } from "../user-project/user-project-section/ngbd-modal-remove-project-workflow/ngbd-modal-remove-project-workflow.component";
 import { DashboardEntry, UserInfo } from "../../../type/dashboard-entry";
 import { UserService } from "../../../../common/service/user/user.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
@@ -38,9 +36,7 @@ import { FiltersComponent } from "../filters/filters.component";
 import { SearchResultsComponent } from "../search-results/search-results.component";
 import { SearchService } from "../../../service/user/search.service";
 import { SortMethod } from "../../../type/sort-method";
-import { isDefined } from "../../../../common/util/predicate";
-import { UserProjectService } from "../../../service/user/project/user-project.service";
-import { map, mergeMap, switchMap, tap } from "rxjs/operators";
+import { map, switchMap, tap } from "rxjs/operators";
 import { DashboardWorkflow } from "../../../type/dashboard-workflow.interface";
 import { DownloadService } from "../../../service/user/download/download.service";
 import { USER_WORKSPACE } from "../../../../app-routing.constant";
@@ -61,7 +57,7 @@ import { FormsModule } from "@angular/forms";
 
 /**
  * Saved-workflow-section component contains information and functionality
- * of the saved workflows section and is re-used in the user projects section when a project is clicked
+ * of the saved workflows section: the list of workflows the user owns or has access to
  *
  * This component:
  *  - displays the workflows the user has access to
@@ -137,16 +133,12 @@ export class UserWorkflowComponent implements AfterViewInit {
   }
   private masterFilterList: ReadonlyArray<string> | null = null;
 
-  // receive input from parent components (UserProjectSection), if any
-  @Input() public pid?: number = undefined;
-  @Input() public accessLevel?: string = undefined;
   public sortMethod = SortMethod.EditTimeDesc;
   lastSortMethod: SortMethod | null = null;
 
   constructor(
     private userService: UserService,
     private workflowPersistService: WorkflowPersistService,
-    private userProjectService: UserProjectService,
     private notificationService: NotificationService,
     private modalService: NzModalService,
     private router: Router,
@@ -187,34 +179,6 @@ export class UserWorkflowComponent implements AfterViewInit {
   }
 
   /**
-   * open the Modal to add workflow(s) to project
-   */
-  public onClickOpenAddWorkflow() {
-    const modalRef = this.modalService.create({
-      nzContent: NgbdModalAddProjectWorkflowComponent,
-      nzData: { projectId: this.pid },
-      nzFooter: null,
-      nzTitle: "Add Workflows To Project",
-      nzCentered: true,
-    });
-    modalRef.afterClose.pipe(untilDestroyed(this)).subscribe(() => this.search(true));
-  }
-
-  /**
-   * open the Modal to remove workflow(s) from project
-   */
-  public onClickOpenRemoveWorkflow() {
-    const modalRef = this.modalService.create({
-      nzContent: NgbdModalRemoveProjectWorkflowComponent,
-      nzData: { projectId: this.pid },
-      nzFooter: null,
-      nzTitle: "Remove Workflows From Project",
-      nzCentered: true,
-    });
-    modalRef.afterClose.pipe(untilDestroyed(this)).subscribe(() => this.search(true));
-  }
-
-  /**
    * Searches workflows with keywords and filters given in the masterFilterList.
    * @returns
    */
@@ -230,10 +194,6 @@ export class UserWorkflowComponent implements AfterViewInit {
     this.lastSortMethod = this.sortMethod;
     this.masterFilterList = this.filters.masterFilterList;
     let filterParams = this.filters.getSearchFilterParameters();
-    if (isDefined(this.pid)) {
-      // force the project id in the search query to be the current pid.
-      filterParams.projectIds = [this.pid];
-    }
     this.searchResultsComponent.reset((start, count) => {
       return firstValueFrom(
         this.searchService
@@ -267,7 +227,6 @@ export class UserWorkflowComponent implements AfterViewInit {
         executionMode: this.config.env.defaultExecutionMode,
       },
     };
-    let localPid = this.pid;
     this.workflowPersistService
       .createWorkflow(emptyWorkflowContent, DEFAULT_WORKFLOW_NAME)
       .pipe(
@@ -276,18 +235,7 @@ export class UserWorkflowComponent implements AfterViewInit {
             throw new Error("Workflow creation failed.");
           }
         }),
-        mergeMap(createdWorkflow => {
-          // Check if localPid is defined; if so, add the workflow to the project
-          if (localPid) {
-            return this.userProjectService.addWorkflowToProject(localPid, createdWorkflow.workflow.wid!).pipe(
-              // Regardless of the project addition outcome, pass the wid downstream
-              map(() => createdWorkflow.workflow.wid)
-            );
-          } else {
-            // If there's no localPid, skip adding to the project and directly pass the wid downstream
-            return of(createdWorkflow.workflow.wid);
-          }
-        }),
+        map(createdWorkflow => createdWorkflow.workflow.wid),
         untilDestroyed(this)
       )
       .subscribe({
@@ -302,24 +250,13 @@ export class UserWorkflowComponent implements AfterViewInit {
   /**
    * duplicate the current workflow. A new record will appear in frontend
    * workflow list and backend database.
-   *
-   * for workflow components inside a project-section, it will also add
-   * the workflow to the project
    */
   public async onClickDuplicateWorkflow(entry: DashboardEntry): Promise<void> {
     if (entry.workflow.workflow.wid) {
       try {
-        let duplicatedWorkflowsInfo: DashboardWorkflow[] = [];
-        if (!isDefined(this.pid)) {
-          duplicatedWorkflowsInfo = await firstValueFrom(
-            this.workflowPersistService.duplicateWorkflow([entry.workflow.workflow.wid])
-          );
-        } else {
-          const localPid = this.pid;
-          duplicatedWorkflowsInfo = await firstValueFrom(
-            this.workflowPersistService.duplicateWorkflow([entry.workflow.workflow.wid], localPid)
-          );
-        }
+        const duplicatedWorkflowsInfo: DashboardWorkflow[] = await firstValueFrom(
+          this.workflowPersistService.duplicateWorkflow([entry.workflow.workflow.wid])
+        );
 
         const userIds = new Set<number>();
         duplicatedWorkflowsInfo.forEach(workflow => {
@@ -501,38 +438,20 @@ export class UserWorkflowComponent implements AfterViewInit {
     }
 
     if (targetWids.length > 0) {
-      if (!isDefined(this.pid)) {
-        this.workflowPersistService
-          .duplicateWorkflow(targetWids)
-          .pipe(untilDestroyed(this))
-          .subscribe({
-            next: duplicatedWorkflowsInfo => {
-              this.searchResultsComponent.entries = [
-                ...duplicatedWorkflowsInfo.map(duplicatedWorkflowInfo => new DashboardEntry(duplicatedWorkflowInfo)),
-                ...this.searchResultsComponent.entries,
-              ];
+      this.workflowPersistService
+        .duplicateWorkflow(targetWids)
+        .pipe(untilDestroyed(this))
+        .subscribe({
+          next: duplicatedWorkflowsInfo => {
+            this.searchResultsComponent.entries = [
+              ...duplicatedWorkflowsInfo.map(duplicatedWorkflowInfo => new DashboardEntry(duplicatedWorkflowInfo)),
+              ...this.searchResultsComponent.entries,
+            ];
 
-              // this.searchResultsComponent.clearAllSelections();
-            }, // TODO: fix this with notification component
-            error: (err: unknown) => alert(err),
-          });
-      } else {
-        const localPid = this.pid;
-        this.workflowPersistService
-          .duplicateWorkflow(targetWids, localPid)
-          .pipe(untilDestroyed(this))
-          .subscribe({
-            next: duplicatedWorkflowsInfo => {
-              this.searchResultsComponent.entries = [
-                ...duplicatedWorkflowsInfo.map(duplicatedWorkflowInfo => new DashboardEntry(duplicatedWorkflowInfo)),
-                ...this.searchResultsComponent.entries,
-              ];
-
-              // this.searchResultsComponent.clearAllSelections();
-            }, // TODO: fix this with notification component
-            error: (err: unknown) => alert(err),
-          });
-      }
+            // this.searchResultsComponent.clearAllSelections();
+          }, // TODO: fix this with notification component
+          error: (err: unknown) => alert(err),
+        });
     }
   }
 

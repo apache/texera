@@ -60,19 +60,6 @@
         nzOpen="true">
         <ul>
           <li
-            *ngIf="sidebarTabs.projects_enabled"
-            nz-menu-item
-            nz-tooltip="Look up the user projects"
-            nzMatchRouter="true"
-            nzTooltipPlacement="right"
-            [routerLink]="USER_PROJECT">
-            <span
-              nz-icon
-              nzType="container"></span>
-            <span>Projects</span>
-          </li>
-
-          <li
             *ngIf="sidebarTabs.workflows_enabled"
             nz-menu-item
             nz-tooltip="Open the saved workflows"

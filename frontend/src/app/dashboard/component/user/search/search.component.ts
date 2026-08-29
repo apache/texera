@@ -61,8 +61,8 @@ export class SearchComponent implements AfterViewInit {
   currentUid = this.userService.getCurrentUser()?.uid;
   searchKeywords: string[] = [];
 
-  selectedType: "project" | "workflow" | "dataset" | null = null;
-  lastSelectedType: "project" | "workflow" | "dataset" | null = null;
+  selectedType: "workflow" | "dataset" | null = null;
+  lastSelectedType: "workflow" | "dataset" | null = null;
 
   public masterFilterList: ReadonlyArray<string> = [];
   @ViewChild(SearchResultsComponent) searchResultsComponent?: SearchResultsComponent;
@@ -146,7 +146,7 @@ export class SearchComponent implements AfterViewInit {
     await this.searchResultsComponent.loadMore();
   }
 
-  filterByType(type: "project" | "workflow" | "dataset" | null): void {
+  filterByType(type: "workflow" | "dataset" | null): void {
     this.selectedType = type;
     this.search();
   }

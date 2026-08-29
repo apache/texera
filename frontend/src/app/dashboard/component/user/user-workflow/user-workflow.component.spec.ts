@@ -50,8 +50,6 @@ import {
 } from "../../user-dashboard-test-fixtures";
 import { FiltersComponent } from "../filters/filters.component";
 import { UserWorkflowListItemComponent } from "./user-workflow-list-item/user-workflow-list-item.component";
-import { UserProjectService } from "../../../service/user/project/user-project.service";
-import { StubUserProjectService } from "../../../service/user/project/stub-user-project.service";
 import { SearchService } from "../../../service/user/search.service";
 import { StubSearchService } from "../../../service/user/stub-search.service";
 import { SearchResultsComponent } from "../search-results/search-results.component";
@@ -76,7 +74,6 @@ describe("SavedWorkflowSectionComponent", () => {
       providers: [
         NzModalService,
         { provide: WorkflowPersistService, useValue: new StubWorkflowPersistService(testWorkflowEntries) },
-        { provide: UserProjectService, useValue: new StubUserProjectService() },
         ShareAccessService,
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
         { provide: NZ_I18N, useValue: en_US },
@@ -187,23 +184,6 @@ describe("SavedWorkflowSectionComponent", () => {
     expect(component.filters.masterFilterList).toEqual(["id: 1", "id: 2", "id: 3"]);
   });
 
-  it("searchByProjects", async () => {
-    component.filters.userProjectsDropdown = [
-      { pid: 1, name: "Project1", checked: false },
-      { pid: 2, name: "Project2", checked: false },
-      { pid: 3, name: "Project3", checked: false },
-    ];
-
-    // If the project filter is applied, only those workflows belonging to those projects should be returned.
-    component.filters.userProjectsDropdown[0].checked = true;
-    component.filters.updateSelectedProjects();
-    await waitForLoading();
-    expect(component.searchResultsComponent.loading).toBe(false);
-    const SortedCase = component.searchResultsComponent.entries.map(workflow => workflow.name);
-    expect(SortedCase).toEqual(["workflow 1", "workflow 2", "workflow 3"]);
-    expect(component.filters.masterFilterList).toEqual(["project: Project1"]);
-  });
-
   it("searchByCreationTime", async () => {
     // If the creation time filter is applied, only those workflows matching the date range should be returned.
     component.filters.selectedCtime = [new Date(1970, 0, 3), new Date(1981, 2, 13)];
@@ -266,29 +246,22 @@ describe("SavedWorkflowSectionComponent", () => {
   });
 
   it("searchByManyParameters", async () => {
-    // Apply the project, ID, owner, and operator filter all at once.
+    // Apply the ID, owner, and operator filters all at once.
     component.filters.masterFilterList = ["1"];
     const operatorGroup = component.filters.operators.get("Analysis");
     if (operatorGroup) {
       operatorGroup[3].checked = true; // Aggregation operator
       component.filters.updateSelectedOperators();
-      component.filters.userProjectsDropdown = [
-        { pid: 1, name: "Project1", checked: false },
-        { pid: 2, name: "Project2", checked: false },
-        { pid: 3, name: "Project3", checked: false },
-      ];
 
       component.filters.owners[0].checked = true; //Texera
       component.filters.owners[1].checked = true; //Angular
       component.filters.wids[0].checked = true;
       component.filters.wids[1].checked = true;
       component.filters.wids[2].checked = true; //id 1,2,3
-      component.filters.userProjectsDropdown[0].checked = true; //Project 1
       component.filters.selectedCtime = [new Date(1970, 0, 1), new Date(1973, 2, 11)];
       component.filters.selectedMtime = [new Date(1970, 0, 1), new Date(1982, 3, 14)];
       //add/select new search parameter here
 
-      component.filters.updateSelectedProjects();
       component.filters.updateSelectedIDs();
       component.filters.updateSelectedOwners();
     }
@@ -305,7 +278,6 @@ describe("SavedWorkflowSectionComponent", () => {
         "id: 2",
         "id: 3",
         "operator: Aggregation",
-        "project: Project1",
         "ctime: 1970-01-01 ~ 1973-03-11",
         "mtime: 1970-01-01 ~ 1982-04-14",
       ])
@@ -320,7 +292,6 @@ describe("SavedWorkflowSectionComponent", () => {
       // StubWorkflowPersistService doesn't define createWorkflow — assign the
       // method here so the component's call resolves to a controlled observable.
       persist.createWorkflow = vi.fn().mockReturnValue(of({ workflow: { wid: 99 } }));
-      component.pid = undefined;
 
       component.onClickCreateNewWorkflowFromDashboard();
 
