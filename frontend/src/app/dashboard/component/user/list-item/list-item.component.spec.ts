@@ -18,6 +18,8 @@
  */
 
 import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { DownloadService } from "src/app/dashboard/service/user/download/download.service";
+import { By } from "@angular/platform-browser";
 import { ListItemComponent } from "./list-item.component";
 import {
   DEFAULT_WORKFLOW_NAME,
@@ -405,12 +407,13 @@ describe("ListItemComponent", () => {
       expect(() => feed(entryOf({ type: "quantum" }))).toThrowError("Unexpected type in DashboardEntry.");
     });
 
-    it("leaves a dataset without a numeric id unrouted", () => {
-      // The dataset arm reads isOwner and the link only for a persisted entry.
-      feed(entryOf({ type: "dataset", id: undefined, dataset: { isOwner: false } }));
+    it("leaves a dataset without a numeric id unrouted but still badged", () => {
+      // Routing and size need a persisted entry; the icon is a property of the kind, not the row.
+      feed(entryOf({ type: "dataset", id: undefined, size: 99, dataset: { isOwner: false } }));
 
       expect(component.entryLink).toEqual([]);
-      expect(component.iconType).not.toBe("database");
+      expect(component.size).toBe(0);
+      expect(component.iconType).toBe("database");
     });
 
     it("reduces a description to a plain preview, and blanks an empty one", () => {
@@ -564,10 +567,8 @@ describe("ListItemComponent", () => {
 
     describe("download", () => {
       it("downloads a workflow by id and name", () => {
-        const download = vi
-          .spyOn((component as any).downloadService, "downloadWorkflow")
-          .mockReturnValue(of(undefined));
-        feed(entryOf({ type: "workflow", workflow: { isOwner: true, workflow: { name: "flow" } } }));
+        const download = vi.spyOn(TestBed.inject(DownloadService), "downloadWorkflow").mockReturnValue(of({} as any));
+        feed(entryOf({ type: "workflow", name: "flow", workflow: { isOwner: true } }));
 
         component.onClickDownload();
 
@@ -575,7 +576,7 @@ describe("ListItemComponent", () => {
       });
 
       it("downloads a dataset by id and name", () => {
-        const download = vi.spyOn((component as any).downloadService, "downloadDataset").mockReturnValue(of(undefined));
+        const download = vi.spyOn(TestBed.inject(DownloadService), "downloadDataset").mockReturnValue(of(new Blob()));
         feed(entryOf({ type: "dataset", dataset: { isOwner: true }, name: "set" }));
 
         component.onClickDownload();
@@ -583,14 +584,189 @@ describe("ListItemComponent", () => {
         expect(download).toHaveBeenCalledWith(7, "set");
       });
 
+      it("downloads a renamed workflow under its new name", () => {
+        // The rename writes entry.name and leaves entry.workflow.workflow.name stale, so
+        // reading the payload here used to name the zip after the pre-rename workflow.
+        (workflowPersistService as any).updateWorkflowName.mockReturnValue(of({} as Response));
+        const download = vi.spyOn(TestBed.inject(DownloadService), "downloadWorkflow").mockReturnValue(of({} as any));
+        feed(
+          entryOf({ type: "workflow", name: "old-name", workflow: { isOwner: true, workflow: { name: "old-name" } } })
+        );
+
+        component.confirmUpdateCustomName("new-name");
+        component.onClickDownload();
+
+        expect(download).toHaveBeenCalledWith(7, "new-name");
+      });
+
       it("downloads nothing for an entry that was never persisted", () => {
-        const workflow = vi.spyOn((component as any).downloadService, "downloadWorkflow");
+        const workflow = vi.spyOn(TestBed.inject(DownloadService), "downloadWorkflow");
         feed(entryOf({ type: "file", id: 0 }));
 
         component.onClickDownload();
 
         expect(workflow).not.toHaveBeenCalled();
       });
+    });
+  });
+
+  /**
+   * The suites above call the handlers directly; these fire them from the rendered
+   * markup, so a control that loses its binding fails here.
+   */
+  describe("rendered controls", () => {
+    const q = (selector: string) => fixture.debugElement.query(By.css(selector));
+    const button = (title: string) => q(`button[title="${title}"]`);
+
+    /**
+     * Renders the card for one entry. The entry is rebuilt per call because the
+     * rename path mutates `entry.name` in place.
+     */
+    function render(overrides: Record<string, unknown> = {}, isPrivateSearch = true): void {
+      component.entry = {
+        id: 7,
+        name: "item",
+        description: "",
+        type: "workflow",
+        workflow: { isOwner: true },
+        dataset: { isOwner: true },
+        accessibleUserIds: [],
+        likeCount: 0,
+        viewCount: 0,
+        isLiked: false,
+        size: 0,
+        ...overrides,
+      } as unknown as DashboardEntry;
+      component.isPrivateSearch = isPrivateSearch;
+      component.ngOnChanges({ entry: {} as any });
+      fixture.detectChanges();
+    }
+
+    afterEach(() => {
+      fixture.destroy();
+      vi.restoreAllMocks();
+    });
+
+    it("renames through the inline input, confirming on blur and on enter", () => {
+      const confirm = vi.spyOn(component, "confirmUpdateCustomName").mockImplementation(() => {});
+      render();
+
+      expect(q("input.resource-name-edit-input")).toBeNull();
+      button("Rename").triggerEventHandler("click", new MouseEvent("click"));
+      fixture.detectChanges();
+
+      const input = q("input.resource-name-edit-input");
+      expect(input).not.toBeNull();
+      input.nativeElement.value = "renamed";
+      input.nativeElement.dispatchEvent(new Event("input"));
+      fixture.detectChanges();
+      // The two-way binding writes straight back onto the entry.
+      expect(component.entry.name).toBe("renamed");
+
+      input.triggerEventHandler("blur", null);
+      expect(confirm).toHaveBeenLastCalledWith("renamed");
+
+      input.triggerEventHandler("keydown.enter", null);
+      expect(confirm).toHaveBeenCalledTimes(2);
+
+      // Clicking inside the input must not bubble to the row's routerLink.
+      const click = { stopPropagation: vi.fn() };
+      input.triggerEventHandler("click", click);
+      expect(click.stopPropagation).toHaveBeenCalledTimes(1);
+    });
+
+    it("opens the description editor from its button and from the description line", () => {
+      const edit = vi.spyOn(component, "onEditDescription").mockImplementation(() => {});
+      render({ description: "hello" });
+
+      button("Edit Description").triggerEventHandler("click", new MouseEvent("click"));
+      q(".resource-description").triggerEventHandler("click", new MouseEvent("click"));
+
+      expect(edit).toHaveBeenCalledTimes(2);
+    });
+
+    it("tracks hover over the row", () => {
+      render();
+      const row = q("div[nz-row]");
+
+      row.triggerEventHandler("mouseenter", null);
+      expect(component.hovering).toBe(true);
+
+      row.triggerEventHandler("mouseleave", null);
+      expect(component.hovering).toBe(false);
+    });
+
+    it("toggles the row checkbox of a private workflow entry", () => {
+      let changes = 0;
+      component.checkboxChanged.subscribe(() => changes++);
+      render();
+
+      const checkbox = q("input.large-checkbox");
+      expect(checkbox).not.toBeNull();
+      checkbox.triggerEventHandler("change", null);
+      fixture.detectChanges();
+
+      expect(component.entry.checked).toBe(true);
+      expect(changes).toBe(1);
+      expect(q("input.large-checkbox").nativeElement.checked).toBe(true);
+
+      // Ticking the box must not bubble to the row's routerLink.
+      const click = { stopPropagation: vi.fn() };
+      q("input.large-checkbox").triggerEventHandler("click", click);
+      expect(click.stopPropagation).toHaveBeenCalledTimes(1);
+    });
+
+    it("wires the detail, share, copy and delete controls", () => {
+      const detail = vi.spyOn(component, "openDetailModal").mockImplementation(() => {});
+      const share = vi.spyOn(component, "onClickOpenShareAccess").mockResolvedValue(undefined);
+      let duplicated = 0;
+      let deleted = 0;
+      component.duplicated.subscribe(() => duplicated++);
+      component.deleted.subscribe(() => deleted++);
+      render();
+
+      button("Detail").triggerEventHandler("click", null);
+      button("Share").triggerEventHandler("click", null);
+      button("Copy").triggerEventHandler("click", null);
+      // The popconfirm popup itself needs a CDK overlay, which jsdom never attaches;
+      // the confirmation output is bound on the button, so it is fired directly.
+      button("Delete").triggerEventHandler("nzOnConfirm", null);
+
+      expect(detail).toHaveBeenCalledWith(7);
+      expect(share).toHaveBeenCalledTimes(1);
+      expect(duplicated).toBe(1);
+      expect(deleted).toBe(1);
+    });
+
+    it("offers the download button to workflows and datasets only", () => {
+      const download = vi.spyOn(component, "onClickDownload").mockImplementation(() => {});
+
+      render();
+      button("Download").triggerEventHandler("click", null);
+      expect(download).toHaveBeenCalledTimes(1);
+
+      render({ type: "dataset" });
+      expect(button("Download")).not.toBeNull();
+
+      render({ type: "file" });
+      expect(button("Download")).toBeNull();
+    });
+
+    it("likes from the public card and disables the button without a signed-in user", () => {
+      const like = vi.spyOn(component, "toggleLike").mockImplementation(() => {});
+      render({ likeCount: 12 }, false);
+
+      // No current user: the control renders but is disabled.
+      expect(q("button.like-button").nativeElement.disabled).toBe(true);
+
+      component.currentUid = 1;
+      fixture.detectChanges();
+      const likeButton = q("button.like-button");
+      expect(likeButton.nativeElement.disabled).toBe(false);
+      likeButton.triggerEventHandler("click", new MouseEvent("click"));
+
+      expect(like).toHaveBeenCalledTimes(1);
+      expect(likeButton.nativeElement.textContent).toContain("12");
     });
   });
 });
