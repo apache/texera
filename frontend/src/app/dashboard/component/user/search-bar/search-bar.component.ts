@@ -65,7 +65,6 @@ export class SearchBarComponent {
     owners: [],
     ids: [],
     operators: [],
-    projectIds: [],
   };
 
   private searchCache = new Map<string, string[]>();
@@ -143,8 +142,6 @@ export class SearchBarComponent {
   convertToName(resultItem: SearchResultItem): string {
     if (resultItem.workflow) {
       return new DashboardEntry(resultItem.workflow).name;
-    } else if (resultItem.project) {
-      return new DashboardEntry(resultItem.project).name;
     } else if (resultItem.file) {
       return new DashboardEntry(resultItem.file).name;
     } else if (resultItem.dataset) {

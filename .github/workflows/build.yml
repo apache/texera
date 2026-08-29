@@ -86,7 +86,25 @@ jobs:
   frontend:
     if: ${{ inputs.run_frontend }}
     runs-on: ${{ matrix.os }}
+    # Only the "Install dependency" step below is bounded, so a spec that
+    # truly hangs would otherwise run to GitHub's implicit 6h cap, holding one
+    # of the 50 concurrent macOS jobs the whole `apache` org shares for that
+    # window. The timeout is based on observed *green* legs rather than a
+    # typical one, because the macOS leg swings hard: 21.1 minutes at its
+    # slowest while still passing, and the variance sits in "Prod build"
+    # (4.5-11.1 min there) more than in the tests (4.4-5.3 min). 45 is ~2x
+    # that worst green leg, so it bounds a runaway without turning a merely
+    # slow macOS runner into a false red — which is the same failure this
+    # job's `fail-fast: false` is here to stop manufacturing.
+    timeout-minutes: 45
     strategy:
+      # An OS-specific failure should not cancel the other two legs: with the
+      # default fail-fast the surviving jobs report "The operation was
+      # canceled" and the run no longer says whether the failure reproduces
+      # off that OS — exactly the evidence needed to tell a runner flake from
+      # a real break. `platform`, `platform-integration`, `agent-service` and
+      # `infra` opt out for the same reason.
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
         include:

@@ -558,9 +558,9 @@ describe("AdminSettingsComponent wiring", () => {
     "workflow_enabled",
     "dataset_enabled",
     "your_work_enabled",
-    "projects_enabled",
     "workflows_enabled",
     "datasets_enabled",
+    "models_enabled",
     "compute_enabled",
     "quota_enabled",
     "forum_enabled",
@@ -647,7 +647,17 @@ describe("AdminSettingsComponent wiring", () => {
     });
 
     it("locks the Your Work children until Your Work itself is on", () => {
-      const yourWorkChildren = [5, 6, 7, 8, 9, 10];
+      // Indexed by key, not position: adding a tab shifts these and would silently drop one.
+      const yourWorkChildren = (
+        [
+          "workflows_enabled",
+          "datasets_enabled",
+          "models_enabled",
+          "compute_enabled",
+          "quota_enabled",
+          "forum_enabled",
+        ] as const
+      ).map(key => SWITCH_KEYS.indexOf(key));
 
       component.sidebarTabs.your_work_enabled = false;
       fixture.detectChanges();
@@ -664,7 +674,10 @@ describe("AdminSettingsComponent wiring", () => {
       component.sidebarTabs.your_work_enabled = false;
       fixture.detectChanges();
 
-      [0, 4, 11].forEach(i => expect(switches()[i].componentInstance.nzDisabled).toBeFalsy());
+      // Indexed by key, not position, so adding a tab does not silently retarget this.
+      (["hub_enabled", "your_work_enabled", "about_enabled"] as const).forEach(key =>
+        expect(switches()[SWITCH_KEYS.indexOf(key)].componentInstance.nzDisabled).toBeFalsy()
+      );
     });
   });
 
