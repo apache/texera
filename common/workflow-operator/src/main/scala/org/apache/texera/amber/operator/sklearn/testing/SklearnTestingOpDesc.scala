@@ -66,7 +66,12 @@ class SklearnTestingOpDesc extends PythonOperatorDescriptor {
          |            self.data.append(tuple_)
          |        else:
          |            model = tuple_[$model]
-         |            table = Table(self.data)
+         |            #the model arrives already fitted, so this operator cannot ask which
+         |            #estimator it holds and drops on every column to be safe
+         |            rows_read = len(self.data)
+         |            table = Table(self.data).dropna() #remove missing values
+         |            if len(table) < rows_read:
+         |                print("Skipped", rows_read - len(table), "of", rows_read, "rows with missing values")
          |            Y = table[$target]
          |            X = table.drop($target, axis=1)
          |            predictions = model.predict(X.squeeze())

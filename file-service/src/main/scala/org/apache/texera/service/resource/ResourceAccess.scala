@@ -187,7 +187,8 @@ object ResourceAccess {
       resource: ResourceTables[R, A],
       uid: Integer,
       pojoClass: Class[P],
-      idOf: P => Integer
+      idOf: P => Integer,
+      includePublic: Boolean = true
   )(
       fromGrant: (P, String, PrivilegeEnum, Boolean) => Option[D],
       fromPublic: (P, String) => Option[D]
@@ -216,22 +217,25 @@ object ResourceAccess {
 
     val grantedIds = granted.map(_._1).toSet
 
-    val public = ctx
-      .select()
-      .from(
-        resource.table
-          .leftJoin(USER)
-          .on(USER.UID.eq(resource.ownerUidField))
-      )
-      .where(resource.isPublicField.eq(true))
-      .fetch()
-      .asScala
-      .toList
-      .flatMap { record =>
-        val entity = record.into(resource.table).into(pojoClass)
-        if (grantedIds.contains(idOf(entity))) None
-        else fromPublic(entity, record.into(USER).getEmail)
-      }
+    val public =
+      if (!includePublic) Nil
+      else
+        ctx
+          .select()
+          .from(
+            resource.table
+              .leftJoin(USER)
+              .on(USER.UID.eq(resource.ownerUidField))
+          )
+          .where(resource.isPublicField.eq(true))
+          .fetch()
+          .asScala
+          .toList
+          .flatMap { record =>
+            val entity = record.into(resource.table).into(pojoClass)
+            if (grantedIds.contains(idOf(entity))) None
+            else fromPublic(entity, record.into(USER).getEmail)
+          }
 
     granted.map(_._2) ++ public
   }
