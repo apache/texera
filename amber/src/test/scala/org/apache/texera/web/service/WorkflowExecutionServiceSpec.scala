@@ -161,7 +161,11 @@ class WorkflowExecutionServiceSpec
     super.beforeAll()
     initializeDBAndReplaceDSLContext()
 
+    // Set explicitly rather than left to the SERIAL default: the computing-unit and execution
+    // rows below bind `testUid` into their `uid` foreign keys, so a generated value would leave
+    // them pointing at a user that does not exist.
     val user = new User
+    user.setUid(testUid)
     user.setName("workflow-execution-test-user")
     user.setEmail(s"u$testUid@example.com")
     new UserDao(getDSLContext.configuration()).insert(user)
