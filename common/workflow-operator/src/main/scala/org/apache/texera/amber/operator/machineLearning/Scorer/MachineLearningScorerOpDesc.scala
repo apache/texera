@@ -179,6 +179,11 @@ class MachineLearningScorerOpDesc extends PythonOperatorDescriptor {
          |      # A row missing either value has nothing to score, and the metrics
          |      # refuse the empty cell rather than passing over it.
          |      table = table.dropna(subset=[$actualValueColumn, $predictValueColumn])
+         |      # Nothing survived the drop. The metrics answer that badly and each in
+         |      # its own way: the regression ones raise from inside scikit-learn, and
+         |      # the classification ones return a NaN score, which reads as a result.
+         |      if table.empty:
+         |        raise ValueError("No rows left to score: every row is missing the actual value, the predicted value, or both.")
          |      y_true = table[$actualValueColumn]
          |      y_pred = table[$predictValueColumn]
          |

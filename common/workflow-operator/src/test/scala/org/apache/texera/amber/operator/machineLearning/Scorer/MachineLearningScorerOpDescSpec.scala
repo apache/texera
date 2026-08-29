@@ -20,6 +20,7 @@
 package org.apache.texera.amber.operator.machineLearning.Scorer
 
 import com.fasterxml.jackson.databind.node.ObjectNode
+import com.typesafe.config.ConfigFactory
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
@@ -28,7 +29,10 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 import java.nio.charset.StandardCharsets
+import java.nio.file.Files
 import java.util.Base64
+import java.util.concurrent.TimeUnit
+import scala.util.Try
 
 class MachineLearningScorerOpDescSpec extends AnyFlatSpec with Matchers {
 
@@ -198,5 +202,141 @@ class MachineLearningScorerOpDescSpec extends AnyFlatSpec with Matchers {
     s.isRegression shouldBe true
     s.actualValueColumn shouldBe "y"
     s.predictValueColumn shouldBe "yhat"
+  }
+
+  it should "refuse a table the drop leaves empty, rather than scoring nothing" in {
+    // The metrics answer an emptied table badly and each in its own way, so the
+    // operator has to say what happened before they are reached.
+    val d = new MachineLearningScorerOpDesc
+    d.actualValueColumn = "y"
+    d.predictValueColumn = "yhat"
+    val code = d.generatePythonCode()
+    code should include("if table.empty:")
+    code should include("No rows left to score")
+  }
+
+  // Python executable resolution, following FilledAreaPlotOpDescSpec:
+  // udf.conf python.path (UDF_PYTHON_PATH), then python3 / python / py.
+  private def resolvePythonExecutable(): Option[String] = {
+    def fromConfig: Option[String] = {
+      val configOpt =
+        Try(ConfigFactory.parseResources("udf.conf").resolve()).toOption
+          .orElse(Try(ConfigFactory.load()).toOption)
+      configOpt
+        .flatMap(c => Try(c.getConfig("python").getString("path")).toOption)
+        .map(_.trim)
+        .filter(_.nonEmpty)
+    }
+
+    def isRunnable(exe: String): Boolean = {
+      val pTry = Try(new ProcessBuilder(exe, "--version").redirectErrorStream(true).start())
+      pTry.toOption.exists { p =>
+        val finished = p.waitFor(5, TimeUnit.SECONDS)
+        if (!finished) { p.destroyForcibly(); false }
+        else p.exitValue() == 0
+      }
+    }
+
+    (fromConfig.toList ++ List("python3", "python", "py")).distinct.find(isRunnable)
+  }
+
+  private def canImportPandasAndSklearn(python: String): Boolean = {
+    val pTry = Try(
+      new ProcessBuilder(python, "-c", "import pandas, sklearn").redirectErrorStream(true).start()
+    )
+    pTry.toOption.exists { p =>
+      val finished = p.waitFor(60, TimeUnit.SECONDS)
+      if (!finished) { p.destroyForcibly(); false }
+      else p.exitValue() == 0
+    }
+  }
+
+  // Driver executed by the runtime test below. It stubs only the pytexera import seam;
+  // the generated module runs unmodified, against the real scikit-learn metrics.
+  private val runtimeDriverScript: String =
+    """import base64
+      |import sys
+      |import types
+      |from typing import Iterator, Optional
+      |
+      |import numpy as np
+      |import pandas as pd
+      |
+      |class UDFTableOperator:
+      |    def decode_python_template(self, data):
+      |        return base64.b64decode(data).decode("utf-8")
+      |
+      |stub = types.ModuleType("pytexera")
+      |stub.UDFTableOperator = UDFTableOperator
+      |stub.overrides = lambda fn: fn
+      |stub.Table = pd.DataFrame
+      |stub.TableLike = object
+      |stub.Iterator = Iterator
+      |stub.Optional = Optional
+      |sys.modules["pytexera"] = stub
+      |
+      |ns = {"__name__": "generated_scorer"}
+      |with open(sys.argv[1]) as f:
+      |    exec(compile(f.read(), sys.argv[1], "exec"), ns)
+      |op = ns["ProcessTableOperator"]()
+      |
+      |nan = float("nan")
+      |cases = [
+      |    ("filled", [(1, 1), (0, 0), (1, 1)]),
+      |    ("some_blank", [(nan, 0), (0, nan), (1, 1), (1, 0), (1, 1)]),
+      |    ("all_blank", [(nan, 0), (0, nan), (nan, nan)]),
+      |]
+      |
+      |for cid, rows in cases:
+      |    frame = pd.DataFrame(rows, columns=["y", "yhat"])
+      |    try:
+      |        scored = list(op.process_table(frame, 0))[0]
+      |        print("CASE %s ACCURACY %s" % (cid, scored["Accuracy"][0]))
+      |    except ValueError as e:
+      |        print("CASE %s REFUSED %s" % (cid, e))
+      |""".stripMargin
+
+  it should "score the rows it can and refuse a table that keeps none of them" in {
+    val python = resolvePythonExecutable().getOrElse(
+      cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
+    )
+    if (!canImportPandasAndSklearn(python)) {
+      cancel(s"'$python' cannot import pandas and sklearn; skipping runtime verification")
+    }
+
+    val d = new MachineLearningScorerOpDesc
+    d.actualValueColumn = "y"
+    d.predictValueColumn = "yhat"
+    d.classificationMetrics = List(classificationMetricsFnc.accuracy)
+
+    val moduleFile = Files.createTempFile("scorer_op_", ".py")
+    val driverFile = Files.createTempFile("scorer_driver_", ".py")
+    try {
+      Files.write(moduleFile, d.generatePythonCode().getBytes(StandardCharsets.UTF_8))
+      Files.write(driverFile, runtimeDriverScript.getBytes(StandardCharsets.UTF_8))
+
+      val process = new ProcessBuilder(python, driverFile.toString, moduleFile.toString)
+        .redirectErrorStream(true)
+        .start()
+      val finished = process.waitFor(120, TimeUnit.SECONDS)
+      if (!finished) {
+        process.destroyForcibly()
+        fail("Scoring driver timed out after 120s")
+      }
+      val output = new String(process.getInputStream.readAllBytes(), StandardCharsets.UTF_8)
+      withClue(s"Driver output:\n$output\n") {
+        process.exitValue() shouldBe 0
+        // Every row usable: all three agree, so the score is 1.
+        output should include("CASE filled ACCURACY 1.0")
+        // Two rows dropped, three scored, two of those correct.
+        output should include("CASE some_blank ACCURACY 0.6667")
+        // Nothing survives the drop, and the operator says so rather than
+        // handing back the NaN the classification metrics would produce.
+        output should include("CASE all_blank REFUSED No rows left to score")
+      }
+    } finally {
+      Files.deleteIfExists(moduleFile)
+      Files.deleteIfExists(driverFile)
+    }
   }
 }
