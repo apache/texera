@@ -163,10 +163,6 @@ class TexeraWebSocketEventSpec extends AnyFlatSpec with Matchers {
     * `ExecutionStatsService` (duration), `RegionExecutionManager` (region state),
     * `ExecutionReconfigurationService` (modify-logic completed), `ClusterListener` /
     * `WorkflowWebsocketResource` (cluster status) and `Coordinator` (region update).
-    *
-    * `WorkflowAvailableResultEvent` is the sixth unregistered subtype but is deliberately
-    * absent from this list: nothing in main constructs it, so pinning its wire shape would
-    * only cement dead code.
     */
   private val outboundOnlyEvents: List[(String, TexeraWebSocketEvent)] = List(
     "ExecutionDurationUpdateEvent" -> ExecutionDurationUpdateEvent(1234L, isRunning = true),

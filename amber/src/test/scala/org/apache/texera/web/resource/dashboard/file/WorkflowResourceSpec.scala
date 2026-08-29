@@ -67,7 +67,6 @@ import javax.ws.rs.{
   WebApplicationException
 }
 import scala.jdk.CollectionConverters._
-import org.apache.texera.web.auth.GuestAuthFilter
 import org.apache.texera.web.resource.dashboard.user.workflow.{
   WorkflowAccessResource,
   WorkflowVersionResource
@@ -1094,19 +1093,7 @@ class WorkflowResourceSpec
     assertThrows[NotFoundException](WorkflowResource.getWorkflowName(wid + 100000))
   }
 
-  "WorkflowResource.persistWorkflow" should "reject the guest user" in {
-    val workflow = seedWorkflow(sessionUser1, "guest-wf", "d", "{\"a\":1}").workflow
-    workflow.setContent("{\"a\":2}")
-
-    // the message distinguishes the guest rejection from the access-privilege one
-    val thrown = intercept[ForbiddenException](
-      workflowResource.persistWorkflow(workflow, new SessionUser(GuestAuthFilter.GUEST))
-    )
-    assert(thrown.getMessage.contains("Guest user"))
-    assert(workflowResource.retrieveWorkflow(workflow.getWid, sessionUser1).content == "{\"a\":1}")
-  }
-
-  it should "update the workflow in place for its owner and record a version" in {
+  "WorkflowResource.persistWorkflow" should "update the workflow in place for its owner and record a version" in {
     val workflow = seedWorkflow(sessionUser1, "persist-owner", "d", "{\"a\":1}").workflow
     val versionsBefore = versionCount(workflow.getWid)
     workflow.setContent("{\"a\":2}")

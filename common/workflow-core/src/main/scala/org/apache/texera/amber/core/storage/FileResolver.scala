@@ -93,7 +93,7 @@ object FileResolver {
     *     caller can dispatch to the right backing table.
     *   - Legacy unprefixed (datasets only, backward compat): /ownerEmail/datasetName/versionName/
     *     fileRelativePath (>= 4 segments), resolved as a dataset. Models are new and always require
-    *     the /models/ prefix.
+    *     the /model/ prefix.
     *
     * @param fileName the file path to parse
     * @return Some((resourceType, ownerEmail, resourceName, versionName, fileRelativePath)) if valid,
@@ -115,11 +115,11 @@ object FileResolver {
           )
       case None =>
         // Legacy unprefixed dataset path (backward compat): /ownerEmail/datasetName/versionName/<file>.
-        // TODO(datasets-prefix): require the prefix once all stored paths are migrated (36.sql).
+        // TODO(dataset-prefix): require the prefix once all stored paths are migrated (36.sql).
         if (pathSegments.length >= 4)
           Some(
             (
-              ResourceType.Datasets,
+              ResourceType.Dataset,
               pathSegments(0),
               pathSegments(1),
               pathSegments(2),
@@ -139,8 +139,8 @@ object FileResolver {
     *
     * Input:  /<prefix>/ownerEmail/resourceName/versionName/fileRelativePath (or legacy unprefixed)
     * Output: {scheme}:///{repositoryName}/{versionHash}/fileRelativePath
-    *   e.g. /datasets/bob@x.com/twitter/v1/dir/f.csv -> dataset:///dataset-15/adeq233td/dir/f.csv
-    *        /models/bob@x.com/resnet/v1/weights/m.pt -> model:///model-15/adeq233td/weights/m.pt
+    *   e.g. /dataset/bob@x.com/twitter/v1/dir/f.csv -> dataset:///dataset-15/adeq233td/dir/f.csv
+    *        /model/bob@x.com/resnet/v1/weights/m.pt -> model:///model-15/adeq233td/weights/m.pt
     *
     * @throws java.io.FileNotFoundException if the path is not a valid versioned-resource path, the
     *                                       resource/version does not exist, or the URI is malformed
@@ -152,10 +152,10 @@ object FileResolver {
       )
 
     val (scheme, repositoryName, versionHash) = resourceType match {
-      case ResourceType.Datasets =>
+      case ResourceType.Dataset =>
         val (repo, hash) = lookupDataset(ownerEmail, resourceName, versionName, fileName)
         (DATASET_FILE_URI_SCHEME, repo, hash)
-      case ResourceType.Models =>
+      case ResourceType.Model =>
         val (repo, hash) = lookupModel(ownerEmail, resourceName, versionName, fileName)
         (MODEL_FILE_URI_SCHEME, repo, hash)
       case other =>
@@ -306,7 +306,7 @@ object FileResolver {
       return None
     }
     parsePrefixedPath(path).collect {
-      case (ResourceType.Datasets, ownerEmail, datasetName, _, _) => (ownerEmail, datasetName)
+      case (ResourceType.Dataset, ownerEmail, datasetName, _, _) => (ownerEmail, datasetName)
     }
   }
 }

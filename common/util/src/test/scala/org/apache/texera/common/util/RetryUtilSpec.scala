@@ -29,9 +29,9 @@ import scala.util.control.ControlThrowable
   * Contract of the shared blocking backoff retry. `sleep` is injected everywhere so the backoff
   * progression is asserted exactly without any test waiting.
   *
-  * Coverage is the full contract both blocking callers rely on: the doubling progression, which
-  * failures count as transient, the give-up wrapping, and interrupt fail-fast during the operation
-  * and during a backoff sleep.
+  * Coverage is the full contract the blocking callers rely on: the doubling progression and its
+  * cap, which failures count as transient (the `NonFatal` gate and the `shouldRetry` predicate),
+  * the give-up wrapping, and interrupt fail-fast during the operation and during a backoff sleep.
   */
 class RetryUtilSpec extends AnyFlatSpec {
 
@@ -202,5 +202,72 @@ class RetryUtilSpec extends AnyFlatSpec {
     assert(attempts == 3)
     assert(delays.toList == List(200L, 400L))
     assert(failure.getCause eq cause)
+  }
+
+  it should "stop the doubling at maxDelayMillis" in {
+    val delays = ListBuffer.empty[Long]
+    intercept[RuntimeException] {
+      RetryUtil.withBackoff("reach the store", 5, 200L, noopRetryHook, delays += _, 500L) {
+        throw new RuntimeException("down")
+      }
+    }
+    assert(delays.toList == List(200L, 400L, 500L, 500L))
+  }
+
+  it should "clamp an initial delay that already exceeds maxDelayMillis" in {
+    val delays = ListBuffer.empty[Long]
+    intercept[RuntimeException] {
+      RetryUtil.withBackoff("reach the store", 3, 800L, noopRetryHook, delays += _, 500L) {
+        throw new RuntimeException("down")
+      }
+    }
+    assert(delays.toList == List(500L, 500L))
+  }
+
+  it should "let a failure shouldRetry rejects through unwrapped, spending no further attempts" in {
+    val delays = ListBuffer.empty[Long]
+    var attempts = 0
+    val cause = new IllegalStateException("no such store")
+    val failure = intercept[IllegalStateException] {
+      RetryUtil.withBackoff(
+        "reach the store",
+        5,
+        200L,
+        noopRetryHook,
+        delays += _,
+        shouldRetry = _.getMessage == "transient"
+      ) {
+        attempts += 1
+        throw cause
+      }
+    }
+    assert(failure eq cause)
+    assert(attempts == 1)
+    assert(delays.isEmpty)
+  }
+
+  it should "retry accepted failures yet stop the moment a rejected one appears" in {
+    // A known transient signal is waited out, but any other failure mid-sequence is a real
+    // answer and must surface at once rather than be retried alongside it.
+    val delays = ListBuffer.empty[Long]
+    var attempts = 0
+    val terminal = new IllegalStateException("no such store")
+    val failure = intercept[IllegalStateException] {
+      RetryUtil.withBackoff(
+        "reach the store",
+        5,
+        200L,
+        noopRetryHook,
+        delays += _,
+        shouldRetry = _.getMessage == "transient"
+      ) {
+        attempts += 1
+        if (attempts < 3) throw new RuntimeException("transient")
+        throw terminal
+      }
+    }
+    assert(failure eq terminal)
+    assert(attempts == 3)
+    assert(delays.toList == List(200L, 400L))
   }
 }

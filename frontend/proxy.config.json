@@ -35,7 +35,22 @@
     "secure": false,
     "changeOrigin": true
   },
+  "/api/model/**": {
+    "target": "http://localhost:9092",
+    "secure": false,
+    "changeOrigin": true
+  },
   "/api/access/dataset/**": {
+    "target": "http://localhost:9092",
+    "secure": false,
+    "changeOrigin": true
+  },
+  "/api/model/**": {
+    "target": "http://localhost:9092",
+    "secure": false,
+    "changeOrigin": true
+  },
+  "/api/access/model/**": {
     "target": "http://localhost:9092",
     "secure": false,
     "changeOrigin": true
