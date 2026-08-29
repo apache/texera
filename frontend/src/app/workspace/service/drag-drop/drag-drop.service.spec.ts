@@ -469,6 +469,30 @@ describe("DragDropService", () => {
       expect(() => (dragDropService as any).clearEdgeIntersectionHighlight(link)).not.toThrow();
       expect((dragDropService as any).findIntersectedLink({ x: 0, y: 0 })).toBeNull();
     });
+
+    it("skips links that are in the Texera graph but have no model in the JointJS paper", () => {
+      const workflowActionService: WorkflowActionService = TestBed.inject(WorkflowActionService);
+      const paperHost = document.createElement("div");
+      document.body.appendChild(paperHost);
+      try {
+        workflowActionService.getJointGraphWrapper().attachMainJointPaper({ el: paperHost });
+        // findIntersectedLink walks the Texera graph but resolves each link against the
+        // JointJS paper, and the two can diverge. A link known only to Texera resolves to
+        // no joint model, so it must be skipped rather than dereferenced.
+        vi.spyOn(workflowActionService.getTexeraGraph(), "getAllLinks").mockReturnValue([
+          {
+            linkID: "ghost",
+            source: { operatorID: "op-a", portID: "op-a-output-0" },
+            target: { operatorID: "op-b", portID: "op-b-input-0" },
+          },
+        ] as OperatorLink[]);
+
+        expect(() => (dragDropService as any).findIntersectedLink({ x: 0, y: 0 })).not.toThrow();
+        expect((dragDropService as any).findIntersectedLink({ x: 0, y: 0 })).toBeNull();
+      } finally {
+        document.body.removeChild(paperHost);
+      }
+    });
   });
 
   describe("handleOperatorRecommendationOnDrag (drag lifecycle)", () => {
@@ -581,6 +605,115 @@ describe("DragDropService", () => {
 
       expect(inputOps.map(o => o.operatorID)).toEqual([srcNear.operatorID]);
       expect(outputOps.map(o => o.operatorID)).toEqual([sinkNear.operatorID]);
+    });
+  });
+  /**
+   * Previously, our tests never drove `findIntersectedLink` far enough to evaluate a rendered
+   * link’s `.connection` path geometry (they ran with no links/paper or hit early `continue`s).
+   * This suite attaches a real JointJS paper and link so the intersection logic runs end-to-end.
+   */
+  describe("findIntersectedLink (against a real paper)", () => {
+    /**
+     * Attaches a paper, wires scan -> result as a horizontal edge through y = 0, and hands the
+     * body a probe that asks which link a drop at the given point would land on.
+     */
+    function withGraph(body: (probe: (x: number, y: number) => OperatorLink | null, link: OperatorLink) => void): void {
+      const workflowActionService: WorkflowActionService = TestBed.inject(WorkflowActionService);
+      const workflowUtilService: WorkflowUtilService = TestBed.inject(WorkflowUtilService);
+      const paperHost = document.createElement("div");
+      document.body.appendChild(paperHost);
+      try {
+        workflowActionService.getJointGraphWrapper().attachMainJointPaper({ el: paperHost });
+
+        const scan = workflowUtilService.getNewOperatorPredicate("ScanSource");
+        const result = workflowUtilService.getNewOperatorPredicate(VIEW_RESULT_OP_TYPE);
+        workflowActionService.addOperator(scan, { x: -200, y: 0 });
+        workflowActionService.addOperator(result, { x: 200, y: 0 });
+        const link: OperatorLink = {
+          linkID: workflowUtilService.getLinkRandomUUID(),
+          source: { operatorID: scan.operatorID, portID: scan.outputPorts[0].portID },
+          target: { operatorID: result.operatorID, portID: result.inputPorts[0].portID },
+        };
+        workflowActionService.addLink(link);
+
+        // jsdom implements no SVG path geometry, so install it on the rendered .connection path —
+        // the same stubbing the doesOperatorIntersectPath tests above already do. Everything the
+        // loop under test actually does (model lookup, view lookup, .connection lookup, early
+        // continues) stays real; only the browser geometry is supplied.
+        const paper = workflowActionService.getJointGraphWrapper().getMainJointPaper()!;
+        const view = paper.findViewByModel(paper.getModelById(link.linkID) as any) as any;
+        const pathElement = view.el.querySelector(".connection");
+        Object.assign(pathElement, {
+          getTotalLength: () => 400,
+          getPointAtLength: (len: number) => ({ x: -200 + len, y: 0 }),
+        });
+
+        body((x, y) => (dragDropService as any).findIntersectedLink({ x, y }), link);
+      } finally {
+        paperHost.remove();
+      }
+    }
+
+    it("finds the edge an operator is dropped on top of", () => {
+      withGraph((probe, link) => {
+        expect(probe(0, 0)?.linkID).toBe(link.linkID);
+      });
+    });
+
+    it("finds nothing when the drop is nowhere near the edge", () => {
+      // Far below the y = 0 run of the link; splicing here would rewire a graph the user never
+      // pointed at.
+      withGraph(probe => {
+        expect(probe(0, 5000)).toBeNull();
+      });
+    });
+
+    it("finds nothing when the canvas has no links at all", () => {
+      const workflowActionService: WorkflowActionService = TestBed.inject(WorkflowActionService);
+      const paperHost = document.createElement("div");
+      document.body.appendChild(paperHost);
+      try {
+        workflowActionService.getJointGraphWrapper().attachMainJointPaper({ el: paperHost });
+
+        expect((dragDropService as any).findIntersectedLink({ x: 0, y: 0 })).toBeNull();
+      } finally {
+        paperHost.remove();
+      }
+    });
+
+    it("skips a link the paper has no model for instead of throwing", () => {
+      // The workflow graph and the joint paper can disagree transiently; the loop is written to
+      // continue past a link the paper does not know about rather than fail the whole drop.
+      withGraph(probe => {
+        const workflowActionService: WorkflowActionService = TestBed.inject(WorkflowActionService);
+        const paper = workflowActionService.getJointGraphWrapper().getMainJointPaper()!;
+        vi.spyOn(paper, "getModelById").mockReturnValue(undefined as any);
+
+        expect(probe(0, 0)).toBeNull();
+      });
+    });
+
+    it("skips a link whose view has no drawn path instead of throwing", () => {
+      // A link view mid-render has no .connection child yet. Without the guard the geometry call
+      // receives null and the whole drop throws instead of simply finding no edge.
+      withGraph((probe, link) => {
+        const workflowActionService: WorkflowActionService = TestBed.inject(WorkflowActionService);
+        const paper = workflowActionService.getJointGraphWrapper().getMainJointPaper()!;
+        const view = paper.findViewByModel(paper.getModelById(link.linkID) as any) as any;
+        vi.spyOn(view.el, "querySelector").mockReturnValue(null);
+
+        expect(probe(0, 0)).toBeNull();
+      });
+    });
+
+    it("skips a link the paper has no view for instead of throwing", () => {
+      withGraph(probe => {
+        const workflowActionService: WorkflowActionService = TestBed.inject(WorkflowActionService);
+        const paper = workflowActionService.getJointGraphWrapper().getMainJointPaper()!;
+        vi.spyOn(paper, "findViewByModel").mockReturnValue(undefined as any);
+
+        expect(probe(0, 0)).toBeNull();
+      });
     });
   });
 });

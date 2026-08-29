@@ -170,9 +170,9 @@ lakekeeperInit:
     # Lakekeeper S3 storage-profile flavor: "s3-compat" (MinIO/other; adds
     # endpoint + path-style-access) or "aws" (real AWS S3; omits both).
     flavor: s3-compat
-    # Optional object-key prefix to isolate the Iceberg warehouse within a
-    # shared bucket. Empty = bucket root.
-    keyPrefix: ""
+    # Object-key prefix for this warehouse. Must stay non-empty: a warehouse at the
+    # bucket root overlaps every per-user warehouse's prefix (#7739).
+    keyPrefix: "shared"
 
 # Part2: configurations of Texera-related micro services
 texeraImages:
@@ -310,7 +310,7 @@ texeraEnvVars:
   - name: SCHEDULE_GENERATOR_ENABLE_COST_BASED_SCHEDULE_GENERATOR
     value: "true"
   - name: MAX_WORKFLOW_WEBSOCKET_REQUEST_PAYLOAD_SIZE_KB
-    value: "64"
+    value: "1024"
   - name: MAX_NUM_OF_RUNNING_COMPUTING_UNITS_PER_USER
     value: "10"
   - name: KUBERNETES_COMPUTING_UNIT_CPU_LIMIT_OPTIONS

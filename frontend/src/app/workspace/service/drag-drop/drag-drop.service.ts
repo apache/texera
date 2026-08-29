@@ -446,10 +446,6 @@ export class DragDropService {
 
     for (const link of allLinks) {
       const jointLink = paper.getModelById(link.linkID) as joint.dia.Link;
-      if (!jointLink) {
-        continue;
-      }
-
       const linkView = paper.findViewByModel(jointLink) as joint.dia.LinkView;
       if (!linkView) {
         continue;

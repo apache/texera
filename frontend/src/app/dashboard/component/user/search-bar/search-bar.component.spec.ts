@@ -38,7 +38,6 @@ function makeWorkflowItem(name: string, wid: number = 1): SearchResultItem {
       isOwner: true,
       ownerName: undefined,
       workflow: { wid, name } as any,
-      projectIDs: [],
       accessLevel: "WRITE",
       ownerId: 1,
     } as any,
@@ -129,7 +128,6 @@ describe("SearchBarComponent", () => {
       owners: [],
       ids: [],
       operators: [],
-      projectIds: [],
     });
     expect(args[2]).toBe(0);
     expect(args[3]).toBe(5);
@@ -171,22 +169,6 @@ describe("SearchBarComponent", () => {
   describe("convertToName", () => {
     it("returns the workflow's DashboardEntry.name", () => {
       expect(component.convertToName(makeWorkflowItem("wf-name", 7))).toBe("wf-name");
-    });
-
-    it("returns the project's name", () => {
-      const item: SearchResultItem = {
-        resourceType: "project",
-        project: {
-          pid: 1,
-          name: "proj-name",
-          description: "",
-          ownerId: 1,
-          creationTime: 0,
-          color: null,
-          accessLevel: "WRITE",
-        } as any,
-      };
-      expect(component.convertToName(item)).toBe("proj-name");
     });
 
     it("returns the file's name", () => {

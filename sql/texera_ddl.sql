@@ -62,10 +62,14 @@ DROP TABLE IF EXISTS workflow_of_project CASCADE;
 DROP TABLE IF EXISTS workflow_executions CASCADE;
 DROP TABLE IF EXISTS dataset_upload_session CASCADE;
 DROP TABLE IF EXISTS dataset_upload_session_part CASCADE;
-
 DROP TABLE IF EXISTS dataset CASCADE;
 DROP TABLE IF EXISTS dataset_user_access CASCADE;
 DROP TABLE IF EXISTS dataset_version CASCADE;
+DROP TABLE IF EXISTS model_upload_session CASCADE;
+DROP TABLE IF EXISTS model_upload_session_part CASCADE;
+DROP TABLE IF EXISTS model_user_access CASCADE;
+DROP TABLE IF EXISTS model_version CASCADE;
+DROP TABLE IF EXISTS model CASCADE;
 DROP TABLE IF EXISTS dataset_contributor CASCADE;
 DROP TABLE IF EXISTS public_project CASCADE;
 DROP TABLE IF EXISTS project_user_access CASCADE;
@@ -256,16 +260,16 @@ CREATE TABLE IF NOT EXISTS workflow_computing_unit
 -- Base columns only; the assume-role (BYO-S3) columns come in a later change.
 CREATE TABLE IF NOT EXISTS user_warehouse
 (
-    whid                    SERIAL PRIMARY KEY,
-    uid                     INT          NOT NULL,
-    name                    VARCHAR(128) NOT NULL,
-    warehouse_name          VARCHAR(255) NOT NULL UNIQUE,
-    lakekeeper_warehouse_id UUID         NOT NULL,
-    flavor                  user_warehouse_flavor_enum NOT NULL,
-    s3_bucket               VARCHAR(255),
-    s3_endpoint             VARCHAR(255),
-    s3_region               VARCHAR(64),
-    created_at              TIMESTAMPTZ  NOT NULL DEFAULT now(),
+    whid                      SERIAL PRIMARY KEY,
+    uid                       INT          NOT NULL,
+    name                      VARCHAR(128) NOT NULL,
+    lakekeeper_warehouse_name VARCHAR(255) NOT NULL UNIQUE,
+    lakekeeper_warehouse_id   UUID         NOT NULL,
+    flavor                    user_warehouse_flavor_enum NOT NULL,
+    s3_bucket                 VARCHAR(255),
+    s3_endpoint               VARCHAR(255),
+    s3_region                 VARCHAR(64),
+    created_at                TIMESTAMPTZ  NOT NULL DEFAULT now(),
     UNIQUE (uid, name),
     FOREIGN KEY (uid) REFERENCES "user" (uid) ON DELETE CASCADE
 );
@@ -415,6 +419,96 @@ CREATE TABLE IF NOT EXISTS dataset_upload_session_part
 
     FOREIGN KEY (upload_id)
         REFERENCES dataset_upload_session(upload_id)
+        ON DELETE CASCADE
+);
+
+-- ML models
+CREATE TABLE IF NOT EXISTS model
+(
+    mid             SERIAL PRIMARY KEY,
+    owner_uid       INT NOT NULL,
+    name            VARCHAR(128) NOT NULL,
+    repository_name VARCHAR(128),
+    is_public       BOOLEAN NOT NULL DEFAULT TRUE,
+    is_downloadable BOOLEAN NOT NULL DEFAULT TRUE,
+    description     TEXT NOT NULL,
+    creation_time   TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    cover_image     varchar(255),
+    framework       VARCHAR(32),
+    format          VARCHAR(32),
+    FOREIGN KEY (owner_uid) REFERENCES "user"(uid) ON DELETE CASCADE,
+    UNIQUE (owner_uid, name)
+    );
+
+-- model_version
+CREATE TABLE IF NOT EXISTS model_version
+(
+    mvid          SERIAL PRIMARY KEY,
+    mid           INT NOT NULL,
+    creator_uid   INT NOT NULL,
+    name          VARCHAR(128) NOT NULL,
+    version_hash  VARCHAR(64) NOT NULL,
+    creation_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (mid) REFERENCES model(mid) ON DELETE CASCADE,
+    -- FileResolver resolves a version by (mid, name) with fetchOneInto.
+    CONSTRAINT uq_model_version_mid_name UNIQUE (mid, name)
+    );
+
+-- model_user_access
+CREATE TABLE IF NOT EXISTS model_user_access
+(
+    mid       INT NOT NULL,
+    uid       INT NOT NULL,
+    privilege privilege_enum NOT NULL DEFAULT 'NONE',
+    PRIMARY KEY (mid, uid),
+    FOREIGN KEY (mid) REFERENCES model(mid) ON DELETE CASCADE,
+    FOREIGN KEY (uid) REFERENCES "user"(uid) ON DELETE CASCADE
+    );
+
+-- model_upload_session
+CREATE TABLE IF NOT EXISTS model_upload_session
+(
+    mid                 INT          NOT NULL,
+    uid                 INT          NOT NULL,
+    file_path           TEXT         NOT NULL,
+    upload_id           VARCHAR(256) NOT NULL UNIQUE,
+    physical_address    TEXT,
+    num_parts_requested INT          NOT NULL,
+    file_size_bytes     BIGINT       NOT NULL,
+    part_size_bytes     BIGINT       NOT NULL,
+    created_at          TIMESTAMPTZ  NOT NULL DEFAULT now(),
+
+    PRIMARY KEY (uid, mid, file_path),
+
+    FOREIGN KEY (mid) REFERENCES model(mid) ON DELETE CASCADE,
+    FOREIGN KEY (uid) REFERENCES "user"(uid) ON DELETE CASCADE,
+
+    CONSTRAINT chk_model_upload_session_num_parts_requested_positive
+        CHECK (num_parts_requested >= 1),
+
+    CONSTRAINT chk_model_upload_session_file_size_bytes_positive
+        CHECK (file_size_bytes > 0),
+
+    CONSTRAINT chk_model_upload_session_part_size_bytes_positive
+        CHECK (part_size_bytes > 0),
+
+    CONSTRAINT chk_model_upload_session_part_size_bytes_s3_upper_bound
+        CHECK (part_size_bytes <= 5368709120)
+);
+
+-- model_upload_session_part
+CREATE TABLE IF NOT EXISTS model_upload_session_part
+(
+    upload_id   VARCHAR(256) NOT NULL,
+    part_number INT          NOT NULL,
+    etag        TEXT         NOT NULL DEFAULT '',
+
+    PRIMARY KEY (upload_id, part_number),
+
+    CONSTRAINT chk_model_part_number_positive CHECK (part_number > 0),
+
+    FOREIGN KEY (upload_id)
+        REFERENCES model_upload_session(upload_id)
         ON DELETE CASCADE
 );
 

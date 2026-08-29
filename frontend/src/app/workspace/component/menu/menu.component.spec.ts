@@ -19,6 +19,7 @@
 
 import { DatePipe, Location } from "@angular/common";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { By } from "@angular/platform-browser";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { RouterTestingModule } from "@angular/router/testing";
 import { NzModalService, NzModalModule, NzModalRef } from "ng-zorro-antd/modal";
@@ -211,6 +212,94 @@ describe("MenuComponent", () => {
       expect(behavior.text).toBe("Connecting");
       expect(behavior.disable).toBe(true);
     });
+
+    /** Puts the component into the valid, connected state the state switch needs. */
+    function connected(): void {
+      component.isWorkflowValid = true;
+      component.isWorkflowEmpty = false;
+      component.computingUnitStatus = ComputingUnitState.Running;
+      Object.defineProperty(component.workflowWebsocketService, "isConnected", { get: () => true, configurable: true });
+    }
+
+    it("wires both the 'Connect' and the 'Run' descriptor to runWorkflow", () => {
+      const runSpy = vi.spyOn(component, "runWorkflow").mockImplementation(() => {});
+
+      component.isWorkflowValid = true;
+      component.isWorkflowEmpty = false;
+      component.computingUnitStatus = ComputingUnitState.NoComputingUnit;
+      component.getRunButtonBehavior().onClick();
+      expect(runSpy).toHaveBeenCalledTimes(1);
+
+      connected();
+      component.executionState = ExecutionState.Completed;
+      const run = component.getRunButtonBehavior();
+      run.onClick();
+
+      expect(run.text).toBe("Run");
+      expect(runSpy).toHaveBeenCalledTimes(2);
+    });
+
+    it("gives the invalid, empty and connecting descriptors an inert click handler", () => {
+      const runSpy = vi.spyOn(component, "runWorkflow").mockImplementation(() => {});
+      const pauseSpy = vi.spyOn(executeWorkflowService, "pauseWorkflow").mockImplementation(() => {});
+      const resumeSpy = vi.spyOn(executeWorkflowService, "resumeWorkflow").mockImplementation(() => {});
+
+      component.isWorkflowValid = false;
+      component.getRunButtonBehavior().onClick();
+
+      component.isWorkflowValid = true;
+      component.isWorkflowEmpty = true;
+      component.getRunButtonBehavior().onClick();
+
+      component.isWorkflowEmpty = false;
+      component.computingUnitStatus = ComputingUnitState.Running;
+      Object.defineProperty(component.workflowWebsocketService, "isConnected", {
+        get: () => false,
+        configurable: true,
+      });
+      component.getRunButtonBehavior().onClick();
+
+      expect(runSpy).not.toHaveBeenCalled();
+      expect(pauseSpy).not.toHaveBeenCalled();
+      expect(resumeSpy).not.toHaveBeenCalled();
+    });
+
+    it("reports every transient execution state as a disabled spinner", () => {
+      connected();
+      const runSpy = vi.spyOn(component, "runWorkflow").mockImplementation(() => {});
+      const cases: [ExecutionState, string][] = [
+        [ExecutionState.Initializing, "Submitting"],
+        [ExecutionState.Pausing, "Pausing"],
+        [ExecutionState.Resuming, "Resuming"],
+        [ExecutionState.Recovering, "Recovering"],
+      ];
+
+      const seen = cases.map(([state]) => {
+        component.executionState = state;
+        const behavior = component.getRunButtonBehavior();
+        behavior.onClick();
+        return [behavior.text, behavior.icon, behavior.disable];
+      });
+
+      expect(seen).toEqual(cases.map(([, text]) => [text, "loading", true]));
+      expect(runSpy).not.toHaveBeenCalled();
+    });
+
+    it("falls back to 'Run' for a state the switch does not list", () => {
+      connected();
+      const runSpy = vi.spyOn(component, "runWorkflow").mockImplementation(() => {});
+      // Defensive default: every ExecutionState member has its own case, so this
+      // arm is only reachable with a value from outside the enum.
+      component.executionState = "Unrecognized" as ExecutionState;
+
+      const behavior = component.getRunButtonBehavior();
+      behavior.onClick();
+
+      expect(behavior.text).toBe("Run");
+      expect(behavior.icon).toBe("play-circle");
+      expect(behavior.disable).toBe(false);
+      expect(runSpy).toHaveBeenCalledTimes(1);
+    });
   });
 
   it("applyRunButtonBehavior copies the behavior onto the bound fields", () => {
@@ -365,6 +454,33 @@ describe("MenuComponent", () => {
 
       expect(executeSpy).toHaveBeenCalledWith("exec-1", expect.any(Boolean));
     });
+
+    it("names a new computing unit generically when the workflow has no name", () => {
+      component.isWorkflowValid = true;
+      component.isWorkflowEmpty = false;
+      component.computingUnitStatus = ComputingUnitState.NoComputingUnit;
+      component.currentWorkflowName = "";
+
+      component.runWorkflow();
+
+      expect(component.computingUnitSelectionComponent.showAddComputeUnitModalVisible).toHaveBeenCalledWith(
+        "New Computing Unit"
+      );
+    });
+
+    it("submits under 'Untitled Execution' when no execution name has been chosen", () => {
+      component.isWorkflowValid = true;
+      component.isWorkflowEmpty = false;
+      component.computingUnitStatus = ComputingUnitState.Running;
+      component.currentExecutionName = "";
+      const executeSpy = vi
+        .spyOn(executeWorkflowService, "executeWorkflowWithEmailNotification")
+        .mockImplementation(() => {});
+
+      component.runWorkflow();
+
+      expect(executeSpy).toHaveBeenCalledWith("Untitled Execution", false);
+    });
   });
 
   it("onWorkflowNameChange forwards the new name to the workflow action service", () => {
@@ -374,6 +490,19 @@ describe("MenuComponent", () => {
     component.onWorkflowNameChange();
 
     expect(setNameSpy).toHaveBeenCalledWith("renamed");
+  });
+
+  it("onWorkflowNameChange persists the rename only while logged in", () => {
+    vi.spyOn(workflowActionService, "setWorkflowName").mockImplementation(() => {});
+    const persistSpy = vi.spyOn(component, "persistWorkflow").mockImplementation(() => {});
+    const isLogin = vi.spyOn(component.userService, "isLogin").mockReturnValue(true);
+
+    component.onWorkflowNameChange();
+    expect(persistSpy).toHaveBeenCalledTimes(1);
+
+    isLogin.mockReturnValue(false);
+    component.onWorkflowNameChange();
+    expect(persistSpy).toHaveBeenCalledTimes(1);
   });
 
   // Regression coverage for #6846 (resolved by discussion #6873): the toolbar's
@@ -863,6 +992,20 @@ describe("MenuComponent", () => {
 
       expect(input.style.width).toMatch(/^\d+px$/);
     });
+
+    it("adjustWorkflowNameWidth measures the placeholder when the input is empty", () => {
+      const input = document.createElement("input");
+      input.value = "";
+      input.placeholder = "Untitled Workflow";
+      component.workflowNameInput = { nativeElement: input } as typeof component.workflowNameInput;
+
+      component.adjustWorkflowNameWidth();
+
+      // jsdom reports every element as zero-width, so only the measured text is
+      // asserted here: the method still sizes the input and cleans up its probe.
+      expect(input.style.width).toMatch(/^\d+px$/);
+      expect(document.body.querySelector("span[style*='visibility: hidden']")).toBeNull();
+    });
   });
 
   describe("expand jupyter notebook panel", () => {
@@ -966,6 +1109,536 @@ describe("MenuComponent", () => {
 
       expect(layout).toHaveBeenCalledTimes(1);
       expect(reset).not.toHaveBeenCalled();
+    });
+  });
+
+  /**
+   * The suite above calls the handlers directly; these fire them from the rendered markup, so a
+   * control that loses its binding fails here. The utilities block is reached through
+   * `#expanded-utilities`, the outlet that renders it inline — the dropdown outlet next to it
+   * needs a CDK overlay, which jsdom never attaches.
+   */
+  describe("rendered menu", () => {
+    const q = (selector: string) => fixture.debugElement.query(By.css(selector));
+    const utility = (title: string) => q(`#expanded-utilities button[title="${title}"]`);
+    const toolbar = (title: string) => q(`button[title="${title}"]`);
+    /** Undo/redo and export carry no title; they are identified by the icon they render. */
+    const buttonWithIcon = (icon: string) => q(`#expanded-utilities i[nztype="${icon}"]`).parent!;
+
+    afterEach(() => {
+      fixture.destroy();
+      vi.restoreAllMocks();
+    });
+
+    describe("version display bar", () => {
+      /** Puts the menu into the "viewing an older version" state and renders it. */
+      function showVersion(versionId: number | null = 7): void {
+        component.displayParticularWorkflowVersion = true;
+        workflowVersionService.selectedDisplayedVersionId.next(versionId);
+        fixture.detectChanges();
+      }
+
+      it("swaps the name input for the version label and a way back", () => {
+        const closeSpy = vi.spyOn(component, "closeParticularVersionDisplay").mockImplementation(() => {});
+        showVersion();
+
+        expect(q("input.workflow-name")).toBeNull();
+        toolbar("back").triggerEventHandler("click", null);
+
+        expect(closeSpy).toHaveBeenCalled();
+      });
+
+      it("offers restore only while the version service allows it", () => {
+        const revertSpy = vi.spyOn(component, "revertToVersion").mockImplementation(() => {});
+        vi.spyOn(workflowVersionService, "canRestoreVersion", "get").mockReturnValue(false);
+        showVersion();
+
+        const restore = fixture.debugElement
+          .queryAll(By.css("button"))
+          .find(b => (b.nativeElement.textContent ?? "").trim() === "Restore this version")!;
+        expect(restore.nativeElement.disabled).toBe(true);
+
+        vi.spyOn(workflowVersionService, "canRestoreVersion", "get").mockReturnValue(true);
+        fixture.detectChanges();
+        expect(restore.nativeElement.disabled).toBe(false);
+
+        restore.triggerEventHandler("click", null);
+        expect(revertSpy).toHaveBeenCalled();
+      });
+
+      it("offers cloning the displayed version", () => {
+        const cloneSpy = vi.spyOn(component, "cloneVersion").mockImplementation(() => {});
+        showVersion();
+
+        fixture.debugElement
+          .queryAll(By.css("button"))
+          .find(b => (b.nativeElement.textContent ?? "").trim() === "Clone this version")!
+          .triggerEventHandler("click", null);
+
+        expect(cloneSpy).toHaveBeenCalled();
+      });
+
+      it("names the displayed version, and says nothing when there is none", () => {
+        showVersion(7);
+        expect(q('[title="Current Version"]').nativeElement.textContent).toContain("7");
+
+        showVersion(null);
+        expect(q('[title="Current Version"]')).toBeNull();
+      });
+
+      it("renders an icon per co-editor", () => {
+        component.coeditorPresenceService.coeditors = [
+          { clientId: "a", user: { name: "ann" } },
+          { clientId: "b", user: { name: "bo" } },
+        ] as never;
+        fixture.detectChanges();
+
+        expect(fixture.debugElement.queryAll(By.css("texera-coeditor-user-icon")).length).toBe(2);
+      });
+    });
+
+    describe("workflow name field", () => {
+      it("shows the id badge and reports typing and committing the name", () => {
+        const widthSpy = vi.spyOn(component, "adjustWorkflowNameWidth").mockImplementation(() => {});
+        const changeSpy = vi.spyOn(component, "onWorkflowNameChange").mockImplementation(() => {});
+        component.workflowId = 42;
+        fixture.detectChanges();
+
+        expect(q("#metadata nz-avatar")).not.toBeNull();
+        const nameInput = q("input.workflow-name");
+        nameInput.triggerEventHandler("input", { target: nameInput.nativeElement });
+        nameInput.triggerEventHandler("change", { target: nameInput.nativeElement });
+
+        expect(widthSpy).toHaveBeenCalled();
+        expect(changeSpy).toHaveBeenCalled();
+      });
+
+      it("drops the id badge when there is no workflow yet", () => {
+        component.workflowId = undefined;
+        fixture.detectChanges();
+
+        expect(q("#metadata nz-avatar")).toBeNull();
+      });
+    });
+
+    describe("execution buttons", () => {
+      it("wires share, kill and run", () => {
+        const share = vi.spyOn(component, "onClickOpenShareAccess").mockResolvedValue(undefined);
+        const kill = vi.spyOn(component, "handleKill").mockImplementation(() => {});
+        const run = vi.spyOn(component, "onClickRunHandler").mockImplementation(() => {});
+        fixture.detectChanges();
+
+        q("#share-button").triggerEventHandler("click", null);
+        q("button[nzdanger]").triggerEventHandler("click", null);
+        q("#run-button").triggerEventHandler("click", null);
+
+        expect(share).toHaveBeenCalled();
+        expect(run).toHaveBeenCalled();
+        expect(kill).toHaveBeenCalled();
+      });
+    });
+
+    describe("toolbar", () => {
+      it("wires each toolbar button to its handler", () => {
+        const spies = {
+          create: vi.spyOn(component, "onClickCreateNewWorkflow").mockImplementation(() => {}),
+          save: vi.spyOn(component, "persistWorkflow").mockImplementation(() => {}),
+          deleteAll: vi.spyOn(component, "onClickDeleteAllOperators").mockImplementation(() => {}),
+          exportWorkflow: vi.spyOn(component, "onClickExportWorkflow").mockImplementation(() => {}),
+          description: vi.spyOn(component, "onClickEditDescription").mockImplementation(() => {}),
+        };
+        fixture.detectChanges();
+
+        toolbar("create new").triggerEventHandler("click", null);
+        toolbar("save").triggerEventHandler("click", null);
+        toolbar("delete all").triggerEventHandler("click", null);
+        toolbar("export workflow").triggerEventHandler("click", null);
+        toolbar("change description").triggerEventHandler("click", null);
+
+        Object.values(spies).forEach(spy => expect(spy).toHaveBeenCalled());
+      });
+    });
+
+    describe("operator actions", () => {
+      it("keeps the operator actions disabled while nothing is selected", () => {
+        component.operatorMenu.isDisableOperatorClickable = false;
+        component.operatorMenu.isToViewResultClickable = false;
+        component.operatorMenu.isReuseResultClickable = false;
+        fixture.detectChanges();
+
+        expect(utility("disable operators").nativeElement.disabled).toBe(true);
+        expect(utility("view result").nativeElement.disabled).toBe(true);
+        expect(utility("reuse result if possible").nativeElement.disabled).toBe(true);
+      });
+
+      it("wires each operator action in both of its rendered states", () => {
+        const disable = vi.spyOn(component.operatorMenu, "disableHighlightedOperators").mockImplementation(() => {});
+        const view = vi.spyOn(component.operatorMenu, "viewResultHighlightedOperators").mockImplementation(() => {});
+        const reuse = vi.spyOn(component.operatorMenu, "reuseResultHighlightedOperator").mockImplementation(() => {});
+        const menu = component.operatorMenu;
+        menu.isDisableOperatorClickable = true;
+        menu.isToViewResultClickable = true;
+        menu.isReuseResultClickable = true;
+
+        // Each action renders as one of two buttons depending on the state it would move to.
+        menu.isDisableOperator = true;
+        menu.isToViewResult = true;
+        menu.isMarkForReuse = true;
+        fixture.detectChanges();
+        expect(utility("disable operators").nativeElement.disabled).toBe(false);
+        utility("disable operators").triggerEventHandler("click", null);
+        utility("view result").triggerEventHandler("click", null);
+        // The "reuse result if possible" button is hard-disabled in the template
+        // (`[disabled]="true || …"`), so it is asserted, not clicked — firing its handler
+        // would claim an interaction the UI cannot perform.
+        expect(utility("reuse result if possible").nativeElement.disabled).toBe(true);
+
+        menu.isDisableOperator = false;
+        menu.isToViewResult = false;
+        menu.isMarkForReuse = false;
+        fixture.detectChanges();
+        utility("operators disabled, click to re-enable").triggerEventHandler("click", null);
+        utility("click to remove view result").triggerEventHandler("click", null);
+        utility("remove reusing previous result").triggerEventHandler("click", null);
+
+        expect(disable).toHaveBeenCalledTimes(2);
+        expect(view).toHaveBeenCalledTimes(2);
+        expect(reuse).toHaveBeenCalledTimes(1);
+      });
+
+      it("wires the export-result button", () => {
+        const exportSpy = vi.spyOn(component, "onClickExportExecutionResult").mockImplementation(() => {});
+        component.isExportDeactivate = false;
+        fixture.detectChanges();
+
+        buttonWithIcon("cloud-download").triggerEventHandler("click", null);
+
+        expect(exportSpy).toHaveBeenCalled();
+      });
+
+      it("wires undo and redo, and disables them while an older version is displayed", () => {
+        const undo = vi.spyOn(component.undoRedoService, "undoAction").mockImplementation(() => {});
+        const redo = vi.spyOn(component.undoRedoService, "redoAction").mockImplementation(() => {});
+        vi.spyOn(component.undoRedoService, "canUndo").mockReturnValue(true);
+        vi.spyOn(component.undoRedoService, "canRedo").mockReturnValue(true);
+        fixture.detectChanges();
+
+        buttonWithIcon("undo").triggerEventHandler("click", null);
+        buttonWithIcon("redo").triggerEventHandler("click", null);
+        expect(undo).toHaveBeenCalled();
+        expect(redo).toHaveBeenCalled();
+
+        // Viewing an older version makes the graph read-only, so history is off limits.
+        component.displayParticularWorkflowVersion = true;
+        fixture.detectChanges();
+        expect(buttonWithIcon("undo").nativeElement.disabled).toBe(true);
+        expect(buttonWithIcon("redo").nativeElement.disabled).toBe(true);
+      });
+    });
+
+    describe("checkpoint button", () => {
+      it("appears only with time travel on, and is enabled only while paused", () => {
+        const checkpoint = vi.spyOn(component, "handleCheckpoint").mockImplementation(() => {});
+        const guiConfig = TestBed.inject(GuiConfigService);
+        guiConfig.env.timetravelEnabled = false;
+        fixture.detectChanges();
+        expect(q("#checkpoint-button")).toBeNull();
+
+        guiConfig.env.timetravelEnabled = true;
+        component.executionState = ExecutionState.Running;
+        fixture.detectChanges();
+        expect(q("#checkpoint-button").nativeElement.disabled).toBe(true);
+
+        component.executionState = ExecutionState.Paused;
+        fixture.detectChanges();
+        expect(q("#checkpoint-button").nativeElement.disabled).toBe(false);
+
+        q("#checkpoint-button").triggerEventHandler("click", null);
+        expect(checkpoint).toHaveBeenCalled();
+      });
+    });
+  });
+
+  describe("ngOnInit subscriptions", () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it("re-applies the run button behavior on every execution state event", () => {
+      const stateEvents$ = new Subject<{ current: { state: ExecutionState } }>();
+      vi.spyOn(executeWorkflowService, "getExecutionStateStream").mockReturnValue(
+        stateEvents$.asObservable() as ReturnType<typeof executeWorkflowService.getExecutionStateStream>
+      );
+      const stateFixture = TestBed.createComponent(MenuComponent);
+      const stateComponent = stateFixture.componentInstance;
+      stateFixture.detectChanges();
+      stateComponent.isWorkflowValid = true;
+      stateComponent.isWorkflowEmpty = false;
+      stateComponent.computingUnitStatus = ComputingUnitState.Running;
+      Object.defineProperty(stateComponent.workflowWebsocketService, "isConnected", {
+        get: () => true,
+        configurable: true,
+      });
+
+      try {
+        stateEvents$.next({ current: { state: ExecutionState.Running } });
+        expect(stateComponent.executionState).toBe(ExecutionState.Running);
+        expect(stateComponent.runButtonText).toBe("Pause");
+
+        stateEvents$.next({ current: { state: ExecutionState.Paused } });
+        expect(stateComponent.runButtonText).toBe("Resume");
+      } finally {
+        stateFixture.destroy();
+      }
+    });
+
+    it("deactivates the export button unless the feature is on and results exist", () => {
+      const guiConfig = TestBed.inject(GuiConfigService);
+      const results$ = component.workflowResultExportService.hasResultToExportOnAllOperators;
+
+      // Feature off: deactivated whatever the results say.
+      guiConfig.env.exportExecutionResultEnabled = false;
+      results$.next(true);
+      expect(component.isExportDeactivate).toBe(true);
+
+      // Feature on, but nothing to export.
+      guiConfig.env.exportExecutionResultEnabled = true;
+      results$.next(false);
+      expect(component.isExportDeactivate).toBe(true);
+
+      results$.next(true);
+      expect(component.isExportDeactivate).toBe(false);
+    });
+  });
+
+  describe("onClickGenerateReport", () => {
+    let reportService: ReportGenerationService;
+
+    beforeEach(() => {
+      reportService = TestBed.inject(ReportGenerationService);
+      vi.spyOn(notificationService, "blank");
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it("orders the operator results by operator id and blanks the ones the backend omitted", () => {
+      vi.spyOn(workflowActionService, "getWorkflowContent").mockReturnValue({
+        operators: [{ operatorID: "op-1" }, { operatorID: "op-2" }],
+        links: [],
+        commentBoxes: [],
+        settings: {},
+      } as unknown as WorkflowContent);
+      vi.spyOn(reportService, "generateWorkflowSnapshot").mockReturnValue(of("snap-url"));
+      vi.spyOn(reportService, "getAllOperatorResults").mockReturnValue(of([{ operatorId: "op-1", html: "<b>x</b>" }]));
+      const htmlSpy = vi.spyOn(reportService, "generateReportAsHtml").mockImplementation(() => {});
+      const successSpy = vi.spyOn(notificationService, "success").mockImplementation(() => {});
+      const removeSpy = vi.spyOn(notificationService, "remove").mockImplementation(() => {});
+      const errorSpy = vi.spyOn(notificationService, "error").mockImplementation(() => {});
+      component.currentWorkflowName = "wf";
+
+      component.onClickGenerateReport();
+
+      expect(htmlSpy).toHaveBeenCalledWith("snap-url", ["<b>x</b>", ""], "wf");
+      expect(removeSpy).toHaveBeenCalledTimes(1);
+      expect(successSpy).toHaveBeenCalledWith("Report successfully generated.");
+      expect(errorSpy).not.toHaveBeenCalled();
+    });
+
+    it("reports a failure to retrieve the operator results and closes the notification", () => {
+      vi.spyOn(reportService, "generateWorkflowSnapshot").mockReturnValue(of("snap-url"));
+      vi.spyOn(reportService, "getAllOperatorResults").mockReturnValue(throwError(() => new Error("no results")));
+      const htmlSpy = vi.spyOn(reportService, "generateReportAsHtml").mockImplementation(() => {});
+      const removeSpy = vi.spyOn(notificationService, "remove").mockImplementation(() => {});
+      const errorSpy = vi.spyOn(notificationService, "error").mockImplementation(() => {});
+
+      component.onClickGenerateReport();
+
+      expect(errorSpy).toHaveBeenCalledWith("Error in retrieving operator results: no results");
+      expect(removeSpy).toHaveBeenCalledTimes(1);
+      expect(htmlSpy).not.toHaveBeenCalled();
+    });
+
+    it("reports a failure to take the workflow snapshot without asking for results", () => {
+      vi.spyOn(reportService, "generateWorkflowSnapshot").mockReturnValue(
+        throwError(() => new Error("snapshot failed"))
+      );
+      const resultsSpy = vi.spyOn(reportService, "getAllOperatorResults");
+      const removeSpy = vi.spyOn(notificationService, "remove").mockImplementation(() => {});
+      const errorSpy = vi.spyOn(notificationService, "error").mockImplementation(() => {});
+
+      component.onClickGenerateReport();
+
+      expect(errorSpy).toHaveBeenCalledWith("snapshot failed");
+      expect(removeSpy).toHaveBeenCalledTimes(1);
+      expect(resultsSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("onClickEditDescription", () => {
+    /** Opens the modal over a workflow with `description`, with the editor emitting `edited`. */
+    function open(description: string | undefined, edited: string) {
+      vi.spyOn(workflowActionService, "getWorkflow").mockReturnValue({
+        content: { operators: [], links: [], commentBoxes: [], settings: {} } as unknown as WorkflowContent,
+        name: "wf",
+        description,
+        wid: 1,
+        creationTime: undefined,
+        lastModifiedTime: undefined,
+        readonly: false,
+        isPublished: 0,
+      });
+      const close = vi.fn();
+      const createSpy = vi.spyOn(modalService, "create").mockReturnValue({
+        afterClose: of(undefined),
+        getContentComponent: () => ({ descriptionChange: of(edited) }),
+        close,
+      } as unknown as NzModalRef);
+      return { close, createSpy };
+    }
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it("seeds the editor with an empty string when the workflow has no description", () => {
+      const { createSpy } = open(undefined, "ignored");
+
+      component.onClickEditDescription();
+
+      expect((createSpy.mock.calls[0][0] as ModalOptions).nzData).toEqual({ description: "" });
+    });
+
+    it("stores the edited description, persists it while logged in, and closes the modal", () => {
+      const { close } = open("old", "new description");
+      const metadataSpy = vi.spyOn(workflowActionService, "setWorkflowMetadata").mockImplementation(() => {});
+      const persistSpy = vi.spyOn(component, "persistWorkflow").mockImplementation(() => {});
+      vi.spyOn(component.userService, "isLogin").mockReturnValue(true);
+
+      component.onClickEditDescription();
+
+      expect(metadataSpy).toHaveBeenCalledWith(expect.objectContaining({ wid: 1, description: "new description" }));
+      expect(persistSpy).toHaveBeenCalledTimes(1);
+      expect(close).toHaveBeenCalledTimes(1);
+    });
+
+    it("closes the modal without persisting when logged out", () => {
+      const { close } = open("old", "new description");
+      vi.spyOn(workflowActionService, "setWorkflowMetadata").mockImplementation(() => {});
+      const persistSpy = vi.spyOn(component, "persistWorkflow").mockImplementation(() => {});
+      vi.spyOn(component.userService, "isLogin").mockReturnValue(false);
+
+      component.onClickEditDescription();
+
+      expect(persistSpy).not.toHaveBeenCalled();
+      expect(close).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("persistWorkflow", () => {
+    const saved = (wid?: number) => ({
+      content: { operators: [], links: [], commentBoxes: [], settings: {} } as unknown as WorkflowContent,
+      name: "wf",
+      description: undefined,
+      wid,
+      creationTime: undefined,
+      lastModifiedTime: undefined,
+      readonly: false,
+      isPublished: 0,
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it("adopts the saved workflow as the current metadata and clears the saving indicator", () => {
+      vi.spyOn(workflowPersistService, "persistWorkflow").mockReturnValue(of(saved(9)));
+      const metadataSpy = vi.spyOn(workflowActionService, "setWorkflowMetadata").mockImplementation(() => {});
+
+      component.persistWorkflow();
+
+      expect(metadataSpy).toHaveBeenCalledWith(expect.objectContaining({ wid: 9 }));
+      expect(component.isSaving).toBe(false);
+    });
+
+    it("still clears the saving indicator when the saved workflow has no id", () => {
+      vi.spyOn(workflowPersistService, "persistWorkflow").mockReturnValue(of(saved(undefined)));
+      const metadataSpy = vi.spyOn(workflowActionService, "setWorkflowMetadata").mockImplementation(() => {});
+
+      component.persistWorkflow();
+
+      expect(metadataSpy).toHaveBeenCalledTimes(1);
+      expect(component.isSaving).toBe(false);
+    });
+
+    it("surfaces a save failure as a notification and stops the saving indicator", () => {
+      vi.spyOn(workflowPersistService, "persistWorkflow").mockReturnValue(throwError(() => new Error("save failed")));
+      const errorSpy = vi.spyOn(notificationService, "error").mockImplementation(() => {});
+
+      component.persistWorkflow();
+
+      expect(errorSpy).toHaveBeenCalledWith("save failed");
+      expect(component.isSaving).toBe(false);
+    });
+  });
+
+  describe("workflow metadata display", () => {
+    const metadata = (overrides: Record<string, unknown>) => ({
+      name: "wf",
+      description: undefined,
+      wid: 4,
+      creationTime: undefined,
+      lastModifiedTime: undefined,
+      isPublished: 0,
+      readonly: false,
+      ...overrides,
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+      vi.restoreAllMocks();
+    });
+
+    /** The refresh subscription is debounced by 100ms; the width fix-up is a 0ms macrotask. */
+    function refreshWith(overrides: Record<string, unknown>): void {
+      workflowActionService.setWorkflowMetadata(
+        metadata(overrides) as Parameters<typeof workflowActionService.setWorkflowMetadata>[0]
+      );
+      vi.advanceTimersByTime(101);
+    }
+
+    it("stamps the last save time for a workflow that has been persisted", () => {
+      vi.useFakeTimers();
+      const widthSpy = vi.spyOn(component, "adjustWorkflowNameWidth").mockImplementation(() => {});
+
+      refreshWith({ name: "saved wf", lastModifiedTime: 1_700_000_000_000 });
+
+      expect(component.currentWorkflowName).toBe("saved wf");
+      // The rendered instant depends on the runner's zone, so only the shape is asserted.
+      expect(component.autoSaveState).toMatch(/^Saved at \d{2}\/\d{2}\/\d{4} \d{2}:\d{2}:\d{2}$/);
+      expect(widthSpy).toHaveBeenCalled();
+    });
+
+    it("leaves the stamp empty for a workflow that has never been saved", () => {
+      vi.useFakeTimers();
+      vi.spyOn(component, "adjustWorkflowNameWidth").mockImplementation(() => {});
+
+      refreshWith({ name: "fresh wf", lastModifiedTime: undefined });
+
+      expect(component.currentWorkflowName).toBe("fresh wf");
+      expect(component.autoSaveState).toBe("");
+    });
+
+    it("stamps the version date when the displayed workflow has a creation time", () => {
+      workflowActionService.setWorkflowMetadata(
+        metadata({ creationTime: 1_700_000_000_000 }) as Parameters<typeof workflowActionService.setWorkflowMetadata>[0]
+      );
+
+      workflowVersionService.setDisplayParticularVersion(true, 1, 2);
+
+      expect(component.displayParticularWorkflowVersion).toBe(true);
+      expect(component.particularVersionDate).toMatch(/^\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}:\d{2}$/);
     });
   });
 });

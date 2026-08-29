@@ -94,6 +94,36 @@
         <sqlFile path="sql/updates/36.sql"/>
     </changeSet>
 
+    <!-- Add model metadata tables -->
+    <changeSet id="37" author="tanishqgandhi1908">
+        <sqlFile path="sql/updates/37.sql"/>
+    </changeSet>
+
+    <!-- Rename user_warehouse.warehouse_name to lakekeeper_warehouse_name (#7753) -->
+    <changeSet id="38" author="mengw15">
+        <sqlFile path="sql/updates/38.sql"/>
+    </changeSet>
+
+    <!-- Singularize the resource-type prefix on stored dataset paths -->
+    <changeSet id="39" author="tanishqgandhi1908">
+        <sqlFile path="sql/updates/39.sql"/>
+    </changeSet>
+
+    <!-- Add per-user access control for models -->
+    <changeSet id="40" author="tanishqgandhi1908">
+        <sqlFile path="sql/updates/40.sql"/>
+    </changeSet>
+
+    <!-- Add multipart upload session tables for models -->
+    <changeSet id="41" author="tanishqgandhi1908">
+        <sqlFile path="sql/updates/41.sql"/>
+    </changeSet>
+
+    <!-- Prefix the dataset upload-limit site settings with `dataset_` -->
+    <changeSet id="42" author="tanishqgandhi1908">
+        <sqlFile path="sql/updates/42.sql"/>
+    </changeSet>
+
     <!-- example changeSet
     <changeSet id="1" author="author">
         <sqlFile path="sql/updates/1.sql"/>

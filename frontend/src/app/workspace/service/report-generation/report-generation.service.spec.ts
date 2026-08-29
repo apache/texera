@@ -19,7 +19,7 @@
 
 import { TestBed } from "@angular/core/testing";
 import { HttpClient } from "@angular/common/http";
-import { firstValueFrom, of, Subject, throwError } from "rxjs";
+import { firstValueFrom, of, Subject, Subscription, throwError } from "rxjs";
 import { ReportGenerationService } from "./report-generation.service";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import { WorkflowResultService } from "../workflow-result/workflow-result.service";
@@ -330,6 +330,34 @@ describe("ReportGenerationService", () => {
   });
 
   describe("generateWorkflowSnapshot", () => {
+    /**
+     * html2canvas clones the whole document — from `documentElement`, not from the element it is
+     * pointed at — and the unit-test builder runs spec files with `isolate: false`, so one jsdom
+     * document is shared by every spec file in a worker and the renders below drag in whatever DOM
+     * the files before this one left behind, in `<head>` as much as in the body. That is what
+     * failed the macOS leg: a clone that costs ~60ms against this suite's own DOM was measured at
+     * 12–37s there, past the 20s test timeout, while ubuntu and windows passed. Park the foreign
+     * nodes of both for the duration of the suite and put them back after, so the render's cost
+     * depends only on what these tests build. The renders started here outlive the tests that
+     * start them, so this has to span the suite rather than each test.
+     */
+    let parkedNodes: [ParentNode, ChildNode][];
+
+    beforeAll(() => {
+      parkedNodes = [document.head, document.body].flatMap(parent =>
+        Array.from(parent.childNodes).map((node): [ParentNode, ChildNode] => [parent, node])
+      );
+      parkedNodes.forEach(([, node]) => node.remove());
+    });
+
+    afterAll(() => {
+      // html2canvas only detaches the iframe it clones into on the render's success path, so each
+      // render these tests leave failing strands one in the body. Drop them before the parked
+      // nodes go back, otherwise the next spec file's renders clone them.
+      document.body.querySelectorAll("iframe.html2canvas-container").forEach(node => node.remove());
+      parkedNodes.forEach(([parent, node]) => parent.appendChild(node));
+    });
+
     it("fails when the editor is not on the page", async () => {
       await expect(firstValueFrom(service.generateWorkflowSnapshot("myflow"))).rejects.toBe(
         "Workflow editor element not found"
@@ -352,6 +380,7 @@ describe("ReportGenerationService", () => {
       let realXhr: typeof globalThis.XMLHttpRequest;
       let realFileReader: typeof globalThis.FileReader;
       let editor: HTMLElement;
+      let started: Subscription[];
       let xhrOutcome: "load" | "error";
       let readerOutcome: "loadend" | "error";
       let sentUrls: string[];
@@ -401,17 +430,25 @@ describe("ReportGenerationService", () => {
         return image;
       }
 
-      /** Runs the snapshot and resolves once it settles, whichever way html2canvas goes. */
-      function runSnapshot(): Promise<void> {
-        return new Promise<void>(resolve => {
+      /**
+       * Starts the snapshot and returns immediately. Waiting for the observable to settle
+       * would mean waiting for html2canvas, which under jsdom takes an unbounded amount of
+       * time — on a slow runner long enough to blow the test timeout. These tests are about
+       * the inlining step that runs first, so each waits for that step's own effect instead.
+       * The subscriber swallows both outcomes so the render's failure is not an unhandled
+       * error.
+       */
+      function startSnapshot(): void {
+        started.push(
           service.generateWorkflowSnapshot("myflow").subscribe({
-            next: () => resolve(),
-            error: () => resolve(),
-          });
-        });
+            next: () => {},
+            error: () => {},
+          })
+        );
       }
 
       beforeEach(() => {
+        started = [];
         sentUrls = [];
         xhrOutcome = "load";
         readerOutcome = "loadend";
@@ -422,11 +459,18 @@ describe("ReportGenerationService", () => {
         editor = document.createElement("div");
         editor.id = "workflow-editor";
         document.body.appendChild(editor);
+        // The render these tests start is left to fail on its own, but jsdom announces its
+        // missing 2D context on the virtual console, so an otherwise clean run carries a stack
+        // trace per test. Hand back what jsdom hands back after complaining, minus the complaint.
+        vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null as never);
       });
 
       afterEach(() => {
         (globalThis as unknown as { XMLHttpRequest: unknown }).XMLHttpRequest = realXhr;
         (globalThis as unknown as { FileReader: unknown }).FileReader = realFileReader;
+        // The render this started cannot be cancelled, but nothing it emits should reach a
+        // test that has already finished.
+        started.forEach(subscription => subscription.unsubscribe());
         // Two of these tests spy on console.error; without this the spy would outlive them.
         vi.restoreAllMocks();
         editor.remove();
@@ -435,16 +479,18 @@ describe("ReportGenerationService", () => {
       it("rewrites an image's source to the fetched base64 data", async () => {
         const image = addImage("/assets/icon.png");
 
-        await runSnapshot();
+        startSnapshot();
 
+        await vi.waitFor(() => expect(image.getAttribute("href")).toBe(BASE64));
         expect(sentUrls).toEqual(["/assets/icon.png"]);
-        expect(image.getAttribute("href")).toBe(BASE64);
       });
 
-      it("leaves an image with no source alone and fetches nothing for it", async () => {
+      it("leaves an image with no source alone and fetches nothing for it", () => {
         const image = addImage();
 
-        await runSnapshot();
+        // The request, if there were one, is issued synchronously by the fake XHR, so an
+        // empty list right after starting is already the answer.
+        startSnapshot();
 
         expect(sentUrls).toEqual([]);
         expect(image.getAttribute("href")).toBeNull();
@@ -455,11 +501,13 @@ describe("ReportGenerationService", () => {
         readerOutcome = "error";
         const image = addImage("/assets/icon.png");
 
-        await runSnapshot();
+        startSnapshot();
 
-        expect(consoleSpy).toHaveBeenCalledWith(
-          "Failed to load image: /assets/icon.png",
-          "Failed to convert image to Base64"
+        await vi.waitFor(() =>
+          expect(consoleSpy).toHaveBeenCalledWith(
+            "Failed to load image: /assets/icon.png",
+            "Failed to convert image to Base64"
+          )
         );
         expect(image.getAttribute("href")).toBeNull();
       });
@@ -469,11 +517,13 @@ describe("ReportGenerationService", () => {
         xhrOutcome = "error";
         addImage("/assets/missing.png");
 
-        await runSnapshot();
+        startSnapshot();
 
-        expect(consoleSpy).toHaveBeenCalledWith(
-          "Failed to load image: /assets/missing.png",
-          "Failed to load image from /assets/missing.png"
+        await vi.waitFor(() =>
+          expect(consoleSpy).toHaveBeenCalledWith(
+            "Failed to load image: /assets/missing.png",
+            "Failed to load image from /assets/missing.png"
+          )
         );
       });
     });

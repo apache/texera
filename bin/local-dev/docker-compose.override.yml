@@ -54,3 +54,12 @@ services:
   lakekeeper-init:
     environment:
       STORAGE_S3_ENDPOINT: ${STORAGE_S3_ENDPOINT:-http://localhost:9000}
+
+  # The default .env points TEXERA_ORIGIN at the nginx origin (:8080), but
+  # local-dev has no nginx — the Angular dev server serves the app on :4200.
+  # That origin is what Jupyter puts in its iframe CSP frame-ancestors and
+  # what custom.js uses as the postMessage targetOrigin, so leaving it at
+  # :8080 makes the browser refuse to render the notebook panel.
+  jupyter:
+    environment:
+      TEXERA_ORIGIN: ${TEXERA_ORIGIN:-http://localhost:4200}

@@ -85,7 +85,7 @@ export class FilesUploaderComponent {
   ) {
     // A missing key or failed fetch keeps the initializer default above.
     this.adminSettingsService
-      .getPublicSetting("single_file_upload_max_size_mib")
+      .getPublicSetting("dataset_single_file_upload_max_size_mib")
       .pipe(untilDestroyed(this))
       .subscribe({
         next: value => (this.singleFileUploadMaxSizeMiB = parseIntOrDefault(value, this.singleFileUploadMaxSizeMiB)),
