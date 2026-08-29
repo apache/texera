@@ -44,7 +44,7 @@ import org.apache.texera.dao.jooq.generated.tables.pojos.{WorkflowExecutions, Us
 import org.apache.texera.web.model.http.request.result.ResultExportRequest
 import org.apache.texera.web.service.WarehouseReadGuard
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource._
-import org.apache.texera.web.service.{ExecutionsMetadataPersistService, ResultExportService}
+import org.apache.texera.web.service.ResultExportService
 import org.jooq.DSLContext
 import play.api.libs.json.Json
 
@@ -528,7 +528,7 @@ object WorkflowExecutionsResource {
       cuId: Integer,
       whId: Integer,
       userName: String,
-      googleAvatar: String,
+      avatar: String,
       status: Byte,
       result: String,
       startingTime: Timestamp,
@@ -631,25 +631,25 @@ class WorkflowExecutionsResource {
     if (!WorkflowAccessResource.hasReadAccess(wid, user.getUid)) {
       List()
     } else {
-      ExecutionsMetadataPersistService.tryGetExistingExecution(
-        ExecutionIdentity(eid.longValue())
-      ) match {
-        case Some(value) =>
-          val logLocation = value.getLogLocation
-          if (logLocation != null && logLocation.nonEmpty) {
-            val storage =
-              SequentialRecordStorage.getStorage[ReplayLogRecord](Some(new URI(logLocation)))
-            val result = new mutable.ArrayBuffer[EmbeddedControlMessageIdentity]()
-            storage.getReader("COORDINATOR").mkRecordIterator().foreach {
-              case destination: ReplayDestination =>
-                result.append(destination.id)
-              case _ =>
-            }
-            result.map(_.id).toList
-          } else {
-            List()
-          }
-        case None => List()
+      val logLocation = context
+        .select(WORKFLOW_EXECUTIONS.LOG_LOCATION)
+        .from(WORKFLOW_EXECUTIONS)
+        .join(WORKFLOW_VERSION)
+        .on(WORKFLOW_EXECUTIONS.VID.eq(WORKFLOW_VERSION.VID))
+        .where(WORKFLOW_EXECUTIONS.EID.eq(eid).and(WORKFLOW_VERSION.WID.eq(wid)))
+        .fetchOneInto(classOf[String])
+      if (logLocation != null && logLocation.nonEmpty) {
+        val storage =
+          SequentialRecordStorage.getStorage[ReplayLogRecord](Some(new URI(logLocation)))
+        val result = new mutable.ArrayBuffer[EmbeddedControlMessageIdentity]()
+        storage.getReader("COORDINATOR").mkRecordIterator().foreach {
+          case destination: ReplayDestination =>
+            result.append(destination.id)
+          case _ =>
+        }
+        result.map(_.id).toList
+      } else {
+        List()
       }
     }
   }
@@ -787,6 +787,13 @@ class WorkflowExecutionsResource {
       throw new WebApplicationException(Response.Status.UNAUTHORIZED)
   }
 
+  private def workflowAccessDeniedResponse: Response =
+    Response
+      .status(Response.Status.UNAUTHORIZED)
+      .`type`(MediaType.APPLICATION_JSON)
+      .entity(Map("error" -> "No sufficient access privilege.").asJava)
+      .build()
+
   /** Delete a group of executions */
   @PUT
   @Consumes(Array(MediaType.APPLICATION_JSON))
@@ -850,18 +857,22 @@ class WorkflowExecutionsResource {
   @Path("/result/export/dataset")
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   def exportResultToDataset(request: ResultExportRequest, @Auth user: SessionUser): Response = {
-    try {
-      val resultExportService =
-        new ResultExportService(WorkflowIdentity(request.workflowId), request.computingUnitId)
-      resultExportService.exportToDataset(user.user, request)
+    if (!WorkflowAccessResource.hasReadAccess(request.workflowId, user.getUser.getUid)) {
+      workflowAccessDeniedResponse
+    } else {
+      try {
+        val resultExportService =
+          new ResultExportService(WorkflowIdentity(request.workflowId), request.computingUnitId)
+        resultExportService.exportToDataset(user.user, request)
 
-    } catch {
-      case ex: Exception =>
-        Response
-          .status(Response.Status.INTERNAL_SERVER_ERROR)
-          .`type`(MediaType.APPLICATION_JSON)
-          .entity(Map("error" -> ex.getMessage).asJava)
-          .build()
+      } catch {
+        case ex: Exception =>
+          Response
+            .status(Response.Status.INTERNAL_SERVER_ERROR)
+            .`type`(MediaType.APPLICATION_JSON)
+            .entity(Map("error" -> ex.getMessage).asJava)
+            .build()
+      }
     }
   }
 
@@ -875,21 +886,24 @@ class WorkflowExecutionsResource {
 
     try {
       val userOpt = JwtParser.parseToken(token)
-      if (userOpt.isPresent) {
-        val user = userOpt.get()
-        val role = user.getUser.getRole
-        val RolesAllowed = Set(UserRoleEnum.REGULAR, UserRoleEnum.ADMIN)
-        if (!RolesAllowed.contains(role)) {
-          throw new RuntimeException("User role is not allowed to perform this download")
-        }
-      } else {
+      if (!userOpt.isPresent) {
         throw new RuntimeException("Invalid or expired token")
+      }
+      val user = userOpt.get()
+      val role = user.getUser.getRole
+      val RolesAllowed = Set(UserRoleEnum.REGULAR, UserRoleEnum.ADMIN)
+      if (!RolesAllowed.contains(role)) {
+        throw new RuntimeException("User role is not allowed to perform this download")
       }
 
       val request = Json.parse(requestJson).as[ResultExportRequest]
-      val resultExportService =
-        new ResultExportService(WorkflowIdentity(request.workflowId), request.computingUnitId)
-      resultExportService.exportToLocal(request)
+      if (!WorkflowAccessResource.hasReadAccess(request.workflowId, user.getUser.getUid)) {
+        workflowAccessDeniedResponse
+      } else {
+        val resultExportService =
+          new ResultExportService(WorkflowIdentity(request.workflowId), request.computingUnitId)
+        resultExportService.exportToLocal(request)
+      }
 
     } catch {
       case ex: Exception =>

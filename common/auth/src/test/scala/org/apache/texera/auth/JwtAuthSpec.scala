@@ -43,7 +43,7 @@ class JwtAuthSpec extends AnyFlatSpec with Matchers {
     claims.getSubject shouldBe "alice"
     claims.getClaimValueAsString("userId") shouldBe "42"
     claims.getClaimValueAsString("email") shouldBe "alice@example.com"
-    claims.getClaimValueAsString("googleAvatar") shouldBe "avatar-blob"
+    claims.getClaimValueAsString("avatar") shouldBe "avatar-blob"
     claims.getClaimValueAsString("role") shouldBe UserRoleEnum.ADMIN.name
   }
 

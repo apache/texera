@@ -55,6 +55,8 @@ object GuiConfig {
     conf.getBoolean("gui.workflow-workspace.async-rendering-enabled")
   val guiWorkflowWorkspaceTimetravelEnabled: Boolean =
     conf.getBoolean("gui.workflow-workspace.timetravel-enabled")
+  val guiWorkflowWorkspaceFormViewEnabled: Boolean =
+    conf.getBoolean("gui.workflow-workspace.form-view-enabled")
   val guiWorkflowWorkspaceProductionSharedEditingServer: Boolean =
     conf.getBoolean("gui.workflow-workspace.production-shared-editing-server")
   val guiWorkflowWorkspacePythonLanguageServerPort: String =
@@ -75,4 +77,6 @@ object GuiConfig {
     conf.getBoolean("gui.deployment-version-check-enabled")
   val guiWorkflowWorkspacePythonNotebookMigrationEnabled: Boolean =
     conf.getBoolean("gui.workflow-workspace.python-notebook-migration-enabled")
+  val guiWorkflowWorkspacePythonNotebookMigrationTimeoutMinutes: Int =
+    conf.getInt("gui.workflow-workspace.python-notebook-migration-timeout-minutes")
 }

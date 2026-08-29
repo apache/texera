@@ -30,6 +30,7 @@ export interface GuiConfig {
   linkBreakpointEnabled: boolean;
   asyncRenderingEnabled: boolean;
   timetravelEnabled: boolean;
+  formViewEnabled: boolean;
   productionSharedEditingServer: boolean;
   pythonLanguageServerPort: string;
   defaultDataTransferBatchSize: number;
@@ -43,6 +44,7 @@ export interface GuiConfig {
   limitColumns: number;
   attributionEnabled: boolean;
   pythonNotebookMigrationEnabled: boolean;
+  pythonNotebookMigrationTimeoutMinutes: number;
   deploymentVersionCheckEnabled: boolean;
 }
 
@@ -56,6 +58,7 @@ export interface SidebarTabs {
   workflows_enabled: boolean;
   compute_enabled: boolean;
   datasets_enabled: boolean;
+  models_enabled: boolean;
   quota_enabled: boolean;
   forum_enabled: boolean;
   about_enabled: boolean;

@@ -17,7 +17,12 @@
  * under the License.
  */
 
-import { NotebookMigrationLLM, Notebook } from "./migration-llm";
+import {
+  NotebookMigrationLLM,
+  Notebook,
+  DEFAULT_LLM_REQUEST_TIMEOUT_MINUTES,
+  LlmRequestTimeoutError,
+} from "./migration-llm";
 import { GuiConfigService } from "../../../common/service/gui-config.service";
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
 import { AuthService } from "../../../common/service/user/auth.service";
@@ -37,6 +42,7 @@ describe("NotebookMigrationLLM", () => {
     const stubConfig = {
       env: {
         pythonNotebookMigrationEnabled: true,
+        pythonNotebookMigrationTimeoutMinutes: 10,
         defaultDataTransferBatchSize: 400,
         defaultExecutionMode: "PIPELINED",
       },
@@ -371,7 +377,8 @@ describe("NotebookMigrationLLM", () => {
     it("returns true and pings the model with a capped token budget on success", async () => {
       const ok = await makeLLM().verifyConnection();
       expect(ok).toBe(true);
-      expect(callModelSpy).toHaveBeenCalledWith([{ role: "user", content: "ping" }], 10);
+      // The ping goes through the timeout wrapper, so it also carries an abort signal.
+      expect(callModelSpy).toHaveBeenCalledWith([{ role: "user", content: "ping" }], 10, expect.any(AbortSignal));
     });
 
     it("returns false and logs the error when the ping fails", async () => {
@@ -382,6 +389,94 @@ describe("NotebookMigrationLLM", () => {
       await expect(llm.verifyConnection()).resolves.toBe(false);
       expect(error).toHaveBeenCalledWith("API key verification failed:", expect.any(Error));
       error.mockRestore();
+    });
+  });
+
+  describe("callModel transport", () => {
+    it("forwards messages and the abort signal to generateText and returns its text", async () => {
+      // Exercise the real callModel body (the ai-SDK seam every other test stubs) with a minimal
+      // LanguageModelV2 fake, so no network call and no "ai" module mock is involved.
+      callModelSpy.mockRestore();
+      const llm = makeLLM();
+      (llm as any).model = {
+        specificationVersion: "v2",
+        provider: "mock",
+        modelId: "mock",
+        supportedUrls: {},
+        doGenerate: async () => ({
+          content: [{ type: "text", text: "pong" }],
+          finishReason: "stop",
+          usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 },
+          warnings: [],
+        }),
+      };
+
+      const result = await (llm as any).callModel(
+        [{ role: "user", content: "ping" }],
+        10,
+        new AbortController().signal
+      );
+
+      expect(result.text).toBe("pong");
+    });
+  });
+
+  describe("request timeout", () => {
+    it("rejects a stalled model call once the timeout elapses so the caller can recover", async () => {
+      vi.useFakeTimers();
+      try {
+        // A request that never settles: only the timeout can end it.
+        callModelSpy.mockReturnValue(new Promise<{ text: string }>(() => {}));
+        const pending = makeLLM().convertNotebookToWorkflow({ cells: [codeCell("AAA", "a = 1")] });
+        // Reject with a typed error carrying the configured minutes, so callers can message precisely.
+        const captured = pending.catch(error => error);
+        // stubConfig sets pythonNotebookMigrationTimeoutMinutes to 10.
+        await vi.advanceTimersByTimeAsync(10 * 60 * 1000);
+        const error = await captured;
+        expect(error).toBeInstanceOf(LlmRequestTimeoutError);
+        expect(error.minutes).toBe(10);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("does not reject a call that resolves before the timeout", async () => {
+      vi.useFakeTimers();
+      try {
+        mockResponses(
+          JSON.stringify({ code: { UDF1: "code1" }, edges: [], outputs: { UDF1: ["a"] } }),
+          JSON.stringify({ UDF1: ["AAA"] })
+        );
+        const result = await makeLLM().convertNotebookToWorkflow({ cells: [codeCell("AAA", "a = 1")] });
+        expect(JSON.parse(result).workflowJSON.operators).toHaveLength(1);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("falls back to the default timeout when the configured value is non-positive", async () => {
+      vi.useFakeTimers();
+      try {
+        const stubConfig = {
+          env: {
+            pythonNotebookMigrationEnabled: true,
+            pythonNotebookMigrationTimeoutMinutes: 0,
+            defaultDataTransferBatchSize: 400,
+            defaultExecutionMode: "PIPELINED",
+          },
+        } as unknown as GuiConfigService;
+        const util = { getNewOperatorPredicate: vi.fn() } as unknown as WorkflowUtilService;
+        const llm = new NotebookMigrationLLM(stubConfig, util);
+        llm.initialize("gpt-5-mini", "test-token");
+
+        callModelSpy.mockReturnValue(new Promise<{ text: string }>(() => {}));
+        const pending = llm.convertNotebookToWorkflow({ cells: [codeCell("AAA", "a = 1")] });
+        const assertion = expect(pending).rejects.toThrow(/timed out/);
+        await vi.advanceTimersByTimeAsync(DEFAULT_LLM_REQUEST_TIMEOUT_MINUTES * 60 * 1000);
+        await assertion;
+      } finally {
+        vi.useRealTimers();
+      }
     });
   });
 

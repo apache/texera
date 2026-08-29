@@ -116,6 +116,79 @@ class ProjectionOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
 
   }
 
+  it should "derive the drop-mode schema with original names, types and order" in {
+    projectionOpDesc.isDrop = true
+    projectionOpDesc.attributes ++= List(
+      new AttributeUnit("field2", "")
+    )
+    val outputSchema =
+      projectionOpDesc.getExternalOutputSchemas(Map(PortIdentity() -> schema)).values.head
+    assert(outputSchema.getAttributes.length == 2)
+    assert(outputSchema.getIndex("field1") == 0)
+    assert(outputSchema.getIndex("field3") == 1)
+    assert(outputSchema.getAttribute("field1").getType == AttributeType.STRING)
+    assert(outputSchema.getAttribute("field3").getType == AttributeType.BOOLEAN)
+  }
+
+  it should "ignore aliases when deriving the drop-mode schema" in {
+    projectionOpDesc.isDrop = true
+    projectionOpDesc.attributes ++= List(
+      new AttributeUnit("field1", "renamed")
+    )
+    val outputSchema =
+      projectionOpDesc.getExternalOutputSchemas(Map(PortIdentity() -> schema)).values.head
+    assert(outputSchema.getAttributeNames == List("field2", "field3"))
+  }
+
+  it should "raise IllegalArgumentException when dropping a non-existent attribute" in {
+    // Unlike the exec, which silently ignores unknown names,
+    // Schema.remove rejects them at schema-derivation time.
+    projectionOpDesc.isDrop = true
+    projectionOpDesc.attributes ++= List(
+      new AttributeUnit("field---5", "f5")
+    )
+    assertThrows[IllegalArgumentException] {
+      projectionOpDesc.getExternalOutputSchemas(Map(PortIdentity() -> schema)).values.head
+    }
+  }
+
+  it should "derive an empty schema when dropping every attribute" in {
+    projectionOpDesc.isDrop = true
+    projectionOpDesc.attributes ++= List(
+      new AttributeUnit("field1", ""),
+      new AttributeUnit("field2", ""),
+      new AttributeUnit("field3", "")
+    )
+    val outputSchema =
+      projectionOpDesc.getExternalOutputSchemas(Map(PortIdentity() -> schema)).values.head
+    assert(outputSchema.getAttributes.isEmpty)
+  }
+
+  it should "match drop names case-insensitively when deriving the schema" in {
+    // Schema.remove lowercases both sides, matching the exec's behavior.
+    projectionOpDesc.isDrop = true
+    projectionOpDesc.attributes ++= List(
+      new AttributeUnit("FIELD2", "")
+    )
+    val outputSchema =
+      projectionOpDesc.getExternalOutputSchemas(Map(PortIdentity() -> schema)).values.head
+    assert(outputSchema.getAttributeNames == List("field1", "field3"))
+  }
+
+  it should "raise IllegalArgumentException on duplicate entries in the drop list" in {
+    // The exec tolerates duplicates; the schema derivation folds
+    // Schema.remove one entry at a time, so the second removal of the same name
+    // rejects a now non-existent attribute.
+    projectionOpDesc.isDrop = true
+    projectionOpDesc.attributes ++= List(
+      new AttributeUnit("field2", ""),
+      new AttributeUnit("field2", "")
+    )
+    assertThrows[IllegalArgumentException] {
+      projectionOpDesc.getExternalOutputSchemas(Map(PortIdentity() -> schema)).values.head
+    }
+  }
+
   it should "preserve a HashPartition when its attributes are non-empty" in {
     val out = projectionOpDesc.derivePartition()(List(HashPartition(List("field1"))))
     assert(out == HashPartition(List("field1")))

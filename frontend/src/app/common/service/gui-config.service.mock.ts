@@ -39,6 +39,7 @@ export class MockGuiConfigService {
     linkBreakpointEnabled: false,
     asyncRenderingEnabled: false,
     timetravelEnabled: false,
+    formViewEnabled: false,
     productionSharedEditingServer: false,
     pythonLanguageServerPort: "3000",
     defaultDataTransferBatchSize: 100,
@@ -52,6 +53,7 @@ export class MockGuiConfigService {
     limitColumns: 15,
     attributionEnabled: false,
     pythonNotebookMigrationEnabled: false,
+    pythonNotebookMigrationTimeoutMinutes: 10,
     deploymentVersionCheckEnabled: false,
   };
 
