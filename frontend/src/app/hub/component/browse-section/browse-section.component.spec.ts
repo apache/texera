@@ -95,7 +95,7 @@ describe("BrowseSectionComponent", () => {
     });
 
     it("throws on an unexpected entity type", () => {
-      const bad = { id: 7, type: "project", accessibleUserIds: [] } as unknown as DashboardEntry;
+      const bad = { id: 7, type: "not-a-real-type", accessibleUserIds: [] } as unknown as DashboardEntry;
       expect(() => (component as any).initializeEntry(bad)).toThrowError("Unexpected type in DashboardEntry.");
     });
   });

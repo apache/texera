@@ -67,10 +67,10 @@ export class AdminSettingsComponent implements OnInit {
     workflow_enabled: false,
     dataset_enabled: false,
     your_work_enabled: false,
-    projects_enabled: false,
     workflows_enabled: false,
     compute_enabled: false,
     datasets_enabled: false,
+    models_enabled: false,
     quota_enabled: false,
     forum_enabled: false,
     about_enabled: false,
@@ -123,15 +123,18 @@ export class AdminSettingsComponent implements OnInit {
             tab => (this.sidebarTabs[tab] = settings[tab] === "true")
           );
           this.maxConcurrentFiles = parseIntOrDefault(
-            settings["max_number_of_concurrent_uploading_file"],
+            settings["dataset_max_number_of_concurrent_uploading_file"],
             this.maxConcurrentFiles
           );
-          this.maxFileSizeMiB = parseIntOrDefault(settings["single_file_upload_max_size_mib"], this.maxFileSizeMiB);
+          this.maxFileSizeMiB = parseIntOrDefault(
+            settings["dataset_single_file_upload_max_size_mib"],
+            this.maxFileSizeMiB
+          );
           this.maxConcurrentChunks = parseIntOrDefault(
-            settings["max_number_of_concurrent_uploading_file_chunks"],
+            settings["dataset_max_number_of_concurrent_uploading_file_chunks"],
             this.maxConcurrentChunks
           );
-          this.chunkSizeMiB = parseIntOrDefault(settings["multipart_upload_chunk_size_mib"], this.chunkSizeMiB);
+          this.chunkSizeMiB = parseIntOrDefault(settings["dataset_multipart_upload_chunk_size_mib"], this.chunkSizeMiB);
           this.csvMaxColumns = parseIntOrDefault(settings["csv_parser_max_columns"], this.csvMaxColumns);
           this.settingsLoaded = true;
         },
@@ -259,15 +262,18 @@ export class AdminSettingsComponent implements OnInit {
 
     const saveRequests = [
       this.adminSettingsService.updateSetting(
-        "max_number_of_concurrent_uploading_file",
+        "dataset_max_number_of_concurrent_uploading_file",
         this.maxConcurrentFiles.toString()
       ),
-      this.adminSettingsService.updateSetting("single_file_upload_max_size_mib", this.maxFileSizeMiB.toString()),
       this.adminSettingsService.updateSetting(
-        "max_number_of_concurrent_uploading_file_chunks",
+        "dataset_single_file_upload_max_size_mib",
+        this.maxFileSizeMiB.toString()
+      ),
+      this.adminSettingsService.updateSetting(
+        "dataset_max_number_of_concurrent_uploading_file_chunks",
         this.maxConcurrentChunks.toString()
       ),
-      this.adminSettingsService.updateSetting("multipart_upload_chunk_size_mib", this.chunkSizeMiB.toString()),
+      this.adminSettingsService.updateSetting("dataset_multipart_upload_chunk_size_mib", this.chunkSizeMiB.toString()),
     ];
 
     forkJoin(saveRequests)
@@ -280,10 +286,10 @@ export class AdminSettingsComponent implements OnInit {
 
   resetDatasetSettings(): void {
     [
-      "max_number_of_concurrent_uploading_file",
-      "single_file_upload_max_size_mib",
-      "max_number_of_concurrent_uploading_file_chunks",
-      "multipart_upload_chunk_size_mib",
+      "dataset_max_number_of_concurrent_uploading_file",
+      "dataset_single_file_upload_max_size_mib",
+      "dataset_max_number_of_concurrent_uploading_file_chunks",
+      "dataset_multipart_upload_chunk_size_mib",
     ].forEach(setting => this.adminSettingsService.resetSetting(setting).pipe(untilDestroyed(this)).subscribe({}));
 
     this.message.info("Resetting dataset settings...");

@@ -68,8 +68,12 @@ class SklearnClassifierOpDescCodegenSpec extends AnyFlatSpec with Matchers {
     code should include("from sklearn.neighbors import KNeighborsClassifier")
     code should include(s"Y = table[${decodeExpr("label")}]")
     code should include(s"X = table.drop(${decodeExpr("label")}, axis=1)")
-    // Feature-column path: X is kept whole, the text attribute is never read.
+    // Feature-column path: every column an estimator can fit is kept, the rest are
+    // named on the console, and the text attribute is never read.
     code should not include "ColumnTransformer("
+    code should include("""_fittable = X.select_dtypes(include=["number", "bool"])""")
+    code should include("""print("Ignoring columns an estimator cannot fit:", _ignored)""")
+    code should include("X = _fittable")
     code should not include decodeExpr("docs")
     normalized(code) should include(
       "self.model = make_pipeline( KNeighborsClassifier()).fit(X, Y)"
@@ -81,7 +85,9 @@ class SklearnClassifierOpDescCodegenSpec extends AnyFlatSpec with Matchers {
 
   it should "select the text column and prepend CountVectorizer when countVectorizer is on" in {
     val code = descriptor(countVectorizer = true).generatePythonCode()
-    // ColumnTransformer selects the columns itself, so X stays the whole frame.
+    // ColumnTransformer selects the columns itself, so X stays the whole frame, and
+    // narrowing it to the fittable columns would drop the text ones it reads.
+    code should not include "_fittable"
     normalized(code) should include(
       s"""self.model = make_pipeline(ColumnTransformer([("text0", CountVectorizer(), ${decodeExpr(
         "docs"
@@ -120,6 +126,7 @@ class SklearnClassifierOpDescCodegenSpec extends AnyFlatSpec with Matchers {
     val code = descriptor(tfidfTransformer = true).generatePythonCode()
     // Without countVectorizer there is no text-column selection.
     code should not include "ColumnTransformer("
+    code should include("X = _fittable")
     code should not include decodeExpr("docs")
     normalized(code) should include(
       "self.model = make_pipeline( TfidfTransformer(), KNeighborsClassifier()).fit(X, Y)"

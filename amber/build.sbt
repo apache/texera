@@ -35,10 +35,6 @@ Universal / mappings := AddMetaInfLicenseFiles.distMappings(
 semanticdbEnabled := true
 semanticdbVersion := scalafixSemanticdb.revision
 
-// to turn on, use: INFO
-// to turn off, use: WARNING
-scalacOptions ++= Seq("-Xelide-below", "WARNING")
-
 // to check feature warnings
 scalacOptions += "-feature"
 // to check deprecation warnings

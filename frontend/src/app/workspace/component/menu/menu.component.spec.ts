@@ -54,7 +54,6 @@ import { USER_WORKFLOW } from "../../../app-routing.constant";
 import { GuiConfigService } from "../../../common/service/gui-config.service";
 import { MockGuiConfigService } from "../../../common/service/gui-config.service.mock";
 import { JupyterPanelService } from "../../service/jupyter-panel/jupyter-panel.service";
-import { UserProjectService } from "../../../dashboard/service/user/project/user-project.service";
 import type { Mocked } from "vitest";
 
 vi.mock("file-saver", () => ({ saveAs: vi.fn() }));
@@ -1553,30 +1552,23 @@ describe("MenuComponent", () => {
       vi.restoreAllMocks();
     });
 
-    it("files the saved workflow under the open project when both ids are known", () => {
-      const userProjectService = TestBed.inject(UserProjectService);
+    it("adopts the saved workflow as the current metadata and clears the saving indicator", () => {
       vi.spyOn(workflowPersistService, "persistWorkflow").mockReturnValue(of(saved(9)));
       const metadataSpy = vi.spyOn(workflowActionService, "setWorkflowMetadata").mockImplementation(() => {});
-      const addSpy = vi.spyOn(userProjectService, "addWorkflowToProject").mockReturnValue(of({} as Response));
-      component.pid = 3;
 
       component.persistWorkflow();
 
       expect(metadataSpy).toHaveBeenCalledWith(expect.objectContaining({ wid: 9 }));
-      expect(addSpy).toHaveBeenCalledWith(3, 9);
       expect(component.isSaving).toBe(false);
     });
 
-    it("leaves the project alone when the saved workflow has no id", () => {
-      const userProjectService = TestBed.inject(UserProjectService);
+    it("still clears the saving indicator when the saved workflow has no id", () => {
       vi.spyOn(workflowPersistService, "persistWorkflow").mockReturnValue(of(saved(undefined)));
-      vi.spyOn(workflowActionService, "setWorkflowMetadata").mockImplementation(() => {});
-      const addSpy = vi.spyOn(userProjectService, "addWorkflowToProject");
-      component.pid = 3;
+      const metadataSpy = vi.spyOn(workflowActionService, "setWorkflowMetadata").mockImplementation(() => {});
 
       component.persistWorkflow();
 
-      expect(addSpy).not.toHaveBeenCalled();
+      expect(metadataSpy).toHaveBeenCalledTimes(1);
       expect(component.isSaving).toBe(false);
     });
 

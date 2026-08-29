@@ -66,10 +66,10 @@ describe("AdminSettingsComponent", () => {
       favicon: "fav.ico",
       hub_enabled: "true",
       home_enabled: "false",
-      max_number_of_concurrent_uploading_file: "5",
-      single_file_upload_max_size_mib: "128",
-      max_number_of_concurrent_uploading_file_chunks: "7",
-      multipart_upload_chunk_size_mib: "64",
+      dataset_max_number_of_concurrent_uploading_file: "5",
+      dataset_single_file_upload_max_size_mib: "128",
+      dataset_max_number_of_concurrent_uploading_file_chunks: "7",
+      dataset_multipart_upload_chunk_size_mib: "64",
       csv_parser_max_columns: "4096",
     });
 
@@ -87,7 +87,7 @@ describe("AdminSettingsComponent", () => {
 
   it("keeps the initializer defaults for missing or unparsable values", () => {
     httpTestingController.expectOne(SETTINGS_URL).flush({
-      single_file_upload_max_size_mib: "not-a-number",
+      dataset_single_file_upload_max_size_mib: "not-a-number",
     });
 
     expect(component.logoData).toBeNull();
@@ -107,7 +107,7 @@ describe("AdminSettingsComponent", () => {
 
   it("preserves a legitimately stored 0 instead of falling back to the default", () => {
     httpTestingController.expectOne(SETTINGS_URL).flush({
-      max_number_of_concurrent_uploading_file: "0",
+      dataset_max_number_of_concurrent_uploading_file: "0",
       csv_parser_max_columns: "0",
     });
 
@@ -299,10 +299,10 @@ describe("AdminSettingsComponent", () => {
           expect(req.request.body).toEqual({ value });
           req.flush(null);
         };
-        expectPut("max_number_of_concurrent_uploading_file", "3");
-        expectPut("single_file_upload_max_size_mib", "20");
-        expectPut("max_number_of_concurrent_uploading_file_chunks", "10");
-        expectPut("multipart_upload_chunk_size_mib", "50");
+        expectPut("dataset_max_number_of_concurrent_uploading_file", "3");
+        expectPut("dataset_single_file_upload_max_size_mib", "20");
+        expectPut("dataset_max_number_of_concurrent_uploading_file_chunks", "10");
+        expectPut("dataset_multipart_upload_chunk_size_mib", "50");
 
         expect(msgSuccess).toHaveBeenCalledWith("Dataset upload settings saved successfully.");
       });
@@ -346,10 +346,10 @@ describe("AdminSettingsComponent", () => {
 
         // Fail the last of the four PUTs so forkJoin errors with every request flushed.
         const keys = [
-          "max_number_of_concurrent_uploading_file",
-          "single_file_upload_max_size_mib",
-          "max_number_of_concurrent_uploading_file_chunks",
-          "multipart_upload_chunk_size_mib",
+          "dataset_max_number_of_concurrent_uploading_file",
+          "dataset_single_file_upload_max_size_mib",
+          "dataset_max_number_of_concurrent_uploading_file_chunks",
+          "dataset_multipart_upload_chunk_size_mib",
         ];
         keys.forEach((key, i) => {
           const req = httpTestingController.expectOne(updateUrl(key));
@@ -365,10 +365,10 @@ describe("AdminSettingsComponent", () => {
         component.resetDatasetSettings();
 
         [
-          "max_number_of_concurrent_uploading_file",
-          "single_file_upload_max_size_mib",
-          "max_number_of_concurrent_uploading_file_chunks",
-          "multipart_upload_chunk_size_mib",
+          "dataset_max_number_of_concurrent_uploading_file",
+          "dataset_single_file_upload_max_size_mib",
+          "dataset_max_number_of_concurrent_uploading_file_chunks",
+          "dataset_multipart_upload_chunk_size_mib",
         ].forEach(key => httpTestingController.expectOne(resetUrl(key)).flush(null));
         expect(msgInfo).toHaveBeenCalledWith("Resetting dataset settings...");
       });
@@ -558,9 +558,9 @@ describe("AdminSettingsComponent wiring", () => {
     "workflow_enabled",
     "dataset_enabled",
     "your_work_enabled",
-    "projects_enabled",
     "workflows_enabled",
     "datasets_enabled",
+    "models_enabled",
     "compute_enabled",
     "quota_enabled",
     "forum_enabled",
@@ -647,7 +647,17 @@ describe("AdminSettingsComponent wiring", () => {
     });
 
     it("locks the Your Work children until Your Work itself is on", () => {
-      const yourWorkChildren = [5, 6, 7, 8, 9, 10];
+      // Indexed by key, not position: adding a tab shifts these and would silently drop one.
+      const yourWorkChildren = (
+        [
+          "workflows_enabled",
+          "datasets_enabled",
+          "models_enabled",
+          "compute_enabled",
+          "quota_enabled",
+          "forum_enabled",
+        ] as const
+      ).map(key => SWITCH_KEYS.indexOf(key));
 
       component.sidebarTabs.your_work_enabled = false;
       fixture.detectChanges();
@@ -664,7 +674,10 @@ describe("AdminSettingsComponent wiring", () => {
       component.sidebarTabs.your_work_enabled = false;
       fixture.detectChanges();
 
-      [0, 4, 11].forEach(i => expect(switches()[i].componentInstance.nzDisabled).toBeFalsy());
+      // Indexed by key, not position, so adding a tab does not silently retarget this.
+      (["hub_enabled", "your_work_enabled", "about_enabled"] as const).forEach(key =>
+        expect(switches()[SWITCH_KEYS.indexOf(key)].componentInstance.nzDisabled).toBeFalsy()
+      );
     });
   });
 
