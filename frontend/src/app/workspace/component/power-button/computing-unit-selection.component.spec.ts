@@ -54,6 +54,8 @@ import { WorkflowMetadata } from "../../../dashboard/type/workflow-metadata.inte
 import { ExecutionState } from "../../types/execute-workflow.interface";
 import { ComputingUnitActionsService } from "../../../common/service/computing-unit/computing-unit-actions/computing-unit-actions.service";
 import { ComputingUnitMetadataComponent } from "../../../common/util/computing-unit.util";
+import { GuiConfigService } from "../../../common/service/gui-config.service";
+import { NzPopoverDirective } from "ng-zorro-antd/popover";
 
 /**
  * Builds a fully-populated DashboardWorkflowComputingUnit for driving the
@@ -1584,6 +1586,306 @@ describe("PowerButtonComponent", () => {
         getByIdSpy.mockRestore();
         vi.useRealTimers();
       }
+    });
+  });
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // Rows of the dropdown menu, driven through the markup ng-zorro stamps into
+  // the CDK overlay rather than by calling the handlers on the instance.
+  // ──────────────────────────────────────────────────────────────────────────
+  describe("dropdown menu rows (rendered)", () => {
+    /**
+     * ng-zorro gates the dropdown's overlay behind an `auditTime(150)` that it
+     * schedules outside the Angular zone, so neither `fakeAsync`'s `tick()` nor
+     * Vitest's fake timers reach it — zone.js captured the native timer before
+     * either could patch it. Poll for the rows instead of sleeping a fixed
+     * amount, so a slow runner costs extra iterations rather than a failure.
+     */
+    async function openDropdown(): Promise<HTMLElement[]> {
+      fixture.debugElement.query(By.css(".computing-units-dropdown-button")).nativeElement.click();
+      for (let i = 0; i < 80 && document.querySelectorAll(".computing-unit-option").length === 0; i++) {
+        await new Promise(resolve => setTimeout(resolve, 25));
+        fixture.detectChanges();
+      }
+      fixture.detectChanges();
+      const rows = Array.from(document.querySelectorAll<HTMLElement>(".computing-unit-option"));
+      expect(rows.length).toBeGreaterThan(0);
+      return rows;
+    }
+
+    function click(element: Element | null | undefined): void {
+      expect(element).toBeTruthy();
+      element!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      fixture.detectChanges();
+    }
+
+    let selectSpy: ReturnType<typeof vi.spyOn>;
+    let sharingDefault: boolean;
+
+    beforeEach(() => {
+      sharingDefault = TestBed.inject(GuiConfigService).env.sharingComputingUnitEnabled;
+      component.workflowId = 5;
+      component.allComputingUnits = [
+        makeComputingUnit({ cuid: 1, name: "Alpha" }),
+        makeComputingUnit({ cuid: 2, name: "Beta" }),
+      ];
+      selectSpy = vi
+        .spyOn(TestBed.inject(ComputingUnitStatusService), "selectComputingUnit")
+        .mockImplementation(() => {});
+      fixture.detectChanges();
+    });
+
+    afterEach(() => {
+      // The share test flips this flag. TestBed hands every test its own
+      // MockGuiConfigService, so it cannot leak today, but restore it anyway so the
+      // block stays correct if these tests ever share one config instance.
+      TestBed.inject(GuiConfigService).env.sharingComputingUnitEnabled = sharingDefault;
+      // Clear the overlay contents rather than the container itself, which CDK caches.
+      document.querySelectorAll(".cdk-overlay-container").forEach(el => (el.innerHTML = ""));
+      vi.restoreAllMocks();
+    });
+
+    it("selects the unit whose row is clicked", async () => {
+      const rows = await openDropdown();
+
+      click(rows[1]);
+
+      expect(component.selectedComputingUnit?.computingUnit.cuid).toBe(2);
+      expect(selectSpy).toHaveBeenCalledWith(5, 2);
+    });
+
+    it("commits a rename when the inline editor loses focus", async () => {
+      const renameSpy = vi
+        .spyOn(TestBed.inject(WorkflowComputingUnitManagingService), "renameComputingUnit")
+        .mockReturnValue(of({} as any));
+      component.editingNameOfUnit = 1;
+      component.editingUnitName = "Alpha";
+      const rows = await openDropdown();
+
+      const editor = rows[0].querySelector<HTMLInputElement>(".unit-name-edit-input");
+      expect(editor?.value).toBe("Alpha");
+      editor!.value = "Renamed";
+      editor!.dispatchEvent(new FocusEvent("focusout", { bubbles: true }));
+      fixture.detectChanges();
+
+      expect(renameSpy).toHaveBeenCalledWith(1, "Renamed");
+    });
+
+    it("commits a rename when Enter is pressed in the inline editor", async () => {
+      const renameSpy = vi
+        .spyOn(TestBed.inject(WorkflowComputingUnitManagingService), "renameComputingUnit")
+        .mockReturnValue(of({} as any));
+      component.editingNameOfUnit = 1;
+      component.editingUnitName = "Alpha";
+      const rows = await openDropdown();
+
+      const editor = rows[0].querySelector<HTMLInputElement>(".unit-name-edit-input");
+      editor!.value = "Entered";
+      editor!.dispatchEvent(new KeyboardEvent("keyup", { key: "Enter", bubbles: true }));
+      fixture.detectChanges();
+
+      expect(renameSpy).toHaveBeenCalledWith(1, "Entered");
+    });
+
+    it("abandons the rename when Escape is pressed in the inline editor", async () => {
+      const renameSpy = vi.spyOn(TestBed.inject(WorkflowComputingUnitManagingService), "renameComputingUnit");
+      component.editingNameOfUnit = 1;
+      component.editingUnitName = "Alpha";
+      const rows = await openDropdown();
+
+      rows[0]
+        .querySelector<HTMLInputElement>(".unit-name-edit-input")!
+        .dispatchEvent(new KeyboardEvent("keyup", { key: "Escape", bubbles: true }));
+      fixture.detectChanges();
+
+      expect(component.editingNameOfUnit).toBeNull();
+      expect(renameSpy).not.toHaveBeenCalled();
+    });
+
+    it("swallows a click inside the inline editor instead of selecting the row", async () => {
+      component.editingNameOfUnit = 1;
+      component.editingUnitName = "Alpha";
+      const rows = await openDropdown();
+
+      click(rows[0].querySelector(".unit-name-edit-input"));
+
+      expect(selectSpy).not.toHaveBeenCalled();
+      expect(component.editingNameOfUnit).toBe(1);
+    });
+    it("opens the inline editor from the pencil without selecting the row", async () => {
+      const rows = await openDropdown();
+
+      click(rows[0].querySelector(".anticon-edit"));
+
+      expect(component.editingNameOfUnit).toBe(1);
+      expect(component.editingUnitName).toBe("Alpha");
+      expect(selectSpy).not.toHaveBeenCalled();
+    });
+
+    it("opens the python-environment modal from the plus icon without selecting the row", async () => {
+      const rows = await openDropdown();
+
+      click(rows[1].querySelector(".anticon-plus"));
+
+      expect(component.pveModalVisible).toBe(true);
+      expect(component.selectedComputingUnit?.computingUnit.cuid).toBe(2);
+      expect(selectSpy).not.toHaveBeenCalled();
+    });
+
+    it("opens share access from the share icon without selecting the row", async () => {
+      TestBed.inject(GuiConfigService).env.sharingComputingUnitEnabled = true;
+      const shareSpy = vi
+        .spyOn(TestBed.inject(ComputingUnitActionsService), "openShareAccessModal")
+        .mockImplementation(() => {});
+      fixture.detectChanges();
+      const rows = await openDropdown();
+
+      click(rows[0].querySelector(".anticon-share-alt"));
+
+      expect(shareSpy).toHaveBeenCalledWith(1, true);
+      expect(selectSpy).not.toHaveBeenCalled();
+    });
+
+    it("opens the metadata modal from the eye icon without selecting the row", async () => {
+      const createSpy = vi.spyOn(TestBed.inject(NzModalService), "create").mockReturnValue({} as any);
+      const rows = await openDropdown();
+
+      click(rows[1].querySelector(".anticon-eye"));
+
+      expect(createSpy).toHaveBeenCalledTimes(1);
+      expect(createSpy.mock.calls[0][0].nzData).toBe(component.allComputingUnits[1]);
+      expect(selectSpy).not.toHaveBeenCalled();
+    });
+
+    it("terminates from the delete icon without selecting the row", async () => {
+      const terminateSpy = vi
+        .spyOn(TestBed.inject(ComputingUnitActionsService), "confirmAndTerminate")
+        .mockImplementation(() => {});
+      const rows = await openDropdown();
+
+      click(rows[0].querySelector(".anticon-delete"));
+
+      expect(terminateSpy).toHaveBeenCalledWith(1, component.allComputingUnits[0]);
+      expect(selectSpy).not.toHaveBeenCalled();
+    });
+
+    it("opens the create-unit modal from the row below the divider", async () => {
+      await openDropdown();
+
+      click(document.querySelector(".create-computing-unit"));
+
+      expect(component.addComputeUnitModalVisible).toBe(true);
+    });
+  });
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // The metrics popover's own template, and the PVE modal's close controls.
+  // ──────────────────────────────────────────────────────────────────────────
+  describe("metrics popover (rendered)", () => {
+    /** A running kubernetes unit whose resource limits the popover reads. */
+    function unitWithResources(resource: Partial<Record<string, string>>): DashboardWorkflowComputingUnit {
+      const unit = makeComputingUnit({ cuid: 7, name: "Metrics" });
+      unit.computingUnit.resource = { ...unit.computingUnit.resource, ...(resource as any) };
+      return unit;
+    }
+
+    /** Opens the metrics popover and returns the metric names it rendered, in order. */
+    async function openMetrics(): Promise<{ names: string[]; overlay: HTMLElement }> {
+      const container = fixture.debugElement.query(By.css("#metrics-container-id"));
+      expect(container).toBeTruthy();
+      container.injector.get(NzPopoverDirective).show();
+      fixture.detectChanges();
+      // the tooltip base positions its overlay in a microtask
+      await Promise.resolve();
+      fixture.detectChanges();
+      const overlay = document.querySelector<HTMLElement>(".cdk-overlay-container")!;
+      const names = Array.from(overlay.querySelectorAll(".resource-metrics .general-metric .metric-name")).map(
+        el => el.textContent?.trim() ?? ""
+      );
+      return { names, overlay };
+    }
+
+    afterEach(() => {
+      document.querySelectorAll(".cdk-overlay-container").forEach(el => (el.innerHTML = ""));
+      vi.restoreAllMocks();
+    });
+
+    it("renders the CPU and RAM rows with their value, limit and percentage", async () => {
+      component.selectedComputingUnit = unitWithResources({ cpuLimit: "2", memoryLimit: "4Gi" });
+      fixture.detectChanges();
+
+      const { names, overlay } = await openMetrics();
+
+      expect(names).toContain("CPU");
+      expect(names).toContain("RAM");
+      const cpu = overlay.querySelector(".cpu-metric .metric-value")!;
+      expect(cpu.querySelector(".metric-unit")?.textContent).toContain("2");
+      expect(cpu.querySelector(".metric-percentage")?.textContent).toContain("%");
+      const memory = overlay.querySelector(".memory-metric .metric-value")!;
+      expect(memory.querySelector(".metric-unit")?.textContent).toContain("4");
+      expect(memory.querySelector(".metric-percentage")?.textContent).toContain("%");
+    });
+
+    it("adds the GPU, JVM and shared-memory rows when the unit declares those limits", async () => {
+      component.gpuOptions = ["0", "1"];
+      component.selectedComputingUnit = unitWithResources({
+        gpuLimit: "2",
+        jvmMemorySize: "1Gi",
+        shmSize: "64Mi",
+      });
+      fixture.detectChanges();
+
+      const { names, overlay } = await openMetrics();
+
+      expect(names).toEqual(["CPU", "RAM", "GPU", "JVM Memory Size", "Shared Memory Size"]);
+      expect(overlay.textContent).toContain("2 GPU(s)");
+    });
+
+    it("drops the GPU row when the deployment offers no GPU at all", async () => {
+      component.gpuOptions = ["0"];
+      component.selectedComputingUnit = unitWithResources({ gpuLimit: "2" });
+      fixture.detectChanges();
+
+      expect((await openMetrics()).names).not.toContain("GPU");
+    });
+
+    it("drops each optional row whose limit reads as zero or NaN", async () => {
+      component.gpuOptions = ["0", "1"];
+      component.selectedComputingUnit = unitWithResources({
+        gpuLimit: "0",
+        jvmMemorySize: "NaN",
+        shmSize: "0",
+      });
+      fixture.detectChanges();
+
+      expect((await openMetrics()).names).toEqual(["CPU", "RAM"]);
+    });
+
+    it("has no popover content to show while no unit is selected", () => {
+      component.selectedComputingUnit = null;
+      fixture.detectChanges();
+
+      expect(fixture.debugElement.query(By.css("#metrics-container-id"))).toBeNull();
+    });
+
+    it("closes the python-environment modal from its footer button and its cancel", () => {
+      component.pveModalVisible = true;
+      fixture.detectChanges();
+
+      document.querySelector<HTMLButtonElement>(".footer-all button")!.click();
+      fixture.detectChanges();
+
+      expect(component.pveModalVisible).toBe(false);
+
+      component.pveModalVisible = true;
+      fixture.detectChanges();
+      // the create-unit child renders an nz-modal too, so pick this one by its title
+      const pveModal = fixture.debugElement
+        .queryAll(By.css("nz-modal"))
+        .find(modal => modal.componentInstance?.nzTitle === "Python Environments");
+      pveModal!.triggerEventHandler("nzOnCancel", undefined);
+
+      expect(component.pveModalVisible).toBe(false);
     });
   });
 });
