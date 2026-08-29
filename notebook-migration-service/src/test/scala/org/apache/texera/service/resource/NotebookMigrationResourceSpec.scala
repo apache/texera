@@ -535,6 +535,76 @@ class NotebookMigrationResourceSpec
     }
   }
 
+  // -- internal vs public Jupyter URL ----------------------------------------
+  // The rest of the suite runs with the configured default, where both URLs are
+  // localhost:9100, so it cannot tell the two apart. These pin the split itself.
+
+  // Reachable stub for what the service dials; an unroutable address for what the browser
+  // gets. 192.0.2.0/24 is TEST-NET-1 (RFC 5737) and routes nowhere, so a call that wrongly
+  // dials the public URL fails rather than silently passing. Numeric on purpose: a hostname
+  // would go through the resolver, which setConnectTimeout does not bound.
+  private val splitEndpoints = NotebookMigrationResource.JupyterEndpoints(
+    internalUrl = "http://localhost:9100",
+    publicUrl = "http://192.0.2.1:1234",
+    token = "texera"
+  )
+
+  "the internal/public URL split" should "dial the internal URL and return only the public one" in {
+    withFakeJupyter(contentsStatus = 201) {
+      val urlResp = NotebookMigrationResource.getJupyterURL(splitEndpoints)
+      urlResp.getStatus shouldBe Response.Status.OK.getStatusCode
+      urlResp.getEntity.toString should include("192.0.2.1:1234")
+      urlResp.getEntity.toString should not include "localhost:9100"
+
+      val iframe = NotebookMigrationResource.getJupyterIframeURL("notebook.ipynb", splitEndpoints)
+      iframe.getStatus shouldBe Response.Status.OK.getStatusCode
+      iframe.getEntity.toString should include("192.0.2.1:1234")
+      iframe.getEntity.toString should not include "localhost:9100"
+    }
+  }
+
+  it should "send the notebook to the internal URL, not the public one" in {
+    withFakeJupyter(contentsStatus = 201) {
+      val resp = NotebookMigrationResource.setNotebook(
+        """{"notebookName": "notebook.ipynb", "notebookData": {"cells": []}}""",
+        splitEndpoints
+      )
+      // Reaching the stub at all proves the upload used internalUrl: the public one is
+      // unroutable, so a swap would surface here as a 500.
+      resp.getStatus shouldBe Response.Status.OK.getStatusCode
+      lastContentsRequest shouldBe Some(("PUT", "/api/contents/work/notebook.ipynb"))
+    }
+  }
+
+  it should "delete against the internal URL, not the public one" in {
+    withFakeJupyter(contentsStatus = 204) {
+      val resp = NotebookMigrationResource.deleteNotebook(
+        """{"notebookName": "notebook.ipynb"}""",
+        splitEndpoints
+      )
+      resp.getStatus shouldBe Response.Status.OK.getStatusCode
+      lastContentsRequest shouldBe Some(("DELETE", "/api/contents/work/notebook.ipynb"))
+    }
+  }
+
+  it should "report Jupyter unavailable when only the public URL is reachable" in {
+    // The inverse of the tests above, and the one that catches the fields being swapped:
+    // the reachability probe must follow internalUrl, so a reachable public URL must not
+    // rescue an unreachable internal one.
+    withFakeJupyter(contentsStatus = 201) {
+      // Port 9 on loopback: refused immediately, so this fails fast and without DNS.
+      val swapped = NotebookMigrationResource.JupyterEndpoints(
+        internalUrl = "http://127.0.0.1:9",
+        publicUrl = "http://localhost:9100",
+        token = "texera"
+      )
+      NotebookMigrationResource.getJupyterURL(swapped).getStatus shouldBe 500
+      NotebookMigrationResource
+        .getJupyterIframeURL("notebook.ipynb", swapped)
+        .getStatus shouldBe 500
+    }
+  }
+
   it should "build the iframe URL from an explicit notebook name" in {
     withFakeJupyter(contentsStatus = 201) {
       val resp = resource.getJupyterIframeURL("other.ipynb", sessionUser(writerUid))

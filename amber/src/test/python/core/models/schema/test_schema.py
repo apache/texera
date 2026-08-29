@@ -154,3 +154,71 @@ class TestSchema:
         assert round_trip_schema.get_attr_type("field1") == AttributeType.STRING
         assert round_trip_schema.get_attr_type("field2") == AttributeType.LARGE_BINARY
         assert round_trip_schema.get_attr_type("field3") == AttributeType.INT
+
+    @pytest.mark.parametrize(
+        "other", ["not a schema", None, 42, {"field-1": "STRING"}, ["field-1"]]
+    )
+    def test_comparing_against_a_non_schema_is_false_not_an_error(self, schema, other):
+        # `__eq__` guards on isinstance before touching `as_key_value_pairs`,
+        # so a foreign operand must compare unequal rather than raise. Assert
+        # the boolean explicitly (and both directions) so a guard that returned
+        # True would be caught.
+        assert (schema == other) is False
+        assert schema != other
+
+    def test_a_schema_equals_only_a_schema_with_the_same_ordered_pairs(self, schema):
+        # `__eq__` is defined in terms of `as_key_value_pairs`, and both
+        # operands below are built by replaying that same accessor -- so a
+        # corrupted accessor moves both sides together and `schema == same`
+        # would stay green on its own. Guard each constructed operand against a
+        # literal expectation first, read back through the *independent*
+        # `get_attr_names` accessor, so a degenerate fixture fails here instead
+        # of sailing through the equality claim.
+        same = Schema()
+        for name, attr_type in schema.as_key_value_pairs():
+            same.add(name, attr_type)
+        assert same.get_attr_names() == [f"field-{i}" for i in range(1, 8)]
+        assert schema == same
+
+        reordered = Schema()
+        for name, attr_type in reversed(schema.as_key_value_pairs()):
+            reordered.add(name, attr_type)
+        # ... and this one really is a *reordering* (same names, reverse order),
+        # not an empty or truncated schema that would compare unequal for a
+        # reason that has nothing to do with ordering.
+        assert reordered.get_attr_names() == [f"field-{i}" for i in range(7, 0, -1)]
+        assert (schema == reordered) is False
+
+    def test_a_partial_schema_keeps_the_order_of_the_requested_names(self, schema):
+        # `get_partial_schema` documents that it preserves "the order specified
+        # by the attribute names", and Schema equality is order-sensitive (see
+        # the test above), yet nothing pinned that promise. It matters: the sole
+        # caller, `Tuple.get_partial_tuple`, builds its field values in
+        # `attribute_names` order and takes its schema from here, so a
+        # reordering would make a Tuple's data and its schema silently disagree.
+        #
+        # The requested names are deliberately out of the source order, and the
+        # assertion is on the ordered pair list rather than on membership --
+        # both are what make this non-vacuous.
+        partial = schema.get_partial_schema(["field-5", "field-2"])
+        assert partial.as_key_value_pairs() == [
+            ("field-5", AttributeType.BOOL),
+            ("field-2", AttributeType.INT),
+        ]
+
+    def test_str_renders_each_attribute_with_a_zero_based_index_and_type(self):
+        rendered = Schema(
+            raw_schema={"field-1": "STRING", "field-2": "INTEGER", "field-3": "BOOLEAN"}
+        )
+        # Pin the whole rendering: the bracketed header/footer, the ",\n"
+        # separator, the zero-based index, and the name-then-type ordering.
+        assert str(rendered) == (
+            "Schema[\n"
+            "(0)'field-1' -> AttributeType.STRING,\n"
+            "(1)'field-2' -> AttributeType.INT,\n"
+            "(2)'field-3' -> AttributeType.BOOL\n"
+            "]"
+        )
+
+    def test_str_of_an_empty_schema_still_renders_the_brackets(self):
+        assert str(Schema()) == "Schema[\n\n]"

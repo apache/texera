@@ -18,7 +18,8 @@
  */
 
 import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from "@angular/core";
-import { DatasetService } from "../../../../../service/user/dataset/dataset.service";
+import { ResourceRegistryService } from "../../../../../service/user/resource-registry/resource-registry.service";
+import { EntityType } from "../../../../../../hub/service/hub.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import * as Papa from "papaparse";
 import { ParseResult } from "papaparse";
@@ -145,11 +146,15 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges, OnDe
   @Input()
   isMaximized: boolean = false;
 
+  // Which kind of resource the file belongs to; the registry turns it into the fetch.
   @Input()
-  did: number | undefined;
+  resourceType: EntityType = EntityType.Dataset;
 
   @Input()
-  dvid: number | undefined;
+  resourceId: number | undefined;
+
+  @Input()
+  versionId: number | undefined;
 
   @Input()
   filePath: string = "";
@@ -164,7 +169,7 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges, OnDe
   loadFile = new EventEmitter<{ file: string; prefix: string }>();
 
   constructor(
-    private datasetService: DatasetService,
+    private resourceRegistry: ResourceRegistryService,
     private sanitizer: DomSanitizer,
     private notificationService: NotificationService
   ) {}
@@ -174,7 +179,7 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges, OnDe
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    if ((changes.did && changes.dvid) || changes.filePath) {
+    if ((changes.resourceId && changes.versionId) || changes.filePath) {
       this.reloadFileContent();
     }
   }
@@ -208,9 +213,9 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges, OnDe
 
     // Load file
     this.isLoading = true;
-    if (this.did && this.dvid && this.filePath != "") {
-      this.datasetService
-        .retrieveDatasetVersionSingleFile(this.filePath, this.isLogin)
+    const retrieveSingleFile = this.resourceRegistry.get(this.resourceType).retrieveSingleFile;
+    if (retrieveSingleFile && this.resourceId && this.versionId && this.filePath != "") {
+      retrieveSingleFile(this.filePath, this.isLogin)
         .pipe(untilDestroyed(this))
         .subscribe({
           next: blob => {

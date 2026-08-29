@@ -56,7 +56,6 @@ libraryDependencies ++= Seq(
 
 // Compiler Options
 Compile / scalacOptions ++= Seq(
-  "-Xelide-below", "WARNING",
   "-feature",
   "-deprecation",
   "-Ywarn-unused:imports"
