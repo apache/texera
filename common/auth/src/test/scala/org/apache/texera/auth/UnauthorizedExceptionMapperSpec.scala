@@ -36,6 +36,11 @@ class UnauthorizedExceptionMapperSpec extends AnyFlatSpec with Matchers {
   "UnauthorizedExceptionMapper" should "map any UnauthorizedException to HTTP 401" in {
     val response = mapper.toResponse(new UnauthorizedException("Bearer realm=\"texera\""))
     response.getStatus shouldBe 401
+    // Pin the whole status line, not just the code. The challenge is RFC 6750
+    // syntax full of commas and quotes; a mapper that passed it to the
+    // two-argument `status(int, String)` overload would stamp it into the HTTP
+    // reason phrase and still satisfy `getStatus shouldBe 401`.
+    response.getStatusInfo.getReasonPhrase shouldBe "Unauthorized"
   }
 
   it should "carry the exception's challenge string verbatim in the WWW-Authenticate header" in {

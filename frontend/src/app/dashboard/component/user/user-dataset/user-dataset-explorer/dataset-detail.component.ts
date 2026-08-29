@@ -585,21 +585,21 @@ export class DatasetDetailComponent implements OnInit {
   // silently stall the upload queue (`activeUploads < NaN` is always false).
   private loadUploadSettings(): void {
     this.adminSettingsService
-      .getPublicSetting("multipart_upload_chunk_size_mib")
+      .getPublicSetting("dataset_multipart_upload_chunk_size_mib")
       .pipe(untilDestroyed(this))
       .subscribe({
         next: value => (this.chunkSizeMiB = parseIntOrDefault(value, this.chunkSizeMiB)),
         error: () => {},
       });
     this.adminSettingsService
-      .getPublicSetting("max_number_of_concurrent_uploading_file_chunks")
+      .getPublicSetting("dataset_max_number_of_concurrent_uploading_file_chunks")
       .pipe(untilDestroyed(this))
       .subscribe({
         next: value => (this.maxConcurrentChunks = parseIntOrDefault(value, this.maxConcurrentChunks)),
         error: () => {},
       });
     this.adminSettingsService
-      .getPublicSetting("max_number_of_concurrent_uploading_file")
+      .getPublicSetting("dataset_max_number_of_concurrent_uploading_file")
       .pipe(untilDestroyed(this))
       .subscribe({
         next: value => (this.maxConcurrentFiles = parseIntOrDefault(value, this.maxConcurrentFiles)),
