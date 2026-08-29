@@ -171,7 +171,7 @@ class RangeBasedShuffleSpec extends AnyFlatSpec with MockFactory {
     assert(failure.getMessage == "unsupported attribute type: string")
   }
 
-  "RangeBasedShuffleSpec" should "collapse a receiver its channels name twice" in {
+  "RangeBasedShuffleSpec" should "collapse a receiver when its channels name it twice" in {
     // Two channels can land on the same worker. `allReceivers` is what the bucket index is an
     // index *into*, and its size is also the divisor behind the bucket width, so keeping the
     // duplicate would both mis-address a bucket and shrink every bucket.
