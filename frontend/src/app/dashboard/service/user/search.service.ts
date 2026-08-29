@@ -97,6 +97,15 @@ export class SearchService {
           // payload, and the autocomplete subscribes without an error handler, so a single such
           // row would otherwise kill the subscription for the rest of the session. Dropping them
           // at the funnel every consumer calls keeps a stale row merely invisible.
+          //
+          // Known trade-off: the server counted these rows against offset/limit, and
+          // `SearchResultsComponent.loadMore` starts the next page at `entries.length` and appends
+          // without dedup. So on the "All" tab a window holding k dropped rows re-fetches k
+          // already-shown rows, and a window that is entirely dropped rows leaves `entries.length`
+          // unmoved -- "Load more" re-requests the same window while `more` stays true. Typed tabs
+          // and the search bar are unaffected. Not corrected here: that belongs in the
+          // `LoadMoreFunction` contract shared by all five callers of `SearchResultsComponent.reset`,
+          // and removing the backend half (#7461) ends the only condition that produces such rows.
           results: result.results.filter(item => item.workflow != null || item.file != null || item.dataset != null),
         }))
       );
