@@ -157,11 +157,11 @@ class TestTable:
         # match would leave `{type(table_like)}` -- the only non-constant part
         # of that line -- unpinned, and would also make all six parametrized
         # cases assert the identical string.
-expected = (
-    "^" + re.escape(f"unsupported tablelike type {type(table_like)}") + "$"
-)
-with pytest.raises(TypeError, match=expected):
-    Table(table_like)
+        expected = (
+            "^" + re.escape(f"unsupported tablelike type {type(table_like)}") + "$"
+        )
+        with pytest.raises(TypeError, match=expected):
+            Table(table_like)
 
     @pytest.fixture
     def comparable_frame(self):
