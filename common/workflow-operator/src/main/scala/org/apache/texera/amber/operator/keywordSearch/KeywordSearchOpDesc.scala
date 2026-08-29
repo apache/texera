@@ -39,10 +39,15 @@ class KeywordSearchOpDesc extends FilterOpDesc {
 
   // The value is a Lucene query, so the parser the executor builds decides what can be
   // typed here. Its lexer needs double quotes in pairs: one on its own opens a phrase
-  // that never closes, and `parse` throws before a row is read. That is the one rule
-  // statable exactly. ( ) [ ] { } ^ and / also carry query syntax, but which uses of
-  // them parse depends on what follows, and a pattern strict enough to cover them would
-  // reject the phrase and range queries that work today.
+  // that never closes, and `parse` throws before a row is read. A quote a backslash
+  // escapes is not one of the pair, it is a character in a term, so the pattern walks
+  // the value the way the lexer does: an escape takes the character after it, whatever
+  // it is, and only a bare quote opens or closes a phrase. A backslash with nothing to
+  // escape ends the value mid-escape, which throws as well.
+  //
+  // That is the one rule statable exactly. ( ) [ ] { } ^ and / also carry query syntax,
+  // but which uses of them parse depends on what follows, and a pattern strict enough to
+  // cover them would reject the phrase and range queries that work today.
   //
   // Anchored, because the form validates with `new RegExp().test`, which searches: an
   // unanchored alternative would match the leading run of quoteless characters in any
@@ -50,7 +55,9 @@ class KeywordSearchOpDesc extends FilterOpDesc {
   @JsonProperty(required = true)
   @JsonSchemaTitle("keywords")
   @JsonPropertyDescription("keywords")
-  @JsonSchemaInject(json = """{"minLength": 1, "pattern": "^[^\"]*(?:\"[^\"]*\"[^\"]*)*$"}""")
+  @JsonSchemaInject(
+    json = """{"minLength": 1, "pattern": "^(?:[^\"\\\\]|\\\\.|\"(?:[^\"\\\\]|\\\\.)*\")*$"}"""
+  )
   var keyword: String = _
 
   @JsonProperty(required = true, defaultValue = "false")
