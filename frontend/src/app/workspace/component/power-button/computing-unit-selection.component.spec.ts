@@ -519,6 +519,70 @@ describe("PowerButtonComponent", () => {
       vi.runAllTimers();
       expect(component.createVirtualEnvironment).toHaveBeenCalledWith(0);
     });
+
+    /** Builds one locked card whose single package is `pkg`. */
+    function lockedCardWith(pkg: Record<string, unknown>): void {
+      component.pves = [
+        {
+          name: "scanpyenv",
+          isLocked: true,
+          userPackages: [pkg],
+          newPackages: [],
+          deletingPackages: [],
+          pipOutput: "",
+          prettyPipOutput: "",
+          expanded: false,
+          isInstalling: false,
+        } as any,
+      ];
+    }
+
+    it("treats a card package with no version and a blank database version as unchanged", () => {
+      const successSpy = vi.spyOn(TestBed.inject(NotificationService), "success").mockImplementation(() => {});
+      lockedCardWith({ name: "numpy", versionOp: "==", version: undefined });
+      component.availableDbPves = [makeSaved({ numpy: "" })];
+
+      component.installFromSavedPve(SAVED_VEID);
+
+      // Both sides fall back to "" through `?? ""`, so the diff is empty.
+      expect(successSpy).toHaveBeenCalledWith(expect.stringContaining("already up to date"));
+      expect(component.pves[0].newPackages).toEqual([]);
+      expect(component.pves[0].deletingPackages).toEqual([]);
+    });
+
+    it("replaces a card package with no version when the database pins one", () => {
+      lockedCardWith({ name: "numpy", versionOp: "==", version: undefined });
+      component.availableDbPves = [makeSaved({ numpy: "==1.26.0" })];
+
+      component.installFromSavedPve(SAVED_VEID);
+
+      const locked = component.pves[0];
+      expect(locked.deletingPackages).toEqual([{ name: "numpy", version: "" }]);
+      expect(locked.newPackages).toEqual([{ name: "numpy", versionOp: "==", version: "1.26.0" }]);
+      expect(locked.userPackages).toEqual([]);
+    });
+
+    it("deletes a versionless card package the database no longer lists", () => {
+      lockedCardWith({ name: "numpy", versionOp: "==", version: undefined });
+      component.availableDbPves = [makeSaved({ pandas: "==2.0.0" })];
+
+      component.installFromSavedPve(SAVED_VEID);
+
+      const locked = component.pves[0];
+      expect(locked.deletingPackages).toEqual([{ name: "numpy", version: "" }]);
+      expect(locked.newPackages).toEqual([{ name: "pandas", versionOp: "==", version: "2.0.0" }]);
+    });
+
+    it("reads a database row that carries no version at all through the same fallback", () => {
+      // parseDbPackages always produces a string, so the `db.version ?? ""` side of the
+      // comparison is only reachable by handing applySavedPveAsUpdate the row directly.
+      const successSpy = vi.spyOn(TestBed.inject(NotificationService), "success").mockImplementation(() => {});
+      lockedCardWith({ name: "numpy", versionOp: "==", version: "" });
+
+      (component as any).applySavedPveAsUpdate(0, "scanpyenv", [{ name: "numpy", versionOp: "==" }]);
+
+      expect(successSpy).toHaveBeenCalledWith(expect.stringContaining("already up to date"));
+    });
   });
 
   describe("parseDbPackages", () => {
@@ -555,6 +619,13 @@ describe("PowerButtonComponent", () => {
 
     it("treats an empty string as no version, defaulting versionOp to ==", () => {
       const rows = (component as any).parseDbPackages({ numpy: "" });
+      expect(rows).toEqual([{ name: "numpy", versionOp: "==", version: "" }]);
+    });
+
+    it("treats a null version as no version", () => {
+      // A row the database stored without a spec: `raw?.match?.()` short-circuits and the
+      // `?? ""` fallback keeps the row usable instead of writing `null` into the version.
+      const rows = (component as any).parseDbPackages({ numpy: null });
       expect(rows).toEqual([{ name: "numpy", versionOp: "==", version: "" }]);
     });
 
@@ -664,6 +735,16 @@ describe("PowerButtonComponent", () => {
       expect(component.pves).toEqual([]);
       expect(component.systemPackages).toEqual([]);
     });
+
+    it("treats a system package with no pinned version as versionless", () => {
+      vi.spyOn(pveService, "fetchPVEs").mockReturnValue(of([] as PvePackageResponse[]));
+      vi.spyOn(pveService, "getSystemPackages").mockReturnValue(of({ system: ["  numpy  "] }));
+
+      component.getPVEs();
+
+      // Splitting on "==" yields no second element, so the `?? ""` fallback runs.
+      expect(component.systemPackages).toEqual([{ name: "numpy", version: "" }]);
+    });
   });
 
   /**
@@ -678,6 +759,8 @@ describe("PowerButtonComponent", () => {
   describe("the virtual-environment socket", () => {
     /** The sockets opened during a test, newest last. */
     let sockets: FakeSocket[];
+    /** The notification channel every guard in this block reports through. */
+    let errorSpy: ReturnType<typeof vi.spyOn>;
 
     class FakeSocket {
       static opened: FakeSocket[] = [];
@@ -715,13 +798,16 @@ describe("PowerButtonComponent", () => {
       FakeSocket.opened = [];
       sockets = FakeSocket.opened;
       vi.stubGlobal("WebSocket", FakeSocket as unknown as typeof WebSocket);
-      vi.spyOn((component as any).notificationService, "error").mockImplementation(() => {});
+      errorSpy = vi.spyOn((component as any).notificationService, "error").mockImplementation(() => {});
       // The socket URL is built from the selected unit's cuid, so a unit has to be selected.
       component.selectedComputingUnit = makeComputingUnit({ name: "unit" });
     });
 
     afterEach(() => {
       vi.unstubAllGlobals();
+      // console is global, and the suite has no blanket restore, so a spy installed on it here
+      // would otherwise outlive the test that made it and swallow later output.
+      vi.restoreAllMocks();
     });
 
     it("opens a socket for the environment and locks the card while it runs", () => {
@@ -838,6 +924,160 @@ describe("PowerButtonComponent", () => {
       expect(sockets).toHaveLength(0);
       expect(deleteSpy).toHaveBeenCalled();
       expect(installSpy).toHaveBeenCalled();
+    });
+
+    it("refuses to create a second environment under a name another card already uses", () => {
+      setPve();
+      // The nameless card is scanned first, so the duplicate check has to survive it before it
+      // reaches the card that actually clashes.
+      const card = component.pves[0];
+      component.pves = [{ ...card, name: undefined }, { ...card }, { ...card, name: " envone " }] as any;
+
+      component.createVirtualEnvironment(2);
+
+      expect(errorSpy).toHaveBeenCalledWith("An environment with this name already exists.");
+      expect(sockets).toHaveLength(0);
+      expect(component.pves[2].isInstalling).toBeFalsy();
+    });
+
+    it("starts the log from empty when the card has produced no output yet", () => {
+      setPve();
+      component.createVirtualEnvironment(0);
+      // runPveWebSocket seeds the card with its banner; clearing it models a card whose log
+      // was reset while the socket was still attached, and exercises the handler's fallback.
+      (component.pves[0] as { pipOutput?: string }).pipOutput = undefined;
+
+      sockets[0].say("collecting numpy");
+
+      expect(component.pves[0].pipOutput).toBe("collecting numpy\n");
+    });
+
+    it("records a dropped connection even when the card has produced no output yet", () => {
+      setPve();
+      component.createVirtualEnvironment(0);
+      (component.pves[0] as { pipOutput?: string }).pipOutput = undefined;
+
+      sockets[0].onerror?.();
+
+      expect(component.pves[0].pipOutput).toBe("\n[WebSocket error]\n");
+      expect(component.pves[0].isInstalling).toBe(false);
+    });
+
+    describe("installUserPackages", () => {
+      it("refuses a package that is missing its operator or its version", () => {
+        setPve({ newPackages: [{ name: "numpy", versionOp: undefined, version: "1.26.0" }] });
+        (component as any).installUserPackages(0);
+        expect(errorSpy).toHaveBeenLastCalledWith("Please specify an operator and version for each package.");
+
+        setPve({ newPackages: [{ name: "numpy", versionOp: "==", version: "   " }] });
+        (component as any).installUserPackages(0);
+        expect(errorSpy).toHaveBeenLastCalledWith("Please specify an operator and version for each package.");
+
+        expect(sockets).toHaveLength(0);
+      });
+
+      it("skips a package already present as a system package or in the environment", () => {
+        vi.spyOn(TestBed.inject(WorkflowPveService), "getUserPackages").mockReturnValue(of([]));
+        // The system list is matched case-insensitively, so "NumPy" must block "numpy".
+        component.systemPackages = [{ name: "NumPy", version: "1.26.0" }];
+        setPve({
+          userPackages: [{ name: "pandas", versionOp: "==", version: "2.0.0" }],
+          newPackages: [
+            { name: "   ", versionOp: "==", version: "1.0.0" },
+            { name: "numpy", versionOp: "==", version: "1.26.0" },
+            { name: "Pandas", versionOp: "==", version: "2.0.0" },
+          ],
+        });
+
+        (component as any).installUserPackages(0);
+
+        expect(errorSpy).toHaveBeenCalledWith("Skipped numpy: already installed as a system package.");
+        expect(errorSpy).toHaveBeenCalledWith("Skipped Pandas: already installed in this environment.");
+        // Nothing survives the filters, so no socket is opened and the draft rows are cleared.
+        expect(sockets).toHaveLength(0);
+        expect(component.pves[0].newPackages).toEqual([]);
+        expect(component.pves[0].isInstalling).toBe(false);
+      });
+
+      it("has nothing to install when the card carries no draft rows at all", () => {
+        const refreshSpy = vi.spyOn(TestBed.inject(WorkflowPveService), "getUserPackages").mockReturnValue(of([]));
+        setPve({ newPackages: undefined });
+
+        (component as any).installUserPackages(0);
+
+        expect(sockets).toHaveLength(0);
+        expect(refreshSpy).toHaveBeenCalledWith(1, "envone");
+      });
+
+      it("opens an install socket for the surviving packages and reloads the list when it finishes", () => {
+        const urlSpy = vi.spyOn(TestBed.inject(WorkflowPveService), "getPveWebSocketUrl");
+        vi.spyOn(TestBed.inject(WorkflowPveService), "getUserPackages").mockReturnValue(of(["numpy==1.26.0"]));
+        component.systemPackages = [];
+        setPve({ newPackages: [{ name: "  numpy  ", versionOp: "==", version: "  1.26.0  " }] });
+
+        (component as any).installUserPackages(0);
+
+        expect(urlSpy).toHaveBeenCalledWith(1, "envone", "install", ["numpy==1.26.0"]);
+        expect(sockets).toHaveLength(1);
+
+        sockets[0].say("__DONE__");
+
+        expect(component.pves[0].newPackages).toEqual([]);
+        expect(component.pves[0].userPackages).toEqual([{ name: "numpy", versionOp: "==", version: "1.26.0" }]);
+      });
+
+      it("logs and keeps the current list when reloading the packages fails", () => {
+        const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+        vi.spyOn(TestBed.inject(WorkflowPveService), "getUserPackages").mockReturnValue(
+          throwError(() => new Error("nope"))
+        );
+        setPve({ userPackages: [{ name: "numpy", versionOp: "==", version: "1.26.0" }] });
+
+        (component as any).refreshUserPackages(0);
+
+        expect(consoleSpy).toHaveBeenCalledWith("Failed to refresh user packages", expect.any(Error));
+        expect(component.pves[0].userPackages).toEqual([{ name: "numpy", versionOp: "==", version: "1.26.0" }]);
+      });
+    });
+
+    describe("deleteUserPackages", () => {
+      it("deletes the queued packages one at a time and reports a failure without stopping", () => {
+        const deleteSpy = vi
+          .spyOn(TestBed.inject(WorkflowPveService), "deletePackage")
+          .mockReturnValueOnce(of(["removed numpy"]))
+          .mockReturnValueOnce(throwError(() => new Error("boom")));
+        vi.spyOn(TestBed.inject(WorkflowPveService), "getUserPackages").mockReturnValue(of([]));
+        setPve({
+          pipOutput: undefined,
+          deletingPackages: [
+            { name: "numpy", version: "1.26.0" },
+            { name: "pandas", version: "2.0.0" },
+          ],
+        });
+        const onDone = vi.fn();
+
+        (component as any).deleteUserPackages(0, onDone);
+
+        expect(deleteSpy).toHaveBeenNthCalledWith(1, 1, "envone", "numpy");
+        expect(deleteSpy).toHaveBeenNthCalledWith(2, 1, "envone", "pandas");
+        expect(component.pves[0].pipOutput).toContain("removed numpy");
+        expect(component.pves[0].pipOutput).toContain("[PVE][ERR] Failed to delete package: pandas");
+        // The queue is drained and the caller resumes exactly once.
+        expect(component.pves[0].deletingPackages).toEqual([]);
+        expect(onDone).toHaveBeenCalledTimes(1);
+      });
+    });
+  });
+
+  describe("onClickOpenShareAccess", () => {
+    it("opens the share dialog for the given computing unit", async () => {
+      const openSpy = vi
+        .spyOn(TestBed.inject(ComputingUnitActionsService), "openShareAccessModal")
+        .mockImplementation(() => {});
+
+      await component.onClickOpenShareAccess(7);
+
+      expect(openSpy).toHaveBeenCalledWith(7, true);
     });
   });
 
@@ -1089,6 +1329,32 @@ describe("PowerButtonComponent", () => {
 
       expect(latestSpy).not.toHaveBeenCalled();
     });
+
+    it("does not look up an execution for an unsaved workflow", () => {
+      const execService = TestBed.inject(WorkflowExecutionsService);
+      const latestSpy = vi.spyOn(execService, "retrieveLatestWorkflowExecution");
+      const { comp, emit } = bootWithMetaStream();
+
+      // The placeholder id an unsaved workflow carries: recorded, but never queried for.
+      emit(DEFAULT_WORKFLOW.wid);
+
+      expect(comp.workflowId).toBe(DEFAULT_WORKFLOW.wid);
+      expect(latestSpy).not.toHaveBeenCalled();
+    });
+
+    it("selects nothing when the fetch fails and no unit is Running", () => {
+      const execService = TestBed.inject(WorkflowExecutionsService);
+      vi.spyOn(execService, "retrieveLatestWorkflowExecution").mockReturnValue(
+        throwError(() => new Error("no execution"))
+      );
+      const { comp, emit } = bootWithMetaStream();
+      comp.allComputingUnits = [makeComputingUnit({ cuid: 1, status: "Pending" })];
+      const selectSpy = vi.spyOn(comp, "selectComputingUnit").mockImplementation(() => {});
+
+      emit(100);
+
+      expect(selectSpy).not.toHaveBeenCalled();
+    });
   });
 
   describe("selectComputingUnit guards", () => {
@@ -1224,6 +1490,26 @@ describe("PowerButtonComponent", () => {
         vi.useRealTimers();
       }
     });
+
+    it("focuses and selects the rename box once it is in the document", () => {
+      vi.useFakeTimers();
+      const input = document.createElement("input");
+      input.className = "unit-name-edit-input";
+      document.body.appendChild(input);
+      const focus = vi.spyOn(input, "focus").mockImplementation(() => {});
+      const select = vi.spyOn(input, "select").mockImplementation(() => {});
+      try {
+        component.startEditingUnitName(makeComputingUnit({ cuid: 3, name: "Env", isOwner: true }));
+
+        vi.runAllTimers();
+
+        expect(focus).toHaveBeenCalledTimes(1);
+        expect(select).toHaveBeenCalledTimes(1);
+      } finally {
+        input.remove();
+        vi.useRealTimers();
+      }
+    });
   });
 
   describe("confirmUpdateUnitName", () => {
@@ -1276,6 +1562,24 @@ describe("PowerButtonComponent", () => {
       expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("Failed to rename"));
       expect(component.editingNameOfUnit).toBeNull();
       expect(component.editingUnitName).toBe("");
+    });
+
+    it("leaves the caches alone when the renamed unit is neither listed nor selected", () => {
+      component.allComputingUnits = [makeComputingUnit({ cuid: 9, name: "other" })];
+      component.selectedComputingUnit = makeComputingUnit({ cuid: 9, name: "other" });
+      vi.spyOn(TestBed.inject(WorkflowComputingUnitManagingService), "renameComputingUnit").mockReturnValue(
+        of({} as Response)
+      );
+      const refreshSpy = vi.spyOn(TestBed.inject(ComputingUnitStatusService), "refreshComputingUnitList");
+      vi.spyOn(TestBed.inject(NotificationService), "success").mockImplementation(() => {});
+      component.editingNameOfUnit = 3;
+
+      component.confirmUpdateUnitName(3, "NewName");
+
+      expect(component.allComputingUnits[0].computingUnit.name).toBe("other");
+      expect(component.selectedComputingUnit!.computingUnit.name).toBe("other");
+      expect(refreshSpy).toHaveBeenCalled();
+      expect(component.editingNameOfUnit).toBeNull();
     });
   });
 
@@ -1343,6 +1647,15 @@ describe("PowerButtonComponent", () => {
       expect(pkg.deleteToggle).toBe(false);
       expect(component.pves[0].deletingPackages).toEqual([]);
     });
+
+    it("togglePackageDelete records a versionless package with an empty version", () => {
+      component.pves = [{ name: "env", deletingPackages: [] } as any];
+      const pkg = { name: "numpy", versionOp: "==", version: undefined, deleteToggle: false } as any;
+
+      component.togglePackageDelete(0, pkg);
+
+      expect(component.pves[0].deletingPackages).toEqual([{ name: "numpy", version: "" }]);
+    });
   });
 
   describe("parsePackageRows / updatePrettyPipOutput", () => {
@@ -1367,6 +1680,14 @@ describe("PowerButtonComponent", () => {
       expect(out).toContain("&lt;script&gt;");
       expect(out).toContain("&amp;");
       expect(out).toContain("<br/>");
+    });
+
+    it("updatePrettyPipOutput renders an environment that has produced no output as empty", () => {
+      component.pves = [{ name: "env", pipOutput: undefined, prettyPipOutput: "stale" } as any];
+
+      component.updatePrettyPipOutput(0);
+
+      expect(component.pves[0].prettyPipOutput).toBe("");
     });
   });
 
