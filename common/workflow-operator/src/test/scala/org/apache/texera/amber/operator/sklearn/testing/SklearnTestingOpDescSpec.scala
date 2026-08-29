@@ -80,6 +80,15 @@ class SklearnTestingOpDescSpec extends AnyFlatSpec with Matchers {
     code should include(".predict(")
   }
 
+  // The scores are computed over the rows the model can be applied to, the way
+  // COUNT and MIN are computed over the rows that have a value.
+  it should "drop rows with missing values before scoring" in {
+    val d = new SklearnTestingOpDesc
+    d.model = "model"
+    d.target = "y"
+    d.generatePythonCode() should include("Table(self.data).dropna()")
+  }
+
   "SklearnTestingOpDesc" should
     "round-trip its config fields through the polymorphic base" in {
     val d = new SklearnTestingOpDesc

@@ -24,8 +24,7 @@ import { Observable, of } from "rxjs";
 import { DashboardProject } from "../../../type/dashboard-project.interface";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { UserProjectService } from "../../../service/user/project/user-project.service";
-import { WorkflowPersistService } from "src/app/common/service/workflow-persist/workflow-persist.service";
-import { DatasetService } from "../../../service/user/dataset/dataset.service";
+import { ResourceRegistryService } from "../../../service/user/resource-registry/resource-registry.service";
 import { EntityType } from "../../../../hub/service/hub.service";
 import { SearchFilterParameters } from "../../../type/search-filter-parameters";
 import { UserService } from "../../../../common/service/user/user.service";
@@ -124,20 +123,13 @@ export class FiltersComponent implements OnInit {
     private operatorMetadataService: OperatorMetadataService,
     private notificationService: NotificationService,
     private userProjectService: UserProjectService,
-    private workflowPersistService: WorkflowPersistService,
-    private datasetService: DatasetService,
+    private resourceRegistry: ResourceRegistryService,
     private cdr: ChangeDetectorRef
   ) {}
 
-  /** Only workflows expose an id-listing endpoint. */
+  /** The id dropdown is hidden for kinds with no id-listing endpoint. */
   public get hasIdFilter(): boolean {
-    return this.entityType === EntityType.Workflow;
-  }
-
-  private retrieveOwners(): Observable<string[]> {
-    return this.entityType === EntityType.Dataset
-      ? this.datasetService.retrieveOwners()
-      : this.workflowPersistService.retrieveOwners();
+    return this.resourceRegistry.get(this.entityType).retrieveIds !== undefined;
   }
 
   ngOnInit(): void {
@@ -197,24 +189,24 @@ export class FiltersComponent implements OnInit {
         this.operatorGroups = opdata.groups.map(group => group.groupName);
       });
     if (this.isLogin) {
-      this.retrieveOwners()
+      const descriptor = this.resourceRegistry.get(this.entityType);
+      descriptor
+        .retrieveOwners?.()
         .pipe(untilDestroyed(this))
         .subscribe(list_of_owners => {
           this.owners = list_of_owners.map(i => ({ userName: i, checked: false }));
         });
-      if (this.hasIdFilter) {
-        this.workflowPersistService
-          .retrieveWorkflowIDs()
-          .pipe(untilDestroyed(this))
-          .subscribe(wids => {
-            this.wids = wids.map(wid => {
-              return {
-                id: wid.toString(),
-                checked: false,
-              };
-            });
+      descriptor
+        .retrieveIds?.()
+        .pipe(untilDestroyed(this))
+        .subscribe(ids => {
+          this.wids = ids.map(id => {
+            return {
+              id: id.toString(),
+              checked: false,
+            };
           });
-      }
+        });
     }
   }
 

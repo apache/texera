@@ -96,6 +96,31 @@ class DendrogramOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matchers
     code should not include "color_threshold=None"
   }
 
+  it should "drop the rows a blank coordinate leaves unusable, and answer an emptied table" in {
+    // The subset names both coordinates, and only those: a NaN anywhere in the
+    // point matrix makes scipy refuse the whole distance matrix, while a blank
+    // label is only a blank tick on the axis.
+    opDesc.xVal = "coord_a"
+    opDesc.yVal = "coord_b"
+    opDesc.labels = "label_col"
+    val code = opDesc.generatePythonCode()
+    code should include("table = table.dropna(subset=[")
+    assert(carries(code, "coord_a"))
+    assert(carries(code, "coord_b"))
+    code should include("input table has no rows with all of the configured columns filled in.")
+  }
+
+  it should "answer a table with too few rows to cluster" in {
+    // One row leaves an empty distance matrix, which scipy raises on rather than
+    // drawing an empty picture.
+    opDesc.xVal = "coord_a"
+    opDesc.yVal = "coord_b"
+    opDesc.labels = "label_col"
+    val code = opDesc.generatePythonCode()
+    code should include("if len(table) < 2:")
+    code should include("fewer than two rows to cluster")
+  }
+
   /** Reads the shapes a stored workflow can hold. Without `contentAs` a JSON string
     * stays unconverted inside the Option and the first use throws.
     */
