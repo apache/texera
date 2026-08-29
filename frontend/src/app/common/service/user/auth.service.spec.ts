@@ -19,6 +19,7 @@
 
 import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
 import { TestBed } from "@angular/core/testing";
+import { firstValueFrom } from "rxjs";
 import { JwtHelperService } from "@auth0/angular-jwt";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { AppSettings } from "../../app-setting";
@@ -47,7 +48,7 @@ describe("AuthService", () => {
     email: "u@x.com",
     sub: "Ursula",
     googleId: "g",
-    googleAvatar: "a",
+    avatar: "a",
     comment: "c",
     joiningReason: "r",
   };
@@ -187,11 +188,19 @@ describe("AuthService", () => {
         name: "Ursula",
         email: "u@x.com",
         googleId: "g",
-        googleAvatar: "a",
+        avatar: "a",
         role: Role.REGULAR,
         comment: "c",
         joiningReason: "r",
       });
+    });
+
+    it("reads the avatar from a pre-rename googleAvatar claim", () => {
+      AuthService.setAccessToken("tok");
+      const { avatar, ...legacyClaims } = claims;
+      jwt.decodeToken.mockReturnValue({ ...legacyClaims, googleAvatar: "legacy-a" });
+
+      expect(service.loginWithExistingToken()?.avatar).toEqual("legacy-a");
     });
 
     it("in invite-only mode, an inactive user is logged out and registration is checked", () => {
@@ -208,6 +217,174 @@ describe("AuthService", () => {
 
       expect(modal.info).toHaveBeenCalledTimes(1);
       expect(AuthService.getAccessToken()).toBeNull();
+    });
+  });
+
+  // Every path that writes a credential supplies an address, so this should be unreachable — it
+  // covers the rows older deployments carry from the admin panel's "add user" before that stopped
+  // creating credentialed accounts. The contract under test: such a token yields no `User` at all,
+  // rather than one with the field blank.
+  describe("the missing-email prompt", () => {
+    const emaillessClaims = (role: Role = Role.REGULAR) => ({ ...claims, email: null, role });
+
+    beforeEach(() => {
+      modal.create.mockReturnValue({
+        getContentComponent: () => ({ modalTitle: "t", getValues: () => ({ email: "typed@x.com" }) }),
+        updateConfig: vi.fn(),
+      });
+    });
+
+    // The load-bearing assertion: no User escapes while the account has no address, so nothing
+    // downstream ever sees `User.email` absent and the type stays honest.
+    it("hands out no user and opens the prompt when the token carries no email", () => {
+      AuthService.setAccessToken("tok");
+      jwt.decodeToken.mockReturnValue(emaillessClaims());
+
+      const result = service.loginWithExistingToken();
+
+      expect(result).toBeUndefined();
+      expect(modal.create).toHaveBeenCalledTimes(1);
+      expect(modal.create.mock.calls[0][0].nzData).toMatchObject({ name: "Ursula" });
+      // The token stays put so the prompt can spend it on PUT /auth/email.
+      expect(AuthService.getAccessToken()).toEqual("tok");
+    });
+
+    it("does not open the prompt for an account that has an address", () => {
+      AuthService.setAccessToken("tok");
+
+      service.loginWithExistingToken();
+
+      expect(modal.create).not.toHaveBeenCalled();
+    });
+
+    // loginWithExistingToken runs on every token refresh; a second dialog stacked on the one still
+    // waiting for an answer would be unanswerable.
+    it("does not stack a second prompt while one is open", () => {
+      AuthService.setAccessToken("tok");
+      jwt.decodeToken.mockReturnValue(emaillessClaims());
+
+      service.loginWithExistingToken();
+      service.loginWithExistingToken();
+
+      expect(modal.create).toHaveBeenCalledTimes(1);
+    });
+
+    // The address has to be collected before the invite-only branch, not after: that branch mails
+    // the admin the account's address, and /gmail/notify-unauthorized rejects a null one.
+    it("asks for an address instead of making the invite-only request", () => {
+      AuthService.setAccessToken("tok");
+      config.env.inviteOnly = true;
+      jwt.decodeToken.mockReturnValue(emaillessClaims(Role.INACTIVE));
+
+      expect(service.loginWithExistingToken()).toBeUndefined();
+
+      expect(modal.create).toHaveBeenCalledTimes(1);
+      httpMock.expectNone(r => r.url === `${api}/user/joining-reason/required`);
+    });
+
+    it("still runs the invite-only request for an inactive user that has an address", () => {
+      AuthService.setAccessToken("tok");
+      config.env.inviteOnly = true;
+      jwt.decodeToken.mockReturnValue({ ...claims, role: Role.INACTIVE });
+
+      service.loginWithExistingToken();
+
+      expect(modal.create).not.toHaveBeenCalled();
+      httpMock.expectOne(r => r.url === `${api}/user/joining-reason/required`).flush(false);
+    });
+
+    it("stores the reissued token and announces it once the address is saved", async () => {
+      AuthService.setAccessToken("tok");
+      jwt.decodeToken.mockReturnValue(emaillessClaims());
+      const announced = firstValueFrom(service.sessionChanged());
+
+      service.loginWithExistingToken();
+      const accepted = modal.create.mock.calls[0][0].nzOnOk();
+
+      const req = httpMock.expectOne(`${api}/${AuthService.SET_EMAIL_ENDPOINT}`);
+      expect(req.request.method).toEqual("PUT");
+      expect(req.request.body).toEqual({ email: "typed@x.com" });
+      req.flush({ accessToken: "fresh-token" });
+
+      expect(await accepted).toBe(true);
+      expect(AuthService.getAccessToken()).toEqual("fresh-token");
+      await expect(announced).resolves.toBeUndefined();
+    });
+
+    // The reissued token carries an address, so the very next pass produces a real user — which is
+    // what turns the prompt into a way through rather than a dead end.
+    it("hands out a user once the reissued token carries an address", async () => {
+      AuthService.setAccessToken("tok");
+      jwt.decodeToken.mockReturnValue(emaillessClaims());
+
+      service.loginWithExistingToken();
+      const accepted = modal.create.mock.calls[0][0].nzOnOk();
+      httpMock.expectOne(`${api}/${AuthService.SET_EMAIL_ENDPOINT}`).flush({ accessToken: "fresh-token" });
+      await accepted;
+
+      jwt.decodeToken.mockReturnValue(claims);
+      expect(service.loginWithExistingToken()).toMatchObject({ email: claims.email });
+    });
+
+    it("keeps the dialog open and reports why when the address is refused", async () => {
+      AuthService.setAccessToken("tok");
+      jwt.decodeToken.mockReturnValue(emaillessClaims());
+
+      service.loginWithExistingToken();
+      const accepted = modal.create.mock.calls[0][0].nzOnOk();
+
+      httpMock
+        .expectOne(`${api}/${AuthService.SET_EMAIL_ENDPOINT}`)
+        .flush(
+          { message: "That email address already belongs to an account." },
+          { status: 409, statusText: "Conflict" }
+        );
+
+      expect(await accepted).toBe(false);
+      expect(notification.error).toHaveBeenCalledWith("That email address already belongs to an account.");
+      // The old token is untouched, so the user can try another address.
+      expect(AuthService.getAccessToken()).toEqual("tok");
+    });
+
+    it("rejects a malformed address without calling the backend", async () => {
+      AuthService.setAccessToken("tok");
+      jwt.decodeToken.mockReturnValue(emaillessClaims());
+      modal.create.mockReturnValue({
+        getContentComponent: () => ({ modalTitle: "t", getValues: () => ({ email: "not-an-address" }) }),
+        updateConfig: vi.fn(),
+      });
+
+      service.loginWithExistingToken();
+
+      expect(await modal.create.mock.calls[0][0].nzOnOk()).toBe(false);
+      expect(notification.error).toHaveBeenCalledWith("Email format is invalid.");
+      httpMock.expectNone(`${api}/${AuthService.SET_EMAIL_ENDPOINT}`);
+    });
+
+    it("signs out and announces the change when the prompt is cancelled", async () => {
+      AuthService.setAccessToken("tok");
+      jwt.decodeToken.mockReturnValue(emaillessClaims());
+      const announced = firstValueFrom(service.sessionChanged());
+
+      service.loginWithExistingToken();
+      modal.create.mock.calls[0][0].nzOnCancel();
+
+      expect(AuthService.getAccessToken()).toBeNull();
+      await expect(announced).resolves.toBeUndefined();
+    });
+
+    // A second prompt has to be possible after a cancel, or a user who dismissed it once could
+    // never be asked again for the life of the tab.
+    it("can prompt again after a cancel", () => {
+      AuthService.setAccessToken("tok");
+      jwt.decodeToken.mockReturnValue(emaillessClaims());
+
+      service.loginWithExistingToken();
+      modal.create.mock.calls[0][0].nzOnCancel();
+      AuthService.setAccessToken("tok");
+      service.loginWithExistingToken();
+
+      expect(modal.create).toHaveBeenCalledTimes(2);
     });
   });
 

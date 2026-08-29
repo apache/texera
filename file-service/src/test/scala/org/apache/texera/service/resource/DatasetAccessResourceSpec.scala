@@ -50,7 +50,6 @@ class DatasetAccessResourceSpec
   private val ownerUser: User = {
     val user = new User
     user.setName("dataset_owner")
-    user.setPassword("123")
     user.setEmail("dataset_owner@test.com")
     user.setRole(UserRoleEnum.REGULAR)
     user
@@ -59,7 +58,6 @@ class DatasetAccessResourceSpec
   private val readGranteeUser: User = {
     val user = new User
     user.setName("read_grantee")
-    user.setPassword("123")
     user.setEmail("read_grantee@test.com")
     user.setRole(UserRoleEnum.REGULAR)
     user
@@ -68,7 +66,6 @@ class DatasetAccessResourceSpec
   private val writeGranteeUser: User = {
     val user = new User
     user.setName("write_grantee")
-    user.setPassword("123")
     user.setEmail("write_grantee@test.com")
     user.setRole(UserRoleEnum.REGULAR)
     user
@@ -77,7 +74,6 @@ class DatasetAccessResourceSpec
   private val strangerUser: User = {
     val user = new User
     user.setName("stranger")
-    user.setPassword("123")
     user.setEmail("stranger@test.com")
     user.setRole(UserRoleEnum.REGULAR)
     user
@@ -117,8 +113,11 @@ class DatasetAccessResourceSpec
       .insert(new DatasetUserAccess(did, uid, privilege))
   }
 
-  private def accessList(did: Integer): List[DatasetAccessResource.AccessEntry] =
-    accessResource.getAccessList(did).asScala.toList
+  private def accessList(
+      did: Integer,
+      user: SessionUser = ownerSession
+  ): List[DatasetAccessResource.AccessEntry] =
+    accessResource.getAccessList(did, user).asScala.toList
 
   override protected def beforeAll(): Unit = {
     super.beforeAll()
@@ -440,10 +439,57 @@ class DatasetAccessResourceSpec
   // ===========================================================================
 
   "getOwnerEmailOfDataset" should "return the owner's email" in {
-    accessResource.getOwnerEmailOfDataset(privateDataset.getDid) shouldEqual ownerUser.getEmail
+    accessResource.getOwnerEmailOfDataset(
+      privateDataset.getDid,
+      ownerSession
+    ) shouldEqual ownerUser.getEmail
   }
 
-  it should "return an empty string for a nonexistent dataset" in {
-    accessResource.getOwnerEmailOfDataset(nonExistentDid) shouldEqual ""
+  it should "be readable by a READ grantee" in {
+    grantDirectly(privateDataset.getDid, readGranteeUser.getUid, PrivilegeEnum.READ)
+
+    accessResource.getOwnerEmailOfDataset(
+      privateDataset.getDid,
+      readGranteeSession
+    ) shouldEqual ownerUser.getEmail
+  }
+
+  it should "be forbidden for a user with no access to a private dataset" in {
+    assertThrows[ForbiddenException] {
+      accessResource.getOwnerEmailOfDataset(privateDataset.getDid, strangerSession)
+    }
+  }
+
+  it should "be readable by anyone for a public dataset" in {
+    accessResource.getOwnerEmailOfDataset(
+      publicDataset.getDid,
+      strangerSession
+    ) shouldEqual ownerUser.getEmail
+  }
+
+  it should "be forbidden for a nonexistent dataset" in {
+    assertThrows[ForbiddenException] {
+      accessResource.getOwnerEmailOfDataset(nonExistentDid, ownerSession)
+    }
+  }
+
+  // ===========================================================================
+  // getAccessList -- read guard
+  // ===========================================================================
+
+  "getAccessList" should "be forbidden for a user with no access to a private dataset" in {
+    grantDirectly(privateDataset.getDid, readGranteeUser.getUid, PrivilegeEnum.READ)
+
+    assertThrows[ForbiddenException] {
+      accessList(privateDataset.getDid, strangerSession)
+    }
+  }
+
+  it should "be readable by a READ grantee" in {
+    grantDirectly(privateDataset.getDid, readGranteeUser.getUid, PrivilegeEnum.READ)
+
+    accessList(privateDataset.getDid, readGranteeSession).map(_.email) should contain(
+      readGranteeUser.getEmail
+    )
   }
 }

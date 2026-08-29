@@ -58,7 +58,7 @@ The full testing reference (Vitest stack, recipes, anti-patterns, coverage troub
 | Path                                           | What lives here                                                                                             |
 | ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
 | `src/app/workspace/`                           | Workflow editor — operator graph, property panel, result panel, code editor.                                |
-| `src/app/dashboard/`                           | User dashboard — workflows, datasets, projects, computing units, admin.                                     |
+| `src/app/dashboard/`                           | User dashboard — workflows, datasets, computing units, admin.                                               |
 | `src/app/hub/`                                 | Public hub — discover and share workflows.                                                                  |
 | `src/app/common/`                              | Cross-cutting services, types, formly extensions, and shared test helpers (`common/testing/test-utils.ts`). |
 | `src/app/workspace/service/operator-metadata/` | Operator metadata service + the `Stub…Service` test doubles other specs reuse.                              |

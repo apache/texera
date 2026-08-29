@@ -35,6 +35,7 @@ import org.apache.texera.dao.jooq.generated.tables.pojos.{
   WorkflowOfUser,
   WorkflowUserAccess
 }
+import org.apache.texera.web.resource.dashboard.VersionedResourceTables
 import org.apache.texera.web.resource.dashboard.hub.HubResource._
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterAll
@@ -86,7 +87,6 @@ class HubResourceSpec
     u.setUid(Integer.valueOf(uid))
     u.setName(name)
     u.setEmail(s"$name@test.com")
-    u.setPassword("password")
     u
   }
 
@@ -716,8 +716,6 @@ class HubResourceSpec
     seedDatasetViewCount(820801, 7)
     Seq(ownerUid, likerUid, thirdUid).foreach(seedDatasetLike(820801, _))
 
-    // CloneTable(Dataset) throws; the `etype != Dataset` guard is what keeps this
-    // request from turning into a 500.
     val counts = hub.getCounts(types(Ds), ids(820801), null).asScala.head.counts
 
     counts.asScala.toMap shouldBe Map(
@@ -759,6 +757,22 @@ class HubResourceSpec
 
   it should "default to the like and clone buckets when no action types are given" in {
     hub.getTops(Wf, null, null, null).asScala.keySet shouldBe Set("like", "clone")
+  }
+
+  // Regression: the default bucket list ([like, clone]) used to drive getTops into a
+  // throwing CloneTable(Dataset), making this plain request a 500.
+  it should "answer for a cloneless entity type instead of failing on its absent clone table" in {
+    val tops = hub.getTops(Ds, null, null, null).asScala
+
+    tops.keySet shouldBe Set("like", "clone")
+    tops("clone").asScala shouldBe empty
+  }
+
+  it should "return an empty clone bucket when clone is asked for explicitly" in {
+    seedDataset(820850, "ds_no_clones")
+    seedDatasetLike(820850, likerUid)
+
+    hub.getTops(Ds, actions(ActionType.Clone), null, null).get("clone").asScala shouldBe empty
   }
 
   it should "select the most-liked public workflows and honour the limit" in {
@@ -915,11 +929,12 @@ class HubResourceSpec
     fetchDashboardWorkflowsByWids(Seq(id), null).head.isOwner shouldBe false
   }
 
-  // fetchDashboardDatasetsByDids calls LakeFSStorageClient for every did it resolves,
-  // so an empty id list is the only input exercisable without a LakeFS server. This
-  // pins the contract (empty in, empty out), not the early-return branch itself: the
-  // query would also come back empty if the guard were removed.
-  "fetchDashboardDatasetsByDids" should "return an empty list for an empty did list" in {
-    fetchDashboardDatasetsByDids(Seq.empty, Integer.valueOf(ownerUid)) shouldBe empty
+  // Every resolved id hits LakeFS, so an empty list is the only input testable without one.
+  "fetchDashboardVersionedResourcesByIds" should "return an empty list for an empty id list" in {
+    fetchDashboardVersionedResourcesByIds(
+      VersionedResourceTables.DatasetTables,
+      Seq.empty,
+      Integer.valueOf(ownerUid)
+    ) shouldBe empty
   }
 }

@@ -21,11 +21,15 @@ import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { getMimeType, MIME_TYPES, UserDatasetFileRendererComponent } from "./user-dataset-file-renderer.component";
 import { DatasetService } from "../../../../../service/user/dataset/dataset.service";
+import { ModelService } from "../../../../../service/user/model/model.service";
+import { EntityType } from "../../../../../../hub/service/hub.service";
 import { NotificationService } from "../../../../../../common/service/notification/notification.service";
 import { DomSanitizer } from "@angular/platform-browser";
 import { commonTestProviders } from "../../../../../../common/testing/test-utils";
 import { of } from "rxjs";
 import * as Papa from "papaparse";
+import JSZip from "jszip";
+import readXlsxFile from "read-excel-file";
 import { SimpleChange, SimpleChanges } from "@angular/core";
 import { MarkdownModule } from "ngx-markdown";
 
@@ -37,6 +41,7 @@ describe("UserDatasetFileRendererComponent", () => {
       imports: [UserDatasetFileRendererComponent, HttpClientTestingModule],
       providers: [
         DatasetService,
+        ModelService,
         NotificationService,
         { provide: DomSanitizer, useValue: { bypassSecurityTrustUrl: vi.fn() } },
         ...commonTestProviders,
@@ -62,9 +67,9 @@ describe("UserDatasetFileRendererComponent", () => {
   describe("reloadFileContent", () => {
     it("flags an unsupported file type and does not hit the backend", () => {
       const spy = vi.spyOn(TestBed.inject(DatasetService), "retrieveDatasetVersionSingleFile");
-      // did/dvid are set so the early-return is what stops the request, not the missing ids.
-      component.did = 1;
-      component.dvid = 2;
+      // The ids are set so the early-return is what stops the request, not the missing ids.
+      component.resourceId = 1;
+      component.versionId = 2;
       component.filePath = "archive.bin"; // -> OCTET_STREAM -> unsupported
 
       component.reloadFileContent();
@@ -75,8 +80,8 @@ describe("UserDatasetFileRendererComponent", () => {
 
     it("flags an oversized file and does not hit the backend", () => {
       const spy = vi.spyOn(TestBed.inject(DatasetService), "retrieveDatasetVersionSingleFile");
-      component.did = 1;
-      component.dvid = 2;
+      component.resourceId = 1;
+      component.versionId = 2;
       component.filePath = "notes.txt"; // TXT limit is 1 MB
       component.fileSize = 5 * 1024 * 1024;
 
@@ -90,8 +95,8 @@ describe("UserDatasetFileRendererComponent", () => {
       const datasetService = TestBed.inject(DatasetService);
       const blob = new Blob(["hello"], { type: "text/plain" });
       const spy = vi.spyOn(datasetService, "retrieveDatasetVersionSingleFile").mockReturnValue(of(blob));
-      component.did = 1;
-      component.dvid = 2;
+      component.resourceId = 1;
+      component.versionId = 2;
       component.filePath = "notes.txt";
       component.isLogin = true;
       component.fileSize = 100;
@@ -101,6 +106,35 @@ describe("UserDatasetFileRendererComponent", () => {
       expect(spy).toHaveBeenCalledWith("notes.txt", true);
       expect(component.displayPlainText).toBe(true);
       expect(component.isLoading).toBe(false);
+    });
+
+    it("fetches from the model endpoint when the file belongs to a model", () => {
+      const datasetSpy = vi.spyOn(TestBed.inject(DatasetService), "retrieveDatasetVersionSingleFile");
+      const modelSpy = vi
+        .spyOn(TestBed.inject(ModelService), "retrieveModelVersionSingleFile")
+        .mockReturnValue(of(new Blob(["weights"], { type: "text/plain" })));
+      component.resourceType = EntityType.Model;
+      component.resourceId = 1;
+      component.versionId = 2;
+      component.filePath = "/model/a/m/v1/notes.txt";
+      component.isLogin = true;
+
+      component.reloadFileContent();
+
+      expect(modelSpy).toHaveBeenCalledWith("/model/a/m/v1/notes.txt", true);
+      expect(datasetSpy).not.toHaveBeenCalled();
+    });
+
+    it("hits nothing for a kind that has no file preview", () => {
+      const datasetSpy = vi.spyOn(TestBed.inject(DatasetService), "retrieveDatasetVersionSingleFile");
+      component.resourceType = EntityType.Workflow;
+      component.resourceId = 1;
+      component.versionId = 2;
+      component.filePath = "notes.txt";
+
+      component.reloadFileContent();
+
+      expect(datasetSpy).not.toHaveBeenCalled();
     });
   });
 
@@ -253,15 +287,15 @@ describe("UserDatasetFileRendererComponent", () => {
       expect(reloadSpy).toHaveBeenCalledTimes(1);
     });
 
-    it("reloads when both did and dvid change together", () => {
+    it("reloads when both resourceId and versionId change together", () => {
       const reloadSpy = vi.spyOn(component, "reloadFileContent").mockImplementation(() => {});
-      component.ngOnChanges({ did: chg(1, 2), dvid: chg(3, 4) } as SimpleChanges);
+      component.ngOnChanges({ resourceId: chg(1, 2), versionId: chg(3, 4) } as SimpleChanges);
       expect(reloadSpy).toHaveBeenCalledTimes(1);
     });
 
-    it("does not reload when only did changes without dvid", () => {
+    it("does not reload when only resourceId changes without versionId", () => {
       const reloadSpy = vi.spyOn(component, "reloadFileContent").mockImplementation(() => {});
-      component.ngOnChanges({ did: chg(1, 2) } as SimpleChanges);
+      component.ngOnChanges({ resourceId: chg(1, 2) } as SimpleChanges);
       expect(reloadSpy).not.toHaveBeenCalled();
     });
 
@@ -326,8 +360,8 @@ describe("UserDatasetFileRendererComponent", () => {
     function loadWith(filePath: string, blob: Blob) {
       const datasetService = TestBed.inject(DatasetService);
       vi.spyOn(datasetService, "retrieveDatasetVersionSingleFile").mockReturnValue(of(blob));
-      component.did = 1;
-      component.dvid = 2;
+      component.resourceId = 1;
+      component.versionId = 2;
       component.filePath = filePath;
       component.isLogin = false;
       component.fileSize = undefined;
@@ -414,6 +448,184 @@ describe("UserDatasetFileRendererComponent", () => {
       loadWith("notes.txt", blob);
       expect(component.isFileTypePreviewUnsupported).toBe(true);
     });
+
+    it("does not fetch when the dataset ids are missing", () => {
+      const datasetService = TestBed.inject(DatasetService);
+      const spy = vi.spyOn(datasetService, "retrieveDatasetVersionSingleFile");
+      // A supported, in-limit file, so the two pre-checks pass and the id guard is the
+      // only thing left to stop the request.
+      component.resourceId = undefined;
+      component.versionId = 2;
+      component.filePath = "notes.txt";
+      component.fileSize = 100;
+
+      component.reloadFileContent();
+
+      expect(spy).not.toHaveBeenCalled();
+      // Characterizing a defect, not an intent: `isLoading` is set true just above the id
+      // guard and nothing on this path clears it, so the spinner keeps running until some
+      // later change triggers another reload. Flip this to `false` when that is fixed.
+      expect(component.isLoading).toBe(true);
+    });
+
+    /**
+     * The spreadsheet branch runs the real `read-excel-file`, so these build an actual
+     * .xlsx with JSZip (already a dependency, and already used this way in
+     * user-workflow.component.spec.ts) rather than mocking the parser module.
+     */
+    async function buildXlsxBlob(rowsXml: string): Promise<Blob> {
+      const zip = new JSZip();
+      zip.file(
+        "[Content_Types].xml",
+        `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+<Default Extension="xml" ContentType="application/xml"/>
+<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
+<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
+</Types>`
+      );
+      zip.file(
+        "_rels/.rels",
+        `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
+</Relationships>`
+      );
+      zip.file(
+        "xl/workbook.xml",
+        `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+<sheets><sheet name="Sheet1" sheetId="1" r:id="rId1"/></sheets>
+</workbook>`
+      );
+      zip.file(
+        "xl/_rels/workbook.xml.rels",
+        `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
+</Relationships>`
+      );
+      zip.file(
+        "xl/worksheets/sheet1.xml",
+        `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+<sheetData>${rowsXml}</sheetData>
+</worksheet>`
+      );
+      const content = await zip.generateAsync({ type: "arraybuffer" });
+      const blob = new Blob([content], { type: MIME_TYPES.MSEXCEL });
+      // jsdom's Blob has no `arrayBuffer()`, which is how read-excel-file reads its input.
+      // Hand back the buffer we just built rather than patching Blob.prototype globally.
+      (blob as unknown as { arrayBuffer: () => Promise<ArrayBuffer> }).arrayBuffer = () => Promise.resolve(content);
+      return blob;
+    }
+
+    // `getMimeType` looks an uppercased extension up as a key of MIME_TYPES, and the Excel key
+    // is MSEXCEL — so ".msexcel" is the only suffix that reaches this branch, and a real
+    // ".xlsx"/".xls" resolves to OCTET_STREAM and is rejected as unsupported. These tests use
+    // the suffix the code actually accepts; see the PR for the defect that implies.
+    const spreadsheetPath = "data.msexcel";
+
+    it("selects the spreadsheet viewer and parses the workbook into the table", async () => {
+      // Row 2 skips column B, so the parser yields a null cell and the empty-string arm of
+      // the cell mapping is exercised alongside the populated one.
+      const blob = await buildXlsxBlob(`
+        <row r="1"><c r="A1"><v>1</v></c><c r="B1"><v>2</v></c></row>
+        <row r="2"><c r="A2"><v>3</v></c><c r="C2"><v>4</v></c></row>
+      `);
+
+      loadWith(spreadsheetPath, blob);
+
+      await vi.waitFor(() => expect(component.displayXlsx).toBe(true));
+      // Every row is padded to the widest one, so the header picks up a trailing empty cell
+      // from row 2's column C.
+      expect(component.tableDataHeader).toEqual(["1", "2", ""]);
+      expect(component.tableContent[0]).toEqual(["3", "", "4"]);
+    });
+
+    it("leaves the spreadsheet viewer off for a workbook with no rows", async () => {
+      const blob = await buildXlsxBlob("");
+
+      loadWith(spreadsheetPath, blob);
+      // Parsing the same workbook here is the barrier: it starts strictly after the
+      // component's read of an identical blob and runs the identical promise chain, so it
+      // cannot settle first. No timers and no counting of microtask turns.
+      await readXlsxFile(blob as unknown as File);
+
+      expect(component.displayXlsx).toBe(false);
+      expect(component.tableDataHeader).toEqual([]);
+    });
+  });
+
+  /**
+   * papaparse reads a File through `FileReader`, so replacing the global with a fake that
+   * settles on a microtask makes both the empty-result and the read-failure arms of the CSV
+   * branch deterministic — jsdom's real timing is never relied on.
+   */
+  describe("CSV parsing outcomes", () => {
+    let realFileReader: typeof globalThis.FileReader;
+    let outcome: { text: string } | { fail: true };
+
+    class FakeFileReader {
+      public result: string | null = null;
+      public error: unknown = null;
+      public onload: ((event: unknown) => void) | null = null;
+      public onerror: ((event: unknown) => void) | null = null;
+      readAsText(): void {
+        queueMicrotask(() => {
+          if ("fail" in outcome) {
+            this.error = new Error("read failed");
+            this.onerror?.({});
+          } else {
+            this.result = outcome.text;
+            this.onload?.({ target: { result: outcome.text } });
+          }
+        });
+      }
+      abort(): void {}
+    }
+
+    beforeEach(() => {
+      realFileReader = globalThis.FileReader;
+      (globalThis as unknown as { FileReader: unknown }).FileReader = FakeFileReader;
+    });
+
+    afterEach(() => {
+      (globalThis as unknown as { FileReader: unknown }).FileReader = realFileReader;
+    });
+
+    function loadCsv(): void {
+      const datasetService = TestBed.inject(DatasetService);
+      vi.spyOn(datasetService, "retrieveDatasetVersionSingleFile").mockReturnValue(
+        of(new Blob(["ignored"], { type: MIME_TYPES.CSV }))
+      );
+      component.resourceId = 1;
+      component.versionId = 2;
+      component.filePath = "data.csv";
+      component.fileSize = undefined;
+      component.reloadFileContent();
+    }
+
+    it("leaves the table empty when the CSV has no rows", async () => {
+      outcome = { text: "" };
+
+      loadCsv();
+      await vi.waitFor(() => expect(component.displayCSV).toBe(true));
+
+      expect(component.tableDataHeader).toEqual([]);
+      expect(component.tableContent).toEqual([]);
+    });
+
+    it("flags a loading error when the CSV cannot be read", async () => {
+      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      outcome = { fail: true };
+
+      loadCsv();
+
+      await vi.waitFor(() => expect(component.isFileLoadingError).toBe(true));
+      expect(consoleSpy).toHaveBeenCalled();
+    });
   });
 });
 
@@ -436,6 +648,7 @@ describe("UserDatasetFileRendererComponent rendering", () => {
       imports: [UserDatasetFileRendererComponent, HttpClientTestingModule, MarkdownModule.forRoot()],
       providers: [
         DatasetService,
+        ModelService,
         NotificationService,
         {
           provide: DomSanitizer,

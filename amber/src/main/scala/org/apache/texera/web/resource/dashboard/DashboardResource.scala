@@ -42,7 +42,7 @@ object DashboardResource {
       dataset: Option[DashboardDataset] = None
   )
 
-  case class UserInfo(userId: Integer, userName: String, googleAvatar: Option[String])
+  case class UserInfo(userId: Integer, userName: String, avatar: Option[String])
 
   case class DashboardSearchResult(
       results: List[DashboardClickableFileEntry],
@@ -221,7 +221,7 @@ class DashboardResource {
     val scalaUserIds: Set[Integer] = userIds.asScala.toSet
 
     val records = context
-      .select(USER.UID, USER.NAME, USER.GOOGLE_AVATAR)
+      .select(USER.UID, USER.NAME, USER.AVATAR)
       .from(USER)
       .where(USER.UID.in(scalaUserIds.asJava))
       .fetch()
@@ -230,8 +230,8 @@ class DashboardResource {
       .map { record =>
         val userId = record.get(USER.UID)
         val userName = record.get(USER.NAME)
-        val googleAvatar = Option(record.get(USER.GOOGLE_AVATAR))
-        userId -> UserInfo(userId, userName, googleAvatar)
+        val avatar = Option(record.get(USER.AVATAR))
+        userId -> UserInfo(userId, userName, avatar)
       }
       .toMap
       .asJava

@@ -84,25 +84,21 @@ class WorkflowAccessResourceSpec
     owner.setUid(ownerUid)
     owner.setName("owner")
     owner.setEmail("owner@test.com")
-    owner.setPassword("password")
 
     userWithWrite = new User
     userWithWrite.setUid(userWithWriteUid)
     userWithWrite.setName("user_with_write")
     userWithWrite.setEmail("write@test.com")
-    userWithWrite.setPassword("password")
 
     userWithRead = new User
     userWithRead.setUid(userWithReadUid)
     userWithRead.setName("user_with_read")
     userWithRead.setEmail("read@test.com")
-    userWithRead.setPassword("password")
 
     targetUser = new User
     targetUser.setUid(targetUserUid)
     targetUser.setName("target_user")
     targetUser.setEmail("target@test.com")
-    targetUser.setPassword("password")
 
     // Create test workflow
     testWorkflow = new Workflow
@@ -412,14 +408,14 @@ class WorkflowAccessResourceSpec
     user.setUid(newGranteeUid)
     user.setName(name)
     user.setEmail(email)
-    user.setPassword("password")
     userDao.insert(user)
     user
   }
 
   "WorkflowAccessResource.grantAccess" should "reject granting to a placeholder account" in {
     val placeholder = seedUserWithoutAccess("wf_placeholder", "wf-placeholder@test.com")
-    placeholder.setPassword(null)
+    // a placeholder has no credential at all; under auth_provider that means no row, which
+    // seedUserWithoutAccess already leaves it with
     placeholder.setIsPlaceholder(true)
     userDao.update(placeholder)
 

@@ -35,6 +35,8 @@ class SklearnModelOpDescSpec extends AnyFlatSpec with Matchers {
       "from sklearn.linear_model import LogisticRegression"
     override def getUserFriendlyModelName: String = "Test Model"
     override def generatePythonCode(): String = ""
+    // dropMissingRows is protected for the codegen bases; reach it from inside.
+    def generateDropForTest: String = dropMissingRows
     override def operatorInfo: OperatorInfo =
       OperatorInfo(
         getUserFriendlyModelName,
@@ -49,6 +51,43 @@ class SklearnModelOpDescSpec extends AnyFlatSpec with Matchers {
     val d = new TestSklearnModelOpDesc
     d.countVectorizer shouldBe false
     d.tfidfTransformer shouldBe false
+  }
+
+  // The safe default is the estimator that cannot take a NaN, so an operator only
+  // keeps incomplete rows when its own class says the estimator places them.
+  it should "assume an estimator cannot fit a missing value" in {
+    (new TestSklearnModelOpDesc).handlesMissingValues shouldBe false
+  }
+
+  "SklearnModelOpDesc.dropMissingRows" should
+    "drop on every column when the estimator cannot fit a missing value" in {
+    val d = new TestSklearnModelOpDesc
+    d.target = "y"
+    d.generateDropForTest shouldBe "table.dropna()"
+  }
+
+  // The target is refused by every estimator, so it is dropped even here, but a blank
+  // feature is left in place for the estimator to make its own use of.
+  it should "drop on the target alone when the estimator places a missing value" in {
+    val d = new TestSklearnModelOpDesc {
+      override def handlesMissingValues = true
+    }
+    d.target = "y"
+    d.generateDropForTest should include("dropna(subset=[")
+    d.generateDropForTest should not be "table.dropna()"
+  }
+
+  // CountVectorizer calls .lower() on each document, which a None does not answer, so
+  // every column it reads goes even for an estimator that would otherwise keep the row.
+  it should "drop on the text columns too when the vectorizer is on" in {
+    val d = new TestSklearnModelOpDesc {
+      override def handlesMissingValues = true
+    }
+    d.target = "y"
+    d.text = List("note", "body")
+    d.countVectorizer = true
+    // the two text columns and the target, each named through the decoder
+    d.generateDropForTest.split("decode_python_template").length - 1 shouldBe 3
   }
 
   "SklearnModelOpDesc.getOutputSchemas" should
@@ -74,5 +113,33 @@ class SklearnModelOpDescSpec extends AnyFlatSpec with Matchers {
       PortIdentity(1) -> Schema().add("other", AttributeType.INTEGER)
     )
     d.getOutputSchemas(arbitraryInput) shouldBe fromEmpty
+  }
+
+  it should "let Count Vectorizer through for an estimator that named no alternative" in {
+    // The default, and what every estimator but GaussianNB relies on: the sparse
+    // matrix is what the others accept.
+    val d = new TestSklearnModelOpDesc
+    d.countVectorizer = true
+    d.getOutputSchemas(Map.empty).keySet shouldBe Set(d.operatorInfo.outputPorts.head.id)
+  }
+
+  it should "reject Count Vectorizer for an estimator that named one" in {
+    val d = new TestSklearnModelOpDesc {
+      override protected def countVectorizerAlternatives: Option[String] = Some("Some Other Model")
+    }
+    d.countVectorizer = true
+    val thrown = intercept[RuntimeException](d.getOutputSchemas(Map.empty))
+    thrown.getMessage should include("Test Model")
+    thrown.getMessage should include("Count Vectorizer")
+    thrown.getMessage should include("Some Other Model")
+  }
+
+  it should "stay silent while Count Vectorizer is off, whatever the estimator" in {
+    // The switch defaults to off, so a freshly dropped operator must not be
+    // reported invalid before anyone has configured it.
+    val d = new TestSklearnModelOpDesc {
+      override protected def countVectorizerAlternatives: Option[String] = Some("Some Other Model")
+    }
+    d.getOutputSchemas(Map.empty).keySet shouldBe Set(d.operatorInfo.outputPorts.head.id)
   }
 }

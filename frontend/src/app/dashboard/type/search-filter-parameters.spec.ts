@@ -34,7 +34,6 @@ function makeEmptyFilter(): SearchFilterParameters {
     owners: [],
     ids: [],
     operators: [],
-    projectIds: [],
   };
 }
 
@@ -90,13 +89,6 @@ describe("toQueryStrings", () => {
     );
   });
 
-  it("should stringify numeric projectIds and keep projectId 0", () => {
-    const filter = makeEmptyFilter();
-    filter.projectIds = [0, 42];
-
-    expect(toQueryStrings([], filter)).toBe("projectId=0&projectId=42");
-  });
-
   it("should URL-encode filter values", () => {
     const filter = makeEmptyFilter();
     filter.owners = ["a+b@x.com"];
@@ -147,14 +139,13 @@ describe("toQueryStrings", () => {
       owners: ["alice"],
       ids: ["7"],
       operators: ["CSVFileScan"],
-      projectIds: [42],
     };
 
     expect(toQueryStrings(["alpha"], filter, 10, 20, "workflow", SortMethod.CreateTimeDesc)).toBe(
       "query=alpha" +
         "&createDateStart=2024-01-15&createDateEnd=2024-02-20" +
         "&modifiedDateStart=2024-03-05&modifiedDateEnd=2024-04-10" +
-        "&owner=alice&id=7&operator=CSVFileScan&projectId=42" +
+        "&owner=alice&id=7&operator=CSVFileScan" +
         "&start=10&count=20&resourceType=workflow&orderBy=CreateTimeDesc"
     );
   });
@@ -176,7 +167,6 @@ interface WorkflowEntryOverrides {
   creationTime?: number;
   lastModifiedTime?: number;
   operatorTypes?: string[];
-  projectIDs?: number[];
 }
 
 function makeWorkflowEntry(overrides: WorkflowEntryOverrides = {}): DashboardEntry {
@@ -205,7 +195,6 @@ function makeWorkflowEntry(overrides: WorkflowEntryOverrides = {}): DashboardEnt
       isPublished: 0,
       readonly: false,
     },
-    projectIDs: overrides.projectIDs ?? [],
     accessLevel: "WRITE",
     ownerId: 10,
     coverImage: null,
@@ -313,17 +302,8 @@ describe("searchTestEntries", () => {
     expect(result).toEqual([hasCsv]);
   });
 
-  it("filters by projectId membership", () => {
-    const inProject = makeWorkflowEntry({ name: "in", projectIDs: [1, 2] });
-    const notInProject = makeWorkflowEntry({ name: "out", projectIDs: [3] });
-    const filter = makeEmptyFilter();
-    filter.projectIds = [2];
-    const result = searchTestEntries([], filter, [inProject, notInProject], null);
-    expect(result).toEqual([inProject]);
-  });
-
   it("excludes non-workflow entries when a workflow-only filter is applied", () => {
-    // owners/ids/operators/projectIds all gate on e.type === "workflow".
+    // owners/ids/operators all gate on e.type === "workflow".
     const workflow = makeWorkflowEntry({ name: "wf", ownerName: "alice" });
     const dataset = makeDatasetEntry("ds");
     const filter = makeEmptyFilter();
@@ -347,7 +327,6 @@ describe("searchTestEntries", () => {
       creationTime: new Date(2024, 0, 15, 12).getTime(),
       lastModifiedTime: new Date(2024, 0, 16, 12).getTime(),
       operatorTypes: ["CSVFileScan"],
-      projectIDs: [42],
     });
     const wrongOwner = makeWorkflowEntry({
       name: "alpha-pipeline",
@@ -356,7 +335,6 @@ describe("searchTestEntries", () => {
       creationTime: new Date(2024, 0, 15, 12).getTime(),
       lastModifiedTime: new Date(2024, 0, 16, 12).getTime(),
       operatorTypes: ["CSVFileScan"],
-      projectIDs: [42],
     });
     const wrongName = makeWorkflowEntry({
       name: "beta-pipeline",
@@ -365,7 +343,6 @@ describe("searchTestEntries", () => {
       creationTime: new Date(2024, 0, 15, 12).getTime(),
       lastModifiedTime: new Date(2024, 0, 16, 12).getTime(),
       operatorTypes: ["CSVFileScan"],
-      projectIDs: [42],
     });
     const filter: SearchFilterParameters = {
       createDateStart: new Date(2024, 0, 10),
@@ -375,7 +352,6 @@ describe("searchTestEntries", () => {
       owners: ["alice"],
       ids: ["7"],
       operators: ["CSVFileScan"],
-      projectIds: [42],
     };
     const result = searchTestEntries(["alpha"], filter, [match, wrongOwner, wrongName], "workflow");
     expect(result).toEqual([match]);

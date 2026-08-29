@@ -21,7 +21,14 @@ package org.apache.texera.web.resource.dashboard.file
 
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.dao.MockTexeraDB
-import org.apache.texera.dao.jooq.generated.Tables.{USER, WORKFLOW, WORKFLOW_OF_PROJECT}
+import org.apache.texera.dao.jooq.generated.Tables.{
+  USER,
+  WORKFLOW,
+  WORKFLOW_EXECUTIONS,
+  WORKFLOW_OF_PROJECT,
+  WORKFLOW_USER_CLONES,
+  WORKFLOW_VERSION
+}
 import org.apache.texera.dao.jooq.generated.enums.{PrivilegeEnum, UserRoleEnum}
 import org.apache.texera.dao.jooq.generated.tables.daos.{UserDao, WorkflowUserAccessDao}
 import org.apache.texera.dao.jooq.generated.tables.pojos.{
@@ -42,6 +49,7 @@ import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowResource.{
 import org.apache.texera.web.resource.dashboard.{DashboardResource, FulltextSearchQueryUtils}
 import org.jooq.Condition
 import org.jooq.impl.DSL.noCondition
+import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 
@@ -51,14 +59,24 @@ import java.time.{Duration, OffsetDateTime, ZoneOffset}
 import java.util
 import java.util.Collections
 import java.util.concurrent.TimeUnit
-import javax.ws.rs.ForbiddenException
+import javax.servlet.http.HttpServletRequest
+import javax.ws.rs.{
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+  WebApplicationException
+}
 import scala.jdk.CollectionConverters._
-import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource
+import org.apache.texera.web.resource.dashboard.user.workflow.{
+  WorkflowAccessResource,
+  WorkflowVersionResource
+}
 
 class WorkflowResourceSpec
     extends AnyFlatSpec
     with BeforeAndAfterAll
     with BeforeAndAfterEach
+    with MockFactory
     with MockTexeraDB {
 
   // An example creation time to test Account Creation Time attribute
@@ -71,7 +89,6 @@ class WorkflowResourceSpec
     user.setName("test_user")
     user.setEmail("test_user@mail.com")
     user.setRole(UserRoleEnum.ADMIN)
-    user.setPassword("123")
     user.setComment("test_comment")
     user.setAccountCreationTime(exampleCreationTime)
     user
@@ -83,7 +100,6 @@ class WorkflowResourceSpec
     user.setName("test_user2")
     user.setEmail("test_user2@mail.com")
     user.setRole(UserRoleEnum.ADMIN)
-    user.setPassword("123")
     user.setComment("test_comment2")
     user.setAccountCreationTime(exampleCreationTime)
     user
@@ -221,7 +237,6 @@ class WorkflowResourceSpec
     u.setUid(Integer.valueOf(uid))
     u.setName(s"tmp_user_$uid")
     u.setRole(UserRoleEnum.REGULAR)
-    u.setPassword("pw")
     u.setComment("tmp")
     u.setAccountCreationTime(ts)
     userDao.insert(u)
@@ -272,7 +287,6 @@ class WorkflowResourceSpec
     tmp.setUid(Integer.valueOf(userId))
     tmp.setName("tmp_user")
     tmp.setRole(UserRoleEnum.REGULAR)
-    tmp.setPassword("pw")
     tmp.setComment("tmp")
     // Account creation time not set
     userDao.insert(tmp)
@@ -1043,6 +1057,247 @@ class WorkflowResourceSpec
     val names =
       workflowResource.retrieveWorkflowsBySessionUser(sessionUser1).map(_.workflow.getName)
     assert(names.contains("dup-src") && names.contains("dup-src_copy"))
+  }
+
+  // ─── shared-access and failure paths (issue #7591) ──────────────────────────
+
+  // Content with an operators array: duplicate/clone reassign operator ids and fail
+  // on content that has none.
+  private val contentWithOperator =
+    "{\"operators\":[{\"operatorID\":\"op1\",\"operatorType\":\"CSVFileScan\"}]}"
+
+  private def grantAccess(wid: Integer, user: User, privilege: PrivilegeEnum): Unit =
+    new WorkflowUserAccessDao(getDSLContext.configuration())
+      .merge(new WorkflowUserAccess(user.getUid, wid, privilege))
+
+  // A request whose remote address is a valid IPv4 so recordCloneAction stores it.
+  private def cloneRequest: HttpServletRequest = {
+    val r = stub[HttpServletRequest]
+    (r.getRemoteAddr _).when().returns("127.0.0.1")
+    r
+  }
+
+  private def workflowNamesOf(user: SessionUser): List[String] =
+    workflowResource.retrieveWorkflowsBySessionUser(user).map(_.workflow.getName)
+
+  private def versionCount(wid: Integer): Int =
+    getDSLContext.fetchCount(WORKFLOW_VERSION, WORKFLOW_VERSION.WID.eq(wid))
+
+  "WorkflowResource.getWorkflowName (companion)" should "return the stored name" in {
+    val wid = seedWorkflow(sessionUser1, "companion-name-wf").workflow.getWid
+    assert(WorkflowResource.getWorkflowName(wid) == "companion-name-wf")
+  }
+
+  it should "throw NotFoundException for a wid that does not exist" in {
+    val wid = seedWorkflow(sessionUser1, "companion-missing-wf").workflow.getWid
+    assertThrows[NotFoundException](WorkflowResource.getWorkflowName(wid + 100000))
+  }
+
+  "WorkflowResource.persistWorkflow" should "update the workflow in place for its owner and record a version" in {
+    val workflow = seedWorkflow(sessionUser1, "persist-owner", "d", "{\"a\":1}").workflow
+    val versionsBefore = versionCount(workflow.getWid)
+    workflow.setContent("{\"a\":2}")
+
+    val persisted = workflowResource.persistWorkflow(workflow, sessionUser1)
+
+    assert(persisted.getContent == "{\"a\":2}")
+    assert(workflowResource.retrieveWorkflow(workflow.getWid, sessionUser1).content == "{\"a\":2}")
+    assert(versionCount(workflow.getWid) == versionsBefore + 1)
+    // updating must not create a second workflow
+    assert(workflowNamesOf(sessionUser1) == List("persist-owner"))
+  }
+
+  it should "let a non-owner with write access update the workflow and record a version" in {
+    val workflow = seedWorkflow(sessionUser1, "persist-writer", "d", "{\"a\":1}").workflow
+    grantAccess(workflow.getWid, testUser2, PrivilegeEnum.WRITE)
+    val versionsBefore = versionCount(workflow.getWid)
+    workflow.setContent("{\"a\":3}")
+
+    workflowResource.persistWorkflow(workflow, sessionUser2)
+
+    assert(workflowResource.retrieveWorkflow(workflow.getWid, sessionUser1).content == "{\"a\":3}")
+    assert(versionCount(workflow.getWid) == versionsBefore + 1)
+    // Guards rather than pins: both already hold before persistWorkflow is called, since
+    // seedWorkflow and grantAccess establish them and the write-access branch touches only
+    // WORKFLOW and WORKFLOW_VERSION. They document the intent -- the writer updates the owner's
+    // workflow rather than getting a copy of its own -- while the two assertions above carry the
+    // actual pin.
+    assert(workflowResource.getOwnerName(workflow.getWid) == testUser.getName)
+    assert(workflowNamesOf(sessionUser2) == List("persist-writer"))
+  }
+
+  it should "reject a non-owner with only read access" in {
+    val workflow = seedWorkflow(sessionUser1, "persist-reader", "d", "{\"a\":1}").workflow
+    grantAccess(workflow.getWid, testUser2, PrivilegeEnum.READ)
+    workflow.setContent("{\"a\":9}")
+
+    assertThrows[ForbiddenException](workflowResource.persistWorkflow(workflow, sessionUser2))
+    assert(workflowResource.retrieveWorkflow(workflow.getWid, sessionUser1).content == "{\"a\":1}")
+  }
+
+  it should "reject a user with no access to an existing workflow" in {
+    val workflow = seedWorkflow(sessionUser1, "persist-no-access", "d", "{\"a\":1}").workflow
+    workflow.setContent("{\"a\":9}")
+
+    assertThrows[ForbiddenException](workflowResource.persistWorkflow(workflow, sessionUser2))
+    assert(workflowResource.retrieveWorkflow(workflow.getWid, sessionUser1).content == "{\"a\":1}")
+    // the rejected persist must not silently create a copy owned by the caller
+    assert(workflowNamesOf(sessionUser2).isEmpty)
+  }
+
+  "WorkflowResource.createWorkflow" should "reject a workflow that already carries an id" in {
+    val existing = seedWorkflow(sessionUser1, "already-has-id").workflow
+
+    assertThrows[BadRequestException](workflowResource.createWorkflow(existing, sessionUser1))
+    assert(workflowNamesOf(sessionUser1) == List("already-has-id"))
+  }
+
+  "WorkflowResource.updateWorkflowName" should "accept a non-owner with write access" in {
+    val wid = seedWorkflow(sessionUser1, "writer-rename").workflow.getWid
+    grantAccess(wid, testUser2, PrivilegeEnum.WRITE)
+    val update = new Workflow()
+    update.setWid(wid)
+    update.setName("renamed-by-writer")
+
+    workflowResource.updateWorkflowName(update, sessionUser2)
+
+    assert(workflowResource.getWorkflowName(wid) == "renamed-by-writer")
+  }
+
+  it should "reject a user with neither ownership nor write access" in {
+    val wid = seedWorkflow(sessionUser1, "no-access-rename").workflow.getWid
+    val update = new Workflow()
+    update.setWid(wid)
+    update.setName("should-not-apply")
+
+    assertThrows[ForbiddenException](workflowResource.updateWorkflowName(update, sessionUser2))
+    assert(workflowResource.getWorkflowName(wid) == "no-access-rename")
+  }
+
+  "WorkflowResource.makePrivate" should "reject a user without write access" in {
+    val wid = seedWorkflow(sessionUser1, "private-forbidden").workflow.getWid
+    workflowResource.makePublic(wid, sessionUser1)
+
+    assertThrows[ForbiddenException](workflowResource.makePrivate(wid, sessionUser2))
+    assert(workflowResource.getWorkflowType(wid) == "Public")
+  }
+
+  "WorkflowResource.cloneWorkflow" should "copy the workflow to the caller and record the clone" in {
+    // The source is made public because that is the flow this endpoint serves: the hub's clone
+    // button, on someone else's published workflow.
+    val wid = seedWorkflow(sessionUser1, "clone-src", "d", contentWithOperator).workflow.getWid
+    workflowResource.makePublic(wid, sessionUser1)
+
+    val newWid = workflowResource.cloneWorkflow(wid, sessionUser2, cloneRequest)
+
+    assert(newWid != wid)
+    val clone = workflowResource.retrieveWorkflow(newWid, sessionUser2)
+    assert(clone.name == "clone-src_clone")
+    assert(clone.description == "d")
+    assert(!clone.content.contains("\"op1\"")) // operator ids are reassigned
+    assert(clone.content.contains("\"CSVFileScan\""))
+    assert(!clone.isPublished) // the clone starts private; the source's publicness is not inherited
+    // the clone belongs to the caller, not to the original owner
+    assert(workflowResource.getOwnerName(newWid) == testUser2.getName)
+    assert(
+      getDSLContext.fetchCount(
+        WORKFLOW_USER_CLONES,
+        WORKFLOW_USER_CLONES.WID.eq(wid).and(WORKFLOW_USER_CLONES.UID.eq(testUser2.getUid))
+      ) == 1
+    )
+  }
+
+  it should "clone a private workflow the caller has been granted read access to" in {
+    val wid = seedWorkflow(sessionUser1, "clone-shared", "d", contentWithOperator).workflow.getWid
+    grantAccess(wid, testUser2, PrivilegeEnum.READ)
+
+    val newWid = workflowResource.cloneWorkflow(wid, sessionUser2, cloneRequest)
+
+    assert(workflowResource.retrieveWorkflow(newWid, sessionUser2).name == "clone-shared_clone")
+  }
+
+  it should "reject a caller with no access to the source workflow" in {
+    val wid =
+      seedWorkflow(sessionUser1, "clone-forbidden", "d", contentWithOperator).workflow.getWid
+
+    assertThrows[ForbiddenException](
+      workflowResource.cloneWorkflow(wid, sessionUser2, cloneRequest)
+    )
+
+    // no copy reached the caller, and the rejected attempt was not recorded as a clone
+    assert(workflowNamesOf(sessionUser2).isEmpty)
+    assert(getDSLContext.fetchCount(WORKFLOW_USER_CLONES, WORKFLOW_USER_CLONES.WID.eq(wid)) == 0)
+  }
+
+  "WorkflowResource.duplicateWorkflow" should "add the copy, not the original, to the project" in {
+    val wid =
+      seedWorkflow(sessionUser1, "dup-into-project", "d", contentWithOperator).workflow.getWid
+    val pid = projectResource.createProject(sessionUser1, "dup-target-project").getPid
+
+    val copies = workflowResource.duplicateWorkflow(WorkflowIDs(List(wid), Some(pid)), sessionUser1)
+
+    assert(copies.size == 1)
+    val widsInProject = getDSLContext
+      .select(WORKFLOW_OF_PROJECT.WID)
+      .from(WORKFLOW_OF_PROJECT)
+      .where(WORKFLOW_OF_PROJECT.PID.eq(pid))
+      .fetchInto(classOf[Integer])
+      .asScala
+      .toList
+    assert(widsInProject == List(copies.head.workflow.getWid))
+  }
+
+  it should "wrap a failure raised while copying the workflow in a WebApplicationException" in {
+    // "{}" has no operators array, so assignNewOperatorIds throws.
+    //
+    // Note what this does NOT pin: transactionality. assignNewOperatorIds fails before
+    // createWorkflow inserts anything, so "no copy was created" holds whether or not the body runs
+    // in a transaction -- replacing `context.transaction { ... }` with a plain block leaves this
+    // test green. Pinning the rollback would need a failure raised after the insert, and there is
+    // no seam for one.
+    val wid = seedWorkflow(sessionUser1, "dup-no-operators").workflow.getWid
+
+    val thrown = intercept[WebApplicationException](
+      workflowResource.duplicateWorkflow(WorkflowIDs(List(wid), None), sessionUser1)
+    )
+
+    // not a ForbiddenException/BadRequestException, which the same catch swallows
+    assert(thrown.getClass == classOf[WebApplicationException])
+    assert(thrown.getCause.isInstanceOf[NoSuchElementException])
+    assert(workflowNamesOf(sessionUser1) == List("dup-no-operators"))
+  }
+
+  "WorkflowResource.deleteWorkflow" should "wrap an unexpected failure in a WebApplicationException" in {
+    // A request body without a "wids" field deserializes to a null list.
+    val thrown = intercept[WebApplicationException](
+      workflowResource.deleteWorkflow(WorkflowIDs(null, None), sessionUser1)
+    )
+
+    assert(thrown.getClass == classOf[WebApplicationException])
+    assert(thrown.getCause.isInstanceOf[NullPointerException])
+  }
+
+  // What this pins, and what it does not. It DOES pin that a URI which cannot be decoded is
+  // tolerated rather than aborting the delete: removing the `case NonFatal(exception) =>` arm of
+  // deleteWorkflow's outer catch turns this test red.
+  //
+  // It does NOT pin the post-transaction cleanup tail it happens to execute. `LargeBinaryManager`
+  // is an object talking to S3 with no injectable seam, and the document cleanup needs real
+  // Iceberg-backed documents this spec has no fixture for -- emptying the collected execution ids
+  // leaves the suite green. Those lines are entered, not verified.
+  it should "still delete the workflow when a stored execution URI cannot be decoded" in {
+    val wid = seedWorkflow(sessionUser1, "undecodable-uri-wf").workflow.getWid
+    getDSLContext
+      .insertInto(WORKFLOW_EXECUTIONS)
+      .set(WORKFLOW_EXECUTIONS.VID, WorkflowVersionResource.getLatestVersion(wid))
+      .set(WORKFLOW_EXECUTIONS.UID, testUser.getUid)
+      .set(WORKFLOW_EXECUTIONS.ENVIRONMENT_VERSION, "test-env")
+      .set(WORKFLOW_EXECUTIONS.RUNTIME_STATS_URI, "bogus://not-a-vfs-uri")
+      .execute()
+
+    workflowResource.deleteWorkflow(WorkflowIDs(List(wid), None), sessionUser1)
+
+    assert(workflowNamesOf(sessionUser1).isEmpty)
   }
 
 }

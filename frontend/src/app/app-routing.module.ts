@@ -22,12 +22,11 @@ import { RouterModule, Routes } from "@angular/router";
 import { DashboardComponent } from "./dashboard/component/dashboard.component";
 import { UserWorkflowComponent } from "./dashboard/component/user/user-workflow/user-workflow.component";
 import { UserQuotaComponent } from "./dashboard/component/user/user-quota/user-quota.component";
-import { UserProjectSectionComponent } from "./dashboard/component/user/user-project/user-project-section/user-project-section.component";
-import { UserProjectComponent } from "./dashboard/component/user/user-project/user-project.component";
 import { UserComputingUnitComponent } from "./dashboard/component/user/user-computing-unit/user-computing-unit.component";
 import { UserVenvComponent } from "./dashboard/component/user/user-venv/user-venv.component";
 import { WorkspaceComponent } from "./workspace/component/workspace.component";
 import { AboutComponent } from "./hub/component/about/about.component";
+import { TexeraLoginComponent } from "./hub/component/login/texera-login.component";
 import { AuthGuardService } from "./common/service/user/auth-guard.service";
 import { AdminUserComponent } from "./dashboard/component/admin/user/admin-user.component";
 import { AdminExecutionComponent } from "./dashboard/component/admin/execution/admin-execution.component";
@@ -38,6 +37,8 @@ import { FeedbackComponent } from "./dashboard/component/user/feedback/feedback.
 import { AdminGmailComponent } from "./dashboard/component/admin/gmail/admin-gmail.component";
 import { DatasetDetailComponent } from "./dashboard/component/user/user-dataset/user-dataset-explorer/dataset-detail.component";
 import { UserDatasetComponent } from "./dashboard/component/user/user-dataset/user-dataset.component";
+import { UserModelComponent } from "./dashboard/component/user/user-model/user-model.component";
+import { ModelDetailComponent } from "./dashboard/component/user/user-model/user-model-explorer/model-detail.component";
 import { HubWorkflowDetailComponent } from "./hub/component/workflow/detail/hub-workflow-detail.component";
 import { LandingPageComponent } from "./hub/component/landing-page/landing-page.component";
 import { USER_WORKFLOW } from "./app-routing.constant";
@@ -45,6 +46,14 @@ import { HubSearchResultComponent } from "./hub/component/hub-search-result/hub-
 import { AdminSettingsComponent } from "./dashboard/component/admin/settings/admin-settings.component";
 
 const routes: Routes = [];
+
+// Full-page login: a top-level route (sibling of the DashboardComponent shell) so it renders
+// in the root outlet without the navbar/sidebar chrome. The component itself redirects an
+// already-signed-in visitor away in ngOnInit.
+routes.push({
+  path: "login",
+  component: TexeraLoginComponent,
+});
 
 routes.push({
   path: "",
@@ -99,14 +108,6 @@ routes.push({
       canActivate: [AuthGuardService],
       children: [
         {
-          path: "project",
-          component: UserProjectComponent,
-        },
-        {
-          path: "project/:pid",
-          component: UserProjectSectionComponent,
-        },
-        {
           path: "workflow",
           component: UserWorkflowComponent,
         },
@@ -125,6 +126,14 @@ routes.push({
         {
           path: "dataset/create",
           component: DatasetDetailComponent,
+        },
+        {
+          path: "model",
+          component: UserModelComponent,
+        },
+        {
+          path: "model/:mid",
+          component: ModelDetailComponent,
         },
         {
           path: "compute",

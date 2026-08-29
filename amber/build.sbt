@@ -35,10 +35,6 @@ Universal / mappings := AddMetaInfLicenseFiles.distMappings(
 semanticdbEnabled := true
 semanticdbVersion := scalafixSemanticdb.revision
 
-// to turn on, use: INFO
-// to turn off, use: WARNING
-scalacOptions ++= Seq("-Xelide-below", "WARNING")
-
 // to check feature warnings
 scalacOptions += "-feature"
 // to check deprecation warnings
@@ -69,26 +65,20 @@ Test / unmanagedSourceDirectories += baseDirectory.value / "src" / "test" / "int
 // scalafix still cover it and `sbt Test/runMain` can invoke benches.
 Test / unmanagedSourceDirectories += baseDirectory.value / "src" / "bench" / "scala"
 
-// Test-filter switch driven by the AMBER_TEST_FILTER env var so the
-// amber and amber-integration CI jobs select disjoint subsets without
-// each invocation having to embed a `set Tests.Argument(...)` prefix.
-//   skip-integration : exclude @IntegrationTest-tagged specs (amber job)
-//   integration-only : include only @IntegrationTest-tagged specs (amber-integration job)
-//   (unset)          : run everything (default for local sbt)
-Test / testOptions ++= (sys.env.get("AMBER_TEST_FILTER") match {
-  case Some("skip-integration") =>
-    Seq(Tests.Argument(TestFrameworks.ScalaTest, "-l", "org.apache.texera.amber.tags.IntegrationTest"))
-  case Some("integration-only") =>
-    Seq(Tests.Argument(TestFrameworks.ScalaTest, "-n", "org.apache.texera.amber.tags.IntegrationTest"))
-  case _ => Nil
-})
+// Lets the amber and amber-integration CI jobs select disjoint subsets without
+// each invocation having to embed a `set Tests.Argument(...)` prefix. See
+// project/TestFilters.scala.
+Test / testOptions ++= TestFilters.integrationSplit(
+  envVar = "AMBER_TEST_FILTER",
+  tag = "org.apache.texera.amber.tags.IntegrationTest"
+)
 
 // Excluding some proto files:
 PB.generate / excludeFilter := "scalapb.proto"
 
 /////////////////////////////////////////////////////////////////////////////
 // Pekko related
-val pekkoVersion = "1.6.0"
+val pekkoVersion = "1.7.0"
 val pekkoDependencies = Seq(
   "org.apache.pekko" %% "pekko-actor" % pekkoVersion,
   "org.apache.pekko" %% "pekko-remote" % pekkoVersion,
@@ -120,7 +110,7 @@ val dropwizardDependencies = Seq(
   // https://mvnrepository.com/artifact/com.github.toastshaman/dropwizard-auth-jwt
   "com.github.toastshaman" % "dropwizard-auth-jwt" % "1.1.2-0",
   "com.github.dirkraft.dropwizard" % "dropwizard-file-assets" % "0.0.2",
-  "io.dropwizard-bundles" % "dropwizard-redirect-bundle" % "1.0.5",
+  "io.dropwizard-bundles" % "dropwizard-redirect-bundle" % "1.3.5",
   "com.liveperson" % "dropwizard-websockets" % "1.3.14",
   // https://mvnrepository.com/artifact/commons-io/commons-io
   "commons-io" % "commons-io" % "2.15.1"
@@ -352,10 +342,10 @@ libraryDependencies += "org.apache.commons" % "commons-jcs3-core" % "3.2.1"
 
 // For supporting MultiDict
 // https://mvnrepository.com/artifact/org.scala-lang.modules/scala-collection-contrib
-libraryDependencies += "org.scala-lang.modules" %% "scala-collection-contrib" % "0.3.0"
+libraryDependencies += "org.scala-lang.modules" %% "scala-collection-contrib" % "0.4.0"
 
 // For supporting deepcopy
 // https://mvnrepository.com/artifact/io.github.kostaskougios/cloning
-libraryDependencies += "io.github.kostaskougios" % "cloning" % "1.10.3"
+libraryDependencies += "io.github.kostaskougios" % "cloning" % "1.13.0-jdk8"
 
 

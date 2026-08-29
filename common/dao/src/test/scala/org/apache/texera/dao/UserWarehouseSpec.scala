@@ -44,25 +44,39 @@ class UserWarehouseSpec extends AnyFlatSpec with Matchers with BeforeAndAfterAll
     try closeConnectionPool()
     finally super.afterAll()
 
+  // Credentials live in auth_provider now, and the ck_nulltest constraint that used to require
+  // one on the user row went with them, so a warehouse owner needs nothing but a name.
   private def insertUser(name: String): Integer =
     getDSLContext
-      .insertInto(USER, USER.NAME, USER.PASSWORD)
-      .values(name, "password")
+      .insertInto(USER, USER.NAME)
+      .values(name)
       .returning(USER.UID)
       .fetchOne()
       .getUid
 
-  private def insertWarehouse(uid: Integer, name: String, warehouseName: String): Integer =
+  // Any globally-unique catalog name will do: this spec covers storage and constraints,
+  // not how WarehouseResource mints the name.
+  private def insertWarehouse(
+      uid: Integer,
+      name: String,
+      lakekeeperWarehouseName: String
+  ): Integer =
     getDSLContext
       .insertInto(
         USER_WAREHOUSE,
         USER_WAREHOUSE.UID,
         USER_WAREHOUSE.NAME,
-        USER_WAREHOUSE.WAREHOUSE_NAME,
+        USER_WAREHOUSE.LAKEKEEPER_WAREHOUSE_NAME,
         USER_WAREHOUSE.LAKEKEEPER_WAREHOUSE_ID,
         USER_WAREHOUSE.FLAVOR
       )
-      .values(uid, name, warehouseName, UUID.randomUUID(), UserWarehouseFlavorEnum.local)
+      .values(
+        uid,
+        name,
+        lakekeeperWarehouseName,
+        UUID.randomUUID(),
+        UserWarehouseFlavorEnum.local
+      )
       .returning(USER_WAREHOUSE.WHID)
       .fetchOne()
       .getWhid
@@ -76,7 +90,7 @@ class UserWarehouseSpec extends AnyFlatSpec with Matchers with BeforeAndAfterAll
       .where(USER_WAREHOUSE.UID.eq(uid))
       .fetchOne()
     row.getName shouldBe "mybucket"
-    row.getWarehouseName shouldBe s"user-$uid-mybucket"
+    row.getLakekeeperWarehouseName shouldBe s"user-$uid-mybucket"
     row.getFlavor shouldBe UserWarehouseFlavorEnum.local
     row.getLakekeeperWarehouseId should not be null
     row.getCreatedAt should not be null
@@ -90,7 +104,7 @@ class UserWarehouseSpec extends AnyFlatSpec with Matchers with BeforeAndAfterAll
       insertWarehouse(uid, "dup", s"user-$uid-dup-2")
   }
 
-  it should "reject a duplicate warehouse_name across users" in {
+  it should "reject a duplicate lakekeeper_warehouse_name across users" in {
     val first = insertUser("catalog-name-owner")
     val second = insertUser("catalog-name-intruder")
     insertWarehouse(first, "shared", "user-shared-catalog-name")

@@ -20,8 +20,9 @@
 package org.apache.texera.web.resource.dashboard.admin.user
 
 import org.apache.texera.dao.SqlServer
-import org.apache.texera.dao.jooq.generated.enums.UserRoleEnum
+import org.apache.texera.dao.jooq.generated.enums.{ProviderTypeEnum, UserRoleEnum}
 import org.apache.texera.dao.jooq.generated.tables.User.USER
+import org.apache.texera.dao.jooq.generated.tables.AuthProvider.AUTH_PROVIDER
 import org.apache.texera.dao.jooq.generated.tables.UserLastActiveTime.USER_LAST_ACTIVE_TIME
 import org.apache.texera.dao.jooq.generated.tables.daos.UserDao
 import org.apache.texera.dao.jooq.generated.tables.pojos.User
@@ -30,9 +31,9 @@ import org.apache.texera.web.resource.GmailResource.sendEmail
 import org.apache.texera.web.resource.dashboard.admin.user.AdminUserResource.userDao
 import org.apache.texera.web.resource.dashboard.user.dataset.utils.DatasetStatisticsUtils.getUserCreatedDatasets
 import org.apache.texera.web.resource.dashboard.user.quota.UserQuotaResource._
-import org.jasypt.util.password.StrongPasswordEncryptor
 
 import java.util
+import java.util.UUID
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
 import javax.ws.rs.core.{MediaType, Response}
@@ -43,7 +44,7 @@ case class UserInfo(
     email: String,
     googleId: String,
     role: UserRoleEnum,
-    googleAvatar: String,
+    avatar: String,
     comment: String,
     lastLogin: java.time.OffsetDateTime, // will be null if never logged in
     accountCreation: java.time.OffsetDateTime,
@@ -73,14 +74,23 @@ class AdminUserResource {
   @Path("/list")
   @Produces(Array(MediaType.APPLICATION_JSON))
   def list(): util.List[UserInfo] = {
+
+    val googleProvider = AUTH_PROVIDER.as("google_provider")
+
     AdminUserResource.context
       .select(
         USER.UID,
         USER.NAME,
         USER.EMAIL,
-        USER.GOOGLE_ID,
+        // fetchInto maps onto a Scala case class POSITIONALLY, not by name: a case class has no
+        // no-arg constructor, so jOOQ falls through to ImmutablePOJOMapper. So the column order
+        // below must track the UserInfo field order — adding, removing or reordering a projected
+        // column here without doing the same to UserInfo silently shifts every later field.
+        // `last_active_time` landing on `lastLogin` only works because of that. The aliases are
+        // documentation; they do not drive the mapping.
+        googleProvider.PROVIDER_ID.as("googleId"),
         USER.ROLE,
-        USER.GOOGLE_AVATAR,
+        USER.AVATAR,
         USER.COMMENT,
         USER_LAST_ACTIVE_TIME.LAST_ACTIVE_TIME,
         USER.ACCOUNT_CREATION_TIME,
@@ -91,6 +101,9 @@ class AdminUserResource {
       .from(USER)
       .leftJoin(USER_LAST_ACTIVE_TIME)
       .on(USER.UID.eq(USER_LAST_ACTIVE_TIME.UID))
+      .leftJoin(googleProvider)
+      .on(googleProvider.PROVIDER_TYPE.eq(ProviderTypeEnum.GOOGLE))
+      .and(googleProvider.UID.eq(USER.UID))
       .fetchInto(classOf[UserInfo])
   }
 
@@ -101,7 +114,24 @@ class AdminUserResource {
     if (existingUser != null && existingUser.getUid != user.getUid) {
       throw new WebApplicationException("Email already exists", Response.Status.CONFLICT)
     }
+
     val updatedUser = userDao.fetchOneByUid(user.getUid)
+    val submittedEmailBlank = Option(user.getEmail).forall(_.trim.isEmpty)
+
+    if (submittedEmailBlank && user.getRole != UserRoleEnum.INACTIVE) {
+      throw new WebApplicationException(
+        "This account has no email address yet, so it cannot be activated. Give it one first.",
+        Response.Status.BAD_REQUEST
+      )
+    }
+
+    if (submittedEmailBlank && Option(updatedUser.getEmail).exists(_.trim.nonEmpty)) {
+      throw new WebApplicationException(
+        "An account's email address cannot be removed once it has one.",
+        Response.Status.BAD_REQUEST
+      )
+    }
+
     val roleChanged = updatedUser.getRole != user.getRole
     updatedUser.setName(user.getName)
     updatedUser.setEmail(user.getEmail)
@@ -116,15 +146,22 @@ class AdminUserResource {
       )
   }
 
+  /**
+    * Create an empty row for an admin to fill in.
+    *
+    * The row is deliberately *not* marked `is_placeholder`, though an unclaimed stub is arguably
+    * what it is. That reclassification has its own consequences — `DatasetAccessResource` refuses
+    * to share with a placeholder, so an admin could no longer pre-share with the address before
+    * its owner first signs in.
+    */
   @POST
   @Path("/add")
   def addUser(): Unit = {
-    val random = System.currentTimeMillis().toString
-    val newUser = new User
-    newUser.setName("User" + random)
-    newUser.setPassword(new StrongPasswordEncryptor().encryptPassword(random))
-    newUser.setRole(UserRoleEnum.INACTIVE)
-    userDao.insert(newUser)
+    val user = new User
+    // Visible to anyone who can read /list, so it carries nothing derivable.
+    user.setName("User" + UUID.randomUUID().toString)
+    user.setRole(UserRoleEnum.INACTIVE)
+    userDao.insert(user)
   }
 
   @GET

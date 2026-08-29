@@ -39,6 +39,8 @@ object StorageConfig {
   val icebergRESTCatalogUri: String = conf.getString("storage.iceberg.catalog.rest.uri")
   val icebergRESTCatalogWarehouseName: String =
     conf.getString("storage.iceberg.catalog.rest.warehouse-name")
+  val icebergRESTCatalogS3Bucket: String =
+    conf.getString("storage.iceberg.catalog.rest.s3-bucket")
 
   // Iceberg Postgres specifics
   val icebergPostgresCatalogUriWithoutScheme: String =
@@ -153,7 +155,9 @@ object StorageConfig {
   val ENV_S3_AUTH_USERNAME = "STORAGE_S3_AUTH_USERNAME"
   val ENV_S3_AUTH_PASSWORD = "STORAGE_S3_AUTH_PASSWORD"
 
-  // Jupyter
-  val jupyterURL: String = conf.getString("storage.jupyter.url")
+  // Jupyter. Internal for server-side calls, public for the browser iframe. Equal
+  // unless a deployment overrides one.
+  val jupyterInternalURL: String = conf.getString("storage.jupyter.internal-url")
+  val jupyterPublicURL: String = conf.getString("storage.jupyter.public-url")
   val jupyterToken: String = conf.getString("storage.jupyter.token")
 }

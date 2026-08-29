@@ -19,14 +19,14 @@
 
 import { DashboardFile } from "./dashboard-file.interface";
 import { DashboardWorkflow } from "./dashboard-workflow.interface";
-import { DashboardProject } from "./dashboard-project.interface";
 import { DashboardDataset } from "./dashboard-dataset.interface";
 import { DashboardEntry } from "./dashboard-entry";
 
 export interface SearchResultItem {
-  resourceType: "workflow" | "project" | "file" | "dataset" | "computing-unit";
+  // "model" is listed because EntityType carries it; nothing populates a model result until the hub
+  // and unified-search backend lands.
+  resourceType: "workflow" | "file" | "dataset" | "model" | "computing-unit";
   workflow?: DashboardWorkflow;
-  project?: DashboardProject;
   file?: DashboardFile;
   dataset?: DashboardDataset;
 }

@@ -39,8 +39,9 @@ class ProjectionOpExec(
     val fields = mutable.LinkedHashMap[String, Any]()
     if (desc.isDrop) {
       val allAttribute = tuple.schema.getAttributeNames
-      val selectedAttributes = desc.attributes.map(_.getOriginalAttribute)
-      val keepAttributes = allAttribute.diff(selectedAttributes)
+      val selectedAttributes = desc.attributes.map(_.getOriginalAttribute.toLowerCase).toSet
+      val keepAttributes =
+        allAttribute.filterNot(attribute => selectedAttributes.contains(attribute.toLowerCase))
 
       keepAttributes.foreach { attribute =>
         val newList = List(

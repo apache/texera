@@ -138,16 +138,6 @@
             nzType="info-circle"></i>
         </button>
         <button
-          *ngIf="pythonNotebookMigrationEnabled"
-          nz-button
-          [disabled]="!isWorkflowModifiable || isWaitingForLLM"
-          (click)="openImportNotebookModal()"
-          title="AI generate workflow">
-          <i
-            nz-icon
-            nzType="robot"></i>
-        </button>
-        <button
           *ngIf="pythonNotebookMigrationEnabled && (jupyterNotebookExists$ | async)"
           nz-button
           (click)="onClickExpandJupyterNotebookPanel()"

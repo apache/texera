@@ -20,12 +20,13 @@
 package org.apache.texera.web.service
 
 import com.fasterxml.jackson.core.JsonProcessingException
+import com.github.tototoshi.csv.CSVReader
 import com.sun.net.httpserver.{HttpExchange, HttpHandler, HttpServer}
 import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector.ipc.ArrowFileReader
 import org.apache.arrow.vector.util.ByteArrayReadableSeekableByteChannel
-import org.apache.texera.amber.core.storage.VFSURIFactory
-import org.apache.texera.amber.core.storage.model.VirtualDocument
+import org.apache.texera.amber.core.storage.{DocumentFactory, VFSURIFactory}
+import org.apache.texera.amber.core.storage.model.{BufferedItemWriter, VirtualDocument}
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema, Tuple}
 import org.apache.texera.amber.core.virtualidentity.{
   ExecutionIdentity,
@@ -59,12 +60,18 @@ import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, PrivateMethodTester
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-import java.io.{ByteArrayInputStream, ByteArrayOutputStream, InputStream, OutputStream}
+import java.io.{
+  ByteArrayInputStream,
+  ByteArrayOutputStream,
+  InputStream,
+  OutputStream,
+  StringReader
+}
 import java.net.{InetSocketAddress, URI, URL}
 import java.nio.charset.StandardCharsets
 import java.sql.Timestamp
 import java.util.UUID
-import java.util.zip.ZipInputStream
+import java.util.zip.{ZipException, ZipInputStream}
 import javax.ws.rs.WebApplicationException
 import javax.ws.rs.core.{Response, StreamingOutput}
 import scala.collection.mutable.ArrayBuffer
@@ -79,15 +86,20 @@ import scala.collection.mutable.ArrayBuffer
   *    so an in-spec fake document is enough for those.
   *
   *  - The request-level entry points (exportToLocal / exportToDataset /
-  *    exportOperatorResultAsStream) and the upload plumbing, which read the
-  *    execution and version tables. Those run against MockTexeraDB's embedded
-  *    Postgres and, for the upload, against a local stand-in for the file
-  *    service.
+  *    exportOperatorResultAsStream / exportOperatorsAsZip) and the upload
+  *    plumbing, which read the execution and version tables. Those run against
+  *    MockTexeraDB's embedded Postgres — plus, where an operator needs actual
+  *    rows, a real Iceberg result table in the configured catalog — and, for
+  *    the upload, against a local stand-in for the file service.
   *
   * Breakage caught: an operator whose result is missing silently producing a
   * truncated download instead of a hard failure or a placeholder ZIP entry; a
   * per-operator failure aborting a whole multi-operator dataset export instead
-  * of being collected; the generated file name losing the workflow version,
+  * of being collected; one ZIP entry's writer closing the shared archive stream
+  * and truncating every following operator's entry; the ZIP writers being keyed
+  * to anything other than each operator's own outputType; a warehouse-scoped
+  * result slipping past the WarehouseReadGuard read check while the feature is
+  * off; the generated file name losing the workflow version,
   * the parquet→zip extension mapping, or the path-separator stripping that
   * keeps it a single path segment; and the dataset upload posting to the wrong
   * URL, dropping the URL-encoding of the file path, or omitting the signed
@@ -409,10 +421,14 @@ class ResultExportServiceSpec
   // ===========================================================================
   // Request-level entry points. These read WORKFLOW_EXECUTIONS /
   // OPERATOR_PORT_EXECUTIONS / WORKFLOW_VERSION, so they need the embedded
-  // Postgres. They deliberately stop short of opening a result document: that
-  // needs a live Iceberg catalog, which is out of reach here. What is covered
-  // is everything around it — the guards, the error mapping, the ZIP framing,
-  // the file-name construction and the dataset upload.
+  // Postgres. Tests that only need the guards and the error mapping stop short
+  // of opening a result document; tests of the writer dispatch and the ZIP
+  // framing store real rows first, as real Iceberg result tables in the
+  // configured catalog (the arrangement ExecutionResultServiceSpec uses). A
+  // result table's storage key is derived from the URI path and creating one
+  // overwrites whatever is already there, so every row-bearing operator id
+  // below carries a `rexs-` prefix that is unique in the repository — sbt runs
+  // amber suites in parallel inside one JVM.
   // ===========================================================================
 
   // Fixed, not randomised. MockTexeraDB hands every suite its own UUID-named database
@@ -433,7 +449,6 @@ class ResultExportServiceSpec
     testUser.setUid(testUserId)
     testUser.setName("export_user")
     testUser.setEmail("export@example.com")
-    testUser.setPassword("password")
     new UserDao(getDSLContext.configuration()).insert(testUser)
 
     val workflow = new Workflow
@@ -533,7 +548,11 @@ class ResultExportServiceSpec
 
   // A well-formed external-output result URI, i.e. exactly the shape
   // getResultUriByLogicalPortId decodes and matches against.
-  private def resultUriOf(eid: Integer, operatorId: String): String =
+  private def resultUriOf(
+      eid: Integer,
+      operatorId: String,
+      warehouse: Option[String] = None
+  ): String =
     VFSURIFactory
       .resultURI(
         VFSURIFactory.createPortBaseURI(
@@ -543,10 +562,24 @@ class ResultExportServiceSpec
             PhysicalOpIdentity(OperatorIdentity(operatorId), "main"),
             PortIdentity(),
             input = false
-          )
+          ),
+          warehouse
         )
       )
       .toString
+
+  /** Creates a real Iceberg result table holding `rows`, and records its URI for `eid`. */
+  private def storeResult(eid: Integer, operatorId: String, rows: Seq[Tuple]): Unit = {
+    val uri = resultUriOf(eid, operatorId)
+    val writer = DocumentFactory
+      .createDocument(new URI(uri), schema)
+      .writer("rexs")
+      .asInstanceOf[BufferedItemWriter[Tuple]]
+    writer.open()
+    rows.foreach(writer.putOne)
+    writer.close()
+    insertResultUri(eid, uri)
+  }
 
   private val timestampPattern = """\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}"""
 
@@ -574,6 +607,114 @@ class ResultExportServiceSpec
 
     stream shouldBe null
     fileName shouldBe None
+  }
+
+  it should "round-trip CSV special characters through the streamed export" in {
+    val execution = insertExecution()
+    val special = "comma, \"quote\" and\nnewline 中文"
+    storeResult(execution.getEid, "rexs-special", Seq(tupleOf(special, 42)))
+
+    val op = OperatorExportInfo("rexs-special", "csv")
+    val (stream, fileName) =
+      exportService.exportOperatorResultAsStream(dbRequestWith(List(op)), op)
+
+    fileName.getOrElse(fail("expected a file name")) should fullyMatch regex
+      s"""wf-oprexs-special-v${testVersion.getVid}-$timestampPattern\\.csv"""
+
+    val out = new ByteArrayOutputStream()
+    stream.write(out)
+
+    // Parse with a real CSV reader: the embedded newline makes raw line
+    // comparison meaningless, and the quoting is exactly what is under test.
+    CSVReader.open(new StringReader(utf8(out))).all() shouldBe
+      List(List("name", "count"), List(special, "42"))
+  }
+
+  it should "resolve against the latest execution, not any execution with results" in {
+    val older = insertExecution()
+    storeResult(older.getEid, "rexs-latest", Seq(tupleOf("old", 1)))
+    insertExecution() // newer, and it registered no result
+
+    val op = OperatorExportInfo("rexs-latest", "csv")
+    val (stream, fileName) =
+      exportService.exportOperatorResultAsStream(dbRequestWith(List(op)), op)
+
+    // The older execution's rows must not leak into the newest execution's export.
+    stream shouldBe null
+    fileName shouldBe None
+  }
+
+  it should "read the newest execution's rows when several executions stored results" in {
+    val older = insertExecution()
+    storeResult(older.getEid, "rexs-latest2", Seq(tupleOf("old", 1)))
+    val newer = insertExecution()
+    storeResult(newer.getEid, "rexs-latest2", Seq(tupleOf("new", 2)))
+
+    val op = OperatorExportInfo("rexs-latest2", "csv")
+    val (stream, _) =
+      exportService.exportOperatorResultAsStream(dbRequestWith(List(op)), op)
+
+    val out = new ByteArrayOutputStream()
+    stream.write(out)
+    csvLines(out) shouldBe List("name,count", "new,2")
+  }
+
+  // The "data" outputType through the public path: a real two-row document, so
+  // the index guards run against genuine Iceberg reads rather than a FakeDoc
+  // (the FakeDoc rejections are covered in the streamCellData section above).
+
+  private def storeCellFixture(): Unit = {
+    val execution = insertExecution()
+    storeResult(execution.getEid, "rexs-cell", Seq(tupleOf("a", 1), tupleOf("b", 2)))
+  }
+
+  private def streamCell(rowIndex: Int, columnIndex: Int): ByteArrayOutputStream = {
+    val op = OperatorExportInfo("rexs-cell", "data")
+    val request =
+      dbRequestWith(List(op)).copy(rowIndex = rowIndex, columnIndex = columnIndex)
+    val (stream, _) = exportService.exportOperatorResultAsStream(request, op)
+    val out = new ByteArrayOutputStream()
+    stream.write(out)
+    out
+  }
+
+  it should "stream the last cell when both indexes are at their maxima" in {
+    storeCellFixture()
+
+    utf8(streamCell(rowIndex = 1, columnIndex = 1)) shouldBe "2"
+  }
+
+  it should "reject a rowIndex equal to the row count with the exact reason" in {
+    storeCellFixture()
+
+    val ex = intercept[WebApplicationException] { streamCell(rowIndex = 2, columnIndex = 0) }
+    ex.getMessage shouldBe "Invalid rowIndex (2). Total rows: 2"
+  }
+
+  it should "reject a columnIndex equal to the field count with the exact reason" in {
+    storeCellFixture()
+
+    val ex = intercept[WebApplicationException] { streamCell(rowIndex = 0, columnIndex = 2) }
+    ex.getMessage shouldBe "Invalid columnIndex (2). Total columns: 2"
+  }
+
+  it should "surface an internal error for a negative rowIndex, which the guard lets through" in {
+    storeCellFixture()
+
+    // Characterization, not a contract: the guard only checks `rowIndex >= count`,
+    // so -1 reaches the Iceberg reader and fails as its internal seek error
+    // instead of the "Invalid rowIndex" message.
+    val ex = intercept[RuntimeException] { streamCell(rowIndex = -1, columnIndex = 0) }
+    ex.getMessage shouldBe "seek operation should not be called"
+  }
+
+  it should "surface an index error for a negative columnIndex, which the guard lets through" in {
+    storeCellFixture()
+
+    // Characterization: the guard only checks `columnIndex >= length`, so -1
+    // reaches the raw field-array access.
+    an[ArrayIndexOutOfBoundsException] should be thrownBy
+      streamCell(rowIndex = 0, columnIndex = -1)
   }
 
   // -- exportToLocal -----------------------------------------------------------
@@ -640,15 +781,197 @@ class ResultExportServiceSpec
     )
   }
 
-  private def readZipEntries(bytes: Array[Byte]): List[(String, String)] = {
+  private def readZipEntries(bytes: Array[Byte]): List[(String, String)] =
+    readZipEntryBytes(bytes).map {
+      case (name, content) => name -> new String(content, StandardCharsets.UTF_8)
+    }
+
+  // The bytes variant exists for entries whose payload is not text (e.g. Arrow).
+  private def readZipEntryBytes(bytes: Array[Byte]): List[(String, Array[Byte])] = {
     val zipIn = new ZipInputStream(new ByteArrayInputStream(bytes))
     try {
       Iterator
         .continually(zipIn.getNextEntry)
         .takeWhile(_ != null)
-        .map(entry => entry.getName -> new String(zipIn.readAllBytes(), StandardCharsets.UTF_8))
+        .map(entry => entry.getName -> zipIn.readAllBytes())
         .toList
     } finally zipIn.close()
+  }
+
+  // -- exportOperatorsAsZip -----------------------------------------------------
+
+  private def writeZipBody(request: ResultExportRequest): Array[Byte] = {
+    val (stream, _) = exportService.exportOperatorsAsZip(request)
+    val body = new ByteArrayOutputStream()
+    stream.write(body)
+    body.toByteArray
+  }
+
+  "exportOperatorsAsZip" should "throw rather than yield no stream when the workflow never ran" in {
+    val request = dbRequestWith(
+      List(OperatorExportInfo("op-1", "csv"), OperatorExportInfo("op-2", "csv"))
+    )
+
+    // Deliberate asymmetry with exportOperatorResultAsStream, which reports the
+    // same condition as (null, None) and leaves the failure to its caller.
+    val ex = intercept[WebApplicationException] {
+      exportService.exportOperatorsAsZip(request)
+    }
+    ex.getMessage shouldBe s"No execution result for workflow $testWorkflowWid"
+  }
+
+  it should "name the archive after the workflow and write each entry in its operator's own format" in {
+    val execution = insertExecution()
+    storeResult(execution.getEid, "rexs-csv", Seq(tupleOf("a", 1), tupleOf("b", 2)))
+    storeResult(execution.getEid, "rexs-arrow", Seq(tupleOf("c", 3)))
+    storeResult(execution.getEid, "rexs-fallback", Seq(tupleOf("d", 4)))
+
+    // The request-level exportType stays "csv": the arrow entry coming out as
+    // genuine Arrow pins the dispatch to each operator's own outputType.
+    val request = dbRequestWith(
+      List(
+        OperatorExportInfo("rexs-csv", "csv"),
+        OperatorExportInfo("rexs-arrow", "arrow"),
+        OperatorExportInfo("rexs-fallback", "not-a-format")
+      )
+    )
+
+    val (stream, zipName) = exportService.exportOperatorsAsZip(request)
+    zipName.getOrElse(fail("expected a zip file name")) should fullyMatch regex
+      s"""wf-$timestampPattern\\.zip"""
+
+    val body = new ByteArrayOutputStream()
+    stream.write(body)
+    val entries = readZipEntryBytes(body.toByteArray)
+
+    val vid = testVersion.getVid
+    entries.map(_._1) match {
+      case List(csvName, arrowName, fallbackName) =>
+        csvName should fullyMatch regex s"""wf-oprexs-csv-v$vid-$timestampPattern\\.csv"""
+        arrowName should fullyMatch regex s"""wf-oprexs-arrow-v$vid-$timestampPattern\\.arrow"""
+        // The fallback replaces only the writer; the entry keeps the requested extension.
+        fallbackName should fullyMatch regex
+          s"""wf-oprexs-fallback-v$vid-$timestampPattern\\.not-a-format"""
+      case other => fail(s"unexpected entries: $other")
+    }
+
+    // In the ZIP path the CSV writer infers its header (no supplied headers).
+    new String(entries.head._2, StandardCharsets.UTF_8).linesIterator.toList shouldBe
+      List("name,count", "a,1", "b,2")
+
+    val allocator = new RootAllocator()
+    val reader = new ArrowFileReader(
+      new ByteArrayReadableSeekableByteChannel(entries(1)._2),
+      allocator
+    )
+    try {
+      reader.loadNextBatch() shouldBe true
+      val root = reader.getVectorSchemaRoot
+      root.getRowCount shouldBe 1
+      ArrowUtils.getTexeraTuple(0, root).getField[String]("name") shouldBe "c"
+    } finally {
+      reader.close()
+      allocator.close()
+    }
+
+    // An unrecognised output type falls back to the CSV writer.
+    new String(entries(2)._2, StandardCharsets.UTF_8).linesIterator.toList shouldBe
+      List("name,count", "d,4")
+  }
+
+  it should "keep the shared ZIP stream open after an entry's writer closes its own stream" in {
+    val execution = insertExecution()
+    storeResult(execution.getEid, "rexs-first", Seq(tupleOf("a", 1)))
+    storeResult(execution.getEid, "rexs-second", Seq(tupleOf("b", 2)))
+
+    val request = dbRequestWith(
+      List(OperatorExportInfo("rexs-first", "csv"), OperatorExportInfo("rexs-second", "csv"))
+    )
+
+    // CSVWriter.close() closes the stream it was given. Each entry is written
+    // through a NonClosingOutputStream so that close cannot end the shared
+    // ZipOutputStream; the second entry surviving the first entry's writer is
+    // that wrapper actually being routed through, not just existing (its own
+    // close-suppression is unit-tested above).
+    val entries = readZipEntries(writeZipBody(request))
+
+    entries.map(_._1) should have size 2
+    entries.map(_._2.linesIterator.toList) shouldBe List(
+      List("name,count", "a,1"),
+      List("name,count", "b,2")
+    )
+  }
+
+  it should "substitute a placeholder for a result-less operator instead of aborting the archive" in {
+    val execution = insertExecution()
+    storeResult(execution.getEid, "rexs-before", Seq(tupleOf("a", 1)))
+    storeResult(execution.getEid, "rexs-after", Seq(tupleOf("b", 2)))
+    // A result table that exists but holds no rows: the zero-row half of the
+    // guard, distinct from rexs-missing's null-document half.
+    storeResult(execution.getEid, "rexs-zero", Seq.empty)
+
+    val request = dbRequestWith(
+      List(
+        OperatorExportInfo("rexs-before", "csv"),
+        OperatorExportInfo("rexs-missing", "csv"),
+        OperatorExportInfo("rexs-after", "csv"),
+        OperatorExportInfo("rexs-zero", "csv")
+      )
+    )
+
+    val entries = readZipEntries(writeZipBody(request))
+
+    entries should have size 4
+    entries(1) shouldBe ("rexs-missing-empty.txt" -> "Operator rexs-missing has no results")
+    entries(3) shouldBe ("rexs-zero-empty.txt" -> "Operator rexs-zero has no results")
+    // The operators on both sides of the placeholder keep their real entries.
+    entries.head._2.linesIterator.toList shouldBe List("name,count", "a,1")
+    entries(2)._2.linesIterator.toList shouldBe List("name,count", "b,2")
+  }
+
+  it should "write every row on both sides of the CSV chunk boundary" in {
+    val execution = insertExecution()
+    // The ZIP CSV writer infers its header from the first row, so a stored count
+    // of N leaves N-1 rows for the chunked loop: 10/11/12 stored rows exercise
+    // one-under, exactly-one and one-over CHUNK_SIZE (10) in that loop.
+    Seq(10, 11, 12).foreach { n =>
+      storeResult(execution.getEid, s"rexs-chunk$n", (1 to n).map(i => tupleOf(s"r$i", i)))
+    }
+    val request = dbRequestWith(
+      Seq(10, 11, 12).map(n => OperatorExportInfo(s"rexs-chunk$n", "csv")).toList
+    )
+
+    val entries = readZipEntries(writeZipBody(request))
+
+    entries.map(_._2.linesIterator.toList) shouldBe Seq(10, 11, 12).map { n =>
+      "name,count" +: (1 to n).map(i => s"r$i,$i").toList
+    }
+  }
+
+  it should "abort mid-stream when the same operator is requested twice" in {
+    val execution = insertExecution()
+    storeResult(execution.getEid, "rexs-dup", Seq(tupleOf("a", 1)))
+
+    val request = dbRequestWith(
+      List(OperatorExportInfo("rexs-dup", "csv"), OperatorExportInfo("rexs-dup", "csv"))
+    )
+    val (stream, _) = exportService.exportOperatorsAsZip(request)
+
+    // Both entries generate the same second-granularity file name; align to the
+    // start of a second so the two generateFileName calls cannot straddle one.
+    // The threshold is deliberately low: it leaves at least 900ms for the first
+    // entry to stream and both name lookups to run, at the cost of a sub-second
+    // sleep, rather than risking a straddle on a loaded runner.
+    val msIntoSecond = System.currentTimeMillis() % 1000
+    if (msIntoSecond > 100) Thread.sleep(1000 - msIntoSecond)
+
+    // Characterization, not a contract: the duplicate name is only detected
+    // after the first entry has been streamed — past the point exportToLocal
+    // commits its 200 — so the client receives a truncated archive.
+    val body = new ByteArrayOutputStream()
+    val ex = intercept[ZipException] { stream.write(body) }
+    ex.getMessage should startWith("duplicate entry")
+    body.size should be > 0
   }
 
   // -- exportToDataset ---------------------------------------------------------
@@ -707,6 +1030,127 @@ class ResultExportServiceSpec
     // from the guard-returned "No results to export" messages asserted above.
     lines.head should startWith("Error exporting operator OperatorExportInfo(op-1,csv): ")
     lines(1) should startWith("Error exporting operator OperatorExportInfo(op-2,csv): ")
+  }
+
+  it should "report a stored-but-empty result as having nothing to export" in {
+    val execution = insertExecution()
+    storeResult(execution.getEid, "rexs-ds-zero", Seq.empty)
+
+    val response = exportService.exportToDataset(
+      testUser,
+      dbRequestWith(List(OperatorExportInfo("rexs-ds-zero", "csv")))
+    )
+
+    // The zero-row half of the guard: a result table exists but holds no rows,
+    // and must yield the same message as a missing document — not the "Error
+    // exporting operator" wrapper that reading an empty table would produce.
+    response.getEntity shouldBe ResultExportResponse(
+      "error",
+      "No results to export for operator OperatorExportInfo(rexs-ds-zero,csv)"
+    )
+  }
+
+  // The next two tests exercise exportSingleOperatorToDataset's success path, so
+  // they store real rows and receive the uploads with the stub file service
+  // defined further below (withUploadServer).
+
+  it should "upload each operator's rows to the file service in that operator's own format" in {
+    withUploadServer(200) { recorded =>
+      val execution = insertExecution()
+      storeResult(execution.getEid, "rexs-ds-csv", Seq(tupleOf("a", 1), tupleOf("b", 2)))
+      storeResult(execution.getEid, "rexs-ds-fallback", Seq(tupleOf("c", 3)))
+
+      val request = dbRequestWith(
+        List(
+          OperatorExportInfo("rexs-ds-csv", "csv"),
+          OperatorExportInfo("rexs-ds-fallback", "not-a-format")
+        ),
+        datasetIds = List(7),
+        filename = "chosen.csv"
+      )
+
+      val response = exportService.exportToDataset(testUser, request)
+
+      response.getEntity shouldBe ResultExportResponse(
+        "success",
+        "csv export done for operator rexs-ds-csv -> file: chosen.csv\n" +
+          "not-a-format export done for operator rexs-ds-fallback -> file: chosen.csv"
+      )
+
+      recorded should have size 2
+      // Unlike the ZIP path, the dataset path hands the CSV writer the schema's
+      // attribute names as an explicit header.
+      recorded.head.body.linesIterator.toList shouldBe List("name,count", "a,1", "b,2")
+      // An unrecognised output type falls back to the CSV writer here too.
+      recorded(1).body.linesIterator.toList shouldBe List("name,count", "c,3")
+    }
+  }
+
+  it should "report overall success and drop the error lines when only some operators export" in {
+    withUploadServer(200) { recorded =>
+      val execution = insertExecution()
+      storeResult(execution.getEid, "rexs-ds-ok", Seq(tupleOf("a", 1)))
+
+      val request = dbRequestWith(
+        List(OperatorExportInfo("rexs-ds-ok", "csv"), OperatorExportInfo("rexs-ds-none", "csv")),
+        datasetIds = List(7),
+        filename = "f.csv"
+      )
+
+      val response = exportService.exportToDataset(testUser, request)
+
+      // The partial-success policy: one success makes the whole response a
+      // "success", and the per-operator error lines are dropped, not appended.
+      response.getEntity shouldBe ResultExportResponse(
+        "success",
+        "csv export done for operator rexs-ds-ok -> file: f.csv"
+      )
+      recorded should have size 1
+    }
+  }
+
+  // -- getOperatorDocument -------------------------------------------------------
+
+  private val getOperatorDocument =
+    PrivateMethod[VirtualDocument[Tuple]](Symbol("getOperatorDocument"))
+
+  "getOperatorDocument" should "return null when the operator stored no result URI" in {
+    insertExecution()
+
+    val doc =
+      exportService invokePrivate getOperatorDocument("op-1", testComputingUnit.getCuid.intValue())
+
+    doc shouldBe null
+  }
+
+  it should "open the stored result document for the operator" in {
+    val execution = insertExecution()
+    storeResult(execution.getEid, "rexs-doc", Seq(tupleOf("a", 1), tupleOf("b", 2)))
+
+    val doc =
+      exportService invokePrivate getOperatorDocument(
+        "rexs-doc",
+        testComputingUnit.getCuid.intValue()
+      )
+
+    doc.getCount shouldBe 2
+    doc.get().map(_.getField[String]("name")).toList shouldBe List("a", "b")
+  }
+
+  it should "refuse a result stored in a per-user warehouse while the feature is off" in {
+    val execution = insertExecution()
+    // No table is needed: the WarehouseReadGuard check (#6930) fires on the URI,
+    // before any catalog access. warehouseEnabled ships (and runs in CI) as
+    // false; WarehouseReadGuardSpec pins both settings of the flag directly.
+    insertResultUri(execution.getEid, resultUriOf(execution.getEid, "rexs-wh", Some("byo")))
+
+    val ex = intercept[WarehouseUnavailableException] {
+      exportService invokePrivate getOperatorDocument(
+        "rexs-wh",
+        testComputingUnit.getCuid.intValue()
+      )
+    }
+    ex.getMessage should include("warehouse 'byo'")
   }
 
   // -- generateFileName --------------------------------------------------------

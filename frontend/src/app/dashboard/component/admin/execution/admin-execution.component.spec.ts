@@ -26,7 +26,7 @@ import { NzDropDownModule } from "ng-zorro-antd/dropdown";
 import { NzModalModule } from "ng-zorro-antd/modal";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
 import { Execution } from "../../../../common/type/execution";
-import { NzTableQueryParams } from "ng-zorro-antd/table";
+import { NzTableComponent, NzTableQueryParams, NzThAddOnComponent } from "ng-zorro-antd/table";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { WorkflowWebsocketService } from "../../../../workspace/service/workflow-websocket/workflow-websocket.service";
 import { NO_SORT } from "./admin-execution.component";
@@ -535,5 +535,297 @@ describe("AdminExecutionComponent methods (#6550)", () => {
 
       expect(updateSpy).not.toHaveBeenCalled();
     });
+  });
+});
+
+describe("AdminExecutionComponent template rendering", () => {
+  let component: AdminExecutionComponent;
+  let fixture: ComponentFixture<AdminExecutionComponent>;
+  let service: AdminExecutionService;
+
+  const makeExecution = (overrides: Partial<Execution> = {}): Execution => ({
+    workflowName: "a-very-long-workflow-name-to-truncate",
+    workflowId: 11,
+    userName: "alice",
+    userId: 1,
+    executionId: 21,
+    executionStatus: "COMPLETED",
+    executionTime: 3661_000,
+    executionName: "run-1",
+    startTime: 1_700_000_000_000,
+    endTime: 1_700_000_100_000,
+    access: true,
+    ...overrides,
+  });
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      providers: [AdminExecutionService, ...commonTestProviders],
+      imports: [AdminExecutionComponent, HttpClientTestingModule, NzDropDownModule, NzModalModule],
+    }).compileComponents();
+
+    fixture = TestBed.createComponent(AdminExecutionComponent);
+    component = fixture.componentInstance;
+    service = TestBed.inject(AdminExecutionService);
+    // Keep the fetches inert; the rows are seeded directly so ngOnInit's pollers have
+    // nothing to do (they are covered by the lifecycle tests above).
+    vi.spyOn(service, "getExecutionList").mockReturnValue(of([]));
+    vi.spyOn(service, "getTotalWorkflows").mockReturnValue(of(0));
+  });
+
+  afterEach(() => fixture.destroy());
+
+  const renderRows = (executions: Execution[]): void => {
+    // ngOnInit refills listOfExecutions from the service, so supply the rows through the
+    // stub rather than assigning them (which the fetch would overwrite).
+    vi.mocked(service.getExecutionList).mockReturnValue(of(executions));
+    fixture.detectChanges();
+    fixture.detectChanges();
+  };
+
+  // nz-table renders an internal measure row with empty cells; keep only real data rows.
+  const dataRows = () =>
+    fixture.debugElement
+      .queryAll(By.css("tbody tr"))
+      .filter(row => !row.nativeElement.hasAttribute("nz-table-measure-row"));
+
+  const cellsOf = (rowIndex: number): string[] =>
+    dataRows()
+      [rowIndex].queryAll(By.css("td"))
+      .map(td => (td.nativeElement.textContent ?? "").trim());
+
+  // The four action buttons carry no text and no distinguishing attribute: nz-tooltip is a
+  // directive input and never reaches the DOM. nz-icon does render [nzType] as an
+  // `anticon-<type>` class, so the icon is the only way to tell them apart.
+  const actionButton = (icon: string) =>
+    fixture.debugElement
+      .queryAll(By.css("tbody tr button"))
+      .find(btn => (btn.nativeElement as HTMLElement).querySelector(`i.anticon-${icon}`));
+
+  // Whether the control is greyed out. Read in both directions on every row that is rendered:
+  // asserting only that the one relevant control is enabled leaves every widening of a
+  // [disabled] predicate (and every exchange between two of them) invisible.
+  const isDisabled = (icon: string): boolean => {
+    const button = actionButton(icon);
+    expect(button, `no action button with the ${icon} icon`).toBeTruthy();
+    return (button!.nativeElement as HTMLButtonElement).disabled;
+  };
+
+  it("renders one row per execution with the truncated name and formatted duration", () => {
+    renderRows([makeExecution()]);
+
+    expect(dataRows()).toHaveLength(1);
+    const cells = cellsOf(0);
+    // Hard literals rather than the component helpers the template itself calls, so the
+    // expectations cannot collapse into the production code they are meant to pin. Every column
+    // is read: without that, two <td>s can be exchanged without a test noticing.
+    expect(cells[0]).toContain("a-very-long-work . . . "); // 37-char name cut to 16
+    expect(cells[0]).not.toContain("truncate"); // the tail is really gone
+    expect(cells[0]).toContain("(11)");
+    expect(cells[1]).toBe("run-1 (21)");
+    expect(cells[2]).toBe("alice");
+    expect(cells[3]).toBe("COMPLETED");
+    // startTime/endTime are 100 s apart, and a finished execution's duration is that fixed span.
+    expect(cells[4]).toBe("00:01:40");
+  });
+
+  it("renders the Not Available arm when the execution time is negative", () => {
+    renderRows([makeExecution({ executionTime: -1, endTime: 0 })]);
+
+    // Per cell rather than on the row's joined text: with both fallbacks firing at once, joined
+    // text cannot tell which of the two cells produced the string.
+    const cells = cellsOf(0);
+    expect(cells[4]).toBe("Not Available");
+    expect(cells[5]).toBe("Not Available");
+  });
+
+  it("kills the execution with its workflow id when the kill control is clicked", () => {
+    const killSpy = vi.spyOn(component, "killExecution").mockImplementation(() => {});
+    renderRows([makeExecution({ executionStatus: "RUNNING", workflowId: 42 })]);
+
+    const killButton = actionButton("stop");
+    expect(killButton).toBeTruthy();
+
+    killButton!.triggerEventHandler("click", null);
+
+    expect(killSpy).toHaveBeenCalledWith(42);
+  });
+
+  it("renders the workflow name as plain text when the admin has no access", () => {
+    // Without access the admin must not be handed a link into the workflow editor, but the
+    // name and id still have to be readable so the row can be identified. The name is
+    // deliberately longer than the 16-character limit: this branch has to truncate too, and a
+    // short name would make an untruncated render indistinguishable from a truncated one.
+    renderRows([makeExecution({ access: false, workflowId: 77, workflowName: "secret-workflow-name-too-long" })]);
+
+    expect(fixture.debugElement.query(By.css('a[href="/user/workflow/77"]'))).toBeNull();
+    expect(cellsOf(0)[0]).toContain("secret-workflow- . . . ");
+    expect(cellsOf(0)[0]).not.toContain("name-too-long");
+    expect(cellsOf(0)[0]).toContain("(77)");
+  });
+
+  it("pauses the execution when the pause control is clicked on a running row", () => {
+    const pauseSpy = vi.spyOn(component, "pauseExecution").mockImplementation(() => {});
+    renderRows([makeExecution({ executionStatus: "RUNNING", workflowId: 42 })]);
+
+    const pauseButton = actionButton("pause");
+    expect(pauseButton).toBeTruthy();
+    // A native click (rather than triggerEventHandler) so the [disabled] predicate is part of
+    // what is being asserted: a running execution is exactly the case that must be pausable.
+    const nativePause = pauseButton!.nativeElement as HTMLButtonElement;
+    expect(nativePause.disabled).toBe(false);
+    // The other two controls in the same row, in their opposite state: a running execution
+    // cannot be resumed, and can still be killed.
+    expect(isDisabled("redo")).toBe(true);
+    expect(isDisabled("stop")).toBe(false);
+
+    nativePause.click();
+
+    expect(pauseSpy).toHaveBeenCalledWith(42);
+  });
+
+  it("resumes the execution when the resume control is clicked on a paused row", () => {
+    const resumeSpy = vi.spyOn(component, "resumeExecution").mockImplementation(() => {});
+    renderRows([makeExecution({ executionStatus: "PAUSED", workflowId: 43 })]);
+
+    const resumeButton = actionButton("redo");
+    expect(resumeButton).toBeTruthy();
+    const nativeResume = resumeButton!.nativeElement as HTMLButtonElement;
+    expect(nativeResume.disabled).toBe(false);
+    // A paused execution cannot be paused again, and is still killable.
+    expect(isDisabled("pause")).toBe(true);
+    expect(isDisabled("stop")).toBe(false);
+
+    nativeResume.click();
+
+    expect(resumeSpy).toHaveBeenCalledWith(43);
+  });
+
+  it("greys out kill, pause and resume once the execution has finished", () => {
+    // The kill control fires a WorkflowKillRequest at a live execution; on a run that has
+    // already ended there is nothing to kill, pause or resume, so all three must be dead. Only
+    // the history control stays live.
+    renderRows([makeExecution({ executionStatus: "KILLED", workflowId: 45 })]);
+
+    expect(isDisabled("stop")).toBe(true);
+    expect(isDisabled("pause")).toBe(true);
+    expect(isDisabled("redo")).toBe(true);
+    expect(isDisabled("history")).toBe(false);
+  });
+
+  it("paints each row's status cell with that status's colour", () => {
+    // The colour is the only cue for a row's state, and getStatusColor's own unit tests say
+    // nothing about which value the template feeds it. Two rows with different statuses, so a
+    // binding that ignores the status cannot pass by rendering one right colour.
+    renderRows([
+      makeExecution({ executionStatus: "RUNNING", workflowId: 51 }),
+      makeExecution({ executionStatus: "KILLED", workflowId: 52 }),
+    ]);
+
+    const statusColour = (rowIndex: number): string =>
+      (dataRows()[rowIndex].queryAll(By.css("td"))[3].nativeElement as HTMLElement).style.color;
+
+    expect(statusColour(0)).toBe("orange");
+    expect(statusColour(1)).toBe("red");
+  });
+
+  it("sorts each column by that column's own server-side key", () => {
+    // onSortChange is unit-tested with a key the test supplies, so the key each *header* passes
+    // is observed nowhere: four adjacent columns are freely interchangeable without it.
+    const sortSpy = vi.spyOn(component, "onSortChange").mockImplementation(() => {});
+    renderRows([makeExecution()]);
+
+    // Five headers carry the add-on directive; the Status one filters instead of sorting and so
+    // contributes no call.
+    fixture.debugElement
+      .queryAll(By.directive(NzThAddOnComponent))
+      .forEach(header => header.componentInstance.nzSortOrderChange.emit("ascend"));
+
+    expect(sortSpy.mock.calls.map(call => call[0])).toEqual([
+      "workflow_name",
+      "execution_name",
+      "initiator",
+      "end_time",
+    ]);
+  });
+
+  it("hands the page bar the 1-indexed page, the page size and the server-side total", () => {
+    // The component tracks the page 0-indexed and the page bar is 1-indexed, and the rows arrive
+    // already paged by the server. The pagination suite drives onQueryParamsChange and asserts
+    // component fields, so this is the other half of that contract.
+    vi.mocked(service.getTotalWorkflows).mockReturnValue(of(65));
+    component.pageSize = 5;
+    component.currentPageIndex = 4; // 0-indexed page 5
+    renderRows([makeExecution()]);
+
+    const table = fixture.debugElement.query(By.directive(NzTableComponent)).componentInstance;
+    expect(table.nzPageIndex).toBe(5);
+    expect(table.nzPageSize).toBe(5);
+    expect(table.nzTotal).toBe(65);
+    // Re-paginating server-paged rows would hide all but the first pageSize of each fetch.
+    expect(table.nzFrontPagination).toBe(false);
+  });
+
+  it("labels each status filter with the status it actually filters for", () => {
+    renderRows([makeExecution()]);
+
+    const statusHeader = fixture.debugElement.queryAll(By.directive(NzThAddOnComponent))[3];
+    const filters = statusHeader.componentInstance.nzFilters as { text: string; value: string }[];
+
+    // A label that does not match its value filters for a status other than the one clicked.
+    expect(filters.map(entry => entry.text)).toEqual(filters.map(entry => entry.value));
+    // Every status the table can colour has to be filterable; "UNKNOWN" is offered as well.
+    for (const status of ["READY", "RUNNING", "PAUSED", "COMPLETED", "FAILED", "KILLED", "JUST COMPLETED"]) {
+      expect(filters.map(entry => entry.value)).toContain(status);
+    }
+    expect(filters).toHaveLength(8);
+  });
+
+  it("opens the execution history for the row's workflow", () => {
+    const historySpy = vi.spyOn(component, "clickToViewHistory").mockImplementation(() => {});
+    renderRows([makeExecution({ workflowId: 44, workflowName: "wf-44" })]);
+
+    const historyButton = actionButton("history");
+    expect(historyButton).toBeTruthy();
+
+    (historyButton!.nativeElement as HTMLButtonElement).click();
+
+    // Both arguments matter: the id selects the workflow, the name only titles the dialog.
+    expect(historySpy).toHaveBeenCalledWith(44, "wf-44");
+  });
+
+  it("reads Not Available in the end-time cell while the execution is still running", () => {
+    // The duration and end-time cells have independent fallbacks, so assert them separately: a
+    // still-running execution has a real elapsed time but no end time yet. The test below
+    // renders the mirror of this configuration, which is what actually pins the two conditions
+    // to their own cells. The clock is fixed because the rendered duration is computed from
+    // Date.now() for a RUNNING row.
+    const now = 1_700_000_000_000;
+    vi.useFakeTimers();
+    vi.setSystemTime(now);
+    try {
+      renderRows([makeExecution({ executionStatus: "RUNNING", startTime: now - 5_000, endTime: 0 })]);
+
+      const cells = cellsOf(0);
+      expect(cells[4]).toBe("00:00:05");
+      expect(cells[5]).toBe("Not Available");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("reads Not Available in the duration cell while still showing a negative-duration run's end time", () => {
+    // The mirror of the test above, and the reason the two cells need separate assertions: here
+    // the duration falls back and the end time does not. A negative duration is what the
+    // duration cell's fallback exists for (the recorded start can be later than the recorded
+    // end when the two timestamps come from clocks that disagree).
+    const end = 1_700_000_000_000;
+    renderRows([makeExecution({ executionStatus: "COMPLETED", startTime: end + 100_000, endTime: end })]);
+
+    const cells = cellsOf(0);
+    expect(cells[4]).toBe("Not Available");
+    // A real timestamp, not the fallback. Built from the Date API rather than from the
+    // component's own converter so the expectation is not the production code under test.
+    expect(cells[5]).toBe(new Date(end).toLocaleString("en-US", { timeZoneName: "short" }));
   });
 });
