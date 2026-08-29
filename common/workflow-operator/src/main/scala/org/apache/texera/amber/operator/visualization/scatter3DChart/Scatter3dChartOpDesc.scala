@@ -20,7 +20,7 @@
 package org.apache.texera.amber.operator.visualization.scatter3DChart
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
-import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
+import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
@@ -31,13 +31,6 @@ import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, Operat
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
 
 import javax.validation.constraints.NotNull
-@JsonSchemaInject(json = """
-{
-  "attributeTypeRules": {
-    "title": "string"
-  }
-}
-""")
 class Scatter3dChartOpDesc extends PythonOperatorDescriptor {
   @JsonProperty(value = "x", required = true)
   @JsonSchemaTitle("X Column")

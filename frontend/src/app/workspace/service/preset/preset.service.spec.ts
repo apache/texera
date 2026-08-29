@@ -195,6 +195,22 @@ describe("PresetService", () => {
       }
     });
 
+    it("refuses to save with an 'info' severity when no message is supplied", () => {
+      // There is no default text for the informational severity, so callers that
+      // omit `displayMessage` must be rejected rather than shown a blank toast.
+      expect(() =>
+        presetService.savePresets(presetType, presetTarget, [{ presetProperty: "v1" }], undefined, "info")
+      ).toThrow("no default save preset info message");
+      expect(messageStub.info).not.toHaveBeenCalled();
+    });
+
+    it("refuses to save with a 'warning' severity when no message is supplied", () => {
+      expect(() =>
+        presetService.savePresets(presetType, presetTarget, [{ presetProperty: "v1" }], undefined, "warning")
+      ).toThrow("no default save preset warning message");
+      expect(messageStub.warning).not.toHaveBeenCalled();
+    });
+
     it("deletePreset reports the caller's message as an error toast", () => {
       userConfigStub.fetchKey.mockReturnValue(of(JSON.stringify([{ presetProperty: "v1" }, { presetProperty: "v2" }])));
 
@@ -238,18 +254,6 @@ describe("PresetService", () => {
       expect(userConfigStub.delete).not.toHaveBeenCalled();
       expect(errors).toHaveLength(1);
       expect((errors[0] as Error).message).toMatch(/already exists/);
-    });
-
-    it("updatePreset does not write the preset back when the original preset is missing", async () => {
-      userConfigStub.fetchKey.mockReturnValue(of(JSON.stringify([{ presetProperty: "v1" }])));
-
-      const errors = await captureRxjsUnhandled(() =>
-        presetService.updatePreset(presetType, presetTarget, { presetProperty: "missing" }, { presetProperty: "v3" })
-      );
-
-      expect(userConfigStub.set).not.toHaveBeenCalled();
-      expect(errors).toHaveLength(1);
-      expect((errors[0] as Error).message).toMatch(/doesn't exist/);
     });
 
     it("deletePreset removes the matching preset via savePresets", () => {
@@ -528,6 +532,21 @@ describe("PresetService", () => {
 
       // list is written back unchanged: neither pushed, replaced, nor spliced.
       expect(userConfigStub.set).toHaveBeenCalledWith(presetDictKey, JSON.stringify(stored));
+    });
+
+    it("stores the replacement when the dictionary has no entry yet", () => {
+      // First write for this operator type: fetchKey resolves to null, so the
+      // missing entry has to read as an empty list rather than being parsed.
+      userConfigStub.fetchKey.mockReturnValue(of(null));
+
+      presetService.updateOrCreatePreset(
+        presetType,
+        presetTarget,
+        { presetProperty: "missing" },
+        { presetProperty: "v2" }
+      );
+
+      expect(userConfigStub.set).toHaveBeenCalledWith(presetDictKey, JSON.stringify([{ presetProperty: "v2" }]));
     });
 
     it("appends the replacement when neither preset already exists", () => {

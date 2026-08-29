@@ -689,7 +689,7 @@ describe("CardItemComponent", () => {
     it("onClickDownload downloads a workflow via the download service", () => {
       const downloadService = TestBed.inject(DownloadService);
       const downloadWorkflowSpy = vi.spyOn(downloadService, "downloadWorkflow").mockReturnValue(of({} as any));
-      component.entry = makeWorkflowEntry({ id: 7, workflow: { isOwner: true, workflow: { name: "myflow" } } } as any);
+      component.entry = makeWorkflowEntry({ id: 7, name: "myflow" });
 
       component.onClickDownload();
 
@@ -909,6 +909,7 @@ describe("CardItemComponent", () => {
       component.entry = makeWorkflowEntry();
       component.isPrivateSearch = true;
       component.currentUid = 1;
+      component.initializeEntry(); // the Download button reads a per-kind capability off the entry
       fixture.detectChanges();
 
       const de = fixture.debugElement;
@@ -927,6 +928,7 @@ describe("CardItemComponent", () => {
       component.entry = makeWorkflowEntry();
       component.isPrivateSearch = true;
       component.currentUid = 1;
+      component.initializeEntry();
       fixture.detectChanges();
 
       const detailSpy = vi.spyOn(component, "openDetailModal").mockImplementation(() => {});
@@ -1029,6 +1031,7 @@ describe("CardItemComponent", () => {
     it("shows Download but hides Detail/Copy/checkbox for a dataset in private mode", () => {
       component.entry = makeDatasetEntry();
       component.isPrivateSearch = true;
+      component.initializeEntry();
       fixture.detectChanges();
 
       const de = fixture.debugElement;

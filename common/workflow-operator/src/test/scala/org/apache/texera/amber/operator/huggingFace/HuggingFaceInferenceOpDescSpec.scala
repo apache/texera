@@ -411,24 +411,19 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
   }
 
   it should
-    "fail fast at runtime when zero-shot-image-classification has fewer than 2 candidate labels" in {
-    // Without a dedicated candidateLabels field (lands in PR 5), zero-shot
-    // reuses prompt_value as a comma-
-    // separated list. Two failure modes the bare list comprehension hides
-    // are both caught by the >= 2 check:
-    //  1. Empty prompt column → labels = [] → HF API rejects
-    //     candidate_labels: [] with an opaque 400.
-    //  2. Missing prompt column → upstream falls back to "What is shown in
-    //     this image?" (no comma) → labels = ["What is shown in this image?"],
-    //     a single nonsense label that returns a useless 1.0 score.
-    // Zero-shot classification needs >= 2 candidate labels to be meaningful,
-    // so the fix raises ValueError before the request goes out and the user
-    // sees a clear configuration error instead of a generic HTTP failure or
-    // misleading 100%-confidence garbage.
+    "validate zero-shot-image-classification candidate labels before the row loop" in {
+    // #7199 Part B: the >= 2 candidate-labels check is a config validation, so it
+    // runs in the pre-loop validation block (fail-fast with a clear ValueError),
+    // consistent with the other config checks — instead of being raised inside the
+    // per-row payload build, where an uncaught ValueError crashed the operator.
+    // Labels come from the Candidate Labels property; the old prompt-column
+    // fallback is dropped.
     val code = makeDesc(task = "zero-shot-image-classification").generatePythonCode()
     code should include("if len(labels) < 2:")
     code should include("raise ValueError(")
-    code should include("at least 2 candidate")
+    code should include("requires at least 2 Candidate Labels")
+    // The per-row prompt-column fallback is gone.
+    code should not include ("label_source")
   }
 
   it should
@@ -572,9 +567,8 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
     code should include("ctx_col = self.CONTEXT_COLUMN")
     code should include("Context column")
     code should include("""payload = {"inputs": {"question": prompt_value, "context": ctx_val}}""")
-    code should include(
-      """return body.get("answer", json.dumps(body)) if isinstance(body, dict) else json.dumps(body)"""
-    )
+    code should include("""body.get("answer", json.dumps(body))""")
+    code should include("""body["choices"][0]["message"]["content"]""")
   }
 
   it should "route table-question-answering with a precomputed table payload" in {
@@ -582,9 +576,8 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
     code should include("""if task == "table-question-answering":""")
     code should include("table_dict = {}")
     code should include("""payload = {"inputs": {"query": prompt_value, "table": table_dict}}""")
-    code should include(
-      """return body.get("answer", json.dumps(body)) if isinstance(body, dict) else json.dumps(body)"""
-    )
+    code should include("""body.get("answer", json.dumps(body))""")
+    code should include("""body["choices"][0]["message"]["content"]""")
   }
 
   it should "route zero-shot-classification with candidate labels" in {
@@ -633,6 +626,24 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
         .generatePythonCode()
       code should include("""if task == "question-answering":""")
     }
+  }
+
+  it should
+    "reformulate structured tasks into a chat message on fallback providers (#7195)" in {
+    // On third-party chat providers the structured pipeline_payload (context /
+    // table / labels / sentences) is inlined into the chat message via the
+    // helper, instead of sending only prompt_value and dropping the rest.
+    val code = makeDesc(task = "question-answering", contextColumn = "context").generatePythonCode()
+    code should include("def _chat_content_for_task(")
+    // Every chat branch (zai-org, OpenAI-compatible, unknown-fallback) uses it.
+    code should include("self._chat_content_for_task(pipeline_payload, prompt_value)")
+    code should not include ("""messages = [{"role": "user", "content": prompt_value}]""")
+    // Per-task reformulations are present.
+    code should include("Answer the question using only the context below.")
+    code should include("Answer the question using the table below")
+    code should include("Classify the text into exactly one of these labels:")
+    code should include("Rate how semantically similar the source sentence")
+    code should include("Rank the passages below by relevance to the query")
   }
 
   "getOutputSchemas" should "add the result column as a STRING to the inherited schema" in {

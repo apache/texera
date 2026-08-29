@@ -88,12 +88,14 @@ class ImageTaskCodegenSpec extends AnyFlatSpec with Matchers {
     out should include(""""question": prompt_value""")
   }
 
-  it should "validate that zero-shot classification supplies at least two candidate labels" in {
+  it should "build the candidate-labels payload for zero-shot image classification (validation is pre-loop)" in {
     val out = ImageTaskCodegen.payloadPython(makeCtx())
     out should include("""elif task == "zero-shot-image-classification":""")
-    out should include("if len(labels) < 2:")
-    out should include("raise ValueError")
     out should include("candidate_labels")
+    // #7199 Part B: the >= 2 labels check moved to the pre-loop validation in
+    // HuggingFaceCodegenBase; the per-task payload build no longer raises.
+    out should not include ("raise ValueError")
+    out should not include ("if len(labels) < 2:")
   }
 
   "ImageTaskCodegen.parsePython" should "extract chat-style content for image-text-to-text" in {

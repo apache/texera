@@ -39,6 +39,7 @@ import org.apache.texera.web.resource.dashboard.admin.execution.AdminExecutionRe
 import org.apache.texera.web.resource.dashboard.admin.user.AdminUserResource
 import org.apache.texera.web.resource.dashboard.hub.HubResource
 import org.apache.texera.web.resource.dashboard.user.UserResource
+import org.apache.texera.web.resource.dashboard.user.warehouse.WarehouseResource
 import org.apache.texera.web.resource.dashboard.user.project.{
   ProjectAccessResource,
   ProjectResource,
@@ -160,6 +161,7 @@ class TexeraWebApplication
     environment.jersey.register(classOf[UserQuotaResource])
     environment.jersey.register(classOf[AIAssistantResource])
     environment.jersey.register(classOf[HuggingFaceModelResource])
+    environment.jersey.register(classOf[WarehouseResource])
 
     AuthResource.createAdminUser()
 

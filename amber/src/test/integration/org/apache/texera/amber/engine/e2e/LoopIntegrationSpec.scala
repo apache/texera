@@ -253,7 +253,7 @@ class LoopIntegrationSpec
     //
     // This is the case that exercises the loop_counter increment/decrement and
     // the loop_start_id routing on the StateFrame envelope (write addresses:
-    // see InitializeExecutorRequest.loopStartStateUris): the outer loop's state
+    // see InitializeExecutorRequest.loopStartPortUris): the outer loop's state
     // passes THROUGH the inner LoopStart (+1) and inner LoopEnd (-1) untouched,
     // and is consumed only at the outer LoopEnd (counter == 0). A routing or
     // counter bug would change the 4, or mis-consume and hang.
@@ -298,7 +298,7 @@ class LoopIntegrationSpec
     // the LoopEnd. Before the envelope was carried through on the Scala side
     // (StateFrame fields + reader/emit/save plumbing), this hop zeroed the
     // counter and blanked the id, so the LoopEnd captured loop_start_id = ""
-    // and the back-jump failed with "no loop-back state URI configured for
+    // and the back-jump failed with "no loop bookkeeping URI configured for
     // LoopStart ''" -- the loop never iterated. Limit(10) passes every row
     // through, so the loop semantics are identical to the single-loop test.
     val src = textInput("1\n2\n3")
@@ -373,10 +373,10 @@ class LoopIntegrationSpec
     // on both engine sides), which reaches the LoopEnd with the "no loop"
     // envelope (counter 0, no LoopStart stamp) AFTER the forwarded loop
     // state. The LoopEnd must pass that unstamped state through instead of
-    // consuming it: consuming would clobber the captured back-jump id with ""
-    // ("no loop-back state URI configured for LoopStart ''") and hand
-    // run_update a State with no `table` payload (KeyError). Regression test
-    // for #discussion_r3648708075 on #6661.
+    // consuming it: taking it would clobber the captured back-jump id with ""
+    // and then fail the deferred consume's bookkeeping-URI lookup ("no loop
+    // bookkeeping URI configured for LoopStart ''"). Regression test for
+    // #discussion_r3648708075 on #6661.
     val src = textInput("1\n2\n3")
     val start = loopStart("i = 0", "table.iloc[i]")
     val mid = statefulPythonUDF()

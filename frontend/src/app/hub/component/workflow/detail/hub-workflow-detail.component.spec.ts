@@ -23,7 +23,8 @@ import { ActivatedRoute, Router } from "@angular/router";
 import { NzIconModule } from "ng-zorro-antd/icon";
 import { NZ_MODAL_DATA } from "ng-zorro-antd/modal";
 import { ArrowLeftOutline, EyeOutline, LikeOutline, UserOutline } from "@ant-design/icons-angular/icons";
-import { config, of, throwError } from "rxjs";
+import { By } from "@angular/platform-browser";
+import { config, of, Subject, throwError } from "rxjs";
 import { vi } from "vitest";
 
 import { HubWorkflowDetailComponent, THROTTLE_TIME_MS } from "./hub-workflow-detail.component";
@@ -40,6 +41,13 @@ import { MarkdownDescriptionComponent } from "../../../../dashboard/component/us
 import { WorkflowEditorComponent } from "../../../../workspace/component/workflow-editor/workflow-editor.component";
 import { MiniMapComponent } from "../../../../workspace/component/workflow-editor/mini-map/mini-map.component";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
+import { DragDropModule } from "@angular/cdk/drag-drop";
+import { MarkdownService } from "ngx-markdown";
+import {
+  workflowEditorTestImports,
+  workflowEditorTestProviders,
+} from "../../../../workspace/component/workflow-editor/workflow-editor.test-utils";
+import { PanelService } from "../../../../workspace/service/panel/panel.service";
 
 @Component({ selector: "texera-markdown-description", standalone: true, template: "" })
 class StubMarkdownDescriptionComponent {
@@ -273,6 +281,24 @@ describe("HubWorkflowDetailComponent", () => {
       build({ modalData: { wid: 1 }, userOverride: undefined });
       expect(hubServiceMock.isLiked).not.toHaveBeenCalled();
     });
+
+    it("assigns the fetched description and passes it to the description child", () => {
+      workflowPersistServiceMock.getWorkflowDescription.mockReturnValue(of("a real description"));
+      build({ modalData: { wid: 1 } });
+      expect(component.workflowDescription).toBe("a real description");
+      expect(
+        fixture.debugElement.query(By.directive(StubMarkdownDescriptionComponent)).componentInstance.description
+      ).toBe("a real description");
+    });
+
+    it("substitutes a placeholder when the workflow has no description", () => {
+      workflowPersistServiceMock.getWorkflowDescription.mockReturnValue(of(""));
+      build({ modalData: { wid: 1 } });
+      expect(component.workflowDescription).toBe("No description available");
+      expect(
+        fixture.debugElement.query(By.directive(StubMarkdownDescriptionComponent)).componentInstance.description
+      ).toBe("No description available");
+    });
   });
 
   describe("ngAfterViewInit / loadWorkflowWithId", () => {
@@ -414,6 +440,75 @@ describe("HubWorkflowDetailComponent", () => {
       expect(component.isLiked).toBe(false);
       expect(hubServiceMock.getCounts).not.toHaveBeenCalled();
     });
+
+    it("does not flip isLiked when postUnlike returns false", () => {
+      hubServiceMock.postUnlike.mockReturnValue(of(false));
+      build({ modalData: { wid: 1 } });
+      component.isLiked = true;
+      hubServiceMock.getCounts.mockClear();
+      component.toggleLike();
+      expect(component.isLiked).toBe(true);
+      expect(hubServiceMock.getCounts).not.toHaveBeenCalled();
+    });
+
+    it("defaults likeCount to 0 when the counts refreshed after a like carry none", () => {
+      hubServiceMock.getCounts
+        .mockReturnValueOnce(of([{ entityId: 1, entityType: EntityType.Workflow, counts: { like: 4, clone: 0 } }]))
+        .mockReturnValueOnce(of([{ entityId: 1, entityType: EntityType.Workflow, counts: {} }]));
+      build({ modalData: { wid: 1 } });
+      expect(component.likeCount).toBe(4);
+
+      component.isLiked = false;
+      component.toggleLike();
+
+      expect(component.likeCount).toBe(0);
+    });
+
+    it("defaults likeCount to 0 when the counts refreshed after an unlike carry none", () => {
+      hubServiceMock.getCounts
+        .mockReturnValueOnce(of([{ entityId: 1, entityType: EntityType.Workflow, counts: { like: 4, clone: 0 } }]))
+        .mockReturnValueOnce(of([{ entityId: 1, entityType: EntityType.Workflow, counts: {} }]));
+      build({ modalData: { wid: 1 } });
+      expect(component.likeCount).toBe(4);
+
+      component.isLiked = true;
+      component.toggleLike();
+
+      expect(component.likeCount).toBe(0);
+    });
+
+    // The like/unlike responses are asynchronous in production, so `wid` is re-checked
+    // inside each handler. A subject stands in for the pending request so the id can be
+    // cleared between issuing the call and the response arriving.
+    it("skips the like refresh when wid disappears before the response", () => {
+      const pending = new Subject<boolean>();
+      hubServiceMock.postLike.mockReturnValue(pending);
+      build({ modalData: { wid: 1 } });
+      component.isLiked = false;
+      component.toggleLike();
+      hubServiceMock.getCounts.mockClear();
+
+      component.wid = undefined;
+      pending.next(true);
+
+      expect(component.isLiked).toBe(true);
+      expect(hubServiceMock.getCounts).not.toHaveBeenCalled();
+    });
+
+    it("skips the unlike refresh when wid disappears before the response", () => {
+      const pending = new Subject<boolean>();
+      hubServiceMock.postUnlike.mockReturnValue(pending);
+      build({ modalData: { wid: 1 } });
+      component.isLiked = true;
+      component.toggleLike();
+      hubServiceMock.getCounts.mockClear();
+
+      component.wid = undefined;
+      pending.next(true);
+
+      expect(component.isLiked).toBe(false);
+      expect(hubServiceMock.getCounts).not.toHaveBeenCalled();
+    });
   });
 
   describe("formatCount", () => {
@@ -438,5 +533,99 @@ describe("HubWorkflowDetailComponent", () => {
       component.changeViewDisplayStyle();
       expect(component.displayPreciseViewCount).toBe(false);
     });
+  });
+});
+/**
+ * The suite above stubs the three child components out via `TestBed.overrideComponent`, and that
+ * is what puts `hub-workflow-detail.component.html` at 0% coverage: any override makes Angular
+ * re-JIT the component from its retained decorator metadata, and the re-compiled template has no
+ * source map back to the .html, so every binding still executes but none is attributed. The
+ * component's own .ts sits at 98% while its template reports 0/46 — only attribution loss produces
+ * that gap (see #7458).
+ *
+ * This block renders the component with its REAL children instead, which restores attribution. It
+ * keeps its own TestBed so the 32 tests above keep their mocked WorkflowActionService and their
+ * assertions on it; the real service is needed here only because the real editor injects
+ * DynamicSchemaService, which reads the graph's operator streams.
+ */
+describe("HubWorkflowDetailComponent rendered with its real children", () => {
+  let fixture: ComponentFixture<HubWorkflowDetailComponent>;
+
+  function render(opts: { isHub: boolean }): void {
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      imports: [
+        HubWorkflowDetailComponent,
+        NzIconModule.forChild([ArrowLeftOutline, EyeOutline, LikeOutline, UserOutline]),
+        DragDropModule,
+        ...workflowEditorTestImports,
+      ],
+      providers: [
+        ...workflowEditorTestProviders,
+        PanelService,
+        // The real markdown child renders <markdown>, which injects MarkdownService.
+        { provide: MarkdownService, useValue: { parse: (v: string) => v } },
+        // isHub is false when the wid arrives as modal data and true when it comes from the route,
+        // which is the switch the template's two halves hang off.
+        { provide: NZ_MODAL_DATA, useValue: opts.isHub ? undefined : { wid: 5 } },
+        {
+          provide: ActivatedRoute,
+          useValue: { snapshot: { params: opts.isHub ? { id: "5" } : {} } },
+        },
+        { provide: Router, useValue: { navigateByUrl: vi.fn(), navigate: vi.fn() } },
+        {
+          provide: HubService,
+          useValue: {
+            getCounts: () => of([{ entityId: 5, entityType: EntityType.Workflow, counts: {} }]),
+            postView: () => of(7),
+            isLiked: () => of([]),
+            postLike: () => of(true),
+            postUnlike: () => of(true),
+            cloneWorkflow: () => of(99),
+          },
+        },
+        {
+          provide: WorkflowPersistService,
+          useValue: {
+            retrieveWorkflow: () => of({} as Workflow),
+            retrievePublicWorkflow: () => of({} as Workflow),
+            getOwnerName: () => of("owner"),
+            getWorkflowName: () => of("name"),
+            getWorkflowDescription: () => of("desc"),
+          },
+        },
+        { provide: NotificationService, useValue: { error: vi.fn(), success: vi.fn() } },
+        { provide: UserService, useClass: StubUserService },
+        ...commonTestProviders,
+      ],
+    });
+    fixture = TestBed.createComponent(HubWorkflowDetailComponent);
+    fixture.detectChanges();
+  }
+
+  it("renders the real editor and mini-map rather than stubs", () => {
+    // The point of this block: if these resolve to the stubbed selectors the template is
+    // re-JITed and its coverage silently goes to zero again.
+    render({ isHub: true });
+
+    const host = fixture.nativeElement as HTMLElement;
+    expect(host.querySelector("texera-workflow-editor")).not.toBeNull();
+    expect(host.querySelector("texera-mini-map")).not.toBeNull();
+  });
+
+  it("shows the back button when the id came from the route", () => {
+    // Asserted on the rendered DOM rather than on `isHub`: the class flag is set either way, so a
+    // class-state assertion cannot tell whether the template consults it.
+    render({ isHub: true });
+
+    expect((fixture.nativeElement as HTMLElement).querySelector(".go-back-button")).not.toBeNull();
+  });
+
+  it("hides the back button when the wid arrived as modal data", () => {
+    // The converse. Without it the `*ngIf` could be replaced by a constant and the positive case
+    // above would still pass.
+    render({ isHub: false });
+
+    expect((fixture.nativeElement as HTMLElement).querySelector(".go-back-button")).toBeNull();
   });
 });
