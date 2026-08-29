@@ -1227,9 +1227,9 @@ describe("DatasetDetailComponent behavior", () => {
       // A distinct value per key, so a setting that lands in the wrong field is
       // visible: 7 chunks and 2 files cannot stand in for one another.
       adminSettingsServiceStub.getPublicSetting.mockImplementation((key: string) =>
-        key === "multipart_upload_chunk_size_mib"
+        key === "dataset_multipart_upload_chunk_size_mib"
           ? throwError(() => new Error("boom"))
-          : of(key === "max_number_of_concurrent_uploading_file_chunks" ? "7" : "2")
+          : of(key === "dataset_max_number_of_concurrent_uploading_file_chunks" ? "7" : "2")
       );
 
       createComponent({ did: 5 });
@@ -1246,7 +1246,7 @@ describe("DatasetDetailComponent behavior", () => {
 
     it("leaves both concurrency limits untouched when their settings fail to load", () => {
       adminSettingsServiceStub.getPublicSetting.mockImplementation((key: string) =>
-        key === "multipart_upload_chunk_size_mib" ? of("128") : throwError(() => new Error("boom"))
+        key === "dataset_multipart_upload_chunk_size_mib" ? of("128") : throwError(() => new Error("boom"))
       );
 
       createComponent({ did: 5 });

@@ -360,8 +360,8 @@
           <texera-user-dataset-file-renderer
             *ngIf="selectedVersion"
             [isMaximized]="isMaximized"
-            [did]="did"
-            [dvid]="selectedVersion.dvid"
+            [resourceId]="did"
+            [versionId]="selectedVersion.dvid"
             [filePath]="currentDisplayedFileName"
             [fileSize]="currentFileSize"
             [isLogin]="isLogin"
