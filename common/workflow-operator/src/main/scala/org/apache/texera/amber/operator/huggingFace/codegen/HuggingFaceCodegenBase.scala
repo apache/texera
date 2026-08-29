@@ -260,6 +260,73 @@ object HuggingFaceCodegenBase {
        |        summary = "; ".join(errors) if errors else "no providers available"
        |        return last_resp, summary
        |
+       |    def _chat_content_for_task(self, pipeline_payload, prompt_value):
+       |        '''Reformulate a structured task (question-answering,
+       |        table-question-answering, zero-shot-classification,
+       |        sentence-similarity, text-ranking) as a chat prompt so third-party
+       |        chat-completions providers receive the full context. The native
+       |        pipeline_payload (question+context, table, labels, sentences) is
+       |        only understood by hf-inference; chat providers otherwise get only
+       |        prompt_value and hallucinate. Non-structured tasks are unchanged.
+       |        '''
+       |        task = self.TASK
+       |        inputs = pipeline_payload.get("inputs") if isinstance(pipeline_payload, dict) else None
+       |        if task == "question-answering" and isinstance(inputs, dict):
+       |            question = inputs.get("question", prompt_value)
+       |            context = inputs.get("context", "")
+       |            if context:
+       |                return (
+       |                    "Answer the question using only the context below. "
+       |                    "If the answer is not in the context, say so.\n\n"
+       |                    f"Context:\n{context}\n\nQuestion: {question}"
+       |                )
+       |            return question or prompt_value
+       |        if task == "table-question-answering" and isinstance(inputs, dict):
+       |            query = inputs.get("query", prompt_value)
+       |            table = inputs.get("table")
+       |            if table:
+       |                return (
+       |                    "Answer the question using the table below, given as JSON "
+       |                    "mapping each column to its list of cell values.\n\n"
+       |                    f"Table:\n{json.dumps(table)}\n\nQuestion: {query}"
+       |                )
+       |            return query or prompt_value
+       |        if task == "zero-shot-classification":
+       |            params = pipeline_payload.get("parameters") if isinstance(pipeline_payload, dict) else None
+       |            labels = params.get("candidate_labels", []) if isinstance(params, dict) else []
+       |            text = inputs if isinstance(inputs, str) else prompt_value
+       |            if labels:
+       |                return (
+       |                    "Classify the text into exactly one of these labels: "
+       |                    f"{', '.join(str(l) for l in labels)}. Respond with only the chosen label.\n\n"
+       |                    f"Text: {text}"
+       |                )
+       |            return text or prompt_value
+       |        if task == "sentence-similarity" and isinstance(inputs, dict):
+       |            source = inputs.get("source_sentence", prompt_value)
+       |            sentences = inputs.get("sentences") or []
+       |            if sentences:
+       |                numbered = "\n".join(f"{i}. {s}" for i, s in enumerate(sentences, 1))
+       |                return (
+       |                    "Rate how semantically similar the source sentence is to "
+       |                    "each candidate below, from 0.0 (unrelated) to 1.0 "
+       |                    "(identical meaning). Give one score per candidate.\n\n"
+       |                    f"Source: {source}\n\nCandidates:\n{numbered}"
+       |                )
+       |            return source or prompt_value
+       |        if task == "text-ranking" and isinstance(inputs, dict):
+       |            query = inputs.get("query", prompt_value)
+       |            texts = inputs.get("texts") or []
+       |            if texts:
+       |                numbered = "\n".join(f"{i}. {t}" for i, t in enumerate(texts, 1))
+       |                return (
+       |                    "Rank the passages below by relevance to the query, most "
+       |                    "relevant first, and return the ranking.\n\n"
+       |                    f"Query: {query}\n\nPassages:\n{numbered}"
+       |                )
+       |            return query or prompt_value
+       |        return prompt_value
+       |
        |    def _call_provider(self, provider_name, provider_id, json_headers, raw_binary_headers, pipeline_payload, use_raw_binary_body, prompt_value):
        |        '''Route to a third-party provider using its native API format.
        |        Handles OpenAI-compatible chat providers for text-gen, zai-org's
@@ -297,7 +364,7 @@ object HuggingFaceCodegenBase {
        |                file_data = f"data:image/png;base64,{img_b64}" if img_b64 else ""
        |                return requests.post(url, headers=zai_headers, json={"model": provider_id, "file": file_data}, timeout=120)
        |            url = f"{base}/api/paas/v4/chat/completions"
-       |            messages = [{"role": "user", "content": prompt_value}]
+       |            messages = [{"role": "user", "content": self._chat_content_for_task(pipeline_payload, prompt_value)}]
        |            if img_b64:
        |                messages = [{"role": "user", "content": [
        |                    {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{img_b64}"}},
@@ -439,7 +506,7 @@ object HuggingFaceCodegenBase {
        |                url = f"{base}/v1/audio/speech"
        |                return requests.post(url, headers=json_headers, json={"model": provider_id, "input": prompt_value}, timeout=120)
        |            url = f"{base}/{self.CHAT_ROUTES.get(provider_name, 'v1/chat/completions')}"
-       |            messages = [{"role": "user", "content": prompt_value}]
+       |            messages = [{"role": "user", "content": self._chat_content_for_task(pipeline_payload, prompt_value)}]
        |            if img_b64:
        |                messages = [{"role": "user", "content": [
        |                    {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{img_b64}"}},
@@ -460,7 +527,7 @@ object HuggingFaceCodegenBase {
        |            resp = requests.post(url, headers=json_headers, json=pipeline_payload, timeout=120)
        |        if resp.status_code in (400, 404, 422):
        |            url = f"{base}/v1/chat/completions"
-       |            messages = [{"role": "user", "content": prompt_value}]
+       |            messages = [{"role": "user", "content": self._chat_content_for_task(pipeline_payload, prompt_value)}]
        |            if img_b64:
        |                messages = [{"role": "user", "content": [
        |                    {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{img_b64}"}},
@@ -516,6 +583,13 @@ object HuggingFaceCodegenBase {
        |            if not labels:
        |                raise ValueError(
        |                    "Candidate Labels are required for zero-shot-classification. "
+       |                    "Provide a comma-separated list of labels."
+       |                )
+       |        if task == "zero-shot-image-classification":
+       |            labels = [l.strip() for l in str(self.CANDIDATE_LABELS).split(",") if l.strip()]
+       |            if len(labels) < 2:
+       |                raise ValueError(
+       |                    "zero-shot-image-classification requires at least 2 Candidate Labels. "
        |                    "Provide a comma-separated list of labels."
        |                )
        |        if task == "question-answering":

@@ -21,6 +21,7 @@ import { TestBed } from "@angular/core/testing";
 import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
 import { DownloadService, EXPORT_BASE_URL } from "./download.service";
 import { DatasetService } from "../dataset/dataset.service";
+import { ModelService } from "../model/model.service";
 import { FileSaverService } from "../file/file-saver.service";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { WorkflowPersistService } from "../../../../common/service/workflow-persist/workflow-persist.service";
@@ -39,6 +40,7 @@ const EXPORT_OPERATORS = [{ id: "op1", outputType: "csv" }];
 describe("DownloadService", () => {
   let downloadService: DownloadService;
   let datasetServiceSpy: Mocked<DatasetService>;
+  let modelServiceSpy: Mocked<ModelService>;
   let fileSaverServiceSpy: Mocked<FileSaverService>;
   let notificationServiceSpy: Mocked<NotificationService>;
   let workflowPersistServiceSpy: Mocked<WorkflowPersistService>;
@@ -46,6 +48,7 @@ describe("DownloadService", () => {
 
   beforeEach(() => {
     const datasetSpy = { retrieveDatasetVersionSingleFile: vi.fn(), retrieveDatasetVersionZip: vi.fn() };
+    const modelSpy = { retrieveModelVersionSingleFile: vi.fn(), retrieveModelVersionZip: vi.fn() };
     const fileSaverSpy = { saveAs: vi.fn() };
     const notificationSpy = { info: vi.fn(), success: vi.fn(), error: vi.fn() };
     const workflowPersistSpy = { retrieveWorkflow: vi.fn() };
@@ -55,6 +58,7 @@ describe("DownloadService", () => {
       providers: [
         DownloadService,
         { provide: DatasetService, useValue: datasetSpy },
+        { provide: ModelService, useValue: modelSpy },
         { provide: FileSaverService, useValue: fileSaverSpy },
         { provide: NotificationService, useValue: notificationSpy },
         { provide: WorkflowPersistService, useValue: workflowPersistSpy },
@@ -64,6 +68,7 @@ describe("DownloadService", () => {
 
     downloadService = TestBed.inject(DownloadService);
     datasetServiceSpy = TestBed.inject(DatasetService) as unknown as Mocked<DatasetService>;
+    modelServiceSpy = TestBed.inject(ModelService) as unknown as Mocked<ModelService>;
     fileSaverServiceSpy = TestBed.inject(FileSaverService) as unknown as Mocked<FileSaverService>;
     notificationServiceSpy = TestBed.inject(NotificationService) as unknown as Mocked<NotificationService>;
     workflowPersistServiceSpy = TestBed.inject(WorkflowPersistService) as unknown as Mocked<WorkflowPersistService>;
@@ -175,6 +180,46 @@ describe("DownloadService", () => {
     expect(notificationServiceSpy.error).toHaveBeenCalledWith("Error downloading version 'v1.0' as ZIP");
   });
 
+  // ─── model downloads ──────────────────────────────────────────────────────
+
+  it("downloads a model's latest version, a chosen version, and a single file", async () => {
+    const zip = new Blob(["model"], { type: "application/zip" });
+    const file = new Blob(["weights"]);
+    modelServiceSpy.retrieveModelVersionZip.mockReturnValue(of(zip));
+    modelServiceSpy.retrieveModelVersionSingleFile.mockReturnValue(of(file));
+
+    expect(await firstValueFrom(downloadService.downloadModel(4, "resnet-50"))).toBe(zip);
+    expect(modelServiceSpy.retrieveModelVersionZip).toHaveBeenCalledWith(4);
+    expect(fileSaverServiceSpy.saveAs).toHaveBeenCalledWith(zip, "resnet-50.zip");
+
+    expect(await firstValueFrom(downloadService.downloadModelVersion(4, 2, "resnet-50", "v2"))).toBe(zip);
+    expect(modelServiceSpy.retrieveModelVersionZip).toHaveBeenCalledWith(4, 2);
+    expect(fileSaverServiceSpy.saveAs).toHaveBeenCalledWith(zip, "resnet-50-v2.zip");
+
+    expect(await firstValueFrom(downloadService.downloadModelSingleFile("/model/a/m/v2/model.pt"))).toBe(file);
+    expect(modelServiceSpy.retrieveModelVersionSingleFile).toHaveBeenCalledWith("/model/a/m/v2/model.pt", true);
+    expect(fileSaverServiceSpy.saveAs).toHaveBeenCalledWith(file, "model.pt");
+  });
+
+  it("passes the logged-out flag through to the model file endpoint", async () => {
+    modelServiceSpy.retrieveModelVersionSingleFile.mockReturnValue(of(new Blob()));
+
+    await firstValueFrom(downloadService.downloadModelSingleFile("/model/a/m/v2/model.pt", false));
+
+    expect(modelServiceSpy.retrieveModelVersionSingleFile).toHaveBeenCalledWith("/model/a/m/v2/model.pt", false);
+  });
+
+  it("emits the model error notification and rethrows on retrieve failure", async () => {
+    modelServiceSpy.retrieveModelVersionZip.mockReturnValue(throwError(() => new Error("fail")));
+
+    await expect(firstValueFrom(downloadService.downloadModel(4, "resnet-50"))).rejects.toThrow("fail");
+
+    expect(fileSaverServiceSpy.saveAs).not.toHaveBeenCalled();
+    expect(notificationServiceSpy.error).toHaveBeenCalledWith(
+      "Error downloading the latest version of the model as ZIP"
+    );
+  });
+
   // ─── downloadWorkflow ─────────────────────────────────────────────────────
 
   it("downloads a workflow as a JSON blob named after the workflow", async () => {
@@ -227,7 +272,7 @@ describe("DownloadService", () => {
 
   // ─── createWorkflowsZip / nameWorkflow (real zip assembly) ────────────────
   // These drive downloadWorkflowsAsZip through the real (un-mocked) private
-  // createWorkflowsZip → downloadWorkflow → nameWorkflow chain, so the produced
+  // createWorkflowsZip → retrieveWorkflowItem → nameWorkflow chain, so the produced
   // blob is a genuine zip we can load back and inspect.
 
   it("assembles a real zip with one JSON entry per workflow", async () => {
@@ -264,6 +309,110 @@ describe("DownloadService", () => {
     // nameWorkflow appends -1, -2, ... on each collision so no entry is lost.
     const loaded = await JSZip.loadAsync(result);
     expect(Object.keys(loaded.files).sort()).toEqual(["Dup-1.json", "Dup-2.json", "Dup.json"]);
+  });
+
+  // ─── zip download must not also save each workflow individually ───────────
+  // Regression: createWorkflowsZip used to reuse downloadWorkflow purely to obtain
+  // the blob, and downloadWorkflow also saves to disk, so a zip of N workflows
+  // wrote N+1 files.
+
+  it("saves only the zip, not one JSON per workflow, when several workflows are zipped", async () => {
+    workflowPersistServiceSpy.retrieveWorkflow.mockReturnValue(of({ content: { op: "x" } } as any));
+
+    const result = await firstValueFrom(
+      downloadService.downloadWorkflowsAsZip([
+        { id: 1, name: "Alpha" },
+        { id: 2, name: "Beta" },
+        { id: 3, name: "Gamma" },
+      ])
+    );
+
+    expect(fileSaverServiceSpy.saveAs).toHaveBeenCalledTimes(1);
+    expect(fileSaverServiceSpy.saveAs).toHaveBeenCalledWith(result, expect.stringMatching(/^workflowExports-.*\.zip$/));
+
+    const savedNames = fileSaverServiceSpy.saveAs.mock.calls.map(([, fileName]) => fileName);
+    expect(savedNames).not.toContain("Alpha.json");
+    expect(savedNames).not.toContain("Beta.json");
+    expect(savedNames).not.toContain("Gamma.json");
+  });
+
+  it("saves only the zip for a single-workflow selection", async () => {
+    workflowPersistServiceSpy.retrieveWorkflow.mockReturnValue(of({ content: { op: "x" } } as any));
+
+    await firstValueFrom(downloadService.downloadWorkflowsAsZip([{ id: 1, name: "Solo" }]));
+
+    expect(fileSaverServiceSpy.saveAs).toHaveBeenCalledTimes(1);
+    expect(fileSaverServiceSpy.saveAs.mock.calls[0][1]).toMatch(/^workflowExports-.*\.zip$/);
+  });
+
+  // The other direction: the standalone single-workflow download action must
+  // keep saving, so the fix cannot simply drop the save from downloadWorkflow.
+  it("still saves the file when a single workflow is downloaded on its own", async () => {
+    workflowPersistServiceSpy.retrieveWorkflow.mockReturnValue(of({ content: { op: "x" } } as any));
+
+    const item = await firstValueFrom(downloadService.downloadWorkflow(42, "MyWorkflow"));
+
+    expect(fileSaverServiceSpy.saveAs).toHaveBeenCalledTimes(1);
+    expect(fileSaverServiceSpy.saveAs).toHaveBeenCalledWith(item.blob, "MyWorkflow.json");
+  });
+
+  it("saves nothing when one of the workflows fails to retrieve", async () => {
+    // The zip aborts as a whole, so the workflows that did come back must not be
+    // left behind as loose files.
+    workflowPersistServiceSpy.retrieveWorkflow.mockImplementation((id: number) =>
+      id === 2 ? throwError(() => new Error("retrieve fail")) : (of({ content: { op: "x" } }) as any)
+    );
+
+    await expect(
+      firstValueFrom(
+        downloadService.downloadWorkflowsAsZip([
+          { id: 1, name: "Alpha" },
+          { id: 2, name: "Beta" },
+          { id: 3, name: "Gamma" },
+        ])
+      )
+    ).rejects.toThrow("retrieve fail");
+
+    expect(fileSaverServiceSpy.saveAs).not.toHaveBeenCalled();
+    expect(notificationServiceSpy.error).toHaveBeenCalledWith("Error downloading workflows as ZIP");
+  });
+
+  it("saves nothing for an empty selection", async () => {
+    // The toolbar never calls this with an empty selection, but forkJoin([])
+    // completes without emitting, so the chain must end without writing an
+    // empty zip to disk.
+    let completed = false;
+    await new Promise<void>(resolve =>
+      downloadService.downloadWorkflowsAsZip([]).subscribe({
+        complete: () => {
+          completed = true;
+          resolve();
+        },
+      })
+    );
+
+    expect(completed).toBe(true);
+    expect(fileSaverServiceSpy.saveAs).not.toHaveBeenCalled();
+    expect(workflowPersistServiceSpy.retrieveWorkflow).not.toHaveBeenCalled();
+  });
+
+  it("writes the workflow content into the zip entries", async () => {
+    workflowPersistServiceSpy.retrieveWorkflow.mockReturnValue(of({ content: { op: "x" } } as any));
+
+    const result = await firstValueFrom(downloadService.downloadWorkflowsAsZip([{ id: 1, name: "Alpha" }]));
+
+    // Reading the entry back proves the blob handed to JSZip is the serialized
+    // workflow, not an empty or misrouted payload.
+    const loaded = await JSZip.loadAsync(result);
+    expect(JSON.parse(await loaded.files["Alpha.json"].async("string"))).toEqual({ op: "x" });
+  });
+
+  it("does not save anything when the standalone workflow download fails", async () => {
+    workflowPersistServiceSpy.retrieveWorkflow.mockReturnValue(throwError(() => new Error("nope")));
+
+    await expect(firstValueFrom(downloadService.downloadWorkflow(42, "MyWorkflow"))).rejects.toThrow("nope");
+
+    expect(fileSaverServiceSpy.saveAs).not.toHaveBeenCalled();
   });
 
   // ─── downloadOperatorsResult ──────────────────────────────────────────────

@@ -32,8 +32,22 @@
   border-color: #007bff;
 }
 
-.file-drop-description p {
+/* ngx-file-drop pins the drop zone and its content to a fixed 100px, which the
+   stacked prompt and button already exceed, so let the box grow instead of clipping.
+   The element selector is what outweighs the library's own equally specific rule. */
+:host ::ng-deep ngx-file-drop .ngx-file-drop__drop-zone,
+:host ::ng-deep ngx-file-drop .ngx-file-drop__content {
+  height: auto;
+  min-height: 100px;
+}
+
+.file-drop-description {
   text-align: center;
+  min-width: 0; /* Let the description shrink with the drop zone */
+  max-width: 100%;
+}
+
+.file-drop-description p {
   font-size: 15px;
   margin: 10px 0;
 }
@@ -50,11 +64,12 @@
 }
 
 .upload-file-button {
-  padding: 5px 20px; /* Smaller padding to make the button thinner */
+  padding: 5px 10px; /* Smaller padding to make the button thinner */
   font-size: 0.7em; /* Optionally reduce font size */
-  height: 30px; /* Or set a specific height */
-  width: 60%;
-  margin-left: 20%;
+  height: auto; /* Grow instead of clipping once the label wraps */
+  min-height: 30px;
+  max-width: 100%;
+  white-space: normal;
   display: inline-flex; /* Use flexbox to center content */
   align-items: center; /* Align items vertically */
   justify-content: center;

@@ -264,4 +264,40 @@ describe("ValidationWorkflowService", () => {
       expect(validation.messages["inputs"]).toContain("requires 1 input, has 2");
     }
   });
+
+  // A stale operator id surfaces as an explicit error rather than a downstream undefined
+  // dereference. The graph's own lookup rejects it before the service's guards are reached,
+  // so that is the message asserted here.
+  it("should throw for an operator id that is not in the graph", () => {
+    expect(() => validationWorkflowService.validateOperator("no-such-operator")).toThrowError(
+      "operator no-such-operator does not exist"
+    );
+  });
+
+  // The service's own `operatorSchema === undefined` guards are not reachable through the public
+  // API: the graph rejects an unknown operator type at insertion time, so a schema-less operator
+  // never makes it in.
+  it("should reject an operator whose type has no schema at insertion time", () => {
+    const unknownTypeOperator = {
+      ...mockScanPredicate,
+      operatorID: "unknown-type-operator",
+      operatorType: "NoSuchOperatorType",
+    };
+
+    expect(() => workflowActionservice.addOperator(unknownTypeOperator, mockPoint)).toThrowError(
+      "operator type NoSuchOperatorType is invalid"
+    );
+  });
+
+  it("should expose the workflow validation error stream", () => {
+    const emissions: unknown[] = [];
+    const subscription = validationWorkflowService
+      .getWorkflowValidationErrorStream()
+      .subscribe(value => emissions.push(value));
+
+    workflowActionservice.addOperator(mockScanPredicate, mockPoint);
+
+    expect(emissions.length).toBeGreaterThan(0);
+    subscription.unsubscribe();
+  });
 });

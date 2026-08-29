@@ -36,6 +36,10 @@ import { StubUserService } from "../../../../../common/service/user/stub-user.se
 import { OperatorMetadataService } from "../../../../../workspace/service/operator-metadata/operator-metadata.service";
 import { StubOperatorMetadataService } from "../../../../../workspace/service/operator-metadata/stub-operator-metadata.service";
 import { commonTestProviders } from "../../../../../common/testing/test-utils";
+import { DebugElement } from "@angular/core";
+import { By } from "@angular/platform-browser";
+import { NoopAnimationsModule } from "@angular/platform-browser/animations";
+import { NzPopoverDirective } from "ng-zorro-antd/popover";
 
 function makeEntry(overrides: Partial<WorkflowExecutionsEntry> = {}): WorkflowExecutionsEntry {
   return {
@@ -44,7 +48,7 @@ function makeEntry(overrides: Partial<WorkflowExecutionsEntry> = {}): WorkflowEx
     cuId: 1,
     sId: 0,
     userName: "alice",
-    googleAvatar: "",
+    avatar: "",
     name: "untitled",
     startingTime: 0,
     completionTime: 60000,
@@ -144,7 +148,7 @@ describe("WorkflowExecutionHistoryComponent", () => {
     notificationService = { error: vi.fn() };
 
     await TestBed.configureTestingModule({
-      imports: [WorkflowExecutionHistoryComponent, HttpClientTestingModule, NzModalModule],
+      imports: [WorkflowExecutionHistoryComponent, HttpClientTestingModule, NzModalModule, NoopAnimationsModule],
       providers: [
         { provide: WorkflowExecutionsService, useValue: executionsService },
         { provide: NotificationService, useValue: notificationService },
@@ -727,6 +731,237 @@ describe("WorkflowExecutionHistoryComponent", () => {
       fixture.detectChanges();
 
       expect(fixture.nativeElement.querySelectorAll(".ant-card-actions i")).toHaveLength(2);
+    });
+  });
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // Interactions driven through the rendered markup rather than the instance,
+  // so the template's own event bindings are the code under test.
+  // ──────────────────────────────────────────────────────────────────────────
+  describe("template-driven interactions", () => {
+    function headerCells(): DebugElement[] {
+      return fixture.debugElement.queryAll(By.css("thead th"));
+    }
+
+    function bodyRows(): DebugElement[] {
+      return fixture.debugElement.queryAll(By.css("tbody tr"));
+    }
+
+    /** The card's two group actions render in [nzActions] order: bookmark, then delete. */
+    function groupActions(): { bookmark: DebugElement; delete: DebugElement } {
+      const icons = fixture.debugElement.queryAll(By.css(".ant-card-actions i"));
+      return { bookmark: icons[0], delete: icons[1] };
+    }
+
+    function sortButtonFor(column: string): DebugElement {
+      const header = headerCells().find(th => (th.nativeElement as HTMLElement).textContent?.includes(column));
+      return header!.query(By.css("button"));
+    }
+
+    /** Row buttons in template order: rename (.rename-icon), runtime statistics, delete. */
+    function rowButtons(row: DebugElement): { statistics: DebugElement; delete: DebugElement } {
+      const buttons = row.queryAll(By.css("button:not(.rename-icon)"));
+      return { statistics: buttons[0], delete: buttons[1] };
+    }
+
+    it("searches from the rendered input when Enter is pressed in it", async () => {
+      await setup();
+      const searchSpy = vi.spyOn(component.fuse, "search").mockReturnValue(fuseResults(entries[0]));
+      component.executionSearchValue = "status:running";
+      fixture.detectChanges();
+
+      fixture.debugElement.query(By.css("input[nz-input]")).triggerEventHandler("keyup.enter", {});
+
+      expect(searchSpy).toHaveBeenCalledWith({ $and: [{ $path: ["status"], $val: "1" }] });
+      expect(component.workflowExecutionsDisplayedList).toEqual([entries[0]]);
+    });
+
+    it("feeds the autocomplete as the rendered input changes", async () => {
+      await setup();
+
+      fixture.debugElement.query(By.css("input[nz-input]")).triggerEventHandler("ngModelChange", "status:run");
+
+      expect(component.filteredExecutionInfo).toEqual(["status:running"]);
+    });
+
+    it("renders the search-criteria help once the instructions popover is opened", async () => {
+      await setup();
+      const popover = fixture.debugElement.query(By.directive(NzPopoverDirective)).injector.get(NzPopoverDirective);
+
+      popover.show();
+      fixture.detectChanges();
+      // the tooltip base positions its overlay in a microtask, so flush that before reading it
+      await Promise.resolve();
+      fixture.detectChanges();
+
+      // the popover content lives in the cdk overlay, outside the fixture's own element
+      const help = document.querySelector(".cdk-overlay-container")?.textContent ?? "";
+      expect(help).toContain("We support the following search criteria");
+      expect(help).toContain("executionName");
+      expect(help).toContain("user:John");
+      expect(help).toContain("status:initializing/running/paused/completed/failed/killed");
+      expect(help).toContain("using double quotes to enclose the name is");
+      expect(help).toContain('Example: "Untitled Execution" user:John');
+
+      popover.hide();
+      fixture.detectChanges();
+    });
+
+    it("bookmarks the whole selection from the card's group action", async () => {
+      await setup();
+      component.onItemChecked(entries[0], true);
+      component.onItemChecked(entries[2], true);
+      fixture.detectChanges();
+
+      groupActions().bookmark.triggerEventHandler("click", new MouseEvent("click"));
+
+      expect(executionsService.groupSetIsBookmarked).toHaveBeenCalledWith(1, [1, 3], false);
+      expect(entries[0].bookmarked).toBe(true);
+      expect(entries[2].bookmarked).toBe(true);
+    });
+
+    it("deletes the whole selection when the group popconfirm is confirmed", async () => {
+      await setup();
+      component.onItemChecked(entries[0], true);
+      fixture.detectChanges();
+
+      groupActions().delete.triggerEventHandler("nzOnConfirm", undefined);
+
+      expect(executionsService.groupDeleteWorkflowExecutions).toHaveBeenCalledWith(1, [1]);
+      expect(component.allExecutionEntries.map(e => e.eId)).toEqual([2, 3]);
+      expect(component.setOfEid.size).toBe(0);
+    });
+
+    it("re-slices the table when the paginator reports a new page index", async () => {
+      const many = Array.from({ length: 15 }, (_, i) => makeEntry({ eId: i + 1, name: `run ${i + 1}` }));
+      await setup({ entries: many });
+
+      const table = fixture.debugElement.query(By.css("nz-table"));
+      table.triggerEventHandler("nzPageIndexChange", 2);
+
+      expect(component.currentPageIndex).toBe(2);
+      expect(component.workflowExecutionsDisplayedList!.map(e => e.eId)).toEqual([11, 12, 13, 14, 15]);
+
+      table.triggerEventHandler("nzPageSizeChange", 5);
+
+      expect(component.pageSize).toBe(5);
+      expect(component.workflowExecutionsDisplayedList!.map(e => e.eId)).toEqual([6, 7, 8, 9, 10]);
+    });
+
+    it("selects and clears every row from the header checkbox", async () => {
+      await setup();
+      headerCells()[0].triggerEventHandler("nzCheckedChange", true);
+
+      expect(component.setOfEid).toEqual(new Set([1, 2, 3]));
+      expect(component.checked).toBe(true);
+
+      headerCells()[0].triggerEventHandler("nzCheckedChange", false);
+
+      expect(component.setOfEid.size).toBe(0);
+      expect(component.checked).toBe(false);
+    });
+
+    it("sorts descending from a header whose arrow points down", async () => {
+      await setup();
+      // showORhide[2] is false for "Name (ID)", so its header renders the descending button.
+      sortButtonFor("Name (ID)").triggerEventHandler("click", new MouseEvent("click"));
+
+      expect(component.workflowExecutionsDisplayedList!.map(e => e.name)).toEqual([
+        "Untitled Execution",
+        "twitter analysis",
+        "reddit crawl",
+      ]);
+      expect(component.showORhide[2]).toBe(true);
+    });
+
+    it("sorts ascending from a header whose arrow points up", async () => {
+      // startingTime deliberately runs against eId order, so the assertion below
+      // fails if the click leaves the rows where they were.
+      await setup({
+        entries: [
+          makeEntry({ eId: 1, startingTime: 3000 }),
+          makeEntry({ eId: 2, startingTime: 1000 }),
+          makeEntry({ eId: 3, startingTime: 2000 }),
+        ],
+      });
+      expect(component.workflowExecutionsDisplayedList!.map(e => e.eId)).toEqual([1, 2, 3]);
+
+      // showORhide[4] starts true, so "Execution Start Time" renders the ascending button.
+      sortButtonFor("Execution Start Time").triggerEventHandler("click", new MouseEvent("click"));
+
+      expect(component.workflowExecutionsDisplayedList!.map(e => e.eId)).toEqual([2, 3, 1]);
+      expect(component.showORhide[4]).toBe(false);
+    });
+
+    it("adds and removes one row from the selection through its own checkbox", async () => {
+      await setup();
+      bodyRows()[1].query(By.css("td")).triggerEventHandler("nzCheckedChange", true);
+
+      expect(component.setOfEid).toEqual(new Set([2]));
+      expect(component.checked).toBe(false);
+
+      bodyRows()[1].query(By.css("td")).triggerEventHandler("nzCheckedChange", false);
+
+      expect(component.setOfEid.size).toBe(0);
+    });
+
+    it("toggles one row's bookmark from its star icon", async () => {
+      await setup();
+      bodyRows()[0].query(By.css("i.bookmark-icon")).triggerEventHandler("click", new MouseEvent("click"));
+
+      expect(executionsService.groupSetIsBookmarked).toHaveBeenCalledWith(1, [1], false);
+      expect(component.workflowExecutionsDisplayedList![0].bookmarked).toBe(true);
+    });
+
+    it("opens the rename editor from the pencil and persists the new name on focusout", async () => {
+      await setup();
+      bodyRows()[0].query(By.css("button.rename-icon")).triggerEventHandler("click", new MouseEvent("click"));
+      fixture.detectChanges();
+
+      expect(component.workflowExecutionsIsEditingName).toEqual([0]);
+      const editor = bodyRows()[0].query(By.css("input[placeholder='twitter analysis']"));
+      expect(editor).toBeTruthy();
+
+      (editor.nativeElement as HTMLInputElement).value = "renamed run";
+      editor.triggerEventHandler("focusout", {});
+
+      expect(executionsService.updateWorkflowExecutionsName).toHaveBeenCalledWith(1, 1, "renamed run");
+      expect(component.workflowExecutionsDisplayedList![0].name).toBe("renamed run");
+      expect(component.workflowExecutionsIsEditingName).toEqual([]);
+    });
+
+    it("persists the new name when Enter is pressed in the rename editor", async () => {
+      await setup();
+      bodyRows()[0].query(By.css("button.rename-icon")).triggerEventHandler("click", new MouseEvent("click"));
+      fixture.detectChanges();
+
+      const editor = bodyRows()[0].query(By.css("input[placeholder='twitter analysis']"));
+      (editor.nativeElement as HTMLInputElement).value = "enter rename";
+      editor.triggerEventHandler("keyup.enter", {});
+
+      expect(executionsService.updateWorkflowExecutionsName).toHaveBeenCalledWith(1, 1, "enter rename");
+      expect(component.workflowExecutionsIsEditingName).toEqual([]);
+    });
+
+    it("opens the runtime-statistics modal from a row's chart button", async () => {
+      await setup();
+      const stats = [{ operatorId: "op-1" }] as unknown as WorkflowRuntimeStatistics[];
+      executionsService.retrieveWorkflowRuntimeStatistics.mockReturnValue(of(stats));
+      const createSpy = vi.spyOn(TestBed.inject(NzModalService), "create").mockReturnValue({} as NzModalRef);
+
+      rowButtons(bodyRows()[0]).statistics.triggerEventHandler("click", new MouseEvent("click"));
+
+      // row 0 is eId 1 on computing unit 3
+      expect(executionsService.retrieveWorkflowRuntimeStatistics).toHaveBeenCalledWith(1, 1, 3);
+      expect((createSpy.mock.calls[0][0] as ModalOptions).nzData).toEqual({ workflowRuntimeStatistics: stats });
+    });
+
+    it("deletes one row when its popconfirm is confirmed", async () => {
+      await setup();
+      rowButtons(bodyRows()[0]).delete.triggerEventHandler("nzOnConfirm", undefined);
+
+      expect(executionsService.groupDeleteWorkflowExecutions).toHaveBeenCalledWith(1, [1]);
+      expect(component.allExecutionEntries.map(e => e.eId)).toEqual([2, 3]);
     });
   });
 });

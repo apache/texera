@@ -18,6 +18,7 @@
  */
 
 import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { By } from "@angular/platform-browser";
 
 import { CoeditorUserIconComponent } from "./coeditor-user-icon.component";
 import { CoeditorPresenceService } from "../../../service/workflow-graph/model/coeditor-presence.service";
@@ -53,7 +54,74 @@ describe("CoeditorUserIconComponent", () => {
     fixture.detectChanges();
   });
 
+  /**
+   * The menu items live inside `<nz-dropdown-menu>`, whose content is an ng-template
+   * that only mounts into a CDK overlay when the dropdown opens — jsdom never drives
+   * that. Instantiating the template directly puts the items in the fixture's DOM, so
+   * both variants can be asserted and clicked without an overlay.
+   */
+  function renderDropdownMenu(): HTMLElement[] {
+    const menu = fixture.debugElement.query(By.directive(NzDropdownMenuComponent))
+      .componentInstance as NzDropdownMenuComponent;
+    menu.viewContainerRef.createEmbeddedView(menu.templateRef);
+    fixture.detectChanges();
+    return Array.from(fixture.nativeElement.querySelectorAll("li[nz-menu-item]"));
+  }
+
   it("should create", () => {
     expect(component).toBeTruthy();
+  });
+
+  it("offers to start shadowing while shadowing mode is off", () => {
+    component.coeditor = { ...component.coeditor, name: "alice", clientId: "c1" };
+    const items = renderDropdownMenu();
+
+    expect(items).toHaveLength(1);
+    expect(items[0].textContent).toContain('Start "shadowing":');
+    expect(items[0].textContent).toContain("alice");
+    expect(items[0].textContent).toContain("c1");
+  });
+
+  it("still offers to start shadowing while another co-editor is being shadowed", () => {
+    // second half of the guard false: shadowing is on, but for a different client
+    component.coeditor = { ...component.coeditor, clientId: "c1" };
+    coeditorPresenceService.shadowingModeEnabled = true;
+    coeditorPresenceService.shadowingCoeditor = { ...component.coeditor, clientId: "c2" };
+
+    const items = renderDropdownMenu();
+
+    expect(items).toHaveLength(1);
+    expect(items[0].textContent).toContain('Start "shadowing":');
+  });
+
+  it("offers to stop shadowing while this co-editor is the one being shadowed", () => {
+    component.coeditor = { ...component.coeditor, clientId: "c1" };
+    coeditorPresenceService.shadowingModeEnabled = true;
+    coeditorPresenceService.shadowingCoeditor = component.coeditor;
+
+    const items = renderDropdownMenu();
+
+    expect(items).toHaveLength(1);
+    expect(items[0].textContent).toContain("Stop Shadowing");
+  });
+
+  it("shadows the co-editor when the start item is clicked", () => {
+    component.coeditor = { ...component.coeditor, clientId: "c1" };
+    const shadow = vi.spyOn(coeditorPresenceService, "shadowCoeditor");
+
+    renderDropdownMenu()[0].click();
+
+    expect(shadow).toHaveBeenCalledWith(component.coeditor);
+  });
+
+  it("stops shadowing when the stop item is clicked", () => {
+    component.coeditor = { ...component.coeditor, clientId: "c1" };
+    coeditorPresenceService.shadowingModeEnabled = true;
+    coeditorPresenceService.shadowingCoeditor = component.coeditor;
+    const stop = vi.spyOn(coeditorPresenceService, "stopShadowing");
+
+    renderDropdownMenu()[0].click();
+
+    expect(stop).toHaveBeenCalled();
   });
 });

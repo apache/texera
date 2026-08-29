@@ -21,6 +21,7 @@ package org.apache.texera.web.resource.dashboard.hub
 
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.apache.texera.dao.jooq.generated.Tables._
+import org.apache.texera.web.resource.dashboard.VersionedResourceTables
 import org.scalatest.flatspec.AnyFlatSpec
 
 class HubEntityModelSpec extends AnyFlatSpec {
@@ -164,9 +165,10 @@ class HubEntityModelSpec extends AnyFlatSpec {
     assert(t.idColumn == WORKFLOW.WID)
   }
 
-  it should "dispatch Dataset → DatasetTable" in {
+  it should "dispatch Dataset → the dataset's search descriptor" in {
+    // Datasets have no BaseEntityTable object: VersionedResourceTables implements it.
     val t = EntityTables.BaseEntityTable(EntityType.Dataset)
-    assert(t == EntityTables.BaseEntityTable.DatasetTable)
+    assert(t == VersionedResourceTables.DatasetTables)
     assert(t.table == DATASET)
     assert(t.isPublicColumn == DATASET.IS_PUBLIC)
     assert(t.idColumn == DATASET.DID)

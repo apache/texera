@@ -22,6 +22,7 @@ import { HttpClientTestingModule, HttpTestingController } from "@angular/common/
 import { By } from "@angular/platform-browser";
 import { FormControl, FormGroup } from "@angular/forms";
 import { FieldTypeConfig } from "@ngx-formly/core";
+import { Subject } from "rxjs";
 import { AppSettings } from "../../../common/app-setting";
 import {
   HuggingFaceComponent,
@@ -47,6 +48,15 @@ function buildTaskResponse(): HuggingFaceTaskOption[] {
     { tag: "text-generation", label: "Text Generation" },
     { tag: "image-classification", label: "Image Classification" },
   ];
+}
+
+/**
+ * Build the `options` that Formly attaches to every field at runtime: `FormlyForm`
+ * always fills in `showError` (from `FormlyConfig.extras.showError`) and `fieldChanges`,
+ * which `FieldType.showError` and `formly-validation-message` respectively rely on.
+ */
+function buildFormlyOptions(showError = false) {
+  return { detectChanges: vi.fn(), showError: () => showError, fieldChanges: new Subject() };
 }
 
 /**
@@ -82,7 +92,7 @@ function buildFieldWithFormGroup(taskValue = "", modelIdValue = ""): { field: Fi
     model,
     props: {},
     parent: { fieldGroup: [] },
-    options: { detectChanges: vi.fn() },
+    options: buildFormlyOptions(),
   } as unknown as FieldTypeConfig;
 
   return { field, formGroup };
@@ -1239,7 +1249,7 @@ describe("HuggingFaceComponent (TestBed)", () => {
         model: { task: "" },
         props: {},
         parent: { fieldGroup: [] },
-        options: { detectChanges: vi.fn() },
+        options: buildFormlyOptions(),
       } as unknown as FieldTypeConfig;
 
       component.field = field;
@@ -1268,7 +1278,7 @@ describe("HuggingFaceComponent (TestBed)", () => {
         model: { task: "" },
         props: {},
         parent: { fieldGroup: [] },
-        options: { detectChanges: vi.fn() },
+        options: buildFormlyOptions(),
       } as unknown as FieldTypeConfig;
 
       component.field = field;
@@ -1318,7 +1328,7 @@ describe("HuggingFaceComponent (TestBed)", () => {
         model,
         props: {},
         parent: { fieldGroup: [] },
-        options: { detectChanges: vi.fn() },
+        options: buildFormlyOptions(),
       } as unknown as FieldTypeConfig;
 
       component.field = field;
@@ -1353,7 +1363,7 @@ describe("HuggingFaceComponent (TestBed)", () => {
         model: null,
         props: {},
         parent: { fieldGroup: [] },
-        options: { detectChanges: vi.fn() },
+        options: buildFormlyOptions(),
       } as unknown as FieldTypeConfig;
 
       component.field = field;
@@ -1559,7 +1569,7 @@ describe("HuggingFaceComponent (TestBed)", () => {
         form: formGroup,
         model: { modelId: "" } as Record<string, unknown>,
         props: {},
-        options: { detectChanges: vi.fn() },
+        options: buildFormlyOptions(),
       } as unknown as FieldTypeConfig; // no `parent` -> the `field.parent ?? field` fallback
       component.field = field;
       fixture.detectChanges();
@@ -1571,6 +1581,89 @@ describe("HuggingFaceComponent (TestBed)", () => {
 
       http.expectOne(`${API}/huggingface/models?task=translation`).flush(buildModels(1));
       expect(component.selectedTaskTag).toBe("translation");
+    });
+  });
+
+  // ── Validation message ──
+
+  describe("validation message", () => {
+    /** Initialize the component with the `showError` predicate that Formly delegates to. */
+    function initWithShowError(showError: boolean) {
+      const { field } = buildFieldWithFormGroup();
+      Object.assign(field.options!, { showError: () => showError });
+      component.field = field;
+
+      fixture.detectChanges();
+      flushIconRequests();
+      http.expectOne(`${API}/huggingface/tasks`).flush(buildTaskResponse());
+      http.expectOne(req => req.url.startsWith(`${API}/huggingface/models`)).flush([]);
+
+      // Set the error after init: ngOnInit re-runs updateValueAndValidity, which would clear it.
+      component.formControl.setErrors({ required: true });
+      fixture.detectChanges();
+      flushIconRequests();
+    }
+
+    it("renders the validation message when the field is in an error state", () => {
+      initWithShowError(true);
+
+      expect(component.showError).toBe(true);
+      expect(fixture.debugElement.query(By.css("div.alert-danger formly-validation-message"))).toBeTruthy();
+    });
+
+    it("does not render the validation message when showError is false", () => {
+      initWithShowError(false);
+
+      expect(component.showError).toBe(false);
+      expect(fixture.debugElement.query(By.css("div.alert-danger"))).toBeNull();
+    });
+  });
+
+  /*
+   * The half-taken arms left on this component: a teardown with nothing pending, the fallback
+   * used when the form has no task selected, and a snapshot that does not carry every key.
+   */
+  describe("remaining guards", () => {
+    // This suite's shared afterEach does not restore mocks, and one test below spies on a
+    // global, so the block cleans up after itself rather than leaving it installed for the
+    // rest of the file.
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it("clears no timeout when initialization already finished", () => {
+      const clearSpy = vi.spyOn(globalThis, "clearTimeout");
+      (component as any).initTimeout = null;
+
+      component.ngOnDestroy();
+
+      // The interval teardown may still call clearInterval; only the timeout arm is asserted.
+      expect(clearSpy).not.toHaveBeenCalled();
+    });
+
+    it("falls back to the last selected task when the form carries none", () => {
+      const snapshot = vi.spyOn(component as any, "snapshotTaskState").mockImplementation(() => {});
+      vi.spyOn(component as any, "getCurrentTaskTag").mockReturnValue(null);
+      // Only the fallback is under test; what the selection then does is covered elsewhere.
+      vi.spyOn(component as any, "syncTaskSelection").mockImplementation(() => {});
+      vi.spyOn(component as any, "restoreTaskState").mockImplementation(() => {});
+      vi.spyOn(component as any, "loadAllModels").mockImplementation(() => {});
+      (component as any).selectedTaskTag = "text-generation";
+
+      component.onTaskSelected("image-classification");
+
+      // The task being snapshotted is the fallback, not the (absent) form value.
+      expect(snapshot).toHaveBeenCalledWith("text-generation");
+    });
+
+    it("restores only the keys a snapshot actually carries", () => {
+      const write = vi.spyOn(component as any, "writeFieldValue").mockImplementation(() => {});
+      (component as any).taskStateByTag.set("image-classification", { modelId: "m1" });
+
+      (component as any).restoreTaskState("image-classification");
+
+      const writtenKeys = write.mock.calls.map(call => call[0]);
+      expect(writtenKeys).toEqual(["modelId"]);
     });
   });
 });

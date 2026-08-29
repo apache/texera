@@ -439,10 +439,6 @@ class WorkflowResource extends LazyLogging {
   @Path("/persist")
   def persistWorkflow(workflow: Workflow, @Auth sessionUser: SessionUser): Workflow = {
     val user = sessionUser.getUser
-    if (user == org.apache.texera.web.auth.GuestAuthFilter.GUEST) {
-      throw new ForbiddenException("Guest user does not have access to db.")
-    }
-
     if (workflowOfUserExists(workflow.getWid, user.getUid)) {
       WorkflowVersionResource.insertVersion(workflow, insertingNewWorkflow = false)
       workflowDao.update(workflow)
@@ -549,6 +545,9 @@ class WorkflowResource extends LazyLogging {
       @Auth sessionUser: SessionUser,
       @Context request: HttpServletRequest
   ): Integer = {
+    if (!WorkflowAccessResource.hasReadAccess(wid, sessionUser.getUid)) {
+      throw new ForbiddenException("No sufficient access privilege.")
+    }
     val oldWorkflow: Workflow = workflowDao.fetchOneByWid(wid)
     val newWorkflow: DashboardWorkflow = createWorkflow(
       new Workflow(

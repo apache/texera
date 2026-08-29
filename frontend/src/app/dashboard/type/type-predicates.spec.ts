@@ -126,7 +126,7 @@ const computingUnitFixture: DashboardWorkflowComputingUnit = {
   },
   isOwner: true,
   accessPrivilege: "WRITE",
-  ownerGoogleAvatar: "",
+  ownerAvatar: "",
   ownerName: "Alice",
 };
 
