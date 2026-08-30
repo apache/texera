@@ -138,6 +138,13 @@ describe("SavedWorkflowSectionComponent", () => {
     fixture.detectChanges();
   });
 
+  // Guard for the demo-video automation (see texera-login.component.spec.ts).
+  it("keeps the automation data-testid hooks on the create and upload buttons", () => {
+    const el: HTMLElement = fixture.nativeElement;
+    expect(el.querySelector('[data-testid="navigation-create-workflow-button"]')).toBeTruthy();
+    expect(el.querySelector('[data-testid="navigation-upload-workflow-button"]')).toBeTruthy();
+  });
+
   // TODO: add this test case back and figure out why it failed
   // it.skip("Modal Opened, then Closed", () => {
   //   const modalRef: NgbModalRef = modalService.open(NgbdModalWorkflowShareAccessComponent);

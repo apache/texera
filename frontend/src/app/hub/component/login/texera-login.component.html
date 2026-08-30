@@ -67,6 +67,7 @@
         nz-input
         formControlName="username"
         placeholder="Username"
+        data-testid="login-username"
         autocomplete="username" />
     </nz-input-group>
 
@@ -92,6 +93,7 @@
         nz-input
         formControlName="password"
         placeholder="Password"
+        data-testid="login-password"
         [attr.autocomplete]="mode === 'signup' ? 'new-password' : 'current-password'" />
     </nz-input-group>
 
@@ -123,6 +125,7 @@
       nzType="primary"
       nzSize="large"
       nzBlock
+      data-testid="login-submit"
       type="submit">
       {{ mode === "signup" ? "Sign up" : "Sign in" }}
     </button>

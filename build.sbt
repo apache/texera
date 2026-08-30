@@ -279,6 +279,9 @@ lazy val NotebookMigrationService = (project in file("notebook-migration-service
   )
   .dependsOn(DAO % "test->test") // test scope dependency
 
+// Playwright automation recording the per-operator demo videos linked from docs/reference/operators/.
+lazy val DemoVideoGenerator = (project in file("docs/operator-demo-videos"))
+
 // root project definition
 lazy val TexeraProject = (project in file("."))
   .aggregate(
@@ -299,7 +302,8 @@ lazy val TexeraProject = (project in file("."))
     FileService,
     WorkflowCompilingService,
     WorkflowExecutionService,
-    NotebookMigrationService
+    NotebookMigrationService,
+    DemoVideoGenerator
   )
   .settings(
     name := "texera",
