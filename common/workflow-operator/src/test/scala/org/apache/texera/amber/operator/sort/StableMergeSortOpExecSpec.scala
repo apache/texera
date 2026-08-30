@@ -19,7 +19,7 @@
 
 package org.apache.texera.amber.operator.sort
 
-import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
+import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, LargeBinary, Schema, Tuple}
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
 
@@ -777,6 +777,101 @@ class StableMergeSortOpExecSpec extends AnyFlatSpec {
     val out = exec.onFinish(0).map(_.asInstanceOf[Tuple]).toList.map(_.getField[Int]("value"))
     assert(out == (1 to 10).toList)
     exec.close()
+  }
+
+  // ===========================================================================
+  // H. Lifecycle guards and unsupported key types
+  // ===========================================================================
+
+  // The bucket stack is allocated by open(), so both readers of the field guard
+  // against being called on an executor the engine has not opened (or has already
+  // torn down). Every other test in this spec goes through open() first, which is
+  // why these paths need their own cases.
+  //
+  // Honest scope note: debugBucketSizes is itself a test hook (its only callers
+  // anywhere in the repo are this spec's getBucketSizes helper and the cases
+  // below), so its null guard is not shipped behavior. What is pinned here is
+  // which field that guard reads and what close() actually does to the stack.
+
+  "debugBucketSizes" should "report no buckets before open and the live stack after it" in {
+    val schema = schemaOf("value" -> AttributeType.INTEGER)
+    val desc = new StableMergeSortOpDesc(); desc.keys = sortKeysBuffer(sortKey("value"))
+    val exec = new StableMergeSortOpExec(objectMapper.writeValueAsString(desc))
+    assert(getBucketSizes(exec) == Nil)
+
+    // open() allocates the bucket stack but leaves the sort keys uncompiled —
+    // compileSortKeys runs on the first processTuple — so pushing a bucket
+    // straight through the internal hook reaches a state where the stack is
+    // non-empty while compiledSortKeys is still null. That state is what
+    // distinguishes which of the two fields the Nil guard is reading; a single
+    // size-1 push performs no merge, so no comparison is attempted.
+    exec.open()
+    exec.pushBucketAndCombine(ArrayBuffer(tupleOf(schema, "value" -> 1)))
+    assert(getBucketSizes(exec) == List(1))
+    exec.close()
+  }
+
+  "close" should "be a no-op when it runs before open" in {
+    val desc = new StableMergeSortOpDesc(); desc.keys = sortKeysBuffer(sortKey("value"))
+    val exec = new StableMergeSortOpExec(objectMapper.writeValueAsString(desc))
+    // Pure "does not throw": the executor was never opened, so this case can only
+    // catch a crash in the guard, never a change in what close() does. The
+    // companion case below is the one that pins the effect.
+    exec.close()
+    assert(getBucketSizes(exec) == Nil)
+  }
+
+  it should "drop the buffered buckets when it runs after open" in {
+    val schema = schemaOf("value" -> AttributeType.INTEGER)
+    val desc = new StableMergeSortOpDesc(); desc.keys = sortKeysBuffer(sortKey("value"))
+    val exec = new StableMergeSortOpExec(objectMapper.writeValueAsString(desc)); exec.open()
+    List(3, 1, 2).foreach(i => exec.processTuple(tupleOf(schema, "value" -> i), 0))
+    assert(getBucketSizes(exec) == List(2, 1))
+    exec.close()
+    assert(getBucketSizes(exec) == Nil)
+  }
+
+  "StableMergeSortOpExec" should "reject a sort key whose attribute type it cannot compare" in {
+    // The comparison switch implements 7 of AttributeType's 9 constants; ANY and
+    // LARGE_BINARY both fall through to the catch-all, and both are offered as
+    // sort keys by the attribute picker (SortCriteriaUnit.attributeName carries a
+    // bare @AutofillAttributeName with no type restriction). Probing both is what
+    // makes the arm's breadth a contract rather than a case for one type.
+    def rejects(attrType: AttributeType, first: Any, second: Any): IllegalStateException = {
+      val schema = schemaOf("value" -> attrType)
+      val desc = new StableMergeSortOpDesc(); desc.keys = sortKeysBuffer(sortKey("value"))
+      val exec = new StableMergeSortOpExec(objectMapper.writeValueAsString(desc)); exec.open()
+      // The first tuple only compiles the sort keys. The second makes the stack's
+      // top two buckets equal-sized, and the binary carry that merges them is the
+      // first comparison of two values.
+      exec.processTuple(tupleOf(schema, "value" -> first), 0)
+      val thrown = intercept[IllegalStateException] {
+        exec.processTuple(tupleOf(schema, "value" -> second), 0)
+      }
+      exec.close()
+      thrown
+    }
+
+    // Compared against a message built from the enum rather than a spelled-out
+    // literal: AttributeType.toString delegates to the @JsonValue getName, which
+    // is the empty string for ANY, and that rendering is workflow-core's artifact
+    // rather than something this operator should be made to own. Deriving it
+    // still pins WHICH operand the diagnostic interpolates.
+    assert(
+      rejects(
+        AttributeType.ANY,
+        java.lang.Integer.valueOf(1),
+        java.lang.Integer.valueOf(2)
+      ).getMessage == s"Unsupported attribute type ${AttributeType.ANY} in StableMergeSort"
+    )
+    assert(
+      rejects(
+        AttributeType.LARGE_BINARY,
+        new LargeBinary("s3://bucket/a"),
+        new LargeBinary("s3://bucket/b")
+      ).getMessage ==
+        s"Unsupported attribute type ${AttributeType.LARGE_BINARY} in StableMergeSort"
+    )
   }
 
 }
