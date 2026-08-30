@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1788008759790,
+  "lastUpdate": 1788094757986,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -11411,6 +11411,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 492.1199152242855,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "anthonychengit",
+            "username": "anthonychengit",
+            "email": "anthonyschenemail@gmail.com"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "98588bf2ab49aac65ebf002496eb057670e6fc07",
+          "message": "feat(amber): include requester name in account email (#7639)\n\n### What changes were proposed in this PR?\n\nThe account-request notification only forwarded the requester's email\naddress to the template. Although the stored user record already\ncontains the requester's name, the notification path never retrieved it.\n\n```text\nBefore: account request -> email only -> admin notification omits name\nAfter:  account request -> stored user lookup -> admin receives name and email\n```\n\nThis change looks up the stored requester by email and includes the name\nin the admin notification. Missing or blank names render as `Not\nprovided`. The requester-facing acknowledgement remains unchanged and\ndoes not expose the name field.\n\nTests cover the positive stored-name path, the missing-requester\nfallback, blank and absent names, and the negative requester-facing\ntemplate case.\n\n### Any related issues, documentation, discussions?\n\nCloses #7595\n\n### How was this PR tested?\n\n```bash\nsbt \"WorkflowExecutionService / Test / testOnly org.apache.texera.web.resource.EmailTemplateSpec org.apache.texera.web.resource.GmailResourceSpec\"\nsbt scalafmtCheckAll\nsbt \"scalafixAll --check\"\n```\n\nThe focused suite passed 12 tests. Scala formatting and Scalafix checks\nalso passed.\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: OpenAI Codex (GPT-5)",
+          "timestamp": "2026-08-30T03:51:50Z",
+          "url": "https://github.com/apache/texera/commit/98588bf2ab49aac65ebf002496eb057670e6fc07"
+        },
+        "date": 1788094757327,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 673.8496137943808,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 1298.4735782229861,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 1430.37198286685,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 839.8218451990977,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 1350.9860479188935,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 1422.670477671348,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 878.3976219633083,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 1363.0473944197452,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 1422.7278034826702,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 754.518540762787,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 1068.039691215136,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 1115.6134645626335,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 829.8375431025088,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 1079.2572039620522,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 1122.3519968769165,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 824.3737206361321,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 1051.0168726846073,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 1091.5204174593187,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 497.5115617203121,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 579.4039331397921,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 587.8760357013019,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 504.1735880352085,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 582.2248342003085,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 580.9693700703589,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 455.8156298616547,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 544.0414516489369,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 557.8876141147608,
             "unit": "tuples/sec"
           }
         ]
