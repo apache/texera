@@ -503,6 +503,23 @@ describe("VersionUploaderComponent", () => {
     });
   });
 
+  const settingsStub = () =>
+    TestBed.inject(AdminSettingsService) as unknown as { getPublicSetting: ReturnType<typeof vi.fn> };
+
+  /** Rebuilds the fixture so a per-test settings stub is in place before ngOnInit runs. */
+  const rebuild = (seed?: (c: VersionUploaderComponent) => void): void => {
+    fixture.destroy();
+    fixture = TestBed.createComponent(VersionUploaderComponent);
+    component = fixture.componentInstance;
+    component.resourceId = 1;
+    component.ownerEmail = "owner@texera.com";
+    component.resourceName = "test-dataset";
+    component.endpoint = DATASET_FILE_RESOURCE_ENDPOINT;
+    component.createVersion = asCreateVersion(createVersionSpy);
+    seed?.(component);
+    fixture.detectChanges();
+  };
+
   /** The panel is the only thing that knows which resource family it is addressing. */
   describe("resource addressing", () => {
     it("passes its endpoint to the upload engine, whichever family it serves", () => {
@@ -528,6 +545,48 @@ describe("VersionUploaderComponent", () => {
         DATASET_FILE_RESOURCE_ENDPOINT.maxFileSizeSettingKey,
       ]);
       expect(component.maxConcurrentFiles).toBe(3);
+    });
+
+    it("keeps the default upload settings when the public settings are missing", () => {
+      settingsStub().getPublicSetting.mockReturnValue(of(null));
+      rebuild();
+
+      expect(component.chunkSizeMiB).toBe(50);
+      expect(component.maxConcurrentChunks).toBe(10);
+      expect(component.maxConcurrentFiles).toBe(3);
+    });
+
+    it("leaves the chunk size untouched when only that setting fails to load", () => {
+      // A distinct value per key, so a setting that lands in the wrong field is visible:
+      // 7 chunks and 2 files cannot stand in for one another.
+      settingsStub().getPublicSetting.mockImplementation((key: string) =>
+        key === DATASET_FILE_RESOURCE_ENDPOINT.chunkSizeSettingKey
+          ? throwError(() => new Error("boom"))
+          : of(key === DATASET_FILE_RESOURCE_ENDPOINT.maxConcurrentChunksSettingKey ? "7" : "2")
+      );
+      // A sentinel the class default cannot supply, so "the failed fetch wrote nothing" is
+      // distinguishable from "it wrote the default back".
+      rebuild(c => (c.chunkSizeMiB = 42));
+
+      expect(component.chunkSizeMiB).toBe(42);
+      expect(component.maxConcurrentChunks).toBe(7);
+      expect(component.maxConcurrentFiles).toBe(2);
+    });
+
+    it("leaves both concurrency limits untouched when their settings fail to load", () => {
+      settingsStub().getPublicSetting.mockImplementation((key: string) =>
+        key === DATASET_FILE_RESOURCE_ENDPOINT.chunkSizeSettingKey ? of("128") : throwError(() => new Error("boom"))
+      );
+      rebuild(c => {
+        c.maxConcurrentChunks = 41;
+        c.maxConcurrentFiles = 40;
+      });
+
+      // A failed fetch that wrote anything here — a reset, or a NaN — would stall the queue
+      // outright, since `activeUploads < NaN` is never true.
+      expect(component.chunkSizeMiB).toBe(128);
+      expect(component.maxConcurrentChunks).toBe(41);
+      expect(component.maxConcurrentFiles).toBe(40);
     });
   });
 

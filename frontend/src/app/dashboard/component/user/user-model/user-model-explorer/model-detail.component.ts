@@ -133,6 +133,8 @@ export class ModelDetailComponent implements OnInit {
 
   public currentDisplayedFileName: string = "";
   public currentFileSize: number | undefined;
+  // Path within the version, which survives a rename — unlike currentDisplayedFileName.
+  private openFileRelativePath: string = "";
 
   // Placeholders until models reach the hub. The hub backend has no model entity type
   // (`hub/EntityType.scala` is Workflow and Dataset only), so nothing can populate these yet.
@@ -274,7 +276,11 @@ export class ModelDetailComponent implements OnInit {
       });
   }
 
-  onVersionSelected(version: ModelVersion | undefined): void {
+  /**
+   * @param preferredRelativePath reopens this file rather than the version's first, when the
+   *   refetched tree still holds it. Used after a rename, which invalidates every path.
+   */
+  onVersionSelected(version: ModelVersion | undefined, preferredRelativePath?: string): void {
     this.selectedVersion = version;
     if (!this.mid || !version?.mvid) {
       return;
@@ -294,13 +300,17 @@ export class ModelDetailComponent implements OnInit {
             this.applyLatestVersionFacts(data);
           }
 
-          const firstFile = this.getFirstFileNode(this.fileTreeNodeList);
-          if (!firstFile) {
+          const preferred = preferredRelativePath
+            ? this.findFileByRelativePath(this.fileTreeNodeList, preferredRelativePath)
+            : undefined;
+          const target = preferred ?? this.getFirstFileNode(this.fileTreeNodeList);
+          if (!target) {
             this.currentDisplayedFileName = "";
             this.currentFileSize = undefined;
+            this.openFileRelativePath = "";
             return;
           }
-          this.loadFileContent(firstFile);
+          this.loadFileContent(target);
         },
         error: (err: unknown) => this.notificationService.error(extractErrorMessage(err)),
       });
@@ -341,6 +351,20 @@ export class ModelDetailComponent implements OnInit {
   loadFileContent(node: DatasetFileNode): void {
     this.currentDisplayedFileName = getFullPathFromDatasetFileNode(node);
     this.currentFileSize = node.size;
+    this.openFileRelativePath = getRelativePathFromDatasetFileNode(node);
+  }
+
+  private findFileByRelativePath(nodes: DatasetFileNode[], relativePath: string): DatasetFileNode | undefined {
+    for (const node of nodes) {
+      if (node.type === "file" && getRelativePathFromDatasetFileNode(node) === relativePath) {
+        return node;
+      }
+      const inChildren = node.children && this.findFileByRelativePath(node.children, relativePath);
+      if (inChildren) {
+        return inChildren;
+      }
+    }
+    return undefined;
   }
 
   // Walk from the first node into directories until reaching a file.
@@ -463,7 +487,8 @@ export class ModelDetailComponent implements OnInit {
           this.editedModelName = name;
           // Every file path embeds the model name, and preview and single-file download resolve
           // a model by (owner, name) — a stale tree 404s until reload.
-          this.onVersionSelected(this.selectedVersion);
+          // Reopen whatever was on screen: only the paths changed, not the files.
+          this.onVersionSelected(this.selectedVersion, this.openFileRelativePath);
           // That call covers the card only when the newest version is the one on screen.
           if (this.selectedVersion !== this.versions[0]) {
             this.retrieveLatestVersionFacts();

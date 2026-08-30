@@ -659,6 +659,50 @@ describe("ModelDetailComponent", () => {
     expect(component.selectedVersion).toBe(versions[1]);
   });
 
+  it("reopens the file you were reading after a rename, not the version's first", () => {
+    modelService["updateModelName"] = vi.fn(() => of({}));
+    modelService["retrieveModelVersionList"] = vi.fn(() => of([aVersion(1, "v1")]));
+    let name = "resnet-50";
+    const tree = () => ({
+      fileNodes: [
+        aFile("first.txt", `/model/${OWNER}/${name}/v1`),
+        {
+          name: "weights",
+          type: "directory" as const,
+          parentDir: `/model/${OWNER}/${name}/v1`,
+          children: [aFile("model.pt", `/model/${OWNER}/${name}/v1/weights`)],
+        },
+      ],
+      size: 8,
+    });
+    modelService["retrieveModelVersionFileTree"] = vi.fn(() => of(tree()));
+    create();
+    // Open a nested file that is not the one the tree opens by default.
+    component.onVersionFileTreeNodeSelected(aFile("model.pt", `/model/${OWNER}/resnet-50/v1/weights`));
+    expect(component.currentDisplayedFileName).toBe(`/model/${OWNER}/resnet-50/v1/weights/model.pt`);
+
+    name = "resnet-101";
+    component.editedModelName = name;
+    component.onSaveModelName();
+
+    // Same file, new path — renaming should not lose the reader's place.
+    expect(component.currentDisplayedFileName).toBe(`/model/${OWNER}/resnet-101/v1/weights/model.pt`);
+  });
+
+  it("falls back to the first file when a rename outlives the file that was open", () => {
+    modelService["updateModelName"] = vi.fn(() => of({}));
+    modelService["retrieveModelVersionList"] = vi.fn(() => of([aVersion(1, "v1")]));
+    modelService["retrieveModelVersionFileTree"] = vi.fn(() =>
+      of({ fileNodes: [aFile("only.txt", `/model/${OWNER}/resnet-101/v1`)], size: 4 })
+    );
+    create();
+    component.editedModelName = "resnet-101";
+
+    component.onSaveModelName();
+
+    expect(component.currentDisplayedFileName).toBe(`/model/${OWNER}/resnet-101/v1/only.txt`);
+  });
+
   it("skips the tree refresh for a model with no versions", () => {
     modelService["updateModelName"] = vi.fn(() => of({}));
     create();

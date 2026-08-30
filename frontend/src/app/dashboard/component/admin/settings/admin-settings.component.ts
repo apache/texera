@@ -52,6 +52,7 @@ export interface UploadSettingsForm {
 
 /** One upload card: a resource family, the site_settings keys it owns, and the edited values. */
 export interface UploadSettingsGroup {
+  /** Title case of the endpoint's own label, so a family is never named twice. */
   readonly label: string;
   readonly endpoint: FileResourceEndpoint;
   readonly form: UploadSettingsForm;
@@ -63,8 +64,8 @@ const DEFAULT_MAX_CONCURRENT_FILES = 3;
 const DEFAULT_MAX_CONCURRENT_CHUNKS = 10;
 const DEFAULT_CHUNK_SIZE_MIB = 50;
 
-const uploadGroup = (label: string, endpoint: FileResourceEndpoint): UploadSettingsGroup => ({
-  label,
+const uploadGroup = (endpoint: FileResourceEndpoint): UploadSettingsGroup => ({
+  label: endpoint.label.charAt(0).toUpperCase() + endpoint.label.slice(1),
   endpoint,
   form: {
     maxConcurrentFiles: DEFAULT_MAX_CONCURRENT_FILES,
@@ -117,8 +118,8 @@ export class AdminSettingsComponent implements OnInit {
 
   // One card per resource family; adding a family here adds its card, with no new save/reset code.
   readonly uploadGroups: UploadSettingsGroup[] = [
-    uploadGroup("Dataset", DATASET_FILE_RESOURCE_ENDPOINT),
-    uploadGroup("Model", MODEL_FILE_RESOURCE_ENDPOINT),
+    uploadGroup(DATASET_FILE_RESOURCE_ENDPOINT),
+    uploadGroup(MODEL_FILE_RESOURCE_ENDPOINT),
   ];
 
   csvMaxColumns: number = 512;
@@ -318,7 +319,7 @@ export class AdminSettingsComponent implements OnInit {
       .pipe(untilDestroyed(this))
       .subscribe({
         next: () => this.message.success(`${group.label} upload settings saved successfully.`),
-        error: () => this.message.error(`Failed to save ${group.label.toLowerCase()} settings.`),
+        error: () => this.message.error(`Failed to save ${group.endpoint.label} settings.`),
       });
   }
 
@@ -327,7 +328,7 @@ export class AdminSettingsComponent implements OnInit {
       this.adminSettingsService.resetSetting(key).pipe(untilDestroyed(this)).subscribe({})
     );
 
-    this.message.info(`Resetting ${group.label.toLowerCase()} settings...`);
+    this.message.info(`Resetting ${group.endpoint.label} settings...`);
     setTimeout(() => window.location.reload(), this.RELOAD_DELAY);
   }
 
