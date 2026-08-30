@@ -27,7 +27,10 @@ const COLD: Rgb = [91, 155, 213]; // #5b9bd5 — bright blue (still light enough
 const MID: Rgb = [255, 255, 191]; // #ffffbf — pale yellow
 const HOT: Rgb = [224, 90, 82]; // #e05a52 — bright red
 
-/** Neutral fill for an operator that has no score (no metrics captured yet). */
+/**
+ * Neutral fill for an operator with no score — either no metrics captured yet, or the active
+ * view is not measurable for it.
+ */
 export const HEATMAP_NO_DATA_COLOR = "#eeeeee";
 
 function clamp01(value: number): number {

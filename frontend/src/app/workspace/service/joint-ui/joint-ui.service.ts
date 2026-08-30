@@ -519,8 +519,9 @@ export class JointUIService {
   /**
    * Paints an operator's body fill for the performance heat-map overlay. The heat-map owns only
    * `rect.body/fill`, so it coexists with the execution-status border (`rect.body/stroke`).
-   * A `score` of undefined means no heat is known for the operator — either no metrics
-   * captured yet, or the active view is not measurable for it — and paints a neutral color.
+   * The method paints a neutral color when `score` is undefined, which means no heat is known
+   * for the operator — either no metrics captured yet, or the active view is not measurable
+   * for it.
    */
   public applyHeatmapColor(jointPaper: joint.dia.Paper, operatorID: string, score: number | undefined): void {
     const fill = score === undefined ? HEATMAP_NO_DATA_COLOR : scoreToColor(score);

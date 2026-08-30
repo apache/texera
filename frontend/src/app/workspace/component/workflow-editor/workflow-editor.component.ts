@@ -531,7 +531,8 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
         const score = this.heatmapScores(view)[operatorId];
         const rect = this.editor.getBoundingClientRect();
         const mouseEvent = evt as unknown as MouseEvent;
-        // Missing metrics render as "—" for both fields, so "no data yet" is not
+        // "—" marks the absence of a value — missing metrics for both fields, or a
+        // view that is not measurable for the operator (metricLabel) — so neither is
         // confused with a genuine zero value.
         this.heatmapTooltip = {
           x: mouseEvent.clientX - rect.left + 12,
