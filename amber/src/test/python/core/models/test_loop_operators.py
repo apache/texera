@@ -134,12 +134,24 @@ class TestLoopStartProcessState:
         # nothing flows downstream of LoopStart until the table is in.
         op = _StubLoopStart()
         op.open()
-        op.state["i"] = 0  # simulate the user's initialization
+        op.state["i"] = 0
 
         result = op.process_state(State({"upstream_key": "v"}), port=0)
 
-        assert result is None, "first-time state must not be forwarded"
-        assert op.state["upstream_key"] == "v", "state was not merged into self.state"
+        assert result is None
+        assert op.state["upstream_key"] == "v"
+
+    def test_state_rejects_overwriting_loop_variable(self):
+        op = _StubLoopStart()
+        op.open()
+
+        with pytest.raises(
+            ValueError,
+            match=r"Loop state variable\(s\) cannot be overwritten: i",
+        ):
+            op.process_state(State({"i": 999}), port=0)
+
+        assert op.state["i"] == 0
 
     # NOTE: LoopStart re-entry (+1) is owned by the worker runtime now, not the
     # operator (which only does the first-entry merge above). It and the nested
