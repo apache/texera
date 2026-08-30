@@ -161,6 +161,7 @@ class _ConcreteTable(TableOperator):
         self.received_tables.append(table)
         yield None
 
+
 class _ConcreteLoopStart(LoopStartOperator):
     def process_table(self, table, port):
         yield table
@@ -400,6 +401,7 @@ class TestTableOperator:
         list(op.on_finish(port=0))
         rows = list(op.received_tables[0].as_tuples())
         assert rows == [Tuple({"x": 1})]
+
 
 class TestLoopStartOperator:
     def test_process_state_rejects_overwriting_loop_variable(self):
