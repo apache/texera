@@ -350,7 +350,9 @@ export class FilesUploaderComponent {
           }
           this.showFileUploadBanner(skippedCount > 0 ? "info" : "success", messages.join(" "));
         }
-        const failedCount = results.length - successfulUploads.length;
+        // Only rejected entries actually failed. A dropped directory resolves to null, so
+        // deriving this from the length difference would report it as a failed file.
+        const failedCount = results.filter(result => result.status === "rejected").length;
         if (failedCount > 0) {
           const errorMessage = `${failedCount} file${failedCount > 1 ? "s" : ""} failed to be selected.`;
           this.showFileUploadBanner("error", errorMessage);

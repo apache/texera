@@ -61,6 +61,15 @@ const droppedFile = (relativePath: string, file: File): NgxFileDropEntry =>
     },
   }) as unknown as NgxFileDropEntry;
 
+// A dropped folder: ngx-file-drop reports it as an entry whose fileEntry is not a file.
+const droppedDirectory = (relativePath: string): NgxFileDropEntry =>
+  ({
+    relativePath,
+    fileEntry: {
+      isFile: false,
+    },
+  }) as unknown as NgxFileDropEntry;
+
 describe("FilesUploaderComponent", () => {
   let component: FilesUploaderComponent;
   let modals: CapturedModal[];
@@ -296,6 +305,78 @@ describe("FilesUploaderComponent", () => {
     expect((await emitted).map(item => item.name)).toEqual(["one.csv", "two.csv"]);
     expect(modals).toHaveLength(1);
     expect(component.fileUploadBannerType).toBe("success");
+  });
+
+  describe("dropped folders are not failures", () => {
+    // A folder resolves to null rather than rejecting, so it must not be counted as a
+    // file that failed to be selected.
+    beforeEach(() => {
+      datasetService.listMultipartUploads.mockReturnValue(of([]));
+      datasetService.findExistingUploadFiles.mockReturnValue(of([]));
+    });
+
+    const rejectEveryFile = () => (component.singleFileUploadMaxSizeMiB = 0);
+
+    it("shows no banner at all when only a folder is dropped", async () => {
+      const emitted = new Promise<FileUploadItem[]>(resolve => component.uploadedFiles.subscribe(resolve));
+
+      component.fileDropped([droppedDirectory("some-folder")]);
+
+      expect(await emitted).toEqual([]);
+      expect(component.fileUploadingFinished).toBe(false);
+      expect(component.fileUploadBannerMessage).toBe("");
+    });
+
+    it("reports only the valid file when a folder is dropped alongside it", async () => {
+      const emitted = new Promise<FileUploadItem[]>(resolve => component.uploadedFiles.subscribe(resolve));
+
+      component.fileDropped([
+        droppedDirectory("some-folder"),
+        droppedFile("clean.csv", new File(["clean"], "clean.csv")),
+      ]);
+
+      expect((await emitted).map(item => item.name)).toEqual(["clean.csv"]);
+      expect(component.fileUploadBannerType).toBe("success");
+      expect(component.fileUploadBannerMessage).toContain("1 file selected successfully!");
+    });
+
+    it("still reports a file that genuinely failed to be selected", async () => {
+      rejectEveryFile();
+      const emitted = new Promise<FileUploadItem[]>(resolve => component.uploadedFiles.subscribe(resolve));
+
+      component.fileDropped([droppedFile("huge.csv", new File(["too big"], "huge.csv"))]);
+
+      expect(await emitted).toEqual([]);
+      expect(component.fileUploadBannerType).toBe("error");
+      expect(component.fileUploadBannerMessage).toBe("1 file failed to be selected.");
+    });
+
+    it("counts only the rejected file when a folder is dropped with it", async () => {
+      rejectEveryFile();
+      const emitted = new Promise<FileUploadItem[]>(resolve => component.uploadedFiles.subscribe(resolve));
+
+      component.fileDropped([
+        droppedDirectory("some-folder"),
+        droppedFile("huge.csv", new File(["too big"], "huge.csv")),
+      ]);
+
+      expect(await emitted).toEqual([]);
+      expect(component.fileUploadBannerMessage).toBe("1 file failed to be selected.");
+    });
+
+    it("keeps the plural wording when several files are rejected", async () => {
+      rejectEveryFile();
+      const emitted = new Promise<FileUploadItem[]>(resolve => component.uploadedFiles.subscribe(resolve));
+
+      component.fileDropped([
+        droppedDirectory("some-folder"),
+        droppedFile("huge1.csv", new File(["too big"], "huge1.csv")),
+        droppedFile("huge2.csv", new File(["too big"], "huge2.csv")),
+      ]);
+
+      expect(await emitted).toEqual([]);
+      expect(component.fileUploadBannerMessage).toBe("2 files failed to be selected.");
+    });
   });
 
   it("showFileUploadBanner marks uploading finished and stores the given type and message", () => {
