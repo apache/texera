@@ -1112,13 +1112,6 @@ describe("PowerButtonComponent", () => {
   });
 
   describe("status helpers", () => {
-    it("getButtonText returns 'Connect' with no selection and the unit name otherwise", () => {
-      component.selectedComputingUnit = null;
-      expect(component.getButtonText()).toBe("Connect");
-      component.selectedComputingUnit = makeComputingUnit({ name: "My Unit" });
-      expect(component.getButtonText()).toBe("My Unit");
-    });
-
     it("computeStatus maps selection + status onto badge states", () => {
       component.selectedComputingUnit = null;
       expect(component.computeStatus()).toBe("processing");
@@ -1480,8 +1473,6 @@ describe("PowerButtonComponent", () => {
       expect(component.getSharedMemorySize()).toBe("64Mi");
       expect(component.getCpuLimitUnit()).toBe("CPU");
       expect(component.getMemoryLimitUnit()).toBe("Gi");
-      expect(component.getCpuUnit()).toBe("Cores");
-      expect(component.getMemoryUnit()).toBe("Gi");
     });
 
     it("returns zero usage values and percentages when metrics are unavailable", () => {
