@@ -70,13 +70,13 @@ export const formatRelativeTime = (timestamp: number | undefined): string => {
   const weeksAgo = Math.floor(daysAgo / 7);
 
   if (minutesAgo < 60) {
-    return `${minutesAgo} minutes ago`;
+    return `${minutesAgo} minute${minutesAgo === 1 ? "" : "s"} ago`;
   } else if (hoursAgo < 24) {
-    return `${hoursAgo} hours ago`;
+    return `${hoursAgo} hour${hoursAgo === 1 ? "" : "s"} ago`;
   } else if (daysAgo < 7) {
-    return `${daysAgo} days ago`;
+    return `${daysAgo} day${daysAgo === 1 ? "" : "s"} ago`;
   } else if (weeksAgo < 4) {
-    return `${weeksAgo} weeks ago`;
+    return `${weeksAgo} week${weeksAgo === 1 ? "" : "s"} ago`;
   }
   return new Date(timestamp).toLocaleDateString();
 };
