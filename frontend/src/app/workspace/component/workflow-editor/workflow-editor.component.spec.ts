@@ -120,6 +120,12 @@ describe("WorkflowEditorComponent", () => {
       expect(component).toBeTruthy();
     });
 
+    // Guard for the demo-video automation (see texera-login.component.spec.ts).
+    it("keeps the automation data-testid hook on the canvas", () => {
+      const el: HTMLElement = fixture.nativeElement;
+      expect(el.querySelector('[data-testid="navigation-workflow-canvas"]')).toBeTruthy();
+    });
+
     it("should hide operator status on the canvas by default", () => {
       // keeps the Status toggle off until the user enables it
       const editor = (component as any).editor as HTMLElement;

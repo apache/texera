@@ -82,6 +82,12 @@ describe("LeftPanelComponent", () => {
     expect(component).toBeTruthy();
   });
 
+  // Guard for the demo-video automation (see texera-login.component.spec.ts).
+  it("keeps the automation data-testid hook on the Operators button", () => {
+    const el: HTMLElement = fixture.nativeElement;
+    expect(el.querySelector('[data-testid="operator-left-panel-operators-button"]')).toBeTruthy();
+  });
+
   it("should switch to versions frame component when get all versions is clicked", fakeAsync(() => {
     const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
 

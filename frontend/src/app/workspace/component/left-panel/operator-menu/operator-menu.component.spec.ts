@@ -78,6 +78,17 @@ describe("OperatorPanelComponent", () => {
     expect(component).toBeTruthy();
   });
 
+  // Guard for the demo-video automation (see texera-login.component.spec.ts).
+  it("keeps the automation data-testid hooks in the operator menu", () => {
+    const el: HTMLElement = fixture.nativeElement;
+    expect(el.querySelector('[data-testid="operator-search-input"]')).toBeTruthy();
+    const header = el.querySelector(".ant-collapse-header") as HTMLElement;
+    expect(header).toBeTruthy();
+    header.click();
+    fixture.detectChanges();
+    expect(el.querySelector('[data-testid^="operator-item-"]')).toBeTruthy();
+  });
+
   it("should search an operator by its user friendly name", () => {
     component.searchInputValue = "Source: Scan";
     component.onInput({ target: { value: "Source: Scan" } } as unknown as Event);

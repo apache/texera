@@ -40,6 +40,7 @@
       cdkDrag
       nzTooltipPlacement="right"
       nz-tooltip="{{items[i].title}}"
+      [attr.data-testid]="items[i].title === 'Operators' ? 'operator-left-panel-operators-button' : null"
       nzSelected="{{currentComponent === items[i].component}}"
       *ngIf="items[i].enabled && !width"
       (click)="openFrame(i)">
@@ -86,6 +87,7 @@
         cdkDrag
         nzTooltipPlacement="right"
         nz-tooltip="{{items[i].title}}"
+        [attr.data-testid]="items[i].title === 'Operators' ? 'operator-left-panel-operators-button' : null"
         nzSelected="{{currentComponent === items[i].component}}"
         *ngIf="items[i].enabled"
         (click)="openFrame(i)">

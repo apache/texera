@@ -20,6 +20,7 @@
 <div id="search-box">
   <input
     placeholder="search operator"
+    data-testid="operator-search-input"
     nz-input
     [(ngModel)]="searchInputValue"
     (input)="onInput($event)"
@@ -60,7 +61,8 @@
           *ngTemplateOutlet="menuTemplate; context: { $implicit: groupname.children, depth: depth + 1 }"></ng-container>
         <div
           *ngFor="let operatorSchema of opList.get(groupname.groupName)"
-          class="operator-label">
+          class="operator-label"
+          [attr.data-testid]="'operator-item-' + operatorSchema.operatorType">
           <texera-operator-label [operator]="operatorSchema"></texera-operator-label>
         </div>
       </div>

@@ -80,6 +80,12 @@ describe("PropertyEditorComponent", () => {
     expect(component).toBeTruthy();
   });
 
+  // Guard for the demo-video automation (see texera-login.component.spec.ts).
+  it("keeps the automation data-testid hook on the property panel title", () => {
+    const el: HTMLElement = fixture.nativeElement;
+    expect(el.querySelector('[data-testid="property-panel-title"]')).toBeTruthy();
+  });
+
   /**
    * test if the property editor correctly receives the operator unhighlight stream
    *  and clears all the operator data, and hide the form.

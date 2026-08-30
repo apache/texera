@@ -95,6 +95,16 @@ describe("TexeraLoginComponent", () => {
     expect(component).toBeTruthy();
   });
 
+  // Guard for the demo-video automation: it locates these controls by data-testid,
+  // so removing or renaming one must fail here rather than silently break recording.
+  it("keeps the automation data-testid hooks on the login form", () => {
+    fixture.detectChanges();
+    const el: HTMLElement = fixture.nativeElement;
+    expect(el.querySelector('[data-testid="login-username"]')).toBeTruthy();
+    expect(el.querySelector('[data-testid="login-password"]')).toBeTruthy();
+    expect(el.querySelector('[data-testid="login-submit"]')).toBeTruthy();
+  });
+
   describe("ngOnInit", () => {
     it("prefills username/password from defaultLocalUser when populated", () => {
       const config = TestBed.inject(GuiConfigService) as unknown as MockGuiConfigService;
