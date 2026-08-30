@@ -54,19 +54,18 @@ describe("toQueryStrings", () => {
     expect(toQueryStrings(["a b&c=d"], makeEmptyFilter())).toBe("query=a%20b%26c%3Dd");
   });
 
-  // The date assertions below pin the CURRENT behavior: dates are serialized via
-  // toISOString(), i.e. as the UTC calendar day. Callers pass local-midnight Dates,
-  // so in UTC+ timezones the emitted day is one earlier than the day the user picked
-  // (known off-by-one bug, tracked separately). The Date literals here are anchored
-  // to 12:00 UTC so these tests are stable in every timezone.
-  it("should serialize all four date filters as UTC YYYY-MM-DD in a fixed order", () => {
+  it("should preserve all four local date filters in a UTC-positive timezone", () => {
+    vi.stubEnv("TZ", "Asia/Tokyo");
     const filter = makeEmptyFilter();
-    filter.createDateStart = new Date("2024-01-15T12:00:00Z");
-    filter.createDateEnd = new Date("2024-02-20T12:00:00Z");
-    filter.modifiedDateStart = new Date("2024-03-05T12:00:00Z");
-    filter.modifiedDateEnd = new Date("2024-04-10T12:00:00Z");
+    filter.createDateStart = new Date(2024, 0, 15);
+    filter.createDateEnd = new Date(2024, 1, 20);
+    filter.modifiedDateStart = new Date(2024, 2, 5);
+    filter.modifiedDateEnd = new Date(2024, 3, 10);
 
-    expect(toQueryStrings([], filter)).toBe(
+    const query = toQueryStrings([], filter);
+    vi.unstubAllEnvs();
+
+    expect(query).toBe(
       "createDateStart=2024-01-15&createDateEnd=2024-02-20&modifiedDateStart=2024-03-05&modifiedDateEnd=2024-04-10"
     );
   });
