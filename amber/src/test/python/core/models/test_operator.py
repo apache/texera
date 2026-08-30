@@ -28,7 +28,7 @@ from core.models import (
     Tuple,
     TupleOperatorV2,
 )
-from core.models.operator import Operator, TableOperator
+from core.models.operator import Operator, TableOperator, LoopStartOperator
 
 
 class _ConcreteOperator(TupleOperatorV2):
@@ -160,6 +160,10 @@ class _ConcreteTable(TableOperator):
     def process_table(self, table, port):
         self.received_tables.append(table)
         yield None
+
+class _ConcreteLoopStart(LoopStartOperator):
+    def process_table(self, table, port):
+        yield table
 
 
 class TestPythonTemplateDecoder:
@@ -396,6 +400,19 @@ class TestTableOperator:
         list(op.on_finish(port=0))
         rows = list(op.received_tables[0].as_tuples())
         assert rows == [Tuple({"x": 1})]
+
+class TestLoopStartOperator:
+    def test_process_state_rejects_overwriting_loop_variable(self):
+        op = _ConcreteLoopStart()
+        op.state = State({"i": 0})
+
+        with pytest.raises(
+            ValueError,
+            match=r"Loop state variable\(s\) cannot be overwritten: i",
+        ):
+            op.process_state(State({"i": 999}), port=0)
+
+        assert op.state["i"] == 0
 
 
 class TestSourceOperatorFinalMethods:
