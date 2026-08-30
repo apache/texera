@@ -325,8 +325,8 @@ class TestLoopRunsToCompletion:
         #
         # Each pass of the while loop mimics one engine iteration: the
         # LoopStart region is re-executed (a fresh operator whose open() seeds
-        # the loop variables, the back-edge state overriding them, and the
-        # upstream table re-read), the produced state crosses the materialized
+        # the loop variables, the worker runtime restores the back-edge state,
+        # and the upstream table re-read), the produced state crosses the materialized
         # channel (a State to_tuple/from_tuple round-trip), the LoopEnd runs
         # the user update and evaluates the condition, and on continuation
         # only the user loop variables cross the back-edge.
@@ -344,7 +344,7 @@ class TestLoopRunsToCompletion:
             )
             start.open()
             if back_edge is not None:
-                start.process_state(back_edge, port=0)
+                start.state.update(back_edge)
             for row in rows:
                 list(start.process_tuple(row, port=0))
             emitted.extend(o for o in start.on_finish(port=0) if o is not None)
