@@ -106,7 +106,9 @@ class NetworkGraphOpDesc extends PythonOperatorDescriptor {
          |                G.add_node(node)
          |            for i, j in table.iterrows():
          |                G.add_edges_from([(j[$source], j[$destination])])
-         |            pos = nx.spring_layout(G, k=0.5, iterations=50)
+         |            # Seeded so the same graph draws the same picture every run;
+         |            # spring_layout starts from random positions otherwise.
+         |            pos = nx.spring_layout(G, k=0.5, iterations=50, seed=0)
          |            for n, p in pos.items():
          |                G.nodes[n]['pos'] = p
          |
