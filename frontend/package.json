@@ -81,7 +81,10 @@
   "resolutions": {
     "monaco-editor": "npm:@codingame/monaco-vscode-editor-api@25.1.2",
     "webpack": "5.104.1",
-    "jschardet": "portal:./tools/jschardet-stub"
+    "jschardet": "portal:./tools/jschardet-stub",
+    "@angular-devkit/build-angular": "21.2.19",
+    "@angular/build": "21.2.19",
+    "@ngtools/webpack": "21.2.19"
   },
   "devDependencies": {
     "@angular-builders/custom-webpack": "21.1.0",
