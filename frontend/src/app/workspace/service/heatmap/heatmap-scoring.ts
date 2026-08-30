@@ -36,27 +36,39 @@ export enum HeatmapView {
  * Per-operator raw cost for a view, BEFORE normalization. Higher = hotter (more
  * worth a look).
  *
+ * Returns undefined when the view's metric is NOT MEASURABLE for the operator,
+ * as opposed to measured-as-zero. Callers must exclude undefined from
+ * normalization and the legend range and render it as no-data; folding it into
+ * 0 would paint the operator coldest and anchor the scale minimum — e.g. a
+ * blocking operator mid-run (rows consumed, none emitted yet) would read as
+ * the fastest thing on the canvas.
+ *
  * - Runtime:     data + control processing time — slower operators are hotter.
+ *                Always measurable (0 = genuinely idle).
  * - TimePerRow:  seconds per output tuple — slow producers (low throughput) are
- *                hotter; no output -> 0 (cold).
- * - IoImbalance: |out - in| / (out + in) — operators that drop OR amplify rows are
- *                hotter; a balanced operator or missing input -> 0 (cold). Normalized
- *                to [0, 1] so an extreme amplifier can't dominate the scale.
+ *                hotter; undefined until the operator has emitted a row.
+ * - IoImbalance: |out - in| / (out + in) — operators that drop OR amplify rows
+ *                are hotter; a balanced operator -> 0 (cold); undefined without
+ *                input rows (sources, or nothing consumed yet). Bounded to
+ *                [0, 1] so an extreme amplifier can't dominate the scale.
  */
-export function rawMetricForView(metrics: OperatorPerformanceMetrics, view: HeatmapView): number {
+export function rawMetricForView(metrics: OperatorPerformanceMetrics, view: HeatmapView): number | undefined {
   switch (view) {
     case HeatmapView.Runtime:
       return metrics.dataProcessingTimeNs + metrics.controlProcessingTimeNs;
     case HeatmapView.TimePerRow: {
+      if (metrics.outputRows === 0) {
+        return undefined;
+      }
       const timeSec = (metrics.dataProcessingTimeNs + metrics.controlProcessingTimeNs) / 1e9;
-      return metrics.outputRows > 0 ? timeSec / metrics.outputRows : 0;
+      return timeSec / metrics.outputRows;
     }
     case HeatmapView.IoImbalance:
       return metrics.inputRows > 0
         ? Math.abs(metrics.outputRows - metrics.inputRows) / (metrics.outputRows + metrics.inputRows)
-        : 0;
+        : undefined;
     default:
-      return 0;
+      return undefined;
   }
 }
 
@@ -90,10 +102,15 @@ function formatSeconds(seconds: number): string {
 
 /**
  * Human-readable label for a raw view metric, used by the legend to show the actual value range
- * behind the color scale. Units match each view: Runtime is a duration, Time/row is seconds
- * per row, I/O imbalance is a unitless ratio.
+ * behind the color scale and by the hover tooltip. Units match each view: Runtime is a duration,
+ * Time/row is seconds per row, I/O imbalance is a unitless ratio. An undefined value (the view is
+ * not measurable for the operator, see {@link rawMetricForView}) renders as "—" so it cannot be
+ * confused with a genuine zero.
  */
-export function formatMetricForView(value: number, view: HeatmapView): string {
+export function formatMetricForView(value: number | undefined, view: HeatmapView): string {
+  if (value === undefined) {
+    return "—";
+  }
   if (!Number.isFinite(value) || value <= 0) {
     return "0";
   }

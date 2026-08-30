@@ -52,9 +52,11 @@ describe("rawMetricForView", () => {
     expect(rawMetricForView(m, HeatmapView.TimePerRow)).toBe(0.5);
   });
 
-  it("Time-per-row returns 0 when there is no output (cold)", () => {
+  it("Time-per-row is not measurable (undefined) before the operator emits a row", () => {
+    // A blocking operator mid-run has burned time but produced nothing; folding
+    // this into 0 would paint it coldest and anchor the scale minimum.
     const m = makeMetrics({ dataProcessingTimeNs: 2_000_000_000, outputRows: 0 });
-    expect(rawMetricForView(m, HeatmapView.TimePerRow)).toBe(0);
+    expect(rawMetricForView(m, HeatmapView.TimePerRow)).toBeUndefined();
   });
 
   it("Time-per-row returns 0 when there is no processing time (infinitely fast -> cold)", () => {
@@ -91,11 +93,14 @@ describe("rawMetricForView", () => {
     expect(rawMetricForView(m, HeatmapView.IoImbalance)).toBe(0);
   });
 
-  it("IoImbalance is 0 when there is no input (cold)", () => {
-    const m = makeMetrics({ inputRows: 0, outputRows: 250 });
-    const score = rawMetricForView(m, HeatmapView.IoImbalance);
-    expect(score).toBe(0);
-    expect(Number.isFinite(score)).toBe(true);
+  it("IoImbalance is not measurable (undefined) without input rows", () => {
+    // Sources (and operators that have consumed nothing yet) have no in/out
+    // ratio; 0 would collide with a genuinely balanced operator.
+    const source = makeMetrics({ inputRows: 0, outputRows: 250 });
+    expect(rawMetricForView(source, HeatmapView.IoImbalance)).toBeUndefined();
+
+    const idle = makeMetrics({ inputRows: 0, outputRows: 0 });
+    expect(rawMetricForView(idle, HeatmapView.IoImbalance)).toBeUndefined();
   });
 });
 
@@ -166,6 +171,11 @@ describe("formatMetricForView", () => {
     expect(formatMetricForView(0, HeatmapView.Runtime)).toBe("0");
     expect(formatMetricForView(Number.NaN, HeatmapView.TimePerRow)).toBe("0");
     expect(formatMetricForView(Number.POSITIVE_INFINITY, HeatmapView.IoImbalance)).toBe("0");
+  });
+
+  it("renders a not-measurable (undefined) value as — so it is distinct from a genuine zero", () => {
+    expect(formatMetricForView(undefined, HeatmapView.TimePerRow)).toBe("—");
+    expect(formatMetricForView(undefined, HeatmapView.IoImbalance)).toBe("—");
   });
 });
 

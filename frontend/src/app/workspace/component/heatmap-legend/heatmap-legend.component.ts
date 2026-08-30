@@ -33,7 +33,6 @@ import {
 import { scoreToColor } from "../../service/heatmap/heatmap-color";
 
 interface HeatmapLegendState {
-  readonly view: HeatmapView;
   readonly title: string;
   readonly minLabel: string;
   readonly maxLabel: string;
@@ -68,14 +67,15 @@ export class HeatmapLegendComponent {
   }
 
   private buildState(view: HeatmapView, metrics: Record<string, OperatorPerformanceMetrics>): HeatmapLegendState {
+    // Undefined raws (view not measurable for the operator) stay out of the
+    // range, so they never anchor the legend's low label.
     const raws = Object.values(metrics)
       .map(m => rawMetricForView(m, view))
-      .filter(v => Number.isFinite(v));
+      .filter((v): v is number => v !== undefined && Number.isFinite(v));
     const hasData = raws.length > 0;
     const min = hasData ? Math.min(...raws) : 0;
     const max = hasData ? Math.max(...raws) : 0;
     return {
-      view,
       title: heatmapViewTitle(view),
       minLabel: hasData ? formatMetricForView(min, view) : "—",
       maxLabel: hasData ? formatMetricForView(max, view) : "—",

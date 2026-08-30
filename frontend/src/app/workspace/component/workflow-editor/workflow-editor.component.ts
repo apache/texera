@@ -236,6 +236,12 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
 
   ngOnDestroy(): void {
     document.removeEventListener("keydown", this._handleKeyboardAction.bind(this));
+    // The overlay belongs to the canvas being viewed, but the wrapper holding
+    // the view is root-provided and outlives this component, while the menu's
+    // checkbox re-initializes to off and the metrics behind the overlay are
+    // cleared on workspace teardown. Reset the view here so all three agree
+    // when a workspace is re-entered.
+    this.workflowActionService.getJointGraphWrapper().setHeatmapView(null);
   }
 
   private _handleKeyboardAction(event: any) {
@@ -479,7 +485,13 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     const metrics = this.workflowStatusService.getCurrentPerformanceMetrics();
     const rawById: Record<string, number> = {};
     for (const operatorId of Object.keys(metrics)) {
-      rawById[operatorId] = rawMetricForView(metrics[operatorId], view);
+      const raw = rawMetricForView(metrics[operatorId], view);
+      // Not measurable for this view: leave the operator out so it gets an
+      // undefined score (painted as no-data) instead of anchoring the scale
+      // minimum as the coldest operator.
+      if (raw !== undefined) {
+        rawById[operatorId] = raw;
+      }
     }
     return normalizeScores(rawById);
   }
