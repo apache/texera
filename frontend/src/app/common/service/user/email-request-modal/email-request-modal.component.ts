@@ -47,6 +47,14 @@ import { FormsModule } from "@angular/forms";
 export class EmailRequestModalComponent {
   name = "";
   email = "";
+  code = "";
+
+  /**
+   * Which half of the exchange is on screen. Only reached where
+   * `user-sys.email-verification` is on; otherwise the dialog stays on `address` and saves from
+   * there. `AuthService.promptForEmail` advances it once the code has been sent.
+   */
+  step: "address" | "code" = "address";
 
   @ViewChild("modalTitle", { static: true })
   modalTitle!: TemplateRef<any>;
@@ -56,6 +64,6 @@ export class EmailRequestModalComponent {
   }
 
   getValues() {
-    return { email: (this.email ?? "").trim() };
+    return { email: (this.email ?? "").trim(), code: (this.code ?? "").trim() };
   }
 }

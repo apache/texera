@@ -25,6 +25,7 @@ export interface GuiConfig {
   localLogin: boolean;
   googleLogin: boolean;
   inviteOnly: boolean;
+  emailVerification: boolean;
   userPresetEnabled: boolean;
   workflowExecutionsTrackingEnabled: boolean;
   linkBreakpointEnabled: boolean;
