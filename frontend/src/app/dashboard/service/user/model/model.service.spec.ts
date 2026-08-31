@@ -226,6 +226,37 @@ describe("ModelService", () => {
     expect(await pending).toEqual({ url: null });
   });
 
+  it("posts a version name as text/plain and folds the file nodes into the version", async () => {
+    const pending = firstValueFrom(service.createModelVersion(7, "v2"));
+    const req = http.expectOne(`${API}/model/7/version/create`);
+
+    expect(req.request.method).toBe("POST");
+    expect(req.request.body).toBe("v2");
+    expect(req.request.headers.get("Content-Type")).toBe("text/plain");
+
+    const fileNodes = [{ name: "model.pt", type: "file", parentDir: "/model/a/m/v2", size: 4 }];
+    req.flush({ modelVersion: { mvid: 2, mid: 7, creatorUid: 1, name: "v2" }, fileNodes });
+
+    expect(await pending).toMatchObject({ mvid: 2, name: "v2", fileNodes });
+  });
+
+  it("lets the backend name the version when none is given", () => {
+    service.createModelVersion(7, "").subscribe();
+    expect(http.expectOne(`${API}/model/7/version/create`).request.body).toBe("");
+  });
+
+  it("updates the framework and the format through their own endpoints", () => {
+    service.updateModelFramework(7, "onnx").subscribe();
+    const framework = http.expectOne(`${API}/model/update/framework`);
+    expect(framework.request.body).toEqual({ mid: 7, framework: "onnx" });
+    framework.flush({});
+
+    service.updateModelFormat(7, "safetensors").subscribe();
+    const format = http.expectOne(`${API}/model/update/format`);
+    expect(format.request.body).toEqual({ mid: 7, format: "safetensors" });
+    format.flush({});
+  });
+
   it("surfaces a server error rather than swallowing it", async () => {
     const outcome = firstValueFrom(service.retrieveAccessibleModels()).catch((err: unknown) => err);
     http.expectOne(`${API}/model/list`).flush({ message: "nope" }, { status: 500, statusText: "Server Error" });

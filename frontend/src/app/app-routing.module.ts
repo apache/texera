@@ -22,8 +22,6 @@ import { RouterModule, Routes } from "@angular/router";
 import { DashboardComponent } from "./dashboard/component/dashboard.component";
 import { UserWorkflowComponent } from "./dashboard/component/user/user-workflow/user-workflow.component";
 import { UserQuotaComponent } from "./dashboard/component/user/user-quota/user-quota.component";
-import { UserProjectSectionComponent } from "./dashboard/component/user/user-project/user-project-section/user-project-section.component";
-import { UserProjectComponent } from "./dashboard/component/user/user-project/user-project.component";
 import { UserComputingUnitComponent } from "./dashboard/component/user/user-computing-unit/user-computing-unit.component";
 import { UserVenvComponent } from "./dashboard/component/user/user-venv/user-venv.component";
 import { WorkspaceComponent } from "./workspace/component/workspace.component";
@@ -109,14 +107,6 @@ routes.push({
       path: "user",
       canActivate: [AuthGuardService],
       children: [
-        {
-          path: "project",
-          component: UserProjectComponent,
-        },
-        {
-          path: "project/:pid",
-          component: UserProjectSectionComponent,
-        },
         {
           path: "workflow",
           component: UserWorkflowComponent,

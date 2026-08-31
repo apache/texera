@@ -61,6 +61,9 @@
 # A `release/*` label naming a branch that is not listed here at all is not
 # ungated: it is held back, since nobody is designated to approve it.
 targets:
+  - branch: release/v1.3
+    manager: mengw15
+    actively-supporting: true
   - branch: release/v1.2
     manager: xuang7
     actively-supporting: true

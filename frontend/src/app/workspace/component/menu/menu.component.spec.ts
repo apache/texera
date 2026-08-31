@@ -42,6 +42,7 @@ import { WorkflowVersionService } from "../../../dashboard/service/user/workflow
 import { WorkflowPersistService } from "../../../common/service/workflow-persist/workflow-persist.service";
 import { NotificationService } from "../../../common/service/notification/notification.service";
 import { ExecutionState } from "../../types/execute-workflow.interface";
+import { HeatmapView } from "../../service/heatmap/heatmap-scoring";
 import { ComputingUnitState } from "../../../common/type/computing-unit-connection.interface";
 import { mockPoint, mockScanPredicate } from "../../service/workflow-graph/model/mock-workflow-data";
 import { saveAs } from "file-saver";
@@ -54,7 +55,6 @@ import { USER_WORKFLOW } from "../../../app-routing.constant";
 import { GuiConfigService } from "../../../common/service/gui-config.service";
 import { MockGuiConfigService } from "../../../common/service/gui-config.service.mock";
 import { JupyterPanelService } from "../../service/jupyter-panel/jupyter-panel.service";
-import { UserProjectService } from "../../../dashboard/service/user/project/user-project.service";
 import type { Mocked } from "vitest";
 
 vi.mock("file-saver", () => ({ saveAs: vi.fn() }));
@@ -751,6 +751,43 @@ describe("MenuComponent", () => {
         component.toggleRegion();
 
         expect(setSpy).toHaveBeenCalledWith(false);
+      });
+    });
+
+    describe("toggleHeatmap / setHeatmapView", () => {
+      it("publishes the selected view to the joint graph wrapper when enabled", () => {
+        const setSpy = vi.spyOn(workflowActionService.getJointGraphWrapper(), "setHeatmapView");
+
+        component.showHeatmap = true;
+        component.heatmapView = HeatmapView.TimePerRow;
+        component.toggleHeatmap();
+
+        expect(setSpy).toHaveBeenCalledWith(HeatmapView.TimePerRow);
+      });
+
+      it("publishes null to the joint graph wrapper when disabled", () => {
+        const setSpy = vi.spyOn(workflowActionService.getJointGraphWrapper(), "setHeatmapView");
+
+        component.showHeatmap = false;
+        component.toggleHeatmap();
+
+        expect(setSpy).toHaveBeenCalledWith(null);
+      });
+
+      it("pushes a newly selected view only while the overlay is enabled", () => {
+        const setSpy = vi.spyOn(workflowActionService.getJointGraphWrapper(), "setHeatmapView");
+
+        component.showHeatmap = true;
+        component.setHeatmapView(HeatmapView.IoImbalance);
+        expect(component.heatmapView).toBe(HeatmapView.IoImbalance);
+        expect(setSpy).toHaveBeenCalledWith(HeatmapView.IoImbalance);
+
+        setSpy.mockClear();
+        component.showHeatmap = false;
+        component.setHeatmapView(HeatmapView.Runtime);
+        // View selection is remembered, but nothing is pushed while the overlay is off.
+        expect(component.heatmapView).toBe(HeatmapView.Runtime);
+        expect(setSpy).not.toHaveBeenCalled();
       });
     });
 
@@ -1553,30 +1590,23 @@ describe("MenuComponent", () => {
       vi.restoreAllMocks();
     });
 
-    it("files the saved workflow under the open project when both ids are known", () => {
-      const userProjectService = TestBed.inject(UserProjectService);
+    it("adopts the saved workflow as the current metadata and clears the saving indicator", () => {
       vi.spyOn(workflowPersistService, "persistWorkflow").mockReturnValue(of(saved(9)));
       const metadataSpy = vi.spyOn(workflowActionService, "setWorkflowMetadata").mockImplementation(() => {});
-      const addSpy = vi.spyOn(userProjectService, "addWorkflowToProject").mockReturnValue(of({} as Response));
-      component.pid = 3;
 
       component.persistWorkflow();
 
       expect(metadataSpy).toHaveBeenCalledWith(expect.objectContaining({ wid: 9 }));
-      expect(addSpy).toHaveBeenCalledWith(3, 9);
       expect(component.isSaving).toBe(false);
     });
 
-    it("leaves the project alone when the saved workflow has no id", () => {
-      const userProjectService = TestBed.inject(UserProjectService);
+    it("still clears the saving indicator when the saved workflow has no id", () => {
       vi.spyOn(workflowPersistService, "persistWorkflow").mockReturnValue(of(saved(undefined)));
-      vi.spyOn(workflowActionService, "setWorkflowMetadata").mockImplementation(() => {});
-      const addSpy = vi.spyOn(userProjectService, "addWorkflowToProject");
-      component.pid = 3;
+      const metadataSpy = vi.spyOn(workflowActionService, "setWorkflowMetadata").mockImplementation(() => {});
 
       component.persistWorkflow();
 
-      expect(addSpy).not.toHaveBeenCalled();
+      expect(metadataSpy).toHaveBeenCalledTimes(1);
       expect(component.isSaving).toBe(false);
     });
 

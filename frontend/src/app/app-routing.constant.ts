@@ -30,7 +30,6 @@ export const HUB_DATASET_RESULT = `${HUB_DATASET}/result`;
 export const HUB_DATASET_RESULT_DETAIL = `${HUB_DATASET_RESULT}/detail`;
 
 export const USER = "/user";
-export const USER_PROJECT = `${USER}/project`;
 export const USER_WORKSPACE = `${USER}/workflow`;
 export const USER_WORKFLOW = `${USER}/workflow`;
 export const USER_DATASET = `${USER}/dataset`;
