@@ -20,7 +20,7 @@
 package org.apache.texera.amber.operator.visualization.filledAreaPlot
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
-import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
+import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
@@ -32,6 +32,27 @@ import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
 
 import javax.validation.constraints.NotNull
 
+// `lineGroup` names the column the plot is split on, so it is required exactly when
+// that switch is on: with the switch off nothing reads it, and with the switch on
+// code generation asserts it and the run ends. Conditional rather than a plain
+// required, so a freshly dropped operator is not flagged for a field it has no use
+// for.
+@JsonSchemaInject(json = """
+{
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "facetColumn": { "const": true }
+        }
+      },
+      "then": {
+        "required": ["lineGroup"]
+      }
+    }
+  ]
+}
+""")
 class FilledAreaPlotOpDesc extends PythonOperatorDescriptor {
 
   @JsonProperty(required = true)
