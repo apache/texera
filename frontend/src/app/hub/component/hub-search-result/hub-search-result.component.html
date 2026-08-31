@@ -24,7 +24,9 @@
         [showEditTime]="searchType !== 'dataset'"
         [showExecutionTime]="searchType !== 'dataset'"
         (sortMethodChange)="sortMethod = $event; search()"></texera-sort-button>
-      <texera-filters #filters></texera-filters>
+      <texera-filters
+        [entityType]="filterEntityType"
+        #filters></texera-filters>
       <div
         *ngIf="searchType === 'dataset'"
         class="view-toggle">

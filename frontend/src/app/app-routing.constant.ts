@@ -30,11 +30,11 @@ export const HUB_DATASET_RESULT = `${HUB_DATASET}/result`;
 export const HUB_DATASET_RESULT_DETAIL = `${HUB_DATASET_RESULT}/detail`;
 
 export const USER = "/user";
-export const USER_PROJECT = `${USER}/project`;
 export const USER_WORKSPACE = `${USER}/workflow`;
 export const USER_WORKFLOW = `${USER}/workflow`;
 export const USER_DATASET = `${USER}/dataset`;
 export const USER_DATASET_CREATE = `${USER_DATASET}/create`;
+export const USER_MODEL = `${USER}/model`;
 export const USER_COMPUTING_UNIT = `${USER}/compute`;
 export const USER_PYTHON_VENV = `${USER}/python-venv`;
 export const USER_QUOTA = `${USER}/quota`;

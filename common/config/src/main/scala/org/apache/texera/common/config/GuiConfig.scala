@@ -55,6 +55,8 @@ object GuiConfig {
     conf.getBoolean("gui.workflow-workspace.async-rendering-enabled")
   val guiWorkflowWorkspaceTimetravelEnabled: Boolean =
     conf.getBoolean("gui.workflow-workspace.timetravel-enabled")
+  val guiWorkflowWorkspaceFormViewEnabled: Boolean =
+    conf.getBoolean("gui.workflow-workspace.form-view-enabled")
   val guiWorkflowWorkspaceProductionSharedEditingServer: Boolean =
     conf.getBoolean("gui.workflow-workspace.production-shared-editing-server")
   val guiWorkflowWorkspacePythonLanguageServerPort: String =

@@ -110,6 +110,26 @@ The script keeps logs, PIDs, build stamps, and animated phase markers under
 env var). It's safe to `rm -rf` between runs — it'll be recreated on the next
 invocation.
 
+## Rebuilding the Jupyter image
+
+`jupyter` is the only managed service that runs from a Texera-built image instead of
+natively, so edits to its customizations under
+`notebook-migration-service/src/main/resources/` (`custom.js`, `custom.css`,
+`start-texera-jupyter.sh`) do nothing until the image is rebuilt. CI publishes it, but a
+local edit needs a local build under the same tag:
+
+```sh
+docker build -f bin/dockerfiles/jupyter.dockerfile -t ghcr.io/apache/texera-jupyter:latest .
+bin/local-dev.sh up
+```
+
+Delete that local tag when you are done, otherwise it shadows the published image and you
+keep running your old build:
+
+```sh
+docker rmi ghcr.io/apache/texera-jupyter:latest
+```
+
 ## Adding a new managed service
 
 1. Drop the launch command into `main.sh`'s `start_one` switch.

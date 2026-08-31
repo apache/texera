@@ -104,12 +104,13 @@
 #   file-service                   :9092  JVM (sbt FileService)
 #   workflow-compiling-service     :9090  JVM (sbt WorkflowCompilingService)
 #   computing-unit-managing-service :8082 JVM (sbt ComputingUnitManagingService)
+#   notebook-migration-service     :9098  JVM (sbt NotebookMigrationService)
 #   texera-web                     :8080  JVM (sbt WorkflowExecutionService, amber)
 #   computing-unit-master          :8085  JVM (rides amber dist; no own sbt project)
 #   agent-service                  :3001  Bun --watch (cd agent-service && bun run dev)
 #   frontend                       :4200  ng serve via cd frontend && yarn start
 #
-# Docker infra (postgres / minio / lakefs / lakekeeper / litellm) IS managed
+# Docker infra (postgres / minio / lakefs / lakekeeper / litellm / jupyter) IS managed
 # here: `up` brings it up via `docker compose` (project texera-local-dev) and
 # `down` tears down any docker targets. The script warns if expected ports are
 # unreachable. Before any sbt build the postgres schema is reconciled: a fresh
@@ -877,12 +878,14 @@ SERVICES=(
     lakefs
     lakekeeper
     litellm
+    jupyter
     config-service
     access-control-service
     file-service
     workflow-compiling-service
     computing-unit-master
     computing-unit-managing-service
+    notebook-migration-service
     texera-web
     agent-service
     frontend
@@ -900,6 +903,7 @@ amap_set SVC_TYPE minio      docker; amap_set SVC_PORT minio      9000; amap_set
 amap_set SVC_TYPE lakefs     docker; amap_set SVC_PORT lakefs     8000; amap_set SVC_CWD lakefs     "."
 amap_set SVC_TYPE lakekeeper docker; amap_set SVC_PORT lakekeeper 8181; amap_set SVC_CWD lakekeeper "."
 amap_set SVC_TYPE litellm    docker; amap_set SVC_PORT litellm    4000; amap_set SVC_CWD litellm    "."
+amap_set SVC_TYPE jupyter    docker; amap_set SVC_PORT jupyter    9100; amap_set SVC_CWD jupyter    "."
 
 amap_set SVC_TYPE       config-service jvm
 amap_set SVC_PORT       config-service 9094
@@ -936,6 +940,15 @@ amap_set SVC_CWD        workflow-compiling-service "."
 amap_set SVC_ZIP_GLOB   workflow-compiling-service "workflow-compiling-service/target/universal/workflow-compiling-service-*.zip"
 amap_set SVC_UNZIP_DEST workflow-compiling-service "target/"
 amap_set SVC_HEALTH     workflow-compiling-service "/api/healthcheck"
+
+amap_set SVC_TYPE       notebook-migration-service jvm
+amap_set SVC_PORT       notebook-migration-service 9098
+amap_set SVC_SBT        notebook-migration-service NotebookMigrationService
+amap_set SVC_LAUNCHER   notebook-migration-service "target/notebook-migration-service-${TEXERA_VERSION}/bin/notebook-migration-service"
+amap_set SVC_CWD        notebook-migration-service "."
+amap_set SVC_ZIP_GLOB   notebook-migration-service "notebook-migration-service/target/universal/notebook-migration-service-*.zip"
+amap_set SVC_UNZIP_DEST notebook-migration-service "target/"
+amap_set SVC_HEALTH     notebook-migration-service "/api/healthcheck"
 
 amap_set SVC_TYPE       computing-unit-managing-service jvm
 amap_set SVC_PORT       computing-unit-managing-service 8082
@@ -990,8 +1003,8 @@ DOCKER_PROJECT="texera-local-dev"
 DOCKER_COMPOSE_FILE="$SELF_ROOT/bin/single-node/docker-compose.yml"
 DOCKER_OVERLAY_FILE="$SELF_ROOT/bin/local-dev/docker-compose.override.yml"
 DOCKER_ENV_FILE="$SELF_ROOT/bin/single-node/.env"
-DOCKER_INFRA_SERVICES=(postgres minio minio-init lakefs lakekeeper-migrate lakekeeper lakekeeper-init litellm)
-DOCKER_INFRA_LONGLIVED=(postgres minio lakefs lakekeeper litellm)  # exclude one-shot init jobs
+DOCKER_INFRA_SERVICES=(postgres minio minio-init lakefs lakekeeper-migrate lakekeeper lakekeeper-init litellm jupyter)
+DOCKER_INFRA_LONGLIVED=(postgres minio lakefs lakekeeper litellm jupyter)  # exclude one-shot init jobs
 
 # Build the array of -f flags: base single-node compose + local-dev overlay
 # (the overlay publishes infra ports to the host, which the upstream compose
@@ -1686,7 +1699,7 @@ infra_up() {
     # --progress=tty forces it even if stdout looks like a pipe.
     docker compose --progress auto -p "$DOCKER_PROJECT" --env-file "$DOCKER_ENV_FILE" "${files[@]}" \
         up -d "${DOCKER_INFRA_SERVICES[@]}"
-    tui_ok "infra: 5 containers up"
+    tui_ok "infra: ${#DOCKER_INFRA_LONGLIVED[@]} containers up"
 }
 
 infra_down() {

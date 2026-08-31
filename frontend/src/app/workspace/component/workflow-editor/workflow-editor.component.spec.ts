@@ -18,6 +18,7 @@
  */
 
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
+import { HeatmapView } from "../../service/heatmap/heatmap-scoring";
 import { UndoRedoService } from "../../service/undo-redo/undo-redo.service";
 import { DragDropService } from "../../service/drag-drop/drag-drop.service";
 import { WorkflowUtilService } from "../../service/workflow-graph/util/workflow-util.service";
@@ -118,6 +119,19 @@ describe("WorkflowEditorComponent", () => {
 
     it("should create", () => {
       expect(component).toBeTruthy();
+    });
+
+    it("should reset the heat-map view on destroy so a re-entered workspace starts with the overlay off", () => {
+      // The wrapper is root-provided and outlives the editor, while the menu's
+      // checkbox re-initializes to off on every workspace entry; without the
+      // reset the stale view repaints no-data colors and the first checkbox
+      // click re-publishes the view instead of clearing it.
+      const wrapper = TestBed.inject(WorkflowActionService).getJointGraphWrapper();
+      wrapper.setHeatmapView(HeatmapView.Runtime);
+
+      fixture.destroy();
+
+      expect(wrapper.getHeatmapView()).toBeNull();
     });
 
     it("should hide operator status on the canvas by default", () => {

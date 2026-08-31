@@ -164,15 +164,6 @@
       </summary>
 
       <div class="submenu-item">
-        <span>Projects</span>
-        <nz-switch
-          class="tab-switch"
-          [(ngModel)]="sidebarTabs.projects_enabled"
-          [nzDisabled]="!sidebarTabs.your_work_enabled">
-        </nz-switch>
-      </div>
-
-      <div class="submenu-item">
         <span>Workflows</span>
         <nz-switch
           class="tab-switch"
@@ -186,6 +177,15 @@
         <nz-switch
           class="tab-switch"
           [(ngModel)]="sidebarTabs.datasets_enabled"
+          [nzDisabled]="!sidebarTabs.your_work_enabled">
+        </nz-switch>
+      </div>
+
+      <div class="submenu-item">
+        <span>Models</span>
+        <nz-switch
+          class="tab-switch"
+          [(ngModel)]="sidebarTabs.models_enabled"
           [nzDisabled]="!sidebarTabs.your_work_enabled">
         </nz-switch>
       </div>
@@ -243,9 +243,11 @@
   </div>
 </nz-card>
 
-<nz-card [nzTitle]="datasetTitle">
-  <ng-template #datasetTitle>
-    Dataset
+<nz-card
+  *ngFor="let group of uploadGroups"
+  [nzTitle]="uploadTitle">
+  <ng-template #uploadTitle>
+    {{ group.label }}
     <span
       nz-tooltip
       [nzTooltipTitle]="awsTip"
@@ -262,10 +264,10 @@
   <ng-template #awsTip>
     <div>
       <strong>Configuration Guidelines</strong><br />
-      • Concurrent parts &times; part size ≈ in-flight data per file<br />
-      • Keep usage within your client memory/bandwidth limits<br />
-      • Use larger part size for large files to avoid &gt;10,000 parts<br />
-      • Out-of-range inputs will be auto-adjusted to the nearest valid value<br /><br />
+      &bull; Concurrent parts &times; part size &asymp; in-flight data per file<br />
+      &bull; Keep usage within your client memory/bandwidth limits<br />
+      &bull; Use larger part size for large files to avoid &gt;10,000 parts<br />
+      &bull; Out-of-range inputs will be auto-adjusted to the nearest valid value<br /><br />
       Learn more:
       <a
         href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/qfacts.html"
@@ -279,7 +281,7 @@
   <div class="settings-row">
     <span>Concurrent Files:</span>
     <nz-input-number
-      [(ngModel)]="maxConcurrentFiles"
+      [(ngModel)]="group.form.maxConcurrentFiles"
       [nzMin]="1"
       [nzMax]="1000"
       [nzStep]="1"
@@ -292,7 +294,7 @@
     <span>File Size:</span>
     <div class="input-with-unit">
       <nz-input-number
-        [(ngModel)]="maxFileSizeMiB"
+        [(ngModel)]="group.form.maxFileSizeMiB"
         [nzMin]="1"
         [nzMax]="MAX_FILE_SIZE_MiB"
         [nzStep]="10"
@@ -308,7 +310,7 @@
   <div class="settings-row">
     <span>Concurrent Parts:</span>
     <nz-input-number
-      [(ngModel)]="maxConcurrentChunks"
+      [(ngModel)]="group.form.maxConcurrentChunks"
       [nzMin]="1"
       [nzMax]="MAX_TOTAL_PARTS"
       [nzStep]="1"
@@ -317,14 +319,14 @@
   </div>
   <div class="help-text-number">
     Number of parts uploaded in parallel. Range: 1 - {{ MAX_TOTAL_PARTS | number }}. Current configuration will use
-    approximately {{ partsAtMax | number }} parts for maximum file size.
+    approximately {{ partsAtMax(group.form) | number }} parts for maximum file size.
   </div>
 
   <div class="settings-row">
     <span>Part Size:</span>
     <div class="input-with-unit">
       <nz-input-number
-        [(ngModel)]="chunkSizeMiB"
+        [(ngModel)]="group.form.chunkSizeMiB"
         [nzMin]="MIN_PART_SIZE_MiB"
         [nzMax]="MAX_PART_SIZE_MiB"
         [nzStep]="10"
@@ -335,22 +337,22 @@
   </div>
   <div class="help-text-number">
     Size of each chunk during multipart upload. Range: {{ MIN_PART_SIZE_MiB }} MiB - {{ MAX_PART_SIZE_MiB | number }}
-    MiB (5 GiB). Minimum required for current configuration: {{ requiredMinPartSizeMiB | number }} MiB.
+    MiB (5 GiB). Minimum required for current configuration: {{ requiredMinPartSizeMiB(group.form) | number }} MiB.
     <br />
-    In-flight data per file: ~{{ maxConcurrentChunks * chunkSizeMiB | number }} MiB
+    In-flight data per file: ~{{ group.form.maxConcurrentChunks * group.form.chunkSizeMiB | number }} MiB
   </div>
 
   <div class="button-row">
     <button
       nz-button
       nzType="primary"
-      (click)="saveDatasetSettings()">
+      (click)="saveUploadSettings(group)">
       Save
     </button>
     <button
       nz-button
       nzType="default"
-      (click)="resetDatasetSettings()">
+      (click)="resetUploadSettings(group)">
       Reset
     </button>
   </div>

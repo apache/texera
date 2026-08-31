@@ -26,7 +26,7 @@ import org.apache.texera.amber.core.storage.model.OnVersionedFileResource
 import org.apache.texera.amber.core.storage.util.LakeFSStorageClient
 import org.apache.texera.amber.core.storage.{DocumentFactory, FileResolver}
 import org.apache.texera.common.config.StorageConfig
-import org.apache.texera.dao.{SiteSettings, SqlServer}
+import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.SqlServer.withTransaction
 import org.apache.texera.dao.jooq.generated.tables.Dataset.DATASET
 import org.apache.texera.dao.jooq.generated.tables.Model.MODEL
@@ -74,11 +74,11 @@ import scala.util.Try
   * Describes where a resource's files live and how its in-progress uploads are tracked.
   *
   * [[ResourceTables]] names the columns that carry identity, ownership and grants; this adds
-  * the storage side — the LakeFS repository column plus the `*_upload_session` and
-  * `*_upload_session_part` tables that back resumable multipart uploads. Naming the columns
-  * keeps one implementation of the upload engine serving every resource type, so adding the
-  * next one costs a descriptor rather than another copy of the locking, part-size and
-  * resume rules.
+  * the storage side — the LakeFS repository column, the [[UploadLimits]] this type is held to,
+  * and the `*_upload_session` and `*_upload_session_part` tables that back resumable multipart
+  * uploads. Naming them keeps one implementation of the upload engine serving every resource
+  * type, so adding the next one costs a descriptor rather than another copy of the locking,
+  * part-size and resume rules.
   *
   * @tparam R record type of the resource table
   * @tparam A record type of the companion user-access table
@@ -88,6 +88,7 @@ import scala.util.Try
 case class ResourceStorage[R <: Record, A <: Record, S <: Record, P <: Record](
     resource: ResourceTables[R, A],
     resourceType: ResourceType.Value,
+    uploadLimits: UploadLimits,
     repositoryNameField: TableField[R, String],
     sessionResourceId: TableField[S, Integer],
     sessionUid: TableField[S, Integer],
@@ -117,6 +118,7 @@ object ResourceStorage {
     ResourceStorage(
       resource = ResourceTables.Dataset,
       resourceType = ResourceType.Dataset,
+      uploadLimits = UploadLimits.Dataset,
       repositoryNameField = DATASET.REPOSITORY_NAME,
       sessionResourceId = DATASET_UPLOAD_SESSION.DID,
       sessionUid = DATASET_UPLOAD_SESSION.UID,
@@ -141,6 +143,7 @@ object ResourceStorage {
     ResourceStorage(
       resource = ResourceTables.Model,
       resourceType = ResourceType.Model,
+      uploadLimits = UploadLimits.Model,
       repositoryNameField = MODEL.REPOSITORY_NAME,
       sessionResourceId = MODEL_UPLOAD_SESSION.MID,
       sessionUid = MODEL_UPLOAD_SESSION.UID,
@@ -171,9 +174,6 @@ object ResourceUploadService {
     SqlServer
       .getInstance()
       .createDSLContext()
-
-  private def singleFileUploadMaxBytes(defaultMiB: Long = 20L): Long =
-    SiteSettings.getLong("single_file_upload_max_size_mib", defaultMiB) * 1024L * 1024L
 
   /**
     * Builds the file nodes of one committed version, plus the version's total size.
@@ -714,7 +714,7 @@ object ResourceUploadService {
       if (fileSizeBytesValue <= 0L) throw new BadRequestException("fileSizeBytes must be > 0")
       if (partSizeBytesValue <= 0L) throw new BadRequestException("partSizeBytes must be > 0")
 
-      val totalMaxBytes: Long = singleFileUploadMaxBytes()
+      val totalMaxBytes: Long = s.uploadLimits.singleFileUploadMaxBytes
       if (totalMaxBytes <= 0L) {
         throw new WebApplicationException(
           "singleFileUploadMaxBytes must be > 0",
@@ -1105,7 +1105,7 @@ object ResourceUploadService {
         )
       }
 
-      val maxBytes = singleFileUploadMaxBytes()
+      val maxBytes = s.uploadLimits.singleFileUploadMaxBytes
       val tooLarge = actualSizeBytes > maxBytes
 
       if (tooLarge) {

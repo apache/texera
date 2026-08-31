@@ -402,11 +402,11 @@ class ConfigResourceSpec
     publicSettings should not contain key("csv_parser_max_columns")
   }
 
-  // The public whitelist is derived from the gui/dataset sections of
+  // The public whitelist is derived from the gui/dataset/model sections of
   // default.conf. This pins the derived set, so moving a key between sections
   // (or adding one) forces the visibility decision into review here.
-  it should "expose exactly the gui and dataset section keys of default.conf" in {
-    DefaultsConfig.keysUnderSections(Set("gui", "dataset")) shouldBe Set(
+  it should "expose exactly the gui, dataset and model section keys of default.conf" in {
+    DefaultsConfig.keysUnderSections(Set("gui", "dataset", "model")) shouldBe Set(
       "logo",
       "mini_logo",
       "favicon",
@@ -418,14 +418,19 @@ class ConfigResourceSpec
       "projects_enabled",
       "workflows_enabled",
       "datasets_enabled",
+      "models_enabled",
       "compute_enabled",
       "quota_enabled",
       "forum_enabled",
       "about_enabled",
-      "single_file_upload_max_size_mib",
-      "multipart_upload_chunk_size_mib",
-      "max_number_of_concurrent_uploading_file",
-      "max_number_of_concurrent_uploading_file_chunks"
+      "dataset_single_file_upload_max_size_mib",
+      "dataset_multipart_upload_chunk_size_mib",
+      "dataset_max_number_of_concurrent_uploading_file",
+      "dataset_max_number_of_concurrent_uploading_file_chunks",
+      "model_single_file_upload_max_size_mib",
+      "model_multipart_upload_chunk_size_mib",
+      "model_max_number_of_concurrent_uploading_file",
+      "model_max_number_of_concurrent_uploading_file_chunks"
     )
   }
 
