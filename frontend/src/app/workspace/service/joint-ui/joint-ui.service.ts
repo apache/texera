@@ -1084,10 +1084,10 @@ export function fromJointPaperEvent<T extends keyof joint.dia.Paper.EventMap = k
 /**
  * Observable of a JointJS graph event that reports a cell, emitting that cell.
  *
- * The event name is restricted to the cell-reporting events: graph-level ones
- * (`change`, `reset`, `sort`) hand the handler the Graph itself, which would
- * make the `Cell` payload a lie. Widen the union only alongside a check that
- * the new event reports a cell.
+ * The event name is restricted to events that report a cell: `reset` and `sort`
+ * hand the handler the cells collection instead, and `change` reports a cell only
+ * when a cell changed — setting a graph attribute delivers the Graph. Widen the
+ * union only alongside a check that the new event reports a cell.
  *
  * The graph belongs to `JointGraphWrapper`, which is root-provided, so it
  * outlives the components listening to it. Going through an Observable lets a
