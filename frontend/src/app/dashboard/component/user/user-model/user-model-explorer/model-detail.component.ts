@@ -154,6 +154,10 @@ export class ModelDetailComponent implements OnInit {
 
   @ViewChild(VersionUploaderComponent) private versionUploader?: VersionUploaderComponent;
 
+  // Renaming mid-upload strands the in-flight parts under the old name, so the Settings tab
+  // blocks it until the panel is idle.
+  public uploadsInFlight = false;
+
   formatSize = formatSize;
   formatCount = formatCount;
 
@@ -469,6 +473,10 @@ export class ModelDetailComponent implements OnInit {
 
   onSaveModelName(): void {
     if (!this.mid) {
+      return;
+    }
+    if (this.uploadsInFlight) {
+      this.notificationService.error("Finish or cancel the upload in progress before renaming this model");
       return;
     }
     const name = this.editedModelName;

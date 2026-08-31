@@ -98,6 +98,12 @@ export class VersionUploaderComponent implements OnInit {
 
   /** The host reloads its version list off this. */
   @Output() versionCreated = new EventEmitter<void>();
+  /**
+   * True while any upload is mid-flight. The engine captured the resource name when the upload
+   * started, so a rename in that window strands the remaining part/finish calls under the old
+   * name — and the abort, which reads the new one, cannot clean them up either.
+   */
+  @Output() uploadsInFlightChange = new EventEmitter<boolean>();
 
   userHasPendingChanges: boolean = false;
   pendingChangesCount: number = 0;
@@ -250,7 +256,7 @@ export class VersionUploaderComponent implements OnInit {
         };
 
         if (this.activeUploads < this.maxConcurrentFiles) {
-          this.activeUploads++;
+          this.setActiveUploads(this.activeUploads + 1);
           startUpload();
         } else {
           this.pendingQueue.set(file.name, startUpload);
@@ -281,14 +287,19 @@ export class VersionUploaderComponent implements OnInit {
       const [fileName, startUpload] = next.value;
       this.pendingQueue.delete(fileName);
       this.pendingQueueDirty = true;
-      this.activeUploads++;
+      this.setActiveUploads(this.activeUploads + 1);
       startUpload();
     }
   }
 
   private onUploadComplete(): void {
-    this.activeUploads--;
+    this.setActiveUploads(this.activeUploads - 1);
     this.processNextQueuedUpload();
+  }
+
+  private setActiveUploads(count: number): void {
+    this.activeUploads = count;
+    this.uploadsInFlightChange.emit(count > 0);
   }
 
   private removeFromPendingQueue(fileName: string): void {

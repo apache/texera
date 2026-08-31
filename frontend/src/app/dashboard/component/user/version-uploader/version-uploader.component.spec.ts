@@ -590,6 +590,31 @@ describe("VersionUploaderComponent", () => {
     });
   });
 
+  describe("in-flight signalling", () => {
+    it("tells the host while an upload is running, so a rename cannot strand it", () => {
+      const inFlight: boolean[] = [];
+      component.uploadsInFlightChange.subscribe((v: boolean) => inFlight.push(v));
+
+      dropFiles("a.csv");
+      expect(inFlight.at(-1)).toBe(true);
+
+      component.onClickAbortUploadProgress(component.uploadTasks[0]);
+      expect(inFlight.at(-1)).toBe(false);
+    });
+
+    it("stays flagged until the last of several uploads finishes", () => {
+      const inFlight: boolean[] = [];
+      component.uploadsInFlightChange.subscribe((v: boolean) => inFlight.push(v));
+
+      dropFiles("a.csv", "b.csv");
+      finishUpload(0, "a.csv");
+      expect(inFlight.at(-1)).toBe(true);
+
+      finishUpload(1, "b.csv");
+      expect(inFlight.at(-1)).toBe(false);
+    });
+  });
+
   describe("staged changes", () => {
     it("tracks the pending-change count from the diff response", () => {
       const staged: DatasetStagedObject[] = [

@@ -715,6 +715,21 @@ describe("ModelDetailComponent", () => {
     expect(component.modelName).toBe("resnet-101");
   });
 
+  it("refuses to rename while an upload is in flight", () => {
+    modelService["updateModelName"] = vi.fn(() => of({}));
+    create();
+    component.uploadsInFlight = true;
+    component.editedModelName = "resnet-101";
+
+    component.onSaveModelName();
+
+    // The engine captured the old name when the upload started; renaming now would strand its
+    // remaining parts, and the abort — which reads the new name — could not clean them up.
+    expect(modelService["updateModelName"]).not.toHaveBeenCalled();
+    expect(notificationService["error"]).toHaveBeenCalled();
+    expect(component.modelName).toBe("resnet-50");
+  });
+
   it("rejects an invalid name without calling the server", () => {
     modelService["updateModelName"] = vi.fn(() => of({}));
     create();
