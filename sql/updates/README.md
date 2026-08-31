@@ -32,8 +32,8 @@ These 22 predate Liquibase. Operators applied them by hand, prompted by the
 DDL-change notification e-mail. Liquibase arrived with
 [#4401](https://github.com/apache/texera/pull/4401), which started the chain
 fresh at `23.sql` and enrolled none of the 22 — so no runner in the repository
-has been able to execute them since. They are also why the live files are
-unpadded: the retired set is `01.sql`, the current set `23.sql`.
+has been able to execute them since. They are also why the live numbering
+starts at `23.sql` rather than `01.sql`.
 
 Only an operator whose database was created before changeset 23 would need
 them. Any database past that point applied them long ago, and a fresh one is
