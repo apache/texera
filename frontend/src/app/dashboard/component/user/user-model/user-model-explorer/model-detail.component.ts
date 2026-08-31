@@ -40,6 +40,7 @@ import { NzSelectComponent, NzOptionComponent } from "ng-zorro-antd/select";
 import { NzTabsComponent, NzTabComponent } from "ng-zorro-antd/tabs";
 import { NzDividerComponent } from "ng-zorro-antd/divider";
 import { NzInputDirective } from "ng-zorro-antd/input";
+import { NzSwitchComponent } from "ng-zorro-antd/switch";
 
 import {
   MODEL_FORMATS,
@@ -98,6 +99,7 @@ import { UserDatasetVersionFiletreeComponent } from "../../user-dataset/user-dat
     NzTabComponent,
     NzDividerComponent,
     NzInputDirective,
+    NzSwitchComponent,
     MarkdownDescriptionComponent,
     VersionUploaderComponent,
     UserDatasetFileRendererComponent,
@@ -543,6 +545,56 @@ export class ModelDetailComponent implements OnInit {
           this.modelFramework = previous;
           this.notificationService.error(extractErrorMessage(err));
         },
+      });
+  }
+
+  onPublicStatusChange(checked: boolean): void {
+    if (!this.mid) {
+      return;
+    }
+    this.modelService
+      .updateModelPublicity(this.mid)
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: () => {
+          this.modelIsPublic = checked;
+          this.notificationService.success(`Model ${this.modelName} is now ${checked ? "public" : "private"}`);
+        },
+        error: (err: unknown) => this.notificationService.error(extractErrorMessage(err)),
+      });
+  }
+
+  onDownloadableStatusChange(checked: boolean): void {
+    if (!this.mid) {
+      return;
+    }
+    this.modelService
+      .updateModelDownloadable(this.mid)
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: () => {
+          this.modelIsDownloadable = checked;
+          this.notificationService.success(`Model downloads are now ${checked ? "allowed" : "not allowed"}`);
+        },
+        error: (err: unknown) => this.notificationService.error(extractErrorMessage(err)),
+      });
+  }
+
+  /** The backend stores the cover relative to the model root, so the version name has to lead. */
+  onSetCoverImage(filePath: string): void {
+    if (!this.mid || !this.selectedVersion) {
+      return;
+    }
+    const mid = this.mid;
+    this.modelService
+      .updateModelCoverImage(mid, `${this.selectedVersion.name}/${filePath}`)
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: () => {
+          this.loadCoverImageUrl(mid);
+          this.notificationService.success("Cover image updated.");
+        },
+        error: (err: unknown) => this.notificationService.error(extractErrorMessage(err)),
       });
   }
 

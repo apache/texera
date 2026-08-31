@@ -27,11 +27,11 @@ import { GmailService } from "../../../../common/service/gmail/gmail.service";
 import { NZ_MODAL_DATA, NzModalRef, NzModalService } from "ng-zorro-antd/modal";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { HttpErrorResponse } from "@angular/common/http";
-import { USER_DATASET, USER_WORKFLOW } from "../../../../app-routing.constant";
 import { NzMessageService } from "ng-zorro-antd/message";
-import { DatasetService } from "../../../service/user/dataset/dataset.service";
-import { WorkflowPersistService } from "src/app/common/service/workflow-persist/workflow-persist.service";
 import { WorkflowActionService } from "src/app/workspace/service/workflow-graph/model/workflow-action.service";
+import { ResourceRegistryService } from "../../../service/user/resource-registry/resource-registry.service";
+import { ResourceDescriptor } from "../../../type/resource-descriptor";
+import { EntityType } from "../../../../hub/service/hub.service";
 import { NgIf, NgFor } from "@angular/common";
 import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
 import { NzButtonComponent } from "ng-zorro-antd/button";
@@ -88,6 +88,8 @@ export class ShareAccessComponent implements OnInit, OnDestroy {
   public emailTags: string[] = [];
   currentEmail: string | undefined = "";
   isPublic: boolean | null = null;
+  /** Undefined for kinds the registry does not carry, i.e. computing units. */
+  private readonly descriptor: ResourceDescriptor | undefined;
   private shouldRefresh = false;
   @Output() refresh = new EventEmitter<void>();
 
@@ -99,9 +101,8 @@ export class ShareAccessComponent implements OnInit, OnDestroy {
     private notificationService: NotificationService,
     private message: NzMessageService,
     private modalService: NzModalService,
-    private workflowPersistService: WorkflowPersistService,
-    private datasetService: DatasetService,
     private workflowActionService: WorkflowActionService,
+    private resourceRegistry: ResourceRegistryService,
     private modalRef: NzModalRef
   ) {
     this.validateForm = this.formBuilder.group({
@@ -109,6 +110,7 @@ export class ShareAccessComponent implements OnInit, OnDestroy {
       accessLevel: ["WRITE"],
     });
     this.currentEmail = this.userService.getCurrentUser()?.email;
+    this.descriptor = this.resourceRegistry.find(this.type as EntityType);
   }
 
   get hasWriteAccess(): boolean {
@@ -133,21 +135,11 @@ export class ShareAccessComponent implements OnInit, OnDestroy {
       .subscribe(name => {
         this.owner = name;
       });
-    if (this.type === "workflow") {
-      this.workflowPersistService
-        .getWorkflowIsPublished(this.id)
-        .pipe(untilDestroyed(this))
-        .subscribe(dashboardWorkflow => {
-          this.isPublic = dashboardWorkflow === "Public";
-        });
-    } else if (this.type === "dataset") {
-      this.datasetService
-        .getDataset(this.id)
-        .pipe(untilDestroyed(this))
-        .subscribe(dashboardDataset => {
-          this.isPublic = dashboardDataset.dataset.isPublic;
-        });
-    }
+    // Stays null for kinds that cannot be published, which is what hides the publish buttons.
+    this.descriptor
+      ?.isPublic?.(this.id)
+      .pipe(untilDestroyed(this))
+      .subscribe(isPublic => (this.isPublic = isPublic));
   }
 
   ngOnDestroy(): void {
@@ -190,10 +182,8 @@ export class ShareAccessComponent implements OnInit, OnDestroy {
     if (this.emailTags.length > 0) {
       this.emailTags.forEach(email => {
         let message = `${this.userService.getCurrentUser()?.email} shared a ${this.type} with you`;
-        if (this.type !== "computing-unit") {
-          let routePath = "";
-          if (this.type === "workflow") routePath = USER_WORKFLOW;
-          if (this.type === "dataset") routePath = USER_DATASET;
+        const routePath = this.descriptor?.privateRoute;
+        if (routePath !== undefined) {
           message += `, access the ${this.type} at ${location.origin}${routePath}/${this.id}`;
         }
         this.accessService
@@ -341,9 +331,11 @@ export class ShareAccessComponent implements OnInit, OnDestroy {
 
   public verifyPublish(): void {
     if (!this.isPublic) {
+      // Only a clonable kind hands out more than read access, so only it carries the warning.
+      const cloneWarning = this.descriptor?.affordances?.clonable ? ", along with the right to clone your work" : "";
       const modal: NzModalRef = this.modalService.create({
         nzTitle: "Notice",
-        nzContent: `Publishing your ${this.type} would grant all Texera users read access to your  ${this.type} along with the right to clone your work.`,
+        nzContent: `Publishing your ${this.type} would grant all Texera users read access to your ${this.type}${cloneWarning}.`,
         nzFooter: [
           {
             label: "Cancel",
@@ -353,15 +345,7 @@ export class ShareAccessComponent implements OnInit, OnDestroy {
             label: "Publish",
             type: "primary",
             onClick: () => {
-              if (this.type === "workflow") {
-                this.publishWorkflow();
-
-                if (this.inWorkspace) {
-                  this.workflowActionService.setWorkflowIsPublished(1);
-                }
-              } else if (this.type === "dataset") {
-                this.publishDataset();
-              }
+              this.setPublished(true);
               modal.close();
             },
           },
@@ -384,14 +368,7 @@ export class ShareAccessComponent implements OnInit, OnDestroy {
             label: "Unpublish",
             type: "primary",
             onClick: () => {
-              if (this.type === "workflow") {
-                this.unpublishWorkflow();
-                if (this.inWorkspace) {
-                  this.workflowActionService.setWorkflowIsPublished(0);
-                }
-              } else if (this.type === "dataset") {
-                this.unpublishDataset();
-              }
+              this.setPublished(false);
               modal.close();
             },
           },
@@ -400,79 +377,28 @@ export class ShareAccessComponent implements OnInit, OnDestroy {
     }
   }
 
-  public publishWorkflow(): void {
-    if (!this.isPublic) {
-      this.workflowPersistService
-        .updateWorkflowIsPublished(this.id, true)
-        .pipe(untilDestroyed(this))
-        .subscribe({
-          next: () => {
-            this.isPublic = true;
-            this.notificationService.success("Workflow published successfully");
-          },
-          error: (error: unknown) => {
-            if (error instanceof HttpErrorResponse) {
-              this.notificationService.error(error.error.message);
-            }
-          },
-        });
+  public setPublished(next: boolean): void {
+    const setPublished = this.descriptor?.setPublished;
+    if (!setPublished || this.isPublic === next) {
+      return;
     }
-  }
-
-  public unpublishWorkflow(): void {
-    if (this.isPublic) {
-      this.workflowPersistService
-        .updateWorkflowIsPublished(this.id, false)
-        .pipe(untilDestroyed(this))
-        .subscribe({
-          next: () => {
-            this.isPublic = false;
-            this.notificationService.success("Workflow unpublished successfully");
-          },
-          error: (error: unknown) => {
-            if (error instanceof HttpErrorResponse) {
-              this.notificationService.error(error.error.message);
-            }
-          },
-        });
+    // The open workspace mirrors the new state immediately; the request only confirms it.
+    if (this.inWorkspace) {
+      this.workflowActionService.setWorkflowIsPublished(next ? 1 : 0);
     }
-  }
-
-  public publishDataset(): void {
-    if (!this.isPublic) {
-      this.datasetService
-        .updateDatasetPublicity(this.id)
-        .pipe(untilDestroyed(this))
-        .subscribe({
-          next: (res: Response) => {
-            this.isPublic = true;
-            this.notificationService.success("Dataset published successfully");
-          },
-          error: (error: unknown) => {
-            if (error instanceof HttpErrorResponse) {
-              this.notificationService.error(error.error.message);
-            }
-          },
-        });
-    }
-  }
-
-  public unpublishDataset(): void {
-    if (this.isPublic) {
-      this.datasetService
-        .updateDatasetPublicity(this.id)
-        .pipe(untilDestroyed(this))
-        .subscribe({
-          next: (res: Response) => {
-            this.isPublic = false;
-            this.notificationService.success("Dataset unpublished successfully");
-          },
-          error: (error: unknown) => {
-            if (error instanceof HttpErrorResponse) {
-              this.notificationService.error(error.error.message);
-            }
-          },
-        });
-    }
+    const label = this.type.charAt(0).toUpperCase() + this.type.slice(1);
+    setPublished(this.id, next)
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: () => {
+          this.isPublic = next;
+          this.notificationService.success(`${label} ${next ? "published" : "unpublished"} successfully`);
+        },
+        error: (error: unknown) => {
+          if (error instanceof HttpErrorResponse) {
+            this.notificationService.error(error.error.message);
+          }
+        },
+      });
   }
 }

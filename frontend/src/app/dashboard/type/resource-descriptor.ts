@@ -21,6 +21,12 @@ import { Observable } from "rxjs";
 import { DashboardEntry } from "./dashboard-entry";
 import { EntityType } from "../../hub/service/hub.service";
 
+/** What publishing an entry of a kind grants everyone else. */
+export interface ResourceAffordances {
+  /** Whether a published entry may also be cloned, not just read. */
+  readonly clonable: boolean;
+}
+
 /**
  * What one dashboard resource kind can do. Optional members are the capability check: a component
  * asks `if (descriptor.rename)` instead of testing the entry type, so adding a resource is a new
@@ -47,8 +53,17 @@ export interface ResourceDescriptor {
   download?(id: number, name: string): Observable<unknown>;
   /** Fetches one file of a version for preview, by its logical path. */
   retrieveSingleFile?(filePath: string, isLogin: boolean): Observable<Blob>;
-  /** Owners of this kind, for the filter dropdown. */
+  /** Owners of this kind, for the filter dropdown and the share modal. */
   retrieveOwners?(): Observable<string[]>;
+  /** What other users get once an entry is published; absent when the kind cannot be published. */
+  readonly affordances?: ResourceAffordances;
+  /** Whether the entry is currently published. */
+  isPublic?(id: number): Observable<boolean>;
+  setPublished?(id: number, next: boolean): Observable<unknown>;
+  /** A ready-to-render URL for the entry's cover image, or null when it has none. */
+  coverUrl?(id: number): Observable<string | null>;
+  /** Points the cover at a committed file of the entry, as "<version>/<path>". */
+  setCover?(id: number, path: string): Observable<unknown>;
   /** Entry ids of this kind; absent when the backend exposes no such endpoint. */
   retrieveIds?(): Observable<number[]>;
 }

@@ -19,16 +19,14 @@
 
 import { ChangeDetectorRef, Component, Input, OnChanges, OnInit, SimpleChanges } from "@angular/core";
 import { DashboardEntry } from "../../../dashboard/type/dashboard-entry";
-import { WorkflowPersistService } from "../../../common/service/workflow-persist/workflow-persist.service";
-import { DatasetService } from "../../../dashboard/service/user/dataset/dataset.service";
-import { UntilDestroy } from "@ngneat/until-destroy";
+import { ResourceRegistryService } from "../../../dashboard/service/user/resource-registry/resource-registry.service";
+import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import {
   HUB_DATASET_RESULT_DETAIL,
   HUB_WORKFLOW_RESULT_DETAIL,
   USER_DATASET,
   USER_WORKSPACE,
 } from "../../../app-routing.constant";
-import { AppSettings } from "../../../common/app-setting";
 import { NgIf, NgFor, NgStyle, DatePipe } from "@angular/common";
 import { NzCardComponent } from "ng-zorro-antd/card";
 import { RouterLink } from "@angular/router";
@@ -68,8 +66,7 @@ export class BrowseSectionComponent implements OnInit, OnChanges {
   private coverImageUrls = new Map<number, string>();
 
   constructor(
-    private workflowPersistService: WorkflowPersistService,
-    private datasetService: DatasetService,
+    private resourceRegistry: ResourceRegistryService,
     private cdr: ChangeDetectorRef
   ) {}
 
@@ -112,20 +109,28 @@ export class BrowseSectionComponent implements OnInit, OnChanges {
     }
   }
 
+  /** Asks each kind's descriptor for its cover, so the hub renders the same picture as the cards. */
   private loadCoverImages(): void {
     if (!this.entities) return;
 
     this.entities
       .filter(
         (entity): entity is DashboardEntry & { id: number } =>
-          entity.type === "dataset" &&
-          entity.coverImageUrl !== undefined &&
-          entity.id !== undefined &&
-          !this.coverImageUrls.has(entity.id)
+          entity.coverImageUrl !== undefined && entity.id !== undefined && !this.coverImageUrls.has(entity.id)
       )
       .forEach(entity => {
-        const coverUrl = `${AppSettings.getApiEndpoint()}/dataset/${entity.id}/cover`;
-        this.coverImageUrls.set(entity.id, coverUrl);
+        const coverUrl = this.resourceRegistry.get(entity.type).coverUrl;
+        if (!coverUrl) {
+          return;
+        }
+        coverUrl(entity.id)
+          .pipe(untilDestroyed(this))
+          .subscribe(url => {
+            if (url) {
+              this.coverImageUrls.set(entity.id, url);
+              this.cdr.markForCheck();
+            }
+          });
       });
   }
 

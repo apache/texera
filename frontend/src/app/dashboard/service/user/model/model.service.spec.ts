@@ -257,6 +257,32 @@ describe("ModelService", () => {
     format.flush({});
   });
 
+  it("toggles publicity and downloadability without a payload", () => {
+    service.updateModelPublicity(7).subscribe();
+    const publicity = http.expectOne(`${API}/model/7/update/publicity`);
+    expect(publicity.request.method).toBe("POST");
+    expect(publicity.request.body).toEqual({});
+    publicity.flush({});
+
+    service.updateModelDownloadable(7).subscribe();
+    const downloadable = http.expectOne(`${API}/model/7/update/downloadable`);
+    expect(downloadable.request.body).toEqual({});
+    downloadable.flush({});
+  });
+
+  it("points the cover at a path already committed to the model", () => {
+    service.updateModelCoverImage(7, "v2/preview.png").subscribe();
+    const req = http.expectOne(`${API}/model/7/update/cover`);
+    expect(req.request.body).toEqual({ coverImage: "v2/preview.png" });
+    req.flush({});
+  });
+
+  it("lists the owners of the models the user can see", async () => {
+    const pending = firstValueFrom(service.retrieveOwners());
+    http.expectOne(`${API}/model/user-model-owners`).flush(["alice@texera.com"]);
+    expect(await pending).toEqual(["alice@texera.com"]);
+  });
+
   it("surfaces a server error rather than swallowing it", async () => {
     const outcome = firstValueFrom(service.retrieveAccessibleModels()).catch((err: unknown) => err);
     http.expectOne(`${API}/model/list`).flush({ message: "nope" }, { status: 500, statusText: "Server Error" });

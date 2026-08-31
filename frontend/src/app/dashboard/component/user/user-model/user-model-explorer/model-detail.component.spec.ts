@@ -796,6 +796,50 @@ describe("ModelDetailComponent", () => {
     expect(component.formats).toEqual(MODEL_FORMATS);
   });
 
+  it("toggles visibility and downloadability, keeping the switch on the server's answer", () => {
+    modelService["updateModelPublicity"] = vi.fn(() => of({}));
+    modelService["updateModelDownloadable"] = vi.fn(() => throwError(() => new Error("denied")));
+    create();
+
+    component.onPublicStatusChange(true);
+    component.onDownloadableStatusChange(false);
+
+    expect(modelService["updateModelPublicity"]).toHaveBeenCalledWith(MID);
+    expect(component.modelIsPublic).toBe(true);
+    // The rejected toggle leaves the model downloadable, so the switch snaps back.
+    expect(component.modelIsDownloadable).toBe(true);
+    expect(notificationService["error"]).toHaveBeenCalled();
+  });
+
+  it("renders both visibility switches on the Settings tab", () => {
+    create();
+    const root = openTab("Settings");
+
+    expect(root.querySelectorAll("nz-switch").length).toBe(2);
+  });
+
+  it("prefixes the cover path with the selected version and reloads the resolved url", () => {
+    modelService["updateModelCoverImage"] = vi.fn(() => of({}));
+    modelService["getModelCoverUrl"] = vi.fn(() => of({ url: "http://cover/new.png" }));
+    create();
+    component.selectedVersion = { mvid: 3, mid: MID, creatorUid: 1, name: "v2" } as any;
+
+    component.onSetCoverImage("images/preview.png");
+
+    expect(modelService["updateModelCoverImage"]).toHaveBeenCalledWith(MID, "v2/images/preview.png");
+    expect(component.coverImageUrl).toBe("http://cover/new.png");
+  });
+
+  it("does not set a cover while no version is selected", () => {
+    modelService["updateModelCoverImage"] = vi.fn(() => of({}));
+    create();
+    component.selectedVersion = undefined;
+
+    component.onSetCoverImage("images/preview.png");
+
+    expect(modelService["updateModelCoverImage"]).not.toHaveBeenCalled();
+  });
+
   it("collapses and restores the right sider, and maximizes the preview", () => {
     create();
     const root = openTab("Versions & Files");
