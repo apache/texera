@@ -81,8 +81,9 @@ class EmailCodeVerifierSpec extends AnyFlatSpec with Matchers with BeforeAndAfte
     message.content should include regex "\\d{6}"
   }
 
-  // Verification is on by default, so "on with no sender behind it" is a misconfiguration a
-  // deployment can reach by omission. It fails closed rather than logging the code: a logged code
+  // Turning verification on is a deliberate act, but configuring a sender is a separate one, so
+  // "on with no sender behind it" stays reachable. It fails closed rather than logging the code: a
+  // logged code
   // is a live credential sitting where anyone with log access can spend it, which would leave the
   // deployment serving registrations it only appears to be verifying.
   it should "refuse and name the fix when SMTP is unconfigured" in {
