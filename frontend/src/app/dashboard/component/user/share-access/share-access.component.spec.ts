@@ -69,7 +69,11 @@ describe("ShareAccessComponent", () => {
   let capturedModalConfigs: any[];
   /** The NzModalRef stubs handed back by modalService.create, in creation order. */
   let capturedModalRefs: { close: ReturnType<typeof vi.fn> }[];
-  /** The fixture built by the most recent setupComponent() call, for the template-level tests. */
+  /**
+   * The fixture built by the most recent setupComponent() call, for the template-level tests.
+   * Cleared in beforeEach: a test that reads it without having built one then fails on the spot
+   * rather than silently querying the previous test's detached DOM.
+   */
   let fixture: ComponentFixture<ShareAccessComponent>;
 
   function setupComponent(opts: SetupOptions = {}): ShareAccessComponent {
@@ -104,6 +108,7 @@ describe("ShareAccessComponent", () => {
 
   beforeEach(() => {
     TestBed.resetTestingModule();
+    fixture = undefined as unknown as ComponentFixture<ShareAccessComponent>;
     capturedModalConfigs = [];
     capturedModalRefs = [];
     gmailSpy = { sendEmail: vi.fn() };
@@ -732,20 +737,33 @@ describe("ShareAccessComponent", () => {
       accessServiceSpy.getOwner.mockReturnValue(of("me@example.com"));
     }
 
+    /**
+     * The publish pair, addressed by the label the user reads rather than by DOM position. That
+     * is the mapping under test: a crossed (click) handler still fails, while reordering the two
+     * buttons in the template — which changes nothing a user can act on — no longer does. The
+     * uniqueness check is what keeps a dropped or duplicated button from reading as a pass.
+     */
+    function accessButton(label: "Private" | "Public"): HTMLButtonElement {
+      const matches = fixture.debugElement
+        .queryAll(By.css("button.access-button"))
+        .filter(
+          button =>
+            (button.nativeElement as HTMLElement).querySelector(".button-text-header")?.textContent?.trim() === label
+        );
+      expect(matches).toHaveLength(1);
+      return matches[0].nativeElement as HTMLButtonElement;
+    }
+
     it("puts the unpublish confirmation behind Private and the publish confirmation behind Public", () => {
       asOwner();
       workflowPersistSpy.getWorkflowIsPublished.mockReturnValue(of("Private"));
       setupComponent({ type: "workflow" });
 
-      const [privateButton, publicButton] = fixture.debugElement.queryAll(By.css("button.access-button"));
-      expect(privateButton).toBeTruthy();
-      expect(publicButton).toBeTruthy();
-
       // Already private, so Private has nothing to confirm.
-      privateButton.nativeElement.click();
+      accessButton("Private").click();
       expect(modalServiceSpy.create).not.toHaveBeenCalled();
 
-      publicButton.nativeElement.click();
+      accessButton("Public").click();
       expect(capturedModalConfigs).toHaveLength(1);
       expect(capturedModalConfigs[0].nzContent).toContain("Publishing your workflow");
     });
@@ -755,13 +773,11 @@ describe("ShareAccessComponent", () => {
       workflowPersistSpy.getWorkflowIsPublished.mockReturnValue(of("Public"));
       setupComponent({ type: "workflow" });
 
-      const [privateButton, publicButton] = fixture.debugElement.queryAll(By.css("button.access-button"));
-
       // Already public, so Public has nothing to confirm.
-      publicButton.nativeElement.click();
+      accessButton("Public").click();
       expect(modalServiceSpy.create).not.toHaveBeenCalled();
 
-      privateButton.nativeElement.click();
+      accessButton("Private").click();
       expect(capturedModalConfigs).toHaveLength(1);
       expect(capturedModalConfigs[0].nzContent).toContain("lose access to your workflow");
     });

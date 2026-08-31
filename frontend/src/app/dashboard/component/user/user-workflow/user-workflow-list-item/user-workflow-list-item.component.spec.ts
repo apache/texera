@@ -386,6 +386,17 @@ describe("UserWorkflowListItemComponent rendering", () => {
       .map(d => d.nativeElement as HTMLElement);
   }
 
+  /**
+   * The one element whose tooltip title satisfies the predicate. Indexing byTooltip() directly
+   * reports a missing or duplicated action as a TypeError on `undefined.click()` — or, worse,
+   * silently clicks the first of several; asserting the match is unique names the real problem.
+   */
+  function onlyByTooltip(pred: (title: string) => boolean): HTMLElement {
+    const matches = byTooltip(pred);
+    expect(matches).toHaveLength(1);
+    return matches[0];
+  }
+
   beforeEach(async () => {
     await setup();
   });
@@ -500,7 +511,7 @@ describe("UserWorkflowListItemComponent rendering", () => {
       const modal = TestBed.inject(NzModalService);
       const create = vi.spyOn(modal, "create").mockReturnValue({} as any);
 
-      byTooltip(t => t.startsWith("Executions of the workflow"))[0].click();
+      onlyByTooltip(t => t.startsWith("Executions of the workflow")).click();
 
       expect(create).toHaveBeenCalledWith(
         expect.objectContaining({ nzContent: WorkflowExecutionHistoryComponent, nzData: { wid: 11 } })
@@ -515,12 +526,12 @@ describe("UserWorkflowListItemComponent rendering", () => {
       expect(component.editingName).toBe(false);
       expect(component.editingDescription).toBe(false);
 
-      byTooltip(t => t === "Customize Workflow Name")[0].click();
+      onlyByTooltip(t => t === "Customize Workflow Name").click();
 
       expect(component.editingName).toBe(true);
       expect(component.editingDescription).toBe(false);
 
-      byTooltip(t => t === "Add Description")[0].click();
+      onlyByTooltip(t => t === "Add Description").click();
 
       expect(component.editingDescription).toBe(true);
     });
