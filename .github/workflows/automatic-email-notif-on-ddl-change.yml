@@ -45,9 +45,10 @@ jobs:
           # would put a bare second line in $GITHUB_OUTPUT -- no key=, which
           # makes the runner reject the whole file and the step fail.
           echo "sql_file=${FILE//$'\n'/, }" >> $GITHUB_OUTPUT
-      # A ddl-change PR that adds no migration -- it only edits or deletes
-      # files under sql/updates/ -- leaves operators nothing to apply, so it
-      # must not mail out an instruction naming an empty file.
+      # A ddl-change PR need not add a migration: it may edit or delete files
+      # under sql/updates/, add a non-.sql file such as this README, or touch
+      # a .sql file elsewhere in the repo. Any of those leaves operators
+      # nothing to apply, so no instruction goes out.
       - name: Send email
         if: steps.get_sql_file.outputs.sql_file != ''
         run: |
