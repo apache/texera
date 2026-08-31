@@ -64,6 +64,13 @@ class AsyncReplayLogWriterSpec extends AnyFlatSpec {
   private val shutdownBudgetMillis = 30000L
 
   /**
+    * Slack allowed off a configured flush interval when asserting that the
+    * writer really slept for it. `Thread.sleep` guarantees no upper bound and in
+    * practice can undershoot its argument by a scheduling quantum.
+    */
+  private val sleepGranularityToleranceMillis = 50L
+
+  /**
     * Shuts the writer down and returns the trace as of the instant
     * `terminate()` returned. Bounded, because `terminate()` blocks on an untimed
     * future (see `ReplayLogWriterFixtures.terminatesWithin`).
@@ -206,10 +213,16 @@ class AsyncReplayLogWriterSpec extends AnyFlatSpec {
     val elapsedMillis = (System.nanoTime() - startedAt) / 1000000L
 
     assert(shutdownTrace(writer, recorder) == List(Wrote(step), Flushed, Closed))
+    // Derived from the interval actually configured above rather than written out
+    // as a literal, so the bound follows flushIntervalMillis if it is retuned.
+    // The tolerance absorbs the platform's timer granularity: Thread.sleep is
+    // allowed to return marginally early, and on Windows it routinely does.
+    val lowerBoundMillis = flushIntervalMillis - sleepGranularityToleranceMillis
     assert(
-      elapsedMillis >= 250L,
-      s"the first flush landed after only ${elapsedMillis}ms, so the ${flushIntervalMillis}ms " +
-        "flush interval was not honoured"
+      elapsedMillis >= lowerBoundMillis,
+      s"the first flush landed after only ${elapsedMillis}ms, under the ${lowerBoundMillis}ms " +
+        s"floor implied by the ${flushIntervalMillis}ms flush interval, so the interval was " +
+        "not honoured"
     )
   }
 }

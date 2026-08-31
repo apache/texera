@@ -179,6 +179,16 @@ class CongestionControlSpec extends AnyFlatSpec {
     // must lift that final 0 back to 1, because windowSize is then set from
     // ssThreshold and `canSend` is `inTransit.size < windowSize`: a window of 0
     // can never be satisfied, so the sender would wedge permanently.
+    //
+    // The window is pinned through `canSend` across an empty/full boundary
+    // rather than through the `getStatusReport` text, since it is the sender's
+    // behaviour and not the report's wording that this test is about: a drained
+    // sender that may send, and that one in-transit message then blocks, has a
+    // windowSize of exactly 1. Substring matching on the report could not do
+    // this job — "current window size = 1" is a prefix of "= 16", so it would
+    // pass a clamp that restored 16 — and the report's exact format is pinned
+    // once, in `getStatusReport`'s own test at the bottom of this file. The
+    // report is still built here, as the clue on a failure.
     val cc = new CongestionControl()
     (1L to 5L).foreach { i =>
       cc.markMessageInTransit(msg(i))
@@ -186,20 +196,29 @@ class CongestionControlSpec extends AnyFlatSpec {
       cc.ack(i)
     }
     assert(
-      cc.getStatusReport == "current window size = 1 \t in transit = 0 \t waiting = 0",
-      s"unexpected status: ${cc.getStatusReport}"
+      cc.getInTransitMessages.isEmpty,
+      s"the acks left messages in transit: ${cc.getStatusReport}"
     )
-    assert(cc.canSend, "a fully drained sender must still be permitted to send")
+    assert(
+      cc.canSend,
+      s"a fully drained sender must still be permitted to send: ${cc.getStatusReport}"
+    )
+    cc.markMessageInTransit(msg(6L))
+    assert(
+      !cc.canSend,
+      s"one in-transit message must exhaust a window of 1: ${cc.getStatusReport}"
+    )
 
     // A sixth timeout must keep it pinned at 1 rather than driving it negative.
-    cc.markMessageInTransit(msg(6L))
     backdateSentTime(cc, 6L, 5000)
     cc.ack(6L)
     assert(
-      cc.getStatusReport == "current window size = 1 \t in transit = 0 \t waiting = 0",
-      s"unexpected status: ${cc.getStatusReport}"
+      cc.getInTransitMessages.isEmpty,
+      s"the sixth ack left its message in transit: ${cc.getStatusReport}"
     )
-    assert(cc.canSend)
+    assert(cc.canSend, s"the clamp did not survive a second timeout: ${cc.getStatusReport}")
+    cc.markMessageInTransit(msg(7L))
+    assert(!cc.canSend, s"the window is no longer exactly 1: ${cc.getStatusReport}")
   }
 
   "CongestionControl.getBufferedMessagesToSend" should "be bounded by remaining window capacity" in {

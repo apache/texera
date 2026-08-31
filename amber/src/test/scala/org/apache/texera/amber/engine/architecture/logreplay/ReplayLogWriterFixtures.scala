@@ -136,6 +136,19 @@ object ReplayLogWriterFixtures {
     * caller was released — not whatever it managed to do afterwards while the
     * test thread was getting around to reading.
     *
+    * Anything `shutdown()` throws is carried back and rethrown on the calling
+    * thread. Swallowing it would turn, say, a NullPointerException from an
+    * unstarted writer into a bare "expected List(...) but got List()" on an
+    * empty trace, which points nowhere near the cause.
+    *
+    * If the budget does elapse, the parked thread is interrupted before we
+    * return: `CompletableFuture.get()` is interruptible, so this actually
+    * releases it instead of leaving it holding the writer for the rest of the
+    * run. The interrupt is deliberately *not* reported as the failure — a wedge
+    * is the caller's `returned == false`, and rethrowing the resulting
+    * InterruptedException instead would rename the symptom after its own
+    * remedy.
+    *
     * @return (whether the shutdown returned inside the budget, the trace as of
     *         the moment it returned).
     */
@@ -143,15 +156,22 @@ object ReplayLogWriterFixtures {
       shutdown: () => Unit
   ): (Boolean, List[WriterEvent]) = {
     val captured = new AtomicReference[List[WriterEvent]](Nil)
-    val t = new Thread(() => {
+    val thrown = new AtomicReference[Throwable]()
+    val shutdownThread = new Thread(() => {
       try {
         shutdown()
         captured.set(recorder.snapshot)
-      } catch { case _: Throwable => () }
+      } catch { case t: Throwable => thrown.set(t) }
     })
-    t.setDaemon(true)
-    t.start()
-    t.join(timeoutMillis)
-    (!t.isAlive, captured.get())
+    shutdownThread.setDaemon(true)
+    shutdownThread.start()
+    shutdownThread.join(timeoutMillis)
+    val returned = !shutdownThread.isAlive
+    if (returned) {
+      Option(thrown.get()).foreach(t => throw t)
+    } else {
+      shutdownThread.interrupt()
+    }
+    (returned, captured.get())
   }
 }
