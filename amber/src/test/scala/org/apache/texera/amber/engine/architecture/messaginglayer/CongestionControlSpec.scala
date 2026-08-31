@@ -283,13 +283,23 @@ class CongestionControlSpec extends AnyFlatSpec {
 
   "CongestionControl.getStatusReport" should
     "format the three core counters in the documented order" in {
-    // Pin the exact format string (separator + ordering) so a reorder of
-    // the three fields or a tab-vs-comma swap fails this spec.
+    // Pin the exact format string: the separator, the label wording, and which
+    // counter each label is actually reading.
+    //
+    // The three counters are driven to three *distinct* values on purpose. With
+    // all three at 1 the string cannot pin the label-to-counter binding at all:
+    // a report that read `toBeSent.size` where it says "in transit" and
+    // `inTransit.size` where it says "waiting" renders byte-identically, so it
+    // would pass. Nothing else in this file catches that swap either — the
+    // report's other assertions only look at the window-size field. 2/1/3 makes
+    // every field distinguishable from the other two.
     val cc = new CongestionControl()
     cc.markMessageInTransit(msg(0L))
-    cc.enqueueMessage(msg(1L))
+    cc.ack(0L) // in-window ack: slow start doubles windowSize 1 -> 2
+    cc.markMessageInTransit(msg(1L))
+    (2L to 4L).foreach(i => cc.enqueueMessage(msg(i)))
     assert(
-      cc.getStatusReport == "current window size = 1 \t in transit = 1 \t waiting = 1",
+      cc.getStatusReport == "current window size = 2 \t in transit = 1 \t waiting = 3",
       s"unexpected format: ${cc.getStatusReport}"
     )
   }
