@@ -1923,12 +1923,13 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     }
     const graph = this.workflowActionService.getTexeraGraph();
     let newOperatorID: string | undefined;
-    // Both conditions re-check state the chips cannot see. The lock can engage
-    // between render and click; and nothing dismisses the chips when the user
-    // hand-draws a link out of the anchor port, because that gesture is a magnet
-    // drag that stops propagation before any pointerdown notification, so the
-    // blank:pointerdown we listen for never fires. Without the port check the
-    // click would add a second successor on top of the first.
+    // The lock check and the port check re-check state the chips cannot see. The
+    // lock can engage between render and click; and nothing dismisses the chips
+    // when the user hand-draws a link out of the anchor port, because that gesture
+    // is a magnet drag that stops propagation before any pointerdown notification,
+    // so the blank:pointerdown we listen for never fires. Without the port check
+    // the click would add a second successor on top of the first. The hasOperator
+    // check is belt-and-braces: the delete stream above already dismisses.
     if (
       this.workflowActionService.checkWorkflowModificationEnabled() &&
       graph.hasOperator(this.nextOperatorSuggestion.operatorId) &&
