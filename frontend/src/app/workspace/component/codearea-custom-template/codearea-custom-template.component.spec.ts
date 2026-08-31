@@ -27,7 +27,7 @@ import { FormControl } from "@angular/forms";
 import { commonTestProviders } from "../../../common/testing/test-utils";
 import { CodeEditorService } from "../../service/code-editor/code-editor.service";
 import { CoeditorPresenceService } from "../../service/workflow-graph/model/coeditor-presence.service";
-import { config as rxjsConfig, Subject } from "rxjs";
+import { config as rxjsConfig, Subject, take } from "rxjs";
 
 describe("CodeareaCustomTemplateComponent", () => {
   let component: CodeareaCustomTemplateComponent;
@@ -78,6 +78,21 @@ describe("CodeareaCustomTemplateComponent", () => {
       return TestBed.inject(WorkflowActionService).getJointGraphWrapper().getCurrentHighlightedOperatorIDs()[0];
     }
 
+    // The shared flag as the service currently publishes it for one operator. `getEditorState`
+    // hands back a BehaviorSubject as an observable, so the current value arrives synchronously on
+    // subscribe; `take(1)` consumes that one value and completes, instead of leaving a live
+    // subscription on a service-owned subject behind for the rest of the test. Returns
+    // `boolean | undefined` on purpose: a service that stopped replaying a current value would
+    // yield `undefined` here and fail the caller's assertion rather than quietly reading stale.
+    function publishedEditorState(operatorId: string): boolean | undefined {
+      let published: boolean | undefined;
+      codeEditorService
+        .getEditorState(operatorId)
+        .pipe(take(1))
+        .subscribe(v => (published = v));
+      return published;
+    }
+
     beforeEach(() => {
       const workflowActionService = TestBed.inject(WorkflowActionService);
       vi.spyOn(workflowActionService.getJointGraphWrapper(), "getCurrentHighlightedOperatorIDs").mockReturnValue([
@@ -107,9 +122,7 @@ describe("CodeareaCustomTemplateComponent", () => {
       // detached from the operator property it is meant to edit.
       expect(component.componentRef!.instance.formControl).toBe(component.field.formControl);
 
-      let published: boolean | undefined;
-      codeEditorService.getEditorState(highlightedOperatorId()).subscribe(v => (published = v));
-      expect(published).toBe(true);
+      expect(publishedEditorState(highlightedOperatorId())).toBe(true);
     });
 
     it("clears the flag again when the editor component is destroyed", () => {
@@ -117,9 +130,7 @@ describe("CodeareaCustomTemplateComponent", () => {
       component.componentRef!.destroy();
 
       expect(component.isEditorOpen).toBe(false);
-      let published: boolean | undefined;
-      codeEditorService.getEditorState(highlightedOperatorId()).subscribe(v => (published = v));
-      expect(published).toBe(false);
+      expect(publishedEditorState(highlightedOperatorId())).toBe(false);
     });
 
     it("opens the editor when a co-editor opens one", () => {
@@ -176,9 +187,7 @@ describe("CodeareaCustomTemplateComponent", () => {
       // through, so the real destroy still runs and the flag assertions still describe the result.
       expect(destroySpy).toHaveBeenCalledTimes(1);
       expect(remoteComponent.isEditorOpen).toBe(false);
-      let published: boolean | undefined;
-      codeEditorService.getEditorState(highlightedOperatorId()).subscribe(v => (published = v));
-      expect(published).toBe(false);
+      expect(publishedEditorState(highlightedOperatorId())).toBe(false);
     });
 
     it("stays quiet when a co-editor closes an editor this panel never opened", async () => {
@@ -200,9 +209,25 @@ describe("CodeareaCustomTemplateComponent", () => {
       // would pass even with the optional call removed; watch that channel instead.
       const unhandled = vi.fn();
       const previousHandler = rxjsConfig.onUnhandledError;
+      // Two restores, for two different exits. The `finally` below is the normal one, and it puts
+      // the handler back before the assertions so anything RxJS reports afterwards is reported,
+      // not swallowed. It is skipped, though, if the awaited flush never resolves and Vitest kills
+      // this test on its 20s timeout - and every spec in this FILE shares one forked worker, so a
+      // handler left installed would silently eat any genuine unhandled error the remaining seven
+      // raise. `onTestFinished` runs however the test ends, so it closes that exit; re-assigning
+      // the same value after the `finally` already ran is a no-op. Deliberately not hoisted into
+      // beforeEach/afterEach: that would install this swallowing handler for all eight tests.
+      onTestFinished(() => {
+        rxjsConfig.onUnhandledError = previousHandler;
+      });
       rxjsConfig.onUnhandledError = unhandled;
       try {
         closed.next({ operatorId: "a-completely-unrelated-operator" });
+        // A real macrotask, not fake timers. `next()` schedules RxJS's report timer synchronously,
+        // before this line creates its own, and Node fires equal-delay timers in insertion order -
+        // so the report always lands before the await resumes. Fake timers would buy nothing here
+        // (~1ms of a 167ms file) and would cost the flush being a whole-timer-API swap while an
+        // Angular fixture is live, draining whatever else the fixture had queued.
         await new Promise(resolve => setTimeout(resolve, 0));
       } finally {
         rxjsConfig.onUnhandledError = previousHandler;
@@ -223,9 +248,7 @@ describe("CodeareaCustomTemplateComponent", () => {
 
       // ngOnDestroy writes the CURRENT flag rather than a hardcoded false, so a component torn
       // down with its editor still up comes back open.
-      let published: boolean | undefined;
-      codeEditorService.getEditorState(highlightedOperatorId()).subscribe(v => (published = v));
-      expect(published).toBe(true);
+      expect(publishedEditorState(highlightedOperatorId())).toBe(true);
     });
 
     it("tracks an external state change through ngOnInit's subscription", () => {
