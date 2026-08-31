@@ -845,8 +845,17 @@ class StableMergeSortOpExecSpec extends AnyFlatSpec {
       // top two buckets equal-sized, and the binary carry that merges them is the
       // first comparison of two values.
       exec.processTuple(tupleOf(schema, "value" -> first), 0)
-      val thrown = intercept[IllegalStateException] {
-        exec.processTuple(tupleOf(schema, "value" -> second), 0)
+      // Clued because this helper runs twice within the one test case: intercept's
+      // own failure text ("Expected exception ... but no exception was thrown")
+      // names neither the attribute type nor the call site, so a regression in one
+      // of the two probes would be indistinguishable from the other. Built from
+      // name() rather than the enum itself: toString delegates to the @JsonValue
+      // getName, which is deliberately "" for ANY, so an interpolated $attrType
+      // would render this clue blank for exactly one of the two probes.
+      val thrown = withClue(s"attributeType=${attrType.name()}: ") {
+        intercept[IllegalStateException] {
+          exec.processTuple(tupleOf(schema, "value" -> second), 0)
+        }
       }
       exec.close()
       thrown
