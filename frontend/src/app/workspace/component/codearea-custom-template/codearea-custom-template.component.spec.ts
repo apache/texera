@@ -27,7 +27,7 @@ import { FormControl } from "@angular/forms";
 import { commonTestProviders } from "../../../common/testing/test-utils";
 import { CodeEditorService } from "../../service/code-editor/code-editor.service";
 import { CoeditorPresenceService } from "../../service/workflow-graph/model/coeditor-presence.service";
-import { Subject } from "rxjs";
+import { config as rxjsConfig, Subject } from "rxjs";
 
 describe("CodeareaCustomTemplateComponent", () => {
   let component: CodeareaCustomTemplateComponent;
@@ -145,6 +145,75 @@ describe("CodeareaCustomTemplateComponent", () => {
 
       expect(remoteComponent.isEditorOpen).toBe(true);
       expect(remoteComponent.componentRef).toBeDefined();
+    });
+
+    it("tears this client's editor down when any co-editor closes one, whichever operator it names", () => {
+      // The mirror image of the open case above, and the half that was missing: a co-editor
+      // closing the dialog has to close it here too, or this client keeps typing into an editor
+      // the other side has already dismissed.
+      const closed = new Subject<{ operatorId: string }>();
+      vi.spyOn(TestBed.inject(CoeditorPresenceService), "getCoeditorClosedCodeEditorSubject").mockReturnValue(
+        closed.asObservable()
+      );
+
+      const remoteFixture = TestBed.createComponent(CodeareaCustomTemplateComponent);
+      const remoteComponent = remoteFixture.componentInstance;
+      remoteComponent.field = { props: {}, formControl: new FormControl() } as any;
+      remoteFixture.detectChanges();
+      remoteComponent.openEditor();
+      expect(remoteComponent.isEditorOpen).toBe(true);
+
+      // The subscriber binds the payload to `_` and discards it, so a deliberately foreign operator
+      // id is the honest fixture: naming this panel's own operator would advertise a targeting
+      // filter the component does not have, and would leave a later filter free to be added without
+      // any test noticing.
+      const destroySpy = vi.spyOn(remoteComponent.componentRef!, "destroy");
+      closed.next({ operatorId: "a-completely-unrelated-operator" });
+
+      // The spy is what proves teardown. The shared flag below is reachable *without* any teardown:
+      // a subscriber that merely published `false` for this operator would satisfy it through
+      // ngOnInit's getEditorState subscription while the dialog stayed on screen. vi.spyOn calls
+      // through, so the real destroy still runs and the flag assertions still describe the result.
+      expect(destroySpy).toHaveBeenCalledTimes(1);
+      expect(remoteComponent.isEditorOpen).toBe(false);
+      let published: boolean | undefined;
+      codeEditorService.getEditorState(highlightedOperatorId()).subscribe(v => (published = v));
+      expect(published).toBe(false);
+    });
+
+    it("stays quiet when a co-editor closes an editor this panel never opened", async () => {
+      // componentRef is still undefined here; the optional call is what keeps a close broadcast
+      // from throwing in every panel that happens to be mounted but closed. A close broadcast
+      // reaches EVERY mounted codearea, so most recipients are in exactly this state.
+      const closed = new Subject<{ operatorId: string }>();
+      vi.spyOn(TestBed.inject(CoeditorPresenceService), "getCoeditorClosedCodeEditorSubject").mockReturnValue(
+        closed.asObservable()
+      );
+
+      const remoteFixture = TestBed.createComponent(CodeareaCustomTemplateComponent);
+      const remoteComponent = remoteFixture.componentInstance;
+      remoteComponent.field = { props: {}, formControl: new FormControl() } as any;
+      remoteFixture.detectChanges();
+
+      // A throw inside a subscriber does NOT propagate out of Subject.next() - RxJS swallows it and
+      // reports it on its unhandled-error channel one macrotask later. So `expect(...).not.toThrow()`
+      // would pass even with the optional call removed; watch that channel instead.
+      const unhandled = vi.fn();
+      const previousHandler = rxjsConfig.onUnhandledError;
+      rxjsConfig.onUnhandledError = unhandled;
+      try {
+        closed.next({ operatorId: "a-completely-unrelated-operator" });
+        await new Promise(resolve => setTimeout(resolve, 0));
+      } finally {
+        rxjsConfig.onUnhandledError = previousHandler;
+      }
+
+      expect(unhandled).not.toHaveBeenCalled();
+      // Trivially satisfied against pristine production - nothing in this test can set the flag -
+      // but not decorative: this is the assertion that catches the open and close subscriber bodies
+      // being swapped, in which case a close broadcast would OPEN an editor in a panel that had
+      // none. Measured: with this line the swap fails 3 tests here, without it only 2.
+      expect(remoteComponent.isEditorOpen).toBe(false);
     });
 
     it("persists the open flag on destroy so a reopened panel restores it", () => {
