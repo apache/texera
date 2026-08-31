@@ -41,7 +41,10 @@ jobs:
             ${{ github.event.pull_request.base.sha }} \
             ${{ github.event.pull_request.merge_commit_sha }} \
             -- 'sql/updates/*.sql')
-          echo "sql_file=$FILE" >> $GITHUB_OUTPUT
+          # git diff prints one path per line, so a PR adding two migrations
+          # would put a bare second line in $GITHUB_OUTPUT -- no key=, which
+          # makes the runner reject the whole file and the step fail.
+          echo "sql_file=${FILE//$'\n'/, }" >> $GITHUB_OUTPUT
       # A ddl-change PR that adds no migration -- it only edits or deletes
       # files under sql/updates/ -- leaves operators nothing to apply, so it
       # must not mail out an instruction naming an empty file.
