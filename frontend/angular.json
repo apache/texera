@@ -21,6 +21,11 @@
                 "glob": "**/*",
                 "input": "./node_modules/@ant-design/icons-angular/src/inline-svg/",
                 "output": "/assets/"
+              },
+              {
+                "glob": "**/*",
+                "input": "./.well-known",
+                "output": "/.well-known/"
               }
             ],
             "styles": [
@@ -80,7 +85,8 @@
           "builder": "@angular-builders/custom-webpack:dev-server",
           "options": {
             "buildTarget": "gui:build",
-            "proxyConfig": "proxy.config.json"
+            "proxyConfig": "proxy.config.json",
+            "allowedHosts": ["parabola-nibble-flatfoot.ngrok-free.dev"]
           },
           "configurations": {
             "production": {

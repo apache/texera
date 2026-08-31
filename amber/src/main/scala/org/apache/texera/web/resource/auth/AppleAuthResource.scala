@@ -40,8 +40,6 @@ object AppleAuthResource extends LazyLogging {
   private[auth] val APPLE_JWKS_URL = "https://appleid.apple.com/auth/keys"
   private[auth] val APPLE_ISSUER = "https://appleid.apple.com"
 
-  // HttpsJwks caches the key set and refetches when a token arrives bearing an unknown `kid`,
-  // so Apple's key rotation needs no redeploy. Shared, because the cache is the whole point.
   private lazy val appleJwks = new HttpsJwks(APPLE_JWKS_URL)
 
   /**
@@ -58,30 +56,27 @@ object AppleAuthResource extends LazyLogging {
     }
 
   /**
-    * Reduce a verified Apple identity token to the fields we persist.
+    * Reduce a verified Apple identity token to what we persist: an [[ExternalProfile]] when Apple
+    * asserted a verified address, an [[ExternalIdentity]] when it asserted none.
     *
-    * `sub` is the stable per-user identifier and becomes the provider id. Note it is scoped to
-    * the Apple developer *team*: transferring the app to another team changes it for every
-    * user, and Apple exposes `transfer_sub` for only 60 days after such a move.
+    * `sub` is the stable per-user identifier and becomes the provider id. It is scoped to the Apple
+    * developer *team*: transferring the app changes it for every user, and `transfer_sub` is
+    * available for only 60 days after such a move.
     *
-    * Apple sends the display name solely on a user's first ever authorization, and outside the
-    * identity token — it rides in the JS response body, so it never reaches this endpoint, and
-    * being unsigned it would be untrusted anyway. The address stands in for it, exactly as it
-    * does for a Google account with no name. Apple supplies no avatar at all, hence `None`, which
-    * leaves whatever is already stored alone.
+    * Apple sends the display name only on a user's first ever authorization, outside the identity
+    * token — it rides in the JS response body, so it never reaches this endpoint, and unsigned it
+    * would be untrusted anyway. The address stands in for it, as it does for a Google account with
+    * no name, and the `sub` stands in when there is no address either. Apple supplies no avatar.
     *
-    * A token with no address, or one Apple has not verified, is refused rather than mapped — see
-    * [[ExternalProfile]] for why an unverified address is a takeover. Apple omits `email` for
-    * Sign in with Apple at Work & School accounts, and there would be nothing to link or
-    * provision against.
+    * An address Apple did not verify is refused rather than mapped — see [[ExternalProfile]] for
+    * why that is a takeover. An absent address is not: Apple omits `email` for Sign in with Apple
+    * at Work & School accounts, so refusing would lock those users out of a provider the deployment
+    * has enabled. They are provisioned identity-only and asked for an address once in.
     */
-  private[auth] def profileOf(claims: JwtClaims): ExternalProfile = {
+  private[auth] def identityOf(claims: JwtClaims): Either[ExternalIdentity, ExternalProfile] = {
     val email = Option(claims.getClaimValueAsString("email")).map(_.trim).getOrElse("")
     if (email.isEmpty) {
-      logger.warn(
-        s"Refusing Apple identity ${claims.getSubject}: the token carries no email address."
-      )
-      throw new NotAuthorizedException("Login credentials are incorrect.")
+      return Left(ExternalIdentity(ProviderTypeEnum.APPLE, claims.getSubject, claims.getSubject))
     }
     if (!booleanClaim(claims, "email_verified")) {
       logger.warn(
@@ -89,12 +84,14 @@ object AppleAuthResource extends LazyLogging {
       )
       throw new NotAuthorizedException("Login credentials are incorrect.")
     }
-    ExternalProfile(
-      ProviderTypeEnum.APPLE,
-      claims.getSubject,
-      name = email,
-      email = email,
-      avatar = None
+    Right(
+      ExternalProfile(
+        ProviderTypeEnum.APPLE,
+        claims.getSubject,
+        name = email,
+        email = email,
+        avatar = None
+      )
     )
   }
 }
@@ -153,7 +150,10 @@ class AppleAuthResource extends LazyLogging {
   def login(credential: String): TokenIssueResponse =
     verifiedClaims(credential) match {
       case Some(claims) =>
-        val user = ExternalAuthProvisioner.loginOrProvision(AppleAuthResource.profileOf(claims))
+        val user = AppleAuthResource.identityOf(claims) match {
+          case Right(profile) => ExternalAuthProvisioner.loginOrProvision(profile)
+          case Left(identity) => ExternalAuthProvisioner.loginOrProvisionIdentityOnly(identity)
+        }
         // No `googleId` claim: that one names a Google identity, and this login has none.
         TokenIssueResponse(jwtToken(jwtClaims(user)))
       case None => throw new NotAuthorizedException("Login credentials are incorrect.")

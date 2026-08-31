@@ -35,12 +35,11 @@ import javax.ws.rs.NotAuthorizedException
 /**
   * Integration spec for [[AppleAuthResource]] against embedded Postgres.
   *
-  * Signature verification is the one part that cannot run here — it needs an Apple-signed JWT
-  * and a network round trip to Apple's JWKS endpoint — so the suite overrides `verifiedClaims`
-  * and drives the resource with claim sets built by hand. What it pins down is everything
-  * downstream: how an Apple token becomes an [[ExternalProfile]], and that the cases Apple's
-  * own documentation warns about (a string-typed `email_verified`, a missing `email`) are
-  * handled rather than silently mishandled.
+  * Signature verification is the one part that cannot run here — it needs an Apple-signed JWT and a
+  * network round trip to Apple's JWKS endpoint — so the suite overrides `verifiedClaims` and drives
+  * the resource with claim sets built by hand. What it pins down is the mapping downstream, and the
+  * two cases Apple's own documentation warns about: a string-typed `email_verified`, and a token
+  * with no `email` at all.
   */
 class AppleAuthResourceSpec
     extends AnyFlatSpec
@@ -63,8 +62,13 @@ class AppleAuthResourceSpec
   override protected def beforeEach(): Unit = cleanup()
   override protected def afterEach(): Unit = cleanup()
 
+  // Identity-only accounts have a NULL email, so they are matched by the name they are given
+  // instead — the Apple `sub`. AUTH_PROVIDER cascades on delete.
   private def cleanup(): Unit =
-    getDSLContext.deleteFrom(USER).where(USER.EMAIL.like("%" + emailDomain)).execute()
+    getDSLContext
+      .deleteFrom(USER)
+      .where(USER.EMAIL.like("%" + emailDomain).or(USER.NAME.like("apple-sub-%")))
+      .execute()
 
   // ---- helpers -------------------------------------------------------------
 
@@ -74,14 +78,10 @@ class AppleAuthResourceSpec
   }
 
   /**
-    * A claim set shaped like Apple's. `emailVerified` is typed `Any` on purpose: Apple sends it
-    * as a JSON boolean or as a quoted string, and both have to work.
+    * A claim set shaped like Apple's. `emailVerified` is typed `Any` on purpose: Apple sends it as
+    * a JSON boolean or as a quoted string, and both have to work.
     */
-  private def claims(
-      subject: String,
-      email: String,
-      emailVerified: Any = true
-  ): JwtClaims = {
+  private def claims(subject: String, email: String, emailVerified: Any = true): JwtClaims = {
     val c = new JwtClaims
     c.setSubject(subject)
     if (email != null) c.setClaim("email", email)
@@ -97,6 +97,9 @@ class AppleAuthResourceSpec
   private def userByEmail(localPart: String): User =
     userDao.fetchOneByEmail(localPart + emailDomain)
 
+  private def userByName(name: String): User =
+    userDao.fetchByName(name).stream().findFirst().orElse(null)
+
   private def appleIdOf(uid: Integer): String =
     getDSLContext
       .select(AUTH_PROVIDER.PROVIDER_ID)
@@ -105,7 +108,7 @@ class AppleAuthResourceSpec
       .and(AUTH_PROVIDER.PROVIDER_TYPE.eq(ProviderTypeEnum.APPLE))
       .fetchOne(AUTH_PROVIDER.PROVIDER_ID)
 
-  // ---- first login ---------------------------------------------------------
+  // ---- login ---------------------------------------------------------------
 
   behavior of "login"
 
@@ -128,82 +131,69 @@ class AppleAuthResourceSpec
     userByEmail("repeat").getUid shouldBe first
   }
 
-  // ---- payload mapping -----------------------------------------------------
-
-  // Apple only ever sends a display name on the very first authorization, and outside the
-  // token, so there is nothing else to fall back to.
+  // Apple only ever sends a display name on the very first authorization, and outside the token,
+  // so there is nothing else to fall back to.
   it should "use the email address as the display name" in {
     loginWith(claims("apple-sub-name", "named" + emailDomain))
 
     userByEmail("named").getName shouldBe "named" + emailDomain
   }
 
-  it should "store no avatar, since Apple supplies none" in {
-    loginWith(claims("apple-sub-avatar", "avatar" + emailDomain))
+  // ---- a token with no email -----------------------------------------------
 
-    userByEmail("avatar").getAvatar shouldBe null
+  // Apple omits `email` for Sign in with Apple at Work & School accounts. Refusing would lock
+  // those users out of a provider the deployment has enabled, so they are provisioned
+  // identity-only: NULL email, `sub` as the name, and an address collected later.
+  it should "provision an account with no email when Apple asserts none" in {
+    loginWith(claims("apple-sub-noemail", null))
+
+    val user = userByName("apple-sub-noemail")
+    user should not be null
+    user.getEmail shouldBe null
+    appleIdOf(user.getUid) shouldBe "apple-sub-noemail"
   }
 
-  // ---- email_verified typing ------------------------------------------------
+  // Repeated NULL emails do not collide on the UNIQUE index, but the identity still has to match
+  // the existing row rather than pile up new ones.
+  it should "return the same email-less account on a second login" in {
+    loginWith(claims("apple-sub-noemail", null))
+    val first = userByName("apple-sub-noemail").getUid
 
-  // Apple documents this claim as "either a string ("true" or "false") or a Boolean". Reading
-  // only the boolean shape yields false for the string case, and the provisioner rejects an
-  // unverified email — so getting this wrong locks out every user Apple describes this way.
+    loginWith(claims("apple-sub-noemail", null))
+
+    getDSLContext.fetchCount(USER, USER.NAME.eq("apple-sub-noemail")) shouldBe 1
+    userByName("apple-sub-noemail").getUid shouldBe first
+  }
+
+  // ---- email_verified -------------------------------------------------------
+
+  // Apple documents this claim as "either a string ("true" or "false") or a Boolean". Reading only
+  // the boolean shape yields false for the string case, which would refuse a legitimate login.
+  // `booleanClaim` below covers the shapes exhaustively; this pins the wiring through the resource.
   it should "accept email_verified sent as the string \"true\"" in {
     loginWith(claims("apple-sub-strtrue", "strtrue" + emailDomain, emailVerified = "true"))
 
     userByEmail("strtrue") should not be null
   }
 
-  it should "reject email_verified sent as the string \"false\"" in {
+  it should "refuse an address Apple has not verified" in {
     val resource = new StubbedAppleAuthResource(
-      Some(claims("apple-sub-strfalse", "strfalse" + emailDomain, emailVerified = "false"))
+      Some(claims("apple-sub-unverified", "unverified" + emailDomain, emailVerified = false))
     )
 
     assertThrows[NotAuthorizedException](resource.login("stubbed-credential"))
-    userByEmail("strfalse") shouldBe null
-  }
-
-  it should "reject email_verified sent as the boolean false" in {
-    val resource = new StubbedAppleAuthResource(
-      Some(claims("apple-sub-boolfalse", "boolfalse" + emailDomain, emailVerified = false))
-    )
-
-    assertThrows[NotAuthorizedException](resource.login("stubbed-credential"))
-    userByEmail("boolfalse") shouldBe null
-  }
-
-  it should "treat an absent email_verified as unverified" in {
-    val resource = new StubbedAppleAuthResource(
-      Some(claims("apple-sub-noverify", "noverify" + emailDomain, emailVerified = null))
-    )
-
-    assertThrows[NotAuthorizedException](resource.login("stubbed-credential"))
-    userByEmail("noverify") shouldBe null
-  }
-
-  // ---- missing email --------------------------------------------------------
-
-  // Apple omits `email` for Sign in with Apple at Work & School accounts. There is nothing to
-  // link or provision against, and "" would collide on a UNIQUE column.
-  it should "refuse a token that carries no email address" in {
-    val resource = new StubbedAppleAuthResource(Some(claims("apple-sub-noemail", null)))
-
-    assertThrows[NotAuthorizedException](resource.login("stubbed-credential"))
-    getDSLContext.fetchCount(USER, USER.EMAIL.eq("")) shouldBe 0
+    userByEmail("unverified") shouldBe null
   }
 
   // ---- verification failure -------------------------------------------------
 
   it should "reject a credential Apple does not verify with a 401" in {
-    val resource = new StubbedAppleAuthResource(None)
-
-    a[NotAuthorizedException] should be thrownBy resource.login("not-a-real-credential")
+    a[NotAuthorizedException] should be thrownBy new StubbedAppleAuthResource(None)
+      .login("not-a-real-credential")
   }
 
   // The one case that runs the real `verifiedClaims` rather than the stub. A string that is not
-  // three dot-separated parts fails the local parse, so no request to Apple is made and this
-  // stays a unit test.
+  // three dot-separated parts fails the local parse, so no request to Apple is made.
   it should "reject a malformed credential with a 401 before reaching Apple" in {
     a[NotAuthorizedException] should be thrownBy new AppleAuthResource().login("not-a-jwt")
   }

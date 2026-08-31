@@ -37,16 +37,14 @@ declare const AppleID: {
 const APPLE_SDK_URL = "https://appleid.cdn-apple.com/appleauth/static/jsapi/appleid/1/en_US/appleid.auth.js";
 
 /**
- * Sign in with Apple, the counterpart to `GoogleAuthService`.
+ * Sign in with Apple, driven through Apple's own SDK because
+ * `@abacritt/angularx-social-login` ships no Apple provider. The script is fetched on first use, so
+ * a deployment with `appleLogin` off never calls Apple at all.
  *
- * Google's button comes from `@abacritt/angularx-social-login`, which ships no Apple provider, so
- * the flow is driven through Apple's own SDK instead. The script is fetched on first use rather
- * than from `index.html`, so a deployment with `appleLogin` off makes no request to Apple at all.
- *
- * `usePopup` keeps the identity token in the page (Apple posts to `redirectURI` otherwise), which
- * is what lets the token go straight to `/auth/apple/login`. Apple still requires `redirectURI` to
- * be registered against the Services ID and to be HTTPS on a domain it has verified — it rejects
- * `http://localhost`, so a local click-through needs a tunnel.
+ * `usePopup` keeps the identity token in the page — Apple posts to `redirectURI` otherwise — which
+ * is what lets it go straight to `/auth/apple/login`. Apple still requires `redirectURI` to be
+ * registered against the Services ID and HTTPS on a verified domain; it rejects `http://localhost`,
+ * so a local click-through needs a tunnel.
  */
 @Injectable({
   providedIn: "root",
