@@ -33,18 +33,26 @@ abstract class SklearnClassifierOpDesc extends SklearnModelOpDesc {
     pyb"""$getImportStatements
        |from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
        |from sklearn.pipeline import make_pipeline
+       |from sklearn.compose import ColumnTransformer
        |from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
        |import numpy as np
        |from pytexera import *
        |class ProcessTableOperator(UDFTableOperator):
        |    @overrides
        |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
+       |        rows_read = len(table)
+       |        table = $dropMissingRows #remove missing values
+       |        if len(table) < rows_read:
+       |            print("Skipped", rows_read - len(table), "of", rows_read, "rows with missing values")
        |        Y = table[$target]
        |        X = table.drop($target, axis=1)
-       |        X = ${if (countVectorizer) pyb"X[$text]" else "X"}
+       |${dropNonFeatureColumns("X", " " * 8)}
+$reportMissingKept
        |        if port == 0:
-       |            self.model = make_pipeline(${if (countVectorizer) "CountVectorizer(),"
-    else ""} ${if (tfidfTransformer) "TfidfTransformer()," else ""} ${getImportStatements
+       |            self.model = make_pipeline(${vectorizerStage(c => pyb"$c".toString)} ${if (
+      tfidfTransformer
+    ) "TfidfTransformer(),"
+    else ""} ${getImportStatements
       .split(" ")
       .last}()).fit(X, Y)
        |        else:

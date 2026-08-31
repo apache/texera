@@ -18,7 +18,7 @@
  */
 
 import { ComponentFixture, TestBed } from "@angular/core/testing";
-import { AdminSettingsComponent } from "./admin-settings.component";
+import { AdminSettingsComponent, UploadSettingsForm } from "./admin-settings.component";
 import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
 import { NzCardModule } from "ng-zorro-antd/card";
 import { NzMessageService } from "ng-zorro-antd/message";
@@ -31,6 +31,10 @@ describe("AdminSettingsComponent", () => {
   let httpTestingController: HttpTestingController;
 
   const SETTINGS_URL = "/api/config/settings";
+
+  const formOf = (label: string): UploadSettingsForm => component.uploadGroups.find(g => g.label === label)!.form;
+  const datasetForm = () => formOf("Dataset");
+  const modelForm = () => formOf("Model");
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
@@ -49,9 +53,10 @@ describe("AdminSettingsComponent", () => {
     expect(component).toBeTruthy();
   });
 
-  it("renders MiB unit beside both size-based inputs", () => {
+  it("renders MiB unit beside every size-based input", () => {
     const units = fixture.nativeElement.querySelectorAll(".input-with-unit .unit");
-    expect(units.length).toBe(2);
+    // File size and part size, once per upload card.
+    expect(units.length).toBe(2 * component.uploadGroups.length);
     units.forEach((el: HTMLElement) => {
       expect(el.textContent?.trim()).toBe("MiB");
     });
@@ -66,10 +71,14 @@ describe("AdminSettingsComponent", () => {
       favicon: "fav.ico",
       hub_enabled: "true",
       home_enabled: "false",
-      max_number_of_concurrent_uploading_file: "5",
-      single_file_upload_max_size_mib: "128",
-      max_number_of_concurrent_uploading_file_chunks: "7",
-      multipart_upload_chunk_size_mib: "64",
+      dataset_max_number_of_concurrent_uploading_file: "5",
+      dataset_single_file_upload_max_size_mib: "128",
+      dataset_max_number_of_concurrent_uploading_file_chunks: "7",
+      dataset_multipart_upload_chunk_size_mib: "64",
+      model_max_number_of_concurrent_uploading_file: "2",
+      model_single_file_upload_max_size_mib: "4096",
+      model_max_number_of_concurrent_uploading_file_chunks: "4",
+      model_multipart_upload_chunk_size_mib: "32",
       csv_parser_max_columns: "4096",
     });
 
@@ -78,21 +87,28 @@ describe("AdminSettingsComponent", () => {
     expect(component.faviconData).toBe("fav.ico");
     expect(component.sidebarTabs.hub_enabled).toBe(true);
     expect(component.sidebarTabs.home_enabled).toBe(false);
-    expect(component.maxConcurrentFiles).toBe(5);
-    expect(component.maxFileSizeMiB).toBe(128);
-    expect(component.maxConcurrentChunks).toBe(7);
-    expect(component.chunkSizeMiB).toBe(64);
+    expect(datasetForm().maxConcurrentFiles).toBe(5);
+    expect(datasetForm().maxFileSizeMiB).toBe(128);
+    expect(datasetForm().maxConcurrentChunks).toBe(7);
+    expect(datasetForm().chunkSizeMiB).toBe(64);
+    // Each family reads only its own keys, so the model card cannot inherit the dataset ceiling.
+    expect(modelForm().maxConcurrentFiles).toBe(2);
+    expect(modelForm().maxFileSizeMiB).toBe(4096);
+    expect(modelForm().maxConcurrentChunks).toBe(4);
+    expect(modelForm().chunkSizeMiB).toBe(32);
     expect(component.csvMaxColumns).toBe(4096);
   });
 
   it("keeps the initializer defaults for missing or unparsable values", () => {
     httpTestingController.expectOne(SETTINGS_URL).flush({
-      single_file_upload_max_size_mib: "not-a-number",
+      dataset_single_file_upload_max_size_mib: "not-a-number",
     });
 
     expect(component.logoData).toBeNull();
-    expect(component.maxFileSizeMiB).toBe(20);
-    expect(component.maxConcurrentFiles).toBe(3);
+    expect(datasetForm().maxFileSizeMiB).toBe(20);
+    expect(datasetForm().maxConcurrentFiles).toBe(3);
+    // The model default is the 2 GiB ceiling #8000 gave models, not the dataset's 20 MiB.
+    expect(modelForm().maxFileSizeMiB).toBe(2048);
     expect(component.csvMaxColumns).toBe(512);
   });
 
@@ -107,11 +123,11 @@ describe("AdminSettingsComponent", () => {
 
   it("preserves a legitimately stored 0 instead of falling back to the default", () => {
     httpTestingController.expectOne(SETTINGS_URL).flush({
-      max_number_of_concurrent_uploading_file: "0",
+      dataset_max_number_of_concurrent_uploading_file: "0",
       csv_parser_max_columns: "0",
     });
 
-    expect(component.maxConcurrentFiles).toBe(0);
+    expect(datasetForm().maxConcurrentFiles).toBe(0);
     expect(component.csvMaxColumns).toBe(0);
   });
 
@@ -184,6 +200,25 @@ describe("AdminSettingsComponent", () => {
         httpTestingController.expectNone(updateUrl("favicon"));
         logoReq.flush(null);
         miniReq.flush(null);
+
+        expect(msgSuccess).toHaveBeenCalledWith("Branding saved successfully.");
+      });
+
+      it("saveLogos PUTs the favicon too when one is set", () => {
+        completeLoad();
+        component.logoData = "logo.png";
+        component.miniLogoData = "mini.png";
+        component.faviconData = "fav.ico";
+
+        component.saveLogos();
+
+        const requests = ["logo", "mini_logo", "favicon"].map(key => {
+          const req = httpTestingController.expectOne(updateUrl(key));
+          expect(req.request.method).toBe("PUT");
+          return req;
+        });
+        expect(requests[2].request.body).toEqual({ value: "fav.ico" });
+        requests.forEach(req => req.flush(null));
 
         expect(msgSuccess).toHaveBeenCalledWith("Branding saved successfully.");
       });
@@ -268,11 +303,22 @@ describe("AdminSettingsComponent", () => {
       });
     });
 
-    describe("dataset settings", () => {
-      it("saveDatasetSettings PUTs the four upload settings and notifies success", () => {
-        completeLoad(); // defaults (20 / 3 / 10 / 50) are valid
+    describe.each([
+      ["Dataset", "dataset", 20],
+      ["Model", "model", 2048],
+    ])("%s upload settings", (label, prefix, defaultMaxFileSizeMiB) => {
+      const group = () => component.uploadGroups.find(g => g.label === label)!;
+      const keys = [
+        `${prefix}_max_number_of_concurrent_uploading_file`,
+        `${prefix}_single_file_upload_max_size_mib`,
+        `${prefix}_max_number_of_concurrent_uploading_file_chunks`,
+        `${prefix}_multipart_upload_chunk_size_mib`,
+      ];
 
-        component.saveDatasetSettings();
+      it("PUTs the four upload settings of its own family and notifies success", () => {
+        completeLoad(); // the initializer defaults are valid
+
+        component.saveUploadSettings(group());
 
         const expectPut = (key: string, value: string) => {
           const req = httpTestingController.expectOne(updateUrl(key));
@@ -280,67 +326,97 @@ describe("AdminSettingsComponent", () => {
           expect(req.request.body).toEqual({ value });
           req.flush(null);
         };
-        expectPut("max_number_of_concurrent_uploading_file", "3");
-        expectPut("single_file_upload_max_size_mib", "20");
-        expectPut("max_number_of_concurrent_uploading_file_chunks", "10");
-        expectPut("multipart_upload_chunk_size_mib", "50");
+        expectPut(keys[0], "3");
+        expectPut(keys[1], String(defaultMaxFileSizeMiB));
+        expectPut(keys[2], "10");
+        expectPut(keys[3], "50");
 
-        expect(msgSuccess).toHaveBeenCalledWith("Dataset upload settings saved successfully.");
+        // Saving one family must not touch the other's keys.
+        httpTestingController.expectNone((req: { method: string }) => req.method === "PUT");
+        expect(msgSuccess).toHaveBeenCalledWith(`${label} upload settings saved successfully.`);
       });
 
-      it("saveDatasetSettings rejects non-positive values without saving", () => {
-        completeLoad();
-        component.maxFileSizeMiB = 0;
+      it("refuses to save before the bulk load completes", () => {
+        // The ngOnInit GET is left outstanding on purpose: settingsLoaded is still false.
+        const pending = httpTestingController.expectOne(SETTINGS_URL);
 
-        component.saveDatasetSettings();
+        component.saveUploadSettings(group());
+
+        httpTestingController.expectNone((req: { method: string }) => req.method === "PUT");
+        expect(msgError).toHaveBeenCalledWith("Settings have not loaded; refresh before saving.");
+        pending.flush({});
+      });
+
+      it("rejects non-positive values without saving", () => {
+        completeLoad();
+        group().form.maxFileSizeMiB = 0;
+
+        component.saveUploadSettings(group());
 
         httpTestingController.expectNone((req: { method: string }) => req.method === "PUT");
         expect(msgError).toHaveBeenCalledWith("Please enter valid integer values.");
       });
 
-      it("saveDatasetSettings rejects a configuration that would exceed the 10,000-part limit", () => {
+      it("rejects a configuration that would exceed the 10,000-part limit", () => {
         completeLoad();
-        component.maxFileSizeMiB = 100000;
-        component.chunkSizeMiB = 1;
+        group().form.maxFileSizeMiB = 100000;
+        group().form.chunkSizeMiB = 1;
 
-        component.saveDatasetSettings();
+        component.saveUploadSettings(group());
 
         httpTestingController.expectNone((req: { method: string }) => req.method === "PUT");
         expect(msgError).toHaveBeenCalled();
       });
 
-      it("saveDatasetSettings notifies an error when a request fails", () => {
+      it("notifies an error when a request fails", () => {
         completeLoad();
 
-        component.saveDatasetSettings();
+        component.saveUploadSettings(group());
 
         // Fail the last of the four PUTs so forkJoin errors with every request flushed.
-        const keys = [
-          "max_number_of_concurrent_uploading_file",
-          "single_file_upload_max_size_mib",
-          "max_number_of_concurrent_uploading_file_chunks",
-          "multipart_upload_chunk_size_mib",
-        ];
         keys.forEach((key, i) => {
           const req = httpTestingController.expectOne(updateUrl(key));
           if (i === keys.length - 1) req.flush("boom", HTTP_ERROR);
           else req.flush(null);
         });
-        expect(msgError).toHaveBeenCalledWith("Failed to save dataset settings.");
+        expect(msgError).toHaveBeenCalledWith(`Failed to save ${prefix} settings.`);
       });
 
-      it("resetDatasetSettings POSTs a reset for all four upload settings", () => {
+      it("POSTs a reset for all four upload settings", () => {
         completeLoad();
 
-        component.resetDatasetSettings();
+        component.resetUploadSettings(group());
 
-        [
-          "max_number_of_concurrent_uploading_file",
-          "single_file_upload_max_size_mib",
-          "max_number_of_concurrent_uploading_file_chunks",
-          "multipart_upload_chunk_size_mib",
-        ].forEach(key => httpTestingController.expectOne(resetUrl(key)).flush(null));
-        expect(msgInfo).toHaveBeenCalledWith("Resetting dataset settings...");
+        keys.forEach(key => httpTestingController.expectOne(resetUrl(key)).flush(null));
+        expect(msgInfo).toHaveBeenCalledWith(`Resetting ${prefix} settings...`);
+      });
+    });
+
+    // The issue labels these lines as `resetTabs`; they are actually the two part-size
+    // computations that sit just below it, so the tests target those.
+    describe("computed part-size properties", () => {
+      it("partsAtMax is 0 unless both the total size and the chunk size are set", () => {
+        completeLoad();
+
+        expect(component.partsAtMax({ ...datasetForm(), maxFileSizeMiB: 0, chunkSizeMiB: 8 })).toBe(0);
+        expect(component.partsAtMax({ ...datasetForm(), maxFileSizeMiB: 100, chunkSizeMiB: 0 })).toBe(0);
+        expect(component.partsAtMax({ ...datasetForm(), maxFileSizeMiB: 100, chunkSizeMiB: 8 })).toBe(13);
+      });
+
+      it("requiredMinPartSizeMiB falls back to the floor when no total size is set", () => {
+        completeLoad();
+
+        expect(component.requiredMinPartSizeMiB({ ...datasetForm(), maxFileSizeMiB: 0 })).toBe(
+          component.MIN_PART_SIZE_MiB
+        );
+
+        // Above the floor the parts limit takes over: 10,000 parts must cover the total.
+        expect(
+          component.requiredMinPartSizeMiB({
+            ...datasetForm(),
+            maxFileSizeMiB: component.MIN_PART_SIZE_MiB * component.MAX_TOTAL_PARTS * 2,
+          })
+        ).toBe(component.MIN_PART_SIZE_MiB * 2);
       });
     });
 
@@ -359,6 +435,16 @@ describe("AdminSettingsComponent", () => {
         expect(notifySuccess).toHaveBeenCalledWith("Result panel settings saved.");
       });
 
+      it("saveCsvSettings refuses to save before the bulk load completes", () => {
+        const pending = httpTestingController.expectOne(SETTINGS_URL);
+
+        component.saveCsvSettings();
+
+        httpTestingController.expectNone((req: { method: string }) => req.method === "PUT");
+        expect(msgError).toHaveBeenCalledWith("Settings have not loaded; refresh before saving.");
+        pending.flush({});
+      });
+
       it("saveCsvSettings notifies an error when the request fails", () => {
         completeLoad();
 
@@ -366,6 +452,15 @@ describe("AdminSettingsComponent", () => {
 
         httpTestingController.expectOne(updateUrl("csv_parser_max_columns")).flush("boom", HTTP_ERROR);
         expect(notifyError).toHaveBeenCalledWith("Could not save result panel settings.");
+      });
+
+      it("resetCsvSettings notifies an error when the reset fails", () => {
+        completeLoad();
+
+        component.resetCsvSettings();
+
+        httpTestingController.expectOne(resetUrl("csv_parser_max_columns")).flush("boom", HTTP_ERROR);
+        expect(notifyError).toHaveBeenCalledWith("Could not reset result panel settings.");
       });
 
       it("resetCsvSettings POSTs a reset and notifies info", () => {
@@ -392,30 +487,70 @@ describe("AdminSettingsComponent", () => {
         expect(component.logoData).toBe("data:image/png;base64,EXISTING");
       });
 
-      it("reads a valid image file into the matching branding field", async () => {
-        completeLoad();
-        const dataUrl = "data:image/png;base64,AAA";
+      const dataUrl = "data:image/png;base64,AAA";
+
+      /**
+       * Uploads a valid image through a FileReader double that resolves to `result`.
+       * The double keeps the read off jsdom's real async, so the assertion only has to
+       * wait for the microtask the fake itself queues.
+       */
+      async function uploadImageResolvingTo(type: "logo" | "mini_logo" | "favicon", result: unknown): Promise<void> {
         class FakeFileReader {
-          onload: ((e: { target: { result: string } }) => void) | null = null;
+          onload: ((e: { target: { result: unknown } }) => void) | null = null;
           readAsDataURL(): void {
-            queueMicrotask(() => this.onload?.({ target: { result: dataUrl } }));
+            queueMicrotask(() => this.onload?.({ target: { result } }));
           }
         }
         const realFileReader = globalThis.FileReader;
         (globalThis as any).FileReader = FakeFileReader;
-
         try {
           const event = {
             target: { files: [new File(["x"], "logo.png", { type: "image/png" })] },
           } as unknown as Event;
-
-          component.onFileChange("mini_logo", event);
+          component.onFileChange(type, event);
           await Promise.resolve();
-
-          expect(component.miniLogoData).toBe(dataUrl);
         } finally {
           (globalThis as any).FileReader = realFileReader;
         }
+      }
+
+      it("reads a valid image file into the matching branding field", async () => {
+        completeLoad();
+
+        await uploadImageResolvingTo("mini_logo", dataUrl);
+
+        expect(component.miniLogoData).toBe(dataUrl);
+      });
+
+      it("routes a logo upload to logoData", async () => {
+        completeLoad();
+
+        await uploadImageResolvingTo("logo", dataUrl);
+
+        expect(component.logoData).toBe(dataUrl);
+        expect(component.miniLogoData).toBeNull();
+        expect(component.faviconData).toBeNull();
+      });
+
+      it("routes a favicon upload to faviconData", async () => {
+        completeLoad();
+
+        await uploadImageResolvingTo("favicon", dataUrl);
+
+        expect(component.faviconData).toBe(dataUrl);
+        expect(component.logoData).toBeNull();
+        expect(component.miniLogoData).toBeNull();
+      });
+
+      it("stores null when the reader yields something other than a string", async () => {
+        completeLoad();
+        component.logoData = "data:image/png;base64,EXISTING";
+
+        // readAsDataURL always yields a string, but the handler guards the type anyway;
+        // an ArrayBuffer result takes the other arm of that ternary.
+        await uploadImageResolvingTo("logo", new ArrayBuffer(8));
+
+        expect(component.logoData).toBeNull();
       });
     });
   });
@@ -438,23 +573,21 @@ describe("AdminSettingsComponent wiring", () => {
     "workflow_enabled",
     "dataset_enabled",
     "your_work_enabled",
-    "projects_enabled",
     "workflows_enabled",
     "datasets_enabled",
+    "models_enabled",
     "compute_enabled",
     "quota_enabled",
     "forum_enabled",
     "about_enabled",
   ] as const;
 
-  /** Numeric inputs in the order the template renders them. */
-  const NUMBER_FIELDS = [
-    "maxConcurrentFiles",
-    "maxFileSizeMiB",
-    "maxConcurrentChunks",
-    "chunkSizeMiB",
-    "csvMaxColumns",
-  ] as const;
+  /** Numeric inputs in the order the template renders them: each upload card, then the CSV card. */
+  const UPLOAD_FIELDS = ["maxConcurrentFiles", "maxFileSizeMiB", "maxConcurrentChunks", "chunkSizeMiB"] as const;
+  const numberFields = (): Array<() => number> => [
+    ...component.uploadGroups.flatMap(group => UPLOAD_FIELDS.map(field => () => group.form[field])),
+    () => component.csvMaxColumns,
+  ];
 
   beforeEach(async () => {
     TestBed.resetTestingModule();
@@ -527,7 +660,17 @@ describe("AdminSettingsComponent wiring", () => {
     });
 
     it("locks the Your Work children until Your Work itself is on", () => {
-      const yourWorkChildren = [5, 6, 7, 8, 9, 10];
+      // Indexed by key, not position: adding a tab shifts these and would silently drop one.
+      const yourWorkChildren = (
+        [
+          "workflows_enabled",
+          "datasets_enabled",
+          "models_enabled",
+          "compute_enabled",
+          "quota_enabled",
+          "forum_enabled",
+        ] as const
+      ).map(key => SWITCH_KEYS.indexOf(key));
 
       component.sidebarTabs.your_work_enabled = false;
       fixture.detectChanges();
@@ -544,23 +687,27 @@ describe("AdminSettingsComponent wiring", () => {
       component.sidebarTabs.your_work_enabled = false;
       fixture.detectChanges();
 
-      [0, 4, 11].forEach(i => expect(switches()[i].componentInstance.nzDisabled).toBeFalsy());
+      // Indexed by key, not position, so adding a tab does not silently retarget this.
+      (["hub_enabled", "your_work_enabled", "about_enabled"] as const).forEach(key =>
+        expect(switches()[SWITCH_KEYS.indexOf(key)].componentInstance.nzDisabled).toBeFalsy()
+      );
     });
   });
 
   describe("numeric settings", () => {
     it("gives every number input its own field, in template order", () => {
-      expect(numberInputs().length).toBe(NUMBER_FIELDS.length);
+      const fields = numberFields();
+      expect(numberInputs().length).toBe(fields.length);
 
-      NUMBER_FIELDS.forEach((field, i) => {
+      fields.forEach((_, i) => {
         numberInputs()[i].triggerEventHandler("ngModelChange", 42 + i);
-
-        expect((component as any)[field]).toBe(42 + i);
       });
+      fields.forEach((read, i) => expect(read()).toBe(42 + i));
 
-      // Distinct values, so a shared target would have collapsed them.
-      const values = NUMBER_FIELDS.map(f => (component as any)[f]);
-      expect(new Set(values).size).toBe(NUMBER_FIELDS.length);
+      // Distinct values, so a shared target — including one shared across the two upload
+      // cards — would have collapsed them.
+      const values = fields.map(read => read());
+      expect(new Set(values).size).toBe(fields.length);
     });
   });
 
@@ -569,17 +716,18 @@ describe("AdminSettingsComponent wiring", () => {
       const spies = {
         saveLogos: vi.spyOn(component, "saveLogos").mockImplementation(() => {}),
         saveTabs: vi.spyOn(component, "saveTabs").mockImplementation(() => {}),
-        saveDatasetSettings: vi.spyOn(component, "saveDatasetSettings").mockImplementation(() => {}),
+        saveUploadSettings: vi.spyOn(component, "saveUploadSettings").mockImplementation(() => {}),
         saveCsvSettings: vi.spyOn(component, "saveCsvSettings").mockImplementation(() => {}),
       };
       const saves = buttonsLabelled("Save");
-      expect(saves.length).toBe(4);
+      expect(saves.length).toBe(2 + component.uploadGroups.length + 1);
 
       saves.forEach(b => b.click());
 
       expect(spies.saveLogos).toHaveBeenCalledTimes(1);
       expect(spies.saveTabs).toHaveBeenCalledTimes(1);
-      expect(spies.saveDatasetSettings).toHaveBeenCalledTimes(1);
+      // Each upload card passes its own group, so the two cards cannot save each other's keys.
+      expect(spies.saveUploadSettings.mock.calls.map(call => call[0])).toEqual(component.uploadGroups);
       expect(spies.saveCsvSettings).toHaveBeenCalledTimes(1);
     });
 
@@ -587,17 +735,17 @@ describe("AdminSettingsComponent wiring", () => {
       const spies = {
         resetBranding: vi.spyOn(component, "resetBranding").mockImplementation(() => {}),
         resetTabs: vi.spyOn(component, "resetTabs").mockImplementation(() => {}),
-        resetDatasetSettings: vi.spyOn(component, "resetDatasetSettings").mockImplementation(() => {}),
+        resetUploadSettings: vi.spyOn(component, "resetUploadSettings").mockImplementation(() => {}),
         resetCsvSettings: vi.spyOn(component, "resetCsvSettings").mockImplementation(() => {}),
       };
       const resets = buttonsLabelled("Reset");
-      expect(resets.length).toBe(4);
+      expect(resets.length).toBe(2 + component.uploadGroups.length + 1);
 
       resets.forEach(b => b.click());
 
       expect(spies.resetBranding).toHaveBeenCalledTimes(1);
       expect(spies.resetTabs).toHaveBeenCalledTimes(1);
-      expect(spies.resetDatasetSettings).toHaveBeenCalledTimes(1);
+      expect(spies.resetUploadSettings.mock.calls.map(call => call[0])).toEqual(component.uploadGroups);
       expect(spies.resetCsvSettings).toHaveBeenCalledTimes(1);
     });
   });

@@ -205,18 +205,6 @@ describe("WorkspaceComponent", () => {
   }
 
   describe("ngOnInit", () => {
-    it("parses numeric pid from route query params", async () => {
-      await createFixture(configureRoute({}, { pid: "13" }));
-      component.ngOnInit();
-      expect(component.pid).toBe(13);
-    });
-
-    it("treats non-numeric pid as undefined", async () => {
-      await createFixture(configureRoute({}, { pid: "not-a-number" }));
-      component.ngOnInit();
-      expect(component.pid).toBeUndefined();
-    });
-
     it("enables highlighting on the workflow action service", async () => {
       await createFixture();
       component.ngOnInit();

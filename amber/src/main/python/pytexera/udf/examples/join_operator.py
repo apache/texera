@@ -34,5 +34,6 @@ class JoinOperator(UDFOperatorV2):
         else:
             # probing the hashmap
             for left_tuple in self.left_dict.get(tuple_["key"], []):
-                # join and output
-                yield left_tuple + tuple_
+                # join and output; on duplicate column names the
+                # probe (right) side's value wins
+                yield {**left_tuple.as_dict(), **tuple_.as_dict()}
