@@ -37,7 +37,6 @@ import {
   USER_DATASET,
   USER_MODEL,
   USER_DISCUSSION,
-  USER_PROJECT,
   USER_PYTHON_VENV,
   USER_QUOTA,
   USER_WORKFLOW,
@@ -105,7 +104,6 @@ export class DashboardComponent implements OnInit {
     workflow_enabled: false,
     dataset_enabled: false,
     your_work_enabled: false,
-    projects_enabled: false,
     workflows_enabled: false,
     datasets_enabled: false,
     models_enabled: false,
@@ -116,7 +114,6 @@ export class DashboardComponent implements OnInit {
   };
 
   protected readonly LOGIN = LOGIN;
-  protected readonly USER_PROJECT = USER_PROJECT;
   protected readonly USER_WORKFLOW = USER_WORKFLOW;
   protected readonly USER_DATASET = USER_DATASET;
   protected readonly USER_MODEL = USER_MODEL;

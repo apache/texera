@@ -20,7 +20,6 @@
 import { DashboardEntry } from "./dashboard-entry";
 import { EntityType } from "../../hub/service/hub.service";
 import { DashboardWorkflow } from "./dashboard-workflow.interface";
-import { DashboardProject } from "./dashboard-project.interface";
 import { DashboardFile } from "./dashboard-file.interface";
 import { DashboardDataset } from "./dashboard-dataset.interface";
 import { DashboardWorkflowComputingUnit } from "../../common/type/workflow-computing-unit";
@@ -51,22 +50,9 @@ function makeWorkflow(coverImage: string | null = "http://example.com/cover.png"
       isPublished: 0,
       readonly: false,
     },
-    projectIDs: [1, 2],
     accessLevel: "WRITE",
     ownerId: 10,
     coverImage,
-  };
-}
-
-function makeProject(): DashboardProject {
-  return {
-    pid: 202,
-    name: "My Project",
-    description: "A sample project",
-    ownerId: 20,
-    creationTime: 1700000002000,
-    color: "#ff0000",
-    accessLevel: "READ",
   };
 }
 
@@ -161,20 +147,6 @@ describe("DashboardEntry", () => {
 
     it("leaves coverImageUrl undefined when a workflow has no cover image", () => {
       const entry = new DashboardEntry(makeWorkflow(null));
-      expect(entry.coverImageUrl).toBeUndefined();
-    });
-
-    it("maps a DashboardProject to the Project entity with empty description and creationTime as both timestamps", () => {
-      const entry = new DashboardEntry(makeProject());
-
-      expect(entry.type).toBe(EntityType.Project);
-      expect(entry.id).toBe(202);
-      expect(entry.name).toBe("My Project");
-      expect(entry.description).toBe("");
-      expect(entry.creationTime).toBe(1700000002000);
-      expect(entry.lastModifiedTime).toBe(1700000002000);
-      expect(entry.accessLevel).toBe("READ");
-      expect(entry.ownerId).toBe(20);
       expect(entry.coverImageUrl).toBeUndefined();
     });
 
@@ -286,13 +258,7 @@ describe("DashboardEntry", () => {
     it("workflow getter returns the value for a workflow entry and throws for others", () => {
       const workflowValue = makeWorkflow();
       expect(new DashboardEntry(workflowValue).workflow).toBe(workflowValue);
-      expect(() => new DashboardEntry(makeProject()).workflow).toThrowError("Value is not of type DashboardWorkflow.");
-    });
-
-    it("project getter returns the value for a project entry and throws for others", () => {
-      const projectValue = makeProject();
-      expect(new DashboardEntry(projectValue).project).toBe(projectValue);
-      expect(() => new DashboardEntry(makeWorkflow()).project).toThrowError("Value is not of type DashboardProject.");
+      expect(() => new DashboardEntry(makeFile()).workflow).toThrowError("Value is not of type DashboardWorkflow.");
     });
 
     it("file getter returns the value for a file entry and throws for others", () => {

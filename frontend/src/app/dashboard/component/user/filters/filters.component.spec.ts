@@ -25,7 +25,7 @@ import { StubOperatorMetadataService } from "src/app/workspace/service/operator-
 import { OperatorMetadataService } from "src/app/workspace/service/operator-metadata/operator-metadata.service";
 import { WorkflowPersistService } from "src/app/common/service/workflow-persist/workflow-persist.service";
 import { StubWorkflowPersistService } from "src/app/common/service/workflow-persist/stub-workflow-persist.service";
-import { testUserProjects, testWorkflowEntries } from "../../user-dashboard-test-fixtures";
+import { testWorkflowEntries } from "../../user-dashboard-test-fixtures";
 import { NzDropDownModule } from "ng-zorro-antd/dropdown";
 import { JWT_OPTIONS, JwtHelperService } from "@auth0/angular-jwt";
 import { FormsModule } from "@angular/forms";
@@ -34,9 +34,7 @@ import { commonTestProviders } from "src/app/common/testing/test-utils";
 import { NzModalModule } from "ng-zorro-antd/modal";
 import { en_US, provideNzI18n } from "ng-zorro-antd/i18n";
 import { UserService } from "src/app/common/service/user/user.service";
-import { MOCK_USER, StubUserService } from "src/app/common/service/user/stub-user.service";
-import { UserProjectService } from "src/app/dashboard/service/user/project/user-project.service";
-import { StubUserProjectService } from "src/app/dashboard/service/user/project/stub-user-project.service";
+import { StubUserService } from "src/app/common/service/user/stub-user.service";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { DatasetService } from "src/app/dashboard/service/user/dataset/dataset.service";
 import { EntityType } from "src/app/hub/service/hub.service";
@@ -69,7 +67,6 @@ describe("FiltersComponent", () => {
         { provide: WorkflowPersistService, useValue: new StubWorkflowPersistService(testWorkflowEntries) },
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
         { provide: UserService, useClass: StubUserService },
-        { provide: UserProjectService, useClass: StubUserProjectService },
         { provide: DatasetService, useValue: { retrieveOwners: vi.fn(() => of([])) } },
         provideNzI18n(en_US),
         ...commonTestProviders,
@@ -157,37 +154,7 @@ describe("FiltersComponent", () => {
     });
   });
 
-  describe("user project setup", () => {
-    function emitUser(user: typeof MOCK_USER | undefined): void {
-      const stubUser = TestBed.inject(UserService) as unknown as StubUserService;
-      stubUser.user = user;
-      stubUser.userChangeSubject.next(user);
-    }
-
-    it("loads the project dropdown and color map when the user is logged in", () => {
-      emitUser(MOCK_USER);
-      expect(component.userProjectsLoaded).toBe(true);
-      expect(component.userProjectsDropdown).toEqual(
-        testUserProjects.map(p => ({ pid: p.pid, name: p.name, checked: false }))
-      );
-      expect(component.userProjectsMap.get(1)?.name).toBe("Project1");
-      expect(component.userProjectsMap.size).toBe(testUserProjects.length);
-    });
-
-    it("does not load projects when the user is logged out", () => {
-      emitUser(undefined);
-      expect(component.userProjectsLoaded).toBe(false);
-      expect(component.userProjectsDropdown).toEqual([]);
-      expect(component.userProjectsMap.size).toBe(0);
-    });
-  });
-
   describe("dropdown checkbox handlers build the master filter list", () => {
-    function loadProjects(): void {
-      const stubUser = TestBed.inject(UserService) as unknown as StubUserService;
-      stubUser.userChangeSubject.next(MOCK_USER);
-    }
-
     it("updateSelectedOwners emits an owner tag on masterFilterListChange", () => {
       const emissions: ReadonlyArray<string>[] = [];
       component.masterFilterListChange.subscribe(v => emissions.push([...v]));
@@ -219,17 +186,6 @@ describe("FiltersComponent", () => {
       expect(component.masterFilterList).toEqual(["operator: Sentiment Analysis"]);
       expect(emissions).toContainEqual(["operator: Sentiment Analysis"]);
     });
-
-    it("updateSelectedProjects emits a project tag on masterFilterListChange", () => {
-      loadProjects();
-      const emissions: ReadonlyArray<string>[] = [];
-      component.masterFilterListChange.subscribe(v => emissions.push([...v]));
-      component.userProjectsDropdown.find(p => p.name === "Project1")!.checked = true;
-      component.updateSelectedProjects();
-      expect(component.selectedProjects).toEqual([{ name: "Project1", pid: 1 }]);
-      expect(component.masterFilterList).toEqual(["project: Project1"]);
-      expect(emissions).toContainEqual(["project: Project1"]);
-    });
   });
 
   describe("updateDropdownMenus parses valid search tags", () => {
@@ -245,14 +201,6 @@ describe("FiltersComponent", () => {
       expect(component.selectedIDs).toEqual(["3"]);
       expect(component.wids.find(w => w.id === "3")!.checked).toBe(true);
       expect(component.masterFilterList).toEqual(["id: 3"]);
-    });
-
-    it("checks the matching project and records it as selected", () => {
-      (TestBed.inject(UserService) as unknown as StubUserService).userChangeSubject.next(MOCK_USER);
-      component.masterFilterList = ["project: Project2"];
-      expect(component.selectedProjects).toEqual([{ name: "Project2", pid: 2 }]);
-      expect(component.userProjectsDropdown.find(p => p.name === "Project2")!.checked).toBe(true);
-      expect(component.masterFilterList).toEqual(["project: Project2"]);
     });
 
     it("reconstructs a previously-selected operator and re-checks it in the dropdown map", () => {
@@ -308,13 +256,6 @@ describe("FiltersComponent", () => {
       expect(errorSpy).toHaveBeenCalledWith("Invalid operator name");
       expect(component.masterFilterList).toEqual([]);
       expect(component.selectedOperators).toEqual([]);
-    });
-
-    it("reports an invalid project name and removes the tag", () => {
-      component.masterFilterList = ["project: Missing Project"];
-      expect(errorSpy).toHaveBeenCalledWith("Invalid project name");
-      expect(component.masterFilterList).toEqual([]);
-      expect(component.selectedProjects).toEqual([]);
     });
   });
 
@@ -386,10 +327,6 @@ describe("FiltersComponent", () => {
       component.selectedOperators = [
         { userFriendlyName: "Sentiment Analysis", operatorType: "NlpSentiment", operatorGroup: "Analysis" },
       ];
-      component.selectedProjects = [
-        { name: "Project1", pid: 1 },
-        { name: "Project2", pid: 2 },
-      ];
       expect(component.getSearchFilterParameters()).toEqual({
         createDateStart: new Date(2022, 0, 1),
         createDateEnd: new Date(2022, 0, 31),
@@ -398,7 +335,6 @@ describe("FiltersComponent", () => {
         owners: ["Texera"],
         ids: ["1", "2"],
         operators: ["NlpSentiment"],
-        projectIds: [1, 2],
       });
     });
 
@@ -411,7 +347,6 @@ describe("FiltersComponent", () => {
         owners: [],
         ids: [],
         operators: [],
-        projectIds: [],
       });
     });
 
@@ -483,7 +418,6 @@ describe("FiltersComponent", () => {
       component.operators = new Map([
         ["group", [{ userFriendlyName: "Scan", operatorType: "ScanSource", operatorGroup: "group", checked: true }]],
       ]);
-      component.userProjectsDropdown = [{ pid: 1, name: "p", checked: true }];
 
       asPrivate().setDropdownSelectionsToUnchecked();
 
@@ -494,7 +428,6 @@ describe("FiltersComponent", () => {
           .flat()
           .every(operator => !operator.checked)
       ).toBe(true);
-      expect(component.userProjectsDropdown.every(project => !project.checked)).toBe(true);
     });
   });
 });
@@ -524,7 +457,6 @@ describe("FiltersComponent per-resource owners", () => {
         { provide: DatasetService, useValue: { retrieveOwners: datasetOwners } },
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
         { provide: UserService, useClass: StubUserService },
-        { provide: UserProjectService, useClass: StubUserProjectService },
         provideNzI18n(en_US),
         ...commonTestProviders,
       ],

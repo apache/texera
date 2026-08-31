@@ -39,7 +39,6 @@ import {
   HUB_DATASET_RESULT_DETAIL,
   HUB_WORKFLOW_RESULT_DETAIL,
   USER_DATASET,
-  USER_PROJECT,
   USER_WORKSPACE,
 } from "../../../../../app-routing.constant";
 import { WorkflowCoverService } from "src/app/dashboard/service/user/workflow-cover/workflow-cover.service";
@@ -439,25 +438,6 @@ describe("CardItemComponent", () => {
     expect(component.isLiked).toBe(true);
   });
 
-  it("initializeEntry sets the project link and container icon and resets the cover for a project entry", () => {
-    component.coverImageSrc = "stale-value";
-    component.entry = {
-      id: 3,
-      name: "proj",
-      type: "project",
-      likeCount: 2,
-      viewCount: 1,
-      isLiked: false,
-    } as unknown as DashboardEntry;
-
-    component.initializeEntry();
-
-    expect(component.entryLink).toEqual([USER_PROJECT, "3"]);
-    expect(component.iconType).toBe("container");
-    expect(component.coverImageSrc).toBe(CardItemComponent.DEFAULT_PREVIEW_IMAGE); // reset at method start
-    expect(component.likeCount).toBe(2);
-  });
-
   it("initializeEntry uses the folder-open icon for a file entry", () => {
     component.entry = {
       id: 8,
@@ -773,8 +753,8 @@ describe("CardItemComponent", () => {
       const createSpy = vi.spyOn(modalService, "create");
       component.entry = {
         id: 3,
-        name: "proj",
-        type: "project",
+        name: "f",
+        type: "file",
         likeCount: 0,
         viewCount: 0,
         isLiked: false,

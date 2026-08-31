@@ -24,6 +24,7 @@ import { HttpClientTestingModule, HttpTestingController } from "@angular/common/
 import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { GuiConfigService } from "src/app/common/service/gui-config.service";
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
+import { NotebookMigrationLLM } from "./migration-llm";
 import { firstValueFrom, throwError } from "rxjs";
 
 describe("NotebookMigrationService", () => {
@@ -295,6 +296,28 @@ describe("NotebookMigrationService", () => {
     expect(req.request.body).toEqual({ wid: 7 });
     req.flush({ success: true, deleted: 1 });
     expect(result).toEqual({ success: true, deleted: 1 });
+  });
+
+  // Every other test that touches the LLM replaces createMigrationLLM() with a
+  // fake, so the seam's own body -- the one place that decides which collaborators
+  // the real client is wired to, and in which order -- is never run. This calls it
+  // directly. It stays safe for the module graph: the service already imports
+  // NotebookMigrationLLM at its own top, so "ai" is loaded here either way, and
+  // the constructor only assigns its two arguments. Deliberately no vi.mock("ai")
+  // in this file -- migration-llm.spec.ts owns that, and module mocks leak between
+  // files under `isolate: false`.
+  it("wires a real client to the injected config and workflow-util service", () => {
+    const llm = (service as any).createMigrationLLM();
+
+    expect(llm).toBeInstanceOf(NotebookMigrationLLM);
+    // Identity, not shape: the two constructor parameters are both plain objects
+    // here, so only `toBe` notices if they are ever passed in the wrong order.
+    expect((llm as any).config).toBe(mockGuiConfigService);
+    expect((llm as any).workflowUtilService).toBe(TestBed.inject(WorkflowUtilService));
+  });
+
+  it("hands out a fresh client per call so one conversion cannot see another's state", () => {
+    expect((service as any).createMigrationLLM()).not.toBe((service as any).createMigrationLLM());
   });
 
   // sendToAIGenerateWorkflow (enabled) — drives the NotebookMigrationLLM lifecycle.
