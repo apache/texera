@@ -212,11 +212,20 @@ describe("CodeareaCustomTemplateComponent", () => {
       // Two restores, for two different exits. The `finally` below is the normal one, and it puts
       // the handler back before the assertions so anything RxJS reports afterwards is reported,
       // not swallowed. It is skipped, though, if the awaited flush never resolves and Vitest kills
-      // this test on its 20s timeout - and every spec in this FILE shares one forked worker, so a
-      // handler left installed would silently eat any genuine unhandled error the remaining seven
-      // raise. `onTestFinished` runs however the test ends, so it closes that exit; re-assigning
-      // the same value after the `finally` already ran is a no-op. Deliberately not hoisted into
-      // beforeEach/afterEach: that would install this swallowing handler for all eight tests.
+      // this test on its 20s timeout, and a handler left installed silently eats every later
+      // unhandled error. That blast radius is not limited to this file: the Angular unit-test
+      // builder defaults `isolate: false`, so one forked worker keeps a single module registry
+      // across all the spec FILES it runs, and this `rxjs` `config` is therefore the same object
+      // every one of them sees. (Measured with three probe specs pinned to one worker: same pid,
+      // and each file read the mutation the previous file had left behind.) `onTestFinished` runs
+      // however the test ends - verified against a never-resolving await, where a `finally`
+      // provably cannot - so it closes that exit; re-assigning the same value after the `finally`
+      // already ran is a no-op. Deliberately not hoisted into beforeEach/afterEach: that would
+      // install this swallowing handler for all eight tests.
+      //
+      // Files sharing a worker do run one at a time, so the reverse hazard a reviewer raised - a
+      // CONCURRENT spec file having its unhandled error captured by this `unhandled` spy - cannot
+      // happen. Sequential execution is the reason, not per-file isolation, which does not exist.
       onTestFinished(() => {
         rxjsConfig.onUnhandledError = previousHandler;
       });
@@ -225,9 +234,14 @@ describe("CodeareaCustomTemplateComponent", () => {
         closed.next({ operatorId: "a-completely-unrelated-operator" });
         // A real macrotask, not fake timers. `next()` schedules RxJS's report timer synchronously,
         // before this line creates its own, and Node fires equal-delay timers in insertion order -
-        // so the report always lands before the await resumes. Fake timers would buy nothing here
-        // (~1ms of a 167ms file) and would cost the flush being a whole-timer-API swap while an
-        // Angular fixture is live, draining whatever else the fixture had queued.
+        // so the report always lands before the await resumes. That order is load-bearing, not
+        // just tidy: `reportUnhandledError` reads `config.onUnhandledError` INSIDE its timer
+        // callback, so were the two to swap, the `finally` would already have restored and the
+        // error would escape as a genuine unhandled throw instead of reaching the spy. Fake timers
+        // would buy nothing here (~1ms of a 167ms file) and would cost the flush being a
+        // whole-timer-API swap while an Angular fixture is live, draining whatever else the
+        // fixture had queued - and any leaked fake-timer state would follow the shared worker into
+        // later spec files, the same way a leaked handler would.
         await new Promise(resolve => setTimeout(resolve, 0));
       } finally {
         rxjsConfig.onUnhandledError = previousHandler;
