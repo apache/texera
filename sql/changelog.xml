@@ -119,9 +119,14 @@
         <sqlFile path="sql/updates/41.sql"/>
     </changeSet>
 
-    <!-- Allow ORCID as an identity provider in auth_provider.provider_type -->
-    <changeSet id="42" author="Neilk1021">
+    <!-- Prefix the dataset upload-limit site settings with `dataset_` -->
+    <changeSet id="42" author="tanishqgandhi1908">
         <sqlFile path="sql/updates/42.sql"/>
+    </changeSet>
+
+    <!-- Allow ORCID as an identity provider in auth_provider.provider_type -->
+    <changeSet id="43" author="Neilk1021">
+        <sqlFile path="sql/updates/43.sql"/>
     </changeSet>
 
     <!-- example changeSet

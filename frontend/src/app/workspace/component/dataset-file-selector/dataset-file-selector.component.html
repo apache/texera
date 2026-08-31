@@ -20,7 +20,7 @@
   *ngIf="formControl.value || !isFileSelectionEnabled"
   nz-input
   required
-  [readOnly]="isFileSelectionEnabled"
+  [readonly]="isFileSelectionEnabled"
   [formControl]="formControl" />
 <button
   *ngIf="isFileSelectionEnabled"

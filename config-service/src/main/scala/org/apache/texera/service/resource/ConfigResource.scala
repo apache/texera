@@ -86,6 +86,7 @@ class ConfigResource {
       "linkBreakpointEnabled" -> GuiConfig.guiWorkflowWorkspaceLinkBreakpointEnabled,
       "asyncRenderingEnabled" -> GuiConfig.guiWorkflowWorkspaceAsyncRenderingEnabled,
       "timetravelEnabled" -> GuiConfig.guiWorkflowWorkspaceTimetravelEnabled,
+      "formViewEnabled" -> GuiConfig.guiWorkflowWorkspaceFormViewEnabled,
       "productionSharedEditingServer" -> GuiConfig.guiWorkflowWorkspaceProductionSharedEditingServer,
       "defaultExecutionMode" -> GuiConfig.guiWorkflowWorkspaceDefaultExecutionMode,
       "workflowEmailNotificationEnabled" -> GuiConfig.guiWorkflowWorkspaceWorkflowEmailNotificationEnabled,
@@ -118,21 +119,21 @@ class ConfigResource {
     )
 
   // The site_settings keys that non-admin pages consume: dashboard branding,
-  // sidebar tab toggles, and dataset upload limits — exactly the gui.* and
-  // dataset.* sections of default.conf, which is also where the seeding
-  // pipeline gets them. Keys declared outside those sections (e.g.
+  // sidebar tab toggles, and the dataset/model upload limits — exactly the
+  // gui.*, dataset.* and model.* sections of default.conf, which is also where
+  // the seeding pipeline gets them. Keys declared outside those sections (e.g.
   // csv_parser_max_columns) are management-only. Deriving the set from the
   // file keeps "which section does this default live in" the single place
   // where visibility is decided.
   private val publicSettingKeys: Set[String] =
-    DefaultsConfig.keysUnderSections(Set("gui", "dataset"))
+    DefaultsConfig.keysUnderSections(Set("gui", "dataset", "model"))
 
   // SECURITY: every key returned here is served anonymously (see
   // /settings/public below), so `publicSettingKeys` is the anonymous-exposure
-  // surface. It is derived from the gui/dataset sections of default.conf and
-  // pinned by ConfigResourceSpec/DefaultsConfigSpec — adding a key under those
-  // sections (or moving one in) changes what unauthenticated callers can read
-  // and MUST be reviewed there. Never place a secret under gui/dataset.
+  // surface. It is derived from the gui/dataset/model sections of default.conf
+  // and pinned by ConfigResourceSpec/DefaultsConfigSpec — adding a key under
+  // those sections (or moving one in) changes what unauthenticated callers can
+  // read and MUST be reviewed there. Never place a secret under those sections.
 
   private def fetchSettings(condition: Condition): Map[String, String] =
     ctx

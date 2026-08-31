@@ -17,21 +17,57 @@
  * under the License.
  */
 
--- Allow ORCID as an identity provider in auth_provider.provider_type.
---
--- ORCID is authorization-code OAuth rather than Google's id-token flow, but the identity it
--- yields lands in the same place: one auth_provider row whose provider_id is the ORCID iD.
---
--- The type is schema-qualified because the two runners disagree about the search path: the
--- liquibase runner in sql/docker-compose.yml strips `SET search_path` out of these files before
--- applying them, while bin/local-dev.sh keeps it.
-
 \c texera_db
 
 SET search_path TO texera_db;
 
 BEGIN;
 
-ALTER TYPE texera_db.provider_type_enum ADD VALUE IF NOT EXISTS 'ORCID';
+-- The dataset upload limits gained a `dataset_` prefix so that the model limits added
+-- alongside them can be named symmetrically. site_settings rows are keyed by a
+-- default.conf leaf's last path segment, so the renamed leaves are new row keys.
+--
+-- Nothing orders this migration before the config-service seeder, so the prefixed row may
+-- already exist at its default by the time this runs. The old row is then the only place
+-- an admin's edit survives, and it is unreachable through the API (updateSetting and
+-- resetSetting both reject a key with no default.conf entry). So carry the old value over
+-- rather than skipping, then drop the old row. Renaming what is left is a no-op on a
+-- second run, which keeps this idempotent.
+
+-- 1. The prefixed row already exists: the old row holds the value worth keeping.
+UPDATE site_settings AS t
+SET value = s.value,
+    updated_by = s.updated_by,
+    updated_at = s.updated_at
+FROM site_settings AS s
+WHERE s.key IN (
+        'single_file_upload_max_size_mib',
+        'multipart_upload_chunk_size_mib',
+        'max_number_of_concurrent_uploading_file',
+        'max_number_of_concurrent_uploading_file_chunks'
+    )
+  AND t.key = 'dataset_' || s.key;
+
+-- 2. Drop the old rows whose value has just been carried over.
+DELETE FROM site_settings AS s
+WHERE s.key IN (
+        'single_file_upload_max_size_mib',
+        'multipart_upload_chunk_size_mib',
+        'max_number_of_concurrent_uploading_file',
+        'max_number_of_concurrent_uploading_file_chunks'
+    )
+  AND EXISTS (
+        SELECT 1 FROM site_settings AS t WHERE t.key = 'dataset_' || s.key
+    );
+
+-- 3. No prefixed row was seeded: a plain rename preserves the value and its audit stamp.
+UPDATE site_settings AS s
+SET key = 'dataset_' || s.key
+WHERE s.key IN (
+        'single_file_upload_max_size_mib',
+        'multipart_upload_chunk_size_mib',
+        'max_number_of_concurrent_uploading_file',
+        'max_number_of_concurrent_uploading_file_chunks'
+    );
 
 COMMIT;
