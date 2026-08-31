@@ -18,7 +18,7 @@
  */
 
 import { ComponentFixture, TestBed } from "@angular/core/testing";
-import { AdminSettingsComponent } from "./admin-settings.component";
+import { AdminSettingsComponent, UploadSettingsForm } from "./admin-settings.component";
 import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
 import { NzCardModule } from "ng-zorro-antd/card";
 import { NzMessageService } from "ng-zorro-antd/message";
@@ -31,6 +31,10 @@ describe("AdminSettingsComponent", () => {
   let httpTestingController: HttpTestingController;
 
   const SETTINGS_URL = "/api/config/settings";
+
+  const formOf = (label: string): UploadSettingsForm => component.uploadGroups.find(g => g.label === label)!.form;
+  const datasetForm = () => formOf("Dataset");
+  const modelForm = () => formOf("Model");
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
@@ -49,9 +53,10 @@ describe("AdminSettingsComponent", () => {
     expect(component).toBeTruthy();
   });
 
-  it("renders MiB unit beside both size-based inputs", () => {
+  it("renders MiB unit beside every size-based input", () => {
     const units = fixture.nativeElement.querySelectorAll(".input-with-unit .unit");
-    expect(units.length).toBe(2);
+    // File size and part size, once per upload card.
+    expect(units.length).toBe(2 * component.uploadGroups.length);
     units.forEach((el: HTMLElement) => {
       expect(el.textContent?.trim()).toBe("MiB");
     });
@@ -70,6 +75,10 @@ describe("AdminSettingsComponent", () => {
       dataset_single_file_upload_max_size_mib: "128",
       dataset_max_number_of_concurrent_uploading_file_chunks: "7",
       dataset_multipart_upload_chunk_size_mib: "64",
+      model_max_number_of_concurrent_uploading_file: "2",
+      model_single_file_upload_max_size_mib: "4096",
+      model_max_number_of_concurrent_uploading_file_chunks: "4",
+      model_multipart_upload_chunk_size_mib: "32",
       csv_parser_max_columns: "4096",
     });
 
@@ -78,10 +87,15 @@ describe("AdminSettingsComponent", () => {
     expect(component.faviconData).toBe("fav.ico");
     expect(component.sidebarTabs.hub_enabled).toBe(true);
     expect(component.sidebarTabs.home_enabled).toBe(false);
-    expect(component.maxConcurrentFiles).toBe(5);
-    expect(component.maxFileSizeMiB).toBe(128);
-    expect(component.maxConcurrentChunks).toBe(7);
-    expect(component.chunkSizeMiB).toBe(64);
+    expect(datasetForm().maxConcurrentFiles).toBe(5);
+    expect(datasetForm().maxFileSizeMiB).toBe(128);
+    expect(datasetForm().maxConcurrentChunks).toBe(7);
+    expect(datasetForm().chunkSizeMiB).toBe(64);
+    // Each family reads only its own keys, so the model card cannot inherit the dataset ceiling.
+    expect(modelForm().maxConcurrentFiles).toBe(2);
+    expect(modelForm().maxFileSizeMiB).toBe(4096);
+    expect(modelForm().maxConcurrentChunks).toBe(4);
+    expect(modelForm().chunkSizeMiB).toBe(32);
     expect(component.csvMaxColumns).toBe(4096);
   });
 
@@ -91,8 +105,10 @@ describe("AdminSettingsComponent", () => {
     });
 
     expect(component.logoData).toBeNull();
-    expect(component.maxFileSizeMiB).toBe(20);
-    expect(component.maxConcurrentFiles).toBe(3);
+    expect(datasetForm().maxFileSizeMiB).toBe(20);
+    expect(datasetForm().maxConcurrentFiles).toBe(3);
+    // The model default is the 2 GiB ceiling #8000 gave models, not the dataset's 20 MiB.
+    expect(modelForm().maxFileSizeMiB).toBe(2048);
     expect(component.csvMaxColumns).toBe(512);
   });
 
@@ -111,7 +127,7 @@ describe("AdminSettingsComponent", () => {
       csv_parser_max_columns: "0",
     });
 
-    expect(component.maxConcurrentFiles).toBe(0);
+    expect(datasetForm().maxConcurrentFiles).toBe(0);
     expect(component.csvMaxColumns).toBe(0);
   });
 
@@ -287,11 +303,22 @@ describe("AdminSettingsComponent", () => {
       });
     });
 
-    describe("dataset settings", () => {
-      it("saveDatasetSettings PUTs the four upload settings and notifies success", () => {
-        completeLoad(); // defaults (20 / 3 / 10 / 50) are valid
+    describe.each([
+      ["Dataset", "dataset", 20],
+      ["Model", "model", 2048],
+    ])("%s upload settings", (label, prefix, defaultMaxFileSizeMiB) => {
+      const group = () => component.uploadGroups.find(g => g.label === label)!;
+      const keys = [
+        `${prefix}_max_number_of_concurrent_uploading_file`,
+        `${prefix}_single_file_upload_max_size_mib`,
+        `${prefix}_max_number_of_concurrent_uploading_file_chunks`,
+        `${prefix}_multipart_upload_chunk_size_mib`,
+      ];
 
-        component.saveDatasetSettings();
+      it("PUTs the four upload settings of its own family and notifies success", () => {
+        completeLoad(); // the initializer defaults are valid
+
+        component.saveUploadSettings(group());
 
         const expectPut = (key: string, value: string) => {
           const req = httpTestingController.expectOne(updateUrl(key));
@@ -299,109 +326,97 @@ describe("AdminSettingsComponent", () => {
           expect(req.request.body).toEqual({ value });
           req.flush(null);
         };
-        expectPut("dataset_max_number_of_concurrent_uploading_file", "3");
-        expectPut("dataset_single_file_upload_max_size_mib", "20");
-        expectPut("dataset_max_number_of_concurrent_uploading_file_chunks", "10");
-        expectPut("dataset_multipart_upload_chunk_size_mib", "50");
+        expectPut(keys[0], "3");
+        expectPut(keys[1], String(defaultMaxFileSizeMiB));
+        expectPut(keys[2], "10");
+        expectPut(keys[3], "50");
 
-        expect(msgSuccess).toHaveBeenCalledWith("Dataset upload settings saved successfully.");
+        // Saving one family must not touch the other's keys.
+        httpTestingController.expectNone((req: { method: string }) => req.method === "PUT");
+        expect(msgSuccess).toHaveBeenCalledWith(`${label} upload settings saved successfully.`);
       });
 
-      it("saveDatasetSettings refuses to save before the bulk load completes", () => {
+      it("refuses to save before the bulk load completes", () => {
         // The ngOnInit GET is left outstanding on purpose: settingsLoaded is still false.
         const pending = httpTestingController.expectOne(SETTINGS_URL);
 
-        component.saveDatasetSettings();
+        component.saveUploadSettings(group());
 
         httpTestingController.expectNone((req: { method: string }) => req.method === "PUT");
         expect(msgError).toHaveBeenCalledWith("Settings have not loaded; refresh before saving.");
         pending.flush({});
       });
 
-      it("saveDatasetSettings rejects non-positive values without saving", () => {
+      it("rejects non-positive values without saving", () => {
         completeLoad();
-        component.maxFileSizeMiB = 0;
+        group().form.maxFileSizeMiB = 0;
 
-        component.saveDatasetSettings();
+        component.saveUploadSettings(group());
 
         httpTestingController.expectNone((req: { method: string }) => req.method === "PUT");
         expect(msgError).toHaveBeenCalledWith("Please enter valid integer values.");
       });
 
-      it("saveDatasetSettings rejects a configuration that would exceed the 10,000-part limit", () => {
+      it("rejects a configuration that would exceed the 10,000-part limit", () => {
         completeLoad();
-        component.maxFileSizeMiB = 100000;
-        component.chunkSizeMiB = 1;
+        group().form.maxFileSizeMiB = 100000;
+        group().form.chunkSizeMiB = 1;
 
-        component.saveDatasetSettings();
+        component.saveUploadSettings(group());
 
         httpTestingController.expectNone((req: { method: string }) => req.method === "PUT");
         expect(msgError).toHaveBeenCalled();
       });
 
-      it("saveDatasetSettings notifies an error when a request fails", () => {
+      it("notifies an error when a request fails", () => {
         completeLoad();
 
-        component.saveDatasetSettings();
+        component.saveUploadSettings(group());
 
         // Fail the last of the four PUTs so forkJoin errors with every request flushed.
-        const keys = [
-          "dataset_max_number_of_concurrent_uploading_file",
-          "dataset_single_file_upload_max_size_mib",
-          "dataset_max_number_of_concurrent_uploading_file_chunks",
-          "dataset_multipart_upload_chunk_size_mib",
-        ];
         keys.forEach((key, i) => {
           const req = httpTestingController.expectOne(updateUrl(key));
           if (i === keys.length - 1) req.flush("boom", HTTP_ERROR);
           else req.flush(null);
         });
-        expect(msgError).toHaveBeenCalledWith("Failed to save dataset settings.");
+        expect(msgError).toHaveBeenCalledWith(`Failed to save ${prefix} settings.`);
       });
 
-      it("resetDatasetSettings POSTs a reset for all four upload settings", () => {
+      it("POSTs a reset for all four upload settings", () => {
         completeLoad();
 
-        component.resetDatasetSettings();
+        component.resetUploadSettings(group());
 
-        [
-          "dataset_max_number_of_concurrent_uploading_file",
-          "dataset_single_file_upload_max_size_mib",
-          "dataset_max_number_of_concurrent_uploading_file_chunks",
-          "dataset_multipart_upload_chunk_size_mib",
-        ].forEach(key => httpTestingController.expectOne(resetUrl(key)).flush(null));
-        expect(msgInfo).toHaveBeenCalledWith("Resetting dataset settings...");
+        keys.forEach(key => httpTestingController.expectOne(resetUrl(key)).flush(null));
+        expect(msgInfo).toHaveBeenCalledWith(`Resetting ${prefix} settings...`);
       });
     });
 
-    // The issue labels these lines as `resetTabs`; they are actually the two computed
-    // getters that sit just below it, so the tests target the getters.
+    // The issue labels these lines as `resetTabs`; they are actually the two part-size
+    // computations that sit just below it, so the tests target those.
     describe("computed part-size properties", () => {
       it("partsAtMax is 0 unless both the total size and the chunk size are set", () => {
         completeLoad();
 
-        component.maxFileSizeMiB = 0;
-        component.chunkSizeMiB = 8;
-        expect(component.partsAtMax).toBe(0);
-
-        component.maxFileSizeMiB = 100;
-        component.chunkSizeMiB = 0;
-        expect(component.partsAtMax).toBe(0);
-
-        component.maxFileSizeMiB = 100;
-        component.chunkSizeMiB = 8;
-        expect(component.partsAtMax).toBe(13);
+        expect(component.partsAtMax({ ...datasetForm(), maxFileSizeMiB: 0, chunkSizeMiB: 8 })).toBe(0);
+        expect(component.partsAtMax({ ...datasetForm(), maxFileSizeMiB: 100, chunkSizeMiB: 0 })).toBe(0);
+        expect(component.partsAtMax({ ...datasetForm(), maxFileSizeMiB: 100, chunkSizeMiB: 8 })).toBe(13);
       });
 
       it("requiredMinPartSizeMiB falls back to the floor when no total size is set", () => {
         completeLoad();
 
-        component.maxFileSizeMiB = 0;
-        expect(component.requiredMinPartSizeMiB).toBe(component.MIN_PART_SIZE_MiB);
+        expect(component.requiredMinPartSizeMiB({ ...datasetForm(), maxFileSizeMiB: 0 })).toBe(
+          component.MIN_PART_SIZE_MiB
+        );
 
         // Above the floor the parts limit takes over: 10,000 parts must cover the total.
-        component.maxFileSizeMiB = component.MIN_PART_SIZE_MiB * component.MAX_TOTAL_PARTS * 2;
-        expect(component.requiredMinPartSizeMiB).toBe(component.MIN_PART_SIZE_MiB * 2);
+        expect(
+          component.requiredMinPartSizeMiB({
+            ...datasetForm(),
+            maxFileSizeMiB: component.MIN_PART_SIZE_MiB * component.MAX_TOTAL_PARTS * 2,
+          })
+        ).toBe(component.MIN_PART_SIZE_MiB * 2);
       });
     });
 
@@ -567,14 +582,12 @@ describe("AdminSettingsComponent wiring", () => {
     "about_enabled",
   ] as const;
 
-  /** Numeric inputs in the order the template renders them. */
-  const NUMBER_FIELDS = [
-    "maxConcurrentFiles",
-    "maxFileSizeMiB",
-    "maxConcurrentChunks",
-    "chunkSizeMiB",
-    "csvMaxColumns",
-  ] as const;
+  /** Numeric inputs in the order the template renders them: each upload card, then the CSV card. */
+  const UPLOAD_FIELDS = ["maxConcurrentFiles", "maxFileSizeMiB", "maxConcurrentChunks", "chunkSizeMiB"] as const;
+  const numberFields = (): Array<() => number> => [
+    ...component.uploadGroups.flatMap(group => UPLOAD_FIELDS.map(field => () => group.form[field])),
+    () => component.csvMaxColumns,
+  ];
 
   beforeEach(async () => {
     TestBed.resetTestingModule();
@@ -683,17 +696,18 @@ describe("AdminSettingsComponent wiring", () => {
 
   describe("numeric settings", () => {
     it("gives every number input its own field, in template order", () => {
-      expect(numberInputs().length).toBe(NUMBER_FIELDS.length);
+      const fields = numberFields();
+      expect(numberInputs().length).toBe(fields.length);
 
-      NUMBER_FIELDS.forEach((field, i) => {
+      fields.forEach((_, i) => {
         numberInputs()[i].triggerEventHandler("ngModelChange", 42 + i);
-
-        expect((component as any)[field]).toBe(42 + i);
       });
+      fields.forEach((read, i) => expect(read()).toBe(42 + i));
 
-      // Distinct values, so a shared target would have collapsed them.
-      const values = NUMBER_FIELDS.map(f => (component as any)[f]);
-      expect(new Set(values).size).toBe(NUMBER_FIELDS.length);
+      // Distinct values, so a shared target — including one shared across the two upload
+      // cards — would have collapsed them.
+      const values = fields.map(read => read());
+      expect(new Set(values).size).toBe(fields.length);
     });
   });
 
@@ -702,17 +716,18 @@ describe("AdminSettingsComponent wiring", () => {
       const spies = {
         saveLogos: vi.spyOn(component, "saveLogos").mockImplementation(() => {}),
         saveTabs: vi.spyOn(component, "saveTabs").mockImplementation(() => {}),
-        saveDatasetSettings: vi.spyOn(component, "saveDatasetSettings").mockImplementation(() => {}),
+        saveUploadSettings: vi.spyOn(component, "saveUploadSettings").mockImplementation(() => {}),
         saveCsvSettings: vi.spyOn(component, "saveCsvSettings").mockImplementation(() => {}),
       };
       const saves = buttonsLabelled("Save");
-      expect(saves.length).toBe(4);
+      expect(saves.length).toBe(2 + component.uploadGroups.length + 1);
 
       saves.forEach(b => b.click());
 
       expect(spies.saveLogos).toHaveBeenCalledTimes(1);
       expect(spies.saveTabs).toHaveBeenCalledTimes(1);
-      expect(spies.saveDatasetSettings).toHaveBeenCalledTimes(1);
+      // Each upload card passes its own group, so the two cards cannot save each other's keys.
+      expect(spies.saveUploadSettings.mock.calls.map(call => call[0])).toEqual(component.uploadGroups);
       expect(spies.saveCsvSettings).toHaveBeenCalledTimes(1);
     });
 
@@ -720,17 +735,17 @@ describe("AdminSettingsComponent wiring", () => {
       const spies = {
         resetBranding: vi.spyOn(component, "resetBranding").mockImplementation(() => {}),
         resetTabs: vi.spyOn(component, "resetTabs").mockImplementation(() => {}),
-        resetDatasetSettings: vi.spyOn(component, "resetDatasetSettings").mockImplementation(() => {}),
+        resetUploadSettings: vi.spyOn(component, "resetUploadSettings").mockImplementation(() => {}),
         resetCsvSettings: vi.spyOn(component, "resetCsvSettings").mockImplementation(() => {}),
       };
       const resets = buttonsLabelled("Reset");
-      expect(resets.length).toBe(4);
+      expect(resets.length).toBe(2 + component.uploadGroups.length + 1);
 
       resets.forEach(b => b.click());
 
       expect(spies.resetBranding).toHaveBeenCalledTimes(1);
       expect(spies.resetTabs).toHaveBeenCalledTimes(1);
-      expect(spies.resetDatasetSettings).toHaveBeenCalledTimes(1);
+      expect(spies.resetUploadSettings.mock.calls.map(call => call[0])).toEqual(component.uploadGroups);
       expect(spies.resetCsvSettings).toHaveBeenCalledTimes(1);
     });
   });

@@ -294,3 +294,64 @@ nz-tabs {
   text-align: right;
   word-break: break-word;
 }
+
+.settings-tab-content {
+  height: 100%;
+  overflow-y: auto;
+  padding-bottom: 24px;
+}
+
+.settings-general-card {
+  max-width: 700px;
+  margin: 24px auto 0;
+  border-radius: 16px;
+  border: 1px solid #d9d9d9;
+
+  .settings-card-title {
+    font-weight: 600;
+    margin-bottom: 20px;
+  }
+
+  .settings-field-label {
+    display: block;
+    font-weight: 600;
+  }
+
+  .settings-field-hint {
+    color: rgba(0, 0, 0, 0.45);
+    font-size: 12px;
+    margin-bottom: 8px;
+  }
+
+  .settings-name-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+
+    .settings-name-label label {
+      font-weight: 600;
+    }
+
+    .settings-hint {
+      color: rgba(0, 0, 0, 0.45);
+      font-size: 12px;
+      margin: 4px 0 0;
+    }
+
+    .settings-name-controls {
+      display: flex;
+      gap: 8px;
+      flex-shrink: 0;
+
+      input,
+      button {
+        border-radius: 8px;
+      }
+    }
+  }
+
+  .settings-select {
+    min-width: 200px;
+  }
+}

@@ -19,12 +19,12 @@
 
 <div
   class="staged-object-list-container"
-  [class.has-list]="datasetStagedObjects.length > 0">
+  [class.has-list]="stagedObjects.length > 0">
   <!-- Virtualized so only visible rows are in the DOM (#5586). The viewport can
        initialize hidden and measure height 0; the host re-measures it on panel
        expand (remeasureViewport). -->
   <cdk-virtual-scroll-viewport
-    *ngIf="datasetStagedObjects.length > 0"
+    *ngIf="stagedObjects.length > 0"
     class="staged-object-viewport"
     [itemSize]="STAGED_ROW_HEIGHT_PX"
     [minBufferPx]="STAGED_LIST_MAX_HEIGHT_PX"
@@ -33,7 +33,7 @@
     <nz-list nzSize="small">
       <nz-list-item
         class="staged-object-row"
-        *cdkVirtualFor="let obj of datasetStagedObjects; trackBy: trackByStagedObject">
+        *cdkVirtualFor="let obj of stagedObjects; trackBy: trackByStagedObject">
         <span>
           <nz-tag [nzColor]="obj.diffType === 'added' ? 'green' : 'red'"> {{ obj.diffType }} </nz-tag>
         </span>
@@ -65,6 +65,6 @@
   </cdk-virtual-scroll-viewport>
 
   <nz-empty
-    *ngIf="datasetStagedObjects.length === 0"
+    *ngIf="stagedObjects.length === 0"
     nzNotFoundContent="No pending changes"></nz-empty>
 </div>
