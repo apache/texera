@@ -285,6 +285,20 @@ describe("DatasetDetailComponent rendered explorer", () => {
         .componentInstance as VersionUploaderComponent;
       expect(panel.pendingChangesCount).toBe(1);
     });
+
+    it("reloads the version list once the panel reports a new version", () => {
+      render(); // the panel lives in the Versions & Files tab, which nz-tabs renders lazily
+      const datasetService = TestBed.inject(DatasetService) as unknown as Record<string, ReturnType<typeof vi.fn>>;
+      const before = datasetService["retrieveDatasetVersionList"].mock.calls.length;
+      const panel = fixture.debugElement.query(By.directive(VersionUploaderComponent))
+        .componentInstance as VersionUploaderComponent;
+
+      panel.versionCreated.emit();
+
+      // The panel owns the version flow but not the page's state: without this binding the new
+      // version is committed and never appears in the picker until a reload.
+      expect(datasetService["retrieveDatasetVersionList"].mock.calls.length).toBe(before + 1);
+    });
   });
 
   describe("contributor cards", () => {
