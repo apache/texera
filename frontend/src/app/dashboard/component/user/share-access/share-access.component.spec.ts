@@ -543,6 +543,23 @@ describe("ShareAccessComponent", () => {
       expect(notificationSpy.success).toHaveBeenCalledWith("Dataset unpublished successfully");
     });
 
+    it("keeps a landed publish when the read-back fails", () => {
+      // The write succeeded; only the confirming read broke. Calling that a failure would invite a
+      // retry, and the retry would toggle the resource straight back.
+      datasetPublished = false;
+      const c = setupComponent({ type: "dataset", id: 9 });
+      datasetServiceSpy.getDataset.mockReturnValue(
+        throwError(() => new HttpErrorResponse({ error: { message: "lakefs down" }, status: 500 }))
+      );
+
+      c.setPublished(true);
+
+      expect(datasetServiceSpy.updateDatasetPublicity).toHaveBeenCalledWith(9);
+      expect(c.isPublic).toBe(true);
+      expect(notificationSpy.success).toHaveBeenCalledWith("Dataset published successfully");
+      expect(notificationSpy.error).not.toHaveBeenCalled();
+    });
+
     it("does nothing for a registered kind that cannot be published", () => {
       const c = setupComponent({ type: "file", id: 4 });
       c.setPublished(true);

@@ -27,7 +27,7 @@ import { GmailService } from "../../../../common/service/gmail/gmail.service";
 import { NZ_MODAL_DATA, NzModalRef, NzModalService } from "ng-zorro-antd/modal";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { HttpErrorResponse } from "@angular/common/http";
-import { of, switchMap } from "rxjs";
+import { catchError, of, switchMap } from "rxjs";
 import { NzMessageService } from "ng-zorro-antd/message";
 import { WorkflowActionService } from "src/app/workspace/service/workflow-graph/model/workflow-action.service";
 import { ResourceRegistryService } from "../../../service/user/resource-registry/resource-registry.service";
@@ -388,8 +388,10 @@ export class ShareAccessComponent implements OnInit, OnDestroy {
     descriptor
       .setPublished(this.id, next)
       // Toggle-style backends ignore `next`, so the server's own answer decides what is reported.
+      // A read-back that fails falls back to `next`: the write already landed, and reporting it as
+      // a failure would invite a retry that toggles it straight back.
       .pipe(
-        switchMap(() => (readBack ? readBack(this.id) : of(next))),
+        switchMap(() => (readBack ? readBack(this.id).pipe(catchError(() => of(next))) : of(next))),
         untilDestroyed(this)
       )
       .subscribe({
