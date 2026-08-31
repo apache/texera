@@ -20,8 +20,14 @@
 package org.apache.texera.web.model.http.response
 
 /**
-  * What a registration attempt produced. A null `accessToken` *is* the "a code was mailed, nothing
-  * created" signal, reported no other way so the two cannot drift apart. Distinct from
-  * [[TokenIssueResponse]] only because that one promises a token.
+  * What a registration attempt produced.
+  *
+  * `accessToken` is the JWT that signs the new account in. It is not the six-digit proof that
+  * `UserRegistrationRequest.code` carries the other way: that one is mailed to the address and
+  * comes back from the browser, and never appears in a response.
+  *
+  * A null token *is* the "a code was mailed, nothing created" signal, reported no other way so the
+  * two cannot drift apart. Distinct from [[TokenIssueResponse]] only because that one promises a
+  * token.
   */
 case class RegistrationResponse(accessToken: String)
