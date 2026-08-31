@@ -738,10 +738,11 @@ describe("ShareAccessComponent", () => {
     }
 
     /**
-     * The publish pair, addressed by the label the user reads rather than by DOM position. That
-     * is the mapping under test: a crossed (click) handler still fails, while reordering the two
-     * buttons in the template — which changes nothing a user can act on — no longer does. The
-     * uniqueness check is what keeps a dropped or duplicated button from reading as a pass.
+     * The publish pair, addressed by the label the user reads rather than by DOM position. That is
+     * the mapping under test: a crossed (click) handler still fails, while reordering the two
+     * buttons no longer fails *this* test. Document order is a separate contract and is pinned by
+     * its own test below, so addressing by label gives up nothing. The uniqueness check is what
+     * keeps a dropped or duplicated button from reading as a pass.
      */
     function accessButton(label: "Private" | "Public"): HTMLButtonElement {
       const matches = fixture.debugElement
@@ -753,6 +754,22 @@ describe("ShareAccessComponent", () => {
       expect(matches).toHaveLength(1);
       return matches[0].nativeElement as HTMLButtonElement;
     }
+
+    it("offers the restrictive option first: Private, then Public", () => {
+      asOwner();
+      workflowPersistSpy.getWorkflowIsPublished.mockReturnValue(of("Private"));
+      setupComponent({ type: "workflow" });
+
+      // accessButton() is deliberately blind to order so the two mapping tests below fail only
+      // for a crossed binding. Order is still a contract of its own — this pair is how the user
+      // is asked to think about visibility, and the narrower choice is presented first — so it is
+      // pinned here explicitly rather than riding along as a side effect of a positional
+      // destructure, where a reorder and a crossed handler were indistinguishable.
+      const labels = fixture.debugElement
+        .queryAll(By.css("button.access-button .button-text-header"))
+        .map(header => (header.nativeElement as HTMLElement).textContent?.trim());
+      expect(labels).toEqual(["Private", "Public"]);
+    });
 
     it("puts the unpublish confirmation behind Private and the publish confirmation behind Public", () => {
       asOwner();
