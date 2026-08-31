@@ -24,6 +24,7 @@ import org.apache.texera.web.resource.dashboard.FulltextSearchQueryUtils.{
   getDateFilter,
   getFullTextSearchFilter
 }
+import org.apache.texera.dao.jooq.generated.tables.User.USER
 import org.jooq.impl.DSL
 import org.jooq.{Condition, GroupField, Record, TableLike}
 
@@ -78,6 +79,7 @@ abstract class VersionedResourceSearchQueryBuilder[Rec <: Record, P](
       tables.creationTimeColumn
     )
       .and(getContainsFilter(tables.searchIds(params), tables.idColumn))
+      .and(getContainsFilter(params.owners, USER.EMAIL))
       .and(
         getFullTextSearchFilter(splitKeywords, List(tables.nameColumn, tables.descriptionColumn))
       )

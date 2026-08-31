@@ -21,6 +21,16 @@
   <div
     id="workflow-editor"
     (contextmenu)="nzContextMenu.create($event, menu)"></div>
+  <texera-heatmap-legend></texera-heatmap-legend>
+  <div
+    class="heatmap-tooltip"
+    *ngIf="heatmapTooltip"
+    [style.left.px]="heatmapTooltip.x"
+    [style.top.px]="heatmapTooltip.y">
+    <div class="heatmap-tooltip__title">{{ heatmapTooltip.title }}</div>
+    <div class="heatmap-tooltip__row">{{ heatmapTooltip.metricLabel }}</div>
+    <div class="heatmap-tooltip__row">Heat: {{ heatmapTooltip.heatLabel }}</div>
+  </div>
   <nz-dropdown-menu
     nzNoAnimation
     #menu="nzDropdownMenu">
