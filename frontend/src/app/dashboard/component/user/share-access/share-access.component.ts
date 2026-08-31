@@ -27,6 +27,7 @@ import { GmailService } from "../../../../common/service/gmail/gmail.service";
 import { NZ_MODAL_DATA, NzModalRef, NzModalService } from "ng-zorro-antd/modal";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { HttpErrorResponse } from "@angular/common/http";
+import { of, switchMap } from "rxjs";
 import { NzMessageService } from "ng-zorro-antd/message";
 import { WorkflowActionService } from "src/app/workspace/service/workflow-graph/model/workflow-action.service";
 import { ResourceRegistryService } from "../../../service/user/resource-registry/resource-registry.service";
@@ -378,21 +379,26 @@ export class ShareAccessComponent implements OnInit, OnDestroy {
   }
 
   public setPublished(next: boolean): void {
-    const setPublished = this.descriptor?.setPublished;
-    if (!setPublished || this.isPublic === next) {
+    const descriptor = this.descriptor;
+    if (!descriptor?.setPublished || this.isPublic === next) {
       return;
     }
-    // The open workspace mirrors the new state immediately; the request only confirms it.
-    if (this.inWorkspace) {
-      this.workflowActionService.setWorkflowIsPublished(next ? 1 : 0);
-    }
+    const readBack = descriptor.isPublic;
     const label = this.type.charAt(0).toUpperCase() + this.type.slice(1);
-    setPublished(this.id, next)
-      .pipe(untilDestroyed(this))
+    descriptor
+      .setPublished(this.id, next)
+      // Toggle-style backends ignore `next`, so the server's own answer decides what is reported.
+      .pipe(
+        switchMap(() => (readBack ? readBack(this.id) : of(next))),
+        untilDestroyed(this)
+      )
       .subscribe({
-        next: () => {
-          this.isPublic = next;
-          this.notificationService.success(`${label} ${next ? "published" : "unpublished"} successfully`);
+        next: published => {
+          this.isPublic = published;
+          if (this.inWorkspace) {
+            this.workflowActionService.setWorkflowIsPublished(published ? 1 : 0);
+          }
+          this.notificationService.success(`${label} ${published ? "published" : "unpublished"} successfully`);
         },
         error: (error: unknown) => {
           if (error instanceof HttpErrorResponse) {

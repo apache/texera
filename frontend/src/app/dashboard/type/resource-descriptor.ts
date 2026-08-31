@@ -59,6 +59,11 @@ export interface ResourceDescriptor {
   readonly affordances?: ResourceAffordances;
   /** Whether the entry is currently published. */
   isPublic?(id: number): Observable<boolean>;
+  /**
+   * Requests `next` as the new published state. Some backends expose a toggle rather than an
+   * absolute set and so ignore `next`, which means the result is only what the caller asked for,
+   * never what it got: read `isPublic` back afterwards instead of assuming `next` took effect.
+   */
   setPublished?(id: number, next: boolean): Observable<unknown>;
   /** A ready-to-render URL for the entry's cover image, or null when it has none. */
   coverUrl?(id: number): Observable<string | null>;

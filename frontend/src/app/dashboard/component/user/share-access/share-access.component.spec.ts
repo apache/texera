@@ -65,6 +65,10 @@ describe("ShareAccessComponent", () => {
   };
   let workflowActionSpy: { setWorkflowIsPublished: ReturnType<typeof vi.fn> };
   let userServiceCurrentEmail: string | undefined;
+  // The component reads publicity back after writing it, so the doubles have to hold state:
+  // the workflow endpoint sets it absolutely, the dataset one toggles.
+  let workflowPublished: boolean;
+  let datasetPublished: boolean;
   let capturedModalConfigs: any[];
 
   function setupComponent(opts: SetupOptions = {}): ShareAccessComponent {
@@ -116,13 +120,21 @@ describe("ShareAccessComponent", () => {
         return { close: vi.fn() };
       }),
     };
+    workflowPublished = false;
+    datasetPublished = false;
     workflowPersistSpy = {
-      getWorkflowIsPublished: vi.fn().mockReturnValue(of("Private")),
-      updateWorkflowIsPublished: vi.fn().mockReturnValue(of(null)),
+      getWorkflowIsPublished: vi.fn(() => of(workflowPublished ? "Public" : "Private")),
+      updateWorkflowIsPublished: vi.fn((_id: number, next: boolean) => {
+        workflowPublished = next;
+        return of(null);
+      }),
     };
     datasetServiceSpy = {
-      getDataset: vi.fn().mockReturnValue(of({ dataset: { isPublic: false } })),
-      updateDatasetPublicity: vi.fn().mockReturnValue(of(null)),
+      getDataset: vi.fn(() => of({ dataset: { isPublic: datasetPublished } })),
+      updateDatasetPublicity: vi.fn(() => {
+        datasetPublished = !datasetPublished;
+        return of(null);
+      }),
     };
     workflowActionSpy = { setWorkflowIsPublished: vi.fn() };
   });
@@ -144,20 +156,20 @@ describe("ShareAccessComponent", () => {
     });
 
     it("loads publish state for workflow via WorkflowPersistService", () => {
-      workflowPersistSpy.getWorkflowIsPublished.mockReturnValue(of("Public"));
+      workflowPublished = true;
       const c = setupComponent({ type: "workflow", id: 9 });
       expect(workflowPersistSpy.getWorkflowIsPublished).toHaveBeenCalledWith(9);
       expect(c.isPublic).toBe(true);
     });
 
     it("sets isPublic to false when workflow publish state is Private", () => {
-      workflowPersistSpy.getWorkflowIsPublished.mockReturnValue(of("Private"));
+      workflowPublished = false;
       const c = setupComponent({ type: "workflow" });
       expect(c.isPublic).toBe(false);
     });
 
     it("loads publish state for dataset via DatasetService.getDataset", () => {
-      datasetServiceSpy.getDataset.mockReturnValue(of({ dataset: { isPublic: true } }));
+      datasetPublished = true;
       const c = setupComponent({ type: "dataset", id: 12 });
       expect(datasetServiceSpy.getDataset).toHaveBeenCalledWith(12);
       expect(c.isPublic).toBe(true);
@@ -398,7 +410,7 @@ describe("ShareAccessComponent", () => {
 
   describe("verifyPublish / verifyUnpublish", () => {
     it("publishes a workflow on confirm and updates the action service when inWorkspace", () => {
-      workflowPersistSpy.getWorkflowIsPublished.mockReturnValue(of("Private"));
+      workflowPublished = false;
       const c = setupComponent({ type: "workflow", id: 8, inWorkspace: true });
       c.verifyPublish();
       getFooterButton(capturedModalConfigs[0], "Publish").onClick();
@@ -407,7 +419,7 @@ describe("ShareAccessComponent", () => {
     });
 
     it("does not call WorkflowActionService.setWorkflowIsPublished when not inWorkspace", () => {
-      workflowPersistSpy.getWorkflowIsPublished.mockReturnValue(of("Private"));
+      workflowPublished = false;
       const c = setupComponent({ type: "workflow", id: 8, inWorkspace: false });
       c.verifyPublish();
       getFooterButton(capturedModalConfigs[0], "Publish").onClick();
@@ -415,7 +427,7 @@ describe("ShareAccessComponent", () => {
     });
 
     it("publishes a dataset on confirm", () => {
-      datasetServiceSpy.getDataset.mockReturnValue(of({ dataset: { isPublic: false } }));
+      datasetPublished = false;
       const c = setupComponent({ type: "dataset", id: 9 });
       c.verifyPublish();
       getFooterButton(capturedModalConfigs[0], "Publish").onClick();
@@ -423,27 +435,27 @@ describe("ShareAccessComponent", () => {
     });
 
     it("warns about cloning only for a clonable kind", () => {
-      workflowPersistSpy.getWorkflowIsPublished.mockReturnValue(of("Private"));
+      workflowPublished = false;
       setupComponent({ type: "workflow" }).verifyPublish();
       expect(capturedModalConfigs[0].nzContent).toContain("the right to clone your work");
 
       TestBed.resetTestingModule();
       capturedModalConfigs = [];
-      datasetServiceSpy.getDataset.mockReturnValue(of({ dataset: { isPublic: false } }));
+      datasetPublished = false;
       setupComponent({ type: "dataset" }).verifyPublish();
       expect(capturedModalConfigs[0].nzContent).toContain("read access");
       expect(capturedModalConfigs[0].nzContent).not.toContain("clone");
     });
 
     it("does not open the publish modal when the item is already public", () => {
-      workflowPersistSpy.getWorkflowIsPublished.mockReturnValue(of("Public"));
+      workflowPublished = true;
       const c = setupComponent({ type: "workflow" });
       c.verifyPublish();
       expect(modalServiceSpy.create).not.toHaveBeenCalled();
     });
 
     it("unpublishes a workflow on confirm and updates the action service when inWorkspace", () => {
-      workflowPersistSpy.getWorkflowIsPublished.mockReturnValue(of("Public"));
+      workflowPublished = true;
       const c = setupComponent({ type: "workflow", id: 8, inWorkspace: true });
       c.verifyUnpublish();
       getFooterButton(capturedModalConfigs[0], "Unpublish").onClick();
@@ -452,7 +464,7 @@ describe("ShareAccessComponent", () => {
     });
 
     it("unpublishes a dataset on confirm", () => {
-      datasetServiceSpy.getDataset.mockReturnValue(of({ dataset: { isPublic: true } }));
+      datasetPublished = true;
       const c = setupComponent({ type: "dataset", id: 9 });
       c.verifyUnpublish();
       getFooterButton(capturedModalConfigs[0], "Unpublish").onClick();
@@ -460,7 +472,7 @@ describe("ShareAccessComponent", () => {
     });
 
     it("does not open the unpublish modal when the item is already private", () => {
-      workflowPersistSpy.getWorkflowIsPublished.mockReturnValue(of("Private"));
+      workflowPublished = false;
       const c = setupComponent({ type: "workflow" });
       c.verifyUnpublish();
       expect(modalServiceSpy.create).not.toHaveBeenCalled();
@@ -469,7 +481,7 @@ describe("ShareAccessComponent", () => {
 
   describe("setPublished", () => {
     it("publishing a workflow flips isPublic and shows a success notification", () => {
-      workflowPersistSpy.getWorkflowIsPublished.mockReturnValue(of("Private"));
+      workflowPublished = false;
       const c = setupComponent({ type: "workflow" });
       c.setPublished(true);
       expect(c.isPublic).toBe(true);
@@ -477,7 +489,7 @@ describe("ShareAccessComponent", () => {
     });
 
     it("a failed workflow publish surfaces HttpErrorResponse via NotificationService.error", () => {
-      workflowPersistSpy.getWorkflowIsPublished.mockReturnValue(of("Private"));
+      workflowPublished = false;
       workflowPersistSpy.updateWorkflowIsPublished.mockReturnValue(
         throwError(() => new HttpErrorResponse({ error: { message: "publish failed" }, status: 500 }))
       );
@@ -487,7 +499,7 @@ describe("ShareAccessComponent", () => {
     });
 
     it("unpublishing a workflow flips isPublic to false and shows a success notification", () => {
-      workflowPersistSpy.getWorkflowIsPublished.mockReturnValue(of("Public"));
+      workflowPublished = true;
       const c = setupComponent({ type: "workflow" });
       c.setPublished(false);
       expect(c.isPublic).toBe(false);
@@ -495,7 +507,7 @@ describe("ShareAccessComponent", () => {
     });
 
     it("publishing a dataset flips isPublic and shows a success notification", () => {
-      datasetServiceSpy.getDataset.mockReturnValue(of({ dataset: { isPublic: false } }));
+      datasetPublished = false;
       const c = setupComponent({ type: "dataset" });
       c.setPublished(true);
       expect(c.isPublic).toBe(true);
@@ -503,7 +515,7 @@ describe("ShareAccessComponent", () => {
     });
 
     it("a failed dataset publish surfaces HttpErrorResponse via NotificationService.error", () => {
-      datasetServiceSpy.getDataset.mockReturnValue(of({ dataset: { isPublic: false } }));
+      datasetPublished = false;
       datasetServiceSpy.updateDatasetPublicity.mockReturnValue(
         throwError(() => new HttpErrorResponse({ error: { message: "dataset publish failed" }, status: 500 }))
       );
@@ -513,9 +525,20 @@ describe("ShareAccessComponent", () => {
     });
 
     it("unpublishing a dataset flips isPublic to false and shows a success notification", () => {
-      datasetServiceSpy.getDataset.mockReturnValue(of({ dataset: { isPublic: true } }));
+      datasetPublished = true;
       const c = setupComponent({ type: "dataset" });
       c.setPublished(false);
+      expect(c.isPublic).toBe(false);
+      expect(notificationSpy.success).toHaveBeenCalledWith("Dataset unpublished successfully");
+    });
+
+    it("reports what the server has, not what was asked for, when the toggle disagrees", () => {
+      datasetPublished = false;
+      const c = setupComponent({ type: "dataset", id: 9 });
+      datasetPublished = true;
+
+      c.setPublished(true);
+
       expect(c.isPublic).toBe(false);
       expect(notificationSpy.success).toHaveBeenCalledWith("Dataset unpublished successfully");
     });
@@ -629,7 +652,7 @@ describe("ShareAccessComponent", () => {
     });
 
     it("closes the publish modal without publishing when Cancel is clicked", () => {
-      workflowPersistSpy.getWorkflowIsPublished.mockReturnValue(of("Private"));
+      workflowPublished = false;
       const modalRefs = captureModalRefs();
       const c = setupComponent({ type: "workflow", inWorkspace: true });
       c.verifyPublish();
@@ -640,7 +663,7 @@ describe("ShareAccessComponent", () => {
     });
 
     it("closes the unpublish modal without unpublishing when Cancel is clicked", () => {
-      workflowPersistSpy.getWorkflowIsPublished.mockReturnValue(of("Public"));
+      workflowPublished = true;
       const modalRefs = captureModalRefs();
       const c = setupComponent({ type: "workflow" });
       c.verifyUnpublish();
@@ -666,7 +689,7 @@ describe("ShareAccessComponent", () => {
 
   describe("unpublish error branches", () => {
     it("a failed workflow unpublish surfaces HttpErrorResponse and leaves isPublic unchanged", () => {
-      workflowPersistSpy.getWorkflowIsPublished.mockReturnValue(of("Public"));
+      workflowPublished = true;
       workflowPersistSpy.updateWorkflowIsPublished.mockReturnValue(
         throwError(() => new HttpErrorResponse({ error: { message: "unpublish failed" }, status: 500 }))
       );
@@ -677,7 +700,7 @@ describe("ShareAccessComponent", () => {
     });
 
     it("a failed dataset unpublish surfaces HttpErrorResponse and leaves isPublic unchanged", () => {
-      datasetServiceSpy.getDataset.mockReturnValue(of({ dataset: { isPublic: true } }));
+      datasetPublished = true;
       datasetServiceSpy.updateDatasetPublicity.mockReturnValue(
         throwError(() => new HttpErrorResponse({ error: { message: "dataset unpublish failed" }, status: 500 }))
       );
@@ -707,7 +730,7 @@ describe("ShareAccessComponent", () => {
     });
 
     it("publishing is a no-op when the workflow is already public", () => {
-      workflowPersistSpy.getWorkflowIsPublished.mockReturnValue(of("Public"));
+      workflowPublished = true;
       const c = setupComponent({ type: "workflow" });
       workflowPersistSpy.updateWorkflowIsPublished.mockClear();
       c.setPublished(true);
@@ -715,7 +738,7 @@ describe("ShareAccessComponent", () => {
     });
 
     it("unpublishing is a no-op when the workflow is already private", () => {
-      workflowPersistSpy.getWorkflowIsPublished.mockReturnValue(of("Private"));
+      workflowPublished = false;
       const c = setupComponent({ type: "workflow" });
       workflowPersistSpy.updateWorkflowIsPublished.mockClear();
       c.setPublished(false);
@@ -723,7 +746,7 @@ describe("ShareAccessComponent", () => {
     });
 
     it("publishing is a no-op when the dataset is already public", () => {
-      datasetServiceSpy.getDataset.mockReturnValue(of({ dataset: { isPublic: true } }));
+      datasetPublished = true;
       const c = setupComponent({ type: "dataset" });
       datasetServiceSpy.updateDatasetPublicity.mockClear();
       c.setPublished(true);
@@ -731,7 +754,7 @@ describe("ShareAccessComponent", () => {
     });
 
     it("unpublishing is a no-op when the dataset is already private", () => {
-      datasetServiceSpy.getDataset.mockReturnValue(of({ dataset: { isPublic: false } }));
+      datasetPublished = false;
       const c = setupComponent({ type: "dataset" });
       datasetServiceSpy.updateDatasetPublicity.mockClear();
       c.setPublished(false);

@@ -552,13 +552,19 @@ export class ModelDetailComponent implements OnInit {
     if (!this.mid) {
       return;
     }
+    const mid = this.mid;
     this.modelService
-      .updateModelPublicity(this.mid)
-      .pipe(untilDestroyed(this))
+      .updateModelPublicity(mid)
+      // The endpoint toggles, so a stale switch would flip the wrong way: report what the server has.
+      .pipe(
+        switchMap(() => this.modelService.getModel(mid)),
+        untilDestroyed(this)
+      )
       .subscribe({
-        next: () => {
-          this.modelIsPublic = checked;
-          this.notificationService.success(`Model ${this.modelName} is now ${checked ? "public" : "private"}`);
+        next: dashboardModel => {
+          this.modelIsPublic = dashboardModel.model.isPublic;
+          const state = this.modelIsPublic ? "public" : "private";
+          this.notificationService.success(`Model ${this.modelName} is now ${state}`);
         },
         error: (err: unknown) => this.notificationService.error(extractErrorMessage(err)),
       });

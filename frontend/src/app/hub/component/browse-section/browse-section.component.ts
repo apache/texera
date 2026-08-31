@@ -63,7 +63,8 @@ export class BrowseSectionComponent implements OnInit, OnChanges {
   protected readonly USER_DATASET = USER_DATASET;
   entityRoutes: { [key: number]: string[] } = {};
 
-  private coverImageUrls = new Map<number, string>();
+  /** Keyed by type and id: ids are only unique within a kind, and sections may mix kinds. */
+  private coverImageUrls = new Map<string, string>();
 
   constructor(
     private resourceRegistry: ResourceRegistryService,
@@ -109,6 +110,10 @@ export class BrowseSectionComponent implements OnInit, OnChanges {
     }
   }
 
+  private coverCacheKey(entity: DashboardEntry): string {
+    return `${entity.type}:${entity.id}`;
+  }
+
   /** Asks each kind's descriptor for its cover, so the hub renders the same picture as the cards. */
   private loadCoverImages(): void {
     if (!this.entities) return;
@@ -116,18 +121,22 @@ export class BrowseSectionComponent implements OnInit, OnChanges {
     this.entities
       .filter(
         (entity): entity is DashboardEntry & { id: number } =>
-          entity.coverImageUrl !== undefined && entity.id !== undefined && !this.coverImageUrls.has(entity.id)
+          entity.coverImageUrl !== undefined &&
+          entity.id !== undefined &&
+          !this.coverImageUrls.has(this.coverCacheKey(entity))
       )
       .forEach(entity => {
-        const coverUrl = this.resourceRegistry.get(entity.type).coverUrl;
+        // `find`, not `get`: a section may hold a kind the registry does not carry.
+        const coverUrl = this.resourceRegistry.find(entity.type)?.coverUrl;
         if (!coverUrl) {
           return;
         }
+        const key = this.coverCacheKey(entity);
         coverUrl(entity.id)
           .pipe(untilDestroyed(this))
           .subscribe(url => {
             if (url) {
-              this.coverImageUrls.set(entity.id, url);
+              this.coverImageUrls.set(key, url);
               this.cdr.markForCheck();
             }
           });
@@ -135,6 +144,6 @@ export class BrowseSectionComponent implements OnInit, OnChanges {
   }
 
   getCoverImage(entity: DashboardEntry): string {
-    return this.coverImageUrls.get(entity.id!) || this.defaultBackground;
+    return this.coverImageUrls.get(this.coverCacheKey(entity)) || this.defaultBackground;
   }
 }

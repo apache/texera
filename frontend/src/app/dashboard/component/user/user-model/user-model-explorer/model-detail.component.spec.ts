@@ -797,7 +797,12 @@ describe("ModelDetailComponent", () => {
   });
 
   it("toggles visibility and downloadability, keeping the switch on the server's answer", () => {
-    modelService["updateModelPublicity"] = vi.fn(() => of({}));
+    let published = false;
+    modelService["getModel"] = vi.fn(() => of(dashboardModel({ model: { isPublic: published } })));
+    modelService["updateModelPublicity"] = vi.fn(() => {
+      published = !published;
+      return of({});
+    });
     modelService["updateModelDownloadable"] = vi.fn(() => throwError(() => new Error("denied")));
     create();
 
@@ -809,6 +814,23 @@ describe("ModelDetailComponent", () => {
     // The rejected toggle leaves the model downloadable, so the switch snaps back.
     expect(component.modelIsDownloadable).toBe(true);
     expect(notificationService["error"]).toHaveBeenCalled();
+  });
+
+  it("follows the server when a stale switch toggles the wrong way", () => {
+    // The page loaded a private model; something else published it. The endpoint toggles, so
+    // asking for "public" makes it private — the switch has to end up private, not public.
+    let published = true;
+    modelService["getModel"] = vi.fn(() => of(dashboardModel({ model: { isPublic: published } })));
+    modelService["updateModelPublicity"] = vi.fn(() => {
+      published = !published;
+      return of({});
+    });
+    create();
+    component.modelIsPublic = false;
+
+    component.onPublicStatusChange(true);
+
+    expect(component.modelIsPublic).toBe(false);
   });
 
   it("renders both visibility switches on the Settings tab", () => {
