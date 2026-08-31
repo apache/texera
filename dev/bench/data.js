@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1788094761071,
+  "lastUpdate": 1788185129480,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -11568,6 +11568,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 557.8876141147608,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Tanishq Gandhi",
+            "username": "tanishqgandhi1908",
+            "email": "56472134+tanishqgandhi1908@users.noreply.github.com"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "50321e403c82df299a13deb50a7f9849dd93bdba",
+          "message": "feat(frontend): add model file upload and version creation (#8078)\n\n### What changes were proposed in this PR?\n\nModels can now be uploaded to and versioned from the UI. PR 3 of the\nML-model frontend series, on top of #8068 and #8072, both merged.\n\n**What you can do:** upload files to a model, watch them upload, revert\nor delete staged changes, and commit them as a version. A new Settings\ntab edits the model's name, description, framework and format. Admin →\nSettings gains a Model card for the model upload limits.\n\n**1. Refactor — no behavior change.** The dataset detail page owned the\nwhole upload machinery. This pulls it out into resource-agnostic pieces,\naddressed by a `FileResourceEndpoint` descriptor (base path, name query\nparam, and the four\n`site_settings` keys):\n\n- `service/user/file-resource/multipart-upload.service.ts` — the\n~280-line multipart engine, out of `DatasetService`\n- `service/user/file-resource/staged-file.service.ts` — diff, revert,\ndelete\n- `component/user/version-uploader/` — the whole \"Create New Version\"\npanel (file picker, progress panels, staged list, version box)\n- `component/user/staged-objects-list/` — moved out of `user-dataset/`\n\n**2. Feature — models.** `MODEL_FILE_RESOURCE_ENDPOINT`, `ModelService`\nversion/framework/format calls, the model page's upload panel and\nSettings tab, and the Admin Model upload card.\n\n**Two bugs fixed along the way.**\n\n- Renaming a model while an upload was in flight stranded it. The upload\nengine captures the resource name when the upload starts, so the\nremaining part and finish calls kept addressing the old name, and the\nabort — which reads the name at click time — 404'd as well. The Settings\ntab now blocks a rename until the panel is idle.\n- Renaming a model left its file tree pointing at the old name. File\npaths embed the resource name and both preview and single-file download\nresolve by that path, so every file 404'd until the page was reloaded.\nThe Model Card's \"Latest version file\" went stale the same way. Renaming\nnow refreshes both and reopens the file you were reading rather than\nresetting to the version's first. The dataset page has the same bug; it\nis deliberately left alone here so this PR changes no dataset behavior,\nand is queued with three other pre-existing dataset fixes for one\ncleanup PR at the end of the series.\n\n**Deliberately not here:** Access & visibility (public/private,\ndownloadable) lands in PR 4 — both can be set when creating a model,\njust not changed afterwards yet. Delete stays on the Models list card.\nView and like counts stay static `0` until models reach the hub in PR 5.\n\n\n<img width=\"1202\" height=\"703\" alt=\"Screenshot 2026-08-28 at 1 49 22 PM\"\nsrc=\"https://github.com/user-attachments/assets/ea601483-b68b-4d1e-ab49-5f3246e84211\"\n/>\n<img width=\"1138\" height=\"748\" alt=\"Screenshot 2026-08-28 at 1 49 31 PM\"\nsrc=\"https://github.com/user-attachments/assets/24240b49-acc3-4da9-9b3d-abfa3519cb04\"\n/>\n<img width=\"1070\" height=\"446\" alt=\"Screenshot 2026-08-28 at 1 55 54 PM\"\nsrc=\"https://github.com/user-attachments/assets/22c4cb19-1dda-4cff-98f6-72d35a57d585\"\n/>\n\n### Any related issues, documentation, discussions?\n\nCloses #6499.\n\nFollows #8068 (Models page) and #8072 (model detail page), both merged.\nDoes not touch unified search, so it does not depend on #7930.\n\n### How was this PR tested?\n\n532 tests pass across the thirteen affected specs, including 72 in the\nnew `version-uploader.component.spec.ts`.\n\nEvery dataset upload test still exists — they moved to the component\nthat now owns that code rather than being deleted. That includes the\nthree `loadUploadSettings` fallback tests, which pin the invariant the\ncode comments warn about: a failed or unparsable settings fetch must\nleave the tuning fields alone, because a NaN concurrency limit stalls\nthe queue outright (`activeUploads < NaN` is never true). Two `ngOnInit`\nassertions changed: the dataset page no longer fetches upload tuning\nitself, so it no longer calls\n`getPublicSetting` on load; the panel does, when it renders. No dataset\nbehavior changed.\n\nNew coverage: the model endpoint and its own settings keys, version\ncreation, framework/format editing with rollback on failure, and the\nAdmin upload cards run against both resource families so one cannot\nwrite the other's keys.\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Claude Code (Claude Opus 5)\n\n---------\n\nCo-authored-by: Claude Opus 5 <noreply@anthropic.com>",
+          "timestamp": "2026-08-31T04:08:42Z",
+          "url": "https://github.com/apache/texera/commit/50321e403c82df299a13deb50a7f9849dd93bdba"
+        },
+        "date": 1788185128861,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 616.3473362694041,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 1080.475877631989,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 1143.744410445972,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 766.3484261009228,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 1092.3312063006222,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 1149.9411565899145,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 852.2088703178657,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 1113.3461155843788,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 1148.9942359548897,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 685.896110266903,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 890.2188279042222,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 925.9092079321716,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 682.590023667693,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 887.8830373309951,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 923.6653489502146,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 726.9971126215542,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 893.0726756212513,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 901.6801240666457,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 438.0261727940141,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 516.1674176774713,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 521.9487595518165,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 435.4155008389418,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 510.1031663747217,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 516.1183997994743,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 412.63420380996496,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 487.7637672603506,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 495.07308657075913,
             "unit": "tuples/sec"
           }
         ]
