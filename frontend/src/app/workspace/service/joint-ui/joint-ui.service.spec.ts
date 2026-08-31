@@ -23,6 +23,7 @@ import { JointUIService, operatorNameClass, operatorStateClass, operatorPortMetr
 import { CommentBox, OperatorPredicate } from "../../types/workflow-common.interface";
 import { OperatorState } from "../../types/execute-workflow.interface";
 import { Coeditor } from "../../../common/type/user";
+import { HEATMAP_NO_DATA_COLOR, scoreToColor } from "../heatmap/heatmap-color";
 
 // Minimal mock of OperatorMetadataService — the constructor subscribes to
 // getOperatorMetadata() but the schemas list isn't needed for the methods
@@ -361,6 +362,21 @@ describe("JointUIService", () => {
       service.changeOperatorColor(paper, "op-1", false);
       expect(attrSpy).toHaveBeenCalledWith("rect.body/stroke", "red");
     });
+    it("skips the write when the border is already the requested color", () => {
+      const { paper, attrSpy } = makePaperWithModel();
+      // model reports it is already neutral; the guarded setter must not rewrite it
+      attrSpy.mockImplementation((selector: string) => (selector === "rect.body/stroke" ? "#CFCFCF" : undefined));
+      const service = new JointUIService(emptyMetadataStub as never);
+      service.changeOperatorColor(paper, "op-1", true);
+      expect(attrSpy).not.toHaveBeenCalledWith("rect.body/stroke", "#CFCFCF");
+    });
+    it("writes the border when the current color differs", () => {
+      const { paper, attrSpy } = makePaperWithModel();
+      attrSpy.mockImplementation((selector: string) => (selector === "rect.body/stroke" ? "red" : undefined));
+      const service = new JointUIService(emptyMetadataStub as never);
+      service.changeOperatorColor(paper, "op-1", true);
+      expect(attrSpy).toHaveBeenCalledWith("rect.body/stroke", "#CFCFCF");
+    });
   });
 
   describe("changeOperatorState", () => {
@@ -613,6 +629,46 @@ describe("JointUIService", () => {
       const service = new JointUIService(emptyMetadataStub as never);
       service.changeOperatorDisableStatus(paper, { operatorID: "op-1" } as OperatorPredicate);
       expect(attrSpy).toHaveBeenCalledWith("rect.body/fill", "#FFFFFF");
+    });
+  });
+
+  describe("applyHeatmapColor", () => {
+    it("paints the body fill with the ramp color for a given score", () => {
+      const { paper, attrSpy } = makePaperWithModel();
+      const service = new JointUIService(emptyMetadataStub as never);
+      service.applyHeatmapColor(paper, "op-1", 1);
+      expect(attrSpy).toHaveBeenCalledWith("rect.body/fill", scoreToColor(1));
+    });
+    it("paints the neutral no-data color when the score is undefined", () => {
+      const { paper, attrSpy } = makePaperWithModel();
+      const service = new JointUIService(emptyMetadataStub as never);
+      service.applyHeatmapColor(paper, "op-1", undefined);
+      expect(attrSpy).toHaveBeenCalledWith("rect.body/fill", HEATMAP_NO_DATA_COLOR);
+    });
+    it("no-ops when the model is missing", () => {
+      const paper = { getModelById: vi.fn(() => null) } as unknown as joint.dia.Paper;
+      const service = new JointUIService(emptyMetadataStub as never);
+      expect(() => service.applyHeatmapColor(paper, "missing-op", 0.5)).not.toThrow();
+    });
+  });
+
+  describe("restoreOperatorFill", () => {
+    it("restores the default white fill for an enabled operator", () => {
+      const { paper, attrSpy } = makePaperWithModel();
+      const service = new JointUIService(emptyMetadataStub as never);
+      service.restoreOperatorFill(paper, { operatorID: "op-1" } as OperatorPredicate);
+      expect(attrSpy).toHaveBeenCalledWith("rect.body/fill", "#FFFFFF");
+    });
+    it("restores the disabled grey fill for a disabled operator", () => {
+      const { paper, attrSpy } = makePaperWithModel();
+      const service = new JointUIService(emptyMetadataStub as never);
+      service.restoreOperatorFill(paper, { operatorID: "op-1", isDisabled: true } as OperatorPredicate);
+      expect(attrSpy).toHaveBeenCalledWith("rect.body/fill", "#E0E0E0");
+    });
+    it("no-ops when the model is missing", () => {
+      const paper = { getModelById: vi.fn(() => null) } as unknown as joint.dia.Paper;
+      const service = new JointUIService(emptyMetadataStub as never);
+      expect(() => service.restoreOperatorFill(paper, { operatorID: "missing-op" } as OperatorPredicate)).not.toThrow();
     });
   });
 

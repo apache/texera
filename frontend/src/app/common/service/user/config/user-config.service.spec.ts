@@ -23,6 +23,8 @@ import { AppSettings } from "src/app/common/app-setting";
 import { UserConfigService, UserConfig } from "./user-config.service";
 import { UserService } from "../user.service";
 import { StubUserService, MOCK_USER } from "../stub-user.service";
+import { Subject } from "rxjs";
+import { User } from "../../../type/user";
 
 describe("UserConfigService", () => {
   let service: UserConfigService;
@@ -195,6 +197,34 @@ describe("UserConfigService", () => {
     });
   });
 
+  // updateEntry is private and validates its own arguments rather than trusting
+  // its callers. Both guards below are unreachable through the public API --
+  // fetchKey/set/delete reject a blank key before they ever tap into
+  // updateEntry, and delete() returns early when the key is absent -- so the
+  // contract updateEntry keeps for itself is pinned here by calling it directly.
+  describe("updateEntry (private, called directly)", () => {
+    it("rejects a blank key even though no public caller can supply one", () => {
+      expect(() => (service as any).updateEntry("   ", "v")).toThrowError(/key cannot be empty/);
+      // The guard runs before any mutation, so nothing was written under a
+      // trimmed or raw form of the blank key.
+      expect(service.getDict()).toEqual({});
+    });
+
+    it("does not fire dictionaryChanged when told to delete a key that is absent", () => {
+      const next = vi.fn();
+      const sub = (service as any).dictionaryChangedSubject.subscribe(next);
+
+      (service as any).updateEntry("absent", undefined);
+
+      // Asserting on the subject, not just on getDict(): a version that deleted
+      // and notified unconditionally would leave the dictionary looking identical
+      // while still waking every subscriber.
+      expect(next).not.toHaveBeenCalled();
+      expect(service.getDict()).toEqual({});
+      sub.unsubscribe();
+    });
+  });
+
   describe("user-change reactions", () => {
     it("re-fetches the dictionary when a logged-in user is emitted on userChanged", () => {
       stubUserService.userChangeSubject.next(MOCK_USER);
@@ -217,5 +247,41 @@ describe("UserConfigService", () => {
       expect(service.getDict()).toEqual({});
       httpMock.expectNone(endpoint);
     });
+  });
+});
+
+// StubUserService hard-codes `this.user = MOCK_USER` in its constructor, so the
+// suite above can only ever bring the service up while logged in, and the
+// constructor's `if (this.userService.isLogin())` guard is only ever seen from
+// its true side. This second TestBed constructs the service logged out instead.
+describe("UserConfigService (constructed while logged out)", () => {
+  let httpMock: HttpTestingController;
+  const endpoint = `${AppSettings.getApiEndpoint()}/${UserConfigService.USER_DICTIONARY_ENDPOINT}`;
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({
+      imports: [HttpClientTestingModule],
+      providers: [
+        { provide: UserService, useValue: { isLogin: () => false, userChanged: () => new Subject<User>() } },
+        UserConfigService,
+      ],
+    });
+    httpMock = TestBed.inject(HttpTestingController);
+  });
+
+  afterEach(() => {
+    httpMock.verify();
+  });
+
+  it("does not fetch the dictionary on construction when nobody is logged in", () => {
+    // The load-bearing assertion is that construction does not THROW. fetchAll()
+    // re-checks the login state and raises Error("user not logged in") before it
+    // issues any request, so a constructor that skipped the guard takes the whole
+    // service down at injection time; it never reaches a point where a request
+    // could be observed. (getDict() is deliberately not asserted here: it is
+    // fixed at {} by its field initialiser and would hold either way.)
+    expect(() => TestBed.inject(UserConfigService)).not.toThrow();
+
+    httpMock.expectNone(endpoint);
   });
 });

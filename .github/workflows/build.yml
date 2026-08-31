@@ -86,7 +86,25 @@ jobs:
   frontend:
     if: ${{ inputs.run_frontend }}
     runs-on: ${{ matrix.os }}
+    # Only the "Install dependency" step below is bounded, so a spec that
+    # truly hangs would otherwise run to GitHub's implicit 6h cap, holding one
+    # of the 50 concurrent macOS jobs the whole `apache` org shares for that
+    # window. The timeout is based on observed *green* legs rather than a
+    # typical one, because the macOS leg swings hard: 21.1 minutes at its
+    # slowest while still passing, and the variance sits in "Prod build"
+    # (4.5-11.1 min there) more than in the tests (4.4-5.3 min). 45 is ~2x
+    # that worst green leg, so it bounds a runaway without turning a merely
+    # slow macOS runner into a false red — which is the same failure this
+    # job's `fail-fast: false` is here to stop manufacturing.
+    timeout-minutes: 45
     strategy:
+      # An OS-specific failure should not cancel the other two legs: with the
+      # default fail-fast the surviving jobs report "The operation was
+      # canceled" and the run no longer says whether the failure reproduces
+      # off that OS — exactly the evidence needed to tell a runner flake from
+      # a real break. `platform`, `platform-integration`, `agent-service` and
+      # `infra` opt out for the same reason.
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
         include:
@@ -228,7 +246,7 @@ jobs:
         env:
           PGPASSWORD: postgres
       - name: Setup sbt launcher
-        uses: sbt/setup-sbt@6444f4c8111de4b9059c3975def104b03cfaa5f0 # v1.5.2
+        uses: sbt/setup-sbt@8feba82adc7f01ddcf8165b86f778bdb5b82cebc # v1.5.7
       - uses: coursier/cache-action@95e5b1029b6b86e7bac033ee44a0697d8a527d2d # v8.1.1
         with:
           extraSbtFiles: '["*.sbt", "project/**.{scala,sbt}", "project/build.properties" ]'
@@ -284,9 +302,13 @@ jobs:
         # Test config (sbt's `test` task does not transit dependsOn),
         # so common modules' tests are listed explicitly here.
         #
-        # AMBER_TEST_FILTER=skip-integration tells amber/build.sbt to
-        # exclude @org.apache.texera.amber.tags.IntegrationTest specs;
-        # those run in the amber-integration job below.
+        # AMBER_TEST_FILTER=skip-integration excludes the integration-tagged
+        # tests of two modules, each under its own tag: amber/build.sbt drops
+        # @org.apache.texera.amber.tags.IntegrationTest, and
+        # common/workflow-operator/build.sbt drops
+        # @org.apache.texera.amber.operator.tags.IntegrationTest. Both run in the
+        # amber-integration job below. The second exclusion is what keeps the
+        # pandas and plotly probe out of this job, which installs neither.
         env:
           AMBER_TEST_FILTER: skip-integration
           # unit job uses its provisioned postgres catalog; default (rest) needs a Lakekeeper not run here
@@ -478,7 +500,7 @@ jobs:
         env:
           PGPASSWORD: postgres
       - name: Setup sbt launcher
-        uses: sbt/setup-sbt@6444f4c8111de4b9059c3975def104b03cfaa5f0 # v1.5.2
+        uses: sbt/setup-sbt@8feba82adc7f01ddcf8165b86f778bdb5b82cebc # v1.5.7
       - uses: coursier/cache-action@95e5b1029b6b86e7bac033ee44a0697d8a527d2d # v8.1.1
         with:
           extraSbtFiles: '["*.sbt", "project/**.{scala,sbt}", "project/build.properties" ]'
@@ -566,6 +588,8 @@ jobs:
         # storage.conf is followed by a `${?VAR}` env-override line whose
         # name is globally unique, so anchoring grep on that override line
         # selects the value unambiguously across nested scopes.
+        # The key-prefix below is a literal instead: no runtime code reads it,
+        # so it is not in storage.conf. It must stay non-empty (#7739).
         run: |
           CONF=common/config/src/main/resources/storage.conf
           extract() {
@@ -607,6 +631,7 @@ jobs:
             "storage-profile": {
               "type": "s3",
               "bucket": "$S3_BUCKET",
+              "key-prefix": "shared",
               "region": "$S3_REGION",
               "endpoint": "$S3_ENDPOINT",
               "flavor": "s3-compat",
@@ -631,6 +656,8 @@ jobs:
         # specs. The Java @TagAnnotation makes the marker visible to
         # ScalaTest's reflection, so `-n TAG` correctly narrows the
         # run.
+        # WorkflowOperator/test is here for the same reason, with its own tag:
+        # its Python-dependent tests need packages the `amber` job lacks.
         #
         # scalafmtCheckAll + scalafixAll --check are run here as well
         # because an integration-only PR fires only the
@@ -657,6 +684,7 @@ jobs:
         run: |
           sbt scalafmtCheckAll \
               "scalafixAll --check" \
+              "WorkflowOperator/test" \
               "WorkflowExecutionService/test"
       - name: Build amber dist for the texera-web boot test
         # Boot smoke test for texera-web (mirrors platform-integration for the
@@ -785,7 +813,7 @@ jobs:
           distribution: "temurin"
           java-version: 17
       - name: Setup sbt launcher
-        uses: sbt/setup-sbt@6444f4c8111de4b9059c3975def104b03cfaa5f0 # v1.5.2
+        uses: sbt/setup-sbt@8feba82adc7f01ddcf8165b86f778bdb5b82cebc # v1.5.7
       - uses: coursier/cache-action@95e5b1029b6b86e7bac033ee44a0697d8a527d2d # v8.1.1
         with:
           extraSbtFiles: '["*.sbt", "project/**.{scala,sbt}", "project/build.properties" ]'
@@ -940,7 +968,7 @@ jobs:
           distribution: "temurin"
           java-version: 17
       - name: Setup sbt launcher
-        uses: sbt/setup-sbt@6444f4c8111de4b9059c3975def104b03cfaa5f0 # v1.5.2
+        uses: sbt/setup-sbt@8feba82adc7f01ddcf8165b86f778bdb5b82cebc # v1.5.7
       - uses: coursier/cache-action@95e5b1029b6b86e7bac033ee44a0697d8a527d2d # v8.1.1
         with:
           extraSbtFiles: '["*.sbt", "project/**.{scala,sbt}", "project/build.properties" ]'

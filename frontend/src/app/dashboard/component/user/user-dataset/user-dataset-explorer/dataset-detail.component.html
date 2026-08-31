@@ -360,8 +360,8 @@
           <texera-user-dataset-file-renderer
             *ngIf="selectedVersion"
             [isMaximized]="isMaximized"
-            [did]="did"
-            [dvid]="selectedVersion.dvid"
+            [resourceId]="did"
+            [versionId]="selectedVersion.dvid"
             [filePath]="currentDisplayedFileName"
             [fileSize]="currentFileSize"
             [isLogin]="isLogin"
@@ -448,165 +448,16 @@
               </nz-collapse-panel>
             </nz-collapse>
 
-            <nz-divider></nz-divider>
-            <nz-collapse
+            <nz-divider *ngIf="userDatasetAccessLevel === 'WRITE'"></nz-divider>
+            <texera-version-uploader
               *ngIf="userDatasetAccessLevel === 'WRITE'"
-              nzGhost>
-              <nz-collapse-panel
-                nzActive="true"
-                nzHeader="Create New Version">
-                <texera-user-files-uploader
-                  [did]="did"
-                  [ownerEmail]="ownerEmail"
-                  [datasetName]="datasetName"
-                  (uploadedFiles)="onNewUploadFilesChanged($event)">
-                </texera-user-files-uploader>
-
-                <nz-collapse
-                  nzGhost
-                  class="upload-status-panels">
-                  <nz-collapse-panel
-                    *ngIf="queuedCount > 0"
-                    [nzHeader]="'Pending: ' + queuedCount + ' file(s)'"
-                    (nzActiveChange)="onPendingPanelActiveChange($event)">
-                    <!-- Virtualized so only visible rows are in the DOM (#5586). The viewport
-                   measures height 0 while the panel is collapsed, so it is re-measured
-                   on expand. -->
-                    <cdk-virtual-scroll-viewport
-                      class="upload-progress-wrapper-pending"
-                      [itemSize]="PENDING_ROW_HEIGHT_PX"
-                      [minBufferPx]="PENDING_LIST_MAX_HEIGHT_PX"
-                      [maxBufferPx]="2 * PENDING_LIST_MAX_HEIGHT_PX"
-                      [style.height.px]="pendingListHeightPx">
-                      <div
-                        class="pending-file-row"
-                        *cdkVirtualFor="let fileName of queuedFileNames; trackBy: trackByPendingFile">
-                        <span
-                          class="pending-file-name"
-                          nz-tooltip
-                          [nzTooltipTitle]="fileName"
-                          >{{ fileName }}</span
-                        >
-                        <button
-                          nz-button
-                          nzType="text"
-                          nzShape="circle"
-                          nz-tooltip
-                          [nzTooltipTitle]="'Remove from queue'"
-                          (click)="cancelExistingUpload(fileName)">
-                          <span
-                            nz-icon
-                            nzType="close"
-                            nzTheme="outline"></span>
-                        </button>
-                      </div>
-                    </cdk-virtual-scroll-viewport>
-                  </nz-collapse-panel>
-
-                  <nz-divider
-                    class="section-divider"
-                    *ngIf="queuedCount > 0"></nz-divider>
-
-                  <nz-collapse-panel
-                    *ngIf="activeCount > 0"
-                    [nzHeader]="'Uploading: ' + activeCount + ' file(s)'">
-                    <div class="upload-progress-wrapper">
-                      <div *ngFor="let task of uploadTasks; trackBy: trackByTask">
-                        <div class="progress-header">
-                          <span><b>{{ task.status }}</b>: {{ task.filePath }}</span>
-                          <button
-                            nz-button
-                            nzType="text"
-                            nzShape="circle"
-                            [nz-tooltip]="
-                (task.status === 'aborted' || task.status === 'finished')
-                ? 'Close'
-                : 'Cancel the upload'
-                "
-                            (click)="onClickAbortUploadProgress(task)">
-                            <i
-                              nz-icon
-                              nzType="close"
-                              nzTheme="outline"></i>
-                          </button>
-                        </div>
-
-                        <div
-                          class="upload-stats"
-                          *ngIf="task.status !== 'initializing'">
-                          <nz-progress
-                            [nzPercent]="task.percentage"
-                            [nzStatus]="getUploadStatus(task.status)"></nz-progress>
-                          <nz-tag
-                            *ngIf="task.status === 'uploading'"
-                            [nzColor]="'blue'">
-                            <span class="fixed-width-speed">{{ formatSpeed(task.uploadSpeed) }}</span> -
-                            <span class="fixed-width-time">{{ formatTime(task.totalTime ?? 0) }}</span> elapsed,
-                            <span class="fixed-width-time"
-                              >{{ formatTime(task.estimatedTimeRemaining ?? 0) }} left</span
-                            >
-                          </nz-tag>
-
-                          <nz-tag *ngIf="(task.status === 'finished' || task.status === 'aborted')">
-                            Upload time: {{ formatTime(task.totalTime ?? 0) }}
-                          </nz-tag>
-                        </div>
-                      </div>
-                    </div>
-                  </nz-collapse-panel>
-
-                  <nz-divider
-                    class="section-divider"
-                    *ngIf="activeCount > 0"></nz-divider>
-
-                  <nz-collapse-panel
-                    *ngIf="hasAnyActivity"
-                    [nzHeader]="'Finished: ' + pendingChangesCount + ' file(s)'"
-                    (nzActiveChange)="$event && stagedObjectsList.remeasureViewport()">
-                    <texera-dataset-staged-objects-list
-                      #stagedObjectsList
-                      [uploadTimeMap]="uploadTimeMap"
-                      [did]="did"
-                      [userMakeChangesEvent]="userMakeChanges"
-                      (stagedObjectsChanged)="onStagedObjectsUpdated($event)">
-                    </texera-dataset-staged-objects-list>
-                  </nz-collapse-panel>
-                </nz-collapse>
-
-                <texera-dataset-staged-objects-list
-                  *ngIf="!hasAnyActivity"
-                  [uploadTimeMap]="uploadTimeMap"
-                  [did]="did"
-                  [userMakeChangesEvent]="userMakeChanges"
-                  (stagedObjectsChanged)="onStagedObjectsUpdated($event)">
-                </texera-dataset-staged-objects-list>
-
-                <div
-                  *ngIf="userHasWriteAccess() && userHasPendingChanges"
-                  class="version-creator">
-                  <div class="version-input-container">
-                    <label>Version:</label>
-                    <input
-                      nz-input
-                      [(ngModel)]="versionName"
-                      placeholder="Describe the new version (Optional)"
-                      [disabled]="isCreatingVersion"
-                      (keydown.enter)="onClickOpenVersionCreator()"
-                      class="version-input" />
-                  </div>
-                  <div>
-                    <button
-                      nz-button
-                      nzType="primary"
-                      [nzLoading]="isCreatingVersion"
-                      (click)="onClickOpenVersionCreator()"
-                      class="create-dataset-version-button">
-                      Submit
-                    </button>
-                  </div>
-                </div>
-              </nz-collapse-panel>
-            </nz-collapse>
+              [resourceId]="did"
+              [ownerEmail]="ownerEmail"
+              [resourceName]="datasetName"
+              [endpoint]="datasetEndpoint"
+              [createVersion]="createDatasetVersion"
+              (versionCreated)="onVersionCreated()">
+            </texera-version-uploader>
           </div>
         </nz-sider>
       </nz-layout>

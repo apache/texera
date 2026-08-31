@@ -90,13 +90,8 @@ export const SAVE_DEBOUNCE_TIME_IN_MS = 5000;
   ],
 })
 export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
-  public pid?: number = undefined;
   public writeAccess: boolean = false;
   public isLoading: boolean = false;
-  // variable to track whether we are waiting for AI to finish generating (whether a loading icon should show)
-  public isWaitingForLLM = false;
-  private timerInterval: ReturnType<typeof setInterval> | null = null;
-  private startTime: number | null = null;
   @ViewChild("codeEditor", { read: ViewContainerRef }) codeEditorViewRef!: ViewContainerRef;
 
   /**
@@ -140,19 +135,6 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
   ) {}
 
   ngOnInit() {
-    /**
-     * On initialization of the workspace, there are two possibilities regarding which component has
-     * routed to this component:
-     *
-     * 1. Routed to this component from within UserProjectSection component
-     *    - track the pid identifying that project
-     *    - upon persisting of a workflow, must also ensure it is also added to the project
-     *
-     * 2. Routed to this component from SavedWorkflowSection component
-     *    - there is no related project, parseInt will return NaN.
-     *    - NaN || undefined will result in undefined.
-     */
-    this.pid = parseInt(this.route.snapshot.queryParams.pid) || undefined;
     this.workflowActionService.setHighlightingEnabled(true);
     // Clear session state when the user switches computing units in-canvas, so
     // the previous unit's status/console/results don't linger.
@@ -204,7 +186,6 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
     // re-entered workflow starts clean instead of reusing the previous one.
     this.computingUnitStatusService.disconnect();
     this.resetWorkflowSessionState();
-    this.stopTimer();
   }
 
   /**
@@ -264,9 +245,17 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
           this.workflowActionService.setNewSharedModel(wid, this.userService.getCurrentUser());
           // remember URL fragment
           const fragment = this.route.snapshot.fragment;
-          // load the fetched workflow
-          this.workflowActionService.reloadWorkflow(workflow);
+          // An AI-generated workflow arrives with autolayout=1. Render synchronously
+          // (asyncRendering = false) so the operators exist before the one-shot layout runs.
+          const shouldAutoLayout = this.route.snapshot.queryParams.autolayout === "1";
+          this.workflowActionService.reloadWorkflow(workflow, shouldAutoLayout ? false : undefined);
           this.workflowActionService.enableWorkflowModification();
+          // Register before autoLayoutWorkflow(): workflowChanged() streams are hot, so subscribing
+          // afterward would drop the layout's position events and the tidied layout would never save.
+          this.registerAutoPersistWorkflow();
+          if (shouldAutoLayout) {
+            this.workflowActionService.autoLayoutWorkflow();
+          }
           // set the URL fragment to previous value
           // because reloadWorkflow will highlight/unhighlight all elements
           // which will change the URL fragment
@@ -289,7 +278,6 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
           this.undoRedoService.clearUndoStack();
           this.undoRedoService.clearRedoStack();
           this.setLoadingState(false);
-          this.registerAutoPersistWorkflow();
           this.triggerCenter();
         },
         () => {
@@ -361,44 +349,5 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
 
   public get copilotEnabled(): boolean {
     return this.config.env.copilotEnabled;
-  }
-
-  onWaitingForLLMChanged(isWaiting: boolean) {
-    this.isWaitingForLLM = isWaiting;
-
-    if (isWaiting) {
-      this.startTimer();
-    } else {
-      this.stopTimer();
-    }
-  }
-
-  startTimer() {
-    this.stopTimer(); // clear any interval already running so repeated starts don't stack
-    this.startTime = Date.now();
-    this.updateElapsedTime();
-    this.timerInterval = setInterval(() => {
-      this.updateElapsedTime();
-    }, 1000);
-  }
-
-  stopTimer() {
-    if (this.timerInterval !== null) {
-      clearInterval(this.timerInterval);
-    }
-    this.timerInterval = null;
-    this.startTime = null;
-  }
-
-  updateElapsedTime() {
-    this.changeDetectorRef.detectChanges();
-  }
-
-  get formattedElapsedTime(): string {
-    if (!this.startTime) return "0:00";
-    const diff = Date.now() - this.startTime;
-    const minutes = Math.floor(diff / 60000);
-    const seconds = Math.floor((diff % 60000) / 1000);
-    return `${minutes}:${seconds.toString().padStart(2, "0")}`;
   }
 }

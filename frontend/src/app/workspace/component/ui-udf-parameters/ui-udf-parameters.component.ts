@@ -19,6 +19,18 @@
 import { Component } from "@angular/core";
 import { NgFor, NgIf } from "@angular/common";
 import { FieldArrayType, FormlyFieldConfig, FormlyModule } from "@ngx-formly/core";
+import { NzButtonComponent } from "ng-zorro-antd/button";
+import { NzWaveDirective } from "ng-zorro-antd/core/wave";
+import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
+import { NzIconDirective } from "ng-zorro-antd/icon";
+import { NotificationService } from "../../../common/service/notification/notification.service";
+import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
+import {
+  UiUdfParametersEditError,
+  UiUdfParametersParseError,
+} from "../../service/code-editor/ui-udf-parameters-parser.service";
+import { UiUdfParametersSyncService } from "../../service/code-editor/ui-udf-parameters-sync.service";
+import type { AttributeType } from "../../types/workflow-compiling.interface";
 
 type UiUdfParameterColumn = Readonly<{ label: string; key: string; parentKey?: string; disabled: boolean }>;
 
@@ -27,7 +39,15 @@ type UiUdfParameterColumn = Readonly<{ label: string; key: string; parentKey?: s
   selector: "texera-ui-udf-parameters",
   templateUrl: "./ui-udf-parameters.component.html",
   styleUrls: ["./ui-udf-parameters.component.scss"],
-  imports: [NgIf, NgFor, FormlyModule],
+  imports: [
+    NgIf,
+    NgFor,
+    FormlyModule,
+    NzButtonComponent,
+    NzWaveDirective,
+    ɵNzTransitionPatchDirective,
+    NzIconDirective,
+  ],
 })
 export class UiUdfParametersComponent extends FieldArrayType<FormlyFieldConfig> {
   private readonly disabledStateConfigured = new WeakMap<FormlyFieldConfig, boolean>();
@@ -37,6 +57,33 @@ export class UiUdfParametersComponent extends FieldArrayType<FormlyFieldConfig> 
     { label: "Name", key: "attributeName", parentKey: "attribute", disabled: true },
     { label: "Type", key: "attributeType", parentKey: "attribute", disabled: true },
   ];
+
+  readonly addParameterTypeOptions: AttributeType[] = ["string", "integer", "long", "double", "boolean", "timestamp"];
+  draftVisible = false;
+
+  constructor(
+    private workflowActionService: WorkflowActionService,
+    private uiUdfParametersSyncService: UiUdfParametersSyncService,
+    private notificationService: NotificationService
+  ) {
+    super();
+  }
+
+  get workflowModificationEnabled(): boolean {
+    return this.workflowActionService.checkWorkflowModificationEnabled();
+  }
+
+  /** Inserts the declaration into the operator's Python code; the row then appears through the normal code sync. */
+  addParameter(nameInput: HTMLInputElement, attributeType: string): void {
+    const operatorId = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()[0];
+    try {
+      this.uiUdfParametersSyncService.addParameter(operatorId, nameInput.value, attributeType as AttributeType);
+      this.draftVisible = false;
+    } catch (error) {
+      if (!(error instanceof UiUdfParametersEditError) && !(error instanceof UiUdfParametersParseError)) throw error;
+      this.notificationService.error(`Could not add UDF parameter: ${error.message}`);
+    }
+  }
 
   override onPopulate(field: FormlyFieldConfig): void {
     this.configureRowTemplate(this.getFieldArrayTemplate(field));

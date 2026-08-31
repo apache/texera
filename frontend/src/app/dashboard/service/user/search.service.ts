@@ -59,7 +59,7 @@ export class SearchService {
    * @param params - Additional search filter parameters.
    * @param start - The starting index for paginated results.
    * @param count - The number of results to retrieve.
-   * @param type - The type of resource to search for ("workflow", "project", "dataset", "file", or null (all resource type)).
+   * @param type - The type of resource to search for ("workflow", "dataset", "file", or null (all resource type)).
    * @param orderBy - Specifies the sorting method.
    * @param isLogin - Indicates if the user is logged in.
    *    - `isLogin = true`: Use the authenticated search endpoint, retrieving both user-accessible and public resources based on `includePublic`.
@@ -73,7 +73,7 @@ export class SearchService {
     params: SearchFilterParameters,
     start: number,
     count: number,
-    type: "workflow" | "project" | "file" | "dataset" | null,
+    type: "workflow" | "file" | "dataset" | null,
     orderBy: SortMethod,
     isLogin: boolean,
     includePublic: boolean = false
@@ -84,9 +84,31 @@ export class SearchService {
 
     const finalIncludePublic = isLogin ? includePublic : true;
 
-    return this.http.get<SearchResult>(
-      `${url}?${toQueryStrings(keywords, params, start, count, type, orderBy)}&includePublic=${finalIncludePublic}`
-    );
+    return this.http
+      .get<SearchResult>(
+        `${url}?${toQueryStrings(keywords, params, start, count, type, orderBy)}&includePublic=${finalIncludePublic}`
+      )
+      .pipe(
+        map(result => ({
+          ...result,
+          // The unified-search response can carry resource types this client does not model:
+          // rows from a feature being removed server-side later than here, or a type the backend
+          // gains first. Both `convertToName` and `DashboardEntry` throw on an unrecognised
+          // payload, and the autocomplete subscribes without an error handler, so a single such
+          // row would otherwise kill the subscription for the rest of the session. Dropping them
+          // at the funnel every consumer calls keeps a stale row merely invisible.
+          //
+          // Known trade-off: the server counted these rows against offset/limit, and
+          // `SearchResultsComponent.loadMore` starts the next page at `entries.length` and appends
+          // without dedup. So on the "All" tab a window holding k dropped rows re-fetches k
+          // already-shown rows, and a window that is entirely dropped rows leaves `entries.length`
+          // unmoved -- "Load more" re-requests the same window while `more` stays true. Typed tabs
+          // and the search bar are unaffected. Not corrected here: that belongs in the
+          // `LoadMoreFunction` contract shared by all five callers of `SearchResultsComponent.reset`,
+          // and removing the backend half (#7461) ends the only condition that produces such rows.
+          results: result.results.filter(item => item.workflow != null || item.file != null || item.dataset != null),
+        }))
+      );
   }
 
   public getUserInfo(userIds: number[]): Observable<{ [key: number]: UserInfo }> {
@@ -102,7 +124,7 @@ export class SearchService {
    * This method:
    * - Dispatches a paginated search request (authenticated or public) via `this.search(...)`.
    * - Filters out null or mismatched datasets when `type === 'dataset'` and sets `hasMismatch`.
-   * - Fetches owner information (name, Google avatar) in batch for workflows, projects, and datasets.
+   * - Fetches owner information (name, Google avatar) in batch for workflows and datasets.
    * - Aggregates view/clone/like counts via the batch counts API.
    * - Constructs `DashboardEntry` instances and attaches owner info and counts.
    *
@@ -110,7 +132,7 @@ export class SearchService {
    * @param params        Additional search filter parameters.
    * @param start         The starting index for paginated results.
    * @param count         The number of results to retrieve.
-   * @param type          The type of resource to search for ("workflow", "project", "dataset", "file", or null (all resource type)).
+   * @param type          The type of resource to search for ("workflow", "dataset", "file", or null (all resource type)).
    * @param orderBy       Specifies the sorting method.
    * @param isLogin       Indicates if the user is logged in.
    * @param includePublic Specifies whether to include public resources in the search results.
@@ -125,7 +147,7 @@ export class SearchService {
     params: SearchFilterParameters,
     start: number,
     count: number,
-    type: "workflow" | "project" | "dataset" | "file" | null,
+    type: "workflow" | "dataset" | "file" | null,
     orderBy: SortMethod,
     isLogin: boolean,
     includePublic: boolean
@@ -170,8 +192,7 @@ export class SearchService {
 
     const userIds = new Set<number>();
     items.forEach(i => {
-      if (i.project) userIds.add(i.project.ownerId);
-      else if (i.workflow) userIds.add(i.workflow.ownerId);
+      if (i.workflow) userIds.add(i.workflow.ownerId);
       else if (i.dataset?.dataset?.ownerUid != null) userIds.add(i.dataset.dataset.ownerUid);
     });
     const userInfo$ = userIds.size ? this.getUserInfo(Array.from(userIds)) : of({} as Record<number, UserInfo>);
@@ -182,9 +203,6 @@ export class SearchService {
       if (i.workflow?.workflow?.wid != null) {
         entityTypes.push(EntityType.Workflow);
         entityIds.push(i.workflow.workflow.wid);
-      } else if (i.project) {
-        entityTypes.push(EntityType.Project);
-        entityIds.push(i.project.pid);
       } else if (i.dataset?.dataset?.did != null) {
         entityTypes.push(EntityType.Dataset);
         entityIds.push(i.dataset.dataset.did);
@@ -220,22 +238,14 @@ export class SearchService {
         access.forEach(r => (accessMap[`${r.entityType}:${r.entityId}`] = r.userIds));
 
         return items.map(i => {
-          const entry = i.workflow
-            ? new DashboardEntry(i.workflow)
-            : i.project
-              ? new DashboardEntry(i.project)
-              : new DashboardEntry(i.dataset!);
+          const entry = i.workflow ? new DashboardEntry(i.workflow) : new DashboardEntry(i.dataset!);
 
           const key = `${entry.type}:${entry.id}`;
-          const ownerId = i.workflow
-            ? i.workflow.ownerId
-            : i.project
-              ? i.project.ownerId
-              : i.dataset!.dataset!.ownerUid!;
+          const ownerId = i.workflow ? i.workflow.ownerId : i.dataset!.dataset!.ownerUid!;
           const ui = (userMap as any)[ownerId];
           if (ui) {
             entry.setOwnerName(ui.userName);
-            entry.setOwnerGoogleAvatar(ui.googleAvatar ?? "");
+            entry.setOwnerAvatar(ui.avatar ?? "");
           }
 
           if (doCounts) {

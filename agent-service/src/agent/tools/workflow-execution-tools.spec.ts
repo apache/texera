@@ -369,6 +369,55 @@ describe("executeOperatorAndFormat — request construction", () => {
       expect.objectContaining({ operatorID: "src", operatorType: "TestOp", limit: 3 })
     );
   });
+
+  test("sends the whole workflow, not an upstream slice, when the operator id is empty", async () => {
+    // The plan builder only takes the sub-DAG path for a *truthy* target id, so an empty
+    // operator id falls through to the "every operator" branch. `sink` and `orphan` are the
+    // tell: neither is upstream of `mid`, so a sub-DAG walk would have dropped them.
+    const src = makeOperator("src", [], {
+      operatorProperties: { limit: 3 },
+      outputPorts: [{ portID: "output-0" }, { portID: "output-1" }],
+    });
+    const mid = makeOperator("mid", [{ portID: "input-0" }], { outputPorts: [{ portID: "output-0" }] });
+    const sink = makeOperator("sink", [{ portID: "input-0" }, { portID: "input-1" }]);
+    const orphan = makeOperator("orphan");
+    const off = makeOperator("off", [], { isDisabled: true });
+    const state = stateWith(src, mid, sink, orphan, off);
+    state.addLink(makeLink("src", "output-1", "mid", "input-0"));
+    state.addLink(makeLink("mid", "output-0", "sink", "input-1"));
+    resolveFetch(fetchSpy, { success: true, state: "Completed", operators: {} });
+
+    await executeOperatorAndFormat(state, cfg(), "");
+
+    const body = requestBody(fetchSpy);
+    expect(body.logicalPlan.operators.map((op: { operatorID: string }) => op.operatorID).sort()).toEqual([
+      // getAllEnabledOperators() does not filter on isDisabled, so `off` is sent too.
+      "mid",
+      "off",
+      "orphan",
+      "sink",
+      "src",
+    ]);
+    expect(body.logicalPlan.operators).toContainEqual(
+      expect.objectContaining({ operatorID: "src", operatorType: "TestOp", limit: 3, outputPorts: src.outputPorts })
+    );
+    expect(body.logicalPlan.links).toEqual([
+      { fromOpId: "src", fromPortId: { id: 1, internal: false }, toOpId: "mid", toPortId: { id: 0, internal: false } },
+      { fromOpId: "mid", fromPortId: { id: 0, internal: false }, toOpId: "sink", toPortId: { id: 1, internal: false } },
+    ]);
+    // The empty id matches no operator, so nothing is requested back.
+    expect(body.logicalPlan.opsToViewResult).toEqual([]);
+
+    // Contrast: a real id takes the sub-DAG path and keeps only what feeds it.
+    fetchSpy.mockClear();
+    resolveFetch(fetchSpy, { success: true, state: "Completed", operators: {} });
+    await executeOperatorAndFormat(state, cfg(), "mid");
+    expect(
+      requestBody(fetchSpy)
+        .logicalPlan.operators.map((op: { operatorID: string }) => op.operatorID)
+        .sort()
+    ).toEqual(["mid", "src"]);
+  });
 });
 
 describe("executeOperatorAndFormat — result rendering", () => {

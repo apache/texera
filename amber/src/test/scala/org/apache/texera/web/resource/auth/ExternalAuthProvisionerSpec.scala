@@ -66,11 +66,14 @@ class ExternalAuthProvisionerSpec
 
   // ---- helpers -------------------------------------------------------------
 
+  /** Avatars are complete provider URLs now, so tests that assert on one have to use a URL. */
+  private def avatarUrl(id: String): String = s"https://lh3.googleusercontent.com/a/$id"
+
   private def profile(
       providerId: String,
       name: String,
       email: String,
-      avatar: String = "pic"
+      avatar: Option[String] = Some(avatarUrl("pic"))
   ): ExternalProfile =
     ExternalProfile(ProviderTypeEnum.GOOGLE, providerId, name, email, avatar)
 
@@ -117,13 +120,13 @@ class ExternalAuthProvisionerSpec
 
   "ExternalAuthProvisioner.loginOrProvision" should "create an INACTIVE user and provider row for a brand-new Google identity" in {
     val user = ExternalAuthProvisioner.loginOrProvision(
-      profile("google-sub-1", "New User", "new" + emailDomain, avatar = "avatar1")
+      profile("google-sub-1", "New User", "new" + emailDomain, avatar = Some(avatarUrl("a1")))
     )
 
     user.getUid should not be null
     user.getName shouldBe "New User"
     user.getEmail shouldBe "new" + emailDomain
-    user.getAvatar shouldBe "avatar1"
+    user.getAvatar shouldBe avatarUrl("a1")
     user.getRole shouldBe UserRoleEnum.INACTIVE
 
     providerRowCount(user.getUid) shouldBe 1
@@ -133,7 +136,7 @@ class ExternalAuthProvisionerSpec
   // ---- returning known identity --------------------------------------------
 
   it should "be idempotent for a returning identity (same uid, no duplicate provider row or user)" in {
-    val p = profile("google-sub-return", "Ret", "ret" + emailDomain, avatar = "a")
+    val p = profile("google-sub-return", "Ret", "ret" + emailDomain, avatar = Some(avatarUrl("a")))
 
     val first = ExternalAuthProvisioner.loginOrProvision(p)
     val second = ExternalAuthProvisioner.loginOrProvision(p)
@@ -145,36 +148,36 @@ class ExternalAuthProvisionerSpec
 
   it should "refresh drifted profile fields for a known identity" in {
     ExternalAuthProvisioner.loginOrProvision(
-      profile("sub-drift", "Old Name", "drift" + emailDomain, avatar = "oldpic")
+      profile("sub-drift", "Old Name", "drift" + emailDomain, avatar = Some(avatarUrl("oldpic")))
     )
     val updated = ExternalAuthProvisioner.loginOrProvision(
-      profile("sub-drift", "New Name", "drift" + emailDomain, avatar = "newpic")
+      profile("sub-drift", "New Name", "drift" + emailDomain, avatar = Some(avatarUrl("newpic")))
     )
 
     updated.getName shouldBe "New Name"
-    updated.getAvatar shouldBe "newpic"
+    updated.getAvatar shouldBe avatarUrl("newpic")
     // confirm it persisted, not just mutated in memory
     userDao.fetchOneByUid(updated.getUid).getName shouldBe "New Name"
-    userDao.fetchOneByUid(updated.getUid).getAvatar shouldBe "newpic"
+    userDao.fetchOneByUid(updated.getUid).getAvatar shouldBe avatarUrl("newpic")
   }
 
-  // A provider that sends no avatar (Apple never does) must not blank one another provider set on
-  // the same account, and must not store "" on a fresh account either.
-  it should "leave a stored avatar alone when the provider supplies none" in {
+  // `None` is "the provider offered no avatar we would store", which must not blank a working one:
+  // otherwise a payload that omits `picture`, or names a host the allowlist rejects, wipes it.
+  it should "leave the stored avatar untouched when the provider supplies none" in {
     val created = ExternalAuthProvisioner.loginOrProvision(
-      profile("sub-keeppic", "Keeper", "keeppic" + emailDomain, avatar = "kept")
+      profile("sub-keeppic", "Keeper", "keeppic" + emailDomain, avatar = Some(avatarUrl("kept")))
     )
 
     ExternalAuthProvisioner.loginOrProvision(
-      profile("sub-keeppic", "Keeper", "keeppic" + emailDomain, avatar = "")
+      profile("sub-keeppic", "Keeper", "keeppic" + emailDomain, avatar = None)
     )
 
-    userDao.fetchOneByUid(created.getUid).getAvatar shouldBe "kept"
+    userDao.fetchOneByUid(created.getUid).getAvatar shouldBe avatarUrl("kept")
   }
 
   it should "leave a new account's avatar unset when the provider supplies none" in {
     val created = ExternalAuthProvisioner.loginOrProvision(
-      profile("sub-nopic", "Pictureless", "nopic" + emailDomain, avatar = "")
+      profile("sub-nopic", "Pictureless", "nopic" + emailDomain, avatar = None)
     )
 
     userDao.fetchOneByUid(created.getUid).getAvatar shouldBe null

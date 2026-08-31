@@ -19,10 +19,19 @@
 
 import { of, Subject, throwError } from "rxjs";
 import { OnDestroy } from "@angular/core";
-import { NgxFileDropEntry } from "ngx-file-drop";
+import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { By } from "@angular/platform-browser";
+import { NoopAnimationsModule } from "@angular/platform-browser/animations";
+import { NgxFileDropComponent, NgxFileDropEntry } from "ngx-file-drop";
+import { NzAlertComponent } from "ng-zorro-antd/alert";
 import { NzModalService } from "ng-zorro-antd/modal";
+import { commonTestProviders } from "../../../../common/testing/test-utils";
 import { AdminSettingsService } from "../../../service/admin/settings/admin-settings.service";
-import { DatasetService } from "../../../service/user/dataset/dataset.service";
+import { MultipartUploadService } from "../../../service/user/file-resource/multipart-upload.service";
+import {
+  DATASET_FILE_RESOURCE_ENDPOINT,
+  FileResourceEndpoint,
+} from "../../../service/user/file-resource/file-resource-endpoint";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { FileUploadItem } from "../../../type/dashboard-file.interface";
 import { FilesUploaderComponent } from "./files-uploader.component";
@@ -56,13 +65,31 @@ const droppedFile = (relativePath: string, file: File): NgxFileDropEntry =>
     },
   }) as unknown as NgxFileDropEntry;
 
+/** A resource family that is neither dataset nor model, to prove the uploader is parameterized. */
+const WIDGET_ENDPOINT: FileResourceEndpoint = {
+  baseUrl: "widget",
+  label: "widget",
+  nameParamKey: "widgetName",
+  maxFileSizeSettingKey: "widget_single_file_upload_max_size_mib",
+  defaultMaxFileSizeMiB: 64,
+  chunkSizeSettingKey: "widget_multipart_upload_chunk_size_mib",
+  maxConcurrentChunksSettingKey: "widget_max_number_of_concurrent_uploading_file_chunks",
+  maxConcurrentFilesSettingKey: "widget_max_number_of_concurrent_uploading_file",
+};
+
 describe("FilesUploaderComponent", () => {
   let component: FilesUploaderComponent;
   let modals: CapturedModal[];
-  let datasetService: {
+  let uploadService: {
     listMultipartUploads: ReturnType<typeof vi.fn>;
     findExistingUploadFiles: ReturnType<typeof vi.fn>;
   };
+
+  /** Builds an initialized uploader; the size ceiling is only read in ngOnInit. */
+  let buildUploader: (
+    adminSettingsService: AdminSettingsService,
+    notificationService?: NotificationService
+  ) => FilesUploaderComponent;
 
   beforeEach(() => {
     modals = [];
@@ -75,30 +102,37 @@ describe("FilesUploaderComponent", () => {
     const adminSettingsService = {
       getPublicSetting: vi.fn().mockReturnValue(of("20")),
     } as unknown as AdminSettingsService;
-    datasetService = {
+    uploadService = {
       listMultipartUploads: vi.fn().mockReturnValue(of(["failed.csv"])),
       findExistingUploadFiles: vi.fn().mockReturnValue(of(["done.csv"])),
+    };
+
+    buildUploader = (settings, notify = { error: vi.fn() } as unknown as NotificationService) => {
+      const uploader = new FilesUploaderComponent(
+        notify,
+        settings,
+        uploadService as unknown as MultipartUploadService,
+        { create: vi.fn() } as unknown as NzModalService
+      );
+      uploader.ngOnInit();
+      return uploader;
     };
 
     component = new FilesUploaderComponent(
       { error: vi.fn() } as unknown as NotificationService,
       adminSettingsService,
-      datasetService as unknown as DatasetService,
+      uploadService as unknown as MultipartUploadService,
       modal
     );
+    component.ngOnInit();
     component.ownerEmail = "owner@example.com";
-    component.datasetName = "dataset";
-    component.did = 7;
+    component.resourceName = "dataset";
+    component.resourceId = 7;
   });
 
   it("keeps the default upload size limit when the public setting is missing, and parses it when present", () => {
     const build = (value: string | null) =>
-      new FilesUploaderComponent(
-        { error: vi.fn() } as unknown as NotificationService,
-        { getPublicSetting: vi.fn().mockReturnValue(of(value)) } as unknown as AdminSettingsService,
-        datasetService as unknown as DatasetService,
-        { create: vi.fn() } as unknown as NzModalService
-      );
+      buildUploader({ getPublicSetting: vi.fn().mockReturnValue(of(value)) } as unknown as AdminSettingsService);
 
     expect(build(null).singleFileUploadMaxSizeMiB).toBe(20);
     expect(build("128").singleFileUploadMaxSizeMiB).toBe(128);
@@ -109,16 +143,26 @@ describe("FilesUploaderComponent", () => {
 
   it("keeps the default upload size limit when the setting request fails", () => {
     // The component swallows the error on purpose so a settings outage cannot stop uploads.
-    const uploader = new FilesUploaderComponent(
-      { error: vi.fn() } as unknown as NotificationService,
-      {
-        getPublicSetting: vi.fn().mockReturnValue(throwError(() => new Error("settings unavailable"))),
-      } as unknown as AdminSettingsService,
-      datasetService as unknown as DatasetService,
-      { create: vi.fn() } as unknown as NzModalService
-    );
+    const uploader = buildUploader({
+      getPublicSetting: vi.fn().mockReturnValue(throwError(() => new Error("settings unavailable"))),
+    } as unknown as AdminSettingsService);
 
     expect(uploader.singleFileUploadMaxSizeMiB).toBe(20);
+  });
+
+  it("takes the ceiling key and fallback from the configured endpoint", () => {
+    const getPublicSetting = vi.fn().mockReturnValue(of(null));
+    const uploader = new FilesUploaderComponent(
+      { error: vi.fn() } as unknown as NotificationService,
+      { getPublicSetting } as unknown as AdminSettingsService,
+      uploadService as unknown as MultipartUploadService,
+      { create: vi.fn() } as unknown as NzModalService
+    );
+    uploader.endpoint = WIDGET_ENDPOINT;
+    uploader.ngOnInit();
+
+    expect(getPublicSetting).toHaveBeenCalledWith("widget_single_file_upload_max_size_mib");
+    expect(uploader.singleFileUploadMaxSizeMiB).toBe(64);
   });
 
   it("asks to resume failed multipart files and skip completed matching files in one retry batch", async () => {
@@ -144,8 +188,8 @@ describe("FilesUploaderComponent", () => {
   });
 
   it("asks both questions when the same file has an active upload session and an existing match", async () => {
-    datasetService.listMultipartUploads.mockReturnValue(of(["same.csv"]));
-    datasetService.findExistingUploadFiles.mockReturnValue(of(["same.csv"]));
+    uploadService.listMultipartUploads.mockReturnValue(of(["same.csv"]));
+    uploadService.findExistingUploadFiles.mockReturnValue(of(["same.csv"]));
     const emitted = new Promise<FileUploadItem[]>(resolve => component.uploadedFiles.subscribe(resolve));
 
     component.fileDropped([droppedFile("same.csv", new File(["same"], "same.csv"))]);
@@ -171,7 +215,7 @@ describe("FilesUploaderComponent", () => {
    * session the user asked to discard.
    */
   it("marks a file for force-restart when Restart is chosen", async () => {
-    datasetService.findExistingUploadFiles.mockReturnValue(of([]));
+    uploadService.findExistingUploadFiles.mockReturnValue(of([]));
     const emitted = new Promise<FileUploadItem[]>(resolve => component.uploadedFiles.subscribe(resolve));
 
     component.fileDropped([droppedFile("failed.csv", new File(["half"], "failed.csv"))]);
@@ -187,7 +231,7 @@ describe("FilesUploaderComponent", () => {
   it("leaves the restart flag unset when Resume is chosen", async () => {
     // The counterpart of the test above: same file, other button. Without this pair, a
     // markForceRestart call added to the Resume branch would go unnoticed.
-    datasetService.findExistingUploadFiles.mockReturnValue(of([]));
+    uploadService.findExistingUploadFiles.mockReturnValue(of([]));
     const emitted = new Promise<FileUploadItem[]>(resolve => component.uploadedFiles.subscribe(resolve));
 
     component.fileDropped([droppedFile("failed.csv", new File(["half"], "failed.csv"))]);
@@ -201,8 +245,8 @@ describe("FilesUploaderComponent", () => {
   });
 
   it("restarts every remaining conflicting file after one Restart For All choice", async () => {
-    datasetService.listMultipartUploads.mockReturnValue(of(["one.csv", "two.csv"]));
-    datasetService.findExistingUploadFiles.mockReturnValue(of([]));
+    uploadService.listMultipartUploads.mockReturnValue(of(["one.csv", "two.csv"]));
+    uploadService.findExistingUploadFiles.mockReturnValue(of([]));
     const emitted = new Promise<FileUploadItem[]>(resolve => component.uploadedFiles.subscribe(resolve));
 
     component.fileDropped([
@@ -222,8 +266,8 @@ describe("FilesUploaderComponent", () => {
   });
 
   it("resumes every remaining conflicting file after one Resume For All choice", async () => {
-    datasetService.listMultipartUploads.mockReturnValue(of(["one.csv", "two.csv"]));
-    datasetService.findExistingUploadFiles.mockReturnValue(of([]));
+    uploadService.listMultipartUploads.mockReturnValue(of(["one.csv", "two.csv"]));
+    uploadService.findExistingUploadFiles.mockReturnValue(of([]));
     const emitted = new Promise<FileUploadItem[]>(resolve => component.uploadedFiles.subscribe(resolve));
 
     component.fileDropped([
@@ -242,8 +286,8 @@ describe("FilesUploaderComponent", () => {
   });
 
   it("passes a non-conflicting file straight through without prompting", async () => {
-    datasetService.listMultipartUploads.mockReturnValue(of(["other.csv"]));
-    datasetService.findExistingUploadFiles.mockReturnValue(of([]));
+    uploadService.listMultipartUploads.mockReturnValue(of(["other.csv"]));
+    uploadService.findExistingUploadFiles.mockReturnValue(of([]));
     const emitted = new Promise<FileUploadItem[]>(resolve => component.uploadedFiles.subscribe(resolve));
 
     component.fileDropped([droppedFile("clean.csv", new File(["clean"], "clean.csv"))]);
@@ -255,8 +299,8 @@ describe("FilesUploaderComponent", () => {
   });
 
   it("skips all matching files after one Skip For All choice", async () => {
-    datasetService.listMultipartUploads.mockReturnValue(of([]));
-    datasetService.findExistingUploadFiles.mockReturnValue(of(["one.csv", "two.csv"]));
+    uploadService.listMultipartUploads.mockReturnValue(of([]));
+    uploadService.findExistingUploadFiles.mockReturnValue(of(["one.csv", "two.csv"]));
     const emitted = new Promise<FileUploadItem[]>(resolve => component.uploadedFiles.subscribe(resolve));
 
     component.fileDropped([
@@ -275,8 +319,8 @@ describe("FilesUploaderComponent", () => {
   });
 
   it("uploads all matching files after one Upload For All choice", async () => {
-    datasetService.listMultipartUploads.mockReturnValue(of([]));
-    datasetService.findExistingUploadFiles.mockReturnValue(of(["one.csv", "two.csv"]));
+    uploadService.listMultipartUploads.mockReturnValue(of([]));
+    uploadService.findExistingUploadFiles.mockReturnValue(of(["one.csv", "two.csv"]));
     const emitted = new Promise<FileUploadItem[]>(resolve => component.uploadedFiles.subscribe(resolve));
 
     component.fileDropped([
@@ -338,11 +382,9 @@ describe("FilesUploaderComponent", () => {
 
     it("rejects a single oversized file and reports it in the banner", async () => {
       const notify = { error: vi.fn() };
-      component = new FilesUploaderComponent(
-        notify as unknown as NotificationService,
+      component = buildUploader(
         { getPublicSetting: vi.fn().mockReturnValue(of("0")) } as unknown as AdminSettingsService,
-        datasetService as unknown as DatasetService,
-        { create: vi.fn() } as unknown as NzModalService
+        notify as unknown as NotificationService
       );
       const emitted = emissionOf();
 
@@ -355,12 +397,9 @@ describe("FilesUploaderComponent", () => {
     });
 
     it("pluralises the failure banner for more than one rejected file", async () => {
-      component = new FilesUploaderComponent(
-        { error: vi.fn() } as unknown as NotificationService,
-        { getPublicSetting: vi.fn().mockReturnValue(of("0")) } as unknown as AdminSettingsService,
-        datasetService as unknown as DatasetService,
-        { create: vi.fn() } as unknown as NzModalService
-      );
+      component = buildUploader({
+        getPublicSetting: vi.fn().mockReturnValue(of("0")),
+      } as unknown as AdminSettingsService);
       const emitted = emissionOf();
 
       component.fileDropped([
@@ -401,23 +440,56 @@ describe("FilesUploaderComponent", () => {
     const emissionOf = (): Promise<FileUploadItem[]> =>
       new Promise<FileUploadItem[]>(resolve => component.uploadedFiles.subscribe(resolve));
 
-    it("skips both lookups when the uploader has no dataset context", async () => {
-      // The standalone (dataset-creation) usage: no owner/name and no did yet.
+    it("skips both lookups when the uploader has no resource context", async () => {
+      // The standalone (dataset-creation) usage: no owner/name and no id yet.
       component.ownerEmail = "";
-      component.datasetName = "";
-      component.did = undefined;
+      component.resourceName = "";
+      component.resourceId = undefined;
       const emitted = emissionOf();
 
       component.fileDropped([droppedFile("fresh.csv", new File(["new"], "fresh.csv"))]);
 
       expect((await emitted).map(item => item.name)).toEqual(["fresh.csv"]);
-      expect(datasetService.listMultipartUploads).not.toHaveBeenCalled();
-      expect(datasetService.findExistingUploadFiles).not.toHaveBeenCalled();
+      expect(uploadService.listMultipartUploads).not.toHaveBeenCalled();
+      expect(uploadService.findExistingUploadFiles).not.toHaveBeenCalled();
+    });
+
+    it("addresses both lookups through the configured endpoint", async () => {
+      component.endpoint = WIDGET_ENDPOINT;
+      uploadService.listMultipartUploads.mockReturnValue(of([]));
+      uploadService.findExistingUploadFiles.mockReturnValue(of([]));
+      const emitted = emissionOf();
+
+      component.fileDropped([droppedFile("w.bin", new File(["w"], "w.bin"))]);
+      await emitted;
+
+      expect(uploadService.listMultipartUploads).toHaveBeenCalledWith(WIDGET_ENDPOINT, "owner@example.com", "dataset");
+      expect(uploadService.findExistingUploadFiles).toHaveBeenCalledWith(WIDGET_ENDPOINT, 7, [
+        { path: "w.bin", sizeBytes: 1 },
+      ]);
+    });
+
+    it("defaults to the dataset endpoint when the embedder sets none", async () => {
+      uploadService.listMultipartUploads.mockReturnValue(of([]));
+      uploadService.findExistingUploadFiles.mockReturnValue(of([]));
+      const emitted = emissionOf();
+
+      component.fileDropped([droppedFile("d.csv", new File(["d"], "d.csv"))]);
+      await emitted;
+
+      expect(uploadService.listMultipartUploads).toHaveBeenCalledWith(
+        DATASET_FILE_RESOURCE_ENDPOINT,
+        "owner@example.com",
+        "dataset"
+      );
+      expect(uploadService.findExistingUploadFiles).toHaveBeenCalledWith(DATASET_FILE_RESOURCE_ENDPOINT, 7, [
+        { path: "d.csv", sizeBytes: 1 },
+      ]);
     });
 
     it("treats a failed lookup as nothing to reconcile", async () => {
-      datasetService.listMultipartUploads.mockReturnValue(throwError(() => new Error("offline")));
-      datasetService.findExistingUploadFiles.mockReturnValue(throwError(() => new Error("offline")));
+      uploadService.listMultipartUploads.mockReturnValue(throwError(() => new Error("offline")));
+      uploadService.findExistingUploadFiles.mockReturnValue(throwError(() => new Error("offline")));
       const emitted = emissionOf();
 
       component.fileDropped([droppedFile("failed.csv", new File(["half"], "failed.csv"))]);
@@ -428,8 +500,8 @@ describe("FilesUploaderComponent", () => {
     });
 
     it("treats a null lookup result as nothing to reconcile", async () => {
-      datasetService.listMultipartUploads.mockReturnValue(of(null));
-      datasetService.findExistingUploadFiles.mockReturnValue(of(null));
+      uploadService.listMultipartUploads.mockReturnValue(of(null));
+      uploadService.findExistingUploadFiles.mockReturnValue(of(null));
       const emitted = emissionOf();
 
       component.fileDropped([droppedFile("failed.csv", new File(["half"], "failed.csv"))]);
@@ -439,7 +511,7 @@ describe("FilesUploaderComponent", () => {
     });
 
     it("reports an unexpected failure of the whole drop", async () => {
-      datasetService.listMultipartUploads.mockImplementation(() => {
+      uploadService.listMultipartUploads.mockImplementation(() => {
         throw new Error("lookup exploded");
       });
 
@@ -451,7 +523,7 @@ describe("FilesUploaderComponent", () => {
     });
 
     it("reports an unexpected failure that carries no message", async () => {
-      datasetService.listMultipartUploads.mockImplementation(() => {
+      uploadService.listMultipartUploads.mockImplementation(() => {
         throw "lookup exploded";
       });
 
@@ -466,12 +538,9 @@ describe("FilesUploaderComponent", () => {
     // @UntilDestroy() supplies the ngOnDestroy that ends the `untilDestroyed(this)`
     // subscription; without it a late setting would still be applied to a dead component.
     const setting = new Subject<string>();
-    const uploader = new FilesUploaderComponent(
-      { error: vi.fn() } as unknown as NotificationService,
-      { getPublicSetting: vi.fn().mockReturnValue(setting) } as unknown as AdminSettingsService,
-      datasetService as unknown as DatasetService,
-      { create: vi.fn() } as unknown as NzModalService
-    );
+    const uploader = buildUploader({
+      getPublicSetting: vi.fn().mockReturnValue(setting),
+    } as unknown as AdminSettingsService);
 
     setting.next("50");
     expect(uploader.singleFileUploadMaxSizeMiB).toBe(50);
@@ -484,8 +553,8 @@ describe("FilesUploaderComponent", () => {
 
   describe("dialog titles for paths without a file name", () => {
     it("falls back to the whole path when the conflicting path ends in a separator", async () => {
-      datasetService.listMultipartUploads.mockReturnValue(of(["folder/"]));
-      datasetService.findExistingUploadFiles.mockReturnValue(of(["folder/"]));
+      uploadService.listMultipartUploads.mockReturnValue(of(["folder/"]));
+      uploadService.findExistingUploadFiles.mockReturnValue(of(["folder/"]));
       const emitted = new Promise<FileUploadItem[]>(resolve => component.uploadedFiles.subscribe(resolve));
 
       component.fileDropped([droppedFile("folder/", new File(["x"], "x"))]);
@@ -500,5 +569,103 @@ describe("FilesUploaderComponent", () => {
 
       expect((await emitted).map(item => item.name)).toEqual(["folder/"]);
     });
+  });
+});
+
+/**
+ * The suite above constructs the component directly, so its template has never been
+ * rendered — the banner's `*ngIf`, the banner bindings and the drop-zone button live
+ * only in the template. These mount it for real.
+ */
+describe("FilesUploaderComponent rendered", () => {
+  let fixture: ComponentFixture<FilesUploaderComponent>;
+  let component: FilesUploaderComponent;
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [FilesUploaderComponent, NoopAnimationsModule],
+      providers: [
+        { provide: NotificationService, useValue: { error: vi.fn() } },
+        { provide: AdminSettingsService, useValue: { getPublicSetting: vi.fn().mockReturnValue(of("20")) } },
+        {
+          provide: MultipartUploadService,
+          useValue: {
+            listMultipartUploads: vi.fn().mockReturnValue(of([])),
+            findExistingUploadFiles: vi.fn().mockReturnValue(of([])),
+          },
+        },
+        { provide: NzModalService, useValue: { create: vi.fn() } },
+        ...commonTestProviders,
+      ],
+    }).compileComponents();
+
+    fixture = TestBed.createComponent(FilesUploaderComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+  });
+
+  const alert = (): HTMLElement | null => (fixture.nativeElement as HTMLElement).querySelector("nz-alert");
+
+  it("hides the banner until the alert is enabled and the upload has finished", () => {
+    expect(alert()).toBeNull();
+
+    component.showUploadAlert = true;
+    fixture.detectChanges();
+    expect(alert()).toBeNull();
+
+    component.showUploadAlert = false;
+    component.fileUploadingFinished = true;
+    fixture.detectChanges();
+    expect(alert()).toBeNull();
+  });
+
+  it("renders the banner message once both flags are set", () => {
+    component.showUploadAlert = true;
+    component.fileUploadingFinished = true;
+    component.fileUploadBannerType = "error";
+    component.fileUploadBannerMessage = "Upload failed. Please retry.";
+    fixture.detectChanges();
+
+    const banner = alert();
+    expect(banner).not.toBeNull();
+    expect(banner!.textContent).toContain("Upload failed. Please retry.");
+  });
+
+  it("clears the banner when its close control fires", () => {
+    component.showUploadAlert = true;
+    component.fileUploadingFinished = true;
+    component.fileUploadBannerMessage = "done";
+    fixture.detectChanges();
+
+    fixture.debugElement.query(By.directive(NzAlertComponent)).componentInstance.nzOnClose.emit();
+    fixture.detectChanges();
+
+    expect(component.fileUploadingFinished).toBe(false);
+    expect(alert()).toBeNull();
+  });
+
+  it("opens the file selector from the drop-zone button", () => {
+    // ngx-file-drop hands its `openFileSelector` to the content template by reference,
+    // so spying on the component's property after render would not be seen. Assert its
+    // effect instead: it clicks the hidden file input.
+    const host = fixture.nativeElement as HTMLElement;
+    const fileInput: HTMLInputElement = host.querySelector("input.ngx-file-drop__file-input")!;
+    expect(fileInput).not.toBeNull();
+    const openDialog = vi.spyOn(fileInput, "click").mockImplementation(() => {});
+
+    const button: HTMLButtonElement = host.querySelector(".upload-file-button")!;
+    expect(button).not.toBeNull();
+    button.click();
+
+    expect(openDialog).toHaveBeenCalled();
+  });
+
+  it("routes a drop on the zone into fileDropped", () => {
+    const dropped = vi.spyOn(component, "fileDropped").mockImplementation(() => {});
+    const entries = [droppedFile("a.csv", new File(["a"], "a.csv"))];
+
+    fixture.debugElement.query(By.directive(NgxFileDropComponent)).componentInstance.onFileDrop.emit(entries);
+
+    expect(dropped).toHaveBeenCalledWith(entries);
   });
 });

@@ -62,9 +62,15 @@ class SklearnPredictionOpDesc extends PythonOperatorDescriptor {
        |            input_features = tuple_
        |            if $groundTruthAttribute != "":
        |                input_features = input_features.get_partial_tuple([col for col in tuple_.get_field_names() if col != $groundTruthAttribute])
-       |                tuple_[$resultAttribute] = type(tuple_[$groundTruthAttribute])(self.model.predict(Table.from_tuple_likes([input_features]))[0])
+       |            _fitted = getattr(self.model, "feature_names_in_", None)
+       |            if _fitted is not None:
+       |                input_features = input_features.get_partial_tuple(list(_fitted))
+       |            if Table.from_tuple_likes([input_features]).isna().any(axis=None):
+       |                tuple_[$resultAttribute] = None #keep the row, leave the result empty
        |            else:
-       |                tuple_[$resultAttribute] = str(self.model.predict(Table.from_tuple_likes([input_features]))[0])
+       |                prediction = self.model.predict(Table.from_tuple_likes([input_features]))[0]
+       |                #the output schema names this column's type, so reading one off a row could only disagree with it
+       |                tuple_[$resultAttribute] = prediction if $groundTruthAttribute != "" else str(prediction)
        |            yield tuple_""".encode
 
   override def operatorInfo: OperatorInfo =

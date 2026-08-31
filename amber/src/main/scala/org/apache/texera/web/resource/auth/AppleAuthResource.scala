@@ -67,8 +67,8 @@ object AppleAuthResource extends LazyLogging {
     * Apple sends the display name solely on a user's first ever authorization, and outside the
     * identity token — it rides in the JS response body, so it never reaches this endpoint, and
     * being unsigned it would be untrusted anyway. The address stands in for it, exactly as it
-    * does for a Google account with no name. Apple supplies no avatar at all, hence the empty
-    * string, which the provisioner treats as "leave whatever is stored alone".
+    * does for a Google account with no name. Apple supplies no avatar at all, hence `None`, which
+    * leaves whatever is already stored alone.
     *
     * A token with no address, or one Apple has not verified, is refused rather than mapped — see
     * [[ExternalProfile]] for why an unverified address is a takeover. Apple omits `email` for
@@ -94,7 +94,7 @@ object AppleAuthResource extends LazyLogging {
       claims.getSubject,
       name = email,
       email = email,
-      avatar = ""
+      avatar = None
     )
   }
 }

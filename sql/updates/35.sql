@@ -17,10 +17,12 @@
  * under the License.
  */
 
--- Allow Sign in with Apple identities in auth_provider.
+-- Store the identity provider's full avatar URL instead of a Google-specific fragment.
 --
--- Postgres forbids *using* a new enum value in the transaction that adds it. Nothing here
--- inserts an APPLE row, so the value is only declared; the first Apple login writes it.
+-- Migration 33 renamed "user".google_avatar to "user".avatar but kept every value as-is, so the
+-- column still holds only the last path segment of Google's `picture` claim and the frontend
+-- still rebuilds `https://lh3.googleusercontent.com/a/<fragment>` around it. That makes the value
+-- unusable for any other provider. This promotes the stored fragments to complete URLs.
 
 \c texera_db
 
@@ -28,6 +30,14 @@ SET search_path TO texera_db;
 
 BEGIN;
 
-ALTER TYPE provider_type_enum ADD VALUE IF NOT EXISTS 'APPLE';
+ALTER TABLE "user" ALTER COLUMN avatar TYPE VARCHAR(512);
+
+UPDATE "user" SET avatar = NULL WHERE avatar = '';
+
+UPDATE "user"
+SET avatar = 'https://lh3.googleusercontent.com/a/' || avatar
+WHERE avatar IS NOT NULL
+  AND avatar NOT LIKE 'http://%'
+  AND avatar NOT LIKE 'https://%';
 
 COMMIT;

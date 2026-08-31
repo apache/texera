@@ -34,10 +34,13 @@ import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, Operat
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
 
 import javax.validation.constraints.{NotEmpty, NotNull}
+// Type constraint: every axis of the matrix is plotted numerically. The key is the
+// PROPERTY name -- the `@JsonProperty` value, which is what the property editor looks
+// up -- and this operator's is "Selected Attributes"; keyed "value" it matched nothing.
 @JsonSchemaInject(json = """
 {
   "attributeTypeRules": {
-    "value": {
+    "Selected Attributes": {
       "enum": ["integer", "long", "double"]
     }
   }

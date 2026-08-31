@@ -41,12 +41,14 @@ object EmailTemplate {
     *
     * @param receiverEmail the email address of the receiver (admin or user)
     * @param userEmail optional; the email address of the user requesting an account (only needed if toAdmin is true)
+    * @param userName optional; the stored name of the user requesting an account (only needed if toAdmin is true)
     * @param toAdmin flag indicating whether the notification is for the admin (true) or the user (false)
     * @return an EmailMessage ready to be sent
     */
   def userRegistrationNotification(
       receiverEmail: String,
       userEmail: Option[String],
+      userName: Option[String],
       affiliation: Option[String],
       reason: Option[String],
       toAdmin: Boolean
@@ -62,6 +64,7 @@ object EmailTemplate {
            |A new user has attempted to log in or register, but their account is not yet approved.
            |Please review the account request for the following user:
            |
+           |Name: ${userName.filter(_.trim.nonEmpty).getOrElse("Not provided")}
            |Email: ${userEmail.getOrElse("Unknown")}
            |Affiliation: ${affiliation.filter(_.trim.nonEmpty).getOrElse("Not provided")}
            |Reason: ${reason.filter(_.trim.nonEmpty).getOrElse("Not provided")}

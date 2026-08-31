@@ -119,7 +119,7 @@
       nzFlex="50px"
       class="resource-info">
       <texera-user-avatar
-        [googleAvatar]="entry.ownerGoogleAvatar"
+        [avatar]="entry.ownerAvatar"
         userColor="#1E90FF"
         [userName]="entry.ownerName || 'User'"
         [isOwner]="entry.ownerId === this.currentUid">
@@ -216,7 +216,7 @@
     <button
       nz-button
       nzType="text"
-      *ngIf="entry.type === 'workflow' || entry.type === 'dataset'"
+      *ngIf="canDownload"
       title="Download"
       (click)="onClickDownload()">
       <i
