@@ -56,6 +56,10 @@ function reasonFor(e: unknown): string | undefined {
   return (e as HttpErrorResponse)?.error?.message ?? (e as Error)?.message;
 }
 
+/** Reported by every path that ends with an account existing. */
+const ACCOUNT_CREATED =
+  "Your account has been created. Please contact the Texera administrator to activate your account.";
+
 type LoginMode = "signin" | "signup";
 
 /**
@@ -90,12 +94,6 @@ export class TexeraLoginComponent implements OnInit {
   public passwordVisible = false;
   public errorMessage: string | undefined;
 
-  /**
-   * True once a sign-up has been accepted but the account does not exist yet: the backend mailed a
-   * code and is waiting for it. Only reachable where `user-sys.email-verification` is on.
-   */
-  public awaitingCode = false;
-
   public form: FormGroup;
 
   constructor(
@@ -115,7 +113,8 @@ export class TexeraLoginComponent implements OnInit {
       email: new FormControl("", [Validators.email]),
       password: new FormControl("", [Validators.required, Validators.minLength(6)]),
       confirm: new FormControl("", [this.confirmationValidator]),
-      // Only submitted once the backend has asked for it; see `awaitingCode`.
+      // Carries the mailed code. Only collected, and only required, where
+      // `user-sys.email-verification` is on.
       code: new FormControl(""),
     });
   }
@@ -160,8 +159,7 @@ export class TexeraLoginComponent implements OnInit {
   public setMode(mode: LoginMode): void {
     this.mode = mode;
     this.errorMessage = undefined;
-    // Switching tabs abandons a pending signup; the code that was mailed expires on its own.
-    this.awaitingCode = false;
+    // Switching tabs abandons a half-finished signup; the code that was mailed expires on its own.
     this.form.controls.code.setValue("");
     // The confirm-password rule only applies in sign-up mode, so re-evaluate it on every switch.
     this.form.controls.confirm.updateValueAndValidity();
@@ -206,42 +204,60 @@ export class TexeraLoginComponent implements OnInit {
       .subscribe(() => this.navigateAfterLogin());
   }
 
+  /**
+   * Mail a verification code to the address in the form. Nothing is created: the account does not
+   * exist until [[register]] presents the code.
+   *
+   * Its own button rather than a step of signing up, because it puts mail in an inbox. The address
+   * belongs to whoever owns it and not necessarily to the person typing it, so sending has to be
+   * something the user visibly asks for instead of a side effect of pressing Sign up.
+   */
+  public sendCode(): void {
+    this.errorMessage = undefined;
+    const fields = this.validatedFields();
+    if (!fields) {
+      return;
+    }
+
+    this.userService
+      .register(fields.username, fields.email, fields.password)
+      .pipe(
+        catchError((e: unknown) => {
+          this.errorMessage = reasonFor(e) || "That code could not be sent.";
+          return throwError(() => e);
+        }),
+        untilDestroyed(this)
+      )
+      .subscribe(({ verificationRequired }) => {
+        // The button is only rendered where the config says verification is on. If the server
+        // disagrees, `register` has just created the account outright and there is no code coming.
+        this.notificationService.success(
+          verificationRequired ? `A verification code has been sent to ${fields.email}.` : ACCOUNT_CREATED
+        );
+      });
+  }
+
   private register(): void {
     this.errorMessage = undefined;
-    const username = this.form.get("username")?.value?.trim();
-    const email = (this.form.get("email")?.value ?? "").trim();
-    const password = this.form.get("password")?.value;
-    const confirm = this.form.get("confirm")?.value;
-
-    const usernameValidation = UserService.validateUsername(username);
-    if (!usernameValidation.result) {
-      this.errorMessage = usernameValidation.message;
+    const fields = this.validatedFields();
+    if (!fields) {
       return;
     }
-    const emailValidation = UserService.validateEmail(email);
-    if (!emailValidation.result) {
-      this.errorMessage = emailValidation.message;
-      return;
-    }
-    if (!password || password.length < 6) {
-      this.errorMessage = "Password length should be greater than 5.";
-      return;
-    }
-    if (password !== confirm) {
+    if (fields.password !== this.form.get("confirm")?.value) {
       this.errorMessage = "Two passwords are inconsistent.";
       return;
     }
 
-    // Second half of a verified signup: the account does not exist yet, so send the same fields
-    // back with the code rather than registering again.
-    if (this.awaitingCode) {
+    // Where verification is on the account does not exist yet, so this submit is the second half of
+    // the signup: the same fields go back with the code that [[sendCode]] had mailed.
+    if (this.config.env.emailVerification) {
       const code = (this.form.get("code")?.value ?? "").trim();
       if (!code) {
         this.errorMessage = "Enter the code that was emailed to you.";
         return;
       }
       this.userService
-        .registerVerify(username, email, password, code)
+        .registerVerify(fields.username, fields.email, fields.password, code)
         .pipe(
           catchError((e: unknown) => {
             this.errorMessage = reasonFor(e) || "That code is not valid or has expired.";
@@ -249,17 +265,12 @@ export class TexeraLoginComponent implements OnInit {
           }),
           untilDestroyed(this)
         )
-        .subscribe(() => {
-          this.awaitingCode = false;
-          this.notificationService.success(
-            "Your account has been created. Please contact the Texera administrator to activate your account."
-          );
-        });
+        .subscribe(() => this.notificationService.success(ACCOUNT_CREATED));
       return;
     }
 
     this.userService
-      .register(username, email, password)
+      .register(fields.username, fields.email, fields.password)
       .pipe(
         catchError((e: unknown) => {
           this.errorMessage = reasonFor(e) || "Registration failed";
@@ -267,16 +278,34 @@ export class TexeraLoginComponent implements OnInit {
         }),
         untilDestroyed(this)
       )
-      .subscribe(({ verificationRequired }) => {
-        if (verificationRequired) {
-          this.awaitingCode = true;
-          this.notificationService.success(`A verification code has been sent to ${email}.`);
-          return;
-        }
-        this.notificationService.success(
-          "Your account has been created. Please contact the Texera administrator to activate your account."
-        );
-      });
+      .subscribe(() => this.notificationService.success(ACCOUNT_CREATED));
+  }
+
+  /**
+   * Trim and check the three fields a registration call needs, reporting the first problem.
+   * Returns null once something has been reported. The confirm-password match is not checked here:
+   * it guards a submit, and has nothing to say about whether a code can be sent.
+   */
+  private validatedFields(): { username: string; email: string; password: string } | null {
+    const username = this.form.get("username")?.value?.trim();
+    const email = (this.form.get("email")?.value ?? "").trim();
+    const password = this.form.get("password")?.value;
+
+    const usernameValidation = UserService.validateUsername(username);
+    if (!usernameValidation.result) {
+      this.errorMessage = usernameValidation.message;
+      return null;
+    }
+    const emailValidation = UserService.validateEmail(email);
+    if (!emailValidation.result) {
+      this.errorMessage = emailValidation.message;
+      return null;
+    }
+    if (!password || password.length < 6) {
+      this.errorMessage = "Password length should be greater than 5.";
+      return null;
+    }
+    return { username, email, password };
   }
 
   private navigateAfterLogin(): void {
