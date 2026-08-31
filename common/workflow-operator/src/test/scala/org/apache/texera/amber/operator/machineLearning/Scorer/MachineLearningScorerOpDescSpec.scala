@@ -21,6 +21,7 @@ package org.apache.texera.amber.operator.machineLearning.Scorer
 
 import com.fasterxml.jackson.databind.node.ObjectNode
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
+import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.apache.texera.amber.util.JSONUtils.objectMapper
@@ -107,6 +108,67 @@ class MachineLearningScorerOpDescSpec extends AnyFlatSpec with Matchers {
     val port = d.operatorInfo.outputPorts.head.id
     d.getOutputSchemas(Map.empty)(port).getAttributes.map(a => (a.getName, a.getType)) shouldBe
       List(("MSE", AttributeType.DOUBLE), ("R2", AttributeType.DOUBLE))
+  }
+
+  /** An input table holding one column of each type the scored-column check reasons about. */
+  private def inputSchemas(d: MachineLearningScorerOpDesc): Map[PortIdentity, Schema] =
+    Map(
+      d.operatorInfo.inputPorts.head.id -> Schema(
+        List(
+          new Attribute("y_int", AttributeType.INTEGER),
+          new Attribute("pred_long", AttributeType.LONG),
+          new Attribute("label_str", AttributeType.STRING),
+          new Attribute("pred_str", AttributeType.STRING)
+        )
+      )
+    )
+
+  private def scorer(
+      regression: Boolean,
+      actual: String,
+      predict: String
+  ): MachineLearningScorerOpDesc = {
+    val d = new MachineLearningScorerOpDesc
+    d.isRegression = regression
+    d.actualValueColumn = actual
+    d.predictValueColumn = predict
+    d
+  }
+
+  it should "accept a classification pair whose types are both numeric" in {
+    // INTEGER against LONG is one label domain read through two widths, which is
+    // what an upstream predictor emitting a wider column looks like.
+    val d = scorer(regression = false, "y_int", "pred_long")
+    d.classificationMetrics = List(classificationMetricsFnc.accuracy)
+    noException should be thrownBy d.getOutputSchemas(inputSchemas(d))
+  }
+
+  it should "reject a classification pair that mixes a number with a string" in {
+    val d = scorer(regression = false, "y_int", "pred_str")
+    d.classificationMetrics = List(classificationMetricsFnc.accuracy)
+    the[RuntimeException] thrownBy d.getOutputSchemas(inputSchemas(d)) should have message
+      "Actual Value 'y_int' (integer) and Predicted Value 'pred_str' (string) hold different " +
+        "kinds of label, so a classification metric cannot compare them"
+  }
+
+  it should "reject a non-numeric column once the task is regression" in {
+    val d = scorer(regression = true, "label_str", "pred_str")
+    d.regressionMetrics = List(regressionMetricsFnc.mse)
+    the[RuntimeException] thrownBy d.getOutputSchemas(inputSchemas(d)) should have message
+      "A regression metric needs a numeric Actual Value column, but 'label_str' is string"
+  }
+
+  it should "reject a column the input table does not hold" in {
+    val d = scorer(regression = false, "y_int", "absent")
+    the[RuntimeException] thrownBy d.getOutputSchemas(inputSchemas(d)) should have message
+      "Predicted Value column 'absent' is not in the input table"
+  }
+
+  it should "say nothing about the pair while a column is still unpicked" in {
+    // Half-filled is the state every operator passes through on the way to a
+    // valid one; the empty field already carries its own required marker.
+    val d = scorer(regression = false, "y_int", "")
+    noException should be thrownBy d.getOutputSchemas(inputSchemas(d))
   }
 
   "MachineLearningScorerOpDesc.generatePythonCode" should "emit the scorer table operator" in {

@@ -33,6 +33,36 @@ import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.metadata.annotations.{AutofillAttributeName, HideAnnotation}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 
+// Whichever metric list the task shows must hold at least one metric: an empty
+// one renders as `metric_list = ['']` and the metric lookup fails on the empty
+// name. The rule is conditional because only one of the two lists is visible at
+// a time, and a flat `required` on both can never be satisfied.
+@JsonSchemaInject(json = """
+{
+  "allOf": [
+    {
+      "if": {
+        "required": ["isRegression"],
+        "properties": { "isRegression": { "const": false } }
+      },
+      "then": {
+        "required": ["classificationFlag"],
+        "properties": { "classificationFlag": { "minItems": 1 } }
+      }
+    },
+    {
+      "if": {
+        "required": ["isRegression"],
+        "properties": { "isRegression": { "const": true } }
+      },
+      "then": {
+        "required": ["regressionFlag"],
+        "properties": { "regressionFlag": { "minItems": 1 } }
+      }
+    }
+  ]
+}
+""")
 class MachineLearningScorerOpDesc extends PythonOperatorDescriptor {
   @JsonProperty(required = true, defaultValue = "false")
   @JsonSchemaTitle("Regression")
@@ -85,9 +115,61 @@ class MachineLearningScorerOpDesc extends PythonOperatorDescriptor {
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort())
     )
+
+  /** The two scored columns hold one quantity measured twice, so they have to be
+    * comparable. Left to sklearn, a mismatched pair either raises `Mix of label
+    * input types` from deep inside a metric or, for Accuracy, quietly scores 0 —
+    * neither of which points back at the two columns the user picked.
+    *
+    * Types only, not values: a DOUBLE label column of 0.0 / 1.0 is a legitimate
+    * classification target even though a continuous one is not, and the schema
+    * cannot tell the two apart.
+    */
+  private def validateScoredColumns(inputSchemas: Map[PortIdentity, Schema]): Unit = {
+    val numeric = Set(AttributeType.INTEGER, AttributeType.LONG, AttributeType.DOUBLE)
+    // Blank names are what the form reports before the user has picked; the
+    // schema's own `required` already says so, and saying it twice would put a
+    // second message on a half-filled operator.
+    if (actualValueColumn.isEmpty || predictValueColumn.isEmpty) return
+    inputSchemas.get(operatorInfo.inputPorts.head.id).foreach { schema =>
+      Seq(("Actual Value", actualValueColumn), ("Predicted Value", predictValueColumn))
+        .foreach {
+          case (label, column) =>
+            if (!schema.containsAttribute(column))
+              throw new RuntimeException(s"$label column '$column' is not in the input table")
+        }
+      val actualType = schema.getAttribute(actualValueColumn).getType
+      val predictType = schema.getAttribute(predictValueColumn).getType
+      if (isRegression) {
+        Seq(
+          ("Actual Value", actualValueColumn, actualType),
+          ("Predicted Value", predictValueColumn, predictType)
+        )
+          .foreach {
+            case (label, column, attributeType) =>
+              if (!numeric.contains(attributeType))
+                throw new RuntimeException(
+                  s"A regression metric needs a numeric $label column, but '$column' is " +
+                    s"${attributeType.getName}"
+                )
+          }
+      } else {
+        val comparable = (numeric.contains(actualType) && numeric.contains(predictType)) ||
+          actualType == predictType
+        if (!comparable)
+          throw new RuntimeException(
+            s"Actual Value '$actualValueColumn' (${actualType.getName}) and Predicted Value " +
+              s"'$predictValueColumn' (${predictType.getName}) hold different kinds of label, " +
+              "so a classification metric cannot compare them"
+          )
+      }
+    }
+  }
+
   override def getOutputSchemas(
       inputSchemas: Map[PortIdentity, Schema]
   ): Map[PortIdentity, Schema] = {
+    validateScoredColumns(inputSchemas)
     val metrics = if (isRegression) {
       regressionMetrics.map(_.getName())
     } else {
