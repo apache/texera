@@ -174,6 +174,34 @@ class CongestionControlSpec extends AnyFlatSpec {
     )
   }
 
+  it should "clamp ssThreshold at 1 so repeated timeouts never collapse the window to zero" in {
+    // Five consecutive timed-out acks halve ssThreshold 16→8→4→2→1→0. The clamp
+    // must lift that final 0 back to 1, because windowSize is then set from
+    // ssThreshold and `canSend` is `inTransit.size < windowSize`: a window of 0
+    // can never be satisfied, so the sender would wedge permanently.
+    val cc = new CongestionControl()
+    (1L to 5L).foreach { i =>
+      cc.markMessageInTransit(msg(i))
+      backdateSentTime(cc, i, 5000) // > ackTimeLimit (3000)
+      cc.ack(i)
+    }
+    assert(
+      cc.getStatusReport == "current window size = 1 \t in transit = 0 \t waiting = 0",
+      s"unexpected status: ${cc.getStatusReport}"
+    )
+    assert(cc.canSend, "a fully drained sender must still be permitted to send")
+
+    // A sixth timeout must keep it pinned at 1 rather than driving it negative.
+    cc.markMessageInTransit(msg(6L))
+    backdateSentTime(cc, 6L, 5000)
+    cc.ack(6L)
+    assert(
+      cc.getStatusReport == "current window size = 1 \t in transit = 0 \t waiting = 0",
+      s"unexpected status: ${cc.getStatusReport}"
+    )
+    assert(cc.canSend)
+  }
+
   "CongestionControl.getBufferedMessagesToSend" should "be bounded by remaining window capacity" in {
     val cc = new CongestionControl()
     cc.enqueueMessage(msg(1L))
