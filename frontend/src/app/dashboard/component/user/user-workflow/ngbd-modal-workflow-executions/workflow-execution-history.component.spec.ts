@@ -38,8 +38,16 @@ import { StubOperatorMetadataService } from "../../../../../workspace/service/op
 import { commonTestProviders } from "../../../../../common/testing/test-utils";
 import { DebugElement } from "@angular/core";
 import { By } from "@angular/platform-browser";
+import * as Plotly from "plotly.js-basic-dist-min";
 import { NoopAnimationsModule } from "@angular/platform-browser/animations";
 import { NzPopoverDirective } from "ng-zorro-antd/popover";
+
+// The component's job at this boundary is choosing a chart id and computing the
+// data and layout for it; turning those into DOM is Plotly's. Rendering for real
+// in jsdom asserts nothing extra -- the chart test below reads back exactly the
+// arguments the component passed -- while it dominates the file's runtime, since
+// 36 of these tests build the component and each build plots twice. See #8287.
+vi.mock("plotly.js-basic-dist-min", () => ({ newPlot: vi.fn() }));
 
 function makeEntry(overrides: Partial<WorkflowExecutionsEntry> = {}): WorkflowExecutionsEntry {
   return {
@@ -163,10 +171,11 @@ describe("WorkflowExecutionHistoryComponent", () => {
       ],
     }).compileComponents();
 
+    vi.mocked(Plotly.newPlot).mockClear();
     fixture = TestBed.createComponent(WorkflowExecutionHistoryComponent);
     component = fixture.componentInstance;
-    // Attach to the document so ngAfterViewInit's real Plotly.newPlot can resolve the
-    // chart divs by id (a detached fixture is not reachable via getElementById).
+    // Attached so the ng-zorro overlays the table opens (popconfirms, dropdowns)
+    // land in a document the queries below can reach.
     document.body.appendChild(fixture.nativeElement);
     // first detectChanges runs ngOnInit (table load) + ngAfterViewInit (charts)
     fixture.detectChanges();
@@ -206,30 +215,34 @@ describe("WorkflowExecutionHistoryComponent", () => {
     it("draws a username pie, a status pie, and a process-time bar chart", async () => {
       await setup();
 
-      // ngAfterViewInit renders the charts via real Plotly, which attaches `data`/`layout`
-      // to each graph div (looked up by the id the component passes, incl. the leading '#').
-      const gd = (id: string) => document.getElementById(id) as unknown as { data: any[]; layout: any };
+      // ngAfterViewInit plots each chart by id; assert on what the component
+      // handed Plotly rather than on the DOM Plotly would build from it.
+      const plot = (id: string) => {
+        const call = vi.mocked(Plotly.newPlot).mock.calls.find(c => c[0] === id);
+        if (!call) throw new Error(`no Plotly.newPlot call for ${id}`);
+        return { data: call[1] as any[], layout: call[2] as any };
+      };
 
-      const usernamePie = gd("#execution-userName-pie-chart").data[0];
-      expect(usernamePie.type).toBe("pie");
-      expect(usernamePie.labels).toEqual(["alice", "bob"]);
-      expect(usernamePie.values).toEqual([2, 1]);
-      expect(gd("#execution-userName-pie-chart").layout).toMatchObject({
+      const usernamePie = plot("#execution-userName-pie-chart");
+      expect(usernamePie.data[0].type).toBe("pie");
+      expect(usernamePie.data[0].labels).toEqual(["alice", "bob"]);
+      expect(usernamePie.data[0].values).toEqual([2, 1]);
+      expect(usernamePie.layout).toMatchObject({
         width: 450,
         height: 450,
         title: { text: "Users who ran the execution" },
       });
 
-      const statusPie = gd("#execution-status-pie-chart").data[0];
-      expect(statusPie.labels).toEqual(["Running", "Completed"]);
-      expect(statusPie.values).toEqual([1, 2]);
+      const statusPie = plot("#execution-status-pie-chart");
+      expect(statusPie.data[0].labels).toEqual(["Running", "Completed"]);
+      expect(statusPie.data[0].values).toEqual([1, 2]);
 
-      const bar = gd("#execution-average-process-time-bar-chart").data[0];
-      expect(bar.type).toBe("bar");
+      const bar = plot("#execution-average-process-time-bar-chart");
+      expect(bar.data[0].type).toBe("bar");
       // ceil(3 rows / divider 10) = 1-row buckets; process times are 1, 2, 3 minutes
-      expect(bar.x).toEqual(["1~1", "2~2", "3~3"]);
-      expect(bar.y).toEqual([1, 2, 3]);
-      expect(gd("#execution-average-process-time-bar-chart").layout).toMatchObject({ width: 600, height: 600 });
+      expect(bar.data[0].x).toEqual(["1~1", "2~2", "3~3"]);
+      expect(bar.data[0].y).toEqual([1, 2, 3]);
+      expect(bar.layout).toMatchObject({ width: 600, height: 600 });
     });
 
     it("buckets 20 rows into ceil(20/10)=2-row groups keyed by position and averages minutes", async () => {
