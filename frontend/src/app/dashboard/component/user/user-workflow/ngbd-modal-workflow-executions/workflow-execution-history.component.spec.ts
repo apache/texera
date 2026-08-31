@@ -218,9 +218,9 @@ describe("WorkflowExecutionHistoryComponent", () => {
       // ngAfterViewInit plots each chart by id; assert on what the component
       // handed Plotly rather than on the DOM Plotly would build from it.
       const plot = (id: string) => {
-        const call = vi.mocked(Plotly.newPlot).mock.calls.find(c => c[0] === id);
-        if (!call) throw new Error(`no Plotly.newPlot call for ${id}`);
-        return { data: call[1] as any[], layout: call[2] as any };
+        const calls = vi.mocked(Plotly.newPlot).mock.calls.filter(c => c[0] === id);
+        expect(calls).toHaveLength(1);
+        return { data: calls[0][1] as any[], layout: calls[0][2] as any };
       };
 
       const usernamePie = plot("#execution-userName-pie-chart");
