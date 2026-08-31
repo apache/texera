@@ -131,12 +131,13 @@ import scala.jdk.CollectionConverters._
   * is asserted below, which kills that mutant; the owner-email tests are the ones that hold it dead,
   * so a schema slot silently dropped again fails them.
   *
-  * That coupling is worth stating in one place, because it now spans two files: `hydrate` is `final`
-  * on `VersionedResourceTables` and reads `USER.EMAIL` for EVERY versioned resource, but the
-  * projection lives on each `VersionedResourceSearchQueryBuilder` subclass and the base cannot force
-  * one to include it. `DatasetTables` is the only entry today; a second one inherits the same trap
-  * unless its builder remembers `userEmail`. The projection assertion below is what fails if it does
-  * not — for this subclass only.
+  * The slot now lives in the base rather than here, which is what stops the next versioned resource
+  * from repeating the bug: `hydrate` is `final` on `VersionedResourceTables` and reads `USER.EMAIL`
+  * for EVERY versioned resource, so `VersionedResourceSearchQueryBuilder` builds the whole projection
+  * — `userEmail` included — as a `final lazy val` a subclass cannot replace, and takes only the three
+  * columns its descriptor does not already name. A new resource type therefore gets the owner email
+  * whether or not its author thinks about it, and the projection assertion below guards the base for
+  * every subclass instead of just this one.
   *
   * Not covered, and not coverable from a test:
   *   - `constructFromClause`'s `includePublic: Boolean = false` default. `scalac` emits
@@ -535,10 +536,9 @@ class DatasetSearchQueryBuilderSpec
     sql should include("dataset.cover_image as versioned_resource_cover_image")
     // The one projected column that is not a DATASET column, and the one this schema used to leave
     // at its `DSL.inline("")` default. It gets an assertion of its own rather than trusting the
-    // entry-level test because `VersionedResourceTables.hydrate` reads `USER.EMAIL` for EVERY
-    // versioned resource while the base class cannot make a subclass project it: a projection
-    // dropped back to a literal renders `'' as email` here, and this names the missing slot instead
-    // of surfacing as a null three layers downstream.
+    // entry-level test because it is now the base class's slot, not this builder's: dropping it from
+    // `VersionedResourceSearchQueryBuilder` renders `'' as email` for every versioned resource, and
+    // this names the missing slot instead of surfacing as a null three layers downstream.
     sql should include("user.email as email")
   }
 
