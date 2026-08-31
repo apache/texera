@@ -38,6 +38,9 @@
 # `manager` is a GitHub username. It may be omitted (leave the branch as a
 # backport target without an auto-requested reviewer), but is recommended.
 targets:
+  - branch: release/v1.3
+    manager: mengw15
+    actively-supporting: true
   - branch: release/v1.2
     manager: xuang7
     actively-supporting: true

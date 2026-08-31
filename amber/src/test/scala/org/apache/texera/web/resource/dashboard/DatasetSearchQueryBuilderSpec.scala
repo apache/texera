@@ -96,8 +96,9 @@ import scala.jdk.CollectionConverters._
   *     build stays green. It disarms the whole `toEntry` half of this suite: not just its coverage
   *     (which falls back toward the ~59% this file had before), but every assertion protecting
   *     `toEntryImpl` — the owner-email pair included, so the `new User` mutant this suite otherwise
-  *     kills goes unnoticed too. Measured: with the port held, mutating `size` to `0L` in the entry
-  *     leaves `succeeded 15, failed 0, canceled 6` and sbt printing "All tests passed" at exit 0. The
+  *     kills goes unnoticed too. Measured: with the port held, mutating `size` to `0L` in
+  *     `VersionedResourceTables.hydrate` leaves `succeeded 18, failed 0, canceled 6` and sbt printing
+  *     "All tests passed" at exit 0. The
   *     assertions in the SQL-shape tests are unaffected, because they render rather than fetch and
   *     never call lakeFS — that is the half that stays armed everywhere (verified: with the port
   *     held, breaking a projection or a where-clause connective still fails the build).
@@ -121,13 +122,21 @@ import scala.jdk.CollectionConverters._
   * Anything added here must keep that property — an assertion on `pgroonga_condition` would pass
   * solo and fail in a full-module run.
   *
-  * `val owner = record.into(USER)...` and `owner.getEmail` used to be executed but unobservable:
-  * the dataset schema left `UnifiedResourceSchema`'s `userEmail` at its `DSL.inline("")` default, so
-  * the translated record carried no `USER` column, `DashboardDataset.ownerEmail` was ALWAYS null for
-  * dataset search results, and `leftJoin(USER)` was a join that was selected from and never read.
-  * Replacing those two lines with a bare `new User` therefore changed nothing. The schema now names
-  * `userEmail = USER.EMAIL` and the value is asserted below, which kills that mutant; the owner-email
-  * tests are the ones that hold it dead, so a schema slot silently dropped again fails them.
+  * The `record.into(USER).into(classOf[User]).getEmail` in `VersionedResourceTables.hydrate` used to
+  * be executed but unobservable: the dataset schema left `UnifiedResourceSchema`'s `userEmail` at its
+  * `DSL.inline("")` default, so the translated record carried no `USER` column,
+  * `DashboardDataset.ownerEmail` was ALWAYS null for dataset search results, and the owner
+  * `leftJoin(USER)` was a join that was selected from and never read. Replacing that read with a bare
+  * `new User` therefore changed nothing. The schema now names `userEmail = USER.EMAIL` and the value
+  * is asserted below, which kills that mutant; the owner-email tests are the ones that hold it dead,
+  * so a schema slot silently dropped again fails them.
+  *
+  * That coupling is worth stating in one place, because it now spans two files: `hydrate` is `final`
+  * on `VersionedResourceTables` and reads `USER.EMAIL` for EVERY versioned resource, but the
+  * projection lives on each `VersionedResourceSearchQueryBuilder` subclass and the base cannot force
+  * one to include it. `DatasetTables` is the only entry today; a second one inherits the same trap
+  * unless its builder remembers `userEmail`. The projection assertion below is what fails if it does
+  * not — for this subclass only.
   *
   * Not covered, and not coverable from a test:
   *   - `constructFromClause`'s `includePublic: Boolean = false` default. `scalac` emits
@@ -162,6 +171,9 @@ class DatasetSearchQueryBuilderSpec
 
   private val sizedDid: Integer = Integer.valueOf(9001)
   private val goneDid: Integer = Integer.valueOf(9002)
+
+  /** Every dataset `beforeAll` seeds, so row-count assertions do not hard-code the fixture size. */
+  private val seededDids: Seq[Integer] = Seq(sizedDid, goneDid)
 
   private val sizedRepo = "texera-ds-sized"
   private val goneRepo = "texera-ds-gone"
@@ -449,6 +461,33 @@ class DatasetSearchQueryBuilderSpec
     sql should include(s"texera_db.dataset.did = $sizedDid and (")
   }
 
+  it should "filter on the owner's email, the way the workflow builder does" in {
+    val p = SearchQueryParams(owners = List("dataset_search_owner@texera.com").asJava)
+
+    sqlFor(uid, includePublic = true, p) should include(
+      "texera_db.user.email = 'dataset_search_owner@texera.com'"
+    )
+  }
+
+  it should "OR several owners together, and AND them with the other filters" in {
+    val p = SearchQueryParams(
+      owners = List("a@texera.com", "b@texera.com").asJava,
+      datasetIds = List(sizedDid).asJava
+    )
+    val sql = sqlFor(uid, includePublic = true, p)
+
+    // ORed with each other: ANDing two owners would always return nothing.
+    sql should include("texera_db.user.email = 'a@texera.com'")
+    sql should include("texera_db.user.email = 'b@texera.com'")
+    sql should include("or texera_db.user.email")
+    // ... but ANDed with the id filter.
+    sql should include(s"texera_db.dataset.did = $sizedDid and (")
+  }
+
+  it should "add no owner predicate when the caller selected none" in {
+    sqlFor(uid, includePublic = true) should not include "texera_db.user.email ="
+  }
+
   "the query" should "dedupe with selectDistinct rather than a group by" in {
     // getGroupByFields is empty here, unlike the workflow and project builders, so the DISTINCT is
     // the only thing collapsing the rows the access join multiplies out.
@@ -486,39 +525,47 @@ class DatasetSearchQueryBuilderSpec
     sql should include("dataset.description as resourcedescription")
     sql should include("dataset.creation_time as resourcecreationtime")
     sql should include("dataset.owner_uid as resourceownerid")
-    sql should include("dataset.did as did")
     sql should include("dataset.repository_name as repository_name")
-    sql should include("dataset.is_public as is_dataset_public")
-    sql should include("dataset.is_downloadable as is_dataset_downloadable")
-    sql should include("dataset_user_access.privilege as user_dataset_access")
-    sql should include("dataset.cover_image as cover_image")
-    // The one projected column that is not a DATASET column. It is also the slot this schema used to
-    // leave at its `DSL.inline("")` default, which is why it gets an assertion of its own rather
-    // than trusting the entry-level test: a slot dropped back to a literal renders `'' as email`
-    // here, and the failure names the projection instead of a null three layers downstream.
+    // The id/publicity/privilege/cover slots are shared with the other versioned resources,
+    // so their aliases are resource-neutral while the columns feeding them are the dataset's.
+    sql should include("dataset.did as versioned_resource_id")
+    sql should include("dataset.is_public as is_versioned_resource_public")
+    sql should include("dataset.is_downloadable as is_versioned_resource_downloadable")
+    sql should include("dataset_user_access.privilege as user_versioned_resource_access")
+    sql should include("dataset.cover_image as versioned_resource_cover_image")
+    // The one projected column that is not a DATASET column, and the one this schema used to leave
+    // at its `DSL.inline("")` default. It gets an assertion of its own rather than trusting the
+    // entry-level test because `VersionedResourceTables.hydrate` reads `USER.EMAIL` for EVERY
+    // versioned resource while the base class cannot make a subclass project it: a projection
+    // dropped back to a literal renders `'' as email` here, and this names the missing slot instead
+    // of surfacing as a null three layers downstream.
     sql should include("user.email as email")
   }
 
   it should "stay union-compatible with the workflow and project branches" in {
     // `DashboardResource.searchAllResources` stacks the three builders with `unionAll` for a
     // resourceType of "" — the dashboard's default view — so every branch must project the same
-    // aliases in the same order with types Postgres will unify. Each slot one builder fills is a
-    // literal placeholder in the other two (`'' as email` here until `userEmail` was named), which
-    // makes the contract easy to break from inside a single builder and impossible to break loudly:
-    // nothing fails to compile, and the mismatch surfaces only as a failed query at runtime. This is
-    // the only test that executes the union; the rest of the suite renders or fetches one branch.
+    // aliases in the same order with types Postgres will unify. A `varchar`-vs-`''` mix in one slot
+    // is not itself new: `userName` already has exactly this shape (only the workflow branch
+    // projects a real column; dataset and project both project `DSL.inline("")`) and that union
+    // runs in production today. What the test buys is that the contract is invisible from inside a
+    // single builder — nothing fails to compile, and a genuine mismatch would surface only as a
+    // failed query at runtime. This is the only test that executes the union; every other test here
+    // renders one branch, or fetches from one.
     val union = WorkflowSearchQueryBuilder
       .constructQuery(uid, params(), includePublic = true)
       .unionAll(ProjectSearchQueryBuilder.constructQuery(uid, params(), includePublic = true))
       .unionAll(DatasetSearchQueryBuilder.constructQuery(uid, params(), includePublic = true))
 
     // Both seeded datasets are public, so both reach `uid`; no workflow or project rows are seeded.
-    // The row count is incidental — that Postgres accepts the union at all is the assertion.
-    getDSLContext.fetch(union).size() shouldBe 2
+    // Derived from the fixture rather than hard-coded, since the count is incidental — that Postgres
+    // accepts the union at all is what is under test.
+    getDSLContext.fetch(union).size() shouldBe seededDids.size
   }
 
   it should "join the owner row on the dataset's owner" in {
-    // `toEntryImpl` reads `owner.getEmail` out of this join. The owner-email tests below now see the
+    // `VersionedResourceTables.hydrate` reads the owner email out of this join. The owner-email
+    // tests below now see the
     // value, so they would fail on a join dropped altogether — but not on a join RE-AIMED at a
     // same-typed column, because every seeded dataset shares one owner. Pinning the predicate is
     // what separates `USER.UID.eq(DATASET.OWNER_UID)` from `eq(DATASET_USER_ACCESS.UID)`, which
@@ -562,9 +609,9 @@ class DatasetSearchQueryBuilderSpec
     requireStub()
 
     // Was null for every dataset in the dashboard until the schema named `userEmail = USER.EMAIL`:
-    // the USER join was selected from and never read. This is also the assertion that kills
-    // `record.into(USER).into(classOf[User])` -> `new User`, which survived the whole suite while
-    // the value was null.
+    // the USER join was selected from and never read. This is also the assertion that kills the
+    // `record.into(USER).into(classOf[User])` -> `new User` mutant in
+    // `VersionedResourceTables.hydrate`, which survived the whole suite while the value was null.
     entryFor(ownerUid, sizedDid).dataset.value.ownerEmail shouldBe "dataset_search_owner@mail.com"
   }
 

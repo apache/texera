@@ -27,12 +27,10 @@ import {
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { ShareAccessComponent } from "../../share-access/share-access.component";
 import { Workflow } from "../../../../../common/type/workflow";
-import { DashboardProject } from "../../../../type/dashboard-project.interface";
-import { UserProjectService } from "../../../../service/user/project/user-project.service";
 import { DashboardEntry } from "../../../../type/dashboard-entry";
 import { firstValueFrom } from "rxjs";
 import { DownloadService } from "src/app/dashboard/service/user/download/download.service";
-import { USER_PROJECT, USER_WORKSPACE } from "../../../../../app-routing.constant";
+import { USER_WORKSPACE } from "../../../../../app-routing.constant";
 import { GuiConfigService } from "../../../../../common/service/gui-config.service";
 import {
   NzListItemComponent,
@@ -43,7 +41,7 @@ import {
   NzListItemActionsComponent,
   NzListItemActionComponent,
 } from "ng-zorro-antd/list";
-import { NgStyle, NgIf, NgFor, NgClass, DatePipe } from "@angular/common";
+import { NgStyle, NgIf, DatePipe } from "@angular/common";
 import { FormsModule } from "@angular/forms";
 import { NzAvatarComponent } from "ng-zorro-antd/avatar";
 import { RouterLink } from "@angular/router";
@@ -77,8 +75,6 @@ import { HighlightSearchTermsPipe } from "./highlight-search-terms.pipe";
     NzTooltipDirective,
     NzIconDirective,
     NzListItemMetaDescriptionComponent,
-    NgFor,
-    NgClass,
     NzListItemActionsComponent,
     NzListItemActionComponent,
     NzWaveDirective,
@@ -89,7 +85,6 @@ import { HighlightSearchTermsPipe } from "./highlight-search-terms.pipe";
 })
 export class UserWorkflowListItemComponent {
   protected readonly USER_WORKSPACE = USER_WORKSPACE;
-  protected readonly USER_PROJECT = USER_PROJECT;
   private _entry?: DashboardEntry;
   @Input() public keywords: string[] = [];
 
@@ -115,8 +110,6 @@ export class UserWorkflowListItemComponent {
   }
 
   @Input() editable = false;
-  @Input() public pid: number = 0;
-  userProjectsMap: ReadonlyMap<number, DashboardProject> = new Map();
   @Output() deleted = new EventEmitter<void>();
   @Output() duplicated = new EventEmitter<void>();
 
@@ -127,20 +120,8 @@ export class UserWorkflowListItemComponent {
     private workflowPersistService: WorkflowPersistService,
     private modalService: NzModalService,
     protected config: GuiConfigService,
-    private userProjectService: UserProjectService,
     private downloadService: DownloadService
-  ) {
-    this.userProjectService
-      .getProjectList()
-      .pipe(untilDestroyed(this))
-      .subscribe(userProjectsList => {
-        this.userProjectsMap = new Map(userProjectsList.map(userProject => [userProject.pid, userProject]));
-      });
-  }
-
-  getProjectIds() {
-    return new Set(this.entry.workflow.projectIDs);
-  }
+  ) {}
 
   /**
    * open the workflow executions page
@@ -216,21 +197,5 @@ export class UserWorkflowListItemComponent {
         .pipe(untilDestroyed(this))
         .subscribe();
     }
-  }
-
-  public isLightColor(color: string): boolean {
-    return UserProjectService.isLightColor(color);
-  }
-
-  /**
-   * For color tags, enable clicking 'x' to remove a workflow from a project
-   */
-  public removeWorkflowFromProject(pid: number): void {
-    this.userProjectService
-      .removeWorkflowFromProject(pid, this.workflow.wid!)
-      .pipe(untilDestroyed(this))
-      .subscribe(() => {
-        this.entry.workflow.projectIDs = this.entry.workflow.projectIDs.filter(projectID => projectID != pid);
-      });
   }
 }
