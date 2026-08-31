@@ -52,15 +52,16 @@ describe("EmailRequestModalComponent", () => {
     expect(component.email).toBe("");
   });
 
-  it("getValues trims the address", async () => {
+  it("getValues trims both fields", async () => {
     const component = (await createFixture({ name: "Sofia" })).componentInstance;
     component.email = "  sofia@example.com  ";
-    expect(component.getValues()).toEqual({ email: "sofia@example.com" });
+    component.code = "  123456  ";
+    expect(component.getValues()).toEqual({ email: "sofia@example.com", code: "123456" });
   });
 
   it("getValues returns an empty string for an untouched field", async () => {
     const component = (await createFixture({ name: "Sofia" })).componentInstance;
-    expect(component.getValues()).toEqual({ email: "" });
+    expect(component.getValues()).toEqual({ email: "", code: "" });
   });
 
   // `modalTitle` is an <ng-template> handed to nz-modal as its title, so nothing
@@ -111,8 +112,35 @@ describe("EmailRequestModalComponent", () => {
     fixture.detectChanges();
 
     expect(fixture.componentInstance.email).toBe("hub-user@example.com");
-    expect(fixture.componentInstance.getValues()).toEqual({ email: "hub-user@example.com" });
+    expect(fixture.componentInstance.getValues()).toEqual({ email: "hub-user@example.com", code: "" });
     // The paragraph still shows the name, so the two bindings are not crossed.
     expect(host.querySelector("p")?.textContent).toContain("Sofia Garcia");
   });
+
+  // Where the deployment verifies addresses, the same dialog collects the code rather than a
+  // second one opening over it.
+  it("starts on the address step with no code field on screen", async () => {
+    const fixture = await createFixture({ name: "Sofia" });
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.step).toBe("address");
+    expect(inputs(fixture)).toHaveLength(1);
+  });
+
+  it("shows a second field once the step advances, and freezes the address", async () => {
+    const fixture = await createFixture({ name: "Sofia" });
+    fixture.detectChanges();
+    fixture.componentInstance.email = "sofia@example.com";
+    fixture.componentInstance.step = "code";
+    fixture.detectChanges();
+
+    const [address, code] = inputs(fixture);
+    expect(code).toBeDefined();
+    expect(address.hasAttribute("readonly")).toBe(true);
+    expect(code.getAttribute("autocomplete")).toBe("one-time-code");
+  });
+
+  function inputs(fixture: ComponentFixture<EmailRequestModalComponent>): HTMLInputElement[] {
+    return Array.from(fixture.nativeElement.querySelectorAll("input"));
+  }
 });

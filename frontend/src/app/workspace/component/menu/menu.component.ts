@@ -28,6 +28,7 @@ import { UndoRedoService } from "../../service/undo-redo/undo-redo.service";
 import { ValidationWorkflowService } from "../../service/validation/validation-workflow.service";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { ExecutionState } from "../../types/execute-workflow.interface";
+import { HeatmapView } from "../../service/heatmap/heatmap-scoring";
 import { WorkflowWebsocketService } from "../../service/workflow-websocket/workflow-websocket.service";
 import { WorkflowResultExportService } from "../../service/workflow-result-export/workflow-result-export.service";
 import { catchError, debounceTime, switchMap, tap } from "rxjs/operators";
@@ -64,6 +65,7 @@ import { UserIconComponent } from "../../../dashboard/component/user/user-icon/u
 import { NzDropdownDirective, NzDropdownMenuComponent } from "ng-zorro-antd/dropdown";
 import { NzMenuDirective, NzMenuItemComponent } from "ng-zorro-antd/menu";
 import { NzCheckboxComponent } from "ng-zorro-antd/checkbox";
+import { NzRadioComponent, NzRadioGroupComponent } from "ng-zorro-antd/radio";
 import { NzPopoverDirective } from "ng-zorro-antd/popover";
 import { NzSwitchComponent } from "ng-zorro-antd/switch";
 import { NzBadgeComponent } from "ng-zorro-antd/badge";
@@ -108,6 +110,8 @@ import { JupyterPanelService } from "../../service/jupyter-panel/jupyter-panel.s
     NzMenuDirective,
     NzMenuItemComponent,
     NzCheckboxComponent,
+    NzRadioComponent,
+    NzRadioGroupComponent,
     NgTemplateOutlet,
     ComputingUnitSelectionComponent,
     NzPopoverDirective,
@@ -133,6 +137,9 @@ export class MenuComponent implements OnInit, OnDestroy {
   public showGrid: boolean = false;
   public showNumWorkers: boolean = false;
   public showStatus: boolean = false;
+  public showHeatmap: boolean = false;
+  public heatmapView: HeatmapView = HeatmapView.Runtime;
+  public HeatmapView = HeatmapView; // make Angular HTML access enum definition
   protected readonly USER_WORKFLOW = USER_WORKFLOW;
 
   @Input() public writeAccess: boolean = false;
@@ -531,6 +538,19 @@ export class MenuComponent implements OnInit, OnDestroy {
     // The editor owns applying this to the shared JointJS model (both canvas and mini-map) and
     // reapplies it whenever regions are recreated during execution (see #5120, #4027).
     this.workflowActionService.getJointGraphWrapper().setRegionsDisplayed(this.showRegion);
+  }
+
+  public toggleHeatmap(): void {
+    // The editor subscribes to this stream and colors operator fills (canvas + mini-map).
+    // A null view turns the overlay off; a view enables it.
+    this.workflowActionService.getJointGraphWrapper().setHeatmapView(this.showHeatmap ? this.heatmapView : null);
+  }
+
+  public setHeatmapView(view: HeatmapView): void {
+    this.heatmapView = view;
+    if (this.showHeatmap) {
+      this.workflowActionService.getJointGraphWrapper().setHeatmapView(view);
+    }
   }
 
   /**

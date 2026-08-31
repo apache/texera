@@ -42,6 +42,7 @@ import { WorkflowVersionService } from "../../../dashboard/service/user/workflow
 import { WorkflowPersistService } from "../../../common/service/workflow-persist/workflow-persist.service";
 import { NotificationService } from "../../../common/service/notification/notification.service";
 import { ExecutionState } from "../../types/execute-workflow.interface";
+import { HeatmapView } from "../../service/heatmap/heatmap-scoring";
 import { ComputingUnitState } from "../../../common/type/computing-unit-connection.interface";
 import { mockPoint, mockScanPredicate } from "../../service/workflow-graph/model/mock-workflow-data";
 import { saveAs } from "file-saver";
@@ -750,6 +751,43 @@ describe("MenuComponent", () => {
         component.toggleRegion();
 
         expect(setSpy).toHaveBeenCalledWith(false);
+      });
+    });
+
+    describe("toggleHeatmap / setHeatmapView", () => {
+      it("publishes the selected view to the joint graph wrapper when enabled", () => {
+        const setSpy = vi.spyOn(workflowActionService.getJointGraphWrapper(), "setHeatmapView");
+
+        component.showHeatmap = true;
+        component.heatmapView = HeatmapView.TimePerRow;
+        component.toggleHeatmap();
+
+        expect(setSpy).toHaveBeenCalledWith(HeatmapView.TimePerRow);
+      });
+
+      it("publishes null to the joint graph wrapper when disabled", () => {
+        const setSpy = vi.spyOn(workflowActionService.getJointGraphWrapper(), "setHeatmapView");
+
+        component.showHeatmap = false;
+        component.toggleHeatmap();
+
+        expect(setSpy).toHaveBeenCalledWith(null);
+      });
+
+      it("pushes a newly selected view only while the overlay is enabled", () => {
+        const setSpy = vi.spyOn(workflowActionService.getJointGraphWrapper(), "setHeatmapView");
+
+        component.showHeatmap = true;
+        component.setHeatmapView(HeatmapView.IoImbalance);
+        expect(component.heatmapView).toBe(HeatmapView.IoImbalance);
+        expect(setSpy).toHaveBeenCalledWith(HeatmapView.IoImbalance);
+
+        setSpy.mockClear();
+        component.showHeatmap = false;
+        component.setHeatmapView(HeatmapView.Runtime);
+        // View selection is remembered, but nothing is pushed while the overlay is off.
+        expect(component.heatmapView).toBe(HeatmapView.Runtime);
+        expect(setSpy).not.toHaveBeenCalled();
       });
     });
 

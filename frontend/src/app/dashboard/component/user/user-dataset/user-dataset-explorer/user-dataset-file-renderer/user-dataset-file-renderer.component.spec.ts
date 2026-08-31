@@ -209,6 +209,7 @@ describe("UserDatasetFileRendererComponent", () => {
       expect(getMimeType("data.csv")).toBe(MIME_TYPES.CSV);
       expect(getMimeType("clip.mp4")).toBe(MIME_TYPES.MP4);
       expect(getMimeType("notes.json")).toBe(MIME_TYPES.JSON);
+      expect(getMimeType("report.xlsx")).toBe(MIME_TYPES.MSEXCEL);
     });
 
     it("resolves the extension case-insensitively", () => {

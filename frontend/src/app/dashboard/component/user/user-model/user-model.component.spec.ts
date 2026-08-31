@@ -25,6 +25,7 @@ import { NzModalService } from "ng-zorro-antd/modal";
 import { en_US, NZ_I18N } from "ng-zorro-antd/i18n";
 import { commonTestImports, commonTestProviders } from "../../../../common/testing/test-utils";
 import { SearchResultsComponent } from "../search-results/search-results.component";
+import { CardItemComponent } from "../list-item/card-item/card-item.component";
 import { NgModel } from "@angular/forms";
 import { UserService } from "../../../../common/service/user/user.service";
 import { StubUserService } from "../../../../common/service/user/stub-user.service";
@@ -245,7 +246,7 @@ describe("UserModelComponent", () => {
 
   // ─── owner names ──────────────────────────────────────────────────────────
 
-  it("labels each card with its owner's display name", async () => {
+  it("labels each card with its owner's display name and avatar", async () => {
     modelServiceMock.retrieveAccessibleModels.mockReturnValue(of([listedModel(1)]));
     searchServiceMock.getUserInfo.mockReturnValue(of({ 1: { userName: "ada", avatar: "a.png" } }));
 
@@ -254,6 +255,22 @@ describe("UserModelComponent", () => {
 
     expect(searchServiceMock.getUserInfo).toHaveBeenCalledWith([1]);
     expect(entry.ownerName).toBe("ada");
+    // DashboardEntry starts every entry with an empty avatar, so only a lookup that actually
+    // forwards the value can produce this — asserting "" alone would pass with the write removed.
+    expect(entry.ownerAvatar).toBe("a.png");
+  });
+
+  it("leaves the avatar empty for an owner who has not set one", async () => {
+    // getUserInfo omits `avatar` for such a user; forwarding undefined would put the string
+    // "undefined" in the avatar slot.
+    modelServiceMock.retrieveAccessibleModels.mockReturnValue(of([listedModel(1)]));
+    searchServiceMock.getUserInfo.mockReturnValue(of({ 1: { userName: "ada" } }));
+
+    await component.search();
+    const [entry] = (await capturedLoadMoreFn!(0, 20)).entries;
+
+    expect(entry.ownerName).toBe("ada");
+    expect(entry.ownerAvatar).toBe("");
   });
 
   it("still lists the models when the owner lookup fails", async () => {
@@ -433,5 +450,66 @@ describe("UserModelComponent rendering", () => {
     expect(results.editable).toBe(true);
     expect(results.isPrivateSearch).toBe(true);
     expect(results.currentUid).toBe(component.currentUid);
+  });
+
+  /** A /model/list row, in the shape DashboardEntry accepts. */
+  function modelEntry(mid = 3, name = "resnet"): DashboardEntry {
+    return new DashboardEntry({
+      isOwner: true,
+      ownerEmail: "owner@example.com",
+      accessPrivilege: "WRITE",
+      size: 0,
+      model: {
+        mid,
+        ownerUid: 1,
+        name,
+        description: "",
+        framework: "pytorch",
+        format: "torchscript",
+        creationTime: mid,
+        isPublic: false,
+        isDownloadable: false,
+      },
+    } as any);
+  }
+
+  it("renders one card per model through the card template, with its outputs kept apart", () => {
+    // The card template is handed to the results list rather than instantiated here, so nothing
+    // else in this suite proves the entry reaches the card or that `deleted` and `refresh` — two
+    // adjacent outputs, one of them destructive — are not crossed.
+    const deleteModel = vi.spyOn(component, "deleteModel").mockImplementation(() => {});
+    const search = vi.spyOn(component, "search").mockResolvedValue();
+    const entry = modelEntry();
+    const other = modelEntry(4, "bert");
+    // A distinct viewer id: the card navigates by it and gates liking on it, so a template that
+    // dropped the binding would still render and would fail silently at runtime.
+    component.currentUid = 42;
+
+    component.searchResultsComponent.entries = [entry, other];
+    fixture.detectChanges();
+
+    const cards = fixture.debugElement.queryAll(By.directive(CardItemComponent));
+    expect(cards, "the card template did not render one card per model").toHaveLength(2);
+    const card = cards[0];
+    expect(card.componentInstance.entry).toBe(entry);
+    expect(cards[1].componentInstance.entry).toBe(other);
+    expect(card.componentInstance.currentUid).toBe(42);
+    expect(card.componentInstance.isPrivateSearch).toBe(true);
+    expect(card.componentInstance.editable).toBe(true);
+
+    card.triggerEventHandler("deleted", undefined);
+    expect(deleteModel).toHaveBeenCalledWith(entry);
+    expect(search).not.toHaveBeenCalled();
+
+    card.triggerEventHandler("refresh", undefined);
+    expect(search).toHaveBeenCalledWith(true);
+  });
+
+  it("refuses to search before the results list has been queried", () => {
+    // search() reaches straight through the getter; without the guard the failure would surface
+    // as "cannot read reset of undefined" from inside an async callback.
+    const bare = TestBed.createComponent(UserModelComponent).componentInstance;
+
+    expect(() => bare.searchResultsComponent).toThrowError("Property cannot be accessed before it is initialized.");
   });
 });
