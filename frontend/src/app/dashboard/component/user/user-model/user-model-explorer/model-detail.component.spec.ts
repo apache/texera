@@ -1100,11 +1100,18 @@ describe("ModelDetailComponent", () => {
     oneVersionWithOneFile();
     create();
     const root = openTab("Versions & Files");
+    const originalClipboardDescriptor = Object.getOwnPropertyDescriptor(navigator, "clipboard");
     const writeText = vi.fn(() => Promise.resolve());
     Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
 
     q<HTMLButtonElement>(root, ".copy-path-btn").click();
     expect(writeText).toHaveBeenCalledWith(`/model/${OWNER}/resnet-50/v1/model.pt`);
+
+    if (originalClipboardDescriptor) {
+      Object.defineProperty(navigator, "clipboard", originalClipboardDescriptor);
+    } else {
+      delete (navigator as any).clipboard;
+    }
 
     byTooltip("Download the file").click();
     expect(downloadService["downloadModelSingleFile"]).toHaveBeenCalledWith(
