@@ -1863,8 +1863,8 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
   /** Ask for suggestions on `operator`, cancelling whatever was in flight. */
   private requestNextOperatorSuggestionsFor(operator: OperatorPredicate): void {
     this.closeNextOperatorSuggestions();
-    // An operator with no output ports (e.g. a chart sink) has no port to
-    // anchor suggestions on, so there is nothing to ask for.
+    // An operator with no output ports has no port to anchor suggestions on,
+    // so there is nothing to ask for.
     if (operator.outputPorts.length === 0) {
       return;
     }

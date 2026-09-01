@@ -88,8 +88,8 @@ export class OperatorRecommendationService {
    * @param operator the operator that was just added to the canvas
    */
   public getRecommendations(operator: OperatorPredicate): Observable<OperatorRecommendation[]> {
-    // An operator with no output ports (e.g. a chart sink) has no port to anchor
-    // suggestions on, so we skip the backend call.
+    // An operator with no output ports has no port to anchor suggestions on,
+    // so we skip the backend call.
     if (!this.isEnabled() || operator.outputPorts.length === 0) {
       return of([]);
     }
