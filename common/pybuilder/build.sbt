@@ -42,7 +42,6 @@ Global / concurrentRestrictions += Tags.limit(Tags.Test, 1)
 
 // Scala compiler options
 Compile / scalacOptions ++= Seq(
-  "-Xelide-below", "WARNING",       // Turn on optimizations with "WARNING" as the threshold
   "-feature",                       // Check feature warnings
   "-deprecation",                   // Check deprecation warnings
   "-Ywarn-unused:imports"           // Check for unused imports

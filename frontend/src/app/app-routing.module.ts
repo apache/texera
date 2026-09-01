@@ -22,8 +22,6 @@ import { RouterModule, Routes } from "@angular/router";
 import { DashboardComponent } from "./dashboard/component/dashboard.component";
 import { UserWorkflowComponent } from "./dashboard/component/user/user-workflow/user-workflow.component";
 import { UserQuotaComponent } from "./dashboard/component/user/user-quota/user-quota.component";
-import { UserProjectSectionComponent } from "./dashboard/component/user/user-project/user-project-section/user-project-section.component";
-import { UserProjectComponent } from "./dashboard/component/user/user-project/user-project.component";
 import { UserComputingUnitComponent } from "./dashboard/component/user/user-computing-unit/user-computing-unit.component";
 import { UserVenvComponent } from "./dashboard/component/user/user-venv/user-venv.component";
 import { WorkspaceComponent } from "./workspace/component/workspace.component";
@@ -39,6 +37,8 @@ import { FeedbackComponent } from "./dashboard/component/user/feedback/feedback.
 import { AdminGmailComponent } from "./dashboard/component/admin/gmail/admin-gmail.component";
 import { DatasetDetailComponent } from "./dashboard/component/user/user-dataset/user-dataset-explorer/dataset-detail.component";
 import { UserDatasetComponent } from "./dashboard/component/user/user-dataset/user-dataset.component";
+import { UserModelComponent } from "./dashboard/component/user/user-model/user-model.component";
+import { ModelDetailComponent } from "./dashboard/component/user/user-model/user-model-explorer/model-detail.component";
 import { HubWorkflowDetailComponent } from "./hub/component/workflow/detail/hub-workflow-detail.component";
 import { LandingPageComponent } from "./hub/component/landing-page/landing-page.component";
 import { USER_WORKFLOW } from "./app-routing.constant";
@@ -108,14 +108,6 @@ routes.push({
       canActivate: [AuthGuardService],
       children: [
         {
-          path: "project",
-          component: UserProjectComponent,
-        },
-        {
-          path: "project/:pid",
-          component: UserProjectSectionComponent,
-        },
-        {
           path: "workflow",
           component: UserWorkflowComponent,
         },
@@ -134,6 +126,14 @@ routes.push({
         {
           path: "dataset/create",
           component: DatasetDetailComponent,
+        },
+        {
+          path: "model",
+          component: UserModelComponent,
+        },
+        {
+          path: "model/:mid",
+          component: ModelDetailComponent,
         },
         {
           path: "compute",

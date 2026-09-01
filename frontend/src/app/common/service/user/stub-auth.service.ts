@@ -22,7 +22,7 @@ import { Injectable } from "@angular/core";
 import { Observable, of, Subject } from "rxjs";
 import { User } from "../../type/user";
 import { PublicInterfaceOf } from "../../util/stub";
-import { AuthService } from "./auth.service";
+import { AuthService, RegistrationResult } from "./auth.service";
 import { MOCK_USER } from "./stub-user.service";
 
 export const MOCK_TOKEN = {
@@ -43,8 +43,12 @@ export const MOCK_INVALID_TOKEN = {
 export class StubAuthService implements PublicInterfaceOf<AuthService> {
   private readonly reissued = new Subject<void>();
 
-  setEmail(email: string): Observable<Readonly<{ accessToken: string }>> {
+  setEmail(email: string, code?: string): Observable<Readonly<{ accessToken: string }>> {
     return of(MOCK_TOKEN);
+  }
+
+  requestEmailCode(email: string): Observable<void> {
+    return of(undefined);
   }
 
   // The real service emits here when its email prompt replaces the token or signs out. Nothing in
@@ -82,12 +86,21 @@ export class StubAuthService implements PublicInterfaceOf<AuthService> {
     return undefined;
   }
 
-  register(username: string, email: string, password: string): Observable<Readonly<{ accessToken: string }>> {
+  register(username: string, email: string, password: string): Observable<Readonly<RegistrationResult>> {
     if (username !== "existing_user") {
       return of(MOCK_TOKEN);
     } else {
       return of(MOCK_INVALID_TOKEN);
     }
+  }
+
+  registerVerify(
+    username: string,
+    email: string,
+    password: string,
+    code: string
+  ): Observable<Readonly<RegistrationResult>> {
+    return of(MOCK_TOKEN);
   }
 
   validateUsername(username: string): { result: boolean; message: string } {

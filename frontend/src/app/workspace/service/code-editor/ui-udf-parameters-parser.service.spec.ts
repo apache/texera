@@ -154,6 +154,30 @@ describe("UiUdfParametersParserService", () => {
       `,
         [],
       ],
+      [
+        // `"s".` parses as a member access whose receiver is a string literal, so the node carries
+        // no VariableName/PropertyName children at all and the member path it yields is empty
+        // rather than one- or two-part. Such a call has to be dropped, not turned into a parameter
+        // with a fabricated receiver and type.
+        "ignore a type written as a member access with no name parts",
+        `
+        self.UiParameter(name="x", type="s".)
+        self.UiParameter("valid", AttributeType.STRING)
+      `,
+        [parameter("valid", "string")],
+      ],
+      [
+        // A tuple is not a member access, but its direct children are two VariableNames that read
+        // exactly like `AttributeType` + `STRING`. Only the node-kind check in front of the member
+        // path stops `(AttributeType, STRING)` from being accepted as the STRING type, so this is
+        // the case that keeps that check honest.
+        "ignore a type written as a tuple that reads like a member path",
+        `
+        self.UiParameter(name="x", type=(AttributeType, STRING))
+        self.UiParameter("valid", AttributeType.STRING)
+      `,
+        [parameter("valid", "string")],
+      ],
     ] as ReadonlyArray<readonly [string, string, UiUdfParameter[]]>
   ).forEach(([description, openBody, expectedParameters]) => {
     it(`should ${description}`, () => {

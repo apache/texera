@@ -211,6 +211,7 @@
           nzType="text"
           class="action-btn"
           title="Share"
+          *ngIf="canShare"
           (click)="onClickOpenShareAccess(); $event.stopPropagation()">
           <i
             nz-icon
@@ -232,7 +233,7 @@
           nzType="text"
           class="action-btn"
           title="Download"
-          *ngIf="entry.type === 'workflow' || entry.type === 'dataset'"
+          *ngIf="canDownload"
           (click)="onClickDownload(); $event.stopPropagation()">
           <i
             nz-icon

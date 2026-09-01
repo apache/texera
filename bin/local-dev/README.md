@@ -69,6 +69,13 @@ container bridges (`docker0`, `br-*`, `veth*`) and overlay/VPN interfaces
 local IPv4 but is not reachable from inside another container's network
 namespace.
 
+Email verification is on by default in the product, and refuses to issue a code when no
+SMTP sender is configured rather than logging it. A local stack has no sender, so
+`local-dev` exports `USER_SYS_EMAIL_VERIFICATION=false` and registration works as it
+always did. To exercise the real flow, fill in the `USER_SYS_GOOGLE_SMTP_*` credentials
+and `export USER_SYS_EMAIL_VERIFICATION=true` — an explicit export always wins over the
+default set here.
+
 ## Layout
 
 ```
@@ -102,6 +109,26 @@ The script keeps logs, PIDs, build stamps, and animated phase markers under
 `/tmp/texera-local-dev/` by default (override via the `TEXERA_LOCAL_DEV_DIR`
 env var). It's safe to `rm -rf` between runs — it'll be recreated on the next
 invocation.
+
+## Rebuilding the Jupyter image
+
+`jupyter` is the only managed service that runs from a Texera-built image instead of
+natively, so edits to its customizations under
+`notebook-migration-service/src/main/resources/` (`custom.js`, `custom.css`,
+`start-texera-jupyter.sh`) do nothing until the image is rebuilt. CI publishes it, but a
+local edit needs a local build under the same tag:
+
+```sh
+docker build -f bin/dockerfiles/jupyter.dockerfile -t ghcr.io/apache/texera-jupyter:latest .
+bin/local-dev.sh up
+```
+
+Delete that local tag when you are done, otherwise it shadows the published image and you
+keep running your old build:
+
+```sh
+docker rmi ghcr.io/apache/texera-jupyter:latest
+```
 
 ## Adding a new managed service
 

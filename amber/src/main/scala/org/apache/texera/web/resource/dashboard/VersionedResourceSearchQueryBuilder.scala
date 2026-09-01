@@ -24,18 +24,53 @@ import org.apache.texera.web.resource.dashboard.FulltextSearchQueryUtils.{
   getDateFilter,
   getFullTextSearchFilter
 }
+import org.apache.texera.dao.jooq.generated.tables.User.USER
 import org.jooq.impl.DSL
-import org.jooq.{Condition, GroupField, Record, TableLike}
+import org.jooq.{Condition, Field, GroupField, Record, TableLike}
 
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 
 /**
-  * The one copy of FROM / WHERE / hydration for every LakeFS-backed resource. A concrete
-  * builder supplies only its [[VersionedResourceTables]] descriptor and its projection.
+  * The one copy of FROM / WHERE / projection / hydration for every LakeFS-backed resource. A
+  * concrete builder supplies only its [[VersionedResourceTables]] descriptor and the three
+  * projected columns the descriptor does not already name.
   */
 abstract class VersionedResourceSearchQueryBuilder[Rec <: Record, P](
     tables: VersionedResourceTables[Rec, P]
 ) extends SearchQueryBuilder {
+
+  /** The resource's LakeFS repository name, which [[VersionedResourceTables.hydrate]] sizes. */
+  protected val repositoryNameColumn: Field[String]
+
+  protected val isDownloadableColumn: Field[java.lang.Boolean]
+
+  protected val coverImageColumn: Field[String]
+
+  /**
+    * Built here rather than per-subclass, and `final` so a subclass cannot replace it, because
+    * `hydrate` reads columns the subclass would otherwise have to remember to project. `userEmail`
+    * is the one that bit: it defaults to `DSL.inline("")`, so omitting it cost nothing at compile
+    * time and silently made `ownerEmail` null on every row. Everything else comes off the
+    * descriptor, so the projection and the FROM clause cannot disagree about which columns they mean.
+    *
+    * `lazy` matters: the abstract members above are subclass `val`s, still null while this class's
+    * constructor runs.
+    */
+  final override protected lazy val mappedResourceSchema: UnifiedResourceSchema =
+    UnifiedResourceSchema(
+      resourceType = DSL.inline(tables.resourceType),
+      name = tables.nameColumn,
+      description = tables.descriptionColumn,
+      creationTime = tables.creationTimeColumn,
+      ownerId = tables.ownerUidColumn,
+      userEmail = USER.EMAIL,
+      versionedResourceId = tables.idColumn,
+      repositoryName = repositoryNameColumn,
+      isVersionedResourcePublic = tables.isPublicColumn,
+      isVersionedResourceDownloadable = isDownloadableColumn,
+      versionedResourceUserAccess = tables.access.privilegeColumn,
+      versionedResourceCoverImage = coverImageColumn
+    )
 
   /**
     * `uid` is null for anonymous callers. Visibility: public only when `uid` is null;
@@ -78,6 +113,7 @@ abstract class VersionedResourceSearchQueryBuilder[Rec <: Record, P](
       tables.creationTimeColumn
     )
       .and(getContainsFilter(tables.searchIds(params), tables.idColumn))
+      .and(getContainsFilter(params.owners, USER.EMAIL))
       .and(
         getFullTextSearchFilter(splitKeywords, List(tables.nameColumn, tables.descriptionColumn))
       )

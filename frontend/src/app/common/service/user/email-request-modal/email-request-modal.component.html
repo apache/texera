@@ -36,5 +36,19 @@
   class="email-modal-input"
   nz-input
   [(ngModel)]="email"
+  [attr.readonly]="step === 'code' ? '' : null"
   type="email"
   placeholder="you@university.edu" />
+
+<!-- The code is bound to the address it was mailed to, so the address is frozen once it is sent. -->
+@if (step === "code") {
+<label class="email-modal-code-label"> Enter the code sent to <strong>{{ email }}</strong> </label>
+<input
+  class="email-modal-input"
+  nz-input
+  [(ngModel)]="code"
+  inputmode="numeric"
+  autocomplete="one-time-code"
+  maxlength="6"
+  placeholder="000000" />
+}

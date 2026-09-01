@@ -68,8 +68,12 @@ class SklearnClassifierOpDescCodegenSpec extends AnyFlatSpec with Matchers {
     code should include("from sklearn.neighbors import KNeighborsClassifier")
     code should include(s"Y = table[${decodeExpr("label")}]")
     code should include(s"X = table.drop(${decodeExpr("label")}, axis=1)")
-    // Feature-column path: X is kept whole, the text attribute is never read.
+    // Feature-column path: every column an estimator can fit is kept, the rest are
+    // named on the console, and the text attribute is never read.
     code should not include "ColumnTransformer("
+    code should include("""_fittable = X.select_dtypes(include=["number", "bool"])""")
+    code should include("""print("Ignoring columns an estimator cannot fit:", _ignored)""")
+    code should include("X = _fittable")
     code should not include decodeExpr("docs")
     normalized(code) should include(
       "self.model = make_pipeline( KNeighborsClassifier()).fit(X, Y)"
@@ -81,7 +85,9 @@ class SklearnClassifierOpDescCodegenSpec extends AnyFlatSpec with Matchers {
 
   it should "select the text column and prepend CountVectorizer when countVectorizer is on" in {
     val code = descriptor(countVectorizer = true).generatePythonCode()
-    // ColumnTransformer selects the columns itself, so X stays the whole frame.
+    // ColumnTransformer selects the columns itself, so X stays the whole frame, and
+    // narrowing it to the fittable columns would drop the text ones it reads.
+    code should not include "_fittable"
     normalized(code) should include(
       s"""self.model = make_pipeline(ColumnTransformer([("text0", CountVectorizer(), ${decodeExpr(
         "docs"
@@ -120,10 +126,44 @@ class SklearnClassifierOpDescCodegenSpec extends AnyFlatSpec with Matchers {
     val code = descriptor(tfidfTransformer = true).generatePythonCode()
     // Without countVectorizer there is no text-column selection.
     code should not include "ColumnTransformer("
+    code should include("X = _fittable")
     code should not include decodeExpr("docs")
     normalized(code) should include(
       "self.model = make_pipeline( TfidfTransformer(), KNeighborsClassifier()).fit(X, Y)"
     )
     code should not include "CountVectorizer()"
+  }
+
+  // --- the base's own model-identity defaults --------------------------------
+
+  // Declared inside the spec class on purpose: PythonClassgraphScanner drops
+  // non-static enclosed classes, which is what keeps SklearnOpDescRegistrySpec's
+  // and PythonCodeRawInvalidTextSpec's classpath scans from treating this stub as
+  // a shipped operator. A top-level subclass here would break both suites.
+  private class BareClassifier extends SklearnClassifierOpDesc
+
+  // Overrides only the model name, so the two hooks hold different values. That
+  // is what separates the base's own getImportStatements body from a body that
+  // merely forwards to the other hook — on BareClassifier alone both return "",
+  // which makes an exchange between them invisible.
+  private class NamedOnlyClassifier extends SklearnClassifierOpDesc {
+    override def getUserFriendlyModelName = "ProbeModel"
+  }
+
+  "SklearnClassifierOpDesc" should "leave both model-identity hooks blank as base placeholders" in {
+    // NOT a claim that "" is the intended design. SklearnModelOpDesc declares both
+    // hooks abstract, and all of the shipped classifiers override them; these two
+    // bodies are placeholders that satisfy the abstract contract for the family.
+    // What is pinned is therefore what a subclass that forgets to override
+    // actually ships — a nameless operator whose generated pipeline stage comes
+    // out empty — not a default anyone should rely on. Leaving these two hooks
+    // abstract on SklearnClassifierOpDesc is filed as a follow-up rather than
+    // asserted here.
+    val bare = new BareClassifier
+    bare.getImportStatements shouldBe ""
+    bare.getUserFriendlyModelName shouldBe ""
+
+    // The import hook is its own constant, not an alias for the name hook.
+    new NamedOnlyClassifier().getImportStatements shouldBe ""
   }
 }

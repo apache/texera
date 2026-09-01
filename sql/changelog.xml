@@ -119,9 +119,14 @@
         <sqlFile path="sql/updates/41.sql"/>
     </changeSet>
 
-    <!-- Add model hub engagement tables (likes, view counts) and the model full-text index -->
+    <!-- Prefix the dataset upload-limit site settings with `dataset_` -->
     <changeSet id="42" author="tanishqgandhi1908">
         <sqlFile path="sql/updates/42.sql"/>
+    </changeSet>
+
+    <!-- Add model hub engagement tables (likes, view counts) and the model full-text index -->
+    <changeSet id="43" author="tanishqgandhi1908">
+        <sqlFile path="sql/updates/43.sql"/>
     </changeSet>
 
     <!-- example changeSet

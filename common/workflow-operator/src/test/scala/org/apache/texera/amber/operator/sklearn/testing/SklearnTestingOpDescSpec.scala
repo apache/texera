@@ -80,6 +80,28 @@ class SklearnTestingOpDescSpec extends AnyFlatSpec with Matchers {
     code should include(".predict(")
   }
 
+  // The scores are computed over the rows the model can be applied to, the way
+  // COUNT and MIN are computed over the rows that have a value.
+  it should "drop rows with missing values before scoring" in {
+    val d = new SklearnTestingOpDesc
+    d.model = "model"
+    d.target = "y"
+    d.generatePythonCode() should include("Table(self.data).dropna()")
+  }
+
+  // The scorer reads every column but the target, so it has to leave out what an
+  // estimator cannot fit for the same reason the fitting operators do, and leave
+  // out the same columns: a model fitted without them refuses a frame naming them.
+  it should "narrow the features to the columns an estimator can fit" in {
+    val d = new SklearnTestingOpDesc
+    d.model = "model"
+    d.target = "y"
+    val code = d.generatePythonCode()
+    code should include("""_fittable = X.select_dtypes(include=["number", "bool"])""")
+    code should include("""print("Ignoring columns an estimator cannot fit:", _ignored)""")
+    code should include("X = _fittable")
+  }
+
   "SklearnTestingOpDesc" should
     "round-trip its config fields through the polymorphic base" in {
     val d = new SklearnTestingOpDesc

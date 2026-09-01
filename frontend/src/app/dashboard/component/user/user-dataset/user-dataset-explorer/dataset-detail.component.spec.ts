@@ -27,12 +27,9 @@ import { NzModalService } from "ng-zorro-antd/modal";
 import { NzResizableDirective } from "ng-zorro-antd/resizable";
 import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
 import { MarkdownService } from "ngx-markdown";
-import {
-  DatasetDetailComponent,
-  ABORT_RETRY_BACKOFF_BASE_MS,
-  ABORT_RETRY_MAX_ATTEMPTS,
-} from "./dataset-detail.component";
+import { DatasetDetailComponent } from "./dataset-detail.component";
 import { DatasetService, MultipartUploadProgress } from "../../../../service/user/dataset/dataset.service";
+import { VersionUploaderComponent } from "../../version-uploader/version-uploader.component";
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
 import { DownloadService } from "../../../../service/user/download/download.service";
 import { UserService } from "../../../../../common/service/user/user.service";
@@ -50,37 +47,10 @@ import { NzResizeEvent } from "ng-zorro-antd/resizable";
 import { format } from "date-fns";
 import { USER_DATASET } from "../../../../../app-routing.constant";
 
-describe("DatasetDetailComponent upload queue", () => {
+describe("DatasetDetailComponent rendered explorer", () => {
   let fixture: ComponentFixture<DatasetDetailComponent>;
   let component: DatasetDetailComponent;
-  let uploadSubjects: Subject<MultipartUploadProgress>[];
-  let uploadedPaths: string[];
-  let multipartUploadSpy: ReturnType<typeof vi.fn>;
-
-  const makeFileItem = (name: string): FileUploadItem => ({
-    file: new File(["x"], name),
-    name,
-    description: "",
-    uploadProgress: 0,
-    isUploadingFlag: false,
-    restart: false,
-  });
-
-  const dropFiles = (...names: string[]) => component.onNewUploadFilesChanged(names.map(makeFileItem));
-
-  const finishUpload = (index: number, filePath: string, totalTime = 1) =>
-    uploadSubjects[index].next({ filePath, percentage: 100, status: "finished", totalTime });
-
   beforeEach(() => {
-    uploadSubjects = [];
-    uploadedPaths = [];
-    multipartUploadSpy = vi.fn((_ownerEmail: string, _datasetName: string, filePath: string) => {
-      const progress = new Subject<MultipartUploadProgress>();
-      uploadSubjects.push(progress);
-      uploadedPaths.push(filePath);
-      return progress.asObservable();
-    });
-
     TestBed.configureTestingModule({
       imports: [DatasetDetailComponent, ...commonTestImports],
       providers: [
@@ -89,8 +59,6 @@ describe("DatasetDetailComponent upload queue", () => {
         {
           provide: DatasetService,
           useValue: {
-            multipartUpload: multipartUploadSpy,
-            finalizeMultipartUpload: vi.fn(() => of({})),
             getDataset: vi.fn(() =>
               of({
                 dataset: { name: "test-dataset", description: "", isPublic: false, isDownloadable: true },
@@ -145,377 +113,6 @@ describe("DatasetDetailComponent upload queue", () => {
    * A failed upload has to tell the user why, mark the task failed without leaving its bar at
    * 100%, and free the concurrency slot — otherwise the queue stalls behind a dead upload.
    */
-  describe("a failed upload", () => {
-    const notification = () => TestBed.inject(NotificationService) as unknown as { error: ReturnType<typeof vi.fn> };
-
-    /** Fails the in-flight upload of `name` with the given HTTP status. */
-    const failUpload = (index: number, status: number) =>
-      uploadSubjects[index].error(new HttpErrorResponse({ status }));
-
-    it("names the 409 conflict so the user knows to retry", () => {
-      dropFiles("a.csv");
-
-      failUpload(0, HttpStatusCode.Conflict);
-
-      expect(notification().error).toHaveBeenCalledWith(expect.stringContaining("Upload blocked (409)"));
-    });
-
-    it("falls back to a generic message for any other failure", () => {
-      dropFiles("a.csv");
-
-      failUpload(0, HttpStatusCode.InternalServerError);
-
-      expect(notification().error).toHaveBeenCalledWith("Upload failed. Please retry.");
-    });
-
-    it("marks the task failed and keeps its progress rather than showing it complete", () => {
-      dropFiles("a.csv");
-      // a partially-uploaded file: the bar must not jump to 100 when it fails
-      uploadSubjects[0].next({ filePath: "a.csv", percentage: 42, status: "uploading" });
-
-      failUpload(0, HttpStatusCode.InternalServerError);
-
-      const task = component.uploadTasks.find(t => t.filePath === "a.csv");
-      expect(task?.status).toBe("failed");
-      expect(task?.percentage).toBe(42);
-    });
-
-    it("frees the concurrency slot so a queued upload can start", () => {
-      // maxConcurrentFiles is 3, so a fourth file waits for a slot
-      dropFiles("a.csv", "b.csv", "c.csv", "d.csv");
-      expect(uploadedPaths).toEqual(["a.csv", "b.csv", "c.csv"]);
-
-      failUpload(0, HttpStatusCode.InternalServerError);
-
-      expect(uploadedPaths).toContain("d.csv");
-    });
-
-    it("still reports the failure when the task is no longer in the list", () => {
-      dropFiles("a.csv");
-      component.uploadTasks = []; // the taskIndex === -1 arm
-
-      expect(() => failUpload(0, HttpStatusCode.InternalServerError)).not.toThrow();
-      expect(notification().error).toHaveBeenCalled();
-    });
-  });
-
-  /**
-   * A progress event and the five-second hide timer both address a row by its index in
-   * `uploadTasks`, and that row can already be gone — dismissed by the user — by the time
-   * either arrives, so both lookups have to survive the miss. The completion path also has
-   * to pick a key for `uploadTimeMap` out of a name that may carry directories.
-   */
-  describe("progress bookkeeping", () => {
-    beforeEach(() => {
-      // The completion path arms a 5s row-hide timer; keep it off the real clock.
-      vi.useFakeTimers();
-    });
-
-    afterEach(() => {
-      vi.useRealTimers();
-    });
-
-    it("ignores progress for a row that is no longer listed", () => {
-      dropFiles("a.csv");
-      component.uploadTasks = []; // dismissed while a chunk was still in flight
-
-      expect(() => uploadSubjects[0].next({ filePath: "a.csv", percentage: 50, status: "uploading" })).not.toThrow();
-      // The late event must not resurrect the row or write a phantom index into the list.
-      expect(component.uploadTasks).toEqual([]);
-      expect(Object.keys(component.uploadTasks)).toHaveLength(0);
-    });
-
-    it("keys the upload time by the last path segment, falling back to the whole name", () => {
-      // Taking the segment after the last "/" yields "" for a name that ends in one, and
-      // keying the map under "" would collide every such upload onto one entry; the
-      // fallback keeps the name the caller gave instead.
-      dropFiles("nested/dir/");
-
-      finishUpload(0, "nested/dir/", 7);
-
-      expect(component.uploadTimeMap.get("nested/dir/")).toBe(7);
-      expect(component.uploadTimeMap.has("")).toBe(false);
-
-      // The reader of this map (user-dataset-staged-objects-list) looks a row up by
-      // `filePath.split("/").pop() || filePath`, so an ordinary nested name has to be
-      // keyed by its last segment here or the per-file time silently stops rendering.
-      dropFiles("dir/sub/a.csv");
-
-      finishUpload(1, "dir/sub/a.csv", 9);
-
-      expect(component.uploadTimeMap.get("a.csv")).toBe(9);
-      expect(component.uploadTimeMap.has("dir/sub/a.csv")).toBe(false);
-    });
-
-    it("ignores a hide request for a row that is gone", () => {
-      // Every one of scheduleHide's call sites already checks the index, so the -1 arm
-      // pins a defensive no-op rather than a reachable scenario: without the guard the
-      // lookup would read `filePath` off undefined and throw. The valid-index call that
-      // follows keeps a scheduleHide which does nothing at all from passing this test.
-      dropFiles("a.csv");
-      const before = [...component.uploadTasks];
-
-      expect(() => (component as any).scheduleHide(-1)).not.toThrow();
-      expect(component.uploadTasks).toEqual(before);
-
-      (component as any).scheduleHide(0);
-      vi.advanceTimersByTime(5000);
-
-      expect(component.uploadTasks).toEqual([]);
-    });
-  });
-
-  /**
-   * Aborting an in-flight upload has to survive the backend still finalizing the previous attempt:
-   * the abort call is retried on 409 up to ABORT_RETRY_MAX_ATTEMPTS, a 404 means it is already gone,
-   * and the caller's callback must fire exactly once down every one of those paths.
-   */
-  describe("aborting an upload", () => {
-    let finalize: ReturnType<typeof vi.fn>;
-
-    beforeEach(() => {
-      vi.useFakeTimers();
-      finalize = TestBed.inject(DatasetService).finalizeMultipartUpload as unknown as ReturnType<typeof vi.fn>;
-    });
-
-    afterEach(() => {
-      vi.useRealTimers();
-    });
-
-    /** Starts an upload and reports progress, leaving one task in flight. */
-    function inFlight(name = "a.txt") {
-      dropFiles(name);
-      uploadSubjects[0].next({ filePath: name, percentage: 10, status: "uploading", totalTime: 0 });
-      return component.uploadTasks.find(t => t.filePath === name)!;
-    }
-
-    const conflict = () => throwError(() => ({ status: 409 }) as any);
-    const gone = () => throwError(() => ({ status: 404 }) as any);
-
-    it("marks the task aborted and tells the caller once", () => {
-      const task = inFlight();
-      const onAborted = vi.fn();
-
-      component.onClickAbortUploadProgress(task as any, onAborted);
-
-      expect(finalize).toHaveBeenCalledWith("owner@texera.com", "test-dataset", "a.txt", true);
-      expect(component.uploadTasks.find(t => t.filePath === "a.txt")!.status).toBe("aborted");
-      expect(onAborted).toHaveBeenCalledTimes(1);
-
-      // The aborted row goes on the same five-second hide timer a finished one does, so
-      // it clears itself out of the list instead of sitting there for the rest of the session.
-      vi.advanceTimersByTime(5000);
-
-      expect(component.uploadTasks.find(t => t.filePath === "a.txt")).toBeUndefined();
-    });
-
-    it("stops listening to the upload it aborted", () => {
-      const task = inFlight();
-
-      component.onClickAbortUploadProgress(task as any);
-
-      // The progress stream is unsubscribed, so a late event cannot resurrect the task.
-      uploadSubjects[0].next({ filePath: "a.txt", percentage: 100, status: "finished", totalTime: 1 });
-      expect(component.uploadTasks.find(t => t.filePath === "a.txt")!.status).toBe("aborted");
-    });
-
-    it("treats a 404 as already aborted rather than an error", () => {
-      finalize.mockReturnValueOnce(gone());
-      const task = inFlight();
-      const onAborted = vi.fn();
-
-      component.onClickAbortUploadProgress(task as any, onAborted);
-
-      expect(onAborted).toHaveBeenCalledTimes(1);
-      expect(finalize).toHaveBeenCalledTimes(1);
-    });
-
-    it("retries a 409 after a backoff and finishes once the server catches up", () => {
-      // The server is still finalizing the previous attempt; the abort has to wait it out.
-      finalize.mockReturnValueOnce(conflict());
-      const task = inFlight();
-      const onAborted = vi.fn();
-
-      component.onClickAbortUploadProgress(task as any, onAborted);
-      expect(onAborted).not.toHaveBeenCalled();
-
-      vi.advanceTimersByTime(ABORT_RETRY_BACKOFF_BASE_MS);
-
-      expect(finalize).toHaveBeenCalledTimes(2);
-      expect(onAborted).toHaveBeenCalledTimes(1);
-    });
-
-    it("backs off further on each successive conflict", () => {
-      finalize.mockReturnValue(conflict());
-      const task = inFlight();
-
-      component.onClickAbortUploadProgress(task as any);
-      expect(finalize).toHaveBeenCalledTimes(1);
-
-      // First wait is BASE * 1, the second BASE * 2, so BASE alone is not enough for the third call.
-      vi.advanceTimersByTime(ABORT_RETRY_BACKOFF_BASE_MS);
-      expect(finalize).toHaveBeenCalledTimes(2);
-
-      vi.advanceTimersByTime(ABORT_RETRY_BACKOFF_BASE_MS);
-      expect(finalize).toHaveBeenCalledTimes(2);
-
-      vi.advanceTimersByTime(ABORT_RETRY_BACKOFF_BASE_MS);
-      expect(finalize).toHaveBeenCalledTimes(3);
-    });
-
-    it("gives up after the attempt limit but still reports the abort", () => {
-      // Without the bound this would retry forever against a permanently conflicted server.
-      finalize.mockReturnValue(conflict());
-      const task = inFlight();
-      const onAborted = vi.fn();
-
-      component.onClickAbortUploadProgress(task as any, onAborted);
-      vi.advanceTimersByTime(ABORT_RETRY_BACKOFF_BASE_MS * ABORT_RETRY_MAX_ATTEMPTS * (ABORT_RETRY_MAX_ATTEMPTS + 1));
-
-      expect(finalize).toHaveBeenCalledTimes(ABORT_RETRY_MAX_ATTEMPTS + 1);
-      expect(onAborted).toHaveBeenCalledTimes(1);
-    });
-
-    it("reports the abort once even on an error the retry does not cover", () => {
-      finalize.mockReturnValueOnce(throwError(() => ({ status: 500 }) as any));
-      const task = inFlight();
-      const onAborted = vi.fn();
-
-      component.onClickAbortUploadProgress(task as any, onAborted);
-
-      expect(onAborted).toHaveBeenCalledTimes(1);
-      expect(finalize).toHaveBeenCalledTimes(1);
-    });
-
-    it("frees the concurrency slot so a queued upload can start", () => {
-      // Aborting has to release the slot as an ordinary completion would; otherwise the queue
-      // stalls behind an upload that is no longer running.
-      dropFiles("a.txt", "b.txt", "c.txt", "d.txt");
-      expect(uploadedPaths).toEqual(["a.txt", "b.txt", "c.txt"]);
-      uploadSubjects[0].next({ filePath: "a.txt", percentage: 10, status: "uploading", totalTime: 0 });
-      const task = component.uploadTasks.find(t => t.filePath === "a.txt")!;
-
-      component.onClickAbortUploadProgress(task as any);
-
-      expect(uploadedPaths).toContain("d.txt");
-    });
-
-    it("cancelExistingUpload aborts an upload that is still running", () => {
-      inFlight("b.txt");
-      const onCanceled = vi.fn();
-
-      component.cancelExistingUpload("b.txt", onCanceled);
-
-      expect(finalize).toHaveBeenCalledWith("owner@texera.com", "test-dataset", "b.txt", true);
-      expect(onCanceled).toHaveBeenCalledTimes(1);
-    });
-
-    it("frees the slot of an upload aborted before its first part went out", () => {
-      // A task sits at "initializing" until the service reports its first progress.
-      // Cancelling in that window still has to hand the slot to whatever is queued
-      // behind it, or the queue stalls on an upload that never started.
-      dropFiles("a.txt", "b.txt", "c.txt", "d.txt");
-      expect(uploadedPaths).toEqual(["a.txt", "b.txt", "c.txt"]);
-      const initializing = component.uploadTasks.find(t => t.filePath === "a.txt")!;
-      expect(initializing.status).toBe("initializing");
-
-      component.onClickAbortUploadProgress(initializing as any);
-
-      expect(uploadedPaths).toContain("d.txt");
-      expect(component.activeCount).toBe(3);
-    });
-
-    it("does not free a second slot when a finished upload's row is dismissed", () => {
-      // The row's button becomes "Close" once the upload is done, and the slot was
-      // already released by the completion; releasing it a second time would let a
-      // fourth upload run past the concurrency cap.
-      dropFiles("a.txt", "b.txt", "c.txt", "d.txt");
-      finishUpload(0, "a.txt");
-      expect(uploadedPaths).toContain("d.txt");
-      const finished = component.uploadTasks.find(t => t.filePath === "a.txt")!;
-      expect(finished.status).toBe("finished");
-
-      component.onClickAbortUploadProgress(finished as any);
-
-      expect(component.activeCount).toBe(3);
-      const dismissed = component.uploadTasks.find(t => t.filePath === "a.txt")!;
-      expect(dismissed.status).toBe("aborted");
-
-      // The row lingers for five seconds after being dismissed, so the same X is
-      // still there to be clicked again — and that click must not release either.
-      component.onClickAbortUploadProgress(dismissed as any);
-
-      expect(component.activeCount).toBe(3);
-    });
-
-    it("does not free a second slot when a failed upload's row is dismissed", () => {
-      // The failure handler already released this upload's slot and let the queued
-      // fourth file start; dismissing the row it left behind must not release a
-      // second slot, or a fifth upload would run past the cap of three.
-      dropFiles("a.txt", "b.txt", "c.txt", "d.txt");
-      uploadSubjects[0].error(new HttpErrorResponse({ status: 500 }));
-      expect(uploadedPaths).toContain("d.txt");
-      const failed = component.uploadTasks.find(t => t.filePath === "a.txt")!;
-      expect(failed.status).toBe("failed");
-
-      component.onClickAbortUploadProgress(failed as any);
-
-      expect(component.activeCount).toBe(3);
-      expect(multipartUploadSpy).toHaveBeenCalledTimes(4);
-    });
-
-    it("cancelExistingUpload aborts an upload whose first part has not gone out", () => {
-      // Until the service reports a first chunk the task sits at "initializing".
-      // A re-drop in that window has to abort that attempt rather than fall
-      // through and race a second multipart upload against it for the same path,
-      // which is exactly the 409 the upload error handler warns about.
-      dropFiles("b.txt");
-      expect(component.uploadTasks.find(t => t.filePath === "b.txt")!.status).toBe("initializing");
-      const onCanceled = vi.fn();
-
-      component.cancelExistingUpload("b.txt", onCanceled);
-
-      expect(finalize).toHaveBeenCalledWith("owner@texera.com", "test-dataset", "b.txt", true);
-      expect(component.uploadTasks.find(t => t.filePath === "b.txt")!.status).toBe("aborted");
-      // The slot goes back to the queue instead of being held by an attempt that
-      // is no longer running.
-      expect(component.activeCount).toBe(0);
-      expect(onCanceled).toHaveBeenCalledTimes(1);
-    });
-
-    it("tells the caller once even when the abort call reports more than once", () => {
-      // The callback is latched so that it fires exactly once no matter how many of the
-      // subscription's handlers reach it. HttpClient itself delivers a single response,
-      // so this drives the latch directly: a response followed by a stream failure runs
-      // the next handler and then the error handler, and both of them report done.
-      finalize.mockReturnValueOnce(
-        concat(
-          of({}),
-          throwError(() => ({ status: 500 }) as any)
-        )
-      );
-      const task = inFlight();
-      const onAborted = vi.fn();
-
-      component.onClickAbortUploadProgress(task as any, onAborted);
-
-      expect(onAborted).toHaveBeenCalledTimes(1);
-    });
-
-    it("aborts a task whose row was already dropped without resurrecting it", () => {
-      const task = inFlight();
-      component.uploadTasks = []; // the row was dismissed before the abort was clicked
-
-      component.onClickAbortUploadProgress(task as any);
-
-      expect(finalize).toHaveBeenCalledWith("owner@texera.com", "test-dataset", "a.txt", true);
-      // Writing "aborted" back at a missing index would leave a phantom "-1" property on
-      // the array, which neither a throw nor `.length` would reveal.
-      expect(component.uploadTasks).toEqual([]);
-      expect(Object.keys(component.uploadTasks)).toHaveLength(0);
-    });
-  });
-
   /**
    * The explorer's toolbar and upload panel are template-only: whether a download is offered at all,
    * which of the maximize/minimize pair is showing, and what an in-flight upload reports. The suite
@@ -678,64 +275,29 @@ describe("DatasetDetailComponent upload queue", () => {
       });
     });
 
-    describe("upload progress", () => {
-      /**
-       * Puts one task on the panel in the given state and opens it. The panel is gated on the
-       * separate activeUploads counter rather than on uploadTasks, and ng-zorro collapses it by
-       * default, so both have to be arranged before its body exists.
-       */
-      function withTask(over: Record<string, unknown>): HTMLElement {
-        const el = render(c => {
-          (c as any).activeUploads = 1;
-          (c as any).uploadTasks = [
-            {
-              filePath: "big.csv",
-              percentage: 40,
-              status: "uploading",
-              uploadSpeed: 1024,
-              totalTime: 12,
-              estimatedTimeRemaining: 30,
-              ...over,
-            },
-          ];
-        });
-        const header = Array.from(el.querySelectorAll<HTMLElement>(".ant-collapse-header")).find(h =>
-          (h.textContent || "").includes("Uploading:")
-        );
-        header!.click();
-        fixture.detectChanges();
-        return el;
-      }
+    it("stages a file deletion and lets the panel count it", () => {
+      render(); // the panel lives in the Versions & Files tab, which nz-tabs renders lazily
+      const node: DatasetFileNode = { name: "a.txt", type: "file", parentDir: "/owner@texera.com/test-dataset/v1" };
 
-      it("shows no statistics while an upload is still initializing", () => {
-        // There is nothing to report yet; showing a 0 B/s row reads as a stalled upload.
-        const el = withTask({ status: "initializing" });
+      component.onPreviouslyUploadedFileDeleted(node);
 
-        expect(el.querySelector(".upload-stats")).toBeNull();
-      });
+      const panel = fixture.debugElement.query(By.directive(VersionUploaderComponent))
+        .componentInstance as VersionUploaderComponent;
+      expect(panel.pendingChangesCount).toBe(1);
+    });
 
-      it("reports speed and both timings while an upload runs", () => {
-        const el = withTask({ status: "uploading" });
+    it("reloads the version list once the panel reports a new version", () => {
+      render(); // the panel lives in the Versions & Files tab, which nz-tabs renders lazily
+      const datasetService = TestBed.inject(DatasetService) as unknown as Record<string, ReturnType<typeof vi.fn>>;
+      const before = datasetService["retrieveDatasetVersionList"].mock.calls.length;
+      const panel = fixture.debugElement.query(By.directive(VersionUploaderComponent))
+        .componentInstance as VersionUploaderComponent;
 
-        const stats = el.querySelector(".upload-stats")!;
-        expect(stats.textContent).toContain("elapsed");
-        expect(stats.textContent).toContain("left");
-        expect(stats.querySelector(".fixed-width-speed")).not.toBeNull();
-      });
+      panel.versionCreated.emit();
 
-      it("replaces the live figures with a total once the upload finishes", () => {
-        const el = withTask({ status: "finished" });
-
-        const stats = el.querySelector(".upload-stats")!;
-        expect(stats.textContent).toContain("Upload time:");
-        expect(stats.textContent).not.toContain("left");
-      });
-
-      it("reports a total for an aborted upload too", () => {
-        const el = withTask({ status: "aborted" });
-
-        expect(el.querySelector(".upload-stats")!.textContent).toContain("Upload time:");
-      });
+      // The panel owns the version flow but not the page's state: without this binding the new
+      // version is committed and never appears in the picker until a reload.
+      expect(datasetService["retrieveDatasetVersionList"].mock.calls.length).toBe(before + 1);
     });
   });
 
@@ -787,247 +349,6 @@ describe("DatasetDetailComponent upload queue", () => {
 
       expect(onAdd).toHaveBeenCalledTimes(1);
     });
-  });
-
-  it("starts at most maxConcurrentFiles uploads immediately and queues the rest", () => {
-    dropFiles("f1.txt", "f2.txt", "f3.txt", "f4.txt", "f5.txt");
-
-    expect(multipartUploadSpy).toHaveBeenCalledTimes(3);
-    expect(uploadedPaths).toEqual(["f1.txt", "f2.txt", "f3.txt"]);
-    expect(component.activeCount).toBe(3);
-    expect(component.queuedCount).toBe(2);
-    expect(component.queuedFileNames).toEqual(["f4.txt", "f5.txt"]);
-  });
-
-  it("does nothing when an empty file list is dropped", () => {
-    dropFiles();
-
-    expect(multipartUploadSpy).not.toHaveBeenCalled();
-    expect(component.activeCount).toBe(0);
-    expect(component.queuedCount).toBe(0);
-    expect(component.queuedFileNames).toEqual([]);
-  });
-
-  it("starts no upload at all when the route carried no dataset id", () => {
-    // Every multipart call is addressed to a dataset, so without one there is
-    // nowhere to upload into: the drop is refused outright rather than leaving
-    // rows on the panel for uploads that were never started.
-    component.did = undefined;
-
-    dropFiles("f1.txt", "f2.txt");
-
-    expect(multipartUploadSpy).not.toHaveBeenCalled();
-    expect(component.uploadTasks).toEqual([]);
-    expect(component.activeCount).toBe(0);
-  });
-
-  it("starts the next queued upload when an active upload finishes", () => {
-    dropFiles("f1.txt", "f2.txt", "f3.txt", "f4.txt", "f5.txt");
-
-    finishUpload(0, "f1.txt");
-
-    expect(multipartUploadSpy).toHaveBeenCalledTimes(4);
-    expect(uploadedPaths[3]).toBe("f4.txt");
-    expect(component.activeCount).toBe(3);
-    expect(component.queuedCount).toBe(1);
-    expect(component.queuedFileNames).toEqual(["f5.txt"]);
-  });
-
-  it("removes a cancelled file from the pending queue without starting it", () => {
-    dropFiles("f1.txt", "f2.txt", "f3.txt", "f4.txt", "f5.txt");
-
-    component.cancelExistingUpload("f4.txt");
-
-    expect(multipartUploadSpy).toHaveBeenCalledTimes(3);
-    expect(component.queuedCount).toBe(1);
-    expect(component.queuedFileNames).toEqual(["f5.txt"]);
-  });
-
-  it("ignores cancellation of a file that is neither active nor queued", () => {
-    dropFiles("f1.txt", "f2.txt", "f3.txt", "f4.txt");
-
-    component.cancelExistingUpload("missing.txt");
-
-    expect(component.activeCount).toBe(3);
-    expect(component.queuedCount).toBe(1);
-    expect(component.queuedFileNames).toEqual(["f4.txt"]);
-  });
-
-  // #5586: the template reads queuedFileNames on every change-detection pass,
-  // so it must not allocate a new array unless the queue changed.
-  it("keeps the same queuedFileNames array reference while the queue is unchanged", () => {
-    dropFiles("f1.txt", "f2.txt", "f3.txt", "f4.txt", "f5.txt");
-
-    const firstRead = component.queuedFileNames;
-
-    expect(component.queuedFileNames).toBe(firstRead);
-  });
-
-  it("exposes a new queuedFileNames array after the queue changes", () => {
-    dropFiles("f1.txt", "f2.txt", "f3.txt", "f4.txt", "f5.txt");
-    const beforeCancel = component.queuedFileNames;
-
-    component.cancelExistingUpload("f4.txt");
-
-    expect(component.queuedFileNames).not.toBe(beforeCancel);
-    expect(component.queuedFileNames).toEqual(["f5.txt"]);
-  });
-
-  it("identifies pending queue entries by file name in trackByPendingFile", () => {
-    expect(component.trackByPendingFile(0, "dir/a.txt")).toBe("dir/a.txt");
-  });
-
-  // A resumed upload with no missing parts finishes with totalTime exactly 0;
-  // the slot must still be released.
-  it("releases the concurrency slot when a finished upload reports totalTime 0", () => {
-    dropFiles("f1.txt", "f2.txt", "f3.txt", "f4.txt");
-
-    finishUpload(0, "f1.txt", 0);
-
-    expect(multipartUploadSpy).toHaveBeenCalledTimes(4);
-    expect(uploadedPaths[3]).toBe("f4.txt");
-    expect(component.activeCount).toBe(3);
-    expect(component.queuedCount).toBe(0);
-  });
-
-  // The Pending header updates per file, so the Finished header must too — it
-  // cannot wait for the throttled staged-objects refetch.
-  it("updates the Finished count immediately when uploads finish", () => {
-    dropFiles("f1.txt", "f2.txt", "f3.txt", "f4.txt");
-    expect(component.pendingChangesCount).toBe(0);
-
-    finishUpload(0, "f1.txt");
-    expect(component.pendingChangesCount).toBe(1);
-
-    finishUpload(1, "f2.txt");
-    expect(component.pendingChangesCount).toBe(2);
-  });
-
-  it("reconciles the optimistic Finished count with a diff response", () => {
-    dropFiles("f1.txt", "f2.txt", "f3.txt");
-    finishUpload(0, "f1.txt");
-    finishUpload(1, "f2.txt");
-
-    const diff: DatasetStagedObject[] = [{ path: "f1.txt", pathType: "file", diffType: "added", sizeBytes: 1 }];
-    component.onStagedObjectsUpdated(diff);
-
-    // f1 is confirmed by the response; f2 stays counted until a response includes it.
-    expect(component.pendingChangesCount).toBe(2);
-
-    component.onStagedObjectsUpdated([...diff, { path: "f2.txt", pathType: "file", diffType: "added", sizeBytes: 1 }]);
-    expect(component.pendingChangesCount).toBe(2);
-  });
-
-  it("keeps an in-progress upload's slot while progress events stream in", () => {
-    dropFiles("f1.txt", "f2.txt", "f3.txt", "f4.txt");
-
-    uploadSubjects[0].next({ filePath: "f1.txt", percentage: 50, status: "uploading" });
-
-    expect(component.uploadTasks.find(t => t.filePath === "f1.txt")?.percentage).toBe(50);
-    expect(component.activeCount).toBe(3);
-    expect(component.queuedCount).toBe(1);
-  });
-
-  it("does not double-count a finished upload already confirmed by a diff response", () => {
-    dropFiles("f1.txt");
-    finishUpload(0, "f1.txt");
-    component.onStagedObjectsUpdated([{ path: "f1.txt", pathType: "file", diffType: "added", sizeBytes: 1 }]);
-    expect(component.pendingChangesCount).toBe(1);
-
-    dropFiles("f1.txt"); // re-upload the already-staged file
-    finishUpload(1, "f1.txt");
-
-    expect(component.pendingChangesCount).toBe(1);
-  });
-
-  it("does not start queued uploads beyond a lowered concurrency limit", () => {
-    dropFiles("f1.txt", "f2.txt", "f3.txt", "f4.txt");
-    component.maxConcurrentFiles = 1;
-
-    finishUpload(0, "f1.txt");
-
-    expect(component.activeCount).toBe(2);
-    expect(component.queuedCount).toBe(1);
-    expect(multipartUploadSpy).toHaveBeenCalledTimes(3);
-  });
-
-  it("clears the Finished count when a version is created", () => {
-    dropFiles("f1.txt");
-    finishUpload(0, "f1.txt");
-    expect(component.pendingChangesCount).toBe(1);
-
-    component.versionName = "v1";
-    component.onClickOpenVersionCreator();
-
-    expect(component.pendingChangesCount).toBe(0);
-  });
-
-  it("does not remove a re-uploaded file's active task when hiding its finished predecessor", () => {
-    vi.useFakeTimers();
-    try {
-      dropFiles("a.txt");
-      finishUpload(0, "a.txt"); // schedules the finished row to hide in 5s
-
-      dropFiles("a.txt"); // re-upload the same name within the 5s window
-      vi.advanceTimersByTime(5000);
-
-      expect(component.uploadTasks).toHaveLength(1);
-      expect(component.uploadTasks[0].status).not.toBe("finished");
-      expect(component.activeCount).toBe(1);
-
-      finishUpload(1, "a.txt");
-      expect(component.activeCount).toBe(0);
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-
-  it("renders the virtualized pending list and re-measures viewports on panel expand", async () => {
-    dropFiles("f1.txt", "f2.txt", "f3.txt", "f4.txt", "f5.txt");
-
-    // The upload UI lives in the "Versions & Files" tab; nz-tabs does not render a
-    // tab's content into the DOM until it has been selected at least once.
-    const tabButtons: NodeListOf<HTMLElement> = fixture.nativeElement.querySelectorAll(".ant-tabs-tab-btn");
-    const versionsTab = Array.from(tabButtons).find(tab => tab.textContent?.includes("Versions & Files"));
-    expect(versionsTab).toBeTruthy();
-    (versionsTab as HTMLElement).click();
-    fixture.detectChanges();
-
-    // Flush the viewport's init microtask, then render the rows.
-    await Promise.resolve();
-    fixture.detectChanges();
-
-    expect(component.pendingListHeightPx).toBe(2 * component.PENDING_ROW_HEIGHT_PX);
-    const rows = fixture.nativeElement.querySelectorAll(".pending-file-row");
-    expect(rows.length).toBe(2);
-
-    // Expand the Pending / Uploading / Finished panels.
-    const headers: NodeListOf<HTMLElement> = fixture.nativeElement.querySelectorAll(
-      ".upload-status-panels .ant-collapse-header"
-    );
-    expect(headers.length).toBe(3);
-    headers.forEach(header => header.click());
-    fixture.detectChanges();
-    // Flush the checkViewportSize timers.
-    await new Promise(resolve => setTimeout(resolve));
-
-    // Collapsing again must be a no-op for the re-measure handler.
-    headers.forEach(header => header.click());
-    fixture.detectChanges();
-
-    // Cancel a queued file from its row.
-    const cancelButton = fixture.nativeElement.querySelector(".pending-file-row button") as HTMLButtonElement;
-    cancelButton.click();
-    expect(component.queuedCount).toBe(1);
-    expect(component.queuedFileNames).toEqual(["f5.txt"]);
-  });
-
-  it("counts a staged file deletion immediately", () => {
-    const node: DatasetFileNode = { name: "a.txt", type: "file", parentDir: "/owner@texera.com/test-dataset/v1" };
-
-    component.onPreviouslyUploadedFileDeleted(node);
-
-    expect(component.pendingChangesCount).toBe(1);
   });
 });
 
@@ -1164,10 +485,9 @@ describe("DatasetDetailComponent behavior", () => {
       expect(component.likeCount).toBe(7);
       expect(component.viewCount).toBe(42);
       expect(hubServiceStub.isLiked).not.toHaveBeenCalled();
-      expect(adminSettingsServiceStub.getPublicSetting).not.toHaveBeenCalled();
     });
 
-    it("fetches liked status and upload settings for a logged-in user", () => {
+    it("fetches liked status for a logged-in user", () => {
       hubServiceStub.isLiked.mockReturnValue(of([{ isLiked: true }]));
 
       createComponent({ did: 5 });
@@ -1176,19 +496,6 @@ describe("DatasetDetailComponent behavior", () => {
 
       expect(hubServiceStub.isLiked).toHaveBeenCalled();
       expect(component.isLiked).toBe(true);
-      expect(adminSettingsServiceStub.getPublicSetting).toHaveBeenCalled();
-    });
-
-    it("keeps the default upload settings when the public settings are missing", () => {
-      adminSettingsServiceStub.getPublicSetting.mockReturnValue(of(null));
-
-      createComponent({ did: 5 });
-      login();
-      fixture.detectChanges();
-
-      expect(component.chunkSizeMiB).toBe(50);
-      expect(component.maxConcurrentChunks).toBe(10);
-      expect(component.maxConcurrentFiles).toBe(3);
     });
 
     it("makes no hub calls when the route carries no did", () => {
@@ -1221,46 +528,6 @@ describe("DatasetDetailComponent behavior", () => {
       // The tally shown is the dataset's own like count, not some other entity's
       // or some other action's: nothing else in the suite pins these arguments.
       expect(hubServiceStub.getCounts).toHaveBeenCalledWith([EntityType.Dataset], [5], [ActionType.Like]);
-    });
-
-    it("leaves the chunk size untouched when only that setting fails to load", () => {
-      // A distinct value per key, so a setting that lands in the wrong field is
-      // visible: 7 chunks and 2 files cannot stand in for one another.
-      adminSettingsServiceStub.getPublicSetting.mockImplementation((key: string) =>
-        key === "multipart_upload_chunk_size_mib"
-          ? throwError(() => new Error("boom"))
-          : of(key === "max_number_of_concurrent_uploading_file_chunks" ? "7" : "2")
-      );
-
-      createComponent({ did: 5 });
-      // A sentinel the class default cannot supply, so "the failed fetch wrote
-      // nothing" is distinguishable from "it wrote the default back".
-      component.chunkSizeMiB = 42;
-      login();
-      fixture.detectChanges();
-
-      expect(component.chunkSizeMiB).toBe(42);
-      expect(component.maxConcurrentChunks).toBe(7);
-      expect(component.maxConcurrentFiles).toBe(2);
-    });
-
-    it("leaves both concurrency limits untouched when their settings fail to load", () => {
-      adminSettingsServiceStub.getPublicSetting.mockImplementation((key: string) =>
-        key === "multipart_upload_chunk_size_mib" ? of("128") : throwError(() => new Error("boom"))
-      );
-
-      createComponent({ did: 5 });
-      // Sentinels again. A failed fetch that wrote anything here — a reset or a
-      // NaN — would stall the queue outright, since `activeUploads < NaN` is
-      // never true, and a plain default-valued assertion could not see it.
-      component.maxConcurrentChunks = 41;
-      component.maxConcurrentFiles = 40;
-      login();
-      fixture.detectChanges();
-
-      expect(component.chunkSizeMiB).toBe(128);
-      expect(component.maxConcurrentChunks).toBe(41);
-      expect(component.maxConcurrentFiles).toBe(40);
     });
   });
 
@@ -1747,49 +1014,27 @@ describe("DatasetDetailComponent behavior", () => {
     });
   });
 
-  describe("onClickOpenVersionCreator", () => {
-    it("creates a version, clears the name, refreshes the list and emits a change on success", () => {
+  describe("creating a version", () => {
+    it("hands the panel a call that commits through DatasetService", () => {
       datasetServiceStub.createDatasetVersion.mockReturnValue(of(makeVersion()));
-      datasetServiceStub.retrieveDatasetVersionList.mockReturnValue(of([]));
       createComponent();
       component.did = 5;
-      component.versionName = "v2";
-      const emit = vi.fn();
-      component.userMakeChanges.subscribe(emit);
 
-      component.onClickOpenVersionCreator();
+      component.createDatasetVersion("v2").subscribe();
 
       expect(datasetServiceStub.createDatasetVersion).toHaveBeenCalledWith(5, "v2");
-      expect(notificationServiceStub.success).toHaveBeenCalledWith("Version Created");
-      expect(component.versionName).toBe("");
-      expect(component.isCreatingVersion).toBe(false);
+    });
+
+    it("reloads the version list and the latest-version facts once the panel reports one", () => {
+      datasetServiceStub.retrieveDatasetVersionList.mockClear();
+      datasetServiceStub.retrieveDatasetLatestVersion.mockClear();
+      createComponent();
+      component.did = 5;
+
+      component.onVersionCreated();
+
       expect(datasetServiceStub.retrieveDatasetVersionList).toHaveBeenCalled();
       expect(datasetServiceStub.retrieveDatasetLatestVersion).toHaveBeenCalled();
-      expect(emit).toHaveBeenCalled();
-    });
-
-    it("surfaces the backend message and resets the in-progress flag on failure", () => {
-      datasetServiceStub.createDatasetVersion.mockReturnValue(throwError(() => ({ error: { message: "boom" } })));
-      createComponent();
-      component.did = 5;
-      component.versionName = "v2";
-
-      component.onClickOpenVersionCreator();
-
-      expect(notificationServiceStub.error).toHaveBeenCalledWith("Version creation failed: boom");
-      expect(component.isCreatingVersion).toBe(false);
-    });
-
-    it("ignores a second click while a version creation is already in progress", () => {
-      datasetServiceStub.createDatasetVersion.mockReturnValue(new Subject());
-      createComponent();
-      component.did = 5;
-
-      component.onClickOpenVersionCreator();
-      component.onClickOpenVersionCreator();
-
-      expect(datasetServiceStub.createDatasetVersion).toHaveBeenCalledTimes(1);
-      expect(component.isCreatingVersion).toBe(true);
     });
   });
 
@@ -1852,22 +1097,8 @@ describe("DatasetDetailComponent behavior", () => {
     });
   });
 
-  describe("staged objects and view flags", () => {
+  describe("view flags", () => {
     beforeEach(() => createComponent());
-
-    it("tracks the pending-change count from staged objects", () => {
-      const staged: DatasetStagedObject[] = [
-        { path: "a", pathType: "file", diffType: "added", sizeBytes: 1 },
-        { path: "b", pathType: "file", diffType: "added", sizeBytes: 1 },
-      ];
-      component.onStagedObjectsUpdated(staged);
-      expect(component.pendingChangesCount).toBe(2);
-      expect(component.userHasPendingChanges).toBe(true);
-
-      component.onStagedObjectsUpdated([]);
-      expect(component.pendingChangesCount).toBe(0);
-      expect(component.userHasPendingChanges).toBe(false);
-    });
 
     it("toggles the maximize, right-bar and precise-view-count flags", () => {
       expect(component.isMaximized).toBe(false);
@@ -2182,15 +1413,7 @@ describe("DatasetDetailComponent behavior", () => {
     });
   });
 
-  describe("upload status, version-node selection, and trackBy", () => {
-    it("getUploadStatus maps the upload status to a progress state", () => {
-      expect(component.getUploadStatus("uploading")).toBe("active");
-      expect(component.getUploadStatus("initializing")).toBe("active");
-      expect(component.getUploadStatus("aborted")).toBe("exception");
-      expect(component.getUploadStatus("failed")).toBe("exception");
-      expect(component.getUploadStatus("finished")).toBe("success");
-    });
-
+  describe("version-node selection", () => {
     it("onVersionFileTreeNodeSelected loads the selected node's content", () => {
       const node = { name: "file.csv", type: "file" } as unknown as Parameters<
         typeof component.onVersionFileTreeNodeSelected
@@ -2202,11 +1425,6 @@ describe("DatasetDetailComponent behavior", () => {
       component.onVersionFileTreeNodeSelected(node);
 
       expect(loadSpy).toHaveBeenCalledWith(node);
-    });
-
-    it("trackByTask returns the task's file path", () => {
-      const task = { filePath: "owner/data/file.csv" } as unknown as Parameters<typeof component.trackByTask>[1];
-      expect(component.trackByTask(0, task)).toBe("owner/data/file.csv");
     });
   });
 
@@ -2230,35 +1448,24 @@ describe("DatasetDetailComponent behavior", () => {
       datasetServiceStub.deleteDatasetFile.mockReturnValue(throwError(() => new Error("boom")));
       createComponent();
       component.did = 5;
-      const emit = vi.fn();
-      component.userMakeChanges.subscribe(emit);
 
       component.onPreviouslyUploadedFileDeleted(node);
 
       expect(notificationServiceStub.error).toHaveBeenCalledWith("Failed to delete the file");
-      // A file the backend still holds is not a staged change, so counting it would
-      // offer a version to create out of a deletion that never happened.
-      expect(component.pendingChangesCount).toBe(0);
-      expect(component.userHasPendingChanges).toBe(false);
-      expect(emit).not.toHaveBeenCalled();
+      // A file the backend still holds is not a staged change, so reporting it to the panel
+      // would offer a version to create out of a deletion that never happened.
+      expect(notificationServiceStub.success).not.toHaveBeenCalled();
     });
 
-    it("stages the deletion under the same path the next diff response confirms", () => {
+    it("deletes by the path relative to the version root, which is what the diff reports", () => {
       createComponent();
       component.did = 5;
 
       component.onPreviouslyUploadedFileDeleted(node);
 
+      // Only an exact match retires the locally staged entry the panel counts, so any
+      // other form of this path would leave the Finished header double-counting.
       expect(datasetServiceStub.deleteDatasetFile).toHaveBeenCalledWith(5, "nested/a.txt");
-      expect(component.pendingChangesCount).toBe(1);
-
-      // The diff response reports staged paths relative to the version root, and
-      // only an exact match retires the locally staged entry. A key in any other
-      // form never reconciles, so the Finished header counts this one deletion
-      // twice until the next version is created.
-      component.onStagedObjectsUpdated([{ path: "nested/a.txt", pathType: "file", diffType: "removed", sizeBytes: 0 }]);
-
-      expect(component.pendingChangesCount).toBe(1);
     });
   });
 
@@ -3278,176 +2485,6 @@ describe("DatasetDetailComponent rendered template", () => {
       tree().triggerEventHandler("setCoverImage", "nested/b.png");
 
       expect(datasetService.updateDatasetCoverImage).toHaveBeenCalledWith(5, "v1/nested/b.png");
-    });
-  });
-
-  describe("upload panel", () => {
-    beforeEach(() => render({ did: 5, userDatasetAccessLevel: "WRITE" }));
-
-    it("starts an upload for a file the uploader hands over", () => {
-      const el = openTab("Versions & Files");
-      const uploader = fixture.debugElement.query(By.css("texera-user-files-uploader"));
-
-      uploader.triggerEventHandler("uploadedFiles", [makeFileItem("new.csv")]);
-      fixture.detectChanges();
-
-      // The chunk size and the chunk concurrency are both plain numbers, so
-      // asserting their exact values is the only way to notice them exchanged:
-      // 10-byte chunks, or 52 million parallel requests, would look identical to
-      // expect.any(Number). Nobody is signed in here, so the component keeps its
-      // built-in defaults rather than the admin settings.
-      expect(component.chunkSizeMiB).toBe(50);
-      expect(component.maxConcurrentChunks).toBe(10);
-      expect(datasetService.multipartUpload).toHaveBeenCalledWith(
-        OWNER,
-        "ds",
-        "new.csv",
-        expect.anything(),
-        50 * 1024 * 1024,
-        10,
-        false
-      );
-      expect(text(el)).toContain("Uploading: 1 file(s)");
-    });
-
-    /** Renders the given in-flight tasks and expands the "Uploading" panel. */
-    const withTasks = (...tasks: Array<Record<string, unknown>>): HTMLElement => {
-      const el = render({
-        uploadTasks: tasks.map(t => ({
-          percentage: 40,
-          status: "uploading",
-          uploadSpeed: 1024,
-          totalTime: 12,
-          estimatedTimeRemaining: 30,
-          ...t,
-        })) as never,
-      });
-      (component as unknown as { activeUploads: number }).activeUploads = tasks.length;
-      openTab("Versions & Files");
-      openPanel("Uploading:");
-      return el;
-    };
-
-    it("aborts the upload whose own row button was clicked", () => {
-      withTasks({ filePath: "first.csv" }, { filePath: "second.csv" });
-
-      const rows = fixture.debugElement.queryAll(By.css(".upload-progress-wrapper > div"));
-      expect(rows.length).toBe(2);
-      // Each row has to name its own task: identifying the row by position alone
-      // would not notice every row rendering the first task's name and status.
-      expect(rows.map(row => text(row.query(By.css(".progress-header")).nativeElement))).toEqual([
-        "uploading: first.csv",
-        "uploading: second.csv",
-      ]);
-
-      const abort = rows[1].query(By.css(".progress-header button"));
-      // A live upload is cancelled, not dismissed; the finished row below says "Close".
-      expect(abort.injector.get(NzTooltipDirective).directiveTitle).toBe("Cancel the upload");
-
-      abort.nativeElement.click();
-      fixture.detectChanges();
-
-      expect(datasetService.finalizeMultipartUpload).toHaveBeenCalledTimes(1);
-      expect(datasetService.finalizeMultipartUpload).toHaveBeenCalledWith(OWNER, "ds", "second.csv", true);
-    });
-
-    it("reports the elapsed time, the time remaining and the speed in their own slots", () => {
-      // Distinguishable timings, so the two spans cannot stand in for each other:
-      // showing 90s elapsed on a 12s-old upload is the defect this guards.
-      const el = withTasks({
-        filePath: "big.csv",
-        totalTime: 12,
-        estimatedTimeRemaining: 90,
-        uploadSpeed: 5 * 1024 * 1024,
-      });
-      const stats = q<HTMLElement>(el, ".upload-stats");
-
-      expect(Array.from(stats.querySelectorAll(".fixed-width-time")).map(text)).toEqual(["12s", "1m30s left"]);
-      expect(text(q<HTMLElement>(stats, ".fixed-width-speed"))).toBe("5.0 MB/s");
-    });
-
-    it("floors both live timings at one second while an upload reports none", () => {
-      const el = withTasks({ filePath: "big.csv", totalTime: undefined, estimatedTimeRemaining: undefined });
-
-      const times = Array.from(q<HTMLElement>(el, ".upload-stats").querySelectorAll(".fixed-width-time")).map(text);
-      expect(times).toEqual(["1s", "1s left"]);
-    });
-
-    it("reports the total time of a finished upload", () => {
-      const el = withTasks({ filePath: "big.csv", status: "finished", totalTime: 75 });
-
-      expect(text(q<HTMLElement>(el, ".upload-stats"))).toContain("Upload time: 1m15s");
-      // A finished row is dismissed rather than cancelled.
-      const button = fixture.debugElement.query(By.css(".upload-progress-wrapper > div .progress-header button"));
-      expect(button.injector.get(NzTooltipDirective).directiveTitle).toBe("Close");
-    });
-
-    it("floors the total of a finished upload that timed nothing", () => {
-      const el = withTasks({ filePath: "big.csv", status: "finished", totalTime: undefined });
-
-      expect(text(q<HTMLElement>(el, ".upload-stats"))).toContain("Upload time: 1s");
-    });
-  });
-
-  describe("version creator", () => {
-    /** Renders the creator, which only appears with staged changes to commit. */
-    const withPendingChanges = (state: Partial<DatasetDetailComponent> = {}): HTMLElement => {
-      const el = render({ did: 5, userDatasetAccessLevel: "WRITE", userHasPendingChanges: true, ...state });
-      openTab("Versions & Files");
-      return el;
-    };
-
-    const typeName = (el: HTMLElement, value: string): HTMLInputElement => {
-      const input = q<HTMLInputElement>(el, ".version-input");
-      input.value = value;
-      input.dispatchEvent(new Event("input"));
-      fixture.detectChanges();
-      return input;
-    };
-
-    it("offers the creator only once there is something to commit", () => {
-      const el = render({ did: 5, userDatasetAccessLevel: "WRITE", userHasPendingChanges: false });
-      openTab("Versions & Files");
-      expect(el.querySelector(".version-creator")).toBeNull();
-
-      render({ userHasPendingChanges: true });
-
-      expect(el.querySelector(".version-creator")).not.toBeNull();
-      expect(text(q<HTMLElement>(el, ".create-dataset-version-button"))).toBe("Submit");
-    });
-
-    it("creates a version named by the creator's own input", () => {
-      const el = withPendingChanges();
-
-      typeName(el, "second cut");
-      q<HTMLButtonElement>(el, ".create-dataset-version-button").click();
-
-      expect(datasetService.createDatasetVersion).toHaveBeenCalledWith(5, "second cut");
-    });
-
-    it("submits the version straight from the name field with Enter", () => {
-      const el = withPendingChanges();
-
-      typeName(el, "from the keyboard").dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
-
-      expect(datasetService.createDatasetVersion).toHaveBeenCalledWith(5, "from the keyboard");
-    });
-
-    it("spins the submit button and locks the name field while a version is being created", async () => {
-      const el = withPendingChanges();
-      expect(q<HTMLButtonElement>(el, ".create-dataset-version-button").classList).not.toContain("ant-btn-loading");
-      expect(q<HTMLInputElement>(el, ".version-input").disabled).toBe(false);
-
-      render({ isCreatingVersion: true });
-      // NgModel routes the input's `disabled` binding through control.disable(),
-      // which it defers to a microtask, so the DOM lags the render by one turn.
-      await Promise.resolve();
-      fixture.detectChanges();
-
-      expect(q<HTMLButtonElement>(el, ".create-dataset-version-button").classList).toContain("ant-btn-loading");
-      // Renaming a version mid-creation would be applied to nothing, so the
-      // field is locked for as long as the request is in flight.
-      expect(q<HTMLInputElement>(el, ".version-input").disabled).toBe(true);
     });
   });
 
