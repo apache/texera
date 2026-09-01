@@ -22,6 +22,7 @@ package org.apache.texera.amber.translator.verify
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.distinct.DistinctOpDesc
+import org.scalatest.Tag
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -34,6 +35,12 @@ import java.nio.file.{Files, Path}
   * configuration, and its answer is short enough to state in full.
   */
 class HarnessSpec extends AnyFlatSpec with Matchers {
+
+  /** Only the standalone run needs an interpreter, so only it is held back from
+    * the job that provisions none. The other two are JVM-side and run there.
+    */
+  private val NeedsPython =
+    Tag("org.apache.texera.amber.translator.verify.tags.IntegrationTest")
 
   private val schema = new Schema(
     new Attribute("id", AttributeType.INTEGER),
@@ -83,7 +90,7 @@ class HarnessSpec extends AnyFlatSpec with Matchers {
     }
   }
 
-  "StandaloneRunner" should "run the generated script and reach the same answer" in {
+  "StandaloneRunner" should "run the generated script and reach the same answer" taggedAs NeedsPython in {
     withInput { (dir, input) =>
       val work = dir.resolve("standalone")
       Files.createDirectories(work)
