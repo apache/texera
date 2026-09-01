@@ -705,7 +705,7 @@ describe("CardItemComponent", () => {
         .spyOn(modalService, "create")
         .mockReturnValue({ componentInstance: { refresh: refresh$ } } as any);
       (workflowPersistService as any).retrieveOwners = vi.fn().mockReturnValue(of(["alice", "bob"]));
-      component.entry = makeWorkflowEntry({ id: 7, workflow: { isOwner: true, accessLevel: "WRITE" } } as any);
+      component.entry = makeWorkflowEntry({ id: 7, accessLevel: "WRITE", workflow: { isOwner: true } } as any);
 
       await component.onClickOpenShareAccess();
 
@@ -744,6 +744,7 @@ describe("CardItemComponent", () => {
         type: "dataset",
         id: 5,
         allOwners: ["carol"],
+        inWorkspace: false,
       });
       expect(cfg.nzTitle).toBe("Share this dataset with others");
     });
@@ -1031,6 +1032,127 @@ describe("CardItemComponent", () => {
       const errorSpy = vi.spyOn(component, "onCoverError").mockImplementation(() => {});
       fire(".card-preview-image", "error", {});
       expect(errorSpy).toHaveBeenCalled();
+    });
+
+    it("writes what was typed in the name editor back onto the entry", () => {
+      // The editor is seeded from entry.name; with a one-way binding it would look right on screen
+      // while the confirmed rename kept sending the name the card started with.
+      const entry = makeWorkflowEntry({ name: "before" });
+      component.entry = entry;
+      component.isPrivateSearch = true;
+      component.editingName = true;
+      fixture.detectChanges();
+
+      const input = fixture.debugElement.query(By.css(".resource-name-edit-input"));
+      expect(input).toBeTruthy();
+      input.triggerEventHandler("ngModelChange", "after");
+
+      expect(entry.name).toBe("after");
+    });
+
+    it("keeps a click inside the name editor from opening the card", () => {
+      // The whole header is a routerLink, so without stopPropagation every click meant for the
+      // caret would navigate away mid-rename.
+      component.entry = makeWorkflowEntry();
+      component.isPrivateSearch = true;
+      component.editingName = true;
+      fixture.detectChanges();
+
+      const header = fixture.debugElement.query(By.css(".card-header")).nativeElement as HTMLElement;
+      const reachedHeader = vi.fn();
+      header.addEventListener("click", reachedHeader);
+
+      const input = fixture.debugElement.query(By.css(".resource-name-edit-input")).nativeElement as HTMLInputElement;
+      input.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+      expect(reachedHeader).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("guard paths", () => {
+    /** Files are the one registered kind with neither a rename nor a description endpoint. */
+    function makeFileEntry(overrides: Partial<DashboardEntry> = {}): DashboardEntry {
+      return {
+        id: 3,
+        name: "notes.txt",
+        description: "",
+        type: EntityType.File,
+        accessibleUserIds: [],
+        likeCount: 0,
+        viewCount: 0,
+        isLiked: false,
+        size: 0,
+        ...overrides,
+      } as unknown as DashboardEntry;
+    }
+
+    it("ngOnChanges ignores a change set that does not carry the entry", () => {
+      // initializeEntry resets the cover and the counters; re-running it on an unrelated input
+      // change would discard a cover that had just finished loading.
+      const initialize = vi.spyOn(component, "initializeEntry");
+
+      component.ngOnChanges({ currentUid: { currentValue: 3 } as any });
+
+      expect(initialize).not.toHaveBeenCalled();
+    });
+
+    it("onEditDescription tolerates a textarea that has not rendered yet", fakeAsync(() => {
+      // The caret is placed in a timer callback, which can outlive the element it was queued for.
+      component.entry = makeWorkflowEntry({ description: "some text" });
+      component.descriptionInput = undefined as any;
+
+      component.onEditDescription();
+
+      expect(component.editingDescription).toBe(true);
+      expect(() => tick(0)).not.toThrow();
+    }));
+
+    it("does not attempt a rename for a kind that has no rename endpoint", () => {
+      // Whatever the fixture types stays typed no matter which branch runs, so the editor state is
+      // what separates this early return from the two that close the editor. The rename endpoint is
+      // mocked so a regression fails on the assertion rather than on a TypeError out of
+      // updateProperty.
+      workflowPersistService.updateWorkflowName.mockReturnValue(of({} as Response));
+      component.entry = makeFileEntry({ name: "typed" });
+      component.originalName = "notes.txt";
+      component.editingName = true;
+
+      component.confirmUpdateCustomName("typed");
+
+      expect(workflowPersistService.updateWorkflowName).not.toHaveBeenCalled();
+      expect(datasetService.updateDatasetName).not.toHaveBeenCalled();
+      expect(component.editingName).toBe(true);
+    });
+
+    it("does not attempt a description update for a kind that has no description endpoint", () => {
+      // Mocked so that a regression here fails on the assertion below rather than on a TypeError
+      // thrown out of updateProperty.
+      workflowPersistService.updateWorkflowDescription.mockReturnValue(of({} as Response));
+      component.entry = makeFileEntry({ description: "typed" });
+      component.originalDescription = "";
+      component.editingDescription = true;
+
+      component.confirmUpdateCustomDescription("typed");
+
+      expect(workflowPersistService.updateWorkflowDescription).not.toHaveBeenCalled();
+      expect(component.editingDescription).toBe(true);
+    });
+
+    it("toggleLike leaves the liked state and the count alone when the unlike reports failure", () => {
+      const hubService = TestBed.inject(HubService);
+      vi.spyOn(hubService, "postUnlike").mockReturnValue(of(false));
+      const getCountsSpy = vi.spyOn(hubService, "getCounts");
+
+      component.currentUid = 42;
+      component.entry = makeWorkflowEntry({ id: 7 });
+      component.isLiked = true;
+      component.likeCount = 5;
+
+      component.toggleLike();
+
+      expect(component.isLiked).toBe(true);
+      expect(component.likeCount).toBe(5);
+      expect(getCountsSpy).not.toHaveBeenCalled();
     });
   });
 });

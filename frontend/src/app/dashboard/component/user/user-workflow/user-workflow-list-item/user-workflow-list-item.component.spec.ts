@@ -30,6 +30,7 @@ import {
 } from "../../../../../common/service/workflow-persist/workflow-persist.service";
 import { DownloadService } from "../../../../service/user/download/download.service";
 import { WorkflowExecutionHistoryComponent } from "../ngbd-modal-workflow-executions/workflow-execution-history.component";
+import { ShareAccessComponent } from "../../share-access/share-access.component";
 import { Workflow } from "../../../../../common/type/workflow";
 import { of } from "rxjs";
 import { NzListComponent } from "ng-zorro-antd/list";
@@ -256,6 +257,64 @@ describe("UserWorkflowListItemComponent", () => {
         expect(spy).not.toHaveBeenCalled();
       });
     });
+
+    it("opens the share modal for this row's workflow, carrying its write access and the owner list", async () => {
+      const entry = makeWorkflowEntry({ wid: 21, name: "wf" });
+      entry.workflow.accessLevel = "WRITE";
+      component.entry = entry;
+      const persist = TestBed.inject(WorkflowPersistService);
+      // The owner list is the autocomplete the dialog exists to offer; it is the one awaited
+      // value in the method, so nothing else proves it is resolved before the modal opens.
+      vi.spyOn(persist, "retrieveOwners").mockReturnValue(of(["a@example.com", "b@example.com"]));
+      const modal = TestBed.inject(NzModalService);
+      const spy = vi.spyOn(modal, "create").mockReturnValue({} as any);
+
+      await component.onClickOpenShareAccess();
+
+      expect(spy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          nzContent: ShareAccessComponent,
+          nzData: expect.objectContaining({
+            writeAccess: true,
+            type: "workflow",
+            id: 21,
+            allOwners: ["a@example.com", "b@example.com"],
+          }),
+        })
+      );
+    });
+
+    it("marks the share modal read-only for a row the viewer can only read", async () => {
+      const entry = makeWorkflowEntry({ wid: 21 });
+      entry.workflow.accessLevel = "READ";
+      component.entry = entry;
+      const modal = TestBed.inject(NzModalService);
+      const spy = vi.spyOn(modal, "create").mockReturnValue({} as any);
+
+      await component.onClickOpenShareAccess();
+
+      expect(spy).toHaveBeenCalledWith(
+        expect.objectContaining({ nzData: expect.objectContaining({ writeAccess: false }) })
+      );
+    });
+
+    describe("mis-wired inputs", () => {
+      // Both accessors are read from the template on every change-detection pass, so a silent
+      // undefined would surface as an unrelated crash deep in ng-zorro instead of here.
+      it("refuses to read the entry before one has been provided", () => {
+        component.entry = undefined as any;
+
+        expect(() => component.entry).toThrowError("entry property must be provided to UserWorkflowListItemComponent.");
+      });
+
+      it("refuses to read a workflow off an entry that carries no workflow payload", () => {
+        // The guard tests for the payload, not for entry.type: an entry of any kind that does
+        // carry a workflow passes it, so this must not claim to be a kind check.
+        component.entry = { name: "ds" } as unknown as DashboardEntry;
+
+        expect(() => component.workflow).toThrowError(/Entry must be workflow/);
+      });
+    });
   });
 
   function sendInput(editableDescriptionInput: HTMLInputElement, text: string) {
@@ -325,6 +384,17 @@ describe("UserWorkflowListItemComponent rendering", () => {
         return typeof t === "string" && pred(t);
       })
       .map(d => d.nativeElement as HTMLElement);
+  }
+
+  /**
+   * The one element whose tooltip title satisfies the predicate. Indexing byTooltip() directly
+   * reports a missing or duplicated action as a TypeError on `undefined.click()` — or, worse,
+   * silently clicks the first of several; asserting the match is unique names the real problem.
+   */
+  function onlyByTooltip(pred: (title: string) => boolean): HTMLElement {
+    const matches = byTooltip(pred);
+    expect(matches).toHaveLength(1);
+    return matches[0];
   }
 
   beforeEach(async () => {
@@ -433,6 +503,37 @@ describe("UserWorkflowListItemComponent rendering", () => {
       fixture.debugElement.query(By.css("button[nz-popconfirm]")).triggerEventHandler("nzOnConfirm", null);
       expect(deleted).toHaveBeenCalledTimes(1);
       expect(duplicated).toHaveBeenCalledTimes(1);
+    });
+
+    it("opens the executions modal from the history action", async () => {
+      await setup({ executionsTracking: true });
+      render(makeWorkflowEntry({ wid: 11, name: "wf" }));
+      const modal = TestBed.inject(NzModalService);
+      const create = vi.spyOn(modal, "create").mockReturnValue({} as any);
+
+      onlyByTooltip(t => t.startsWith("Executions of the workflow")).click();
+
+      expect(create).toHaveBeenCalledWith(
+        expect.objectContaining({ nzContent: WorkflowExecutionHistoryComponent, nzData: { wid: 11 } })
+      );
+    });
+  });
+
+  describe("inline name and description editors", () => {
+    it("puts name editing behind the pencil and description editing behind the plus", () => {
+      // Two adjacent icon buttons on the same toolbar; swapping them would open the wrong editor.
+      render(makeWorkflowEntry());
+      expect(component.editingName).toBe(false);
+      expect(component.editingDescription).toBe(false);
+
+      onlyByTooltip(t => t === "Customize Workflow Name").click();
+
+      expect(component.editingName).toBe(true);
+      expect(component.editingDescription).toBe(false);
+
+      onlyByTooltip(t => t === "Add Description").click();
+
+      expect(component.editingDescription).toBe(true);
     });
   });
 

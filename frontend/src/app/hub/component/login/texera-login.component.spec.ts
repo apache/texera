@@ -54,7 +54,8 @@ describe("TexeraLoginComponent", () => {
     userServiceMock = {
       isLogin: vi.fn().mockReturnValue(false),
       login: vi.fn().mockReturnValue(of(undefined)),
-      register: vi.fn().mockReturnValue(of(undefined)),
+      register: vi.fn().mockReturnValue(of({ verificationRequired: false })),
+      registerVerify: vi.fn().mockReturnValue(of(undefined)),
       googleLogin: vi.fn().mockReturnValue(of(undefined)),
     };
     notificationServiceMock = { error: vi.fn(), success: vi.fn() };
@@ -269,6 +270,122 @@ describe("TexeraLoginComponent", () => {
       component.submit();
       expect(userServiceMock.register).toHaveBeenCalledWith("alice", "alice@example.com", "secret1");
       expect(notificationServiceMock.success).toHaveBeenCalled();
+    });
+
+    // Where verification is on the code field is present from the outset, and mailing the code is
+    // its own button. Signing up is then a single submit that carries the code, rather than a first
+    // submit that silently sent mail and a second that completed.
+    describe("with email verification on", () => {
+      beforeEach(() => {
+        const config = TestBed.inject(GuiConfigService) as unknown as MockGuiConfigService;
+        config.setConfig({ emailVerification: true });
+        (userServiceMock.register as any).mockReturnValue(of({ verificationRequired: true }));
+        component.setMode("signup");
+      });
+
+      const fillForm = () =>
+        component.form.patchValue({
+          username: "  alice  ",
+          email: "  alice@example.com  ",
+          password: "secret1",
+          confirm: "secret1",
+        });
+
+      it("mails a code when asked, without creating the account", () => {
+        fillForm();
+
+        component.sendCode();
+
+        expect(userServiceMock.register).toHaveBeenCalledWith("alice", "alice@example.com", "secret1");
+        expect(userServiceMock.registerVerify).not.toHaveBeenCalled();
+        expect(notificationServiceMock.success).toHaveBeenCalledWith(
+          "A verification code has been sent to alice@example.com."
+        );
+      });
+
+      // Pressing Sign up must not put mail in someone's inbox: that is what the separate button is
+      // for, and the user may never have asked for it.
+      it("does not mail anything when the form is submitted", () => {
+        fillForm();
+        component.form.patchValue({ code: "123456" });
+
+        component.submit();
+
+        expect(userServiceMock.register).not.toHaveBeenCalled();
+        expect(userServiceMock.registerVerify).toHaveBeenCalledWith("alice", "alice@example.com", "secret1", "123456");
+      });
+
+      it("refuses to send a code for an address that is not one", () => {
+        fillForm();
+        component.form.patchValue({ email: "not-an-email" });
+
+        component.sendCode();
+
+        expect(userServiceMock.register).not.toHaveBeenCalled();
+        expect(component.errorMessage).toBeTruthy();
+      });
+
+      // A deployment with verification on and no SMTP sender behind it refuses here. That refusal
+      // is aimed at whoever can fix it, so its text has to survive to the screen rather than being
+      // replaced by Angular's generic "Http failure response for ...".
+      it("shows the server's reason when a code cannot be sent, not the generic HTTP text", () => {
+        const refusal = {
+          error: {
+            message:
+              "Email verification is enabled, but this deployment has no email sender configured, " +
+              "so the code cannot be sent. An administrator needs to configure SMTP " +
+              "(USER_SYS_GOOGLE_SMTP_GMAIL) or disable email verification " +
+              "(USER_SYS_EMAIL_VERIFICATION=false).",
+          },
+          message: "Http failure response for http://localhost/api/auth/register: 503 Service Unavailable",
+        };
+        (userServiceMock.register as any).mockReturnValue(throwError(() => refusal));
+        fillForm();
+
+        component.sendCode();
+
+        expect(component.errorMessage).toBe(refusal.error.message);
+      });
+
+      it("submits the typed code with the same fields", () => {
+        fillForm();
+        component.form.patchValue({ code: " 123456 " });
+
+        component.submit();
+
+        expect(userServiceMock.registerVerify).toHaveBeenCalledWith("alice", "alice@example.com", "secret1", "123456");
+        expect(notificationServiceMock.success).toHaveBeenCalled();
+      });
+
+      it("asks for the code rather than submitting an empty one", () => {
+        fillForm();
+
+        component.submit();
+
+        expect(userServiceMock.registerVerify).not.toHaveBeenCalled();
+        expect(component.errorMessage).toBe("Enter the code that was emailed to you.");
+      });
+
+      it("reports a refused code", () => {
+        (userServiceMock.registerVerify as any).mockReturnValue(
+          throwError(() => new Error("That code is not valid or has expired."))
+        );
+        fillForm();
+        component.form.patchValue({ code: "000000" });
+
+        component.submit();
+
+        expect(component.errorMessage).toBe("That code is not valid or has expired.");
+      });
+
+      it("clears a code that was typed when the tab changes", () => {
+        fillForm();
+        component.form.patchValue({ code: "123456" });
+
+        component.setMode("signin");
+
+        expect(component.form.get("code")?.value).toBe("");
+      });
     });
 
     it("surfaces the error message on registration failure", () => {

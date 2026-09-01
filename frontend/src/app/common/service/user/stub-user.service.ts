@@ -71,7 +71,11 @@ export class StubUserService implements PublicInterfaceOf<UserService> {
 
   logout(): void {}
 
-  register(username: string, email: string, password: string): Observable<void> {
+  register(username: string, email: string, password: string): Observable<{ verificationRequired: boolean }> {
+    return of({ verificationRequired: false });
+  }
+
+  registerVerify(username: string, email: string, password: string, code: string): Observable<void> {
     return of();
   }
 

@@ -35,6 +35,17 @@ import { validateEmailFormat } from "../../util/email";
 export const TOKEN_KEY = "access_token";
 
 /**
+ * What a registration attempt produced.
+ *
+ * A null `accessToken` is the "a code was mailed, nothing was created" signal: where
+ * `user-sys.email-verification` is on, the account only exists once `registerVerify` is given that
+ * code back. The backend reports the two as one field so they cannot disagree.
+ */
+export interface RegistrationResult {
+  accessToken: string | null;
+}
+
+/**
  * User Service contains the function of registering and logging the user.
  * It will save the user account inside for future use.
  *
@@ -49,6 +60,8 @@ export class AuthService {
   public static readonly REGISTER_ENDPOINT = "auth/register";
   public static readonly GOOGLE_LOGIN_ENDPOINT = "auth/google/login";
   public static readonly SET_EMAIL_ENDPOINT = "auth/email";
+  public static readonly SET_EMAIL_CODE_ENDPOINT = "auth/email/code";
+  public static readonly REGISTER_VERIFY_ENDPOINT = "auth/register/verify";
 
   private tokenExpirationSubscription?: Subscription;
   private sessionChangedSubject = new Subject<void>();
@@ -70,14 +83,27 @@ export class AuthService {
    * @param email
    * @param password
    */
-  public register(username: string, email: string, password: string): Observable<Readonly<{ accessToken: string }>> {
-    return this.http.post<Readonly<{ accessToken: string }>>(
+  public register(username: string, email: string, password: string): Observable<Readonly<RegistrationResult>> {
+    return this.http.post<Readonly<RegistrationResult>>(
       `${AppSettings.getApiEndpoint()}/${AuthService.REGISTER_ENDPOINT}`,
       {
         username,
         email,
         password,
       }
+    );
+  }
+
+  /** Completes a registration `register` left pending, resending its fields alongside the code. */
+  public registerVerify(
+    username: string,
+    email: string,
+    password: string,
+    code: string
+  ): Observable<Readonly<RegistrationResult>> {
+    return this.http.post<Readonly<RegistrationResult>>(
+      `${AppSettings.getApiEndpoint()}/${AuthService.REGISTER_VERIFY_ENDPOINT}`,
+      { username, email, password, code }
     );
   }
 
@@ -104,12 +130,21 @@ export class AuthService {
     return this.sessionChangedSubject.asObservable();
   }
 
-  /** Gives the signed-in account the address it lacks, returning the reissued token. */
-  public setEmail(email: string): Observable<Readonly<{ accessToken: string }>> {
+  /**
+   * Gives the signed-in account the address it lacks, returning the reissued token. `code` is the
+   * proof mailed by `requestEmailCode`, and is required only where verification is on.
+   */
+  public setEmail(email: string, code?: string): Observable<Readonly<{ accessToken: string }>> {
     return this.http.put<Readonly<{ accessToken: string }>>(
       `${AppSettings.getApiEndpoint()}/${AuthService.SET_EMAIL_ENDPOINT}`,
-      { email }
+      { email, code }
     );
+  }
+
+  public requestEmailCode(email: string): Observable<void> {
+    return this.http.post<void>(`${AppSettings.getApiEndpoint()}/${AuthService.SET_EMAIL_CODE_ENDPOINT}`, {
+      email,
+    });
   }
 
   /**
@@ -264,10 +299,14 @@ export class AuthService {
     }
     this.emailPromptOpen = true;
 
+    // Where verification is on the dialog runs in two steps: the first mails a code, the second
+    // presents it. Nothing is written until the second one succeeds.
+    const verificationRequired = this.config.env.emailVerification;
+
     const modalRef = this.modal.create<EmailRequestModalComponent>({
       nzContent: EmailRequestModalComponent,
       nzData: { name: defaultName },
-      nzOkText: "Save",
+      nzOkText: verificationRequired ? "Send code" : "Save",
       nzCancelText: "Sign out",
       nzMaskClosable: false,
       nzClosable: false,
@@ -276,15 +315,29 @@ export class AuthService {
       nzClassName: "email-modal",
 
       nzOnOk: async () => {
-        const { email } = modalRef.getContentComponent().getValues();
+        const component = modalRef.getContentComponent();
+        const { email, code } = component.getValues();
         const validation = validateEmailFormat(email);
         if (!validation.result) {
           this.notificationService.error(validation.message);
           return false;
         }
 
+        if (verificationRequired && component.step === "address") {
+          try {
+            await firstValueFrom(this.requestEmailCode(email));
+          } catch (e: unknown) {
+            this.notificationService.error((e as HttpErrorResponse)?.error?.message ?? "That code could not be sent.");
+            return false;
+          }
+          // Returning false keeps the dialog open on its second step rather than closing it.
+          component.step = "code";
+          modalRef.updateConfig({ nzOkText: "Verify" });
+          return false;
+        }
+
         try {
-          const { accessToken } = await firstValueFrom(this.setEmail(email));
+          const { accessToken } = await firstValueFrom(this.setEmail(email, code));
           AuthService.setAccessToken(accessToken);
         } catch (e: unknown) {
           if (this.storedEmailClaim() != null) {
