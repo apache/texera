@@ -71,11 +71,16 @@ export class BrowseSectionComponent implements OnInit, OnChanges {
     this.loadCoverImages();
   }
 
-
+  /**
+   * A card links to your own copy of the resource when you can reach it, and to the hub otherwise.
+   * Cached so the `routerLink` binding keeps one array identity across change-detection runs.
+   */
   routeFor(entity: DashboardEntry): string[] {
     const key = this.cacheKey(entity);
     let route = this.entityRoutes.get(key);
     if (route === undefined) {
+      // `find`, not `get`: a section may hold a kind the registry does not carry, and one such
+      // row must not take the whole landing page down with it.
       route = this.resourceRegistry.find(entity.type) ? this.resourceRegistry.entryLink(entity, this.currentUid) : [];
       this.entityRoutes.set(key, route);
     }
