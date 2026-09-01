@@ -95,6 +95,7 @@ DROP TYPE IF EXISTS user_role_enum CASCADE;
 DROP TYPE IF EXISTS privilege_enum CASCADE;
 DROP TYPE IF EXISTS action_enum CASCADE;
 DROP TYPE IF EXISTS provider_type_enum CASCADE;
+DROP TYPE IF EXISTS default_view_enum CASCADE;
 
 CREATE TYPE user_role_enum AS ENUM ('INACTIVE', 'RESTRICTED', 'REGULAR', 'ADMIN');
 CREATE TYPE action_enum AS ENUM ('like', 'unlike', 'view', 'clone');
@@ -102,6 +103,7 @@ CREATE TYPE privilege_enum AS ENUM ('NONE', 'READ', 'WRITE');
 CREATE TYPE workflow_computing_unit_type_enum AS ENUM ('local', 'kubernetes');
 CREATE TYPE provider_type_enum AS ENUM ('LOCAL', 'GOOGLE');
 CREATE TYPE user_warehouse_flavor_enum AS ENUM ('local', 'aws');
+CREATE TYPE default_view_enum AS ENUM ('CANVAS', 'FORM');
 
 -- ============================================
 -- 5. Create tables
@@ -168,7 +170,10 @@ CREATE TABLE IF NOT EXISTS workflow
     content            TEXT NOT NULL,
     creation_time      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     last_modified_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    is_public          BOOLEAN NOT NULL DEFAULT false
+    is_public          BOOLEAN NOT NULL DEFAULT false,
+    -- Which view the workflow opens in by default (CANVAS or FORM); the form's definition
+    -- lives in workflow.content (`formBinding`).
+    default_view   default_view_enum NOT NULL DEFAULT 'CANVAS'
     );
 
 -- workflow_of_user

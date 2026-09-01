@@ -267,7 +267,8 @@ object HubResource {
         WORKFLOW.LAST_MODIFIED_TIME,
         WORKFLOW_USER_ACCESS.PRIVILEGE,
         WORKFLOW_OF_USER.UID,
-        USER.NAME
+        USER.NAME,
+        WORKFLOW.DEFAULT_VIEW
       )
       .fetch()
 

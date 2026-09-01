@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,22 +17,23 @@
  * under the License.
  */
 
-/** Which view a workflow opens in by default. Both views stay reachable from each other;
- *  this only picks the landing view. */
-export enum DefaultView {
-  CANVAS = "CANVAS",
-  FORM = "FORM",
-}
+\c texera_db
 
-export interface WorkflowMetadata {
-  name: string;
-  description: string | undefined;
-  wid: number | undefined;
-  creationTime: number | undefined;
-  lastModifiedTime: number | undefined;
-  isPublished: number;
-  readonly: boolean;
-  /** Which view this workflow opens in by default. From the workflow row, so listings need
-   *  not load content. Absent on payloads predating the column (treat as CANVAS). */
-  defaultView?: DefaultView;
-}
+SET search_path TO texera_db;
+
+BEGIN;
+
+-- Which view a workflow opens in by default (CANVAS or FORM). The form's definition lives
+-- in workflow.content under `formBinding`; only this preference is denormalized so listing
+-- endpoints need not parse every row's content. It never gates availability -- the form is
+-- reachable for every workflow.
+DO $$ BEGIN
+    CREATE TYPE default_view_enum AS ENUM ('CANVAS', 'FORM');
+EXCEPTION
+    WHEN duplicate_object THEN NULL;
+END $$;
+
+ALTER TABLE workflow
+    ADD COLUMN IF NOT EXISTS default_view default_view_enum NOT NULL DEFAULT 'CANVAS';
+
+COMMIT;
