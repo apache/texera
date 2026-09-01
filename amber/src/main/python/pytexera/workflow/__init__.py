@@ -6,7 +6,7 @@
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
 #
-#   http://www.apache.org/licenses/LICENSE-2.0
+# http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
@@ -15,31 +15,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
-numpy==2.1.0
-pandas==2.2.3
-loguru==0.7.3
-pyarrow==23.0.1
-betterproto==2.0.0b7
-pampy==0.3.0
-overrides==7.7.0
-typing_extensions==4.14.1
-bidict==0.22.0
-cached_property==2.0.1
-cloudpickle==3.1.2
-psutil==7.2.2
-tzlocal==2.1
-# Not imported directly: s3fs (with aiobotocore) backs pyiceberg's
-# fsspec-based S3 FileIO (#4272).
-s3fs==2026.6.0
-botocore==1.42.90
-pyiceberg==0.11.1
-readerwriterlock==1.0.9
-tenacity==9.1.4
-# Not imported directly: pyiceberg's SqlCatalog needs SQLAlchemy with the
-# pg8000 driver (postgresql+pg8000:// connection string in iceberg_utils.py).
-SQLAlchemy==2.0.51
-pg8000==1.31.5
-pympler==1.1
-boto3==1.42.90
-requests==2.34.2
-urllib3==2.7.0
+"""Minimal keyed workflow runtime used by generated Python UDFs."""
+
+from pytexera.workflow.operators import TupleOperator
+from pytexera.workflow.runtime import Heap, InputPort, Runtime
+
+__all__ = ["Heap", "InputPort", "Runtime", "TupleOperator"]
