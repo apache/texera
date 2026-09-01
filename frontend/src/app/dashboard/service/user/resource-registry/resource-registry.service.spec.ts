@@ -19,7 +19,7 @@
 
 import { TestBed } from "@angular/core/testing";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
-import { of } from "rxjs";
+import { firstValueFrom, of } from "rxjs";
 import { ResourceRegistryService } from "./resource-registry.service";
 import { DashboardEntry } from "../../../type/dashboard-entry";
 import { EntityType } from "../../../../hub/service/hub.service";
@@ -66,6 +66,11 @@ describe("ResourceRegistryService", () => {
       updateModelName: vi.fn().mockReturnValue(of({})),
       updateModelDescription: vi.fn().mockReturnValue(of({})),
       retrieveModelVersionSingleFile: vi.fn().mockReturnValue(of(new Blob())),
+      retrieveOwners: vi.fn().mockReturnValue(of(["m-owner"])),
+      getModel: vi.fn().mockReturnValue(of({ model: { isPublic: true } })),
+      updateModelPublicity: vi.fn().mockReturnValue(of({})),
+      getModelCoverUrl: vi.fn().mockReturnValue(of({ url: "http://cover" })),
+      updateModelCoverImage: vi.fn().mockReturnValue(of({})),
     };
 
     downloadService = {
@@ -102,6 +107,12 @@ describe("ResourceRegistryService", () => {
     expect(() => registry.get("quantum" as EntityType)).toThrowError("Unexpected type in DashboardEntry.");
   });
 
+  it("answers with undefined instead of throwing when the caller can cope", () => {
+    // The share modal opens for computing units too, and asks the registry what they can do.
+    expect(registry.find(EntityType.ComputingUnit)).toBeUndefined();
+    expect(registry.find(EntityType.Model)).toBeDefined();
+  });
+
   // ─── capability checks ────────────────────────────────────────────────────
 
   it("exposes rename and description only for the kinds that support them", () => {
@@ -109,8 +120,6 @@ describe("ResourceRegistryService", () => {
       expect(registry.get(type).rename).toBeDefined();
       expect(registry.get(type).updateDescription).toBeDefined();
     }
-    // Models gain `retrieveOwners` with the share modal and the filters, which are the only callers.
-    expect(registry.get(EntityType.Model).retrieveOwners).toBeUndefined();
     for (const type of [EntityType.File]) {
       expect(registry.get(type).rename).toBeUndefined();
       expect(registry.get(type).updateDescription).toBeUndefined();
@@ -128,6 +137,26 @@ describe("ResourceRegistryService", () => {
     expect(registry.get(EntityType.Workflow).retrieveSingleFile).toBeUndefined();
     expect(registry.get(EntityType.Dataset).retrieveSingleFile).toBeDefined();
     expect(registry.get(EntityType.Model).retrieveSingleFile).toBeDefined();
+  });
+
+  it("offers publishing and covers only to the kinds the backend supports", () => {
+    for (const type of [EntityType.Workflow, EntityType.Dataset, EntityType.Model]) {
+      expect(registry.get(type).retrieveOwners).toBeDefined();
+      expect(registry.get(type).isPublic).toBeDefined();
+      expect(registry.get(type).setPublished).toBeDefined();
+    }
+    expect(registry.get(EntityType.File).isPublic).toBeUndefined();
+    expect(registry.get(EntityType.File).setPublished).toBeUndefined();
+    // A workflow cover is a data URL on the entry, so only the file-backed kinds resolve one.
+    expect(registry.get(EntityType.Workflow).coverUrl).toBeUndefined();
+    expect(registry.get(EntityType.Dataset).coverUrl).toBeDefined();
+    expect(registry.get(EntityType.Model).coverUrl).toBeDefined();
+  });
+
+  it("warns about cloning only for the kind that can be cloned", () => {
+    expect(registry.get(EntityType.Workflow).affordances?.clonable).toBe(true);
+    expect(registry.get(EntityType.Dataset).affordances?.clonable).toBe(false);
+    expect(registry.get(EntityType.Model).affordances?.clonable).toBe(false);
   });
 
   it("offers an id filter only where the backend has an id endpoint", () => {
@@ -170,6 +199,18 @@ describe("ResourceRegistryService", () => {
     expect(downloadService["downloadModel"]).toHaveBeenCalledWith(3, "m");
     expect(datasetService["retrieveDatasetVersionSingleFile"]).toHaveBeenCalledWith("/dataset/a/ds/v1/f.csv", true);
     expect(modelService["retrieveModelVersionSingleFile"]).toHaveBeenCalledWith("/model/a/m/v1/f.pt", false);
+  });
+
+  it("delegates a model's publishing and cover work to ModelService", async () => {
+    const model = registry.get(EntityType.Model);
+
+    expect(await firstValueFrom(model.isPublic!(3))).toBe(true);
+    model.setPublished!(3, false);
+    expect(await firstValueFrom(model.coverUrl!(3))).toBe("http://cover");
+    model.setCover!(3, "v1/preview.png");
+
+    expect(modelService["updateModelPublicity"]).toHaveBeenCalledWith(3);
+    expect(modelService["updateModelCoverImage"]).toHaveBeenCalledWith(3, "v1/preview.png");
   });
 
   it("reads ownership off the kind's own payload", () => {

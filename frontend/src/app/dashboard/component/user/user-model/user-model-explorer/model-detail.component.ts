@@ -20,8 +20,8 @@
 import { Component, OnInit, ViewChild } from "@angular/core";
 import { ActivatedRoute } from "@angular/router";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { switchMap } from "rxjs/operators";
-import { Observable } from "rxjs";
+import { catchError, map, switchMap } from "rxjs/operators";
+import { Observable, of } from "rxjs";
 import { format } from "date-fns";
 import { NgIf, NgClass, NgFor } from "@angular/common";
 import { FormsModule } from "@angular/forms";
@@ -40,6 +40,7 @@ import { NzSelectComponent, NzOptionComponent } from "ng-zorro-antd/select";
 import { NzTabsComponent, NzTabComponent } from "ng-zorro-antd/tabs";
 import { NzDividerComponent } from "ng-zorro-antd/divider";
 import { NzInputDirective } from "ng-zorro-antd/input";
+import { NzSwitchComponent } from "ng-zorro-antd/switch";
 
 import {
   MODEL_FORMATS,
@@ -56,7 +57,7 @@ import { EntityType } from "../../../../../hub/service/hub.service";
 import { extractErrorMessage } from "../../../../../common/util/error";
 import { formatCount } from "src/app/common/util/format.util";
 import { formatSize } from "src/app/common/util/size-formatter.util";
-import { ModelVersion } from "../../../../../common/type/model";
+import { Model, ModelVersion } from "../../../../../common/type/model";
 import {
   DatasetFileNode,
   getFullPathFromDatasetFileNode,
@@ -98,6 +99,7 @@ import { UserDatasetVersionFiletreeComponent } from "../../user-dataset/user-dat
     NzTabComponent,
     NzDividerComponent,
     NzInputDirective,
+    NzSwitchComponent,
     MarkdownDescriptionComponent,
     VersionUploaderComponent,
     UserDatasetFileRendererComponent,
@@ -543,6 +545,89 @@ export class ModelDetailComponent implements OnInit {
           this.modelFramework = previous;
           this.notificationService.error(extractErrorMessage(err));
         },
+      });
+  }
+
+  onPublicStatusChange(checked: boolean): void {
+    if (!this.mid) {
+      return;
+    }
+    const previous = this.modelIsPublic;
+    // Written before the request so the confirmed value below can differ from it: with one-way
+    // `[ngModel]`, storing the value the field already holds never reaches the switch, which would
+    // then keep the clicked position while the hint and the toast said the opposite.
+    this.modelIsPublic = checked;
+    this.confirmToggle(this.modelService.updateModelPublicity(this.mid))
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: model => {
+          this.modelIsPublic = model?.isPublic ?? checked;
+          const state = this.modelIsPublic ? "public" : "private";
+          this.notificationService.success(`Model ${this.modelName} is now ${state}`);
+        },
+        error: (err: unknown) => {
+          this.modelIsPublic = previous;
+          this.notificationService.error(extractErrorMessage(err));
+        },
+      });
+  }
+
+  onDownloadableStatusChange(checked: boolean): void {
+    if (!this.mid) {
+      return;
+    }
+    const previous = this.modelIsDownloadable;
+    this.modelIsDownloadable = checked;
+    this.confirmToggle(this.modelService.updateModelDownloadable(this.mid))
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: model => {
+          this.modelIsDownloadable = model?.isDownloadable ?? checked;
+          const state = this.modelIsDownloadable ? "allowed" : "not allowed";
+          this.notificationService.success(`Model downloads are now ${state}`);
+        },
+        error: (err: unknown) => {
+          this.modelIsDownloadable = previous;
+          this.notificationService.error(extractErrorMessage(err));
+        },
+      });
+  }
+
+  /**
+   * Both visibility flags sit behind toggle endpoints, which cannot be told which way to go, so the
+   * model is re-read to find out where it landed. A failed re-read yields undefined rather than an
+   * error: the toggle itself already succeeded, and reporting a failure would invite a retry that
+   * toggles it straight back.
+   */
+  private confirmToggle(toggle: Observable<unknown>): Observable<Model | undefined> {
+    const mid = this.mid;
+    return toggle.pipe(
+      switchMap(() =>
+        mid === undefined
+          ? of(undefined)
+          : this.modelService.getModel(mid).pipe(
+              map(dashboardModel => dashboardModel.model),
+              catchError(() => of(undefined))
+            )
+      )
+    );
+  }
+
+  /** The backend stores the cover relative to the model root, so the version name has to lead. */
+  onSetCoverImage(filePath: string): void {
+    if (!this.mid || !this.selectedVersion) {
+      return;
+    }
+    const mid = this.mid;
+    this.modelService
+      .updateModelCoverImage(mid, `${this.selectedVersion.name}/${filePath}`)
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: () => {
+          this.loadCoverImageUrl(mid);
+          this.notificationService.success("Cover image updated.");
+        },
+        error: (err: unknown) => this.notificationService.error(extractErrorMessage(err)),
       });
   }
 

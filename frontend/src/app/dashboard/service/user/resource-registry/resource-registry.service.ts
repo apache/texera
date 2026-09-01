@@ -49,6 +49,11 @@ export class ResourceRegistryService {
     );
   }
 
+  /** The descriptor for a kind, or undefined when the kind has none (computing units). */
+  public find(type: EntityType): ResourceDescriptor | undefined {
+    return this.descriptors.get(type);
+  }
+
   public get(type: EntityType): ResourceDescriptor {
     const descriptor = this.descriptors.get(type);
     if (!descriptor) {

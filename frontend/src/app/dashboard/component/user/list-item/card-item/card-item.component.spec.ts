@@ -705,7 +705,7 @@ describe("CardItemComponent", () => {
         .spyOn(modalService, "create")
         .mockReturnValue({ componentInstance: { refresh: refresh$ } } as any);
       (workflowPersistService as any).retrieveOwners = vi.fn().mockReturnValue(of(["alice", "bob"]));
-      component.entry = makeWorkflowEntry({ id: 7, workflow: { isOwner: true, accessLevel: "WRITE" } } as any);
+      component.entry = makeWorkflowEntry({ id: 7, accessLevel: "WRITE", workflow: { isOwner: true } } as any);
 
       await component.onClickOpenShareAccess();
 
@@ -744,6 +744,7 @@ describe("CardItemComponent", () => {
         type: "dataset",
         id: 5,
         allOwners: ["carol"],
+        inWorkspace: false,
       });
       expect(cfg.nzTitle).toBe("Share this dataset with others");
     });

@@ -20,6 +20,7 @@
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { RouterTestingModule } from "@angular/router/testing";
 import { By } from "@angular/platform-browser";
+import { of } from "rxjs";
 import { UserService } from "src/app/common/service/user/user.service";
 import { StubUserService } from "src/app/common/service/user/stub-user.service";
 import { BrowseSectionComponent } from "./browse-section.component";
@@ -27,13 +28,15 @@ import { WorkflowPersistService } from "../../../common/service/workflow-persist
 import { DatasetService } from "../../../dashboard/service/user/dataset/dataset.service";
 import { commonTestProviders } from "../../../common/testing/test-utils";
 import { DashboardEntry } from "../../../dashboard/type/dashboard-entry";
-import { AppSettings } from "../../../common/app-setting";
 import {
   HUB_DATASET_RESULT_DETAIL,
   HUB_WORKFLOW_RESULT_DETAIL,
   USER_DATASET,
   USER_WORKSPACE,
 } from "../../../app-routing.constant";
+
+/** What the dataset service's cover-url endpoint hands back in these specs. */
+const PRESIGNED_COVER = "https://s3.example/cover.png?sig=abc";
 
 describe("BrowseSectionComponent", () => {
   let component: BrowseSectionComponent;
@@ -44,7 +47,8 @@ describe("BrowseSectionComponent", () => {
       imports: [BrowseSectionComponent],
       providers: [
         { provide: WorkflowPersistService, useValue: {} },
-        { provide: DatasetService, useValue: {} },
+        // The cover now comes from the descriptor, so the double has to answer for it.
+        { provide: DatasetService, useValue: { getDatasetCoverUrl: () => of({ url: PRESIGNED_COVER }) } },
         ...commonTestProviders,
       ],
     });
@@ -101,7 +105,7 @@ describe("BrowseSectionComponent", () => {
   });
 
   describe("cover images", () => {
-    it("builds and caches the cover URL for a dataset that has a cover image", () => {
+    it("caches the cover URL the descriptor resolves for an entity that has a cover", () => {
       const entity = {
         id: 5,
         type: "dataset",
@@ -111,11 +115,11 @@ describe("BrowseSectionComponent", () => {
       component.entities = [entity];
       component.ngOnInit();
 
-      expect(component.getCoverImage(entity)).toBe(`${AppSettings.getApiEndpoint()}/dataset/5/cover`);
+      expect(component.getCoverImage(entity)).toBe(PRESIGNED_COVER);
     });
 
     it("falls back to the default background when no cover was cached", () => {
-      // No coverImageUrl -> loadCoverImages skips it -> getCoverImage returns the default.
+      // No coverImageUrl -> loadCoverImages never asks the descriptor -> getCoverImage defaults.
       const entity = { id: 6, type: "dataset", accessibleUserIds: [] } as unknown as DashboardEntry;
       component.entities = [entity];
       component.ngOnInit();
@@ -141,7 +145,8 @@ describe("BrowseSectionComponent rendering", () => {
         // AuthService and its whole dependency chain, so the shared stub stands in for it.
         { provide: UserService, useClass: StubUserService },
         { provide: WorkflowPersistService, useValue: {} },
-        { provide: DatasetService, useValue: {} },
+        // The cover now comes from the descriptor, so the double has to answer for it.
+        { provide: DatasetService, useValue: { getDatasetCoverUrl: () => of({ url: PRESIGNED_COVER }) } },
         ...commonTestProviders,
       ],
     });
@@ -194,11 +199,11 @@ describe("BrowseSectionComponent rendering", () => {
     const el = render([entity({ id: 5, coverImageUrl: "has-cover" })]);
 
     const img = el.querySelector<HTMLImageElement>(".card-cover-image")!;
-    expect(img.getAttribute("src")).toBe(`${AppSettings.getApiEndpoint()}/dataset/5/cover`);
+    expect(img.getAttribute("src")).toBe(PRESIGNED_COVER);
   });
 
   it("falls back to the default background when the cover image fails to load", () => {
-    // A cached cover URL can still 404; the inline error handler is the only thing that stops the
+    // A presigned cover URL can still 404; the inline error handler is the only thing that stops the
     // card from showing a broken image.
     const el = render([entity({ id: 5, coverImageUrl: "has-cover" })]);
     const img = el.querySelector<HTMLImageElement>(".card-cover-image")!;
