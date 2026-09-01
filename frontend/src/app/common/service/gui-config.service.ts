@@ -30,7 +30,7 @@ const ACCESS_TOKEN_KEY = "access_token";
 
 type PreLoginConfig = Pick<
   GuiConfig,
-  "localLogin" | "googleLogin" | "orcidLogin" | "defaultLocalUser" | "attributionEnabled"
+  "localLogin" | "googleLogin" | "orcidLogin" | "defaultLocalUser" | "attributionEnabled" | "emailVerification"
 >;
 // Fields served by /config/amber.
 type AmberConfig = Pick<GuiConfig, "defaultDataTransferBatchSize">;

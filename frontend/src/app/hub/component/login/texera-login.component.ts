@@ -45,6 +45,22 @@ import { NzDividerComponent } from "ng-zorro-antd/divider";
 import { NzTypographyComponent } from "ng-zorro-antd/typography";
 import { ORCID_STATE_KEY, OrcidAuthService, OrcidConfig } from "../../../common/service/user/orcid-auth.service";
 
+/**
+ * The reason a failed call carries, preferring the server's own words.
+ *
+ * An `HttpErrorResponse` puts the backend's JSON body on `.error`, while its `.message` is
+ * Angular's generic "Http failure response for <url>: 503 ...". Operator-facing refusals — an
+ * enabled verification flow with no SMTP sender behind it, say — are only useful if the body's
+ * message is what reaches the screen.
+ */
+function reasonFor(e: unknown): string | undefined {
+  return (e as HttpErrorResponse)?.error?.message ?? (e as Error)?.message;
+}
+
+/** Reported by every path that ends with an account existing. */
+const ACCOUNT_CREATED =
+  "Your account has been created. Please contact the Texera administrator to activate your account.";
+
 type LoginMode = "signin" | "signup";
 
 /**
@@ -102,6 +118,9 @@ export class TexeraLoginComponent implements OnInit {
       email: new FormControl("", [Validators.email]),
       password: new FormControl("", [Validators.required, Validators.minLength(6)]),
       confirm: new FormControl("", [this.confirmationValidator]),
+      // Carries the mailed code. Only collected, and only required, where
+      // `user-sys.email-verification` is on.
+      code: new FormControl(""),
     });
   }
 
@@ -165,6 +184,8 @@ export class TexeraLoginComponent implements OnInit {
   public setMode(mode: LoginMode): void {
     this.mode = mode;
     this.errorMessage = undefined;
+    // Switching tabs abandons a half-finished signup; the code that was mailed expires on its own.
+    this.form.controls.code.setValue("");
     // The confirm-password rule only applies in sign-up mode, so re-evaluate it on every switch.
     this.form.controls.confirm.updateValueAndValidity();
   }
@@ -208,46 +229,108 @@ export class TexeraLoginComponent implements OnInit {
       .subscribe(() => this.navigateAfterLogin());
   }
 
-  private register(): void {
+  /**
+   * Mail a verification code to the address in the form. Nothing is created: the account does not
+   * exist until [[register]] presents the code.
+   *
+   * Its own button rather than a step of signing up, because it puts mail in an inbox. The address
+   * belongs to whoever owns it and not necessarily to the person typing it, so sending has to be
+   * something the user visibly asks for instead of a side effect of pressing Sign up.
+   */
+  public sendCode(): void {
     this.errorMessage = undefined;
-    const username = this.form.get("username")?.value?.trim();
-    const email = (this.form.get("email")?.value ?? "").trim();
-    const password = this.form.get("password")?.value;
-    const confirm = this.form.get("confirm")?.value;
-
-    const usernameValidation = UserService.validateUsername(username);
-    if (!usernameValidation.result) {
-      this.errorMessage = usernameValidation.message;
-      return;
-    }
-    const emailValidation = UserService.validateEmail(email);
-    if (!emailValidation.result) {
-      this.errorMessage = emailValidation.message;
-      return;
-    }
-    if (!password || password.length < 6) {
-      this.errorMessage = "Password length should be greater than 5.";
-      return;
-    }
-    if (password !== confirm) {
-      this.errorMessage = "Two passwords are inconsistent.";
+    const fields = this.validatedFields();
+    if (!fields) {
       return;
     }
 
     this.userService
-      .register(username, email, password)
+      .register(fields.username, fields.email, fields.password)
       .pipe(
         catchError((e: unknown) => {
-          this.errorMessage = (e as Error)?.message || "Registration failed";
+          this.errorMessage = reasonFor(e) || "That code could not be sent.";
           return throwError(() => e);
         }),
         untilDestroyed(this)
       )
-      .subscribe(() =>
+      .subscribe(({ verificationRequired }) => {
+        // The button is only rendered where the config says verification is on. If the server
+        // disagrees, `register` has just created the account outright and there is no code coming.
         this.notificationService.success(
-          "Your account has been created. Please contact the Texera administrator to activate your account."
+          verificationRequired ? `A verification code has been sent to ${fields.email}.` : ACCOUNT_CREATED
+        );
+      });
+  }
+
+  private register(): void {
+    this.errorMessage = undefined;
+    const fields = this.validatedFields();
+    if (!fields) {
+      return;
+    }
+    if (fields.password !== this.form.get("confirm")?.value) {
+      this.errorMessage = "Two passwords are inconsistent.";
+      return;
+    }
+
+    // Where verification is on the account does not exist yet, so this submit is the second half of
+    // the signup: the same fields go back with the code that [[sendCode]] had mailed.
+    if (this.config.env.emailVerification) {
+      const code = (this.form.get("code")?.value ?? "").trim();
+      if (!code) {
+        this.errorMessage = "Enter the code that was emailed to you.";
+        return;
+      }
+      this.userService
+        .registerVerify(fields.username, fields.email, fields.password, code)
+        .pipe(
+          catchError((e: unknown) => {
+            this.errorMessage = reasonFor(e) || "That code is not valid or has expired.";
+            return throwError(() => e);
+          }),
+          untilDestroyed(this)
         )
-      );
+        .subscribe(() => this.notificationService.success(ACCOUNT_CREATED));
+      return;
+    }
+
+    this.userService
+      .register(fields.username, fields.email, fields.password)
+      .pipe(
+        catchError((e: unknown) => {
+          this.errorMessage = reasonFor(e) || "Registration failed";
+          return throwError(() => e);
+        }),
+        untilDestroyed(this)
+      )
+      .subscribe(() => this.notificationService.success(ACCOUNT_CREATED));
+  }
+
+  /**
+   * Trim and check the three fields a registration call needs, reporting the first problem.
+   * Returns null once something has been reported. The confirm-password match is not checked here:
+   * it guards a submit, and has nothing to say about whether a code can be sent.
+   */
+  private validatedFields(): { username: string; email: string; password: string } | null {
+    const username = this.form.get("username")?.value?.trim();
+    const email = (this.form.get("email")?.value ?? "").trim();
+    const password = this.form.get("password")?.value;
+
+    const usernameValidation = UserService.validateUsername(username);
+    if (!usernameValidation.result) {
+      this.errorMessage = usernameValidation.message;
+      return null;
+    }
+    const emailValidation = UserService.validateEmail(email);
+    if (!emailValidation.result) {
+      this.errorMessage = emailValidation.message;
+      return null;
+    }
+    if (!password || password.length < 6) {
+      this.errorMessage = "Password length should be greater than 5.";
+      return null;
+    }
+    return { username, email, password };
   }
 
   private navigateAfterLogin(): void {

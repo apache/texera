@@ -126,7 +126,32 @@
       Password must be at least 6 characters. After registering, contact the Texera administrator to activate your
       account.
     </p>
-    }
+
+    <!-- Present from the outset where verification is on, so the code reads as part of signing up
+         rather than as a step that appears once the form has been submitted. Sending is its own
+         button: mail reaches the address only when the user asks for it. -->
+    @if (config.env.emailVerification) {
+    <div class="code-row">
+      <nz-input-group
+        nzSize="large"
+        nzPrefixIcon="mail">
+        <input
+          nz-input
+          formControlName="code"
+          inputmode="numeric"
+          maxlength="6"
+          autocomplete="one-time-code"
+          placeholder="Verification code" />
+      </nz-input-group>
+      <button
+        nz-button
+        nzSize="large"
+        type="button"
+        (click)="sendCode()">
+        Get code
+      </button>
+    </div>
+    } }
 
     <p class="error">{{ errorMessage }}</p>
 

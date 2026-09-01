@@ -17,16 +17,23 @@
  * under the License.
  */
 
-package org.apache.texera.web.model.http.request.auth
+\c texera_db
 
-/**
-  * A registration, optionally carrying the code that proves the address. The same shape serves both
-  * steps of a verified signup — see `AuthResource.registerVerify` for why the second step repeats
-  * the first one's fields.
-  */
-case class UserRegistrationRequest(
-    username: String,
-    email: String,
-    password: String,
-    code: String = null
-)
+SET search_path TO texera_db;
+
+BEGIN;
+
+-- Which view a workflow opens in by default (CANVAS or FORM). The form's definition lives
+-- in workflow.content under `formBinding`; only this preference is denormalized so listing
+-- endpoints need not parse every row's content. It never gates availability -- the form is
+-- reachable for every workflow.
+DO $$ BEGIN
+    CREATE TYPE default_view_enum AS ENUM ('CANVAS', 'FORM');
+EXCEPTION
+    WHEN duplicate_object THEN NULL;
+END $$;
+
+ALTER TABLE workflow
+    ADD COLUMN IF NOT EXISTS default_view default_view_enum NOT NULL DEFAULT 'CANVAS';
+
+COMMIT;

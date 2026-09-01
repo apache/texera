@@ -73,10 +73,10 @@ class MockSearchResultsComponent {
 
 // A plain filters double for the unit tests that drive component methods
 // directly (no rendering / no ViewChild).
-function makeFiltersDouble(keywords: string[] = []) {
+function makeFiltersDouble(keywords: string[] = [], masterFilterList: ReadonlyArray<string> = []) {
   return {
     masterFilterListChange: EMPTY,
-    masterFilterList: [] as ReadonlyArray<string>,
+    masterFilterList,
     getSearchKeywords: () => keywords,
     getSearchFilterParameters: () => ({}),
   } as unknown as FiltersComponent;
@@ -214,6 +214,60 @@ describe("SearchComponent", () => {
     await component.search();
 
     expect(results.reset).not.toHaveBeenCalled();
+  });
+
+  // The duplicate-search guard above compares list *lengths* and then the terms themselves. With
+  // two empty lists the term comparison never runs at all, so these three drive it with non-empty
+  // lists: equal terms still short-circuit, differing terms do not, and a shorter incoming list
+  // does not sneak past `Array.every` (which is vacuously true on a shorter receiver).
+  //
+  // Every case below deliberately gives the double a *different* keyword list from its filter list.
+  // The guard reads `filters.masterFilterList`, and `filters.getSearchKeywords()` is right next to
+  // it in the same object; with the two set to equal arrays the receiver could be swapped for the
+  // keywords and nothing would notice.
+  it("skips a duplicate search when a non-empty filter list is unchanged", async () => {
+    component.filters = makeFiltersDouble(["kw"], ["alpha"]);
+    const results = makeSearchResultsDouble();
+    component.searchResultsComponent = results as unknown as SearchResultsComponent;
+    component.masterFilterList = ["alpha"];
+    component.lastSortMethod = component.sortMethod;
+    component.lastSelectedType = component.selectedType;
+
+    await component.search();
+
+    expect(results.reset).not.toHaveBeenCalled();
+  });
+
+  it("re-runs the search when a same-length filter list holds different terms", async () => {
+    component.filters = makeFiltersDouble(["kw"], ["alpha"]);
+    const results = makeSearchResultsDouble();
+    component.searchResultsComponent = results as unknown as SearchResultsComponent;
+    component.masterFilterList = ["beta"];
+    component.lastSortMethod = component.sortMethod;
+    component.lastSelectedType = component.selectedType;
+
+    await component.search();
+
+    expect(results.reset).toHaveBeenCalledTimes(1);
+    expect(component.masterFilterList).toEqual(["alpha"]);
+  });
+
+  it("re-runs the search when the new filter list is a prefix of the last one", async () => {
+    // The element-wise comparison alone cannot see this: `["alpha"].every((v, i) => v === ["alpha",
+    // "beta"][i])` is true, so without the length conjunct every narrowing of the filter box -
+    // including clearing it - would be dismissed as "same list" and the panel would keep showing
+    // the previous query's results.
+    component.filters = makeFiltersDouble(["kw"], ["alpha"]);
+    const results = makeSearchResultsDouble();
+    component.searchResultsComponent = results as unknown as SearchResultsComponent;
+    component.masterFilterList = ["alpha", "beta"];
+    component.lastSortMethod = component.sortMethod;
+    component.lastSelectedType = component.selectedType;
+
+    await component.search();
+
+    expect(results.reset).toHaveBeenCalledTimes(1);
+    expect(component.masterFilterList).toEqual(["alpha"]);
   });
 
   it("throws when the results component is missing", async () => {

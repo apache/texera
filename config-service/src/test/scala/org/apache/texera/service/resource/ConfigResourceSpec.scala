@@ -138,7 +138,8 @@ class ConfigResourceSpec
       "defaultLocalUser",
       "attributionEnabled",
       "deploymentVersionCheckEnabled",
-      "inviteOnly"
+      "inviteOnly",
+      "emailVerification"
     )
   }
 
