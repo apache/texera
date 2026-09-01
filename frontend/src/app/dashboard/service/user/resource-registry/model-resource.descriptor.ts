@@ -19,12 +19,13 @@
 
 import { Injectable } from "@angular/core";
 import { DashboardEntry } from "../../../type/dashboard-entry";
-import { ResourceDescriptor } from "../../../type/resource-descriptor";
+import { ResourceAffordances, ResourceDescriptor } from "../../../type/resource-descriptor";
 import { EntityType } from "../../../../hub/service/hub.service";
 import { DEFAULT_MODEL_NAME, ModelService, validateModelName } from "../model/model.service";
 import { MODEL_ICON } from "../../../../common/icon/model-icon";
 import { USER_MODEL } from "../../../../app-routing.constant";
 import { DownloadService } from "../download/download.service";
+import { map } from "rxjs/operators";
 
 @Injectable({
   providedIn: "root",
@@ -36,6 +37,8 @@ export class ModelResourceDescriptor implements ResourceDescriptor {
   // `hubRoute` is deliberately absent: models reach the hub with the rest of the hub UI.
   readonly hasSize = true;
   readonly defaultName = DEFAULT_MODEL_NAME;
+  // Publishing a model grants read access only; there is no clone action for it.
+  readonly affordances: ResourceAffordances = { clonable: false };
 
   constructor(
     private modelService: ModelService,
@@ -49,5 +52,10 @@ export class ModelResourceDescriptor implements ResourceDescriptor {
   download = (id: number, name: string) => this.downloadService.downloadModel(id, name);
   retrieveSingleFile = (filePath: string, isLogin: boolean) =>
     this.modelService.retrieveModelVersionSingleFile(filePath, isLogin);
-  // `retrieveOwners` arrives with the share modal and the filters, which need it.
+  retrieveOwners = () => this.modelService.retrieveOwners();
+  isPublic = (id: number) => this.modelService.getModel(id).pipe(map(dashboard => dashboard.model.isPublic));
+  // The endpoint toggles, so `next` is the caller's expectation rather than a payload.
+  setPublished = (id: number) => this.modelService.updateModelPublicity(id);
+  coverUrl = (id: number) => this.modelService.getModelCoverUrl(id).pipe(map(({ url }) => url));
+  setCover = (id: number, path: string) => this.modelService.updateModelCoverImage(id, path);
 }

@@ -85,6 +85,24 @@ $text-secondary: rgba(0, 0, 0, 0.45);
   margin: 2px 2px -4px;
 }
 
+// The code field and the button that mails it sit on one line. `min-width: 0` lets the input
+// shrink inside the flex row instead of holding its content width and pushing the button out.
+.code-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+
+  nz-input-group {
+    flex: 1;
+    min-width: 0;
+  }
+
+  button {
+    flex: none;
+    white-space: nowrap;
+  }
+}
+
 .error {
   color: #ff4d4f;
   font-size: 13px;

@@ -19,16 +19,14 @@
 
 import { ChangeDetectorRef, Component, Input, OnChanges, OnInit, SimpleChanges } from "@angular/core";
 import { DashboardEntry } from "../../../dashboard/type/dashboard-entry";
-import { WorkflowPersistService } from "../../../common/service/workflow-persist/workflow-persist.service";
-import { DatasetService } from "../../../dashboard/service/user/dataset/dataset.service";
-import { UntilDestroy } from "@ngneat/until-destroy";
+import { ResourceRegistryService } from "../../../dashboard/service/user/resource-registry/resource-registry.service";
+import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import {
   HUB_DATASET_RESULT_DETAIL,
   HUB_WORKFLOW_RESULT_DETAIL,
   USER_DATASET,
   USER_WORKSPACE,
 } from "../../../app-routing.constant";
-import { AppSettings } from "../../../common/app-setting";
 import { NgIf, NgFor, NgStyle, DatePipe } from "@angular/common";
 import { NzCardComponent } from "ng-zorro-antd/card";
 import { RouterLink } from "@angular/router";
@@ -65,11 +63,11 @@ export class BrowseSectionComponent implements OnInit, OnChanges {
   protected readonly USER_DATASET = USER_DATASET;
   entityRoutes: { [key: number]: string[] } = {};
 
-  private coverImageUrls = new Map<number, string>();
+  /** Keyed by type and id: ids are only unique within a kind, and sections may mix kinds. */
+  private coverImageUrls = new Map<string, string>();
 
   constructor(
-    private workflowPersistService: WorkflowPersistService,
-    private datasetService: DatasetService,
+    private resourceRegistry: ResourceRegistryService,
     private cdr: ChangeDetectorRef
   ) {}
 
@@ -112,24 +110,40 @@ export class BrowseSectionComponent implements OnInit, OnChanges {
     }
   }
 
+  private coverCacheKey(entity: DashboardEntry): string {
+    return `${entity.type}:${entity.id}`;
+  }
+
+  /** Asks each kind's descriptor for its cover, so the hub renders the same picture as the cards. */
   private loadCoverImages(): void {
     if (!this.entities) return;
 
     this.entities
       .filter(
         (entity): entity is DashboardEntry & { id: number } =>
-          entity.type === "dataset" &&
           entity.coverImageUrl !== undefined &&
           entity.id !== undefined &&
-          !this.coverImageUrls.has(entity.id)
+          !this.coverImageUrls.has(this.coverCacheKey(entity))
       )
       .forEach(entity => {
-        const coverUrl = `${AppSettings.getApiEndpoint()}/dataset/${entity.id}/cover`;
-        this.coverImageUrls.set(entity.id, coverUrl);
+        // `find`, not `get`: a section may hold a kind the registry does not carry.
+        const coverUrl = this.resourceRegistry.find(entity.type)?.coverUrl;
+        if (!coverUrl) {
+          return;
+        }
+        const key = this.coverCacheKey(entity);
+        coverUrl(entity.id)
+          .pipe(untilDestroyed(this))
+          .subscribe(url => {
+            if (url) {
+              this.coverImageUrls.set(key, url);
+              this.cdr.markForCheck();
+            }
+          });
       });
   }
 
   getCoverImage(entity: DashboardEntry): string {
-    return this.coverImageUrls.get(entity.id!) || this.defaultBackground;
+    return this.coverImageUrls.get(this.coverCacheKey(entity)) || this.defaultBackground;
   }
 }

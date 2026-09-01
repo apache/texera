@@ -20,7 +20,7 @@
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { NoopAnimationsModule } from "@angular/platform-browser/animations";
 import { ActivatedRoute } from "@angular/router";
-import { of, throwError } from "rxjs";
+import { of, Subject, throwError } from "rxjs";
 import { MarkdownService } from "ngx-markdown";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { NgModel } from "@angular/forms";
@@ -159,6 +159,13 @@ describe("ModelDetailComponent", () => {
     Object.assign(component, state);
     fixture.detectChanges();
     return fixture.nativeElement as HTMLElement;
+  };
+
+  /** Runs change detection, flushes NgModel's microtask write, and renders the result. */
+  const settle = async (): Promise<void> => {
+    fixture.detectChanges();
+    await Promise.resolve();
+    fixture.detectChanges();
   };
 
   // nz-tabs only instantiates the active tab, so a tab has to be opened before
@@ -794,6 +801,130 @@ describe("ModelDetailComponent", () => {
     expect(root.querySelectorAll("nz-select").length).toBe(2);
     expect(component.frameworks).toEqual(MODEL_FRAMEWORKS);
     expect(component.formats).toEqual(MODEL_FORMATS);
+  });
+
+  it("toggles visibility and downloadability, keeping the switch on the server's answer", () => {
+    let published = false;
+    modelService["getModel"] = vi.fn(() => of(dashboardModel({ model: { isPublic: published } })));
+    modelService["updateModelPublicity"] = vi.fn(() => {
+      published = !published;
+      return of({});
+    });
+    modelService["updateModelDownloadable"] = vi.fn(() => throwError(() => new Error("denied")));
+    create();
+
+    component.onPublicStatusChange(true);
+    component.onDownloadableStatusChange(false);
+
+    expect(modelService["updateModelPublicity"]).toHaveBeenCalledWith(MID);
+    expect(component.modelIsPublic).toBe(true);
+    // The rejected toggle leaves the model downloadable, so the switch snaps back.
+    expect(component.modelIsDownloadable).toBe(true);
+    expect(notificationService["error"]).toHaveBeenCalled();
+  });
+
+  it("follows the server when a stale switch toggles the wrong way, and moves the switch back", async () => {
+    // The page loaded a private model; something else published it meanwhile. The endpoint toggles,
+    // so asking for "public" makes it private again — and the rendered switch has to follow, not
+    // just the field. The read-back is deferred here because that is what makes it work: with
+    // one-way [ngModel] the correction is only seen as a change if a detection pass observed the
+    // clicked value first, which a real HTTP round trip guarantees.
+    const readBack = new Subject<unknown>();
+    modelService["getModel"] = vi
+      .fn()
+      .mockReturnValueOnce(of(dashboardModel({ model: { isPublic: false } })))
+      .mockReturnValue(readBack);
+    modelService["updateModelPublicity"] = vi.fn(() => of({}));
+    create();
+    const root = openTab("Settings");
+    const visibility = root.querySelectorAll<HTMLElement>("nz-switch button.ant-switch")[0];
+    expect(visibility.classList.contains("ant-switch-checked")).toBe(false);
+
+    visibility.click();
+    // NgModel pushes a new value to the control in a microtask, so each write needs one flushed
+    // before the switch reflects it.
+    await settle();
+    expect(visibility.classList.contains("ant-switch-checked")).toBe(true);
+
+    readBack.next(dashboardModel({ model: { isPublic: false } }));
+    await settle();
+
+    expect(component.modelIsPublic).toBe(false);
+    expect(visibility.classList.contains("ant-switch-checked")).toBe(false);
+  });
+
+  it("reads the downloadable flag back too, since that endpoint also toggles", () => {
+    // A stale switch would otherwise flip downloads the wrong way and mis-gate the download buttons.
+    let downloadable = false;
+    modelService["getModel"] = vi.fn(() => of(dashboardModel({ model: { isDownloadable: downloadable } })));
+    modelService["updateModelDownloadable"] = vi.fn(() => {
+      downloadable = !downloadable;
+      return of({});
+    });
+    create();
+    component.modelIsDownloadable = true;
+
+    component.onDownloadableStatusChange(false);
+
+    expect(modelService["updateModelDownloadable"]).toHaveBeenCalledWith(MID);
+    expect(component.modelIsDownloadable).toBe(true);
+    expect(component.isDownloadAllowed()).toBe(true);
+  });
+
+  it("keeps a landed toggle when the read-back fails", () => {
+    // GET /model/{mid} sizes the repository and can fail where the toggle did not. Reporting that
+    // as a failure would invite a retry, which would toggle the model straight back.
+    modelService["updateModelPublicity"] = vi.fn(() => of({}));
+    modelService["getModel"] = vi
+      .fn()
+      .mockReturnValueOnce(of(dashboardModel()))
+      .mockReturnValue(throwError(() => new Error("lakefs down")));
+    create();
+
+    component.onPublicStatusChange(true);
+
+    expect(component.modelIsPublic).toBe(true);
+    expect(notificationService["success"]).toHaveBeenCalledWith("Model resnet-50 is now public");
+    expect(notificationService["error"]).not.toHaveBeenCalled();
+  });
+
+  it("rolls the switch back when the toggle itself fails", () => {
+    modelService["updateModelPublicity"] = vi.fn(() => throwError(() => new Error("denied")));
+    create();
+
+    component.onPublicStatusChange(true);
+
+    expect(component.modelIsPublic).toBe(false);
+    expect(notificationService["error"]).toHaveBeenCalled();
+  });
+
+  it("renders both visibility switches on the Settings tab", () => {
+    create();
+    const root = openTab("Settings");
+
+    expect(root.querySelectorAll("nz-switch").length).toBe(2);
+  });
+
+  it("prefixes the cover path with the selected version and reloads the resolved url", () => {
+    modelService["updateModelCoverImage"] = vi.fn(() => of({}));
+    modelService["getModelCoverUrl"] = vi.fn(() => of({ url: "http://cover/new.png" }));
+    create();
+    component.selectedVersion = { mvid: 3, mid: MID, creatorUid: 1, name: "v2" } as any;
+
+    component.onSetCoverImage("images/preview.png");
+
+    expect(modelService["updateModelCoverImage"]).toHaveBeenCalledWith(MID, "v2/images/preview.png");
+    expect(component.coverImageUrl).toBe("http://cover/new.png");
+  });
+
+  it("does not set a cover while no version is selected", () => {
+    modelService["updateModelCoverImage"] = vi.fn(() => of({}));
+    create();
+    component.selectedVersion = undefined;
+
+    component.onSetCoverImage("images/preview.png");
+
+    expect(modelService["updateModelCoverImage"]).not.toHaveBeenCalled();
   });
 
   it("collapses and restores the right sider, and maximizes the preview", () => {

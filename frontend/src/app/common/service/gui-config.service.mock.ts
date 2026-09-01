@@ -35,6 +35,7 @@ export class MockGuiConfigService {
     googleLogin: true,
     appleLogin: true,
     inviteOnly: false,
+    emailVerification: false,
     userPresetEnabled: true,
     workflowExecutionsTrackingEnabled: false,
     linkBreakpointEnabled: false,

@@ -380,6 +380,48 @@ describe("WorkspaceComponent", () => {
         vi.useRealTimers();
       }
     });
+
+    it("does not persist an edit made by a signed-out visitor", async () => {
+      // A guest can still edit the canvas; persisting on their behalf would write to whatever
+      // workflow id the URL happens to carry.
+      vi.useFakeTimers();
+      try {
+        const workflowChanged$ = new Subject<void>();
+        await createFixture();
+        workflowActionService.workflowChanged.mockReturnValue(workflowChanged$.asObservable());
+        userService.isLogin.mockReturnValue(false);
+        workflowPersistService.isWorkflowPersistEnabled.mockReturnValue(true);
+
+        component.registerAutoPersistWorkflow();
+        workflowChanged$.next();
+        vi.advanceTimersByTime(5000);
+
+        expect(workflowPersistService.persistWorkflow).not.toHaveBeenCalled();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("does not persist when workflow persistence is switched off", async () => {
+      // The other half of the same guard. A deployment can turn persistence off, and while it is
+      // off a signed-in user's edits must not be written back either.
+      vi.useFakeTimers();
+      try {
+        const workflowChanged$ = new Subject<void>();
+        await createFixture();
+        workflowActionService.workflowChanged.mockReturnValue(workflowChanged$.asObservable());
+        userService.isLogin.mockReturnValue(true);
+        workflowPersistService.isWorkflowPersistEnabled.mockReturnValue(false);
+
+        component.registerAutoPersistWorkflow();
+        workflowChanged$.next();
+        vi.advanceTimersByTime(5000);
+
+        expect(workflowPersistService.persistWorkflow).not.toHaveBeenCalled();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
   });
 
   describe("updateViewCount", () => {

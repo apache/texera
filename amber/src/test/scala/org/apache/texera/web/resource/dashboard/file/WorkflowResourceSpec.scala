@@ -29,7 +29,7 @@ import org.apache.texera.dao.jooq.generated.Tables.{
   WORKFLOW_USER_CLONES,
   WORKFLOW_VERSION
 }
-import org.apache.texera.dao.jooq.generated.enums.{PrivilegeEnum, UserRoleEnum}
+import org.apache.texera.dao.jooq.generated.enums.{DefaultViewEnum, PrivilegeEnum, UserRoleEnum}
 import org.apache.texera.dao.jooq.generated.tables.daos.{UserDao, WorkflowUserAccessDao}
 import org.apache.texera.dao.jooq.generated.tables.pojos.{
   Project,
@@ -43,6 +43,7 @@ import org.apache.texera.web.resource.dashboard.user.project.ProjectResource
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowResource
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowResource.{
   DashboardWorkflow,
+  DefaultViewRequest,
   WorkflowIDs,
   WorkflowWithPrivilege
 }
@@ -1298,6 +1299,223 @@ class WorkflowResourceSpec
     workflowResource.deleteWorkflow(WorkflowIDs(List(wid), None), sessionUser1)
 
     assert(workflowNamesOf(sessionUser1).isEmpty)
+  }
+
+  // ---------------------------------------------------------------------------
+  // Form View: the per-workflow default view (canvas or form).
+  // ---------------------------------------------------------------------------
+
+  // duplicateWorkflow runs assignNewOperatorIds over the content, which requires a
+  // real `operators` array, so the toy content used elsewhere in this spec won't do.
+  private val contentWithOperators =
+    """{"operators":[{"operatorID":"Limit-operator-1","operatorType":"Limit"}],""" +
+      """"operatorPositions":{},"links":[],"commentBoxes":[],"settings":{}}"""
+
+  /** Persist a fresh workflow owned by user 1 and return its wid. */
+  private def persistFreshWorkflow(
+      name: String,
+      content: String = contentWithOperators
+  ): Integer = {
+    val workflow = new Workflow()
+    workflow.setName(name)
+    workflow.setContent(content)
+    workflowResource.persistWorkflow(workflow, sessionUser1)
+    workflow.getWid
+  }
+
+  private def defaultView(wid: Integer): DefaultViewEnum =
+    getDSLContext
+      .select(WORKFLOW.DEFAULT_VIEW)
+      .from(WORKFLOW)
+      .where(WORKFLOW.WID.eq(wid))
+      .fetchOne()
+      .value1()
+
+  private def contentOf(wid: Integer): String =
+    getDSLContext
+      .select(WORKFLOW.CONTENT)
+      .from(WORKFLOW)
+      .where(WORKFLOW.WID.eq(wid))
+      .fetchOne()
+      .value1()
+
+  private def lastModifiedOf(wid: Integer): Timestamp =
+    getDSLContext
+      .select(WORKFLOW.LAST_MODIFIED_TIME)
+      .from(WORKFLOW)
+      .where(WORKFLOW.WID.eq(wid))
+      .fetchOne()
+      .value1()
+
+  "/set-default-view API" should "switch the default view to form and back to canvas" in {
+    val wid = persistFreshWorkflow("param_toggle")
+    assert(defaultView(wid) == DefaultViewEnum.CANVAS, "a new workflow must default to the canvas")
+
+    workflowResource.setDefaultView(wid, DefaultViewRequest("FORM"), sessionUser1)
+    assert(defaultView(wid) == DefaultViewEnum.FORM)
+
+    workflowResource.setDefaultView(wid, DefaultViewRequest("CANVAS"), sessionUser1)
+    assert(defaultView(wid) == DefaultViewEnum.CANVAS)
+  }
+
+  it should "reject a user without write access" in {
+    val wid = persistFreshWorkflow("param_no_access")
+
+    assertThrows[ForbiddenException] {
+      workflowResource.setDefaultView(wid, DefaultViewRequest("FORM"), sessionUser2)
+    }
+    assert(defaultView(wid) == DefaultViewEnum.CANVAS)
+  }
+
+  it should "reject an invalid or missing view value" in {
+    val wid = persistFreshWorkflow("param_invalid")
+
+    assertThrows[BadRequestException] {
+      workflowResource.setDefaultView(wid, DefaultViewRequest("SIDEBAR"), sessionUser1)
+    }
+    // A missing/null body value must be a 400, not a 500 (lookupLiteral returns null, not NPE).
+    assertThrows[BadRequestException] {
+      workflowResource.setDefaultView(wid, DefaultViewRequest(null), sessionUser1)
+    }
+    assert(defaultView(wid) == DefaultViewEnum.CANVAS)
+  }
+
+  // A plain save (persistWorkflow) only writes the fields the client sends -- name,
+  // description, content, is_public -- and never `default_view`, so saving the canvas must
+  // not reset the default view. The edit payload mirrors what the frontend sends.
+  it should "survive a subsequent save of the workflow" in {
+    val wid = persistFreshWorkflow("param_survives_save")
+    workflowResource.setDefaultView(wid, DefaultViewRequest("FORM"), sessionUser1)
+
+    val edit = new Workflow()
+    edit.setWid(wid)
+    edit.setName("param_survives_save_edited")
+    edit.setContent("{\"operators\":[],\"links\":[]}")
+    edit.setIsPublic(false)
+    workflowResource.persistWorkflow(edit, sessionUser1)
+
+    assert(
+      defaultView(wid) == DefaultViewEnum.FORM,
+      "saving the canvas must not reset the default view"
+    )
+  }
+
+  // A biologist's path is hub -> clone -> use, so a copy has to stay usable.
+  it should "be inherited by a duplicated workflow" in {
+    val wid = persistFreshWorkflow("param_source")
+    workflowResource.setDefaultView(wid, DefaultViewRequest("FORM"), sessionUser1)
+
+    val copies = workflowResource.duplicateWorkflow(WorkflowIDs(List(wid), None), sessionUser1)
+
+    assert(copies.length == 1)
+    assert(
+      defaultView(copies.head.workflow.getWid) == DefaultViewEnum.FORM,
+      "the copy must keep the preference"
+    )
+  }
+
+  // The hub's clone button goes through cloneWorkflow (not duplicateWorkflow); a cloned
+  // form-default workflow must stay form-default so the copy opens straight into its form.
+  it should "be inherited by a workflow cloned through cloneWorkflow" in {
+    val wid =
+      seedWorkflow(sessionUser1, "clone-formview-src", "d", contentWithOperator).workflow.getWid
+    workflowResource.makePublic(wid, sessionUser1)
+    workflowResource.setDefaultView(wid, DefaultViewRequest("FORM"), sessionUser1)
+
+    val newWid = workflowResource.cloneWorkflow(wid, sessionUser2, cloneRequest)
+
+    assert(defaultView(newWid) == DefaultViewEnum.FORM, "the clone must keep the default view")
+  }
+
+  // Both views load a workflow through this endpoint, and the client needs the default view
+  // to know which one to open first. Leaving the value out of the payload left the client
+  // guessing, so it is worth pinning down.
+  it should "be reported by the endpoint both views load through" in {
+    val wid = persistFreshWorkflow("param_retrieve")
+    assert(
+      workflowResource.retrieveWorkflow(wid, sessionUser1).defaultView == DefaultViewEnum.CANVAS
+    )
+
+    workflowResource.setDefaultView(wid, DefaultViewRequest("FORM"), sessionUser1)
+
+    assert(workflowResource.retrieveWorkflow(wid, sessionUser1).defaultView == DefaultViewEnum.FORM)
+  }
+
+  it should "leave a duplicate of a plain workflow defaulting to the canvas" in {
+    val wid = persistFreshWorkflow("plain_source")
+
+    val copies = workflowResource.duplicateWorkflow(WorkflowIDs(List(wid), None), sessionUser1)
+
+    assert(copies.length == 1)
+    assert(defaultView(copies.head.workflow.getWid) == DefaultViewEnum.CANVAS)
+  }
+
+  // Setting the preference updates only its own column, so a mere change must not bump the
+  // workflow's last-modified time (which would reorder the dashboard's "recent" listing).
+  it should "not change last_modified_time when the default view is set" in {
+    val wid = persistFreshWorkflow("param_mtime")
+    val before = lastModifiedOf(wid)
+
+    workflowResource.setDefaultView(wid, DefaultViewRequest("FORM"), sessionUser1)
+    assert(
+      lastModifiedOf(wid) == before,
+      "setting the default view must not bump last_modified_time"
+    )
+
+    workflowResource.setDefaultView(wid, DefaultViewRequest("CANVAS"), sessionUser1)
+    assert(lastModifiedOf(wid) == before, "setting it back must not bump last_modified_time")
+  }
+
+  // The dashboard listing (GET /workflow/list) selects specific columns, so it has to include
+  // default_view explicitly or every listed workflow would report the POJO default (null).
+  it should "be reported by the workflow listing endpoint" in {
+    val wid = persistFreshWorkflow("param_list")
+    workflowResource.setDefaultView(wid, DefaultViewRequest("FORM"), sessionUser1)
+
+    val listed =
+      workflowResource.retrieveWorkflowsBySessionUser(sessionUser1).find(_.workflow.getWid == wid)
+
+    assert(listed.isDefined)
+    assert(
+      listed.get.workflow.getDefaultView == DefaultViewEnum.FORM,
+      "the listing must carry the default view"
+    )
+  }
+
+  // The hub loads a public workflow through retrievePublicWorkflow, and a clone opens
+  // straight into the form only when that response says the source defaults to the form.
+  it should "be reported by retrievePublicWorkflow for a public workflow" in {
+    val workflow = new Workflow()
+    workflow.setName("param_public_retrieve")
+    workflow.setContent(contentWithOperators)
+    workflow.setIsPublic(true)
+    workflowResource.persistWorkflow(workflow, sessionUser1)
+    val wid = workflow.getWid
+
+    assert(workflowResource.retrievePublicWorkflow(wid).defaultView == DefaultViewEnum.CANVAS)
+
+    workflowResource.setDefaultView(wid, DefaultViewRequest("FORM"), sessionUser1)
+
+    assert(workflowResource.retrievePublicWorkflow(wid).defaultView == DefaultViewEnum.FORM)
+  }
+
+  // Switching the default back to canvas only changes the preference; the author's setup lives
+  // in content under `formBinding` and must survive so switching back to form restores it.
+  it should "keep the form definition in content when the default view is set back to canvas" in {
+    val withBinding =
+      """{"operators":[{"operatorID":"Limit-operator-1","operatorType":"Limit"}],""" +
+        """"operatorPositions":{},"links":[],"commentBoxes":[],"settings":{},""" +
+        """"formBinding":{"exposed":["Limit-operator-1"]}}"""
+    val wid = persistFreshWorkflow("param_keep_def", withBinding)
+    workflowResource.setDefaultView(wid, DefaultViewRequest("FORM"), sessionUser1)
+
+    workflowResource.setDefaultView(wid, DefaultViewRequest("CANVAS"), sessionUser1)
+
+    assert(defaultView(wid) == DefaultViewEnum.CANVAS)
+    assert(
+      contentOf(wid).contains("formBinding"),
+      "switching back to canvas must not erase the form definition"
+    )
   }
 
 }

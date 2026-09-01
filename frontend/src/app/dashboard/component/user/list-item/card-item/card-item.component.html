@@ -211,6 +211,7 @@
           nzType="text"
           class="action-btn"
           title="Share"
+          *ngIf="canShare"
           (click)="onClickOpenShareAccess(); $event.stopPropagation()">
           <i
             nz-icon
