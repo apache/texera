@@ -1126,6 +1126,11 @@ jobs:
         # dev-dependency install above.
         run: |
           cd amber && ruff check src/main/python src/test/python && ruff format --check src/main/python src/test/python
+      - name: Lint the Python-to-workflow compiler
+        if: matrix.python-version == '3.12'
+        run: |
+          ruff check py2udf/src/main/python py2udf/src/test/python
+          ruff format --check py2udf/src/main/python py2udf/src/test/python
       - name: Install protoc
         # Version pinned in bin/protoc-version.txt.
         run: |
@@ -1154,6 +1159,9 @@ jobs:
           LOGURU_LEVEL: ${{ runner.debug == '1' && 'DEBUG' || 'WARNING' }}
         run: |
           cd amber && pytest -m "not integration" --cov=src/main/python --cov-report=xml --junit-xml=junit.xml -sv
+      - name: Test the Python-to-workflow compiler
+        if: matrix.python-version == '3.12'
+        run: python -m pytest -q py2udf/src/test/python
       - name: Upload pyamber coverage to Codecov
         if: matrix.python-version == '3.12' && always()
         uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0

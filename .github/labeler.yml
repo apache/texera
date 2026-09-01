@@ -97,13 +97,14 @@ pyamber:
   # bumped requirements.txt would only get `dependencies` (no stack
   # mapping) and silently skip CI for the very deps it's changing.
   #
-  # Globs are scoped to amber/ so bin/ tooling Python (its own `infra`
-  # job) isn't dragged into the pyamber stack.
+  # The Python-to-workflow compiler shares this Python test stack with
+  # PyAmber. bin/ tooling Python retains its separate `infra` job.
   - changed-files:
       - any-glob-to-any-file:
           - 'amber/**/*.py'
           - 'amber/pyproject.toml'
           - 'amber/**/*requirements*.txt'
+          - 'py2udf/**'
 
 docs:
   - changed-files:
@@ -150,4 +151,3 @@ fix:
 
 refactor:
   - head-branch: '^refactor'
-

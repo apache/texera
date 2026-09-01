@@ -1,0 +1,3 @@
+/build/
+/.ruff_cache/
+/src/main/python/*.egg-info/
