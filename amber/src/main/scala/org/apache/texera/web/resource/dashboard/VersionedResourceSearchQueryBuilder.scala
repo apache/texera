@@ -47,6 +47,14 @@ abstract class VersionedResourceSearchQueryBuilder[Rec <: Record, P](
   protected val coverImageColumn: Field[String]
 
   /**
+    * Projected for display rather than indexed, and only models carry them today. A resource
+    * without such a column leaves its union slot null, which is what every other builder does.
+    */
+  protected val frameworkColumn: Field[String] = DSL.cast(null, classOf[String])
+
+  protected val formatColumn: Field[String] = DSL.cast(null, classOf[String])
+
+  /**
     * Built here rather than per-subclass, and `final` so a subclass cannot replace it, because
     * `hydrate` reads columns the subclass would otherwise have to remember to project. `userEmail`
     * is the one that bit: it defaults to `DSL.inline("")`, so omitting it cost nothing at compile
@@ -69,7 +77,9 @@ abstract class VersionedResourceSearchQueryBuilder[Rec <: Record, P](
       isVersionedResourcePublic = tables.isPublicColumn,
       isVersionedResourceDownloadable = isDownloadableColumn,
       versionedResourceUserAccess = tables.access.privilegeColumn,
-      versionedResourceCoverImage = coverImageColumn
+      versionedResourceCoverImage = coverImageColumn,
+      modelFramework = frameworkColumn,
+      modelFormat = formatColumn
     )
 
   /**

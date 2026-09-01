@@ -31,6 +31,7 @@ import { SortMethod } from "../../type/sort-method";
 import { SearchResult, SearchResultItem } from "../../type/search-result";
 import { DashboardWorkflow } from "../../type/dashboard-workflow.interface";
 import { DashboardDataset } from "../../type/dashboard-dataset.interface";
+import { DashboardModel } from "../../type/dashboard-model.interface";
 
 const API = "api";
 
@@ -92,6 +93,29 @@ function makeDatasetItem(did: number, ownerUid: number): SearchResultItem {
     },
   };
   return { resourceType: "dataset", dataset };
+}
+
+function makeModelItem(mid: number, ownerUid: number): SearchResultItem {
+  const model: DashboardModel = {
+    isOwner: true,
+    ownerEmail: "o@example.com",
+    accessPrivilege: "WRITE",
+    size: 23,
+    model: {
+      mid,
+      ownerUid,
+      name: `m-${mid}`,
+      repositoryName: undefined,
+      isPublic: false,
+      isDownloadable: false,
+      description: "",
+      creationTime: 0,
+      coverImage: undefined,
+      framework: "pytorch",
+      format: "safetensors",
+    },
+  };
+  return { resourceType: "model", model };
 }
 
 describe("SearchService", () => {
@@ -177,6 +201,23 @@ describe("SearchService", () => {
       // `more` and the rest of the envelope must survive the filter untouched.
       expect(got.more).toBe(true);
     });
+
+    it("keeps model rows, which the funnel used to drop", async () => {
+      const model = makeModelItem(12, 7);
+      const pending = firstValueFrom(
+        service.search(["k"], makeEmptyFilter(), 0, 10, null, SortMethod.NameAsc, true, false)
+      );
+      http.expectOne(r => r.url.startsWith(`${API}/dashboard/search`)).flush({ results: [model], more: false });
+
+      expect((await pending).results).toEqual([model]);
+    });
+
+    it("sends resourceType=model for a model search", () => {
+      firstValueFrom(service.search([], makeEmptyFilter(), 0, 10, "model", SortMethod.NameAsc, true, true));
+      const req = http.expectOne(r => r.url.startsWith(`${API}/dashboard/search`));
+      expect(req.request.urlWithParams).toContain("resourceType=model");
+      req.flush({ results: [], more: false });
+    });
   });
 
   // ─── getUserInfo ──────────────────────────────────────────────────────────
@@ -207,6 +248,23 @@ describe("SearchService", () => {
       expect(batch.entries).toHaveLength(1);
       expect(batch.entries[0].id).toBe(10);
       expect(batch.more).toBe(true);
+      expect(batch.hasMismatch).toBe(true);
+    });
+
+    it("filters null/mismatched models and surfaces hasMismatch", async () => {
+      const modelItem = makeModelItem(10, 5);
+      const flagged: any = { resourceType: "model", model: null };
+      const result: SearchResult = { results: [modelItem, flagged, null as any], more: true, hasMismatch: true };
+      vi.spyOn(service, "search").mockReturnValue(of(result));
+      vi.spyOn(service, "getUserInfo").mockReturnValue(of({} as any));
+
+      const batch = await firstValueFrom(
+        service.executeSearch([], makeEmptyFilter(), 0, 10, "model", SortMethod.NameAsc, true, false)
+      );
+
+      expect(batch.entries).toHaveLength(1);
+      expect(batch.entries[0].id).toBe(10);
+      expect(batch.entries[0].type).toBe(EntityType.Model);
       expect(batch.hasMismatch).toBe(true);
     });
 
@@ -291,6 +349,29 @@ describe("SearchService", () => {
       expect(hubSpy.getUserAccess.mock.calls[0][0]).toEqual([EntityType.Dataset]);
       expect(entry.accessibleUserIds).toEqual([42, 43]);
       expect(entry.ownerName).toBe("carol");
+    });
+
+    it("uses Model entity routing and pulls ownerUid for model items", async () => {
+      const model = makeModelItem(30, 9);
+      const userInfoSpy = vi.spyOn(service, "getUserInfo").mockReturnValue(of({ 9: { userName: "dave" } }));
+      hubSpy.getUserAccess.mockReturnValue(of([{ entityId: 30, entityType: EntityType.Model, userIds: [42] }]));
+
+      const [entry] = await firstValueFrom(service.extendSearchResultsWithHubActivityInfo([model], true));
+
+      expect(userInfoSpy).toHaveBeenCalledWith([9]);
+      expect(hubSpy.getUserAccess.mock.calls[0][0]).toEqual([EntityType.Model]);
+      expect(entry.type).toBe(EntityType.Model);
+      expect(entry.accessibleUserIds).toEqual([42]);
+      expect(entry.ownerName).toBe("dave");
+    });
+
+    it("names the resource type when an item carries no payload", async () => {
+      const orphan = { resourceType: "computing-unit" } as SearchResultItem;
+      vi.spyOn(service, "getUserInfo").mockReturnValue(of({} as any));
+
+      await expect(firstValueFrom(service.extendSearchResultsWithHubActivityInfo([orphan], true))).rejects.toThrowError(
+        /computing-unit/
+      );
     });
 
     it("does not request sizes when there are no workflow items", async () => {

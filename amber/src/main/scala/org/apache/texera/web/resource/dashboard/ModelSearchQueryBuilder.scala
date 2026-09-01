@@ -19,28 +19,25 @@
 
 package org.apache.texera.web.resource.dashboard
 
-import org.apache.texera.dao.jooq.generated.Tables.{MODEL, MODEL_USER_ACCESS}
-import org.jooq.impl.DSL
+import org.apache.texera.dao.jooq.generated.Tables.MODEL
+import org.jooq.Field
 
-/** Query logic lives in [[VersionedResourceSearchQueryBuilder]]; only the projection is here. */
+/**
+  * Query logic and projection live in [[VersionedResourceSearchQueryBuilder]]; only the columns
+  * the [[VersionedResourceTables]] descriptor does not already name are here.
+  */
 object ModelSearchQueryBuilder
     extends VersionedResourceSearchQueryBuilder(VersionedResourceTables.ModelTables) {
 
-  override protected val mappedResourceSchema: UnifiedResourceSchema = UnifiedResourceSchema(
-    resourceType = DSL.inline(SearchQueryBuilder.MODEL_RESOURCE_TYPE),
-    name = MODEL.NAME,
-    description = MODEL.DESCRIPTION,
-    creationTime = MODEL.CREATION_TIME,
-    ownerId = MODEL.OWNER_UID,
-    versionedResourceId = MODEL.MID,
-    repositoryName = MODEL.REPOSITORY_NAME,
-    isVersionedResourcePublic = MODEL.IS_PUBLIC,
-    isVersionedResourceDownloadable = MODEL.IS_DOWNLOADABLE,
-    versionedResourceUserAccess = MODEL_USER_ACCESS.PRIVILEGE,
-    versionedResourceCoverImage = MODEL.COVER_IMAGE,
-    modelFramework = MODEL.FRAMEWORK,
-    modelFormat = MODEL.FORMAT
-  )
+  override protected val repositoryNameColumn: Field[String] = MODEL.REPOSITORY_NAME
+
+  override protected val isDownloadableColumn: Field[java.lang.Boolean] = MODEL.IS_DOWNLOADABLE
+
+  override protected val coverImageColumn: Field[String] = MODEL.COVER_IMAGE
+
+  override protected val frameworkColumn: Field[String] = MODEL.FRAMEWORK
+
+  override protected val formatColumn: Field[String] = MODEL.FORMAT
 }
 
 class ModelSearchQueryBuilder {}
