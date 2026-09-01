@@ -20,6 +20,7 @@
 package org.apache.texera.amber.operator.huggingFace
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
+import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInject
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 import org.apache.texera.amber.operator.PythonOperatorDescriptor
@@ -27,6 +28,15 @@ import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeNa
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
+// type constraint: the tokenizer summarizes text and refuses anything that is not
+// a string, so the column can only be a string.
+@JsonSchemaInject(json = """
+{
+  "attributeTypeRules": {
+    "attribute": { "enum": ["string"] }
+  }
+}
+""")
 class HuggingFaceTextSummarizationOpDesc extends PythonOperatorDescriptor {
   @JsonProperty(value = "attribute", required = true)
   @JsonPropertyDescription("attribute to perform text summarization on")

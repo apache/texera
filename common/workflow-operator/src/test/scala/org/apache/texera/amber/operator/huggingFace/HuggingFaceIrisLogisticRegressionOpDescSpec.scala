@@ -19,6 +19,7 @@
 
 package org.apache.texera.amber.operator.huggingFace
 
+import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInject
 import org.apache.texera.amber.core.executor.OpExecWithCode
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
@@ -127,5 +128,19 @@ class HuggingFaceIrisLogisticRegressionOpDescSpec extends AnyFlatSpec with Match
     h.petalWidthCmAttribute shouldBe "petalWidth"
     h.predictionClassName shouldBe "species"
     h.predictionProbabilityName shouldBe "probability"
+  }
+
+  "HuggingFaceIrisLogisticRegressionOpDesc (class-level)" should
+    "carry @JsonSchemaInject restricting both petal columns to numeric attributes" in {
+    val ann =
+      classOf[HuggingFaceIrisLogisticRegressionOpDesc].getAnnotation(classOf[JsonSchemaInject])
+    ann should not be null
+    val payload = ann.json
+    payload should include("attributeTypeRules")
+    payload should include("petalLengthCmAttribute")
+    payload should include("petalWidthCmAttribute")
+    payload should include("integer")
+    payload should include("long")
+    payload should include("double")
   }
 }
