@@ -95,9 +95,9 @@ object DashboardResource {
       case SearchQueryBuilder.DATASET_RESOURCE_TYPE =>
         DatasetSearchQueryBuilder.constructQuery(uid, params, includePublic)
       case SearchQueryBuilder.ALL_RESOURCE_TYPE =>
-        val q1 = WorkflowSearchQueryBuilder.constructQuery(uid, params, includePublic)
-        val q4 = DatasetSearchQueryBuilder.constructQuery(uid, params, includePublic)
-        q1.unionAll(q4)
+        val workflowQuery = WorkflowSearchQueryBuilder.constructQuery(uid, params, includePublic)
+        val datasetQuery = DatasetSearchQueryBuilder.constructQuery(uid, params, includePublic)
+        workflowQuery.unionAll(datasetQuery)
       case _ => throw new IllegalArgumentException(s"Unknown resource type: ${params.resourceType}")
     }
 

@@ -709,7 +709,7 @@ class WorkflowResourceSpec
     assert(DashboardClickableFileEntryList.results.isEmpty)
 
     // The counts above cannot distinguish a working filter from an ignored one, because every
-    // seeded row is a workflow and the only other searchable types are LakeFS-backed (a seeded
+    // seeded row is a workflow and the only other searchable type is LakeFS-backed (a seeded
     // dataset is dropped during hydration when LakeFS is unreachable, so it cannot be counted
     // here -- DatasetSearchQueryBuilderSpec covers that path against a stub). Asserting that an
     // unrecognised value is rejected pins that resourceType is dispatched on, not ignored.
