@@ -70,4 +70,15 @@ class SpecializedFilterOpDescSpec extends AnyFlatSpec with Matchers {
     restored shouldBe a[SpecializedFilterOpDesc]
     restored.asInstanceOf[SpecializedFilterOpDesc].predicates shouldBe empty
   }
+
+  // A null answers false for every condition but IS_NULL / IS_NOT_NULL, which pandas
+  // does not do on its own for `!=`, so the emitted condition carries the guard.
+  "SpecializedFilterOpDesc.generateStandaloneCode" should "emit one condition per predicate" in {
+    val d = new SpecializedFilterOpDesc
+    d.predicates = List(new FilterPredicate("age", ComparisonType.GREATER_THAN, "18"))
+    val code = d.generateStandaloneCode()
+    code should include("in1df[\"age\"]")
+    code should include("out1df")
+  }
+
 }

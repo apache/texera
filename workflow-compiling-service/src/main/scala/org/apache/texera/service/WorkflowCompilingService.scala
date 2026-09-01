@@ -27,7 +27,11 @@ import org.apache.texera.common.config.StorageConfig
 import org.apache.texera.amber.util.ObjectMapperUtils
 import org.apache.texera.auth.{AuthFeatures, RoleAnnotationEnforcer}
 import org.apache.texera.dao.SqlServer
-import org.apache.texera.service.resource.{HealthCheckResource, WorkflowCompilationResource}
+import org.apache.texera.service.resource.{
+  HealthCheckResource,
+  WorkflowCompilationResource,
+  WorkflowToPythonResource
+}
 import org.eclipse.jetty.servlet.FilterHolder
 
 import java.nio.file.Path
@@ -66,6 +70,9 @@ class WorkflowCompilingService extends Application[WorkflowCompilingServiceConfi
 
     // register the compilation endpoint
     environment.jersey.register(classOf[WorkflowCompilationResource])
+
+    // register the workflow-to-python endpoint
+    environment.jersey.register(classOf[WorkflowToPythonResource])
 
     RoleAnnotationEnforcer.enforce(
       environment.jersey.getResourceConfig,

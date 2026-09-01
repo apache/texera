@@ -94,4 +94,13 @@ class LimitOpDescSpec extends AnyFlatSpec with Matchers {
     transfer(oldExec, newExec)
     newExec.count shouldBe 3
   }
+
+  // The index is reset because the operator hands its downstream a fresh table
+  // rather than a view of the one it read.
+  "LimitOpDesc.generateStandaloneCode" should "take the first N rows" in {
+    val d = new LimitOpDesc
+    d.limit = 3
+    d.generateStandaloneCode() shouldBe "out1df = in1df.head(3).reset_index(drop=True)"
+  }
+
 }
