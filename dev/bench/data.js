@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1788185132631,
+  "lastUpdate": 1788270588999,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -11725,6 +11725,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 495.07308657075913,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "yangzhang75",
+            "username": "yangzhang75",
+            "email": "yangz75@uci.edu"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "b28faee36ff27bca7d47acb13de27c99828f6981",
+          "message": "feat(workflow): persist is_form_view and add Form View toggle endpoints (#8125)\n\n### What changes were proposed in this PR?\n\nLet the backend remember, per workflow, which view it opens in by\ndefault (canvas or form), and expose setting it. Backend + DB only; no\nUI or form logic. The Form View is available for every workflow, so this\ncolumn is a default-entry preference, not a capability gate.\n\n- **Schema**: new column `workflow.default_view VARCHAR NOT NULL DEFAULT\n'CANVAS'` (values `CANVAS`, `FORM`) in `sql/updates/44.sql`,\n`changelog.xml`, `texera_ddl.sql`.\n- **Write**: `PUT /set-default-view/{wid}` with a JSON body `{\"view\":\n\"CANVAS\" | \"FORM\"}`, guarded by write access and validated (any other\nvalue is a 400). It updates only that column, never rewriting content or\nbumping the modified time. A plain save preserves the stored value; a\nduplicate and a hub-clone both inherit it.\n- **Read**: `UnifiedResourceSchema` and `WorkflowSearchQueryBuilder`\ninclude the value in listing/search;\n`WorkflowVersionResource.cloneVersion` carries the source workflow's\ncurrent value onto the clone; `retrieveWorkflow` /\n`retrievePublicWorkflow` report it.\n\nNaming and migration notes: the value is a `default_view` enum (canvas\nor form) rather than an on/off flag, and the Form View's actual\ndefinition still lives in `content.formBinding`; only this preference is\ndenormalized into a column. The migration is `44.sql` because `43.sql`\nis reserved for a sibling PR and `42.sql` was the latest on main.\n\n### Any related issues, documentation, discussions?\n\nCloses #8014. Part of the Form View parent issue #8011; builds on the\nfeature flag from #8013.\n\n### How was this PR tested?\n\n`WorkflowResourceSpec` covers the set-default-view endpoint: the\nform/canvas switch, rejection without write access, rejection of an\ninvalid view value, survival across a plain save, inheritance by both\n`duplicateWorkflow` and `cloneWorkflow`, reporting by both retrieve\npaths, and `formBinding` preserved when switching back to canvas.\nTogether with the version-clone, listing/search and unified-schema\nspecs, the four affected specs run 127 green. Compiled and run against\nan ephemeral Postgres so jOOQ regenerated the `default_view` column.\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nCo-authored with Claude Code.\n\nCo-authored-by: Claude Opus 4.8 <noreply@anthropic.com>",
+          "timestamp": "2026-09-01T00:43:31Z",
+          "url": "https://github.com/apache/texera/commit/b28faee36ff27bca7d47acb13de27c99828f6981"
+        },
+        "date": 1788270588574,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 661.5151955808838,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 1291.3922417554793,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 1421.3544654549485,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 834.239213882507,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 1345.1880543433629,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 1423.7280315537762,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 949.64626237018,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 1367.5800184230027,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 1397.0088553110254,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 695.1581493166351,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 1068.4845344534556,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 1110.958090916071,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 815.3159697624664,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 1053.5742557514002,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 1109.071543613456,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 798.6810912710084,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 1070.983216655587,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 1090.9197938934365,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 495.4961988211022,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 577.4186022826192,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 585.8263205084355,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 495.0554078735416,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 580.9794305944164,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 578.3843394638865,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 475.92414541261456,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 554.5656044232726,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 563.6472268569694,
             "unit": "tuples/sec"
           }
         ]
