@@ -28,7 +28,7 @@ import org.jooq.impl.DSL
 import org.jooq.{Condition, GroupField, Record, TableLike}
 
 import scala.jdk.CollectionConverters.CollectionHasAsScala
-import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
+import org.apache.texera.dao.jooq.generated.enums.{DefaultViewEnum, PrivilegeEnum}
 
 object WorkflowSearchQueryBuilder extends SearchQueryBuilder {
 
@@ -52,7 +52,8 @@ object WorkflowSearchQueryBuilder extends SearchQueryBuilder {
       uid = WORKFLOW_OF_USER.UID,
       ownerId = WORKFLOW_OF_USER.UID,
       userName = USER.NAME,
-      workflowCoverImage = DSL.max(WORKFLOW_COVER_IMAGE.IMAGE).as("workflow_cover_image")
+      workflowCoverImage = DSL.max(WORKFLOW_COVER_IMAGE.IMAGE).as("workflow_cover_image"),
+      workflowDefaultView = WORKFLOW.DEFAULT_VIEW.as("workflow_default_view")
     )
   }
 
@@ -145,8 +146,13 @@ object WorkflowSearchQueryBuilder extends SearchQueryBuilder {
       Option(record.get(WORKFLOW_USER_ACCESS.PRIVILEGE, classOf[PrivilegeEnum]))
         .map(_.toString)
         .getOrElse(PrivilegeEnum.NONE.toString),
-      record.into(USER).getName,
-      record.into(WORKFLOW).into(classOf[Workflow]),
+      record.into(USER).getName, {
+        // The select lists specific columns, so the POJO built from the record does not carry
+        // this one. Without it the listing forgets the default-view preference on every refresh.
+        val w = record.into(WORKFLOW).into(classOf[Workflow])
+        w.setDefaultView(record.get("workflow_default_view", classOf[DefaultViewEnum]))
+        w
+      },
       record.into(USER).getUid,
       Option(record.get("workflow_cover_image", classOf[String]))
     )

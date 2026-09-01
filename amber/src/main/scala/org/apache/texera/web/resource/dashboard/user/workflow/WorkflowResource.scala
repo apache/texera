@@ -28,7 +28,7 @@ import org.apache.texera.amber.core.virtualidentity.ExecutionIdentity
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.jooq.generated.Tables._
-import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
+import org.apache.texera.dao.jooq.generated.enums.{DefaultViewEnum, PrivilegeEnum}
 import org.apache.texera.dao.jooq.generated.tables.daos.{
   WorkflowDao,
   WorkflowOfUserDao,
@@ -41,7 +41,7 @@ import org.apache.texera.web.service.WarehouseReadGuard
 import org.apache.texera.web.resource.dashboard.hub.HubResource.recordCloneAction
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowResource._
 import org.jooq.impl.DSL.{noCondition, max}
-import org.jooq.{Condition, DSLContext, Record9, Result, SelectOnConditionStep}
+import org.jooq.{Condition, DSLContext, Record10, Result, SelectOnConditionStep}
 
 import java.sql.Timestamp
 import java.util
@@ -80,6 +80,9 @@ object WorkflowResource {
 
   /** JSON body/response for a workflow's cover image data URL. */
   case class CoverImageRequest(image: String)
+
+  /** JSON body for setting which view a workflow opens in by default (CANVAS or FORM). */
+  case class DefaultViewRequest(view: String)
 
   def getWorkflowName(wid: Integer): String = {
     val workflow = workflowDao.fetchOneByWid(wid)
@@ -126,7 +129,9 @@ object WorkflowResource {
       creationTime: Timestamp,
       lastModifiedTime: Timestamp,
       isPublished: Boolean,
-      readonly: Boolean
+      readonly: Boolean,
+      // Which view this workflow opens in by default (CANVAS or FORM); both load through this endpoint.
+      defaultView: DefaultViewEnum
   )
 
   case class WorkflowIDs(wids: List[Integer])
@@ -181,7 +186,7 @@ object WorkflowResource {
     }
   }
 
-  def baseWorkflowSelect(): SelectOnConditionStep[Record9[
+  def baseWorkflowSelect(): SelectOnConditionStep[Record10[
     Integer,
     String,
     String,
@@ -190,7 +195,8 @@ object WorkflowResource {
     PrivilegeEnum,
     Integer,
     String,
-    String
+    String,
+    DefaultViewEnum
   ]] = {
     context
       .select(
@@ -202,7 +208,8 @@ object WorkflowResource {
         WORKFLOW_USER_ACCESS.PRIVILEGE,
         WORKFLOW_OF_USER.UID,
         USER.NAME,
-        max(WORKFLOW_COVER_IMAGE.IMAGE).as("cover_image")
+        max(WORKFLOW_COVER_IMAGE.IMAGE).as("cover_image"),
+        WORKFLOW.DEFAULT_VIEW
       )
       .from(WORKFLOW)
       .leftJoin(WORKFLOW_USER_ACCESS)
@@ -216,7 +223,7 @@ object WorkflowResource {
   }
 
   def mapWorkflowEntries(
-      workflowEntries: Result[Record9[
+      workflowEntries: Result[Record10[
         Integer,
         String,
         String,
@@ -225,7 +232,8 @@ object WorkflowResource {
         PrivilegeEnum,
         Integer,
         String,
-        String
+        String,
+        DefaultViewEnum
       ]],
       uid: Integer
   ): List[DashboardWorkflow] = {
@@ -366,7 +374,8 @@ class WorkflowResource extends LazyLogging {
         WORKFLOW.LAST_MODIFIED_TIME,
         WORKFLOW_USER_ACCESS.PRIVILEGE,
         WORKFLOW_OF_USER.UID,
-        USER.NAME
+        USER.NAME,
+        WORKFLOW.DEFAULT_VIEW
       )
       .fetch()
     mapWorkflowEntries(workflowEntries, user.getUid)
@@ -397,7 +406,8 @@ class WorkflowResource extends LazyLogging {
         workflow.getCreationTime,
         workflow.getLastModifiedTime,
         workflow.getIsPublic,
-        !WorkflowAccessResource.hasWriteAccess(wid, user.getUid)
+        !WorkflowAccessResource.hasWriteAccess(wid, user.getUid),
+        workflow.getDefaultView
       )
     } else {
       throw new ForbiddenException("No sufficient access privilege.")
@@ -419,9 +429,10 @@ class WorkflowResource extends LazyLogging {
   @Path("/persist")
   def persistWorkflow(workflow: Workflow, @Auth sessionUser: SessionUser): Workflow = {
     val user = sessionUser.getUser
+
     if (workflowOfUserExists(workflow.getWid, user.getUid)) {
       WorkflowVersionResource.insertVersion(workflow, insertingNewWorkflow = false)
-      workflowDao.update(workflow)
+      saveWorkflowFields(workflow)
     } else {
       if (!WorkflowAccessResource.hasReadAccess(workflow.getWid, user.getUid)) {
         // Check if this workflow exists in the database
@@ -438,7 +449,7 @@ class WorkflowResource extends LazyLogging {
       } else if (WorkflowAccessResource.hasWriteAccess(workflow.getWid, user.getUid)) {
         WorkflowVersionResource.insertVersion(workflow, insertingNewWorkflow = false)
         // not owner but has write access
-        workflowDao.update(workflow)
+        saveWorkflowFields(workflow)
       } else {
         // not owner and no write access -> rejected
         throw new ForbiddenException("No sufficient access privilege.")
@@ -447,6 +458,23 @@ class WorkflowResource extends LazyLogging {
 
     val wid = workflow.getWid
     workflowDao.fetchOneByWid(wid)
+  }
+
+  /**
+    * Persists a plain save by updating only the fields the client sends
+    * (name/description/content/is_public). It deliberately leaves `default_view` untouched --
+    * that column is owned by /set-default-view alone -- so a save can never clobber a
+    * concurrent change. Timestamps are likewise not rewritten here.
+    */
+  private def saveWorkflowFields(workflow: Workflow): Unit = {
+    context
+      .update(WORKFLOW)
+      .set(WORKFLOW.NAME, workflow.getName)
+      .set(WORKFLOW.DESCRIPTION, workflow.getDescription)
+      .set(WORKFLOW.CONTENT, workflow.getContent)
+      .set(WORKFLOW.IS_PUBLIC, workflow.getIsPublic)
+      .where(WORKFLOW.WID.eq(workflow.getWid))
+      .execute()
   }
 
   /**
@@ -486,7 +514,9 @@ class WorkflowResource extends LazyLogging {
               assignNewOperatorIds(oldWorkflow.getContent),
               null,
               null,
-              false
+              false,
+              // the default view is part of the workflow, so a copy keeps it
+              oldWorkflow.getDefaultView
             ),
             sessionUser
           )
@@ -523,7 +553,9 @@ class WorkflowResource extends LazyLogging {
         assignNewOperatorIds(oldWorkflow.getContent),
         null,
         null,
-        false
+        false,
+        // a biologist's path is hub -> clone -> use, so the clone must stay usable
+        oldWorkflow.getDefaultView
       ),
       sessionUser
     )
@@ -691,6 +723,39 @@ class WorkflowResource extends LazyLogging {
     workflowDao.update(workflow)
   }
 
+  /**
+    * Set which view a workflow opens in by default (CANVAS or FORM). Only this preference lives
+    * in a column; the form's definition travels in workflow.content under `formBinding`, so
+    * switching the default never touches it.
+    */
+  @PUT
+  @Consumes(Array(MediaType.APPLICATION_JSON))
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @Path("/set-default-view/{wid}")
+  def setDefaultView(
+      @PathParam("wid") wid: Integer,
+      request: DefaultViewRequest,
+      @Auth user: SessionUser
+  ): Unit = {
+    if (!WorkflowAccessResource.hasWriteAccess(wid, user.getUid)) {
+      throw new ForbiddenException(s"You do not have permission to modify workflow $wid")
+    }
+    // lookupLiteral returns null for an unknown literal and for a null/missing body value,
+    // so both an out-of-range string and an empty request map to a 400 rather than a 500.
+    val view = DefaultViewEnum.lookupLiteral(request.view)
+    if (view == null) {
+      throw new BadRequestException(s"default_view must be CANVAS or FORM, got: ${request.view}")
+    }
+    // Update only this column. The preference is deliberately independent of content, so a change
+    // must not rewrite the whole row -- doing so would touch content (and could clobber a
+    // concurrent save) and bump the last-modified time for a mere preference change.
+    context
+      .update(WORKFLOW)
+      .set(WORKFLOW.DEFAULT_VIEW, view)
+      .where(WORKFLOW.WID.eq(wid))
+      .execute()
+  }
+
   /** Returns the workflow's cover image; 404 if none set. */
   @GET
   @RolesAllowed(Array("REGULAR", "ADMIN"))
@@ -813,7 +878,8 @@ class WorkflowResource extends LazyLogging {
       workflow.getCreationTime,
       workflow.getLastModifiedTime,
       workflow.getIsPublic,
-      readonly = true
+      readonly = true,
+      defaultView = workflow.getDefaultView
     )
   }
 
