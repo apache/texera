@@ -371,15 +371,11 @@ class LoopStartOperator(TableOperator):
         # all loop_counter bookkeeping are owned by the worker runtime
         # (main_loop._process_state_frame), so this operator never sees the counter
         # and never mutates the State it is handed.
-        collisions = self.state.keys() & state.keys()
+        for key, value in state.items():
+            if key in self.state:
+                raise ValueError(f"Loop state variable cannot be overwritten: '{key}'")
+            self.state[key] = value
 
-        if collisions:
-            raise ValueError(
-                f"Loop state variable(s) cannot be overwritten: "
-                f"{', '.join(sorted(collisions))}"
-            )
-
-        self.state.update(state)
         return None
 
     @overrides.final

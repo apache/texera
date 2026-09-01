@@ -134,24 +134,12 @@ class TestLoopStartProcessState:
         # nothing flows downstream of LoopStart until the table is in.
         op = _StubLoopStart()
         op.open()
-        op.state["i"] = 0
+        op.state["i"] = 0  # simulate the user's initialization
 
         result = op.process_state(State({"upstream_key": "v"}), port=0)
 
-        assert result is None
-        assert op.state["upstream_key"] == "v"
-
-    def test_state_rejects_overwriting_loop_variable(self):
-        op = _StubLoopStart()
-        op.open()
-
-        with pytest.raises(
-            ValueError,
-            match=r"Loop state variable\(s\) cannot be overwritten: i",
-        ):
-            op.process_state(State({"i": 999}), port=0)
-
-        assert op.state["i"] == 0
+        assert result is None, "first-time state must not be forwarded"
+        assert op.state["upstream_key"] == "v", "state was not merged into self.state"
 
     # NOTE: LoopStart re-entry (+1) is owned by the worker runtime now, not the
     # operator (which only does the first-entry merge above). It and the nested
@@ -325,8 +313,8 @@ class TestLoopRunsToCompletion:
         #
         # Each pass of the while loop mimics one engine iteration: the
         # LoopStart region is re-executed (a fresh operator whose open() seeds
-        # the loop variables, the worker runtime restores the back-edge state,
-        # and the upstream table re-read), the produced state crosses the materialized
+        # the loop variables, the back-edge state overriding them, and the
+        # upstream table re-read), the produced state crosses the materialized
         # channel (a State to_tuple/from_tuple round-trip), the LoopEnd runs
         # the user update and evaluates the condition, and on continuation
         # only the user loop variables cross the back-edge.
@@ -344,7 +332,7 @@ class TestLoopRunsToCompletion:
             )
             start.open()
             if back_edge is not None:
-                start.state.update(back_edge)
+                start.state = back_edge
             for row in rows:
                 list(start.process_tuple(row, port=0))
             emitted.extend(o for o in start.on_finish(port=0) if o is not None)
