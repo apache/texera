@@ -1558,7 +1558,7 @@ class TestMainLoop:
         from core.models.internal_marker import StartChannel
 
         main_loop.context.tuple_processing_manager.current_internal_marker = (
-            StartChannel()
+            StartChannel(0)
         )
         main_loop._process_start_channel()
 
