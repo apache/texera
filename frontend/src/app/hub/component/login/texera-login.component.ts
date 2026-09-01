@@ -162,8 +162,12 @@ export class TexeraLoginComponent implements OnInit {
 
   /**
    * Apple has no Angular button component (`@abacritt/angularx-social-login` ships no Apple
-   * provider), so unlike Google this flow is started by a click rather than pushed through
+   * provider) and its SDK-rendered button cannot be sized to match the Google button beside it, so
+   * the button is ours and the flow is started by a click rather than pushed through
    * `socialAuthService.authState`. A dismissed popup yields no token and is not an error.
+   *
+   * Apple's script is fetched inside `signIn()`, on this click, so a visitor who only uses the
+   * password form never calls Apple at all.
    */
   public async signInWithApple(): Promise<void> {
     this.appleSignInPending = true;

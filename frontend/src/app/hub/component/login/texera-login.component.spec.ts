@@ -61,9 +61,9 @@ describe("TexeraLoginComponent", () => {
       googleLogin: vi.fn().mockReturnValue(of(undefined)),
       appleLogin: vi.fn().mockReturnValue(of(undefined)),
     };
-    // Apple's flow is a click, not a subject, so the service is stubbed rather than a stream.
+    // The button is ours, so Apple's popup is reached through a click rather than a stream.
     appleAuthServiceMock = { signIn: vi.fn().mockResolvedValue("apple-id-token") };
-    notificationServiceMock = { error: vi.fn(), success: vi.fn() };
+    notificationServiceMock = { error: vi.fn(), success: vi.fn(), warning: vi.fn() };
     routerMock = { navigateByUrl: vi.fn() };
     socialAuthServiceMock = {
       authState: authState$.asObservable() as SocialAuthService["authState"],
@@ -167,6 +167,26 @@ describe("TexeraLoginComponent", () => {
   });
 
   describe("signInWithApple", () => {
+    const host = (): HTMLElement => fixture.nativeElement as HTMLElement;
+
+    it("renders our own button carrying Apple's logo and a permitted title", () => {
+      fixture.detectChanges();
+
+      const button = host().querySelector<HTMLButtonElement>("button.apple-button");
+      expect(button).toBeTruthy();
+      // Apple permits only "Sign in with Apple", "Sign up with Apple" or "Continue with Apple".
+      expect(button!.querySelector(".apple-label")!.textContent!.trim()).toBe("Continue with Apple");
+      // The mark must be Apple's own artwork, not a lookalike glyph from an icon set.
+      expect(button!.querySelector("img.apple-logo")!.getAttribute("src")).toBe("assets/logos/apple-logo-white.svg");
+    });
+
+    it("drops the button when the provider is disabled", () => {
+      (TestBed.inject(GuiConfigService) as unknown as MockGuiConfigService).setConfig({ appleLogin: false });
+      fixture.detectChanges();
+
+      expect(host().querySelector("button.apple-button")).toBeNull();
+    });
+
     it("exchanges Apple's token for a session and redirects", async () => {
       await component.signInWithApple();
 
@@ -194,6 +214,22 @@ describe("TexeraLoginComponent", () => {
       await component.signInWithApple();
 
       expect(notificationServiceMock.error).toHaveBeenCalledWith("Apple sign-in failed");
+      expect(component.appleSignInPending).toBe(false);
+    });
+
+    // Apple's SDK is only reached on click, so a visitor using the password form never calls Apple.
+    it("does not touch Apple until the button is clicked", () => {
+      fixture.detectChanges();
+
+      expect(appleAuthServiceMock.signIn).not.toHaveBeenCalled();
+    });
+
+    it("surfaces a failure to load Apple's SDK", async () => {
+      appleAuthServiceMock.signIn.mockRejectedValue(new Error("Failed to load Apple's sign-in SDK"));
+
+      await component.signInWithApple();
+
+      expect(notificationServiceMock.error).toHaveBeenCalledWith("Failed to load Apple's sign-in SDK");
       expect(component.appleSignInPending).toBe(false);
     });
   });
@@ -468,11 +504,12 @@ describe("TexeraLoginComponent", () => {
   // ──────────────────────────────────────────────────────────────────────────
   // Template rendering
   //
-  // The suite above drives the class; these render the card. Each test sets both
-  // provider flags explicitly so nothing is inherited from the mock's defaults.
+  // The suite above drives the class; these render the card. Each test sets all three
+  // provider flags explicitly so nothing is inherited from the mock's defaults — which matters
+  // because MockGuiConfigService.setConfig merges over them rather than replacing them.
   // ──────────────────────────────────────────────────────────────────────────
   describe("template", () => {
-    function render(flags: { localLogin: boolean; googleLogin: boolean }): void {
+    function render(flags: { localLogin: boolean; googleLogin: boolean; appleLogin: boolean }): void {
       (TestBed.inject(GuiConfigService) as unknown as MockGuiConfigService).setConfig(flags);
       fixture.detectChanges();
     }
@@ -489,7 +526,7 @@ describe("TexeraLoginComponent", () => {
 
     describe("provider flags", () => {
       it("renders the local form and the google button when both are enabled", () => {
-        render({ localLogin: true, googleLogin: true });
+        render({ localLogin: true, googleLogin: true, appleLogin: false });
 
         expect(host().querySelector("nz-tabs")).toBeTruthy();
         expect(host().querySelector("form")).toBeTruthy();
@@ -499,7 +536,7 @@ describe("TexeraLoginComponent", () => {
       });
 
       it("drops the google button but keeps the form when only local login is enabled", () => {
-        render({ localLogin: true, googleLogin: false });
+        render({ localLogin: true, googleLogin: false, appleLogin: false });
 
         expect(host().querySelector("nz-tabs")).toBeTruthy();
         expect(host().querySelector("form")).toBeTruthy();
@@ -508,7 +545,7 @@ describe("TexeraLoginComponent", () => {
       });
 
       it("drops the tabs and the form but keeps the google button when only google is enabled", () => {
-        render({ localLogin: false, googleLogin: true });
+        render({ localLogin: false, googleLogin: true, appleLogin: false });
 
         expect(host().querySelector("nz-tabs")).toBeNull();
         expect(host().querySelector("form")).toBeNull();
@@ -517,20 +554,41 @@ describe("TexeraLoginComponent", () => {
       });
 
       it("renders neither sign-in path when both are disabled", () => {
-        render({ localLogin: false, googleLogin: false });
+        render({ localLogin: false, googleLogin: false, appleLogin: false });
 
         expect(host().querySelector("nz-tabs")).toBeNull();
         expect(host().querySelector("form")).toBeNull();
         expect(host().querySelector("asl-google-signin-button")).toBeNull();
+        expect(host().querySelector("button.apple-button")).toBeNull();
         expect(host().querySelector("nz-divider")).toBeNull();
         // The brand and footer are outside every flag, so the card is never empty.
         expect(host().querySelector(".brand")).toBeTruthy();
         expect(host().querySelector("p.foot")).toBeTruthy();
       });
+
+      // Apple alone alongside the form still earns the divider. Nothing covered this before,
+      // which is what let the divider condition and the render helper drift apart.
+      it("keeps the divider when Apple is the only social provider", () => {
+        render({ localLogin: true, googleLogin: false, appleLogin: true });
+
+        expect(host().querySelector("form")).toBeTruthy();
+        expect(host().querySelector("asl-google-signin-button")).toBeNull();
+        expect(host().querySelector("button.apple-button")).toBeTruthy();
+        expect(host().querySelector("nz-divider")).toBeTruthy();
+      });
+
+      it("drops the tabs and the form but keeps Apple's slot when only Apple is enabled", () => {
+        render({ localLogin: false, googleLogin: false, appleLogin: true });
+
+        expect(host().querySelector("nz-tabs")).toBeNull();
+        expect(host().querySelector("form")).toBeNull();
+        expect(host().querySelector("button.apple-button")).toBeTruthy();
+        expect(host().querySelector("nz-divider")).toBeNull();
+      });
     });
 
     describe("sign-in / sign-up mode", () => {
-      beforeEach(() => render({ localLogin: true, googleLogin: true }));
+      beforeEach(() => render({ localLogin: true, googleLogin: true, appleLogin: false }));
 
       it("shows only the sign-in fields by default", () => {
         expect(component.mode).toBe("signin");
@@ -590,7 +648,7 @@ describe("TexeraLoginComponent", () => {
 
     describe("password visibility", () => {
       beforeEach(() => {
-        render({ localLogin: true, googleLogin: true });
+        render({ localLogin: true, googleLogin: true, appleLogin: false });
         component.setMode("signup");
         fixture.detectChanges();
       });

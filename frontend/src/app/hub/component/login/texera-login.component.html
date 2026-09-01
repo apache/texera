@@ -48,15 +48,22 @@
         [width]="328"></asl-google-signin-button>
     </div>
     } @if (config.env.appleLogin) {
+    <!-- Apple's own button is not used here: its SDK ties the label's size to the button height (a
+         13px label in a viewBox scaled by height/30) and offers only three logo widths, so it
+         cannot be matched to the Google button above. Apple permits a custom button provided it
+         carries their logo artwork and one of their three titles — hence the committed asset and
+         the "Continue with Apple" label. The mark is 16x44 with the glyph's own clear space, so it
+         is neither cropped nor given extra vertical padding, as Apple requires. -->
     <button
-      nz-button
-      nzSize="large"
       class="apple-button"
       type="button"
       [disabled]="appleSignInPending"
       (click)="signInWithApple()">
-      <nz-icon nzType="apple" />
-      Continue with Apple
+      <img
+        class="apple-logo"
+        src="assets/logos/apple-logo-white.svg"
+        alt="" />
+      <span class="apple-label">Continue with Apple</span>
     </button>
     }
   </div>

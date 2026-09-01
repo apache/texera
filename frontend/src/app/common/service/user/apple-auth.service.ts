@@ -41,16 +41,24 @@ const APPLE_SDK_URL = "https://appleid.cdn-apple.com/appleauth/static/jsapi/appl
  * `@abacritt/angularx-social-login` ships no Apple provider. The script is fetched on first use, so
  * a deployment with `appleLogin` off never calls Apple at all.
  *
- * `usePopup` keeps the identity token in the page — Apple posts to `redirectURI` otherwise — which
- * is what lets it go straight to `/auth/apple/login`. Apple still requires `redirectURI` to be
- * registered against the Services ID and HTTPS on a verified domain; it rejects `http://localhost`,
- * so a local click-through needs a tunnel.
+ * The button is ours rather than `AppleID.auth.renderButton()`'s. Apple's rendered button derives
+ * its type size from its height (a 13px label inside a viewBox scaled by `height / 30`) and offers
+ * only three logo widths, so it cannot be matched to the Google button beside it. Apple permits a
+ * custom button provided it uses their logo artwork and one of their three titles, which is what
+ * `assets/logos/apple-logo-white.svg` and the template's label are for.
+ *
+ * `usePopup` keeps the identity token in the page — Apple posts a form to `redirectURI` otherwise,
+ * which would navigate away from the SPA — and that is what lets the token go straight to
+ * `/auth/apple/login`. Apple still requires `redirectURI` to be registered against the Services ID
+ * and HTTPS on a verified domain; it rejects `http://localhost`, so a local click-through needs a
+ * tunnel.
  */
 @Injectable({
   providedIn: "root",
 })
 export class AppleAuthService {
   private sdkLoading?: Promise<void>;
+  private ready?: Promise<void>;
 
   constructor(private http: HttpClient) {}
 
@@ -63,15 +71,7 @@ export class AppleAuthService {
    * `undefined` when the user dismisses it — a cancelled sign-in is not an error to report.
    */
   async signIn(): Promise<string | undefined> {
-    const clientId = await firstValueFrom(this.getClientId());
-    await this.loadSdk();
-
-    AppleID.auth.init({
-      clientId,
-      scope: "email",
-      redirectURI: window.location.origin,
-      usePopup: true,
-    });
+    await this.init();
 
     try {
       const response = await AppleID.auth.signIn();
@@ -81,6 +81,34 @@ export class AppleAuthService {
       // shape for a genuine failure; neither carries anything worth surfacing to the user.
       return undefined;
     }
+  }
+
+  /**
+   * Fetch the client id, load the SDK and configure it. Memoized, so a visitor who clicks twice
+   * calls Apple once; a failure clears the memo so a later click re-attempts rather than caching
+   * the failure forever. Lazy: nothing here runs until the button is actually clicked, so a visitor
+   * who only ever uses the password form never fetches Apple's script.
+   */
+  private init(): Promise<void> {
+    if (!this.ready) {
+      this.ready = this.configure().catch((e: unknown) => {
+        this.ready = undefined;
+        throw e;
+      });
+    }
+    return this.ready;
+  }
+
+  private async configure(): Promise<void> {
+    const clientId = await firstValueFrom(this.getClientId());
+    await this.loadSdk();
+
+    AppleID.auth.init({
+      clientId,
+      scope: "email",
+      redirectURI: window.location.origin,
+      usePopup: true,
+    });
   }
 
   private loadSdk(): Promise<void> {
@@ -93,7 +121,7 @@ export class AppleAuthService {
       script.async = true;
       script.onload = () => resolve();
       script.onerror = () => {
-        // Let a later click retry rather than caching the failure forever.
+        // Let a later attempt retry rather than caching the failure forever.
         this.sdkLoading = undefined;
         reject(new Error("Failed to load Apple's sign-in SDK"));
       };
