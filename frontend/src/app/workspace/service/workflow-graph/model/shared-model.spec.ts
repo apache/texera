@@ -58,8 +58,19 @@ describe("SharedModel", () => {
 
       const state = sharedModel.awareness.getLocalState() as unknown as CoeditorState;
       expect(state.user).toEqual({ ...user, clientId: sharedModel.clientId });
-      expect(state.isActive).toBe(true);
+      // isActive ("my mouse is on a canvas") starts false: starting true published a pointer
+      // at the origin that nobody placed. The canvas overwrote it on first move, but the Form
+      // View keeps the workflow collapsed, so a stray dot sat on coeditors' screens.
+      expect(state.isActive).toBe(false);
       expect(state.userCursor).toEqual({ x: 0, y: 0 });
+    });
+
+    it("becomes active once the mouse enters a canvas", () => {
+      const sharedModel = build(1, user);
+
+      sharedModel.updateAwareness("isActive", true);
+
+      expect((sharedModel.awareness.getLocalState() as unknown as CoeditorState).isActive).toBe(true);
     });
 
     it("publishes no coeditor state when constructed anonymously", () => {

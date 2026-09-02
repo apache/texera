@@ -78,15 +78,56 @@ import { UiUdfParametersSyncService } from "../../../service/code-editor/ui-udf-
 
 Quill.register("modules/cursors", QuillCursors);
 
-// The Aggregate "count" function. With an empty attribute it means COUNT(*) (all rows);
-// with a column it counts that column's non-null values. It is the only function whose
-// attribute is optional.
-export const AGGREGATE_COUNT = "count";
+/** A field the schema requires only while a sibling holds a particular value. */
+export interface ConditionalRequiredRule {
+  sibling: string;
+  value: unknown;
+  requiredOnMatch: boolean;
+}
 
-// The Aggregate attribute is required for every function except `count` (an empty
-// attribute on count means COUNT(*), which needs no column).
-export function isAggregateAttributeRequired(aggFunction: unknown): boolean {
-  return aggFunction !== AGGREGATE_COUNT;
+/**
+ * The conditional `required` rules a schema declares, keyed by the field each
+ * governs. A schema states one as
+ *
+ *   allOf: [{ if: { properties: { sibling: { const: v } } }, then: { required: [field] } }]
+ *
+ * with `else` for the inverted form. Validation already honours these, but a
+ * field's own config never learns of them, so the required marker would not
+ * appear. Reading them out lets the marker follow the condition the validator
+ * applies, and lets an operator declare it in one place rather than here.
+ *
+ * The walk covers nested schemas because a rule may govern a field inside an
+ * array item, where it sits under `definitions`. Keying by field name is enough:
+ * the marker resolves the sibling against the field's own parent model, which is
+ * the row for an array item and the operator for a top-level field.
+ */
+export function conditionalRequiredRules(schema: unknown): Map<string, ConditionalRequiredRule> {
+  const rules = new Map<string, ConditionalRequiredRule>();
+  const visit = (node: any): void => {
+    if (node === null || typeof node !== "object") {
+      return;
+    }
+    for (const branch of Array.isArray(node.allOf) ? node.allOf : []) {
+      // `if.properties` distinguishes a real condition from the `attributeTypeRules`
+      // blocks, which name the sibling directly and require nothing.
+      const condition = branch?.if?.properties;
+      const sibling = condition === undefined ? undefined : Object.keys(condition)[0];
+      if (sibling === undefined || !("const" in (condition[sibling] ?? {}))) {
+        continue;
+      }
+      for (const [outcome, requiredOnMatch] of [
+        ["then", true],
+        ["else", false],
+      ] as const) {
+        for (const field of branch?.[outcome]?.required ?? []) {
+          rules.set(field, { sibling, value: condition[sibling].const, requiredOnMatch });
+        }
+      }
+    }
+    Object.values(node).forEach(visit);
+  };
+  visit(schema);
+  return rules;
 }
 
 /**
@@ -786,6 +827,8 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
         document.getElementsByClassName("operator-version")[0].setAttribute("style", boundary.toString());
       }
     }
+    // Read once: the rules describe the whole schema, not one field.
+    const conditionalRules = conditionalRequiredRules(this.currentOperatorSchema?.jsonSchema);
     // intercept JsonSchema -> FormlySchema process, adding custom options
     // this requires a one-to-one mapping.
     // for relational custom options, have to do it after FormlySchema is generated.
@@ -1067,14 +1110,16 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
         mappedField.type = "datasetversionselector";
       }
 
-      // Aggregate: the attribute is optional for `count` (an empty attribute means COUNT(*),
-      // counting all rows) and required for every other function. Show the required marker
-      // (red *) accordingly, based on the sibling aggFunction within the same row.
-      if (this.currentOperatorSchema?.operatorType === "Aggregate" && mappedField.key === "attribute") {
+      // Show the required marker for a field the schema requires conditionally,
+      // e.g. Sklearn's Text Attribute once Count Vectorizer is on, or Aggregate's
+      // attribute for every function but `count`.
+      const conditionalRequired = conditionalRules.get(mappedField.key as string);
+      if (conditionalRequired !== undefined) {
         mappedField.expressions = {
           ...mappedField.expressions,
           "props.required": (field: FormlyFieldConfig) =>
-            isAggregateAttributeRequired(field.parent?.model?.aggFunction),
+            (field.parent?.model?.[conditionalRequired.sibling] === conditionalRequired.value) ===
+            conditionalRequired.requiredOnMatch,
         };
       }
 

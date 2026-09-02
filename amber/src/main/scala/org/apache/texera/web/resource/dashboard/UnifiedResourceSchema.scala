@@ -20,7 +20,7 @@
 package org.apache.texera.web.resource.dashboard
 
 import org.apache.texera.dao.SqlServer
-import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
+import org.apache.texera.dao.jooq.generated.enums.{DefaultViewEnum, PrivilegeEnum}
 import org.apache.texera.web.resource.dashboard.UnifiedResourceSchema.context
 import org.jooq.impl.DSL
 import org.jooq.{Field, Record}
@@ -79,7 +79,12 @@ object UnifiedResourceSchema {
         DSL.cast(null, classOf[java.lang.Boolean]),
       versionedResourceUserAccess: Field[PrivilegeEnum] = DSL.castNull(classOf[PrivilegeEnum]),
       versionedResourceCoverImage: Field[String] = DSL.cast(null, classOf[String]),
-      workflowCoverImage: Field[String] = DSL.cast(null, classOf[String])
+      workflowCoverImage: Field[String] = DSL.cast(null, classOf[String]),
+      // Workflow-only: which view the workflow opens in by default, so the listing can
+      // mark the row and route it accordingly.
+      workflowDefaultView: Field[DefaultViewEnum] = DSL.cast(null, classOf[DefaultViewEnum]),
+      modelFramework: Field[String] = DSL.cast(null, classOf[String]),
+      modelFormat: Field[String] = DSL.cast(null, classOf[String])
   ): UnifiedResourceSchema = {
     new UnifiedResourceSchema(
       Seq(
@@ -110,7 +115,10 @@ object UnifiedResourceSchema {
           .as("user_versioned_resource_access"),
         versionedResourceCoverImage -> versionedResourceCoverImage
           .as("versioned_resource_cover_image"),
-        workflowCoverImage -> workflowCoverImage.as("workflow_cover_image")
+        workflowCoverImage -> workflowCoverImage.as("workflow_cover_image"),
+        workflowDefaultView -> workflowDefaultView.as("workflow_default_view"),
+        modelFramework -> modelFramework.as("model_framework"),
+        modelFormat -> modelFormat.as("model_format")
       )
     )
   }
@@ -157,6 +165,9 @@ object UnifiedResourceSchema {
   * - `isVersionedResourceDownloadable`: Indicates if the resource is downloadable, as a `Boolean`.
   * - `versionedResourceUserAccess`: Access privileges for the resource, as a `PrivilegeEnum`
   * - `versionedResourceCoverImage`: Cover image path of the resource, as a `String`.
+  *
+  * Attributes specific to models:
+  * - `modelFramework` / `modelFormat`: The model's framework and serialization format, as `String`s.
   */
 class UnifiedResourceSchema private (
     fieldMappingSeq: Seq[(Field[_], Field[_])]

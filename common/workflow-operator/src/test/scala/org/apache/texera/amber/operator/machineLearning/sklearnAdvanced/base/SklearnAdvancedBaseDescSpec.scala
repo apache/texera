@@ -94,6 +94,9 @@ class SklearnAdvancedBaseDescSpec extends AnyFlatSpec with Matchers {
     val d = newOp(List(hyperParam("n_neighbors", "int", fromWorkflow = false, value = "5")))
     val code = d.generatePythonCode()
     code should include("from pytexera import *")
+    // Unconditional: a hyperparameter's declared type is emitted as the callable
+    // that converts the user's text, and the one taking a mapping names json.loads.
+    code should include("import json")
     code should include("from sklearn.neighbors import KNeighborsClassifier")
     code should include("class ProcessTableOperator(UDFTableOperator):")
     code should include("def process_table(")
