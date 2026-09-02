@@ -28,17 +28,11 @@ object StandaloneHelpers {
     * A Python transcription of `java.util.Random`, for operators whose executor
     * draws from one.
     *
-    * The sampling operators decide per row whether to keep it, so which rows
-    * survive is fixed by the exact sequence the generator produces. Python's own
-    * `random` module is a Mersenne Twister and numpy's is another, so seeding
-    * either one with the executor's seed still selects a different set of rows —
-    * the translated script would report a different sample than the workflow it
-    * was translated from. Reproducing the generator itself is what makes the two
-    * agree.
-    *
-    * The algorithm is the one specified in the `java.util.Random` class
-    * documentation: a 48-bit linear congruential generator, with `nextInt`'s
-    * rejection loop for bounds that are not powers of two.
+    * A sampler decides per row whether to keep it, so which rows survive is
+    * fixed by the exact sequence the generator produces. Seeding Python's
+    * `random` or numpy's with the engine's seed selects a different set, and
+    * the script would then report a different sample than the workflow it came
+    * from. Only the same generator gives the same rows.
     */
   val JavaRandom: String =
     """# java.util.Random, transcribed so sampling matches the engine.
