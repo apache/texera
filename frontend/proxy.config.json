@@ -30,6 +30,11 @@
     "secure": false,
     "changeOrigin": true
   },
+  "/api/workflow-to-python": {
+    "target": "http://localhost:9090",
+    "secure": false,
+    "changeOrigin": true
+  },
   "/api/dataset": {
     "target": "http://localhost:9092",
     "secure": false,

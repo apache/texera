@@ -55,6 +55,10 @@ import { USER_WORKFLOW } from "../../../app-routing.constant";
 import { GuiConfigService } from "../../../common/service/gui-config.service";
 import { MockGuiConfigService } from "../../../common/service/gui-config.service.mock";
 import { JupyterPanelService } from "../../service/jupyter-panel/jupyter-panel.service";
+import {
+  WorkflowToPythonResponse,
+  WorkflowToPythonService,
+} from "../../../dashboard/service/user/workflow-to-python/workflow-to-python.service";
 import type { Mocked } from "vitest";
 
 vi.mock("file-saver", () => ({ saveAs: vi.fn() }));
@@ -541,6 +545,52 @@ describe("MenuComponent", () => {
       expect(fileNameArg).toBe("my-workflow.json");
       expect(blobArg).toBeInstanceOf(Blob);
       expect(blobArg.type).toBe("text/plain;charset=utf-8");
+    });
+  });
+
+  describe("export as Python", () => {
+    it("shows the returned script in a modal", () => {
+      const toPython = TestBed.inject(WorkflowToPythonService);
+      vi.spyOn(toPython, "convertToPython").mockReturnValue(
+        of({ type: "success", pythonCode: "print('hello')" } as WorkflowToPythonResponse)
+      );
+      const fakeModalRef = { afterClose: of(undefined) } as unknown as NzModalRef;
+      const createSpy = vi.spyOn(modalService, "create").mockReturnValue(fakeModalRef);
+
+      component.onClickExportAsPython();
+
+      expect(component.pythonCodeForModal).toBe("print('hello')");
+      expect(createSpy).toHaveBeenCalledTimes(1);
+      // the button is re-enabled whichever way the request ends, so the user is not locked out of a second try
+      expect(component.isTranslatingToPython).toBe(false);
+    });
+
+    it("reports the reason the translation gave rather than opening an empty modal", () => {
+      const toPython = TestBed.inject(WorkflowToPythonService);
+      vi.spyOn(toPython, "convertToPython").mockReturnValue(
+        of({ type: "failure", errorMessage: "Sink is not supported" } as WorkflowToPythonResponse)
+      );
+      const errorSpy = vi.spyOn(notificationService, "error").mockImplementation(() => {});
+      const createSpy = vi.spyOn(modalService, "create");
+
+      component.onClickExportAsPython();
+
+      expect(errorSpy).toHaveBeenCalledWith("Sink is not supported");
+      expect(createSpy).not.toHaveBeenCalled();
+      expect(component.isTranslatingToPython).toBe(false);
+    });
+
+    it("copyPythonCodeToClipboard writes the generated Python script to the clipboard", async () => {
+      const writeText = vi.fn().mockResolvedValue(undefined);
+      vi.stubGlobal("navigator", { clipboard: { writeText } });
+      const successSpy = vi.spyOn(notificationService, "success").mockImplementation(() => {});
+      component.pythonCodeForModal = "print('hello')";
+
+      await component.copyPythonCodeToClipboard();
+
+      expect(writeText).toHaveBeenCalledWith("print('hello')");
+      expect(successSpy).toHaveBeenCalledWith("Python script copied to clipboard");
+      vi.unstubAllGlobals();
     });
   });
 

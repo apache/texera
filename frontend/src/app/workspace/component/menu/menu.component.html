@@ -130,6 +130,15 @@
             nzType="download"></i>
         </button>
         <button
+          (click)="onClickExportAsPython()"
+          [disabled]="isTranslatingToPython"
+          nz-button
+          title="export as Python script">
+          <i
+            nz-icon
+            nzType="code"></i>
+        </button>
+        <button
           (click)="onClickEditDescription()"
           nz-button
           title="change description">
@@ -487,3 +496,21 @@
     </div>
   </div>
 </div>
+
+<ng-template #workflowPythonScriptModal>
+  <div class="workflow-python-modal">
+    <div class="workflow-python-modal-toolbar">
+      <button
+        nz-button
+        title="copy Python script"
+        aria-label="copy Python script"
+        (click)="copyPythonCodeToClipboard()"
+        [disabled]="!pythonCodeForModal">
+        <i
+          nz-icon
+          nzType="copy"></i>
+      </button>
+    </div>
+    <pre class="workflow-python-code">{{ pythonCodeForModal }}</pre>
+  </div>
+</ng-template>
