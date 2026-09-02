@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,22 +17,19 @@
  * under the License.
  */
 
-/** Which view a workflow opens in by default. Both views stay reachable from each other;
- *  this only picks the landing view. */
-export enum DefaultView {
-  CANVAS = "CANVAS",
-  FORM = "FORM",
-}
+package org.apache.texera.web.resource.dashboard.user.model
 
-export interface WorkflowMetadata {
-  name: string;
-  description: string | undefined;
-  wid: number | undefined;
-  creationTime: number | undefined;
-  lastModifiedTime: number | undefined;
-  isPublished: number;
-  readonly: boolean;
-  /** Which view this workflow opens in by default. From the workflow row, so listings need
-   *  not load content. Absent on payloads predating the column (treat as CANVAS). */
-  defaultView?: DefaultView;
+import org.apache.texera.dao.jooq.generated.tables.pojos.Model
+import org.jooq.EnumType
+
+object ModelResource {
+  // Mirrors file-service's ModelResource.DashboardModel; amber does not depend on file-service.
+  // TODO: move these community resource definitions to a centralized package, similar to workflow-core
+  case class DashboardModel(
+      model: Model,
+      ownerEmail: String,
+      accessPrivilege: EnumType,
+      isOwner: Boolean,
+      size: Long
+  )
 }

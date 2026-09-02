@@ -17,21 +17,62 @@
  * under the License.
  */
 
--- Allow ORCID as an identity provider in auth_provider.provider_type.
---
--- ORCID is authorization-code OAuth rather than Google's id-token flow, but the identity it
--- yields lands in the same place: one auth_provider row whose provider_id is the ORCID iD.
---
--- The type is schema-qualified because the two runners disagree about the search path: the
--- liquibase runner in sql/docker-compose.yml strips `SET search_path` out of these files before
--- applying them, while bin/local-dev.sh keeps it.
-
 \c texera_db
 
 SET search_path TO texera_db;
 
 BEGIN;
 
-ALTER TYPE texera_db.provider_type_enum ADD VALUE IF NOT EXISTS 'ORCID';
+-- Hub engagement tables for models, mirroring dataset_user_likes / dataset_view_count.
+
+CREATE TABLE IF NOT EXISTS model_user_likes
+(
+    uid INTEGER NOT NULL,
+    mid INTEGER NOT NULL,
+    PRIMARY KEY (uid, mid),
+    FOREIGN KEY (uid) REFERENCES "user"(uid) ON DELETE CASCADE,
+    FOREIGN KEY (mid) REFERENCES model(mid) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS model_view_count
+(
+    mid        INTEGER NOT NULL,
+    view_count INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (mid),
+    FOREIGN KEY (mid) REFERENCES model(mid) ON DELETE CASCADE
+);
 
 COMMIT;
+
+-- Full-text index for models. texera_ddl.sql builds this for a fresh database; a database
+-- upgraded through the migrations needs it created here. The indexed expression must match
+-- the predicate ModelSearchQueryBuilder renders (name || ' ' || description) exactly, or the
+-- planner falls back to a sequential scan.
+CREATE EXTENSION IF NOT EXISTS pgroonga;
+
+DO $$
+DECLARE
+  index_expression TEXT := '((COALESCE(name, '''') || '' '' || COALESCE(description, '''')))';
+  plugin_status TEXT;
+BEGIN
+  WITH plugin_registration AS (
+    SELECT pgroonga_command('plugin_register token_filters/stem') AS result
+  )
+  SELECT
+    CASE
+      WHEN result::jsonb @> '[true]' THEN 'Plugin registered successfully'
+      ELSE 'Plugin registration failed'
+    END INTO plugin_status
+  FROM plugin_registration;
+
+  DROP INDEX IF EXISTS idx_model_pgroonga;
+
+  IF plugin_status = 'Plugin registered successfully' THEN
+    EXECUTE 'CREATE INDEX idx_model_pgroonga ON model USING pgroonga ' || index_expression ||
+            ' WITH (tokenizer = ''TokenMecab'', plugins=''token_filters/stem'''
+            ', token_filters=''TokenFilterStem'')';
+  ELSE
+    EXECUTE 'CREATE INDEX idx_model_pgroonga ON model USING pgroonga ' || index_expression ||
+            ' WITH (tokenizer = ''TokenMecab'')';
+  END IF;
+END $$;

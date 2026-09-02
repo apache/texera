@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,22 +17,21 @@
  * under the License.
  */
 
-/** Which view a workflow opens in by default. Both views stay reachable from each other;
- *  this only picks the landing view. */
-export enum DefaultView {
-  CANVAS = "CANVAS",
-  FORM = "FORM",
-}
+-- Allow ORCID as an identity provider in auth_provider.provider_type.
+--
+-- ORCID is authorization-code OAuth rather than Google's id-token flow, but the identity it
+-- yields lands in the same place: one auth_provider row whose provider_id is the ORCID iD.
+--
+-- The type is schema-qualified because the two runners disagree about the search path: the
+-- liquibase runner in sql/docker-compose.yml strips `SET search_path` out of these files before
+-- applying them, while bin/local-dev.sh keeps it.
 
-export interface WorkflowMetadata {
-  name: string;
-  description: string | undefined;
-  wid: number | undefined;
-  creationTime: number | undefined;
-  lastModifiedTime: number | undefined;
-  isPublished: number;
-  readonly: boolean;
-  /** Which view this workflow opens in by default. From the workflow row, so listings need
-   *  not load content. Absent on payloads predating the column (treat as CANVAS). */
-  defaultView?: DefaultView;
-}
+\c texera_db
+
+SET search_path TO texera_db;
+
+BEGIN;
+
+ALTER TYPE texera_db.provider_type_enum ADD VALUE IF NOT EXISTS 'ORCID';
+
+COMMIT;
