@@ -27,8 +27,10 @@ import { DatasetService } from "../dataset/dataset.service";
 import { ModelService } from "../model/model.service";
 import { WorkflowPersistService } from "../../../../common/service/workflow-persist/workflow-persist.service";
 import { DownloadService } from "../download/download.service";
+import { FileResourceDescriptor } from "./file-resource.descriptor";
 import {
   HUB_DATASET_RESULT_DETAIL,
+  HUB_MODEL_RESULT_DETAIL,
   HUB_WORKFLOW_RESULT_DETAIL,
   USER_DATASET,
   USER_MODEL,
@@ -235,14 +237,52 @@ describe("ResourceRegistryService", () => {
     expect(registry.entryLink(dataset, 99)).toEqual([HUB_DATASET_RESULT_DETAIL, "5"]);
   });
 
-  it("routes a model to its detail page, which has no hub twin yet", () => {
-    expect(registry.get(EntityType.Model).hubRoute).toBeUndefined();
-    expect(registry.entryLink(entry({ type: EntityType.Model, id: 9 }), 42)).toEqual([USER_MODEL, "9"]);
+  it("routes a model the same way, to its own page or to the hub", () => {
+    const model = entry({ type: EntityType.Model, id: 9, accessibleUserIds: [42] });
+    expect(registry.entryLink(model, 42)).toEqual([USER_MODEL, "9"]);
+    expect(registry.entryLink(model, 99)).toEqual([HUB_MODEL_RESULT_DETAIL, "9"]);
   });
 
   it("leaves an unroutable or unsaved entry unlinked", () => {
     expect(registry.entryLink(entry({ type: EntityType.File, id: 8 }), 42)).toEqual([]);
     expect(registry.entryLink(entry({ type: EntityType.Dataset, id: undefined }), 42)).toEqual([]);
     expect(registry.entryLink(entry({ type: EntityType.Workflow, id: "draft" }), 42)).toEqual([]);
+  });
+
+  /**
+   * `hubRoute` is optional on the descriptor contract, and the shipped kinds happen to declare
+   * both routes or neither — so nothing had ever asked what a private-page-only kind links to.
+   * The answer must not depend on the viewer: with nowhere else to send them, the private page is
+   * the only link there is, and the access check further down would otherwise route an outsider to
+   * `undefined`. Descriptors reach the registry by injection, so the kind is supplied as one.
+   */
+  it("links a kind with a private page and no hub page straight to its private page", () => {
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      imports: [HttpClientTestingModule],
+      providers: [
+        { provide: DownloadService, useValue: downloadService },
+        { provide: WorkflowPersistService, useValue: workflowPersistService },
+        { provide: DatasetService, useValue: datasetService },
+        { provide: ModelService, useValue: modelService },
+        {
+          provide: FileResourceDescriptor,
+          useValue: {
+            type: EntityType.File,
+            iconType: "folder-open",
+            privateRoute: "/private-files",
+            isOwner: () => true,
+          },
+        },
+        ...commonTestProviders,
+      ],
+    });
+    const privatePageOnly = TestBed.inject(ResourceRegistryService);
+    const file = entry({ type: EntityType.File, id: 7, accessibleUserIds: [42] });
+
+    expect(privatePageOnly.entryLink(file, 42)).toEqual(["/private-files", "7"]);
+    // Same link for a viewer with no access, and for an anonymous one.
+    expect(privatePageOnly.entryLink(file, 99)).toEqual(["/private-files", "7"]);
+    expect(privatePageOnly.entryLink(file, undefined)).toEqual(["/private-files", "7"]);
   });
 });

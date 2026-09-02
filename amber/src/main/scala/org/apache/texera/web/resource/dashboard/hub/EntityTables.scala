@@ -67,10 +67,22 @@ object EntityTables {
     )
   }
 
+  case object ModelTableSet extends EntityTableSet {
+    override val base: BaseEntityTable = VersionedResourceTables.ModelTables
+    override val like: LikeTable = LikeTable.ModelLikeTable
+    override val viewCount: ViewCountTable = ViewCountTable.ModelViewCountTable
+    override val access: AccessTable = AccessTable.ModelAccessTable
+    override val cloneTable: Option[CloneTable] = None
+    override val versionedResource: Option[VersionedResourceTables[_ <: Record, _]] = Some(
+      VersionedResourceTables.ModelTables
+    )
+  }
+
   def apply(entityType: EntityType): EntityTableSet =
     entityType match {
       case EntityType.Workflow => WorkflowTableSet
       case EntityType.Dataset  => DatasetTableSet
+      case EntityType.Model    => ModelTableSet
     }
 
   // ==================== BASE TABLE ====================
@@ -122,6 +134,13 @@ object EntityTables {
       override val idColumn: TableField[DatasetUserLikesRecord, Integer] = DATASET_USER_LIKES.DID
     }
 
+    case object ModelLikeTable extends LikeTable {
+      override type R = ModelUserLikesRecord
+      override val table: Table[ModelUserLikesRecord] = MODEL_USER_LIKES
+      override val uidColumn: TableField[ModelUserLikesRecord, Integer] = MODEL_USER_LIKES.UID
+      override val idColumn: TableField[ModelUserLikesRecord, Integer] = MODEL_USER_LIKES.MID
+    }
+
     def apply(entityType: EntityType): LikeTable = EntityTables(entityType).like
   }
 
@@ -170,6 +189,14 @@ object EntityTables {
         DATASET_VIEW_COUNT.VIEW_COUNT
     }
 
+    case object ModelViewCountTable extends ViewCountTable {
+      override type R = ModelViewCountRecord
+      override val table: Table[ModelViewCountRecord] = MODEL_VIEW_COUNT
+      override val idColumn: TableField[ModelViewCountRecord, Integer] = MODEL_VIEW_COUNT.MID
+      override val viewCountColumn: TableField[ModelViewCountRecord, Integer] =
+        MODEL_VIEW_COUNT.VIEW_COUNT
+    }
+
     def apply(entityType: EntityType): ViewCountTable = EntityTables(entityType).viewCount
   }
 
@@ -202,6 +229,15 @@ object EntityTables {
       override val uidColumn: TableField[DatasetUserAccessRecord, Integer] = DATASET_USER_ACCESS.UID
       override val privilegeColumn: TableField[DatasetUserAccessRecord, PrivilegeEnum] =
         DATASET_USER_ACCESS.PRIVILEGE
+    }
+
+    case object ModelAccessTable extends AccessTable {
+      override type R = ModelUserAccessRecord
+      override val table: Table[ModelUserAccessRecord] = MODEL_USER_ACCESS
+      override val idColumn: TableField[ModelUserAccessRecord, Integer] = MODEL_USER_ACCESS.MID
+      override val uidColumn: TableField[ModelUserAccessRecord, Integer] = MODEL_USER_ACCESS.UID
+      override val privilegeColumn: TableField[ModelUserAccessRecord, PrivilegeEnum] =
+        MODEL_USER_ACCESS.PRIVILEGE
     }
 
     def apply(entityType: EntityType): AccessTable = EntityTables(entityType).access

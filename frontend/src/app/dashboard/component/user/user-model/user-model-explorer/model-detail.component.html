@@ -84,11 +84,14 @@
             {{ formatCount(viewCount) }}
           </nz-tag>
 
-          <nz-tag class="status-tag">
+          <nz-tag
+            class="status-tag like-tag"
+            [ngClass]="{ liked: isLiked, disabled: !isLogin }"
+            (click)="isLogin && toggleLike()">
             <i
               nz-icon
               nzType="like"
-              nzTheme="outline"></i>
+              [nzTheme]="isLiked ? 'fill' : 'outline'"></i>
             {{ formatCount(likeCount) }}
           </nz-tag>
         </div>
