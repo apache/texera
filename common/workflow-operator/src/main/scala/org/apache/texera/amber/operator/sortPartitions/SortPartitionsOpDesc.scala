@@ -89,17 +89,12 @@ class SortPartitionsOpDesc extends LogicalOp with StandaloneCodeGenerator {
       outputPorts = List(OutputPort(blocking = true))
     )
 
-  // JVM op buffers all tuples and calls ArrayBuffer.sortWith with the comparator
-  // AttributeTypeUtils.compare(...) < 0. Scala's sortWith is guaranteed stable.
-  // AttributeTypeUtils.compare puts null < non-null (NULLS FIRST in ASC).
-  // Direction is ASC only (no DESC option); JSON schema restricts the attribute
-  // to INTEGER/LONG/DOUBLE. Domain min/max are partitioning hints unused at sort
-  // time, so the standalone code ignores them.
+  // Row order is this operator's answer, so the sort matches the engine's:
+  // stable, ascending, nulls first. The domain bounds are partitioning hints
+  // that the sort itself never reads.
   //
-  // pandas equivalent: stable mergesort, ascending, na_position="first" to
-  // mirror NULLS FIRST. Known divergence: Double NaN. JVM Double.compare orders
-  // NaN > +Inf (NaN last), while pandas treats NaN as missing and places it at
-  // na_position — so NaN sorts FIRST in this Python translation.
+  // NaN is where the two part. The engine orders it after positive infinity;
+  // pandas treats it as missing and puts it where the nulls go, which is first.
   override def generateStandaloneCode(): String = {
     val col = pyStringLiteral(Option(sortAttributeName).getOrElse(""))
     s"""out1df = in1df.sort_values(by=$col, ascending=True, kind="mergesort", na_position="first").reset_index(drop=True)"""

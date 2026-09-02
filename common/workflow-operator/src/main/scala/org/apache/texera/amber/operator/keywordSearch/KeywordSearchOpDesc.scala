@@ -39,21 +39,13 @@ class KeywordSearchOpDesc extends FilterOpDesc with StandaloneCodeGenerator {
   @AutofillAttributeName
   var attribute: String = _
 
-  // The value is a Lucene query, so the parser the executor builds decides what can be
-  // typed here. Its lexer needs double quotes in pairs: one on its own opens a phrase
-  // that never closes, and `parse` throws before a row is read. A quote a backslash
-  // escapes is not one of the pair, it is a character in a term, so the pattern walks
-  // the value the way the lexer does: an escape takes the character after it, whatever
-  // it is, and only a bare quote opens or closes a phrase. A backslash with nothing to
-  // escape ends the value mid-escape, which throws as well.
-  //
-  // That is the one rule statable exactly. ( ) [ ] { } ^ and / also carry query syntax,
-  // but which uses of them parse depends on what follows, and a pattern strict enough to
-  // cover them would reject the phrase and range queries that work today.
-  //
-  // Anchored, because the form validates with `new RegExp().test`, which searches: an
-  // unanchored alternative would match the leading run of quoteless characters in any
-  // value at all and reject nothing.
+  // The value is a Lucene query, and its lexer needs double quotes in pairs: one on its
+  // own opens a phrase that never closes, and `parse` throws before a row is read. The
+  // pattern walks the value the way the lexer does, so a quote a backslash escapes stays
+  // a character in a term. The other syntactic characters are left alone, since which
+  // uses of them parse depends on what follows and a stricter pattern would reject the
+  // phrase and range queries that work today. Anchored, because the form validates with
+  // `test`, which searches.
   @JsonProperty(required = true)
   @JsonSchemaTitle("keywords")
   @JsonPropertyDescription("keywords")
@@ -96,10 +88,9 @@ class KeywordSearchOpDesc extends FilterOpDesc with StandaloneCodeGenerator {
     )
 
   override def generateStandaloneCode(): String = {
-    // JVM uses Lucene MemoryIndex + StandardAnalyzer + QueryParser per row.
-    // Best-effort approximation: split keyword on whitespace, treat as
-    // OR-of-terms with word boundaries, case-insensitive. This does NOT honor
-    // Lucene query syntax (phrases "a b", booleans +/-, wildcards *, fuzzy ~).
+    // The engine runs a Lucene query per row; a script matches the terms
+    // themselves, so a query that uses the syntax — a phrase, a boolean, a
+    // wildcard, a fuzzy match — reads here as the words it is written with.
     val raw = Option(keyword).getOrElse("")
     val terms = raw.trim.split("\\s+").filter(_.nonEmpty).toList
     if (terms.isEmpty) return "out1df = in1df"

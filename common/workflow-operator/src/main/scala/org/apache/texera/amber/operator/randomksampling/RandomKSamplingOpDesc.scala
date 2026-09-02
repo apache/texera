@@ -64,19 +64,13 @@ class RandomKSamplingOpDesc extends FilterOpDesc with StandaloneCodeGenerator {
 
   override def standaloneHelpers(): Seq[String] = Seq(StandaloneHelpers.JavaRandom)
 
-  // The executor is a per-row Bernoulli filter: keep iff (percentage/100.0) >=
-  // rand.nextDouble(). Drawing from the same generator keeps the exact rows, not
-  // merely the same distribution; each operator instance builds its own so
-  // independent samplers don't share state.
+  // A per-row Bernoulli filter drawn from the same generator, so a rerun keeps
+  // the exact rows rather than merely the same proportion of them.
   //
-  // The seed is the worker count, so which rows survive is a property of the
-  // deployment rather than of the workflow. A script is one process and states
-  // the one seed it can, and the rows then agree with a single-worker run. They
-  // will not agree with a wider one, and no seed would fix that: the tuples are
-  // split across the workers and each samples its own share from the start of
-  // the sequence, which one process reading the whole input cannot reproduce.
-  // Sampling has no seed field for a user to pin, so nothing here promised a
-  // particular set of rows in the first place.
+  // The engine seeds it with the worker count, which makes the surviving rows a
+  // property of the deployment. One process states the one seed it can and so
+  // agrees with a single-worker run; a wider one splits the input and samples
+  // each share from the start of the sequence, which no seed here reproduces.
   override def generateStandaloneCode(): String = {
     val p = percentage / 100.0
     s"""_texera_rks_rng = _TexeraJavaRandom(1)

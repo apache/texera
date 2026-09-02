@@ -141,33 +141,11 @@ class AggregateOpDesc extends LogicalOp with StandaloneCodeGenerator {
       outputPorts = List(OutputPort())
     )
 
-  // JVM splits this into a partial+final two-phase plan (HashPartition on
-  // groupByKeys, distributed reduce per AggregationOperation.getAggFunc). The
-  // standalone equivalent runs in a single process, so we collapse to one
-  // pandas groupby (or a single-row reduction when groupByKeys is empty).
+  // The engine aggregates in two phases across partitions; one process needs
+  // only the one groupby, or a single-row reduction when no key is grouped on.
   //
-  // Per-function mapping mirrors AggregationOperation:
-  //   SUM     -> Series.sum   |  AVERAGE -> Series.mean
-  //   MIN/MAX -> Series.min/max
-  //   COUNT   -> Series.count (non-null) when attribute is set,
-  //              groupby.size / len() when attribute is null/empty
-  //   CONCAT  -> custom _texera_agg_concat (matches the JVM quirk where
-  //              leading-null streaks are dropped but mid-stream nulls
-  //              become empty positions in the comma-separated string)
-  //
-  // Known divergences:
-  //   * Row order: JVM emits in hash-partition order; pandas
-  //     groupby(..., sort=False) emits in first-occurrence order. Use a
-  //     harness that order-normalizes both sides before comparing.
-  //   * Floating-point AVERAGE may differ in the last ULP because JVM does
-  //     partial sum/count first, then divides, whereas pandas computes mean
-  //     in one pass. compare.py's rtol=1e-5 absorbs this.
-  //
-  // Note: AggregateOpDesc.getPhysicalPlan() mutates `aggregations` via
-  // `getFinal` (COUNT -> SUM). This generator reads `aggregations` directly,
-  // so it MUST be invoked before getPhysicalPlan on the same instance. The
-  // current translator calls it in that order; PyOpExecHarness-style runners
-  // that call getPhysicalPlan first need to capture this code earlier.
+  // Must run before `getPhysicalPlan`, which rewrites `aggregations` in place:
+  // it turns COUNT into SUM for the final phase, and this reads them as written.
   override def generateStandaloneCode(): String = {
     val keys = Option(groupByKeys).getOrElse(List())
     val aggs = Option(aggregations).getOrElse(List())

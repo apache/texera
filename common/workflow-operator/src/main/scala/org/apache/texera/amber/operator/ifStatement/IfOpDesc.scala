@@ -74,17 +74,10 @@ class IfOpDesc extends LogicalOp with StandaloneCodeGenerator {
       outputPorts = List(OutputPort(PortIdentity(), "False"), OutputPort(PortIdentity(1), "True"))
     )
 
-  // JVM IfOpExec flips its active output port via processState() — a State
-  // message arriving on the Condition input carries the boolean under
-  // `conditionName`. Flat pandas has no State channel, so the standalone
-  // translation adopts a convention: read the condition from a Python global
-  // named `_texera_if_<conditionName>`, default True when unset (matches
-  // IfOpExec's pre-state `outputPort = PortIdentity(1)` initial value). Host
-  // scripts that need the False branch set the global before exec; the
-  // Condition input (in1df) is intentionally ignored because in live Texera
-  // it only carries State, not data, and forcing upstream ops to manufacture
-  // a DataFrame would impose a contract on State-producing operators that
-  // the rest of the translator doesn't define.
+  // The engine flips the active output port when a State message arrives on the
+  // Condition port. A script has no State channel, so the condition is read from
+  // a global named after it, true when nothing set it, which is the port the
+  // engine starts on. The Condition input carries no rows to read either way.
   override def generateStandaloneCode(): String = {
     val globalName = "_texera_if_" + Option(conditionName).getOrElse("")
     val globalLit = pyStringLiteral(globalName)
