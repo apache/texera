@@ -122,31 +122,20 @@ object TransformVerificationRunner {
     * knobs that its metadata does not say.
     *
     * `Pinned` holds a knob at one value and keeps it out of the sweep, for a
-    * knob whose other value selects non-determinism rather than a different
-    * behavior to check. Split's "Auto-Generate Seed" is the case: with it on the
-    * executor seeds from the clock, so that run agrees with nothing — its own
-    * previous run included — and there is no output for a script to reproduce.
-    * Everything else about the operator is deterministic, so pinning covers the
-    * partition rather than abandoning the operator over one switch. The value
-    * reaches the test name via [[pinnedTierNote]], so the run does not read as
-    * full coverage.
+    * knob whose other value selects non-determinism rather than another
+    * behaviour to check. Split's "Auto-Generate Seed" is the case: with it on
+    * the executor seeds from the clock, so that run agrees with nothing, its own
+    * previous run included. The value reaches the test name via
+    * [[pinnedTierNote]], so the run does not read as full coverage.
     *
     * `WithOptionals` sets a knob inside the `optionals` variant, for a branch
-    * that needs a switch AND the field it governs. Ternary Plot colours its
-    * points only when `colorEnabled` is on and `colorDataField` is set, and the
-    * two belong to different mechanisms: the sweep turns the switch on with the
-    * column empty, the optional fill supplies the column with the switch off, so
-    * neither variant generated the coloured branch. Naming the switch here puts
-    * it in the variant that fills the column.
+    * that needs a switch and the field it governs together. Ternary Plot colours
+    * its points only when both are set, and the sweep and the optional fill each
+    * supply one, so neither variant reached the coloured branch.
     *
     * Named per operator rather than applied wholesale, because switches are not
-    * generally independent: turning every Boolean on in that variant paired
-    * Sklearn's `countVectorizer` with `tfidfTransformer` (mutually exclusive
-    * text pipelines), asked File Scan to extract an archive from a plain file,
-    * and re-enabled the very auto-seed switch the first scope holds off.
-    *
-    * Distinct from an `enumSweep` row in [[variantsNotRun]], which is about an
-    * operator's enums as a whole rather than one named knob.
+    * generally independent: turning every Boolean on at once paired Sklearn's
+    * two mutually exclusive text pipelines, among others.
     */
   sealed trait KnobScope
   object KnobScope {
