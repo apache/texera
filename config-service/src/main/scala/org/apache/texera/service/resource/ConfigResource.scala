@@ -63,6 +63,7 @@ class ConfigResource {
     Map(
       "localLogin" -> GuiConfig.guiLoginLocalLogin,
       "googleLogin" -> GuiConfig.guiLoginGoogleLogin,
+      "appleLogin" -> GuiConfig.guiLoginAppleLogin,
       "defaultLocalUser" -> Map(
         "username" -> GuiConfig.guiLoginDefaultLocalUserUsername,
         "password" -> GuiConfig.guiLoginDefaultLocalUserPassword

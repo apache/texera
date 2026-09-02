@@ -47,6 +47,10 @@ header:
     - 'frontend/src/app/common/formly/object.type.ts'
     - 'frontend/src/app/common/formly/multischema.type.ts'
     - 'frontend/src/app/common/formly/null.type.ts'
+    # Apple trademark artwork, required by Apple for the Sign in with Apple button. An ASF header
+    # here would assert Apache-2.0 over Apple's mark, which is why it is ignored rather than
+    # headed - see LICENSE file for attribution.
+    - 'frontend/src/assets/logos/apple-logo-white.svg'
     # Third-party SVG assets - see LICENSE file for attribution
     - 'frontend/src/assets/svg/operator-view-result.svg'
     - 'frontend/src/assets/svg/operator-reuse-cache-invalid.svg'

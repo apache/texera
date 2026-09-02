@@ -50,7 +50,33 @@ final case class ExternalProfile(
     avatar: Option[String]
 )
 
+/**
+  * An identity a provider authenticates without asserting any address — Apple, which omits `email`
+  * for Sign in with Apple at Work & School accounts.
+  *
+  * A separate type rather than an optional `email` on [[ExternalProfile]]: the difference is what
+  * the provider vouches for, not how much of it happens to be filled in. Provisioned through
+  * [[ExternalAuthProvisioner.loginOrProvisionIdentityOnly]].
+  */
+final case class ExternalIdentity(
+    providerType: ProviderTypeEnum,
+    providerId: String,
+    name: String
+)
+
 object ExternalAuthProvisioner extends LazyLogging {
+
+  /**
+    * What provisioning works with: the fields a provider may or may not have asserted. Private, so
+    * the optionality never reaches a caller — each public entry point states which kind it serves.
+    */
+  private final case class Asserted(
+      providerType: ProviderTypeEnum,
+      providerId: String,
+      name: String,
+      email: Option[String],
+      avatar: Option[String]
+  )
 
   /**
     * The account owning `email`, matched case-insensitively and within the caller's transaction
@@ -66,7 +92,29 @@ object ExternalAuthProvisioner extends LazyLogging {
     * transaction. A unique violation is taken to mean a concurrent login won the race, so the
     * attempt is re-run once; if the retry violates a constraint too, that exception propagates.
     */
-  def loginOrProvision(profile: ExternalProfile): User = {
+  def loginOrProvision(profile: ExternalProfile): User =
+    attempt(
+      Asserted(
+        profile.providerType,
+        profile.providerId,
+        profile.name,
+        Some(profile.email),
+        profile.avatar
+      )
+    )
+
+  /**
+    * As [[loginOrProvision]], for a provider that asserts no address.
+    *
+    * The account is created with a NULL email and is deliberately never matched to an existing one:
+    * the only address available for matching would be one the user typed, and linking on that is
+    * the takeover [[ExternalProfile]] describes. Such an account signs in but is inert for the
+    * email-keyed parts of the product until the address is collected — see `AuthResource.setEmail`.
+    */
+  def loginOrProvisionIdentityOnly(identity: ExternalIdentity): User =
+    attempt(Asserted(identity.providerType, identity.providerId, identity.name, None, None))
+
+  private def attempt(profile: Asserted): User = {
     try {
       provision(profile)
     } catch {
@@ -75,7 +123,7 @@ object ExternalAuthProvisioner extends LazyLogging {
     }
   }
 
-  private def provision(profile: ExternalProfile): User = {
+  private def provision(profile: Asserted): User = {
     SqlServer.withTransaction(SqlServer.getInstance().createDSLContext()) { ctx =>
       val txUserDao = new UserDao(ctx.configuration())
       val txAuthDao = new AuthProviderDao(ctx.configuration())
@@ -98,7 +146,9 @@ object ExternalAuthProvisioner extends LazyLogging {
           }
 
         case None =>
-          val user = userByEmailIgnoreCase(ctx, profile.email) match {
+          // An identity-only provider skips the lookup rather than matching on nothing, so it
+          // always lands in the insert branch below.
+          val user = profile.email.flatMap(userByEmailIgnoreCase(ctx, _)) match {
             case Some(existing) =>
               existing.tap { user =>
                 val wasPlaceholder = user.getIsPlaceholder
@@ -109,7 +159,9 @@ object ExternalAuthProvisioner extends LazyLogging {
             case None =>
               val created = new User()
               created.setName(profile.name)
-              created.setEmail(profile.email)
+              // Left NULL for an identity-only provider. The column is nullable and its UNIQUE
+              // index tolerates repeated NULLs, so several such accounts can coexist.
+              profile.email.foreach(created.setEmail)
               profile.avatar.foreach(created.setAvatar)
               created.setRole(UserRoleEnum.INACTIVE)
               txUserDao.insert(created)
@@ -137,15 +189,19 @@ object ExternalAuthProvisioner extends LazyLogging {
   /**
     * Mutate `user` in place to match `profile`, returning true iff anything changed
     * (so the caller only issues an UPDATE when needed).
+    *
+    * A field the provider did not assert is left alone rather than blanked: on a returning login an
+    * identity-only account may have gained an address through `AuthResource.setEmail`, which this
+    * must not undo.
     */
-  private def refresh(user: User, profile: ExternalProfile): Boolean = {
+  private def refresh(user: User, profile: Asserted): Boolean = {
     var changed = false
     if (user.getName != profile.name) {
       user.setName(profile.name)
       changed = true
     }
-    if (user.getEmail != profile.email) {
-      user.setEmail(profile.email)
+    profile.email.filter(_ != user.getEmail).foreach { email =>
+      user.setEmail(email)
       changed = true
     }
     profile.avatar.filter(_ != user.getAvatar).foreach { url =>
@@ -159,7 +215,7 @@ object ExternalAuthProvisioner extends LazyLogging {
       ctx: DSLContext,
       authDao: AuthProviderDao,
       user: User,
-      profile: ExternalProfile
+      profile: Asserted
   ): Unit = {
     val hasProvider = ctx.fetchExists(
       ctx

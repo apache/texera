@@ -134,6 +134,11 @@
         <sqlFile path="sql/updates/44.sql"/>
     </changeSet>
 
+    <!-- Allow Sign in with Apple identities in auth_provider -->
+    <changeSet id="45" author="Neilk1021">
+        <sqlFile path="sql/updates/45.sql"/>
+    </changeSet>
+
     <!-- example changeSet
     <changeSet id="1" author="author">
         <sqlFile path="sql/updates/1.sql"/>

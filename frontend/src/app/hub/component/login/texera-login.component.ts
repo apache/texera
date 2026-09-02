@@ -34,6 +34,7 @@ import { HttpErrorResponse } from "@angular/common/http";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { SocialAuthService, GoogleSigninButtonModule, SocialUser } from "@abacritt/angularx-social-login";
 import { UserService } from "../../../common/service/user/user.service";
+import { AppleAuthService } from "../../../common/service/user/apple-auth.service";
 import { NotificationService } from "../../../common/service/notification/notification.service";
 import { GuiConfigService } from "../../../common/service/gui-config.service";
 import { USER_WORKFLOW } from "../../../app-routing.constant";
@@ -63,7 +64,7 @@ const ACCOUNT_CREATED =
 type LoginMode = "signin" | "signup";
 
 /**
- * Full-page login card: tabbed local sign-in / sign-up plus Google sign-in.
+ * Full-page login card: tabbed local sign-in / sign-up plus Google and Apple sign-in.
  *
  * This is the single login surface. It replaces the `texera-local-login` form that used to be
  * embedded in the About page and the standalone Google button that sat on the dashboard shell,
@@ -92,6 +93,8 @@ type LoginMode = "signin" | "signup";
 export class TexeraLoginComponent implements OnInit {
   public mode: LoginMode = "signin";
   public passwordVisible = false;
+  // Guards against a second click while Apple's popup is already open.
+  public appleSignInPending = false;
   public errorMessage: string | undefined;
 
   public form: FormGroup;
@@ -104,6 +107,7 @@ export class TexeraLoginComponent implements OnInit {
     private router: Router,
     private ngZone: NgZone,
     private socialAuthService: SocialAuthService,
+    private appleAuthService: AppleAuthService,
     protected config: GuiConfigService
   ) {
     this.form = this.formBuilder.group({
@@ -154,6 +158,38 @@ export class TexeraLoginComponent implements OnInit {
           )
           .subscribe(() => this.ngZone.run(() => this.navigateAfterLogin()));
       });
+  }
+
+  /**
+   * Apple has no Angular button component (`@abacritt/angularx-social-login` ships no Apple
+   * provider) and its SDK-rendered button cannot be sized to match the Google button beside it, so
+   * the button is ours and the flow is started by a click rather than pushed through
+   * `socialAuthService.authState`. A dismissed popup yields no token and is not an error.
+   *
+   * Apple's script is fetched inside `signIn()`, on this click, so a visitor who only uses the
+   * password form never calls Apple at all.
+   */
+  public async signInWithApple(): Promise<void> {
+    this.appleSignInPending = true;
+    try {
+      const idToken = await this.appleAuthService.signIn();
+      if (!idToken) return;
+
+      this.userService
+        .appleLogin(idToken)
+        .pipe(
+          catchError((e: unknown) => {
+            this.notificationService.error((e as Error)?.message || "Apple sign-in failed");
+            return throwError(() => e);
+          }),
+          untilDestroyed(this)
+        )
+        .subscribe(() => this.ngZone.run(() => this.navigateAfterLogin()));
+    } catch (e) {
+      this.notificationService.error((e as Error)?.message || "Apple sign-in failed");
+    } finally {
+      this.appleSignInPending = false;
+    }
   }
 
   public setMode(mode: LoginMode): void {
