@@ -209,29 +209,6 @@ object PythonTemplateBuilder {
   def wrapWithPythonDecoderExpr(text: String): String =
     s"self.decode_python_template('$text')"
 
-  /**
-    * Render `text` as a Python double-quoted string literal, quotes included.
-    *
-    * For generators that emit standalone Python source rather than an operator
-    * for the runtime: they cannot use the decode expression (it needs the
-    * operator's `decode_python_template`, and it is deliberately rejected inside
-    * quotes), so they need the value as a *literal*. Writing `"$value"` by hand
-    * instead lets any quote, backslash or newline in the value close the literal
-    * early and change — or break — the emitted program.
-    *
-    * Escapes exactly what can end a double-quoted single-line literal.
-    */
-  def pyStringLiteral(text: String): String = {
-    val escaped = Option(text)
-      .getOrElse("")
-      .replace("\\", "\\\\")
-      .replace("\"", "\\\"")
-      .replace("\r", "\\r")
-      .replace("\n", "\\n")
-      .replace("\t", "\\t")
-    "\"" + escaped + "\""
-  }
-
   sealed trait RenderMode extends Product with Serializable
   object RenderMode {
     case object Plain extends RenderMode

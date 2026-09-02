@@ -22,10 +22,10 @@ package org.apache.texera.amber.operator.union
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PhysicalOp}
+import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
-import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator}
 
-class UnionOpDesc extends LogicalOp with StandaloneCodeGenerator {
+class UnionOpDesc extends LogicalOp {
 
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
@@ -50,11 +50,4 @@ class UnionOpDesc extends LogicalOp with StandaloneCodeGenerator {
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort())
     )
-
-  // UNION ALL: UnionOpExec passes tuples through without dedup. The port is
-  // variadic, so the code names the whole list of upstreams rather than a fixed
-  // two — naming two dropped a third and left the second unbound when only one
-  // was drawn.
-  override def generateStandaloneCode(): String =
-    "out1df = pd.concat(inAlldf, ignore_index=True)"
 }

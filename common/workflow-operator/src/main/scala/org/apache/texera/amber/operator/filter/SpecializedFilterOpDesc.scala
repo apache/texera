@@ -23,12 +23,10 @@ import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PhysicalOp}
-import org.apache.texera.amber.operator.StandaloneCodeGenerator
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
-import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
-class SpecializedFilterOpDesc extends FilterOpDesc with StandaloneCodeGenerator {
+class SpecializedFilterOpDesc extends FilterOpDesc {
 
   @JsonProperty(value = "predicates", required = true)
   @JsonPropertyDescription("multiple predicates in OR")
@@ -61,41 +59,5 @@ class SpecializedFilterOpDesc extends FilterOpDesc with StandaloneCodeGenerator 
       List(OutputPort()),
       supportReconfiguration = true
     )
-  }
-
-  override def generateStandaloneCode(): String = {
-    if (predicates.isEmpty) return "out1df = in1df.copy()"
-    val conditions = predicates.map { p =>
-      val colLit = pyStringLiteral(p.attribute)
-      p.condition match {
-        case ComparisonType.IS_NULL     => s"""(in1df[$colLit].isna())"""
-        case ComparisonType.IS_NOT_NULL => s"""(in1df[$colLit].notna())"""
-        case other =>
-          val op = other.getName // returns "=", ">=", "<", etc. (see ComparisonType.java)
-          val pyOp = if (op == "=") "==" else op
-          // notna mirrors FilterPredicate, which answers false for every condition
-          // but IS_NULL / IS_NOT_NULL once the field is null. Only `!=` needs it —
-          // pandas answers True there, where every other operator answers False —
-          // but guarding all of them keeps the one rule visible in one place.
-          s"""(in1df[$colLit].notna() & (in1df[$colLit] $pyOp ${coerceValue(p.value)}))"""
-      }
-    }
-    s"out1df = in1df[${conditions.mkString(" | ")}].reset_index(drop=True)"
-  }
-
-  // Try numeric coercion so generated code compares column values against the right type.
-  // Strings that don't parse fall through to a quoted string literal.
-  private def coerceValue(raw: String): String = {
-    try {
-      raw.toInt.toString
-    } catch {
-      case _: NumberFormatException =>
-        try {
-          raw.toDouble.toString
-        } catch {
-          case _: NumberFormatException =>
-            pyStringLiteral(raw)
-        }
-    }
   }
 }
