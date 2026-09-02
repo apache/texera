@@ -543,11 +543,12 @@ class DatasetSearchQueryBuilderSpec
   }
 
   it should "stay union-compatible with the workflow branch" in {
-    // `DashboardResource.searchAllResources` stacks both builders with `unionAll` for a
+    // `DashboardResource.searchAllResources` stacks the three builders with `unionAll` for a
     // resourceType of "" — the dashboard's default view — so every branch must project the same
     // aliases in the same order with types Postgres will unify. A `varchar`-vs-`''` mix in one slot
     // is not itself new: `userName` already has exactly this shape (only the workflow branch
-    // projects a real column; dataset projects `DSL.inline("")`) and that union runs in production
+    // projects a real column; dataset and model both project `DSL.inline("")`) and that union runs
+    // in production
     // today. What the test buys is that the contract is invisible from inside a single builder —
     // nothing fails to compile, and a genuine mismatch would surface only as a failed query at
     // runtime. This is the only test that executes the union; every other test here renders one

@@ -55,7 +55,7 @@ object DashboardResource {
    The following class describe the available params from the frontend for full text search.
    * @param user       The authenticated user performing the search.
    * @param keywords          A list of search keywords. The API will return resources that match any of these keywords.
-   * @param resourceType      The type of the resources to include in the search results. Acceptable values are "workflow", "dataset" and "" (for all types).
+   * @param resourceType      The type of the resources to include in the search results. Acceptable values are "workflow", "dataset", "model" and "" (for all types).
    * @param creationStartDate The start of the date range for the creation time filter. It should be provided in 'yyyy-MM-dd' format.
    * @param creationEndDate   The end of the date range for the creation time filter. It should be provided in 'yyyy-MM-dd' format.
    * @param modifiedStartDate The start of the date range for the modification time filter. It should be provided in 'yyyy-MM-dd' format.
@@ -182,10 +182,11 @@ object DashboardResource {
 class DashboardResource {
 
   /**
-    * This method performs a full-text search across all resources - workflows and datasets -
+    * This method performs a full-text search across all resources - workflows, datasets and models -
     * that match the specified keywords.
     * It supports advanced filters such as resource type, creation and modification dates, owner,
-    * workflow IDs and operators, and allows specifying the number of results and their ordering.
+    * workflow IDs, model IDs and operators, and allows specifying the number of results and their
+    * ordering.
     *
     * This method utilizes MySQL Boolean Full-Text Searches
     * reference: https://dev.mysql.com/doc/refman/8.0/en/fulltext-boolean.html
