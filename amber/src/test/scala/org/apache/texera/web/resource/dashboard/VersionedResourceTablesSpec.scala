@@ -21,7 +21,7 @@ package org.apache.texera.web.resource.dashboard
 
 import org.apache.texera.dao.MockTexeraDB
 import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
-import org.apache.texera.dao.jooq.generated.tables.pojos.Dataset
+import org.apache.texera.dao.jooq.generated.tables.pojos.{Dataset, Model}
 import org.apache.texera.web.resource.dashboard.DashboardResource.SearchQueryParams
 import org.apache.texera.web.resource.dashboard.hub.EntityTables
 import org.scalatest.BeforeAndAfterAll
@@ -42,6 +42,7 @@ class VersionedResourceTablesSpec
     with MockTexeraDB {
 
   private val tables = VersionedResourceTables.DatasetTables
+  private val modelTables = VersionedResourceTables.ModelTables
 
   override protected def beforeAll(): Unit = {
     initializeDBAndReplaceDSLContext()
@@ -52,6 +53,14 @@ class VersionedResourceTablesSpec
   }
 
   private def rendered(sql: String): String = sql.toLowerCase.replace("\"", "")
+
+  private def model(mid: Int, ownerUid: Int, repositoryName: String): Model = {
+    val m = new Model
+    m.setMid(Integer.valueOf(mid))
+    m.setOwnerUid(Integer.valueOf(ownerUid))
+    m.setRepositoryName(repositoryName)
+    m
+  }
 
   private def dataset(did: Int, ownerUid: Int, repositoryName: String): Dataset = {
     val d = new Dataset
@@ -137,4 +146,65 @@ class VersionedResourceTablesSpec
 
     sql should include("dataset_user_access.uid = 42")
   }
+
+  "ModelTables" should "name every column the shared query logic reads" in {
+    modelTables.table.getName shouldBe "model"
+    modelTables.idColumn.getName shouldBe "mid"
+    modelTables.isPublicColumn.getName shouldBe "is_public"
+    modelTables.nameColumn.getName shouldBe "name"
+    modelTables.descriptionColumn.getName shouldBe "description"
+    modelTables.creationTimeColumn.getName shouldBe "creation_time"
+    modelTables.ownerUidColumn.getName shouldBe "owner_uid"
+  }
+
+  it should "share the hub's access table rather than naming it twice" in {
+    modelTables.access shouldBe EntityTables.AccessTable.ModelAccessTable
+  }
+
+  it should "tag its rows with the resource type DashboardResource dispatches on" in {
+    modelTables.resourceType shouldBe SearchQueryBuilder.MODEL_RESOURCE_TYPE
+    modelTables.resourceType shouldBe "model"
+  }
+
+  it should "read its id filter out of modelIds, not the dataset's list" in {
+    val modelIds = List(Integer.valueOf(3)).asJava
+    val datasetIds = List(Integer.valueOf(4)).asJava
+    val params = SearchQueryParams(datasetIds = datasetIds, modelIds = modelIds)
+
+    modelTables.searchIds(params) shouldBe modelIds
+    tables.searchIds(params) shouldBe datasetIds
+  }
+
+  it should "expose the POJO fields the hub de-dupes and sizes by" in {
+    val m = model(31, 42, "model-31")
+    modelTables.idOf(m) shouldBe Integer.valueOf(31)
+    modelTables.ownerUidOf(m) shouldBe Integer.valueOf(42)
+    modelTables.repositoryNameOf(m) shouldBe "model-31"
+  }
+
+  it should "wrap the model in the model slot, leaving the dataset slot empty" in {
+    val m = model(31, 42, "model-31")
+    val entry =
+      modelTables.entry(m, "owner@test.com", PrivilegeEnum.WRITE, isOwner = false, size = 2048L)
+
+    entry.resourceType shouldBe "model"
+    entry.workflow shouldBe None
+    entry.project shouldBe None
+    entry.dataset shouldBe None
+    val dashboardModel = entry.model.getOrElse(fail("expected a model entry"))
+    dashboardModel.model shouldBe m
+    dashboardModel.ownerEmail shouldBe "owner@test.com"
+    dashboardModel.accessPrivilege shouldBe PrivilegeEnum.WRITE
+    dashboardModel.isOwner shouldBe false
+    dashboardModel.size shouldBe 2048L
+  }
+
+  it should "join the model's own access and owner rows" in {
+    val sql = rendered(getDSLContext.render(modelTables.joinWithAccessAndOwner(None)))
+
+    sql should include regex "model_user_access\\.mid = [\\w.]*model\\.mid"
+    sql should include regex "user\\.uid = [\\w.]*model\\.owner_uid"
+    sql.split("left outer join").length shouldBe 3
+  }
+
 }

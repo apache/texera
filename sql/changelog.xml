@@ -124,14 +124,19 @@
         <sqlFile path="sql/updates/42.sql"/>
     </changeSet>
 
-    <!-- Allow Sign in with Apple identities in auth_provider -->
-    <changeSet id="43" author="Neilk1021">
+    <!-- Add model hub engagement tables (likes, view counts) and the model full-text index -->
+    <changeSet id="43" author="tanishqgandhi1908">
         <sqlFile path="sql/updates/43.sql"/>
     </changeSet>
 
     <!-- Form View: per-workflow default view (canvas or form) -->
     <changeSet id="44" author="yangzhang75">
         <sqlFile path="sql/updates/44.sql"/>
+    </changeSet>
+
+    <!-- Allow Sign in with Apple identities in auth_provider -->
+    <changeSet id="45" author="Neilk1021">
+        <sqlFile path="sql/updates/45.sql"/>
     </changeSet>
 
     <!-- example changeSet
