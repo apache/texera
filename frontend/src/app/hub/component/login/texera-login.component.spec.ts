@@ -31,6 +31,9 @@ import { GuiConfigService } from "../../../common/service/gui-config.service";
 import { MockGuiConfigService } from "../../../common/service/gui-config.service.mock";
 import { commonTestProviders } from "../../../common/testing/test-utils";
 import { USER_WORKFLOW } from "../../../app-routing.constant";
+import { By } from "@angular/platform-browser";
+import { NzIconDirective } from "ng-zorro-antd/icon";
+import { NzTabsComponent } from "ng-zorro-antd/tabs";
 
 describe("TexeraLoginComponent", () => {
   let component: TexeraLoginComponent;
@@ -51,7 +54,8 @@ describe("TexeraLoginComponent", () => {
     userServiceMock = {
       isLogin: vi.fn().mockReturnValue(false),
       login: vi.fn().mockReturnValue(of(undefined)),
-      register: vi.fn().mockReturnValue(of(undefined)),
+      register: vi.fn().mockReturnValue(of({ verificationRequired: false })),
+      registerVerify: vi.fn().mockReturnValue(of(undefined)),
       googleLogin: vi.fn().mockReturnValue(of(undefined)),
     };
     notificationServiceMock = { error: vi.fn(), success: vi.fn() };
@@ -268,6 +272,122 @@ describe("TexeraLoginComponent", () => {
       expect(notificationServiceMock.success).toHaveBeenCalled();
     });
 
+    // Where verification is on the code field is present from the outset, and mailing the code is
+    // its own button. Signing up is then a single submit that carries the code, rather than a first
+    // submit that silently sent mail and a second that completed.
+    describe("with email verification on", () => {
+      beforeEach(() => {
+        const config = TestBed.inject(GuiConfigService) as unknown as MockGuiConfigService;
+        config.setConfig({ emailVerification: true });
+        (userServiceMock.register as any).mockReturnValue(of({ verificationRequired: true }));
+        component.setMode("signup");
+      });
+
+      const fillForm = () =>
+        component.form.patchValue({
+          username: "  alice  ",
+          email: "  alice@example.com  ",
+          password: "secret1",
+          confirm: "secret1",
+        });
+
+      it("mails a code when asked, without creating the account", () => {
+        fillForm();
+
+        component.sendCode();
+
+        expect(userServiceMock.register).toHaveBeenCalledWith("alice", "alice@example.com", "secret1");
+        expect(userServiceMock.registerVerify).not.toHaveBeenCalled();
+        expect(notificationServiceMock.success).toHaveBeenCalledWith(
+          "A verification code has been sent to alice@example.com."
+        );
+      });
+
+      // Pressing Sign up must not put mail in someone's inbox: that is what the separate button is
+      // for, and the user may never have asked for it.
+      it("does not mail anything when the form is submitted", () => {
+        fillForm();
+        component.form.patchValue({ code: "123456" });
+
+        component.submit();
+
+        expect(userServiceMock.register).not.toHaveBeenCalled();
+        expect(userServiceMock.registerVerify).toHaveBeenCalledWith("alice", "alice@example.com", "secret1", "123456");
+      });
+
+      it("refuses to send a code for an address that is not one", () => {
+        fillForm();
+        component.form.patchValue({ email: "not-an-email" });
+
+        component.sendCode();
+
+        expect(userServiceMock.register).not.toHaveBeenCalled();
+        expect(component.errorMessage).toBeTruthy();
+      });
+
+      // A deployment with verification on and no SMTP sender behind it refuses here. That refusal
+      // is aimed at whoever can fix it, so its text has to survive to the screen rather than being
+      // replaced by Angular's generic "Http failure response for ...".
+      it("shows the server's reason when a code cannot be sent, not the generic HTTP text", () => {
+        const refusal = {
+          error: {
+            message:
+              "Email verification is enabled, but this deployment has no email sender configured, " +
+              "so the code cannot be sent. An administrator needs to configure SMTP " +
+              "(USER_SYS_GOOGLE_SMTP_GMAIL) or disable email verification " +
+              "(USER_SYS_EMAIL_VERIFICATION=false).",
+          },
+          message: "Http failure response for http://localhost/api/auth/register: 503 Service Unavailable",
+        };
+        (userServiceMock.register as any).mockReturnValue(throwError(() => refusal));
+        fillForm();
+
+        component.sendCode();
+
+        expect(component.errorMessage).toBe(refusal.error.message);
+      });
+
+      it("submits the typed code with the same fields", () => {
+        fillForm();
+        component.form.patchValue({ code: " 123456 " });
+
+        component.submit();
+
+        expect(userServiceMock.registerVerify).toHaveBeenCalledWith("alice", "alice@example.com", "secret1", "123456");
+        expect(notificationServiceMock.success).toHaveBeenCalled();
+      });
+
+      it("asks for the code rather than submitting an empty one", () => {
+        fillForm();
+
+        component.submit();
+
+        expect(userServiceMock.registerVerify).not.toHaveBeenCalled();
+        expect(component.errorMessage).toBe("Enter the code that was emailed to you.");
+      });
+
+      it("reports a refused code", () => {
+        (userServiceMock.registerVerify as any).mockReturnValue(
+          throwError(() => new Error("That code is not valid or has expired."))
+        );
+        fillForm();
+        component.form.patchValue({ code: "000000" });
+
+        component.submit();
+
+        expect(component.errorMessage).toBe("That code is not valid or has expired.");
+      });
+
+      it("clears a code that was typed when the tab changes", () => {
+        fillForm();
+        component.form.patchValue({ code: "123456" });
+
+        component.setMode("signin");
+
+        expect(component.form.get("code")?.value).toBe("");
+      });
+    });
+
     it("surfaces the error message on registration failure", () => {
       (userServiceMock.register as any).mockReturnValue(throwError(() => new Error("username taken")));
       component.form.patchValue({
@@ -304,6 +424,175 @@ describe("TexeraLoginComponent", () => {
       authState$.next(googleUser("google-id-token"));
       expect(notificationServiceMock.error).toHaveBeenCalledWith("google boom");
       expect(routerMock.navigateByUrl).not.toHaveBeenCalled();
+    });
+  });
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // Template rendering
+  //
+  // The suite above drives the class; these render the card. Each test sets both
+  // provider flags explicitly so nothing is inherited from the mock's defaults.
+  // ──────────────────────────────────────────────────────────────────────────
+  describe("template", () => {
+    function render(flags: { localLogin: boolean; googleLogin: boolean }): void {
+      (TestBed.inject(GuiConfigService) as unknown as MockGuiConfigService).setConfig(flags);
+      fixture.detectChanges();
+    }
+
+    const host = (): HTMLElement => fixture.nativeElement as HTMLElement;
+    const input = (name: string): HTMLInputElement | null =>
+      host().querySelector<HTMLInputElement>(`input[formcontrolname="${name}"]`);
+    const submitButton = (): HTMLElement | null => host().querySelector("form button[type='submit']");
+    const passwordIcons = () => fixture.debugElement.queryAll(By.css("nz-icon.ant-input-password-icon"));
+    // NzIconDirective declares nzType as a setter with no getter, so read the icon name
+    // off the base directive's own field rather than the input.
+    const iconTypes = (): string[] =>
+      passwordIcons().map(icon => (icon.injector.get(NzIconDirective) as unknown as { type: string }).type);
+
+    describe("provider flags", () => {
+      it("renders the local form and the google button when both are enabled", () => {
+        render({ localLogin: true, googleLogin: true });
+
+        expect(host().querySelector("nz-tabs")).toBeTruthy();
+        expect(host().querySelector("form")).toBeTruthy();
+        expect(host().querySelector("asl-google-signin-button")).toBeTruthy();
+        // The "or continue with" divider only makes sense when both are offered.
+        expect(host().querySelector("nz-divider")).toBeTruthy();
+      });
+
+      it("drops the google button but keeps the form when only local login is enabled", () => {
+        render({ localLogin: true, googleLogin: false });
+
+        expect(host().querySelector("nz-tabs")).toBeTruthy();
+        expect(host().querySelector("form")).toBeTruthy();
+        expect(host().querySelector("asl-google-signin-button")).toBeNull();
+        expect(host().querySelector("nz-divider")).toBeNull();
+      });
+
+      it("drops the tabs and the form but keeps the google button when only google is enabled", () => {
+        render({ localLogin: false, googleLogin: true });
+
+        expect(host().querySelector("nz-tabs")).toBeNull();
+        expect(host().querySelector("form")).toBeNull();
+        expect(host().querySelector("asl-google-signin-button")).toBeTruthy();
+        expect(host().querySelector("nz-divider")).toBeNull();
+      });
+
+      it("renders neither sign-in path when both are disabled", () => {
+        render({ localLogin: false, googleLogin: false });
+
+        expect(host().querySelector("nz-tabs")).toBeNull();
+        expect(host().querySelector("form")).toBeNull();
+        expect(host().querySelector("asl-google-signin-button")).toBeNull();
+        expect(host().querySelector("nz-divider")).toBeNull();
+        // The brand and footer are outside every flag, so the card is never empty.
+        expect(host().querySelector(".brand")).toBeTruthy();
+        expect(host().querySelector("p.foot")).toBeTruthy();
+      });
+    });
+
+    describe("sign-in / sign-up mode", () => {
+      beforeEach(() => render({ localLogin: true, googleLogin: true }));
+
+      it("shows only the sign-in fields by default", () => {
+        expect(component.mode).toBe("signin");
+        expect(input("username")).toBeTruthy();
+        expect(input("password")).toBeTruthy();
+        expect(input("email")).toBeNull();
+        expect(input("confirm")).toBeNull();
+        expect(host().querySelector("p.hint")).toBeNull();
+        expect(submitButton()?.textContent?.trim()).toBe("Sign in");
+      });
+
+      it("adds the email, confirm and password-policy hint in sign-up mode", () => {
+        component.setMode("signup");
+        fixture.detectChanges();
+
+        expect(input("email")).toBeTruthy();
+        expect(input("confirm")).toBeTruthy();
+        expect(host().querySelector("p.hint")?.textContent?.replace(/\s+/g, " ").trim()).toBe(
+          "Password must be at least 6 characters. After registering, contact the Texera administrator to activate your account."
+        );
+        expect(submitButton()?.textContent?.trim()).toBe("Sign up");
+      });
+
+      it("switches mode from the tab strip in both directions", () => {
+        const tabs = fixture.debugElement.query(By.css("nz-tabs"));
+
+        tabs.triggerEventHandler("nzSelectedIndexChange", 1);
+        fixture.detectChanges();
+        expect(component.mode).toBe("signup");
+        expect(input("confirm")).toBeTruthy();
+
+        tabs.triggerEventHandler("nzSelectedIndexChange", 0);
+        fixture.detectChanges();
+        expect(component.mode).toBe("signin");
+        expect(input("confirm")).toBeNull();
+      });
+
+      it("binds the selected tab to the current mode", () => {
+        const selectedIndex = () =>
+          fixture.debugElement.query(By.directive(NzTabsComponent)).componentInstance.nzSelectedIndex;
+
+        expect(selectedIndex()).toBe(0);
+
+        component.setMode("signup");
+        fixture.detectChanges();
+        expect(selectedIndex()).toBe(1);
+      });
+
+      it("submits the form through its ngSubmit binding", () => {
+        const submitSpy = vi.spyOn(component, "submit").mockImplementation(() => {});
+
+        fixture.debugElement.query(By.css("form")).triggerEventHandler("ngSubmit", new Event("submit"));
+
+        expect(submitSpy).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    describe("password visibility", () => {
+      beforeEach(() => {
+        render({ localLogin: true, googleLogin: true });
+        component.setMode("signup");
+        fixture.detectChanges();
+      });
+
+      it("starts hidden on both password fields", () => {
+        expect(input("password")?.type).toBe("password");
+        expect(input("confirm")?.type).toBe("password");
+        // The suffix template is reused by both groups, so both icons render.
+        expect(passwordIcons().length).toBe(2);
+        expect(iconTypes()).toEqual(["eye-invisible", "eye-invisible"]);
+      });
+
+      it("reveals both password fields when the toggle is clicked", () => {
+        passwordIcons()[0].triggerEventHandler("click", new MouseEvent("click"));
+        fixture.detectChanges();
+
+        expect(component.passwordVisible).toBe(true);
+        expect(input("password")?.type).toBe("text");
+        expect(input("confirm")?.type).toBe("text");
+        expect(iconTypes()).toEqual(["eye", "eye"]);
+      });
+
+      it("also toggles from the keyboard, so the control is reachable without a mouse", () => {
+        passwordIcons()[0].triggerEventHandler("keydown.enter", new KeyboardEvent("keydown", { key: "Enter" }));
+        fixture.detectChanges();
+
+        expect(component.passwordVisible).toBe(true);
+        expect(input("password")?.type).toBe("text");
+      });
+
+      it("hides them again on a second click", () => {
+        passwordIcons()[0].triggerEventHandler("click", new MouseEvent("click"));
+        fixture.detectChanges();
+        passwordIcons()[0].triggerEventHandler("click", new MouseEvent("click"));
+        fixture.detectChanges();
+
+        expect(component.passwordVisible).toBe(false);
+        expect(input("password")?.type).toBe("password");
+        expect(input("confirm")?.type).toBe("password");
+      });
     });
   });
 });

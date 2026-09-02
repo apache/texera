@@ -19,7 +19,7 @@ texera:
   # Container image registry and tag for all Texera services
   # Override these to use a different registry or version
   imageRegistry: docker.io/apache
-  imageTag: 1.3.0-incubating-SNAPSHOT
+  imageTag: 1.4.0-incubating-SNAPSHOT
 
 global:
   # Required by Bitnami sub-charts (postgresql, minio) to allow custom images
@@ -346,6 +346,11 @@ texeraEnvVars:
   - name: COMPUTING_UNIT_SHARING_ENABLED
     value: "true"
   - name: USER_SYS_INVITE_ONLY
+    value: "true"
+  # On by default; set to "false" to accept addresses unproven. This must agree with the
+  # USER_SYS_GOOGLE_SMTP_* credentials below: left on with no working sender, registration and the
+  # add-address prompt both refuse with a 503 rather than letting an unproven address through.
+  - name: USER_SYS_EMAIL_VERIFICATION
     value: "true"
   - name: USER_SYS_GOOGLE_CLIENT_ID
     value: ""

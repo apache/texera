@@ -46,17 +46,6 @@
         <button
           nz-button
           nzType="default"
-          [ngClass]="{'selected': selectedType === 'project'}"
-          (click)="filterByType('project')">
-          <span
-            nz-icon
-            nzType="container"></span>
-          Project
-        </button>
-
-        <button
-          nz-button
-          nzType="default"
           [ngClass]="{'selected': selectedType === 'workflow'}"
           (click)="filterByType('workflow')">
           <span
@@ -74,6 +63,17 @@
             nz-icon
             nzType="database"></span>
           Dataset
+        </button>
+
+        <button
+          nz-button
+          nzType="default"
+          [ngClass]="{'selected': selectedType === 'model'}"
+          (click)="filterByType('model')">
+          <span
+            nz-icon
+            [nzType]="MODEL_ICON"></span>
+          Model
         </button>
       </div>
 

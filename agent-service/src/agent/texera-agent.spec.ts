@@ -670,6 +670,25 @@ describe("sendMessage", () => {
     expect(agent.getAllSteps()[1].content).toBe("Error: just-a-string");
   });
 
+  test.each([null, undefined, false, 0, ""])("a falsy throw resolves as an error step: %p", async thrown => {
+    const model = new MockLanguageModelV4({
+      doGenerate: async () => {
+        throw thrown;
+      },
+    });
+    const agent = makeAgentWith(model);
+    const res = await agent.sendMessage("hi");
+    const expected = String(thrown);
+    expect(res).toEqual({
+      response: "",
+      messages: [],
+      usage: { inputTokens: 0, outputTokens: 0, totalTokens: 0 },
+      stopped: false,
+      error: expected,
+    });
+    expect(agent.getAllSteps()[1].content).toBe(`Error: ${expected}`);
+  });
+
   test("a failed turn stays on the branch", async () => {
     const model = new MockLanguageModelV4({
       doGenerate: async () => {

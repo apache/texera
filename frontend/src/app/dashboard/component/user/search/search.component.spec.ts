@@ -40,11 +40,10 @@ import { By } from "@angular/platform-browser";
 import { MOCK_USER_ID, StubUserService } from "../../../../common/service/user/stub-user.service";
 import { OperatorMetadataService } from "src/app/workspace/service/operator-metadata/operator-metadata.service";
 import { StubOperatorMetadataService } from "src/app/workspace/service/operator-metadata/stub-operator-metadata.service";
-import { UserProjectService } from "../../../service/user/project/user-project.service";
-import { StubUserProjectService } from "../../../service/user/project/stub-user-project.service";
 import { WorkflowPersistService } from "src/app/common/service/workflow-persist/workflow-persist.service";
 import { StubWorkflowPersistService } from "src/app/common/service/workflow-persist/stub-workflow-persist.service";
 import { SortButtonComponent } from "../sort-button/sort-button.component";
+import { MODEL_ICON } from "../../../../common/icon/model-icon";
 
 // Lightweight stand-in for FiltersComponent. It registers itself under the real
 // FiltersComponent token so SearchComponent's `@ViewChild(FiltersComponent)`
@@ -75,10 +74,10 @@ class MockSearchResultsComponent {
 
 // A plain filters double for the unit tests that drive component methods
 // directly (no rendering / no ViewChild).
-function makeFiltersDouble(keywords: string[] = []) {
+function makeFiltersDouble(keywords: string[] = [], masterFilterList: ReadonlyArray<string> = []) {
   return {
     masterFilterListChange: EMPTY,
-    masterFilterList: [] as ReadonlyArray<string>,
+    masterFilterList,
     getSearchKeywords: () => keywords,
     getSearchFilterParameters: () => ({}),
   } as unknown as FiltersComponent;
@@ -218,6 +217,60 @@ describe("SearchComponent", () => {
     expect(results.reset).not.toHaveBeenCalled();
   });
 
+  // The duplicate-search guard above compares list *lengths* and then the terms themselves. With
+  // two empty lists the term comparison never runs at all, so these three drive it with non-empty
+  // lists: equal terms still short-circuit, differing terms do not, and a shorter incoming list
+  // does not sneak past `Array.every` (which is vacuously true on a shorter receiver).
+  //
+  // Every case below deliberately gives the double a *different* keyword list from its filter list.
+  // The guard reads `filters.masterFilterList`, and `filters.getSearchKeywords()` is right next to
+  // it in the same object; with the two set to equal arrays the receiver could be swapped for the
+  // keywords and nothing would notice.
+  it("skips a duplicate search when a non-empty filter list is unchanged", async () => {
+    component.filters = makeFiltersDouble(["kw"], ["alpha"]);
+    const results = makeSearchResultsDouble();
+    component.searchResultsComponent = results as unknown as SearchResultsComponent;
+    component.masterFilterList = ["alpha"];
+    component.lastSortMethod = component.sortMethod;
+    component.lastSelectedType = component.selectedType;
+
+    await component.search();
+
+    expect(results.reset).not.toHaveBeenCalled();
+  });
+
+  it("re-runs the search when a same-length filter list holds different terms", async () => {
+    component.filters = makeFiltersDouble(["kw"], ["alpha"]);
+    const results = makeSearchResultsDouble();
+    component.searchResultsComponent = results as unknown as SearchResultsComponent;
+    component.masterFilterList = ["beta"];
+    component.lastSortMethod = component.sortMethod;
+    component.lastSelectedType = component.selectedType;
+
+    await component.search();
+
+    expect(results.reset).toHaveBeenCalledTimes(1);
+    expect(component.masterFilterList).toEqual(["alpha"]);
+  });
+
+  it("re-runs the search when the new filter list is a prefix of the last one", async () => {
+    // The element-wise comparison alone cannot see this: `["alpha"].every((v, i) => v === ["alpha",
+    // "beta"][i])` is true, so without the length conjunct every narrowing of the filter box -
+    // including clearing it - would be dismissed as "same list" and the panel would keep showing
+    // the previous query's results.
+    component.filters = makeFiltersDouble(["kw"], ["alpha"]);
+    const results = makeSearchResultsDouble();
+    component.searchResultsComponent = results as unknown as SearchResultsComponent;
+    component.masterFilterList = ["alpha", "beta"];
+    component.lastSortMethod = component.sortMethod;
+    component.lastSelectedType = component.selectedType;
+
+    await component.search();
+
+    expect(results.reset).toHaveBeenCalledTimes(1);
+    expect(component.masterFilterList).toEqual(["alpha"]);
+  });
+
   it("throws when the results component is missing", async () => {
     component.filters = makeFiltersDouble(["x"]);
     component.searchResultsComponent = undefined;
@@ -293,7 +346,6 @@ describe("SearchComponent rendered template", () => {
         { provide: SearchService, useValue: { executeSearch } },
         { provide: UserService, useClass: StubUserService },
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
-        { provide: UserProjectService, useClass: StubUserProjectService },
         { provide: WorkflowPersistService, useValue: new StubWorkflowPersistService([]) },
         { provide: ActivatedRoute, useValue: { queryParams: new Subject<Params>() } },
         { provide: Location, useValue: locationStub },
@@ -307,14 +359,14 @@ describe("SearchComponent rendered template", () => {
   });
 
   it("renders the four resource-type buttons, each with its own label and icon", () => {
-    expect(labels()).toEqual(["All", "Project", "Workflow", "Dataset"]);
+    expect(labels()).toEqual(["All", "Workflow", "Dataset", "Model"]);
     // nz-icon turns nzType into an `anticon-<type>` class, so this pins the icon
     // each button asks for — and that "All" asks for none.
     const icons = typeButtons().map(button => {
       const icon = button.querySelector("span[nz-icon]");
       return icon && Array.from(icon.classList).find(name => name.startsWith("anticon-"));
     });
-    expect(icons).toEqual([null, "anticon-container", "anticon-project", "anticon-database"]);
+    expect(icons).toEqual([null, "anticon-project", "anticon-database", `anticon-${MODEL_ICON}`]);
   });
 
   it("highlights only the All button before a resource type is chosen", () => {
@@ -332,7 +384,7 @@ describe("SearchComponent rendered template", () => {
   });
 
   it("scopes the search to the clicked resource type", () => {
-    typeButtons()[3].click();
+    typeButtons()[2].click();
     expect(lastSearchedType()).toBe("dataset");
 
     // Back to All: the type filter is cleared rather than left on "dataset".

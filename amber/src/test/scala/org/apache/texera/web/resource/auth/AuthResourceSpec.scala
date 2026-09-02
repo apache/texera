@@ -31,6 +31,7 @@ import org.apache.texera.dao.jooq.generated.Tables.{AUTH_PROVIDER, USER, USER_LA
 import org.apache.texera.dao.jooq.generated.enums.{ProviderTypeEnum, UserRoleEnum}
 import org.apache.texera.dao.jooq.generated.tables.daos.{AuthProviderDao, UserDao}
 import org.apache.texera.dao.jooq.generated.tables.pojos.{AuthProvider, User}
+import org.apache.texera.web.resource.EmailMessage
 import org.apache.texera.web.model.http.request.auth.{UserLoginRequest, UserRegistrationRequest}
 import org.jasypt.util.password.StrongPasswordEncryptor
 import org.scalatest.flatspec.AnyFlatSpec
@@ -38,9 +39,10 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.slf4j.LoggerFactory
 
-import java.time.OffsetDateTime
+import java.time.{Instant, OffsetDateTime}
 import java.util.UUID
 import javax.ws.rs.{NotAcceptableException, NotAuthorizedException, WebApplicationException}
+import scala.collection.mutable.ArrayBuffer
 import scala.jdk.CollectionConverters._
 
 class AuthResourceSpec
@@ -60,6 +62,16 @@ class AuthResourceSpec
   private var authDao: AuthProviderDao = _
   private var resource: AuthResource = _
 
+  /** Every message the verifying resource below handed its sender, newest last. */
+  private var mailed: ArrayBuffer[(EmailMessage, String)] = _
+
+  /**
+    * A resource that behaves as a deployment with `user-sys.email-verification = true` does. The
+    * flag and the verifier are overridable defs rather than constructor arguments because Jersey
+    * instantiates `AuthResource` from its class and needs the no-arg constructor.
+    */
+  private var verifying: AuthResource = _
+
   private def uname(tag: String): String = s"authspec_${tag}_$runId"
 
   private def uemail(tag: String): String = s"authspec_${tag}_$runId@example.com"
@@ -71,7 +83,26 @@ class AuthResourceSpec
   override protected def beforeEach(): Unit = {
     userDao = new UserDao(getDSLContext.configuration())
     authDao = new AuthProviderDao(getDSLContext.configuration())
-    resource = new AuthResource()
+    // Pinned rather than inherited: `emailVerificationRequired` reads `UserSystemConfig`, an
+    // object val resolved once per JVM, so a developer with USER_SYS_EMAIL_VERIFICATION=true
+    // exported would otherwise send every test below down the code path and fail a dozen of them
+    // for reasons nothing here states. `verifying` pins the opposite the same way.
+    resource = new AuthResource {
+      override protected def emailVerificationRequired: Boolean = false
+    }
+
+    mailed = ArrayBuffer.empty
+    val testVerifier = new EmailCodeVerifier(
+      secret = "0123456789abcdef0123456789abcdef",
+      clock = () => Instant.parse("2026-08-18T12:00:00Z"),
+      send = (message, recipient) => { mailed += ((message, recipient)); Right(()) },
+      smtpConfigured = () => true
+    )
+    verifying = new AuthResource {
+      override protected def emailVerificationRequired: Boolean = true
+      override protected def verifier: EmailCodeVerifier = testVerifier
+    }
+
     cleanup()
   }
 
@@ -789,5 +820,161 @@ class AuthResourceSpec
     statusOf(thrown) shouldBe 409
     userDao.fetchOneByUid(caller.getUid) should not be null
     userDao.fetchOneByUid(placeholder.getUid).getIsPlaceholder shouldBe true
+  }
+
+  // ─── with email verification switched on ────────────────────────────────────
+  //
+  // The flag is off in the test config (as it is by default), so these build a resource with the
+  // seam overridden and a verifier whose sender is captured — that is how the mailed code is read
+  // back without a mail server.
+
+  private def mailedCode: String = {
+    val body = mailed.lastOption.getOrElse(fail("no code was mailed"))._1.content
+    "\\d{6}".r.findFirstIn(body).getOrElse(fail(s"no six-digit code in: $body"))
+  }
+
+  "register with verification on" should "mail a code and create nothing" in {
+    val response =
+      verifying.register(UserRegistrationRequest(uname("pend"), uemail("pend"), "secret"))
+
+    // A null token is the whole signal: there is no separate flag that could disagree with it.
+    response.accessToken shouldBe null
+    mailed.map(_._2) shouldBe Seq(uemail("pend"))
+    // The whole point of the stateless design: nothing exists yet, anywhere.
+    LocalAuthProvisioner.handleExists(uname("pend")) shouldBe false
+    AuthResource.fetchUserByEmailIgnoreCase(uemail("pend")) shouldBe null
+  }
+
+  "register/verify" should "create the account when the mailed code comes back" in {
+    verifying.register(UserRegistrationRequest(uname("done"), uemail("done"), "secret"))
+
+    val response = verifying.registerVerify(
+      UserRegistrationRequest(uname("done"), uemail("done"), "secret", mailedCode)
+    )
+
+    subjectOf(response.accessToken) shouldBe uname("done")
+    val created = AuthResource.fetchUserByEmailIgnoreCase(uemail("done"))
+    created should not be null
+    created.getRole shouldBe UserRoleEnum.INACTIVE
+    // The password was re-submitted rather than stashed, so the credential is usable.
+    AuthResource
+      .retrieveUserByUsernameAndPassword(uname("done"), "secret")
+      .map(_.getUid) shouldBe Some(created.getUid)
+  }
+
+  it should "refuse a wrong code and create nothing" in {
+    verifying.register(UserRegistrationRequest(uname("wrong"), uemail("wrong"), "secret"))
+    val wrong = if (mailedCode == "000000") "111111" else "000000"
+
+    intercept[NotAcceptableException] {
+      verifying.registerVerify(
+        UserRegistrationRequest(uname("wrong"), uemail("wrong"), "secret", wrong)
+      )
+    }
+
+    AuthResource.fetchUserByEmailIgnoreCase(uemail("wrong")) shouldBe null
+    LocalAuthProvisioner.handleExists(uname("wrong")) shouldBe false
+  }
+
+  it should "refuse a missing code" in {
+    verifying.register(UserRegistrationRequest(uname("nocode"), uemail("nocode"), "secret"))
+
+    intercept[NotAcceptableException] {
+      verifying.registerVerify(UserRegistrationRequest(uname("nocode"), uemail("nocode"), "secret"))
+    }
+
+    AuthResource.fetchUserByEmailIgnoreCase(uemail("nocode")) shouldBe null
+  }
+
+  it should "refuse a code minted for a different address" in {
+    verifying.register(UserRegistrationRequest(uname("swap"), uemail("swap"), "secret"))
+    val code = mailedCode
+
+    intercept[NotAcceptableException] {
+      verifying.registerVerify(
+        UserRegistrationRequest(uname("swap"), uemail("elsewhere"), "secret", code)
+      )
+    }
+
+    AuthResource.fetchUserByEmailIgnoreCase(uemail("elsewhere")) shouldBe null
+  }
+
+  it should "still claim a placeholder that owns the verified address" in {
+    val placeholder = seedPlaceholder(uname("ph"), uemail("ph"))
+    verifying.register(UserRegistrationRequest(uname("phclaim"), uemail("ph"), "secret"))
+
+    val response = verifying.registerVerify(
+      UserRegistrationRequest(uname("phclaim"), uemail("ph"), "secret", mailedCode)
+    )
+
+    subjectOf(response.accessToken) shouldBe uname("phclaim")
+    // The placeholder keeps its uid, so contributor rows pointing at it stay valid.
+    val claimed = userDao.fetchOneByUid(placeholder.getUid)
+    claimed.getIsPlaceholder shouldBe false
+    claimed.getName shouldBe uname("phclaim")
+  }
+
+  "setEmail with verification on" should "refuse without a code and leave the row alone" in {
+    val user = seedEmaillessUser("needcode")
+
+    intercept[NotAcceptableException] {
+      verifying.setEmail(SetEmailRequest(uemail("needcode")), new SessionUser(user))
+    }
+
+    userDao.fetchOneByUid(user.getUid).getEmail shouldBe null
+  }
+
+  it should "store the address when the mailed code comes back" in {
+    val user = seedEmaillessUser("withcode")
+    verifying.sendEmailCode(SetEmailRequest(uemail("withcode")), new SessionUser(user))
+
+    val response = verifying.setEmail(
+      SetEmailRequest(uemail("withcode"), mailedCode),
+      new SessionUser(user)
+    )
+
+    userDao.fetchOneByUid(user.getUid).getEmail shouldBe uemail("withcode")
+    emailClaimOf(response.accessToken) shouldBe uemail("withcode")
+  }
+
+  it should "refuse a code issued to another account" in {
+    val mine = seedEmaillessUser("mine")
+    val theirs = seedEmaillessUser("theirs")
+    verifying.sendEmailCode(SetEmailRequest(uemail("shared")), new SessionUser(theirs))
+
+    intercept[NotAcceptableException] {
+      verifying.setEmail(SetEmailRequest(uemail("shared"), mailedCode), new SessionUser(mine))
+    }
+
+    userDao.fetchOneByUid(mine.getUid).getEmail shouldBe null
+  }
+
+  "sendEmailCode" should "mail a code to the address being claimed" in {
+    val user = seedEmaillessUser("sender")
+
+    verifying.sendEmailCode(SetEmailRequest(uemail("sender")), new SessionUser(user))
+
+    mailed.map(_._2) shouldBe Seq(uemail("sender"))
+  }
+
+  it should "refuse an account that already has an address, so it cannot relay mail" in {
+    val user = seedUser(uname("hasone"), "secret")
+
+    val thrown = intercept[WebApplicationException] {
+      verifying.sendEmailCode(SetEmailRequest(uemail("target")), new SessionUser(user))
+    }
+
+    statusOf(thrown) shouldBe 409
+    mailed shouldBe empty
+  }
+
+  it should "refuse a malformed address without mailing" in {
+    val user = seedEmaillessUser("badaddr")
+
+    intercept[NotAcceptableException] {
+      verifying.sendEmailCode(SetEmailRequest("not-an-address"), new SessionUser(user))
+    }
+
+    mailed shouldBe empty
   }
 }

@@ -24,7 +24,7 @@
   <div class="entity-cards">
     <nz-card
       nzHoverable
-      [routerLink]="entity.id !== undefined ? entityRoutes[entity.id] : []"
+      [routerLink]="routeFor(entity)"
       [nzCover]="coverTemplate"
       class="entity-card"
       *ngFor="let entity of entities">

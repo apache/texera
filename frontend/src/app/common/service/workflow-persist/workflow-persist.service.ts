@@ -24,6 +24,7 @@ import { catchError, filter, map } from "rxjs/operators";
 import { AppSettings } from "../../app-setting";
 import { Workflow, WorkflowContent } from "../../type/workflow";
 import { DashboardWorkflow } from "../../../dashboard/type/dashboard-workflow.interface";
+import { DefaultView } from "../../../dashboard/type/workflow-metadata.interface";
 import { WorkflowUtilService } from "../../../workspace/service/workflow-graph/util/workflow-util.service";
 import { NotificationService } from "../notification/notification.service";
 import { SearchFilterParameters, toQueryStrings } from "../../../dashboard/type/search-filter-parameters";
@@ -47,6 +48,7 @@ export const WORKFLOW_PUBLIC_WORKFLOW = WORKFLOW_BASE_URL + "/publicised";
 export const WORKFLOW_DESCRIPTION = WORKFLOW_BASE_URL + "/workflow_description";
 export const WORKFLOW_USER_ACCESS = WORKFLOW_BASE_URL + "/workflow_user_access";
 export const WORKFLOW_SIZE = WORKFLOW_BASE_URL + "/size";
+export const WORKFLOW_SET_DEFAULT_VIEW_URL = WORKFLOW_BASE_URL + "/set-default-view";
 
 export const DEFAULT_WORKFLOW_NAME = "Untitled workflow";
 
@@ -107,13 +109,11 @@ export class WorkflowPersistService {
   /**
    * creates a workflow and insert it to backend database and return its information
    * @param targetWids
-   * @param pid
    */
-  public duplicateWorkflow(targetWids: number[], pid?: number): Observable<DashboardWorkflow[]> {
+  public duplicateWorkflow(targetWids: number[]): Observable<DashboardWorkflow[]> {
     return this.http
       .post<DashboardWorkflow[]>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_DUPLICATE_URL}`, {
         wids: targetWids,
-        ...(pid !== undefined && { pid }),
       })
       .pipe(filter((createdWorkflows: DashboardWorkflow[]) => createdWorkflows != null && createdWorkflows.length > 0));
   }
@@ -291,5 +291,11 @@ export class WorkflowPersistService {
       params = params.append("wid", wid.toString());
     });
     return this.http.get<Record<number, number>>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_SIZE}`, { params });
+  }
+
+  /** Set which view the workflow opens in by default. Only this preference moves; the Form
+   *  View definition lives in the workflow content, so switching the default keeps the setup. */
+  public setDefaultView(wid: number, view: DefaultView): Observable<void> {
+    return this.http.put<void>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_SET_DEFAULT_VIEW_URL}/${wid}`, { view });
   }
 }

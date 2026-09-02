@@ -19,7 +19,7 @@
 
 import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
 import { TestBed } from "@angular/core/testing";
-import { firstValueFrom } from "rxjs";
+import { firstValueFrom, Observable } from "rxjs";
 import { JwtHelperService } from "@auth0/angular-jwt";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { AppSettings } from "../../app-setting";
@@ -38,7 +38,7 @@ describe("AuthService", () => {
     getTokenExpirationDate: ReturnType<typeof vi.fn>;
   };
   let notification: { error: ReturnType<typeof vi.fn> };
-  let config: { env: { inviteOnly: boolean } };
+  let config: { env: { inviteOnly: boolean; emailVerification: boolean } };
   let modal: { info: ReturnType<typeof vi.fn>; create: ReturnType<typeof vi.fn> };
 
   const api = AppSettings.getApiEndpoint();
@@ -61,7 +61,7 @@ describe("AuthService", () => {
       getTokenExpirationDate: vi.fn().mockReturnValue(new Date(Date.now() + 60_000)),
     };
     notification = { error: vi.fn() };
-    config = { env: { inviteOnly: false } };
+    config = { env: { inviteOnly: false, emailVerification: false } };
     modal = { info: vi.fn(), create: vi.fn() };
 
     TestBed.configureTestingModule({
@@ -130,7 +130,9 @@ describe("AuthService", () => {
       req.flush({ accessToken: "t" });
     });
 
-    const errorCases = [
+    // Annotated because the calls return differently-shaped observables (a registration result vs a
+    // token); without it the inferred union of call signatures is not callable.
+    const errorCases: { name: string; call: () => Observable<unknown>; endpoint: string }[] = [
       {
         name: "register",
         call: () => service.register("alice", "alice@example.com", "pw"),
@@ -385,6 +387,123 @@ describe("AuthService", () => {
       service.loginWithExistingToken();
 
       expect(modal.create).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  // Where `user-sys.email-verification` is on the dialog runs in two steps: the first mails a code
+  // and the second presents it. Nothing is stored server-side in between, so the address has to
+  // travel with the code on the second call.
+  describe("the missing-email prompt with verification on", () => {
+    const emaillessClaims = () => ({ ...claims, email: null });
+    let content: { modalTitle: string; step: string; getValues: () => { email: string; code: string } };
+    let updateConfig: ReturnType<typeof vi.fn>;
+
+    beforeEach(() => {
+      config.env.emailVerification = true;
+      updateConfig = vi.fn();
+      content = {
+        modalTitle: "t",
+        step: "address",
+        getValues: () => ({ email: "typed@x.com", code: content.step === "code" ? "123456" : "" }),
+      };
+      modal.create.mockReturnValue({ getContentComponent: () => content, updateConfig });
+    });
+
+    const openPrompt = () => {
+      AuthService.setAccessToken("tok");
+      jwt.decodeToken.mockReturnValue(emaillessClaims());
+      service.loginWithExistingToken();
+    };
+
+    it("mails a code on the first confirm, then sends it with the address on the second", async () => {
+      openPrompt();
+      expect(modal.create.mock.calls[0][0].nzOkText).toBe("Send code");
+
+      // First confirm: a code goes out and the dialog stays open on the code step.
+      const first = modal.create.mock.calls[0][0].nzOnOk();
+      const codeReq = httpMock.expectOne(`${api}/${AuthService.SET_EMAIL_CODE_ENDPOINT}`);
+      expect(codeReq.request.method).toEqual("POST");
+      expect(codeReq.request.body).toEqual({ email: "typed@x.com" });
+      codeReq.flush(null);
+
+      // False keeps the modal open; the address is not written yet.
+      expect(await first).toBe(false);
+      expect(content.step).toBe("code");
+      expect(updateConfig).toHaveBeenCalledWith({ nzOkText: "Verify" });
+
+      // Second confirm: the address travels with the code, not a server-side pending row.
+      const second = modal.create.mock.calls[0][0].nzOnOk();
+      const setReq = httpMock.expectOne(`${api}/${AuthService.SET_EMAIL_ENDPOINT}`);
+      expect(setReq.request.method).toEqual("PUT");
+      expect(setReq.request.body).toEqual({ email: "typed@x.com", code: "123456" });
+      setReq.flush({ accessToken: "fresh-token" });
+
+      expect(await second).toBe(true);
+      expect(AuthService.getAccessToken()).toEqual("fresh-token");
+    });
+
+    it("keeps the dialog on the address step and reports why when the code cannot be sent", async () => {
+      openPrompt();
+
+      const accepted = modal.create.mock.calls[0][0].nzOnOk();
+      httpMock
+        .expectOne(`${api}/${AuthService.SET_EMAIL_CODE_ENDPOINT}`)
+        .flush({ message: "A code was just sent." }, { status: 429, statusText: "Too Many Requests" });
+
+      expect(await accepted).toBe(false);
+      expect(content.step).toBe("address");
+      expect(notification.error).toHaveBeenCalledWith("A code was just sent.");
+    });
+
+    it("rejects a malformed address before asking for a code", async () => {
+      openPrompt();
+      content.getValues = () => ({ email: "nope", code: "" });
+
+      const accepted = modal.create.mock.calls[0][0].nzOnOk();
+
+      expect(await accepted).toBe(false);
+      expect(notification.error).toHaveBeenCalledWith("Email format is invalid.");
+      httpMock.expectNone(`${api}/${AuthService.SET_EMAIL_CODE_ENDPOINT}`);
+    });
+
+    it("reports a refused code and keeps the dialog open", async () => {
+      openPrompt();
+      const first = modal.create.mock.calls[0][0].nzOnOk();
+      httpMock.expectOne(`${api}/${AuthService.SET_EMAIL_CODE_ENDPOINT}`).flush(null);
+      await first;
+
+      const accepted = modal.create.mock.calls[0][0].nzOnOk();
+      httpMock
+        .expectOne(`${api}/${AuthService.SET_EMAIL_ENDPOINT}`)
+        .flush({ message: "That code is not valid or has expired." }, { status: 406, statusText: "Not Acceptable" });
+
+      expect(await accepted).toBe(false);
+      expect(notification.error).toHaveBeenCalledWith("That code is not valid or has expired.");
+    });
+  });
+
+  describe("registration endpoints", () => {
+    it("registerVerify() POSTs the same fields plus the code", () => {
+      service.registerVerify("alice", "alice@example.com", "pw", "123456").subscribe();
+
+      const req = httpMock.expectOne(`${api}/${AuthService.REGISTER_VERIFY_ENDPOINT}`);
+      expect(req.request.method).toEqual("POST");
+      expect(req.request.body).toEqual({
+        username: "alice",
+        email: "alice@example.com",
+        password: "pw",
+        code: "123456",
+      });
+      req.flush({ accessToken: "tok" });
+    });
+
+    it("requestEmailCode() POSTs the address to the code endpoint", () => {
+      service.requestEmailCode("a@b.com").subscribe();
+
+      const req = httpMock.expectOne(`${api}/${AuthService.SET_EMAIL_CODE_ENDPOINT}`);
+      expect(req.request.method).toEqual("POST");
+      expect(req.request.body).toEqual({ email: "a@b.com" });
+      req.flush(null);
     });
   });
 

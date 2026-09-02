@@ -33,6 +33,7 @@ import com.kjetland.jackson.jsonSchema.annotations.{
 }
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.metadata.annotations.{
@@ -41,7 +42,35 @@ import org.apache.texera.amber.operator.metadata.annotations.{
   HideAnnotation
 }
 
-abstract class SklearnModelOpDesc extends PythonOperatorDescriptor {
+// `text` names the columns Count Vectorizer tokenizes, so they are string columns
+// and at least one is required only when that switch is on. Conditional rather than
+// plain required, so a freshly dropped operator is not flagged for a field it has
+// no use for.
+@JsonSchemaInject(json = """
+{
+  "attributeTypeRules": {
+    "text": {
+      "enum": ["string"]
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "countVectorizer": { "const": true }
+        }
+      },
+      "then": {
+        "required": ["text"],
+        "properties": {
+          "text": { "minItems": 1 }
+        }
+      }
+    }
+  ]
+}
+""")
+abstract class SklearnModelOpDesc extends PythonOperatorDescriptor with SklearnFittableColumns {
 
   @JsonSchemaTitle("Target Attribute")
   @JsonPropertyDescription("Attribute in your dataset corresponding to target.")
@@ -111,6 +140,14 @@ abstract class SklearnModelOpDesc extends PythonOperatorDescriptor {
         .map { case (column, i) => s"""("text$i", CountVectorizer(), ${renderColumn(column)})""" }
         .mkString("ColumnTransformer([", ", ", "]),")
 
+  /** [[SklearnFittableColumns.narrowToFittableColumns]], except under the text
+    * pipeline: there the `ColumnTransformer` names the columns it reads, and they
+    * are the ones the narrowing would drop.
+    */
+  @JsonIgnore
+  protected def dropNonFeatureColumns(frame: String, indent: String): String =
+    if (countVectorizer) "" else narrowToFittableColumns(frame, indent)
+
   @JsonIgnore
   def getImportStatements: String
 
@@ -126,6 +163,34 @@ abstract class SklearnModelOpDesc extends PythonOperatorDescriptor {
     */
   @JsonIgnore
   protected def countVectorizerAlternatives: Option[String] = None
+
+  // Tree-based estimators send the missing values of a split down one branch, so a
+  // blank feature is a signal they can fit on, and the dummy estimator never reads a
+  // feature at all. Every other estimator here computes over the feature matrix, where
+  // one NaN spreads through the arithmetic, and scikit-learn refuses the fit rather
+  // than return a meaningless model.
+  @JsonIgnore
+  def handlesMissingValues: Boolean = false
+
+  // A blank target is refused by every estimator, and CountVectorizer calls .lower()
+  // on each document, so the target and every vectorized column are dropped whatever
+  // the estimator does.
+  @JsonIgnore
+  protected def dropMissingRows: String =
+    if (countVectorizer)
+      (text :+ target).map(c => pyb"$c".toString).mkString("table.dropna(subset=[", ", ", "])")
+    else if (handlesMissingValues) pyb"table.dropna(subset=[$target])".toString
+    else "table.dropna()"
+
+  // Rows the estimator keeps are still rows the user did not know were incomplete,
+  // so say how many reached the fit. Empty for the estimators that dropped them all.
+  @JsonIgnore
+  protected def reportMissingKept: String =
+    if (handlesMissingValues && !countVectorizer)
+      """       |        rows_with_gaps = int(X.isna().any(axis=1).sum())
+        |       |        if rows_with_gaps:
+        |       |            print("Kept", rows_with_gaps, "rows with missing values, which this model fits without dropping")""".stripMargin
+    else ""
 
   override def getOutputSchemas(
       inputSchemas: Map[PortIdentity, Schema]

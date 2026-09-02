@@ -54,4 +54,16 @@
       nzType="database"></span>
     <span>Datasets</span>
   </li>
+  <li
+    *ngIf="sidebarTabs.model_enabled"
+    nz-menu-item
+    nz-tooltip="Search public models"
+    nzMatchRouter="true"
+    nzTooltipPlacement="right"
+    [routerLink]="HUB_MODEL_RESULT">
+    <span
+      nz-icon
+      [nzType]="MODEL_ICON"></span>
+    <span>Models</span>
+  </li>
 </ul>

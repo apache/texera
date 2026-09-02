@@ -21,12 +21,14 @@
   <div class="search-section">
     <div class="filter">
       <texera-sort-button
-        [showEditTime]="searchType !== 'dataset'"
-        [showExecutionTime]="searchType !== 'dataset'"
+        [showEditTime]="!isVersionedResource"
+        [showExecutionTime]="!isVersionedResource"
         (sortMethodChange)="sortMethod = $event; search()"></texera-sort-button>
-      <texera-filters #filters></texera-filters>
+      <texera-filters
+        [entityType]="entityType"
+        #filters></texera-filters>
       <div
-        *ngIf="searchType === 'dataset'"
+        *ngIf="isVersionedResource"
         class="view-toggle">
         <button
           nz-button
@@ -53,7 +55,7 @@
   </div>
 
   <ng-template
-    #datasetCardTpl
+    #cardTpl
     let-entry>
     <texera-card-item
       [entry]="entry"
@@ -66,8 +68,8 @@
       [showResourceTypes]="true"
       [searchKeywords]="searchKeywords"
       [currentUid]="this.currentUid"
-      [viewMode]="searchType === 'dataset' ? viewMode : 'list'"
-      [cardTemplate]="searchType === 'dataset' ? datasetCardTpl : undefined">
+      [viewMode]="isVersionedResource ? viewMode : 'list'"
+      [cardTemplate]="isVersionedResource ? cardTpl : undefined">
     </texera-search-results>
   </div>
 </div>

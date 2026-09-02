@@ -28,7 +28,6 @@ export interface SearchFilterParameters {
   owners: string[];
   ids: string[];
   operators: string[];
-  projectIds: number[];
 }
 
 export const toQueryStrings = (
@@ -36,9 +35,12 @@ export const toQueryStrings = (
   params: SearchFilterParameters,
   start?: number,
   count?: number,
-  type?: "workflow" | "project" | "file" | "dataset" | null,
+  type?: "workflow" | "file" | "dataset" | "model" | null,
   orderBy?: SortMethod
 ): string => {
+  const toLocalDate = (date: Date) =>
+    `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+
   function* getQueryParameters(): Iterable<[name: string, value: string]> {
     if (keywords) {
       for (const keyword of keywords) {
@@ -49,10 +51,10 @@ export const toQueryStrings = (
     const modifiedDateStart = params.modifiedDateStart;
     const createDateEnd = params.createDateEnd;
     const modifiedDateEnd = params.modifiedDateEnd;
-    if (createDateStart) yield ["createDateStart", createDateStart.toISOString().split("T")[0]];
-    if (createDateEnd) yield ["createDateEnd", createDateEnd.toISOString().split("T")[0]];
-    if (modifiedDateStart) yield ["modifiedDateStart", modifiedDateStart.toISOString().split("T")[0]];
-    if (modifiedDateEnd) yield ["modifiedDateEnd", modifiedDateEnd.toISOString().split("T")[0]];
+    if (createDateStart) yield ["createDateStart", toLocalDate(createDateStart)];
+    if (createDateEnd) yield ["createDateEnd", toLocalDate(createDateEnd)];
+    if (modifiedDateStart) yield ["modifiedDateStart", toLocalDate(modifiedDateStart)];
+    if (modifiedDateEnd) yield ["modifiedDateEnd", toLocalDate(modifiedDateEnd)];
     for (const owner of params.owners) {
       yield ["owner", owner];
     }
@@ -61,9 +63,6 @@ export const toQueryStrings = (
     }
     for (const operator of params.operators) {
       yield ["operator", operator];
-    }
-    for (const id of params.projectIds) {
-      yield ["projectId", id.toString()];
     }
   }
   const concatenateQueryStrings = (queryStrings: ReturnType<typeof getQueryParameters>): string =>
@@ -85,7 +84,7 @@ export const searchTestEntries = (
   keywords: string[],
   params: SearchFilterParameters,
   testEntries: DashboardEntry[],
-  type: "workflow" | "project" | "file" | "dataset" | null
+  type: "workflow" | "file" | "dataset" | "model" | null
 ): DashboardEntry[] => {
   const endOfDay = (date: Date) => {
     date.setHours(23);
@@ -128,13 +127,6 @@ export const searchTestEntries = (
         e.workflow.workflow.content.operators.some(operator =>
           params.operators.some(operatorTypeFilterBy => operatorTypeFilterBy === operator.operatorType)
         )
-    );
-  }
-  if (params.projectIds.length > 0) {
-    testEntries = testEntries.filter(
-      e =>
-        e.type === "workflow" &&
-        e.workflow.projectIDs.some(id => params.projectIds.some(projectIdToFilterBy => projectIdToFilterBy == id))
     );
   }
   if (type) {

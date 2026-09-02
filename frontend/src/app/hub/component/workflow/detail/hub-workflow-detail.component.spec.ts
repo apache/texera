@@ -550,8 +550,11 @@ describe("HubWorkflowDetailComponent", () => {
  */
 describe("HubWorkflowDetailComponent rendered with its real children", () => {
   let fixture: ComponentFixture<HubWorkflowDetailComponent>;
+  // goBack() chains .catch() onto the navigation result, so this has to be a real promise.
+  let renderedRouter: { navigateByUrl: ReturnType<typeof vi.fn>; navigate: ReturnType<typeof vi.fn> };
 
   function render(opts: { isHub: boolean }): void {
+    renderedRouter = { navigateByUrl: vi.fn().mockResolvedValue(true), navigate: vi.fn().mockResolvedValue(true) };
     TestBed.resetTestingModule();
     TestBed.configureTestingModule({
       imports: [
@@ -572,7 +575,7 @@ describe("HubWorkflowDetailComponent rendered with its real children", () => {
           provide: ActivatedRoute,
           useValue: { snapshot: { params: opts.isHub ? { id: "5" } : {} } },
         },
-        { provide: Router, useValue: { navigateByUrl: vi.fn(), navigate: vi.fn() } },
+        { provide: Router, useValue: renderedRouter },
         {
           provide: HubService,
           useValue: {
@@ -619,6 +622,22 @@ describe("HubWorkflowDetailComponent rendered with its real children", () => {
     render({ isHub: true });
 
     expect((fixture.nativeElement as HTMLElement).querySelector(".go-back-button")).not.toBeNull();
+  });
+
+  it("navigates back to the hub listing when the back button is clicked", () => {
+    // The goBack() unit test above calls the method directly, so nothing pinned the button's
+    // (click) binding: drop it from the template and that test still passes while the arrow
+    // becomes inert.
+    render({ isHub: true });
+
+    (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(".go-back-button")!.click();
+
+    // Asserted as a literal, not as HUB_WORKFLOW_RESULT: the component navigates with that same
+    // symbol, so a symbolic assertion moves with it and cannot see the destination change. The
+    // route table in app-routing.module.ts spells the segments out as literals and does not import
+    // the constant, so the two really can drift apart into a navigation to a dead route.
+    expect(renderedRouter.navigateByUrl).toHaveBeenCalledWith("/hub/workflow/result");
+    expect(HUB_WORKFLOW_RESULT).toBe("/hub/workflow/result");
   });
 
   it("hides the back button when the wid arrived as modal data", () => {

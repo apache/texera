@@ -34,6 +34,7 @@ import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patc
 import { NzIconDirective } from "ng-zorro-antd/icon";
 import { SortButtonComponent } from "../sort-button/sort-button.component";
 import { NzWaveDirective } from "ng-zorro-antd/core/wave";
+import { MODEL_ICON } from "../../../../common/icon/model-icon";
 
 @UntilDestroy()
 @Component({
@@ -53,6 +54,7 @@ import { NzWaveDirective } from "ng-zorro-antd/core/wave";
   ],
 })
 export class SearchComponent implements AfterViewInit {
+  protected readonly MODEL_ICON = MODEL_ICON;
   public searchParam: string = "";
   sortMethod = SortMethod.EditTimeDesc;
   lastSortMethod: SortMethod | null = null;
@@ -61,8 +63,8 @@ export class SearchComponent implements AfterViewInit {
   currentUid = this.userService.getCurrentUser()?.uid;
   searchKeywords: string[] = [];
 
-  selectedType: "project" | "workflow" | "dataset" | null = null;
-  lastSelectedType: "project" | "workflow" | "dataset" | null = null;
+  selectedType: "workflow" | "dataset" | "model" | null = null;
+  lastSelectedType: "workflow" | "dataset" | "model" | null = null;
 
   public masterFilterList: ReadonlyArray<string> = [];
   @ViewChild(SearchResultsComponent) searchResultsComponent?: SearchResultsComponent;
@@ -146,7 +148,7 @@ export class SearchComponent implements AfterViewInit {
     await this.searchResultsComponent.loadMore();
   }
 
-  filterByType(type: "project" | "workflow" | "dataset" | null): void {
+  filterByType(type: "workflow" | "dataset" | "model" | null): void {
     this.selectedType = type;
     this.search();
   }

@@ -657,7 +657,8 @@ export class TexeraAgent {
         stopped: false,
       };
     } catch (error: any) {
-      const isAborted = error.name === "AbortError" || this.abortController?.signal.aborted;
+      const errorMessage = error?.message || String(error);
+      const isAborted = error?.name === "AbortError" || this.abortController?.signal.aborted;
 
       if (isAborted) {
         stepIndex++;
@@ -693,7 +694,7 @@ export class TexeraAgent {
         stepId: stepIndex,
         timestamp: Date.now(),
         role: "agent",
-        content: `Error: ${error.message || String(error)}`,
+        content: `Error: ${errorMessage}`,
         isBegin: false,
         isEnd: true,
       };
@@ -705,7 +706,7 @@ export class TexeraAgent {
         messages: [],
         usage: { inputTokens: 0, outputTokens: 0, totalTokens: 0 },
         stopped: false,
-        error: error.message || String(error),
+        error: errorMessage,
       };
     } finally {
       this.abortController = null;

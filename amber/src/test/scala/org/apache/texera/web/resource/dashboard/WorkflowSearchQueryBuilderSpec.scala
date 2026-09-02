@@ -20,7 +20,7 @@
 package org.apache.texera.web.resource.dashboard
 
 import org.apache.texera.dao.jooq.generated.Tables._
-import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
+import org.apache.texera.dao.jooq.generated.enums.{DefaultViewEnum, PrivilegeEnum}
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowResource.DashboardWorkflow
 import org.jooq.impl.{DSL => JDSL}
 import org.jooq.{Record, SQLDialect}
@@ -68,6 +68,9 @@ class WorkflowSearchQueryBuilderSpec extends AnyFlatSpec with Matchers {
   // QueryParts structurally. The first test pins that assumption.
   private val pidField = JDSL.groupConcatDistinct(WORKFLOW_OF_PROJECT.PID)
   private val coverField = JDSL.max(WORKFLOW_COVER_IMAGE.IMAGE).as("workflow_cover_image")
+  // The select lists default_view under its own alias (not carried by the WORKFLOW POJO),
+  // and toEntryImpl reads it back by that alias — the record has to carry the column.
+  private val defaultViewField = WORKFLOW.DEFAULT_VIEW.as("workflow_default_view")
 
   private val ownerUid: Integer = Integer.valueOf(42)
   private val viewerUid: Integer = Integer.valueOf(43)
@@ -85,7 +88,8 @@ class WorkflowSearchQueryBuilderSpec extends AnyFlatSpec with Matchers {
       uidValue: Integer = ownerUid,
       privilege: PrivilegeEnum = PrivilegeEnum.WRITE,
       projects: String = "3,1,2",
-      cover: String = "cover-b64"
+      cover: String = "cover-b64",
+      defaultView: DefaultViewEnum = DefaultViewEnum.CANVAS
   ): Record = {
     val record = ctx.newRecord(
       WORKFLOW.WID,
@@ -95,7 +99,8 @@ class WorkflowSearchQueryBuilderSpec extends AnyFlatSpec with Matchers {
       WORKFLOW_USER_ACCESS.PRIVILEGE,
       USER.NAME,
       pidField,
-      coverField
+      coverField,
+      defaultViewField
     )
     record.set(WORKFLOW.WID, wid)
     record.set(WORKFLOW.NAME, "wf-name")
@@ -105,6 +110,7 @@ class WorkflowSearchQueryBuilderSpec extends AnyFlatSpec with Matchers {
     record.set(USER.NAME, "owner-name")
     record.set(pidField, projects)
     record.set(coverField, cover)
+    record.set(defaultViewField, defaultView)
     record
   }
 
@@ -199,6 +205,19 @@ class WorkflowSearchQueryBuilderSpec extends AnyFlatSpec with Matchers {
   it should "wrap the cover image in an Option" in {
     workflowOf(translatedRecord(), ownerUid).coverImage shouldBe Some("cover-b64")
     workflowOf(translatedRecord(cover = null), ownerUid).coverImage shouldBe None
+  }
+
+  it should "carry the default view off its own aliased column" in {
+    // The listing's select projects default_view separately (the WORKFLOW POJO the
+    // record maps into does not carry it), so toEntryImpl must read it back by alias.
+    workflowOf(
+      translatedRecord(defaultView = DefaultViewEnum.FORM),
+      ownerUid
+    ).workflow.getDefaultView shouldBe DefaultViewEnum.FORM
+    workflowOf(
+      translatedRecord(defaultView = DefaultViewEnum.CANVAS),
+      ownerUid
+    ).workflow.getDefaultView shouldBe DefaultViewEnum.CANVAS
   }
 
   it should "tag the entry as a workflow and leave the other payload slots empty" in {

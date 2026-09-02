@@ -19,7 +19,7 @@
 
 import { Component, EventEmitter, forwardRef, Input, Output, TemplateRef } from "@angular/core";
 import { ComponentFixture, fakeAsync, TestBed, tick } from "@angular/core/testing";
-import { provideRouter, Router } from "@angular/router";
+import { ActivatedRoute, provideRouter } from "@angular/router";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { NoopAnimationsModule } from "@angular/platform-browser/animations";
 import { By } from "@angular/platform-browser";
@@ -41,10 +41,9 @@ import { UserService } from "../../../common/service/user/user.service";
 import { MOCK_USER_ID, StubUserService } from "../../../common/service/user/stub-user.service";
 import { SearchService } from "../../../dashboard/service/user/search.service";
 import { commonTestProviders } from "../../../common/testing/test-utils";
+import { EntityType } from "../../service/hub.service";
 import { OperatorMetadataService } from "../../../workspace/service/operator-metadata/operator-metadata.service";
 import { StubOperatorMetadataService } from "../../../workspace/service/operator-metadata/stub-operator-metadata.service";
-import { UserProjectService } from "../../../dashboard/service/user/project/user-project.service";
-import { StubUserProjectService } from "../../../dashboard/service/user/project/stub-user-project.service";
 import { WorkflowPersistService } from "../../../common/service/workflow-persist/workflow-persist.service";
 import { StubWorkflowPersistService } from "../../../common/service/workflow-persist/stub-workflow-persist.service";
 import { DatasetService } from "../../../dashboard/service/user/dataset/dataset.service";
@@ -77,6 +76,7 @@ class StubSortButtonComponent {
   providers: [{ provide: FiltersComponent, useExisting: forwardRef(() => StubFiltersComponent) }],
 })
 class StubFiltersComponent {
+  @Input() entityType?: EntityType;
   masterFilterList: ReadonlyArray<string> = [];
   masterFilterListChange = new Subject<ReadonlyArray<string>>();
   getSearchKeywords = vi.fn(() => [] as string[]);
@@ -122,12 +122,11 @@ describe("HubSearchResultComponent", () => {
   let fixture: ComponentFixture<HubSearchResultComponent>;
   let component: HubSearchResultComponent;
 
-  let routerMock: { url: string };
   let searchServiceMock: { executeSearch: ReturnType<typeof vi.fn> };
   let setItemSpy: ReturnType<typeof vi.spyOn>;
 
-  function configure(url: string): void {
-    routerMock = { url };
+  /** `entityType` undefined stands for a route that declares no kind. */
+  function configure(entityType?: EntityType): void {
     searchServiceMock = {
       executeSearch: vi.fn().mockReturnValue(of({ entries: [], more: false })),
     };
@@ -144,7 +143,7 @@ describe("HubSearchResultComponent", () => {
     TestBed.configureTestingModule({
       imports: [HubSearchResultComponent, NzIconModule.forChild([BarsOutline, AppstoreOutline])],
       providers: [
-        { provide: Router, useValue: routerMock },
+        { provide: ActivatedRoute, useValue: { snapshot: { data: { entityType } } } },
         { provide: SearchService, useValue: searchServiceMock },
         { provide: UserService, useClass: StubUserService },
         ...commonTestProviders,
@@ -152,8 +151,8 @@ describe("HubSearchResultComponent", () => {
     });
   }
 
-  function build(url: string, detectChanges: boolean = true): void {
-    configure(url);
+  function build(entityType?: EntityType, detectChanges: boolean = true): void {
+    configure(entityType);
     fixture = TestBed.createComponent(HubSearchResultComponent);
     component = fixture.componentInstance;
     if (detectChanges) {
@@ -195,22 +194,37 @@ describe("HubSearchResultComponent", () => {
     document.querySelectorAll(".cdk-overlay-container").forEach(el => el.remove());
   });
 
-  describe("ngOnInit / searchType resolution", () => {
-    it("resolves 'dataset' and defaults sortMethod to CreateTimeDesc when the url contains 'dataset'", () => {
-      build("/dashboard/dataset");
+  describe("ngOnInit / entityType resolution", () => {
+    it("takes 'dataset' from the route and defaults sortMethod to CreateTimeDesc", () => {
+      build(EntityType.Dataset);
+      expect(component.entityType).toBe(EntityType.Dataset);
       expect(component.searchType).toBe("dataset");
       expect(component.sortMethod).toBe(SortMethod.CreateTimeDesc);
     });
 
-    it("resolves 'workflow' and keeps the default EditTimeDesc when the url contains 'workflow'", () => {
-      build("/dashboard/workflow");
+    it("takes 'workflow' from the route and keeps the default EditTimeDesc", () => {
+      build(EntityType.Workflow);
+      expect(component.entityType).toBe(EntityType.Workflow);
       expect(component.searchType).toBe("workflow");
       expect(component.sortMethod).toBe(SortMethod.EditTimeDesc);
     });
 
-    it("keeps the default 'workflow' searchType when the url matches neither branch", () => {
-      build("/dashboard/project");
-      expect(component.searchType).toBe("workflow");
+    it("takes 'model' from the route and treats it as a versioned resource", () => {
+      build(EntityType.Model);
+      expect(component.entityType).toBe(EntityType.Model);
+      expect(component.searchType).toBe("model");
+      expect(component.isVersionedResource).toBe(true);
+      expect(component.sortMethod).toBe(SortMethod.CreateTimeDesc);
+    });
+
+    it("does not treat workflows as a versioned resource", () => {
+      build(EntityType.Workflow);
+      expect(component.isVersionedResource).toBe(false);
+    });
+
+    it("falls back to workflow when the route declares no kind", () => {
+      build(undefined);
+      expect(component.entityType).toBe(EntityType.Workflow);
       expect(component.sortMethod).toBe(SortMethod.EditTimeDesc);
     });
   });
@@ -218,25 +232,25 @@ describe("HubSearchResultComponent", () => {
   describe("viewMode initialization", () => {
     it("reads 'card' from localStorage", () => {
       localStorage.setItem(VIEW_MODE_STORAGE_KEY, "card");
-      build("/dashboard/dataset");
+      build(EntityType.Dataset);
       expect(component.viewMode).toBe("card");
     });
 
     it("falls back to 'list' when localStorage holds a non-'card' value", () => {
       localStorage.setItem(VIEW_MODE_STORAGE_KEY, "grid");
-      build("/dashboard/dataset");
+      build(EntityType.Dataset);
       expect(component.viewMode).toBe("list");
     });
 
     it("falls back to 'list' when localStorage is empty", () => {
-      build("/dashboard/dataset");
+      build(EntityType.Dataset);
       expect(component.viewMode).toBe("list");
     });
   });
 
   describe("setViewMode", () => {
     it("is a no-op (no localStorage write) when the mode is unchanged", () => {
-      build("/dashboard/dataset");
+      build(EntityType.Dataset);
       expect(component.viewMode).toBe("list");
       setItemSpy.mockClear();
 
@@ -247,7 +261,7 @@ describe("HubSearchResultComponent", () => {
     });
 
     it("updates viewMode and persists to localStorage when the mode changes", () => {
-      build("/dashboard/dataset");
+      build(EntityType.Dataset);
       setItemSpy.mockClear();
 
       component.setViewMode("card");
@@ -260,7 +274,7 @@ describe("HubSearchResultComponent", () => {
 
   describe("template rendering", () => {
     it("renders the dataset view-toggle when searchType is 'dataset'", () => {
-      build("/dashboard/dataset");
+      build(EntityType.Dataset);
       const host = fixture.nativeElement as HTMLElement;
       expect(host.querySelector(".view-toggle")).not.toBeNull();
       expect(host.querySelector("texera-search-results")).not.toBeNull();
@@ -268,7 +282,7 @@ describe("HubSearchResultComponent", () => {
     });
 
     it("hides the dataset view-toggle when searchType is 'workflow'", () => {
-      build("/dashboard/workflow");
+      build(EntityType.Workflow);
       const host = fixture.nativeElement as HTMLElement;
       expect(host.querySelector(".view-toggle")).toBeNull();
     });
@@ -276,7 +290,7 @@ describe("HubSearchResultComponent", () => {
 
   describe("search", () => {
     it("early-returns when filters is unset", async () => {
-      build("/dashboard/workflow");
+      build(EntityType.Workflow);
       const results = makeSearchResultsMock();
       attachChildren(undefined, results);
 
@@ -287,7 +301,7 @@ describe("HubSearchResultComponent", () => {
     });
 
     it("early-returns when searchResultsComponent is unset", async () => {
-      build("/dashboard/workflow");
+      build(EntityType.Workflow);
       const filters = makeFiltersMock();
       attachChildren(filters, undefined);
 
@@ -298,7 +312,7 @@ describe("HubSearchResultComponent", () => {
     });
 
     it("resets with a loader and calls loadMore on the first search", async () => {
-      build("/dashboard/workflow");
+      build(EntityType.Workflow);
       const filters = makeFiltersMock();
       const results = makeSearchResultsMock();
       attachChildren(filters, results);
@@ -312,7 +326,7 @@ describe("HubSearchResultComponent", () => {
     });
 
     it("skips a repeated search with the same filter list and sortMethod, but honors forced=true", async () => {
-      build("/dashboard/workflow");
+      build(EntityType.Workflow);
       const filters = makeFiltersMock();
       const results = makeSearchResultsMock();
       attachChildren(filters, results);
@@ -330,7 +344,7 @@ describe("HubSearchResultComponent", () => {
     });
 
     it("re-searches when the sortMethod changes even if the filter list is identical", async () => {
-      build("/dashboard/workflow");
+      build(EntityType.Workflow);
       const filters = makeFiltersMock();
       const results = makeSearchResultsMock();
       attachChildren(filters, results);
@@ -343,32 +357,8 @@ describe("HubSearchResultComponent", () => {
       expect(results.reset).toHaveBeenCalledTimes(2);
     });
 
-    it("passes projectIds=[pid] into the executeSearch loader when pid is set", async () => {
-      build("/dashboard/workflow");
-      component.pid = 42;
-      const filters = makeFiltersMock();
-      const results = makeSearchResultsMock();
-      attachChildren(filters, results);
-
-      await component.search();
-
-      const loader = results.reset.mock.calls[0][0] as (start: number, count: number) => Promise<unknown>;
-      await loader(0, 20);
-
-      expect(searchServiceMock.executeSearch).toHaveBeenCalledWith(
-        [""],
-        expect.objectContaining({ projectIds: [42] }),
-        0,
-        20,
-        "workflow",
-        SortMethod.EditTimeDesc,
-        false,
-        true
-      );
-    });
-
-    it("does not inject projectIds when pid is undefined", async () => {
-      build("/dashboard/workflow");
+    it("forwards the filter parameters into the executeSearch loader", async () => {
+      build(EntityType.Workflow);
       const filters = makeFiltersMock();
       const results = makeSearchResultsMock();
       attachChildren(filters, results);
@@ -385,6 +375,27 @@ describe("HubSearchResultComponent", () => {
         20,
         "workflow",
         SortMethod.EditTimeDesc,
+        false,
+        true
+      );
+    });
+
+    it("searches for models when the route named the model kind", async () => {
+      build(EntityType.Model);
+      const results = makeSearchResultsMock();
+      attachChildren(makeFiltersMock(), results);
+
+      await component.search();
+      const loader = results.reset.mock.calls[0][0] as (start: number, count: number) => Promise<unknown>;
+      await loader(0, 20);
+
+      expect(searchServiceMock.executeSearch).toHaveBeenCalledWith(
+        [""],
+        {},
+        0,
+        20,
+        "model",
+        SortMethod.CreateTimeDesc,
         false,
         true
       );
@@ -460,7 +471,7 @@ describe("HubSearchResultComponent rendered template", () => {
     } as unknown as DashboardEntry;
   }
 
-  function render(url: string, storedViewMode?: string): void {
+  function render(entityType: EntityType, storedViewMode?: string): void {
     TestBed.resetTestingModule();
     localStorage.clear();
     if (storedViewMode !== undefined) {
@@ -477,21 +488,21 @@ describe("HubSearchResultComponent rendered template", () => {
       ],
       providers: [
         provideRouter([]),
+        { provide: ActivatedRoute, useValue: { snapshot: { data: { entityType } } } },
         { provide: SearchService, useValue: { executeSearch } },
         { provide: UserService, useClass: StubUserService },
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
-        { provide: UserProjectService, useClass: StubUserProjectService },
         { provide: WorkflowPersistService, useValue: new StubWorkflowPersistService([]) },
-        { provide: DatasetService, useValue: { getDatasetCoverUrl: vi.fn(() => of({ url: undefined })) } },
+        {
+          provide: DatasetService,
+          useValue: { getDatasetCoverUrl: vi.fn(() => of({ url: undefined })), retrieveOwners: vi.fn(() => of([])) },
+        },
         { provide: WorkflowCoverService, useValue: { getCover: vi.fn(() => of(undefined)) } },
         NzModalService,
         provideNzI18n(en_US),
         ...commonTestProviders,
       ],
     });
-
-    // ngOnInit derives searchType from Router.url; an own property shadows the real getter.
-    Object.defineProperty(TestBed.inject(Router), "url", { get: () => url });
 
     fixture = TestBed.createComponent(HubSearchResultComponent);
     fixture.detectChanges();
@@ -517,7 +528,7 @@ describe("HubSearchResultComponent rendered template", () => {
   it("renders the real children, not the stubbed selectors", () => {
     // If these resolve to empty stub templates the component was re-JITed and the
     // template's coverage has silently gone back to zero.
-    render("/dashboard/dataset");
+    render(EntityType.Dataset);
 
     expect(host().querySelector("texera-sort-button button#sortDropdown")).not.toBeNull();
     expect(host().querySelector("texera-filters button")).not.toBeNull();
@@ -525,7 +536,7 @@ describe("HubSearchResultComponent rendered template", () => {
   });
 
   it("renders both dataset view-toggle buttons, each with its own label and icon", () => {
-    render("/dashboard/dataset");
+    render(EntityType.Dataset);
 
     expect(toggleButtons().map(button => button.title)).toEqual(["List view", "Card view"]);
     // nz-icon turns nzType into an `anticon-<type>` class, so this pins which icon each button asks for.
@@ -535,8 +546,15 @@ describe("HubSearchResultComponent rendered template", () => {
     ]);
   });
 
+  it("renders the view toggle for models, the same as for datasets", () => {
+    render(EntityType.Model);
+
+    expect(host().querySelector(".view-toggle")).not.toBeNull();
+    expect(toggleButtons().map(button => button.title)).toEqual(["List view", "Card view"]);
+  });
+
   it("omits the view toggle entirely when the search type is workflow", () => {
-    render("/dashboard/workflow");
+    render(EntityType.Workflow);
 
     expect(host().querySelector(".view-toggle")).toBeNull();
     expect(toggleButtons()).toEqual([]);
@@ -545,7 +563,7 @@ describe("HubSearchResultComponent rendered template", () => {
   });
 
   it("highlights whichever view-toggle button matches the current view mode", () => {
-    render("/dashboard/dataset");
+    render(EntityType.Dataset);
     expect(toggleTypes()).toEqual(["primary", "default"]);
 
     toggleButtons()[1].click();
@@ -558,7 +576,15 @@ describe("HubSearchResultComponent rendered template", () => {
   });
 
   it("hides the edit-time and execution-time sort options for datasets", fakeAsync(() => {
-    render("/dashboard/dataset");
+    render(EntityType.Dataset);
+
+    openSortMenu();
+
+    expect(sortMenuLabels()).toEqual(["By Create Time", "A -> Z", "Z -> A"]);
+  }));
+
+  it("hides the edit-time and execution-time sort options for models too", fakeAsync(() => {
+    render(EntityType.Model);
 
     openSortMenu();
 
@@ -566,7 +592,7 @@ describe("HubSearchResultComponent rendered template", () => {
   }));
 
   it("offers the edit-time and execution-time sort options for workflows", fakeAsync(() => {
-    render("/dashboard/workflow");
+    render(EntityType.Workflow);
 
     openSortMenu();
 
@@ -574,7 +600,7 @@ describe("HubSearchResultComponent rendered template", () => {
   }));
 
   it("re-runs the search with the sort method the sort button emits", () => {
-    render("/dashboard/workflow");
+    render(EntityType.Workflow);
     const sortButton = fixture.debugElement.query(By.directive(SortButtonComponent))
       .componentInstance as SortButtonComponent;
 
@@ -587,7 +613,7 @@ describe("HubSearchResultComponent rendered template", () => {
   });
 
   it("renders every dataset entry through the card template in card mode", async () => {
-    render("/dashboard/dataset", "card");
+    render(EntityType.Dataset, "card");
 
     await loadEntries([makeDatasetEntry(7, "alpha"), makeDatasetEntry(8, "beta")]);
 
@@ -600,7 +626,7 @@ describe("HubSearchResultComponent rendered template", () => {
   });
 
   it("keeps the workflow search type on the list view even when card mode is stored", () => {
-    render("/dashboard/workflow", "card");
+    render(EntityType.Workflow, "card");
     expect(fixture.componentInstance.viewMode).toBe("card");
 
     expect(host().querySelector("cdk-virtual-scroll-viewport")).not.toBeNull();
@@ -611,7 +637,7 @@ describe("HubSearchResultComponent rendered template", () => {
   });
 
   it("hands the resource types, the filter keywords and the signed-in uid to the results list", () => {
-    render("/dashboard/workflow");
+    render(EntityType.Workflow);
     const filters = fixture.debugElement.query(By.directive(FiltersComponent)).componentInstance as FiltersComponent;
 
     // Committing a filter list is what the real filter bar does on every change, and it

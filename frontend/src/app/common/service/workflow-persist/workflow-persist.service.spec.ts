@@ -29,6 +29,7 @@ import {
   WORKFLOW_CREATE_URL,
   WORKFLOW_DUPLICATE_URL,
   WORKFLOW_DELETE_URL,
+  WORKFLOW_SET_DEFAULT_VIEW_URL,
   WORKFLOW_LIST_URL,
   WORKFLOW_UPDATENAME_URL,
   WORKFLOW_UPDATEDESCRIPTION_URL,
@@ -42,6 +43,7 @@ import { jsonCast } from "../../util/storage";
 import { Workflow, WorkflowContent } from "../../type/workflow";
 import { AppSettings } from "../../app-setting";
 import { DashboardWorkflow } from "../../../dashboard/type/dashboard-workflow.interface";
+import { DefaultView } from "../../../dashboard/type/workflow-metadata.interface";
 import { SearchFilterParameters, toQueryStrings } from "../../../dashboard/type/search-filter-parameters";
 import { NotificationService } from "../notification/notification.service";
 import { last } from "rxjs/operators";
@@ -146,7 +148,6 @@ describe("WorkflowPersistService", () => {
       owners: [],
       ids: [],
       operators: [],
-      projectIds: [],
     };
     const keywords = ["test"];
     const entry = { workflow: { wid: 1, name: "w", content: '{"operators":[]}' } } as unknown as DashboardWorkflow;
@@ -277,26 +278,17 @@ describe("WorkflowPersistService", () => {
       expect(emitted).toBe(false);
     });
 
-    it("duplicateWorkflow POSTs only wids when no pid is provided", () => {
+    it("duplicateWorkflow POSTs the wids", () => {
       let result: DashboardWorkflow[] | undefined;
       service.duplicateWorkflow([3, 4]).subscribe(r => (result = r));
 
       const req = httpTestingController.expectOne(`${API}/${WORKFLOW_DUPLICATE_URL}`);
       expect(req.request.method).toBe("POST");
       expect(req.request.body).toEqual({ wids: [3, 4] });
-      expect(req.request.body).not.toHaveProperty("pid");
 
       const dup = [{ workflow: { wid: 10 } }] as unknown as DashboardWorkflow[];
       req.flush(dup);
       expect(result).toEqual(dup);
-    });
-
-    it("duplicateWorkflow includes pid in the body when provided", () => {
-      service.duplicateWorkflow([5], 42).subscribe();
-
-      const req = httpTestingController.expectOne(`${API}/${WORKFLOW_DUPLICATE_URL}`);
-      expect(req.request.body).toEqual({ wids: [5], pid: 42 });
-      req.flush([{ workflow: { wid: 11 } }]);
     });
 
     it("duplicateWorkflow filters out an empty-array response", () => {
@@ -498,6 +490,26 @@ describe("WorkflowPersistService", () => {
       const sizes = { 24: 100, 25: 200, 26: 300 };
       req.flush(sizes);
       expect(result).toEqual(sizes);
+    });
+
+    it("setDefaultView PUTs the chosen view to the set-default-view url", () => {
+      let responded = false;
+      service.setDefaultView(30, DefaultView.FORM).subscribe(() => (responded = true));
+
+      const req = httpTestingController.expectOne(`${API}/${WORKFLOW_SET_DEFAULT_VIEW_URL}/30`);
+      expect(req.request.method).toBe("PUT");
+      expect(req.request.body).toEqual({ view: DefaultView.FORM });
+      req.flush(null);
+      expect(responded).toBe(true);
+    });
+
+    it("setDefaultView can set the default back to canvas", () => {
+      service.setDefaultView(31, DefaultView.CANVAS).subscribe();
+
+      const req = httpTestingController.expectOne(`${API}/${WORKFLOW_SET_DEFAULT_VIEW_URL}/31`);
+      expect(req.request.method).toBe("PUT");
+      expect(req.request.body).toEqual({ view: DefaultView.CANVAS });
+      req.flush(null);
     });
   });
 });
