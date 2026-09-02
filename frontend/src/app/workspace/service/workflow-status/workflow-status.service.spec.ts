@@ -102,17 +102,22 @@ describe("WorkflowStatusService", () => {
 
   it("emits state before statistics, so a statistics subscriber sees the matching state snapshot", () => {
     const order: string[] = [];
+    // Captured in the subscriber, asserted after next() returns: rxjs re-throws
+    // a subscriber's error asynchronously, so an expect() inside the callback
+    // could not fail this test.
+    let stateSeenByStatisticsSubscriber: Record<string, OperatorState> | undefined;
     service.getStateUpdateStream().subscribe(() => order.push("state"));
     service.getStatisticsUpdateStream().subscribe(() => {
       order.push("statistics");
-      // The licensed read: by the time statistics arrive, the state snapshot
-      // already reflects the same wire event. The converse does not hold.
-      expect(service.getCurrentState()).toEqual({ op1: OperatorState.Running });
+      stateSeenByStatisticsSubscriber = service.getCurrentState();
     });
 
     websocketEventSubject.next(statsEvent({ op1: sampleRuntimeStatus }));
 
     expect(order).toEqual(["state", "statistics"]);
+    // The licensed read: by the time statistics arrive, the state snapshot
+    // already reflects the same wire event. The converse does not hold.
+    expect(stateSeenByStatisticsSubscriber).toEqual({ op1: OperatorState.Running });
   });
 
   it("ignores websocket events of other types", () => {
