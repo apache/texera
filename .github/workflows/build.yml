@@ -783,13 +783,6 @@ jobs:
     env:
       JAVA_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
       JVM_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
-      # Exclude @IntegrationTest-tagged specs (workflow-compiling-service's
-      # OperatorBehaviorSpec forks Python, which this job does not provision).
-      # Those run in the platform-integration job's workflow-compiling-service
-      # matrix entry, which provisions Python. Read only by
-      # workflow-compiling-service/build.sbt; a no-op for the other services
-      # in this matrix.
-      WCS_TEST_FILTER: skip-integration
     services:
       # Each platform service transitively depends on DAO, which runs JOOQ
       # code generation at compile time and needs the live texera schema.
@@ -979,45 +972,6 @@ jobs:
       - uses: coursier/cache-action@95e5b1029b6b86e7bac033ee44a0697d8a527d2d # v8.1.1
         with:
           extraSbtFiles: '["*.sbt", "project/**.{scala,sbt}", "project/build.properties" ]'
-      # --- workflow-compiling-service only: provision Python so the verify
-      # spec (OperatorBehaviorSpec) can fork real interpreters. These four
-      # steps mirror the retired standalone workflow-compiling-service-integration
-      # job; they are no-ops for every other service in the matrix.
-      - name: Setup Python for Scala-Python verification tests
-        if: ${{ matrix.service == 'workflow-compiling-service' }}
-        uses: actions/setup-python@v7
-        with:
-          python-version: "3.12"
-      - name: Install Python dependencies
-        # OperatorBehaviorSpec forks Python subprocesses that import pandas /
-        # pyarrow / plotly and pytexera (the harness adds amber/src/main/python
-        # to PYTHONPATH). Install amber's runtime deps, same as amber-integration.
-        # dev-requirements.txt provides the betterproto plugin used by
-        # bin/python-proto-gen.sh in the proto-generation step below.
-        if: ${{ matrix.service == 'workflow-compiling-service' }}
-        run: |
-          python -m pip install uv
-          if [ -f amber/requirements.txt ]; then uv pip install --system --index-strategy unsafe-best-match -r amber/requirements.txt; fi
-          if [ -f amber/operator-requirements.txt ]; then uv pip install --system --index-strategy unsafe-best-match -r amber/operator-requirements.txt; fi
-          if [ -f amber/dev-requirements.txt ]; then uv pip install --system --index-strategy unsafe-best-match -r amber/dev-requirements.txt; fi
-      - name: Install protoc
-        # Path A forks py_op_driver, which imports pyamber and hence the
-        # generated betterproto bindings in amber/src/main/python/proto (gitignored,
-        # not checked in). Pin protoc to bin/protoc-version.txt via the upstream
-        # release zip. Linux-only: this job runs on ubuntu-latest.
-        if: ${{ matrix.service == 'workflow-compiling-service' }}
-        run: |
-          PROTOC_VERSION=$(cat bin/protoc-version.txt)
-          curl -fsSL -o /tmp/protoc.zip "https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-linux-x86_64.zip"
-          sudo unzip -o /tmp/protoc.zip -d /usr/local
-          sudo chmod +x /usr/local/bin/protoc
-          sudo chmod -R a+rX /usr/local/include/google
-      - name: Generate Python proto bindings
-        # Regenerate amber/src/main/python/proto so the forked py_op_driver can
-        # import pyamber; without this Path A fails with ImportError on proto
-        # symbols (e.g. ChannelIdentity).
-        if: ${{ matrix.service == 'workflow-compiling-service' }}
-        run: bash bin/python-proto-gen.sh
       - name: Create Databases
         run: |
           psql -h localhost -U postgres -f sql/texera_ddl.sql
@@ -1099,25 +1053,6 @@ jobs:
           # smoke-boot's verdict is LISTEN-based, never log-scraping (#6332).
           TEXERA_SERVICE_LOG_LEVEL: ${{ runner.debug == '1' && 'DEBUG' || 'WARN' }}
         run: .github/scripts/smoke-boot.sh "/tmp/dists/${{ matrix.service }}-*/bin/${{ matrix.service }}" "${{ matrix.port }}"
-      - name: Run workflow-compiling-service Python e2e (integration) tests
-        # workflow-compiling-service only: the @IntegrationTest-tagged verify
-        # spec (OperatorBehaviorSpec) forks real Python processes and compares
-        # translator-generated standalone code against platform output, operator
-        # by operator. Reuses this job's compiled WCS (the dist step above) and
-        # postgres instead of a separate integration job.
-        # WCS_TEST_FILTER=integration-only keeps only @IntegrationTest specs and
-        # bounds ScalaTest's parallel pool to 4 threads (build.sbt). Every operator
-        # carrying standalone code runs: the spec's narrowing knobs
-        # (VERIFY_ONLY / VERIFY_SKIP) are unset here, as they are in any run that
-        # does not ask for less, and what stays withheld is a single variant or an
-        # operator that cannot run, recorded against an issue in the runner itself.
-        # UDF_PYTHON_PATH points the harness at the provisioned interpreter (bare
-        # name resolves via PATH); it auto-locates amber/src/main/python.
-        if: ${{ matrix.service == 'workflow-compiling-service' }}
-        env:
-          WCS_TEST_FILTER: integration-only
-          UDF_PYTHON_PATH: python
-        run: sbt "WorkflowCompilingService/test"
 
   pyamber:
     if: ${{ inputs.run_pyamber }}

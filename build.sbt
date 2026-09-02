@@ -227,14 +227,8 @@ lazy val FileService = (project in file("file-service"))
     Test / fork := true,
     Test / forkOptions := (Test / forkOptions).value
       .withWorkingDirectory((ThisBuild / baseDirectory).value),
-    Test / testGrouping := {
-      // Read once, outside the loop: sbt lifts a `.value` written inside a lambda to
-      // the top of the task anyway, so leaving it there reads as one lookup per suite
-      // when it is not, and sbt warns about exactly that.
-      val forked = (Test / forkOptions).value
-      (Test / definedTests).value.map { suite =>
-        Tests.Group(suite.name, Seq(suite), Tests.SubProcess(forked))
-      }
+    Test / testGrouping := (Test / definedTests).value.map { suite =>
+      Tests.Group(suite.name, Seq(suite), Tests.SubProcess((Test / forkOptions).value))
     }
   )
 
@@ -245,7 +239,6 @@ lazy val WorkflowCompiler = (project in file("common/workflow-compiler"))
   .dependsOn(WorkflowOperator)
 lazy val WorkflowCompilingService = (project in file("workflow-compiling-service"))
   .dependsOn(WorkflowCompiler, Auth, Config, Resource)
-  .dependsOn(WorkflowOperator % "test->test") // reuse PythonWorkerPool in verify tests
   .settings(commonModuleSettings)
   .settings(
     dependencyOverrides ++= Seq(
