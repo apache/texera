@@ -54,6 +54,7 @@ export interface SidebarTabs {
   home_enabled: boolean;
   workflow_enabled: boolean;
   dataset_enabled: boolean;
+  model_enabled: boolean;
   your_work_enabled: boolean;
   workflows_enabled: boolean;
   compute_enabled: boolean;
