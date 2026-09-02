@@ -19,18 +19,29 @@
 
 package org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.base
 
+import com.fasterxml.jackson.databind.JsonNode
+import com.fasterxml.jackson.databind.node.ObjectNode
 import org.apache.texera.amber.core.tuple.AttributeType
-import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
+import org.apache.texera.amber.util.JSONUtils.objectMapper
+import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.KNNTrainer.SklearnAdvancedKNNClassifierTrainerOpDesc
+import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.SVCTrainer.SklearnAdvancedSVCTrainerOpDesc
+import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.SVRTrainer.SklearnAdvancedSVRTrainerOpDesc
+import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorMetadataGenerator}
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
+import scala.jdk.CollectionConverters.IteratorHasAsScala
+
 class SklearnAdvancedBaseDescSpec extends AnyFlatSpec with Matchers {
 
-  // A minimal ParamClass: the generated code only ever consults getName/getType.
+  // A minimal ParamClass: the generated code only ever consults getName/getType, the other
+  // two being read by the schema rather than by code generation.
   private class TestParam(name: String, typ: String) extends ParamClass {
     override def getName: String = name
     override def getType: String = typ
+    override def getSampleValue: String = ""
+    override def getAllowedValues: Array[String] = Array.empty
   }
 
   // A concrete descriptor supplying just the two abstract hooks; everything
@@ -144,5 +155,225 @@ class SklearnAdvancedBaseDescSpec extends AnyFlatSpec with Matchers {
     val paramString = d.getParameter(paraList)(1).encode
     paramString should include("n_neighbors = int(table[")
     paramString should include(".values[i]")
+  }
+
+  "SklearnMLOperatorDescriptor" should
+    "constrain the selected features to what the estimator can be fitted on" in {
+    // The columns reach `fit` untouched, so the accepted set is whatever scikit-learn reads
+    // as a number, a boolean included. Text and binary are left out, and so is timestamp:
+    // one on its own fits, but selected beside any other column it raises
+    // DTypePromotionError, and a rule read one column at a time cannot admit the first
+    // case without admitting the second.
+    val schema = OperatorMetadataGenerator.generateOperatorJsonSchema(
+      classOf[SklearnAdvancedKNNClassifierTrainerOpDesc]
+    )
+    schema
+      .path("attributeTypeRules")
+      .path("Selected Features")
+      .path("enum")
+      .elements()
+      .asScala
+      .map(_.asText())
+      .toSeq should contain theSameElementsAs Seq(
+      "integer",
+      "long",
+      "double",
+      "boolean"
+    )
+  }
+
+  // The rules are built from the enum bound to the descriptor's type argument, so they need a
+  // real operator rather than the stub above, whose TestParam is a class and has no constants.
+  private def valueRulesOf(opClass: Class[_ <: org.apache.texera.amber.operator.LogicalOp]) = {
+    val schema = OperatorMetadataGenerator.generateOperatorJsonSchema(opClass)
+    val row = schema
+      .path("definitions")
+      .path(
+        schema
+          .path("properties")
+          .path("paraList")
+          .path("items")
+          .path("$ref")
+          .asText()
+          .stripPrefix("#/definitions/")
+      )
+    row.path("properties").path("value").path("valueRules").path("allOf")
+  }
+
+  private def ruleFor(rules: JsonNode, parameter: String): JsonNode =
+    rules
+      .elements()
+      .asScala
+      .find(
+        _.path("if")
+          .path("parameter")
+          .path("valEnum")
+          .elements()
+          .asScala
+          .exists(_.asText() == parameter)
+      )
+      .map(_.path("then"))
+      .getOrElse(fail(s"no rule for $parameter"))
+
+  "SklearnMLOperatorDescriptor.customizeJsonSchema" should
+    "offer a chosen-from-a-set parameter exactly the values scikit-learn accepts" in {
+    val kernel = ruleFor(valueRulesOf(classOf[SklearnAdvancedSVCTrainerOpDesc]), "kernel")
+    // scikit-learn's own default leads, so a reader taking the first takes that one
+    kernel.path("enum").elements().asScala.map(_.asText()).toSeq shouldBe
+      Seq("rbf", "linear", "poly", "sigmoid", "precomputed")
+    // an accepted set replaces a type rather than joining it: the values are the constraint
+    kernel.has("type") shouldBe false
+    // and it replaces an example too, having already named every value worth offering
+    kernel.has("examples") shouldBe false
+  }
+
+  it should "read a parameter with no set of its own from the converter it names" in {
+    val rules = valueRulesOf(classOf[SklearnAdvancedSVCTrainerOpDesc])
+    ruleFor(rules, "C").path("type").asText() shouldBe "number"
+    ruleFor(rules, "degree").path("type").asText() shouldBe "integer"
+  }
+
+  it should "carry the estimator's bound under whichever name matches its range" in {
+    val rules = valueRulesOf(classOf[SklearnAdvancedSVCTrainerOpDesc])
+    // C's range is open at zero and degree's is closed, so the two take different names
+    ruleFor(rules, "C").path("exclusiveMinimum").asDouble() shouldBe 0.0
+    ruleFor(rules, "C").has("minimum") shouldBe false
+    ruleFor(rules, "degree").path("minimum").asDouble() shouldBe 0.0
+    ruleFor(rules, "degree").has("exclusiveMinimum") shouldBe false
+    // coef0 is bounded by nothing, so it gets neither rather than a made-up zero
+    ruleFor(rules, "coef0").has("minimum") shouldBe false
+    ruleFor(rules, "coef0").has("exclusiveMinimum") shouldBe false
+  }
+
+  it should "keep a sentinel value reachable when it lies below the useful range" in {
+    // SVR's max_iter uses -1 for no limit, so the bound has to admit it
+    val rules = valueRulesOf(classOf[SklearnAdvancedSVRTrainerOpDesc])
+    ruleFor(rules, "max_iter").path("minimum").asDouble() shouldBe -1.0
+  }
+
+  it should "describe a parameter choosing between a set and a number with a pattern" in {
+    // gamma takes either of two words or a number, which no type names, so the rule carries a
+    // pattern in place of one. Its example is the estimator's own default, a word.
+    val gamma = ruleFor(valueRulesOf(classOf[SklearnAdvancedSVCTrainerOpDesc]), "gamma")
+    gamma.has("type") shouldBe false
+    gamma.path("examples").path(0).asText() shouldBe "scale"
+    val pattern = gamma.path("pattern").asText()
+    Seq("scale", "auto", "0.1", "1e-3", " 1 ").foreach(v => v.matches(pattern) shouldBe true)
+    Seq("abc", "", "scaleauto", "1.2.3").foreach(v => v.matches(pattern) shouldBe false)
+  }
+
+  it should "name the parameter as the config spells it, not as the estimator does" in {
+    // SVR's `shrinking` is offered by a constant named `probability`, and a chosen parameter
+    // reaches the config as the constant. A condition naming the keyword instead would hold
+    // for nothing, leaving the value it constrains free.
+    val shrinking = ruleFor(valueRulesOf(classOf[SklearnAdvancedSVRTrainerOpDesc]), "probability")
+    shrinking.path("enum").elements().asScala.map(_.asText()).toSeq shouldBe Seq("true", "false")
+  }
+
+  it should "state a rule for every parameter whose converter says anything about it" in {
+    val rules = valueRulesOf(classOf[SklearnAdvancedKNNClassifierTrainerOpDesc])
+    val covered = rules
+      .elements()
+      .asScala
+      .flatMap(_.path("if").path("parameter").path("valEnum").elements().asScala)
+      .map(_.asText())
+      .toSet
+    // Every KNN parameter now says something a rule can carry: a converter that narrows
+    // the value, a set of accepted words, or an example. `metric_params` says the least
+    // of them — `json.loads` narrows nothing a JSON Schema type can express — but it
+    // still offers `{}` as the shape to start from.
+    covered shouldBe Set(
+      "n_neighbors",
+      "p",
+      "weights",
+      "algorithm",
+      "leaf_size",
+      "metric",
+      "metric_params"
+    )
+  }
+
+  it should "leave a schema it cannot find the row in alone" in {
+    // The three shapes that make the rules unwritable. None arises from a schema the generator
+    // produced, so the point is that each is passed over rather than thrown on.
+    val svc = new SklearnAdvancedSVCTrainerOpDesc
+    Seq(
+      objectMapper.createObjectNode(),
+      objectMapper.readTree("""{"properties": {"paraList": {"items": {}}}}"""),
+      objectMapper.readTree(
+        """{"properties": {"paraList": {"items": {"$ref": "#/definitions/Row"}}},
+           "definitions": {"Row": {"properties": {"value": "not an object"}}}}"""
+      )
+    ).foreach { schema =>
+      val node = schema.asInstanceOf[ObjectNode]
+      noException should be thrownBy svc.customizeJsonSchema(node)
+      node.findValue("valueRules") shouldBe null
+    }
+  }
+
+  it should "write no rules for a descriptor whose type argument is not an enum" in {
+    // TestParam is a class standing in for one, so there are no constants to read. A real
+    // operator always binds an enum; this is the path a test stub takes.
+    val schema = objectMapper
+      .readTree(
+        """{"properties": {"paraList": {"items": {"$ref": "#/definitions/Row"}}},
+           "definitions": {"Row": {"properties": {"value": {"type": "string"}}}}}"""
+      )
+      .asInstanceOf[ObjectNode]
+    new TestSklearnMLOp().customizeJsonSchema(schema)
+    schema.findValue("valueRules") shouldBe null
+  }
+
+  "HyperParameters" should "require whichever of the two inputs the row actually uses" in {
+    val schema =
+      OperatorMetadataGenerator.generateOperatorJsonSchema(classOf[SklearnAdvancedSVCTrainerOpDesc])
+    val row = schema
+      .path("definitions")
+      .path(
+        schema
+          .path("properties")
+          .path("paraList")
+          .path("items")
+          .path("$ref")
+          .asText()
+          .stripPrefix("#/definitions/")
+      )
+    val branch = row.path("allOf").path(0)
+    branch
+      .path("if")
+      .path("properties")
+      .path("parametersSource")
+      .path("const")
+      .asBoolean() shouldBe true
+    branch.path("then").path("required").path(0).asText() shouldBe "attribute"
+    branch.path("else").path("required").path(0).asText() shouldBe "value"
+    // neither may be required outright: the hide rules show only one of them at a time
+    row
+      .path("required")
+      .elements()
+      .asScala
+      .map(_.asText())
+      .toSeq should contain noneOf ("value", "attribute")
+  }
+
+  it should "refuse two rows setting one parameter, whichever source they read" in {
+    val d = new TestSklearnMLOp
+    val paraList = List(
+      hyperParam("n_neighbors", "int", fromWorkflow = false, value = "5"),
+      hyperParam("n_neighbors", "int", fromWorkflow = true, attribute = "k_col")
+    )
+    val thrown = the[IllegalArgumentException] thrownBy d.getParameter(paraList)
+    thrown.getMessage should include("n_neighbors")
+  }
+
+  it should "accept rows setting different parameters" in {
+    val d = new TestSklearnMLOp
+    val paraList = List(
+      hyperParam("n_neighbors", "int", fromWorkflow = false, value = "5"),
+      hyperParam("leaf_size", "int", fromWorkflow = false, value = "30")
+    )
+    val paramString = d.getParameter(paraList)(1).encode
+    paramString.filterNot(_.isWhitespace) should include("n_neighbors=int(")
+    paramString.filterNot(_.isWhitespace) should include("leaf_size=int(")
   }
 }

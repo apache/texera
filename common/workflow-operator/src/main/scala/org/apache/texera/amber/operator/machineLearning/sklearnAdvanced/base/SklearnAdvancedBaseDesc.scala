@@ -20,25 +20,91 @@
 package org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.base
 
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyDescription}
-import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
+import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
+import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.annotations.{
   AutofillAttributeName,
-  AutofillAttributeNameList
+  AutofillAttributeNameList,
+  SampleColumn
 }
-import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.texera.amber.operator.metadata.{
+  JsonSchemaCustomizer,
+  OperatorGroupConstants,
+  OperatorInfo
+}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
+import org.apache.texera.amber.util.JSONUtils.objectMapper
+import com.fasterxml.jackson.databind.node.ObjectNode
+import java.lang.reflect.{ParameterizedType, Type}
+import scala.util.Try
+
+/**
+  * One hyperparameter a trainer offers. `getName` is the keyword argument passed to the
+  * estimator and `getType` the callable converting the user's text, so together they already
+  * decide which values the estimator can be given. The two below state that so the form can
+  * hold the user to it, rather than leaving it to be discovered when `fit` raises.
+  */
 trait ParamClass {
   def getName: String
 
   def getType: String
+
+  /** One value this parameter accepts, offered as an example rather than imposed as a
+    * default: what the estimator itself documents as its default is the obvious choice, but
+    * nothing here decides a hyperparameter on the user's behalf. Empty for a parameter with an
+    * accepted set, which already names every value worth offering, and empty where even the
+    * estimator's own default is a value `getType` cannot convert, since an example the
+    * operator would then reject is worse than none.
+    */
+  def getSampleValue: String
+
+  /** The values the estimator accepts, where it accepts a fixed set rather than a range, the
+    * estimator's own default first. Empty for a parameter taking any number, which its
+    * converter already constrains.
+    */
+  def getAllowedValues: Array[String]
+
+  /** The shape the value takes, for a parameter that accepts neither a fixed set nor a plain
+    * number but a choice between them. Empty for every parameter one of the other two
+    * describes, which is most of them.
+    */
+  def getPattern: String = ""
+
+  /** How low the value may go, written the way the estimator's own range reads: `">0"` where
+    * zero itself is refused and `">=1"` where the bound is included. Empty for a parameter
+    * bounded by nothing, which a number alone cannot be told from one whose bound nobody
+    * looked up.
+    */
+  def getMinimum: String = ""
 }
 
-abstract class SklearnMLOperatorDescriptor[T <: ParamClass] extends PythonOperatorDescriptor {
+// Every selected column goes into `fit` untouched, so each has to be one that
+// scikit-learn reads as a number. A boolean counts, fitted as 0/1.
+//
+// A timestamp does not, even though one on its own fits: it stays datetime64,
+// and numpy has no type that holds a date beside a number, so the moment a
+// timestamp is selected alongside any other column the fit raises
+// DTypePromotionError. This rule is read one column at a time and cannot say
+// "all of them or none of them", so admitting a timestamp here would admit the
+// combination that breaks.
+@JsonSchemaInject(json = """
+{
+  "attributeTypeRules": {
+    "Selected Features": {
+      "enum": ["integer", "long", "double", "boolean"]
+    }
+  }
+}
+""")
+abstract class SklearnMLOperatorDescriptor[T <: ParamClass]
+    extends PythonOperatorDescriptor
+    with StandaloneCodeGenerator
+    with JsonSchemaCustomizer {
   @JsonIgnore
   def getImportStatements: String
 
@@ -49,6 +115,9 @@ abstract class SklearnMLOperatorDescriptor[T <: ParamClass] extends PythonOperat
   @JsonSchemaTitle("Parameter Setting")
   var paraList: List[HyperParameters[T]] = List()
 
+  // The label the estimator fits against. Test-only steering: without it the first
+  // column wins, which on a feature/label table is a feature.
+  @SampleColumn("species")
   @JsonProperty(required = true)
   @JsonSchemaTitle("Ground Truth Attribute Column")
   @JsonPropertyDescription("Ground truth attribute column")
@@ -61,6 +130,148 @@ abstract class SklearnMLOperatorDescriptor[T <: ParamClass] extends PythonOperat
   @AutofillAttributeNameList
   var selectedFeatures: List[EncodableString] = _
 
+  /**
+    * State what a `paraList` row's `value` may hold, which depends on the `parameter` chosen
+    * beside it and so cannot be annotated on a field shared by every parameter.
+    *
+    * The rules go under a key of Texera's own rather than as a JSON-Schema `allOf`, for the
+    * same reason `attributeTypeRules` does, and whose grammar they borrow: the form builder
+    * merges the members of an `allOf` into a single field, which would leave one control
+    * carrying every parameter's constraints at once.
+    */
+  override def customizeJsonSchema(schema: ObjectNode): Unit = {
+    val rowSchema = hyperParameterRowSchema(schema)
+    if (rowSchema == null) return
+    val value = rowSchema.path("properties").path("value")
+    if (!value.isObject) return
+
+    val branches = objectMapper.createArrayNode()
+    paramConstants.foreach { param =>
+      val condition = objectMapper.createObjectNode()
+      condition
+        .putObject("parameter")
+        .putArray("valEnum")
+        .add(chosenValueOf(param))
+
+      val outcome = objectMapper.createObjectNode()
+      if (param.getAllowedValues.nonEmpty) {
+        // The accepted set says everything: it names each value a reader could pick and each
+        // value a sweep should try, so an example alongside it would only repeat one of them.
+        param.getAllowedValues.foreach(outcome.withArray("enum").add)
+      } else {
+        // A pattern is what a parameter offering a choice between a set and a number has
+        // instead, so it stands in for the type rather than joining it.
+        if (param.getPattern.nonEmpty) outcome.put("pattern", param.getPattern)
+        else
+          valueTypeOf(param).foreach { valueType =>
+            outcome.put("type", valueType)
+            // A bound belongs to a value read as a number, so it rides with the type rather
+            // than standing on its own.
+            addMinimum(param.getMinimum, outcome)
+          }
+        if (param.getSampleValue.nonEmpty) outcome.withArray("examples").add(param.getSampleValue)
+      }
+
+      if (!outcome.isEmpty) {
+        val branch = objectMapper.createObjectNode()
+        branch.set[ObjectNode]("if", condition)
+        branch.set[ObjectNode]("then", outcome)
+        branches.add(branch)
+      }
+    }
+    if (!branches.isEmpty)
+      value
+        .asInstanceOf[ObjectNode]
+        .putObject("valueRules")
+        .set[ObjectNode]("allOf", branches)
+  }
+
+  /** What a chosen `parameter` holds in the config, which a rule's condition has to name to
+    * hold: the enum constant, since that is what Jackson writes and what the form compares
+    * against. Not `getName`, the keyword the emitted Python passes on, which SVR's `shrinking`
+    * spells differently from the constant offering it.
+    */
+  private def chosenValueOf(param: ParamClass): String =
+    param match {
+      case constant: Enum[_] => constant.name
+      case _                 => param.getName
+    }
+
+  /** Puts a declared bound under the JSON Schema name for it, `>` and `>=` being the two forms
+    * an estimator's range takes at the low end. A bound spelled any other way is skipped
+    * rather than guessed at, since a wrong one turns away values that work.
+    */
+  private def addMinimum(bound: String, outcome: ObjectNode): Unit =
+    if (bound.startsWith(">=")) numberOf(bound.drop(2)).foreach(outcome.put("minimum", _))
+    else if (bound.startsWith(">"))
+      numberOf(bound.drop(1)).foreach(outcome.put("exclusiveMinimum", _))
+
+  private def numberOf(text: String): Option[Double] = Try(text.trim.toDouble).toOption
+
+  /** How the form should read a value with no fixed set of its own: from the callable the
+    * parameter names, since that is what the emitted code puts the text through. A parameter
+    * converted by anything else is left unconstrained rather than guessed at.
+    */
+  private def valueTypeOf(param: ParamClass): Option[String] =
+    param.getType match {
+      case "int"              => Some("integer")
+      case "float" | "double" => Some("number")
+      case _                  => None
+    }
+
+  /** The `HyperParameters` definition this operator's `paraList` points at. Followed by its
+    * `$ref` rather than by name, which carries the parameter enum and so differs per operator.
+    */
+  private def hyperParameterRowSchema(schema: ObjectNode): ObjectNode = {
+    val ref = schema.path("properties").path("paraList").path("items").path("$ref").asText("")
+    val name = ref.stripPrefix("#/definitions/")
+    if (name.isEmpty) return null
+    schema.path("definitions").path(name) match {
+      case row: ObjectNode => row
+      case _               => null
+    }
+  }
+
+  /** The hyperparameters this operator offers, from the enum bound to `T`. The field itself
+    * cannot say: erasure leaves `paraList` holding a plain `HyperParameters`, so the binding
+    * survives only on the generic supertype. Empty where `T` is not an enum, which is only
+    * ever a test stub standing in for one.
+    */
+  private def paramConstants: Seq[ParamClass] = {
+    var t: Type = getClass.getGenericSuperclass
+    while (t != null) t match {
+      case p: ParameterizedType =>
+        val raw = p.getRawType.asInstanceOf[Class[_]]
+        if (raw == classOf[SklearnMLOperatorDescriptor[_]])
+          return p.getActualTypeArguments()(0) match {
+            case bound: Class[_] =>
+              val constants = bound.getEnumConstants.asInstanceOf[Array[AnyRef]]
+              if (constants == null) Seq.empty
+              else constants.toSeq.map(_.asInstanceOf[ParamClass])
+            case _ => Seq.empty
+          }
+        t = raw.getGenericSuperclass
+      case c: Class[_] => t = c.getGenericSuperclass
+      case _           => t = null
+    }
+    Seq.empty
+  }
+
+  /**
+    * Each row emits one keyword argument, so two rows naming one parameter emit that keyword
+    * twice and Python rejects the operator with a repeated-keyword SyntaxError. Refused here
+    * instead, where the workflow fails to compile with the parameter named.
+    */
+  private def requireDistinctParameters(paraList: List[HyperParameters[T]]): Unit = {
+    val repeated = paraList.map(_.parameter.getName).groupBy(identity).collect {
+      case (name, rows) if rows.size > 1 => name
+    }
+    require(
+      repeated.isEmpty,
+      s"Each parameter can be set at most once. Set more than once: ${repeated.toSeq.sorted.mkString(", ")}."
+    )
+  }
+
   private def getLoopTimes(paraList: List[HyperParameters[T]]): PythonTemplateBuilder = {
     for (ele <- paraList) {
       if (ele.parametersSource) {
@@ -71,6 +282,7 @@ abstract class SklearnMLOperatorDescriptor[T <: ParamClass] extends PythonOperat
   }
 
   def getParameter(paraList: List[HyperParameters[T]]): List[PythonTemplateBuilder] = {
+    requireDistinctParameters(paraList)
     var workflowParam = s"";
     var portParam = pyb"";
     var paramString = pyb""
@@ -91,6 +303,45 @@ abstract class SklearnMLOperatorDescriptor[T <: ParamClass] extends PythonOperat
     List(pyb""""$workflowParam".format($portParam)""", paramString)
 
   }
+
+  /** Standalone-safe parameter strings: the parameter-table column name is
+    * emitted as a quoted Python string literal (`table["col"]`). The shared
+    * [[getParameter]]/[[getLoopTimes]] rely on EncodableString auto-encoding for
+    * the native path; the standalone `.plain` path would otherwise drop the
+    * quotes (`table[col]`) and raise NameError. Returns (model-args, para_str).
+    */
+  private def getParameterStandalone(paraList: List[HyperParameters[T]]): (String, String) = {
+    val workflowParam = new StringBuilder
+    val portParam = new StringBuilder
+    val paramString = new StringBuilder
+    for (ele <- paraList) {
+      val name = ele.parameter.getName
+      val typ = ele.parameter.getType
+      workflowParam.append(s"$name = {},")
+      if (ele.parametersSource) {
+        val attrLit = pyStringLiteral(ele.attribute)
+        portParam.append(s"""$typ(table[$attrLit].values[i]),""")
+        paramString.append(s"""$name = $typ(table[$attrLit].values[i]),""")
+      } else {
+        // The value is written by the user as text and converted by `typ` in the
+        // emitted code, so it has to arrive as a Python string literal. Numeric
+        // hyperparameters survived without this because `float(1.0)` happens to
+        // parse; a string one emitted `str(rbf)` and raised NameError.
+        val valueLit = pyStringLiteral(ele.value)
+        portParam.append(s"$typ ($valueLit),")
+        paramString.append(s"$name = $typ ($valueLit),")
+      }
+    }
+    (paramString.toString, s"""${pyStringLiteral(workflowParam.toString)}.format($portParam)""")
+  }
+
+  private def getLoopTimesStandalone(paraList: List[HyperParameters[T]]): String =
+    paraList
+      .collectFirst {
+        case ele if ele.parametersSource =>
+          s"""table[${pyStringLiteral(ele.attribute)}].values.shape[0]"""
+      }
+      .getOrElse("1")
 
   override def generatePythonCode(): String = {
     val listFeatures = selectedFeatures.map(feature => pyb"""$feature""").mkString(",")
@@ -171,6 +422,17 @@ abstract class SklearnMLOperatorDescriptor[T <: ParamClass] extends PythonOperat
   override def getOutputSchemas(
       inputSchemas: Map[PortIdentity, Schema]
   ): Map[PortIdentity, Schema] = {
+    // The features go to `fit` as they are named, so the ground truth among them
+    // is the answer handed to the estimator as an input. Nothing fails when that
+    // happens, which is why it is refused here: the run finishes and the model
+    // scores far better than what it learned deserves.
+    if (Option(selectedFeatures).exists(_.contains(groundTruthAttribute))) {
+      throw new RuntimeException(
+        s""""$groundTruthAttribute" is the Ground Truth Attribute Column, so it cannot""" +
+          " also be a Selected Feature. Remove it from Selected Features, or fit against" +
+          " a different column."
+      )
+    }
     val outputSchema = Schema(
       List(
         new Attribute("Model", AttributeType.BINARY),
@@ -179,5 +441,38 @@ abstract class SklearnMLOperatorDescriptor[T <: ParamClass] extends PythonOperat
     )
 
     Map(operatorInfo.outputPorts.head.id -> outputSchema)
+  }
+
+  override def generateStandaloneCode(): String = {
+    val listFeatures = selectedFeatures.map(pyStringLiteral).mkString(",")
+    val trainingName = getImportStatements.split(" ").last
+    val (trainingParamPlain, paramStringPlain) = getParameterStandalone(paraList)
+    val loopTimesPlain = getLoopTimesStandalone(paraList)
+
+    // Imported for the same reason the operator path imports it: a hyperparameter
+    // declaring `json.loads` as its converter names it in the emitted code.
+    s"""import json
+       |import pandas as pd
+       |${getImportStatements}
+       |
+       |dataset = in1df
+       |table = in2df
+       |features = [$listFeatures]
+       |rows_read = len(dataset)
+       |dataset = dataset.dropna(subset=features + [${pyStringLiteral(groundTruthAttribute)}])
+       |if len(dataset) < rows_read:
+       |    print("Skipped", rows_read - len(dataset), "of", rows_read, "rows with missing values")
+       |y_train = dataset[${pyStringLiteral(groundTruthAttribute)}]
+       |X_train = dataset[features]
+       |loop_times = $loopTimesPlain
+       |model_list = []
+       |para_list = []
+       |for i in range(loop_times):
+       |    model = $trainingName($trainingParamPlain)
+       |    model.fit(X_train, y_train)
+       |    model_list.append(model)
+       |    para_str = $paramStringPlain
+       |    para_list.append(para_str)
+       |out1df = pd.DataFrame({"Model": model_list, "Parameters": para_list})""".stripMargin
   }
 }
