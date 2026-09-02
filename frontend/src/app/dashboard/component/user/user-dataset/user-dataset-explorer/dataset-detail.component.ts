@@ -424,11 +424,11 @@ export class DatasetDetailComponent implements OnInit {
     this.isRightBarCollapsed = !this.isRightBarCollapsed;
   }
 
-  onVersionSelected(version: DatasetVersion): void {
+  onVersionSelected(version: DatasetVersion | undefined): void {
     this.selectedVersion = version;
-    if (this.did && this.selectedVersion.dvid)
+    if (this.did && version?.dvid)
       this.datasetService
-        .retrieveDatasetVersionFileTree(this.did, this.selectedVersion.dvid, this.isLogin)
+        .retrieveDatasetVersionFileTree(this.did, version.dvid, this.isLogin)
         .pipe(untilDestroyed(this))
         .subscribe(data => {
           this.fileTreeNodeList = data.fileNodes;

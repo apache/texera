@@ -704,6 +704,16 @@ describe("DatasetDetailComponent behavior", () => {
       expect(component.selectedVersionCreationTime).toMatch(/^\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}:\d{2}$/);
     });
 
+    it("survives the version select being emptied", () => {
+      createComponent();
+      component.did = 5;
+
+      expect(() => component.onVersionSelected(undefined)).not.toThrow();
+
+      expect(component.selectedVersion).toBeUndefined();
+      expect(datasetServiceStub.retrieveDatasetVersionFileTree).not.toHaveBeenCalled();
+    });
+
     it("does not fetch a file tree for a version without a dvid", () => {
       createComponent();
       component.did = 5;
@@ -2420,6 +2430,11 @@ describe("DatasetDetailComponent rendered template", () => {
       // authenticated or the anonymous endpoint, so it has to be the real flag.
       expect(datasetService.retrieveDatasetVersionFileTree).toHaveBeenCalledWith(5, 12, true);
       expect(datasetService.retrieveDatasetVersionFileTree).toHaveBeenCalledWith(5, 13, true);
+    });
+
+    it("offers no way to empty the selection", () => {
+      // Clearing it used to reach onVersionSelected as null and throw.
+      expect(fixture.nativeElement.querySelector("nz-select-clear, .ant-select-clear")).toBeNull();
     });
 
     it("loads a picked version over the anonymous endpoint when nobody is signed in", () => {
