@@ -19,11 +19,7 @@
 
 import { ComponentFixture, discardPeriodicTasks, fakeAsync, TestBed, tick } from "@angular/core/testing";
 
-import {
-  AGGREGATE_COUNT,
-  isAggregateAttributeRequired,
-  OperatorPropertyEditFrameComponent,
-} from "./operator-property-edit-frame.component";
+import { conditionalRequiredRules, OperatorPropertyEditFrameComponent } from "./operator-property-edit-frame.component";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { WorkflowCompilingService } from "../../../service/compile-workflow/workflow-compiling.service";
 import { CustomJSONSchema7 } from "../../../types/custom-json-schema.interface";
@@ -71,14 +67,44 @@ import { PresetWrapperComponent } from "src/app/common/formly/preset-wrapper/pre
 
 const { marbles } = configure({ run: false });
 
-describe("Aggregate attribute requirement", () => {
-  it("makes the attribute optional for count and required for every other function", () => {
-    // count -> optional (empty attribute means COUNT(*))
-    expect(isAggregateAttributeRequired(AGGREGATE_COUNT)).toBe(false);
-    // every other aggregate function -> attribute required
-    ["sum", "average", "min", "max", "concat"].forEach(fn => {
-      expect(isAggregateAttributeRequired(fn)).toBe(true);
+describe("conditionalRequiredRules", () => {
+  it("reads a `then` rule, as Sklearn states it for the text column", () => {
+    const rules = conditionalRequiredRules({
+      allOf: [{ if: { properties: { countVectorizer: { const: true } } }, then: { required: ["text"] } }],
     });
+    expect(rules.get("text")).toEqual({ sibling: "countVectorizer", value: true, requiredOnMatch: true });
+  });
+
+  it("reads an `else` rule nested in a definition, as Aggregate states it", () => {
+    const rules = conditionalRequiredRules({
+      definitions: {
+        AggregationOperation: {
+          allOf: [
+            {
+              if: { properties: { aggFunction: { const: "count" } } },
+              then: {},
+              else: { required: ["attribute"] },
+            },
+          ],
+        },
+      },
+    });
+    // count -> optional (an empty attribute means COUNT(*)); every other function -> required
+    expect(rules.get("attribute")).toEqual({ sibling: "aggFunction", value: "count", requiredOnMatch: false });
+  });
+
+  it("ignores an attributeTypeRules block, which names its sibling without `properties`", () => {
+    const rules = conditionalRequiredRules({
+      attributeTypeRules: {
+        attribute: { allOf: [{ if: { aggFunction: { valEnum: ["sum"] } }, then: { enum: ["integer"] } }] },
+      },
+    });
+    expect(rules.size).toBe(0);
+  });
+
+  it("returns nothing for a schema that states no condition", () => {
+    expect(conditionalRequiredRules({ properties: { a: { type: "string" } } }).size).toBe(0);
+    expect(conditionalRequiredRules(undefined).size).toBe(0);
   });
 });
 
@@ -2773,8 +2799,19 @@ describe("OperatorPropertyEditFrameComponent", () => {
       }
     });
 
-    it("marks the Aggregate attribute required only for functions that need one", () => {
-      component.currentOperatorSchema = { operatorType: "Aggregate" } as any;
+    it("marks a field the schema requires conditionally, as Aggregate does its attribute", () => {
+      component.currentOperatorSchema = {
+        operatorType: "Aggregate",
+        jsonSchema: {
+          allOf: [
+            {
+              if: { properties: { aggFunction: { const: "count" } } },
+              then: {},
+              else: { required: ["attribute"] },
+            },
+          ],
+        },
+      } as any;
 
       component.setFormlyFormBinding({
         type: "object",
@@ -2783,11 +2820,11 @@ describe("OperatorPropertyEditFrameComponent", () => {
 
       const required = expressionsOf("attribute")["props.required"];
       expect(required({ parent: { model: { aggFunction: "sum" } } } as any)).toBe(true);
-      expect(required({ parent: { model: { aggFunction: AGGREGATE_COUNT } } } as any)).toBe(false);
+      expect(required({ parent: { model: { aggFunction: "count" } } } as any)).toBe(false);
     });
 
-    it("leaves the attribute rule off for a non-Aggregate operator", () => {
-      component.currentOperatorSchema = { operatorType: "Projection" } as any;
+    it("leaves the rule off for a schema that states no condition", () => {
+      component.currentOperatorSchema = { operatorType: "Projection", jsonSchema: {} } as any;
 
       component.setFormlyFormBinding({
         type: "object",

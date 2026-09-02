@@ -43,6 +43,7 @@ import { HubWorkflowDetailComponent } from "./hub/component/workflow/detail/hub-
 import { LandingPageComponent } from "./hub/component/landing-page/landing-page.component";
 import { USER_WORKFLOW } from "./app-routing.constant";
 import { HubSearchResultComponent } from "./hub/component/hub-search-result/hub-search-result.component";
+import { EntityType } from "./hub/service/hub.service";
 import { AdminSettingsComponent } from "./dashboard/component/admin/settings/admin-settings.component";
 
 const routes: Routes = [];
@@ -81,6 +82,7 @@ routes.push({
             {
               path: "result",
               component: HubSearchResultComponent,
+              data: { entityType: EntityType.Workflow },
             },
             {
               path: "result/detail/:id",
@@ -94,10 +96,25 @@ routes.push({
             {
               path: "result",
               component: HubSearchResultComponent,
+              data: { entityType: EntityType.Dataset },
             },
             {
               path: "result/detail/:did",
               component: DatasetDetailComponent,
+            },
+          ],
+        },
+        {
+          path: "model",
+          children: [
+            {
+              path: "result",
+              component: HubSearchResultComponent,
+              data: { entityType: EntityType.Model },
+            },
+            {
+              path: "result/detail/:mid",
+              component: ModelDetailComponent,
             },
           ],
         },

@@ -23,7 +23,7 @@ import { ResourceAffordances, ResourceDescriptor } from "../../../type/resource-
 import { EntityType } from "../../../../hub/service/hub.service";
 import { DEFAULT_MODEL_NAME, ModelService, validateModelName } from "../model/model.service";
 import { MODEL_ICON } from "../../../../common/icon/model-icon";
-import { USER_MODEL } from "../../../../app-routing.constant";
+import { HUB_MODEL_RESULT_DETAIL, USER_MODEL } from "../../../../app-routing.constant";
 import { DownloadService } from "../download/download.service";
 import { map } from "rxjs/operators";
 
@@ -34,7 +34,7 @@ export class ModelResourceDescriptor implements ResourceDescriptor {
   readonly type = EntityType.Model;
   readonly iconType = MODEL_ICON;
   readonly privateRoute = USER_MODEL;
-  // `hubRoute` is deliberately absent: models reach the hub with the rest of the hub UI.
+  readonly hubRoute = HUB_MODEL_RESULT_DETAIL;
   readonly hasSize = true;
   readonly defaultName = DEFAULT_MODEL_NAME;
   // Publishing a model grants read access only; there is no clone action for it.
