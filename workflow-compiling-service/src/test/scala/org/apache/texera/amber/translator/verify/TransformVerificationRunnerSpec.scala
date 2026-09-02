@@ -30,9 +30,8 @@ package org.apache.texera.amber.translator.verify
 
 import org.apache.texera.amber.operator.hashJoin.HashJoinOpDesc
 import org.apache.texera.amber.operator.limit.LimitOpDesc
-import org.apache.texera.amber.operator.visualization.barChart.BarChartOpDesc
+import org.apache.texera.amber.operator.udf.python.PythonUDFOpDescV2
 import org.apache.texera.amber.operator.union.UnionOpDesc
-import org.apache.texera.amber.operator.visualization.wordCloud.WordCloudOpDesc
 import org.apache.texera.amber.operator.sklearn.SklearnPredictionOpDesc
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -45,10 +44,6 @@ class TransformVerificationRunnerSpec extends AnyFlatSpec with Matchers {
     // JVM-written JSONL fixture can't carry; triaged as a known issue, not run.
     disposition(classOf[SklearnPredictionOpDesc]) match {
       case Flagged(reason) => reason should include("trained-model")
-      case other           => fail(s"expected Flagged, got $other")
-    }
-    disposition(classOf[WordCloudOpDesc]) match {
-      case Flagged(reason) => reason should include("known issue")
       case other           => fail(s"expected Flagged, got $other")
     }
   }
@@ -72,12 +67,11 @@ class TransformVerificationRunnerSpec extends AnyFlatSpec with Matchers {
     disposition(classOf[LimitOpDesc]) shouldBe Runnable("auto")
   }
 
-  // The operator set implements the generator a family at a time, and the
-  // visualization family has not had its turn. That is reported rather than passed over: an operator missing
-  // from the run is a fact the report has to carry, and the rows for each family
-  // arrive with the change that gives that family its generator.
-  it should "flag an operator that has no standalone generator yet" in {
-    disposition(classOf[BarChartOpDesc]) shouldBe
+  // A UDF's body is written by whoever drops the operator, so there is nothing
+  // for a generator to emit. It stands here for the shape of the report: an
+  // operator that cannot be exported is carried as a row, not passed over.
+  it should "flag an operator that has no standalone generator" in {
+    disposition(classOf[PythonUDFOpDescV2]) shouldBe
       Flagged("does not implement StandaloneCodeGenerator")
   }
 }
