@@ -29,10 +29,27 @@ package org.apache.texera.amber.translator.verify
 // OperatorBehaviorSpec does not check, so it lives here.
 
 import org.apache.texera.amber.operator.limit.LimitOpDesc
-import org.apache.texera.amber.operator.sortPartitions.SortPartitionsOpDesc
+import org.apache.texera.amber.operator.udf.python.PythonUDFOpDescV2
 import org.apache.texera.amber.operator.union.UnionOpDesc
-import org.apache.texera.amber.operator.visualization.wordCloud.WordCloudOpDesc
 import org.apache.texera.amber.operator.sklearn.SklearnPredictionOpDesc
+import org.apache.texera.amber.operator.visualization.bulletChart.BulletChartOpDesc
+import org.apache.texera.amber.operator.visualization.carpetPlot.CarpetPlotOpDesc
+import org.apache.texera.amber.operator.visualization.choroplethMap.ChoroplethMapOpDesc
+import org.apache.texera.amber.operator.visualization.contourPlot.ContourPlotOpDesc
+import org.apache.texera.amber.operator.visualization.dumbbellPlot.DumbbellPlotOpDesc
+import org.apache.texera.amber.operator.visualization.filledAreaPlot.FilledAreaPlotOpDesc
+import org.apache.texera.amber.operator.visualization.ganttChart.GanttChartOpDesc
+import org.apache.texera.amber.operator.visualization.gaugeChart.GaugeChartOpDesc
+import org.apache.texera.amber.operator.visualization.polarChart.PolarChartOpDesc
+import org.apache.texera.amber.operator.visualization.quiverPlot.QuiverPlotOpDesc
+import org.apache.texera.amber.operator.visualization.radarChart.RadarChartOpDesc
+import org.apache.texera.amber.operator.visualization.radarPlot.RadarPlotOpDesc
+import org.apache.texera.amber.operator.visualization.scatter3DChart.Scatter3dChartOpDesc
+import org.apache.texera.amber.operator.visualization.ternaryContour.TernaryContourOpDesc
+import org.apache.texera.amber.operator.visualization.ternaryPlot.TernaryPlotOpDesc
+import org.apache.texera.amber.operator.visualization.timeSeriesplot.TimeSeriesOpDesc
+import org.apache.texera.amber.operator.visualization.volcanoPlot.VolcanoPlotOpDesc
+import org.apache.texera.amber.operator.visualization.windRoseChart.WindRoseChartOpDesc
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -44,10 +61,6 @@ class TransformVerificationRunnerSpec extends AnyFlatSpec with Matchers {
     // JVM-written JSONL fixture can't carry; triaged as a known issue, not run.
     disposition(classOf[SklearnPredictionOpDesc]) match {
       case Flagged(reason) => reason should include("trained-model")
-      case other           => fail(s"expected Flagged, got $other")
-    }
-    disposition(classOf[WordCloudOpDesc]) match {
-      case Flagged(reason) => reason should include("known issue")
       case other           => fail(s"expected Flagged, got $other")
     }
   }
@@ -64,12 +77,37 @@ class TransformVerificationRunnerSpec extends AnyFlatSpec with Matchers {
     disposition(classOf[LimitOpDesc]) shouldBe Runnable("auto")
   }
 
-  // The operator set implements the generator a family at a time, so most of it
-  // does not yet. That is reported rather than passed over: an operator missing
-  // from the run is a fact the report has to carry, and the rows for each family
-  // arrive with the change that gives that family its generator.
-  it should "flag an operator that has no standalone generator yet" in {
-    disposition(classOf[SortPartitionsOpDesc]) shouldBe
+  it should "route this batch's visualizations to the visualization tier" in {
+    val batch = Seq(
+      classOf[BulletChartOpDesc],
+      classOf[CarpetPlotOpDesc],
+      classOf[ChoroplethMapOpDesc],
+      classOf[ContourPlotOpDesc],
+      classOf[DumbbellPlotOpDesc],
+      classOf[FilledAreaPlotOpDesc],
+      classOf[GanttChartOpDesc],
+      classOf[GaugeChartOpDesc],
+      classOf[PolarChartOpDesc],
+      classOf[QuiverPlotOpDesc],
+      classOf[RadarChartOpDesc],
+      classOf[RadarPlotOpDesc],
+      classOf[Scatter3dChartOpDesc],
+      classOf[TernaryContourOpDesc],
+      classOf[TernaryPlotOpDesc],
+      classOf[TimeSeriesOpDesc],
+      classOf[VolcanoPlotOpDesc],
+      classOf[WindRoseChartOpDesc]
+    )
+    batch.foreach(op =>
+      withClue(op.getSimpleName)(disposition(op) shouldBe Runnable("visualization"))
+    )
+  }
+
+  // A UDF's body is written by whoever drops the operator, so there is nothing
+  // for a generator to emit. It stands here for the shape of the report: an
+  // operator that cannot be exported is carried as a row, not passed over.
+  it should "flag an operator that has no standalone generator" in {
+    disposition(classOf[PythonUDFOpDescV2]) shouldBe
       Flagged("does not implement StandaloneCodeGenerator")
   }
 }

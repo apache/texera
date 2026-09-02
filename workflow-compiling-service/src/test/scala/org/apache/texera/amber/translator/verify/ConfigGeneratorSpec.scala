@@ -23,6 +23,7 @@ import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
 import org.apache.texera.amber.operator.filter.SpecializedFilterOpDesc
 import org.apache.texera.amber.operator.hashJoin.HashJoinOpDesc
 import org.apache.texera.amber.operator.intersect.IntersectOpDesc
+import org.apache.texera.amber.operator.visualization.choroplethMap.ChoroplethMapOpDesc
 import org.apache.texera.amber.operator.visualization.histogram2d.Histogram2DOpDesc
 import org.apache.texera.amber.operator.visualization.radarChart.RadarChartOpDesc
 import org.scalatest.flatspec.AnyFlatSpec
@@ -94,5 +95,17 @@ class ConfigGeneratorSpec extends AnyFlatSpec with Matchers {
     val op = result.toOption.get.asInstanceOf[RadarChartOpDesc]
     op.valueColumns.map(_.toString) should not contain op.nameColumn.toString
     op.valueColumns.size should be > 1
+  }
+
+  it should "read a column's type from attributeTypeRules and its meaning from @SampleColumn" in {
+    // A choropleth needs a region and a number to shade it by. Which column
+    // holds a country code is not a type question, so the annotation names it;
+    // which columns can be shaded is, so the rule narrows those to the numeric.
+    val result =
+      ConfigGenerator.generate(classOf[ChoroplethMapOpDesc], CanonicalFixture.schemasByPort)
+    withClue(result) { result.isRight shouldBe true }
+    val op = result.toOption.get.asInstanceOf[ChoroplethMapOpDesc]
+    op.locations.toString shouldBe "iso_country"
+    Set("id", "score", "open", "high", "low", "close") should contain(op.color.toString)
   }
 }
