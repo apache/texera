@@ -537,9 +537,11 @@ object ConfigGenerator {
     * included: a row is what the UI's `+` button adds, and its fields are read as a
     * unit anyway (a step's start AND end make one range).
     *
-    * "Unset" is read off `baseNode` rather than re-derived, so a knob the base
-    * pass DID fill — one carrying a `defaultValue` or a declared enum — is left
-    * alone.
+    * "Unset" is read off `baseNode` rather than re-derived, and it means the knob
+    * still holds what a fresh instance holds (see [[leafFill]]). A `defaultValue`
+    * does not exempt it: a knob sitting at its default is indistinguishable from
+    * one the user never touched, so the only way to exercise the branch for a
+    * knob that IS set is to move it off that value.
     */
   private def optionalScalarFills(
       clazz: Class[_],
