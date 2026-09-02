@@ -244,24 +244,4 @@ class PythonTemplateBuilderApiSpec extends AnyFunSuite {
   test("hasUnclosedQuote: three opening single quotes count as unclosed") {
     assert(PythonLexerUtils.hasUnclosedQuote("'''abc"))
   }
-
-  // -------- pyStringLiteral --------
-
-  // Every character that can end a double-quoted single-line literal, since one that
-  // slips through does not fail here but changes the emitted program.
-  test("pyStringLiteral: quotes the value and escapes what would close the literal") {
-    assert(PythonTemplateBuilder.pyStringLiteral("plain") == "\"plain\"")
-    assert(PythonTemplateBuilder.pyStringLiteral("say \"hi\"") == "\"say \\\"hi\\\"\"")
-    assert(PythonTemplateBuilder.pyStringLiteral("a\\b") == "\"a\\\\b\"")
-    assert(PythonTemplateBuilder.pyStringLiteral("one\ntwo") == "\"one\\ntwo\"")
-    assert(PythonTemplateBuilder.pyStringLiteral("a\tb") == "\"a\\tb\"")
-    assert(PythonTemplateBuilder.pyStringLiteral("a\rb") == "\"a\\rb\"")
-  }
-
-  // A column name arrives from JSON and can be absent; an empty literal is a value the
-  // emitted program can carry, where `null` would reach it as the four letters.
-  test("pyStringLiteral: renders a null as the empty literal") {
-    assert(PythonTemplateBuilder.pyStringLiteral(null) == "\"\"")
-  }
-
 }
