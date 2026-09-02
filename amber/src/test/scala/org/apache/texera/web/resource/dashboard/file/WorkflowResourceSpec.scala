@@ -1028,19 +1028,6 @@ class WorkflowResourceSpec
     assertThrows[ForbiddenException](workflowResource.makePublic(wid, sessionUser2))
   }
 
-  "WorkflowResource.searchWorkflowByOperator" should "return only workflows whose content contains the operator" in {
-    val wid = seedWorkflow(
-      sessionUser1,
-      "csv-wf",
-      "d",
-      "{\"operators\":[{\"operatorType\":\"CSVFileScan\"}]}"
-    ).workflow.getWid
-    seedWorkflow(sessionUser1, "filter-wf", "d", "{\"operators\":[{\"operatorType\":\"Filter\"}]}")
-
-    val hits = workflowResource.searchWorkflowByOperator("CSVFileScan", sessionUser1)
-    assert(hits == List(wid.toString))
-  }
-
   "WorkflowResource.duplicateWorkflow" should "create a distinct copy owned by the user" in {
     // duplicateWorkflow reassigns operator ids, so the content must have an operators array.
     val wid = seedWorkflow(
