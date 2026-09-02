@@ -24,15 +24,14 @@ import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
-import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
+import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.metadata.annotations.{
   AutofillAttributeName,
   AutofillAttributeNameOnPort1
 }
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
-import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 
-class SklearnPredictionOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
+class SklearnPredictionOpDesc extends PythonOperatorDescriptor {
   @JsonProperty(value = "Model Attribute", required = true, defaultValue = "model")
   @JsonPropertyDescription("attribute corresponding to ML model")
   @AutofillAttributeName
@@ -99,40 +98,5 @@ class SklearnPredictionOpDesc extends PythonOperatorDescriptor with StandaloneCo
       operatorInfo.outputPorts.head.id -> inputSchema
         .add(resultAttribute, resultType)
     )
-  }
-
-  /** Python that narrows `X` to the columns the model was fitted on.
-    *
-    * The fitting side leaves out the columns an estimator cannot fit, so this
-    * side has to leave out the same ones or scikit-learn refuses the frame for
-    * naming features it never saw. Read off the model rather than re-derived:
-    * what it was fitted on is a fact it carries, and asking it cannot drift from
-    * whatever rule the fitting operator applied.
-    */
-  private val narrowToFittedFeatures: String =
-    """_fitted = getattr(model, "feature_names_in_", None)
-      |if _fitted is not None:
-      |    X = X[list(_fitted)]""".stripMargin
-
-  override def generateStandaloneCode(): String = {
-    val modelLit = pyStringLiteral(model)
-    val resultLit = pyStringLiteral(resultAttribute)
-    if (groundTruthAttribute.nonEmpty) {
-      s"""from sklearn.pipeline import Pipeline
-         |
-         |model = in1df[$modelLit].iloc[0]
-         |out1df = in2df.copy()
-         |X = in2df.drop(${pyStringLiteral(groundTruthAttribute)}, axis=1)
-         |$narrowToFittedFeatures
-         |out1df[$resultLit] = model.predict(X)""".stripMargin
-    } else {
-      s"""from sklearn.pipeline import Pipeline
-         |
-         |model = in1df[$modelLit].iloc[0]
-         |out1df = in2df.copy()
-         |X = in2df
-         |$narrowToFittedFeatures
-         |out1df[$resultLit] = [str(p) for p in model.predict(X)]""".stripMargin
-    }
   }
 }

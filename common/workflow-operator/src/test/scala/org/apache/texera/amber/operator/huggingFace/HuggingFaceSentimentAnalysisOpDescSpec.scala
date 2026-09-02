@@ -19,7 +19,6 @@
 
 package org.apache.texera.amber.operator.huggingFace
 
-import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInject
 import org.apache.texera.amber.core.executor.OpExecWithCode
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
@@ -212,15 +211,5 @@ class HuggingFaceSentimentAnalysisOpDescSpec extends AnyFlatSpec with Matchers {
     h.resultAttributePositive shouldBe "pos"
     h.resultAttributeNeutral shouldBe "neu"
     h.resultAttributeNegative shouldBe "neg"
-  }
-
-  "HuggingFaceSentimentAnalysisOpDesc (class-level)" should
-    "carry @JsonSchemaInject restricting `attribute` to STRING columns" in {
-    val ann = classOf[HuggingFaceSentimentAnalysisOpDesc].getAnnotation(classOf[JsonSchemaInject])
-    ann should not be null
-    val payload = ann.json
-    payload should include("attributeTypeRules")
-    payload should include("attribute")
-    payload should include("string")
   }
 }

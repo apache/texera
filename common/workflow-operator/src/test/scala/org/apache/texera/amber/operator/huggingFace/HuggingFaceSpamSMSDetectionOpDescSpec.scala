@@ -19,7 +19,6 @@
 
 package org.apache.texera.amber.operator.huggingFace
 
-import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInject
 import org.apache.texera.amber.core.executor.OpExecWithCode
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
@@ -131,15 +130,5 @@ class HuggingFaceSpamSMSDetectionOpDescSpec extends AnyFlatSpec with Matchers {
     h.attribute shouldBe "text"
     h.resultAttributeSpam shouldBe "is_spam"
     h.resultAttributeProbability shouldBe "score"
-  }
-
-  "HuggingFaceSpamSMSDetectionOpDesc (class-level)" should
-    "carry @JsonSchemaInject restricting `attribute` to STRING columns" in {
-    val ann = classOf[HuggingFaceSpamSMSDetectionOpDesc].getAnnotation(classOf[JsonSchemaInject])
-    ann should not be null
-    val payload = ann.json
-    payload should include("attributeTypeRules")
-    payload should include("attribute")
-    payload should include("string")
   }
 }

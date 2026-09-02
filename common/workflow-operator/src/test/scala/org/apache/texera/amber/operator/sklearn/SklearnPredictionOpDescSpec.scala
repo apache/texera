@@ -148,25 +148,10 @@ class SklearnPredictionOpDescSpec extends AnyFlatSpec with Matchers {
     d.model = "model"
     d.resultAttribute = "prediction"
     d.groundTruthAttribute = "y"
-    Seq(d.generatePythonCode(), d.generateStandaloneCode()).foreach { code =>
-      code should include(""""feature_names_in_", None)""")
-      code should include("if _fitted is not None:")
-    }
-    // The two paths narrow with different expressions: this one holds a Tuple,
-    // the standalone one a frame.
-    d.generatePythonCode() should include("input_features.get_partial_tuple(list(_fitted))")
-  }
-
-  // The branch that names no ground truth predicts on the whole frame, so it needs
-  // the same narrowing as the one that drops a column first.
-  it should "narrow the features with no ground-truth column configured too" in {
-    val d = new SklearnPredictionOpDesc
-    d.model = "model"
-    d.resultAttribute = "prediction"
-    d.groundTruthAttribute = ""
-    val code = d.generateStandaloneCode()
+    val code = d.generatePythonCode()
     code should include(""""feature_names_in_", None)""")
-    code should include("X = X[list(_fitted)]")
+    code should include("if _fitted is not None:")
+    code should include("input_features.get_partial_tuple(list(_fitted))")
   }
 
   "SklearnPredictionOpDesc" should
