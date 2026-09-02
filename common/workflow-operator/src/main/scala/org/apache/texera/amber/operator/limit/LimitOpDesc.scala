@@ -25,12 +25,12 @@ import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PhysicalOp}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
-import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator, StateTransferFunc}
+import org.apache.texera.amber.operator.{LogicalOp, StateTransferFunc}
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
 import scala.util.{Success, Try}
 
-class LimitOpDesc extends LogicalOp with StandaloneCodeGenerator {
+class LimitOpDesc extends LogicalOp {
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("Limit")
@@ -79,9 +79,5 @@ class LimitOpDesc extends LogicalOp with StandaloneCodeGenerator {
       newLimitOp.count = oldLimitOp.count
     }
     Success(newPhysicalOp, Some(stateTransferFunc))
-  }
-
-  override def generateStandaloneCode(): String = {
-    s"out1df = in1df.head($limit).reset_index(drop=True)"
   }
 }
