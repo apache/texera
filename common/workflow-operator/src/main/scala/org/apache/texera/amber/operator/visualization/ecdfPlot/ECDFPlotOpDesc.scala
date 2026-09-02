@@ -23,22 +23,19 @@ import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
+import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
-import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
-  PythonTemplateBuilderStringContext,
-  pyStringLiteral
-}
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 
 import javax.validation.constraints.NotNull
 
 @JsonSchemaInject(
   json = """{"attributeTypeRules":{"valueColumn":{"enum":["integer","long","double"]}}}"""
 )
-class ECDFPlotOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
+class ECDFPlotOpDesc extends PythonOperatorDescriptor {
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("Value Column")
@@ -186,51 +183,4 @@ class ECDFPlotOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerat
          |"""
     finalCode.encode
   }
-
-  override def producesDataFrame(): Boolean = false
-
-  override def generateStandaloneCode(): String = {
-    val requiredCols = List(valueColumn, colorColumn, separateBy).filter(_.nonEmpty)
-    val requiredColsLiteral = requiredCols.map(pyStringLiteral).mkString("[", ", ", "]")
-    val valueLit = pyStringLiteral(valueColumn)
-    val args = scala.collection.mutable.ArrayBuffer[String](
-      "table",
-      s"""x=$valueLit"""
-    )
-    if (colorColumn.nonEmpty) args += s"""color=${pyStringLiteral(colorColumn)}"""
-    if (separateBy.nonEmpty) args += s"""facet_col=${pyStringLiteral(separateBy)}"""
-    yAxisMode match {
-      case "count" => args += "ecdfnorm=None"
-      case "sum"   => args += "ecdfnorm=None"
-      case _       =>
-    }
-    if (yAxisMode == "sum") args += s"""y=$valueLit"""
-    if (cdfMode != "standard") args += s"""ecdfmode=${pyStringLiteral(cdfMode)}"""
-    if (orientation == "horizontal") args += "orientation='h'"
-    if (showMarkers) args += "markers=True"
-    if (marginal != "none") args += s"""marginal=${pyStringLiteral(marginal)}"""
-
-    s"""def render_error(error_msg):
-       |    return '''<h1>Empirical cumulative distribution plot is not available.</h1>
-       |                  <p>Reason is: {} </p>
-       |               '''.format(error_msg)
-       |
-       |if in1df.empty:
-       |    with open("output.html", "w", encoding="utf-8") as output:
-       |        output.write(render_error("input table is empty."))
-       |else:
-       |    table = in1df.dropna(subset=$requiredColsLiteral).copy()
-       |    table[$valueLit] = pd.to_numeric(table[$valueLit], errors='coerce')
-       |    table.dropna(subset=[$valueLit], inplace=True)
-       |    if table.empty:
-       |        with open("output.html", "w", encoding="utf-8") as output:
-       |            output.write(render_error("no valid rows left after removing missing or non-numeric values."))
-       |    else:
-       |        fig = px.ecdf(${args.mkString(", ")})
-       |        fig.update_layout(margin=dict(l=0, r=0, t=30, b=0))
-       |        fig.write_json("output.json")
-       |        fig.write_html("output.html")
-       |        print("ECDF plot saved to output.html")""".stripMargin
-  }
-
 }

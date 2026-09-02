@@ -23,13 +23,12 @@ import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
+import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
-import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 
 import javax.validation.constraints.NotEmpty
-class TablesPlotOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
+class TablesPlotOpDesc extends PythonOperatorDescriptor {
 
   @JsonPropertyDescription("List of columns to include in the table chart")
   @JsonProperty(value = "add attribute", required = true)
@@ -114,43 +113,5 @@ class TablesPlotOpDesc extends PythonOperatorDescriptor with StandaloneCodeGener
     val outputSchema = Schema()
       .add("html-content", AttributeType.STRING)
     Map(operatorInfo.outputPorts.head.id -> outputSchema)
-  }
-
-  override def producesDataFrame(): Boolean = false
-
-  override def generateStandaloneCode(): String = {
-    assert(includedColumns.nonEmpty)
-    // Mirror getAttributes: a Python list literal of the selected column names.
-    val columnsList =
-      includedColumns.map(c => pyStringLiteral(c.attributeName)).mkString("[", ", ", "]")
-    // The two guards mirror generatePythonCode's, which reports both conditions
-    // rather than rendering a table with no rows in it.
-    s"""def render_error(error_msg):
-       |    return '''<h1>Tables Plot is not available.</h1>
-       |              <p>Reason is: {} </p>
-       |           '''.format(error_msg)
-       |
-       |attributes = $columnsList
-       |if in1df.empty:
-       |    with open("output.html", "w", encoding="utf-8") as output:
-       |        output.write(render_error("input table is empty."))
-       |else:
-       |    table = in1df.dropna(subset=attributes)
-       |    if table.empty:
-       |        with open("output.html", "w", encoding="utf-8") as output:
-       |            output.write(render_error("value column contains only non-positive numbers or nulls."))
-       |    else:
-       |        filtered_table = table[attributes]
-       |        headers = filtered_table.columns.tolist()
-       |        cell_values = [filtered_table[col].tolist() for col in headers]
-       |
-       |        fig = go.Figure(data=[go.Table(
-       |            header=dict(values=headers),
-       |            cells=dict(values=cell_values)
-       |        )])
-       |        fig.update_layout(margin=dict(l=0, r=0, b=0, t=0))
-       |        fig.write_json("output.json")
-       |        fig.write_html("output.html")
-       |        print("Tables plot saved to output.json")""".stripMargin
   }
 }

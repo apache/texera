@@ -22,16 +22,15 @@ import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
+import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
-import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 
 import java.util
 import javax.validation.constraints.NotEmpty
 import scala.jdk.CollectionConverters.ListHasAsScala
 
-class NestedTableOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
+class NestedTableOpDesc extends PythonOperatorDescriptor {
 
   @JsonPropertyDescription(
     "List of columns to include in the nested table chart and their subgroup"
@@ -137,81 +136,5 @@ class NestedTableOpDesc extends PythonOperatorDescriptor with StandaloneCodeGene
          |
          |"""
     finalcode.encode
-  }
-
-  override def producesDataFrame(): Boolean = false
-
-  override def generateStandaloneCode(): String = {
-    val sortedColumns = includedColumns.asScala.sortBy(_.attributeGroup)
-
-    val multiIndexTuples = sortedColumns
-      .map { config =>
-        val name =
-          if (config.newName != null && config.newName.nonEmpty) config.newName
-          else config.originalName
-        s"""(${pyStringLiteral(config.attributeGroup)}, ${pyStringLiteral(name)})"""
-      }
-      .mkString(",\n        ")
-
-    val rowValues = sortedColumns
-      .map(config => s"""row[${pyStringLiteral(config.originalName)}]""")
-      .mkString(", ")
-
-    s"""import pandas as pd
-       |import numpy as np
-       |
-       |def render_error(error_msg):
-       |    return '''<h1>Nested Table is not available.</h1>
-       |                  <p>Reason is: {} </p>
-       |               '''.format(error_msg)
-       |
-       |if in1df.empty:
-       |    with open("output.html", "w", encoding="utf-8") as output:
-       |        output.write(render_error("input table is empty."))
-       |else:
-       |    columns = pd.MultiIndex.from_tuples([
-       |        $multiIndexTuples
-       |    ])
-       |
-       |    data = []
-       |    for _, row in in1df.iterrows():
-       |        data.append([
-       |            $rowValues
-       |        ])
-       |
-       |    df = pd.DataFrame(data, columns=columns)
-       |
-       |    styles = [
-       |        {'selector': 'th', 'props': [('background-color', '#f2f2f2'),
-       |                                      ('color', 'black'),
-       |                                      ('font-weight', 'bold'),
-       |                                      ('border', '1px solid #ddd'),
-       |                                      ('padding', '8px'),
-       |                                      ('text-align', 'center')]},
-       |        {'selector': 'td', 'props': [('border', '1px solid #ddd'),
-       |                                      ('padding', '8px'),
-       |                                      ('text-align', 'center')]},
-       |        {'selector': 'caption', 'props': [('caption-side', 'top'),
-       |                                           ('font-size', '16pt'),
-       |                                           ('font-weight', 'bold'),
-       |                                           ('text-align', 'left'),
-       |                                           ('padding', '10px')]},
-       |        {'selector': '.row_heading', 'props': [('text-align', 'left'),
-       |                                                ('font-weight', 'normal')]},
-       |        {'selector': '.blank.level0', 'props': [('display', 'none')]}
-       |    ]
-       |
-       |    styled_table = (
-       |        df.style
-       |        .set_table_styles(styles)
-       |        .format(precision=2, na_rep="")
-       |        .set_table_attributes('class="dataframe"')
-       |        .hide(axis="index")
-       |    )
-       |
-       |    html = styled_table.to_html()
-       |    with open("output.html", "w", encoding="utf-8") as output:
-       |        output.write(html)
-       |    print("Nested table saved to output.html")""".stripMargin
   }
 }

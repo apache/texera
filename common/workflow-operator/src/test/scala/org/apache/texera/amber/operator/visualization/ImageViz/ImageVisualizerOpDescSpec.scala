@@ -103,17 +103,4 @@ class ImageVisualizerOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Mat
     code should include("encode_image_to_html")
     code should include("decode_python_template")
   }
-
-  "ImageVisualizerOpDesc.generateStandaloneCode" should "avoid literal HTML tags that the UI code viewer can render away" in {
-    opDesc.binaryContent = "image_bytes"
-    val code = opDesc.generateStandaloneCode()
-
-    code should include("LT = chr(60)")
-    code should include("GT = chr(62)")
-    code should include("encoded_image_str")
-    code should not include "<img"
-    code should not include "<h1"
-    code should not include "<p"
-    code should not include "<div"
-  }
 }

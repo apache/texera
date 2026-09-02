@@ -21,19 +21,16 @@ package org.apache.texera.amber.operator.visualization.histogram2d
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
-import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
-  PythonTemplateBuilderStringContext,
-  pyStringLiteral
-}
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
+import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 
 import javax.validation.constraints.NotNull
 
-class Histogram2DOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
+class Histogram2DOpDesc extends PythonOperatorDescriptor {
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("X Column")
@@ -122,40 +119,5 @@ class Histogram2DOpDesc extends PythonOperatorDescriptor with StandaloneCodeGene
        |        html = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False)
        |        yield {"html-content": html}
        |""".encode
-  }
-
-  override def producesDataFrame(): Boolean = false
-
-  override def generateStandaloneCode(): String = {
-    assert(xBins > 0, s"X Bins must be > 0, but got $xBins")
-    assert(yBins > 0, s"Y Bins must be > 0, but got $yBins")
-    val xLit = pyStringLiteral(xColumn)
-    val yLit = pyStringLiteral(yColumn)
-
-    s"""import plotly.express as px
-       |
-       |def render_error(msg):
-       |    return f"<h1>2D Histogram failed</h1><p>{msg}</p>"
-       |
-       |if in1df.empty:
-       |    with open("output.html", "w", encoding="utf-8") as output:
-       |        output.write(render_error("Input table is empty."))
-       |else:
-       |    in1df.dropna(subset=[$xLit, $yLit], inplace=True)
-       |    if in1df.empty:
-       |        with open("output.html", "w", encoding="utf-8") as output:
-       |            output.write(render_error("No rows after dropping nulls."))
-       |    else:
-       |        fig = px.density_heatmap(
-       |            in1df,
-       |            x=$xLit,
-       |            y=$yLit,
-       |            nbinsx=$xBins,
-       |            nbinsy=$yBins,
-       |            histnorm='${normalize.getValue}',
-       |            text_auto=True
-       |        )
-       |        fig.write_json("output.json")
-       |        print("2D histogram saved to output.json")""".stripMargin
   }
 }

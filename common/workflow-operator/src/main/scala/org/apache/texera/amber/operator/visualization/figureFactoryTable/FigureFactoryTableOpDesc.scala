@@ -22,18 +22,15 @@ package org.apache.texera.amber.operator.visualization.figureFactoryTable
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
-import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
-  PythonTemplateBuilderStringContext,
-  pyStringLiteral
-}
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
+import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
 
 import javax.validation.constraints.{DecimalMin, NotEmpty}
-class FigureFactoryTableOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
+class FigureFactoryTableOpDesc extends PythonOperatorDescriptor {
 
   @JsonProperty(required = false)
   @JsonSchemaTitle("Font Size")
@@ -47,8 +44,7 @@ class FigureFactoryTableOpDesc extends PythonOperatorDescriptor with StandaloneC
   @JsonPropertyDescription("Font color of the Figure Factory Table")
   @JsonSchemaInject(json = """
 {
-  "pattern": "^\\s*$|^\\s*#(?:\\s*[0-9a-fA-F]){3}(?:(?:\\s*[0-9a-fA-F]){3})?\\s*$|^\\s*(?:[rR]\\s*[gG]\\s*[bB]|[hH]\\s*[sS]\\s*[lL]|[hH]\\s*[sS]\\s*[vV])(?:\\s*[aA])?\\s*\\(\\s*(?:\\s*[0-9.])+(?:\\s*%)?(?:\\s*,(?:\\s*[0-9.])+(?:\\s*%)?){2,3}\\s*\\)\\s*$|^\\s*[vV]\\s*[aA]\\s*[rR]\\s*\\(\\s*-\\s*-[^)]*\\)\\s*$|^\\s*[a-zA-Z][a-zA-Z\\s]*$",
-  "examples": ["red"]
+  "pattern": "^\\s*$|^\\s*#(?:\\s*[0-9a-fA-F]){3}(?:(?:\\s*[0-9a-fA-F]){3})?\\s*$|^\\s*(?:[rR]\\s*[gG]\\s*[bB]|[hH]\\s*[sS]\\s*[lL]|[hH]\\s*[sS]\\s*[vV])(?:\\s*[aA])?\\s*\\(\\s*(?:\\s*[0-9.])+(?:\\s*%)?(?:\\s*,(?:\\s*[0-9.])+(?:\\s*%)?){2,3}\\s*\\)\\s*$|^\\s*[vV]\\s*[aA]\\s*[rR]\\s*\\(\\s*-\\s*-[^)]*\\)\\s*$|^\\s*[a-zA-Z][a-zA-Z\\s]*$"
 }
 """)
   var fontColor: EncodableString = "#000000"
@@ -150,40 +146,5 @@ class FigureFactoryTableOpDesc extends PythonOperatorDescriptor with StandaloneC
     val outputSchema = Schema()
       .add("html-content", AttributeType.STRING)
     Map(operatorInfo.outputPorts.head.id -> outputSchema)
-  }
-
-  override def producesDataFrame(): Boolean = false
-
-  override def generateStandaloneCode(): String = {
-    val attributes = columns.map(c => pyStringLiteral(c.attributeName)).mkString(", ")
-    s"""import plotly.figure_factory as ff
-       |
-       |def render_error(error_msg):
-       |    return '''<h1>Figure factory table is not available.</h1>
-       |              <p>Reason is: {} </p>
-       |           '''.format(error_msg)
-       |
-       |if in1df.empty:
-       |    with open("output.html", "w", encoding="utf-8") as output:
-       |        output.write(render_error("input table is empty."))
-       |else:
-       |    table = in1df.dropna(subset=[$attributes])
-       |    if table.empty:
-       |        with open("output.html", "w", encoding="utf-8") as output:
-       |            output.write(render_error("value column contains only non-positive numbers or nulls."))
-       |    else:
-       |        filtered_table = table[[$attributes]]
-       |        headers = filtered_table.columns.tolist()
-       |        cell_values = [filtered_table[col].tolist() for col in headers]
-       |        data = [headers] + list(map(list, zip(*cell_values)))
-       |        fig = ff.create_table(data, height_constant=$rowHeight, font_colors=[${pyStringLiteral(
-      fontColor
-    )}])
-       |        for i in range(len(fig.layout.annotations)):
-       |            fig.layout.annotations[i].font.size = $fontSize
-       |        fig.update_layout(margin=dict(l=0, r=0, b=0, t=0))
-       |        fig.write_json("output.json")
-       |        fig.write_html("output.html")
-       |        print("Figure factory table saved to output.html")""".stripMargin
   }
 }
