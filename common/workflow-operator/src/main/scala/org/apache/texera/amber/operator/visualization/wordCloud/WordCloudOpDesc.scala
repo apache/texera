@@ -127,11 +127,6 @@ class WordCloudOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenera
 
   override def producesDataFrame(): Boolean = false
 
-  // Standalone (non-pytexera) translation of generatePythonCode: same dropna +
-  // word filter, same WordCloud config, same base64-image HTML, written to
-  // output.html. Cannot be auto-verified (the PNG word placement is randomized,
-  // so the two paths' images never match byte-for-byte) — flagged as a known
-  // issue — but kept faithful for completeness.
   // The two guards mirror generatePythonCode's: WordCloud.generate raises on a
   // wordless string, so without them an input that is empty — or whose text
   // column survives neither the dropna nor the word filter — crashes here where
