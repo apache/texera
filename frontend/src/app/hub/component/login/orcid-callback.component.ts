@@ -69,7 +69,7 @@ export class OrcidCallbackComponent implements OnInit {
 
     const expectedState = sessionStorage.getItem(ORCID_STATE_KEY);
 
-    //remove key to prevent leakage that would authorize future sessions
+    // Good for one round trip only: a leftover value would let an unrelated callback pass the check below.
     sessionStorage.removeItem(ORCID_STATE_KEY);
 
     // Verified before anything in the URL is acted on, the provider's error response included.
