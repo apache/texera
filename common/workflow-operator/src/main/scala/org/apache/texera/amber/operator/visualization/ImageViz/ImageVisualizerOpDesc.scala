@@ -22,16 +22,19 @@ package org.apache.texera.amber.operator.visualization.ImageViz
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
-import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
+  PythonTemplateBuilderStringContext,
+  pyStringLiteral
+}
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
+import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
 
 import javax.validation.constraints.NotNull
-class ImageVisualizerOpDesc extends PythonOperatorDescriptor {
+class ImageVisualizerOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("image content column")
@@ -96,6 +99,43 @@ class ImageVisualizerOpDesc extends PythonOperatorDescriptor {
          |        yield {"html-content": all_images_html}
          |"""
     finalCode.encode
+  }
+
+  // Output is an HTML visualization, not a tabular DataFrame.
+  // The translator skips it in the leaf-DataFrame print block.
+  override def producesDataFrame(): Boolean = false
+
+  override def generateStandaloneCode(): String = {
+    s"""import base64
+       |
+       |LT = chr(60)
+       |GT = chr(62)
+       |
+       |def encode_image_to_html(binary_image_data):
+       |    try:
+       |        if isinstance(binary_image_data, str):
+       |            encoded_image_str = binary_image_data
+       |        else:
+       |            encoded_image_data = base64.b64encode(binary_image_data)
+       |            encoded_image_str = encoded_image_data.decode("utf-8")
+       |        return (
+       |            f'{LT}img src="data:image;base64,{encoded_image_str}" alt="Image" '
+       |            f'style="max-width: 100vw; max-height: 90vh; width: auto; height: auto;"{GT}'
+       |        )
+       |    except Exception:
+       |        return (
+       |            f'{LT}h1{GT}Image is not available.{LT}/h1{GT}'
+       |            f'{LT}p{GT}Reason: Binary input is not valid{LT}/p{GT}'
+       |        )
+       |
+       |all_images_html = f"{LT}div{GT}" + "".join(
+       |    encode_image_to_html(binary_image_data)
+       |    for binary_image_data in in1df[${pyStringLiteral(binaryContent)}]
+       |) + f"{LT}/div{GT}"
+       |
+       |with open("output.html", "w", encoding="utf-8") as output:
+       |    output.write(all_images_html)
+       |print("Image visualizer saved to output.html")""".stripMargin
   }
 
 }
