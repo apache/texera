@@ -34,12 +34,14 @@ import com.kjetland.jackson.jsonSchema.annotations.{
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.metadata.annotations.{
   AutofillAttributeName,
   CommonOpDescAnnotation,
-  HideAnnotation
+  HideAnnotation,
+  SampleColumn
 }
 
 // `text` names the columns Count Vectorizer tokenizes, so they are string columns
@@ -72,6 +74,9 @@ import org.apache.texera.amber.operator.metadata.annotations.{
 """)
 abstract class SklearnModelOpDesc extends PythonOperatorDescriptor with SklearnFittableColumns {
 
+  // The label the estimator fits against. Test-only steering: without it the
+  // first column wins, which on a feature/label table is a feature.
+  @SampleColumn("species")
   @JsonSchemaTitle("Target Attribute")
   @JsonPropertyDescription("Attribute in your dataset corresponding to target.")
   @JsonProperty(required = true)
@@ -182,6 +187,22 @@ abstract class SklearnModelOpDesc extends PythonOperatorDescriptor with SklearnF
     else if (handlesMissingValues) pyb"table.dropna(subset=[$target])".toString
     else "table.dropna()"
 
+  /** [[dropMissingRows]] for the standalone path, which names its own frame and
+    * has no `self` to decode a column name through. Stated separately rather than
+    * shared through a renderer: `pyb` encodes by the STATIC type of what it
+    * interpolates, so a column handed through a `String => String` loses the
+    * annotation that makes it encode and reaches the script raw.
+    */
+  @JsonIgnore
+  protected def dropMissingRowsStandalone(frame: String): String = {
+    val subset =
+      if (countVectorizer) (text :+ target).map(c => pyStringLiteral(c).toString)
+      else if (handlesMissingValues) Seq(pyStringLiteral(target).toString)
+      else Seq.empty
+    if (subset.isEmpty) s"$frame.dropna()"
+    else subset.mkString(s"$frame.dropna(subset=[", ", ", "])")
+  }
+
   // Rows the estimator keeps are still rows the user did not know were incomplete,
   // so say how many reached the fit. Empty for the estimators that dropped them all.
   @JsonIgnore
@@ -200,6 +221,16 @@ abstract class SklearnModelOpDesc extends PythonOperatorDescriptor with SklearnF
         throw new RuntimeException(
           s"$getUserFriendlyModelName cannot be trained on the sparse matrix Count Vectorizer" +
             s" produces. Turn Count Vectorizer off, or use $alternatives."
+        )
+      }
+      // The generated code drops the target before the text pipeline reads its
+      // columns, so naming it here asks the pipeline for a column that is no
+      // longer there. Refused rather than vectorized: the label is the answer,
+      // and a model given it as a feature reads that answer off its own input.
+      if (text.contains(target)) {
+        throw new RuntimeException(
+          s""""$target" is the Target Attribute, so it cannot also be a Text Attribute.""" +
+            " Remove it from Text Attribute, or fit against a different column."
         )
       }
     }
