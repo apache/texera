@@ -72,6 +72,8 @@ import { NzSwitchComponent } from "ng-zorro-antd/switch";
 import { NzBadgeComponent } from "ng-zorro-antd/badge";
 import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
 import { JupyterPanelService } from "../../service/jupyter-panel/jupyter-panel.service";
+import { WorkflowCompilingService } from "../../service/compile-workflow/workflow-compiling.service";
+import { CompilationState } from "../../types/workflow-compiling.interface";
 
 /**
  * MenuComponent is the top level menu bar that shows
@@ -130,9 +132,9 @@ export class MenuComponent implements OnInit, OnDestroy {
   public ComputingUnitState = ComputingUnitState; // make Angular HTML access enum definition
   public isWorkflowValid: boolean = true; // this will check whether the workflow error or not
   public isWorkflowEmpty: boolean = false;
-  // the translation is a round trip to the compiling service, so the button stays disabled while one is in flight
-  public isTranslatingToPython: boolean = false;
-  public pythonCodeForModal: string = "";
+  // whether the last compilation of the workflow failed. A workflow that cannot compile cannot be executed,
+  // so it is treated the same way as one that fails the schema / port validation.
+  public isWorkflowCompilable: boolean = true;
   public isSaving: boolean = false;
   public isWorkflowModifiable: boolean = false;
   public workflowId?: number;
@@ -178,6 +180,7 @@ export class MenuComponent implements OnInit, OnDestroy {
     private location: Location,
     public undoRedoService: UndoRedoService,
     public validationWorkflowService: ValidationWorkflowService,
+    private workflowCompilingService: WorkflowCompilingService,
     public workflowPersistService: WorkflowPersistService,
     public workflowVersionService: WorkflowVersionService,
     public userService: UserService,
@@ -239,6 +242,16 @@ export class MenuComponent implements OnInit, OnDestroy {
       .subscribe(value => {
         this.isWorkflowEmpty = value.workflowEmpty;
         this.isWorkflowValid = Object.keys(value.errors).length === 0;
+        this.applyRunButtonBehavior(this.getRunButtonBehavior());
+      });
+
+    // the compilation errors are reported per operator on the canvas and in the result panel, but a workflow
+    // that cannot compile cannot be executed either, so the run button has to reflect the compilation state too
+    this.workflowCompilingService
+      .getCompilationStateInfoChangedStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(state => {
+        this.isWorkflowCompilable = state !== CompilationState.Failed;
         this.applyRunButtonBehavior(this.getRunButtonBehavior());
       });
 
@@ -362,8 +375,8 @@ export class MenuComponent implements OnInit, OnDestroy {
     disable: boolean;
     onClick: () => void;
   } {
-    // If workflow is invalid, always disable and show "Invalid Workflow"
-    if (!this.isWorkflowValid) {
+    // If workflow is invalid or does not compile, always disable and show "Invalid Workflow"
+    if (!this.isWorkflowValid || !this.isWorkflowCompilable) {
       return {
         text: "Invalid Workflow",
         icon: "warning",
@@ -621,6 +634,9 @@ export class MenuComponent implements OnInit, OnDestroy {
     this.jupyterPanelService.openJupyterNotebookPanel();
   }
 
+  public isTranslatingToPython = false;
+  public pythonCodeForModal = "";
+
   public onClickExportAsPython(): void {
     const logicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(
       this.validationWorkflowService.getValidTexeraGraph()
@@ -847,7 +863,7 @@ export class MenuComponent implements OnInit, OnDestroy {
    */
   runWorkflow(): void {
     // Use the existing flags that were already updated via subscriptions
-    if (!this.isWorkflowValid || this.isWorkflowEmpty) {
+    if (!this.isWorkflowValid || !this.isWorkflowCompilable || this.isWorkflowEmpty) {
       return;
     }
 

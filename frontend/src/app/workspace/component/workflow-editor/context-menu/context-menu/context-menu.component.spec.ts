@@ -33,6 +33,7 @@ import { ReactiveFormsModule } from "@angular/forms";
 import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
 import { NzDropDownModule } from "ng-zorro-antd/dropdown";
 import { ValidationWorkflowService } from "src/app/workspace/service/validation/validation-workflow.service";
+import { WorkflowCompilingService } from "src/app/workspace/service/compile-workflow/workflow-compiling.service";
 import { NzModalModule, NzModalService } from "ng-zorro-antd/modal";
 import { commonTestProviders } from "../../../../../common/testing/test-utils"; // Import NzModalModule and NzModalService
 import type { Mocked } from "vitest";
@@ -56,6 +57,7 @@ describe("ContextMenuComponent", () => {
   let operatorMenuService: Mocked<OperatorMenuService>;
   let jointGraphWrapperSpy: Mocked<JointGraphWrapper>;
   let validationWorkflowService: Mocked<ValidationWorkflowService>;
+  let workflowCompilingService: Mocked<WorkflowCompilingService>;
   let highlightedOperatorsSubject: BehaviorSubject<readonly string[]>;
   let highlightedCommentBoxesSubject: BehaviorSubject<readonly string[]>;
 
@@ -71,7 +73,12 @@ describe("ContextMenuComponent", () => {
     jointGraphWrapperSpy.getCurrentHighlightedCommentBoxIDs.mockReturnValue([]);
     jointGraphWrapperSpy.getCurrentHighlightedLinkIDs.mockReturnValue([]);
 
-    const texeraGraphSpy = { isOperatorDisabled: vi.fn(), hasLinkWithID: vi.fn(), bundleActions: vi.fn() };
+    const texeraGraphSpy = {
+      isOperatorDisabled: vi.fn(),
+      hasLinkWithID: vi.fn(),
+      bundleActions: vi.fn(),
+      getSubDAG: vi.fn(),
+    };
 
     const workflowActionServiceSpy = {
       getJointGraphWrapper: vi.fn(),
@@ -92,6 +99,7 @@ describe("ContextMenuComponent", () => {
 
     // Set up TexeraGraph spy return values
     texeraGraphSpy.hasLinkWithID.mockReturnValue(false);
+    texeraGraphSpy.getSubDAG.mockReturnValue({ operators: [], links: [] });
     texeraGraphSpy.bundleActions.mockImplementation((callback: Function) => callback());
 
     const workflowResultServiceSpy = { getResultService: vi.fn(), hasAnyResult: vi.fn() };
@@ -121,6 +129,9 @@ describe("ContextMenuComponent", () => {
 
     const validationWorkflowServiceSpy = { validateOperator: vi.fn() };
 
+    const workflowCompilingServiceSpy = { getWorkflowCompilationErrors: vi.fn() };
+    workflowCompilingServiceSpy.getWorkflowCompilationErrors.mockReturnValue({});
+
     await TestBed.configureTestingModule({
       providers: [
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
@@ -129,6 +140,7 @@ describe("ContextMenuComponent", () => {
         { provide: WorkflowResultExportService, useValue: workflowResultExportServiceSpy },
         { provide: OperatorMenuService, useValue: operatorMenuService },
         { provide: ValidationWorkflowService, useValue: validationWorkflowServiceSpy },
+        { provide: WorkflowCompilingService, useValue: workflowCompilingServiceSpy },
         NzModalService, // Provide NzModalService
         ...commonTestProviders,
       ],
@@ -151,6 +163,7 @@ describe("ContextMenuComponent", () => {
     validationWorkflowService = TestBed.inject(
       ValidationWorkflowService
     ) as unknown as Mocked<ValidationWorkflowService>;
+    workflowCompilingService = TestBed.inject(WorkflowCompilingService) as unknown as Mocked<WorkflowCompilingService>;
 
     fixture = TestBed.createComponent(ContextMenuComponent);
     component = fixture.componentInstance;
@@ -261,6 +274,31 @@ describe("ContextMenuComponent", () => {
       expect(component.canExecuteOperator()).toBe(false);
       expect(validationWorkflowService.validateOperator).toHaveBeenCalledWith("op1");
       expect(texeraGraphSpy.isOperatorDisabled).toHaveBeenCalledWith("op1");
+    });
+
+    it("should return false when the target operator failed to compile", () => {
+      texeraGraphSpy.getSubDAG.mockReturnValue({ operators: [{ operatorID: "op1" }], links: [] } as any);
+      workflowCompilingService.getWorkflowCompilationErrors.mockReturnValue({ op1: {} as any });
+
+      expect(component.canExecuteOperator()).toBe(false);
+      expect(texeraGraphSpy.getSubDAG).toHaveBeenCalledWith("op1");
+    });
+
+    it("should return false when an upstream operator failed to compile", () => {
+      texeraGraphSpy.getSubDAG.mockReturnValue({
+        operators: [{ operatorID: "op1" }, { operatorID: "upstream" }],
+        links: [],
+      } as any);
+      workflowCompilingService.getWorkflowCompilationErrors.mockReturnValue({ upstream: {} as any });
+
+      expect(component.canExecuteOperator()).toBe(false);
+    });
+
+    it("should return true when the compilation error is outside the target's sub-DAG", () => {
+      texeraGraphSpy.getSubDAG.mockReturnValue({ operators: [{ operatorID: "op1" }], links: [] } as any);
+      workflowCompilingService.getWorkflowCompilationErrors.mockReturnValue({ unrelated: {} as any });
+
+      expect(component.canExecuteOperator()).toBe(true);
     });
 
     it("should check disabled status only for valid operators", () => {

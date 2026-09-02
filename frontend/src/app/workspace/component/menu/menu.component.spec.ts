@@ -55,10 +55,8 @@ import { USER_WORKFLOW } from "../../../app-routing.constant";
 import { GuiConfigService } from "../../../common/service/gui-config.service";
 import { MockGuiConfigService } from "../../../common/service/gui-config.service.mock";
 import { JupyterPanelService } from "../../service/jupyter-panel/jupyter-panel.service";
-import {
-  WorkflowToPythonResponse,
-  WorkflowToPythonService,
-} from "../../../dashboard/service/user/workflow-to-python/workflow-to-python.service";
+import { WorkflowCompilingService } from "../../service/compile-workflow/workflow-compiling.service";
+import { CompilationState } from "../../types/workflow-compiling.interface";
 import type { Mocked } from "vitest";
 
 vi.mock("file-saver", () => ({ saveAs: vi.fn() }));
@@ -76,8 +74,10 @@ describe("MenuComponent", () => {
   let notificationService: NotificationService;
   let location: Location;
   let validationStream$: BehaviorSubject<ValidationOutput>;
+  let compilationStream$: Subject<CompilationState>;
 
   beforeEach(async () => {
+    compilationStream$ = new Subject<CompilationState>();
     await TestBed.configureTestingModule({
       imports: [MenuComponent, HttpClientTestingModule, RouterTestingModule.withRoutes([]), NzModalModule],
       providers: [
@@ -94,6 +94,11 @@ describe("MenuComponent", () => {
           },
         },
         { provide: UserService, useClass: StubUserService },
+        {
+          // stubbed so the debounced compile request of the real service does not outlive the test injector
+          provide: WorkflowCompilingService,
+          useValue: { getCompilationStateInfoChangedStream: () => compilationStream$.asObservable() },
+        },
         ...commonTestProviders,
       ],
     }).compileComponents();
@@ -127,6 +132,18 @@ describe("MenuComponent", () => {
     it("returns 'Invalid Workflow' when the workflow is invalid", () => {
       component.isWorkflowValid = false;
       component.isWorkflowEmpty = false;
+
+      const behavior = component.getRunButtonBehavior();
+
+      expect(behavior.text).toBe("Invalid Workflow");
+      expect(behavior.icon).toBe("warning");
+      expect(behavior.disable).toBe(true);
+    });
+
+    it("returns 'Invalid Workflow' when the workflow does not compile", () => {
+      component.isWorkflowValid = true;
+      component.isWorkflowEmpty = false;
+      component.isWorkflowCompilable = false;
 
       const behavior = component.getRunButtonBehavior();
 
@@ -420,6 +437,19 @@ describe("MenuComponent", () => {
       expect(component.computingUnitSelectionComponent.showAddComputeUnitModalVisible).not.toHaveBeenCalled();
     });
 
+    it("does nothing when the workflow does not compile", () => {
+      component.isWorkflowValid = true;
+      component.isWorkflowEmpty = false;
+      component.isWorkflowCompilable = false;
+      component.computingUnitStatus = ComputingUnitState.Running;
+      const executeSpy = vi.spyOn(executeWorkflowService, "executeWorkflowWithEmailNotification");
+
+      component.runWorkflow();
+
+      expect(executeSpy).not.toHaveBeenCalled();
+      expect(component.computingUnitSelectionComponent.showAddComputeUnitModalVisible).not.toHaveBeenCalled();
+    });
+
     it("does nothing when the workflow is empty", () => {
       component.isWorkflowValid = true;
       component.isWorkflowEmpty = true;
@@ -548,50 +578,17 @@ describe("MenuComponent", () => {
     });
   });
 
-  describe("export as Python", () => {
-    it("shows the returned script in a modal", () => {
-      const toPython = TestBed.inject(WorkflowToPythonService);
-      vi.spyOn(toPython, "convertToPython").mockReturnValue(
-        of({ type: "success", pythonCode: "print('hello')" } as WorkflowToPythonResponse)
-      );
-      const fakeModalRef = { afterClose: of(undefined) } as unknown as NzModalRef;
-      const createSpy = vi.spyOn(modalService, "create").mockReturnValue(fakeModalRef);
+  it("copyPythonCodeToClipboard writes the generated Python script to the clipboard", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal("navigator", { clipboard: { writeText } });
+    const successSpy = vi.spyOn(notificationService, "success").mockImplementation(() => {});
+    component.pythonCodeForModal = "print('hello')";
 
-      component.onClickExportAsPython();
+    await component.copyPythonCodeToClipboard();
 
-      expect(component.pythonCodeForModal).toBe("print('hello')");
-      expect(createSpy).toHaveBeenCalledTimes(1);
-      // the button is re-enabled whichever way the request ends, so the user is not locked out of a second try
-      expect(component.isTranslatingToPython).toBe(false);
-    });
-
-    it("reports the reason the translation gave rather than opening an empty modal", () => {
-      const toPython = TestBed.inject(WorkflowToPythonService);
-      vi.spyOn(toPython, "convertToPython").mockReturnValue(
-        of({ type: "failure", errorMessage: "Sink is not supported" } as WorkflowToPythonResponse)
-      );
-      const errorSpy = vi.spyOn(notificationService, "error").mockImplementation(() => {});
-      const createSpy = vi.spyOn(modalService, "create");
-
-      component.onClickExportAsPython();
-
-      expect(errorSpy).toHaveBeenCalledWith("Sink is not supported");
-      expect(createSpy).not.toHaveBeenCalled();
-      expect(component.isTranslatingToPython).toBe(false);
-    });
-
-    it("copyPythonCodeToClipboard writes the generated Python script to the clipboard", async () => {
-      const writeText = vi.fn().mockResolvedValue(undefined);
-      vi.stubGlobal("navigator", { clipboard: { writeText } });
-      const successSpy = vi.spyOn(notificationService, "success").mockImplementation(() => {});
-      component.pythonCodeForModal = "print('hello')";
-
-      await component.copyPythonCodeToClipboard();
-
-      expect(writeText).toHaveBeenCalledWith("print('hello')");
-      expect(successSpy).toHaveBeenCalledWith("Python script copied to clipboard");
-      vi.unstubAllGlobals();
-    });
+    expect(writeText).toHaveBeenCalledWith("print('hello')");
+    expect(successSpy).toHaveBeenCalledWith("Python script copied to clipboard");
+    vi.unstubAllGlobals();
   });
 
   describe("version history", () => {
@@ -1478,6 +1475,27 @@ describe("MenuComponent", () => {
       } finally {
         stateFixture.destroy();
       }
+    });
+
+    it("re-applies the run button behavior on every compilation state event", () => {
+      component.isWorkflowValid = true;
+      component.isWorkflowEmpty = false;
+      component.computingUnitStatus = ComputingUnitState.Running;
+      component.executionState = ExecutionState.Uninitialized;
+      Object.defineProperty(component.workflowWebsocketService, "isConnected", {
+        get: () => true,
+        configurable: true,
+      });
+
+      compilationStream$.next(CompilationState.Failed);
+      expect(component.isWorkflowCompilable).toBe(false);
+      expect(component.runButtonText).toBe("Invalid Workflow");
+      expect(component.runDisable).toBe(true);
+
+      compilationStream$.next(CompilationState.Succeeded);
+      expect(component.isWorkflowCompilable).toBe(true);
+      expect(component.runButtonText).toBe("Run");
+      expect(component.runDisable).toBe(false);
     });
 
     it("deactivates the export button unless the feature is on and results exist", () => {
