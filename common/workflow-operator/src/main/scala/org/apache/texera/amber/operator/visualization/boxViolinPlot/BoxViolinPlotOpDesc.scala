@@ -22,10 +22,13 @@ package org.apache.texera.amber.operator.visualization.boxViolinPlot
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription, JsonPropertyOrder}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
-import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
+  PythonTemplateBuilderStringContext,
+  pyStringLiteral
+}
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
+import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
@@ -42,7 +45,7 @@ import javax.validation.constraints.NotNull
   }
 }
 """)
-class BoxViolinPlotOpDesc extends PythonOperatorDescriptor {
+class BoxViolinPlotOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
 
   @JsonProperty(value = "value", required = true)
   @JsonSchemaTitle("Value Column")
@@ -150,6 +153,56 @@ class BoxViolinPlotOpDesc extends PythonOperatorDescriptor {
          |        yield {'html-content': html}
          |        """
     finalCode.encode
+  }
+
+  // Output is a Plotly visualization, not a tabular DataFrame.
+  // The translator skips it in the leaf-DataFrame print block.
+  override def producesDataFrame(): Boolean = false
+
+  override def generateStandaloneCode(): String = {
+    val horizontal = if (horizontalOrientation) "True" else "False"
+    val violin = if (violinPlot) "True" else "False"
+    val quartileMethod =
+      if (quartileType == null) "linear" else quartileType.getQuartiletype
+    val valueLit = pyStringLiteral(value)
+
+    // The error page is written to output.html, the same file a plotted chart lands
+    // in, so a reason for "no chart" is where the reader looks for the chart —
+    // printing it to the terminal alone left output.html absent. render_error's
+    // continuation line keeps the runtime path's indentation, since the HTML is
+    // triple-quoted and those spaces reach the browser.
+    s"""def render_error(error_msg):
+       |    return '''<h1>Box/Violin Plot is not available.</h1>
+       |                  <p>Reason is: {} </p>
+       |               '''.format(error_msg)
+       |
+       |def fail(error_msg):
+       |    with open("output.html", "w", encoding="utf-8") as output:
+       |        output.write(render_error(error_msg))
+       |    print(f"Box/Violin Plot error: {error_msg}")
+       |
+       |if in1df.empty:
+       |    fail("input table is empty.")
+       |else:
+       |    in1df = in1df.dropna(subset=[$valueLit])
+       |    if in1df.empty:
+       |        fail("value column contains only non-positive numbers or nulls.")
+       |    else:
+       |        if $violin:
+       |            if $horizontal:
+       |                fig = px.violin(in1df, x=$valueLit, box=True, points='all')
+       |            else:
+       |                fig = px.violin(in1df, y=$valueLit, box=True, points='all')
+       |        else:
+       |            if $horizontal:
+       |                fig = px.box(in1df, x=$valueLit, boxmode="overlay", points='all')
+       |            else:
+       |                fig = px.box(in1df, y=$valueLit, boxmode="overlay", points='all')
+       |        fig.update_traces(quartilemethod=${pyStringLiteral(quartileMethod)}, col=1)
+       |        fig.update_layout(margin=dict(t=0, b=0, l=0, r=0))
+       |        fig.write_json("output.json")
+       |        fig.write_html("output.html")
+       |        print("Box/Violin Plot saved to output.json and output.html")""".stripMargin
   }
 
 }
