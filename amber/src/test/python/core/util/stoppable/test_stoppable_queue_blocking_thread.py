@@ -157,3 +157,36 @@ class TestRun:
         runnable.run()
 
         assert runnable.events == [("pre_start",), ("post_stop",)]
+
+    def test_the_base_receive_is_an_inert_no_op(self):
+        # Every other test subclasses the runnable and overrides receive, so
+        # the base implementation is never exercised. It must be a silent
+        # no-op: a subclass that only cares about pre_start/post_stop still
+        # has its entries consumed off the queue instead of the loop blowing
+        # up on the first one.
+        #
+        # Drive receive directly for the no-op claim. The drain in run() is
+        # performed by interruptible_get, not by receive, so an is_empty()
+        # assertion after run() is monotone in one direction only: it can see
+        # a receive that ADDS to the queue, but a receive that quietly
+        # swallows an extra entry -- dropping every other message off the
+        # wire -- leaves the queue just as empty. Pin both directions, plus
+        # the absence of any state written on the runnable itself.
+        queue = FakeQueue()
+        first, second = QueueElement(), QueueElement()
+        queue.put(first)
+        queue.put(second)
+        runnable = StoppableQueueBlockingRunnable(name="r", queue=queue)
+        state_before = dict(vars(runnable))
+
+        assert runnable.receive(QueueElement()) is None
+
+        assert list(queue.items) == [first, second]
+        assert vars(runnable) == state_before
+
+        # And through run(): the loop still drains to the stop sentinel.
+        runnable.stop()
+
+        runnable.run()
+
+        assert queue.is_empty()

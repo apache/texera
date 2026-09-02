@@ -128,7 +128,12 @@ describe("BrowseSectionComponent", () => {
   });
 
   describe("cover images", () => {
-    it("caches the cover URL the descriptor resolves for an entity that has a cover", () => {
+    it("caches the cover URL the descriptor resolves for an entity that has a cover, and asks once", () => {
+      // Spied, not replaced, so the double still answers: the call count is what pins the
+      // `!coverImageUrls.has(cacheKey(entity))` filter. ngOnChanges runs on every input change of
+      // every one of the landing page's four sections, so without that filter each pass would
+      // re-resolve every cover — a fresh presigned-URL request per card per change-detection run.
+      const cover = vi.spyOn(TestBed.inject(DatasetService) as any, "getDatasetCoverUrl");
       const entity = {
         id: 5,
         type: "dataset",
@@ -137,8 +142,10 @@ describe("BrowseSectionComponent", () => {
       } as unknown as DashboardEntry;
       component.entities = [entity];
       component.ngOnInit();
+      component.ngOnChanges({} as any);
 
       expect(component.getCoverImage(entity)).toBe(PRESIGNED_COVER);
+      expect(cover).toHaveBeenCalledTimes(1);
     });
 
     it("falls back to the default background when no cover was cached", () => {
@@ -149,6 +156,58 @@ describe("BrowseSectionComponent", () => {
 
       expect(component.getCoverImage(entity)).toBe(component.defaultBackground);
     });
+
+    // `this.resourceRegistry.find(entity.type)?.coverUrl` carries two guards, and a mixed section
+    // can trip either. A workflow's cover is a data URL carried on the entry itself, so
+    // WorkflowResourceDescriptor deliberately declares no `coverUrl`; and a kind the registry does
+    // not carry at all has no descriptor to ask, which is why this is `find`, not `get` — one such
+    // row must not take the whole section's covers down, exactly as `routeFor` five lines up
+    // already promises for links.
+    it("skips an entity whose descriptor resolves no cover, rather than calling undefined", () => {
+      const workflow = {
+        id: 10,
+        type: "workflow",
+        coverImageUrl: "carried-on-the-entry",
+        accessibleUserIds: [],
+      } as unknown as DashboardEntry;
+      const unregistered = {
+        id: 12,
+        type: "computing-unit",
+        coverImageUrl: "carried-on-the-entry",
+        accessibleUserIds: [],
+      } as unknown as DashboardEntry;
+      component.entities = [workflow, unregistered];
+
+      expect(() => component.ngOnInit()).not.toThrow();
+      expect(coverCache(component).has("workflow:10")).toBe(false);
+      expect(coverCache(component).has("computing-unit:12")).toBe(false);
+      expect(component.getCoverImage(workflow)).toBe(component.defaultBackground);
+    });
+
+    it("caches nothing when the descriptor resolves an empty cover url", () => {
+      // A presigned-URL endpoint with nothing to sign answers with an empty string; caching that
+      // would put an <img src=""> on the card, which the browser resolves to the page itself.
+      vi.spyOn(TestBed.inject(DatasetService) as any, "getDatasetCoverUrl").mockReturnValue(of({ url: "" }));
+      const entity = {
+        id: 11,
+        type: "dataset",
+        coverImageUrl: "has-cover",
+        accessibleUserIds: [],
+      } as unknown as DashboardEntry;
+      component.entities = [entity];
+      component.ngOnInit();
+
+      // White-box on purpose: getCoverImage's `|| defaultBackground` makes "cached an empty string"
+      // and "cached nothing" indistinguishable through the public API, so only the map itself can
+      // say whether the guard ran.
+      expect(coverCache(component).has("dataset:11")).toBe(false);
+      expect(component.getCoverImage(entity)).toBe(component.defaultBackground);
+    });
+
+    /** The component's cover cache, which no public member exposes. */
+    function coverCache(c: BrowseSectionComponent): Map<string, string> {
+      return (c as unknown as { coverImageUrls: Map<string, string> }).coverImageUrls;
+    }
   });
 });
 /**
