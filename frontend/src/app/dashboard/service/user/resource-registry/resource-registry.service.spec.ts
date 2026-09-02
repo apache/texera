@@ -267,8 +267,8 @@ describe("ResourceRegistryService", () => {
         { provide: ModelService, useValue: modelService },
         {
           provide: FileResourceDescriptor,
-          useValue: { type: EntityType.File, privateRoute: "/private-files", isOwner: () => true },
-        },
+          useValue: { type: EntityType.File, iconType: "folder-open", privateRoute: "/private-files", isOwner: () => true },
+        }
         ...commonTestProviders,
       ],
     });
