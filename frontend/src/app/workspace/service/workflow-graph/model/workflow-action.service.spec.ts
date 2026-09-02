@@ -794,6 +794,116 @@ describe("WorkflowActionService", () => {
     expect(workflow.content.links.length).toEqual(1);
   });
 
+  describe("formBinding (Form View definition)", () => {
+    const config = {
+      instruction: { title: "How to use this", body: "Pick a file, then Run." },
+      fields: [
+        {
+          id: "f1",
+          operatorID: mockScanPredicate.operatorID,
+          propertyKey: "tableName",
+          displayName: "Input table",
+          helpText: "Which table to read.",
+        },
+      ],
+      resultOperatorIds: [mockResultPredicate.operatorID],
+    };
+
+    it("should start empty for a workflow that was never set up", () => {
+      expect(service.getFormBinding()).toEqual({ fields: [], resultOperatorIds: [] });
+    });
+
+    it("should round-trip through workflow content", () => {
+      service.addOperator(mockScanPredicate, { x: 10, y: 20 });
+      service.setFormBinding(config);
+
+      expect(service.getWorkflowContent().formBinding).toEqual(config);
+    });
+
+    // The definition must survive being saved and opened again, which is what makes it
+    // travel with clone, version and publish for free.
+    it("should be restored when a workflow carrying one is reloaded", () => {
+      const workflow: Workflow = {
+        ...DEFAULT_WORKFLOW,
+        content: {
+          operators: [mockScanPredicate],
+          operatorPositions: { [mockScanPredicate.operatorID]: mockPoint },
+          links: [],
+          commentBoxes: [],
+          settings: undefined as any,
+          formBinding: config,
+        },
+      };
+
+      service.reloadWorkflow(workflow, false, false);
+
+      expect(service.getFormBinding()).toEqual(config);
+    });
+
+    it("should fall back to an empty definition for a workflow without one", () => {
+      service.setFormBinding(config);
+
+      service.reloadWorkflow(
+        {
+          ...DEFAULT_WORKFLOW,
+          content: {
+            operators: [],
+            operatorPositions: {},
+            links: [],
+            commentBoxes: [],
+            settings: undefined as any,
+          },
+        },
+        false,
+        false
+      );
+
+      expect(service.getFormBinding()).toEqual({ fields: [], resultOperatorIds: [] });
+    });
+
+    // Starting a blank workflow must not carry the previous one's definition, or it would
+    // leak into the new workflow's first save.
+    it("should clear a leftover definition when reset to a blank workflow", () => {
+      service.setFormBinding(config);
+      expect(service.getFormBinding()).toEqual(config);
+
+      service.reloadWorkflow(undefined, false, false);
+
+      expect(service.getFormBinding()).toEqual({ fields: [], resultOperatorIds: [] });
+    });
+
+    // A plain workflow must not stamp an empty formBinding into its content, or every existing
+    // workflow's first save would diff and cut a needless version. Mirrors the agent-service rule.
+    it("should omit formBinding from content for a workflow that never had one", () => {
+      service.reloadWorkflow(undefined, false, false);
+
+      expect("formBinding" in service.getWorkflowContent()).toBe(false);
+    });
+
+    // Editing the form has to reach the same autosave that canvas edits use.
+    it("should report an edit through workflowChanged", () => {
+      const seen: unknown[] = [];
+      const sub = service.workflowChanged().subscribe(v => seen.push(v));
+
+      service.setFormBinding(config);
+
+      expect(seen.length).toEqual(1);
+      sub.unsubscribe();
+    });
+
+    // Opening a workflow is not an edit; announcing it would save on every open.
+    it("should stay silent while a workflow is being opened", () => {
+      const seen: unknown[] = [];
+      const sub = service.formBindingChanged$.subscribe(v => seen.push(v));
+
+      service.hydrateFormBinding(config);
+
+      expect(seen.length).toEqual(0);
+      expect(service.getFormBinding()).toEqual(config);
+      sub.unsubscribe();
+    });
+  });
+
   it("should clear pre-existing comment boxes and fall back to default settings when reloading", () => {
     service.addCommentBox({ ...mockCommentBox, commentBoxID: "commentBox-old" });
     expect(texeraGraph.hasCommentBox("commentBox-old")).toBeTruthy();

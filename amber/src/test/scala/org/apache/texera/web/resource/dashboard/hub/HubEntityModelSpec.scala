@@ -110,12 +110,13 @@ class HubEntityModelSpec extends AnyFlatSpec {
   "EntityType subtypes" should "expose their lowercase string value" in {
     assert(EntityType.Workflow.value == "workflow")
     assert(EntityType.Dataset.value == "dataset")
+    assert(EntityType.Model.value == "model")
   }
 
   it should "have toString equal to value (override pin)" in {
     // Same stable-name pattern as ActionType — don't use the SUT
     // (toString) in the failure message.
-    val all: List[EntityType] = List(EntityType.Workflow, EntityType.Dataset)
+    val all: List[EntityType] = List(EntityType.Workflow, EntityType.Dataset, EntityType.Model)
     all.foreach { e =>
       val name = e.getClass.getSimpleName
       assert(e.toString == e.value, s"$name.toString = '${e.toString}' but value = '${e.value}'")
@@ -125,11 +126,13 @@ class HubEntityModelSpec extends AnyFlatSpec {
   "EntityType.fromString" should "match each subtype exactly" in {
     assert(EntityType.fromString("workflow") == EntityType.Workflow)
     assert(EntityType.fromString("dataset") == EntityType.Dataset)
+    assert(EntityType.fromString("model") == EntityType.Model)
   }
 
   it should "match case-insensitively" in {
     assert(EntityType.fromString("WORKFLOW") == EntityType.Workflow)
     assert(EntityType.fromString("Dataset") == EntityType.Dataset)
+    assert(EntityType.fromString("MODEL") == EntityType.Model)
   }
 
   it should "throw IllegalArgumentException for an unknown kind, naming the input" in {

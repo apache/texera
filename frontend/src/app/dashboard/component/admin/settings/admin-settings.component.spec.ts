@@ -574,6 +574,7 @@ describe("AdminSettingsComponent wiring", () => {
     "home_enabled",
     "workflow_enabled",
     "dataset_enabled",
+    "model_enabled",
     "your_work_enabled",
     "workflows_enabled",
     "datasets_enabled",
@@ -650,7 +651,9 @@ describe("AdminSettingsComponent wiring", () => {
     });
 
     it("locks the Hub children until Hub itself is on", () => {
-      const hubChildren = [1, 2, 3];
+      const hubChildren = (["home_enabled", "workflow_enabled", "dataset_enabled", "model_enabled"] as const).map(key =>
+        SWITCH_KEYS.indexOf(key)
+      );
 
       component.sidebarTabs.hub_enabled = false;
       fixture.detectChanges();

@@ -44,6 +44,7 @@ object SearchQueryBuilder {
   //       truth and no longer borrows an unrelated storage constant.
   val WORKFLOW_RESOURCE_TYPE = "workflow"
   val DATASET_RESOURCE_TYPE = ResourceType.Dataset.toString
+  val MODEL_RESOURCE_TYPE = ResourceType.Model.toString
   val ALL_RESOURCE_TYPE = ""
 }
 

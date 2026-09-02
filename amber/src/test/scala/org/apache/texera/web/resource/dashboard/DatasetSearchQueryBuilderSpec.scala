@@ -646,10 +646,10 @@ class DatasetSearchQueryBuilderSpec
   }
 
   it should "tag the entry as a dataset and fill the dataset payload slot" in {
-    // `entry.workflow shouldBe None` / `entry.project shouldBe None` used to sit here and were
-    // vacuous: `DashboardClickableFileEntry` declares both `= None` (DashboardResource:40-41) and
-    // this file passes neither, so no mutation of `toEntryImpl` can falsify them — they assert
-    // another file's case-class defaults. Only `resourceType` and `dataset` are this file's to set.
+    // `entry.workflow shouldBe None` used to sit here and was vacuous:
+    // `DashboardClickableFileEntry` declares it `= None` and this file does not pass it, so no
+    // mutation of `toEntryImpl` can falsify it — it asserts another file's case-class default.
+    // Only `resourceType` and `dataset` are this file's to set.
     //
     // `resourceType` here has the production constant on the right-hand side, so retargeting the
     // constant's *value* moves both sides together; the inlined-literal assertion in

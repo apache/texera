@@ -29,6 +29,7 @@ import { WorkflowPersistService } from "../../../../common/service/workflow-pers
 import { DownloadService } from "../download/download.service";
 import {
   HUB_DATASET_RESULT_DETAIL,
+  HUB_MODEL_RESULT_DETAIL,
   HUB_WORKFLOW_RESULT_DETAIL,
   USER_DATASET,
   USER_MODEL,
@@ -235,9 +236,10 @@ describe("ResourceRegistryService", () => {
     expect(registry.entryLink(dataset, 99)).toEqual([HUB_DATASET_RESULT_DETAIL, "5"]);
   });
 
-  it("routes a model to its detail page, which has no hub twin yet", () => {
-    expect(registry.get(EntityType.Model).hubRoute).toBeUndefined();
-    expect(registry.entryLink(entry({ type: EntityType.Model, id: 9 }), 42)).toEqual([USER_MODEL, "9"]);
+  it("routes a model the same way, to its own page or to the hub", () => {
+    const model = entry({ type: EntityType.Model, id: 9, accessibleUserIds: [42] });
+    expect(registry.entryLink(model, 42)).toEqual([USER_MODEL, "9"]);
+    expect(registry.entryLink(model, 99)).toEqual([HUB_MODEL_RESULT_DETAIL, "9"]);
   });
 
   it("leaves an unroutable or unsaved entry unlinked", () => {

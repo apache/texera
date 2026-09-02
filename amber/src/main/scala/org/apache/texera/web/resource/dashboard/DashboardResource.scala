@@ -26,6 +26,7 @@ import org.apache.texera.dao.jooq.generated.tables.pojos._
 import org.apache.texera.web.resource.dashboard.DashboardResource._
 import org.apache.texera.web.resource.dashboard.SearchQueryBuilder.{ALL_RESOURCE_TYPE, context}
 import org.apache.texera.web.resource.dashboard.user.dataset.DatasetResource.DashboardDataset
+import org.apache.texera.web.resource.dashboard.user.model.ModelResource.DashboardModel
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowResource.DashboardWorkflow
 import org.jooq.{Field, OrderField}
 
@@ -38,7 +39,8 @@ object DashboardResource {
   case class DashboardClickableFileEntry(
       resourceType: String,
       workflow: Option[DashboardWorkflow] = None,
-      dataset: Option[DashboardDataset] = None
+      dataset: Option[DashboardDataset] = None,
+      model: Option[DashboardModel] = None
   )
 
   case class UserInfo(userId: Integer, userName: String, avatar: Option[String])
@@ -61,6 +63,7 @@ object DashboardResource {
    * @param owners            A list of owner names to include in the search results.
    * @param workflowIDs       A list of workflow IDs to include in the search results.
    * @param operators         A list of operators to include in the search results.
+   * @param modelIds          A list of model IDs to include in the search results.
    * @param offset            The number of initial results to skip. This is useful for implementing pagination.
    * @param count             The maximum number of results to return.
    * @param orderBy           The order in which to sort the results. Acceptable values are 'NameAsc', 'NameDesc', 'CreateTimeDesc', and 'EditTimeDesc'.
@@ -76,6 +79,7 @@ object DashboardResource {
       @QueryParam("id") workflowIDs: java.util.List[Integer] = new util.ArrayList(),
       @QueryParam("operator") operators: java.util.List[String] = new util.ArrayList(),
       @QueryParam("datasetId") datasetIds: java.util.List[Integer] = new util.ArrayList(),
+      @QueryParam("modelId") modelIds: java.util.List[Integer] = new util.ArrayList(),
       @QueryParam("start") @DefaultValue("0") offset: Int = 0,
       @QueryParam("count") @DefaultValue("20") count: Int = 20,
       @QueryParam("orderBy") @DefaultValue("EditTimeDesc") orderBy: String = "EditTimeDesc"
@@ -94,10 +98,13 @@ object DashboardResource {
         WorkflowSearchQueryBuilder.constructQuery(uid, params, includePublic)
       case SearchQueryBuilder.DATASET_RESOURCE_TYPE =>
         DatasetSearchQueryBuilder.constructQuery(uid, params, includePublic)
+      case SearchQueryBuilder.MODEL_RESOURCE_TYPE =>
+        ModelSearchQueryBuilder.constructQuery(uid, params, includePublic)
       case SearchQueryBuilder.ALL_RESOURCE_TYPE =>
         val workflowQuery = WorkflowSearchQueryBuilder.constructQuery(uid, params, includePublic)
         val datasetQuery = DatasetSearchQueryBuilder.constructQuery(uid, params, includePublic)
-        workflowQuery.unionAll(datasetQuery)
+        val modelQuery = ModelSearchQueryBuilder.constructQuery(uid, params, includePublic)
+        workflowQuery.unionAll(datasetQuery).unionAll(modelQuery)
       case _ => throw new IllegalArgumentException(s"Unknown resource type: ${params.resourceType}")
     }
 
@@ -114,13 +121,16 @@ object DashboardResource {
             WorkflowSearchQueryBuilder.toEntry(uid, record)
           case SearchQueryBuilder.DATASET_RESOURCE_TYPE =>
             DatasetSearchQueryBuilder.toEntry(uid, record)
+          case SearchQueryBuilder.MODEL_RESOURCE_TYPE =>
+            ModelSearchQueryBuilder.toEntry(uid, record)
         }
       })
 
     val entries = allEntries.filter(_ != null)
     val hasMismatch =
       params.resourceType match {
-        case SearchQueryBuilder.DATASET_RESOURCE_TYPE | SearchQueryBuilder.ALL_RESOURCE_TYPE =>
+        case SearchQueryBuilder.DATASET_RESOURCE_TYPE | SearchQueryBuilder.MODEL_RESOURCE_TYPE |
+            SearchQueryBuilder.ALL_RESOURCE_TYPE =>
           allEntries.exists(_ == null)
         case _ =>
           false

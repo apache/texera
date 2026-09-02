@@ -21,17 +21,18 @@ package org.apache.texera.web.resource.dashboard
 
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.texera.amber.core.storage.util.LakeFSStorageClient
-import org.apache.texera.dao.jooq.generated.Tables.DATASET
+import org.apache.texera.dao.jooq.generated.Tables.{DATASET, MODEL}
 import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
 import org.apache.texera.dao.jooq.generated.tables.User.USER
-import org.apache.texera.dao.jooq.generated.tables.pojos.{Dataset, User}
-import org.apache.texera.dao.jooq.generated.tables.records.DatasetRecord
+import org.apache.texera.dao.jooq.generated.tables.pojos.{Dataset, Model, User}
+import org.apache.texera.dao.jooq.generated.tables.records.{DatasetRecord, ModelRecord}
 import org.apache.texera.web.resource.dashboard.DashboardResource.{
   DashboardClickableFileEntry,
   SearchQueryParams
 }
 import org.apache.texera.web.resource.dashboard.hub.EntityTables.{AccessTable, BaseEntityTable}
 import org.apache.texera.web.resource.dashboard.user.dataset.DatasetResource.DashboardDataset
+import org.apache.texera.web.resource.dashboard.user.model.ModelResource.DashboardModel
 import org.jooq._
 
 import java.sql.Timestamp
@@ -142,6 +143,37 @@ object VersionedResourceTables {
       DashboardClickableFileEntry(
         resourceType = resourceType,
         dataset = Some(DashboardDataset(resource, ownerEmail, accessPrivilege, isOwner, size))
+      )
+  }
+
+  case object ModelTables extends VersionedResourceTables[ModelRecord, Model] {
+    override val resourceType: String = SearchQueryBuilder.MODEL_RESOURCE_TYPE
+    override val table: Table[ModelRecord] = MODEL
+    override val idColumn: TableField[ModelRecord, Integer] = MODEL.MID
+    override val isPublicColumn: TableField[ModelRecord, java.lang.Boolean] = MODEL.IS_PUBLIC
+    override val nameColumn: TableField[ModelRecord, String] = MODEL.NAME
+    override val descriptionColumn: TableField[ModelRecord, String] = MODEL.DESCRIPTION
+    override val creationTimeColumn: TableField[ModelRecord, Timestamp] = MODEL.CREATION_TIME
+    override val ownerUidColumn: TableField[ModelRecord, Integer] = MODEL.OWNER_UID
+    override val access: AccessTable = AccessTable.ModelAccessTable
+
+    override def searchIds(params: SearchQueryParams): java.util.List[Integer] = params.modelIds
+
+    override def pojo(record: Record): Model = record.into(MODEL).into(classOf[Model])
+    override def idOf(resource: Model): Integer = resource.getMid
+    override def ownerUidOf(resource: Model): Integer = resource.getOwnerUid
+    override def repositoryNameOf(resource: Model): String = resource.getRepositoryName
+
+    override def entry(
+        resource: Model,
+        ownerEmail: String,
+        accessPrivilege: PrivilegeEnum,
+        isOwner: Boolean,
+        size: Long
+    ): DashboardClickableFileEntry =
+      DashboardClickableFileEntry(
+        resourceType = resourceType,
+        model = Some(DashboardModel(resource, ownerEmail, accessPrivilege, isOwner, size))
       )
   }
 }

@@ -43,7 +43,7 @@ export class StubSearchService {
     params: SearchFilterParameters,
     start: number,
     count: number,
-    type: "workflow" | "file" | "dataset" | null,
+    type: "workflow" | "file" | "dataset" | "model" | null,
     orderBy: SortMethod,
     isLogin: boolean = true,
     includePublic: boolean = false
@@ -79,7 +79,7 @@ export class StubSearchService {
     params: SearchFilterParameters,
     start: number,
     count: number,
-    type: "workflow" | "dataset" | "file" | null,
+    type: "workflow" | "dataset" | "file" | "model" | null,
     orderBy: SortMethod,
     isLogin: boolean,
     includePublic: boolean

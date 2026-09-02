@@ -23,28 +23,56 @@ SET search_path TO texera_db;
 
 BEGIN;
 
--- Remove the deprecated "project" feature (user projects: colour-tagged
--- collections of workflows, with sharing and public projects). See issue #5172.
---
--- IRREVERSIBLE, USER-VISIBLE DATA LOSS: every project (name, description,
--- colour), every workflow-to-project assignment, every project access grant and
--- every public-project listing is deleted. Workflows, datasets and their own
--- access grants are untouched -- but a workflow that a user could previously
--- reach ONLY through a project share becomes inaccessible to that user, because
--- workflow access is now decided solely by workflow_user_access. Deployment
--- administrators who want to preserve those grants must copy them into
--- workflow_user_access BEFORE applying this migration.
---
--- Dropped in FK-dependency order (children first). The pgroonga index
--- idx_project_pgroonga is dropped implicitly with its table.
-DROP TABLE IF EXISTS public_project;
-DROP TABLE IF EXISTS project_user_access;
-DROP TABLE IF EXISTS workflow_of_project;
-DROP TABLE IF EXISTS project;
+-- Hub engagement tables for models, mirroring dataset_user_likes / dataset_view_count.
 
--- The gui.tabs.projects_enabled key is gone from default.conf, so this seeded
--- row would be orphaned: it is no longer served by /config/settings/public and
--- the admin update endpoint rejects keys with no default.conf entry.
-DELETE FROM site_settings WHERE key = 'projects_enabled';
+CREATE TABLE IF NOT EXISTS model_user_likes
+(
+    uid INTEGER NOT NULL,
+    mid INTEGER NOT NULL,
+    PRIMARY KEY (uid, mid),
+    FOREIGN KEY (uid) REFERENCES "user"(uid) ON DELETE CASCADE,
+    FOREIGN KEY (mid) REFERENCES model(mid) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS model_view_count
+(
+    mid        INTEGER NOT NULL,
+    view_count INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (mid),
+    FOREIGN KEY (mid) REFERENCES model(mid) ON DELETE CASCADE
+);
 
 COMMIT;
+
+-- Full-text index for models. texera_ddl.sql builds this for a fresh database; a database
+-- upgraded through the migrations needs it created here. The indexed expression must match
+-- the predicate ModelSearchQueryBuilder renders (name || ' ' || description) exactly, or the
+-- planner falls back to a sequential scan.
+CREATE EXTENSION IF NOT EXISTS pgroonga;
+
+DO $$
+DECLARE
+  index_expression TEXT := '((COALESCE(name, '''') || '' '' || COALESCE(description, '''')))';
+  plugin_status TEXT;
+BEGIN
+  WITH plugin_registration AS (
+    SELECT pgroonga_command('plugin_register token_filters/stem') AS result
+  )
+  SELECT
+    CASE
+      WHEN result::jsonb @> '[true]' THEN 'Plugin registered successfully'
+      ELSE 'Plugin registration failed'
+    END INTO plugin_status
+  FROM plugin_registration;
+
+  DROP INDEX IF EXISTS idx_model_pgroonga;
+
+  IF plugin_status = 'Plugin registered successfully' THEN
+    EXECUTE 'CREATE INDEX idx_model_pgroonga ON model USING pgroonga ' || index_expression ||
+            ' WITH (tokenizer = ''TokenMecab'', plugins=''token_filters/stem'''
+            ', token_filters=''TokenFilterStem'')';
+  ELSE
+    EXECUTE 'CREATE INDEX idx_model_pgroonga ON model USING pgroonga ' || index_expression ||
+            ' WITH (tokenizer = ''TokenMecab'')';
+  END IF;
+END $$;
