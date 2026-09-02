@@ -29,7 +29,7 @@ import { By } from "@angular/platform-browser";
 import { commonTestImports, commonTestProviders } from "../../../../../common/testing/test-utils";
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
 import { UserService } from "../../../../../common/service/user/user.service";
-import { StubUserService } from "../../../../../common/service/user/stub-user.service";
+import { MOCK_USER_ID, StubUserService } from "../../../../../common/service/user/stub-user.service";
 import { MODEL_FORMATS, MODEL_FRAMEWORKS, ModelService } from "../../../../service/user/model/model.service";
 import { DownloadService } from "../../../../service/user/download/download.service";
 import { AdminSettingsService } from "../../../../service/admin/settings/admin-settings.service";
@@ -41,6 +41,7 @@ import { MarkdownDescriptionComponent } from "../../markdown-description/markdow
 import { DatasetFileNode } from "../../../../../common/type/datasetVersionFileTree";
 import { ModelVersion } from "../../../../../common/type/model";
 import { Role, User } from "../../../../../common/type/user";
+import { ActionType, EntityType, HubService } from "../../../../../hub/service/hub.service";
 import { ModelDetailComponent } from "./model-detail.component";
 
 const MID = 5;
@@ -72,6 +73,7 @@ describe("ModelDetailComponent", () => {
   let multipartUploadService: Record<string, ReturnType<typeof vi.fn>>;
   let stagedFileService: Record<string, ReturnType<typeof vi.fn>>;
   let adminSettingsService: Record<string, ReturnType<typeof vi.fn>>;
+  let hubService: Record<string, ReturnType<typeof vi.fn>>;
 
   const dashboardModel = (overrides: Partial<Record<string, unknown>> = {}) => ({
     isOwner: true,
@@ -131,6 +133,12 @@ describe("ModelDetailComponent", () => {
     };
     // Every model upload key is absent in this stub, so the component keeps its own defaults.
     adminSettingsService = { getPublicSetting: vi.fn(() => of("")) };
+    hubService = {
+      postView: vi.fn(() => of(7)),
+      getCounts: vi.fn(() => of([{ entityId: MID, entityType: EntityType.Model, counts: { like: 3 } }])),
+      isLiked: vi.fn(() => of([{ entityId: MID, entityType: EntityType.Model, isLiked: true }])),
+      toggleLike: vi.fn(() => of({ liked: false, likeCount: 2 })),
+    };
 
     TestBed.configureTestingModule({
       imports: [ModelDetailComponent, NoopAnimationsModule, ...commonTestImports],
@@ -145,6 +153,7 @@ describe("ModelDetailComponent", () => {
         { provide: MultipartUploadService, useValue: multipartUploadService },
         { provide: StagedFileService, useValue: stagedFileService },
         { provide: AdminSettingsService, useValue: adminSettingsService },
+        { provide: HubService, useValue: hubService },
         ...commonTestProviders,
       ],
     });
@@ -206,6 +215,45 @@ describe("ModelDetailComponent", () => {
     expect(component.ownerEmail).toBe(OWNER);
     expect(component.userModelAccessLevel).toBe("WRITE");
     expect(component.modelCreationTime).not.toBe("");
+  });
+
+  it("records a view and loads the like state when the page opens", () => {
+    create();
+
+    expect(hubService["postView"]).toHaveBeenCalledWith(MID, MOCK_USER_ID, EntityType.Model);
+    expect(component.viewCount).toBe(7);
+    expect(hubService["getCounts"]).toHaveBeenCalledWith([EntityType.Model], [MID], [ActionType.Like]);
+    expect(component.likeCount).toBe(3);
+    expect(hubService["isLiked"]).toHaveBeenCalledWith([MID], [EntityType.Model]);
+    expect(component.isLiked).toBe(true);
+  });
+
+  it("posts an anonymous view as uid 0 and does not ask whether it is liked", () => {
+    vi.spyOn(TestBed.inject(UserService), "getCurrentUser").mockReturnValue(undefined);
+    create();
+
+    expect(hubService["postView"]).toHaveBeenCalledWith(MID, 0, EntityType.Model);
+    expect(hubService["isLiked"]).not.toHaveBeenCalled();
+    expect(component.isLiked).toBe(false);
+  });
+
+  it("takes both the like flag and the count from the toggle's response", () => {
+    create();
+
+    component.toggleLike();
+
+    expect(hubService["toggleLike"]).toHaveBeenCalledWith(MID, EntityType.Model, true);
+    expect(component.isLiked).toBe(false);
+    expect(component.likeCount).toBe(2);
+  });
+
+  it("does not try to like as an anonymous viewer", () => {
+    vi.spyOn(TestBed.inject(UserService), "getCurrentUser").mockReturnValue(undefined);
+    create();
+
+    component.toggleLike();
+
+    expect(hubService["toggleLike"]).not.toHaveBeenCalled();
   });
 
   it("skips the cover fetch for a model that has none", () => {
@@ -447,15 +495,21 @@ describe("ModelDetailComponent", () => {
     expect(root.textContent).toContain("torchscript");
   });
 
-  it("shows view and like counters as placeholder zeros", () => {
-    // The hub backend has no model entity type yet, so nothing populates these and
-    // nothing may call the hub from this page.
+  it("renders the view and like counters the hub reported", () => {
     create();
     const tags = q(render(), ".status-tag-row").textContent ?? "";
 
-    expect(tags.match(/\b0\b/g)?.length).toBe(2);
-    expect(component.viewCount).toBe(0);
-    expect(component.likeCount).toBe(0);
+    expect(tags).toContain("7");
+    expect(tags).toContain("3");
+  });
+
+  it("makes the like tag clickable only for a signed-in viewer", () => {
+    create();
+    const like = q(render(), ".like-tag") as HTMLElement;
+    expect(like.classList).not.toContain("disabled");
+
+    like.click();
+    expect(hubService["toggleLike"]).toHaveBeenCalled();
   });
 
   it("dashes out the latest-version facts for a model with no versions", () => {

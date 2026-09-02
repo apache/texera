@@ -28,10 +28,13 @@ import { WorkflowPersistService } from "../../../common/service/workflow-persist
 import { DatasetService } from "../../../dashboard/service/user/dataset/dataset.service";
 import { commonTestProviders } from "../../../common/testing/test-utils";
 import { DashboardEntry } from "../../../dashboard/type/dashboard-entry";
+import { ModelService } from "../../../dashboard/service/user/model/model.service";
 import {
   HUB_DATASET_RESULT_DETAIL,
+  HUB_MODEL_RESULT_DETAIL,
   HUB_WORKFLOW_RESULT_DETAIL,
   USER_DATASET,
+  USER_MODEL,
   USER_WORKSPACE,
 } from "../../../app-routing.constant";
 
@@ -49,6 +52,7 @@ describe("BrowseSectionComponent", () => {
         { provide: WorkflowPersistService, useValue: {} },
         // The cover now comes from the descriptor, so the double has to answer for it.
         { provide: DatasetService, useValue: { getDatasetCoverUrl: () => of({ url: PRESIGNED_COVER }) } },
+        { provide: ModelService, useValue: { getModelCoverUrl: () => of({ url: PRESIGNED_COVER }) } },
         ...commonTestProviders,
       ],
     });
@@ -61,46 +65,65 @@ describe("BrowseSectionComponent", () => {
     expect(component).toBeTruthy();
   });
 
-  describe("entityRoutes initialization", () => {
+  describe("card routing", () => {
+    function entry(id: number | undefined, type: string, owners: number[]): DashboardEntry {
+      return { id, type, accessibleUserIds: owners } as unknown as DashboardEntry;
+    }
+
+    const routeOf = (entity: DashboardEntry): string[] => component.routeFor(entity);
+
     it("routes owned workflows to the user workspace", () => {
       component.currentUid = 1;
-      component.entities = [{ id: 100, type: "workflow", accessibleUserIds: [1] } as unknown as DashboardEntry];
-      component.ngOnInit();
-      expect(component.entityRoutes[100]).toEqual([USER_WORKSPACE, "100"]);
+      expect(routeOf(entry(100, "workflow", [1]))).toEqual([USER_WORKSPACE, "100"]);
     });
 
     it("routes non-owned workflows to the hub workflow detail page", () => {
       component.currentUid = 1;
-      component.entities = [{ id: 101, type: "workflow", accessibleUserIds: [2] } as unknown as DashboardEntry];
-      component.ngOnInit();
-      expect(component.entityRoutes[101]).toEqual([HUB_WORKFLOW_RESULT_DETAIL, "101"]);
+      expect(routeOf(entry(101, "workflow", [2]))).toEqual([HUB_WORKFLOW_RESULT_DETAIL, "101"]);
     });
 
     it("routes owned datasets to the user dataset page", () => {
       component.currentUid = 1;
-      component.entities = [{ id: 200, type: "dataset", accessibleUserIds: [1] } as unknown as DashboardEntry];
-      component.ngOnInit();
-      expect(component.entityRoutes[200]).toEqual([USER_DATASET, "200"]);
+      expect(routeOf(entry(200, "dataset", [1]))).toEqual([USER_DATASET, "200"]);
     });
 
     it("routes non-owned datasets to the hub dataset detail page", () => {
       component.currentUid = 1;
-      component.entities = [{ id: 201, type: "dataset", accessibleUserIds: [2] } as unknown as DashboardEntry];
-      component.ngOnInit();
-      expect(component.entityRoutes[201]).toEqual([HUB_DATASET_RESULT_DETAIL, "201"]);
-    });
-  });
-
-  describe("initializeEntry edge cases", () => {
-    it("skips entries whose id is not a number", () => {
-      component.entities = [{ id: undefined, type: "dataset", accessibleUserIds: [] } as unknown as DashboardEntry];
-      component.ngOnInit();
-      expect(Object.keys(component.entityRoutes)).toHaveLength(0);
+      expect(routeOf(entry(201, "dataset", [2]))).toEqual([HUB_DATASET_RESULT_DETAIL, "201"]);
     });
 
-    it("throws on an unexpected entity type", () => {
-      const bad = { id: 7, type: "not-a-real-type", accessibleUserIds: [] } as unknown as DashboardEntry;
-      expect(() => (component as any).initializeEntry(bad)).toThrowError("Unexpected type in DashboardEntry.");
+    it("routes owned models to the user model page", () => {
+      component.currentUid = 1;
+      expect(routeOf(entry(300, "model", [1]))).toEqual([USER_MODEL, "300"]);
+    });
+
+    it("routes non-owned models to the hub model detail page", () => {
+      component.currentUid = 1;
+      expect(routeOf(entry(301, "model", [2]))).toEqual([HUB_MODEL_RESULT_DETAIL, "301"]);
+    });
+
+    it("hands back the same array each time, so the routerLink binding does not churn", () => {
+      const workflow = entry(500, "workflow", [2]);
+      expect(component.routeFor(workflow)).toBe(component.routeFor(workflow));
+    });
+
+    it("recomputes the routes once the viewer changes", () => {
+      const workflow = entry(501, "workflow", [1]);
+      component.currentUid = 2;
+      expect(component.routeFor(workflow)).toEqual([HUB_WORKFLOW_RESULT_DETAIL, "501"]);
+
+      component.currentUid = 1;
+      component.ngOnChanges({} as any);
+
+      expect(component.routeFor(workflow)).toEqual([USER_WORKSPACE, "501"]);
+    });
+
+    it("gives no route to an entry whose id is not a number", () => {
+      expect(routeOf(entry(undefined, "dataset", []))).toEqual([]);
+    });
+
+    it("gives no route to a kind the registry does not carry, rather than throwing", () => {
+      expect(routeOf(entry(7, "computing-unit", []))).toEqual([]);
     });
   });
 
@@ -147,6 +170,7 @@ describe("BrowseSectionComponent rendering", () => {
         { provide: WorkflowPersistService, useValue: {} },
         // The cover now comes from the descriptor, so the double has to answer for it.
         { provide: DatasetService, useValue: { getDatasetCoverUrl: () => of({ url: PRESIGNED_COVER }) } },
+        { provide: ModelService, useValue: { getModelCoverUrl: () => of({ url: PRESIGNED_COVER }) } },
         ...commonTestProviders,
       ],
     });
