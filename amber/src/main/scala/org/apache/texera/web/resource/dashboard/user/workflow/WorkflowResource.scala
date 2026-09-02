@@ -42,8 +42,8 @@ import org.apache.texera.web.service.WarehouseReadGuard
 import org.apache.texera.web.resource.dashboard.hub.HubResource.recordCloneAction
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource.hasReadAccess
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowResource._
-import org.jooq.impl.DSL.{groupConcatDistinct, noCondition, max}
-import org.jooq.{Condition, DSLContext, Record11, Result, SelectOnConditionStep}
+import org.jooq.impl.DSL.{groupConcatDistinct, max}
+import org.jooq.{DSLContext, Record11, Result, SelectOnConditionStep}
 
 import java.sql.Timestamp
 import java.util
@@ -317,59 +317,6 @@ class WorkflowResource extends LazyLogging {
       .on(WORKFLOW_OF_USER.UID.eq(USER.UID))
       .where(WORKFLOW_USER_ACCESS.UID.eq(user.getUid))
       .fetchInto(classOf[String])
-  }
-
-  /**
-    * This method returns workflow IDs, that contain the selected operators, as strings
-    *
-    * @return WorkflowID[]
-    */
-  @GET
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
-  @Path("/search-by-operators")
-  def searchWorkflowByOperator(
-      @QueryParam("operator") operator: String,
-      @Auth sessionUser: SessionUser
-  ): List[String] = {
-    // Example GET url: localhost:8080/workflow/searchOperators?operator=Regex,CSVFileScan
-    val user = sessionUser.getUser
-    val quotes = "\""
-    val operatorArray =
-      operator.replace(" ", "").stripPrefix("[").stripSuffix("]").split(',')
-    var orCondition: Condition = noCondition()
-    for (i <- operatorArray.indices) {
-      val operatorName = operatorArray(i)
-      orCondition = orCondition.or(
-        WORKFLOW.CONTENT
-          .likeIgnoreCase(
-            "%" + quotes + "operatorType" + quotes + ":" + quotes + s"$operatorName" + quotes + "%"
-            //gives error when I try to combine escape character with formatted string
-            //may be due to old scala version bug
-          )
-      )
-
-    }
-
-    val workflowEntries =
-      context
-        .select(
-          WORKFLOW.WID
-        )
-        .from(WORKFLOW)
-        .join(WORKFLOW_USER_ACCESS)
-        .on(WORKFLOW_USER_ACCESS.WID.eq(WORKFLOW.WID))
-        .where(
-          orCondition
-            .and(WORKFLOW_USER_ACCESS.UID.eq(user.getUid))
-        )
-        .fetch()
-
-    workflowEntries
-      .map(workflowRecord => {
-        workflowRecord.into(WORKFLOW).getWid.intValue().toString
-      })
-      .asScala
-      .toList
   }
 
   /**
