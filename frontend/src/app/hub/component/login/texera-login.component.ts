@@ -349,6 +349,10 @@ export class TexeraLoginComponent implements OnInit {
    * Hand the browser to ORCID's consent screen. Unlike Google — whose SDK runs the whole
    * handshake in a popup and emits a token — ORCID is plain authorization-code OAuth, so this
    * leaves the app entirely and comes back at `/callback/orcid` with a `code` to exchange.
+   *
+   * Every value in the authorize URL comes from `/auth/orcid/config`, `redirect_uri` included:
+   * the backend sends its own configured redirect URI on the token exchange, and ORCID rejects
+   * the exchange unless the two match byte-for-byte. See [[OrcidConfig]].
    */
   protected orcidLogin(): void {
     // Unreachable while the template keeps the button disabled, but the narrowing is needed
@@ -366,7 +370,7 @@ export class TexeraLoginComponent implements OnInit {
       client_id: config.clientId,
       response_type: "code",
       scope: "/authenticate",
-      redirect_uri: `${window.location.origin}/callback/orcid`,
+      redirect_uri: config.redirectUri,
       state,
     });
 

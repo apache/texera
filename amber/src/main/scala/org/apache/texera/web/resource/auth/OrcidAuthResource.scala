@@ -113,7 +113,7 @@ class OrcidAuthResource {
   /**
     * What the login page needs to build its authorize redirect.
     *
-    * A deployment missing any of the three settings the flow needs is reported unavailable rather
+    * A deployment missing any of the four settings the flow needs is reported unavailable rather
     * than answered with blanks. The login page enables its ORCID button the moment this resolves,
     * and each blank fails later and worse: an empty `client_id` lands the user on an ORCID error
     * page, and an empty `redirect_uri` gets the exchange rejected after they have already
@@ -121,11 +121,19 @@ class OrcidAuthResource {
     * unavailable", which is what the page already does with a failed fetch
     * (`texera-login.component.ts`).
     *
-    * `redirectUri` and `baseUrl` are checked here even though only [[exchangeCode]] sends them,
-    * because both are easily left empty: the deployment templates ship them for an operator to
-    * fill in, and HOCON treats an env var set to "" as set, so it overrides the config default. An
-    * empty `baseUrl` would otherwise answer with the relative `authorizeUrl` "/oauth/authorize",
-    * which navigates the SPA to itself instead of ORCID.
+    * `redirectUri` is answered rather than left to the browser to derive, because ORCID requires
+    * the authorize call's `redirect_uri` and the token exchange's to match byte-for-byte and
+    * [[exchangeCode]] sends the configured one. Deriving the authorize leg from
+    * `window.location.origin` instead would give that pair two independent owners, and any
+    * disagreement — a deployment reached over a host, port or scheme other than the registered
+    * one — shows up only after the user has consented, as "Login credentials are incorrect."
+    * Serving it here makes this the single owner.
+    *
+    * `clientSecret` is checked here even though only [[exchangeCode]] sends it, and `baseUrl`
+    * because it is easily emptied: the deployment templates ship these for an operator to fill in,
+    * and HOCON treats an env var set to "" as set, so it overrides the config default. An empty
+    * `baseUrl` would otherwise answer with the relative `authorizeUrl` "/oauth/authorize", which
+    * navigates the SPA to itself instead of ORCID.
     */
   @GET
   @Path("/config")
@@ -141,7 +149,8 @@ class OrcidAuthResource {
     }
     Map(
       "clientId" -> clientId,
-      "authorizeUrl" -> s"$orcidBaseUrl/oauth/authorize"
+      "authorizeUrl" -> s"$orcidBaseUrl/oauth/authorize",
+      "redirectUri" -> redirectUri
     )
   }
 
@@ -150,7 +159,8 @@ class OrcidAuthResource {
     *
     * `redirect_uri` is read from configuration rather than the request: ORCID requires it to match
     * the authorize call byte-for-byte, and honouring a caller-supplied one would let the browser
-    * choose which registered redirect an exchange is attributed to.
+    * choose which registered redirect an exchange is attributed to. [[getConfig]] hands the login
+    * page this same value to send on the authorize leg, so the two agree by construction.
     *
     * The one seam that reaches the network. Kept as a method rather than a constructor parameter
     * for the same reason [[GoogleAuthResource.verifiedPayload]] is: Jersey instantiates this

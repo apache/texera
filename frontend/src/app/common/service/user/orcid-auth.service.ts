@@ -23,13 +23,20 @@ import { HttpClient } from "@angular/common/http";
 import { AppSettings } from "../../app-setting";
 
 /**
- * What the login page needs to send the browser to ORCID: the registered client id, and the
- * authorize endpoint of whichever ORCID deployment this backend is configured against
- * (sandbox or production). Both come from the server so the two can never disagree.
+ * What the login page needs to send the browser to ORCID: the registered client id, the authorize
+ * endpoint of whichever ORCID deployment this backend is configured against (sandbox or
+ * production), and the redirect URI to come back through.
+ *
+ * All three come from the server so none of them can disagree with what the backend uses. That
+ * matters most for `redirectUri`: ORCID requires the value on the authorize leg to match the one
+ * the token exchange sends byte-for-byte, and the exchange sends
+ * `user-sys.orcid.redirectUri`. Deriving it here from `window.location.origin` would give the pair
+ * two owners, and a mismatch only surfaces after the user has already consented.
  */
 export interface OrcidConfig {
   clientId: string;
   authorizeUrl: string;
+  redirectUri: string;
 }
 
 /**

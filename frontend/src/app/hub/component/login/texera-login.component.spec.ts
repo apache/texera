@@ -432,9 +432,17 @@ describe("TexeraLoginComponent", () => {
   // it happens on /callback/orcid and in the backend. What matters here is that the redirect is
   // well formed and that the `state` the callback verifies actually gets stashed first.
   describe("orcid sign-in", () => {
-    const ORCID_CONFIG = { clientId: "APP-123", authorizeUrl: "https://sandbox.orcid.org/oauth/authorize" };
+    const ORCID_CONFIG = {
+      clientId: "APP-123",
+      authorizeUrl: "https://sandbox.orcid.org/oauth/authorize",
+      redirectUri: "https://texera.example/callback/orcid",
+    };
 
-    /** Swaps window.location for the duration of `run`, per the pattern in app.component.spec.ts. */
+    /**
+     * Swaps window.location for the duration of `run`, per the pattern in app.component.spec.ts.
+     * `href` is where the redirect lands; the `origin` deliberately differs from
+     * `ORCID_CONFIG.redirectUri`, so deriving `redirect_uri` from the browser again would fail.
+     */
     const withStubbedLocation = (run: (location: { origin: string; href: string }) => void) => {
       const original = window.location;
       const stub = { ...original, origin: "http://127.0.0.1:4200", href: "" } as unknown as {
@@ -470,7 +478,7 @@ describe("TexeraLoginComponent", () => {
 
     afterEach(() => sessionStorage.clear());
 
-    it("redirects to ORCID with the client id, callback and a fresh state", () => {
+    it("redirects to ORCID with the server's client id and redirect uri, and a fresh state", () => {
       flushOrcidConfig();
 
       withStubbedLocation(location => {
@@ -481,7 +489,9 @@ describe("TexeraLoginComponent", () => {
         expect(url.searchParams.get("client_id")).toBe("APP-123");
         expect(url.searchParams.get("response_type")).toBe("code");
         expect(url.searchParams.get("scope")).toBe("/authenticate");
-        expect(url.searchParams.get("redirect_uri")).toBe("http://127.0.0.1:4200/callback/orcid");
+        // Served by the backend, which sends the same value on the token exchange — not derived
+        // from `window.location.origin`, which ORCID would reject as a mismatch.
+        expect(url.searchParams.get("redirect_uri")).toBe(ORCID_CONFIG.redirectUri);
         // The callback compares this against what comes back; it has to be stored before leaving.
         expect(url.searchParams.get("state")).toBe(sessionStorage.getItem(ORCID_STATE_KEY));
         expect(sessionStorage.getItem(ORCID_STATE_KEY)).toBeTruthy();
