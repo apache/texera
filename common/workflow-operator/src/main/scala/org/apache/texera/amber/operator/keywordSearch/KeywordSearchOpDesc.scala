@@ -24,12 +24,14 @@ import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchema
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PhysicalOp}
+import org.apache.texera.amber.operator.StandaloneCodeGenerator
 import org.apache.texera.amber.operator.filter.FilterOpDesc
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
-class KeywordSearchOpDesc extends FilterOpDesc {
+class KeywordSearchOpDesc extends FilterOpDesc with StandaloneCodeGenerator {
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("attribute")
@@ -37,10 +39,27 @@ class KeywordSearchOpDesc extends FilterOpDesc {
   @AutofillAttributeName
   var attribute: String = _
 
+  // The value is a Lucene query, so the parser the executor builds decides what can be
+  // typed here. Its lexer needs double quotes in pairs: one on its own opens a phrase
+  // that never closes, and `parse` throws before a row is read. A quote a backslash
+  // escapes is not one of the pair, it is a character in a term, so the pattern walks
+  // the value the way the lexer does: an escape takes the character after it, whatever
+  // it is, and only a bare quote opens or closes a phrase. A backslash with nothing to
+  // escape ends the value mid-escape, which throws as well.
+  //
+  // That is the one rule statable exactly. ( ) [ ] { } ^ and / also carry query syntax,
+  // but which uses of them parse depends on what follows, and a pattern strict enough to
+  // cover them would reject the phrase and range queries that work today.
+  //
+  // Anchored, because the form validates with `new RegExp().test`, which searches: an
+  // unanchored alternative would match the leading run of quoteless characters in any
+  // value at all and reject nothing.
   @JsonProperty(required = true)
   @JsonSchemaTitle("keywords")
   @JsonPropertyDescription("keywords")
-  @JsonSchemaInject(json = """{"minLength": 1}""")
+  @JsonSchemaInject(
+    json = """{"minLength": 1, "pattern": "^(?:[^\"\\\\]|\\\\.|\"(?:[^\"\\\\]|\\\\.)*\")*$"}"""
+  )
   var keyword: String = _
 
   @JsonProperty(required = true, defaultValue = "false")
@@ -75,4 +94,22 @@ class KeywordSearchOpDesc extends FilterOpDesc {
       outputPorts = List(OutputPort()),
       supportReconfiguration = true
     )
+
+  override def generateStandaloneCode(): String = {
+    // JVM uses Lucene MemoryIndex + StandardAnalyzer + QueryParser per row.
+    // Best-effort approximation: split keyword on whitespace, treat as
+    // OR-of-terms with word boundaries, case-insensitive. This does NOT honor
+    // Lucene query syntax (phrases "a b", booleans +/-, wildcards *, fuzzy ~).
+    val raw = Option(keyword).getOrElse("")
+    val terms = raw.trim.split("\\s+").filter(_.nonEmpty).toList
+    if (terms.isEmpty) return "out1df = in1df"
+
+    val regexSpecials = Set('.', '^', '$', '*', '+', '?', '(', ')', '[', ']', '{', '}', '|', '\\')
+    val escaped = terms.map(_.flatMap(c => if (regexSpecials.contains(c)) s"\\$c" else c.toString))
+    val pattern = escaped.mkString("\\b(?:", "|", ")\\b")
+    val pyLiteral = pyStringLiteral(pattern)
+    val attrLit = pyStringLiteral(attribute)
+
+    s"""out1df = in1df[in1df[$attrLit].astype(str).str.contains($pyLiteral, regex=True, case=False, na=False)].reset_index(drop=True)"""
+  }
 }

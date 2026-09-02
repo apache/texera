@@ -22,14 +22,16 @@ package org.apache.texera.amber.operator.typecasting
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.core.executor.OpExecWithClassName
-import org.apache.texera.amber.core.tuple.{AttributeTypeUtils, Schema}
+import org.apache.texera.amber.core.tuple.{AttributeType, AttributeTypeUtils, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow._
+import org.apache.texera.amber.operator.StandaloneCodeGenerator
 import org.apache.texera.amber.operator.map.MapOpDesc
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
-class TypeCastingOpDesc extends MapOpDesc {
+class TypeCastingOpDesc extends MapOpDesc with StandaloneCodeGenerator {
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("TypeCasting Units")
@@ -71,5 +73,39 @@ class TypeCastingOpDesc extends MapOpDesc {
       List(InputPort()),
       List(OutputPort())
     )
+  }
+
+  override def generateStandaloneCode(): String = {
+    val units = Option(typeCastingUnits).getOrElse(List.empty)
+    if (units.isEmpty) return "out1df = in1df.copy()"
+
+    val lines = scala.collection.mutable.ArrayBuffer[String]("out1df = in1df.copy()")
+    units.foreach { unit =>
+      val colLit = pyStringLiteral(unit.attribute)
+      // Use pd.to_numeric / pd.to_datetime with errors="coerce" so unparseable
+      // values become NaN/NaT instead of raising — matches a best-effort
+      // standalone reproduction of Texera's per-row cast.
+      val expr = unit.resultType match {
+        case AttributeType.STRING                       => s"""out1df[$colLit].astype(str)"""
+        case AttributeType.INTEGER | AttributeType.LONG =>
+          // Match JVM AttributeTypeUtils.parseInteger, which casts Double via
+          // `.toInt` (truncate toward zero). pandas .astype("Int64") on a float
+          // with non-integer values raises TypeError, so truncate explicitly
+          // via int() while preserving NaN as pd.NA.
+          s"""pd.to_numeric(out1df[$colLit], errors="coerce").apply(lambda x: pd.NA if pd.isna(x) else int(x)).astype("Int64")"""
+        case AttributeType.DOUBLE =>
+          s"""pd.to_numeric(out1df[$colLit], errors="coerce").astype("float64")"""
+        case AttributeType.BOOLEAN =>
+          // `.astype(bool)` reads NaN as True, because NaN is a non-zero float.
+          // AttributeTypeUtils.parseField returns a null field untouched, so the
+          // hole has to survive the cast: pandas' nullable "boolean" holds it,
+          // numpy's bool cannot.
+          s"""out1df[$colLit].apply(lambda x: pd.NA if pd.isna(x) else bool(x)).astype("boolean")"""
+        case AttributeType.TIMESTAMP => s"""pd.to_datetime(out1df[$colLit], errors="coerce")"""
+        case _                       => s"""out1df[$colLit]"""
+      }
+      lines += s"""out1df[$colLit] = $expr"""
+    }
+    lines.mkString("\n")
   }
 }

@@ -24,11 +24,12 @@ import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow._
-import org.apache.texera.amber.operator.LogicalOp
+import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
-class IfOpDesc extends LogicalOp {
+class IfOpDesc extends LogicalOp with StandaloneCodeGenerator {
   @JsonProperty(required = true)
   @JsonSchemaTitle("Condition State")
   @JsonPropertyDescription("name of the state variable to evaluate")
@@ -72,4 +73,27 @@ class IfOpDesc extends LogicalOp {
       ),
       outputPorts = List(OutputPort(PortIdentity(), "False"), OutputPort(PortIdentity(1), "True"))
     )
+
+  // JVM IfOpExec flips its active output port via processState() — a State
+  // message arriving on the Condition input carries the boolean under
+  // `conditionName`. Flat pandas has no State channel, so the standalone
+  // translation adopts a convention: read the condition from a Python global
+  // named `_texera_if_<conditionName>`, default True when unset (matches
+  // IfOpExec's pre-state `outputPort = PortIdentity(1)` initial value). Host
+  // scripts that need the False branch set the global before exec; the
+  // Condition input (in1df) is intentionally ignored because in live Texera
+  // it only carries State, not data, and forcing upstream ops to manufacture
+  // a DataFrame would impose a contract on State-producing operators that
+  // the rest of the translator doesn't define.
+  override def generateStandaloneCode(): String = {
+    val globalName = "_texera_if_" + Option(conditionName).getOrElse("")
+    val globalLit = pyStringLiteral(globalName)
+    s"""_texera_if_cond = bool(globals().get($globalLit, True))
+       |if _texera_if_cond:
+       |    out2df = in2df.copy()
+       |    out1df = in2df.iloc[0:0].copy()
+       |else:
+       |    out1df = in2df.copy()
+       |    out2df = in2df.iloc[0:0].copy()""".stripMargin
+  }
 }

@@ -29,10 +29,18 @@ class UnnestStringOpExec(descString: String) extends FlatMapOpExec {
   setFlatMapFunc(splitByDelimiter)
 
   private def splitByDelimiter(tuple: Tuple): Iterator[TupleLike] = {
-    desc.delimiter.r
-      .split(tuple.getField(desc.attribute).toString)
-      .filter(_.nonEmpty)
-      .iterator
-      .map(split => TupleLike(tuple.getFields ++ Seq(split)))
+    val field = tuple.getField[Any](desc.attribute)
+    // Nothing in the column unnests to nothing, the same way the filter below drops
+    // the empty pieces a run of delimiters produces. An empty cell is ordinary input,
+    // since a blank in a CSV arrives as null.
+    if (field == null) {
+      Iterator.empty
+    } else {
+      desc.delimiter.r
+        .split(field.toString)
+        .filter(_.nonEmpty)
+        .iterator
+        .map(split => TupleLike(tuple.getFields ++ Seq(split)))
+    }
   }
 }

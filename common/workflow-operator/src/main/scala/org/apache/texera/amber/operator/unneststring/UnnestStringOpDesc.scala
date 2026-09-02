@@ -29,12 +29,14 @@ import org.apache.texera.amber.core.workflow.{
   PhysicalOp,
   SchemaPropagationFunc
 }
+import org.apache.texera.amber.operator.StandaloneCodeGenerator
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 import org.apache.texera.amber.operator.flatmap.FlatMapOpDesc
-import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
+import org.apache.texera.amber.operator.metadata.annotations.{AutofillAttributeName, SampleColumn}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
-class UnnestStringOpDesc extends FlatMapOpDesc {
+class UnnestStringOpDesc extends FlatMapOpDesc with StandaloneCodeGenerator {
   @JsonProperty(value = "Delimiter", required = true, defaultValue = ",")
   @JsonPropertyDescription("string that separates the data")
   var delimiter: String = _
@@ -42,6 +44,7 @@ class UnnestStringOpDesc extends FlatMapOpDesc {
   @JsonProperty(value = "Attribute", required = true)
   @JsonPropertyDescription("column of the string to unnest")
   @AutofillAttributeName
+  @SampleColumn("csv_list")
   var attribute: String = _
 
   @JsonProperty(value = "Result attribute", required = true, defaultValue = "unnestResult")
@@ -83,5 +86,23 @@ class UnnestStringOpDesc extends FlatMapOpDesc {
           Map(operatorInfo.outputPorts.head.id -> outputSchema)
         })
       )
+  }
+
+  override def generateStandaloneCode(): String = {
+    if (resultAttribute == null || resultAttribute.trim.isEmpty) {
+      throw new RuntimeException("Result attribute cannot be empty")
+    }
+    // The JVM op uses Scala's `delimiter.r.split(...)`, so delimiter is a regex; it
+    // and the two column names are rendered as escaped Python literals.
+    val delim = pyStringLiteral(Option(delimiter).getOrElse(""))
+    val resultLit = pyStringLiteral(resultAttribute)
+    val attributeLit = pyStringLiteral(attribute)
+    s"""# Nothing in the column unnests to nothing, the way the operator answers a null
+       |# field with no rows at all. Dropped before the split rather than after:
+       |# astype(str) would turn the empty cell into the text "None" and unnest that.
+       |out1df = in1df[in1df[$attributeLit].notna()].copy()
+       |out1df[$resultLit] = out1df[$attributeLit].astype(str).str.split($delim, regex=True)
+       |out1df = out1df.explode($resultLit, ignore_index=True)
+       |out1df = out1df[(out1df[$resultLit].notna()) & (out1df[$resultLit] != "")].reset_index(drop=True)""".stripMargin
   }
 }

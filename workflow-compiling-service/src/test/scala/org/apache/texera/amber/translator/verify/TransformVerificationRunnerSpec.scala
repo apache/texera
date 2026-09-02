@@ -28,8 +28,9 @@ package org.apache.texera.amber.translator.verify
 // disposition asserts — which tier an operator routes to — is the one thing
 // OperatorBehaviorSpec does not check, so it lives here.
 
+import org.apache.texera.amber.operator.hashJoin.HashJoinOpDesc
 import org.apache.texera.amber.operator.limit.LimitOpDesc
-import org.apache.texera.amber.operator.sortPartitions.SortPartitionsOpDesc
+import org.apache.texera.amber.operator.visualization.barChart.BarChartOpDesc
 import org.apache.texera.amber.operator.union.UnionOpDesc
 import org.apache.texera.amber.operator.visualization.wordCloud.WordCloudOpDesc
 import org.apache.texera.amber.operator.sklearn.SklearnPredictionOpDesc
@@ -60,16 +61,23 @@ class TransformVerificationRunnerSpec extends AnyFlatSpec with Matchers {
     disposition(classOf[UnionOpDesc]) shouldBe Runnable("auto")
   }
 
+  // The curated tier is for an operator whose input cannot be derived from its
+  // schema: a join needs two tables that share a key, which no generator reading
+  // the schema alone would produce.
+  it should "route genuine one-off curated ops to the curated tier" in {
+    disposition(classOf[HashJoinOpDesc[_]]) shouldBe Runnable("curated")
+  }
+
   it should "route auto-configurable operators to the auto tier" in {
     disposition(classOf[LimitOpDesc]) shouldBe Runnable("auto")
   }
 
-  // The operator set implements the generator a family at a time, so most of it
-  // does not yet. That is reported rather than passed over: an operator missing
+  // The operator set implements the generator a family at a time, and the
+  // visualization family has not had its turn. That is reported rather than passed over: an operator missing
   // from the run is a fact the report has to carry, and the rows for each family
   // arrive with the change that gives that family its generator.
   it should "flag an operator that has no standalone generator yet" in {
-    disposition(classOf[SortPartitionsOpDesc]) shouldBe
+    disposition(classOf[BarChartOpDesc]) shouldBe
       Flagged("does not implement StandaloneCodeGenerator")
   }
 }
