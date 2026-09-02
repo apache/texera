@@ -22,10 +22,13 @@ package org.apache.texera.amber.operator.visualization.hierarchychart
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
-import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
+  PythonTemplateBuilderStringContext,
+  pyStringLiteral
+}
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
+import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
@@ -42,7 +45,7 @@ import javax.validation.constraints.{NotEmpty, NotNull}
   }
 }
 """)
-class HierarchyChartOpDesc extends PythonOperatorDescriptor {
+class HierarchyChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
   @JsonProperty(required = true)
   @JsonSchemaTitle("Chart Type")
   @JsonPropertyDescription("Treemap or Sunburst")
@@ -135,6 +138,45 @@ class HierarchyChartOpDesc extends PythonOperatorDescriptor {
          |        yield {'html-content': html}
          |"""
     finalCode.encode
+  }
+
+  // Output is an HTML chart, not a tabular DataFrame.
+  // The translator skips it in the leaf-DataFrame print block.
+  override def producesDataFrame(): Boolean = false
+
+  override def generateStandaloneCode(): String = {
+    val attributes = hierarchy.map(section => pyStringLiteral(section.attributeName)).mkString(", ")
+    val valueLit = pyStringLiteral(value)
+    // The error page is written to output.html, the same file a plotted chart lands
+    // in, so a reason for "no chart" is where the reader looks for the chart —
+    // printing it to the terminal alone left output.html absent. render_error's
+    // continuation line keeps the runtime path's indentation, since the HTML is
+    // triple-quoted and those spaces reach the browser.
+    s"""def render_error(error_msg):
+       |    return '''<h1>Hierarchy chart is not available.</h1>
+       |                  <p>Reason is: {} </p>
+       |               '''.format(error_msg)
+       |
+       |def fail(error_msg):
+       |    with open("output.html", "w", encoding="utf-8") as output:
+       |        output.write(render_error(error_msg))
+       |    print(f"Hierarchy chart error: {error_msg}")
+       |
+       |if in1df.empty:
+       |    fail("input table is empty.")
+       |else:
+       |    in1df[$valueLit] = in1df[in1df[$valueLit] > 0][$valueLit]
+       |    in1df.dropna(subset=[$attributes], inplace=True)
+       |    if in1df.empty:
+       |        fail("value column contains only non-positive numbers or nulls.")
+       |    else:
+       |        fig = px.${hierarchyChartType.getPlotlyExpressApiName}(in1df, path=[$attributes], values=$valueLit,
+       |                         color=$valueLit, hover_data=[$attributes],
+       |                         color_continuous_scale='RdBu')
+       |        fig.update_layout(margin=dict(l=0, r=0, b=0, t=0))
+       |        fig.write_json("output.json")
+       |        fig.write_html("output.html")
+       |        print("Hierarchy chart saved to output.html")""".stripMargin
   }
 
 }

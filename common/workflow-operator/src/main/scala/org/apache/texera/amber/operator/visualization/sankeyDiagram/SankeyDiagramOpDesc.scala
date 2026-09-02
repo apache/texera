@@ -25,10 +25,11 @@ import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
-import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
+import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
+import org.apache.texera.amber.operator.metadata.annotations.{AutofillAttributeName, SampleColumn}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 
 import javax.validation.constraints.NotNull
 
@@ -43,12 +44,13 @@ import javax.validation.constraints.NotNull
   }
 }
 """)
-class SankeyDiagramOpDesc extends PythonOperatorDescriptor {
+class SankeyDiagramOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
 
   @JsonProperty(value = "Source Attribute", required = true)
   @JsonSchemaTitle("Source Attribute")
   @JsonPropertyDescription("The source node of the Sankey diagram")
   @AutofillAttributeName
+  @SampleColumn("node_src")
   @NotNull(message = "Source Attribute cannot be empty")
   var sourceAttribute: EncodableString = ""
 
@@ -56,6 +58,7 @@ class SankeyDiagramOpDesc extends PythonOperatorDescriptor {
   @JsonSchemaTitle("Target Attribute")
   @JsonPropertyDescription("The target node of the Sankey diagram")
   @AutofillAttributeName
+  @SampleColumn("node_dst")
   @NotNull(message = "Target Attribute cannot be empty")
   var targetAttribute: EncodableString = ""
 
@@ -63,6 +66,7 @@ class SankeyDiagramOpDesc extends PythonOperatorDescriptor {
   @JsonSchemaTitle("Value Attribute")
   @JsonPropertyDescription("The value/volume of the flow between source and target")
   @AutofillAttributeName
+  @SampleColumn("score")
   @NotNull(message = "Value Attribute cannot be empty")
   var valueAttribute: EncodableString = ""
 
@@ -143,4 +147,48 @@ class SankeyDiagramOpDesc extends PythonOperatorDescriptor {
          |"""
     finalCode.encode
   }
+
+  override def producesDataFrame(): Boolean = false
+
+  override def generateStandaloneCode(): String = {
+    val sourceLit = pyStringLiteral(sourceAttribute)
+    val targetLit = pyStringLiteral(targetAttribute)
+    val valueLit = pyStringLiteral(valueAttribute)
+    s"""def render_error(error_msg):
+       |    return '''<h1>Sankey Diagram is not available.</h1>
+       |                  <p>Reasons are: {} </p>
+       |               '''.format(error_msg)
+       |
+       |if in1df.empty:
+       |    with open("output.html", "w", encoding="utf-8") as output:
+       |        output.write(render_error("Input table is empty."))
+       |else:
+       |    table = in1df.groupby([$sourceLit, $targetLit])[$valueLit].sum().reset_index(name="value")
+       |    if table.empty:
+       |        with open("output.html", "w", encoding="utf-8") as output:
+       |            output.write(render_error("No valid rows left (every row has at least 1 missing value)."))
+       |    else:
+       |        labels = pd.concat([table[$sourceLit], table[$targetLit]]).unique().tolist()
+       |        table["source_index"] = table[$sourceLit].apply(lambda x: labels.index(x))
+       |        table["target_index"] = table[$targetLit].apply(lambda x: labels.index(x))
+       |        fig = go.Figure(data=[go.Sankey(
+       |            node=dict(
+       |                pad=15,
+       |                thickness=20,
+       |                line=dict(color="black", width=0.5),
+       |                label=labels,
+       |                color="blue"
+       |            ),
+       |            link=dict(
+       |                source=table["source_index"].tolist(),
+       |                target=table["target_index"].tolist(),
+       |                value=table["value"].tolist()
+       |            )
+       |        )])
+       |        fig.update_layout(title_text="Sankey Diagram", font_size=10)
+       |        fig.write_json("output.json")
+       |        fig.write_html("output.html")
+       |        print("Sankey diagram saved to output.html")""".stripMargin
+  }
+
 }

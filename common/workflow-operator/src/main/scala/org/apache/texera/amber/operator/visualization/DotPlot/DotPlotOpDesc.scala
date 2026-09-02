@@ -22,17 +22,20 @@ package org.apache.texera.amber.operator.visualization.DotPlot
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
-import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
+  PythonTemplateBuilderStringContext,
+  pyStringLiteral
+}
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
+import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
 
 import javax.validation.constraints.NotNull
 
-class DotPlotOpDesc extends PythonOperatorDescriptor {
+class DotPlotOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
 
   @JsonProperty(value = "Count Attribute", required = true)
   @JsonSchemaTitle("Count Attribute")
@@ -98,6 +101,43 @@ class DotPlotOpDesc extends PythonOperatorDescriptor {
          |        yield {'html-content': html}
          |"""
     finalCode.encode
+  }
+
+  // Output is an HTML chart, not a tabular DataFrame.
+  // The translator skips it in the leaf-DataFrame print block.
+  override def producesDataFrame(): Boolean = false
+
+  override def generateStandaloneCode(): String = {
+    val countLit = pyStringLiteral(countAttribute)
+    // The error page is written to output.html, the same file a plotted chart lands
+    // in, so a reason for "no chart" is where the reader looks for the chart —
+    // printing it to the terminal alone left output.html absent. render_error's
+    // continuation line keeps the runtime path's indentation, since the HTML is
+    // triple-quoted and those spaces reach the browser.
+    s"""def render_error(error_msg):
+       |    return '''<h1>DotPlot is not available.</h1>
+       |                  <p>Reasons are: {} </p>
+       |               '''.format(error_msg)
+       |
+       |def fail(error_msg):
+       |    with open("output.html", "w", encoding="utf-8") as output:
+       |        output.write(render_error(error_msg))
+       |    print(f"Dot plot error: {error_msg}")
+       |
+       |if in1df.empty:
+       |    fail("Input table is empty.")
+       |else:
+       |    df = in1df.groupby([$countLit])[$countLit].count().reset_index(name='counts')
+       |    if df.empty:
+       |        fail("No valid rows left (every row has at least 1 missing value).")
+       |    else:
+       |        fig = px.strip(df, x='counts', y=$countLit, orientation='h', color=$countLit,
+       |                       color_discrete_sequence=px.colors.qualitative.Dark2)
+       |        fig.update_traces(marker=dict(size=12, line=dict(width=2, color='DarkSlateGrey')))
+       |        fig.update_layout(margin=dict(t=0, b=0, l=0, r=0))
+       |        fig.write_json("output.json")
+       |        fig.write_html("output.html")
+       |        print("Dot plot saved to output.html")""".stripMargin
   }
 
 }

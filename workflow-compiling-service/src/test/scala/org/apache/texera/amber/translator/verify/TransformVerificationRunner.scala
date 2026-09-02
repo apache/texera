@@ -448,6 +448,9 @@ object TransformVerificationRunner {
 
   /** Visualization operators with deterministic Plotly JSON validation. */
   val visualizationJsonOps: Set[Class[_]] = Set(
+    // Its layout is seeded (apache/texera#7533), so both paths place the nodes
+    // identically and the two Plotly figures can be compared number by number.
+    classOf[NetworkGraphOpDesc],
     classOf[RangeSliderOpDesc],
     classOf[HeatMapOpDesc],
     classOf[HierarchyChartOpDesc],
@@ -518,11 +521,7 @@ object TransformVerificationRunner {
     classOf[WordCloudOpDesc] ->
       ("non-deterministic image: emits a base64 PNG from the wordcloud library " +
         "whose word placement is randomized (no seed), so the two paths' images " +
-        "never match byte-for-byte"),
-    classOf[NetworkGraphOpDesc] ->
-      ("non-deterministic layout: the native path calls nx.spring_layout with no " +
-        "seed, so node coordinates are random per run and differ from the seeded " +
-        "standalone path, and the two paths' Plotly figures never match numerically")
+        "never match byte-for-byte")
   )
 
   sealed trait Disposition

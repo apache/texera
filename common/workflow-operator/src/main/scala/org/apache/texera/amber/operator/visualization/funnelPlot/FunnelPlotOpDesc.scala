@@ -22,16 +22,19 @@ package org.apache.texera.amber.operator.visualization.funnelPlot
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
-import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
+  PythonTemplateBuilderStringContext,
+  pyStringLiteral
+}
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
+import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
 
 import javax.validation.constraints.NotNull
-class FunnelPlotOpDesc extends PythonOperatorDescriptor {
+class FunnelPlotOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("X Column")
@@ -114,4 +117,33 @@ class FunnelPlotOpDesc extends PythonOperatorDescriptor {
          |"""
     finalcode.encode
   }
+
+  override def producesDataFrame(): Boolean = false
+
+  override def generateStandaloneCode(): String = {
+    val colorArg = if (color.nonEmpty) s""", color=${pyStringLiteral(color)}""" else ""
+    val xLit = pyStringLiteral(x)
+    val yLit = pyStringLiteral(y)
+    s"""def render_error(error_msg):
+       |    return '''<h1>Chart is not available.</h1>
+       |                  <p>Reason is: {} </p>
+       |               '''.format(error_msg)
+       |
+       |if in1df.empty:
+       |    with open("output.html", "w", encoding="utf-8") as output:
+       |        output.write(render_error("input table is empty."))
+       |else:
+       |    fig = go.Figure(px.funnel(in1df, x=$xLit, y=$yLit$colorArg))
+       |    fig.update_layout(
+       |        scene=dict(
+       |            xaxis_title="X: " + $xLit,
+       |            yaxis_title="Y: " + $yLit,
+       |        ),
+       |        margin=dict(t=0, b=0, l=0, r=0)
+       |    )
+       |    fig.write_json("output.json")
+       |    fig.write_html("output.html")
+       |    print("Funnel plot saved to output.html")""".stripMargin
+  }
+
 }
