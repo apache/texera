@@ -764,12 +764,27 @@ describe("WorkflowActionService", () => {
     expect(events).toEqual([true, false]);
   });
 
-  it("should not replace the workflow settings object when given the same reference", () => {
-    const current = service.getWorkflowSettings();
+  it("does not write a redundant shared-model update when the settings value is unchanged", () => {
+    service.setWorkflowSettings({ dataTransferBatchSize: 123, executionMode: ExecutionMode.PIPELINED });
+    const stored = texeraGraph.sharedModel.contentMetaMap.get("settings");
 
-    service.setWorkflowSettings(current);
+    // An equal value (a different object) must be skipped, or every collaborator gets a redundant
+    // Yjs update; the stored object is therefore left in place.
+    service.setWorkflowSettings({ dataTransferBatchSize: 123, executionMode: ExecutionMode.PIPELINED });
 
-    expect(service.getWorkflowSettings()).toBe(current);
+    expect(texeraGraph.sharedModel.contentMetaMap.get("settings")).toBe(stored);
+  });
+
+  it("clears the settings key when a workflow with no settings is opened, not overwriting a co-editor's", () => {
+    service.setWorkflowSettings({ dataTransferBatchSize: 99, executionMode: ExecutionMode.PIPELINED });
+
+    service.hydrateSettings(undefined);
+
+    // Absent -> delete (not set-to-defaults), mirroring hydrateFormBinding, so opening a workflow
+    // that never saved settings does not write over another editor's; getWorkflowSettings then
+    // falls back to defaults on the absent key.
+    expect(texeraGraph.sharedModel.contentMetaMap.has("settings")).toBe(false);
+    expect(service.getWorkflowSettings()).toEqual(service["getDefaultSettings"]());
   });
 
   it("should assemble workflow content and the full workflow from graph state", () => {
@@ -891,12 +906,55 @@ describe("WorkflowActionService", () => {
       sub.unsubscribe();
     });
 
-    // Opening a workflow is not an edit; announcing it would save on every open.
+    // The definition lives in the shared model (#8315), so a change to the shared map -- a local
+    // edit and a co-editor's remote update flow through the same observer -- is picked up and
+    // republished, and this client's next autosave carries the current value instead of a stale
+    // private copy. Writing to the map directly here stands in for either source.
+    it("should pick up a change to the shared model", () => {
+      const seen: unknown[] = [];
+      const sub = service.formBindingChanged$.subscribe(v => seen.push(v));
+
+      texeraGraph.sharedModel.contentMetaMap.set("formBinding", config);
+
+      expect(seen).toEqual([config]);
+      expect(service.getFormBinding()).toEqual(config);
+      sub.unsubscribe();
+    });
+
+    // Setting the same value again must not write, or every collaborator gets a redundant Yjs
+    // update and the observer re-fires for a change that is not one.
+    it("does not re-announce a form binding that is unchanged", () => {
+      service.setFormBinding(config);
+      const seen: unknown[] = [];
+      const sub = service.formBindingChanged$.subscribe(v => seen.push(v));
+
+      service.setFormBinding({ ...config });
+
+      expect(seen).toEqual([]);
+      sub.unsubscribe();
+    });
+
+    // Opening a workflow is not an edit; announcing it would save on every open. The seed
+    // runs under the reloading flag, so the shared-map observer skips it.
     it("should stay silent while a workflow is being opened", () => {
       const seen: unknown[] = [];
       const sub = service.formBindingChanged$.subscribe(v => seen.push(v));
 
-      service.hydrateFormBinding(config);
+      service.reloadWorkflow(
+        {
+          ...DEFAULT_WORKFLOW,
+          content: {
+            operators: [mockScanPredicate],
+            operatorPositions: { [mockScanPredicate.operatorID]: mockPoint },
+            links: [],
+            commentBoxes: [],
+            settings: { dataTransferBatchSize: 400, executionMode: ExecutionMode.PIPELINED },
+            formBinding: config,
+          },
+        },
+        false,
+        false
+      );
 
       expect(seen.length).toEqual(0);
       expect(service.getFormBinding()).toEqual(config);
