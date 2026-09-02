@@ -28,6 +28,7 @@ package org.apache.texera.amber.translator.verify
 // disposition asserts — which tier an operator routes to — is the one thing
 // OperatorBehaviorSpec does not check, so it lives here.
 
+import org.apache.texera.amber.operator.dummy.DummyOpDesc
 import org.apache.texera.amber.operator.limit.LimitOpDesc
 import org.apache.texera.amber.operator.udf.python.PythonUDFOpDescV2
 import org.apache.texera.amber.operator.union.UnionOpDesc
@@ -43,6 +44,12 @@ class TransformVerificationRunnerSpec extends AnyFlatSpec with Matchers {
     // JVM-written JSONL fixture can't carry; triaged as a known issue, not run.
     disposition(classOf[SklearnPredictionOpDesc]) match {
       case Flagged(reason) => reason should include("trained-model")
+      case other           => fail(s"expected Flagged, got $other")
+    }
+    // The other kind of row: a placeholder with no physical execution, so the
+    // harness has nothing to run either path against.
+    disposition(classOf[DummyOpDesc]) match {
+      case Flagged(reason) => reason should include("known issue")
       case other           => fail(s"expected Flagged, got $other")
     }
   }
