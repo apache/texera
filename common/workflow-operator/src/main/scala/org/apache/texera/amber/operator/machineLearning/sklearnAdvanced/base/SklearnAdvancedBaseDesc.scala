@@ -98,10 +98,14 @@ abstract class SklearnMLOperatorDescriptor[T <: ParamClass] extends PythonOperat
     val stringList = getParameter(paraList)
     val trainingParam = stringList(1)
     val paramString = stringList(0)
+    // A hyperparameter's declared type is emitted as the callable that converts the
+    // user's text, and the one taking a mapping names json.loads, so json is imported
+    // whether or not the operator at hand offers such a parameter.
     val finalCode =
       pyb"""
          |from pytexera import *
          |
+         |import json
          |import pandas as pd
          |${getImportStatements}
          |
