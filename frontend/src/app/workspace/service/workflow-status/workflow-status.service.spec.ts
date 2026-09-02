@@ -100,6 +100,21 @@ describe("WorkflowStatusService", () => {
     expect(service.getCurrentState()).toEqual({ op1: OperatorState.Paused });
   });
 
+  it("emits state before statistics, so a statistics subscriber sees the matching state snapshot", () => {
+    const order: string[] = [];
+    service.getStateUpdateStream().subscribe(() => order.push("state"));
+    service.getStatisticsUpdateStream().subscribe(() => {
+      order.push("statistics");
+      // The licensed read: by the time statistics arrive, the state snapshot
+      // already reflects the same wire event. The converse does not hold.
+      expect(service.getCurrentState()).toEqual({ op1: OperatorState.Running });
+    });
+
+    websocketEventSubject.next(statsEvent({ op1: sampleRuntimeStatus }));
+
+    expect(order).toEqual(["state", "statistics"]);
+  });
+
   it("ignores websocket events of other types", () => {
     const stateEmissions: Record<string, OperatorState>[] = [];
     const statisticsEmissions: Record<string, OperatorStatistics>[] = [];

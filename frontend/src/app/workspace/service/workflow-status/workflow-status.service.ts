@@ -56,8 +56,10 @@ export class WorkflowStatusService {
 
     // Each wire event produces exactly one emission on each stream, state
     // first and statistics second (resetStatus/clearStatus follow the same
-    // order), so a statistics subscriber may read getCurrentState() and see
-    // the matching snapshot.
+    // order). The guarantee is one-directional: a statistics subscriber may
+    // read getCurrentState() and see the matching snapshot, but a state
+    // subscriber reading getCurrentStatistics() sees the previous emission.
+    // Pinned by the "emits state before statistics" spec.
     this.workflowWebsocketService.websocketEvent().subscribe(event => {
       if (event.type !== "OperatorStatisticsUpdateEvent") {
         return;
