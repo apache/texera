@@ -23,6 +23,7 @@ import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
 import org.apache.texera.amber.operator.filter.SpecializedFilterOpDesc
 import org.apache.texera.amber.operator.hashJoin.HashJoinOpDesc
 import org.apache.texera.amber.operator.intersect.IntersectOpDesc
+import org.apache.texera.amber.operator.visualization.candlestickChart.CandlestickChartOpDesc
 import org.apache.texera.amber.operator.visualization.histogram2d.Histogram2DOpDesc
 import org.apache.texera.amber.operator.visualization.radarChart.RadarChartOpDesc
 import org.scalatest.flatspec.AnyFlatSpec
@@ -94,5 +95,20 @@ class ConfigGeneratorSpec extends AnyFlatSpec with Matchers {
     val op = result.toOption.get.asInstanceOf[RadarChartOpDesc]
     op.valueColumns.map(_.toString) should not contain op.nameColumn.toString
     op.valueColumns.size should be > 1
+  }
+
+  it should "fill @SampleColumn-tagged fields with the named semantic columns" in {
+    // A candlestick reads five columns that a type alone cannot tell apart: four
+    // prices and the day they belong to. The annotation names them, so the
+    // generator does not have to guess which numeric column is the opening price.
+    val result =
+      ConfigGenerator.generate(classOf[CandlestickChartOpDesc], CanonicalFixture.schemasByPort)
+    withClue(result) { result.isRight shouldBe true }
+    val op = result.toOption.get.asInstanceOf[CandlestickChartOpDesc]
+    op.open.toString shouldBe "open"
+    op.high.toString shouldBe "high"
+    op.low.toString shouldBe "low"
+    op.close.toString shouldBe "close"
+    op.date.toString shouldBe "trade_date"
   }
 }
