@@ -46,6 +46,7 @@ object SearchQueryBuilder {
   val WORKFLOW_RESOURCE_TYPE = "workflow"
   val PROJECT_RESOURCE_TYPE = "project"
   val DATASET_RESOURCE_TYPE = ResourceType.Dataset.toString
+  val MODEL_RESOURCE_TYPE = ResourceType.Model.toString
   val ALL_RESOURCE_TYPE = ""
 }
 

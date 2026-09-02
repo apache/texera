@@ -53,7 +53,7 @@ import { StagedFileService } from "../../../../service/user/file-resource/staged
 import { MODEL_FILE_RESOURCE_ENDPOINT } from "../../../../service/user/file-resource/file-resource-endpoint";
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
 import { UserService } from "../../../../../common/service/user/user.service";
-import { EntityType } from "../../../../../hub/service/hub.service";
+import { ActionType, EntityType, HubService } from "../../../../../hub/service/hub.service";
 import { extractErrorMessage } from "../../../../../common/util/error";
 import { formatCount } from "src/app/common/util/format.util";
 import { formatSize } from "src/app/common/util/size-formatter.util";
@@ -138,10 +138,9 @@ export class ModelDetailComponent implements OnInit {
   // Path within the version, which survives a rename — unlike currentDisplayedFileName.
   private openFileRelativePath: string = "";
 
-  // Placeholders until models reach the hub. The hub backend has no model entity type
-  // (`hub/EntityType.scala` is Workflow and Dataset only), so nothing can populate these yet.
-  public readonly viewCount: number = 0;
-  public readonly likeCount: number = 0;
+  public viewCount: number = 0;
+  public likeCount: number = 0;
+  public isLiked: boolean = false;
 
   public isRightBarCollapsed = false;
   public isMaximized = false;
@@ -169,7 +168,8 @@ export class ModelDetailComponent implements OnInit {
     private downloadService: DownloadService,
     private stagedFileService: StagedFileService,
     private notificationService: NotificationService,
-    private userService: UserService
+    private userService: UserService,
+    private hubService: HubService
   ) {
     this.userService
       .userChanged()
@@ -207,11 +207,50 @@ export class ModelDetailComponent implements OnInit {
           }
           this.retrieveModelInfo();
           this.retrieveModelVersionList();
+          this.loadHubActivity();
           return this.route.data;
         }),
         untilDestroyed(this)
       )
       .subscribe();
+  }
+
+  /** Opening the page counts as a view; the like state needs a signed-in viewer. */
+  private loadHubActivity(): void {
+    if (!this.mid) {
+      return;
+    }
+    const mid = this.mid;
+    this.hubService
+      .postView(mid, this.currentUid ?? 0, EntityType.Model)
+      .pipe(untilDestroyed(this))
+      .subscribe(count => (this.viewCount = count));
+
+    this.hubService
+      .getCounts([EntityType.Model], [mid], [ActionType.Like])
+      .pipe(untilDestroyed(this))
+      .subscribe(counts => (this.likeCount = counts[0]?.counts.like ?? 0));
+
+    if (this.currentUid === undefined) {
+      return;
+    }
+    this.hubService
+      .isLiked([mid], [EntityType.Model])
+      .pipe(untilDestroyed(this))
+      .subscribe(statuses => (this.isLiked = statuses[0]?.isLiked ?? false));
+  }
+
+  toggleLike(): void {
+    if (!this.mid || this.currentUid === undefined) {
+      return;
+    }
+    this.hubService
+      .toggleLike(this.mid, EntityType.Model, this.isLiked)
+      .pipe(untilDestroyed(this))
+      .subscribe(({ liked, likeCount }) => {
+        this.isLiked = liked;
+        this.likeCount = likeCount;
+      });
   }
 
   retrieveModelInfo(): void {

@@ -124,6 +124,11 @@
         <sqlFile path="sql/updates/42.sql"/>
     </changeSet>
 
+    <!-- Add model hub engagement tables (likes, view counts) and the model full-text index -->
+    <changeSet id="43" author="tanishqgandhi1908">
+        <sqlFile path="sql/updates/43.sql"/>
+    </changeSet>
+
     <!-- Form View: per-workflow default view (canvas or form) -->
     <changeSet id="44" author="yangzhang75">
         <sqlFile path="sql/updates/44.sql"/>
