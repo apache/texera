@@ -601,11 +601,10 @@ object ImageVisualizerVisualizationHandler extends TransformHandler {
   * paths.
   */
 /** Aggregate fixture exercising every aggregation function in one op, including
-  * COUNT(*) (empty attribute). Auto-config can't build this: upstream #5896 made
-  * `AggregationOperation.attribute` optional (required only for non-count via a
-  * conditional JSON-schema rule), so ConfigGenerator skips the optional autofill
-  * field and leaves it null — invalid for a non-count function, which NPEs in
-  * AggregateOpExec. This pins valid (function, column) pairs. Enum-sweep-exempt
+  * COUNT(*) (empty attribute). Auto-config cannot build it: `attribute` is
+  * optional, required only for the functions other than count, so the generator
+  * leaves it unset and any other function then reaches the executor with no
+  * column to read. This pins valid (function, column) pairs. Enum-sweep-exempt
   * (see [[TransformVerificationRunner.variantsNotRun]]): the sweep flips each
   * element's function in isolation and would re-pair, e.g., concat with a numeric
   * column; the fixture already covers each function with a type-compatible column.
