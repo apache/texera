@@ -500,6 +500,10 @@ object TransformVerificationRunner {
   /** Visualization operators with deterministic HTML validation. */
   val visualizationHtmlOps: Set[Class[_]] = Set(
     classOf[ImageVisualizerOpDesc],
+    // A word cloud is a PNG, not a figure with values to read, so the two paths
+    // are compared as the HTML that carries it. Its placement is seeded
+    // (apache/texera#7533), which is what makes that comparison mean anything.
+    classOf[WordCloudOpDesc],
     classOf[NestedTableOpDesc]
   )
 
@@ -517,11 +521,7 @@ object TransformVerificationRunner {
     classOf[SklearnTestingOpDesc] ->
       ("trained-model input: scores a fitted sklearn model read from its model " +
         "port; a JVM-written JSONL fixture cannot carry a live model object, so " +
-        "the operator cannot be run in isolation here"),
-    classOf[WordCloudOpDesc] ->
-      ("non-deterministic image: emits a base64 PNG from the wordcloud library " +
-        "whose word placement is randomized (no seed), so the two paths' images " +
-        "never match byte-for-byte")
+        "the operator cannot be run in isolation here")
   )
 
   sealed trait Disposition
