@@ -352,9 +352,9 @@ object TransformVerificationRunner {
     // The platform raises on an empty cell, so the two paths cannot be compared
     // on one until it stops.
     val emptyCellRaises: Seq[(Class[_], String)] = Seq(
-      // Regex alone: apache/texera#7566 answers the empty cell in Substring Search
-      // and Unnest String, and this one was not part of it.
-      classOf[RegexOpDesc] -> "apache/texera#7548"
+      // Regex alone. Substring Search and Unnest String answer an empty cell
+      // rather than raising on it; this one still raises.
+      classOf[RegexOpDesc] -> "Regex raises a NullPointerException on an empty cell"
     )
 
     // The operator refuses the text pipeline in `getOutputSchemas`, so there is no
