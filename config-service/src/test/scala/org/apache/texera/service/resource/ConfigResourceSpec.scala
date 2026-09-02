@@ -414,6 +414,7 @@ class ConfigResourceSpec
       "home_enabled",
       "workflow_enabled",
       "dataset_enabled",
+      "model_enabled",
       "your_work_enabled",
       "projects_enabled",
       "workflows_enabled",
