@@ -144,8 +144,8 @@ describe("OrcidCallbackComponent", () => {
 
   // ─── what ORCID sends back instead of a code ──────────────────────────────
 
-  it("reports the description when ORCID returns an error", async () => {
-    await createComponent({ error: "access_denied", error_description: "The user denied access" });
+  it("reports the description when ORCID returns a correlated error", async () => {
+    await createComponent({ error: "access_denied", error_description: "The user denied access", state: STATE });
 
     expect(userServiceMock.orcidLogin).not.toHaveBeenCalled();
     expect(notificationServiceMock.error).toHaveBeenCalledWith("The user denied access");
@@ -153,18 +153,36 @@ describe("OrcidCallbackComponent", () => {
   });
 
   it("falls back to a generic message when ORCID's error carries no description", async () => {
-    await createComponent({ error: "access_denied" });
+    await createComponent({ error: "access_denied", state: STATE });
 
     expect(notificationServiceMock.error).toHaveBeenCalledWith("ORCID sign-in was not completed");
   });
 
-  // An ORCID error takes precedence: there is nothing to verify a state against when no
-  // authorization happened.
-  it("reports an ORCID error even when the state does not match", async () => {
-    await createComponent({ error: "access_denied", state: "not-the-one" });
+  // An error response carries `state` too (RFC 6749 §4.1.2.1), so one that does not correlate is
+  // not ORCID answering this browser — it is a planted link, and its `error_description` must not
+  // be repeated back as Texera's own message.
+  it("refuses an uncorrelated error instead of reporting its description", async () => {
+    await createComponent({
+      error: "access_denied",
+      error_description: "Visit https://evil.example to re-authorize",
+      state: "not-the-one",
+    });
 
-    expect(notificationServiceMock.error).toHaveBeenCalledWith("ORCID sign-in was not completed");
+    expect(notificationServiceMock.error).toHaveBeenCalledWith(
+      "ORCID sign-in could not be verified. Please try again."
+    );
+    expect(notificationServiceMock.error).not.toHaveBeenCalledWith("Visit https://evil.example to re-authorize");
     expect(userServiceMock.orcidLogin).not.toHaveBeenCalled();
+    expect(routerMock.navigateByUrl).toHaveBeenCalledWith(LOGIN, { replaceUrl: true });
+  });
+
+  it("refuses an error response carrying no state at all", async () => {
+    await createComponent({ error: "access_denied", error_description: "planted" });
+
+    expect(notificationServiceMock.error).toHaveBeenCalledWith(
+      "ORCID sign-in could not be verified. Please try again."
+    );
+    expect(notificationServiceMock.error).not.toHaveBeenCalledWith("planted");
   });
 
   it("refuses a verified callback that carries no code", async () => {

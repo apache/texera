@@ -72,15 +72,23 @@ export class OrcidCallbackComponent implements OnInit {
     //remove key to prevent leakage that would authorize future sessions
     sessionStorage.removeItem(ORCID_STATE_KEY);
 
-    const error = params.get("error");
-    if (error !== null) {
-      this.failBackToLogin(params.get("error_description") ?? "ORCID sign-in was not completed");
-      return;
-    }
-
+    // Verified before anything in the URL is acted on, the provider's error response included.
+    // RFC 6749 §4.1.2.1 has the authorization server echo `state` back on the error response for
+    // exactly this correlation, so an error that cannot be correlated is not ORCID answering this
+    // browser's sign-in. Acting on it first would let a bare link to
+    // `/callback/orcid?error=…&error_description=…` discard whatever state this browsing context
+    // was holding and render an attacker's text as Texera's own error — and ng-zorro's message
+    // service renders through `[innerHTML]`, where Angular's sanitizer keeps `<a href>`, so that
+    // text can carry a live link on the login page.
     const state = params.get("state");
     if (expectedState === null || state !== expectedState) {
       this.failBackToLogin("ORCID sign-in could not be verified. Please try again.");
+      return;
+    }
+
+    const error = params.get("error");
+    if (error !== null) {
+      this.failBackToLogin(params.get("error_description") ?? "ORCID sign-in was not completed");
       return;
     }
 
