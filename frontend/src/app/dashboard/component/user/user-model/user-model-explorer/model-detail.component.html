@@ -349,6 +349,7 @@
                 <texera-user-dataset-version-filetree
                   [fileTreeNodes]="fileTreeNodeList"
                   [isTreeNodeDeletable]="userHasWriteAccess()"
+                  [isCoverSettable]="userHasWriteAccess()"
                   (selectedTreeNode)="onVersionFileTreeNodeSelected($event)"
                   (deletedTreeNode)="onPreviouslyUploadedFileDeleted($event)"
                   (setCoverImage)="onSetCoverImage($event)">

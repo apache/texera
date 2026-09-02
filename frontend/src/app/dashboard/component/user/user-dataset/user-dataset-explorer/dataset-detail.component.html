@@ -440,7 +440,8 @@
                 </div>
                 <texera-user-dataset-version-filetree
                   [fileTreeNodes]="fileTreeNodeList"
-                  [isTreeNodeDeletable]="true"
+                  [isTreeNodeDeletable]="userHasWriteAccess()"
+                  [isCoverSettable]="userHasWriteAccess()"
                   (selectedTreeNode)="onVersionFileTreeNodeSelected($event)"
                   (deletedTreeNode)="onPreviouslyUploadedFileDeleted($event)"
                   (setCoverImage)="onSetCoverImage($event)">

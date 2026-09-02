@@ -559,6 +559,20 @@ describe("ModelDetailComponent", () => {
   // The panel itself is covered by version-uploader.component.spec.ts; what matters here is that
   // the page hands it the model's own addressing, and what the page still owns around it.
 
+  it("offers the tree's write controls only to a writer", () => {
+    create();
+    openTab("Versions & Files");
+    const tree = () => fixture.debugElement.query(By.css("texera-user-dataset-version-filetree")).componentInstance;
+
+    render({ userModelAccessLevel: "WRITE" });
+    expect(tree().isTreeNodeDeletable).toBe(true);
+    expect(tree().isCoverSettable).toBe(true);
+
+    render({ userModelAccessLevel: "READ" });
+    expect(tree().isTreeNodeDeletable).toBe(false);
+    expect(tree().isCoverSettable).toBe(false);
+  });
+
   it("hands the version uploader the model endpoint and the model's identity", () => {
     create();
     const root = openTab("Versions & Files");

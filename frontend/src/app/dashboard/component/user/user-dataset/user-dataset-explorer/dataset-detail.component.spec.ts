@@ -2481,6 +2481,16 @@ describe("DatasetDetailComponent rendered template", () => {
       expect(datasetService.deleteDatasetFile).toHaveBeenCalledWith(5, "nested/b.csv");
     });
 
+    it("offers the tree's write controls only to a writer", () => {
+      render({ userDatasetAccessLevel: "WRITE" });
+      expect(tree().componentInstance.isTreeNodeDeletable).toBe(true);
+      expect(tree().componentInstance.isCoverSettable).toBe(true);
+
+      render({ userDatasetAccessLevel: "READ" });
+      expect(tree().componentInstance.isTreeNodeDeletable).toBe(false);
+      expect(tree().componentInstance.isCoverSettable).toBe(false);
+    });
+
     it("adopts the cover image the tree offered, qualified by the selected version", () => {
       tree().triggerEventHandler("setCoverImage", "nested/b.png");
 
