@@ -25,10 +25,11 @@ import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
-import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
+import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
+import org.apache.texera.amber.operator.metadata.annotations.{AutofillAttributeName, SampleColumn}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 
 import javax.validation.constraints.NotNull
 
@@ -50,7 +51,7 @@ import javax.validation.constraints.NotNull
   }
 }
 """)
-class QuiverPlotOpDesc extends PythonOperatorDescriptor {
+class QuiverPlotOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
 
   //property panel variable: 4 requires: {x,y,u,v}, all columns should only contain numerical data
 
@@ -72,6 +73,7 @@ class QuiverPlotOpDesc extends PythonOperatorDescriptor {
   @JsonSchemaTitle("u")
   @JsonPropertyDescription("Column for the vector component in the x-direction")
   @AutofillAttributeName
+  @SampleColumn("uvec")
   @NotNull(message = "u cannot be empty")
   var u: EncodableString = ""
 
@@ -79,6 +81,7 @@ class QuiverPlotOpDesc extends PythonOperatorDescriptor {
   @JsonSchemaTitle("v")
   @JsonPropertyDescription("Column for the vector component in the y-direction")
   @AutofillAttributeName
+  @SampleColumn("log2fc")
   @NotNull(message = "v cannot be empty")
   var v: EncodableString = ""
 
@@ -157,6 +160,51 @@ class QuiverPlotOpDesc extends PythonOperatorDescriptor {
          |        yield {'html-content': html}
          |"""
     finalCode.encode
+  }
+
+  override def producesDataFrame(): Boolean = false
+
+  override def generateStandaloneCode(): String = {
+    val xLit = pyStringLiteral(x)
+    val yLit = pyStringLiteral(y)
+    val uLit = pyStringLiteral(u)
+    val vLit = pyStringLiteral(v)
+    s"""import plotly.figure_factory as ff
+       |
+       |def render_error(error_msg):
+       |    return '''<h1>Quiver Plot is not available.</h1>
+       |                  <p>Reasons are: {} </p>
+       |               '''.format(error_msg)
+       |
+       |if in1df.empty:
+       |    with open("output.html", "w", encoding="utf-8") as output:
+       |        output.write(render_error("Input table is empty."))
+       |else:
+       |    table = in1df
+       |    required_columns = {$xLit, $yLit, $uLit, $vLit}
+       |    if not required_columns.issubset(table.columns):
+       |        with open("output.html", "w", encoding="utf-8") as output:
+       |            output.write(render_error(f"Input table must contain columns: {', '.join(required_columns)}"))
+       |    else:
+       |        table = table.dropna()
+       |        def type_check(value):
+       |            return isinstance(value, (int, float))
+       |        if any(not table[col].apply(type_check).all() for col in required_columns):
+       |            with open("output.html", "w", encoding="utf-8") as output:
+       |                output.write("Type error: All columns should only contain numerical data")
+       |        else:
+       |            try:
+       |                fig = ff.create_quiver(
+       |                    table[$xLit], table[$yLit],
+       |                    table[$uLit], table[$vLit],
+       |                    scale=0.1
+       |                )
+       |                fig.write_json("output.json")
+       |                fig.write_html("output.html")
+       |                print("Quiver plot saved to output.html")
+       |            except Exception as e:
+       |                with open("output.html", "w", encoding="utf-8") as output:
+       |                    output.write(render_error(f"Plotly error: {str(e)}"))""".stripMargin
   }
 
 }

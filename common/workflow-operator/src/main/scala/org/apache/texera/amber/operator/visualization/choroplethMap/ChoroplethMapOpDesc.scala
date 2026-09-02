@@ -22,11 +22,14 @@ package org.apache.texera.amber.operator.visualization.choroplethMap
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
-import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
+  PythonTemplateBuilderStringContext,
+  pyStringLiteral
+}
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
-import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
+import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
+import org.apache.texera.amber.operator.metadata.annotations.{AutofillAttributeName, SampleColumn}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
 
@@ -44,7 +47,7 @@ import javax.validation.constraints.NotNull
   }
 }
 """)
-class ChoroplethMapOpDesc extends PythonOperatorDescriptor {
+class ChoroplethMapOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
 
   @JsonProperty(value = "locations", required = true)
   @JsonSchemaTitle("Locations Column")
@@ -52,6 +55,7 @@ class ChoroplethMapOpDesc extends PythonOperatorDescriptor {
     "Column used to describe location. Currently only supports countries and needs to be three-letter ISO country code"
   )
   @AutofillAttributeName
+  @SampleColumn("iso_country")
   @NotNull(message = "Locations Column cannot be empty")
   var locations: EncodableString = ""
 
@@ -127,5 +131,39 @@ class ChoroplethMapOpDesc extends PythonOperatorDescriptor {
          |        yield {'html-content': html}
          |"""
     finalCode.encode
+  }
+
+  override def producesDataFrame(): Boolean = false
+
+  override def generateStandaloneCode(): String = {
+    val locationsLit = pyStringLiteral(locations)
+    val colorLit = pyStringLiteral(color)
+    // The error page is written to output.html, the same file a plotted chart lands
+    // in, so a reason for "no chart" is where the reader looks for the chart —
+    // printing it to the terminal alone left output.html absent. render_error's
+    // continuation line keeps the runtime path's indentation, since the HTML is
+    // triple-quoted and those spaces reach the browser.
+    s"""def render_error(error_msg):
+       |    return '''<h1>Choropleth map is not available.</h1>
+       |                  <p>Reason is: {} </p>
+       |               '''.format(error_msg)
+       |
+       |def fail(error_msg):
+       |    with open("output.html", "w", encoding="utf-8") as output:
+       |        output.write(render_error(error_msg))
+       |    print(f"Choropleth map error: {error_msg}")
+       |
+       |if in1df.empty:
+       |    fail("Input table is empty.")
+       |else:
+       |    in1df = in1df.dropna(subset=[$locationsLit, $colorLit])
+       |    if in1df.empty:
+       |        fail("No valid rows left (every row has at least 1 missing value).")
+       |    else:
+       |        fig = px.choropleth(in1df, locations=$locationsLit, color=$colorLit, color_continuous_scale=px.colors.sequential.Plasma)
+       |        fig.update_layout(margin={"r":0,"t":0,"l":0,"b":0})
+       |        fig.write_json("output.json")
+       |        fig.write_html("output.html")
+       |        print("Choropleth map saved to output.json and output.html")""".stripMargin
   }
 }

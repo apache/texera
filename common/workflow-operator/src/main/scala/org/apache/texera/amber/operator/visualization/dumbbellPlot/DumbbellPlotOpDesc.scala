@@ -22,10 +22,13 @@ package org.apache.texera.amber.operator.visualization.dumbbellPlot
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
-import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
+  PythonTemplateBuilderStringContext,
+  pyStringLiteral
+}
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
+import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
@@ -43,7 +46,7 @@ import scala.jdk.CollectionConverters.CollectionHasAsScala
   }
 }
 """)
-class DumbbellPlotOpDesc extends PythonOperatorDescriptor {
+class DumbbellPlotOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
 
   @JsonProperty(value = "categoryColumnName", required = true)
   @JsonSchemaTitle("Category Column Name")
@@ -195,5 +198,75 @@ class DumbbellPlotOpDesc extends PythonOperatorDescriptor {
        |        yield {'html-content': html}
        |
        |""".encode
+  }
+
+  override def producesDataFrame(): Boolean = false
+
+  override def generateStandaloneCode(): String = {
+    // Typed-in values and column names become escaped Python literals; the runtime
+    // path splices them as decode expressions, which a standalone script cannot use.
+    val comparedLit = pyStringLiteral(comparedColumnName)
+    val measurementLit = pyStringLiteral(measurementColumnName)
+    val showLegendsOption = if (showLegends) "showlegend=True" else "showlegend=False"
+    // Python list literal of dot column names, matching addPlotlyDots().
+    val dotColumnNames =
+      if (dots != null && dots.size() != 0)
+        dots.asScala.map(dot => pyStringLiteral(dot.dotValue)).mkString(", ")
+      else ""
+    s"""import plotly.graph_objects as go
+       |
+       |def render_error(error_msg):
+       |    return '''<h1>DumbbellPlot is not available.</h1>
+       |                  <p>Reason is: {} </p>
+       |               '''.format(error_msg)
+       |
+       |table = in1df
+       |_error = None
+       |if table.empty:
+       |    _error = "input table is empty."
+       |else:
+       |    table = table.dropna(subset=[$comparedLit, ${pyStringLiteral(
+      categoryColumnName
+    )}, $measurementLit])
+       |    if table.empty:
+       |        _error = "input table has no rows with all of the configured columns filled in."
+       |if _error is not None:
+       |    with open("output.html", "w", encoding="utf-8") as output:
+       |        output.write(render_error(_error))
+       |else:
+       |    entityNames = list(table[$comparedLit].unique())
+       |    entityNames = sorted(entityNames, reverse=True)
+       |    categoryValues = [${pyStringLiteral(dumbbellStartValue)}, ${pyStringLiteral(
+      dumbbellEndValue
+    )}]
+       |    filtered_table = table[(table[$comparedLit].isin(entityNames)) &
+       |                (table[${pyStringLiteral(categoryColumnName)}].isin(categoryValues))]
+       |    fig = go.Figure()
+       |    color = 'black'
+       |    for entity in entityNames:
+       |        entity_data = filtered_table[filtered_table[$comparedLit] == entity]
+       |        fig.add_trace(go.Scatter(x=entity_data[$measurementLit],
+       |                                 y=[entity] * len(entity_data),
+       |                                 mode='lines',
+       |                                 name=entity,
+       |                                 line=dict(color=color)))
+       |    fig.update_layout(xaxis_title=$measurementLit,
+       |                      yaxis_title=$comparedLit,
+       |                      yaxis=dict(categoryorder='array', categoryarray=entityNames),
+       |                      $showLegendsOption,
+       |                      margin=dict(l=0, r=0, b=60, t=0))
+       |    dotColumnNames = [$dotColumnNames]
+       |    for dotColumn in dotColumnNames:
+       |        for entity in entityNames:
+       |            entity_dot_data = filtered_table[filtered_table[$comparedLit] == entity]
+       |            x_values = entity_dot_data[dotColumn].values
+       |            y_values = [entity] * len(x_values)
+       |            fig.add_trace(go.Scatter(x=x_values, y=y_values,
+       |                                     mode='markers',
+       |                                     name=entity + ' ' + dotColumn,
+       |                                     marker=dict(color='black', size=5)))
+       |    fig.write_json("output.json")
+       |    fig.write_html("output.html")
+       |    print("Dumbbell plot saved to output.html")""".stripMargin
   }
 }

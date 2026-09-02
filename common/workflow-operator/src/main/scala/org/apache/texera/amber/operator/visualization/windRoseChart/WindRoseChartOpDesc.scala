@@ -26,10 +26,11 @@ import org.apache.texera.amber.core.workflow.OutputPort.OutputMode
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
-import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
+import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
+import org.apache.texera.amber.operator.metadata.annotations.{AutofillAttributeName, SampleColumn}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 import javax.validation.constraints.NotNull
 
 // The radial value is the length of each wedge, so it has to be a number: given
@@ -42,7 +43,7 @@ import javax.validation.constraints.NotNull
   }
 }
 """)
-class WindRoseChartOpDesc extends PythonOperatorDescriptor {
+class WindRoseChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
 
   @JsonProperty(value = "rColumn", required = true)
   @JsonSchemaTitle("Radial Values (r)")
@@ -62,6 +63,7 @@ class WindRoseChartOpDesc extends PythonOperatorDescriptor {
   @JsonSchemaTitle("Color Group")
   @JsonPropertyDescription("Optional grouping column (e.g., wind strength)")
   @AutofillAttributeName
+  @SampleColumn("node_dst")
   var colorColumn: EncodableString = _
 
   override def operatorInfo: OperatorInfo =
@@ -135,6 +137,38 @@ class WindRoseChartOpDesc extends PythonOperatorDescriptor {
          |        yield {'html-content': html}
          |"""
     finalCode.encode
+  }
+
+  override def producesDataFrame(): Boolean = false
+
+  override def generateStandaloneCode(): String = {
+    val rLit = pyStringLiteral(rColumn)
+    val colorArg =
+      if (colorColumn != null && colorColumn.nonEmpty) s"""
+       |            color=${pyStringLiteral(colorColumn)},"""
+      else ""
+    s"""def render_error(error_msg) -> str:
+       |    return '''<h1>Wind Rose chart is not available.</h1>
+       |                  <p>Reason is: {} </p>
+       |               '''.format(error_msg)
+       |
+       |if in1df.empty:
+       |    with open("output.html", "w", encoding="utf-8") as output:
+       |        output.write(render_error("input table is empty."))
+       |elif in1df[$rLit].dtype.kind not in ["i", "u", "f"]:
+       |    with open("output.html", "w", encoding="utf-8") as output:
+       |        output.write(render_error("Radial column must be numeric (int, float, or double)."))
+       |else:
+       |    table = in1df
+       |    fig = px.bar_polar(
+       |        table,
+       |        r=$rLit,
+       |        theta=${pyStringLiteral(thetaColumn)},$colorArg
+       |        color_discrete_sequence=px.colors.sequential.Plasma_r
+       |    )
+       |    fig.write_json("output.json")
+       |    fig.write_html("output.html")
+       |    print("Wind rose chart saved to output.html")""".stripMargin
   }
 
 }

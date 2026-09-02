@@ -25,10 +25,11 @@ import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
-import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
+import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
+import org.apache.texera.amber.operator.metadata.annotations.{AutofillAttributeName, SampleColumn}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 
 import javax.validation.constraints.NotNull
 
@@ -51,13 +52,14 @@ import javax.validation.constraints.NotNull
   }
 }
 """)
-class TernaryPlotOpDesc extends PythonOperatorDescriptor {
+class TernaryPlotOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
 
   // Add annotations for the first variable
   @JsonProperty(value = "firstVariable", required = true)
   @JsonSchemaTitle("Variable 1")
   @JsonPropertyDescription("First variable data field")
   @AutofillAttributeName
+  @SampleColumn("comp_a")
   @NotNull(message = "Variable 1 cannot be empty")
   var firstVariable: EncodableString = ""
 
@@ -66,6 +68,7 @@ class TernaryPlotOpDesc extends PythonOperatorDescriptor {
   @JsonSchemaTitle("Variable 2")
   @JsonPropertyDescription("Second variable data field")
   @AutofillAttributeName
+  @SampleColumn("comp_b")
   @NotNull(message = "Variable 2 cannot be empty")
   var secondVariable: EncodableString = ""
 
@@ -74,6 +77,7 @@ class TernaryPlotOpDesc extends PythonOperatorDescriptor {
   @JsonSchemaTitle("Variable 3")
   @JsonPropertyDescription("Third variable data field")
   @AutofillAttributeName
+  @SampleColumn("comp_c")
   @NotNull(message = "Variable 3 cannot be empty")
   var thirdVariable: EncodableString = ""
 
@@ -158,6 +162,36 @@ class TernaryPlotOpDesc extends PythonOperatorDescriptor {
          |        yield {'html-content':html}
          |"""
     finalCode.encode
+  }
+
+  override def producesDataFrame(): Boolean = false
+
+  override def generateStandaloneCode(): String = {
+    val colorArg =
+      if (colorEnabled && colorDataField.nonEmpty)
+        s""", color=${pyStringLiteral(colorDataField)}"""
+      else ""
+    val firstLit = pyStringLiteral(firstVariable)
+    val secondLit = pyStringLiteral(secondVariable)
+    val thirdLit = pyStringLiteral(thirdVariable)
+    s"""def render_error(error_msg):
+       |    return '''<h1>TernaryPlot is not available.</h1>
+       |                  <p>Reasons are: {} </p>
+       |               '''.format(error_msg)
+       |
+       |if in1df.empty:
+       |    with open("output.html", "w", encoding="utf-8") as output:
+       |        output.write(render_error("Input table is empty."))
+       |else:
+       |    table = in1df.dropna(subset=[$firstLit, $secondLit, $thirdLit]).copy()
+       |    if table.empty:
+       |        with open("output.html", "w", encoding="utf-8") as output:
+       |            output.write(render_error("No valid rows left (every row has at least 1 missing value)."))
+       |    else:
+       |        fig = px.scatter_ternary(table, a=$firstLit, b=$secondLit, c=$thirdLit$colorArg)
+       |        fig.write_json("output.json")
+       |        fig.write_html("output.html")
+       |        print("Ternary plot saved to output.html")""".stripMargin
   }
 
 }
