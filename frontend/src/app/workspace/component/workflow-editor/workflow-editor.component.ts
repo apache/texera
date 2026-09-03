@@ -392,7 +392,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     // state from the cached status so completed runs don't appear to reset.
     // Restores port labels / worker count via changeOperatorStatistics, then
     // delegates the execution-state rendering and the final border color to
-    // applyOperatorBorder so the same priority rules apply as for the
+    // applyOperatorStateAndBorder so the same priority rules apply as for the
     // validation pass.
     this.workflowActionService
       .getTexeraGraph()
@@ -403,7 +403,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
         if (statistics) {
           this.jointUIService.changeOperatorStatistics(this.paper, operator.operatorID, statistics);
         }
-        this.applyOperatorBorder(
+        this.applyOperatorStateAndBorder(
           operator.operatorID,
           this.validationWorkflowService.validateOperator(operator.operatorID)
         );
@@ -583,7 +583,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
    * the parameter required means the color decision never silently depends on
    * a recompute hidden inside this helper.
    */
-  private applyOperatorBorder(operatorID: string, validation: Validation): void {
+  private applyOperatorStateAndBorder(operatorID: string, validation: Validation): void {
     const operatorState = this.workflowStatusService.getCurrentState()[operatorID];
     if (operatorState) {
       this.jointUIService.changeOperatorState(this.paper, operatorID, this.effectiveOperatorState(operatorState));
@@ -1206,14 +1206,14 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
 
   /**
    * Applies the validation result to the operator's border. Delegates to
-   * applyOperatorBorder so validation, cached-execution-status, and the
+   * applyOperatorStateAndBorder so validation, cached-execution-status, and the
    * default-valid case are decided in one place.
    */
   private handleOperatorValidation(): void {
     this.validationWorkflowService
       .getOperatorValidationStream()
       .pipe(untilDestroyed(this))
-      .subscribe(value => this.applyOperatorBorder(value.operatorID, value.validation));
+      .subscribe(value => this.applyOperatorStateAndBorder(value.operatorID, value.validation));
   }
 
   /**

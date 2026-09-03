@@ -899,7 +899,7 @@ describe("WorkflowEditorComponent", () => {
      * default (gray) when the user navigates away from and back to a workflow
      * that has already finished executing. Both the operator-add stream and
      * the validation stream route their final border decision through
-     * applyOperatorBorder, which encodes the priority: invalid > cached
+     * applyOperatorStateAndBorder, which encodes the priority: invalid > cached
      * execution state > default valid. These tests assert the operator's
      * actual final rect.body/stroke on the paper, so they pin down the visible
      * outcome rather than the internal helper calls.
@@ -961,7 +961,7 @@ describe("WorkflowEditorComponent", () => {
 
       it("prioritizes invalid (red) over cached Completed status", () => {
         // Regression case: operator is both invalid AND has a cached Completed
-        // status. applyOperatorBorder must pick red regardless of the order in
+        // status. applyOperatorStateAndBorder must pick red regardless of the order in
         // which the operator-add and validation streams fire.
         vi.spyOn(workflowStatusService, "getCurrentState").mockReturnValue(cachedCompleted);
         vi.spyOn(validationWorkflowService, "validateOperator").mockReturnValue({ isValid: false, messages: {} });
@@ -982,7 +982,7 @@ describe("WorkflowEditorComponent", () => {
 
         // The helper takes the Validation as a required argument and must use it
         // directly — it has no fallback path that calls validateOperator itself.
-        (component as any).applyOperatorBorder(mockScanPredicate.operatorID, { isValid: true });
+        (component as any).applyOperatorStateAndBorder(mockScanPredicate.operatorID, { isValid: true });
 
         expect(validateSpy).not.toHaveBeenCalled();
       });
@@ -994,20 +994,20 @@ describe("WorkflowEditorComponent", () => {
         workflowActionService.addOperator(mockScanPredicate, mockPoint);
         fixture.detectChanges();
 
-        (component as any).applyOperatorBorder(mockScanPredicate.operatorID, { isValid: false, messages: {} });
+        (component as any).applyOperatorStateAndBorder(mockScanPredicate.operatorID, { isValid: false, messages: {} });
 
         expect(getStroke(mockScanPredicate.operatorID)).toBe("red");
       });
 
-      it("always supplies a Validation to applyOperatorBorder when an operator is added", () => {
+      it("always supplies a Validation to applyOperatorStateAndBorder when an operator is added", () => {
         // Both subscribers (operator-add and the validation stream) call
-        // applyOperatorBorder on add with identical args, so this asserts the
+        // applyOperatorStateAndBorder on add with identical args, so this asserts the
         // required-parameter contract holds through the add flow — every call
         // carries a Validation, never undefined — rather than isolating the
         // operator-add caller specifically.
         vi.spyOn(workflowStatusService, "getCurrentState").mockReturnValue({});
         vi.spyOn(validationWorkflowService, "validateOperator").mockReturnValue({ isValid: true });
-        const applyBorderSpy = vi.spyOn(component as any, "applyOperatorBorder");
+        const applyBorderSpy = vi.spyOn(component as any, "applyOperatorStateAndBorder");
 
         workflowActionService.addOperator(mockScanPredicate, mockPoint);
         fixture.detectChanges();
