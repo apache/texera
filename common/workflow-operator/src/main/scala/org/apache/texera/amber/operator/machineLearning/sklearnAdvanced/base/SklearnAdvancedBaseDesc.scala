@@ -188,8 +188,9 @@ abstract class SklearnMLOperatorDescriptor[T <: ParamClass]
 
   /** What a chosen `parameter` holds in the config, which a rule's condition has to name to
     * hold: the enum constant, since that is what Jackson writes and what the form compares
-    * against. Not `getName`, the keyword the emitted Python passes on, which SVR's `shrinking`
-    * spells differently from the constant offering it.
+    * against. Every parameter currently spells its constant the way it spells the keyword the
+    * emitted Python passes on, but the two are free to differ, and only one of them is what
+    * the config carries.
     */
   private def chosenValueOf(param: ParamClass): String =
     param match {

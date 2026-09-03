@@ -39,7 +39,7 @@ public enum SklearnAdvancedSVRParameters implements ParamClass {
     degree("degree", "int", "3") { @Override public String getMinimum() { return ">=0"; } },
     coef0("coef0", "float", "0.0"),
     tol("tol", "float", "0.001") { @Override public String getMinimum() { return ">0"; } },
-    probability("shrinking", "(lambda value: value.lower() == \"true\")", "", "true", "false"),
+    shrinking("shrinking", "(lambda value: value.lower() == \"true\")", "", "true", "false"),
     verbose("verbose", "(lambda value: value.lower() == \"true\")", "", "false", "true"),
     epsilon("epsilon", "float", "0.1") { @Override public String getMinimum() { return ">=0"; } },
     cache_size("cache_size", "int", "200") { @Override public String getMinimum() { return ">0"; } },

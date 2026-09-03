@@ -262,11 +262,11 @@ class SklearnAdvancedBaseDescSpec extends AnyFlatSpec with Matchers {
     Seq("abc", "", "scaleauto", "1.2.3").foreach(v => v.matches(pattern) shouldBe false)
   }
 
-  it should "name the parameter as the config spells it, not as the estimator does" in {
-    // SVR's `shrinking` is offered by a constant named `probability`, and a chosen parameter
-    // reaches the config as the constant. A condition naming the keyword instead would hold
-    // for nothing, leaving the value it constrains free.
-    val shrinking = ruleFor(valueRulesOf(classOf[SklearnAdvancedSVRTrainerOpDesc]), "probability")
+  it should "offer a boolean parameter the two words its converter takes" in {
+    // The condition names the parameter as the config spells it, which is the enum constant
+    // rather than the keyword the emitted Python passes on. The two agree for every parameter
+    // today, and a condition naming the wrong one would hold for nothing.
+    val shrinking = ruleFor(valueRulesOf(classOf[SklearnAdvancedSVRTrainerOpDesc]), "shrinking")
     shrinking.path("enum").elements().asScala.map(_.asText()).toSeq shouldBe Seq("true", "false")
   }
 
