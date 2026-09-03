@@ -34,11 +34,11 @@ import org.scalatest.matchers.should.Matchers
   * exec) and Path B (translator-generated Python via [[StandaloneRunner]])
   * and asserts their outputs are equivalent.
   *
-  * Dispatch is auto-first: [[TransformVerificationRunner]] classifies each
-  * non-source transform as `Runnable("auto")` (auto-configured fixture),
-  * `Runnable("curated")` (hand-written fixture from [[CuratedHandlers]]),
-  * or `Flagged(reason)` (shown as ignored with the reason in the test name).
-  * Sources route to [[SourceCategoryRunner]] unchanged.
+  * [[TransformVerificationRunner]] decides how each non-source transform is
+  * configured and whether it can run at all; sources go to
+  * [[SourceCategoryRunner]]. An operator it cannot run is registered as an
+  * ignored test carrying the reason, so the report lists every operator rather
+  * than reading as though the unrunnable ones do not exist.
   *
   * No edits to this spec are needed when a new operator is added — reflection
   * discovers it automatically via `@JsonSubTypes`. The tier label appears in

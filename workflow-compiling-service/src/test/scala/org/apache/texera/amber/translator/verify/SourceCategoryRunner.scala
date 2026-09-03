@@ -43,19 +43,14 @@ import scala.util.{Try, Using}
   * Per-category test runner for source operators (operators with no input
   * ports — they read from an external resource and emit tuples).
   *
-  * Dispatch is auto-first:
-  *   - Auto tier: a scan source declares the file format it reads via
-  *     [[ScanSourceOpDesc.fileTypeName]]. If that tag is in [[encoderByFileType]],
-  *     the operator is fixtured with zero per-operator code — the shared
-  *     [[CanonicalSourceFixture]] is encoded into that format and `fileName`
-  *     points at it. A newly added file-scan source in a known format
-  *     (CSV/JSONL/Arrow/…) is verified the moment it is registered in
-  *     [[LogicalOp]]'s `@JsonSubTypes`, no edit here.
-  *   - Curated tier: sources that can't take the shared table (text-family
-  *     single-`line` output, or inline-config data) keep a hand-written
-  *     [[SourceHandler]] in [[curatedHandlersByClass]].
-  *   - Otherwise the test is flagged (a [[knownIssues]] reason, an unsupported
-  *     declared format, or no match) — never silently skipped.
+  * Dispatch is auto-first. A scan source declares the format it reads via
+  * [[ScanSourceOpDesc.fileTypeName]], and where [[encoderByFileType]] knows that
+  * format the shared [[CanonicalSourceFixture]] is encoded into it with no
+  * per-operator code at all: a newly registered file-scan source in a known
+  * format is verified the moment it appears in [[LogicalOp]]'s `@JsonSubTypes`.
+  * A source that cannot take the shared table — the text family emits a single
+  * `line` column, and some carry their data inline — keeps a hand-written
+  * [[SourceHandler]] instead. Anything else is flagged, never silently skipped.
   *
   * The runner itself is operator-agnostic: it builds an OpDesc, drives
   * [[OpExecHarness]] (Path A) and [[StandaloneRunner]] (Path B), compares via
