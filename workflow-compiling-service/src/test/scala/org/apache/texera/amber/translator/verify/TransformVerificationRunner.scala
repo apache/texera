@@ -499,7 +499,7 @@ object TransformVerificationRunner {
     classOf[SklearnTestingOpDesc] ->
       ("trained-model input: scores a fitted sklearn model read from its model " +
         "port; a JVM-written JSONL fixture cannot carry a live model object, so " +
-        "the operator cannot be run in isolation here"),
+        "the operator cannot be run in isolation here")
   )
 
   sealed trait Disposition
