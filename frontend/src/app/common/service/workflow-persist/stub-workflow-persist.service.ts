@@ -49,6 +49,7 @@ export class StubWorkflowPersistService {
     const names = this.testWorkflows.filter(i => i).map(i => i.workflow.ownerName) as string[];
     return new Observable(observer => {
       observer.next([...new Set(names)]);
+      observer.complete();
     });
   }
 
@@ -58,6 +59,7 @@ export class StubWorkflowPersistService {
   public retrieveWorkflowIDs(): Observable<number[]> {
     return new Observable(observer => {
       observer.next(this.testWorkflows.map(i => i.workflow.workflow.wid as number).filter(i => i));
+      observer.complete();
     });
   }
 }
