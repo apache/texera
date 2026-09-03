@@ -68,14 +68,24 @@ jobs:
     if: ${{ github.event.pull_request.base.ref == 'main' }}
     runs-on: ubuntu-latest
     steps:
-      # Check out the base commit (a trusted commit already on main) so the
-      # release-branches config and its parser come from the base repo, never
-      # from the (untrusted) PR head. pull_request_target runs with write
-      # permissions, so we must not execute PR-controlled code here.
-      - name: Checkout base
+      # The default branch, so the release-branches config and its parser come
+      # from a ref that does not derive from the pull request at all —
+      # pull_request_target runs with write permissions, so PR-controlled code
+      # must never execute here.
+      #
+      # `base.sha` was the previous choice and is not safe for a different
+      # reason: it is main's tip at the PR's last synchronize, not now, so on a
+      # PR nobody has pushed to since #6941 it predates release-branches.yml and
+      # the step below dies with a file-not-found. That has failed 20 times in
+      # production since 2026-07-28. It is survivable here only because this
+      # check is not required — but a labeler that dies applies no `release/*`
+      # label, Backport Approvals then has nothing to approve and passes, and the
+      # fix is silently never backported: the false record that check exists to
+      # prevent, arriving from this side instead.
+      - name: Checkout the default branch
         uses: actions/checkout@v7
         with:
-          ref: ${{ github.event.pull_request.base.sha }}
+          ref: ${{ github.event.repository.default_branch }}
           persist-credentials: false
 
       - name: Read release branches
