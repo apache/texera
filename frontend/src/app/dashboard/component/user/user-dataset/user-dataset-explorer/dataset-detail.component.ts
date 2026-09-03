@@ -432,6 +432,7 @@ export class DatasetDetailComponent implements OnInit {
     this.isRightBarCollapsed = !this.isRightBarCollapsed;
   }
 
+<<<<<<< HEAD
   onStagedObjectsUpdated(stagedObjects: DatasetStagedObject[]) {
     this.confirmedStagedPaths = new Set(stagedObjects.map(obj => obj.path));
     for (const path of this.confirmedStagedPaths) {
@@ -455,10 +456,13 @@ export class DatasetDetailComponent implements OnInit {
   }
 
   onVersionSelected(version: DatasetVersion): void {
+=======
+  onVersionSelected(version: DatasetVersion | undefined): void {
+>>>>>>> 83e71c2a5 (fix(frontend): remove the clear button from the dataset version picker (#8343))
     this.selectedVersion = version;
-    if (this.did && this.selectedVersion.dvid)
+    if (this.did && version?.dvid)
       this.datasetService
-        .retrieveDatasetVersionFileTree(this.did, this.selectedVersion.dvid, this.isLogin)
+        .retrieveDatasetVersionFileTree(this.did, version.dvid, this.isLogin)
         .pipe(untilDestroyed(this))
         .subscribe(data => {
           this.fileTreeNodeList = data.fileNodes;
