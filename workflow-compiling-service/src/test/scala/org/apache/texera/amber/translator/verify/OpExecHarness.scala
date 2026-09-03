@@ -309,7 +309,10 @@ object OpExecHarness extends LazyLogging {
   // re-applies the source's output schema to the destination port). This avoids
   // a collision when multiple PhysicalOps share a PortIdentity (e.g. HashJoin
   // probe.in0 internal vs build.in0 external both have PortIdentity(0)).
-  private def propagateExternalSchemas(
+  // `private[verify]` rather than private: the Python harness runs the same plan
+  // through a different executor, and how a plan's external ports get their
+  // schemas does not change with the executor behind them.
+  private[verify] def propagateExternalSchemas(
       plan: PhysicalPlan,
       externalPorts: Set[(PhysicalOpIdentity, PortIdentity)],
       schemas: Map[PortIdentity, Schema]
@@ -331,7 +334,7 @@ object OpExecHarness extends LazyLogging {
     acc
   }
 
-  private def validateInputCoverage(
+  private[verify] def validateInputCoverage(
       external: Set[(PhysicalOpIdentity, PortIdentity)],
       provided: Set[PortIdentity]
   ): Unit = {
