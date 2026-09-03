@@ -336,16 +336,16 @@ object TransformVerificationRunner {
 
   /** The runs an operator does not get, and why.
     *
-    * One table rather than one per kind. Every row makes the same statement, so
-    * the coverage report can print them together, and the next exemption has an
-    * obvious home instead of arriving as another set somewhere else.
+    * One table rather than one per kind: every row makes the same statement, so
+    * the next exemption has an obvious home instead of arriving as another set
+    * somewhere else.
     *
     * `op` matches its subclasses, so one row covers a family. `kind` is a
     * [[RunKind]].
     *
-    * A curated handler's own [[TransformHandler.unfillableVariants]] stays where
-    * it is: those describe the table that handler wrote rather than the operator,
-    * and change when the fixture is rewritten.
+    * A curated handler's own [[TransformHandler.nullsKeepFilled]] stays where it
+    * is: it describes the table that handler wrote rather than the operator, and
+    * changes when the fixture is rewritten.
     */
   val variantsNotRun: Seq[NotRun] = {
     // The operator refuses the text pipeline in `getOutputSchemas`, so there is no
@@ -411,12 +411,11 @@ object TransformVerificationRunner {
     ) ++ denseOnly
   }
 
-  /** Every kind of run withheld from this operator, with why. This is the whole of
-    * what the coverage report needs, so it never walks the table itself. One entry
-    * per kind: a family row and an operator row for the same kind are the same
-    * statement twice, and the first one wins.
+  /** Every kind of run withheld from this operator, with why. One entry per kind:
+    * a family row and an operator row for the same kind are the same statement
+    * twice, and the first one wins.
     */
-  def withheldRunsFor(opClass: Class[_ <: LogicalOp]): Seq[(String, NotRunReason)] =
+  private def withheldRunsFor(opClass: Class[_ <: LogicalOp]): Seq[(String, NotRunReason)] =
     variantsNotRun
       .collect { case NotRun(op, kind, reason) if op.isAssignableFrom(opClass) => kind -> reason }
       .distinctBy(_._1)
