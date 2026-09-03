@@ -63,12 +63,10 @@ import scala.util.Try
   * synthetic dataset is built to contain, so the operator actually does
   * something rather than matching nothing.
   *
-  * Strategy: reflect over the operator's config fields (those carrying
-  * `@JsonProperty` or an autofill annotation), build a JSON object of
-  * field → value, and let Jackson deserialize it into the OpDesc. Using the
-  * same `objectMapper` Texera uses everywhere means enums (`@JsonValue`),
-  * `Option`, and `@JsonCreator` nested objects are handled by existing,
-  * battle-tested deserialization rather than bespoke reflection.
+  * The assembled JSON is read back through the same `objectMapper` Texera uses
+  * everywhere, so enums (`@JsonValue`), `Option` and `@JsonCreator` nested
+  * objects are handled by the deserialization the product already relies on
+  * rather than by reflection written here.
   */
 object ConfigGenerator {
 
@@ -110,12 +108,18 @@ object ConfigGenerator {
     }
   }
 
-  /**
-    * Like [[generate]], but also sweeps every enum field: returns the base
-    * config plus one variant per non-default enum value (one enum flipped at a
-    * time — linear, NOT the combinatorial product). Lets the runner exercise
-    * each enum branch (e.g. LineChart's line mode = line / dots / line+dots)
-    * instead of only the default. The label identifies the flipped value.
+  /** Every column at `port` a list knob may hold: the ones its `attributeTypeRules`
+    * admits, or all of them when the rule matches nothing (or there is no rule),
+    * minus the ones a single-column knob beside it already took.
+    * The same fill for a required and an optional field, so the two cannot drift.
+    *
+    * Subtracting `used` is what [[resolveColumn]] already does for a single-column
+    * knob, and the two knobs answer to the same rule: a column means something
+    * different to each field that names it, so handing one column to two of them
+    * writes a config nobody would. Radar Chart's name column arrived inside its own
+    * value columns that way, and sklearn's label inside the features it is fitted
+    * against. Not marked used in turn, since a list knob wants every column its rule
+    * admits and marking them would leave a later single-column knob nothing to take.
     */
   private def listColumnFill(
       f: Field,
@@ -140,7 +144,7 @@ object ConfigGenerator {
       arr
     }
 
-  /** A field's JSON Pointer, under the pointer of the object that holds it. */
+  /** The key a field carries in the config JSON. */
   private def jsonNameOf(f: Field): String =
     Option(f.getAnnotation(classOf[JsonProperty]))
       .map(_.value)
@@ -156,8 +160,8 @@ object ConfigGenerator {
     Option(f.getAnnotation(classOf[JsonProperty])).exists(_.required) ||
       requiredUnder(scope, siblings).contains(jsonNameOf(f))
 
-  /** The nested-row type a field holds — its `List[Row]` / `Option[Row]` element
-    * type, or its own type when the field IS the row. `None` for a scalar field.
+  /** The first value a field offers under `examples` — a legal sample the operator
+    * states itself, so nothing here has to invent one.
     */
   private def declaredExample(f: Field): Option[JsonNode] =
     schemaKey(f, "examples").filter(_.isArray).flatMap(_.elements().asScala.toSeq.headOption)
@@ -171,9 +175,8 @@ object ConfigGenerator {
       .map(_.path(key))
       .filterNot(_.isMissingNode)
 
-  /** A type whose value the user types in freely — the fills of
-    * [[optionalScalarFills]]. Boolean is excluded: the enum sweep already covers
-    * both of its values.
+  /** Maps each registered operator class to its `operatorType` discriminator,
+    * read from [[LogicalOp]]'s `@JsonSubTypes` (the same registry Jackson uses).
     */
   private val typeNameByClass: Map[Class[_], String] = {
     Option(classOf[LogicalOp].getAnnotation(classOf[JsonSubTypes]))
@@ -798,19 +801,14 @@ object ConfigGenerator {
       used += ((port, col)); col
     }
 
-  /** Pick which input column fills an `@AutofillAttributeName*` field, in
-    * priority order:
-    *   1. `@SampleColumn("x")` — an explicit semantic pick (e.g. a valid ISO
-    *      country code or a real OHLC column) that the column's type can't
-    *      express; always honored, even if already used;
-    *   2. the first *unused* column whose [[AttributeType]] satisfies the field's
-    *      `attributeTypeRules` (falling back to the first matching column if all
-    *      are taken);
-    *   3. the first unused column (the original first-column behavior, made
-    *      distinct-aware).
-    * Tiers 1–2 keep the parity test on realistic, type-correct input; the
-    * distinct-column preference stops sibling fields (x/y, source/target) from
-    * collapsing onto one column and producing a degenerate result.
+  /** Pick which input column fills an `@AutofillAttributeName*` field.
+    *
+    * `@SampleColumn` wins outright, even over a column already taken: it names
+    * something the type cannot say, an ISO country code among strings or the
+    * opening price among four numbers. Otherwise the type rule decides, and
+    * within it the preference is for a column no sibling has taken, which is what
+    * stops an x/y or source/target pair collapsing onto one column and comparing
+    * a degenerate result.
     */
   private def resolveColumn(
       f: Field,
@@ -941,13 +939,10 @@ object ConfigGenerator {
       ).toOption.map(s => SchemaScope(s, s)).getOrElse(empty)
   }
 
-  /** What filling a field needs beyond the field itself: the input schemas a column
-    * picker resolves against, the columns already spoken for, and the row count a
-    * range-less number is sized from. Carried into the enum walk so that a value which
-    * makes a field apply can fill it the way the base pass would have.
-    *
-    * Empty for a caller sweeping an already-configured operator: such a config states
-    * both sides of a conditional itself, so nothing there is left to fill.
+  /** The fields an object's conditional `allOf` requires of `row` as it stands. The
+    * condition is JSON Schema's own `properties`/`const`, not the `valEnum` form a
+    * Texera rule uses, because this one is read by the validator rather than by the
+    * form.
     */
   private def requiredUnder(scope: SchemaScope, row: JsonNode): Set[String] =
     scope.node
