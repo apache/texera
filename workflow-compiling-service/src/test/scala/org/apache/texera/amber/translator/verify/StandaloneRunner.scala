@@ -34,18 +34,9 @@ import scala.sys.process._
   * captures its DataFrame outputs as JSONL files (compatible with
   * [[TupleIO]]'s sidecar-schema format on the comparison side).
   *
-  * Wraps the operator's raw generated code with:
-  *
-  *   ── prologue ──────────────────────────────────────────────
-  *     in1df = pd.read_json("input_port_0.jsonl", lines=True)
-  *     in2df = pd.read_json("input_port_1.jsonl", lines=True)
-  *     ...
-  *     inAlldf = [in1df, in2df]
-  *   ── operator body (verbatim from generateStandaloneCode) ──
-  *     out1df = in1df[in1df["age"] > 18]
-  *   ── epilogue ─────────────────────────────────────────────
-  *     out1df.to_json("output_port_0.jsonl", orient='records', lines=True)
-  *     ...
+  * The operator's code is wrapped in a prologue that reads each input file into
+  * an `inNdf` and an epilogue that writes each `outNdf` back out, with the
+  * generated body verbatim between them.
   *
   * Port indexing matches the placeholder convention used by the translator:
   * `inNdf`/`outNdf` is 1-based and corresponds to the operator's N-th external
