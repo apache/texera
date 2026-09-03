@@ -35,9 +35,8 @@ import scala.sys.process._
   * pandas-int64/float64 coercion that happens when JSONL round-trips through
   * `pd.read_json` don't trigger false negatives. Float tolerance: `rtol=1e-5`.
   *
-  * Throws [[ComparatorMismatchException]] on any non-zero exit code (the
-  * pandas diff is in `stderr` on the exception). Successful comparisons
-  * return unit.
+  * Throws [[ComparatorMismatchException]] on any non-zero exit code, carrying
+  * the pandas diff from `stderr`.
   *
   * Python resolution mirrors [[StandaloneRunner.resolvePython]]:
   * `UDF_PYTHON_PATH` env var first, else `python3.12` on PATH.
