@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1788354475978,
+  "lastUpdate": 1788440549902,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -12039,6 +12039,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 504.7506540585304,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Meng Wang",
+            "username": "mengw15",
+            "email": "mengw15@uci.edu"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "cd4fd5a6d3845f0b7b478e1e86a31bb3151d4cd5",
+          "message": "fix(test, frontend): stub Plotly in the execution-history spec (#8288)\n\n### What changes were proposed in this PR?\n\n`workflow-execution-history.component.spec.ts` let `ngAfterViewInit`\ncall the real `Plotly.newPlot` on every setup. 36 of its 61 tests build\nthe component, and each build plots twice, so one run drove roughly 72\nreal Plotly renders through jsdom — for the benefit of a single test.\n\nThat test then read `data` and `layout` back off the graph divs Plotly\npopulates. Every value it asserted (`type`, `labels`, `values`, `x`,\n`y`, the widths, the titles) is one the component itself computed and\nhanded over, so the round trip through the real library bought no\ncoverage. It also cannot buy any here: jsdom has no layout or canvas, so\nwhether Plotly drew anything sensible is unobservable — that belongs to\nthe browser-mode suite, if anywhere.\n\nMock the module for this spec and assert on the arguments passed to\n`newPlot` instead. The chart test now checks the component's own\ndecision rather than Plotly's handling of it.\n\nThis is what made the spec flaky rather than merely slow: the failing\ncase on macOS was three synchronous assertions behind a `setup()`,\ntiming out against the 20 s per-test limit under runner contention,\nwhile ubuntu and windows passed. Removing the dominant avoidable cost\nrestores the margin; it is not a proof that Plotly was the only\ncontributor.\n\n`user-quota` and `workflow-runtime-statistics` render real Plotly too,\nbut at 339 ms / 25 tests and 197 ms / 12 tests they are nowhere near the\nlimit, so they are left alone.\n\nAlso corrects `TESTING.md`, which documented `ng test --test-file\n<path>` for single-file runs; the builder rejects that argument and the\nflag is `--include`.\n\n### Any related issues, documentation, discussions?\n\nCloses #8287.\n\n### How was this PR tested?\n\n`yarn ng test --include\n\".../workflow-execution-history.component.spec.ts\"` — 61 passed, test\ntime 4.12 s → 1.69 s.\n\nFailure paths checked, since the rewritten assertions must still catch\nwhat the old ones did: changing the component's pie-chart `WIDTH` from\n450 to 451 turns the chart test red, and removing one of the two\n`Plotly.newPlot` calls does too. Restoring each returns the file to 61\npassing. `eslint` is clean on the touched spec.\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Claude Code (claude-opus-5)",
+          "timestamp": "2026-09-03T12:29:26Z",
+          "url": "https://github.com/apache/texera/commit/cd4fd5a6d3845f0b7b478e1e86a31bb3151d4cd5"
+        },
+        "date": 1788440549584,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 678.4028869092938,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 1239.2372214784618,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 1400.4235574019235,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 896.8911446123711,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 1349.2812796360863,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 1428.7221480732496,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 996.7199252961606,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 1345.4631911514896,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 1414.606905438459,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 799.9739096509106,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 1081.0163810235772,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 1107.9240876777512,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 791.0976027363015,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 1082.386923274221,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 1107.50627899911,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 796.4644160849006,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 1057.4391382777544,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 1082.6760132938102,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 468.62478565395196,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 577.1877240212018,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 583.2280321488195,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 485.8047584808308,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 577.6297096477534,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 575.6674872950874,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 456.0427864595869,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 548.0664487242233,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 556.1159500361754,
             "unit": "tuples/sec"
           }
         ]
