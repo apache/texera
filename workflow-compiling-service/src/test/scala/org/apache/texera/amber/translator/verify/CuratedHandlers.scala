@@ -227,32 +227,21 @@ object SpecializedFilterTransformHandler extends TransformHandler {
   * pandas drop_duplicates keep="first"), so the positional comparator holds.
   */
 /**
-  * Curated handler for [[ProjectionOpDesc]]. Its `attributes` list is not declared
-  * `required`, so the auto tier starts it empty the way the UI does — and
-  * `getPhysicalOp` refuses an empty list. Pinning one row is all this needs; the
-  * runner derives the rest of the variants from it.
+  * Curated CONFIG for [[ProjectionOpDesc]] over the shared table. Its `attributes`
+  * list is not declared `required`, so the auto tier starts it empty the way the UI
+  * does — and `getPhysicalOp` refuses an empty list. Pinning one row is all this
+  * needs; the runner derives the rest of the variants from it, and the table stays
+  * the one every other operator reads.
   */
 object ProjectionTransformHandler extends TransformHandler {
   override val opDescClass: Class[_ <: LogicalOp] = classOf[ProjectionOpDesc]
 
   override def fixture(testRoot: Path): (LogicalOp, Map[PortIdentity, Path]) = {
-    val columns = Seq(
-      ("id", AttributeType.INTEGER),
-      ("name", AttributeType.STRING),
-      ("score", AttributeType.DOUBLE)
-    )
-    val rows = Seq(
-      Seq[Any](1, "a", 1.5),
-      Seq[Any](2, "b", 2.5),
-      Seq[Any](3, "c", 3.5)
-    )
-    val inputPath =
-      CuratedHandlers.writeFixture(testRoot.resolve("input_port_0.jsonl"), columns, rows)
     val op = new ProjectionOpDesc()
     // A blank alias is the untouched state of the row the `+` button adds, and it is
     // the branch where the operator keeps the original name.
     op.attributes = List(new AttributeUnit("id", ""))
-    (op, Map(PortIdentity(0) -> inputPath))
+    (op, CanonicalFixture.writeInputs(testRoot, 1))
   }
 }
 
