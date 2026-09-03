@@ -67,7 +67,7 @@ jobs:
     name: Backport Approvals
     runs-on: ubuntu-latest
     steps:
-      # The default branch, not the PR's head or base. Neither predates #6941,
+      # The default branch, not the PR's head or base. Both can predate #6941,
       # which added release-branches.yml — and `base.sha` is main's tip at the
       # PR's last synchronize rather than now, stale for 33 of the open PRs into
       # main. Either would fail the step below with a file-not-found and turn
@@ -76,9 +76,10 @@ jobs:
       # lets a PR retargeted onto a release branch, where the config is absent,
       # reach the report instead of dying before it.
       #
-      # Direct Backport Push reads main too, so both consumers judge a backport
-      # by the same config. A PR editing that config is judged by the pre-edit
-      # copy; those are `ci:`-typed and carry no `release/*` labels.
+      # Backport Auto Label and Direct Backport Push read main too, so all three
+      # consumers judge a backport by the same config. A PR editing that config
+      # is judged by the pre-edit copy; those are `ci:`-typed and carry no
+      # `release/*` labels.
       - name: Checkout
         uses: actions/checkout@v7
         with:
