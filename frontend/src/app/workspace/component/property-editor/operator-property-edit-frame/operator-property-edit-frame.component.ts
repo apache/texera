@@ -1460,11 +1460,11 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
         keyboard: {
           bindings: {
             enter: {
-              key: 13,
+              key: "Enter",
               handler: () => this.disconnectQuillFromText(),
             },
             shift_enter: {
-              key: 13,
+              key: "Enter",
               shiftKey: true,
               handler: () => this.disconnectQuillFromText(),
             },
