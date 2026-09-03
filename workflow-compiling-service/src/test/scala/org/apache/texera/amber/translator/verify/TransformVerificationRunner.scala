@@ -426,6 +426,9 @@ object TransformVerificationRunner {
 
   /** Visualization operators with deterministic Plotly JSON validation. */
   val visualizationJsonOps: Set[Class[_]] = Set(
+    // Its layout is seeded, so both paths place the nodes identically and the two
+    // figures can be compared number by number.
+    classOf[NetworkGraphOpDesc],
     classOf[RangeSliderOpDesc],
     classOf[HeatMapOpDesc],
     classOf[HierarchyChartOpDesc],
@@ -475,6 +478,10 @@ object TransformVerificationRunner {
   /** Visualization operators with deterministic HTML validation. */
   val visualizationHtmlOps: Set[Class[_]] = Set(
     classOf[ImageVisualizerOpDesc],
+    // A word cloud is a picture, not a figure with values to read, so the two
+    // paths are compared as the HTML they emit. Its placement is seeded, which
+    // is what makes that comparison mean anything.
+    classOf[WordCloudOpDesc],
     classOf[NestedTableOpDesc]
   )
 
@@ -493,14 +500,6 @@ object TransformVerificationRunner {
       ("trained-model input: scores a fitted sklearn model read from its model " +
         "port; a JVM-written JSONL fixture cannot carry a live model object, so " +
         "the operator cannot be run in isolation here"),
-    classOf[WordCloudOpDesc] ->
-      ("non-deterministic image: emits a base64 PNG from the wordcloud library " +
-        "whose word placement is randomized (no seed), so the two paths' images " +
-        "never match byte-for-byte"),
-    classOf[NetworkGraphOpDesc] ->
-      ("non-deterministic layout: the native path calls nx.spring_layout with no " +
-        "seed, so node coordinates are random per run and differ from the seeded " +
-        "standalone path, and the two paths' Plotly figures never match numerically")
   )
 
   sealed trait Disposition
