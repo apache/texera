@@ -71,7 +71,7 @@ yarn test -- --coverage --coverage.reporter=html
 Single-file and watch loops use Vitest's own filtering:
 
 ```bash
-ng test --include src/app/workspace/component/workflow-editor/mini-map/mini-map.component.spec.ts
+ng test --test-file src/app/workspace/component/workflow-editor/mini-map/mini-map.component.spec.ts
 ```
 
 ## Why `detectChanges()` is the coverage switch
