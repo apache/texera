@@ -22,7 +22,8 @@ on:
       - main
 
 permissions:
-  actions: read
+  # write: the fast path dispatches Required Checks after its push (below).
+  actions: write
   checks: read
   contents: write
   issues: write
@@ -356,11 +357,12 @@ jobs:
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
-          # Use AUTO_MERGE_TOKEN (fine-grained PAT) so the push to the release
-          # branch retriggers workflows on that branch. GITHUB_TOKEN-authored
-          # pushes are excluded from triggering downstream workflows, which
-          # silences post-merge CI on backport commits.
-          token: ${{ secrets.AUTO_MERGE_TOKEN || secrets.GITHUB_TOKEN }}
+          # Push with the default GITHUB_TOKEN: the release rulesets admit the
+          # GitHub Actions app as a bypass actor, while a PAT-authored push is
+          # evaluated as that person and rejected. A GITHUB_TOKEN push starts
+          # no downstream workflows, so the step after the cherry-pick
+          # dispatches Required Checks itself — workflow_dispatch runs are the
+          # documented exception that GITHUB_TOKEN may create.
       - name: Cherry-pick merge commit onto target branch
         id: cherry_pick
         env:
@@ -570,6 +572,17 @@ jobs:
           new_sha=$(git rev-parse HEAD)
           log "new_sha=${new_sha}"
           echo "new_sha=${new_sha}" >> "$GITHUB_OUTPUT"
+
+      - name: Run Required Checks on the pushed release branch
+        if: success()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TARGET_BRANCH: ${{ matrix.target }}
+        run: |
+          # The GITHUB_TOKEN push above starts no push-triggered workflows;
+          # dispatch the run the release branch would otherwise have gotten.
+          gh workflow run required-checks.yml \
+            --repo "${GITHUB_REPOSITORY}" --ref "refs/heads/${TARGET_BRANCH}"
 
       - name: Annotate original PR and commit on success
         if: success()

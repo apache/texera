@@ -22,6 +22,9 @@ on:
     branches:
       - 'main'
       - 'release/**'
+  # The backport fast path pushes release branches with GITHUB_TOKEN, which
+  # starts no push-triggered runs; it dispatches this workflow instead.
+  workflow_dispatch:
   pull_request:
     types:
       - opened
