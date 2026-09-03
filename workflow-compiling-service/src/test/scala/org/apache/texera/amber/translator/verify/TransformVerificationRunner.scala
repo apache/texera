@@ -43,7 +43,6 @@ import org.apache.texera.amber.operator.machineLearning.Scorer.MachineLearningSc
 import org.apache.texera.amber.operator.huggingFace.HuggingFaceSpamSMSDetectionOpDesc
 import org.apache.texera.amber.operator.sklearn.training.SklearnTrainingOpDesc
 import org.apache.texera.amber.operator.sklearn.training.SklearnTrainingGaussianNaiveBayesOpDesc
-import org.apache.texera.amber.operator.regex.RegexOpDesc
 import org.apache.texera.amber.operator.sklearn.testing.SklearnTestingOpDesc
 import org.apache.texera.amber.operator.typecasting.TypeCastingOpDesc
 import org.apache.texera.amber.operator.visualization.wordCloud.WordCloudOpDesc
@@ -349,14 +348,6 @@ object TransformVerificationRunner {
     * and change when the fixture is rewritten.
     */
   val variantsNotRun: Seq[NotRun] = {
-    // The platform raises on an empty cell, so the two paths cannot be compared
-    // on one until it stops.
-    val emptyCellRaises: Seq[(Class[_], String)] = Seq(
-      // Regex alone. Substring Search and Unnest String answer an empty cell
-      // rather than raising on it; this one still raises.
-      classOf[RegexOpDesc] -> "Regex raises a NullPointerException on an empty cell"
-    )
-
     // The operator refuses the text pipeline in `getOutputSchemas`, so there is no
     // configuration to compare: neither path is generated. An invalid configuration
     // rather than a translation gap.
@@ -375,9 +366,7 @@ object TransformVerificationRunner {
       label <- Seq(RunKind.CountVectorizerText, RunKind.TfidfText)
     } yield NotRun(op, label, dense)
 
-    emptyCellRaises.map {
-      case (op, issue) => NotRun(op, RunKind.Nulls, PendingFix(issue))
-    } ++ Seq(
+    Seq(
       // An enum whose legal values depend on a sibling field: flipping it alone
       // builds a config the curated fixture already covers properly.
       NotRun(
