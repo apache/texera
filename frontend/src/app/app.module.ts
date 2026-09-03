@@ -109,7 +109,6 @@ import { DatasetFileSelectorComponent } from "./workspace/component/dataset-file
 import { DatasetVersionSelectorComponent } from "./workspace/component/dataset-version-selector/dataset-version-selector.component";
 import { DatasetSelectionModalComponent } from "./workspace/component/dataset-selection-modal/dataset-selection-modal.component";
 import { ReActStepDetailModalComponent } from "./workspace/component/agent/agent-panel/react-step-detail-modal/react-step-detail-modal.component";
-import { CollabWrapperComponent } from "./common/formly/collab-wrapper/collab-wrapper/collab-wrapper.component";
 import { NzSwitchModule } from "ng-zorro-antd/switch";
 import { NzRadioModule } from "ng-zorro-antd/radio";
 import { AboutComponent } from "./hub/component/about/about.component";
@@ -327,7 +326,6 @@ registerLocaleData(en);
     DatasetVersionSelectorComponent,
     DatasetSelectionModalComponent,
     ReActStepDetailModalComponent,
-    CollabWrapperComponent,
     AboutComponent,
     TexeraLoginComponent,
     UserWorkflowListItemComponent,

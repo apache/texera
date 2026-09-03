@@ -48,7 +48,6 @@ import { SimpleChange } from "@angular/core";
 import { cloneDeep } from "lodash-es";
 
 import Ajv from "ajv";
-import { COLLAB_DEBOUNCE_TIME_MS } from "../../../../common/formly/collab-wrapper/collab-wrapper/collab-wrapper.component";
 import { FormlyNgZorroAntdModule } from "@ngx-formly/ng-zorro-antd";
 import { ComputingUnitStatusService } from "../../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
 import { MockComputingUnitStatusService } from "../../../../common/service/computing-unit/computing-unit-status/mock-computing-unit-status.service";
@@ -64,6 +63,13 @@ import { of, Subject, throwError } from "rxjs";
 import { WorkflowVersionService } from "../../../../dashboard/service/user/workflow-version/workflow-version.service";
 import { GuiConfigService } from "../../../../common/service/gui-config.service";
 import { PresetWrapperComponent } from "src/app/common/formly/preset-wrapper/preset-wrapper.component";
+
+/**
+ * Drains the short timers scheduled while the fixture is being set up, before the form change
+ * under test. Unrelated to FORM_DEBOUNCE_TIME_MS, which is what the assertions below actually wait
+ * on; this previously borrowed COLLAB_DEBOUNCE_TIME_MS (also 10ms) from an unrelated component.
+ */
+const SETUP_FLUSH_MS = 10;
 
 const { marbles } = configure({ run: false });
 
@@ -216,7 +222,7 @@ describe("OperatorPropertyEditFrameComponent", () => {
       currentOperatorId: new SimpleChange(undefined, mockScanPredicate.operatorID, true),
     });
     fixture.detectChanges();
-    tick(COLLAB_DEBOUNCE_TIME_MS);
+    tick(SETUP_FLUSH_MS);
 
     // stimulate a form change by the user
     const formChangeValue = { tableName: "twitter_sample" };
