@@ -68,20 +68,13 @@ jobs:
     if: ${{ github.event.pull_request.base.ref == 'main' }}
     runs-on: ubuntu-latest
     steps:
-      # The default branch, so the release-branches config and its parser come
-      # from a ref that does not derive from the pull request at all —
-      # pull_request_target runs with write permissions, so PR-controlled code
-      # must never execute here.
-      #
-      # `base.sha` was the previous choice and is not safe for a different
-      # reason: it is main's tip at the PR's last synchronize, not now, so on a
-      # PR nobody has pushed to since #6941 it predates release-branches.yml and
-      # the step below dies with a file-not-found. That has failed 20 times in
-      # production since 2026-07-28. It is survivable here only because this
-      # check is not required — but a labeler that dies applies no `release/*`
-      # label, Backport Approvals then has nothing to approve and passes, and the
-      # fix is silently never backported: the false record that check exists to
-      # prevent, arriving from this side instead.
+      # The default branch: a ref that does not derive from the pull request,
+      # which matters because pull_request_target runs with write permissions.
+      # `base.sha` was the previous choice and is stale — main's tip at the PR's
+      # last synchronize — so on a PR untouched since #6941 the step below dies
+      # with a file-not-found, as it has 20 times since 2026-07-28. A labeler
+      # that dies applies no `release/*` label, Backport Approvals then finds
+      # nothing to approve and passes, and the fix is silently never backported.
       - name: Checkout the default branch
         uses: actions/checkout@v7
         with:
@@ -142,12 +135,10 @@ jobs:
               }
 
               const author = pr.user?.login;
-              // GitHub logins are case-insensitive while `manager` is typed by
-              // hand into release-branches.yml, so fold both before comparing.
-              // The Backport Approvals check folds them too, and the two must
-              // agree on whether the manager wrote this PR — otherwise the
-              // check clears the branch while this report tells the author to
-              // wait for an approval that can never come.
+              // Logins are case-insensitive while `manager` is hand-typed, so
+              // fold both. Backport Approvals folds them too and the two must
+              // agree: otherwise it clears the branch while this report tells
+              // the author to wait for an approval that cannot come.
               const authorLogin = (author || "").toLowerCase();
               const managerIsAuthor = (m) => (m || "").toLowerCase() === authorLogin;
               const currentLabels = new Set((pr.labels || []).map((l) => l.name));

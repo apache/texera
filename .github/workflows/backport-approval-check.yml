@@ -14,32 +14,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Blocks the merge while a `release/*` label on the PR has not been approved by
-# that branch's release manager (.github/release-branches.yml).
+# Blocks the merge while a `release/*` label on the PR is not approved by that
+# branch's release manager (.github/release-branches.yml).
 #
-# The point is that a merged PR's labels should be a truthful record. A label
-# only nominates a branch, so before this check a manager declined a backport by
-# staying silent — and the label stayed on, which read afterwards as "this
-# shipped in 1.2" when it had not. Here declining is an action: the manager
-# either approves, or removes their label. Since the merge waits for every
-# remaining label to be approved, the labels on a merged PR are exactly the
-# branches Direct Backport Push then sends the fix to.
+# A label only nominates a branch. Before this, a manager declined by staying
+# silent and the label stayed on, so a merged PR claimed a backport that never
+# happened. Declining is now an action — approve, or remove the label — and the
+# merge waits for every remaining label, so a merged PR's labels are the
+# branches it reached.
 #
-# The author's job is to ask the manager for that call, not to make it for them.
-# Editing labels needs triage access, so outside contributors and Renovate or
-# Dependabot PRs cannot remove a label themselves — the failure report says so
-# and names who to ask.
-#
-# `Backport Approvals` is a required status check on the default branch
-# (.asf.yaml), so this job must produce a result on every pull request into
-# `main`, or a PR that never runs it waits forever. That is why it is not
-# conditioned on the title or the labels. It is not conditioned on the base
-# branch either, for a different reason: a PR already targeting a release
-# branch is itself a backport, so the check reports success there.
-# Merge groups are re-evaluated rather than waved through, because a
-# queued PR's own checks are no longer consulted once it is queued; a group
-# whose PRs cannot be resolved fails closed rather than passing unchecked. Do
-# not rename the job — its display name is the required context.
+# `Backport Approvals` is a required check on the default branch (.asf.yaml), so
+# this must report on every PR into `main` or one that never runs it waits
+# forever: hence no condition on title, labels, or base. A PR into a release
+# branch is itself a backport and reports success. Merge groups are
+# re-evaluated rather than waved through, and one whose PRs cannot be resolved
+# fails closed. Do not rename the job — its name is the required context.
 
 name: Backport Approval Check
 
@@ -78,21 +67,18 @@ jobs:
     name: Backport Approvals
     runs-on: ubuntu-latest
     steps:
-      # The default branch, not anything the pull request points at. Neither
-      # release-branches.yml nor its parser existed before #6941, and both the
-      # head and `base.sha` can predate it: `base.sha` is main's tip at the PR's
-      # last synchronize, not now, which is stale for 33 of the open PRs into
-      # main. Either would fail the `run:` step below with a file-not-found and
-      # turn this required check red with nothing the author could do about it —
-      # backport-auto-label.yml pins `base.sha` and has been failing exactly that
-      # way in production for a month. Reading main also means a PR retargeted
-      # onto a release branch, where the config does not exist, reaches the
-      # report below instead of dying before it.
+      # The default branch, not the PR's head or base. Neither predates #6941,
+      # which added release-branches.yml — and `base.sha` is main's tip at the
+      # PR's last synchronize rather than now, stale for 33 of the open PRs into
+      # main. Either would fail the step below with a file-not-found and turn
+      # this required check red unclearably; backport-auto-label.yml pinned
+      # `base.sha` and failed that way 20 times in production. Reading main also
+      # lets a PR retargeted onto a release branch, where the config is absent,
+      # reach the report instead of dying before it.
       #
       # Direct Backport Push reads main too, so both consumers judge a backport
-      # by the same config. The trade-off is that a PR editing
-      # release-branches.yml is judged by the pre-edit copy; those are `ci:`-typed
-      # and carry no `release/*` labels, so there is nothing to misjudge.
+      # by the same config. A PR editing that config is judged by the pre-edit
+      # copy; those are `ci:`-typed and carry no `release/*` labels.
       - name: Checkout
         uses: actions/checkout@v7
         with:
@@ -144,12 +130,11 @@ jobs:
               });
             }
 
-            // Latest review state per login. COMMENTED never changes an approval;
-            // a later CHANGES_REQUESTED or DISMISSED revokes one. listReviews is
-            // documented to return reviews chronologically, so the last state
-            // recorded for a login is the one that counts. `null` means the list
-            // could not be read at all — kept distinct from an empty list, since
-            // "we did not look" must never be reported as "nobody approved".
+            // Latest state per login: COMMENTED never changes an approval, a
+            // later CHANGES_REQUESTED or DISMISSED revokes one, and listReviews
+            // is documented to return them chronologically. `null` means the
+            // list could not be read — kept distinct from empty, so "we did not
+            // look" is never reported as "nobody approved".
             async function reviewStates(number) {
               try {
                 const reviews = await github.paginate(github.rest.pulls.listReviews, {
@@ -178,11 +163,10 @@ jobs:
               const cleared = [];
               const blocked = [];
               for (const target of targets) {
-                // release-branches.yml is the authorization source, so a label
-                // naming a branch it does not list has nobody who could approve
-                // it. That differs from an entry that deliberately omits
-                // `manager`, and the difference is reachable: retiring a branch
-                // means dropping its entry while its label lives on.
+                // A label naming a branch the config does not list has nobody
+                // who could approve it — different from an entry that omits
+                // `manager`, and reachable, since retiring a branch drops its
+                // entry while the label lives on.
                 if (!managers.has(target)) {
                   blocked.push({ target, manager: "", state: "UNCONFIGURED" });
                   continue;
@@ -210,9 +194,8 @@ jobs:
             }
 
             // Say only what the state proves. A dismissal lands on DISMISSED
-            // whatever the review was — GitHub dismisses a blocking
-            // CHANGES_REQUESTED as readily as it clears a stale approval — so
-            // naming it an approval would put a guess in the manager's mouth.
+            // whatever the review was, so calling it an approval would put a
+            // guess in the manager's mouth.
             function reason(e) {
               if (e.state === "VETOED") {
                 return "`no-backport-needed` says this fix reaches no release " +
@@ -242,12 +225,9 @@ jobs:
             try {
               numbers = await pullRequestNumbers();
             } catch (e) {
-              // Fail closed. Only reachable for a merge group whose commits
-              // cannot be mapped back to PRs, and a group whose approvals
-              // cannot be read is not a group this can vouch for — passing it
-              // would leave the queue ungated in exactly the window this job
-              // exists to cover. Ejecting the group is recoverable: its PRs
-              // re-queue, and each still holds its own passing check.
+              // Fail closed: a group whose approvals cannot be read is not one
+              // this can vouch for. Ejecting it is recoverable — its PRs
+              // re-queue, each still holding its own passing check.
               core.setFailed(
                 `Could not resolve the pull requests in this merge group ` +
                 `(${e.message}). Refusing to pass a check that could not be ` +
@@ -270,13 +250,11 @@ jobs:
               // A PR already targeting a release branch is itself a backport and
               // is not backported onward, so there is nothing here to approve.
               const intoMain = pr.base.ref === "main";
-              // `no-backport-needed` says the fix reaches no release branch, but
-              // nothing removes the labels it overrides — and precheck documents
-              // adding it mid-review, by which point the auto-labeler has already
-              // applied them. Merging in that state leaves a label promising a
-              // backport the push will skip: the false record this check exists
-              // to prevent. So the contradiction is reported rather than settled
-              // silently in the veto's favour.
+              // The veto says the fix reaches no release branch, but nothing
+              // removes the labels it overrides, and precheck documents adding
+              // it mid-review — after the labeler has run. Merging in that state
+              // leaves a label promising a backport the push will skip, so the
+              // contradiction is reported rather than settled silently.
               const vetoed = labels.includes("no-backport-needed");
               const targets = intoMain && !vetoed ? releaseLabels : [];
               const contradictions =

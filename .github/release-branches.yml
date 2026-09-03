@@ -45,18 +45,14 @@
 # only once the manager has approved the PR. A manager who wrote the fix counts
 # as having approved it, since GitHub does not let anyone approve their own PR.
 #
-# Because that approval is required to merge, declining a backport is an action
-# rather than silence: the manager removes their branch's label. So the labels
-# left on a merged PR are exactly the branches it was backported to, and reading
-# them later tells the truth. The author's part is to ask the manager for that
-# call, not to make it for them — though editing labels needs triage access, so
-# any committer can remove a label on a manager's behalf.
+# Because that approval is required to merge, declining is an action rather than
+# silence: the manager removes their branch's label. The author's part is to ask
+# for that call, not to make it — and editing labels needs triage access, so any
+# committer can remove one on a manager's behalf.
 #
-# Managers gate their own branch and nothing else, so each decides alone — but
-# the merge waits for all of them, so a fix cannot land on v1.2 while v1.3 is
-# still undecided. With both labeled, the merge is blocked until the v1.2 and
-# v1.3 managers have each either approved or removed their own label, and the
-# fix then goes to exactly the branches whose labels are left.
+# Each manager decides alone, but the merge waits for all of them: with v1.2 and
+# v1.3 both labeled it stays blocked until each manager has approved or removed
+# their own label, and the fix then goes to exactly the labels left.
 #
 # `manager` may be omitted, which leaves the branch ungated — no auto-requested
 # reviewer and no approval required — but setting one is strongly recommended.
