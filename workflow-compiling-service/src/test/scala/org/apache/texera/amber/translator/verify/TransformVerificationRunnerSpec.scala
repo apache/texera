@@ -101,32 +101,27 @@ class TransformVerificationRunnerSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "route the visualizations to the visualization tier" in {
-    val visualizations = Seq(
-      classOf[BarChartOpDesc],
-      classOf[BoxViolinPlotOpDesc],
-      classOf[BubbleChartOpDesc],
-      classOf[BulletChartOpDesc],
-      classOf[CandlestickChartOpDesc],
-      classOf[CarpetPlotOpDesc],
-      classOf[ChoroplethMapOpDesc],
-      classOf[ContinuousErrorBandsOpDesc],
-      classOf[ContourPlotOpDesc],
-      classOf[DendrogramOpDesc],
-      classOf[DotPlotOpDesc],
-      classOf[DumbbellPlotOpDesc],
-      classOf[ECDFPlotOpDesc],
-      classOf[FigureFactoryTableOpDesc],
-      classOf[FilledAreaPlotOpDesc],
-      classOf[FunnelPlotOpDesc],
-      classOf[GanttChartOpDesc],
-      classOf[GaugeChartOpDesc],
-      classOf[IcicleChartOpDesc],
-      classOf[ImageVisualizerOpDesc],
-      classOf[ScatterMatrixChartOpDesc]
-    )
-    visualizations.foreach(op =>
-      withClue(op.getSimpleName)(disposition(op) shouldBe Runnable("visualization"))
-    )
+    disposition(classOf[BarChartOpDesc]) shouldBe Runnable("visualization")
+    disposition(classOf[BoxViolinPlotOpDesc]) shouldBe Runnable("visualization")
+    disposition(classOf[BubbleChartOpDesc]) shouldBe Runnable("visualization")
+    disposition(classOf[BulletChartOpDesc]) shouldBe Runnable("visualization")
+    disposition(classOf[CandlestickChartOpDesc]) shouldBe Runnable("visualization")
+    disposition(classOf[CarpetPlotOpDesc]) shouldBe Runnable("visualization")
+    disposition(classOf[ChoroplethMapOpDesc]) shouldBe Runnable("visualization")
+    disposition(classOf[ContinuousErrorBandsOpDesc]) shouldBe Runnable("visualization")
+    disposition(classOf[ContourPlotOpDesc]) shouldBe Runnable("visualization")
+    disposition(classOf[DendrogramOpDesc]) shouldBe Runnable("visualization")
+    disposition(classOf[DotPlotOpDesc]) shouldBe Runnable("visualization")
+    disposition(classOf[DumbbellPlotOpDesc]) shouldBe Runnable("visualization")
+    disposition(classOf[ECDFPlotOpDesc]) shouldBe Runnable("visualization")
+    disposition(classOf[FigureFactoryTableOpDesc]) shouldBe Runnable("visualization")
+    disposition(classOf[FilledAreaPlotOpDesc]) shouldBe Runnable("visualization")
+    disposition(classOf[FunnelPlotOpDesc]) shouldBe Runnable("visualization")
+    disposition(classOf[GanttChartOpDesc]) shouldBe Runnable("visualization")
+    disposition(classOf[GaugeChartOpDesc]) shouldBe Runnable("visualization")
+    disposition(classOf[IcicleChartOpDesc]) shouldBe Runnable("visualization")
+    disposition(classOf[ImageVisualizerOpDesc]) shouldBe Runnable("visualization")
+    disposition(classOf[ScatterMatrixChartOpDesc]) shouldBe Runnable("visualization")
   }
 
   it should "route genuine one-off curated ops to the curated tier" in {
