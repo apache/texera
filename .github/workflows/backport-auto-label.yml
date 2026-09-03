@@ -255,7 +255,9 @@ jobs:
                     status: "declined",
                     note:
                       "Label was removed earlier (opt-out); not re-added. Re-add " +
-                      "it by hand if this fix should be backported here after all.",
+                      "it by hand if this fix should be backported here after all — " +
+                      "the branch's release manager then has to approve before this " +
+                      "PR can merge.",
                   });
                   continue;
                 }
@@ -274,7 +276,9 @@ jobs:
                       `modifies exist on this branch (${fileList}). The fix may ` +
                       "target code that isn't on this release, or the files were " +
                       "moved/renamed after the branch was cut. **Please check and " +
-                      `add \`${label}\` by hand if this fix should be backported here.**`,
+                      `add \`${label}\` by hand if this fix should be backported here** ` +
+                      "— its release manager then has to approve before this PR can " +
+                      "merge.",
                   });
                   continue;
                 }

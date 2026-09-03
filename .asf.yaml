@@ -112,10 +112,36 @@ github:
               - context: Required Checks
               - context: Check License Headers
               - context: Validate PR title
-              # Every release/* label must be approved by that branch's release
-              # manager before the merge, so a merged PR's labels are exactly
-              # the branches it was backported to
-              # (.github/workflows/backport-approval-check.yml).
+              # `Backport Approvals` deliberately does NOT belong here — it
+              # lives in its own default-branch-only ruleset below. Adding it
+              # to this list strands every open PR into a release branch, since
+              # the workflow producing it exists only on the default branch.
+
+    # Kept out of the Merge Queue ruleset above, which also covers the release
+    # branches: `backport-approval-check.yml` only exists on the default branch,
+    # and a `pull_request` run takes its workflows from the merge ref — so for a
+    # PR into release/vX.Y the check has no producer, the context never appears,
+    # and the PR waits on it forever. It has nothing to say there either: a PR
+    # already targeting a release branch is itself a backport and reports
+    # success. Scoping it to the default branch is what makes it enforceable
+    # without stranding every open backport PR.
+    - name: "Backport Approvals"
+      target: branch
+      enforcement: active
+      conditions:
+        ref_name:
+          exclude: []
+          include:
+            - "~DEFAULT_BRANCH"
+      rules:
+        # Every release/* label must be approved by that branch's release
+        # manager before the merge, so a merged PR's labels are exactly the
+        # branches it was backported to
+        # (.github/workflows/backport-approval-check.yml).
+        - type: required_status_checks
+          parameters:
+            strict_required_status_checks_policy: false
+            required_status_checks:
               - context: Backport Approvals
 
     - name: "Default Branch Protection"

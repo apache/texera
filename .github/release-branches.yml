@@ -32,11 +32,13 @@
 # `release/v1.2`).
 #
 # `actively-supporting` controls the default: only actively-supporting branches
-# are auto-labeled on new `fix:` PRs. An inactive branch stays a valid backport
-# target — a maintainer can still add its label by hand and the apply-check /
-# post-merge backport run as usual — it just isn't offered by default. Omitting
-# the field defaults to true. When a branch reaches end-of-life, drop its entry
-# entirely.
+# are auto-labeled on new `fix:` PRs, and only they get their manager's review
+# requested. An inactive branch stays a valid backport target — a maintainer can
+# add its label by hand, and the apply-check and post-merge backport run — but
+# its manager must still approve before the PR can merge, and nothing asks them
+# to: no review is requested for an inactive branch, so whoever adds the label
+# should ping the manager themselves. Omitting the field defaults to true. When
+# a branch reaches end-of-life, drop its entry entirely.
 #
 # `manager` is a GitHub username, and it is that branch's approval gate: the
 # `release/*` label only *nominates* a target, and the fix is backported there
@@ -50,11 +52,11 @@
 # call, not to make it for them — though editing labels needs triage access, so
 # any committer can remove a label on a manager's behalf.
 #
-# Managers gate their own branch and nothing else, so the approvals compose:
-# with both `release/v1.2` and `release/v1.3` labeled, an approval from the v1.2
-# manager alone lands the fix on v1.2 and leaves v1.3 behind; an approval from
-# both lands it on both; neither approving blocks the merge until one of them
-# is approved or its label is removed.
+# Managers gate their own branch and nothing else, so each decides alone — but
+# the merge waits for all of them, so a fix cannot land on v1.2 while v1.3 is
+# still undecided. With both labeled, the merge is blocked until the v1.2 and
+# v1.3 managers have each either approved or removed their own label, and the
+# fix then goes to exactly the branches whose labels are left.
 #
 # `manager` may be omitted, which leaves the branch ungated — no auto-requested
 # reviewer and no approval required — but setting one is strongly recommended.

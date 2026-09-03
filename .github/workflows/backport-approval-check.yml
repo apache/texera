@@ -196,6 +196,12 @@ jobs:
             // CHANGES_REQUESTED as readily as it clears a stale approval — so
             // naming it an approval would put a guess in the manager's mouth.
             function reason(e) {
+              if (e.state === "VETOED") {
+                return "`no-backport-needed` says this fix reaches no release " +
+                  "branch, so this label contradicts it and would be left on a " +
+                  "merged PR promising a backport nobody performs — remove the " +
+                  "label, or remove `no-backport-needed`";
+              }
               if (e.state === "UNCONFIGURED") {
                 return "this branch is not listed in .github/release-branches.yml, " +
                   "so no release manager governs it — drop the label, or add the " +
@@ -239,26 +245,40 @@ jobs:
               const { data: pr } = await github.rest.pulls.get({
                 owner, repo, pull_number: number,
               });
-              // A PR already targeting a release branch is itself a backport and
-              // is not backported onward; `no-backport-needed` vetoes the lot,
-              // the same way it does in precheck and in the post-merge push.
               const labels = (pr.labels || []).map((l) => l.name);
-              const targets =
-                pr.base.ref !== "main" || labels.includes("no-backport-needed")
-                  ? []
-                  : [...new Set(labels.filter((n) => /^release\/.+$/.test(n)))].sort();
+              const releaseLabels = [...new Set(
+                labels.filter((n) => /^release\/.+$/.test(n))
+              )].sort();
+              // A PR already targeting a release branch is itself a backport and
+              // is not backported onward, so there is nothing here to approve.
+              const intoMain = pr.base.ref === "main";
+              // `no-backport-needed` says the fix reaches no release branch, but
+              // nothing removes the labels it overrides — and precheck documents
+              // adding it mid-review, by which point the auto-labeler has already
+              // applied them. Merging in that state leaves a label promising a
+              // backport the push will skip: the false record this check exists
+              // to prevent. So the contradiction is reported rather than settled
+              // silently in the veto's favour.
+              const vetoed = labels.includes("no-backport-needed");
+              const targets = intoMain && !vetoed ? releaseLabels : [];
+              const contradictions =
+                intoMain && vetoed
+                  ? releaseLabels.map((target) => ({
+                      target, manager: "", state: "VETOED",
+                    }))
+                  : [];
 
               if (numbers.length > 1) lines.push(`### PR #${number}`, "");
-              if (targets.length === 0) {
+              if (targets.length === 0 && contradictions.length === 0) {
                 lines.push("No `release/*` labels — nothing to approve.", "");
                 continue;
               }
 
-              const { cleared, blocked } = decide(
-                targets,
-                pr.user?.login,
-                await reviewStates(number)
-              );
+              const { cleared, blocked } =
+                targets.length > 0
+                  ? decide(targets, pr.user?.login, await reviewStates(number))
+                  : { cleared: [], blocked: [] };
+              blocked.push(...contradictions);
               for (const e of cleared) lines.push(`- **OK** \`${e.target}\` — ${e.note}`);
               for (const e of blocked) lines.push(`- **BLOCKED** \`${e.target}\` — ${reason(e)}`);
               lines.push("");
