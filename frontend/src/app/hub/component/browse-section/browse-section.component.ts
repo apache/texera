@@ -19,6 +19,7 @@
 
 import { ChangeDetectorRef, Component, Input, OnChanges, OnInit, SimpleChanges } from "@angular/core";
 import { DashboardEntry } from "../../../dashboard/type/dashboard-entry";
+<<<<<<< HEAD
 import { WorkflowPersistService } from "../../../common/service/workflow-persist/workflow-persist.service";
 import { DatasetService } from "../../../dashboard/service/user/dataset/dataset.service";
 import { UntilDestroy } from "@ngneat/until-destroy";
@@ -29,6 +30,11 @@ import {
   USER_WORKSPACE,
 } from "../../../app-routing.constant";
 import { AppSettings } from "../../../common/app-setting";
+=======
+import { EntityType } from "../../service/hub.service";
+import { ResourceRegistryService } from "../../../dashboard/service/user/resource-registry/resource-registry.service";
+import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+>>>>>>> 1facefb18 (fix(frontend): render workflow covers on the hub landing page (#8383))
 import { NgIf, NgFor, NgStyle, DatePipe } from "@angular/common";
 import { NzCardComponent } from "ng-zorro-antd/card";
 import { RouterLink } from "@angular/router";
@@ -130,6 +136,16 @@ export class BrowseSectionComponent implements OnInit, OnChanges {
   }
 
   getCoverImage(entity: DashboardEntry): string {
+<<<<<<< HEAD
     return this.coverImageUrls.get(entity.id!) || this.defaultBackground;
+=======
+    // A workflow's cover is a downscaled data URL carried on the entry, so nothing is ever fetched
+    // for it. The file-backed kinds carry a stored path instead, which only the cache above can
+    // turn into something an <img> can load.
+    if (entity.type === EntityType.Workflow) {
+      return entity.coverImageUrl ?? this.defaultBackground;
+    }
+    return this.coverImageUrls.get(this.cacheKey(entity)) || this.defaultBackground;
+>>>>>>> 1facefb18 (fix(frontend): render workflow covers on the hub landing page (#8383))
   }
 }
