@@ -149,30 +149,13 @@ object ConfigGenerator {
     }
 
   /**
-    * Enum-sweep an ALREADY-configured op (e.g. a curated handler's OpDesc):
-    * serialize it to JSON, then return the base op plus one variant per
-    * non-default enum value found anywhere in it (including inside lists with
-    * more than one element). Lets curated fixtures cover every enum branch too,
-    * not just the single value the handler hard-coded.
-    */
-  def variantsOf(opDesc: LogicalOp): Either[String, Seq[(String, LogicalOp)]] = {
-    val opClass = opDesc.getClass.asInstanceOf[Class[_ <: LogicalOp]]
-    // base = the original op (preserve the curated config exactly); variants are
-    // deserialized from the JSON with one enum flipped.
-    nodeOf(opDesc).flatMap(node =>
-      applyAll(opClass, node, Some(opDesc), Variant.Base +: enumVariants(opClass, node))
-    )
-  }
-
-  /**
-    * [[variantsOf]] plus the two multi-knob variants [[generateVariants]] gives an
-    * auto-configured op: `optionals` and `hostileText` (see [[extraVariants]]).
+    * Sweep an ALREADY-configured op (a curated handler's OpDesc): the base op,
+    * one variant per non-default enum value found anywhere in it, and the two
+    * multi-knob variants `optionals` and `hostileText` (see [[extraVariants]]).
     *
-    * A separate entry point rather than a widening of [[variantsOf]] so a caller
-    * states which it wants, and a failure points at one of them. Curated fixtures
-    * are the reason it exists: a hand-written config is the ONLY config its
-    * operator ever runs, so without this its optional knobs stay at their defaults
-    * and nothing ever splices a quote into the code it generates.
+    * Curated fixtures are the reason it exists: a hand-written config is the ONLY
+    * config its operator ever runs, so without this its optional knobs stay at
+    * their defaults and nothing ever splices a quote into the code it generates.
     *
     * `inputSchemas` describes the op's OWN inputs — a curated handler writes its
     * own fixture, so this is not necessarily the canonical one.
