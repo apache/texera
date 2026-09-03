@@ -63,12 +63,10 @@ import scala.util.Try
   * synthetic dataset is built to contain, so the operator actually does
   * something rather than matching nothing.
   *
-  * Strategy: reflect over the operator's config fields (those carrying
-  * `@JsonProperty` or an autofill annotation), build a JSON object of
-  * field → value, and let Jackson deserialize it into the OpDesc. Using the
-  * same `objectMapper` Texera uses everywhere means enums (`@JsonValue`),
-  * `Option`, and `@JsonCreator` nested objects are handled by existing,
-  * battle-tested deserialization rather than bespoke reflection.
+  * The assembled JSON is read back through the same `objectMapper` Texera uses
+  * everywhere, so enums (`@JsonValue`), `Option` and `@JsonCreator` nested
+  * objects are handled by the deserialization the product already relies on
+  * rather than by reflection written here.
   */
 object ConfigGenerator {
 
@@ -510,11 +508,9 @@ object ConfigGenerator {
 
   /** Extra variants for the OPTIONAL free-value scalar knobs — a number or a
     * string the user types in, as opposed to a column picker or a dropdown.
-    * [[decide]] leaves these unset for the same reason [[optionalColumnFills]]'s
-    * knobs are unset, and they need the same treatment: the branch each generator
-    * emits for a knob that IS set (a gauge's delta arrow, a step row's range)
-    * never runs on either path, so the two hand-written branches are never
-    * compared.
+    * Unset for the reason [[optionalColumnFills]] gives, and filled here for the
+    * same one: a gauge's delta arrow and a step row's range are branches neither
+    * generator runs until the knob is set.
     *
     * Every knob found here ends up in ONE variant (see [[merged]]), the row ones
     * included: a row is what the UI's `+` button adds, and its fields are read as a
@@ -770,7 +766,6 @@ object ConfigGenerator {
       arr
     }
 
-  /** A field's JSON Pointer, under the pointer of the object that holds it. */
   private def pointerOf(f: Field, path: String): String = s"$path/${jsonNameOf(f)}"
 
   /** The key a field carries in the config JSON. */
@@ -1760,19 +1755,14 @@ object ConfigGenerator {
       used += ((port, col)); col
     }
 
-  /** Pick which input column fills an `@AutofillAttributeName*` field, in
-    * priority order:
-    *   1. `@SampleColumn("x")` — an explicit semantic pick (e.g. a valid ISO
-    *      country code or a real OHLC column) that the column's type can't
-    *      express; always honored, even if already used;
-    *   2. the first *unused* column whose [[AttributeType]] satisfies the field's
-    *      `attributeTypeRules` (falling back to the first matching column if all
-    *      are taken);
-    *   3. the first unused column (the original first-column behavior, made
-    *      distinct-aware).
-    * Tiers 1–2 keep the parity test on realistic, type-correct input; the
-    * distinct-column preference stops sibling fields (x/y, source/target) from
-    * collapsing onto one column and producing a degenerate result.
+  /** Pick which input column fills an `@AutofillAttributeName*` field.
+    *
+    * `@SampleColumn` wins outright, even over a column already taken: it names
+    * something the type cannot say, an ISO country code among strings or the
+    * opening price among four numbers. Otherwise the type rule decides, and
+    * within it the preference is for a column no sibling has taken, which is what
+    * stops an x/y or source/target pair collapsing onto one column and comparing
+    * a degenerate result.
     */
   private def resolveColumn(
       f: Field,
