@@ -86,7 +86,16 @@ class TypeCastingOpDesc extends MapOpDesc with StandaloneCodeGenerator {
       // values become NaN/NaT instead of raising — matches a best-effort
       // standalone reproduction of Texera's per-row cast.
       val expr = unit.resultType match {
-        case AttributeType.STRING                       => s"""out1df[$colLit].astype(str)"""
+        case AttributeType.STRING =>
+          // `astype(str)` gets three things wrong against `toString`: an empty
+          // cell renders as the text "nan", a column holding one is a float by
+          // then so 6 reads "6.0", and a boolean capitalises. Each is handled
+          // rather than the column cast wholesale.
+          s"""out1df[$colLit].apply(""" +
+            """lambda x: None if pd.isna(x) """ +
+            """else ("true" if x else "false") if isinstance(x, bool) """ +
+            """else str(int(x)) if isinstance(x, float) and x.is_integer() """ +
+            """else str(x))"""
         case AttributeType.INTEGER | AttributeType.LONG =>
           // Match JVM AttributeTypeUtils.parseInteger, which casts Double via
           // `.toInt` (truncate toward zero). pandas .astype("Int64") on a float
