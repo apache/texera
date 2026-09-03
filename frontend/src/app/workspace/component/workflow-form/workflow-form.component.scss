@@ -22,6 +22,7 @@ $blue: #1890ff;
 $text: rgba(0, 0, 0, 0.85);
 $text-2: rgba(0, 0, 0, 0.45);
 $divider: #f0f0f0;
+$shell: #fafafa;
 
 :host {
   display: block;
@@ -64,16 +65,32 @@ $divider: #f0f0f0;
      padding; matching that is what lines the two titles up. */
   gap: 0;
 
-  /* Every value here is the operator canvas's .workflow-name, so the two title rows read
-     as the same row: the same size, weight and padding. Shown here; the editable input is
-     the next PR. */
+  /* An input, not a label: the workflow can be renamed from either view. Every value here is
+     the operator canvas's .workflow-name, so the two title rows read as the same row --
+     content-box sizing with the same padding, no border, chromeless until you reach for it,
+     and a width set from the text by the same measure-in-a-span trick. */
   .wf-name {
     min-width: 100px;
     max-width: 800px;
     font-size: 18px;
     font-weight: 400;
     padding: 2px 8px;
+    border: none;
+    box-sizing: content-box;
+    background: none;
     color: $text;
+    outline: none;
+
+    &:hover {
+      background: $shell;
+    }
+  }
+
+  /* Immediately after the name, in the body colour and size of ordinary text, exactly as on
+     the operator canvas; the name field's own padding makes the gap. */
+  .saved-state {
+    color: $text;
+    white-space: nowrap;
   }
 
   .topbar-spacer {

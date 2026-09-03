@@ -19,14 +19,24 @@
 
 <!-- The operator canvas's title row, rebuilt here to the same measurements: same
      height, same rule underneath, same full-bleed width, and the view switch pinned to
-     the same right inset ahead of the same user icon. The name is shown here; making it
-     editable (with the same rename/save the canvas gives) is the next PR. -->
+     the same right inset ahead of the same user icon. The content below is padded and
+     centred, which is why the switch cannot live down there -- it would stop at the
+     column edge and never line up with the other view. -->
 <div class="pc-topbar">
   <nz-avatar
     *ngIf="wid"
     class="wid"
     [nzText]="wid.toString()"></nz-avatar>
-  <span class="wf-name">{{ workflowName || "Untitled workflow" }}</span>
+  <!-- An input, not a label: the workflow can be renamed from either view, with the same
+       control in the same place. -->
+  <input
+    class="wf-name"
+    [(ngModel)]="workflowName"
+    (change)="onRenameWorkflow()"
+    placeholder="Untitled workflow" />
+  <!-- Editing here writes to the same workflow, so it earns the same reassurance the
+       operator canvas gives: the moment it was last saved. -->
+  <span class="saved-state">{{ autoSaveState }}</span>
   <span class="topbar-spacer"></span>
   <div class="view-switch">
     <button

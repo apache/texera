@@ -17,9 +17,10 @@
  * under the License.
  */
 
+import { DatePipe } from "@angular/common";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { ActivatedRoute, Router } from "@angular/router";
-import { of, Subject } from "rxjs";
+import { EMPTY, of, Subject } from "rxjs";
 
 import { WorkflowFormComponent } from "./workflow-form.component";
 import { UserIconComponent } from "../../../dashboard/component/user/user-icon/user-icon.component";
@@ -78,17 +79,29 @@ describe("WorkflowFormComponent (rendered template)", () => {
             disableWorkflowModification: vi.fn(),
             clearWorkflow: vi.fn(),
             getWorkflowMetadata: () => ({ name: "scGPT", lastModifiedTime: undefined }),
+            getWorkflow: () => ({ wid: 7, content: { operators: [], operatorPositions: {} } }),
+            setWorkflowName: vi.fn(),
+            workflowChanged: () => EMPTY,
+            workflowMetaDataChanged: () => EMPTY,
           },
         },
-        { provide: WorkflowPersistService, useValue: { retrieveWorkflow: () => workflow$ } },
+        {
+          provide: WorkflowPersistService,
+          useValue: {
+            retrieveWorkflow: () => workflow$,
+            isWorkflowPersistEnabled: () => false,
+            persistWorkflow: () => of({}),
+          },
+        },
         { provide: OperatorMetadataService, useValue: { getOperatorMetadata: () => of({}) } },
         { provide: ExecuteWorkflowService, useValue: { resetExecutionAndWorkers: vi.fn() } },
         { provide: WorkflowResultService, useValue: { clearResults: vi.fn() } },
         { provide: NotificationService, useValue: { error: vi.fn() } },
-        { provide: UserService, useValue: { getCurrentUser: () => undefined } },
+        { provide: UserService, useValue: { getCurrentUser: () => undefined, isLogin: () => false } },
         { provide: ComputingUnitStatusService, useValue: { disconnect: vi.fn() } },
         { provide: WorkflowConsoleService, useValue: { clearConsoleMessages: vi.fn() } },
         { provide: GuiConfigService, useValue: { env: { formViewEnabled: true } } },
+        DatePipe,
       ],
     }).compileComponents();
     fixture = TestBed.createComponent(WorkflowFormComponent);
@@ -103,13 +116,30 @@ describe("WorkflowFormComponent (rendered template)", () => {
 
   beforeEach(configure);
 
-  it("renders the workflow's avatar and name in the title row", () => {
+  it("renders the workflow's avatar and name in the title row", async () => {
     fixture.detectChanges(); // ngOnInit -> load()
     finishLoad();
+    // ngModel writes the name into the input on a microtask; let it flush before reading.
+    await fixture.whenStable();
+    fixture.detectChanges();
 
     expect(el(".pc-topbar")).not.toBeNull();
     expect(el("nz-avatar.wid")).not.toBeNull();
-    expect(el(".wf-name")?.textContent?.trim()).toBe("scGPT");
+    // The name is an editable input on this slice; its value is the workflow name.
+    expect((el("input.wf-name") as HTMLInputElement | null)?.value).toBe("scGPT");
+  });
+
+  it("renames the workflow when the name input fires a change", async () => {
+    fixture.detectChanges();
+    finishLoad();
+    await fixture.whenStable();
+    const spy = vi.spyOn(fixture.componentInstance, "onRenameWorkflow");
+    const input = el("input.wf-name") as HTMLInputElement;
+
+    input.value = "Renamed";
+    input.dispatchEvent(new Event("change"));
+
+    expect(spy).toHaveBeenCalled();
   });
 
   it("switches to the operator canvas when the Canvas control is clicked", () => {
