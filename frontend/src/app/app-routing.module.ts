@@ -30,6 +30,7 @@ import { TexeraLoginComponent } from "./hub/component/login/texera-login.compone
 import { AuthGuardService } from "./common/service/user/auth-guard.service";
 import { AdminUserComponent } from "./dashboard/component/admin/user/admin-user.component";
 import { AdminExecutionComponent } from "./dashboard/component/admin/execution/admin-execution.component";
+import { AdminComputingUnitComponent } from "./dashboard/component/admin/computing-unit/admin-computing-unit.component";
 import { AdminGuardService } from "./dashboard/service/admin/guard/admin-guard.service";
 import { SearchComponent } from "./dashboard/component/user/search/search.component";
 import { FlarumComponent } from "./dashboard/component/user/flarum/flarum.component";
@@ -195,6 +196,10 @@ routes.push({
         {
           path: "execution",
           component: AdminExecutionComponent,
+        },
+        {
+          path: "compute",
+          component: AdminComputingUnitComponent,
         },
         {
           path: "settings",

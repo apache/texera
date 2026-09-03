@@ -29,6 +29,7 @@ import { GuiConfigService } from "../../common/service/gui-config.service";
 
 import {
   ABOUT,
+  ADMIN_COMPUTING_UNIT,
   ADMIN_EXECUTION,
   ADMIN_GMAIL,
   ADMIN_SETTINGS,
@@ -127,6 +128,7 @@ export class DashboardComponent implements OnInit {
   protected readonly ADMIN_USER = ADMIN_USER;
   protected readonly ADMIN_GMAIL = ADMIN_GMAIL;
   protected readonly ADMIN_EXECUTION = ADMIN_EXECUTION;
+  protected readonly ADMIN_COMPUTING_UNIT = ADMIN_COMPUTING_UNIT;
   protected readonly ADMIN_SETTINGS = ADMIN_SETTINGS;
   protected readonly ABOUT = ABOUT;
   protected readonly String = String;

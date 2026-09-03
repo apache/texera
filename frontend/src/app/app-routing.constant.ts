@@ -48,6 +48,7 @@ export const ADMIN = "/admin";
 export const ADMIN_USER = `${ADMIN}/user`;
 export const ADMIN_GMAIL = `${ADMIN}/gmail`;
 export const ADMIN_EXECUTION = `${ADMIN}/execution`;
+export const ADMIN_COMPUTING_UNIT = `${ADMIN}/compute`;
 export const ADMIN_SETTINGS = `${ADMIN}/settings`;
 
 export const SEARCH = "/search";
