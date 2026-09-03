@@ -66,7 +66,13 @@ object KubernetesConfig {
   // GPU resource key used directly in Kubernetes resource specifications
   val gpuResourceKey: String = conf.getString("kubernetes.computing-unit-gpu-resource-key")
 
-  // Per-node mounter that performs the FUSE mount outside the (unprivileged) CU pod.
-  val mounterPort: Int = conf.getInt("kubernetes.mounter-port")
+  // Whether the deployment opted into out-of-pod dataset mounting. When false the CU pod is
+  // built exactly as it was before the feature existed -- no hostPath, no mount env -- so a
+  // cluster enforcing a Pod Security Standard on the pool namespace is unaffected.
+  val mounterEnabled: Boolean = conf.getBoolean("kubernetes.mounter-enabled")
+
+  // Root of the per-node mounter's host directory. This service never talks to the mounter
+  // -- access-control-service does -- but it builds the CU pod spec, and the pod's hostPath
+  // must be the <root>/<cuid> subtree the mounter mounts into.
   val mounterHostRoot: String = conf.getString("kubernetes.mounter-host-root")
 }

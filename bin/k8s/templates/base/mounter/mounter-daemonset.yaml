@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+{{- if .Values.mounter.enabled }}
 
 # Per-node privileged mounter that performs the GeeseFS FUSE mount on behalf of
 # (unprivileged) computing-unit pods. It mounts under a host directory and the mount
@@ -80,3 +81,4 @@ spec:
           hostPath:
             path: {{ .Values.mounter.hostMountRoot }}
             type: DirectoryOrCreate
+{{- end }}

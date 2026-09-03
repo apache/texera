@@ -102,16 +102,19 @@ object KubernetesClient {
     // mount, so the address would be of no use to code running here except to probe the
     // node's privileged mounter.
     val inPodMountRoot = "/mnt/texera-mounts"
-    val mounterEnv = List(
-      new EnvVarBuilder()
-        .withName(EnvironmentalVariable.ENV_CU_ID)
-        .withValue(cuid.toString)
-        .build(),
-      new EnvVarBuilder()
-        .withName(EnvironmentalVariable.ENV_MOUNT_IN_POD_ROOT)
-        .withValue(inPodMountRoot)
-        .build()
-    )
+    val mounterEnv =
+      if (!KubernetesConfig.mounterEnabled) Nil
+      else
+        List(
+          new EnvVarBuilder()
+            .withName(EnvironmentalVariable.ENV_CU_ID)
+            .withValue(cuid.toString)
+            .build(),
+          new EnvVarBuilder()
+            .withName(EnvironmentalVariable.ENV_MOUNT_IN_POD_ROOT)
+            .withValue(inPodMountRoot)
+            .build()
+        )
 
     val envList = (baseEnv ++ mounterEnv).asJava
 
@@ -159,12 +162,14 @@ object KubernetesClient {
     // The FUSE mount is performed by the per-node texera-mounter (privileged), not here,
     // so this pod stays UNPRIVILEGED. It only *receives* the mount via HostToContainer
     // propagation from a host directory scoped to this CU id (see the hostPath volume below).
-    containerBuilder
-      .addNewVolumeMount()
-      .withName("texera-mounts")
-      .withMountPath(inPodMountRoot)
-      .withMountPropagation("HostToContainer")
-      .endVolumeMount()
+    if (KubernetesConfig.mounterEnabled) {
+      containerBuilder
+        .addNewVolumeMount()
+        .withName("texera-mounts")
+        .withMountPath(inPodMountRoot)
+        .withMountPropagation("HostToContainer")
+        .endVolumeMount()
+    }
 
     // If shmSize requested, mount /dev/shm
     shmSize.foreach { _ =>
@@ -193,14 +198,18 @@ object KubernetesClient {
 
     // Per-CU host directory the mounter mounts into (DirectoryOrCreate so it exists
     // before the mounter mounts). Scoped by cuid so a CU can only ever see its own mounts.
-    specBuilder
-      .addNewVolume()
-      .withName("texera-mounts")
-      .withNewHostPath()
-      .withPath(s"${KubernetesConfig.mounterHostRoot}/$cuid")
-      .withType("DirectoryOrCreate")
-      .endHostPath()
-      .endVolume()
+    // Guarded because `baseline` and `restricted` forbid hostPath: on a cluster enforcing
+    // either on the pool namespace, an unconditional one makes every CU pod unschedulable.
+    if (KubernetesConfig.mounterEnabled) {
+      specBuilder
+        .addNewVolume()
+        .withName("texera-mounts")
+        .withNewHostPath()
+        .withPath(s"${KubernetesConfig.mounterHostRoot}/$cuid")
+        .withType("DirectoryOrCreate")
+        .endHostPath()
+        .endVolume()
+    }
 
     val pod = specBuilder
       .withHostname(podName)

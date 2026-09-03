@@ -233,7 +233,8 @@ accessControlService:
   numOfPods: 1
   imageName: texera-access-control-service
   # Dedicated identity, so the mounter can authenticate the access-control-service as the
-  # only component permitted to request a dataset mount. See
+  # only component permitted to request a dataset mount. Created and attached only when
+  # mounter.enabled is true. See
   # templates/base/access-control-service/access-control-service-service-account.yaml.
   serviceAccountName: texera-access-control-service-account
   service:
@@ -306,9 +307,17 @@ workflowComputingUnitPool:
     targetPort: 8085
 
 # Per-node privileged DaemonSet that performs the GeeseFS FUSE mount for computing-unit
-# pods, so the CU pods stay unprivileged. port/hostMountRoot MUST match the values read by
-# the computing-unit manager (kubernetes.mounter-port / kubernetes.mounter-host-root).
+# pods, so the CU pods stay unprivileged. hostMountRoot MUST match the computing-unit
+# manager's kubernetes.mounter-host-root: the manager gives each CU pod a hostPath under
+# that root, and the mounter mounts into the same subtree.
 mounter:
+  # Off by default. When enabled, computing-unit pods gain a hostPath volume, which the
+  # `baseline` and `restricted` Pod Security Standards forbid -- on a cluster that enforces
+  # either on the pool namespace, every CU pod would be rejected. Mounting is also not
+  # reachable yet: no caller requests a mount until the platform integration lands. So an
+  # operator opts in once their cluster admits the hostPath, and until then this feature
+  # changes nothing about how computing units run.
+  enabled: false
   imageName: texera-mounter
   imagePullPolicy: IfNotPresent
   port: 8100
