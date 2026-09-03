@@ -48,17 +48,14 @@ import scala.sys.process._
   * Same Result(outputs, outputSchemas) shape as OpExecHarness so the rest of
   * the verify pipeline (Comparator, category runners) is harness-agnostic.
   *
-  * Scope (MVP, mirrors OpExecHarness's MVP):
-  *   - Single-PhysicalOp plans only. PythonOperatorDescriptor only emits
-  *     either a `sourcePhysicalOp` or a `oneToOnePhysicalOp`, so multi-op
-  *     plans don't exist for Python-native ops today. If that changes, add
-  *     topo-order driving here the way OpExecHarness does.
-  *   - Single output port. UDFOperatorV2 / UDFTableOperator / UDFBatchOperator
-  *     / UDFSourceOperator all yield TupleLike without specifying a port —
-  *     same convention OpExecHarness uses when port is unset.
-  *   - JSONL types: STRING / INTEGER / LONG / DOUBLE / BOOLEAN. TIMESTAMP /
-  *     BINARY / LARGE_BINARY require explicit codecs in both [[TupleIO]] and
-  *     the driver — add when the first operator needs them.
+  * What it does not drive, each because no Python-native operator asks for it:
+  *   - Multi-PhysicalOp plans. PythonOperatorDescriptor emits either a
+  *     `sourcePhysicalOp` or a `oneToOnePhysicalOp`, so topo-order driving,
+  *     which OpExecHarness has, would have nothing to order.
+  *   - More than one output port. The UDF operator traits yield TupleLike
+  *     without naming a port, the same convention OpExecHarness reads as port 0.
+  *   - JSONL types beyond STRING / INTEGER / LONG / DOUBLE / BOOLEAN. TIMESTAMP
+  *     and the binaries need a codec in both [[TupleIO]] and the driver.
   */
 object PyOpExecHarness extends LazyLogging {
 
