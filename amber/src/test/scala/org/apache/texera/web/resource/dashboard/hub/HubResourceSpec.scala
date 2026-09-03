@@ -1083,7 +1083,6 @@ class HubResourceSpec
     entry.ownerName shouldBe "hub_owner"
     entry.ownerId shouldBe Integer.valueOf(ownerUid)
     entry.accessLevel shouldBe "WRITE"
-    entry.projectIDs shouldBe empty
     entry.coverImage shouldBe empty
   }
 

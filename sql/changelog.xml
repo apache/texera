@@ -134,9 +134,14 @@
         <sqlFile path="sql/updates/44.sql"/>
     </changeSet>
 
-    <!-- Allow ORCID as an identity provider in auth_provider.provider_type -->
-    <changeSet id="45" author="Neilk1021">
+    <!-- Remove the deprecated project feature (#5172) -->
+    <changeSet id="45" author="aglinxinyuan">
         <sqlFile path="sql/updates/45.sql"/>
+    </changeSet>
+
+    <!-- Allow ORCID as an identity provider in auth_provider.provider_type -->
+    <changeSet id="46" author="Neilk1021">
+        <sqlFile path="sql/updates/46.sql"/>
     </changeSet>
 
     <!-- example changeSet

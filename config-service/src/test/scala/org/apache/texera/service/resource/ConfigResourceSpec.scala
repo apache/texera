@@ -420,7 +420,6 @@ class ConfigResourceSpec
       "dataset_enabled",
       "model_enabled",
       "your_work_enabled",
-      "projects_enabled",
       "workflows_enabled",
       "datasets_enabled",
       "models_enabled",

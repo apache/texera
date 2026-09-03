@@ -57,8 +57,6 @@ DROP TABLE IF EXISTS "user" CASCADE;
 DROP TABLE IF EXISTS user_last_active_time CASCADE;
 DROP TABLE IF EXISTS workflow CASCADE;
 DROP TABLE IF EXISTS workflow_version CASCADE;
-DROP TABLE IF EXISTS project CASCADE;
-DROP TABLE IF EXISTS workflow_of_project CASCADE;
 DROP TABLE IF EXISTS workflow_executions CASCADE;
 DROP TABLE IF EXISTS dataset_upload_session CASCADE;
 DROP TABLE IF EXISTS dataset_upload_session_part CASCADE;
@@ -71,8 +69,6 @@ DROP TABLE IF EXISTS model_user_access CASCADE;
 DROP TABLE IF EXISTS model_version CASCADE;
 DROP TABLE IF EXISTS model CASCADE;
 DROP TABLE IF EXISTS dataset_contributor CASCADE;
-DROP TABLE IF EXISTS public_project CASCADE;
-DROP TABLE IF EXISTS project_user_access CASCADE;
 DROP TABLE IF EXISTS workflow_user_likes CASCADE;
 DROP TABLE IF EXISTS workflow_user_clones CASCADE;
 DROP TABLE IF EXISTS workflow_view_count CASCADE;
@@ -215,40 +211,6 @@ CREATE TABLE IF NOT EXISTS workflow_cover_image
     FOREIGN KEY (wid) REFERENCES workflow(wid) ON DELETE CASCADE
     );
 
--- project
-CREATE TABLE IF NOT EXISTS project
-(
-    pid            SERIAL PRIMARY KEY,
-    name           VARCHAR(128) NOT NULL,
-    description    VARCHAR(10000),
-    owner_id       INT NOT NULL,
-    creation_time  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    color          VARCHAR(6),
-    UNIQUE (owner_id, name),
-    FOREIGN KEY (owner_id) REFERENCES "user"(uid) ON DELETE CASCADE
-    );
-
--- workflow_of_project
-CREATE TABLE IF NOT EXISTS workflow_of_project
-(
-    wid INT NOT NULL,
-    pid INT NOT NULL,
-    PRIMARY KEY (wid, pid),
-    FOREIGN KEY (wid) REFERENCES workflow(wid) ON DELETE CASCADE,
-    FOREIGN KEY (pid) REFERENCES project(pid) ON DELETE CASCADE
-    );
-
--- project_user_access
-CREATE TABLE IF NOT EXISTS project_user_access
-(
-    uid       INT NOT NULL,
-    pid       INT NOT NULL,
-    privilege privilege_enum NOT NULL DEFAULT 'NONE',
-    PRIMARY KEY (uid, pid),
-    FOREIGN KEY (uid) REFERENCES "user"(uid) ON DELETE CASCADE,
-    FOREIGN KEY (pid) REFERENCES project(pid) ON DELETE CASCADE
-    );
-
 -- workflow_computing_unit table
 CREATE TABLE IF NOT EXISTS workflow_computing_unit
 (
@@ -315,15 +277,6 @@ CREATE TABLE IF NOT EXISTS workflow_executions
     FOREIGN KEY (cuid) REFERENCES workflow_computing_unit(cuid) ON DELETE CASCADE,
     FOREIGN KEY (whid) REFERENCES user_warehouse(whid) ON DELETE SET NULL
 );
-
--- public_project
-CREATE TABLE IF NOT EXISTS public_project
-(
-    pid INT PRIMARY KEY,
-    uid INT,
-    FOREIGN KEY (pid) REFERENCES project(pid) ON DELETE CASCADE
-    -- Note: MySQL schema doesn't define a foreign key for uid
-    );
 
 -- dataset
 CREATE TABLE IF NOT EXISTS dataset
@@ -709,7 +662,7 @@ BEGIN
   FOR r IN
     SELECT indexname FROM pg_indexes
     WHERE (indexdef ILIKE '%USING gin%' OR indexdef ILIKE '%USING pgroonga%')
-    AND tablename IN ('workflow', 'user', 'project', 'dataset', 'dataset_version', 'model')
+    AND tablename IN ('workflow', 'user', 'dataset', 'dataset_version', 'model')
   LOOP
     EXECUTE format('DROP INDEX IF EXISTS %I;', r.indexname);
   END LOOP;
@@ -739,12 +692,12 @@ BEGIN
            CASE
              WHEN tablename = 'workflow' THEN
                '(COALESCE(name, '''') || '' '' || COALESCE(description, '''') || '' '' || COALESCE(content, ''''))'
-             WHEN tablename IN ('project', 'dataset', 'model') THEN
+             WHEN tablename IN ('dataset', 'model') THEN
                '(COALESCE(name, '''') || '' '' || COALESCE(description, ''''))'
              ELSE
                'COALESCE(name, '''')'
            END AS index_column
-    FROM (VALUES ('workflow'), ('user'), ('project'), ('dataset'), ('dataset_version'), ('model')) AS t(tablename)
+    FROM (VALUES ('workflow'), ('user'), ('dataset'), ('dataset_version'), ('model')) AS t(tablename)
   LOOP
     -- Create PGroonga index with proper TokenFilterStem usage
     EXECUTE format(

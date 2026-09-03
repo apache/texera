@@ -17,21 +17,34 @@
  * under the License.
  */
 
--- Allow ORCID as an identity provider in auth_provider.provider_type.
---
--- ORCID is authorization-code OAuth rather than Google's id-token flow, but the identity it
--- yields lands in the same place: one auth_provider row whose provider_id is the ORCID iD.
---
--- The type is schema-qualified because the two runners disagree about the search path: the
--- liquibase runner in sql/docker-compose.yml strips `SET search_path` out of these files before
--- applying them, while bin/local-dev.sh keeps it.
-
 \c texera_db
 
 SET search_path TO texera_db;
 
 BEGIN;
 
-ALTER TYPE texera_db.provider_type_enum ADD VALUE IF NOT EXISTS 'ORCID';
+-- Remove the deprecated "project" feature (user projects: colour-tagged
+-- collections of workflows, with sharing and public projects). See issue #5172.
+--
+-- IRREVERSIBLE, USER-VISIBLE DATA LOSS: every project (name, description,
+-- colour), every workflow-to-project assignment, every project access grant and
+-- every public-project listing is deleted. Workflows, datasets and their own
+-- access grants are untouched -- but a workflow that a user could previously
+-- reach ONLY through a project share becomes inaccessible to that user, because
+-- workflow access is now decided solely by workflow_user_access. Deployment
+-- administrators who want to preserve those grants must copy them into
+-- workflow_user_access BEFORE applying this migration.
+--
+-- Dropped in FK-dependency order (children first). The pgroonga index
+-- idx_project_pgroonga is dropped implicitly with its table.
+DROP TABLE IF EXISTS public_project;
+DROP TABLE IF EXISTS project_user_access;
+DROP TABLE IF EXISTS workflow_of_project;
+DROP TABLE IF EXISTS project;
+
+-- The gui.tabs.projects_enabled key is gone from default.conf, so this seeded
+-- row would be orphaned: it is no longer served by /config/settings/public and
+-- the admin update endpoint rejects keys with no default.conf entry.
+DELETE FROM site_settings WHERE key = 'projects_enabled';
 
 COMMIT;
