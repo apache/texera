@@ -53,10 +53,10 @@ Compile / scalacOptions ++= Seq(
 
 libraryDependencies ++= Seq(
   "org.scalamock" %% "scalamock" % "5.2.0" % Test,                  // ScalaMock
-  "org.scalatest" %% "scalatest" % "3.2.15" % Test,                 // ScalaTest
+  "org.scalatest" %% "scalatest" % "3.2.20" % Test,                 // ScalaTest
   "junit" % "junit" % "4.13.2" % Test,                              // JUnit
   "com.novocode" % "junit-interface" % "0.11" % Test,                // SBT interface for JUnit
-  "io.github.classgraph" % "classgraph" % "4.8.184" % Test,
+  "io.github.classgraph" % "classgraph" % "4.8.194" % Test,
   "org.scala-lang" % "scala-compiler" % scalaVersion.value % Test
 
 )

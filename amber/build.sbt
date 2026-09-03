@@ -101,7 +101,7 @@ val pekkoDependencies = Seq(
 
 /////////////////////////////////////////////////////////////////////////////
 // DropWizard server related
-val dropwizardVersion = "1.3.23"
+val dropwizardVersion = "1.3.29"
 
 val dropwizardDependencies = Seq(
   "io.dropwizard" % "dropwizard-core" % dropwizardVersion,
@@ -121,8 +121,8 @@ val jacksonVersion = "2.18.8"
 val mbknorJacksonJsonSchemaDependencies = Seq(
   "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion,
   "javax.validation" % "validation-api" % "2.0.1.Final",
-  "org.slf4j" % "slf4j-api" % "1.7.26",
-  "io.github.classgraph" % "classgraph" % "4.8.184",
+  "org.slf4j" % "slf4j-api" % "1.7.36",
+  "io.github.classgraph" % "classgraph" % "4.8.194",
   "ch.qos.logback" % "logback-classic" % "1.2.13" % "test",
   "com.github.java-json-tools" % "json-schema-validator" % "2.2.14" % "test",
   "com.fasterxml.jackson.module" % "jackson-module-kotlin" % jacksonVersion % "test",
@@ -181,7 +181,7 @@ val hadoopDependencies = Seq(
 // Google Service related
 val googleServiceDependencies = Seq(
   "com.google.oauth-client" % "google-oauth-client-jetty" % "1.39.0" exclude("com.google.guava", "guava"),
-  "com.google.api-client" % "google-api-client" % "2.9.0" exclude("com.google.guava", "guava"),
+  "com.google.api-client" % "google-api-client" % "2.9.1" exclude("com.google.guava", "guava"),
   "com.sun.mail" % "javax.mail" % "1.6.2"
 )
 
@@ -293,10 +293,10 @@ libraryDependencies += "com.esotericsoftware" % "kryo" % "5.6.2"
 libraryDependencies += "com.esotericsoftware" % "kryo5" % "5.6.0"
 
 // https://mvnrepository.com/artifact/io.altoo/pekko-kryo-serialization
-libraryDependencies += "io.altoo" %% "pekko-kryo-serialization" % "1.5.1"
+libraryDependencies += "io.altoo" %% "pekko-kryo-serialization" % "1.5.2"
 
 // https://mvnrepository.com/artifact/io.altoo/scala-kryo-serialization
-libraryDependencies += "io.altoo" %% "scala-kryo-serialization" % "1.5.2"
+libraryDependencies += "io.altoo" %% "scala-kryo-serialization" % "1.5.3"
 
 // https://mvnrepository.com/artifact/com.twitter/util-core
 libraryDependencies += "com.twitter" %% "util-core" % "22.12.0"
@@ -321,7 +321,7 @@ libraryDependencies += "org.jasypt" % "jasypt" % "1.9.3"
 
 // Jgit library for tracking operator version
 // https://mvnrepository.com/artifact/org.eclipse.jgit/org.eclipse.jgit
-libraryDependencies += "org.eclipse.jgit" % "org.eclipse.jgit" % "5.13.0.202109080827-r"
+libraryDependencies += "org.eclipse.jgit" % "org.eclipse.jgit" % "5.13.5.202508271544-r"
 
 // https://mvnrepository.com/artifact/org.ehcache/sizeof
 libraryDependencies += "org.ehcache" % "sizeof" % "0.4.4"
