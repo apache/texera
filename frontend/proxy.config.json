@@ -10,7 +10,16 @@
     "secure": false,
     "changeOrigin": true
   },
+<<<<<<< HEAD
 "/api/models": {
+=======
+  "/api/notebook-migration": {
+    "target": "http://localhost:9098",
+    "secure": false,
+    "changeOrigin": true
+  },
+  "/api/models": {
+>>>>>>> 1facefb18 (fix(frontend): render workflow covers on the hub landing page (#8383))
     "target": "http://localhost:9096",
     "secure": false,
     "changeOrigin": true
@@ -35,6 +44,14 @@
     "secure": false,
     "changeOrigin": true
   },
+<<<<<<< HEAD
+=======
+  "/api/access/model/**": {
+    "target": "http://localhost:9092",
+    "secure": false,
+    "changeOrigin": true
+  },
+>>>>>>> 1facefb18 (fix(frontend): render workflow covers on the hub landing page (#8383))
   "/api/access/computing-unit/**": {
     "target": "http://localhost:8888",
     "secure": false,
