@@ -93,6 +93,13 @@ object WorkflowResource {
   }
 
   private def insertWorkflow(workflow: Workflow, user: User): Unit = {
+    // A workflow is born with nothing pinned. The endpoint takes a whole Workflow, so without this
+    // a request body could seed a published copy of its own choosing.
+    workflow.setPublishedVersionId(null)
+    workflow.setPublishedContent(null)
+    workflow.setPublishedName(null)
+    workflow.setPublishedDescription(null)
+    workflow.setPublishedDefaultView(null)
     workflowDao.insert(workflow)
     workflowOfUserDao.insert(new WorkflowOfUser(user.getUid, workflow.getWid))
     workflowUserAccessDao.insert(
@@ -135,6 +142,27 @@ object WorkflowResource {
   )
 
   case class WorkflowIDs(wids: List[Integer])
+
+  /**
+    * A workflow POJO for the copy-producing paths (clone, duplicate, restore-a-version).
+    *
+    * Built with setters rather than the positional constructor, so that adding a column cannot
+    * silently shift a null into the wrong field -- as adding the published-copy columns would.
+    */
+  def newUnpublishedWorkflow(
+      name: String,
+      description: String,
+      content: String,
+      defaultView: DefaultViewEnum
+  ): Workflow = {
+    val workflow = new Workflow()
+    workflow.setName(name)
+    workflow.setDescription(description)
+    workflow.setContent(content)
+    workflow.setIsPublic(false)
+    workflow.setDefaultView(defaultView)
+    workflow
+  }
 
   private def updateWorkflowField(
       workflow: Workflow,
@@ -507,14 +535,10 @@ class WorkflowResource extends LazyLogging {
         for (wid <- workflowIDs.wids) {
           val oldWorkflow: Workflow = workflowDao.fetchOneByWid(wid)
           val newWorkflow = createWorkflow(
-            new Workflow(
-              null,
+            newUnpublishedWorkflow(
               oldWorkflow.getName + "_copy",
               oldWorkflow.getDescription,
               assignNewOperatorIds(oldWorkflow.getContent),
-              null,
-              null,
-              false,
               // the default view is part of the workflow, so a copy keeps it
               oldWorkflow.getDefaultView
             ),
@@ -546,14 +570,10 @@ class WorkflowResource extends LazyLogging {
     }
     val oldWorkflow: Workflow = workflowDao.fetchOneByWid(wid)
     val newWorkflow: DashboardWorkflow = createWorkflow(
-      new Workflow(
-        null,
+      newUnpublishedWorkflow(
         oldWorkflow.getName + "_clone",
         oldWorkflow.getDescription,
         assignNewOperatorIds(oldWorkflow.getContent),
-        null,
-        null,
-        false,
         // a biologist's path is hub -> clone -> use, so the clone must stay usable
         oldWorkflow.getDefaultView
       ),
