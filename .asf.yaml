@@ -77,18 +77,24 @@ github:
           exclude: []
           include:
             - "~DEFAULT_BRANCH"
+            # Merge queue rules do NOT support wildcard ref patterns, so
+            # release branches must be listed explicitly (not release/*).
+            # Add each release line here as it is cut.
+            - "refs/heads/release/v1.1"
+            - "refs/heads/release/v1.2"
+            - "refs/heads/release/v1.3"
       rules:
         - type: deletion
         - type: non_fast_forward
         - type: merge_queue
           parameters:
             merge_method: SQUASH
-            max_entries_to_build: 5
-            min_entries_to_merge: 1
+            max_entries_to_build: 2
+            min_entries_to_merge: 2
             max_entries_to_merge: 5
-            min_entries_to_merge_wait_minutes: 5
-            grouping_strategy: ALLGREEN
-            check_response_timeout_minutes: 30
+            min_entries_to_merge_wait_minutes: 3
+            grouping_strategy: HEADGREEN
+            check_response_timeout_minutes: 45
         - type: pull_request
           parameters:
             allowed_merge_methods:
@@ -108,27 +114,45 @@ github:
               - context: Validate PR title
 
     - name: "Default Branch Protection"
+      type: branch
+      branches:
+        includes:
+          - "~DEFAULT_BRANCH"
+          - "release/*"
+        excludes: []
+      bypass_teams:
+        - "root" # apache/root — ASF Infra team
+      restrict_deletion: true
+      restrict_force_push: true
+
+    # Restrict who can create branches: everything is blocked except the
+    # allowlisted prefixes below (main, release/*, backport/*, gh-pages).
+    # `creation` is not available in asfyaml convenience syntax, and that
+    # syntax forbids mixing bypass_teams into a raw payload, so this
+    # ruleset uses the raw form with a numeric actor_id for the Infra team.
+    - name: "Restrict Branch Creation"
       target: branch
       enforcement: active
       conditions:
         ref_name:
           include:
-            - "~DEFAULT_BRANCH"
-            - "refs/heads/release/*"
-            - "refs/heads/rel/*"
-          exclude: []
+            - "~ALL"
+          exclude:
+            # Globs don't cross '/' (even a trailing **), so use **/* to
+            # match branches at any depth under a prefix.
+            - "refs/heads/main"
+            - "refs/heads/release/**/*"
+            - "refs/heads/backport/**/*"
+            - "refs/heads/gh-pages"
+            - "refs/heads/dependabot/**/*"
+            - "refs/heads/gh-readonly-queue/**/*"
       bypass_actors:
         # apache/root — ASF Infra team.
         - actor_id: 118420
           actor_type: Team
           bypass_mode: always
-        # xuang7 — granted bypass as the v1.2 release manager.
-        - actor_id: 162244362
-          actor_type: User
-          bypass_mode: always
       rules:
-        - type: deletion
-        - type: non_fast_forward
+        - type: creation
 notifications:
   commits: commits@texera.apache.org
   issues: notifications@texera.apache.org

@@ -1,0 +1,193 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+
+<main class="card">
+  <div class="brand">
+    <img
+      src="assets/logos/logo.png"
+      alt="Texera" />
+    <div
+      nz-typography
+      nzType="secondary"
+      class="sub">
+      Data science, together
+    </div>
+  </div>
+
+  @if (config.env.localLogin) {
+  <nz-tabs
+    [nzSelectedIndex]="mode === 'signin' ? 0 : 1"
+    (nzSelectedIndexChange)="setMode($event === 0 ? 'signin' : 'signup')">
+    <nz-tab nzTitle="Sign In"></nz-tab>
+    <nz-tab nzTitle="Sign Up"></nz-tab>
+  </nz-tabs>
+  }
+
+  <div class="social-buttons">
+    @if (config.env.googleLogin) {
+    <div class="google-wrapper">
+      <asl-google-signin-button
+        type="standard"
+        size="large"
+        [width]="328"></asl-google-signin-button>
+    </div>
+    } @if (config.env.orcidLogin){
+    <button
+      class="orcid-login"
+      nz-button
+      [disabled]="!orcidConfig"
+      (click)="orcidLogin()">
+      <img
+        src="assets/logos/ORCID-iD_icon_24x24.png"
+        alt=""
+        class="orcid-icon" />
+      <span class="orcid-label">Continue with ORCID</span>
+    </button>
+    }
+  </div>
+
+  @if (config.env.localLogin && (config.env.googleLogin || config.env.orcidLogin)) {
+  <nz-divider
+    nzPlain
+    nzText="or continue with"></nz-divider>
+  } @if (config.env.localLogin) {
+  <form
+    class="form"
+    [formGroup]="form"
+    (ngSubmit)="submit()">
+    <nz-input-group
+      nzSize="large"
+      nzPrefixIcon="user">
+      <input
+        type="text"
+        nz-input
+        formControlName="username"
+        placeholder="Username"
+        autocomplete="username" />
+    </nz-input-group>
+
+    @if (mode === "signup") {
+    <nz-input-group
+      nzSize="large"
+      nzPrefixIcon="mail">
+      <input
+        type="email"
+        nz-input
+        formControlName="email"
+        placeholder="Email"
+        autocomplete="email" />
+    </nz-input-group>
+    }
+
+    <nz-input-group
+      nzSize="large"
+      nzPrefixIcon="lock"
+      [nzSuffix]="passwordToggle">
+      <input
+        [type]="passwordVisible ? 'text' : 'password'"
+        nz-input
+        formControlName="password"
+        placeholder="Password"
+        [attr.autocomplete]="mode === 'signup' ? 'new-password' : 'current-password'" />
+    </nz-input-group>
+
+    @if (mode === "signup") {
+    <nz-input-group
+      nzSize="large"
+      nzPrefixIcon="lock"
+      [nzSuffix]="passwordToggle">
+      <input
+        [type]="passwordVisible ? 'text' : 'password'"
+        nz-input
+        formControlName="confirm"
+        placeholder="Confirm password"
+        autocomplete="new-password" />
+    </nz-input-group>
+    <p
+      nz-typography
+      nzType="secondary"
+      class="hint">
+      Password must be at least 6 characters. After registering, contact the Texera administrator to activate your
+      account.
+    </p>
+
+    <!-- Present from the outset where verification is on, so the code reads as part of signing up
+         rather than as a step that appears once the form has been submitted. Sending is its own
+         button: mail reaches the address only when the user asks for it. -->
+    @if (config.env.emailVerification) {
+    <div class="code-row">
+      <nz-input-group
+        nzSize="large"
+        nzPrefixIcon="mail">
+        <input
+          nz-input
+          formControlName="code"
+          inputmode="numeric"
+          maxlength="6"
+          autocomplete="one-time-code"
+          placeholder="Verification code" />
+      </nz-input-group>
+      <button
+        nz-button
+        nzSize="large"
+        type="button"
+        (click)="sendCode()">
+        Get code
+      </button>
+    </div>
+    } }
+
+    <p class="error">{{ errorMessage }}</p>
+
+    <button
+      nz-button
+      nzType="primary"
+      nzSize="large"
+      nzBlock
+      type="submit">
+      {{ mode === "signup" ? "Sign up" : "Sign in" }}
+    </button>
+  </form>
+  }
+
+  <ng-template #passwordToggle>
+    <nz-icon
+      class="ant-input-password-icon"
+      role="button"
+      tabindex="0"
+      [attr.aria-label]="passwordVisible ? 'Hide password' : 'Show password'"
+      [nzType]="passwordVisible ? 'eye' : 'eye-invisible'"
+      nzTheme="outline"
+      (click)="togglePasswordVisibility()"
+      (keydown.enter)="togglePasswordVisibility()" />
+  </ng-template>
+
+  <p
+    nz-typography
+    nzType="secondary"
+    class="foot">
+    Apache Texera (Incubating) ·
+    <a
+      href="https://texera.apache.org/"
+      target="_blank"
+      rel="noopener"
+      >texera.apache.org</a
+    >
+  </p>
+</main>

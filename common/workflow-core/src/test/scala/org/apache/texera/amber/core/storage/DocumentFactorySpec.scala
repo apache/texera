@@ -20,7 +20,8 @@
 package org.apache.texera.amber.core.storage
 
 import org.apache.texera.amber.core.storage.model.{
-  DatasetFileDocument,
+  LakeFSFileDocument,
+  OnVersionedFileResource,
   ReadonlyLocalFileDocument,
   VirtualDocument
 }
@@ -38,7 +39,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 import java.net.URI
-import java.nio.file.Files
+import java.nio.file.{Files, Paths}
 import java.util.UUID
 
 /**
@@ -61,7 +62,11 @@ class DocumentFactorySpec extends AnyFlatSpec with Matchers with BeforeAndAfterA
 
   override def beforeAll(): Unit = {
     super.beforeAll()
-    LocalHadoopIcebergCatalog.ensure()
+    // "wh-test" is registered explicitly so the warehouse-scoped case resolves to
+    // this local catalog instead of reaching for a live REST catalog under the
+    // default (`rest`) config -- otherwise the case would pass or fail according to
+    // the machine's catalog type rather than the code under test.
+    LocalHadoopIcebergCatalog.ensure("wh-test")
   }
 
   // ---------------------------------------------------------------------------
@@ -128,11 +133,25 @@ class DocumentFactorySpec extends AnyFlatSpec with Matchers with BeforeAndAfterA
 
   private val versionHash = "97fd4c2a755b69b7c66d322eab40b7e5c2ad5d10"
 
-  "openReadonlyDocument" should "return a DatasetFileDocument for the dataset scheme" in {
+  "openReadonlyDocument" should "return a dataset-typed LakeFSFileDocument for the dataset scheme" in {
     val datasetUri = new URI(s"dataset:///repo/$versionHash/file.txt")
     val doc = DocumentFactory.openReadonlyDocument(datasetUri)
-    doc shouldBe a[DatasetFileDocument]
+    doc shouldBe a[LakeFSFileDocument]
+    doc.asInstanceOf[LakeFSFileDocument].resourceType shouldBe ResourceType.Dataset
     doc.getURI shouldBe datasetUri
+  }
+
+  it should "return a model-typed LakeFSFileDocument for the model scheme and parse its URI components" in {
+    val modelUri = new URI(s"model:///model-1/$versionHash/weights/model.pt")
+    val doc = DocumentFactory.openReadonlyDocument(modelUri)
+    doc shouldBe a[LakeFSFileDocument]
+    doc.asInstanceOf[LakeFSFileDocument].resourceType shouldBe ResourceType.Model
+    doc.getURI shouldBe modelUri
+
+    val resource = doc.asInstanceOf[OnVersionedFileResource]
+    resource.getRepositoryName() shouldBe "model-1"
+    resource.getVersionHash() shouldBe versionHash
+    resource.getFileRelativePath() shouldBe Paths.get("weights", "model.pt").toString
   }
 
   it should "return a ReadonlyLocalFileDocument for the file scheme" in {
@@ -158,10 +177,19 @@ class DocumentFactorySpec extends AnyFlatSpec with Matchers with BeforeAndAfterA
   // openDocument / createDocument / documentExists -- unsupported schemes
   // ---------------------------------------------------------------------------
 
-  "openDocument" should "return a DatasetFileDocument and no schema for the dataset scheme" in {
+  "openDocument" should "return a dataset-typed LakeFSFileDocument and no schema for the dataset scheme" in {
     val datasetUri = new URI(s"dataset:///repo/$versionHash/file.txt")
     val (doc, schemaOpt) = DocumentFactory.openDocument(datasetUri)
-    doc shouldBe a[DatasetFileDocument]
+    doc shouldBe a[LakeFSFileDocument]
+    doc.asInstanceOf[LakeFSFileDocument].resourceType shouldBe ResourceType.Dataset
+    schemaOpt shouldBe None
+  }
+
+  it should "return a model-typed LakeFSFileDocument and no schema for the model scheme" in {
+    val modelUri = new URI(s"model:///model-1/$versionHash/weights/model.pt")
+    val (doc, schemaOpt) = DocumentFactory.openDocument(modelUri)
+    doc shouldBe a[LakeFSFileDocument]
+    doc.asInstanceOf[LakeFSFileDocument].resourceType shouldBe ResourceType.Model
     schemaOpt shouldBe None
   }
 
@@ -233,6 +261,27 @@ class DocumentFactorySpec extends AnyFlatSpec with Matchers with BeforeAndAfterA
     val doc = DocumentFactory.createDocument(stateUri, vfsSchema)
     doc shouldBe an[IcebergDocument[_]]
     DocumentFactory.documentExists(stateUri) shouldBe true
+  }
+
+  it should "create + find a document for a warehouse-scoped vfs URI (the /wh/ segment is stripped from the storage key)" in {
+    val base = VFSURIFactory.createPortBaseURI(
+      WorkflowIdentity(0),
+      ExecutionIdentity(0),
+      GlobalPortIdentity(
+        PhysicalOpIdentity(
+          logicalOpId = OperatorIdentity(s"op-${UUID.randomUUID().toString.replace("-", "")}"),
+          layerName = "main"
+        ),
+        PortIdentity()
+      ),
+      warehouse = Some("wh-test")
+    )
+    val vfsUri = VFSURIFactory.resultURI(base)
+    vfsUri.getPath should startWith("/wh/wh-test/")
+
+    val doc = DocumentFactory.createDocument(vfsUri, vfsSchema)
+    doc shouldBe an[IcebergDocument[_]]
+    DocumentFactory.documentExists(vfsUri) shouldBe true
   }
 
   "documentExists" should "report false before creation and true after for a vfs URI" in {

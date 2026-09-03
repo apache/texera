@@ -61,7 +61,6 @@ class HuggingFaceSentimentAnalysisOpDesc extends PythonOperatorDescriptor {
     pyb"""from pytexera import *
        |from transformers import pipeline
        |from transformers import AutoModelForSequenceClassification
-       |from transformers import TFAutoModelForSequenceClassification
        |from transformers import AutoTokenizer, AutoConfig
        |import numpy as np
        |from scipy.special import softmax
@@ -76,7 +75,16 @@ class HuggingFaceSentimentAnalysisOpDesc extends PythonOperatorDescriptor {
        |
        |    @overrides
        |    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
-       |        encoded_input = self.tokenizer(tuple_[$attribute], return_tensors='pt')
+       |        text = tuple_[$attribute]
+       |        # An empty cell arrives as None, which the tokenizer rejects. Keep the row
+       |        # and leave the scores empty rather than ending the run over a value the
+       |        # model has nothing to say about.
+       |        if text is None or (isinstance(text, str) and not text.strip()):
+       |            for label in ($resultAttributePositive, $resultAttributeNeutral, $resultAttributeNegative):
+       |                tuple_[label] = None
+       |            yield tuple_
+       |            return
+       |        encoded_input = self.tokenizer(text, return_tensors='pt')
        |        output = self.model(**encoded_input)
        |        scores = softmax(output[0][0].detach().numpy())
        |        ranking = np.argsort(scores)[::-1]

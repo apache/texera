@@ -89,10 +89,6 @@ import { VersionsListComponent } from "./workspace/component/left-panel/versions
 import { NzPaginationModule } from "ng-zorro-antd/pagination";
 import { JwtModule } from "@auth0/angular-jwt";
 import { AuthService } from "./common/service/user/auth.service";
-import { UserProjectComponent } from "./dashboard/component/user/user-project/user-project.component";
-import { UserProjectSectionComponent } from "./dashboard/component/user/user-project/user-project-section/user-project-section.component";
-import { NgbdModalAddProjectWorkflowComponent } from "./dashboard/component/user/user-project/user-project-section/ngbd-modal-add-project-workflow/ngbd-modal-add-project-workflow.component";
-import { NgbdModalRemoveProjectWorkflowComponent } from "./dashboard/component/user/user-project/user-project-section/ngbd-modal-remove-project-workflow/ngbd-modal-remove-project-workflow.component";
 import { PresetWrapperComponent } from "./common/formly/preset-wrapper/preset-wrapper.component";
 import { MarkdownDescriptionComponent } from "./dashboard/component/user/markdown-description/markdown-description.component";
 import { NzModalCommentBoxComponent } from "./workspace/component/workflow-editor/comment-box-modal/nz-modal-comment-box.component";
@@ -117,15 +113,14 @@ import { CollabWrapperComponent } from "./common/formly/collab-wrapper/collab-wr
 import { NzSwitchModule } from "ng-zorro-antd/switch";
 import { NzRadioModule } from "ng-zorro-antd/radio";
 import { AboutComponent } from "./hub/component/about/about.component";
+import { TexeraLoginComponent } from "./hub/component/login/texera-login.component";
 import { NzLayoutModule } from "ng-zorro-antd/layout";
 import { AuthGuardService } from "./common/service/user/auth-guard.service";
-import { LocalLoginComponent } from "./hub/component/about/local-login/local-login.component";
 import { MarkdownModule } from "ngx-markdown";
 import { FileSaverService } from "./dashboard/service/user/file/file-saver.service";
 import { DragDropModule } from "@angular/cdk/drag-drop";
 import { ScrollingModule } from "@angular/cdk/scrolling";
 import { UserWorkflowListItemComponent } from "./dashboard/component/user/user-workflow/user-workflow-list-item/user-workflow-list-item.component";
-import { UserProjectListItemComponent } from "./dashboard/component/user/user-project/user-project-list-item/user-project-list-item.component";
 import { SortButtonComponent } from "./dashboard/component/user/sort-button/sort-button.component";
 import { FiltersComponent } from "./dashboard/component/user/filters/filters.component";
 import { FiltersInstructionsComponent } from "./dashboard/component/user/filters-instructions/filters-instructions.component";
@@ -133,7 +128,6 @@ import { SearchComponent } from "./dashboard/component/user/search/search.compon
 import { SearchResultsComponent } from "./dashboard/component/user/search-results/search-results.component";
 import { PortPropertyEditFrameComponent } from "./workspace/component/property-editor/port-property-edit-frame/port-property-edit-frame.component";
 import { AdminGmailComponent } from "./dashboard/component/admin/gmail/admin-gmail.component";
-import { PublicProjectComponent } from "./dashboard/component/user/user-project/public-project/public-project.component";
 import { FormlyNgZorroAntdModule } from "@ngx-formly/ng-zorro-antd";
 import { FlarumComponent } from "./dashboard/component/user/flarum/flarum.component";
 import { NzAlertModule } from "ng-zorro-antd/alert";
@@ -155,7 +149,6 @@ import { DatasetDetailComponent } from "./dashboard/component/user/user-dataset/
 import { UserDatasetVersionFiletreeComponent } from "./dashboard/component/user/user-dataset/user-dataset-explorer/user-dataset-version-filetree/user-dataset-version-filetree.component";
 import { UserDatasetFileRendererComponent } from "./dashboard/component/user/user-dataset/user-dataset-explorer/user-dataset-file-renderer/user-dataset-file-renderer.component";
 import { NzSpinModule } from "ng-zorro-antd/spin";
-import { UserDatasetListItemComponent } from "./dashboard/component/user/user-dataset/user-dataset-list-item/user-dataset-list-item.component";
 import { NgxFileDropModule } from "ngx-file-drop";
 import { NzTreeModule } from "ng-zorro-antd/tree";
 import { NzTreeViewModule } from "ng-zorro-antd/tree-view";
@@ -183,7 +176,7 @@ import {
 } from "@abacritt/angularx-social-login";
 import { catchError, firstValueFrom, lastValueFrom, of } from "rxjs";
 import { HubSearchResultComponent } from "./hub/component/hub-search-result/hub-search-result.component";
-import { UserDatasetStagedObjectsListComponent } from "./dashboard/component/user/user-dataset/user-dataset-explorer/user-dataset-staged-objects-list/user-dataset-staged-objects-list.component";
+import { StagedObjectsListComponent } from "./dashboard/component/user/staged-objects-list/staged-objects-list.component";
 import { NzEmptyModule } from "ng-zorro-antd/empty";
 import { NzDividerModule } from "ng-zorro-antd/divider";
 import { NzProgressModule } from "ng-zorro-antd/progress";
@@ -274,7 +267,6 @@ registerLocaleData(en);
     ScrollingModule,
     UiUdfParametersComponent,
     AdminGmailComponent,
-    PublicProjectComponent,
     WorkspaceComponent,
     MenuComponent,
     OperatorMenuComponent,
@@ -291,7 +283,6 @@ registerLocaleData(en);
     AdminExecutionComponent,
     UserIconComponent,
     UserAvatarComponent,
-    LocalLoginComponent,
     UserWorkflowComponent,
     UserQuotaComponent,
     RowModalComponent,
@@ -313,19 +304,14 @@ registerLocaleData(en);
     ErrorFrameComponent,
     ResultTableFrameComponent,
     OperatorPropertyEditFrameComponent,
-    UserProjectComponent,
-    UserProjectSectionComponent,
-    NgbdModalAddProjectWorkflowComponent,
-    NgbdModalRemoveProjectWorkflowComponent,
     FilesUploaderComponent,
     ConflictingFileModalContentComponent,
     UserDatasetComponent,
     UserDatasetVersionCreatorComponent,
     DatasetDetailComponent,
     UserDatasetVersionFiletreeComponent,
-    UserDatasetListItemComponent,
     UserDatasetFileRendererComponent,
-    UserDatasetStagedObjectsListComponent,
+    StagedObjectsListComponent,
     NzModalCommentBoxComponent,
     LeftPanelComponent,
     ContextMenuComponent,
@@ -343,8 +329,8 @@ registerLocaleData(en);
     ReActStepDetailModalComponent,
     CollabWrapperComponent,
     AboutComponent,
+    TexeraLoginComponent,
     UserWorkflowListItemComponent,
-    UserProjectListItemComponent,
     SortButtonComponent,
     FiltersComponent,
     FiltersInstructionsComponent,

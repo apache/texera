@@ -20,6 +20,7 @@
 package org.apache.texera.web.resource.dashboard.hub
 
 import com.fasterxml.jackson.annotation.{JsonCreator, JsonValue}
+import org.apache.texera.amber.core.storage.ResourceType
 
 /**
   * Defines all supported entity types for Hub resources.
@@ -34,9 +35,10 @@ sealed trait EntityType {
 
 object EntityType {
   case object Workflow extends EntityType { val value = "workflow" }
-  case object Dataset extends EntityType { val value = "dataset" }
+  case object Dataset extends EntityType { val value: String = ResourceType.Dataset.toString }
+  case object Model extends EntityType { val value: String = ResourceType.Model.toString }
 
-  private val values = Seq(Workflow, Dataset)
+  private val values = Seq(Workflow, Dataset, Model)
 
   @JsonCreator
   def fromString(s: String): EntityType =

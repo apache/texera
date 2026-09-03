@@ -26,15 +26,18 @@ import io.dropwizard.configuration.{EnvironmentVariableSubstitutor, Substituting
 import io.dropwizard.core.Application
 import io.dropwizard.core.setup.{Bootstrap, Environment}
 import org.apache.texera.common.config.StorageConfig
+import org.apache.texera.common.util.RetryUtil
 import org.apache.texera.amber.core.storage.util.LakeFSStorageClient
 import org.apache.texera.auth.{AuthFeatures, RequestLoggingFilter, RoleAnnotationEnforcer}
 import org.apache.texera.dao.SqlServer
-import org.apache.texera.service.`type`.DatasetFileNode
-import org.apache.texera.service.`type`.serde.DatasetFileNodeSerializer
+import org.apache.texera.service.`type`.LakeFSFileNode
+import org.apache.texera.service.`type`.serde.LakeFSFileNodeSerializer
 import org.apache.texera.service.resource.{
   DatasetAccessResource,
   DatasetResource,
-  HealthCheckResource
+  HealthCheckResource,
+  ModelAccessResource,
+  ModelResource
 }
 import org.apache.texera.service.util.S3StorageClient
 import org.apache.texera.service.util.S3ProxyServlet
@@ -55,9 +58,9 @@ class FileService extends Application[FileServiceConfiguration] with LazyLogging
     // Register Scala module to Dropwizard default object mapper
     bootstrap.getObjectMapper.registerModule(DefaultScalaModule)
 
-    // register a new custom module just for DatasetFileNode serde/deserde
+    // register a new custom module just for LakeFSFileNode serde/deserde
     val customSerializerModule = new SimpleModule("CustomSerializers")
-    customSerializerModule.addSerializer(classOf[DatasetFileNode], new DatasetFileNodeSerializer())
+    customSerializerModule.addSerializer(classOf[LakeFSFileNode], new LakeFSFileNodeSerializer())
     bootstrap.getObjectMapper.registerModule(customSerializerModule)
   }
 
@@ -71,11 +74,11 @@ class FileService extends Application[FileServiceConfiguration] with LazyLogging
     )
 
     // check if the texera dataset bucket exists, if not create it
-    awaitDependency("texera dataset bucket") {
+    awaitDependency("reach the texera dataset bucket") {
       S3StorageClient.createBucketIfNotExist(StorageConfig.lakefsBucketName)
     }
     // ensure the large-binary S3 bucket exists before any workflow execution attempts to use it
-    awaitDependency("large-binary bucket") {
+    awaitDependency("reach the large-binary bucket") {
       S3StorageClient.createBucketIfNotExist(LargeBinaryManager.DEFAULT_BUCKET)
     }
     // check if we can connect to the lakeFS service
@@ -90,6 +93,8 @@ class FileService extends Application[FileServiceConfiguration] with LazyLogging
 
     environment.jersey.register(classOf[DatasetResource])
     environment.jersey.register(classOf[DatasetAccessResource])
+    environment.jersey.register(classOf[ModelResource])
+    environment.jersey.register(classOf[ModelAccessResource])
 
     // Register the read-only S3 proxy servlet for in-pod GeeseFS dataset mounts. GeeseFS
     // authenticates with the pod's per-user JWT (carried as its S3 access key) and issues
@@ -128,52 +133,24 @@ class FileService extends Application[FileServiceConfiguration] with LazyLogging
         .manage(new StagedFileCleanupJob(retentionHours, intervalMinutes))
 
   /**
-    * Runs `operation`, retrying with exponential backoff until it succeeds or `maxAttempts` is
-    * reached, to tolerate a slow-to-start object store. The last failure is rethrown as the cause.
-    * `sleep` is injectable for tests. Defaults: 6 attempts from 200ms (200, 400, 800, 1600, 3200), ~6s.
+    * Waits for a startup dependency (a slow-to-start object store) via the shared backoff retry,
+    * logging each retry under this service's logger. `description` is a verb phrase, e.g.
+    * "reach the texera dataset bucket". `sleep` is injectable for tests.
+    * Defaults: 6 attempts from 200ms (200, 400, 800, 1600, 3200), ~6s.
     */
   private[service] def awaitDependency(
       description: String,
       maxAttempts: Int = 6,
       initialDelayMillis: Long = 200L,
       sleep: Long => Unit = Thread.sleep
-  )(operation: => Unit): Unit = {
-    // Restore the interrupt status and fail fast rather than retrying, whether the
-    // interrupt arrives while running `operation` or while sleeping between attempts.
-    def failInterrupted(ie: InterruptedException): Nothing = {
-      Thread.currentThread().interrupt()
-      throw new RuntimeException(s"Interrupted while waiting for $description", ie)
-    }
-
-    var attempt = 1
-    var delayMillis = initialDelayMillis
-    while (true) {
-      try {
-        operation
-        return
-      } catch {
-        case ie: InterruptedException => failInterrupted(ie)
-        case e: Exception =>
-          if (attempt >= maxAttempts) {
-            throw new RuntimeException(
-              s"$description not ready after $maxAttempts attempts: ${e.getMessage}",
-              e
-            )
-          }
-          logger.warn(
-            s"$description not ready (attempt $attempt/$maxAttempts): ${e.getMessage}. " +
-              s"Retrying in ${delayMillis}ms..."
-          )
-          try {
-            sleep(delayMillis)
-          } catch {
-            case ie: InterruptedException => failInterrupted(ie)
-          }
-          attempt += 1
-          delayMillis *= 2
-      }
-    }
-  }
+  )(operation: => Unit): Unit =
+    RetryUtil.withBackoff(
+      description,
+      maxAttempts,
+      initialDelayMillis,
+      attempt => logger.warn(attempt.message),
+      sleep
+    )(operation)
 }
 
 object FileService {

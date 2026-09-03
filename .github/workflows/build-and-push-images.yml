@@ -126,7 +126,7 @@ jobs:
           java-version: 17
 
       - name: Setup sbt launcher
-        uses: sbt/setup-sbt@6444f4c8111de4b9059c3975def104b03cfaa5f0 # v1.5.2
+        uses: sbt/setup-sbt@8feba82adc7f01ddcf8165b86f778bdb5b82cebc # v1.5.7
 
       - uses: coursier/cache-action@95e5b1029b6b86e7bac033ee44a0697d8a527d2d # v8.1.1
         with:
@@ -282,6 +282,12 @@ jobs:
                 "agent-service")
                   image_name="texera-agent-service"
                   ;;
+                "notebook-migration-service")
+                  image_name="texera-notebook-migration-service"
+                  ;;
+                "jupyter")
+                  image_name="texera-jupyter"
+                  ;;
                 *)
                   # Default: use service name as-is
                   image_name="$service"
@@ -331,7 +337,7 @@ jobs:
           java-version: 17
 
       - name: Setup sbt launcher
-        uses: sbt/setup-sbt@6444f4c8111de4b9059c3975def104b03cfaa5f0 # v1.5.2
+        uses: sbt/setup-sbt@8feba82adc7f01ddcf8165b86f778bdb5b82cebc # v1.5.7
 
       - uses: coursier/cache-action@95e5b1029b6b86e7bac033ee44a0697d8a527d2d # v8.1.1
         with:
@@ -411,7 +417,7 @@ jobs:
           java-version: 17
 
       - name: Setup sbt launcher
-        uses: sbt/setup-sbt@6444f4c8111de4b9059c3975def104b03cfaa5f0 # v1.5.2
+        uses: sbt/setup-sbt@8feba82adc7f01ddcf8165b86f778bdb5b82cebc # v1.5.7
 
       - uses: coursier/cache-action@95e5b1029b6b86e7bac033ee44a0697d8a527d2d # v8.1.1
         with:

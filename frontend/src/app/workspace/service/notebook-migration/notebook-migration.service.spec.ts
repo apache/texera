@@ -18,12 +18,13 @@
  */
 
 import { TestBed } from "@angular/core/testing";
-import { NotebookMigrationService } from "./notebook-migration.service";
+import { NotebookMigrationService, notebookMappingKey, notebookFileName } from "./notebook-migration.service";
 import { HttpClient } from "@angular/common/http";
 import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { GuiConfigService } from "src/app/common/service/gui-config.service";
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
+import { NotebookMigrationLLM } from "./migration-llm";
 import { firstValueFrom, throwError } from "rxjs";
 
 describe("NotebookMigrationService", () => {
@@ -100,11 +101,12 @@ describe("NotebookMigrationService", () => {
   it("should send notebook successfully and return 1", async () => {
     const mockNotebook: any = { cells: [] };
 
-    const promise = service.sendNotebookToJupyter(mockNotebook);
+    const promise = service.sendNotebookToJupyter(mockNotebook, "notebook_1.ipynb");
 
     const req = httpMock.expectOne(req => req.url.includes("/notebook-migration/set-notebook"));
 
     expect(req.request.method).toBe("POST");
+    expect(req.request.body.notebookName).toBe("notebook_1.ipynb");
 
     req.flush({ success: true });
 
@@ -117,7 +119,7 @@ describe("NotebookMigrationService", () => {
   it("should handle error when sending notebook and return 0", async () => {
     const mockNotebook: any = { cells: [] };
 
-    const promise = service.sendNotebookToJupyter(mockNotebook);
+    const promise = service.sendNotebookToJupyter(mockNotebook, "notebook_1.ipynb");
 
     const req = httpMock.expectOne(req => req.url.includes("/notebook-migration/set-notebook"));
 
@@ -135,10 +137,41 @@ describe("NotebookMigrationService", () => {
     // Error` branch. No request reaches the testing backend, so verify() stays happy.
     vi.spyOn(TestBed.inject(HttpClient), "post").mockReturnValue(throwError(() => new Error("network down")));
 
-    const result = await service.sendNotebookToJupyter({ cells: [] } as any);
+    const result = await service.sendNotebookToJupyter({ cells: [] } as any, "notebook_1.ipynb");
 
     expect(result).toBe(0);
     expect(mockNotificationService.error).toHaveBeenCalledWith(expect.stringContaining("network down"));
+  });
+
+  // deleteNotebookForWorkflow
+  it("posts the wid-derived notebook name to delete-notebook", async () => {
+    const promise = service.deleteNotebookForWorkflow(1);
+
+    const req = httpMock.expectOne(req => req.url.endsWith("/notebook-migration/delete-notebook"));
+
+    expect(req.request.method).toBe("POST");
+    expect(req.request.body).toEqual({ notebookName: "notebook_1.ipynb" });
+
+    req.flush({ success: true, deleted: 1 });
+
+    await promise;
+  });
+
+  it("makes no HTTP call for wid 0, which would map to the shared default filename", async () => {
+    await service.deleteNotebookForWorkflow(0);
+    httpMock.expectNone(req => req.url.endsWith("/notebook-migration/delete-notebook"));
+  });
+
+  it("swallows the failure and shows no notification when the notebook file delete fails", async () => {
+    // Pod cleanup is best effort, so a failure is logged rather than surfaced: the
+    // database delete it follows has already succeeded.
+    const promise = service.deleteNotebookForWorkflow(1);
+
+    const req = httpMock.expectOne(req => req.url.endsWith("/notebook-migration/delete-notebook"));
+    req.error(new ErrorEvent("Server error"));
+
+    await promise;
+    expect(mockNotificationService.error).not.toHaveBeenCalled();
   });
 
   // jupyter URL methods (HttpClient so the JwtModule interceptor attaches the auth token)
@@ -175,6 +208,18 @@ describe("NotebookMigrationService", () => {
 
     const req = httpMock.expectOne(req => req.url.includes("/notebook-migration/get-jupyter-iframe-url"));
     expect(req.request.method).toBe("GET");
+    // No name given, so no notebookName query param is sent.
+    expect(req.request.params.has("notebookName")).toBe(false);
+    req.flush({ success: true, url: "http://iframe" });
+
+    expect(await promise).toBe("http://iframe");
+  });
+
+  it("sends the notebookName as a query param when one is given", async () => {
+    const promise = service.getJupyterIframeURL("notebook_1.ipynb");
+
+    const req = httpMock.expectOne(req => req.url.includes("/notebook-migration/get-jupyter-iframe-url"));
+    expect(req.request.params.get("notebookName")).toBe("notebook_1.ipynb");
     req.flush({ success: true, url: "http://iframe" });
 
     expect(await promise).toBe("http://iframe");
@@ -220,13 +265,59 @@ describe("NotebookMigrationService", () => {
   });
 
   // storeNotebookAndMapping
-  it("should call storeNotebookAndMapping API", () => {
-    service.storeNotebookAndMapping(1, 1, {}, {}).subscribe();
+  it("should call storeNotebookAndMapping API without a vid (resolved server-side)", () => {
+    service.storeNotebookAndMapping(1, {}, {}).subscribe();
 
     const req = httpMock.expectOne(req => req.url.includes("/notebook-migration/store-notebook-and-mapping"));
 
     expect(req.request.method).toBe("POST");
+    expect(req.request.body.wid).toBe(1);
+    expect(req.request.body.vid).toBeUndefined();
     req.flush({ success: true, message: "stored" });
+  });
+
+  it("notebookMappingKey builds the in-memory cache key from the wid", () => {
+    expect(notebookMappingKey(42)).toBe("mapping_wid_42");
+  });
+
+  it("notebookFileName builds a per-workflow filename from the wid, defaulting when absent", () => {
+    expect(notebookFileName(42)).toBe("notebook_42.ipynb");
+    expect(notebookFileName(undefined)).toBe("notebook.ipynb");
+  });
+
+  // deleteNotebookAndMapping
+  it("should call deleteNotebookAndMapping API with the wid", () => {
+    let result: any;
+    service.deleteNotebookAndMapping(7).subscribe(r => (result = r));
+
+    const req = httpMock.expectOne(req => req.url.includes("/notebook-migration/delete-notebook-and-mapping"));
+
+    expect(req.request.method).toBe("POST");
+    expect(req.request.body).toEqual({ wid: 7 });
+    req.flush({ success: true, deleted: 1 });
+    expect(result).toEqual({ success: true, deleted: 1 });
+  });
+
+  // Every other test that touches the LLM replaces createMigrationLLM() with a
+  // fake, so the seam's own body -- the one place that decides which collaborators
+  // the real client is wired to, and in which order -- is never run. This calls it
+  // directly. It stays safe for the module graph: the service already imports
+  // NotebookMigrationLLM at its own top, so "ai" is loaded here either way, and
+  // the constructor only assigns its two arguments. Deliberately no vi.mock("ai")
+  // in this file -- migration-llm.spec.ts owns that, and module mocks leak between
+  // files under `isolate: false`.
+  it("wires a real client to the injected config and workflow-util service", () => {
+    const llm = (service as any).createMigrationLLM();
+
+    expect(llm).toBeInstanceOf(NotebookMigrationLLM);
+    // Identity, not shape: the two constructor parameters are both plain objects
+    // here, so only `toBe` notices if they are ever passed in the wrong order.
+    expect((llm as any).config).toBe(mockGuiConfigService);
+    expect((llm as any).workflowUtilService).toBe(TestBed.inject(WorkflowUtilService));
+  });
+
+  it("hands out a fresh client per call so one conversion cannot see another's state", () => {
+    expect((service as any).createMigrationLLM()).not.toBe((service as any).createMigrationLLM());
   });
 
   // sendToAIGenerateWorkflow (enabled) — drives the NotebookMigrationLLM lifecycle.
@@ -299,11 +390,16 @@ describe("NotebookMigrationService", () => {
     });
 
     it("sendNotebookToJupyter returns 0 with no HTTP call or notification", async () => {
-      const result = await service.sendNotebookToJupyter({ cells: [] } as any);
+      const result = await service.sendNotebookToJupyter({ cells: [] } as any, "notebook_1.ipynb");
       expect(result).toBe(0);
       expect(mockNotificationService.success).not.toHaveBeenCalled();
       expect(mockNotificationService.error).not.toHaveBeenCalled();
       httpMock.expectNone(req => req.url.includes("/notebook-migration/set-notebook"));
+    });
+
+    it("deleteNotebookForWorkflow makes no HTTP call", async () => {
+      await service.deleteNotebookForWorkflow(1);
+      httpMock.expectNone(req => req.url.endsWith("/notebook-migration/delete-notebook"));
     });
 
     it("getJupyterURL returns null without making an HTTP call", async () => {
@@ -319,9 +415,61 @@ describe("NotebookMigrationService", () => {
     });
 
     it("storeNotebookAndMapping emits a disabled result without making an HTTP call", async () => {
-      const result = await firstValueFrom(service.storeNotebookAndMapping(1, 1, {}, {}));
+      const result = await firstValueFrom(service.storeNotebookAndMapping(1, {}, {}));
       expect(result.success).toBe(false);
       httpMock.expectNone(req => req.url.includes("/notebook-migration/store-notebook-and-mapping"));
+    });
+
+    it("deleteNotebookAndMapping emits a disabled result without making an HTTP call", async () => {
+      const result = await firstValueFrom(service.deleteNotebookAndMapping(7));
+      expect(result.success).toBe(false);
+      httpMock.expectNone(req => req.url.includes("/notebook-migration/delete-notebook-and-mapping"));
+    });
+  });
+
+  // parseAndTagNotebook (reads + validates + uuid-tags an uploaded .ipynb)
+  describe("parseAndTagNotebook", () => {
+    it("parses a valid notebook and tags every cell with a uuid", async () => {
+      const notebook = {
+        cells: [
+          { cell_type: "code", source: "print(1)", metadata: {} },
+          // No metadata: the parser must create it before setting the uuid.
+          { cell_type: "markdown", source: "# title" },
+        ],
+      };
+      const file = new File([JSON.stringify(notebook)], "analysis.ipynb");
+
+      const parsed = await service.parseAndTagNotebook(file);
+
+      expect(parsed.cells.length).toBe(2);
+      expect(parsed.cells[0].metadata?.uuid).toBeTruthy();
+      expect(parsed.cells[1].metadata?.uuid).toBeTruthy();
+    });
+
+    it("rejects when the notebook is not valid JSON", async () => {
+      const file = new File(["not json"], "x.ipynb");
+      await expect(service.parseAndTagNotebook(file)).rejects.toThrow();
+    });
+
+    it("rejects a notebook without a cells array", async () => {
+      const file = new File([JSON.stringify({ nbformat: 4 })], "x.ipynb");
+      await expect(service.parseAndTagNotebook(file)).rejects.toThrow(/Invalid notebook structure/);
+    });
+
+    it("rejects when the file content is not a string", async () => {
+      vi.spyOn(FileReader.prototype, "readAsText").mockImplementation(function (this: any) {
+        // result is a getter-only property, so shadow it with an own non-string value.
+        Object.defineProperty(this, "result", { value: null, configurable: true });
+        this.onload?.(new ProgressEvent("load"));
+      });
+      await expect(service.parseAndTagNotebook(new File([""], "x.ipynb"))).rejects.toThrow(/not a valid string/);
+    });
+
+    it("rejects when the file cannot be read", async () => {
+      vi.spyOn(FileReader.prototype, "readAsText").mockImplementation(function (this: any) {
+        this.onerror?.(new ProgressEvent("error"));
+      });
+      await expect(service.parseAndTagNotebook(new File([""], "x.ipynb"))).rejects.toThrow(/Failed to read/);
     });
   });
 });

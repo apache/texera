@@ -17,17 +17,19 @@
  * under the License.
  */
 
-import { Component, EventEmitter, OnInit, Output, ViewChild } from "@angular/core";
-import { ActivatedRoute } from "@angular/router";
+import { Component, OnInit, ViewChild } from "@angular/core";
+import { ActivatedRoute, Router } from "@angular/router";
+import { USER_DATASET } from "../../../../../app-routing.constant";
+import { extractErrorMessage } from "../../../../../common/util/error";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { DatasetService, MultipartUploadProgress } from "../../../../service/user/dataset/dataset.service";
+import { DatasetService, validateDatasetName } from "../../../../service/user/dataset/dataset.service";
 import { NzResizeEvent, NzResizableDirective, NzResizeHandleComponent } from "ng-zorro-antd/resizable";
 import {
   DatasetFileNode,
   getFullPathFromDatasetFileNode,
   getRelativePathFromDatasetFileNode,
 } from "../../../../../common/type/datasetVersionFileTree";
-import { DatasetVersion } from "../../../../../common/type/dataset";
+import { Contributor, DatasetVersion } from "../../../../../common/type/dataset";
 import { switchMap, throttleTime } from "rxjs/operators";
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
 import { DownloadService } from "../../../../service/user/download/download.service";
@@ -35,15 +37,16 @@ import { formatSize } from "src/app/common/util/size-formatter.util";
 import { UserService } from "../../../../../common/service/user/user.service";
 import { isDefined } from "../../../../../common/util/predicate";
 import { ActionType, EntityType, HubService, LikedStatus } from "../../../../../hub/service/hub.service";
-import { FileUploadItem } from "../../../../type/dashboard-file.interface";
-import { DatasetStagedObject } from "../../../../../common/type/dataset-staged-object";
 import { NzModalService } from "ng-zorro-antd/modal";
-import { AdminSettingsService } from "../../../../service/admin/settings/admin-settings.service";
-import { HttpErrorResponse, HttpStatusCode } from "@angular/common/http";
-import { Subscription } from "rxjs";
-import { formatCount, formatSpeed, formatTime, parseIntOrDefault } from "src/app/common/util/format.util";
+import { HttpErrorResponse } from "@angular/common/http";
+import { EMPTY, Observable, Subscription } from "rxjs";
+import { formatCount, formatSpeed, formatTime } from "src/app/common/util/format.util";
+import { replaceOneImmutable } from "src/app/common/util/array-utils";
 import { format } from "date-fns";
 import { NgIf, NgClass, NgFor } from "@angular/common";
+import { NzDropdownDirective, NzDropdownMenuComponent } from "ng-zorro-antd/dropdown";
+import { NzMenuDirective, NzMenuItemComponent } from "ng-zorro-antd/menu";
+import { UserDatasetContributorEditorComponent } from "./user-dataset-contributor-editor/user-dataset-contributor-editor.component";
 import { NzCardComponent, NzCardMetaComponent } from "ng-zorro-antd/card";
 import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
 import { NzTagComponent } from "ng-zorro-antd/tag";
@@ -51,27 +54,24 @@ import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patc
 import { NzIconDirective } from "ng-zorro-antd/icon";
 import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
 import { NzButtonComponent } from "ng-zorro-antd/button";
-import { NzPopoverDirective } from "ng-zorro-antd/popover";
+import { NzPopconfirmDirective } from "ng-zorro-antd/popconfirm";
 import { NzSwitchComponent } from "ng-zorro-antd/switch";
 import { FormsModule } from "@angular/forms";
 import { MarkdownDescriptionComponent } from "../../markdown-description/markdown-description.component";
 import { NzLayoutComponent, NzContentComponent, NzSiderComponent } from "ng-zorro-antd/layout";
 import { NzWaveDirective } from "ng-zorro-antd/core/wave";
 import { NzEmptyComponent } from "ng-zorro-antd/empty";
+import { NzTabsComponent, NzTabComponent } from "ng-zorro-antd/tabs";
 import { UserDatasetFileRendererComponent } from "./user-dataset-file-renderer/user-dataset-file-renderer.component";
 import { NzCollapseComponent, NzCollapsePanelComponent } from "ng-zorro-antd/collapse";
 import { NzSelectComponent, NzOptionComponent } from "ng-zorro-antd/select";
 import { UserDatasetVersionFiletreeComponent } from "./user-dataset-version-filetree/user-dataset-version-filetree.component";
 import { NzDividerComponent } from "ng-zorro-antd/divider";
-import { FilesUploaderComponent } from "../../files-uploader/files-uploader.component";
-import { NzProgressComponent } from "ng-zorro-antd/progress";
-import { UserDatasetStagedObjectsListComponent } from "./user-dataset-staged-objects-list/user-dataset-staged-objects-list.component";
+import { VersionUploaderComponent } from "../../version-uploader/version-uploader.component";
+import { DATASET_FILE_RESOURCE_ENDPOINT } from "../../../../service/user/file-resource/file-resource-endpoint";
 import { NzInputDirective } from "ng-zorro-antd/input";
-import { CdkFixedSizeVirtualScroll, CdkVirtualForOf, CdkVirtualScrollViewport } from "@angular/cdk/scrolling";
 
 export const THROTTLE_TIME_MS = 1000;
-export const ABORT_RETRY_MAX_ATTEMPTS = 10;
-export const ABORT_RETRY_BACKOFF_BASE_MS = 100;
 
 @UntilDestroy()
 @Component({
@@ -88,7 +88,7 @@ export const ABORT_RETRY_BACKOFF_BASE_MS = 100;
     NzIconDirective,
     NzSpaceCompactItemDirective,
     NzButtonComponent,
-    NzPopoverDirective,
+    NzPopconfirmDirective,
     NzSwitchComponent,
     FormsModule,
     MarkdownDescriptionComponent,
@@ -96,6 +96,8 @@ export const ABORT_RETRY_BACKOFF_BASE_MS = 100;
     NzContentComponent,
     NzWaveDirective,
     NzEmptyComponent,
+    NzTabsComponent,
+    NzTabComponent,
     UserDatasetFileRendererComponent,
     NzSiderComponent,
     NzResizableDirective,
@@ -107,18 +109,18 @@ export const ABORT_RETRY_BACKOFF_BASE_MS = 100;
     NzOptionComponent,
     UserDatasetVersionFiletreeComponent,
     NzDividerComponent,
-    FilesUploaderComponent,
-    NzProgressComponent,
-    UserDatasetStagedObjectsListComponent,
+    VersionUploaderComponent,
     NzInputDirective,
-    CdkVirtualScrollViewport,
-    CdkFixedSizeVirtualScroll,
-    CdkVirtualForOf,
+    NzDropdownDirective,
+    NzDropdownMenuComponent,
+    NzMenuDirective,
+    NzMenuItemComponent,
   ],
 })
 export class DatasetDetailComponent implements OnInit {
   public did: number | undefined;
   public datasetName: string = "";
+  public editedDatasetName: string = "";
   public datasetDescription: string = "";
   public datasetCreationTime: string = "";
   public datasetCreationTimeTooltip: string = "";
@@ -128,6 +130,7 @@ export class DatasetDetailComponent implements OnInit {
   public userDatasetAccessLevel: "READ" | "WRITE" | "NONE" = "NONE";
   public ownerEmail: string = "";
   public isOwner: boolean = false;
+  public datasetContributors: ReadonlyArray<Contributor> = [];
 
   public currentDisplayedFileName: string = "";
   public currentFileSize: number | undefined;
@@ -138,8 +141,17 @@ export class DatasetDetailComponent implements OnInit {
 
   public versions: ReadonlyArray<DatasetVersion> = [];
   public selectedVersion: DatasetVersion | undefined;
+  public uploadsInFlight = false;
   public fileTreeNodeList: DatasetFileNode[] = [];
   public selectedVersionCreationTime: string = "";
+  // The following three fields describe the latest version for the Data Card, all
+  // sourced from the single retrieveDatasetLatestVersion response so they stay
+  // mutually consistent and independent of the version selected in Versions & Files.
+  public latestVersionCreationTime: string = "";
+  public latestVersionFileName: string = "";
+  public latestVersionSize: number | undefined;
+  // Holds the in-flight latest-version fetch so a later call can supersede it.
+  private latestVersionFileSubscription: Subscription | undefined;
 
   public versionCreatorBaseVersion: DatasetVersion | undefined;
   public isLogin: boolean = this.userService.isLogin();
@@ -150,57 +162,19 @@ export class DatasetDetailComponent implements OnInit {
   public viewCount: number = 0;
   public displayPreciseViewCount = false;
 
-  userHasPendingChanges: boolean = false;
-  pendingChangesCount: number = 0;
-  // Staged paths from the last diff response, plus locally staged paths not yet
-  // in one: counted together so the Finished header keeps pace with the
-  // real-time Pending header between throttled refetches.
-  private confirmedStagedPaths = new Set<string>();
-  private unconfirmedStagedPaths = new Set<string>();
+  readonly datasetEndpoint = DATASET_FILE_RESOURCE_ENDPOINT;
 
-  // Uploading setting
-  chunkSizeMiB: number = 50;
-  maxConcurrentChunks: number = 10;
-  private uploadSubscriptions = new Map<string, Subscription>();
-  uploadTimeMap = new Map<string, number>();
-
-  // Cap number of concurrent files uploads
-  maxConcurrentFiles: number = 3;
-  private activeUploads: number = 0;
-  // FIFO queue of uploads waiting for a concurrency slot, keyed by file name.
-  private pendingQueue = new Map<string, () => void>();
-  private pendingQueueDirty = false;
-  private queuedFileNamesSnapshot: string[] = [];
-
-  // Row height must match .pending-file-row in the SCSS.
-  readonly PENDING_ROW_HEIGHT_PX = 32;
-  readonly PENDING_LIST_MAX_HEIGHT_PX = 160;
-
-  @ViewChild(CdkVirtualScrollViewport) private pendingViewport?: CdkVirtualScrollViewport;
-
-  versionName: string = "";
-  isCreatingVersion: boolean = false;
-
-  public activeMultipartFilePaths: string[] = [];
-
-  //  List of upload tasks – each task tracked by its filePath
-  public uploadTasks: Array<
-    MultipartUploadProgress & {
-      filePath: string;
-    }
-  > = [];
-
-  @Output() userMakeChanges = new EventEmitter<void>();
+  @ViewChild(VersionUploaderComponent) private versionUploader?: VersionUploaderComponent;
 
   constructor(
     private route: ActivatedRoute,
+    private router: Router,
     private modalService: NzModalService,
     private datasetService: DatasetService,
     private notificationService: NotificationService,
     private downloadService: DownloadService,
     private userService: UserService,
-    private hubService: HubService,
-    private adminSettingsService: AdminSettingsService
+    private hubService: HubService
   ) {
     this.userService
       .userChanged()
@@ -230,6 +204,7 @@ export class DatasetDetailComponent implements OnInit {
           this.did = params["did"];
           this.retrieveDatasetInfo();
           this.retrieveDatasetVersionList();
+          this.retrieveLatestVersionFile();
           return this.route.data; // or some other observable
         }),
         untilDestroyed(this)
@@ -265,36 +240,15 @@ export class DatasetDetailComponent implements OnInit {
       .subscribe((isLiked: LikedStatus[]) => {
         this.isLiked = isLiked.length > 0 ? isLiked[0].isLiked : false;
       });
-
-    this.loadUploadSettings();
   }
 
-  public onClickOpenVersionCreator() {
-    if (this.did && !this.isCreatingVersion) {
-      this.isCreatingVersion = true;
+  /** Commits the staged files; the panel owns the rest of the version flow. */
+  createDatasetVersion = (versionName: string): Observable<unknown> =>
+    this.datasetService.createDatasetVersion(this.did!, versionName);
 
-      this.datasetService
-        .createDatasetVersion(this.did, this.versionName?.trim() || "")
-        .pipe(untilDestroyed(this))
-        .subscribe({
-          next: res => {
-            this.notificationService.success("Version Created");
-            this.isCreatingVersion = false;
-            this.versionName = "";
-            // A new version consumes all staged changes.
-            this.confirmedStagedPaths.clear();
-            this.unconfirmedStagedPaths.clear();
-            this.refreshPendingChanges();
-            this.retrieveDatasetVersionList();
-            this.userMakeChanges.emit();
-          },
-          error: (res: unknown) => {
-            const err = res as HttpErrorResponse;
-            this.notificationService.error(`Version creation failed: ${err.error.message}`);
-            this.isCreatingVersion = false;
-          },
-        });
-    }
+  onVersionCreated(): void {
+    this.retrieveDatasetVersionList();
+    this.retrieveLatestVersionFile();
   }
 
   public onClickDownloadVersionAsZip() {
@@ -359,6 +313,7 @@ export class DatasetDetailComponent implements OnInit {
         .subscribe(dashboardDataset => {
           const dataset = dashboardDataset.dataset;
           this.datasetName = dataset.name;
+          this.editedDatasetName = dataset.name;
           this.datasetDescription = dataset.description;
           this.userDatasetAccessLevel = dashboardDataset.accessPrivilege;
           this.datasetIsPublic = dataset.isPublic;
@@ -388,6 +343,7 @@ export class DatasetDetailComponent implements OnInit {
                 .pop() || "";
             this.datasetCreationTimeTooltip = `${format(date, "zzzz")} (${timeZoneName})`;
           }
+          this.datasetContributors = dashboardDataset.contributors || [];
         });
     }
   }
@@ -405,6 +361,43 @@ export class DatasetDetailComponent implements OnInit {
             this.selectedVersion = this.versions[0];
             this.onVersionSelected(this.selectedVersion);
           }
+        });
+    }
+  }
+
+  // Fetches the latest version independently of the current selection and derives
+  // the Data Card's latest-version facts from that single response: the file name
+  // and created date directly, and the total size via a follow-up file-tree fetch
+  // for the latest version's dvid (mirroring onVersionSelected's size lookup).
+  retrieveLatestVersionFile() {
+    if (this.did) {
+      const did = this.did;
+      // Both fetches live in one subscription (chained with switchMap rather than
+      // nested subscribes) so dropping it cancels whichever is still in flight:
+      // a call started here supersedes any earlier one, and a slow response from
+      // the superseded call can no longer overwrite fresher facts out of order.
+      this.latestVersionFileSubscription?.unsubscribe();
+      this.latestVersionFileSubscription = this.datasetService
+        .retrieveDatasetLatestVersion(did)
+        .pipe(
+          switchMap(version => {
+            const firstFile = this.getFirstFileNode(version.fileNodes ?? []);
+            this.latestVersionFileName = firstFile ? getFullPathFromDatasetFileNode(firstFile) : "";
+            this.latestVersionCreationTime =
+              typeof version.creationTime === "number"
+                ? format(new Date(version.creationTime), "MM/dd/yyyy HH:mm:ss")
+                : "";
+            if (!version.dvid) {
+              // Nothing to size: clear rather than keep a previous call's size.
+              this.latestVersionSize = undefined;
+              return EMPTY;
+            }
+            return this.datasetService.retrieveDatasetVersionFileTree(did, version.dvid, this.isLogin);
+          }),
+          untilDestroyed(this)
+        )
+        .subscribe(data => {
+          this.latestVersionSize = data.size;
         });
     }
   }
@@ -432,33 +425,11 @@ export class DatasetDetailComponent implements OnInit {
     this.isRightBarCollapsed = !this.isRightBarCollapsed;
   }
 
-  onStagedObjectsUpdated(stagedObjects: DatasetStagedObject[]) {
-    this.confirmedStagedPaths = new Set(stagedObjects.map(obj => obj.path));
-    for (const path of this.confirmedStagedPaths) {
-      this.unconfirmedStagedPaths.delete(path);
-    }
-    this.refreshPendingChanges();
-  }
-
-  // Reflects a locally staged change (finished upload or file deletion) in the
-  // Finished header immediately, ahead of the next diff response.
-  private markPathStaged(path: string): void {
-    if (!this.confirmedStagedPaths.has(path)) {
-      this.unconfirmedStagedPaths.add(path);
-    }
-    this.refreshPendingChanges();
-  }
-
-  private refreshPendingChanges(): void {
-    this.pendingChangesCount = this.confirmedStagedPaths.size + this.unconfirmedStagedPaths.size;
-    this.userHasPendingChanges = this.pendingChangesCount > 0;
-  }
-
-  onVersionSelected(version: DatasetVersion): void {
+  onVersionSelected(version: DatasetVersion | undefined): void {
     this.selectedVersion = version;
-    if (this.did && this.selectedVersion.dvid)
+    if (this.did && version?.dvid)
       this.datasetService
-        .retrieveDatasetVersionFileTree(this.did, this.selectedVersion.dvid, this.isLogin)
+        .retrieveDatasetVersionFileTree(this.did, version.dvid, this.isLogin)
         .pipe(untilDestroyed(this))
         .subscribe(data => {
           this.fileTreeNodeList = data.fileNodes;
@@ -467,12 +438,21 @@ export class DatasetDetailComponent implements OnInit {
             const date = new Date(version.creationTime);
             this.selectedVersionCreationTime = format(date, "MM/dd/yyyy HH:mm:ss");
           }
-          let currentNode = this.fileTreeNodeList[0];
-          while (currentNode.type === "directory" && currentNode.children) {
-            currentNode = currentNode.children[0];
+          const currentNode = this.getFirstFileNode(this.fileTreeNodeList);
+          if (currentNode) {
+            this.loadFileContent(currentNode);
           }
-          this.loadFileContent(currentNode);
         });
+  }
+
+  // Walk from the first node into directories until reaching a file, returning a
+  // representative leaf file node (or undefined if the tree has no files).
+  private getFirstFileNode(nodes: DatasetFileNode[]): DatasetFileNode | undefined {
+    let currentNode: DatasetFileNode | undefined = nodes[0];
+    while (currentNode && currentNode.type === "directory" && currentNode.children) {
+      currentNode = currentNode.children[0];
+    }
+    return currentNode;
   }
 
   onVersionFileTreeNodeSelected(node: DatasetFileNode) {
@@ -494,319 +474,18 @@ export class DatasetDetailComponent implements OnInit {
     return this.datasetIsDownloadable && (this.datasetIsPublic || this.userDatasetAccessLevel !== "NONE");
   }
 
-  // Track multiple file by unique key
-  trackByTask(_: number, task: MultipartUploadProgress & { filePath: string }): string {
-    return task.filePath;
-  }
-
-  trackByPendingFile(_: number, fileName: string): string {
-    return fileName;
-  }
-
-  // A missing key or failed fetch keeps the field defaults; NaN here would
-  // silently stall the upload queue (`activeUploads < NaN` is always false).
-  private loadUploadSettings(): void {
-    this.adminSettingsService
-      .getPublicSetting("multipart_upload_chunk_size_mib")
-      .pipe(untilDestroyed(this))
-      .subscribe({
-        next: value => (this.chunkSizeMiB = parseIntOrDefault(value, this.chunkSizeMiB)),
-        error: () => {},
-      });
-    this.adminSettingsService
-      .getPublicSetting("max_number_of_concurrent_uploading_file_chunks")
-      .pipe(untilDestroyed(this))
-      .subscribe({
-        next: value => (this.maxConcurrentChunks = parseIntOrDefault(value, this.maxConcurrentChunks)),
-        error: () => {},
-      });
-    this.adminSettingsService
-      .getPublicSetting("max_number_of_concurrent_uploading_file")
-      .pipe(untilDestroyed(this))
-      .subscribe({
-        next: value => (this.maxConcurrentFiles = parseIntOrDefault(value, this.maxConcurrentFiles)),
-        error: () => {},
-      });
-  }
-
-  onNewUploadFilesChanged(files: FileUploadItem[]) {
-    if (this.did) {
-      files.forEach(file => {
-        // Check if currently uploading
-        const continueWithUpload = () => {
-          // Create upload function
-          const startUpload = () => {
-            this.removeFromPendingQueue(file.name);
-
-            // Add an initializing task placeholder to uploadTasks
-            this.uploadTasks.unshift({
-              filePath: file.name,
-              percentage: 0,
-              status: "initializing",
-            });
-            // Start multipart upload
-            const subscription = this.datasetService
-              .multipartUpload(
-                this.ownerEmail,
-                this.datasetName,
-                file.name,
-                file.file,
-                this.chunkSizeMiB * 1024 * 1024,
-                this.maxConcurrentChunks,
-                file.restart
-              )
-              .pipe(untilDestroyed(this))
-              .subscribe({
-                next: progress => {
-                  // Find the task
-                  const taskIndex = this.uploadTasks.findIndex(t => t.filePath === file.name);
-
-                  if (taskIndex !== -1) {
-                    // Update the task with new progress info
-                    this.uploadTasks[taskIndex] = {
-                      ...this.uploadTasks[taskIndex],
-                      ...progress,
-                      percentage: progress.percentage ?? this.uploadTasks[taskIndex].percentage ?? 0,
-                    };
-
-                    // totalTime may be exactly 0 (resumed upload with no missing
-                    // parts); a truthiness check would leak the concurrency slot.
-                    if (progress.status === "finished" && progress.totalTime !== undefined) {
-                      const filename = file.name.split("/").pop() || file.name;
-                      this.uploadTimeMap.set(filename, progress.totalTime);
-                      this.markPathStaged(file.name);
-                      this.userMakeChanges.emit();
-                      this.scheduleHide(taskIndex);
-                      this.onUploadComplete();
-                    }
-                  }
-                },
-                error: (res: unknown) => {
-                  const err = res as HttpErrorResponse;
-
-                  if (err?.status === HttpStatusCode.Conflict) {
-                    this.notificationService.error(
-                      "Upload blocked (409). Another upload is likely in progress for this file (another tab/browser), or the server is finalizing a previous upload. Please retry in a moment."
-                    );
-                  } else {
-                    this.notificationService.error("Upload failed. Please retry.");
-                  }
-                  // Handle upload error
-                  const taskIndex = this.uploadTasks.findIndex(t => t.filePath === file.name);
-
-                  if (taskIndex !== -1) {
-                    this.uploadTasks[taskIndex] = {
-                      ...this.uploadTasks[taskIndex],
-                      percentage: this.uploadTasks[taskIndex].percentage ?? 0, // was 100
-                      status: "failed",
-                    };
-                    this.scheduleHide(taskIndex);
-                  }
-                  this.onUploadComplete();
-                },
-                complete: () => {
-                  const taskIndex = this.uploadTasks.findIndex(t => t.filePath === file.name);
-                  if (taskIndex !== -1 && this.uploadTasks[taskIndex].status !== "finished") {
-                    this.uploadTasks[taskIndex].status = "finished";
-                    this.markPathStaged(file.name);
-                    this.userMakeChanges.emit();
-                    this.scheduleHide(taskIndex);
-                    this.onUploadComplete();
-                  }
-                },
-              });
-            // Store the subscription for later cleanup
-            this.uploadSubscriptions.set(file.name, subscription);
-          };
-
-          // Queue management
-          if (this.activeUploads < this.maxConcurrentFiles) {
-            this.activeUploads++;
-            startUpload();
-          } else {
-            this.pendingQueue.set(file.name, startUpload);
-            this.pendingQueueDirty = true;
-          }
-        };
-
-        // Check if currently uploading
-        this.cancelExistingUpload(file.name, continueWithUpload);
-      });
-    }
-  }
-
-  cancelExistingUpload(fileName: string, onCanceled?: () => void): void {
-    const task = this.uploadTasks.find(t => t.filePath === fileName);
-    if (task) {
-      if (task.status === "uploading" || task.status === "initializing") {
-        this.onClickAbortUploadProgress(task, onCanceled);
-        return;
-      }
-    }
-    // Remove from pending queue if present
-    this.removeFromPendingQueue(fileName);
-    if (onCanceled) {
-      onCanceled();
-    }
-  }
-
-  private processNextQueuedUpload(): void {
-    if (this.activeUploads < this.maxConcurrentFiles) {
-      const next = this.pendingQueue.entries().next();
-      if (!next.done) {
-        const [fileName, startUpload] = next.value;
-        this.pendingQueue.delete(fileName);
-        this.pendingQueueDirty = true;
-        this.activeUploads++;
-        startUpload();
-      }
-    }
-  }
-
-  private onUploadComplete(): void {
-    this.activeUploads--;
-    this.processNextQueuedUpload();
-  }
-
-  private removeFromPendingQueue(fileName: string): void {
-    if (this.pendingQueue.delete(fileName)) {
-      this.pendingQueueDirty = true;
-    }
-  }
-
-  // Stable array for the template: rebuilt at most once per queue change so
-  // change detection does not allocate a new array per pass (#5586).
-  get queuedFileNames(): string[] {
-    if (this.pendingQueueDirty) {
-      this.queuedFileNamesSnapshot = Array.from(this.pendingQueue.keys());
-      this.pendingQueueDirty = false;
-    }
-    return this.queuedFileNamesSnapshot;
-  }
-
-  get queuedCount(): number {
-    return this.pendingQueue.size;
-  }
-
-  get pendingListHeightPx(): number {
-    return Math.min(this.queuedCount * this.PENDING_ROW_HEIGHT_PX, this.PENDING_LIST_MAX_HEIGHT_PX);
-  }
-
-  // The viewport initializes inside the collapsed (display: none) panel and
-  // measures height 0; the CDK only re-measures on window resize.
-  onPendingPanelActiveChange(active: boolean): void {
-    if (active) {
-      setTimeout(() => this.pendingViewport?.checkViewportSize());
-    }
-  }
-
-  get activeCount(): number {
-    return this.activeUploads;
-  }
-
-  get hasAnyActivity(): boolean {
-    return this.pendingChangesCount > 0 || this.activeCount > 0 || this.queuedCount > 0;
-  }
-
-  // Hide a task row after 5s
-  private scheduleHide(idx: number) {
-    if (idx === -1) {
-      return;
-    }
-    const task = this.uploadTasks[idx];
-    this.uploadSubscriptions.delete(task.filePath);
-    // Remove by identity, not filePath: a same-named re-upload within the
-    // window has its own row, which must survive this timer.
-    setTimeout(() => {
-      this.uploadTasks = this.uploadTasks.filter(t => t !== task);
-    }, 5000);
-  }
-
-  onClickAbortUploadProgress(task: MultipartUploadProgress & { filePath: string }, onAborted?: () => void) {
-    const subscription = this.uploadSubscriptions.get(task.filePath);
-    if (subscription) {
-      subscription.unsubscribe();
-      this.uploadSubscriptions.delete(task.filePath);
-    }
-
-    if (task.status === "uploading" || task.status === "initializing") {
-      this.onUploadComplete();
-    }
-
-    let doneCalled = false;
-    const done = () => {
-      if (doneCalled) {
-        return;
-      }
-      doneCalled = true;
-      if (onAborted) {
-        onAborted();
-      }
-    };
-
-    const abortWithRetry = (attempt: number) => {
-      this.datasetService
-        .finalizeMultipartUpload(
-          this.ownerEmail,
-          this.datasetName,
-          task.filePath,
-          true // abort flag
-        )
-        .pipe(untilDestroyed(this))
-        .subscribe({
-          next: () => {
-            this.notificationService.info(`${task.filePath} uploading has been terminated`);
-            done();
-          },
-          error: (res: unknown) => {
-            const err = res as HttpErrorResponse;
-            // Already gone, treat as done
-            if (err.status === 404) {
-              done();
-              return;
-            }
-
-            // Backend is still finalizing/aborting; retry with a tiny backoff
-            if (err.status === HttpStatusCode.Conflict && attempt < ABORT_RETRY_MAX_ATTEMPTS) {
-              setTimeout(() => abortWithRetry(attempt + 1), ABORT_RETRY_BACKOFF_BASE_MS * (attempt + 1));
-              return;
-            }
-
-            // Keep current UX: still consider it "aborted" client-side
-            done();
-          },
-        });
-    };
-
-    abortWithRetry(0);
-
-    const idx = this.uploadTasks.findIndex(t => t.filePath === task.filePath);
-    if (idx !== -1) {
-      this.uploadTasks[idx] = { ...this.uploadTasks[idx], status: "aborted" };
-      this.scheduleHide(idx);
-    }
-  }
-
-  getUploadStatus(status: MultipartUploadProgress["status"]): "active" | "exception" | "success" {
-    return status === "uploading" || status === "initializing"
-      ? "active"
-      : status === "aborted" || status === "failed"
-        ? "exception"
-        : "success";
-  }
-
   onPreviouslyUploadedFileDeleted(node: DatasetFileNode) {
     if (this.did) {
+      const relativePath = getRelativePathFromDatasetFileNode(node);
       this.datasetService
-        .deleteDatasetFile(this.did, getRelativePathFromDatasetFileNode(node))
+        .deleteDatasetFile(this.did, relativePath)
         .pipe(untilDestroyed(this))
         .subscribe({
           next: (res: Response) => {
             this.notificationService.success(
               `File ${node.name} is successfully deleted. You may finalize it or revert it at the "Create Version" panel`
             );
-            this.markPathStaged(getRelativePathFromDatasetFileNode(node));
-            this.userMakeChanges.emit();
+            this.versionUploader?.notePathStaged(relativePath);
           },
           error: (err: unknown) => {
             this.notificationService.error("Failed to delete the file");
@@ -917,6 +596,62 @@ export class DatasetDetailComponent implements OnInit {
       });
   }
 
+  onSaveDatasetName(): void {
+    if (!this.did) {
+      return;
+    }
+    if (this.uploadsInFlight) {
+      this.notificationService.error("Finish or cancel the upload in progress before renaming this dataset");
+      return;
+    }
+    // Reject invalid names outright instead of silently rewriting them, matching
+    // the shared validation used by the other rename entry points (PR #6426).
+    const name = this.editedDatasetName;
+    const nameError = validateDatasetName(name);
+    if (nameError) {
+      this.notificationService.error(nameError);
+      return;
+    }
+
+    this.datasetService
+      .updateDatasetName(this.did, name)
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: () => {
+          this.datasetName = name;
+          this.editedDatasetName = name;
+          // Every file path embeds the dataset name, and preview and single-file download resolve
+          // a dataset by (owner, name) — a stale tree 404s until reload.
+          if (this.selectedVersion) {
+            this.onVersionSelected(this.selectedVersion);
+          }
+          this.retrieveLatestVersionFile();
+          this.notificationService.success(`Dataset name updated to '${name}'`);
+        },
+        error: (err: unknown) => {
+          this.notificationService.error(extractErrorMessage(err));
+        },
+      });
+  }
+
+  onDeleteDataset(): void {
+    if (!this.did) {
+      return;
+    }
+    this.datasetService
+      .deleteDatasets(this.did)
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: () => {
+          this.notificationService.success(`Dataset ${this.datasetName} was deleted`);
+          this.router.navigate([USER_DATASET]);
+        },
+        error: (err: unknown) => {
+          this.notificationService.error(extractErrorMessage(err));
+        },
+      });
+  }
+
   async copyCurrentFilePath(): Promise<void> {
     if (!this.currentDisplayedFileName) {
       return;
@@ -928,5 +663,58 @@ export class DatasetDetailComponent implements OnInit {
     } catch (error) {
       this.notificationService.error("Failed to copy file path");
     }
+  }
+
+  onAddContributor(): void {
+    this.openContributorEditor("Add Contributor", null, newContributor => [
+      ...this.datasetContributors,
+      newContributor,
+    ]);
+  }
+
+  onEditContributor(contributor: Contributor): void {
+    this.openContributorEditor("Edit Contributor", contributor, updated =>
+      replaceOneImmutable(this.datasetContributors, c => c === contributor, updated)
+    );
+  }
+
+  onDeleteContributor(contributor: Contributor): void {
+    this.saveContributors(this.datasetContributors.filter(c => c !== contributor));
+  }
+
+  private openContributorEditor(
+    title: string,
+    data: Contributor | null,
+    apply: (result: Contributor) => ReadonlyArray<Contributor>
+  ): void {
+    const modal = this.modalService.create({
+      nzTitle: title,
+      nzContent: UserDatasetContributorEditorComponent,
+      nzFooter: null,
+      nzData: data,
+    });
+    modal.afterClose.pipe(untilDestroyed(this)).subscribe(result => {
+      if (result) {
+        this.saveContributors(apply(result));
+      }
+    });
+  }
+
+  private saveContributors(next: ReadonlyArray<Contributor>): void {
+    if (!this.did) {
+      return;
+    }
+    const previous = this.datasetContributors;
+    this.datasetContributors = next;
+    this.datasetService
+      .updateDatasetContributors(this.did, next)
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: () => this.notificationService.success("Contributors updated"),
+        error: () => {
+          this.datasetContributors = previous;
+          this.notificationService.error("Failed to update contributors");
+        },
+      });
   }
 }

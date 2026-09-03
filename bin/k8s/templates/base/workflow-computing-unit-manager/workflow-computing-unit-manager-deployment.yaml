@@ -83,7 +83,7 @@ spec:
                   name: {{ .Release.Name }}-postgresql
                   key: postgres-password
             # FileService Access
-            - name: FILE_SERVICE_GET_PRESIGNED_URL_ENDPOINT
+            - name: FILE_SERVICE_GET_DATASET_PRESIGNED_URL_ENDPOINT
               value: http://{{ .Values.fileService.name }}-svc:9092/api/dataset/presign-download
             - name: FILE_SERVICE_UPLOAD_ONE_FILE_TO_DATASET_ENDPOINT
               value: http://{{ .Values.fileService.name }}-svc:9092/api/dataset/did/upload

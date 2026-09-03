@@ -17,9 +17,9 @@
  * under the License.
  */
 
-import { HttpClient } from "@angular/common/http";
+import { HttpClient, HttpErrorResponse } from "@angular/common/http";
 import { Injectable } from "@angular/core";
-import { firstValueFrom, Observable, Subscription, timer } from "rxjs";
+import { firstValueFrom, Observable, Subject, Subscription, timer } from "rxjs";
 import { AppSettings } from "../../app-setting";
 import { Role, User } from "../../type/user";
 import { ignoreElements } from "rxjs/operators";
@@ -29,8 +29,21 @@ import { GmailService } from "../gmail/gmail.service";
 import { GuiConfigService } from "../gui-config.service";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { RegistrationRequestModalComponent } from "./registration-request-modal/registration-request-modal.component";
+import { EmailRequestModalComponent } from "./email-request-modal/email-request-modal.component";
+import { validateEmailFormat } from "../../util/email";
 
 export const TOKEN_KEY = "access_token";
+
+/**
+ * What a registration attempt produced.
+ *
+ * A null `accessToken` is the "a code was mailed, nothing was created" signal: where
+ * `user-sys.email-verification` is on, the account only exists once `registerVerify` is given that
+ * code back. The backend reports the two as one field so they cannot disagree.
+ */
+export interface RegistrationResult {
+  accessToken: string | null;
+}
 
 /**
  * User Service contains the function of registering and logging the user.
@@ -46,8 +59,14 @@ export class AuthService {
   public static readonly REFRESH_TOKEN = "auth/refresh";
   public static readonly REGISTER_ENDPOINT = "auth/register";
   public static readonly GOOGLE_LOGIN_ENDPOINT = "auth/google/login";
+  public static readonly ORCID_LOGIN_ENDPOINT = "auth/orcid/login";
+  public static readonly SET_EMAIL_ENDPOINT = "auth/email";
+  public static readonly SET_EMAIL_CODE_ENDPOINT = "auth/email/code";
+  public static readonly REGISTER_VERIFY_ENDPOINT = "auth/register/verify";
 
   private tokenExpirationSubscription?: Subscription;
+  private sessionChangedSubject = new Subject<void>();
+  private emailPromptOpen = false;
 
   constructor(
     private http: HttpClient,
@@ -62,15 +81,30 @@ export class AuthService {
    * This method will handle the request for user registration.
    * It will automatically login, save the user account inside and trigger userChangeEvent when success
    * @param username
+   * @param email
    * @param password
    */
-  public register(username: string, password: string): Observable<Readonly<{ accessToken: string }>> {
-    return this.http.post<Readonly<{ accessToken: string }>>(
+  public register(username: string, email: string, password: string): Observable<Readonly<RegistrationResult>> {
+    return this.http.post<Readonly<RegistrationResult>>(
       `${AppSettings.getApiEndpoint()}/${AuthService.REGISTER_ENDPOINT}`,
       {
         username,
+        email,
         password,
       }
+    );
+  }
+
+  /** Completes a registration `register` left pending, resending its fields alongside the code. */
+  public registerVerify(
+    username: string,
+    email: string,
+    password: string,
+    code: string
+  ): Observable<Readonly<RegistrationResult>> {
+    return this.http.post<Readonly<RegistrationResult>>(
+      `${AppSettings.getApiEndpoint()}/${AuthService.REGISTER_VERIFY_ENDPOINT}`,
+      { username, email, password, code }
     );
   }
 
@@ -90,6 +124,48 @@ export class AuthService {
         },
       }
     );
+  }
+
+  /**
+   * Trades the authorization code from `/callback/orcid` for a Texera token.
+   *
+   * ORCID authenticates an iD without asserting an email, so the account behind this token may have
+   * none — `loginWithExistingToken` asks for one before the email-keyed parts of the product
+   * (dataset paths, access grants) are reachable.
+   */
+  public orcidAuth(code: string): Observable<Readonly<{ accessToken: string }>> {
+    return this.http.post<Readonly<{ accessToken: string }>>(
+      `${AppSettings.getApiEndpoint()}/${AuthService.ORCID_LOGIN_ENDPOINT}`,
+      code,
+      {
+        headers: {
+          "Content-Type": "text/plain",
+          Accept: "application/json",
+        },
+      }
+    );
+  }
+
+  /** Emits when this service changed the stored token or cleared it itself (see `promptForEmail`). */
+  public sessionChanged(): Observable<void> {
+    return this.sessionChangedSubject.asObservable();
+  }
+
+  /**
+   * Gives the signed-in account the address it lacks, returning the reissued token. `code` is the
+   * proof mailed by `requestEmailCode`, and is required only where verification is on.
+   */
+  public setEmail(email: string, code?: string): Observable<Readonly<{ accessToken: string }>> {
+    return this.http.put<Readonly<{ accessToken: string }>>(
+      `${AppSettings.getApiEndpoint()}/${AuthService.SET_EMAIL_ENDPOINT}`,
+      { email, code }
+    );
+  }
+
+  public requestEmailCode(email: string): Observable<void> {
+    return this.http.post<void>(`${AppSettings.getApiEndpoint()}/${AuthService.SET_EMAIL_CODE_ENDPOINT}`, {
+      email,
+    });
   }
 
   /**
@@ -132,6 +208,11 @@ export class AuthService {
     const email = this.jwtHelperService.decodeToken(token).email;
     const name = this.jwtHelperService.decodeToken(token).sub;
 
+    if (!email) {
+      this.promptForEmail(name);
+      return undefined;
+    }
+
     if (this.config.env.inviteOnly && role === Role.INACTIVE) {
       this.checkRegistrationRequired(uid).subscribe(required => {
         if (required) {
@@ -163,7 +244,10 @@ export class AuthService {
       name: this.jwtHelperService.decodeToken(token).sub,
       email: email,
       googleId: this.jwtHelperService.decodeToken(token).googleId,
-      googleAvatar: this.jwtHelperService.decodeToken(token).googleAvatar,
+      // The claim was `googleAvatar` until the avatar stopped being Google-specific. Tokens
+      // predating the rename stay valid for a week, so either name is accepted; the fallback
+      // can go once they have all expired.
+      avatar: this.jwtHelperService.decodeToken(token).avatar ?? this.jwtHelperService.decodeToken(token).googleAvatar,
       role: role,
       comment: this.jwtHelperService.decodeToken(token).comment,
       joiningReason: this.jwtHelperService.decodeToken(token).joiningReason,
@@ -219,6 +303,107 @@ export class AuthService {
       affiliation,
       joiningReason: reason,
     });
+  }
+
+  /**
+   * Asks a signed-in user for the email address their account does not have, and stores it.
+   *
+   * Not dismissable: cancelling signs out, matching how the invite-only registration request
+   * behaves. Until it is answered `loginWithExistingToken` hands out no user at all.
+   *
+   * Either outcome announces itself through `sessionChanged`: a success replaces the token (its
+   * `email` claim was null), a cancel throws it away, and both need the current user re-derived.
+   */
+  private promptForEmail(defaultName: string): void {
+    if (this.emailPromptOpen) {
+      return;
+    }
+    this.emailPromptOpen = true;
+
+    // Where verification is on the dialog runs in two steps: the first mails a code, the second
+    // presents it. Nothing is written until the second one succeeds.
+    const verificationRequired = this.config.env.emailVerification;
+
+    const modalRef = this.modal.create<EmailRequestModalComponent>({
+      nzContent: EmailRequestModalComponent,
+      nzData: { name: defaultName },
+      nzOkText: verificationRequired ? "Send code" : "Save",
+      nzCancelText: "Sign out",
+      nzMaskClosable: false,
+      nzClosable: false,
+      // Reaches the modal chrome, which ng-zorro renders outside the content component's view —
+      // see `.email-modal` in email-request-modal.component.scss.
+      nzClassName: "email-modal",
+
+      nzOnOk: async () => {
+        const component = modalRef.getContentComponent();
+        const { email, code } = component.getValues();
+        const validation = validateEmailFormat(email);
+        if (!validation.result) {
+          this.notificationService.error(validation.message);
+          return false;
+        }
+
+        if (verificationRequired && component.step === "address") {
+          try {
+            await firstValueFrom(this.requestEmailCode(email));
+          } catch (e: unknown) {
+            this.notificationService.error((e as HttpErrorResponse)?.error?.message ?? "That code could not be sent.");
+            return false;
+          }
+          // Returning false keeps the dialog open on its second step rather than closing it.
+          component.step = "code";
+          modalRef.updateConfig({ nzOkText: "Verify" });
+          return false;
+        }
+
+        try {
+          const { accessToken } = await firstValueFrom(this.setEmail(email, code));
+          AuthService.setAccessToken(accessToken);
+        } catch (e: unknown) {
+          if (this.storedEmailClaim() != null) {
+            this.finishEmailPrompt();
+            return true;
+          }
+
+          this.notificationService.error(
+            (e as HttpErrorResponse)?.error?.message ?? "That email address could not be saved."
+          );
+          return false;
+        }
+        this.finishEmailPrompt();
+        return true;
+      },
+
+      nzOnCancel: () => {
+        this.logout();
+        this.finishEmailPrompt();
+      },
+    });
+
+    modalRef.updateConfig({ nzTitle: modalRef.getContentComponent().modalTitle });
+  }
+
+  /**
+   * Close out the email prompt: let another one open later, and tell `sessionChanged` subscribers to
+   * re-derive from whatever token is now stored.
+   */
+  private finishEmailPrompt(): void {
+    this.emailPromptOpen = false;
+    this.sessionChangedSubject.next();
+  }
+
+  /** The `email` claim on the stored token, or null when there is no token or no claim. */
+  private storedEmailClaim(): string | null {
+    const token = AuthService.getAccessToken();
+    if (token == null) {
+      return null;
+    }
+    try {
+      return this.jwtHelperService.decodeToken(token)?.email ?? null;
+    } catch {
+      return null;
+    }
   }
 
   /**

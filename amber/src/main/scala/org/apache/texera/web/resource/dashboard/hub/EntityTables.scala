@@ -20,12 +20,74 @@
 package org.apache.texera.web.resource.dashboard.hub
 
 import org.apache.texera.dao.jooq.generated.Tables._
+import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
 import org.apache.texera.dao.jooq.generated.tables.records._
+import org.apache.texera.web.resource.dashboard.VersionedResourceTables
 import org.jooq._
 
 object EntityTables {
+
+  // ==================== THE REGISTRY ====================
+
+  /** Every table one hub entity type owns. A new entity type is one set plus one line in `apply`. */
+  sealed trait EntityTableSet {
+    val base: BaseEntityTable
+    val like: LikeTable
+    val viewCount: ViewCountTable
+    val access: AccessTable
+
+    /**
+      * Empty for cloneless entities (datasets, models): callers that can skip cloning read
+      * this and report zero, instead of `CloneTable.apply` throwing. Not named `clone`
+      * because `Object.clone` owns that name.
+      */
+    val cloneTable: Option[CloneTable]
+
+    /** Set for LakeFS-backed resources, so the hub can hydrate without a per-type branch. */
+    val versionedResource: Option[VersionedResourceTables[_ <: Record, _]]
+  }
+
+  case object WorkflowTableSet extends EntityTableSet {
+    override val base: BaseEntityTable = BaseEntityTable.WorkflowTable
+    override val like: LikeTable = LikeTable.WorkflowLikeTable
+    override val viewCount: ViewCountTable = ViewCountTable.WorkflowViewCountTable
+    override val access: AccessTable = AccessTable.WorkflowAccessTable
+    override val cloneTable: Option[CloneTable] = Some(CloneTable.WorkflowCloneTable)
+    override val versionedResource: Option[VersionedResourceTables[_ <: Record, _]] = None
+  }
+
+  case object DatasetTableSet extends EntityTableSet {
+    override val base: BaseEntityTable = VersionedResourceTables.DatasetTables
+    override val like: LikeTable = LikeTable.DatasetLikeTable
+    override val viewCount: ViewCountTable = ViewCountTable.DatasetViewCountTable
+    override val access: AccessTable = AccessTable.DatasetAccessTable
+    override val cloneTable: Option[CloneTable] = None
+    override val versionedResource: Option[VersionedResourceTables[_ <: Record, _]] = Some(
+      VersionedResourceTables.DatasetTables
+    )
+  }
+
+  case object ModelTableSet extends EntityTableSet {
+    override val base: BaseEntityTable = VersionedResourceTables.ModelTables
+    override val like: LikeTable = LikeTable.ModelLikeTable
+    override val viewCount: ViewCountTable = ViewCountTable.ModelViewCountTable
+    override val access: AccessTable = AccessTable.ModelAccessTable
+    override val cloneTable: Option[CloneTable] = None
+    override val versionedResource: Option[VersionedResourceTables[_ <: Record, _]] = Some(
+      VersionedResourceTables.ModelTables
+    )
+  }
+
+  def apply(entityType: EntityType): EntityTableSet =
+    entityType match {
+      case EntityType.Workflow => WorkflowTableSet
+      case EntityType.Dataset  => DatasetTableSet
+      case EntityType.Model    => ModelTableSet
+    }
+
   // ==================== BASE TABLE ====================
-  sealed trait BaseEntityTable {
+  // Not sealed: VersionedResourceTables implements it, so id/is_public are named once.
+  trait BaseEntityTable {
     type R <: Record
     val table: Table[R]
     val isPublicColumn: TableField[R, java.lang.Boolean]
@@ -41,18 +103,7 @@ object EntityTables {
       override val idColumn: TableField[WorkflowRecord, Integer] = WORKFLOW.WID
     }
 
-    case object DatasetTable extends BaseEntityTable {
-      override type R = DatasetRecord
-      override val table: Table[DatasetRecord] = DATASET
-      override val isPublicColumn: TableField[DatasetRecord, java.lang.Boolean] = DATASET.IS_PUBLIC
-      override val idColumn: TableField[DatasetRecord, Integer] = DATASET.DID
-    }
-
-    def apply(entityType: EntityType): BaseEntityTable =
-      entityType match {
-        case EntityType.Workflow => WorkflowTable
-        case EntityType.Dataset  => DatasetTable
-      }
+    def apply(entityType: EntityType): BaseEntityTable = EntityTables(entityType).base
   }
 
   // ==================== BASE LC (like & clone) TABLE ====================
@@ -83,11 +134,14 @@ object EntityTables {
       override val idColumn: TableField[DatasetUserLikesRecord, Integer] = DATASET_USER_LIKES.DID
     }
 
-    def apply(entityType: EntityType): LikeTable =
-      entityType match {
-        case EntityType.Workflow => WorkflowLikeTable
-        case EntityType.Dataset  => DatasetLikeTable
-      }
+    case object ModelLikeTable extends LikeTable {
+      override type R = ModelUserLikesRecord
+      override val table: Table[ModelUserLikesRecord] = MODEL_USER_LIKES
+      override val uidColumn: TableField[ModelUserLikesRecord, Integer] = MODEL_USER_LIKES.UID
+      override val idColumn: TableField[ModelUserLikesRecord, Integer] = MODEL_USER_LIKES.MID
+    }
+
+    def apply(entityType: EntityType): LikeTable = EntityTables(entityType).like
   }
 
   // ==================== CLONE TABLE ====================
@@ -103,12 +157,11 @@ object EntityTables {
         WORKFLOW_USER_CLONES.WID
     }
 
+    /** For callers that cannot proceed without one; see `EntityTableSet.cloneTable`. */
     def apply(entityType: EntityType): CloneTable =
-      entityType match {
-        case EntityType.Workflow => WorkflowCloneTable
-        case _ =>
-          throw new IllegalArgumentException(s"Unsupported entity type: $entityType for clone")
-      }
+      EntityTables(entityType).cloneTable.getOrElse(
+        throw new IllegalArgumentException(s"Unsupported entity type: $entityType for clone")
+      )
   }
 
   // ==================== VIEW COUNT TABLE ====================
@@ -136,10 +189,57 @@ object EntityTables {
         DATASET_VIEW_COUNT.VIEW_COUNT
     }
 
-    def apply(entityType: EntityType): ViewCountTable =
-      entityType match {
-        case EntityType.Workflow => WorkflowViewCountTable
-        case EntityType.Dataset  => DatasetViewCountTable
-      }
+    case object ModelViewCountTable extends ViewCountTable {
+      override type R = ModelViewCountRecord
+      override val table: Table[ModelViewCountRecord] = MODEL_VIEW_COUNT
+      override val idColumn: TableField[ModelViewCountRecord, Integer] = MODEL_VIEW_COUNT.MID
+      override val viewCountColumn: TableField[ModelViewCountRecord, Integer] =
+        MODEL_VIEW_COUNT.VIEW_COUNT
+    }
+
+    def apply(entityType: EntityType): ViewCountTable = EntityTables(entityType).viewCount
+  }
+
+  // ==================== ACCESS TABLE ====================
+  /** The `<entity>_user_access` sibling table, replacing the inline match in HubResource. */
+  sealed trait AccessTable {
+    type R <: Record
+    val table: Table[R]
+    val idColumn: TableField[R, Integer]
+    val uidColumn: TableField[R, Integer]
+    val privilegeColumn: TableField[R, PrivilegeEnum]
+  }
+
+  object AccessTable {
+    case object WorkflowAccessTable extends AccessTable {
+      override type R = WorkflowUserAccessRecord
+      override val table: Table[WorkflowUserAccessRecord] = WORKFLOW_USER_ACCESS
+      override val idColumn: TableField[WorkflowUserAccessRecord, Integer] =
+        WORKFLOW_USER_ACCESS.WID
+      override val uidColumn: TableField[WorkflowUserAccessRecord, Integer] =
+        WORKFLOW_USER_ACCESS.UID
+      override val privilegeColumn: TableField[WorkflowUserAccessRecord, PrivilegeEnum] =
+        WORKFLOW_USER_ACCESS.PRIVILEGE
+    }
+
+    case object DatasetAccessTable extends AccessTable {
+      override type R = DatasetUserAccessRecord
+      override val table: Table[DatasetUserAccessRecord] = DATASET_USER_ACCESS
+      override val idColumn: TableField[DatasetUserAccessRecord, Integer] = DATASET_USER_ACCESS.DID
+      override val uidColumn: TableField[DatasetUserAccessRecord, Integer] = DATASET_USER_ACCESS.UID
+      override val privilegeColumn: TableField[DatasetUserAccessRecord, PrivilegeEnum] =
+        DATASET_USER_ACCESS.PRIVILEGE
+    }
+
+    case object ModelAccessTable extends AccessTable {
+      override type R = ModelUserAccessRecord
+      override val table: Table[ModelUserAccessRecord] = MODEL_USER_ACCESS
+      override val idColumn: TableField[ModelUserAccessRecord, Integer] = MODEL_USER_ACCESS.MID
+      override val uidColumn: TableField[ModelUserAccessRecord, Integer] = MODEL_USER_ACCESS.UID
+      override val privilegeColumn: TableField[ModelUserAccessRecord, PrivilegeEnum] =
+        MODEL_USER_ACCESS.PRIVILEGE
+    }
+
+    def apply(entityType: EntityType): AccessTable = EntityTables(entityType).access
   }
 }

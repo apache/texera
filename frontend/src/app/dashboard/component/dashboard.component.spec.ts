@@ -51,7 +51,6 @@ import {
   USER_COMPUTING_UNIT,
   USER_DATASET,
   USER_DISCUSSION,
-  USER_PROJECT,
   USER_QUOTA,
   USER_WORKFLOW,
 } from "../../app-routing.constant";
@@ -163,12 +162,23 @@ describe("DashboardComponent", () => {
     expect(component).toBeTruthy();
   });
 
-  it("should render Google sign-in button when user is NOT logged in", () => {
+  // Sign-in moved to the dedicated /login page, so the shell offers a link to it rather than
+  // rendering a provider button of its own.
+  it("should render a sign-in link, not a provider button, when the user is NOT logged in", () => {
     (userServiceMock.isLogin as Mock).mockReturnValue(false);
+    component.isLogin = false;
     fixture.detectChanges();
 
-    const googleSignInBtn = fixture.debugElement.query(By.css("asl-google-signin-button"));
-    expect(googleSignInBtn).toBeTruthy();
+    expect(fixture.debugElement.query(By.css("asl-google-signin-button"))).toBeNull();
+    expect(fixture.debugElement.query(By.css(".nav-login-link"))).toBeTruthy();
+  });
+
+  it("should not render the sign-in link when the user IS logged in", () => {
+    (userServiceMock.isLogin as Mock).mockReturnValue(true);
+    component.isLogin = true;
+    fixture.detectChanges();
+
+    expect(fixture.debugElement.query(By.css(".nav-login-link"))).toBeNull();
   });
 
   it("should render the powered-by attribution when attributionEnabled is true", () => {
@@ -246,11 +256,9 @@ describe("DashboardComponent", () => {
   it("should hide the navbar on workflow workspace routes", () => {
     expect(component.isNavbarEnabled("/user/workflow/42")).toBe(false);
     expect(component.isNavbarEnabled("/user/workflow")).toBe(true);
-    expect(component.isNavbarEnabled("/user/project")).toBe(true);
   });
 
   it("exposes route constants without the legacy /dashboard prefix", () => {
-    expect(USER_PROJECT).toBe("/user/project");
     expect(USER_WORKFLOW).toBe("/user/workflow");
     expect(USER_DATASET).toBe("/user/dataset");
     expect(USER_COMPUTING_UNIT).toBe("/user/compute");
@@ -272,10 +280,11 @@ describe("DashboardComponent", () => {
       home_enabled: true,
       workflow_enabled: true,
       dataset_enabled: true,
+      model_enabled: true,
       your_work_enabled: true,
-      projects_enabled: true,
       workflows_enabled: true,
       datasets_enabled: true,
+      models_enabled: true,
       compute_enabled: true,
       quota_enabled: true,
       forum_enabled: true,
@@ -283,7 +292,8 @@ describe("DashboardComponent", () => {
     };
     fixture.detectChanges();
 
-    // 7 "Your Work" links (incl. Python Venvs) + 4 admin links + 1 about link + 1 feedback link = 13
+    // 7 "Your Work" links (incl. Python Venvs and Models) + 4 admin links + 1 about link
+    // + 1 feedback link = 13
     expect(fixture.debugElement.queryAll(By.directive(RouterLink)).length).toBe(13);
   });
 
@@ -293,10 +303,11 @@ describe("DashboardComponent", () => {
       home_enabled: true,
       workflow_enabled: true,
       dataset_enabled: true,
+      model_enabled: true,
       your_work_enabled: true,
-      projects_enabled: true,
       workflows_enabled: true,
       datasets_enabled: true,
+      models_enabled: true,
       compute_enabled: true,
       quota_enabled: true,
       forum_enabled: true,

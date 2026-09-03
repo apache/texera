@@ -20,9 +20,9 @@
 import { DashboardEntry } from "./dashboard-entry";
 import { EntityType } from "../../hub/service/hub.service";
 import { DashboardWorkflow } from "./dashboard-workflow.interface";
-import { DashboardProject } from "./dashboard-project.interface";
 import { DashboardFile } from "./dashboard-file.interface";
 import { DashboardDataset } from "./dashboard-dataset.interface";
+import { DashboardModel } from "./dashboard-model.interface";
 import { DashboardWorkflowComputingUnit } from "../../common/type/workflow-computing-unit";
 import { ExecutionMode } from "../../common/type/workflow";
 
@@ -51,22 +51,9 @@ function makeWorkflow(coverImage: string | null = "http://example.com/cover.png"
       isPublished: 0,
       readonly: false,
     },
-    projectIDs: [1, 2],
     accessLevel: "WRITE",
     ownerId: 10,
     coverImage,
-  };
-}
-
-function makeProject(): DashboardProject {
-  return {
-    pid: 202,
-    name: "My Project",
-    description: "A sample project",
-    ownerId: 20,
-    creationTime: 1700000002000,
-    color: "#ff0000",
-    accessLevel: "READ",
   };
 }
 
@@ -106,6 +93,28 @@ function makeDataset(): DashboardDataset {
   };
 }
 
+function makeModel(): DashboardModel {
+  return {
+    isOwner: false,
+    ownerEmail: "model-owner@example.com",
+    model: {
+      mid: 606,
+      ownerUid: 60,
+      name: "My Model",
+      repositoryName: "my-model",
+      isPublic: true,
+      isDownloadable: false,
+      description: "A sample model",
+      creationTime: 1700000006000,
+      coverImage: "http://example.com/model-cover.png",
+      framework: "pytorch",
+      format: "safetensors",
+    },
+    accessPrivilege: "WRITE",
+    size: 8765,
+  };
+}
+
 function makeComputingUnit(): DashboardWorkflowComputingUnit {
   return {
     computingUnit: {
@@ -132,7 +141,7 @@ function makeComputingUnit(): DashboardWorkflowComputingUnit {
     },
     isOwner: true,
     accessPrivilege: "WRITE",
-    ownerGoogleAvatar: "avatar",
+    ownerAvatar: "avatar",
     ownerName: "Bob",
   };
 }
@@ -153,7 +162,7 @@ describe("DashboardEntry", () => {
       expect(entry.ownerName).toBe("Alice");
       expect(entry.ownerId).toBe(10);
       expect(entry.ownerEmail).toBe("");
-      expect(entry.ownerGoogleAvatar).toBe("");
+      expect(entry.ownerAvatar).toBe("");
       expect(entry.size).toBe(0);
       expect(entry.coverImageUrl).toBe("http://example.com/cover.png");
       expect(entry.value).toBe(value);
@@ -161,20 +170,6 @@ describe("DashboardEntry", () => {
 
     it("leaves coverImageUrl undefined when a workflow has no cover image", () => {
       const entry = new DashboardEntry(makeWorkflow(null));
-      expect(entry.coverImageUrl).toBeUndefined();
-    });
-
-    it("maps a DashboardProject to the Project entity with empty description and creationTime as both timestamps", () => {
-      const entry = new DashboardEntry(makeProject());
-
-      expect(entry.type).toBe(EntityType.Project);
-      expect(entry.id).toBe(202);
-      expect(entry.name).toBe("My Project");
-      expect(entry.description).toBe("");
-      expect(entry.creationTime).toBe(1700000002000);
-      expect(entry.lastModifiedTime).toBe(1700000002000);
-      expect(entry.accessLevel).toBe("READ");
-      expect(entry.ownerId).toBe(20);
       expect(entry.coverImageUrl).toBeUndefined();
     });
 
@@ -209,6 +204,32 @@ describe("DashboardEntry", () => {
       expect(entry.coverImageUrl).toBe("http://example.com/dataset-cover.png");
     });
 
+    it("maps a DashboardModel to the Model entity and copies model fields", () => {
+      const entry = new DashboardEntry(makeModel());
+
+      expect(entry.type).toBe(EntityType.Model);
+      expect(entry.id).toBe(606);
+      expect(entry.name).toBe("My Model");
+      expect(entry.description).toBe("A sample model");
+      expect(entry.creationTime).toBe(1700000006000);
+      expect(entry.lastModifiedTime).toBe(1700000006000);
+      expect(entry.accessLevel).toBe("WRITE");
+      expect(entry.ownerEmail).toBe("model-owner@example.com");
+      expect(entry.ownerId).toBe(60);
+      expect(entry.size).toBe(8765);
+      expect(entry.coverImageUrl).toBe("http://example.com/model-cover.png");
+      // The model branch has no hub-side counters to copy, so it hard-codes placeholders. They are
+      // read straight by the card templates, so leaving them unasserted would let any of the seven
+      // be changed to a fabricated value with nothing failing.
+      expect(entry.ownerName).toBe("");
+      expect(entry.ownerAvatar).toBe("");
+      expect(entry.viewCount).toBe(0);
+      expect(entry.cloneCount).toBe(0);
+      expect(entry.likeCount).toBe(0);
+      expect(entry.isLiked).toBe(false);
+      expect(entry.accessibleUserIds).toEqual([]);
+    });
+
     it("maps a DashboardWorkflowComputingUnit to the ComputingUnit entity and copies computing-unit fields", () => {
       const entry = new DashboardEntry(makeComputingUnit());
 
@@ -218,7 +239,7 @@ describe("DashboardEntry", () => {
       expect(entry.creationTime).toBe(1700000005000);
       expect(entry.accessLevel).toBe("WRITE");
       expect(entry.ownerId).toBe(50);
-      expect(entry.ownerGoogleAvatar).toBe("");
+      expect(entry.ownerAvatar).toBe("");
       // The computing-unit branch does not populate these fields.
       expect(entry.description).toBeUndefined();
       expect(entry.lastModifiedTime).toBeUndefined();
@@ -249,10 +270,10 @@ describe("DashboardEntry", () => {
       expect(entry.ownerName).toBe("Carol");
     });
 
-    it("setOwnerGoogleAvatar updates ownerGoogleAvatar", () => {
+    it("setOwnerAvatar updates ownerAvatar", () => {
       const entry = new DashboardEntry(makeWorkflow());
-      entry.setOwnerGoogleAvatar("https://example.com/avatar.png");
-      expect(entry.ownerGoogleAvatar).toBe("https://example.com/avatar.png");
+      entry.setOwnerAvatar("https://example.com/avatar.png");
+      expect(entry.ownerAvatar).toBe("https://example.com/avatar.png");
     });
 
     it("setCount updates viewCount, cloneCount and likeCount together", () => {
@@ -286,13 +307,7 @@ describe("DashboardEntry", () => {
     it("workflow getter returns the value for a workflow entry and throws for others", () => {
       const workflowValue = makeWorkflow();
       expect(new DashboardEntry(workflowValue).workflow).toBe(workflowValue);
-      expect(() => new DashboardEntry(makeProject()).workflow).toThrowError("Value is not of type DashboardWorkflow.");
-    });
-
-    it("project getter returns the value for a project entry and throws for others", () => {
-      const projectValue = makeProject();
-      expect(new DashboardEntry(projectValue).project).toBe(projectValue);
-      expect(() => new DashboardEntry(makeWorkflow()).project).toThrowError("Value is not of type DashboardProject.");
+      expect(() => new DashboardEntry(makeFile()).workflow).toThrowError("Value is not of type DashboardWorkflow.");
     });
 
     it("file getter returns the value for a file entry and throws for others", () => {
@@ -305,6 +320,12 @@ describe("DashboardEntry", () => {
       const datasetValue = makeDataset();
       expect(new DashboardEntry(datasetValue).dataset).toBe(datasetValue);
       expect(() => new DashboardEntry(makeWorkflow()).dataset).toThrowError("Value is not of type DashboardDataset");
+    });
+
+    it("model getter returns the value for a model entry and throws for others", () => {
+      const modelValue = makeModel();
+      expect(new DashboardEntry(modelValue).model).toBe(modelValue);
+      expect(() => new DashboardEntry(makeWorkflow()).model).toThrowError("Value is not of type DashboardModel");
     });
 
     it("computingUnit getter returns the value for a computing-unit entry and throws for others", () => {

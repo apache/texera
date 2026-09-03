@@ -121,18 +121,6 @@
             nz-icon
             nzType="delete"></i>
         </button>
-        <nz-upload
-          [nzDisabled]="!isWorkflowModifiable"
-          [nzBeforeUpload]="onClickImportWorkflow">
-          <button
-            nz-button
-            [disabled]="!isWorkflowModifiable"
-            title="import workflow">
-            <i
-              nz-icon
-              nzType="upload"></i>
-          </button>
-        </nz-upload>
         <button
           (click)="onClickExportWorkflow()"
           nz-button
@@ -148,6 +136,16 @@
           <i
             nz-icon
             nzType="info-circle"></i>
+        </button>
+        <button
+          *ngIf="pythonNotebookMigrationEnabled && (jupyterNotebookExists$ | async)"
+          nz-button
+          (click)="onClickExpandJupyterNotebookPanel()"
+          title="expand Jupyter notebook">
+          <img
+            class="jupyter-notebook-icon"
+            src="assets/notebook_migration_tool/jupyter-logo.svg"
+            alt="Jupyter" />
         </button>
       </nz-space-compact>
       <ng-template #utilities>
@@ -196,6 +194,39 @@
                   (ngModelChange)="toggleStatus()"
                   >Status</label
                 >
+              </li>
+              <li nz-menu-item>
+                <label
+                  nz-checkbox
+                  [(ngModel)]="showHeatmap"
+                  (ngModelChange)="toggleHeatmap()"
+                  >Performance</label
+                >
+              </li>
+              <li
+                nz-menu-item
+                *ngIf="showHeatmap"
+                class="heatmap-view-options">
+                <nz-radio-group
+                  [(ngModel)]="heatmapView"
+                  (ngModelChange)="setHeatmapView($event)"
+                  (click)="$event.stopPropagation()">
+                  <label
+                    nz-radio
+                    [nzValue]="HeatmapView.Runtime"
+                    >Runtime</label
+                  >
+                  <label
+                    nz-radio
+                    [nzValue]="HeatmapView.TimePerRow"
+                    >Time / row</label
+                  >
+                  <label
+                    nz-radio
+                    [nzValue]="HeatmapView.IoImbalance"
+                    >I/O imbalance</label
+                  >
+                </nz-radio-group>
               </li>
             </ul>
           </nz-dropdown-menu>

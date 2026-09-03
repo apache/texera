@@ -283,6 +283,7 @@ SERVICES: list[Service] = [
     Service("lakefs",     "docker", 8000),
     Service("lakekeeper", "docker", 8181),
     Service("litellm",    "docker", 4000),
+    Service("jupyter",    "docker", 9100),
     _jvm("config-service",                  9094, "ConfigService",
          "config-service/src"),
     _jvm("access-control-service",          9096, "AccessControlService",
@@ -295,6 +296,8 @@ SERVICES: list[Service] = [
          "amber/src"),
     _jvm("computing-unit-managing-service", 8082, "ComputingUnitManagingService",
          "computing-unit-managing-service/src"),
+    _jvm("notebook-migration-service",      9098, "NotebookMigrationService",
+         "notebook-migration-service/src"),
     _jvm("texera-web",                      8080, "WorkflowExecutionService",
          "amber/src"),
     Service("agent-service", "bun",  3001),
@@ -592,9 +595,21 @@ def source_hash(svc: Service, files: Optional[list[Path]] = None) -> str:
 
 
 def _newest_mtime_after(files: list[Path], stamp_mtime: float) -> bool:
+    """Any source at or after the stamp's mtime?
+
+    `>=`, not `>`: the stamp is written at the end of a build and the natural
+    next action is to edit the file you were just building, so an edit landing
+    inside the filesystem's timestamp granularity shares the stamp's mtime
+    exactly. With a strict `>` the filter answered "definitely clean" and the
+    content hash was never consulted, so the rebuild was skipped (#7075).
+
+    Equality costs at most one extra hash comparison: when it finds the content
+    unchanged, `_jvm_is_dirty` bumps the stamp's mtime past the sources, and
+    later ticks take the cheap path again.
+    """
     for f in files:
         try:
-            if f.stat().st_mtime > stamp_mtime:
+            if f.stat().st_mtime >= stamp_mtime:
                 return True
         except OSError:
             continue

@@ -31,11 +31,11 @@ package org.apache.texera.amber.operator.huggingFace.codegen
   *    zero-shot-image-classification, image-text-to-text, image-to-image.
   *
   * Per-row `current_image_bytes` is resolved upstream in
-  * [[PythonCodegenBase]]'s `process_table` (either from the operator's
+  * [[HuggingFaceCodegenBase]]'s `process_table` (either from the operator's
   * uploaded image or from `INPUT_IMAGE_COLUMN`). The image helpers
   * (`_read_image_input`, `_compress_image_bytes`, `_image_input_as_base64`,
   * `_read_binary_value`, `_looks_like_html`, `_html_to_image_bytes`,
-  * `_extract_json_arg`) live in PythonCodegenBase alongside the per-task
+  * `_extract_json_arg`) live in HuggingFaceCodegenBase alongside the per-task
   * tuples (`image_only_tasks`, `image_prompt_tasks`, `image_tasks`).
   */
 object ImageTaskCodegen extends TaskCodegen {
@@ -90,17 +90,10 @@ object ImageTaskCodegen extends TaskCodegen {
       |                use_raw_binary_body = True
       |                raw_binary_headers = image_headers
       |            elif task == "zero-shot-image-classification":
-      |                # Prefer the dedicated candidateLabels property; fall back to
-      |                # the prompt column for backward compatibility.
-      |                label_source = (self.CANDIDATE_LABELS or "").strip() if self.CANDIDATE_LABELS else ""
-      |                if not label_source and prompt_value:
-      |                    label_source = prompt_value
-      |                labels = [s.strip() for s in label_source.split(",") if s.strip()]
-      |                if len(labels) < 2:
-      |                    raise ValueError(
-      |                        "zero-shot-image-classification requires at least 2 candidate "
-      |                        "labels: provide a comma-separated list in the Candidate Labels field."
-      |                    )
+      |                # Labels come from the Candidate Labels property; the >= 2
+      |                # check runs pre-loop in HuggingFaceCodegenBase (fail-fast),
+      |                # so no per-row validation is needed here.
+      |                labels = [s.strip() for s in str(self.CANDIDATE_LABELS).split(",") if s.strip()]
       |                payload = {
       |                    "inputs": self._image_input_as_base64(current_image_bytes),
       |                    "parameters": {"candidate_labels": labels},

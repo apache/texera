@@ -19,10 +19,10 @@
 
 import { Injectable } from "@angular/core";
 
-import { Observable, of } from "rxjs";
+import { Observable, of, Subject } from "rxjs";
 import { User } from "../../type/user";
 import { PublicInterfaceOf } from "../../util/stub";
-import { AuthService } from "./auth.service";
+import { AuthService, RegistrationResult } from "./auth.service";
 import { MOCK_USER } from "./stub-user.service";
 
 export const MOCK_TOKEN = {
@@ -41,6 +41,31 @@ export const MOCK_INVALID_TOKEN = {
  */
 @Injectable()
 export class StubAuthService implements PublicInterfaceOf<AuthService> {
+  private readonly reissued = new Subject<void>();
+
+  orcidAuth(code: string): Observable<Readonly<{ accessToken: string }>> {
+    return of(MOCK_TOKEN);
+  }
+
+  setEmail(email: string, code?: string): Observable<Readonly<{ accessToken: string }>> {
+    return of(MOCK_TOKEN);
+  }
+
+  requestEmailCode(email: string): Observable<void> {
+    return of(undefined);
+  }
+
+  // The real service emits here when its email prompt replaces the token or signs out. Nothing in
+  // this stub opens that prompt, so `emitSessionChanged` stands in for it.
+  sessionChanged(): Observable<void> {
+    return this.reissued.asObservable();
+  }
+
+  /** Test hook: pretend the email prompt resolved and the session changed underneath. */
+  emitSessionChanged(): void {
+    this.reissued.next();
+  }
+
   auth(username: string, password: string): Observable<Readonly<{ accessToken: string }>> {
     if (password === "password") {
       return of(MOCK_TOKEN);
@@ -65,12 +90,21 @@ export class StubAuthService implements PublicInterfaceOf<AuthService> {
     return undefined;
   }
 
-  register(username: string, password: string): Observable<Readonly<{ accessToken: string }>> {
+  register(username: string, email: string, password: string): Observable<Readonly<RegistrationResult>> {
     if (username !== "existing_user") {
       return of(MOCK_TOKEN);
     } else {
       return of(MOCK_INVALID_TOKEN);
     }
+  }
+
+  registerVerify(
+    username: string,
+    email: string,
+    password: string,
+    code: string
+  ): Observable<Readonly<RegistrationResult>> {
+    return of(MOCK_TOKEN);
   }
 
   validateUsername(username: string): { result: boolean; message: string } {

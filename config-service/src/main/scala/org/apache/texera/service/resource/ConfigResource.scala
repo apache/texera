@@ -27,7 +27,6 @@ import jakarta.ws.rs.{Consumes, GET, POST, PUT, Path, PathParam, Produces}
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.common.config.{
   ApplicationConfig,
-  AuthConfig,
   ComputingUnitConfig,
   DefaultsConfig,
   GuiConfig,
@@ -64,13 +63,17 @@ class ConfigResource {
     Map(
       "localLogin" -> GuiConfig.guiLoginLocalLogin,
       "googleLogin" -> GuiConfig.guiLoginGoogleLogin,
+      "orcidLogin" -> GuiConfig.guiLoginOrcidLogin,
       "defaultLocalUser" -> Map(
         "username" -> GuiConfig.guiLoginDefaultLocalUserUsername,
         "password" -> GuiConfig.guiLoginDefaultLocalUserPassword
       ),
       "attributionEnabled" -> GuiConfig.guiAttributionEnabled,
       "deploymentVersionCheckEnabled" -> GuiConfig.guiDeploymentVersionCheckEnabled,
-      "inviteOnly" -> UserSystemConfig.inviteOnly
+      "inviteOnly" -> UserSystemConfig.inviteOnly,
+      // The sign-up form decides whether to expect a code step before anyone has a token, so this
+      // has to be readable anonymously.
+      "emailVerification" -> UserSystemConfig.emailVerification
     )
 
   @GET
@@ -80,13 +83,13 @@ class ConfigResource {
     Map(
       // flags from the gui.conf
       "exportExecutionResultEnabled" -> GuiConfig.guiWorkflowWorkspaceExportExecutionResultEnabled,
-      "autoAttributeCorrectionEnabled" -> GuiConfig.guiWorkflowWorkspaceAutoAttributeCorrectionEnabled,
       "selectingFilesFromDatasetsEnabled" -> GuiConfig.guiWorkflowWorkspaceSelectingFilesFromDatasetsEnabled,
       "userPresetEnabled" -> GuiConfig.guiWorkflowWorkspaceUserPresetEnabled,
       "workflowExecutionsTrackingEnabled" -> GuiConfig.guiWorkflowWorkspaceWorkflowExecutionsTrackingEnabled,
       "linkBreakpointEnabled" -> GuiConfig.guiWorkflowWorkspaceLinkBreakpointEnabled,
       "asyncRenderingEnabled" -> GuiConfig.guiWorkflowWorkspaceAsyncRenderingEnabled,
       "timetravelEnabled" -> GuiConfig.guiWorkflowWorkspaceTimetravelEnabled,
+      "formViewEnabled" -> GuiConfig.guiWorkflowWorkspaceFormViewEnabled,
       "productionSharedEditingServer" -> GuiConfig.guiWorkflowWorkspaceProductionSharedEditingServer,
       "defaultExecutionMode" -> GuiConfig.guiWorkflowWorkspaceDefaultExecutionMode,
       "workflowEmailNotificationEnabled" -> GuiConfig.guiWorkflowWorkspaceWorkflowEmailNotificationEnabled,
@@ -97,8 +100,7 @@ class ConfigResource {
       "copilotEnabled" -> GuiConfig.guiWorkflowWorkspaceCopilotEnabled,
       "limitColumns" -> GuiConfig.guiWorkflowWorkspaceLimitColumns,
       "pythonNotebookMigrationEnabled" -> GuiConfig.guiWorkflowWorkspacePythonNotebookMigrationEnabled,
-      // flags from the auth.conf if needed
-      "expirationTimeInMinutes" -> AuthConfig.jwtExpirationMinutes
+      "pythonNotebookMigrationTimeoutMinutes" -> GuiConfig.guiWorkflowWorkspacePythonNotebookMigrationTimeoutMinutes
     )
 
   // Engine configs.
@@ -120,21 +122,21 @@ class ConfigResource {
     )
 
   // The site_settings keys that non-admin pages consume: dashboard branding,
-  // sidebar tab toggles, and dataset upload limits — exactly the gui.* and
-  // dataset.* sections of default.conf, which is also where the seeding
-  // pipeline gets them. Keys declared outside those sections (e.g.
+  // sidebar tab toggles, and the dataset/model upload limits — exactly the
+  // gui.*, dataset.* and model.* sections of default.conf, which is also where
+  // the seeding pipeline gets them. Keys declared outside those sections (e.g.
   // csv_parser_max_columns) are management-only. Deriving the set from the
   // file keeps "which section does this default live in" the single place
   // where visibility is decided.
   private val publicSettingKeys: Set[String] =
-    DefaultsConfig.keysUnderSections(Set("gui", "dataset"))
+    DefaultsConfig.keysUnderSections(Set("gui", "dataset", "model"))
 
   // SECURITY: every key returned here is served anonymously (see
   // /settings/public below), so `publicSettingKeys` is the anonymous-exposure
-  // surface. It is derived from the gui/dataset sections of default.conf and
-  // pinned by ConfigResourceSpec/DefaultsConfigSpec — adding a key under those
-  // sections (or moving one in) changes what unauthenticated callers can read
-  // and MUST be reviewed there. Never place a secret under gui/dataset.
+  // surface. It is derived from the gui/dataset/model sections of default.conf
+  // and pinned by ConfigResourceSpec/DefaultsConfigSpec — adding a key under
+  // those sections (or moving one in) changes what unauthenticated callers can
+  // read and MUST be reviewed there. Never place a secret under those sections.
 
   private def fetchSettings(condition: Condition): Map[String, String] =
     ctx

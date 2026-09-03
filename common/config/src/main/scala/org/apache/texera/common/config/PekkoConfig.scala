@@ -18,13 +18,37 @@
 
 package org.apache.texera.common.config
 
-import com.typesafe.config.{Config, ConfigFactory}
+import com.typesafe.config.{Config, ConfigFactory, ConfigValueFactory}
 
 object PekkoConfig {
 
   // Load configuration
   private val conf: Config = ConfigFactory.parseResources("cluster.conf").resolve()
 
+  /**
+    * Translate a logback level spelling into one pekko accepts.
+    *
+    * cluster.conf forwards ${?TEXERA_SERVICE_LOG_LEVEL} into pekko.loglevel, but that env
+    * var's vocabulary belongs to logback: the same variable drives the logback root level
+    * in logback.xml, and logback cannot translate on its side (it silently falls back to
+    * DEBUG on names it does not know, such as WARNING). Pekko in turn only accepts OFF,
+    * ERROR, WARNING, INFO and DEBUG, and prints a LoggerException on every ActorSystem
+    * creation before falling back to ERROR when handed a logback-only spelling such as
+    * WARN. Translating here lets the single env knob drive both systems.
+    */
+  private[config] def normalizePekkoLogLevel(level: String): String =
+    level.toUpperCase match {
+      case "WARN"          => "WARNING"
+      case "TRACE" | "ALL" => "DEBUG"
+      case other           => other
+    }
+
   // Return the complete Pekko configuration with fallback to default application config
-  def pekkoConfig: Config = conf.withFallback(ConfigFactory.defaultApplication()).resolve()
+  def pekkoConfig: Config = {
+    val resolved = conf.withFallback(ConfigFactory.defaultApplication()).resolve()
+    resolved.withValue(
+      "pekko.loglevel",
+      ConfigValueFactory.fromAnyRef(normalizePekkoLogLevel(resolved.getString("pekko.loglevel")))
+    )
+  }
 }

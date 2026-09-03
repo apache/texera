@@ -39,6 +39,8 @@ object StorageConfig {
   val icebergRESTCatalogUri: String = conf.getString("storage.iceberg.catalog.rest.uri")
   val icebergRESTCatalogWarehouseName: String =
     conf.getString("storage.iceberg.catalog.rest.warehouse-name")
+  val icebergRESTCatalogS3Bucket: String =
+    conf.getString("storage.iceberg.catalog.rest.s3-bucket")
 
   // Iceberg Postgres specifics
   val icebergPostgresCatalogUriWithoutScheme: String =
@@ -90,6 +92,12 @@ object StorageConfig {
   val cleanupRetentionHours: Int = conf.getInt("storage.cleanup.retention-hours")
   val cleanupIntervalMinutes: Int = conf.getInt("storage.cleanup.interval-minutes")
 
+  // Per-user warehouses (#6870). On only when the switch is on AND the catalog is REST
+  // (Lakekeeper): warehouses are Lakekeeper entities, so any other catalog type keeps
+  // the feature off regardless of the switch.
+  val warehouseEnabled: Boolean =
+    conf.getBoolean("storage.warehouse.enabled") && icebergCatalogType == "rest"
+
   // File storage configurations
   val fileStorageDirectoryPath: Path =
     Path
@@ -138,13 +146,18 @@ object StorageConfig {
   val ENV_CLEANUP_RETENTION_HOURS = "STORAGE_CLEANUP_RETENTION_HOURS"
   val ENV_CLEANUP_INTERVAL_MINUTES = "STORAGE_CLEANUP_INTERVAL_MINUTES"
 
+  // Per-user warehouses
+  val ENV_WAREHOUSE_ENABLED = "STORAGE_WAREHOUSE_ENABLED"
+
   // S3
   val ENV_S3_ENDPOINT = "STORAGE_S3_ENDPOINT"
   val ENV_S3_REGION = "STORAGE_S3_REGION"
   val ENV_S3_AUTH_USERNAME = "STORAGE_S3_AUTH_USERNAME"
   val ENV_S3_AUTH_PASSWORD = "STORAGE_S3_AUTH_PASSWORD"
 
-  // Jupyter
-  val jupyterURL: String = conf.getString("storage.jupyter.url")
+  // Jupyter. Internal for server-side calls, public for the browser iframe. Equal
+  // unless a deployment overrides one.
+  val jupyterInternalURL: String = conf.getString("storage.jupyter.internal-url")
+  val jupyterPublicURL: String = conf.getString("storage.jupyter.public-url")
   val jupyterToken: String = conf.getString("storage.jupyter.token")
 }

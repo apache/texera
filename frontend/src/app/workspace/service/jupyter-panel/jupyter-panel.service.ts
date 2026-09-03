@@ -18,19 +18,34 @@
  */
 
 import { Injectable } from "@angular/core";
-import { catchError, map, of } from "rxjs";
+import { BehaviorSubject, catchError, map, of } from "rxjs";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import { OperatorLink } from "../../types/workflow-common.interface";
 import { HttpClient, HttpHeaders } from "@angular/common/http";
+import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { distinctUntilChanged, switchMap } from "rxjs/operators";
 import { AppSettings } from "../../../common/app-setting";
-import { NotebookMigrationService } from "../notebook-migration/notebook-migration.service";
+import {
+  NotebookMigrationService,
+  notebookMappingKey,
+  notebookFileName,
+} from "../notebook-migration/notebook-migration.service";
 import { GuiConfigService } from "../../../common/service/gui-config.service";
 
 @Injectable({
   providedIn: "root",
 })
 export class JupyterPanelService {
+  private jupyterNotebookPanelVisible = new BehaviorSubject<boolean>(false);
+  public jupyterNotebookPanelVisible$ = this.jupyterNotebookPanelVisible.asObservable();
+
+  // Whether the current workflow has an associated notebook in the migration DB.
+  // Driven by the per-workflow fetch in init(): reset on every workflow change,
+  // set true only when a notebook/mapping is found. Used to gate the toolbar's
+  // expand button so it appears only for workflows that actually have a notebook.
+  private jupyterNotebookExists = new BehaviorSubject<boolean>(false);
+  public jupyterNotebookExists$ = this.jupyterNotebookExists.asObservable();
+
   private iframeRef: HTMLIFrameElement | null = null; // Store reference to iframe element
 
   // Precomputed dictionary for cell to highlight mapping
@@ -42,6 +57,7 @@ export class JupyterPanelService {
   constructor(
     private workflowActionService: WorkflowActionService,
     private http: HttpClient,
+    private notificationService: NotificationService,
     private notebookMigrationService: NotebookMigrationService,
     private config: GuiConfigService
   ) {
@@ -87,52 +103,47 @@ export class JupyterPanelService {
         distinctUntilChanged()
       )
       .subscribe(wid => {
-        // On every workflow change, drop the outgoing workflow's stale mapping
-        // and clear the highlight index. Clearing here (not only inside
-        // precomputeHighlightMapping, which runs only on a successful fetch)
-        // ensures switching to a workflow without a stored notebook can't leave
-        // the previous workflow's highlights active. This cleanup previously
-        // happened inside closeJupyterNotebookPanel; the panel-visibility
-        // surface lives with the iframe component in
-        // `migration-tool-jupyter-panel` now, so it is inlined.
-        const currentWid = this.workflowActionService.getWorkflow().wid;
-        if (currentWid !== undefined) {
-          this.notebookMigrationService.deleteMapping("mapping_wid_" + currentWid);
-        }
+        // On every workflow change, hide the panel and drop the outgoing
+        // workflow's stale in-memory mapping, and clear the highlight index, so a
+        // switch to a workflow without a stored notebook can't leave the previous
+        // workflow's highlights active. This is local cleanup only: it must never
+        // delete from the backend, or switching workflows would erase notebooks.
+        this.hideAndClearLocalState();
         this.cellToHighlightMapping = {};
+        this.jupyterNotebookExists.next(false);
         // Skip unsaved workflows (wid undefined) and wid 0; both would POST
         // without a usable wid and 500 on the backend.
         if (wid) {
           this.fetchNotebookAndMapping(wid).subscribe(result => {
             if (result == 1) {
+              this.jupyterNotebookExists.next(true);
               this.precomputeHighlightMapping();
-              // Panel auto-open on workflow restore is wired in
-              // `migration-tool-jupyter-panel` once the visibility API exists.
+              this.openJupyterNotebookPanel();
             }
           });
         }
       });
   }
 
-  private fetchNotebookAndMapping(
-    workflowID: number | undefined = this.workflowActionService.getWorkflow().wid,
-    vId: number = 1
-  ) {
-    // Fetch mapping and notebook from migration database if exists for wid
+  private fetchNotebookAndMapping(workflowID: number | undefined = this.workflowActionService.getWorkflow().wid) {
+    // Fetch mapping and notebook from migration database if exists for wid.
     const dbAPIUrl = `${AppSettings.getApiEndpoint()}/notebook-migration/fetch-notebook-and-mapping`;
     const headers = new HttpHeaders({ "Content-Type": "application/json" });
     const payload = {
       wid: workflowID,
-      vid: vId, // Future work: add dynamic fetching of current workflow vId
     };
 
     return this.http.post(dbAPIUrl, payload, { headers }).pipe(
       switchMap(async (response: any) => {
         // Only load mapping and workflow if they exist
         if (response.exists) {
-          this.notebookMigrationService.setMapping("mapping_wid_" + workflowID, response.mapping);
+          this.notebookMigrationService.setMapping(notebookMappingKey(workflowID), response.mapping);
 
-          if ((await this.notebookMigrationService.sendNotebookToJupyter(response.notebook)) == 1) {
+          const sent = await this.notebookMigrationService.sendNotebookToJupyter(
+            response.notebook,
+            notebookFileName(workflowID)
+          );
+          if (sent == 1) {
             return 1;
           } else {
             return 0;
@@ -159,7 +170,7 @@ export class JupyterPanelService {
       console.warn("Workflow ID is undefined. Cannot compute highlight mapping.");
       return;
     }
-    const mappingKey = "mapping_wid_" + wid;
+    const mappingKey = notebookMappingKey(wid);
     const mapping = this.notebookMigrationService.getMapping(mappingKey);
 
     if (mapping == undefined) {
@@ -196,6 +207,95 @@ export class JupyterPanelService {
   // component that calls this lives in `migration-tool-jupyter-panel`.
   setIframeRef(iframe: HTMLIFrameElement) {
     this.iframeRef = iframe;
+  }
+
+  // Notebook filename for the workflow currently shown, used by the iframe fetch.
+  private currentNotebookFileName(): string {
+    return notebookFileName(this.workflowActionService.getWorkflow().wid);
+  }
+
+  // Iframe URL for the current workflow's notebook
+  public getJupyterIframeURLForWorkflow(): Promise<string | null> {
+    if (!this.enabled) return Promise.resolve(null);
+    return this.notebookMigrationService.getJupyterIframeURL(this.currentNotebookFileName());
+  }
+
+  // Delete the current workflow's stored notebook from the migration database and its file
+  // from the Jupyter pod, then hide the panel and clear all local notebook state.
+  public deleteJupyterNotebook(): void {
+    if (!this.enabled) return;
+    const wid = this.workflowActionService.getWorkflow().wid;
+    // Unsaved workflow (wid undefined or the default wid 0): nothing is persisted and no
+    // notebook file was uploaded for it (the upload path needs a wid)
+    if (!wid) {
+      this.hideAndClearLocalState();
+      this.jupyterNotebookExists.next(false);
+      this.clearHighlights();
+      return;
+    }
+    this.notebookMigrationService.deleteNotebookAndMapping(wid).subscribe({
+      next: () => {
+        this.hideAndClearLocalState();
+        this.jupyterNotebookExists.next(false);
+        this.clearHighlights();
+        // wid is captured above, so a mid-flight workflow switch can't retarget this.
+        void this.notebookMigrationService.deleteNotebookForWorkflow(wid);
+      },
+      error: (err: unknown) => {
+        // Keep the panel open on failure so the user sees the notebook wasn't removed.
+        console.error("Failed to delete Jupyter notebook:", err);
+        this.notificationService.error("Failed to delete the Jupyter notebook.");
+      },
+    });
+  }
+
+  // Hide the panel and drop the current workflow's in-memory mapping. Local only;
+  // never calls the backend. Used on workflow switch and after a successful delete.
+  private hideAndClearLocalState(): void {
+    this.jupyterNotebookPanelVisible.next(false);
+    const wid = this.workflowActionService.getWorkflow().wid;
+    if (wid != undefined) {
+      this.notebookMigrationService.deleteMapping(notebookMappingKey(wid));
+    }
+  }
+
+  // Unhighlight all operators and links and drop the highlight index, used once
+  // the notebook is gone so no stale cell-to-operator highlights remain.
+  private clearHighlights(): void {
+    this.workflowActionService.unhighlightOperators(
+      ...this.workflowActionService
+        .getTexeraGraph()
+        .getAllOperators()
+        .map(op => op.operatorID)
+    );
+    this.workflowActionService.unhighlightLinks(
+      ...this.workflowActionService
+        .getTexeraGraph()
+        .getAllLinks()
+        .map(link => link.linkID)
+    );
+    this.cellToHighlightMapping = {};
+  }
+
+  // Minimize the Jupyter Notebook panel
+  public minimizeJupyterNotebookPanel(): void {
+    if (!this.enabled) return;
+    this.jupyterNotebookPanelVisible.next(false);
+  }
+
+  // Expand the Jupyter Notebook panel
+  public openJupyterNotebookPanel(): void {
+    if (!this.enabled) return;
+    const wid = this.workflowActionService.getWorkflow().wid;
+    const mappingKey = notebookMappingKey(wid);
+    // Check if there is corresponding mapping data
+    if (wid === undefined || !this.notebookMigrationService.hasMapping(mappingKey)) {
+      this.notificationService.warning("No Jupyter notebook associated with this workflow.");
+      return;
+    }
+
+    // Expand only if the mapping exists
+    this.jupyterNotebookPanelVisible.next(true);
   }
 
   // Handle messages from the Jupyter notebook iframe
@@ -261,7 +361,7 @@ export class JupyterPanelService {
         return;
       }
 
-      const mappingKey = "mapping_wid_" + wid;
+      const mappingKey = notebookMappingKey(wid);
       const mappingEntry = this.notebookMigrationService.getMapping(mappingKey);
 
       if (!mappingEntry) {

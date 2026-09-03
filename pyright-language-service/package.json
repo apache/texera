@@ -6,15 +6,15 @@
   "type": "module",
   "dependencies": {
     "express": "5.2.1",
-    "pyright": "1.1.411",
+    "pyright": "1.1.413",
     "typescript": "6.0.3",
     "vscode-languageserver": "10.1.0",
     "vscode-ws-jsonrpc": "3.5.0",
-    "ws": "8.21.1"
+    "ws": "8.21.3"
   },
   "devDependencies": {
     "@types/express": "5.0.6",
-    "@types/node": "26.1.1",
+    "@types/node": "26.2.0",
     "@types/ws": "8.18.1",
     "ts-node": "10.9.2"
   },

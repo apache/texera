@@ -34,6 +34,45 @@ ThisBuild / conflictManager := ConflictManager.latestRevision
 // Restrict parallel execution of tests to avoid conflicts
 Global / concurrentRestrictions += Tags.limit(Tags.Test, 1)
 
+// Suites tagged @org.apache.texera.common.tags.NonParallelTest must not run concurrently with one
+// another. They share a JVM-wide singleton backed by an external resource — the MinIO-backed
+// suites mixing S3StorageTestBase share one S3StorageClient.s3Client and one
+// StorageConfig.s3Endpoint pointed at a single MinIO container — so ScalaTest's parallel suite
+// distributor otherwise runs them together, they contend, and intermittently time out (flaky; see
+// issue #7049). The Global Tags.limit(Tags.Test, 1) above only bounds sbt task concurrency, not
+// ScalaTest's in-JVM distributor.
+//
+// Give each tagged suite its own forked JVM; sbt runs forked groups one at a time (the
+// Tags.ForkedTestGroup limit), so tagged suites never overlap. Every untagged suite stays in a
+// single forked group and keeps running in parallel inside that one JVM. This mirrors the
+// FileService testcontainer setup (Test/fork := true + per-group SubProcess), which is the shape
+// sbt-jacoco supports for forked coverage — a partially-forked layout (some groups InProcess)
+// breaks jacoco's offline instrumentation in the forked JVMs. Forked JVMs default their working
+// directory to the module dir; pin it to the repo root to match the in-process cwd.
+//
+// sbt discovers ScalaTest suites by subclass fingerprint, not by annotation, so the tag is not
+// visible in `definedTests`; load each suite class through the test class loader and check for the
+// annotation reflectively (loadClass does not run static initializers; a load failure falls back
+// to the parallel group).
+Test / fork := true
+Test / forkOptions := (Test / forkOptions).value
+  .withWorkingDirectory((ThisBuild / baseDirectory).value)
+Test / testGrouping := {
+  val opts = (Test / forkOptions).value
+  val loader = (Test / testLoader).value
+  val nonParallelTag =
+    loader
+      .loadClass("org.apache.texera.common.tags.NonParallelTest")
+      .asInstanceOf[Class[_ <: java.lang.annotation.Annotation]]
+  val (serial, parallel) = (Test / definedTests).value.partition { test =>
+    try loader.loadClass(test.name).isAnnotationPresent(nonParallelTag)
+    catch { case _: Throwable => false }
+  }
+  val serialGroups =
+    serial.map(suite => Tests.Group(suite.name, Seq(suite), Tests.SubProcess(opts)))
+  Tests.Group("parallel", parallel, Tests.SubProcess(opts)) +: serialGroups
+}
+
 
 /////////////////////////////////////////////////////////////////////////////
 // Compiler Options
@@ -41,7 +80,6 @@ Global / concurrentRestrictions += Tags.limit(Tags.Test, 1)
 
 // Scala compiler options
 Compile / scalacOptions ++= Seq(
-  "-Xelide-below", "WARNING",       // Turn on optimizations with "WARNING" as the threshold
   "-feature",                       // Check feature warnings
   "-deprecation",                   // Check deprecation warnings
   "-Ywarn-unused:imports"           // Check for unused imports

@@ -35,14 +35,14 @@ class GuiConfigSpec extends AnyFlatSpec with Matchers {
   "GuiConfig boolean flags" should "resolve to their gui.conf defaults when env overrides are unset" in {
     ifUnset("GUI_LOGIN_LOCAL_LOGIN")(GuiConfig.guiLoginLocalLogin shouldBe true)
     ifUnset("GUI_LOGIN_GOOGLE_LOGIN")(GuiConfig.guiLoginGoogleLogin shouldBe true)
+    // ORCID ships off: it needs credentials only an operator can supply, and with the button on
+    // and nothing configured /auth/orcid/config reports it unavailable on every visit.
+    ifUnset("GUI_LOGIN_ORCID_LOGIN")(GuiConfig.guiLoginOrcidLogin shouldBe false)
     ifUnset("GUI_WORKFLOW_WORKSPACE_USER_PRESET_ENABLED")(
       GuiConfig.guiWorkflowWorkspaceUserPresetEnabled shouldBe false
     )
     ifUnset("GUI_WORKFLOW_WORKSPACE_EXPORT_EXECUTION_RESULT_ENABLED")(
       GuiConfig.guiWorkflowWorkspaceExportExecutionResultEnabled shouldBe false
-    )
-    ifUnset("GUI_WORKFLOW_WORKSPACE_AUTO_ATTRIBUTE_CORRECTION_ENABLED")(
-      GuiConfig.guiWorkflowWorkspaceAutoAttributeCorrectionEnabled shouldBe true
     )
     ifUnset("GUI_WORKFLOW_WORKSPACE_SELECTING_FILES_FROM_DATASETS_ENABLED")(
       GuiConfig.guiWorkflowWorkspaceSelectingFilesFromDatasetsEnabled shouldBe true
@@ -58,6 +58,10 @@ class GuiConfigSpec extends AnyFlatSpec with Matchers {
     )
     ifUnset("GUI_WORKFLOW_WORKSPACE_TIMETRAVEL_ENABLED")(
       GuiConfig.guiWorkflowWorkspaceTimetravelEnabled shouldBe false
+    )
+    // Form View ships disabled so merging the feature never turns it on; the final PR flips it.
+    ifUnset("GUI_WORKFLOW_WORKSPACE_FORM_VIEW_ENABLED")(
+      GuiConfig.guiWorkflowWorkspaceFormViewEnabled shouldBe false
     )
     ifUnset("GUI_WORKFLOW_WORKSPACE_PRODUCTION_SHARED_EDITING_SERVER")(
       GuiConfig.guiWorkflowWorkspaceProductionSharedEditingServer shouldBe false
@@ -102,6 +106,9 @@ class GuiConfigSpec extends AnyFlatSpec with Matchers {
     )
     ifUnset("GUI_WORKFLOW_WORKSPACE_LIMIT_COLUMNS")(
       GuiConfig.guiWorkflowWorkspaceLimitColumns shouldBe 15
+    )
+    ifUnset("GUI_WORKFLOW_WORKSPACE_PYTHON_NOTEBOOK_MIGRATION_TIMEOUT_MINUTES")(
+      GuiConfig.guiWorkflowWorkspacePythonNotebookMigrationTimeoutMinutes shouldBe 10
     )
   }
 }

@@ -1,3 +1,22 @@
+<!--
+  ~ Licensed to the Apache Software Foundation (ASF) under one
+  ~ or more contributor license agreements.  See the NOTICE file
+  ~ distributed with this work for additional information
+  ~ regarding copyright ownership.  The ASF licenses this file
+  ~ to you under the Apache License, Version 2.0 (the
+  ~ "License"); you may not use this file except in compliance
+  ~ with the License.  You may obtain a copy of the License at
+  ~
+  ~   http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing,
+  ~ software distributed under the License is distributed on an
+  ~ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+  ~ KIND, either express or implied.  See the License for the
+  ~ specific language governing permissions and limitations
+  ~ under the License.
+-->
+
 This document describes how to set up and run Texera on a single machine using "Docker Compose".
 
 ## Prerequisites
@@ -32,16 +51,17 @@ Docker Compose version v2.23.0-desktop.1
 ```
 
 
-By default, Texera services require ports **8080** and **9000** to be free. If either port is already in use, the services will fail to start.
+By default, Texera services require ports **8080**, **9000**, and **9100** to be free. If any of these ports is already in use, the services will fail to start.
 
 On macOS or Linux, run the following commands to check:
 
 ```
 lsof -i :8080
 lsof -i :9000
+lsof -i :9100
 ```
 
-If either command produces output, that port is occupied by another process. You will need to either stop that process or change Texera's port configuration. See [Advanced Settings > Run Texera on other ports](#run-texera-on-other-ports) for instructions.
+If any command produces output, that port is occupied by another process. You will need to either stop that process or change Texera's port configuration. See [Advanced Settings > Run Texera on other ports](#run-texera-on-other-ports) for instructions.
 
 ---
 
@@ -121,6 +141,14 @@ Once Texera is up, create a new workflow and open the Texera agent panel at the 
 To switch providers or add more LLMs, see [Add more LLMs or providers](#add-more-llms-or-providers).
 
 
+## Use the notebook migration tool
+
+The notebook migration tool converts a Jupyter notebook into a Texera workflow. It runs a JupyterLab server alongside Texera (published on port 9100) and embeds it in the workspace. The conversion itself is powered by an LLM, so it needs an API key exactly like [the Texera agent](#enable-the-texera-agent). Without one the tool still appears but the conversion fails with a provider auth error.
+
+The tool is enabled by default. To turn it off, set `GUI_WORKFLOW_WORKSPACE_PYTHON_NOTEBOOK_MIGRATION_ENABLED=false` in the `.env` file.
+
+Once Texera is up, go to your workflow list and click the robot button ("AI generate a workflow from a Python notebook"). Upload a `.ipynb` file and pick a model; Texera generates the workflow and opens it. In the workspace, a Jupyter button then appears in the menu bar to expand the notebook alongside the generated workflow.
+
 
 ## Advanced Settings
 
@@ -132,10 +160,12 @@ All changes below are to the `.env` file in the installation folder, unless othe
 By default, Texera uses:
 - Port 8080 for its web service
 - Port 9000 for its MinIO storage service
+- Port 9100 for the JupyterLab service used by the notebook migration tool
 
 To change these ports, open the `.env` file and update the corresponding variables:
 - For the web service port (8080): change `TEXERA_PORT=8080` to your desired port, e.g., `TEXERA_PORT=8081`.
 - For the MinIO port (9000): change `MINIO_PORT=9000` to your desired port, e.g., `MINIO_PORT=9001`.
+- For the JupyterLab port (9100): change `JUPYTER_PORT=9100` to your desired port, e.g., `JUPYTER_PORT=9101`.
 
 ### Change the locations of Texera data
 By default, Docker manages Texera's data locations. To change them to your own locations:
@@ -208,11 +238,12 @@ For the full list of supported providers and model IDs, see the [LiteLLM proxy c
 
 ### Port conflicts
 
-If Texera fails to start, a common cause is that ports 8080 or 9000 are already in use by another application. Check which ports are occupied:
+If Texera fails to start, a common cause is that ports 8080, 9000, or 9100 are already in use by another application. Check which ports are occupied:
 
 ```
 lsof -i :8080
 lsof -i :9000
+lsof -i :9100
 ```
 
 Stop the conflicting process, or change Texera's ports following the instructions in [Advanced Settings > Run Texera on other ports](#run-texera-on-other-ports).

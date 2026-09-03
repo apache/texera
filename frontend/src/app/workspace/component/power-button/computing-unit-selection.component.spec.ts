@@ -54,6 +54,8 @@ import { WorkflowMetadata } from "../../../dashboard/type/workflow-metadata.inte
 import { ExecutionState } from "../../types/execute-workflow.interface";
 import { ComputingUnitActionsService } from "../../../common/service/computing-unit/computing-unit-actions/computing-unit-actions.service";
 import { ComputingUnitMetadataComponent } from "../../../common/util/computing-unit.util";
+import { GuiConfigService } from "../../../common/service/gui-config.service";
+import { NzPopoverDirective } from "ng-zorro-antd/popover";
 
 /**
  * Builds a fully-populated DashboardWorkflowComputingUnit for driving the
@@ -100,7 +102,7 @@ function makeComputingUnit(
     metrics: { cpuUsage: "N/A", memoryUsage: "N/A" },
     isOwner,
     accessPrivilege: "WRITE",
-    ownerGoogleAvatar: "",
+    ownerAvatar: "",
     ownerName: "owner",
   };
 }
@@ -519,6 +521,70 @@ describe("PowerButtonComponent", () => {
       vi.runAllTimers();
       expect(component.createVirtualEnvironment).toHaveBeenCalledWith(0);
     });
+
+    /** Builds one locked card whose single package is `pkg`. */
+    function lockedCardWith(pkg: Record<string, unknown>): void {
+      component.pves = [
+        {
+          name: "scanpyenv",
+          isLocked: true,
+          userPackages: [pkg],
+          newPackages: [],
+          deletingPackages: [],
+          pipOutput: "",
+          prettyPipOutput: "",
+          expanded: false,
+          isInstalling: false,
+        } as any,
+      ];
+    }
+
+    it("treats a card package with no version and a blank database version as unchanged", () => {
+      const successSpy = vi.spyOn(TestBed.inject(NotificationService), "success").mockImplementation(() => {});
+      lockedCardWith({ name: "numpy", versionOp: "==", version: undefined });
+      component.availableDbPves = [makeSaved({ numpy: "" })];
+
+      component.installFromSavedPve(SAVED_VEID);
+
+      // Both sides fall back to "" through `?? ""`, so the diff is empty.
+      expect(successSpy).toHaveBeenCalledWith(expect.stringContaining("already up to date"));
+      expect(component.pves[0].newPackages).toEqual([]);
+      expect(component.pves[0].deletingPackages).toEqual([]);
+    });
+
+    it("replaces a card package with no version when the database pins one", () => {
+      lockedCardWith({ name: "numpy", versionOp: "==", version: undefined });
+      component.availableDbPves = [makeSaved({ numpy: "==1.26.0" })];
+
+      component.installFromSavedPve(SAVED_VEID);
+
+      const locked = component.pves[0];
+      expect(locked.deletingPackages).toEqual([{ name: "numpy", version: "" }]);
+      expect(locked.newPackages).toEqual([{ name: "numpy", versionOp: "==", version: "1.26.0" }]);
+      expect(locked.userPackages).toEqual([]);
+    });
+
+    it("deletes a versionless card package the database no longer lists", () => {
+      lockedCardWith({ name: "numpy", versionOp: "==", version: undefined });
+      component.availableDbPves = [makeSaved({ pandas: "==2.0.0" })];
+
+      component.installFromSavedPve(SAVED_VEID);
+
+      const locked = component.pves[0];
+      expect(locked.deletingPackages).toEqual([{ name: "numpy", version: "" }]);
+      expect(locked.newPackages).toEqual([{ name: "pandas", versionOp: "==", version: "2.0.0" }]);
+    });
+
+    it("reads a database row that carries no version at all through the same fallback", () => {
+      // parseDbPackages always produces a string, so the `db.version ?? ""` side of the
+      // comparison is only reachable by handing applySavedPveAsUpdate the row directly.
+      const successSpy = vi.spyOn(TestBed.inject(NotificationService), "success").mockImplementation(() => {});
+      lockedCardWith({ name: "numpy", versionOp: "==", version: "" });
+
+      (component as any).applySavedPveAsUpdate(0, "scanpyenv", [{ name: "numpy", versionOp: "==" }]);
+
+      expect(successSpy).toHaveBeenCalledWith(expect.stringContaining("already up to date"));
+    });
   });
 
   describe("parseDbPackages", () => {
@@ -555,6 +621,13 @@ describe("PowerButtonComponent", () => {
 
     it("treats an empty string as no version, defaulting versionOp to ==", () => {
       const rows = (component as any).parseDbPackages({ numpy: "" });
+      expect(rows).toEqual([{ name: "numpy", versionOp: "==", version: "" }]);
+    });
+
+    it("treats a null version as no version", () => {
+      // A row the database stored without a spec: `raw?.match?.()` short-circuits and the
+      // `?? ""` fallback keeps the row usable instead of writing `null` into the version.
+      const rows = (component as any).parseDbPackages({ numpy: null });
       expect(rows).toEqual([{ name: "numpy", versionOp: "==", version: "" }]);
     });
 
@@ -663,6 +736,350 @@ describe("PowerButtonComponent", () => {
       expect(component.systemPackagesLoading).toBe(false);
       expect(component.pves).toEqual([]);
       expect(component.systemPackages).toEqual([]);
+    });
+
+    it("treats a system package with no pinned version as versionless", () => {
+      vi.spyOn(pveService, "fetchPVEs").mockReturnValue(of([] as PvePackageResponse[]));
+      vi.spyOn(pveService, "getSystemPackages").mockReturnValue(of({ system: ["  numpy  "] }));
+
+      component.getPVEs();
+
+      // Splitting on "==" yields no second element, so the `?? ""` fallback runs.
+      expect(component.systemPackages).toEqual([{ name: "numpy", version: "" }]);
+    });
+  });
+
+  /**
+   * The PVE block is the largest uncovered region in the component, and the suite above stops
+   * exactly at its seams: it stubs out `runPveWebSocket` and `deleteUserPackages` so it can assert
+   * name validation without opening a socket. These drive the other side of those seams.
+   *
+   * The only environmental need is a stand-in for `WebSocket`, so `onmessage` / `onerror` can be
+   * fired by hand — jsdom has no WebSocket and the component never inspects anything but the
+   * handlers it assigns.
+   */
+  describe("the virtual-environment socket", () => {
+    /** The sockets opened during a test, newest last. */
+    let sockets: FakeSocket[];
+    /** The notification channel every guard in this block reports through. */
+    let errorSpy: ReturnType<typeof vi.spyOn>;
+
+    class FakeSocket {
+      static opened: FakeSocket[] = [];
+      onmessage: ((e: { data: string }) => void) | null = null;
+      onerror: (() => void) | null = null;
+      close = vi.fn();
+      constructor(public url: string) {
+        FakeSocket.opened.push(this);
+      }
+      /** Delivers one server line to the component. */
+      say(data: string): void {
+        this.onmessage?.({ data });
+      }
+    }
+
+    /** Installs one unlocked environment and returns the component's view of it. */
+    function setPve(over: Record<string, unknown> = {}): void {
+      component.pves = [
+        {
+          name: "envone",
+          isLocked: false,
+          isInstalling: false,
+          userPackages: [],
+          newPackages: [],
+          deletingPackages: [],
+          pipOutput: "",
+          prettyPipOutput: "",
+          expanded: false,
+          ...over,
+        } as any,
+      ];
+    }
+
+    beforeEach(() => {
+      FakeSocket.opened = [];
+      sockets = FakeSocket.opened;
+      vi.stubGlobal("WebSocket", FakeSocket as unknown as typeof WebSocket);
+      errorSpy = vi.spyOn((component as any).notificationService, "error").mockImplementation(() => {});
+      // The socket URL is built from the selected unit's cuid, so a unit has to be selected.
+      component.selectedComputingUnit = makeComputingUnit({ name: "unit" });
+    });
+
+    afterEach(() => {
+      vi.unstubAllGlobals();
+      // console is global, and the suite has no blanket restore, so a spy installed on it here
+      // would otherwise outlive the test that made it and swallow later output.
+      vi.restoreAllMocks();
+    });
+
+    it("opens a socket for the environment and locks the card while it runs", () => {
+      setPve();
+
+      component.createVirtualEnvironment(0);
+
+      expect(sockets).toHaveLength(1);
+      expect(component.pves[0].isInstalling).toBe(true);
+      expect(component.pves[0].isLocked).toBe(true);
+      expect(component.pves[0].pipOutput).toContain("Creating virtual environment");
+    });
+
+    it("trims the environment name before it reaches the socket URL", () => {
+      // The name is user input from an inline editor; an untrimmed name produces a URL for an
+      // environment the backend does not have.
+      const urlSpy = vi.spyOn(TestBed.inject(WorkflowPveService), "getPveWebSocketUrl");
+      setPve({ name: "  spaced  " });
+
+      component.createVirtualEnvironment(0);
+
+      expect(component.pves[0].name).toBe("spaced");
+      expect(urlSpy).toHaveBeenCalledWith(expect.anything(), "spaced", "create", []);
+    });
+
+    it("appends each line the server sends to the pip output", () => {
+      setPve();
+      component.createVirtualEnvironment(0);
+
+      sockets[0].say("collecting numpy");
+      sockets[0].say("installed");
+
+      expect(component.pves[0].pipOutput).toContain("collecting numpy");
+      expect(component.pves[0].pipOutput).toContain("installed");
+      // Still running: the card stays locked until the sentinel arrives.
+      expect(component.pves[0].isInstalling).toBe(true);
+    });
+
+    it("closes the socket and unlocks installing on the __DONE__ sentinel", () => {
+      // Without this the spinner never stops and the card is stuck mid-install.
+      // The continuation is stubbed out deliberately: letting the real delete/install chain run
+      // would reset isInstalling downstream, so the assertion would pass even if this branch
+      // never cleared it.
+      vi.spyOn(component as any, "deleteUserPackages").mockImplementation(() => {});
+      setPve();
+      component.createVirtualEnvironment(0);
+
+      sockets[0].say("__DONE__");
+
+      expect(component.pves[0].isInstalling).toBe(false);
+      expect(component.pves[0].socket).toBeUndefined();
+      expect(sockets[0].close).toHaveBeenCalled();
+    });
+
+    it("does not print the sentinel as though it were output", () => {
+      setPve();
+      component.createVirtualEnvironment(0);
+
+      sockets[0].say("__DONE__");
+
+      expect(component.pves[0].pipOutput).not.toContain("__DONE__");
+    });
+
+    it("reports a dropped connection in the output rather than hanging", () => {
+      setPve();
+      component.createVirtualEnvironment(0);
+
+      sockets[0].onerror?.();
+
+      expect(component.pves[0].pipOutput).toContain("[WebSocket error]");
+      expect(component.pves[0].isInstalling).toBe(false);
+      expect(component.pves[0].socket).toBeUndefined();
+    });
+
+    it("closes any socket still open on the card before starting another", () => {
+      // Re-running a create on a card that is already streaming would otherwise leave the first
+      // socket writing into the same pipOutput.
+      setPve();
+      component.createVirtualEnvironment(0);
+      const first = sockets[0];
+
+      component.pves[0] = { ...component.pves[0], isLocked: false } as any;
+      component.createVirtualEnvironment(0);
+
+      expect(first.close).toHaveBeenCalled();
+      expect(sockets).toHaveLength(2);
+    });
+
+    it("reinstalls the recorded packages once the environment is created", () => {
+      // The create socket's completion chains delete-then-install, which is how a rebuilt
+      // environment gets its packages back.
+      const deleteSpy = vi
+        .spyOn(component as any, "deleteUserPackages")
+        .mockImplementation((...args: unknown[]) => (args[1] as (() => void) | undefined)?.());
+      const installSpy = vi.spyOn(component as any, "installUserPackages").mockImplementation(() => {});
+      setPve();
+
+      component.createVirtualEnvironment(0);
+      sockets[0].say("__DONE__");
+
+      expect(deleteSpy).toHaveBeenCalled();
+      expect(installSpy).toHaveBeenCalled();
+    });
+
+    it("skips creation entirely for a locked card and only syncs its packages", () => {
+      const deleteSpy = vi
+        .spyOn(component as any, "deleteUserPackages")
+        .mockImplementation((...args: unknown[]) => (args[1] as (() => void) | undefined)?.());
+      const installSpy = vi.spyOn(component as any, "installUserPackages").mockImplementation(() => {});
+      setPve({ isLocked: true });
+
+      component.createVirtualEnvironment(0);
+
+      expect(sockets).toHaveLength(0);
+      expect(deleteSpy).toHaveBeenCalled();
+      expect(installSpy).toHaveBeenCalled();
+    });
+
+    it("refuses to create a second environment under a name another card already uses", () => {
+      setPve();
+      // The nameless card is scanned first, so the duplicate check has to survive it before it
+      // reaches the card that actually clashes.
+      const card = component.pves[0];
+      component.pves = [{ ...card, name: undefined }, { ...card }, { ...card, name: " envone " }] as any;
+
+      component.createVirtualEnvironment(2);
+
+      expect(errorSpy).toHaveBeenCalledWith("An environment with this name already exists.");
+      expect(sockets).toHaveLength(0);
+      expect(component.pves[2].isInstalling).toBeFalsy();
+    });
+
+    it("starts the log from empty when the card has produced no output yet", () => {
+      setPve();
+      component.createVirtualEnvironment(0);
+      // runPveWebSocket seeds the card with its banner; clearing it models a card whose log
+      // was reset while the socket was still attached, and exercises the handler's fallback.
+      (component.pves[0] as { pipOutput?: string }).pipOutput = undefined;
+
+      sockets[0].say("collecting numpy");
+
+      expect(component.pves[0].pipOutput).toBe("collecting numpy\n");
+    });
+
+    it("records a dropped connection even when the card has produced no output yet", () => {
+      setPve();
+      component.createVirtualEnvironment(0);
+      (component.pves[0] as { pipOutput?: string }).pipOutput = undefined;
+
+      sockets[0].onerror?.();
+
+      expect(component.pves[0].pipOutput).toBe("\n[WebSocket error]\n");
+      expect(component.pves[0].isInstalling).toBe(false);
+    });
+
+    describe("installUserPackages", () => {
+      it("refuses a package that is missing its operator or its version", () => {
+        setPve({ newPackages: [{ name: "numpy", versionOp: undefined, version: "1.26.0" }] });
+        (component as any).installUserPackages(0);
+        expect(errorSpy).toHaveBeenLastCalledWith("Please specify an operator and version for each package.");
+
+        setPve({ newPackages: [{ name: "numpy", versionOp: "==", version: "   " }] });
+        (component as any).installUserPackages(0);
+        expect(errorSpy).toHaveBeenLastCalledWith("Please specify an operator and version for each package.");
+
+        expect(sockets).toHaveLength(0);
+      });
+
+      it("skips a package already present as a system package or in the environment", () => {
+        vi.spyOn(TestBed.inject(WorkflowPveService), "getUserPackages").mockReturnValue(of([]));
+        // The system list is matched case-insensitively, so "NumPy" must block "numpy".
+        component.systemPackages = [{ name: "NumPy", version: "1.26.0" }];
+        setPve({
+          userPackages: [{ name: "pandas", versionOp: "==", version: "2.0.0" }],
+          newPackages: [
+            { name: "   ", versionOp: "==", version: "1.0.0" },
+            { name: "numpy", versionOp: "==", version: "1.26.0" },
+            { name: "Pandas", versionOp: "==", version: "2.0.0" },
+          ],
+        });
+
+        (component as any).installUserPackages(0);
+
+        expect(errorSpy).toHaveBeenCalledWith("Skipped numpy: already installed as a system package.");
+        expect(errorSpy).toHaveBeenCalledWith("Skipped Pandas: already installed in this environment.");
+        // Nothing survives the filters, so no socket is opened and the draft rows are cleared.
+        expect(sockets).toHaveLength(0);
+        expect(component.pves[0].newPackages).toEqual([]);
+        expect(component.pves[0].isInstalling).toBe(false);
+      });
+
+      it("has nothing to install when the card carries no draft rows at all", () => {
+        const refreshSpy = vi.spyOn(TestBed.inject(WorkflowPveService), "getUserPackages").mockReturnValue(of([]));
+        setPve({ newPackages: undefined });
+
+        (component as any).installUserPackages(0);
+
+        expect(sockets).toHaveLength(0);
+        expect(refreshSpy).toHaveBeenCalledWith(1, "envone");
+      });
+
+      it("opens an install socket for the surviving packages and reloads the list when it finishes", () => {
+        const urlSpy = vi.spyOn(TestBed.inject(WorkflowPveService), "getPveWebSocketUrl");
+        vi.spyOn(TestBed.inject(WorkflowPveService), "getUserPackages").mockReturnValue(of(["numpy==1.26.0"]));
+        component.systemPackages = [];
+        setPve({ newPackages: [{ name: "  numpy  ", versionOp: "==", version: "  1.26.0  " }] });
+
+        (component as any).installUserPackages(0);
+
+        expect(urlSpy).toHaveBeenCalledWith(1, "envone", "install", ["numpy==1.26.0"]);
+        expect(sockets).toHaveLength(1);
+
+        sockets[0].say("__DONE__");
+
+        expect(component.pves[0].newPackages).toEqual([]);
+        expect(component.pves[0].userPackages).toEqual([{ name: "numpy", versionOp: "==", version: "1.26.0" }]);
+      });
+
+      it("logs and keeps the current list when reloading the packages fails", () => {
+        const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+        vi.spyOn(TestBed.inject(WorkflowPveService), "getUserPackages").mockReturnValue(
+          throwError(() => new Error("nope"))
+        );
+        setPve({ userPackages: [{ name: "numpy", versionOp: "==", version: "1.26.0" }] });
+
+        (component as any).refreshUserPackages(0);
+
+        expect(consoleSpy).toHaveBeenCalledWith("Failed to refresh user packages", expect.any(Error));
+        expect(component.pves[0].userPackages).toEqual([{ name: "numpy", versionOp: "==", version: "1.26.0" }]);
+      });
+    });
+
+    describe("deleteUserPackages", () => {
+      it("deletes the queued packages one at a time and reports a failure without stopping", () => {
+        const deleteSpy = vi
+          .spyOn(TestBed.inject(WorkflowPveService), "deletePackage")
+          .mockReturnValueOnce(of(["removed numpy"]))
+          .mockReturnValueOnce(throwError(() => new Error("boom")));
+        vi.spyOn(TestBed.inject(WorkflowPveService), "getUserPackages").mockReturnValue(of([]));
+        setPve({
+          pipOutput: undefined,
+          deletingPackages: [
+            { name: "numpy", version: "1.26.0" },
+            { name: "pandas", version: "2.0.0" },
+          ],
+        });
+        const onDone = vi.fn();
+
+        (component as any).deleteUserPackages(0, onDone);
+
+        expect(deleteSpy).toHaveBeenNthCalledWith(1, 1, "envone", "numpy");
+        expect(deleteSpy).toHaveBeenNthCalledWith(2, 1, "envone", "pandas");
+        expect(component.pves[0].pipOutput).toContain("removed numpy");
+        expect(component.pves[0].pipOutput).toContain("[PVE][ERR] Failed to delete package: pandas");
+        // The queue is drained and the caller resumes exactly once.
+        expect(component.pves[0].deletingPackages).toEqual([]);
+        expect(onDone).toHaveBeenCalledTimes(1);
+      });
+    });
+  });
+
+  describe("onClickOpenShareAccess", () => {
+    it("opens the share dialog for the given computing unit", async () => {
+      const openSpy = vi
+        .spyOn(TestBed.inject(ComputingUnitActionsService), "openShareAccessModal")
+        .mockImplementation(() => {});
+
+      await component.onClickOpenShareAccess(7);
+
+      expect(openSpy).toHaveBeenCalledWith(7, true);
     });
   });
 
@@ -914,6 +1331,32 @@ describe("PowerButtonComponent", () => {
 
       expect(latestSpy).not.toHaveBeenCalled();
     });
+
+    it("does not look up an execution for an unsaved workflow", () => {
+      const execService = TestBed.inject(WorkflowExecutionsService);
+      const latestSpy = vi.spyOn(execService, "retrieveLatestWorkflowExecution");
+      const { comp, emit } = bootWithMetaStream();
+
+      // The placeholder id an unsaved workflow carries: recorded, but never queried for.
+      emit(DEFAULT_WORKFLOW.wid);
+
+      expect(comp.workflowId).toBe(DEFAULT_WORKFLOW.wid);
+      expect(latestSpy).not.toHaveBeenCalled();
+    });
+
+    it("selects nothing when the fetch fails and no unit is Running", () => {
+      const execService = TestBed.inject(WorkflowExecutionsService);
+      vi.spyOn(execService, "retrieveLatestWorkflowExecution").mockReturnValue(
+        throwError(() => new Error("no execution"))
+      );
+      const { comp, emit } = bootWithMetaStream();
+      comp.allComputingUnits = [makeComputingUnit({ cuid: 1, status: "Pending" })];
+      const selectSpy = vi.spyOn(comp, "selectComputingUnit").mockImplementation(() => {});
+
+      emit(100);
+
+      expect(selectSpy).not.toHaveBeenCalled();
+    });
   });
 
   describe("selectComputingUnit guards", () => {
@@ -937,13 +1380,6 @@ describe("PowerButtonComponent", () => {
   });
 
   describe("status helpers", () => {
-    it("getButtonText returns 'Connect' with no selection and the unit name otherwise", () => {
-      component.selectedComputingUnit = null;
-      expect(component.getButtonText()).toBe("Connect");
-      component.selectedComputingUnit = makeComputingUnit({ name: "My Unit" });
-      expect(component.getButtonText()).toBe("My Unit");
-    });
-
     it("computeStatus maps selection + status onto badge states", () => {
       component.selectedComputingUnit = null;
       expect(component.computeStatus()).toBe("processing");
@@ -1049,6 +1485,26 @@ describe("PowerButtonComponent", () => {
         vi.useRealTimers();
       }
     });
+
+    it("focuses and selects the rename box once it is in the document", () => {
+      vi.useFakeTimers();
+      const input = document.createElement("input");
+      input.className = "unit-name-edit-input";
+      document.body.appendChild(input);
+      const focus = vi.spyOn(input, "focus").mockImplementation(() => {});
+      const select = vi.spyOn(input, "select").mockImplementation(() => {});
+      try {
+        component.startEditingUnitName(makeComputingUnit({ cuid: 3, name: "Env", isOwner: true }));
+
+        vi.runAllTimers();
+
+        expect(focus).toHaveBeenCalledTimes(1);
+        expect(select).toHaveBeenCalledTimes(1);
+      } finally {
+        input.remove();
+        vi.useRealTimers();
+      }
+    });
   });
 
   describe("confirmUpdateUnitName", () => {
@@ -1101,6 +1557,24 @@ describe("PowerButtonComponent", () => {
       expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("Failed to rename"));
       expect(component.editingNameOfUnit).toBeNull();
       expect(component.editingUnitName).toBe("");
+    });
+
+    it("leaves the caches alone when the renamed unit is neither listed nor selected", () => {
+      component.allComputingUnits = [makeComputingUnit({ cuid: 9, name: "other" })];
+      component.selectedComputingUnit = makeComputingUnit({ cuid: 9, name: "other" });
+      vi.spyOn(TestBed.inject(WorkflowComputingUnitManagingService), "renameComputingUnit").mockReturnValue(
+        of({} as Response)
+      );
+      const refreshSpy = vi.spyOn(TestBed.inject(ComputingUnitStatusService), "refreshComputingUnitList");
+      vi.spyOn(TestBed.inject(NotificationService), "success").mockImplementation(() => {});
+      component.editingNameOfUnit = 3;
+
+      component.confirmUpdateUnitName(3, "NewName");
+
+      expect(component.allComputingUnits[0].computingUnit.name).toBe("other");
+      expect(component.selectedComputingUnit!.computingUnit.name).toBe("other");
+      expect(refreshSpy).toHaveBeenCalled();
+      expect(component.editingNameOfUnit).toBeNull();
     });
   });
 
@@ -1168,6 +1642,15 @@ describe("PowerButtonComponent", () => {
       expect(pkg.deleteToggle).toBe(false);
       expect(component.pves[0].deletingPackages).toEqual([]);
     });
+
+    it("togglePackageDelete records a versionless package with an empty version", () => {
+      component.pves = [{ name: "env", deletingPackages: [] } as any];
+      const pkg = { name: "numpy", versionOp: "==", version: undefined, deleteToggle: false } as any;
+
+      component.togglePackageDelete(0, pkg);
+
+      expect(component.pves[0].deletingPackages).toEqual([{ name: "numpy", version: "" }]);
+    });
   });
 
   describe("parsePackageRows / updatePrettyPipOutput", () => {
@@ -1192,6 +1675,14 @@ describe("PowerButtonComponent", () => {
       expect(out).toContain("&lt;script&gt;");
       expect(out).toContain("&amp;");
       expect(out).toContain("<br/>");
+    });
+
+    it("updatePrettyPipOutput renders an environment that has produced no output as empty", () => {
+      component.pves = [{ name: "env", pipOutput: undefined, prettyPipOutput: "stale" } as any];
+
+      component.updatePrettyPipOutput(0);
+
+      expect(component.pves[0].prettyPipOutput).toBe("");
     });
   });
 
@@ -1305,8 +1796,6 @@ describe("PowerButtonComponent", () => {
       expect(component.getSharedMemorySize()).toBe("64Mi");
       expect(component.getCpuLimitUnit()).toBe("CPU");
       expect(component.getMemoryLimitUnit()).toBe("Gi");
-      expect(component.getCpuUnit()).toBe("Cores");
-      expect(component.getMemoryUnit()).toBe("Gi");
     });
 
     it("returns zero usage values and percentages when metrics are unavailable", () => {
@@ -1409,6 +1898,306 @@ describe("PowerButtonComponent", () => {
         getByIdSpy.mockRestore();
         vi.useRealTimers();
       }
+    });
+  });
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // Rows of the dropdown menu, driven through the markup ng-zorro stamps into
+  // the CDK overlay rather than by calling the handlers on the instance.
+  // ──────────────────────────────────────────────────────────────────────────
+  describe("dropdown menu rows (rendered)", () => {
+    /**
+     * ng-zorro gates the dropdown's overlay behind an `auditTime(150)` that it
+     * schedules outside the Angular zone, so neither `fakeAsync`'s `tick()` nor
+     * Vitest's fake timers reach it — zone.js captured the native timer before
+     * either could patch it. Poll for the rows instead of sleeping a fixed
+     * amount, so a slow runner costs extra iterations rather than a failure.
+     */
+    async function openDropdown(): Promise<HTMLElement[]> {
+      fixture.debugElement.query(By.css(".computing-units-dropdown-button")).nativeElement.click();
+      for (let i = 0; i < 80 && document.querySelectorAll(".computing-unit-option").length === 0; i++) {
+        await new Promise(resolve => setTimeout(resolve, 25));
+        fixture.detectChanges();
+      }
+      fixture.detectChanges();
+      const rows = Array.from(document.querySelectorAll<HTMLElement>(".computing-unit-option"));
+      expect(rows.length).toBeGreaterThan(0);
+      return rows;
+    }
+
+    function click(element: Element | null | undefined): void {
+      expect(element).toBeTruthy();
+      element!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      fixture.detectChanges();
+    }
+
+    let selectSpy: ReturnType<typeof vi.spyOn>;
+    let sharingDefault: boolean;
+
+    beforeEach(() => {
+      sharingDefault = TestBed.inject(GuiConfigService).env.sharingComputingUnitEnabled;
+      component.workflowId = 5;
+      component.allComputingUnits = [
+        makeComputingUnit({ cuid: 1, name: "Alpha" }),
+        makeComputingUnit({ cuid: 2, name: "Beta" }),
+      ];
+      selectSpy = vi
+        .spyOn(TestBed.inject(ComputingUnitStatusService), "selectComputingUnit")
+        .mockImplementation(() => {});
+      fixture.detectChanges();
+    });
+
+    afterEach(() => {
+      // The share test flips this flag. TestBed hands every test its own
+      // MockGuiConfigService, so it cannot leak today, but restore it anyway so the
+      // block stays correct if these tests ever share one config instance.
+      TestBed.inject(GuiConfigService).env.sharingComputingUnitEnabled = sharingDefault;
+      // Clear the overlay contents rather than the container itself, which CDK caches.
+      document.querySelectorAll(".cdk-overlay-container").forEach(el => (el.innerHTML = ""));
+      vi.restoreAllMocks();
+    });
+
+    it("selects the unit whose row is clicked", async () => {
+      const rows = await openDropdown();
+
+      click(rows[1]);
+
+      expect(component.selectedComputingUnit?.computingUnit.cuid).toBe(2);
+      expect(selectSpy).toHaveBeenCalledWith(5, 2);
+    });
+
+    it("commits a rename when the inline editor loses focus", async () => {
+      const renameSpy = vi
+        .spyOn(TestBed.inject(WorkflowComputingUnitManagingService), "renameComputingUnit")
+        .mockReturnValue(of({} as any));
+      component.editingNameOfUnit = 1;
+      component.editingUnitName = "Alpha";
+      const rows = await openDropdown();
+
+      const editor = rows[0].querySelector<HTMLInputElement>(".unit-name-edit-input");
+      expect(editor?.value).toBe("Alpha");
+      editor!.value = "Renamed";
+      editor!.dispatchEvent(new FocusEvent("focusout", { bubbles: true }));
+      fixture.detectChanges();
+
+      expect(renameSpy).toHaveBeenCalledWith(1, "Renamed");
+    });
+
+    it("commits a rename when Enter is pressed in the inline editor", async () => {
+      const renameSpy = vi
+        .spyOn(TestBed.inject(WorkflowComputingUnitManagingService), "renameComputingUnit")
+        .mockReturnValue(of({} as any));
+      component.editingNameOfUnit = 1;
+      component.editingUnitName = "Alpha";
+      const rows = await openDropdown();
+
+      const editor = rows[0].querySelector<HTMLInputElement>(".unit-name-edit-input");
+      editor!.value = "Entered";
+      editor!.dispatchEvent(new KeyboardEvent("keyup", { key: "Enter", bubbles: true }));
+      fixture.detectChanges();
+
+      expect(renameSpy).toHaveBeenCalledWith(1, "Entered");
+    });
+
+    it("abandons the rename when Escape is pressed in the inline editor", async () => {
+      const renameSpy = vi.spyOn(TestBed.inject(WorkflowComputingUnitManagingService), "renameComputingUnit");
+      component.editingNameOfUnit = 1;
+      component.editingUnitName = "Alpha";
+      const rows = await openDropdown();
+
+      rows[0]
+        .querySelector<HTMLInputElement>(".unit-name-edit-input")!
+        .dispatchEvent(new KeyboardEvent("keyup", { key: "Escape", bubbles: true }));
+      fixture.detectChanges();
+
+      expect(component.editingNameOfUnit).toBeNull();
+      expect(renameSpy).not.toHaveBeenCalled();
+    });
+
+    it("swallows a click inside the inline editor instead of selecting the row", async () => {
+      component.editingNameOfUnit = 1;
+      component.editingUnitName = "Alpha";
+      const rows = await openDropdown();
+
+      click(rows[0].querySelector(".unit-name-edit-input"));
+
+      expect(selectSpy).not.toHaveBeenCalled();
+      expect(component.editingNameOfUnit).toBe(1);
+    });
+    it("opens the inline editor from the pencil without selecting the row", async () => {
+      const rows = await openDropdown();
+
+      click(rows[0].querySelector(".anticon-edit"));
+
+      expect(component.editingNameOfUnit).toBe(1);
+      expect(component.editingUnitName).toBe("Alpha");
+      expect(selectSpy).not.toHaveBeenCalled();
+    });
+
+    it("opens the python-environment modal from the plus icon without selecting the row", async () => {
+      const rows = await openDropdown();
+
+      click(rows[1].querySelector(".anticon-plus"));
+
+      expect(component.pveModalVisible).toBe(true);
+      expect(component.selectedComputingUnit?.computingUnit.cuid).toBe(2);
+      expect(selectSpy).not.toHaveBeenCalled();
+    });
+
+    it("opens share access from the share icon without selecting the row", async () => {
+      TestBed.inject(GuiConfigService).env.sharingComputingUnitEnabled = true;
+      const shareSpy = vi
+        .spyOn(TestBed.inject(ComputingUnitActionsService), "openShareAccessModal")
+        .mockImplementation(() => {});
+      fixture.detectChanges();
+      const rows = await openDropdown();
+
+      click(rows[0].querySelector(".anticon-share-alt"));
+
+      expect(shareSpy).toHaveBeenCalledWith(1, true);
+      expect(selectSpy).not.toHaveBeenCalled();
+    });
+
+    it("opens the metadata modal from the eye icon without selecting the row", async () => {
+      const createSpy = vi.spyOn(TestBed.inject(NzModalService), "create").mockReturnValue({} as any);
+      const rows = await openDropdown();
+
+      click(rows[1].querySelector(".anticon-eye"));
+
+      expect(createSpy).toHaveBeenCalledTimes(1);
+      expect(createSpy.mock.calls[0][0].nzData).toBe(component.allComputingUnits[1]);
+      expect(selectSpy).not.toHaveBeenCalled();
+    });
+
+    it("terminates from the delete icon without selecting the row", async () => {
+      const terminateSpy = vi
+        .spyOn(TestBed.inject(ComputingUnitActionsService), "confirmAndTerminate")
+        .mockImplementation(() => {});
+      const rows = await openDropdown();
+
+      click(rows[0].querySelector(".anticon-delete"));
+
+      expect(terminateSpy).toHaveBeenCalledWith(1, component.allComputingUnits[0]);
+      expect(selectSpy).not.toHaveBeenCalled();
+    });
+
+    it("opens the create-unit modal from the row below the divider", async () => {
+      await openDropdown();
+
+      click(document.querySelector(".create-computing-unit"));
+
+      expect(component.addComputeUnitModalVisible).toBe(true);
+    });
+  });
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // The metrics popover's own template, and the PVE modal's close controls.
+  // ──────────────────────────────────────────────────────────────────────────
+  describe("metrics popover (rendered)", () => {
+    /** A running kubernetes unit whose resource limits the popover reads. */
+    function unitWithResources(resource: Partial<Record<string, string>>): DashboardWorkflowComputingUnit {
+      const unit = makeComputingUnit({ cuid: 7, name: "Metrics" });
+      unit.computingUnit.resource = { ...unit.computingUnit.resource, ...(resource as any) };
+      return unit;
+    }
+
+    /** Opens the metrics popover and returns the metric names it rendered, in order. */
+    async function openMetrics(): Promise<{ names: string[]; overlay: HTMLElement }> {
+      const container = fixture.debugElement.query(By.css("#metrics-container-id"));
+      expect(container).toBeTruthy();
+      container.injector.get(NzPopoverDirective).show();
+      fixture.detectChanges();
+      // the tooltip base positions its overlay in a microtask
+      await Promise.resolve();
+      fixture.detectChanges();
+      const overlay = document.querySelector<HTMLElement>(".cdk-overlay-container")!;
+      const names = Array.from(overlay.querySelectorAll(".resource-metrics .general-metric .metric-name")).map(
+        el => el.textContent?.trim() ?? ""
+      );
+      return { names, overlay };
+    }
+
+    afterEach(() => {
+      document.querySelectorAll(".cdk-overlay-container").forEach(el => (el.innerHTML = ""));
+      vi.restoreAllMocks();
+    });
+
+    it("renders the CPU and RAM rows with their value, limit and percentage", async () => {
+      component.selectedComputingUnit = unitWithResources({ cpuLimit: "2", memoryLimit: "4Gi" });
+      fixture.detectChanges();
+
+      const { names, overlay } = await openMetrics();
+
+      expect(names).toContain("CPU");
+      expect(names).toContain("RAM");
+      const cpu = overlay.querySelector(".cpu-metric .metric-value")!;
+      expect(cpu.querySelector(".metric-unit")?.textContent).toContain("2");
+      expect(cpu.querySelector(".metric-percentage")?.textContent).toContain("%");
+      const memory = overlay.querySelector(".memory-metric .metric-value")!;
+      expect(memory.querySelector(".metric-unit")?.textContent).toContain("4");
+      expect(memory.querySelector(".metric-percentage")?.textContent).toContain("%");
+    });
+
+    it("adds the GPU, JVM and shared-memory rows when the unit declares those limits", async () => {
+      component.gpuOptions = ["0", "1"];
+      component.selectedComputingUnit = unitWithResources({
+        gpuLimit: "2",
+        jvmMemorySize: "1Gi",
+        shmSize: "64Mi",
+      });
+      fixture.detectChanges();
+
+      const { names, overlay } = await openMetrics();
+
+      expect(names).toEqual(["CPU", "RAM", "GPU", "JVM Memory Size", "Shared Memory Size"]);
+      expect(overlay.textContent).toContain("2 GPU(s)");
+    });
+
+    it("drops the GPU row when the deployment offers no GPU at all", async () => {
+      component.gpuOptions = ["0"];
+      component.selectedComputingUnit = unitWithResources({ gpuLimit: "2" });
+      fixture.detectChanges();
+
+      expect((await openMetrics()).names).not.toContain("GPU");
+    });
+
+    it("drops each optional row whose limit reads as zero or NaN", async () => {
+      component.gpuOptions = ["0", "1"];
+      component.selectedComputingUnit = unitWithResources({
+        gpuLimit: "0",
+        jvmMemorySize: "NaN",
+        shmSize: "0",
+      });
+      fixture.detectChanges();
+
+      expect((await openMetrics()).names).toEqual(["CPU", "RAM"]);
+    });
+
+    it("has no popover content to show while no unit is selected", () => {
+      component.selectedComputingUnit = null;
+      fixture.detectChanges();
+
+      expect(fixture.debugElement.query(By.css("#metrics-container-id"))).toBeNull();
+    });
+
+    it("closes the python-environment modal from its footer button and its cancel", () => {
+      component.pveModalVisible = true;
+      fixture.detectChanges();
+
+      document.querySelector<HTMLButtonElement>(".footer-all button")!.click();
+      fixture.detectChanges();
+
+      expect(component.pveModalVisible).toBe(false);
+
+      component.pveModalVisible = true;
+      fixture.detectChanges();
+      // the create-unit child renders an nz-modal too, so pick this one by its title
+      const pveModal = fixture.debugElement
+        .queryAll(By.css("nz-modal"))
+        .find(modal => modal.componentInstance?.nzTitle === "Python Environments");
+      pveModal!.triggerEventHandler("nzOnCancel", undefined);
+
+      expect(component.pveModalVisible).toBe(false);
     });
   });
 });

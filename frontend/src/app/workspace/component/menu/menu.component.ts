@@ -17,34 +17,29 @@
  * under the License.
  */
 
-import { DatePipe, Location, NgIf, NgFor, NgTemplateOutlet } from "@angular/common";
+import { DatePipe, Location, NgIf, NgFor, NgTemplateOutlet, AsyncPipe } from "@angular/common";
 import { Component, ElementRef, Input, OnDestroy, OnInit, ViewChild } from "@angular/core";
 import { Router, RouterLink } from "@angular/router";
 import { UserService } from "../../../common/service/user/user.service";
-import {
-  DEFAULT_WORKFLOW_NAME,
-  WorkflowPersistService,
-} from "../../../common/service/workflow-persist/workflow-persist.service";
+import { WorkflowPersistService } from "../../../common/service/workflow-persist/workflow-persist.service";
 import { Workflow, WorkflowContent } from "../../../common/type/workflow";
 import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
 import { UndoRedoService } from "../../service/undo-redo/undo-redo.service";
 import { ValidationWorkflowService } from "../../service/validation/validation-workflow.service";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { ExecutionState } from "../../types/execute-workflow.interface";
+import { HeatmapView } from "../../service/heatmap/heatmap-scoring";
 import { WorkflowWebsocketService } from "../../service/workflow-websocket/workflow-websocket.service";
 import { WorkflowResultExportService } from "../../service/workflow-result-export/workflow-result-export.service";
-import { catchError, debounceTime, filter, mergeMap, switchMap, tap } from "rxjs/operators";
+import { catchError, debounceTime, switchMap, tap } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowUtilService } from "../../service/workflow-graph/util/workflow-util.service";
 import { WorkflowVersionService } from "../../../dashboard/service/user/workflow-version/workflow-version.service";
-import { UserProjectService } from "../../../dashboard/service/user/project/user-project.service";
-import { NzUploadFile, NzUploadComponent } from "ng-zorro-antd/upload";
 import { saveAs } from "file-saver";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { OperatorMenuService } from "../../service/operator-menu/operator-menu.service";
 import { CoeditorPresenceService } from "../../service/workflow-graph/model/coeditor-presence.service";
 import { EMPTY, firstValueFrom, of, timer } from "rxjs";
-import { isDefined } from "../../../common/util/predicate";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { ResultExportationComponent } from "../result-exportation/result-exportation.component";
 import { ReportGenerationService } from "../../service/report-generation/report-generation.service";
@@ -70,10 +65,12 @@ import { UserIconComponent } from "../../../dashboard/component/user/user-icon/u
 import { NzDropdownDirective, NzDropdownMenuComponent } from "ng-zorro-antd/dropdown";
 import { NzMenuDirective, NzMenuItemComponent } from "ng-zorro-antd/menu";
 import { NzCheckboxComponent } from "ng-zorro-antd/checkbox";
+import { NzRadioComponent, NzRadioGroupComponent } from "ng-zorro-antd/radio";
 import { NzPopoverDirective } from "ng-zorro-antd/popover";
 import { NzSwitchComponent } from "ng-zorro-antd/switch";
 import { NzBadgeComponent } from "ng-zorro-antd/badge";
 import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
+import { JupyterPanelService } from "../../service/jupyter-panel/jupyter-panel.service";
 
 /**
  * MenuComponent is the top level menu bar that shows
@@ -108,12 +105,13 @@ import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
     CoeditorUserIconComponent,
     UserIconComponent,
     RouterLink,
-    NzUploadComponent,
     NzDropdownDirective,
     NzDropdownMenuComponent,
     NzMenuDirective,
     NzMenuItemComponent,
     NzCheckboxComponent,
+    NzRadioComponent,
+    NzRadioGroupComponent,
     NgTemplateOutlet,
     ComputingUnitSelectionComponent,
     NzPopoverDirective,
@@ -122,6 +120,7 @@ import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
     NzTooltipDirective,
     DatePipe,
     NzSpaceCompactComponent,
+    AsyncPipe,
   ],
 })
 export class MenuComponent implements OnInit, OnDestroy {
@@ -138,10 +137,12 @@ export class MenuComponent implements OnInit, OnDestroy {
   public showGrid: boolean = false;
   public showNumWorkers: boolean = false;
   public showStatus: boolean = false;
+  public showHeatmap: boolean = false;
+  public heatmapView: HeatmapView = HeatmapView.Runtime;
+  public HeatmapView = HeatmapView; // make Angular HTML access enum definition
   protected readonly USER_WORKFLOW = USER_WORKFLOW;
 
   @Input() public writeAccess: boolean = false;
-  @Input() public pid?: number = undefined;
   @Input() public autoSaveState: string = "";
   @Input() public currentWorkflowName: string = ""; // reset workflowName
   @Input() public currentExecutionName: string = ""; // reset executionName
@@ -178,7 +179,6 @@ export class MenuComponent implements OnInit, OnDestroy {
     private datePipe: DatePipe,
     public workflowResultExportService: WorkflowResultExportService,
     public workflowUtilService: WorkflowUtilService,
-    private userProjectService: UserProjectService,
     private notificationService: NotificationService,
     public operatorMenu: OperatorMenuService,
     public coeditorPresenceService: CoeditorPresenceService,
@@ -187,7 +187,8 @@ export class MenuComponent implements OnInit, OnDestroy {
     private panelService: PanelService,
     private computingUnitStatusService: ComputingUnitStatusService,
     protected config: GuiConfigService,
-    private router: Router
+    private router: Router,
+    private jupyterPanelService: JupyterPanelService
   ) {
     workflowWebsocketService
       .subscribeToEvent("ExecutionDurationUpdateEvent")
@@ -539,6 +540,19 @@ export class MenuComponent implements OnInit, OnDestroy {
     this.workflowActionService.getJointGraphWrapper().setRegionsDisplayed(this.showRegion);
   }
 
+  public toggleHeatmap(): void {
+    // The editor subscribes to this stream and colors operator fills (canvas + mini-map).
+    // A null view turns the overlay off; a view enables it.
+    this.workflowActionService.getJointGraphWrapper().setHeatmapView(this.showHeatmap ? this.heatmapView : null);
+  }
+
+  public setHeatmapView(view: HeatmapView): void {
+    this.heatmapView = view;
+    if (this.showHeatmap) {
+      this.workflowActionService.getJointGraphWrapper().setHeatmapView(view);
+    }
+  }
+
   /**
    * This method will run the autoLayout function
    *
@@ -584,56 +598,22 @@ export class MenuComponent implements OnInit, OnDestroy {
     this.workflowActionService.deleteOperatorsAndLinks(allOperatorIDs);
   }
 
-  public onClickImportWorkflow = (file: NzUploadFile): boolean => {
-    const reader = new FileReader();
-    reader.readAsText(file as any);
-    reader.onload = () => {
-      try {
-        const result = reader.result;
-        if (typeof result !== "string") {
-          throw new Error("incorrect format: file is not a string");
-        }
+  public get pythonNotebookMigrationEnabled(): boolean {
+    return this.config.env.pythonNotebookMigrationEnabled;
+  }
 
-        const workflowContent = JSON.parse(result) as WorkflowContent;
+  // Emits whether the current workflow has an associated Jupyter notebook, used to
+  // show the expand button only when there is a notebook to expand.
+  public get jupyterNotebookExists$() {
+    return this.jupyterPanelService.jupyterNotebookExists$;
+  }
 
-        // set the workflow name using the file name without the extension
-        const fileExtensionIndex = file.name.lastIndexOf(".");
-        var workflowName: string;
-        if (fileExtensionIndex === -1) {
-          workflowName = file.name;
-        } else {
-          workflowName = file.name.substring(0, fileExtensionIndex);
-        }
-        if (workflowName.trim() === "") {
-          workflowName = DEFAULT_WORKFLOW_NAME;
-        }
-
-        const workflow: Workflow = {
-          content: workflowContent,
-          name: workflowName,
-          description: undefined,
-          wid: undefined,
-          creationTime: undefined,
-          lastModifiedTime: undefined,
-          readonly: false,
-          isPublished: 0,
-        };
-
-        this.workflowActionService.enableWorkflowModification();
-        // load the fetched workflow
-        this.workflowActionService.reloadWorkflow(workflow, true);
-        // clear stack
-        this.undoRedoService.clearUndoStack();
-        this.undoRedoService.clearRedoStack();
-      } catch (error) {
-        this.notificationService.error(
-          "An error occurred when importing the workflow. Please import a workflow json file."
-        );
-        console.error(error);
-      }
-    };
-    return false;
-  };
+  /**
+   * Expand and redisplay the Jupyter notebook panel.
+   */
+  public onClickExpandJupyterNotebookPanel(): void {
+    this.jupyterPanelService.openJupyterNotebookPanel();
+  }
 
   public onClickExportWorkflow(): void {
     const workflowContent: WorkflowContent = this.workflowActionService.getWorkflowContent();
@@ -689,15 +669,12 @@ export class MenuComponent implements OnInit, OnDestroy {
 
   public persistWorkflow(): void {
     this.isSaving = true;
-    let localPid = this.pid;
     this.workflowPersistService
       .persistWorkflow(this.workflowActionService.getWorkflow())
       .pipe(
         tap((updatedWorkflow: Workflow) => {
           this.workflowActionService.setWorkflowMetadata(updatedWorkflow);
         }),
-        filter(workflow => isDefined(localPid) && isDefined(workflow.wid)),
-        mergeMap(workflow => this.userProjectService.addWorkflowToProject(localPid!, workflow.wid!)),
         untilDestroyed(this)
       )
       .subscribe({

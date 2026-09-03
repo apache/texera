@@ -14,8 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Auto-close stale pull requests after a total of 90 days of inactivity
-# (60 days to mark stale, +30 days to close). Issues are not touched.
+# Auto-close stale pull requests after a total of 37 days of inactivity
+# (30 days to mark stale, +7 days to close). Issues are not touched.
 #
 # Escape hatches (any one keeps a PR alive):
 #   - Add the `pinned` label
@@ -44,9 +44,9 @@ jobs:
           days-before-issue-stale: -1
           days-before-issue-close: -1
 
-          # PRs: 60 days inactive -> stale, +30 days -> close.
-          days-before-pr-stale: 60
-          days-before-pr-close: 30
+          # PRs: 30 days inactive -> stale, +7 days -> close.
+          days-before-pr-stale: 30
+          days-before-pr-close: 7
           stale-pr-label: 'stale'
           exempt-pr-labels: 'pinned'
           exempt-all-pr-milestones: true
@@ -55,7 +55,7 @@ jobs:
 
           stale-pr-message: |
             This pull request has been automatically marked as **stale** because it has
-            not had any activity for 60 days. It will be closed in **30 days** if no
+            not had any activity for 30 days. It will be closed in **7 days** if no
             further activity occurs.
 
             If this PR is still relevant, please:
@@ -66,7 +66,7 @@ jobs:
             To exempt this PR from auto-close, a maintainer can add the `pinned` label.
             Thank you for your contribution to Apache Texera (incubating)!
           close-pr-message: |
-            This pull request has been automatically closed due to 90 days of inactivity.
+            This pull request has been automatically closed due to 37 days of inactivity.
             If you would like to continue this work, please re-open the PR or open a new
             one referencing this. Thank you for your contribution.
 

@@ -49,4 +49,28 @@ class StorageConfigSpec extends AnyFlatSpec with Matchers {
     StorageConfig.ENV_CLEANUP_RETENTION_HOURS shouldBe "STORAGE_CLEANUP_RETENTION_HOURS"
     StorageConfig.ENV_CLEANUP_INTERVAL_MINUTES shouldBe "STORAGE_CLEANUP_INTERVAL_MINUTES"
   }
+
+  "StorageConfig warehouse settings" should "default the feature to disabled so merging changes nothing" in {
+    // storage.warehouse.enabled is the kill switch for the whole per-user warehouse
+    // feature (#6870); this guards the safe default from silently flipping to true.
+    // Only assert when the env override is unset (e.g. in CI), since it would win otherwise.
+    if (sys.env.get(StorageConfig.ENV_WAREHOUSE_ENABLED).isEmpty) {
+      StorageConfig.warehouseEnabled shouldBe false
+    }
+  }
+
+  it should "expose the warehouse environment-variable override name" in {
+    StorageConfig.ENV_WAREHOUSE_ENABLED shouldBe "STORAGE_WAREHOUSE_ENABLED"
+  }
+
+  "StorageConfig jupyter settings" should "default the public URL to the internal one" in {
+    // Keeps the split a no-op outside containerized deployments.
+    // Only assert when neither env override is set, since either would win otherwise.
+    if (
+      sys.env.get("STORAGE_JUPYTER_INTERNAL_URL").isEmpty &&
+      sys.env.get("STORAGE_JUPYTER_PUBLIC_URL").isEmpty
+    ) {
+      StorageConfig.jupyterPublicURL shouldBe StorageConfig.jupyterInternalURL
+    }
+  }
 }

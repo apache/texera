@@ -19,13 +19,13 @@
 
 import { DashboardFile } from "./dashboard-file.interface";
 import { DashboardWorkflow } from "./dashboard-workflow.interface";
-import { DashboardProject } from "./dashboard-project.interface";
 import { DashboardDataset } from "./dashboard-dataset.interface";
+import { DashboardModel } from "./dashboard-model.interface";
 import { DashboardWorkflowComputingUnit } from "../../common/type/workflow-computing-unit";
 import {
   isDashboardDataset,
   isDashboardFile,
-  isDashboardProject,
+  isDashboardModel,
   isDashboardWorkflow,
   isDashboardWorkflowComputingUnit,
 } from "./type-predicates";
@@ -33,7 +33,7 @@ import { EntityType } from "../../hub/service/hub.service";
 
 export interface UserInfo {
   userName: string;
-  googleAvatar?: string;
+  avatar?: string;
 }
 
 export class DashboardEntry {
@@ -47,7 +47,7 @@ export class DashboardEntry {
   accessLevel: string | undefined;
   ownerName: string | undefined;
   ownerEmail: string | undefined;
-  ownerGoogleAvatar: string | undefined;
+  ownerAvatar: string | undefined;
   ownerId: number | undefined;
   size: number | undefined;
   viewCount: number;
@@ -58,12 +58,7 @@ export class DashboardEntry {
   coverImageUrl?: string;
 
   constructor(
-    public value:
-      | DashboardWorkflow
-      | DashboardProject
-      | DashboardFile
-      | DashboardDataset
-      | DashboardWorkflowComputingUnit
+    public value: DashboardWorkflow | DashboardFile | DashboardDataset | DashboardModel | DashboardWorkflowComputingUnit
   ) {
     if (isDashboardWorkflow(value)) {
       this.type = EntityType.Workflow;
@@ -75,7 +70,7 @@ export class DashboardEntry {
       this.accessLevel = value.accessLevel;
       this.ownerName = value.ownerName;
       this.ownerEmail = "";
-      this.ownerGoogleAvatar = "";
+      this.ownerAvatar = "";
       this.ownerId = value.ownerId;
       this.size = 0;
       this.viewCount = 0;
@@ -84,24 +79,6 @@ export class DashboardEntry {
       this.isLiked = false;
       this.accessibleUserIds = [];
       this.coverImageUrl = value.coverImage ?? undefined;
-    } else if (isDashboardProject(value)) {
-      this.type = EntityType.Project;
-      this.id = value.pid;
-      this.name = value.name;
-      this.description = "";
-      this.creationTime = value.creationTime;
-      this.lastModifiedTime = value.creationTime;
-      this.accessLevel = value.accessLevel;
-      this.ownerName = "";
-      this.ownerEmail = "";
-      this.ownerGoogleAvatar = "";
-      this.ownerId = value.ownerId;
-      this.size = 0;
-      this.viewCount = 0;
-      this.cloneCount = 0;
-      this.likeCount = 0;
-      this.isLiked = false;
-      this.accessibleUserIds = [];
     } else if (isDashboardFile(value)) {
       this.type = EntityType.File;
       this.id = value.file.fid;
@@ -112,7 +89,7 @@ export class DashboardEntry {
       this.accessLevel = value.accessLevel;
       this.ownerName = "";
       this.ownerEmail = value.ownerEmail;
-      this.ownerGoogleAvatar = "";
+      this.ownerAvatar = "";
       this.ownerId = value.file.ownerUid;
       this.size = value.file.size;
       this.viewCount = 0;
@@ -130,7 +107,7 @@ export class DashboardEntry {
       this.accessLevel = value.accessPrivilege;
       this.ownerName = "";
       this.ownerEmail = value.ownerEmail;
-      this.ownerGoogleAvatar = "";
+      this.ownerAvatar = "";
       this.ownerId = value.dataset.ownerUid;
       this.size = value.size;
       this.viewCount = 0;
@@ -139,6 +116,25 @@ export class DashboardEntry {
       this.isLiked = false;
       this.accessibleUserIds = [];
       this.coverImageUrl = value.dataset.coverImage;
+    } else if (isDashboardModel(value)) {
+      this.type = EntityType.Model;
+      this.id = value.model.mid;
+      this.name = value.model.name;
+      this.description = value.model.description;
+      this.creationTime = value.model.creationTime;
+      this.lastModifiedTime = value.model.creationTime;
+      this.accessLevel = value.accessPrivilege;
+      this.ownerName = "";
+      this.ownerEmail = value.ownerEmail;
+      this.ownerAvatar = "";
+      this.ownerId = value.model.ownerUid;
+      this.size = value.size;
+      this.viewCount = 0;
+      this.cloneCount = 0;
+      this.likeCount = 0;
+      this.isLiked = false;
+      this.accessibleUserIds = [];
+      this.coverImageUrl = value.model.coverImage;
     } else if (isDashboardWorkflowComputingUnit(value)) {
       this.type = EntityType.ComputingUnit;
       this.id = value.computingUnit.cuid;
@@ -146,7 +142,7 @@ export class DashboardEntry {
       this.creationTime = value.computingUnit.creationTime;
       this.accessLevel = value.accessPrivilege;
       this.ownerName = "";
-      this.ownerGoogleAvatar = "";
+      this.ownerAvatar = "";
       this.ownerId = value.computingUnit.uid;
       this.viewCount = 0;
       this.cloneCount = 0;
@@ -162,8 +158,8 @@ export class DashboardEntry {
     this.ownerName = ownerName;
   }
 
-  setOwnerGoogleAvatar(ownerGoogleAvatar: string): void {
-    this.ownerGoogleAvatar = ownerGoogleAvatar;
+  setOwnerAvatar(ownerAvatar: string): void {
+    this.ownerAvatar = ownerAvatar;
   }
 
   setCount(viewCount: number, cloneCount: number, likeCount: number): void {
@@ -184,13 +180,6 @@ export class DashboardEntry {
     this.size = size;
   }
 
-  get project(): DashboardProject {
-    if (!isDashboardProject(this.value)) {
-      throw new Error("Value is not of type DashboardProject.");
-    }
-    return this.value;
-  }
-
   get workflow(): DashboardWorkflow {
     if (!isDashboardWorkflow(this.value)) {
       throw new Error("Value is not of type DashboardWorkflow.");
@@ -208,6 +197,13 @@ export class DashboardEntry {
   get dataset(): DashboardDataset {
     if (!isDashboardDataset(this.value)) {
       throw new Error("Value is not of type DashboardDataset");
+    }
+    return this.value;
+  }
+
+  get model(): DashboardModel {
+    if (!isDashboardModel(this.value)) {
+      throw new Error("Value is not of type DashboardModel");
     }
     return this.value;
   }

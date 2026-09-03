@@ -23,8 +23,9 @@ import { catchError, map, switchMap, tap } from "rxjs/operators";
 import { FileSaverService } from "../file/file-saver.service";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { DatasetService } from "../dataset/dataset.service";
+import { ModelService } from "../model/model.service";
 import { WorkflowPersistService } from "src/app/common/service/workflow-persist/workflow-persist.service";
-import * as JSZip from "jszip";
+import JSZip from "jszip";
 import { Workflow } from "../../../../common/type/workflow";
 import { HttpClient, HttpResponse } from "@angular/common/http";
 import { WORKFLOW_EXECUTIONS_API_BASE_URL } from "../workflow-executions/workflow-executions.service";
@@ -57,20 +58,13 @@ export class DownloadService {
     private fileSaverService: FileSaverService,
     private notificationService: NotificationService,
     private datasetService: DatasetService,
+    private modelService: ModelService,
     private workflowPersistService: WorkflowPersistService,
     private http: HttpClient
   ) {}
 
   downloadWorkflow(id: number, name: string): Observable<DownloadableItem> {
-    return this.workflowPersistService.retrieveWorkflow(id).pipe(
-      map(({ content }) => {
-        const workflowJson = JSON.stringify(content, null, 2);
-        const fileName = `${name}.json`;
-        const blob = new Blob([workflowJson], { type: "text/plain;charset=utf-8" });
-        return { blob, fileName };
-      }),
-      tap(this.saveFile.bind(this))
-    );
+    return this.retrieveWorkflowItem(id, name).pipe(tap(this.saveFile.bind(this)));
   }
 
   downloadDataset(id: number, name: string): Observable<Blob> {
@@ -103,6 +97,43 @@ export class DownloadService {
     const fileName = filePath.split("/").pop() || DEFAULT_FILE_NAME;
     return this.downloadWithNotification(
       () => this.datasetService.retrieveDatasetVersionSingleFile(filePath, isLogin),
+      fileName,
+      `Starting to download file ${filePath}`,
+      `File ${filePath} has been downloaded`,
+      `Error downloading file '${filePath}'`
+    );
+  }
+
+  downloadModel(id: number, name: string): Observable<Blob> {
+    return this.downloadWithNotification(
+      () => this.modelService.retrieveModelVersionZip(id),
+      `${name}.zip`,
+      "Starting to download the latest version of the model as ZIP",
+      "The latest version of the model has been downloaded as ZIP",
+      "Error downloading the latest version of the model as ZIP"
+    );
+  }
+
+  downloadModelVersion(
+    modelId: number,
+    modelVersionId: number,
+    modelName: string,
+    versionName: string
+  ): Observable<Blob> {
+    return this.downloadWithNotification(
+      () => this.modelService.retrieveModelVersionZip(modelId, modelVersionId),
+      `${modelName}-${versionName}.zip`,
+      `Starting to download version ${versionName} as ZIP`,
+      `Version ${versionName} has been downloaded as ZIP`,
+      `Error downloading version '${versionName}' as ZIP`
+    );
+  }
+
+  downloadModelSingleFile(filePath: string, isLogin: boolean = true): Observable<Blob> {
+    const DEFAULT_FILE_NAME = "download";
+    const fileName = filePath.split("/").pop() || DEFAULT_FILE_NAME;
+    return this.downloadWithNotification(
+      () => this.modelService.retrieveModelVersionSingleFile(filePath, isLogin),
       fileName,
       `Starting to download file ${filePath}`,
       `File ${filePath} has been downloaded`,
@@ -278,10 +309,25 @@ export class DownloadService {
     );
   }
 
+  /**
+   * Builds the downloadable JSON item of a workflow without saving it, so callers that
+   * only need the blob (e.g. zip assembly) do not trigger a file save as a side effect.
+   */
+  private retrieveWorkflowItem(id: number, name: string): Observable<DownloadableItem> {
+    return this.workflowPersistService.retrieveWorkflow(id).pipe(
+      map(({ content }) => {
+        const workflowJson = JSON.stringify(content, null, 2);
+        const fileName = `${name}.json`;
+        const blob = new Blob([workflowJson], { type: "text/plain;charset=utf-8" });
+        return { blob, fileName };
+      })
+    );
+  }
+
   private createWorkflowsZip(workflowEntries: Array<{ id: number; name: string }>): Observable<Blob> {
     const zip = new JSZip();
     const downloadObservables = workflowEntries.map(entry =>
-      this.downloadWorkflow(entry.id, entry.name).pipe(
+      this.retrieveWorkflowItem(entry.id, entry.name).pipe(
         tap(({ blob, fileName }) => {
           zip.file(this.nameWorkflow(fileName, zip), blob);
         })

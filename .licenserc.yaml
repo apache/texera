@@ -5,7 +5,7 @@ header:
 
   paths-ignore:
     - 'licenses'
-    - '**/*.md'
+    - 'licenses-3rd-party-code'
     - '**/*.csv'
     - '**/*.txt'
     - '**/*.json'
@@ -51,6 +51,9 @@ header:
     - 'frontend/src/assets/svg/operator-view-result.svg'
     - 'frontend/src/assets/svg/operator-reuse-cache-invalid.svg'
     - 'frontend/src/assets/svg/operator-reuse-cache-valid.svg'
+    - 'frontend/src/assets/notebook_migration_tool/jupyter-logo.svg'
+    # Third-party icon glyph - see LICENSE file for attribution
+    - 'frontend/src/app/common/icon/model-icon.ts'
     - 'frontend/src/app/common/type/proto/org/apache/texera/amber/core/virtualidentity.ts'
     - 'frontend/src/app/common/type/proto/org/apache/texera/amber/core/workflow.ts'
     - 'frontend/src/app/common/type/proto/google/protobuf/descriptor.ts'

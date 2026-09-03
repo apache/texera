@@ -20,17 +20,20 @@
 package org.apache.texera.service.util
 
 import io.fabric8.kubernetes.api.model._
-import io.fabric8.kubernetes.api.model.metrics.v1beta1.PodMetricsList
+import io.fabric8.kubernetes.api.model.metrics.v1beta1.PodMetrics
 import io.fabric8.kubernetes.client.KubernetesClientBuilder
 import org.apache.texera.common.config.{EnvironmentalVariable, KubernetesConfig}
 
 import scala.jdk.CollectionConverters._
 
-object KubernetesClient {
+/**
+  * Thin wrapper over the fabric8 Kubernetes client. The production singleton is the companion
+  * object below, bound to a real in-cluster client. The fabric8 client is a constructor
+  * parameter (not a mutable global) so tests can construct an instance backed by a stubbed
+  * client and exercise the passthrough wrappers without a live cluster.
+  */
+class KubernetesClient(client: io.fabric8.kubernetes.client.KubernetesClient) {
 
-  // Initialize the Kubernetes client
-  private val client: io.fabric8.kubernetes.client.KubernetesClient =
-    new KubernetesClientBuilder().build()
   private val namespace: String = KubernetesConfig.computeUnitPoolNamespace
   private val podNamePrefix = KubernetesConfig.computeUnitPodNamePrefix
 
@@ -48,19 +51,51 @@ object KubernetesClient {
     Option(client.pods().inNamespace(namespace).withName(podName).get())
   }
 
-  def getPodMetrics(cuid: Int): Map[String, String] = {
-    val podMetricsList: PodMetricsList = client.top().pods().metrics(namespace)
-    val targetPodName = generatePodName(cuid)
+  /**
+    * Phase of every pod in the namespace, keyed by pod name, in one call — so a bulk listing
+    * avoids a per-unit lookup. Unfiltered so callers can test a unit's presence by its pod-name
+    * key; a pod with no status yet maps to a `null` phase but still appears.
+    */
+  def getAllPodPhases: Map[String, String] =
+    phasesByPodName(client.pods().inNamespace(namespace).list().getItems.asScala)
 
-    podMetricsList.getItems.asScala
+  /** Pure fabric8 -> map transform: a pod with no status yet maps to a `null` phase. */
+  private[util] def phasesByPodName(pods: Iterable[Pod]): Map[String, String] =
+    pods
+      .map(pod => pod.getMetadata.getName -> Option(pod.getStatus).map(_.getPhase).orNull)
+      .toMap
+
+  // Flatten a pod's per-container resource usage into a single metric -> value map.
+  private def containerUsage(podMetrics: PodMetrics): Map[String, String] =
+    podMetrics.getContainers.asScala.flatMap { container =>
+      container.getUsage.asScala.map {
+        case (metric, value) => metric -> value.toString
+      }
+    }.toMap
+
+  /** Pure fabric8 -> map transform over the raw per-pod metrics items. */
+  private[util] def metricsByPodName(
+      items: Iterable[PodMetrics]
+  ): Map[String, Map[String, String]] =
+    items.map(podMetrics => podMetrics.getMetadata.getName -> containerUsage(podMetrics)).toMap
+
+  // One namespace-wide metrics call, returning the raw per-pod items.
+  private def fetchPodMetricsItems(): Iterable[PodMetrics] =
+    client.top().pods().metrics(namespace).getItems.asScala
+
+  /**
+    * CPU/memory of every pod in the namespace, keyed by pod name, in one call — the bulk
+    * counterpart to the single-unit lookup.
+    */
+  def getAllPodMetrics: Map[String, Map[String, String]] =
+    metricsByPodName(fetchPodMetricsItems())
+
+  def getPodMetrics(cuid: Int): Map[String, String] = {
+    val targetPodName = generatePodName(cuid)
+    fetchPodMetricsItems()
       .collectFirst {
         case podMetrics if podMetrics.getMetadata.getName == targetPodName =>
-          podMetrics.getContainers.asScala.flatMap { container =>
-            container.getUsage.asScala.map {
-              case (metric, value) =>
-                metric -> value.toString
-            }
-          }.toMap
+          containerUsage(podMetrics)
       }
       .getOrElse(Map.empty[String, String])
   }
@@ -224,3 +259,6 @@ object KubernetesClient {
     client.pods().inNamespace(namespace).withName(generatePodName(cuid)).delete()
   }
 }
+
+/** Production singleton bound to a real in-cluster fabric8 client. */
+object KubernetesClient extends KubernetesClient(new KubernetesClientBuilder().build())

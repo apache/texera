@@ -98,10 +98,14 @@ abstract class SklearnMLOperatorDescriptor[T <: ParamClass] extends PythonOperat
     val stringList = getParameter(paraList)
     val trainingParam = stringList(1)
     val paramString = stringList(0)
+    // A hyperparameter's declared type is emitted as the callable that converts the
+    // user's text, and the one taking a mapping names json.loads, so json is imported
+    // whether or not the operator at hand offers such a parameter.
     val finalCode =
       pyb"""
          |from pytexera import *
          |
+         |import json
          |import pandas as pd
          |${getImportStatements}
          |
@@ -117,8 +121,12 @@ abstract class SklearnMLOperatorDescriptor[T <: ParamClass] extends PythonOperat
          |      self.dataset = table
          |
          |    if port == 1 :
-         |      y_train = self.dataset[$groundTruthAttribute]
-         |      X_train = self.dataset[features]
+         |      rows_read = len(self.dataset)
+         |      dataset = self.dataset.dropna(subset=features + [$groundTruthAttribute]) #remove missing values
+         |      if len(dataset) < rows_read:
+         |        print("Skipped", rows_read - len(dataset), "of", rows_read, "rows with missing values")
+         |      y_train = dataset[$groundTruthAttribute]
+         |      X_train = dataset[features]
          |      loop_times = ${getLoopTimes(paraList)}
          |
          |      for i in range(loop_times):

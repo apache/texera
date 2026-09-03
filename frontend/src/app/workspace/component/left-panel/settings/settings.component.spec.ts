@@ -68,6 +68,11 @@ class StubWorkflowActionService {
   workflowChanged(): Observable<unknown> {
     return this.workflowChangedSubject.asObservable();
   }
+
+  /** Stands in for the real service's own emissions: undo/redo, a reloaded workflow, a co-editor's edit. */
+  emitWorkflowChanged(): void {
+    this.workflowChangedSubject.next(undefined);
+  }
 }
 
 describe("SettingsComponent", () => {
@@ -180,11 +185,74 @@ describe("SettingsComponent", () => {
     expect(updateModeSpy).toHaveBeenCalledWith(ExecutionMode.MATERIALIZED);
   });
 
+  it("should re-sync the form when the workflow changes underneath it", () => {
+    // The settings can move without the form: undo/redo, a reloaded workflow, a co-editor's edit.
+    workflowActionService.setWorkflowDataTransferBatchSize(777);
+    workflowActionService.updateExecutionMode(ExecutionMode.MATERIALIZED);
+
+    workflowActionService.emitWorkflowChanged();
+
+    expect(component.settingsForm.get("dataTransferBatchSize")!.value).toBe(777);
+    expect(component.settingsForm.get("executionMode")!.value).toBe(ExecutionMode.MATERIALIZED);
+    // The patch is applied with { emitEvent: false }. Without that, writing the incoming values
+    // back into the form would re-fire both valueChanges subscriptions and echo the very state we
+    // just received straight back to the server on every remote change.
+    expect(workflowPersistSpy.persistWorkflow).not.toHaveBeenCalled();
+  });
+
   it("should ignore form value changes that fail validation", () => {
     const setBatchSizeSpy = vi.spyOn(workflowActionService, "setWorkflowDataTransferBatchSize");
 
     component.settingsForm.get("dataTransferBatchSize")!.setValue(-5);
 
     expect(setBatchSizeSpy).not.toHaveBeenCalled();
+  });
+
+  /**
+   * The validation feedback lives entirely in the template — an is-invalid class
+   * and an explanatory message, both gated on the control being invalid *and*
+   * touched. The specs above only inspect the control, so nothing pinned the
+   * rendered feedback or the "only after the user has been there" guard.
+   */
+  describe("rendered validation feedback", () => {
+    const batchSizeInput = (): HTMLInputElement => fixture.nativeElement.querySelector("#dataTransferBatchSize");
+    const errorMessage = (): HTMLElement | null => fixture.nativeElement.querySelector(".error-message");
+
+    it("stays quiet while the batch size is valid", () => {
+      expect(errorMessage()).toBeNull();
+      expect(batchSizeInput().classList).not.toContain("is-invalid");
+    });
+
+    it("stays quiet about an invalid batch size the user has not touched yet", () => {
+      component.settingsForm.get("dataTransferBatchSize")!.setValue(0);
+      fixture.detectChanges();
+
+      expect(errorMessage()).toBeNull();
+      expect(batchSizeInput().classList).not.toContain("is-invalid");
+    });
+
+    it("explains the minimum once the user has touched an invalid batch size", () => {
+      const control = component.settingsForm.get("dataTransferBatchSize")!;
+      control.setValue(0);
+      control.markAsTouched();
+      fixture.detectChanges();
+
+      expect(errorMessage()!.textContent!.trim()).toBe("Data Transfer Batch Size size must be at least 1.");
+      expect(batchSizeInput().classList).toContain("is-invalid");
+    });
+
+    it("withdraws the message once a valid batch size is typed back in", () => {
+      const control = component.settingsForm.get("dataTransferBatchSize")!;
+      control.setValue(0);
+      control.markAsTouched();
+      fixture.detectChanges();
+      expect(errorMessage()).not.toBeNull();
+
+      control.setValue(50);
+      fixture.detectChanges();
+
+      expect(errorMessage()).toBeNull();
+      expect(batchSizeInput().classList).not.toContain("is-invalid");
+    });
   });
 });

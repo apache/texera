@@ -18,9 +18,10 @@
  */
 
 import { ComponentFixture, TestBed } from "@angular/core/testing";
-import { ElementRef } from "@angular/core";
-import { CdkDragEnd } from "@angular/cdk/drag-drop";
+import { Component, ElementRef, Input } from "@angular/core";
+import { CdkDrag, CdkDragEnd } from "@angular/cdk/drag-drop";
 import { NzResizeEvent } from "ng-zorro-antd/resizable";
+import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
 
 import { DEFAULT_HEIGHT, DEFAULT_WIDTH, ResultPanelComponent } from "./result-panel.component";
 import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
@@ -173,7 +174,11 @@ describe("ResultPanelComponent", () => {
       component.dragPosition = { x: 5, y: 7 };
       expect(component.isPanelDocked()).toBe(true);
 
+      // vary one axis at a time so each half of the conjunction is individually load-bearing
       component.dragPosition = { x: 5, y: 8 };
+      expect(component.isPanelDocked()).toBe(false);
+
+      component.dragPosition = { x: 6, y: 7 };
       expect(component.isPanelDocked()).toBe(false);
     });
 
@@ -664,4 +669,236 @@ describe("ResultPanelComponent", () => {
       expect(setItemSpy).not.toHaveBeenCalledWith("result-panel-style", expect.anything());
     });
   });
+
+  describe("template rendering", () => {
+    // Query, assert the element is present, then dispatch the event (a real MouseEvent
+    // for clicks so handlers calling stopPropagation()/preventDefault() work).
+    const fire = (css: string, event: string, payload: unknown): void => {
+      const el = fixture.debugElement.query(By.css(css));
+      expect(el).toBeTruthy();
+      el.triggerEventHandler(event, payload);
+    };
+
+    it("renders the docked panel chrome and wires the close / reset actions", () => {
+      component.width = DEFAULT_WIDTH;
+      fixture.detectChanges();
+      const closeSpy = vi.spyOn(component, "closePanel").mockImplementation(() => {});
+      const resetSpy = vi.spyOn(component, "resetPanelPosition").mockImplementation(() => {});
+
+      expect(fixture.debugElement.query(By.css("#content"))).toBeTruthy();
+      // Assert after each fire so the three controls are individually attributable: a
+      // single spy call cannot stand in for all of them, and swapping the two in-panel
+      // handlers changes which counter moves.
+      fire("#result-buttons li[nz-menu-item]", "click", new MouseEvent("click")); // header close
+      expect(closeSpy).toHaveBeenCalledTimes(1);
+      expect(resetSpy).not.toHaveBeenCalled();
+
+      fire("#panel-button button", "click", new MouseEvent("click")); // reset-position
+      expect(resetSpy).toHaveBeenCalledTimes(1);
+      expect(closeSpy).toHaveBeenCalledTimes(1);
+
+      fire("#panel-button li[nz-menu-item]", "click", new MouseEvent("click")); // in-panel close
+      expect(closeSpy).toHaveBeenCalledTimes(2);
+      expect(resetSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it("renders only the collapsed open button and wires openPanel when width is 0", () => {
+      component.width = 0;
+      fixture.detectChanges();
+      const openSpy = vi.spyOn(component, "openPanel").mockImplementation(() => {});
+
+      // the panel body is hidden while collapsed
+      expect(fixture.debugElement.query(By.css("#content"))).toBeNull();
+      fire("#result-buttons li[nz-menu-item]", "click", new MouseEvent("click")); // the open item
+
+      expect(openSpy).toHaveBeenCalled();
+    });
+
+    it("interpolates the operator title into the panel title", () => {
+      component.width = DEFAULT_WIDTH;
+      component.operatorTitle = "My Operator";
+      fixture.detectChanges();
+
+      const title = fixture.debugElement.query(By.css("#title")).nativeElement as HTMLElement;
+      expect(title.textContent).toContain("Result Panel: My Operator");
+    });
+
+    it("omits the separator in the title when no operator is selected", () => {
+      component.width = DEFAULT_WIDTH;
+      component.operatorTitle = "";
+      fixture.detectChanges();
+
+      const title = fixture.debugElement.query(By.css("#title")).nativeElement as HTMLElement;
+      expect(title.textContent?.trim()).toBe("Result Panel");
+    });
+
+    it("shows the no-results tab when there are no frames", () => {
+      component.width = DEFAULT_WIDTH;
+      component.frameComponentConfigs.clear();
+      fixture.detectChanges();
+
+      expect((fixture.nativeElement as HTMLElement).textContent).toContain("No results available to display.");
+    });
+
+    it("renders a tab per frame when frames are present", () => {
+      component.width = DEFAULT_WIDTH;
+      // Seed real inputs: the outlet binds `inputs: config.value.componentInputs`, and that is
+      // the only thing that delivers operatorId into the real result / console / error frames.
+      component.frameComponentConfigs.set("Result", {
+        component: StubFrame,
+        componentInputs: { operatorId: "op-result" },
+      });
+      component.frameComponentConfigs.set("Console", {
+        component: StubFrame,
+        componentInputs: { operatorId: "op-console" },
+      });
+      fixture.detectChanges();
+
+      const text = (fixture.nativeElement as HTMLElement).textContent ?? "";
+      expect(text).toContain("Result");
+      expect(text).toContain("Console");
+      expect(text).not.toContain("No results available to display.");
+
+      const renderedInputs = fixture.debugElement
+        .queryAll(By.directive(StubFrame))
+        .map(frame => (frame.componentInstance as StubFrame).operatorId);
+      expect(renderedInputs.length).toBeGreaterThan(0);
+      expect(renderedInputs).not.toContain(undefined);
+      renderedInputs.forEach(operatorId => expect(["op-result", "op-console"]).toContain(operatorId));
+    });
+
+    it("renders the resize handles when the panel is docked", () => {
+      component.width = DEFAULT_WIDTH;
+      vi.spyOn(component, "isPanelDocked").mockReturnValue(true);
+      fixture.detectChanges();
+
+      expect(fixture.debugElement.query(By.css("nz-resize-handles"))).toBeTruthy();
+    });
+
+    // The two tests below leave isPanelDocked unmocked on purpose: the real predicate has to run
+    // for the template's `isPanelDocked() ? ... : ...` direction list to be exercised both ways.
+    // The spy is installed without an implementation, so behaviour is untouched; asserting that
+    // it was called is what stops the call being replaced by an inline template expression.
+    it("offers only the right handle while the panel sits docked in its return position", () => {
+      component.width = DEFAULT_WIDTH;
+      component.returnPosition = { x: 0, y: 0 };
+      component.dragPosition = { x: 0, y: 0 };
+      const dockedSpy = vi.spyOn(component, "isPanelDocked");
+      fixture.detectChanges();
+
+      const handles = fixture.debugElement.queryAll(By.css("nz-resize-handle"));
+      expect(dockedSpy).toHaveBeenCalled();
+      expect(handles.length).toBe(1);
+      expect((handles[0].nativeElement as HTMLElement).className).toContain("nz-resizable-handle-right");
+    });
+
+    it("offers all three resize directions once the panel has been dragged away from its return position", () => {
+      component.width = DEFAULT_WIDTH;
+      component.returnPosition = { x: 0, y: 0 };
+      // Only the y axis moves, so a direction list keyed off the x axis alone would still
+      // report the panel as docked and render a single handle.
+      component.dragPosition = { x: 0, y: 60 };
+      const dockedSpy = vi.spyOn(component, "isPanelDocked");
+      fixture.detectChanges();
+
+      const classNames = fixture.debugElement
+        .queryAll(By.css("nz-resize-handle"))
+        .map(handle => (handle.nativeElement as HTMLElement).className);
+      expect(dockedSpy).toHaveBeenCalled();
+      expect(classNames.length).toBe(3);
+      expect(classNames.some(c => c.includes("nz-resizable-handle-right"))).toBe(true);
+      expect(classNames.some(c => c.includes("nz-resizable-handle-bottom"))).toBe(true);
+      expect(classNames.some(c => c.includes("nz-resizable-handle-bottomRight"))).toBe(true);
+    });
+
+    it("names the selected operator in the collapsed open button's tooltip", () => {
+      component.width = 0;
+      component.operatorTitle = "My Operator";
+      fixture.detectChanges();
+
+      const openButton = fixture.debugElement.query(By.css("#result-buttons li[nz-menu-item]"));
+      expect(openButton.injector.get(NzTooltipDirective).directiveTitle).toBe("Open Result Panel: My Operator");
+    });
+
+    it("omits the separator from the collapsed open button's tooltip when no operator is selected", () => {
+      component.width = 0;
+      component.operatorTitle = "";
+      fixture.detectChanges();
+
+      const openButton = fixture.debugElement.query(By.css("#result-buttons li[nz-menu-item]"));
+      expect(openButton.injector.get(NzTooltipDirective).directiveTitle).toBe("Open Result Panel");
+    });
+
+    // The expanded panel swaps the same menu slot for a Close item carrying its own,
+    // near-identical tooltip; both arms of its ternary need their own assertions or the
+    // interpolation is only executed, never read.
+    it("names the selected operator in the expanded close button's tooltip", () => {
+      component.width = DEFAULT_WIDTH;
+      component.operatorTitle = "My Operator";
+      fixture.detectChanges();
+
+      const closeButton = fixture.debugElement.query(By.css("#result-buttons li[nz-menu-item]"));
+      expect(closeButton.injector.get(NzTooltipDirective).directiveTitle).toBe("Close Result Panel: My Operator");
+    });
+
+    it("omits the separator from the expanded close button's tooltip when no operator is selected", () => {
+      component.width = DEFAULT_WIDTH;
+      component.operatorTitle = "";
+      fixture.detectChanges();
+
+      const closeButton = fixture.debugElement.query(By.css("#result-buttons li[nz-menu-item]"));
+      expect(closeButton.injector.get(NzTooltipDirective).directiveTitle).toBe("Close Result Panel");
+    });
+
+    it("routes the container's drag and resize outputs to the component handlers", () => {
+      // onResize defers its assignment through requestAnimationFrame; run the callback
+      // synchronously so the width/height assertions are deterministic.
+      const cancelSpy = vi.spyOn(window, "cancelAnimationFrame").mockImplementation(() => {});
+      const rafSpy = vi.spyOn(window, "requestAnimationFrame").mockImplementation(cb => {
+        cb(0);
+        return 1;
+      });
+      // handleStartDrag/handleEndDrag dereference the #dynamicComponent ViewChild, which only
+      // resolves once the panel is open and has at least one frame to render.
+      component.width = DEFAULT_WIDTH;
+      component.returnPosition = { x: 0, y: 0 };
+      component.frameComponentConfigs.set("Result", { component: StubFrame, componentInputs: {} });
+      fixture.detectChanges();
+      const startDragSpy = vi.spyOn(component, "handleStartDrag");
+
+      try {
+        fire("#result-container", "cdkDragStarted", {});
+        fire("#result-container", "cdkDragEnded", {
+          source: { getFreeDragPosition: () => ({ x: 11, y: 22 }) },
+        });
+        fire("#result-container", "nzResize", { width: 700, height: 400 });
+
+        expect(startDragSpy).toHaveBeenCalledTimes(1);
+        expect(component.dragPosition).toEqual({ x: 11, y: 22 });
+        expect(component.width).toBe(700);
+        expect(component.height).toBe(400);
+
+        // Recording the fields is only half the wiring: push a change-detection pass and
+        // assert the recorded values actually reach the DOM, i.e. that the container is
+        // sized from width/height and keeps the dropped position rather than snapping back.
+        fixture.detectChanges();
+        const container = fixture.debugElement.query(By.css("#result-container"));
+        expect(container.injector.get(CdkDrag).freeDragPosition).toEqual({ x: 11, y: 22 });
+        const host = container.nativeElement as HTMLElement;
+        expect(host.style.width).toBe("700px");
+        expect(host.style.height).toBe("400px");
+      } finally {
+        rafSpy.mockRestore();
+        cancelSpy.mockRestore();
+      }
+    });
+  });
 });
+
+// A trivial standalone frame so *ngComponentOutlet can instantiate a tab's content
+// without pulling in a real result-frame component's dependency graph. It declares the
+// one input every real frame takes, so the outlet's `inputs:` half is observable.
+@Component({ standalone: true, template: "" })
+class StubFrame {
+  @Input() operatorId?: string;
+}

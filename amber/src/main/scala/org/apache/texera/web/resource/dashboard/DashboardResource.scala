@@ -26,6 +26,7 @@ import org.apache.texera.dao.jooq.generated.tables.pojos._
 import org.apache.texera.web.resource.dashboard.DashboardResource._
 import org.apache.texera.web.resource.dashboard.SearchQueryBuilder.{ALL_RESOURCE_TYPE, context}
 import org.apache.texera.web.resource.dashboard.user.dataset.DatasetResource.DashboardDataset
+import org.apache.texera.web.resource.dashboard.user.model.ModelResource.DashboardModel
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowResource.DashboardWorkflow
 import org.jooq.{Field, OrderField}
 
@@ -38,11 +39,11 @@ object DashboardResource {
   case class DashboardClickableFileEntry(
       resourceType: String,
       workflow: Option[DashboardWorkflow] = None,
-      project: Option[Project] = None,
-      dataset: Option[DashboardDataset] = None
+      dataset: Option[DashboardDataset] = None,
+      model: Option[DashboardModel] = None
   )
 
-  case class UserInfo(userId: Integer, userName: String, googleAvatar: Option[String])
+  case class UserInfo(userId: Integer, userName: String, avatar: Option[String])
 
   case class DashboardSearchResult(
       results: List[DashboardClickableFileEntry],
@@ -54,7 +55,7 @@ object DashboardResource {
    The following class describe the available params from the frontend for full text search.
    * @param user       The authenticated user performing the search.
    * @param keywords          A list of search keywords. The API will return resources that match any of these keywords.
-   * @param resourceType      The type of the resources to include in the search results. Acceptable values are "workflow", "project", "file" and "" (for all types).
+   * @param resourceType      The type of the resources to include in the search results. Acceptable values are "workflow", "dataset", "model" and "" (for all types).
    * @param creationStartDate The start of the date range for the creation time filter. It should be provided in 'yyyy-MM-dd' format.
    * @param creationEndDate   The end of the date range for the creation time filter. It should be provided in 'yyyy-MM-dd' format.
    * @param modifiedStartDate The start of the date range for the modification time filter. It should be provided in 'yyyy-MM-dd' format.
@@ -62,7 +63,7 @@ object DashboardResource {
    * @param owners            A list of owner names to include in the search results.
    * @param workflowIDs       A list of workflow IDs to include in the search results.
    * @param operators         A list of operators to include in the search results.
-   * @param projectIds        A list of project IDs to include in the search results.
+   * @param modelIds          A list of model IDs to include in the search results.
    * @param offset            The number of initial results to skip. This is useful for implementing pagination.
    * @param count             The maximum number of results to return.
    * @param orderBy           The order in which to sort the results. Acceptable values are 'NameAsc', 'NameDesc', 'CreateTimeDesc', and 'EditTimeDesc'.
@@ -77,8 +78,8 @@ object DashboardResource {
       @QueryParam("owner") owners: java.util.List[String] = new util.ArrayList(),
       @QueryParam("id") workflowIDs: java.util.List[Integer] = new util.ArrayList(),
       @QueryParam("operator") operators: java.util.List[String] = new util.ArrayList(),
-      @QueryParam("projectId") projectIds: java.util.List[Integer] = new util.ArrayList(),
       @QueryParam("datasetId") datasetIds: java.util.List[Integer] = new util.ArrayList(),
+      @QueryParam("modelId") modelIds: java.util.List[Integer] = new util.ArrayList(),
       @QueryParam("start") @DefaultValue("0") offset: Int = 0,
       @QueryParam("count") @DefaultValue("20") count: Int = 20,
       @QueryParam("orderBy") @DefaultValue("EditTimeDesc") orderBy: String = "EditTimeDesc"
@@ -95,15 +96,15 @@ object DashboardResource {
     val query = params.resourceType match {
       case SearchQueryBuilder.WORKFLOW_RESOURCE_TYPE =>
         WorkflowSearchQueryBuilder.constructQuery(uid, params, includePublic)
-      case SearchQueryBuilder.PROJECT_RESOURCE_TYPE =>
-        ProjectSearchQueryBuilder.constructQuery(uid, params, includePublic)
       case SearchQueryBuilder.DATASET_RESOURCE_TYPE =>
         DatasetSearchQueryBuilder.constructQuery(uid, params, includePublic)
+      case SearchQueryBuilder.MODEL_RESOURCE_TYPE =>
+        ModelSearchQueryBuilder.constructQuery(uid, params, includePublic)
       case SearchQueryBuilder.ALL_RESOURCE_TYPE =>
-        val q1 = WorkflowSearchQueryBuilder.constructQuery(uid, params, includePublic)
-        val q3 = ProjectSearchQueryBuilder.constructQuery(uid, params, includePublic)
-        val q4 = DatasetSearchQueryBuilder.constructQuery(uid, params, includePublic)
-        q1.unionAll(q3).unionAll(q4)
+        val workflowQuery = WorkflowSearchQueryBuilder.constructQuery(uid, params, includePublic)
+        val datasetQuery = DatasetSearchQueryBuilder.constructQuery(uid, params, includePublic)
+        val modelQuery = ModelSearchQueryBuilder.constructQuery(uid, params, includePublic)
+        workflowQuery.unionAll(datasetQuery).unionAll(modelQuery)
       case _ => throw new IllegalArgumentException(s"Unknown resource type: ${params.resourceType}")
     }
 
@@ -118,17 +119,18 @@ object DashboardResource {
         resourceType match {
           case SearchQueryBuilder.WORKFLOW_RESOURCE_TYPE =>
             WorkflowSearchQueryBuilder.toEntry(uid, record)
-          case SearchQueryBuilder.PROJECT_RESOURCE_TYPE =>
-            ProjectSearchQueryBuilder.toEntry(uid, record)
           case SearchQueryBuilder.DATASET_RESOURCE_TYPE =>
             DatasetSearchQueryBuilder.toEntry(uid, record)
+          case SearchQueryBuilder.MODEL_RESOURCE_TYPE =>
+            ModelSearchQueryBuilder.toEntry(uid, record)
         }
       })
 
     val entries = allEntries.filter(_ != null)
     val hasMismatch =
       params.resourceType match {
-        case SearchQueryBuilder.DATASET_RESOURCE_TYPE | SearchQueryBuilder.ALL_RESOURCE_TYPE =>
+        case SearchQueryBuilder.DATASET_RESOURCE_TYPE | SearchQueryBuilder.MODEL_RESOURCE_TYPE |
+            SearchQueryBuilder.ALL_RESOURCE_TYPE =>
           allEntries.exists(_ == null)
         case _ =>
           false
@@ -180,10 +182,11 @@ object DashboardResource {
 class DashboardResource {
 
   /**
-    * This method performs a full-text search across all resources - workflows, projects, and files -
+    * This method performs a full-text search across all resources - workflows, datasets and models -
     * that match the specified keywords.
     * It supports advanced filters such as resource type, creation and modification dates, owner,
-    * workflow IDs, operators, project IDs and allows to specify the number of results and their ordering.
+    * workflow IDs, model IDs and operators, and allows specifying the number of results and their
+    * ordering.
     *
     * This method utilizes MySQL Boolean Full-Text Searches
     * reference: https://dev.mysql.com/doc/refman/8.0/en/fulltext-boolean.html
@@ -221,7 +224,7 @@ class DashboardResource {
     val scalaUserIds: Set[Integer] = userIds.asScala.toSet
 
     val records = context
-      .select(USER.UID, USER.NAME, USER.GOOGLE_AVATAR)
+      .select(USER.UID, USER.NAME, USER.AVATAR)
       .from(USER)
       .where(USER.UID.in(scalaUserIds.asJava))
       .fetch()
@@ -230,8 +233,8 @@ class DashboardResource {
       .map { record =>
         val userId = record.get(USER.UID)
         val userName = record.get(USER.NAME)
-        val googleAvatar = Option(record.get(USER.GOOGLE_AVATAR))
-        userId -> UserInfo(userId, userName, googleAvatar)
+        val avatar = Option(record.get(USER.AVATAR))
+        userId -> UserInfo(userId, userName, avatar)
       }
       .toMap
       .asJava

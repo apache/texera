@@ -38,7 +38,6 @@ function makeWorkflowItem(name: string, wid: number = 1): SearchResultItem {
       isOwner: true,
       ownerName: undefined,
       workflow: { wid, name } as any,
-      projectIDs: [],
       accessLevel: "WRITE",
       ownerId: 1,
     } as any,
@@ -129,7 +128,6 @@ describe("SearchBarComponent", () => {
       owners: [],
       ids: [],
       operators: [],
-      projectIds: [],
     });
     expect(args[2]).toBe(0);
     expect(args[3]).toBe(5);
@@ -149,43 +147,28 @@ describe("SearchBarComponent", () => {
 
   it("addToCache evicts the oldest entry once 20 queries are cached", () => {
     const cache = (component as any).searchCache as Map<string, string[]>;
-    const order = (component as any).queryOrder as string[];
 
     for (let i = 0; i < 20; i++) {
       (component as any).addToCache(`q${i}`, [`r${i}`]);
     }
     expect(cache.size).toBe(20);
     expect(cache.has("q0")).toBe(true);
-    expect(order[0]).toBe("q0");
+    expect([...cache.keys()][0]).toBe("q0");
 
     (component as any).addToCache("q20", ["r20"]);
 
     expect(cache.size).toBe(20);
     expect(cache.has("q0")).toBe(false);
     expect(cache.has("q20")).toBe(true);
-    expect(order[0]).toBe("q1");
-    expect(order[order.length - 1]).toBe("q20");
+    // The Map's own iteration order is the eviction order.
+    const keys = [...cache.keys()];
+    expect(keys[0]).toBe("q1");
+    expect(keys[keys.length - 1]).toBe("q20");
   });
 
   describe("convertToName", () => {
     it("returns the workflow's DashboardEntry.name", () => {
       expect(component.convertToName(makeWorkflowItem("wf-name", 7))).toBe("wf-name");
-    });
-
-    it("returns the project's name", () => {
-      const item: SearchResultItem = {
-        resourceType: "project",
-        project: {
-          pid: 1,
-          name: "proj-name",
-          description: "",
-          ownerId: 1,
-          creationTime: 0,
-          color: null,
-          accessLevel: "WRITE",
-        } as any,
-      };
-      expect(component.convertToName(item)).toBe("proj-name");
     });
 
     it("returns the file's name", () => {

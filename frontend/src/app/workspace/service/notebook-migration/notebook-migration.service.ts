@@ -24,7 +24,9 @@ import { HttpClient, HttpHeaders } from "@angular/common/http";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { GuiConfigService } from "../../../common/service/gui-config.service";
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
+import { WorkflowContent } from "../../../common/type/workflow";
 import { catchError, firstValueFrom, map, Observable, of } from "rxjs";
+import { v4 as uuidv4 } from "uuid";
 
 interface LiteLLMModel {
   id: string;
@@ -38,7 +40,7 @@ interface LiteLLMModelsResponse {
   object: string;
 }
 
-interface MappingContent {
+export interface MappingContent {
   cell_to_operator: Record<string, string[]>;
   operator_to_cell: Record<string, string[]>;
 }
@@ -46,6 +48,23 @@ interface MappingContent {
 interface StoreNotebookResponse {
   success: boolean;
   message: string;
+}
+
+interface DeleteNotebookResponse {
+  success: boolean;
+  deleted?: number;
+  message?: string;
+}
+
+// Single source of truth for the mapping cache key, shared with JupyterPanelService so it can't drift.
+export function notebookMappingKey(wid: number | undefined): string {
+  return "mapping_wid_" + wid;
+}
+
+// Per-workflow notebook filename so workflows don't overwrite each other's notebook.
+// Falls back to the default when there's no wid.
+export function notebookFileName(wid: number | undefined): string {
+  return wid ? `notebook_${wid}.ipynb` : "notebook.ipynb";
 }
 
 @Injectable({
@@ -80,7 +99,10 @@ export class NotebookMigrationService {
     );
   }
 
-  public async sendToAIGenerateWorkflow(notebookContent: Notebook, modelType: string) {
+  public async sendToAIGenerateWorkflow(
+    notebookContent: Notebook,
+    modelType: string
+  ): Promise<{ workflowContent: WorkflowContent; mappingContent: MappingContent }> {
     if (!this.enabled) throw new Error("Notebook migration feature is disabled");
     const migrationLLM = this.createMigrationLLM();
     // initialize() defaults to the user's Texera JWT via AuthService.getAccessToken().
@@ -116,16 +138,12 @@ export class NotebookMigrationService {
     return new NotebookMigrationLLM(this.config, this.workflowUtilService);
   }
 
-  public async sendNotebookToJupyter(notebookData: Notebook) {
+  public async sendNotebookToJupyter(notebookData: Notebook, notebookName: string) {
     if (!this.enabled) return 0;
     const jupyterAPIUrl = `${AppSettings.getApiEndpoint()}/notebook-migration/set-notebook`;
 
     const requestBody = {
-      // Fixed filename is intentional for the v1 per-user-pod design: each user runs
-      // their own notebook-migration-service and Jupyter, so a single notebook.ipynb
-      // never collides. A shared multi-user (global) service would need per-user or
-      // per-workflow keying here and for the backend's process-global jupyterIframeURL.
-      notebookName: "notebook.ipynb",
+      notebookName: notebookName,
       notebookData: notebookData,
     };
 
@@ -142,6 +160,24 @@ export class NotebookMigrationService {
       const message = error instanceof Error ? error.message : String(error);
       this.notificationService.error("Error sending notebook to Jupyter: " + message);
       return 0;
+    }
+  }
+
+  // Remove a workflow's notebook file from the Jupyter pod. Takes a concrete wid so it can
+  // never fall back to the shared default filename and delete the wrong file; callers guard
+  // out unsaved workflows before calling. Best effort by design: the database rows are the
+  // source of truth for whether a workflow has a notebook, so a failure here is logged, not
+  // surfaced, and nothing acts on the outcome.
+  public async deleteNotebookForWorkflow(wid: number): Promise<void> {
+    if (!this.enabled) return;
+    if (!Number.isInteger(wid) || wid <= 0) return;
+    const jupyterAPIUrl = `${AppSettings.getApiEndpoint()}/notebook-migration/delete-notebook`;
+    const headers = new HttpHeaders({ "Content-Type": "application/json" });
+
+    try {
+      await firstValueFrom(this.http.post(jupyterAPIUrl, { notebookName: notebookFileName(wid) }, { headers }));
+    } catch (error) {
+      console.error("Error deleting notebook from pod: ", error);
     }
   }
 
@@ -166,14 +202,16 @@ export class NotebookMigrationService {
     }
   }
 
-  public async getJupyterIframeURL(): Promise<string | null> {
+  public async getJupyterIframeURL(notebookName?: string): Promise<string | null> {
     if (!this.enabled) return null;
     try {
-      const data = await firstValueFrom(
-        this.http.get<{ success: boolean; url?: string }>(
-          `${AppSettings.getApiEndpoint()}/notebook-migration/get-jupyter-iframe-url`
-        )
-      );
+      const url = `${AppSettings.getApiEndpoint()}/notebook-migration/get-jupyter-iframe-url`;
+      // Send notebookName when given; otherwise the backend uses its default.
+      const params: Record<string, string> = {};
+      if (notebookName) {
+        params["notebookName"] = notebookName;
+      }
+      const data = await firstValueFrom(this.http.get<{ success: boolean; url?: string }>(url, { params }));
 
       if (!data.success || !data.url) {
         console.error("Jupyter server unavailable");
@@ -189,7 +227,6 @@ export class NotebookMigrationService {
 
   public storeNotebookAndMapping(
     wid: number | undefined,
-    vid: number = 1,
     mappingContent: any,
     notebookContent: any
   ): Observable<StoreNotebookResponse> {
@@ -199,14 +236,31 @@ export class NotebookMigrationService {
     const dbAPIUrl = `${AppSettings.getApiEndpoint()}/notebook-migration/store-notebook-and-mapping`;
     const headers = new HttpHeaders({ "Content-Type": "application/json" });
 
+    // The mapping's version id (vid) is resolved server-side from the workflow's
+    // latest version to anchor its FK, so no vid is sent from here.
     const payload = {
       wid,
-      vid,
       mapping: mappingContent,
       notebook: notebookContent,
     };
 
     return this.http.post<StoreNotebookResponse>(dbAPIUrl, payload, { headers });
+  }
+
+  // Delete the stored notebook and its mapping for a workflow. The backend's
+  // notebook -> workflow_notebook_mapping FK is ON DELETE CASCADE, and wid alone
+  // identifies the notebook, so only wid is sent. `deleted` is 1 when a notebook
+  // was removed, 0 when nothing was stored.
+  public deleteNotebookAndMapping(wid: number | undefined): Observable<DeleteNotebookResponse> {
+    if (!this.enabled) {
+      return of({ success: false, message: "Notebook migration feature is disabled" });
+    }
+    const dbAPIUrl = `${AppSettings.getApiEndpoint()}/notebook-migration/delete-notebook-and-mapping`;
+    const headers = new HttpHeaders({ "Content-Type": "application/json" });
+
+    const payload = { wid };
+
+    return this.http.post<DeleteNotebookResponse>(dbAPIUrl, payload, { headers });
   }
 
   public hasMapping(id: string): boolean {
@@ -223,5 +277,36 @@ export class NotebookMigrationService {
 
   public deleteMapping(id: string): void {
     delete this.mapping[id];
+  }
+
+  // Reads and parses an .ipynb file, then tags each cell with a uuid (the mapping keys off these).
+  // Rejects on a read error, invalid JSON, or a missing cells array. Uses FileReader rather than
+  // file.text() because jsdom (the test environment) does not implement Blob/File.text().
+  public parseAndTagNotebook(file: File): Promise<Notebook> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error("Failed to read the notebook file."));
+      reader.onload = () => {
+        try {
+          if (typeof reader.result !== "string") {
+            throw new Error("File content is not a valid string.");
+          }
+          const notebook = JSON.parse(reader.result) as Notebook;
+          if (!notebook || !Array.isArray(notebook.cells)) {
+            throw new Error("Invalid notebook structure.");
+          }
+          for (const cell of notebook.cells) {
+            if (!cell.metadata) {
+              cell.metadata = {};
+            }
+            cell.metadata.uuid = uuidv4();
+          }
+          resolve(notebook);
+        } catch (error) {
+          reject(error);
+        }
+      };
+      reader.readAsText(file);
+    });
   }
 }

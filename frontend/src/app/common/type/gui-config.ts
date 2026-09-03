@@ -21,16 +21,18 @@ import { ExecutionMode } from "./workflow";
 // Please refer to core/config/src/main/resources/gui.conf for the definition of each config item
 export interface GuiConfig {
   exportExecutionResultEnabled: boolean;
-  autoAttributeCorrectionEnabled: boolean;
   selectingFilesFromDatasetsEnabled: boolean;
   localLogin: boolean;
   googleLogin: boolean;
+  orcidLogin: boolean;
   inviteOnly: boolean;
+  emailVerification: boolean;
   userPresetEnabled: boolean;
   workflowExecutionsTrackingEnabled: boolean;
   linkBreakpointEnabled: boolean;
   asyncRenderingEnabled: boolean;
   timetravelEnabled: boolean;
+  formViewEnabled: boolean;
   productionSharedEditingServer: boolean;
   pythonLanguageServerPort: string;
   defaultDataTransferBatchSize: number;
@@ -39,12 +41,12 @@ export interface GuiConfig {
   sharingComputingUnitEnabled: boolean;
   operatorConsoleMessageBufferSize: number;
   defaultLocalUser?: { username?: string; password?: string };
-  expirationTimeInMinutes: number;
   activeTimeInMinutes: number;
   copilotEnabled: boolean;
   limitColumns: number;
   attributionEnabled: boolean;
   pythonNotebookMigrationEnabled: boolean;
+  pythonNotebookMigrationTimeoutMinutes: number;
   deploymentVersionCheckEnabled: boolean;
 }
 
@@ -53,11 +55,12 @@ export interface SidebarTabs {
   home_enabled: boolean;
   workflow_enabled: boolean;
   dataset_enabled: boolean;
+  model_enabled: boolean;
   your_work_enabled: boolean;
-  projects_enabled: boolean;
   workflows_enabled: boolean;
   compute_enabled: boolean;
   datasets_enabled: boolean;
+  models_enabled: boolean;
   quota_enabled: boolean;
   forum_enabled: boolean;
   about_enabled: boolean;

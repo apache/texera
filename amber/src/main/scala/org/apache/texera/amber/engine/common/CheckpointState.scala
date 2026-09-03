@@ -21,7 +21,7 @@ package org.apache.texera.amber.engine.common
 
 import scala.collection.mutable
 
-class CheckpointState {
+class CheckpointState extends Serializable {
 
   private val states = new mutable.HashMap[String, SerializedState]()
 
