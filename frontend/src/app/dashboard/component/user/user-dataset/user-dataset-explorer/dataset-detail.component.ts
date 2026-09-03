@@ -138,6 +138,7 @@ export class DatasetDetailComponent implements OnInit {
 
   public versions: ReadonlyArray<DatasetVersion> = [];
   public selectedVersion: DatasetVersion | undefined;
+  public uploadsInFlight = false;
   public fileTreeNodeList: DatasetFileNode[] = [];
   public selectedVersionCreationTime: string = "";
 
@@ -908,6 +909,65 @@ export class DatasetDetailComponent implements OnInit {
       });
   }
 
+<<<<<<< HEAD
+=======
+  onSaveDatasetName(): void {
+    if (!this.did) {
+      return;
+    }
+    if (this.uploadsInFlight) {
+      this.notificationService.error("Finish or cancel the upload in progress before renaming this dataset");
+      return;
+    }
+    // Reject invalid names outright instead of silently rewriting them, matching
+    // the shared validation used by the other rename entry points (PR #6426).
+    const name = this.editedDatasetName;
+    const nameError = validateDatasetName(name);
+    if (nameError) {
+      this.notificationService.error(nameError);
+      return;
+    }
+
+    this.datasetService
+      .updateDatasetName(this.did, name)
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: () => {
+          this.datasetName = name;
+          this.editedDatasetName = name;
+          // Every file path embeds the dataset name, and preview and single-file download resolve
+          // a dataset by (owner, name) — a stale tree 404s until reload.
+          if (this.selectedVersion) {
+            this.onVersionSelected(this.selectedVersion);
+          }
+          this.retrieveLatestVersionFile();
+          this.notificationService.success(`Dataset name updated to '${name}'`);
+        },
+        error: (err: unknown) => {
+          this.notificationService.error(extractErrorMessage(err));
+        },
+      });
+  }
+
+  onDeleteDataset(): void {
+    if (!this.did) {
+      return;
+    }
+    this.datasetService
+      .deleteDatasets(this.did)
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: () => {
+          this.notificationService.success(`Dataset ${this.datasetName} was deleted`);
+          this.router.navigate([USER_DATASET]);
+        },
+        error: (err: unknown) => {
+          this.notificationService.error(extractErrorMessage(err));
+        },
+      });
+  }
+
+>>>>>>> 4ff0b8b4a (fix(frontend): refresh a dataset's paths after a rename, and block renaming mid-upload (#8347))
   async copyCurrentFilePath(): Promise<void> {
     if (!this.currentDisplayedFileName) {
       return;
