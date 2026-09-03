@@ -23,6 +23,8 @@ import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
 import org.apache.texera.amber.operator.filter.SpecializedFilterOpDesc
 import org.apache.texera.amber.operator.hashJoin.HashJoinOpDesc
 import org.apache.texera.amber.operator.intersect.IntersectOpDesc
+import org.apache.texera.amber.operator.visualization.candlestickChart.CandlestickChartOpDesc
+import org.apache.texera.amber.operator.visualization.choroplethMap.ChoroplethMapOpDesc
 import org.apache.texera.amber.operator.visualization.histogram2d.Histogram2DOpDesc
 import org.apache.texera.amber.operator.visualization.radarChart.RadarChartOpDesc
 import org.scalatest.flatspec.AnyFlatSpec
@@ -70,6 +72,18 @@ class ConfigGeneratorSpec extends AnyFlatSpec with Matchers {
 
   // ── semantic column resolution (the @SampleColumn / attributeTypeRules tiers) ──
 
+  it should "fill @SampleColumn-tagged fields with the named semantic columns" in {
+    val result =
+      ConfigGenerator.generate(classOf[CandlestickChartOpDesc], CanonicalFixture.schemasByPort)
+    withClue(result) { result.isRight shouldBe true }
+    val op = result.toOption.get.asInstanceOf[CandlestickChartOpDesc]
+    op.open.toString shouldBe "open"
+    op.high.toString shouldBe "high"
+    op.low.toString shouldBe "low"
+    op.close.toString shouldBe "close"
+    op.date.toString shouldBe "trade_date"
+  }
+
   it should "assign distinct columns to sibling autofill fields (no x = y collapse)" in {
     // Histogram2D's xColumn and yColumn are both plain @AutofillAttributeName
     // with no type-rule; before distinct-aware binding both resolved to the
@@ -94,5 +108,16 @@ class ConfigGeneratorSpec extends AnyFlatSpec with Matchers {
     val op = result.toOption.get.asInstanceOf[RadarChartOpDesc]
     op.valueColumns.map(_.toString) should not contain op.nameColumn.toString
     op.valueColumns.size should be > 1
+  }
+
+  it should "pick a type-matching column from attributeTypeRules, and a @SampleColumn for ISO codes" in {
+    val result =
+      ConfigGenerator.generate(classOf[ChoroplethMapOpDesc], CanonicalFixture.schemasByPort)
+    withClue(result) { result.isRight shouldBe true }
+    val op = result.toOption.get.asInstanceOf[ChoroplethMapOpDesc]
+    op.locations.toString shouldBe "iso_country" // via @SampleColumn
+    // color is constrained to integer|long|double by attributeTypeRules, so it
+    // must resolve to a numeric column rather than the first (string) column.
+    Set("id", "score", "open", "high", "low", "close") should contain(op.color.toString)
   }
 }
