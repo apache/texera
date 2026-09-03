@@ -79,6 +79,16 @@ class ModelAccessResourceSpec
     user
   }
 
+  // a placeholder account is a not-yet-registered stub; it may never be granted or revoked
+  private val placeholderUser: User = {
+    val user = new User
+    user.setName("model_placeholder")
+    user.setEmail("model-placeholder@test.com")
+    user.setRole(UserRoleEnum.INACTIVE)
+    user.setIsPlaceholder(true)
+    user
+  }
+
   private val privateModel: Model = {
     val model = new Model
     model.setName("private-model")
@@ -130,6 +140,7 @@ class ModelAccessResourceSpec
     userDao.insert(readGranteeUser)
     userDao.insert(writeGranteeUser)
     userDao.insert(strangerUser)
+    userDao.insert(placeholderUser)
 
     privateModel.setOwnerUid(ownerUser.getUid)
     publicModel.setOwnerUid(ownerUser.getUid)
@@ -272,22 +283,20 @@ class ModelAccessResourceSpec
   }
 
   it should "reject granting to a placeholder account" in {
-    val placeholder = new User
-    placeholder.setName("model_placeholder")
-    placeholder.setEmail("model-placeholder@test.com")
-    placeholder.setRole(UserRoleEnum.INACTIVE)
-    placeholder.setIsPlaceholder(true)
-    new UserDao(getDSLContext.configuration()).insert(placeholder)
-
     assertThrows[BadRequestException] {
       accessResource.grantAccess(
         privateModel.getMid,
-        "model-placeholder@test.com",
+        placeholderUser.getEmail,
         "READ",
         ownerSession
       )
     }
     accessList(privateModel.getMid) shouldBe empty
+    getModelUserAccessPrivilege(
+      getDSLContext,
+      privateModel.getMid,
+      placeholderUser.getUid
+    ) shouldEqual PrivilegeEnum.NONE
   }
 
   it should "reject granting to an unknown email" in {
@@ -410,6 +419,24 @@ class ModelAccessResourceSpec
       readGranteeUser.getUid
     ) shouldEqual PrivilegeEnum.NONE
     userHasReadAccess(getDSLContext, privateModel.getMid, readGranteeUser.getUid) shouldBe false
+  }
+
+  it should "reject a revoke for an email with no account" in {
+    assertThrows[BadRequestException] {
+      accessResource.revokeAccess(privateModel.getMid, "nobody@example.com", ownerSession)
+    }
+  }
+
+  it should "reject a revoke for a placeholder account" in {
+    assertThrows[BadRequestException] {
+      accessResource.revokeAccess(privateModel.getMid, placeholderUser.getEmail, ownerSession)
+    }
+    accessList(privateModel.getMid) shouldBe empty
+    getModelUserAccessPrivilege(
+      getDSLContext,
+      privateModel.getMid,
+      placeholderUser.getUid
+    ) shouldEqual PrivilegeEnum.NONE
   }
 
   it should "allow a WRITE grantee to revoke another user's access" in {

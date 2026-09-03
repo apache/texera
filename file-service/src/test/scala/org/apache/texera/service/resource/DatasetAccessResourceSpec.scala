@@ -79,6 +79,16 @@ class DatasetAccessResourceSpec
     user
   }
 
+  // a placeholder account is a not-yet-registered stub; it may never be granted or revoked
+  private val placeholderUser: User = {
+    val user = new User
+    user.setName("ds_placeholder")
+    user.setEmail("ds-placeholder@test.com")
+    user.setRole(UserRoleEnum.INACTIVE)
+    user.setIsPlaceholder(true)
+    user
+  }
+
   private val privateDataset: Dataset = {
     val dataset = new Dataset
     dataset.setName("private-dataset")
@@ -128,6 +138,7 @@ class DatasetAccessResourceSpec
     userDao.insert(readGranteeUser)
     userDao.insert(writeGranteeUser)
     userDao.insert(strangerUser)
+    userDao.insert(placeholderUser)
 
     privateDataset.setOwnerUid(ownerUser.getUid)
     publicDataset.setOwnerUid(ownerUser.getUid)
@@ -270,22 +281,20 @@ class DatasetAccessResourceSpec
   }
 
   it should "reject granting to a placeholder account" in {
-    val placeholder = new User
-    placeholder.setName("ds_placeholder")
-    placeholder.setEmail("ds-placeholder@test.com")
-    placeholder.setRole(UserRoleEnum.INACTIVE)
-    placeholder.setIsPlaceholder(true)
-    new UserDao(getDSLContext.configuration()).insert(placeholder)
-
     assertThrows[BadRequestException] {
       accessResource.grantAccess(
         privateDataset.getDid,
-        "ds-placeholder@test.com",
+        placeholderUser.getEmail,
         "READ",
         ownerSession
       )
     }
     accessList(privateDataset.getDid) shouldBe empty
+    getDatasetUserAccessPrivilege(
+      getDSLContext,
+      privateDataset.getDid,
+      placeholderUser.getUid
+    ) shouldEqual PrivilegeEnum.NONE
   }
 
   it should "update the privilege in place when re-granting with a different privilege" in {
@@ -420,6 +429,24 @@ class DatasetAccessResourceSpec
     )
     response.getStatus shouldEqual 200
     accessList(privateDataset.getDid) shouldBe empty
+  }
+
+  it should "reject a revoke for an email with no account" in {
+    assertThrows[BadRequestException] {
+      accessResource.revokeAccess(privateDataset.getDid, "nobody@example.com", ownerSession)
+    }
+  }
+
+  it should "reject a revoke for a placeholder account" in {
+    assertThrows[BadRequestException] {
+      accessResource.revokeAccess(privateDataset.getDid, placeholderUser.getEmail, ownerSession)
+    }
+    accessList(privateDataset.getDid) shouldBe empty
+    getDatasetUserAccessPrivilege(
+      getDSLContext,
+      privateDataset.getDid,
+      placeholderUser.getUid
+    ) shouldEqual PrivilegeEnum.NONE
   }
 
   it should "be forbidden for a user without write access" in {

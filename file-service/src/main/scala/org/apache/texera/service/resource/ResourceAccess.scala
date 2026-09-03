@@ -252,11 +252,7 @@ object ResourceAccess {
       requesterUid: Integer
   ): Response = {
     requireWriteAccess(ctx, resource, id, requesterUid)
-    val grantee = new UserDao(ctx.configuration()).fetchOneByEmail(email)
-    if (grantee == null || grantee.getIsPlaceholder) {
-      throw new BadRequestException(s"No registered user with email $email")
-    }
-    val granteeUid = grantee.getUid
+    val granteeUid = resolveUidByEmail(ctx, email)
     val granted = PrivilegeEnum.valueOf(privilege)
 
     ctx
@@ -276,6 +272,7 @@ object ResourceAccess {
     * Removes the user's explicit grant; a no-op when they hold none.
     *
     * @throws jakarta.ws.rs.ForbiddenException if the caller cannot modify the resource.
+    * @throws jakarta.ws.rs.BadRequestException if the email does not match a registered user.
     */
   def revoke[R <: Record, A <: Record](
       ctx: DSLContext,
@@ -285,7 +282,7 @@ object ResourceAccess {
       requesterUid: Integer
   ): Response = {
     requireWriteAccess(ctx, resource, id, requesterUid)
-    val granteeUid = new UserDao(ctx.configuration()).fetchOneByEmail(email).getUid
+    val granteeUid = resolveUidByEmail(ctx, email)
 
     ctx
       .delete(resource.accessTable)
@@ -322,6 +319,19 @@ object ResourceAccess {
         s"You do not have access to ${resource.label} $id"
       )
     }
+
+  /**
+    * Resolves an email to its user id, throwing BadRequestException (400) when no registered
+    * account matches — the service registers no ExceptionMapper for NullPointerException, so a
+    * bare dereference surfaces as an opaque HTTP 500. Shared by grant/revoke.
+    */
+  private def resolveUidByEmail(ctx: DSLContext, email: String): Integer = {
+    val user = new UserDao(ctx.configuration()).fetchOneByEmail(email)
+    if (user == null || user.getIsPlaceholder) {
+      throw new BadRequestException(s"No registered user with email $email")
+    }
+    user.getUid
+  }
 
   /**
     * Emails of the owners of every resource the caller has an explicit grant on, for the
