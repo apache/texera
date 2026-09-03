@@ -117,6 +117,653 @@ object ConfigGenerator {
     * each enum branch (e.g. LineChart's line mode = line / dots / line+dots)
     * instead of only the default. The label identifies the flipped value.
     */
+  def generateVariants(
+      opClass: Class[_ <: LogicalOp],
+      inputSchemas: Map[Int, Schema],
+      rowCount: Int = DefaultRowCount,
+      pinned: Map[String, JsonNode] = Map.empty,
+      switches: Map[String, JsonNode] = Map.empty
+  ): Either[String, Seq[(String, LogicalOp)]] =
+    typeNameByClass.get(opClass) match {
+      case None => Left(s"${opClass.getSimpleName} not registered in LogicalOp @JsonSubTypes")
+      case Some(typeName) =>
+        val used = mutable.Set.empty[(Int, String)]
+        buildObject(opClass, inputSchemas, used, rowCount, pinned = pinned).flatMap { baseNode =>
+          baseNode.put("operatorType", typeName)
+          pinned.foreach { case (field, value) => baseNode.set[JsonNode](field, value) }
+          applyAll(
+            opClass,
+            baseNode,
+            None,
+            allVariants(
+              opClass,
+              baseNode,
+              inputSchemas,
+              used,
+              rowCount,
+              pinned = pinned.keySet,
+              switches = switches
+            )
+          )
+        }
+    }
+
+  /**
+    * Enum-sweep an ALREADY-configured op (e.g. a curated handler's OpDesc):
+    * serialize it to JSON, then return the base op plus one variant per
+    * non-default enum value found anywhere in it (including inside lists with
+    * more than one element). Lets curated fixtures cover every enum branch too,
+    * not just the single value the handler hard-coded.
+    */
+  def variantsOf(opDesc: LogicalOp): Either[String, Seq[(String, LogicalOp)]] = {
+    val opClass = opDesc.getClass.asInstanceOf[Class[_ <: LogicalOp]]
+    // base = the original op (preserve the curated config exactly); variants are
+    // deserialized from the JSON with one enum flipped.
+    nodeOf(opDesc).flatMap(node =>
+      applyAll(opClass, node, Some(opDesc), Variant.Base +: enumVariants(opClass, node))
+    )
+  }
+
+  /**
+    * [[variantsOf]] plus the two multi-knob variants [[generateVariants]] gives an
+    * auto-configured op: `optionals` and `hostileText` (see [[extraVariants]]).
+    *
+    * A separate entry point rather than a widening of [[variantsOf]] so a caller
+    * states which it wants, and a failure points at one of them. Curated fixtures
+    * are the reason it exists: a hand-written config is the ONLY config its
+    * operator ever runs, so without this its optional knobs stay at their defaults
+    * and nothing ever splices a quote into the code it generates.
+    *
+    * `inputSchemas` describes the op's OWN inputs — a curated handler writes its
+    * own fixture, so this is not necessarily the canonical one.
+    */
+  def fullVariantsOf(
+      opDesc: LogicalOp,
+      inputSchemas: Map[Int, Schema],
+      rowCount: Int = DefaultRowCount,
+      sweepEnums: Boolean = true
+  ): Either[String, Seq[(String, LogicalOp)]] = {
+    val opClass = opDesc.getClass.asInstanceOf[Class[_ <: LogicalOp]]
+    for {
+      node <- nodeOf(opDesc)
+      variants <- fullVariantEditsOf(opDesc, inputSchemas, rowCount, sweepEnums)
+      ops <- applyAll(opClass, node, Some(opDesc), variants)
+    } yield ops
+  }
+
+  /**
+    * What [[fullVariantsOf]] runs, as the edits themselves rather than the finished
+    * ops — for a caller that has to REBUILD its fixture per variant and so must
+    * apply them to a FRESH op. A source is that caller: its exported script reads
+    * the file by bare name out of the directory it runs in, so every variant needs
+    * its own directory and its own copy, produced by calling the handler again.
+    *
+    * `sweepEnums = false` keeps the fills but drops the enum sweep, for a fixture
+    * whose enums are cross-constrained with the data it holds — flipping one then
+    * describes a table the fixture is not.
+    */
+  def fullVariantEditsOf(
+      opDesc: LogicalOp,
+      inputSchemas: Map[Int, Schema],
+      rowCount: Int = DefaultRowCount,
+      sweepEnums: Boolean = true
+  ): Either[String, Seq[Variant]] = {
+    val opClass = opDesc.getClass.asInstanceOf[Class[_ <: LogicalOp]]
+    nodeOf(opDesc).map { node =>
+      val used = occupiedColumns(opClass, node, inputSchemas)
+      allVariants(opClass, node, inputSchemas, used, rowCount, sweepEnums)
+    }
+  }
+
+  /** `opDesc` with `variant`'s edits applied. The base variant carries no edits and
+    * hands the instance straight back, so a curated config is never round-tripped
+    * through JSON just to be left unchanged.
+    */
+  def applyVariant(opDesc: LogicalOp, variant: Variant): Either[String, LogicalOp] =
+    if (variant.at.isEmpty) Right(opDesc)
+    else
+      nodeOf(opDesc).flatMap { node =>
+        variant.at.foreach { case (pointer, value) => setAtPointer(node, pointer, value) }
+        deserialize(node, opDesc.getClass.asInstanceOf[Class[_ <: LogicalOp]])
+      }
+
+  /** One named configuration, as the pointer → value edits that turn a base config
+    * into it. Applied to one clone of that base.
+    */
+  final case class Variant(label: String, at: Seq[(String, JsonNode)])
+
+  object Variant {
+
+    /** The base config itself — no edits, so [[applyVariant]] returns it unchanged. */
+    val Base: Variant = Variant("default", Seq.empty)
+  }
+
+  /** Every variant of `baseNode`: the config itself, one per non-default enum value,
+    * then the two multi-knob fills.
+    */
+  private def allVariants(
+      opClass: Class[_ <: LogicalOp],
+      baseNode: ObjectNode,
+      schemas: Map[Int, Schema],
+      used: mutable.Set[(Int, String)],
+      rowCount: Int,
+      sweepEnums: Boolean = true,
+      pinned: Set[String] = Set.empty,
+      switches: Map[String, JsonNode] = Map.empty
+  ): Seq[Variant] =
+    Variant.Base +: ((if (sweepEnums)
+                        enumVariants(
+                          opClass,
+                          baseNode,
+                          pinned,
+                          FillContext(schemas, mutable.Set.empty ++ used, rowCount)
+                        )
+                      else Seq.empty) ++
+      extraVariants(opClass, baseNode, schemas, used, rowCount, switches))
+
+  /** The two multi-knob variants, so called because each moves every knob of its kind
+    * at once. An operator's knobs are worth exercising, but bisecting a rare failure
+    * by hand costs less than a run per field: all optional knobs are filled together,
+    * and all free-text knobs take the hostile value together.
+    *
+    * A row from the UI's `+` button is one of those optional knobs, not a variant of
+    * its own: for a list the base leaves empty it IS the "now it is set" case, exactly
+    * like a scalar going from unset to set.
+    */
+  private def extraVariants(
+      opClass: Class[_ <: LogicalOp],
+      baseNode: ObjectNode,
+      schemas: Map[Int, Schema],
+      used: mutable.Set[(Int, String)],
+      rowCount: Int,
+      switches: Map[String, JsonNode] = Map.empty
+  ): Seq[Variant] =
+    Seq(
+      merged(
+        "optionals", {
+          // One counter and one `used` set for the whole variant: the three walks below
+          // land in ONE config, so a column taken by any of them is taken for all, and
+          // restarting the counter per walk gave two rows the same value. A copy, so the
+          // base pass's own set is left alone.
+          val ordinal = new Ordinal
+          val taken = mutable.Set.empty[(Int, String)] ++ used
+          optionalColumnFills(opClass, schemas, taken, baseNode) ++
+            optionalScalarFills(opClass, baseNode, "", schemas, taken, rowCount, ordinal) ++
+            extraRowFills(opClass, baseNode, schemas, taken, rowCount, ordinal) ++
+            switches.toSeq.sortBy(_._1).map {
+              case (field, value) => Variant(s"$field=${value.asText}", Seq((s"/$field", value)))
+            }
+        }
+      ),
+      merged("hostileText", numbered(hostileTextFills(opClass, baseNode, "")))
+    ).flatten
+
+  /** Apply each variant to its own clone of `baseNode` and read the result back as an
+    * op. `base` is the instance to hand back for the unedited variant, when the caller
+    * has one whose exact state matters (a curated fixture); `None` deserializes it
+    * from `baseNode` like any other.
+    */
+  private def applyAll(
+      opClass: Class[_ <: LogicalOp],
+      baseNode: ObjectNode,
+      base: Option[LogicalOp],
+      variants: Seq[Variant]
+  ): Either[String, Seq[(String, LogicalOp)]] = {
+    val results = variants.map { variant =>
+      base.filter(_ => variant.at.isEmpty) match {
+        case Some(op) => Right((variant.label, op))
+        case None =>
+          val clone = baseNode.deepCopy()
+          variant.at.foreach { case (pointer, value) => setAtPointer(clone, pointer, value) }
+          deserialize(clone, opClass).map((variant.label, _))
+      }
+    }
+    results.collectFirst { case Left(err) => err }.toLeft(results.collect { case Right(ok) => ok })
+  }
+
+  /** An already-configured op as the JSON this generator edits: its serialized form,
+    * carrying the polymorphic type id Jackson needs to read the concrete subtype back.
+    */
+  private def nodeOf(opDesc: LogicalOp): Either[String, ObjectNode] = {
+    val opClass = opDesc.getClass.asInstanceOf[Class[_ <: LogicalOp]]
+    objectMapper.valueToTree[JsonNode](opDesc) match {
+      case node: ObjectNode =>
+        if (!node.has("operatorType"))
+          typeNameByClass.get(opClass).foreach(node.put("operatorType", _))
+        Right(node)
+      case _ => Left(s"${opClass.getSimpleName} did not serialize to a JSON object")
+    }
+  }
+
+  /** The (port, column) pairs an already-configured op's column pickers already hold,
+    * as the `used` set the optional-knob fill resolves against — so a knob it fills
+    * lands on a column the fixture is not using yet, the same rule the base pass keeps
+    * for sibling pickers. Without it a curated x/y and a filled-in optional colour all
+    * collapse onto one column.
+    *
+    * Walks the fixture's nested rows too, not just its top-level fields: the picker an
+    * appended row has to differ from usually lives in the rows ALREADY there (a
+    * projection's column list), and re-picking one of those asks the operator for the
+    * same output column twice.
+    */
+  private def occupiedColumns(
+      clazz: Class[_],
+      node: JsonNode,
+      schemas: Map[Int, Schema],
+      path: String = ""
+  ): mutable.Set[(Int, String)] = {
+    val used = mutable.Set.empty[(Int, String)]
+    configFields(clazz).foreach { f =>
+      val childPath = pointerOf(f, path)
+      rowType(f) match {
+        case Some(row) =>
+          rowPaths(f, node.at(childPath), childPath)
+            .foreach(rowPath => used ++= occupiedColumns(row, node, schemas, rowPath))
+        case None if hasAutofill(f) =>
+          val port = autofillSpec(f).map(_.port).getOrElse(0)
+          val columns =
+            schemas.get(port).map(_.getAttributes.map(_.getName).toSet).getOrElse(Set.empty)
+          val held = node.at(childPath)
+          val values = if (held.isArray) held.elements().asScala.toSeq else Seq(held)
+          values.filter(_.isTextual).map(_.asText).filter(columns).foreach(c => used += ((port, c)))
+        case None => ()
+      }
+    }
+    used
+  }
+
+  /** One fill per OPTIONAL column knob, which [[decide]] leaves unset. Unset is the
+    * right base config — it is what most workflows carry — but it also means the
+    * branch each generator emits for a knob that IS set never runs on either path,
+    * so the two hand-written branches are never compared.
+    *
+    * Resolved against the `used` set the whole variant shares, so the column a knob
+    * takes differs from what the config already reads. A list knob takes a SINGLE
+    * column: the "every matching column" fill suits a required axes list, not an
+    * optional narrowing one — all thirty columns as group-by keys would make every row
+    * its own group.
+    *
+    * A knob the config ALREADY points at a column is left alone. That never happens
+    * to the auto base — [[decide]] skips every optional picker, so each one still
+    * holds the value a fresh instance has — but a curated config picks its columns
+    * deliberately, and overwriting one would discard the fixture's whole point.
+    *
+    * Only the operator's OWN fields: a picker inside a nested row is filled by
+    * [[rowFills]], on the row walk that knows which row it belongs to.
+    */
+  private def optionalColumnFills(
+      clazz: Class[_],
+      schemas: Map[Int, Schema],
+      used: mutable.Set[(Int, String)],
+      baseNode: JsonNode
+  ): Seq[Variant] =
+    configFields(clazz).filter(hasAutofill).filterNot(hiddenBySibling(_, baseNode)).flatMap { f =>
+      columnFill(clazz, f, baseNode, pointerOf(f, ""), schemas, used, baseNode).map {
+        case (pointer, value) =>
+          // A list knob holds its one column in an array; name the column either way.
+          val col = if (value.isArray) value.path(0).asText else value.asText
+          Variant(s"${pointer.stripPrefix("/")}=$col", Seq((pointer, value)))
+      }
+    }
+
+  /** One fill per `+`-row list, appending ONE MORE row than the base carries: the first
+    * row for an optional list (empty, as the UI starts it), a second for a required one.
+    *
+    * For an optional list that is the point — its rows are otherwise never populated.
+    * For a required one it reaches only the code BETWEEN rows (the separator each path
+    * joins them with, whatever an operator does with several at once); NOT a mis-indexed
+    * value, since both generators read every value off the loop variable.
+    *
+    * The row is built by the same pass as the first, against the `used` set the whole
+    * variant shares, so its column knobs land on columns nothing else is reading.
+    */
+  private def extraRowFills(
+      clazz: Class[_],
+      baseNode: JsonNode,
+      schemas: Map[Int, Schema],
+      used: mutable.Set[(Int, String)],
+      rowCount: Int,
+      ordinal: Ordinal
+  ): Seq[Variant] = {
+    // The appended row is built outside [[buildObject]]'s walk, so what that walk
+    // carries down to a row has to be handed over here as well: without them the new
+    // row's type-variable fields and schema-ruled fields come back empty, and the
+    // variant then fails on a value this generator left out rather than on anything
+    // the operator does.
+    val ownBindings = typeBindingsOf(clazz)
+    val ownScope = SchemaScope.of(clazz)
+    configFields(clazz).flatMap { f =>
+      val childPath = pointerOf(f, "")
+      val rows = baseNode.at(childPath)
+      for {
+        row <- if (isList(f.getType)) elementType(f).toOption.filter(isNestedObject) else None
+        if rows.isArray
+        next <- buildObject(
+          row,
+          schemas,
+          used,
+          rowCount,
+          elementBindings(f, ownBindings),
+          ownScope.descend(jsonNameOf(f))
+        ).toOption
+      } yield {
+        // Fill the new row's own optional knobs too — the `optionals` variant is
+        // computed against the BASE config, where this row does not exist yet, so
+        // otherwise the row arrives with every free-value knob at its default, a step
+        // whose bounds are both empty is dropped by the operator, and an optional column
+        // picker (which [[decide]] skips) stays null.
+        rowFills(row, next, "", schemas, used, rowCount, ordinal).foreach {
+          case (pointer, value) => setAtPointer(next, pointer, value)
+        }
+        distinguish(
+          row,
+          next,
+          rows,
+          elementBindings(f, ownBindings),
+          ownScope.descend(jsonNameOf(f)),
+          FillContext(schemas, used, rowCount)
+        )
+        Variant(childPath, Seq((s"$childPath/${rows.size()}", next)))
+      }
+    }
+  }
+
+  /** Move the appended row off a value a row beside it already holds, where holding
+    * the same one makes the two rows the same row. Every row is built the same way and
+    * so comes back with the same values, which for a second hyperparameter row means
+    * `C` twice: not two settings but one written twice, which the emitted Python
+    * rejects outright as a repeated keyword argument.
+    *
+    * Only the field the rest of the row is stated in terms of, which is the one a
+    * `valueRules` condition reads. A row's other choices are its own business, and two
+    * lines of a chart drawn in the same style are still two lines. That a knob has to
+    * differ is something only the schema can say, and this is where it says it.
+    */
+  private def distinguish(
+      rowClass: Class[_],
+      next: ObjectNode,
+      siblings: JsonNode,
+      bindings: TypeBindings,
+      scope: SchemaScope,
+      fill: FillContext
+  ): Unit = {
+    val deciding = decidingFields(rowClass, scope)
+    enumSites(rowClass, next, "", bindings, scope, fill)
+      .filter(site => deciding.contains(site.pointer.stripPrefix("/")))
+      .foreach { site =>
+        val taken = siblings.elements().asScala.map(_.at(site.pointer)).toSet
+        if (taken.contains(next.at(site.pointer)))
+          site.values.find(v => !taken.contains(v)).foreach { v =>
+            setAtPointer(next, site.pointer, v)
+            site.companions(v).foreach {
+              case (pointer, value) => setAtPointer(next, pointer, value)
+            }
+          }
+      }
+  }
+
+  /** The fields of `clazz` that some other field's `valueRules` is stated in terms of.
+    * A hyperparameter row has one, `parameter`, and most objects have none.
+    */
+  private def decidingFields(clazz: Class[_], scope: SchemaScope): Set[String] =
+    configFields(clazz).iterator
+      .flatMap(f => scope.child(jsonNameOf(f)).path("valueRules").path("allOf").elements().asScala)
+      .flatMap(_.path("if").fieldNames().asScala)
+      .toSet
+
+  /** One variant out of many fills, labelled with the fields it sets. `None` when
+    * there is nothing to fill, so an operator without such knobs gains no variant.
+    */
+  private def merged(kind: String, fills: Seq[Variant]): Option[Variant] = {
+    val at = fills.flatMap(_.at)
+    if (at.isEmpty) None
+    else {
+      val names = at.map(_._1.stripPrefix("/")).distinct
+      val shown = names.mkString(",")
+      val label = if (shown.length <= 60) shown else s"${names.size} fields"
+      Some(Variant(s"$kind($label)", at))
+    }
+  }
+
+  /** Extra variants for the OPTIONAL free-value scalar knobs — a number or a
+    * string the user types in, as opposed to a column picker or a dropdown.
+    * [[decide]] leaves these unset for the same reason [[optionalColumnFills]]'s
+    * knobs are unset, and they need the same treatment: the branch each generator
+    * emits for a knob that IS set (a gauge's delta arrow, a step row's range)
+    * never runs on either path, so the two hand-written branches are never
+    * compared.
+    *
+    * Every knob found here ends up in ONE variant (see [[merged]]), the row ones
+    * included: a row is what the UI's `+` button adds, and its fields are read as a
+    * unit anyway (a step's start AND end make one range).
+    *
+    * "Unset" is read off `baseNode` rather than re-derived, and it means the knob
+    * still holds what a fresh instance holds (see [[leafFill]]). A `defaultValue`
+    * does not exempt it: a knob sitting at its default is indistinguishable from
+    * one the user never touched, so the only way to exercise the branch for a
+    * knob that IS set is to move it off that value.
+    */
+  private def optionalScalarFills(
+      clazz: Class[_],
+      baseNode: JsonNode,
+      path: String,
+      schemas: Map[Int, Schema],
+      used: mutable.Set[(Int, String)],
+      rowCount: Int,
+      ordinal: Ordinal
+  ): Seq[Variant] =
+    configFields(clazz).filterNot(hiddenBySibling(_, baseNode.at(path))).flatMap { f =>
+      val childPath = pointerOf(f, path)
+      rowType(f) match {
+        case Some(row) =>
+          // Recurse into containers whatever their own required-ness: an optional
+          // knob often sits inside a required list of rows.
+          rowPaths(f, baseNode.at(childPath), childPath).flatMap { rowPath =>
+            val fills = rowFills(row, baseNode, rowPath, schemas, used, rowCount, ordinal)
+            if (fills.isEmpty) None
+            else Some(Variant(s"${rowPath.stripPrefix("/")}=filled", fills))
+          }
+        case None =>
+          leafFill(clazz, f, baseNode, childPath, schemas, rowCount)
+            .map(fill => Variant(s"${fill._1.stripPrefix("/")}=${fill._2.asText}", Seq(fill)))
+            .toSeq
+      }
+    }
+
+  /** Value for the hostile variant of a knob that takes arbitrary text. Legal —
+    * a user can type it into any text box — but it ends a Python string literal,
+    * which is what a generator splicing it unescaped gets wrong.
+    */
+  private val HostileString = "a\"b"
+
+  /** Every knob that accepts ARBITRARY TEXT, to carry [[HostileString]] — all of
+    * them in one variant (see [[merged]]). This is the escaping check, and it is
+    * generic on purpose: a new operator is covered the day it is verified, with
+    * nothing to register.
+    *
+    * "Arbitrary text" excludes every string whose value is constrained, because
+    * there the hostile value would be rejected before any escaping mattered: a
+    * column picker, a declared enum, a CSS color, and a number-in-a-string (which
+    * declares bounds). Unlike [[optionalScalarFills]] this does not care whether
+    * the base pass filled the knob — a label carrying a default is spliced just the
+    * same — so the variant replaces whatever value is there.
+    */
+  private def hostileTextFills(clazz: Class[_], baseNode: JsonNode, path: String): Seq[Variant] =
+    configFields(clazz).filterNot(hiddenBySibling(_, baseNode.at(path))).flatMap { f =>
+      val childPath = pointerOf(f, path)
+      rowType(f) match {
+        case Some(row) =>
+          rowPaths(f, baseNode.at(childPath), childPath).flatMap { rowPath =>
+            val fills = hostileTextFills(row, baseNode, rowPath).flatMap(_.at)
+            if (fills.isEmpty) None
+            else Some(Variant(s"${rowPath.stripPrefix("/")}=hostileText", fills))
+          }
+        case None =>
+          hostileLeaf(f, childPath)
+            .map(fill => Variant(s"${fill._1.stripPrefix("/")}=hostileText", Seq(fill)))
+            .toSeq
+      }
+    }
+
+  private def hostileLeaf(f: Field, childPath: String): Option[(String, JsonNode)] =
+    if (
+      hasAutofill(f) || f.getType != classOf[String] || declaredEnumValues(f).nonEmpty ||
+      !patternAccepts(f, HostileString) || declaredRange(f) != Bounds(None, None)
+    ) None
+    else Some((childPath, objectMapper.getNodeFactory.textNode(HostileString)))
+
+  /** Number the knobs of the hostile variant so no two carry the same text: the first
+    * keeps [[HostileString]], the n-th reads `a"b2`, `a"b3`, … Every one still holds
+    * the quote, so the escaping this variant exists for is unchanged.
+    *
+    * Needed because the knobs land in ONE variant (see [[merged]]). Where they are the
+    * names of columns the operator CREATES, one shared value asks for several columns
+    * of the same name and the schema rejects the config outright — the run then fails
+    * on something this generator invented rather than on a divergence. Numbering also
+    * says which knob a surviving value came from.
+    *
+    * Applied here rather than inside [[hostileTextFills]] because that walk recurses
+    * into nested rows, and the count has to span the whole variant, not restart per
+    * row the way [[rowFills]]'s ordinal does.
+    */
+  private def numbered(fills: Seq[Variant]): Seq[Variant] = {
+    var n = 0
+    fills.map(f =>
+      Variant(
+        f.label,
+        f.at.map {
+          case (pointer, _) =>
+            n += 1
+            val text = if (n == 1) HostileString else s"$HostileString$n"
+            (pointer, objectMapper.getNodeFactory.textNode(text))
+        }
+      )
+    )
+  }
+
+  /** Whether a field's declared `pattern` accepts `value` — the field's own answer to
+    * "can this be typed here", so the declaration decides rather than this generator.
+    * A field that declares nothing accepts anything.
+    *
+    * The point of asking instead of skipping every field that HAS a pattern: a pattern
+    * exists to exclude what the consumer would reject, which for many fields is nothing
+    * at all. Such a field still needs the escaping check — and the escaping bugs this
+    * variant found were in exactly that kind of knob.
+    *
+    * `matches` is a full-string match, which is what the property editor applies too
+    * (`Validators.pattern` wraps a string pattern in `^(?:…)$`).
+    */
+  private def patternAccepts(f: Field, value: String): Boolean =
+    schemaKey(f, "pattern").filter(_.isTextual).map(_.asText) match {
+      case Some(p) => Try(value.matches(p)).getOrElse(false)
+      case None    => true
+    }
+
+  /** A running position shared by every row filled into one variant, so no two of
+    * those knobs are handed the same value. One counter rather than one per row:
+    * rows collide with each other as readily as knobs within a row do, and where the
+    * knob is an output column NAME — Projection's `alias` — two rows carrying the
+    * same one is a config the operator refuses outright.
+    */
+  private final class Ordinal {
+    private var n = 0
+
+    /** The position a knob would take. Advances only once one actually does, so a
+      * field that yields no fill leaves no gap in the numbering.
+      */
+    def peek: Int = n
+    def taken(): Unit = n += 1
+  }
+
+  /** Every optional knob under one nested row — a column picker as well as a scalar —
+    * as pointer → value.
+    *
+    * The scalar knobs get DISTINCT values, ascending: a row is often a pair that has to
+    * differ to mean anything — a step's start and end, where the operator drops the
+    * step unless `start < end` — and one shared value would collapse it. The first
+    * knob keeps the value it would have had on its own, so a lone knob is unaffected.
+    *
+    * The column pickers are resolved against the same `used` set as the top-level ones,
+    * so a row's column differs from what the rest of the config already reads. The row
+    * itself is the sibling context: whether a picker is type-constrained can depend on
+    * another knob of the SAME row (an aggregation's function decides whether its column
+    * must be numeric), so the rule is evaluated against the row, not the operator.
+    */
+  private def rowFills(
+      clazz: Class[_],
+      baseNode: JsonNode,
+      path: String,
+      schemas: Map[Int, Schema],
+      used: mutable.Set[(Int, String)],
+      rowCount: Int,
+      ordinal: Ordinal
+  ): Seq[(String, JsonNode)] =
+    configFields(clazz).flatMap { f =>
+      val childPath = pointerOf(f, path)
+      rowType(f) match {
+        case Some(row) =>
+          rowPaths(f, baseNode.at(childPath), childPath)
+            .flatMap(rowPath => rowFills(row, baseNode, rowPath, schemas, used, rowCount, ordinal))
+        case None if hasAutofill(f) =>
+          columnFill(clazz, f, baseNode, childPath, schemas, used, baseNode.at(path)).toSeq
+        case None =>
+          val fill = leafFill(clazz, f, baseNode, childPath, schemas, rowCount, ordinal.peek)
+          if (fill.nonEmpty) ordinal.taken()
+          fill.toSeq
+      }
+    }
+
+  /** The fill for ONE optional column knob, or `None` when it is required (the base
+    * pass filled it), already points at a column, or no column resolves.
+    *
+    * Shared by the top-level pass and the row pass so both obey the same rule: an
+    * optional picker takes the first unused column that fits its declared type.
+    *
+    * `owner` is the object the field belongs to, NOT the class that declares it: a
+    * knob a family shares is declared on the abstract base, which has no instance to
+    * read a default off, and every such knob then read as one the config had already
+    * set and was skipped.
+    */
+  private def columnFill(
+      owner: Class[_],
+      f: Field,
+      baseNode: JsonNode,
+      childPath: String,
+      schemas: Map[Int, Schema],
+      used: mutable.Set[(Int, String)],
+      siblings: JsonNode
+  ): Option[(String, JsonNode)] = {
+    val required = Option(f.getAnnotation(classOf[JsonProperty])).exists(_.required)
+    val untouched = defaultsOf(owner).path(jsonNameOf(f))
+    if (required || baseNode.at(childPath) != untouched) None
+    else {
+      val spec = autofillSpec(f).getOrElse(AutofillSpec(port = 0, holdsList = false))
+      // A list knob takes every matching column here exactly as it does in the
+      // base config: `required` decides WHETHER a field is filled, not how many
+      // values go in once it is. Filled with one, a list knob runs the same code
+      // as a scalar — the per-element numbering and the joining between elements,
+      // which is the whole of what a list does differently, is never reached.
+      if (spec.holdsList)
+        listColumnFill(f, schemas, spec.port, used, siblings).toOption.map(childPath -> _)
+      else
+        resolveColumn(f, schemas, spec.port, used, siblings).toOption
+          .map(col => (childPath, objectMapper.getNodeFactory.textNode(col): JsonNode))
+    }
+  }
+
+  /** Every column at `port` a list knob may hold: the ones its `attributeTypeRules`
+    * admits, or all of them when the rule matches nothing (or there is no rule),
+    * minus the ones a single-column knob beside it already took.
+    * The same fill for a required and an optional field, so the two cannot drift.
+    *
+    * Subtracting `used` is what [[resolveColumn]] already does for a single-column
+    * knob, and the two knobs answer to the same rule: a column means something
+    * different to each field that names it, so handing one column to two of them
+    * writes a config nobody would. Radar Chart's name column arrived inside its own
+    * value columns that way, and sklearn's label inside the features it is fitted
+    * against. Not marked used in turn, since a list knob wants every column its rule
+    * admits and marking them would leave a later single-column knob nothing to take.
+    */
   private def listColumnFill(
       f: Field,
       schemas: Map[Int, Schema],
@@ -141,6 +788,9 @@ object ConfigGenerator {
     }
 
   /** A field's JSON Pointer, under the pointer of the object that holds it. */
+  private def pointerOf(f: Field, path: String): String = s"$path/${jsonNameOf(f)}"
+
+  /** The key a field carries in the config JSON. */
   private def jsonNameOf(f: Field): String =
     Option(f.getAnnotation(classOf[JsonProperty]))
       .map(_.value)
@@ -159,6 +809,89 @@ object ConfigGenerator {
   /** The nested-row type a field holds — its `List[Row]` / `Option[Row]` element
     * type, or its own type when the field IS the row. `None` for a scalar field.
     */
+  private def rowType(f: Field): Option[Class[_]] = {
+    val t = f.getType
+    if (isList(t) || isOption(t)) elementType(f).toOption.filter(isNestedObject)
+    else if (isNestedObject(t)) Some(t)
+    else None
+  }
+
+  /** The pointer of each row present at `childPath` — one per array element, or
+    * the node itself when the field holds a single row. Empty when nothing is
+    * there to fill (an absent `Option`, a scalar list).
+    */
+  private def rowPaths(f: Field, child: JsonNode, childPath: String): Seq[String] =
+    if (isList(f.getType) || isOption(f.getType))
+      if (child.isArray) (0 until child.size()).map(i => s"$childPath/$i")
+      else if (child.isObject) Seq(childPath)
+      else Seq.empty
+    else if (child.isObject) Seq(childPath)
+    else Seq.empty
+
+  /** The fill for one optional free-value scalar knob, or `None` if this field
+    * isn't one (a column picker, a required field, or a knob the base pass filled).
+    *
+    * `ordinal` is the knob's position among the ones filled in the same row (0 for a
+    * top-level knob, which has no siblings to differ from): it offsets the value so
+    * the knobs of one row do not collide — see [[rowFills]].
+    */
+  private def leafFill(
+      owner: Class[_],
+      f: Field,
+      baseNode: JsonNode,
+      childPath: String,
+      schemas: Map[Int, Schema],
+      rowCount: Int,
+      ordinal: Int = 0
+  ): Option[(String, JsonNode)] = {
+    val required = Option(f.getAnnotation(classOf[JsonProperty])).exists(_.required)
+    // "Unset" means the base pass did not fill it: the key still carries the value a
+    // fresh instance has (see [[defaultsOf]] — every key is present, as the UI sends
+    // them, so absence alone no longer tells us anything).
+    val current = baseNode.at(childPath)
+    val unset = current.isMissingNode ||
+      current == defaultsOf(owner).path(jsonNameOf(f))
+    // A knob whose values the field DECLARES is left to its declaration: the enum
+    // sweep covers a declared value list, and a knob offering an `examples` value
+    // takes that one. Reading `examples` on its own, rather than only alongside a
+    // `pattern`, is the point: a field can state a realistic value ("https://
+    // example.com" for a URL) without having to invent a constraint to hang it on,
+    // and inventing one to steer this generator would reject values the platform
+    // accepts.
+    // An optional knob is typed by what its Option holds, so `start`/`end` declared
+    // as Option[Double] are swept like the bare numbers they are.
+    val scalarType = effectiveScalarType(f)
+    if (
+      hasAutofill(f) || required || !unset ||
+      declaredEnumValues(f).size > 1 || !isFreeScalar(scalarType)
+    ) None
+    else if (declaredExample(f).isDefined) declaredExample(f).map(v => (childPath, v))
+    else if (scalarType == classOf[String])
+      // The canonical string is "1", so the n-th knob reads as "1", "2", … — distinct
+      // and ascending, so the knobs filled in one row do not collide.
+      Some((childPath, objectMapper.getNodeFactory.textNode((ordinal + 1).toString)))
+    else
+      scalarNode(
+        scalarType,
+        None,
+        schemas,
+        mutable.Set.empty,
+        NumHint(declaredRange(f), rowCount)
+      ).toOption
+        .map { v =>
+          // Step away from the value rather than scaling it: the n-th knob lands next
+          // to the first instead of at n times it, so a pair stays inside the span the
+          // fixture actually holds — doubling walked `end` past the last row.
+          val stepped =
+            if (ordinal == 0) v
+            else objectMapper.getNodeFactory.numberNode(v.asDouble() + ordinal)
+          (childPath, stepped)
+        }
+  }
+
+  /** The first value a field offers under `examples` — a legal sample the operator
+    * states itself, so nothing here has to invent one.
+    */
   private def declaredExample(f: Field): Option[JsonNode] =
     schemaKey(f, "examples").filter(_.isArray).flatMap(_.elements().asScala.toSeq.headOption)
 
@@ -174,6 +907,252 @@ object ConfigGenerator {
   /** A type whose value the user types in freely — the fills of
     * [[optionalScalarFills]]. Boolean is excluded: the enum sweep already covers
     * both of its values.
+    */
+  private def isFreeScalar(t: Class[_]): Boolean =
+    t == classOf[String] || t == classOf[Int] || t == classOf[java.lang.Integer] ||
+      t == classOf[Short] || t == classOf[Long] || t == classOf[java.lang.Long] ||
+      t == classOf[Double] || t == classOf[java.lang.Double] || t == classOf[Float]
+
+  private def deserialize(
+      node: ObjectNode,
+      opClass: Class[_ <: LogicalOp]
+  ): Either[String, LogicalOp] =
+    Try(objectMapper.treeToValue(node, opClass)).toEither.left
+      .map(e => s"deserialization failed: ${e.getMessage}")
+
+  /** One variant per non-default enum value reachable in `baseNode`. One enum
+    * flipped at a time — linear, NOT the combinatorial product.
+    */
+  private def enumVariants(
+      opClass: Class[_ <: LogicalOp],
+      baseNode: ObjectNode,
+      pinned: Set[String] = Set.empty,
+      fill: FillContext = FillContext()
+  ): Seq[Variant] =
+    enumSites(opClass, baseNode, "", Map.empty, SchemaScope.of(opClass), fill)
+      .filterNot(site => pinned.contains(site.pointer.stripPrefix("/")))
+      .flatMap { site =>
+        val baseVal = baseNode.at(site.pointer)
+        site.values.filterNot(_ == baseVal).map { v =>
+          Variant(
+            s"${site.pointer.stripPrefix("/")}=${v.asText}",
+            (site.pointer, v) +: site.companions(v)
+          )
+        }
+      }
+
+  /** An enum-typed position in the config JSON: its JSON Pointer plus every
+    * possible JSON value (each enum constant serialized via its `@JsonValue`).
+    *
+    * `companions` names the edits a value has to arrive with. A hyperparameter's
+    * `parameter` needs them: the `value` beside it holds something the PREVIOUS
+    * parameter accepted, and a flip that left it there would ask the operator to
+    * put a kernel name through `int()`.
+    *
+    * A choice the operator offers and no value runs is NOT dropped here: it is
+    * generated, it fails, and it is withheld by name in
+    * [[TransformVerificationRunner.variantsNotRun]], where a reader sees it and the row
+    * goes away when the operator is fixed.
+    */
+  private final case class EnumSite(
+      pointer: String,
+      values: Seq[JsonNode],
+      companions: JsonNode => Seq[(String, JsonNode)] = _ => Seq.empty
+  )
+
+  /** Collect every enum-typed leaf reachable in `node`. Walks the operator's
+    * fields for type info but the ACTUAL JSON for structure, so it honours real
+    * list lengths (a curated fixture may hold >1 element) and skipped optionals.
+    * `path` is the JSON Pointer of the sub-node currently typed by `clazz`.
+    *
+    * `bindings` and `scope` are what [[buildObject]] filled the config with, and
+    * are needed here for the same two reasons: a field declared as a type variable
+    * reports `Object` from [[Field.getType]] and so hides the enum it really holds,
+    * and a field whose values are stated in the schema rather than on itself has
+    * none to sweep as far as reflection can see.
+    */
+  private def enumSites(
+      clazz: Class[_],
+      node: JsonNode,
+      path: String,
+      bindings: TypeBindings,
+      scope: SchemaScope,
+      fill: FillContext
+  ): Seq[EnumSite] = {
+    val bound = bindings ++ typeBindingsOf(clazz)
+    val row = node.at(path)
+    val sites = configFields(clazz).filterNot(hiddenBySibling(_, row)).flatMap { f =>
+      if (hasAutofill(f)) Seq.empty
+      else {
+        val jsonName = jsonNameOf(f)
+        val childPath = s"$path/$jsonName"
+        val child = node.at(childPath)
+        if (child.isMissingNode || child.isNull) Seq.empty
+        else {
+          val t = f.getType
+          val declared = declaredEnumValues(f)
+          val nested = scope.descend(jsonName)
+          if (declared.size > 1) Seq(EnumSite(childPath, declared))
+          else if (isList(t))
+            elementType(f).toOption.toSeq.flatMap { elem =>
+              if (child.isArray)
+                (0 until child.size()).flatMap(i =>
+                  enumSiteFor(elem, node, s"$childPath/$i", elementBindings(f, bound), nested, fill)
+                )
+              else Seq.empty
+            }
+          else if (isOption(t))
+            elementType(f).toOption.toSeq
+              .flatMap(elem => enumSiteFor(elem, node, childPath, bound, nested, fill))
+          else
+            ruledEnumSite(f, row, childPath, scope)
+              .map(Seq(_))
+              .getOrElse(enumSiteFor(boundType(f, bound), node, childPath, bound, nested, fill))
+        }
+      }
+    }
+    withCompanions(clazz, row, path, bound, scope, fill, sites)
+  }
+
+  private def enumSiteFor(
+      t: Class[_],
+      node: JsonNode,
+      path: String,
+      bindings: TypeBindings,
+      scope: SchemaScope,
+      fill: FillContext
+  ): Seq[EnumSite] =
+    if (t.isEnum) {
+      val vals = t.getEnumConstants.toSeq.map(c => objectMapper.valueToTree[JsonNode](c))
+      if (vals.size > 1) Seq(EnumSite(path, vals)) else Seq.empty
+    } else if (t == classOf[Boolean] || t == classOf[java.lang.Boolean]) {
+      // A Boolean is a 2-value "enum": sweep both true and false.
+      val nf = objectMapper.getNodeFactory
+      Seq(EnumSite(path, Seq(nf.booleanNode(true), nf.booleanNode(false))))
+    } else if (isNestedObject(t)) enumSites(t, node, path, bindings, scope, fill)
+    else Seq.empty
+
+  /** The site a `valueRules` branch gives a field whose own type names no values:
+    * the set the branch holding for `row` accepts. `None` where that branch names
+    * none, a numeric hyperparameter's `value` being one value out of a range rather
+    * than a choice between named ones.
+    */
+  private def ruledEnumSite(
+      f: Field,
+      row: JsonNode,
+      childPath: String,
+      scope: SchemaScope
+  ): Option[EnumSite] =
+    schemaValueRule(f, scope, row)
+      .map(_.path("enum"))
+      .filter(e => e.isArray && e.size() > 1)
+      .map(e => EnumSite(childPath, e.elements().asScala.toSeq))
+
+  /** Every site paired with the fields that move with it, in the two ways a schema
+    * says one field's content depends on another's.
+    *
+    * The first is `valueRules`: what such a field may hold is decided by the sibling
+    * the rule reads. The pairing is derived from the rules themselves rather than
+    * named here, so an operator stating a rule over some other sibling gets the same
+    * treatment. The paired field is REFILLED rather than left as it was, since what
+    * sits there belongs to the PREVIOUS choice, and it is refilled the way any field
+    * is: by the rule where the rule names a value, and by the field's own type where
+    * it does not. A branch naming nothing is the operator saying it knows of no value
+    * worth offering, which is not the same as there being none, and a choice this
+    * generator cannot fill is a choice that has to fail loudly and be withheld by name
+    * in [[TransformVerificationRunner.variantsNotRun]] rather than disappear here.
+    *
+    * The second is a conditional `required`, which is how an object says that exactly
+    * one of two fields applies and therefore that neither can be marked required on
+    * its own. A hyperparameter row is written that way: `value` is required while its
+    * switch is off and `attribute` once it is on. The base pass filled the one the
+    * base config needs, so flipping the switch has to fill the other, which until then
+    * was rightly left empty.
+    */
+  private def withCompanions(
+      clazz: Class[_],
+      row: JsonNode,
+      path: String,
+      bindings: TypeBindings,
+      scope: SchemaScope,
+      fill: FillContext,
+      sites: Seq[EnumSite]
+  ): Seq[EnumSite] = {
+    val ruled = configFields(clazz)
+      .map(f => (f, scope.child(jsonNameOf(f)).path("valueRules").path("allOf")))
+      .filter { case (_, branches) => branches.isArray }
+    val conditional = conditionallyRequiredFields(scope)
+    if ((ruled.isEmpty && conditional.isEmpty) || !row.isObject) sites
+    else
+      sites.map { site =>
+        val sibling = site.pointer.stripPrefix(s"$path/")
+        val paired = ruled.filter {
+          case (_, branches) =>
+            branches.elements().asScala.exists(_.path("if").has(sibling))
+        }
+        if (paired.isEmpty && conditional.isEmpty) site
+        else
+          site.copy(companions = v => {
+            val hypothetical = row.deepCopy[ObjectNode]()
+            hypothetical.set[JsonNode](sibling, v)
+            val ruleFills = paired.map {
+              case (f, _) => companionFill(f, path, hypothetical, bindings, scope, fill)
+            }
+            // Only what this value newly asks for and the row does not already
+            // carry: a config that set the field by hand keeps what it set.
+            val revealed = requiredUnder(scope, hypothetical)
+              .diff(requiredUnder(scope, row))
+              .flatMap(name => configFields(clazz).find(jsonNameOf(_) == name))
+              .filter(f => isBlank(hypothetical.path(jsonNameOf(f))))
+              .map(f => companionFill(f, path, hypothetical, bindings, scope, fill))
+            ruleFills ++ revealed
+          })
+      }
+  }
+
+  /** One companion edit, through [[valueFor]], which reads the rule first and falls back
+    * to the field's own type: the order the base pass filled it in.
+    *
+    * A field this generator cannot fill ENDS the run rather than quietly costing the
+    * choice its variant, the auto tier already ending it when a whole config cannot be
+    * built. Both are the same thing said about a smaller piece, and a generator that
+    * came up empty is a gap here rather than a statement about the operator.
+    */
+  private def companionFill(
+      f: Field,
+      path: String,
+      row: JsonNode,
+      bindings: TypeBindings,
+      scope: SchemaScope,
+      fill: FillContext
+  ): (String, JsonNode) =
+    valueFor(f, fill.schemas, fill.used, fill.rowCount, row, bindings, scope) match {
+      case Right(value) => (s"$path/${jsonNameOf(f)}", value)
+      case Left(reason) =>
+        throw new IllegalStateException(s"cannot fill ${jsonNameOf(f)} beside it: $reason")
+    }
+
+  /** Set `value` at a JSON Pointer inside `root` — used to clone the base config
+    * and flip one enum leaf. Handles object fields and array indices.
+    */
+  private def setAtPointer(root: ObjectNode, pointer: String, value: JsonNode): Unit = {
+    val tokens = pointer.stripPrefix("/").split("/").toList
+    var cur: JsonNode = root
+    tokens.dropRight(1).foreach { tk =>
+      cur = if (cur.isArray) cur.get(tk.toInt) else cur.get(tk)
+    }
+    (cur, tokens.last) match {
+      case (o: ObjectNode, name) => o.set[JsonNode](name, value)
+      // One past the end appends — the `+`-row fill adds a row rather than
+      // replacing one.
+      case (a: ArrayNode, idx) if idx.toInt == a.size() => a.add(value); ()
+      case (a: ArrayNode, idx)                          => a.set(idx.toInt, value); ()
+      case _                                            => ()
+    }
+  }
+
+  /** Maps each registered operator class to its `operatorType` discriminator,
+    * read from [[LogicalOp]]'s `@JsonSubTypes` (the same registry Jackson uses).
     */
   private val typeNameByClass: Map[Class[_], String] = {
     Option(classOf[LogicalOp].getAnnotation(classOf[JsonSubTypes]))
@@ -948,6 +1927,40 @@ object ConfigGenerator {
     *
     * Empty for a caller sweeping an already-configured operator: such a config states
     * both sides of a conditional itself, so nothing there is left to fill.
+    */
+  private final case class FillContext(
+      schemas: Map[Int, Schema] = Map.empty,
+      used: mutable.Set[(Int, String)] = mutable.Set.empty,
+      rowCount: Int = DefaultRowCount
+  )
+
+  /** Whether a config holds nothing at this key: absent, null, the empty string a
+    * field initialised to `""` starts as, or the empty list a `List()` field starts
+    * as. All four mean the same thing to an operator reading it, so a conditional
+    * `required` is unmet by any of them.
+    */
+  private def isBlank(node: JsonNode): Boolean =
+    node.isMissingNode || node.isNull || (node.isTextual && node.asText.isEmpty) ||
+      (node.isArray && node.isEmpty)
+
+  /** The fields an object's schema requires only under some condition, named by every
+    * `required` its `allOf` states in either branch. Empty for an object whose
+    * requirements are all unconditional, which is every one but a hyperparameter row.
+    */
+  private def conditionallyRequiredFields(scope: SchemaScope): Set[String] =
+    scope.node
+      .path("allOf")
+      .elements()
+      .asScala
+      .flatMap(branch => Seq(branch.path("then"), branch.path("else")))
+      .flatMap(_.path("required").elements().asScala)
+      .map(_.asText)
+      .toSet
+
+  /** The fields an object's conditional `allOf` requires of `row` as it stands. The
+    * condition is JSON Schema's own `properties`/`const`, not the `valEnum` form a
+    * Texera rule uses, because this one is read by the validator rather than by the
+    * form.
     */
   private def requiredUnder(scope: SchemaScope, row: JsonNode): Set[String] =
     scope.node

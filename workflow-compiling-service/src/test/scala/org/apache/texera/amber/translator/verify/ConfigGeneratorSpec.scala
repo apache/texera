@@ -23,6 +23,8 @@ import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
 import org.apache.texera.amber.operator.filter.SpecializedFilterOpDesc
 import org.apache.texera.amber.operator.hashJoin.HashJoinOpDesc
 import org.apache.texera.amber.operator.intersect.IntersectOpDesc
+import org.apache.texera.amber.operator.regex.RegexOpDesc
+import org.apache.texera.amber.operator.unneststring.UnnestStringOpDesc
 import org.apache.texera.amber.operator.visualization.candlestickChart.CandlestickChartOpDesc
 import org.apache.texera.amber.operator.visualization.choroplethMap.ChoroplethMapOpDesc
 import org.apache.texera.amber.operator.visualization.histogram2d.Histogram2DOpDesc
@@ -119,5 +121,61 @@ class ConfigGeneratorSpec extends AnyFlatSpec with Matchers {
     // color is constrained to integer|long|double by attributeTypeRules, so it
     // must resolve to a numeric column rather than the first (string) column.
     Set("id", "score", "open", "high", "low", "close") should contain(op.color.toString)
+  }
+
+  private def variants(
+      opClass: Class[_ <: org.apache.texera.amber.operator.LogicalOp],
+      ports: Map[Int, Schema]
+  ): Seq[(String, org.apache.texera.amber.operator.LogicalOp)] = {
+    val result = ConfigGenerator.generateVariants(opClass, ports, 15)
+    withClue(result) { result.isRight shouldBe true }
+    result.toOption.get
+  }
+
+  "generateVariants" should "offer every value an enum can take, one per variant" in {
+    val vs = variants(classOf[HashJoinOpDesc[Any]], twoPorts)
+    val chosen = vs.map { case (_, op) => op.asInstanceOf[HashJoinOpDesc[Any]].joinType.toString }
+    // One variant per value, and no value twice: the sweep is linear over the
+    // enum rather than a product with anything else.
+    chosen.distinct.size shouldBe chosen.size
+    chosen.size should be > 1
+    vs.map(_._1).head shouldBe "default"
+    // Every non-default variant names the field it moved, so a failure points at
+    // the knob rather than at the operator. The value in the label is the one the
+    // form offers, which is not the enum constant's own name.
+    vs.tail.map(_._1).foreach(_ should startWith("joinType="))
+    vs.map(_._1).distinct.size shouldBe vs.size
+  }
+
+  it should "flip a boolean knob in a variant of its own" in {
+    val vs = variants(classOf[RegexOpDesc], Map(0 -> CanonicalFixture.schema))
+    val (_, base) = vs.head
+    base.asInstanceOf[RegexOpDesc].caseInsensitive shouldBe false
+    val flipped = vs.collectFirst { case ("caseInsensitive=true", op) => op }
+    withClue(vs.map(_._1)) { flipped shouldBe defined }
+    flipped.get.asInstanceOf[RegexOpDesc].caseInsensitive shouldBe true
+  }
+
+  it should "fill in one variant the optional knobs the base configuration leaves empty" in {
+    val vs = variants(classOf[SpecializedFilterOpDesc], Map(0 -> CanonicalFixture.schema))
+    // `value` is optional, so the base configuration does not set it.
+    vs.head._2.asInstanceOf[SpecializedFilterOpDesc].predicates.head.value shouldBe null
+    val optionals = vs.collectFirst {
+      case (label, op) if label.startsWith("optionals") => op.asInstanceOf[SpecializedFilterOpDesc]
+    }
+    withClue(vs.map(_._1)) { optionals shouldBe defined }
+    optionals.get.predicates.head.value should not be null
+  }
+
+  it should "give each free-text knob its own hostile value, so two cannot collide" in {
+    val vs = variants(classOf[UnnestStringOpDesc], Map(0 -> CanonicalFixture.schema))
+    val hostile = vs.collectFirst {
+      case (label, op) if label.startsWith("hostileText") => op.asInstanceOf[UnnestStringOpDesc]
+    }
+    withClue(vs.map(_._1)) { hostile shouldBe defined }
+    // The first knob carries the bare value and the next is numbered. Sharing one
+    // value across both would have them write the same column name.
+    hostile.get.delimiter shouldBe "a\"b"
+    hostile.get.resultAttribute shouldBe "a\"b2"
   }
 }
