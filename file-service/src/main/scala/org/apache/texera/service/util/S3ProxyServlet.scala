@@ -25,6 +25,7 @@ import org.apache.texera.auth.JwtParser
 import org.apache.texera.common.config.StorageConfig
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.SqlServer.withTransaction
+import org.apache.texera.dao.jooq.generated.tables.daos.{DatasetDao, ModelDao}
 import org.apache.texera.service.resource.{DatasetAccessResource, ModelAccessResource}
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials
 import software.amazon.awssdk.auth.signer.AwsS3V4Signer
@@ -130,23 +131,44 @@ class S3ProxyServlet extends HttpServlet with LazyLogging {
     * is needed: a session addresses a single repository's data and any version the user may
     * already read.
     *
-    * The repository name is parsed rather than looked up by column. `repository_name` has no
-    * unique constraint -- the only UNIQUE on either table is (owner_uid, name) -- so a query
-    * on it can return several rows, and picking one of them would decide access against an
-    * arbitrary row. It is unique in practice only because it is written as `<type>-<id>`,
-    * which is a calling convention rather than something the schema enforces. Parsing that
-    * convention and looking the id up by primary key removes the ambiguity: exactly one row
-    * can match, and a name that does not parse is denied.
+    * Both resource types are searched, because a repository backs either a dataset or a
+    * model, and the name is matched rather than parsed: rows created today are named
+    * `<type>-<id>`, but `sql/updates/15.sql` backfilled the column from the dataset's plain
+    * `name`, so an upgraded deployment still has repositories called e.g. `my-data`.
+    *
+    * Exactly one row must match, or the request is denied. A repository name is unique in
+    * practice -- LakeFS will not create two repositories with one name, and dataset creation
+    * checked the name globally besides -- but `repository_name` carries no unique constraint
+    * (the only UNIQUE on either table is (owner_uid, name)), so nothing in the schema says
+    * so. Rather than let `.head` pick a row, and decide access arbitrarily in front of a
+    * proxy that re-signs with the global LakeFS credentials, an ambiguous name fails closed.
     */
   private def authorizedToRead(uid: Integer, repositoryName: String): Boolean =
-    S3ProxyServlet.parseRepositoryName(repositoryName).exists {
-      case (kind, id) =>
-        withTransaction(SqlServer.getInstance().createDSLContext()) { ctx =>
-          kind match {
-            case ResourceKind.Dataset => DatasetAccessResource.userHasReadAccess(ctx, id, uid)
-            case ResourceKind.Model   => ModelAccessResource.userHasReadAccess(ctx, id, uid)
-          }
-        }
+    withTransaction(SqlServer.getInstance().createDSLContext()) { ctx =>
+      val datasets = new DatasetDao(ctx.configuration())
+        .fetchByRepositoryName(repositoryName)
+        .asScala
+        .toList
+      val models = new ModelDao(ctx.configuration())
+        .fetchByRepositoryName(repositoryName)
+        .asScala
+        .toList
+      (datasets, models) match {
+        case (dataset :: Nil, Nil) =>
+          DatasetAccessResource.userHasReadAccess(ctx, dataset.getDid, uid)
+        case (Nil, model :: Nil) =>
+          ModelAccessResource.userHasReadAccess(ctx, model.getMid, uid)
+        case (Nil, Nil) =>
+          false
+        case _ =>
+          // Logged because it means the data violates an assumption the mount path rests on,
+          // and the owners of those rows will see an unexplained denial.
+          logger.error(
+            s"repository '$repositoryName' matches ${datasets.size} datasets and " +
+              s"${models.size} models; denying rather than choosing one"
+          )
+          false
+      }
     }
 
   /** Re-sign the request with LakeFS credentials and send it to the LakeFS gateway. */
@@ -219,13 +241,6 @@ class S3ProxyServlet extends HttpServlet with LazyLogging {
   }
 }
 
-/** The versioned resource types a LakeFS repository can back. */
-private[util] sealed trait ResourceKind
-private[util] object ResourceKind {
-  case object Dataset extends ResourceKind
-  case object Model extends ResourceKind
-}
-
 object S3ProxyServlet {
 
   /**
@@ -243,29 +258,6 @@ object S3ProxyServlet {
         .findFirstMatchIn(h)
         .map(_.group(1)) // SigV4
         .orElse("^AWS ([^:\\s]+):".r.findFirstMatchIn(h.trim).map(_.group(1))) // SigV2
-    }
-  }
-
-  /**
-    * The resource a repository name addresses: `dataset-<did>` or `model-<mid>`, the names
-    * DatasetResource and ModelResource write when they create the LakeFS repository.
-    *
-    * None for anything else, which the caller turns into a denial. That includes an id that
-    * is not a positive integer and one too large for `Integer`, so a malformed or
-    * attacker-chosen bucket name cannot reach a database lookup.
-    */
-  private[util] def parseRepositoryName(
-      repositoryName: String
-  ): Option[(ResourceKind, Integer)] = {
-    val kind = repositoryName.takeWhile(_ != '-') match {
-      case "dataset" => Some(ResourceKind.Dataset)
-      case "model"   => Some(ResourceKind.Model)
-      case _         => None
-    }
-    kind.flatMap { k =>
-      val rest = repositoryName.dropWhile(_ != '-').drop(1)
-      if (rest.isEmpty || !rest.forall(_.isDigit)) None
-      else rest.toIntOption.filter(_ > 0).map(id => (k, Integer.valueOf(id)))
     }
   }
 

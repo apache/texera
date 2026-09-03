@@ -83,40 +83,4 @@ class S3ProxyServletSpec extends AnyFlatSpec with Matchers {
     S3ProxyServlet.bucketFromUri("/") shouldBe ""
     S3ProxyServlet.bucketFromUri("") shouldBe ""
   }
-
-  "parseRepositoryName" should "resolve both versioned resource types" in {
-    val dataset = S3ProxyServlet.parseRepositoryName("dataset-7")
-    dataset.map(_._1) shouldBe Some(ResourceKind.Dataset)
-    dataset.map(_._2.intValue) shouldBe Some(7)
-
-    val model = S3ProxyServlet.parseRepositoryName("model-31")
-    model.map(_._1) shouldBe Some(ResourceKind.Model)
-    model.map(_._2.intValue) shouldBe Some(31)
-  }
-
-  it should "reject a name that is not one of those two forms" in {
-    // Denied rather than resolved: the bucket segment is caller-controlled, so anything the
-    // convention does not produce must not reach a database lookup.
-    Seq(
-      "dataset",             // no id
-      "dataset-",            // empty id
-      "workflow-1",          // not a versioned resource
-      "Dataset-1",           // the convention is lower-case
-      "dataset-1x",          // trailing junk
-      "dataset-0",           // ids are positive; SERIAL starts at 1
-      "dataset--1",          // negative
-      "dataset-1.5",
-      "dataset-99999999999", // overflows Integer
-      ""
-    ).foreach { name =>
-      withClue(s"'$name': ")(S3ProxyServlet.parseRepositoryName(name) shouldBe None)
-    }
-  }
-
-  it should "not confuse the two prefixes" in {
-    // A model bucket used to fall through the dataset-only lookup and be denied; assert it
-    // now resolves as a model rather than as a dataset.
-    S3ProxyServlet.parseRepositoryName("model-1").map(_._1) shouldBe Some(ResourceKind.Model)
-    S3ProxyServlet.parseRepositoryName("dataset-1").map(_._1) shouldBe Some(ResourceKind.Dataset)
-  }
 }
