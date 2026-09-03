@@ -57,7 +57,7 @@ Compile / scalacOptions ++= Seq(
 // Version Variables
 /////////////////////////////////////////////////////////////////////////////
 
-val dropwizardVersion = "4.0.7"
+val dropwizardVersion = "4.0.17"
 val mockitoVersion = "5.4.0"
 val assertjVersion = "3.27.7"
 val testcontainersVersion = "0.44.1"
@@ -89,5 +89,5 @@ libraryDependencies ++= Seq(
   "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.18.8",
   "jakarta.ws.rs" % "jakarta.ws.rs-api" % "3.1.0", // Ensure Jakarta JAX-RS API is available
   "org.bitbucket.b_c" % "jose4j" % "0.9.6",
-  "org.playframework" %% "play-json" % "3.1.0-M1",
+  "org.playframework" %% "play-json" % "3.1.0-M10",
 )

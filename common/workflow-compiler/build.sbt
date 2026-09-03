@@ -36,7 +36,7 @@ Compile / scalacOptions ++= Seq(
 //////////////////////////////////////////////////////////////////////////////
 
 libraryDependencies ++= Seq(
-  "org.scalatest" %% "scalatest" % "3.2.15" % Test
+  "org.scalatest" %% "scalatest" % "3.2.20" % Test
 )
 
 // Arrow 19's transitive deps (via WorkflowOperator -> WorkflowCore) pull
