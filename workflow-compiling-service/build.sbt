@@ -46,13 +46,6 @@ ThisBuild / conflictManager := ConflictManager.latestRevision
 // tests *within* a suite (e.g. OperatorBehaviorSpec) via ScalaTest's own pool.
 Global / concurrentRestrictions += Tags.limit(Tags.Test, 1)
 
-// The fast-unit / integration test split; the selection logic itself is shared
-// in project/TestFilters.scala.
-Test / testOptions ++= TestFilters.integrationSplit(
-  envVar = "WCS_TEST_FILTER",
-  tag = "org.apache.texera.amber.translator.verify.tags.IntegrationTest"
-)
-
 // -P4 bounds ScalaTest's ParallelTestExecution pool, and only this module wants
 // it: OperatorBehaviorSpec forks a Python subprocess per operator, and at
 // core-count concurrency (e.g. 12) resource contention caused rare flakes. A
