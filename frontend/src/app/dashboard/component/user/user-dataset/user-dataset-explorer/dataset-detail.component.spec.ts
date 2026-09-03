@@ -2482,13 +2482,19 @@ describe("DatasetDetailComponent rendered template", () => {
     });
 
     it("offers the tree's write controls only to a writer", () => {
-      render({ userDatasetAccessLevel: "WRITE" });
-      expect(tree().componentInstance.isTreeNodeDeletable).toBe(true);
-      expect(tree().componentInstance.isCoverSettable).toBe(true);
+      // A fresh page per access level: the Settings tab is gated on write access, so flipping the
+      // level on a live component removes a tab and nz-tabs can tear down the pane being asserted on.
+      const treeFor = (level: "READ" | "WRITE"): DebugElement => {
+        render({ userDatasetAccessLevel: level });
+        openTab("Versions & Files");
+        return tree();
+      };
 
-      render({ userDatasetAccessLevel: "READ" });
-      expect(tree().componentInstance.isTreeNodeDeletable).toBe(false);
-      expect(tree().componentInstance.isCoverSettable).toBe(false);
+      expect(treeFor("WRITE").componentInstance.isTreeNodeDeletable).toBe(true);
+      expect(treeFor("WRITE").componentInstance.isCoverSettable).toBe(true);
+
+      expect(treeFor("READ").componentInstance.isTreeNodeDeletable).toBe(false);
+      expect(treeFor("READ").componentInstance.isCoverSettable).toBe(false);
     });
 
     it("adopts the cover image the tree offered, qualified by the selected version", () => {
