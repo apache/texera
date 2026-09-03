@@ -1206,7 +1206,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
 
   /**
    * Applies the validation result to the operator's border. Delegates to
-   * applyOperatorStateAndBorder so validation, cached-execution-status, and the
+   * applyOperatorStateAndBorder so validation, cached-execution-state, and the
    * default-valid case are decided in one place.
    */
   private handleOperatorValidation(): void {
