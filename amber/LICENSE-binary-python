@@ -355,7 +355,7 @@ Dependencies under the Python Software Foundation License
 Python packages:
   - aiohappyeyeballs==2.7.1
   - matplotlib==3.11.1
-  - typing-extensions==4.14.1
+  - typing-extensions==4.16.0
 
 --------------------------------------------------------------------------------
 Dependencies under the MIT-CMU License

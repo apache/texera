@@ -134,6 +134,21 @@
         <sqlFile path="sql/updates/44.sql"/>
     </changeSet>
 
+    <!-- Remove the deprecated project feature (#5172) -->
+    <changeSet id="45" author="aglinxinyuan">
+        <sqlFile path="sql/updates/45.sql"/>
+    </changeSet>
+
+    <!-- Allow ORCID as an identity provider in auth_provider.provider_type -->
+    <changeSet id="46" author="Neilk1021">
+        <sqlFile path="sql/updates/46.sql"/>
+    </changeSet>
+
+    <!-- Add version-pinning columns to workflow -->
+    <changeSet id="47" author="yangz75">
+        <sqlFile path="sql/updates/47.sql"/>
+    </changeSet>
+
     <!-- example changeSet
     <changeSet id="1" author="author">
         <sqlFile path="sql/updates/1.sql"/>
