@@ -82,6 +82,9 @@ class RegexOpDesc extends FilterOpDesc with StandaloneCodeGenerator {
     val pyLiteral = pyStringLiteral(Option(regex).getOrElse(""))
     val caseArg = if (caseInsensitive) "False" else "True"
     val attrLit = pyStringLiteral(attribute)
-    s"""out1df = in1df[in1df[$attrLit].astype(str).str.contains($pyLiteral, regex=True, case=$caseArg, na=False)].reset_index(drop=True)"""
+    // `astype(str)` turns an empty cell into the text "nan", which a pattern can
+    // match, so the rows with nothing in the column are dropped before the match
+    // rather than left to `na=False`, which by then has no null to see.
+    s"""out1df = in1df[in1df[$attrLit].notna() & in1df[$attrLit].astype(str).str.contains($pyLiteral, regex=True, case=$caseArg, na=False)].reset_index(drop=True)"""
   }
 }

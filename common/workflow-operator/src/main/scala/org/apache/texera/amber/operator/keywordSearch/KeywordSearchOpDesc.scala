@@ -101,6 +101,9 @@ class KeywordSearchOpDesc extends FilterOpDesc with StandaloneCodeGenerator {
     val pyLiteral = pyStringLiteral(pattern)
     val attrLit = pyStringLiteral(attribute)
 
-    s"""out1df = in1df[in1df[$attrLit].astype(str).str.contains($pyLiteral, regex=True, case=False, na=False)].reset_index(drop=True)"""
+    // `astype(str)` turns an empty cell into the text "nan", which a term can match,
+    // so the rows with nothing in the column are dropped before the match rather
+    // than left to `na=False`, which by then has no null to see.
+    s"""out1df = in1df[in1df[$attrLit].notna() & in1df[$attrLit].astype(str).str.contains($pyLiteral, regex=True, case=False, na=False)].reset_index(drop=True)"""
   }
 }

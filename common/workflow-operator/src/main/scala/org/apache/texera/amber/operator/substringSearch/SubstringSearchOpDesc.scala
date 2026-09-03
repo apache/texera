@@ -94,6 +94,9 @@ class SubstringSearchOpDesc extends FilterOpDesc with StandaloneCodeGenerator {
     val pyLiteral = pyStringLiteral(Option(substring).getOrElse(""))
     val caseArg = if (isCaseSensitive) "True" else "False"
     val attrLit = pyStringLiteral(attribute)
-    s"""out1df = in1df[in1df[$attrLit].astype(str).str.contains($pyLiteral, regex=False, case=$caseArg, na=False)].reset_index(drop=True)"""
+    // `astype(str)` turns an empty cell into the text "nan", which a substring can
+    // match, so the rows with nothing in the column are dropped before the match
+    // rather than left to `na=False`, which by then has no null to see.
+    s"""out1df = in1df[in1df[$attrLit].notna() & in1df[$attrLit].astype(str).str.contains($pyLiteral, regex=False, case=$caseArg, na=False)].reset_index(drop=True)"""
   }
 }
