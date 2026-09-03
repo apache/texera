@@ -178,6 +178,44 @@ lakekeeperInit:
 texeraImages:
   pullPolicy: Always
 
+# PodDisruptionBudgets for the replicated app services (see
+# templates/aws/pod-disruption-budgets/). A PDB only constrains *voluntary*
+# evictions, so it is worth enabling on clusters where something evicts pods on
+# its own -- a cluster autoscaler consolidating underutilized nodes (e.g.
+# Karpenter on EKS), or routine node drains. Local / on-prem installs that never
+# consolidate nodes have nothing to constrain, so this is off by default and the
+# chart renders exactly as it did before. Enabled by values-aws.yaml.
+podDisruptionBudgets:
+  enabled: false
+
+# Dedicated Karpenter NodePool for the on-demand CU pods, so their disruption
+# policy is isolated from the shared nodes (see
+# templates/aws/computing-unit-nodepool/). AWS / EKS only: it needs the
+# karpenter.sh/v1 CRD, so it is off by default and enabled by values-aws.yaml,
+# which is also where the sizing knobs below belong.
+computingUnitNodePool:
+  enabled: false
+  name: cu-pool
+  # Karpenter requirements. An empty list drops that requirement entirely, i.e.
+  # leaves the choice unconstrained -- see values-aws.yaml for the trade-offs.
+  capacityTypes: []
+  architectures: []
+  zones: []
+  instanceTypes: []
+  # How long a CU node must sit completely empty before Karpenter removes it.
+  consolidateAfter: 2m
+  # Forced node rotation, so nodes still get patched even when they never go
+  # empty. Draining a node at expiry does kill the CUs on it.
+  expireAfter: 336h
+  # Cap on how many CU nodes Karpenter may disrupt at once.
+  disruptionBudgetNodes: "10%"
+  # The Karpenter NodeClass the pool provisions from. `default` is the one EKS
+  # Auto Mode ships; a self-managed Karpenter uses its own EC2NodeClass.
+  nodeClassRef:
+    group: eks.amazonaws.com
+    kind: NodeClass
+    name: default
+
 # Example data loader configuration
 exampleDataLoader:
   enabled: true
@@ -203,6 +241,16 @@ workflowComputingUnitManager:
   service:
     type: ClusterIP
     port: 8888
+  # Optional placement of the on-demand CU pods (which the cu-manager creates as
+  # bare pods) onto a dedicated, tainted node pool. The label is matched against
+  # a node label, not against a NodePool name; when computingUnitNodePool is
+  # enabled these same three values render that pool's label and taint, so the
+  # two sides cannot drift. Empty by default, so local / on-prem installs
+  # schedule CU pods on the cluster's default pool (no nodeSelector/toleration).
+  computeUnitPlacement:
+    nodeSelectorLabel: ""
+    nodeSelectorValue: ""
+    tolerationKey: ""
 
 workflowCompilingService:
   name: workflow-compiling-service

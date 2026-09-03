@@ -1,0 +1,116 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+{{- if .Values.computingUnitNodePool.enabled }}
+# Dedicated Karpenter NodePool for the on-demand CU pods (AWS / EKS only).
+#
+# Rendered only when computingUnitNodePool.enabled is true, which values-aws.yaml
+# sets. It stays off for local / on-prem installs, which run no Karpenter and
+# have no karpenter.sh/v1 CRD.
+#
+# WHY THIS EXISTS
+# ---------------
+# CU pods (namespace texera-workflow-computing-unit-pool) are *bare* pods -- the
+# cu-manager creates them with no Deployment/StatefulSet behind them (see
+# KubernetesClient.createPod). So if Karpenter evicts one, nothing recreates it:
+# the CU is permanently gone (often leaving a "zombie" DB row that still shows
+# RUNNING). The EKS Auto Mode default `general-purpose` pool runs
+# consolidationPolicy: WhenEmptyOrUnderutilized, so ~30s after a node looks
+# underutilized Karpenter evicts its pods to repack -- which can mass-kill live
+# CUs during a burst of concurrent users. That pool cannot be fixed in place: it
+# is EKS-managed (app.kubernetes.io/managed-by=eks) and Auto Mode reconciles any
+# edit to it back within ~30 min.
+#
+# THE FIX
+# -------
+# Give CUs their own NON-EKS-managed NodePool, so its disruption policy actually
+# persists, and set consolidationPolicy: WhenEmpty. Karpenter then never evicts a
+# running CU to repack an underutilized node, while EMPTY CU nodes still scale
+# down normally (no orphaned EC2 instances).
+#
+# We deliberately do NOT put a karpenter.sh/do-not-disrupt annotation on CU pods
+# (see KubernetesClient.createPod): that annotation blocks empty-node scaledown
+# and expiry too, which is exactly what pinned nodes / leaked EC2 instances in a
+# past incident. WhenEmpty gives the protection without that side effect.
+#
+# The node label and the taint below are rendered from
+# workflowComputingUnitManager.computeUnitPlacement -- the same values the
+# cu-manager passes to each CU pod as a nodeSelector and toleration -- so the
+# pool and the pods it exists to attract cannot drift apart. Note that a CU pod
+# selects a node *label*; it never references this NodePool's name. The image
+# prepuller DaemonSet already tolerates every taint via operator: Exists.
+{{- $placement := .Values.workflowComputingUnitManager.computeUnitPlacement }}
+{{- if not (and $placement.nodeSelectorLabel $placement.nodeSelectorValue $placement.tolerationKey) }}
+{{- fail "computingUnitNodePool.enabled requires workflowComputingUnitManager.computeUnitPlacement.nodeSelectorLabel, .nodeSelectorValue and .tolerationKey to be set: they define the label and taint of this pool" }}
+{{- end }}
+apiVersion: karpenter.sh/v1
+kind: NodePool
+metadata:
+  name: {{ .Values.computingUnitNodePool.name }}
+  labels:
+    app: {{ .Release.Name }}-{{ .Values.workflowComputingUnitPool.name }}
+spec:
+  disruption:
+    # Only reclaim a CU node once it is completely empty -- never evict a running
+    # CU to repack. This is the whole point of the pool.
+    consolidationPolicy: WhenEmpty
+    consolidateAfter: {{ .Values.computingUnitNodePool.consolidateAfter }}
+    budgets:
+      - nodes: {{ .Values.computingUnitNodePool.disruptionBudgetNodes | quote }}
+  template:
+    metadata:
+      labels:
+        # CU pods select this via nodeSelector (KUBERNETES_COMPUTE_UNIT_NODE_SELECTOR_*).
+        {{ $placement.nodeSelectorLabel }}: {{ $placement.nodeSelectorValue | quote }}
+    spec:
+      # Bounded node rotation. With WhenEmpty and no do-not-disrupt, a node that
+      # always hosts >=1 CU never goes empty; expiry guarantees it still rotates
+      # (for patching), forcibly draining its CUs at that point.
+      expireAfter: {{ .Values.computingUnitNodePool.expireAfter }}
+      nodeClassRef:
+        {{- toYaml .Values.computingUnitNodePool.nodeClassRef | nindent 8 }}
+      taints:
+        # Keeps everything except CU pods (and the prepuller, which tolerates it
+        # via operator: Exists) off these nodes. The cu-manager's toleration also
+        # uses operator: Exists, so the taint needs no value.
+        - key: {{ $placement.tolerationKey }}
+          effect: NoSchedule
+      requirements:
+        - key: kubernetes.io/os
+          operator: In
+          values: ["linux"]
+        {{- with .Values.computingUnitNodePool.capacityTypes }}
+        - key: karpenter.sh/capacity-type
+          operator: In
+          values:{{ toYaml . | nindent 12 }}
+        {{- end }}
+        {{- with .Values.computingUnitNodePool.architectures }}
+        - key: kubernetes.io/arch
+          operator: In
+          values:{{ toYaml . | nindent 12 }}
+        {{- end }}
+        {{- with .Values.computingUnitNodePool.zones }}
+        - key: topology.kubernetes.io/zone
+          operator: In
+          values:{{ toYaml . | nindent 12 }}
+        {{- end }}
+        {{- with .Values.computingUnitNodePool.instanceTypes }}
+        - key: node.kubernetes.io/instance-type
+          operator: In
+          values:{{ toYaml . | nindent 12 }}
+        {{- end }}
+{{- end }}
