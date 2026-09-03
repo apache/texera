@@ -76,15 +76,21 @@ jobs:
     name: Backport Approvals
     runs-on: ubuntu-latest
     steps:
-      # The PR's own head (or the queued group's), so the config is the one that
-      # will govern this change once it merges. Checking out the base would not
-      # be a security boundary anyway: on `pull_request` the workflow definition
-      # itself comes from the PR. What bounds this is the event — a fork gets a
-      # read-only token and no secrets, and nothing here writes to the PR.
+      # The base, not the PR head: the head can be arbitrarily old, and neither
+      # release-branches.yml nor its parser existed before #6941 — a head from
+      # before that (37 of the open PRs into main as of writing) would fail the
+      # `run:` step below with a file-not-found and turn this required check red
+      # with no way for the author to clear it. The base also keeps this reading
+      # the same config as the two other consumers: backport-auto-label.yml pins
+      # `base.sha`, and Direct Backport Push reads main after the merge.
+      #
+      # The trade-off is that a PR editing release-branches.yml is judged by the
+      # pre-edit config. Those are `ci:`-typed and carry no `release/*` labels,
+      # so there is nothing for the stale config to misjudge.
       - name: Checkout
         uses: actions/checkout@v7
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha }}
+          ref: ${{ github.event.pull_request.base.sha || github.event.merge_group.head_sha }}
           persist-credentials: false
 
       - name: Read release branches
@@ -119,6 +125,12 @@ jobs:
               const { data: comparison } = await github.rest.repos.compareCommits({
                 owner, repo, base: mg.base_sha, head: mg.head_sha,
               });
+              // An empty comparison would leave the loop below with nothing to
+              // check and publish a green context for a group whose approvals
+              // were never read. Fail closed, the same way the throw below does.
+              if (comparison.commits.length === 0) {
+                throw new Error(`no commits between ${mg.base_sha} and ${mg.head_sha}`);
+              }
               return comparison.commits.map((c) => {
                 const m = c.commit.message.split("\n", 1)[0].match(/\(#(\d+)\)\s*$/);
                 if (!m) throw new Error(`no PR number in the message of ${c.sha}`);
@@ -270,7 +282,13 @@ jobs:
 
               if (numbers.length > 1) lines.push(`### PR #${number}`, "");
               if (targets.length === 0 && contradictions.length === 0) {
-                lines.push("No `release/*` labels — nothing to approve.", "");
+                lines.push(
+                  intoMain
+                    ? "No `release/*` labels — nothing to approve."
+                    : "Not a pull request into `main` — a backport is not " +
+                      "itself backported onward, so there is nothing to approve.",
+                  ""
+                );
                 continue;
               }
 

@@ -262,5 +262,5 @@ diff -> pr-labeler -> labels on PR -> required-checks maps labels to stacks -> C
   backported only once that branch's release manager — listed in
   [`.github/release-branches.yml`](.github/release-branches.yml) — approves the
   PR, and the required `Backport Approvals` check blocks the merge until every
-  label on the PR is approved. A manager declines by removing their label, so
+  `release/*` label on the PR is approved. A manager declines by removing their label, so
   the labels on a merged PR are exactly the branches it was backported to.

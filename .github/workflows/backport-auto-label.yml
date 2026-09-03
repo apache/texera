@@ -231,9 +231,11 @@ jobs:
                     : "";
 
                 // Only actively-supporting branches are analyzed / auto-labeled.
-                // An inactive branch stays a valid manual target (label it by
-                // hand and the apply-check / post-merge backport still run) — it
-                // just isn't offered by default and is left out of the report.
+                // An inactive branch stays a valid manual target — label it by
+                // hand and the apply-check and post-merge backport still run —
+                // but its manager must approve before the PR can merge, and the
+                // `continue` below means no review is requested for it, so
+                // whoever adds the label should ping the manager themselves.
                 if (!entry.active) {
                   core.info(`${label} is not actively-supporting; not auto-labeling.`);
                   continue;
