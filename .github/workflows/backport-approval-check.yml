@@ -30,11 +30,13 @@
 # Dependabot PRs cannot remove a label themselves — the failure report says so
 # and names who to ask.
 #
-# `Backport Approvals` is listed in .asf.yaml's required_status_checks, so this
-# job must produce a result on EVERY pull request, or a PR that never runs it
-# waits forever. That is why it is not conditioned on the title, the labels, or
-# the base branch: it always runs and reports success when there is nothing to
-# approve. Merge groups are re-evaluated rather than waved through, because a
+# `Backport Approvals` is a required status check on the default branch
+# (.asf.yaml), so this job must produce a result on every pull request into
+# `main`, or a PR that never runs it waits forever. That is why it is not
+# conditioned on the title or the labels. It is not conditioned on the base
+# branch either, for a different reason: a PR already targeting a release
+# branch is itself a backport, so the check reports success there.
+# Merge groups are re-evaluated rather than waved through, because a
 # queued PR's own checks are no longer consulted once it is queued; a group
 # whose PRs cannot be resolved fails closed rather than passing unchecked. Do
 # not rename the job — its display name is the required context.
@@ -76,21 +78,25 @@ jobs:
     name: Backport Approvals
     runs-on: ubuntu-latest
     steps:
-      # The base, not the PR head: the head can be arbitrarily old, and neither
-      # release-branches.yml nor its parser existed before #6941 — a head from
-      # before that (37 of the open PRs into main as of writing) would fail the
-      # `run:` step below with a file-not-found and turn this required check red
-      # with no way for the author to clear it. The base also keeps this reading
-      # the same config as the two other consumers: backport-auto-label.yml pins
-      # `base.sha`, and Direct Backport Push reads main after the merge.
+      # The default branch, not anything the pull request points at. Neither
+      # release-branches.yml nor its parser existed before #6941, and both the
+      # head and `base.sha` can predate it: `base.sha` is main's tip at the PR's
+      # last synchronize, not now, which is stale for 33 of the open PRs into
+      # main. Either would fail the `run:` step below with a file-not-found and
+      # turn this required check red with nothing the author could do about it —
+      # backport-auto-label.yml pins `base.sha` and has been failing exactly that
+      # way in production for a month. Reading main also means a PR retargeted
+      # onto a release branch, where the config does not exist, reaches the
+      # report below instead of dying before it.
       #
-      # The trade-off is that a PR editing release-branches.yml is judged by the
-      # pre-edit config. Those are `ci:`-typed and carry no `release/*` labels,
-      # so there is nothing for the stale config to misjudge.
+      # Direct Backport Push reads main too, so both consumers judge a backport
+      # by the same config. The trade-off is that a PR editing
+      # release-branches.yml is judged by the pre-edit copy; those are `ci:`-typed
+      # and carry no `release/*` labels, so there is nothing to misjudge.
       - name: Checkout
         uses: actions/checkout@v7
         with:
-          ref: ${{ github.event.pull_request.base.sha || github.event.merge_group.head_sha }}
+          ref: ${{ github.event.repository.default_branch }}
           persist-credentials: false
 
       - name: Read release branches
