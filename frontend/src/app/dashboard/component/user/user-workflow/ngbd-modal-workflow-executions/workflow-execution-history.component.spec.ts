@@ -40,6 +40,7 @@ import { DebugElement } from "@angular/core";
 import { By } from "@angular/platform-browser";
 import { NoopAnimationsModule } from "@angular/platform-browser/animations";
 import { NzPopoverDirective } from "ng-zorro-antd/popover";
+import type { MockInstance } from "vitest";
 
 function makeEntry(overrides: Partial<WorkflowExecutionsEntry> = {}): WorkflowExecutionsEntry {
   return {
@@ -128,6 +129,16 @@ describe("WorkflowExecutionHistoryComponent", () => {
     retrieveWorkflowRuntimeStatistics: ReturnType<typeof vi.fn>;
   };
   let notificationService: { error: ReturnType<typeof vi.fn> };
+  // Turning data into DOM is Plotly's job; the component's is choosing a chart id
+  // and the data and layout for it, which the chart test reads straight off these
+  // spies. Rendering for real asserts nothing extra and dominates the file's
+  // runtime -- 36 of these tests build the component, and each build plots twice
+  // (#8287). Stubbing the component's own methods keeps the substitution inside
+  // this file: a `vi.mock` of the Plotly package is silently dropped whenever
+  // another spec pins the real module first, the hazard shared-model.spec.ts and
+  // report-generation.service.spec.ts also record.
+  let generatePieChart: MockInstance<WorkflowExecutionHistoryComponent["generatePieChart"]>;
+  let generateBarChart: MockInstance<WorkflowExecutionHistoryComponent["generateBarChart"]>;
 
   interface SetupOptions {
     entries?: WorkflowExecutionsEntry[];
@@ -165,16 +176,25 @@ describe("WorkflowExecutionHistoryComponent", () => {
 
     fixture = TestBed.createComponent(WorkflowExecutionHistoryComponent);
     component = fixture.componentInstance;
-    // Attach to the document so ngAfterViewInit's real Plotly.newPlot can resolve the
-    // chart divs by id (a detached fixture is not reachable via getElementById).
+    // Attached so the ng-zorro overlays the table opens (popconfirms, dropdowns)
+    // land in a document the queries below can reach.
     document.body.appendChild(fixture.nativeElement);
     // first detectChanges runs ngOnInit (table load) + ngAfterViewInit (charts)
     fixture.detectChanges();
   }
 
+  beforeEach(() => {
+    const prototype = WorkflowExecutionHistoryComponent.prototype;
+    generatePieChart = vi.spyOn(prototype, "generatePieChart").mockImplementation(() => {});
+    generateBarChart = vi.spyOn(prototype, "generateBarChart").mockImplementation(() => {});
+  });
+
   afterEach(() => {
     fixture?.nativeElement.remove();
     fixture?.destroy();
+    // restored so the shared module registry hands the next spec the real methods
+    generatePieChart.mockRestore();
+    generateBarChart.mockRestore();
   });
 
   describe("initialization and wid resolution", () => {
@@ -206,30 +226,37 @@ describe("WorkflowExecutionHistoryComponent", () => {
     it("draws a username pie, a status pie, and a process-time bar chart", async () => {
       await setup();
 
-      // ngAfterViewInit renders the charts via real Plotly, which attaches `data`/`layout`
-      // to each graph div (looked up by the id the component passes, incl. the leading '#').
-      const gd = (id: string) => document.getElementById(id) as unknown as { data: any[]; layout: any };
+      // ngAfterViewInit plots each chart by id; assert on the series and title
+      // the component computed rather than on the DOM Plotly would build.
+      const pie = (id: string) => {
+        const calls = generatePieChart.mock.calls.filter(call => call[2] === id);
+        expect(calls).toHaveLength(1);
+        return { series: calls[0][0], title: calls[0][1] };
+      };
 
-      const usernamePie = gd("#execution-userName-pie-chart").data[0];
-      expect(usernamePie.type).toBe("pie");
-      expect(usernamePie.labels).toEqual(["alice", "bob"]);
-      expect(usernamePie.values).toEqual([2, 1]);
-      expect(gd("#execution-userName-pie-chart").layout).toMatchObject({
-        width: 450,
-        height: 450,
-        title: { text: "Users who ran the execution" },
-      });
+      const usernamePie = pie(WorkflowExecutionHistoryComponent.USERNAME_PIE_CHART_ID);
+      expect(usernamePie.series).toEqual([
+        ["alice", 2],
+        ["bob", 1],
+      ]);
+      expect(usernamePie.title).toBe("Users who ran the execution");
 
-      const statusPie = gd("#execution-status-pie-chart").data[0];
-      expect(statusPie.labels).toEqual(["Running", "Completed"]);
-      expect(statusPie.values).toEqual([1, 2]);
+      const statusPie = pie(WorkflowExecutionHistoryComponent.STATUS_PIE_CHART_ID);
+      expect(statusPie.series).toEqual([
+        ["Running", 1],
+        ["Completed", 2],
+      ]);
+      expect(statusPie.title).toBe("Executions status");
 
-      const bar = gd("#execution-average-process-time-bar-chart").data[0];
-      expect(bar.type).toBe("bar");
+      expect(generateBarChart.mock.calls).toHaveLength(1);
+      const [series, category, xLabel, yLabel, barTitle, barId] = generateBarChart.mock.calls[0];
+      expect(barId).toBe(WorkflowExecutionHistoryComponent.PROCESS_TIME_BAR_CHART);
       // ceil(3 rows / divider 10) = 1-row buckets; process times are 1, 2, 3 minutes
-      expect(bar.x).toEqual(["1~1", "2~2", "3~3"]);
-      expect(bar.y).toEqual([1, 2, 3]);
-      expect(gd("#execution-average-process-time-bar-chart").layout).toMatchObject({ width: 600, height: 600 });
+      expect(category).toEqual(["1~1", "2~2", "3~3"]);
+      expect(series[0].slice(1)).toEqual([1, 2, 3]);
+      expect(xLabel).toBe("Execution Numbers");
+      expect(yLabel).toBe("Average Processing Time (m)");
+      expect(barTitle).toBe("Execution performance");
     });
 
     it("buckets 20 rows into ceil(20/10)=2-row groups keyed by position and averages minutes", async () => {

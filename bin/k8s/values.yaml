@@ -333,6 +333,10 @@ texeraEnvVars:
     value: "true"
   - name: GUI_LOGIN_GOOGLE_LOGIN
     value: "true"
+  # Turn on together with the USER_SYS_ORCID_* credentials below. On with nothing configured, the
+  # button renders disabled and /auth/orcid/config reports the provider unavailable on every visit.
+  - name: GUI_LOGIN_ORCID_LOGIN
+    value: "false"
   - name: GUI_DATASET_SINGLE_FILE_UPLOAD_MAXIMUM_SIZE_MB
     value: "1024"
   - name: GUI_WORKFLOW_WORKSPACE_EXPORT_EXECUTION_RESULT_ENABLED
@@ -357,6 +361,20 @@ texeraEnvVars:
   - name: USER_SYS_GOOGLE_SMTP_GMAIL
     value: ""
   - name: USER_SYS_GOOGLE_SMTP_PASSWORD
+    value: ""
+  # ORCID sign-in. The client id and secret come from an ORCID developer application; leave them
+  # empty to keep the provider switched off. baseUrl selects the deployment (sandbox vs
+  # production), and redirectUri must be this deployment's own /callback/orcid URL, registered on
+  # that ORCID application — ORCID does not accept `localhost`. It drives both legs of the flow:
+  # /auth/orcid/config hands it to the login page and the token exchange sends the same value, so
+  # leaving it empty switches the provider off rather than failing after the user has consented.
+  - name: USER_SYS_ORCID_CLIENT_ID
+    value: ""
+  - name: USER_SYS_ORCID_CLIENT_SECRET
+    value: ""
+  - name: USER_SYS_ORCID_BASE_URL
+    value: "https://orcid.org"
+  - name: USER_SYS_ORCID_REDIRECT_URI
     value: ""
   - name: USER_SYS_DOMAIN
     value: ""

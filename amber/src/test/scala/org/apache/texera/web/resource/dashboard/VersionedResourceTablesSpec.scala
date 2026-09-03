@@ -110,7 +110,6 @@ class VersionedResourceTablesSpec
 
     entry.resourceType shouldBe "dataset"
     entry.workflow shouldBe None
-    entry.project shouldBe None
     val dashboardDataset = entry.dataset.getOrElse(fail("expected a dataset entry"))
     dashboardDataset.dataset shouldBe d
     dashboardDataset.ownerEmail shouldBe "owner@test.com"
@@ -189,7 +188,6 @@ class VersionedResourceTablesSpec
 
     entry.resourceType shouldBe "model"
     entry.workflow shouldBe None
-    entry.project shouldBe None
     entry.dataset shouldBe None
     val dashboardModel = entry.model.getOrElse(fail("expected a model entry"))
     dashboardModel.model shouldBe m

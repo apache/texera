@@ -19,7 +19,7 @@
 
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { ActivatedRoute, ActivatedRouteSnapshot, Router } from "@angular/router";
-import { HttpClientTestingModule } from "@angular/common/http/testing";
+import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
 import { EMPTY, Subject, of, throwError } from "rxjs";
 import { SocialAuthService, SocialUser } from "@abacritt/angularx-social-login";
 import { vi } from "vitest";
@@ -31,6 +31,7 @@ import { GuiConfigService } from "../../../common/service/gui-config.service";
 import { MockGuiConfigService } from "../../../common/service/gui-config.service.mock";
 import { commonTestProviders } from "../../../common/testing/test-utils";
 import { USER_WORKFLOW } from "../../../app-routing.constant";
+import { ORCID_STATE_KEY } from "../../../common/service/user/orcid-auth.service";
 import { By } from "@angular/platform-browser";
 import { NzIconDirective } from "ng-zorro-antd/icon";
 import { NzTabsComponent } from "ng-zorro-antd/tabs";
@@ -427,14 +428,113 @@ describe("TexeraLoginComponent", () => {
     });
   });
 
+  // ORCID is authorization-code OAuth, so this page's whole job is the redirect: everything after
+  // it happens on /callback/orcid and in the backend. What matters here is that the redirect is
+  // well formed and that the `state` the callback verifies actually gets stashed first.
+  describe("orcid sign-in", () => {
+    const ORCID_CONFIG = {
+      clientId: "APP-123",
+      authorizeUrl: "https://sandbox.orcid.org/oauth/authorize",
+      redirectUri: "https://texera.example/callback/orcid",
+    };
+
+    /**
+     * Swaps window.location for the duration of `run`, per the pattern in app.component.spec.ts.
+     * `href` is where the redirect lands; the `origin` deliberately differs from
+     * `ORCID_CONFIG.redirectUri`, so deriving `redirect_uri` from the browser again would fail.
+     */
+    const withStubbedLocation = (run: (location: { origin: string; href: string }) => void) => {
+      const original = window.location;
+      const stub = { ...original, origin: "http://127.0.0.1:4200", href: "" } as unknown as {
+        origin: string;
+        href: string;
+      };
+      Object.defineProperty(window, "location", { configurable: true, value: stub });
+      try {
+        run(stub);
+      } finally {
+        Object.defineProperty(window, "location", { configurable: true, value: original });
+      }
+    };
+
+    /** Answers the config fetch ngOnInit issues, which is what enables the button. */
+    const flushOrcidConfig = (
+      body: Record<string, string> | string = ORCID_CONFIG,
+      status?: { status: number; statusText: string }
+    ) => {
+      const httpMock = TestBed.inject(HttpTestingController);
+      const req = httpMock.expectOne(r => r.url.endsWith("/auth/orcid/config"));
+      if (status) {
+        req.flush(body, status);
+      } else {
+        req.flush(body);
+      }
+    };
+
+    beforeEach(() => {
+      sessionStorage.clear();
+      fixture.detectChanges();
+    });
+
+    afterEach(() => sessionStorage.clear());
+
+    it("redirects to ORCID with the server's client id and redirect uri, and a fresh state", () => {
+      flushOrcidConfig();
+
+      withStubbedLocation(location => {
+        (component as any).orcidLogin();
+
+        const url = new URL(location.href);
+        expect(`${url.origin}${url.pathname}`).toBe(ORCID_CONFIG.authorizeUrl);
+        expect(url.searchParams.get("client_id")).toBe("APP-123");
+        expect(url.searchParams.get("response_type")).toBe("code");
+        expect(url.searchParams.get("scope")).toBe("/authenticate");
+        // Served by the backend, which sends the same value on the token exchange — not derived
+        // from `window.location.origin`, which ORCID would reject as a mismatch.
+        expect(url.searchParams.get("redirect_uri")).toBe(ORCID_CONFIG.redirectUri);
+        // The callback compares this against what comes back; it has to be stored before leaving.
+        expect(url.searchParams.get("state")).toBe(sessionStorage.getItem(ORCID_STATE_KEY));
+        expect(sessionStorage.getItem(ORCID_STATE_KEY)).toBeTruthy();
+      });
+    });
+
+    it("uses a different state on each attempt", () => {
+      flushOrcidConfig();
+
+      const states: Array<string | null> = [];
+      withStubbedLocation(() => {
+        (component as any).orcidLogin();
+        states.push(sessionStorage.getItem(ORCID_STATE_KEY));
+        (component as any).orcidLogin();
+        states.push(sessionStorage.getItem(ORCID_STATE_KEY));
+      });
+
+      expect(states[0]).not.toBe(states[1]);
+    });
+
+    // A deployment with no ORCID credentials reports the provider unavailable, which leaves the
+    // button disabled — clicking it anyway must not send the user to a broken authorize URL.
+    it("reports unavailable and does not redirect when the config fetch failed", () => {
+      flushOrcidConfig("nope", { status: 503, statusText: "Service Unavailable" });
+
+      withStubbedLocation(location => {
+        (component as any).orcidLogin();
+
+        expect(notificationServiceMock.error).toHaveBeenCalledWith("ORCID sign-in is unavailable");
+        expect(location.href).toBe("");
+        expect(sessionStorage.getItem(ORCID_STATE_KEY)).toBeNull();
+      });
+    });
+  });
+
   // ──────────────────────────────────────────────────────────────────────────
   // Template rendering
   //
-  // The suite above drives the class; these render the card. Each test sets both
-  // provider flags explicitly so nothing is inherited from the mock's defaults.
+  // The suite above drives the class; these render the card. Each test sets every
+  // provider flag explicitly so nothing is inherited from the mock's defaults.
   // ──────────────────────────────────────────────────────────────────────────
   describe("template", () => {
-    function render(flags: { localLogin: boolean; googleLogin: boolean }): void {
+    function render(flags: { localLogin: boolean; googleLogin: boolean; orcidLogin: boolean }): void {
       (TestBed.inject(GuiConfigService) as unknown as MockGuiConfigService).setConfig(flags);
       fixture.detectChanges();
     }
@@ -449,41 +549,68 @@ describe("TexeraLoginComponent", () => {
     const iconTypes = (): string[] =>
       passwordIcons().map(icon => (icon.injector.get(NzIconDirective) as unknown as { type: string }).type);
 
+    const orcidButton = (): HTMLElement | null => host().querySelector("button.orcid-login");
+
     describe("provider flags", () => {
-      it("renders the local form and the google button when both are enabled", () => {
-        render({ localLogin: true, googleLogin: true });
+      it("renders the local form and both social buttons when all are enabled", () => {
+        render({ localLogin: true, googleLogin: true, orcidLogin: true });
 
         expect(host().querySelector("nz-tabs")).toBeTruthy();
         expect(host().querySelector("form")).toBeTruthy();
         expect(host().querySelector("asl-google-signin-button")).toBeTruthy();
+        expect(orcidButton()).toBeTruthy();
         // The "or continue with" divider only makes sense when both are offered.
         expect(host().querySelector("nz-divider")).toBeTruthy();
       });
 
-      it("drops the google button but keeps the form when only local login is enabled", () => {
-        render({ localLogin: true, googleLogin: false });
+      it("drops both social buttons but keeps the form when only local login is enabled", () => {
+        render({ localLogin: true, googleLogin: false, orcidLogin: false });
 
         expect(host().querySelector("nz-tabs")).toBeTruthy();
         expect(host().querySelector("form")).toBeTruthy();
         expect(host().querySelector("asl-google-signin-button")).toBeNull();
+        expect(orcidButton()).toBeNull();
         expect(host().querySelector("nz-divider")).toBeNull();
       });
 
       it("drops the tabs and the form but keeps the google button when only google is enabled", () => {
-        render({ localLogin: false, googleLogin: true });
+        render({ localLogin: false, googleLogin: true, orcidLogin: false });
 
         expect(host().querySelector("nz-tabs")).toBeNull();
         expect(host().querySelector("form")).toBeNull();
         expect(host().querySelector("asl-google-signin-button")).toBeTruthy();
+        expect(orcidButton()).toBeNull();
         expect(host().querySelector("nz-divider")).toBeNull();
       });
 
-      it("renders neither sign-in path when both are disabled", () => {
-        render({ localLogin: false, googleLogin: false });
+      // ORCID carries the divider on its own: it is a second way to "continue with"
+      // something other than the local form, so the label still reads correctly.
+      it("keeps the orcid button and the divider when google is disabled but orcid is not", () => {
+        render({ localLogin: true, googleLogin: false, orcidLogin: true });
+
+        expect(host().querySelector("form")).toBeTruthy();
+        expect(host().querySelector("asl-google-signin-button")).toBeNull();
+        expect(orcidButton()).toBeTruthy();
+        expect(host().querySelector("nz-divider")).toBeTruthy();
+      });
+
+      it("drops the tabs and the form but keeps the orcid button when only orcid is enabled", () => {
+        render({ localLogin: false, googleLogin: false, orcidLogin: true });
 
         expect(host().querySelector("nz-tabs")).toBeNull();
         expect(host().querySelector("form")).toBeNull();
         expect(host().querySelector("asl-google-signin-button")).toBeNull();
+        expect(orcidButton()).toBeTruthy();
+        expect(host().querySelector("nz-divider")).toBeNull();
+      });
+
+      it("renders no sign-in path when every provider is disabled", () => {
+        render({ localLogin: false, googleLogin: false, orcidLogin: false });
+
+        expect(host().querySelector("nz-tabs")).toBeNull();
+        expect(host().querySelector("form")).toBeNull();
+        expect(host().querySelector("asl-google-signin-button")).toBeNull();
+        expect(orcidButton()).toBeNull();
         expect(host().querySelector("nz-divider")).toBeNull();
         // The brand and footer are outside every flag, so the card is never empty.
         expect(host().querySelector(".brand")).toBeTruthy();
@@ -492,7 +619,7 @@ describe("TexeraLoginComponent", () => {
     });
 
     describe("sign-in / sign-up mode", () => {
-      beforeEach(() => render({ localLogin: true, googleLogin: true }));
+      beforeEach(() => render({ localLogin: true, googleLogin: true, orcidLogin: true }));
 
       it("shows only the sign-in fields by default", () => {
         expect(component.mode).toBe("signin");
@@ -552,7 +679,7 @@ describe("TexeraLoginComponent", () => {
 
     describe("password visibility", () => {
       beforeEach(() => {
-        render({ localLogin: true, googleLogin: true });
+        render({ localLogin: true, googleLogin: true, orcidLogin: true });
         component.setMode("signup");
         fixture.detectChanges();
       });

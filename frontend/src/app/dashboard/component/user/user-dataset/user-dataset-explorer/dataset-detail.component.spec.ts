@@ -704,6 +704,16 @@ describe("DatasetDetailComponent behavior", () => {
       expect(component.selectedVersionCreationTime).toMatch(/^\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}:\d{2}$/);
     });
 
+    it("survives the version select being emptied", () => {
+      createComponent();
+      component.did = 5;
+
+      expect(() => component.onVersionSelected(undefined)).not.toThrow();
+
+      expect(component.selectedVersion).toBeUndefined();
+      expect(datasetServiceStub.retrieveDatasetVersionFileTree).not.toHaveBeenCalled();
+    });
+
     it("does not fetch a file tree for a version without a dvid", () => {
       createComponent();
       component.did = 5;
@@ -1533,6 +1543,37 @@ describe("DatasetDetailComponent behavior", () => {
       component.onSaveDatasetName();
 
       expect(datasetServiceStub.updateDatasetName).not.toHaveBeenCalled();
+    });
+
+    it("refetches the file tree and the latest-version facts, which both embed the old name", () => {
+      datasetServiceStub.updateDatasetName.mockReturnValue(of({}));
+      createComponent();
+      component.did = 5;
+      component.selectedVersion = makeVersion({ dvid: 12 });
+      component.editedDatasetName = "new-name";
+      datasetServiceStub.retrieveDatasetVersionFileTree.mockClear();
+      datasetServiceStub.retrieveDatasetLatestVersion.mockClear();
+
+      component.onSaveDatasetName();
+
+      expect(datasetServiceStub.retrieveDatasetVersionFileTree).toHaveBeenCalledWith(5, 12, component.isLogin);
+      expect(datasetServiceStub.retrieveDatasetLatestVersion).toHaveBeenCalledWith(5);
+      // The browsed version stays put: a rename is not a reason to jump to the newest one.
+      expect(component.selectedVersion?.dvid).toBe(12);
+    });
+
+    it("refuses to rename while an upload is in flight, which would strand it", () => {
+      createComponent();
+      component.did = 5;
+      component.uploadsInFlight = true;
+      component.editedDatasetName = "new-name";
+
+      component.onSaveDatasetName();
+
+      expect(datasetServiceStub.updateDatasetName).not.toHaveBeenCalled();
+      expect(notificationServiceStub.error).toHaveBeenCalledWith(
+        "Finish or cancel the upload in progress before renaming this dataset"
+      );
     });
   });
 
@@ -2422,6 +2463,11 @@ describe("DatasetDetailComponent rendered template", () => {
       expect(datasetService.retrieveDatasetVersionFileTree).toHaveBeenCalledWith(5, 13, true);
     });
 
+    it("offers no way to empty the selection", () => {
+      // Clearing it used to reach onVersionSelected as null and throw.
+      expect(fixture.nativeElement.querySelector("nz-select-clear, .ant-select-clear")).toBeNull();
+    });
+
     it("loads a picked version over the anonymous endpoint when nobody is signed in", () => {
       render({ isLogin: false });
 
@@ -2504,6 +2550,18 @@ describe("DatasetDetailComponent rendered template", () => {
       editor.triggerEventHandler("descriptionChange", "brand new");
 
       expect(datasetService.updateDatasetDescription).toHaveBeenCalledWith(5, "brand new");
+    });
+
+    it("locks the name field while an upload is in flight", () => {
+      const el = render({ did: 5, datasetName: "ds", userDatasetAccessLevel: "WRITE" });
+      openTab("Versions & Files");
+
+      fixture.debugElement.query(By.css("texera-version-uploader")).triggerEventHandler("uploadsInFlightChange", true);
+      flush();
+      openTab("Settings");
+
+      expect(q<HTMLInputElement>(el, ".settings-name-controls input").disabled).toBe(true);
+      expect(q<HTMLButtonElement>(el, ".settings-name-controls button").disabled).toBe(true);
     });
 
     it("deletes the dataset only once the confirmation is accepted", () => {
