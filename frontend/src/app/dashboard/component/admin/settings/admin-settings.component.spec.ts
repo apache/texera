@@ -24,6 +24,8 @@ import { NzCardModule } from "ng-zorro-antd/card";
 import { NzMessageService } from "ng-zorro-antd/message";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { By } from "@angular/platform-browser";
+import { NoopAnimationsModule } from "@angular/platform-browser/animations";
+import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
 
 describe("AdminSettingsComponent", () => {
   let component: AdminSettingsComponent;
@@ -572,6 +574,7 @@ describe("AdminSettingsComponent wiring", () => {
     "home_enabled",
     "workflow_enabled",
     "dataset_enabled",
+    "model_enabled",
     "your_work_enabled",
     "workflows_enabled",
     "datasets_enabled",
@@ -648,7 +651,9 @@ describe("AdminSettingsComponent wiring", () => {
     });
 
     it("locks the Hub children until Hub itself is on", () => {
-      const hubChildren = [1, 2, 3];
+      const hubChildren = (["home_enabled", "workflow_enabled", "dataset_enabled", "model_enabled"] as const).map(key =>
+        SWITCH_KEYS.indexOf(key)
+      );
 
       component.sidebarTabs.hub_enabled = false;
       fixture.detectChanges();
@@ -807,5 +812,75 @@ describe("AdminSettingsComponent wiring", () => {
       const previews = Array.from(host().querySelectorAll<HTMLImageElement>("img.preview-img"));
       expect(previews.map(i => i.getAttribute("src"))).toEqual(["LOGO", "MINI", "FAV"]);
     });
+  });
+});
+
+/**
+ * The part-count guidance behind each upload card's info icon. It is an ng-template, so nothing
+ * of it exists until a tooltip actually opens — the suites above never open one, and the whole
+ * block (including the AWS link's rel) went unrendered.
+ *
+ * Its own TestBed: opening an nz-tooltip instantiates an overlay component whose host carries
+ * [@zoomBigMotion], which throws without an animations module.
+ */
+describe("AdminSettingsComponent upload guidance tooltip", () => {
+  let component: AdminSettingsComponent;
+  let fixture: ComponentFixture<AdminSettingsComponent>;
+  let http: HttpTestingController;
+
+  beforeEach(async () => {
+    TestBed.resetTestingModule();
+    await TestBed.configureTestingModule({
+      imports: [AdminSettingsComponent, HttpClientTestingModule, NzCardModule, NoopAnimationsModule],
+    }).compileComponents();
+
+    http = TestBed.inject(HttpTestingController);
+    fixture = TestBed.createComponent(AdminSettingsComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+    http.expectOne("/api/config/settings").flush({});
+    fixture.detectChanges();
+  });
+
+  afterEach(() => {
+    // nz-icon lazily fetches its SVG assets; drain those so verify() only asserts on
+    // requests this suite actually expects.
+    http.match(req => req.url.startsWith("assets/")).forEach(req => req.flush(""));
+    http.verify();
+    fixture.destroy();
+  });
+
+  /** One info icon per upload card, in the order the cards render. */
+  function infoTooltips() {
+    return fixture.debugElement.queryAll(By.directive(NzTooltipDirective));
+  }
+
+  it("spells out the part-count guidance behind an upload card's info icon", () => {
+    // One info icon per upload card, in the order the cards render.
+    expect(infoTooltips().length).toBe(component.uploadGroups.length);
+
+    infoTooltips()[0].injector.get(NzTooltipDirective).show();
+    fixture.detectChanges();
+
+    // The tooltip renders into the CDK overlay on document.body, not into the fixture.
+    const text = document.body.textContent ?? "";
+    expect(text).toContain("Configuration Guidelines");
+    expect(text).toContain("Concurrent parts");
+    // The 10,000-part ceiling is the reason the guidance exists at all: it is the S3 limit
+    // the operator silently crosses by leaving the part size small on a large file.
+    expect(text).toContain("10,000 parts");
+    expect(text).toContain("auto-adjusted");
+  });
+
+  it("opens the AWS limits reference in a new tab without leaking the admin page", () => {
+    infoTooltips()[0].injector.get(NzTooltipDirective).show();
+    fixture.detectChanges();
+
+    const link = document.body.querySelector<HTMLAnchorElement>('a[target="_blank"]');
+    expect(link).not.toBeNull();
+    expect(link!.getAttribute("href")).toContain("docs.aws.amazon.com");
+    // target="_blank" without noopener hands the opened page a window.opener handle back
+    // into the admin settings page.
+    expect(link!.getAttribute("rel")).toBe("noopener noreferrer");
   });
 });

@@ -17,6 +17,13 @@
  * under the License.
  */
 
+/** Which view a workflow opens in by default. Both views stay reachable from each other;
+ *  this only picks the landing view. */
+export enum DefaultView {
+  CANVAS = "CANVAS",
+  FORM = "FORM",
+}
+
 export interface WorkflowMetadata {
   name: string;
   description: string | undefined;
@@ -25,4 +32,7 @@ export interface WorkflowMetadata {
   lastModifiedTime: number | undefined;
   isPublished: number;
   readonly: boolean;
+  /** Which view this workflow opens in by default. From the workflow row, so listings need
+   *  not load content. Absent on payloads predating the column (treat as CANVAS). */
+  defaultView?: DefaultView;
 }

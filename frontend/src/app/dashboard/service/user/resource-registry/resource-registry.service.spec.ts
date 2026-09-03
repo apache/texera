@@ -19,7 +19,7 @@
 
 import { TestBed } from "@angular/core/testing";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
-import { of } from "rxjs";
+import { firstValueFrom, of } from "rxjs";
 import { ResourceRegistryService } from "./resource-registry.service";
 import { DashboardEntry } from "../../../type/dashboard-entry";
 import { EntityType } from "../../../../hub/service/hub.service";
@@ -27,8 +27,10 @@ import { DatasetService } from "../dataset/dataset.service";
 import { ModelService } from "../model/model.service";
 import { WorkflowPersistService } from "../../../../common/service/workflow-persist/workflow-persist.service";
 import { DownloadService } from "../download/download.service";
+import { FileResourceDescriptor } from "./file-resource.descriptor";
 import {
   HUB_DATASET_RESULT_DETAIL,
+  HUB_MODEL_RESULT_DETAIL,
   HUB_WORKFLOW_RESULT_DETAIL,
   USER_DATASET,
   USER_MODEL,
@@ -66,6 +68,11 @@ describe("ResourceRegistryService", () => {
       updateModelName: vi.fn().mockReturnValue(of({})),
       updateModelDescription: vi.fn().mockReturnValue(of({})),
       retrieveModelVersionSingleFile: vi.fn().mockReturnValue(of(new Blob())),
+      retrieveOwners: vi.fn().mockReturnValue(of(["m-owner"])),
+      getModel: vi.fn().mockReturnValue(of({ model: { isPublic: true } })),
+      updateModelPublicity: vi.fn().mockReturnValue(of({})),
+      getModelCoverUrl: vi.fn().mockReturnValue(of({ url: "http://cover" })),
+      updateModelCoverImage: vi.fn().mockReturnValue(of({})),
     };
 
     downloadService = {
@@ -102,6 +109,12 @@ describe("ResourceRegistryService", () => {
     expect(() => registry.get("quantum" as EntityType)).toThrowError("Unexpected type in DashboardEntry.");
   });
 
+  it("answers with undefined instead of throwing when the caller can cope", () => {
+    // The share modal opens for computing units too, and asks the registry what they can do.
+    expect(registry.find(EntityType.ComputingUnit)).toBeUndefined();
+    expect(registry.find(EntityType.Model)).toBeDefined();
+  });
+
   // ─── capability checks ────────────────────────────────────────────────────
 
   it("exposes rename and description only for the kinds that support them", () => {
@@ -109,8 +122,6 @@ describe("ResourceRegistryService", () => {
       expect(registry.get(type).rename).toBeDefined();
       expect(registry.get(type).updateDescription).toBeDefined();
     }
-    // Models gain `retrieveOwners` with the share modal and the filters, which are the only callers.
-    expect(registry.get(EntityType.Model).retrieveOwners).toBeUndefined();
     for (const type of [EntityType.File]) {
       expect(registry.get(type).rename).toBeUndefined();
       expect(registry.get(type).updateDescription).toBeUndefined();
@@ -128,6 +139,26 @@ describe("ResourceRegistryService", () => {
     expect(registry.get(EntityType.Workflow).retrieveSingleFile).toBeUndefined();
     expect(registry.get(EntityType.Dataset).retrieveSingleFile).toBeDefined();
     expect(registry.get(EntityType.Model).retrieveSingleFile).toBeDefined();
+  });
+
+  it("offers publishing and covers only to the kinds the backend supports", () => {
+    for (const type of [EntityType.Workflow, EntityType.Dataset, EntityType.Model]) {
+      expect(registry.get(type).retrieveOwners).toBeDefined();
+      expect(registry.get(type).isPublic).toBeDefined();
+      expect(registry.get(type).setPublished).toBeDefined();
+    }
+    expect(registry.get(EntityType.File).isPublic).toBeUndefined();
+    expect(registry.get(EntityType.File).setPublished).toBeUndefined();
+    // A workflow cover is a data URL on the entry, so only the file-backed kinds resolve one.
+    expect(registry.get(EntityType.Workflow).coverUrl).toBeUndefined();
+    expect(registry.get(EntityType.Dataset).coverUrl).toBeDefined();
+    expect(registry.get(EntityType.Model).coverUrl).toBeDefined();
+  });
+
+  it("warns about cloning only for the kind that can be cloned", () => {
+    expect(registry.get(EntityType.Workflow).affordances?.clonable).toBe(true);
+    expect(registry.get(EntityType.Dataset).affordances?.clonable).toBe(false);
+    expect(registry.get(EntityType.Model).affordances?.clonable).toBe(false);
   });
 
   it("offers an id filter only where the backend has an id endpoint", () => {
@@ -172,6 +203,18 @@ describe("ResourceRegistryService", () => {
     expect(modelService["retrieveModelVersionSingleFile"]).toHaveBeenCalledWith("/model/a/m/v1/f.pt", false);
   });
 
+  it("delegates a model's publishing and cover work to ModelService", async () => {
+    const model = registry.get(EntityType.Model);
+
+    expect(await firstValueFrom(model.isPublic!(3))).toBe(true);
+    model.setPublished!(3, false);
+    expect(await firstValueFrom(model.coverUrl!(3))).toBe("http://cover");
+    model.setCover!(3, "v1/preview.png");
+
+    expect(modelService["updateModelPublicity"]).toHaveBeenCalledWith(3);
+    expect(modelService["updateModelCoverImage"]).toHaveBeenCalledWith(3, "v1/preview.png");
+  });
+
   it("reads ownership off the kind's own payload", () => {
     expect(registry.get(EntityType.Workflow).isOwner(entry({ workflow: { isOwner: false } }))).toBe(false);
     expect(registry.get(EntityType.Dataset).isOwner(entry({ dataset: { isOwner: true } }))).toBe(true);
@@ -194,14 +237,52 @@ describe("ResourceRegistryService", () => {
     expect(registry.entryLink(dataset, 99)).toEqual([HUB_DATASET_RESULT_DETAIL, "5"]);
   });
 
-  it("routes a model to its detail page, which has no hub twin yet", () => {
-    expect(registry.get(EntityType.Model).hubRoute).toBeUndefined();
-    expect(registry.entryLink(entry({ type: EntityType.Model, id: 9 }), 42)).toEqual([USER_MODEL, "9"]);
+  it("routes a model the same way, to its own page or to the hub", () => {
+    const model = entry({ type: EntityType.Model, id: 9, accessibleUserIds: [42] });
+    expect(registry.entryLink(model, 42)).toEqual([USER_MODEL, "9"]);
+    expect(registry.entryLink(model, 99)).toEqual([HUB_MODEL_RESULT_DETAIL, "9"]);
   });
 
   it("leaves an unroutable or unsaved entry unlinked", () => {
     expect(registry.entryLink(entry({ type: EntityType.File, id: 8 }), 42)).toEqual([]);
     expect(registry.entryLink(entry({ type: EntityType.Dataset, id: undefined }), 42)).toEqual([]);
     expect(registry.entryLink(entry({ type: EntityType.Workflow, id: "draft" }), 42)).toEqual([]);
+  });
+
+  /**
+   * `hubRoute` is optional on the descriptor contract, and the shipped kinds happen to declare
+   * both routes or neither — so nothing had ever asked what a private-page-only kind links to.
+   * The answer must not depend on the viewer: with nowhere else to send them, the private page is
+   * the only link there is, and the access check further down would otherwise route an outsider to
+   * `undefined`. Descriptors reach the registry by injection, so the kind is supplied as one.
+   */
+  it("links a kind with a private page and no hub page straight to its private page", () => {
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      imports: [HttpClientTestingModule],
+      providers: [
+        { provide: DownloadService, useValue: downloadService },
+        { provide: WorkflowPersistService, useValue: workflowPersistService },
+        { provide: DatasetService, useValue: datasetService },
+        { provide: ModelService, useValue: modelService },
+        {
+          provide: FileResourceDescriptor,
+          useValue: {
+            type: EntityType.File,
+            iconType: "folder-open",
+            privateRoute: "/private-files",
+            isOwner: () => true,
+          },
+        },
+        ...commonTestProviders,
+      ],
+    });
+    const privatePageOnly = TestBed.inject(ResourceRegistryService);
+    const file = entry({ type: EntityType.File, id: 7, accessibleUserIds: [42] });
+
+    expect(privatePageOnly.entryLink(file, 42)).toEqual(["/private-files", "7"]);
+    // Same link for a viewer with no access, and for an anonymous one.
+    expect(privatePageOnly.entryLink(file, 99)).toEqual(["/private-files", "7"]);
+    expect(privatePageOnly.entryLink(file, undefined)).toEqual(["/private-files", "7"]);
   });
 });

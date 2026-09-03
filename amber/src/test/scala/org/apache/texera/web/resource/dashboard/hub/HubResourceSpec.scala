@@ -130,6 +130,7 @@ class HubResourceSpec
 
   private val thirdUid = 9003
   private val Ds: EntityType = EntityType.Dataset
+  private val Md: EntityType = EntityType.Model
 
   private def hub: HubResource = new HubResource()
 
@@ -189,6 +190,23 @@ class HubResourceSpec
     Integer.valueOf(dsId)
   }
 
+  private def seedModel(
+      modelId: Int,
+      name: String,
+      isPublic: Boolean = true,
+      owner: Int = ownerUid
+  ): Integer = {
+    getDSLContext
+      .insertInto(MODEL)
+      .set(MODEL.MID, Integer.valueOf(modelId))
+      .set(MODEL.OWNER_UID, Integer.valueOf(owner))
+      .set(MODEL.NAME, name)
+      .set(MODEL.DESCRIPTION, s"desc of $name")
+      .set(MODEL.IS_PUBLIC, java.lang.Boolean.valueOf(isPublic))
+      .execute()
+    Integer.valueOf(modelId)
+  }
+
   private def grantWorkflowAccess(wfId: Int, uid: Int, privilege: PrivilegeEnum): Unit =
     getDSLContext
       .insertInto(WORKFLOW_USER_ACCESS)
@@ -205,6 +223,14 @@ class HubResourceSpec
       .set(DATASET_USER_ACCESS.PRIVILEGE, privilege)
       .execute()
 
+  private def grantModelAccess(modelId: Int, uid: Int, privilege: PrivilegeEnum): Unit =
+    getDSLContext
+      .insertInto(MODEL_USER_ACCESS)
+      .set(MODEL_USER_ACCESS.MID, Integer.valueOf(modelId))
+      .set(MODEL_USER_ACCESS.UID, Integer.valueOf(uid))
+      .set(MODEL_USER_ACCESS.PRIVILEGE, privilege)
+      .execute()
+
   private def seedWorkflowLike(wfId: Int, uid: Int): Unit =
     getDSLContext
       .insertInto(WORKFLOW_USER_LIKES)
@@ -217,6 +243,13 @@ class HubResourceSpec
       .insertInto(DATASET_USER_LIKES)
       .set(DATASET_USER_LIKES.DID, Integer.valueOf(dsId))
       .set(DATASET_USER_LIKES.UID, Integer.valueOf(uid))
+      .execute()
+
+  private def seedModelLike(modelId: Int, uid: Int): Unit =
+    getDSLContext
+      .insertInto(MODEL_USER_LIKES)
+      .set(MODEL_USER_LIKES.MID, Integer.valueOf(modelId))
+      .set(MODEL_USER_LIKES.UID, Integer.valueOf(uid))
       .execute()
 
   private def seedWorkflowClone(wfId: Int, uid: Int): Unit =
@@ -240,6 +273,13 @@ class HubResourceSpec
       .set(DATASET_VIEW_COUNT.VIEW_COUNT, Integer.valueOf(count))
       .execute()
 
+  private def seedModelViewCount(modelId: Int, count: Int): Unit =
+    getDSLContext
+      .insertInto(MODEL_VIEW_COUNT)
+      .set(MODEL_VIEW_COUNT.MID, Integer.valueOf(modelId))
+      .set(MODEL_VIEW_COUNT.VIEW_COUNT, Integer.valueOf(count))
+      .execute()
+
   private def workflowLikeUids(wfId: Int): Set[Int] =
     getDSLContext
       .select(WORKFLOW_USER_LIKES.UID)
@@ -255,6 +295,16 @@ class HubResourceSpec
       .select(DATASET_USER_LIKES.UID)
       .from(DATASET_USER_LIKES)
       .where(DATASET_USER_LIKES.DID.eq(Integer.valueOf(dsId)))
+      .fetchInto(classOf[Integer])
+      .asScala
+      .map(_.intValue())
+      .toSet
+
+  private def modelLikeUids(modelId: Int): Set[Int] =
+    getDSLContext
+      .select(MODEL_USER_LIKES.UID)
+      .from(MODEL_USER_LIKES)
+      .where(MODEL_USER_LIKES.MID.eq(Integer.valueOf(modelId)))
       .fetchInto(classOf[Integer])
       .asScala
       .map(_.intValue())
@@ -286,6 +336,15 @@ class HubResourceSpec
         .from(DATASET_VIEW_COUNT)
         .where(DATASET_VIEW_COUNT.DID.eq(Integer.valueOf(dsId)))
         .fetchOne(DATASET_VIEW_COUNT.VIEW_COUNT)
+    ).map(_.intValue())
+
+  private def modelViewCount(modelId: Int): Option[Int] =
+    Option(
+      getDSLContext
+        .select(MODEL_VIEW_COUNT.VIEW_COUNT)
+        .from(MODEL_VIEW_COUNT)
+        .where(MODEL_VIEW_COUNT.MID.eq(Integer.valueOf(modelId)))
+        .fetchOne(MODEL_VIEW_COUNT.VIEW_COUNT)
     ).map(_.intValue())
 
   /** (uid, resourceType, resourceId, action literal, ip) for every audit row. */
@@ -350,8 +409,8 @@ class HubResourceSpec
     ctx.deleteFrom(WORKFLOW_USER_CLONES).where(WORKFLOW_USER_CLONES.WID.eq(wid)).execute()
     ctx.deleteFrom(WORKFLOW_VIEW_COUNT).where(WORKFLOW_VIEW_COUNT.WID.eq(wid)).execute()
     ctx.deleteFrom(USER_ACTION).where(USER_ACTION.RESOURCE_ID.eq(wid)).execute()
-    // The cases added below seed workflows and datasets of their own (ids in the
-    // 81xxxx / 82xxxx / 83xxxx ranges) plus audit rows pointing at them. MockTexeraDB
+    // The cases added below seed workflows, datasets and models of their own (ids in the
+    // 81xxxx / 82xxxx / 83xxxx / 84xxxx ranges) plus audit rows pointing at them. MockTexeraDB
     // never truncates, so those have to go too or a later test would observe an
     // earlier one's rows. Deleting the parents cascades to their like, clone,
     // view-count, ownership and access children; user_action has no such FK and
@@ -360,6 +419,7 @@ class HubResourceSpec
     ctx.deleteFrom(USER_ACTION).where(USER_ACTION.RESOURCE_ID.ne(wid)).execute()
     ctx.deleteFrom(WORKFLOW).where(WORKFLOW.WID.ne(wid)).execute()
     ctx.deleteFrom(DATASET).execute()
+    ctx.deleteFrom(MODEL).execute()
   }
 
   "recordUserAction" should "insert a user_action row for the entity" in {
@@ -493,6 +553,38 @@ class HubResourceSpec
     workflowLikeUids(830001) shouldBe empty
   }
 
+  it should "route the like to the model table when a model shares the id" in {
+    seedWorkflow(830002, "wf_like_shared_with_model")
+    seedDataset(830002, "ds_like_shared_with_model")
+    seedModel(830002, "md_like_shared_id")
+
+    recordLikeAction(
+      req,
+      Integer.valueOf(ownerUid),
+      UserRequest(Integer.valueOf(830002), Md),
+      isLike = true
+    ) shouldBe true
+
+    modelLikeUids(830002) shouldBe Set(ownerUid)
+    datasetLikeUids(830002) shouldBe empty
+    workflowLikeUids(830002) shouldBe empty
+  }
+
+  it should "unlike a model, leaving other likers alone" in {
+    seedModel(840101, "md_unlike")
+    seedModelLike(840101, likerUid)
+    seedModelLike(840101, ownerUid)
+
+    recordLikeAction(
+      req,
+      Integer.valueOf(ownerUid),
+      UserRequest(Integer.valueOf(840101), Md),
+      isLike = false
+    ) shouldBe true
+
+    modelLikeUids(840101) shouldBe Set(likerUid)
+  }
+
   "recordCloneAction" should "record a clone row and a user_action row" in {
     recordCloneAction(req, Integer.valueOf(likerUid), Integer.valueOf(wid), Wf)
     cloneRows shouldBe 1
@@ -546,6 +638,20 @@ class HubResourceSpec
     )
   }
 
+  it should "keep model likes apart from the other entity types" in {
+    seedModel(840501, "md_is_liked")
+    seedModelLike(840501, ownerUid)
+    seedDataset(820920, "ds_is_liked")
+
+    val responses = isLikedHelper(
+      Integer.valueOf(ownerUid),
+      ids(840501, 820920),
+      types(Md, Ds)
+    ).asScala.map(r => (r.entityType, r.entityId.intValue()) -> r.isLiked).toMap
+
+    responses shouldBe Map((Md, 840501) -> true, (Ds, 820920) -> false)
+  }
+
   it should "not report another user's like as the caller's" in {
     seedWorkflow(810303, "wf_liked_by_other")
     seedWorkflowLike(810303, likerUid)
@@ -583,6 +689,14 @@ class HubResourceSpec
     seedWorkflow(810503, "wf_private", isPublic = false, withOwnerRows = false)
 
     hub.getCount(Wf).intValue() shouldBe 3
+  }
+
+  it should "count models from the model table" in {
+    seedModel(840201, "md_public")
+    seedModel(840202, "md_private", isPublic = false)
+    seedDataset(820510, "ds_noise")
+
+    hub.getCount(Md).intValue() shouldBe 1
   }
 
   it should "count datasets from the dataset table, not the workflow table" in {
@@ -632,6 +746,21 @@ class HubResourceSpec
 
     workflowViewCount(830001) shouldBe Some(2)
     datasetViewCount(830001) shouldBe Some(1)
+  }
+
+  it should "keep model view counts apart from the dataset and workflow rows" in {
+    seedWorkflow(830003, "wf_view_shared_with_model")
+    seedDataset(830003, "ds_view_shared_with_model")
+    seedModel(830003, "md_view_shared_id")
+    val shared = Integer.valueOf(830003)
+
+    hub.postView(req, ViewRequest(shared, Integer.valueOf(ownerUid), Md))
+    hub.postView(req, ViewRequest(shared, Integer.valueOf(ownerUid), Md))
+    hub.postView(req, ViewRequest(shared, Integer.valueOf(ownerUid), Ds))
+
+    modelViewCount(830003) shouldBe Some(2)
+    datasetViewCount(830003) shouldBe Some(1)
+    workflowViewCount(830003) shouldBe None
   }
 
   "getCounts" should "report the like count for the entity" in {
@@ -725,6 +854,20 @@ class HubResourceSpec
     )
   }
 
+  it should "report view and like counts for a model, and zero clones" in {
+    seedModel(840301, "md_counts")
+    seedModelViewCount(840301, 5)
+    Seq(ownerUid, likerUid).foreach(seedModelLike(840301, _))
+
+    val counts = hub.getCounts(types(Md), ids(840301), null).asScala.head.counts
+
+    counts.asScala.toMap shouldBe Map(
+      (ActionType.View: ActionType) -> 5,
+      (ActionType.Like: ActionType) -> 2,
+      (ActionType.Clone: ActionType) -> 0
+    )
+  }
+
   it should "answer a mixed batch with one response per requested pair" in {
     seedWorkflow(810805, "wf_mixed")
     seedDataset(820802, "ds_mixed")
@@ -765,6 +908,16 @@ class HubResourceSpec
     val tops = hub.getTops(Ds, null, null, null).asScala
 
     tops.keySet shouldBe Set("like", "clone")
+    tops("clone").asScala shouldBe empty
+  }
+
+  it should "answer for a model without failing on its absent clone table" in {
+    // Models are cloneless like datasets; with no likes seeded the descriptor path is not
+    // asked to size a lakeFS repository, which this suite has no stub for.
+    val tops = hub.getTops(Md, null, null, null).asScala
+
+    tops.keySet shouldBe Set("like", "clone")
+    tops("like").asScala shouldBe empty
     tops("clone").asScala shouldBe empty
   }
 
@@ -865,6 +1018,25 @@ class HubResourceSpec
     )
   }
 
+  it should "read a model's grantees from model_user_access" in {
+    seedModel(840401, "md_access")
+    seedDataset(820910, "ds_access_noise")
+    // Disjoint grantee sets so reading the wrong access table cannot pass.
+    grantModelAccess(840401, likerUid, PrivilegeEnum.WRITE)
+    grantDatasetAccess(820910, thirdUid, PrivilegeEnum.READ)
+
+    val byEntity = hub
+      .userAccess(types(Md, Ds), ids(840401, 820910))
+      .asScala
+      .map(r => (r.entityType, r.entityId.intValue()) -> r.userIds.asScala.map(_.intValue()).toSet)
+      .toMap
+
+    byEntity shouldBe Map(
+      (Md, 840401) -> Set(likerUid),
+      (Ds, 820910) -> Set(thirdUid)
+    )
+  }
+
   it should "still emit a response with an empty uid list for an entity nobody can access" in {
     seedWorkflow(810902, "wf_no_access", withOwnerRows = false)
 
@@ -911,7 +1083,6 @@ class HubResourceSpec
     entry.ownerName shouldBe "hub_owner"
     entry.ownerId shouldBe Integer.valueOf(ownerUid)
     entry.accessLevel shouldBe "WRITE"
-    entry.projectIDs shouldBe empty
     entry.coverImage shouldBe empty
   }
 

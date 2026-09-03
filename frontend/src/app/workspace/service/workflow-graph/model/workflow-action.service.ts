@@ -21,7 +21,14 @@ import { Injectable } from "@angular/core";
 
 import * as joint from "jointjs";
 import { BehaviorSubject, merge, Observable, Subject } from "rxjs";
-import { ExecutionMode, Workflow, WorkflowContent, WorkflowSettings } from "../../../../common/type/workflow";
+import {
+  ExecutionMode,
+  getDefaultFormBinding,
+  FormBindingConfig,
+  Workflow,
+  WorkflowContent,
+  WorkflowSettings,
+} from "../../../../common/type/workflow";
 import { WorkflowMetadata } from "../../../../dashboard/type/workflow-metadata.interface";
 import {
   Comment,
@@ -97,6 +104,17 @@ export class WorkflowActionService {
 
   private workflowSettings: WorkflowSettings;
   private workflowResetSubject = new Subject<void>();
+
+  // The Form View definition. Presentation, not structure, so it stays out of the shared
+  // graph (no collaborative merge) and is handled like workflowSettings -- hydrated by
+  // reloadWorkflow, emitted by getWorkflowContent.
+  private formBinding: FormBindingConfig = getDefaultFormBinding();
+  // Whether the opened workflow's content carried a formBinding. Kept so getWorkflowContent
+  // re-emits the key only when it was there (or an author has since populated it), leaving a
+  // plain workflow's content byte-identical -- the same rule agent-service follows.
+  private formBindingLoaded = false;
+  private formBindingChangeSubject = new Subject<FormBindingConfig>();
+  public readonly formBindingChanged$: Observable<FormBindingConfig> = this.formBindingChangeSubject.asObservable();
 
   constructor(
     private operatorMetadataService: OperatorMetadataService,
@@ -641,12 +659,16 @@ export class WorkflowActionService {
       this.jointGraphWrapper.jointGraph.clear();
 
       if (workflow === undefined) {
+        // A blank workflow carries no Form View definition; drop any left over from the
+        // previously open one so it cannot leak into this workflow's next save.
+        this.hydrateFormBinding(undefined);
         this.setNewSharedModel();
         return;
       }
 
       const workflowContent: WorkflowContent = workflow.content;
       this.workflowSettings = workflowContent.settings || this.getDefaultSettings();
+      this.hydrateFormBinding(workflowContent.formBinding);
 
       let operatorsAndPositions: { op: OperatorPredicate; pos: Point }[] = [];
       workflowContent.operators.forEach(op => {
@@ -701,6 +723,7 @@ export class WorkflowActionService {
       this.getTexeraGraph().getOperatorVersionChangedStream(),
       this.getTexeraGraph().getPortDisplayNameChangedSubject(),
       this.getTexeraGraph().getPortPropertyChangedStream(),
+      this.formBindingChanged$,
       this.workflowResetSubject.asObservable()
     );
   }
@@ -736,6 +759,34 @@ export class WorkflowActionService {
     return this.workflowSettings;
   }
 
+  /**
+   * Load a definition without announcing an edit. Used while opening a workflow, so
+   * that merely reading one does not look like a change and trigger a save.
+   */
+  public hydrateFormBinding(formBinding: FormBindingConfig | undefined): void {
+    this.formBindingLoaded = formBinding !== undefined;
+    this.formBinding = formBinding ?? getDefaultFormBinding();
+  }
+
+  /** A form binding worth persisting: an author populated it (fields, results, or an
+   *  instruction), as opposed to the empty default a plain workflow carries. */
+  private isFormBindingNonEmpty(fb: FormBindingConfig): boolean {
+    return fb.fields.length > 0 || fb.resultOperatorIds.length > 0 || fb.instruction !== undefined;
+  }
+
+  /**
+   * Replace the definition as an edit: announced on `formBindingChanged$`, which
+   * feeds workflowChanged() and so reaches the existing autosave.
+   */
+  public setFormBinding(formBinding: FormBindingConfig): void {
+    this.formBinding = formBinding;
+    this.formBindingChangeSubject.next(this.formBinding);
+  }
+
+  public getFormBinding(): FormBindingConfig {
+    return this.formBinding;
+  }
+
   public getWorkflowMetadata(): WorkflowMetadata {
     return this.workflowMetadata;
   }
@@ -763,6 +814,12 @@ export class WorkflowActionService {
       links,
       commentBoxes,
       settings,
+      // Carry formBinding only when the workflow has one (loaded with it, or an author
+      // populated it), so a plain workflow's content is unchanged and its save cuts no
+      // needless version.
+      ...(this.formBindingLoaded || this.isFormBindingNonEmpty(this.formBinding)
+        ? { formBinding: this.formBinding }
+        : {}),
     };
   }
 

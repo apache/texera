@@ -395,7 +395,6 @@
                   <div class="select-and-button-container">
                     <nz-select
                       nzShowSearch
-                      nzAllowClear
                       nzPlaceHolder="Select a version"
                       (ngModelChange)="onVersionSelected($event)"
                       [(ngModel)]="selectedVersion">
@@ -456,7 +455,8 @@
               [resourceName]="datasetName"
               [endpoint]="datasetEndpoint"
               [createVersion]="createDatasetVersion"
-              (versionCreated)="onVersionCreated()">
+              (versionCreated)="onVersionCreated()"
+              (uploadsInFlightChange)="uploadsInFlight = $event">
             </texera-version-uploader>
           </div>
         </nz-sider>
@@ -474,14 +474,22 @@
           <div class="settings-name-label">
             <label>Dataset name</label>
             <p class="settings-hint">Lowercase letters, numbers and hyphens.</p>
+            <p
+              *ngIf="uploadsInFlight"
+              class="settings-hint">
+              An upload is in progress — finish or cancel it in Versions &amp; Files first, or it will be left
+              incomplete.
+            </p>
           </div>
           <div class="settings-name-controls">
             <input
               nz-input
+              [disabled]="uploadsInFlight"
               [(ngModel)]="editedDatasetName" />
             <button
               nz-button
               nzType="primary"
+              [disabled]="uploadsInFlight"
               (click)="onSaveDatasetName()">
               Save
             </button>

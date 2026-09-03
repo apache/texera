@@ -46,6 +46,21 @@ class TestStateManager:
             assert state_manager.confirm_state(state)
             state_manager.assert_state(state)
 
+    def test_get_current_state_reflects_the_latest_transition(self, state_manager):
+        # get_current_state must report the state itself, not the version
+        # counter that transit_to bumps alongside it. UNINITIALIZED/READY
+        # alone cannot tell the two apart -- their ordinals happen to equal
+        # the transition count -- so walk one step further to PAUSED, where
+        # the ordinal (3) and the version (2) diverge.
+        assert state_manager.get_current_state() == WorkerState.UNINITIALIZED
+
+        state_manager.transit_to(WorkerState.READY)
+        assert state_manager.get_current_state() == WorkerState.READY
+
+        state_manager.transit_to(WorkerState.PAUSED)
+        assert state_manager.get_current_state() == WorkerState.PAUSED
+        assert state_manager.get_current_state() != state_manager.get_state_version()
+
     def test_it_raises_exception_when_transit_to_undefined_state(self, state_manager):
         state_manager.assert_state(WorkerState.UNINITIALIZED)
         for state in [WorkerState.READY, WorkerState.PAUSED]:

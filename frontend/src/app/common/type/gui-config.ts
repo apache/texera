@@ -24,7 +24,9 @@ export interface GuiConfig {
   selectingFilesFromDatasetsEnabled: boolean;
   localLogin: boolean;
   googleLogin: boolean;
+  orcidLogin: boolean;
   inviteOnly: boolean;
+  emailVerification: boolean;
   userPresetEnabled: boolean;
   workflowExecutionsTrackingEnabled: boolean;
   linkBreakpointEnabled: boolean;
@@ -53,6 +55,7 @@ export interface SidebarTabs {
   home_enabled: boolean;
   workflow_enabled: boolean;
   dataset_enabled: boolean;
+  model_enabled: boolean;
   your_work_enabled: boolean;
   workflows_enabled: boolean;
   compute_enabled: boolean;

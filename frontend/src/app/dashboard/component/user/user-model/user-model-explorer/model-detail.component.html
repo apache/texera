@@ -84,11 +84,14 @@
             {{ formatCount(viewCount) }}
           </nz-tag>
 
-          <nz-tag class="status-tag">
+          <nz-tag
+            class="status-tag like-tag"
+            [ngClass]="{ liked: isLiked, disabled: !isLogin }"
+            (click)="isLogin && toggleLike()">
             <i
               nz-icon
               nzType="like"
-              nzTheme="outline"></i>
+              [nzTheme]="isLiked ? 'fill' : 'outline'"></i>
             {{ formatCount(likeCount) }}
           </nz-tag>
         </div>
@@ -347,7 +350,8 @@
                   [fileTreeNodes]="fileTreeNodeList"
                   [isTreeNodeDeletable]="userHasWriteAccess()"
                   (selectedTreeNode)="onVersionFileTreeNodeSelected($event)"
-                  (deletedTreeNode)="onPreviouslyUploadedFileDeleted($event)">
+                  (deletedTreeNode)="onPreviouslyUploadedFileDeleted($event)"
+                  (setCoverImage)="onSetCoverImage($event)">
                 </texera-user-dataset-version-filetree>
               </nz-collapse-panel>
             </nz-collapse>
@@ -455,6 +459,47 @@
                 [nzValue]="option"
                 [nzLabel]="option"></nz-option>
             </nz-select>
+          </div>
+        </div>
+      </nz-card>
+
+      <nz-card class="settings-general-card">
+        <h3 class="settings-card-title">Access &amp; visibility</h3>
+
+        <div class="settings-name-row">
+          <div class="settings-name-label">
+            <label>Visibility</label>
+            <p class="settings-hint">
+              {{ modelIsPublic ? "Public — anyone can view this model." : "Private — only you and invited collaborators
+              can see this model." }}
+            </p>
+          </div>
+          <div class="settings-name-controls">
+            <nz-switch
+              [ngModel]="modelIsPublic"
+              (ngModelChange)="onPublicStatusChange($event)"
+              nzCheckedChildren="public"
+              nzUnCheckedChildren="private"></nz-switch>
+          </div>
+        </div>
+
+        <nz-divider></nz-divider>
+
+        <div class="settings-name-row">
+          <div class="settings-name-label">
+            <label>Downloadable</label>
+            <p class="settings-hint">
+              {{ modelIsDownloadable ? "Viewers can download this model." : "Viewers can browse files but cannot
+              download them." }}
+            </p>
+          </div>
+          <div class="settings-name-controls">
+            <nz-switch
+              [ngModel]="modelIsDownloadable"
+              (ngModelChange)="onDownloadableStatusChange($event)"
+              [nzDisabled]="!isOwner"
+              nzCheckedChildren="allowed"
+              nzUnCheckedChildren="blocked"></nz-switch>
           </div>
         </div>
       </nz-card>
