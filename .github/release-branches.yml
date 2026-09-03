@@ -20,10 +20,11 @@
 #     (.github/workflows/backport-auto-label.yml), so backports are opt-out
 #     rather than easy-to-forget opt-in;
 #   - requests review from the branch's release manager on those PRs;
-#   - drives the post-merge backport (.github/workflows/direct-backport-push.yml):
-#     a green pre-merge backport check cherry-picks straight to the branch, a
-#     red one opens a draft backport PR assigned to the author with the manager
-#     as reviewer.
+#   - drives the post-merge backport (.github/workflows/direct-backport-push.yml),
+#     which always opens a pull request against the branch: a green pre-merge
+#     backport check opens it ready for review with auto-merge armed, so the
+#     manager's approval is the last step, while a red one opens a draft
+#     assigned to the author with the manager as reviewer.
 #
 # The label name equals the branch name (e.g. branch `release/v1.2` <-> label
 # `release/v1.2`).

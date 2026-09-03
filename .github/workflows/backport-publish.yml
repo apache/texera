@@ -93,7 +93,7 @@ jobs:
                     ? `Cherry-picks cleanly onto ${r.target}`
                     : `Conflicts on ${r.target} — needs a manual backport`,
                   summary: applied
-                    ? `The change applies cleanly onto \`${r.target}\`. If this PR merges it is cherry-picked straight to the release branch.`
+                    ? `The change applies cleanly onto \`${r.target}\`. If this PR merges it is cherry-picked onto the release branch and opened as a backport PR with auto-merge armed, needing only that branch's release manager to approve it.`
                     : `The change does not apply cleanly onto \`${r.target}\`. This is advisory and does not block merging: after merge, Direct Backport Push opens a draft backport PR for manual conflict resolution. Remove the \`${r.target}\` label to decline the backport.`,
                 },
               });

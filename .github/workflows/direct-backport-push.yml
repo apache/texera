@@ -314,11 +314,24 @@ jobs:
                 `PR #${pullRequest.number}: push=[${push.join(", ")}] pr=[${pr.join(", ")}]`
               );
 
+              // Both outcomes now open a pull request. Pushing a cherry-pick
+              // straight onto a release branch is rejected by the Merge Queue
+              // ruleset that covers them (#8377), and ASF policy requires prior
+              // Infrastructure authorization for an automated service to push
+              // to a branch subject to official release — so the fix travels
+              // the way every other change to a release branch travels.
+              //
+              // The two are not the same PR, though: a clean cherry-pick needs
+              // nobody to touch it, so it opens ready for review with
+              // auto-merge armed and the manager's approval is the only step
+              // left. A conflicted one still opens as a draft for its author.
               for (const target of push) {
-                pushEntries.push({
+                prEntries.push({
                   pr_number: pullRequest.number,
                   merge_sha: commit.sha,
                   target,
+                  manager: releaseManagers.get(target) || "",
+                  clean: "true",
                 });
               }
               for (const target of pr) {
@@ -327,12 +340,17 @@ jobs:
                   merge_sha: commit.sha,
                   target,
                   manager: releaseManagers.get(target) || "",
+                  clean: "false",
                 });
               }
             }
 
             core.info(`Push entries: ${JSON.stringify(pushEntries)}`);
             core.info(`PR entries: ${JSON.stringify(prEntries)}`);
+            // Always empty now: every target opens a PR. The push-backports
+            // job below is therefore unreachable and is removed separately, so
+            // that this change is a behaviour change and that one is a pure
+            // deletion.
             core.setOutput("push_entries", JSON.stringify(pushEntries));
             core.setOutput("pr_entries", JSON.stringify(prEntries));
             core.setOutput("has_push", pushEntries.length > 0 ? "true" : "false");
@@ -796,9 +814,15 @@ jobs:
     needs: discover
     if: ${{ needs.discover.outputs.has_pr == 'true' }}
     runs-on: ubuntu-latest
-    name: "open backport PR #${{ matrix.pr_number }} to ${{ matrix.target }}"
+    name: "backport PR #${{ matrix.pr_number }} to ${{ matrix.target }}"
     strategy:
       fail-fast: false
+      # One at a time, as push-backports did: a single push can carry several
+      # fixes for the same release branch, and each cherry-pick is taken against
+      # that branch as it stands, so preparing them concurrently would race
+      # their branches against each other. Merge order is then the merge
+      # queue's to keep, which is what it is for.
+      max-parallel: 1
       matrix:
         include: ${{ fromJson(needs.discover.outputs.pr_entries) }}
     steps:
@@ -818,7 +842,8 @@ jobs:
         run: |
           bash ./.github/scripts/create-backport-branch.sh \
             "${MERGE_SHA}" "${TARGET_BRANCH}" "${PR_NUMBER}"
-      - name: Open draft backport PR
+      - name: Open backport PR
+        id: open
         uses: actions/github-script@v9
         env:
           MERGE_SHA: ${{ matrix.merge_sha }}
@@ -831,22 +856,32 @@ jobs:
           CONFLICT_FILES: ${{ steps.branch.outputs.conflict_files }}
           SUBJECT: ${{ steps.branch.outputs.subject }}
           FEATURE_ABSENT: ${{ steps.branch.outputs.feature_absent }}
+          CLEAN: ${{ matrix.clean }}
         with:
-          # Open the draft as github-actions[bot], not the PAT owner, by using
-          # the default GITHUB_TOKEN. Trade-off: a GITHUB_TOKEN-opened PR does
-          # not trigger pull_request CI — acceptable because this is a draft for
-          # manual conflict/build resolution, so CI fires once the human pushes
-          # their fix to the branch.
+          # Opened as github-actions[bot], for both outcomes. GitHub suppresses
+          # workflow runs for anything GITHUB_TOKEN does, so a clean backport's
+          # required checks are started by the step below rather than by this
+          # creation — see the comment there.
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const {
               MERGE_SHA, TARGET_BRANCH, PR_NUMBER, MANAGER,
               BRANCH, VERSION, HAD_CONFLICT, CONFLICT_FILES, SUBJECT,
-              FEATURE_ABSENT,
+              FEATURE_ABSENT, CLEAN,
             } = process.env;
             const { owner, repo } = context.repo;
             const prNumber = Number(PR_NUMBER);
             const hadConflict = HAD_CONFLICT === "true";
+            // Clean means the cherry-pick applied and the backported tree built
+            // green before the merge: nothing here needs a human's hands, only
+            // the release manager's confirmation.
+            //
+            // CLEAN carries the pre-merge preflight's verdict, but the branch
+            // step above cherry-picked again just now, onto a release branch
+            // that may have moved since. Trust that fresher result too, or a
+            // race would open a tree full of conflict markers ready for review,
+            // call it conflict-free, and arm auto-merge on it.
+            const clean = CLEAN === "true" && !hadConflict;
             const runUrl =
               `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`;
 
@@ -904,11 +939,48 @@ jobs:
             let pr = existing.data[0];
             if (pr) {
               core.info(`Backport PR already open: #${pr.number}; not duplicating.`);
+              // The branch name is deterministic and force-pushed, so a re-run
+              // can find a PR whose draft state no longer matches what this
+              // cherry-pick produced. Leaving it would strand a now-clean
+              // backport as a draft, which auto-merge cannot be armed on, or
+              // leave a now-conflicted one ready for review with conflict
+              // markers in it. Draft state is GraphQL-only.
+              if (pr.draft === clean) {
+                try {
+                  await github.graphql(
+                    clean
+                      ? `mutation ($id: ID!) {
+                          markPullRequestReadyForReview(input: { pullRequestId: $id })
+                          { clientMutationId }
+                        }`
+                      : `mutation ($id: ID!) {
+                          convertPullRequestToDraft(input: { pullRequestId: $id })
+                          { clientMutationId }
+                        }`,
+                    { id: pr.node_id }
+                  );
+                  core.info(
+                    `Re-run moved #${pr.number} to ${clean ? "ready" : "draft"}.`
+                  );
+                } catch (e) {
+                  core.warning(
+                    `Could not move #${pr.number} to ${clean ? "ready" : "draft"}: ${e.message}`
+                  );
+                }
+              }
             } else {
               const conflictList = CONFLICT_FILES.trim()
                 ? CONFLICT_FILES.trim().split(/\s+/).map((f) => `- \`${f}\``).join("\n")
                 : "";
-              const statusLine = hadConflict
+              const statusLine = clean
+                ? `**Clean cherry-pick — nothing here was edited by hand.** It applied to ` +
+                  `\`${TARGET_BRANCH}\` without conflicts, and the backported tree built ` +
+                  `green before #${prNumber} merged.\n\n` +
+                  `${MANAGER ? `@${MANAGER} already approved #${prNumber} for this branch; ` +
+                    `this PR carries that decision out. ` : ""}` +
+                  `**Auto-merge is armed** — an approving review is the only thing between ` +
+                  `this and \`${TARGET_BRANCH}\`.`
+                : hadConflict
                 ? `The cherry-pick **conflicted** and was committed with conflict markers. ` +
                   `Resolve the conflicts on this branch, then mark this PR ready for review.`
                 : `The cherry-pick applied cleanly but the backported tree failed its ` +
@@ -979,9 +1051,12 @@ jobs:
                 ``,
                 `### How was this PR tested?`,
                 ``,
-                `Release-branch CI runs on this branch once the ` +
-                  `${hadConflict ? "conflicts are resolved" : "build is fixed"} and ` +
-                  `this PR is marked ready for review.`,
+                clean
+                  ? `The backported tree built green before #${prNumber} merged, and ` +
+                    `release-branch CI runs on this PR as well — auto-merge waits for it.`
+                  : `Release-branch CI runs on this branch once the ` +
+                    `${hadConflict ? "conflicts are resolved" : "build is fixed"} and ` +
+                    `this PR is marked ready for review.`,
                 ``,
                 `### Was this PR authored or co-authored using generative AI tooling?`,
                 ``,
@@ -990,9 +1065,15 @@ jobs:
 
               pr = (await github.rest.pulls.create({
                 owner, repo, base: TARGET_BRANCH, head: BRANCH,
-                title, body, draft: true,
+                title, body, draft: !clean,
               })).data;
-              core.info(`Opened draft backport PR #${pr.number}.`);
+              core.info(
+                `Opened ${clean ? "ready" : "draft"} backport PR #${pr.number}.`
+              );
+
+              // A clean one still needs its checks started and auto-merge
+              // armed; both happen in the next step, which holds a token that
+              // can trigger workflows.
 
               // Post the how-to-finish instructions as a comment on the new
               // backport PR (kept out of the templated body).
@@ -1045,11 +1126,15 @@ jobs:
             try {
               await github.rest.issues.createComment({
                 owner, repo, issue_number: prNumber,
-                body:
-                  `Backport PR opened: draft #${pr.number} (${prUrl}) to ` +
-                  `\`${TARGET_BRANCH}\`` +
-                  (author ? `, assigned to @${author}` : "") +
-                  ` — needs manual work because ${reason}.`,
+                body: clean
+                  ? `Backport PR opened: #${pr.number} (${prUrl}) to ` +
+                    `\`${TARGET_BRANCH}\` — the cherry-pick was clean, so it is ` +
+                    `ready for review with auto-merge armed` +
+                    (MANAGER ? `, waiting on @${MANAGER}'s approval` : "") + `.`
+                  : `Backport PR opened: draft #${pr.number} (${prUrl}) to ` +
+                    `\`${TARGET_BRANCH}\`` +
+                    (author ? `, assigned to @${author}` : "") +
+                    ` — needs manual work because ${reason}.`,
               });
             } catch (e) {
               core.warning(`Could not comment on #${prNumber}: ${e.message}`);
@@ -1059,11 +1144,161 @@ jobs:
             // backport" signal visible on main next to the successful ones.
             try {
               await github.rest.repos.createCommitStatus({
-                owner, repo, sha: MERGE_SHA, state: "failure",
+                owner, repo, sha: MERGE_SHA,
+                // A clean backport is on its way — but not yet: the next step
+                // still has to start its checks and arm auto-merge, and either
+                // can fail. Say pending until it does and let that step settle
+                // it, rather than claiming a success this cannot yet see. Only
+                // the ones needing hands carry the red signal from here.
+                state: clean ? "pending" : "failure",
                 context: `backport/${TARGET_BRANCH}`,
-                description: `Draft backport PR #${pr.number} opened`,
+                description: clean
+                  ? `Backport PR #${pr.number} open, starting its checks`
+                  : `Draft backport PR #${pr.number} opened`,
                 target_url: prUrl,
               });
             } catch (e) {
               core.warning(`Could not set commit status: ${e.message}`);
             }
+
+            // Handed to the step below, which starts this PR's checks and arms
+            // auto-merge — both need a token that can trigger workflows.
+            if (clean) core.setOutput("clean_pr", String(pr.number));
+
+      # GitHub suppresses workflow runs for anything GITHUB_TOKEN does, so the
+      # pull request opened above starts with no checks at all. A conflicted one
+      # does not care: it is a draft, and CI fires when its author pushes a
+      # resolution. A clean one has nobody to push anything, so its three
+      # required contexts would never appear and auto-merge would wait on them
+      # forever — the backport would look like it was progressing while sitting
+      # still.
+      #
+      # Closing and reopening it under a token that can trigger workflows emits
+      # `pull_request: reopened`, which Required Checks, Check License Headers
+      # and Validate PR title all subscribe to. The pull request keeps
+      # github-actions[bot] as its author; only these two events carry the
+      # token owner's name.
+      - name: Start checks and arm auto-merge
+        if: ${{ matrix.clean == 'true' && steps.open.outputs.clean_pr }}
+        uses: actions/github-script@v9
+        env:
+          CLEAN_PR: ${{ steps.open.outputs.clean_pr }}
+          ORIGINAL_PR: ${{ matrix.pr_number }}
+          TARGET_BRANCH: ${{ matrix.target }}
+          MERGE_SHA: ${{ matrix.merge_sha }}
+        with:
+          # No GITHUB_TOKEN fallback on purpose: GitHub suppresses the workflow
+          # runs a GITHUB_TOKEN close/reopen would emit, so falling back would
+          # let this step report success while the three required contexts were
+          # never created — a backport that waits forever and looks fine. With
+          # the secret missing this fails visibly instead.
+          github-token: ${{ secrets.AUTO_MERGE_TOKEN }}
+          script: |
+            const { owner, repo } = context.repo;
+            const number = Number(process.env.CLEAN_PR);
+            const originalPr = Number(process.env.ORIGINAL_PR);
+            const TARGET_BRANCH = process.env.TARGET_BRANCH;
+            const MERGE_SHA = process.env.MERGE_SHA;
+            const prUrl = `${context.serverUrl}/${owner}/${repo}/pull/${number}`;
+
+            // The step that opened this PR left `backport/<branch>` pending on
+            // the merge commit, because whether the backport is actually moving
+            // is decided here. Settle it before returning, on every path.
+            async function settle(state, description) {
+              try {
+                await github.rest.repos.createCommitStatus({
+                  owner, repo, sha: MERGE_SHA, state,
+                  context: `backport/${TARGET_BRANCH}`,
+                  description, target_url: prUrl,
+                });
+              } catch (e) {
+                core.warning(`Could not settle the backport status: ${e.message}`);
+              }
+            }
+
+            async function setState(state) {
+              await github.rest.pulls.update({
+                owner, repo, pull_number: number, state,
+              });
+            }
+
+            // Reopening is the half that must not be lost: a backport left
+            // closed is a fix silently dropped, which is worse than the
+            // no-checks state this is fixing. Retry it, and if it still fails
+            // say so on the original PR and fail the job rather than leaving a
+            // closed pull request nobody is looking at.
+            await setState("closed");
+            let reopened = false;
+            for (const waitMs of [0, 3000, 10000]) {
+              if (waitMs) await new Promise((r) => setTimeout(r, waitMs));
+              try {
+                await setState("open");
+                reopened = true;
+                break;
+              } catch (e) {
+                core.warning(`Reopening #${number} failed: ${e.message}`);
+              }
+            }
+
+            if (!reopened) {
+              await settle("failure", `Backport PR #${number} closed, needs reopening`);
+              try {
+                await github.rest.issues.createComment({
+                  owner, repo, issue_number: originalPr,
+                  body:
+                    `The backport PR for \`${TARGET_BRANCH}\` (#${number}, ${prUrl}) ` +
+                    `was closed to start its checks and could not be reopened. ` +
+                    `**Reopen it by hand** — the branch and the commit are intact.`,
+                });
+              } catch (e) {
+                core.warning(`Could not comment on #${originalPr}: ${e.message}`);
+              }
+              core.setFailed(
+                `Closed #${number} to start its checks but could not reopen it.`
+              );
+              return;
+            }
+            core.info(`Reopened #${number}; its required checks now run.`);
+
+            // Arm auto-merge after the reopen, so the manager's approval is the
+            // last human step and the merge queue takes it from there. Squash
+            // is the only method these branches allow.
+            try {
+              const { data: pr } = await github.rest.pulls.get({
+                owner, repo, pull_number: number,
+              });
+              await github.graphql(
+                `mutation ($id: ID!) {
+                  enablePullRequestAutoMerge(
+                    input: { pullRequestId: $id, mergeMethod: SQUASH }
+                  ) { clientMutationId }
+                }`,
+                { id: pr.node_id }
+              );
+              core.info(`Auto-merge armed on #${number}.`);
+              await settle("success", `Backport PR #${number} open, auto-merge armed`);
+            } catch (e) {
+              // Not fatal: the pull request stands and can be merged by hand.
+              // But its opening comment already told the reviewer auto-merge was
+              // armed, so correct that where the claim was made — otherwise they
+              // approve and wait for a merge that never comes.
+              core.warning(`Could not arm auto-merge on #${number}: ${e.message}`);
+              await settle(
+                "failure", `Backport PR #${number} open, merge it by hand`
+              );
+              try {
+                await github.rest.issues.createComment({
+                  owner, repo, issue_number: number,
+                  body:
+                    `**Auto-merge could not be armed on this PR** (${e.message}). ` +
+                    `Everything else holds — the cherry-pick is clean and the ` +
+                    `checks are running — but approving will not merge it on its ` +
+                    `own. Merge it by hand once the checks are green.`,
+                });
+              } catch (commentError) {
+                core.warning(
+                  `Could not correct the auto-merge claim on #${number}: ${commentError.message}`
+                );
+              }
+            }
+
