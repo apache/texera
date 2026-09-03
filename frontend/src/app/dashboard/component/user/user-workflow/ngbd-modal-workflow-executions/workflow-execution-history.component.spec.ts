@@ -38,16 +38,9 @@ import { StubOperatorMetadataService } from "../../../../../workspace/service/op
 import { commonTestProviders } from "../../../../../common/testing/test-utils";
 import { DebugElement } from "@angular/core";
 import { By } from "@angular/platform-browser";
-import * as Plotly from "plotly.js-basic-dist-min";
 import { NoopAnimationsModule } from "@angular/platform-browser/animations";
 import { NzPopoverDirective } from "ng-zorro-antd/popover";
-
-// The component's job at this boundary is choosing a chart id and computing the
-// data and layout for it; turning those into DOM is Plotly's. Rendering for real
-// in jsdom asserts nothing extra -- the chart test below reads back exactly the
-// arguments the component passed -- while it dominates the file's runtime, since
-// 36 of these tests build the component and each build plots twice. See #8287.
-vi.mock("plotly.js-basic-dist-min", () => ({ newPlot: vi.fn() }));
+import type { MockInstance } from "vitest";
 
 function makeEntry(overrides: Partial<WorkflowExecutionsEntry> = {}): WorkflowExecutionsEntry {
   return {
@@ -136,6 +129,16 @@ describe("WorkflowExecutionHistoryComponent", () => {
     retrieveWorkflowRuntimeStatistics: ReturnType<typeof vi.fn>;
   };
   let notificationService: { error: ReturnType<typeof vi.fn> };
+  // Turning data into DOM is Plotly's job; the component's is choosing a chart id
+  // and the data and layout for it, which the chart test reads straight off these
+  // spies. Rendering for real asserts nothing extra and dominates the file's
+  // runtime -- 36 of these tests build the component, and each build plots twice
+  // (#8287). Stubbing the component's own methods keeps the substitution inside
+  // this file: a `vi.mock` of the Plotly package is silently dropped whenever
+  // another spec pins the real module first, the hazard shared-model.spec.ts and
+  // report-generation.service.spec.ts also record.
+  let generatePieChart: MockInstance<WorkflowExecutionHistoryComponent["generatePieChart"]>;
+  let generateBarChart: MockInstance<WorkflowExecutionHistoryComponent["generateBarChart"]>;
 
   interface SetupOptions {
     entries?: WorkflowExecutionsEntry[];
@@ -171,7 +174,6 @@ describe("WorkflowExecutionHistoryComponent", () => {
       ],
     }).compileComponents();
 
-    vi.mocked(Plotly.newPlot).mockClear();
     fixture = TestBed.createComponent(WorkflowExecutionHistoryComponent);
     component = fixture.componentInstance;
     // Attached so the ng-zorro overlays the table opens (popconfirms, dropdowns)
@@ -181,9 +183,18 @@ describe("WorkflowExecutionHistoryComponent", () => {
     fixture.detectChanges();
   }
 
+  beforeEach(() => {
+    const prototype = WorkflowExecutionHistoryComponent.prototype;
+    generatePieChart = vi.spyOn(prototype, "generatePieChart").mockImplementation(() => {});
+    generateBarChart = vi.spyOn(prototype, "generateBarChart").mockImplementation(() => {});
+  });
+
   afterEach(() => {
     fixture?.nativeElement.remove();
     fixture?.destroy();
+    // restored so the shared module registry hands the next spec the real methods
+    generatePieChart.mockRestore();
+    generateBarChart.mockRestore();
   });
 
   describe("initialization and wid resolution", () => {
@@ -215,34 +226,37 @@ describe("WorkflowExecutionHistoryComponent", () => {
     it("draws a username pie, a status pie, and a process-time bar chart", async () => {
       await setup();
 
-      // ngAfterViewInit plots each chart by id; assert on what the component
-      // handed Plotly rather than on the DOM Plotly would build from it.
-      const plot = (id: string) => {
-        const calls = vi.mocked(Plotly.newPlot).mock.calls.filter(c => c[0] === id);
+      // ngAfterViewInit plots each chart by id; assert on the series and title
+      // the component computed rather than on the DOM Plotly would build.
+      const pie = (id: string) => {
+        const calls = generatePieChart.mock.calls.filter(call => call[2] === id);
         expect(calls).toHaveLength(1);
-        return { data: calls[0][1] as any[], layout: calls[0][2] as any };
+        return { series: calls[0][0], title: calls[0][1] };
       };
 
-      const usernamePie = plot("#execution-userName-pie-chart");
-      expect(usernamePie.data[0].type).toBe("pie");
-      expect(usernamePie.data[0].labels).toEqual(["alice", "bob"]);
-      expect(usernamePie.data[0].values).toEqual([2, 1]);
-      expect(usernamePie.layout).toMatchObject({
-        width: 450,
-        height: 450,
-        title: { text: "Users who ran the execution" },
-      });
+      const usernamePie = pie(WorkflowExecutionHistoryComponent.USERNAME_PIE_CHART_ID);
+      expect(usernamePie.series).toEqual([
+        ["alice", 2],
+        ["bob", 1],
+      ]);
+      expect(usernamePie.title).toBe("Users who ran the execution");
 
-      const statusPie = plot("#execution-status-pie-chart");
-      expect(statusPie.data[0].labels).toEqual(["Running", "Completed"]);
-      expect(statusPie.data[0].values).toEqual([1, 2]);
+      const statusPie = pie(WorkflowExecutionHistoryComponent.STATUS_PIE_CHART_ID);
+      expect(statusPie.series).toEqual([
+        ["Running", 1],
+        ["Completed", 2],
+      ]);
+      expect(statusPie.title).toBe("Executions status");
 
-      const bar = plot("#execution-average-process-time-bar-chart");
-      expect(bar.data[0].type).toBe("bar");
+      expect(generateBarChart.mock.calls).toHaveLength(1);
+      const [series, category, xLabel, yLabel, barTitle, barId] = generateBarChart.mock.calls[0];
+      expect(barId).toBe(WorkflowExecutionHistoryComponent.PROCESS_TIME_BAR_CHART);
       // ceil(3 rows / divider 10) = 1-row buckets; process times are 1, 2, 3 minutes
-      expect(bar.data[0].x).toEqual(["1~1", "2~2", "3~3"]);
-      expect(bar.data[0].y).toEqual([1, 2, 3]);
-      expect(bar.layout).toMatchObject({ width: 600, height: 600 });
+      expect(category).toEqual(["1~1", "2~2", "3~3"]);
+      expect(series[0].slice(1)).toEqual([1, 2, 3]);
+      expect(xLabel).toBe("Execution Numbers");
+      expect(yLabel).toBe("Average Processing Time (m)");
+      expect(barTitle).toBe("Execution performance");
     });
 
     it("buckets 20 rows into ceil(20/10)=2-row groups keyed by position and averages minutes", async () => {
