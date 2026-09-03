@@ -32,7 +32,13 @@ import scala.jdk.CollectionConverters._
   * parameter (not a mutable global) so tests can construct an instance backed by a stubbed
   * client and exercise the passthrough wrappers without a live cluster.
   */
-class KubernetesClient(client: io.fabric8.kubernetes.client.KubernetesClient) {
+class KubernetesClient(
+    client: io.fabric8.kubernetes.client.KubernetesClient,
+    // A constructor parameter rather than a direct KubernetesConfig read, so the spec can
+    // build a pod both ways: the mount contract below is security- and scheduling-sensitive
+    // and needs asserting on, but the default must stay the PodSecurity-safe one.
+    mountingEnabled: Boolean = KubernetesConfig.mounterEnabled
+) {
 
   private val namespace: String = KubernetesConfig.computeUnitPoolNamespace
   private val podNamePrefix = KubernetesConfig.computeUnitPodNamePrefix
@@ -138,7 +144,7 @@ class KubernetesClient(client: io.fabric8.kubernetes.client.KubernetesClient) {
     // node's privileged mounter.
     val inPodMountRoot = "/mnt/texera-mounts"
     val mounterEnv =
-      if (!KubernetesConfig.mounterEnabled) Nil
+      if (!mountingEnabled) Nil
       else
         List(
           new EnvVarBuilder()
@@ -197,7 +203,7 @@ class KubernetesClient(client: io.fabric8.kubernetes.client.KubernetesClient) {
     // The FUSE mount is performed by the per-node texera-mounter (privileged), not here,
     // so this pod stays UNPRIVILEGED. It only *receives* the mount via HostToContainer
     // propagation from a host directory scoped to this CU id (see the hostPath volume below).
-    if (KubernetesConfig.mounterEnabled) {
+    if (mountingEnabled) {
       containerBuilder
         .addNewVolumeMount()
         .withName("texera-mounts")
@@ -235,7 +241,7 @@ class KubernetesClient(client: io.fabric8.kubernetes.client.KubernetesClient) {
     // before the mounter mounts). Scoped by cuid so a CU can only ever see its own mounts.
     // Guarded because `baseline` and `restricted` forbid hostPath: on a cluster enforcing
     // either on the pool namespace, an unconditional one makes every CU pod unschedulable.
-    if (KubernetesConfig.mounterEnabled) {
+    if (mountingEnabled) {
       specBuilder
         .addNewVolume()
         .withName("texera-mounts")

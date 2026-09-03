@@ -25,8 +25,7 @@ import org.apache.texera.auth.JwtParser
 import org.apache.texera.common.config.StorageConfig
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.SqlServer.withTransaction
-import org.apache.texera.dao.jooq.generated.tables.daos.DatasetDao
-import org.apache.texera.service.resource.DatasetAccessResource.userHasReadAccess
+import org.apache.texera.service.resource.{DatasetAccessResource, ModelAccessResource}
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials
 import software.amazon.awssdk.auth.signer.AwsS3V4Signer
 import software.amazon.awssdk.auth.signer.params.AwsS3V4SignerParams
@@ -36,7 +35,6 @@ import software.amazon.awssdk.regions.Region
 import java.net.{URI, URLDecoder}
 import java.net.http.{HttpClient, HttpRequest, HttpResponse}
 import java.time.Duration
-import java.util.concurrent.ConcurrentHashMap
 import scala.jdk.CollectionConverters._
 import scala.jdk.OptionConverters._
 
@@ -85,14 +83,6 @@ class S3ProxyServlet extends HttpServlet with LazyLogging {
   private val forwardedResponseHeaderPrefixes =
     Seq("content-", "etag", "last-modified", "accept-ranges", "x-amz-")
 
-  // Short-lived cache of (uid, repository) -> read-access decision. A mount issues many
-  // range reads for the same repository, so this avoids a DB round-trip per request. It
-  // is a pure optimization: each replica caches independently and a miss just re-queries,
-  // so unlike a shared session store it needs no cross-replica consistency.
-  private val AuthCacheTtlMs = 60000L
-  private case class CachedDecision(allowed: Boolean, expiresAtMs: Long)
-  private val authCache = new ConcurrentHashMap[String, CachedDecision]()
-
   override def doGet(req: HttpServletRequest, resp: HttpServletResponse): Unit =
     proxy(req, resp, SdkHttpMethod.GET, streamBody = true)
 
@@ -134,29 +124,30 @@ class S3ProxyServlet extends HttpServlet with LazyLogging {
   }
 
   /**
-    * True iff `uid` has read access to the dataset backing `repositoryName`, cached for a
-    * short window. Read access to a repository grants read to all of its commits, so no
-    * per-commit check is needed: a session addresses a single repository's data and any
-    * version the user may already read.
+    * True iff `uid` has read access to the versioned resource backing `repositoryName`.
+    *
+    * Read access to a repository grants read to all of its commits, so no per-commit check
+    * is needed: a session addresses a single repository's data and any version the user may
+    * already read.
+    *
+    * The repository name is parsed rather than looked up by column. `repository_name` has no
+    * unique constraint -- the only UNIQUE on either table is (owner_uid, name) -- so a query
+    * on it can return several rows, and picking one of them would decide access against an
+    * arbitrary row. It is unique in practice only because it is written as `<type>-<id>`,
+    * which is a calling convention rather than something the schema enforces. Parsing that
+    * convention and looking the id up by primary key removes the ambiguity: exactly one row
+    * can match, and a name that does not parse is denied.
     */
-  private def authorizedToRead(uid: Integer, repositoryName: String): Boolean = {
-    val now = System.currentTimeMillis()
-    val cacheKey = s"$uid:$repositoryName"
-    val cached = authCache.get(cacheKey)
-    if (cached != null && cached.expiresAtMs > now) {
-      return cached.allowed
+  private def authorizedToRead(uid: Integer, repositoryName: String): Boolean =
+    S3ProxyServlet.parseRepositoryName(repositoryName).exists {
+      case (kind, id) =>
+        withTransaction(SqlServer.getInstance().createDSLContext()) { ctx =>
+          kind match {
+            case ResourceKind.Dataset => DatasetAccessResource.userHasReadAccess(ctx, id, uid)
+            case ResourceKind.Model   => ModelAccessResource.userHasReadAccess(ctx, id, uid)
+          }
+        }
     }
-
-    val allowed = withTransaction(SqlServer.getInstance().createDSLContext()) { ctx =>
-      val datasets = new DatasetDao(ctx.configuration())
-        .fetchByRepositoryName(repositoryName)
-        .asScala
-        .toList
-      datasets.nonEmpty && userHasReadAccess(ctx, datasets.head.getDid, uid)
-    }
-    authCache.put(cacheKey, CachedDecision(allowed, now + AuthCacheTtlMs))
-    allowed
-  }
 
   /** Re-sign the request with LakeFS credentials and send it to the LakeFS gateway. */
   private def forward(
@@ -228,6 +219,13 @@ class S3ProxyServlet extends HttpServlet with LazyLogging {
   }
 }
 
+/** The versioned resource types a LakeFS repository can back. */
+private[util] sealed trait ResourceKind
+private[util] object ResourceKind {
+  case object Dataset extends ResourceKind
+  case object Model extends ResourceKind
+}
+
 object S3ProxyServlet {
 
   /**
@@ -245,6 +243,29 @@ object S3ProxyServlet {
         .findFirstMatchIn(h)
         .map(_.group(1)) // SigV4
         .orElse("^AWS ([^:\\s]+):".r.findFirstMatchIn(h.trim).map(_.group(1))) // SigV2
+    }
+  }
+
+  /**
+    * The resource a repository name addresses: `dataset-<did>` or `model-<mid>`, the names
+    * DatasetResource and ModelResource write when they create the LakeFS repository.
+    *
+    * None for anything else, which the caller turns into a denial. That includes an id that
+    * is not a positive integer and one too large for `Integer`, so a malformed or
+    * attacker-chosen bucket name cannot reach a database lookup.
+    */
+  private[util] def parseRepositoryName(
+      repositoryName: String
+  ): Option[(ResourceKind, Integer)] = {
+    val kind = repositoryName.takeWhile(_ != '-') match {
+      case "dataset" => Some(ResourceKind.Dataset)
+      case "model"   => Some(ResourceKind.Model)
+      case _         => None
+    }
+    kind.flatMap { k =>
+      val rest = repositoryName.dropWhile(_ != '-').drop(1)
+      if (rest.isEmpty || !rest.forall(_.isDigit)) None
+      else rest.toIntOption.filter(_ > 0).map(id => (k, Integer.valueOf(id)))
     }
   }
 
