@@ -422,6 +422,12 @@ class DatasetAccessResourceSpec
     accessList(privateDataset.getDid) shouldBe empty
   }
 
+  it should "reject a revoke for an email with no account" in {
+    assertThrows[BadRequestException] {
+      accessResource.revokeAccess(privateDataset.getDid, "nobody@example.com", ownerSession)
+    }
+  }
+
   it should "be forbidden for a user without write access" in {
     grantDirectly(privateDataset.getDid, readGranteeUser.getUid, PrivilegeEnum.READ)
 
