@@ -115,12 +115,15 @@ object PyOpExecHarness extends LazyLogging {
     // single-op plan that's just every input port the op declares.
     val externalInputs: Set[(PhysicalOpIdentity, PortIdentity)] =
       phOp.inputPorts.keys.map(portId => (phOp.id, portId)).toSet
-    validateInputCoverage(externalInputs, inputs.keySet)
+    OpExecHarness.validateInputCoverage(externalInputs, inputs.keySet)
 
     val inputSchemas: Map[PortIdentity, Schema] =
       inputs.map { case (portId, path) => portId -> TupleIO.readSchemaSidecar(path) }
 
-    val planWithSchemas = propagateExternalSchemas(plan, externalInputs, inputSchemas)
+    // Preparing the plan is the same work for either executor, so it is done in
+    // one place; only what runs the prepared op differs between the harnesses.
+    val planWithSchemas =
+      OpExecHarness.propagateExternalSchemas(plan, externalInputs, inputSchemas)
     val phOpWithSchemas = planWithSchemas.operators.head
 
     // Output port schemas come from PhysicalPlan.propagateSchema — same
@@ -347,46 +350,6 @@ object PyOpExecHarness extends LazyLogging {
     } finally stream.close()
   }
 
-  // --------------------------------------------------------------------------
-  // Schema propagation — mirrors OpExecHarness.propagateExternalSchemas.
-  // Kept inline (rather than shared) so the two harnesses stay independently
-  // readable; consolidate if a third harness shows up.
-  // --------------------------------------------------------------------------
-  private def propagateExternalSchemas(
-      plan: PhysicalPlan,
-      externalPorts: Set[(PhysicalOpIdentity, PortIdentity)],
-      schemas: Map[PortIdentity, Schema]
-  ): PhysicalPlan = {
-    var acc = PhysicalPlan(operators = Set.empty, links = Set.empty)
-    plan.topologicalIterator().map(plan.getOperator).foreach { phOp =>
-      val updated = phOp.inputPorts.keys.foldLeft(phOp) { (op, portId) =>
-        if (externalPorts.contains((phOp.id, portId)) && schemas.contains(portId)) {
-          op.propagateSchema(Some((portId, schemas(portId))))
-        } else op
-      }
-      acc = acc.addOperator(updated.propagateSchema())
-      plan.getUpstreamPhysicalLinks(phOp.id).foreach { link =>
-        acc = acc.addLink(link)
-      }
-    }
-    acc
-  }
-
-  private def validateInputCoverage(
-      external: Set[(PhysicalOpIdentity, PortIdentity)],
-      provided: Set[PortIdentity]
-  ): Unit = {
-    val expected = external.map(_._2)
-    val missing = expected -- provided
-    val extra = provided -- expected
-    require(
-      missing.isEmpty,
-      s"Missing input fixtures for external ports: $missing (expected $expected)"
-    )
-    if (extra.nonEmpty) {
-      logger.warn(s"Input fixtures provided for non-external ports (ignored): $extra")
-    }
-  }
 }
 
 final class PyOpDriverException(
