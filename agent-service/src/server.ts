@@ -241,7 +241,7 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
             toolTimeoutSeconds: t.Optional(t.Number()),
             executionTimeoutMinutes: t.Optional(t.Number()),
             disabledTools: t.Optional(t.Array(t.String())),
-            maxSteps: t.Optional(t.Number()),
+            maxSteps: t.Optional(t.Integer({ minimum: 1 })),
             allowedOperatorTypes: t.Optional(t.Array(t.String())),
           })
         ),
@@ -381,7 +381,7 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
         operatorResultSerializationMode: t.Optional(t.Literal("tsv")),
         toolTimeoutSeconds: t.Optional(t.Number()),
         executionTimeoutMinutes: t.Optional(t.Number()),
-        maxSteps: t.Optional(t.Number()),
+        maxSteps: t.Optional(t.Integer({ minimum: 1 })),
         disabledTools: t.Optional(t.Array(t.String())),
         allowedOperatorTypes: t.Optional(t.Array(t.String())),
       }),

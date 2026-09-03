@@ -377,7 +377,7 @@ export class TexeraAgent {
       this.settings.disabledTools = updates.disabledTools;
     }
     if (updates.maxSteps !== undefined) {
-      this.settings.maxSteps = updates.maxSteps;
+      this.settings.maxSteps = Math.max(1, Math.trunc(updates.maxSteps));
     }
     if (updates.allowedOperatorTypes !== undefined) {
       this.settings.allowedOperatorTypes = updates.allowedOperatorTypes;

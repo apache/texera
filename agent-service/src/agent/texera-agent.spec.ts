@@ -223,6 +223,17 @@ describe("TexeraAgent", () => {
       expect(after.maxOperatorResultCharLimit).toBe(before.maxOperatorResultCharLimit);
     });
 
+    test("clamps maxSteps to a minimum of 1 and truncates fractions", () => {
+      agent.updateSettings({ maxSteps: 0 });
+      expect(agent.getSettings().maxSteps).toBe(1);
+
+      agent.updateSettings({ maxSteps: -5 });
+      expect(agent.getSettings().maxSteps).toBe(1);
+
+      agent.updateSettings({ maxSteps: 2.5 });
+      expect(agent.getSettings().maxSteps).toBe(2);
+    });
+
     test("returns a new settings object (mutating primitive fields does not stick)", () => {
       agent.getSettings().maxSteps = 12345;
 
