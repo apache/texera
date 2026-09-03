@@ -417,13 +417,39 @@ export class UserWorkflowComponent implements AfterViewInit, OnDestroy {
           return entry;
         });
 
-        this.searchResultsComponent.entries = [...newEntries, ...this.searchResultsComponent.entries];
+        this.searchResultsComponent.entries = [
+          ...(await firstValueFrom(this.withWorkflowSizes(newEntries))),
+          ...this.searchResultsComponent.entries,
+        ];
       } catch (err: unknown) {
         console.log("Error duplicating workflow:", err);
         // @ts-ignore // TODO: fix this with notification component
         alert((err as any).error);
       }
     }
+  }
+
+  /**
+   * A DashboardEntry built from a duplicate response carries no size — only search asks the
+   * backend for one — so it would render as an empty workflow. Fill the sizes in before the
+   * rows go on screen, since the list items read the size once on binding.
+   */
+  private withWorkflowSizes(entries: DashboardEntry[]): Observable<DashboardEntry[]> {
+    const wids = entries.map(e => e.workflow.workflow.wid).filter((wid): wid is number => wid != null);
+    if (wids.length === 0) {
+      return of(entries);
+    }
+    return this.workflowPersistService.getSizes(wids).pipe(
+      map(sizes => {
+        entries.forEach(entry => {
+          const wid = entry.workflow.workflow.wid;
+          if (wid != null && sizes[wid] != null) {
+            entry.setSize(sizes[wid]);
+          }
+        });
+        return entries;
+      })
+    );
   }
 
   /**
@@ -582,13 +608,15 @@ export class UserWorkflowComponent implements AfterViewInit, OnDestroy {
     if (targetWids.length > 0) {
       this.workflowPersistService
         .duplicateWorkflow(targetWids)
-        .pipe(untilDestroyed(this))
+        .pipe(
+          switchMap(duplicatedWorkflowsInfo =>
+            this.withWorkflowSizes(duplicatedWorkflowsInfo.map(info => new DashboardEntry(info)))
+          ),
+          untilDestroyed(this)
+        )
         .subscribe({
-          next: duplicatedWorkflowsInfo => {
-            this.searchResultsComponent.entries = [
-              ...duplicatedWorkflowsInfo.map(duplicatedWorkflowInfo => new DashboardEntry(duplicatedWorkflowInfo)),
-              ...this.searchResultsComponent.entries,
-            ];
+          next: sizedEntries => {
+            this.searchResultsComponent.entries = [...sizedEntries, ...this.searchResultsComponent.entries];
 
             // this.searchResultsComponent.clearAllSelections();
           }, // TODO: fix this with notification component

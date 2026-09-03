@@ -2233,6 +2233,46 @@ describe("DatasetDetailComponent rendered template", () => {
     });
   });
 
+  describe("data card stats", () => {
+    /** The stat value rendered beside a label. */
+    const stat = (el: HTMLElement, label: string): string => {
+      const row = Array.from(el.querySelectorAll<HTMLElement>(".stat-row")).find(
+        r => text(q<HTMLElement>(r, ".stat-label")) === label
+      );
+      expect(row, `expected a stat row labelled "${label}"`).toBeDefined();
+      return text(q<HTMLElement>(row!, ".stat-value"));
+    };
+
+    it("em-dashes the facts a dataset with no versions has none of", () => {
+      const el = render({
+        did: 5,
+        versions: [],
+        latestVersionCreationTime: "",
+        latestVersionFileName: "",
+        latestVersionSize: undefined,
+      });
+
+      expect(stat(el, "Last updated")).toBe("—");
+      expect(stat(el, "Latest version file")).toBe("—");
+      // A size has a meaningful zero, so it keeps reading 0 B rather than an em dash.
+      expect(stat(el, "Latest version size")).toBe("0 B");
+    });
+
+    it("shows the real facts once a version exists", () => {
+      const el = render({
+        did: 5,
+        versions: [aVersion({ name: "v1" })],
+        latestVersionCreationTime: "09/02/2026 11:10:11",
+        latestVersionFileName: "/dataset/o/ds/v1/a.csv",
+        latestVersionSize: 2048,
+      });
+
+      expect(stat(el, "Last updated")).toBe("09/02/2026 11:10:11");
+      expect(stat(el, "Latest version file")).toBe("/dataset/o/ds/v1/a.csv");
+      expect(stat(el, "Latest version size")).toBe("2.00 KB");
+    });
+  });
+
   describe("settings hints", () => {
     // Visibility and Downloadable are near-identical rows, so a hint or a switch
     // is only meaningful next to the label it belongs to: reading them as one
