@@ -19,6 +19,7 @@
 
 import { inject, TestBed } from "@angular/core/testing";
 import { ValidationWorkflowService } from "./validation-workflow.service";
+import type { Validation } from "./validation-workflow.service";
 import {
   mockPoint,
   mockResultPredicate,
@@ -299,5 +300,46 @@ describe("ValidationWorkflowService", () => {
 
     expect(emissions.length).toBeGreaterThan(0);
     subscription.unsubscribe();
+  });
+});
+
+describe("ValidationWorkflowService.combineValidation", () => {
+  it("should return valid when no validations are provided", () => {
+    const result = ValidationWorkflowService.combineValidation();
+    // a valid result carries no messages
+    expect(result).toEqual({ isValid: true });
+  });
+
+  it("should return valid when all provided validations are valid", () => {
+    const a: Validation = { isValid: true };
+    const b: Validation = { isValid: true };
+    const result = ValidationWorkflowService.combineValidation(a, b);
+    expect(result).toEqual({ isValid: true });
+  });
+
+  it("should return invalid and only include messages from invalid validations", () => {
+    const valid: Validation = { isValid: true };
+    const invalid: Validation = { isValid: false, messages: { inputs: "requires at least 1 inputs" } };
+    const result = ValidationWorkflowService.combineValidation(valid, invalid);
+    // valid validation contributes no messages, so only the invalid one's message is kept
+    expect(result).toEqual({ isValid: false, messages: { inputs: "requires at least 1 inputs" } });
+  });
+
+  it("should merge messages from multiple invalid validations", () => {
+    const invalidA: Validation = { isValid: false, messages: { inputs: "missing input" } };
+    const invalidB: Validation = { isValid: false, messages: { required: "field is required" } };
+    const result = ValidationWorkflowService.combineValidation(invalidA, invalidB);
+    expect(result).toEqual({
+      isValid: false,
+      messages: { inputs: "missing input", required: "field is required" },
+    });
+  });
+
+  it("should let a later invalid validation override an earlier message with the same key", () => {
+    const first: Validation = { isValid: false, messages: { inputs: "first message" } };
+    const second: Validation = { isValid: false, messages: { inputs: "second message" } };
+    const result = ValidationWorkflowService.combineValidation(first, second);
+    // the spread merge keeps the last writer for a duplicate key
+    expect(result).toEqual({ isValid: false, messages: { inputs: "second message" } });
   });
 });
