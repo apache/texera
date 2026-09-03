@@ -51,12 +51,12 @@ import scala.jdk.CollectionConverters._
   * I/O is JSON Lines with sidecar schemas. Each input/output `*.jsonl` file
   * has a companion `*.jsonl.schema.json` describing its [[Schema]].
   *
-  * Limitations (intentional for MVP):
-  *   - Only `OpExecWithClassName` is supported; Python UDFs (`OpExecWithCode`)
-  *     are out of scope because driving them needs a real Python worker.
-  *   - Single worker only (idx=0, workerCount=1). Multi-worker partitioning
-  *     would require coordinating partitioners across executors.
-  *   - JSONL types: STRING / INTEGER / LONG / DOUBLE / BOOLEAN / BINARY /
+  * What it does not drive:
+  *   - Python UDFs (`OpExecWithCode`), which need a real Python worker;
+  *     [[PyOpExecHarness]] takes those.
+  *   - More than one worker. It runs idx=0 of 1, so nothing here has to
+  *     coordinate partitioners across executors.
+  *   - JSONL types beyond STRING / INTEGER / LONG / DOUBLE / BOOLEAN / BINARY /
   *     TIMESTAMP (the latter two via explicit base64 / JDBC-string codecs).
   */
 object OpExecHarness extends LazyLogging {
@@ -352,18 +352,9 @@ object OpExecHarness extends LazyLogging {
 }
 
 /**
-  * JSON Lines I/O for Tuples. Each `.jsonl` file is paired with a
-  * `.jsonl.schema.json` sidecar listing [[Attribute]]s in column order.
-  *
-  * Format example:
-  *
-  *   records.jsonl:
-  *     {"id":1,"name":"alice"}
-  *     {"id":2,"name":"bob"}
-  *
-  *   records.jsonl.schema.json:
-  *     {"attributes":[{"attributeName":"id","attributeType":"integer"},
-  *                    {"attributeName":"name","attributeType":"string"}]}
+  * JSON Lines I/O for Tuples. Each `.jsonl` file holds one record per line and
+  * is paired with a `.jsonl.schema.json` sidecar listing [[Attribute]]s in
+  * column order, which is what carries the types a JSON line cannot.
   *
   * pandas symmetry: `pd.read_json(path, lines=True)` and
   * `df.to_json(path, orient='records', lines=True)` round-trip cleanly for the
