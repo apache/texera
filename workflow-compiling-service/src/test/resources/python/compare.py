@@ -160,6 +160,25 @@ def _compare_model_predictions(actual, expected, model_cols, probe_path) -> None
                 )
 
 
+def _string_columns(actual_path: str) -> dict:
+    """Which columns the engine declared as strings, read off the schema it
+    writes beside its output. Empty when there is no sidecar, which leaves the
+    inference in place rather than guessing."""
+    import json
+    import os
+
+    sidecar = actual_path + ".schema.json"
+    if not os.path.exists(sidecar):
+        return {}
+    with open(sidecar) as fh:
+        schema = json.load(fh)
+    return {
+        a["attributeName"]: str
+        for a in schema.get("attributes", [])
+        if a.get("attributeType") == "string"
+    }
+
+
 def _run_comparison(
     actual_path: str,
     expected_path: str,
@@ -174,8 +193,15 @@ def _run_comparison(
     comparison truth shared by the CLI and the --serve loop."""
     import pandas as pd
 
-    actual = pd.read_json(actual_path, lines=True)
-    expected = pd.read_json(expected_path, lines=True)
+    # A string column has to be READ as one on both sides. Left to itself,
+    # `read_json` infers a type per file, so a column the engine wrote as "6"
+    # and the script wrote as "6.0" both arrive as the number 6, and a null
+    # beside the text "nan" both arrive as NaN -- two genuinely different
+    # answers compared as one. The engine writes a schema next to its output;
+    # it names which columns are strings, and both sides are read that way.
+    str_cols = _string_columns(actual_path)
+    actual = pd.read_json(actual_path, lines=True, dtype=str_cols or None)
+    expected = pd.read_json(expected_path, lines=True, dtype=str_cols or None)
 
     # Model columns: compare behavior (predictions) rather than bytes, then drop
     # the raw columns so the frame comparison covers everything else exactly.
