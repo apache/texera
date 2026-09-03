@@ -82,6 +82,7 @@ github:
             # Add each release line here as it is cut.
             - "refs/heads/release/v1.1"
             - "refs/heads/release/v1.2"
+            - "refs/heads/release/v1.3"
       rules:
         - type: deletion
         - type: non_fast_forward

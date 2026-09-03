@@ -51,6 +51,8 @@ class DefaultsConfigSpec extends AnyFlatSpec with Matchers {
       defaults.get("model_single_file_upload_max_size_mib") shouldBe Some("2048")
     )
     ifUnset("GUI_TABS_MODELS_ENABLED")(defaults.get("models_enabled") shouldBe Some("false"))
+    // the hub's own model flag, distinct from the Your Work one above
+    ifUnset("GUI_TABS_MODEL_ENABLED")(defaults.get("model_enabled") shouldBe Some("false"))
     // management-only keys are flattened too (used by reset + the startup seeder)
     ifUnset("OPERATOR_CSV_PARSER_MAX_COLUMNS")(
       defaults.get("csv_parser_max_columns") shouldBe Some("512")

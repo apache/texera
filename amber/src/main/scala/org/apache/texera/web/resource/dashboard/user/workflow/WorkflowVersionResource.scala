@@ -435,7 +435,9 @@ class WorkflowVersionResource {
             assignNewOperatorIds(workflowVersion.getContent),
             null,
             null,
-            false
+            false,
+            // carry the workflow's current default-view preference onto the clone
+            workflowVersion.getDefaultView
           ),
           sessionUser
         )

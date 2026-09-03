@@ -19,11 +19,12 @@
 
 import { Injectable } from "@angular/core";
 import { DashboardEntry } from "../../../type/dashboard-entry";
-import { ResourceDescriptor } from "../../../type/resource-descriptor";
+import { ResourceAffordances, ResourceDescriptor } from "../../../type/resource-descriptor";
 import { EntityType } from "../../../../hub/service/hub.service";
 import { DatasetService, DEFAULT_DATASET_NAME, validateDatasetName } from "../dataset/dataset.service";
 import { HUB_DATASET_RESULT_DETAIL, USER_DATASET } from "../../../../app-routing.constant";
 import { DownloadService } from "../download/download.service";
+import { map } from "rxjs/operators";
 
 @Injectable({
   providedIn: "root",
@@ -35,6 +36,8 @@ export class DatasetResourceDescriptor implements ResourceDescriptor {
   readonly hubRoute = HUB_DATASET_RESULT_DETAIL;
   readonly hasSize = true;
   readonly defaultName = DEFAULT_DATASET_NAME;
+  // Publishing a dataset grants read access only; there is no clone action for it.
+  readonly affordances: ResourceAffordances = { clonable: false };
 
   constructor(
     private datasetService: DatasetService,
@@ -50,5 +53,10 @@ export class DatasetResourceDescriptor implements ResourceDescriptor {
   download = (id: number, name: string) => this.downloadService.downloadDataset(id, name);
   retrieveSingleFile = (filePath: string, isLogin: boolean) =>
     this.datasetService.retrieveDatasetVersionSingleFile(filePath, isLogin);
+  isPublic = (id: number) => this.datasetService.getDataset(id).pipe(map(dashboard => dashboard.dataset.isPublic));
+  // The endpoint toggles, so `next` is the caller's expectation rather than a payload.
+  setPublished = (id: number) => this.datasetService.updateDatasetPublicity(id);
+  coverUrl = (id: number) => this.datasetService.getDatasetCoverUrl(id).pipe(map(({ url }) => url));
+  setCover = (id: number, path: string) => this.datasetService.updateDatasetCoverImage(id, path);
   // No dataset-id endpoint exists, so `retrieveIds` stays absent and the id filter hides itself.
 }

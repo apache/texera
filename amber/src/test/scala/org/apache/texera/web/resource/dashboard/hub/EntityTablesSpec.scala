@@ -38,6 +38,11 @@ class EntityTablesSpec extends AnyFlatSpec with Matchers {
       VersionedResourceTables.DatasetTables
   }
 
+  it should "dispatch Model → the model's search descriptor" in {
+    EntityTables.BaseEntityTable(EntityType.Model) shouldBe
+      VersionedResourceTables.ModelTables
+  }
+
   "BaseEntityTable.WorkflowTable" should "wire up id and isPublic columns from WORKFLOW" in {
     val t = EntityTables.BaseEntityTable.WorkflowTable
     t.idColumn.getName shouldBe "wid"
@@ -47,6 +52,12 @@ class EntityTablesSpec extends AnyFlatSpec with Matchers {
   "VersionedResourceTables.DatasetTables" should "wire up id and isPublic columns from DATASET" in {
     val t = VersionedResourceTables.DatasetTables
     t.idColumn.getName shouldBe "did"
+    t.isPublicColumn.getName shouldBe "is_public"
+  }
+
+  "VersionedResourceTables.ModelTables" should "wire up id and isPublic columns from MODEL" in {
+    val t = VersionedResourceTables.ModelTables
+    t.idColumn.getName shouldBe "mid"
     t.isPublicColumn.getName shouldBe "is_public"
   }
 
@@ -62,6 +73,11 @@ class EntityTablesSpec extends AnyFlatSpec with Matchers {
       EntityTables.LikeTable.DatasetLikeTable
   }
 
+  it should "dispatch Model → ModelLikeTable" in {
+    EntityTables.LikeTable(EntityType.Model) shouldBe
+      EntityTables.LikeTable.ModelLikeTable
+  }
+
   "LikeTable variants" should "expose uid and the per-entity id column" in {
     val w = EntityTables.LikeTable.WorkflowLikeTable
     w.uidColumn.getName shouldBe "uid"
@@ -70,6 +86,10 @@ class EntityTablesSpec extends AnyFlatSpec with Matchers {
     val d = EntityTables.LikeTable.DatasetLikeTable
     d.uidColumn.getName shouldBe "uid"
     d.idColumn.getName shouldBe "did"
+
+    val m = EntityTables.LikeTable.ModelLikeTable
+    m.uidColumn.getName shouldBe "uid"
+    m.idColumn.getName shouldBe "mid"
   }
 
   // -- CloneTable -------------------------------------------------------------
@@ -77,6 +97,14 @@ class EntityTablesSpec extends AnyFlatSpec with Matchers {
   "EntityTables.CloneTable.apply" should "dispatch Workflow → WorkflowCloneTable" in {
     EntityTables.CloneTable(EntityType.Workflow) shouldBe
       EntityTables.CloneTable.WorkflowCloneTable
+  }
+
+  it should "throw IllegalArgumentException for Model, which is cloneless like Dataset" in {
+    val ex = intercept[IllegalArgumentException] {
+      EntityTables.CloneTable(EntityType.Model)
+    }
+    ex.getMessage should include("Unsupported entity type")
+    ex.getMessage should include("clone")
   }
 
   it should "throw IllegalArgumentException for Dataset because there is no DatasetClone table" in {
@@ -107,6 +135,14 @@ class EntityTablesSpec extends AnyFlatSpec with Matchers {
     dataset.access shouldBe EntityTables.AccessTable.DatasetAccessTable
     dataset.cloneTable shouldBe None
     dataset.versionedResource shouldBe Some(VersionedResourceTables.DatasetTables)
+
+    val model = EntityTables(EntityType.Model)
+    model.base shouldBe VersionedResourceTables.ModelTables
+    model.like shouldBe EntityTables.LikeTable.ModelLikeTable
+    model.viewCount shouldBe EntityTables.ViewCountTable.ModelViewCountTable
+    model.access shouldBe EntityTables.AccessTable.ModelAccessTable
+    model.cloneTable shouldBe None
+    model.versionedResource shouldBe Some(VersionedResourceTables.ModelTables)
   }
 
   // -- AccessTable ------------------------------------------------------------
@@ -121,6 +157,11 @@ class EntityTablesSpec extends AnyFlatSpec with Matchers {
     d.idColumn.getName shouldBe "did"
     d.uidColumn.getName shouldBe "uid"
     d.privilegeColumn.getName shouldBe "privilege"
+
+    val m = EntityTables.AccessTable(EntityType.Model)
+    m.idColumn.getName shouldBe "mid"
+    m.uidColumn.getName shouldBe "uid"
+    m.privilegeColumn.getName shouldBe "privilege"
   }
 
   // -- ViewCountTable ---------------------------------------------------------
@@ -135,6 +176,11 @@ class EntityTablesSpec extends AnyFlatSpec with Matchers {
       EntityTables.ViewCountTable.DatasetViewCountTable
   }
 
+  it should "dispatch Model → ModelViewCountTable" in {
+    EntityTables.ViewCountTable(EntityType.Model) shouldBe
+      EntityTables.ViewCountTable.ModelViewCountTable
+  }
+
   "ViewCountTable variants" should "expose id and view_count columns" in {
     val w = EntityTables.ViewCountTable.WorkflowViewCountTable
     w.idColumn.getName shouldBe "wid"
@@ -143,5 +189,9 @@ class EntityTablesSpec extends AnyFlatSpec with Matchers {
     val d = EntityTables.ViewCountTable.DatasetViewCountTable
     d.idColumn.getName shouldBe "did"
     d.viewCountColumn.getName shouldBe "view_count"
+
+    val m = EntityTables.ViewCountTable.ModelViewCountTable
+    m.idColumn.getName shouldBe "mid"
+    m.viewCountColumn.getName shouldBe "view_count"
   }
 }

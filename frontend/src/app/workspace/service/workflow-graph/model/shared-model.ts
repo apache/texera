@@ -88,7 +88,10 @@ export class SharedModel {
     if (this.user) {
       const userState: CoeditorState = {
         user: { ...this.user, clientId: this.clientId },
-        isActive: true,
+        // false until the mouse enters a canvas: starting true published a pointer at the
+        // origin that nobody placed. The canvas overwrote it on first move, but the Form
+        // View keeps the workflow collapsed, so a stray dot sat on coeditors' screens.
+        isActive: false,
         userCursor: { x: 0, y: 0 },
       };
       this.awareness.setLocalState(userState);
