@@ -126,6 +126,94 @@ describe("BrowseSectionComponent", () => {
 
       expect(component.getCoverImage(entity)).toBe(component.defaultBackground);
     });
+<<<<<<< HEAD
+=======
+
+    // `this.resourceRegistry.find(entity.type)?.coverUrl` carries two guards, and a mixed section
+    // can trip either. A workflow's cover is a data URL carried on the entry itself, so
+    // WorkflowResourceDescriptor deliberately declares no `coverUrl`; and a kind the registry does
+    // not carry at all has no descriptor to ask, which is why this is `find`, not `get` — one such
+    // row must not take the whole section's covers down, exactly as `routeFor` five lines up
+    // already promises for links.
+    it("skips an entity whose descriptor resolves no cover, rather than calling undefined", () => {
+      const workflow = {
+        id: 10,
+        type: "workflow",
+        coverImageUrl: "carried-on-the-entry",
+        accessibleUserIds: [],
+      } as unknown as DashboardEntry;
+      const unregistered = {
+        id: 12,
+        type: "computing-unit",
+        coverImageUrl: "carried-on-the-entry",
+        accessibleUserIds: [],
+      } as unknown as DashboardEntry;
+      component.entities = [workflow, unregistered];
+
+      expect(() => component.ngOnInit()).not.toThrow();
+      expect(coverCache(component).has("workflow:10")).toBe(false);
+      expect(coverCache(component).has("computing-unit:12")).toBe(false);
+      // Nothing is cached for a workflow, but its cover is readable straight off the entry.
+      expect(component.getCoverImage(workflow)).toBe("carried-on-the-entry");
+      expect(component.getCoverImage(unregistered)).toBe(component.defaultBackground);
+    });
+
+    it("renders a workflow's cover from the entry, since no cover is ever fetched for one", () => {
+      const withCover = {
+        id: 20,
+        type: "workflow",
+        coverImageUrl: "data:image/png;base64,AAAA",
+        accessibleUserIds: [],
+      } as unknown as DashboardEntry;
+      const withoutCover = { id: 21, type: "workflow", accessibleUserIds: [] } as unknown as DashboardEntry;
+      component.entities = [withCover, withoutCover];
+      component.ngOnInit();
+
+      expect(component.getCoverImage(withCover)).toBe("data:image/png;base64,AAAA");
+      expect(component.getCoverImage(withoutCover)).toBe(component.defaultBackground);
+    });
+
+    it("keeps a file-backed kind on the placeholder rather than rendering its stored cover path", () => {
+      // A dataset's coverImageUrl is a path relative to the dataset root, not something an <img>
+      // can load, so it must never stand in for the presigned URL the descriptor resolves.
+      vi.spyOn(TestBed.inject(DatasetService) as any, "getDatasetCoverUrl").mockReturnValue(of({ url: "" }));
+      const entity = {
+        id: 22,
+        type: "dataset",
+        coverImageUrl: "v1/images/preview.png",
+        accessibleUserIds: [],
+      } as unknown as DashboardEntry;
+      component.entities = [entity];
+      component.ngOnInit();
+
+      expect(component.getCoverImage(entity)).toBe(component.defaultBackground);
+    });
+
+    it("caches nothing when the descriptor resolves an empty cover url", () => {
+      // A presigned-URL endpoint with nothing to sign answers with an empty string; caching that
+      // would put an <img src=""> on the card, which the browser resolves to the page itself.
+      vi.spyOn(TestBed.inject(DatasetService) as any, "getDatasetCoverUrl").mockReturnValue(of({ url: "" }));
+      const entity = {
+        id: 11,
+        type: "dataset",
+        coverImageUrl: "has-cover",
+        accessibleUserIds: [],
+      } as unknown as DashboardEntry;
+      component.entities = [entity];
+      component.ngOnInit();
+
+      // White-box on purpose: getCoverImage's `|| defaultBackground` makes "cached an empty string"
+      // and "cached nothing" indistinguishable through the public API, so only the map itself can
+      // say whether the guard ran.
+      expect(coverCache(component).has("dataset:11")).toBe(false);
+      expect(component.getCoverImage(entity)).toBe(component.defaultBackground);
+    });
+
+    /** The component's cover cache, which no public member exposes. */
+    function coverCache(c: BrowseSectionComponent): Map<string, string> {
+      return (c as unknown as { coverImageUrls: Map<string, string> }).coverImageUrls;
+    }
+>>>>>>> 1facefb18 (fix(frontend): render workflow covers on the hub landing page (#8383))
   });
 });
 /**
