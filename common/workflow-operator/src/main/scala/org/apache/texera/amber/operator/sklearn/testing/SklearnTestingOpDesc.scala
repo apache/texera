@@ -133,8 +133,16 @@ class SklearnTestingOpDesc
        |
        |model = in1df[$modelLit].iloc[0]
        |out1df = in1df.copy()
-       |Y = in2df[$targetLit]
-       |X = in2df.drop($targetLit, axis=1)
+       |# The same drop the executor makes before it scores: the model arrives
+       |# already fitted, so this operator cannot ask which estimator it holds and
+       |# drops on every column to be safe. Scoring the rows it skips would answer
+       |# with a number the run never reported, or fail inside scikit-learn.
+       |rows_read = len(in2df)
+       |scored_df = in2df.dropna()
+       |if len(scored_df) < rows_read:
+       |    print("Skipped", rows_read - len(scored_df), "of", rows_read, "rows with missing values")
+       |Y = scored_df[$targetLit]
+       |X = scored_df.drop($targetLit, axis=1)
        |${narrowToFittableColumns("X", "")}
        |predictions = model.predict(X.squeeze())
        |if $isRegressionStr:
