@@ -23,6 +23,7 @@ import { FormsModule } from "@angular/forms";
 import { ActivatedRoute, Router } from "@angular/router";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NzAvatarModule } from "ng-zorro-antd/avatar";
+import { NzIconModule } from "ng-zorro-antd/icon";
 import { UserIconComponent } from "../../../dashboard/component/user/user-icon/user-icon.component";
 import { forkJoin } from "rxjs";
 import { debounceTime } from "rxjs/operators";
@@ -40,23 +41,34 @@ import { GuiConfigService } from "../../../common/service/gui-config.service";
 import { WorkflowConsoleService } from "../../service/workflow-console/workflow-console.service";
 import { WorkflowResultService } from "../../service/workflow-result/workflow-result.service";
 import { Point } from "../../types/workflow-common.interface";
+import { WorkflowEditorComponent } from "../workflow-editor/workflow-editor.component";
+import { MiniMapComponent } from "../workflow-editor/mini-map/mini-map.component";
 import { CoeditorUserIconComponent } from "../menu/coeditor-user-icon/coeditor-user-icon.component";
 import { CoeditorPresenceService } from "../../service/workflow-graph/model/coeditor-presence.service";
 import { SAVE_DEBOUNCE_TIME_IN_MS } from "../workspace.component";
 
 /**
- * The Form View: a second way to use a workflow. Building on the page shell, this PR adds the
- * title bar -- the workflow name (renamable, exactly as on the operator canvas), its "Saved
- * at ..." state, and the debounced save that both views share so an edit in one view is not
- * lost in the other. The read-only preview, the inputs, running and results are added by later
- * PRs. A view, not a new object: it opens the same workflow the canvas does.
+ * The Form View: a second way to use a workflow. On top of the title-bar frame, this PR adds
+ * the collapsible read-only workflow preview -- the same workflow editor and mini-map the canvas
+ * uses, embedded here with the graph shape locked (its own `structureLocked`), built the first
+ * time the reader opens the strip. The inputs, running and results are added by later PRs. A
+ * view, not a new object: it opens the same workflow the canvas does.
  */
 @UntilDestroy()
 @Component({
   selector: "texera-workflow-form",
   templateUrl: "./workflow-form.component.html",
   styleUrls: ["./workflow-form.component.scss"],
-  imports: [CommonModule, FormsModule, NzAvatarModule, UserIconComponent, CoeditorUserIconComponent],
+  imports: [
+    CommonModule,
+    FormsModule,
+    NzAvatarModule,
+    NzIconModule,
+    UserIconComponent,
+    WorkflowEditorComponent,
+    MiniMapComponent,
+    CoeditorUserIconComponent,
+  ],
 })
 export class WorkflowFormComponent implements OnInit, OnDestroy {
   public wid?: number;
@@ -64,6 +76,11 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
   public loading = true;
   /** "Saved at …", worded and formatted exactly as on the operator canvas. */
   public autoSaveState = "";
+
+  /** The collapsible workflow preview: closed until the reader opens it. */
+  public workflowOpen = false;
+  /** The embedded canvas is built the first time the strip opens, never while collapsed. */
+  public workflowEverOpened = false;
 
   /** Set on teardown so deferred callbacks stop touching a view that is gone. */
   private destroyed = false;
@@ -156,6 +173,40 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
    */
   private applyEditability(): void {
     this.workflowActionService.disableWorkflowModification();
+  }
+
+  /** Open or close the workflow preview; opening it builds the canvas the first time. */
+  public toggleWorkflow(): void {
+    this.workflowOpen = !this.workflowOpen;
+    if (this.workflowOpen) {
+      this.openWorkflowStrip();
+    }
+  }
+
+  /**
+   * Reveal the strip, then build the canvas a frame later (so JointJS measures the strip's
+   * real size, not a zero-sized frame that misroutes links), then centre the graph a frame
+   * after that so the fit runs against a canvas that exists. The editor keeps its own paper
+   * sized via its container ResizeObserver, so nothing more is needed here.
+   *
+   * Each deferred step rechecks `workflowOpen`: a reader who opens then immediately collapses
+   * the strip must not have the children mounted into a now-hidden (0-sized) body -- the
+   * embedded mini-map is a fixed-size widget with no resize observer, so mounting it collapsed
+   * would leave it blank on the next open.
+   */
+  private openWorkflowStrip(): void {
+    this.later(() => {
+      if (!this.workflowOpen) {
+        return;
+      }
+      this.workflowEverOpened = true;
+      this.cdr.detectChanges();
+      this.later(() => {
+        if (this.workflowOpen) {
+          this.workflowActionService.getTexeraGraph().triggerCenterEvent();
+        }
+      });
+    });
   }
 
   /**
@@ -298,16 +349,21 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Run after a short delay, unless the page is gone by then: the callback touches the view,
-   * and detectChanges on a destroyed view throws -- reachable by navigating away while the
-   * name field is still waiting to be measured.
+   * Run after the current frame (or a delay), unless the page is gone by then: these callbacks
+   * touch the view, and detectChanges on a destroyed view throws -- reachable by navigating away
+   * while the name field is waiting to be measured, or the preview canvas to be built.
    */
-  private later(fn: () => void, delayMs = 0): void {
-    setTimeout(() => {
+  private later(fn: () => void, delayMs?: number): void {
+    const run = () => {
       if (!this.destroyed) {
         fn();
       }
-    }, delayMs);
+    };
+    if (delayMs === undefined) {
+      requestAnimationFrame(run);
+    } else {
+      setTimeout(run, delayMs);
+    }
   }
 
   /**

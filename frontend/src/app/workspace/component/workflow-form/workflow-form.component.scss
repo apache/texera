@@ -22,6 +22,7 @@ $blue: #1890ff;
 $text: rgba(0, 0, 0, 0.85);
 $text-2: rgba(0, 0, 0, 0.45);
 $divider: #f0f0f0;
+$border: #d9d9d9;
 $shell: #fafafa;
 
 :host {
@@ -180,4 +181,96 @@ $shell: #fafafa;
 .pc-loading {
   color: $text-2;
   padding: 40px 0;
+}
+
+/* A section of the page: the workflow preview here, the inputs and results in later PRs. */
+.card {
+  border: 1px solid $border;
+  border-radius: 8px;
+  background: #fff;
+}
+
+/* ---------- workflow preview ---------- */
+
+.wf {
+  margin-top: 28px;
+
+  // A native button so it is keyboard-operable and announces its expanded state, reset to
+  // read as the plain card header it looks like.
+  .wf-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 13px 16px;
+    cursor: pointer;
+    user-select: none;
+    appearance: none;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+
+    .wf-title {
+      display: block;
+      font-size: 15px;
+      font-weight: 600;
+    }
+
+    .wf-sub {
+      display: block;
+      margin-top: 2px;
+      font-size: 13px;
+      color: $text-2;
+    }
+
+    .chev {
+      color: $text-2;
+      transform: rotate(-90deg);
+      transition: transform 0.2s;
+    }
+
+    .spacer {
+      flex: 1;
+    }
+
+    &:focus-visible {
+      outline: 2px solid $blue;
+      outline-offset: -2px;
+    }
+  }
+
+  &.open .wf-bar .chev {
+    transform: rotate(0deg);
+  }
+
+  .wf-body {
+    position: relative;
+    border-top: 1px solid $divider;
+    height: 380px;
+    resize: vertical;
+    overflow: hidden;
+    background: #f7f8f9;
+
+    texera-workflow-editor {
+      display: block;
+      height: 100%;
+      width: 100%;
+    }
+
+    // The canvas mini-map, parked in the corner for navigating a large graph. Reused as-is at
+    // its natural 300x200 (as the workspace/Hub do) -- no size override, so the whole graph
+    // shows instead of being clipped behind the toolbar. No overflow:hidden either: the inner
+    // #mini-map-container already clips the paper, and clipping here would hide the collapsed
+    // mini-map's own re-open button, so it could never be brought back.
+    .box {
+      position: absolute;
+      right: 10px;
+      bottom: 10px;
+      border: 1px solid $divider;
+      border-radius: 6px;
+      background: #fff;
+    }
+  }
 }
