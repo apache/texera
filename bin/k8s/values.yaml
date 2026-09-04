@@ -39,6 +39,12 @@ persistence:
 
 # Part 1: the configuration of Postgres, Minio and LakeFS
 postgresql:
+  # Pinned so the name does not depend on the Helm release name. The lakefs and
+  # lakekeeper sub-charts address this database from their own values blocks
+  # below, and Helm does not template values files -- so the name they point at
+  # has to be a constant. Chart templates resolve it via the
+  # "texera.postgresql.fullname" helper, so both sides always agree.
+  fullnameOverride: texera-postgresql
   image:
     repository: groonga/pgroonga
     tag: latest
@@ -82,6 +88,9 @@ minio:
   # external S3 store instead (configure storage.s3 above and the lakefs/
   # lakekeeperInit blocks below). See values-aws.yaml for a complete example.
   enabled: true
+  # Pinned for the same reason as postgresql.fullnameOverride above: the lakefs
+  # blockstore endpoint is set from the lakefs sub-chart's own values.
+  fullnameOverride: texera-minio
   mode: standalone
   image:
     repository: bitnamilegacy/minio

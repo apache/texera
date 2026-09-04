@@ -60,9 +60,9 @@ to access services in the main namespace using the same service names.
 ---
 {{/* PostgreSQL ExternalName */}}
 {{- include "external-name-service" (dict 
-  "name" (printf "%s-postgresql" .Release.Name)
+  "name" (include "texera.postgresql.fullname" .)
   "namespace" $workflowComputingUnitPoolNamespace
-  "externalName" (printf "%s-postgresql.%s.svc.cluster.local" .Release.Name $namespace)
+  "externalName" (printf "%s.%s.svc.cluster.local" (include "texera.postgresql.fullname" .) $namespace)
 ) | nindent 0 }}
 
 ---
@@ -78,9 +78,9 @@ to access services in the main namespace using the same service names.
 {{/* MinIO ExternalName -- only when the in-cluster MinIO is enabled; with an
      external S3 store the CU pods reach it directly via STORAGE_S3_ENDPOINT. */}}
 {{- include "external-name-service" (dict
-  "name" (printf "%s-minio" .Release.Name)
+  "name" (include "texera.minio.fullname" .)
   "namespace" $workflowComputingUnitPoolNamespace
-  "externalName" (printf "%s-minio.%s.svc.cluster.local" .Release.Name $namespace)
+  "externalName" (printf "%s.%s.svc.cluster.local" (include "texera.minio.fullname" .) $namespace)
 ) | nindent 0 }}
 {{- end }}
 

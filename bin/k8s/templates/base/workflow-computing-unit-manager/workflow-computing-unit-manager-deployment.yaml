@@ -68,11 +68,11 @@ spec:
               value: {{ .Values.texera.imageRegistry }}/{{ .Values.workflowComputingUnitPool.imageName }}:{{ .Values.texera.imageTag }}
             # TexeraDB Access
             - name: STORAGE_JDBC_URL
-              value: jdbc:postgresql://{{ .Release.Name }}-postgresql:5432/texera_db?currentSchema=texera_db,public
+              value: jdbc:postgresql://{{ include "texera.postgresql.fullname" . }}:5432/texera_db?currentSchema=texera_db,public
             - name: STORAGE_JDBC_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Release.Name }}-postgresql
+                  name: {{ include "texera.postgresql.fullname" . }}
                   key: postgres-password
             # FileService Access
             - name: FILE_SERVICE_GET_DATASET_PRESIGNED_URL_ENDPOINT
