@@ -95,6 +95,13 @@ class OperatorBehaviorSpec extends AnyFlatSpec with Matchers with ParallelTestEx
   "Generated standalone code" should "stay parseable when the column names are hostile" in {
     StandaloneEscapingCheck.run() shouldBe empty
   }
+
+  // Also one assertion over all of them: a workflow that draws two charts from
+  // one upstream hands both the same variable, and only a plan with a branch
+  // ever notices an operator writing to it.
+  it should "leave the frame it was handed alone" in {
+    StandaloneInputCheck.run() shouldBe empty
+  }
 }
 
 object OperatorBehaviorSpec {

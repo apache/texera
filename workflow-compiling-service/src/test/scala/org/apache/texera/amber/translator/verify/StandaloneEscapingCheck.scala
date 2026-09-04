@@ -96,7 +96,7 @@ object StandaloneEscapingCheck {
     * because the generator cannot derive one. Auto operators contribute every
     * variant, since a knob only `optionals` fills is a site the base never reaches.
     */
-  private def codeFor(
+  private[verify] def codeFor(
       opClass: Class[_ <: LogicalOp],
       dir: Path
   ): Either[String, Seq[(String, String)]] = {
