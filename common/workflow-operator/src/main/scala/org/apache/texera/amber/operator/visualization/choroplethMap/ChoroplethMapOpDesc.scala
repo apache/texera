@@ -157,11 +157,13 @@ class ChoroplethMapOpDesc extends PythonOperatorDescriptor with PlotlyStandalone
        |if in1df.empty:
        |    fail("Input table is empty.")
        |else:
-       |    in1df = in1df.dropna(subset=[$locationsLit, $colorLit])
-       |    if in1df.empty:
+       |    # Bound to a name of its own: the same frame can feed another branch
+       |    # of the plan, which must still see every row.
+       |    chart_df = in1df.dropna(subset=[$locationsLit, $colorLit])
+       |    if chart_df.empty:
        |        fail("No valid rows left (every row has at least 1 missing value).")
        |    else:
-       |        fig = px.choropleth(in1df, locations=$locationsLit, color=$colorLit, color_continuous_scale=px.colors.sequential.Plasma)
+       |        fig = px.choropleth(chart_df, locations=$locationsLit, color=$colorLit, color_continuous_scale=px.colors.sequential.Plasma)
        |        fig.update_layout(margin={"r":0,"t":0,"l":0,"b":0})
        |        fig.write_json("output.json")
        |        fig.write_html("output.html")
