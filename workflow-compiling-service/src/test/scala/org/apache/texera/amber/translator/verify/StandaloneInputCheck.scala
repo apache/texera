@@ -39,11 +39,21 @@ import java.nio.file.Files
   * module scope, so the name it rebinds is the shared one.
   *
   * A single-branch workflow never notices either, which is why this reads the
-  * code rather than waiting for a run to disagree.
+  * code rather than waiting for a run to disagree. Every fixture the runner
+  * builds has one reader, so a comparison of the two paths agrees while the
+  * frame is being altered underneath a branch that the fixture does not have.
+  *
+  * What reading the code cannot see is a mutation through another name: bind
+  * the frame to something else first and the writes below are invisible here.
+  * No operator does that today, and an operator that starts to would be saying
+  * something a reader has to work out anyway.
   */
 object StandaloneInputCheck {
 
-  private val Assignment = """(?m)^\s*in\d+df\s*\[[^\]]*\]\s*=""".r
+  // `.loc` and `.iloc` are here because they are the other way to write the
+  // assignment, and a pattern that reads only the plain subscript would call an
+  // operator clean for choosing the accessor.
+  private val Assignment = """(?m)^\s*in\d+df(\.i?loc|\.i?at)?\s*\[[^\]]*\]\s*=""".r
   private val InPlace = """in\d+df[^\n]*inplace\s*=\s*True""".r
   private val Rebind = """(?m)^\s*in\d+df\s*=""".r
 
