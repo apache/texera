@@ -947,6 +947,12 @@ class WorkflowResourceSpec
     assert(sizes.get(wid) == content.length)
   }
 
+  it should "return NotFoundException for a missing workflow type" in {
+    assertThrows[NotFoundException] {
+      workflowResource.getWorkflowType(Integer.valueOf(2147483647))
+    }
+  }
+
   "WorkflowResource.getSize" should "return an empty map for a null or empty id list" in {
     assert(workflowResource.getSize(null).isEmpty)
     assert(workflowResource.getSize(Collections.emptyList()).isEmpty)
