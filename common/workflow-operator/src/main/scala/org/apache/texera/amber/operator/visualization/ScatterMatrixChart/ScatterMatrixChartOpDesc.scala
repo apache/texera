@@ -28,7 +28,8 @@ import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
 }
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
+import org.apache.texera.amber.operator.PythonOperatorDescriptor
+import org.apache.texera.amber.operator.visualization.PlotlyStandaloneCode
 import org.apache.texera.amber.operator.metadata.annotations.{
   AutofillAttributeName,
   AutofillAttributeNameList
@@ -49,7 +50,7 @@ import javax.validation.constraints.{NotEmpty, NotNull}
   }
 }
 """)
-class ScatterMatrixChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
+class ScatterMatrixChartOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCode {
 
   @JsonProperty(value = "Selected Attributes", required = true)
   @JsonSchemaTitle("Selected Attributes")

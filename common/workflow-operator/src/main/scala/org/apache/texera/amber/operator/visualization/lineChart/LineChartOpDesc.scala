@@ -28,7 +28,8 @@ import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
 }
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
+import org.apache.texera.amber.operator.PythonOperatorDescriptor
+import org.apache.texera.amber.operator.visualization.PlotlyStandaloneCode
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
 
@@ -36,7 +37,7 @@ import java.util
 import javax.validation.constraints.NotEmpty
 import scala.jdk.CollectionConverters.ListHasAsScala
 
-class LineChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
+class LineChartOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCode {
 
   @JsonProperty(value = "yLabel", required = false, defaultValue = "Y Axis")
   @JsonSchemaTitle("Y Label")
