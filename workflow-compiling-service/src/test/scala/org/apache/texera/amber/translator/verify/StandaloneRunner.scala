@@ -104,7 +104,13 @@ object StandaloneRunner extends LazyLogging {
       else Map.empty
 
     val source =
-      renderScript(gen.generateStandaloneCode(), inputs, outputPaths, gen.standaloneHelpers())
+      renderScript(
+        gen.generateStandaloneCode(),
+        inputs,
+        outputPaths,
+        gen.standaloneHelpers(),
+        gen.standaloneImports()
+      )
     Files.write(scriptPath, source.getBytes(StandardCharsets.UTF_8))
 
     val (exit, stdout, stderr) = execute(scriptPath, workDir, pythonExe)
@@ -169,7 +175,8 @@ object StandaloneRunner extends LazyLogging {
       body: String,
       inputs: Map[Int, Path],
       outputs: Map[Int, Path],
-      helpers: Seq[String]
+      helpers: Seq[String],
+      imports: Seq[String]
   ): String = {
     val sb = new StringBuilder
 
@@ -178,14 +185,13 @@ object StandaloneRunner extends LazyLogging {
     sb.append("import sys\n")
     sb.append("import base64\n")
     sb.append("import pickle\n")
-    // NOTE: numpy is intentionally NOT injected here. The production translator
-    // (WorkflowToPythonTranslator) only provides pandas + plotly to standalone
-    // scripts, so any operator whose standalone code needs numpy must import it
-    // itself. Injecting numpy here would mask that class of bug in verify tests.
+    // NOTE: nothing beyond pandas is injected here. The production translator
+    // (WorkflowToPythonTranslator) emits pandas for every script and then only
+    // what the operators in the plan ask for, so an operator whose standalone
+    // code needs numpy, or plotly, must say so. Injecting either here would mask
+    // that class of bug: the script would run in verify and fail on export.
     sb.append("import pandas as pd\n")
-    sb.append("import plotly.express as px\n")
-    sb.append("import plotly.graph_objects as go\n")
-    sb.append("import plotly.io\n")
+    imports.foreach(line => sb.append(line).append("\n"))
     // Same seed as py_op_driver's run_config, for the reason given there. Bound
     // under a private name and deleted so the note above still holds: a script
     // that wants numpy has to import it, and this does not hand it one.

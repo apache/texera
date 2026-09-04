@@ -59,12 +59,12 @@ import traceback
 from contextlib import redirect_stderr, redirect_stdout
 
 # --- Pay the heavy import cost ONCE, here, at startup. ----------------------
-# These mirror the imports StandaloneRunner injects at the top of every
-# rendered script. Pre-importing them populates sys.modules, so each executed
-# script's own `import pandas as pd` / `import plotly...` is a cache hit.
-# numpy is intentionally NOT imported (see StandaloneRunner.renderScript: the
-# production translator only provides pandas + plotly, so an operator needing
-# numpy must import it itself — we must not mask that).
+# Pre-importing populates sys.modules, so a script's own `import pandas as pd`
+# or `import plotly...` is a cache hit. It does not hand the script the name:
+# each one runs in a fresh namespace, so an operator that draws with plotly and
+# forgot to declare it still fails here with a NameError, which is the point.
+# numpy is left out for the same reason plotly is only a cache warmer: the
+# script has to ask for what it uses (see StandaloneRunner.renderScript).
 import pandas as pd  # noqa: F401
 import plotly.express as px  # noqa: F401
 import plotly.graph_objects as go  # noqa: F401
