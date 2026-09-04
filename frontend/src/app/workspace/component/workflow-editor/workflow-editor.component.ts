@@ -18,13 +18,18 @@
  */
 
 import { AfterViewInit, ChangeDetectorRef, Component, ElementRef, OnDestroy, OnInit } from "@angular/core";
-import { combineLatest, fromEvent, merge, Subject } from "rxjs";
+import { combineLatest, fromEvent, merge, of, Subject } from "rxjs";
 import { NzModalCommentBoxComponent } from "./comment-box-modal/nz-modal-comment-box.component";
 import { NzModalRef, NzModalService } from "ng-zorro-antd/modal";
 import { DragDropService } from "../../service/drag-drop/drag-drop.service";
 import { DynamicSchemaService } from "../../service/dynamic-schema/dynamic-schema.service";
 import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
-import { fromJointPaperEvent, JointUIService, linkPathStrokeColor } from "../../service/joint-ui/joint-ui.service";
+import {
+  fromJointGraphCellEvent,
+  fromJointPaperEvent,
+  JointUIService,
+  linkPathStrokeColor,
+} from "../../service/joint-ui/joint-ui.service";
 import { Validation, ValidationWorkflowService } from "../../service/validation/validation-workflow.service";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { WorkflowStatusService } from "../../service/workflow-status/workflow-status.service";
@@ -37,7 +42,7 @@ import {
 } from "../../service/heatmap/heatmap-scoring";
 import { ExecutionState, OperatorState } from "../../types/execute-workflow.interface";
 import { LogicalPort, OperatorLink, OperatorPredicate } from "../../types/workflow-common.interface";
-import { auditTime, filter, map, takeUntil, withLatestFrom } from "rxjs/operators";
+import { auditTime, filter, map, switchMap, takeUntil, withLatestFrom } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { UndoRedoService } from "../../service/undo-redo/undo-redo.service";
 import { WorkflowVersionService } from "../../../dashboard/service/user/workflow-version/workflow-version.service";
@@ -51,6 +56,10 @@ import { GuiConfigService } from "../../../common/service/gui-config.service";
 import { line, curveCatmullRomClosed } from "d3-shape";
 import concaveman from "concaveman";
 import { OperatorResultSummary, AgentService } from "../../service/agent/agent.service";
+import {
+  OperatorRecommendation,
+  OperatorRecommendationService,
+} from "../../service/operator-recommendation/operator-recommendation.service";
 import { NzNoAnimationDirective } from "ng-zorro-antd/core/animation";
 import { ContextMenuComponent } from "./context-menu/context-menu/context-menu.component";
 import { NgIf } from "@angular/common";
@@ -132,6 +141,24 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     position: { x: number; y: number };
   } | null = null;
 
+  // Ambient operator recommender state (apache/texera#5240). Holds the faded
+  // next-operator suggestions anchored on the output port of the
+  // operator that was just added; null when nothing is being suggested.
+  public nextOperatorSuggestion: {
+    operatorId: string;
+    sourceOutputPortID: string;
+    position: { x: number; y: number };
+    recommendations: OperatorRecommendation[];
+  } | null = null;
+  private readonly repositionNextOperatorSuggestion$ = new Subject<void>();
+  // Drives every suggestion request; `null` cancels whatever is in flight.
+  private readonly nextOperatorSuggestionRequest$ = new Subject<OperatorPredicate | null>();
+
+  // Screen-pixel gap between the operator's right edge and the suggestion chips.
+  private static readonly NEXT_OPERATOR_SUGGESTION_GAP_X = 20;
+  // Screen-pixel drop below the operator box, clearing the display-name text.
+  private static readonly CHAT_POPOVER_GAP_Y = 40;
+
   // Cached agent result summaries for port label display
 
   constructor(
@@ -153,7 +180,8 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     private elementRef: ElementRef,
     private config: GuiConfigService,
     private agentService: AgentService,
-    private jupyterPanelService: JupyterPanelService
+    private jupyterPanelService: JupyterPanelService,
+    private operatorRecommendationService: OperatorRecommendationService
   ) {
     this.wrapper = this.workflowActionService.getJointGraphWrapper();
   }
@@ -232,6 +260,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     this.invokeResize();
     this.handleCenterEvent();
     this.handleOperatorChatButton();
+    this.handleNextOperatorSuggestions();
   }
 
   ngOnDestroy(): void {
@@ -1845,9 +1874,21 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   /**
-   * Get the screen position for the chat popover relative to an operator.
+   * Screen position of a point on an operator's bounding box, applying the
+   * paper's current zoom and pan.
+   *
+   * `anchorX` / `anchorY` pick the point in box-relative fractions — 0 is the
+   * left/top edge, 0.5 the center, 1 the right/bottom edge — and `offsetX` /
+   * `offsetY` nudge it afterwards in screen pixels. Every floating overlay
+   * anchored to an operator goes through here, so the paper-to-screen transform
+   * is defined once rather than re-derived per overlay.
+   *
+   * Returns null when the operator has no cell on the paper.
    */
-  private getOperatorChatPopoverPosition(operatorId: string): { x: number; y: number } | null {
+  private getOperatorAnchorPosition(
+    operatorId: string,
+    anchor: { anchorX: number; anchorY: number; offsetX?: number; offsetY?: number }
+  ): { x: number; y: number } | null {
     const jointCell = this.paper.getModelById(operatorId);
     if (!jointCell) {
       return null;
@@ -1857,12 +1898,23 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     const scale = this.paper.scale();
     const translate = this.paper.translate();
 
-    // Position popover below the operator, centered horizontally
-    // Add extra offset for the display name text below the operator box
-    const screenX = (bbox.x + bbox.width / 2) * scale.sx + translate.tx;
-    const screenY = (bbox.y + bbox.height) * scale.sy + translate.ty + 40;
+    return {
+      x: (bbox.x + bbox.width * anchor.anchorX) * scale.sx + translate.tx + (anchor.offsetX ?? 0),
+      y: (bbox.y + bbox.height * anchor.anchorY) * scale.sy + translate.ty + (anchor.offsetY ?? 0),
+    };
+  }
 
-    return { x: screenX, y: screenY };
+  /**
+   * Get the screen position for the chat popover relative to an operator:
+   * below the operator, centered horizontally, dropped far enough to clear the
+   * display-name text under the operator box.
+   */
+  private getOperatorChatPopoverPosition(operatorId: string): { x: number; y: number } | null {
+    return this.getOperatorAnchorPosition(operatorId, {
+      anchorX: 0.5,
+      anchorY: 1,
+      offsetY: WorkflowEditorComponent.CHAT_POPOVER_GAP_Y,
+    });
   }
 
   /**
@@ -1883,6 +1935,224 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
 
   isOperatorVisualization(operatorId: string): boolean {
     return this.operatorSummaries.get(operatorId)?.sampleRecords?.[0]?.["__is_visualization__"] === true;
+  }
+
+  /**
+   * Ambient operator recommender (apache/texera#5240). When the user drops an
+   * operator onto the canvas, ask the recommender for likely next operators and
+   * float them as suggestion chips on the operator's output port; clicking one
+   * materializes it. The whole feature is opt-in and self-effacing: if it is
+   * disabled or the backend returns nothing, the canvas is untouched.
+   */
+  private handleNextOperatorSuggestions(): void {
+    if (!this.operatorRecommendationService.isEnabled()) {
+      return;
+    }
+
+    // Repositioning is throttled: change:position fires once per drag frame.
+    this.repositionNextOperatorSuggestion$
+      .pipe(auditTime(100), untilDestroyed(this))
+      .subscribe(() => this.repositionNextOperatorSuggestions());
+
+    // Every suggestion request — from a drop or from chaining after a click —
+    // goes through this one pipeline. switchMap unsubscribes the previous
+    // request, so a slow response can neither overwrite newer suggestions nor
+    // re-open the overlay after the user dismissed it; `null` means "cancel".
+    this.nextOperatorSuggestionRequest$
+      .pipe(
+        switchMap(operator =>
+          operator === null
+            ? of(null)
+            : this.operatorRecommendationService
+                .getRecommendations(operator)
+                .pipe(map(recommendations => ({ operator, recommendations })))
+        ),
+        untilDestroyed(this)
+      )
+      .subscribe(result => this.showNextOperatorSuggestions(result));
+
+    // Trigger: the user interactively dropped an operator onto the canvas.
+    // Deliberately not the graph's operator-add stream, which also fires on
+    // workflow load, undo/redo, paste, and remote co-editor edits — none of
+    // which are a user authoring a next step.
+    this.dragDropService.operatorDropStream
+      .pipe(untilDestroyed(this))
+      .subscribe(operator => this.requestNextOperatorSuggestionsFor(operator));
+
+    // Dismiss when the user clicks on blank canvas.
+    fromJointPaperEvent(this.paper, "blank:pointerdown")
+      .pipe(untilDestroyed(this))
+      .subscribe(() => this.closeNextOperatorSuggestions());
+
+    // Dismiss when the canvas is frozen — during execution, version preview, or a
+    // read-only view. Materializing writes to the shared model, and undo refuses
+    // while the lock is on, so a click here could not be undone; the chips must
+    // not stay on screen looking clickable either.
+    this.workflowActionService
+      .getWorkflowModificationEnabledStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(enabled => {
+        if (!enabled) {
+          this.closeNextOperatorSuggestions();
+        }
+      });
+
+    // Dismiss if the anchor operator is deleted out from under the suggestions.
+    this.workflowActionService
+      .getTexeraGraph()
+      .getOperatorDeleteStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(({ deletedOperatorID }) => {
+        if (this.nextOperatorSuggestion?.operatorId === deletedOperatorID) {
+          this.closeNextOperatorSuggestions();
+        }
+      });
+
+    // Keep the suggestions anchored to the operator's output port as it moves.
+    fromJointGraphCellEvent(this.paper.model, "change:position")
+      .pipe(untilDestroyed(this))
+      .subscribe(cell => {
+        if (this.nextOperatorSuggestion && cell.id.toString() === this.nextOperatorSuggestion.operatorId) {
+          this.repositionNextOperatorSuggestion$.next();
+        }
+      });
+
+    // Keep the suggestions anchored on zoom.
+    this.wrapper
+      .getWorkflowEditorZoomStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
+        if (this.nextOperatorSuggestion) {
+          this.repositionNextOperatorSuggestions();
+        }
+      });
+  }
+
+  /** Ask for suggestions on `operator`, cancelling whatever was in flight. */
+  private requestNextOperatorSuggestionsFor(operator: OperatorPredicate): void {
+    this.closeNextOperatorSuggestions();
+    // An operator with no output ports has no port to anchor suggestions on,
+    // so there is nothing to ask for.
+    if (operator.outputPorts.length === 0) {
+      return;
+    }
+    // A drop can arrive already wired: onto an existing edge, or auto-linked to
+    // a nearby operator. The next step is chosen in that case, so suggesting
+    // another one would both be noise and risk placing it on top of the
+    // successor the drop just created.
+    if (this.isOutputPortLinked(operator.operatorID, operator.outputPorts[0].portID)) {
+      return;
+    }
+    this.nextOperatorSuggestionRequest$.next(operator);
+  }
+
+  /** Whether `portID` on `operatorID` already has a link leaving it. */
+  private isOutputPortLinked(operatorID: string, portID: string): boolean {
+    return this.workflowActionService
+      .getTexeraGraph()
+      .getAllLinks()
+      .some(link => link.source.operatorID === operatorID && link.source.portID === portID);
+  }
+
+  /** Render the result of the most recent, uncancelled suggestion request. */
+  private showNextOperatorSuggestions(
+    result: { operator: OperatorPredicate; recommendations: OperatorRecommendation[] } | null
+  ): void {
+    if (result === null || result.recommendations.length === 0) {
+      return;
+    }
+    const { operator, recommendations } = result;
+    // The operator may have been deleted while the request was in flight.
+    if (!this.workflowActionService.getTexeraGraph().hasOperator(operator.operatorID)) {
+      return;
+    }
+    const position = this.getNextOperatorSuggestionPosition(operator.operatorID);
+    if (!position) {
+      return;
+    }
+    this.nextOperatorSuggestion = {
+      operatorId: operator.operatorID,
+      sourceOutputPortID: operator.outputPorts[0].portID,
+      position,
+      recommendations,
+    };
+    this.changeDetectorRef.detectChanges();
+  }
+
+  /**
+   * Materialize a clicked suggestion into a real operator wired onto the
+   * source operator's output port, then suggest what could follow that new
+   * operator in turn — accepting a suggestion leaves the canvas ready for the
+   * next one, the way accepting a code completion does.
+   */
+  materializeNextOperatorSuggestion(recommendation: OperatorRecommendation): void {
+    if (!this.nextOperatorSuggestion) {
+      return;
+    }
+    const graph = this.workflowActionService.getTexeraGraph();
+    let newOperatorID: string | undefined;
+    // The lock check and the port check re-check state the chips cannot see. The
+    // lock can engage between render and click; and nothing dismisses the chips
+    // when the user hand-draws a link out of the anchor port, because that gesture
+    // is a magnet drag that stops propagation before any pointerdown notification,
+    // so the blank:pointerdown we listen for never fires. Without the port check
+    // the click would add a second successor on top of the first. The hasOperator
+    // check is belt-and-braces: the delete stream above already dismisses.
+    if (
+      this.workflowActionService.checkWorkflowModificationEnabled() &&
+      graph.hasOperator(this.nextOperatorSuggestion.operatorId) &&
+      !this.isOutputPortLinked(this.nextOperatorSuggestion.operatorId, this.nextOperatorSuggestion.sourceOutputPortID)
+    ) {
+      const sourceOperator = graph.getOperator(this.nextOperatorSuggestion.operatorId);
+      newOperatorID = this.operatorRecommendationService.materialize(
+        sourceOperator,
+        this.nextOperatorSuggestion.sourceOutputPortID,
+        recommendation.operatorType
+      );
+    }
+    this.closeNextOperatorSuggestions();
+
+    // Chaining has to be explicit: a materialized operator reaches the graph
+    // through addOperatorsAndLinks, not through a drop, so the drop-gated
+    // trigger above will never fire for it.
+    if (newOperatorID !== undefined && graph.hasOperator(newOperatorID)) {
+      this.requestNextOperatorSuggestionsFor(graph.getOperator(newOperatorID));
+    }
+  }
+
+  private closeNextOperatorSuggestions(): void {
+    // Cancel any in-flight request too: nulling the state alone would let a
+    // late response re-open the overlay the user just dismissed.
+    this.nextOperatorSuggestionRequest$.next(null);
+    if (this.nextOperatorSuggestion) {
+      this.nextOperatorSuggestion = null;
+      this.changeDetectorRef.detectChanges();
+    }
+  }
+
+  private repositionNextOperatorSuggestions(): void {
+    if (!this.nextOperatorSuggestion) {
+      return;
+    }
+    const position = this.getNextOperatorSuggestionPosition(this.nextOperatorSuggestion.operatorId);
+    const prev = this.nextOperatorSuggestion.position;
+    if (!position || (position.x === prev.x && position.y === prev.y)) {
+      return;
+    }
+    this.nextOperatorSuggestion = { ...this.nextOperatorSuggestion, position };
+    this.changeDetectorRef.detectChanges();
+  }
+
+  /**
+   * Screen position for the suggestions: just off the right edge of the
+   * operator, vertically centered — the direction its output port faces.
+   */
+  private getNextOperatorSuggestionPosition(operatorId: string): { x: number; y: number } | null {
+    return this.getOperatorAnchorPosition(operatorId, {
+      anchorX: 1,
+      anchorY: 0.5,
+      offsetX: WorkflowEditorComponent.NEXT_OPERATOR_SUGGESTION_GAP_X,
+    });
   }
 
   /**

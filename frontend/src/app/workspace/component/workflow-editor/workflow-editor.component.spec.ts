@@ -66,6 +66,11 @@ import { commonTestProviders } from "../../../common/testing/test-utils";
 import { OperatorMenuService } from "../../service/operator-menu/operator-menu.service";
 import { GuiConfigService } from "src/app/common/service/gui-config.service";
 import { MockGuiConfigService } from "src/app/common/service/gui-config.service.mock";
+import {
+  OperatorRecommendation,
+  OperatorRecommendationService,
+} from "../../service/operator-recommendation/operator-recommendation.service";
+import type { MockInstance } from "vitest";
 
 describe("WorkflowEditorComponent", () => {
   /**
@@ -2456,5 +2461,201 @@ describe("WorkflowEditorComponent editor wiring", () => {
 
       expect(detectChanges).toHaveBeenCalledTimes(1);
     });
+  });
+});
+
+/**
+ * Ambient operator recommender (apache/texera#5240).
+ *
+ * The feature is opt-in and `handleNextOperatorSuggestions` reads the flag once
+ * during ngAfterViewInit, returning early when it is off — so the flag has to
+ * be set before the first change detection, not inside the individual tests.
+ */
+describe("Ambient Operator Recommender", () => {
+  let component: WorkflowEditorComponent;
+  let fixture: ComponentFixture<WorkflowEditorComponent>;
+  let workflowActionService: WorkflowActionService;
+  let dragDropService: DragDropService;
+  let getRecommendationsSpy: MockInstance;
+
+  const mockRecommendations = [{ operatorType: "NlpSentiment", score: 0.9, reason: "Analyze the text" }];
+
+  // The recommender listens to the drag-drop service's drop stream. Push the
+  // dropped operator through directly rather than driving a real drag gesture,
+  // which would need a live flying-operator paper.
+  function emitOperatorDrop(operator: OperatorPredicate): void {
+    (dragDropService as any).operatorDroppedSubject.next(operator);
+  }
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: workflowEditorTestImports,
+      providers: workflowEditorTestProviders,
+    }).compileComponents();
+  });
+
+  beforeEach(() => {
+    fixture = TestBed.createComponent(WorkflowEditorComponent);
+    component = fixture.componentInstance;
+    workflowActionService = TestBed.inject(WorkflowActionService);
+    dragDropService = TestBed.inject(DragDropService);
+
+    (TestBed.inject(GuiConfigService).env as any).operatorRecommendationEnabled = true;
+    getRecommendationsSpy = vi
+      .spyOn(TestBed.inject(OperatorRecommendationService), "getRecommendations")
+      .mockReturnValue(of(mockRecommendations));
+
+    // detect changes to run ngAfterViewInit and wire up the recommender
+    fixture.detectChanges();
+  });
+
+  it("requests suggestions when the user drops an operator onto the canvas", () => {
+    workflowActionService.addOperator(mockScanPredicate, mockPoint);
+    emitOperatorDrop(mockScanPredicate);
+
+    expect(getRecommendationsSpy).toHaveBeenCalledTimes(1);
+    expect(component.nextOperatorSuggestion?.operatorId).toEqual(mockScanPredicate.operatorID);
+    expect(component.nextOperatorSuggestion?.recommendations).toEqual(mockRecommendations);
+  });
+
+  it("does not request suggestions for operators that arrive without a drop", () => {
+    // Workflow load, undo/redo, paste and remote co-editor edits all reach the
+    // graph through addOperator with no drop event, and must stay silent.
+    workflowActionService.addOperator(mockScanPredicate, mockPoint);
+    workflowActionService.addOperator(mockSentimentPredicate, mockPoint);
+
+    expect(getRecommendationsSpy).not.toHaveBeenCalled();
+    expect(component.nextOperatorSuggestion).toBeNull();
+  });
+
+  it("does not suggest when the drop already wired the output port", () => {
+    // dragDropped adds links on both branches — dropping onto an existing edge, and
+    // proximity auto-linking — so the operator can arrive with a successor.
+    workflowActionService.addOperator(mockScanPredicate, mockPoint);
+    workflowActionService.addOperator(mockResultPredicate, mockPoint);
+    workflowActionService.addLink(mockScanResultLink);
+
+    emitOperatorDrop(mockScanPredicate);
+
+    expect(getRecommendationsSpy).not.toHaveBeenCalled();
+    expect(component.nextOperatorSuggestion).toBeNull();
+  });
+
+  it("does not materialize when the anchor port acquired a link while the chips were up", () => {
+    const materializeSpy = vi.spyOn(TestBed.inject(OperatorRecommendationService), "materialize");
+    workflowActionService.addOperator(mockScanPredicate, mockPoint);
+    emitOperatorDrop(mockScanPredicate);
+    expect(component.nextOperatorSuggestion).not.toBeNull();
+
+    // The user hand-draws a link out of the anchor port. That gesture starts on
+    // the port, so it never fires the blank:pointerdown that dismisses the chips.
+    workflowActionService.addOperator(mockResultPredicate, mockPoint);
+    workflowActionService.addLink(mockScanResultLink);
+
+    component.materializeNextOperatorSuggestion(mockRecommendations[0]);
+
+    expect(materializeSpy).not.toHaveBeenCalled();
+    expect(component.nextOperatorSuggestion).toBeNull();
+  });
+
+  it("dismisses the suggestions when workflow modification is disabled", () => {
+    workflowActionService.addOperator(mockScanPredicate, mockPoint);
+    emitOperatorDrop(mockScanPredicate);
+    expect(component.nextOperatorSuggestion).not.toBeNull();
+
+    // Running the workflow freezes the canvas; version preview and read-only
+    // hub views take the same lock.
+    workflowActionService.disableWorkflowModification();
+
+    expect(component.nextOperatorSuggestion).toBeNull();
+  });
+
+  it("does not materialize while workflow modification is disabled", () => {
+    const materializeSpy = vi.spyOn(TestBed.inject(OperatorRecommendationService), "materialize");
+    workflowActionService.addOperator(mockScanPredicate, mockPoint);
+    emitOperatorDrop(mockScanPredicate);
+    const suggestion = component.nextOperatorSuggestion;
+    workflowActionService.disableWorkflowModification();
+
+    // The chips are already gone, but a click racing the lock must not write to
+    // the shared model either -- undo refuses while the lock is on.
+    component.nextOperatorSuggestion = suggestion;
+    component.materializeNextOperatorSuggestion(mockRecommendations[0]);
+
+    expect(materializeSpy).not.toHaveBeenCalled();
+  });
+
+  it("ignores a response that arrives after the user dismissed the suggestions", () => {
+    const inFlight = new Subject<OperatorRecommendation[]>();
+    getRecommendationsSpy.mockReturnValue(inFlight);
+    workflowActionService.addOperator(mockScanPredicate, mockPoint);
+    emitOperatorDrop(mockScanPredicate);
+
+    // The user clicks blank canvas while the request is still in flight.
+    (component.paper as any).trigger("blank:pointerdown");
+    inFlight.next(mockRecommendations);
+
+    expect(component.nextOperatorSuggestion).toBeNull();
+  });
+
+  it("lets the newest request win when an older response lands last", () => {
+    const first = new Subject<OperatorRecommendation[]>();
+    const second = new Subject<OperatorRecommendation[]>();
+    getRecommendationsSpy.mockReturnValueOnce(first).mockReturnValueOnce(second);
+
+    workflowActionService.addOperator(mockScanPredicate, mockPoint);
+    workflowActionService.addOperator(mockSentimentPredicate, mockPoint);
+    emitOperatorDrop(mockScanPredicate);
+    emitOperatorDrop(mockSentimentPredicate);
+
+    // The superseded request answers last; it must not show stale chips.
+    first.next(mockRecommendations);
+    expect(component.nextOperatorSuggestion).toBeNull();
+
+    second.next(mockRecommendations);
+    expect(component.nextOperatorSuggestion?.operatorId).toEqual(mockSentimentPredicate.operatorID);
+  });
+
+  it("dismisses the suggestions when the anchor operator is deleted", () => {
+    workflowActionService.addOperator(mockScanPredicate, mockPoint);
+    emitOperatorDrop(mockScanPredicate);
+    expect(component.nextOperatorSuggestion).not.toBeNull();
+
+    workflowActionService.deleteOperator(mockScanPredicate.operatorID);
+
+    expect(component.nextOperatorSuggestion).toBeNull();
+  });
+
+  it("chains a fresh round of suggestions onto the operator a clicked suggestion creates", () => {
+    workflowActionService.addOperator(mockScanPredicate, mockPoint);
+    emitOperatorDrop(mockScanPredicate);
+    getRecommendationsSpy.mockClear();
+
+    component.materializeNextOperatorSuggestion(mockRecommendations[0]);
+
+    // Materializing never emits a drop, so chaining only works if the click
+    // path asks for suggestions itself.
+    expect(getRecommendationsSpy).toHaveBeenCalledTimes(1);
+    expect(component.nextOperatorSuggestion).not.toBeNull();
+    expect(component.nextOperatorSuggestion?.operatorId).not.toEqual(mockScanPredicate.operatorID);
+  });
+
+  it("skips change detection when repositioning leaves the suggestions where they are", () => {
+    workflowActionService.addOperator(mockScanPredicate, mockPoint);
+    emitOperatorDrop(mockScanPredicate);
+    const detectChangesSpy = vi.spyOn((component as any).changeDetectorRef, "detectChanges");
+
+    // Unchanged position: repositioning must be a no-op. Without this guard the
+    // change:position listener re-renders the component on every drag frame.
+    (component as any).repositionNextOperatorSuggestions();
+
+    expect(detectChangesSpy).not.toHaveBeenCalled();
+
+    // Moving the operator does move the chips with it.
+    workflowActionService.getJointGraphWrapper().setElementPosition(mockScanPredicate.operatorID, 50, 30);
+    detectChangesSpy.mockClear();
+    (component as any).repositionNextOperatorSuggestions();
+
+    expect(detectChangesSpy).toHaveBeenCalledTimes(1);
   });
 });

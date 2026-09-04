@@ -98,6 +98,7 @@ class ConfigResource {
       "pythonLanguageServerPort" -> GuiConfig.guiWorkflowWorkspacePythonLanguageServerPort,
       "activeTimeInMinutes" -> GuiConfig.guiWorkflowWorkspaceActiveTimeInMinutes,
       "copilotEnabled" -> GuiConfig.guiWorkflowWorkspaceCopilotEnabled,
+      "operatorRecommendationEnabled" -> GuiConfig.guiWorkflowWorkspaceOperatorRecommendationEnabled,
       "limitColumns" -> GuiConfig.guiWorkflowWorkspaceLimitColumns,
       "pythonNotebookMigrationEnabled" -> GuiConfig.guiWorkflowWorkspacePythonNotebookMigrationEnabled,
       "pythonNotebookMigrationTimeoutMinutes" -> GuiConfig.guiWorkflowWorkspacePythonNotebookMigrationTimeoutMinutes

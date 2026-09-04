@@ -393,12 +393,14 @@ describe("DragDropService", () => {
         (dragDropService as any).op = newOp;
         vi.spyOn(dragDropService as any, "findIntersectedLink").mockReturnValue(origLink);
 
-        let dropped = false;
-        dragDropService.operatorDropStream.subscribe(() => (dropped = true));
+        // Identity, not just truthiness: the stream carries the dropped operator
+        // to the recommender, so a stale `this.op` has to fail here.
+        let droppedOperator: OperatorPredicate | undefined;
+        dragDropService.operatorDropStream.subscribe(op => (droppedOperator = op));
 
         dragDropService.dragDropped({ x: 0, y: 0 });
 
-        expect(dropped).toBe(true);
+        expect(droppedOperator).toBe(newOp);
         expect(workflowActionService.getTexeraGraph().hasOperator(newOp.operatorID)).toBe(true);
 
         const links = workflowActionService.getTexeraGraph().getAllLinks();

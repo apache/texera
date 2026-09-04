@@ -79,6 +79,9 @@ class GuiConfigSpec extends AnyFlatSpec with Matchers {
     ifUnset("GUI_WORKFLOW_WORKSPACE_PYTHON_NOTEBOOK_MIGRATION_ENABLED")(
       GuiConfig.guiWorkflowWorkspacePythonNotebookMigrationEnabled shouldBe false
     )
+    ifUnset("GUI_WORKFLOW_WORKSPACE_OPERATOR_RECOMMENDATION_ENABLED")(
+      GuiConfig.guiWorkflowWorkspaceOperatorRecommendationEnabled shouldBe false
+    )
   }
 
   "GuiConfig string settings" should "resolve to their gui.conf defaults when env overrides are unset" in {
