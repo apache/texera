@@ -27,7 +27,8 @@ import org.apache.texera.amber.operator.metadata.annotations.{
   AutofillAttributeNameList
 }
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
-import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
+import org.apache.texera.amber.operator.PythonOperatorDescriptor
+import org.apache.texera.amber.operator.visualization.PlotlyStandaloneCode
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
@@ -47,7 +48,7 @@ import javax.validation.constraints.NotEmpty
   }
 }
 """)
-class RadarPlotOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
+class RadarPlotOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCode {
   @JsonProperty(value = "selectedAttributes", required = true)
   @JsonSchemaTitle("Axes")
   @JsonPropertyDescription("Numeric columns to use as radar axes")
