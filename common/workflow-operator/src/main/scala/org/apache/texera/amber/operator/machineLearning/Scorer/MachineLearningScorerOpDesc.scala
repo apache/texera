@@ -323,16 +323,18 @@ class MachineLearningScorerOpDesc extends PythonOperatorDescriptor with Standalo
        |    result[metric] = metrics_func[metric](y_true, y_pred)
        |  return pd.DataFrame(result, index=[0])
        |
-       |in1df = in1df.dropna(subset=[${pyStringLiteral(actualValueColumn)}, ${pyStringLiteral(
+       |# Bound to a name of its own: the same frame can feed another branch of the
+       |# plan, which must still see every row.
+       |scored_df = in1df.dropna(subset=[${pyStringLiteral(actualValueColumn)}, ${pyStringLiteral(
       predictValueColumn
     )}])
        |# Nothing survived the drop. The metrics answer that badly and each in its own
        |# way: the regression ones raise from inside scikit-learn, and the
        |# classification ones return a NaN score, which reads as a result.
-       |if in1df.empty:
+       |if scored_df.empty:
        |    raise ValueError("No rows left to score: every row is missing the actual value, the predicted value, or both.")
-       |y_true = in1df[${pyStringLiteral(actualValueColumn)}]
-       |y_pred = in1df[${pyStringLiteral(predictValueColumn)}]
+       |y_true = scored_df[${pyStringLiteral(actualValueColumn)}]
+       |y_pred = scored_df[${pyStringLiteral(predictValueColumn)}]
        |metric_list = [${getSelectedMetrics()}]
        |if $isRegressionStr:
        |    out1df = regression_metrics(y_true, y_pred, metric_list)
