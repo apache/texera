@@ -22,11 +22,15 @@ package org.apache.texera.amber.operator.visualization.pieChart
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
-import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
+  PythonTemplateBuilderStringContext,
+  pyStringLiteral
+}
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.PythonOperatorDescriptor
-import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
+import org.apache.texera.amber.operator.visualization.PlotlyStandaloneCode
+import org.apache.texera.amber.operator.metadata.annotations.{AutofillAttributeName, SampleColumn}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
 
@@ -42,7 +46,7 @@ import javax.validation.constraints.NotNull
   }
 }
 """)
-class PieChartOpDesc extends PythonOperatorDescriptor {
+class PieChartOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCode {
 
   @JsonProperty(value = "value", required = true)
   @JsonSchemaTitle("Value Column")
@@ -55,6 +59,7 @@ class PieChartOpDesc extends PythonOperatorDescriptor {
   @JsonSchemaTitle("Name Column")
   @JsonPropertyDescription("The name of the slice of pie")
   @AutofillAttributeName
+  @SampleColumn("uniq_name")
   @NotNull(message = "Name Column cannot be empty")
   var name: EncodableString = ""
 
@@ -126,6 +131,36 @@ class PieChartOpDesc extends PythonOperatorDescriptor {
          |
          |"""
     finalcode.encode
+  }
+
+  override def producesDataFrame(): Boolean = false
+
+  override def generateStandaloneCode(): String = {
+    val nameLit = pyStringLiteral(name)
+    val valueLit = pyStringLiteral(value)
+    s"""def render_error(error_msg):
+       |    return '''<h1>PieChart is not available.</h1>
+       |                  <p>Reason is: {} </p>
+       |               '''.format(error_msg)
+       |
+       |if in1df.empty:
+       |    with open("output.html", "w", encoding="utf-8") as output:
+       |        output.write(render_error("input table is empty."))
+       |else:
+       |    table = in1df.dropna(subset=[$valueLit, $nameLit])
+       |    if table.empty:
+       |        with open("output.html", "w", encoding="utf-8") as output:
+       |            output.write(render_error("value column contains only non-positive numbers."))
+       |    elif table.duplicated(subset=[$nameLit]).any():
+       |        with open("output.html", "w", encoding="utf-8") as output:
+       |            output.write(render_error("duplicates in name column, need to aggregate"))
+       |    else:
+       |        fig = px.pie(table, names=$nameLit, values=$valueLit)
+       |        fig.update_traces(textposition='inside', textinfo='percent+label')
+       |        fig.update_layout(margin=dict(t=0, b=0, l=0, r=0))
+       |        fig.write_json("output.json")
+       |        fig.write_html("output.html")
+       |        print("Pie chart saved to output.html")""".stripMargin
   }
 
 }

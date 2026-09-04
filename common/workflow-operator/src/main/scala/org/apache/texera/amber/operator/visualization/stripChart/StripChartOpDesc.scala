@@ -26,12 +26,14 @@ import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBui
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.PythonOperatorDescriptor
+import org.apache.texera.amber.operator.visualization.PlotlyStandaloneCode
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 
 import javax.validation.constraints.NotNull
 
-class StripChartOpDesc extends PythonOperatorDescriptor {
+class StripChartOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCode {
 
   @JsonProperty(value = "x", required = true)
   @JsonSchemaTitle("X-Axis Column")
@@ -121,4 +123,36 @@ class StripChartOpDesc extends PythonOperatorDescriptor {
        |        yield {'html-content': html}
        |""".encode
   }
+
+  override def producesDataFrame(): Boolean = false
+
+  override def generateStandaloneCode(): String = {
+    val xLit = pyStringLiteral(x)
+    val yLit = pyStringLiteral(y)
+    val colorByLit = pyStringLiteral(colorBy)
+    val facetColumnLit = pyStringLiteral(facetColumn)
+    val colorByParam = if (colorBy != null && colorBy.nonEmpty) s""", color=$colorByLit""" else ""
+    val facetColParam =
+      if (facetColumn != null && facetColumn.nonEmpty) s""", facet_col=$facetColumnLit""" else ""
+    s"""data = {
+       |    $xLit: in1df[$xLit],
+       |    $yLit: in1df[$yLit]
+       |}
+       |if $colorByLit:
+       |    data[$colorByLit] = in1df[$colorByLit]
+       |if $facetColumnLit:
+       |    data[$facetColumnLit] = in1df[$facetColumnLit]
+       |
+       |fig = px.strip(data, x=$xLit, y=$yLit$colorByParam$facetColParam)
+       |fig.update_traces(marker=dict(size=8, line=dict(width=0.5, color='DarkSlateGrey')))
+       |fig.update_layout(
+       |    xaxis_title=$xLit,
+       |    yaxis_title=$yLit,
+       |    hovermode='closest'
+       |)
+       |fig.write_json("output.json")
+       |fig.write_html("output.html")
+       |print("Strip chart saved to output.html")""".stripMargin
+  }
+
 }

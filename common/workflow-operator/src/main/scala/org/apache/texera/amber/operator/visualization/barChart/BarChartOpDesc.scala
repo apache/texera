@@ -22,10 +22,14 @@ package org.apache.texera.amber.operator.visualization.barChart
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
-import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
+  PythonTemplateBuilderStringContext,
+  pyStringLiteral
+}
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.PythonOperatorDescriptor
+import org.apache.texera.amber.operator.visualization.PlotlyStandaloneCode
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
@@ -42,7 +46,7 @@ import javax.validation.constraints.NotNull
   }
 }
 """)
-class BarChartOpDesc extends PythonOperatorDescriptor {
+class BarChartOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCode {
 
   @JsonProperty(value = "value", required = true)
   @JsonSchemaTitle("Value Column")
@@ -155,4 +159,56 @@ class BarChartOpDesc extends PythonOperatorDescriptor {
     finalCode.encode
   }
 
+  // Output is an HTML chart, not a tabular DataFrame.
+  // The translator skips it in the leaf-DataFrame print block.
+  override def producesDataFrame(): Boolean = false
+
+  override def generateStandaloneCode(): String = {
+    val hasCategory = categoryColumn.nonEmpty && categoryColumn != "No Selection"
+    val colorArg = if (hasCategory) pyStringLiteral(categoryColumn) else "None"
+    val patternArg = if (pattern.nonEmpty) pyStringLiteral(pattern) else "None"
+    val fieldsLit = pyStringLiteral(fields)
+    val valueLit = pyStringLiteral(value)
+
+    val barArgs =
+      if (horizontalOrientation)
+        s"""y=$fieldsLit, x=$valueLit, color=$colorArg, pattern_shape=$patternArg, orientation='h'"""
+      else
+        s"""y=$valueLit, x=$fieldsLit, color=$colorArg, pattern_shape=$patternArg"""
+
+    // The error page is written to output.html, the same file a plotted chart lands
+    // in, so a reason for "no chart" is where the reader looks for the chart —
+    // printing it to the terminal alone left output.html absent. render_error's
+    // continuation line keeps the runtime path's indentation, since the HTML is
+    // triple-quoted and those spaces reach the browser.
+    s"""def render_error(error_msg):
+       |    return '''<h1>Bar chart is not available.</h1>
+       |                  <p>Reason is: {} </p>
+       |               '''.format(error_msg)
+       |
+       |def fail(error_msg):
+       |    with open("output.html", "w", encoding="utf-8") as output:
+       |        output.write(render_error(error_msg))
+       |    print(f"Bar chart error: {error_msg}")
+       |
+       |if $fieldsLit == $valueLit:
+       |    fail("Fields should not have the same value.")
+       |elif in1df.empty:
+       |    # Checked before the dropna, unlike the runtime path: an empty table read
+       |    # back from JSONL carries no columns at all, so naming them in `subset`
+       |    # would raise a KeyError instead of reporting the empty table.
+       |    fail("Table should not have any empty/null values or fields.")
+       |else:
+       |    # Bound to a name of its own: the same frame can feed another branch
+       |    # of the plan, which must still see every row.
+       |    chart_df = in1df.dropna(subset=[$valueLit, $fieldsLit])
+       |    if chart_df.empty:
+       |        fail("Table should not have any empty/null values or fields.")
+       |    else:
+       |        fig = go.Figure(px.bar(chart_df, $barArgs))
+       |        fig.update_layout(margin=dict(l=0, r=0, t=0, b=0))
+       |        fig.write_json("output.json")
+       |        fig.write_html("output.html")
+       |        print("Bar chart saved to output.json and output.html")""".stripMargin
+  }
 }

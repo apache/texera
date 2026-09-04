@@ -26,9 +26,11 @@ import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBui
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.PythonOperatorDescriptor
+import org.apache.texera.amber.operator.visualization.PlotlyStandaloneCode
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 
 import javax.validation.constraints.NotNull
 
@@ -45,7 +47,7 @@ import javax.validation.constraints.NotNull
       "  }" +
       "}"
 )
-class ScatterplotOpDesc extends PythonOperatorDescriptor {
+class ScatterplotOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCode {
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("X-Column")
@@ -175,4 +177,43 @@ class ScatterplotOpDesc extends PythonOperatorDescriptor {
          |"""
     finalCode.encode
   }
+
+  override def producesDataFrame(): Boolean = false
+
+  override def generateStandaloneCode(): String = {
+    val dropCols = List(xColumn, yColumn, colorColumn)
+      .filter(_.nonEmpty)
+      .map(pyStringLiteral)
+      .mkString("[", ", ", "]")
+    val args = scala.collection.mutable.ArrayBuffer[String](
+      s"""x=${pyStringLiteral(xColumn)}""",
+      s"""y=${pyStringLiteral(yColumn)}""",
+      s"opacity=$alpha"
+    )
+    if (colorColumn.nonEmpty) args += s"""color=${pyStringLiteral(colorColumn)}"""
+    if (xLogScale) args += "log_x=True"
+    if (yLogScale) args += "log_y=True"
+    if (hoverName.nonEmpty) args += s"""hover_name=${pyStringLiteral(hoverName)}"""
+
+    s"""def render_error(error_msg):
+       |    return '''<h1>Scatter Plot is not available.</h1>
+       |                  <p>Reasons are: {} </p>
+       |               '''.format(error_msg)
+       |
+       |if in1df.empty:
+       |    with open("output.html", "w", encoding="utf-8") as output:
+       |        output.write(render_error("Input table is empty."))
+       |else:
+       |    table = in1df.dropna(subset=$dropCols).copy()
+       |    if table.empty:
+       |        with open("output.html", "w", encoding="utf-8") as output:
+       |            output.write(render_error("No valid rows left (every row has at least 1 missing value)."))
+       |    else:
+       |        fig = go.Figure(px.scatter(table, ${args.mkString(", ")}))
+       |        fig.update_layout(margin=dict(l=0, r=0, t=0, b=0))
+       |        fig.write_json("output.json")
+       |        fig.write_html("output.html")
+       |        print("Scatter plot saved to output.html")""".stripMargin
+  }
+
 }
