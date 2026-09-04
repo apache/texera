@@ -1,0 +1,166 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+/* Colours are Texera's own: ng-zorro blue and the #d9d9d9 / #f0f0f0 neutrals. */
+$blue: #1890ff;
+$text: rgba(0, 0, 0, 0.85);
+$text-2: rgba(0, 0, 0, 0.45);
+$divider: #f0f0f0;
+
+:host {
+  display: block;
+  background: #fff;
+  color: $text;
+  overflow-y: auto;
+  height: 100%;
+}
+
+/* Measured against the operator canvas's #menu-user so the two rows are the same row:
+   36px tall, a 1px rule underneath, full bleed across the content area. Anything the
+   view switch needs to line up with lives here, not in the padded column below. */
+.pc-topbar {
+  height: 36px;
+  margin: 1px;
+  border-bottom: 1px solid #cacaca;
+  display: flex;
+  align-items: center;
+  // Pinned to the top so the Canvas / Form view switch (and the workflow name) stay
+  // reachable while scrolling the preview/results below.
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: #fff;
+
+  /* Trims the difference between this row's right edge and the operator canvas's, so
+     the switch and the user icon land on the same x in both views. */
+  padding-right: 10px;
+
+  /* The operator canvas pins its avatar to the top of the row with a 1px nudge rather
+     than centring it; copying that is what puts the two on the same pixel. */
+  .wid {
+    flex: none;
+    margin-left: 3px;
+    align-self: flex-start;
+    margin-top: 1px;
+  }
+
+  /* The operator canvas puts 0 gap between its avatar and name, which carries its own
+     padding; matching that is what lines the two titles up. */
+  gap: 0;
+
+  /* Every value here is the operator canvas's .workflow-name, so the two title rows read
+     as the same row: the same size, weight and padding. Shown here; the editable input is
+     the next PR. */
+  .wf-name {
+    min-width: 100px;
+    max-width: 800px;
+    font-size: 18px;
+    font-weight: 400;
+    padding: 2px 8px;
+    color: $text;
+  }
+
+  .topbar-spacer {
+    flex: 1;
+  }
+
+  /* Sized by its own content, exactly as on the operator canvas -- reserving a fixed
+     width here pushed the switch 74px further left than its counterpart. */
+  texera-user-icon {
+    flex: none;
+  }
+}
+
+/* One workflow, two ways of working on it. Rendered identically in the operator canvas
+   and the Form View, in the same slot of the same title row, so the control never moves
+   when the view does -- that stillness is what makes the two read as two views of one
+   thing rather than two pages.
+
+   Deliberately quiet: the indicator is a rule sitting on the row's own bottom border,
+   not a filled button. This is secondary navigation and it shares a screen with Run,
+   which is the one thing here that should be solid blue. The current view is inert --
+   clicking the view you are already in should do nothing. */
+.view-switch {
+  display: inline-flex;
+  align-self: stretch;
+  align-items: stretch;
+  flex: none;
+  gap: 20px;
+  margin-right: 20px;
+
+  button {
+    appearance: none;
+    border: 0;
+    background: none;
+    cursor: pointer;
+    font: inherit;
+    font-size: 13px;
+    color: rgba(0, 0, 0, 0.45);
+    padding: 0;
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    white-space: nowrap;
+    transition: color 0.15s;
+
+    /* Sits on the row's bottom rule, so the two read as tabs of the row rather than
+       as a widget dropped into it. */
+    &::after {
+      content: "";
+      position: absolute;
+      left: -2px;
+      right: -2px;
+      bottom: -1px;
+      height: 2px;
+      background: transparent;
+      transition: background 0.15s;
+    }
+
+    &:hover:not(.on) {
+      color: rgba(0, 0, 0, 0.85);
+    }
+  }
+
+  button.on {
+    color: rgba(0, 0, 0, 0.85);
+    font-weight: 500;
+    cursor: default;
+
+    &::after {
+      background: $blue;
+    }
+  }
+}
+
+.pc-page {
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 22px 24px 80px;
+}
+
+.pc-rule {
+  height: 1px;
+  background: $divider;
+  margin: 20px 0 24px;
+}
+
+.pc-loading {
+  color: $text-2;
+  padding: 40px 0;
+}

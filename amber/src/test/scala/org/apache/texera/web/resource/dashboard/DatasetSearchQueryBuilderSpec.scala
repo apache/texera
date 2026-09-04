@@ -153,8 +153,8 @@ import scala.jdk.CollectionConverters._
   *
   * Covered but unconstrainable, so no reviewer should count it as pinned behaviour:
   *   - the `.filter(_.nonEmpty)` after the keyword split. `getFullTextSearchFilter` re-applies
-  *     `keywords.filter(_.nonEmpty)` itself (`FulltextSearchQueryUtils:43`), so dropping it here is
-  *     an equivalent mutation — no observable differs.
+  *     `keywords.map(_.trim).filter(_.nonEmpty)` itself (`FulltextSearchQueryUtils:43`), so
+  *     dropping it here is an equivalent mutation — no observable differs.
   */
 class DatasetSearchQueryBuilderSpec
     extends AnyFlatSpec

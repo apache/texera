@@ -20,6 +20,9 @@
 #     (.github/workflows/backport-auto-label.yml), so backports are opt-out
 #     rather than easy-to-forget opt-in;
 #   - requests review from the branch's release manager on those PRs;
+#   - blocks the merge until that manager has approved the PR, or removed the
+#     label to decline (.github/workflows/backport-approval-check.yml, the
+#     required `Backport Approvals` check — see `manager` below);
 #   - drives the post-merge backport (.github/workflows/direct-backport-push.yml):
 #     a green pre-merge backport check cherry-picks straight to the branch, a
 #     red one opens a draft backport PR assigned to the author with the manager
@@ -29,14 +32,32 @@
 # `release/v1.2`).
 #
 # `actively-supporting` controls the default: only actively-supporting branches
-# are auto-labeled on new `fix:` PRs. An inactive branch stays a valid backport
-# target — a maintainer can still add its label by hand and the apply-check /
-# post-merge backport run as usual — it just isn't offered by default. Omitting
-# the field defaults to true. When a branch reaches end-of-life, drop its entry
-# entirely.
+# are auto-labeled on new `fix:` PRs, and only they get their manager's review
+# requested. An inactive branch stays a valid backport target — a maintainer can
+# add its label by hand, and the apply-check and post-merge backport run — but
+# its manager must still approve before the PR can merge, and nothing asks them
+# to: no review is requested for an inactive branch, so whoever adds the label
+# should ping the manager themselves. Omitting the field defaults to true. When
+# a branch reaches end-of-life, drop its entry entirely.
 #
-# `manager` is a GitHub username. It may be omitted (leave the branch as a
-# backport target without an auto-requested reviewer), but is recommended.
+# `manager` is a GitHub username, and it is that branch's approval gate: the
+# `release/*` label only *nominates* a target, and the fix is backported there
+# only once the manager has approved the PR. A manager who wrote the fix counts
+# as having approved it, since GitHub does not let anyone approve their own PR.
+#
+# Because that approval is required to merge, declining is an action rather than
+# silence: the manager removes their branch's label. The author's part is to ask
+# for that call, not to make it — and editing labels needs triage access, so any
+# committer can remove one on a manager's behalf.
+#
+# Each manager decides alone, but the merge waits for all of them: with v1.2 and
+# v1.3 both labeled it stays blocked until each manager has approved or removed
+# their own label, and the fix then goes to exactly the labels left.
+#
+# `manager` may be omitted, which leaves the branch ungated — no auto-requested
+# reviewer and no approval required — but setting one is strongly recommended.
+# A `release/*` label naming a branch that is not listed here at all is not
+# ungated: it is held back, since nobody is designated to approve it.
 targets:
   - branch: release/v1.3
     manager: mengw15

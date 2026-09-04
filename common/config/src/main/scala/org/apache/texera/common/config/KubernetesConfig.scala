@@ -64,4 +64,18 @@ object KubernetesConfig {
 
   // GPU resource key used directly in Kubernetes resource specifications
   val gpuResourceKey: String = conf.getString("kubernetes.computing-unit-gpu-resource-key")
+
+  // Per-user JupyterLab pods, gated independently of computing units.
+  val jupyterEnabled: Boolean = conf.getBoolean("kubernetes.jupyter-enabled")
+  val jupyterNamespace: String = conf.getString("kubernetes.jupyter-namespace")
+  val jupyterServiceName: String = conf.getString("kubernetes.jupyter-service-name")
+  val jupyterImageName: String = conf.getString("kubernetes.jupyter-image-name")
+  val jupyterPortNumber: Int = conf.getInt("kubernetes.jupyter-port-num")
+  val jupyterCpuLimit: String = conf.getString("kubernetes.jupyter-cpu-limit")
+  val jupyterMemoryLimit: String = conf.getString("kubernetes.jupyter-memory-limit")
+  val jupyterTexeraOrigin: String = conf.getString("kubernetes.jupyter-texera-origin")
+
+  // Browser-facing address with {uid} substituted; empty means use the in-network one.
+  val jupyterPublicUrlTemplate: String =
+    conf.getString("kubernetes.jupyter-public-url-template")
 }

@@ -151,9 +151,7 @@
             </div>
             <div class="stat-row">
               <span class="stat-label">Latest version size</span>
-              <span class="stat-value"
-                >{{ latestVersionSize === undefined ? "—" : formatSize(latestVersionSize) }}</span
-              >
+              <span class="stat-value">{{ formatSize(latestVersionSize) }}</span>
             </div>
           </div>
         </nz-card>
@@ -349,6 +347,7 @@
                 <texera-user-dataset-version-filetree
                   [fileTreeNodes]="fileTreeNodeList"
                   [isTreeNodeDeletable]="userHasWriteAccess()"
+                  [isCoverSettable]="userHasWriteAccess()"
                   (selectedTreeNode)="onVersionFileTreeNodeSelected($event)"
                   (deletedTreeNode)="onPreviouslyUploadedFileDeleted($event)"
                   (setCoverImage)="onSetCoverImage($event)">

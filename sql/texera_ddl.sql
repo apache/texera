@@ -81,6 +81,7 @@ DROP TABLE IF EXISTS site_settings CASCADE;
 DROP TABLE IF EXISTS computing_unit_user_access CASCADE;
 DROP TABLE IF EXISTS notebook CASCADE;
 DROP TABLE IF EXISTS workflow_notebook_mapping CASCADE;
+DROP TABLE IF EXISTS user_jupyter CASCADE;
 DROP TABLE IF EXISTS virtual_environments CASCADE;
 
 -- ============================================
@@ -673,6 +674,20 @@ CREATE TABLE IF NOT EXISTS workflow_notebook_mapping
     PRIMARY KEY (wid, vid, nid),
     FOREIGN KEY (vid) REFERENCES workflow_version(vid) ON DELETE CASCADE,
     FOREIGN KEY (wid, nid) REFERENCES notebook(wid, nid) ON DELETE CASCADE
+);
+
+-- Per-user JupyterLab registration: one row per provisioned user, so the service resolves
+-- endpoints per user instead of from process-wide config. Both URLs are stored rather than
+-- derived, matching workflow_computing_unit.uri, so addressing can change without a code
+-- change: internal_url is what the service calls, public_url is what the browser loads.
+-- The token is derived from a server secret and the uid, so it is not stored.
+CREATE TABLE IF NOT EXISTS user_jupyter
+(
+    uid          INT          NOT NULL PRIMARY KEY,
+    internal_url VARCHAR(512) NOT NULL,
+    public_url   VARCHAR(512) NOT NULL,
+    created_at   TIMESTAMPTZ  NOT NULL DEFAULT now(),
+    FOREIGN KEY (uid) REFERENCES "user"(uid) ON DELETE CASCADE
 );
 
 -- START Fulltext search index creation (DO NOT EDIT THIS LINE)

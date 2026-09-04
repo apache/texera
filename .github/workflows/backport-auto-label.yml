@@ -22,6 +22,13 @@
 # later edit never silently re-adds a label the author took off. `fix(ci):` PRs
 # only touch CI and are never backported, so they are left alone.
 #
+# A label nominates a target; it does not decide one. The branch's release
+# manager still has to approve the PR for the fix to land there, and that
+# approval is required to merge (.github/workflows/backport-approval-check.yml).
+# So a manager declines by removing their label, not by staying silent, and the
+# labels left on a merged PR are exactly the branches it was backported to.
+# Managers are configured in .github/release-branches.yml.
+#
 # Every decision is also written back to the PR as a single, in-place-updated
 # report comment: one row per actively-supported release branch saying whether
 # the label was added (change detected on that branch) or skipped, and why. The
@@ -61,14 +68,17 @@ jobs:
     if: ${{ github.event.pull_request.base.ref == 'main' }}
     runs-on: ubuntu-latest
     steps:
-      # Check out the base commit (a trusted commit already on main) so the
-      # release-branches config and its parser come from the base repo, never
-      # from the (untrusted) PR head. pull_request_target runs with write
-      # permissions, so we must not execute PR-controlled code here.
-      - name: Checkout base
+      # The default branch: a ref that does not derive from the pull request,
+      # which matters because pull_request_target runs with write permissions.
+      # `base.sha` was the previous choice and is stale — main's tip at the PR's
+      # last synchronize — so on a PR untouched since #6941 the step below dies
+      # with a file-not-found, as it has 20 times since 2026-07-28. A labeler
+      # that dies applies no `release/*` label, Backport Approvals then finds
+      # nothing to approve and passes, and the fix is silently never backported.
+      - name: Checkout the default branch
         uses: actions/checkout@v7
         with:
-          ref: ${{ github.event.pull_request.base.sha }}
+          ref: ${{ github.event.repository.default_branch }}
           persist-credentials: false
 
       - name: Read release branches
@@ -125,6 +135,12 @@ jobs:
               }
 
               const author = pr.user?.login;
+              // Logins are case-insensitive while `manager` is hand-typed, so
+              // fold both. Backport Approvals folds them too and the two must
+              // agree: otherwise it clears the branch while this report tells
+              // the author to wait for an approval that cannot come.
+              const authorLogin = (author || "").toLowerCase();
+              const managerIsAuthor = (m) => (m || "").toLowerCase() === authorLogin;
               const currentLabels = new Set((pr.labels || []).map((l) => l.name));
 
               // Hard manual override: a maintainer marks a PR that must never be
@@ -205,11 +221,22 @@ jobs:
               for (const entry of entries) {
                 const label = entry.branch;
                 const manager = entry.manager;
+                // Say who has to sign off, so the label is not mistaken for the
+                // decision. A manager who wrote the fix needs no approval —
+                // GitHub does not let anyone approve their own PR.
+                const gate =
+                  manager && !managerIsAuthor(manager)
+                    ? ` @${manager} decides: approving sends the fix here, ` +
+                      `removing this label declines it. The merge waits on one ` +
+                      `or the other.`
+                    : "";
 
                 // Only actively-supporting branches are analyzed / auto-labeled.
-                // An inactive branch stays a valid manual target (label it by
-                // hand and the apply-check / post-merge backport still run) — it
-                // just isn't offered by default and is left out of the report.
+                // An inactive branch stays a valid manual target — label it by
+                // hand and the apply-check and post-merge backport still run —
+                // but its manager must approve before the PR can merge, and the
+                // `continue` below means no review is requested for it, so
+                // whoever adds the label should ping the manager themselves.
                 if (!entry.active) {
                   core.info(`${label} is not actively-supporting; not auto-labeling.`);
                   continue;
@@ -219,7 +246,8 @@ jobs:
                   rows.push({
                     branch: label,
                     status: "labeled",
-                    note: "Already labeled — this fix is queued to backport here.",
+                    note:
+                      "Already labeled — this fix is queued to backport here." + gate,
                   });
                   continue;
                 }
@@ -230,7 +258,9 @@ jobs:
                     status: "declined",
                     note:
                       "Label was removed earlier (opt-out); not re-added. Re-add " +
-                      "it by hand if this fix should be backported here after all.",
+                      "it by hand if this fix should be backported here after all — " +
+                      "the branch's release manager then has to approve before this " +
+                      "PR can merge.",
                   });
                   continue;
                 }
@@ -249,7 +279,9 @@ jobs:
                       `modifies exist on this branch (${fileList}). The fix may ` +
                       "target code that isn't on this release, or the files were " +
                       "moved/renamed after the branch was cut. **Please check and " +
-                      `add \`${label}\` by hand if this fix should be backported here.**`,
+                      `add \`${label}\` by hand if this fix should be backported here** ` +
+                      "— its release manager then has to approve before this PR can " +
+                      "merge.",
                   });
                   continue;
                 }
@@ -263,14 +295,14 @@ jobs:
                 });
                 core.info(`Added ${label} to PR #${pr.number}.`);
 
-                const note = analysis.checked.length > 0
+                const note = (analysis.checked.length > 0
                   ? "Change detected on this branch — label added; this fix is queued to backport here."
-                  : "Label added by default (this fix only adds files); the pre-merge backport check confirms it applies.";
+                  : "Label added by default (this fix only adds files); the pre-merge backport check confirms it applies.") + gate;
                 rows.push({ branch: label, status: "labeled", note });
 
-                if (manager && manager !== author) {
+                if (manager && !managerIsAuthor(manager)) {
                   reviewRequests.push({ manager, branch: label });
-                } else if (manager === author) {
+                } else if (managerIsAuthor(manager)) {
                   core.info(`Release manager ${manager} is the author; skipping review request.`);
                 }
               }
@@ -370,7 +402,9 @@ jobs:
                 });
                 core.info(`Requested review from ${req.manager} for ${req.branch}.`);
                 const row = rowByBranch.get(req.branch);
-                if (row) row.note += ` Requested review from @${req.manager}.`;
+                // The row's gate sentence already names the manager, so the
+                // ping only needs to say that it happened.
+                if (row) row.note += " Review requested.";
               } catch (e) {
                 core.warning(
                   `Could not request review from ${req.manager} (status ${e.status ?? "?"}): ${e.message}`
@@ -386,8 +420,12 @@ jobs:
             await upsertReport(
               "### Backport auto-label report\n\n" +
               "This `fix:` PR was checked against each actively-supported " +
-              "release branch. `release/*` labels drive the post-merge " +
-              "backport, so add or remove one to change where this fix lands.\n\n" +
+              "release branch. A `release/*` label nominates a backport target; " +
+              "the branch's release manager approving this PR is what sends the " +
+              "fix there. The required **Backport Approvals** check stays red " +
+              "until every label below is approved, so each manager either " +
+              "approves or removes their own label — which is why the labels " +
+              "left on a merged PR are exactly the branches it reached.\n\n" +
               "| Release branch | Analysis |\n| --- | --- |\n" +
               rows +
               "\n\n" +

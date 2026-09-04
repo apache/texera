@@ -30,6 +30,7 @@ import { WorkflowActionService } from "../../service/workflow-graph/model/workfl
 import { OperatorPropertyEditFrameComponent } from "./operator-property-edit-frame/operator-property-edit-frame.component";
 import { PortPropertyEditFrameComponent } from "./port-property-edit-frame/port-property-edit-frame.component";
 import { PanelService } from "../../service/panel/panel.service";
+import { FormBindingService } from "../../service/form-binding/form-binding.service";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { OperatorMetadataService } from "../../service/operator-metadata/operator-metadata.service";
 import { StubOperatorMetadataService } from "../../service/operator-metadata/stub-operator-metadata.service";
@@ -96,6 +97,7 @@ describe("PropertyEditorComponent", () => {
     expect(component.currentComponent).toBe(OperatorPropertyEditFrameComponent);
     expect(component.componentInputs).toEqual({
       currentOperatorId: mockScanPredicate.operatorID,
+      exposeChoosing: false,
     });
 
     // unhighlight the operator
@@ -145,6 +147,7 @@ describe("PropertyEditorComponent", () => {
     expect(component.currentComponent).toBe(OperatorPropertyEditFrameComponent);
     expect(component.componentInputs).toEqual({
       currentOperatorId: mockScanPredicate.operatorID,
+      exposeChoosing: false,
     });
 
     // unhighlight the operator
@@ -160,6 +163,7 @@ describe("PropertyEditorComponent", () => {
     expect(component.currentComponent).toBe(OperatorPropertyEditFrameComponent);
     expect(component.componentInputs).toEqual({
       currentOperatorId: mockResultPredicate.operatorID,
+      exposeChoosing: false,
     });
   });
 
@@ -422,5 +426,101 @@ describe("PropertyEditorComponent", () => {
 
       expect(component.width).toBe(280);
     });
+  });
+
+  describe("choosing which properties the Form View exposes", () => {
+    it("toggles choosing through the shared service", () => {
+      const service = TestBed.inject(FormBindingService);
+      vi.spyOn(service, "isChoosing").mockReturnValue(false);
+      const setChoosing = vi.spyOn(service, "setChoosing");
+
+      component.toggleChoosing();
+
+      expect(setChoosing).toHaveBeenCalledWith(true);
+    });
+
+    it("renders the choose-fields button and toggles choosing when it is clicked", () => {
+      const service = TestBed.inject(FormBindingService);
+      vi.spyOn(service, "isChoosing").mockReturnValue(false);
+      const setChoosing = vi.spyOn(service, "setChoosing");
+      // The button is offered only where the Form View flag is on and the panel is open.
+      vi.spyOn(component, "formViewFeatureEnabled", "get").mockReturnValue(true);
+      component.width = 300;
+      fixture.detectChanges();
+
+      const button = fixture.nativeElement.querySelector("button.choose-fields") as HTMLButtonElement;
+      expect(button).toBeTruthy();
+      button.click();
+
+      expect(setChoosing).toHaveBeenCalledWith(true);
+    });
+
+    it("hides the choose-fields button when the Form View flag is off", () => {
+      vi.spyOn(component, "formViewFeatureEnabled", "get").mockReturnValue(false);
+      component.width = 300;
+      fixture.detectChanges();
+
+      expect(fixture.nativeElement.querySelector("button.choose-fields")).toBeNull();
+    });
+
+    it("remounts the operator frame when the expose-choosing input changes after first render", fakeAsync(() => {
+      component.currentComponent = OperatorPropertyEditFrameComponent;
+
+      component.ngOnChanges({
+        exposeChoosing: { firstChange: false, currentValue: true, previousValue: false, isFirstChange: () => false },
+      });
+      expect(component.currentComponent).toBeNull();
+      tick();
+
+      expect(component.currentComponent).toBe(OperatorPropertyEditFrameComponent);
+    }));
+
+    // The rebuild is deferred to a timer; if the panel is destroyed before it fires, the
+    // timer must not run detectChanges on the destroyed view (which throws).
+    it("skips the deferred frame rebuild when the view is destroyed before the timer fires", fakeAsync(() => {
+      const f = TestBed.createComponent(PropertyEditorComponent);
+      const comp = f.componentInstance;
+      f.detectChanges();
+      comp.currentComponent = OperatorPropertyEditFrameComponent;
+
+      comp.ngOnChanges({
+        exposeChoosing: { firstChange: false, currentValue: true, previousValue: false, isFirstChange: () => false },
+      });
+      expect(comp.currentComponent).toBeNull();
+
+      f.destroy();
+
+      expect(() => tick()).not.toThrow();
+    }));
+
+    it("does not remount when no operator frame is showing", () => {
+      component.currentComponent = null;
+
+      component.ngOnChanges({
+        exposeChoosing: { firstChange: false, currentValue: true, previousValue: false, isFirstChange: () => false },
+      });
+
+      expect(component.currentComponent).toBeNull();
+    });
+
+    it("leaves the frame alone on the input's first change", () => {
+      component.currentComponent = OperatorPropertyEditFrameComponent;
+
+      component.ngOnChanges({
+        exposeChoosing: { firstChange: true, currentValue: true, previousValue: undefined, isFirstChange: () => true },
+      });
+
+      expect(component.currentComponent).toBe(OperatorPropertyEditFrameComponent);
+    });
+
+    it("remounts the frame when the toolbar toggles choosing", fakeAsync(() => {
+      component.currentComponent = OperatorPropertyEditFrameComponent;
+
+      TestBed.inject(FormBindingService).setChoosing(true);
+      expect(component.currentComponent).toBeNull();
+      tick();
+
+      expect(component.currentComponent).toBe(OperatorPropertyEditFrameComponent);
+    }));
   });
 });

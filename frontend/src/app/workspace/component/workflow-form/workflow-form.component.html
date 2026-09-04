@@ -1,0 +1,65 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+
+<!-- The operator canvas's title row, rebuilt here to the same measurements: same
+     height, same rule underneath, same full-bleed width, and the view switch pinned to
+     the same right inset ahead of the same user icon. The name is shown here; making it
+     editable (with the same rename/save the canvas gives) is the next PR. -->
+<div class="pc-topbar">
+  <nz-avatar
+    *ngIf="wid"
+    class="wid"
+    [nzText]="wid.toString()"></nz-avatar>
+  <span class="wf-name">{{ workflowName || "Untitled workflow" }}</span>
+  <span class="topbar-spacer"></span>
+  <div class="view-switch">
+    <button
+      type="button"
+      aria-pressed="false"
+      (click)="openRegularCanvas()">
+      Canvas
+    </button>
+    <button
+      type="button"
+      class="on"
+      aria-pressed="true">
+      Form View
+    </button>
+  </div>
+  <!-- Live collaborators, the same avatars the operator canvas shows -- Form view is just
+       another view of the same shared workflow, so co-editors belong here too. -->
+  <ng-container *ngFor="let user of coeditorPresenceService.coeditors">
+    <texera-coeditor-user-icon [coeditor]="user"></texera-coeditor-user-icon>
+  </ng-container>
+  <texera-user-icon></texera-user-icon>
+</div>
+
+<div class="pc-page">
+  <div class="pc-rule"></div>
+
+  <div
+    *ngIf="loading"
+    class="pc-loading">
+    Loading…
+  </div>
+
+  <!-- Body is filled in by the following PRs: the read-only workflow preview, the inputs,
+       running and the results. This PR is the page shell -- load, show, hand back. -->
+  <div [hidden]="loading"></div>
+</div>
