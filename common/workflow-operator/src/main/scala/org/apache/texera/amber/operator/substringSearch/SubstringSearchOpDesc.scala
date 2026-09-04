@@ -20,26 +20,38 @@
 package org.apache.texera.amber.operator.substringSearch
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
-import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
+import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PhysicalOp}
+import org.apache.texera.amber.operator.StandaloneCodeGenerator
 import org.apache.texera.amber.operator.filter.FilterOpDesc
-import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
+import org.apache.texera.amber.operator.metadata.annotations.{AutofillAttributeName, SampleColumn}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
-class SubstringSearchOpDesc extends FilterOpDesc {
+class SubstringSearchOpDesc extends FilterOpDesc with StandaloneCodeGenerator {
 
+  // Verification reads a column holding lower-case, upper-case and letterless rows,
+  // so that flipping Case Sensitive changes WHICH rows match. On a single-case column
+  // it changes nothing and the sweep decides nothing.
   @JsonProperty(required = true)
   @JsonSchemaTitle("attribute")
   @JsonPropertyDescription("column to search substring on")
   @AutofillAttributeName
+  @SampleColumn("mixed_case")
   var attribute: String = _
 
+  // A letter-bearing sample, for the same reason -- case cannot matter to a digit.
   @JsonProperty(required = true)
   @JsonSchemaTitle("Substring")
   @JsonPropertyDescription("substring")
+  @JsonSchemaInject(json = """
+{
+  "examples": ["ab"]
+}
+""")
   var substring: String = _
 
   @JsonProperty(required = true, defaultValue = "false")
@@ -74,4 +86,17 @@ class SubstringSearchOpDesc extends FilterOpDesc {
       outputPorts = List(OutputPort()),
       supportReconfiguration = true
     )
+
+  override def generateStandaloneCode(): String = {
+    // JVM uses String.contains (case-sensitive) or toLowerCase.contains
+    // (case-insensitive). pandas str.contains with regex=False is the direct
+    // equivalent — the substring is matched literally, not as a regex.
+    val pyLiteral = pyStringLiteral(Option(substring).getOrElse(""))
+    val caseArg = if (isCaseSensitive) "True" else "False"
+    val attrLit = pyStringLiteral(attribute)
+    // `astype(str)` turns an empty cell into the text "nan", which a substring can
+    // match, so the rows with nothing in the column are dropped before the match
+    // rather than left to `na=False`, which by then has no null to see.
+    s"""out1df = in1df[in1df[$attrLit].notna() & in1df[$attrLit].astype(str).str.contains($pyLiteral, regex=False, case=$caseArg, na=False)].reset_index(drop=True)"""
+  }
 }

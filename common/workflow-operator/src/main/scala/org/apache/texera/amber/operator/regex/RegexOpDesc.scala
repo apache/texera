@@ -24,12 +24,14 @@ import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PhysicalOp}
+import org.apache.texera.amber.operator.StandaloneCodeGenerator
 import org.apache.texera.amber.operator.filter.FilterOpDesc
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
-class RegexOpDesc extends FilterOpDesc {
+class RegexOpDesc extends FilterOpDesc with StandaloneCodeGenerator {
 
   @JsonProperty(value = "attribute", required = true)
   @JsonPropertyDescription("column to search regex on")
@@ -72,4 +74,17 @@ class RegexOpDesc extends FilterOpDesc {
       outputPorts = List(OutputPort()),
       supportReconfiguration = true
     )
+
+  override def generateStandaloneCode(): String = {
+    // JVM uses Java Pattern.matcher(v).find — partial match. pandas str.contains
+    // is also partial by default. Java-only regex syntax (\Q\E, possessive
+    // quantifiers, etc.) may behave differently in Python's re engine.
+    val pyLiteral = pyStringLiteral(Option(regex).getOrElse(""))
+    val caseArg = if (caseInsensitive) "False" else "True"
+    val attrLit = pyStringLiteral(attribute)
+    // `astype(str)` turns an empty cell into the text "nan", which a pattern can
+    // match, so the rows with nothing in the column are dropped before the match
+    // rather than left to `na=False`, which by then has no null to see.
+    s"""out1df = in1df[in1df[$attrLit].notna() & in1df[$attrLit].astype(str).str.contains($pyLiteral, regex=True, case=$caseArg, na=False)].reset_index(drop=True)"""
+  }
 }

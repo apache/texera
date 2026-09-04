@@ -59,6 +59,27 @@ class ReservoirSamplingOpDescSpec extends AnyFlatSpec with Matchers {
     restored.asInstanceOf[ReservoirSamplingOpDesc].k shouldBe 100
   }
 
+  // Algorithm R: fill the reservoir with the first k rows, then replace a
+  // uniformly-drawn slot for each later row. Pin the whole snippet — the
+  // generated Python is indentation-sensitive.
+  "ReservoirSamplingOpDesc.generateStandaloneCode" should
+    "emit a seeded Algorithm R reservoir over the input rows" in {
+    val d = new ReservoirSamplingOpDesc
+    d.k = 3
+    d.generateStandaloneCode() shouldBe
+      """_texera_rs_rng = _TexeraJavaRandom(1)
+        |_texera_rs_k = 3
+        |_texera_rs_reservoir = []
+        |for _texera_rs_n, _texera_rs_row in enumerate(in1df.itertuples(index=False, name=None)):
+        |    if _texera_rs_n < _texera_rs_k:
+        |        _texera_rs_reservoir.append(_texera_rs_row)
+        |    else:
+        |        _texera_rs_i = _texera_rs_rng.next_int(_texera_rs_n)
+        |        if _texera_rs_i < _texera_rs_k:
+        |            _texera_rs_reservoir[_texera_rs_i] = _texera_rs_row
+        |out1df = pd.DataFrame(_texera_rs_reservoir, columns=list(in1df.columns)).reset_index(drop=True)""".stripMargin
+  }
+
   "ReservoirSamplingOpDesc.getPhysicalOp" should
     "wire the ReservoirSamplingOpExec class name and carry ports" in {
     val d = new ReservoirSamplingOpDesc

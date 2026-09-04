@@ -29,12 +29,12 @@ import com.kjetland.jackson.jsonSchema.annotations.{
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow._
-import org.apache.texera.amber.operator.LogicalOp
+import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator, StandaloneHelpers}
 import org.apache.texera.amber.operator.metadata.annotations.HideAnnotation
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
-class SplitOpDesc extends LogicalOp {
+class SplitOpDesc extends LogicalOp with StandaloneCodeGenerator {
 
   @JsonSchemaTitle("Split Percentage")
   @JsonProperty(defaultValue = "80")
@@ -99,4 +99,25 @@ class SplitOpDesc extends LogicalOp {
     )
   }
 
+  override def standaloneHelpers(): Seq[String] = Seq(StandaloneHelpers.JavaRandom)
+
+  override def generateStandaloneCode(): String = {
+    // The executor sends each tuple to the upper port iff nextInt(100) < k,
+    // drawing from one generator per run. Reproducing that draw keeps the same
+    // rows on the same side; the mask drives both ports, so `out1df` takes the
+    // upper k% and `out2df` the remainder and the two partition the input.
+    //
+    // With "Auto-Generate Seed" the executor seeds from the clock, so that run
+    // is not reproducible by anything, itself included — the script then seeds
+    // from its own clock, matching the intent rather than a particular run.
+    val seedExpr = if (random) "int(_texera_time.time() * 1000)" else seed.toString
+    val timeImport = if (random) "import time as _texera_time\n" else ""
+    s"""${timeImport}_texera_split_rng = _TexeraJavaRandom($seedExpr)
+       |_texera_split_mask = pd.Series(
+       |    [_texera_split_rng.next_int(100) < $k for _ in range(len(in1df))],
+       |    index=in1df.index, dtype=bool
+       |)
+       |out1df = in1df[_texera_split_mask].reset_index(drop=True)
+       |out2df = in1df[~_texera_split_mask].reset_index(drop=True)""".stripMargin
+  }
 }

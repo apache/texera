@@ -29,14 +29,16 @@ import org.apache.texera.amber.core.virtualidentity.{
   WorkflowIdentity
 }
 import org.apache.texera.amber.core.workflow._
-import org.apache.texera.amber.operator.LogicalOp
+import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeNameList
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
 import javax.validation.constraints.{NotNull, Size}
 
-class AggregateOpDesc extends LogicalOp {
+class AggregateOpDesc extends LogicalOp with StandaloneCodeGenerator {
+
   @JsonProperty(value = "aggregations", required = true)
   @JsonPropertyDescription("multiple aggregation functions")
   @NotNull(message = "aggregation cannot be null")
@@ -138,4 +140,93 @@ class AggregateOpDesc extends LogicalOp {
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort())
     )
+
+  // The engine aggregates in two phases across partitions; one process needs
+  // only the one groupby, or a single-row reduction when no key is grouped on.
+  //
+  // Must run before `getPhysicalPlan`, which rewrites `aggregations` in place:
+  // it turns COUNT into SUM for the final phase, and this reads them as written.
+  override def generateStandaloneCode(): String = {
+    val keys = Option(groupByKeys).getOrElse(List())
+    val aggs = Option(aggregations).getOrElse(List())
+
+    // Identical helper definition each call — keeps the standalone module
+    // self-contained without relying on a shared prelude.
+    val concatHelper =
+      """def _texera_agg_concat(series):
+        |    parts = []
+        |    started = False
+        |    for v in series:
+        |        if not started:
+        |            if pd.isna(v):
+        |                continue
+        |            parts.append(str(v))
+        |            started = True
+        |        else:
+        |            parts.append("" if pd.isna(v) else str(v))
+        |    return ",".join(parts)""".stripMargin
+
+    if (keys.isEmpty) {
+      val rowEntries = aggs
+        .map(agg => s"    ${pyStringLiteral(agg.resultAttribute)}: ${aggExprScalar(agg)},")
+        .mkString("\n")
+      s"""$concatHelper
+         |out1df = pd.DataFrame([{
+         |$rowEntries
+         |}])""".stripMargin
+    } else {
+      val keysLit = keys.map(pyStringLiteral).mkString("[", ", ", "]")
+      val aggLines = aggs.zipWithIndex
+        .map {
+          case (agg, i) =>
+            s"_texera_agg_s$i = ${aggExprGroupby(agg, "_texera_agg_groups")}"
+        }
+        .mkString("\n")
+      val mergeLines = aggs.indices
+        .map(i =>
+          s"""out1df = out1df.merge(_texera_agg_s$i.reset_index(), on=$keysLit, how="left")"""
+        )
+        .mkString("\n")
+      s"""$concatHelper
+         |_texera_agg_groups = in1df.groupby($keysLit, dropna=False, sort=False)
+         |out1df = in1df[$keysLit].drop_duplicates().reset_index(drop=True)
+         |$aggLines
+         |$mergeLines""".stripMargin
+    }
+  }
+
+  private def aggExprScalar(agg: AggregationOperation): String = {
+    val attrLit =
+      if (agg.attribute == null || agg.attribute.isEmpty) "None"
+      else pyStringLiteral(agg.attribute)
+    agg.aggFunction match {
+      case AggregationFunction.SUM     => s"in1df[$attrLit].sum()"
+      case AggregationFunction.AVERAGE => s"in1df[$attrLit].mean()"
+      case AggregationFunction.MIN     => s"in1df[$attrLit].min()"
+      case AggregationFunction.MAX     => s"in1df[$attrLit].max()"
+      case AggregationFunction.COUNT =>
+        if (agg.attribute == null || agg.attribute.isEmpty) "int(len(in1df))"
+        else s"int(in1df[$attrLit].count())"
+      case AggregationFunction.CONCAT => s"_texera_agg_concat(in1df[$attrLit])"
+    }
+  }
+
+  private def aggExprGroupby(agg: AggregationOperation, groups: String): String = {
+    val attrLit =
+      if (agg.attribute == null || agg.attribute.isEmpty) "None"
+      else pyStringLiteral(agg.attribute)
+    val resultLit = pyStringLiteral(agg.resultAttribute)
+    agg.aggFunction match {
+      case AggregationFunction.SUM     => s"$groups[$attrLit].sum().rename($resultLit)"
+      case AggregationFunction.AVERAGE => s"$groups[$attrLit].mean().rename($resultLit)"
+      case AggregationFunction.MIN     => s"$groups[$attrLit].min().rename($resultLit)"
+      case AggregationFunction.MAX     => s"$groups[$attrLit].max().rename($resultLit)"
+      case AggregationFunction.COUNT =>
+        if (agg.attribute == null || agg.attribute.isEmpty)
+          s"$groups.size().rename($resultLit)"
+        else s"$groups[$attrLit].count().rename($resultLit)"
+      case AggregationFunction.CONCAT =>
+        s"$groups[$attrLit].apply(_texera_agg_concat).rename($resultLit)"
+    }
+  }
 }

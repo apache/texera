@@ -24,9 +24,10 @@ import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchema
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PhysicalOp, RangePartition}
-import org.apache.texera.amber.operator.LogicalOp
+import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
 @JsonSchemaInject(json = """
@@ -38,7 +39,10 @@ import org.apache.texera.amber.util.JSONUtils.objectMapper
   }
 }
 """)
-class SortPartitionsOpDesc extends LogicalOp {
+class SortPartitionsOpDesc extends LogicalOp with StandaloneCodeGenerator {
+
+  // Sorting is this operator's contract: output row order is meaningful.
+  override def orderSensitive: Boolean = true
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("Attribute")
@@ -84,4 +88,16 @@ class SortPartitionsOpDesc extends LogicalOp {
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort(blocking = true))
     )
+
+  // Row order is this operator's answer, so the sort matches the engine's:
+  // stable, ascending, nulls first. The domain bounds are partitioning hints
+  // that the sort itself never reads.
+  //
+  // NaN is where the two part. The engine orders it after positive infinity;
+  // pandas treats it as missing and puts it where the nulls go, which is first.
+  override def generateStandaloneCode(): String = {
+    val col = pyStringLiteral(Option(sortAttributeName).getOrElse(""))
+    s"""out1df = in1df.sort_values(by=$col, ascending=True, kind="mergesort", na_position="first").reset_index(drop=True)"""
+  }
+
 }

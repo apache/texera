@@ -23,11 +23,11 @@ import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PhysicalOp}
-import org.apache.texera.amber.operator.LogicalOp
+import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator, StandaloneHelpers}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
-class ReservoirSamplingOpDesc extends LogicalOp {
+class ReservoirSamplingOpDesc extends LogicalOp with StandaloneCodeGenerator {
 
   @JsonProperty(value = "number of item sampled in reservoir sampling", required = true)
   @JsonPropertyDescription("reservoir sampling with k items being kept randomly")
@@ -59,5 +59,28 @@ class ReservoirSamplingOpDesc extends LogicalOp {
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort())
     )
+  }
+
+  override def standaloneHelpers(): Seq[String] = Seq(StandaloneHelpers.JavaRandom)
+
+  // The executor runs Algorithm R (Vitter): fill the reservoir with the first k
+  // tuples, then for tuple m+1 (m >= k) draw i = rand.nextInt(m), uniform in
+  // [0, m), and replace reservoir[i] iff i < k.
+  //
+  // Its generator is seeded with the worker count, so the rows agree with a
+  // single-worker run and not with a wider one. See RandomKSamplingOpDesc for
+  // why no seed closes that gap.
+  override def generateStandaloneCode(): String = {
+    s"""_texera_rs_rng = _TexeraJavaRandom(1)
+       |_texera_rs_k = $k
+       |_texera_rs_reservoir = []
+       |for _texera_rs_n, _texera_rs_row in enumerate(in1df.itertuples(index=False, name=None)):
+       |    if _texera_rs_n < _texera_rs_k:
+       |        _texera_rs_reservoir.append(_texera_rs_row)
+       |    else:
+       |        _texera_rs_i = _texera_rs_rng.next_int(_texera_rs_n)
+       |        if _texera_rs_i < _texera_rs_k:
+       |            _texera_rs_reservoir[_texera_rs_i] = _texera_rs_row
+       |out1df = pd.DataFrame(_texera_rs_reservoir, columns=list(in1df.columns)).reset_index(drop=True)""".stripMargin
   }
 }

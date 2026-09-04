@@ -23,11 +23,12 @@ import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PhysicalOp}
+import org.apache.texera.amber.operator.{StandaloneCodeGenerator, StandaloneHelpers}
 import org.apache.texera.amber.operator.filter.FilterOpDesc
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
-class RandomKSamplingOpDesc extends FilterOpDesc {
+class RandomKSamplingOpDesc extends FilterOpDesc with StandaloneCodeGenerator {
 
   @JsonProperty(value = "random k sample percentage", required = true)
   @JsonPropertyDescription("random k sampling with given percentage")
@@ -60,4 +61,23 @@ class RandomKSamplingOpDesc extends FilterOpDesc {
       outputPorts = List(OutputPort()),
       supportReconfiguration = true
     )
+
+  override def standaloneHelpers(): Seq[String] = Seq(StandaloneHelpers.JavaRandom)
+
+  // A per-row Bernoulli filter drawn from the same generator, so a rerun keeps
+  // the exact rows rather than merely the same proportion of them.
+  //
+  // The engine seeds it with the worker count, which makes the surviving rows a
+  // property of the deployment. One process states the one seed it can and so
+  // agrees with a single-worker run; a wider one splits the input and samples
+  // each share from the start of the sequence, which no seed here reproduces.
+  override def generateStandaloneCode(): String = {
+    val p = percentage / 100.0
+    s"""_texera_rks_rng = _TexeraJavaRandom(1)
+       |_texera_rks_mask = pd.Series(
+       |    [$p >= _texera_rks_rng.next_double() for _ in range(len(in1df))],
+       |    index=in1df.index, dtype=bool
+       |)
+       |out1df = in1df[_texera_rks_mask].reset_index(drop=True)""".stripMargin
+  }
 }
