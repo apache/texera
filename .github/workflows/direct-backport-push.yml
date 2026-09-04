@@ -345,8 +345,8 @@ jobs:
     permissions:
       # Everything this job's steps call, and nothing more: push the
       # cherry-pick and comment on the commit (contents), dispatch Required
-      # Checks (actions), per-target commit status (statuses), annotate the
-      # original PR (issues).
+      # Checks (actions), set the per-target commit status (statuses),
+      # annotate the original PR (issues).
       actions: write
       contents: write
       issues: write

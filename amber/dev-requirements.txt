@@ -39,3 +39,5 @@ betterproto[compiler]==2.0.0b7
 
 # Required by `bin/local-dev.sh -i` (the interactive Textual TUI).
 textual==8.2.8
+# .github/scripts/test_asf_rulesets.sh (infra job shell tests)
+pyyaml==6.0.3

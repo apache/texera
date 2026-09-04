@@ -30,6 +30,9 @@
 set -uo pipefail
 
 command -v python3 >/dev/null || { echo "python3 is required to run these tests" >&2; exit 1; }
+# Runners ship python3 but not necessarily PyYAML (see release_branches.py);
+# CI installs it via amber/dev-requirements.txt.
+python3 -c 'import yaml' 2>/dev/null || { echo "PyYAML is required (pip install pyyaml)" >&2; exit 1; }
 
 cd "$(git rev-parse --show-toplevel)"
 
@@ -87,10 +90,24 @@ elif main_rs["rules"] != release_rs["rules"]:
         ".asf.yaml: 'Merge Queue' and 'Merge Queue (release)' rules differ -- "
         "these are one policy in two rulesets; change both or neither"
     )
+if main_rs is not None and "bypass_actors" in main_rs:
+    failures.append(
+        ".asf.yaml: 'Merge Queue' must not carry bypass_actors -- "
+        "keeping the bypass off main is what the split exists for"
+    )
+ACTIONS_APP = [{"actor_id": 15368, "actor_type": "Integration", "bypass_mode": "always"}]
+if release_rs is not None and release_rs.get("bypass_actors") != ACTIONS_APP:
+    failures.append(
+        ".asf.yaml: 'Merge Queue (release)' bypass_actors must be exactly the "
+        "GitHub Actions app -- widen this list and the test together, deliberately"
+    )
 
 for failure in failures:
     print(f"FAIL: {failure}")
 if failures:
     sys.exit(1)
-print(f"OK: {len(files)} files duplicate-key clean; Merge Queue rules identical")
+print(
+    f"OK: {len(files)} files duplicate-key clean; "
+    "Merge Queue rules identical; bypass only on the release ruleset"
+)
 EOF
