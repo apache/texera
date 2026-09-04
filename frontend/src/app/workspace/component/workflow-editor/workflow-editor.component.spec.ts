@@ -906,10 +906,10 @@ describe("WorkflowEditorComponent", () => {
      */
     describe("operator border restoration after navigation", () => {
       let workflowStatusService: WorkflowStatusService;
-      const cachedStatus = (operatorState: OperatorState) => ({
+      const cachedState = (operatorState: OperatorState) => ({
         [mockScanPredicate.operatorID]: operatorState,
       });
-      const cachedCompleted = cachedStatus(OperatorState.Completed);
+      const cachedCompleted = cachedState(OperatorState.Completed);
       const getStroke = (operatorID: string): string =>
         component.paper.getModelById(operatorID).attr("rect.body/stroke") as string;
 
@@ -917,7 +917,7 @@ describe("WorkflowEditorComponent", () => {
         workflowStatusService = TestBed.inject(WorkflowStatusService);
       });
 
-      it("paints the execution-state stroke (green) for a valid operator with a cached Completed status", () => {
+      it("paints the execution-state stroke (green) for a valid operator with a cached Completed state", () => {
         vi.spyOn(workflowStatusService, "getCurrentState").mockReturnValue(cachedCompleted);
         vi.spyOn(validationWorkflowService, "validateOperator").mockReturnValue({ isValid: true });
 
@@ -927,10 +927,10 @@ describe("WorkflowEditorComponent", () => {
         expect(getStroke(mockScanPredicate.operatorID)).toBe("green");
       });
 
-      it("paints the execution-state stroke (orange) for a valid operator with a cached Running status", () => {
+      it("paints the execution-state stroke (orange) for a valid operator with a cached Running state", () => {
         // Navigation-return with a mid-run operator: the border must be restored
         // to the running color, not the default (see #3614).
-        vi.spyOn(workflowStatusService, "getCurrentState").mockReturnValue(cachedStatus(OperatorState.Running));
+        vi.spyOn(workflowStatusService, "getCurrentState").mockReturnValue(cachedState(OperatorState.Running));
         vi.spyOn(validationWorkflowService, "validateOperator").mockReturnValue({ isValid: true });
 
         workflowActionService.addOperator(mockScanPredicate, mockPoint);
@@ -939,7 +939,7 @@ describe("WorkflowEditorComponent", () => {
         expect(getStroke(mockScanPredicate.operatorID)).toBe("orange");
       });
 
-      it("falls back to the default valid stroke (#CFCFCF) when no cached status exists", () => {
+      it("falls back to the default valid stroke (#CFCFCF) when no cached state exists", () => {
         vi.spyOn(workflowStatusService, "getCurrentState").mockReturnValue({});
         vi.spyOn(validationWorkflowService, "validateOperator").mockReturnValue({ isValid: true });
 
@@ -949,7 +949,7 @@ describe("WorkflowEditorComponent", () => {
         expect(getStroke(mockScanPredicate.operatorID)).toBe("#CFCFCF");
       });
 
-      it("paints the invalid stroke (red) for an invalid operator with no cached status", () => {
+      it("paints the invalid stroke (red) for an invalid operator with no cached state", () => {
         vi.spyOn(workflowStatusService, "getCurrentState").mockReturnValue({});
         vi.spyOn(validationWorkflowService, "validateOperator").mockReturnValue({ isValid: false, messages: {} });
 
@@ -959,9 +959,9 @@ describe("WorkflowEditorComponent", () => {
         expect(getStroke(mockScanPredicate.operatorID)).toBe("red");
       });
 
-      it("prioritizes invalid (red) over cached Completed status", () => {
+      it("prioritizes invalid (red) over cached Completed state", () => {
         // Regression case: operator is both invalid AND has a cached Completed
-        // status. applyOperatorStateAndBorder must pick red regardless of the order in
+        // state. applyOperatorStateAndBorder must pick red regardless of the order in
         // which the operator-add and validation streams fire.
         vi.spyOn(workflowStatusService, "getCurrentState").mockReturnValue(cachedCompleted);
         vi.spyOn(validationWorkflowService, "validateOperator").mockReturnValue({ isValid: false, messages: {} });

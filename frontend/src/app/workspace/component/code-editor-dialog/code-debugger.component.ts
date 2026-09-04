@@ -59,7 +59,7 @@ export class CodeDebuggerComponent implements AfterViewInit, SafeStyle {
   ) {}
 
   ngAfterViewInit() {
-    this.registerStatusChangeHandler();
+    this.registerStateChangeHandler();
     this.registerBreakpointRenderingHandler();
   }
 
@@ -221,7 +221,7 @@ export class CodeDebuggerComponent implements AfterViewInit, SafeStyle {
     });
   }
 
-  private registerStatusChangeHandler() {
+  private registerStateChangeHandler() {
     this.workflowStatusService
       .getStateUpdateStream()
       .pipe(
