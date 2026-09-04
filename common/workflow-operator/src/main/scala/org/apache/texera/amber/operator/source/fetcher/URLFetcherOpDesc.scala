@@ -20,22 +20,33 @@
 package org.apache.texera.amber.operator.source.fetcher
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
-import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
+import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{OutputPort, PhysicalOp, SchemaPropagationFunc}
+import org.apache.texera.amber.operator.StandaloneCodeGenerator
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.operator.source.SourceOperatorDescriptor
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
-class URLFetcherOpDesc extends SourceOperatorDescriptor {
+class URLFetcherOpDesc extends SourceOperatorDescriptor with StandaloneCodeGenerator {
 
+  // No `pattern`: the reader is `java.net.URL`, which asks only that the value carry
+  // a scheme its JVM has a handler for. That is not something a regex can state --
+  // one excluding `www.example.com` would still pass `htp://x`, so it would advertise
+  // a validation the field does not have. `examples` offers a realistic value without
+  // claiming to constrain anything.
   @JsonProperty(required = true)
   @JsonSchemaTitle("URL")
   @JsonPropertyDescription(
     "Only accepts standard URL format"
   )
+  @JsonSchemaInject(json = """
+{
+  "examples": ["https://example.com"]
+}
+""")
   var url: String = _
 
   @JsonProperty(required = true)
@@ -86,5 +97,35 @@ class URLFetcherOpDesc extends SourceOperatorDescriptor {
       inputPorts = List.empty,
       outputPorts = List(OutputPort())
     )
+
+  // The generated snippet uses `urllib.request`, which the translator's shared
+  // imports don't include. Following the per-operator convention (e.g. Split
+  // emits `import numpy as np`), the code block prepends its own import so the
+  // generated script is self-contained.
+  override def generateStandaloneCode(): String = {
+    val urlLiteral = objectMapper.writeValueAsString(url)
+    val isUtf8 = decodingMethod == DecodingMethod.UTF_8
+    val valueExpr = if (isUtf8) """_content.decode("utf-8")""" else "_content"
+    val buf = scala.collection.mutable.ArrayBuffer[String]()
+    buf += "import http.client"
+    buf += "import urllib.request"
+    buf += s"_url = $urlLiteral"
+    // Catch the fetch failures, not everything: the executor guards only the fetch, so
+    // a value with no scheme stops it, and `except Exception` here would swallow that
+    // and hand back a row instead. The two are told apart by type -- a fetch raises
+    // OSError (URLError, HTTPError, TimeoutError) or HTTPException on a malformed
+    // response, a missing scheme raises ValueError.
+    // Still divergent, and not fixable this way: a scheme that merely is not RECOGNISED
+    // ("htp://x") stops the executor but reaches Python as URLError, and the two
+    // languages do not recognise the same schemes anyway -- Java takes `mailto:`,
+    // urlopen does not -- so no list of schemes is right on both sides.
+    buf += "try:"
+    buf += "    with urllib.request.urlopen(_url) as _resp:"
+    buf += "        _content = _resp.read()"
+    buf += "except (OSError, http.client.HTTPException):"
+    buf += """    _content = f"Fetch failed for URL: {_url}".encode("utf-8")"""
+    buf += s"""out1df = pd.DataFrame({"URL content": [$valueExpr]})"""
+    buf.mkString("\n")
+  }
 
 }
