@@ -19,6 +19,7 @@
 
 package org.apache.texera.amber.operator.huggingFace
 
+import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInject
 import org.apache.texera.amber.core.executor.OpExecWithCode
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
@@ -105,6 +106,16 @@ class HuggingFaceIrisLogisticRegressionOpDescSpec extends AnyFlatSpec with Match
     carries(code, "species") shouldBe true
   }
 
+  // An empty cell reaches the standardization as a None, which numpy cannot
+  // subtract from, so the row is answered rather than ending the run.
+  it should "leave the prediction empty when a measurement is missing" in {
+    val d = configured()
+    val code = d.generatePythonCode()
+    code should include("if length is None or width is None:")
+    code should include("yield tuple_")
+    code should include("return")
+  }
+
   "HuggingFaceIrisLogisticRegressionOpDesc.getPhysicalOp" should
     "wire an OpExecWithCode python executor carrying the operator's ports" in {
     val d = configured()
@@ -127,5 +138,19 @@ class HuggingFaceIrisLogisticRegressionOpDescSpec extends AnyFlatSpec with Match
     h.petalWidthCmAttribute shouldBe "petalWidth"
     h.predictionClassName shouldBe "species"
     h.predictionProbabilityName shouldBe "probability"
+  }
+
+  "HuggingFaceIrisLogisticRegressionOpDesc (class-level)" should
+    "carry @JsonSchemaInject restricting both petal columns to numeric attributes" in {
+    val ann =
+      classOf[HuggingFaceIrisLogisticRegressionOpDesc].getAnnotation(classOf[JsonSchemaInject])
+    ann should not be null
+    val payload = ann.json
+    payload should include("attributeTypeRules")
+    payload should include("petalLengthCmAttribute")
+    payload should include("petalWidthCmAttribute")
+    payload should include("integer")
+    payload should include("long")
+    payload should include("double")
   }
 }

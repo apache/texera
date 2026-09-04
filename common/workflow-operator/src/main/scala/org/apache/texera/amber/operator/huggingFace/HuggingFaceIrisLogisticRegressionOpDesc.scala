@@ -20,24 +20,40 @@
 package org.apache.texera.amber.operator.huggingFace
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
+import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInject
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
-import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
+import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
+import org.apache.texera.amber.operator.metadata.annotations.{AutofillAttributeName, SampleColumn}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 
-class HuggingFaceIrisLogisticRegressionOpDesc extends PythonOperatorDescriptor {
+// type constraint: both measurements are standardized against the training means
+// and handed to the model as floats, so each column can only be numeric.
+@JsonSchemaInject(json = """
+{
+  "attributeTypeRules": {
+    "petalLengthCmAttribute": { "enum": ["integer", "long", "double"] },
+    "petalWidthCmAttribute": { "enum": ["integer", "long", "double"] }
+  }
+}
+""")
+class HuggingFaceIrisLogisticRegressionOpDesc
+    extends PythonOperatorDescriptor
+    with StandaloneCodeGenerator {
 
   @JsonProperty(value = "petalLengthCmAttribute", required = true)
   @JsonPropertyDescription("attribute in your dataset corresponding to PetalLengthCm")
   @AutofillAttributeName
+  @SampleColumn("petal_length")
   var petalLengthCmAttribute: EncodableString = _
 
   @JsonProperty(value = "petalWidthCmAttribute", required = true)
   @JsonPropertyDescription("attribute in your dataset corresponding to PetalWidthCm")
   @AutofillAttributeName
+  @SampleColumn("petal_width")
   var petalWidthCmAttribute: EncodableString = _
 
   @JsonProperty(
@@ -91,6 +107,15 @@ class HuggingFaceIrisLogisticRegressionOpDesc extends PythonOperatorDescriptor {
        |        training_features_stds = [1.72528903, 0.73788937]
        |        length = tuple_[$petalLengthCmAttribute]
        |        width = tuple_[$petalWidthCmAttribute]
+       |        # An empty cell arrives as None, which numpy carries as an object the
+       |        # standardization cannot subtract from. Keep the row and leave the
+       |        # prediction empty rather than ending the run over a measurement the
+       |        # model was never given.
+       |        if length is None or width is None:
+       |            tuple_[$predictionClassName] = None
+       |            tuple_[$predictionProbabilityName] = None
+       |            yield tuple_
+       |            return
        |        features = np.array([[length, width]])
        |        features = ((features - training_features_means) / training_features_stds)
        |        features = torch.from_numpy(features).float()
@@ -101,6 +126,57 @@ class HuggingFaceIrisLogisticRegressionOpDesc extends PythonOperatorDescriptor {
        |        tuple_[$predictionProbabilityName] = float(proba)
        |        tuple_[$predictionClassName] = "Iris-setosa" if preds == 1 else "Not Iris-setosa"
        |        yield tuple_""".encode
+  }
+
+  override def producesDataFrame(): Boolean = true
+
+  // Standalone mirror of generatePythonCode: rebuild+load the pretrained linear
+  // model once, then apply the same per-row standardize→sigmoid→threshold logic,
+  // adding the STRING predicted class and DOUBLE probability columns (in
+  // getOutputSchemas order) to produce out1df.
+  override def generateStandaloneCode(): String = {
+    val lengthLit = pyStringLiteral(petalLengthCmAttribute)
+    val widthLit = pyStringLiteral(petalWidthCmAttribute)
+    s"""import numpy as np
+       |import torch
+       |import torch.nn as nn
+       |from huggingface_hub import PyTorchModelHubMixin
+       |
+       |class LinearModel(nn.Module, PyTorchModelHubMixin):
+       |    def __init__(self):
+       |        super().__init__()
+       |        self.fc = nn.Linear(2, 1)
+       |
+       |    def forward(self, x):
+       |        return self.fc(x)
+       |
+       |model = LinearModel.from_pretrained("sadhaklal/logistic-regression-iris")
+       |model.eval()
+       |
+       |training_features_means = [3.72666667, 1.17619048]
+       |training_features_stds = [1.72528903, 0.73788937]
+       |out1df = in1df.copy()
+       |_classes = []
+       |_probs = []
+       |for _length, _width in zip(out1df[$lengthLit], out1df[$widthLit]):
+       |    # The operator's guard, except that an empty cell reaches a frame read
+       |    # from JSON as a NaN rather than as the None a Tuple hands over, so this
+       |    # side asks pandas, which answers for both.
+       |    if pd.isna(_length) or pd.isna(_width):
+       |        _classes.append(None)
+       |        _probs.append(None)
+       |        continue
+       |    features = np.array([[_length, _width]])
+       |    features = ((features - training_features_means) / training_features_stds)
+       |    features = torch.from_numpy(features).float()
+       |    with torch.no_grad():
+       |        logits = model(features)
+       |    proba = torch.sigmoid(logits.squeeze())
+       |    preds = (proba > 0.5).long()
+       |    _probs.append(float(proba))
+       |    _classes.append("Iris-setosa" if preds == 1 else "Not Iris-setosa")
+       |out1df[${pyStringLiteral(predictionClassName)}] = _classes
+       |out1df[${pyStringLiteral(predictionProbabilityName)}] = _probs""".stripMargin
   }
 
   override def operatorInfo: OperatorInfo =
