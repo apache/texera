@@ -175,19 +175,21 @@ class DendrogramOpDesc extends PythonOperatorDescriptor with StandaloneCodeGener
        |    _write_error("input table is empty.")
        |else:
        |    # A row missing either coordinate has no position to cluster from, and
-       |    # scipy refuses a NaN anywhere in the distance matrix.
-       |    in1df = in1df.dropna(subset=[${pyStringLiteral(xVal)}, ${pyStringLiteral(yVal)}])
-       |    if in1df.empty:
+       |    # scipy refuses a NaN anywhere in the distance matrix. Bound to a name
+       |    # of its own: the same frame can feed another branch of the plan, which
+       |    # must still see every row.
+       |    chart_df = in1df.dropna(subset=[${pyStringLiteral(xVal)}, ${pyStringLiteral(yVal)}])
+       |    if chart_df.empty:
        |        _write_error("input table has no rows with all of the configured columns filled in.")
        |    # Clustering starts from the distances between rows, so a single row
        |    # leaves scipy an empty distance matrix and it raises rather than draws.
-       |    elif len(in1df) < 2:
+       |    elif len(chart_df) < 2:
        |        _write_error("input table has fewer than two rows to cluster.")
        |    else:
-       |        x = np.array(in1df[${pyStringLiteral(xVal)}])
-       |        y = np.array(in1df[${pyStringLiteral(yVal)}])
+       |        x = np.array(chart_df[${pyStringLiteral(xVal)}])
+       |        y = np.array(chart_df[${pyStringLiteral(yVal)}])
        |        data = np.column_stack((x, y))
-       |        labels = in1df[${pyStringLiteral(labels)}].tolist()
+       |        labels = chart_df[${pyStringLiteral(labels)}].tolist()
        |        fig = ff.create_dendrogram(data, labels=labels, color_threshold=$thresholdExpr)
        |        fig.update_layout(yaxis_title="Linkage Distance", margin=dict(l=0, r=0, b=0, t=0))
        |        fig.write_json("output.json")
