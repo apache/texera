@@ -22,8 +22,7 @@ on:
       - main
 
 permissions:
-  # write: the fast path dispatches Required Checks after its push (below).
-  actions: write
+  actions: read
   checks: read
   contents: write
   issues: write
@@ -343,6 +342,15 @@ jobs:
     needs: discover
     if: ${{ needs.discover.outputs.has_push == 'true' }}
     runs-on: ubuntu-latest
+    permissions:
+      # Everything this job's steps call, and nothing more: push the
+      # cherry-pick and comment on the commit (contents), dispatch Required
+      # Checks (actions), per-target commit status (statuses), annotate the
+      # original PR (issues).
+      actions: write
+      contents: write
+      issues: write
+      statuses: write
     name: "backport #${{ matrix.pr_number }} to ${{ matrix.target }}"
     strategy:
       fail-fast: false
@@ -581,8 +589,13 @@ jobs:
         run: |
           # The GITHUB_TOKEN push above starts no push-triggered workflows;
           # dispatch the run the release branch would otherwise have gotten.
-          gh workflow run required-checks.yml \
-            --repo "${GITHUB_REPOSITORY}" --ref "refs/heads/${TARGET_BRANCH}"
+          # Best-effort: the backport itself has landed, so a dispatch
+          # failure must not demote this job to failed -- the failure
+          # reporter below would then claim a landed backport was lost.
+          if ! gh workflow run required-checks.yml \
+              --repo "${GITHUB_REPOSITORY}" --ref "${TARGET_BRANCH}"; then
+            echo "::warning::Could not start Required Checks on ${TARGET_BRANCH}; start it manually from the Actions tab."
+          fi
 
       - name: Annotate original PR and commit on success
         if: success()
