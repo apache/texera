@@ -18,7 +18,7 @@
  */
 
 import { DatePipe, Location, NgIf, NgFor, NgTemplateOutlet, AsyncPipe } from "@angular/common";
-import { Component, ElementRef, Input, OnDestroy, OnInit, ViewChild } from "@angular/core";
+import { Component, ElementRef, Input, OnDestroy, OnInit, TemplateRef, ViewChild } from "@angular/core";
 import { Router, RouterLink } from "@angular/router";
 import { UserService } from "../../../common/service/user/user.service";
 import { WorkflowPersistService } from "../../../common/service/workflow-persist/workflow-persist.service";
@@ -43,6 +43,7 @@ import { EMPTY, firstValueFrom, of, timer } from "rxjs";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { ResultExportationComponent } from "../result-exportation/result-exportation.component";
 import { ReportGenerationService } from "../../service/report-generation/report-generation.service";
+import { WorkflowToPythonService } from "../../../dashboard/service/user/workflow-to-python/workflow-to-python.service";
 import { ShareAccessComponent } from "src/app/dashboard/component/user/share-access/share-access.component";
 import { PanelService } from "../../service/panel/panel.service";
 import { USER_WORKFLOW } from "../../../app-routing.constant";
@@ -71,6 +72,8 @@ import { NzSwitchComponent } from "ng-zorro-antd/switch";
 import { NzBadgeComponent } from "ng-zorro-antd/badge";
 import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
 import { JupyterPanelService } from "../../service/jupyter-panel/jupyter-panel.service";
+import { WorkflowCompilingService } from "../../service/compile-workflow/workflow-compiling.service";
+import { CompilationState } from "../../types/workflow-compiling.interface";
 
 /**
  * MenuComponent is the top level menu bar that shows
@@ -129,6 +132,9 @@ export class MenuComponent implements OnInit, OnDestroy {
   public ComputingUnitState = ComputingUnitState; // make Angular HTML access enum definition
   public isWorkflowValid: boolean = true; // this will check whether the workflow error or not
   public isWorkflowEmpty: boolean = false;
+  // whether the last compilation of the workflow failed. A workflow that cannot compile cannot be executed,
+  // so it is treated the same way as one that fails the schema / port validation.
+  public isWorkflowCompilable: boolean = true;
   public isSaving: boolean = false;
   public isWorkflowModifiable: boolean = false;
   public workflowId?: number;
@@ -148,6 +154,7 @@ export class MenuComponent implements OnInit, OnDestroy {
   @Input() public currentExecutionName: string = ""; // reset executionName
   @Input() public particularVersionDate: string = ""; // placeholder for the metadata information of a particular workflow version
   @ViewChild("workflowNameInput") workflowNameInput: ElementRef<HTMLInputElement> | undefined;
+  @ViewChild("workflowPythonScriptModal", { static: true }) workflowPythonScriptModal?: TemplateRef<void>;
 
   // variable bound with HTML to decide if the running spinner should show
   public runButtonText = "Run";
@@ -173,6 +180,7 @@ export class MenuComponent implements OnInit, OnDestroy {
     private location: Location,
     public undoRedoService: UndoRedoService,
     public validationWorkflowService: ValidationWorkflowService,
+    private workflowCompilingService: WorkflowCompilingService,
     public workflowPersistService: WorkflowPersistService,
     public workflowVersionService: WorkflowVersionService,
     public userService: UserService,
@@ -188,6 +196,7 @@ export class MenuComponent implements OnInit, OnDestroy {
     private computingUnitStatusService: ComputingUnitStatusService,
     protected config: GuiConfigService,
     private router: Router,
+    private workflowToPythonService: WorkflowToPythonService,
     private jupyterPanelService: JupyterPanelService
   ) {
     workflowWebsocketService
@@ -233,6 +242,16 @@ export class MenuComponent implements OnInit, OnDestroy {
       .subscribe(value => {
         this.isWorkflowEmpty = value.workflowEmpty;
         this.isWorkflowValid = Object.keys(value.errors).length === 0;
+        this.applyRunButtonBehavior(this.getRunButtonBehavior());
+      });
+
+    // the compilation errors are reported per operator on the canvas and in the result panel, but a workflow
+    // that cannot compile cannot be executed either, so the run button has to reflect the compilation state too
+    this.workflowCompilingService
+      .getCompilationStateInfoChangedStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(state => {
+        this.isWorkflowCompilable = state !== CompilationState.Failed;
         this.applyRunButtonBehavior(this.getRunButtonBehavior());
       });
 
@@ -356,8 +375,8 @@ export class MenuComponent implements OnInit, OnDestroy {
     disable: boolean;
     onClick: () => void;
   } {
-    // If workflow is invalid, always disable and show "Invalid Workflow"
-    if (!this.isWorkflowValid) {
+    // If workflow is invalid or does not compile, always disable and show "Invalid Workflow"
+    if (!this.isWorkflowValid || !this.isWorkflowCompilable) {
       return {
         text: "Invalid Workflow",
         icon: "warning",
@@ -615,6 +634,53 @@ export class MenuComponent implements OnInit, OnDestroy {
     this.jupyterPanelService.openJupyterNotebookPanel();
   }
 
+  public isTranslatingToPython = false;
+  public pythonCodeForModal = "";
+
+  public onClickExportAsPython(): void {
+    const logicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(
+      this.validationWorkflowService.getValidTexeraGraph()
+    );
+
+    this.isTranslatingToPython = true;
+    this.workflowToPythonService
+      .convertToPython(logicalPlan)
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: response => {
+          this.isTranslatingToPython = false;
+          if (response.type === "success") {
+            this.pythonCodeForModal = response.pythonCode ?? "";
+            this.modalService.create({
+              nzTitle: "Workflow as Python Script",
+              nzContent: this.workflowPythonScriptModal ?? "",
+              nzFooter: null,
+              nzWidth: 800,
+            });
+          } else {
+            this.notificationService.error(response.errorMessage ?? "Failed to translate workflow to Python.");
+          }
+        },
+        error: () => {
+          this.isTranslatingToPython = false;
+          this.notificationService.error("Request failed while translating workflow to Python.");
+        },
+      });
+  }
+
+  public async copyPythonCodeToClipboard(): Promise<void> {
+    if (!this.pythonCodeForModal) {
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(this.pythonCodeForModal);
+      this.notificationService.success("Python script copied to clipboard");
+    } catch (error) {
+      this.notificationService.error("Failed to copy Python script");
+    }
+  }
+
   public onClickExportWorkflow(): void {
     const workflowContent: WorkflowContent = this.workflowActionService.getWorkflowContent();
     const workflowContentJson = JSON.stringify(workflowContent, null, 2);
@@ -797,7 +863,7 @@ export class MenuComponent implements OnInit, OnDestroy {
    */
   runWorkflow(): void {
     // Use the existing flags that were already updated via subscriptions
-    if (!this.isWorkflowValid || this.isWorkflowEmpty) {
+    if (!this.isWorkflowValid || !this.isWorkflowCompilable || this.isWorkflowEmpty) {
       return;
     }
 
