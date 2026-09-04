@@ -1,0 +1,249 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+package org.apache.texera.amber.translator.verify
+
+import com.fasterxml.jackson.databind.ObjectMapper
+import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
+
+import java.sql.Timestamp
+import scala.jdk.CollectionConverters._
+
+/**
+  * The shared input dataset for auto-configured transform verification.
+  * Properties are deliberate (see CanonicalFixtureSpec): enough rows and
+  * partial port-0/port-1 overlap to defeat hash-coincidence false passes on
+  * set ops and joins, and the canonical value "1" present in some-but-not-all
+  * rows so ConfigGenerator-filled free-form predicates match a proper subset.
+  */
+object CanonicalFixture extends SharedFixture {
+
+  // Columns are semantically named and type-correct so @SampleColumn-tagged or
+  // type-constrained fields can be filled with realistic input (a valid OHLC
+  // block, real ISO country codes, real dates) instead of a degenerate
+  // first-column pick. Ordering is deliberate: id/name/score lead so the
+  // first-column fallback AND the type-rule tier ("first column of a matching
+  // type") are unchanged for un-annotated fields — the domain-specific columns
+  // that follow are only reached via an explicit @SampleColumn.
+  val schema: Schema = new Schema(
+    new Attribute("id", AttributeType.INTEGER),
+    new Attribute("name", AttributeType.STRING),
+    new Attribute("score", AttributeType.DOUBLE),
+    new Attribute("open", AttributeType.DOUBLE),
+    new Attribute("high", AttributeType.DOUBLE),
+    new Attribute("low", AttributeType.DOUBLE),
+    new Attribute("close", AttributeType.DOUBLE),
+    new Attribute("iso_country", AttributeType.STRING),
+    new Attribute("trade_date", AttributeType.STRING),
+    // --- Domain-specific columns (reached only via @SampleColumn) ---
+    new Attribute("pvalue", AttributeType.DOUBLE), // strictly in (0,1): p-values
+    new Attribute("log2fc", AttributeType.DOUBLE), // signed, centered on 0: fold-change
+    new Attribute("comp_a", AttributeType.DOUBLE), // >0 ternary simplex component
+    new Attribute("comp_b", AttributeType.DOUBLE), // >0 ternary simplex component
+    new Attribute("comp_c", AttributeType.DOUBLE), // >0 ternary simplex component
+    new Attribute("uvec", AttributeType.DOUBLE), // any real: a 4th numeric (Quiver u/v)
+    new Attribute(
+      "edge_pair",
+      AttributeType.STRING
+    ), // "[parent, child]" literals, single-rooted tree
+    new Attribute("node_src", AttributeType.STRING), // edge source id (Sankey/Network)
+    new Attribute("node_dst", AttributeType.STRING), // edge target id, overlaps node_src (a DAG)
+    new Attribute(
+      "start_ts",
+      AttributeType.TIMESTAMP
+    ), // real timestamp; Gantt start / TimeSeries axis
+    new Attribute(
+      "finish_ts",
+      AttributeType.TIMESTAMP
+    ), // always > start_ts; Gantt finish (bar width)
+    new Attribute(
+      "uniq_name",
+      AttributeType.STRING
+    ), // distinct per row: Pie/name-keyed ops need no duplicates
+    new Attribute(
+      "simplex_a",
+      AttributeType.DOUBLE
+    ), // >0 and simplex_a+simplex_b+simplex_c == 100 (ternary-contour)
+    new Attribute("simplex_b", AttributeType.DOUBLE), // >0 simplex component summing to 100
+    new Attribute("simplex_c", AttributeType.DOUBLE), // >0 simplex component summing to 100
+    // ── text + iris-numeric columns for Hugging Face model operators ──
+    new Attribute(
+      "short_text",
+      AttributeType.STRING
+    ), // one sentence: sentiment / spam-detection input
+    new Attribute(
+      "long_text",
+      AttributeType.STRING
+    ), // a multi-sentence paragraph: summarization input
+    new Attribute("petal_length", AttributeType.DOUBLE), // iris petal length in cm (~1.3–6.5)
+    new Attribute("petal_width", AttributeType.DOUBLE), // iris petal width in cm (~0.2–2.4)
+    new Attribute(
+      "species",
+      AttributeType.INTEGER
+    ), // the 0/1 iris class, exactly `petal_length >= 3.9`: the label the sklearn
+    // families fit against, separable by the two petal columns above
+    new Attribute(
+      "csv_list",
+      AttributeType.STRING
+    ), // comma-delimited, 1–4 tokens per row: split/explode ops need real fan-out
+    new Attribute(
+      "mixed_case",
+      AttributeType.STRING
+    ), // a third lower-case, a third upper, a third letterless: a case flag has to
+    // change WHICH rows match, and on any other column it changes nothing
+    new Attribute(
+      "species_pred",
+      AttributeType.INTEGER
+    ), // a predictor's guess at `species`: the same 0/1 domain, wrong on a few rows.
+    // Scoring compares a PAIR of columns, and no single label column supplies one.
+    // Last so the first-unused fallback reaches it only after every other column
+    new Attribute("species_name", AttributeType.STRING), // `species` spelled out
+    new Attribute(
+      "species_name_pred",
+      AttributeType.STRING
+    ) // `species_pred` spelled out. A scorer takes a string label as readily as a
+    // numeric one and names the class after it rather than after its position, so
+    // the pair exists a second time in text
+  )
+
+  // ── Data source ──
+  // The rows are NOT generated at runtime — they live in a single, checked-in,
+  // human-readable JSON file that IS the source of truth:
+  //   src/test/resources/verify/canonical_fixture.json   (15 rows, ids 1..15)
+  // Open it to see the exact table; edit it to change the data. The
+  // CanonicalFixtureSpec invariants guard every semantic constraint (valid OHLC
+  // block, pvalue ∈ (0,1), ternary parts summing to 100, finish_ts > start_ts,
+  // etc.), so a hand-edit that breaks one fails the build. `schema` above stays
+  // authoritative for column types: JSON has no TIMESTAMP, so start_ts/finish_ts
+  // are stored as JDBC strings ("2024-01-01 00:00:00.0") and coerced back here.
+  private val fixtureResource = "/verify/canonical_fixture.json"
+
+  override val allRows: Vector[Tuple] = {
+    val stream = Option(getClass.getResourceAsStream(fixtureResource))
+      .getOrElse(sys.error(s"canonical fixture not found on classpath: $fixtureResource"))
+    val root =
+      try new ObjectMapper().readTree(stream)
+      finally stream.close()
+    root
+      .elements()
+      .asScala
+      .map { node =>
+        val b = Tuple.builder(schema)
+        schema.getAttributes.foreach { attr =>
+          val cell = node.get(attr.getName)
+          require(cell != null, s"fixture row missing column '${attr.getName}'")
+          val value: AnyRef = attr.getType match {
+            case AttributeType.INTEGER   => Int.box(cell.asInt())
+            case AttributeType.LONG      => Long.box(cell.asLong())
+            case AttributeType.DOUBLE    => Double.box(cell.asDouble())
+            case AttributeType.BOOLEAN   => Boolean.box(cell.asBoolean())
+            case AttributeType.TIMESTAMP => Timestamp.valueOf(cell.asText())
+            case _                       => cell.asText() // STRING
+          }
+          b.add(attr, value)
+        }
+        b.build()
+      }
+      .toVector
+  }
+
+  // Each port takes two thirds of the table, from opposite ends, so the ports
+  // overlap by the remaining third and no row sits outside both. The overlap is
+  // what stops joins and set ops passing by hash coincidence: ports holding the
+  // same rows make intersect and union the same answer, and disjoint ports make
+  // both empty, which a broken operator produces too. Two thirds rather than a
+  // fixed count so a row added to the JSON widens the windows instead of falling
+  // off the end, and a port stays well under the whole table — these windows are
+  // what every per-test Python run is sized by. At 15 rows this is positions 0-9
+  // and 5-14. Rows sit out of id order in the file, so the windows are
+  // positional — not id ranges.
+  private def windowSize: Int = allRows.size * 2 / 3
+  def port0Rows: Seq[Tuple] = allRows.take(windowSize)
+  def port1Rows: Seq[Tuple] = allRows.takeRight(windowSize)
+
+  override def rowsFor(port: Int): Seq[Tuple] = if (port == 0) port0Rows else port1Rows
+
+  /** `id` keeps every value: it is what joins and set operations match on, and
+    * emptying it would change which rows pair up rather than what a null does.
+    */
+  override val keepFilled: Set[String] = Set("id")
+
+  /** This table as the sklearn families read it: the two petal columns and the
+    * `species` label, and nothing else, because `X = table.drop(target, axis=1)`
+    * hands `fit` every column that is not the target. The two features separate
+    * the classes exactly, so an estimator fits them without a tie to break.
+    */
+  val sklearnNumeric: SharedFixture = ProjectedFixture(
+    this,
+    Seq("petal_length", "petal_width", "species"),
+    keepFilled = Set("species")
+  )
+
+  /** [[sklearnNumeric]] plus a column an estimator cannot fit. The families that
+    * narrow `X` to the fittable columns drop nothing on the numeric table, so the
+    * narrowing runs there with nothing to do. Here it has a column to drop, and
+    * the two paths narrow in different places: the operator once, ahead of the
+    * port branch; the standalone script once per port. Each has to drop it on its
+    * own.
+    *
+    * The text column carries no signal about the label, so the fit is the one the
+    * two petal columns give on their own.
+    */
+  /** This table minus `score`. An operator whose output column is named `score`
+    * by default cannot run here otherwise: it would create a column the input
+    * already holds, and the schema refuses the duplicate before the operator
+    * runs. Dropping the one column puts the DEFAULT config under test, which is
+    * the config a user gets, rather than a hand-written name chosen to dodge the
+    * clash.
+    */
+  val withoutScore: SharedFixture = ProjectedFixture(
+    this,
+    schema.getAttributeNames.filterNot(_ == "score"),
+    keepFilled = keepFilled
+  )
+
+  /** This table as a scorer reads it when the labels are text: the same pair as
+    * `species` / `species_pred`, spelled out, and nothing else. The scenario that
+    * takes it names the two columns itself, since the operator's `@SampleColumn`s
+    * name the numeric pair this projection does not carry.
+    */
+  val scorerTextLabels: SharedFixture = ProjectedFixture(
+    this,
+    Seq("species_name", "species_name_pred"),
+    keepFilled = Set.empty
+  )
+
+  val sklearnNumericWithText: SharedFixture = ProjectedFixture(
+    this,
+    Seq("petal_length", "petal_width", "short_text", "species"),
+    keepFilled = Set("species")
+  )
+
+  /** This table as the `countVectorizer=true` path reads it: one text column and
+    * the same label. `short_text` leads because the model probe feeds a text
+    * pipeline the frame's first column as a Series. Every row carrying a given
+    * sentence carries the same `species` (an invariant of the table), so the
+    * vectorized classes separate exactly, as the numeric pair does.
+    */
+  val sklearnText: SharedFixture = ProjectedFixture(
+    this,
+    Seq("short_text", "long_text", "species"),
+    keepFilled = Set("species")
+  )
+}
