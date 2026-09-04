@@ -26,9 +26,11 @@ import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBui
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.PythonOperatorDescriptor
+import org.apache.texera.amber.operator.visualization.PlotlyStandaloneCode
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 
 import javax.validation.constraints.NotNull
 
@@ -41,7 +43,7 @@ import javax.validation.constraints.NotNull
   }
 }
 """)
-class WaterfallChartOpDesc extends PythonOperatorDescriptor {
+class WaterfallChartOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCode {
 
   @JsonProperty(value = "xColumn", required = true)
   @JsonSchemaTitle("X Axis Values")
@@ -76,20 +78,24 @@ class WaterfallChartOpDesc extends PythonOperatorDescriptor {
     assert(xColumn.nonEmpty, "X Axis Values cannot be empty")
     assert(yColumn.nonEmpty, "Y Axis Values cannot be empty")
     pyb"""
-       |        x_values = table[$xColumn]
-       |        y_values = table[$yColumn]
+       |        x_values = list(table[$xColumn])
+       |        y_values = list(table[$yColumn])
+       |        total = sum(y_values)
        |
+       |        # every input row is a step; the total is an extra bar plotly accumulates,
+       |        # so no row is consumed as the summary. A categorical axis keeps the bars in
+       |        # input order, which is the order the running total is computed in.
        |        fig = go.Figure(go.Waterfall(
        |            name="Waterfall", orientation="v",
-       |            measure=["relative"] * (len(y_values) - 1) + ["total"],
-       |            x=x_values,
-       |            y=y_values,
+       |            measure=["relative"] * len(y_values) + ["total"],
+       |            x=x_values + ["Total"],
+       |            y=y_values + [0],
        |            textposition="outside",
-       |            text=[f"{v:+}" for v in y_values],
+       |            text=[f"{v:+}" for v in y_values] + [f"{total}"],
        |            connector={"line": {"color": "rgb(63, 63, 63)"}}
        |        ))
        |
-       |        fig.update_layout(showlegend=True, waterfallgap=0.3)
+       |        fig.update_layout(showlegend=True, waterfallgap=0.3, xaxis_type="category")
        |"""
   }
 
@@ -119,6 +125,39 @@ class WaterfallChartOpDesc extends PythonOperatorDescriptor {
          |        yield {'html-content': html}
          |"""
     finalCode.encode
+  }
+
+  override def producesDataFrame(): Boolean = false
+
+  override def generateStandaloneCode(): String = {
+    s"""def render_error(error_msg) -> str:
+       |    return '''<h1>Waterfall chart is not available.</h1>
+       |                  <p>Reason is: {} </p>
+       |               '''.format(error_msg)
+       |
+       |if in1df.empty:
+       |    with open("output.html", "w", encoding="utf-8") as output:
+       |        output.write(render_error("input table is empty."))
+       |else:
+       |    table = in1df
+       |    x_values = list(table[${pyStringLiteral(xColumn)}])
+       |    y_values = list(table[${pyStringLiteral(yColumn)}])
+       |    total = sum(y_values)
+       |
+       |    fig = go.Figure(go.Waterfall(
+       |        name="Waterfall", orientation="v",
+       |        measure=["relative"] * len(y_values) + ["total"],
+       |        x=x_values + ["Total"],
+       |        y=y_values + [0],
+       |        textposition="outside",
+       |        text=[f"{v:+}" for v in y_values] + [f"{total}"],
+       |        connector={"line": {"color": "rgb(63, 63, 63)"}}
+       |    ))
+       |
+       |    fig.update_layout(showlegend=True, waterfallgap=0.3, xaxis_type="category")
+       |    fig.write_json("output.json")
+       |    fig.write_html("output.html")
+       |    print("Waterfall chart saved to output.html")""".stripMargin
   }
 
 }

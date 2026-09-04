@@ -25,9 +25,10 @@ import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
-import org.apache.texera.amber.operator.LogicalOp
-import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
+import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator}
+import org.apache.texera.amber.operator.metadata.annotations.{AutofillAttributeName, SampleColumn}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
 import javax.validation.constraints.NotNull
@@ -36,10 +37,11 @@ import javax.validation.constraints.NotNull
   * HTML Visualization operator to render any given HTML code
   * This is the description of the operator
   */
-class HtmlVizOpDesc extends LogicalOp {
+class HtmlVizOpDesc extends LogicalOp with StandaloneCodeGenerator {
   @JsonProperty(required = true)
   @JsonSchemaTitle("HTML content")
   @AutofillAttributeName
+  @SampleColumn("short_text")
   @NotNull(message = "HTML content cannot be empty")
   var htmlContentAttrName: String = ""
 
@@ -73,5 +75,14 @@ class HtmlVizOpDesc extends LogicalOp {
       "Render the result of HTML content",
       OperatorGroupConstants.VISUALIZATION_MEDIA_GROUP
     )
+
+  // Output is a plain table (one "html-content" column), not a Plotly figure.
+  override def producesDataFrame(): Boolean = true
+
+  // Mirrors HtmlVizOpExec: emit one row per input row whose single
+  // "html-content" column is the value of htmlContentAttrName, passed through
+  // unconverted (the exec does not coerce either).
+  override def generateStandaloneCode(): String =
+    s"""out1df = pd.DataFrame({"html-content": in1df[${pyStringLiteral(htmlContentAttrName)}]})"""
 
 }
