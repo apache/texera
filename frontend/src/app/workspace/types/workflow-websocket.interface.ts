@@ -195,7 +195,6 @@ export type WorkflowStateInfo = Readonly<{
 }>;
 
 export type TexeraWebsocketRequestTypeMap = {
-  EditingTimeCompilationRequest: LogicalPlan;
   HeartBeatRequest: {};
   ModifyLogicRequest: ModifyOperatorLogic;
   ResultExportRequest: ResultExportRequest;
