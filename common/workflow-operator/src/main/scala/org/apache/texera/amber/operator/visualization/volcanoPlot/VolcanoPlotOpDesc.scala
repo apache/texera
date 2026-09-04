@@ -26,8 +26,10 @@ import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBui
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.PythonOperatorDescriptor
-import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
+import org.apache.texera.amber.operator.visualization.PlotlyStandaloneCode
+import org.apache.texera.amber.operator.metadata.annotations.{AutofillAttributeName, SampleColumn}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 
 import javax.validation.constraints.NotNull
 
@@ -41,7 +43,7 @@ import javax.validation.constraints.NotNull
   }
 }
 """)
-class VolcanoPlotOpDesc extends PythonOperatorDescriptor {
+class VolcanoPlotOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCode {
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("Effect Size (log2 Fold Change)")
@@ -51,6 +53,7 @@ class VolcanoPlotOpDesc extends PythonOperatorDescriptor {
       "and is used for the x-axis of the volcano plot."
   )
   @AutofillAttributeName
+  @SampleColumn("log2fc")
   @NotNull(message = "Effect Size (log2 Fold Change) cannot be empty")
   var effectColumn: EncodableString = ""
 
@@ -62,6 +65,7 @@ class VolcanoPlotOpDesc extends PythonOperatorDescriptor {
       "plotted on the y-axis to indicate statistical significance."
   )
   @AutofillAttributeName
+  @SampleColumn("pvalue")
   @NotNull(message = "P-Value Column cannot be empty")
   var pvalueColumn: EncodableString = ""
 
@@ -123,6 +127,43 @@ class VolcanoPlotOpDesc extends PythonOperatorDescriptor {
        |        html = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False)
        |        yield {"html-content": html}
        |""".encode
+  }
+
+  override def producesDataFrame(): Boolean = false
+
+  override def generateStandaloneCode(): String = {
+    val pvalueLit = pyStringLiteral(pvalueColumn)
+    val effectLit = pyStringLiteral(effectColumn)
+    s"""import numpy as np
+       |
+       |def render_error(msg):
+       |    return f"<h1>Volcano Plot failed</h1><p>{msg}</p>"
+       |
+       |if in1df.empty:
+       |    with open("output.html", "w", encoding="utf-8") as output:
+       |        output.write(render_error("Input table is empty."))
+       |elif $pvalueLit not in in1df.columns or $effectLit not in in1df.columns:
+       |    with open("output.html", "w", encoding="utf-8") as output:
+       |        output.write(render_error("Missing required columns in table."))
+       |else:
+       |    table = in1df[in1df[$pvalueLit] > 0].copy()
+       |    if table.empty:
+       |        with open("output.html", "w", encoding="utf-8") as output:
+       |            output.write(render_error("No rows with valid p-values."))
+       |    else:
+       |        table["-log10(pvalue)"] = -np.log10(table[$pvalueLit])
+       |        fig = px.scatter(
+       |            table,
+       |            x=$effectLit,
+       |            y="-log10(pvalue)",
+       |            hover_name=table.columns[0],
+       |            color=$effectLit,
+       |            color_continuous_scale="RdBu",
+       |            title="Volcano Plot"
+       |        )
+       |        fig.write_json("output.json")
+       |        fig.write_html("output.html")
+       |        print("Volcano plot saved to output.html")""".stripMargin
   }
 
 }

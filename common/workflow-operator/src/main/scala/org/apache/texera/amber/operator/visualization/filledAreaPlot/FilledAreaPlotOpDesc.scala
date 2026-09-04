@@ -20,25 +20,57 @@
 package org.apache.texera.amber.operator.visualization.filledAreaPlot
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
-import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
+import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
-import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
+  PythonTemplateBuilderStringContext,
+  pyStringLiteral
+}
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.PythonOperatorDescriptor
-import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
+import org.apache.texera.amber.operator.visualization.PlotlyStandaloneCode
+import org.apache.texera.amber.operator.metadata.annotations.{AutofillAttributeName, SampleColumn}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
 
 import javax.validation.constraints.NotNull
 
-class FilledAreaPlotOpDesc extends PythonOperatorDescriptor {
+// `lineGroup` names the column the plot is split on, so it is required exactly when
+// that switch is on: with the switch off nothing reads it, and with the switch on
+// code generation asserts it and the run ends. Conditional rather than a plain
+// required, so a freshly dropped operator is not flagged for a field it has no use
+// for.
+@JsonSchemaInject(json = """
+{
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "facetColumn": { "const": true }
+        }
+      },
+      "then": {
+        "required": ["lineGroup"]
+      }
+    }
+  ]
+}
+""")
+class FilledAreaPlotOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCode {
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("X-axis Attribute")
   @JsonPropertyDescription("The attribute for your x-axis")
   @AutofillAttributeName
   @NotNull(message = "X-axis Attribute cannot be empty")
+  // Test-only steering, for x and the two fields below. The operator refuses line
+  // groups whose x sets are disjoint, so which three columns are named together
+  // decides whether a chart is drawn at all: every `node_src` group shares a
+  // `comp_a` value with the first. Left to the first column of each type, the
+  // verification plots a string against an index and renders an error page, which
+  // compares equal on both paths and asks nothing.
+  @SampleColumn("comp_a")
   var x: EncodableString = ""
 
   @JsonProperty(required = true)
@@ -46,12 +78,14 @@ class FilledAreaPlotOpDesc extends PythonOperatorDescriptor {
   @JsonPropertyDescription("The attribute for your y-axis")
   @AutofillAttributeName
   @NotNull(message = "Y-axis Attribute cannot be empty")
+  @SampleColumn("score")
   var y: EncodableString = ""
 
   @JsonProperty(required = false)
   @JsonSchemaTitle("Line Group")
   @JsonPropertyDescription("The attribute for group of each line")
   @AutofillAttributeName
+  @SampleColumn("node_src")
   var lineGroup: EncodableString = ""
 
   @JsonProperty(required = false)
@@ -170,6 +204,54 @@ class FilledAreaPlotOpDesc extends PythonOperatorDescriptor {
          |            yield {'html-content': html}
          |"""
     finalCode.encode
+  }
+
+  override def producesDataFrame(): Boolean = false
+
+  override def generateStandaloneCode(): String = {
+    val xLit = pyStringLiteral(x)
+    val yLit = pyStringLiteral(y)
+    val lineGroupLit = pyStringLiteral(lineGroup)
+    val colorArg = if (color.nonEmpty) s""", color=${pyStringLiteral(color)}""" else ""
+    val facetColumnArg = if (facetColumn) s""", facet_col=$lineGroupLit""" else ""
+    val lineGroupArg = if (lineGroup.nonEmpty) s""", line_group=$lineGroupLit""" else ""
+    val patternParam =
+      if (pattern.nonEmpty) s""", pattern_shape=${pyStringLiteral(pattern)}""" else ""
+    s"""columns = list(in1df.columns)
+       |error = ""
+       |if $xLit not in columns or $yLit not in columns:
+       |    error = "missing attributes"
+       |elif $lineGroupLit != "":
+       |    grouped = in1df.groupby($lineGroupLit)
+       |    x_values = None
+       |    tolerance = (len(grouped) // 100) * 5
+       |    count = 0
+       |    for _, group in grouped:
+       |        if x_values == None:
+       |            x_values = set(group[$xLit].unique())
+       |        elif set(group[$xLit].unique()).intersection(x_values):
+       |            x_values = x_values.union(set(group[$xLit].unique()))
+       |        elif not set(group[$xLit].unique()).intersection(x_values):
+       |            count += 1
+       |            if count > tolerance:
+       |                error = "X attributes not shared across groups"
+       |
+       |if error == "":
+       |    fig = px.area(in1df, x=$xLit, y=$yLit$colorArg$facetColumnArg$lineGroupArg$patternParam)
+       |    fig.update_layout(margin=dict(l=0, r=0, b=0, t=0))
+       |    fig.write_json("output.json")
+       |    fig.write_html("output.html")
+       |    print("Filled area plot saved to output.html")
+       |elif error == "X attributes not shared across groups":
+       |    with open("output.html", "w", encoding="utf-8") as output:
+       |        output.write('''<h1>Plot is not available, because:</h1>
+       |                      <li>X attribute is not shared across all line groups</li>
+       |                      </ul>''')
+       |elif error == "missing attributes":
+       |    with open("output.html", "w", encoding="utf-8") as output:
+       |        output.write('''<h1>Plot is not available, because:</h1>
+       |                      <li>X or Y attribute does not exist</li>
+       |                      </ul>''')""".stripMargin
   }
 
 }

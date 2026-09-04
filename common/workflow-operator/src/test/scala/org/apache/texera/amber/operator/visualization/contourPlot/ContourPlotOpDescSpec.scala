@@ -114,4 +114,35 @@ class ContourPlotOpDescSpec extends AnyFlatSpec with Matchers {
     d.gridSize = Some(25)
     d.generatePythonCode() should include("grid_size = 25")
   }
+
+  it should "drop the rows a blank leaves unusable, and answer an emptied table" in {
+    // The drop names all three columns: griddata refuses a NaN coordinate, and a
+    // NaN in z quietly interpolates to an all-NaN grid, which draws an empty chart.
+    val code = plottingCode
+    code should include("table = table.dropna(subset=[")
+    code should include("if table.empty:")
+    code should include("Table should not have any empty/null values or fields.")
+  }
+
+  it should "answer a point set that cannot be triangulated" in {
+    // Guarded by a rank test rather than by catching the QhullError, so a genuine
+    // failure inside griddata still surfaces as one.
+    val code = plottingCode
+    code should include("np.linalg.matrix_rank(points - points.mean(axis=0)) < 2")
+    code should include("no area to contour")
+  }
+
+  it should "define the render_error it now calls" in {
+    plottingCode should include("def render_error(self, error_msg)")
+  }
+
+  /** The emitted code for a fully configured operator, which the guards above read. */
+  private def plottingCode: String = {
+    val d = new ContourPlotOpDesc
+    d.x = "lon"
+    d.y = "lat"
+    d.z = "elev"
+    d.coloringMethod = ContourPlotColoringFunction.HEATMAP
+    d.generatePythonCode()
+  }
 }

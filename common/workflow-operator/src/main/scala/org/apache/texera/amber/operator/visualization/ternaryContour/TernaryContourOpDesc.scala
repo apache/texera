@@ -23,11 +23,14 @@ import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.workflow.OutputPort.OutputMode
-import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
+  PythonTemplateBuilderStringContext,
+  pyStringLiteral
+}
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
-import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
+import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
+import org.apache.texera.amber.operator.metadata.annotations.{AutofillAttributeName, SampleColumn}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
 
@@ -52,13 +55,14 @@ import javax.validation.constraints.NotNull
   }
 }
 """)
-class TernaryContourOpDesc extends PythonOperatorDescriptor {
+class TernaryContourOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
 
   // Add annotations for the first variable
   @JsonProperty(value = "firstVariable", required = true)
   @JsonSchemaTitle("Variable 1")
   @JsonPropertyDescription("First variable data field")
   @AutofillAttributeName
+  @SampleColumn("simplex_a")
   @NotNull(message = "Variable 1 cannot be empty")
   var firstVariable: EncodableString = ""
 
@@ -67,6 +71,7 @@ class TernaryContourOpDesc extends PythonOperatorDescriptor {
   @JsonSchemaTitle("Variable 2")
   @JsonPropertyDescription("Second variable data field")
   @AutofillAttributeName
+  @SampleColumn("simplex_b")
   @NotNull(message = "Variable 2 cannot be empty")
   var secondVariable: EncodableString = ""
 
@@ -75,6 +80,7 @@ class TernaryContourOpDesc extends PythonOperatorDescriptor {
   @JsonSchemaTitle("Variable 3")
   @JsonPropertyDescription("Third variable data field")
   @AutofillAttributeName
+  @SampleColumn("simplex_c")
   @NotNull(message = "Variable 3 cannot be empty")
   var thirdVariable: EncodableString = ""
 
@@ -169,6 +175,49 @@ class TernaryContourOpDesc extends PythonOperatorDescriptor {
          |        yield {'html-content':html}
          |"""
     finalCode.encode
+  }
+
+  override def producesDataFrame(): Boolean = false
+
+  override def generateStandaloneCode(): String = {
+    val firstLit = pyStringLiteral(firstVariable)
+    val secondLit = pyStringLiteral(secondVariable)
+    val thirdLit = pyStringLiteral(thirdVariable)
+    val fourthLit = pyStringLiteral(fourthVariable)
+    s"""import plotly.figure_factory as ff
+       |import numpy as np
+       |
+       |def render_error(error_msg):
+       |    return '''<h1>TernaryContour is not available.</h1>
+       |                  <p>Reasons are: {} </p>
+       |               '''.format(error_msg)
+       |
+       |if in1df.empty:
+       |    with open("output.html", "w", encoding="utf-8") as output:
+       |        output.write(render_error("Input table is empty."))
+       |else:
+       |    table = in1df.copy()
+       |    table.dropna(subset=[$firstLit, $secondLit, $thirdLit, $fourthLit], inplace=True)
+       |    table = table[(table[[$firstLit, $secondLit, $thirdLit]] >= 0).all(axis=1)]
+       |    s = table[$firstLit] + table[$secondLit] + table[$thirdLit]
+       |    table = table[s > 0]
+       |    if table.empty:
+       |        with open("output.html", "w", encoding="utf-8") as output:
+       |            output.write(render_error("No valid rows left (every row has at least 1 missing value)."))
+       |    else:
+       |        A = table[$firstLit].to_numpy()
+       |        B = table[$secondLit].to_numpy()
+       |        C = table[$thirdLit].to_numpy()
+       |        Z = table[$fourthLit].to_numpy()
+       |        fig = ff.create_ternary_contour(
+       |            np.array([A, B, C]),
+       |            Z,
+       |            pole_labels=[$firstLit, $secondLit, $thirdLit],
+       |            interp_mode='cartesian'
+       |        )
+       |        fig.write_json("output.json")
+       |        fig.write_html("output.html")
+       |        print("Ternary contour saved to output.html")""".stripMargin
   }
 
 }

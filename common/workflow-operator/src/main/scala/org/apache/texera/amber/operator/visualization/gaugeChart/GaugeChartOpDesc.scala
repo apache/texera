@@ -22,16 +22,20 @@ import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
-import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
+  PythonTemplateBuilderStringContext,
+  pyStringLiteral
+}
 import org.apache.texera.amber.pybuilder.PyStringTypes.{EncodableString, PythonLiteral}
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.PythonOperatorDescriptor
+import org.apache.texera.amber.operator.visualization.PlotlyStandaloneCode
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 
 import javax.validation.constraints.NotNull
 
-class GaugeChartOpDesc extends PythonOperatorDescriptor {
+class GaugeChartOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCode {
   @JsonProperty(value = "value", required = true)
   @JsonSchemaTitle("Gauge Value")
   @JsonPropertyDescription("The primary value displayed on the gauge chart")
@@ -189,5 +193,103 @@ class GaugeChartOpDesc extends PythonOperatorDescriptor {
          |        except Exception as e:
          |            yield {'html-content': self.render_error(f"General error: {str(e)}")}
          |""".encode
+  }
+
+  override def producesDataFrame(): Boolean = false
+
+  override def generateStandaloneCode(): String = {
+    // The column name is typed-in text, so it is emitted as a properly escaped
+    // Python literal — hand-written quotes would let a quote, backslash or newline
+    // in it break the script the runtime path renders fine. The numeric settings
+    // carry no text and are emitted as numbers, the same as the runtime path.
+    val valueLit = pyStringLiteral(value)
+    val deltaExpr = numberOrNone(delta)
+    val thresholdExpr = numberOrNone(threshold)
+    val stepsExpr = stepsLiteral
+    // render_error's continuation line keeps the runtime path's indentation — the
+    // HTML is triple-quoted, so those spaces reach the browser.
+    s"""import plotly.graph_objects as go
+       |import plotly.io as pio
+       |
+       |def render_error(error_msg):
+       |    return '''<h1>Gauge chart is not available.</h1>
+       |                  <p>Reason: {} </p>'''.format(error_msg)
+       |
+       |def generate_gray_gradient(step_count):
+       |    colors = []
+       |    for i in range(step_count):
+       |        lightness = 90 - (i * (60 / max(1, step_count - 1)))
+       |        colors.append(f"hsl(0, 0%, {lightness}%)")
+       |    return colors
+       |
+       |if in1df.empty:
+       |    with open("output.html", "w", encoding="utf-8") as output:
+       |        output.write(render_error("Input table is empty."))
+       |else:
+       |    gauge_value = $valueLit
+       |    delta_ref = $deltaExpr
+       |    threshold_val = $thresholdExpr
+       |    table = in1df.dropna(subset=[gauge_value])
+       |    if table.empty:
+       |        with open("output.html", "w", encoding="utf-8") as output:
+       |            output.write(render_error("No non-null rows found for the value column."))
+       |    else:
+       |        valid_steps = $stepsExpr
+       |        step_colors = generate_gray_gradient(len(valid_steps))
+       |        steps_list = []
+       |        for index, step_data in enumerate(valid_steps):
+       |            color = step_colors[index]
+       |            steps_list.append({
+       |                "range": [step_data["start"], step_data["end"]],
+       |                "color": color
+       |            })
+       |
+       |        html_chunks = []
+       |        first_fig = None
+       |        for _, row in table.iterrows():
+       |            try:
+       |                actual = float(row[gauge_value])
+       |                max_val = actual
+       |                if delta_ref is not None:
+       |                    max_val = max(max_val, delta_ref)
+       |                if threshold_val is not None:
+       |                    max_val = max(max_val, threshold_val)
+       |                if steps_list:
+       |                    for r in steps_list:
+       |                        max_val = max(max_val, r["range"][1])
+       |                gauge_config = {'axis': {'range': [None, max_val * 1.2]}}
+       |                if steps_list:
+       |                    gauge_config['steps'] = steps_list
+       |                if threshold_val is not None:
+       |                    gauge_config['threshold'] = {
+       |                        "value": threshold_val,
+       |                        "line": {"color": "red", "width": 3},
+       |                        "thickness": 0.75
+       |                    }
+       |                mode_parts = ["number", "gauge"]
+       |                if delta_ref is not None:
+       |                    mode_parts.append("delta")
+       |                mode = "+".join(mode_parts)
+       |                delta_config = {"reference": delta_ref} if delta_ref is not None else None
+       |                fig = go.Figure(go.Indicator(
+       |                    mode=mode,
+       |                    value=actual,
+       |                    delta=delta_config,
+       |                    gauge=gauge_config,
+       |                    domain={"x": [0, 1], "y": [0, 1]},
+       |                    title={"text": gauge_value}
+       |                ))
+       |                fig.update_layout(margin=dict(l=20, r=20, b=40, t=60), height=250)
+       |                if first_fig is None:
+       |                    first_fig = fig
+       |                html_chunks.append(pio.to_html(fig, include_plotlyjs='cdn', auto_play=False))
+       |            except Exception as e:
+       |                html_chunks.append(render_error(f"Error generating chart: {str(e)}"))
+       |
+       |        with open("output.html", "w", encoding="utf-8") as output:
+       |            output.write("<div>" + "".join(html_chunks) + "</div>")
+       |        if first_fig is not None:
+       |            first_fig.write_json("output.json")
+       |        print("Gauge chart saved to output.html")""".stripMargin
   }
 }
