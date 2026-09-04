@@ -18,6 +18,8 @@
  */
 
 import { ChangeDetectorRef, Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges } from "@angular/core";
+import { ExposePropertyWrapperComponent } from "../../../../common/formly/expose-property-wrapper/expose-property-wrapper.component";
+import { FormBindingService } from "../../../service/form-binding/form-binding.service";
 import { ExecuteWorkflowService } from "../../../service/execute-workflow/execute-workflow.service";
 import { WorkflowStatusService } from "../../../service/workflow-status/workflow-status.service";
 import { Subject } from "rxjs";
@@ -172,6 +174,9 @@ export function conditionalRequiredRules(schema: unknown): Map<string, Condition
 })
 export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, OnDestroy {
   @Input() currentOperatorId?: string;
+  /** True while an author is choosing which properties appear on the Form View; adds a tick
+   *  box beside each. Off, the property editor is unchanged. */
+  @Input() exposeChoosing = false;
 
   currentOperatorSchema?: OperatorSchema;
 
@@ -491,6 +496,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
   }
 
   constructor(
+    private formBindingService: FormBindingService,
     private formlyJsonschema: FormlyJsonschema,
     private workflowActionService: WorkflowActionService,
     public executeWorkflowService: ExecuteWorkflowService,
@@ -1360,6 +1366,24 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
 
     const schemaProperties = schema.properties;
     const fields = field.fieldGroup;
+
+    // A tick box beside each TOP-LEVEL property only, added over the root field group rather
+    // than inside the per-field map (which runs at every depth and so could not tell a nested
+    // field from a same-named top-level one -- an array-of-objects property would otherwise
+    // sprout boxes on the array, each item and each nested field).
+    if (this.exposeChoosing && this.currentOperatorId && fields) {
+      const operatorId = this.currentOperatorId;
+      for (const topLevelField of fields) {
+        if (typeof topLevelField.key === "string") {
+          const propertyKey = topLevelField.key;
+          ExposePropertyWrapperComponent.decorate(
+            topLevelField,
+            this.formBindingService.isExposed(operatorId, propertyKey),
+            (checked: boolean) => this.formBindingService.setExposed(operatorId, propertyKey, checked)
+          );
+        }
+      }
+    }
 
     // adding custom options, relational N-to-M mapping.
     if (schemaProperties && fields) {
