@@ -24,7 +24,7 @@ import org.scalatest.matchers.should.Matchers
 
 /**
   * Spec for [[KubernetesConfig]]. Reading each value forces resolution from kubernetes.conf, so a
-  * renamed or mistyped key surfaces here as a ConfigException. Every value except the port number
+  * renamed or mistyped key surfaces here as a ConfigException. Every value except the port numbers
   * carries a `${?ENV}` override, so exact-value assertions are guarded on the env var being unset.
   */
 class KubernetesConfigSpec extends AnyFlatSpec with Matchers {
@@ -68,6 +68,33 @@ class KubernetesConfigSpec extends AnyFlatSpec with Matchers {
     )
     // an override may legitimately set 0 (to disable), so only require non-negative
     KubernetesConfig.maxNumOfRunningComputingUnitsPerUser should be >= 0
+  }
+
+  "KubernetesConfig jupyter settings" should "resolve to their kubernetes.conf defaults" in {
+    KubernetesConfig.jupyterPortNumber shouldBe 8888
+    // Off by default and keyed separately from kubernetes.enabled, so enabling computing
+    // units on Kubernetes never silently enables per-user Jupyter.
+    ifUnset("KUBERNETES_JUPYTER_ENABLED")(KubernetesConfig.jupyterEnabled shouldBe false)
+    ifUnset("KUBERNETES_JUPYTER_NAMESPACE")(
+      KubernetesConfig.jupyterNamespace shouldBe "texera-jupyter-pool"
+    )
+    ifUnset("KUBERNETES_JUPYTER_SERVICE_NAME")(
+      KubernetesConfig.jupyterServiceName shouldBe "jupyter-svc"
+    )
+    ifUnset("KUBERNETES_JUPYTER_IMAGE_NAME")(
+      KubernetesConfig.jupyterImageName shouldBe "ghcr.io/apache/texera-jupyter:latest"
+    )
+    // Empty by default: only a real deployment knows its own origin.
+    ifUnset("KUBERNETES_JUPYTER_TEXERA_ORIGIN")(KubernetesConfig.jupyterTexeraOrigin shouldBe "")
+    ifUnset("KUBERNETES_JUPYTER_CPU_LIMIT")(KubernetesConfig.jupyterCpuLimit shouldBe "1")
+    ifUnset("KUBERNETES_JUPYTER_MEMORY_LIMIT")(
+      KubernetesConfig.jupyterMemoryLimit shouldBe "2Gi"
+    )
+    // Empty means the browser is handed the in-network address; a deployment that
+    // publishes Jupyter overrides it.
+    ifUnset("KUBERNETES_JUPYTER_PUBLIC_URL_TEMPLATE")(
+      KubernetesConfig.jupyterPublicUrlTemplate shouldBe ""
+    )
   }
 
   "KubernetesConfig limit options" should "parse into trimmed, non-empty lists" in {

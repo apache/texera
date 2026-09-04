@@ -31,7 +31,6 @@ import org.apache.texera.dao.jooq.generated.Tables._
 import org.apache.texera.dao.jooq.generated.enums.{DefaultViewEnum, PrivilegeEnum}
 import org.apache.texera.dao.jooq.generated.tables.daos.{
   WorkflowDao,
-  WorkflowOfProjectDao,
   WorkflowOfUserDao,
   WorkflowUserAccessDao
 }
@@ -40,10 +39,9 @@ import org.apache.texera.service.util.LargeBinaryManager
 import org.apache.texera.web.resource.dashboard.hub.EntityType
 import org.apache.texera.web.service.WarehouseReadGuard
 import org.apache.texera.web.resource.dashboard.hub.HubResource.recordCloneAction
-import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource.hasReadAccess
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowResource._
-import org.jooq.impl.DSL.{groupConcatDistinct, noCondition, max}
-import org.jooq.{Condition, DSLContext, Record11, Result, SelectOnConditionStep}
+import org.jooq.impl.DSL.{noCondition, max}
+import org.jooq.{Condition, DSLContext, Record10, Result, SelectOnConditionStep}
 
 import java.sql.Timestamp
 import java.util
@@ -76,7 +74,6 @@ object WorkflowResource {
     new WorkflowUserAccessDao(
       context.configuration()
     )
-  private def workflowOfProjectDao = new WorkflowOfProjectDao(context.configuration)
 
   /** Max length of a stored cover-image data URL. */
   private val COVER_IMAGE_MAX_CHARS: Int = 4 * 1024 * 1024
@@ -96,6 +93,13 @@ object WorkflowResource {
   }
 
   private def insertWorkflow(workflow: Workflow, user: User): Unit = {
+    // A workflow is born with nothing pinned. The endpoint takes a whole Workflow, so without this
+    // a request body could seed a published copy of its own choosing.
+    workflow.setPublishedVersionId(null)
+    workflow.setPublishedContent(null)
+    workflow.setPublishedName(null)
+    workflow.setPublishedDescription(null)
+    workflow.setPublishedDefaultView(null)
     workflowDao.insert(workflow)
     workflowOfUserDao.insert(new WorkflowOfUser(user.getUid, workflow.getWid))
     workflowUserAccessDao.insert(
@@ -115,20 +119,11 @@ object WorkflowResource {
     )
   }
 
-  private def workflowOfProjectExists(wid: Integer, pid: Integer): Boolean = {
-    workflowOfProjectDao.existsById(
-      context
-        .newRecord(WORKFLOW_OF_PROJECT.WID, WORKFLOW_OF_PROJECT.PID)
-        .values(wid, pid)
-    )
-  }
-
   case class DashboardWorkflow(
       isOwner: Boolean,
       accessLevel: String,
       ownerName: String,
       workflow: Workflow,
-      projectIDs: List[Integer],
       ownerId: Integer,
       coverImage: Option[String]
   )
@@ -146,7 +141,28 @@ object WorkflowResource {
       defaultView: DefaultViewEnum
   )
 
-  case class WorkflowIDs(wids: List[Integer], pid: Option[Integer])
+  case class WorkflowIDs(wids: List[Integer])
+
+  /**
+    * A workflow POJO for the copy-producing paths (clone, duplicate, restore-a-version).
+    *
+    * Built with setters rather than the positional constructor, so that adding a column cannot
+    * silently shift a null into the wrong field -- as adding the published-copy columns would.
+    */
+  def newUnpublishedWorkflow(
+      name: String,
+      description: String,
+      content: String,
+      defaultView: DefaultViewEnum
+  ): Workflow = {
+    val workflow = new Workflow()
+    workflow.setName(name)
+    workflow.setDescription(description)
+    workflow.setContent(content)
+    workflow.setIsPublic(false)
+    workflow.setDefaultView(defaultView)
+    workflow
+  }
 
   private def updateWorkflowField(
       workflow: Workflow,
@@ -198,7 +214,7 @@ object WorkflowResource {
     }
   }
 
-  def baseWorkflowSelect(): SelectOnConditionStep[Record11[
+  def baseWorkflowSelect(): SelectOnConditionStep[Record10[
     Integer,
     String,
     String,
@@ -206,7 +222,6 @@ object WorkflowResource {
     Timestamp,
     PrivilegeEnum,
     Integer,
-    String,
     String,
     String,
     DefaultViewEnum
@@ -221,7 +236,6 @@ object WorkflowResource {
         WORKFLOW_USER_ACCESS.PRIVILEGE,
         WORKFLOW_OF_USER.UID,
         USER.NAME,
-        groupConcatDistinct(WORKFLOW_OF_PROJECT.PID).as("projects"),
         max(WORKFLOW_COVER_IMAGE.IMAGE).as("cover_image"),
         WORKFLOW.DEFAULT_VIEW
       )
@@ -232,14 +246,12 @@ object WorkflowResource {
       .on(WORKFLOW_OF_USER.WID.eq(WORKFLOW.WID))
       .leftJoin(USER)
       .on(USER.UID.eq(WORKFLOW_OF_USER.UID))
-      .leftJoin(WORKFLOW_OF_PROJECT)
-      .on(WORKFLOW.WID.eq(WORKFLOW_OF_PROJECT.WID))
       .leftJoin(WORKFLOW_COVER_IMAGE)
       .on(WORKFLOW.WID.eq(WORKFLOW_COVER_IMAGE.WID))
   }
 
   def mapWorkflowEntries(
-      workflowEntries: Result[Record11[
+      workflowEntries: Result[Record10[
         Integer,
         String,
         String,
@@ -247,7 +259,6 @@ object WorkflowResource {
         Timestamp,
         PrivilegeEnum,
         Integer,
-        String,
         String,
         String,
         DefaultViewEnum
@@ -267,9 +278,6 @@ object WorkflowResource {
             .toString,
           workflowRecord.into(USER).getName,
           workflowRecord.into(WORKFLOW).into(classOf[Workflow]),
-          if (workflowRecord.component9() == null) List[Integer]()
-          else
-            workflowRecord.component9().split(',').map(str => Integer.valueOf(str)).toList,
           workflowRecord.into(WORKFLOW_OF_USER).getUid,
           Option(workflowRecord.get("cover_image", classOf[String]))
         )
@@ -521,39 +529,21 @@ class WorkflowResource extends LazyLogging {
     }
 
     val resultWorkflows: ListBuffer[DashboardWorkflow] = ListBuffer()
-    val addToProject = workflowIDs.pid.nonEmpty
     // then start a transaction and do the duplication
     try {
       context.transaction { txConfig =>
         for (wid <- workflowIDs.wids) {
           val oldWorkflow: Workflow = workflowDao.fetchOneByWid(wid)
           val newWorkflow = createWorkflow(
-            new Workflow(
-              null,
+            newUnpublishedWorkflow(
               oldWorkflow.getName + "_copy",
               oldWorkflow.getDescription,
               assignNewOperatorIds(oldWorkflow.getContent),
-              null,
-              null,
-              false,
               // the default view is part of the workflow, so a copy keeps it
               oldWorkflow.getDefaultView
             ),
             sessionUser
           )
-          // if workflows also need to be added to the project
-          if (addToProject) {
-            val newWid = newWorkflow.workflow.getWid
-            if (!hasReadAccess(newWid, user.getUid)) {
-              throw new ForbiddenException("No sufficient access privilege to workflow.")
-            }
-            val pid = workflowIDs.pid.get
-            if (!workflowOfProjectExists(newWid, pid)) {
-              workflowOfProjectDao.insert(new WorkflowOfProject(newWid, pid))
-            } else {
-              throw new BadRequestException("Workflow already exists in the project")
-            }
-          }
           resultWorkflows += newWorkflow
         }
       }
@@ -580,14 +570,10 @@ class WorkflowResource extends LazyLogging {
     }
     val oldWorkflow: Workflow = workflowDao.fetchOneByWid(wid)
     val newWorkflow: DashboardWorkflow = createWorkflow(
-      new Workflow(
-        null,
+      newUnpublishedWorkflow(
         oldWorkflow.getName + "_clone",
         oldWorkflow.getDescription,
         assignNewOperatorIds(oldWorkflow.getContent),
-        null,
-        null,
-        false,
         // a biologist's path is hub -> clone -> use, so the clone must stay usable
         oldWorkflow.getDefaultView
       ),
@@ -622,7 +608,6 @@ class WorkflowResource extends LazyLogging {
         PrivilegeEnum.WRITE.toString,
         user.getName,
         workflowDao.fetchOneByWid(workflow.getWid),
-        List[Integer](),
         user.getUid,
         None
       )

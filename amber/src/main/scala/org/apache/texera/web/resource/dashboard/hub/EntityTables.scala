@@ -25,6 +25,8 @@ import org.apache.texera.dao.jooq.generated.tables.records._
 import org.apache.texera.web.resource.dashboard.VersionedResourceTables
 import org.jooq._
 
+import javax.ws.rs.BadRequestException
+
 object EntityTables {
 
   // ==================== THE REGISTRY ====================
@@ -80,6 +82,7 @@ object EntityTables {
 
   def apply(entityType: EntityType): EntityTableSet =
     entityType match {
+      case null                => throw new BadRequestException("Missing entityType")
       case EntityType.Workflow => WorkflowTableSet
       case EntityType.Dataset  => DatasetTableSet
       case EntityType.Model    => ModelTableSet

@@ -57,8 +57,6 @@ DROP TABLE IF EXISTS "user" CASCADE;
 DROP TABLE IF EXISTS user_last_active_time CASCADE;
 DROP TABLE IF EXISTS workflow CASCADE;
 DROP TABLE IF EXISTS workflow_version CASCADE;
-DROP TABLE IF EXISTS project CASCADE;
-DROP TABLE IF EXISTS workflow_of_project CASCADE;
 DROP TABLE IF EXISTS workflow_executions CASCADE;
 DROP TABLE IF EXISTS dataset_upload_session CASCADE;
 DROP TABLE IF EXISTS dataset_upload_session_part CASCADE;
@@ -71,8 +69,6 @@ DROP TABLE IF EXISTS model_user_access CASCADE;
 DROP TABLE IF EXISTS model_version CASCADE;
 DROP TABLE IF EXISTS model CASCADE;
 DROP TABLE IF EXISTS dataset_contributor CASCADE;
-DROP TABLE IF EXISTS public_project CASCADE;
-DROP TABLE IF EXISTS project_user_access CASCADE;
 DROP TABLE IF EXISTS workflow_user_likes CASCADE;
 DROP TABLE IF EXISTS workflow_user_clones CASCADE;
 DROP TABLE IF EXISTS workflow_view_count CASCADE;
@@ -85,6 +81,7 @@ DROP TABLE IF EXISTS site_settings CASCADE;
 DROP TABLE IF EXISTS computing_unit_user_access CASCADE;
 DROP TABLE IF EXISTS notebook CASCADE;
 DROP TABLE IF EXISTS workflow_notebook_mapping CASCADE;
+DROP TABLE IF EXISTS user_jupyter CASCADE;
 DROP TABLE IF EXISTS virtual_environments CASCADE;
 
 -- ============================================
@@ -101,7 +98,7 @@ CREATE TYPE user_role_enum AS ENUM ('INACTIVE', 'RESTRICTED', 'REGULAR', 'ADMIN'
 CREATE TYPE action_enum AS ENUM ('like', 'unlike', 'view', 'clone');
 CREATE TYPE privilege_enum AS ENUM ('NONE', 'READ', 'WRITE');
 CREATE TYPE workflow_computing_unit_type_enum AS ENUM ('local', 'kubernetes');
-CREATE TYPE provider_type_enum AS ENUM ('LOCAL', 'GOOGLE');
+CREATE TYPE provider_type_enum AS ENUM ('LOCAL', 'GOOGLE', 'ORCID');
 CREATE TYPE user_warehouse_flavor_enum AS ENUM ('local', 'aws');
 CREATE TYPE default_view_enum AS ENUM ('CANVAS', 'FORM');
 
@@ -173,8 +170,34 @@ CREATE TABLE IF NOT EXISTS workflow
     is_public          BOOLEAN NOT NULL DEFAULT false,
     -- Which view the workflow opens in by default (CANVAS or FORM); the form's definition
     -- lives in workflow.content (`formBinding`).
-    default_view   default_view_enum NOT NULL DEFAULT 'CANVAS'
+    default_view   default_view_enum NOT NULL DEFAULT 'CANVAS',
+    -- is_public is the on/off switch; published_content is the pin. NULL means the public follows the
+    -- author's latest content, non-NULL is the frozen copy the public sees instead. Materialized
+    -- rather than reconstructed from workflow_version, whose rows are reverse deltas.
+    -- published_version_id names the version row holding that copy, which is what the revision panel
+    -- marks so the author can restore it.
+    published_version_id  INT,
+    published_content     TEXT,
+    published_name        VARCHAR(128),
+    published_description TEXT,
+    -- Which view the pinned copy opens in: the form's definition rides inside published_content, so
+    -- the switch has to freeze with it or the public gets a form view over a copy with no form.
+    published_default_view default_view_enum
     );
+
+-- A pin only means something while the workflow is public. The four columns describe one copy, so
+-- the database keeps them together: either all absent, or a pinned copy on a public workflow.
+ALTER TABLE workflow
+    DROP CONSTRAINT IF EXISTS workflow_pin_requires_public;
+ALTER TABLE workflow
+    ADD CONSTRAINT workflow_pin_requires_public
+        CHECK (
+            (published_content IS NULL AND published_name IS NULL
+                AND published_description IS NULL AND published_version_id IS NULL
+                AND published_default_view IS NULL)
+                OR (is_public AND published_content IS NOT NULL AND published_name IS NOT NULL
+                AND published_default_view IS NOT NULL)
+            );
 
 -- workflow_of_user
 CREATE TABLE IF NOT EXISTS workflow_of_user
@@ -213,40 +236,6 @@ CREATE TABLE IF NOT EXISTS workflow_cover_image
     wid   INT PRIMARY KEY,
     image TEXT NOT NULL,
     FOREIGN KEY (wid) REFERENCES workflow(wid) ON DELETE CASCADE
-    );
-
--- project
-CREATE TABLE IF NOT EXISTS project
-(
-    pid            SERIAL PRIMARY KEY,
-    name           VARCHAR(128) NOT NULL,
-    description    VARCHAR(10000),
-    owner_id       INT NOT NULL,
-    creation_time  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    color          VARCHAR(6),
-    UNIQUE (owner_id, name),
-    FOREIGN KEY (owner_id) REFERENCES "user"(uid) ON DELETE CASCADE
-    );
-
--- workflow_of_project
-CREATE TABLE IF NOT EXISTS workflow_of_project
-(
-    wid INT NOT NULL,
-    pid INT NOT NULL,
-    PRIMARY KEY (wid, pid),
-    FOREIGN KEY (wid) REFERENCES workflow(wid) ON DELETE CASCADE,
-    FOREIGN KEY (pid) REFERENCES project(pid) ON DELETE CASCADE
-    );
-
--- project_user_access
-CREATE TABLE IF NOT EXISTS project_user_access
-(
-    uid       INT NOT NULL,
-    pid       INT NOT NULL,
-    privilege privilege_enum NOT NULL DEFAULT 'NONE',
-    PRIMARY KEY (uid, pid),
-    FOREIGN KEY (uid) REFERENCES "user"(uid) ON DELETE CASCADE,
-    FOREIGN KEY (pid) REFERENCES project(pid) ON DELETE CASCADE
     );
 
 -- workflow_computing_unit table
@@ -315,15 +304,6 @@ CREATE TABLE IF NOT EXISTS workflow_executions
     FOREIGN KEY (cuid) REFERENCES workflow_computing_unit(cuid) ON DELETE CASCADE,
     FOREIGN KEY (whid) REFERENCES user_warehouse(whid) ON DELETE SET NULL
 );
-
--- public_project
-CREATE TABLE IF NOT EXISTS public_project
-(
-    pid INT PRIMARY KEY,
-    uid INT,
-    FOREIGN KEY (pid) REFERENCES project(pid) ON DELETE CASCADE
-    -- Note: MySQL schema doesn't define a foreign key for uid
-    );
 
 -- dataset
 CREATE TABLE IF NOT EXISTS dataset
@@ -696,6 +676,20 @@ CREATE TABLE IF NOT EXISTS workflow_notebook_mapping
     FOREIGN KEY (wid, nid) REFERENCES notebook(wid, nid) ON DELETE CASCADE
 );
 
+-- Per-user JupyterLab registration: one row per provisioned user, so the service resolves
+-- endpoints per user instead of from process-wide config. Both URLs are stored rather than
+-- derived, matching workflow_computing_unit.uri, so addressing can change without a code
+-- change: internal_url is what the service calls, public_url is what the browser loads.
+-- The token is derived from a server secret and the uid, so it is not stored.
+CREATE TABLE IF NOT EXISTS user_jupyter
+(
+    uid          INT          NOT NULL PRIMARY KEY,
+    internal_url VARCHAR(512) NOT NULL,
+    public_url   VARCHAR(512) NOT NULL,
+    created_at   TIMESTAMPTZ  NOT NULL DEFAULT now(),
+    FOREIGN KEY (uid) REFERENCES "user"(uid) ON DELETE CASCADE
+);
+
 -- START Fulltext search index creation (DO NOT EDIT THIS LINE)
 CREATE EXTENSION IF NOT EXISTS pgroonga;
 
@@ -709,7 +703,7 @@ BEGIN
   FOR r IN
     SELECT indexname FROM pg_indexes
     WHERE (indexdef ILIKE '%USING gin%' OR indexdef ILIKE '%USING pgroonga%')
-    AND tablename IN ('workflow', 'user', 'project', 'dataset', 'dataset_version', 'model')
+    AND tablename IN ('workflow', 'user', 'dataset', 'dataset_version', 'model')
   LOOP
     EXECUTE format('DROP INDEX IF EXISTS %I;', r.indexname);
   END LOOP;
@@ -739,12 +733,12 @@ BEGIN
            CASE
              WHEN tablename = 'workflow' THEN
                '(COALESCE(name, '''') || '' '' || COALESCE(description, '''') || '' '' || COALESCE(content, ''''))'
-             WHEN tablename IN ('project', 'dataset', 'model') THEN
+             WHEN tablename IN ('dataset', 'model') THEN
                '(COALESCE(name, '''') || '' '' || COALESCE(description, ''''))'
              ELSE
                'COALESCE(name, '''')'
            END AS index_column
-    FROM (VALUES ('workflow'), ('user'), ('project'), ('dataset'), ('dataset_version'), ('model')) AS t(tablename)
+    FROM (VALUES ('workflow'), ('user'), ('dataset'), ('dataset_version'), ('model')) AS t(tablename)
   LOOP
     -- Create PGroonga index with proper TokenFilterStem usage
     EXECUTE format(
@@ -752,6 +746,16 @@ BEGIN
       r.tablename, r.tablename, r.index_column, stem_filter
     );
   END LOOP;
+
+  -- Public search matches the pinned copy -- name, description and content together -- rather than
+  -- the author's live values, so it needs its own index alongside idx_workflow_pgroonga. The
+  -- expression must match the one the query builds against these columns.
+  EXECUTE format(
+    'CREATE INDEX idx_workflow_published_pgroonga ON workflow USING pgroonga ' ||
+    '((COALESCE(published_name, '''') || '' '' || COALESCE(published_description, '''') || '' '' || COALESCE(published_content, ''''))) ' ||
+    'WITH (tokenizer = ''TokenMecab''%s);',
+    stem_filter
+  );
 END $$;
 
 -- END Fulltext search index creation (DO NOT EDIT THIS LINE)

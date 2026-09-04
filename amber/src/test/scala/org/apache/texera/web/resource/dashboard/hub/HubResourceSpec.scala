@@ -682,6 +682,11 @@ class HubResourceSpec
     new HubResource().getCount(Wf).intValue() shouldBe 1
   }
 
+  it should "reject a missing entity type" in {
+    intercept[BadRequestException](hub.getCount(null))
+    intercept[BadRequestException](hub.getTops(null, null, null, null))
+  }
+
   it should "leave non-public workflows out of the count" in {
     // On top of the public fixture workflow (wid 7001) seeded in beforeAll.
     seedWorkflow(810501, "wf_public_a", isPublic = true, withOwnerRows = false)
@@ -1083,7 +1088,6 @@ class HubResourceSpec
     entry.ownerName shouldBe "hub_owner"
     entry.ownerId shouldBe Integer.valueOf(ownerUid)
     entry.accessLevel shouldBe "WRITE"
-    entry.projectIDs shouldBe empty
     entry.coverImage shouldBe empty
   }
 

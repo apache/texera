@@ -153,8 +153,8 @@ import scala.jdk.CollectionConverters._
   *
   * Covered but unconstrainable, so no reviewer should count it as pinned behaviour:
   *   - the `.filter(_.nonEmpty)` after the keyword split. `getFullTextSearchFilter` re-applies
-  *     `keywords.filter(_.nonEmpty)` itself (`FulltextSearchQueryUtils:43`), so dropping it here is
-  *     an equivalent mutation — no observable differs.
+  *     `keywords.map(_.trim).filter(_.nonEmpty)` itself (`FulltextSearchQueryUtils:43`), so
+  *     dropping it here is an equivalent mutation — no observable differs.
   */
 class DatasetSearchQueryBuilderSpec
     extends AnyFlatSpec
@@ -542,23 +542,23 @@ class DatasetSearchQueryBuilderSpec
     sql should include("user.email as email")
   }
 
-  it should "stay union-compatible with the workflow and project branches" in {
+  it should "stay union-compatible with the workflow branch" in {
     // `DashboardResource.searchAllResources` stacks the three builders with `unionAll` for a
     // resourceType of "" — the dashboard's default view — so every branch must project the same
     // aliases in the same order with types Postgres will unify. A `varchar`-vs-`''` mix in one slot
     // is not itself new: `userName` already has exactly this shape (only the workflow branch
-    // projects a real column; dataset and project both project `DSL.inline("")`) and that union
-    // runs in production today. What the test buys is that the contract is invisible from inside a
-    // single builder — nothing fails to compile, and a genuine mismatch would surface only as a
-    // failed query at runtime. This is the only test that executes the union; every other test here
-    // renders one branch, or fetches from one.
+    // projects a real column; dataset and model both project `DSL.inline("")`) and that union runs
+    // in production
+    // today. What the test buys is that the contract is invisible from inside a single builder —
+    // nothing fails to compile, and a genuine mismatch would surface only as a failed query at
+    // runtime. This is the only test that executes the union; every other test here renders one
+    // branch, or fetches from one.
     val union = WorkflowSearchQueryBuilder
       .constructQuery(uid, params(), includePublic = true)
-      .unionAll(ProjectSearchQueryBuilder.constructQuery(uid, params(), includePublic = true))
       .unionAll(DatasetSearchQueryBuilder.constructQuery(uid, params(), includePublic = true))
 
-    // Both seeded datasets are public, so both reach `uid`; no workflow or project rows are seeded.
-    // Derived from the fixture rather than hard-coded, since the count is incidental — that Postgres
+    // Both seeded datasets are public, so both reach `uid`; no workflow rows are seeded. Derived
+    // from the fixture rather than hard-coded, since the count is incidental — that Postgres
     // accepts the union at all is what is under test.
     getDSLContext.fetch(union).size() shouldBe seededDids.size
   }
@@ -647,10 +647,10 @@ class DatasetSearchQueryBuilderSpec
   }
 
   it should "tag the entry as a dataset and fill the dataset payload slot" in {
-    // `entry.workflow shouldBe None` / `entry.project shouldBe None` used to sit here and were
-    // vacuous: `DashboardClickableFileEntry` declares both `= None` (DashboardResource:40-41) and
-    // this file passes neither, so no mutation of `toEntryImpl` can falsify them — they assert
-    // another file's case-class defaults. Only `resourceType` and `dataset` are this file's to set.
+    // `entry.workflow shouldBe None` used to sit here and was vacuous:
+    // `DashboardClickableFileEntry` declares it `= None` and this file does not pass it, so no
+    // mutation of `toEntryImpl` can falsify it — it asserts another file's case-class default.
+    // Only `resourceType` and `dataset` are this file's to set.
     //
     // `resourceType` here has the production constant on the right-hand side, so retargeting the
     // constant's *value* moves both sides together; the inlined-literal assertion in
