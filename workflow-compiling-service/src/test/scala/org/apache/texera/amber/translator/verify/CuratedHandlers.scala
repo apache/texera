@@ -444,14 +444,20 @@ object TypeCastingTransformHandler extends TransformHandler {
       ("int_to_dbl", AttributeType.INTEGER), // integer         → DOUBLE
       ("int_to_str", AttributeType.INTEGER), // integer         → STRING
       ("int_to_lng", AttributeType.INTEGER), // integer         → LONG
-      ("int_to_bool", AttributeType.INTEGER) // 1/0            → BOOLEAN
+      ("int_to_bool", AttributeType.INTEGER), // 1/0            → BOOLEAN
+      // A string is the only source a boolean reads differently on the two
+      // sides: Python answers true for every non-empty one, the engine reads
+      // the word and then the number. Text the engine refuses cannot go here,
+      // since Path A would end before there is anything to compare; that half
+      // is pinned in TypeCastingOpDescSpec.
+      ("str_to_bool", AttributeType.STRING) // "true"/"0"      → BOOLEAN
     )
     val rows = Seq(
-      Seq[Any]("10", 1, 6, 11, 1),
-      Seq[Any]("20", 2, 7, 12, 0),
-      Seq[Any]("30", 3, 8, 13, 1),
-      Seq[Any]("40", 4, 9, 14, 0),
-      Seq[Any]("50", 5, 10, 15, 1)
+      Seq[Any]("10", 1, 6, 11, 1, "true"),
+      Seq[Any]("20", 2, 7, 12, 0, "false"),
+      Seq[Any]("30", 3, 8, 13, 1, "0"),
+      Seq[Any]("40", 4, 9, 14, 0, "1"),
+      Seq[Any]("50", 5, 10, 15, 1, "TRUE")
     )
     val inputPath =
       CuratedHandlers.writeFixture(testRoot.resolve("input_port_0.jsonl"), columns, rows)
@@ -468,7 +474,8 @@ object TypeCastingTransformHandler extends TransformHandler {
       unit("int_to_dbl", AttributeType.DOUBLE),
       unit("int_to_str", AttributeType.STRING),
       unit("int_to_lng", AttributeType.LONG),
-      unit("int_to_bool", AttributeType.BOOLEAN)
+      unit("int_to_bool", AttributeType.BOOLEAN),
+      unit("str_to_bool", AttributeType.BOOLEAN)
     )
 
     (desc, Map(PortIdentity(0) -> inputPath))
