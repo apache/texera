@@ -26,8 +26,10 @@ import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBui
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.PythonOperatorDescriptor
-import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
+import org.apache.texera.amber.operator.visualization.PlotlyStandaloneCode
+import org.apache.texera.amber.operator.metadata.annotations.{AutofillAttributeName, SampleColumn}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 
 import javax.validation.constraints.NotNull
 
@@ -38,12 +40,13 @@ import javax.validation.constraints.NotNull
   * to construct and visualize an interactive, top-down tree that automatically
   * sizes itself and supports intuitive scroll/pinch zooming.
   */
-class TreePlotOpDesc extends PythonOperatorDescriptor {
+class TreePlotOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCode {
 
   @JsonProperty(value = "Edge List Column", required = true)
   @JsonSchemaTitle("Edge List Column")
   @JsonPropertyDescription("Column with [parent, child] pairs")
   @AutofillAttributeName
+  @SampleColumn("edge_pair")
   @NotNull(message = "Edge List Column cannot be empty")
   var edgeListColumn: EncodableString = ""
 
@@ -72,8 +75,6 @@ class TreePlotOpDesc extends PythonOperatorDescriptor {
        |
        |import plotly.graph_objects as go
        |import plotly.io
-       |import igraph
-       |from igraph import Graph, EdgeSeq
        |import pandas as pd
        |import ast
        |
@@ -108,6 +109,66 @@ class TreePlotOpDesc extends PythonOperatorDescriptor {
        |            )
        |        return annotations
        |
+       |    def build_tree_layout(self, edges):
+       |        # Tidy top-down tree: depth picks the row, a leaf takes the next
+       |        # free column and a parent sits centred over its own children.
+       |        labels = []
+       |        known = set()
+       |        for parent, child in edges:
+       |            for node in (parent, child):
+       |                if node not in known:
+       |                    known.add(node)
+       |                    labels.append(node)
+       |
+       |        children = {label: [] for label in labels}
+       |        has_parent = set()
+       |        seen = set()
+       |        for parent, child in edges:
+       |            if (parent, child) not in seen:
+       |                seen.add((parent, child))
+       |                children[parent].append(child)
+       |            has_parent.add(child)
+       |
+       |        depth = {}
+       |        column = {}
+       |        claimed = {}
+       |        placed = set()
+       |        next_column = 0
+       |
+       |        def grow(root):
+       |            nonlocal next_column
+       |            placed.add(root)
+       |            stack = [(root, 0, False)]
+       |            while stack:
+       |                node, level, folded = stack.pop()
+       |                if folded:
+       |                    kids = claimed[node]
+       |                    if kids:
+       |                        column[node] = sum(column[kid] for kid in kids) / len(kids)
+       |                    else:
+       |                        column[node] = next_column
+       |                        next_column += 1
+       |                    continue
+       |                depth[node] = level
+       |                # A node belongs to whichever parent reaches it first, so a
+       |                # cycle or a shared child is never laid out twice.
+       |                kids = [kid for kid in children[node] if kid not in placed]
+       |                placed.update(kids)
+       |                claimed[node] = kids
+       |                stack.append((node, level, True))
+       |                for kid in reversed(kids):
+       |                    stack.append((kid, level + 1, False))
+       |
+       |        for label in labels:
+       |            if label not in placed and label not in has_parent:
+       |                grow(label)
+       |        # Whatever is left sits in a cycle that no root can reach.
+       |        for label in labels:
+       |            if label not in placed:
+       |                grow(label)
+       |        # The y-axis is inverted here so the tree grows top-down.
+       |        return labels, [(column[label], -depth[label]) for label in labels]
+       |
        |    @overrides
        |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
        |        if table.empty:
@@ -127,14 +188,10 @@ class TreePlotOpDesc extends PythonOperatorDescriptor {
        |            yield {'html-content': self.render_error("No valid [parent, child] pairs found in column " + $edgeListColumn + ".")}
        |            return
        |
-       |        G = Graph.TupleList(edges, directed=True)
-       |        labels = G.vs['name']
-       |
-       |        layout_algorithm = 'rt'
        |        try:
-       |            lay = G.layout(layout_algorithm)
+       |            labels, coords = self.build_tree_layout(edges)
        |        except Exception as e:
-       |             yield {'html-content': self.render_error(f"Layout algorithm '{layout_algorithm}' failed: {e}")}
+       |             yield {'html-content': self.render_error(f"Tree layout failed: {e}")}
        |             return
        |
        |        HORIZONTAL_DENSITY = 120
@@ -143,8 +200,8 @@ class TreePlotOpDesc extends PythonOperatorDescriptor {
        |        MIN_WIDTH = 800
        |        MIN_HEIGHT = 600
        |
-       |        if len(lay.coords) > 1:
-       |            x_coords, y_coords = zip(*lay.coords)
+       |        if len(coords) > 1:
+       |            x_coords, y_coords = zip(*coords)
        |            x_range = max(x_coords) - min(x_coords)
        |            y_range = max(y_coords) - min(y_coords)
        |            plot_width = max(MIN_WIDTH, x_range * HORIZONTAL_DENSITY + PADDING)
@@ -153,12 +210,13 @@ class TreePlotOpDesc extends PythonOperatorDescriptor {
        |            plot_width = MIN_WIDTH
        |            plot_height = MIN_HEIGHT
        |
-       |        # Invert the y-axis to make the tree grow top-down.
-       |        position = {k: (lay[k][0], -lay[k][1]) for k in range(len(labels))}
+       |        position = {k: coords[k] for k in range(len(labels))}
+       |        index_of = {label: k for k, label in enumerate(labels)}
        |
        |        Xe = []
        |        Ye = []
-       |        for edge in G.get_edgelist():
+       |        for parent, child in edges:
+       |            edge = (index_of[parent], index_of[child])
        |            Xe += [position[edge[0]][0], position[edge[1]][0], None]
        |            Ye += [position[edge[0]][1], position[edge[1]][1], None]
        |
@@ -188,4 +246,182 @@ class TreePlotOpDesc extends PythonOperatorDescriptor {
        |
        |""".encode
   }
+
+  override def producesDataFrame(): Boolean = false
+
+  override def generateStandaloneCode(): String = {
+    s"""import ast
+       |
+       |# Only a layout failure renders an error page; everything else propagates,
+       |# matching the operator's own error handling.
+       |class TreeLayoutError(Exception):
+       |    pass
+       |
+       |def render_error(error_msg):
+       |    return f'''<h1>Tree Plot is not available.</h1>
+       |                   <p>Reason: {error_msg} </p>'''
+       |
+       |def make_annotations(pos):
+       |    font_color = 'rgb(250,250,250)'
+       |    node_color = '#6175c1'
+       |    font_size = 10
+       |    annotations = []
+       |    for node_name, coords in pos.items():
+       |        annotations.append(
+       |            dict(
+       |                # The label goes in as it came out of the cell, the way the
+       |                # operator passes it: plotly stringifies it, and a str() here
+       |                # would turn a None node into the text "None".
+       |                text=node_name,
+       |                x=coords[0],
+       |                y=coords[1],
+       |                xref='x1', yref='y1',
+       |                font=dict(color=font_color, size=font_size),
+       |                showarrow=False,
+       |                align='center',
+       |                bordercolor='rgb(50,50,50)',
+       |                borderwidth=1,
+       |                borderpad=5,
+       |                bgcolor=node_color,
+       |                opacity=0.8
+       |            )
+       |        )
+       |    return annotations
+       |
+       |def build_tree_layout(edges):
+       |    # Tidy top-down tree: depth picks the row, a leaf takes the next
+       |    # free column and a parent sits centred over its own children.
+       |    labels = []
+       |    known = set()
+       |    for parent, child in edges:
+       |        for node in (parent, child):
+       |            if node not in known:
+       |                known.add(node)
+       |                labels.append(node)
+       |
+       |    children = {label: [] for label in labels}
+       |    has_parent = set()
+       |    seen = set()
+       |    for parent, child in edges:
+       |        if (parent, child) not in seen:
+       |            seen.add((parent, child))
+       |            children[parent].append(child)
+       |        has_parent.add(child)
+       |
+       |    depth = {}
+       |    column = {}
+       |    claimed = {}
+       |    placed = set()
+       |    next_column = 0
+       |
+       |    def grow(root):
+       |        nonlocal next_column
+       |        placed.add(root)
+       |        stack = [(root, 0, False)]
+       |        while stack:
+       |            node, level, folded = stack.pop()
+       |            if folded:
+       |                kids = claimed[node]
+       |                if kids:
+       |                    column[node] = sum(column[kid] for kid in kids) / len(kids)
+       |                else:
+       |                    column[node] = next_column
+       |                    next_column += 1
+       |                continue
+       |            depth[node] = level
+       |            # A node belongs to whichever parent reaches it first, so a
+       |            # cycle or a shared child is never laid out twice.
+       |            kids = [kid for kid in children[node] if kid not in placed]
+       |            placed.update(kids)
+       |            claimed[node] = kids
+       |            stack.append((node, level, True))
+       |            for kid in reversed(kids):
+       |                stack.append((kid, level + 1, False))
+       |
+       |    for label in labels:
+       |        if label not in placed and label not in has_parent:
+       |            grow(label)
+       |    # Whatever is left sits in a cycle that no root can reach.
+       |    for label in labels:
+       |        if label not in placed:
+       |            grow(label)
+       |    # The y-axis is inverted here so the tree grows top-down.
+       |    return labels, [(column[label], -depth[label]) for label in labels]
+       |
+       |def compute_tree_layout(edges):
+       |    try:
+       |        labels, coords = build_tree_layout(edges)
+       |    except Exception as e:
+       |        raise TreeLayoutError(f"Tree layout failed: {e}")
+       |    return {labels[index]: coords[index] for index in range(len(labels))}
+       |
+       |if in1df.empty:
+       |    with open("output.html", "w", encoding="utf-8") as output:
+       |        output.write(render_error("Input table is empty."))
+       |else:
+       |    edges = []
+       |    for item in in1df[${pyStringLiteral(edgeListColumn)}].dropna():
+       |        try:
+       |            edge = ast.literal_eval(str(item))
+       |            if isinstance(edge, (list, tuple)) and len(edge) == 2:
+       |                edges.append(list(edge))
+       |        except (ValueError, SyntaxError):
+       |            pass
+       |
+       |    if not edges:
+       |        with open("output.html", "w", encoding="utf-8") as output:
+       |            output.write(render_error("No valid [parent, child] pairs found in column " + ${pyStringLiteral(
+      edgeListColumn
+    )} + "."))
+       |    else:
+       |        try:
+       |            position = compute_tree_layout(edges)
+       |
+       |            HORIZONTAL_DENSITY = 120
+       |            VERTICAL_DENSITY = 120
+       |            PADDING = 200
+       |            MIN_WIDTH = 800
+       |            MIN_HEIGHT = 600
+       |
+       |            if len(position) > 1:
+       |                x_coords, y_coords = zip(*position.values())
+       |                x_range = max(x_coords) - min(x_coords)
+       |                y_range = max(y_coords) - min(y_coords)
+       |                plot_width = max(MIN_WIDTH, x_range * HORIZONTAL_DENSITY + PADDING)
+       |                plot_height = max(MIN_HEIGHT, y_range * VERTICAL_DENSITY + PADDING)
+       |            else:
+       |                plot_width = MIN_WIDTH
+       |                plot_height = MIN_HEIGHT
+       |
+       |            Xe = []
+       |            Ye = []
+       |            for parent, child in edges:
+       |                Xe += [position[parent][0], position[child][0], None]
+       |                Ye += [position[parent][1], position[child][1], None]
+       |
+       |            fig = go.Figure()
+       |            fig.add_trace(go.Scatter(x=Xe, y=Ye, mode='lines',
+       |                                     line=dict(color='rgb(210,210,210)', width=1),
+       |                                     hoverinfo='none'))
+       |            axis = dict(showline=False, zeroline=False, showgrid=False, showticklabels=False)
+       |            fig.update_layout(title='Tree Plot',
+       |                              width=int(plot_width),
+       |                              height=int(plot_height),
+       |                              annotations=make_annotations(position),
+       |                              font_size=12,
+       |                              showlegend=False,
+       |                              xaxis=axis,
+       |                              yaxis=axis,
+       |                              margin=dict(l=40, r=40, b=85, t=100),
+       |                              dragmode='pan',
+       |                              hovermode='closest',
+       |                              plot_bgcolor='rgb(248,248,248)')
+       |            fig.write_json("output.json")
+       |            fig.write_html("output.html")
+       |            print("Tree plot saved to output.html")
+       |        except TreeLayoutError as e:
+       |            with open("output.html", "w", encoding="utf-8") as output:
+       |                output.write(render_error(str(e)))""".stripMargin
+  }
+
 }

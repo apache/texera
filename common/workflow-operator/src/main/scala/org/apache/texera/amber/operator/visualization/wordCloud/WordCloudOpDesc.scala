@@ -29,14 +29,25 @@ import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
+import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.operator.visualization.ImageUtility
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 
 import javax.validation.constraints.NotNull
-class WordCloudOpDesc extends PythonOperatorDescriptor {
+// type constraint: the words are counted out of the column's text, and the
+// filter that finds them uses pandas' .str accessor, which refuses a column of
+// anything else. A word cloud of numbers would say nothing anyway.
+@JsonSchemaInject(json = """
+{
+  "attributeTypeRules": {
+    "textColumn": { "enum": ["string"] }
+  }
+}
+""")
+class WordCloudOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
   @JsonProperty(required = true)
   @JsonSchemaTitle("Text column")
   @AutofillAttributeName
@@ -112,5 +123,43 @@ class WordCloudOpDesc extends PythonOperatorDescriptor {
          |        ${ImageUtility.encodeImageToHTML()}
          |        yield {'html-content': html}
          |""".encode
+  }
+
+  override def producesDataFrame(): Boolean = false
+
+  // The two guards mirror generatePythonCode's: WordCloud.generate raises on a
+  // wordless string, so without them an input that is empty — or whose text
+  // column survives neither the dropna nor the word filter — crashes here where
+  // the runtime path explains itself.
+  override def generateStandaloneCode(): String = {
+    val textLit = pyStringLiteral(textColumn)
+    s"""def render_error(error_msg):
+       |    return '''<h1>Wordcloud is not available.</h1>
+       |                  <p>Reason is: {} </p>
+       |               '''.format(error_msg)
+       |
+       |table = in1df
+       |if table.empty:
+       |    with open("output.html", "w", encoding="utf-8") as f:
+       |        f.write(render_error("input table is empty."))
+       |else:
+       |    table = table.dropna(subset=[$textLit])
+       |    table = table[table[$textLit].str.contains(r'\\w', regex=True)]
+       |    if table.empty:
+       |        with open("output.html", "w", encoding="utf-8") as f:
+       |            f.write(render_error("text column does not contain words or contains only nulls."))
+       |    else:
+       |        text = ' '.join(table[$textLit])
+       |        from wordcloud import WordCloud, STOPWORDS
+       |        wordcloud = WordCloud(width=1920, height=1080, stopwords=set(STOPWORDS), max_words=$topN, background_color='white', include_numbers=True, random_state=0).generate(text)
+       |        from io import BytesIO
+       |        image_stream = BytesIO()
+       |        wordcloud.to_image().save(image_stream, format='PNG')
+       |        binary_image_data = image_stream.getvalue()
+       |        import base64
+       |        encoded_image_str = base64.b64encode(binary_image_data).decode("utf-8")
+       |        html = f'<img src="data:image;base64,{encoded_image_str}" alt="Image" style="max-width: 100vw; max-height: 90vh; width: auto; height: auto;">'
+       |        with open("output.html", "w", encoding="utf-8") as f:
+       |            f.write(html)""".stripMargin
   }
 }
