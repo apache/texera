@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1788440552763,
+  "lastUpdate": 1788527315003,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -12196,6 +12196,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 556.1159500361754,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Tanishq Gandhi",
+            "username": "tanishqgandhi1908",
+            "email": "56472134+tanishqgandhi1908@users.noreply.github.com"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "1cbe857007a6526c6087f187667ef3b3c9ade546",
+          "message": "feat(frontend): render an absent fact as an em dash and a size as 0 B everywhere (#8381)\n\n### What changes were proposed in this PR?\n\nA resource's size, and the facts it has none of, rendered four different\nways depending on where you looked. This settles on one convention: **a\nfact with nothing to show renders \"—\", and a size renders `0 B`**,\nbecause zero bytes is a meaningful answer.\n\n**Card view hid the size row; list view showed `0 B`.** A dataset\ncreated but never uploaded to showed no size line at all in card view\n(`*ngIf=\"size\"` hides a zero) and `Size: 0 B` in list view. Card view\nnow always renders the row, so both views agree.\n\n**A copied workflow claimed `Size: 0 B`.** Only search asks the backend\nfor workflow sizes (`SearchService` → `GET /workflow/size`), so a\n`DashboardEntry` built straight from a duplicate response carried no\nsize and rendered as an empty workflow beside correctly-sized siblings.\nBoth duplicate paths now fetch the sizes before the rows go on screen —\nthe list items read the size once on binding, so filling it in\nafterwards would not show.\n\n**The two detail cards disagreed with each other.** The dataset Data\nCard left \"Last updated\" and \"Latest version file\" blank; the model\nModel Card em-dashed them *and* its size. Now both pages em-dash the\nversion facts and both render `0 B` for the size.\n\n`formatSize` is deliberately unchanged.\n\nThis is a `feat` rather than a `fix`: it is a deliberate, user-facing\nchange to how these fields render, and it touches the model detail page,\nwhich does not exist on the release branches — so it should not be\nbackported.\n\n**Before** — no size line in card view, `0 B` in list view, a fresh copy\nclaiming `0 B`, and the two detail cards disagreeing:\n\n<img width=\"1440\" height=\"900\" alt=\"issue4-1-datasets-card-view-before\"\nsrc=\"https://github.com/user-attachments/assets/5afd125b-f1e3-49b6-b782-6c0657773e9e\"\n/>\n<img width=\"1440\" height=\"900\" alt=\"issue4-2-datasets-list-view-before\"\nsrc=\"https://github.com/user-attachments/assets/edcca435-c936-4049-8a0b-65d43dfabf71\"\n/>\n<img width=\"1440\" height=\"900\" alt=\"issue4-7-duplicated-workflow-before\"\nsrc=\"https://github.com/user-attachments/assets/04e02e80-d232-4dec-99bc-35126c4db916\"\n/>\n<img width=\"1440\" height=\"900\" alt=\"issue4-3-empty-dataset-stats-before\"\nsrc=\"https://github.com/user-attachments/assets/90a00ca4-11a7-428c-88b4-7024899090eb\"\n/>\n\n\n**After** — card view reads `0 B` like list view, the copy reports its\nreal size, and both detail\ncards read the same:\n\n<img width=\"1440\" height=\"900\" alt=\"issue4-1-datasets-card-view-after\"\nsrc=\"https://github.com/user-attachments/assets/2d7f4121-b52e-4269-b773-5ba6012e1961\"\n/>\n<img width=\"1440\" height=\"900\" alt=\"issue4-7-duplicated-workflow-after\"\nsrc=\"https://github.com/user-attachments/assets/2520ff1a-fbb8-4211-b616-32b7086a3946\"\n/>\n<img width=\"1440\" height=\"900\" alt=\"issue4-3-empty-dataset-stats-after\"\nsrc=\"https://github.com/user-attachments/assets/ace12205-b959-4658-b568-d9be8a89fcef\"\n/>\n<img width=\"1440\" height=\"900\" alt=\"issue4-4-empty-model-stats-after\"\nsrc=\"https://github.com/user-attachments/assets/496ecdf4-d6d1-459f-9922-c70c6da9b38a\"\n/>\n\n### Any related issues, documentation, discussions?\n\nCloses #8380.\n\n### How was this PR tested?\n\nSpecs added:\n\n- `card-item.component.spec.ts` — `still reports an empty resource's\nsize, so card and list view\nagree`, asserting the row renders and reads `0 B` at size 0. 80 passed.\n- `user-workflow.component.spec.ts` — `asks for the copy's size, which\nthe duplicate response does\nnot carry`, asserting `getSizes` is called with the new wid and the\nentry takes that size.\n  74 passed.\n- `dataset-detail.component.spec.ts` — `em-dashes the facts a dataset\nwith no versions has none of`\nand `shows the real facts once a version exists`, covering both legs of\neach stat. 144 passed.\n- `model-detail.component.spec.ts` — the same case for the model card,\npinning \"—\" for the version\n  facts and `0 B` for the size. 80 passed.\n- `StubWorkflowPersistService` gained a `getSizes` so the duplicate\nspecs exercise the new call.\n\nOne existing model spec, `dashes out the latest-version facts for a\nmodel with no versions`, asserted\nthe card contained no `0 B` — it pinned the old model-only convention\nand is superseded by the new\nper-field case, so it was removed rather than edited.\n\n```\ncd frontend\nnpx ng test --include src/app/dashboard/component/user/list-item/card-item/card-item.component.spec.ts\nnpx ng test --include src/app/dashboard/component/user/user-workflow/user-workflow.component.spec.ts\nnpx ng test --include src/app/dashboard/component/user/user-dataset/user-dataset-explorer/dataset-detail.component.spec.ts\nnpx ng test --include src/app/dashboard/component/user/user-model/user-model-explorer/model-detail.component.spec.ts\n```\n\nChecked by hand against a local stack: an empty dataset reads `0 B` in\nboth views, the dataset and\nmodel cards both show `—` for the version facts and `0 B` for the size,\nand a freshly copied workflow\nreports 109.00 B like its siblings instead of 0 B.\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Claude Code (Opus 5)",
+          "timestamp": "2026-09-03T22:36:44Z",
+          "url": "https://github.com/apache/texera/commit/1cbe857007a6526c6087f187667ef3b3c9ade546"
+        },
+        "date": 1788527314476,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 575.0034986231625,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 1049.851590501517,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 1154.1624223294327,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 809.7788144638141,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 1109.4940849359616,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 1154.4549013368114,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 788.5766794827358,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 1104.2317704925024,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 1143.3146291583146,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 671.5092076404118,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 896.2103701301706,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 929.6181486000064,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 709.8527971439976,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 903.3911329855024,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 926.7379593442013,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 724.6325126392595,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 891.9886961717394,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 911.9349574301483,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 436.2249713905124,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 514.9344936248742,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 524.4855441116531,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 445.57241437798945,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 509.86405407539434,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 521.1350054586882,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 416.5321505590797,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 492.2667401013912,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 496.52927672995185,
             "unit": "tuples/sec"
           }
         ]
