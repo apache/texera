@@ -204,7 +204,9 @@ class MachineLearningScorerOpDescSpec extends AnyFlatSpec with Matchers {
     d.generatePythonCode() should include(
       s"table = table.dropna(subset=[$decodeSite('${b64("y")}'), $decodeSite('${b64("yhat")}')])"
     )
-    d.generateStandaloneCode() should include("""in1df = in1df.dropna(subset=["y", "yhat"])""")
+    // Each binds the drop to a name of its own rather than writing it back: the
+    // frame this operator was handed can feed another branch of the plan.
+    d.generateStandaloneCode() should include("""scored_df = in1df.dropna(subset=["y", "yhat"])""")
   }
 
   it should "splice the selected metrics verbatim into a proper metric_list" in {
@@ -276,7 +278,7 @@ class MachineLearningScorerOpDescSpec extends AnyFlatSpec with Matchers {
     d.predictValueColumn = "yhat"
     d.generatePythonCode() should include("if table.empty:")
     // The standalone path drops the same rows, so it has to answer the same way.
-    d.generateStandaloneCode() should include("if in1df.empty:")
+    d.generateStandaloneCode() should include("if scored_df.empty:")
     Seq(d.generatePythonCode(), d.generateStandaloneCode()).foreach { code =>
       code should include("No rows left to score")
     }
