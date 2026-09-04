@@ -82,6 +82,9 @@ class LimitOpDesc extends LogicalOp with StandaloneCodeGenerator {
   }
 
   override def generateStandaloneCode(): String = {
-    s"out1df = in1df.head($limit).reset_index(drop=True)"
+    // Clamped, because the two sides read a negative limit differently: the
+    // executor's `count < limit` is false from the first tuple and emits
+    // nothing, while pandas' head(-n) drops only the last n rows.
+    s"out1df = in1df.head(${math.max(0, limit)}).reset_index(drop=True)"
   }
 }

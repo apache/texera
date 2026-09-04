@@ -107,9 +107,10 @@ class ProjectionOpDesc extends MapOpDesc with StandaloneCodeGenerator {
 
   override def generateStandaloneCode(): String = {
     val units = Option(attributes).getOrElse(List.empty)
-    // JVM validates non-empty at runtime via Preconditions; emit passthrough
-    // as best-effort so the standalone script still runs.
-    if (units.isEmpty) return "out1df = in1df.copy()"
+    // The engine refuses an empty selection, so the script says so too. Passing
+    // the frame through would hand back data where a run would have stopped.
+    if (units.isEmpty)
+      return """raise ValueError("Please select at least one attribute to project.")"""
 
     if (isDrop) {
       // Drop mode ignores aliases (matches ProjectionOpExec).

@@ -48,14 +48,21 @@ class WorkflowToPythonTranslator extends LazyLogging {
     var varCounter = 1
     val script = ArrayBuffer[String]()
 
-    script += "import pandas as pd"
-    script += "import plotly.express as px"
-    script += "import plotly.graph_objects as go"
-    script += "import plotly.io"
-    script += ""
-
     // getTopologicalOpIds() uses jgrapht internally — no need for a custom topo sort
     val topoOrder = logicalPlan.getTopologicalOpIds.asScala.toList
+
+    // pandas is the one module every generator uses: an operator body reads and
+    // writes frames whatever else it does. Everything beyond that is asked of the
+    // operators in the plan, so a script that draws nothing does not require a
+    // plotting library to start.
+    script += "import pandas as pd"
+    topoOrder
+      .map(logicalPlan.getOperator)
+      .collect { case gen: StandaloneCodeGenerator => gen.standaloneImports() }
+      .flatten
+      .distinct
+      .foreach(script += _)
+    script += ""
 
     // Helper definitions the operator bodies below refer to. Collected across the
     // whole plan and deduplicated by text, so a workflow holding two operators
@@ -149,7 +156,10 @@ class WorkflowToPythonTranslator extends LazyLogging {
               logicalPlan.getOperator(OperatorIdentity(opId)).operatorInfo.userFriendlyName
             val portSuffix = if (outputVar.keys.count(_._1 == opId) > 1) s" port $portIdx" else ""
             script += s"""print("\\n[$displayName$portSuffix] $varName:")"""
-            script += s"print($varName.head())"
+            // The frame itself rather than head(): pandas already elides the
+            // middle of a long one, and it states the row and column count,
+            // which head() hides.
+            script += s"print($varName)"
             script += ""
         }
     }

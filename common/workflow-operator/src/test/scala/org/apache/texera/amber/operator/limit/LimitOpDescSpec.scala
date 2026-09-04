@@ -103,4 +103,12 @@ class LimitOpDescSpec extends AnyFlatSpec with Matchers {
     d.generateStandaloneCode() shouldBe "out1df = in1df.head(3).reset_index(drop=True)"
   }
 
+  // head(-1) would drop the last row and keep the rest, where the executor's
+  // `count < limit` is false from the first tuple and keeps nothing.
+  it should "keep nothing when the limit is negative" in {
+    val d = new LimitOpDesc
+    d.limit = -1
+    d.generateStandaloneCode() shouldBe "out1df = in1df.head(0).reset_index(drop=True)"
+  }
+
 }

@@ -56,4 +56,17 @@ trait StandaloneCodeGenerator {
     * workflow yield one copy of the generator they share.
     */
   def standaloneHelpers(): Seq[String] = Seq.empty
+
+  /**
+    * Modules this operator's standalone code needs, written as the import
+    * statements themselves, collected across the plan and emitted once at the
+    * top of the script.
+    *
+    * pandas is not named here: the translator emits it for every script, since
+    * an operator body reads and writes frames whatever else it does. What an
+    * operator states here is what it needs beyond that, so a script built from
+    * operators that only reshape a table does not require a plotting library
+    * to start.
+    */
+  def standaloneImports(): Seq[String] = Seq.empty
 }

@@ -73,6 +73,36 @@ class WorkflowToPythonTranslatorSpec extends AnyFlatSpec with Matchers {
     unionOf(2) should not include "inAlldf"
   }
 
+  // head() shows five rows and does not say how many there were, so a script whose
+  // leaf holds more reads as if that were the whole answer.
+  it should "print the leaf frame rather than its first rows" in {
+    val script = unionOf(2)
+    script should include("print(df3)")
+    script should not include ".head())"
+  }
+
+  // A script that only reshapes a table should run wherever pandas is installed,
+  // so an import no operator in the plan asked for must not be in the header.
+  it should "import pandas alone for a plan that asks for nothing else" in {
+    val script = unionOf(2)
+    script should include("import pandas as pd")
+    script should not include "import plotly"
+  }
+
+  // Two operators naming the same module yield one import, the way two operators
+  // sharing one helper yield one copy of it.
+  it should "emit an operator's declared import once per plan" in {
+    val ops = List("a", "b").map { id =>
+      val op = new DistinctOpDesc {
+        override def standaloneImports(): Seq[String] = Seq("import numpy as np")
+      }
+      op.setOperatorId(id)
+      op
+    }
+    val script = new WorkflowToPythonTranslator().translate(LogicalPlan(ops, List.empty))
+    script.linesIterator.count(_ == "import numpy as np") shouldBe 1
+  }
+
   it should "still resolve a numbered placeholder against its own upstream" in {
     // The variadic form is an addition, not a replacement: a chain of ordinary
     // single-input operators has to keep reading `in1df` as its predecessor.

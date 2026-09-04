@@ -229,4 +229,13 @@ class ProjectionOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     assert(drop.generateStandaloneCode() == """out1df = in1df.drop(columns=["a"])""")
   }
 
+  // Schema propagation and the executor both refuse an empty selection, so the
+  // script stops where a run would have. Passing the frame through would answer
+  // with data a run never produces.
+  it should "stop on an empty selection rather than pass the frame through" in {
+    val code = (new ProjectionOpDesc).generateStandaloneCode()
+    assert(code.startsWith("raise ValueError("))
+    assert(code.contains("Please select at least one attribute to project."))
+  }
+
 }

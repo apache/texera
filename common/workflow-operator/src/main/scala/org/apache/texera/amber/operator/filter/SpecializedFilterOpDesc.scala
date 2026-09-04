@@ -64,7 +64,10 @@ class SpecializedFilterOpDesc extends FilterOpDesc with StandaloneCodeGenerator 
   }
 
   override def generateStandaloneCode(): String = {
-    if (predicates.isEmpty) return "out1df = in1df.copy()"
+    // No predicate keeps no row: the executor's filter is `predicates.exists`,
+    // which answers false on an empty list. Passing the frame through would be
+    // the opposite answer.
+    if (predicates.isEmpty) return "out1df = in1df.iloc[0:0].copy()"
     val conditions = predicates.map { p =>
       val colLit = pyStringLiteral(p.attribute)
       p.condition match {

@@ -219,7 +219,9 @@ object PythonTemplateBuilder {
     * instead lets any quote, backslash or newline in the value close the literal
     * early and change — or break — the emitted program.
     *
-    * Escapes exactly what can end a double-quoted single-line literal.
+    * Escapes exactly what can end a double-quoted single-line literal, plus NUL:
+    * Python refuses to compile source that holds one anywhere, so a column name
+    * carrying it would break the whole script rather than only this literal.
     */
   def pyStringLiteral(text: String): String = {
     val escaped = Option(text)
@@ -229,6 +231,7 @@ object PythonTemplateBuilder {
       .replace("\r", "\\r")
       .replace("\n", "\\n")
       .replace("\t", "\\t")
+      .replace(0.toChar.toString, "\\x00")
     "\"" + escaped + "\""
   }
 

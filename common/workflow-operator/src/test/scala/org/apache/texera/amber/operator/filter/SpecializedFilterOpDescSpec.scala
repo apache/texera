@@ -81,4 +81,11 @@ class SpecializedFilterOpDescSpec extends AnyFlatSpec with Matchers {
     code should include("out1df")
   }
 
+  // The executor filters on `predicates.exists`, which answers false on an empty
+  // list, so no predicate keeps no row. The columns survive; the rows do not.
+  it should "keep no row when there is no predicate" in {
+    (new SpecializedFilterOpDesc).generateStandaloneCode() shouldBe
+      "out1df = in1df.iloc[0:0].copy()"
+  }
+
 }

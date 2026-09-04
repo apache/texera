@@ -264,4 +264,13 @@ class PythonTemplateBuilderApiSpec extends AnyFunSuite {
     assert(PythonTemplateBuilder.pyStringLiteral(null) == "\"\"")
   }
 
+  // NUL is the one character that a literal cannot carry verbatim: Python refuses to
+  // compile a source file holding one, so it takes the whole script down rather than
+  // this value alone.
+  test("pyStringLiteral: escapes a NUL rather than emitting it") {
+    val literal = PythonTemplateBuilder.pyStringLiteral("a" + 0.toChar + "b")
+    assert(literal == "\"a\\x00b\"")
+    assert(!literal.contains(0.toChar))
+  }
+
 }
