@@ -23,7 +23,8 @@ import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
+import org.apache.texera.amber.operator.PythonOperatorDescriptor
+import org.apache.texera.amber.operator.visualization.PlotlyStandaloneCode
 import org.apache.texera.amber.operator.metadata.annotations.{
   AutofillAttributeName,
   AutofillAttributeNameList
@@ -53,7 +54,7 @@ import javax.validation.constraints.{NotNull, Size}
   }
 }
 """)
-class ParallelCoordinatesPlotOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
+class ParallelCoordinatesPlotOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCode {
 
   @JsonProperty(value = "dimensions", required = true)
   @JsonSchemaTitle("Dimensions")
