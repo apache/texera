@@ -60,4 +60,47 @@ object StandaloneHelpers {
       |            value = bits % bound
       |            if bits - value + (bound - 1) >= 0:
       |                return value""".stripMargin
+
+  /**
+    * A Python transcription of `AttributeTypeUtils`, for operators that cast a
+    * column to a declared type.
+    *
+    * Python's own conversions answer differently on the values a spreadsheet
+    * column actually holds. `bool("false")` is true, because every non-empty
+    * string is; `int("6.7")` and `float("abc")` raise where a coercing cast
+    * would have returned 6 and NaN. The engine reads "false" as false, "0" as
+    * false, and refuses "6.7" as an integer, so the script has to do the same
+    * rather than hand back a column the workflow never produced.
+    *
+    * Refusing is part of the contract: `parseField` raises on a value it cannot
+    * read, and a script that quietly wrote NaN instead would report an answer
+    * the run it was exported from never reached.
+    */
+  val AttributeCasts: String =
+    """# AttributeTypeUtils, transcribed so a cast answers as the engine does.
+      |def _texera_cast_boolean(x):
+      |    # toBoolean first, then `toInt == 1`: "0" and "2" are both false.
+      |    if isinstance(x, str):
+      |        text = x.strip()
+      |        lowered = text.lower()
+      |        if lowered == "true":
+      |            return True
+      |        if lowered == "false":
+      |            return False
+      |        return int(text) == 1
+      |    return x != 0
+      |
+      |
+      |def _texera_cast_integral(x):
+      |    # Scala's toInt/toLong take no decimal point, and truncate a Double
+      |    # toward zero.
+      |    if isinstance(x, str):
+      |        return int(x.strip())
+      |    return int(x)
+      |
+      |
+      |def _texera_cast_double(x):
+      |    if isinstance(x, str):
+      |        return float(x.strip())
+      |    return float(x)""".stripMargin
 }

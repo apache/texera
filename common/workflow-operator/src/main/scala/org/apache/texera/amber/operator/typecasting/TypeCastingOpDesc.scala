@@ -25,7 +25,7 @@ import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.tuple.{AttributeType, AttributeTypeUtils, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow._
-import org.apache.texera.amber.operator.StandaloneCodeGenerator
+import org.apache.texera.amber.operator.{StandaloneCodeGenerator, StandaloneHelpers}
 import org.apache.texera.amber.operator.map.MapOpDesc
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
@@ -82,9 +82,15 @@ class TypeCastingOpDesc extends MapOpDesc with StandaloneCodeGenerator {
     val lines = scala.collection.mutable.ArrayBuffer[String]("out1df = in1df.copy()")
     units.foreach { unit =>
       val colLit = pyStringLiteral(unit.attribute)
-      // Use pd.to_numeric / pd.to_datetime with errors="coerce" so unparseable
-      // values become NaN/NaT instead of raising — matches a best-effort
-      // standalone reproduction of Texera's per-row cast.
+      // Every cast goes through the transcription of AttributeTypeUtils rather
+      // than through Python's own conversions, which answer differently: a
+      // non-empty string is always a true boolean, and a coercing numeric cast
+      // reads "6.7" as an integer the engine refuses.
+      //
+      // A timestamp is the one that stays approximate. The engine reads it with
+      // DateParserUtils, which accepts a set of formats no single pandas call
+      // states, so this coerces what it cannot read rather than claiming a
+      // match it does not have.
       val expr = unit.resultType match {
         case AttributeType.STRING =>
           // `astype(str)` gets three things wrong against `toString`: an empty
@@ -97,19 +103,18 @@ class TypeCastingOpDesc extends MapOpDesc with StandaloneCodeGenerator {
             """else str(int(x)) if isinstance(x, float) and x.is_integer() """ +
             """else str(x))"""
         case AttributeType.INTEGER | AttributeType.LONG =>
-          // Match JVM AttributeTypeUtils.parseInteger, which casts Double via
-          // `.toInt` (truncate toward zero). pandas .astype("Int64") on a float
-          // with non-integer values raises TypeError, so truncate explicitly
-          // via int() while preserving NaN as pd.NA.
-          s"""pd.to_numeric(out1df[$colLit], errors="coerce").apply(lambda x: pd.NA if pd.isna(x) else int(x)).astype("Int64")"""
+          // A hole survives the cast, because parseField returns a null field
+          // untouched; pandas' nullable "Int64" holds one where numpy's int
+          // cannot.
+          s"""out1df[$colLit].apply(lambda x: pd.NA if pd.isna(x) else _texera_cast_integral(x)).astype("Int64")"""
         case AttributeType.DOUBLE =>
-          s"""pd.to_numeric(out1df[$colLit], errors="coerce").astype("float64")"""
+          // NaN rather than pd.NA: float64 is how a double column is held here,
+          // and it carries its hole as NaN. pd.NA would not survive the astype.
+          s"""out1df[$colLit].apply(lambda x: float("nan") if pd.isna(x) else _texera_cast_double(x)).astype("float64")"""
         case AttributeType.BOOLEAN =>
-          // `.astype(bool)` reads NaN as True, because NaN is a non-zero float.
-          // AttributeTypeUtils.parseField returns a null field untouched, so the
-          // hole has to survive the cast: pandas' nullable "boolean" holds it,
-          // numpy's bool cannot.
-          s"""out1df[$colLit].apply(lambda x: pd.NA if pd.isna(x) else bool(x)).astype("boolean")"""
+          // Nullable "boolean" for the same reason, and because `.astype(bool)`
+          // reads NaN as True: NaN is a non-zero float.
+          s"""out1df[$colLit].apply(lambda x: pd.NA if pd.isna(x) else _texera_cast_boolean(x)).astype("boolean")"""
         case AttributeType.TIMESTAMP => s"""pd.to_datetime(out1df[$colLit], errors="coerce")"""
         case _                       => s"""out1df[$colLit]"""
       }
@@ -117,4 +122,6 @@ class TypeCastingOpDesc extends MapOpDesc with StandaloneCodeGenerator {
     }
     lines.mkString("\n")
   }
+
+  override def standaloneHelpers(): Seq[String] = Seq(StandaloneHelpers.AttributeCasts)
 }
