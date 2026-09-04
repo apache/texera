@@ -160,8 +160,22 @@ class WorkflowResourceSpec
     new DashboardResource()
   }
 
+  // `FulltextSearchQueryUtils.usePgroonga` is a JVM-global `var` and amber's tests are
+  // unforked, so every suite in one `test` invocation shares it. This spec must force it
+  // `false` — its embedded Postgres has no pgroonga extension, and the `true` arm fails 11
+  // of the search tests with `function pgroonga_condition(...) does not exist`. Capture the
+  // live value in `beforeAll` right before the write, so what is put back is exactly the
+  // value this suite clobbered. Capturing at construction instead would put back whatever
+  // the flag held when sbt instantiated this class; under sbt today that is the same value,
+  // since a suite is constructed immediately before it runs and nothing touches the flag in
+  // between — but that is a property of sbt's scheduling, not of this suite, and it stops
+  // holding under eager construction (a nesting `Suites`, `OneInstancePerTest`, forking).
+  // The initialiser below is only so the field never holds an invented default.
+  private var pgroongaBeforeWrite: Boolean = FulltextSearchQueryUtils.usePgroonga
+
   override protected def beforeAll(): Unit = {
     initializeDBAndReplaceDSLContext()
+    pgroongaBeforeWrite = FulltextSearchQueryUtils.usePgroonga
     FulltextSearchQueryUtils.usePgroonga = false // disable pgroonga
     // add test user directly
     val userDao = new UserDao(getDSLContext.configuration())
@@ -195,6 +209,9 @@ class WorkflowResourceSpec
   }
 
   override protected def afterAll(): Unit = {
+    // Restore before the teardown below, so this does not depend on `closeConnectionPool`
+    // staying non-throwing (today it swallows any `Exception` itself).
+    FulltextSearchQueryUtils.usePgroonga = pgroongaBeforeWrite
     closeConnectionPool()
   }
 
