@@ -38,7 +38,7 @@ import {
 } from "../../../service/workflow-result/workflow-result.service";
 import { WorkflowStatusService } from "../../../service/workflow-status/workflow-status.service";
 import { PanelResizeService } from "../../../service/workflow-result/panel-resize/panel-resize.service";
-import { OperatorState, OperatorStatistics, WebResultUpdate } from "../../../types/execute-workflow.interface";
+import { OperatorState, WebResultUpdate } from "../../../types/execute-workflow.interface";
 import { PaginatedResultEvent } from "../../../types/workflow-websocket.interface";
 import { IndexableObject } from "../../../types/result-table.interface";
 import { RowModalComponent } from "../result-panel-modal.component";
@@ -83,14 +83,6 @@ describe("ResultTableFrameComponent", () => {
     );
     return paginatedResultService;
   };
-
-  const makeStatistics = (state: OperatorState): OperatorStatistics => ({
-    operatorState: state,
-    aggregatedInputRowCount: 0,
-    inputPortMetrics: {},
-    aggregatedOutputRowCount: 0,
-    outputPortMetrics: {},
-  });
 
   const paginationUpdate = (totalNumTuples: number, dirtyPageIndices: number[]): WebResultUpdate => ({
     mode: { type: "PaginationMode" },
@@ -278,17 +270,17 @@ describe("ResultTableFrameComponent", () => {
 
   describe("workflow status stream", () => {
     it("marks the operator finished only while its reported state is Completed", () => {
-      const statusStream = new Subject<Record<string, OperatorStatistics>>();
-      vi.spyOn(workflowStatusService, "getStatusUpdateStream").mockReturnValue(statusStream.asObservable());
+      const stateStream = new Subject<Record<string, OperatorState>>();
+      vi.spyOn(workflowStatusService, "getStateUpdateStream").mockReturnValue(stateStream.asObservable());
       recreateComponent("op1");
 
-      statusStream.next({ op1: makeStatistics(OperatorState.Completed) });
+      stateStream.next({ op1: OperatorState.Completed });
       expect(component.isOperatorFinished).toBe(true);
 
-      statusStream.next({ op1: makeStatistics(OperatorState.Running) });
+      stateStream.next({ op1: OperatorState.Running });
       expect(component.isOperatorFinished).toBe(false);
 
-      statusStream.next({ otherOp: makeStatistics(OperatorState.Completed) });
+      stateStream.next({ otherOp: OperatorState.Completed });
       expect(component.isOperatorFinished).toBe(false);
     });
   });

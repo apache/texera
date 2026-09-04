@@ -22,11 +22,10 @@ import { Subject } from "rxjs";
 import { WorkflowStatusService } from "./workflow-status.service";
 import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websocket.service";
 import { OperatorPerformanceMetrics } from "./performance-metrics";
-import { OperatorState, OperatorStatistics } from "../../types/execute-workflow.interface";
+import { OperatorRuntimeStatus, OperatorState, OperatorStatistics } from "../../types/execute-workflow.interface";
 import { TexeraWebsocketEvent } from "../../types/workflow-websocket.interface";
 
-const sampleStats: OperatorStatistics = {
-  operatorState: OperatorState.Running,
+const sampleStatistics: OperatorStatistics = {
   aggregatedInputRowCount: 1_000,
   aggregatedInputSize: 8_000,
   inputPortMetrics: { "0": 1_000 },
@@ -39,7 +38,13 @@ const sampleStats: OperatorStatistics = {
   aggregatedIdleTime: 700_000,
 };
 
-function statsEvent(operatorStatistics: Record<string, OperatorStatistics>): TexeraWebsocketEvent {
+// The wire object the engine streams: state and statistics bundled together.
+const sampleRuntimeStatus: OperatorRuntimeStatus = {
+  operatorState: OperatorState.Running,
+  ...sampleStatistics,
+};
+
+function statsEvent(operatorStatistics: Record<string, OperatorRuntimeStatus>): TexeraWebsocketEvent {
   return { type: "OperatorStatisticsUpdateEvent", operatorStatistics } as TexeraWebsocketEvent;
 }
 
@@ -58,32 +63,82 @@ describe("WorkflowStatusService", () => {
     service = TestBed.inject(WorkflowStatusService);
   });
 
-  it("forwards an OperatorStatisticsUpdateEvent to the status stream", () => {
-    const received: Record<string, OperatorStatistics>[] = [];
-    service.getStatusUpdateStream().subscribe(s => received.push(s));
+  it("splits an OperatorStatisticsUpdateEvent into the state and statistics streams", () => {
+    const stateEmissions: Record<string, OperatorState>[] = [];
+    const statisticsEmissions: Record<string, OperatorStatistics>[] = [];
+    service.getStateUpdateStream().subscribe(s => stateEmissions.push(s));
+    service.getStatisticsUpdateStream().subscribe(s => statisticsEmissions.push(s));
 
-    websocketEventSubject.next(statsEvent({ op1: sampleStats }));
+    websocketEventSubject.next(statsEvent({ op1: sampleRuntimeStatus }));
 
-    expect(received).toHaveLength(1);
-    expect(received[0]).toEqual({ op1: sampleStats });
-    expect(service.getCurrentStatus()).toEqual({ op1: sampleStats });
+    expect(stateEmissions).toHaveLength(1);
+    expect(stateEmissions[0]).toEqual({ op1: OperatorState.Running });
+    expect(statisticsEmissions).toHaveLength(1);
+    expect(statisticsEmissions[0]).toEqual({ op1: sampleStatistics });
+    expect(service.getCurrentState()).toEqual({ op1: OperatorState.Running });
+    expect(service.getCurrentStatistics()).toEqual({ op1: sampleStatistics });
+  });
+
+  it("does not leak the operator state into the statistics concept", () => {
+    websocketEventSubject.next(statsEvent({ op1: sampleRuntimeStatus }));
+    expect(service.getCurrentStatistics()["op1"]).not.toHaveProperty("operatorState");
+  });
+
+  it("exposes state and statistics as independent streams", () => {
+    // A consumer subscribed to only one of the two sub-concepts sees exactly
+    // one emission per update, unaffected by the other stream.
+    let stateCount = 0;
+    let statisticsCount = 0;
+    service.getStateUpdateStream().subscribe(() => stateCount++);
+    service.getStatisticsUpdateStream().subscribe(() => statisticsCount++);
+
+    websocketEventSubject.next(statsEvent({ op1: sampleRuntimeStatus }));
+    websocketEventSubject.next(statsEvent({ op1: { ...sampleRuntimeStatus, operatorState: OperatorState.Paused } }));
+
+    expect(stateCount).toBe(2);
+    expect(statisticsCount).toBe(2);
+    expect(service.getCurrentState()).toEqual({ op1: OperatorState.Paused });
+  });
+
+  it("emits state before statistics, so a statistics subscriber sees the matching state snapshot", () => {
+    const order: string[] = [];
+    // Captured in the subscriber, asserted after next() returns: rxjs re-throws
+    // a subscriber's error asynchronously, so an expect() inside the callback
+    // could not fail this test.
+    let stateSeenByStatisticsSubscriber: Record<string, OperatorState> | undefined;
+    service.getStateUpdateStream().subscribe(() => order.push("state"));
+    service.getStatisticsUpdateStream().subscribe(() => {
+      order.push("statistics");
+      stateSeenByStatisticsSubscriber = service.getCurrentState();
+    });
+
+    websocketEventSubject.next(statsEvent({ op1: sampleRuntimeStatus }));
+
+    expect(order).toEqual(["state", "statistics"]);
+    // The licensed read: by the time statistics arrive, the state snapshot
+    // already reflects the same wire event. The converse does not hold.
+    expect(stateSeenByStatisticsSubscriber).toEqual({ op1: OperatorState.Running });
   });
 
   it("ignores websocket events of other types", () => {
-    const received: Record<string, OperatorStatistics>[] = [];
-    service.getStatusUpdateStream().subscribe(s => received.push(s));
+    const stateEmissions: Record<string, OperatorState>[] = [];
+    const statisticsEmissions: Record<string, OperatorStatistics>[] = [];
+    service.getStateUpdateStream().subscribe(s => stateEmissions.push(s));
+    service.getStatisticsUpdateStream().subscribe(s => statisticsEmissions.push(s));
 
     websocketEventSubject.next({ type: "WorkflowErrorEvent" } as unknown as TexeraWebsocketEvent);
 
-    expect(received).toHaveLength(0);
-    expect(service.getCurrentStatus()).toEqual({});
+    expect(stateEmissions).toHaveLength(0);
+    expect(statisticsEmissions).toHaveLength(0);
+    expect(service.getCurrentState()).toEqual({});
+    expect(service.getCurrentStatistics()).toEqual({});
   });
 
-  it("derives performance metrics from a status update", () => {
+  it("derives performance metrics from a statistics update", () => {
     const emissions: Record<string, OperatorPerformanceMetrics>[] = [];
     service.getPerformanceMetricsStream().subscribe(m => emissions.push(m));
 
-    websocketEventSubject.next(statsEvent({ op1: sampleStats }));
+    websocketEventSubject.next(statsEvent({ op1: sampleRuntimeStatus }));
 
     // BehaviorSubject seeds {} then emits the derived map.
     const latest = emissions[emissions.length - 1];
@@ -102,7 +157,7 @@ describe("WorkflowStatusService", () => {
 
   it("keys the derived metrics by operator id, including unicode ids", () => {
     const id = "算子-✓-1";
-    websocketEventSubject.next(statsEvent({ [id]: sampleStats }));
+    websocketEventSubject.next(statsEvent({ [id]: sampleRuntimeStatus }));
     expect(Object.keys(service.getCurrentPerformanceMetrics())).toEqual([id]);
   });
 
@@ -114,7 +169,7 @@ describe("WorkflowStatusService", () => {
   });
 
   it("defaults missing optional fields to 0 when deriving metrics", () => {
-    const partial: OperatorStatistics = {
+    const partial: OperatorRuntimeStatus = {
       operatorState: OperatorState.Uninitialized,
       aggregatedInputRowCount: 0,
       inputPortMetrics: {},
@@ -132,12 +187,20 @@ describe("WorkflowStatusService", () => {
     expect(m.numWorkers).toBe(1);
   });
 
-  it("resetStatus zeros the metrics for known operators", () => {
-    websocketEventSubject.next(statsEvent({ op1: sampleStats }));
+  it("resetStatus resets both concepts for known operators", () => {
+    websocketEventSubject.next(statsEvent({ op1: sampleRuntimeStatus }));
     service.resetStatus();
 
-    const m = service.getCurrentPerformanceMetrics()["op1"];
-    expect(m).toEqual({
+    expect(service.getCurrentState()).toEqual({ op1: OperatorState.Uninitialized });
+    expect(service.getCurrentStatistics()).toEqual({
+      op1: {
+        aggregatedInputRowCount: 0,
+        inputPortMetrics: {},
+        aggregatedOutputRowCount: 0,
+        outputPortMetrics: {},
+      },
+    });
+    expect(service.getCurrentPerformanceMetrics()["op1"]).toEqual({
       dataProcessingTimeNs: 0,
       controlProcessingTimeNs: 0,
       idleTimeNs: 0,
@@ -149,11 +212,12 @@ describe("WorkflowStatusService", () => {
     });
   });
 
-  it("clearStatus empties both the status and performance-metrics snapshots", () => {
-    websocketEventSubject.next(statsEvent({ op1: sampleStats }));
+  it("clearStatus empties the state, statistics, and performance-metrics snapshots", () => {
+    websocketEventSubject.next(statsEvent({ op1: sampleRuntimeStatus }));
     service.clearStatus();
 
-    expect(service.getCurrentStatus()).toEqual({});
+    expect(service.getCurrentState()).toEqual({});
+    expect(service.getCurrentStatistics()).toEqual({});
     expect(service.getCurrentPerformanceMetrics()).toEqual({});
   });
 });

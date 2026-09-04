@@ -367,19 +367,19 @@ export class JointUIService {
     return operatorElement;
   }
 
+  /**
+   * Renders the statistics sub-concept only (port row counts and worker
+   * count); the operator's execution state is rendered separately via
+   * {@link changeOperatorState}.
+   */
   public changeOperatorStatistics(
     jointPaper: joint.dia.Paper,
     operatorID: string,
-    statistics: OperatorStatistics | undefined,
-    isSource: boolean,
-    isSink: boolean
+    statistics: OperatorStatistics | undefined
   ): void {
     if (!statistics) {
-      this.changeOperatorState(jointPaper, operatorID, OperatorState.Uninitialized);
       return;
     }
-
-    this.changeOperatorState(jointPaper, operatorID, statistics.operatorState);
 
     const element = jointPaper.getModelById(operatorID) as joint.shapes.devs.Model;
     const allPorts = element.getPorts();
@@ -411,7 +411,6 @@ export class JointUIService {
         element.portProp(portId, "attrs/.port-label/text", count.toLocaleString());
       }
     });
-    this.changeOperatorState(jointPaper, operatorID, statistics.operatorState);
   }
   public foldOperatorDetails(jointPaper: joint.dia.Paper, operatorID: string): void {
     jointPaper.getModelById(operatorID).attr({

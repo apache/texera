@@ -209,7 +209,7 @@
   nzTooltipPlacement="bottom"
   [disabled]="
   currentOperatorSchema?.additionalMetadata?.supportReconfiguration !== true
-  || currentOperatorStatus?.operatorState === OperatorState.Completed
+  || currentOperatorState === OperatorState.Completed
   ">
   Unlock for Logic Change
   <i
