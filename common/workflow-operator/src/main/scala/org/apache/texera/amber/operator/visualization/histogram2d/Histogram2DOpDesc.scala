@@ -142,13 +142,15 @@ class Histogram2DOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCo
        |    with open("output.html", "w", encoding="utf-8") as output:
        |        output.write(render_error("Input table is empty."))
        |else:
-       |    in1df.dropna(subset=[$xLit, $yLit], inplace=True)
-       |    if in1df.empty:
+       |    # Bound to a name of its own: the same frame can feed another branch
+       |    # of the plan, which must still see every row.
+       |    chart_df = in1df.dropna(subset=[$xLit, $yLit])
+       |    if chart_df.empty:
        |        with open("output.html", "w", encoding="utf-8") as output:
        |            output.write(render_error("No rows after dropping nulls."))
        |    else:
        |        fig = px.density_heatmap(
-       |            in1df,
+       |            chart_df,
        |            x=$xLit,
        |            y=$yLit,
        |            nbinsx=$xBins,

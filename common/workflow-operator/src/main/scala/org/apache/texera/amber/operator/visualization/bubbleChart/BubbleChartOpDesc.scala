@@ -195,12 +195,14 @@ class BubbleChartOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCo
        |if in1df.empty:
        |    fail("Input table is empty.")
        |else:
-       |    in1df.dropna(subset=[$xLit, $yLit, $zLit], inplace=True)
-       |    if in1df.empty:
+       |    # Bound to a name of its own: the same frame can feed another branch
+       |    # of the plan, which must still see every row.
+       |    chart_df = in1df.dropna(subset=[$xLit, $yLit, $zLit])
+       |    if chart_df.empty:
        |        fail("No valid rows left (every row has at least 1 missing value).")
        |    else:
        |        fig = go.Figure(px.scatter(
-       |            in1df,
+       |            chart_df,
        |            x=$xLit,
        |            y=$yLit,
        |            size=$zLit,
