@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1788527315003,
+  "lastUpdate": 1788527317897,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -44382,6 +44382,433 @@ window.BENCHMARK_DATA = {
           {
             "name": "latency p99 / bs=1000 sw=50 sl=512",
             "value": 1866620.312,
+            "unit": "us"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Tanishq Gandhi",
+            "username": "tanishqgandhi1908",
+            "email": "56472134+tanishqgandhi1908@users.noreply.github.com"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "1cbe857007a6526c6087f187667ef3b3c9ade546",
+          "message": "feat(frontend): render an absent fact as an em dash and a size as 0 B everywhere (#8381)\n\n### What changes were proposed in this PR?\n\nA resource's size, and the facts it has none of, rendered four different\nways depending on where you looked. This settles on one convention: **a\nfact with nothing to show renders \"—\", and a size renders `0 B`**,\nbecause zero bytes is a meaningful answer.\n\n**Card view hid the size row; list view showed `0 B`.** A dataset\ncreated but never uploaded to showed no size line at all in card view\n(`*ngIf=\"size\"` hides a zero) and `Size: 0 B` in list view. Card view\nnow always renders the row, so both views agree.\n\n**A copied workflow claimed `Size: 0 B`.** Only search asks the backend\nfor workflow sizes (`SearchService` → `GET /workflow/size`), so a\n`DashboardEntry` built straight from a duplicate response carried no\nsize and rendered as an empty workflow beside correctly-sized siblings.\nBoth duplicate paths now fetch the sizes before the rows go on screen —\nthe list items read the size once on binding, so filling it in\nafterwards would not show.\n\n**The two detail cards disagreed with each other.** The dataset Data\nCard left \"Last updated\" and \"Latest version file\" blank; the model\nModel Card em-dashed them *and* its size. Now both pages em-dash the\nversion facts and both render `0 B` for the size.\n\n`formatSize` is deliberately unchanged.\n\nThis is a `feat` rather than a `fix`: it is a deliberate, user-facing\nchange to how these fields render, and it touches the model detail page,\nwhich does not exist on the release branches — so it should not be\nbackported.\n\n**Before** — no size line in card view, `0 B` in list view, a fresh copy\nclaiming `0 B`, and the two detail cards disagreeing:\n\n<img width=\"1440\" height=\"900\" alt=\"issue4-1-datasets-card-view-before\"\nsrc=\"https://github.com/user-attachments/assets/5afd125b-f1e3-49b6-b782-6c0657773e9e\"\n/>\n<img width=\"1440\" height=\"900\" alt=\"issue4-2-datasets-list-view-before\"\nsrc=\"https://github.com/user-attachments/assets/edcca435-c936-4049-8a0b-65d43dfabf71\"\n/>\n<img width=\"1440\" height=\"900\" alt=\"issue4-7-duplicated-workflow-before\"\nsrc=\"https://github.com/user-attachments/assets/04e02e80-d232-4dec-99bc-35126c4db916\"\n/>\n<img width=\"1440\" height=\"900\" alt=\"issue4-3-empty-dataset-stats-before\"\nsrc=\"https://github.com/user-attachments/assets/90a00ca4-11a7-428c-88b4-7024899090eb\"\n/>\n\n\n**After** — card view reads `0 B` like list view, the copy reports its\nreal size, and both detail\ncards read the same:\n\n<img width=\"1440\" height=\"900\" alt=\"issue4-1-datasets-card-view-after\"\nsrc=\"https://github.com/user-attachments/assets/2d7f4121-b52e-4269-b773-5ba6012e1961\"\n/>\n<img width=\"1440\" height=\"900\" alt=\"issue4-7-duplicated-workflow-after\"\nsrc=\"https://github.com/user-attachments/assets/2520ff1a-fbb8-4211-b616-32b7086a3946\"\n/>\n<img width=\"1440\" height=\"900\" alt=\"issue4-3-empty-dataset-stats-after\"\nsrc=\"https://github.com/user-attachments/assets/ace12205-b959-4658-b568-d9be8a89fcef\"\n/>\n<img width=\"1440\" height=\"900\" alt=\"issue4-4-empty-model-stats-after\"\nsrc=\"https://github.com/user-attachments/assets/496ecdf4-d6d1-459f-9922-c70c6da9b38a\"\n/>\n\n### Any related issues, documentation, discussions?\n\nCloses #8380.\n\n### How was this PR tested?\n\nSpecs added:\n\n- `card-item.component.spec.ts` — `still reports an empty resource's\nsize, so card and list view\nagree`, asserting the row renders and reads `0 B` at size 0. 80 passed.\n- `user-workflow.component.spec.ts` — `asks for the copy's size, which\nthe duplicate response does\nnot carry`, asserting `getSizes` is called with the new wid and the\nentry takes that size.\n  74 passed.\n- `dataset-detail.component.spec.ts` — `em-dashes the facts a dataset\nwith no versions has none of`\nand `shows the real facts once a version exists`, covering both legs of\neach stat. 144 passed.\n- `model-detail.component.spec.ts` — the same case for the model card,\npinning \"—\" for the version\n  facts and `0 B` for the size. 80 passed.\n- `StubWorkflowPersistService` gained a `getSizes` so the duplicate\nspecs exercise the new call.\n\nOne existing model spec, `dashes out the latest-version facts for a\nmodel with no versions`, asserted\nthe card contained no `0 B` — it pinned the old model-only convention\nand is superseded by the new\nper-field case, so it was removed rather than edited.\n\n```\ncd frontend\nnpx ng test --include src/app/dashboard/component/user/list-item/card-item/card-item.component.spec.ts\nnpx ng test --include src/app/dashboard/component/user/user-workflow/user-workflow.component.spec.ts\nnpx ng test --include src/app/dashboard/component/user/user-dataset/user-dataset-explorer/dataset-detail.component.spec.ts\nnpx ng test --include src/app/dashboard/component/user/user-model/user-model-explorer/model-detail.component.spec.ts\n```\n\nChecked by hand against a local stack: an empty dataset reads `0 B` in\nboth views, the dataset and\nmodel cards both show `—` for the version facts and `0 B` for the size,\nand a freshly copied workflow\nreports 109.00 B like its siblings instead of 0 B.\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Claude Code (Opus 5)",
+          "timestamp": "2026-09-03T22:36:44Z",
+          "url": "https://github.com/apache/texera/commit/1cbe857007a6526c6087f187667ef3b3c9ade546"
+        },
+        "date": 1788527317276,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "latency p50 / bs=10 sw=1 sl=8",
+            "value": 17170.582,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=1 sl=8",
+            "value": 19983.279,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=1 sl=8",
+            "value": 22537.005,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=1 sl=8",
+            "value": 94421.977,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=1 sl=8",
+            "value": 102598.792,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=1 sl=8",
+            "value": 112700.347,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=1 sl=8",
+            "value": 866697.629,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=1 sl=8",
+            "value": 904853.819,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=1 sl=8",
+            "value": 921333.686,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=1 sl=64",
+            "value": 12122.188,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=1 sl=64",
+            "value": 14325.225,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=1 sl=64",
+            "value": 18065.648,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=1 sl=64",
+            "value": 89636.556,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=1 sl=64",
+            "value": 95109.686,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=1 sl=64",
+            "value": 109775.039,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=1 sl=64",
+            "value": 865995.824,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=1 sl=64",
+            "value": 897978.471,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=1 sl=64",
+            "value": 911048.244,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=1 sl=512",
+            "value": 12331.759,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=1 sl=512",
+            "value": 14697.362,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=1 sl=512",
+            "value": 18831.022,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=1 sl=512",
+            "value": 90511.956,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=1 sl=512",
+            "value": 96488.597,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=1 sl=512",
+            "value": 100740.192,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=1 sl=512",
+            "value": 875020.61,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=1 sl=512",
+            "value": 906575.46,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=1 sl=512",
+            "value": 923898.456,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=10 sl=8",
+            "value": 14488.13,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=10 sl=8",
+            "value": 19620.207,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=10 sl=8",
+            "value": 21107.457,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=10 sl=8",
+            "value": 111185.011,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=10 sl=8",
+            "value": 118007.021,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=10 sl=8",
+            "value": 126890.018,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=10 sl=8",
+            "value": 1075462.14,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=10 sl=8",
+            "value": 1121220.812,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=10 sl=8",
+            "value": 1130275.987,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=10 sl=64",
+            "value": 13625.278,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=10 sl=64",
+            "value": 18476.391,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=10 sl=64",
+            "value": 20718.461,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=10 sl=64",
+            "value": 109658.289,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=10 sl=64",
+            "value": 116697.699,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=10 sl=64",
+            "value": 133282.972,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=10 sl=64",
+            "value": 1079648.211,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=10 sl=64",
+            "value": 1118921.892,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=10 sl=64",
+            "value": 1149086.45,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=10 sl=512",
+            "value": 13399.937,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=10 sl=512",
+            "value": 16565.364,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=10 sl=512",
+            "value": 20326.907,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=10 sl=512",
+            "value": 111096.472,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=10 sl=512",
+            "value": 117955.485,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=10 sl=512",
+            "value": 125213.428,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=10 sl=512",
+            "value": 1095274.981,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=10 sl=512",
+            "value": 1138394.897,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=10 sl=512",
+            "value": 1160813.454,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=50 sl=8",
+            "value": 22668.61,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=50 sl=8",
+            "value": 24674.238,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=50 sl=8",
+            "value": 28516.46,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=50 sl=8",
+            "value": 193764.458,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=50 sl=8",
+            "value": 199162.017,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=50 sl=8",
+            "value": 219238.231,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=50 sl=8",
+            "value": 1903834.001,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=50 sl=8",
+            "value": 1961959.15,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=50 sl=8",
+            "value": 2028265.443,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=50 sl=64",
+            "value": 22356.362,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=50 sl=64",
+            "value": 23364.893,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=50 sl=64",
+            "value": 24731.506,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=50 sl=64",
+            "value": 195590.162,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=50 sl=64",
+            "value": 201925.719,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=50 sl=64",
+            "value": 217432.938,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=50 sl=64",
+            "value": 1918319.807,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=50 sl=64",
+            "value": 1958904.543,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=50 sl=64",
+            "value": 2008315.52,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=50 sl=512",
+            "value": 23732.486,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=50 sl=512",
+            "value": 26441.578,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=50 sl=512",
+            "value": 31523.309,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=50 sl=512",
+            "value": 203007.052,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=50 sl=512",
+            "value": 210252.092,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=50 sl=512",
+            "value": 218688.627,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=50 sl=512",
+            "value": 2012330.608,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=50 sl=512",
+            "value": 2062665.148,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=50 sl=512",
+            "value": 2116112.102,
             "unit": "us"
           }
         ]
