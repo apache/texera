@@ -685,6 +685,126 @@ describe("WorkflowFormComponent", () => {
     });
   });
 
+  // A nested (object) or repeated (array) property carries sub-fields; the author can rename and
+  // hide each one, and the schema's own per-field notes are dropped so only the author's help text
+  // guides a reader. Overrides are keyed by field path, array indices dropped.
+  describe("nested and array sub-fields", () => {
+    // Expose one property of op-1 with the given binding, then read the config.
+    const expose = (bindingExtra: any) => {
+      h.hasOperatorIds.add("op-1");
+      formBindingService.resolveFields.mockReturnValue([resolved("x", "x", { binding: bindingExtra })]);
+      (component as any).readConfig();
+      return component.rendered[0].fields[0] as any;
+    };
+
+    it("renames and hides an overridden sub-field of an object property", () => {
+      build(formViewWorkflow).ngOnInit();
+
+      const field = expose({
+        id: "n",
+        operatorID: "op-1",
+        propertyKey: "nested",
+        displayName: "Nested",
+        overrides: { sub: { displayName: "Renamed sub", hidden: true } },
+      });
+
+      const sub = field.fieldGroup[0];
+      expect(sub.key).toBe("sub");
+      expect(sub.props.label).toBe("Renamed sub");
+      expect(sub.hide).toBe(true);
+      // Hidden must not strip the value: formly's resetFieldOnHide default would otherwise clear it
+      // from the model on render, and the card writes the whole nested object back -- deleting the
+      // author's pinned value. resetOnHide=false keeps it.
+      expect(sub.resetOnHide).toBe(false);
+    });
+
+    it("renames and hides an overridden sub-field of a repeated section, per row", () => {
+      build(formViewWorkflow).ngOnInit();
+
+      const field = expose({
+        id: "p",
+        operatorID: "op-1",
+        propertyKey: "predicates",
+        displayName: "Predicates",
+        overrides: { alias: { displayName: "Renamed", hidden: true } },
+      });
+
+      // Formly builds a repeated section's rows on demand; invoke the wrapped builder so the walk
+      // decorates the row's sub-fields (every row formly ever makes comes out decorated).
+      const row = field.fieldArray({});
+      const alias = row.fieldGroup[0];
+      expect(alias.key).toBe("alias");
+      expect(alias.props.label).toBe("Renamed");
+      expect(alias.hide).toBe(true);
+      expect(alias.resetOnHide).toBe(false);
+    });
+
+    it("drops the schema's own descriptions on the field and its sub-fields", () => {
+      build(formViewWorkflow).ngOnInit();
+
+      const field = expose({ id: "n", operatorID: "op-1", propertyKey: "nested", displayName: "Nested" });
+
+      expect(field.props.description).toBe("");
+      expect(field.fieldGroup[0].props.description).toBe("");
+    });
+
+    it("leaves a sub-field untouched when the author set no override for it", () => {
+      build(formViewWorkflow).ngOnInit();
+
+      const field = expose({ id: "n", operatorID: "op-1", propertyKey: "nested", displayName: "Nested" });
+
+      const sub = field.fieldGroup[0];
+      // No override: keeps the schema label and stays visible.
+      expect(sub.props.label).toBe("Sub");
+      expect(sub.hide).toBeUndefined();
+      // A visible field is never opted out of reset-on-hide -- the switch rides with the hide.
+      expect(sub.resetOnHide).toBeUndefined();
+    });
+
+    it("drops the description on a scalar array's row template", () => {
+      build(formViewWorkflow).ngOnInit();
+
+      const field = expose({ id: "t", operatorID: "op-1", propertyKey: "tags", displayName: "Tags" });
+
+      // The row template is a leaf (no sub-fields); its schema description is dropped like the rest.
+      expect(field.fieldArray.props.description).toBe("");
+    });
+
+    it("drops the description on a builder-backed scalar array's leaf row", () => {
+      build(formViewWorkflow).ngOnInit();
+
+      const field = expose({ id: "tf", operatorID: "op-1", propertyKey: "tagsFn", displayName: "Tags" });
+      // Invoke the wrapped builder: it returns a leaf row (no fieldGroup), which the walk decorates.
+      const row = field.fieldArray({});
+
+      expect(row.props.description).toBe("");
+    });
+
+    it("drops the description on a builder-backed object row without reprinting its title", () => {
+      build(formViewWorkflow).ngOnInit();
+
+      const field = expose({ id: "p", operatorID: "op-1", propertyKey: "predicates", displayName: "Predicates" });
+      // An object row (fieldGroup): its container is not walked as a root (that would reprint the
+      // array's title), but its own items.description would still render once per row, so it is
+      // dropped; the row's sub-field is walked as before.
+      const row = field.fieldArray({});
+
+      expect(row.props.description).toBe("");
+      expect(row.fieldGroup[0].props.description).toBe("");
+    });
+
+    it("drops the description on a static object-array's row template", () => {
+      build(formViewWorkflow).ngOnInit();
+
+      const field = expose({ id: "r", operatorID: "op-1", propertyKey: "rules", displayName: "Rules" });
+
+      // The template container (fieldArray with a fieldGroup) carries items.description; it is
+      // dropped, and its sub-fields are still walked (their descriptions dropped too).
+      expect(field.fieldArray.props.description).toBe("");
+      expect(field.fieldArray.fieldGroup[0].props.description).toBe("");
+    });
+  });
+
   describe("keeping the inputs in step with the workflow", () => {
     it("rebuilds the inputs when compilation reports a new state", async () => {
       build(formViewWorkflow).ngOnInit();
