@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1788613484414,
+  "lastUpdate": 1788613486996,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -44966,6 +44966,433 @@ window.BENCHMARK_DATA = {
           {
             "name": "latency p99 / bs=1000 sw=50 sl=512",
             "value": 2116112.102,
+            "unit": "us"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Xinyuan Lin",
+            "username": "aglinxinyuan",
+            "email": "xinyual3@uci.edu"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "09b4e74560a0cb16c557816711639493564f9d3c",
+          "message": "test(amber): make FlowControlSpec's size-cap test actually assert (#8406)\n\n### What changes were proposed in this PR?\n\n`FlowControlSpec` had a test that asserted nothing:\n\n```scala\n\"FlowControl\" should \"trip the size-cap assertion for a message that exceeds maxByteAllowed\" in {\n  // ... comment conceding it cannot synthesize an oversized payload ...\n  val fc = new FlowControl()\n  (1L to 1000L).foreach(i => fc.getMessagesToSend(msg(i)))\n  succeed\n}\n```\n\nIt sent 1000 messages and then checked no property of the result. The\nname claimed a guarantee the file did not pin.\n\n**Measured proof the name was empty.** Deleting the guard the test is\nnamed after — the `assert(creditNeeded <= maxByteAllowed, ...)` block at\nthe top of `FlowControl.getMessagesToSend` — changed nothing:\n\n| production `FlowControl.scala` | `FlowControlSpec` |\n|---|---|\n| unmodified | 14 passed, 0 failed |\n| `assert(creditNeeded <= maxByteAllowed, ...)` block deleted | 14\npassed, 0 failed |\n\nThe fixture could never reach the guard: `FixedSizePayload` reports 200\nbytes and `flow-control.max-credit-allowed-in-bytes-per-channel` is\n1,600,000,000, so `200 <= 1600000000` held on all 1000 iterations. 1000\nx 200 = 200,000 bytes does not exhaust credit either, so the messages\nnever took the stashing path.\n\n**The change: two tests, both with real assertions.**\n\n1. `\"FlowControl.getMessagesToSend\" should \"reject a message larger than\nthe whole credit cap\"` — this one actually trips the guard. An oversized\npayload turns out to be cheap to build: `DataFrame.inMemSize` is\n`frame.map(_.inMemSize).sum`, which does **not** deduplicate, so an\n`Array[Tuple]` holding the same tuple reference N times reports N x its\nsize. One tuple with a 100,000-char string, repeated `maxBytes /\ntupleSize + 1` times, reports over the cap for a few hundred KB of real\nmemory. The test intercepts the `AssertionError`, checks its message,\nand checks the rejection left the channel untouched (`getCredit`\nunchanged, not marked overloaded — which is what the out-of-credit\nbranch below the guard would have done instead).\n\n2. `it should \"forward every under-cap message and charge its size\nagainst the credit\"` — replaces the old body, pinning the fast path the\nguard sits on:\n\n```\nper message i in 1..1000:\n  getMessagesToSend(msg(i)).toList == List(msg(i))   -- forwarded, not stashed\n  getCredit          == maxBytes - i * msgSize       -- charged exactly its own size\n  isOverloaded       == false\nprecondition: batch * msgSize < maxBytes             -- else these expectations\n                                                        describe the stashing path\n```\n\nExpected values are derived from the fixture (`msgSize` from\n`WorkflowMessage.getInMemSize`, `maxBytes` from `ApplicationConfig`),\nnot hard-coded.\n\n**A claim from my own earlier draft, corrected.** An earlier revision of\nthis PR stated that covering the size-cap guard \"needs an injection seam\nfor `maxByteAllowed` … that is a production change\" and listed the guard\nas a disclosed, unavoidable gap. **That was wrong**, and review pressure\nis what sent me back to check it. `DataFrame`'s non-deduplicating size\nsum is the seam, it is test-only, and the guard is now covered — see the\ncontrol row in the mutation table below, which went from PASS to FAIL.\nNo production change was needed.\n\n**What this PR does NOT do.** It does not change `FlowControl` or any\nother `src/main` file (`git diff` on `amber/src/main` is empty). It does\nnot reformat the file or touch the other 13 tests. Two pre-existing\nweaknesses in neighbouring tests are left alone as out of scope:\n`\"eventually drain the stash across many ack cycles\"` ends in\n`assert(seen == stashed.size)` where `seen` is incremented once per\nelement of `stashed` in the same loop, so that line is true by\nconstruction; and the suite-constructor `assert(msgSize == 200L)`\nhard-codes `WorkflowMessage`'s default, which would abort the whole\nsuite rather than fail one test if that default ever changed.\n\n### Any related issues, documentation, discussions?\n\nCloses #8402\n\n### How was this PR tested?\n\nAll runs: `sbt \"WorkflowExecutionService/testOnly ...\"` on Java 17,\nbased on `1cbe857007`.\n\n**Non-vacuity: the new tests can fail, and they catch things the suite\ndid not already catch.** Four mutations to\n`FlowControl.getMessagesToSend`, each run against both the new spec and\na verbatim copy of the old `succeed` test (kept in a throwaway probe\nsuite in the *same* `testOnly` invocation, then deleted). Failing tests\nwere read from `amber/target/test-reports/TEST-*.xml` by identity, not\nfrom console counts:\n\n| mutation | old `succeed` test | new spec | which identities failed |\n|---|---|---|---|\n| M1: drop `inflightCredit += creditNeeded` on the fast path | PASS |\n**FAIL** (2) | new fast-path test **+ pre-existing**\n`decreaseInflightCredit should free credit equal to the acked amount` |\n| M2: fast path returns `Iterable.empty` instead of `Iterable(msg)` |\nPASS | **FAIL** (2) | new fast-path test **+ pre-existing**\n`getMessagesToSend should forward an incoming message when credit is\navailable` |\n| M7: `if (inflightCredit == 0) inflightCredit += creditNeeded` — charge\nonly the first message | PASS | **FAIL** (1) | **new fast-path test\nonly** |\n| Control: delete the `assert(creditNeeded <= maxByteAllowed, ...)`\nblock | PASS | **FAIL** (1) | **new size-cap test only** |\n\nBeing explicit about what each row proves, since two of them prove less\nthan they look:\n\n- M1 and M2 are each **also** caught by one pre-existing neighbour. On\nthose two rows alone you could not tell whether the rewritten test adds\ncoverage or merely duplicates it.\n- M7 and the control row are the ones that settle it. M7 is a real\nbehavioural break — flow control stops accounting after the first\nmessage — that **no other test in the file detects**; it fails only\nbecause the new test walks a whole batch instead of one message. The\ncontrol row is the original defect: the guard is now pinned, where\nbefore nothing in the file noticed its removal.\n\nFailure messages, for the record:\n\n```\nM7      : 1599999800 did not equal 1599999600 after 2 forwarded messages\n          the credit must be down by 2 * 200\nControl : Expected exception java.lang.AssertionError to be thrown, but no exception was thrown\n```\n\nEvery mutation was applied from, and reverted to, a pristine copy of\n`FlowControl.scala` kept outside the repo (never `git checkout` / `git\nrestore`), and `git diff -- amber/src/main` was verified empty after\neach revert and at the end. The probe suite is deleted; `git status\n--porcelain` shows only the one intended test file.\n\n**Regression: baseline first, then compared by failing-test identity,\nnot by counts.** Scope: every spec in `...architecture.messaginglayer.*`\nplus `PekkoMessageTransferServiceSpec`, the only other spec reading the\nsame credit config, in one invocation.\n\n| run | suites | tests | failed |\n|---|---|---|---|\n| baseline (file restored to `1cbe857007` content) | 12 | 120 | 0 |\n| after this change | 12 | 121 | 0 |\n\nThe identity diff is exactly one removal and two additions, with no\nother test's name or status changed:\n\n```\n- FlowControlSpec :: FlowControl should trip the size-cap assertion for a message that exceeds maxByteAllowed :: PASS\n+ FlowControlSpec :: FlowControl.getMessagesToSend should forward every under-cap message and charge its size against the credit :: PASS\n+ FlowControlSpec :: FlowControl.getMessagesToSend should reject a message larger than the whole credit cap :: PASS\n```\n\nThat the multi-run drain test is absent from this diff is the point of\none line in the change: it used `it should`, which bound to the subject\nof the test being replaced. It now declares `\"FlowControl\" should`\nexplicitly, which is why its identity is byte-identical across the two\nruns.\n\nNot run: the full `amber` module. Its `@IntegrationTest` suites spawn\nPython workers and cannot run on this Windows host, and several\nIceberg-backed specs fail here regardless of the change, so a\nfull-module identity comparison would have been noise. The change adds\nno globals or shared state, so the within-JVM leakage that makes amber's\nserial execution matter does not apply.\n\nLint, all clean in the same invocation as the final test run:\n`WorkflowExecutionService/scalafmtCheck`,\n`WorkflowExecutionService/Test/scalafmtCheck`,\n`WorkflowExecutionService/scalafixAll --check`.\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Claude Code (Opus 5)",
+          "timestamp": "2026-09-05T06:56:08Z",
+          "url": "https://github.com/apache/texera/commit/09b4e74560a0cb16c557816711639493564f9d3c"
+        },
+        "date": 1788613486653,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "latency p50 / bs=10 sw=1 sl=8",
+            "value": 14536.262,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=1 sl=8",
+            "value": 18106.315,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=1 sl=8",
+            "value": 23415,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=1 sl=8",
+            "value": 90208.57,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=1 sl=8",
+            "value": 100434.277,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=1 sl=8",
+            "value": 129424.405,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=1 sl=8",
+            "value": 856655.083,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=1 sl=8",
+            "value": 895077.999,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=1 sl=8",
+            "value": 937498.772,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=1 sl=64",
+            "value": 11535.306,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=1 sl=64",
+            "value": 13622.285,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=1 sl=64",
+            "value": 14940.361,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=1 sl=64",
+            "value": 87493.091,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=1 sl=64",
+            "value": 94276.03,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=1 sl=64",
+            "value": 109466.591,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=1 sl=64",
+            "value": 859378.369,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=1 sl=64",
+            "value": 896463.181,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=1 sl=64",
+            "value": 912425.204,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=1 sl=512",
+            "value": 11761.41,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=1 sl=512",
+            "value": 15715.273,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=1 sl=512",
+            "value": 19337.728,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=1 sl=512",
+            "value": 88316.345,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=1 sl=512",
+            "value": 94088.611,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=1 sl=512",
+            "value": 101907.023,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=1 sl=512",
+            "value": 859359.929,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=1 sl=512",
+            "value": 892751.365,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=1 sl=512",
+            "value": 922056.606,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=10 sl=8",
+            "value": 13859.493,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=10 sl=8",
+            "value": 17833.134,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=10 sl=8",
+            "value": 20328.492,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=10 sl=8",
+            "value": 110570.718,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=10 sl=8",
+            "value": 117592.751,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=10 sl=8",
+            "value": 128511.369,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=10 sl=8",
+            "value": 1069421.562,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=10 sl=8",
+            "value": 1103882.574,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=10 sl=8",
+            "value": 1126278.972,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=10 sl=64",
+            "value": 13328.504,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=10 sl=64",
+            "value": 17732.58,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=10 sl=64",
+            "value": 22935.272,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=10 sl=64",
+            "value": 107853.351,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=10 sl=64",
+            "value": 114384.018,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=10 sl=64",
+            "value": 125321.247,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=10 sl=64",
+            "value": 1069330.367,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=10 sl=64",
+            "value": 1119676.644,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=10 sl=64",
+            "value": 1137107.715,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=10 sl=512",
+            "value": 12981.283,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=10 sl=512",
+            "value": 16483.837,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=10 sl=512",
+            "value": 21877.758,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=10 sl=512",
+            "value": 110382.813,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=10 sl=512",
+            "value": 115244.992,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=10 sl=512",
+            "value": 118170.043,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=10 sl=512",
+            "value": 1076341.95,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=10 sl=512",
+            "value": 1121432.668,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=10 sl=512",
+            "value": 1134297.16,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=50 sl=8",
+            "value": 21565.197,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=50 sl=8",
+            "value": 23384.248,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=50 sl=8",
+            "value": 29620.784,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=50 sl=8",
+            "value": 189656.606,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=50 sl=8",
+            "value": 198078.97,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=50 sl=8",
+            "value": 209602.825,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=50 sl=8",
+            "value": 1883286.684,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=50 sl=8",
+            "value": 1931318.043,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=50 sl=8",
+            "value": 1981762.526,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=50 sl=64",
+            "value": 21913.042,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=50 sl=64",
+            "value": 22915.94,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=50 sl=64",
+            "value": 24745.683,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=50 sl=64",
+            "value": 191515.772,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=50 sl=64",
+            "value": 202071.701,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=50 sl=64",
+            "value": 213356.773,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=50 sl=64",
+            "value": 1884087.664,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=50 sl=64",
+            "value": 1927957.423,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=50 sl=64",
+            "value": 1974598.437,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=50 sl=512",
+            "value": 23131.668,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=50 sl=512",
+            "value": 27561.155,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=50 sl=512",
+            "value": 30879.359,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=50 sl=512",
+            "value": 198996.424,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=50 sl=512",
+            "value": 207772.023,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=50 sl=512",
+            "value": 216258.421,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=50 sl=512",
+            "value": 1970605.078,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=50 sl=512",
+            "value": 2011906.251,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=50 sl=512",
+            "value": 2023411.812,
             "unit": "us"
           }
         ]
