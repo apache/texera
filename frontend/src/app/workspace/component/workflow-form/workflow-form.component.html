@@ -69,7 +69,39 @@
     Loading…
   </div>
 
-  <!-- Body is filled in by the following PRs: the read-only workflow preview, the inputs,
-       running and the results. This PR is the page shell -- load, show, hand back. -->
-  <div [hidden]="loading"></div>
+  <div [hidden]="loading">
+    <!-- The workflow, out of the way unless the reader goes looking. The inputs, running and
+         results are added on top of this by the following PRs. -->
+    <section
+      class="card wf"
+      [class.open]="workflowOpen">
+      <button
+        type="button"
+        class="wf-bar"
+        [attr.aria-expanded]="workflowOpen"
+        (click)="toggleWorkflow()">
+        <i
+          nz-icon
+          nzType="down"
+          class="chev"
+          aria-hidden="true"></i>
+        <span class="wf-titles">
+          <span class="wf-title">Workflow</span>
+          <span class="wf-sub">Optional. The steps that will run.</span>
+        </span>
+        <span class="spacer"></span>
+      </button>
+
+      <div
+        class="wf-body"
+        [hidden]="!workflowOpen">
+        <texera-workflow-editor
+          *ngIf="workflowEverOpened"
+          [structureLocked]="true"></texera-workflow-editor>
+        <texera-mini-map
+          *ngIf="workflowEverOpened"
+          class="box"></texera-mini-map>
+      </div>
+    </section>
+  </div>
 </div>

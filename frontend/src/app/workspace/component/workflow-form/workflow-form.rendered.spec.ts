@@ -50,11 +50,13 @@ describe("WorkflowFormComponent (rendered template)", () => {
 
   const configure = async () => {
     workflow$ = new Subject<any>();
-    // Blank out ONLY the two child icons: their ng-zorro dropdown/menu needs a host context
-    // this page does not set up. The override is on the children, not the page, so the page's
-    // own .component.html renders as shipped and stays covered -- which is the point of this
-    // spec, and why the no-restricted-syntax guard (aimed at blanking the component under test)
-    // does not apply here.
+    // Blank out ONLY the two child icons: their ng-zorro dropdown/menu needs a host context this
+    // page does not set up. The override is on the children, not the page, so the page's own
+    // .component.html renders as shipped and stays covered -- which is the point of this spec, and
+    // why the no-restricted-syntax guard (aimed at blanking the component under test) does not
+    // apply here. The embedded workflow editor / mini-map are never instantiated (they sit behind
+    // *ngIf="workflowEverOpened", and these tests never open the strip -- a real JointJS paper
+    // needs layout jsdom lacks), so they need no override.
     /* eslint-disable no-restricted-syntax */
     TestBed.overrideComponent(UserIconComponent, { set: { template: "" } });
     TestBed.overrideComponent(CoeditorUserIconComponent, { set: { template: "" } });
@@ -160,6 +162,17 @@ describe("WorkflowFormComponent (rendered template)", () => {
     finishLoad();
 
     expect(el(".pc-loading")).toBeNull();
+  });
+
+  it("toggles the workflow preview when its bar is clicked", () => {
+    fixture.detectChanges();
+    finishLoad();
+    // Spied so the click only exercises the template binding, without building the JointJS canvas.
+    const spy = vi.spyOn(fixture.componentInstance, "toggleWorkflow").mockImplementation(() => {});
+
+    el(".wf-bar")!.click();
+
+    expect(spy).toHaveBeenCalled();
   });
 
   it("tears the workflow down when the browser unloads (the beforeunload host binding)", () => {

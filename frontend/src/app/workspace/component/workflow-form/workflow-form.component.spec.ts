@@ -341,4 +341,65 @@ describe("WorkflowFormComponent", () => {
       vi.useRealTimers();
     });
   });
+
+  // JointJS measures the paper once, when the editor is created. Creating it in the same pass
+  // that uncollapses the strip races the browser's layout, and losing that race draws links up
+  // and over the boxes -- so the strip opens first, and the canvas is built a frame later.
+  describe("the workflow preview", () => {
+    const frame = () => new Promise(r => requestAnimationFrame(() => r(null)));
+
+    it("opens the strip but does not build the canvas in the same pass", () => {
+      build(formViewWorkflow).ngOnInit();
+
+      component.toggleWorkflow();
+
+      expect(component.workflowOpen).toBe(true);
+      expect(component.workflowEverOpened).toBe(false);
+    });
+
+    it("builds the canvas a frame after the strip opens, then centres it", async () => {
+      build(formViewWorkflow).ngOnInit();
+
+      component.toggleWorkflow();
+      await frame();
+      expect(component.workflowEverOpened).toBe(true);
+
+      await frame();
+      expect(h.triggerCenterEvent).toHaveBeenCalled();
+    });
+
+    it("closes the strip again without rebuilding the canvas", () => {
+      build(formViewWorkflow).ngOnInit();
+      component.toggleWorkflow();
+
+      component.toggleWorkflow();
+
+      expect(component.workflowOpen).toBe(false);
+    });
+
+    // Opening then immediately collapsing must not build the children into a hidden (0-sized)
+    // strip -- the mini-map has no resize observer and would be stuck blank on the next open.
+    it("does not build the canvas if the strip is collapsed again before the frame", async () => {
+      build(formViewWorkflow).ngOnInit();
+
+      component.toggleWorkflow(); // open -> schedules the deferred build
+      component.toggleWorkflow(); // collapse again in the same tick, before the frame
+      await frame();
+
+      expect(component.workflowEverOpened).toBe(false);
+    });
+
+    // Leaving for the dashboard is an ordinary in-app navigation, so a reader can walk out in the
+    // frame between opening the strip and the canvas being built; that deferred build must not run
+    // on a page that is gone (detectChanges would throw on a destroyed view).
+    it("does not build the canvas for a page that has been left", async () => {
+      build(formViewWorkflow).ngOnInit();
+
+      component.toggleWorkflow();
+      component.ngOnDestroy();
+      await frame();
+
+      expect(component.workflowEverOpened).toBe(false);
+    });
+  });
 });

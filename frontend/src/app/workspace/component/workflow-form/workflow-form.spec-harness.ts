@@ -36,6 +36,8 @@ export function setupHarness() {
   const router = { navigate: vi.fn() };
   const workflowChangedStream = new Subject<unknown>();
   const workflowMetaDataChangedStream = new Subject<unknown>();
+  // The preview centres the embedded graph once it is built; tests assert this fired.
+  const triggerCenterEvent = vi.fn();
 
   const workflowActionService = {
     resetAsNewWorkflow: vi.fn(),
@@ -50,6 +52,7 @@ export function setupHarness() {
     getWorkflowMetadata: () => ({ name: "scGPT", lastModifiedTime: 1767225600000 }),
     setWorkflowName: vi.fn(),
     setWorkflowMetadata: vi.fn(),
+    getTexeraGraph: () => ({ triggerCenterEvent }),
   };
   const workflowPersistService = {
     retrieveWorkflow: vi.fn().mockReturnValue(of(formViewWorkflow)),
@@ -101,5 +104,6 @@ export function setupHarness() {
     config,
     workflowChangedStream,
     workflowMetaDataChangedStream,
+    triggerCenterEvent,
   };
 }
