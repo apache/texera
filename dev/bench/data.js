@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1788527317897,
+  "lastUpdate": 1788613484414,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -12353,6 +12353,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 496.52927672995185,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Xinyuan Lin",
+            "username": "aglinxinyuan",
+            "email": "xinyual3@uci.edu"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "09b4e74560a0cb16c557816711639493564f9d3c",
+          "message": "test(amber): make FlowControlSpec's size-cap test actually assert (#8406)\n\n### What changes were proposed in this PR?\n\n`FlowControlSpec` had a test that asserted nothing:\n\n```scala\n\"FlowControl\" should \"trip the size-cap assertion for a message that exceeds maxByteAllowed\" in {\n  // ... comment conceding it cannot synthesize an oversized payload ...\n  val fc = new FlowControl()\n  (1L to 1000L).foreach(i => fc.getMessagesToSend(msg(i)))\n  succeed\n}\n```\n\nIt sent 1000 messages and then checked no property of the result. The\nname claimed a guarantee the file did not pin.\n\n**Measured proof the name was empty.** Deleting the guard the test is\nnamed after — the `assert(creditNeeded <= maxByteAllowed, ...)` block at\nthe top of `FlowControl.getMessagesToSend` — changed nothing:\n\n| production `FlowControl.scala` | `FlowControlSpec` |\n|---|---|\n| unmodified | 14 passed, 0 failed |\n| `assert(creditNeeded <= maxByteAllowed, ...)` block deleted | 14\npassed, 0 failed |\n\nThe fixture could never reach the guard: `FixedSizePayload` reports 200\nbytes and `flow-control.max-credit-allowed-in-bytes-per-channel` is\n1,600,000,000, so `200 <= 1600000000` held on all 1000 iterations. 1000\nx 200 = 200,000 bytes does not exhaust credit either, so the messages\nnever took the stashing path.\n\n**The change: two tests, both with real assertions.**\n\n1. `\"FlowControl.getMessagesToSend\" should \"reject a message larger than\nthe whole credit cap\"` — this one actually trips the guard. An oversized\npayload turns out to be cheap to build: `DataFrame.inMemSize` is\n`frame.map(_.inMemSize).sum`, which does **not** deduplicate, so an\n`Array[Tuple]` holding the same tuple reference N times reports N x its\nsize. One tuple with a 100,000-char string, repeated `maxBytes /\ntupleSize + 1` times, reports over the cap for a few hundred KB of real\nmemory. The test intercepts the `AssertionError`, checks its message,\nand checks the rejection left the channel untouched (`getCredit`\nunchanged, not marked overloaded — which is what the out-of-credit\nbranch below the guard would have done instead).\n\n2. `it should \"forward every under-cap message and charge its size\nagainst the credit\"` — replaces the old body, pinning the fast path the\nguard sits on:\n\n```\nper message i in 1..1000:\n  getMessagesToSend(msg(i)).toList == List(msg(i))   -- forwarded, not stashed\n  getCredit          == maxBytes - i * msgSize       -- charged exactly its own size\n  isOverloaded       == false\nprecondition: batch * msgSize < maxBytes             -- else these expectations\n                                                        describe the stashing path\n```\n\nExpected values are derived from the fixture (`msgSize` from\n`WorkflowMessage.getInMemSize`, `maxBytes` from `ApplicationConfig`),\nnot hard-coded.\n\n**A claim from my own earlier draft, corrected.** An earlier revision of\nthis PR stated that covering the size-cap guard \"needs an injection seam\nfor `maxByteAllowed` … that is a production change\" and listed the guard\nas a disclosed, unavoidable gap. **That was wrong**, and review pressure\nis what sent me back to check it. `DataFrame`'s non-deduplicating size\nsum is the seam, it is test-only, and the guard is now covered — see the\ncontrol row in the mutation table below, which went from PASS to FAIL.\nNo production change was needed.\n\n**What this PR does NOT do.** It does not change `FlowControl` or any\nother `src/main` file (`git diff` on `amber/src/main` is empty). It does\nnot reformat the file or touch the other 13 tests. Two pre-existing\nweaknesses in neighbouring tests are left alone as out of scope:\n`\"eventually drain the stash across many ack cycles\"` ends in\n`assert(seen == stashed.size)` where `seen` is incremented once per\nelement of `stashed` in the same loop, so that line is true by\nconstruction; and the suite-constructor `assert(msgSize == 200L)`\nhard-codes `WorkflowMessage`'s default, which would abort the whole\nsuite rather than fail one test if that default ever changed.\n\n### Any related issues, documentation, discussions?\n\nCloses #8402\n\n### How was this PR tested?\n\nAll runs: `sbt \"WorkflowExecutionService/testOnly ...\"` on Java 17,\nbased on `1cbe857007`.\n\n**Non-vacuity: the new tests can fail, and they catch things the suite\ndid not already catch.** Four mutations to\n`FlowControl.getMessagesToSend`, each run against both the new spec and\na verbatim copy of the old `succeed` test (kept in a throwaway probe\nsuite in the *same* `testOnly` invocation, then deleted). Failing tests\nwere read from `amber/target/test-reports/TEST-*.xml` by identity, not\nfrom console counts:\n\n| mutation | old `succeed` test | new spec | which identities failed |\n|---|---|---|---|\n| M1: drop `inflightCredit += creditNeeded` on the fast path | PASS |\n**FAIL** (2) | new fast-path test **+ pre-existing**\n`decreaseInflightCredit should free credit equal to the acked amount` |\n| M2: fast path returns `Iterable.empty` instead of `Iterable(msg)` |\nPASS | **FAIL** (2) | new fast-path test **+ pre-existing**\n`getMessagesToSend should forward an incoming message when credit is\navailable` |\n| M7: `if (inflightCredit == 0) inflightCredit += creditNeeded` — charge\nonly the first message | PASS | **FAIL** (1) | **new fast-path test\nonly** |\n| Control: delete the `assert(creditNeeded <= maxByteAllowed, ...)`\nblock | PASS | **FAIL** (1) | **new size-cap test only** |\n\nBeing explicit about what each row proves, since two of them prove less\nthan they look:\n\n- M1 and M2 are each **also** caught by one pre-existing neighbour. On\nthose two rows alone you could not tell whether the rewritten test adds\ncoverage or merely duplicates it.\n- M7 and the control row are the ones that settle it. M7 is a real\nbehavioural break — flow control stops accounting after the first\nmessage — that **no other test in the file detects**; it fails only\nbecause the new test walks a whole batch instead of one message. The\ncontrol row is the original defect: the guard is now pinned, where\nbefore nothing in the file noticed its removal.\n\nFailure messages, for the record:\n\n```\nM7      : 1599999800 did not equal 1599999600 after 2 forwarded messages\n          the credit must be down by 2 * 200\nControl : Expected exception java.lang.AssertionError to be thrown, but no exception was thrown\n```\n\nEvery mutation was applied from, and reverted to, a pristine copy of\n`FlowControl.scala` kept outside the repo (never `git checkout` / `git\nrestore`), and `git diff -- amber/src/main` was verified empty after\neach revert and at the end. The probe suite is deleted; `git status\n--porcelain` shows only the one intended test file.\n\n**Regression: baseline first, then compared by failing-test identity,\nnot by counts.** Scope: every spec in `...architecture.messaginglayer.*`\nplus `PekkoMessageTransferServiceSpec`, the only other spec reading the\nsame credit config, in one invocation.\n\n| run | suites | tests | failed |\n|---|---|---|---|\n| baseline (file restored to `1cbe857007` content) | 12 | 120 | 0 |\n| after this change | 12 | 121 | 0 |\n\nThe identity diff is exactly one removal and two additions, with no\nother test's name or status changed:\n\n```\n- FlowControlSpec :: FlowControl should trip the size-cap assertion for a message that exceeds maxByteAllowed :: PASS\n+ FlowControlSpec :: FlowControl.getMessagesToSend should forward every under-cap message and charge its size against the credit :: PASS\n+ FlowControlSpec :: FlowControl.getMessagesToSend should reject a message larger than the whole credit cap :: PASS\n```\n\nThat the multi-run drain test is absent from this diff is the point of\none line in the change: it used `it should`, which bound to the subject\nof the test being replaced. It now declares `\"FlowControl\" should`\nexplicitly, which is why its identity is byte-identical across the two\nruns.\n\nNot run: the full `amber` module. Its `@IntegrationTest` suites spawn\nPython workers and cannot run on this Windows host, and several\nIceberg-backed specs fail here regardless of the change, so a\nfull-module identity comparison would have been noise. The change adds\nno globals or shared state, so the within-JVM leakage that makes amber's\nserial execution matter does not apply.\n\nLint, all clean in the same invocation as the final test run:\n`WorkflowExecutionService/scalafmtCheck`,\n`WorkflowExecutionService/Test/scalafmtCheck`,\n`WorkflowExecutionService/scalafixAll --check`.\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Claude Code (Opus 5)",
+          "timestamp": "2026-09-05T06:56:08Z",
+          "url": "https://github.com/apache/texera/commit/09b4e74560a0cb16c557816711639493564f9d3c"
+        },
+        "date": 1788613483806,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 665.1552682734875,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 1094.138200849114,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 1165.339151461688,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 849.9326197429664,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 1126.5787578140148,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 1162.0833304638081,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 826.8189467407105,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 1123.1369167001535,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 1165.280505383836,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 699.2296086752824,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 901.8360641136477,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 935.2994223326083,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 728.934221236834,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 918.7244056119284,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 932.769080075778,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 742.9185161199043,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 906.0148436109275,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 927.0022542395811,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 456.37409128294127,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 524.0981420558289,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 530.0730557429475,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 454.1272821715844,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 517.9735593213906,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 530.497053388468,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 425.109891842283,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 502.29551316123184,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 507.38464338968424,
             "unit": "tuples/sec"
           }
         ]
