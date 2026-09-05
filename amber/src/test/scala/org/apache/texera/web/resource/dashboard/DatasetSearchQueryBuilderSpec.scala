@@ -111,16 +111,21 @@ import scala.jdk.CollectionConverters._
   * `WorkflowExecutionService` a test->test dependency on `DAO` and `Auth` only, so workflow-core's
   * test tree is not on this module's test classpath.
   *
-  * The keyword tests RENDER a full-text predicate (they do not fetch one), which does read the
-  * JVM-global `FulltextSearchQueryUtils.usePgroonga` and emits whichever arm it currently selects:
-  * `pgroonga_condition(...)` when this suite runs alone, the `to_tsvector`/`to_tsquery` arm if
-  * `DatasetResourceSpec` or `WorkflowResourceSpec` ran earlier in this JVM and left the global
-  * `false` (both set it and neither restores it; amber has no `Test / fork`). This suite therefore
-  * neither touches nor restores that global, and every keyword assertion here is deliberately
-  * branch-independent: the tokens themselves and the `coalesce(...) || ' ' || coalesce(...)`
-  * expression are built at `FulltextSearchQueryUtils:49-51`, *before* the `if (usePgroonga)`.
-  * Anything added here must keep that property — an assertion on `pgroonga_condition` would pass
-  * solo and fail in a full-module run.
+  * The keyword tests RENDER a full-text predicate (they do not fetch one), and rendering reads the
+  * JVM-global `FulltextSearchQueryUtils.usePgroonga`: the `pgroonga_condition(...)` arm while it
+  * holds `true`, the `to_tsvector`/`to_tsquery` arm while it holds `false`. That flag is a plain
+  * mutable `var` and amber has no `Test / fork`, so its value here is whatever the suites sharing
+  * this JVM have left it at — not something this spec controls or should assume. This suite
+  * therefore neither touches nor restores it, and every keyword assertion here is deliberately
+  * branch-independent. Two things reach both arms: the `coalesce(...) || ' ' || coalesce(...)`
+  * expression, built in `FulltextSearchQueryUtils` as `combinedFields` before the `if (usePgroonga)`
+  * branch and embedded verbatim by either arm, and each INDIVIDUAL keyword token. Their JOINING does
+  * not — the `true` arm space-joins the full keyword list into one literal (rendering
+  * `pgroonga_condition('alpha beta', ...)`), while the `false` arm emits one predicate per keyword
+  * and joins the words *inside* a keyword with ` & ` (rendering `to_tsquery('english', 'alpha & beta')`).
+  * `to_tsquery('english', 'alpha & beta')`). So assert on individual tokens — never on a joined
+  * multi-token string, and never on one arm's own output; either would tie this spec's result to
+  * whichever other suites wrote the flag first.
   *
   * The `record.into(USER).into(classOf[User]).getEmail` in `VersionedResourceTables.hydrate` used to
   * be executed but unobservable: the dataset schema left `UnifiedResourceSchema`'s `userEmail` at its
