@@ -26,6 +26,15 @@
 export const NON_FORM_FIELD_TYPES: ReadonlySet<string> = new Set(["codearea"]);
 
 /**
+ * Widgets that only work on the operator canvas, so the Form View does not render them: it falls
+ * back to formly's default control instead. The code editor (also blocked from exposure by
+ * {@link NON_FORM_FIELD_TYPES}) and the drag-reorder list, whose drag has nowhere to attach on a
+ * form -- a workflow may still carry an exposed drag-reorder property from before, and it degrades
+ * to a plain editable list rather than a control that cannot function here.
+ */
+export const CANVAS_ONLY_FORMLY_TYPES: ReadonlySet<string> = new Set(["codearea", "repeat-section-dnd"]);
+
+/**
  * The custom formly widget an operator-schema property renders as, decided from the property key
  * and its operator. A single source of truth extracted from the operator property panel so that a
  * later view (the Form View) can render the same control instead of letting a selectable/uploadable

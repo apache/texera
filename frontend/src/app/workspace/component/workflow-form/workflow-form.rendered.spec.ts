@@ -18,8 +18,11 @@
  */
 
 import { DatePipe } from "@angular/common";
+import { FormGroup } from "@angular/forms";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { ActivatedRoute, Router } from "@angular/router";
+import { FormlyForm, FormlyModule } from "@ngx-formly/core";
+import { FormlyJsonschema } from "@ngx-formly/core/json-schema";
 import { EMPTY, of, Subject } from "rxjs";
 
 import { WorkflowFormComponent } from "./workflow-form.component";
@@ -29,6 +32,9 @@ import { CoeditorPresenceService } from "../../service/workflow-graph/model/coed
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { WorkflowPersistService } from "../../../common/service/workflow-persist/workflow-persist.service";
 import { OperatorMetadataService } from "../../service/operator-metadata/operator-metadata.service";
+import { FormBindingService } from "../../service/form-binding/form-binding.service";
+import { DynamicSchemaService } from "../../service/dynamic-schema/dynamic-schema.service";
+import { WorkflowCompilingService } from "../../service/compile-workflow/workflow-compiling.service";
 import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
 import { WorkflowResultService } from "../../service/workflow-result/workflow-result.service";
 import { NotificationService } from "../../../common/service/notification/notification.service";
@@ -60,10 +66,18 @@ describe("WorkflowFormComponent (rendered template)", () => {
     /* eslint-disable no-restricted-syntax */
     TestBed.overrideComponent(UserIconComponent, { set: { template: "" } });
     TestBed.overrideComponent(CoeditorUserIconComponent, { set: { template: "" } });
+    // Blank the formly-form child too: rendering real fields needs the ng-zorro type registry the
+    // property panel sets up, which is out of scope here. Blanking the child (not the page) keeps
+    // the page's own inputs markup -- the section head, the empty state, the card and the form
+    // wrapper -- rendered and covered.
+    TestBed.overrideComponent(FormlyForm, { set: { template: "" } });
     /* eslint-enable no-restricted-syntax */
 
     await TestBed.configureTestingModule({
-      imports: [WorkflowFormComponent],
+      // forRoot registers the FormlyConfig the form builder needs: the page imports FormlyModule
+      // (standalone) but the root config lives with the app; supply it here so the blanked
+      // formly-form still builds instead of throwing "missing forRoot()".
+      imports: [WorkflowFormComponent, FormlyModule.forRoot()],
       providers: [
         // One co-editor so the collaborator row (the *ngFor) renders and is covered.
         {
@@ -85,6 +99,12 @@ describe("WorkflowFormComponent (rendered template)", () => {
             setWorkflowName: vi.fn(),
             workflowChanged: () => EMPTY,
             workflowMetaDataChanged: () => EMPTY,
+            formBindingChanged$: EMPTY,
+            getTexeraGraph: () => ({
+              triggerCenterEvent: vi.fn(),
+              hasOperator: () => false,
+              getOperator: () => undefined,
+            }),
           },
         },
         {
@@ -96,6 +116,16 @@ describe("WorkflowFormComponent (rendered template)", () => {
           },
         },
         { provide: OperatorMetadataService, useValue: { getOperatorMetadata: () => of({}) } },
+        {
+          provide: FormBindingService,
+          useValue: { resolveFields: () => [], readValue: () => undefined, writeValue: vi.fn() },
+        },
+        { provide: FormlyJsonschema, useValue: { toFieldConfig: () => ({ fieldGroup: [] }) } },
+        { provide: DynamicSchemaService, useValue: { getDynamicSchema: () => ({ jsonSchema: {} }) } },
+        {
+          provide: WorkflowCompilingService,
+          useValue: { getCompilationStateInfoChangedStream: () => EMPTY },
+        },
         { provide: ExecuteWorkflowService, useValue: { resetExecutionAndWorkers: vi.fn() } },
         { provide: WorkflowResultService, useValue: { clearResults: vi.fn() } },
         { provide: NotificationService, useValue: { error: vi.fn() } },
@@ -173,6 +203,54 @@ describe("WorkflowFormComponent (rendered template)", () => {
     el(".wf-bar")!.click();
 
     expect(spy).toHaveBeenCalled();
+  });
+
+  it("shows the empty state when there are no inputs to fill in", () => {
+    fixture.detectChanges();
+    finishLoad();
+
+    expect(el(".pc-section-head .label")?.textContent?.trim()).toBe("Inputs");
+    expect(el(".empty")).not.toBeNull();
+    expect(el(".params .param")).toBeNull();
+  });
+
+  it("renders an exposed input as a card holding its formly field", () => {
+    fixture.detectChanges();
+    finishLoad();
+    const c = fixture.componentInstance;
+    // One resolved input with a field; the formly-form child is blanked, so this covers the page's
+    // own card + form wrapper markup without standing up the field registry. `parameters` is
+    // internal (drives the empty-state getter), reached here through a cast.
+    (c as any).parameters = [{ binding: { id: "b1" } }];
+    c.rendered = [
+      { resolved: { binding: { id: "b1" } }, fields: [{ key: "b1" }], form: new FormGroup({}), model: {} },
+    ] as any;
+    fixture.detectChanges();
+
+    expect(el(".empty")).toBeNull();
+    expect(el(".params .param")).not.toBeNull();
+    expect(el(".param .param-form formly-form")).not.toBeNull();
+  });
+
+  it("shows the author's help text under an input and locks a read-only viewer's card", () => {
+    fixture.detectChanges();
+    finishLoad();
+    const c = fixture.componentInstance;
+    c.canEdit = false;
+    (c as any).parameters = [{ binding: { id: "b1" } }];
+    c.rendered = [
+      {
+        resolved: { binding: { id: "b1", helpText: "Pick a small model." } },
+        fields: [{ key: "b1" }],
+        form: new FormGroup({}),
+        model: {},
+      },
+    ] as any;
+    fixture.detectChanges();
+
+    expect(el(".param .param-help-text")?.textContent?.trim()).toBe("Pick a small model.");
+    // A read-only viewer's card blocks pointer interaction (covers the extra widget buttons too).
+    expect(el(".param.read-only")).not.toBeNull();
   });
 
   it("tears the workflow down when the browser unloads (the beforeunload host binding)", () => {

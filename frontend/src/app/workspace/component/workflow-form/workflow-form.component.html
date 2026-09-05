@@ -70,8 +70,46 @@
   </div>
 
   <div [hidden]="loading">
-    <!-- The workflow, out of the way unless the reader goes looking. The inputs, running and
-         results are added on top of this by the following PRs. -->
+    <!-- The inputs an author exposed, each rendered as its operator's own field. -->
+    <div class="pc-section-head">
+      <span class="label">Inputs</span>
+    </div>
+
+    <div
+      class="empty"
+      *ngIf="visibleFields.length === 0">
+      This workflow has no inputs to fill in.
+    </div>
+
+    <div class="params">
+      <section
+        class="card param"
+        [class.read-only]="!canEdit"
+        *ngFor="let r of rendered; trackBy: trackByRendered">
+        <!-- The operator's own field, so a file property gets the real file picker and an
+             attribute property a column dropdown. -->
+        <form
+          [formGroup]="r.form"
+          class="param-form">
+          <formly-form
+            [model]="r.model"
+            [fields]="r.fields"
+            [form]="r.form"></formly-form>
+        </form>
+
+        <!-- The one line of guidance a reader gets, when the author wrote one. The operator
+             schema's own field descriptions are dropped (author notes, not reader guidance), so
+             this is the only help text under an input. -->
+        <p
+          *ngIf="r.resolved.binding.helpText"
+          class="param-help-text">
+          {{ r.resolved.binding.helpText }}
+        </p>
+      </section>
+    </div>
+
+    <!-- The workflow, out of the way unless the reader goes looking. Running and results are added
+         on top of this by the following PRs. -->
     <section
       class="card wf"
       [class.open]="workflowOpen">
