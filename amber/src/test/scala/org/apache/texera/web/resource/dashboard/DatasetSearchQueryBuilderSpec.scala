@@ -118,11 +118,11 @@ import scala.jdk.CollectionConverters._
   * this JVM have left it at — not something this spec controls or should assume. This suite
   * therefore neither touches nor restores it, and every keyword assertion here is deliberately
   * branch-independent. Two things reach both arms: the `coalesce(...) || ' ' || coalesce(...)`
-  * expression, built at `FulltextSearchQueryUtils:49-51` *before* the `if (usePgroonga)` and then
-  * embedded verbatim by either arm, and each INDIVIDUAL keyword token. Their JOINING does not —
-  * the `true` arm space-joins the whole list into one literal (`:56`, rendering
+  * expression, built in `FulltextSearchQueryUtils` as `combinedFields` before the `if (usePgroonga)`
+  * branch and embedded verbatim by either arm, and each INDIVIDUAL keyword token. Their JOINING does
+  * not — the `true` arm space-joins the full keyword list into one literal (rendering
   * `pgroonga_condition('alpha beta', ...)`), while the `false` arm emits one predicate per keyword
-  * and joins the words *inside* a keyword with ` & ` (`:62-65`, rendering
+  * and joins the words *inside* a keyword with ` & ` (rendering `to_tsquery('english', 'alpha & beta')`).
   * `to_tsquery('english', 'alpha & beta')`). So assert on individual tokens — never on a joined
   * multi-token string, and never on one arm's own output; either would tie this spec's result to
   * whichever other suites wrote the flag first.
