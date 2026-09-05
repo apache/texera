@@ -947,7 +947,7 @@ class WorkflowResourceSpec
     assert(sizes.get(wid) == content.length)
   }
 
-  it should "return NotFoundException for a missing workflow type" in {
+  it should "throw NotFoundException for a missing workflow type" in {
     assertThrows[NotFoundException] {
       workflowResource.getWorkflowType(Integer.valueOf(2147483647))
     }
