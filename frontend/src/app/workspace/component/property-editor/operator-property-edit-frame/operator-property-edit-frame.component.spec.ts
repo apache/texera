@@ -2988,5 +2988,30 @@ describe("OperatorPropertyEditFrameComponent", () => {
       expect(nestedTableName).toBeDefined();
       expect(nestedTableName?.props?.["toggleExposed"]).toBeUndefined();
     });
+
+    // Writing code is not "filling in a value", so a code-editor property is never offered for
+    // exposure; an ordinary property beside it still is.
+    it("does not offer exposure on a code-editor property", () => {
+      const formBindingService = TestBed.inject(FormBindingService);
+      vi.spyOn(formBindingService, "isExposed").mockReturnValue(false);
+      component.exposeChoosing = true;
+      component.currentOperatorId = "op-code";
+
+      component.setFormlyFormBinding({
+        type: "object",
+        properties: {
+          code: { type: "string", description: "input your code here" },
+          limit: { type: "number" },
+        },
+      });
+
+      const topLevel = component.formlyFields?.[0]?.fieldGroup ?? [];
+      const codeField = topLevel.find(f => f.key === "code");
+      expect(codeField?.type).toBe("codearea");
+      expect(codeField?.props?.["toggleExposed"]).toBeUndefined();
+      // an ordinary property is still offered
+      const decorated = topLevel.filter(f => f.props?.["toggleExposed"] !== undefined).map(f => f.key);
+      expect(decorated).toEqual(["limit"]);
+    });
   });
 });
