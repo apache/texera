@@ -23,6 +23,16 @@ import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { ActivatedRoute, Router } from "@angular/router";
 import { FormlyForm, FormlyModule } from "@ngx-formly/core";
 import { FormlyJsonschema } from "@ngx-formly/core/json-schema";
+import { NZ_ICONS } from "ng-zorro-antd/icon";
+import {
+  InfoCircleOutline,
+  DownOutline,
+  PlusCircleOutline,
+  CaretRightOutline,
+  StopOutline,
+  WarningOutline,
+  LoadingOutline,
+} from "@ant-design/icons-angular/icons";
 import { EMPTY, of, Subject } from "rxjs";
 
 import { WorkflowFormComponent } from "./workflow-form.component";
@@ -39,8 +49,18 @@ import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-w
 import { WorkflowResultService } from "../../service/workflow-result/workflow-result.service";
 import { NotificationService } from "../../../common/service/notification/notification.service";
 import { UserService } from "../../../common/service/user/user.service";
+import { MarkdownService } from "ngx-markdown";
 import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
 import { WorkflowConsoleService } from "../../service/workflow-console/workflow-console.service";
+import { WorkflowWebsocketService } from "../../service/workflow-websocket/workflow-websocket.service";
+import { ValidationWorkflowService } from "../../service/validation/validation-workflow.service";
+import { ComputingUnitSelectionComponent } from "../power-button/computing-unit-selection.component";
+import { WorkflowComputingUnitManagingService } from "../../../common/service/computing-unit/workflow-computing-unit/workflow-computing-unit-managing.service";
+import { WorkflowExecutionsService } from "../../../dashboard/service/user/workflow-executions/workflow-executions.service";
+import { ComputingUnitActionsService } from "../../../common/service/computing-unit/computing-unit-actions/computing-unit-actions.service";
+import { WorkflowPveService } from "../../service/virtual-environment/virtual-environment.service";
+import { NzModalService } from "ng-zorro-antd/modal";
+import { ExecutionState } from "../../types/execute-workflow.interface";
 import { GuiConfigService } from "../../../common/service/gui-config.service";
 
 /**
@@ -71,6 +91,11 @@ describe("WorkflowFormComponent (rendered template)", () => {
     // the page's own inputs markup -- the section head, the empty state, the card and the form
     // wrapper -- rendered and covered.
     TestBed.overrideComponent(FormlyForm, { set: { template: "" } });
+    // Blank the computing-unit selector's own template (a child, not the page): its real markup
+    // needs a modal/executions/PVE service chain out of scope here. Blanking the child -- rather
+    // than overriding the page's imports, which would JIT-recompile the page and drop its
+    // host-binding coverage -- keeps the run bar around it rendered and the page fully covered.
+    TestBed.overrideComponent(ComputingUnitSelectionComponent, { set: { template: "" } });
     /* eslint-enable no-restricted-syntax */
 
     await TestBed.configureTestingModule({
@@ -118,7 +143,17 @@ describe("WorkflowFormComponent (rendered template)", () => {
         { provide: OperatorMetadataService, useValue: { getOperatorMetadata: () => of({}) } },
         {
           provide: FormBindingService,
-          useValue: { resolveFields: () => [], readValue: () => undefined, writeValue: vi.fn() },
+          useValue: {
+            // An instruction so the instruction card renders and is covered.
+            getConfig: () => ({
+              instruction: { title: "How to use this", body: "Fill in the inputs." },
+              fields: [],
+              resultOperatorIds: [],
+            }),
+            resolveFields: () => [],
+            readValue: () => undefined,
+            writeValue: vi.fn(),
+          },
         },
         { provide: FormlyJsonschema, useValue: { toFieldConfig: () => ({ fieldGroup: [] }) } },
         { provide: DynamicSchemaService, useValue: { getDynamicSchema: () => ({ jsonSchema: {} }) } },
@@ -126,13 +161,57 @@ describe("WorkflowFormComponent (rendered template)", () => {
           provide: WorkflowCompilingService,
           useValue: { getCompilationStateInfoChangedStream: () => EMPTY },
         },
-        { provide: ExecuteWorkflowService, useValue: { resetExecutionAndWorkers: vi.fn() } },
+        {
+          provide: ExecuteWorkflowService,
+          useValue: {
+            getExecutionStateStream: () => EMPTY,
+            executeWorkflow: vi.fn(),
+            killWorkflow: vi.fn(),
+            resetExecutionAndWorkers: vi.fn(),
+          },
+        },
         { provide: WorkflowResultService, useValue: { clearResults: vi.fn() } },
         { provide: NotificationService, useValue: { error: vi.fn() } },
         { provide: UserService, useValue: { getCurrentUser: () => undefined, isLogin: () => false } },
-        { provide: ComputingUnitStatusService, useValue: { disconnect: vi.fn() } },
+        { provide: MarkdownService, useValue: { parse: (s: string) => s } },
+        {
+          provide: ComputingUnitStatusService,
+          useValue: {
+            disconnect: vi.fn(),
+            getSelectedComputingUnit: () => EMPTY,
+            getStatus: () => EMPTY,
+            // Read by the (blanked) computing-unit selector's own ngOnInit.
+            getAllComputingUnits: () => EMPTY,
+          },
+        },
+        // The blanked computing-unit selector still constructs and runs ngOnInit; give it the few
+        // services it reads so it does not throw. It renders nothing (its template is blanked).
+        { provide: WorkflowComputingUnitManagingService, useValue: { getComputingUnitLimitOptions: () => EMPTY } },
+        { provide: WorkflowExecutionsService, useValue: {} },
+        { provide: ComputingUnitActionsService, useValue: {} },
+        { provide: WorkflowPveService, useValue: {} },
+        { provide: NzModalService, useValue: {} },
         { provide: WorkflowConsoleService, useValue: { clearConsoleMessages: vi.fn() } },
+        {
+          provide: WorkflowWebsocketService,
+          useValue: { subscribeToEvent: () => EMPTY, isConnected: true, getConnectionStatusStream: () => EMPTY },
+        },
+        { provide: ValidationWorkflowService, useValue: { getWorkflowValidationErrorStream: () => EMPTY } },
         { provide: GuiConfigService, useValue: { env: { formViewEnabled: true } } },
+        // Register the icons the run bar and instruction use, so nz-icon renders them inline instead
+        // of fetching each SVG over HTTP (an unresolved fetch that would hang fixture.whenStable).
+        {
+          provide: NZ_ICONS,
+          useValue: [
+            InfoCircleOutline,
+            DownOutline,
+            PlusCircleOutline,
+            CaretRightOutline,
+            StopOutline,
+            WarningOutline,
+            LoadingOutline,
+          ],
+        },
         DatePipe,
       ],
     }).compileComponents();
@@ -251,6 +330,63 @@ describe("WorkflowFormComponent (rendered template)", () => {
     expect(el(".param .param-help-text")?.textContent?.trim()).toBe("Pick a small model.");
     // A read-only viewer's card blocks pointer interaction (covers the extra widget buttons too).
     expect(el(".param.read-only")).not.toBeNull();
+  });
+
+  it("renders the author's instruction card and toggles it", async () => {
+    fixture.detectChanges();
+    finishLoad();
+    // renderInstruction resolves the markdown on a microtask.
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(el(".card.instr")).not.toBeNull();
+    expect(el(".instr .instr-bar h2")?.textContent?.trim()).toBe("How to use this");
+    expect(el(".instr .md")?.innerHTML).toContain("Fill in the inputs.");
+
+    (el(".instr-bar") as HTMLButtonElement).click();
+    expect(fixture.componentInstance.instructionOpen).toBe(false);
+  });
+
+  it("renders the run bar with the run button and the computing-unit selector", () => {
+    fixture.detectChanges();
+    finishLoad();
+
+    expect(el(".runbar .run")).not.toBeNull();
+    // Default state: no unit chosen, so the button reads Connect and is disabled.
+    expect(el(".runbar .run")?.textContent?.trim()).toContain("Connect");
+    expect((el(".runbar .run") as HTMLButtonElement).disabled).toBe(true);
+    expect(el(".runbar texera-computing-unit-selection")).not.toBeNull();
+    // At rest there is nothing to count and no run note.
+    expect(el(".run-clock")).toBeNull();
+    expect(el(".run-note")).toBeNull();
+  });
+
+  it("fires onRun when the enabled run button is clicked", () => {
+    fixture.detectChanges();
+    finishLoad();
+    // A running state makes the button "Stop" (enabled); a disabled button would swallow the click.
+    fixture.componentInstance.executionState = ExecutionState.Running;
+    fixture.detectChanges();
+    const run = vi.spyOn(fixture.componentInstance, "onRun").mockImplementation(() => {});
+
+    el(".runbar .run")!.click();
+
+    expect(run).toHaveBeenCalled();
+  });
+
+  it("announces a run failure as an alert and a running note as a status", () => {
+    fixture.detectChanges();
+    finishLoad();
+    const c = fixture.componentInstance;
+
+    c.runError = "Run failed: boom";
+    fixture.detectChanges();
+    expect(el(".run-note")?.getAttribute("role")).toBe("alert");
+
+    c.runError = "";
+    c.executionState = ExecutionState.Running;
+    fixture.detectChanges();
+    expect(el(".run-note")?.getAttribute("role")).toBe("status");
   });
 
   it("tears the workflow down when the browser unloads (the beforeunload host binding)", () => {

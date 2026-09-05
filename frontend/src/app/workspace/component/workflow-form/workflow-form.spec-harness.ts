@@ -56,6 +56,13 @@ export function setupHarness() {
   const workflowMetaDataChangedStream = new Subject<unknown>();
   // Compilation reports column names late; the form rebuilds its inputs off this stream.
   const compilationChanged = new Subject<unknown>();
+  // Run-related streams the run tests drive: execution state, the engine's duration event, the
+  // computing-unit connection status, the workflow validity, and the websocket connection.
+  const executionStateStream = new Subject<any>();
+  const durationEvents = new Subject<{ duration: number; isRunning: boolean }>();
+  const statusStream = new Subject<any>();
+  const validationStream = new Subject<{ errors: Record<string, unknown>; workflowEmpty: boolean }>();
+  const connectionStream = new Subject<boolean>();
   // The operators the graph holds: `hasOperatorIds` gates operatorSchemaFor, `graphOperators`
   // supplies each operator's type (which picks the custom widget). Tests add to them as needed.
   const hasOperatorIds = new Set<string>();
@@ -87,6 +94,9 @@ export function setupHarness() {
   // Resolves the exposed inputs and reads/writes their values. Tests point `resolveFields` at the
   // inputs they want rendered; `readValue` seeds the write-back guard.
   const formBindingService = {
+    // The presentation config: the instruction plus the fields. Tests override getConfig to give an
+    // instruction; resolveFields drives which inputs render.
+    getConfig: vi.fn().mockReturnValue({ instruction: undefined, fields: [], resultOperatorIds: [] }),
     resolveFields: vi.fn().mockReturnValue([]),
     readValue: vi.fn().mockReturnValue(undefined),
     writeValue: vi.fn(),
@@ -160,14 +170,34 @@ export function setupHarness() {
   const coeditorPresenceService = { coeditors: [] };
   const route = { snapshot: { params: { id: "7" } } };
   const operatorMetadataService = { getOperatorMetadata: () => of({}) };
-  const executeWorkflowService = { resetExecutionAndWorkers: vi.fn() };
+  const executeWorkflowService = {
+    getExecutionStateStream: () => executionStateStream.asObservable(),
+    executeWorkflow: vi.fn(),
+    killWorkflow: vi.fn(),
+    resetExecutionAndWorkers: vi.fn(),
+  };
   const workflowResultService = { clearResults: vi.fn() };
   const notificationService = { error: vi.fn() };
   // Not logged in by default so opening a workflow does not save; the save tests log in.
   const userService = { getCurrentUser: () => undefined, isLogin: vi.fn().mockReturnValue(false) };
-  const cdr = { detectChanges: vi.fn() };
-  const computingUnitStatusService = { disconnect: vi.fn() };
+  const markdownService = { parse: (s: string) => s };
+  const cdr = { detectChanges: vi.fn(), markForCheck: vi.fn() };
+  const computingUnitStatusService = {
+    disconnect: vi.fn(),
+    getSelectedComputingUnit: () => statusStream.asObservable(),
+    getStatus: () => statusStream.asObservable(),
+  };
   const workflowConsoleService = { clearConsoleMessages: vi.fn() };
+  // The websocket the run clock and the "Connecting" state read. `isConnected` is a plain settable
+  // flag so a test can put the page in the connecting window.
+  const workflowWebsocketService = {
+    subscribeToEvent: (_: string) => durationEvents.asObservable(),
+    isConnected: true,
+    getConnectionStatusStream: () => connectionStream.asObservable(),
+  };
+  const validationWorkflowService = {
+    getWorkflowValidationErrorStream: () => validationStream.asObservable(),
+  };
   // The name field is measured off the host; querySelector returns null so the measuring
   // (DOM-layout, jsdom has none) short-circuits. `contains` drives isTypingInTheForm; false by
   // default so a rebuild is never suppressed, and overridden by the tests that probe typing.
@@ -195,18 +225,26 @@ export function setupHarness() {
     workflowResultService,
     notificationService,
     userService,
+    markdownService,
     formlyJsonschema,
     cdr,
     dynamicSchemaService,
     workflowCompilingService,
     computingUnitStatusService,
     workflowConsoleService,
+    workflowWebsocketService,
+    validationWorkflowService,
     host,
     datePipe,
     config,
     workflowChangedStream,
     workflowMetaDataChangedStream,
     compilationChanged,
+    executionStateStream,
+    durationEvents,
+    statusStream,
+    validationStream,
+    connectionStream,
     hasOperatorIds,
     graphOperators,
     triggerCenterEvent,

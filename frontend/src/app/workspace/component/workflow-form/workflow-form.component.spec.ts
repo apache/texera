@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { FormControl } from "@angular/forms";
+import { FormArray, FormControl, FormGroup, Validators } from "@angular/forms";
 import { Router } from "@angular/router";
 import { of, throwError } from "rxjs";
 
@@ -26,6 +26,8 @@ import { setupHarness, formViewWorkflow, resolved } from "./workflow-form.spec-h
 import { USER_WORKFLOW, USER_WORKSPACE } from "../../../app-routing.constant";
 import { DefaultView } from "../../../dashboard/type/workflow-metadata.interface";
 import { FORM_DEBOUNCE_TIME_MS } from "../../service/execute-workflow/execute-workflow.service";
+import { ExecutionState } from "../../types/execute-workflow.interface";
+import { ComputingUnitState } from "../../../common/type/computing-unit-connection.interface";
 
 /**
  * These exercise the page's own decisions -- what a reader is shown, where an ordinary
@@ -56,14 +58,17 @@ describe("WorkflowFormComponent", () => {
       h.workflowResultService as any,
       h.notificationService as any,
       h.userService as any,
+      h.markdownService as any,
       h.formlyJsonschema as any,
       h.cdr as any,
       h.dynamicSchemaService as any,
       h.workflowCompilingService as any,
       h.computingUnitStatusService as any,
       h.workflowConsoleService as any,
+      h.workflowWebsocketService as any,
       h.host as any,
       h.datePipe as any,
+      h.validationWorkflowService as any,
       h.config as any
     );
     return component;
@@ -880,6 +885,259 @@ describe("WorkflowFormComponent", () => {
       expect((component as any).isTypingInTheForm()).toBe(true);
 
       document.body.removeChild(editable);
+    });
+  });
+
+  describe("the author's instruction", () => {
+    it("shows the instruction as rendered markdown when there is one", async () => {
+      formBindingService.getConfig.mockReturnValue({
+        instruction: { title: "Read me", body: "**bold**" },
+        fields: [],
+        resultOperatorIds: [],
+      });
+      build(formViewWorkflow).ngOnInit();
+      // renderInstruction resolves the parsed markdown on a microtask; let it settle.
+      await Promise.resolve();
+
+      expect(component.hasInstruction).toBe(true);
+      expect(component.instructionTitle).toBe("Read me");
+      // The markdown mock returns its input; the point is renderInstruction populated the html.
+      expect(component.instructionPreviewHtml).toBe("**bold**");
+    });
+
+    it("has no instruction when the body is blank", async () => {
+      formBindingService.getConfig.mockReturnValue({
+        instruction: { title: "T", body: "   " },
+        fields: [],
+        resultOperatorIds: [],
+      });
+      build(formViewWorkflow).ngOnInit();
+      await Promise.resolve();
+
+      expect(component.hasInstruction).toBe(false);
+      expect(component.instructionPreviewHtml).toBe("");
+    });
+
+    it("discards a stale instruction render when the body changed while parsing", async () => {
+      build(formViewWorkflow).ngOnInit();
+      (component as any).instructionBody = "first";
+      const pending = (component as any).renderInstruction();
+      // A newer readConfig sets a different body before the parse microtask resolves.
+      (component as any).instructionBody = "second";
+      await pending;
+
+      // The stale "first" result is dropped rather than overwriting the newer body's render.
+      expect(component.instructionPreviewHtml).not.toBe("first");
+    });
+
+    it("toggles the instruction open and closed", () => {
+      build(formViewWorkflow).ngOnInit();
+      expect(component.instructionOpen).toBe(true);
+
+      component.toggleInstruction();
+
+      expect(component.instructionOpen).toBe(false);
+    });
+  });
+
+  describe("the run button, mirroring the operator canvas", () => {
+    // Put the page in a ready-to-run state: a unit is up, the socket is connected, the graph valid.
+    const makeReady = () => {
+      h.workflowWebsocketService.isConnected = true;
+      h.statusStream.next(ComputingUnitState.Running);
+      h.validationStream.next({ errors: {}, workflowEmpty: false });
+    };
+
+    it("offers Connect before a unit is chosen", () => {
+      build(formViewWorkflow).ngOnInit();
+
+      expect(component.runButtonState).toEqual({ label: "Connect", icon: "plus-circle", disabled: true });
+    });
+
+    it("offers Run once a unit is up and the graph is valid", () => {
+      build(formViewWorkflow).ngOnInit();
+      makeReady();
+
+      expect(component.runButtonState.label).toBe("Run");
+      expect(component.runButtonState.disabled).toBe(false);
+    });
+
+    it("shows Stop while running", () => {
+      build(formViewWorkflow).ngOnInit();
+      h.executionStateStream.next({ current: { state: ExecutionState.Running } });
+
+      expect(component.isRunning).toBe(true);
+      expect(component.runButtonState).toEqual({ label: "Stop", icon: "stop", disabled: false });
+    });
+
+    it("disables and says Invalid for a broken graph", () => {
+      build(formViewWorkflow).ngOnInit();
+      makeReady();
+      h.validationStream.next({ errors: { op: {} }, workflowEmpty: false });
+
+      expect(component.runButtonState).toEqual({ label: "Invalid", icon: "warning", disabled: true });
+    });
+
+    it("disables and says Empty for an empty graph", () => {
+      build(formViewWorkflow).ngOnInit();
+      makeReady();
+      h.validationStream.next({ errors: {}, workflowEmpty: true });
+
+      expect(component.runButtonState).toEqual({ label: "Empty", icon: "info-circle", disabled: true });
+    });
+
+    it("disables and says Connecting while the unit's socket comes up", () => {
+      build(formViewWorkflow).ngOnInit();
+      h.statusStream.next(ComputingUnitState.Running);
+      h.validationStream.next({ errors: {}, workflowEmpty: false });
+      h.workflowWebsocketService.isConnected = false;
+
+      expect(component.runButtonState).toEqual({ label: "Connecting", icon: "loading", disabled: true });
+    });
+
+    it("repaints when the websocket connection status changes", () => {
+      build(formViewWorkflow).ngOnInit();
+      h.cdr.markForCheck.mockClear();
+
+      h.connectionStream.next(true);
+
+      expect(h.cdr.markForCheck).toHaveBeenCalled();
+    });
+  });
+
+  describe("running", () => {
+    const makeReady = () => {
+      h.workflowWebsocketService.isConnected = true;
+      h.statusStream.next(ComputingUnitState.Running);
+      h.validationStream.next({ errors: {}, workflowEmpty: false });
+    };
+
+    it("runs the workflow with its name and clears any prior error", () => {
+      build(formViewWorkflow).ngOnInit();
+      makeReady();
+      component.runError = "old error";
+
+      component.onRun();
+
+      expect(h.executeWorkflowService.executeWorkflow).toHaveBeenCalledWith("scGPT");
+      expect(component.runError).toBe("");
+    });
+
+    it("stops a running workflow instead of starting another", () => {
+      build(formViewWorkflow).ngOnInit();
+      h.executionStateStream.next({ current: { state: ExecutionState.Running } });
+
+      component.onRun();
+
+      expect(h.executeWorkflowService.killWorkflow).toHaveBeenCalled();
+      expect(h.executeWorkflowService.executeWorkflow).not.toHaveBeenCalled();
+    });
+
+    it("does nothing when the button is disabled", () => {
+      build(formViewWorkflow).ngOnInit();
+      // Default state is "Connect" (disabled): no unit chosen.
+
+      component.onRun();
+
+      expect(h.executeWorkflowService.executeWorkflow).not.toHaveBeenCalled();
+      expect(h.executeWorkflowService.killWorkflow).not.toHaveBeenCalled();
+    });
+
+    it("counts the run clock off the engine's duration event", () => {
+      build(formViewWorkflow).ngOnInit();
+
+      h.durationEvents.next({ duration: 5000, isRunning: false });
+
+      expect(component.executionDuration).toBe(5000);
+    });
+
+    it("ticks the clock a second at a time while a run is going", () => {
+      vi.useFakeTimers();
+      build(formViewWorkflow).ngOnInit();
+
+      h.durationEvents.next({ duration: 1000, isRunning: true });
+      vi.advanceTimersByTime(1000);
+      vi.useRealTimers();
+
+      expect(component.executionDuration).toBe(2000);
+    });
+  });
+
+  describe("reporting a failed run", () => {
+    it("blames empty required inputs when a required field is left empty", () => {
+      build(formViewWorkflow).ngOnInit();
+      const form = new FormGroup({ v: new FormControl("", Validators.required) });
+      component.rendered = [{ form } as any];
+
+      h.executionStateStream.next({ current: { state: ExecutionState.Failed, errorMessages: [{ message: "x" }] } });
+
+      expect(component.runError).toBe("Run failed: please fill in the required fields.");
+    });
+
+    it("finds a required error nested inside an array input", () => {
+      build(formViewWorkflow).ngOnInit();
+      const form = new FormGroup({ arr: new FormArray([new FormControl("", Validators.required)]) });
+      component.rendered = [{ form } as any];
+
+      h.executionStateStream.next({ current: { state: ExecutionState.Failed, errorMessages: [{ message: "x" }] } });
+
+      expect(component.runError).toBe("Run failed: please fill in the required fields.");
+    });
+
+    it("does not blame required fields for a non-required validation error", () => {
+      build(formViewWorkflow).ngOnInit();
+      // A pattern failure, not an empty required field: the reader gets the engine message, not
+      // "fill in the required fields".
+      const form = new FormGroup({ v: new FormControl("abc", Validators.pattern(/^\d+$/)) });
+      component.rendered = [{ form } as any];
+
+      h.executionStateStream.next({ current: { state: ExecutionState.Failed, errorMessages: [{ message: "boom" }] } });
+
+      expect(component.runError).toBe("Run failed: boom");
+    });
+
+    it("keeps a short human message, dropping the exception prefix", () => {
+      build(formViewWorkflow).ngOnInit();
+
+      h.executionStateStream.next({
+        current: {
+          state: ExecutionState.Failed,
+          errorMessages: [{ message: "java.lang.RuntimeException: too many rows" }],
+        },
+      });
+
+      expect(component.runError).toBe("Run failed: too many rows");
+    });
+
+    it("collapses an opaque engine trace to a reload sentence", () => {
+      build(formViewWorkflow).ngOnInit();
+
+      h.executionStateStream.next({
+        current: {
+          state: ExecutionState.Failed,
+          errorMessages: [{ message: "org.jooq.DataAccessException: SQL [..]" }],
+        },
+      });
+
+      expect(component.runError).toBe("Run failed -- please reload and try again.");
+    });
+
+    it("collapses an empty error message to the reload sentence too", () => {
+      build(formViewWorkflow).ngOnInit();
+
+      h.executionStateStream.next({ current: { state: ExecutionState.Failed, errorMessages: [] } });
+
+      expect(component.runError).toBe("Run failed -- please reload and try again.");
+    });
+
+    it("gives a generic tail when the message cleans down to nothing", () => {
+      build(formViewWorkflow).ngOnInit();
+
+      h.executionStateStream.next({
+        current: { state: ExecutionState.Failed, errorMessages: [{ message: "requirement failed: " }] },
+      });
+
+      expect(component.runError).toBe("Run failed: please check your inputs and try again.");
     });
   });
 });

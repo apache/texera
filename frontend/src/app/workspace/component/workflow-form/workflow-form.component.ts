@@ -19,7 +19,7 @@
 
 import { ChangeDetectorRef, Component, ElementRef, HostListener, OnDestroy, OnInit } from "@angular/core";
 import { CommonModule, DatePipe } from "@angular/common";
-import { FormGroup, FormsModule, ReactiveFormsModule } from "@angular/forms";
+import { AbstractControl, FormArray, FormGroup, FormsModule, ReactiveFormsModule } from "@angular/forms";
 import { FormlyFieldConfig, FormlyModule } from "@ngx-formly/core";
 import { FormlyJsonschema } from "@ngx-formly/core/json-schema";
 import { ActivatedRoute, Router } from "@angular/router";
@@ -28,12 +28,14 @@ import { NzAvatarModule } from "ng-zorro-antd/avatar";
 import { NzIconModule } from "ng-zorro-antd/icon";
 import { UserIconComponent } from "../../../dashboard/component/user/user-icon/user-icon.component";
 import { cloneDeep } from "lodash-es";
-import { forkJoin, Subject } from "rxjs";
-import { debounceTime, takeUntil } from "rxjs/operators";
+import { MarkdownService } from "ngx-markdown";
+import { EMPTY, forkJoin, Subject, timer } from "rxjs";
+import { debounceTime, switchMap, takeUntil, tap } from "rxjs/operators";
 
 import { USER_WORKFLOW, USER_WORKSPACE } from "../../../app-routing.constant";
 import { FormFieldBinding, Workflow, WorkflowContent } from "../../../common/type/workflow";
 import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
+import { ComputingUnitState } from "../../../common/type/computing-unit-connection.interface";
 import { WorkflowPersistService } from "../../../common/service/workflow-persist/workflow-persist.service";
 import { NotificationService } from "../../../common/service/notification/notification.service";
 import { UserService } from "../../../common/service/user/user.service";
@@ -44,10 +46,14 @@ import { ExecuteWorkflowService, FORM_DEBOUNCE_TIME_MS } from "../../service/exe
 import { OperatorMetadataService } from "../../service/operator-metadata/operator-metadata.service";
 import { FormBindingService, ResolvedField } from "../../service/form-binding/form-binding.service";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
+import { ValidationWorkflowService } from "../../service/validation/validation-workflow.service";
 import { GuiConfigService } from "../../../common/service/gui-config.service";
 import { WorkflowConsoleService } from "../../service/workflow-console/workflow-console.service";
 import { WorkflowResultService } from "../../service/workflow-result/workflow-result.service";
+import { WorkflowWebsocketService } from "../../service/workflow-websocket/workflow-websocket.service";
+import { ExecutionState } from "../../types/execute-workflow.interface";
 import { Point } from "../../types/workflow-common.interface";
+import { ComputingUnitSelectionComponent } from "../power-button/computing-unit-selection.component";
 import { WorkflowEditorComponent } from "../workflow-editor/workflow-editor.component";
 import { MiniMapComponent } from "../workflow-editor/mini-map/mini-map.component";
 import { CoeditorUserIconComponent } from "../menu/coeditor-user-icon/coeditor-user-icon.component";
@@ -72,8 +78,10 @@ interface RenderedField {
  * operator's own formly field, so a file property gets the real picker and an attribute a column
  * dropdown -- and writes a filled-in value straight back to its operator, the same edit the canvas
  * makes, with each sub-field of a nested or repeated property renamed and hidden as the author set
- * it up. Running the workflow and showing results are added by later PRs. A view, not a new object:
- * it opens the same workflow the canvas does.
+ * it up. It also shows the author's instruction above the inputs, and runs the workflow: a Run
+ * button (a reader's simplified Run/Stop, sharing the canvas's disable conditions), the
+ * computing-unit selector, a run clock and plain-language failure messages. Showing the results is
+ * added by a later PR. A view, not a new object: it opens the same workflow the canvas does.
  */
 @UntilDestroy()
 @Component({
@@ -88,6 +96,7 @@ interface RenderedField {
     NzAvatarModule,
     NzIconModule,
     UserIconComponent,
+    ComputingUnitSelectionComponent,
     WorkflowEditorComponent,
     MiniMapComponent,
     CoeditorUserIconComponent,
@@ -107,6 +116,28 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
   public rendered: RenderedField[] = [];
   /** Torn down and replaced whenever the form is rebuilt, so an old field's write-back stops. */
   private formsRebuilt = new Subject<void>();
+
+  /** The author's instruction, rendered above the inputs; the reader always sees it as markdown. */
+  public instructionOpen = true;
+  public instructionTitle = "";
+  public instructionBody = "";
+  public instructionPreviewHtml = "";
+
+  /**
+   * Milliseconds the current run has been going, counted from the same engine event the operator
+   * canvas counts: the engine reports the real elapsed time, and a local 1s timer fills in between
+   * reports so the display ticks instead of jumping.
+   */
+  public executionDuration = 0;
+  public executionState: ExecutionState = ExecutionState.Uninitialized;
+  public runError = "";
+  /** The picked unit's connection state, mirrored from the same stream the operator canvas reads,
+   *  so "Connecting" here means exactly what it means there. */
+  public computingUnitStatus: ComputingUnitState = ComputingUnitState.NoComputingUnit;
+  /** Workflow validity, read from the same validation stream the operator canvas uses, so Run is
+   *  disabled ("Invalid" / "Empty") in the same cases. */
+  public isWorkflowValid = true;
+  public isWorkflowEmpty = false;
 
   /** The collapsible workflow preview: closed until the reader opens it. */
   public workflowOpen = false;
@@ -137,6 +168,7 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
     private workflowResultService: WorkflowResultService,
     private notificationService: NotificationService,
     private userService: UserService,
+    private markdownService: MarkdownService,
     private formlyJsonschema: FormlyJsonschema,
     private cdr: ChangeDetectorRef,
     // Injected for its side effect: it fills its map from the operator-add stream, so it has to
@@ -150,8 +182,12 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
     private workflowCompilingService: WorkflowCompilingService,
     private computingUnitStatusService: ComputingUnitStatusService,
     private workflowConsoleService: WorkflowConsoleService,
+    private workflowWebsocketService: WorkflowWebsocketService,
     private host: ElementRef<HTMLElement>,
     private datePipe: DatePipe,
+    // Same source the operator canvas reads its "Invalid" / "Empty" states from, so Run is
+    // disabled here exactly when it is disabled there.
+    private validationWorkflowService: ValidationWorkflowService,
     private config: GuiConfigService
   ) {}
 
@@ -163,6 +199,70 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
     }
     this.wid = wid;
     this.load(wid);
+
+    // The run clock, reusing the operator canvas's source outright rather than timing anything
+    // here: the engine is the only thing that knows when the run really began, so a stopwatch
+    // started at the click would drift and would be wrong after a reload.
+    this.workflowWebsocketService
+      .subscribeToEvent("ExecutionDurationUpdateEvent")
+      .pipe(
+        tap(event => (this.executionDuration = event.duration)),
+        switchMap(event => (event.isRunning ? timer(1000, 1000) : EMPTY)),
+        untilDestroyed(this)
+      )
+      .subscribe(() => {
+        this.executionDuration += 1000;
+        this.cdr.markForCheck();
+      });
+
+    // The run button's state is read from getters, so a change in unit/connection/validity has to
+    // repaint the view. markForCheck, not detectChanges: a synchronous pass can be thrown out of by
+    // an unrelated component's NG0100, killing the subscription.
+    this.computingUnitStatusService
+      .getSelectedComputingUnit()
+      .pipe(untilDestroyed(this))
+      .subscribe(() => this.cdr.markForCheck());
+    this.computingUnitStatusService
+      .getStatus()
+      .pipe(untilDestroyed(this))
+      .subscribe(status => {
+        this.computingUnitStatus = status;
+        this.cdr.markForCheck();
+      });
+    this.workflowWebsocketService
+      .getConnectionStatusStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(() => this.cdr.markForCheck());
+    // Validity from the canvas's own stream, so a broken graph disables Run ("Invalid") here
+    // exactly as it does there.
+    this.validationWorkflowService
+      .getWorkflowValidationErrorStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(value => {
+        this.isWorkflowEmpty = value.workflowEmpty;
+        this.isWorkflowValid = Object.keys(value.errors).length === 0;
+        this.cdr.markForCheck();
+      });
+
+    this.executeWorkflowService
+      .getExecutionStateStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(({ current }) => {
+        this.executionState = current.state;
+        // Surface a failed run. Without this the spinner just stops and the form gives zero
+        // feedback -- the opposite of what a reader needs. onRun() clears runError before the next
+        // run, so a stale error never lingers.
+        if (current.state === ExecutionState.Failed) {
+          // A required input left empty is by far the commonest reason a run fails here, and the
+          // engine reports it as an opaque "... is not contained in the schema". Answer with the
+          // same word the field itself already shows ("required"), so the two messages are
+          // consistent -- and it covers every operator, not just this one.
+          this.runError = this.hasEmptyRequiredInputs()
+            ? "Run failed: please fill in the required fields."
+            : this.friendlyRunError(current.errorMessages?.[0]?.message?.trim() ?? "");
+        }
+        this.cdr.detectChanges();
+      });
 
     // Attribute boxes become dropdowns only after compilation writes the column enums into each
     // operator's dynamic schema -- which lands after these cards were built. Rebuild on the
@@ -261,7 +361,12 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
   }
 
   private readConfig(): void {
+    const config = this.formBindingService.getConfig();
     this.parameters = this.formBindingService.resolveFields();
+    this.instructionTitle = config.instruction?.title ?? "";
+    this.instructionBody = config.instruction?.body ?? "";
+    // A reader always sees the instruction as rendered markdown.
+    void this.renderInstruction();
     this.buildForm();
   }
 
@@ -509,6 +614,152 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
 
   public trackByRendered(_: number, rendered: RenderedField): string {
     return rendered.resolved.binding.id;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Instruction: the author's one piece of guidance, shown as rendered markdown
+  // ---------------------------------------------------------------------------
+
+  public get hasInstruction(): boolean {
+    return this.instructionBody.trim().length > 0;
+  }
+
+  private async renderInstruction(): Promise<void> {
+    // Capture the body this render is for: parsing can resolve on a later microtask, and a fresh
+    // readConfig() may start another render meanwhile. If the configured body changed while we were
+    // parsing, this result is stale -- drop it so the newer render's output stands.
+    const body = this.instructionBody;
+    const html = body.trim() ? await Promise.resolve(this.markdownService.parse(body)) : "";
+    if (body !== this.instructionBody) {
+      return;
+    }
+    this.instructionPreviewHtml = html;
+    this.cdr.detectChanges();
+  }
+
+  public toggleInstruction(): void {
+    this.instructionOpen = !this.instructionOpen;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Running. The same call the operator canvas makes, on the same workflow.
+  // ---------------------------------------------------------------------------
+
+  public get isRunning(): boolean {
+    return (
+      this.executionState !== ExecutionState.Uninitialized &&
+      this.executionState !== ExecutionState.Completed &&
+      this.executionState !== ExecutionState.Failed &&
+      this.executionState !== ExecutionState.Killed &&
+      this.executionState !== ExecutionState.Terminated
+    );
+  }
+
+  /**
+   * A unit is picked but its socket is still coming up -- the same window the operator canvas shows
+   * "Connecting" and disables its run button. Read from the exact condition the canvas uses
+   * (menu.component's getRunButtonBehavior), so the two stay in step.
+   */
+  public get isConnecting(): boolean {
+    return (
+      this.computingUnitStatus !== ComputingUnitState.NoComputingUnit && !this.workflowWebsocketService.isConnected
+    );
+  }
+
+  /** No unit chosen yet: the button shows a disabled "Connect" hint and the unit is picked in the
+   *  embedded selector -- unlike the canvas, where the Connect button is itself the click target. */
+  public get hasNoComputingUnit(): boolean {
+    return this.computingUnitStatus === ComputingUnitState.NoComputingUnit;
+  }
+
+  /**
+   * The Run button's label, icon and disabled state. It shares the operator canvas's disable
+   * conditions -- an invalid or empty workflow, a unit still connecting, or no unit chosen each
+   * disable it and say why -- but deliberately simplifies the execution states a reader needs down
+   * to Run and Stop, with no pause/resume: while a run is in flight the button stops (kills) it,
+   * otherwise it runs. (The canvas offers Pause/Resume/Submitting and a clickable Connect; a form
+   * reader does not, and picks the unit in the embedded selector instead.)
+   */
+  public get runButtonState(): { label: string; icon: string; disabled: boolean } {
+    if (this.isRunning) {
+      return { label: "Stop", icon: "stop", disabled: false };
+    }
+    if (!this.isWorkflowValid) {
+      return { label: "Invalid", icon: "warning", disabled: true };
+    }
+    if (this.isWorkflowEmpty) {
+      return { label: "Empty", icon: "info-circle", disabled: true };
+    }
+    if (this.isConnecting) {
+      return { label: "Connecting", icon: "loading", disabled: true };
+    }
+    if (this.hasNoComputingUnit) {
+      return { label: "Connect", icon: "plus-circle", disabled: true };
+    }
+    return { label: "Run", icon: "caret-right", disabled: false };
+  }
+
+  public onRun(): void {
+    if (this.isRunning) {
+      this.executeWorkflowService.killWorkflow();
+      return;
+    }
+    // The button is disabled in exactly the states a run cannot start from (invalid/empty workflow,
+    // connecting, or no unit), so a stray call here would be a silent no-op.
+    if (this.runButtonState.disabled) {
+      return;
+    }
+    this.runError = "";
+    // Run as-is, like the canvas -- no client-side "fill everything first" gate (it diverged from
+    // the canvas and could not guarantee success anyway). Empty/invalid inputs surface as a real
+    // engine error via the execution-state stream (see the Failed handler).
+    this.executeWorkflowService.executeWorkflow(this.workflowName);
+  }
+
+  /**
+   * Turn an engine error into something a reader can act on: raw SQL/jOOQ/Java traces collapse to
+   * one plain sentence, a short human message is kept (minus any Java prefix). The full text is
+   * always logged for developers.
+   */
+  private friendlyRunError(raw: string): string {
+    if (raw) {
+      // eslint-disable-next-line no-console
+      console.error("[workflow-form] run failed:", raw);
+    }
+    const opaque =
+      !raw || /\bSQL \[|org\.jooq|org\.apache|org\.postgresql|foreign key|constraint|jdbc|\bat [\w.$]+\(/i.test(raw);
+    if (opaque) {
+      return "Run failed -- please reload and try again.";
+    }
+    const cleaned = raw
+      .replace(/^[\w.$]+(?:Exception|Error):\s*/, "")
+      .replace(/^requirement failed:\s*/i, "")
+      .trim();
+    return `Run failed: ${cleaned || "please check your inputs and try again."}`;
+  }
+
+  /**
+   * Whether any exposed input that is required is still empty. Reuses formly's own per-field
+   * required validation -- the very thing that renders "This field is required" under the box -- so
+   * the run-failure message stays consistent with the field hint.
+   */
+  private hasEmptyRequiredInputs(): boolean {
+    // Specifically a `required` error (a required field left empty), not just any invalid control:
+    // a pattern or range failure is a different problem and should not be answered with "fill in the
+    // required fields". Walk the control tree for a real required error.
+    const hasRequiredError = (control: AbstractControl): boolean => {
+      if (control.hasError("required")) {
+        return true;
+      }
+      if (control instanceof FormGroup) {
+        return Object.values(control.controls).some(hasRequiredError);
+      }
+      if (control instanceof FormArray) {
+        return control.controls.some(hasRequiredError);
+      }
+      return false;
+    };
+    return this.rendered.some(r => hasRequiredError(r.form));
   }
 
   /** Open or close the workflow preview; opening it builds the canvas the first time. */
