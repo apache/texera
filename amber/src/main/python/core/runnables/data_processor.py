@@ -20,8 +20,8 @@ from threading import Event
 from typing import Iterator, Optional
 
 from core.architecture.managers import Context
-from core.models import State, TupleLike, InternalMarker
-from core.models.internal_marker import StartChannel, EndChannel
+from core.models import State, TupleLike
+from core.models.internal_marker import EndChannel, PortMarker, StartChannel
 from core.models.table import all_output_to_tuple
 from core.util import Stoppable
 from core.util.console_message.replace_print import replace_print
@@ -65,8 +65,8 @@ class DataProcessor(Runnable, Stoppable):
             else:
                 self.process_tuple()
 
-    def process_internal_marker(self, internal_marker: InternalMarker) -> None:
-        with self._executor_session() as (executor, port_id):
+    def process_internal_marker(self, internal_marker: PortMarker) -> None:
+        with self._executor_session(internal_marker.port_id) as (executor, port_id):
             if isinstance(internal_marker, StartChannel):
                 self._set_output_state(executor.produce_state_on_start(port_id))
             elif isinstance(internal_marker, EndChannel):
@@ -95,7 +95,7 @@ class DataProcessor(Runnable, Stoppable):
                 self._set_output_tuple(executor.process_tuple(tuple_, port_id))
 
     @contextmanager
-    def _executor_session(self):
+    def _executor_session(self, marker_port_id: int | None = None):
         """
         Open one executor invocation: hand back (executor, port_id) under a
         print-capture session, route any exception to the exception manager
@@ -107,7 +107,11 @@ class DataProcessor(Runnable, Stoppable):
         """
         try:
             executor = self._context.executor_manager.executor
-            port_id = self._context.tuple_processing_manager.get_input_port_id()
+            port_id = (
+                self._context.tuple_processing_manager.get_input_port_id()
+                if marker_port_id is None
+                else marker_port_id
+            )
             with replace_print(
                 self._context.worker_id,
                 self._context.console_message_manager.print_buf,

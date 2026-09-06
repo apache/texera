@@ -25,8 +25,12 @@ from proto.org.apache.texera.amber.engine.architecture.rpc import (
 
 class EndChannelHandler(ControlHandler):
     async def end_channel(self, req: EmptyRequest) -> EmptyReturn:
+        port = self.context.input_manager.get_port_id(
+            self.context.current_input_channel_id
+        )
+        marker = EndChannel(port.id)
         self.context.input_manager.complete_current_port(
             self.context.current_input_channel_id
         )
-        self.context.tuple_processing_manager.current_internal_marker = EndChannel()
+        self.context.tuple_processing_manager.current_internal_marker = marker
         return EmptyReturn()
