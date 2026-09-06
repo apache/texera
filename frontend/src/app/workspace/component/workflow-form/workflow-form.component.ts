@@ -32,7 +32,7 @@ import { forkJoin, Subject } from "rxjs";
 import { debounceTime, takeUntil } from "rxjs/operators";
 
 import { USER_WORKFLOW, USER_WORKSPACE } from "../../../app-routing.constant";
-import { Workflow, WorkflowContent } from "../../../common/type/workflow";
+import { FormFieldBinding, Workflow, WorkflowContent } from "../../../common/type/workflow";
 import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
 import { WorkflowPersistService } from "../../../common/service/workflow-persist/workflow-persist.service";
 import { NotificationService } from "../../../common/service/notification/notification.service";
@@ -71,8 +71,9 @@ interface RenderedField {
  * read-only workflow preview, this PR renders the inputs an author exposed -- each as its
  * operator's own formly field, so a file property gets the real picker and an attribute a column
  * dropdown -- and writes a filled-in value straight back to its operator, the same edit the canvas
- * makes. Nested sub-field overrides, running and results are added by later PRs. A view, not a new
- * object: it opens the same workflow the canvas does.
+ * makes, with each sub-field of a nested or repeated property renamed and hidden as the author set
+ * it up. Running the workflow and showing results are added by later PRs. A view, not a new object:
+ * it opens the same workflow the canvas does.
  */
 @UntilDestroy()
 @Component({
@@ -316,10 +317,6 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
     field.props = {
       ...(field.props ?? {}),
       label: binding.displayName || schemaLabel,
-      // The schema's own description is the operator author's note to whoever wired the operator
-      // up; it is not guidance to a form reader, and formly shows it once per scalar field. Drop it
-      // here so it does not appear unbidden under the input.
-      description: "",
     };
 
     const form = new FormGroup({});
@@ -367,7 +364,120 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
       field.props = { ...(field.props ?? {}), disabled: true };
     }
 
+    this.applyFieldOverrides(field, binding);
     return { resolved, fields: [field], form, model };
+  }
+
+  /**
+   * The template for one row of a repeated section. formly's `fieldArray` may be the template
+   * object or a function that builds one per row; resolve both so an array property's sub-fields
+   * are reachable (treating the function case as a leaf hid them). @internal, exported for tests.
+   */
+  public static arrayItemOf(node: FormlyFieldConfig): FormlyFieldConfig | undefined {
+    const fa = node.fieldArray;
+    if (!fa) {
+      return undefined;
+    }
+    if (typeof fa !== "function") {
+      return fa;
+    }
+    try {
+      return fa(node);
+    } catch {
+      // A builder that needs more context than we can give it tells us nothing about the row's
+      // shape; better to list no sub-fields than to guess at them.
+      return undefined;
+    }
+  }
+
+  /**
+   * The override path for a child field: the parent path joined with the child's key, but array
+   * indices are dropped so one override entry covers every row of a repeated section. @internal,
+   * exported for tests.
+   */
+  public static childPath(parent: string, key: unknown): string {
+    if (typeof key !== "string" || key === "" || /^\d+$/.test(key)) {
+      return parent;
+    }
+    return parent ? parent + "." + key : key;
+  }
+
+  /**
+   * Walk the field and its sub-fields, dropping the operator schema's own per-field descriptions
+   * (author notes about the operator, not guidance to a form reader) and applying the author's
+   * stored per-sub-field overrides (rename, hide), keyed by field path. A repeated section builds
+   * its row template on demand, so its builder is wrapped to decorate every row formly ever makes.
+   */
+  private applyFieldOverrides(field: FormlyFieldConfig, binding: FormFieldBinding): void {
+    const walk = (node: FormlyFieldConfig, path: string): void => {
+      // Drop the schema's own description on every field, nested ones included: on this page the
+      // one piece of guidance is the help text the form's author writes, rendered once by the card.
+      node.props = { ...(node.props ?? {}), description: "" };
+      // Apply the author's stored overrides so a reader sees each sub-field renamed and hidden as
+      // set up. The root (path "") carries the binding's own displayName, set in renderField.
+      if (path) {
+        const override = binding.overrides?.[path] ?? {};
+        if (override.displayName) {
+          node.props = { ...(node.props ?? {}), label: override.displayName };
+        }
+        if (override.hidden) {
+          node.hide = true;
+          // Hidden means "not shown", not "cleared". Formly 7's resetFieldOnHide extra defaults to
+          // true, so a field that renders hidden has its value stripped from the model -- and this
+          // card writes the whole nested object back, so that strip would delete the author's pinned
+          // value for the hidden sub-field the moment a writer opens the form. Opt this field out so
+          // its value survives, matching FormFieldOverride.hidden's contract (the value still
+          // applies; it is only hidden).
+          node.resetOnHide = false;
+        }
+      }
+      // A repeated section may build its row template on demand, once per row. Decorating the
+      // object it returns is pointless -- the next row gets a fresh one. Wrap the builder instead,
+      // so every row formly ever creates comes out decorated.
+      if (typeof node.fieldArray === "function") {
+        const build = node.fieldArray;
+        node.fieldArray = (f: FormlyFieldConfig) => {
+          const row = build(f);
+          // Walk what is INSIDE each row, never the row container itself: the container carries the
+          // array property's own name, so decorating it as a root (path "") printed the group title
+          // a second time above the rows. Its sub-fields keep their own key paths, the same ones
+          // their overrides are stored under.
+          const children = row.fieldGroup ?? [];
+          if (children.length === 0) {
+            // A scalar array (a list of strings): the builder returns a leaf row with no sub-fields,
+            // so decorate the row itself, mirroring the leaf case of the non-function branch below.
+            walk(row, path);
+          } else {
+            // An object row: not walked as a root (that reprints the array's group title), but its
+            // own schema description (the items.description) still renders once per row via the
+            // field wrapper's nzExtra, so drop just that -- the description-removal the walk does for
+            // every other field, minus the title-reprinting root treatment.
+            row.props = { ...(row.props ?? {}), description: "" };
+          }
+          for (const child of children) {
+            walk(child, WorkflowFormComponent.childPath(path, child.key));
+          }
+          return row;
+        };
+        return;
+      }
+      const arrayItem = WorkflowFormComponent.arrayItemOf(node);
+      const children = node.fieldGroup ?? arrayItem?.fieldGroup ?? [];
+      for (const child of children) {
+        walk(child, WorkflowFormComponent.childPath(path, child.key));
+      }
+      // A scalar array (e.g. a list of strings) has a row template with no sub-fields of its own;
+      // decorate it directly so its schema description is dropped like every other field's.
+      if (arrayItem && !arrayItem.fieldGroup) {
+        walk(arrayItem, path);
+      } else if (arrayItem) {
+        // A static object-array template: its sub-fields are walked above, but the template
+        // container's own items.description still renders once per row, so drop just that (not
+        // walking it as a root, which would reprint the array's group title).
+        arrayItem.props = { ...(arrayItem.props ?? {}), description: "" };
+      }
+    };
+    walk(field, "");
   }
 
   private operatorSchemaFor(operatorID: string): object | undefined {

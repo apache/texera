@@ -101,6 +101,48 @@ export function setupHarness() {
         { key: "fileName", props: { label: "File" } },
         { key: "modelId", props: { label: "Model" } },
         { key: "datasetVersionPath", props: { label: "Dataset" } },
+        // An object property with sub-fields (drives the override walk over a fieldGroup). The
+        // schema descriptions are here so a test can assert the walk drops them.
+        {
+          key: "nested",
+          props: { label: "Nested", description: "obj note" },
+          fieldGroup: [{ key: "sub", props: { label: "Sub", description: "sub note" } }],
+        },
+        // A repeated section whose row template is a builder (drives the fieldArray-wrapping path).
+        // The returned row carries its own description (the schema's items.description), so a test
+        // can assert the walk drops it -- it would otherwise render once per row.
+        {
+          key: "predicates",
+          props: { label: "Predicates" },
+          fieldArray: () => ({
+            props: { description: "row note" },
+            fieldGroup: [{ key: "alias", props: { label: "Alias" } }],
+          }),
+        },
+        // A scalar array: its row template is a leaf (no sub-fields), drives the leaf-item branch.
+        {
+          key: "tags",
+          props: { label: "Tags" },
+          fieldArray: { key: "item", props: { label: "Tag", description: "item note" } },
+        },
+        // A static object-array template (fieldArray is an object WITH sub-fields, not a builder):
+        // drives the object-array-template branch, where the container's own items.description must
+        // be dropped even though the container itself is not walked as a root.
+        {
+          key: "rules",
+          props: { label: "Rules" },
+          fieldArray: {
+            props: { description: "rules note" },
+            fieldGroup: [{ key: "field", props: { label: "Field", description: "field note" } }],
+          },
+        },
+        // A scalar array whose row template is a BUILDER returning a leaf (no fieldGroup): drives
+        // the leaf case inside the fieldArray-function wrapper.
+        {
+          key: "tagsFn",
+          props: { label: "Tags (fn)" },
+          fieldArray: () => ({ key: "item", props: { label: "Tag", description: "fn note" } }),
+        },
       ];
       return { fieldGroup: opts?.map ? fields.map(opts.map) : fields };
     },
