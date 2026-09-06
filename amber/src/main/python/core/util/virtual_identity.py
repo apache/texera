@@ -111,6 +111,9 @@ def deserialize_global_port_identity(encoded_str: str) -> GlobalPortIdentity:
     port_id = int(port_id_str)
     if port_id < 0:
         raise ValueError(f"portId must be non-negative: {port_id}")
+    for field, value in (("isInternal", is_internal_str), ("isInput", is_input_str)):
+        if value.lower() not in ("true", "false"):
+            raise ValueError(f"Invalid {field}: {value}")
     is_internal = is_internal_str.lower() == "true"
     is_input_port = is_input_str.lower() == "true"
     op_id = PhysicalOpIdentity(
