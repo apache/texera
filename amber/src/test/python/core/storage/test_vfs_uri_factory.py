@@ -71,6 +71,17 @@ class TestCreatePortBaseUri:
 
 
 class TestDecodeUriRoundTrip:
+    @pytest.mark.parametrize(
+        ("suffix", "resource_type"),
+        [
+            ("runtimeStatistics", VFSResourceType.RUNTIME_STATISTICS),
+            ("consoleMessages", VFSResourceType.CONSOLE_MESSAGES),
+        ],
+    )
+    def test_decode_accepts_camel_case_resource_types(self, suffix, resource_type):
+        components = VFSURIFactory.decode_uri(f"vfs:///wid/1/eid/2/{suffix}")
+        assert components.resource_type == resource_type
+
     def test_result_uri_round_trips_through_decode(self):
         wid, eid, gpi = (
             WorkflowIdentity(id=42),
