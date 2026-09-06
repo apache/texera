@@ -18,6 +18,7 @@
 import re
 
 import pytest
+from botocore.exceptions import ClientError
 from unittest.mock import patch, MagicMock
 from pytexera.storage.large_binary_manager import LargeBinaryManager
 from core.storage.storage_config import StorageConfig
@@ -127,6 +128,33 @@ class TestLargeBinaryManager:
             large_binary_manager._ensure_bucket_exists("test-bucket")
             mock_client.head_bucket.assert_called_once_with(Bucket="test-bucket")
             mock_client.create_bucket.assert_called_once_with(Bucket="test-bucket")
+
+    def test_ensure_bucket_exists_creates_bucket_on_head_404(self):
+        mock_client = MagicMock()
+        mock_client.exceptions.NoSuchBucket = type("NoSuchBucket", (Exception,), {})
+        mock_client.head_bucket.side_effect = ClientError(
+            {"Error": {"Code": "404", "Message": "Not Found"}}, "HeadBucket"
+        )
+        large_binary_manager._s3_client = mock_client
+
+        large_binary_manager._ensure_bucket_exists("test-bucket")
+
+        mock_client.create_bucket.assert_called_once_with(Bucket="test-bucket")
+
+    def test_ensure_bucket_exists_preserves_other_client_errors(self):
+        mock_client = MagicMock()
+        mock_client.exceptions.NoSuchBucket = type("NoSuchBucket", (Exception,), {})
+        error = ClientError(
+            {"Error": {"Code": "403", "Message": "Forbidden"}}, "HeadBucket"
+        )
+        mock_client.head_bucket.side_effect = error
+        large_binary_manager._s3_client = mock_client
+
+        with pytest.raises(ClientError) as raised:
+            large_binary_manager._ensure_bucket_exists("test-bucket")
+
+        assert raised.value is error
+        mock_client.create_bucket.assert_not_called()
 
     def test_create_appends_unique_suffix_to_base_uri(self):
         """create() returns the configured base URI plus a unique suffix (no S3 call)."""

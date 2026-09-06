@@ -24,6 +24,7 @@ and LargeBinaryInputStream/LargeBinaryOutputStream instead.
 
 import threading
 import uuid
+from botocore.exceptions import ClientError
 from loguru import logger
 from core.storage.storage_config import StorageConfig
 
@@ -84,7 +85,15 @@ class LargeBinaryManager:
         s3 = self._get_s3_client()
         try:
             s3.head_bucket(Bucket=bucket)
-        except s3.exceptions.NoSuchBucket:
+        except (s3.exceptions.NoSuchBucket, ClientError) as error:
+            if isinstance(error, ClientError) and error.response["Error"][
+                "Code"
+            ] not in (
+                "404",
+                "NoSuchBucket",
+                "NotFound",
+            ):
+                raise
             logger.debug(f"Bucket {bucket} not found, creating it")
             s3.create_bucket(Bucket=bucket)
             logger.info(f"Created bucket: {bucket}")
