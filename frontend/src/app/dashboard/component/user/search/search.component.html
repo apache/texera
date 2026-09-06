@@ -77,7 +77,10 @@
         </button>
       </div>
 
-      <texera-filters #filters></texera-filters>
+      <texera-filters
+        [entityType]="filterEntityType"
+        ownerScope="accessibleAndPublic"
+        #filters></texera-filters>
     </div>
   </div>
 

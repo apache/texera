@@ -73,6 +73,13 @@ export class HubService {
     });
   }
 
+  /** Owners of the published entries of one kind; `*-owners` answers who granted the caller. */
+  public getPublicOwners(entityType: EntityType): Observable<string[]> {
+    return this.http.get<string[]>(`${this.BASE_URL}/owners`, {
+      params: { entityType: entityType },
+    });
+  }
+
   public cloneWorkflow(wid: number): Observable<number> {
     return this.http.post<number>(`${WORKFLOW_BASE_URL}/clone/${wid}`, null);
   }

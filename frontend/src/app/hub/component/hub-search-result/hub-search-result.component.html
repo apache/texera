@@ -26,6 +26,7 @@
         (sortMethodChange)="sortMethod = $event; search()"></texera-sort-button>
       <texera-filters
         [entityType]="entityType"
+        ownerScope="public"
         #filters></texera-filters>
       <div
         *ngIf="isVersionedResource"

@@ -20,7 +20,7 @@
 import { Injectable } from "@angular/core";
 import { DashboardEntry } from "../../../type/dashboard-entry";
 import { ResourceAffordances, ResourceDescriptor } from "../../../type/resource-descriptor";
-import { EntityType } from "../../../../hub/service/hub.service";
+import { EntityType, HubService } from "../../../../hub/service/hub.service";
 import {
   DEFAULT_WORKFLOW_NAME,
   WorkflowPersistService,
@@ -43,6 +43,7 @@ export class WorkflowResourceDescriptor implements ResourceDescriptor {
 
   constructor(
     private workflowPersistService: WorkflowPersistService,
+    private hubService: HubService,
     private downloadService: DownloadService
   ) {}
 
@@ -53,6 +54,7 @@ export class WorkflowResourceDescriptor implements ResourceDescriptor {
   updateDescription = (id: number, description: string) =>
     this.workflowPersistService.updateWorkflowDescription(id, description);
   retrieveOwners = () => this.workflowPersistService.retrieveOwners();
+  retrievePublicOwners = () => this.hubService.getPublicOwners(EntityType.Workflow);
   retrieveIds = () => this.workflowPersistService.retrieveWorkflowIDs();
   download = (id: number, name: string) => this.downloadService.downloadWorkflow(id, name);
   isPublic = (id: number) =>

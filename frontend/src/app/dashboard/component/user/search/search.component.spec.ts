@@ -44,6 +44,7 @@ import { WorkflowPersistService } from "src/app/common/service/workflow-persist/
 import { StubWorkflowPersistService } from "src/app/common/service/workflow-persist/stub-workflow-persist.service";
 import { SortButtonComponent } from "../sort-button/sort-button.component";
 import { MODEL_ICON } from "../../../../common/icon/model-icon";
+import { EntityType } from "../../../../hub/service/hub.service";
 
 // Lightweight stand-in for FiltersComponent. It registers itself under the real
 // FiltersComponent token so SearchComponent's `@ViewChild(FiltersComponent)`
@@ -56,6 +57,8 @@ import { MODEL_ICON } from "../../../../common/icon/model-icon";
   providers: [{ provide: FiltersComponent, useExisting: forwardRef(() => MockFiltersComponent) }],
 })
 class MockFiltersComponent {
+  @Input() entityType: EntityType | null = null;
+  @Input() ownerScope?: string;
   masterFilterListChange = EMPTY;
   masterFilterList: ReadonlyArray<string> = [];
   getSearchKeywords = (): string[] => [...this.masterFilterList];

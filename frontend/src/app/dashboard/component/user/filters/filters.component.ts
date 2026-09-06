@@ -17,12 +17,24 @@
  * under the License.
  */
 
-import { ChangeDetectorRef, Component, EventEmitter, Input, OnInit, Output } from "@angular/core";
+import {
+  ChangeDetectorRef,
+  Component,
+  EventEmitter,
+  Input,
+  OnChanges,
+  OnInit,
+  Output,
+  SimpleChanges,
+} from "@angular/core";
 import { OperatorMetadataService } from "src/app/workspace/service/operator-metadata/operator-metadata.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { ResourceRegistryService } from "../../../service/user/resource-registry/resource-registry.service";
 import { EntityType } from "../../../../hub/service/hub.service";
+import { OwnerScope } from "../../../type/owner-scope";
+import { forkJoin, Observable, of, Subject } from "rxjs";
+import { catchError, switchMap } from "rxjs/operators";
 import { SearchFilterParameters } from "../../../type/search-filter-parameters";
 import { UserService } from "../../../../common/service/user/user.service";
 import { NzDropdownADirective, NzDropdownDirective, NzDropdownMenuComponent } from "ng-zorro-antd/dropdown";
@@ -63,11 +75,15 @@ import { NzCheckboxComponent } from "ng-zorro-antd/checkbox";
     NzSpaceCompactComponent,
   ],
 })
-export class FiltersComponent implements OnInit {
+export class FiltersComponent implements OnInit, OnChanges {
   public isLogin = this.userService.isLogin();
+  /** Fires when the kind or scope changes, to refetch the owner facet. */
+  private readonly facetReload$ = new Subject<void>();
   private _masterFilterList: ReadonlyArray<string> = [];
-  /** Which resource kind this page lists; decides whose owners and ids are offered. */
-  @Input() public entityType: EntityType = EntityType.Workflow;
+  /** Which kind this page lists; decides whose owners and ids are offered. `null` spans every kind. */
+  @Input() public entityType: EntityType | null = EntityType.Workflow;
+  /** Which people the Owner facet offers, matching the results the host page shows. */
+  @Input() public ownerScope: OwnerScope = "accessible";
   @Output()
   public masterFilterListChange = new EventEmitter<typeof this._masterFilterList>();
   public get masterFilterList(): ReadonlyArray<string> {
@@ -113,14 +129,71 @@ export class FiltersComponent implements OnInit {
     private cdr: ChangeDetectorRef
   ) {}
 
-  /** The id dropdown is hidden for kinds with no id-listing endpoint. */
+  /**
+   * The id dropdown is hidden for kinds with no id-listing endpoint. A page listing every kind keeps
+   * the workflow ids it had before: that page lists workflows too, and the backend binds `id=` to
+   * the workflow arm, exactly as the operator facet is workflow-only.
+   */
   public get hasIdFilter(): boolean {
-    return this.resourceRegistry.get(this.entityType).retrieveIds !== undefined;
+    return this.resourceRegistry.get(this.entityType ?? EntityType.Workflow).retrieveIds !== undefined;
   }
 
   ngOnInit(): void {
     this.trackLoginState();
     this.searchParameterBackendSetup();
+    this.facetReload$
+      .pipe(
+        // switchMap: without it a stale response can land last and refill the facet.
+        switchMap(() =>
+          forkJoin({
+            owners: this.ownersForCurrentScope(),
+            ids: this.idsForCurrentKind(),
+          })
+        ),
+        untilDestroyed(this)
+      )
+      .subscribe(facets => this.applyFacets(facets));
+    // Through the subject, not a separate subscribe: an init response that landed after a tab
+    // switch would otherwise overwrite the new kind's facets.
+    this.facetReload$.next();
+  }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    const changed = changes["entityType"] ?? changes["ownerScope"];
+    // ngOnChanges runs before ngOnInit, so the first pass is left to ngOnInit's single load.
+    if (changed && !changed.firstChange) {
+      this.reloadFacets();
+    }
+  }
+
+  /** Refetches both facets for the kind and scope now in effect. */
+  private reloadFacets(): void {
+    this.owners = [];
+    this.wids = [];
+    this.facetReload$.next();
+  }
+
+  /** The owners this page should offer; none for a signed-out visitor, whose endpoints are gated. */
+  private ownersForCurrentScope(): Observable<string[]> {
+    return this.isLogin ? this.resourceRegistry.ownersFor(this.entityType, this.ownerScope) : of([]);
+  }
+
+  /** The ids this kind offers, or none for a kind with no id endpoint. */
+  private idsForCurrentKind(): Observable<number[]> {
+    if (!this.isLogin) {
+      return of([]);
+    }
+    // Same rule as the owner leg: a failed request costs its own facet, not the subscription, which
+    // would otherwise end here and leave every later tab switch blanking both dropdowns.
+    const descriptor = this.resourceRegistry.get(this.entityType ?? EntityType.Workflow);
+    return (descriptor.retrieveIds?.() ?? of([])).pipe(catchError(() => of([])));
+  }
+
+  /** Re-runs the tag list: a surviving selection stays checked, one that does not is dropped and reported. */
+  private applyFacets({ owners, ids }: { owners: string[]; ids: number[] }): void {
+    this.owners = owners.map(name => ({ userName: name, checked: false }));
+    this.wids = ids.map(id => ({ id: id.toString(), checked: false }));
+    this.updateDropdownMenus(this.masterFilterList);
   }
 
   private trackLoginState(): void {
@@ -129,6 +202,15 @@ export class FiltersComponent implements OnInit {
       .pipe(untilDestroyed(this))
       .subscribe(() => {
         this.isLogin = this.userService.isLogin();
+        if (this.isLogin) {
+          // Signing in mid-page used to leave the facet empty until a reload.
+          this.reloadFacets();
+        } else {
+          // Signing out: clear rather than refetch, or an expired session fires the authenticated
+          // endpoints anyway and the empty result drops the chips with an "Invalid owner name" toast.
+          this.owners = [];
+          this.wids = [];
+        }
         this.cdr.detectChanges();
       });
   }
@@ -156,26 +238,6 @@ export class FiltersComponent implements OnInit {
         });
         this.operatorGroups = opdata.groups.map(group => group.groupName);
       });
-    if (this.isLogin) {
-      const descriptor = this.resourceRegistry.get(this.entityType);
-      descriptor
-        .retrieveOwners?.()
-        .pipe(untilDestroyed(this))
-        .subscribe(list_of_owners => {
-          this.owners = list_of_owners.map(i => ({ userName: i, checked: false }));
-        });
-      descriptor
-        .retrieveIds?.()
-        .pipe(untilDestroyed(this))
-        .subscribe(ids => {
-          this.wids = ids.map(id => {
-            return {
-              id: id.toString(),
-              checked: false,
-            };
-          });
-        });
-    }
   }
 
   /**
