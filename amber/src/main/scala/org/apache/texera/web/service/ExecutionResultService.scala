@@ -260,11 +260,6 @@ object ExecutionResultService {
           case SetDeltaMode() =>
             val deltaList = storage.getAfter(oldTupleCount).toList
             tuplesToWebData(webOutputMode, deltaList)
-
-          case _ =>
-            throw new RuntimeException(
-              "update mode combination not supported: " + (webOutputMode, outputMode)
-            )
         }
         webUpdate
       case None =>

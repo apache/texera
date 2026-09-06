@@ -21,18 +21,15 @@ package org.apache.texera.amber.engine.architecture.common
 
 import org.apache.pekko
 import pekko.actor.{ActorContext, ActorRef, Address, Cancellable, Props}
-import pekko.util.Timeout
 import org.apache.texera.amber.core.virtualidentity.ActorVirtualIdentity
-import org.apache.texera.amber.engine.common.FutureBijection._
 
 import scala.concurrent.ExecutionContext
-import scala.concurrent.duration.{DurationInt, FiniteDuration}
+import scala.concurrent.duration.FiniteDuration
 
 class PekkoActorService(val id: ActorVirtualIdentity, actorContext: ActorContext) {
 
   implicit def ec: ExecutionContext = actorContext.dispatcher
 
-  implicit val timeout: Timeout = 5.seconds
   implicit val self: ActorRef = actorContext.self
 
   def parent: ActorRef = actorContext.parent
@@ -61,10 +58,6 @@ class PekkoActorService(val id: ActorVirtualIdentity, actorContext: ActorContext
     actorContext.system.scheduler.scheduleWithFixedDelay(initialDelay, delay)(() => callable())
   }
 
-  def sendToSelfOnce(delay: FiniteDuration, msg: Any): Cancellable = {
-    actorContext.system.scheduler.scheduleOnce(delay, actorContext.self, msg)
-  }
-
   def sendToSelfWithFixedDelay(
       initialDelay: FiniteDuration,
       delay: FiniteDuration,
@@ -76,10 +69,6 @@ class PekkoActorService(val id: ActorVirtualIdentity, actorContext: ActorContext
       actorContext.self,
       msg
     )
-  }
-
-  def ask(ref: ActorRef, message: Any): com.twitter.util.Future[Any] = {
-    pekko.pattern.ask(ref, message).asTwitter()
   }
 
 }

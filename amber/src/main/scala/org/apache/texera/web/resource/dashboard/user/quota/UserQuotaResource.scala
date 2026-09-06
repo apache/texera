@@ -132,7 +132,7 @@ object UserQuotaResource {
       .orderBy(WORKFLOW_EXECUTIONS.EID.desc)
       .fetch()
 
-    if (executions == null || executions.isEmpty) {
+    if (executions.isEmpty) {
       return Array.empty
     }
 
