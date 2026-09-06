@@ -189,7 +189,8 @@ class Tuple:
         :param tuple_like: in which the field value could be the actual value in
             memory, or a callable accessor.
         """
-        assert len(tuple_like) != 0
+        if len(tuple_like) == 0:
+            raise ValueError("Tuple cannot be empty")
         self._field_data: "OrderedDict[str, Field]"
         if isinstance(tuple_like, Tuple):
             self._field_data = tuple_like._field_data
