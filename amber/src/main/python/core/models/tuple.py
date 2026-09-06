@@ -16,6 +16,7 @@
 # under the License.
 
 import ctypes
+import math
 import numpy
 import pandas
 import pickle
@@ -472,7 +473,9 @@ class Tuple:
             AttributeType.LONG: lambda f: java_hash_long(f),
             AttributeType.DOUBLE: lambda f: java_hash_long(double_to_long(f)),
             AttributeType.STRING: lambda f: java_hash_bytes(map(ord, f), 0, salt),
-            AttributeType.TIMESTAMP: lambda f: java_hash_long(int(f.timestamp())),
+            AttributeType.TIMESTAMP: lambda f: java_hash_long(
+                math.floor(f.timestamp() * 1000)
+            ),
             AttributeType.BINARY: lambda f: java_hash_bytes(f, 1, salt),
         }
 
