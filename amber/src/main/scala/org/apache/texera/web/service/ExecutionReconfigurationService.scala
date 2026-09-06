@@ -114,9 +114,11 @@ class ExecutionReconfigurationService(
   // events into the reconfiguration store so the diff handler above can fire
   // ModifyLogicCompletedEvent for the frontend.
   protected def registerWorkerCompletionCallback(): Unit = {
-    client.registerCallback[UpdateExecutorCompleted]((evt: UpdateExecutorCompleted) => {
-      onWorkerReconfigured(evt.id)
-    })
+    addSubscription(
+      client.registerCallback[UpdateExecutorCompleted]((evt: UpdateExecutorCompleted) => {
+        onWorkerReconfigured(evt.id)
+      })
+    )
   }
 
   // Exposed (instead of inlined in the callback) so tests can drive the
