@@ -211,12 +211,14 @@ class WorkflowExecutionsResourceSpec
 
     getDSLContext
       .deleteFrom(WORKFLOW_COMPUTING_UNIT)
-      .where(WORKFLOW_COMPUTING_UNIT.UID.eq(testUserId))
+      .where(WORKFLOW_COMPUTING_UNIT.UID.between(testUserId, testUserId + 10))
       .execute()
 
+    // The range, not just testUserId: cases that seed a dataset owner or a computing-unit
+    // owner alongside the test user would otherwise leave those rows behind for the next one.
     getDSLContext
       .deleteFrom(USER)
-      .where(USER.UID.eq(testUserId))
+      .where(USER.UID.between(testUserId, testUserId + 10))
       .execute()
   }
 
@@ -226,9 +228,9 @@ class WorkflowExecutionsResourceSpec
 
   // ─── helpers ──────────────────────────────────────────────────────────────
 
-  private def insertComputingUnit(): WorkflowComputingUnit = {
+  private def insertComputingUnit(ownerUid: Integer = null): WorkflowComputingUnit = {
     val unit = new WorkflowComputingUnit
-    unit.setUid(testUser.getUid)
+    unit.setUid(if (ownerUid == null) testUser.getUid else ownerUid)
     unit.setName("test-unit-" + UUID.randomUUID().toString.substring(0, 8))
     unit.setCreationTime(new Timestamp(System.currentTimeMillis()))
     unit.setType(WorkflowComputingUnitTypeEnum.local)
@@ -1065,6 +1067,56 @@ class WorkflowExecutionsResourceSpec
       .set(WORKFLOW_USER_ACCESS.PRIVILEGE, PrivilegeEnum.READ)
       .execute()
 
+  /** Seeds an extra user. Uids stay within `testUserId + 10` so `cleanupTestData` reclaims
+    * them, which keeps a case free to reuse a uid a previous case seeded.
+    */
+  private def insertUser(uid: Int, email: String): User = {
+    val u = new User
+    u.setUid(uid)
+    u.setName(s"user-$uid")
+    u.setEmail(email)
+    userDao.insert(u)
+    u
+  }
+
+  /** Points the test workflow's `scanA` at a non-downloadable dataset owned by `ownerEmail`,
+    * with `downstreamB` fed from it so the BFS propagation is observable too.
+    */
+  private def seedNonDownloadableWorkflow(ownerUid: Int, ownerEmail: String): Unit = {
+    insertUser(ownerUid, ownerEmail)
+
+    val dataset = new Dataset
+    dataset.setOwnerUid(ownerUid)
+    dataset.setName("LockedDS")
+    dataset.setRepositoryName("repo-locked-" + UUID.randomUUID().toString.substring(0, 8))
+    dataset.setIsPublic(false)
+    dataset.setIsDownloadable(false)
+    dataset.setDescription("")
+    dataset.setCreationTime(new Timestamp(System.currentTimeMillis()))
+    datasetDao.insert(dataset)
+
+    testWorkflow.setContent(
+      s"""{
+         |  "operators": [
+         |    {"operatorID": "scanA", "operatorProperties": {"fileName": "/dataset/$ownerEmail/LockedDS/v1/data.csv"}},
+         |    {"operatorID": "downstreamB", "operatorProperties": {}}
+         |  ],
+         |  "links": [
+         |    {"source": {"operatorID": "scanA"}, "target": {"operatorID": "downstreamB"}}
+         |  ]
+         |}""".stripMargin
+    )
+    workflowDao.update(testWorkflow)
+  }
+
+  private def grantComputingUnitAccess(cuid: Integer, uid: Integer = testUserId): Unit =
+    getDSLContext
+      .insertInto(COMPUTING_UNIT_USER_ACCESS)
+      .set(COMPUTING_UNIT_USER_ACCESS.CUID, cuid)
+      .set(COMPUTING_UNIT_USER_ACCESS.UID, uid)
+      .set(COMPUTING_UNIT_USER_ACCESS.PRIVILEGE, PrivilegeEnum.READ)
+      .execute()
+
   private def userWithoutAccess(): User = {
     val u = new User
     u.setUid(testUserId + 5000)
@@ -1571,9 +1623,12 @@ class WorkflowExecutionsResourceSpec
   // every result download, and a one-sided test cannot see a removal.
   it should "let every allowed role past the role gate" in {
     grantReadAccess()
+    val unit = insertComputingUnit()
     Seq(UserRoleEnum.REGULAR, UserRoleEnum.ADMIN).foreach { role =>
       val response = resource.exportResultToLocal(
-        Json.stringify(Json.toJson(exportRequest(List(OperatorExportInfo("op-1", "csv")), 0))),
+        Json.stringify(
+          Json.toJson(exportRequest(List(OperatorExportInfo("op-1", "csv")), unit.getCuid))
+        ),
         tokenFor(role)
       )
       assert(
@@ -1633,10 +1688,14 @@ class WorkflowExecutionsResourceSpec
 
   it should "report a missing execution for a single-operator request as a 500 JSON error" in {
     // One operator takes the streaming branch instead, whose "no execution" outcome is
-    // reported through the JSON error body rather than as an escaping exception.
+    // reported through the JSON error body rather than as an escaping exception. The unit is
+    // real and the caller owns it, so the request clears authorization and fails on the lookup.
     grantReadAccess()
+    val unit = insertComputingUnit()
     val response = resource.exportResultToLocal(
-      Json.stringify(Json.toJson(exportRequest(List(OperatorExportInfo("op-1", "csv")), 0))),
+      Json.stringify(
+        Json.toJson(exportRequest(List(OperatorExportInfo("op-1", "csv")), unit.getCuid))
+      ),
       tokenFor(UserRoleEnum.REGULAR)
     )
     assert(response.getStatus == 500)
@@ -1666,6 +1725,113 @@ class WorkflowExecutionsResourceSpec
     // without consulting workflow access at all.
     val response = resource.exportResultToDataset(exportRequest(Nil, 0), session(testUser))
     assert(response.getStatus == Response.Status.UNAUTHORIZED.getStatusCode)
+  }
+
+  // ─── export authorization beyond workflow read access ─────────────────────
+  // Read access to the workflow is not the whole gate: the execution is looked up by
+  // (wid, cuid), and an operator's results can carry data out of a dataset its owner
+  // marked non-downloadable. Both endpoints answer those two with a 403 — not the 401
+  // above, which the frontend's interceptor reads as an expired session.
+
+  private val computingUnitDenied = "No sufficient access privilege to the computing unit."
+
+  "export authorization" should "deny a download for a computing unit the caller cannot reach" in {
+    grantReadAccess()
+    val foreignUnit = insertComputingUnit(insertUser(testUserId + 2, "cu-owner@example.com").getUid)
+    insertExecution(cuid = foreignUnit.getCuid)
+
+    val response = resource.exportResultToLocal(
+      Json.stringify(
+        Json.toJson(exportRequest(List(OperatorExportInfo("op-1", "csv")), foreignUnit.getCuid))
+      ),
+      tokenFor(UserRoleEnum.REGULAR)
+    )
+    assert(response.getStatus == Response.Status.FORBIDDEN.getStatusCode)
+    assert(errorOf(response) == computingUnitDenied)
+  }
+
+  it should "deny an export to dataset for a computing unit the caller cannot reach" in {
+    grantReadAccess()
+    val foreignUnit = insertComputingUnit(insertUser(testUserId + 2, "cu-owner@example.com").getUid)
+    insertExecution(cuid = foreignUnit.getCuid)
+
+    val response = resource.exportResultToDataset(
+      exportRequest(List(OperatorExportInfo("op-1", "csv")), foreignUnit.getCuid),
+      session(testUser)
+    )
+    assert(response.getStatus == Response.Status.FORBIDDEN.getStatusCode)
+    assert(errorOf(response) == computingUnitDenied)
+  }
+
+  // Shared access, not ownership, is the predicate: a unit someone else owns but granted
+  // the caller READ on has to still export, or the check would break every shared unit.
+  it should "allow a download for a computing unit shared with the caller" in {
+    grantReadAccess()
+    val foreignUnit = insertComputingUnit(insertUser(testUserId + 2, "cu-owner@example.com").getUid)
+    grantComputingUnitAccess(foreignUnit.getCuid)
+    insertExecution(cuid = foreignUnit.getCuid)
+
+    val response = resource.exportResultToLocal(
+      Json.stringify(
+        Json.toJson(
+          exportRequest(
+            List(OperatorExportInfo("op-1", "csv"), OperatorExportInfo("op-2", "csv")),
+            foreignUnit.getCuid
+          )
+        )
+      ),
+      tokenFor(UserRoleEnum.REGULAR)
+    )
+    assert(response.getStatus == 200)
+  }
+
+  it should "deny a download of an operator fed by a non-downloadable dataset" in {
+    grantReadAccess()
+    val unit = insertComputingUnit()
+    insertExecution(cuid = unit.getCuid)
+    seedNonDownloadableWorkflow(testUserId + 3, "locked-owner@example.com")
+
+    // The downstream operator, not the scan itself: the restriction propagates along the
+    // links, and the data reaching downstreamB came out of the locked dataset.
+    val response = resource.exportResultToLocal(
+      Json.stringify(
+        Json.toJson(exportRequest(List(OperatorExportInfo("downstreamB", "csv")), unit.getCuid))
+      ),
+      tokenFor(UserRoleEnum.REGULAR)
+    )
+    assert(response.getStatus == Response.Status.FORBIDDEN.getStatusCode)
+    assert(errorOf(response).contains("LockedDS (locked-owner@example.com)"))
+  }
+
+  it should "deny an export to dataset of an operator fed by a non-downloadable dataset" in {
+    grantReadAccess()
+    val unit = insertComputingUnit()
+    insertExecution(cuid = unit.getCuid)
+    seedNonDownloadableWorkflow(testUserId + 3, "locked-owner@example.com")
+
+    val response = resource.exportResultToDataset(
+      exportRequest(List(OperatorExportInfo("scanA", "csv")), unit.getCuid),
+      session(testUser)
+    )
+    assert(response.getStatus == Response.Status.FORBIDDEN.getStatusCode)
+    assert(errorOf(response).contains("LockedDS (locked-owner@example.com)"))
+  }
+
+  // Only the operators carrying the restricted data are blocked; one restriction in the
+  // workflow must not close the whole workflow down.
+  it should "let an unrestricted operator of a restricted workflow through" in {
+    grantReadAccess()
+    val unit = insertComputingUnit()
+    insertExecution(cuid = unit.getCuid)
+    seedNonDownloadableWorkflow(testUserId + 3, "locked-owner@example.com")
+
+    val response = resource.exportResultToLocal(
+      Json.stringify(
+        Json.toJson(exportRequest(List(OperatorExportInfo("op-1", "csv")), unit.getCuid))
+      ),
+      tokenFor(UserRoleEnum.REGULAR)
+    )
+    assert(response.getStatus != Response.Status.FORBIDDEN.getStatusCode)
   }
 
 }
