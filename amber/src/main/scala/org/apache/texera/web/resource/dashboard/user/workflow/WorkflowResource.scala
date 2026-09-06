@@ -848,6 +848,9 @@ class WorkflowResource extends LazyLogging {
   @Path("/type/{wid}")
   def getWorkflowType(@PathParam("wid") wid: Integer): String = {
     val workflow: Workflow = workflowDao.fetchOneByWid(wid)
+    if (workflow == null) {
+      throw new NotFoundException(s"Workflow with id $wid not found")
+    }
     if (workflow.getIsPublic) {
       "Public"
     } else {
