@@ -79,7 +79,7 @@ class Table(pandas.DataFrame):
         if isinstance(other, Table):
             return all(a == b for a, b in zip(self.as_tuples(), other.as_tuples()))
         else:
-            return super().__eq__(other).all()
+            return bool(super().__eq__(other).all(axis=None))
 
 
 def all_output_to_tuple(output) -> Iterator[Tuple]:
