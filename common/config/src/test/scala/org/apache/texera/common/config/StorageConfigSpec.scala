@@ -73,4 +73,12 @@ class StorageConfigSpec extends AnyFlatSpec with Matchers {
       StorageConfig.jupyterPublicURL shouldBe StorageConfig.jupyterInternalURL
     }
   }
+
+  it should "default the token secret to empty so a deployment must set it deliberately" in {
+    // Per-user tokens are derived from this key, so it has no safe default: an empty
+    // value must be caught at start-up rather than silently deriving from nothing.
+    if (sys.env.get("JUPYTER_TOKEN_SECRET").isEmpty) {
+      StorageConfig.jupyterTokenSecret shouldBe ""
+    }
+  }
 }

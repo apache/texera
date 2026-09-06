@@ -1,0 +1,397 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+/* Colours are Texera's own: ng-zorro blue and the #d9d9d9 / #f0f0f0 neutrals. */
+$blue: #1890ff;
+$text: rgba(0, 0, 0, 0.85);
+$text-2: rgba(0, 0, 0, 0.45);
+$divider: #f0f0f0;
+$border: #d9d9d9;
+$shell: #fafafa;
+
+:host {
+  display: block;
+  background: #fff;
+  color: $text;
+  overflow-y: auto;
+  height: 100%;
+}
+
+/* Measured against the operator canvas's #menu-user so the two rows are the same row:
+   36px tall, a 1px rule underneath, full bleed across the content area. Anything the
+   view switch needs to line up with lives here, not in the padded column below. */
+.pc-topbar {
+  height: 36px;
+  margin: 1px;
+  border-bottom: 1px solid #cacaca;
+  display: flex;
+  align-items: center;
+  // Pinned to the top so the Canvas / Form view switch (and the workflow name) stay
+  // reachable while scrolling the preview/results below.
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: #fff;
+
+  /* Trims the difference between this row's right edge and the operator canvas's, so
+     the switch and the user icon land on the same x in both views. */
+  padding-right: 10px;
+
+  /* The operator canvas pins its avatar to the top of the row with a 1px nudge rather
+     than centring it; copying that is what puts the two on the same pixel. */
+  .wid {
+    flex: none;
+    margin-left: 3px;
+    align-self: flex-start;
+    margin-top: 1px;
+  }
+
+  /* The operator canvas puts 0 gap between its avatar and name, which carries its own
+     padding; matching that is what lines the two titles up. */
+  gap: 0;
+
+  /* An input, not a label: the workflow can be renamed from either view. Every value here is
+     the operator canvas's .workflow-name, so the two title rows read as the same row --
+     content-box sizing with the same padding, no border, chromeless until you reach for it,
+     and a width set from the text by the same measure-in-a-span trick. */
+  .wf-name {
+    min-width: 100px;
+    max-width: 800px;
+    font-size: 18px;
+    font-weight: 400;
+    padding: 2px 8px;
+    border: none;
+    box-sizing: content-box;
+    background: none;
+    color: $text;
+    outline: none;
+
+    &:hover {
+      background: $shell;
+    }
+  }
+
+  /* Immediately after the name, in the body colour and size of ordinary text, exactly as on
+     the operator canvas; the name field's own padding makes the gap. */
+  .saved-state {
+    color: $text;
+    white-space: nowrap;
+  }
+
+  .topbar-spacer {
+    flex: 1;
+  }
+
+  /* Sized by its own content, exactly as on the operator canvas -- reserving a fixed
+     width here pushed the switch 74px further left than its counterpart. */
+  texera-user-icon {
+    flex: none;
+  }
+}
+
+/* One workflow, two ways of working on it. Rendered identically in the operator canvas
+   and the Form View, in the same slot of the same title row, so the control never moves
+   when the view does -- that stillness is what makes the two read as two views of one
+   thing rather than two pages.
+
+   Deliberately quiet: the indicator is a rule sitting on the row's own bottom border,
+   not a filled button. This is secondary navigation and it shares a screen with Run,
+   which is the one thing here that should be solid blue. The current view is inert --
+   clicking the view you are already in should do nothing. */
+.view-switch {
+  display: inline-flex;
+  align-self: stretch;
+  align-items: stretch;
+  flex: none;
+  gap: 20px;
+  margin-right: 20px;
+
+  button {
+    appearance: none;
+    border: 0;
+    background: none;
+    cursor: pointer;
+    font: inherit;
+    font-size: 13px;
+    color: rgba(0, 0, 0, 0.45);
+    padding: 0;
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    white-space: nowrap;
+    transition: color 0.15s;
+
+    /* Sits on the row's bottom rule, so the two read as tabs of the row rather than
+       as a widget dropped into it. */
+    &::after {
+      content: "";
+      position: absolute;
+      left: -2px;
+      right: -2px;
+      bottom: -1px;
+      height: 2px;
+      background: transparent;
+      transition: background 0.15s;
+    }
+
+    &:hover:not(.on) {
+      color: rgba(0, 0, 0, 0.85);
+    }
+  }
+
+  button.on {
+    color: rgba(0, 0, 0, 0.85);
+    font-weight: 500;
+    cursor: default;
+
+    &::after {
+      background: $blue;
+    }
+  }
+}
+
+.pc-page {
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 22px 24px 80px;
+}
+
+.pc-rule {
+  height: 1px;
+  background: $divider;
+  margin: 20px 0 24px;
+}
+
+.pc-loading {
+  color: $text-2;
+  padding: 40px 0;
+}
+
+/* A section of the page: the inputs and the workflow preview here, results in later PRs. */
+.card {
+  border: 1px solid $border;
+  border-radius: 8px;
+  background: #fff;
+}
+
+/* ---------- inputs ---------- */
+
+.pc-section-head {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.label {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: $text-2;
+}
+
+.empty {
+  padding: 28px;
+  text-align: center;
+  color: $text-2;
+  border: 1px dashed $border;
+  border-radius: 8px;
+}
+
+.params {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.param {
+  padding: 16px 18px;
+
+  /* A read-only viewer sees the values but cannot change them. The bound controls are already
+     disabled through props.disabled; this blocks every other interactive element a custom widget
+     draws of its own -- a file picker's Browse button, an uploader, a picker's dropdown -- which
+     do not consult the form's disabled state. */
+  &.read-only {
+    pointer-events: none;
+  }
+
+  /* The author's one line of guidance under an input, when they wrote one. */
+  .param-help-text {
+    margin: 8px 0 0;
+    color: $text-2;
+    font-size: 13px;
+  }
+
+  /* The operator's property editor lays its fields out for a narrow docked panel: a fixed label
+     column on the left, controls squeezed into what is left. Dropped into a full-width card that
+     reads as a third of a form floating in an empty page. Here the label sits above its control
+     and both run the width of the card. formly's own structural elements are inline by default,
+     so each field shrank to its content until they are told to fill first. */
+  .param-form,
+  ::ng-deep formly-form,
+  ::ng-deep formly-field,
+  ::ng-deep formly-group,
+  ::ng-deep formly-wrapper-nz-form-field,
+  ::ng-deep formly-field-nz-input,
+  ::ng-deep nz-form-item,
+  ::ng-deep nz-form-control {
+    display: block;
+    width: 100%;
+    max-width: none;
+  }
+
+  ::ng-deep .ant-form-item {
+    margin-bottom: 0;
+    width: 100%;
+  }
+
+  ::ng-deep .ant-form-item-row,
+  ::ng-deep nz-form-item > .ant-row {
+    display: block;
+  }
+
+  ::ng-deep .ant-form-item-label {
+    width: auto !important;
+    max-width: none !important;
+    flex: none !important;
+    text-align: left !important;
+    padding: 0 0 2px !important;
+    line-height: 1.5;
+
+    > label {
+      height: auto;
+      font-size: 13px;
+      color: $text;
+
+      &::after {
+        display: none;
+      }
+    }
+  }
+
+  ::ng-deep .ant-form-item-control {
+    width: 100% !important;
+    max-width: none !important;
+    flex: 1 1 auto !important;
+  }
+
+  /* Inputs, selects and the file picker all stretch instead of sitting at their default widths
+     against a wall of white. */
+  ::ng-deep .ant-form-item-control-input-content > input,
+  ::ng-deep .ant-form-item-control-input-content > textarea,
+  ::ng-deep .ant-form-item-control-input-content > nz-select,
+  ::ng-deep .ant-input,
+  ::ng-deep .ant-input-number,
+  ::ng-deep .ant-select {
+    width: 100%;
+  }
+
+  /* The file picker's button sits under its box; give them the same left edge and a little air,
+     rather than the button hugging the input. */
+  ::ng-deep texera-dataset-file-selector button,
+  ::ng-deep .ant-form-item-control-input-content > button {
+    margin-top: 6px;
+  }
+}
+
+/* ---------- workflow preview ---------- */
+
+.wf {
+  margin-top: 28px;
+
+  // A native button so it is keyboard-operable and announces its expanded state, reset to
+  // read as the plain card header it looks like.
+  .wf-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 13px 16px;
+    cursor: pointer;
+    user-select: none;
+    appearance: none;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+
+    .wf-title {
+      display: block;
+      font-size: 15px;
+      font-weight: 600;
+    }
+
+    .wf-sub {
+      display: block;
+      margin-top: 2px;
+      font-size: 13px;
+      color: $text-2;
+    }
+
+    .chev {
+      color: $text-2;
+      transform: rotate(-90deg);
+      transition: transform 0.2s;
+    }
+
+    .spacer {
+      flex: 1;
+    }
+
+    &:focus-visible {
+      outline: 2px solid $blue;
+      outline-offset: -2px;
+    }
+  }
+
+  &.open .wf-bar .chev {
+    transform: rotate(0deg);
+  }
+
+  .wf-body {
+    position: relative;
+    border-top: 1px solid $divider;
+    height: 380px;
+    resize: vertical;
+    overflow: hidden;
+    background: #f7f8f9;
+
+    texera-workflow-editor {
+      display: block;
+      height: 100%;
+      width: 100%;
+    }
+
+    // The canvas mini-map, parked in the corner for navigating a large graph. Reused as-is at
+    // its natural 300x200 (as the workspace/Hub do) -- no size override, so the whole graph
+    // shows instead of being clipped behind the toolbar. No overflow:hidden either: the inner
+    // #mini-map-container already clips the paper, and clipping here would hide the collapsed
+    // mini-map's own re-open button, so it could never be brought back.
+    .box {
+      position: absolute;
+      right: 10px;
+      bottom: 10px;
+      border: 1px solid $divider;
+      border-radius: 6px;
+      background: #fff;
+    }
+  }
+}

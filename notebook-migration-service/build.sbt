@@ -82,5 +82,6 @@ libraryDependencies ++= Seq(
 libraryDependencies ++= Seq(
   "io.dropwizard" % "dropwizard-core" % dropwizardVersion,
   "io.dropwizard" % "dropwizard-auth" % dropwizardVersion, // Dropwizard Authentication module
-  "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.18.8"
+  "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.18.8",
+  "io.fabric8" % "kubernetes-client" % "6.12.1" // Provisions per-user JupyterLab pods
 )

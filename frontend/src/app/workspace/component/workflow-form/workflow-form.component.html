@@ -1,0 +1,145 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+
+<!-- The operator canvas's title row, rebuilt here to the same measurements: same
+     height, same rule underneath, same full-bleed width, and the view switch pinned to
+     the same right inset ahead of the same user icon. The content below is padded and
+     centred, which is why the switch cannot live down there -- it would stop at the
+     column edge and never line up with the other view. -->
+<div class="pc-topbar">
+  <nz-avatar
+    *ngIf="wid"
+    class="wid"
+    [nzText]="wid.toString()"></nz-avatar>
+  <!-- An input, not a label: the workflow can be renamed from either view, with the same
+       control in the same place. -->
+  <input
+    class="wf-name"
+    [(ngModel)]="workflowName"
+    (change)="onRenameWorkflow()"
+    placeholder="Untitled workflow" />
+  <!-- Editing here writes to the same workflow, so it earns the same reassurance the
+       operator canvas gives: the moment it was last saved. -->
+  <span class="saved-state">{{ autoSaveState }}</span>
+  <span class="topbar-spacer"></span>
+  <div class="view-switch">
+    <button
+      type="button"
+      aria-pressed="false"
+      (click)="openRegularCanvas()">
+      Canvas
+    </button>
+    <button
+      type="button"
+      class="on"
+      aria-pressed="true">
+      Form View
+    </button>
+  </div>
+  <!-- Live collaborators, the same avatars the operator canvas shows -- Form view is just
+       another view of the same shared workflow, so co-editors belong here too. -->
+  <ng-container *ngFor="let user of coeditorPresenceService.coeditors">
+    <texera-coeditor-user-icon [coeditor]="user"></texera-coeditor-user-icon>
+  </ng-container>
+  <texera-user-icon></texera-user-icon>
+</div>
+
+<div class="pc-page">
+  <div class="pc-rule"></div>
+
+  <div
+    *ngIf="loading"
+    class="pc-loading">
+    Loading…
+  </div>
+
+  <div [hidden]="loading">
+    <!-- The inputs an author exposed, each rendered as its operator's own field. -->
+    <div class="pc-section-head">
+      <span class="label">Inputs</span>
+    </div>
+
+    <div
+      class="empty"
+      *ngIf="visibleFields.length === 0">
+      This workflow has no inputs to fill in.
+    </div>
+
+    <div class="params">
+      <section
+        class="card param"
+        [class.read-only]="!canEdit"
+        *ngFor="let r of rendered; trackBy: trackByRendered">
+        <!-- The operator's own field, so a file property gets the real file picker and an
+             attribute property a column dropdown. -->
+        <form
+          [formGroup]="r.form"
+          class="param-form">
+          <formly-form
+            [model]="r.model"
+            [fields]="r.fields"
+            [form]="r.form"></formly-form>
+        </form>
+
+        <!-- The one line of guidance a reader gets, when the author wrote one. The operator
+             schema's own field descriptions are dropped (author notes, not reader guidance), so
+             this is the only help text under an input. -->
+        <p
+          *ngIf="r.resolved.binding.helpText"
+          class="param-help-text">
+          {{ r.resolved.binding.helpText }}
+        </p>
+      </section>
+    </div>
+
+    <!-- The workflow, out of the way unless the reader goes looking. Running and results are added
+         on top of this by the following PRs. -->
+    <section
+      class="card wf"
+      [class.open]="workflowOpen">
+      <button
+        type="button"
+        class="wf-bar"
+        [attr.aria-expanded]="workflowOpen"
+        (click)="toggleWorkflow()">
+        <i
+          nz-icon
+          nzType="down"
+          class="chev"
+          aria-hidden="true"></i>
+        <span class="wf-titles">
+          <span class="wf-title">Workflow</span>
+          <span class="wf-sub">Optional. The steps that will run.</span>
+        </span>
+        <span class="spacer"></span>
+      </button>
+
+      <div
+        class="wf-body"
+        [hidden]="!workflowOpen">
+        <texera-workflow-editor
+          *ngIf="workflowEverOpened"
+          [structureLocked]="true"></texera-workflow-editor>
+        <texera-mini-map
+          *ngIf="workflowEverOpened"
+          class="box"></texera-mini-map>
+      </div>
+    </section>
+  </div>
+</div>

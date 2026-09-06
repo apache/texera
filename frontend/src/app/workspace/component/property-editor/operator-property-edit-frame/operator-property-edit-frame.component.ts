@@ -18,6 +18,8 @@
  */
 
 import { ChangeDetectorRef, Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges } from "@angular/core";
+import { ExposePropertyWrapperComponent } from "../../../../common/formly/expose-property-wrapper/expose-property-wrapper.component";
+import { FormBindingService } from "../../../service/form-binding/form-binding.service";
 import { ExecuteWorkflowService } from "../../../service/execute-workflow/execute-workflow.service";
 import { WorkflowStatusService } from "../../../service/workflow-status/workflow-status.service";
 import { Subject } from "rxjs";
@@ -36,6 +38,7 @@ import {
   hideTypes,
 } from "../../../types/custom-json-schema.interface";
 import { isDefined } from "../../../../common/util/predicate";
+import { customFormlyFieldType, NON_FORM_FIELD_TYPES } from "../../../util/custom-formly-type";
 import { ExecutionState, OperatorState, OperatorStatistics } from "src/app/workspace/types/execute-workflow.interface";
 import { DynamicSchemaService } from "../../../service/dynamic-schema/dynamic-schema.service";
 import { WorkflowCompilingService } from "../../../service/compile-workflow/workflow-compiling.service";
@@ -172,6 +175,9 @@ export function conditionalRequiredRules(schema: unknown): Map<string, Condition
 })
 export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, OnDestroy {
   @Input() currentOperatorId?: string;
+  /** True while an author is choosing which properties appear on the Form View; adds a tick
+   *  box beside each. Off, the property editor is unchanged. */
+  @Input() exposeChoosing = false;
 
   currentOperatorSchema?: OperatorSchema;
 
@@ -491,6 +497,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
   }
 
   constructor(
+    private formBindingService: FormBindingService,
     private formlyJsonschema: FormlyJsonschema,
     private workflowActionService: WorkflowActionService,
     public executeWorkflowService: ExecuteWorkflowService,
@@ -899,17 +906,18 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
         };
       }
 
-      // if the title is fileName, then change it to custom autocomplete input template
-      if (mappedField.key === "fileName") {
-        mappedField.type = "inputautocomplete";
-      }
-
-      if (mappedField.key === "huggingFaceModel") {
-        mappedField.type = "huggingface";
-      }
-
-      if (mappedField.key === "modelId" && this.currentOperatorSchema?.operatorType === "HuggingFace") {
-        mappedField.type = "huggingface";
+      // The custom widget this property renders as (file picker, model picker, uploaders, dataset
+      // selector, code box, drag-reorder list). Extracted to customFormlyFieldType so a later view
+      // (the Form View) renders the same control; each field's extra behaviour -- the task-driven
+      // hide rules below, the Projection reorder callback -- stays here.
+      const customType = customFormlyFieldType({
+        key: mappedField.key,
+        operatorType: this.currentOperatorSchema?.operatorType,
+        description: mapSource?.description,
+        currentType: mappedField.type,
+      });
+      if (customType) {
+        mappedField.type = customType;
       }
 
       if (mappedField.key === "task" && this.currentOperatorSchema?.operatorType === "HuggingFace") {
@@ -959,7 +967,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
           return undefined;
         };
         if (hfKey === "imageInput") {
-          mappedField.type = "huggingface-image-upload";
+          // type ("huggingface-image-upload") is set by customFormlyFieldType above
           mappedField.expressions = {
             ...mappedField.expressions,
             hide: (field: FormlyFieldConfig) => {
@@ -991,7 +999,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
           };
         }
         if (hfKey === "audioInput") {
-          mappedField.type = "huggingface-audio-upload";
+          // type ("huggingface-audio-upload") is set by customFormlyFieldType above
           mappedField.expressions = {
             ...mappedField.expressions,
             hide: (field: FormlyFieldConfig) => {
@@ -1102,14 +1110,6 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
         }
       }
 
-      if (mappedField.key === "uiParameters") {
-        mappedField.type = "ui-udf-parameters";
-      }
-
-      if (mappedField.key === "datasetVersionPath") {
-        mappedField.type = "datasetversionselector";
-      }
-
       // Show the required marker for a field the schema requires conditionally,
       // e.g. Sklearn's Text Attribute once Count Vectorizer is on, or Aggregate's
       // attribute for every function but `count`.
@@ -1139,12 +1139,6 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
         };
       }
 
-      // if the title is python script (for Python UDF), then make this field a custom template 'codearea'
-      if (mapSource?.description?.toLowerCase() === "input your code here") {
-        if (mappedField.type) {
-          mappedField.type = "codearea";
-        }
-      }
       // if presetService is ready and operator property allows presets, setup formly field to display presets
       if (
         this.config.env.userPresetEnabled &&
@@ -1175,7 +1169,8 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       // }
 
       if (this.currentOperatorSchema?.operatorType === "Projection" && mappedField.key === "attributes") {
-        mappedField.type = "repeat-section-dnd";
+        // type ("repeat-section-dnd") is set by customFormlyFieldType above; the reorder callback
+        // is the canvas's own and stays here.
         mappedField.props = {
           ...mappedField.props,
           reorder: () => this.onFormChanges(cloneDeep(this.formData)),
@@ -1360,6 +1355,29 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
 
     const schemaProperties = schema.properties;
     const fields = field.fieldGroup;
+
+    // A tick box beside each TOP-LEVEL property only, added over the root field group rather
+    // than inside the per-field map (which runs at every depth and so could not tell a nested
+    // field from a same-named top-level one -- an array-of-objects property would otherwise
+    // sprout boxes on the array, each item and each nested field).
+    if (this.exposeChoosing && this.currentOperatorId && fields) {
+      const operatorId = this.currentOperatorId;
+      for (const topLevelField of fields) {
+        // A property whose control cannot be a form field (the code editor) is not offered for
+        // exposure -- its type was already resolved by customFormlyFieldType when the field was
+        // built, so the shared NON_FORM_FIELD_TYPES set decides it here.
+        const fieldType = topLevelField.type;
+        const isNonFormField = typeof fieldType === "string" && NON_FORM_FIELD_TYPES.has(fieldType);
+        if (typeof topLevelField.key === "string" && !isNonFormField) {
+          const propertyKey = topLevelField.key;
+          ExposePropertyWrapperComponent.decorate(
+            topLevelField,
+            this.formBindingService.isExposed(operatorId, propertyKey),
+            (checked: boolean) => this.formBindingService.setExposed(operatorId, propertyKey, checked)
+          );
+        }
+      }
+    }
 
     // adding custom options, relational N-to-M mapping.
     if (schemaProperties && fields) {
