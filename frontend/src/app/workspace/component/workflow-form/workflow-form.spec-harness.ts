@@ -21,9 +21,27 @@ import { of, Subject } from "rxjs";
 import { vi } from "vitest";
 
 import { DefaultView } from "../../../dashboard/type/workflow-metadata.interface";
+import { ResolvedField } from "../../service/form-binding/form-binding.service";
 
 /** The workflow every test opens by default: a form-default workflow, writable, empty content. */
 export const formViewWorkflow = { name: "scGPT", defaultView: DefaultView.FORM, readonly: false, content: {} };
+
+/** A binding for one operator property, keyed by id (operator "op-1"). */
+export const binding = (id: string, displayName: string) => ({
+  id,
+  operatorID: "op-1",
+  propertyKey: id,
+  displayName,
+});
+
+/** A resolved (non-broken) input, ready to render. Override `binding`/`brokenReason` per test. */
+export const resolved = (id: string, displayName: string, extra: Partial<ResolvedField> = {}): ResolvedField => ({
+  binding: binding(id, displayName),
+  value: "seed",
+  operatorLabel: "Source: Scan",
+  schema: { type: "string" } as any,
+  ...extra,
+});
 
 /**
  * Mocks shared by every workflow-form spec, plus the component factory. Only what the current
@@ -36,6 +54,12 @@ export function setupHarness() {
   const router = { navigate: vi.fn() };
   const workflowChangedStream = new Subject<unknown>();
   const workflowMetaDataChangedStream = new Subject<unknown>();
+  // Compilation reports column names late; the form rebuilds its inputs off this stream.
+  const compilationChanged = new Subject<unknown>();
+  // The operators the graph holds: `hasOperatorIds` gates operatorSchemaFor, `graphOperators`
+  // supplies each operator's type (which picks the custom widget). Tests add to them as needed.
+  const hasOperatorIds = new Set<string>();
+  const graphOperators: any[] = [];
   // The preview centres the embedded graph once it is built; tests assert this fired.
   const triggerCenterEvent = vi.fn();
 
@@ -52,7 +76,38 @@ export function setupHarness() {
     getWorkflowMetadata: () => ({ name: "scGPT", lastModifiedTime: 1767225600000 }),
     setWorkflowName: vi.fn(),
     setWorkflowMetadata: vi.fn(),
-    getTexeraGraph: () => ({ triggerCenterEvent }),
+    getTexeraGraph: () => ({
+      triggerCenterEvent,
+      hasOperator: (id: string) => hasOperatorIds.has(id),
+      getOperator: (id: string) => graphOperators.find(o => o.operatorID === id),
+    }),
+    // Exposing or un-exposing a property announces on this stream; the form re-reads its config.
+    formBindingChanged$: new Subject<unknown>(),
+  };
+  // Resolves the exposed inputs and reads/writes their values. Tests point `resolveFields` at the
+  // inputs they want rendered; `readValue` seeds the write-back guard.
+  const formBindingService = {
+    resolveFields: vi.fn().mockReturnValue([]),
+    readValue: vi.fn().mockReturnValue(undefined),
+    writeValue: vi.fn(),
+  };
+  // A field per property the tests expose. Real formly json-schema conversion is exercised by the
+  // property panel's own spec; here a deterministic map keeps these tests about the component's
+  // own decisions (which field, which widget, the write-back), and drives the `map` callback.
+  const formlyJsonschema = {
+    toFieldConfig: (_schema: any, opts: any) => {
+      const fields = [
+        { key: "n_hvg", props: { label: "N" } },
+        { key: "fileName", props: { label: "File" } },
+        { key: "modelId", props: { label: "Model" } },
+        { key: "datasetVersionPath", props: { label: "Dataset" } },
+      ];
+      return { fieldGroup: opts?.map ? fields.map(opts.map) : fields };
+    },
+  };
+  const dynamicSchemaService = { getDynamicSchema: () => ({ jsonSchema: {} }) };
+  const workflowCompilingService = {
+    getCompilationStateInfoChangedStream: () => compilationChanged.asObservable(),
   };
   const workflowPersistService = {
     retrieveWorkflow: vi.fn().mockReturnValue(of(formViewWorkflow)),
@@ -72,8 +127,9 @@ export function setupHarness() {
   const computingUnitStatusService = { disconnect: vi.fn() };
   const workflowConsoleService = { clearConsoleMessages: vi.fn() };
   // The name field is measured off the host; querySelector returns null so the measuring
-  // (DOM-layout, jsdom has none) short-circuits.
-  const host = { nativeElement: { querySelector: () => null } };
+  // (DOM-layout, jsdom has none) short-circuits. `contains` drives isTypingInTheForm; false by
+  // default so a rebuild is never suppressed, and overridden by the tests that probe typing.
+  const host = { nativeElement: { querySelector: () => null, contains: () => false } };
   const datePipe = { transform: () => "01/01/2026 00:00:00" };
   const config = { env: { formViewEnabled: true } };
 
@@ -92,11 +148,15 @@ export function setupHarness() {
     workflowActionService,
     workflowPersistService,
     operatorMetadataService,
+    formBindingService,
     executeWorkflowService,
     workflowResultService,
     notificationService,
     userService,
+    formlyJsonschema,
     cdr,
+    dynamicSchemaService,
+    workflowCompilingService,
     computingUnitStatusService,
     workflowConsoleService,
     host,
@@ -104,6 +164,9 @@ export function setupHarness() {
     config,
     workflowChangedStream,
     workflowMetaDataChangedStream,
+    compilationChanged,
+    hasOperatorIds,
+    graphOperators,
     triggerCenterEvent,
   };
 }

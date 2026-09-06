@@ -17,13 +17,15 @@
  * under the License.
  */
 
+import { FormControl } from "@angular/forms";
 import { Router } from "@angular/router";
 import { of, throwError } from "rxjs";
 
 import { WorkflowFormComponent } from "./workflow-form.component";
-import { setupHarness, formViewWorkflow } from "./workflow-form.spec-harness";
+import { setupHarness, formViewWorkflow, resolved } from "./workflow-form.spec-harness";
 import { USER_WORKFLOW, USER_WORKSPACE } from "../../../app-routing.constant";
 import { DefaultView } from "../../../dashboard/type/workflow-metadata.interface";
+import { FORM_DEBOUNCE_TIME_MS } from "../../service/execute-workflow/execute-workflow.service";
 
 /**
  * These exercise the page's own decisions -- what a reader is shown, where an ordinary
@@ -38,6 +40,7 @@ describe("WorkflowFormComponent", () => {
   let router: { navigate: ReturnType<typeof vi.fn> };
   let workflowActionService: any;
   let workflowPersistService: any;
+  let formBindingService: any;
 
   const build = (workflow: any) => {
     h.useWorkflow(workflow);
@@ -48,11 +51,15 @@ describe("WorkflowFormComponent", () => {
       h.workflowActionService as any,
       h.workflowPersistService as any,
       h.operatorMetadataService as any,
+      h.formBindingService as any,
       h.executeWorkflowService as any,
       h.workflowResultService as any,
       h.notificationService as any,
       h.userService as any,
+      h.formlyJsonschema as any,
       h.cdr as any,
+      h.dynamicSchemaService as any,
+      h.workflowCompilingService as any,
       h.computingUnitStatusService as any,
       h.workflowConsoleService as any,
       h.host as any,
@@ -67,6 +74,7 @@ describe("WorkflowFormComponent", () => {
     router = h.router;
     workflowActionService = h.workflowActionService;
     workflowPersistService = h.workflowPersistService;
+    formBindingService = h.formBindingService;
   });
 
   describe("who this page is for", () => {
@@ -130,6 +138,15 @@ describe("WorkflowFormComponent", () => {
 
       expect(h.notificationService.error).toHaveBeenCalled();
       expect(router.navigate).toHaveBeenCalledWith([USER_WORKFLOW]);
+    });
+
+    // Write access decides whether a filled-in value writes back and whether the page saves.
+    it("has write access for a writable workflow and none for a read-only one", () => {
+      build(formViewWorkflow).ngOnInit();
+      expect(component.canEdit).toBe(true);
+
+      build({ ...formViewWorkflow, readonly: true }).ngOnInit();
+      expect(component.canEdit).toBe(false);
     });
   });
 
@@ -256,6 +273,17 @@ describe("WorkflowFormComponent", () => {
     it("does not save when persistence is disabled", () => {
       h.userService.isLogin.mockReturnValue(true);
       build(formViewWorkflow).ngOnInit();
+      workflowPersistService.persistWorkflow.mockClear();
+
+      (component as any).save();
+
+      expect(workflowPersistService.persistWorkflow).not.toHaveBeenCalled();
+    });
+
+    it("does not save when the viewer only has read access", () => {
+      h.userService.isLogin.mockReturnValue(true);
+      h.workflowPersistService.isWorkflowPersistEnabled.mockReturnValue(true);
+      build({ ...formViewWorkflow, readonly: true }).ngOnInit();
       workflowPersistService.persistWorkflow.mockClear();
 
       (component as any).save();
@@ -400,6 +428,338 @@ describe("WorkflowFormComponent", () => {
       await frame();
 
       expect(component.workflowEverOpened).toBe(false);
+    });
+  });
+
+  // The heart of this slice: turn each exposed binding into its operator's own formly field, and
+  // write a filled-in value straight back to the operator.
+  describe("the exposed inputs", () => {
+    // Put op-1 on the graph and expose one of its properties, then read the config.
+    const renderOne = (id: string, extra: any = {}) => {
+      h.hasOperatorIds.add("op-1");
+      formBindingService.resolveFields.mockReturnValue([resolved(id, id, extra)]);
+      (component as any).readConfig();
+    };
+
+    it("renders a healthy input as a real formly field keyed by its binding id", () => {
+      build(formViewWorkflow).ngOnInit();
+
+      renderOne("n_hvg");
+
+      expect(component.rendered).toHaveLength(1);
+      expect(component.rendered[0].fields[0].key).toBe(component.rendered[0].resolved.binding.id);
+    });
+
+    it("renders nothing for an input whose operator is no longer on the graph", () => {
+      build(formViewWorkflow).ngOnInit();
+      // op-1 deliberately not added to the graph.
+      formBindingService.resolveFields.mockReturnValue([resolved("n_hvg", "Genes")]);
+
+      (component as any).readConfig();
+
+      expect(component.rendered).toHaveLength(0);
+    });
+
+    it("skips an exposed property that has no matching schema field", () => {
+      build(formViewWorkflow).ngOnInit();
+
+      renderOne("nonesuch");
+
+      expect(component.rendered).toHaveLength(0);
+    });
+
+    it("leaves broken inputs out of what a reader sees", () => {
+      build(formViewWorkflow).ngOnInit();
+      h.hasOperatorIds.add("op-1");
+      formBindingService.resolveFields.mockReturnValue([
+        resolved("n_hvg", "Genes"),
+        resolved("gone", "Gone", { brokenReason: "the step it belonged to was removed" }),
+      ]);
+
+      (component as any).readConfig();
+
+      expect(component.visibleFields).toHaveLength(1);
+      expect(component.rendered).toHaveLength(1);
+    });
+
+    it("gives an exposed property its custom widget instead of a text box", () => {
+      build(formViewWorkflow).ngOnInit();
+
+      renderOne("datasetVersionPath");
+
+      expect(component.rendered[0].fields[0].type).toBe("datasetversionselector");
+    });
+
+    it("uses the operator type to pick a widget (the HuggingFace model picker)", () => {
+      build(formViewWorkflow).ngOnInit();
+      h.graphOperators.push({ operatorID: "op-1", operatorType: "HuggingFace" });
+
+      renderOne("modelId");
+
+      expect(component.rendered[0].fields[0].type).toBe("huggingface");
+    });
+
+    it("renders a file property through its own picker type", () => {
+      build(formViewWorkflow).ngOnInit();
+
+      renderOne("fileName");
+
+      expect(component.rendered[0].fields[0].type).toBe("inputautocomplete");
+    });
+
+    it("seeds the field model with the operator's other properties as read-only context", () => {
+      build(formViewWorkflow).ngOnInit();
+      h.hasOperatorIds.add("op-1");
+      // A HuggingFace operator whose model picker (modelId) needs the sibling `task` to work.
+      h.graphOperators.push({
+        operatorID: "op-1",
+        operatorType: "HuggingFace",
+        operatorProperties: { task: "image-classification", modelId: "seed" },
+      });
+      formBindingService.resolveFields.mockReturnValue([resolved("modelId", "Model")]);
+
+      (component as any).readConfig();
+
+      const card = component.rendered[0];
+      // The sibling context is present (so the widget reads the right task) ...
+      expect(card.model.task).toBe("image-classification");
+      // ... alongside this input's own value, keyed by the binding id, which is what writes back.
+      expect(card.model[card.resolved.binding.id]).toBe("seed");
+    });
+
+    it("prefers the per-instance schema, falling back to the static one when it is unavailable", () => {
+      build(formViewWorkflow).ngOnInit();
+      h.graphOperators.push({ operatorID: "op-1", operatorType: "X" });
+      (component as any).dynamicSchemaService = {
+        getDynamicSchema: () => {
+          throw new Error("no dynamic schema");
+        },
+      };
+      (component as any).operatorMetadataService = {
+        getOperatorSchema: () => ({ jsonSchema: { properties: { n_hvg: {} } } }),
+      };
+
+      renderOne("n_hvg");
+
+      expect(component.rendered).toHaveLength(1);
+    });
+
+    it("renders nothing when neither the per-instance nor the static schema is available", () => {
+      build(formViewWorkflow).ngOnInit();
+      h.graphOperators.push({ operatorID: "op-1", operatorType: "X" });
+      (component as any).dynamicSchemaService = {
+        getDynamicSchema: () => {
+          throw new Error("no dynamic schema");
+        },
+      };
+      (component as any).operatorMetadataService = {
+        getOperatorSchema: () => {
+          throw new Error("no static schema");
+        },
+      };
+
+      renderOne("n_hvg");
+
+      expect(component.rendered).toHaveLength(0);
+    });
+
+    it("identifies a rendered card by its binding id", () => {
+      build(formViewWorkflow);
+
+      const key = component.trackByRendered(0, { resolved: { binding: { id: "b-1" } } } as any);
+
+      expect(key).toBe("b-1");
+    });
+
+    it("locks the inputs for a read-only viewer", () => {
+      build({ ...formViewWorkflow, readonly: true }).ngOnInit();
+
+      renderOne("n_hvg");
+
+      expect(component.canEdit).toBe(false);
+      // The field carries props.disabled, which is what actually disables the control formly builds
+      // (a form.disable() on the still-empty group does not, and does not persist). It cascades to
+      // a nested property's sub-fields.
+      expect((component.rendered[0].fields[0].props as any).disabled).toBe(true);
+    });
+
+    it("writes a dirtied value back to the operator", () => {
+      build(formViewWorkflow).ngOnInit();
+      renderOne("n_hvg");
+      const card = component.rendered[0];
+      const key = card.resolved.binding.id;
+      vi.useFakeTimers();
+
+      card.model[key] = "typed";
+      card.form.addControl(key, new FormControl("typed"));
+      card.form.markAsDirty();
+      vi.advanceTimersByTime(FORM_DEBOUNCE_TIME_MS + 50);
+      vi.useRealTimers();
+
+      expect(formBindingService.writeValue).toHaveBeenCalled();
+    });
+
+    it("ignores an unchanged form emission", () => {
+      build(formViewWorkflow).ngOnInit();
+      formBindingService.readValue.mockReturnValue("seed");
+      renderOne("n_hvg");
+      const card = component.rendered[0];
+      const key = card.resolved.binding.id;
+      vi.useFakeTimers();
+
+      card.model[key] = "seed";
+      card.form.addControl(key, new FormControl("seed"));
+      vi.advanceTimersByTime(FORM_DEBOUNCE_TIME_MS + 50);
+      vi.useRealTimers();
+
+      expect(formBindingService.writeValue).not.toHaveBeenCalled();
+    });
+
+    it("keeps a still-set value when formly emits a blank before an edit", () => {
+      build(formViewWorkflow).ngOnInit();
+      formBindingService.readValue.mockReturnValue("seed");
+      renderOne("n_hvg");
+      const card = component.rendered[0];
+      const key = card.resolved.binding.id;
+      vi.useFakeTimers();
+
+      card.model[key] = "";
+      card.form.addControl(key, new FormControl(""));
+      vi.advanceTimersByTime(FORM_DEBOUNCE_TIME_MS + 50);
+      vi.useRealTimers();
+
+      expect(formBindingService.writeValue).not.toHaveBeenCalled();
+    });
+
+    it("refreshes the card's snapshot after a write-back", () => {
+      build(formViewWorkflow).ngOnInit();
+      renderOne("n_hvg");
+      const card = component.rendered[0];
+      const key = card.resolved.binding.id;
+      // The re-read after a write returns the new value on the same binding.
+      formBindingService.resolveFields.mockReturnValue([resolved("n_hvg", "n_hvg", { value: "typed" })]);
+      vi.useFakeTimers();
+
+      card.model[key] = "typed";
+      card.form.addControl(key, new FormControl("typed"));
+      card.form.markAsDirty();
+      vi.advanceTimersByTime(FORM_DEBOUNCE_TIME_MS + 50);
+      vi.useRealTimers();
+
+      expect(component.rendered[0].resolved.value).toBe("typed");
+    });
+
+    it("leaves the card unchanged when the re-read no longer carries the binding", () => {
+      build(formViewWorkflow).ngOnInit();
+      renderOne("n_hvg");
+      const card = component.rendered[0];
+      const before = card.resolved;
+      const key = card.resolved.binding.id;
+      // The write succeeds, but the following resolve returns nothing for this binding.
+      formBindingService.resolveFields.mockReturnValue([]);
+      vi.useFakeTimers();
+
+      card.model[key] = "typed";
+      card.form.addControl(key, new FormControl("typed"));
+      card.form.markAsDirty();
+      vi.advanceTimersByTime(FORM_DEBOUNCE_TIME_MS + 50);
+      vi.useRealTimers();
+
+      expect(formBindingService.writeValue).toHaveBeenCalled();
+      expect(component.rendered[0].resolved).toBe(before);
+    });
+
+    it("labels an unnamed input by its schema title, not the raw key", () => {
+      build(formViewWorkflow).ngOnInit();
+      h.hasOperatorIds.add("op-1");
+      formBindingService.resolveFields.mockReturnValue([
+        resolved("n_hvg", "", {
+          binding: { id: "b", operatorID: "op-1", propertyKey: "n_hvg", displayName: "" } as any,
+        }),
+      ]);
+
+      (component as any).readConfig();
+
+      // The schema's own title ("N"), not "n_hvg".
+      expect((component.rendered[0].fields[0].props as any).label).toBe("N");
+    });
+  });
+
+  describe("keeping the inputs in step with the workflow", () => {
+    it("rebuilds the inputs when compilation reports a new state", async () => {
+      build(formViewWorkflow).ngOnInit();
+      const rebuild = vi.spyOn(component as any, "readConfig");
+
+      h.compilationChanged.next("Succeeded");
+      await new Promise(r => setTimeout(r, FORM_DEBOUNCE_TIME_MS + 50));
+
+      expect(rebuild).toHaveBeenCalled();
+    });
+
+    it("does not rebuild under the cursor of someone typing", async () => {
+      build(formViewWorkflow).ngOnInit();
+      vi.spyOn(component as any, "isTypingInTheForm").mockReturnValue(true);
+      const rebuild = vi.spyOn(component as any, "readConfig");
+
+      h.compilationChanged.next("Succeeded");
+      await new Promise(r => setTimeout(r, FORM_DEBOUNCE_TIME_MS + 50));
+
+      expect(rebuild).not.toHaveBeenCalled();
+    });
+
+    it("re-reads the config when a property is exposed or un-exposed", () => {
+      build(formViewWorkflow).ngOnInit();
+      const before = formBindingService.resolveFields.mock.calls.length;
+
+      workflowActionService.formBindingChanged$.next(undefined);
+
+      expect(formBindingService.resolveFields.mock.calls.length).toBeGreaterThan(before);
+    });
+
+    // Once #8351 makes this stream fire for a co-editor's change, a rebuild under the cursor would
+    // discard a half-entered value -- so the binding path skips typing, like the compilation path.
+    it("does not re-read the config on a binding change while the reader is typing", () => {
+      build(formViewWorkflow).ngOnInit();
+      vi.spyOn(component as any, "isTypingInTheForm").mockReturnValue(true);
+      const rebuild = vi.spyOn(component as any, "readConfig");
+
+      workflowActionService.formBindingChanged$.next(undefined);
+
+      expect(rebuild).not.toHaveBeenCalled();
+    });
+
+    it("reports typing when a form field inside the page is focused", () => {
+      build(formViewWorkflow).ngOnInit();
+      const input = document.createElement("input");
+      document.body.appendChild(input);
+      (component as any).host = { nativeElement: { contains: () => true, querySelector: () => null } };
+      input.focus();
+
+      expect((component as any).isTypingInTheForm()).toBe(true);
+
+      document.body.removeChild(input);
+    });
+
+    it("reports no typing when the focus is outside the page", () => {
+      build(formViewWorkflow).ngOnInit();
+      (component as any).host = { nativeElement: { contains: () => false, querySelector: () => null } };
+
+      expect((component as any).isTypingInTheForm()).toBe(false);
+    });
+
+    it("reports typing when a content-editable element inside the page is focused", () => {
+      build(formViewWorkflow).ngOnInit();
+      const editable = document.createElement("div");
+      editable.tabIndex = 0;
+      // jsdom does not derive isContentEditable from the attribute; set it directly.
+      Object.defineProperty(editable, "isContentEditable", { value: true });
+      document.body.appendChild(editable);
+      (component as any).host = { nativeElement: { contains: () => true, querySelector: () => null } };
+      editable.focus();
+
+      expect((component as any).isTypingInTheForm()).toBe(true);
+
+      document.body.removeChild(editable);
     });
   });
 });

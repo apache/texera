@@ -183,11 +183,132 @@ $shell: #fafafa;
   padding: 40px 0;
 }
 
-/* A section of the page: the workflow preview here, the inputs and results in later PRs. */
+/* A section of the page: the inputs and the workflow preview here, results in later PRs. */
 .card {
   border: 1px solid $border;
   border-radius: 8px;
   background: #fff;
+}
+
+/* ---------- inputs ---------- */
+
+.pc-section-head {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.label {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: $text-2;
+}
+
+.empty {
+  padding: 28px;
+  text-align: center;
+  color: $text-2;
+  border: 1px dashed $border;
+  border-radius: 8px;
+}
+
+.params {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.param {
+  padding: 16px 18px;
+
+  /* A read-only viewer sees the values but cannot change them. The bound controls are already
+     disabled through props.disabled; this blocks every other interactive element a custom widget
+     draws of its own -- a file picker's Browse button, an uploader, a picker's dropdown -- which
+     do not consult the form's disabled state. */
+  &.read-only {
+    pointer-events: none;
+  }
+
+  /* The author's one line of guidance under an input, when they wrote one. */
+  .param-help-text {
+    margin: 8px 0 0;
+    color: $text-2;
+    font-size: 13px;
+  }
+
+  /* The operator's property editor lays its fields out for a narrow docked panel: a fixed label
+     column on the left, controls squeezed into what is left. Dropped into a full-width card that
+     reads as a third of a form floating in an empty page. Here the label sits above its control
+     and both run the width of the card. formly's own structural elements are inline by default,
+     so each field shrank to its content until they are told to fill first. */
+  .param-form,
+  ::ng-deep formly-form,
+  ::ng-deep formly-field,
+  ::ng-deep formly-group,
+  ::ng-deep formly-wrapper-nz-form-field,
+  ::ng-deep formly-field-nz-input,
+  ::ng-deep nz-form-item,
+  ::ng-deep nz-form-control {
+    display: block;
+    width: 100%;
+    max-width: none;
+  }
+
+  ::ng-deep .ant-form-item {
+    margin-bottom: 0;
+    width: 100%;
+  }
+
+  ::ng-deep .ant-form-item-row,
+  ::ng-deep nz-form-item > .ant-row {
+    display: block;
+  }
+
+  ::ng-deep .ant-form-item-label {
+    width: auto !important;
+    max-width: none !important;
+    flex: none !important;
+    text-align: left !important;
+    padding: 0 0 2px !important;
+    line-height: 1.5;
+
+    > label {
+      height: auto;
+      font-size: 13px;
+      color: $text;
+
+      &::after {
+        display: none;
+      }
+    }
+  }
+
+  ::ng-deep .ant-form-item-control {
+    width: 100% !important;
+    max-width: none !important;
+    flex: 1 1 auto !important;
+  }
+
+  /* Inputs, selects and the file picker all stretch instead of sitting at their default widths
+     against a wall of white. */
+  ::ng-deep .ant-form-item-control-input-content > input,
+  ::ng-deep .ant-form-item-control-input-content > textarea,
+  ::ng-deep .ant-form-item-control-input-content > nz-select,
+  ::ng-deep .ant-input,
+  ::ng-deep .ant-input-number,
+  ::ng-deep .ant-select {
+    width: 100%;
+  }
+
+  /* The file picker's button sits under its box; give them the same left edge and a little air,
+     rather than the button hugging the input. */
+  ::ng-deep texera-dataset-file-selector button,
+  ::ng-deep .ant-form-item-control-input-content > button {
+    margin-top: 6px;
+  }
 }
 
 /* ---------- workflow preview ---------- */

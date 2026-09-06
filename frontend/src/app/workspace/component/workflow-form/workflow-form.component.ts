@@ -19,14 +19,17 @@
 
 import { ChangeDetectorRef, Component, ElementRef, HostListener, OnDestroy, OnInit } from "@angular/core";
 import { CommonModule, DatePipe } from "@angular/common";
-import { FormsModule } from "@angular/forms";
+import { FormGroup, FormsModule, ReactiveFormsModule } from "@angular/forms";
+import { FormlyFieldConfig, FormlyModule } from "@ngx-formly/core";
+import { FormlyJsonschema } from "@ngx-formly/core/json-schema";
 import { ActivatedRoute, Router } from "@angular/router";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NzAvatarModule } from "ng-zorro-antd/avatar";
 import { NzIconModule } from "ng-zorro-antd/icon";
 import { UserIconComponent } from "../../../dashboard/component/user/user-icon/user-icon.component";
-import { forkJoin } from "rxjs";
-import { debounceTime } from "rxjs/operators";
+import { cloneDeep } from "lodash-es";
+import { forkJoin, Subject } from "rxjs";
+import { debounceTime, takeUntil } from "rxjs/operators";
 
 import { USER_WORKFLOW, USER_WORKSPACE } from "../../../app-routing.constant";
 import { Workflow, WorkflowContent } from "../../../common/type/workflow";
@@ -34,8 +37,12 @@ import { ComputingUnitStatusService } from "../../../common/service/computing-un
 import { WorkflowPersistService } from "../../../common/service/workflow-persist/workflow-persist.service";
 import { NotificationService } from "../../../common/service/notification/notification.service";
 import { UserService } from "../../../common/service/user/user.service";
-import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
+import { DynamicSchemaService } from "../../service/dynamic-schema/dynamic-schema.service";
+import { customFormlyFieldType, CANVAS_ONLY_FORMLY_TYPES } from "../../util/custom-formly-type";
+import { WorkflowCompilingService } from "../../service/compile-workflow/workflow-compiling.service";
+import { ExecuteWorkflowService, FORM_DEBOUNCE_TIME_MS } from "../../service/execute-workflow/execute-workflow.service";
 import { OperatorMetadataService } from "../../service/operator-metadata/operator-metadata.service";
+import { FormBindingService, ResolvedField } from "../../service/form-binding/form-binding.service";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { GuiConfigService } from "../../../common/service/gui-config.service";
 import { WorkflowConsoleService } from "../../service/workflow-console/workflow-console.service";
@@ -48,11 +55,24 @@ import { CoeditorPresenceService } from "../../service/workflow-graph/model/coed
 import { SAVE_DEBOUNCE_TIME_IN_MS } from "../workspace.component";
 
 /**
- * The Form View: a second way to use a workflow. On top of the title-bar frame, this PR adds
- * the collapsible read-only workflow preview -- the same workflow editor and mini-map the canvas
- * uses, embedded here with the graph shape locked (its own `structureLocked`), built the first
- * time the reader opens the strip. The inputs, running and results are added by later PRs. A
- * view, not a new object: it opens the same workflow the canvas does.
+ * One rendered input: the resolved binding plus the operator's own formly field for that property.
+ * Building the field from the operator's JSON schema (not guessing from the value) is what gives a
+ * file its picker and an attribute its column dropdown.
+ */
+interface RenderedField {
+  resolved: ResolvedField;
+  fields: FormlyFieldConfig[];
+  form: FormGroup;
+  model: Record<string, unknown>;
+}
+
+/**
+ * The Form View: a second way to use a workflow. On top of the title-bar frame and the collapsible
+ * read-only workflow preview, this PR renders the inputs an author exposed -- each as its
+ * operator's own formly field, so a file property gets the real picker and an attribute a column
+ * dropdown -- and writes a filled-in value straight back to its operator, the same edit the canvas
+ * makes. Nested sub-field overrides, running and results are added by later PRs. A view, not a new
+ * object: it opens the same workflow the canvas does.
  */
 @UntilDestroy()
 @Component({
@@ -62,6 +82,8 @@ import { SAVE_DEBOUNCE_TIME_IN_MS } from "../workspace.component";
   imports: [
     CommonModule,
     FormsModule,
+    ReactiveFormsModule,
+    FormlyModule,
     NzAvatarModule,
     NzIconModule,
     UserIconComponent,
@@ -76,6 +98,14 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
   public loading = true;
   /** "Saved at …", worded and formatted exactly as on the operator canvas. */
   public autoSaveState = "";
+  /** Write access: only then does a filled-in value write back, and only then does the page save. */
+  public canEdit = false;
+
+  /** The exposed inputs, resolved against the live graph, and the formly field built for each. */
+  private parameters: ResolvedField[] = [];
+  public rendered: RenderedField[] = [];
+  /** Torn down and replaced whenever the form is rebuilt, so an old field's write-back stops. */
+  private formsRebuilt = new Subject<void>();
 
   /** The collapsible workflow preview: closed until the reader opens it. */
   public workflowOpen = false;
@@ -101,11 +131,22 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
     private workflowActionService: WorkflowActionService,
     private workflowPersistService: WorkflowPersistService,
     private operatorMetadataService: OperatorMetadataService,
+    private formBindingService: FormBindingService,
     private executeWorkflowService: ExecuteWorkflowService,
     private workflowResultService: WorkflowResultService,
     private notificationService: NotificationService,
     private userService: UserService,
+    private formlyJsonschema: FormlyJsonschema,
     private cdr: ChangeDetectorRef,
+    // Injected for its side effect: it fills its map from the operator-add stream, so it has to
+    // exist before the workflow loads or every operator arrives unregistered and anything asking
+    // for a schema later throws. It also carries the per-instance schema (upstream column names)
+    // that turns an attribute box into a dropdown.
+    private dynamicSchemaService: DynamicSchemaService,
+    // Injected for its side effect: it compiles on graph changes and writes column names into each
+    // operator's dynamic schema. Nothing else on this page injects it, so without this line it
+    // never runs and an attribute input stays a plain text box.
+    private workflowCompilingService: WorkflowCompilingService,
     private computingUnitStatusService: ComputingUnitStatusService,
     private workflowConsoleService: WorkflowConsoleService,
     private host: ElementRef<HTMLElement>,
@@ -121,6 +162,34 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
     }
     this.wid = wid;
     this.load(wid);
+
+    // Attribute boxes become dropdowns only after compilation writes the column enums into each
+    // operator's dynamic schema -- which lands after these cards were built. Rebuild on the
+    // compilation-state stream, a ReplaySubject(1) so a late subscriber (this page reloads fresh
+    // on every Canvas<->Form switch) gets the current state at once. Skip it while someone is
+    // typing, so a rebuild does not throw away a half-entered value under the cursor.
+    this.workflowCompilingService
+      .getCompilationStateInfoChangedStream()
+      .pipe(debounceTime(FORM_DEBOUNCE_TIME_MS), untilDestroyed(this))
+      .subscribe(() => {
+        if (this.isTypingInTheForm()) {
+          return;
+        }
+        this.readConfig();
+      });
+
+    // Exposing or un-exposing a property in the panel changes the definition; the inputs above have
+    // to follow at once, which is the whole point of editing them side by side. Today this fires for
+    // this client's own edits; once #8351 moves formBinding into the shared model it also fires for
+    // a co-editor's -- so, like the compilation path, skip the rebuild while the reader is typing, or
+    // a remote change would throw away a half-entered value under the cursor.
+    this.workflowActionService.formBindingChanged$.pipe(untilDestroyed(this)).subscribe(() => {
+      if (this.isTypingInTheForm()) {
+        return;
+      }
+      this.readConfig();
+      this.cdr.detectChanges();
+    });
   }
 
   private load(wid: number): void {
@@ -146,6 +215,7 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
           // back for any canvas-default workflow.
           this.workflowName = workflow.name;
           this.storedPositions = { ...(workflow.content?.operatorPositions ?? {}) };
+          this.canEdit = !workflow.readonly;
           this.workflowActionService.setNewSharedModel(wid, this.userService.getCurrentUser());
           this.workflowActionService.reloadWorkflow(workflow);
           // The workflow is shown, not edited, from here: dragging operators around or
@@ -153,6 +223,7 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
           this.applyEditability();
           this.refreshSavedState();
           this.later(() => this.adjustWorkflowNameWidth(), 0);
+          this.readConfig();
           this.registerMetadataRefresh();
           this.registerAutoPersist();
           this.loading = false;
@@ -173,6 +244,161 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
    */
   private applyEditability(): void {
     this.workflowActionService.disableWorkflowModification();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Inputs: the exposed properties, rendered as their operators' own fields
+  // ---------------------------------------------------------------------------
+
+  /** Whether the cursor is currently inside one of this page's inputs. */
+  private isTypingInTheForm(): boolean {
+    const active = document.activeElement as HTMLElement | null;
+    if (!active || !this.host.nativeElement.contains(active)) {
+      return false;
+    }
+    return ["INPUT", "TEXTAREA", "SELECT"].includes(active.tagName) || active.isContentEditable;
+  }
+
+  private readConfig(): void {
+    this.parameters = this.formBindingService.resolveFields();
+    this.buildForm();
+  }
+
+  /**
+   * Build the form from the operators' JSON schemas (FormlyJsonschema), keeping the one field per
+   * exposed property. Each input gets its own form keyed by binding id.
+   */
+  private buildForm(): void {
+    this.formsRebuilt.next();
+    this.rendered = this.visibleFields
+      .map(field => this.renderField(field))
+      .filter((r): r is RenderedField => r !== undefined);
+  }
+
+  private renderField(resolved: ResolvedField): RenderedField | undefined {
+    const { binding } = resolved;
+    const schema = this.operatorSchemaFor(binding.operatorID);
+    if (!schema) {
+      return undefined;
+    }
+    const operator = this.workflowActionService.getTexeraGraph().getOperator(binding.operatorID);
+    const operatorType = operator?.operatorType;
+    const full = this.formlyJsonschema.toFieldConfig(cloneDeep(schema) as never, {
+      map: (mapped, source) => {
+        // Render the exact custom widget the operator property panel would (file/model/dataset
+        // pickers, image/audio uploaders, ...), shared via customFormlyFieldType so an exposed
+        // property shows its real control instead of degrading to a text box.
+        const customType = customFormlyFieldType({
+          key: mapped.key,
+          operatorType,
+          description: (source as { description?: string })?.description,
+          currentType: mapped.type,
+        });
+        // Canvas-only widgets (code editor, drag-reorder) do not work here; an older workflow may
+        // already carry one, so leave it to formly's default editable control rather than a widget
+        // that cannot function on a form.
+        if (customType && !CANVAS_ONLY_FORMLY_TYPES.has(customType)) {
+          mapped.type = customType;
+        }
+        return mapped;
+      },
+    });
+    const source = (full.fieldGroup ?? []).find(child => child.key === binding.propertyKey);
+    if (!source) {
+      return undefined;
+    }
+
+    const field = cloneDeep(source);
+    // The schema's own title ("Attributes", "Limit", "File") -- the reader's title when unnamed.
+    // Falls back to this, not the lower-camel key ("fileName"), which would read inconsistently.
+    const schemaLabel = (source.props?.label as string) || binding.propertyKey;
+    field.key = binding.id;
+    field.props = {
+      ...(field.props ?? {}),
+      label: binding.displayName || schemaLabel,
+      // The schema's own description is the operator author's note to whoever wired the operator
+      // up; it is not guidance to a form reader, and formly shows it once per scalar field. Drop it
+      // here so it does not appear unbidden under the input.
+      description: "",
+    };
+
+    const form = new FormGroup({});
+    // Seed the model with the operator's other properties as read-only context, not just this
+    // input's own value: some custom widgets read a sibling to decide what to show -- the
+    // HuggingFace model picker reads `task` to load the right models and label the field. Only
+    // this binding's value is ever written back (see below); the context is never persisted, and
+    // it is cloned so a widget that mutates it cannot reach through to the real operator.
+    const model: Record<string, unknown> = {
+      ...cloneDeep(operator?.operatorProperties ?? {}),
+      [binding.id]: cloneDeep(resolved.value),
+    };
+    if (this.canEdit) {
+      form.valueChanges
+        .pipe(debounceTime(FORM_DEBOUNCE_TIME_MS), takeUntil(this.formsRebuilt), untilDestroyed(this))
+        .subscribe(() => {
+          // Formly emits the schema's empty default while building the control, before any edit;
+          // writing that back silently wiped the operator's real value (both views edit one
+          // workflow). So only accept a dirtied form, or a value that differs from the operator's
+          // without being emptier (some controls set values without marking dirty).
+          const next = model[binding.id];
+          const current = this.formBindingService.readValue(binding.operatorID, binding.propertyKey);
+          const isEmpty = (v: unknown) => v === undefined || v === null || v === "";
+          const unchanged = JSON.stringify(next ?? null) === JSON.stringify(current ?? null);
+          if (unchanged || (!form.dirty && isEmpty(next) && !isEmpty(current))) {
+            return;
+          }
+          // Write straight onto the operator (the same edit the canvas makes) and refresh this
+          // card's snapshot, which the template reads.
+          this.formBindingService.writeValue(binding, next);
+          this.parameters = this.formBindingService.resolveFields();
+          const refreshed = this.parameters.find(p => p.binding.id === binding.id);
+          const card = this.rendered.find(r => r.resolved.binding.id === binding.id);
+          if (refreshed && card) {
+            card.resolved = refreshed;
+          }
+          this.cdr.detectChanges();
+        });
+    } else {
+      // A read-only viewer sees the author's values and can run with them, but cannot change them.
+      // Disable at the field level, not with form.disable(): formly builds its controls into the
+      // form after this, and a FormGroup disabled while still empty does not disable controls added
+      // later (it re-enables itself), so the input stayed editable. props.disabled is what formly
+      // honours, and it cascades to a nested property's sub-fields. No write-back is wired either.
+      field.props = { ...(field.props ?? {}), disabled: true };
+    }
+
+    return { resolved, fields: [field], form, model };
+  }
+
+  private operatorSchemaFor(operatorID: string): object | undefined {
+    const graph = this.workflowActionService.getTexeraGraph();
+    if (!graph.hasOperator(operatorID)) {
+      return undefined;
+    }
+    try {
+      // Prefer the per-instance schema: it carries the upstream column names, so an attribute
+      // picker renders as a dropdown of real columns rather than a text box.
+      return this.dynamicSchemaService.getDynamicSchema(operatorID).jsonSchema;
+    } catch {
+      try {
+        return this.operatorMetadataService.getOperatorSchema(graph.getOperator(operatorID).operatorType).jsonSchema;
+      } catch {
+        return undefined;
+      }
+    }
+  }
+
+  /**
+   * The inputs a reader is offered. Broken bindings (the operator was deleted, or the property key
+   * no longer exists) are left out, since filling one in could not affect a run; the author's view
+   * of them, to repair them, is added by the authoring PR.
+   */
+  public get visibleFields(): ResolvedField[] {
+    return this.parameters.filter(field => !field.brokenReason);
+  }
+
+  public trackByRendered(_: number, rendered: RenderedField): string {
+    return rendered.resolved.binding.id;
   }
 
   /** Open or close the workflow preview; opening it builds the canvas the first time. */
@@ -304,6 +530,12 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
    * stray "Untitled workflow" rows when the page is left before its workflow loaded.
    */
   private save(): void {
+    // A read-only viewer can open and run the form (execution is gated on computing-unit access,
+    // not workflow access) but must never persist: every such save is a guaranteed 403 that would
+    // spam "Could not save" on each debounce. Their inputs are non-editable, so nothing is lost.
+    if (!this.canEdit) {
+      return;
+    }
     if (!this.userService.isLogin() || !this.workflowPersistService.isWorkflowPersistEnabled()) {
       return;
     }
