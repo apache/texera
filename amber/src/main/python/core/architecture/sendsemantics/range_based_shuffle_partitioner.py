@@ -78,6 +78,7 @@ class RangeBasedShufflePartitioner(Partitioner):
             if receiver == to:
                 if len(batch) > 0:
                     yield batch
+                    batch.clear()
                 yield ecm
 
     @overrides
@@ -89,4 +90,5 @@ class RangeBasedShufflePartitioner(Partitioner):
         for receiver, batch in self.receivers:
             if len(batch) > 0:
                 yield receiver, batch
+                batch.clear()
             yield receiver, state

@@ -281,6 +281,7 @@ class TestHashBasedShufflePartitioner:
         ecm = EmbeddedControlMessage()
         a_out = _snapshot(p.flush(p.receivers[0][0], ecm))
         assert a_out == [[_hashable_tuple(k=1)], ecm]
+        assert _snapshot(p.flush(p.receivers[0][0], ecm)) == [ecm]
 
     def test_flush_state_emits_pending_batches_and_state(self):
         p = self._partitioner(batch_size=10)
@@ -293,6 +294,7 @@ class TestHashBasedShufflePartitioner:
         assert (p.receivers[0][0], [_hashable_tuple(k=1)]) in out
         # Each receiver still emits the state record.
         assert sum(1 for r, payload in out if payload is state) == len(p.receivers)
+        assert all(not batch for _, batch in p.receivers)
 
 
 class TestRangeBasedShufflePartitioner:
@@ -364,6 +366,7 @@ class TestRangeBasedShufflePartitioner:
         ecm = EmbeddedControlMessage()
         a_out = _snapshot(partitioner.flush(_worker("A"), ecm))
         assert a_out == [[_tuple(k=2)], ecm]
+        assert _snapshot(partitioner.flush(_worker("A"), ecm)) == [ecm]
         # B is untouched.
         assert partitioner.receivers[1][1] == [_tuple(k=5)]
 
@@ -377,6 +380,7 @@ class TestRangeBasedShufflePartitioner:
         assert (_worker("A"), [_tuple(k=2)]) in out
         # Every receiver still emits the state, even with empty pending batch.
         assert sum(1 for r, payload in out if payload is state) == 3
+        assert all(not batch for _, batch in partitioner.receivers)
 
 
 class TestOneToOnePartitioner:
