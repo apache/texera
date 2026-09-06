@@ -78,7 +78,6 @@ class WorkflowWebsocketResource extends LazyLogging {
 
   @OnMessage
   def myOnMsg(session: Session, message: String): Unit = {
-    val request = objectMapper.readValue(message, classOf[TexeraWebSocketRequest])
     val userOpt = session.getUserProperties.asScala
       .get(classOf[User].getName)
       .map(_.asInstanceOf[User])
@@ -88,6 +87,7 @@ class WorkflowWebsocketResource extends LazyLogging {
     val workflowStateOpt = sessionState.getCurrentWorkflowState
     val executionStateOpt = workflowStateOpt.flatMap(x => Option(x.executionService.getValue))
     try {
+      val request = objectMapper.readValue(message, classOf[TexeraWebSocketRequest])
       request match {
         case heartbeat: HeartBeatRequest =>
           sessionState.send(HeartBeatResponse())
