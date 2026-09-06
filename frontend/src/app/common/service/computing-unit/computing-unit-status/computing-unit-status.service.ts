@@ -229,6 +229,12 @@ export class ComputingUnitStatusService implements OnDestroy {
             return ComputingUnitState.Running;
           case "Pending":
             return ComputingUnitState.Pending;
+          case "Failed":
+            return ComputingUnitState.Failed;
+          case "Unknown":
+            return ComputingUnitState.Unknown;
+          case "Terminating":
+            return ComputingUnitState.Terminating;
           default:
             return ComputingUnitState.Pending;
         }

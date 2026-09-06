@@ -199,10 +199,10 @@ describe("MenuComponent", () => {
       expect(resumeSpy).toHaveBeenCalled();
     });
 
-    it("returns 'Connecting' when a unit exists but the websocket is not connected", () => {
+    it("returns 'Connecting' for a Pending unit when the websocket is not connected", () => {
       component.isWorkflowValid = true;
       component.isWorkflowEmpty = false;
-      component.computingUnitStatus = ComputingUnitState.Running;
+      component.computingUnitStatus = ComputingUnitState.Pending;
       Object.defineProperty(component.workflowWebsocketService, "isConnected", {
         get: () => false,
         configurable: true,
@@ -212,6 +212,66 @@ describe("MenuComponent", () => {
 
       expect(behavior.text).toBe("Connecting");
       expect(behavior.disable).toBe(true);
+    });
+
+    it.each([false, true])(
+      "returns 'Shutting Down' for a Terminating unit when websocket connected is %s",
+      isConnected => {
+        component.isWorkflowValid = true;
+        component.isWorkflowEmpty = false;
+        component.computingUnitStatus = ComputingUnitState.Terminating;
+        component.executionState = ExecutionState.Uninitialized;
+        Object.defineProperty(component.workflowWebsocketService, "isConnected", {
+          get: () => isConnected,
+          configurable: true,
+        });
+        const runSpy = vi.spyOn(component, "runWorkflow");
+
+        const behavior = component.getRunButtonBehavior();
+        behavior.onClick();
+
+        expect(behavior.text).toBe("Shutting Down");
+        expect(behavior.icon).toBe("loading");
+        expect(behavior.disable).toBe(true);
+        expect(runSpy).not.toHaveBeenCalled();
+      }
+    );
+
+    it.each([
+      { valid: false, empty: false, text: "Invalid Workflow", icon: "warning" },
+      { valid: true, empty: true, text: "Empty Workflow", icon: "info-circle" },
+    ])("keeps '$text' precedence while the computing unit is Terminating", ({ valid, empty, text, icon }) => {
+      component.isWorkflowValid = valid;
+      component.isWorkflowEmpty = empty;
+      component.computingUnitStatus = ComputingUnitState.Terminating;
+
+      const behavior = component.getRunButtonBehavior();
+
+      expect(behavior.text).toBe(text);
+      expect(behavior.icon).toBe(icon);
+      expect(behavior.disable).toBe(true);
+    });
+
+    it("returns 'Unit Unavailable' instead of an endless 'Connecting' spinner for a dead unit", () => {
+      // A Failed/Unknown unit can never become connected, so the dead-unit check must come
+      // before the websocket-disconnected branch that would otherwise spin forever.
+      component.isWorkflowValid = true;
+      component.isWorkflowEmpty = false;
+
+      Object.defineProperty(component.workflowWebsocketService, "isConnected", {
+        get: () => false,
+        configurable: true,
+      });
+
+      for (const status of [ComputingUnitState.Failed, ComputingUnitState.Unknown]) {
+        component.computingUnitStatus = status;
+
+        const behavior = component.getRunButtonBehavior();
+
+        expect(behavior.text).toBe("Unit Unavailable");
+        expect(behavior.icon).toBe("warning");
+        expect(behavior.disable).toBe(true);
+      }
     });
 
     /** Puts the component into the valid, connected state the state switch needs. */

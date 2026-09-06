@@ -45,7 +45,7 @@ import {
   memoryPercentage,
   validateName,
   getComputingUnitBadgeColor,
-  getComputingUnitStatusTooltip,
+  getComputingUnitRowTooltip,
   getComputingUnitCpuStatus,
   getComputingUnitMemoryStatus,
   getComputingUnitCpuLimitUnit,
@@ -131,6 +131,8 @@ type PveDraft = {
   ],
 })
 export class ComputingUnitSelectionComponent implements OnInit {
+  readonly getRowTooltip = getComputingUnitRowTooltip;
+
   // variables for creating a virtual environment
   pves: PveDraft[] = [];
   systemPackages: { name: string; version: string }[] = [];
@@ -555,13 +557,6 @@ export class ComputingUnitSelectionComponent implements OnInit {
 
   getMemoryStatus(): "success" | "exception" | "active" | "normal" {
     return getComputingUnitMemoryStatus(this.getMemoryPercentage());
-  }
-
-  /**
-   * Returns a descriptive tooltip for a specific unit's status
-   */
-  getUnitStatusTooltip(unit: DashboardWorkflowComputingUnit): string {
-    return getComputingUnitStatusTooltip(unit);
   }
 
   public async onClickOpenShareAccess(cuid: number): Promise<void> {
