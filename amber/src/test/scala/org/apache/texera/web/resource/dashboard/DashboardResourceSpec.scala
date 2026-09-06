@@ -28,6 +28,8 @@ import org.jooq.{OrderField, SQLDialect}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
+import javax.ws.rs.BadRequestException
+
 /**
   * Covers the connection-free surface of [[DashboardResource]]: the `orderBy`
   * translation and the resource-type dispatch guard.
@@ -128,7 +130,7 @@ class DashboardResourceSpec extends AnyFlatSpec with Matchers {
     // constructQuery / SqlServer, so this is reachable with no database. The
     // exception *type* is the real assertion: if the guard were moved below the
     // query construction, this would surface as a SqlServer failure instead.
-    val thrown = the[IllegalArgumentException] thrownBy DashboardResource.searchAllResources(
+    val thrown = the[BadRequestException] thrownBy DashboardResource.searchAllResources(
       new SessionUser(new User()), // uid stays null; unused on this path
       SearchQueryParams(resourceType = "notAResourceType")
     )
@@ -138,7 +140,7 @@ class DashboardResourceSpec extends AnyFlatSpec with Matchers {
   it should "reject a resourceType that only differs from a valid one by case" in {
     // Guards against someone relaxing the match to be case-insensitive on one
     // side only: "Workflow" is not "workflow" today.
-    val thrown = the[IllegalArgumentException] thrownBy DashboardResource.searchAllResources(
+    val thrown = the[BadRequestException] thrownBy DashboardResource.searchAllResources(
       new SessionUser(new User()),
       SearchQueryParams(resourceType = "Workflow")
     )
