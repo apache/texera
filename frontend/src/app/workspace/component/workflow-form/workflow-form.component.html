@@ -219,6 +219,39 @@
         <texera-mini-map
           *ngIf="workflowEverOpened"
           class="box"></texera-mini-map>
+
+        <!-- Sibling of the panel, not nested inside it: the property editor opens its own stacking
+             context, and a button inside that context paints under its content -- visible but
+             unclickable. As a sibling the close button is simply above. -->
+        <button
+          class="panel-close"
+          *ngIf="selectedOperatorId"
+          type="button"
+          aria-label="Close step details"
+          (click)="closeOperatorPanel()">
+          <i
+            nz-icon
+            nzType="close"
+            aria-hidden="true"></i>
+        </button>
+
+        <!-- A reader can open a step to view its settings, read-only. The panel itself is the
+             scroll container (so a long panel can still be read); the property editor inside carries
+             the `inert` attribute, which blocks pointer AND keyboard AND focus -- so nothing in it
+             can be edited or tabbed into. The graph is modification-disabled too. Turning the panel
+             live for choosing what to expose is the authoring PR.
+             [hidden], not *ngIf: the property editor shows its operator by REACTING to the highlight
+             stream (no initial pull), so it must already be mounted and subscribed when the click
+             highlights a step. Mounting it on selection (*ngIf) subscribes too late, misses that
+             emission, and the panel opens empty. So keep it mounted and just hide it. -->
+        <div
+          class="panel"
+          [hidden]="!selectedOperatorId">
+          <texera-property-editor
+            [exposeChoosing]="false"
+            [persistPlacement]="false"
+            [attr.inert]="''"></texera-property-editor>
+        </div>
       </div>
     </section>
 

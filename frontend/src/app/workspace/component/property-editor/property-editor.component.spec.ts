@@ -81,6 +81,34 @@ describe("PropertyEditorComponent", () => {
     expect(component).toBeTruthy();
   });
 
+  // The Form View mounts this panel with persistPlacement=false. It must not persist the docked
+  // canvas panel's geometry -- it is not that panel, and writing these keys would overwrite the
+  // real one's saved size. (The ngOnInit restore is guarded by the same flag; its canvas path is
+  // exercised by the default fixture above.)
+  it("does not persist the docked panel geometry when persistPlacement is false", () => {
+    component.persistPlacement = false;
+    const setItem = vi.spyOn(Storage.prototype, "setItem");
+
+    component.ngOnDestroy();
+
+    expect(setItem).not.toHaveBeenCalledWith("right-panel-width", expect.anything());
+    expect(setItem).not.toHaveBeenCalledWith("right-panel-style", expect.anything());
+  });
+
+  // The crash this flag fixes: ngOnInit reads #right-container to restore the docked panel's
+  // placement, and that element only exists in the canvas layout. The Form View mounts the panel
+  // with persistPlacement=false, where the element is absent -- reading it there would throw. With
+  // the flag off, ngOnInit must not go near it. Re-run ngOnInit on the existing instance (no second
+  // fixture, which would pollute TestBed) with the flag off and assert the lookup never happens.
+  it("does not read #right-container in ngOnInit when persistPlacement is false", () => {
+    component.persistPlacement = false;
+    const getById = vi.spyOn(document, "getElementById");
+
+    expect(() => component.ngOnInit()).not.toThrow();
+
+    expect(getById).not.toHaveBeenCalledWith("right-container");
+  });
+
   /**
    * test if the property editor correctly receives the operator unhighlight stream
    *  and clears all the operator data, and hide the form.

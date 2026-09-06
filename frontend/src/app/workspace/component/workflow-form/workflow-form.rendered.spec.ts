@@ -18,6 +18,7 @@
  */
 
 import { DatePipe } from "@angular/common";
+import { Component, Input } from "@angular/core";
 import { FormGroup } from "@angular/forms";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { ActivatedRoute, Router } from "@angular/router";
@@ -57,6 +58,7 @@ import { WorkflowConsoleService } from "../../service/workflow-console/workflow-
 import { WorkflowWebsocketService } from "../../service/workflow-websocket/workflow-websocket.service";
 import { ValidationWorkflowService } from "../../service/validation/validation-workflow.service";
 import { ComputingUnitSelectionComponent } from "../power-button/computing-unit-selection.component";
+import { PropertyEditorComponent } from "../property-editor/property-editor.component";
 import { ResultTableFrameComponent } from "../result-panel/result-table-frame/result-table-frame.component";
 import { VisualizationFrameContentComponent } from "../visualization-panel-content/visualization-frame-content.component";
 import { PanelResizeService } from "../../service/workflow-result/panel-resize/panel-resize.service";
@@ -74,6 +76,18 @@ import { GuiConfigService } from "../../../common/service/gui-config.service";
  * name/avatar row, the Canvas switch actually firing, the loading/body swap, and the co-editor
  * row -- which is the review's evidence of the rendered page in place of a screenshot.
  */
+// A stand-in for the always-mounted property panel. The real one is heavy -- its ngOnInit
+// subscribes to the full JointJS highlight-stream set and the panel service -- and it has its
+// own spec. This page only needs the panel present (it lives behind [hidden], not *ngIf, so it
+// is mounted from the start to catch the highlight that opens it), so swap in a stub carrying the
+// two inputs the template binds and nothing else. The swap is on a child of the page, so the
+// page's own template still renders as shipped and stays covered.
+@Component({ selector: "texera-property-editor", template: "", standalone: true })
+class MockPropertyEditorComponent {
+  @Input() exposeChoosing = false;
+  @Input() persistPlacement = true;
+}
+
 describe("WorkflowFormComponent (rendered template)", () => {
   let fixture: ComponentFixture<WorkflowFormComponent>;
   let workflow$: Subject<any>;
@@ -107,6 +121,14 @@ describe("WorkflowFormComponent (rendered template)", () => {
     TestBed.overrideComponent(ResultTableFrameComponent, { set: { template: "" } });
     TestBed.overrideComponent(VisualizationFrameContentComponent, { set: { template: "" } });
     /* eslint-enable no-restricted-syntax */
+    // Swap the real property panel (a heavy child with its own spec) for the stub above. Done by
+    // replacing it in the page's imports rather than blanking its template, because the panel's
+    // trouble is its ngOnInit -- the highlight-stream and panel-service subscriptions -- which a
+    // blanked template still runs; a stub component has neither.
+    TestBed.overrideComponent(WorkflowFormComponent, {
+      remove: { imports: [PropertyEditorComponent] },
+      add: { imports: [MockPropertyEditorComponent] },
+    });
 
     await TestBed.configureTestingModule({
       // forRoot registers the FormlyConfig the form builder needs: the page imports FormlyModule
@@ -135,12 +157,20 @@ describe("WorkflowFormComponent (rendered template)", () => {
             workflowChanged: () => EMPTY,
             workflowMetaDataChanged: () => EMPTY,
             formBindingChanged$: EMPTY,
+            setHighlightingEnabled: vi.fn(),
             getTexeraGraph: () => ({
               triggerCenterEvent: vi.fn(),
               hasOperator: () => false,
               getOperator: () => undefined,
               getAllOperators: () => [],
               getOperatorsToViewResult: () => new Set<string>(),
+              updateSharedModelAwareness: vi.fn(),
+            }),
+            getJointGraphWrapper: () => ({
+              getJointOperatorHighlightStream: () => EMPTY,
+              getJointOperatorUnhighlightStream: () => EMPTY,
+              getCurrentHighlightedOperatorIDs: () => [],
+              unhighlightOperators: vi.fn(),
             }),
           },
         },

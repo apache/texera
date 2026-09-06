@@ -57,6 +57,7 @@ import { WorkflowWebsocketService } from "../../service/workflow-websocket/workf
 import { ExecutionState } from "../../types/execute-workflow.interface";
 import { Point } from "../../types/workflow-common.interface";
 import { ComputingUnitSelectionComponent } from "../power-button/computing-unit-selection.component";
+import { PropertyEditorComponent } from "../property-editor/property-editor.component";
 import { ResultTableFrameComponent } from "../result-panel/result-table-frame/result-table-frame.component";
 import { VisualizationFrameContentComponent } from "../visualization-panel-content/visualization-frame-content.component";
 import { WorkflowEditorComponent } from "../workflow-editor/workflow-editor.component";
@@ -87,8 +88,9 @@ interface RenderedField {
  * button (a reader's simplified Run/Stop, sharing the canvas's disable conditions), the
  * computing-unit selector, a run clock and plain-language failure messages. It then shows the
  * chosen results underneath -- a table, a visualisation, or a compact "no result yet" -- as a
- * display filter that follows the canvas's view-result set and never writes it. Opening a step to
- * inspect it read-only, and the authoring mode that picks what to show, are later PRs. A view, not
+ * display filter that follows the canvas's view-result set and never writes it. A reader can also
+ * click a step on the embedded preview to open its property panel read-only (inert). The authoring
+ * mode that turns that panel live and picks what to show is a later PR. A view, not
  * a new object: it opens the same workflow the canvas does.
  */
 @UntilDestroy()
@@ -107,6 +109,7 @@ interface RenderedField {
     NzTooltipModule,
     UserIconComponent,
     ComputingUnitSelectionComponent,
+    PropertyEditorComponent,
     ResultTableFrameComponent,
     VisualizationFrameContentComponent,
     WorkflowEditorComponent,
@@ -150,6 +153,10 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
    *  disabled ("Invalid" / "Empty") in the same cases. */
   public isWorkflowValid = true;
   public isWorkflowEmpty = false;
+
+  /** The step whose property panel is open for read-only inspection, if any. */
+  public selectedOperatorId?: string;
+  public selectedOperatorLabel = "";
 
   /**
    * Which steps' results to show, as a display filter over the canvas's view-result set: the
@@ -231,7 +238,40 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
     // Give the result tables a realistic height to page against, so they show a screenful of rows
     // instead of one. (~7 rows; the card scrolls for the rest.)
     this.panelResizeService.changePanelSize(900, 560);
+    // Highlighting is off by default; turning it on is what makes a click on a step select it,
+    // which is how a reader opens that step's panel to inspect it (and, later, an author to expose).
+    this.workflowActionService.setHighlightingEnabled(true);
     this.load(wid);
+
+    // Selecting a step on the embedded (read-only) canvas opens its property panel read-only. The
+    // canvas is not editable, but highlighting still works, so reuse it rather than teach the editor
+    // a second click mode.
+    this.workflowActionService
+      .getJointGraphWrapper()
+      .getJointOperatorHighlightStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(ids => {
+        if (ids.length === 1) {
+          this.onOperatorClicked(ids[0]);
+        }
+        // The property panel announces "currently editing this operator" to everyone sharing the
+        // workflow. That is right on the operator canvas; here it made this page's own session show
+        // up as a co-editor -- the user's own name in colour over an operator on the other view.
+        // Nobody co-edits a graph from a form, so this page stays silent on that channel.
+        this.workflowActionService.getTexeraGraph().updateSharedModelAwareness("currentlyEditing", undefined);
+      });
+
+    // Clicking empty canvas clears the highlight; the panel should go with it.
+    this.workflowActionService
+      .getJointGraphWrapper()
+      .getJointOperatorUnhighlightStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
+        if (this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs().length === 0) {
+          this.clearSelection();
+          this.cdr.detectChanges();
+        }
+      });
 
     // A result changing bumps that operator's version (so its chart frame is rebuilt, not reused),
     // re-limits what the form shows to the currently-viewed set, and re-fits the visualisations.
@@ -941,6 +981,36 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
       return false;
     };
     return this.rendered.some(r => hasRequiredError(r.form));
+  }
+
+  // ---------------------------------------------------------------------------
+  // Inspecting a step: its property panel, opened read-only from the preview
+  // ---------------------------------------------------------------------------
+
+  /** Clicking a step opens the workflow's own property panel for it, read-only. */
+  public onOperatorClicked(operatorID: string): void {
+    const graph = this.workflowActionService.getTexeraGraph();
+    if (!graph.hasOperator(operatorID)) {
+      this.clearSelection();
+      return;
+    }
+    this.selectedOperatorId = operatorID;
+    this.selectedOperatorLabel = this.formBindingService.operatorLabel(graph.getOperator(operatorID));
+    this.cdr.detectChanges();
+  }
+
+  /** Dismiss the panel: the selection is what holds it open, so drop the highlight and the selection. */
+  public closeOperatorPanel(): void {
+    const wrapper = this.workflowActionService.getJointGraphWrapper();
+    wrapper.unhighlightOperators(...wrapper.getCurrentHighlightedOperatorIDs());
+    this.clearSelection();
+    this.cdr.detectChanges();
+  }
+
+  /** No operator selected: this is what closes the property panel. */
+  private clearSelection(): void {
+    this.selectedOperatorId = undefined;
+    this.selectedOperatorLabel = "";
   }
 
   /** Open or close the workflow preview; opening it builds the canvas the first time. */

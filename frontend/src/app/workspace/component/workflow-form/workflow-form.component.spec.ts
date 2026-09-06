@@ -1263,4 +1263,89 @@ describe("WorkflowFormComponent", () => {
       expect(component.runError).toBe("Run failed: please check your inputs and try again.");
     });
   });
+
+  describe("inspecting a step read-only", () => {
+    const withOp = () => {
+      h.hasOperatorIds.add("op-1");
+      h.graphOperators.push({ operatorID: "op-1", operatorType: "Filter" });
+    };
+
+    it("turns highlighting on so a click selects a step", () => {
+      build(formViewWorkflow).ngOnInit();
+      expect(workflowActionService.setHighlightingEnabled).toHaveBeenCalledWith(true);
+    });
+
+    it("opens the read-only panel for the clicked step", () => {
+      build(formViewWorkflow).ngOnInit();
+      withOp();
+
+      h.highlightStream.next(["op-1"]);
+
+      expect(component.selectedOperatorId).toBe("op-1");
+      expect(component.selectedOperatorLabel).toBe("Filter");
+    });
+
+    it("stays silent on the shared co-editor channel when a step is selected", () => {
+      build(formViewWorkflow).ngOnInit();
+      withOp();
+
+      h.highlightStream.next(["op-1"]);
+
+      // Nobody co-edits a graph from a form: this session must not show as editing an operator.
+      expect(h.updateSharedModelAwareness).toHaveBeenCalledWith("currentlyEditing", undefined);
+    });
+
+    it("clears the selection when the clicked step is not on the graph", () => {
+      build(formViewWorkflow).ngOnInit();
+      (component as any).selectedOperatorId = "old";
+
+      h.highlightStream.next(["ghost"]);
+
+      expect(component.selectedOperatorId).toBeUndefined();
+    });
+
+    it("closes the panel when the canvas clears its highlight", () => {
+      build(formViewWorkflow).ngOnInit();
+      withOp();
+      h.highlightStream.next(["op-1"]);
+
+      h.unhighlightStream.next([]); // highlightedIds is empty -> nothing highlighted
+
+      expect(component.selectedOperatorId).toBeUndefined();
+    });
+
+    it("keeps the panel while another step is still highlighted", () => {
+      build(formViewWorkflow).ngOnInit();
+      withOp();
+      h.highlightStream.next(["op-1"]);
+      h.highlightedIds.push("op-2"); // something is still highlighted
+
+      h.unhighlightStream.next(["op-1"]);
+
+      expect(component.selectedOperatorId).toBe("op-1");
+    });
+
+    it("dismisses the panel via the close button, dropping the highlight", () => {
+      build(formViewWorkflow).ngOnInit();
+      withOp();
+      h.highlightStream.next(["op-1"]);
+      h.highlightedIds.push("op-1");
+
+      component.closeOperatorPanel();
+
+      expect(h.unhighlightOperators).toHaveBeenCalledWith("op-1");
+      expect(component.selectedOperatorId).toBeUndefined();
+    });
+
+    it("ignores a multi-select highlight (only a single step opens the panel)", () => {
+      build(formViewWorkflow).ngOnInit();
+      withOp();
+
+      h.highlightStream.next(["op-1", "op-2"]);
+
+      expect(component.selectedOperatorId).toBeUndefined();
+      // Still silences the co-editor channel on any highlight change.
+      expect(h.updateSharedModelAwareness).toHaveBeenCalledWith("currentlyEditing", undefined);
+    });
+  });
 });

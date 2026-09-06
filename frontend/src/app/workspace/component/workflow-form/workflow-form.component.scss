@@ -569,6 +569,90 @@ $shell: #fafafa;
   }
 }
 
+/* ---------- inspect a step (read-only property panel over the preview) ---------- */
+
+/* Sibling of the panel, pinned to the same corner and above it (see the html note). */
+.panel-close {
+  position: absolute;
+  top: 18px;
+  right: 20px;
+  z-index: 20;
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: rgba(0, 0, 0, 0.45);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:hover {
+    background: #f5f5f5;
+    color: rgba(0, 0, 0, 0.85);
+  }
+
+  &:focus-visible {
+    outline: 2px solid $blue;
+    outline-offset: 1px;
+  }
+}
+
+/* The property panel floats over the preview so it costs no layout space and the workflow keeps the
+   full width. It is the scroll container (so a long panel is still readable); the property editor
+   inside is `inert`, which is what makes it read-only for pointer AND keyboard. Its own styling is
+   left alone -- it should look exactly like the panel on the operator canvas. */
+.panel {
+  position: absolute;
+  right: 10px;
+  top: 10px;
+  bottom: 10px;
+  width: 300px;
+  z-index: 5;
+  background: #fff;
+  border: 1px solid $border;
+  border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+  overflow: auto;
+  display: flex;
+
+  /* Unpin the editor: on the operator canvas it fixes itself to the window edge, which inside this
+     box would put it off-screen. Here it simply fills the panel. */
+  texera-property-editor {
+    display: block;
+    flex: 1;
+    position: static;
+    overflow: visible;
+  }
+
+  /* The panel's own minimise/reset controls belong to the docked canvas panel; here the panel is
+     embedded and sized by this page, so they would only misbehave. */
+  ::ng-deep #property-buttons,
+  ::ng-deep #docked-buttons {
+    display: none !important;
+  }
+
+  /* The canvas panel can be dragged and resized; inside this preview it is simply the right-hand
+     pane -- fixed, full height, dismissed with its close button or by clicking empty canvas. */
+  ::ng-deep #right-container,
+  ::ng-deep #right-container-legacy {
+    position: static !important;
+    transform: none !important;
+    width: 100% !important;
+    height: 100% !important;
+    max-height: none !important;
+    resize: none !important;
+    box-shadow: none !important;
+    cursor: default !important;
+  }
+
+  ::ng-deep nz-resize-handles,
+  ::ng-deep .nz-resizable-handle {
+    display: none !important;
+  }
+}
+
 /* ---------- results ---------- */
 
 .results {

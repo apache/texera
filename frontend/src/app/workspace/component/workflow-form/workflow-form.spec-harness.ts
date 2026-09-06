@@ -71,6 +71,12 @@ export function setupHarness() {
   const graphOperators: any[] = [];
   // Operators with view-result ("the eye") on in the canvas -- the ONLY ones the form may show.
   const viewResultIds = new Set<string>();
+  // Selecting a step on the embedded canvas drives the read-only inspect panel.
+  const highlightStream = new Subject<readonly string[]>();
+  const unhighlightStream = new Subject<readonly string[]>();
+  const highlightedIds: string[] = [];
+  const unhighlightOperators = vi.fn();
+  const updateSharedModelAwareness = vi.fn();
   // Operators that produced a non-empty result -- drives hasNonEmptyResult in the result mock.
   const anyResultIds = new Set<string>();
   // The preview centres the embedded graph once it is built; tests assert this fired.
@@ -89,12 +95,20 @@ export function setupHarness() {
     getWorkflowMetadata: () => ({ name: "scGPT", lastModifiedTime: 1767225600000 }),
     setWorkflowName: vi.fn(),
     setWorkflowMetadata: vi.fn(),
+    setHighlightingEnabled: vi.fn(),
     getTexeraGraph: () => ({
       triggerCenterEvent,
       hasOperator: (id: string) => hasOperatorIds.has(id),
       getOperator: (id: string) => graphOperators.find(o => o.operatorID === id),
       getAllOperators: () => graphOperators,
       getOperatorsToViewResult: () => new Set(viewResultIds),
+      updateSharedModelAwareness,
+    }),
+    getJointGraphWrapper: () => ({
+      getJointOperatorHighlightStream: () => highlightStream.asObservable(),
+      getJointOperatorUnhighlightStream: () => unhighlightStream.asObservable(),
+      getCurrentHighlightedOperatorIDs: () => highlightedIds,
+      unhighlightOperators,
     }),
     // Exposing or un-exposing a property announces on this stream; the form re-reads its config.
     formBindingChanged$: new Subject<unknown>(),
@@ -275,5 +289,10 @@ export function setupHarness() {
     anyResultIds,
     snapshotById,
     triggerCenterEvent,
+    highlightStream,
+    unhighlightStream,
+    highlightedIds,
+    unhighlightOperators,
+    updateSharedModelAwareness,
   };
 }
