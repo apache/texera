@@ -89,18 +89,24 @@ object HubResource {
   )
 
   /**
-    * Checks if a given user has liked a specific entity.
+    * Checks, for each requested entity, whether the given user has liked it.
     *
     * @param userId The ID of the user.
-    * @param entityId The ID of the entity.
-    * @param entityType The type of entity being checked (must be validated).
-    * @return `true` if the user has liked the entity, otherwise `false`.
+    * @param entityIds The entity IDs. Must have the same length as entityTypes.
+    * @param entityTypes The entity types. Must have the same length as entityIds.
+    * @return The liked status for each entity.
+    * @throws javax.ws.rs.BadRequestException if the lists have different lengths
     */
   def isLikedHelper(
       userId: Integer,
       entityIds: java.util.List[Integer],
       entityTypes: java.util.List[EntityType]
   ): java.util.List[LikedResponse] = {
+    if (entityTypes.size() != entityIds.size())
+      throw new BadRequestException(
+        "'entityType' and 'entityId' query parameter lists must have equal length."
+      )
+
     val reqs: List[UserRequest] =
       entityTypes.asScala
         .zip(entityIds.asScala)
@@ -639,6 +645,7 @@ class HubResource {
     *                     - entityType: the resource type
     *                     - entityId: the resource ID
     *                     - userIds:  the list of user IDs with access to that resource
+    * @throws javax.ws.rs.BadRequestException if the lists have different lengths
     */
   @GET
   @Path("/user-access")
@@ -647,6 +654,11 @@ class HubResource {
       @QueryParam("entityType") entityTypes: java.util.List[EntityType],
       @QueryParam("entityId") entityIds: java.util.List[Integer]
   ): java.util.List[AccessResponse] = {
+    if (entityTypes.size() != entityIds.size())
+      throw new BadRequestException(
+        "'entityType' and 'entityId' query parameter lists must have equal length."
+      )
+
     val reqs =
       entityIds.asScala
         .zip(entityTypes.asScala)

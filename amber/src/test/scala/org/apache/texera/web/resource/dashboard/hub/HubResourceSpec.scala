@@ -667,6 +667,15 @@ class HubResourceSpec
     isLikedHelper(Integer.valueOf(ownerUid), ids(), types()).asScala shouldBe empty
   }
 
+  it should "reject mismatched entity type and id lists" in {
+    intercept[BadRequestException](
+      isLikedHelper(Integer.valueOf(ownerUid), ids(wid, 810000), types(Wf))
+    )
+    intercept[BadRequestException](
+      isLikedHelper(Integer.valueOf(ownerUid), ids(wid), types(Wf, Ds))
+    )
+  }
+
   "isLiked" should "resolve the liked flag against the session user, not another user" in {
     seedWorkflow(810304, "wf_session_like")
     seedWorkflowLike(810304, ownerUid)
@@ -1001,6 +1010,11 @@ class HubResourceSpec
     val response = new HubResource().userAccess(types(Wf), ids(wid)).asScala.head
     response.entityId shouldBe Integer.valueOf(wid)
     response.userIds.asScala should contain(Integer.valueOf(ownerUid))
+  }
+
+  it should "reject mismatched entity type and id lists" in {
+    intercept[BadRequestException](hub.userAccess(types(Wf), ids(wid, 810000)))
+    intercept[BadRequestException](hub.userAccess(types(Wf, Ds), ids(wid)))
   }
 
   it should "return each entity's grantees from that entity's own access table" in {
