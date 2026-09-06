@@ -51,6 +51,9 @@ object DashboardResource {
       hasMismatch: Boolean = false
   )
 
+  private val SearchResultLookahead = 1
+  private[dashboard] val MaxSearchCount = Int.MaxValue - SearchResultLookahead
+
   /*
    The following class describe the available params from the frontend for full text search.
    * @param user       The authenticated user performing the search.
@@ -65,7 +68,7 @@ object DashboardResource {
    * @param operators         A list of operators to include in the search results.
    * @param modelIds          A list of model IDs to include in the search results.
    * @param offset            The number of initial results to skip. This is useful for implementing pagination.
-   * @param count             The maximum number of results to return.
+   * @param count             The maximum number of results to return, from 0 through [[MaxSearchCount]].
    * @param orderBy           The order in which to sort the results. Acceptable values are 'NameAsc', 'NameDesc', 'CreateTimeDesc', and 'EditTimeDesc'.
    */
   case class SearchQueryParams(
@@ -92,6 +95,10 @@ object DashboardResource {
       @BeanParam params: SearchQueryParams,
       includePublic: Boolean = false
   ): DashboardSearchResult = {
+    if (params.offset < 0 || params.count < 0 || params.count > MaxSearchCount)
+      throw new BadRequestException(
+        s"start must be non-negative and count must be between 0 and $MaxSearchCount"
+      )
     val uid = user.getUid
     val query = params.resourceType match {
       case SearchQueryBuilder.WORKFLOW_RESOURCE_TYPE =>
@@ -109,7 +116,10 @@ object DashboardResource {
     }
 
     val finalQuery =
-      query.orderBy(getOrderFields(params): _*).offset(params.offset).limit(params.count + 1)
+      query
+        .orderBy(getOrderFields(params): _*)
+        .offset(params.offset)
+        .limit(params.count + SearchResultLookahead)
     val queryResult = finalQuery.fetch()
 
     val allEntries = queryResult.asScala.toList

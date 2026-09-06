@@ -25,12 +25,13 @@ import org.apache.texera.web.resource.dashboard.DashboardResource.SearchQueryPar
 import org.jooq.impl.{DSL => JDSL}
 import org.jooq.{OrderField, SQLDialect}
 
+import javax.ws.rs.BadRequestException
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 /**
   * Covers the connection-free surface of [[DashboardResource]]: the `orderBy`
-  * translation and the resource-type dispatch guard.
+  * translation, resource-type dispatch, and pagination guard.
   *
   * Breakage this catches:
   *   - a column of the `orderBy` grammar wired to the wrong unified-schema
@@ -42,7 +43,8 @@ import org.scalatest.matchers.should.Matchers
   *   - the regex losing its implicit anchoring (`Regex.unapplySeq` requires a
   *     full match), which would start accepting junk like `SortByNameAsc`;
   *   - an unrecognised `orderBy` no longer degrading to "no ORDER BY", or the
-  *     unknown-resourceType guard no longer throwing before the query is built.
+  *     unknown-resourceType guard no longer throwing before the query is built;
+  *   - invalid pagination reaching the database query.
   *
   * Note on the shared global `FulltextSearchQueryUtils.usePgroonga`: nothing
   * exercised here reads or writes it, so this spec neither depends on its value
@@ -59,6 +61,15 @@ class DashboardResourceSpec extends AnyFlatSpec with Matchers {
 
   private def orderSql(orderBy: String): List[String] =
     DashboardResource.getOrderFields(SearchQueryParams(orderBy = orderBy)).map(sqlOf)
+
+  private def assertInvalidPagination(params: SearchQueryParams): Unit = {
+    val thrown = the[BadRequestException] thrownBy DashboardResource.searchAllResources(
+      new SessionUser(new User()),
+      params
+    )
+    thrown.getMessage shouldBe
+      "start must be non-negative and count must be between 0 and 2147483646"
+  }
 
   // -- getOrderFields: the recognised grammar ---------------------------------
 
@@ -121,9 +132,44 @@ class DashboardResourceSpec extends AnyFlatSpec with Matchers {
   // every one of them maps to a non-null Field, so getColumnField never
   // returns None.
 
-  // -- searchAllResources: the dispatch guard --------------------------------
+  // -- searchAllResources: pagination and dispatch guards --------------------
 
-  "searchAllResources" should "reject an unknown resourceType before it builds any query" in {
+  "searchAllResources" should "reject a negative start" in {
+    assertInvalidPagination(SearchQueryParams(offset = -1))
+  }
+
+  it should "reject a negative count" in {
+    assertInvalidPagination(SearchQueryParams(count = -1))
+  }
+
+  it should "reject a count that overflows the query limit" in {
+    assertInvalidPagination(SearchQueryParams(count = Int.MaxValue))
+  }
+
+  it should "allow the largest valid count" in {
+    // The maximum passes pagination validation, so dispatch must reject the unknown resource type.
+    intercept[IllegalArgumentException](
+      DashboardResource.searchAllResources(
+        new SessionUser(new User()),
+        SearchQueryParams(
+          count = DashboardResource.MaxSearchCount,
+          resourceType = "notAResourceType"
+        )
+      )
+    )
+  }
+
+  it should "allow zero pagination values" in {
+    // Zero passes pagination validation, so dispatch must reject the unknown resource type.
+    intercept[IllegalArgumentException](
+      DashboardResource.searchAllResources(
+        new SessionUser(new User()),
+        SearchQueryParams(offset = 0, count = 0, resourceType = "notAResourceType")
+      )
+    )
+  }
+
+  it should "reject an unknown resourceType before it builds any query" in {
     // The `case _ => throw` arm sits in the dispatch match, ahead of
     // constructQuery / SqlServer, so this is reachable with no database. The
     // exception *type* is the real assertion: if the guard were moved below the
