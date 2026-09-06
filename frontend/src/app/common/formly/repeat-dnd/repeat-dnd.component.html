@@ -21,7 +21,7 @@
   cdkDropList
   (cdkDropListDropped)="onDrop($event)">
   <div
-    *ngFor="let field of field.fieldGroup; let i = index"
+    *ngFor="let row of field.fieldGroup; let i = index"
     cdkDrag
     class="dnd-row">
     <div
@@ -35,7 +35,7 @@
 
     <div class="dnd-field-wrapper">
       <formly-field
-        *ngFor="let subField of field.fieldGroup"
+        *ngFor="let subField of row.fieldGroup"
         class="dnd-field"
         [field]="subField"></formly-field>
     </div>
