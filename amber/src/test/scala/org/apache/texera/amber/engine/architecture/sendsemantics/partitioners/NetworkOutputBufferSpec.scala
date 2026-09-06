@@ -233,54 +233,13 @@ class NetworkOutputBufferSpec extends AnyFlatSpec {
     assert(frames == List(List(tuple(0)), List(tuple(1))))
   }
 
-  // `batchSize <= 0` IS reachable from production today: the
-  // workflow-settings UI restricts the value to `>= 1`, but
-  // `SyncExecutionResource` accepts `request.workflowSettings` directly
-  // from the API and the backend forwards `workflowSettings
-  // .dataTransferBatchSize` into `NetworkOutputBuffer` without
-  // validating it. The reachable path is covered by a characterization
-  // test (current lenient `>=` behavior — flush every tuple) plus a
-  // pendingUntilFixed test pinning the desired hardening (rejection
-  // at construction). When the hardening lands the characterization
-  // test breaks on purpose AND pendingUntilFixed flips into a
-  // deliberate failure forcing both markers to be updated together.
-
   "NetworkOutputBuffer with non-positive batchSize" should
-    "currently flush per-tuple under the `>=` guard (characterization, today's lenient behavior)" in {
-    // Pin the current observable behavior for the reachable-from-API
-    // `batchSize <= 0` path so a regression that breaks per-tuple
-    // flush (e.g. a partial change that disables flushing entirely
-    // for non-positive batch sizes) surfaces here. A future hardening
-    // that rejects `<= 0` at construction WILL break this test on
-    // purpose — and the pendingUntilFixed test below will flip into
-    // a deliberate failure at the same time, forcing both markers to
-    // be updated together.
-    val (buf0, cap0) = newBuffer(batchSize = 0)
-    buf0.addTuple(tuple(1))
-    buf0.addTuple(tuple(2))
-    val frames0 = cap0.messages.toList.map(_.payload.asInstanceOf[DataFrame].frame.toList)
-    assert(frames0 == List(List(tuple(1)), List(tuple(2))))
-
-    val (bufNeg, capNeg) = newBuffer(batchSize = -1)
-    bufNeg.addTuple(tuple(99))
-    val framesNeg = capNeg.messages.toList.map(_.payload.asInstanceOf[DataFrame].frame.toList)
-    assert(framesNeg == List(List(tuple(99))))
-  }
-
-  it should "eventually reject construction (pendingUntilFixed)" in pendingUntilFixed {
-    // Today the constructor accepts `batchSize <= 0` and the `>=`
-    // guard then fires after every append (the characterization
-    // above pins that behavior). The intended contract is that a
-    // non-positive batch size is invalid input and should be
-    // rejected at construction (e.g. `require(batchSize > 0, ...)`).
-    // Asserting `IllegalArgumentException` here flips this from
-    // pending to passing once the hardening lands.
-    val cap = new Capture
-    intercept[IllegalArgumentException] {
-      new NetworkOutputBuffer(receiver, cap.gateway, batchSize = 0)
-    }
-    intercept[IllegalArgumentException] {
-      new NetworkOutputBuffer(receiver, cap.gateway, batchSize = -1)
+    "reject construction" in {
+    Seq(0, -1).foreach { batchSize =>
+      val cap = new Capture
+      intercept[IllegalArgumentException] {
+        new NetworkOutputBuffer(receiver, cap.gateway, batchSize)
+      }
     }
   }
 }
