@@ -154,6 +154,15 @@ class TestTuple:
         assert isinstance(tuple_["scores"], bytes)
         assert tuple_["height"] is None
 
+    def test_finalize_rejects_an_already_finalized_tuple(self):
+        tuple_ = Tuple({"value": 1})
+        tuple_.finalize(Schema(raw_schema={"value": "INTEGER"}))
+
+        with pytest.raises(ValueError, match="already finalized"):
+            tuple_.finalize(Schema(raw_schema={"value": "BINARY"}))
+
+        assert tuple_["value"] == 1
+
     # Pandas-based operators (e.g. TableOperator via Table.from_tuple_likes)
     # promote an int column containing nulls to float64, so an INT field can
     # arrive at finalize() as 119.0. finalize() must coerce such integral
