@@ -476,6 +476,14 @@ class TestTuple:
         with pytest.raises(TypeError, match="Unmatched type"):
             tuple_.finalize(Schema(raw_schema={"count": "INTEGER"}))
 
+    @pytest.mark.parametrize(
+        ("value", "java_hash"), [("A", 96), ("é", 264), ("\U0001f600", 1772930)]
+    )
+    def test_string_hash_uses_java_utf16_units(self, value, java_hash):
+        tuple_ = Tuple({"text": value}, Schema(raw_schema={"text": "STRING"}))
+
+        assert hash(tuple_) == java_hash
+
     def test_hash(self):
         schema = Schema(
             raw_schema={
