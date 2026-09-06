@@ -20,6 +20,7 @@ import pandas
 import pickle
 import pyarrow
 import pytest
+import struct
 import numpy as np
 from copy import deepcopy
 from loguru import logger
@@ -560,6 +561,11 @@ class TestTuple:
             schema,
         )
         assert hash(tuple5) == -2099556631  # calculated with Java
+
+    def test_hash_noncanonical_nan_matches_java(self):
+        nan = struct.unpack(">d", bytes.fromhex("7ff0000000000001"))[0]
+        schema = Schema(raw_schema={"value": "DOUBLE"})
+        assert hash(Tuple({"value": nan}, schema)) == 2146959391
 
     def test_tuple_with_large_binary(self):
         """Test tuple with largebinary field."""
