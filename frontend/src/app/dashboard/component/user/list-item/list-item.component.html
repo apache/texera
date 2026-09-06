@@ -74,7 +74,9 @@
         </button>
       </div>
 
-      <div class="edit-button">
+      <div
+        class="edit-button"
+        *ngIf="canEditDescription">
         <button
           nz-button
           nzType="text"
@@ -109,8 +111,8 @@
       <div
         class="resource-description truncate-single-line"
         (click)="onEditDescription(); $event.stopPropagation()">
-        {{ renderedDescription ? renderedDescription.slice(0, 200) : (hovering && editable) ? 'Write a description...' :
-        '' }}
+        {{ renderedDescription ? renderedDescription.slice(0, 200) : (hovering && canEditDescription) ? 'Write a
+        description...' : '' }}
       </div>
     </div>
 

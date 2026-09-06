@@ -212,8 +212,17 @@ export class ListItemComponent implements OnChanges {
     }, 0);
   }
 
+  /**
+   * `editable` only means "this is the private dashboard view" and is hardcoded to true
+   * by the container, so it is not an access check. Editing the description additionally
+   * requires write access to this specific entry (#3497).
+   */
+  get canEditDescription(): boolean {
+    return this.editable && this.entry.accessLevel === "WRITE";
+  }
+
   onEditDescription(): void {
-    if (!this.editable) return;
+    if (!this.canEditDescription) return;
 
     this.originalDescription = this.entry.description;
 
