@@ -561,6 +561,13 @@ class TestTuple:
         )
         assert hash(tuple5) == -2099556631  # calculated with Java
 
+    def test_hash_large_binary_matches_java(self):
+        from core.models.type.large_binary import largebinary
+
+        schema = Schema(raw_schema={"blob": "LARGE_BINARY"})
+        tuple_ = Tuple({"blob": largebinary("s3://bucket/key")}, schema)
+        assert hash(tuple_) == 1754254834
+
     def test_tuple_with_large_binary(self):
         """Test tuple with largebinary field."""
         from core.models.type.large_binary import largebinary
