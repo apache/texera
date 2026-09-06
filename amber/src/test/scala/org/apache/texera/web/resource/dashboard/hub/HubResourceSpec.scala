@@ -907,6 +907,11 @@ class HubResourceSpec
     hub.getTops(Wf, null, null, null).asScala.keySet shouldBe Set("like", "clone")
   }
 
+  it should "reject a missing entity type as a bad request" in {
+    val thrown = intercept[BadRequestException](hub.getTops(null, null, null, null))
+    thrown.getMessage shouldBe "entityType is required"
+  }
+
   // Regression: the default bucket list ([like, clone]) used to drive getTops into a
   // throwing CloneTable(Dataset), making this plain request a 500.
   it should "answer for a cloneless entity type instead of failing on its absent clone table" in {

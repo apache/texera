@@ -409,6 +409,8 @@ class HubResource {
     * @return             A Map from each actionType.value (e.g. "like", "clone")
     *                     to a List of DashboardClickableFileEntry containing the top 8
     *                     public entities of that type.
+    * @throws javax.ws.rs.BadRequestException if entityType is missing, or if actionTypes
+    *         contains an unsupported value.
     */
   @GET
   @Path("/getTops")
@@ -419,6 +421,8 @@ class HubResource {
       @QueryParam("uid") uid: Integer,
       @QueryParam("limit") limit: Integer
   ): java.util.Map[String, java.util.List[DashboardClickableFileEntry]] = {
+    if (entityType == null)
+      throw new BadRequestException("entityType is required")
     val tableSet = EntityTables(entityType)
     val baseTable = tableSet.base
     val isPublicColumn = baseTable.isPublicColumn
