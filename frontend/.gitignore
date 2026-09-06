@@ -10,6 +10,7 @@
 
 # test coverage
 /coverage
+/coverage-browser
 
 # vitest browser-mode snapshot baselines
 **/__screenshots__/
