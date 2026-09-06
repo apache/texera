@@ -51,14 +51,9 @@ import scala.collection.mutable.ArrayBuffer
 // When the candidate privilege needs to be observable, they seed two users (one
 // WRITE, one READ) on the same workflow.
 //
-// Two defects in this class are deliberately NOT pinned here, because pinning
-// them would cement them: (1) a session that sends WIdRequest twice is added to
-// the new wid's bucket but never removed from the old one, leaving a stale
-// hand-off candidate that outlives the session; (2) AcquireLockRequest
-// dereferences the `null` holder sentinel that TryLockRequest writes, so it
-// throws where TryLockRequest copes. Case (2) predates this spec and is pinned
-// by "AcquireLockRequest should rethrow when the holder slot holds the null
-// sentinel" as current behaviour, not as desired behaviour.
+// A session that sends WIdRequest twice is added to the new wid's bucket but
+// never removed from the old one, leaving a stale hand-off candidate that
+// outlives the session. That defect is deliberately not pinned here.
 class CollaborationResourceSpec
     extends AnyFlatSpec
     with Matchers
@@ -404,16 +399,20 @@ class CollaborationResourceSpec
     wIdLockHolderSessionIdMap(1) shouldBe "s1"
   }
 
-  it should "rethrow when the holder slot holds the null sentinel" in {
-    val (session, _) = mockSession("s1", uId = Some(1))
-    resource.myOnOpen(session)
-    resource.myOnMsg(session, send(WIdRequest(1)))
-    // `null` means "no holder"; it is a distinct state from an absent key and
-    // the hand-off branch cannot look a null session id up.
-    wIdLockHolderSessionIdMap(1) = null
+  it should "grant the lock when the holder slot is absent or null" in {
+    Seq((1, "s1", false), (2, "s2", true)).foreach {
+      case (wid, id, nullSlot) =>
+        val (session, sent) = mockSession(id, uId = Some(1))
+        resource.myOnOpen(session)
+        resource.myOnMsg(session, send(WIdRequest(wid)))
+        if (nullSlot) wIdLockHolderSessionIdMap(wid) = null
 
-    a[NoSuchElementException] should be thrownBy
-      resource.myOnMsg(session, send(AcquireLockRequest()))
+        resource.myOnMsg(session, send(AcquireLockRequest()))
+
+        sent should have size 1
+        sent.head should include("LockGrantedEvent")
+        wIdLockHolderSessionIdMap(wid) shouldBe id
+    }
   }
 
   // -- locking that consults WorkflowAccessResource (DB-backed) ---------------
