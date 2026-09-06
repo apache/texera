@@ -168,8 +168,11 @@ class OutputManager:
             self._port_state_writers,
         )
 
-    def get_port(self, port_id=None) -> WorkerPort:
-        return list(self._ports.values())[0]
+    def get_port(self, port_id: typing.Optional[PortIdentity] = None) -> WorkerPort:
+        """Return the requested port, or the first port when no ID is given."""
+        if port_id is None:
+            return list(self._ports.values())[0]
+        return self._ports[port_id]
 
     def get_port_ids(self) -> typing.List[PortIdentity]:
         return list(self._ports.keys())
