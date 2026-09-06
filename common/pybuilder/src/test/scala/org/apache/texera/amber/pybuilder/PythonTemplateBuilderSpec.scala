@@ -31,7 +31,7 @@ import java.nio.charset.StandardCharsets
 import java.util.Base64
 import scala.annotation.meta.field
 import scala.reflect.runtime.currentMirror
-import scala.tools.reflect.ToolBox
+import scala.tools.reflect.{ToolBox, ToolBoxError}
 
 class PythonTemplateBuilderSpec extends AnyFunSuite {
 
@@ -41,26 +41,100 @@ class PythonTemplateBuilderSpec extends AnyFunSuite {
 
   private def decodeExpr(text: String): String =
     PythonTemplateBuilder.wrapWithPythonDecoderExpr(base64Of(text))
-  // Toolbox helpers: used to assert runtime exceptions without checking error strings.
+  // ------------------------------------------------------------------------
+  // ToolBox harness for the exhaustive boundary sweeps further down.
+  //
+  // A `pyb` snippet can only be *compiled* (never `eval`-run) through a ToolBox: the expansion
+  // calls the `private[amber]` `fromInterpolated`, which the ToolBox's synthetic `__wrapper`
+  // package cannot access. Compilation is enough, because the macro fully expands (running
+  // `BoundaryValidator.validateCompileTime`) before that access error surfaces. So every snippet
+  // fails, and the two outcomes are told apart by the captured `ToolBoxError` *message*:
+  //
+  //   - an abort, whose message carries the specific boundary reason, versus
+  //   - a benign expansion whose only failure is the `fromInterpolated` access error.
+  //
+  // The snippet must be a *block*, never a `package` clause: the ToolBox cannot wrap a PackageDef
+  // into its synthetic wrapper method at all and dies with a bare
+  // `java.lang.AssertionError: assertion failed: method wrapper` during typer, for any input
+  // whatsoever. This mirrors `BoundaryValidatorSpec`; see its header for the same reasoning.
+  // ------------------------------------------------------------------------
   private lazy val tb: ToolBox[scala.reflect.runtime.universe.type] = currentMirror.mkToolBox()
 
-  private def inPybuilderPkg(code: String): String =
-    s"""package org.apache.texera.amber.pybuilder {
-       |
-       |$code
-       |
-       |}""".stripMargin
+  private val toolboxHeader =
+    """import org.apache.texera.amber.pybuilder.PythonTemplateBuilder._
+      |import org.apache.texera.amber.pybuilder.PyStringTypes._""".stripMargin
 
-  private def assertToolboxDoesNotCompile(code: String): Unit = {
-    intercept[Throwable] {
-      // compile only (don’t run); macro expansion happens during compilation
-      tb.compile(tb.parse(inPybuilderPkg(code)))
-    }
-    ()
+  /** Marker present in every `BoundaryValidator` compile-time abort message. */
+  private val boundaryMarker = "@EncodableStringAnnotation argument #"
+
+  /** The benign outcome: the validator did not abort, only the private access failed. */
+  private val benignMarker = "fromInterpolated"
+
+  /** Compile a self-contained `pyb` snippet as a *block*; it always fails, so return the message. */
+  private def macroError(body: String): String =
+    intercept[ToolBoxError] {
+      tb.compile(tb.parse(s"{\n$toolboxHeader\n$body\n}"))
+    }.getMessage
+
+  private def oneLine(message: String): String =
+    message.linesIterator.map(_.trim).filter(_.nonEmpty).mkString(" | ").take(240)
+
+  /**
+    * `"""` spelled through a normal literal.
+    *
+    * The generated snippets below wrap the Python template in a triple-quoted Scala string so the
+    * neighbour character can be embedded verbatim. `\"` is *not* an escape inside a triple-quoted
+    * string, so the delimiter cannot be written inline in the `s"""..."""` builders below.
+    */
+  private val tripleQuote = "\"\"\""
+
+  /** Literal `${ui}` for the generated snippet - a plain literal, not an interpolation. */
+  private val uiSplice = "${ui}"
+
+  /** Wrap one Python template line as a `pyb` snippet with a direct `EncodableString` argument. */
+  private def pybSnippet(pythonTemplate: String): String =
+    s"""val ui: EncodableString = "x"
+       |pyb$tripleQuote$pythonTemplate$tripleQuote""".stripMargin
+
+  /**
+    * The neighbour character, doubled, as it must appear in Scala source.
+    *
+    * Doubling matters for the two quote characters: `validateCompileTime` runs the unclosed-quote
+    * rule *before* the neighbour rules, so a lone `'` or `"` in the prefix would abort with the
+    * "inside a quoted Python string literal" reason instead of the neighbour reason. A pair leaves
+    * the prefix quote-balanced, so the neighbour rule is what fires. For every other character the
+    * doubling is a no-op. `$` is the one character needing escaping, since it would otherwise open
+    * an interpolation in the generated snippet.
+    */
+  private def neighborPad(ch: Char): String = {
+    val asSource = if (ch == '$') "$$" else ch.toString
+    asSource + asSource
   }
-  // Unicode escapes in *generated* Scala source: must be written as "\\uXXXX" in this test file.
-  private def scalaUnicodeEscape(ch: Char): String =
-    f"\\\\u${ch.toInt}%04X"
+
+  /** `pyb"""pre<ch><ch>${ui} post"""` - the character is the arg's immediate left neighbour. */
+  private def leftAdjacentSnippet(ch: Char): String =
+    pybSnippet(s"pre${neighborPad(ch)}$uiSplice post")
+
+  /** `pyb"""pre ${ui}<ch><ch> post"""` - the character is the arg's immediate right neighbour. */
+  private def rightAdjacentSnippet(ch: Char): String =
+    pybSnippet(s"pre $uiSplice${neighborPad(ch)} post")
+
+  /**
+    * The `isBadNeighbor` set over printable ASCII, spelled out rather than derived.
+    *
+    * Deriving the sweep's input from `PythonLexerUtils.isBadNeighbor` would make it
+    * self-referential: shrinking the predicate would silently shrink the sweep instead of failing
+    * it. `PythonLexerUtilsSpec` only *samples* the predicate (`'`, `"`, `a`, `Z`, `0`, `_`, plus
+    * two negatives), so it too stays green when a single character is dropped from the set. The
+    * two sweeps below pin the whole set from the outside - shrinking it reds the bad sweep,
+    * growing it reds the safe sweep.
+    */
+  private val badNeighborChars: Seq[Char] =
+    "\"'0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz".toSeq
+
+  /** Printable ASCII (33..126, so no whitespace) that is *not* in [[badNeighborChars]]. */
+  private val safeNeighborChars: Seq[Char] =
+    (33 to 126).map(_.toChar).filterNot(badNeighborChars.contains)
 
   // ========================================================================
   // Rendering basics (plain vs encoded)
@@ -435,38 +509,79 @@ class PythonTemplateBuilderSpec extends AnyFunSuite {
   }
 
   test("all isBadNeighbor characters reject direct UI adjacency at compile time (left + right)") {
-    val candidates = (33 to 126).map(_.toChar) // printable ASCII, avoids whitespace
-    val badChars = candidates.filter(PythonLexerUtils.isBadNeighbor)
+    assert(badNeighborChars.size == 65, "the sweep's character set changed unexpectedly")
 
-    // This is intentionally exhaustive over the implementation-defined "bad neighbor" set.
-    // We assert only compile success/failure, not the specific error message.
-    badChars.zipWithIndex.foreach {
-      case (ch, i) =>
-        val esc = scalaUnicodeEscape(ch)
+    val mismatches = List.newBuilder[String]
+    var checked = 0
 
-        val leftAdj =
-          s"""
-           |import org.apache.texera.amber.pybuilder.PythonTemplateBuilder._
-           |import org.apache.texera.amber.pybuilder.PyStringTypes._
-           |object UiBadLeft_$i {
-           |  val ui: EncodableString = "x"
-           |  val b = pyb\"\"\"pre$esc${'$'}{ui}post\"\"\"
-           |}
-           |""".stripMargin
-
-        val rightAdj =
-          s"""
-           |import org.apache.texera.amber.pybuilder.PythonTemplateBuilder._
-           |import org.apache.texera.amber.pybuilder.PyStringTypes._
-           |object UiBadRight_$i {
-           |  val ui: EncodableString = "x"
-           |  val b = pyb\"\"\"pre${'$'}{ui}$esc post\"\"\"
-           |}
-           |""".stripMargin
-
-        assertToolboxDoesNotCompile(leftAdj)
-        assertToolboxDoesNotCompile(rightAdj)
+    badNeighborChars.foreach { ch =>
+      Seq(
+        ("left", leftAdjacentSnippet(ch), s"must not be immediately adjacent to '$ch' on the left"),
+        (
+          "right",
+          rightAdjacentSnippet(ch),
+          s"must not be immediately adjacent to '$ch' on the right"
+        )
+      ).foreach {
+        case (side, snippet, expectedReason) =>
+          checked += 1
+          val message = macroError(snippet)
+          if (!message.contains(boundaryMarker) || !message.contains(expectedReason)) {
+            mismatches += s"$side [$ch] (U+${"%04X".format(ch.toInt)}): ${oneLine(message)}"
+          }
+      }
     }
+
+    assert(checked == 130, "the sweep did not run every case")
+    val failures = mismatches.result()
+    assert(
+      failures.isEmpty,
+      s"${failures.size} of $checked adjacency cases did not abort with the neighbour reason:\n" +
+        failures.mkString("\n")
+    )
+  }
+
+  test("no safe-neighbour character aborts direct UI adjacency (the sweep discriminates)") {
+    // The counterpart of the sweep above: without this, weakening the neighbour rule to "always
+    // abort" would leave that sweep green. `#` on the left is excluded because the comment rule
+    // legitimately fires first there; the test below pins that case separately.
+    assert(safeNeighborChars.size == 29, "the sweep's character set changed unexpectedly")
+
+    val aborts = List.newBuilder[String]
+    var checked = 0
+
+    safeNeighborChars.foreach { ch =>
+      val sides =
+        if (ch == '#') Seq("right" -> rightAdjacentSnippet(ch))
+        else Seq("left" -> leftAdjacentSnippet(ch), "right" -> rightAdjacentSnippet(ch))
+
+      sides.foreach {
+        case (side, snippet) =>
+          checked += 1
+          val message = macroError(snippet)
+          if (message.contains(boundaryMarker) || !message.contains(benignMarker)) {
+            aborts += s"$side [$ch] (U+${"%04X".format(ch.toInt)}): ${oneLine(message)}"
+          }
+      }
+    }
+
+    assert(checked == 57, "the sweep did not run every case")
+    val failures = aborts.result()
+    assert(
+      failures.isEmpty,
+      s"${failures.size} of $checked safe-neighbour cases were not benign:\n" +
+        failures.mkString("\n")
+    )
+  }
+
+  test("'#' as a left neighbour aborts for the comment rule, not the neighbour rule") {
+    val message = macroError(leftAdjacentSnippet('#'))
+    assert(message.contains(boundaryMarker), oneLine(message))
+    assert(
+      message.contains("appears after a '#' comment marker on the same line."),
+      oneLine(message)
+    )
+    assert(!message.contains("must not be immediately adjacent"), oneLine(message))
   }
 
   // ========================================================================
