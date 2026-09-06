@@ -104,7 +104,9 @@ class JupyterProvisioner(
     }
 
   private def provision(uid: Int, token: String): Option[JupyterEndpoints] = {
-    val internalUrl = s"http://${kubernetes.generatePodURI(uid)}"
+    // Jupyter serves every endpoint under its base path, /api included, so the recorded
+    // address has to carry it or each later call lands on a 404.
+    val internalUrl = s"http://${kubernetes.generatePodURI(uid)}${kubernetes.basePathFor(uid)}"
     val endpoints = JupyterEndpoints(internalUrl, publicUrlFor(uid, internalUrl), token)
     try {
       createIfAbsent(uid, token)

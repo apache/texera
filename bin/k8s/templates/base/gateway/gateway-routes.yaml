@@ -74,6 +74,19 @@ spec:
       backendRefs:
         - name: config-service-svc
           port: 9094
+    {{- if .Values.notebookMigrationService.enabled }}
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /api/notebook-migration
+      # Provisioning waits for a pod to terminate and then to answer, 60s each, so Envoy's
+      # 15s default cuts off requests the service would have completed.
+      timeouts:
+        request: "3m"
+      backendRefs:
+        - name: {{ .Values.notebookMigrationService.name }}-svc
+          port: {{ .Values.notebookMigrationService.service.port }}
+    {{- end }}
     - matches:
         - path:
             type: PathPrefix
@@ -81,6 +94,10 @@ spec:
         - path:
             type: PathPrefix
             value: /api/chat
+      {{- if and .Values.gatewayConfig .Values.gatewayConfig.llmRequestTimeout }}
+      timeouts:
+        request: {{ .Values.gatewayConfig.llmRequestTimeout | quote }}
+      {{- end }}
       backendRefs:
         - name: access-control-service-svc
           port: 9096
@@ -135,6 +152,13 @@ spec:
         - path:
             type: PathPrefix
             value: /api/pve
+        {{- if .Values.notebookMigrationService.enabled }}
+        # Per-user JupyterLab. ExtAuthz reads the uid from the path and rewrites Host to
+        # that user's pod; the per-user Jupyter token is what authorizes the request.
+        - path:
+            type: PathPrefix
+            value: {{ .Values.jupyterPool.basePath }}
+        {{- end }}
       backendRefs:
         - group: gateway.envoyproxy.io
           kind: Backend

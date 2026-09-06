@@ -50,6 +50,11 @@ spec:
               value: {{ .Values.workflowComputingUnitPool.name }}
             - name: KUBERNETES_COMPUTE_UNIT_POOL_NAMESPACE
               value: {{ .Values.workflowComputingUnitPool.namespace }}
+            {{- if .Values.notebookMigrationService.enabled }}
+            # The uid regex this service routes Jupyter on is built from the same prefix.
+            - name: KUBERNETES_JUPYTER_BASE_URL
+              value: {{ .Values.jupyterPool.basePath }}
+            {{- end }}
             {{- if .Values.litellm.enabled }}
             # LLM gateway used to serve /api/chat and /api/models to the agent service.
             - name: LITELLM_BASE_URL

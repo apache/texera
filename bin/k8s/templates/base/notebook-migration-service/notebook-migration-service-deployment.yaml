@@ -1,0 +1,105 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+{{- if .Values.notebookMigrationService.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-{{ .Values.notebookMigrationService.name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ .Release.Name }}-{{ .Values.notebookMigrationService.name }}
+spec:
+  replicas: {{ .Values.notebookMigrationService.numOfPods | default 1 }}
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-{{ .Values.notebookMigrationService.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}-{{ .Values.notebookMigrationService.name }}
+    spec:
+      # Needed to create and delete each user's JupyterLab pod in the pool namespace.
+      serviceAccountName: {{ .Values.notebookMigrationService.serviceAccountName }}
+      containers:
+        - name: {{ .Values.notebookMigrationService.name }}
+          image: {{ .Values.texera.imageRegistry }}/{{ .Values.notebookMigrationService.imageName }}:{{ .Values.texera.imageTag }}
+          imagePullPolicy: {{ .Values.texeraImages.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.notebookMigrationService.service.port }}
+          env:
+            - name: STORAGE_JDBC_URL
+              value: jdbc:postgresql://{{ .Release.Name }}-postgresql:5432/texera_db?currentSchema=texera_db,public
+            - name: STORAGE_JDBC_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-postgresql
+                  key: postgres-password
+            # Resolve each user's JupyterLab rather than one shared server.
+            - name: KUBERNETES_JUPYTER_ENABLED
+              value: "true"
+            - name: KUBERNETES_JUPYTER_NAMESPACE
+              value: {{ .Values.jupyterPool.namespace }}
+            - name: KUBERNETES_JUPYTER_SERVICE_NAME
+              value: {{ .Values.jupyterPool.name }}-svc
+            - name: KUBERNETES_JUPYTER_IMAGE_NAME
+              value: {{ .Values.texera.imageRegistry }}/{{ .Values.jupyterPool.imageName }}:{{ .Values.texera.imageTag }}
+            - name: KUBERNETES_JUPYTER_CPU_LIMIT
+              value: "{{ .Values.jupyterPool.resources.cpuLimit }}"
+            - name: KUBERNETES_JUPYTER_MEMORY_LIMIT
+              value: {{ .Values.jupyterPool.resources.memoryLimit }}
+            # The pod's own prefix and the browser-facing address are rendered from one
+            # basePath, so they cannot drift apart.
+            - name: KUBERNETES_JUPYTER_BASE_URL
+              value: {{ .Values.jupyterPool.basePath }}
+            {{- $origin := .Values.notebookMigrationService.publicOrigin }}
+            {{- if and (not $origin) .Values.gatewayConfig .Values.gatewayConfig.hostname }}
+            {{- /* Both listeners always render, so only a configured certificate says
+                   which one actually serves. */}}
+            {{- if or .Values.gatewayConfig.issuer .Values.gatewayConfig.tlsSecretName }}
+            {{- $origin = printf "https://%s" .Values.gatewayConfig.hostname }}
+            {{- else }}
+            {{- $origin = printf "http://%s" .Values.gatewayConfig.hostname }}
+            {{- end }}
+            {{- end }}
+            {{- if $origin }}
+            - name: KUBERNETES_JUPYTER_PUBLIC_URL_TEMPLATE
+              value: {{ $origin }}{{ .Values.jupyterPool.basePath }}/{uid}
+            - name: KUBERNETES_JUPYTER_TEXERA_ORIGIN
+              value: {{ $origin }}
+            {{- end }}
+            - name: JUPYTER_TOKEN_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-notebook-migration-service-secret
+                  key: jupyter-token-secret
+            {{- range .Values.texeraEnvVars }}
+            - name: {{ .name }}
+              value: "{{ .value }}"
+            {{- end }}
+          livenessProbe:
+            httpGet:
+              path: /api/healthcheck
+              port: {{ .Values.notebookMigrationService.service.port }}
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /api/healthcheck
+              port: {{ .Values.notebookMigrationService.service.port }}
+            initialDelaySeconds: 5
+            periodSeconds: 5
+{{- end }}

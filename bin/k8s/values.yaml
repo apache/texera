@@ -195,6 +195,61 @@ webserver:
     type: ClusterIP
     port: 8080
 
+notebookMigrationService:
+  # Turns the whole notebook migration tool on or off: the service, its route, the per-user
+  # JupyterLab pool, and the button in the workspace.
+  enabled: false
+  name: notebook-migration-service
+  numOfPods: 1
+  serviceAccountName: notebook-migration-service-service-account
+  imageName: texera-notebook-migration-service
+  service:
+    type: ClusterIP
+    port: 9098
+  # Origin the browser reaches Texera on, used for the JupyterLab iframe URL and for the
+  # CSP that lets Texera embed it. Required wherever there is no DNS name, such as a
+  # port-forward or a NodePort. Falls back to the gateway hostname when left empty.
+  publicOrigin: ""
+  # HMAC key each user's JupyterLab token is derived from. Must stay stable across restarts
+  # or issued tokens stop matching. Empty on purpose: a default here would be public, and
+  # the token is all that guards /jupyter/<uid>/. Generate with: openssl rand -hex 32
+  jupyterTokenSecret: ""
+
+# Per-user JupyterLab pods, the stateful half of the notebook migration tool. One pod per
+# user, addressed through the headless service below.
+jupyterPool:
+  createNamespaces: true
+  name: texera-jupyter
+  # Note: like the computing unit pool, this namespace can collide when several Texera
+  # deployments share a cluster.
+  namespace: texera-jupyter-pool
+  imageName: texera-jupyter
+  # Pull the image onto every node ahead of time, so a first-time pull cannot outlast the
+  # bounded wait for a new pod to answer. Costs one small pod per node.
+  prepullImage: true
+  # Path prefix each user's JupyterLab is served under; the uid is appended, so user 7 is
+  # served at /jupyter/7/. Drives the pod's base_url, the gateway route and the uid regex
+  # access-control matches on, so all three move together.
+  basePath: /jupyter
+  # Must match kubernetes.jupyter-port-num, which the service reads from its own config
+  # and no environment variable overrides.
+  service:
+    port: 8888
+    targetPort: 8888
+  # Per-pod limits.
+  resources:
+    cpuLimit: "1"
+    memoryLimit: 2Gi
+  networkPolicy:
+    # Denies pod-to-pod traffic inside the pool, so one user's JupyterLab cannot reach
+    # another's. Requires a cluster with a NetworkPolicy controller; without one the object
+    # is created but not enforced.
+    enabled: true
+  # Ceiling for the pool as a whole.
+  maxRequestedResources:
+    cpu: 50
+    memory: 50Gi
+
 workflowComputingUnitManager:
   name: workflow-computing-unit-manager
   numOfPods: 1
@@ -418,6 +473,13 @@ metrics-server:
 
 gatewayConfig:
   # Routes are available at bin/k8s/templates/gateway-routes.yaml
+
+  # Ceiling for LLM requests through /api/chat and /api/models. Completions routinely run
+  # for tens of seconds, and Envoy's default route timeout is 15s, which severs them while
+  # the upstream call is still in flight and then succeeds unseen. Keep this at or above
+  # GUI_WORKFLOW_WORKSPACE_PYTHON_NOTEBOOK_MIGRATION_TIMEOUT_MINUTES, which is what the
+  # frontend is prepared to wait.
+  llmRequestTimeout: 10m
 
   # The hostname for the Gateway listener (HTTP/HTTPS).
   # e.g., "texera.example.com"

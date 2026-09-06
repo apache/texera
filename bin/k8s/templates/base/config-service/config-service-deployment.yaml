@@ -47,6 +47,11 @@ spec:
                 secretKeyRef:
                   name: {{ .Release.Name }}-postgresql
                   key: postgres-password
+            # Shows or hides the notebook migration tool in the workspace. Derived from the
+            # service's own toggle rather than listed in texeraEnvVars, so enabling the tool
+            # is one switch instead of two that can disagree.
+            - name: GUI_WORKFLOW_WORKSPACE_PYTHON_NOTEBOOK_MIGRATION_ENABLED
+              value: "{{ .Values.notebookMigrationService.enabled }}"
             {{- range .Values.texeraEnvVars }}
             - name: {{ .name }}
               value: "{{ .value }}"
