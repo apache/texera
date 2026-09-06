@@ -820,7 +820,7 @@ class HubResourceSpec
     counts shouldBe Map((ActionType.Like: ActionType) -> 2)
   }
 
-  it should "backfill a zero view-count row for an entity that has never been viewed" in {
+  it should "return zero without writing for an entity that has never been viewed" in {
     seedWorkflow(810803, "wf_counts_backfill")
     workflowViewCount(810803) shouldBe None
 
@@ -833,8 +833,17 @@ class HubResourceSpec
       .toMap
 
     counts shouldBe Map((ActionType.View: ActionType) -> 0)
-    // The backfill is a real side effect: the row is written by getCounts itself.
-    workflowViewCount(810803) shouldBe Some(0)
+    workflowViewCount(810803) shouldBe None
+  }
+
+  it should "return zero for an unknown entity id" in {
+    val response = hub
+      .getCounts(types(Wf), ids(899999), actions(ActionType.View))
+      .asScala
+      .head
+
+    response.counts.get(ActionType.View) shouldBe 0
+    workflowViewCount(899999) shouldBe None
   }
 
   it should "not touch the view-count table when view is not among the requested actions" in {

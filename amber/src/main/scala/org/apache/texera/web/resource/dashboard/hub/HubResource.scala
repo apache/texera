@@ -563,16 +563,6 @@ class HubResource {
               .toMap
 
             val missing = ids.filterNot(id => raw.contains(id.intValue()))
-
-            missing.foreach { id =>
-              context
-                .insertInto(viewTbl.table)
-                .set(viewTbl.idColumn, id)
-                .set(viewTbl.viewCountColumn, Integer.valueOf(0))
-                .onDuplicateKeyIgnore()
-                .execute()
-            }
-
             raw ++ missing.map(id => id.intValue() -> 0).toMap
           } else Map.empty
 
