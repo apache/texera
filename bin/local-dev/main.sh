@@ -591,9 +591,85 @@ fi
 # docker network. The host's LAN IP works from BOTH (host loopback for the
 # host, docker NAT'd out-and-back for the container).
 #
-# Both platform probes follow the same two steps: the interface backing the
+# All three platform probes follow the same two steps: the interface backing the
 # default route first (most reliable on a laptop that may have wifi +
 # thunderbolt + tailscale all active), then a scan as a fallback.
+_detect_host_lan_ip_windows() {
+    local iface_details="" local_ip="" iface_name="" idx=""
+
+    local virt_excl="vEthernet|WSL|Hyper-V|VirtualBox|Docker|Bridge|tap|tun|cni|flannel|cali|kube|tailscale|zerotier|wg|McAfee"
+    # Use 'netsh interface ip show route' to find the list of interfaces
+    # associated with the 0.0.0.0/0 (default) route and trace the respective indices
+    local idx_list
+    idx_list=$(netsh interface ip show route 2>/dev/null | \
+            awk '{
+                for (i = 1; i < NF; i++) {
+                    if ($i == "0.0.0.0/0") {
+                            print $(i+1)
+                    }
+                }
+            }')
+
+    # Iterate through candidate indices, inspect adapter name and grab the first physical LAN IP
+    for idx in $idx_list; do
+        iface_details=$(netsh interface ip show addresses "$idx" 2>/dev/null)
+
+        # Skip if adapter name is empty or matches virtual/VPN exclusions
+        iface_name=$(echo "$iface_details" | awk -F'"' '/Configuration for interface/ {print $2}')
+        if [[ -z "$iface_name" ]] || echo "$iface_name" | grep -qiE "$virt_excl"; then
+            continue
+        fi
+
+        # Get the IPv4 address of the interface
+        local_ip=$(echo "$iface_details" | awk -F': ' '/IP Address/ {print $2; exit}' | tr -d ' \r')
+        # Validate non-loopback and non-APIPA (169.254.x.x) address
+        if [[ -n "$local_ip" && "$local_ip" != 127.* && "$local_ip" != 169.254.* ]]; then
+            printf '%s\n' "$local_ip"
+            return 0
+        fi
+    done
+
+    # =========================================================================
+    # FALLBACK METHOD: Parse all 'netsh' interface blocks sequentially
+    # =========================================================================
+    # If the default route method fails, we dump all interface configurations.
+    # Parse the output statefully using awk to track which interface block 
+    # we are currently reading, skip explicitly excluded virtual/bridge interfaces, 
+    # and return the first valid, globally routable IPv4 address we find.
+
+    local_ip=$(
+    netsh interface ip show addresses 2>/dev/null |
+    awk -v excl="$virt_excl" '
+        # Identify the start of a new interface block
+        /Configuration for interface/ {
+            split($0, a, "\"")      # Extract the interface name
+            dev = a[2]
+            valid_iface = (tolower(dev) !~ tolower(excl))
+            next
+        }
+
+        # Extract the IP if the current interface is valid
+        /IP Address/ && valid_iface {
+            split($0, b, ":") # Extract the IP address of the interface
+            addr = b[2]
+            gsub(/^[ \t]+|[ \t\r]+$/, "", addr) # Strip leading/trailing whitespace and carriage returns
+
+            if (addr != "" &&
+                addr !~ /^127\./ &&
+                addr !~ /^169\.254\./) {
+                print addr # Print the first valid address
+                exit
+            }
+        }
+    ')
+
+    if [[ -n "$local_ip" ]]; then
+        printf '%s\n' "$local_ip"
+        return 0
+    fi
+    return 1
+}
+
 _detect_host_lan_ip_darwin() {
     local iface="" ip=""
     iface=$(route get default 2>/dev/null | awk '/interface:/{print $2; exit}')
@@ -648,8 +724,9 @@ _detect_host_lan_ip() {
     case "$(uname -s 2>/dev/null)" in
         Darwin) _detect_host_lan_ip_darwin ;;
         Linux)  _detect_host_lan_ip_linux ;;
-        # Anything else (BSD, WSL oddities): try both rather than give up.
-        *)      _detect_host_lan_ip_darwin || _detect_host_lan_ip_linux ;;
+        MINGW*|MSYS*|CYGWIN*|*_NT*) _detect_host_lan_ip_windows ;;
+        # Anything else (BSD, WSL oddities): try all three rather than give up.
+        *)      _detect_host_lan_ip_darwin || _detect_host_lan_ip_linux || _detect_host_lan_ip_windows ;;
     esac
 }
 # Lazy resolver — called from subcommands that actually need to publish a
@@ -665,7 +742,9 @@ _require_host_lan_ip() {
             Darwin) probes="\`route get default\` / en0-en10" ;;
             Linux)  probes="\`ip route show default\` / \`ip -4 addr show scope global\`"
                     bridge_note=" outside the container bridges" ;;
-            *)      probes="the macOS and Linux probes"
+            MINGW*|MSYS*|CYGWIN*|*_NT*) probes="\`netsh interface ip show route\` / \`netsh interface ip show addresses\`" 
+                    bridge_note=" outside the container bridges" ;;
+            *)      probes="the macOS, Windows and Linux probes"
                     bridge_note=" outside the container bridges" ;;
         esac
         echo "FATAL: could not detect a host LAN IP." >&2
