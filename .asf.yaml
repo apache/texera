@@ -69,6 +69,65 @@ github:
     rebase: false
 
   rulesets:
+    # Rule-for-rule identical to "Merge Queue" below; split out so the bypass
+    # here stays off main. The bypass exempts actions performed as the GitHub
+    # Actions app — i.e. any workflow's GITHUB_TOKEN, which is what
+    # direct-backport-push.yml's fast path pushes with (#8377). It cannot be
+    # scoped to a single workflow. People and PATs still face every rule.
+    #
+    # Listed BEFORE "Merge Queue" deliberately: asfyaml applies rulesets in
+    # file order, so this one is created before that one stops covering the
+    # release branches. If GitHub rejects this ruleset, the apply aborts with
+    # the old protections fully intact; the failure order never leaves the
+    # release branches uncovered.
+    - name: "Merge Queue (release)"
+      target: branch
+      enforcement: active
+      conditions:
+        ref_name:
+          exclude: []
+          include:
+            # Merge queue rules do NOT support wildcard ref patterns, so
+            # release branches must be listed explicitly (not release/*).
+            # Add each release line here as it is cut.
+            - "refs/heads/release/v1.1"
+            - "refs/heads/release/v1.2"
+            - "refs/heads/release/v1.3"
+      bypass_actors:
+        # The GitHub Actions app.
+        - actor_id: 15368
+          actor_type: Integration
+          bypass_mode: always
+      rules:
+        - type: deletion
+        - type: non_fast_forward
+        - type: merge_queue
+          parameters:
+            merge_method: SQUASH
+            max_entries_to_build: 2
+            min_entries_to_merge: 2
+            max_entries_to_merge: 5
+            min_entries_to_merge_wait_minutes: 3
+            grouping_strategy: HEADGREEN
+            check_response_timeout_minutes: 45
+        - type: pull_request
+          parameters:
+            allowed_merge_methods:
+              - squash
+            dismiss_stale_reviews_on_push: false
+            require_code_owner_review: false
+            require_last_push_approval: false
+            required_approving_review_count: 1
+            required_review_thread_resolution: true
+        - type: required_linear_history
+        - type: required_status_checks
+          parameters:
+            strict_required_status_checks_policy: false
+            required_status_checks:
+              - context: Required Checks
+              - context: Check License Headers
+              - context: Validate PR title
+
     - name: Merge Queue
       target: branch
       enforcement: active
@@ -76,13 +135,10 @@ github:
         ref_name:
           exclude: []
           include:
+            # Release branches carry these same rules in "Merge Queue
+            # (release)" above — a separate ruleset because its Actions
+            # bypass must not extend to main.
             - "~DEFAULT_BRANCH"
-            # Merge queue rules do NOT support wildcard ref patterns, so
-            # release branches must be listed explicitly (not release/*).
-            # Add each release line here as it is cut.
-            - "refs/heads/release/v1.1"
-            - "refs/heads/release/v1.2"
-            - "refs/heads/release/v1.3"
       rules:
         - type: deletion
         - type: non_fast_forward
