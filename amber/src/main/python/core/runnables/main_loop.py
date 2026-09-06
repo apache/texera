@@ -216,7 +216,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
         writer = DocumentFactory.create_document(uri, State.SCHEMA).writer("0")
         # The back-edge fires only after the matching LoopEnd consumed at
         # loop_counter == 0, so the next iteration's input starts at depth 0.
-        writer.put_one(executor.state.to_tuple(0))
+        writer.put_one(executor.state.to_tuple(0, self._loop_start_id))
         writer.close()
 
     def _check_loop_state_arrived(self) -> None:
@@ -486,10 +486,10 @@ class MainLoop(StoppableQueueBlockingRunnable):
         self._check_and_process_control()
 
     def _process_state_frame(self, frame: StateFrame) -> None:
-        # The runtime owns loop_counter; loop operators never see or mutate it.
-        # The LoopStart/LoopEnd nested pass-through branches are handled here --
-        # forwarding the state and skipping the operator -- so the operator's
-        # process_state only ever runs the first-entry / consume path.
+        # The runtime owns loop_counter and loop_start_id; loop operators never
+        # see or mutate the loop counter. The LoopStart/LoopEnd control-flow
+        # branches are handled here, so process_state only handles ordinary
+        # operator state.
         state = frame.frame
         in_counter = frame.loop_counter
         executor = self.context.executor_manager.executor
@@ -516,30 +516,27 @@ class MainLoop(StoppableQueueBlockingRunnable):
             self._check_and_process_control()
             return
         if isinstance(executor, LoopStartOperator) and frame.loop_start_id:
-            # Outer loop's state flowing through an inner LoopStart -- detected
-            # by the outer LoopStart's id stamped on the envelope (a first-entry
-            # state has no stamp): step one level deeper and forward, keeping
-            # the outer loop's id.
-            self._emit_and_save_state(state, in_counter + 1, frame.loop_start_id)
+            if frame.loop_start_id == get_logical_op_id(self.context.worker_id):
+                # This is this LoopStart's own back-edge state. Restore the loop
+                # variables directly instead of routing the state through
+                # process_state(), which is reserved for external/first-entry state.
+                executor.state = state
+            else:
+                # State belongs to an outer loop flowing through this inner LoopStart.
+                # Forward it one level deeper while preserving the outer loop's id.
+                self._emit_and_save_state(
+                    state,
+                    in_counter + 1,
+                    frame.loop_start_id,
+                )
+
             self._check_and_process_control()
             return
 
-        # A LoopStart handles only the STAMPED case above. An UNstamped
-        # counter-0 state at a LoopStart takes neither branch: it falls all the
-        # way through to process_input_state at the bottom, and the operator's
-        # process_state MERGES its keys into the loop variables. That is the
-        # opposite of what the LoopEnd branch below does with the identical
-        # frame, and the asymmetry is forced, not an oversight. The back-edge
-        # writes the next iteration's variables to the LoopStart's own
-        # input-port state URI with that very same "no loop" envelope
-        # (_jump_to_loop_start -> State.to_tuple(0)), so an unstamped counter-0
-        # frame at a LoopStart is indistinguishable from -- and normally IS --
-        # the loop's own state. A LoopEnd may forward instead of consuming
-        # because its inbound loop state is always stamped by the matching
-        # LoopStart; a LoopStart has no such signal. Consequence of the merge:
-        # an upstream or body operator emitting a key that collides with a loop
-        # variable overwrites it, and one emitting `table` trips
-        # _reserved_name_error in produce_state_on_finish (see #7248).
+        # An unstamped counter-0 state at a LoopStart is ordinary incoming state,
+        # so it falls through to process_input_state() and process_state() merges
+        # its keys into the loop variables. Upstream state keys that collide with
+        # loop variables are rejected by LoopStartOperator.process_state().
 
         if isinstance(executor, LoopEndOperator):
             if not frame.loop_start_id:
