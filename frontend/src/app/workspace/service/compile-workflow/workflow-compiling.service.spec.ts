@@ -471,6 +471,57 @@ describe("WorkflowCompilingService.setOperatorInputAttrs / restoreOperatorInputA
       ).toEqual(["col_a", "col_b"]);
     });
 
+    it("does not append an empty option for a required property inside a referenced definition", () => {
+      const schema = makeOperatorSchema({
+        type: "object",
+        required: ["attributes"],
+        properties: {
+          attributes: {
+            type: "array",
+            items: { $ref: "#/definitions/SortCriteriaUnit" },
+          },
+        },
+        definitions: {
+          SortCriteriaUnit: {
+            type: "object",
+            required: ["attribute"],
+            properties: {
+              attribute: { type: "string", autofill: "attributeName", autofillAttributeOnPort: 0 },
+            },
+          },
+        },
+      });
+
+      const result = WorkflowCompilingService.setOperatorInputAttrs(schema, inputPortSchemaMap);
+      const definition = (result.jsonSchema.definitions as any).SortCriteriaUnit;
+      expect(definition.properties.attribute.enum).toEqual(["col_a", "col_b"]);
+    });
+
+    it("retains an empty option for an optional nested property when the root requires the same name", () => {
+      const schema = makeOperatorSchema({
+        type: "object",
+        required: ["attribute"],
+        properties: {
+          aggregations: {
+            type: "array",
+            items: { $ref: "#/definitions/Aggregation" },
+          },
+        },
+        definitions: {
+          Aggregation: {
+            type: "object",
+            properties: {
+              attribute: { type: "string", autofill: "attributeName", autofillAttributeOnPort: 0 },
+            },
+          },
+        },
+      });
+
+      const result = WorkflowCompilingService.setOperatorInputAttrs(schema, inputPortSchemaMap);
+      const definition = (result.jsonSchema.definitions as any).Aggregation;
+      expect(definition.properties.attribute.enum).toEqual(["col_a", "col_b", ""]);
+    });
+
     it("includes additionalEnumValue before the optional empty option", () => {
       const schema = makeOperatorSchema({
         type: "object",
