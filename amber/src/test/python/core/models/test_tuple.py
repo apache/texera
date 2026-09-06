@@ -476,6 +476,14 @@ class TestTuple:
         with pytest.raises(TypeError, match="Unmatched type"):
             tuple_.finalize(Schema(raw_schema={"count": "INTEGER"}))
 
+    @pytest.mark.parametrize(
+        ("value", "java_hash"), [(b"\x7f", 189), (b"\x80", -66), (b"\xff", 61)]
+    )
+    def test_binary_hash_uses_java_signed_bytes(self, value, java_hash):
+        tuple_ = Tuple({"payload": value}, Schema(raw_schema={"payload": "BINARY"}))
+
+        assert hash(tuple_) == java_hash
+
     def test_hash(self):
         schema = Schema(
             raw_schema={
