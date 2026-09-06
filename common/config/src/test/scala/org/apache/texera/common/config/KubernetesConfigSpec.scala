@@ -97,6 +97,15 @@ class KubernetesConfigSpec extends AnyFlatSpec with Matchers {
     )
   }
 
+  "KubernetesConfig mounter settings" should "resolve to their kubernetes.conf defaults" in {
+    // Off by default: the mount gives each CU pod a hostPath volume, which the `baseline`
+    // and `restricted` Pod Security Standards forbid, so a deployment opts in.
+    ifUnset("KUBERNETES_MOUNTER_ENABLED")(KubernetesConfig.mounterEnabled shouldBe false)
+    ifUnset("KUBERNETES_MOUNTER_HOST_ROOT")(
+      KubernetesConfig.mounterHostRoot shouldBe "/var/lib/texera-mounts"
+    )
+  }
+
   "KubernetesConfig limit options" should "parse into trimmed, non-empty lists" in {
     ifUnset("KUBERNETES_COMPUTING_UNIT_CPU_LIMIT_OPTIONS")(
       KubernetesConfig.cpuLimitOptions shouldBe List("1", "2", "4")

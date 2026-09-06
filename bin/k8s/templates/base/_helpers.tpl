@@ -54,3 +54,26 @@ services fall back to the in-cluster MinIO Service and its auto-generated
 {{- define "texera.s3.secretAccessKeyKey" -}}
 {{- if .Values.storage.s3.endpoint -}}secret-access-key{{- else -}}root-password{{- end -}}
 {{- end -}}
+
+{{/*
+The audience the mounter's service-account tokens are bound to. Fixed rather than
+configurable: it is one half of a credential contract between access-control-service and the
+mounter -- the projected token declares it and the mounter's TokenReview requires it -- so
+the two must always agree, and there is no deployment in which a different value is useful.
+*/}}
+{{- define "texera.mounter.audience" -}}
+texera-mounter
+{{- end -}}
+
+{{/*
+The service-account username allowed to request a mount from the per-node mounter, in the
+form MOUNTER_ALLOWED_CALLERS expects. This is access-control-service and nothing else: it
+is the deployment's authorization authority for computing units, so it is the one component
+that can decide whether a given user may mount into a given CU. Deliberately not
+configurable -- widening it is a security decision, not a deployment preference, and a
+values override would let an install quietly hand the privileged mounter to another caller.
+*/}}
+{{- define "texera.mounter.allowedCallers" -}}
+{{- printf "system:serviceaccount:%s:%s" .Release.Namespace .Values.accessControlService.serviceAccountName -}}
+{{- end -}}
+
