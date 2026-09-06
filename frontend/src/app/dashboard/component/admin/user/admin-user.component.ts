@@ -244,24 +244,28 @@ export class AdminUserComponent implements OnInit {
     this.editAttribute = "";
   }
 
-  public sortByID: NzTableSortFn<User> = (a: User, b: User) => b.uid - a.uid;
+  // NzTableSortFn must order ascending: nz-table applies the result as-is for the 'ascend' sort
+  // order and negates it for 'descend'. Reversing the operands here would render the column
+  // backwards under the up caret.
+  public sortByID: NzTableSortFn<User> = (a: User, b: User) => a.uid - b.uid;
+
   public sortByName: NzTableSortFn<User> = (a: User, b: User) => {
-    const compare = (b.name || "").localeCompare(a.name || "");
+    const compare = (a.name || "").localeCompare(b.name || "");
     return compare === 0 ? a.uid - b.uid : compare;
   };
 
   public sortByEmail: NzTableSortFn<User> = (a: User, b: User) => {
-    const compare = (b.email || "").localeCompare(a.email || "");
+    const compare = (a.email || "").localeCompare(b.email || "");
     return compare === 0 ? a.uid - b.uid : compare;
   };
 
   public sortByComment: NzTableSortFn<User> = (a: User, b: User) => {
-    const compare = (b.comment || "").localeCompare(a.comment || "");
+    const compare = (a.comment || "").localeCompare(b.comment || "");
     return compare === 0 ? a.uid - b.uid : compare;
   };
 
   public sortByRole: NzTableSortFn<User> = (a: User, b: User) => {
-    const compare = b.role.localeCompare(a.role);
+    const compare = a.role.localeCompare(b.role);
     return compare === 0 ? a.uid - b.uid : compare;
   };
 
@@ -271,12 +275,12 @@ export class AdminUserComponent implements OnInit {
   };
 
   public sortByAffiliation: NzTableSortFn<User> = (a: User, b: User) => {
-    const compare = (b.affiliation || "").localeCompare(a.affiliation || "");
+    const compare = (a.affiliation || "").localeCompare(b.affiliation || "");
     return compare === 0 ? a.uid - b.uid : compare;
   };
 
   public sortByJoiningReason: NzTableSortFn<User> = (a: User, b: User) => {
-    const compare = (b.joiningReason || "").localeCompare(a.joiningReason || "");
+    const compare = (a.joiningReason || "").localeCompare(b.joiningReason || "");
     return compare === 0 ? a.uid - b.uid : compare;
   };
 
@@ -352,6 +356,9 @@ export class AdminUserComponent implements OnInit {
     return user.accountCreation * 1000;
   }
 
+  // Active-before-inactive IS this column's ascending order, so the up caret surfaces the users
+  // who are online now. Unlike the columns above there is no natural A-to-Z to reverse here: the
+  // key is a boolean, and ranking active first is what makes the first click useful.
   sortByActive: NzTableSortFn<User> = (a: User, b: User) => {
     const aActive = this.isUserActive(a);
     const bActive = this.isUserActive(b);
