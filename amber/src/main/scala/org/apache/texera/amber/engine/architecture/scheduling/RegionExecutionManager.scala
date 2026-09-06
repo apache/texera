@@ -19,8 +19,8 @@
 
 package org.apache.texera.amber.engine.architecture.scheduling
 
+import com.twitter.util.{Future, JavaTimer, Promise, Return, Throw, Timer}
 import org.apache.pekko.pattern.gracefulStop
-import com.twitter.util.{Future, JavaTimer, Return, Throw, Timer}
 import org.apache.texera.amber.core.state.State
 import org.apache.texera.amber.core.storage.{DocumentFactory, VFSURIFactory}
 import org.apache.texera.amber.core.virtualidentity.ActorVirtualIdentity
@@ -30,6 +30,7 @@ import org.apache.texera.amber.engine.architecture.common.{
   PekkoActorService,
   ExecutorDeployment
 }
+import org.apache.texera.amber.engine.architecture.coordinator.Coordinator
 import org.apache.texera.amber.engine.architecture.coordinator.execution.{
   OperatorExecution,
   RegionExecution,
@@ -66,12 +67,19 @@ object RegionExecutionManager {
 
   // Terminating a region is deterministic: `EndWorker` plus `gracefulStop` either succeed, or the
   // engine has a bug that retrying cannot fix. Retries therefore only ride out a transient
-  // failure. With `Utils.retry`'s doubling backoff, 4 attempts from a 200ms base wait
-  // 200 + 400 + 800 ms = 1.4s in the worst case, where the former 150 attempts at a flat 200ms
-  // held a whole region's teardown for ~30s before the failure surfaced.
+  // failure. With `Utils.retry`'s doubling backoff and a 6s timeout per attempt
+  // (5s gracefulStop + 1s drain allowance), 4 attempts take ~25.4s
+  // in the worst case (4 × 6s + 1.4s backoff), compared with the former
+  // 150 attempts at a flat 200ms, which held a whole region's teardown for ~30s before failure.
   private[scheduling] val DefaultMaxTerminationAttempts: Int = 4
 
   private[scheduling] val DefaultKillRetryBaseBackoffMs: Long = 200L
+
+  private[scheduling] val DefaultGracefulStopTimeoutMs: Long = 5000L
+  private[scheduling] val DefaultTerminationDrainAllowanceMs: Long = 1000L
+
+  private[scheduling] val DefaultTerminationTimeoutMs: Long =
+    DefaultGracefulStopTimeoutMs + DefaultTerminationDrainAllowanceMs
 }
 
 /**
@@ -113,6 +121,7 @@ class RegionExecutionManager(
     maxTerminationAttempts: Int = RegionExecutionManager.DefaultMaxTerminationAttempts,
     killRetryBaseBackoffMs: Long = RegionExecutionManager.DefaultKillRetryBaseBackoffMs,
     killRetryTimer: Timer = new JavaTimer(true),
+    terminationTimeoutMs: Long = RegionExecutionManager.DefaultTerminationTimeoutMs,
     // Loop bookkeeping addresses (Loop Start logical op id -> its input
     // port's BASE materialization URI), shipped to every worker in
     // InitializeExecutorRequest. See WorkflowExecutionManager.loopStartPortUris.
@@ -185,7 +194,9 @@ class RegionExecutionManager(
   }
 
   private def terminateWorkers(regionExecution: RegionExecution) = {
-    // 1. Send EndWorkers to every worker
+    implicit val timer: Timer = killRetryTimer
+    val killTimeout = com.twitter.util.Duration.fromMilliseconds(terminationTimeoutMs)
+    // 1. Send EndWorkers to every worker.
     val endWorkerRequests =
       regionExecution.getAllOperatorExecutions.flatMap {
         case (_, opExec) =>
@@ -195,41 +206,47 @@ class RegionExecutionManager(
           }
       }.toSeq
 
-    val endWorkerFuture: Future[Unit] =
-      Future.collect(endWorkerRequests).unit
+    val terminationAttempt =
+      Future
+        .collect(endWorkerRequests)
+        .unit
+        .flatMap { _ =>
+          // 2. Only send GracefulStops after all EndWorkers have succeeded.
+          val gracefulStopRequests =
+            regionExecution.getAllOperatorExecutions.flatMap {
+              case (_, opExec) =>
+                opExec.getWorkerIds.map { workerId =>
+                  val actorRef = actorRefService.getActorRef(workerId)
+                  gracefulStop(
+                    actorRef,
+                    ScalaDuration(
+                      RegionExecutionManager.DefaultGracefulStopTimeoutMs,
+                      TimeUnit.MILLISECONDS
+                    )
+                  ).asTwitter()
+                }
+            }.toSeq
 
-    // 2. Send GracefulStops only after 1 has finished
-    val gracefulStopRequests: Future[Unit] =
-      endWorkerFuture.flatMap { _ =>
-        val gracefulStops =
-          regionExecution.getAllOperatorExecutions.flatMap {
-            case (_, opExec) =>
-              opExec.getWorkerIds.map { workerId =>
-                val actorRef = actorRefService.getActorRef(workerId)
-                // Remove the actorRef so that no other actors can find the worker and send messages.
-                actorRefService.removeActorRef(workerId)
-                // Restarted regions reuse actorId. Remove stale control channels so the
-                // coordinator does not reuse old control-message sequence numbers for new workers.
-                asyncRPCClient.inputGateway.removeControlChannel(workerId)
-                asyncRPCClient.outputGateway.removeControlChannel(workerId)
-                gracefulStop(actorRef, ScalaDuration(5, TimeUnit.SECONDS)).asTwitter()
-              }
-          }.toSeq
+          Future.collect(gracefulStopRequests).unit
+        }
+        .within(killTimeout)
 
-        Future.collect(gracefulStops).unit
-      }
-
-    // 3. Log whether the kills were successful
-    gracefulStopRequests.transform {
+    // 3. Clean up only after graceful termination succeeds.
+    terminationAttempt.transform {
       case Return(_) =>
         logger.debug(s"Region ${region.id.id} successfully terminated.")
+        val allWorkerIds = regionExecution.getAllOperatorExecutions.toSeq.flatMap {
+          case (_, opExec) => opExec.getWorkerIds
+        }
         regionExecution.getAllOperatorExecutions.foreach {
           case (_, opExec) =>
             opExec.getWorkerIds.foreach { workerId =>
               opExec.getWorkerExecution(workerId).forceTerminate()
             }
         }
-        Future.Unit // propagate success
+        val cleanupPromise = Promise[Unit]()
+        actorService.self ! Coordinator.CleanupWorkerChannels(allWorkerIds, cleanupPromise)
+        cleanupPromise
       case Throw(err) =>
         logger.warn(s"Error when terminating region ${region.id}.")
         Future.exception(err) // propagate failure
