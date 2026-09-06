@@ -515,40 +515,28 @@ class MainLoop(StoppableQueueBlockingRunnable):
             self._emit_and_save_state(state, in_counter - 1, frame.loop_start_id)
             self._check_and_process_control()
             return
-        if (
-            isinstance(executor, LoopStartOperator)
-            and frame.loop_start_id
-            and frame.loop_start_id != get_logical_op_id(self.context.worker_id)
-        ):
-            # State belongs to an outer loop flowing through this inner LoopStart.
-            # Forward it one level deeper while preserving the outer loop's id.
-            self._emit_and_save_state(
-                state,
-                in_counter + 1,
-                frame.loop_start_id,
-            )
-            self._check_and_process_control()
-            return
+        if isinstance(executor, LoopStartOperator) and frame.loop_start_id:
+            if frame.loop_start_id == get_logical_op_id(self.context.worker_id):
+                # This is this LoopStart's own back-edge state. Restore the loop
+                # variables directly instead of routing the state through
+                # process_state(), which is reserved for external/first-entry state.
+                executor.state = state
+            else:
+                # State belongs to an outer loop flowing through this inner LoopStart.
+                # Forward it one level deeper while preserving the outer loop's id.
+                self._emit_and_save_state(
+                    state,
+                    in_counter + 1,
+                    frame.loop_start_id,
+                )
 
-        if (
-            isinstance(executor, LoopStartOperator)
-            and frame.loop_start_id
-            and frame.loop_start_id == get_logical_op_id(self.context.worker_id)
-        ):
-            # This is this LoopStart's own back-edge state. Restore the loop
-            # variables directly instead of routing the state through
-            # process_state(), which is reserved for external/first-entry state.
-            executor.state = state
             self._check_and_process_control()
             return
 
         # An unstamped counter-0 state at a LoopStart is ordinary incoming state,
         # so it falls through to process_input_state() and process_state() merges
-        # its keys into the loop variables. A stamped state belonging to this
-        # LoopStart's own back-edge is handled above by restoring executor.state
-        # directly. A stamped state belonging to an outer loop is forwarded above.
-        # Consequently, upstream state keys that collide with loop variables are
-        # still rejected by LoopStartOperator.process_state().
+        # its keys into the loop variables. Upstream state keys that collide with
+        # loop variables are rejected by LoopStartOperator.process_state().
 
         if isinstance(executor, LoopEndOperator):
             if not frame.loop_start_id:
