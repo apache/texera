@@ -273,7 +273,7 @@ class TestPeek:
         queue.disable("data")
         assert queue.peek() is None
 
-    def test_priority_group_peek_perturbs_round_robin_state(self):
+    def test_priority_group_peek_preserves_round_robin_state(self):
         lbmq = LinkedBlockingMultiQueue()
         lbmq.add_sub_queue("first", 1)
         lbmq.add_sub_queue("second", 1)
@@ -282,9 +282,10 @@ class TestPeek:
 
         assert group.next_idx == 0
         assert group.peek() == "s"
-        # Skipping the empty `first` queue advanced next_idx, so peek is not
-        # side-effect free on the group's round-robin cursor.
-        assert group.next_idx == 1
+        assert group.next_idx == 0
+
+        lbmq.put("first", "f")
+        assert lbmq.get() == "f"
 
     def test_priority_group_peek_returns_none_when_all_queues_empty(self, queue):
         group = queue.get_sub_queue("control").priority_group
