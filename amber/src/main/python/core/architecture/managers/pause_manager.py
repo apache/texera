@@ -70,11 +70,13 @@ class PauseManager:
     def resume(self, pause_type: PauseType, change_state=True) -> None:
         if pause_type in self._global_pauses:
             self._global_pauses.remove(pause_type)
-        if pause_type in self._specific_input_pauses:
-            # need to resume specific input channels
-            for channel_id in self._specific_input_pauses[pause_type]:
+        paused_channels = self._specific_input_pauses.pop(pause_type, set())
+        for channel_id in paused_channels:
+            if not any(
+                channel_id in channels
+                for channels in self._specific_input_pauses.values()
+            ):
                 self._input_queue.enable(channel_id)
-            del self._specific_input_pauses[pause_type]
 
         # still globally paused no action, don't need to resume anything
         if self._global_pauses:
