@@ -96,8 +96,10 @@ class WorkflowWebsocketResource extends LazyLogging {
             sessionState.send(state.resultService.handleResultPagination(paginationRequest))
           )
         case modifyLogicRequest: ModifyLogicRequest =>
-          if (workflowStateOpt.isDefined) {
-            val executionService = workflowStateOpt.get.executionService.getValue
+          workflowStateOpt.foreach { workflowState =>
+            val executionService = Option(workflowState.executionService.getValue).getOrElse(
+              throw new IllegalStateException("workflow execution is not initialized")
+            )
             val modifyLogicResponse =
               executionService.executionReconfigurationService.modifyOperatorLogic(
                 modifyLogicRequest

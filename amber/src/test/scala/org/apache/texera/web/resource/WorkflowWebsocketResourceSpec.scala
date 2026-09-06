@@ -93,11 +93,6 @@ import scala.jdk.CollectionConverters.{IteratorHasAsScala, MapHasAsJava, SeqHasA
   *   - `myOnOpen`'s missing-`wid`/`cuid` and bogus-privilege paths, which fail with NPE /
   *     IndexOutOfBounds / IllegalArgumentException. A harmless improvement (a default, or a clear
   *     message) would break such a test.
-  *   - `ModifyLogicRequest` with a workflow but no execution: `executionService.getValue` is null,
-  *     so the handler NPEs instead of reporting "workflow execution is not initialized". Same guard
-  *     gap as `case other` below — reported, not pinned. It is also the only input that would tell
-  *     `if (workflowStateOpt.isDefined)` apart from `if (executionStateOpt.isDefined)`, so that
-  *     guard's exact condition is left unpinned on purpose; see the no-workflow case below.
   *   - `ResultPaginationRequest`'s real payload, which needs a DB; only the request/response
   *     pass-through is asserted here, against a stubbed result service.
   *   - the deserialization line, already owned by `TexeraWebSocketRequestSpec`.
@@ -523,17 +518,21 @@ class WorkflowWebsocketResourceSpec
     response.get("errorMessage").asText() shouldBe "7"
   }
 
+  it should "report a ModifyLogicRequest received before execution is initialized" in {
+    val (session, sent) = mockSession(uid = Some(42))
+    val workflow = new TestWorkflowService(9107L)
+    attach(session, PrivilegeEnum.WRITE, workflow)
+
+    val ex = intercept[IllegalStateException] {
+      resource.myOnMsg(session, modifyLogicFrame)
+    }
+
+    ex.getMessage should include("workflow execution is not initialized")
+    sentTypes(sent) shouldBe Seq("WorkflowErrorEvent")
+    fatalErrorMessages(sent).head should include("workflow execution is not initialized")
+  }
+
   it should "ignore a ModifyLogicRequest that arrives before any workflow is attached" in {
-    // The `if (workflowStateOpt.isDefined)` guard, observed false. Without this case the guard could
-    // be replaced by `if (true)` and nothing would notice: the `.get` on the empty Option would
-    // throw NoSuchElementException, the catch-all would turn it into a WorkflowErrorEvent, and the
-    // rethrow would escape — so both assertions here have teeth.
-    //
-    // NOT pinned, and it cannot be: rewriting the guard as `if (executionStateOpt.isDefined)` is
-    // indistinguishable from the current one to every test in this suite. The only input that
-    // separates them is a workflow with no execution, where today's guard NPEs on
-    // `executionService.getValue` and the rewrite quietly does nothing. Pinning either answer would
-    // cement one of them, and the rewrite is arguably the fix.
     val (session, sent) = mockSession(uid = Some(42))
     registerState(session, PrivilegeEnum.WRITE)
 
