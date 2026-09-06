@@ -56,6 +56,13 @@ export function setupHarness() {
   const workflowMetaDataChangedStream = new Subject<unknown>();
   // Compilation reports column names late; the form rebuilds its inputs off this stream.
   const compilationChanged = new Subject<unknown>();
+  // Run-related streams the run tests drive: execution state, the engine's duration event, the
+  // computing-unit connection status, the workflow validity, and the websocket connection.
+  const executionStateStream = new Subject<any>();
+  const durationEvents = new Subject<{ duration: number; isRunning: boolean }>();
+  const statusStream = new Subject<any>();
+  const validationStream = new Subject<{ errors: Record<string, unknown>; workflowEmpty: boolean }>();
+  const connectionStream = new Subject<boolean>();
   // The operators the graph holds: `hasOperatorIds` gates operatorSchemaFor, `graphOperators`
   // supplies each operator's type (which picks the custom widget). Tests add to them as needed.
   const hasOperatorIds = new Set<string>();
@@ -87,6 +94,9 @@ export function setupHarness() {
   // Resolves the exposed inputs and reads/writes their values. Tests point `resolveFields` at the
   // inputs they want rendered; `readValue` seeds the write-back guard.
   const formBindingService = {
+    // The presentation config: the instruction plus the fields. Tests override getConfig to give an
+    // instruction; resolveFields drives which inputs render.
+    getConfig: vi.fn().mockReturnValue({ instruction: undefined, fields: [], resultOperatorIds: [] }),
     resolveFields: vi.fn().mockReturnValue([]),
     readValue: vi.fn().mockReturnValue(undefined),
     writeValue: vi.fn(),
@@ -101,6 +111,48 @@ export function setupHarness() {
         { key: "fileName", props: { label: "File" } },
         { key: "modelId", props: { label: "Model" } },
         { key: "datasetVersionPath", props: { label: "Dataset" } },
+        // An object property with sub-fields (drives the override walk over a fieldGroup). The
+        // schema descriptions are here so a test can assert the walk drops them.
+        {
+          key: "nested",
+          props: { label: "Nested", description: "obj note" },
+          fieldGroup: [{ key: "sub", props: { label: "Sub", description: "sub note" } }],
+        },
+        // A repeated section whose row template is a builder (drives the fieldArray-wrapping path).
+        // The returned row carries its own description (the schema's items.description), so a test
+        // can assert the walk drops it -- it would otherwise render once per row.
+        {
+          key: "predicates",
+          props: { label: "Predicates" },
+          fieldArray: () => ({
+            props: { description: "row note" },
+            fieldGroup: [{ key: "alias", props: { label: "Alias" } }],
+          }),
+        },
+        // A scalar array: its row template is a leaf (no sub-fields), drives the leaf-item branch.
+        {
+          key: "tags",
+          props: { label: "Tags" },
+          fieldArray: { key: "item", props: { label: "Tag", description: "item note" } },
+        },
+        // A static object-array template (fieldArray is an object WITH sub-fields, not a builder):
+        // drives the object-array-template branch, where the container's own items.description must
+        // be dropped even though the container itself is not walked as a root.
+        {
+          key: "rules",
+          props: { label: "Rules" },
+          fieldArray: {
+            props: { description: "rules note" },
+            fieldGroup: [{ key: "field", props: { label: "Field", description: "field note" } }],
+          },
+        },
+        // A scalar array whose row template is a BUILDER returning a leaf (no fieldGroup): drives
+        // the leaf case inside the fieldArray-function wrapper.
+        {
+          key: "tagsFn",
+          props: { label: "Tags (fn)" },
+          fieldArray: () => ({ key: "item", props: { label: "Tag", description: "fn note" } }),
+        },
       ];
       return { fieldGroup: opts?.map ? fields.map(opts.map) : fields };
     },
@@ -118,14 +170,34 @@ export function setupHarness() {
   const coeditorPresenceService = { coeditors: [] };
   const route = { snapshot: { params: { id: "7" } } };
   const operatorMetadataService = { getOperatorMetadata: () => of({}) };
-  const executeWorkflowService = { resetExecutionAndWorkers: vi.fn() };
+  const executeWorkflowService = {
+    getExecutionStateStream: () => executionStateStream.asObservable(),
+    executeWorkflow: vi.fn(),
+    killWorkflow: vi.fn(),
+    resetExecutionAndWorkers: vi.fn(),
+  };
   const workflowResultService = { clearResults: vi.fn() };
   const notificationService = { error: vi.fn() };
   // Not logged in by default so opening a workflow does not save; the save tests log in.
   const userService = { getCurrentUser: () => undefined, isLogin: vi.fn().mockReturnValue(false) };
-  const cdr = { detectChanges: vi.fn() };
-  const computingUnitStatusService = { disconnect: vi.fn() };
+  const markdownService = { parse: (s: string) => s };
+  const cdr = { detectChanges: vi.fn(), markForCheck: vi.fn() };
+  const computingUnitStatusService = {
+    disconnect: vi.fn(),
+    getSelectedComputingUnit: () => statusStream.asObservable(),
+    getStatus: () => statusStream.asObservable(),
+  };
   const workflowConsoleService = { clearConsoleMessages: vi.fn() };
+  // The websocket the run clock and the "Connecting" state read. `isConnected` is a plain settable
+  // flag so a test can put the page in the connecting window.
+  const workflowWebsocketService = {
+    subscribeToEvent: (_: string) => durationEvents.asObservable(),
+    isConnected: true,
+    getConnectionStatusStream: () => connectionStream.asObservable(),
+  };
+  const validationWorkflowService = {
+    getWorkflowValidationErrorStream: () => validationStream.asObservable(),
+  };
   // The name field is measured off the host; querySelector returns null so the measuring
   // (DOM-layout, jsdom has none) short-circuits. `contains` drives isTypingInTheForm; false by
   // default so a rebuild is never suppressed, and overridden by the tests that probe typing.
@@ -153,18 +225,26 @@ export function setupHarness() {
     workflowResultService,
     notificationService,
     userService,
+    markdownService,
     formlyJsonschema,
     cdr,
     dynamicSchemaService,
     workflowCompilingService,
     computingUnitStatusService,
     workflowConsoleService,
+    workflowWebsocketService,
+    validationWorkflowService,
     host,
     datePipe,
     config,
     workflowChangedStream,
     workflowMetaDataChangedStream,
     compilationChanged,
+    executionStateStream,
+    durationEvents,
+    statusStream,
+    validationStream,
+    connectionStream,
     hasOperatorIds,
     graphOperators,
     triggerCenterEvent,
