@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1788613486996,
+  "lastUpdate": 1788699379217,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -12510,6 +12510,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 507.38464338968424,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "yangzhang75",
+            "username": "yangzhang75",
+            "email": "yangz75@uci.edu"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "357d9013e14bac3bcfc7a8bf6ddfdb13937bd55a",
+          "message": "feat(workflow-form): render the exposed inputs and write values back (#8437)\n\n### Purpose\n\nCloses #8370. Part of the Form View stack (#8011), stacked on #8436\n(PR9).\n\nThe Form View page already has the title bar and the collapsible\nread-only workflow preview. This PR fills in the middle: it renders the\ninputs an author exposed and writes filled-in values straight back to\ntheir operators.\n\n### Changes\n\n- Each exposed binding is turned into its operator's own ngx-formly\nfield, built from the operator's JSON schema (not guessed from the\nvalue), so a file property gets the real file picker and an attribute\nproperty a column dropdown instead of degrading to a plain text box.\n- The widget is decided by the shared `customFormlyFieldType` (extracted\nin #8436). Two widgets that only work on the operator canvas, the code\neditor and the drag-reorder list, are collected in a new\n`CANVAS_ONLY_FORMLY_TYPES` and fall back to formly's default editable\ncontrol, since they cannot function on a form.\n- A changed value writes straight back to its operator, the same edit\nthe canvas makes, guarded so formly's build-time empty default never\nsilently wipes a real value. Only a viewer with write access can edit; a\nread-only viewer sees the values disabled and the page never persists\nfor them.\n- The inputs rebuild on the compilation stream (attribute boxes become\ndropdowns once upstream columns are known) and on `formBindingChanged$`\n(exposing or un-exposing a property, a co-editor's change included, is\nreflected at once), both skipped while the cursor is in a field so an\nin-progress edit is not thrown away.\n- Broken bindings (the operator was deleted, or the key no longer\nexists) are left out of what a reader sees.\n\nNested and array sub-field overrides are added in the next PR (#8022);\nrunning the workflow and showing results follow after that.\n\n### Tests\n\n- `workflow-form.component.spec.ts`: direct-construction unit tests for\nrendering, widget selection, the write-back guards, read-only locking,\nthe compilation/binding rebuild triggers, and the typing guard, for both\nthe single-user and the collaboration paths.\n- `workflow-form.rendered.spec.ts`: TestBed test standing up the real\ntemplate so the inputs markup (section head, empty state, input card and\nform wrapper) is covered.\n- `custom-formly-type.spec.ts`: covers the new\n`CANVAS_ONLY_FORMLY_TYPES`.\n- 100% statement and function coverage on the changed source. `ng test`\n(71 tests here), `ng build gui`, eslint and prettier all pass.\n\n### Was AI used?\n\nYes, co-authored with Claude (Claude Code).\n\n\n#### Screenshot\n\nThe **Inputs** area: each exposed property rendered as its operator's\nown control (the workflow preview and mini-map below it are the earlier\nPR's).\n\n<img width=\"1267\" height=\"391\" alt=\"Screenshot 2026-09-05 at 11 41\n41 AM\"\nsrc=\"https://github.com/user-attachments/assets/4572fa60-3124-4140-8f7c-ddd7f22133fd\"\n/>\n\nCo-authored-by: Claude Opus 4.8 <noreply@anthropic.com>",
+          "timestamp": "2026-09-06T08:47:16Z",
+          "url": "https://github.com/apache/texera/commit/357d9013e14bac3bcfc7a8bf6ddfdb13937bd55a"
+        },
+        "date": 1788699378596,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 755.4605792697739,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 1341.8448296168774,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 1437.1486522326331,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 959.6750927077089,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 1391.8211068458854,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 1449.983987681463,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 994.033236966483,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 1388.6254986473277,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 1439.6280467647266,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 814.6775182385563,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 1106.944275949384,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 1156.1107814764118,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 844.966622193975,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 1115.021238724409,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 1148.9489913773407,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 856.8882138361624,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 1095.6654952675672,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 1125.2911068699202,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 530.8121229611633,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 631.0369123140543,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 640.9731893575234,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 530.3884468108993,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 625.2401832418891,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 630.7878227011754,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 503.3515413219912,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 589.5693038767115,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 601.9414327358816,
             "unit": "tuples/sec"
           }
         ]
