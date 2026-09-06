@@ -88,7 +88,7 @@ class VFSURIFactory:
             else None
         )
 
-        resource_type_str = segments[-1].lower()
+        resource_type_str = segments[-1]
         try:
             resource_type = VFSResourceType(resource_type_str)
         except ValueError:

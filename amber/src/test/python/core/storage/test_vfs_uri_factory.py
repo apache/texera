@@ -113,6 +113,14 @@ class TestDecodeUriRoundTrip:
         assert components.global_port_id is None
         assert components.resource_type == VFSResourceType.RESULT
 
+    @pytest.mark.parametrize(
+        "resource_type",
+        [VFSResourceType.RUNTIME_STATISTICS, VFSResourceType.CONSOLE_MESSAGES],
+    )
+    def test_camel_case_resource_type_round_trips(self, resource_type):
+        uri = f"vfs:///wid/11/eid/22/{resource_type.value}"
+        assert VFSURIFactory.decode_uri(uri).resource_type == resource_type
+
 
 class TestDecodeUriErrorPaths:
     def test_rejects_non_vfs_scheme(self):
