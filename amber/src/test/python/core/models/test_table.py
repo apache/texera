@@ -215,10 +215,12 @@ class TestTable:
         # test in this file compares two *equal* Tables, so replacing the arm's
         # body with `return True` survived the whole suite. One negative case
         # closes that.
-        #
-        # Deliberately NOT pinned here: `zip` truncates to the shorter operand,
-        # so `Table(frame.head(1)) == Table(frame)` is True today. That is a
-        # defect, not a contract, and asserting it would cement it.
         differing = comparable_frame.copy()
         differing.loc[0, "field2"] = "goodbye"
         assert (Table(comparable_frame) == Table(differing)) is False
+
+    def test_two_tables_with_different_row_counts_are_not_equal(self, comparable_frame):
+        short = Table(comparable_frame.head(1))
+        full = Table(comparable_frame)
+        assert (short == full) is False
+        assert (full == short) is False
