@@ -70,6 +70,39 @@
   </div>
 
   <div [hidden]="loading">
+    <!-- The author's one piece of guidance, shown as rendered markdown, collapsible, and only when
+         there is instruction text to show. Editing it is part of the authoring PR. -->
+    <section
+      class="card instr"
+      *ngIf="hasInstruction"
+      [class.open]="instructionOpen">
+      <button
+        type="button"
+        class="instr-bar"
+        [attr.aria-expanded]="instructionOpen"
+        (click)="toggleInstruction()">
+        <i
+          nz-icon
+          nzType="info-circle"
+          class="lead"
+          aria-hidden="true"></i>
+        <h2>{{ instructionTitle || "How to use this" }}</h2>
+        <i
+          nz-icon
+          nzType="down"
+          class="chev"
+          aria-hidden="true"></i>
+      </button>
+
+      <div
+        class="instr-body"
+        [hidden]="!instructionOpen">
+        <div
+          class="md"
+          [innerHTML]="instructionPreviewHtml"></div>
+      </div>
+    </section>
+
     <!-- The inputs an author exposed, each rendered as its operator's own field. -->
     <div class="pc-section-head">
       <span class="label">Inputs</span>
@@ -108,8 +141,55 @@
       </section>
     </div>
 
-    <!-- The workflow, out of the way unless the reader goes looking. Running and results are added
-         on top of this by the following PRs. -->
+    <!-- Run and the unit it runs on sit together, because one gates the other, but they stay two
+         controls: the selector draws its own bordered box. Adjacency and equal height say they
+         belong to each other. -->
+    <div class="runbar">
+      <div class="run-group">
+        <!-- One button in this page's own style, but its label, icon and disabled-ness are the
+             operator canvas's own (menu.component's getRunButtonBehavior): "Invalid" / "Empty" for a
+             graph that cannot run, "Connecting" while a unit's socket comes up, "Connect" before one
+             is chosen, "Run" once ready, "Stop" while running. Disabled in every state a run cannot
+             start from, so the reader is never sent to press a button that does nothing. -->
+        <button
+          class="run"
+          [class.stop]="isRunning"
+          [class.connecting]="runButtonState.disabled && !isRunning"
+          [disabled]="runButtonState.disabled"
+          (click)="onRun()">
+          <i
+            nz-icon
+            [nzType]="runButtonState.icon"
+            aria-hidden="true"></i>
+          {{ runButtonState.label }}
+        </button>
+        <!-- The page opens its own connection on load, so this control no longer decides whether
+             running works by where it is mounted. -->
+        <div class="run-unit">
+          <texera-computing-unit-selection></texera-computing-unit-selection>
+        </div>
+        <!-- How long this has been going, from the same engine event the operator canvas counts. It
+             appears only once there is something to count, so a form at rest is not carrying a
+             0:00:00 around. -->
+        <span
+          class="run-clock"
+          *ngIf="executionDuration > 0">
+          {{ executionDuration | date: "H:mm:ss" : "UTC" }}
+        </span>
+      </div>
+    </div>
+    <!-- On its own line: a message that explains or blocks the run should not push the two controls
+         apart, and it is absent most of the time. -->
+    <p
+      class="run-note"
+      [class.err]="runError"
+      [attr.role]="runError ? 'alert' : 'status'"
+      *ngIf="runError || isRunning">
+      {{ runError || "Running -- this keeps going if you look away." }}
+    </p>
+
+    <!-- The workflow, out of the way unless the reader goes looking. Results are added on top of
+         this by the following PR. -->
     <section
       class="card wf"
       [class.open]="workflowOpen">
@@ -140,6 +220,71 @@
           *ngIf="workflowEverOpened"
           class="box"></texera-mini-map>
       </div>
+    </section>
+
+    <!-- Results, under the workflow that produced them. The section keeps its place before a run so
+         the answer has a visible destination. -->
+    <section class="results">
+      <div class="pc-section-head"><span class="label">Results</span></div>
+      <p
+        class="results-empty"
+        *ngIf="resultIdsToShow.length === 0">
+        {{ isRunning ? "Working…" : "Press Run and the results appear here." }}
+      </p>
+      <!-- A card only for a chosen step that actually produced a result. Whether a Python UDF
+           yields one cannot be told from the graph, so a step earns its card at runtime rather than
+           sitting on a permanent "No result yet." (a download/publish step never would). -->
+      <ng-container *ngFor="let id of resultIdsToShow">
+        <div class="card result">
+          <div class="result-head">
+            <span>{{ resultLabel(id) }}</span>
+            <!-- Zooming only means something once there is a picture to zoom. -->
+            <span
+              class="result-zoom"
+              *ngIf="vizHasContent(id)">
+              <button
+                (click)="zoomResult(id, -1)"
+                [disabled]="resultZoom(id) <= 0"
+                nz-tooltip="Smaller">
+                <i
+                  nz-icon
+                  nzType="minus"></i>
+              </button>
+              <button
+                (click)="zoomResult(id, 1)"
+                [disabled]="resultZoom(id) >= 2"
+                nz-tooltip="Bigger">
+                <i
+                  nz-icon
+                  nzType="plus"></i>
+              </button>
+            </span>
+          </div>
+          <!-- Three cases, in order: a table (it shows its own "Empty result set" when it has no
+               rows), a visualisation that actually drew something, or nothing yet -- which
+               collapses to a compact line instead of a tall blank canvas. -->
+          <div
+            class="result-body"
+            [attr.data-zoom]="resultZoom(id)"
+            [ngSwitch]="true">
+            <texera-result-table-frame
+              *ngSwitchCase="isTabularResult(id)"
+              [operatorId]="id"></texera-result-table-frame>
+            <ng-container *ngSwitchCase="vizHasContent(id)">
+              <!-- Keyed on the result's version so a new result builds a new frame: the component
+                   reads its content once, at creation. -->
+              <texera-visualization-panel-content
+                *ngFor="let key of [resultKey(id)]; trackBy: trackByKey"
+                [operatorId]="id"></texera-visualization-panel-content>
+            </ng-container>
+            <p
+              *ngSwitchDefault
+              class="result-pending">
+              {{ isRunning ? "Computing…" : "No result yet." }}
+            </p>
+          </div>
+        </div>
+      </ng-container>
     </section>
   </div>
 </div>

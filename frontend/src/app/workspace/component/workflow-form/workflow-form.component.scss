@@ -190,6 +190,82 @@ $shell: #fafafa;
   background: #fff;
 }
 
+/* ---------- instruction ---------- */
+
+.instr {
+  margin-bottom: 26px;
+
+  .instr-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 13px 16px;
+    cursor: pointer;
+    user-select: none;
+    appearance: none;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+
+    h2 {
+      margin: 0;
+      font-size: 15px;
+      font-weight: 600;
+      flex: 1;
+    }
+
+    .lead {
+      color: $blue;
+    }
+
+    .chev {
+      color: $text-2;
+      transform: rotate(-90deg);
+      transition: transform 0.2s;
+    }
+  }
+
+  &.open .instr-bar .chev {
+    transform: rotate(0deg);
+  }
+
+  .instr-body {
+    border-top: 1px solid $divider;
+    padding: 16px;
+    /* A long explanation scrolls rather than pushing the form off screen, and can be dragged
+       taller by anyone who wants to read it all at once. */
+    max-height: 340px;
+    overflow-y: auto;
+    resize: vertical;
+  }
+}
+
+.md {
+  :first-child {
+    margin-top: 0;
+  }
+
+  :last-child {
+    margin-bottom: 0;
+  }
+
+  img {
+    max-width: 100%;
+    border: 1px solid $divider;
+    border-radius: 6px;
+  }
+
+  code {
+    background: $divider;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 12.5px;
+  }
+}
+
 /* ---------- inputs ---------- */
 
 .pc-section-head {
@@ -311,6 +387,103 @@ $shell: #fafafa;
   }
 }
 
+/* ---------- run ---------- */
+
+.runbar {
+  display: flex;
+  align-items: center;
+  margin-top: 26px;
+}
+
+/* Run and its computing unit as one control. The seam between them is what says the two belong
+   together. */
+.run-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+
+  /* Quiet beside Run: it is something you glance at, not a control. Tabular figures stop the row
+     twitching as the seconds tick over. */
+  .run-clock {
+    align-self: center;
+    margin-left: 4px;
+    color: #5c6672;
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.02em;
+  }
+
+  .run-unit {
+    display: flex;
+    align-items: center;
+
+    /* The selector reserves 220px and right-aligns inside it, which on the toolbar keeps a row of
+       controls steady but here left a wide gap between Run and a box that belongs next to it. Let
+       it be as wide as its content. */
+    ::ng-deep .computing-units-selection {
+      min-width: 0;
+    }
+
+    /* Matched to Run's height so the pair reads as one row of controls. */
+    ::ng-deep .computing-units-dropdown-button {
+      height: 40px;
+    }
+  }
+}
+
+.run {
+  height: 40px;
+  // Fixed width, content centred, so the button is the same size in every state (Run / Stop /
+  // Connect / Connecting / Invalid / Empty) instead of shrinking to "Run" and jumping wide for the
+  // others. Sized to the longest label ("Connecting"); the disabled states are kept to one word so
+  // this stays compact.
+  min-width: 160px;
+  padding: 0 26px;
+  font-size: 15px;
+  font-weight: 600;
+  border-radius: 8px;
+  border: 1px solid $blue;
+  background: $blue;
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  cursor: pointer;
+
+  &:hover {
+    background: #40a9ff;
+    border-color: #40a9ff;
+  }
+
+  &.stop {
+    background: #fff;
+    color: #ff4d4f;
+    border-color: #ff4d4f;
+
+    &:hover {
+      background: #fff1f0;
+    }
+  }
+
+  &:disabled {
+    background: $shell;
+    border-color: $border;
+    color: rgba(0, 0, 0, 0.25);
+    cursor: not-allowed;
+  }
+}
+
+.run-note {
+  font-size: 13px;
+  color: $text-2;
+  margin: 9px 0 0;
+
+  &.err {
+    color: #ff4d4f;
+  }
+}
+
 /* ---------- workflow preview ---------- */
 
 .wf {
@@ -392,6 +565,133 @@ $shell: #fafafa;
       border: 1px solid $divider;
       border-radius: 6px;
       background: #fff;
+    }
+  }
+}
+
+/* ---------- results ---------- */
+
+.results {
+  margin-top: 28px;
+}
+
+/* Quiet on purpose: it marks where the answer will land, and should not compete with the inputs
+   the reader is still filling in. */
+.results-empty {
+  margin: 0;
+  padding: 22px 0 6px;
+  color: $text-2;
+  font-size: 13.5px;
+}
+
+.result {
+  margin-bottom: 14px;
+  overflow: hidden;
+
+  .result-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 9px 13px;
+    border-bottom: 1px solid $divider;
+    font-size: 13px;
+    font-weight: 600;
+    background: $shell;
+  }
+
+  .result-zoom {
+    display: inline-flex;
+    gap: 2px;
+
+    button {
+      border: 1px solid $border;
+      background: #fff;
+      border-radius: 5px;
+      width: 24px;
+      height: 24px;
+      display: grid;
+      place-items: center;
+      color: $text-2;
+      cursor: pointer;
+      font-size: 11px;
+
+      &:hover:not(:disabled) {
+        color: $blue;
+        border-color: $blue;
+      }
+
+      &:disabled {
+        opacity: 0.35;
+        cursor: default;
+      }
+    }
+  }
+
+  /* Centred in the card so an empty / computing step reads at the same height as a full one --
+     every card is one fixed height, whatever its state. */
+  .result-pending {
+    margin: 0;
+    height: 100%;
+    display: grid;
+    place-items: center;
+    text-align: center;
+    color: $text-2;
+    font-size: 13.5px;
+  }
+
+  .result-body {
+    padding: 4px;
+    /* Every result card is the SAME height -- table, chart, empty, or "computing" -- so the list
+       never jumps between a tall box and a thin strip. Content scrolls inside; an empty state
+       centres. Tall enough for a screenful of rows, nowhere near a full-window box. */
+    height: 380px;
+    overflow: auto;
+
+    /* The reused result table's empty state ends with "Tip: enable the eye icon on the operator
+       ...". There is no such icon on this page and the step is already chosen, so that tip only
+       misleads here -- drop it, keep the neutral "Empty result set". */
+    ::ng-deep texera-result-table-frame h4 + p {
+      display: none;
+    }
+
+    /* Centre the table's own "Empty result set" in the card, where the other empty states sit.
+       Only the empty block carries this inline style, so a populated table is untouched. */
+    ::ng-deep texera-result-table-frame > div[style*="text-align"] {
+      height: 340px;
+      display: grid;
+      place-items: center;
+    }
+
+    /* An iframe has no intrinsic height; fill the card so a chart is the same height as a table.
+       The zoom control enlarges the picture inside without changing the card. */
+    texera-visualization-panel-content {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Zoom scales the picture itself (the iframe's rendered content), not the card frame. The card
+       keeps its height and scrolls to reach the rest of an enlarged image. */
+    &[data-zoom="0"] ::ng-deep iframe {
+      transform: scale(0.7);
+      transform-origin: top left;
+    }
+
+    &[data-zoom="2"] ::ng-deep iframe {
+      transform: scale(1.6);
+      transform-origin: top left;
+    }
+
+    /* A plot with dozens of categories needs the width most: squeezed narrow its axis labels
+       collapse into an unreadable smear. Let the iframe and whatever it renders take the card. */
+    ::ng-deep iframe,
+    ::ng-deep .visualization-frame,
+    ::ng-deep .plotly-container,
+    ::ng-deep .js-plotly-plot {
+      width: 100% !important;
+      max-width: none !important;
+      height: 100% !important;
     }
   }
 }
