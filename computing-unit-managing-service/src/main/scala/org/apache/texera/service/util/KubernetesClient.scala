@@ -267,4 +267,10 @@ class KubernetesClient(
 }
 
 /** Production singleton bound to a real in-cluster fabric8 client. */
-object KubernetesClient extends KubernetesClient(new KubernetesClientBuilder().build())
+object KubernetesClient
+    extends KubernetesClient(
+      new KubernetesClientBuilder().build(),
+      // Passed explicitly: a companion object extending its companion class may not rely on
+      // the class's default constructor arguments.
+      KubernetesConfig.mounterEnabled
+    )
