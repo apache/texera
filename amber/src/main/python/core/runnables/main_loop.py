@@ -811,7 +811,8 @@ class MainLoop(StoppableQueueBlockingRunnable):
                     self._process_state_frame,
                 )
             except Exception as err:
-                logger.exception(err)
+                self.context.report_exception(err)
+        self._check_exception()
 
     def _send_console_message(self, console_message: ConsoleMessage):
         self._async_rpc_client.coordinator_stub().console_message_triggered(
