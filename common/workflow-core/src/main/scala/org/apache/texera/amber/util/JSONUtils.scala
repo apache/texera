@@ -19,6 +19,7 @@
 
 package org.apache.texera.amber.util
 
+import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonInclude.Include
 import com.fasterxml.jackson.databind.module.SimpleModule
 import com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
@@ -33,6 +34,18 @@ import scala.jdk.CollectionConverters.IteratorHasAsScala
 
 object JSONUtils {
 
+  // scalapb generates every sealed-oneof trait (a oneof named `sealed_value`, e.g.
+  // ControlReturn) with concrete `isEmpty`/`isDefined` helper methods that all member
+  // messages inherit. Jackson treats any public `isXxx` method as a getter, so without
+  // this mix-in it writes `"empty"`/`"defined"` into the JSON, and deserialization then
+  // fails because the member's constructor has no such parameters. The mix-in is keyed
+  // on the `scalapb.GeneratedSealedOneof` interface so every current and future
+  // sealed-oneof member is exempted at once.
+  private trait GeneratedSealedOneofMixin {
+    @JsonIgnore def isEmpty: Boolean
+    @JsonIgnore def isDefined: Boolean
+  }
+
   /**
     * A singleton object for configuring the Jackson `ObjectMapper` to handle JSON serialization and deserialization
     * in Scala. This custom `ObjectMapper` is tailored for Scala, ensuring compatibility with Scala types
@@ -43,6 +56,8 @@ object JSONUtils {
     *   which is common in case classes.
     * - Registers the `SimpleModule` with pairs of serializer & deserializer to ensure proper handling of serializing
     *    and deserializing the PhysicalPlan
+    * - Adds the `GeneratedSealedOneofMixin` mix-in for scalapb sealed-oneof types, so their generated
+    *    `isEmpty`/`isDefined` helper methods are not serialized as JSON properties.
     * - Sets the serialization inclusion rules to exclude `null` and `absent` values:
     *   - `Include.NON_NULL`: Excludes fields with `null` values from the serialized JSON.
     *   - `Include.NON_ABSENT`: Excludes fields with `Option.empty` (or equivalent absent values) from serialization.
@@ -61,6 +76,7 @@ object JSONUtils {
         .addKeySerializer(classOf[PortIdentity], new PortIdentityKeySerializer())
         .addKeyDeserializer(classOf[PortIdentity], new PortIdentityKeyDeserializer())
     )
+    .addMixIn(classOf[scalapb.GeneratedSealedOneof], classOf[GeneratedSealedOneofMixin])
     .setSerializationInclusion(Include.NON_NULL)
     .setSerializationInclusion(Include.NON_ABSENT)
     .setDateFormat(new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'"))
