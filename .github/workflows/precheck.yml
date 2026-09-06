@@ -50,8 +50,19 @@ on:
         value: ${{ jobs.decide.outputs.run_pyright_language_service }}
       backport_targets:
         value: ${{ jobs.decide.outputs.backport_targets }}
+      # Runner labels for Linux build jobs, three tiers: the self-hosted
+      # scale sets when the PR carries the ci:self-hosted label,
+      # GitHub-hosted ubuntu-latest otherwise.
+      heavy_runner:
+        value: ${{ jobs.decide.outputs.heavy_runner }}
+      medium_runner:
+        value: ${{ jobs.decide.outputs.medium_runner }}
+      light_runner:
+        value: ${{ jobs.decide.outputs.light_runner }}
 
 permissions:
+  # actions: read backs the queued-job backlog probe for runner routing.
+  actions: read
   checks: read
   # contents: read backs the git-data commit lookups (tree SHAs) in the
   # merge-queue fast path.
@@ -61,7 +72,12 @@ permissions:
 jobs:
   decide:
     name: Precheck
-    runs-on: ubuntu-latest
+    # Control-plane resilience: merge-queue entries (and labeled PRs) run
+    # this job on arc-light-linux so a jammed GitHub-hosted pool cannot
+    # stall the pipeline. Availability cannot be probed before this job runs, so
+    # the repo variable ARC_AVAILABLE is the kill switch: set it to
+    # 'false' when the cluster is down to route back to ubuntu-latest.
+    runs-on: ${{ ((github.event_name == 'merge_group' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'ci:self-hosted'))) && vars.ARC_AVAILABLE != 'false') && 'arc-light-linux' || 'ubuntu-latest' }}
     outputs:
       run_frontend: ${{ steps.decide.outputs.run_frontend }}
       run_amber: ${{ steps.decide.outputs.run_amber }}
@@ -73,6 +89,9 @@ jobs:
       run_infra: ${{ steps.decide.outputs.run_infra }}
       run_pyright_language_service: ${{ steps.decide.outputs.run_pyright_language_service }}
       backport_targets: ${{ steps.decide.outputs.backport_targets }}
+      heavy_runner: ${{ steps.decide.outputs.heavy_runner }}
+      medium_runner: ${{ steps.decide.outputs.medium_runner }}
+      light_runner: ${{ steps.decide.outputs.light_runner }}
     steps:
       - name: Wait for Pull Request Labeler
         if: github.event_name == 'pull_request'
@@ -101,6 +120,14 @@ jobs:
       - name: Decide which jobs to run
         id: decide
         uses: actions/github-script@v9
+        env:
+          # Fine-grained PAT with administration:read on this repo; used
+          # only to probe self-hosted runner availability. Optional — when
+          # absent the ci:self-hosted label is trusted without probing.
+          ARC_STATUS_TOKEN: ${{ secrets.ARC_STATUS_TOKEN }}
+          # Manual/auto kill switch mirrored by runner-heartbeat.yml's
+          # watchdog; 'false' forces every Linux tier back to GitHub-hosted.
+          ARC_AVAILABLE: ${{ vars.ARC_AVAILABLE }}
         with:
           script: |
             const eventName = context.eventName;
@@ -314,6 +341,184 @@ jobs:
               runPyrightLanguageService = false;
             }
 
+            // Runner tiers: merge queue entries default to the
+            // self-hosted scale sets (the queue is the latency-critical
+            // serialized path most hurt by hosted-pool congestion);
+            // PR events opt in via the ci:self-hosted label. Everything
+            // else (push / dispatch) stays GitHub-hosted. Tiers:
+            // arc-heavy-linux for the amber/sbt stacks, arc-medium-linux
+            // for platform and pyamber, arc-light-linux for the small
+            // service jobs.
+            //
+            // Fallback probing, two levels, evaluated per tier:
+            //
+            //  Level 1 (availability): a set with no online runner (cluster
+            //  down, scale set removed) falls back to GitHub-hosted so a
+            //  labeled PR never queues forever. Relies on each set keeping
+            //  warm runners (minRunners > 0) — an idle scale-set with
+            //  minRunners: 0 registers no runners and would look
+            //  unavailable.
+            //
+            //  Level 2 (congestion): predict queueing before it happens by
+            //  comparing this round's demand (the stack decisions above
+            //  tell us how many jobs each tier is about to receive)
+            //  against idle supply (runner busy flags) plus the backlog
+            //  of already-queued jobs waiting for the same label. Blind
+            //  spot: k8s-side capacity (Pending pods, scale-up headroom)
+            //  is invisible to the GitHub API.
+            //
+            // Runner listing needs ARC_STATUS_TOKEN (administration:read);
+            // without it the label is trusted as-is. Any probe error
+            // degrades to trusting the label.
+            const selfHosted = eventName === "merge_group" || labels.includes("ci:self-hosted");
+            const tiers = {
+              heavy_runner: selfHosted ? "arc-heavy-linux" : "ubuntu-latest",
+              medium_runner: selfHosted ? "arc-medium-linux" : "ubuntu-latest",
+              light_runner: selfHosted ? "arc-light-linux" : "ubuntu-latest",
+            };
+            // Per-tier job counts this round. PLATFORM_SERVICES mirrors the
+            // service matrix size in build.yml — keep in sync.
+            const PLATFORM_SERVICES = 6;
+            const demand = {
+              "arc-heavy-linux":
+                (runAmber ? 1 : 0) + (runAmberIntegration ? 1 : 0) + (runFrontend ? 1 : 0),
+              "arc-medium-linux":
+                (runPlatform ? PLATFORM_SERVICES : 0) +
+                (runPlatformIntegration ? PLATFORM_SERVICES : 0) +
+                (runPyamber ? 3 : 0),
+              "arc-light-linux":
+                (runInfra ? 1 : 0) +
+                (runAgentService ? 1 : 0) +
+                (runPyrightLanguageService ? 1 : 0),
+            };
+            // Kill switch: ARC_AVAILABLE=false (manual, or flipped by the
+            // runner-heartbeat watchdog) forces every tier to GitHub-hosted.
+            if (selfHosted && process.env.ARC_AVAILABLE === "false") {
+              for (const k of Object.keys(tiers)) tiers[k] = "ubuntu-latest";
+              core.warning("ARC_AVAILABLE=false; routing all Linux tiers to GitHub-hosted runners.");
+            }
+            // Heartbeat fallback: runner-heartbeat.yml proves fleet liveness
+            // every 15 minutes. Stale last-success (with history present)
+            // means the fleet is down — fall back without needing any extra
+            // credential (plain GITHUB_TOKEN, actions: read).
+            if (selfHosted && tiers.light_runner !== "ubuntu-latest") {
+              try {
+                const STALE_MS = 35 * 60 * 1000;
+                const ok = await github.rest.actions.listWorkflowRuns({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  workflow_id: "runner-heartbeat.yml",
+                  status: "success",
+                  per_page: 1,
+                });
+                const any = await github.rest.actions.listWorkflowRuns({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  workflow_id: "runner-heartbeat.yml",
+                  per_page: 1,
+                });
+                const hasHistory = (any.data.workflow_runs ?? []).length > 0;
+                const last = ok.data.workflow_runs?.[0];
+                const lastOk = last ? new Date(last.updated_at).getTime() : 0;
+                if (hasHistory && Date.now() - lastOk > STALE_MS) {
+                  for (const k of Object.keys(tiers)) tiers[k] = "ubuntu-latest";
+                  core.warning("Runner heartbeat is stale; routing all Linux tiers to GitHub-hosted runners.");
+                }
+              } catch (e) {
+                core.info(`Heartbeat check skipped (${e.message}).`);
+              }
+            }
+            if (selfHosted && process.env.ARC_STATUS_TOKEN) {
+              try {
+                // Raw request rather than
+                // github.rest.actions.listSelfHostedRunnersForRepo: the
+                // `github` client is bound to the workflow GITHUB_TOKEN, and
+                // Octokit's auth hook overwrites the authorization header on
+                // every request, so one client cannot carry a second token.
+                // Listing runners needs administration:read, which only
+                // ARC_STATUS_TOKEN has. The backlog probe below stays on the
+                // SDK because actions:read is within the workflow token's
+                // reach — the split follows token scope, not style.
+                //
+                // Giving this call the SDK back means moving it into its own
+                // github-script step with `github-token: ARC_STATUS_TOKEN`,
+                // which also buys `retries` and github.paginate (this request
+                // caps at 100 runners today). Worth doing once the fleet
+                // approaches that size; see the discussion on #7172.
+                const res = await fetch(
+                  `https://api.github.com/repos/${context.repo.owner}/${context.repo.repo}/actions/runners?per_page=100`,
+                  {
+                    headers: {
+                      authorization: `Bearer ${process.env.ARC_STATUS_TOKEN}`,
+                      accept: "application/vnd.github+json",
+                    },
+                  }
+                );
+                if (!res.ok) throw new Error(`runner list HTTP ${res.status}`);
+                const online = {};
+                const idle = {};
+                for (const r of (await res.json()).runners ?? []) {
+                  if (r.status !== "online") continue;
+                  for (const l of r.labels) {
+                    online[l.name] = (online[l.name] ?? 0) + 1;
+                    if (!r.busy) idle[l.name] = (idle[l.name] ?? 0) + 1;
+                  }
+                }
+                // Backlog: queued jobs per label across currently queued
+                // runs (capped sample; uses the workflow GITHUB_TOKEN).
+                const backlog = {};
+                try {
+                  const { data: queued } = await github.rest.actions.listWorkflowRunsForRepo({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    status: "queued",
+                    per_page: 10,
+                  });
+                  for (const run of queued.workflow_runs ?? []) {
+                    const { data: jobsData } = await github.rest.actions.listJobsForWorkflowRun({
+                      owner: context.repo.owner,
+                      repo: context.repo.repo,
+                      run_id: run.id,
+                      per_page: 100,
+                    });
+                    for (const job of jobsData.jobs ?? []) {
+                      if (job.status !== "queued") continue;
+                      for (const l of job.labels) backlog[l] = (backlog[l] ?? 0) + 1;
+                    }
+                  }
+                } catch (e) {
+                  core.warning(`Backlog probe failed (${e.message}); assuming no backlog.`);
+                }
+                for (const [output, scaleSet] of Object.entries({ ...tiers })) {
+                  if (scaleSet === "ubuntu-latest") continue;
+                  const nOnline = online[scaleSet] ?? 0;
+                  const nIdle = idle[scaleSet] ?? 0;
+                  const nBacklog = backlog[scaleSet] ?? 0;
+                  const nDemand = demand[scaleSet] ?? 0;
+                  let reason = null;
+                  if (nOnline === 0) {
+                    reason = "no online runner";
+                  } else if (nIdle === 0 && nBacklog >= 2) {
+                    reason = `all ${nOnline} runners busy with ${nBacklog} jobs already queued`;
+                  } else if (nDemand > nIdle + 2) {
+                    reason = `demand ${nDemand} exceeds idle ${nIdle} + slack`;
+                  }
+                  if (reason) {
+                    tiers[output] = "ubuntu-latest";
+                    core.warning(`${scaleSet}: ${reason}; falling back to ubuntu-latest.`);
+                  } else {
+                    core.info(`${scaleSet}: online=${nOnline} idle=${nIdle} backlog=${nBacklog} demand=${nDemand} — ok`);
+                  }
+                }
+              } catch (e) {
+                core.warning(`Runner availability probe failed (${e.message}); trusting the label.`);
+              }
+            } else if (selfHosted) {
+              core.info("ARC_STATUS_TOKEN not set; trusting the ci:self-hosted label without probing.");
+            }
+            for (const [output, runner] of Object.entries(tiers)) core.setOutput(output, runner);
+            core.info(`Linux runners: heavy=${tiers.heavy_runner} medium=${tiers.medium_runner} light=${tiers.light_runner}`);
+
             core.setOutput("run_frontend", runFrontend ? "true" : "false");
             core.setOutput("run_amber", runAmber ? "true" : "false");
             core.setOutput("run_amber_integration", runAmberIntegration ? "true" : "false");
@@ -344,3 +549,12 @@ jobs:
               core.info(`Backport targets: ${targets.join(", ")}`);
             }
             core.setOutput("backport_targets", JSON.stringify(targets));
+
+      - name: Clean up job artifacts
+        # No checkout here, but a classic self-hosted runner still keeps the
+        # workspace directory it created for this job; leave it empty for the
+        # next one. always() so a failed or cancelled job cleans up too.
+        if: ${{ always() && runner.environment == 'self-hosted' }}
+        run: |
+          find "${GITHUB_WORKSPACE:?}" -mindepth 1 -maxdepth 1 -exec rm -rf -- {} + 2>/dev/null ||
+            echo "::warning::workspace cleanup incomplete on ${RUNNER_NAME:-this runner}"

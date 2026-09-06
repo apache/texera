@@ -1,0 +1,199 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# Liveness and health probe for the self-hosted runner fleet. `beat` runs on
+# the fleet every 15 minutes and, beyond proving the node is reachable,
+# checks the things that make a classic (non-ephemeral) runner unusable
+# without making it unreachable: disk and inode headroom, a responsive docker
+# daemon, and the tools every build job assumes. A stale last-success means
+# the fleet is down OR unhealthy. Two consumers act on that signal:
+#   - precheck.yml queries the last successful heartbeat directly (plain
+#     GITHUB_TOKEN) and falls back to GitHub-hosted runners for the build
+#     tiers when it is stale.
+#   - `watchdog` mirrors the verdict into the ARC_AVAILABLE repository
+#     variable, which the first-hop runs-on expressions (unable to call
+#     APIs) consult. The workflow GITHUB_TOKEN cannot write variables
+#     ("Resource not accessible by integration"), so watchdog uses
+#     AUTO_MERGE_TOKEN (collaborator suffices for the Variables API) and
+#     degrades to log-only when the secret is absent.
+name: Runner Heartbeat
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+permissions:
+  actions: read
+
+concurrency:
+  group: runner-heartbeat
+  # A beat stuck queueing on a dead fleet is superseded by the next tick
+  # instead of piling up.
+  cancel-in-progress: true
+
+jobs:
+  beat:
+    runs-on: arc-light-linux
+    timeout-minutes: 5
+    steps:
+      - name: Prove the fleet is alive
+        run: echo "self-hosted fleet alive at $(date -u +%FT%TZ) on $RUNNER_NAME"
+      - name: Check node health
+        # Reachable is not the same as healthy. On a classic (non-ephemeral)
+        # runner the node keeps its disk and its docker daemon across every
+        # job it has ever run, so it can answer this heartbeat while being
+        # unable to complete any real build — a full disk, a wedged docker
+        # daemon or a tool that went missing all surface as job failures that
+        # read like code problems. Failing here is the point: the watchdog
+        # below flips ARC_AVAILABLE to false and CI routes back to
+        # GitHub-hosted runners until the node is fixed.
+        #
+        # Scope: this beat runs on one arc-light-linux runner, so what it
+        # proves about disk is that node's disk, not the heavy/medium/bench
+        # tiers'. Turning `beat` into a matrix over all four labels is the
+        # natural extension if the tiers start diverging.
+        run: |
+          set -uo pipefail
+          status=0
+          err()  { echo "::error::$1"; status=1; }
+          warn() { echo "::warning::$1"; }
+
+          # Disk is the realistic killer: build output accumulates until the
+          # root volume fills and the node starts evicting. / and the work
+          # directory can be separate volumes, so check both.
+          for mount in / "${GITHUB_WORKSPACE:-/}"; do
+            free_gib=$(($(df -Pk "$mount" | awk 'NR==2 {print $4}') / 1024 / 1024))
+            used_pct=$(df -Pk "$mount" | awk 'NR==2 {gsub(/%/,"",$5); print $5}')
+            echo "disk $mount: ${free_gib}GiB free, ${used_pct}% used"
+            if [ "$free_gib" -lt 5 ]; then
+              err "disk $mount is nearly full: ${free_gib}GiB free (${used_pct}% used)"
+            elif [ "$free_gib" -lt 15 ]; then
+              warn "disk $mount is filling up: ${free_gib}GiB free (${used_pct}% used)"
+            fi
+            # Inodes can run out with disk to spare (millions of small files
+            # from node_modules / coursier). Some filesystems report '-'.
+            inode_pct=$(df -Pi "$mount" 2>/dev/null | awk 'NR==2 {gsub(/%/,"",$5); print $5}')
+            case "$inode_pct" in
+              ''|*[!0-9]*) ;;
+              *) if [ "$inode_pct" -ge 90 ]; then warn "inode usage on $mount is ${inode_pct}%"; fi ;;
+            esac
+          done
+
+          # Tools every build job assumes. docker is absent by design on some
+          # images (the light tier runs no containers), so it only warns.
+          for tool in git curl unzip tar; do
+            command -v "$tool" >/dev/null 2>&1 || err "required tool missing: $tool"
+          done
+          if command -v docker >/dev/null 2>&1; then
+            if docker info >/dev/null 2>&1; then
+              running=$(docker ps -q | wc -l | tr -d ' ')
+              total=$(docker ps -aq | wc -l | tr -d ' ')
+              echo "docker: daemon ok, ${running} running / ${total} total container(s)"
+              # Leftovers here mean jobs are dying before their cleanup step;
+              # the named ones (postgres, minio, lakekeeper, lakefs) would then
+              # collide with the next job that wants the same name and port.
+              if [ "$total" -gt 5 ]; then
+                warn "${total} containers left on this node; job cleanup is not keeping up"
+              fi
+            else
+              err "docker CLI is present but the daemon is not responding"
+            fi
+          else
+            warn "docker is not available on this runner"
+          fi
+
+          if [ "$status" -ne 0 ]; then
+            echo "node is unhealthy — failing the heartbeat so CI falls back to GitHub-hosted runners"
+            exit 1
+          fi
+          echo "node healthy"
+      - name: Clean up job artifacts
+        # The beat checks nothing out, but it runs every 15 minutes on a
+        # classic runner, so even an empty workspace directory is worth
+        # leaving clean. always() so a failed or cancelled beat cleans up too.
+        if: ${{ always() && runner.environment == 'self-hosted' }}
+        run: |
+          find "${GITHUB_WORKSPACE:?}" -mindepth 1 -maxdepth 1 -exec rm -rf -- {} + 2>/dev/null ||
+            echo "::warning::workspace cleanup incomplete on ${RUNNER_NAME:-this runner}"
+
+  watchdog:
+    runs-on: ubuntu-slim
+    timeout-minutes: 5
+    steps:
+      - name: Mirror fleet health into ARC_AVAILABLE
+        uses: actions/github-script@v9
+        env:
+          VAR_TOKEN: ${{ secrets.AUTO_MERGE_TOKEN }}
+        with:
+          script: |
+            const STALE_MS = 35 * 60 * 1000;
+            const { data } = await github.rest.actions.listWorkflowRuns({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: "runner-heartbeat.yml",
+              status: "success",
+              per_page: 1,
+            });
+            const last = data.workflow_runs?.[0];
+            const lastOk = last ? new Date(last.updated_at).getTime() : 0;
+            const healthy = Date.now() - lastOk <= STALE_MS;
+            core.info(
+              `fleet ${healthy ? "healthy" : "STALE"}; last successful heartbeat: ` +
+              (lastOk ? new Date(lastOk).toISOString() : "never")
+            );
+            if (!process.env.VAR_TOKEN) {
+              core.warning("AUTO_MERGE_TOKEN not set; cannot update ARC_AVAILABLE (log-only).");
+              return;
+            }
+            const desired = healthy ? "true" : "false";
+            // Raw requests rather than github.rest.actions.{get,create,update}
+            // RepoVariable: the `github` client above is bound to the workflow
+            // GITHUB_TOKEN, which cannot write variables, and Octokit's auth
+            // hook overwrites the authorization header on every request, so it
+            // cannot carry AUTO_MERGE_TOKEN. Unlike the runner probe in
+            // precheck.yml, every call in this step could use that token, so
+            // moving the whole step onto `github-token: AUTO_MERGE_TOKEN`
+            // would put all three back on the SDK.
+            const headers = {
+              authorization: `Bearer ${process.env.VAR_TOKEN}`,
+              accept: "application/vnd.github+json",
+            };
+            const base = `https://api.github.com/repos/${context.repo.owner}/${context.repo.repo}/actions/variables`;
+            const cur = await fetch(`${base}/ARC_AVAILABLE`, { headers });
+            if (cur.status === 404) {
+              const res = await fetch(base, {
+                method: "POST",
+                headers,
+                body: JSON.stringify({ name: "ARC_AVAILABLE", value: desired }),
+              });
+              if (!res.ok) throw new Error(`create ARC_AVAILABLE: HTTP ${res.status}`);
+              core.notice(`ARC_AVAILABLE created as ${desired}`);
+            } else if (cur.ok) {
+              const { value } = await cur.json();
+              if (value !== desired) {
+                const res = await fetch(`${base}/ARC_AVAILABLE`, {
+                  method: "PATCH",
+                  headers,
+                  body: JSON.stringify({ name: "ARC_AVAILABLE", value: desired }),
+                });
+                if (!res.ok) throw new Error(`update ARC_AVAILABLE: HTTP ${res.status}`);
+                core.notice(`ARC_AVAILABLE flipped to ${desired}`);
+              }
+            } else {
+              throw new Error(`read ARC_AVAILABLE: HTTP ${cur.status}`);
+            }

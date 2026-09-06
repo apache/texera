@@ -36,6 +36,24 @@ on:
         required: false
         type: string
         default: ""
+      # Runner labels for Linux jobs, three tiers (precheck decides via the
+      # ci:self-hosted PR label; GitHub-hosted ubuntu-latest otherwise).
+      # heavy: amber / amber-integration / frontend (8C/16G class; the
+      # Angular prod build OOMs under the medium tier's 8Gi limit).
+      heavy_runner:
+        required: false
+        type: string
+        default: "ubuntu-latest"
+      # medium: platform / platform-integration / pyamber (4C/8G class).
+      medium_runner:
+        required: false
+        type: string
+        default: "ubuntu-latest"
+      # light: infra / agent-service / pyright (2C/4G class).
+      light_runner:
+        required: false
+        type: string
+        default: "ubuntu-latest"
       run_frontend:
         required: false
         type: boolean
@@ -106,11 +124,11 @@ jobs:
       # `infra` opt out for the same reason.
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: ["${{ inputs.heavy_runner }}", windows-latest, macos-latest]
         include:
           - os: macos-latest
             arch: arm64
-          - os: ubuntu-latest
+          - os: "${{ inputs.heavy_runner }}"
             arch: x64
           - os: windows-latest
             arch: x64
@@ -151,12 +169,12 @@ jobs:
       - name: Prod build
         run: yarn --cwd frontend run build:ci
       - name: Check bundled npm packages against per-module LICENSE-binary files
-        if: matrix.os == 'ubuntu-latest'
+        if: runner.os == 'Linux'
         run: ./bin/licensing/check_binary_deps.py ${{ inputs.mode == 'PR' && '--ignore-transitive-version' || '' }} npm frontend/dist/3rdpartylicenses.json
       - name: Run frontend unit tests
         run: yarn --cwd frontend run test:ci
       - name: Upload frontend coverage to Codecov
-        if: matrix.os == 'ubuntu-latest' && always()
+        if: runner.os == 'Linux' && always()
         uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
@@ -167,7 +185,7 @@ jobs:
         # vitest.config.ts adds a `junit` reporter that writes to junit.xml
         # in the working dir; the @angular/build:unit-test runner forwards
         # vitest config through unchanged.
-        if: matrix.os == 'ubuntu-latest' && !cancelled()
+        if: runner.os == 'Linux' && !cancelled()
         uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
@@ -177,14 +195,14 @@ jobs:
           disable_search: true
           fail_ci_if_error: false
       - name: Install Playwright Chromium
-        run: yarn --cwd frontend playwright install ${{ matrix.os == 'ubuntu-latest' && '--with-deps' || '' }} chromium
+        run: yarn --cwd frontend playwright install ${{ runner.os == 'Linux' && '--with-deps' || '' }} chromium
       - name: Run frontend browser-mode tests
         run: yarn --cwd frontend ng run gui:test-browser
       - name: Upload frontend browser-mode test results to Codecov
         # vitest.browser.config.ts emits junit-browser.xml (distinct from
         # the unit-test report). Same `frontend` flag — Codecov merges
         # multi-file uploads under one flag.
-        if: matrix.os == 'ubuntu-latest' && !cancelled()
+        if: runner.os == 'Linux' && !cancelled()
         uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
@@ -193,6 +211,31 @@ jobs:
           report_type: test_results
           disable_search: true
           fail_ci_if_error: false
+      - name: Clean up job artifacts
+        # The arc-* runners are classic (non-ephemeral): the same workspace,
+        # /tmp and docker daemon are handed to the next job that lands on the
+        # machine, so this job's output (here: node_modules/, .yarn/cache,
+        # dist/) would pile up until the runner's root disk fills. Every
+        # self-hosted job below ends with the same kind of step.
+        #
+        # always() so a failed or cancelled job cleans up too. GitHub-hosted
+        # legs (windows / macos / ubuntu-latest fallback) are throwaway VMs
+        # and skip it. `git clean -x` covers gitignored build output, `-ff`
+        # nested git dirs; .git itself stays so the next checkout is
+        # incremental (fixed size, unlike the build output). The fallback
+        # covers a job whose checkout never completed, and a cleanup that
+        # still cannot finish degrades to a warning rather than turning an
+        # otherwise-green (and merge-gating) job red.
+        #
+        # Deliberately kept inline rather than in a shared script: backport
+        # runs replace the tree with a release branch that predates any new
+        # script, and cleanup must not depend on the tree it is cleaning.
+        if: ${{ always() && runner.environment == 'self-hosted' }}
+        working-directory: ${{ github.workspace }}
+        run: |
+          git clean -xdff ||
+            find . -mindepth 1 -maxdepth 1 -exec rm -rf -- {} + ||
+            echo "::warning::workspace cleanup incomplete on ${RUNNER_NAME:-this runner}"
 
   amber:
     # The amber job runs the cross-cutting Scala lints (scalafmtCheckAll,
@@ -203,7 +246,7 @@ jobs:
     if: ${{ inputs.run_amber }}
     strategy:
       matrix:
-        os: [ubuntu-latest]
+        os: ["${{ inputs.heavy_runner }}"]
         java-version: [17]
     runs-on: ${{ matrix.os }}
     env:
@@ -272,6 +315,14 @@ jobs:
         #       ./bin/licensing/generate_notice_binary.py amber/NOTICE-binary /tmp/dists/amber-*/lib --extras amber/NOTICE-binary-python
         run: |
           set -euo pipefail
+          # Self-heal before unpacking: on a classic runner /tmp survives the
+          # job, and a previous run's unpacked dist makes unzip stop on an
+          # interactive overwrite prompt (no stdin -> exit 1). The cleanup step
+          # at the end of every job removes this, but a job killed outright
+          # (OOM, runner restart) never gets there, so the entry point cannot
+          # assume a clean slate. Every `docker run --name` below is guarded
+          # the same way.
+          rm -rf /tmp/dists/amber-*
           mkdir -p /tmp/dists
           unzip -q amber/target/universal/amber-*.zip -d /tmp/dists/
 
@@ -370,6 +421,18 @@ jobs:
           flags: amber
           report_type: test_results
           fail_ci_if_error: false
+      - name: Clean up job artifacts
+        # Drops the sbt target/ trees, the dist zip, and the dist this job
+        # unpacked under /tmp (which also survives the job on a classic
+        # runner). The `services:` postgres is removed by the runner itself.
+        # See the frontend job above for the full rationale.
+        if: ${{ always() && runner.environment == 'self-hosted' }}
+        working-directory: ${{ github.workspace }}
+        run: |
+          rm -rf /tmp/dists/amber-* /tmp/notice-amber.txt
+          git clean -xdff ||
+            find . -mindepth 1 -maxdepth 1 -exec rm -rf -- {} + ||
+            echo "::warning::workspace cleanup incomplete on ${RUNNER_NAME:-this runner}"
 
   amber-integration:
     # Runs Scala tests tagged @org.apache.texera.amber.tags.IntegrationTest —
@@ -392,7 +455,7 @@ jobs:
       # the docker image, macOS uses brew + the upstream
       # aarch64-apple-darwin lakekeeper tarball.
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: ["${{ inputs.heavy_runner }}", macos-latest]
         java-version: [17]
     runs-on: ${{ matrix.os }}
     env:
@@ -470,6 +533,9 @@ jobs:
         # Linux docker image here.
         run: |
           if [ "$RUNNER_OS" = "Linux" ]; then
+            # Self-heal: a killed job can leave this container behind on a
+            # classic runner, and the name would then be taken.
+            docker rm -f -v postgres >/dev/null 2>&1 || true
             docker run -d --name postgres \
               -p 5432:5432 \
               -e POSTGRES_PASSWORD=postgres \
@@ -516,6 +582,7 @@ jobs:
         # S3-protocol surface that has been stable across releases.
         run: |
           if [ "$RUNNER_OS" = "Linux" ]; then
+            docker rm -f -v minio >/dev/null 2>&1 || true
             docker run -d --name minio --network host \
               -e MINIO_ROOT_USER=texera_minio \
               -e MINIO_ROOT_PASSWORD=password \
@@ -552,6 +619,7 @@ jobs:
               -e LAKEKEEPER__PG_DATABASE_URL_WRITE \
               -e LAKEKEEPER__PG_ENCRYPTION_KEY \
               vakamo/lakekeeper:${LAKEKEEPER_VERSION} migrate
+            docker rm -f -v lakekeeper >/dev/null 2>&1 || true
             docker run -d --name lakekeeper --network host \
               -e LAKEKEEPER__PG_DATABASE_URL_READ \
               -e LAKEKEEPER__PG_DATABASE_URL_WRITE \
@@ -696,11 +764,13 @@ jobs:
         # `amber` and runs in parallel (as platform-integration does vs
         # platform); the sbt compile is already warm from the integration-test
         # run above. ubuntu-only: the boot is pure-JVM and OS-independent.
-        if: matrix.os == 'ubuntu-latest'
+        if: runner.os == 'Linux'
         run: sbt "WorkflowExecutionService/dist"
       - name: Unzip amber dist
-        if: matrix.os == 'ubuntu-latest'
+        if: runner.os == 'Linux'
         run: |
+          # Self-heal: see the amber job's unzip step.
+          rm -rf /tmp/dists/amber-*
           mkdir -p /tmp/dists
           unzip -q amber/target/universal/amber-*.zip -d /tmp/dists/
       - name: Smoke-test texera-web boots
@@ -710,7 +780,7 @@ jobs:
         # working directory for a directory named `amber`; run from the checkout
         # root (the default) that resolves to ./amber and reads
         # amber/src/main/resources/web-config.yml (port 8080).
-        if: matrix.os == 'ubuntu-latest'
+        if: runner.os == 'Linux'
         env:
           # Quiet boot logs, same wiring as the test steps above. Safe here:
           # smoke-boot's verdict is LISTEN-based, never log-scraping (#6332).
@@ -727,7 +797,7 @@ jobs:
         # so no iceberg / S3 access. Config resolves via Utils.amberHomePath to
         # amber/src/main/resources/computing-unit-master-config.yml (port 8085).
         # Reuses the amber dist built + unzipped above for the texera-web boot.
-        if: matrix.os == 'ubuntu-latest'
+        if: runner.os == 'Linux'
         env:
           # Quiet boot logs, same wiring as the test steps above. Safe here:
           # smoke-boot's verdict is LISTEN-based, never log-scraping (#6332).
@@ -755,6 +825,21 @@ jobs:
           flags: amber-integration
           report_type: test_results
           fail_ci_if_error: false
+      - name: Clean up job artifacts
+        # This job starts its infra with `docker run -d` rather than
+        # `services:`, so nothing removes those containers for it — and on a
+        # classic runner they keep running, holding ports 5432 / 9000 / 8181
+        # against the next job (whose own `docker run` would then fail on the
+        # name and the port). -v also drops the anonymous volumes postgres
+        # declares. See the frontend job above for the full rationale.
+        if: ${{ always() && runner.environment == 'self-hosted' }}
+        working-directory: ${{ github.workspace }}
+        run: |
+          docker rm -f -v postgres minio lakekeeper >/dev/null 2>&1 || true
+          rm -rf /tmp/dists/amber-* /tmp/protoc.zip
+          git clean -xdff ||
+            find . -mindepth 1 -maxdepth 1 -exec rm -rf -- {} + ||
+            echo "::warning::workspace cleanup incomplete on ${RUNNER_NAME:-this runner}"
 
   platform:
     # Per-service build, test, and license check for the non-amber Scala
@@ -763,7 +848,7 @@ jobs:
     # cover every module in the amber job above, so this matrix skips them.
     if: ${{ inputs.run_platform }}
     name: ${{ format('platform{0} ({1})', inputs.job_name_suffix, matrix.service) }}
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.medium_runner }}
     strategy:
       fail-fast: false
       matrix:
@@ -861,6 +946,8 @@ jobs:
         if: ${{ steps.module_check.outputs.present == 'true' }}
         run: |
           set -euo pipefail
+          # Self-heal: see the amber job's unzip step.
+          rm -rf /tmp/dists/${{ matrix.service }}-*
           mkdir -p /tmp/dists
           unzip -q ${{ matrix.service }}/target/universal/${{ matrix.service }}-*.zip -d /tmp/dists/
 
@@ -897,6 +984,17 @@ jobs:
           report_type: test_results
           disable_search: true
           fail_ci_if_error: false
+      - name: Clean up job artifacts
+        # Six matrix entries share one runner pool, each leaving its own sbt
+        # target/ tree and unpacked dist behind. See the frontend job above
+        # for the full rationale.
+        if: ${{ always() && runner.environment == 'self-hosted' }}
+        working-directory: ${{ github.workspace }}
+        run: |
+          rm -rf /tmp/dists/${{ matrix.service }}-* "/tmp/notice-${{ matrix.service }}.txt"
+          git clean -xdff ||
+            find . -mindepth 1 -maxdepth 1 -exec rm -rf -- {} + ||
+            echo "::warning::workspace cleanup incomplete on ${RUNNER_NAME:-this runner}"
 
   platform-integration:
     # Boot smoke test for the platform services (mirrors amber-integration: an
@@ -910,7 +1008,7 @@ jobs:
     # alone. Unit tests + coverage stay in `platform`. See #6273.
     if: ${{ inputs.run_platform_integration }}
     name: ${{ format('platform-integration{0} ({1})', inputs.job_name_suffix, matrix.service) }}
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.medium_runner }}
     strategy:
       fail-fast: false
       matrix:
@@ -1002,6 +1100,8 @@ jobs:
       - name: Unzip ${{ matrix.service }} dist
         if: ${{ steps.module_check.outputs.present == 'true' }}
         run: |
+          # Self-heal: see the amber job's unzip step.
+          rm -rf /tmp/dists/${{ matrix.service }}-*
           mkdir -p /tmp/dists
           unzip -q ${{ matrix.service }}/target/universal/${{ matrix.service }}-*.zip -d /tmp/dists/
       - name: Start MinIO
@@ -1009,6 +1109,7 @@ jobs:
         # that service needs an object store, so the rest of the matrix skips this.
         if: ${{ matrix.object_store && steps.module_check.outputs.present == 'true' }}
         run: |
+          docker rm -f -v minio >/dev/null 2>&1 || true
           docker run -d --name minio --network host \
             -e MINIO_ROOT_USER=texera_minio \
             -e MINIO_ROOT_PASSWORD=password \
@@ -1026,6 +1127,7 @@ jobs:
         # adapted to CI creds (postgres/postgres @ localhost).
         if: ${{ matrix.object_store && steps.module_check.outputs.present == 'true' }}
         run: |
+          docker rm -f -v lakefs >/dev/null 2>&1 || true
           docker run -d --name lakefs --network host \
             -e LAKEFS_DATABASE_TYPE=postgres \
             -e "LAKEFS_DATABASE_POSTGRES_CONNECTION_STRING=postgres://postgres:postgres@localhost:5432/texera_lakefs?sslmode=disable" \
@@ -1053,12 +1155,25 @@ jobs:
           # smoke-boot's verdict is LISTEN-based, never log-scraping (#6332).
           TEXERA_SERVICE_LOG_LEVEL: ${{ runner.debug == '1' && 'DEBUG' || 'WARN' }}
         run: .github/scripts/smoke-boot.sh "/tmp/dists/${{ matrix.service }}-*/bin/${{ matrix.service }}" "${{ matrix.port }}"
+      - name: Clean up job artifacts
+        # minio / lakefs are started with `docker run -d` for the file-service
+        # entry only, but removing them unconditionally is harmless (a missing
+        # container is ignored). See the frontend job above for the full
+        # rationale.
+        if: ${{ always() && runner.environment == 'self-hosted' }}
+        working-directory: ${{ github.workspace }}
+        run: |
+          docker rm -f -v minio lakefs >/dev/null 2>&1 || true
+          rm -rf /tmp/dists/${{ matrix.service }}-*
+          git clean -xdff ||
+            find . -mindepth 1 -maxdepth 1 -exec rm -rf -- {} + ||
+            echo "::warning::workspace cleanup incomplete on ${RUNNER_NAME:-this runner}"
 
   pyamber:
     if: ${{ inputs.run_pyamber }}
     strategy:
       matrix:
-        os: [ubuntu-latest]
+        os: ["${{ inputs.medium_runner }}"]
         python-version: ["3.11", "3.12", "3.13"]
     runs-on: ${{ matrix.os }}
     services:
@@ -1176,6 +1291,17 @@ jobs:
           report_type: test_results
           disable_search: true
           fail_ci_if_error: false
+      - name: Clean up job artifacts
+        # Three python legs land on the same pool; each leaves generated proto
+        # bindings, .pytest_cache and coverage output in the workspace. See
+        # the frontend job above for the full rationale.
+        if: ${{ always() && runner.environment == 'self-hosted' }}
+        working-directory: ${{ github.workspace }}
+        run: |
+          rm -rf /tmp/protoc.zip /tmp/pip-licenses.csv
+          git clean -xdff ||
+            find . -mindepth 1 -maxdepth 1 -exec rm -rf -- {} + ||
+            echo "::warning::workspace cleanup incomplete on ${RUNNER_NAME:-this runner}"
 
   agent-service:
     if: ${{ inputs.run_agent_service }}
@@ -1184,7 +1310,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: ["${{ inputs.light_runner }}", macos-latest]
         bun-version: ["1.3.3"]
     defaults:
       run:
@@ -1206,12 +1332,12 @@ jobs:
       - name: Install production dependencies
         run: bun install --production --frozen-lockfile
       - name: Generate agent-service license manifest
-        if: matrix.os == 'ubuntu-latest'
+        if: runner.os == 'Linux'
         run: |
           mkdir -p dist
           bun run bin/collect-licenses.ts > dist/3rdpartylicenses.json
       - name: Check bundled agent-service packages against per-module LICENSE-binary files
-        if: matrix.os == 'ubuntu-latest'
+        if: runner.os == 'Linux'
         run: ../bin/licensing/check_binary_deps.py ${{ inputs.mode == 'PR' && '--ignore-transitive-version' || '' }} agent-npm dist/3rdpartylicenses.json
       - name: Install development dependencies
         run: bun install --frozen-lockfile
@@ -1231,7 +1357,7 @@ jobs:
           TEXERA_SERVICE_LOG_LEVEL: ${{ runner.debug == '1' && 'DEBUG' || 'WARN' }}
         run: bun test --coverage --coverage-reporter=lcov --reporter=junit --reporter-outfile=junit.xml
       - name: Upload agent-service coverage to Codecov
-        if: matrix.os == 'ubuntu-latest' && always()
+        if: runner.os == 'Linux' && always()
         uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
@@ -1241,7 +1367,7 @@ jobs:
       - name: Upload agent-service test results to Codecov
         # Test Analytics ingestion. Runs on the same ubuntu leg that
         # uploads coverage. `!cancelled()` so test failures still upload.
-        if: matrix.os == 'ubuntu-latest' && !cancelled()
+        if: runner.os == 'Linux' && !cancelled()
         uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
@@ -1250,6 +1376,16 @@ jobs:
           report_type: test_results
           disable_search: true
           fail_ci_if_error: false
+      - name: Clean up job artifacts
+        # working-directory overrides the job default (agent-service) so the
+        # clean covers the whole workspace, not just that subdirectory. See
+        # the frontend job above for the full rationale.
+        if: ${{ always() && runner.environment == 'self-hosted' }}
+        working-directory: ${{ github.workspace }}
+        run: |
+          git clean -xdff ||
+            find . -mindepth 1 -maxdepth 1 -exec rm -rf -- {} + ||
+            echo "::warning::workspace cleanup incomplete on ${RUNNER_NAME:-this runner}"
 
   infra:
     # Generic project-tooling job — runs the lightweight (no docker, no
@@ -1266,7 +1402,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: ["${{ inputs.light_runner }}", macos-latest]
         python-version: ["3.12"]
     steps:
       - name: Checkout Texera
@@ -1312,6 +1448,15 @@ jobs:
         # pass, and any future tooling test suite under bin/ comes
         # along without this workflow being edited.
         run: python -m pytest bin/ -v --tb=short
+      - name: Clean up job artifacts
+        # Leftovers here are the checkout plus the pytest caches. See the
+        # frontend job above for the full rationale.
+        if: ${{ always() && runner.environment == 'self-hosted' }}
+        working-directory: ${{ github.workspace }}
+        run: |
+          git clean -xdff ||
+            find . -mindepth 1 -maxdepth 1 -exec rm -rf -- {} + ||
+            echo "::warning::workspace cleanup incomplete on ${RUNNER_NAME:-this runner}"
 
   pyright-language-service:
     # Typecheck-only job for the standalone Pyright LSP bridge (the language
@@ -1325,7 +1470,7 @@ jobs:
     # stays a fast, docker-free job.
     if: ${{ inputs.run_pyright_language_service }}
     name: ${{ format('pyright-language-service{0}', inputs.job_name_suffix) }}
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.light_runner }}
     defaults:
       run:
         working-directory: pyright-language-service
@@ -1354,3 +1499,13 @@ jobs:
       - name: Typecheck
         # allowImportingTsExtensions in tsconfig.json requires --noEmit.
         run: yarn tsc --noEmit
+      - name: Clean up job artifacts
+        # working-directory overrides the job default (pyright-language-service)
+        # so the clean covers the whole workspace, node_modules/ included. See
+        # the frontend job above for the full rationale.
+        if: ${{ always() && runner.environment == 'self-hosted' }}
+        working-directory: ${{ github.workspace }}
+        run: |
+          git clean -xdff ||
+            find . -mindepth 1 -maxdepth 1 -exec rm -rf -- {} + ||
+            echo "::warning::workspace cleanup incomplete on ${RUNNER_NAME:-this runner}"
