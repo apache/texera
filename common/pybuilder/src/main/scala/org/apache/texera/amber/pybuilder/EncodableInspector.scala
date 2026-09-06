@@ -52,12 +52,22 @@ final class EncodableInspector[C <: blackbox.Context](val c: C) {
     * If we are pointing at a getter/accessor, hop to its accessed field symbol when possible.
     *
     * Why: Many annotations are placed on constructor params/fields, but call sites see the accessor.
+    *
+    * The hop is conditional because it is not always possible. A trait member has no backing field
+    * of its own, so its accessor's `accessed` is `NoSymbol`, and hopping there unconditionally
+    * would throw the annotation away: `@EncodableStringAnnotation` also targets `METHOD`, and for a
+    * trait `val`/`var` scalac leaves it on the accessor itself. Fall back to the accessor so those
+    * members are still recognised as Encodable.
+    *
+    * (Only `TermSymbol` is matched: `MethodSymbol` is a subtype of it, so a getter - which is both -
+    * is already covered here.)
     */
   private def safeAccessed(sym: Symbol): Symbol =
     sym match {
-      case termAccessor: TermSymbol if termAccessor.isAccessor       => termAccessor.accessed
-      case methodAccessor: MethodSymbol if methodAccessor.isAccessor => methodAccessor.accessed
-      case _                                                         => sym
+      case accessor: TermSymbol if accessor.isAccessor =>
+        val field = accessor.accessed
+        if (field == null || field == NoSymbol) accessor else field
+      case _ => sym
     }
 
   /** True if an annotation instance is @EncodableStringAnn. */
